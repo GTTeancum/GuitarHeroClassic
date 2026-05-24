@@ -36,6 +36,28 @@ For automated smoke playback (drives the menus to gameplay via synthetic keyboar
 .\smoke_play.ps1                 # uses MnK on slot 1 so it doesn't fight a real XInput controller on slot 0
 ```
 
+## Tools
+
+### `tools/ark/` — Harmonix ARK v3 reader (C++17)
+
+Reads PS2-era ARK files (GH1, GH2, GH80s). The hybrid-load experiment proved that GH2 360's recompiled engine cannot consume PS2 ARKs directly (HDR format mismatch, plus `_ps2` vs `_xbox` asset payloads), so the OG Xbox port needs its own ARK layer. This is the foundation of it.
+
+```powershell
+# Build (standalone CMake, separate from gh2test)
+& "$PWD\build_env.bat" cmake -G Ninja -S tools\ark -B tools\ark\build -DCMAKE_BUILD_TYPE=Release
+& "$PWD\build_env.bat" cmake --build tools\ark\build
+
+# List / extract
+.\tools\ark\build\ark_tool.exe list   "C:\path\to\MAIN.HDR" --ext-summary
+.\tools\ark\build\ark_tool.exe extract "C:\path\to\MAIN.HDR" "C:\path\to\MAIN_0.ARK" `
+  --path "songs/bangyourhead/bangyourhead.mid" --out bangyourhead.mid
+.\tools\ark\build\ark_tool.exe extract-all "C:\path\to\MAIN.HDR" "C:\path\to\MAIN_0.ARK" --out extracted\
+```
+
+Verified byte-identical against direct `seek+read` on GH80s `MAIN_0.ARK`. Also parses GH1 (USA) cleanly. Format-only reference (not a code port): [malictus/arkexpander](https://github.com/malictus/arkexpander) (Apache-2.0).
+
+There's also a tiny Python reader at `tools/parse_v3_hdr.py` that does the same enumeration in ~100 lines — useful for one-off inspection without building.
+
 ## Lineage
 
 Originally derived from [YoshiCrystal9/re-gh2](https://github.com/YoshiCrystal9/re-gh2), then migrated to the current rexglue-sdk v0.8.0-dev API (new `rex::ReXApp` base class, manifest-based codegen, chunk function hints). Repository severed from the fork lineage because the goal here is OG Xbox, not the Win64 demo.
