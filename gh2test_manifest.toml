@@ -1,0 +1,20 @@
+[project]
+sdk_version = "0.8.0.0"
+name = "gh2test"
+
+[entrypoint]
+file_path = "assets/default.xex"
+out_directory_path = "generated"
+includes = []
+
+setjmp_address = 0x82690C90
+longjmp_address = 0x82690A40
+
+[entrypoint.functions]
+# Mid-function entry points that the runtime calls indirectly (function pointers,
+# tail calls, etc). Marked as `parent` chunks so they don't trigger overlap
+# validation with the enclosing function from gh2test_config.toml.
+0x826BD170 = { name = "rex_sub_826BD170", parent = 0x826BD0A8 }
+0x826AE588 = { name = "rex_sub_826AE588", parent = 0x826AE340 }
+0x826A08B0 = { name = "rex_sub_826A08B0", parent = 0x826A0818 }
+0X826DED50 = { name = "rex_sub_826DED50", parent = 0x826DC2E8 }

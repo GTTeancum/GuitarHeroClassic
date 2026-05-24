@@ -1,0 +1,22 @@
+/.idea
+/.vs
+/.vscode
+
+# Copyrighted game assets - never commit
+/assets/
+
+# Build artifacts and codegen output
+/out
+/generated/*
+!/generated/rexglue.cmake
+
+# Logs and screenshots produced by smoke tests
+/*.log
+/*.log.*
+/*.png
+/smoke_shots/
+
+# Backups
+/*.bak
+/scratch_init/
+/src/_phase_a_backup/
