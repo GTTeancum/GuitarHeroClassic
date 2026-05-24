@@ -58,6 +58,61 @@ Verified byte-identical against direct `seek+read` on GH80s `MAIN_0.ARK`. Also p
 
 There's also a tiny Python reader at `tools/parse_v3_hdr.py` that does the same enumeration in ~100 lines — useful for one-off inspection without building.
 
+### `tools/dtb/` — DTB script tree reader (C++17)
+
+Reads compiled DTA (`.dtb`) files used across all Harmonix titles for song metadata, character defs, UI configs, ark-build configs, etc. Handles both plaintext and PS2-cipher-encrypted DTBs (auto-detected by first byte). Renders back to DTA-style S-expression text for inspection.
+
+```powershell
+& "$PWD\build_env.bat" cmake -G Ninja -S tools\dtb -B tools\dtb\build -DCMAKE_BUILD_TYPE=Release
+& "$PWD\build_env.bat" cmake --build tools\dtb\build
+.\tools\dtb\build\dtb_tool.exe info  some.dtb
+.\tools\dtb\build\dtb_tool.exe dump  some.dtb [--lines]
+```
+
+### `tools/texture_ps2/` — `.bmp_ps2` / `.png_ps2` reader (C++17)
+
+Both extensions wrap the same HMXBitmap container. Reads 4bpp and 8bpp indexed PS2 textures (encoding=3), applies the 8bpp palette bit-swap, rescales PS2 0..128 alpha to 0..255, and writes a 32-bit BGRA BMP with alpha preserved.
+
+```powershell
+& "$PWD\build_env.bat" cmake -G Ninja -S tools\texture_ps2 -B tools\texture_ps2\build -DCMAKE_BUILD_TYPE=Release
+& "$PWD\build_env.bat" cmake --build tools\texture_ps2\build
+.\tools\texture_ps2\build\tex_tool.exe info   character.bmp_ps2
+.\tools\texture_ps2\build\tex_tool.exe decode character.bmp_ps2 --out character.bmp
+```
+
+### `tools/vgs/` — VGS audio decoder (C++17)
+
+Decodes Harmonix VGS multi-channel PS-ADPCM audio (the per-stem container used by GH PS2 songs) to interleaved 16-bit PCM and writes a standard RIFF WAV. Validates against GH80s crowd ambience (22050 Hz stereo, 19 sec) and produces real audio (non-trivial sample variance).
+
+```powershell
+& "$PWD\build_env.bat" cmake -G Ninja -S tools\vgs -B tools\vgs\build -DCMAKE_BUILD_TYPE=Release
+& "$PWD\build_env.bat" cmake --build tools\vgs\build
+.\tools\vgs\build\vgs_tool.exe info   crowd.vgs
+.\tools\vgs\build\vgs_tool.exe decode crowd.vgs --out crowd.wav
+```
+
+Format reference (for VGS container only — PS-ADPCM decoder is an original implementation of the public spec): [vgmstream](https://github.com/vgmstream/vgmstream).
+
+### `tools/milo/` — `.milo_ps2` container reader (C++17, structural)
+
+Reads Harmonix's milo scene container. Supports the four common compression structures (MILO_A uncompressed, MILO_B ZLIB blocks, MILO_C GZIP blocks, MILO_D ZLIB+prefix), inflates payload, and walks the post-decompression object directory to enumerate child objects by (type, name, size). Deep per-class parsing (Mesh, Tex, BandCharacter…) is its own follow-up work; this is the structural pass that tells you what's in any milo.
+
+Depends on [miniz](https://github.com/richgel999/miniz) (MIT) — vendored as a submodule under `third_party/miniz/`.
+
+```powershell
+& "$PWD\build_env.bat" cmake -G Ninja -S tools\milo -B tools\milo\build -DCMAKE_BUILD_TYPE=Release
+& "$PWD\build_env.bat" cmake --build tools\milo\build
+.\tools\milo\build\milo_tool.exe info    scene.milo_ps2
+.\tools\milo\build\milo_tool.exe list    scene.milo_ps2
+.\tools\milo\build\milo_tool.exe extract scene.milo_ps2 --out out_dir\
+```
+
+Validated on a GH80s venue (`small2_geom.milo_ps2`, 1.1 MB → 2.5 MB inflated, 337 entries: Meshes/Mats/Texes/Anims/Triggers/etc).
+
+### Format reference: `third_party/Mackiloha/`
+
+[PikminGuts92/Mackiloha](https://github.com/PikminGuts92/Mackiloha) (MIT, C#/.NET) is vendored as a submodule for format specs. It's the canonical Harmonix-format toolkit and remains the ground-truth reference for behavior cross-checks. Our C++17 implementations under `tools/<format>/` are original code based on reading the publicly-known format from the references; they're not translations.
+
 ## Lineage
 
 Originally derived from [YoshiCrystal9/re-gh2](https://github.com/YoshiCrystal9/re-gh2), then migrated to the current rexglue-sdk v0.8.0-dev API (new `rex::ReXApp` base class, manifest-based codegen, chunk function hints). Repository severed from the fork lineage because the goal here is OG Xbox, not the Win64 demo.

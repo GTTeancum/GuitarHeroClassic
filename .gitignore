@@ -7,7 +7,8 @@
 
 # Build artifacts and codegen output
 /out
-/tools/ark/build/
+/tools/*/build/
+/tools/sandbox/
 /generated/*
 !/generated/rexglue.cmake
 
