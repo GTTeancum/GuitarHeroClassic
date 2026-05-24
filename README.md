@@ -18,9 +18,33 @@ The deliverable. Currently a catalog enumeration MVP: opens a PS2 Harmonix ARK, 
 .\engine\build\ghogx.exe --hdr <main.hdr> --ark <main_0.ark> [--json]
 ```
 
-Validated on GH80s PS2: 1761 ARK entries indexed, 84 KB encrypted songs.dtb decrypted+parsed in-process, 47 song records extracted with full metadata (display name, artist, default character/guitar/venue, preview range, MIDI + master-audio paths).
-
 Built on the standalone reader libraries (`tools/ark`, `tools/dtb`, `tools/texture_ps2`, `tools/vgs`, `tools/milo`); each is linked as a static lib.
+
+#### `ghogx` subcommands (headless)
+
+```powershell
+.\engine\build\ghogx.exe songs   --ark-dir "<GH80s>\GEN"   # 47 songs incl. tutorials
+.\engine\build\ghogx.exe venues  --ark-dir "<GH80s>\GEN"   # 6 venues w/ sound bank + crowd levels
+.\engine\build\ghogx.exe chars   --ark-dir "<GH80s>\GEN"   # outfit/guitar/venue usage histogram
+.\engine\build\ghogx.exe all     --ark-dir "<GH80s>\GEN"   # all of the above
+
+# Extract every Tex-class entry from a milo, decode to 32-bit BMP:
+.\engine\build\ghogx.exe tex-from-milo --ark-dir "<GH80s>\GEN" `
+    --milo-path "world/small2/og/gen/small2_geom.milo_ps2" `
+    --out-dir   small2_textures\
+```
+
+On the small2 (Open Mic) venue: 42 textures decoded, 3 skipped (reference external paths), 0 failures.
+
+#### `ghogx_viewer` (Win32 GDI + WaveOut)
+
+```powershell
+.\engine\build\ghogx_viewer.exe --ark-dir "<GH80s>\GEN" `
+    --tex-path  "ui/image/og/gen/us_poster_character_keep.png_ps2" `
+    --vgs-path  "world/arena/streams/crowd_v6_4good.vgs"
+```
+
+Opens a window with the decoded PS2 texture; simultaneously decodes the VGS stem and plays it back via the Win32 WaveOut API. Single binary, no SDL, no external runtime. The audiovisual proof that PS2 assets run natively on PC.
 
 ## Legacy: rexglue 360 recompile (reference only)
 

@@ -1,19 +1,31 @@
 // ghogx - GuitarHeroOGX native engine entrypoint.
 //
-// Current scope: catalog enumeration MVP. Opens a PS2 Harmonix ARK (GH1 /
-// GH2 / GH80s lineage), pulls config/gen/songs.dtb, and prints the song
-// catalog parsed out of it. End-to-end validation that PS2 assets load
-// natively without any 360-binary involvement.
+// Multi-mode CLI over a PS2 Harmonix ARK. All reads go through the static
+// libraries under tools/; no 360-binary involvement, no shim layer.
 //
-// Future scope: gameplay, rendering, audio. This file is the seed.
+// Subcommands:
+//   songs        List the song catalog (config/gen/songs.dtb)
+//   venues       List venues discovered via world/<x>/gen/<x>.dtb
+//   chars        Aggregate character outfits / guitars / venues referenced
+//                across all songs
+//   all          songs + venues + chars in one run
+//   tex-from-milo --milo-path <p> --out-dir <d>
+//                Decompress a milo, extract every Tex-class entry, decode
+//                and write each as a 32-bit BMP.
 
 #include "ark_v3.h"
 #include "dtb.h"
+#include "milo.h"
+#include "ps2_texture.h"
 #include "catalog.h"
+#include "venue_catalog.h"
+#include "character_catalog.h"
+#include "milo_tex.h"
 
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -23,48 +35,61 @@ namespace {
 
 void usage() {
     std::fprintf(stderr,
-        "ghogx - GuitarHeroOGX native engine (catalog MVP)\n"
+        "ghogx - GuitarHeroOGX native engine\n"
         "\n"
         "Usage:\n"
-        "  ghogx --ark-dir <dir>            Directory containing MAIN.HDR / main.hdr\n"
-        "                                   and MAIN_0.ARK / main_0.ark\n"
-        "  ghogx --hdr <path> --ark <path>  Explicit HDR + ARK paths\n"
+        "  ghogx <subcommand> [--ark-dir <dir> | --hdr <p> --ark <p>] [opts]\n"
         "\n"
-        "Options:\n"
-        "  --json                           Emit catalog as JSON instead of table\n"
-        "  --catalog <dtb-path-in-ark>      Override the catalog DTB lookup path\n"
-        "                                   (default: config/gen/songs.dtb)\n");
+        "Subcommands:\n"
+        "  songs                              song catalog (default)\n"
+        "  venues                             venue list\n"
+        "  chars                              character/guitar/venue aggregate from songs\n"
+        "  all                                songs + venues + chars\n"
+        "  tex-from-milo --milo-path <p>\n"
+        "                --out-dir <d>        extract textures from a milo\n"
+        "\n"
+        "Common options:\n"
+        "  --ark-dir <dir>                    dir with MAIN.HDR + MAIN_0.ARK\n"
+        "  --hdr <p> --ark <p>                explicit paths\n"
+        "  --json                             JSON output (songs/chars/venues)\n"
+        "  --catalog <path>                   override songs DTB path\n");
     std::exit(2);
 }
 
 struct Args {
+    std::string sub = "songs";
     std::string hdr;
     std::string ark;
     std::string catalog_path = "config/gen/songs.dtb";
+    std::string milo_path;
+    std::string out_dir;
     bool json = false;
 };
 
 Args parse_args(int argc, char** argv) {
     Args a;
+    int i = 1;
+    if (argc > 1 && argv[1][0] != '-') { a.sub = argv[1]; i = 2; }
+
     std::string ark_dir;
-    for (int i = 1; i < argc; ++i) {
+    for (; i < argc; ++i) {
         std::string_view k = argv[i];
         auto need = [&](const char* name) -> const char* {
             if (i + 1 >= argc) { std::fprintf(stderr, "%s requires a value\n", name); std::exit(2); }
             return argv[++i];
         };
-        if (k == "--ark-dir")      ark_dir = need("--ark-dir");
-        else if (k == "--hdr")     a.hdr = need("--hdr");
-        else if (k == "--ark")     a.ark = need("--ark");
-        else if (k == "--catalog") a.catalog_path = need("--catalog");
-        else if (k == "--json")    a.json = true;
+        if (k == "--ark-dir")        ark_dir = need("--ark-dir");
+        else if (k == "--hdr")       a.hdr = need("--hdr");
+        else if (k == "--ark")       a.ark = need("--ark");
+        else if (k == "--catalog")   a.catalog_path = need("--catalog");
+        else if (k == "--milo-path") a.milo_path = need("--milo-path");
+        else if (k == "--out-dir")   a.out_dir = need("--out-dir");
+        else if (k == "--json")      a.json = true;
         else if (k == "-h" || k == "--help") usage();
         else { std::fprintf(stderr, "unknown arg: %s\n", argv[i]); usage(); }
     }
 
     if (!ark_dir.empty()) {
-        // Resolve case-insensitively-ish: try both upper- and lower-case
-        // file names the way Harmonix ships them across PS2 disc layouts.
         fs::path d = ark_dir;
         for (auto hdr_name : {"main.hdr", "MAIN.HDR"}) {
             if (fs::exists(d / hdr_name)) { a.hdr = (d / hdr_name).string(); break; }
@@ -80,30 +105,29 @@ Args parse_args(int argc, char** argv) {
     return a;
 }
 
-std::string json_escape(const std::string& s) {
-    std::string out;
-    out.reserve(s.size() + 2);
-    for (char c : s) {
-        switch (c) {
-            case '"':  out.append("\\\""); break;
-            case '\\': out.append("\\\\"); break;
-            case '\n': out.append("\\n");  break;
-            case '\r': out.append("\\r");  break;
-            case '\t': out.append("\\t");  break;
-            default:
-                if (static_cast<unsigned char>(c) < 0x20) {
-                    char buf[8];
-                    std::snprintf(buf, sizeof(buf), "\\u%04x", c);
-                    out.append(buf);
-                } else {
-                    out.push_back(c);
-                }
-        }
+std::optional<gh::ark::Entry> find_in_ark(const gh::ark::ArkV3Reader& ark,
+                                          const std::string& path) {
+    auto e = ark.find(path);
+    if (!e) {
+        std::string alt = "../../system/run/" + path;
+        e = ark.find(alt);
     }
-    return out;
+    return e;
 }
 
-void print_table(const std::vector<ghogx::catalog::Song>& songs) {
+std::vector<ghogx::catalog::Song> load_songs(const gh::ark::ArkV3Reader& ark,
+                                             const std::string& ark_path,
+                                             const std::string& dtb_path) {
+    auto e = find_in_ark(ark, dtb_path);
+    if (!e) throw std::runtime_error("catalog DTB not found: " + dtb_path);
+    auto bytes = ark.read_entry(*e, {ark_path});
+    auto tree = gh::dtb::parse(bytes);
+    return ghogx::catalog::extract_songs(tree);
+}
+
+// ----- printers ------------------------------------------------------------
+
+void print_songs_table(const std::vector<ghogx::catalog::Song>& songs) {
     std::printf("\n%-22s  %-32s  %-22s  %-10s  %-10s  %s\n",
                 "shortname", "name", "artist", "guitar", "venue", "preview (s)");
     std::printf("%s\n", std::string(120, '-').c_str());
@@ -125,29 +149,87 @@ void print_table(const std::vector<ghogx::catalog::Song>& songs) {
     std::printf("\n%zu songs total\n", songs.size());
 }
 
-void print_json(const std::vector<ghogx::catalog::Song>& songs) {
-    std::printf("[\n");
-    for (size_t i = 0; i < songs.size(); ++i) {
-        const auto& s = songs[i];
-        std::printf("  {\n");
-        std::printf("    \"shortname\": \"%s\",\n", json_escape(s.shortname).c_str());
-        std::printf("    \"name\": \"%s\",\n",      json_escape(s.display_name).c_str());
-        std::printf("    \"artist\": \"%s\",\n",    json_escape(s.artist).c_str());
-        std::printf("    \"midi_path\": \"%s\",\n", json_escape(s.midi_path).c_str());
-        std::printf("    \"master_audio_path\": \"%s\"", json_escape(s.master_audio_path).c_str());
-        if (s.preview_start_ms && s.preview_end_ms) {
-            std::printf(",\n    \"preview_ms\": [%d, %d]",
-                        *s.preview_start_ms, *s.preview_end_ms);
-        }
-        if (s.quickplay) {
-            std::printf(",\n    \"quickplay\": {\"character_outfit\":\"%s\",\"guitar\":\"%s\",\"venue\":\"%s\"}",
-                        json_escape(s.quickplay->character_outfit).c_str(),
-                        json_escape(s.quickplay->guitar).c_str(),
-                        json_escape(s.quickplay->venue).c_str());
-        }
-        std::printf("\n  }%s\n", (i + 1 < songs.size() ? "," : ""));
+void print_venues_table(const std::vector<ghogx::catalog::Venue>& vs) {
+    std::printf("\n%-16s  %-22s  %s\n", "shortname", "sound_bank", "crowd_levels");
+    std::printf("%s\n", std::string(60, '-').c_str());
+    for (const auto& v : vs) {
+        std::printf("%-16s  %-22s  %d\n",
+                    v.shortname.c_str(),
+                    v.sound_bank ? v.sound_bank->c_str() : "(unknown)",
+                    v.crowd_levels);
     }
-    std::printf("]\n");
+    std::printf("\n%zu venues total\n", vs.size());
+}
+
+void print_chars_table(const ghogx::catalog::CharacterAggregate& agg) {
+    auto print_list = [](const char* label,
+                         const std::vector<std::pair<std::string, int>>& xs) {
+        std::printf("\n%s (%zu unique):\n", label, xs.size());
+        for (const auto& [k, n] : xs) std::printf("  %4d  %s\n", n, k.c_str());
+    };
+    print_list("Character outfits",       agg.outfits);
+    print_list("Guitar models",           agg.guitars);
+    print_list("Default venues (by song)", agg.venues);
+}
+
+// ----- tex-from-milo -------------------------------------------------------
+
+int run_tex_from_milo(const Args& a, const gh::ark::ArkV3Reader& ark) {
+    if (a.milo_path.empty() || a.out_dir.empty()) {
+        std::fprintf(stderr, "tex-from-milo needs --milo-path and --out-dir\n");
+        return 2;
+    }
+    auto e = find_in_ark(ark, a.milo_path);
+    if (!e) {
+        std::fprintf(stderr, "milo not found in ARK: %s\n", a.milo_path.c_str());
+        return 1;
+    }
+    std::fprintf(stderr, "[ghogx] reading milo %s (%u bytes)\n",
+                 a.milo_path.c_str(), e->size);
+    auto bytes = ark.read_entry(*e, {a.ark});
+
+    auto hdr = gh::milo::parse_header(bytes);
+    std::fprintf(stderr, "[ghogx] milo structure 0x%08X, %u blocks\n",
+                 static_cast<uint32_t>(hdr.structure), hdr.block_count);
+    auto payload = gh::milo::inflate_payload(bytes, hdr);
+    std::fprintf(stderr, "[ghogx] inflated to %zu bytes\n", payload.size());
+    auto dir = gh::milo::parse_directory(payload);
+    std::fprintf(stderr, "[ghogx] dir v%d type=%s name=%s entries=%zu\n",
+                 dir.dir_version, dir.dir_type.c_str(),
+                 dir.dir_name.c_str(), dir.entries.size());
+
+    fs::create_directories(a.out_dir);
+    int ok = 0, fail = 0, skipped = 0;
+    for (const auto& entry : dir.entries) {
+        if (entry.type != "Tex") continue;
+        try {
+            std::vector<uint8_t> tex_bytes(payload.data() + entry.offset,
+                                           payload.data() + entry.offset + entry.size);
+            auto tex = ghogx::milo::parse_tex_entry(entry.name, tex_bytes);
+            if (tex.use_external) {
+                std::fprintf(stderr, "  [skip] %s -> external %s\n",
+                             entry.name.c_str(), tex.external_path.c_str());
+                ++skipped; continue;
+            }
+            if (tex.bitmap.encoding != 3) {
+                std::fprintf(stderr, "  [skip] %s -> encoding %d (not indexed)\n",
+                             entry.name.c_str(), tex.bitmap.encoding);
+                ++skipped; continue;
+            }
+            auto rgba = gh::tex::decode_to_rgba(tex.bitmap);
+            std::string safe = entry.name;
+            for (auto& c : safe) { if (c == '/' || c == '\\') c = '_'; }
+            fs::path dst = fs::path(a.out_dir) / (safe + ".bmp");
+            gh::tex::write_bmp32(dst.string(), tex.bitmap.width, tex.bitmap.height, rgba);
+            ++ok;
+        } catch (const std::exception& ex) {
+            std::fprintf(stderr, "  [fail] %s: %s\n", entry.name.c_str(), ex.what());
+            ++fail;
+        }
+    }
+    std::printf("decoded %d, skipped %d, failed %d  -> %s\n",
+                ok, skipped, fail, a.out_dir.c_str());
+    return fail > 0 ? 1 : 0;
 }
 
 }  // anonymous namespace
@@ -163,38 +245,32 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "[ghogx] %zu entries indexed (ARK v%u)\n",
                      ark.entries().size(), ark.version());
 
-        // Catalog lookup. Try the supplied path first; if the ARK uses the
-        // legacy "../../system/run/" prefix we'll fall back to that too.
-        auto entry = ark.find(a.catalog_path);
-        if (!entry) {
-            std::string alt = "../../system/run/" + a.catalog_path;
-            entry = ark.find(alt);
-            if (entry) {
-                std::fprintf(stderr, "[ghogx] catalog found at %s\n", alt.c_str());
-            }
-        } else {
-            std::fprintf(stderr, "[ghogx] catalog found at %s\n", a.catalog_path.c_str());
+        if (a.sub == "tex-from-milo") return run_tex_from_milo(a, ark);
+
+        // Lazy-load whatever each sub needs.
+        std::vector<ghogx::catalog::Song> songs;
+        auto need_songs = [&]() {
+            if (songs.empty()) songs = load_songs(ark, a.ark, a.catalog_path);
+        };
+
+        if (a.sub == "songs" || a.sub == "all") {
+            need_songs();
+            print_songs_table(songs);
         }
-        if (!entry) {
-            std::fprintf(stderr, "[ghogx] catalog DTB not found: %s\n", a.catalog_path.c_str());
-            return 1;
+        if (a.sub == "venues" || a.sub == "all") {
+            auto vs = ghogx::catalog::extract_venues(ark, a.ark);
+            print_venues_table(vs);
         }
-
-        std::fprintf(stderr, "[ghogx] reading catalog (%u bytes)\n", entry->size);
-        // ark_part is zero-based into the supplied list; v3 single-part ARKs
-        // always set ark_part=0 so we pass just the one .ark file.
-        auto bytes = ark.read_entry(*entry, {a.ark});
-
-        std::fprintf(stderr, "[ghogx] parsing DTB\n");
-        auto tree = gh::dtb::parse(bytes);
-        std::fprintf(stderr, "[ghogx] root_count=%zu, embedded=%s\n",
-                     tree.root.size(), tree.embedded ? "yes" : "no");
-
-        std::fprintf(stderr, "[ghogx] extracting song records\n");
-        auto songs = ghogx::catalog::extract_songs(tree);
-        std::fprintf(stderr, "[ghogx] extracted %zu songs\n\n", songs.size());
-
-        if (a.json) print_json(songs); else print_table(songs);
+        if (a.sub == "chars" || a.sub == "all") {
+            need_songs();
+            auto agg = ghogx::catalog::aggregate_from_songs(songs);
+            print_chars_table(agg);
+        }
+        if (a.sub != "songs" && a.sub != "venues" && a.sub != "chars" &&
+            a.sub != "all") {
+            std::fprintf(stderr, "unknown subcommand: %s\n", a.sub.c_str());
+            usage();
+        }
         return 0;
     } catch (const std::exception& e) {
         std::fprintf(stderr, "[ghogx] FATAL: %s\n", e.what());
