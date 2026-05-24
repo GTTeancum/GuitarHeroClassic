@@ -13,8 +13,10 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -66,5 +68,35 @@ std::string to_dta(const Tree& tree, bool show_line_numbers = false);
 // File helpers.
 std::vector<uint8_t> read_file(const std::string& path);
 inline Tree parse_file(const std::string& path) { return parse(read_file(path)); }
+
+// ---------------------------------------------------------------------------
+// Query helpers for walking parsed trees (engine-side convenience)
+// ---------------------------------------------------------------------------
+
+using NodeList = std::vector<std::shared_ptr<Node>>;
+
+// True if the node is an array form (tag 0x10/0x11/0x13).
+bool is_array(const Node& n);
+
+// True if the node is a string form (any of the string-class tags).
+bool is_string_like(const Node& n);
+
+// Returns the children of an array node, or empty vector if not an array.
+const NodeList& children(const Node& n);
+
+// Extract a value as a basic C++ type when the node's payload matches.
+// Returns nullopt if the node isn't of the matching kind.
+std::optional<int32_t>     as_int(const Node& n);
+std::optional<float>       as_float(const Node& n);
+std::optional<std::string> as_string(const Node& n);
+
+// Look inside an array node for a child array whose first child is a symbol
+// matching `key`. Convention used throughout Harmonix DTAs:
+//   (artist "Skid Row")   -> find_keyed(parent, "artist") returns this array
+// Returns nullptr if not found.
+std::shared_ptr<Node> find_keyed(const Node& parent, std::string_view key);
+
+// Same, but at the top level of a parsed Tree.
+std::shared_ptr<Node> find_keyed(const Tree& tree, std::string_view key);
 
 }  // namespace gh::dtb

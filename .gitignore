@@ -9,6 +9,7 @@
 /out
 /tools/*/build/
 /tools/sandbox/
+/engine/build/
 /generated/*
 !/generated/rexglue.cmake
 

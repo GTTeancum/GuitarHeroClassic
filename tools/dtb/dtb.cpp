@@ -247,6 +247,65 @@ std::string to_dta(const Tree& tree, bool show_lines) {
     return os.str();
 }
 
+// ---------------------------------------------------------------------------
+// Query helpers
+// ---------------------------------------------------------------------------
+
+bool is_array(const Node& n) {
+    return n.tag == 0x10 || n.tag == 0x11 || n.tag == 0x13;
+}
+
+bool is_string_like(const Node& n) {
+    return n.tag == 0x02 || n.tag == 0x04 || n.tag == 0x05 || n.tag == 0x06 ||
+           n.tag == 0x07 || n.tag == 0x08 || n.tag == 0x09 || n.tag == 0x12 ||
+           n.tag == 0x20 || n.tag == 0x21 || n.tag == 0x22 || n.tag == 0x23 ||
+           n.tag == 0x24;
+}
+
+static const NodeList kEmptyList;
+
+const NodeList& children(const Node& n) {
+    if (!is_array(n)) return kEmptyList;
+    return std::get<NodeList>(n.value);
+}
+
+std::optional<int32_t> as_int(const Node& n) {
+    if (n.tag == 0x00) return std::get<int32_t>(n.value);
+    return std::nullopt;
+}
+
+std::optional<float> as_float(const Node& n) {
+    if (n.tag == 0x01) return std::get<float>(n.value);
+    if (n.tag == 0x00) return static_cast<float>(std::get<int32_t>(n.value));
+    return std::nullopt;
+}
+
+std::optional<std::string> as_string(const Node& n) {
+    if (is_string_like(n)) return std::get<std::string>(n.value);
+    return std::nullopt;
+}
+
+std::shared_ptr<Node> find_keyed(const Node& parent, std::string_view key) {
+    if (!is_array(parent)) return nullptr;
+    for (const auto& child : std::get<NodeList>(parent.value)) {
+        if (!child || !is_array(*child)) continue;
+        const auto& gc = std::get<NodeList>(child->value);
+        if (gc.empty() || !is_string_like(*gc[0])) continue;
+        if (std::get<std::string>(gc[0]->value) == key) return child;
+    }
+    return nullptr;
+}
+
+std::shared_ptr<Node> find_keyed(const Tree& tree, std::string_view key) {
+    for (const auto& root_node : tree.root) {
+        if (!root_node || !is_array(*root_node)) continue;
+        const auto& gc = std::get<NodeList>(root_node->value);
+        if (gc.empty() || !is_string_like(*gc[0])) continue;
+        if (std::get<std::string>(gc[0]->value) == key) return root_node;
+    }
+    return nullptr;
+}
+
 std::vector<uint8_t> read_file(const std::string& path) {
     std::ifstream f(path, std::ios::binary | std::ios::ate);
     if (!f) throw std::runtime_error("cannot open " + path);

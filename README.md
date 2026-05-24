@@ -2,12 +2,29 @@
 
 Guitar Hero II for the original Xbox.
 
-Current state: the Xbox 360 build is being statically recompiled with [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk) and used as a readable C++ blueprint of the gameplay logic, asset loaders, animation loop, and state machines. The Win64 binary built here is the host harness that exercises that blueprint end-to-end; the OG Xbox port (DX8 / NV2A / XACT / XInput) is built on top, using PS2 ARK assets for content.
+Strategy: a **fresh native engine** under `engine/` that consumes PS2-format Harmonix ARKs directly via the readers under `tools/`. Targets PC first (fast dev iteration), OG Xbox (DX8 / NV2A / XACT / XInput) as a follow-up build target. The rexglue-recompiled GH2 360 binary that lives under `gh2test_*` / `generated/` / `src/` is now **read-only logic reference material** — gameplay state machines, scoring, hit detection, animation timing as a C++ blueprint to crib from while building the engine. We're not running it as the engine.
 
 See [roadmap](../memory/project_roadmap.md) for V1 (GH2) → V1.x (GH1 / GH80s) → V2 (Rock Band) → V3 (GH3 / GHA) staging.
 
-> [!IMPORTANT]
-> This intermediate Win64 build is a stepping stone, not the deliverable. It currently boots, renders the title screen, navigates menus, loads venue + character + chart, and reaches gameplay. The original re-gh2 README's caveat ("prone to crashes") still applies past gameplay start until more functions are wired.
+## Engine (`engine/`)
+
+The deliverable. Currently a catalog enumeration MVP: opens a PS2 Harmonix ARK, parses `config/gen/songs.dtb`, prints the song list. End-to-end proof that PS2 assets load natively — no shim layer, no 360 binary in the call path.
+
+```powershell
+& "$PWD\build_env.bat" cmake -G Ninja -S engine -B engine\build -DCMAKE_BUILD_TYPE=Release
+& "$PWD\build_env.bat" cmake --build engine\build
+
+.\engine\build\ghogx.exe --ark-dir "C:\path\to\Guitar Hero Rocks The 80s (EU)\GEN"
+.\engine\build\ghogx.exe --hdr <main.hdr> --ark <main_0.ark> [--json]
+```
+
+Validated on GH80s PS2: 1761 ARK entries indexed, 84 KB encrypted songs.dtb decrypted+parsed in-process, 47 song records extracted with full metadata (display name, artist, default character/guitar/venue, preview range, MIDI + master-audio paths).
+
+Built on the standalone reader libraries (`tools/ark`, `tools/dtb`, `tools/texture_ps2`, `tools/vgs`, `tools/milo`); each is linked as a static lib.
+
+## Legacy: rexglue 360 recompile (reference only)
+
+The old `gh2test` build target (under `src/`, `generated/`, `gh2test_*.toml`) is the GH2 360 binary recompiled via [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk). It boots, navigates menus, and reaches gameplay — useful as a working blueprint to crib gameplay logic from while building the new engine. It is **not** the deliverable. Documented here for archival completeness.
 
 ## Build (Win64 host harness)
 
