@@ -374,6 +374,33 @@ I'll leave the state so you can pick up cold:
 
 Next: task #20 (headless window) before any further runs.
 
+### 2026-05-25 — Task #20 complete (commit 3551bc0)
+
+Two pieces wire up the headless mode:
+
+- `src/main.cpp`: process-wide WH_CBT Win32 hook installed in a static
+  initializer (runs before WinMain). Suppresses HCBT_ACTIVATE for windows
+  owned by our own process, preventing the SDK's
+  `Win32Window::OpenImpl` → `ShowWindow(SW_SHOWNORMAL)` from making our
+  window the foreground.
+- `src/gh2test_app.h`: `OnPostSetup()` calls `ShowWindow(SW_HIDE)` on
+  the main window immediately after presentation setup, so the window is
+  removed from screen even visually. D3D12 swapchain still functions.
+
+Behavior: window may still flicker briefly while the SDK creates and
+shows it, but **never steals keyboard focus** from the user's foreground
+app. After `OnPostSetup`, window is fully hidden.
+
+Tried first: a `--headless` cvar. Storage existed but cvar values from
+CLI didn't propagate to consumer-side `REXCVAR_DEFINE_BOOL` storage. Left
+commented as a reference. Headless is unconditional for the trace-360
+worktree since that's always what we want here.
+
+Next: Phase 1 (call-tracer instrumentation).
+
 ## Status
 
-Phase 0 complete. Moving to task #20 (headless window).
+Phase 0 + task #20 complete. Headless verified by log only (boot reaches
+SetInterruptCallback same as visible-window baseline). Awaiting user
+confirmation that the window doesn't actually disrupt the foreground
+before sinking time into Phase 1.
