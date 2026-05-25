@@ -27,6 +27,7 @@
 
 #include "ark_v3.h"
 #include "ps2_ark_hook.h"
+#include "harmonix_symbols.h"
 
 // generated/gh2test_init.h is where the per-target REX_LOAD_*/REX_STORE_*
 // macros come from -- they need base+addr math that's tied to this target's
@@ -228,16 +229,16 @@ void set_game_data_root(const std::string& path) {
 
 }  // namespace ps2_ark
 
-// REX_FUNC expansion: void sub_82277878(PPCContext& ctx, uint8_t* base).
-// Arg convention (from sub_8227DC18 caller):
-//   r3 = global ARK table object (we ignore it)
+// hmx_FileMgr_Lookup(table, path, *out_a, *out_b, *out_c, *out_d) -> u8 found
+// (sub_82277878 in the recompile.) Arg convention from the caller chain:
+//   r3 = global ARK table object (we ignore it; we substitute our own)
 //   r4 = guest ptr to full path string
-//   r5 = guest ptr to out_a (entry index slot; original code writes hashtable-internal data)
+//   r5 = guest ptr to out_a (entry index slot in the 64-byte FileHandle)
 //   r6 = guest ptr to out_b (auxiliary; original writes a sub-region size)
 //   r7 = guest ptr to out_c (ARK offset, 32-bit)
 //   r8 = guest ptr to out_d (ARK size, 32-bit)
 //   returns u8 in r3: 1 = found, 0 = not found
-REX_HOOK_RAW(sub_82277878) {
+REX_HOOK_RAW(hmx_FileMgr_Lookup) {
     load_ark_once();
 
     const uint32_t path_addr = ctx.r4.u32;
@@ -300,7 +301,7 @@ REX_HOOK_RAW(sub_82277878) {
     }
 }
 
-// sub_82359250(File*, buf, count) — File::Read.
+// hmx_File_Read(File*, buf, count) (sub_82359250 in the recompile.)
 //
 // Original implementation dispatches through File's vtable (vtable[16] to
 // check EOF, vtable[24] to actually read), then XOR-decrypts the buffer
@@ -310,12 +311,12 @@ REX_HOOK_RAW(sub_82277878) {
 //     decrypt 360-cipher bytes -- wrong for PS2 plaintext.
 //   - We pull bytes straight from PS2 main_0.ark at (handle.off + position).
 //   - No decryption pass: the file is plaintext on disk and we leave
-//     File+8 (crypto state) zeroed via the sub_823596E8 stub below, so the
-//     trailing XOR loop in the original wouldn't run anyway.
+//     File+8 (crypto state) zeroed via the hmx_File_InitCrypto stub below,
+//     so the trailing XOR loop in the original wouldn't fire anyway.
 //
 // Returns bytes-actually-read in r3 (the original returns success/fail u8;
 // callers that branch on `r3 != 0` see "success" when we read any bytes).
-REX_HOOK_RAW(sub_82359250) {
+REX_HOOK_RAW(hmx_File_Read) {
     const uint32_t file_ptr = ctx.r3.u32;
     const uint32_t buf_ptr  = ctx.r4.u32;
     const uint32_t count    = ctx.r5.u32;
@@ -396,83 +397,86 @@ REX_HOOK_RAW(sub_82359250) {
     }
 }
 
-// sub_823596E8(File*) — original initializes per-file crypto state by
-// reading the first 4 bytes of the file as the LCG seed, allocating 4 bytes,
-// and storing the seeded state pointer at File+8. PS2 ARK files are plain-
-// text, so there's no crypto to set up. Leaving File+8 zero keeps the
-// trailing decrypt loop in sub_82359250 (which we replaced anyway) inert
-// for any callers we haven't replaced.
-REX_HOOK_RAW(sub_823596E8) {
+// hmx_File_InitCrypto(File*) (sub_823596E8 in the recompile.) Original
+// reads the first 4 bytes of the file as a 360 LCG cipher seed, allocates
+// 4 bytes for the cipher state, and stores the seeded state pointer at
+// File+8. PS2 ARK files are plaintext, so no crypto to set up. Leaving
+// File+8 zero keeps the trailing decrypt loop in hmx_File_Read (which we
+// replaced anyway) inert for any callers we haven't replaced.
+REX_HOOK_RAW(hmx_File_InitCrypto) {
     const uint32_t file_ptr = ctx.r3.u32;
     if (file_ptr) REX_STORE_U32(file_ptr + 8, 0);
 }
 
-// sub_821E04B8(name) -- FindRegisteredHandler. Walks a linked list of
-// registered factories (head ptr at guest 0x82782E3C; nodes link via +0,
-// payload at +8, payload+12 = name string ptr) and returns the payload
-// whose name matches `name`, or NULL on miss.
+// hmx_DataHandler_Find(name) (sub_821E04B8 in the recompile.) Walks a
+// linked list of registered handlers (head ptr at hmx_HandlerList_head_addr;
+// nodes link via +0, payload at +8, payload+12 = name string ptr) and
+// returns the payload whose name matches `name`, or NULL on miss.
 //
-// The 360 GH2 build's class-system init wires the runtime's diagnostic
-// view classes; one of them is registered under the name 'time' (the
-// frame-rate-stats display). Deep in `sub_82303CA8 -> sub_821E68E0`,
-// the boot code looks the handler up by the name **'timers'** (plural).
-// That's a naming inconsistency between the lookup site and the
-// registration site -- no node named 'timers' is ever inserted into the
-// list, so the lookup returns NULL. The immediately-following inline
-// PPC code does `stw r11, 52(returned_ptr)` and with `returned_ptr == 0`
-// that becomes a store to host `base + 52`, silently corrupting low
-// guest memory and hanging the boot a few subsystem inits later with
-// no exception or log past the corruption.
+// The 360 GH2 build's class-system init registers ~21 diagnostic-view
+// handlers ('time', 'rate', 'heap', 'stats', 'input', 'camera', etc.).
+// Deep in hmx_Game_PostInit -> hmx_Game_RegisterDataNodes, the boot code
+// looks the handler up by the name 'timers' (plural). No 'timers' node is
+// ever inserted -- only 'time' (singular) -- so the lookup returns NULL.
+// The immediately-following inline PPC code does `stw r11, 52(returned)`
+// and with `returned == 0` that becomes a store to host `base + 52`,
+// silently corrupting low guest memory and hanging the boot a few
+// subsystem inits later with no exception or log past the corruption.
 //
-// Workaround: when the lookup comes in for 'timers', walk the list,
-// find the existing 'time' node, and substitute its name pointer into
-// the caller's r3 before delegating to the original lookup. The original
-// then locates the 'time' handler by content comparison and returns
-// it. Other names ('rate', 'heap', 'stats', etc.) are untouched.
+// Workaround: when the lookup comes in for 'timers', walk the list, find
+// the existing 'time' node, and substitute its name pointer into the
+// caller's r3 before delegating to the original lookup. The original then
+// locates the 'time' handler by content comparison and returns it. Other
+// names are untouched.
 //
 // `__imp__sub_821E04B8` is the strong symbol the codegen defines for the
-// original body; DEFINE_REX_FUNC sets up `sub_821E04B8` as a weak alias
-// for it, and our `extern "C"` strong definition wins at link time.
+// original body; DEFINE_REX_FUNC sets up `sub_821E04B8` (the weak alias)
+// to point at it, and our strong def of hmx_DataHandler_Find (which #defines
+// to sub_821E04B8) wins at link time.
 extern "C" void __imp__sub_821E04B8(PPCContext& ctx, uint8_t* base);
 
-// TEMPORARY DIAG: probe the 2nd direct sub_82319530 call from sub_823032C8
-// (LR=0x8230336C after the bl). Now logs the lookup key as both raw int and
-// as a string-pointer-deref attempt, plus the table's count, plus the source
-// string at guest 0x82069790 that was passed to sub_82355DA8 just before.
+// TEMPORARY DIAG: focused probe for the hmx_GraphicsMgr_Init (sub_823032C8)
+// hang. The 2nd direct hmx_PropertyTable_Find0 call inside that init
+// returns NULL for the 'rnd' class's 'force_hd' property; the subsequent
+// inline `lwz r11, 0(NULL)` AVs into a stuck-runtime state.
+//
+// The lookup site has LR = 0x8230336C after `bl hmx_PropertyTable_Find0`.
+// This filtered hook fires once on that specific call and dumps the inputs,
+// the class-registry struct contents, the source .rodata strings, and the
+// global type-registry header. Remove or replace once we have a real fix.
 extern "C" void __imp__sub_82319530(PPCContext& ctx, uint8_t* base);
-extern "C" void sub_82319530(PPCContext& ctx, uint8_t* base) {
+REX_HOOK_RAW(hmx_PropertyTable_Find0) {
     const uint32_t lr = static_cast<uint32_t>(ctx.lr);
-    const bool from_823032C8 = (lr == 0x8230336C);
+    const bool from_GraphicsMgr_Init = (lr == 0x8230336C);
 
     static std::atomic<bool> dumped{false};
-    if (from_823032C8 && !dumped.exchange(true)) {
+    if (from_GraphicsMgr_Init && !dumped.exchange(true)) {
         const uint32_t r3 = ctx.r3.u32;
         const uint32_t r4 = ctx.r4.u32;
         REXLOG_WARN("probe: r3(class-registry)=0x{:08x} r4(prop-name-ptr)=0x{:08x}", r3, r4);
         REXLOG_WARN("probe: r4-as-string = '{}'", read_guest_string(base, r4));
 
-        // Two .rodata source strings consumed by sub_82355DA8 just before this lookup.
-        // (-32251 << 16) = 0x82050000 + 2132 -> 0x82050854 = property name source
-        // (-32254 << 16) = 0x82020000 - 24112 -> 0x8201A1D0 = class name source
+        // Two .rodata source strings consumed by hmx_String_CopyOrIntern just
+        // before this lookup:
+        //   (-32251 << 16) + 2132   = 0x82050854 -> property name ("force_hd")
+        //   (-32254 << 16) - 24112  = 0x8201A1D0 -> class name    ("rnd")
         REXLOG_WARN("probe: src1 (property name) @0x82050854 = '{}'",
                     read_guest_string(base, 0x82050854u));
         REXLOG_WARN("probe: src2 (class name)    @0x8201A1D0 = '{}'",
                     read_guest_string(base, 0x8201A1D0u));
 
         if (r3 >= 0x40000000u && r3 < 0x80000000u) {
-            // The class-registry struct layout (from sub_82319448 reads):
+            // PropertyTable struct layout (from hmx_PropertyTable_Find reads):
             //   +0:  data array pointer
-            //   +12: u16 count (or similar)
-            //   +14: u16 count again? (the lha read)
-            // Dump first 32 bytes of the struct.
+            //   +8:  i16 capacity at +8..+9, flag/version at +10..+11
+            //   +12: i16 count at +14
+            //   +16: chained parent-class PropertyTable
             for (int off = 0; off < 32; off += 4) {
                 REXLOG_WARN("probe: registry[+{}]=0x{:08x}", off, REX_LOAD_U32(r3 + off));
             }
         }
 
-        // The global type-registry that sub_82270D20 searched lives at *(0x8278492C):
-        //   lis r11, -32136 -> 0x82780000; lwz r3, 18732(r11) -> 0x82780000 + 0x492C
-        const uint32_t global_tbl_ptr = REX_LOAD_U32(0x8278492Cu);
+        const uint32_t global_tbl_ptr = REX_LOAD_U32(hmx_GlobalClassTable_addr);
         REXLOG_WARN("probe: global type-registry @0x8278492C ptr=0x{:08x}", global_tbl_ptr);
         if (global_tbl_ptr >= 0x40000000u && global_tbl_ptr < 0x80000000u) {
             for (int off = 0; off < 32; off += 4) {
@@ -481,26 +485,24 @@ extern "C" void sub_82319530(PPCContext& ctx, uint8_t* base) {
         }
     }
 
-    if (from_823032C8) {
-        REXLOG_WARN("trace: enter sub_82319530 from 823032C8 r3=0x{:08x} r4=0x{:08x}",
+    if (from_GraphicsMgr_Init) {
+        REXLOG_WARN("trace: enter hmx_PropertyTable_Find0 from GraphicsMgr_Init r3=0x{:08x} r4=0x{:08x}",
                     ctx.r3.u32, ctx.r4.u32);
     }
     __imp__sub_82319530(ctx, base);
-    if (from_823032C8) {
-        REXLOG_WARN("trace: exit  sub_82319530 from 823032C8 ret=0x{:08x}", ctx.r3.u32);
+    if (from_GraphicsMgr_Init) {
+        REXLOG_WARN("trace: exit  hmx_PropertyTable_Find0 from GraphicsMgr_Init ret=0x{:08x}", ctx.r3.u32);
     }
 }
 
-extern "C" void sub_821E04B8(PPCContext& ctx, uint8_t* base) {
+REX_HOOK_RAW(hmx_DataHandler_Find) {
     const uint32_t orig_name_addr = ctx.r3.u32;
     auto name = read_guest_string(base, orig_name_addr);
 
     if (name == "timers") {
-        constexpr uint32_t kHandlerListHead = 0x82782E3Cu;
-        const uint32_t head_addr = kHandlerListHead;
-        uint32_t cur = REX_LOAD_U32(head_addr);
+        uint32_t cur = REX_LOAD_U32(hmx_HandlerList_head_addr);
         uint32_t time_name_ptr = 0;
-        for (int n = 0; cur && cur != head_addr && n < 256; ++n) {
+        for (int n = 0; cur && cur != hmx_HandlerList_head_addr && n < 256; ++n) {
             const uint32_t payload = REX_LOAD_U32(cur + 8);
             const uint32_t np      = payload ? REX_LOAD_U32(payload + 12) : 0;
             if (np && read_guest_string(base, np) == "time") {
