@@ -435,6 +435,62 @@ REX_HOOK_RAW(sub_823596E8) {
 // for it, and our `extern "C"` strong definition wins at link time.
 extern "C" void __imp__sub_821E04B8(PPCContext& ctx, uint8_t* base);
 
+// TEMPORARY DIAG: probe the 2nd direct sub_82319530 call from sub_823032C8
+// (LR=0x8230336C after the bl). Now logs the lookup key as both raw int and
+// as a string-pointer-deref attempt, plus the table's count, plus the source
+// string at guest 0x82069790 that was passed to sub_82355DA8 just before.
+extern "C" void __imp__sub_82319530(PPCContext& ctx, uint8_t* base);
+extern "C" void sub_82319530(PPCContext& ctx, uint8_t* base) {
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    const bool from_823032C8 = (lr == 0x8230336C);
+
+    static std::atomic<bool> dumped{false};
+    if (from_823032C8 && !dumped.exchange(true)) {
+        const uint32_t r3 = ctx.r3.u32;
+        const uint32_t r4 = ctx.r4.u32;
+        REXLOG_WARN("probe: r3(class-registry)=0x{:08x} r4(prop-name-ptr)=0x{:08x}", r3, r4);
+        REXLOG_WARN("probe: r4-as-string = '{}'", read_guest_string(base, r4));
+
+        // Two .rodata source strings consumed by sub_82355DA8 just before this lookup.
+        // (-32251 << 16) = 0x82050000 + 2132 -> 0x82050854 = property name source
+        // (-32254 << 16) = 0x82020000 - 24112 -> 0x8201A1D0 = class name source
+        REXLOG_WARN("probe: src1 (property name) @0x82050854 = '{}'",
+                    read_guest_string(base, 0x82050854u));
+        REXLOG_WARN("probe: src2 (class name)    @0x8201A1D0 = '{}'",
+                    read_guest_string(base, 0x8201A1D0u));
+
+        if (r3 >= 0x40000000u && r3 < 0x80000000u) {
+            // The class-registry struct layout (from sub_82319448 reads):
+            //   +0:  data array pointer
+            //   +12: u16 count (or similar)
+            //   +14: u16 count again? (the lha read)
+            // Dump first 32 bytes of the struct.
+            for (int off = 0; off < 32; off += 4) {
+                REXLOG_WARN("probe: registry[+{}]=0x{:08x}", off, REX_LOAD_U32(r3 + off));
+            }
+        }
+
+        // The global type-registry that sub_82270D20 searched lives at *(0x8278492C):
+        //   lis r11, -32136 -> 0x82780000; lwz r3, 18732(r11) -> 0x82780000 + 0x492C
+        const uint32_t global_tbl_ptr = REX_LOAD_U32(0x8278492Cu);
+        REXLOG_WARN("probe: global type-registry @0x8278492C ptr=0x{:08x}", global_tbl_ptr);
+        if (global_tbl_ptr >= 0x40000000u && global_tbl_ptr < 0x80000000u) {
+            for (int off = 0; off < 32; off += 4) {
+                REXLOG_WARN("probe: global[+{}]=0x{:08x}", off, REX_LOAD_U32(global_tbl_ptr + off));
+            }
+        }
+    }
+
+    if (from_823032C8) {
+        REXLOG_WARN("trace: enter sub_82319530 from 823032C8 r3=0x{:08x} r4=0x{:08x}",
+                    ctx.r3.u32, ctx.r4.u32);
+    }
+    __imp__sub_82319530(ctx, base);
+    if (from_823032C8) {
+        REXLOG_WARN("trace: exit  sub_82319530 from 823032C8 ret=0x{:08x}", ctx.r3.u32);
+    }
+}
+
 extern "C" void sub_821E04B8(PPCContext& ctx, uint8_t* base) {
     const uint32_t orig_name_addr = ctx.r3.u32;
     auto name = read_guest_string(base, orig_name_addr);
