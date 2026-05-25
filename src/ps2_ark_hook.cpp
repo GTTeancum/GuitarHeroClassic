@@ -406,3 +406,59 @@ REX_HOOK_RAW(sub_823596E8) {
     const uint32_t file_ptr = ctx.r3.u32;
     if (file_ptr) REX_STORE_U32(file_ptr + 8, 0);
 }
+
+// sub_821E04B8(name) -- FindRegisteredHandler. Walks a linked list of
+// registered factories (head ptr at guest 0x82782E3C; nodes link via +0,
+// payload at +8, payload+12 = name string ptr) and returns the payload
+// whose name matches `name`, or NULL on miss.
+//
+// The 360 GH2 build's class-system init wires the runtime's diagnostic
+// view classes; one of them is registered under the name 'time' (the
+// frame-rate-stats display). Deep in `sub_82303CA8 -> sub_821E68E0`,
+// the boot code looks the handler up by the name **'timers'** (plural).
+// That's a naming inconsistency between the lookup site and the
+// registration site -- no node named 'timers' is ever inserted into the
+// list, so the lookup returns NULL. The immediately-following inline
+// PPC code does `stw r11, 52(returned_ptr)` and with `returned_ptr == 0`
+// that becomes a store to host `base + 52`, silently corrupting low
+// guest memory and hanging the boot a few subsystem inits later with
+// no exception or log past the corruption.
+//
+// Workaround: when the lookup comes in for 'timers', walk the list,
+// find the existing 'time' node, and substitute its name pointer into
+// the caller's r3 before delegating to the original lookup. The original
+// then locates the 'time' handler by content comparison and returns
+// it. Other names ('rate', 'heap', 'stats', etc.) are untouched.
+//
+// `__imp__sub_821E04B8` is the strong symbol the codegen defines for the
+// original body; DEFINE_REX_FUNC sets up `sub_821E04B8` as a weak alias
+// for it, and our `extern "C"` strong definition wins at link time.
+extern "C" void __imp__sub_821E04B8(PPCContext& ctx, uint8_t* base);
+
+extern "C" void sub_821E04B8(PPCContext& ctx, uint8_t* base) {
+    const uint32_t orig_name_addr = ctx.r3.u32;
+    auto name = read_guest_string(base, orig_name_addr);
+
+    if (name == "timers") {
+        constexpr uint32_t kHandlerListHead = 0x82782E3Cu;
+        const uint32_t head_addr = kHandlerListHead;
+        uint32_t cur = REX_LOAD_U32(head_addr);
+        uint32_t time_name_ptr = 0;
+        for (int n = 0; cur && cur != head_addr && n < 256; ++n) {
+            const uint32_t payload = REX_LOAD_U32(cur + 8);
+            const uint32_t np      = payload ? REX_LOAD_U32(payload + 12) : 0;
+            if (np && read_guest_string(base, np) == "time") {
+                time_name_ptr = np;
+                break;
+            }
+            cur = REX_LOAD_U32(cur);
+        }
+        if (time_name_ptr) {
+            ctx.r3.u32 = time_name_ptr;
+        } else {
+            REXLOG_WARN("ps2_ark: 'time' handler not in list; 'timers' lookup will fail");
+        }
+    }
+
+    __imp__sub_821E04B8(ctx, base);
+}
