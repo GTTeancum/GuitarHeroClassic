@@ -261,7 +261,17 @@ REX_HOOK_RAW(hmx_FileMgr_Lookup) {
 
     auto entry = find_entry(path);
     if (!entry) {
-        if (n < 200) REXLOG_INFO("ps2_ark[{}]: miss '{}'", n, path);
+        if (n < 200) {
+            // Log the caller's LR for shader misses so we can find the
+            // guest function that requested the .fx_xbox file.
+            const bool is_shader = path.find(".fx") != std::string::npos;
+            if (is_shader) {
+                REXLOG_WARN("ps2_ark[{}]: miss '{}' from LR=0x{:08x}",
+                            n, path, static_cast<uint32_t>(ctx.lr));
+            } else {
+                REXLOG_INFO("ps2_ark[{}]: miss '{}'", n, path);
+            }
+        }
         ctx.r3.u64 = 0;
         return;
     }
@@ -478,6 +488,17 @@ REX_HOOK_RAW(hmx_PropertyTable_Find0) {
         }
         ctx.r3.u32 = hmx_PropertyTable_zero_sentinel;
     }
+}
+
+// TEMPORARY DIAG: log who called the shader loader (sub_82307530).
+extern "C" void __imp__sub_82307530(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(sub_82307530) {
+    const uint32_t lr = static_cast<uint32_t>(ctx.lr);
+    REXLOG_WARN("ps2_ark: shader_loader sub_82307530 called from LR=0x{:08x} "
+                "(r3=0x{:08x} r4=0x{:08x} r5=0x{:08x} r6=0x{:08x})",
+                lr, ctx.r3.u32, ctx.r4.u32, ctx.r5.u32, ctx.r6.u32);
+    __imp__sub_82307530(ctx, base);
+    REXLOG_WARN("ps2_ark: shader_loader sub_82307530 returned r3=0x{:08x}", ctx.r3.u32);
 }
 
 REX_HOOK_RAW(hmx_DataHandler_Find) {
