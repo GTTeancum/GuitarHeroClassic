@@ -10,9 +10,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(generated/rexglue.cmake)
 
+# Native PS2 ARK reader -- reused from the standalone engine tools so the
+# recompile and the headless engine share one source of truth.
+add_subdirectory(tools/ark ${CMAKE_BINARY_DIR}/_tools_ark)
+
 # Sources
 set(GH2TEST_SOURCES
     src/main.cpp
+    src/trap_diag.cpp
+    src/ps2_ark_hook.cpp
 )
 
 if(WIN32)
@@ -22,3 +28,4 @@ else()
 endif()
 
 rexglue_setup_target(gh2test)
+target_link_libraries(gh2test PRIVATE ark_v3)

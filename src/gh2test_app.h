@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "ps2_ark_hook.h"
+
 #include <rex/rex_app.h>
 
 class Gh2testApp : public rex::ReXApp {
@@ -16,12 +18,11 @@ class Gh2testApp : public rex::ReXApp {
         PPCImageConfig));
   }
 
-  // Override virtual hooks for customization:
-  // void OnPostInitLogging() override {}
-  // void OnPreSetup(rex::RuntimeConfig& config) override {}
-  // void OnLoadXexImage(std::string& xex_image) override {}
-  // void OnPostSetup() override {}
-  // void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {}
-  // void OnShutdown() override {}
-  // void OnConfigurePaths(rex::PathConfig& paths) override {}
+  // OnConfigurePaths runs after CLI/cvar parsing has populated the path
+  // config but before the guest XEX starts touching files. That's the
+  // window where we hand the PS2 ARK hook the game data root so its
+  // lazy load can resolve gen/main.hdr cleanly.
+  void OnConfigurePaths(rex::PathConfig& paths) override {
+    ps2_ark::set_game_data_root(paths.game_data_root.string());
+  }
 };
