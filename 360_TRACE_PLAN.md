@@ -398,9 +398,65 @@ worktree since that's always what we want here.
 
 Next: Phase 1 (call-tracer instrumentation).
 
+### 2026-05-25 — Phase 1 complete (commit 5e53777)
+
+- `src/trace_recorder.{cpp,h}`: thread-safe jsonl event recorder with
+  atomic capture gate. Events: `trace.init`, `capture.on/off`,
+  `file.open`, `prop.lookup`, `handler.lookup`, `audio.submit`, `frame`,
+  `stack`, generic `LogEvent`. Stack samples via dbghelp
+  CaptureStackBackTrace + SymFromAddr.
+- `src/trace_hooks.cpp`: three `REX_HOOK_RAW` pass-through wrappers
+  feeding the recorder — `hmx_FileMgr_Lookup`, `hmx_PropertyTable_Find0`,
+  `hmx_DataHandler_Find`. All call `__imp__sub_XXXX` then log; behavior
+  unchanged.
+- `src/harmonix_symbols.h` copied from main worktree.
+- Linker gotcha: `__imp__` extern decls must spell out the raw
+  `sub_XXXX` (the `hmx_X` `#define` doesn't expand inside a larger
+  identifier token like `__imp__hmx_X`).
+- gh2test_app.h: `OnPostSetup` initializes recorder to
+  `captures/trace_<epoch>.jsonl`, always-on for now; `OnShutdown`
+  closes.
+- Verified: 10s boot run produced 7,498 events. Sample shows DTB loads
+  (`config/gen/gh2.dtb`), property lookups, milo_xbox UI files loading.
+- Known quirks (not blocking): "off"/"size" fields in `file.open` encode
+  something other than literal byte offsets (360 ARK v4 format); class
+  identity for `prop.lookup` left as "?" because it's set upstream of
+  the hooked call.
+
+Next: Phase 2 (find in-game autoplay) — task #18.
+
+### 2026-05-25 — Phase 2/3 partial: smoke_trace.ps1 + 30s in-song capture
+
+- `smoke_trace.ps1`: headless variant alongside `smoke_play.ps1`.
+  Uses `PostMessage(hwnd, WM_KEYDOWN/UP, ...)` against the hidden window
+  (enumerated via EnumWindows since `Process.MainWindowHandle` is 0
+  for hidden windows). No screenshots — log + trace counts substitute.
+- Tried ARK v4 extraction first (path 1 for autoplay): `ark_tool` is
+  v3-only and crashes on the 360 v4 hdr; XEX is encrypted so direct
+  string grep failed. Pivoted from autoplay-hunt to "capture whatever
+  we can before fail" since user greenlit "doesn't matter if video
+  flickers."
+- Result: 30s capture, 148,051 events, song "Surrender" actively
+  playing — `songs/surrender/surrender.{mid,mogg,voc}` opened, plus
+  `world/battle/streams/crowd_v1_*.mogg` (dynamic crowd cheer streams).
+  No "fail" / "results" markers — song still in progress when killed.
+  Sustained ~1500 prop.lookups/sec ≈ 25/frame at 60Hz.
+- Hot per-frame property names: `poll` (20k), `or`/`detect`/`analog`
+  (~16k each — input matching), `battle` (9k — checking "is battle
+  mode?"), `kick_drum`/`bass_hit`/`beat` — rhythm-related.
+- Late-trace handlers queried: `score`, `guitar`, `char_status`,
+  `char_history` — gameplay-active.
+- Archived: `captures_archive/trace_surrender_30s.jsonl.gz` (749KB).
+
+Autoplay (task #18) is **no longer blocking** — 30s of mid-song trace is
+enough to begin Phase 4 analysis. Keeping #18 open as a fallback if
+longer captures are needed later (path 2: hook the failmeter / hit-test
+once we've identified them from this trace).
+
+Next: Phase 4 — analyze the trace to identify per-frame tick, name
+gameplay functions, write `gameplay_loop.md`.
+
 ## Status
 
-Phase 0 + task #20 complete. Headless verified by log only (boot reaches
-SetInterruptCallback same as visible-window baseline). Awaiting user
-confirmation that the window doesn't actually disrupt the foreground
-before sinking time into Phase 1.
+Phases 0 + 1 complete; Phase 2/3 partially done (smoke_trace headless
+script + 30s in-song capture archived). Moving into Phase 4 analysis.
