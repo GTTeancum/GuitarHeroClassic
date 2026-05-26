@@ -45,6 +45,16 @@ void LogPropertyLookup(std::string_view class_name, std::string_view prop_name,
                        uint32_t returned_ptr);
 void LogHandlerLookup(std::string_view name, uint32_t returned_ptr);
 void LogClassLookup(std::string_view class_name, uint32_t returned_ptr);
+
+// Variants that also record the guest PPC address of the symbol string —
+// invaluable for cross-referencing into the recompile source: grep the
+// generated/*.cpp for the hex address to find the call site.
+void LogPropertyLookupA(std::string_view class_name, std::string_view prop_name,
+                        uint32_t prop_string_addr, uint32_t returned_ptr);
+void LogHandlerLookupA(std::string_view name, uint32_t name_string_addr,
+                       uint32_t returned_ptr);
+void LogClassLookupA(std::string_view class_name, uint32_t class_string_addr,
+                     uint32_t returned_ptr);
 void LogAudioSubmit(uint32_t stream_id, uint32_t buffer_len);
 void LogFrame(uint64_t frame_index);
 

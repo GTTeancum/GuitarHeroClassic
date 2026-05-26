@@ -205,6 +205,87 @@ def per_second_event_rate(td: TraceData, start_ns: int, end_ns: int,
     return bins
 
 
+def detect_frame_period(td: TraceData, start_ns: int, end_ns: int):
+    """Find the dominant inter-burst period within the in-song window.
+
+    Strategy: walk prop.lookup events in time order; a 'frame boundary'
+    is any gap > a threshold (5ms — much larger than the few-microsec
+    gaps inside a frame burst, much smaller than 16.7ms inter-frame).
+    Distribution of gap sizes should cluster around the frame period.
+    """
+    gaps_ns = []
+    prev = None
+    for t, *_ in td.props:
+        if not (start_ns <= t <= end_ns):
+            continue
+        if prev is not None:
+            g = t - prev
+            if g > 500_000:  # 0.5ms = drop intra-burst noise
+                gaps_ns.append(g)
+        prev = t
+    if not gaps_ns:
+        return None
+    gaps_ns.sort()
+    n = len(gaps_ns)
+    return {
+        "n_boundaries":     n,
+        "p50_ms":           gaps_ns[n//2] / 1e6,
+        "p90_ms":           gaps_ns[int(n*0.9)] / 1e6,
+        "p99_ms":           gaps_ns[int(n*0.99)] / 1e6,
+        "min_ms":           gaps_ns[0] / 1e6,
+        "max_ms":           gaps_ns[-1] / 1e6,
+    }
+
+
+def per_frame_signature(td: TraceData, start_ns: int, end_ns: int,
+                        gap_threshold_ns: int = 5_000_000):
+    """Group prop.lookup events into frames by inter-event gap.
+
+    Returns: list of frames; each frame is a list of (offset_ns, prop) tuples.
+    A 'frame' is bounded by any gap > gap_threshold_ns (default 5ms).
+    """
+    frames = []
+    cur = []
+    prev = None
+    for t, prop, ret in td.props:
+        if not (start_ns <= t <= end_ns):
+            continue
+        if prev is not None and (t - prev) > gap_threshold_ns:
+            if cur:
+                frames.append(cur)
+            cur = []
+        cur.append((t, prop))
+        prev = t
+    if cur:
+        frames.append(cur)
+    return frames
+
+
+def common_burst_pattern(frames, max_frames=200, top_n=30):
+    """Find the most common ordered prop sequence across frames.
+
+    Take the first `top_n` props from each frame; count occurrences of
+    each unique sequence; return the top patterns.
+    """
+    sigs: Counter = Counter()
+    for f in frames[:max_frames]:
+        seq = tuple(p for _, p in f[:top_n])
+        sigs[seq] += 1
+    return sigs
+
+
+def per_frame_prop_histogram(frames, max_frames=500):
+    """For each prop key, what fraction of frames contain at least one lookup?"""
+    if not frames:
+        return Counter()
+    sample = frames[:max_frames]
+    seen_per_frame: Counter = Counter()
+    for f in sample:
+        for p in {prop for _, prop in f}:
+            seen_per_frame[p] += 1
+    return seen_per_frame, len(sample)
+
+
 def report(path: Path):
     td = load(path)
     total_events = len(td.file_opens) + len(td.props) + len(td.handlers) + 2
@@ -290,6 +371,43 @@ def report(path: Path):
         bins = per_second_event_rate(td, song_t, last_t)
         for k in sorted(bins):
             print(f"  t+{k:>2}s: {bins[k]:>5}")
+    print()
+
+    # Frame period detection
+    print("## Frame-boundary detection\n")
+    if song_t is not None:
+        # Restrict to the steady-state window (after the initial loading
+        # bursts, so 3s into the song -- the per-second rate shows it
+        # settles by t+3s in the surrender trace).
+        steady_start = song_t + 3_000_000_000
+        fp = detect_frame_period(td, steady_start, last_t)
+        if fp:
+            print(f"- Boundaries: {fp['n_boundaries']:,}")
+            print(f"- Gap p50: {fp['p50_ms']:.3f} ms  (60Hz = 16.67ms, 30Hz = 33.3ms)")
+            print(f"- Gap p90: {fp['p90_ms']:.3f} ms")
+            print(f"- Gap p99: {fp['p99_ms']:.3f} ms")
+            print(f"- Gap min: {fp['min_ms']:.3f} ms")
+            print(f"- Gap max: {fp['max_ms']:.3f} ms")
+        # Common burst patterns
+        frames = per_frame_signature(td, steady_start, last_t)
+        print(f"\n- Frames identified (gap >5ms boundary): {len(frames):,}")
+        if frames:
+            sizes = sorted(len(f) for f in frames)
+            print(f"- Per-frame prop.lookup count p50={sizes[len(sizes)//2]}, p90={sizes[int(len(sizes)*0.9)]}, max={sizes[-1]}")
+
+        # Per-frame prop histogram: which props appear in nearly every frame?
+        per_frame_hist, sample_n = per_frame_prop_histogram(frames)
+        print(f"\n## Per-frame prop coverage (% of {sample_n} sampled frames containing each prop)\n")
+        for prop, n in per_frame_hist.most_common(40):
+            pct = 100.0 * n / sample_n
+            if pct >= 5:
+                print(f"- `{prop}`: {pct:5.1f}% ({n})")
+
+        # Top burst patterns
+        sigs = common_burst_pattern(frames, max_frames=200, top_n=8)
+        print(f"\n## Most-common 8-prop opening sequences across first 200 frames\n")
+        for seq, n in sigs.most_common(10):
+            print(f"- {n}x: `{' -> '.join(seq)}`")
     print()
 
 

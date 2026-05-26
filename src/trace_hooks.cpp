@@ -82,7 +82,7 @@ REX_HOOK_RAW(hmx_PropertyTable_Find0) {
     const uint32_t key_addr = ctx.r4.u32;
     __imp__sub_82319530(ctx, base);
     auto key = read_guest_string(base, key_addr);
-    trace360::LogPropertyLookup("?", key, ctx.r3.u32);
+    trace360::LogPropertyLookupA("?", key, key_addr, ctx.r3.u32);
 }
 
 // --- DataHandler (named handler list) lookups ------------------------------
@@ -97,7 +97,7 @@ REX_HOOK_RAW(hmx_DataHandler_Find) {
     const uint32_t name_addr = ctx.r3.u32;
     __imp__sub_821E04B8(ctx, base);
     auto name = read_guest_string(base, name_addr);
-    trace360::LogHandlerLookup(name, ctx.r3.u32);
+    trace360::LogHandlerLookupA(name, name_addr, ctx.r3.u32);
 }
 
 // --- Class registry lookups (highest-leverage hook) ------------------------
@@ -120,5 +120,5 @@ REX_HOOK_RAW(hmx_ClassReg_Lookup) {
     const uint32_t sym_addr = ctx.r3.u32;
     __imp__sub_82270D20(ctx, base);
     auto name = read_guest_string(base, sym_addr);
-    trace360::LogClassLookup(name, ctx.r3.u32);
+    trace360::LogClassLookupA(name, sym_addr, ctx.r3.u32);
 }

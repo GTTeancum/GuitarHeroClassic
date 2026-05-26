@@ -185,6 +185,56 @@ void LogHandlerLookup(std::string_view name, uint32_t returned_ptr) {
     write_line_locked(line);
 }
 
+// Address-tagged variants -- write the same kind, but with an extra
+// "addr" field carrying the guest PPC address of the symbol string.
+void LogPropertyLookupA(std::string_view cls, std::string_view prop,
+                        uint32_t addr, uint32_t returned_ptr) {
+    if (!g_capturing.load(std::memory_order_relaxed)) return;
+    std::string line;
+    start_event(line, "prop.lookup");
+    line += ",\"class\":\"";
+    json_escape(line, cls);
+    line += "\",\"prop\":\"";
+    json_escape(line, prop);
+    char tail[64];
+    std::snprintf(tail, sizeof(tail), "\",\"addr\":\"0x%08x\",\"ret\":\"0x%08x\"",
+                  addr, returned_ptr);
+    line += tail;
+    end_event(line);
+    std::lock_guard<std::mutex> lk(g_mu);
+    write_line_locked(line);
+}
+
+void LogHandlerLookupA(std::string_view name, uint32_t addr, uint32_t returned_ptr) {
+    if (!g_capturing.load(std::memory_order_relaxed)) return;
+    std::string line;
+    start_event(line, "handler.lookup");
+    line += ",\"name\":\"";
+    json_escape(line, name);
+    char tail[64];
+    std::snprintf(tail, sizeof(tail), "\",\"addr\":\"0x%08x\",\"ret\":\"0x%08x\"",
+                  addr, returned_ptr);
+    line += tail;
+    end_event(line);
+    std::lock_guard<std::mutex> lk(g_mu);
+    write_line_locked(line);
+}
+
+void LogClassLookupA(std::string_view cls, uint32_t addr, uint32_t returned_ptr) {
+    if (!g_capturing.load(std::memory_order_relaxed)) return;
+    std::string line;
+    start_event(line, "class.lookup");
+    line += ",\"class\":\"";
+    json_escape(line, cls);
+    char tail[64];
+    std::snprintf(tail, sizeof(tail), "\",\"addr\":\"0x%08x\",\"ret\":\"0x%08x\"",
+                  addr, returned_ptr);
+    line += tail;
+    end_event(line);
+    std::lock_guard<std::mutex> lk(g_mu);
+    write_line_locked(line);
+}
+
 void LogClassLookup(std::string_view class_name, uint32_t returned_ptr) {
     if (!g_capturing.load(std::memory_order_relaxed)) return;
     std::string line;
