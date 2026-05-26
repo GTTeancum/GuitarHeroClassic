@@ -31,7 +31,15 @@
 param(
   [int]$TitleWaitSec    = 12,
   [int]$StepWaitSec     = 3,
-  [int]$GameplayHoldSec = 30
+  [int]$GameplayHoldSec = 30,
+  # If set, skip the menu-nav PostMessage sequence and just leave the
+  # game running for the user to drive with their physical controller
+  # (Xbox One Controller via SDL; controller mode is on by default in
+  # GH2 360). Use this for the successful-gameplay-capture session.
+  # The script will hold the process alive for $InteractiveHoldMin
+  # minutes (default 10), then save the trace and exit cleanly.
+  [switch]$NoAutoNav,
+  [int]$InteractiveHoldMin = 10
 )
 
 Add-Type @"
@@ -118,6 +126,36 @@ if ($hwnd -eq [IntPtr]::Zero) {
   $hwnd = Find-PidWindow $p.Id
 }
 Write-Host "hwnd=0x$([Convert]::ToString($hwnd.ToInt64(), 16))"
+
+if ($NoAutoNav) {
+  $totalSec = [int]($InteractiveHoldMin * 60)
+  Write-Host ""
+  Write-Host "=========================================================" -ForegroundColor Cyan
+  Write-Host " --no-autonav mode: game is running, hidden, muted, cursor pinned." -ForegroundColor Cyan
+  Write-Host " Your Xbox controller (already detected by SDL) should drive the menus." -ForegroundColor Cyan
+  Write-Host " Holding for $InteractiveHoldMin minutes ($totalSec s) before auto-exit." -ForegroundColor Cyan
+  Write-Host " Ctrl+C this window early when you're done — the trace flushes on shutdown." -ForegroundColor Cyan
+  Write-Host "=========================================================" -ForegroundColor Cyan
+  Write-Host ""
+  $sw = [System.Diagnostics.Stopwatch]::StartNew()
+  while ($sw.Elapsed.TotalSeconds -lt $totalSec) {
+    if ($p.HasExited) { Write-Host "process exited early"; break }
+    Start-Sleep -Seconds 5
+    $remaining = [int]($totalSec - $sw.Elapsed.TotalSeconds)
+    if ($remaining -gt 0 -and ($remaining % 60 -lt 5)) {
+      Write-Host "  ... $([int]($remaining/60)) min remaining"
+    }
+  }
+  if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+  $captures = Join-Path (Split-Path $exe) "captures"
+  $latest = Get-ChildItem $captures -Filter "trace_*.jsonl" -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  if ($latest) {
+    $lines = (Get-Content $latest.FullName | Measure-Object -Line).Lines
+    Write-Host "trace: $($latest.FullName) ($lines events)"
+  }
+  return
+}
 
 # Menu nav — same sequence as smoke_play.ps1.
 $plan = @(
