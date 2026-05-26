@@ -665,3 +665,61 @@ testing, delivered:
 The next chunk of 4c reading is more concentrated function decode
 (specific subsystem Update virtuals) and requires either more reading
 time per-function or the user's gameplay session to inform priorities.
+
+### 2026-05-26 — Phase 4c extended autonomous session (commits c845c19 + ...)
+
+User asked me to keep grinding while away. Delivered:
+
+**More function bodies decoded:**
+- `sub_8236A338` (JoypadConfig::SetJoypadMode): 904-byte joypad
+  object alloc on enable, destructor on disable. Tested via hook
+  that confirmed use_joypad is GH2's DEFAULT setting — Xbox One
+  controller works without spoofing.
+- `sub_822D5FC0` (BoostMeter::Init): reads 10 float scoring/SP/boost
+  config values into a contiguous 40-byte struct. Confirms BoostMeter
+  layout.
+- `sub_822D69C8` (Scoring::Register): partial decode — 9 config
+  property reads, embeds BoostMeter at this+36..+76.
+- `sub_82317EF8` (DataNode::Resolve): tagged-union dispatch on type
+  ID. Confirmed DataNode = 8 bytes {payload@+0, type@+4}. Type IDs
+  2 (INT), 17 (DeferredRef), 19 (SymbolRef) observed.
+- `sub_823180E8` (DataNode::AsFloat): confirmed (stfs on result).
+- `sub_82120818` (Object::Release): refcount decrement; ref @ this+10
+  (u16). Calls delete-with-size at zero.
+- `sub_822D59C0` (MidiParser::Load): partial decode — opens MIDI via
+  generic sub_8235A458 file dispatcher; stores parsed tree at this+56.
+- `sub_8235F4B0` (MiloLoader::Load): partial decode — 6 args; sets
+  vtable @ this+0 to fixed addr 0x82038BFC; constructs sub-objects at
+  this+16, +44, +2128.
+
+**New trace hook + capture:**
+- file_ext stack-sample hook landed. First capture pinned ALL 9 asset
+  loaders by file extension. Massive single-capture win.
+
+**New memory docs:**
+- `subsystems/asset_layout.md`: full 108-DTB catalog by subsystem
+- `subsystems/song_load_sequence.md`: exact 19-step asset load order
+  at song-start, with the post-pin-map asset-loader table
+- `port_v1_plan.md`: 12-phase OG-Xbox port implementation sequence
+- `reference_card.md`: ⭐ single-page condensed reference for use
+  while writing port code
+
+harmonix_symbols.h updated with ~16 newly-named sub_ aliases (per-
+frame loop functions, asset loaders, joypad/scheduler/DataNode).
+
+**Combined autonomous-session deliverables:**
+- 13 subsystem markdown docs + reference card + port plan
+- ~80 sub_ addresses pinned (24 register sites + 9 asset loaders +
+  10 per-frame ticks + the rest plumbing)
+- The per-frame loop fully decoded
+- The Scheduler-Walk pattern fully decoded
+- The DataNode model decoded
+- Joypad mode confirmed default-on
+- Tooling: analysis/sub_skeleton.py + file_ext stack hook
+
+Stopping autonomous session here. The remaining work requires
+either: (a) much more individual function-body reading (diminishing
+returns per function), or (b) the user's controller-driven gameplay
+capture session (unblocks Phase 4d successful-state traces), or
+(c) Phase 4e render-pipeline investigation (different toolset:
+PIX/RenderDoc, not in-process hooks).
