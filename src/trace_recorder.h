@@ -44,6 +44,7 @@ void LogFileOpen(std::string_view path, uint64_t offset, uint32_t size, bool fou
 void LogPropertyLookup(std::string_view class_name, std::string_view prop_name,
                        uint32_t returned_ptr);
 void LogHandlerLookup(std::string_view name, uint32_t returned_ptr);
+void LogClassLookup(std::string_view class_name, uint32_t returned_ptr);
 void LogAudioSubmit(uint32_t stream_id, uint32_t buffer_len);
 void LogFrame(uint64_t frame_index);
 

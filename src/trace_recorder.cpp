@@ -185,6 +185,20 @@ void LogHandlerLookup(std::string_view name, uint32_t returned_ptr) {
     write_line_locked(line);
 }
 
+void LogClassLookup(std::string_view class_name, uint32_t returned_ptr) {
+    if (!g_capturing.load(std::memory_order_relaxed)) return;
+    std::string line;
+    start_event(line, "class.lookup");
+    line += ",\"class\":\"";
+    json_escape(line, class_name);
+    char tail[48];
+    std::snprintf(tail, sizeof(tail), "\",\"ret\":\"0x%08x\"", returned_ptr);
+    line += tail;
+    end_event(line);
+    std::lock_guard<std::mutex> lk(g_mu);
+    write_line_locked(line);
+}
+
 void LogAudioSubmit(uint32_t stream_id, uint32_t buffer_len) {
     if (!g_capturing.load(std::memory_order_relaxed)) return;
     std::string line;

@@ -22,15 +22,91 @@
 #include <rex/rex_app.h>
 #include <rex/ui/window.h>
 
+// rex/audio/nop/nop_audio_system.h was tried first as a headless-audio
+// approach. The NopAudioSystem::CreateDriver returns X_STATUS_NOT_IMPLEMENTED
+// and the base AudioSystem layer asserts/crashes when it can't get a
+// driver -- access violation at boot before XEX load. Reverted; we mute
+// at the Windows audio-session level instead (see MuteOwnAudioSession()
+// in OnPostSetup below). Original wiring kept commented for reference:
+//   #include <rex/audio/nop/nop_audio_system.h>
+//   #include <rex/runtime.h>
+//   void OnPreSetup(rex::RuntimeConfig& config) override {
+//     config.audio_factory = REX_AUDIO_BACKEND(rex::audio::nop::NopAudioSystem);
+//   }
+
 #include <chrono>
 #include <filesystem>
 #include <sstream>
+#include <thread>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <audiopolicy.h>
+#include <mmdeviceapi.h>
+#include <endpointvolume.h>
 #endif
+
+#ifdef _WIN32
+namespace {
+
+// Mute this process's audio session via the Windows Audio Session API.
+// Doesn't disable the rexglue audio system (which the guest expects);
+// just silences anything we'd otherwise send to the user's speakers
+// so trace runs stay headless. Returns true on success.
+inline bool MuteOwnAudioSession() {
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    const bool we_inited_com = SUCCEEDED(hr);
+    bool ok = false;
+    IMMDeviceEnumerator* enumer = nullptr;
+    IMMDevice* dev = nullptr;
+    IAudioSessionManager2* mgr = nullptr;
+    IAudioSessionEnumerator* sess_enum = nullptr;
+    if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
+                                CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
+                                reinterpret_cast<void**>(&enumer)))) goto done;
+    if (FAILED(enumer->GetDefaultAudioEndpoint(eRender, eConsole, &dev))) goto done;
+    if (FAILED(dev->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL,
+                             nullptr, reinterpret_cast<void**>(&mgr)))) goto done;
+    if (FAILED(mgr->GetSessionEnumerator(&sess_enum))) goto done;
+    {
+        const DWORD my_pid = GetCurrentProcessId();
+        int count = 0;
+        sess_enum->GetCount(&count);
+        for (int i = 0; i < count; ++i) {
+            IAudioSessionControl* ctrl = nullptr;
+            if (FAILED(sess_enum->GetSession(i, &ctrl))) continue;
+            IAudioSessionControl2* ctrl2 = nullptr;
+            DWORD pid = 0;
+            if (SUCCEEDED(ctrl->QueryInterface(__uuidof(IAudioSessionControl2),
+                                               reinterpret_cast<void**>(&ctrl2)))) {
+                ctrl2->GetProcessId(&pid);
+                ctrl2->Release();
+            }
+            if (pid == my_pid) {
+                ISimpleAudioVolume* vol = nullptr;
+                if (SUCCEEDED(ctrl->QueryInterface(__uuidof(ISimpleAudioVolume),
+                                                   reinterpret_cast<void**>(&vol)))) {
+                    vol->SetMute(TRUE, nullptr);
+                    vol->Release();
+                    ok = true;
+                }
+            }
+            ctrl->Release();
+        }
+    }
+done:
+    if (sess_enum) sess_enum->Release();
+    if (mgr)       mgr->Release();
+    if (dev)       dev->Release();
+    if (enumer)    enumer->Release();
+    if (we_inited_com) CoUninitialize();
+    return ok;
+}
+
+}  // namespace
+#endif  // _WIN32
 
 class Gh2testApp : public rex::ReXApp {
  public:
@@ -45,11 +121,12 @@ class Gh2testApp : public rex::ReXApp {
   // Original (unmodified upstream) hooks left commented as a reference
   // of what's available; uncomment if/when needed:
   // void OnPostInitLogging() override {}
-  // void OnPreSetup(rex::RuntimeConfig& config) override {}
   // void OnLoadXexImage(std::string& xex_image) override {}
   // void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {}
-  // void OnShutdown() override {}
   // void OnConfigurePaths(rex::PathConfig& paths) override {}
+
+  // (Audio is muted at the Windows-session level in OnPostSetup below;
+  //  see MuteOwnAudioSession. No OnPreSetup override needed.)
 
   void OnPostSetup() override {
 #ifdef _WIN32
@@ -69,6 +146,39 @@ class Gh2testApp : public rex::ReXApp {
                     reinterpret_cast<uintptr_t>(hwnd));
       }
     }
+
+    // Install SetCursorPos no-op hook so MnK's per-frame CenterCursor()
+    // can't warp the user's cursor. See src/main.cpp for the hook impl
+    // and rationale.
+    extern bool gh2test_install_setcursorpos_hook();
+    if (gh2test_install_setcursorpos_hook()) {
+      REXLOG_INFO("Gh2testApp: user32!SetCursorPos hook installed");
+    } else {
+      REXLOG_WARN("Gh2testApp: SetCursorPos hook FAILED -- cursor may warp");
+    }
+
+    // Mute our Windows audio session so the song doesn't play to the
+    // user's speakers. The session is created LAZILY on first audio
+    // submission, which happens later than OnPostSetup. So we spawn a
+    // detached worker that retries every 200ms until it succeeds (or
+    // after a generous timeout). The session may also be destroyed
+    // and recreated over the run, so the worker keeps trying for the
+    // first ~60 s of process life as a paranoia margin.
+    std::thread([]{
+      for (int i = 0; i < 300; ++i) {  // 300 * 200ms = 60s
+        if (MuteOwnAudioSession()) {
+          REXLOG_INFO("Gh2testApp: process audio session muted (attempt {})", i + 1);
+          // Keep going a bit in case session is re-created.
+          for (int j = 0; j < 50; ++j) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            MuteOwnAudioSession();  // re-mute defensively
+          }
+          return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      }
+      REXLOG_WARN("Gh2testApp: audio mute worker gave up after 60s");
+    }).detach();
 #endif
 
     // Initialize the trace recorder. Output lands in <exe_dir>/captures/

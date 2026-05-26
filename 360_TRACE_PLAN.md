@@ -26,9 +26,32 @@ need for V1 final code on OG Xbox without that fight.
 
 ## Goal
 
-A documented map of GH2's per-frame gameplay tick: note highway scroll,
-hit detection, scoring, song state machine, audio stem sync. Sufficient
-that fresh C++ targeting OG Xbox can be written from the documented map,
+**EXPLICIT:** The port target is a **1:1 EXACT COPY** of **EVERYTHING**
+that happens in the original GH2 while a song is playing. Not "the
+gameplay loop." Not "rhythm and scoring." Every system active during
+a song must be reproduced one-to-one.
+
+The output of this plan is therefore a documented map of EVERYTHING
+GH2 does per frame during a song. The map must cover every system that
+ticks during a song — at minimum:
+
+- Note highway scroll, hit detection, scoring, multiplier, star power
+- Audio: MIDI parse, MOGG stem sync, dynamic crowd cheer/boo stems
+- Lighting cues (MIDI lighting tracks → venue rig)
+- Venue / stage animations (props, screens, pyro)
+- Character animations (idle, lean, headbang, strum, win/lose, special)
+- Crowd animation + crowd-reactive audio
+- Camera scripted cuts and movement
+- HUD (score, multiplier, SP meter, fail meter, flourishes)
+- Particle/VFX (gem-hit sparks, flame trails, missed-note dust)
+- Per-frame song state machine driving the above
+
+This list is **non-exhaustive**. If a subsystem ticks during a song
+in the original, it is in scope. See memory [[port-fidelity-scope]]
+for the full scope rationale.
+
+Sufficient that fresh C++ targeting OG Xbox can be written from the
+documented map and produce a **1:1 exact** in-song experience,
 without needing the recompile alive anymore.
 
 Output artifacts:

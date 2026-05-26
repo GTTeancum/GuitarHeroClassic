@@ -99,3 +99,26 @@ REX_HOOK_RAW(hmx_DataHandler_Find) {
     auto name = read_guest_string(base, name_addr);
     trace360::LogHandlerLookup(name, ctx.r3.u32);
 }
+
+// --- Class registry lookups (highest-leverage hook) ------------------------
+//
+// hmx_ClassReg_Lookup(class_symbol) -> PropertyTable*
+//
+//   r3 = class symbol (Sandbox Symbol = pointer to interned string)
+//   returns r3 = per-class PropertyTable pointer (null on miss)
+//
+// Fires every time the engine asks "what's the PropertyTable for class
+// X?", which happens at the head of most class method dispatches and
+// every PropertyTable-Find chain. Capturing this gives us a per-frame
+// list of WHICH CLASSES are active in the engine — directly surfacing
+// the lighting / camera / anim / vfx subsystems that are otherwise
+// invisible to FileMgr / PropertyTable / Handler hooks. Required for
+// the 1:1 in-song fidelity scope (see [[port-fidelity-scope]] memory).
+
+extern "C" void __imp__sub_82270D20(PPCContext& ctx, uint8_t* base);  // hmx_ClassReg_Lookup
+REX_HOOK_RAW(hmx_ClassReg_Lookup) {
+    const uint32_t sym_addr = ctx.r3.u32;
+    __imp__sub_82270D20(ctx, base);
+    auto name = read_guest_string(base, sym_addr);
+    trace360::LogClassLookup(name, ctx.r3.u32);
+}

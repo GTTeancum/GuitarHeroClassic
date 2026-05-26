@@ -90,6 +90,15 @@ if (-not (Test-Path $exe)) {
 $p = Start-Process -FilePath $exe `
   -ArgumentList @(
     '--game_data_root="C:\Programming\GitHub\Guitar Hero II\GuitarHeroOGX-trace360\assets"',
+    # MnK is re-enabled. The mouse-arrest symptom is solved at the EXE
+    # level by an inline hook on user32!SetCursorPos that no-ops the
+    # cursor-warp call MnK makes every frame (see src/main.cpp
+    # InstallSetCursorPosHook). With that hook in place, MnK can still
+    # translate our PostMessage WM_KEYDOWN/UP -> guest controller
+    # buttons but never moves the user's cursor.
+    # Previous attempt (mnk_mode OMITTED) broke menu navigation because
+    # without MnK our keyboard messages weren't routed to the guest as
+    # controller input.
     '--mnk_mode=true',
     '--mnk_user_index=1'
   ) `
