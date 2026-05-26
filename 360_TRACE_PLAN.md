@@ -483,3 +483,53 @@ gameplay functions, write `gameplay_loop.md`.
 
 Phases 0 + 1 complete; Phase 2/3 partially done (smoke_trace headless
 script + 30s in-song capture archived). Moving into Phase 4 analysis.
+
+### 2026-05-25 — Phase 4 first pass complete (commit d9ed8e6 + gameplay_loop.md)
+
+Headless stack confirmed end-to-end:
+- Window hidden via SW_HIDE.
+- Audio muted via WASAPI process-session mute (3rd retry succeeds at
+  +220ms after window hide).
+- Cursor pinned via per-module IAT patch of `user32!SetCursorPos`
+  applied to every loaded module + periodic re-patch (cursor stays
+  put through 12+ seconds of MnK CenterCursor calls).
+- Menu nav via PostMessage(hwnd, WM_KEYDOWN/UP). Reaches song
+  "Surrender" reliably.
+
+Analysis findings (gameplay_loop.md memory file):
+- Tick rate confirmed ~60 Hz (median inter-frame gap 14.6 ms across
+  5,784 boundaries in steady-state in-song window).
+- ~24 PropertyTable lookups per frame, with a 97%-stable opener of
+  `focus_scale ×4 → ro_guitar_xbox → detect → or → analog`.
+- All "BLIND" subsystems from the Phase 1 analyzer turned out to be
+  present in the trace under their Sandbox class names — analyzer
+  keyword table was wrong. Full inventory in gameplay_loop.md:
+  - 19 `Char*` classes (full character anim stack incl. IK)
+  - `Cam` + `CamShot` (scripted camera)
+  - `Anim` + `AnimFilter` + `animate_track`
+  - `Light` + `LightPreset` + lighting keyframe stepping
+  - `ParticleSys` + `firebird` + `flame_hands` + `sparkle_len`
+  - Full `star_power_*` family + `starved` (probable fail-meter)
+  - Full `crowd_*` family + dynamic-stem rating selector
+  - `TrackWidget` + `gem` + `gem_pass_callback` + `hopo_threshold`
+  - Full `Band*` HUD widget family
+- 742 unique prop/class names; 439 in the in-song window.
+
+What this maps now (Phase 4 step 5 — naming):
+- HIGH confidence: the 27 top-level handler classes (named via
+  class.lookup hook) and the subsystem inventory above.
+- MEDIUM/LOW confidence: specific function meanings (e.g.
+  `gem_pass_callback` is "probably" the per-note hit dispatch).
+- NOT YET pinned: `sub_82XXXXXX` addresses for the inventory classes.
+  Symbol strings are runtime-heap addresses, so don't grep into
+  generated/*.cpp directly. Needs either ClassReg-register hook or
+  Tracy's REXGLUE_PROFILE_GUEST_FUNCTIONS.
+
+Next per plan: Phase 5 (return to PS2 work informed by the loop map),
+or extend the trace coverage to fill the gaps gameplay_loop.md lists
+under "What's still missing":
+- Audio submit / XMA frame counter
+- MIDI event dispatch
+- gem_pass_callback firings (per-note hit/miss truth table)
+- starved confirmation (fail-meter)
+- Longer in-song trace (needs task #24 autoplay)
