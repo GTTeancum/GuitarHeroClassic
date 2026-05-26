@@ -45,6 +45,10 @@
 
 #define hmx_DataHandler_Find       sub_821E04B8
 
+// ---- Joypad / controller mode (HIGH conf, body decoded) -------------------
+
+#define hmx_JoypadConfig_SetJoypadMode sub_8236A338   // (this, bool enable) - allocates/destroys joypad object
+
 // ---- Class / Property registry (HIGH conf) --------------------------------
 //
 // Two-level lookup: hmx_ClassReg_Lookup(class_symbol) returns a per-class

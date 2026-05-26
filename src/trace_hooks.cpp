@@ -14,6 +14,7 @@
 
 #include <rex/hook.h>
 
+#include <atomic>
 #include <cstring>
 #include <mutex>
 #include <string>
@@ -160,4 +161,45 @@ REX_HOOK_RAW(hmx_ClassReg_Lookup) {
             trace360::LogStackSample(std::string("class:") + name);
         }
     }
+}
+
+// --- Force joypad mode = ON ------------------------------------------------
+//
+// hmx_JoypadConfig_SetJoypadMode(this, bool enable) -> sub_8236A338
+//
+// Decoded body (recomp.17.cpp:77716, 47 PPC insns):
+//   r3 = this (JoypadConfig*), r4 = enable (u8 bool)
+//   if (enable && this+56 == NULL):
+//     this+56 = Mem_Alloc(904)  // allocate Joypad object
+//     sub_8227B1F8(this+56, this)    // init joypad
+//     sub_8227A238(this+56, 1)       // register
+//     sub_8227A220(this+56, 0xF000)  // bind input mask
+//   elif (!enable && this+56 != NULL):
+//     this+56->vtable[0](this+56, 1)  // destructor
+//     this+56 = NULL
+//
+// To force joypad mode on for our headless trace-360 build (so a
+// standard Xbox controller plays the game like PS2 controller mode),
+// hook this function and force r4=1 on the FIRST call (which comes
+// from sub_8236C4C0 reading the use_joypad config). Subsequent calls
+// (if any — e.g. settings-menu toggles) pass through unmodified so
+// other code paths can still observe a value change.
+//
+// See [[input-joypad-mode]] memory for the broader rationale.
+
+extern "C" void __imp__sub_8236A338(PPCContext& ctx, uint8_t* base);
+REX_HOOK_RAW(hmx_JoypadConfig_SetJoypadMode) {
+    static std::atomic<bool> g_first_set = false;
+    bool expected = false;
+    if (g_first_set.compare_exchange_strong(expected, true)) {
+        // First call -- this is from JoypadConfig::Init at boot reading
+        // the use_joypad config DataNode. Force r4=1 so joypad mode is
+        // enabled regardless of the DTB value.
+        const uint8_t original = static_cast<uint8_t>(ctx.r4.u32 & 0xFF);
+        ctx.r4.u64 = 1;
+        trace360::LogEvent("joypad.force_on",
+                           original ? "was already true (no-op)"
+                                    : "was false; forcing true");
+    }
+    __imp__sub_8236A338(ctx, base);
 }
