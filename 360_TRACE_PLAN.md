@@ -600,3 +600,68 @@ under "What's still missing":
 - gem_pass_callback firings (per-note hit/miss truth table)
 - starved confirmation (fail-meter)
 - Longer in-song trace (needs task #24 autoplay)
+
+### 2026-05-25 — Phase 4c progressing autonomously (commits d9a669b + e68a51a)
+
+Got told plainly that the original Phase 4 single success criterion
+("user can describe the loop") was insufficient for actual port-ready
+knowledge. Plan split into 4a (DONE) / 4b (DONE) / 4c (in progress) /
+4d (autoplay-gated) / 4e (render).
+
+This autonomous session, while the user is hours away from gamepad
+testing, delivered:
+
+**Tooling:**
+- `analysis/sub_skeleton.py`: extract structural skeleton (call graph
+  + struct offsets + branch labels) from any `sub_82XXXXXX` — avoids
+  line-by-line reading for the ~3000-function recompile.
+
+**Function bodies fully decoded:**
+- `sub_82120090` (`hmx_main_MainLoop`): the 10-call-per-frame sequence,
+  documented in `subsystems/frame_loop.md`. The port's main loop can
+  now be written 1:1 from this.
+- `sub_82313CB0` (`hmx_Scheduler_Walk`): intrusive linked list walker
+  that calls `obj->vtable[15](dt)` (Object::Update) on every due
+  scheduled object. The per-frame spine of every animated/scripted
+  subsystem.
+- `sub_8236A338` (`hmx_JoypadConfig_SetJoypadMode`): allocates a
+  904-byte joypad object, binds input mask 0xF000. Confirmed via
+  hook test that `use_joypad` is **already TRUE by default** —
+  user's Xbox controller will work without subtype-spoofing.
+- `sub_822A7B30`: Guitars::ConstructAll — confirms the `firebird` SP
+  flame is per-guitar (not per-character), iterates the guitar
+  registry.
+
+**Subsystem implementation notes (in `memory/subsystems/`):**
+- `frame_loop.md` ⭐ THE per-frame structure
+- `engine_plumbing.md` — Object base / vtable / DataNode / PropertyTable
+  / ClassReg / Scheduler::Walk body
+- `character_anim.md` — 19 Char* classes catalogued
+- `lighting.md` — keyframe cue system
+- `starpower.md` — `starved` = fail-meter, SP shares register-site
+  with scoring
+- `gem_hit.md` — TrackWidget + gem + beatmatch vs beatmatcher,
+  gem_pass_callback as hit/miss dispatch
+- `crowd_camera_vfx.md` — 5-tier crowd stems, CamShot, particles
+- `audio.md` — multi-channel MOGG, riskiest port subsystem
+- `hud_scoring.md` — Band* widgets + Scoring struct layout
+- `input_joypad_mode.md` — controller mode (now known to be default-on)
+
+**Hooks added:**
+- Stack-sample on first occurrence per unique class.lookup AND prop.lookup
+  symbol. Yields the call-site map for every named subsystem.
+- `hmx_JoypadConfig_SetJoypadMode` force-on (no-op confirmed default
+  is already true; kept as belt-and-suspenders).
+
+**Confirmed for the user's upcoming test session:**
+- Window stays hidden (SW_HIDE)
+- Audio is muted (WASAPI per-process)
+- Cursor is pinned (IAT patch on all loaded modules' user32!SetCursorPos)
+- Controller mode is GH2's DEFAULT — Xbox One Controller should be
+  accepted as input without any extra patches when the user plugs in
+- Menus reachable via PostMessage WM_KEYDOWN/UP (smoke_trace.ps1)
+- Trace captures ~150k events in 30-45s
+
+The next chunk of 4c reading is more concentrated function decode
+(specific subsystem Update virtuals) and requires either more reading
+time per-function or the user's gameplay session to inform priorities.
