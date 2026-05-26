@@ -164,28 +164,95 @@ jsonl + Tracy file from the gameplay window.
 
 ## Phase 4: Capture and analyze
 
-Run, capture, analyze.
+**Revised 2026-05-25 after 4a first pass surfaced the original phase
+spec was too shallow.** The original Phase 4 had one success criterion
+("user can *describe* the loop") which I (Claude) wrote and then
+accidentally conflated with a stronger one (*can reimplement the loop*).
+Description alone isn't enough — the per-frame *names* of subsystems
+don't tell us the algorithms, struct layouts, MIDI mappings, or render
+behavior needed to actually port. Splitting into 4a-4e with honest
+budgets calibrated against actual 4a pace (~20 min, not 4 hours).
 
-Steps:
-1. Single end-to-end run with tracer active during gameplay window.
-2. Pull the trace jsonl into Python / sqlite for analysis.
-3. Identify the per-frame tick function (the loop with consistent
-   period in the trace -- likely 60Hz).
-4. From the tick, walk the call tree once per frame to identify:
-   - Song-state update
-   - Note highway scroll math
-   - Input-poll → hit-test pathway
-   - Score update
-   - Audio stem sync (which streams advance when)
-5. Name the discovered functions in `harmonix_symbols.h` and
-   `recomp_symbols.md` with confidence levels.
-6. Write `gameplay_loop.md` capturing the loop's call graph and data
-   flow at the level needed to reimplement.
+### 4a — Subsystem inventory + per-frame skeleton  (DONE)
 
-Success criterion: a reader of `gameplay_loop.md` (specifically the
-user, who doesn't read the recompile) can describe what the engine
-does every frame of a song without needing me to walk through the
-recompile source.
+Steps 1-3 of the original Phase 4. Output: `gameplay_loop.md` first
+pass with ~60 Hz tick, 24 lookups/frame, 27 top-level classes + 742
+named props/classes catalogued, opening sequence pattern identified.
+
+### 4b — Pin sub_82XXXXXX addresses for inventory classes  (~1-2 hours)
+
+Right now we have class *names* and runtime *symbol-pool addresses*
+(0x4xxxxxxx, heap-allocated, not in `generated/*.cpp`). We need
+PPC *code* addresses (0x82xxxxxx) per inventory class so the next
+phase has explicit grep targets.
+
+Approach: when `hmx_ClassReg_Lookup` fires for the first occurrence
+of each class name, capture the host call stack via DbgHelp
+(`CaptureStackBackTrace` + `SymFromAddr`). The host stack frames are
+the recompiled C++ functions; their linker names are `sub_82XXXXXX`,
+which gives us each caller's PPC address. Done once per unique class
+name = a class → call-site mapping for the whole inventory.
+
+Fallback: enable `REXGLUE_PROFILE_GUEST_FUNCTIONS` + Tracy. More
+setup, but gives full per-guest-function flame graph.
+
+Output: `recomp_symbols.md` updated with one address per inventory
+class.
+
+### 4c — Read each pinned function, write impl notes  (~1-2 days)
+
+For each `sub_` pinned in 4b, read the recompile body and write a
+per-subsystem note covering: algorithm (in pseudocode), struct
+layout for any classes it touches, dependencies on other subsystems.
+This is the "implementation-ready" pass. Estimate: order of hours
+per major subsystem; ~8 core in-song subsystems to cover (input,
+song clock, gem dispatch, character anim, lighting, camera, crowd,
+HUD).
+
+Output: per-subsystem markdown files under `memory/subsystems/`
+that, taken together, are enough to write the OG-Xbox port code.
+
+### 4d — Capture successful gameplay states  (~2-4 hours)
+
+Current trace only sees the player missing every note. Per-event
+behaviors we need observed in trace form: hit a note, build a
+streak, build the rock-meter up tiers, activate star power, deploy
+star power, complete a song (results screen), pause/unpause.
+
+Blocked by task #24 autoplay (or fail-meter no-op). Once unblocked:
+two more captures, ~3 min each, plus analysis pass.
+
+Output: extension of `gameplay_loop.md` with the dynamic-state
+transitions.
+
+### 4e — Render pipeline  (~1-2 days, biggest unknown)
+
+The jsonl trace is logic-side only. The renderer (note highway, gem
+sparks, character mesh skinning, lighting rig, particles, HUD
+draw) needs different instrumentation:
+
+- D3D12 frame capture (PIX / RenderDoc) against the hidden window
+  to see actual draw calls / shaders / resource bindings
+- OR hooks at the rexglue GPU command submission layer
+
+This bucket is the most genuinely uncertain because we haven't done
+one on this codebase yet.
+
+Output: `render_pipeline.md` covering shader inventory, draw-call
+ordering per frame, per-subsystem render contribution.
+
+### Success criteria (revised)
+
+A reader of `gameplay_loop.md` + per-subsystem notes from 4c +
+`render_pipeline.md` from 4e can:
+1. List every system that ticks during a song.
+2. For each system, describe the per-frame algorithm in enough
+   detail to reimplement.
+3. Know which MIDI events drive which subsystem.
+4. Know the struct layout of each named class.
+5. Know what the renderer is drawing each frame.
+
+Only then is Phase 5 (return to PS2 work) genuinely unblocked.
 
 ## Phase 5: Return to PS2 work
 

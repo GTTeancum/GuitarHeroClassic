@@ -15,7 +15,9 @@
 #include <rex/hook.h>
 
 #include <cstring>
+#include <mutex>
 #include <string>
+#include <unordered_set>
 
 namespace {
 
@@ -29,6 +31,12 @@ std::string read_guest_string(uint8_t* base, uint32_t guest_addr) {
     while (n < kMax && p[n]) ++n;
     return std::string(p, n);
 }
+
+// Tracks which class / prop names we've already stack-sampled, so the
+// host stack capture runs ONCE per unique name. Bounded; tiny.
+std::mutex g_seen_mu;
+std::unordered_set<std::string> g_class_stack_seen;
+std::unordered_set<std::string> g_prop_stack_seen;
 
 }  // anonymous namespace
 
@@ -83,6 +91,20 @@ REX_HOOK_RAW(hmx_PropertyTable_Find0) {
     __imp__sub_82319530(ctx, base);
     auto key = read_guest_string(base, key_addr);
     trace360::LogPropertyLookupA("?", key, key_addr, ctx.r3.u32);
+
+    // Phase 4b: capture host stack on first occurrence of each unique
+    // prop key. Same purpose as the class.lookup variant -- gives us
+    // the calling sub_ address for every named subsystem.
+    if (!key.empty()) {
+        bool first = false;
+        {
+            std::lock_guard<std::mutex> lk(g_seen_mu);
+            first = g_prop_stack_seen.insert(key).second;
+        }
+        if (first) {
+            trace360::LogStackSample(std::string("prop:") + key);
+        }
+    }
 }
 
 // --- DataHandler (named handler list) lookups ------------------------------
@@ -121,4 +143,21 @@ REX_HOOK_RAW(hmx_ClassReg_Lookup) {
     __imp__sub_82270D20(ctx, base);
     auto name = read_guest_string(base, sym_addr);
     trace360::LogClassLookupA(name, sym_addr, ctx.r3.u32);
+
+    // Phase 4b: on first occurrence of each class name, capture the
+    // host call stack. The host stack frames in our process are the
+    // recompiled C++ functions whose linker names are sub_82XXXXXX
+    // — so resolved frame names give us the PPC callers that asked
+    // for this class's PropertyTable. That's the "which sub_ owns
+    // class X" mapping the next phase needs.
+    if (!name.empty()) {
+        bool first = false;
+        {
+            std::lock_guard<std::mutex> lk(g_seen_mu);
+            first = g_class_stack_seen.insert(name).second;
+        }
+        if (first) {
+            trace360::LogStackSample(std::string("class:") + name);
+        }
+    }
 }
