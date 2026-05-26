@@ -134,7 +134,7 @@ if ($NoAutoNav) {
   Write-Host " --no-autonav mode: game is running, hidden, muted, cursor pinned." -ForegroundColor Cyan
   Write-Host " Your Xbox controller (already detected by SDL) should drive the menus." -ForegroundColor Cyan
   Write-Host " Holding for $InteractiveHoldMin minutes ($totalSec s) before auto-exit." -ForegroundColor Cyan
-  Write-Host " Ctrl+C this window early when you're done — the trace flushes on shutdown." -ForegroundColor Cyan
+  Write-Host " Ctrl+C this window early when you're done - the trace flushes on shutdown." -ForegroundColor Cyan
   Write-Host "=========================================================" -ForegroundColor Cyan
   Write-Host ""
   $sw = [System.Diagnostics.Stopwatch]::StartNew()

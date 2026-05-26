@@ -49,6 +49,27 @@
 
 #define hmx_JoypadConfig_SetJoypadMode sub_8236A338   // (this, bool enable) - allocates/destroys joypad object
 
+// ---- Asset loaders by file extension (MEDIUM conf, pinned via file_ext --
+//      stack-sample hook; bodies not yet decoded) ----------------------
+
+#define hmx_MidiParser_Load        sub_822D59C0   // .mid -> chart event list
+#define hmx_MiloLoader_Load        sub_8235F4B0   // .milo_xbox scene/asset bundle
+#define hmx_FaceAnim_Load          sub_8214E030   // .fac face / viseme data
+#define hmx_VocalTrack_Load        sub_821915D8   // .voc vocal audio
+#define hmx_MoggDecoder_Open       sub_826820D8   // .mogg multi-channel OGG stream
+#define hmx_TextureLoader_Load     sub_821C8A30   // .bmp_xbox texture
+#define hmx_ShaderLoader_Load      sub_82307530   // .fx_xbox shader / effect
+#define hmx_ParticleSys_Load       sub_82307F30   // .dtx particle config (encrypted DTB)
+
+// ---- Per-frame main loop (HIGH conf, body decoded) ----------------------
+
+#define hmx_main_MainLoop          sub_82120090   // infinite per-frame loop
+#define hmx_Scheduler_Walk         sub_82313CB0   // per-frame Object::Update dispatcher
+#define hmx_Object_Release         sub_82120818   // refcount decrement + free at zero
+#define hmx_DataNode_Resolve       sub_82317EF8   // tagged-union dispatch
+#define hmx_DataNode_AsInt         sub_82317FE8
+#define hmx_DataNode_AsFloat       sub_823180E8
+
 // ---- Class / Property registry (HIGH conf) --------------------------------
 //
 // Two-level lookup: hmx_ClassReg_Lookup(class_symbol) returns a per-class

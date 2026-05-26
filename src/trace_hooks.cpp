@@ -38,6 +38,7 @@ std::string read_guest_string(uint8_t* base, uint32_t guest_addr) {
 std::mutex g_seen_mu;
 std::unordered_set<std::string> g_class_stack_seen;
 std::unordered_set<std::string> g_prop_stack_seen;
+std::unordered_set<std::string> g_file_stack_seen;
 
 }  // anonymous namespace
 
@@ -71,6 +72,29 @@ REX_HOOK_RAW(hmx_FileMgr_Lookup) {
     const uint32_t sz  = (found && out_d) ? REX_LOAD_U32(out_d) : 0;
     auto path = read_guest_string(base, path_addr);
     trace360::LogFileOpen(path, off, sz, found);
+
+    // Phase 4c addition: stack-sample the FIRST occurrence of each
+    // unique file extension category, so the next capture pins the
+    // asset-loader sub_ for each. Grouping by extension (not full
+    // path) keeps the sample set bounded — we want one sample per
+    // loader type, not per individual asset.
+    if (found && !path.empty()) {
+        std::string key;
+        auto dot = path.find_last_of('.');
+        if (dot != std::string::npos) {
+            key = path.substr(dot);  // e.g. ".mid", ".milo_xbox", ".dtb"
+        } else {
+            key = path;  // pathological no-extension case
+        }
+        bool first = false;
+        {
+            std::lock_guard<std::mutex> lk(g_seen_mu);
+            first = g_file_stack_seen.insert(key).second;
+        }
+        if (first) {
+            trace360::LogStackSample(std::string("file_ext:") + key);
+        }
+    }
 }
 
 // --- Property registry lookups ---------------------------------------------
