@@ -39,7 +39,15 @@ param(
   # The script will hold the process alive for $InteractiveHoldMin
   # minutes (default 10), then save the trace and exit cleanly.
   [switch]$NoAutoNav,
-  [int]$InteractiveHoldMin = 10
+  [int]$InteractiveHoldMin = 10,
+  # Run the song to natural completion and capture the post-song sequence
+  # (results screen, star animation, character victory/defeat reaction,
+  # SP effects if activated mid-song by the autoplay hook).
+  # Overrides GameplayHoldSec.  Holds up to FullSongMaxSec (default 420s /
+  # 7 min), which covers any GH2 song + ~90s of results screen.
+  # Stops early if the process exits on its own.
+  [switch]$FullSong,
+  [int]$FullSongMaxSec  = 420
 )
 
 Add-Type @"
@@ -178,12 +186,41 @@ foreach ($s in $plan) {
   Start-Sleep -Seconds $s.wait
 }
 
-Write-Host "Holding $GameplayHoldSec s for gameplay capture (will likely fail-out before then; that's fine)..."
-Start-Sleep -Seconds $GameplayHoldSec
-
-if (-not $p.HasExited) {
-  Write-Host "stopping process"
-  Stop-Process -Id $p.Id -Force
+if ($FullSong) {
+  # Full-song mode: hold up to $FullSongMaxSec and stop early if the
+  # process exits on its own (results screen → menu → process exit).
+  # Covers: complete song playback, SP deployment effects (fired every ~6s
+  # by autoplay_hook.cpp), end-of-song results screen, star animation,
+  # post-song character reactions.
+  Write-Host ""
+  Write-Host "=========================================================" -ForegroundColor Yellow
+  Write-Host " Full-song mode: holding up to $FullSongMaxSec s" -ForegroundColor Yellow
+  Write-Host " Covers: full song + post-song results + SP effects" -ForegroundColor Yellow
+  Write-Host " Ctrl+C to stop early — trace flushes on shutdown." -ForegroundColor Yellow
+  Write-Host "=========================================================" -ForegroundColor Yellow
+  Write-Host ""
+  $sw = [System.Diagnostics.Stopwatch]::StartNew()
+  while ($sw.Elapsed.TotalSeconds -lt $FullSongMaxSec) {
+    if ($p.HasExited) { Write-Host "Process exited naturally at $([int]$sw.Elapsed.TotalSeconds)s"; break }
+    Start-Sleep -Seconds 5
+    $elapsed = [int]$sw.Elapsed.TotalSeconds
+    # Progress tick every 30s
+    if (($elapsed % 30) -lt 5 -and $elapsed -gt 5) {
+      $remaining = $FullSongMaxSec - $elapsed
+      Write-Host "  ... ${elapsed}s elapsed, up to ${remaining}s remaining"
+    }
+  }
+  if (-not $p.HasExited) {
+    Write-Host "Full-song timeout reached ($FullSongMaxSec s); stopping process"
+    Stop-Process -Id $p.Id -Force
+  }
+} else {
+  Write-Host "Holding $GameplayHoldSec s for gameplay capture..."
+  Start-Sleep -Seconds $GameplayHoldSec
+  if (-not $p.HasExited) {
+    Write-Host "stopping process"
+    Stop-Process -Id $p.Id -Force
+  }
 }
 
 $captures = Join-Path (Split-Path $exe) "captures"

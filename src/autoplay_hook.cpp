@@ -1,116 +1,132 @@
-// autoplay_hook.cpp - Intercepts Beatmatcher::GemPassFire to force every
-// gem outcome to "hit", enabling sustained no-fail gameplay capture.
+// autoplay_hook.cpp - Two hooks that together give unattended, full-fidelity
+// gameplay capture:
+//
+//   1. GemPass_VtableDispatch hook  — forces every gem outcome to HIT so the
+//      player never fails out. Scoring, streak multiplier, star-phrase fill,
+//      and crowd meter all update normally.
+//
+//   2. Beatmatch_Update hook        — periodically fires star-power activation
+//      so that SP deploys, firebird VFX spawn, flame_hands attach, gem SP-glow,
+//      crowd-boost audio, and SP character-animation states are all exercised
+//      during a headless trace run.
 //
 // ============================================================
 // HOW TO ENABLE
 // ============================================================
-// Build with -DAUTOPLAY_ENABLED (e.g. add_compile_definitions(AUTOPLAY_ENABLED)
-// in CMakeLists.txt, or pass -DAUTOPLAY_ENABLED on the cmake command-line).
-// When the flag is absent this entire file compiles to nothing.
+// Build with -DAUTOPLAY_ENABLED.  CMakeLists.txt for trace-360 always sets
+// this.  When absent the entire file compiles to nothing.
 //
 // ============================================================
-// WHY THIS FUNCTION
+// HOOK 1 — GemPass::VtableDispatch (sub_8234A598)
 // ============================================================
-// sub_82338778 = hmx_Beatmatcher_GemPassFire (HIGH confidence, decoded
-// 2026-05-28).  It is the single choke-point called from Beatmatcher::Update
-// (sub_82338A48, vtable[15]) once per Beatmatcher per frame, for every gem
-// whose hit-window has now elapsed.  It inspects each elapsed GemNode and
-// decides hit vs. miss, then fires:
+// The canonical gem-outcome choke-point.  Called from:
 //
 //   NoteTracker::CallbackDispatch (sub_8233AE28)
-//     -> GemPass::VtableDispatch  (sub_8234A598)
-//          -> vtable[16] on every registered callback (Scoring, StarPower)
+//     <- Beatmatcher::Update (per-gem window expiry)
 //
-// The outcome bit passed down that chain lives in the PPCContext register
-// file between the "did the player press in time?" test inside GemPassFire
-// and the vtable[16] fire.  Hooking GemPassFire lets us force that test to
-// always succeed before any callback sees the result.
+// Calling convention:
+//   r3 = NoteTracker* (callback-list object)
+//   r4 = song_time float (pass-through)
+//   r5 = hit bool  (0 = miss, non-zero = hit)
 //
-// ============================================================
-// WHAT THE HOOK DOES
-// ============================================================
-// On entry to GemPassFire:
-//   r3 = Beatmatcher* (this)
-//   r4 = song_time float (bits in r4.u32, consistent with CalcHitWindow)
-//   r5 = timing data ptr (struct written by sub_82330E90 at Beatmatcher+28)
-//
-// The original body iterates the GemNode linked list at Beatmatcher+20 and
-// calls sub_82338820 (AdvanceGemQueue) + sub_8233AE28 (NoteTracker dispatch)
-// for each elapsed node, passing a "hit" boolean in r5 (0 = miss, 1 = hit)
-// to GemPass::VtableDispatch.
-//
-// This hook:
-//   1. Patches r5 to 1 (force HIT) on every call.
-//   2. Delegates to the original __imp__ so the full dispatch chain runs
-//      normally -- Scoring, StarPower, streak multiplier, crowd meter all
-//      update exactly as if the player pressed correctly.
-//   3. Logs the intercept once (on first invocation) so the build log
-//      confirms the hook is live.
-//
-// NO sustain logic is modified here.  Sustain extends are handled by
-// sub_82338940 (AdvanceState) which reads whammy state, not GemPassFire.
-// Star power phrases accumulate normally because StarPower's vtable[16]
-// callback fires with the forced-hit outcome.
+// The hook forces r5 = 1 before vtable[16] fires, so both registered
+// callbacks (Scoring at sub_822D5944, StarPower at sub_822D5024) see a HIT.
+// Star phrases therefore fill the SP gauge naturally from phrase hits.
 //
 // ============================================================
-// DISABLING AT RUNTIME (without recompile)
+// HOOK 2 — Beatmatch::Update (sub_823123D0, vtable[15])
 // ============================================================
-// Set the g_autoplay_enabled flag below to false from a debugger or
-// another hook if you need to toggle off mid-session.
+// In headless mode there is no controller, so the SP activation button
+// (tilt / face-button in joypad mode) is never pressed.  The gauge fills from
+// phrase hits but never deploys, meaning these systems are never exercised:
+//
+//   - firebird particle spawn on the guitar (Guitar+56 vector, named child)
+//   - flame_hands particle attach to character IK hands (sub_8232E7A8)
+//   - gem SP-glow dirty-bit 0x800 (sub_826927C0 / hmx_Gem_SetStarPower)
+//   - SP audio start / crowd-boost scalar (sub_822DF590 / sub_8233CC78)
+//   - SP character animation states (unknown; need observation to decode)
+//   - SP multiplier (sp_mult = 2) in scoring
+//
+// This hook fires hmx_Beatmatch_SPActivate (sub_822CB260) after every
+// SP_DEPLOY_INTERVAL Beatmatch::Update calls (~6s at 60Hz).
+//
+// CONFIDENCE NOTE: sub_822CB260 is MEDIUM confidence — decoded as
+// "star-power activation handler; triggers second TryHit call in PlayerUpdate."
+// If it turns out to only cover the double-TryHit path and not the full
+// visual/audio SP deploy, a follow-up decode pass will identify the actual
+// state-machine transition.  Adding the hook now lets us observe at runtime
+// (via trace events) exactly which downstream calls fire, which is the
+// information we need to complete that decode.
+//
+// Timing: g_sp_deploy_timer starts at SP_DEPLOY_INTERVAL/2 (180) so the
+// first activation fires ~3s into gameplay, before the second phrase hit.
+// After that it fires every ~6s.  SPActivate is a no-op if the gauge is
+// below ready_level (0.5), so early firings before the gauge fills are safe.
+//
+// ============================================================
+// RUNTIME TOGGLE
+// ============================================================
+// g_autoplay_enabled is a std::atomic<bool> initialized to true.  Set it
+// false from a debugger or another hook to disable both hooks mid-session
+// without a recompile.
 
 #ifdef AUTOPLAY_ENABLED
 
 #include "harmonix_symbols.h"
-
 #include "generated/gh2test_init.h"
-
 #include <rex/hook.h>
-
 #include <atomic>
 
-// Runtime toggle — set to false to deactivate without a recompile.
-// Initialized to true so autoplay is on from the first frame.
+// Runtime toggle.  Both hooks respect this flag.
 static std::atomic<bool> g_autoplay_enabled{true};
 
-// ---- GemPassFire hook -------------------------------------------------------
-//
-// sub_82338778 = hmx_Beatmatcher_GemPassFire
-//
-// Calling convention (PPC fastcall via REX):
-//   r3 = Beatmatcher* this
-//   r4 = current song_time (float bits, same unit as Beatmatcher+28)
-//   r5 = timing_window ptr  (points into Beatmatcher+28 area written by CalcHitWindow)
-//
-// The "hit" flag that GemPassFire sets before calling NoteTracker dispatch is
-// assembled from a comparison of GemNode.tick vs. the timing window.  That
-// comparison runs INSIDE the original body which we still call -- we only
-// ensure that any "miss" path is short-circuited.
-//
-// Implementation strategy:
-//   We cannot patch the comparison result mid-function (we don't have an
-//   address for the interior branch).  Instead we intercept at the NoteTracker
-//   level: hook GemPass::VtableDispatch (sub_8234A598) which receives the
-//   final hit/miss bool in r5 as its first argument after the object pointer.
-//   That is the cleanest single-register patch point immediately before the
-//   vtable[16] callbacks see the outcome.
+// ===========================================================================
+// HOOK 1 — GemPass::VtableDispatch
+// Force every gem outcome to HIT before vtable[16] callbacks fire.
+// ===========================================================================
 
 extern "C" void __imp__sub_8234A598(PPCContext& ctx, uint8_t* base);  // hmx_GemPass_VtableDispatch
 
 REX_HOOK_RAW(hmx_GemPass_VtableDispatch) {
     if (g_autoplay_enabled.load(std::memory_order_relaxed)) {
-        // r3 = NoteTracker* (callback list object)
-        // r4 = song_time float (pass-through)
-        // r5 = hit bool (0 = miss, non-zero = hit)
-        //
-        // Force r5 to 1 so every registered callback (Scoring, StarPower)
-        // sees a HIT regardless of whether the player pressed in time.
+        // r5 = hit bool.  Force to 1 (HIT) so Scoring and StarPower callbacks
+        // both see a successful gem pass regardless of player timing.
         ctx.r5.u64 = 1u;
     }
-
-    // Always delegate to the original dispatch so all downstream callbacks
-    // (Scoring streak/multiplier, StarPower phrase fill, crowd meter) fire
-    // normally with the forced outcome.
     __imp__sub_8234A598(ctx, base);
+}
+
+// ===========================================================================
+// HOOK 2 — Beatmatch::Update (vtable[15])
+// Periodically fire SP activation so deployment effects are exercised.
+// ===========================================================================
+
+// Frames between SP activation attempts.  At ~60Hz Scheduler cadence this is
+// approximately 6 seconds.  The first fire is at half-interval (~3s) because
+// g_sp_deploy_timer is pre-loaded to SP_DEPLOY_INTERVAL / 2.
+static const int SP_DEPLOY_INTERVAL = 360;
+static int       g_sp_deploy_timer  = SP_DEPLOY_INTERVAL / 2;
+
+extern "C" void __imp__sub_823123D0(PPCContext& ctx, uint8_t* base);  // hmx_Beatmatch_Update (original)
+extern "C" void __imp__sub_822CB260(PPCContext& ctx, uint8_t* base);  // hmx_Beatmatch_SPActivate
+
+REX_HOOK_RAW(hmx_Beatmatch_Update) {
+    // Save Beatmatch* (r3) before __imp__ clobbers the context registers.
+    const uint64_t beatmatch_this = ctx.r3.u64;
+
+    // Run the real per-frame update: MIDI dispatch, Beatmatcher iteration,
+    // NoteTracker window evaluation, gem-pass firing.
+    __imp__sub_823123D0(ctx, base);
+
+    // After the update is complete (no re-entrancy), periodically trigger SP.
+    if (g_autoplay_enabled.load(std::memory_order_relaxed)) {
+        if (++g_sp_deploy_timer >= SP_DEPLOY_INTERVAL) {
+            g_sp_deploy_timer = 0;
+            // Restore r3 = Beatmatch* this for the SPActivate call.
+            ctx.r3.u64 = beatmatch_this;
+            __imp__sub_822CB260(ctx, base);
+        }
+    }
 }
 
 #endif  // AUTOPLAY_ENABLED
