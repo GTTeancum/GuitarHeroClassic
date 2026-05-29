@@ -19,6 +19,7 @@ set(GH2TEST_SOURCES
     src/main.cpp
     src/trace_recorder.cpp
     src/trace_hooks.cpp
+    src/autoplay_hook.cpp
 )
 
 if(WIN32)
@@ -28,3 +29,9 @@ else()
 endif()
 
 rexglue_setup_target(gh2test)
+
+# Enable autoplay / no-fail for sustained trace captures.
+# This hooks GemPass::VtableDispatch (sub_8234A598) and forces r5=1 (HIT)
+# on every gem before Scoring/StarPower vtable[16] callbacks fire.
+# See src/autoplay_hook.cpp for implementation.
+target_compile_definitions(gh2test PRIVATE AUTOPLAY_ENABLED)
