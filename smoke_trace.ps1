@@ -47,7 +47,22 @@ param(
   # 7 min), which covers any GH2 song + ~90s of results screen.
   # Stops early if the process exits on its own.
   [switch]$FullSong,
-  [int]$FullSongMaxSec  = 420
+  [int]$FullSongMaxSec  = 420,
+  # Capture pause menu + fail state + game-over sequence.
+  # Launches with --no_autoplay (all gems missed -> fail meter drains).
+  # Sequence:
+  #   1. Normal menu nav into song.
+  #   2. Wait $FailSongPauseAt seconds (default 15s) into gameplay.
+  #   3. Send Esc (Start button = pause).
+  #   4. Wait $FailSongPauseHoldSec seconds (default 4s) on pause screen.
+  #   5. Send Esc again (unpause).
+  #   6. Wait up to $FailSongMaxSec seconds for process to exit or timeout.
+  # Covers: pause menu open/close, fail meter depletion, game-over screen,
+  # fail character animation, post-fail results.
+  [switch]$FailSong,
+  [int]$FailSongPauseAt     = 15,
+  [int]$FailSongPauseHoldSec = 4,
+  [int]$FailSongMaxSec      = 120
 )
 
 Add-Type @"
@@ -103,21 +118,25 @@ if (-not (Test-Path $exe)) {
   exit 1
 }
 
+$launchArgs = [System.Collections.Generic.List[string]]@(
+  '--game_data_root="C:\Programming\GitHub\Guitar Hero II\GuitarHeroOGX-trace360\assets"',
+  # MnK is re-enabled. The mouse-arrest symptom is solved at the EXE
+  # level by an inline hook on user32!SetCursorPos that no-ops the
+  # cursor-warp call MnK makes every frame (see src/main.cpp
+  # InstallSetCursorPosHook). With that hook in place, MnK can still
+  # translate our PostMessage WM_KEYDOWN/UP -> guest controller
+  # buttons but never moves the user's cursor.
+  # Previous attempt (mnk_mode OMITTED) broke menu navigation because
+  # without MnK our keyboard messages weren't routed to the guest as
+  # controller input.
+  '--mnk_mode=true',
+  '--mnk_user_index=1'
+)
+# -FailSong: disable autoplay so all gems are missed -> fail meter drains.
+if ($FailSong) { $launchArgs.Add('--no_autoplay') }
+
 $p = Start-Process -FilePath $exe `
-  -ArgumentList @(
-    '--game_data_root="C:\Programming\GitHub\Guitar Hero II\GuitarHeroOGX-trace360\assets"',
-    # MnK is re-enabled. The mouse-arrest symptom is solved at the EXE
-    # level by an inline hook on user32!SetCursorPos that no-ops the
-    # cursor-warp call MnK makes every frame (see src/main.cpp
-    # InstallSetCursorPosHook). With that hook in place, MnK can still
-    # translate our PostMessage WM_KEYDOWN/UP -> guest controller
-    # buttons but never moves the user's cursor.
-    # Previous attempt (mnk_mode OMITTED) broke menu navigation because
-    # without MnK our keyboard messages weren't routed to the guest as
-    # controller input.
-    '--mnk_mode=true',
-    '--mnk_user_index=1'
-  ) `
+  -ArgumentList $launchArgs `
   -WorkingDirectory (Split-Path $exe) -PassThru
 Write-Host "Launched gh2test (trace-360) PID $($p.Id); waiting $TitleWaitSec s for title screen..."
 Start-Sleep -Seconds $TitleWaitSec
@@ -186,9 +205,56 @@ foreach ($s in $plan) {
   Start-Sleep -Seconds $s.wait
 }
 
-if ($FullSong) {
+if ($FailSong) {
+  # Fail-song mode: autoplay is OFF (--no_autoplay passed at launch).
+  # All gems are missed; fail meter drains to zero in ~30-60s.
+  # Sequence: wait PauseAt -> Esc (pause) -> wait PauseHold -> Esc (unpause)
+  # -> wait for game-over screen -> kill after FailSongMaxSec total.
+  # Covers: pause menu open/close, fail meter depletion, game-over screen,
+  # fail character animation.
+  Write-Host ""
+  Write-Host "=========================================================" -ForegroundColor Red
+  Write-Host " Fail-song mode: autoplay OFF, all gems missed." -ForegroundColor Red
+  Write-Host (" Pausing at {0}s, unpausing after {1}s, timeout {2}s." -f $FailSongPauseAt, $FailSongPauseHoldSec, $FailSongMaxSec) -ForegroundColor Red
+  Write-Host " Covers: pause menu, fail meter, game-over screen." -ForegroundColor Red
+  Write-Host " Ctrl+C to stop early — trace flushes on shutdown." -ForegroundColor Red
+  Write-Host "=========================================================" -ForegroundColor Red
+  Write-Host ""
+  $sw = [System.Diagnostics.Stopwatch]::StartNew()
+
+  # Step 1: wait until PauseAt seconds into gameplay.
+  while ($sw.Elapsed.TotalSeconds -lt $FailSongPauseAt) {
+    if ($p.HasExited) { Write-Host "process exited before pause point"; break }
+    Start-Sleep -Seconds 1
+  }
+  if (-not $p.HasExited) {
+    Write-Host ("  [{0}s] Sending Esc (pause)" -f [int]$sw.Elapsed.TotalSeconds)
+    Send-Key $hwnd 'Esc'
+    Start-Sleep -Seconds $FailSongPauseHoldSec
+  }
+
+  # Step 2: unpause.
+  if (-not $p.HasExited) {
+    Write-Host ("  [{0}s] Sending Esc (unpause)" -f [int]$sw.Elapsed.TotalSeconds)
+    Send-Key $hwnd 'Esc'
+  }
+
+  # Step 3: wait for game-over or timeout.
+  while ($sw.Elapsed.TotalSeconds -lt $FailSongMaxSec) {
+    if ($p.HasExited) { Write-Host ("Process exited at {0}s" -f [int]$sw.Elapsed.TotalSeconds); break }
+    Start-Sleep -Seconds 5
+    $elapsed = [int]$sw.Elapsed.TotalSeconds
+    if (($elapsed % 15) -lt 5 -and $elapsed -gt $FailSongPauseAt) {
+      Write-Host ("  ... {0}s elapsed" -f $elapsed)
+    }
+  }
+  if (-not $p.HasExited) {
+    Write-Host ("Fail-song timeout reached at {0}s. Stopping." -f [int]$sw.Elapsed.TotalSeconds)
+    Stop-Process -Id $p.Id -Force
+  }
+} elseif ($FullSong) {
   # Full-song mode: hold up to $FullSongMaxSec and stop early if the
-  # process exits on its own (results screen → menu → process exit).
+  # process exits on its own (results screen -> menu -> process exit).
   # Covers: complete song playback, SP deployment effects (fired every ~6s
   # by autoplay_hook.cpp), end-of-song results screen, star animation,
   # post-song character reactions.

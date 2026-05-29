@@ -50,13 +50,12 @@
 // This hook fires hmx_Beatmatch_SPActivate (sub_822CB260) after every
 // SP_DEPLOY_INTERVAL Beatmatch::Update calls (~6s at 60Hz).
 //
-// CONFIDENCE NOTE: sub_822CB260 is MEDIUM confidence — decoded as
-// "star-power activation handler; triggers second TryHit call in PlayerUpdate."
-// If it turns out to only cover the double-TryHit path and not the full
-// visual/audio SP deploy, a follow-up decode pass will identify the actual
-// state-machine transition.  Adding the hook now lets us observe at runtime
-// (via trace events) exactly which downstream calls fire, which is the
-// information we need to complete that decode.
+// CONFIRMED (body read 2026-05-29): sub_822CB260 sets [Beatmatch+113]=1
+// (SP_active flag) and calls hmx_SP_GemShuffle (sub_82196128).  Visual
+// systems poll [Beatmatch+113] each frame for the 0->1 edge to spawn the
+// firebird and gem-glow.  The hand_flames character effect fires separately
+// from the note-evaluation path (sub_822C9498 -> sub_822C8D40) when a gem
+// is hit while SP is deployed.
 //
 // Timing: g_sp_deploy_timer starts at SP_DEPLOY_INTERVAL/2 (180) so the
 // first activation fires ~3s into gameplay, before the second phrase hit.
@@ -66,9 +65,21 @@
 // ============================================================
 // RUNTIME TOGGLE
 // ============================================================
-// g_autoplay_enabled is a std::atomic<bool> initialized to true.  Set it
-// false from a debugger or another hook to disable both hooks mid-session
-// without a recompile.
+// g_autoplay_enabled is a std::atomic<bool>.  Both hooks respect it.
+//
+// Compile-time default: true (autoplay on).
+//
+// Runtime override: pass --no_autoplay on the command line to start with
+// autoplay disabled.  smoke_trace.ps1 -FailSong uses this to capture the
+// pause menu, fail-meter depletion, game-over screen, and fail animation
+// with no real controller input.
+//
+//   gh2test.exe ... --no_autoplay
+//
+// When autoplay is off:
+//   - GemPass_VtableDispatch passes through unmodified (miss = miss).
+//   - Beatmatch_Update still runs but never fires SPActivate.
+//   Result: all gems missed -> fail meter drains -> game over in ~30-60s.
 
 #ifdef AUTOPLAY_ENABLED
 
@@ -76,9 +87,25 @@
 #include "generated/gh2test_init.h"
 #include <rex/hook.h>
 #include <atomic>
+#include <cstring>
+
+#if REX_PLATFORM_WIN32
+#include <Windows.h>
+#endif
+
+// Returns true if --no_autoplay appears anywhere in the process command line.
+static bool cmdline_has_no_autoplay() {
+#if REX_PLATFORM_WIN32
+    const char* cl = GetCommandLineA();
+    return cl && std::strstr(cl, "--no_autoplay") != nullptr;
+#else
+    return false;
+#endif
+}
 
 // Runtime toggle.  Both hooks respect this flag.
-static std::atomic<bool> g_autoplay_enabled{true};
+// Evaluated once at static-init time from the command line.
+static std::atomic<bool> g_autoplay_enabled{!cmdline_has_no_autoplay()};
 
 // ===========================================================================
 // HOOK 1 — GemPass::VtableDispatch
