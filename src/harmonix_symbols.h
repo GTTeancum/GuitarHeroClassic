@@ -597,7 +597,7 @@
 #define hmx_GuitarChildVec_Grow     sub_822A60F0   // grow Guitar+56 vector on overflow MED
 #define hmx_GuitarChildRef_Pack     sub_822AE698   // pack {obj_ptr, name_key, flags} into 16B GuitarChildRef HIGH
 
-#define hmx_Character_VFXInit      sub_8232E9F8   // ? flame_hands VFX setup
+#define hmx_Character_VFXInit      sub_8232E9F8   // ? hand_flames VFX setup (property name CORRECTED 2026-05-29; was flame_hands)
 #define hmx_Gem_RenderInit         sub_826A0270   // ? sparkle_len config
 // ---- Character subsystem (HIGH conf — decoded 2026-05-28/29) ---------------
 //
@@ -643,7 +643,7 @@
 #define hmx_CharIKHand_VtableCopy  sub_8214D500   // CharIKHand vtable-copy ctor; reads ClassReg singleton @ 0x827820B8 HIGH
 // CORRECTED 2026-05-28: GemRenderData+76..+92 are ParticleSysAnim* for gem sparkle variants — NOT firebird.
 // Firebird lives in Guitar+56 (Vector<GuitarChildRef>). SP activation walks Guitar+56 by name to enable "firebird".
-#define hmx_Guitar_Construct       sub_822A7B30   // constructs Guitar: populates Guitar+56 (Vector<GuitarChildRef>) with "firebird"+"flame_hands"+other named SP children HIGH
+#define hmx_Guitar_Construct       sub_822A7B30   // constructs Guitar: populates Guitar+56 (Vector<GuitarChildRef>) with "firebird"+"hand_flames"+other named SP children HIGH (property name CORRECTED 2026-05-29)
 #define hmx_Venue_Register         sub_822A75D0   // ? venues class register
 #define hmx_DefaultBand_Register   sub_822B7670   // ? default_band register
 
@@ -822,6 +822,40 @@
 #define hmx_NoteTracker_GetTime         sub_822E1F28   // MEDIUM; returns song_time float f1 for NoteTracker current state
 #define hmx_NoteTracker_TryHit          sub_822E2510   // MEDIUM; per-NoteTracker hit attempt; r3=NoteTracker*, f1=song_time
 #define hmx_Beatmatch_SPActivate        sub_822CB260   // MEDIUM; star-power activation; triggers second TryHit call in PlayerUpdate
+
+// ---- SP hand_flames dispatch chain (MEDIUM conf — decoded 2026-05-29 from full-song trace) ----
+//
+// When SP activates, the property "hand_flames" (NOT "flame_hands" — name confirmed via
+// PropertyTable_Find0 hook) is dispatched to character sub-objects via HandleProperty.
+//
+// Call chain (outermost → innermost dispatcher):
+//   hmx_SP_OutcomeEvaluator (sub_822C9498)         ← entry from Beatmatch pipeline
+//     hmx_SP_StateHandler (sub_822C8D40)
+//       hmx_SP_EffectDispatch (sub_822DD3E0)
+//         hmx_SP_EffectInner (sub_822DD108)
+//           hmx_Beatmatch_SPCallback (sub_822CB5B8)  ← near SPActivate (sub_822CB260)
+//             hmx_ObjectTree_Propagate (sub_82325DA8) ×2
+//               hmx_ObjectTree_Walk (sub_823267B8) ×2
+//                 hmx_Object_PollChildren (sub_821B9E40) ×5
+//                   hmx_Char_InnerDispatch (sub_82126568)
+//                     hmx_Char_SubDispatch (sub_82152108)
+//                       hmx_Object_MsgReDispatch (sub_823216E0)
+//                         hmx_Object_HandleProperty (sub_82316428)
+//                           → dispatches "hand_flames" to character sub-objects
+//
+// All new addresses below: MEDIUM confidence (call chain observed; bodies not yet read).
+
+#define hmx_SP_OutcomeEvaluator     sub_822C9498   // ? SP state chain outermost; entry from Beatmatch pipeline for hand_flames dispatch
+#define hmx_SP_StateHandler         sub_822C8D40   // ? called by SP_OutcomeEvaluator
+#define hmx_SP_EffectDispatch       sub_822DD3E0   // ? called by SP_StateHandler
+#define hmx_SP_EffectInner          sub_822DD108   // ? called by SP_EffectDispatch
+#define hmx_Beatmatch_SPCallback    sub_822CB5B8   // ? SP callback near SPActivate (sub_822CB260); fires on SP activation
+#define hmx_ObjectTree_Propagate    sub_82325DA8   // ? object-tree message propagator (appears 2× in SP chain)
+#define hmx_ObjectTree_Walk         sub_823267B8   // ? object-tree walker (appears 2× alongside Propagate)
+#define hmx_Object_PollChildren     sub_821B9E40   // ? child iterator / recursive poll (appears 5× in SP chain)
+#define hmx_Char_SubDispatch        sub_82152108   // ? character sub-object handler (between PollChildren and HandleProperty in SP chain)
+#define hmx_Char_InnerDispatch      sub_82126568   // ? one level inside Char_SubDispatch
+#define hmx_Object_MsgReDispatch    sub_823216E0   // ? message re-dispatcher between HandleProperty layers
 
 // ---- Game-state / engine subsystems ----
 

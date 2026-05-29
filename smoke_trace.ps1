@@ -1,4 +1,4 @@
-# smoke_trace.ps1 - headless variant of smoke_play.ps1 for trace-360 work.
+﻿# smoke_trace.ps1 - headless variant of smoke_play.ps1 for trace-360 work.
 #
 # Differences vs smoke_play.ps1 (kept alongside, not replacing):
 #  - Launches the trace-360 build (headless gh2test with WH_CBT focus
@@ -211,7 +211,7 @@ if ($FullSong) {
     }
   }
   if (-not $p.HasExited) {
-    Write-Host "Full-song timeout reached ($FullSongMaxSec s); stopping process"
+    Write-Host ("Full-song timeout reached; max {0} s elapsed. Stopping." -f $FullSongMaxSec)
     Stop-Process -Id $p.Id -Force
   }
 } else {

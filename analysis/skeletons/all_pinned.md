@@ -1019,3 +1019,208 @@
 **`this` (r3) struct access offsets:**
   - reads: +0
 
+
+---
+## Crowd + Camera subsystems (decoded session 2026-05-28)
+
+### sub_822C9E80  (WorldCrowd::ctor outer)
+
+- Body: `gh2test_recomp.13.cpp` lines 7138..7571, 186 PPC insns, 13 branch labels
+- Sets vtable at this+0 = 0x82045950, then immediately calls inner ctor sub_822C9720 which overrides vtable to 0x8204579C
+
+**Calls (sub_ -> count, named if known):**
+  - sub_82354FD8  (hmx_Mem_Alloc) × 4
+  - sub_82355DA8  (hmx_String_CopyOrIntern) × 1
+  - sub_822C9720  (WorldCrowd::ctor inner) × 1
+  - sub_822B5760 × 2
+  - sub_822B3880 × 2
+  - sub_822B37A0 × 1
+  - sub_822DE170 × 1
+  - sub_822DE800 × 1
+  - sub_822DB478 × 1
+  - sub_822B5728 × 1
+  - sub_822DE970 × 1
+  - sub_822C69E8 × 1
+  - sub_822DECD0 × 1
+  - sub_8212DD00 × 1
+  - sub_822C9DB8 × 1
+  - sub_82193C90 × 1
+  - sub_822B5750 × 1
+  - sub_822B52F8 × 1
+
+**`this` (r3) struct access offsets:**
+  - reads: +0, +4
+
+### sub_822C9720  (WorldCrowd::ctor inner)
+
+- Body: `gh2test_recomp.13.cpp` lines 5996..6413, 179 PPC insns, 7 branch labels
+- Final vtable: **0x8204579C** at this+0; vtable[15] (Update) at **0x820457D8**
+- Writes secondary ptrs to this+4 and this+132; stw r27 at +156, r26 at +160
+
+**Calls (sub_ -> count, named if known):**
+  - sub_82355DA8  (hmx_String_CopyOrIntern) × 5
+  - sub_82354FD8  (hmx_Mem_Alloc) × 2
+  - sub_822B37A0 × 2
+  - sub_823176F8 × 1
+  - sub_822DE170 × 1
+  - sub_821BB3F0 × 1
+  - sub_822DB498 × 1
+  - sub_821E04B8  (hmx_DataHandler_Find) × 1
+  - sub_822DE2F0 × 1
+  - sub_822B5760 × 1
+  - sub_822DE640 × 1
+  - sub_822D6250 × 1
+  - sub_82270D38  (hmx_ClassReg_Lookup_alt) × 1
+  - sub_823151E0 × 1
+  - sub_822DB478 × 1
+  - sub_822DB5A0 × 1
+  - sub_82120690 × 1
+  - sub_822B4420 × 1
+
+**`this` (r3) struct access offsets:**
+  - reads: +0
+
+### sub_822CAAB0  (WorldCrowd::GetCrowdRating)
+
+- Body: `gh2test_recomp.13.cpp` lines 9026..9213, 76 PPC insns, 6 branch labels
+- 4 fcmpu comparisons (3 thresholds) → returns 0, 1, 2, or 3 (**4-tier system, not 5**)
+- Reads two player scores via vtable[6] dispatch through this+176 (crowd audio config ptr)
+- Float thresholds stored at lis(-32252)+23208 and lis(-32252)+23200 (runtime constants)
+
+**Calls (sub_ -> count, named if known):**
+  - sub_822B5750 × 2
+  - sub_82355DA8  (hmx_String_CopyOrIntern) × 1
+  - sub_822B37A0 × 1
+  - sub_822B3880 × 1
+  - sub_822CE828 × 1
+  - sub_822C9BE8 × 1
+
+**`this` (r3) struct access offsets:**
+  - reads: +0, +176
+
+### sub_822CC848  (WorldCrowd::Update — vtable[15] candidate)
+
+- Body: `gh2test_recomp.13.cpp` lines 13594..13770, 71 PPC insns, 11 branch labels
+- Reads this+156 (crowd width?) and this+160 (crowd height?) — set by inner ctor
+- Calls MILO render functions sub_82376330 and sub_823763D8
+
+**Calls (sub_ -> count, named if known):**
+  - sub_82376330 × 1
+  - sub_823763D8 × 1
+  - sub_822C66F0 × 1
+  - sub_822CC730 × 1
+  - sub_822CB1E0 × 1
+  - sub_822CB118 × 1
+  - sub_822CEB70 × 1
+  - sub_822E0F20 × 1
+  - sub_822DF480 × 1
+
+**`this` (r3) struct access offsets:**
+  - reads: +156, +160
+
+### sub_822E9870  (CamShot::ctor)
+
+- Body: `gh2test_recomp.14.cpp` lines 4812..4988, 78 PPC insns, 1 branch labels
+- vtable: **0x8204B18C** at this+0; vtable[15] (Update) at **0x8204B1C8**
+- Calls sub_82315150 (Object base ctor), ClassReg_Lookup, Mem_Alloc(12) at this+48
+- Registers 2 properties via sub_8232D1D0
+
+**Calls (sub_ -> count, named if known):**
+  - sub_82355DA8  (hmx_String_CopyOrIntern) × 4
+  - sub_8232D1D0 × 2
+  - sub_823176F8 × 1
+  - sub_82315150 × 1
+  - sub_82270D20  (hmx_ClassReg_Lookup) × 1
+  - sub_82319700 × 1
+  - sub_82354FD8  (hmx_Mem_Alloc) × 1
+  - sub_822FA658 × 1
+
+**`this` (r3) struct access offsets:**
+  - reads: +0
+
+### sub_822E9BC0  (CamShot::Factory/Manager)
+
+- Body: `gh2test_recomp.14.cpp` lines 5324..5638, 136 PPC insns, 9 branch labels
+- Allocates 96-byte CamShot objects; calls CamShot::ctor×2; uses alternate ctor path sub_82682878
+- 5×String_CopyOrIntern, 4×PropertyTable_Find0
+
+**Calls (sub_ -> count, named if known):**
+  - sub_82355DA8  (hmx_String_CopyOrIntern) × 5
+  - sub_82319530  (hmx_PropertyTable_Find0) × 4
+  - sub_82317FE8  (hmx_DataNode_AsInt?) × 2
+  - sub_82354FD8  (hmx_Mem_Alloc) × 2
+  - sub_822E9870  (CamShot::ctor) × 2
+  - sub_82270D20  (hmx_ClassReg_Lookup) × 1
+  - sub_82682878 × 1
+  - sub_822E5B88 × 1
+  - sub_822E6C20 × 1
+  - sub_821E4D98 × 1
+
+**`this` (r3) struct access offsets:**
+  - reads: +0
+
+### sub_822EA138  (Camera::ctor)
+
+- Body: `gh2test_recomp.14.cpp` lines 6150..6574, 181 PPC insns, 8 branch labels
+- 9×DataArray internalize = 9 camera properties loaded from DTB at ctor time
+- Mem_Alloc(76) at this+52; writes to this+52; calls DataHandler_Find
+- String addresses in 0x822E52D0..0x822E6820 range
+
+**Calls (sub_ -> count, named if known):**
+  - sub_82317958 × 9
+  - sub_82355DA8  (hmx_String_CopyOrIntern) × 4
+  - sub_82354FD8  (hmx_Mem_Alloc) × 2
+  - sub_82319530  (hmx_PropertyTable_Find0) × 2
+  - sub_82317FE8  (hmx_DataNode_AsInt?) × 2
+  - sub_821E04B8  (hmx_DataHandler_Find) × 1
+  - sub_82270D20  (hmx_ClassReg_Lookup) × 1
+  - sub_822E5248 × 1
+  - sub_822F8008 × 1
+  - sub_822F7878 × 1
+  - sub_822E53D0 × 1
+  - sub_822FED30 × 1
+  - sub_822F47F8 × 1
+  - sub_82122470 × 1
+  - sub_822E57A0 × 1
+  - sub_822E5828 × 1
+  - sub_822E58B0 × 1
+  - sub_822E5938 × 1
+  - sub_822E59C0 × 1
+  - sub_822E1D78 × 1
+  - sub_822EA0C0 × 1
+  - sub_8235A718 × 1
+  - sub_822E8F80 × 1
+  - sub_822E8FD8 × 1
+
+**`this` (r3) struct access offsets:**
+  - reads: +0
+  - writes: +52
+
+### sub_822F5A70  (CamShot::Update — vtable[15] candidate)
+
+- Body: `gh2test_recomp.14.cpp` lines 34665..35023, 157 PPC insns, 8 branch labels
+- Reads this+0 (vtable) and this+4 (secondary field)
+- Calls sub_8226F5B8 and sub_822F7F78 (both unidentified camera helpers)
+
+**Calls (sub_ -> count, named if known):**
+  - sub_8226F5B8 × 1
+  - sub_822F7F78 × 1
+
+**`this` (r3) struct access offsets:**
+  - reads: +0, +4
+
+### sub_822F6B58  (Camera::Blend — interpolation logic)
+
+- Body: `gh2test_recomp.14.cpp` lines 37237..37758, 232 PPC insns, 44 branch labels
+- Reads all of this+0,4,8,12; writes back to this+0
+- **Confirmed: GH2 uses interpolated camera blending, not hard cuts**
+- sub_821A6ED8×3 = quaternion slerp (rotation blend)
+- sub_821A6F38×3 = matrix interpolation (position blend)
+
+**Calls (sub_ -> count, named if known):**
+  - sub_821A6ED8 × 3
+  - sub_821A6F38 × 3
+
+**`this` (r3) struct access offsets:**
+  - reads: +0, +4, +8, +12
+  - writes: +0
