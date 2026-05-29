@@ -590,22 +590,48 @@
 
 #define hmx_Character_VFXInit      sub_8232E9F8   // ? flame_hands VFX setup
 #define hmx_Gem_RenderInit         sub_826A0270   // ? sparkle_len config
-// ---- Character subsystem (HIGH conf — decoded 2026-05-28) ---------------
+// ---- Character subsystem (HIGH conf — decoded 2026-05-28/29) ---------------
 //
-// Character vtable base: 0x82038624; vtable[15] @ 0x82038660 = Character::Update
-// 7 Char* subclass registers in recomp.1.cpp: sub_821456E8..sub_8215F3C0
-// (exact CharDriver/CharClipSet/CharIKHand/CharIKMidi mapping needs XEX rodata read)
-// CharIK vtable[15] = sub_8214CD88 (CharIK::Update)
+// CORRECTED 2026-05-29 (full XEX rodata decode):
+//
+// Character (top-level Sandbox class):
+//   vtable base: 0x82038624  (16-slot large Sandbox vtable)
+//   vtable[15] @ 0x82038660 = 0xFFFFFFFF  → NOT scheduled; Character has NO Update
+//   ClassReg::Register is at slot 11 (offset 44) for all top-level Sandbox classes
+//
+// CharXxx animation sub-objects use a SMALLER 16-slot vtable format:
+//   ClassReg::Register is at slot 9 (offset 36) for CharXxx classes
+//   CharIK instance vtable: 0x82009764
+//     slot 0  = ctor            (sub_8214A768)
+//     slot 9  = ClassReg::Reg  (sub_82315150)
+//     slot 15 = CharIK::Update  (sub_8214CD88)
+//
+// 7 register functions in recomp.1.cpp (sub_821456E8..sub_8215F3C0 range):
+//   sub_821456E8 → BandSlider   (UI slider widget)
+//   sub_821467F8 → LayerDir     (layer directory)
+//   sub_8214A980 → BandLabel    (UI label widget)  ← PREVIOUSLY MISLABELED as CharIK_Register
+//   sub_821294D8 → Trans        (transform node, actually in recomp.0.cpp)
+//   sub_822870A0 → Character    (top-level character class, actually in recomp.11.cpp)
+//   sub_8215D9B8 → OutfitLoader (outfit/costume loader)
+//   sub_8215F3C0 → CharBones    (skeletal bone set)
+//
 // IK target stored at CharIK+112/116/120
 
-#define hmx_Character_ClassReg_ctor sub_822870A0  // writes vtable 0x82038624; ClassReg singleton at 0x82805C40 HIGH
+#define hmx_Character_ClassReg_ctor sub_822870A0  // writes vtable 0x82038624; ClassReg singleton at 0x82805C40; in recomp.11.cpp HIGH
 #define hmx_Character_BindProps    sub_822A7DD8   // 59-insn property binder: PropertyTable_Find0 ×4 + CopyOrIntern ×3 HIGH
 #define hmx_Characters_ParentRegister sub_822A88C8 // parent: calls OGG audio init (sub_8212DD00) then 4 sub-registers HIGH
-#define hmx_CharIK_Register        sub_8214A980   // CharIK family class register (guard 0x82782000; class name at 0x82009708) HIGH
+#define hmx_Character_Register     sub_822A7EC8   // top-level Character class register HIGH
+// CORRECTED: sub_8214A980 is BandLabel_Register, NOT CharIK_Register
+#define hmx_BandLabel_Register     sub_8214A980   // BandLabel UI widget class register (guard 0x82782000; class name "BandLabel" at 0x82009708) HIGH
+#define hmx_BandSlider_Register    sub_821456E8   // BandSlider UI widget class register HIGH
+#define hmx_LayerDir_Register      sub_821467F8   // LayerDir layer directory class register HIGH
+#define hmx_OutfitLoader_Register  sub_8215D9B8   // OutfitLoader costume loader class register HIGH
+#define hmx_CharBones_Register     sub_8215F3C0   // CharBones skeletal bone set class register HIGH
+#define hmx_CharIKHand_Register    sub_82174160   // CharIKHand class register; ClassReg singleton at 0x827824D4 HIGH
 #define hmx_CharIK_HandleProperty  sub_8214B400   // 533-insn, 45 labels; writes IK target to this+112/116/120 HIGH
-#define hmx_CharIK_Update          sub_8214CD88   // vtable[15]; 87 insns; transform helper + 2-bone solver → this+112/116/120 HIGH
+#define hmx_CharIK_Update          sub_8214CD88   // CharIK vtable[15] (0x82009764+60=0x820097A0); 87 insns; transform helper + 2-bone solver → this+112/116/120 HIGH
 #define hmx_CharIK_2BoneSolver     sub_8214CBA8   // 96-insn IK math solver HIGH
-#define hmx_Character_Register     sub_822A7EC8   // ? characters class register
+#define hmx_CharIKHand_VtableCopy  sub_8214D500   // CharIKHand vtable-copy ctor; reads ClassReg singleton @ 0x827820B8 HIGH
 // CORRECTED 2026-05-28: GemRenderData+76..+92 are ParticleSysAnim* for gem sparkle variants — NOT firebird.
 // Firebird lives in Guitar+56 (Vector<GuitarChildRef>). SP activation walks Guitar+56 by name to enable "firebird".
 #define hmx_Guitar_Construct       sub_822A7B30   // constructs Guitar: populates Guitar+56 (Vector<GuitarChildRef>) with "firebird"+"flame_hands"+other named SP children HIGH
@@ -702,7 +728,8 @@
 #define hmx_BandStarMeterDir_HandleProp sub_822C80F8   // star_meter activate/deactivate dispatcher HIGH
 #define hmx_StarRating_Render           sub_8269C968   // 3-tier threshold constructor: burn/star/bonus from track_graphics PropertyTable HIGH
 // NOTE: hmx_StarPower_LoadConfig = hmx_BoostMeter_Init = sub_822D5FC0 (same function, two aliases; defined above near Scoring section)
-#define hmx_BootScreen_StarsAnim        sub_8214A980   // time-gated anim trigger: fires vtable[10] at r4<current_time HIGH
+// CORRECTED 2026-05-29: sub_8214A980 = hmx_BandLabel_Register (defined in character section above).
+// The old hmx_BootScreen_StarsAnim label for this address was wrong. The real boot-screen anim sub is unknown.
 #define hmx_Locale_Register             sub_82356F30   // i18n: DataArray → per-locale parsed DTB map HIGH
 #define hmx_XTL_LibraryName             sub_82120BD8   // DECODED: XEX import library ID → XTL lib name (NOT DataNode::TypeName) HIGH
 
@@ -851,7 +878,9 @@
 
 // ---- Result / boot UI ----
 
-#define hmx_BootScreen_StarsAnim   sub_8214A980   // ? title-screen stars
+// NOTE: sub_8214A980 was labeled hmx_BootScreen_StarsAnim here — WRONG.
+// It is hmx_BandLabel_Register (defined in character section). Remove this alias.
+// Real boot-screen star animation sub is not yet decoded.
 #define hmx_StarRating_Render      sub_8269C968   // ? post-song star rating
 
 // ===========================================================================
