@@ -62,7 +62,21 @@ param(
   [switch]$FailSong,
   [int]$FailSongPauseAt     = 15,
   [int]$FailSongPauseHoldSec = 4,
-  [int]$FailSongMaxSec      = 120
+  [int]$FailSongMaxSec      = 120,
+  # Navigate to Practice mode instead of Quick Play.
+  # Plan: title -> main menu -> Down x2 -> select Practice -> difficulty ->
+  # song -> section select -> speed select -> play.
+  # Autoplay stays on so gems are hit; hold for PracticeHoldSec (default 60s)
+  # to capture practice-mode-specific props (slow_music on speed change,
+  # section loop, practice UI overlays, etc.).
+  [switch]$PracticeMode,
+  [int]$PracticeHoldSec = 60,
+  # Pulse the whammy bar (right trigger via LMB/WM_LBUTTONDOWN) every
+  # $Whammy_IntervalMs ms during gameplay.  Full-press for ~half the interval,
+  # off for the other half.  Works with any gameplay mode (-FullSong, default).
+  # keybind_right_trigger = "LMB" in MnK driver; LMB = right trigger 0xFF.
+  [switch]$Whammy,
+  [int]$WhamwyIntervalMs = 500
 )
 
 Add-Type @"
@@ -77,8 +91,11 @@ public class P {
 }
 "@
 
-$WM_KEYDOWN = 0x0100
-$WM_KEYUP   = 0x0101
+$WM_KEYDOWN     = 0x0100
+$WM_KEYUP       = 0x0101
+$WM_LBUTTONDOWN = 0x0201
+$WM_LBUTTONUP   = 0x0202
+$MK_LBUTTON     = 0x0001
 
 $VK = @{
   Space = 0x20; Enter = 0x0D; Esc = 0x1B; Tab = 0x09
@@ -91,6 +108,15 @@ function Send-Key([IntPtr]$hwnd, [string]$name, [int]$holdMs = 80) {
   Start-Sleep -Milliseconds $holdMs
   [P]::PostMessageW($hwnd, $WM_KEYUP,   [IntPtr]$vk, [IntPtr]0) | Out-Null
   Start-Sleep -Milliseconds 120
+}
+
+# Pulse the whammy bar once: LMB down for holdMs, then LMB up.
+# MnK maps keybind_right_trigger = "LMB" -> right trigger 0xFF.
+# In GH2 joypad mode, right trigger is the whammy axis.
+function Send-WhamPulse([IntPtr]$hwnd, [int]$holdMs = 230) {
+  [P]::PostMessageW($hwnd, $WM_LBUTTONDOWN, [IntPtr]$MK_LBUTTON, [IntPtr]0) | Out-Null
+  Start-Sleep -Milliseconds $holdMs
+  [P]::PostMessageW($hwnd, $WM_LBUTTONUP,   [IntPtr]0,            [IntPtr]0) | Out-Null
 }
 
 # Find a top-level window owned by our PID, even though it's hidden.
@@ -184,8 +210,8 @@ if ($NoAutoNav) {
   return
 }
 
-# Menu nav — same sequence as smoke_play.ps1.
-$plan = @(
+# Menu nav — Quick Play path (default).
+$plan_quickplay = @(
   @{ key='Space'; label='A_press_to_begin'; wait=4 },
   @{ key='Space'; label='A_main_menu_confirm'; wait=3 },
   @{ key='Down';  label='down_to_quickplay'; wait=2 },
@@ -197,6 +223,24 @@ $plan = @(
   @{ key='Space'; label='A_first_song'; wait=4 },
   @{ key='Space'; label='A_song_confirm'; wait=8 }
 )
+
+# Practice mode path: Down x2 from main menu top to reach Practice,
+# then song -> section select -> speed select (no character/guitar/venue).
+# Wait times are generous to absorb any extra loading screens.
+$plan_practice = @(
+  @{ key='Space'; label='A_press_to_begin'; wait=4 },
+  @{ key='Space'; label='A_main_menu_confirm'; wait=3 },
+  @{ key='Down';  label='down_1'; wait=1 },
+  @{ key='Down';  label='down_2_practice'; wait=2 },
+  @{ key='Space'; label='A_select_practice'; wait=4 },
+  @{ key='Space'; label='A_default_difficulty'; wait=3 },
+  @{ key='Space'; label='A_first_song'; wait=4 },
+  @{ key='Space'; label='A_song_confirm'; wait=4 },
+  @{ key='Space'; label='A_default_section'; wait=3 },
+  @{ key='Space'; label='A_default_speed'; wait=4 }
+)
+
+$plan = if ($PracticeMode) { $plan_practice } else { $plan_quickplay }
 
 foreach ($s in $plan) {
   if ($p.HasExited) { Write-Host "exited mid-plan"; break }
@@ -252,6 +296,42 @@ if ($FailSong) {
     Write-Host ("Fail-song timeout reached at {0}s. Stopping." -f [int]$sw.Elapsed.TotalSeconds)
     Stop-Process -Id $p.Id -Force
   }
+} elseif ($PracticeMode) {
+  # Practice mode: hold for PracticeHoldSec seconds.
+  # Covers: practice UI props, section loop, speed-change audio path.
+  Write-Host ""
+  Write-Host "=========================================================" -ForegroundColor Cyan
+  Write-Host " Practice mode: holding $PracticeHoldSec s" -ForegroundColor Cyan
+  $whamStr = if ($Whammy) { " + whammy pulse every ${WhamwyIntervalMs}ms" } else { "" }
+  Write-Host (" Autoplay ON; all gems hit${whamStr}.") -ForegroundColor Cyan
+  Write-Host " Ctrl+C to stop early — trace flushes on shutdown." -ForegroundColor Cyan
+  Write-Host "=========================================================" -ForegroundColor Cyan
+  Write-Host ""
+  $sw = [System.Diagnostics.Stopwatch]::StartNew()
+  $whamState = $false
+  $halfMs = [int]($WhamwyIntervalMs / 2)
+  while ($sw.Elapsed.TotalSeconds -lt $PracticeHoldSec) {
+    if ($p.HasExited) { Write-Host "Process exited at $([int]$sw.Elapsed.TotalSeconds)s"; break }
+    if ($Whammy) {
+      if ($whamState) {
+        [P]::PostMessageW($hwnd, $WM_LBUTTONUP,   [IntPtr]0,            [IntPtr]0) | Out-Null
+      } else {
+        [P]::PostMessageW($hwnd, $WM_LBUTTONDOWN, [IntPtr]$MK_LBUTTON, [IntPtr]0) | Out-Null
+      }
+      $whamState = -not $whamState
+      Start-Sleep -Milliseconds $halfMs
+    } else {
+      Start-Sleep -Seconds 5
+    }
+    $elapsed = [int]$sw.Elapsed.TotalSeconds
+    if (-not $Whammy -and ($elapsed % 15) -lt 5 -and $elapsed -gt 5) {
+      Write-Host "  ... ${elapsed}s elapsed"
+    }
+  }
+  if (-not $p.HasExited) {
+    Write-Host ("Practice timeout reached at {0}s. Stopping." -f [int]$sw.Elapsed.TotalSeconds)
+    Stop-Process -Id $p.Id -Force
+  }
 } elseif ($FullSong) {
   # Full-song mode: hold up to $FullSongMaxSec and stop early if the
   # process exits on its own (results screen -> menu -> process exit).
@@ -261,19 +341,32 @@ if ($FailSong) {
   Write-Host ""
   Write-Host "=========================================================" -ForegroundColor Yellow
   Write-Host " Full-song mode: holding up to $FullSongMaxSec s" -ForegroundColor Yellow
-  Write-Host " Covers: full song + post-song results + SP effects" -ForegroundColor Yellow
+  $whamStr2 = if ($Whammy) { " + whammy every ${WhamwyIntervalMs}ms" } else { "" }
+  Write-Host (" Covers: full song + post-song results + SP effects${whamStr2}") -ForegroundColor Yellow
   Write-Host " Ctrl+C to stop early — trace flushes on shutdown." -ForegroundColor Yellow
   Write-Host "=========================================================" -ForegroundColor Yellow
   Write-Host ""
   $sw = [System.Diagnostics.Stopwatch]::StartNew()
+  $whamState2 = $false
+  $halfMs2 = [int]($WhamwyIntervalMs / 2)
   while ($sw.Elapsed.TotalSeconds -lt $FullSongMaxSec) {
     if ($p.HasExited) { Write-Host "Process exited naturally at $([int]$sw.Elapsed.TotalSeconds)s"; break }
-    Start-Sleep -Seconds 5
-    $elapsed = [int]$sw.Elapsed.TotalSeconds
-    # Progress tick every 30s
-    if (($elapsed % 30) -lt 5 -and $elapsed -gt 5) {
-      $remaining = $FullSongMaxSec - $elapsed
-      Write-Host "  ... ${elapsed}s elapsed, up to ${remaining}s remaining"
+    if ($Whammy) {
+      if ($whamState2) {
+        [P]::PostMessageW($hwnd, $WM_LBUTTONUP,   [IntPtr]0,            [IntPtr]0) | Out-Null
+      } else {
+        [P]::PostMessageW($hwnd, $WM_LBUTTONDOWN, [IntPtr]$MK_LBUTTON, [IntPtr]0) | Out-Null
+      }
+      $whamState2 = -not $whamState2
+      Start-Sleep -Milliseconds $halfMs2
+    } else {
+      Start-Sleep -Seconds 5
+      $elapsed = [int]$sw.Elapsed.TotalSeconds
+      # Progress tick every 30s
+      if (($elapsed % 30) -lt 5 -and $elapsed -gt 5) {
+        $remaining = $FullSongMaxSec - $elapsed
+        Write-Host "  ... ${elapsed}s elapsed, up to ${remaining}s remaining"
+      }
     }
   }
   if (-not $p.HasExited) {
@@ -282,7 +375,23 @@ if ($FailSong) {
   }
 } else {
   Write-Host "Holding $GameplayHoldSec s for gameplay capture..."
-  Start-Sleep -Seconds $GameplayHoldSec
+  if ($Whammy) {
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $whamState3 = $false
+    $halfMs3 = [int]($WhamwyIntervalMs / 2)
+    while ($sw.Elapsed.TotalSeconds -lt $GameplayHoldSec) {
+      if ($p.HasExited) { break }
+      if ($whamState3) {
+        [P]::PostMessageW($hwnd, $WM_LBUTTONUP,   [IntPtr]0,            [IntPtr]0) | Out-Null
+      } else {
+        [P]::PostMessageW($hwnd, $WM_LBUTTONDOWN, [IntPtr]$MK_LBUTTON, [IntPtr]0) | Out-Null
+      }
+      $whamState3 = -not $whamState3
+      Start-Sleep -Milliseconds $halfMs3
+    }
+  } else {
+    Start-Sleep -Seconds $GameplayHoldSec
+  }
   if (-not $p.HasExited) {
     Write-Host "stopping process"
     Stop-Process -Id $p.Id -Force
