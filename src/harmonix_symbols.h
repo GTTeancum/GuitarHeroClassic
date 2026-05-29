@@ -639,6 +639,7 @@
 #define hmx_CharIKHand_Register    sub_82174160   // CharIKHand class register; ClassReg singleton at 0x827824D4 HIGH
 #define hmx_CharIK_HandleProperty  sub_8214B400   // 533-insn, 45 labels; writes IK target to this+112/116/120 HIGH
 #define hmx_CharIK_Update          sub_8214CD88   // CharIK vtable[15] (0x82009764+60=0x820097A0); 87 insns; transform helper + 2-bone solver → this+112/116/120 HIGH
+#define hmx_CharExpression_Handle  sub_82191950   // HIGH ⭐ body read 2026-05-29; vtable[15] for character expression picker; HandleProperty dispatcher pattern; Scheduler-driven via do_pick_expression call chain
 #define hmx_CharIK_2BoneSolver     sub_8214CBA8   // 96-insn IK math solver HIGH
 #define hmx_CharIKHand_VtableCopy  sub_8214D500   // CharIKHand vtable-copy ctor; reads ClassReg singleton @ 0x827820B8 HIGH
 // CORRECTED 2026-05-28: GemRenderData+76..+92 are ParticleSysAnim* for gem sparkle variants — NOT firebird.
@@ -821,41 +822,54 @@
 #define hmx_NoteTracker_HasPendingPress sub_822E1F18   // MEDIUM; per-NoteTracker: returns u8 bool press-this-frame
 #define hmx_NoteTracker_GetTime         sub_822E1F28   // MEDIUM; returns song_time float f1 for NoteTracker current state
 #define hmx_NoteTracker_TryHit          sub_822E2510   // MEDIUM; per-NoteTracker hit attempt; r3=NoteTracker*, f1=song_time
-#define hmx_Beatmatch_SPActivate        sub_822CB260   // MEDIUM; star-power activation; triggers second TryHit call in PlayerUpdate
+#define hmx_Beatmatch_SPActivate        sub_822CB260   // HIGH ⭐ body read 2026-05-29; sets [this+113]=1 (SP_active flag), [this+114]=0; calls SetSPState(this,0) + SP_GemShuffle
+#define hmx_Beatmatch_SetSPState        sub_822CAA30   // MEDIUM; r4=0 = activate (from SPActivate), r4=1 = fill-increment (from sub_822CB2B0)
+#define hmx_SP_GemShuffle               sub_82196128   // HIGH ⭐ body read 2026-05-29; walks linked list at global+10064, RNG-picks node, swaps to front, ops on 12-byte element arrays at +236/+240; the SP gem scramble visual effect
+#define hmx_RNG_PickNode                sub_8226DCB8   // MEDIUM; RNG helper called by hmx_SP_GemShuffle with (0, count-1); returns random int in range
 
-// ---- SP hand_flames dispatch chain (MEDIUM conf — decoded 2026-05-29 from full-song trace) ----
+// ---- SP visual deploy architecture (decoded 2026-05-29 from body reads) ----
 //
-// When SP activates, the property "hand_flames" (NOT "flame_hands" — name confirmed via
-// PropertyTable_Find0 hook) is dispatched to character sub-objects via HandleProperty.
+// CRITICAL: hmx_Beatmatch_SPActivate does NOT directly spawn the firebird or gem-glow particles.
+// Instead it sets [Beatmatch+113]=1 (SP_active flag). Visual systems (ParticleSystem,
+// GemHighway) poll this flag each frame and react to the 0→1 edge. Port must poll this
+// flag to trigger visual effects.
+//
+// SP_active flag: Beatmatch+113 (uint8, 1=active, 0=inactive)
+// SP counter:     Beatmatch+114 (uint8, reset to 0 on activation)
+
+// ---- SP hand_flames dispatch chain (decoded 2026-05-29 from full-song trace + body reads) ----
+//
+// "hand_flames" is dispatched to character sub-objects when a gem is hit DURING SP deployment.
+// It comes from the NOTE EVALUATION path, NOT from hmx_Beatmatch_SPActivate directly.
+//
+// Property name: "hand_flames" (NOT "flame_hands" — confirmed via PropertyTable_Find0 hook)
 //
 // Call chain (outermost → innermost dispatcher):
-//   hmx_SP_OutcomeEvaluator (sub_822C9498)         ← entry from Beatmatch pipeline
-//     hmx_SP_StateHandler (sub_822C8D40)
+//   hmx_NoteEval_RangeCheck (sub_822C9498) HIGH ← entry from Beatmatch pipeline; range-checks note
+//     hmx_NoteEval_Inner (sub_822C8D40)          ← processes confirmed hit, dispatches effects
 //       hmx_SP_EffectDispatch (sub_822DD3E0)
 //         hmx_SP_EffectInner (sub_822DD108)
-//           hmx_Beatmatch_SPCallback (sub_822CB5B8)  ← near SPActivate (sub_822CB260)
+//           hmx_Beatmatch_SPCallback (sub_822CB5B8)
 //             hmx_ObjectTree_Propagate (sub_82325DA8) ×2
 //               hmx_ObjectTree_Walk (sub_823267B8) ×2
 //                 hmx_Object_PollChildren (sub_821B9E40) ×5
 //                   hmx_Char_InnerDispatch (sub_82126568)
-//                     hmx_Char_SubDispatch (sub_82152108)
+//                     hmx_Char_SubDispatch (sub_82152108) HIGH (body read confirms HandleProperty dispatcher)
 //                       hmx_Object_MsgReDispatch (sub_823216E0)
 //                         hmx_Object_HandleProperty (sub_82316428)
 //                           → dispatches "hand_flames" to character sub-objects
-//
-// All new addresses below: MEDIUM confidence (call chain observed; bodies not yet read).
 
-#define hmx_SP_OutcomeEvaluator     sub_822C9498   // ? SP state chain outermost; entry from Beatmatch pipeline for hand_flames dispatch
-#define hmx_SP_StateHandler         sub_822C8D40   // ? called by SP_OutcomeEvaluator
-#define hmx_SP_EffectDispatch       sub_822DD3E0   // ? called by SP_StateHandler
-#define hmx_SP_EffectInner          sub_822DD108   // ? called by SP_EffectDispatch
-#define hmx_Beatmatch_SPCallback    sub_822CB5B8   // ? SP callback near SPActivate (sub_822CB260); fires on SP activation
-#define hmx_ObjectTree_Propagate    sub_82325DA8   // ? object-tree message propagator (appears 2× in SP chain)
-#define hmx_ObjectTree_Walk         sub_823267B8   // ? object-tree walker (appears 2× alongside Propagate)
-#define hmx_Object_PollChildren     sub_821B9E40   // ? child iterator / recursive poll (appears 5× in SP chain)
-#define hmx_Char_SubDispatch        sub_82152108   // ? character sub-object handler (between PollChildren and HandleProperty in SP chain)
-#define hmx_Char_InnerDispatch      sub_82126568   // ? one level inside Char_SubDispatch
-#define hmx_Object_MsgReDispatch    sub_823216E0   // ? message re-dispatcher between HandleProperty layers
+#define hmx_NoteEval_RangeCheck     sub_822C9498   // HIGH ⭐ body read 2026-05-29; range-checks note time vs [this+240]/[this+244]; increments hit counter [this+256]; delegates to NoteEval_Inner
+#define hmx_NoteEval_Inner          sub_822C8D40   // MEDIUM; processes confirmed note hit; source of hand_flames dispatch during SP
+#define hmx_SP_EffectDispatch       sub_822DD3E0   // MEDIUM; called by NoteEval_Inner in SP dispatch chain
+#define hmx_SP_EffectInner          sub_822DD108   // MEDIUM; called by SP_EffectDispatch
+#define hmx_Beatmatch_SPCallback    sub_822CB5B8   // MEDIUM; SP callback near SPActivate (sub_822CB260); fires on SP activation
+#define hmx_ObjectTree_Propagate    sub_82325DA8   // MEDIUM; object-tree message propagator (appears 2× in SP chain)
+#define hmx_ObjectTree_Walk         sub_823267B8   // MEDIUM; object-tree walker (appears 2× alongside Propagate)
+#define hmx_Object_PollChildren     sub_821B9E40   // MEDIUM; child iterator / recursive poll (appears 5× in SP chain)
+#define hmx_Char_SubDispatch        sub_82152108   // HIGH ⭐ body read 2026-05-29; HandleProperty dispatcher for character sub-objects
+#define hmx_Char_InnerDispatch      sub_82126568   // MEDIUM; one level inside Char_SubDispatch
+#define hmx_Object_MsgReDispatch    sub_823216E0   // MEDIUM; message re-dispatcher between HandleProperty layers
 
 // ---- Game-state / engine subsystems ----
 
