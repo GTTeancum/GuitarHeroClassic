@@ -474,6 +474,15 @@
 #define hmx_GemPass_VtableDispatch      sub_8234A598   // THE gem_pass fire: vtable[16] on callback objects HIGH
 #define hmx_NoteTracker_CallbackDispatch sub_8233AE28  // iterates callback list obj+44..+56 HIGH
 #define hmx_NoteTracker_FireCallbacks   sub_822E20D0   // 2-insn: (tracker+44, song_time) → CallbackDispatch HIGH
+//
+// Per-note vtable[16] handlers (called by hmx_GemPass_VtableDispatch on each gem pass):
+//   r3 = callback object ptr, f1 = song_time float
+//   Scoring callback obj: vtable 0x82047CD4 (ctor sub_822D58A8), vtable[16] at 0x82047D14
+//   StarPower callback obj: vtable 0x82047B0C (ctor sub_822D4F68), vtable[16] at 0x82047B4C
+#define hmx_Scoring_GemPassHandler      sub_822D5944   // scoring vtable[16]: called on each gem pass; r3=Scoring callback obj, f1=song_time HIGH
+#define hmx_StarPower_GemPassHandler    sub_822D5024   // starpower vtable[16]: called on each gem pass; r3=SP callback obj, f1=song_time HIGH
+#define hmx_Scoring_CallbackCtor        sub_822D58A8   // ctor for Scoring callback obj: writes vtable 0x82047CD4 at obj+0, sub-vtable 0x82047C94 at obj+4 HIGH
+#define hmx_StarPower_CallbackCtor      sub_822D4F68   // ctor for StarPower callback obj: writes vtable 0x82047B0C at obj+0, sub-vtable 0x82047ACC at obj+4 HIGH
 #define hmx_HOPO_WindowInstall          sub_822BC818   // HOPO/hit-window config; r5=4 for 4 lanes MED
 #define hmx_HOPO_LaneStateInit          sub_822C9618   // per-lane HOPO state init MED
 #define hmx_BeatmatchSink_SetField16    sub_82699E60   // 2-insn: stw r4, 16(r3) HIGH
