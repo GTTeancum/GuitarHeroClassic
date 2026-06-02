@@ -33,6 +33,27 @@ inline int16_t clamp_s16(int32_t v) {
     return static_cast<int16_t>(v);
 }
 
+// Decode one PS-ADPCM nibble exactly as the Sony spec / vgmstream / ffmpeg do.
+// The residual is scaled to a ×256 fixed-point domain (snib << (20-shift)), the
+// predictor is added in that same domain ((fp*h1 + fn*h2)*4, since fp/fn are the
+// coefficients ×64), and the whole sum is shifted down by 8 ONCE. The value fed
+// back into history is the UNCLAMPED result `hist`; the emitted PCM sample is a
+// separately clamped copy. Truncating the predictor per-sample (>>6) or feeding
+// the clamped value back — as the prior code did — drifts the predictor loop and
+// diverged from the reference decoder by up to several thousand counts.
+inline void decode_ps_sample(int nibble, int shift, int32_t fp, int32_t fn,
+                             int32_t h1, int32_t h2,
+                             int32_t& out_sample, int32_t& hist) {
+    if (shift > 12) shift = 9;                 // per Nocash PSX docs (invalid shift)
+    const int sf = 20 - shift;
+    const int32_t snib = static_cast<int16_t>(nibble << 12) >> 12;  // sign-extend -8..7
+    const int64_t acc =
+        (static_cast<int64_t>(snib) << sf) +
+        (static_cast<int64_t>(h1) * fp + static_cast<int64_t>(h2) * fn) * 4;
+    hist = static_cast<int32_t>(acc >> 8);
+    out_sample = hist;
+}
+
 }  // anonymous namespace
 
 Header parse_header(const std::vector<uint8_t>& src) {
@@ -114,26 +135,145 @@ std::vector<int16_t> decode_pcm_s16(const std::vector<uint8_t>& bytes,
                 // (low nibble first, then high nibble).
                 uint8_t pack = frame[2 + (s >> 1)];
                 int nibble = (s & 1) ? ((pack >> 4) & 0x0F) : (pack & 0x0F);
-
-                // Sign-extend the 4-bit value into a 16-bit short, then apply
-                // the per-frame shift to get the residual sample.
-                int32_t residual = static_cast<int16_t>(nibble << 12) >> shift;
-
-                // Apply linear-predictive filter against history.
-                int32_t predicted = (st[c].h1 * fp + st[c].h2 * fn) >> 6;
-                int32_t sample    = residual + predicted;
-                int16_t clamped   = clamp_s16(sample);
-
-                // Interleaved output: sample-frame index = blk*28 + s.
+                int32_t out_sample, hist;
+                decode_ps_sample(nibble, shift, fp, fn, st[c].h1, st[c].h2,
+                                 out_sample, hist);
                 size_t out_frame = static_cast<size_t>(blk) * kSamplesPerFrame + s;
-                out[out_frame * h.channels + c] = clamped;
-
+                out[out_frame * h.channels + c] = clamp_s16(out_sample);
                 st[c].h2 = st[c].h1;
-                st[c].h1 = clamped;
+                st[c].h1 = hist;   // UNCLAMPED feedback (matches PS-ADPCM spec)
             }
         }
     }
     return out;
+}
+
+// ---------------------------------------------------------------------------
+// Streaming decoder
+// ---------------------------------------------------------------------------
+
+void MemByteSource::read(uint32_t offset, void* dst, uint32_t n) const {
+    auto* out = static_cast<uint8_t*>(dst);
+    const uint32_t sz = static_cast<uint32_t>(data_.size());
+    for (uint32_t i = 0; i < n; ++i) {
+        uint32_t o = offset + i;
+        out[i] = (o < sz) ? data_[o] : 0;   // zero-fill past EOF
+    }
+}
+
+bool Stream::open(std::unique_ptr<ByteSource> src) {
+    if (!src) return false;
+    // Parse the 128-byte header straight from the source.
+    std::vector<uint8_t> head(kHeaderSize);
+    src->read(0, head.data(), static_cast<uint32_t>(kHeaderSize));
+    try {
+        h_ = parse_header(head);
+    } catch (const std::exception&) {
+        return false;
+    }
+    src_ = std::move(src);
+    st_.assign(static_cast<size_t>(h_.channels), Pred{});
+    scratch_.assign(static_cast<size_t>(h_.channels), {});
+    cur_block_ = 0xFFFFFFFFu;
+    pos_ = 0;
+    return true;
+}
+
+void Stream::decode_block(uint32_t b) {
+    const int ch = h_.channels;
+    uint8_t frame[kFrameSize];
+    for (int c = 0; c < ch; ++c) {
+        const uint32_t off = static_cast<uint32_t>(kHeaderSize) +
+                             (b * static_cast<uint32_t>(ch) + static_cast<uint32_t>(c)) *
+                                 static_cast<uint32_t>(kFrameSize);
+        src_->read(off, frame, static_cast<uint32_t>(kFrameSize));
+
+        const uint8_t hdr = frame[0];
+        int filter = (hdr >> 4) & 0x0F;
+        const int shift = hdr & 0x0F;
+        if (filter > 4) filter = 0;
+        const int32_t fp = kFilterPos[filter];
+        const int32_t fn = kFilterNeg[filter];
+
+        for (int s = 0; s < kSamplesPerFrame; ++s) {
+            const uint8_t pack = frame[2 + (s >> 1)];
+            const int nibble = (s & 1) ? ((pack >> 4) & 0x0F) : (pack & 0x0F);
+            int32_t out_sample, hist;
+            decode_ps_sample(nibble, shift, fp, fn, st_[c].h1, st_[c].h2,
+                             out_sample, hist);
+            scratch_[c][s] = clamp_s16(out_sample);
+            st_[c].h2 = st_[c].h1;
+            st_[c].h1 = hist;   // UNCLAMPED feedback
+        }
+    }
+    cur_block_ = b;
+}
+
+void Stream::ensure_block(uint32_t block) {
+    if (cur_block_ == block) return;
+    uint32_t start;
+    if (cur_block_ == 0xFFFFFFFFu || block <= cur_block_ || block > cur_block_ + 1) {
+        // Rebuild predictor history from the very start (covers loop/seek).
+        for (auto& s : st_) s = Pred{};
+        start = 0;
+    } else {
+        // Pure forward step: predictor already reflects cur_block_.
+        start = cur_block_ + 1;
+    }
+    for (uint32_t b = start; b <= block; ++b) decode_block(b);
+}
+
+uint32_t Stream::read_planar(int16_t* const* out, int out_channels,
+                             uint32_t max_frames) {
+    const uint32_t total = total_frames();
+    uint32_t produced = 0;
+    while (produced < max_frames && pos_ < total) {
+        const uint32_t block = pos_ / kSamplesPerFrame;
+        const uint32_t sub = pos_ % kSamplesPerFrame;
+        ensure_block(block);
+
+        uint32_t run = kSamplesPerFrame - sub;
+        run = std::min(run, max_frames - produced);
+        run = std::min(run, total - pos_);
+
+        for (int c = 0; c < h_.channels; ++c) {
+            if (c < out_channels && out[c]) {
+                for (uint32_t k = 0; k < run; ++k)
+                    out[c][produced + k] = scratch_[c][sub + k];
+            }
+        }
+        pos_ += run;
+        produced += run;
+    }
+    return produced;
+}
+
+uint32_t Stream::read_interleaved(int16_t* out, uint32_t max_frames) {
+    const uint32_t total = total_frames();
+    const int ch = h_.channels;
+    uint32_t produced = 0;
+    while (produced < max_frames && pos_ < total) {
+        const uint32_t block = pos_ / kSamplesPerFrame;
+        const uint32_t sub = pos_ % kSamplesPerFrame;
+        ensure_block(block);
+
+        uint32_t run = kSamplesPerFrame - sub;
+        run = std::min(run, max_frames - produced);
+        run = std::min(run, total - pos_);
+
+        for (uint32_t k = 0; k < run; ++k) {
+            int16_t* dst = out + static_cast<size_t>(produced + k) * ch;
+            for (int c = 0; c < ch; ++c) dst[c] = scratch_[c][sub + k];
+        }
+        pos_ += run;
+        produced += run;
+    }
+    return produced;
+}
+
+void Stream::seek(uint32_t sample_frame) {
+    pos_ = std::min(sample_frame, total_frames());
+    // ensure_block() on the next read rebuilds predictor state as needed.
 }
 
 // ---------------------------------------------------------------------------
