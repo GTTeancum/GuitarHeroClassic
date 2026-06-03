@@ -1,0 +1,387 @@
+// engine/src/milo_scene/milo_scene.cpp — see milo_scene.h for the byte layouts.
+
+#include "milo_scene/milo_scene.h"
+
+#include "ark_v3.h"
+#include "milo.h"
+
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <stdexcept>
+
+namespace ghogx::milo_scene {
+
+namespace {
+
+// Bounds-checked little-endian cursor over a single entry body.
+struct Reader {
+  const uint8_t* p;
+  size_t n;
+  size_t pos = 0;
+
+  Reader(const uint8_t* data, size_t len) : p(data), n(len) {}
+
+  void need(size_t k) const {
+    if (pos + k > n) throw std::runtime_error("milo_scene: read past end of entry");
+  }
+  void skip(size_t k) { need(k); pos += k; }
+  uint8_t u8() { need(1); return p[pos++]; }
+  uint32_t u32() {
+    need(4);
+    uint32_t v;
+    std::memcpy(&v, p + pos, 4);
+    pos += 4;
+    return v;
+  }
+  int32_t i32() { return static_cast<int32_t>(u32()); }
+  uint16_t u16() {
+    need(2);
+    uint16_t v;
+    std::memcpy(&v, p + pos, 2);
+    pos += 2;
+    return v;
+  }
+  float f32() {
+    need(4);
+    float v;
+    std::memcpy(&v, p + pos, 4);
+    pos += 4;
+    return v;
+  }
+  // Length-prefixed UTF-8 string. Harmonix caps names well under this; a length
+  // beyond the remaining bytes means we lost alignment, so reject it.
+  std::string str() {
+    uint32_t len = u32();
+    if (len > n - pos || len > (1u << 20)) {
+      throw std::runtime_error("milo_scene: implausible string length");
+    }
+    std::string s(reinterpret_cast<const char*>(p + pos), len);
+    pos += len;
+    return s;
+  }
+
+  // Read a Harmonix 3x4 matrix: 9 rotation floats (row-major) + 3 translation.
+  Xfm matrix() {
+    Xfm m;
+    for (int r = 0; r < 3; ++r)
+      for (int c = 0; c < 3; ++c) m.rot[r][c] = f32();
+    for (int c = 0; c < 3; ++c) m.pos[c] = f32();
+    return m;
+  }
+};
+
+// The 9-byte block that follows every object version int (Hmx::Object base
+// metadata) and the 9-byte block between the Trans matrices and its parent
+// string. Constant across all GH2 PS2 render objects we have inspected.
+constexpr size_t kObjMeta = 9;
+
+// Read the Trans portion that every Trans/Mesh starts with, leaving the cursor
+// just past the Trans parent string. Returns local matrix, world matrix, parent.
+void read_trans_block(Reader& r, Xfm& local, Xfm& world, std::string& parent) {
+  int32_t ver = r.i32();
+  (void)ver;                 // = 9 for GH2; kept for documentation
+  r.skip(kObjMeta);          // Hmx::Object base metadata (zeros)
+  local = r.matrix();        // matrix 1 (local)
+  world = r.matrix();        // matrix 2 (world as stored)
+  r.skip(kObjMeta);          // constraint / flags (zeros)
+  parent = r.str();          // parent / target name
+}
+
+}  // namespace
+
+TransObj decode_trans(const std::string& entry_name,
+                      const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  TransObj t;
+  t.name = entry_name;
+  read_trans_block(r, t.local, t.world_stored, t.parent);
+  return t;
+}
+
+CamObj decode_cam(const std::string& entry_name,
+                  const std::vector<uint8_t>& body) {
+  CamObj c;
+  c.name = entry_name;
+  try {
+    // A Cam entry is NOT a standalone Trans. Layout (verified from the raw
+    // ui/gen/metacam.milo_ps2 meta.cam bytes):
+    //   i32  version (= 12)
+    //   9    Object-meta bytes
+    //   i32  embedded Trans version (= 9)
+    //   48   local matrix  (the translation IS the camera eye)  <-- NO meta skip
+    //   48   world matrix
+    //   ...  flags / target string / projection params
+    // The previous code used read_trans_block (the standalone version-9 layout),
+    // so it read the matrix AND near/far/fov from the wrong offsets -- giving an
+    // eye in the panel plane and fov=1060. Read the eye from the local matrix and
+    // locate the real vertical fov (radians) in the tail.
+    Reader r(body.data(), body.size());
+    int32_t version = r.i32();
+    r.skip(kObjMeta);                       // 9 Object-meta bytes
+    if (version >= 10) r.i32();             // embedded Trans version (= 9)
+    c.local = r.matrix();                   // local matrix -> eye in .pos
+    if (r.pos + 48 <= body.size()) r.matrix();  // world matrix (consume)
+    // The exact param offset shifts with the target-string presence; the vertical
+    // fov is the sole float in the typical-fov band (~0.3..0.95 rad) in the tail
+    // (matrix 1.0 entries and the far/near values fall outside it).
+    for (size_t o = r.pos; o + 4 <= body.size(); ++o) {
+      float f;
+      std::memcpy(&f, body.data() + o, 4);
+      if (f > 0.3f && f < 0.95f) { c.fov = f; break; }
+    }
+    c.near_plane = 1.0f;
+    c.far_plane = 5000.0f;
+    c.decoded = true;
+  } catch (const std::exception&) {
+    // Leave defaults; caller falls back to a framed orbit camera.
+  }
+  return c;
+}
+
+MatObj decode_mat(const std::string& entry_name,
+                  const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  MatObj m;
+  m.name = entry_name;
+  int32_t ver = r.i32();     // = 27
+  (void)ver;
+  r.skip(kObjMeta);          // base metadata
+  (void)r.i32();             // field (= 3 observed)
+  m.color[0] = r.f32();
+  m.color[1] = r.f32();
+  m.color[2] = r.f32();
+  m.color[3] = r.f32();
+  // The blend / flag bytes follow the colour. We don't need their exact split
+  // to draw; the diffuse texture name is the load-bearing field. Scan forward
+  // from here for the first length-prefixed ".tex" string — robust against the
+  // version-specific flag block between colour and the texture reference.
+  size_t start = r.pos;
+  for (size_t o = start; o + 4 <= body.size(); ++o) {
+    uint32_t len;
+    std::memcpy(&len, body.data() + o, 4);
+    if (len < 4 || len > 64 || o + 4 + len > body.size()) continue;
+    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
+    // Must be printable and end in ".tex".
+    bool printable = true;
+    for (uint32_t k = 0; k < len; ++k) {
+      char c = s[k];
+      if (c < 0x20 || c >= 0x7f) { printable = false; break; }
+    }
+    if (!printable) continue;
+    std::string cand(s, len);
+    if (cand.size() >= 4 && cand.compare(cand.size() - 4, 4, ".tex") == 0) {
+      m.diffuse_tex = cand;
+      // The blend byte sits a few bytes before the name on these mats; grab the
+      // byte right after the colour as the blend flag (documented best-effort).
+      if (start < body.size()) m.blend = body[start];
+      break;
+    }
+  }
+  m.decoded = true;
+  return m;
+}
+
+MeshObj decode_mesh(const std::string& entry_name,
+                    const std::vector<uint8_t>& body) {
+  MeshObj mesh;
+  mesh.name = entry_name;
+  try {
+    Reader r(body.data(), body.size());
+    int32_t ver = r.i32();   // mesh version = 28 (0x1c)
+    if (ver != 28) {
+      // Not fatal — some mesh variants exist — but record it.
+      mesh.error = "unexpected mesh version " + std::to_string(ver);
+    }
+    // Trans base.
+    std::string trans_parent;
+    Xfm world_unused;
+    read_trans_block(r, mesh.local, world_unused, trans_parent);
+    mesh.parent = trans_parent;
+
+    // Draw base: version (= 3) + 21 bytes (showing flag + bounding sphere +
+    // draw-order). We skip the body; the sphere is recomputed as a bbox below.
+    int32_t draw_ver = r.i32();
+    (void)draw_ver;
+    r.skip(21);
+
+    // Mesh fields.
+    mesh.material = r.str();           // material name
+    std::string geom_owner = r.str();  // geometry-owner name (usually self)
+    (void)geom_owner;
+    r.skip(kObjMeta);                  // 9 bytes
+    uint32_t vcount = r.u32();
+
+    // Sanity-gate the vertex count against the remaining bytes: we need at least
+    // vcount*48 + 4 (face count) more bytes.
+    if (static_cast<uint64_t>(vcount) * sizeof(Vertex) + 4 > body.size() - r.pos) {
+      mesh.error = "vertex_count " + std::to_string(vcount) + " exceeds entry";
+      return mesh;
+    }
+    mesh.vertex_count = vcount;
+    mesh.verts.resize(vcount);
+    for (uint32_t i = 0; i < vcount; ++i) {
+      Vertex& v = mesh.verts[i];
+      v.px = r.f32(); v.py = r.f32(); v.pz = r.f32();
+      v.nx = r.f32(); v.ny = r.f32(); v.nz = r.f32();
+      v.r  = r.f32(); v.g  = r.f32(); v.b  = r.f32(); v.a = r.f32();
+      v.u  = r.f32(); v.v  = r.f32();
+    }
+
+    uint32_t fcount = r.u32();
+    if (static_cast<uint64_t>(fcount) * 6 > body.size() - r.pos) {
+      mesh.error = "face_count " + std::to_string(fcount) + " exceeds entry";
+      return mesh;
+    }
+    mesh.face_count = fcount;
+    mesh.indices.resize(static_cast<size_t>(fcount) * 3);
+    for (uint32_t i = 0; i < fcount; ++i) {
+      mesh.indices[i * 3 + 0] = r.u16();
+      mesh.indices[i * 3 + 1] = r.u16();
+      mesh.indices[i * 3 + 2] = r.u16();
+    }
+
+    // Validate all indices reference real vertices.
+    for (uint16_t idx : mesh.indices) {
+      if (idx >= vcount) {
+        mesh.error = "face index out of range";
+        return mesh;
+      }
+    }
+
+    // Bounding box.
+    if (vcount > 0) {
+      mesh.bb_min[0] = mesh.bb_max[0] = mesh.verts[0].px;
+      mesh.bb_min[1] = mesh.bb_max[1] = mesh.verts[0].py;
+      mesh.bb_min[2] = mesh.bb_max[2] = mesh.verts[0].pz;
+      for (const Vertex& v : mesh.verts) {
+        const float xyz[3] = {v.px, v.py, v.pz};
+        for (int k = 0; k < 3; ++k) {
+          if (!std::isfinite(xyz[k])) { mesh.error = "non-finite vertex"; return mesh; }
+          if (xyz[k] < mesh.bb_min[k]) mesh.bb_min[k] = xyz[k];
+          if (xyz[k] > mesh.bb_max[k]) mesh.bb_max[k] = xyz[k];
+        }
+      }
+    }
+    mesh.decoded = mesh.error.empty();
+  } catch (const std::exception& ex) {
+    mesh.error = ex.what();
+  }
+  return mesh;
+}
+
+// ---------------------------------------------------------------------------
+// Scene assembly
+// ---------------------------------------------------------------------------
+
+namespace {
+
+// 4x4 row-major multiply: out = a * b (row-vector convention, same as Mat4).
+std::array<float, 16> mat4_mul(const std::array<float, 16>& a,
+                               const std::array<float, 16>& b) {
+  std::array<float, 16> r{};
+  for (int i = 0; i < 4; ++i)
+    for (int j = 0; j < 4; ++j) {
+      float s = 0.0f;
+      for (int k = 0; k < 4; ++k) s += a[i * 4 + k] * b[k * 4 + j];
+      r[i * 4 + j] = s;
+    }
+  return r;
+}
+
+// Xfm (3x3 rot row-major + translation) -> 4x4 row-major with translation in
+// row 3 (matching render::Mat4: a point row-vector p*M transforms correctly).
+std::array<float, 16> xfm_to_mat4(const Xfm& x) {
+  std::array<float, 16> m{};
+  for (int r = 0; r < 3; ++r)
+    for (int c = 0; c < 3; ++c) m[r * 4 + c] = x.rot[r][c];
+  m[0 * 4 + 3] = 0.0f;
+  m[1 * 4 + 3] = 0.0f;
+  m[2 * 4 + 3] = 0.0f;
+  m[3 * 4 + 0] = x.pos[0];
+  m[3 * 4 + 1] = x.pos[1];
+  m[3 * 4 + 2] = x.pos[2];
+  m[3 * 4 + 3] = 1.0f;
+  return m;
+}
+
+}  // namespace
+
+const MatObj* Scene::find_mat(const std::string& name) const {
+  for (const MatObj& m : mats)
+    if (m.name == name) return &m;
+  return nullptr;
+}
+
+std::array<float, 16> Scene::world_matrix(const MeshObj& mesh) const {
+  // Compose local * parent.local * parent.parent.local * ... up the chain.
+  // Parents may be Trans or Group (we only have Trans/Mesh xfms here; Group
+  // parents resolve to identity, which is fine since groups carry no xfm).
+  std::array<float, 16> acc = xfm_to_mat4(mesh.local);
+  std::string parent = mesh.parent;
+  int guard = 0;
+  while (!parent.empty() && guard++ < 64) {
+    const Xfm* px = nullptr;
+    for (const TransObj& t : transes)
+      if (t.name == parent) { px = &t.local; parent = t.parent; break; }
+    if (!px) {
+      for (const MeshObj& mm : meshes)
+        if (mm.name == parent) { px = &mm.local; parent = mm.parent; break; }
+    }
+    if (!px) break;  // parent is a Group/Cam/View with no Trans xfm — stop.
+    acc = mat4_mul(acc, xfm_to_mat4(*px));
+  }
+  return acc;
+}
+
+bool load_scene(const std::string& hdr_path, const std::string& ark_path,
+                const std::string& milo_path, Scene& out) {
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    auto entry = ark.find(milo_path);
+    if (!entry) entry = ark.find("../../system/run/" + milo_path);
+    if (!entry) {
+      std::fprintf(stderr, "[milo_scene] not in ARK: %s\n", milo_path.c_str());
+      return false;
+    }
+    auto bytes = ark.read_entry(*entry, {ark_path});
+    auto hdr = gh::milo::parse_header(bytes);
+    auto payload = gh::milo::inflate_payload(bytes, hdr);
+    auto dir = gh::milo::parse_directory(payload);
+    out.dir_name = dir.dir_name;
+    out.dir_type = dir.dir_type;
+
+    int mesh_ok = 0, mesh_fail = 0;
+    for (const auto& de : dir.entries) {
+      std::vector<uint8_t> b(payload.data() + de.offset,
+                             payload.data() + de.offset + de.size);
+      try {
+        if (de.type == "Mesh") {
+          MeshObj m = decode_mesh(de.name, b);
+          if (m.decoded) ++mesh_ok; else ++mesh_fail;
+          out.meshes.push_back(std::move(m));
+        } else if (de.type == "Trans") {
+          out.transes.push_back(decode_trans(de.name, b));
+        } else if (de.type == "Mat") {
+          out.mats.push_back(decode_mat(de.name, b));
+        } else if (de.type == "Cam") {
+          out.cams.push_back(decode_cam(de.name, b));
+        }
+      } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[milo_scene]   %s '%s' decode: %s\n",
+                     de.type.c_str(), de.name.c_str(), ex.what());
+      }
+    }
+    std::fprintf(stderr,
+                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu trans, %zu mat\n",
+                 milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
+                 out.transes.size(), out.mats.size());
+    return true;
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[milo_scene] load_scene(%s): %s\n", milo_path.c_str(),
+                 ex.what());
+    return false;
+  }
+}
+
+}  // namespace ghogx::milo_scene

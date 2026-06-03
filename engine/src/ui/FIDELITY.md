@@ -82,14 +82,15 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
   - (1) panel **textures** — FIXED. Was a use-after-move bug (mats moved into the
     combined scene before reading `diffuse_tex`); now 16/16 load + upload
     (main.milo 9/9 mm_brick03/mainmenu/mm_flyers…; helpbar 7/7).
-  - (2) **camera** — FRAMED face-on, fills the screen. The menu panels are a thin
-    slab in the X-Z plane (decoded extent X[-1000,1000] Z[-785,655], Y[-2,2]) — a
-    2-D layout like the HUD. View down the Y (depth) axis: yaw=0/pitch=0 puts the
-    eye along -Y looking +Y at the X-Z face, pulled IN to ×0.6 of the geometry
-    auto-fit so the wall fills the background and the poster is large (GH2's closer
-    framing). Grounded in the decoded GEOMETRY extent, NOT meta.cam (decode_cam
-    misreads its fields: fov=1060, eye in-plane). Exact 1:1 framing still wants the
-    real cam (fix decode_cam) — `[INFERENCE]` on the ×0.6.
+  - (2) **camera** — RESOLVED via the real game camera. `decode_cam` was broken: it
+    parsed a Cam as a standalone Trans, but a Cam is **version-12 + an embedded Trans**
+    (version 9 then the matrix with NO meta skip) + world matrix + params — so it read
+    the matrix and near/far/fov from the wrong offsets (eye in-plane, fov=1060). Fixed
+    in `milo_scene.cpp`: a Cam's local-matrix translation IS the eye = `meta.cam`
+    (0,-768,0) along -Y, fov **0.602** rad (verified from the raw metacam.milo bytes).
+    `menu_app` now frames with that real camera (no multipliers) → the **poster fills
+    the screen** as GH2 frames it, so everything sized to the poster (the menu text) is
+    the right size.
   - (2b) **textures — RESOLVED.** The flat lavender was the `light.mesh` glow
     overlay (`light_gw.tex`) drawn OPAQUE by the scene renderer (it ignores
     `MatObj.blend`) — an additive glow overwriting the whole panel. Skipping

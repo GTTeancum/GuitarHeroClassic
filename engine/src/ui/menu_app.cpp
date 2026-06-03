@@ -87,21 +87,33 @@ void rebuild_scene(const std::string& hdr, const std::string& ark, ScreenManager
   }
   std::fprintf(stderr, "[menu] %s: %zu meshes, %zu textures\n",
                screen ? screen->name().c_str() : "?", combined.meshes.size(), textures.size());
-  renderer.set_scene(std::move(combined), textures);  // auto-frames target = content center
+  renderer.set_scene(std::move(combined), textures);
 
-  // GH2 menu panels are a thin slab in the X-Z plane (Y ~ 0; extent X[-1000,1000]
-  // Z[-785,655], Y[-2,2]) -- a 2-D layout like the HUD. View it FACE-ON down the Y
-  // (depth) axis: yaw=0/pitch=0 places the eye along -Y looking +Y at the X-Z face.
-  // (decode_cam's meta.cam fields read garbage -- fov 1060, eye in-plane -- so we
-  // frame from the decoded geometry extent, not the broken camera.) Pull the eye
-  // back so the panel fits the vertical fov.
+  // Use the menu's REAL camera (meta.cam in ui/gen/metacam.milo_ps2), now that
+  // decode_cam reads it correctly: eye (0,-768,0) along -Y, looking +Y at the X-Z
+  // menu plane, fov ~0.602. This is GH2's exact framing -- the poster fills the
+  // screen -- grounded in the decoded camera, no multipliers.
   ghogx::render::OrbitCamera& cam = renderer.camera();
   cam.yaw = 0.0f;
   cam.pitch = 0.0f;
-  // The auto-fit frames the whole wall (edges in frame); GH2 sits closer so the
-  // wall fills the background + the poster is large. Pull IN to fill the screen.
-  cam.distance *= 0.6f;
-  cam.near_z = std::max(cam.distance * 0.01f, 0.5f);
+  cam.target[0] = 0.0f; cam.target[1] = 0.0f; cam.target[2] = 0.0f;
+  cam.distance = 768.0f;
+  cam.fov = 0.602f;
+  cam.near_z = 1.0f;
+  cam.far_z = 5000.0f;
+  milo_scene::Scene cam_scene;
+  if (milo_scene::load_scene(hdr, ark, "ui/gen/metacam.milo_ps2", cam_scene)) {
+    for (const auto& c : cam_scene.cams) {
+      if (!c.decoded || std::strcmp(c.name.c_str(), "meta.cam") != 0) continue;
+      cam.target[0] = c.local.pos[0];           // look straight ahead (+Y) at the plane
+      cam.target[2] = c.local.pos[2];
+      cam.distance = std::max(1.0f, std::fabs(c.local.pos[1]));
+      if (c.fov > 0.05f) cam.fov = c.fov;
+      std::fprintf(stderr, "[menu] meta.cam eye=(%.1f %.1f %.1f) fov=%.3f\n",
+                   c.local.pos[0], c.local.pos[1], c.local.pos[2], cam.fov);
+      break;
+    }
+  }
 }
 
 // Fire the focused component's SELECT_START_MSG (Confirm). The screen's (focus)
