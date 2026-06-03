@@ -15,8 +15,11 @@
 
 #include "ark_v3.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <map>
 #include <string>
 #include <unordered_set>
@@ -81,7 +84,19 @@ void rebuild_scene(const std::string& hdr, const std::string& ark, ScreenManager
   }
   std::fprintf(stderr, "[menu] %s: %zu meshes, %zu textures\n",
                screen ? screen->name().c_str() : "?", combined.meshes.size(), textures.size());
-  renderer.set_scene(std::move(combined), textures);
+  renderer.set_scene(std::move(combined), textures);  // auto-frames target = content center
+
+  // GH2 menu panels are a thin slab in the X-Z plane (Y ~ 0; extent X[-1000,1000]
+  // Z[-785,655], Y[-2,2]) -- a 2-D layout like the HUD. View it FACE-ON down the Y
+  // (depth) axis: yaw=0/pitch=0 places the eye along -Y looking +Y at the X-Z face.
+  // (decode_cam's meta.cam fields read garbage -- fov 1060, eye in-plane -- so we
+  // frame from the decoded geometry extent, not the broken camera.) Pull the eye
+  // back so the panel fits the vertical fov.
+  ghogx::render::OrbitCamera& cam = renderer.camera();
+  cam.yaw = 0.0f;
+  cam.pitch = 0.0f;
+  cam.distance *= 1.5f;
+  cam.near_z = std::max(cam.distance * 0.01f, 0.5f);
 }
 
 // Fire the focused component's SELECT_START_MSG (Confirm). The screen's (focus)

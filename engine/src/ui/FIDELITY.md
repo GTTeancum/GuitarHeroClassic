@@ -82,13 +82,20 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
   - (1) panel **textures** — FIXED. Was a use-after-move bug (mats moved into the
     combined scene before reading `diffuse_tex`); now 16/16 load + upload
     (main.milo 9/9 mm_brick03/mainmenu/mm_flyers…; helpbar 7/7).
-  - (2) **camera** — the menu's real camera is `meta.cam` (and `meta_proxy.cam`)
-    in `ui/gen/metacam.milo_ps2` (RndDir, 2 Cam + 3 TransAnim). NEXT: decode it
-    (`milo_scene::decode_cam`) and drive the renderer's camera from it (the
-    auto-orbit default views the panel edge-on / back). Blind yaw guesses don't
-    converge — use the real cam. `[INFERENCE]` until applied.
+  - (2) **camera** — FRAMED face-on. The menu panels are a thin slab in the X-Z
+    plane (decoded extent X[-1000,1000] Z[-785,655], Y[-2,2]) — a 2-D layout like
+    the HUD. View down the Y (depth) axis: yaw=0/pitch=0 puts the eye along -Y
+    looking +Y at the X-Z face, pulled back ~1.5x to fit. Grounded in the decoded
+    GEOMETRY extent, NOT meta.cam (decode_cam misreads its fields: fov=1060, eye
+    in-plane). The panel now fills the frame as a rectangle.
+  - (2b) **textures render near-uniform** (flat lavender, not the brick/flyer art)
+    though the binding is CONFIRMED correct: every mesh->material->diffuse_tex->
+    uploaded-texture resolves (have_tex=1; 16/16 uploaded). So it's a UV / depth /
+    draw-order detail — the menu meshes are coplanar in the ~4-unit-thin Y slab
+    (Z-fight risk) and the 2000-wide wall dominates the fit. NEXT: per-mesh UV
+    range + depth/layer ordering + whether a light/glow overlay washes it.
   - (3) per-screen `(file)` that is a `{script}` (not a bare symbol) — not yet
-    evaluated. (4) meta/brick background panel + 2-D text/font layer — open.
+    evaluated. (4) the 2-D text/font layer (song/venue/difficulty Text entries) — open.
 
 ## Stock surface (mechanically extracted — the 1:1 spec)
 `dtb_tool surface` over all 40 `ui/gen/*.dtb` → `STOCK_SURFACE.txt` (committed):
