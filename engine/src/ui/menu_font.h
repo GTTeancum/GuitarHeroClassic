@@ -69,7 +69,10 @@ class MenuFont {
   float line_height() const { return line_height_; }  // 50 (header)
 
   // Glyph for a byte (Latin-1 code). nullptr if the font has no such glyph.
+  // impact is an UPPERCASE-only font, so lowercase folds to its uppercase glyph
+  // (this is how GH2 renders e.g. locale "training" as "TRAINING").
   const Glyph* glyph(uint8_t ch) const {
+    if (ch >= 'a' && ch <= 'z') ch = static_cast<uint8_t>(ch - 32);
     return glyphs_[ch].present ? &glyphs_[ch] : nullptr;
   }
 

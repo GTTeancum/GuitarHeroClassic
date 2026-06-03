@@ -3,6 +3,8 @@
 #include "ui/menu_app.h"
 
 #include "ui/config_db.h"
+#include "ui/menu_font.h"
+#include "ui/menu_labels.h"
 #include "ui/meta_objects.h"
 #include "ui/screen_loader.h"
 #include "ui/screen_manager.h"
@@ -12,6 +14,11 @@
 #include "milo_scene/milo_scene.h"
 #include "render/milo_scene_renderer.h"
 #include "render/window_d3d9.h"
+
+#include "dtb.h"
+#include "dtb_bridge/dtb_bridge.h"
+#include "core/data_node.h"
+#include "core/symbol.h"
 
 #include "ark_v3.h"
 
@@ -129,6 +136,104 @@ void do_confirm(ScreenManager& mgr) {
   panel->handle_property(Symbol("SELECT_START_MSG"), DataArray());
 }
 
+// Load ui/eng/gen/locale.dtb into a key->display-string map. The menu's button
+// labels are locale keys (e.g. "QUICK_PLAY" -> "QUICK PLAY"); the BandButton
+// embeds the key, the locale resolves the shown text. 1:1 with the stock data.
+std::map<std::string, std::string> load_locale(const gh::ark::ArkV3Reader& ark,
+                                               const std::vector<std::string>& arks) {
+  std::map<std::string, std::string> m;
+  try {
+    auto e = ark.find("ui/eng/gen/locale.dtb");
+    if (!e) return m;
+    auto bytes = ark.read_entry(*e, arks);
+    gh::dtb::Tree tree = gh::dtb::parse(bytes);
+    std::shared_ptr<DataArray> root = dtb_bridge::from_tree(tree);
+    if (root) {
+      for (std::size_t i = 0; i < root->size(); ++i) {
+        auto kv = root->at(i).as_array();
+        if (!kv || kv->size() < 2) continue;
+        auto key = kv->at(0).as_symbol();
+        auto val = kv->at(1).as_string();
+        if (key && key->valid() && val) m[key->c_str()] = std::string(*val);
+      }
+    }
+  } catch (const std::exception&) {
+  }
+  std::fprintf(stderr, "[menu] locale: %zu strings\n", m.size());
+  return m;
+}
+
+// Build world-space glyph quads for a panel's labels. The label text is laid out
+// flat in the menu's X-Z plane (camera looks down -Y), centred on each object's
+// world Trans translation, scaled by kTextScale world-units-per-font-pixel.
+//
+// NOTE: positions come straight from each object's decoded world matrix; the
+// scale (kTextScale) is the one tunable not byte-recoverable from the font (see
+// FIDELITY 2c) and is pinned by screenshot comparison against GH2.
+constexpr float kTextScale = 0.42f;
+
+void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& font,
+                       const std::map<std::string, std::string>& locale,
+                       std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out) {
+  using TV = ghogx::render::MiloSceneRenderer::TextVertex;
+  for (const auto& lbl : labels) {
+    if (!lbl.has_world || lbl.text.empty()) continue;
+    // For now only the BandButtons (impact font). The Text objects (SONG/VENUE/
+    // DIFFICULTY) and the cutout BandLabel carry a parent-group offset not yet
+    // composed, so their world translation alone lands them on the button column
+    // — defer until that composition is RE'd.
+    if (lbl.type != "BandButton") continue;
+    std::string disp = lbl.text;
+    auto it = locale.find(lbl.text);
+    if (it != locale.end()) disp = it->second;
+
+    float w = 0.0f;
+    auto quads = font.layout(disp, &w);
+    if (quads.empty())
+      std::fprintf(stderr, "[menu]   WARN label '%s' key='%s' disp='%s' -> no glyphs\n",
+                   lbl.name.c_str(), lbl.text.c_str(), disp.c_str());
+    const float ax = lbl.world[9], ay = lbl.world[10], az = lbl.world[11];
+    const float capH = font.cap_height();
+    const uint32_t argb = 0xFFFFFFFFu;  // white; per-state colour is a follow-up
+
+    auto V = [&](float qx, float qy, float u, float v) {
+      TV tv;
+      tv.x = ax + (qx - w * 0.5f) * kTextScale;        // centre horizontally
+      tv.z = az - (qy - capH * 0.5f) * kTextScale;     // font-y down -> world-z up
+      tv.y = ay;
+      tv.u = u; tv.v = v; tv.argb = argb;
+      return tv;
+    };
+    for (const auto& q : quads) {
+      TV a = V(q.x0, q.y0, q.u0, q.v0);
+      TV b = V(q.x1, q.y0, q.u1, q.v0);
+      TV c = V(q.x1, q.y1, q.u1, q.v1);
+      TV d = V(q.x0, q.y1, q.u0, q.v1);
+      out.push_back(a); out.push_back(b); out.push_back(c);
+      out.push_back(a); out.push_back(c); out.push_back(d);
+    }
+  }
+}
+
+// Rebuild the renderer's text overlay from the current screen's panels.
+void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager& mgr,
+                  Object* screen, ghogx::render::MiloSceneRenderer& renderer,
+                  const MenuFont& font,
+                  const std::map<std::string, std::string>& locale) {
+  std::vector<ghogx::render::MiloSceneRenderer::TextVertex> verts;
+  for (Symbol pn : screen_panel_names(screen)) {
+    Object* panel = mgr.find_object(pn);
+    if (!panel) continue;
+    DataNode f = panel->get_property(Symbol("file"));
+    auto sym = f.as_symbol();
+    if (!sym) continue;
+    auto labels = extract_menu_labels(hdr, ark, "ui/gen/" + std::string(sym->c_str()) + "_ps2");
+    append_text_quads(labels, font, locale, verts);
+  }
+  std::fprintf(stderr, "[menu] text: %zu glyph-verts\n", verts.size());
+  renderer.set_text(std::move(verts), font.atlas());
+}
+
 }  // namespace
 
 int run_menu_mode(const std::string& hdr, const std::string& ark,
@@ -148,6 +253,11 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   std::fprintf(stderr, "[menu] booted: %d DTBs, %zu objects, %zu songs\n", n,
                mgr.registry().size(), db.song_count());
 
+  // The menu bitmap font ("impact") + the locale (button labels are loc keys).
+  MenuFont impact_font;
+  impact_font.load(hdr, ark, "ui/gen/impact.milo_ps2");
+  std::map<std::string, std::string> locale = load_locale(arkr, arks);
+
   // Boot to the main menu (the bootup_load memcard chain is wired later).
   mgr.goto_screen(Symbol("main_screen"));
 
@@ -158,6 +268,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
 
   Object* shown = mgr.current_screen();
   rebuild_scene(hdr, ark, mgr, shown, renderer);
+  rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, locale);
 
   using clock = std::chrono::steady_clock;
   auto last = clock::now();
@@ -183,6 +294,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     if (mgr.current_screen() != shown) {
       shown = mgr.current_screen();
       rebuild_scene(hdr, ark, mgr, shown, renderer);
+      rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, locale);
     }
 
     renderer.draw();

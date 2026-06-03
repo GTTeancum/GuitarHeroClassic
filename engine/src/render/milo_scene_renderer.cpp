@@ -50,6 +50,14 @@ MiloSceneRenderer::MiloSceneRenderer(Window& win) : win_(&win) {
 MiloSceneRenderer::~MiloSceneRenderer() {
   for (auto& kv : tex_)
     if (kv.second) kv.second->Release();
+  if (text_tex_) text_tex_->Release();
+}
+
+void MiloSceneRenderer::set_text(std::vector<TextVertex> verts,
+                                 const ghogx::asset::Image& atlas) {
+  if (text_tex_) { text_tex_->Release(); text_tex_ = nullptr; }
+  text_ = std::move(verts);
+  if (!text_.empty() && atlas.valid()) text_tex_ = upload(atlas);
 }
 
 IDirect3DTexture9* MiloSceneRenderer::upload(const ghogx::asset::Image& img) {
@@ -284,6 +292,50 @@ void MiloSceneRenderer::draw() {
   }
 
   dev_->SetTexture(0, nullptr);
+
+  // ---- Menu text overlay: world-space glyph quads from the font atlas. -------
+  // Drawn after the 3-D scene, alpha-blended, no depth write, unlit (the glyph
+  // colour comes straight from the per-vertex tint modulated by the atlas alpha).
+  if (text_tex_ && text_.size() >= 3) {
+    Mat4 ident = Mat4::identity();
+    D3DMATRIX wi;
+    std::memcpy(&wi, &ident, 64);
+    dev_->SetTransform(D3DTS_WORLD, &wi);
+
+    dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
+    dev_->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+    dev_->SetRenderState(D3DRS_ZENABLE, FALSE);          // overlay on top
+    dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    dev_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    dev_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    dev_->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);  // text faces either way
+    dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    dev_->SetTexture(0, text_tex_);
+    // Glyph RGB is white; tint = diffuse. Coverage = atlas alpha * diffuse alpha.
+    dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+    dev_->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    dev_->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+    std::vector<SVtx> tv;
+    tv.reserve(text_.size());
+    for (const auto& t : text_) {
+      SVtx s;
+      s.x = t.x; s.y = t.y; s.z = t.z;
+      s.nx = 0; s.ny = 1; s.nz = 0;
+      s.color = static_cast<D3DCOLOR>(t.argb);
+      s.u = t.u; s.v = t.v;
+      tv.push_back(s);
+    }
+    dev_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
+                          static_cast<UINT>(tv.size() / 3), tv.data(),
+                          sizeof(SVtx));
+    dev_->SetTexture(0, nullptr);
+  }
+
   dev_->EndScene();
 }
 

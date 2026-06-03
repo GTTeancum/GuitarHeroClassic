@@ -132,6 +132,21 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     `[VERBATIM]` charset order + `[VERBATIM]` kerning). The one non-byte-exact metric is the
     inter-glyph **advance/tracking** (not stored decodably) — seeded from ink-width + small
     tracking, to be pinned against a GH2 screenshot. `[INFERENCE: advance/tracking only]`
+  - (2c-render) **Button labels now draw on screen.** menu_labels.cpp parses each
+    panel MILO: per BandButton/Text/BandLabel it pulls the embedded strings (first =
+    font, last = label/loc-key) and finds the embedded Trans **structurally** (first
+    local+world 48-byte matrix pair — robust to the class prefix shifting the offset).
+    menu_app resolves the loc key via locale.dtb (`QUICK_PLAY`→"QUICK PLAY";
+    `TRAINING`→"training", folded to caps by the uppercase-only font) and lays out
+    glyph quads with MenuFont, centred on each button's **decoded world translation**,
+    in the X-Z menu plane. MiloSceneRenderer got a `set_text` overlay pass (alpha-blend,
+    no depth write, atlas-modulated tint). All 5 items (CAREER / QUICK PLAY /
+    MULTIPLAYER / TRAINING / OPTIONS) render at their real positions.
+    `[VERBATIM]` positions+labels+kerning; `[INFERENCE]` only kTextScale (0.42) + the
+    white tint, both to be pinned by screenshot.
+    DEFERRED: the 3 `Text` objects (SONG/VENUE/DIFFICULTY) need their parent-group
+    offset composed (their bare world translation lands them on the button column) and
+    use a non-impact font; per-state focus colour; the help bar.
   - (2d) OPEN: the additive **glow** (light overlay; MatObj.blend) + coplanar depth order.
   - (3) per-screen `(file)` that is a `{script}` (not a bare symbol) — not yet evaluated.
 

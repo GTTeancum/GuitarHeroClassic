@@ -26,7 +26,7 @@ endif()
 # The menu bitmap font ("impact"): parse impact.font byte-exact (charset +
 # kerning) and derive glyph rects from the decoded atlas. Portable (asset decode
 # is CPU-side; no D3D9), so it can be unit-tested headless.
-add_library(ghogx_menu_font STATIC menu_font.cpp menu_font.h)
+add_library(ghogx_menu_font STATIC menu_font.cpp menu_font.h menu_labels.cpp menu_labels.h)
 target_include_directories(ghogx_menu_font PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_menu_font PUBLIC ghogx_asset ark_v3 milo)
 if(MSVC)
