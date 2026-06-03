@@ -152,6 +152,25 @@ MatObj decode_mat(const std::string& entry_name,
   m.color[1] = r.f32();
   m.color[2] = r.f32();
   m.color[3] = r.f32();
+  // Diffuse texcoord transform: 16 bytes of flags, then a 3x3 matrix (UV tiling on
+  // the diagonal, UV offset in row 2, homogeneous [2][2]=1). Confirmed from the raw
+  // bytes: mm_brick03.mat has scale (4,3) -> the 256px brick tile repeats across the
+  // 1600-unit wall (small bricks); mainmenu.mat is identity. Applied by the renderer.
+  {
+    const size_t txf = r.pos + 16;
+    auto rf = [&](size_t o) { float f; std::memcpy(&f, body.data() + o, 4); return f; };
+    if (txf + 36 <= body.size()) {
+      const float m22 = rf(txf + 32);     // [2][2]
+      const float su = rf(txf + 0);       // [0][0]
+      const float sv = rf(txf + 16);      // [1][1]
+      if (m22 > 0.9f && m22 < 1.1f && su > 0.01f && su < 64.0f && sv > 0.01f && sv < 64.0f) {
+        m.tex_scale[0] = su;
+        m.tex_scale[1] = sv;
+        m.tex_offset[0] = rf(txf + 24);   // [2][0]
+        m.tex_offset[1] = rf(txf + 28);   // [2][1]
+      }
+    }
+  }
   // The blend / flag bytes follow the colour. We don't need their exact split
   // to draw; the diffuse texture name is the load-bearing field. Scan forward
   // from here for the first length-prefixed ".tex" string — robust against the

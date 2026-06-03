@@ -91,6 +91,12 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     `menu_app` now frames with that real camera (no multipliers) → the **poster fills
     the screen** as GH2 frames it, so everything sized to the poster (the menu text) is
     the right size.
+  - (2a) **brick wall tiling — RESOLVED.** With the real (close) camera the wall
+    bricks were huge because `decode_mat` ignored the Mat's **3x3 texcoord transform**
+    (UV scale/offset). The wall vertices are UV[0,1], so the 256px brick tile mapped
+    ONCE across the 1600-unit wall. Fixed: `decode_mat` reads the transform and the
+    renderer applies `u*scale+offset`. Verified from the bytes — `mm_brick03.mat`
+    scales **(4,3)** (the tile repeats 4x3 → small bricks), `mainmenu.mat` is identity.
   - (2b) **textures — RESOLVED.** The flat lavender was the `light.mesh` glow
     overlay (`light_gw.tex`) drawn OPAQUE by the scene renderer (it ignores
     `MatObj.blend`) — an additive glow overwriting the whole panel. Skipping
