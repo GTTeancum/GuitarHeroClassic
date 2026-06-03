@@ -38,14 +38,17 @@ void add_panel_milo(const std::string& hdr, const std::string& ark,
   milo_scene::Scene s;
   if (!milo_scene::load_scene(hdr, ark, path, s)) return;
 
+  // Collect the diffuse-texture names BEFORE moving the mats out (otherwise the
+  // moved-from strings are empty and nothing loads).
+  std::unordered_set<std::string> want;
+  for (const auto& m : s.mats)
+    if (!m.diffuse_tex.empty()) want.insert(m.diffuse_tex);
+
   for (auto& m : s.meshes) combined.meshes.push_back(std::move(m));
   for (auto& mt : s.mats) combined.mats.push_back(std::move(mt));
   for (auto& tr : s.transes) combined.transes.push_back(std::move(tr));
   for (auto& c : s.cams) combined.cams.push_back(std::move(c));
 
-  std::unordered_set<std::string> want;
-  for (const auto& m : s.mats)
-    if (!m.diffuse_tex.empty()) want.insert(m.diffuse_tex);
   std::vector<std::string> names(want.begin(), want.end());
   auto imgs = asset::load_milo_textures(hdr, ark, path, names);
   for (auto& kv : imgs) textures.emplace(kv.first, std::move(kv.second));

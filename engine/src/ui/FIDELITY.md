@@ -78,12 +78,17 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
   drive the real `SELECT_START_MSG`/`pop_screen`; the scene reloads on screen change.
   Verified: `--menu` boots (40 DTBs / 236 objects / 83 songs), loads
   ui/gen/main.milo (10 meshes) + helpbar.milo (7), renders a 1280×720 frame.
-  OPEN `[INFERENCE]` — the **visual calibration pass** (the deferred on-screen test):
-  (1) panel **textures** not loading (0/9 mats resolved — the mat `diffuse_tex` vs
-  `.tex` entry-name mapping for ui MILOs to fix); (2) framing uses the auto-orbit
-  camera, not the menu's own `metacam`/`ui.cam`; (3) per-screen `(file)` that is a
-  `{script}` (not a bare symbol) not yet evaluated; (4) the meta/brick background
-  panel + 2-D text/font layer. These require looking at the screen to dial in.
+  VISUAL CALIBRATION PASS (the deferred on-screen test) progress:
+  - (1) panel **textures** — FIXED. Was a use-after-move bug (mats moved into the
+    combined scene before reading `diffuse_tex`); now 16/16 load + upload
+    (main.milo 9/9 mm_brick03/mainmenu/mm_flyers…; helpbar 7/7).
+  - (2) **camera** — the menu's real camera is `meta.cam` (and `meta_proxy.cam`)
+    in `ui/gen/metacam.milo_ps2` (RndDir, 2 Cam + 3 TransAnim). NEXT: decode it
+    (`milo_scene::decode_cam`) and drive the renderer's camera from it (the
+    auto-orbit default views the panel edge-on / back). Blind yaw guesses don't
+    converge — use the real cam. `[INFERENCE]` until applied.
+  - (3) per-screen `(file)` that is a `{script}` (not a bare symbol) — not yet
+    evaluated. (4) meta/brick background panel + 2-D text/font layer — open.
 
 ## Stock surface (mechanically extracted — the 1:1 spec)
 `dtb_tool surface` over all 40 `ui/gen/*.dtb` → `STOCK_SURFACE.txt` (committed):
