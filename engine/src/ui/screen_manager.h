@@ -35,6 +35,9 @@ class ScreenManager : public Object, public script::Host {
 
   // --- singletons (ui/taskmgr/game/...) ----------------------------------
   void add_singleton(Symbol name, std::unique_ptr<Object> obj);
+  // Register a NON-owning alias name for an already-owned singleton (gamecfg ->
+  // the game object, player0 -> a player config).
+  void alias_singleton(Symbol name, Object* obj) { singletons_[name.id()] = obj; }
 
   // --- handler firing (used by UiObject::handle_property) ----------------
   DataNode run_object_handler(const std::shared_ptr<gh::dtb::Node>& block,

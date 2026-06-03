@@ -126,8 +126,19 @@ never DEFINED as a handler are true engine primitives needing grounded C++:
   child if it resolves via `find_path`, else self), so correct for both the panel
   (`{$this disable a.btn}`) and component (`{b disable}`) forms without a class guess.
 
-### Still open (next): game-side objects from `config/gen/*.dtb`
-`game`/`gamecfg`/`campaign`/`song_provider`/`store` are largely DATA-DRIVEN by
-`config/gen/{songs,guitars,store,campaign,gamecfg,characters}.dtb` (readable DTB data,
-not recomp register-soup). Backing them with that data is `[VERBATIM]`/`[DTB-SURFACE]`
-— the high-fidelity, low-judgement path — replacing the phase-2/3 canned stubs.
+### Game-side objects from `config/gen/*.dtb` — core DONE
+`config_db.{h,cpp}` loads songs/guitars/store/campaign/gh2 (83 songs verified);
+`meta_objects.{h,cpp}` backs game/gamecfg/campaign/player0-1/song_provider:
+- `MetaObject` get_<x>/set_<x> accessor convention — `[HARMONIX]`+`[DTB-SURFACE]`
+  (menus pair set_character/get_character, so they MUST round-trip; no per-msg code).
+- `GameConfig` get_song_text/get_song_artist_text/get_song_caption — `[VERBATIM-DATA]`
+  (songs.dtb `find_keyed` name/artist); get_player_config -> per-player MetaObjects.
+- `Campaign` num_profiles = real empty-profile-store size (0 on fresh boot) —
+  `[VERBATIM]`, not a canned 0.
+Verified: the authored main_panel (enter)->reset_player_settings lands on the real
+objects (game.venue=small2, game.character=punk1, player0.difficulty=Medium).
+
+STILL OPEN (flagged `[INFERENCE]`, refined per-screen from config DTBs + recomp via
+the unhandled log): the deeper game-vs-player state split, campaign progression
+(beat_song/cash/unlocks/status), song_provider/store specifics, synth/play_sfx,
+profilemgr/content_mgr/memcard.

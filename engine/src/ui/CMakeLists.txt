@@ -10,6 +10,8 @@ add_library(ghogx_ui_core STATIC
     ui_classes.cpp      ui_classes.h
     screen_manager.cpp  screen_manager.h
     screen_loader.cpp   screen_loader.h
+    config_db.cpp       config_db.h
+    meta_objects.cpp    meta_objects.h
 )
 target_include_directories(ghogx_ui_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_ui_core PUBLIC

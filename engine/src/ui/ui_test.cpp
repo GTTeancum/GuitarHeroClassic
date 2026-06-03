@@ -10,6 +10,8 @@
 
 #include "core/data_node.h"
 #include "core/symbol.h"
+#include "ui/config_db.h"
+#include "ui/meta_objects.h"
 #include "ui/screen_loader.h"
 #include "ui/screen_manager.h"
 #include "ui/ui_classes.h"
@@ -42,12 +44,6 @@ static std::string first_existing(const std::string& dir, std::vector<std::strin
   return {};
 }
 
-static bool has_unhandled(const ui::ScreenManager& mgr, const std::string& key) {
-  for (auto& u : mgr.unhandled())
-    if (u == key) return true;
-  return false;
-}
-
 int main(int argc, char** argv) {
   std::string ark_dir =
       argc > 1 ? argv[1]
@@ -75,6 +71,21 @@ int main(int argc, char** argv) {
   for (const char* s : {"main_screen", "main_panel", "qp_selsong_screen", "options_screen"})
     CHECK(mgr.find_object(Symbol(s)) != nullptr);
 
+  // Game-side data layer: config/gen-DTB-backed objects (no canned constants).
+  ui::ConfigDb db;
+  db.load(ark, arks);
+  ui::install_meta_singletons(mgr, db);
+  CHECK(db.song_count() > 40);  // GH2 songs.dtb has ~74 songs
+  if (Object* game = mgr.resolve_object(Symbol("game"))) {
+    game->set_property(Symbol("song_index"), DataNode::Int(0));
+    DataNode title = game->handle_property(Symbol("get_song_text"), DataArray());
+    std::printf("ghogx_ui_test: songs=%zu  song[0]=\"%s\"\n", db.song_count(),
+                std::string(title.as_string().value_or("")).c_str());
+    CHECK(title.as_string().has_value() && !title.as_string()->empty());
+  } else {
+    CHECK(false);
+  }
+
   // 1. The {new ...} objects exist.
   Object* main_panel = mgr.find_object(Symbol("main_panel"));
   Object* main_screen = mgr.find_object(Symbol("main_screen"));
@@ -99,8 +110,16 @@ int main(int argc, char** argv) {
   //    settings hits the game stub -> proves the authored script executed.
   mgr.goto_screen(Symbol("main_screen"));
   CHECK(mgr.current_screen() == main_screen);
-  CHECK(has_unhandled(mgr, "game::set_venue"));        // {game set_venue small2}
-  CHECK(has_unhandled(mgr, "game::set_character"));    // {game set_character punk1 TRUE}
+  // the authored (enter) -> reset_player_settings ran on the REAL game-side
+  // objects: {game set_venue small2}{game set_character punk1 TRUE} and
+  // {{game get_player_config 0} set_difficulty kDifficultyMedium}.
+  if (Object* game = mgr.resolve_object(Symbol("game"))) {
+    CHECK(game->get_property(Symbol("venue")).as_symbol().value_or(Symbol()) == Symbol("small2"));
+    CHECK(game->get_property(Symbol("character")).as_symbol().value_or(Symbol()) == Symbol("punk1"));
+  }
+  if (Object* p0 = mgr.resolve_object(Symbol("player0")))
+    CHECK(p0->get_property(Symbol("difficulty")).as_symbol().value_or(Symbol()) ==
+          Symbol("kDifficultyMedium"));
 
   // 4. Simulate a SELECT_START on main_quickspin.btn: the real SELECT_START_MSG
   //    switch must route to {ui goto_screen qp_selsong_screen}.
