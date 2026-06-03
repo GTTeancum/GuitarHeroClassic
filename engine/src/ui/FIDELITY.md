@@ -88,14 +88,18 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     looking +Y at the X-Z face, pulled back ~1.5x to fit. Grounded in the decoded
     GEOMETRY extent, NOT meta.cam (decode_cam misreads its fields: fov=1060, eye
     in-plane). The panel now fills the frame as a rectangle.
-  - (2b) **textures render near-uniform** (flat lavender, not the brick/flyer art)
-    though the binding is CONFIRMED correct: every mesh->material->diffuse_tex->
-    uploaded-texture resolves (have_tex=1; 16/16 uploaded). So it's a UV / depth /
-    draw-order detail — the menu meshes are coplanar in the ~4-unit-thin Y slab
-    (Z-fight risk) and the 2000-wide wall dominates the fit. NEXT: per-mesh UV
-    range + depth/layer ordering + whether a light/glow overlay washes it.
-  - (3) per-screen `(file)` that is a `{script}` (not a bare symbol) — not yet
-    evaluated. (4) the 2-D text/font layer (song/venue/difficulty Text entries) — open.
+  - (2b) **textures — RESOLVED.** The flat lavender was the `light.mesh` glow
+    overlay (`light_gw.tex`) drawn OPAQUE by the scene renderer (it ignores
+    `MatObj.blend`) — an additive glow overwriting the whole panel. Skipping
+    `light*` meshes reveals the real menu: the **brick wall + the "GUITAR HERO II"
+    flyer/poster + masking-tape corners render correctly**. Interim = skip the glow
+    (`[INFERENCE]` heuristic); PROPER 1:1 FIX = per-material additive blend in the
+    renderer (read `MatObj.blend`).
+  - (2c) OPEN: the **buttons** (BandButton: main_career/quickspin/multiplayer/
+    tutorial/options/leaderboards `.btn`) + the **2-D Text layer** (song/venue/
+    difficulty) — the interactive elements in the poster's center window — aren't
+    drawn yet. Plus the additive glow + coplanar depth ordering.
+  - (3) per-screen `(file)` that is a `{script}` (not a bare symbol) — not yet evaluated.
 
 ## Stock surface (mechanically extracted — the 1:1 spec)
 `dtb_tool surface` over all 40 `ui/gen/*.dtb` → `STOCK_SURFACE.txt` (committed):

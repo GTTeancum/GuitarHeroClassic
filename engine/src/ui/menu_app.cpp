@@ -47,7 +47,10 @@ void add_panel_milo(const std::string& hdr, const std::string& ark,
   for (const auto& m : s.mats)
     if (!m.diffuse_tex.empty()) want.insert(m.diffuse_tex);
 
-  for (auto& m : s.meshes) combined.meshes.push_back(std::move(m));
+  for (auto& m : s.meshes) {
+    if (m.name.rfind("light", 0) == 0) continue;  // DIAGNOSTIC: skip the glow overlay
+    combined.meshes.push_back(std::move(m));
+  }
   for (auto& mt : s.mats) combined.mats.push_back(std::move(mt));
   for (auto& tr : s.transes) combined.transes.push_back(std::move(tr));
   for (auto& c : s.cams) combined.cams.push_back(std::move(c));
