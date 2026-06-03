@@ -115,4 +115,19 @@ never DEFINED as a handler are true engine primitives needing grounded C++:
 > accordingly.
 
 ## Discharged / grounded behaviors
-(Appended as each item above is pinned to a source. Empty until grounding begins.)
+- **All 40 `ui/gen/*.dtb` screens + their handlers — `[VERBATIM]`.** Loaded from the
+  stock ARK by `load_all_ui_screens` (`screen_loader.cpp`); **236 objects** registered
+  across the ~24-class roster, macros shared (ui.dtb first). Handlers (enter/poll/
+  SELECT_START_MSG/custom) execute verbatim through the interpreter. Zero judgement.
+- **Class roster registration — `[DTB-SURFACE]`.** Every `{new <Class>}` name in
+  STOCK_SURFACE.txt is registered (`register_ui_classes`). One `UiObject` backs all;
+  the per-class specialized primitives + the real superclass chain remain open (ledger).
+- **`enable`/`disable` target — `[DTB-SURFACE]`.** Resolved from the argument (named
+  child if it resolves via `find_path`, else self), so correct for both the panel
+  (`{$this disable a.btn}`) and component (`{b disable}`) forms without a class guess.
+
+### Still open (next): game-side objects from `config/gen/*.dtb`
+`game`/`gamecfg`/`campaign`/`song_provider`/`store` are largely DATA-DRIVEN by
+`config/gen/{songs,guitars,store,campaign,gamecfg,characters}.dtb` (readable DTB data,
+not recomp register-soup). Backing them with that data is `[VERBATIM]`/`[DTB-SURFACE]`
+— the high-fidelity, low-judgement path — replacing the phase-2/3 canned stubs.

@@ -15,15 +15,22 @@
 
 #pragma once
 
-#include "dtb.h"  // gh::dtb::NodeList
+#include "dtb.h"  // gh::dtb::NodeList / Node
 
 #include <functional>
+#include <map>
+#include <memory>
 #include <set>
 #include <string>
 
 namespace ghogx::script {
 
 using NodeList = gh::dtb::NodeList;
+
+// Shared #define macro table: name -> body node. Carried across files so an
+// earlier DTB's macros are visible to a later one (ui.dtb defines CHARACTERS
+// used by sel_character.dtb, etc.).
+using MacroTable = std::map<std::string, std::shared_ptr<gh::dtb::Node>>;
 
 struct PreprocessOptions {
   // Names that count as defined for #ifdef (e.g. "HX_EE" for PS2 data).
@@ -32,6 +39,9 @@ struct PreprocessOptions {
   // "splash.dta") to that file's RAW parsed roots. Return empty to skip. The
   // returned roots are themselves preprocessed (sharing this pass's macros).
   std::function<NodeList(const std::string& file)> include_resolver;
+  // Optional in/out macro table shared across preprocess() calls. When set,
+  // macros defined here are visible, and new #defines accumulate back into it.
+  MacroTable* macro_table = nullptr;
 };
 
 // Resolve all directives in `roots`; returns a directive-free node list.

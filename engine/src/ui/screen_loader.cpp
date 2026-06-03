@@ -8,6 +8,8 @@
 #include "ui/screen_manager.h"
 #include "ui/ui_classes.h"
 
+#include <cstdio>
+#include <cstring>
 #include <string>
 
 namespace ghogx::ui {
@@ -75,6 +77,50 @@ bool load_ui_dtb_from_ark(const gh::ark::ArkV3Reader& ark,
   NodeList resolved = script::preprocess(tree.root, opts);
   load_ui_objects(resolved, mgr);
   return true;
+}
+
+namespace {
+bool ends_with(const std::string& s, const char* suf) {
+  std::size_t n = std::strlen(suf);
+  return s.size() >= n && s.compare(s.size() - n, n, suf) == 0;
+}
+// Load one ui/gen DTB, sharing `macros` across files (ui.dtb seeds CHARACTERS
+// etc. for sel_character.dtb). Missing entry -> no-op.
+void load_one_dtb(const gh::ark::ArkV3Reader& ark, const std::vector<std::string>& ark_paths,
+                  const std::string& path, ScreenManager& mgr, script::MacroTable* macros) {
+  try {
+    auto entry = ark.find(path);
+    if (!entry) return;
+    std::vector<uint8_t> bytes = ark.read_entry(*entry, ark_paths);
+    gh::dtb::Tree tree = gh::dtb::parse(bytes);
+    script::PreprocessOptions opts;
+    opts.defines = {"HX_EE", "PS2"};
+    opts.macro_table = macros;
+    gh::dtb::NodeList resolved = script::preprocess(tree.root, opts);
+    load_ui_objects(resolved, mgr);
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[ui] load %s failed: %s\n", path.c_str(), ex.what());
+  }
+}
+}  // namespace
+
+int load_all_ui_screens(const gh::ark::ArkV3Reader& ark,
+                        const std::vector<std::string>& ark_paths, ScreenManager& mgr) {
+  script::MacroTable macros;
+  std::vector<std::string> paths;
+  for (const auto& e : ark.entries()) {
+    if (e.full_path.rfind("ui/gen/", 0) == 0 && ends_with(e.full_path, ".dtb"))
+      paths.push_back(e.full_path);
+  }
+  int n = 0;
+  const std::string ui = "ui/gen/ui.dtb";  // first: seeds the shared macro table
+  if (ark.find(ui)) { load_one_dtb(ark, ark_paths, ui, mgr, &macros); ++n; }
+  for (const auto& p : paths) {
+    if (p == ui) continue;
+    load_one_dtb(ark, ark_paths, p, mgr, &macros);
+    ++n;
+  }
+  return n;
 }
 
 }  // namespace ghogx::ui

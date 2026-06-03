@@ -124,7 +124,13 @@ NodeList preprocess(const NodeList& roots, const PreprocessOptions& opts) {
   Ctx ctx;
   ctx.opts = &opts;
   for (const auto& d : opts.defines) ctx.defined.insert(d);
-  return process(roots, ctx);
+  if (opts.macro_table) {
+    ctx.macros = *opts.macro_table;  // seed from prior files
+    for (const auto& kv : *opts.macro_table) ctx.defined.insert(kv.first);
+  }
+  NodeList out = process(roots, ctx);
+  if (opts.macro_table) *opts.macro_table = ctx.macros;  // accumulate back
+  return out;
 }
 
 }  // namespace ghogx::script

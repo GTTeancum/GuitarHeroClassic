@@ -65,11 +65,15 @@ int main(int argc, char** argv) {
 
   gh::ark::ArkV3Reader ark = gh::ark::ArkV3Reader::load(hdr);
   std::vector<std::string> arks = {ark0};
-  bool ok = true;
-  ok &= ui::load_ui_dtb_from_ark(ark, arks, "ui/gen/main.dtb", mgr);
-  ok &= ui::load_ui_dtb_from_ark(ark, arks, "ui/gen/splash.dtb", mgr);
-  ok &= ui::load_ui_dtb_from_ark(ark, arks, "ui/gen/quickplay.dtb", mgr);
-  CHECK(ok);
+
+  // Load the FULL stock screen set verbatim (every ui/gen/*.dtb).
+  int n = ui::load_all_ui_screens(ark, arks, mgr);
+  std::printf("ghogx_ui_test: loaded %d ui/gen DTBs, %zu objects registered\n",
+              n, mgr.registry().size());
+  CHECK(n >= 35);                      // ~40 ui/gen DTBs
+  CHECK(mgr.registry().size() > 100);  // ~180 screen/panel objects
+  for (const char* s : {"main_screen", "main_panel", "qp_selsong_screen", "options_screen"})
+    CHECK(mgr.find_object(Symbol(s)) != nullptr);
 
   // 1. The {new ...} objects exist.
   Object* main_panel = mgr.find_object(Symbol("main_panel"));

@@ -29,4 +29,11 @@ bool load_ui_dtb_from_ark(const gh::ark::ArkV3Reader& ark,
                           const std::vector<std::string>& ark_paths,
                           const std::string& dtb_path, ScreenManager& mgr);
 
+// Load EVERY ui/gen/*.dtb in the ARK into the manager -- the full stock screen
+// set, verbatim. ui/gen/ui.dtb is processed first so its #define macros are
+// visible to the rest (shared macro table). Returns the number of DTBs loaded.
+int load_all_ui_screens(const gh::ark::ArkV3Reader& ark,
+                        const std::vector<std::string>& ark_paths,
+                        ScreenManager& mgr);
+
 }  // namespace ghogx::ui
