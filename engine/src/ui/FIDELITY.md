@@ -72,6 +72,19 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
 
 ---
 
+- **Windowed menu render WIRING — `[STRUCTURAL]`.** `menu_app.cpp` (ghogx_ui_render):
+  boots the engine and renders the current screen's panel MILOs via the existing
+  3-D `MiloSceneRenderer` (GH2 menus are 3-D scenes, not 2-D quads); Confirm/Back
+  drive the real `SELECT_START_MSG`/`pop_screen`; the scene reloads on screen change.
+  Verified: `--menu` boots (40 DTBs / 236 objects / 83 songs), loads
+  ui/gen/main.milo (10 meshes) + helpbar.milo (7), renders a 1280×720 frame.
+  OPEN `[INFERENCE]` — the **visual calibration pass** (the deferred on-screen test):
+  (1) panel **textures** not loading (0/9 mats resolved — the mat `diffuse_tex` vs
+  `.tex` entry-name mapping for ui MILOs to fix); (2) framing uses the auto-orbit
+  camera, not the menu's own `metacam`/`ui.cam`; (3) per-screen `(file)` that is a
+  `{script}` (not a bare symbol) not yet evaluated; (4) the meta/brick background
+  panel + 2-D text/font layer. These require looking at the screen to dial in.
+
 ## Stock surface (mechanically extracted — the 1:1 spec)
 `dtb_tool surface` over all 40 `ui/gen/*.dtb` → `STOCK_SURFACE.txt` (committed):
 **1106 distinct `target :: message` pairs.** This IS the judgement-free spec for what

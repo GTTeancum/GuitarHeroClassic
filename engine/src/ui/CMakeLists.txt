@@ -23,6 +23,16 @@ else()
     target_compile_options(ghogx_ui_core PRIVATE -Wall -Wextra)
 endif()
 
+# Windowed menu presentation. GH2 menus are 3-D MILO scenes, so this reuses the
+# MiloSceneRenderer; WIN32/D3D9-only (its deps are the WIN32 render targets).
+add_library(ghogx_ui_render STATIC menu_app.cpp menu_app.h)
+target_include_directories(ghogx_ui_render PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(ghogx_ui_render PUBLIC
+    ghogx_ui_core ghogx_render ghogx_milo_scene ghogx_asset ark_v3 milo)
+if(MSVC)
+    target_compile_options(ghogx_ui_render PRIVATE /W4)
+endif()
+
 # Headless boot test against the real stock ARK (skips if the ARK is absent).
 add_executable(ghogx_ui_test ui_test.cpp)
 target_link_libraries(ghogx_ui_test PRIVATE ghogx_ui_core)
