@@ -104,10 +104,17 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     flyer/poster + masking-tape corners render correctly**. Interim = skip the glow
     (`[INFERENCE]` heuristic); PROPER 1:1 FIX = per-material additive blend in the
     renderer (read `MatObj.blend`).
-  - (2c) OPEN: the **buttons** (BandButton: main_career/quickspin/multiplayer/
-    tutorial/options/leaderboards `.btn`) + the **2-D Text layer** (song/venue/
-    difficulty) — the interactive elements in the poster's center window — aren't
-    drawn yet. Plus the additive glow + coplanar depth ordering.
+  - (2c) **Menu text/buttons — GROUNDED, render pending.** main.milo has 5 BandButton
+    (main_career/quickspin/multiplayer/tutorial/options.btn) + BandLabel (mm_msg.lbl) +
+    3 Text (song/venue/difficulty). Each **BandButton EMBEDS** its label string (e.g.
+    "CAREER"), font name ("impact"), and nav target (main_quickspin.btn) — no
+    localization needed for these. The font is **impact.milo** (RndDir): `impact.tex`
+    (512x256 atlas, white glyphs in alpha, **variable-width PACKED**, A-Z 0-9 punct
+    accents, UPPERCASE only) + `impact.font` (8125 B = char set + per-glyph metrics +
+    a kerning table; pairs A(/A,/AV/AW confirmed). NEXT: RE the per-glyph atlas rects in
+    impact.font, then a text renderer (glyph quads from impact.tex, coloured per state:
+    focused=white / normal=red / disabled=grey) + the help bar.
+  - (2d) OPEN: the additive **glow** (light overlay; MatObj.blend) + coplanar depth order.
   - (3) per-screen `(file)` that is a `{script}` (not a bare symbol) — not yet evaluated.
 
 ## Stock surface (mechanically extracted — the 1:1 spec)
