@@ -3,6 +3,7 @@
 #include "ui/screen_manager.h"
 
 #include "core/class_reg.h"
+#include "ui/ui_classes.h"
 
 #include <cstring>
 
@@ -45,49 +46,65 @@ std::vector<Symbol> ScreenManager::screen_panels(Object* screen) {
   return out;
 }
 
-void ScreenManager::enter_screen(Object* screen) {
-  if (!screen) return;
-  // Panels first (load their MILO + run their enter), then the screen.
-  for (Symbol pn : screen_panels(screen)) {
-    if (Object* panel = find_object(pn)) {
-      panel->handle_property(Symbol("load"), DataArray());
-      panel->handle_property(Symbol("finish_load"), DataArray());
-      panel->handle_property(Symbol("enter"), DataArray());
-    }
-  }
-  screen->handle_property(Symbol("enter"), DataArray());
+void ScreenManager::send_screen_panels(Object* screen, Symbol msg, bool screen_first) {
+  auto panels = [&] {
+    for (Symbol pn : screen_panels(screen))
+      if (Object* p = find_object(pn)) p->handle_property(msg, DataArray());
+  };
+  if (screen_first) { screen->handle_property(msg, DataArray()); panels(); }
+  else { panels(); screen->handle_property(msg, DataArray()); }
 }
 
-void ScreenManager::exit_screen(Object* screen) {
+void ScreenManager::exit_sequence(Object* screen, bool back) {
   if (!screen) return;
-  screen->handle_property(Symbol("exit"), DataArray());
-  for (Symbol pn : screen_panels(screen)) {
-    if (Object* panel = find_object(pn)) panel->handle_property(Symbol("exit"), DataArray());
-  }
+  // screen_change for both directions, EXCEPT screens that define a screen_back
+  // handler fire it on back (chooseprof/mem_card/bonus_material/credits) -- the
+  // rule "run screen_back only if defined" reproduces those exceptions without a
+  // name list (menus.md).
+  auto* u = dynamic_cast<UiObject*>(screen);
+  bool has_back = u && u->has_handler(Symbol("screen_back"));
+  screen->handle_property(back && has_back ? Symbol("screen_back") : Symbol("screen_change"),
+                          DataArray());
+  send_screen_panels(screen, Symbol("exit"), /*screen_first=*/true);
+  screen->handle_property(back ? Symbol("ui_exit_back") : Symbol("ui_exit"), DataArray());
+  send_screen_panels(screen, Symbol("unload"), /*screen_first=*/true);
+}
+
+void ScreenManager::enter_sequence(Object* screen, bool back) {
+  if (!screen) return;
+  send_screen_panels(screen, Symbol("change_proxies"), /*screen_first=*/false);
+  send_screen_panels(screen, Symbol("load"), /*screen_first=*/false);
+  send_screen_panels(screen, Symbol("finish_load"), /*screen_first=*/false);
+  screen->handle_property(back ? Symbol("ui_enter_back") : Symbol("ui_enter"), DataArray());
+  send_screen_panels(screen, Symbol("enter"), /*screen_first=*/false);  // sub-objects then screen
+  // Scene-state ID is refined per-screen (harmonix_symbols.h:904) when the
+  // gameplay handoff is wired; menus are NORMAL/MENU here.
+  scene_state_ = 1;
 }
 
 void ScreenManager::goto_screen(Symbol name) {
   Object* target = find_object(name);
   if (!target) { on_unhandled(std::string("goto_screen?:") + name.c_str()); return; }
-  if (current_) exit_screen(current_);
+  if (current_) exit_sequence(current_, /*back=*/false);  // goto replaces the screen
   current_ = target;
-  enter_screen(current_);
+  enter_sequence(current_, /*back=*/false);
 }
 
 void ScreenManager::push_screen(Symbol name) {
+  // Overlay: the underlying screen stays loaded (and unpolled); it is NOT exited.
   Object* target = find_object(name);
   if (!target) { on_unhandled(std::string("push_screen?:") + name.c_str()); return; }
   if (current_) stack_.push_back(current_);
   current_ = target;
-  enter_screen(current_);
+  enter_sequence(current_, /*back=*/false);
 }
 
 void ScreenManager::pop_screen() {
-  if (current_) exit_screen(current_);
+  // Exit the overlay; the underlying screen (still loaded) resumes as current.
+  if (current_) exit_sequence(current_, /*back=*/true);
   if (!stack_.empty()) {
     current_ = stack_.back();
     stack_.pop_back();
-    enter_screen(current_);
   } else {
     current_ = nullptr;
   }

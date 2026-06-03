@@ -125,6 +125,15 @@ never DEFINED as a handler are true engine primitives needing grounded C++:
 - **`enable`/`disable` target — `[DTB-SURFACE]`.** Resolved from the argument (named
   child if it resolves via `find_path`, else self), so correct for both the panel
   (`{$this disable a.btn}`) and component (`{b disable}`) forms without a class guess.
+- **Transition protocol — `[VERBATIM-TRACE]` (menus.md, 195 s verified trace).**
+  exit = `screen_change|screen_back -> exit(screen+panels) -> ui_exit[_back] -> unload`;
+  enter = `change_proxies -> load -> finish_load -> ui_enter[_back] -> enter`. The
+  `screen_back` exceptions (chooseprof/mem_card/bonus_material/credits) fall out of
+  "fire screen_back only if the screen defines that handler" — no name list.
+  goto=replace; push=overlay (underlying stays loaded + unpolled); pop=exit overlay,
+  resume underlying. OPEN `[INFERENCE]`: intra-message screen-vs-panel sub-ordering,
+  persistent-panel (meta/helpbar) reload skipping, per-screen scene-state IDs +
+  helpbar/focus application (Phase 5/6).
 
 ### Game-side objects from `config/gen/*.dtb` — core DONE
 `config_db.{h,cpp}` loads songs/guitars/store/campaign/gh2 (83 songs verified);

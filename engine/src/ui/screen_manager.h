@@ -71,9 +71,13 @@ class ScreenManager : public Object, public script::Host {
   const std::vector<std::string>& unhandled() const { return unhandled_; }
 
  private:
-  // Run the transition entry half on a screen (load panels, fire enter).
-  void enter_screen(Object* screen);
-  void exit_screen(Object* screen);
+  // The verified transition protocol (docs/subsystems/menus.md).
+  //   exit:  screen_change|screen_back -> exit(screen+panels) -> ui_exit[_back] -> unload
+  //   enter: change_proxies -> load -> finish_load -> ui_enter[_back] -> enter
+  void enter_sequence(Object* screen, bool back);
+  void exit_sequence(Object* screen, bool back);
+  // Send `msg` to the screen and each of its (panels ...), in the given order.
+  void send_screen_panels(Object* screen, Symbol msg, bool screen_first);
   // Panel names listed in a screen's (panels ...) property.
   std::vector<Symbol> screen_panels(Object* screen);
 
@@ -84,6 +88,7 @@ class ScreenManager : public Object, public script::Host {
   std::unordered_map<const void*, DataNode> globals_;
   Object* current_ = nullptr;
   std::vector<Object*> stack_;
+  int scene_state_ = 11;  // scene-state ID (harmonix_symbols.h:904); 11=SPLASH at boot
   float ui_seconds_ = 0.0f;
   std::unordered_map<std::string, bool> unhandled_seen_;
   std::vector<std::string> unhandled_;
