@@ -23,15 +23,35 @@ else()
     target_compile_options(ghogx_ui_core PRIVATE -Wall -Wextra)
 endif()
 
+# The menu bitmap font ("impact"): parse impact.font byte-exact (charset +
+# kerning) and derive glyph rects from the decoded atlas. Portable (asset decode
+# is CPU-side; no D3D9), so it can be unit-tested headless.
+add_library(ghogx_menu_font STATIC menu_font.cpp menu_font.h)
+target_include_directories(ghogx_menu_font PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(ghogx_menu_font PUBLIC ghogx_asset ark_v3 milo)
+if(MSVC)
+    target_compile_options(ghogx_menu_font PRIVATE /W4)
+else()
+    target_compile_options(ghogx_menu_font PRIVATE -Wall -Wextra)
+endif()
+
 # Windowed menu presentation. GH2 menus are 3-D MILO scenes, so this reuses the
 # MiloSceneRenderer; WIN32/D3D9-only (its deps are the WIN32 render targets).
 add_library(ghogx_ui_render STATIC menu_app.cpp menu_app.h)
 target_include_directories(ghogx_ui_render PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(ghogx_ui_render PUBLIC
-    ghogx_ui_core ghogx_render ghogx_milo_scene ghogx_asset ark_v3 milo)
+    ghogx_ui_core ghogx_render ghogx_milo_scene ghogx_asset ghogx_menu_font ark_v3 milo)
 if(MSVC)
     target_compile_options(ghogx_ui_render PRIVATE /W4)
 endif()
+
+# Headless font test against the real stock ARK (skips if the ARK is absent).
+add_executable(ghogx_menu_font_test menu_font_test.cpp)
+target_link_libraries(ghogx_menu_font_test PRIVATE ghogx_menu_font)
+if(MSVC)
+    target_compile_options(ghogx_menu_font_test PRIVATE /W4)
+endif()
+add_test(NAME ghogx_menu_font_test COMMAND ghogx_menu_font_test)
 
 # Headless boot test against the real stock ARK (skips if the ARK is absent).
 add_executable(ghogx_ui_test ui_test.cpp)

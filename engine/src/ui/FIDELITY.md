@@ -104,16 +104,34 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     flyer/poster + masking-tape corners render correctly**. Interim = skip the glow
     (`[INFERENCE]` heuristic); PROPER 1:1 FIX = per-material additive blend in the
     renderer (read `MatObj.blend`).
-  - (2c) **Menu text/buttons — GROUNDED, render pending.** main.milo has 5 BandButton
-    (main_career/quickspin/multiplayer/tutorial/options.btn) + BandLabel (mm_msg.lbl) +
-    3 Text (song/venue/difficulty). Each **BandButton EMBEDS** its label string (e.g.
-    "CAREER"), font name ("impact"), and nav target (main_quickspin.btn) — no
-    localization needed for these. The font is **impact.milo** (RndDir): `impact.tex`
-    (512x256 atlas, white glyphs in alpha, **variable-width PACKED**, A-Z 0-9 punct
-    accents, UPPERCASE only) + `impact.font` (8125 B = char set + per-glyph metrics +
-    a kerning table; pairs A(/A,/AV/AW confirmed). NEXT: RE the per-glyph atlas rects in
-    impact.font, then a text renderer (glyph quads from impact.tex, coloured per state:
-    focused=white / normal=red / disabled=grey) + the help bar.
+  - (2c) **Menu text/buttons — font format RE COMPLETE (grounded in real bytes+pixels).**
+    main.milo has 5 BandButton (main_career/quickspin/multiplayer/tutorial/options.btn) +
+    BandLabel (mm_msg.lbl) + 3 Text (song/venue/difficulty). Each **BandButton EMBEDS**
+    its label string ("CAREER"…), font name ("impact"), nav target — no localization.
+    Font = **impact.milo** (RndDir): impact.tex (512×256), impact.mat, impact.font (8125 B),
+    impact.txt. `impact.font` decoded byte-exact from the actual ARK bytes
+    (`Guitar Hero II PS2 (USA)/GEN`):
+      - `[0x00] i32 version=15`; `[0x04] 9 obj-meta`; `[0x0D] string mMaterial="impact.mat"`.
+      - 4 f32: **34.0 (cap height), 50.0 (line height)**, 0, 0.
+      - `i32 charcount=104` + **charset[104]** (exact order): `A–Z 0–9` then
+        ``!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~`` then Latin-1 accents `©®¡¿À…ß`, **space last**.
+        UPPERCASE only.
+      - `u8 flag=1` + `i32 kerncount=480` + **kern[480]**: 8 B each =
+        `[u8 left][u8 right][i16 sign-ext][f32 kern]`. kern is em-fraction (±1/34 ⇒ ±1 px
+        at cap-height 34). Pairs A(/AV/AW/AY… verified. **Loaded byte-exact.**
+      - self-name string "impact.font" + a short trailer (34/512, 50/256), then a
+        **sparse/segmented per-glyph region** (16-B-strided clusters at odd offsets).
+    **KEY FINDING:** impact.font does NOT store a plain per-glyph atlas-rect table — the
+    width/x sequences appear in NO encoding (int8/int16/f32 over /512,/256,/34); the rect
+    data is sparse+segmented and only the recomp `RndFont::Load` (register-level PPC) would
+    decode it byte-for-byte. **Not needed:** the glyph rectangles ARE the literal pixel
+    locations in impact.tex (ground truth). The atlas is a **5-row variable-width packed**
+    layout; rows detect cleanly by alpha projection and map **1:1 to the charset order**
+    (row0 A–W=23, row1 X–Z0–9 + 15 punct=28, row2 18 punct + ©®¡¿ÀÁÂ=25, rows3–4 accents).
+    So glyph rects are **derived from the decoded atlas at load** (`[VERBATIM]` pixels +
+    `[VERBATIM]` charset order + `[VERBATIM]` kerning). The one non-byte-exact metric is the
+    inter-glyph **advance/tracking** (not stored decodably) — seeded from ink-width + small
+    tracking, to be pinned against a GH2 screenshot. `[INFERENCE: advance/tracking only]`
   - (2d) OPEN: the additive **glow** (light overlay; MatObj.blend) + coplanar depth order.
   - (3) per-screen `(file)` that is a `{script}` (not a bare symbol) — not yet evaluated.
 
