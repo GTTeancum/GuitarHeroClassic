@@ -98,7 +98,9 @@ void rebuild_scene(const std::string& hdr, const std::string& ark, ScreenManager
   ghogx::render::OrbitCamera& cam = renderer.camera();
   cam.yaw = 0.0f;
   cam.pitch = 0.0f;
-  cam.distance *= 1.5f;
+  // The auto-fit frames the whole wall (edges in frame); GH2 sits closer so the
+  // wall fills the background + the poster is large. Pull IN to fill the screen.
+  cam.distance *= 0.6f;
   cam.near_z = std::max(cam.distance * 0.01f, 0.5f);
 }
 
