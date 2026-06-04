@@ -207,18 +207,29 @@ constexpr float kFocusScale      = 1.05f;        // ui_objects_ps2.dta:10 (focus
 //     slant, 280 = box width, 15 = box height).
 //   - dynamic: the live XEX BandButton struct (trace-360 hook on sub_82122920)
 //     carries text_size at word 74 = 0.5000, byte-identical on every button dumped.
-// The earlier "field-identity unconfirmed" caveat is discharged: word 74 IS the
-// resolved text_size and equals 0.5. Applied as cap-units->world it renders to the
-// grounded ~30.4 row pitch (button Trans Z spacing). The runtime world matrix also
-// carries a ~1.05 uniform button scale + 2.00deg tilt (tagged 3x4 in the struct);
-// that refinement is logged in FIDELITY (the captured buttons' screen identity is
-// ambiguous, so the global kTextScale stays the confirmed text_size 0.5).
+// The "field-identity unconfirmed" caveat is discharged: word 74 IS the resolved
+// text_size and equals 0.5. kTextScale is the pure text_size; the runtime button
+// scale (~1.05, also from the struct) is applied separately as kMenuWorldScale
+// below, so the provenance of each factor stays distinct.
 constexpr float kTextScale = 0.50f;
-// Column left edge. The static per-.btn X is a bind pose (varies -1.0..+3.9 across the
-// five buttons; the runtime aligns their left edges). 3.9 is the live-XEX-measured
-// aligned edge (trace-360 showed X ~3.5-4.4); it is an averaged reading of that range,
-// not a single byte-exact value. (Z row positions ARE byte-exact, from each Trans.)
-constexpr float kMenuLeftX = 3.9f;
+// --- Main-menu RUNTIME button layout, measured from the live XEX ---------------
+// The static .btn matrices are bind poses (scale 0.555/1.899, varying X, Z pitch
+// 30.4). The trace-360 BandButton struct hook captured the real runtime transform
+// of two main-menu buttons (identified by Z-order: most-negative Z = bottom item):
+//     tutorial : T=(3.554, 0, -79.78)  scale 1.05   (normal)
+//     options  : T=(4.360, 0, -102.86) scale 1.26   (focused)
+// From those, the runtime layout the panel applies over the bind pose:
+//   - Left edge: the runtime aligns every button's X; the normal button sits at
+//     X = 3.554 (the focused one's larger X is its wider box, left edge still 3.554).
+constexpr float kMenuLeftX = 3.554f;
+//   - World scale: normal buttons render at ~1.05x the local text_size layout.
+constexpr float kMenuWorldScale = 1.05f;
+//   - Z (vertical): runtime_Z is a linear remap of the bind-pose Z — the two points
+//     (tutorial bind -74.19->-79.78, options bind -104.63->-102.86) define exactly
+//     runtime_Z = 0.758*bind_Z - 23.54 (the panel compresses the column ~24% and
+//     shifts it down; a panel layout transform IS linear, so 2 points pin it).
+constexpr float kMenuZScale  = 0.758f;
+constexpr float kMenuZOffset = -23.54f;
 
 void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& font,
                        const std::map<std::string, std::string>& locale,
@@ -269,8 +280,11 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
       const bool bindPose = n0 > 1e-3f && n2 > 1e-3f &&
                             (std::min(n0, n2) / std::max(n0, n2) < 0.6f);
       const float ax = bindPose ? kMenuLeftX : lbl.world[9];
-      const float ay = lbl.world[10], az = lbl.world[11];
-      const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
+      const float ay = lbl.world[10];
+      // Main-menu bind-pose buttons use the XEX-measured runtime Z remap + world
+      // scale; other screens use the button's own translation Z at unit scale.
+      const float az = bindPose ? (kMenuZScale * lbl.world[11] + kMenuZOffset) : lbl.world[11];
+      const float scl = kTextScale * (bindPose ? kMenuWorldScale : 1.0f) * (foc ? kFocusScale : 1.0f);
       emit(quads, [&](float qx, float qy, float u, float v) {
         const float lx = qx * scl, lz = -(qy - capH * 0.5f) * scl;
         TV tv{ax + lx * r0x + lz * r2x, ay, az + lx * r0z + lz * r2z, u, v, col};
