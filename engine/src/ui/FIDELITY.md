@@ -199,14 +199,32 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
         caveat is discharged).
       - The runtime **world matrix is stored TAGGED** (each 3-float row followed by a
         tag word `0008xxxx`/`0007xxxx`; a naive 12-float scan misses it) — rows at
-        struct words 32/36/40/44. Decoded: **uniform scale ~1.05**, **tilt 2.00deg**,
-        translation (X≈3.55). This is the runtime transform that REPLACES the bind pose
-        (0.555/1.899, varying X), confirming the bind pose is not the display transform.
-      - CAVEAT: the hook dedups per pointer, so only the first BandButtons resolved in
-        boot are captured (2 distinct, Z≈-79.8/-102.9 — a pre-main screen). The
-        per-button MAIN-MENU X/Z from the XEX is not yet isolated — needs a hook that
-        re-dumps on screen change (or every N frames) to catch the 5 main buttons. SIZE
-        (0.5) and tilt (2deg) are screen-independent and confirmed.
+        struct words 32/36/40/44; **text_size at word 74**.
+  - (2c-XEX3) **MAIN-MENU layout RESOLVED — and a key correction.** First two struct
+    dumps captured were a BOOT DIALOG (scale 1.05, tilt +2deg, 2 vertical buttons),
+    NOT the main menu — I briefly applied a Z transform built on them, then caught it
+    by checking the trace: `main.milo` never loaded and zero `main_quickspin`/
+    `QUICK_PLAY` refs appeared, so the main-menu logic hadn't run. REVERTED. Re-running
+    the FULL smoke nav reached the real main menu (logic confirmed) and the hook (now
+    deduped on >0.15 movement, so the last sample is settled) captured all five:
+      - The main-menu buttons use **scale 0.555/1.899, tilt -1deg** — i.e. the
+        main.milo bind-pose template (the dialog's 1.05/+2deg was a different widget).
+        So the bind pose's scale/tilt ARE the display values for the main menu.
+      - **Vertical Z = an EXACT affine remap of the bind-pose Z: runtime_Z =
+        0.875*bind_Z + 4.0** (fits all 5 to <0.05). Panel compresses the column to
+        87.5%, nudges up 4.0. Applied (kMenuZScale/kMenuZOffset).
+      - **Horizontal X is per-button and STATIC** (the settled capture == first sample,
+        no slide). The menu is NOT left-aligned; each item sits at its own X (poster
+        art). The byte-exact bind world[9] is within ~0.8 of the captured runtime X
+        (career 3.93/4.52, quickspin 2.29/1.28, multiplayer -1.01/0.26, tutorial
+        -0.99/-1.87, options 1.81/2.11), far closer than the old fixed 3.9 column → use
+        world[9] per button; kMenuLeftX deleted.
+      - **Proportion/size:** glyphs use the real impact.font atlas widths at UNIFORM
+        scale (true aspect); the 0.555/1.899 matrix is the bounding BOX, not a glyph
+        squish (standalone Text objects' 49x/1.2x scales prove the matrix is bounds).
+        Cap = text_size 0.5 × font cap 34 = ~17 world units. RESIDUAL: the exact
+        text-box fit (whether cap is text_size×native vs a box-fraction) is the only
+        unpinned factor; needs the recomp RndText layout. Everything else grounded.
   - (2c-tilt) **Text now uses the real Trans orientation (the tilt), not a flat billboard.**
     The menu plane is tilted ~1°: `mainmenu.mesh` (the poster) has rotation r0=-1.00°,
     r2=1.00° and **every BandButton world matrix has the identical ~1° rotation** — the
