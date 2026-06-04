@@ -178,6 +178,15 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     BandButton instance data — the serialization order isn't cleanly byte-readable and
     the recomp Load is register-level; next step is a value-logging hook on the band
     text setup (the chosen trace-instrument path) to read the exact two numbers.
+  - (2c-tilt) **Text now uses the real Trans orientation (the tilt), not a flat billboard.**
+    The menu plane is tilted ~1°: `mainmenu.mesh` (the poster) has rotation r0=-1.00°,
+    r2=1.00° and **every BandButton world matrix has the identical ~1° rotation** — the
+    text sits on the poster so it must share that tilt. Earlier the text was drawn
+    axis-aligned (0°) → it didn't match the tilted poster. Now the layout uses the world
+    matrix's normalized local-X/local-Z axes (rows 0,2) as the rotation basis (uniform
+    glyph size kept; the matrix's non-uniform scale is the button BOX, not the glyph).
+    NOTE: the static `.btn` world matrix is the bind pose; the buttons are driven by
+    `TransAnim 1` at runtime, so the live resting tilt could differ — to check next.
   - (2d) OPEN: the additive **glow** (light overlay; MatObj.blend) + coplanar depth order.
   - (3) per-screen `(file)` that is a `{script}` (not a bare symbol) — not yet evaluated.
 

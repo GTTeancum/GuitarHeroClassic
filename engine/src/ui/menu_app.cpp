@@ -205,13 +205,27 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
     const uint32_t argb = foc ? kColFocused : kColNormal;
     const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
 
-    // The menu items are LEFT-aligned (the reference shows their left edges
-    // aligned on the right half of the poster): the text's left edge sits at the
-    // box origin (world translation X); it grows rightward.
+    // Use the object's REAL world-Trans orientation, not an axis-aligned billboard:
+    // the local-X / local-Z axes (rows 0 and 2 of the world matrix, X-Z plane),
+    // normalized so only the ~1° rotation (the menu's slight rightward tilt) is
+    // applied — the matrix's non-uniform scale is the button BOX, not the glyph
+    // size, so the glyphs keep their uniform text size (kTextScale).
+    float r0x = lbl.world[0], r0z = lbl.world[2];   // local +X axis in world (X,Z)
+    float r2x = lbl.world[6], r2z = lbl.world[8];   // local +Z axis in world (X,Z)
+    float n0 = std::sqrt(r0x * r0x + r0z * r0z);
+    float n2 = std::sqrt(r2x * r2x + r2z * r2z);
+    if (n0 > 1e-6f) { r0x /= n0; r0z /= n0; }
+    if (n2 > 1e-6f) { r2x /= n2; r2z /= n2; }
+
+    // The menu items are LEFT-aligned: the text's left edge sits at the box origin
+    // (world translation); +font-x runs along the local +X axis, +font-y (down)
+    // along local -Z. The whole line is tilted by the matrix's rotation.
     auto V = [&](float qx, float qy, float u, float v) {
+      const float lx = qx * scl;                     // left-aligned, along local +X
+      const float lz = -(qy - capH * 0.5f) * scl;    // font-y down -> local +Z up
       TV tv;
-      tv.x = ax + qx * scl;                          // left-aligned at the box X
-      tv.z = az - (qy - capH * 0.5f) * scl;          // font-y down -> world-z up
+      tv.x = ax + lx * r0x + lz * r2x;
+      tv.z = az + lx * r0z + lz * r2z;
       tv.y = ay;
       tv.u = u; tv.v = v; tv.argb = argb;
       return tv;
