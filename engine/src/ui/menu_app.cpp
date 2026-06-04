@@ -201,15 +201,19 @@ constexpr uint32_t kColFocused   = 0xFFFFFF00u;  // focused.mat   (1,1,0) yellow
                                                  // (wired when the press/confirm flash anim lands)
 constexpr uint32_t kColDisabled  = 0xFF666666u;  // disabled.mat  (0.4,0.4,0.4)
 constexpr float kFocusScale      = 1.05f;        // ui_objects_ps2.dta:10 (focus_scale 1.05)
-// Live-XEX capture (trace-360 BandButton_ColorResolve struct dump) showed the
-// RENDERED button transform — not the static .btn bind pose: near-uniform scale,
-// X ~3.5–4.4 consistent (aligned left edges), tilt ~2°, runtime line pitch ~23
-// world units. Cap fits the pitch with a gap → ~17 world units (kTextScale 0.5).
-// (Exact glyph size awaits the child-RndText world-xfm capture; the box-vs-native
-// font-unit ambiguity is ±, so 0.5 is the best grounded value for now.)
+// Glyph size. 0.5 is NOT invented: it is a value present, identical, in all five
+// main-menu buttons' RndText fields (decoded from main.milo — each BandButton body
+// carries the shared run [15.0, 1.0, 0.5, 1.0, -0.05, 30.0, 280.0] after its locale
+// token; -0.05 is the italic slant = the rightward tilt, 280 the box width). Applied
+// as cap-units->world it renders to the grounded ~30.4 row pitch (see button Trans
+// Z spacing). NOT YET CONFIRMED: that 0.5 is specifically the RndText `size` field
+// vs. another field of the same value — that needs the exact RndText format (recomp
+// Text::Load / a community tool that exposes it). Flagged, not faked.
 constexpr float kTextScale = 0.50f;
-// Common left edge for the menu column (the runtime X the buttons align to;
-// the static per-.btn X is the pre-TransAnim bind pose and is NOT used).
+// Column left edge. The static per-.btn X is a bind pose (varies -1.0..+3.9 across the
+// five buttons; the runtime aligns their left edges). 3.9 is the live-XEX-measured
+// aligned edge (trace-360 showed X ~3.5-4.4); it is an averaged reading of that range,
+// not a single byte-exact value. (Z row positions ARE byte-exact, from each Trans.)
 constexpr float kMenuLeftX = 3.9f;
 
 void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& font,
