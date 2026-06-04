@@ -160,6 +160,24 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     DEFERRED: the 3 `Text` objects (SONG/VENUE/DIFFICULTY) need their parent-group
     offset composed (their bare world translation lands them on the button column) and
     use a non-impact font; per-state focus colour; the help bar.
+  - (2c-XEX) **Validated against the live recompiled XEX** (trace-360, main-menu hold
+    capture `trace_1780534927.jsonl`, 71k events). Confirmed 1:1, no extrapolation:
+      - The real game **loads impact.milo + impactor.milo** for the menu (not arial) —
+        font confirmed.
+      - Menu items are **BandButton/BandLabel** (`sub_8214A7A8` reads `texts`;
+        `sub_82124C08` BandButton path) using the per-state `texts` font system over a
+        **WHITE base RndText** (impact.txt/song.text both store text color (1,1,1,1)),
+        **tinted by the PanelDir state colour** → normal `(1,0,0)` red, focused white,
+        `focus_scale 1.05`. This is exactly the current render's model.
+      - `ui/gen/ui_objects.dtb` (the full 39 KB one) gives the **exact field schema**:
+        BandButton/BandLabel have `text_size`, `alignment` (kTopLeft…kMiddleCenter…
+        kBottomRight), `all_caps`, `kerning`, `leading`, `fit_text`, `width`, `height`.
+      - Default focus = QUICK PLAY (`main.dtb (focus main_quickspin.btn)`) — confirmed.
+    So font + colour model + caps + focus_scale are XEX-verbatim. REMAINING (not yet
+    pinned to an exact value): the `text_size` float + `alignment` enum from the
+    BandButton instance data — the serialization order isn't cleanly byte-readable and
+    the recomp Load is register-level; next step is a value-logging hook on the band
+    text setup (the chosen trace-instrument path) to read the exact two numbers.
   - (2d) OPEN: the additive **glow** (light overlay; MatObj.blend) + coplanar depth order.
   - (3) per-screen `(file)` that is a `{script}` (not a bare symbol) — not yet evaluated.
 
