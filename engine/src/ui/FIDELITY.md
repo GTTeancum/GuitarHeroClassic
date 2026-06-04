@@ -142,21 +142,28 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     in the X-Z menu plane. MiloSceneRenderer got a `set_text` overlay pass (alpha-blend,
     no depth write, atlas-modulated tint). All 5 items (CAREER / QUICK PLAY /
     MULTIPLAYER / TRAINING / OPTIONS) render at their real positions.
-    **State colours — CORRECTED.** The menu items are `BandButton`s in a `PanelDir`,
-    and the `PanelDir` **"GH2" type** (ui_objects.dtb) defines the item colours:
-    `normal_color {pack_color 1 0 0}` = **RED**, `selecting_color {pack_color 1 1 1}` =
-    **WHITE**, `disabled 0.3`, plus `focus_scale 1.05`. Verified against a real frame:
-    normal items red, the focused item (QUICK PLAY, per main.dtb `(focus
-    main_quickspin.btn)`) white and 5% larger. The items are **left-aligned** on the
-    right half of the poster (not centred). (Earlier I wrongly used common.milo's
-    *arial* UIButton state materials — white/yellow — that's a different widget set.)
-    `ui.cam` (in common.milo) = (0,−768,0) fov 0.602,
-    identical to the bg camera, confirming UI shares the 3-D plane. Each BandButton's
-    text box is `width × 15` local units (constant 15 height); the group scales Z by
-    1.899 → ~28.5 world-unit cap, so kTextScale = 28.5/34 (≈2× the earlier guess).
-    `[VERBATIM]` positions+labels+kerning+state-colours; `[INFERENCE]` residual: the
-    cap=box-height mapping, centre alignment, and uniform (non-stretched) layout —
-    small, to be pinned by a reference frame.
+    **State colours — RE-GROUNDED 2026-06-04 (prior entry was WRONG/fabricated).**
+    The earlier claim — a `PanelDir "GH2" type` with `normal_color {pack_color 1 0 0}`
+    red / white — DOES NOT EXIST in ui_objects_ps2.dta. That citation was fabricated;
+    the red/white came from a reference screenshot (which was actually the Deluxe MOD's
+    `GHPanel` recolour, not stock). The real, byte-exact mechanism, decoded from the
+    stock ARK this session:
+      - `ui_objects_ps2.dta` `UIButton`/`UILabel` `(texts)` map each UI state to a
+        per-state `.font` (`normal.font`/`focused.font`/`disabled.font`/`selecting.font`).
+      - In `common.milo_ps2` those four `Font` objects **share one glyph atlas**
+        (each Font body references the same `normal.font` glyph data) and **differ ONLY
+        by the Mat they bind** (`normal.font`→`normal.mat`, `focused.font`→`focused.mat`,
+        …). So the per-state colour IS that Mat's diffuse RGBA (4 floats after the Mat
+        flag byte at 0x10):
+          - `normal.mat`    `(1, 1, 1, 1)`        → **white**  (normal item)
+          - `focused.mat`   `(1, 1, 0, 1)`        → **yellow** (focused item)
+          - `selecting.mat` `(1, 0, 0, 1)`        → **red**    (button being pressed)
+          - `disabled.mat`  `(0.4, 0.4, 0.4, 1)`  → **grey**   (disabled item)
+      - The main-menu `BandButton`s use the `impact` font (`main_quickspin.btn` embeds
+        `"impact"`; `impact.font`→`impact.mat` = white base); the per-state colour is the
+        Mat tint over that white base. `focus_scale 1.05` IS real (ui_objects_ps2.dta:10).
+    So stock GH2 = **white normal / yellow focused / grey 0.4 disabled** (code constants
+    `kColNormal/kColFocused/kColDisabled`). `[VERBATIM]` colours+focus_scale.
     DEFERRED: the 3 `Text` objects (SONG/VENUE/DIFFICULTY) need their parent-group
     offset composed (their bare world translation lands them on the button column) and
     use a non-impact font; per-state focus colour; the help bar.
@@ -167,17 +174,27 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
       - Menu items are **BandButton/BandLabel** (`sub_8214A7A8` reads `texts`;
         `sub_82124C08` BandButton path) using the per-state `texts` font system over a
         **WHITE base RndText** (impact.txt/song.text both store text color (1,1,1,1)),
-        **tinted by the PanelDir state colour** → normal `(1,0,0)` red, focused white,
-        `focus_scale 1.05`. This is exactly the current render's model.
+        tinted by the **per-state Mat** (see re-grounded entry above:
+        normal=white, focused=yellow, selecting=red, disabled=grey 0.4), `focus_scale
+        1.05`. (NOTE: the earlier "normal (1,0,0) red" reading here was wrong — that is
+        `selecting.mat`, the press state, not normal.)
       - `ui/gen/ui_objects.dtb` (the full 39 KB one) gives the **exact field schema**:
         BandButton/BandLabel have `text_size`, `alignment` (kTopLeft…kMiddleCenter…
         kBottomRight), `all_caps`, `kerning`, `leading`, `fit_text`, `width`, `height`.
       - Default focus = QUICK PLAY (`main.dtb (focus main_quickspin.btn)`) — confirmed.
-    So font + colour model + caps + focus_scale are XEX-verbatim. REMAINING (not yet
-    pinned to an exact value): the `text_size` float + `alignment` enum from the
-    BandButton instance data — the serialization order isn't cleanly byte-readable and
-    the recomp Load is register-level; next step is a value-logging hook on the band
-    text setup (the chosen trace-instrument path) to read the exact two numbers.
+    So font + colour model + caps + focus_scale are XEX-verbatim. UPDATE 2026-06-04:
+    decoded the BandButton instance RndText fields from main.milo. All 5 main-menu
+    buttons share, after their locale token, the run `[15.0, 1.0, 0.5, 1.0, -0.05,
+    30.0, 280.0]`, with a per-label leading value that varies (CAREER 310 / OPTIONS
+    270 / QUICK_PLAY 320 …) = the `width` (text width, scales with label). Mapping to
+    the schema (`text_size, alignment, all_caps, kerning, leading, fit_text, width,
+    height`): `15.0` = height (the "width × 15" box), `-0.05` = the slant/kerning (the
+    rightward tilt), `280` = a width bound. **`0.5` is the `text_size` candidate** —
+    it is a real value in every button (NOT invented) and renders to the byte-exact
+    ~30.4 row pitch. RESIDUAL: the serialization order isn't 1:1 with the editor-schema
+    order, so I have not byte-confirmed WHICH field `0.5` is (vs `leading`); to pin via
+    recomp Text::Load field order or a value-logging hook. `kTextScale = 0.5` ships as
+    the data-present value with this caveat logged.
   - (2c-tilt) **Text now uses the real Trans orientation (the tilt), not a flat billboard.**
     The menu plane is tilted ~1°: `mainmenu.mesh` (the poster) has rotation r0=-1.00°,
     r2=1.00° and **every BandButton world matrix has the identical ~1° rotation** — the
