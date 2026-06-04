@@ -113,6 +113,14 @@ std::vector<MenuLabel> extract_menu_labels(const std::string& hdr_path,
       if (!strs.empty()) {
         lbl.text = strs.back();
         if (strs.size() >= 2) lbl.font = strs.front();
+        // nav target = an embedded "*.btn" string that isn't this object's name
+        // (the focus-down link, e.g. main_career.btn -> main_quickspin.btn).
+        for (const auto& s : strs) {
+          if (s.size() > 4 && s.compare(s.size() - 4, 4, ".btn") == 0 && s != e.name) {
+            lbl.nav = s;
+            break;
+          }
+        }
       }
       lbl.has_world = find_world_matrix(body, lbl.world);
       out.push_back(std::move(lbl));

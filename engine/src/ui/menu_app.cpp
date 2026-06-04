@@ -26,6 +26,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <map>
 #include <string>
@@ -188,12 +189,41 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
                        const std::unordered_set<std::string>& disabled,
                        std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out) {
   using TV = ghogx::render::MiloSceneRenderer::TextVertex;
+  const float capH = font.cap_height();
   for (const auto& lbl : labels) {
     if (!lbl.has_world || lbl.text.empty()) continue;
-    // For now only the BandButtons (impact font). The Text objects (SONG/VENUE/
-    // DIFFICULTY) and the cutout BandLabel carry a parent-group offset not yet
-    // composed, so their world translation alone lands them on the button column
-    // — defer until that composition is RE'd.
+
+    // Text / BandLabel objects are NOT animated, so their in-MILO world Trans IS
+    // the real render transform (size = scale, position = translation, tilt =
+    // rotation) — unlike the BandButton bind pose. Render them with the full
+    // matrix, em-normalised layout (cap = 1 em), centred on the translation.
+    if (lbl.type == "Text" || lbl.type == "BandLabel") {
+      std::string disp2 = lbl.text;
+      auto it2 = locale.find(lbl.text);
+      if (it2 != locale.end()) disp2 = it2->second;
+      float w2 = 0.0f;
+      auto q2 = font.layout(disp2, &w2);
+      const float Tx = lbl.world[9], Ty = lbl.world[10], Tz = lbl.world[11];
+      const float m0 = lbl.world[0], m2 = lbl.world[2], m6 = lbl.world[6], m8 = lbl.world[8];
+      const float halfW = (w2 / capH) * 0.5f;
+      auto V2 = [&](float qx, float qy, float u, float v) {
+        const float ex = qx / capH - halfW;            // em, centred horizontally
+        const float ez = -((qy - capH * 0.5f) / capH); // em, centred vertically
+        TV tv;
+        tv.x = Tx + m0 * ex + m2 * ez;
+        tv.z = Tz + m6 * ex + m8 * ez;
+        tv.y = Ty;
+        tv.u = u; tv.v = v; tv.argb = 0xFFFFFFFFu;
+        return tv;
+      };
+      for (const auto& q : q2) {
+        TV a = V2(q.x0, q.y0, q.u0, q.v0), b = V2(q.x1, q.y0, q.u1, q.v0),
+           c = V2(q.x1, q.y1, q.u1, q.v1), d = V2(q.x0, q.y1, q.u0, q.v1);
+        out.push_back(a); out.push_back(b); out.push_back(c);
+        out.push_back(a); out.push_back(c); out.push_back(d);
+      }
+      continue;
+    }
     if (lbl.type != "BandButton") continue;
     std::string disp = lbl.text;
     auto it = locale.find(lbl.text);
@@ -209,7 +239,6 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
     // X from the runtime aligned left edge (not the static bind-pose X, which
     // varies); Y/Z from the object's translation (vertical column position).
     const float ax = kMenuLeftX, ay = lbl.world[10], az = lbl.world[11];
-    const float capH = font.cap_height();
     const uint32_t argb = dis ? kColDisabled : (foc ? kColFocused : kColNormal);
     const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
 
@@ -249,6 +278,61 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
   }
 }
 
+// Items the original would disable: the main panel poll disables multiplayer when
+// `game is_missing_multi_controller` (main.dta). We evaluate that game condition.
+std::unordered_set<std::string> compute_disabled(ScreenManager& mgr) {
+  std::unordered_set<std::string> d;
+  if (Object* g = mgr.find_object(Symbol("game"))) {
+    DataNode mm = g->handle_property(Symbol("is_missing_multi_controller"), DataArray());
+    bool missing = false;
+    if (auto s = mm.as_symbol()) missing = (std::strcmp(s->c_str(), "TRUE") == 0);
+    if (auto i = mm.as_int()) missing = missing || (*i != 0);
+    if (missing) d.insert("main_multiplayer.btn");
+  }
+  return d;
+}
+
+// All text-bearing objects of the current screen's panels (for focus nav).
+std::vector<MenuLabel> gather_labels(const std::string& hdr, const std::string& ark,
+                                     ScreenManager& mgr, Object* screen) {
+  std::vector<MenuLabel> out;
+  for (Symbol pn : screen_panel_names(screen)) {
+    Object* panel = mgr.find_object(pn);
+    if (!panel) continue;
+    auto sym = panel->get_property(Symbol("file")).as_symbol();
+    if (!sym) continue;
+    auto labels = extract_menu_labels(hdr, ark, "ui/gen/" + std::string(sym->c_str()) + "_ps2");
+    for (auto& l : labels) out.push_back(std::move(l));
+  }
+  return out;
+}
+
+// Move focus down (dir>0) / up (dir<0) along the BandButton nav links, skipping
+// disabled items. Sets the focused panel's (focus) property to the new component.
+void focus_move(ScreenManager& mgr, const std::vector<MenuLabel>& labels,
+                const std::unordered_set<std::string>& disabled, int dir) {
+  Object* screen = mgr.current_screen();
+  if (!screen) return;
+  Symbol fpn = screen->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
+  Object* panel = fpn.valid() ? mgr.find_object(fpn) : nullptr;
+  if (!panel) return;
+  std::string cur = panel->get_property(Symbol("focus")).as_symbol().value_or(Symbol()).c_str();
+  for (size_t guard = 0; guard <= labels.size(); ++guard) {
+    std::string next;
+    if (dir > 0) {
+      for (const auto& l : labels) if (l.name == cur) { next = l.nav; break; }
+    } else {
+      for (const auto& l : labels) if (!l.nav.empty() && l.nav == cur) { next = l.name; break; }
+    }
+    if (next.empty()) return;
+    if (!disabled.count(next)) {
+      panel->set_property(Symbol("focus"), DataNode::Sym(Symbol(next.c_str())));
+      return;
+    }
+    cur = next;  // disabled -> keep moving in the same direction
+  }
+}
+
 // Rebuild the renderer's text overlay from the current screen's panels.
 void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager& mgr,
                   Object* screen, ghogx::render::MiloSceneRenderer& renderer,
@@ -264,19 +348,7 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
       if (fc.valid()) focused = fc.c_str();
     }
   }
-  // Disabled items: replicate the original main-panel `poll` handler, which does
-  // `{if_else {game is_missing_multi_controller} {$this disable main_multiplayer.btn}
-  // {$this enable main_multiplayer.btn}}` (main.dta). We evaluate the same game
-  // condition directly because the MILO button objects aren't attached as runtime
-  // panel children yet, so the script's find_path-based disable can't reach them.
-  std::unordered_set<std::string> disabled;
-  if (Object* g = mgr.find_object(Symbol("game"))) {
-    DataNode mm = g->handle_property(Symbol("is_missing_multi_controller"), DataArray());
-    bool missing = false;
-    if (auto s = mm.as_symbol()) missing = (std::strcmp(s->c_str(), "TRUE") == 0);
-    if (auto i = mm.as_int()) missing = missing || (*i != 0);
-    if (missing) disabled.insert("main_multiplayer.btn");
-  }
+  std::unordered_set<std::string> disabled = compute_disabled(mgr);
   std::vector<ghogx::render::MiloSceneRenderer::TextVertex> verts;
   for (Symbol pn : screen_panel_names(screen)) {
     Object* panel = mgr.find_object(pn);
@@ -331,6 +403,28 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   rebuild_scene(hdr, ark, mgr, shown, renderer);
   rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, locale);
 
+  // Per-screen nav state: the focusable components (with nav links) + disabled set.
+  std::vector<MenuLabel> cur_labels = gather_labels(hdr, ark, mgr, shown);
+  std::unordered_set<std::string> cur_disabled = compute_disabled(mgr);
+  auto focus_name = [&]() -> std::string {
+    Object* s = mgr.current_screen();
+    if (!s) return "";
+    Symbol fpn = s->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
+    Object* p = fpn.valid() ? mgr.find_object(fpn) : nullptr;
+    return p ? p->get_property(Symbol("focus")).as_symbol().value_or(Symbol()).c_str() : "";
+  };
+  std::string last_focus = focus_name();
+
+  // Headless auto-nav harness (GHOGX_MENU_NAV="down,confirm,back,focus:main_career.btn"
+  // ...) — one action every kNavStep frames, so screenshots can reach any screen.
+  std::vector<std::string> nav;
+  if (const char* env = std::getenv("GHOGX_MENU_NAV")) {
+    std::string e(env), tok;
+    for (char ch : e + ",") { if (ch == ',') { if (!tok.empty()) nav.push_back(tok); tok.clear(); } else tok += ch; }
+  }
+  size_t nav_i = 0;
+  const uint64_t kNavStep = 5;
+
   using clock = std::chrono::steady_clock;
   auto last = clock::now();
   uint64_t frame = 0;
@@ -345,16 +439,40 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     last = now;
     if (dt > 0.1f) dt = 0.1f;
 
-    // Input -> the real menu scripts.
+    // Input (live controller/keyboard) -> focus nav + the real menu scripts.
+    if (win->action_pressed(Action::Down))    focus_move(mgr, cur_labels, cur_disabled, +1);
+    if (win->action_pressed(Action::Up))      focus_move(mgr, cur_labels, cur_disabled, -1);
     if (win->action_pressed(Action::Confirm)) do_confirm(mgr);
-    if (win->action_pressed(Action::Back)) mgr.pop_screen();
+    if (win->action_pressed(Action::Back))    mgr.pop_screen();
+
+    // Scripted auto-nav (headless testing): one action per kNavStep frames.
+    if (nav_i < nav.size() && frame == (nav_i + 1) * kNavStep) {
+      const std::string& a = nav[nav_i++];
+      if (a == "down") focus_move(mgr, cur_labels, cur_disabled, +1);
+      else if (a == "up") focus_move(mgr, cur_labels, cur_disabled, -1);
+      else if (a == "confirm") do_confirm(mgr);
+      else if (a == "back") mgr.pop_screen();
+      else if (a.rfind("focus:", 0) == 0) {
+        Object* s = mgr.current_screen();
+        Symbol fpn = s ? s->get_property(Symbol("focus")).as_symbol().value_or(Symbol()) : Symbol();
+        if (Object* p = fpn.valid() ? mgr.find_object(fpn) : nullptr)
+          p->set_property(Symbol("focus"), DataNode::Sym(Symbol(a.substr(6).c_str())));
+      }
+    }
 
     mgr.update(dt);
 
-    // Reload the rendered scene when the screen changed.
+    // Reload the scene + text when the screen changed; re-render text (re-colour)
+    // when only the focus moved.
     if (mgr.current_screen() != shown) {
       shown = mgr.current_screen();
+      cur_labels = gather_labels(hdr, ark, mgr, shown);
+      cur_disabled = compute_disabled(mgr);
       rebuild_scene(hdr, ark, mgr, shown, renderer);
+      rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, locale);
+      last_focus = focus_name();
+    } else if (focus_name() != last_focus) {
+      last_focus = focus_name();
       rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, locale);
     }
 

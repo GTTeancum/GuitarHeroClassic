@@ -25,6 +25,8 @@ struct MenuLabel {
   std::string type;   // "BandButton" / "Text" / "BandLabel"
   std::string font;   // first embedded string ("impact"); "" if only one string
   std::string text;   // last embedded string = label / locale key ("CAREER")
+  std::string nav;    // BandButton nav target (the embedded "*.btn" string) — the
+                      // focus-down link; "" if none (e.g. Text objects)
   // World Trans matrix: row-major 3x3 (world[0..8]) + translation (world[9..11]).
   std::array<float, 12> world{{1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0}};
   bool has_world = false;
