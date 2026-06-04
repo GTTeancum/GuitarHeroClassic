@@ -169,6 +169,7 @@ std::map<std::string, std::string> load_locale(const gh::ark::ArkV3Reader& ark,
 // focus_color for the resting highlight — verified against a real frame).
 constexpr uint32_t kColNormal  = 0xFFFF0000u;  // normal_color   (1,0,0) red
 constexpr uint32_t kColFocused = 0xFFFFFFFFu;  // selecting_color (1,1,1) white
+constexpr uint32_t kColDisabled= 0xFF4D4D4Du;  // disabled_color (.3,.3,.3) gray
 constexpr float kFocusScale    = 1.05f;        // PanelDir (focus_scale 1.05)
 // Live-XEX capture (trace-360 BandButton_ColorResolve struct dump) showed the
 // RENDERED button transform — not the static .btn bind pose: near-uniform scale,
@@ -184,6 +185,7 @@ constexpr float kMenuLeftX = 3.9f;
 void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& font,
                        const std::map<std::string, std::string>& locale,
                        const std::string& focused,
+                       const std::unordered_set<std::string>& disabled,
                        std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out) {
   using TV = ghogx::render::MiloSceneRenderer::TextVertex;
   for (const auto& lbl : labels) {
@@ -203,11 +205,12 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
       std::fprintf(stderr, "[menu]   WARN label '%s' key='%s' disp='%s' -> no glyphs\n",
                    lbl.name.c_str(), lbl.text.c_str(), disp.c_str());
     const bool foc = (lbl.name == focused);
+    const bool dis = disabled.count(lbl.name) != 0;
     // X from the runtime aligned left edge (not the static bind-pose X, which
     // varies); Y/Z from the object's translation (vertical column position).
     const float ax = kMenuLeftX, ay = lbl.world[10], az = lbl.world[11];
     const float capH = font.cap_height();
-    const uint32_t argb = foc ? kColFocused : kColNormal;
+    const uint32_t argb = dis ? kColDisabled : (foc ? kColFocused : kColNormal);
     const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
 
     // Use the object's REAL world-Trans orientation, not an axis-aligned billboard:
@@ -261,6 +264,19 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
       if (fc.valid()) focused = fc.c_str();
     }
   }
+  // Disabled items: replicate the original main-panel `poll` handler, which does
+  // `{if_else {game is_missing_multi_controller} {$this disable main_multiplayer.btn}
+  // {$this enable main_multiplayer.btn}}` (main.dta). We evaluate the same game
+  // condition directly because the MILO button objects aren't attached as runtime
+  // panel children yet, so the script's find_path-based disable can't reach them.
+  std::unordered_set<std::string> disabled;
+  if (Object* g = mgr.find_object(Symbol("game"))) {
+    DataNode mm = g->handle_property(Symbol("is_missing_multi_controller"), DataArray());
+    bool missing = false;
+    if (auto s = mm.as_symbol()) missing = (std::strcmp(s->c_str(), "TRUE") == 0);
+    if (auto i = mm.as_int()) missing = missing || (*i != 0);
+    if (missing) disabled.insert("main_multiplayer.btn");
+  }
   std::vector<ghogx::render::MiloSceneRenderer::TextVertex> verts;
   for (Symbol pn : screen_panel_names(screen)) {
     Object* panel = mgr.find_object(pn);
@@ -269,7 +285,7 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
     auto sym = f.as_symbol();
     if (!sym) continue;
     auto labels = extract_menu_labels(hdr, ark, "ui/gen/" + std::string(sym->c_str()) + "_ps2");
-    append_text_quads(labels, font, locale, focused, verts);
+    append_text_quads(labels, font, locale, focused, disabled, verts);
   }
   std::fprintf(stderr, "[menu] focused component = '%s'\n", focused.c_str());
   std::fprintf(stderr, "[menu] text: %zu glyph-verts\n", verts.size());
@@ -309,6 +325,9 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   ghogx::render::MiloSceneRenderer renderer(*win);
 
   Object* shown = mgr.current_screen();
+  // Run one poll tick before the first text build so panel `poll` handlers have
+  // set their state (e.g. multiplayer disabled via is_missing_multi_controller).
+  mgr.update(0.0f);
   rebuild_scene(hdr, ark, mgr, shown, renderer);
   rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, locale);
 
