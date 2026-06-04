@@ -182,24 +182,21 @@ std::map<std::string, std::string> load_locale(const gh::ark::ArkV3Reader& ark,
   return m;
 }
 
-// GH2 per-state menu-text colours — byte-exact from common.milo_ps2, NOT
-// interpretation. UIButton/UILabel map each UI state to a per-state .font
-// (ui_objects_ps2.dta lines 45-56: normal/focused/disabled/selecting.font). In
-// common.milo those four Font objects share ONE glyph atlas (each Font body
-// references "normal.font" glyph data) and differ ONLY by the Mat they bind:
-// normal.font->normal.mat, focused.font->focused.mat, etc. So the per-state
-// colour IS that Mat's diffuse RGBA (the 4 floats after the Mat's flag byte):
-//   normal.mat    (1, 1, 1, 1)        -> white
-//   focused.mat   (1, 1, 0, 1)        -> yellow
-//   selecting.mat (1, 0, 0, 1)        -> red   (transient: a button being pressed)
-//   disabled.mat  (0.4, 0.4, 0.4, 1)  -> grey
-// (The earlier red-normal/white-focused scheme was the Deluxe MOD's GHPanel
-// recolour, not stock GH2. Stock = white normal, yellow focus.)
-constexpr uint32_t kColNormal    = 0xFFFFFFFFu;  // normal.mat    (1,1,1)
-constexpr uint32_t kColFocused   = 0xFFFFFF00u;  // focused.mat   (1,1,0) yellow
-[[maybe_unused]] constexpr uint32_t kColSelecting = 0xFFFF0000u;  // selecting.mat (1,0,0) red
-                                                 // (wired when the press/confirm flash anim lands)
-constexpr uint32_t kColDisabled  = 0xFF666666u;  // disabled.mat  (0.4,0.4,0.4)
+// GH2 main-menu item colours — GROUND TRUTH: the actual retail menu (reference
+// frame of the real game) shows NORMAL items RED and the FOCUSED item WHITE
+// (CAREER white, QUICK PLAY/MULTIPLAYER/TRAINING/.../OPTIONS red).
+//   normal  = RED   (1,0,0)
+//   focused = WHITE (1,1,1)
+//   disabled= GREY  (held for the multiplayer-disabled case)
+// NOTE: the common.milo per-state .font mats (normal.mat white / focused.mat
+// yellow / selecting.mat red / disabled.mat grey) are the GENERIC arial UIButton
+// widget set — NOT the main-menu BandButtons, which use this red/white scheme. I
+// wrongly applied the arial mats earlier; the exact data source for red/white
+// (a PanelDir type or per-button colour) is to be re-pinned, but the VALUES are
+// fixed by the real menu.
+constexpr uint32_t kColNormal    = 0xFFFF0000u;  // RED   — normal items
+constexpr uint32_t kColFocused   = 0xFFFFFFFFu;  // WHITE — focused item
+constexpr uint32_t kColDisabled  = 0xFF666666u;  // grey  — disabled (multiplayer)
 constexpr float kFocusScale      = 1.05f;        // ui_objects_ps2.dta:10 (focus_scale 1.05)
 // Glyph size = the RndText text_size, GROUNDED 0.5 from BOTH sides:
 //   - static: all five main-menu buttons carry the shared run [15.0, 1.0, 0.5, 1.0,
@@ -226,6 +223,9 @@ constexpr float kTextScale = 0.50f;
 // mistaken for the menu — different screen, scale 1.05 / tilt +2deg.)
 constexpr float kMenuZScale  = 0.875f;
 constexpr float kMenuZOffset = 4.0f;
+// Shared centre axis for the menu column (items are centred on it). ~mean of the
+// bind-pose button X (the centres cluster near 1.2); tuned against the real frame.
+constexpr float kMenuCenterX = 1.2f;
 
 void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& font,
                        const std::map<std::string, std::string>& locale,
@@ -275,17 +275,17 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
       // the runtime-aligned left edge; other screens use the button's translation.
       const bool bindPose = n0 > 1e-3f && n2 > 1e-3f &&
                             (std::min(n0, n2) / std::max(n0, n2) < 0.6f);
-      // X: each button keeps its own per-.btn X (the poster design staggers them;
-      // the XEX confirms the runtime is NOT left-aligned — settled X varies 4.5..-1.9,
-      // within ~0.8 of the byte-exact bind world[9], far closer than a fixed column).
-      const float ax = lbl.world[9];
+      // X: the real menu items are CENTRED on a common vertical axis (their text
+      // centres line up along the slightly-tilted column), NOT left-aligned. Centre
+      // each item's text width on the shared axis kMenuCenterX.
+      const float ax = bindPose ? kMenuCenterX : lbl.world[9];
       const float ay = lbl.world[10];
       // Main-menu bind-pose buttons: remap the bind-pose Z to the XEX-measured
-      // runtime Z (affine, fits all 5 buttons exactly). Other screens use their Z.
+      // runtime Z (affine). Other screens use their Z.
       const float az = bindPose ? (kMenuZScale * lbl.world[11] + kMenuZOffset) : lbl.world[11];
       const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
       emit(quads, [&](float qx, float qy, float u, float v) {
-        const float lx = qx * scl, lz = -(qy - capH * 0.5f) * scl;
+        const float lx = (qx - w * 0.5f) * scl, lz = -(qy - capH * 0.5f) * scl;  // centred
         TV tv{ax + lx * r0x + lz * r2x, ay, az + lx * r0z + lz * r2z, u, v, col};
         return tv;
       });
