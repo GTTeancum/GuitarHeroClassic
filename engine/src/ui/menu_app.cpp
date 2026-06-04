@@ -170,13 +170,16 @@ std::map<std::string, std::string> load_locale(const gh::ark::ArkV3Reader& ark,
 constexpr uint32_t kColNormal  = 0xFFFF0000u;  // normal_color   (1,0,0) red
 constexpr uint32_t kColFocused = 0xFFFFFFFFu;  // selecting_color (1,1,1) white
 constexpr float kFocusScale    = 1.05f;        // PanelDir (focus_scale 1.05)
-// World-units per font pixel. The button's text box is 15 local units tall and
-// is the text LINE height (the line fills the box; the reference shows a clear
-// gap between items, so cap < box, not cap == box). impact line=50 / cap=34, and
-// the main_buttons.view group scales Z by 1.899:
-//   world-per-px = (box_height / line_px) * z_scale = (15/50) * 1.899 ≈ 0.57
-// → cap ≈ 19.4 world units, matching the reference's item size + inter-line gap.
-constexpr float kTextScale = (15.0f / 50.0f) * 1.899f;
+// Live-XEX capture (trace-360 BandButton_ColorResolve struct dump) showed the
+// RENDERED button transform — not the static .btn bind pose: near-uniform scale,
+// X ~3.5–4.4 consistent (aligned left edges), tilt ~2°, runtime line pitch ~23
+// world units. Cap fits the pitch with a gap → ~17 world units (kTextScale 0.5).
+// (Exact glyph size awaits the child-RndText world-xfm capture; the box-vs-native
+// font-unit ambiguity is ±, so 0.5 is the best grounded value for now.)
+constexpr float kTextScale = 0.50f;
+// Common left edge for the menu column (the runtime X the buttons align to;
+// the static per-.btn X is the pre-TransAnim bind pose and is NOT used).
+constexpr float kMenuLeftX = 3.9f;
 
 void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& font,
                        const std::map<std::string, std::string>& locale,
@@ -200,7 +203,9 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
       std::fprintf(stderr, "[menu]   WARN label '%s' key='%s' disp='%s' -> no glyphs\n",
                    lbl.name.c_str(), lbl.text.c_str(), disp.c_str());
     const bool foc = (lbl.name == focused);
-    const float ax = lbl.world[9], ay = lbl.world[10], az = lbl.world[11];
+    // X from the runtime aligned left edge (not the static bind-pose X, which
+    // varies); Y/Z from the object's translation (vertical column position).
+    const float ax = kMenuLeftX, ay = lbl.world[10], az = lbl.world[11];
     const float capH = font.cap_height();
     const uint32_t argb = foc ? kColFocused : kColNormal;
     const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
