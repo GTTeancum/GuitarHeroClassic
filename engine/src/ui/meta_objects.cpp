@@ -47,6 +47,21 @@ bool GameConfig::handle_meta(Symbol msg, const DataArray& args, DataNode& out) {
     return true;
   }
 
+  // Multiplayer gating (main.dta poll): the main menu enables main_multiplayer.btn
+  // only when {game is_multiple_controllers} AND NOT {game is_missing_multi_controller}.
+  // Multiplayer is disabled for now (single-player port), expressed through the
+  // original's own mechanism: one controller present, the second one missing. So
+  // the stock poll's `{$this disable main_multiplayer.btn}` branch fires, exactly
+  // as it would on a real console with a single pad.
+  if (std::strcmp(m, "is_multiple_controllers") == 0) {
+    out = DataNode::Sym(Symbol("FALSE"));
+    return true;
+  }
+  if (std::strcmp(m, "is_missing_multi_controller") == 0) {
+    out = DataNode::Sym(Symbol("TRUE"));
+    return true;
+  }
+
   // Data-backed song lookups (current song = song_index into songs.dtb).
   std::size_t si = static_cast<std::size_t>(
       std::max(0, get_property(Symbol("song_index")).as_int().value_or(0)));

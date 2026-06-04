@@ -40,6 +40,8 @@ namespace {
 
 using Action = ghogx::render::Window::Action;
 
+std::unordered_set<std::string> compute_disabled(ScreenManager& mgr);  // fwd
+
 // Append a panel's MILO (its (file) value, e.g. "main.milo" -> ui/gen/main.milo_ps2)
 // into the combined scene + texture set the renderer draws.
 void add_panel_milo(const std::string& hdr, const std::string& ark,
@@ -134,8 +136,23 @@ void do_confirm(ScreenManager& mgr) {
   Object* panel = panel_name.valid() ? mgr.find_object(panel_name) : nullptr;
   if (!panel) return;
   Symbol comp = panel->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
+  // A disabled component ignores SELECT (the original's disabled BandButton does
+  // not fire its handler) — e.g. multiplayer when is_missing_multi_controller.
+  if (comp.valid() && compute_disabled(mgr).count(comp.c_str())) return;
   mgr.set_global(Symbol("component"), DataNode::Sym(comp));
   panel->handle_property(Symbol("SELECT_START_MSG"), DataArray());
+}
+
+// Back (B/circle): go to the screen's (back_screen) if set (screens that navigate
+// forward set it on their target, e.g. main.dta `{nameprof_screen set back_screen
+// main_screen}`), else fall back to the main menu. (goto_screen-based nav has no
+// push stack, so pop_screen doesn't apply.)
+void do_back(ScreenManager& mgr) {
+  Object* s = mgr.current_screen();
+  if (!s) return;
+  Symbol back = s->get_property(Symbol("back_screen")).as_symbol().value_or(Symbol());
+  if (back.valid()) { mgr.goto_screen(back); return; }
+  if (s->name() != Symbol("main_screen")) mgr.goto_screen(Symbol("main_screen"));
 }
 
 // Load ui/eng/gen/locale.dtb into a key->display-string map. The menu's button
@@ -259,7 +276,9 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
 // `game is_missing_multi_controller` (main.dta). We evaluate that game condition.
 std::unordered_set<std::string> compute_disabled(ScreenManager& mgr) {
   std::unordered_set<std::string> d;
-  if (Object* g = mgr.find_object(Symbol("game"))) {
+  // `game` is a singleton -> resolve_object (find_object only checks the screen
+  // registry, so it would miss the singletons and never disable anything).
+  if (Object* g = mgr.resolve_object(Symbol("game"))) {
     DataNode mm = g->handle_property(Symbol("is_missing_multi_controller"), DataArray());
     bool missing = false;
     if (auto s = mm.as_symbol()) missing = (std::strcmp(s->c_str(), "TRUE") == 0);
@@ -420,7 +439,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     if (win->action_pressed(Action::Down))    focus_move(mgr, cur_labels, cur_disabled, +1);
     if (win->action_pressed(Action::Up))      focus_move(mgr, cur_labels, cur_disabled, -1);
     if (win->action_pressed(Action::Confirm)) do_confirm(mgr);
-    if (win->action_pressed(Action::Back))    mgr.pop_screen();
+    if (win->action_pressed(Action::Back))    do_back(mgr);
 
     // Scripted auto-nav (headless testing): one action per kNavStep frames.
     if (nav_i < nav.size() && frame == (nav_i + 1) * kNavStep) {
@@ -428,7 +447,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       if (a == "down") focus_move(mgr, cur_labels, cur_disabled, +1);
       else if (a == "up") focus_move(mgr, cur_labels, cur_disabled, -1);
       else if (a == "confirm") do_confirm(mgr);
-      else if (a == "back") mgr.pop_screen();
+      else if (a == "back") do_back(mgr);
       else if (a.rfind("focus:", 0) == 0) {
         Object* s = mgr.current_screen();
         Symbol fpn = s ? s->get_property(Symbol("focus")).as_symbol().value_or(Symbol()) : Symbol();
