@@ -182,14 +182,25 @@ std::map<std::string, std::string> load_locale(const gh::ark::ArkV3Reader& ark,
   return m;
 }
 
-// GH2 menu item colours, read 1:1 from the PanelDir "GH2" type in ui_objects.dtb
-// ((normal_color {pack_color 1 0 0}) etc.). Normal items are RED; the focused
-// item renders WHITE (selecting_color (1,1,1); retail does not use the green
-// focus_color for the resting highlight — verified against a real frame).
-constexpr uint32_t kColNormal  = 0xFFFF0000u;  // normal_color   (1,0,0) red
-constexpr uint32_t kColFocused = 0xFFFFFFFFu;  // selecting_color (1,1,1) white
-constexpr uint32_t kColDisabled= 0xFF4D4D4Du;  // disabled_color (.3,.3,.3) gray
-constexpr float kFocusScale    = 1.05f;        // PanelDir (focus_scale 1.05)
+// GH2 per-state menu-text colours — byte-exact from common.milo_ps2, NOT
+// interpretation. UIButton/UILabel map each UI state to a per-state .font
+// (ui_objects_ps2.dta lines 45-56: normal/focused/disabled/selecting.font). In
+// common.milo those four Font objects share ONE glyph atlas (each Font body
+// references "normal.font" glyph data) and differ ONLY by the Mat they bind:
+// normal.font->normal.mat, focused.font->focused.mat, etc. So the per-state
+// colour IS that Mat's diffuse RGBA (the 4 floats after the Mat's flag byte):
+//   normal.mat    (1, 1, 1, 1)        -> white
+//   focused.mat   (1, 1, 0, 1)        -> yellow
+//   selecting.mat (1, 0, 0, 1)        -> red   (transient: a button being pressed)
+//   disabled.mat  (0.4, 0.4, 0.4, 1)  -> grey
+// (The earlier red-normal/white-focused scheme was the Deluxe MOD's GHPanel
+// recolour, not stock GH2. Stock = white normal, yellow focus.)
+constexpr uint32_t kColNormal    = 0xFFFFFFFFu;  // normal.mat    (1,1,1)
+constexpr uint32_t kColFocused   = 0xFFFFFF00u;  // focused.mat   (1,1,0) yellow
+[[maybe_unused]] constexpr uint32_t kColSelecting = 0xFFFF0000u;  // selecting.mat (1,0,0) red
+                                                 // (wired when the press/confirm flash anim lands)
+constexpr uint32_t kColDisabled  = 0xFF666666u;  // disabled.mat  (0.4,0.4,0.4)
+constexpr float kFocusScale      = 1.05f;        // ui_objects_ps2.dta:10 (focus_scale 1.05)
 // Live-XEX capture (trace-360 BandButton_ColorResolve struct dump) showed the
 // RENDERED button transform — not the static .btn bind pose: near-uniform scale,
 // X ~3.5–4.4 consistent (aligned left edges), tilt ~2°, runtime line pitch ~23
@@ -222,8 +233,8 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
     const bool isBtn = (lbl.type == "BandButton");
     if (!isBtn && lbl.type != "Text" && lbl.type != "BandLabel") continue;
 
-    // Colour: buttons by state (red normal / white focused / gray disabled);
-    // Text & BandLabel are white.
+    // Colour: buttons by state (white normal / yellow focused / grey disabled,
+    // from common.milo per-state mats); Text & BandLabel are white.
     bool foc = false;
     uint32_t col = 0xFFFFFFFFu;
     if (isBtn) {
@@ -398,6 +409,33 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   mgr.update(0.0f);
   rebuild_scene(hdr, ark, mgr, shown, renderer);
   rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, locale);
+
+  // Audit mode (GHOGX_MENU_DUMP=1): goto every *_screen object, rebuild its scene
+  // + text, and report the mesh/texture/glyph counts. The fastest way to find
+  // screens that don't render (no panels, missing MILO, empty text) — no nav
+  // needed. Prints a one-line summary per screen, then exits.
+  if (std::getenv("GHOGX_MENU_DUMP")) {
+    ObjectDir& reg = mgr.registry();
+    int ok = 0, empty = 0, total = 0;
+    for (std::size_t i = 0; i < reg.size(); ++i) {
+      Object* o = reg.at(i);
+      if (!o) continue;
+      std::string nm = o->name().c_str();
+      if (nm.size() <= 7 || nm.compare(nm.size() - 7, 7, "_screen") != 0) continue;
+      ++total;
+      mgr.goto_screen(o->name());
+      mgr.update(0.0f);
+      Object* s = mgr.current_screen();
+      std::vector<Symbol> pn = screen_panel_names(s);
+      std::fprintf(stderr, "[dump] %-34s panels=%zu\n", nm.c_str(), pn.size());
+      rebuild_scene(hdr, ark, mgr, s, renderer);
+      rebuild_text(hdr, ark, mgr, s, renderer, impact_font, locale);
+      renderer.draw();
+      win->present();
+    }
+    std::fprintf(stderr, "[dump] %d screens audited (ok=%d empty=%d)\n", total, ok, empty);
+    return 0;
+  }
 
   // Per-screen nav state: the focusable components (with nav links) + disabled set.
   std::vector<MenuLabel> cur_labels = gather_labels(hdr, ark, mgr, shown);
