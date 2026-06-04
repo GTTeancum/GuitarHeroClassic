@@ -189,12 +189,24 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     270 / QUICK_PLAY 320 …) = the `width` (text width, scales with label). Mapping to
     the schema (`text_size, alignment, all_caps, kerning, leading, fit_text, width,
     height`): `15.0` = height (the "width × 15" box), `-0.05` = the slant/kerning (the
-    rightward tilt), `280` = a width bound. **`0.5` is the `text_size` candidate** —
-    it is a real value in every button (NOT invented) and renders to the byte-exact
-    ~30.4 row pitch. RESIDUAL: the serialization order isn't 1:1 with the editor-schema
-    order, so I have not byte-confirmed WHICH field `0.5` is (vs `leading`); to pin via
-    recomp Text::Load field order or a value-logging hook. `kTextScale = 0.5` ships as
-    the data-present value with this caveat logged.
+    rightward tilt), `280` = a width bound. **`0.5` is the `text_size`** — a real
+    value in every button (NOT invented), rendering to the byte-exact ~30.4 row pitch.
+  - (2c-XEX2) **text_size CONFIRMED via the live XEX 2026-06-04 — caveat discharged.**
+    The trace-360 hook on `hmx_BandButton_ColorResolve` (sub_82122920) dumps 512 B of
+    the live BandButton struct. Decoded:
+      - **text_size = struct word 74 = 0.5000**, byte-identical on every button dumped
+        → confirms the static `0.5` IS the resolved text_size (the "which field"
+        caveat is discharged).
+      - The runtime **world matrix is stored TAGGED** (each 3-float row followed by a
+        tag word `0008xxxx`/`0007xxxx`; a naive 12-float scan misses it) — rows at
+        struct words 32/36/40/44. Decoded: **uniform scale ~1.05**, **tilt 2.00deg**,
+        translation (X≈3.55). This is the runtime transform that REPLACES the bind pose
+        (0.555/1.899, varying X), confirming the bind pose is not the display transform.
+      - CAVEAT: the hook dedups per pointer, so only the first BandButtons resolved in
+        boot are captured (2 distinct, Z≈-79.8/-102.9 — a pre-main screen). The
+        per-button MAIN-MENU X/Z from the XEX is not yet isolated — needs a hook that
+        re-dumps on screen change (or every N frames) to catch the 5 main buttons. SIZE
+        (0.5) and tilt (2deg) are screen-independent and confirmed.
   - (2c-tilt) **Text now uses the real Trans orientation (the tilt), not a flat billboard.**
     The menu plane is tilted ~1°: `mainmenu.mesh` (the poster) has rotation r0=-1.00°,
     r2=1.00° and **every BandButton world matrix has the identical ~1° rotation** — the

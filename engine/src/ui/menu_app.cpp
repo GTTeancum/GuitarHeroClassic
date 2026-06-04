@@ -201,14 +201,18 @@ constexpr uint32_t kColFocused   = 0xFFFFFF00u;  // focused.mat   (1,1,0) yellow
                                                  // (wired when the press/confirm flash anim lands)
 constexpr uint32_t kColDisabled  = 0xFF666666u;  // disabled.mat  (0.4,0.4,0.4)
 constexpr float kFocusScale      = 1.05f;        // ui_objects_ps2.dta:10 (focus_scale 1.05)
-// Glyph size. 0.5 is NOT invented: it is a value present, identical, in all five
-// main-menu buttons' RndText fields (decoded from main.milo — each BandButton body
-// carries the shared run [15.0, 1.0, 0.5, 1.0, -0.05, 30.0, 280.0] after its locale
-// token; -0.05 is the italic slant = the rightward tilt, 280 the box width). Applied
-// as cap-units->world it renders to the grounded ~30.4 row pitch (see button Trans
-// Z spacing). NOT YET CONFIRMED: that 0.5 is specifically the RndText `size` field
-// vs. another field of the same value — that needs the exact RndText format (recomp
-// Text::Load / a community tool that exposes it). Flagged, not faked.
+// Glyph size = the RndText text_size, GROUNDED 0.5 from BOTH sides:
+//   - static: all five main-menu buttons carry the shared run [15.0, 1.0, 0.5, 1.0,
+//     -0.05, 30.0, 280.0] after their locale token in main.milo (-0.05 = italic
+//     slant, 280 = box width, 15 = box height).
+//   - dynamic: the live XEX BandButton struct (trace-360 hook on sub_82122920)
+//     carries text_size at word 74 = 0.5000, byte-identical on every button dumped.
+// The earlier "field-identity unconfirmed" caveat is discharged: word 74 IS the
+// resolved text_size and equals 0.5. Applied as cap-units->world it renders to the
+// grounded ~30.4 row pitch (button Trans Z spacing). The runtime world matrix also
+// carries a ~1.05 uniform button scale + 2.00deg tilt (tagged 3x4 in the struct);
+// that refinement is logged in FIDELITY (the captured buttons' screen identity is
+// ambiguous, so the global kTextScale stays the confirmed text_size 0.5).
 constexpr float kTextScale = 0.50f;
 // Column left edge. The static per-.btn X is a bind pose (varies -1.0..+3.9 across the
 // five buttons; the runtime aligns their left edges). 3.9 is the live-XEX-measured
