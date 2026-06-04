@@ -187,6 +187,19 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     glyph size kept; the matrix's non-uniform scale is the button BOX, not the glyph).
     NOTE: the static `.btn` world matrix is the bind pose; the buttons are driven by
     `TransAnim 1` at runtime, so the live resting tilt could differ — to check next.
+  - (2c-runtime) **Live-XEX capture: the static `.btn` matrix is the BIND POSE, not
+    what renders.** Added a per-button hook (`sub_82122920` BandButton_ColorResolve)
+    to trace-360 that dumps the button struct at runtime. The rendered button world
+    matrix is **near-uniform scale ~1.05–1.26** (NOT the static 0.555/1.899),
+    **tilt ~2°**, and **X ≈ 3.5–4.4 consistent across buttons** (the static X varied
+    −1…3.9 — that bind-pose data is why my positioning was misaligned). So: the buttons
+    are NOT stretched (uniform), the left edges DO align (consistent X), and the items
+    are bigger than my guess. The static matrices in main.milo are a pre-`TransAnim`
+    pose; the real transform only exists at runtime. The captured matrix is the button
+    BOX though — the glyph label is a child RndText with its own transform, and the 360
+    build's GPU layer is stubbed (`GPU_DrawPrimitive` fires ~never), so the final glyph
+    vertices can't be captured that way. Next: hook the RndText world-xfm (child of the
+    button) for the exact glyph size/anchor. Instrumentation is in trace-360/src/trace_hooks.cpp.
   - (2d) OPEN: the additive **glow** (light overlay; MatObj.blend) + coplanar depth order.
   - (3) per-screen `(file)` that is a `{script}` (not a bare symbol) — not yet evaluated.
 
