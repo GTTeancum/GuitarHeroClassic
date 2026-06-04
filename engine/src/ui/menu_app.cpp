@@ -214,11 +214,6 @@ constexpr float kFocusScale      = 1.05f;        // ui_objects_ps2.dta:10 (focus
 // that refinement is logged in FIDELITY (the captured buttons' screen identity is
 // ambiguous, so the global kTextScale stays the confirmed text_size 0.5).
 constexpr float kTextScale = 0.50f;
-// Column left edge for the menu text. NOTE: the runtime main-menu buttons are NOT
-// left-aligned to a single X — each has its own X (the poster design); the captured
-// X was mid-slide-in animation so it isn't settled. 3.9 is a column placeholder that
-// reads well; the per-button settled X (≈ the bind-pose world[9]) is a known follow-up.
-constexpr float kMenuLeftX = 3.9f;
 // Main-menu vertical layout — GROUNDED in the live XEX. The trace-360 BandButton
 // struct hook captured all five main-menu buttons (scale 0.555/1.899, tilt -1deg =
 // the main-menu template + poster tilt, confirmed by main-menu logic running). Their
@@ -280,7 +275,10 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
       // the runtime-aligned left edge; other screens use the button's translation.
       const bool bindPose = n0 > 1e-3f && n2 > 1e-3f &&
                             (std::min(n0, n2) / std::max(n0, n2) < 0.6f);
-      const float ax = bindPose ? kMenuLeftX : lbl.world[9];
+      // X: each button keeps its own per-.btn X (the poster design staggers them;
+      // the XEX confirms the runtime is NOT left-aligned — settled X varies 4.5..-1.9,
+      // within ~0.8 of the byte-exact bind world[9], far closer than a fixed column).
+      const float ax = lbl.world[9];
       const float ay = lbl.world[10];
       // Main-menu bind-pose buttons: remap the bind-pose Z to the XEX-measured
       // runtime Z (affine, fits all 5 buttons exactly). Other screens use their Z.
