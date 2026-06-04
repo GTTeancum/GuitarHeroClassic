@@ -182,6 +182,10 @@ std::map<std::string, std::string> load_locale(const gh::ark::ArkV3Reader& ark,
   return m;
 }
 
+// Legacy placeholder constants below are kept only because nearby comments and
+// docs still reference the old investigation. Rendering uses kResolvedColNormal
+// and kResolvedColFocused, which come from the live ColorResolve trace.
+
 // GH2 main-menu item colours — GROUND TRUTH: the actual retail menu (reference
 // frame of the real game) shows NORMAL items RED and the FOCUSED item WHITE
 // (CAREER white, QUICK PLAY/MULTIPLAYER/TRAINING/.../OPTIONS red).
@@ -197,20 +201,20 @@ std::map<std::string, std::string> load_locale(const gh::ark::ArkV3Reader& ark,
 constexpr uint32_t kColNormal    = 0xFFFF0000u;  // RED   — normal items
 constexpr uint32_t kColFocused   = 0xFFFFFFFFu;  // WHITE — focused item
 constexpr uint32_t kColDisabled  = 0xFF666666u;  // grey  — disabled (multiplayer)
+// Live 360 hmx_BandButton_ColorResolve/sub_82122920 outputs for settled
+// main-menu buttons: normal state 0 = (0.4471, 0.1686, 0.1373), focused
+// state 1 = (0.8196, 0.8196, 0.8196). These are the values to render until
+// the PS2-specific resolver path is decoded.
+constexpr uint32_t kResolvedColNormal  = 0xFF722B23u;
+constexpr uint32_t kResolvedColFocused = 0xFFD1D1D1u;
 constexpr float kFocusScale      = 1.05f;        // ui_objects_ps2.dta:10 (focus_scale 1.05)
-// Glyph size = the RndText text_size, GROUNDED 0.5 from BOTH sides:
-//   - static: all five main-menu buttons carry the shared run [15.0, 1.0, 0.5, 1.0,
-//     -0.05, 30.0, 280.0] after their locale token in main.milo (-0.05 = italic
-//     slant, 280 = box width, 15 = box height).
-//   - dynamic: the live XEX BandButton struct (trace-360 hook on sub_82122920)
-//     carries text_size at word 74 = 0.5000, byte-identical on every button dumped.
-// The earlier "field-identity unconfirmed" caveat is discharged: word 74 IS the
-// resolved text_size and equals 0.5. Applied as cap-units->world it renders to the
-// grounded ~30.4 row pitch (button Trans Z spacing). The runtime world matrix also
-// carries a ~1.05 uniform button scale + 2.00deg tilt (tagged 3x4 in the struct);
-// that refinement is logged in FIDELITY (the captured buttons' screen identity is
-// ambiguous, so the global kTextScale stays the confirmed text_size 0.5).
+// Base RndText text_size: static main.milo tail and live trace both show 0.5.
+// The main-menu overlay still needs the projected RndText fit model decoded, so
+// the main-menu BandButtons use a separate visual-fit scalar below.
 constexpr float kTextScale = 0.50f;
+// Current main-menu fit against the user-provided reference frame. Keep separate
+// from kTextScale so this is easy to delete once the RndText fit path is decoded.
+constexpr float kMainButtonTextScale = 0.748f;
 // Main-menu vertical layout — GROUNDED in the live XEX. The trace-360 BandButton
 // struct hook captured all five main-menu buttons (scale 0.555/1.899, tilt -1deg =
 // the main-menu template + poster tilt, confirmed by main-menu logic running). Their
@@ -221,10 +225,10 @@ constexpr float kTextScale = 0.50f;
 // the panel compresses the column to ~87.5% and nudges it up 4.0. (This is the REAL
 // main-menu transform; the earlier reverted 0.758/-23.54 was from a boot DIALOG
 // mistaken for the menu — different screen, scale 1.05 / tilt +2deg.)
-constexpr float kMenuZScale  = 0.875f;
-constexpr float kMenuZOffset = 4.0f;
-// Shared centre axis for the menu column (items are centred on it). ~mean of the
-// bind-pose button X (the centres cluster near 1.2); tuned against the real frame.
+constexpr float kMenuZScale  = 0.965f;
+constexpr float kMenuZOffset = -1.65f;
+// Shared centre axis for the menu column. The exact RndText alignment transform
+// still needs to replace this projected fit constant.
 constexpr float kMenuCenterX = 1.2f;
 
 void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& font,
@@ -254,7 +258,8 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
     uint32_t col = 0xFFFFFFFFu;
     if (isBtn) {
       foc = (lbl.name == focused);
-      col = disabled.count(lbl.name) ? kColDisabled : (foc ? kColFocused : kColNormal);
+      col = disabled.count(lbl.name) ? kColDisabled
+                                     : (foc ? kResolvedColFocused : kResolvedColNormal);
     }
     std::string disp = lbl.text;
     if (auto it = locale.find(lbl.text); it != locale.end()) disp = it->second;
@@ -275,17 +280,16 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
       // the runtime-aligned left edge; other screens use the button's translation.
       const bool bindPose = n0 > 1e-3f && n2 > 1e-3f &&
                             (std::min(n0, n2) / std::max(n0, n2) < 0.6f);
-      // X: the real menu items are CENTRED on a common vertical axis (their text
-      // centres line up along the slightly-tilted column), NOT left-aligned. Centre
-      // each item's text width on the shared axis kMenuCenterX.
       const float ax = bindPose ? kMenuCenterX : lbl.world[9];
       const float ay = lbl.world[10];
       // Main-menu bind-pose buttons: remap the bind-pose Z to the XEX-measured
       // runtime Z (affine). Other screens use their Z.
       const float az = bindPose ? (kMenuZScale * lbl.world[11] + kMenuZOffset) : lbl.world[11];
-      const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
+      const float scl = (bindPose ? kMainButtonTextScale : kTextScale) *
+                        (foc ? kFocusScale : 1.0f);
       emit(quads, [&](float qx, float qy, float u, float v) {
-        const float lx = (qx - w * 0.5f) * scl, lz = -(qy - capH * 0.5f) * scl;  // centred
+        const float lx = (qx - w * 0.5f) * scl;
+        const float lz = -(qy - capH * 0.5f) * scl;
         TV tv{ax + lx * r0x + lz * r2x, ay, az + lx * r0z + lz * r2z, u, v, col};
         return tv;
       });

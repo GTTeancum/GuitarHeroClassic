@@ -2,6 +2,9 @@
 
 Guitar Hero II for the original Xbox.
 
+Start with [PROJECT_CHARTER.md](PROJECT_CHARTER.md) for the project identity,
+evidence rules, and resource model.
+
 Strategy: a **fresh native engine** under `engine/` that consumes PS2-format Harmonix ARKs directly via the readers under `tools/`. Targets PC first (fast dev iteration), OG Xbox (DX8 / NV2A / XACT / XInput) as a follow-up build target. The rexglue-recompiled GH2 360 binary that lives under `gh2test_*` / `generated/` / `src/` is now **read-only logic reference material** — gameplay state machines, scoring, hit detection, animation timing as a C++ blueprint to crib from while building the engine. We're not running it as the engine.
 
 See [roadmap](../memory/project_roadmap.md) for V1 (GH2) → V1.x (GH1 / GH80s) → V2 (Rock Band) → V3 (GH3 / GHA) staging.

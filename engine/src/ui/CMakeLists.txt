@@ -53,6 +53,13 @@ if(MSVC)
 endif()
 add_test(NAME ghogx_menu_font_test COMMAND ghogx_menu_font_test)
 
+add_executable(ghogx_menu_labels_test menu_labels_test.cpp)
+target_link_libraries(ghogx_menu_labels_test PRIVATE ghogx_menu_font)
+if(MSVC)
+    target_compile_options(ghogx_menu_labels_test PRIVATE /W4)
+endif()
+add_test(NAME ghogx_menu_labels_test COMMAND ghogx_menu_labels_test)
+
 # Headless boot test against the real stock ARK (skips if the ARK is absent).
 add_executable(ghogx_ui_test ui_test.cpp)
 target_link_libraries(ghogx_ui_test PRIVATE ghogx_ui_core)
