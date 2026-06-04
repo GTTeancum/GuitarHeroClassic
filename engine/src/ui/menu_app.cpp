@@ -27,6 +27,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <cstring>
 #include <map>
 #include <string>
@@ -190,90 +191,66 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
                        std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out) {
   using TV = ghogx::render::MiloSceneRenderer::TextVertex;
   const float capH = font.cap_height();
+  auto emit = [&](const std::vector<MenuFont::Quad>& quads,
+                  const std::function<TV(float, float, float, float)>& V) {
+    for (const auto& q : quads) {
+      TV a = V(q.x0, q.y0, q.u0, q.v0), b = V(q.x1, q.y0, q.u1, q.v0),
+         c = V(q.x1, q.y1, q.u1, q.v1), d = V(q.x0, q.y1, q.u0, q.v1);
+      out.push_back(a); out.push_back(b); out.push_back(c);
+      out.push_back(a); out.push_back(c); out.push_back(d);
+    }
+  };
   for (const auto& lbl : labels) {
     if (!lbl.has_world || lbl.text.empty()) continue;
+    const bool isBtn = (lbl.type == "BandButton");
+    if (!isBtn && lbl.type != "Text" && lbl.type != "BandLabel") continue;
 
-    // Text / BandLabel objects are NOT animated, so their in-MILO world Trans IS
-    // the real render transform (size = scale, position = translation, tilt =
-    // rotation) — unlike the BandButton bind pose. Render them with the full
-    // matrix, em-normalised layout (cap = 1 em), centred on the translation.
-    if (lbl.type == "Text" || lbl.type == "BandLabel") {
-      std::string disp2 = lbl.text;
-      auto it2 = locale.find(lbl.text);
-      if (it2 != locale.end()) disp2 = it2->second;
-      float w2 = 0.0f;
-      auto q2 = font.layout(disp2, &w2);
-      const float Tx = lbl.world[9], Ty = lbl.world[10], Tz = lbl.world[11];
-      const float m0 = lbl.world[0], m2 = lbl.world[2], m6 = lbl.world[6], m8 = lbl.world[8];
-      const float halfW = (w2 / capH) * 0.5f;
-      auto V2 = [&](float qx, float qy, float u, float v) {
-        const float ex = qx / capH - halfW;            // em, centred horizontally
-        const float ez = -((qy - capH * 0.5f) / capH); // em, centred vertically
-        TV tv;
-        tv.x = Tx + m0 * ex + m2 * ez;
-        tv.z = Tz + m6 * ex + m8 * ez;
-        tv.y = Ty;
-        tv.u = u; tv.v = v; tv.argb = 0xFFFFFFFFu;
-        return tv;
-      };
-      for (const auto& q : q2) {
-        TV a = V2(q.x0, q.y0, q.u0, q.v0), b = V2(q.x1, q.y0, q.u1, q.v0),
-           c = V2(q.x1, q.y1, q.u1, q.v1), d = V2(q.x0, q.y1, q.u0, q.v1);
-        out.push_back(a); out.push_back(b); out.push_back(c);
-        out.push_back(a); out.push_back(c); out.push_back(d);
-      }
-      continue;
+    // Colour: buttons by state (red normal / white focused / gray disabled);
+    // Text & BandLabel are white.
+    bool foc = false;
+    uint32_t col = 0xFFFFFFFFu;
+    if (isBtn) {
+      foc = (lbl.name == focused);
+      col = disabled.count(lbl.name) ? kColDisabled : (foc ? kColFocused : kColNormal);
     }
-    if (lbl.type != "BandButton") continue;
     std::string disp = lbl.text;
-    auto it = locale.find(lbl.text);
-    if (it != locale.end()) disp = it->second;
-
+    if (auto it = locale.find(lbl.text); it != locale.end()) disp = it->second;
     float w = 0.0f;
     auto quads = font.layout(disp, &w);
-    if (quads.empty())
-      std::fprintf(stderr, "[menu]   WARN label '%s' key='%s' disp='%s' -> no glyphs\n",
-                   lbl.name.c_str(), lbl.text.c_str(), disp.c_str());
-    const bool foc = (lbl.name == focused);
-    const bool dis = disabled.count(lbl.name) != 0;
-    // X from the runtime aligned left edge (not the static bind-pose X, which
-    // varies); Y/Z from the object's translation (vertical column position).
-    const float ax = kMenuLeftX, ay = lbl.world[10], az = lbl.world[11];
-    const uint32_t argb = dis ? kColDisabled : (foc ? kColFocused : kColNormal);
-    const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
 
-    // Use the object's REAL world-Trans orientation, not an axis-aligned billboard:
-    // the local-X / local-Z axes (rows 0 and 2 of the world matrix, X-Z plane),
-    // normalized so only the ~1° rotation (the menu's slight rightward tilt) is
-    // applied — the matrix's non-uniform scale is the button BOX, not the glyph
-    // size, so the glyphs keep their uniform text size (kTextScale).
-    float r0x = lbl.world[0], r0z = lbl.world[2];   // local +X axis in world (X,Z)
-    float r2x = lbl.world[6], r2z = lbl.world[8];   // local +Z axis in world (X,Z)
-    float n0 = std::sqrt(r0x * r0x + r0z * r0z);
-    float n2 = std::sqrt(r2x * r2x + r2z * r2z);
+    // Normalized local-X / local-Z axes (X-Z plane) for the menu's slight tilt;
+    // n0/n2 are the original scale magnitudes (used to spot the bind pose).
+    float r0x = lbl.world[0], r0z = lbl.world[2], r2x = lbl.world[6], r2z = lbl.world[8];
+    float n0 = std::sqrt(r0x*r0x + r0z*r0z), n2 = std::sqrt(r2x*r2x + r2z*r2z);
     if (n0 > 1e-6f) { r0x /= n0; r0z /= n0; }
     if (n2 > 1e-6f) { r2x /= n2; r2z /= n2; }
 
-    // The menu items are LEFT-aligned: the text's left edge sits at the box origin
-    // (world translation); +font-x runs along the local +X axis, +font-y (down)
-    // along local -Z. The whole line is tilted by the matrix's rotation.
-    auto V = [&](float qx, float qy, float u, float v) {
-      const float lx = qx * scl;                     // left-aligned, along local +X
-      const float lz = -(qy - capH * 0.5f) * scl;    // font-y down -> local +Z up
-      TV tv;
-      tv.x = ax + lx * r0x + lz * r2x;
-      tv.z = az + lx * r0z + lz * r2z;
-      tv.y = ay;
-      tv.u = u; tv.v = v; tv.argb = argb;
-      return tv;
-    };
-    for (const auto& q : quads) {
-      TV a = V(q.x0, q.y0, q.u0, q.v0);
-      TV b = V(q.x1, q.y0, q.u1, q.v0);
-      TV c = V(q.x1, q.y1, q.u1, q.v1);
-      TV d = V(q.x0, q.y1, q.u0, q.v1);
-      out.push_back(a); out.push_back(b); out.push_back(c);
-      out.push_back(a); out.push_back(c); out.push_back(d);
+    if (isBtn) {
+      // BandButton glyphs always use the uniform kTextScale (the in-MILO button
+      // scale is a TransAnim bind pose; it does NOT give the rendered size). X:
+      // the main menu's bind-pose buttons (non-uniform box scale 0.555/1.899) use
+      // the runtime-aligned left edge; other screens use the button's translation.
+      const bool bindPose = n0 > 1e-3f && n2 > 1e-3f &&
+                            (std::min(n0, n2) / std::max(n0, n2) < 0.6f);
+      const float ax = bindPose ? kMenuLeftX : lbl.world[9];
+      const float ay = lbl.world[10], az = lbl.world[11];
+      const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
+      emit(quads, [&](float qx, float qy, float u, float v) {
+        const float lx = qx * scl, lz = -(qy - capH * 0.5f) * scl;
+        TV tv{ax + lx * r0x + lz * r2x, ay, az + lx * r0z + lz * r2z, u, v, col};
+        return tv;
+      });
+    } else {
+      // Text / BandLabel: their in-MILO Trans IS the render transform (not anim-
+      // driven). Full matrix, em-normalised layout, centred on the translation.
+      const float Tx = lbl.world[9], Ty = lbl.world[10], Tz = lbl.world[11];
+      const float m0 = lbl.world[0], m2 = lbl.world[2], m6 = lbl.world[6], m8 = lbl.world[8];
+      const float halfW = (w / capH) * 0.5f;
+      emit(quads, [&](float qx, float qy, float u, float v) {
+        const float ex = qx / capH - halfW, ez = -((qy - capH * 0.5f) / capH);
+        TV tv{Tx + m0 * ex + m2 * ez, Ty, Tz + m6 * ex + m8 * ez, u, v, col};
+        return tv;
+      });
     }
   }
 }
