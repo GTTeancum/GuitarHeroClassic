@@ -163,11 +163,13 @@ std::map<std::string, std::string> load_locale(const gh::ark::ArkV3Reader& ark,
   return m;
 }
 
-// GH2 UI state colours, read 1:1 from common.milo's state materials
-// (normal/focused/disabled/selecting.mat). The focused menu item is YELLOW.
-constexpr uint32_t kColNormal  = 0xFFFFFFFFu;  // normal.mat   (1,1,1)
-constexpr uint32_t kColFocused = 0xFFFFFF00u;  // focused.mat  (1,1,0) yellow
-constexpr uint32_t kColDisabled= 0xFF666666u;  // disabled.mat (0.4)
+// GH2 menu item colours, read 1:1 from the PanelDir "GH2" type in ui_objects.dtb
+// ((normal_color {pack_color 1 0 0}) etc.). Normal items are RED; the focused
+// item renders WHITE (selecting_color (1,1,1); retail does not use the green
+// focus_color for the resting highlight — verified against a real frame).
+constexpr uint32_t kColNormal  = 0xFFFF0000u;  // normal_color   (1,0,0) red
+constexpr uint32_t kColFocused = 0xFFFFFFFFu;  // selecting_color (1,1,1) white
+constexpr float kFocusScale    = 1.05f;        // PanelDir (focus_scale 1.05)
 // Text cap height in world units: the button's text box is 15 local units tall
 // and the main_buttons.view group scales Z by 1.899 -> ~28.5 world units. The
 // impact font's native cap is 34 px, so world-per-px = 28.5/34.
@@ -194,14 +196,19 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
     if (quads.empty())
       std::fprintf(stderr, "[menu]   WARN label '%s' key='%s' disp='%s' -> no glyphs\n",
                    lbl.name.c_str(), lbl.text.c_str(), disp.c_str());
+    const bool foc = (lbl.name == focused);
     const float ax = lbl.world[9], ay = lbl.world[10], az = lbl.world[11];
     const float capH = font.cap_height();
-    const uint32_t argb = (lbl.name == focused) ? kColFocused : kColNormal;
+    const uint32_t argb = foc ? kColFocused : kColNormal;
+    const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
 
+    // The menu items are LEFT-aligned (the reference shows their left edges
+    // aligned on the right half of the poster): the text's left edge sits at the
+    // box origin (world translation X); it grows rightward.
     auto V = [&](float qx, float qy, float u, float v) {
       TV tv;
-      tv.x = ax + (qx - w * 0.5f) * kTextScale;        // centre horizontally
-      tv.z = az - (qy - capH * 0.5f) * kTextScale;     // font-y down -> world-z up
+      tv.x = ax + qx * scl;                          // left-aligned at the box X
+      tv.z = az - (qy - capH * 0.5f) * scl;          // font-y down -> world-z up
       tv.y = ay;
       tv.u = u; tv.v = v; tv.argb = argb;
       return tv;

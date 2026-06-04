@@ -142,11 +142,15 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     in the X-Z menu plane. MiloSceneRenderer got a `set_text` overlay pass (alpha-blend,
     no depth write, atlas-modulated tint). All 5 items (CAREER / QUICK PLAY /
     MULTIPLAYER / TRAINING / OPTIONS) render at their real positions.
-    **State colours + size RE'd from the data (no longer guessed):** common.milo holds
-    the per-state fonts (normal/focused/disabled/selecting.font) + their materials —
-    `normal.mat=(1,1,1)` WHITE, `focused.mat=(1,1,0)` YELLOW, `disabled.mat=(.4,.4,.4)`,
-    `selecting.mat=(1,0,0)` RED. So the focused item draws yellow (per the screen→panel
-    focus chain), the rest white. `ui.cam` (in common.milo) = (0,−768,0) fov 0.602,
+    **State colours — CORRECTED.** The menu items are `BandButton`s in a `PanelDir`,
+    and the `PanelDir` **"GH2" type** (ui_objects.dtb) defines the item colours:
+    `normal_color {pack_color 1 0 0}` = **RED**, `selecting_color {pack_color 1 1 1}` =
+    **WHITE**, `disabled 0.3`, plus `focus_scale 1.05`. Verified against a real frame:
+    normal items red, the focused item (QUICK PLAY, per main.dtb `(focus
+    main_quickspin.btn)`) white and 5% larger. The items are **left-aligned** on the
+    right half of the poster (not centred). (Earlier I wrongly used common.milo's
+    *arial* UIButton state materials — white/yellow — that's a different widget set.)
+    `ui.cam` (in common.milo) = (0,−768,0) fov 0.602,
     identical to the bg camera, confirming UI shares the 3-D plane. Each BandButton's
     text box is `width × 15` local units (constant 15 height); the group scales Z by
     1.899 → ~28.5 world-unit cap, so kTextScale = 28.5/34 (≈2× the earlier guess).
