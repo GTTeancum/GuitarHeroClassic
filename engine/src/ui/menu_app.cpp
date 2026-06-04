@@ -163,17 +163,19 @@ std::map<std::string, std::string> load_locale(const gh::ark::ArkV3Reader& ark,
   return m;
 }
 
-// Build world-space glyph quads for a panel's labels. The label text is laid out
-// flat in the menu's X-Z plane (camera looks down -Y), centred on each object's
-// world Trans translation, scaled by kTextScale world-units-per-font-pixel.
-//
-// NOTE: positions come straight from each object's decoded world matrix; the
-// scale (kTextScale) is the one tunable not byte-recoverable from the font (see
-// FIDELITY 2c) and is pinned by screenshot comparison against GH2.
-constexpr float kTextScale = 0.42f;
+// GH2 UI state colours, read 1:1 from common.milo's state materials
+// (normal/focused/disabled/selecting.mat). The focused menu item is YELLOW.
+constexpr uint32_t kColNormal  = 0xFFFFFFFFu;  // normal.mat   (1,1,1)
+constexpr uint32_t kColFocused = 0xFFFFFF00u;  // focused.mat  (1,1,0) yellow
+constexpr uint32_t kColDisabled= 0xFF666666u;  // disabled.mat (0.4)
+// Text cap height in world units: the button's text box is 15 local units tall
+// and the main_buttons.view group scales Z by 1.899 -> ~28.5 world units. The
+// impact font's native cap is 34 px, so world-per-px = 28.5/34.
+constexpr float kTextScale = 28.5f / 34.0f;
 
 void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& font,
                        const std::map<std::string, std::string>& locale,
+                       const std::string& focused,
                        std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out) {
   using TV = ghogx::render::MiloSceneRenderer::TextVertex;
   for (const auto& lbl : labels) {
@@ -194,7 +196,7 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
                    lbl.name.c_str(), lbl.text.c_str(), disp.c_str());
     const float ax = lbl.world[9], ay = lbl.world[10], az = lbl.world[11];
     const float capH = font.cap_height();
-    const uint32_t argb = 0xFFFFFFFFu;  // white; per-state colour is a follow-up
+    const uint32_t argb = (lbl.name == focused) ? kColFocused : kColNormal;
 
     auto V = [&](float qx, float qy, float u, float v) {
       TV tv;
@@ -220,6 +222,16 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
                   Object* screen, ghogx::render::MiloSceneRenderer& renderer,
                   const MenuFont& font,
                   const std::map<std::string, std::string>& locale) {
+  // The focused component (screen.focus -> panel; panel.focus -> component) is
+  // drawn in the focused colour (yellow).
+  std::string focused;
+  if (screen) {
+    Symbol fpn = screen->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
+    if (Object* fp = fpn.valid() ? mgr.find_object(fpn) : nullptr) {
+      Symbol fc = fp->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
+      if (fc.valid()) focused = fc.c_str();
+    }
+  }
   std::vector<ghogx::render::MiloSceneRenderer::TextVertex> verts;
   for (Symbol pn : screen_panel_names(screen)) {
     Object* panel = mgr.find_object(pn);
@@ -228,8 +240,9 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
     auto sym = f.as_symbol();
     if (!sym) continue;
     auto labels = extract_menu_labels(hdr, ark, "ui/gen/" + std::string(sym->c_str()) + "_ps2");
-    append_text_quads(labels, font, locale, verts);
+    append_text_quads(labels, font, locale, focused, verts);
   }
+  std::fprintf(stderr, "[menu] focused component = '%s'\n", focused.c_str());
   std::fprintf(stderr, "[menu] text: %zu glyph-verts\n", verts.size());
   renderer.set_text(std::move(verts), font.atlas());
 }

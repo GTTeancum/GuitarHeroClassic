@@ -142,8 +142,17 @@ ground. Tracked here until each is `[RECOMP]`/`[HARMONIX]`/`[VERBATIM]` or accep
     in the X-Z menu plane. MiloSceneRenderer got a `set_text` overlay pass (alpha-blend,
     no depth write, atlas-modulated tint). All 5 items (CAREER / QUICK PLAY /
     MULTIPLAYER / TRAINING / OPTIONS) render at their real positions.
-    `[VERBATIM]` positions+labels+kerning; `[INFERENCE]` only kTextScale (0.42) + the
-    white tint, both to be pinned by screenshot.
+    **State colours + size RE'd from the data (no longer guessed):** common.milo holds
+    the per-state fonts (normal/focused/disabled/selecting.font) + their materials —
+    `normal.mat=(1,1,1)` WHITE, `focused.mat=(1,1,0)` YELLOW, `disabled.mat=(.4,.4,.4)`,
+    `selecting.mat=(1,0,0)` RED. So the focused item draws yellow (per the screen→panel
+    focus chain), the rest white. `ui.cam` (in common.milo) = (0,−768,0) fov 0.602,
+    identical to the bg camera, confirming UI shares the 3-D plane. Each BandButton's
+    text box is `width × 15` local units (constant 15 height); the group scales Z by
+    1.899 → ~28.5 world-unit cap, so kTextScale = 28.5/34 (≈2× the earlier guess).
+    `[VERBATIM]` positions+labels+kerning+state-colours; `[INFERENCE]` residual: the
+    cap=box-height mapping, centre alignment, and uniform (non-stretched) layout —
+    small, to be pinned by a reference frame.
     DEFERRED: the 3 `Text` objects (SONG/VENUE/DIFFICULTY) need their parent-group
     offset composed (their bare world translation lands them on the button column) and
     use a non-impact font; per-state focus colour; the help bar.
