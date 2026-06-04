@@ -170,10 +170,13 @@ std::map<std::string, std::string> load_locale(const gh::ark::ArkV3Reader& ark,
 constexpr uint32_t kColNormal  = 0xFFFF0000u;  // normal_color   (1,0,0) red
 constexpr uint32_t kColFocused = 0xFFFFFFFFu;  // selecting_color (1,1,1) white
 constexpr float kFocusScale    = 1.05f;        // PanelDir (focus_scale 1.05)
-// Text cap height in world units: the button's text box is 15 local units tall
-// and the main_buttons.view group scales Z by 1.899 -> ~28.5 world units. The
-// impact font's native cap is 34 px, so world-per-px = 28.5/34.
-constexpr float kTextScale = 28.5f / 34.0f;
+// World-units per font pixel. The button's text box is 15 local units tall and
+// is the text LINE height (the line fills the box; the reference shows a clear
+// gap between items, so cap < box, not cap == box). impact line=50 / cap=34, and
+// the main_buttons.view group scales Z by 1.899:
+//   world-per-px = (box_height / line_px) * z_scale = (15/50) * 1.899 ≈ 0.57
+// → cap ≈ 19.4 world units, matching the reference's item size + inter-line gap.
+constexpr float kTextScale = (15.0f / 50.0f) * 1.899f;
 
 void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& font,
                        const std::map<std::string, std::string>& locale,
