@@ -1,0 +1,125 @@
+// engine/src/character/char_clip.h
+//
+// CharClipSamples decoder: loads all frames from a GH2 PS2 animation clip.
+
+#pragma once
+
+#include "character/char_mesh.h"
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+namespace ghogx::character {
+
+// One channel value for one frame.
+struct ClipChannel {
+  enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
+  std::string bone_name;  // name without suffix (e.g. "bone_R-clavicle")
+  float pos[3] = {};      // kPos: X,Y,Z
+  float scale[3] = {1.0f, 1.0f, 1.0f};  // kScale: local X,Y,Z scale
+  float quat[4] = {};     // kQuat: X,Y,Z,W
+  float angle = 0.0f;     // kRotX/kRotY/kRotZ: radians
+};
+
+// All frames of one clip, indexed [frame][channel].
+struct CharClip {
+  std::string name;
+  std::vector<std::vector<ClipChannel>> frames;  // frames[f][ch]
+  int fps = 30;        // authored clip playback rate
+  float start_frame = 0.0f;
+  float end_frame = 0.0f;
+  uint32_t flags = 0;
+  uint32_t default_play_flags = 0;
+  float blend_width = 0.0f;
+  float range = 0.0f;
+  bool relative = false;
+  bool loaded = false;
+
+  float duration_seconds() const;
+};
+
+enum CharPlayFlags : uint32_t {
+  kCharPlayNoDefault = 0x00000000u,
+  kCharPlayNow       = 0x00000001u,
+  kCharPlayNoBlend   = 0x00000002u,
+  kCharPlayFirst     = 0x00000003u,
+  kCharPlayLast      = 0x00000004u,
+  kCharPlayDirty     = 0x00000008u,
+  kCharPlayNoLoop    = 0x00000010u,
+  kCharPlayLoop      = 0x00000020u,
+  kCharPlayGraphLoop = 0x00000030u,
+  kCharPlayNodeLoop  = 0x00000040u,
+  kCharPlayRealTime  = 0x00000200u,
+  kCharPlayUserTime  = 0x00000400u,
+};
+
+// Lightweight viewer-side CharDriver play-node emulation. It owns clip time,
+// loop/clamp behavior, and the previous-node blend that the game runtime uses
+// when a new clip is started without kCharPlayNoBlend.
+class CharClipPlayer {
+ public:
+  void clear();
+  void play(const CharClip& clip, uint32_t flags = kCharPlayLoop,
+            float blend_width = -1.0f, float speed = 1.0f);
+  void advance(float dt_seconds);
+  void apply(Character& character, float weight = 1.0f) const;
+  bool active() const { return !layers_.empty(); }
+  const CharClip* current_clip() const;
+
+ private:
+  struct Layer {
+    const CharClip* clip = nullptr;
+    uint32_t flags = 0;
+    float time_seconds = 0.0f;
+    float blend_width = 0.0f;
+    float blend_progress = 0.0f;
+    float speed = 1.0f;
+  };
+
+  std::vector<Layer> layers_;
+};
+
+// Load all frames of a named CharClipSamples entry from the PS2 ARK.
+// Returns a CharClip with frames.empty() on failure.
+CharClip load_clip(const std::string& hdr_path,
+                   const std::string& ark_path,
+                   const std::string& milo_path,
+                   const std::string& clip_name);
+
+// Apply one frame of a clip to the character's bone local matrices.
+// frame_idx is clamped to [0, frames.size()-1].
+void apply_clip_frame(const CharClip& clip, int frame_idx, Character& character);
+void apply_clip_frame_weighted(const CharClip& clip, int frame_idx,
+                               float weight, Character& character);
+
+// Apply decoded character-level controllers that sit outside CharClipSamples
+// (eyes/look-at, FaceFX servo targets). Call after clip poses for the frame.
+struct FaceFxEyeProperties {
+  float l_eye_x = 0.0f;
+  float l_eye_z = 0.0f;
+  float r_eye_x = 0.0f;
+  float r_eye_z = 0.0f;
+  bool has_l_eye_x = false;
+  bool has_l_eye_z = false;
+  bool has_r_eye_x = false;
+  bool has_r_eye_z = false;
+};
+
+void apply_character_controllers(Character& character, float time_seconds,
+                                 FaceFxEyeProperties* eye_props = nullptr);
+
+// Legacy single-frame helpers kept for --clip screenshot mode.
+std::vector<ClipChannel> load_clip_pose(const std::string& hdr_path,
+                                        const std::string& ark_path,
+                                        const std::string& milo_path,
+                                        const std::string& clip_name);
+void apply_clip_pose(const std::vector<ClipChannel>& channels, Character& character);
+void apply_clip_pose_weighted(const std::vector<ClipChannel>& channels,
+                              float weight, Character& character,
+                              bool relative = false);
+void apply_clip_pose_sampled(const std::vector<ClipChannel>& channels,
+                             float weight, Character& character,
+                             bool relative = false);
+
+}  // namespace ghogx::character

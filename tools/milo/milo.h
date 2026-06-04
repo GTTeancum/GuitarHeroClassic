@@ -52,6 +52,11 @@ struct Directory {
     std::string dir_type;            // e.g. "ObjectDir"
     std::string dir_name;            // e.g. "chartest"
     std::vector<Entry> entries;
+    // The directory's OWN object body (GH2 version 24+): the bytes between the
+    // entry-name list and the first 0xADDEADDE. For a TrackDir/PanelDir this
+    // holds the dir's instance properties (y_per_second, slots, top/bottom_y).
+    uint64_t    dir_entry_offset = 0;
+    uint64_t    dir_entry_size = 0;
 };
 
 // Parse the container header only (no decompression).

@@ -21,7 +21,12 @@
 #include "venue_catalog.h"
 #include "character_catalog.h"
 #include "milo_tex.h"
+#include "milo_bridge/milo_bridge.h"
+#include "milo_scene/milo_scene.h"
+#include "core/object_dir.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -47,6 +52,13 @@ void usage() {
         "  all                                songs + venues + chars\n"
         "  tex-from-milo --milo-path <p>\n"
         "                --out-dir <d>        extract textures from a milo\n"
+        "  dump --milo-path <p>\n"
+        "       [--filter <type>]             hex-dump MILO entry bodies\n"
+        "  objdir --milo-path <p>             load a milo's object directory and\n"
+        "                                     print the runtime ObjectDir tree\n"
+        "  mesh --milo-path <p> [--name <m>]  decode Mesh/Trans/Mat render objects;\n"
+        "                                     report vtx/face counts + bbox + material\n"
+        "  list [--filter <substr>]           enumerate ARK entry paths\n"
         "\n"
         "Common options:\n"
         "  --ark-dir <dir>                    dir with MAIN.HDR + MAIN_0.ARK\n"
@@ -63,6 +75,8 @@ struct Args {
     std::string catalog_path = "config/gen/songs.dtb";
     std::string milo_path;
     std::string out_dir;
+    std::string filter;  // substring filter for the `list` subcommand
+    std::string name;    // exact entry-name match for `dump` / `mesh`
     bool json = false;
 };
 
@@ -84,6 +98,8 @@ Args parse_args(int argc, char** argv) {
         else if (k == "--catalog")   a.catalog_path = need("--catalog");
         else if (k == "--milo-path") a.milo_path = need("--milo-path");
         else if (k == "--out-dir")   a.out_dir = need("--out-dir");
+        else if (k == "--filter")    a.filter = need("--filter");
+        else if (k == "--name")      a.name = need("--name");
         else if (k == "--json")      a.json = true;
         else if (k == "-h" || k == "--help") usage();
         else { std::fprintf(stderr, "unknown arg: %s\n", argv[i]); usage(); }
@@ -232,6 +248,206 @@ int run_tex_from_milo(const Args& a, const gh::ark::ArkV3Reader& ark) {
     return fail > 0 ? 1 : 0;
 }
 
+// ----- dump ----------------------------------------------------------------
+// Hex-dump the raw bytes of named entries from a MILO. Crucial for decoding
+// binary formats (Trans/Mesh/Mat/...) that have no community reader yet.
+// Usage: ghogx dump --milo-path <p> [--filter <type>]
+// With --filter, only entries whose TYPE matches the filter are dumped.
+// Prints up to 256 bytes per entry in hexdump format, with ASCII.
+int run_dump(const Args& a, const gh::ark::ArkV3Reader& ark) {
+    if (a.milo_path.empty()) {
+        std::fprintf(stderr, "dump needs --milo-path\n");
+        return 2;
+    }
+    auto e = find_in_ark(ark, a.milo_path);
+    if (!e) {
+        std::fprintf(stderr, "milo not found: %s\n", a.milo_path.c_str());
+        return 1;
+    }
+    auto bytes = ark.read_entry(*e, {a.ark});
+    auto hdr = gh::milo::parse_header(bytes);
+    auto payload = gh::milo::inflate_payload(bytes, hdr);
+    auto dir = gh::milo::parse_directory(payload);
+
+    const std::string& flt = a.filter;  // filter by entry type
+
+    // Special filter "@dir": dump the directory's OWN object body (holds the
+    // dir instance properties, e.g. TrackDir y_per_second / slots).
+    if (flt == "@dir") {
+        std::printf("\n=== %s dir-object  type=%s name=%s  offset=%llu size=%llu ===\n",
+                    a.milo_path.c_str(), dir.dir_type.c_str(), dir.dir_name.c_str(),
+                    (unsigned long long)dir.dir_entry_offset,
+                    (unsigned long long)dir.dir_entry_size);
+        const uint8_t* src = payload.data() + dir.dir_entry_offset;
+        const size_t show = std::min<size_t>(dir.dir_entry_size, 1024);
+        for (size_t row = 0; row < show; row += 16) {
+            const size_t cols = std::min(show - row, (size_t)16);
+            std::printf("  %06zx  ", row);
+            for (size_t c = 0; c < cols; ++c) std::printf("%02x%s", src[row+c], c==7?"  ":" ");
+            for (size_t c = cols; c < 16; ++c) std::printf("   ");
+            std::printf(" |");
+            for (size_t c = 0; c < cols; ++c) { char ch=(char)src[row+c]; std::printf("%c",(ch>=0x20&&ch<0x7f)?ch:'.'); }
+            std::printf("|\n");
+        }
+        // Also interpret every 4-byte window as a float in a plausible range,
+        // to spot config values (top_y ~110, remove_y ~-15, slot x ~+-8/+-4).
+        std::printf("\n  plausible floats (|v| in [0.01, 100000], at each offset):\n");
+        for (size_t o = 0; o + 4 <= dir.dir_entry_size; ++o) {
+            float f; std::memcpy(&f, src + o, 4);
+            const float a2 = f < 0 ? -f : f;
+            if (a2 >= 0.01f && a2 <= 100000.0f) {
+                std::printf("    +%04zx  %g\n", o, f);
+            }
+        }
+        return 0;
+    }
+
+    // With --name, dump the FULL entry body (no 256 cap) plus a float column,
+    // for hand-decoding a specific Mesh/Trans/Mat. Otherwise cap at 256.
+    const bool full = !a.name.empty();
+
+    int dumped = 0;
+    for (const auto& de : dir.entries) {
+        if (full) {
+            if (de.name != a.name) continue;
+        } else if (!flt.empty()) {
+            // case-insensitive type filter
+            std::string t = de.type;
+            std::string f = flt;
+            std::transform(t.begin(), t.end(), t.begin(), [](unsigned char c){ return std::tolower(c); });
+            std::transform(f.begin(), f.end(), f.begin(), [](unsigned char c){ return std::tolower(c); });
+            if (t.find(f) == std::string::npos) continue;
+        }
+        std::printf("\n=== %s  '%s'  offset=%llu  size=%llu ===\n",
+                    de.type.c_str(), de.name.c_str(),
+                    static_cast<unsigned long long>(de.offset),
+                    static_cast<unsigned long long>(de.size));
+        if (de.size == 0) { std::printf("  (empty)\n"); continue; }
+
+        const uint8_t* src = payload.data() + de.offset;
+        const size_t show = full ? de.size : std::min(de.size, static_cast<uint64_t>(256));
+        for (size_t row = 0; row < show; row += 16) {
+            const size_t cols = std::min(show - row, static_cast<size_t>(16));
+            std::printf("  %06zx  ", row);
+            for (size_t c = 0; c < cols; ++c) {
+                std::printf("%02x%s", src[row+c], (c == 7 ? "  " : " "));
+            }
+            for (size_t c = cols; c < 16; ++c) std::printf("   ");
+            std::printf(" |");
+            for (size_t c = 0; c < cols; ++c) {
+                char ch = static_cast<char>(src[row+c]);
+                std::printf("%c", (ch >= 0x20 && ch < 0x7f) ? ch : '.');
+            }
+            std::printf("|\n");
+        }
+        if (!full && de.size > 256)
+            std::printf("  ... (%llu more bytes)\n",
+                        static_cast<unsigned long long>(de.size - 256));
+        ++dumped;
+    }
+    std::printf("\n%d entr%s dumped from %s\n", dumped, dumped==1?"y":"ies",
+                a.milo_path.c_str());
+    return 0;
+}
+
+// ----- dtb -----------------------------------------------------------------
+// Parse a DTB config file from the ARK and print it as readable DTA text.
+// Usage: ghogx dtb --milo-path config/gen/track_graphics.dtb
+int run_dtb(const Args& a, const gh::ark::ArkV3Reader& ark) {
+    if (a.milo_path.empty()) {
+        std::fprintf(stderr, "dtb needs --milo-path <dtb-path>\n");
+        return 2;
+    }
+    auto e = find_in_ark(ark, a.milo_path);
+    if (!e) {
+        std::fprintf(stderr, "dtb not found: %s\n", a.milo_path.c_str());
+        return 1;
+    }
+    auto bytes = ark.read_entry(*e, {a.ark});
+    auto tree = gh::dtb::parse(bytes);
+    std::string text = gh::dtb::to_dta(tree);
+    std::fwrite(text.data(), 1, text.size(), stdout);
+    std::fputc('\n', stdout);
+    return 0;
+}
+
+// ----- objdir --------------------------------------------------------------
+// Load a MILO's object directory into the runtime ObjectDir tree and print it
+// (the structural MILO load: dir metadata + each child's class + name). Real
+// asset exercise of ghogx_milo_bridge; the unit test covers it hermetically.
+int run_objdir(const Args& a) {
+    if (a.milo_path.empty()) {
+        std::fprintf(stderr, "objdir needs --milo-path\n");
+        return 2;
+    }
+    auto od = ghogx::milo_bridge::load_object_dir(a.hdr, a.ark, a.milo_path);
+    if (!od) return 1;
+
+    std::printf("\nObjectDir  name=%s  dir_type=%s  children=%zu\n",
+                od->name().c_str(), od->dir_type().c_str(), od->size());
+    std::printf("%s\n", std::string(56, '-').c_str());
+    for (std::size_t i = 0; i < od->size(); ++i) {
+        const ghogx::Object* c = od->at(i);
+        std::printf("  %3zu  %-18s  %s\n", i, c->class_name().c_str(),
+                    c->name().c_str());
+    }
+    std::printf("\n");
+    return 0;
+}
+
+// ----- mesh ----------------------------------------------------------------
+// Decode the 3-D render objects of a MILO and report mesh stats: vertex_count,
+// face_count, bounding box (min/max xyz), and material name. With --name, only
+// that one Mesh entry; otherwise every Mesh in the MILO (summary). Verifies the
+// Mesh/Trans/Mat byte decode against entry size.
+//   ghogx mesh --milo-path <p> [--name <mesh>]
+int run_mesh(const Args& a) {
+    if (a.milo_path.empty()) {
+        std::fprintf(stderr, "mesh needs --milo-path\n");
+        return 2;
+    }
+    ghogx::milo_scene::Scene scene;
+    if (!ghogx::milo_scene::load_scene(a.hdr, a.ark, a.milo_path, scene)) return 1;
+
+    std::printf("\nScene  name=%s  dir_type=%s  meshes=%zu  trans=%zu  mat=%zu\n",
+                scene.dir_name.c_str(), scene.dir_type.c_str(),
+                scene.meshes.size(), scene.transes.size(), scene.mats.size());
+    std::printf("%s\n", std::string(96, '-').c_str());
+    std::printf("  %-26s %7s %7s  %-16s  %s\n", "mesh", "verts", "faces",
+                "material", "bbox (min..max xyz)");
+
+    int shown = 0, ok = 0, fail = 0;
+    for (const auto& m : scene.meshes) {
+        if (!a.name.empty() && m.name != a.name) continue;
+        ++shown;
+        if (m.decoded) ++ok; else ++fail;
+        if (m.decoded) {
+            std::printf("  %-26s %7u %7u  %-16s  [%.2f %.2f %.2f]..[%.2f %.2f %.2f]\n",
+                        m.name.substr(0, 26).c_str(), m.vertex_count, m.face_count,
+                        m.material.substr(0, 16).c_str(),
+                        m.bb_min[0], m.bb_min[1], m.bb_min[2],
+                        m.bb_max[0], m.bb_max[1], m.bb_max[2]);
+            if (!a.name.empty()) {
+                std::printf("      parent=%s\n", m.parent.c_str());
+                std::printf("      local pos=[%.4f %.4f %.4f]\n",
+                            m.local.pos[0], m.local.pos[1], m.local.pos[2]);
+                std::printf("      local row0=[%.4f %.4f %.4f]\n",
+                            m.local.rot[0][0], m.local.rot[0][1], m.local.rot[0][2]);
+                std::printf("      local row1=[%.4f %.4f %.4f]\n",
+                            m.local.rot[1][0], m.local.rot[1][1], m.local.rot[1][2]);
+                std::printf("      local row2=[%.4f %.4f %.4f]\n",
+                            m.local.rot[2][0], m.local.rot[2][1], m.local.rot[2][2]);
+            }
+        } else {
+            std::printf("  %-26s   FAIL: %s\n", m.name.substr(0, 26).c_str(),
+                        m.error.c_str());
+        }
+    }
+    std::printf("\n%d mesh%s shown  (%d decoded, %d failed)\n", shown,
+                shown == 1 ? "" : "es", ok, fail);
+    return fail > 0 && shown == fail ? 1 : 0;
+}
+
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
@@ -246,6 +462,30 @@ int main(int argc, char** argv) {
                      ark.entries().size(), ark.version());
 
         if (a.sub == "tex-from-milo") return run_tex_from_milo(a, ark);
+        if (a.sub == "dump") return run_dump(a, ark);
+        if (a.sub == "dtb") return run_dtb(a, ark);
+        if (a.sub == "objdir") return run_objdir(a);
+        if (a.sub == "mesh") return run_mesh(a);
+
+        if (a.sub == "list") {
+            std::string f = a.filter;
+            std::transform(f.begin(), f.end(), f.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            std::size_t n = 0;
+            for (const auto& e : ark.entries()) {
+                if (!f.empty()) {
+                    std::string lp = e.full_path;
+                    std::transform(lp.begin(), lp.end(), lp.begin(),
+                                   [](unsigned char c) { return std::tolower(c); });
+                    if (lp.find(f) == std::string::npos) continue;
+                }
+                std::printf("%9u  %s\n", e.size, e.full_path.c_str());
+                ++n;
+            }
+            std::printf("\n%zu entr%s%s\n", n, n == 1 ? "y" : "ies",
+                        a.filter.empty() ? "" : " (filtered)");
+            return 0;
+        }
 
         // Lazy-load whatever each sub needs.
         std::vector<ghogx::catalog::Song> songs;

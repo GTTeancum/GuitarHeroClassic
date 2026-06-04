@@ -223,6 +223,8 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
     };
 
     size_t cursor = scan(pos);
+    d.dir_entry_offset = pos;                 // root dir's own object body
+    d.dir_entry_size = cursor - pos;
     if (cursor == p.size()) return d;  // no markers; nothing to size
     cursor += 4;                       // skip directory-entry terminator
 

@@ -65,8 +65,12 @@ ExtractedTex parse_tex_entry(const std::string& entry_name,
     /*int32_t index =*/ rd_i32(p + pos); pos += 4;
     out.use_external = p[pos] != 0; pos += 1;
 
-    if (out.use_external || pos >= n) {
-        // Either explicitly external, or no embedded bitmap follows.
+    // NOTE: GH2 PS2 embeds the HMXBitmap even when use_external is set -- the
+    // external_path is a build-time source reference (e.g. the venue surface
+    // textures st_stone01_mip.bmp / speaker_cone_mip.bmp). The pixel data is
+    // still present inline. So parse the embedded bitmap whenever bytes remain;
+    // only treat the entry as truly external when nothing follows.
+    if (pos >= n) {
         return out;
     }
 
