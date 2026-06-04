@@ -214,11 +214,23 @@ constexpr float kFocusScale      = 1.05f;        // ui_objects_ps2.dta:10 (focus
 // that refinement is logged in FIDELITY (the captured buttons' screen identity is
 // ambiguous, so the global kTextScale stays the confirmed text_size 0.5).
 constexpr float kTextScale = 0.50f;
-// Column left edge. The static per-.btn X is a bind pose (varies -1.0..+3.9 across the
-// five buttons; the runtime aligns their left edges). 3.9 is the live-XEX-measured
-// aligned edge (trace-360 showed X ~3.5-4.4); it is an averaged reading of that range,
-// not a single byte-exact value. (Z row positions ARE byte-exact, from each Trans.)
+// Column left edge for the menu text. NOTE: the runtime main-menu buttons are NOT
+// left-aligned to a single X — each has its own X (the poster design); the captured
+// X was mid-slide-in animation so it isn't settled. 3.9 is a column placeholder that
+// reads well; the per-button settled X (≈ the bind-pose world[9]) is a known follow-up.
 constexpr float kMenuLeftX = 3.9f;
+// Main-menu vertical layout — GROUNDED in the live XEX. The trace-360 BandButton
+// struct hook captured all five main-menu buttons (scale 0.555/1.899, tilt -1deg =
+// the main-menu template + poster tilt, confirmed by main-menu logic running). Their
+// runtime Z is an EXACT affine remap of the static bind-pose Z (world[11]):
+//     runtime_Z = 0.875 * bind_Z + 4.0
+// fitting all five to < 0.05 (career 16.90->18.79, quickspin -13.46->-7.75,
+// multiplayer -43.79->-34.32, tutorial -74.19->-60.92, options -104.63->-87.54). So
+// the panel compresses the column to ~87.5% and nudges it up 4.0. (This is the REAL
+// main-menu transform; the earlier reverted 0.758/-23.54 was from a boot DIALOG
+// mistaken for the menu — different screen, scale 1.05 / tilt +2deg.)
+constexpr float kMenuZScale  = 0.875f;
+constexpr float kMenuZOffset = 4.0f;
 
 void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& font,
                        const std::map<std::string, std::string>& locale,
@@ -269,7 +281,10 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
       const bool bindPose = n0 > 1e-3f && n2 > 1e-3f &&
                             (std::min(n0, n2) / std::max(n0, n2) < 0.6f);
       const float ax = bindPose ? kMenuLeftX : lbl.world[9];
-      const float ay = lbl.world[10], az = lbl.world[11];
+      const float ay = lbl.world[10];
+      // Main-menu bind-pose buttons: remap the bind-pose Z to the XEX-measured
+      // runtime Z (affine, fits all 5 buttons exactly). Other screens use their Z.
+      const float az = bindPose ? (kMenuZScale * lbl.world[11] + kMenuZOffset) : lbl.world[11];
       const float scl = kTextScale * (foc ? kFocusScale : 1.0f);
       emit(quads, [&](float qx, float qy, float u, float v) {
         const float lx = qx * scl, lz = -(qy - capH * 0.5f) * scl;
