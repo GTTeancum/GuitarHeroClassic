@@ -1,0 +1,1704 @@
+﻿class:achievements
+   sub_82270D20 <- __imp__sub_8229D910 <- __imp__sub_8229DAD0 <- __imp__sub_82284020 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:beatmatch
+   sub_82270D20 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88 <- __imp__sub_8236B460 <- __imp__sub_82120090
+class:beatmatcher
+   sub_82270D20 <- __imp__sub_82330038 <- __imp__sub_82338C78 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88
+class:campaign
+   sub_82270D20 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748
+class:characters
+   sub_82270D20 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+class:contexts
+   sub_82270D20 <- __imp__sub_822E1058 <- __imp__sub_822CBD18 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+class:default_band
+   sub_82270D20 <- __imp__sub_822B7670 <- __imp__sub_822B8B18 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+class:downloads
+   sub_82270D20 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748
+class:guitars
+   sub_82270D20 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+class:hud
+   sub_82270D20 <- __imp__sub_82690A00 <- __imp__sub_82690308 <- __imp__sub_823763D8 <- __imp__sub_82378D88 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+class:joypad
+   sub_82270D20 <- __imp__sub_8227B4A0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:leaderboards
+   sub_82270D20 <- __imp__sub_822D6EE0 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+class:locale
+   sub_82270D20 <- __imp__sub_82356F30 <- __imp__sub_822712B0 <- __imp__sub_82271390 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208
+class:long_cheats
+   sub_82270D20 <- __imp__sub_8235C610 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:math
+   sub_82270D20 <- __imp__sub_8226DDF0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:mem
+   sub_82270D20 <- __imp__sub_82355048 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:rnd
+   sub_82270D20 <- __imp__sub_821E68E0 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:scoring
+   sub_82270D20 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+class:songs
+   sub_82270D20 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+class:sound
+   sub_82270D20 <- __imp__sub_822B1E58 <- __imp__sub_822B2058 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:store
+   sub_82270D20 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+class:synth
+   sub_82270D20 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:timer
+   sub_82270D20 <- __imp__sub_82272240 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:tips
+   sub_82270D20 <- __imp__sub_822825E8 <- __imp__sub_82282688 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:track_graphics
+   sub_82270D20 <- __imp__sub_82692BA8 <- __imp__sub_822B3418 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+class:ui
+   sub_82270D20 <- __imp__sub_8236D1F0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+class:venues
+   sub_82270D20 <- __imp__sub_822A75D0 <- __imp__sub_822C43B0 <- __imp__sub_822BEBF8 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+file_ext:.bmp_xbox
+   sub_82277878 <- __imp__sub_8227DC18 <- __imp__sub_822767F8 <- __imp__sub_8235A458 <- __imp__sub_821C8A30 <- __imp__sub_82359D00 <- __imp__sub_82693620 <- __imp__sub_82693968
+file_ext:.dtb
+   sub_82277878 <- __imp__sub_8227DC18 <- __imp__sub_822767F8 <- __imp__sub_82357A10 <- __imp__sub_8231C520 <- __imp__sub_82271070 <- __imp__sub_82271618 <- __imp__sub_82275A90
+file_ext:.dtx
+   sub_82277878 <- __imp__sub_8227DC18 <- __imp__sub_822767F8 <- __imp__sub_82357A10 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+file_ext:.fac
+   sub_82277878 <- __imp__sub_8227DC18 <- __imp__sub_822767F8 <- __imp__sub_8235A458 <- __imp__sub_8214E030 <- __imp__sub_82359D00 <- __imp__sub_8218FAF0 <- __imp__sub_823241E8
+file_ext:.fx_xbox
+   sub_82277878 <- __imp__sub_8227DC18 <- __imp__sub_822767F8 <- __imp__sub_82307530 <- __imp__sub_82308098 <- __imp__sub_823082C0 <- __imp__sub_82303CA8 <- __imp__sub_82120208
+file_ext:.mid
+   sub_82277878 <- __imp__sub_8227DC18 <- __imp__sub_822767F8 <- __imp__sub_8235A458 <- __imp__sub_822D59C0 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00
+file_ext:.milo_xbox
+   sub_82277878 <- __imp__sub_8227DC18 <- __imp__sub_822767F8 <- __imp__sub_8235F4B0 <- __imp__sub_82325108 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8 <- __imp__sub_82325568
+file_ext:.mogg
+   sub_82277878 <- __imp__sub_8227DC18 <- __imp__sub_822767F8 <- __imp__sub_826820D8 <- __imp__sub_822F5850 <- __imp__sub_822A1D60 <- __imp__sub_82378D28 <- __imp__sub_82379308
+file_ext:.voc
+   sub_82277878 <- __imp__sub_8227DC18 <- __imp__sub_822767F8 <- __imp__sub_821915D8 <- __imp__sub_822B6A18 <- __imp__sub_822B8B18 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8
+prop:_properties
+   sub_82319530 <- __imp__sub_822DA0B8 <- __imp__sub_822DA590 <- __imp__sub_822DAAA8 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:_song_not_found_
+   sub_82319530 <- __imp__sub_822E1058 <- __imp__sub_822CBD18 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:650_stripe
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:650_white
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:achievements
+   sub_82319530 <- sub_82270D20 <- __imp__sub_8229D910 <- __imp__sub_8229DAD0 <- __imp__sub_82284020 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:active_pad_set
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822B8B18 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_82273B68 <- __imp__sub_82273A00 <- __imp__sub_82273B68
+prop:add_sink
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:add_sinks
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:adj
+   sub_82319530 <- __imp__sub_82291428 <- __imp__sub_82291B70 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:allbeat
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90
+prop:allow_all_controllers
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_8229EED0 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_8227A4E0 <- __imp__sub_8227AAB8
+prop:allow_only_active_controller
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_8229EED0 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_8227A4E0 <- __imp__sub_8227AAB8
+prop:already_entered
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_82328E98 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328988 <- __imp__sub_8231A748
+prop:alterna
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:alterna1
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:alterna2
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:analog
+   sub_82319530 <- __imp__sub_8227C540 <- __imp__sub_8227C690 <- __imp__sub_8227CC98 <- __imp__sub_82271228 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:Anim
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8231C660 <- __imp__sub_8231C660 <- __imp__sub_8231C738 <- __imp__sub_8231F3C0 <- __imp__sub_823216E0 <- __imp__sub_821B9E40
+prop:anim_tempo
+   sub_82319530 <- __imp__sub_822B3BB8 <- __imp__sub_822B8B18 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82317FE8 <- __imp__sub_82166858
+prop:animate
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8224A2B0 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8232AD98 <- __imp__sub_8231A748 <- __imp__sub_82328988
+prop:animate_track
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:animate_track_out
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:AnimFilter
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82208048 <- __imp__sub_82315350 <- __imp__sub_82207D88 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:arena
+   sub_82319530 <- __imp__sub_822A2CF8 <- __imp__sub_822A3528 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:artist
+   sub_82319530 <- __imp__sub_822B3B48 <- __imp__sub_822B8B18 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748
+prop:attack_ms
+   sub_82319530 <- __imp__sub_82682558 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:attract_mode
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_8229EED0 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_8227A4E0 <- __imp__sub_8227AAB8
+prop:audio
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88 <- __imp__sub_8236B460
+prop:autosave
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_82328EF8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328910 <- __imp__sub_8231A748
+prop:back
+   sub_82319530 <- __imp__sub_823794E8 <- __imp__sub_8229E630 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0
+prop:back_arrow
+   sub_82319530 <- __imp__sub_82380238 <- __imp__sub_8237A798 <- __imp__sub_8237A540 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:background_attenuation
+   sub_82319530 <- __imp__sub_82335478 <- __imp__sub_82338518 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88
+prop:background_sfx
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:bad_waypoints
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B2240 <- __imp__sub_822B24D8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:band
+   sub_82319530 <- __imp__sub_822B7670 <- __imp__sub_822B8B18 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:band_jump
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90 <- __imp__sub_8233E5B8
+prop:BandButton
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236CCF8 <- __imp__sub_82124C08 <- __imp__sub_82121DC8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:BandCharacter
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822D42A8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823241E8
+prop:BandCrowdMeterDir
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82139A80 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82139760 <- __imp__sub_823241E8
+prop:BandLabel
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236CCF8 <- __imp__sub_8214C180 <- __imp__sub_82121DC8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:BandScoreDisplay
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8212D2F8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_8212D708 <- __imp__sub_823241E8
+prop:BandSlider
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236CCF8 <- __imp__sub_82146970 <- __imp__sub_82121DC8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:BandStarMeterDir
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82132688 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82132370 <- __imp__sub_823241E8
+prop:BandStreakDisplay
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82130880 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_8212E9A0 <- __imp__sub_823241E8
+prop:BandTextEntry
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236CCF8 <- __imp__sub_82144D78 <- __imp__sub_82121DC8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:bank
+   sub_82319530 <- __imp__sub_822CA928 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0
+prop:bank_slots
+   sub_82319530 <- __imp__sub_822EA138 <- __imp__sub_82682558 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:banks
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822A1D60 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0
+prop:BASS
+   sub_82319530 <- __imp__sub_823466A8 <- __imp__sub_82346A18 <- __imp__sub_823341D0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118
+prop:bass_grab_cherry
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_grab_maple
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_grabber_cherry
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_grabber_maple
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_hit
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:bass_hofner
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_music_black
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_music_lava
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_musicman
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_musicman_lava
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_sg_cream
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_sg_mahog
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_sg_mahogany
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_tb_burst
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_tb_ebony
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_thunderbird_burst
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bass_thunderbird_ebony
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:bassist
+   sub_82319530 <- __imp__sub_82155880 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:battle
+   sub_82319530 <- __imp__sub_822A2CF8 <- __imp__sub_822A3528 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:battleaxe
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:battleaxe_reward
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:beat
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822D03E8 <- __imp__sub_82338A48 <- __imp__sub_822CFA70 <- __imp__sub_822CDEB8
+prop:beatmatch
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88 <- __imp__sub_8236B460
+prop:beatmatcher
+   sub_82319530 <- sub_82270D20 <- __imp__sub_82330038 <- __imp__sub_82338C78 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:big
+   sub_82319530 <- __imp__sub_822A2CF8 <- __imp__sub_822A3528 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:blockletters_fill
+   sub_82319530 <- __imp__sub_8214A980 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_8214ACB8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:bloom
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:blow_streak
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748
+prop:blown_streak_feedback
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_823161D0 <- __imp__sub_82316428 <- __imp__sub_822B8B18 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:blur
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:bonus
+   sub_82319530 <- __imp__sub_826A08C8 <- __imp__sub_8269C968 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20
+prop:bsp_check_scale
+   sub_82319530 <- __imp__sub_8226BCC0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:bsp_dir_tol
+   sub_82319530 <- __imp__sub_8226BCC0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:bsp_max_candidates
+   sub_82319530 <- __imp__sub_8226BCC0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:bsp_max_depth
+   sub_82319530 <- __imp__sub_8226BCC0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:bsp_pos_tol
+   sub_82319530 <- __imp__sub_8226BCC0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:build_streak
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822DDF70 <- __imp__sub_822C9338 <- __imp__sub_822E2748 <- __imp__sub_8234F790
+prop:burn
+   sub_82319530 <- __imp__sub_8269C968 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748
+prop:button_down
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_8227A4E0 <- __imp__sub_8227AAB8 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8227BEE0
+prop:button_up
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_8227A670 <- __imp__sub_8227AAB8 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8227BEE0
+prop:Cam
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82308880 <- __imp__sub_82315350 <- __imp__sub_821D8C38 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:camera_durations
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_823161D0 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8
+prop:campaign
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8
+prop:CamShot
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8222C478 <- __imp__sub_82315350 <- __imp__sub_8222DE20 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:caption
+   sub_82319530 <- __imp__sub_822B3A68 <- __imp__sub_822B8B18 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748
+prop:casino
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:category
+   sub_82319530 <- __imp__sub_8215D008 <- __imp__sub_8215C4F0 <- __imp__sub_82315350 <- __imp__sub_8215B528 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:chain
+   sub_82319530 <- __imp__sub_822E6C20 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:change_chars
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:change_drums
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:change_guitar
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:change_outfit
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8215B830 <- __imp__sub_8215B528 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:change_proxies
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823743F0 <- __imp__sub_823249A0 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:change_song
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82191950 <- __imp__sub_8218FAF0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:char_added
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_82143050 <- __imp__sub_821433B0 <- __imp__sub_82143B28 <- __imp__sub_823741E0 <- __imp__sub_823746D8
+prop:Character
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82155880 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823241E8
+prop:character_outfit
+   sub_82319530 <- __imp__sub_822B86D0 <- __imp__sub_822B8B18 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82378FC8
+prop:characters
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:CharBone
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82160188 <- __imp__sub_82315350 <- __imp__sub_8215FDF0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharClipFilter
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82163AB8 <- __imp__sub_82315350 <- __imp__sub_82163F20 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharClipGroup
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82176EF0 <- __imp__sub_82315350 <- __imp__sub_821775A8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharClipSamples
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82163580 <- __imp__sub_82315350 <- __imp__sub_821A0BF0 <- __imp__sub_82162C68 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:CharClipSet
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82167AD8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_82168E08 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:CharDriver
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8216BBF0 <- __imp__sub_82315350 <- __imp__sub_8216BE80 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharDriverMidi
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82184E30 <- __imp__sub_82315350 <- __imp__sub_8216BE80 <- __imp__sub_82185590 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:CharEyes
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82171CB8 <- __imp__sub_82315350 <- __imp__sub_82172708 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharForeTwist
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82181D70 <- __imp__sub_82315350 <- __imp__sub_82182018 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharHair
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8217E1F8 <- __imp__sub_82315350 <- __imp__sub_8217FAF0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharIKHand
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82174160 <- __imp__sub_82315350 <- __imp__sub_82174470 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharIKMidi
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_821832A0 <- __imp__sub_82315350 <- __imp__sub_82184950 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharLookAt
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8216E358 <- __imp__sub_82315350 <- __imp__sub_8216EBB0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharPosConstraint
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82178F20 <- __imp__sub_82315350 <- __imp__sub_82179178 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:chars
+   sub_82319530 <- __imp__sub_821BBA20 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823249A0 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharServoBone
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82188C40 <- __imp__sub_82315350 <- __imp__sub_82188870 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharUpperTwist
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_821825C8 <- __imp__sub_82315350 <- __imp__sub_82182C00 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharWalk
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8218BB48 <- __imp__sub_82315350 <- __imp__sub_82189F80 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:CharWeightSetter
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8218D9C0 <- __imp__sub_82315350 <- __imp__sub_8218DFC0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:check_camera_shot
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8231A748 <- __imp__sub_82328988
+prop:check_shot
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8222A880 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328E98 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:CheckBox
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236CCF8 <- __imp__sub_821416E8 <- __imp__sub_82121DC8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:cherrypie
+   sub_82319530 <- __imp__sub_82287600 <- __imp__sub_822C5A68 <- __imp__sub_823810E0 <- __imp__sub_8237B540 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:chet_atkins
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:chet_orange
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:chorus
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90 <- __imp__sub_8233E5B8
+prop:clarendon
+   sub_82319530 <- __imp__sub_82122FD8 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_82370498 <- __imp__sub_82123398 <- __imp__sub_823241E8
+prop:classic
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:coffin
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:coffin_reward
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:colors
+   sub_82319530 <- __imp__sub_82380238 <- __imp__sub_8237A798 <- __imp__sub_8237A540 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:combo1
+   sub_82319530 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:combo2
+   sub_82319530 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:combo2_angle
+   sub_82319530 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:comp_quit.btn
+   sub_82319530 <- __imp__sub_8229E820 <- __imp__sub_8229FD60 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_823734F8 <- __imp__sub_82374160 <- __imp__sub_823741E0
+prop:comp_restart.btn
+   sub_82319530 <- __imp__sub_8229E820 <- __imp__sub_8229FD60 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_823734F8 <- __imp__sub_82374160 <- __imp__sub_823741E0
+prop:comp_selsong.btn
+   sub_82319530 <- __imp__sub_8229E820 <- __imp__sub_8229FD60 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_823734F8 <- __imp__sub_82377300 <- __imp__sub_82291040
+prop:competitive
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B37A0 <- __imp__sub_822CAAB0 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0 <- __imp__sub_82379738
+prop:component_focus
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_823734F8 <- __imp__sub_82374160 <- __imp__sub_82374500 <- __imp__sub_82374578 <- __imp__sub_823746D8
+prop:component_scroll
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_821433B0 <- __imp__sub_82143B28 <- __imp__sub_823741E0 <- __imp__sub_823746D8 <- __imp__sub_82377300
+prop:component_select
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_8236EF78 <- __imp__sub_82379F98 <- __imp__sub_821B8C98 <- __imp__sub_82377210 <- __imp__sub_82378BB0
+prop:component_select_start
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_8236F058 <- __imp__sub_823704F8 <- __imp__sub_823706B8 <- __imp__sub_82123790 <- __imp__sub_823741E0
+prop:compressor
+   sub_82319530 <- __imp__sub_822FA718 <- __imp__sub_822E5B88 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:config
+   sub_82319530 <- __imp__sub_82292EE0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0 <- __imp__sub_82120208
+prop:contexts
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822E1058 <- __imp__sub_822CBD18 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090
+prop:controller
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822E1E10 <- __imp__sub_822E44B0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:controllers
+   sub_82319530 <- __imp__sub_8227CA48 <- __imp__sub_8227B4A0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:cor_nat
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:cor_yellow
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:core_0
+   sub_82319530 <- __imp__sub_822E6C20 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:core_1
+   sub_82319530 <- __imp__sub_822E6C20 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:cores
+   sub_82319530 <- __imp__sub_82335C30 <- __imp__sub_82338350 <- __imp__sub_823384B0 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:coronet_brown
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:coronet_burst
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:coronet_cherry
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:coronet_green
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:corvus
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:crash_symbal
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:crowd
+   sub_82319530 <- __imp__sub_822D6320 <- __imp__sub_822D6398 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38
+prop:crowd_audio
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B37A0 <- __imp__sub_822E0928 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308
+prop:crowd_audio_delay
+   sub_82319530 <- __imp__sub_822E0928 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0
+prop:crowd_boost
+   sub_82319530 <- __imp__sub_822D5FC0 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:crowd_face_camera
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_82328910 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:crowd_rating_active
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B37A0 <- __imp__sub_822C9720 <- __imp__sub_822C9E80 <- __imp__sub_822D08F0 <- __imp__sub_822CB118
+prop:crowd_reactions
+   sub_82319530 <- __imp__sub_822E0928 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0
+prop:crowd_update
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8224A2B0 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328910
+prop:crowd_volume
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822E0928 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38
+prop:CubeTex
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8230BBD8 <- __imp__sub_82315350 <- __imp__sub_822092E0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:cutout
+   sub_82319530 <- __imp__sub_8214A980 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_8214ACB8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:deathmetal
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:deathmetal1
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:deathmetal2
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:default
+   sub_82319530 <- __imp__sub_8229E820 <- __imp__sub_8229FD60 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_823734F8 <- __imp__sub_82376EB0 <- __imp__sub_82290C78
+prop:default_band
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822B7670 <- __imp__sub_822B8B18 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:default_config
+   sub_82319530 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:defaults
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8
+prop:delay
+   sub_82319530 <- __imp__sub_822E6C20 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:depleted
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_822DB7D8 <- __imp__sub_822DBD60 <- __imp__sub_822C9260 <- __imp__sub_822E2510
+prop:deploy_rate
+   sub_82319530 <- __imp__sub_822D5FC0 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:depthvolume
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:desire
+   sub_82319530 <- __imp__sub_8215A768 <- __imp__sub_8215AA18 <- __imp__sub_8215AC58 <- __imp__sub_8215B3C0 <- __imp__sub_8215D008 <- __imp__sub_8215C4F0 <- __imp__sub_82315350
+prop:dest
+   sub_82319530 <- __imp__sub_821E8EC8 <- __imp__sub_821E9D00 <- __imp__sub_821DCDA0 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82376EB0
+prop:detect
+   sub_82319530 <- __imp__sub_8227C540 <- __imp__sub_8227C690 <- __imp__sub_8227CC98 <- __imp__sub_82271228 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:diff
+   sub_82319530 <- __imp__sub_82282700 <- __imp__sub_82282830 <- __imp__sub_82282A60 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_823180A8 <- __imp__sub_8214B118
+prop:difficulty
+   sub_82319530 <- __imp__sub_822E1058 <- __imp__sub_822CBD18 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:difficulty_2nd
+   sub_82319530 <- __imp__sub_822E1058 <- __imp__sub_822CBD18 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:disable
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8227B638 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:disabled
+   sub_82319530 <- __imp__sub_82381A08 <- __imp__sub_8237F528 <- __imp__sub_82379FE8 <- __imp__sub_821B2800 <- __imp__sub_821DB520 <- __imp__sub_821B2800 <- __imp__sub_821DB520
+prop:dl_songlist
+   sub_82319530 <- __imp__sub_822E1058 <- __imp__sub_822CBD18 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:dma
+   sub_82319530 <- __imp__sub_822FA718 <- __imp__sub_822E5B88 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:do_extend_sequence
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:do_lighting_first_keyframe
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:do_lighting_next_keyframe
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:do_lighting_prev_keyframe
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:do_pick_expression
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82191950 <- __imp__sub_8231A748 <- __imp__sub_823125A8 <- __imp__sub_82313CB0 <- __imp__sub_82313DD0 <- __imp__sub_82120090
+prop:double_time
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90
+prop:downbeat
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822D03E8 <- __imp__sub_82338A48 <- __imp__sub_822CFA70 <- __imp__sub_822CDEB8
+prop:downloads
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8
+prop:downsample
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:downsample_collapse
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:downsample_depth
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:Draw
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8231C660 <- __imp__sub_8231C660 <- __imp__sub_8231C738 <- __imp__sub_8231F3C0 <- __imp__sub_823216E0 <- __imp__sub_821B9E40
+prop:drum_solo
+   sub_82319530 <- __imp__sub_8234ACC8 <- __imp__sub_8233B848 <- __imp__sub_822E44B0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:drum_style_instruments
+   sub_82319530 <- __imp__sub_82346FA8 <- __imp__sub_823341D0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:drummer
+   sub_82319530 <- __imp__sub_82155880 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:dyingmarker
+   sub_82319530 <- __imp__sub_8214A980 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_8214ACB8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:eds
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:eds_cherry
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:eds_white
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:element
+   sub_82319530 <- __imp__sub_82380238 <- __imp__sub_8237A798 <- __imp__sub_8237A540 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:enable
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748
+prop:enable_buttons
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82376EB0
+prop:encore_fx
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B37A0 <- __imp__sub_822CA5D0 <- __imp__sub_822CCA60 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0
+prop:encore_intro
+   sub_82319530 <- __imp__sub_822E0928 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0
+prop:end
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90 <- __imp__sub_8233E5B8
+prop:end_streak
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822C8D40 <- __imp__sub_822C9478 <- __imp__sub_822E2B10 <- __imp__sub_8234F860
+prop:enter
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:enter_events
+   sub_82319530 <- __imp__sub_8233E5B8 <- __imp__sub_8232FC08 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:enter_score
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328910 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:env
+   sub_82319530 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:Environ
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82302AA0 <- __imp__sub_82315350 <- __imp__sub_821D9F68 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:epiphone_casino
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:epiphone_coronet
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:epiphone_sheraton
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:error_class
+   sub_82319530 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:es_cherry
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:es_maple
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:es335
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:events
+   sub_82319530 <- __imp__sub_8233EFA0 <- __imp__sub_8233F348 <- __imp__sub_8232FFB8 <- __imp__sub_82346B30 <- __imp__sub_82368C00 <- __imp__sub_82369088 <- __imp__sub_82369228
+prop:EventTrigger
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8225C018 <- __imp__sub_82315350 <- __imp__sub_8225D708 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:excitement
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822CBAC8 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0 <- __imp__sub_82379738
+prop:excitement_bad
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:excitement_great
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:excitement_level
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_82328890 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_823216E0
+prop:excitement_okay
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:exclusions
+   sub_82319530 <- __imp__sub_8215D008 <- __imp__sub_8215C4F0 <- __imp__sub_82315350 <- __imp__sub_8215B528 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:exclusive
+   sub_82319530 <- __imp__sub_822981A8 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0 <- __imp__sub_82120208
+prop:exit
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0 <- __imp__sub_8236B8B0 <- __imp__sub_8231A748
+prop:exit_complete
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823768E0 <- __imp__sub_82379470 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090
+prop:exp_ebony
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:exp_nat
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:exp_sun
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:exp_swirl
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:exp_white
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:explorer
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:extend_track
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_82311CA8 <- __imp__sub_82313CB0 <- __imp__sub_82313DD0 <- __imp__sub_82120090
+prop:eyeball
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:eyeball_reward
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:FaceFxLipSyncServo
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82190C08 <- __imp__sub_82315350 <- __imp__sub_8218FAF0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:far
+   sub_82319530 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:far_starpower_ok
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B2240 <- __imp__sub_822B24D8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:fb_blue
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:fb_burst
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:fb_ebony
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:fb_leopard
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:feedback
+   sub_82319530 <- __imp__sub_822E6C20 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:fest
+   sub_82319530 <- __imp__sub_822A2CF8 <- __imp__sub_822A3528 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:file
+   sub_82319530 <- __imp__sub_823769E8 <- __imp__sub_82376768 <- __imp__sub_82377300 <- __imp__sub_82291040 <- __imp__sub_8231A748 <- __imp__sub_8232A3D8 <- __imp__sub_8231A748
+prop:fill_scores
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:filter_clips
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_82166858 <- __imp__sub_82163F20 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:find
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:finish_load
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82376DD8 <- __imp__sub_823763D8 <- __imp__sub_82378D88 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:firebird
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:fish
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:fish_reward
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:flame_hands
+   sub_82319530 <- __imp__sub_8232E9F8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:flying_v
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:focus
+   sub_82319530 <- __imp__sub_823794E8 <- __imp__sub_8229E630 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0
+prop:focus_anim_duration
+   sub_82319530 <- __imp__sub_82124C08 <- __imp__sub_82121DC8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:focus_scale
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_82125D28 <- __imp__sub_821B2800 <- __imp__sub_821DB520 <- __imp__sub_821B2800 <- __imp__sub_821DB520
+prop:Font
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_821D35A0 <- __imp__sub_82315350 <- __imp__sub_821D4CD8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:force_autoplay
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B37A0 <- __imp__sub_822E21D0 <- __imp__sub_822CEBE8 <- __imp__sub_822CB260 <- __imp__sub_822CDEB8
+prop:force_encore
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_823161D0 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748
+prop:force_hd
+   sub_82319530 <- __imp__sub_823032C8 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:foreach_player
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_82328988
+prop:foreach_player_matcher
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_823123D0
+prop:fov
+   sub_82319530 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:fps
+   sub_82319530 <- __imp__sub_826A0270 <- __imp__sub_8269C438 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748
+prop:free_ride
+   sub_82319530 <- __imp__sub_822DE640 <- __imp__sub_822C9720 <- __imp__sub_822C9E80 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:funk1
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:fv_century
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:fv_red
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:fv_v2
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:fv_white
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:fx
+   sub_82319530 <- __imp__sub_822E5B88 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:FxSendReverb
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82685408 <- __imp__sub_82315350 <- __imp__sub_823000D8 <- __imp__sub_822FC6F0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:gain
+   sub_82319530 <- __imp__sub_822FA718 <- __imp__sub_822E5B88 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:game
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822CA928 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38
+prop:game_outro_complete
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822CB9D8 <- __imp__sub_822D2038 <- __imp__sub_822D2B90 <- __imp__sub_821B8C98
+prop:game_over
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822CB5B8 <- __imp__sub_822DD030 <- __imp__sub_822DD298 <- __imp__sub_822C9260
+prop:game_over_sequence
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_823161D0 <- __imp__sub_82316428 <- __imp__sub_822B8B18 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:game_won
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:game_won_msg
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822CB5B8 <- __imp__sub_822DD030 <- __imp__sub_822DD298 <- __imp__sub_822C9260
+prop:gem
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_826A0270 <- __imp__sub_8269C438 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20
+prop:gem_hit_callback
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822E38B0 <- __imp__sub_822E2748 <- __imp__sub_8234F790 <- __imp__sub_8234FE20 <- __imp__sub_823502E0 <- __imp__sub_8234E498
+prop:gem_miss_callback
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822E38B0 <- __imp__sub_822E2B10 <- __imp__sub_8234F860 <- __imp__sub_823503D0 <- __imp__sub_8234E498 <- __imp__sub_8233AA80
+prop:gem_pass_callback
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822E38B0 <- __imp__sub_822E2FD0 <- __imp__sub_8234F998 <- __imp__sub_82350488 <- __imp__sub_82350718 <- __imp__sub_82350D68
+prop:gen_headline_qc_2
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82291B70 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_823180A8 <- __imp__sub_8214B118
+prop:get_active_ten
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:get_button
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:get_controller
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328A30 <- __imp__sub_8231A748
+prop:get_default_name
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:get_difficulty
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:get_difficulty_sym
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82318050 <- __imp__sub_8214B118
+prop:get_help_text
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_823181A0 <- __imp__sub_8229AAA8 <- __imp__sub_8231A748
+prop:get_name_label
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231A748 <- __imp__sub_8232A580 <- __imp__sub_8231A748
+prop:get_num_players
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_823180E8 <- __imp__sub_82328E30
+prop:get_player_config
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:get_shot_duration
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:get_song
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82318050 <- __imp__sub_822AE250
+prop:get_song_artist_text
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748
+prop:get_song_caption
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748
+prop:get_song_index
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328A30 <- __imp__sub_8231A748
+prop:get_song_tempo
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82317FE8 <- __imp__sub_82166858
+prop:get_song_text
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748
+prop:get_text_entry
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:get_track_sym
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328A30 <- __imp__sub_8231A748
+prop:get_track_type
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8232AD98 <- __imp__sub_8231A748
+prop:get_venue
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328788 <- __imp__sub_8231A748
+prop:gh2
+   sub_82319530 <- __imp__sub_82190C08 <- __imp__sub_82315350 <- __imp__sub_8218FAF0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:GHTrackDir
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82691858 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823743F0 <- __imp__sub_82365268
+prop:glam
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:glam1
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:glam2
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:good
+   sub_82319530 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:goth
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:goth1
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:goth2
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:grim
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:Group
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_821DC398 <- __imp__sub_82315350 <- __imp__sub_821DC6D0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:GUITAR
+   sub_82319530 <- __imp__sub_823466A8 <- __imp__sub_82346A18 <- __imp__sub_823341D0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118
+prop:guitar_red_octane
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:guitar_skin
+   sub_82319530 <- __imp__sub_822B86D0 <- __imp__sub_822B8B18 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82378FC8
+prop:guitarist
+   sub_82319530 <- __imp__sub_822D42A8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:guitarist_strum
+   sub_82319530 <- __imp__sub_82167AD8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_82168E08 <- __imp__sub_823249A0 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:guitars
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:gunsho
+   sub_82319530 <- __imp__sub_82122FD8 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_82370498 <- __imp__sub_82123398 <- __imp__sub_823241E8
+prop:half_time
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90
+prop:hand
+   sub_82319530 <- __imp__sub_8232E9F8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:hand_flames
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82126568 <- __imp__sub_822D2FE8 <- __imp__sub_8231A748
+prop:handlers
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822C9720 <- __imp__sub_822C9E80 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:head
+   sub_82319530 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:heaps
+   sub_82319530 <- __imp__sub_82355048 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:heartshapedbox
+   sub_82319530 <- __imp__sub_822AA758 <- __imp__sub_822A75D0 <- __imp__sub_822C5A68 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:held_note_released_callback
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_822C86F8 <- __imp__sub_822C9588 <- __imp__sub_822E3440 <- __imp__sub_8234FB70
+prop:helpbar
+   sub_82319530 <- __imp__sub_8229E820 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:helveticablack
+   sub_82319530 <- __imp__sub_82122FD8 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_82370498 <- __imp__sub_82123398 <- __imp__sub_823241E8
+prop:helveticablack_overlay
+   sub_82319530 <- __imp__sub_8214A980 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_8214ACB8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:helveticablackcondensed
+   sub_82319530 <- __imp__sub_8214A980 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_8214ACB8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:hidden
+   sub_82319530 <- __imp__sub_8215B3C0 <- __imp__sub_8215D008 <- __imp__sub_8215C4F0 <- __imp__sub_82315350 <- __imp__sub_8215B528 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:hide
+   sub_82319530 <- __imp__sub_8215A768 <- __imp__sub_8215AA18 <- __imp__sub_8215AC58 <- __imp__sub_8215B3C0 <- __imp__sub_8215D008 <- __imp__sub_8215C4F0 <- __imp__sub_82315350
+prop:hide_button
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328910 <- __imp__sub_8231A748 <- __imp__sub_82329478
+prop:high_score
+   sub_82319530 <- __imp__sub_821429F0 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_82142DF8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:highlight
+   sub_82319530 <- __imp__sub_82380238 <- __imp__sub_8237A798 <- __imp__sub_8237A540 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:hit_hihat
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:hit_p0_fret1
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822E2510 <- __imp__sub_822CFA70 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0
+prop:hit_p0_fret2
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822E2510 <- __imp__sub_822CFA70 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0
+prop:hit_p0_fret3
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822E2510 <- __imp__sub_822CFA70 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0
+prop:hit_snare
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:hopo_threshold
+   sub_82319530 <- __imp__sub_823341D0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:horizon_y
+   sub_82319530 <- __imp__sub_8269A1A8 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:hud
+   sub_82319530 <- __imp__sub_82374F00 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823743F0 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:hud_file
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_823161D0 <- __imp__sub_82316428 <- __imp__sub_822B8B18 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:i_won
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82126568 <- __imp__sub_822D2FE8 <- __imp__sub_8231A748
+prop:idle
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90
+prop:idle_event
+   sub_82319530 <- __imp__sub_8233CF08 <- __imp__sub_8233D130 <- __imp__sub_82330038 <- __imp__sub_82338C78 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:ignore
+   sub_82319530 <- __imp__sub_8227CA48 <- __imp__sub_8227B4A0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:ignore_buttons
+   sub_82319530 <- __imp__sub_8227CC98 <- __imp__sub_82271228 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:impact
+   sub_82319530 <- __imp__sub_8214A980 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_8214ACB8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:in_peak
+   sub_82319530 <- __imp__sub_8232E9F8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:in_solo
+   sub_82319530 <- __imp__sub_8232E9F8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:init
+   sub_82319530 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:init_gems
+   sub_82319530 <- __imp__sub_8269C438 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:init_tails
+   sub_82319530 <- __imp__sub_8269C438 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:input_devices_changed
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_822B4EF0 <- __imp__sub_822B8B18 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_82273B68
+prop:interact_probs
+   sub_82319530 <- __imp__sub_822D3B18 <- __imp__sub_821B8D38 <- __imp__sub_82373EB8 <- __imp__sub_8224A718 <- __imp__sub_82376EB0 <- __imp__sub_82379738 <- __imp__sub_822A0408
+prop:intro
+   sub_82319530 <- __imp__sub_822E0928 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0
+prop:intro_end
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:intro_start
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:intro_start_msg
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822CCA60 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0 <- __imp__sub_82379738
+prop:iop
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_826A3418 <- __imp__sub_826A6370 <- __imp__sub_826A2380 <- __imp__sub_822F9050 <- __imp__sub_822E5A48 <- __imp__sub_82681A28
+prop:is_missing_controller
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328EF8 <- __imp__sub_8231A748
+prop:is_multiple_controllers
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328910 <- __imp__sub_8231A748
+prop:joypad
+   sub_82319530 <- sub_82270D20 <- __imp__sub_8227B4A0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:joypad_connect
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_8227AAB8 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8227BEE0 <- __imp__sub_8227CC98
+prop:joypad_guitar
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822E1E10 <- __imp__sub_822E44B0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:jump_ok
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822660D8 <- __imp__sub_82267748 <- __imp__sub_822682F8 <- __imp__sub_82268648 <- __imp__sub_82268C20
+prop:kick_drum
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:kramer_650
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:kramer_vanguard
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:language
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_82271390 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:last_difficulty
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8232AD98 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:last_expression
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_823180E8 <- __imp__sub_82328DC8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328988
+prop:leaderboards
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822D6EE0 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748
+prop:length
+   sub_82319530 <- __imp__sub_82144558 <- __imp__sub_82141F78 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228 <- __imp__sub_82120090
+prop:lespaul
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lespaul_doublecut
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lespaul_doublecut_sticker
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lespaul_marauder
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lespaul_sonex
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:level_analysis
+   sub_82319530 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:levels
+   sub_82319530 <- __imp__sub_822E0928 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0
+prop:lifewasted
+   sub_82319530 <- __imp__sub_82287600 <- __imp__sub_822C5A68 <- __imp__sub_823810E0 <- __imp__sub_8237B540 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:Light
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82310A50 <- __imp__sub_82315350 <- __imp__sub_8220C3E8 <- __imp__sub_82311020 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:lighting
+   sub_82319530 <- __imp__sub_821BBA20 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823249A0 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:lighting_change
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822CFD90 <- __imp__sub_822D03E8 <- __imp__sub_82338A48 <- __imp__sub_822CFA70
+prop:LightPreset
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82241E40 <- __imp__sub_82315350 <- __imp__sub_82243660 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:limiter
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_82682558 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:line
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:load
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823769E8 <- __imp__sub_82376768 <- __imp__sub_82377300 <- __imp__sub_82291040 <- __imp__sub_8231A748 <- __imp__sub_8232A3D8
+prop:load_order
+   sub_82319530 <- __imp__sub_82290960 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0 <- __imp__sub_82120208
+prop:locale
+   sub_82319530 <- sub_82270D20 <- __imp__sub_82356F30 <- __imp__sub_822712B0 <- __imp__sub_82271390 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90
+prop:log
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:log_reward
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:long_cheats
+   sub_82319530 <- sub_82270D20 <- __imp__sub_8235C610 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:loop
+   sub_82319530 <- __imp__sub_821E8EC8 <- __imp__sub_821E9D00 <- __imp__sub_821DCDA0 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82376EB0
+prop:lose_level
+   sub_82319530 <- __imp__sub_822DE640 <- __imp__sub_822C9720 <- __imp__sub_822C9E80 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:lp_cayenne
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lp_cherry
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lp_dbl_resin
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lp_dbl_sticker
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lp_dbl_white
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lp_dbl_yellow
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lp_goddessburst
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lp_marauder
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lp_sonex
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:lp_zakk
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:main_dir
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_823213C8 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:main_quickspin.btn
+   sub_82319530 <- __imp__sub_8229E820 <- __imp__sub_8229FD60 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_823734F8 <- __imp__sub_82376EB0 <- __imp__sub_82290C78
+prop:mappings
+   sub_82319530 <- __imp__sub_8233D130 <- __imp__sub_82330038 <- __imp__sub_82338C78 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:master_volume
+   sub_82319530 <- __imp__sub_822B1E58 <- __imp__sub_822B2058 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:Mat
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8230AEC0 <- __imp__sub_82315350 <- __imp__sub_821EEBB8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:mat_formats
+   sub_82319530 <- __imp__sub_8269F278 <- __imp__sub_826A0270 <- __imp__sub_8269C438 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20
+prop:MatAnim
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82203630 <- __imp__sub_82315350 <- __imp__sub_82204590 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:math
+   sub_82319530 <- sub_82270D20 <- __imp__sub_8226DDF0 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:mats
+   sub_82319530 <- __imp__sub_8269CDA8 <- __imp__sub_8269D110 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20
+prop:max_delay_sec
+   sub_82319530 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:max_slip
+   sub_82319530 <- __imp__sub_826A3418 <- __imp__sub_826A6370 <- __imp__sub_826A2380 <- __imp__sub_822F9050 <- __imp__sub_822E5A48 <- __imp__sub_82681A28 <- __imp__sub_82120090
+prop:max_width
+   sub_82319530 <- __imp__sub_82381DB8 <- __imp__sub_8237FF10 <- __imp__sub_82380238 <- __imp__sub_8237A798 <- __imp__sub_8237A540 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:me_continue.btn
+   sub_82319530 <- __imp__sub_8229E820 <- __imp__sub_8229FD60 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_823734F8 <- __imp__sub_82376EB0 <- __imp__sub_82290C78
+prop:mem
+   sub_82319530 <- sub_82270D20 <- __imp__sub_82355048 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:memcard_result
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_82281C00 <- __imp__sub_82279FF0 <- __imp__sub_82271228 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:memory_unit
+   sub_82319530 <- __imp__sub_822D4B00 <- __imp__sub_822D4D48 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_82329478 <- __imp__sub_8231A748
+prop:mercury_switch_filter
+   sub_82319530 <- __imp__sub_8233B848 <- __imp__sub_822E44B0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88
+prop:Mesh
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8230DA38 <- __imp__sub_82315350 <- __imp__sub_821C2B60 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:MeshAnim
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_821FDC80 <- __imp__sub_82315350 <- __imp__sub_821FE530 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:meshes
+   sub_82319530 <- __imp__sub_82372D40 <- __imp__sub_8236D7B8 <- __imp__sub_8214A7A8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:message
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82379738 <- __imp__sub_822A0408
+prop:message_show_time
+   sub_82319530 <- __imp__sub_82690A00 <- __imp__sub_82690308 <- __imp__sub_823763D8 <- __imp__sub_82378D88 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:meta
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822A1D60 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0
+prop:metal
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:metal1
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:metal2
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:metamusic
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:metamusic_on_exit
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:methods
+   sub_82319530 <- __imp__sub_82337B58 <- __imp__sub_82338350 <- __imp__sub_823384B0 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:mic
+   sub_82319530 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:midi_file
+   sub_82319530 <- __imp__sub_822D59C0 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0 <- __imp__sub_8236B8B0
+prop:midi_parsers
+   sub_82319530 <- __imp__sub_82330038 <- __imp__sub_82338C78 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88
+prop:midi_suffix
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:milo_hand
+   sub_82319530 <- __imp__sub_8232E9F8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:min_delay_sec
+   sub_82319530 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:min_length
+   sub_82319530 <- __imp__sub_822D5FC0 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:min_splash_time
+   sub_82319530 <- __imp__sub_8236D1F0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:miss
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822E38B0 <- __imp__sub_822E2B10 <- __imp__sub_8234F860 <- __imp__sub_823503D0 <- __imp__sub_8234E498 <- __imp__sub_8233AA80
+prop:mod_cherry
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:mod_nat
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:mode
+   sub_82319530 <- __imp__sub_822E6C20 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:moderne
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:modes
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8
+prop:mother
+   sub_82319530 <- __imp__sub_82287600 <- __imp__sub_822C5A68 <- __imp__sub_823810E0 <- __imp__sub_8237B540 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:multimesh
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:multiplayer
+   sub_82319530 <- __imp__sub_82692BA8 <- __imp__sub_822B3418 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:multiplayer_attenuation
+   sub_82319530 <- __imp__sub_82335478 <- __imp__sub_82338518 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88
+prop:multiplayer_common_attenuation
+   sub_82319530 <- __imp__sub_82335478 <- __imp__sub_82338518 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88
+prop:multiplayer_hide_objects
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_823181A0 <- __imp__sub_821B9670 <- __imp__sub_821B9E40 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:multiplayer_scale
+   sub_82319530 <- __imp__sub_82335478 <- __imp__sub_82338518 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88
+prop:multiplier
+   sub_82319530 <- __imp__sub_822D5FC0 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:multitap
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8227B638 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:music
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822A1D60 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0
+prop:music_start
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90 <- __imp__sub_8233E5B8
+prop:mute
+   sub_82319530 <- __imp__sub_822EA138 <- __imp__sub_82682558 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:my_init
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0 <- __imp__sub_82120208
+prop:name
+   sub_82319530 <- __imp__sub_822ADE58 <- __imp__sub_822AE448 <- __imp__sub_822A1C10 <- __imp__sub_82378BB0 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460
+prop:near
+   sub_82319530 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:newspaper_logo
+   sub_82319530 <- __imp__sub_82374F00 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823743F0 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:next_arrow
+   sub_82319530 <- __imp__sub_82380238 <- __imp__sub_8237A798 <- __imp__sub_8237A540 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:next_shot
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_82328A30 <- __imp__sub_82328C50 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328988
+prop:no_load
+   sub_82319530 <- __imp__sub_82159E88 <- __imp__sub_8215B528 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228 <- __imp__sub_82120090
+prop:nobeat
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90
+prop:normal
+   sub_82319530 <- __imp__sub_82381A08 <- __imp__sub_8237F528 <- __imp__sub_82379FE8 <- __imp__sub_821B2800 <- __imp__sub_821DB520 <- __imp__sub_821B2800 <- __imp__sub_821DB520
+prop:note_weight
+   sub_82319530 <- __imp__sub_822DE640 <- __imp__sub_822C9720 <- __imp__sub_822C9E80 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:noun
+   sub_82319530 <- __imp__sub_82291428 <- __imp__sub_82291B70 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:nowbar_tail_clip
+   sub_82319530 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:num_frames
+   sub_82319530 <- __imp__sub_8234B8F8 <- __imp__sub_8234BAD0 <- __imp__sub_8233B848 <- __imp__sub_822E44B0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:num_placers
+   sub_82319530 <- __imp__sub_82290960 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0 <- __imp__sub_82120208
+prop:num_players
+   sub_82319530 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748
+prop:ObjectDir
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82320DC8 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_823249A0 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:objects
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_821BBA20 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:oggvorbis
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_826A2E38 <- __imp__sub_826A3B48 <- __imp__sub_82681A58 <- __imp__sub_822F5A70 <- __imp__sub_822F60B0 <- __imp__sub_822A12B8
+prop:on_reset
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8268EBD8 <- __imp__sub_8268E440 <- __imp__sub_8268F388 <- __imp__sub_82379738 <- __imp__sub_822A0408
+prop:on_set_paused
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822CB340 <- __imp__sub_822CBD18 <- __imp__sub_82379738 <- __imp__sub_822A0408
+prop:one_bar_to
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822CFD90 <- __imp__sub_822D03E8 <- __imp__sub_82338A48 <- __imp__sub_822CFA70
+prop:options_screen
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822B1E58 <- __imp__sub_822B2058 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:or
+   sub_82319530 <- __imp__sub_8227C540 <- __imp__sub_8227C690 <- __imp__sub_8227CC98 <- __imp__sub_82271228 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:order
+   sub_82319530 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748
+prop:outfit
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:OutfitLoader
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8215C4F0 <- __imp__sub_82315350 <- __imp__sub_8215B528 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:overlays
+   sub_82319530 <- __imp__sub_821E0D88 <- __imp__sub_821E68E0 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:override_expression
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_82328E98 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328EF8 <- __imp__sub_8231A748
+prop:pan
+   sub_82319530 <- __imp__sub_822DFC10 <- __imp__sub_822DFCA8 <- __imp__sub_822DFD98 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_822CD180 <- __imp__sub_822CCA60
+prop:panel_base_name
+   sub_82319530 <- __imp__sub_822981A8 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0 <- __imp__sub_82120208
+prop:PanelDir
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82374F00 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823743F0 <- __imp__sub_823249A0
+prop:panels
+   sub_82319530 <- __imp__sub_823794E8 <- __imp__sub_8229E630 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0
+prop:pans
+   sub_82319530 <- __imp__sub_822ADE58 <- __imp__sub_822AE448 <- __imp__sub_822A1C10 <- __imp__sub_82378BB0 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460
+prop:parser
+   sub_82319530 <- __imp__sub_823341D0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:particles
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:ParticleSys
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8230CD98 <- __imp__sub_82315350 <- __imp__sub_82216AD0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:ParticleSysAnim
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82200AE8 <- __imp__sub_82315350 <- __imp__sub_82201BC0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:peak_off
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822C89A0 <- __imp__sub_822DCEF0 <- __imp__sub_822DD3E0 <- __imp__sub_822C8D40
+prop:peak_on
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822C89A0 <- __imp__sub_822DCEF0 <- __imp__sub_822DD3E0 <- __imp__sub_822C9338
+prop:perfect
+   sub_82319530 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:period
+   sub_82319530 <- __imp__sub_821E8EC8 <- __imp__sub_821E9D00 <- __imp__sub_821DCDA0 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82376EB0
+prop:phrase_captured
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_822DB7D8 <- __imp__sub_822DC090 <- __imp__sub_822C9338 <- __imp__sub_822E2748
+prop:phrase_miss
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_822DB7D8 <- __imp__sub_822DB908 <- __imp__sub_822DC368 <- __imp__sub_822C9498
+prop:phrases
+   sub_82319530 <- __imp__sub_8233A050 <- __imp__sub_8233C0E8 <- __imp__sub_82333088 <- __imp__sub_823341D0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0
+prop:pick_bad_expression
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82191950 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8232AD98 <- __imp__sub_8231A748 <- __imp__sub_82328988
+prop:pick_expression
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82191950 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:pick_good_expression
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82191950 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8232AD98 <- __imp__sub_8231A748 <- __imp__sub_82328988
+prop:pick_new_shot
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8231A748 <- __imp__sub_82328988
+prop:pick_regular_camera_shot
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:pick_solo_camera_shot
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:play
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90
+prop:play_idle
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748
+prop:play_mode
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:play_movie
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82378FC8 <- __imp__sub_8229FE78 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_82328988
+prop:play_sfx
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:play_track_sfx
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:play_tracks
+   sub_82319530 <- __imp__sub_823384B0 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88
+prop:player
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822C9720 <- __imp__sub_822C9E80 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:player_matcher_handlers
+   sub_82319530 <- __imp__sub_822E44B0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88 <- __imp__sub_8236B460
+prop:player_num
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_82376EB0 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090
+prop:points
+   sub_82319530 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:poll
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82378BB0 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_8236C4C0 <- __imp__sub_82120208
+prop:pool
+   sub_82319530 <- __imp__sub_82355048 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:possum
+   sub_82319530 <- __imp__sub_822AA758 <- __imp__sub_822A75D0 <- __imp__sub_822C5A68 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:post_process
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82230D48 <- __imp__sub_82224B00 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:post_switch_cam
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:PostProc
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_821EAC30 <- __imp__sub_82315350 <- __imp__sub_821EC558 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:postprocess
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:presence
+   sub_82319530 <- __imp__sub_822E1058 <- __imp__sub_822CBD18 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:preserve
+   sub_82319530 <- __imp__sub_82314488 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82376EB0 <- __imp__sub_82379738
+prop:pressed
+   sub_82319530 <- __imp__sub_8269CC90 <- __imp__sub_8269D110 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20
+prop:preview
+   sub_82319530 <- __imp__sub_822AE448 <- __imp__sub_822A1C10 <- __imp__sub_82378BB0 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090
+prop:punk
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:punk1
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:punk2
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:quickplay
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8
+prop:range
+   sub_82319530 <- __imp__sub_821E8EC8 <- __imp__sub_821E9D00 <- __imp__sub_821DCDA0 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82376EB0
+prop:ready_level
+   sub_82319530 <- __imp__sub_822D5FC0 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:recharge_rate
+   sub_82319530 <- __imp__sub_822D5FC0 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:refresh
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822D4D48 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:release_ms
+   sub_82319530 <- __imp__sub_82682558 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:remap
+   sub_82319530 <- __imp__sub_82271390 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:remove_sink
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_823216E0
+prop:remove_y
+   sub_82319530 <- __imp__sub_826A0100 <- __imp__sub_826A0270 <- __imp__sub_8269C438 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20
+prop:require
+   sub_82319530 <- __imp__sub_822A6330 <- __imp__sub_822A6AD8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:required_songs
+   sub_82319530 <- __imp__sub_822A3468 <- __imp__sub_822A9578 <- __imp__sub_822A9B38 <- __imp__sub_822A7218 <- __imp__sub_82285320 <- __imp__sub_82285CC0 <- __imp__sub_822C33C0
+prop:resend_excitement
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:reset_camera
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:reset_focus
+   sub_82319530 <- __imp__sub_82376140 <- __imp__sub_822991D0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0
+prop:reset_player_settings
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82291040 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82376EB0
+prop:resource_file
+   sub_82319530 <- __imp__sub_823709B8 <- __imp__sub_82372650 <- __imp__sub_8236CCF8 <- __imp__sub_8214C180 <- __imp__sub_82121DC8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:ring
+   sub_82319530 <- __imp__sub_8269CC90 <- __imp__sub_8269D110 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20
+prop:rnd
+   sub_82319530 <- sub_82270D20 <- __imp__sub_821E68E0 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:RndDir
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_821BBA20 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:ro_guitar_xbox
+   sub_82319530 <- __imp__sub_8227C540 <- __imp__sub_8227C690 <- __imp__sub_8227CC98 <- __imp__sub_82271228 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:rock
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:rock1
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:rock2
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:rockabill
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:rockabill1
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:rockabill2
+   sub_82319530 <- __imp__sub_822A7DD8 <- __imp__sub_822A7EC8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:rockletters
+   sub_82319530 <- __imp__sub_8214A980 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_8214ACB8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:rokk
+   sub_82319530 <- __imp__sub_8214A980 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8236DDB8 <- __imp__sub_8214ACB8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:salvation
+   sub_82319530 <- __imp__sub_822AA758 <- __imp__sub_822A75D0 <- __imp__sub_822C5A68 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:score_config
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:scoring
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:screen_change
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0 <- __imp__sub_8236B8B0 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:ScreenMask
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8221A748 <- __imp__sub_82315350 <- __imp__sub_8221A970 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:script
+   sub_82319530 <- __imp__sub_82314488 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82376EB0 <- __imp__sub_82379738
+prop:scythe
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:sd_diff1.btn
+   sub_82319530 <- __imp__sub_8229E820 <- __imp__sub_8229FD60 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_823734F8 <- __imp__sub_82374160 <- __imp__sub_823741E0
+prop:sd_diff2.btn
+   sub_82319530 <- __imp__sub_8229E820 <- __imp__sub_8229FD60 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_823734F8 <- __imp__sub_82377300 <- __imp__sub_8231A748
+prop:section
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90 <- __imp__sub_8233E5B8
+prop:select_frames
+   sub_82319530 <- __imp__sub_8236FE48 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:select_to_scroll
+   sub_82319530 <- __imp__sub_8237A798 <- __imp__sub_8237A540 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228 <- __imp__sub_82120090
+prop:separate_parts
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B37A0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118
+prop:sequence
+   sub_82319530 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:set_character
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:set_defaults
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822A1850 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_8236C4C0
+prop:set_difficulty
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82378FC8
+prop:set_entry
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328910
+prop:set_guitar_index
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:set_hand
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:set_headline
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82291B70 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:set_line
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82291040 <- __imp__sub_8231A748 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:set_lipsync_song
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:set_message
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748
+prop:set_min_lod
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:set_player1_bass
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:set_player2_guitar
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:set_quickplay
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82378FC8
+prop:set_showing
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_823216E0
+prop:set_singleplayer
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:set_song_index
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:set_text_entry
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328910
+prop:set_track_in
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:set_trans_parent
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_8231A748 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:setlist
+   sub_82319530 <- __imp__sub_82374F00 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823743F0 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:setup
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:setup_text
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82291040 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328910 <- __imp__sub_8231A748
+prop:Sfx
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822EE008 <- __imp__sub_82315350 <- __imp__sub_822EE8B0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:sg
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:sg_cherry
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:sg_flames
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:sg_gt
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:sg_white
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:shadowmap
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:shared_star_meter
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B37A0 <- __imp__sub_822C9E80 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:shell
+   sub_82319530 <- __imp__sub_822E1058 <- __imp__sub_822CC0A0 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0 <- __imp__sub_8236B8B0
+prop:sheraton
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:shot_ok
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8222A880 <- __imp__sub_822257B8 <- __imp__sub_82267748 <- __imp__sub_822682F8 <- __imp__sub_822685F8 <- __imp__sub_822CCA60
+prop:shot_over
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8222A880 <- __imp__sub_8222A068 <- __imp__sub_82268888 <- __imp__sub_8224A760 <- __imp__sub_82377210 <- __imp__sub_82378BB0
+prop:shot_started
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8222A880 <- __imp__sub_8222A068 <- __imp__sub_82268888 <- __imp__sub_8224A760 <- __imp__sub_82377210 <- __imp__sub_82378BB0
+prop:should_resend_excitement
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_82328988 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:shoutatthedevil
+   sub_82319530 <- __imp__sub_822AA758 <- __imp__sub_822A75D0 <- __imp__sub_822C5A68 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:show_bow
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82126568 <- __imp__sub_822D2FE8 <- __imp__sub_8231A748
+prop:show_hud
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_823161D0 <- __imp__sub_82316428 <- __imp__sub_822B8B18 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:show_overlay
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_82291040 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:show_track
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_823161D0 <- __imp__sub_82316428 <- __imp__sub_822B8B18 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:signin_changed
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822B8B18 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_82273B68 <- __imp__sub_82274A60 <- __imp__sub_82120090
+prop:singer
+   sub_82319530 <- __imp__sub_82155880 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_82157678 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:single_player
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82328910 <- __imp__sub_8231A748
+prop:singleplayer_hide_objects
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_823181A0 <- __imp__sub_821B9670 <- __imp__sub_821B9E40 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:skin
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:skins
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:skip_intro
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B37A0 <- __imp__sub_822CCA60 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0 <- __imp__sub_82379738
+prop:slide_meter_in
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:slider
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822B1E58 <- __imp__sub_822B2058 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:slot_colors
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_82699D78 <- __imp__sub_82699EC0 <- __imp__sub_8269F278 <- __imp__sub_826A0270 <- __imp__sub_8269C438 <- __imp__sub_82699538
+prop:slots
+   sub_82319530 <- __imp__sub_8233C408 <- __imp__sub_8234CDF8 <- __imp__sub_8233C650 <- __imp__sub_822E1E10 <- __imp__sub_822E44B0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118
+prop:small1
+   sub_82319530 <- __imp__sub_822A2CF8 <- __imp__sub_822A3528 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:small2
+   sub_82319530 <- __imp__sub_822A2CF8 <- __imp__sub_822A3528 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:smash
+   sub_82319530 <- __imp__sub_8269C968 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748
+prop:smasher
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8269D110 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20
+prop:snaketapus
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:snaketapus_reward
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:solo
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90 <- __imp__sub_8233E5B8
+prop:solo_off
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82126568 <- __imp__sub_822D2FE8 <- __imp__sub_82325DA8
+prop:solo_on
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82126568 <- __imp__sub_822D2FE8 <- __imp__sub_82325DA8
+prop:song
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8
+prop:song_block
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B38F8 <- __imp__sub_822ADE58 <- __imp__sub_822AE448 <- __imp__sub_822A1C10 <- __imp__sub_82378BB0
+prop:song_select
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822AE2F8 <- __imp__sub_822A1D60 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38
+prop:song2
+   sub_82319530 <- __imp__sub_8237C0E0 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8237A4E8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:songlist
+   sub_82319530 <- __imp__sub_822E1058 <- __imp__sub_822CBD18 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:songs
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748
+prop:sound
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_822B1E58 <- __imp__sub_822B2058 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:sp_engage
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822C80F8 <- __imp__sub_8233A188 <- __imp__sub_8233A7D8 <- __imp__sub_822E2510
+prop:sparkle_len
+   sub_82319530 <- __imp__sub_826A0270 <- __imp__sub_8269C438 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748
+prop:Spotlight
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82233FD0 <- __imp__sub_82315350 <- __imp__sub_82238098 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:SpotlightDrawer
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82230D48 <- __imp__sub_82224B00 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:ss_song.lst
+   sub_82319530 <- __imp__sub_8229E820 <- __imp__sub_8229FDD0 <- __imp__sub_8229FE78 <- __imp__sub_8236B8B0 <- __imp__sub_8236B460 <- __imp__sub_82120090 <- __imp__sub_82120B58
+prop:standard
+   sub_82319530 <- __imp__sub_82307F30 <- __imp__sub_82303CA8 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:star
+   sub_82319530 <- __imp__sub_8269C968 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748
+prop:star_gem_hit
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_822DB7D8 <- __imp__sub_822DC090 <- __imp__sub_822C9338 <- __imp__sub_822E2748
+prop:star_gem_hit_callback
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:star_phrase
+   sub_82319530 <- __imp__sub_822D5FC0 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:star_phrase_captured_callback
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:star_phrase_miss_callback
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:star_power
+   sub_82319530 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:star_power_disable
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B37A0 <- __imp__sub_822BCE10 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:star_power_fx_volume
+   sub_82319530 <- __imp__sub_822E44B0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88 <- __imp__sub_8236B460
+prop:star_power_ready
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822DBD60 <- __imp__sub_822C9260 <- __imp__sub_822E2510 <- __imp__sub_822CFA70
+prop:star_power_start
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:star_power_stop
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:starpower_ok
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822B2240 <- __imp__sub_822B24D8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:stars
+   sub_82319530 <- __imp__sub_822A66E0 <- __imp__sub_822A69E8 <- __imp__sub_82287B00 <- __imp__sub_82281E60 <- __imp__sub_82282248 <- __imp__sub_82279FF0 <- __imp__sub_82271228
+prop:start
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_822CCA60 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0 <- __imp__sub_82379738
+prop:start_at
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:start_flags
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82317EF8 <- __imp__sub_82317FE8 <- __imp__sub_821956C8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:start_shot
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8222A880 <- __imp__sub_82226120 <- __imp__sub_82268648 <- __imp__sub_82268C20 <- __imp__sub_82268CA8 <- __imp__sub_82268DE0
+prop:start_using
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_822DB7D8 <- __imp__sub_822DBA90 <- __imp__sub_822C80F8 <- __imp__sub_8233A188
+prop:starved
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_8216AF70 <- __imp__sub_821B8C98 <- __imp__sub_821B8C98
+prop:stone
+   sub_82319530 <- __imp__sub_822A2CF8 <- __imp__sub_822A3528 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:stop
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:stop_animation
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_823216E0
+prop:stop_sfx
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:stop_shot
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8222A880 <- __imp__sub_82226338 <- __imp__sub_82268648 <- __imp__sub_82268C20 <- __imp__sub_82268CA8 <- __imp__sub_82268DE0
+prop:stop_using
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_822DB7D8 <- __imp__sub_822DBA90 <- __imp__sub_822DBD60 <- __imp__sub_822C9260
+prop:store
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8
+prop:streak_coop
+   sub_82319530 <- __imp__sub_8229DD60 <- __imp__sub_822DE170 <- __imp__sub_822C9720 <- __imp__sub_822C9E80 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:streaks
+   sub_82319530 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:strutter
+   sub_82319530 <- __imp__sub_822AA758 <- __imp__sub_822A75D0 <- __imp__sub_822C5A68 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:submixes
+   sub_82319530 <- __imp__sub_82335478 <- __imp__sub_82338518 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8 <- __imp__sub_82378D88
+prop:superclasses
+   sub_82319530 <- __imp__sub_8231C660 <- __imp__sub_8231C738 <- __imp__sub_8231F3C0 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:surrender
+   sub_82319530 <- __imp__sub_822AA758 <- __imp__sub_822A75D0 <- __imp__sub_822C5A68 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:swing
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822E38B0 <- __imp__sub_822E31C0 <- __imp__sub_8233AA80 <- __imp__sub_8234CAD0 <- __imp__sub_8234CFA8 <- __imp__sub_82325DA8
+prop:synth
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:SynthSample
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82688CC0 <- __imp__sub_82315350 <- __imp__sub_822FEAB8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:system
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_823213C8 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:tail
+   sub_82319530 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:tail_glow
+   sub_82319530 <- __imp__sub_8269F278 <- __imp__sub_826A0270 <- __imp__sub_8269C438 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20
+prop:tail_glow_tight_width
+   sub_82319530 <- __imp__sub_826A0270 <- __imp__sub_8269C438 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748
+prop:tail_glow_width
+   sub_82319530 <- __imp__sub_826A0270 <- __imp__sub_8269C438 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748
+prop:Tex
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_823099A0 <- __imp__sub_82315350 <- __imp__sub_821D62D0 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:text
+   sub_82319530 <- __imp__sub_82144558 <- __imp__sub_82141F78 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228 <- __imp__sub_82120090
+prop:text_entry
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_821433B0 <- __imp__sub_82143B28 <- __imp__sub_823741E0 <- __imp__sub_823746D8 <- __imp__sub_82377300
+prop:texts
+   sub_82319530 <- __imp__sub_82372D40 <- __imp__sub_8236D7B8 <- __imp__sub_8214A7A8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:theatre
+   sub_82319530 <- __imp__sub_822A2CF8 <- __imp__sub_822A3528 <- __imp__sub_822A3910 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:threshold
+   sub_82319530 <- __imp__sub_82682558 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:throttle
+   sub_82319530 <- __imp__sub_826A2E38 <- __imp__sub_826A3B48 <- __imp__sub_82681A58 <- __imp__sub_822F5A70 <- __imp__sub_822F60B0 <- __imp__sub_822A12B8 <- __imp__sub_823763D8
+prop:timer
+   sub_82319530 <- sub_82270D20 <- __imp__sub_82272240 <- __imp__sub_82271618 <- __imp__sub_82275A90 <- __imp__sub_82275B90 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:tips
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822825E8 <- __imp__sub_82282688 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:tips_general
+   sub_82319530 <- __imp__sub_82282830 <- __imp__sub_82282A60 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_823180A8 <- __imp__sub_8214B118 <- __imp__sub_8231A748
+prop:tips_quickplay
+   sub_82319530 <- __imp__sub_82282830 <- __imp__sub_82282A60 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_823180A8 <- __imp__sub_8214B118 <- __imp__sub_8231A748
+prop:tonightimgonna
+   sub_82319530 <- __imp__sub_82287600 <- __imp__sub_822C5A68 <- __imp__sub_823810E0 <- __imp__sub_8237B540 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:track
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:track_extend_sec
+   sub_82319530 <- __imp__sub_822CCA60 <- __imp__sub_822CDEB8 <- __imp__sub_82378BB0 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460 <- __imp__sub_82120090
+prop:track_graphics
+   sub_82319530 <- sub_82270D20 <- __imp__sub_82692BA8 <- __imp__sub_822B3418 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98
+prop:track_mapping
+   sub_82319530 <- __imp__sub_82346FA8 <- __imp__sub_823341D0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:track_name
+   sub_82319530 <- __imp__sub_8233EA68 <- __imp__sub_8232FE50 <- __imp__sub_82346A18 <- __imp__sub_823341D0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0
+prop:track_speed
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_826932D0 <- __imp__sub_82693A20 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:track_surface_override
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_82693620 <- __imp__sub_82693968 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00
+prop:tracks
+   sub_82319530 <- __imp__sub_822BF1F8 <- __imp__sub_822B5770 <- __imp__sub_822B57C0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:TrackWidget
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_823660A8 <- __imp__sub_82315350 <- __imp__sub_82367260 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:Trans
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82151528 <- __imp__sub_82315350 <- __imp__sub_821B0A28 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:TransAnim
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_821B5BB8 <- __imp__sub_82315350 <- __imp__sub_821B6230 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A0B8
+prop:transition_complete
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_8236B8B0 <- __imp__sub_8236B460 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:type
+   sub_82319530 <- __imp__sub_822A6330 <- __imp__sub_822A6AD8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:types
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_821BBA20 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823249A0 <- __imp__sub_82323CA8
+prop:ui
+   sub_82319530 <- sub_82270D20 <- __imp__sub_8236D1F0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:ui_enter
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823737F0 <- __imp__sub_82373EB8 <- __imp__sub_82376EB0 <- __imp__sub_82379738
+prop:ui_enter_back
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823737F0 <- __imp__sub_82373EB8 <- __imp__sub_82376EB0 <- __imp__sub_82379738
+prop:ui_exit
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823737F0 <- __imp__sub_82374010 <- __imp__sub_82377078 <- __imp__sub_82379308
+prop:ui_exit_back
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823737F0 <- __imp__sub_82374010 <- __imp__sub_82377078 <- __imp__sub_82379308
+prop:UIButton
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236CCF8 <- __imp__sub_82370850 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:UIComponent
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236FE48 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:UILabel
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236CCF8 <- __imp__sub_8236E5D0 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:UIList
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236CCF8 <- __imp__sub_8237C650 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:UIPicture
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236CCF8 <- __imp__sub_8237EEF8 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:UISlider
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_8236CCF8 <- __imp__sub_82375F88 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:UITrigger
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_8237D628 <- __imp__sub_82315350 <- __imp__sub_8236FA30 <- __imp__sub_8237D898 <- __imp__sub_823241E8 <- __imp__sub_82323CA8
+prop:unhide
+   sub_82319530 <- __imp__sub_8215A768 <- __imp__sub_8215AA18 <- __imp__sub_8215AC58 <- __imp__sub_8215B3C0 <- __imp__sub_8215D008 <- __imp__sub_8215C4F0 <- __imp__sub_82315350
+prop:unload
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82376C90 <- __imp__sub_823768E0 <- __imp__sub_82379470 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460
+prop:unlock_game_modes
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822AA2D8 <- __imp__sub_822AAD68 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8
+prop:update_career_leaderboard
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822DA0B8 <- __imp__sub_822DA590 <- __imp__sub_822DAAA8 <- __imp__sub_8231A748 <- __imp__sub_82328988
+prop:update_difficulty
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82377300
+prop:update_focus
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82376EB0
+prop:update_hands
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_82152108 <- __imp__sub_82126568 <- __imp__sub_822D2FE8 <- __imp__sub_8231A748
+prop:update_help_bar
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82378FC8 <- __imp__sub_8229FE78 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:update_pos
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822D4D48 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:update_song_info
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822D4D48 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:update_song_leaderboard
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822DA0B8 <- __imp__sub_822DA590 <- __imp__sub_822DAAA8 <- __imp__sub_8231A748 <- __imp__sub_82328988
+prop:usa
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:usa_reward
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:use_dual_perspective
+   sub_82319530 <- __imp__sub_82692BA8 <- __imp__sub_822B3418 <- __imp__sub_823173F0 <- __imp__sub_8232A2D8 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:use_joypad
+   sub_82319530 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:use_null_synth
+   sub_82319530 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:use_xma
+   sub_82319530 <- __imp__sub_82682558 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:van_black
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:van_yellow
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:venue
+   sub_82319530 <- __imp__sub_822B86D0 <- __imp__sub_822B8B18 <- __imp__sub_822CD180 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428 <- __imp__sub_82378FC8
+prop:venue_effect
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_823216E0 <- __imp__sub_821B9E40 <- __imp__sub_823746D8 <- __imp__sub_8224BF60 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748
+prop:venues
+   sub_82319530 <- sub_82270D20 <- __imp__sub_822A75D0 <- __imp__sub_822C43B0 <- __imp__sub_822BEBF8 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:verb_past
+   sub_82319530 <- __imp__sub_82291428 <- __imp__sub_82291B70 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_82329478 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:verse
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_82377300 <- __imp__sub_822CD180 <- __imp__sub_82325DA8 <- __imp__sub_823267B8 <- __imp__sub_8233DB90 <- __imp__sub_8233E5B8
+prop:version
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_82164B10 <- __imp__sub_82168E08 <- __imp__sub_823249A0 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:vertical
+   sub_82319530 <- __imp__sub_82380238 <- __imp__sub_8237A798 <- __imp__sub_8237A540 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0 <- __imp__sub_82271228
+prop:vibrato
+   sub_82319530 <- __imp__sub_8233A0C0 <- __imp__sub_8233B848 <- __imp__sub_822E44B0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848 <- __imp__sub_823763D8
+prop:video
+   sub_82319530 <- __imp__sub_82270D38 <- __imp__sub_822A7FA8 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8
+prop:viking
+   sub_82319530 <- __imp__sub_822A7C60 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:viking_reward
+   sub_82319530 <- __imp__sub_822A7B30 <- __imp__sub_822A88C8 <- __imp__sub_82286280 <- __imp__sub_822870A0 <- __imp__sub_822A23F8 <- __imp__sub_822A26C8 <- __imp__sub_823173F0
+prop:visemes
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_82190DB0 <- __imp__sub_82191910 <- __imp__sub_8215FBD8 <- __imp__sub_82167D30 <- __imp__sub_82192470
+prop:vocal_style_instruments
+   sub_82319530 <- __imp__sub_82346FA8 <- __imp__sub_823341D0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:vols
+   sub_82319530 <- __imp__sub_822ADE58 <- __imp__sub_822AE448 <- __imp__sub_822A1C10 <- __imp__sub_82378BB0 <- __imp__sub_82379738 <- __imp__sub_822A0408 <- __imp__sub_8236B460
+prop:volume
+   sub_82319530 <- __imp__sub_822E5B88 <- __imp__sub_822E9BC0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:walk_delays
+   sub_82319530 <- __imp__sub_822D16B8 <- __imp__sub_822D3B18 <- __imp__sub_821B8D38 <- __imp__sub_82373EB8 <- __imp__sub_8224A718 <- __imp__sub_82376EB0 <- __imp__sub_82379738
+prop:warning_level
+   sub_82319530 <- __imp__sub_822D6398 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38 <- __imp__sub_8236AEC0
+prop:watcher
+   sub_82319530 <- __imp__sub_82346FA8 <- __imp__sub_823341D0 <- __imp__sub_822BC818 <- __imp__sub_822CEA18 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:Waypoint
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82196C70 <- __imp__sub_82315350 <- __imp__sub_82197A38 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:whammy
+   sub_82319530 <- __imp__sub_826A08C8 <- __imp__sub_8269C968 <- __imp__sub_8269AB80 <- __imp__sub_82699538 <- __imp__sub_826967B8 <- __imp__sub_826932D0 <- __imp__sub_82693A20
+prop:whammy_end
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_822C8438 <- __imp__sub_8234FC40 <- __imp__sub_8234FF18 <- __imp__sub_82350D68
+prop:whammy_end_callback
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:whammy_rate
+   sub_82319530 <- __imp__sub_822D5FC0 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:whammy_speed
+   sub_82319530 <- __imp__sub_822D5FC0 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:whammy_start
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_822C8438 <- __imp__sub_8234FC40 <- __imp__sub_8234FF18 <- __imp__sub_82350D68
+prop:whammy_start_callback
+   sub_82319530 <- __imp__sub_82316428 <- __imp__sub_822DD4D0 <- __imp__sub_822C7060 <- __imp__sub_8232B7E8 <- __imp__sub_8231A748 <- __imp__sub_82317EF8 <- __imp__sub_8231AE98
+prop:whammy_timeout
+   sub_82319530 <- __imp__sub_822D5FC0 <- __imp__sub_822D69C8 <- __imp__sub_822D6C90 <- __imp__sub_822B6118 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48
+prop:win_preload_panel
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_822CAFF8 <- __imp__sub_82378D28 <- __imp__sub_82379308 <- __imp__sub_8229FC00 <- __imp__sub_8236AA38
+prop:win_screen
+   sub_82319530 <- __imp__sub_82315440 <- __imp__sub_82315578 <- __imp__sub_823161D0 <- __imp__sub_82316428 <- __imp__sub_822B8B18 <- __imp__sub_8231A748 <- __imp__sub_82317EF8
+prop:window
+   sub_82319530 <- __imp__sub_8234B8F8 <- __imp__sub_8234BAD0 <- __imp__sub_8233B848 <- __imp__sub_822E44B0 <- __imp__sub_822D08F0 <- __imp__sub_822CB118 <- __imp__sub_822CC848
+prop:woman
+   sub_82319530 <- __imp__sub_82287600 <- __imp__sub_822C5A68 <- __imp__sub_823810E0 <- __imp__sub_8237B540 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:world_fx
+   sub_82319530 <- __imp__sub_821BBA20 <- __imp__sub_82315350 <- __imp__sub_8231FF08 <- __imp__sub_821BA4C8 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:WorldCrowd
+   sub_82319530 <- __imp__sub_82270D80 <- __imp__sub_82248F58 <- __imp__sub_82315350 <- __imp__sub_8224A090 <- __imp__sub_823241E8 <- __imp__sub_82323CA8 <- __imp__sub_8235A1C0
+prop:WorldDir
+   sub_82319530 <- __imp__sub_82270DE0 <- __imp__sub_822B43B8 <- __imp__sub_822C4310 <- __imp__sub_822BB048 <- __imp__sub_822CE068 <- __imp__sub_822B2D48 <- __imp__sub_823173F0
+prop:y
+   sub_82319530 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58
+prop:youreallygotme
+   sub_82319530 <- __imp__sub_82287600 <- __imp__sub_822C5A68 <- __imp__sub_823810E0 <- __imp__sub_8237B540 <- __imp__sub_8231A748 <- __imp__sub_8231AE98 <- __imp__sub_82316428
+prop:z-range
+   sub_82319530 <- __imp__sub_8236C4C0 <- __imp__sub_82120208 <- __imp__sub_82120B58

@@ -205,6 +205,7 @@
 //        0xCCBEDEAF (3rd variant) / 0xCDBEDEAF (4th, community-only)
 // Magic is big-endian in file; byte-swapped on read; stored at MiloLoader+44
 
+#define hmx_BinStream_Read         sub_82359400   // BinStream::Read(stream*, dest_buf*, nbytes) — called by all object Read() methods
 #define hmx_MiloLoader_ReadLoop    sub_8235F678   // streaming read loop: byte-swaps magic, compares all 3 variants HIGH
 #define hmx_MiloLoader_MagicStd    sub_8235F2D8   // dispatch: 0xCABEDEAF → seek-mode read via vtable[8]
 #define hmx_MiloLoader_MagicStream sub_8235F358   // dispatch: 0xCBBEDEAF → sub_82362310 (streaming decompression)
@@ -771,7 +772,12 @@
 //         → hmx_GuitarPort_Poll (sub_8227B538)
 //             → hmx_XamInputGetState (sub_823B5B68)     [XamInputGetState trampoline]
 //             → hmx_GuitarPort_RemapButtons (sub_8227B368)
-//                  [XInput wButtons u16 → engine lane u32 via 16-entry table at 0x82247000+26416]
+//                  [XInput wButtons u16 → engine lane u32 via 16-entry table at 0x82036730]
+//                  CONFIRMED table (runtime dump 2026-05-29): XInput bit → engine bit:
+//                    A(12)→6 Green  B(13)→4 Red  Y(15)→5 Yellow  X(14)→7 Blue  LB(8)→2 Orange
+//                    DPADup(0)→12 DPADdn(1)→14 DPADlf(2)→15 DPADrt(3)→13 START(4)→11
+//                    BACK(5)→8 LSTICK(6)→9 RSTICK(7)→10 RB(9)→3  strum_up→bit0 strum_dn→bit1
+//                    (slw zeroes if engine bit>=32, so all fret bits are <32)
 //             → hmx_GuitarPort_RemapAnalog (sub_8227B3F0) [×4: strum/whammy/tilt axes]
 //         → hmx_Input_ExtractState (sub_8227C690)        [build typed snapshot]
 //
@@ -804,7 +810,7 @@
 #define hmx_GuitarInput_Poll            sub_8227CC98   // HIGH; per-frame guitar/controller poller; guard at 0x82788000+22416; 8-port loop
 #define hmx_GuitarPort_Poll             sub_8227B538   // HIGH; per-port poll; r3=port_obj r4..r9=output ptrs; calls XamInputGetState+RemapButtons
 #define hmx_XamInputGetState            sub_823B5B68   // HIGH; 3-insn trampoline: __imp__XamInputGetState(controller_idx, 0, &XINPUT_STATE)
-#define hmx_GuitarPort_RemapButtons     sub_8227B368   // HIGH; XInput wButtons u16 → engine lane u32 via 16-entry table; strum_up→bit0, strum_dn→bit1
+#define hmx_GuitarPort_RemapButtons     sub_8227B368   // HIGH; XInput wButtons u16 → engine lane u32 via 16-entry table @0x82036730 (CONFIRMED runtime); A→6/Grn B→4/Red Y→5/Yel X→7/Blu LB→2/Org; strum_up→bit0 strum_dn→bit1
 #define hmx_GuitarPort_RemapAnalog      sub_8227B3F0   // HIGH; int16 XInput axis → float; scale at 0x82247000+26484; called ×4 for strum/whammy/tilt
 #define hmx_Input_ExtractState          sub_8227C690   // HIGH; builds typed input snapshot from remapped button/axis data; called once per port
 #define hmx_Input_GetProperty           sub_8227C540   // MEDIUM; property accessor for input class

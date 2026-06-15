@@ -1,0 +1,2690 @@
+{
+  "pcsx2_pid": 12260,
+  "ee_base_host": "0x00007ff720000000",
+  "interpreter_for_probe": true,
+  "window_handle": "0x3250890",
+  "screenshot": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-trace360\\analysis\\ps2_trace\\pcsx2_hair_eye_bandwide_slots_sequence_20260611.window.png",
+  "seconds": 45.0,
+  "ring_size": 65536,
+  "patches": [
+    {
+      "name": "hair_setup_00176aa0",
+      "func": "0x00176aa0",
+      "stub": "0x01c00000",
+      "func_id": 1
+    },
+    {
+      "name": "hair_reset_00176ab0",
+      "func": "0x00176ab0",
+      "stub": "0x01c00100",
+      "func_id": 2
+    },
+    {
+      "name": "hair_update_00176fb8",
+      "func": "0x00176fb8",
+      "stub": "0x01c00200",
+      "func_id": 3
+    },
+    {
+      "name": "lookat_setup_0017d640",
+      "func": "0x0017d640",
+      "stub": "0x01c00300",
+      "func_id": 4
+    },
+    {
+      "name": "lookat_update_0017d658",
+      "func": "0x0017d658",
+      "stub": "0x01c00400",
+      "func_id": 5
+    },
+    {
+      "name": "lookat_child_002ffa60",
+      "func": "0x002ffa60",
+      "stub": "0x01c00500",
+      "func_id": 6
+    },
+    {
+      "name": "lookat_vec_002dad00",
+      "func": "0x002dad00",
+      "stub": "0x01c00600",
+      "func_id": 7
+    },
+    {
+      "name": "lookat_math_002d5fd8",
+      "func": "0x002d5fd8",
+      "stub": "0x01c00700",
+      "func_id": 8
+    },
+    {
+      "name": "chareyes_slot_00174248",
+      "func": "0x00174248",
+      "stub": "0x01c00800",
+      "func_id": 9
+    },
+    {
+      "name": "chareyes_slot_001752f8",
+      "func": "0x001752f8",
+      "stub": "0x01c00900",
+      "func_id": 10
+    },
+    {
+      "name": "chareyes_slot_001753b8",
+      "func": "0x001753b8",
+      "stub": "0x01c00a00",
+      "func_id": 11
+    },
+    {
+      "name": "chareyes_slot_00174d68",
+      "func": "0x00174d68",
+      "stub": "0x01c00b00",
+      "func_id": 12
+    },
+    {
+      "name": "chareyes_slot_00174e50",
+      "func": "0x00174e50",
+      "stub": "0x01c00c00",
+      "func_id": 13
+    },
+    {
+      "name": "chareyes_slot_00174dd0",
+      "func": "0x00174dd0",
+      "stub": "0x01c00d00",
+      "func_id": 14
+    }
+  ],
+  "count": 288,
+  "records": [
+    {
+      "index": 0,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 1,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 2,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 3,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 4,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 5,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 6,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 7,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 8,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 9,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 10,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 11,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 12,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 13,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 14,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 15,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 16,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 17,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 18,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 19,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 20,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 21,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 22,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 23,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 24,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 25,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 26,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 27,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 28,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 29,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 30,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 31,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 32,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 33,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 34,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 35,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 36,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 37,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 38,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 39,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 40,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 41,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 42,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 43,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 44,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 45,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 46,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 47,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 48,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 49,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 50,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 51,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 52,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 53,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 54,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 55,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 56,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 57,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 58,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 59,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 60,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 61,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 62,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 63,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 64,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 65,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 66,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 67,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 68,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 69,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 70,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 71,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 72,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 73,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 74,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 75,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 76,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 77,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 78,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 79,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 80,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 81,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 82,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 83,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 84,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 85,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 86,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 87,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 88,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 89,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 90,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 91,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 92,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 93,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 94,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 95,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 96,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 97,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 98,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 99,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 100,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 101,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 102,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 103,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 104,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 105,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 106,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 107,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 108,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 109,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 110,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 111,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 112,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 113,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 114,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 115,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 116,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 117,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 118,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 119,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 120,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 121,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 122,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 123,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 124,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 125,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 126,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 127,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 128,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 129,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 130,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 131,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 132,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 133,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 134,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 135,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 136,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 137,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 138,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 139,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 140,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 141,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 142,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 143,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 144,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 145,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 146,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 147,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 148,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 149,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 150,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 151,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 152,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 153,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 154,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 155,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 156,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 157,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 158,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 159,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 160,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 161,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 162,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 163,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 164,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 165,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 166,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 167,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 168,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 169,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 170,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 171,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 172,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 173,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 174,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 175,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 176,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 177,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 178,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 179,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 180,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 181,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 182,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 183,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 184,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 185,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 186,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 187,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 188,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 189,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 190,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 191,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 192,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 193,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 194,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 195,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 196,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 197,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 198,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 199,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 200,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 201,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 202,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 203,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 204,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 205,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 206,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 207,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 208,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 209,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 210,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 211,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 212,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 213,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 214,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 215,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 216,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 217,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 218,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 219,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 220,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 221,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 222,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 223,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 224,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 225,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 226,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 227,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 228,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 229,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 230,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 231,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 232,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 233,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 234,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 235,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 236,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 237,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 238,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 239,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 240,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 241,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 242,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 243,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 244,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 245,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 246,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 247,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 248,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 249,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 250,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 251,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 252,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 253,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 254,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 255,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 256,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 257,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 258,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 259,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 260,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 261,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 262,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 263,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 264,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 265,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 266,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 267,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 268,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 269,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 270,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 271,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 272,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 273,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 274,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 275,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 276,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 277,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 278,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 279,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 280,
+      "func_id": 6,
+      "name": "lookat_child_002ffa60",
+      "a0": "0x00db9f80",
+      "a1": "0x00dbaf50",
+      "a2": "0x00db9f80",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 281,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbac60"
+    },
+    {
+      "index": 282,
+      "func_id": 7,
+      "name": "lookat_vec_002dad00",
+      "a0": "0x01ffe7e0",
+      "a1": "0x01ffe7d0",
+      "a2": "0x01ffe7f0",
+      "a3": "0x00dbbb60"
+    },
+    {
+      "index": 283,
+      "func_id": 3,
+      "name": "hair_update_00176fb8",
+      "a0": "0x00dbf5a0",
+      "a1": "0x00176fb8",
+      "a2": "0x00dbf5a8",
+      "a3": "0x40c90fdb"
+    },
+    {
+      "index": 284,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbe470",
+      "a1": "0x0017d658",
+      "a2": "0x00dbe48c",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 285,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbe500",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    },
+    {
+      "index": 286,
+      "func_id": 5,
+      "name": "lookat_update_0017d658",
+      "a0": "0x00dbf940",
+      "a1": "0x0017d658",
+      "a2": "0x00dbf95c",
+      "a3": "0x007c4114"
+    },
+    {
+      "index": 287,
+      "func_id": 8,
+      "name": "lookat_math_002d5fd8",
+      "a0": "0x00dbf9d0",
+      "a1": "0x01ffe7f0",
+      "a2": "0x00db9f70",
+      "a3": "0x00000000"
+    }
+  ]
+}

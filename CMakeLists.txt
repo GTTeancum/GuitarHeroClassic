@@ -20,6 +20,7 @@ set(GH2TEST_SOURCES
     src/trace_recorder.cpp
     src/trace_hooks.cpp
     src/autoplay_hook.cpp
+    src/bone_capture_hook.cpp
 )
 
 if(WIN32)

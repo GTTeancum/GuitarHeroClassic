@@ -10,8 +10,10 @@
 // A --headless cvar approach was tried first; the cvar value parsed as
 // false regardless of the CLI value (probably a static-init ordering
 // issue with our consumer-side define vs rex::cvar::Init). Simpler:
-// always hide. If a visible mode is ever needed for interactive debug,
-// add a --show-window cvar wired into a working channel.
+// always hide unless --show_window is present on the command line.
+// --show_window uses the same GetCommandLineA/strstr pattern as
+// --no_autoplay (autoplay_hook.cpp) which is known-good.
+// smoke_trace.ps1 -Interactive passes --show_window automatically.
 
 #pragma once
 
@@ -21,6 +23,17 @@
 #include <rex/logging.h>
 #include <rex/rex_app.h>
 #include <rex/ui/window.h>
+
+#if defined(_WIN32)
+#include <Windows.h>
+#include <cstring>
+// Returns true if --show_window appears anywhere in the process command line.
+// Same pattern as cmdline_has_no_autoplay() in autoplay_hook.cpp.
+static inline bool cmdline_has_show_window() {
+    const char* cl = GetCommandLineA();
+    return cl && std::strstr(cl, "--show_window") != nullptr;
+}
+#endif
 
 // rex/audio/nop/nop_audio_system.h was tried first as a headless-audio
 // approach. The NopAudioSystem::CreateDriver returns X_STATUS_NOT_IMPLEMENTED
@@ -51,11 +64,16 @@
 #ifdef _WIN32
 namespace {
 
-// Mute this process's audio session via the Windows Audio Session API.
-// Doesn't disable the rexglue audio system (which the guest expects);
-// just silences anything we'd otherwise send to the user's speakers
-// so trace runs stay headless. Returns true on success.
-inline bool MuteOwnAudioSession() {
+// Set this process's audio-session mute state via the Windows Audio
+// Session API. Doesn't disable the rexglue audio system (which the guest
+// expects); just governs whether what we'd send to the user's speakers is
+// silenced. mute=TRUE keeps trace runs headless; mute=FALSE proactively
+// UNmutes — important because Windows PERSISTS per-app mute state in the
+// volume mixer keyed by the executable, so once a headless run muted
+// gh2test.exe, a later interactive run inherits that mute until we clear
+// it here. When unmuting we also restore master volume to 1.0 in case a
+// remembered low level is in effect. Returns true on success.
+inline bool SetOwnAudioSessionMute(BOOL mute) {
     HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     const bool we_inited_com = SUCCEEDED(hr);
     bool ok = false;
@@ -88,7 +106,11 @@ inline bool MuteOwnAudioSession() {
                 ISimpleAudioVolume* vol = nullptr;
                 if (SUCCEEDED(ctrl->QueryInterface(__uuidof(ISimpleAudioVolume),
                                                    reinterpret_cast<void**>(&vol)))) {
-                    vol->SetMute(TRUE, nullptr);
+                    vol->SetMute(mute, nullptr);
+                    if (!mute) {
+                        // Override any remembered low per-app level.
+                        vol->SetMasterVolume(1.0f, nullptr);
+                    }
                     vol->Release();
                     ok = true;
                 }
@@ -139,11 +161,25 @@ class Gh2testApp : public rex::ReXApp {
         REXLOG_WARN("Gh2testApp: native hwnd is null at OnPostSetup; can't hide");
       } else {
         // The window briefly appears during SetupPresentation (which creates
-        // and Open()s it before OnPostSetup runs) but gets hidden here. The
-        // D3D12 swapchain still functions against a hidden window.
-        ShowWindow(hwnd, SW_HIDE);
-        REXLOG_INFO("Gh2testApp: window hidden for headless run (hwnd=0x{:x})",
-                    reinterpret_cast<uintptr_t>(hwnd));
+        // and Open()s it before OnPostSetup runs). Hide it for headless runs;
+        // leave it visible when --show_window is on the command line.
+        if (cmdline_has_show_window()) {
+          // Interactive/debug mode: keep window visible so the user can see
+          // menus and navigate with keyboard (ASDFG frets + arrow keys).
+          // MnK SetCursorPos hook still installed below to prevent cursor warp.
+          // Force foreground focus so MnkInputDriver::has_focus_ becomes true
+          // immediately (OnGotFocus fires on WM_SETFOCUS). Without this the
+          // window appears but keyboard input is silently dropped because
+          // GetState() short-circuits on !has_focus_.
+          SetForegroundWindow(hwnd);
+          SetFocus(hwnd);
+          REXLOG_INFO("Gh2testApp: window visible for interactive run (hwnd=0x{:x})",
+                      reinterpret_cast<uintptr_t>(hwnd));
+        } else {
+          ShowWindow(hwnd, SW_HIDE);
+          REXLOG_INFO("Gh2testApp: window hidden for headless run (hwnd=0x{:x})",
+                      reinterpret_cast<uintptr_t>(hwnd));
+        }
       }
     }
 
@@ -164,14 +200,43 @@ class Gh2testApp : public rex::ReXApp {
     // after a generous timeout). The session may also be destroyed
     // and recreated over the run, so the worker keeps trying for the
     // first ~60 s of process life as a paranoia margin.
+    //
+    // EXCEPTION: when the window is visible (--show_window, i.e. an
+    // interactive play/measurement session) we WANT to hear the song —
+    // for auto-strum timing feedback and general sanity. The mute is a
+    // headless-trace convenience only, so skip it entirely when the user
+    // asked for a visible window. The guest audio engine is unaffected
+    // either way; this only governs the Windows-session SetMute.
+    if (cmdline_has_show_window()) {
+      // Interactive run: actively UNmute. Windows persists per-app mute
+      // state in the volume mixer, so a previous headless run's SetMute
+      // sticks to gh2test.exe across launches; clearing our own flag isn't
+      // enough — we must explicitly push SetMute(FALSE). The session is
+      // created lazily on first audio submission, so retry until it exists.
+      std::thread([]{
+        for (int i = 0; i < 300; ++i) {  // 300 * 200ms = 60s
+          if (SetOwnAudioSessionMute(FALSE)) {
+            REXLOG_INFO("Gh2testApp: audio session UNMUTED for interactive run (attempt {})", i + 1);
+            // Re-assert a few times in case the session is recreated.
+            for (int j = 0; j < 50; ++j) {
+              std::this_thread::sleep_for(std::chrono::milliseconds(200));
+              SetOwnAudioSessionMute(FALSE);
+            }
+            return;
+          }
+          std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+        REXLOG_WARN("Gh2testApp: audio unmute worker gave up after 60s");
+      }).detach();
+    } else {
     std::thread([]{
       for (int i = 0; i < 300; ++i) {  // 300 * 200ms = 60s
-        if (MuteOwnAudioSession()) {
+        if (SetOwnAudioSessionMute(TRUE)) {
           REXLOG_INFO("Gh2testApp: process audio session muted (attempt {})", i + 1);
           // Keep going a bit in case session is re-created.
           for (int j = 0; j < 50; ++j) {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            MuteOwnAudioSession();  // re-mute defensively
+            SetOwnAudioSessionMute(TRUE);  // re-mute defensively
           }
           return;
         }
@@ -179,6 +244,7 @@ class Gh2testApp : public rex::ReXApp {
       }
       REXLOG_WARN("Gh2testApp: audio mute worker gave up after 60s");
     }).detach();
+    }
 #endif
 
     // Initialize the trace recorder. Output lands in <exe_dir>/captures/
