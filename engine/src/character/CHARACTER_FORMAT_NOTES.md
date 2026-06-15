@@ -315,6 +315,17 @@ Glam1 hair:
   by hiding sheets or adding per-mesh offsets. Remaining work is limited to
   trace-backed row production/consumption, especially where native follow rows
   still collapse to identity in the local-attachment skin path.
+- 2026-06-15 wrist close-up isolation after `88dc57e`:
+  `engine/out/native_song_20260615/glam1_left_arm_mesh_isolate_after_88dc57e/`
+  proves the obvious dark angular piece below the left glove is
+  `glam1.73.mesh`, a `glam1_hair.mat` mesh whose palette is
+  `bone_L-hand.mesh`, `bone_L-foreTwist1.mesh`, and
+  `bone_L-foreTwist2.mesh`. The adjacent skin/glove seam is
+  `glam1.31.mesh` / `glam1.32.mesh` on `glam1_arms.mat`. This is not a loose
+  unknown mesh and not a reason to hide hair material globally; it is another
+  weighted sheet consuming the same hand/foretwist rows. Keep future fixes in
+  the shared skinning/controller path unless a PS2 trace proves this specific
+  mesh is culled or attached differently.
 - 2026-06-15 render-state hair-card pass:
   `engine/out/native_song_20260615/glam1_texture_alpha_diag/` proves the
   visible Glam1 front/top sheets are not caused by sampler addressing or a
