@@ -1196,6 +1196,14 @@ Useful environment flags:
   specific controller behavior. The matching screenshot still shows the
   remaining Glam1 left-wrist deformation, so the next fix belongs to the shared
   skin/controller path, not another render cull/hide shortcut.
+- 2026-06-15 post-render-fix wrist A/B:
+  `engine/out/native_song_20260615/glam1_73_wrist_ab_after_007cfbe/` compares
+  the default frame against `GHOGX_DISABLE_DRIVEN_TWISTS=1` and
+  `GHOGX_DISABLE_PS2_IK_HAND_FINAL=1` with the same `bone_L-hand` camera.
+  Disabling driven twists lengthens/worsens the dark `glam1.73.mesh` wedge, and
+  disabling final hand placement breaks the hand/guitar relationship. Keep the
+  default PS2 hand/foretwist route; the remaining issue is not fixed by rolling
+  back driven twists or hand final placement.
 
 Every outfit audit should capture:
 
