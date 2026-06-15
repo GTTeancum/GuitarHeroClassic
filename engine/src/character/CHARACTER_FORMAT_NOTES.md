@@ -243,6 +243,18 @@ Glam1 hair:
   `bone_hair01.mesh` / `bone_bangL.mesh` / `bone_bangR.mesh` rows are present.
   The remaining fix is lower-level than selecting `mesh_world` versus
   parent-world for the whole sheet.
+- 2026-06-15 PS2 full-matrix hair writer trace:
+  `pcsx2_hair_transwrite_matrices_stridefix_20260615.json` captures full
+  `a1` matrices at the shared `0x001dd7b8` Trans writer. Every retained
+  `hair.hair` tick for Glam1 is followed by three runtime world-row writes:
+  `bone_hair01.mesh` (`0x00db81f0`), `bone_bangL.mesh` (`0x00dbc7f0`), and
+  `bone_bangR.mesh` (`0x00db73f0`). This proves the follow-only groups are
+  runtime world-row controllers, while the sampled target local rows remain
+  the authored stable rows. Two native probes are rejected from this trace:
+  `glam1_follow_basis_bridge_f900.bmp` (solver direction basis) and
+  `glam1_follow_roll_bridge_f900.bmp` (row0/row2 roll only). Both create
+  broad forehead sheets, so the remaining fix is the mesh/bind-space
+  consumption of those traced world rows, not another guessed controller pose.
 
 Glam1 eyes / look-at:
 

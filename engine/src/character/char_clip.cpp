@@ -842,15 +842,21 @@ void log_character_controller_graph_once(const Character& character) {
     size_t point_count = 0;
     for (const auto& group : hair.groups) point_count += group.points.size();
     std::fprintf(stderr,
-                 "[chargraph]   hair %s groups=%zu points=%zu enabled=%d\n",
+                 "[chargraph]   hair %s groups=%zu points=%zu enabled=%d "
+                 "globals=[%.3f %.3f %.3f %.3f %.3f %.3f]\n",
                  hair.name.c_str(), hair.groups.size(), point_count,
-                 hair.enabled ? 1 : 0);
+                 hair.enabled ? 1 : 0, hair.globals[0], hair.globals[1],
+                 hair.globals[2], hair.globals[3], hair.globals[4],
+                 hair.globals[5]);
     for (const auto& group : hair.groups) {
       std::fprintf(stderr,
                    "[chargraph]     hairGroup root=%s rootOffset=%.3f "
-                   "points=%zu\n",
+                   "points=%zu rows=[%.3f %.3f %.3f | %.3f %.3f %.3f]\n",
                    group.root_mesh.c_str(), group.root_offset,
-                   group.points.size());
+                   group.points.size(), group.limits_or_mats[0],
+                   group.limits_or_mats[1], group.limits_or_mats[2],
+                   group.limits_or_mats[9], group.limits_or_mats[10],
+                   group.limits_or_mats[11]);
       for (const auto& point : group.points) {
         std::fprintf(stderr,
                      "[chargraph]       hairPoint mesh=%s parent=%s "
@@ -3249,13 +3255,14 @@ static void apply_char_hair(Character& character, float time_seconds) {
           const Vec3 authored_from_anchor = vsub(authored, anchor);
           const Vec3 live_from_authored = vsub(live_world, authored);
           std::fprintf(stderr,
-                       "[charhair] %s point=%s root=%s coll=%s mode=%u "
+                       "[charhair%s] %s point=%s root=%s coll=%s mode=%u "
                        "authored=(%.3f %.3f %.3f) "
                        "anchor=(%.3f %.3f %.3f) live=(%.3f %.3f %.3f) "
                        "solved=(%.3f %.3f %.3f) "
                        "auth-anchor=(%.3f %.3f %.3f) "
                        "live-auth=(%.3f %.3f %.3f) "
                        "len=%.3f radius=%.3f align=%.3f dt=%.4f\n",
+                       follow_only_group ? "-follow" : "",
                        hair.name.c_str(), point.mesh.c_str(),
                        group.root_mesh.c_str(), point.parent.c_str(),
                        point.flags_or_mode, authored.x, authored.y, authored.z,
