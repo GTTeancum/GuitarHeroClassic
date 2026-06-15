@@ -282,6 +282,14 @@ Glam1 hair:
   `engine/out/native_song_20260615/glam1_hair_cull_default/glam1_hair_cull_default_f180.bmp`
   and cross-check
   `engine/out/native_song_20260615/hair_cull_crosscheck/rock2_hair_cull_default_f180.bmp`.
+- 2026-06-15 rejected descriptor-transpose probe:
+  `engine/out/native_song_20260615/glam1_hair_descriptor_transpose_probe/`
+  tested consuming each one-point `hair.hair` descriptor basis as the
+  transpose of the decoded `limits_or_mats` block. It did make the weighted
+  sheets receive non-identity rows, but `bone_bangR.mesh` picked up a
+  128-unit skin translation and the visual result tore sheets upward/across the
+  face. Keep the decoded row order as-is; the transpose relation seen against
+  `mesh.bind` is not the PS2 runtime bridge.
 
 Glam1 eyes / look-at:
 
