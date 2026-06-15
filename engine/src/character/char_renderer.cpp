@@ -124,6 +124,17 @@ bool is_hair_mesh_name(const std::string& n) {
   return lower.find("hair") != std::string::npos;
 }
 
+bool is_hair_material_name(const std::string& n) {
+  std::string lower = n;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return (char)std::tolower(c); });
+  return lower.find("hair") != std::string::npos;
+}
+
+bool is_hair_render_mesh(const SkinnedMesh& m) {
+  return is_hair_mesh_name(m.name) || is_hair_material_name(m.material);
+}
+
 bool is_bone_parent_name(const std::string& n) {
   return n.rfind("bone_", 0) == 0 || n.rfind("spot_", 0) == 0 ||
          n.find(".mesh") != std::string::npos ||
@@ -1346,8 +1357,8 @@ void CharRenderer::draw_impl(bool clear_target) {
                      const bool a_eye = is_eye_mesh(a->name);
                      const bool b_eye = is_eye_mesh(b->name);
                      if (a_eye != b_eye) return a_eye;
-                     const bool a_hair = is_hair_mesh_name(a->name);
-                     const bool b_hair = is_hair_mesh_name(b->name);
+                     const bool a_hair = is_hair_render_mesh(*a);
+                     const bool b_hair = is_hair_render_mesh(*b);
                      if (a_hair != b_hair) return !a_hair;
                      return false;
                    });
@@ -1492,8 +1503,17 @@ void CharRenderer::draw_impl(bool clear_target) {
     const milo_scene::MatObj* material = impl.character.find_mat(m.material);
     const bool highlight_mesh = highlight_mesh_enabled(m.name);
     const bool blended_hair =
-        material && material->blend != 0 && is_hair_mesh_name(m.name);
+        material && material->blend != 0 && is_hair_render_mesh(m);
     dev->SetRenderState(D3DRS_ZWRITEENABLE, blended_hair ? FALSE : TRUE);
+    if (debug_mesh_mode_enabled(m.name)) {
+      std::fprintf(stderr,
+                   "[mesh-render] %-24s mat=%-18s hairRender=%d blend=%d "
+                   "zwrite=%d\n",
+                   m.name.c_str(), m.material.c_str(),
+                   is_hair_render_mesh(m) ? 1 : 0,
+                   material ? material->blend : 0,
+                   blended_hair ? 0 : 1);
+    }
     const D3DCOLOR mesh_color =
         highlight_mesh
             ? D3DCOLOR_ARGB(255, 255, 0, 255)

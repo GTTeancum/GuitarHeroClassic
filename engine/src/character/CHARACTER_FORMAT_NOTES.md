@@ -1183,6 +1183,19 @@ Useful environment flags:
   lower-only mode when full output is explicitly enabled. Do not promote the
   full bridge until the packed output/work-buffer-to-visible-Trans copy is
   mapped.
+- 2026-06-15 Glam1 wrist isolate promoted a narrow render-path correction:
+  numeric meshes can be hair draw members by material, not only by mesh name.
+  `glam1.73.mesh` is named numerically but uses `glam1_hair.mat`, blends, and
+  must sort/draw with hair render state. Native now treats hair-material meshes
+  as hair for draw ordering and blended depth-write disable only. Validation:
+  `engine/out/native_song_20260615/glam1_hair_render_material_after_bc1dba6/glam1_hair_render_f900.log`
+  shows `glam1.73.mesh mat=glam1_hair.mat hairRender=1 blend=1 zwrite=0`.
+  Its skin and attachment path intentionally remains `lbs-local-chain` /
+  `identity-skinned`; do not route numeric hair-material meshes through
+  `CharHair` overrides or head-local attachment unless PS2 traces prove that
+  specific controller behavior. The matching screenshot still shows the
+  remaining Glam1 left-wrist deformation, so the next fix belongs to the shared
+  skin/controller path, not another render cull/hide shortcut.
 
 Every outfit audit should capture:
 
