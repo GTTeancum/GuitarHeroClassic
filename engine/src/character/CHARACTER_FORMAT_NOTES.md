@@ -287,6 +287,19 @@ Glam1 hair:
   local-attachment skin equation reduces the weighted Glam1 sheets back to
   identity-space skin matrices. Do not claim this as a visual hair fix; the
   remaining work is the weighted local hair sheet bind/current bridge.
+- 2026-06-15 checkpoint baseline after `96d29a3`:
+  `engine/out/native_song_20260615/glam1_current_checkpoint_baseline/glam1_f900.bmp`
+  and `.log` show Glam1 eyes visible in the socket band with default zero
+  inset, while the weighted hair sheets still render through
+  `local-attachment` and reduce to identity skin matrices. A controlled
+  `GHOGX_DISABLE_CHAR_HAIR=1` run in
+  `engine/out/native_song_20260615/glam1_current_checkpoint_nocharhair/`
+  changes the screenshot hash but leaves the same local hair identity collapse,
+  so the remaining Glam1 hair work is not a sheet world-mode swap and not a
+  missing `hairOverride` flag. The PS2 stride-fixed writer trace still points
+  to the follow-only controller Trans row semantics for `bone_hair01.mesh`,
+  `bone_bangL.mesh`, and `bone_bangR.mesh`; fix that row production/consumption
+  path before testing any more visual offsets.
 - 2026-06-15 render-state hair-card pass:
   `engine/out/native_song_20260615/glam1_texture_alpha_diag/` proves the
   visible Glam1 front/top sheets are not caused by sampler addressing or a
