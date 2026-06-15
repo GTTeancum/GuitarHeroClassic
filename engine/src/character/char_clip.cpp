@@ -3066,6 +3066,47 @@ static bool local_chain_position(const Character& character,
   return true;
 }
 
+static bool bind_local_for_target(const Character& character,
+                                  const std::string& name,
+                                  milo_scene::Xfm& out) {
+  for (size_t i = 0; i < character.bones.size(); ++i) {
+    if (!channel_matches_bone(character.bones[i].name, name) &&
+        character.bones[i].name != name) {
+      continue;
+    }
+    out = i < character.bind_bone_local.size() ? character.bind_bone_local[i]
+                                               : character.bones[i].local;
+    return true;
+  }
+  for (size_t i = 0; i < character.meshes.size(); ++i) {
+    if (!channel_matches_bone(character.meshes[i].name, name) &&
+        character.meshes[i].name != name) {
+      continue;
+    }
+    out = i < character.bind_mesh_local.size() ? character.bind_mesh_local[i]
+                                               : character.meshes[i].local;
+    return true;
+  }
+  return false;
+}
+
+static bool descriptor_hair_follow_world(const Character& character,
+                                         const CharHairGroup& group,
+                                         const TransformTarget& target,
+                                         std::array<float, 16>& out) {
+  if (!target.name || !target.parent || target.parent->empty()) return false;
+  milo_scene::Xfm local{};
+  if (!bind_local_for_target(character, *target.name, local)) return false;
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      local.rot[r][c] = group.limits_or_mats[r * 3 + c];
+    }
+  }
+  const auto parent_world = character.bone_world_local_chain(*target.parent);
+  out = mat4_mul(xfm_to_mat4_local(local), parent_world);
+  return true;
+}
+
 static bool hair_anchor_position(const Character& character,
                                  const CharHairGroup& group,
                                  const CharHairPoint& point,
@@ -3181,8 +3222,15 @@ static void apply_char_hair(Character& character, float time_seconds) {
           continue;
         }
 
-        const auto live_world_xfm =
+        auto live_world_xfm =
             character.bone_world_local_chain(*target.name);
+        if (follow_only_group) {
+          std::array<float, 16> descriptor_world{};
+          if (descriptor_hair_follow_world(character, group, target,
+                                           descriptor_world)) {
+            live_world_xfm = descriptor_world;
+          }
+        }
         const Vec3 live_world = mat_pos(live_world_xfm);
         if (!state.initialized || state.mesh != point.mesh) {
           state.initialized = true;

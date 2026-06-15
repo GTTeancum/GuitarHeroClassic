@@ -255,6 +255,18 @@ Glam1 hair:
   `glam1_follow_roll_bridge_f900.bmp` (row0/row2 roll only). Both create
   broad forehead sheets, so the remaining fix is the mesh/bind-space
   consumption of those traced world rows, not another guessed controller pose.
+- Native follow-up after the full-target trace:
+  `engine/out/native_song_20260615/glam1_traceback_follow_world/`
+  compares `glam1_follow_world_f900.bmp` against
+  `glam1_charhair_disabled_samecam_f900.bmp` with the same fixed camera.
+  The images differ by only 98 pixels out of 921,600, with max channel deltas
+  4/3/2, so the one-point `hair.hair` controller path is effectively not the
+  visible Glam1 side-sheet fix. `glam1_follow_world_hairspace_f120.log` proves
+  the traced override reaches `curr_world` for `bone_hair01.mesh`,
+  `bone_bangL.mesh`, and `bone_bangR.mesh`, but the current
+  local-attachment skin equation reduces the weighted Glam1 sheets back to
+  identity-space skin matrices. Do not claim this as a visual hair fix; the
+  remaining work is the weighted local hair sheet bind/current bridge.
 
 Glam1 eyes / look-at:
 
@@ -396,6 +408,18 @@ Glam1 eyes / look-at:
   The accepted row evidence still says the eye meshes match the PS2
   head-relative rows; the visible issue remains eyelid/lash/coverage state
   unless a new trace proves the eyeball rows themselves are wrong.
+- 2026-06-15 native/trace bridge caveat:
+  gameplay currently calls `apply_character_controllers(character, ...)`
+  without consuming `FaceFxEyeProperties`, and the viewer collects those
+  properties only as a local diagnostic. The accepted PS2 row evidence is not
+  a loose eye offset: `pcsx2_hair_eye_active_rows_20260611.json` shows
+  `CharEyes.eyes`, its pivot/child row, both per-side look-at rows, and both
+  source eye rows moving together. A stock-state rerun from state 1 did not
+  exercise the look-at update in the captured window (`0x0017d690` zero-hit
+  while the Trans writer heartbeat fired), and patching the older
+  `0x0017d658` address killed the heartbeat, so do not use that rerun as
+  negative eye evidence. Implement the `CharEyes` bridge only from accepted
+  rows that show the full resident/pivot/source-eye chain.
 
 Rock2 hair:
 
