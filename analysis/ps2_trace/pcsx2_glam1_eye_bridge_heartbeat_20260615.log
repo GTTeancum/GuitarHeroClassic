@@ -1,0 +1,81 @@
+[    0.0225] Program Path: C:\Games\Emulators\PCSX2\pcsx2-qt.exe
+[    0.0226] AppRoot Directory: C:\Games\Emulators\PCSX2
+[    0.0226] Resources Directory: C:\Games\Emulators\PCSX2\resources
+[    0.0229] DataRoot Directory: C:\Games\Emulators\PCSX2
+[    0.0230] Loading config from C:\Games\Emulators\PCSX2\inis\PCSX2.ini.
+[    0.0302] Loading secrets from C:\Games\Emulators\PCSX2\inis\secrets.ini.
+[    0.0303] BIOS Directory: C:\Games\Emulators\PCSX2\bios
+[    0.0304] Snapshots Directory: C:\Games\Emulators\PCSX2\snaps
+[    0.0304] Savestates Directory: C:\Games\Emulators\PCSX2\sstates
+[    0.0309] MemoryCards Directory: C:\Games\Emulators\PCSX2\memcards
+[    0.0309] Logs Directory: C:\Games\Emulators\PCSX2\logs
+[    0.0310] Cheats Directory: C:\Games\Emulators\PCSX2\cheats
+[    0.0310] Patches Directory: C:\Games\Emulators\PCSX2\patches
+[    0.0310] Covers Directory: C:\Games\Emulators\PCSX2\covers
+[    0.0310] Game Settings Directory: C:\Games\Emulators\PCSX2\gamesettings
+[    0.0310] Resources Directory: C:\Games\Emulators\PCSX2\resources
+[    0.0310] User Resources Directory: C:\Games\Emulators\PCSX2\resources
+[    0.0310] Cache Directory: C:\Games\Emulators\PCSX2\cache
+[    0.0310] Textures Directory: C:\Games\Emulators\PCSX2\textures
+[    0.0310] Input Profile Directory: C:\Games\Emulators\PCSX2\inputprofiles
+[    0.0310] Video Dumping Directory: C:\Games\Emulators\PCSX2\videos
+[    0.0310] Debugger Layouts Directory: C:\Games\Emulators\PCSX2\inis\debuggerlayouts
+[    0.0310] Debugger Settings Directory: C:\Games\Emulators\PCSX2\inis\debuggersettings
+[    0.0339] Loaded translation file for language en-US
+[    0.0361] PCSX2 v2.7.93
+[    0.0361] Savestate version: 0x9a570000
+[    0.0361] 
+[    0.0361] 
+[    0.0361] Host Machine Init:
+[    0.0362]   Operating System = Microsoft Windows 10+
+[    0.0362]   Available RAM    = 13395 MB (13.08 GB)
+[    0.0362]   Physical RAM     = 28450 MB (27.78 GB)
+[    0.0362] 
+[    0.0362]   Processor        = AMD Ryzen 7 8745HS
+[    0.0362]   Core Count       = 8 cores
+[    0.0362]   Thread Count     = 16 threads
+[    0.0363]   Cluster Count    = 1 clusters
+[    0.0376]   Power Profile    = 'Balanced'
+[    0.0376]   Power States (min/max)
+[    0.0376]     AC             = 0% / 100%
+[    0.0376]     Battery        = 5% / 100%
+[    0.0376] 
+[    0.0377] CPU Extensions Detected:
+[    0.0377]   AVX AVX2 AVX512F
+[    0.0377] 
+[    0.0377] Graphics Adapters Detected:
+[    0.0474]   GPU              = AMD Radeon 780M Graphics
+[    0.0474]   Driver Version   = 32.0.23033.1002
+[    0.0474] 
+[    0.0480]   GPU              = Microsoft Basic Render Driver
+[    0.0480]   Driver Version   = 10.0.26100.8521
+[    0.0480] 
+[    0.0480] Allocating host memory for virtual systems...
+[    0.0481] Data Memory                      @ 0x00007FF690000000 -> 0x00007FF699F00000 [159mb]
+[    0.0481] Code Memory                      @ 0x00007FF699F00000 -> 0x00007FF6AD000000 [305mb]
+[    0.0481]   EE Main Memory                   @ 0x00007FF690000000 -> 0x00007FF698F00000 [143mb]
+[    0.0481]   IOP Main Memory                  @ 0x00007FF698F00000 -> 0x00007FF699200000 [3mb]
+[    0.0481]   VU0/1 On-Chip Memory             @ 0x00007FF699200000 -> 0x00007FF699300000 [1mb]
+[    0.0481]   VTLB Virtual Map                 @ 0x00007FF699300000 -> 0x00007FF699B00000 [8mb]
+[    0.0481]   VTLB Address Map                 @ 0x00007FF699B00000 -> 0x00007FF699F00000 [4mb]
+[    0.0481]   R5900 Recompiler Cache           @ 0x00007FF699F00000 -> 0x00007FF69DF00000 [64mb]
+[    0.0481]   R3000A Recompiler Cache          @ 0x00007FF69DF00000 -> 0x00007FF69FF00000 [32mb]
+[    0.0481]   Micro VU0 Recompiler Cache       @ 0x00007FF6A0F00000 -> 0x00007FF6A4F00000 [64mb]
+[    0.0481]   Micro VU0 Recompiler Cache       @ 0x00007FF6A4F00000 -> 0x00007FF6A8F00000 [64mb]
+[    0.0481]   VIF0 Unpack Recompiler Cache     @ 0x00007FF69FF00000 -> 0x00007FF6A0700000 [8mb]
+[    0.0481]   VIF1 Unpack Recompiler Cache     @ 0x00007FF6A0700000 -> 0x00007FF6A0F00000 [8mb]
+[    0.0481]   VIF Unpack Recompiler Cache      @ 0x00007FF6A8F00000 -> 0x00007FF6A9000000 [1mb]
+[    0.0482]   GS Software Renderer             @ 0x00007FF6A9000000 -> 0x00007FF6AD000000 [64mb]
+[    0.0487] Fastmem area: 00000173FF080000 - 00000174FF07FFFF
+[    0.0492] Generating SSE-optimized unpacking functions for VIF interpreters...
+[    0.0492] Unpack function generation complete.  Generated function statistics:
+[    0.0492]   Reserved buffer    : 1048576 bytes @ 0x00007FF6A8F00000
+[    0.0492]   x86 code generated : 7344 bytes
+[    0.0492] 
+[    0.0498] SDLInputSource: Using Controller DB from resources.
+[    0.1310] SDLInputSource: 865 gamepad mappings are loaded.
+[    0.1376] Surface refresh rate: 59.94006 hz
+[    0.1748] Enumerated 1 devices
+[    0.1782] Controller (Xbox One For Windows) has 16 buttons, 5 axes, 1 hats
+[    0.1786] XInput controller 0 connected.
+[    0.1790] XInput controller 0 disconnected.

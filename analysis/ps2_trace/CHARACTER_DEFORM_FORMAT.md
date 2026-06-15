@@ -2267,6 +2267,21 @@ Implementation consequence: eyes must preserve the look-at controller,
 per-side args, source eye rows, shared head row, pivot row, and `CharEyes`
 resident link. A loose eye mesh offset will not match PS2 behavior.
 
+2026-06-15 native follow-up:
+
+- Native gameplay still has a bridge gap: `apply_character_controllers()` can
+  compute `FaceFxEyeProperties`, but the in-song path currently discards those
+  diagnostics and does not model the resident `CharEyes`/pivot row chain shown
+  above.
+- A stock state-1 rerun for this route is not accepted as negative evidence:
+  `pcsx2_glam1_eye_bridge_iso_lookat_20260615.json` kept the Trans writer
+  heartbeat alive but zero-hit `0x0017d690`, while patching the older
+  `0x0017d658` address in
+  `pcsx2_glam1_eye_bridge_iso_lookat_old_20260615.json` also killed the Trans
+  writer heartbeat. Use the accepted 2026-06-11 row samples above for
+  implementation until a new state/window is proven to exercise the look-at
+  update safely.
+
 ## Props
 
 Accepted prop/live rows:

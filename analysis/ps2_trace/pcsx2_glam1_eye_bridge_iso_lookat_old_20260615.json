@@ -1,0 +1,28 @@
+{
+  "pcsx2_pid": 22964,
+  "ee_base_host": "0x00007ff690000000",
+  "ee_base_source": "pcsx2_log",
+  "interpreter_for_probe": true,
+  "window_handle": "0x1e81afa",
+  "screenshot": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-trace360\\analysis\\ps2_trace\\pcsx2_glam1_eye_bridge_iso_lookat_old_20260615.window.png",
+  "seconds": 8.0,
+  "ring_size": 4096,
+  "record_words": 128,
+  "arg_snapshot_words": 44,
+  "patches": [
+    {
+      "name": "lookat_update_0017d658",
+      "func": "0x0017d658",
+      "stub": "0x01c00000",
+      "func_id": 1
+    },
+    {
+      "name": "trans_write_001dd7b8",
+      "func": "0x001dd7b8",
+      "stub": "0x01c00800",
+      "func_id": 2
+    }
+  ],
+  "count": 0,
+  "records": []
+}

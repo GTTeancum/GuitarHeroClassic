@@ -26,6 +26,16 @@ kernel32.CloseHandle.restype = wintypes.BOOL
 REG = {"zero": 0, "a0": 4, "a1": 5, "a2": 6, "a3": 7, "k0": 26, "k1": 27}
 
 
+def record_words_for_arg_snapshot(arg_snapshot_words: int) -> int:
+    if arg_snapshot_words <= 0:
+        return 8
+    needed = 8 + arg_snapshot_words * 2
+    record_words = 32
+    while record_words < needed:
+        record_words *= 2
+    return record_words
+
+
 def ins_j(addr: int) -> int:
     return 0x08000000 | ((addr >> 2) & 0x03FFFFFF)
 
@@ -393,7 +403,7 @@ def make_sequence_stub(
 ) -> bytes:
     base = data + 0x100
     enable = data + 0x80 if enable_addr is None else enable_addr
-    record_words = 64 if arg_snapshot_words > 4 else (32 if arg_snapshot_words else 8)
+    record_words = record_words_for_arg_snapshot(arg_snapshot_words)
     record_shift = (record_words * 4).bit_length() - 1
     words = [
         orig1,
@@ -486,7 +496,7 @@ def install_trace_stubs(
     arg_snapshot_words: int = 0,
 ) -> list[dict[str, object]]:
     patches = []
-    stub_stride = 0x300 if arg_snapshot_words > 4 else 0x100
+    stub_stride = 0x800 if arg_snapshot_words > 16 else (0x300 if arg_snapshot_words > 4 else 0x100)
     for i, (name, func) in enumerate(targets):
         orig1, orig2, manifest_entry = original_words_for_target(
             manifest_entries, elf_code, elf_base, name, func
@@ -660,7 +670,7 @@ def main() -> int:
         "--arg-snapshot-words",
         type=int,
         default=0,
-        help="Opt-in helper mode: record this many words from a0/a1 pointers at call time (max 4).",
+        help="Opt-in helper mode: record this many words from a0/a1 pointers at call time (max 48).",
     )
     parser.add_argument("--disable-ee-recompiler", action="store_true")
     parser.add_argument("--gui", action="store_true")
@@ -674,10 +684,10 @@ def main() -> int:
 
     if args.ring_size & (args.ring_size - 1):
         raise RuntimeError("--ring-size must be a power of two")
-    if args.arg_snapshot_words < 0 or args.arg_snapshot_words > 16:
-        raise RuntimeError("--arg-snapshot-words must be between 0 and 16")
+    if args.arg_snapshot_words < 0 or args.arg_snapshot_words > 48:
+        raise RuntimeError("--arg-snapshot-words must be between 0 and 48")
     enable_addr = args.data_base + 0x80 if args.enable_addr is None else args.enable_addr
-    record_words = 64 if args.arg_snapshot_words > 4 else (32 if args.arg_snapshot_words else 8)
+    record_words = record_words_for_arg_snapshot(args.arg_snapshot_words)
     record_bytes = record_words * 4
     data_end = args.data_base + 0x100 + args.ring_size * record_bytes
     if data_end > 0x02000000:
