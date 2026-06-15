@@ -3237,9 +3237,9 @@ static void apply_char_hair(Character& character, float time_seconds) {
         desired_world[12] = solved.x;
         desired_world[13] = solved.y;
         desired_world[14] = solved.z;
+        const Vec3 old_curr = runtime_point_pos(state);
         set_runtime_point_world(state, desired_world);
         set_local_from_world(*target.local, desired_world, actual_parent_world);
-        const Vec3 old_curr = runtime_point_pos(state);
         set_runtime_point_pos(state, solved, old_curr);
         previous_point = solved;
         first_point = false;
@@ -3805,16 +3805,41 @@ const char* channel_type_name(ClipChannel::Type type) {
 }
 
 bool lane_mixer_interesting_channel(const std::string& bone_name) {
-  return bone_name.find("hand") != std::string::npos ||
-         bone_name.find("finger") != std::string::npos ||
-         bone_name.find("thumb") != std::string::npos ||
-         bone_name.find("fret") != std::string::npos ||
-         bone_name.find("strum") != std::string::npos ||
-         bone_name.find("clavicle") != std::string::npos ||
-         bone_name.find("upperArm") != std::string::npos ||
-         bone_name.find("foreArm") != std::string::npos ||
-         bone_name.find("foreTwist") != std::string::npos ||
-         bone_name.find("upperTwist") != std::string::npos;
+  const bool body_channel =
+      bone_name.find("hand") != std::string::npos ||
+      bone_name.find("finger") != std::string::npos ||
+      bone_name.find("thumb") != std::string::npos ||
+      bone_name.find("fret") != std::string::npos ||
+      bone_name.find("strum") != std::string::npos ||
+      bone_name.find("clavicle") != std::string::npos ||
+      bone_name.find("upperArm") != std::string::npos ||
+      bone_name.find("foreArm") != std::string::npos ||
+      bone_name.find("foreTwist") != std::string::npos ||
+      bone_name.find("upperTwist") != std::string::npos;
+  if (body_channel) return true;
+  return debug_face_enabled() && is_face_quat_bone(bone_name);
+}
+
+void dump_lane_channel_value(const ClipChannel& ch) {
+  switch (ch.type) {
+    case ClipChannel::kPos:
+      std::fprintf(stderr, " pos=(%.4f %.4f %.4f)", ch.pos[0], ch.pos[1],
+                   ch.pos[2]);
+      break;
+    case ClipChannel::kScale:
+      std::fprintf(stderr, " scale=(%.4f %.4f %.4f)", ch.scale[0],
+                   ch.scale[1], ch.scale[2]);
+      break;
+    case ClipChannel::kQuat:
+      std::fprintf(stderr, " quat=(%.4f %.4f %.4f %.4f)", ch.quat[0],
+                   ch.quat[1], ch.quat[2], ch.quat[3]);
+      break;
+    case ClipChannel::kRotX:
+    case ClipChannel::kRotY:
+    case ClipChannel::kRotZ:
+      std::fprintf(stderr, " angle=%.4f", ch.angle);
+      break;
+  }
 }
 
 void dump_lane_mixer_layers(const std::vector<ClipChannelLayer>& layers) {
@@ -3852,6 +3877,12 @@ void dump_lane_mixer_layers(const std::vector<ClipChannelLayer>& layers) {
       const std::string key =
           std::string(channel_type_name(ch.type)) + ":" + ch.bone_name;
       owners[key].push_back(name);
+      if (debug_face_enabled() && is_face_quat_bone(ch.bone_name)) {
+        std::fprintf(stderr, "[lane-mix]     face %s %s",
+                     name.c_str(), key.c_str());
+        dump_lane_channel_value(ch);
+        std::fprintf(stderr, "\n");
+      }
     }
   }
 
