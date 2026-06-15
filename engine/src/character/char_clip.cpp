@@ -771,6 +771,21 @@ bool debug_char_hair_enabled() {
 #endif
 }
 
+bool single_point_hair_solver_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_ENABLE_SINGLE_POINT_HAIR_SOLVER") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_ENABLE_SINGLE_POINT_HAIR_SOLVER");
+  return value && value[0];
+#endif
+}
+
 void log_character_controller_graph_once(const Character& character) {
   if (!controller_audit_enabled()) return;
   static std::unordered_set<std::string> logged;
@@ -3224,7 +3239,8 @@ static void apply_char_hair(Character& character, float time_seconds) {
     for (const auto& group : hair.groups) {
       bool first_point = true;
       Vec3 previous_point{};
-      const bool follow_only_group = group.points.size() == 1;
+      const bool follow_only_group =
+          group.points.size() == 1 && !single_point_hair_solver_enabled();
       for (const auto& point : group.points) {
         RuntimeHairPoint& state = character.runtime_hair.points[runtime_index++];
         TransformTarget target = find_transform_target(character, point.mesh);
