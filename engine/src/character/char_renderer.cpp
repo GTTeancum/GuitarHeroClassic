@@ -425,6 +425,10 @@ bool is_metal_bass_weighted_root_hair_piece(const SkinnedMesh& m) {
   return m.name == "hair_lower.mesh" && m.material == "hair_bassist.mat";
 }
 
+bool is_metal_bass_mesh_bind_material(const std::string& material) {
+  return material == "bassist_body.mat";
+}
+
 bool is_rock2_weighted_root_hair_piece(const SkinnedMesh& m) {
   return (m.name == "hair-mid.mesh" || m.name == "hair-back.mesh") &&
          (m.material == "rock2_hair.mat" || m.material == "rock2_hair2.mat");
@@ -469,6 +473,47 @@ bool is_model_space_head_hair_attachment(const SkinnedMesh& m) {
   return m.bb_min[0] > -25.0f && m.bb_max[0] < 25.0f &&
          m.bb_min[1] > -25.0f && m.bb_max[1] < 25.0f &&
          m.bb_min[2] > 30.0f;
+}
+
+bool is_local_space_head_hair_attachment(const SkinnedMesh& m) {
+  if (!is_hair_mesh_name(m.name) || !m.bone_palette.empty()) return false;
+  if (m.parent != "bone_head.mesh") return false;
+  float mn[3] = {0, 0, 0};
+  float mx[3] = {0, 0, 0};
+  bool first = true;
+  for (int xi = 0; xi < 2; ++xi) {
+    for (int yi = 0; yi < 2; ++yi) {
+      for (int zi = 0; zi < 2; ++zi) {
+        const float x = xi ? m.bb_max[0] : m.bb_min[0];
+        const float y = yi ? m.bb_max[1] : m.bb_min[1];
+        const float z = zi ? m.bb_max[2] : m.bb_min[2];
+        const float p[3] = {
+            x * m.local.rot[0][0] + y * m.local.rot[1][0] +
+                z * m.local.rot[2][0] + m.local.pos[0],
+            x * m.local.rot[0][1] + y * m.local.rot[1][1] +
+                z * m.local.rot[2][1] + m.local.pos[1],
+            x * m.local.rot[0][2] + y * m.local.rot[1][2] +
+                z * m.local.rot[2][2] + m.local.pos[2],
+        };
+        if (first) {
+          for (int i = 0; i < 3; ++i) mn[i] = mx[i] = p[i];
+          first = false;
+        } else {
+          for (int i = 0; i < 3; ++i) {
+            mn[i] = std::min(mn[i], p[i]);
+            mx[i] = std::max(mx[i], p[i]);
+          }
+        }
+      }
+    }
+  }
+  const float cx = (mn[0] + mx[0]) * 0.5f;
+  const float cy = (mn[1] + mx[1]) * 0.5f;
+  const float cz = (mn[2] + mx[2]) * 0.5f;
+  return mn[0] > -25.0f && mx[0] < 25.0f &&
+         mn[1] > -25.0f && mx[1] < 25.0f &&
+         mn[2] > -25.0f && mx[2] < 25.0f &&
+         (cx * cx + cy * cy + cz * cz) < (25.0f * 25.0f);
 }
 
 bool debug_skin_bounds_enabled() {
@@ -1347,6 +1392,9 @@ void CharRenderer::draw_impl(bool clear_target) {
     if (is_head_attachment_mesh(m) || is_model_space_head_hair_attachment(m)) {
       world_mode = "head-model-delta";
       mw = impl.character.model_space_parent_delta("bone_head.mesh");
+    } else if (is_local_space_head_hair_attachment(m)) {
+      world_mode = "head-local-attachment";
+      mw = impl.character.mesh_attachment_world(m, false);
     } else if (is_body_space_rigid_mesh(m)) {
       world_mode = "parent-local-chain";
       mw = impl.character.bone_world_local_chain(m.parent);
@@ -1397,7 +1445,10 @@ void CharRenderer::draw_impl(bool clear_target) {
                    draw_hair_as_attachment ? 1 : 0,
                    root_parent_hair_bypass ? 1 : 0,
                    uses_local_attachment_skin(m) ? 1 : 0,
-                   is_model_space_head_hair_attachment(m) ? 1 : 0,
+                   (is_model_space_head_hair_attachment(m) ||
+                    is_local_space_head_hair_attachment(m))
+                       ? 1
+                       : 0,
                    raw_mesh_enabled(m.name) ? 1 : 0, mw[12], mw[13], mw[14]);
     }
     if (eye_mesh && debug_skin_bounds_enabled()) {
@@ -1816,6 +1867,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
       (use_mesh_bind_material_enabled(mesh.material) ||
        is_rock2_mesh_bind_hair_piece(mesh) ||
        is_rockabill_mesh_bind_body_piece(mesh) ||
+       is_metal_bass_mesh_bind_material(mesh.material) ||
        is_metal_singer_mesh_bind_material(mesh.material)) &&
       !is_metal_singer_local_chain_mesh_piece(mesh) &&
       mesh.bind.size() >= nb;

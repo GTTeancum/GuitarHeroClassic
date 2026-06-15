@@ -131,6 +131,26 @@ Observed special case:
   - A previous head-local attachment rule made it float above the arena stage.
     Verification:
     `engine/out/codex_native_shout_f1300_metal_bass_hair_weighted_20260614.bmp`.
+- `metal_bass`: `hair_top.mesh` / `bassist_body.mat`
+  - Accepted PS2 trace evidence says the visible cap path is the
+    descriptor/object row pair `hair_top.mesh` plus `bone_head.mesh`, not a
+    Glam1-style `.hair` controller. Native `main.drv` audit likewise loads only
+    the shared `bone.servo` driver for bass.
+  - The visual failure in the 2026-06-15 close captures was mostly the
+    `bassist_body.mat` face/head skinning basis, not a standalone detached
+    hair transform: default `lbs-local-chain` sheared the top of the face, and
+    the cap followed that malformed head. A/B captures in
+    `engine/out/native_song_20260615/metal_bass_skin_matrix_ab/` showed
+    `meshbind_local` / `meshbind_stored` removed the face slice, while
+    `curr_invbind` exploded the body.
+  - Native now treats `bassist_body.mat` as a mesh-bind material. Validation:
+    `engine/out/native_song_20260615/metal_bass_meshbind_default/metal_bass_f80.bmp`
+    and log show `bassist.mesh` in `mode=mesh-bind` with normalized weights
+    (`sum=(1.000..1.000)`).
+  - `hair_top.mesh` is unweighted, parented to `bone_head.mesh`, and its own
+    local Trans cancels the vertex bbox back into compact head-local space.
+    This is distinct from Glam1 `hair-front.mesh`, whose vertices are already
+    model-space and must stay on `head-model-delta`.
 
 Glam1 hair:
 

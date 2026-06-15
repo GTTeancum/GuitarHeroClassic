@@ -804,6 +804,15 @@ void log_character_controller_graph_once(const Character& character) {
                  ik.orientation ? 1 : 0, ik.stretch ? 1 : 0,
                  ik.scalable ? 1 : 0);
   }
+  for (const auto& driver : character.drivers) {
+    std::fprintf(stderr,
+                 "[chargraph]   driver %s target=%s clipMilo=%s "
+                 "weight=%.3f weightProp=%s enabled=%d midi=%d\n",
+                 driver.name.c_str(), driver.target.c_str(),
+                 driver.clip_milo.c_str(), driver.weight,
+                 driver.weight_prop.c_str(), driver.enabled ? 1 : 0,
+                 driver.midi ? 1 : 0);
+  }
   for (const auto& ik : character.ik_midis) {
     std::fprintf(stderr, "[chargraph]   ikMidi %s bone=%s\n",
                  ik.name.c_str(), ik.bone.c_str());
