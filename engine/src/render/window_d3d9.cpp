@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 
@@ -94,6 +95,13 @@ Window::~Window() {
 std::unique_ptr<Window> Window::create(int width, int height, const char* title) {
   std::unique_ptr<Window> win(new Window());
   Impl* impl = win->impl_.get();
+  char* hide_window_env = nullptr;
+  size_t hide_window_env_len = 0;
+  const bool hide_window =
+      _dupenv_s(&hide_window_env, &hide_window_env_len, "GHOGX_HIDE_WINDOW") ==
+          0 &&
+      hide_window_env && hide_window_env[0];
+  if (hide_window_env) std::free(hide_window_env);
 
   HINSTANCE inst = GetModuleHandle(nullptr);
   WNDCLASSEX wc = {};
@@ -116,8 +124,10 @@ std::unique_ptr<Window> Window::create(int width, int height, const char* title)
     return nullptr;
   }
   SetWindowLongPtr(impl->hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(impl));
-  ShowWindow(impl->hwnd, SW_SHOW);
-  UpdateWindow(impl->hwnd);
+  if (!hide_window) {
+    ShowWindow(impl->hwnd, SW_SHOW);
+    UpdateWindow(impl->hwnd);
+  }
 
   impl->d3d = Direct3DCreate9(D3D_SDK_VERSION);
   if (!impl->d3d) {
@@ -153,7 +163,8 @@ std::unique_ptr<Window> Window::create(int width, int height, const char* title)
 
   impl->bb_w = width;
   impl->bb_h = height;
-  std::fprintf(stderr, "[ghogx] D3D9 window %dx%d created\n", width, height);
+  std::fprintf(stderr, "[ghogx] D3D9 window %dx%d created%s\n", width, height,
+               hide_window ? " (hidden)" : "");
   return win;
 }
 

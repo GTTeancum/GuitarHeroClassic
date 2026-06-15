@@ -33,6 +33,7 @@ bool MetaObject::generic_accessor(Symbol msg, const DataArray& args, DataNode& o
 
 // --- GameConfig ------------------------------------------------------------
 GameConfig::GameConfig(ScreenManager* mgr, ConfigDb* db) : MetaObject(Symbol("game"), mgr, db) {
+  set_property(Symbol("song_index"), DataNode::Int(0));
   for (int i = 0; i < 2; ++i)
     players_.push_back(std::make_unique<MetaObject>(Symbol("PlayerCfg"), mgr, db));
 }

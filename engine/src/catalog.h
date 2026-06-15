@@ -35,6 +35,7 @@ struct Song {
     std::optional<int32_t> preview_start_ms;
     std::optional<int32_t> preview_end_ms;
     std::optional<Quickplay> quickplay;
+    std::vector<std::string> band;  // optional song-level singer/bass/drummer override
 };
 
 // Walk a parsed DTB tree and return one Song per top-level song array.

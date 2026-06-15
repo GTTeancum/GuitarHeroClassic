@@ -437,10 +437,56 @@ int run_mesh(const Args& a) {
                             m.local.rot[1][0], m.local.rot[1][1], m.local.rot[1][2]);
                 std::printf("      local row2=[%.4f %.4f %.4f]\n",
                             m.local.rot[2][0], m.local.rot[2][1], m.local.rot[2][2]);
+                std::printf("      world pos=[%.4f %.4f %.4f]\n",
+                            m.world_stored.pos[0], m.world_stored.pos[1],
+                            m.world_stored.pos[2]);
+                std::printf("      world row0=[%.4f %.4f %.4f]\n",
+                            m.world_stored.rot[0][0], m.world_stored.rot[0][1],
+                            m.world_stored.rot[0][2]);
+                std::printf("      world row1=[%.4f %.4f %.4f]\n",
+                            m.world_stored.rot[1][0], m.world_stored.rot[1][1],
+                            m.world_stored.rot[1][2]);
+                std::printf("      world row2=[%.4f %.4f %.4f]\n",
+                            m.world_stored.rot[2][0], m.world_stored.rot[2][1],
+                            m.world_stored.rot[2][2]);
             }
         } else {
             std::printf("  %-26s   FAIL: %s\n", m.name.substr(0, 26).c_str(),
                         m.error.c_str());
+        }
+    }
+    if (!a.name.empty()) {
+        for (const auto& t : scene.transes) {
+            if (t.name != a.name) continue;
+            ++shown;
+            ++ok;
+            std::printf("  %-26s %7s %7s  %-16s  %s\n",
+                        t.name.substr(0, 26).c_str(), "-", "-", "Trans",
+                        "(transform)");
+            std::printf("      parent=%s\n", t.parent.c_str());
+            std::printf("      local pos=[%.4f %.4f %.4f]\n",
+                        t.local.pos[0], t.local.pos[1], t.local.pos[2]);
+            std::printf("      local row0=[%.4f %.4f %.4f]\n",
+                        t.local.rot[0][0], t.local.rot[0][1],
+                        t.local.rot[0][2]);
+            std::printf("      local row1=[%.4f %.4f %.4f]\n",
+                        t.local.rot[1][0], t.local.rot[1][1],
+                        t.local.rot[1][2]);
+            std::printf("      local row2=[%.4f %.4f %.4f]\n",
+                        t.local.rot[2][0], t.local.rot[2][1],
+                        t.local.rot[2][2]);
+            std::printf("      world pos=[%.4f %.4f %.4f]\n",
+                        t.world_stored.pos[0], t.world_stored.pos[1],
+                        t.world_stored.pos[2]);
+            std::printf("      world row0=[%.4f %.4f %.4f]\n",
+                        t.world_stored.rot[0][0], t.world_stored.rot[0][1],
+                        t.world_stored.rot[0][2]);
+            std::printf("      world row1=[%.4f %.4f %.4f]\n",
+                        t.world_stored.rot[1][0], t.world_stored.rot[1][1],
+                        t.world_stored.rot[1][2]);
+            std::printf("      world row2=[%.4f %.4f %.4f]\n",
+                        t.world_stored.rot[2][0], t.world_stored.rot[2][1],
+                        t.world_stored.rot[2][2]);
         }
     }
     std::printf("\n%d mesh%s shown  (%d decoded, %d failed)\n", shown,

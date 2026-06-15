@@ -26,6 +26,16 @@ struct ClipChannel {
 struct CharClip {
   std::string name;
   std::vector<std::vector<ClipChannel>> frames;  // frames[f][ch]
+  struct OutputBone {
+    std::string name;    // CharBone entry name, normally bone_*.trans
+    std::string parent;  // CharBone parent, normally another *.trans
+    milo_scene::Xfm local;
+    milo_scene::Xfm world_stored;
+  };
+  // Animation MILOs carry CharBone output records beside CharClipSamples.
+  // PS2 traces show clip lanes write these records first, then Trans dirty/world
+  // propagation updates the visible *.mesh body rows.
+  std::vector<OutputBone> output_bones;
   int fps = 30;        // authored clip playback rate
   float start_frame = 0.0f;
   float end_frame = 0.0f;
@@ -37,6 +47,13 @@ struct CharClip {
   bool loaded = false;
 
   float duration_seconds() const;
+};
+
+struct ClipChannelLayer {
+  std::vector<ClipChannel> channels;
+  float weight = 1.0f;
+  const std::vector<CharClip::OutputBone>* output_bones = nullptr;
+  std::string debug_name;
 };
 
 enum CharPlayFlags : uint32_t {
@@ -64,6 +81,8 @@ class CharClipPlayer {
             float blend_width = -1.0f, float speed = 1.0f);
   void advance(float dt_seconds);
   void apply(Character& character, float weight = 1.0f) const;
+  std::vector<ClipChannel> sampled_pose() const;
+  bool sampled_pose_relative() const;
   bool active() const { return !layers_.empty(); }
   const CharClip* current_clip() const;
 
@@ -109,6 +128,15 @@ struct FaceFxEyeProperties {
 void apply_character_controllers(Character& character, float time_seconds,
                                  FaceFxEyeProperties* eye_props = nullptr);
 
+void clear_runtime_ik_weights(Character& character);
+void set_runtime_ik_weight(Character& character, const std::string& weight_prop,
+                           float weight);
+
+// Move CharIKMidi-authored fret helper bones to the note-selected authored
+// guitar-neck spot before the hand IK pass resolves its child target.
+void apply_ik_midi_fret_target(Character& character, uint32_t note_mask,
+                               const std::string& hand_map = {});
+
 // Legacy single-frame helpers kept for --clip screenshot mode.
 std::vector<ClipChannel> load_clip_pose(const std::string& hdr_path,
                                         const std::string& ark_path,
@@ -121,5 +149,9 @@ void apply_clip_pose_weighted(const std::vector<ClipChannel>& channels,
 void apply_clip_pose_sampled(const std::vector<ClipChannel>& channels,
                              float weight, Character& character,
                              bool relative = false);
+std::vector<ClipChannel> blend_channel_layers(
+    const std::vector<ClipChannelLayer>& layers);
+void apply_clip_channel_layers(const std::vector<ClipChannelLayer>& layers,
+                               Character& character, bool relative = false);
 
 }  // namespace ghogx::character

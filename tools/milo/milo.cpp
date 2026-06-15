@@ -17,6 +17,54 @@
 
 namespace gh::milo {
 
+namespace {
+
+bool read_u32_at(const std::vector<uint8_t>& p, size_t& pos, uint32_t& out) {
+    if (pos + 4 > p.size()) return false;
+    std::memcpy(&out, p.data() + pos, 4);
+    pos += 4;
+    return true;
+}
+
+bool skip_string_at(const std::vector<uint8_t>& p, size_t& pos, size_t limit) {
+    uint32_t len = 0;
+    if (!read_u32_at(p, pos, len)) return false;
+    if (len > limit - pos || len > (1u << 20)) return false;
+    pos += len;
+    return true;
+}
+
+bool mesh_body_fits_before(const std::vector<uint8_t>& p, size_t start,
+                           size_t end) {
+    if (end > p.size() || start + 4 > end) return false;
+    size_t pos = start;
+    uint32_t tmp = 0;
+    if (!read_u32_at(p, pos, tmp)) return false;       // Mesh version.
+    if (!read_u32_at(p, pos, tmp)) return false;       // Trans version.
+    if (pos + 9 + 96 + 9 > end) return false;
+    pos += 9 + 96 + 9;
+    if (!skip_string_at(p, pos, end)) return false;    // parent
+    if (!read_u32_at(p, pos, tmp)) return false;       // Draw version.
+    if (pos + 1 + 20 > end) return false;
+    pos += 1 + 20;
+    if (!skip_string_at(p, pos, end)) return false;    // material
+    if (!skip_string_at(p, pos, end)) return false;    // geometry owner
+    if (pos + 9 + 4 > end) return false;
+    pos += 9;
+    uint32_t vcount = 0;
+    if (!read_u32_at(p, pos, vcount)) return false;
+    const uint64_t vertex_bytes = static_cast<uint64_t>(vcount) * 48u;
+    if (vertex_bytes > end - pos || pos + static_cast<size_t>(vertex_bytes) + 4 > end)
+        return false;
+    pos += static_cast<size_t>(vertex_bytes);
+    uint32_t fcount = 0;
+    if (!read_u32_at(p, pos, fcount)) return false;
+    const uint64_t index_bytes = static_cast<uint64_t>(fcount) * 6u;
+    return index_bytes <= end - pos;
+}
+
+}  // namespace
+
 const char* block_structure_name(BlockStructure s) {
     switch (s) {
         case BlockStructure::NONE:   return "NONE";
@@ -221,6 +269,22 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
         }
         return p.size();
     };
+    auto scan_object_padding = [&](size_t from, const std::string* type = nullptr,
+                                   size_t body_start = 0) -> size_t {
+        for (size_t k = from; k + 4 <= p.size(); ++k) {
+            if (rd_u32(p.data() + k) != kAddePadding) continue;
+            if (type && *type == "Mesh" && !mesh_body_fits_before(p, body_start, k)) {
+                continue;
+            }
+            if (!type || *type != "Mesh") return k;
+            if (k + 4 >= p.size()) return k;
+            if (k + 8 <= p.size()) {
+                const int32_t magic = rd_i32(p.data() + k + 4);
+                if (magic >= 0 && magic <= 0xff) return k;
+            }
+        }
+        return p.size();
+    };
 
     size_t cursor = scan(pos);
     d.dir_entry_offset = pos;                 // root dir's own object body
@@ -229,8 +293,14 @@ Directory parse_directory(const std::vector<uint8_t>& p) {
     cursor += 4;                       // skip directory-entry terminator
 
     for (auto& e : d.entries) {
+        while (e.type == "Mesh" && cursor + 4 <= p.size() &&
+               rd_i32(p.data() + cursor) != 28) {
+            const size_t skipped = scan(cursor);
+            if (skipped == p.size()) break;
+            cursor = skipped + 4;
+        }
         e.offset = cursor;
-        size_t end = scan(cursor);
+        size_t end = scan_object_padding(cursor, &e.type, cursor);
         e.size = end - cursor;
         cursor = (end == p.size()) ? p.size() : (end + 4);
         if (cursor >= p.size()) break;

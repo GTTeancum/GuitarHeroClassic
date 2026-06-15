@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <set>
 #include <stdexcept>
@@ -73,6 +74,117 @@ bool looks_like_bone_name(const uint8_t* d, size_t total, size_t off) {
   return ends(".mesh") || ends(".trans");
 }
 
+float read_f32_at(const uint8_t* d, size_t off) {
+  float v = 0.0f;
+  std::memcpy(&v, d + off, sizeof(v));
+  return v;
+}
+
+bool bind_matrix_score(const uint8_t* d, size_t total, size_t off,
+                       float& score) {
+  if (off + 48 > total) return false;
+  float r[3][3]{};
+  for (int row = 0; row < 3; ++row) {
+    for (int col = 0; col < 3; ++col) {
+      const float v = read_f32_at(d, off + static_cast<size_t>(row * 3 + col) * 4);
+      if (!std::isfinite(v)) return false;
+      r[row][col] = v;
+    }
+  }
+  for (int col = 0; col < 3; ++col) {
+    const float v = read_f32_at(d, off + static_cast<size_t>(9 + col) * 4);
+    if (!std::isfinite(v)) return false;
+  }
+
+  auto row_len = [&](int row) {
+    return std::sqrt(r[row][0] * r[row][0] + r[row][1] * r[row][1] +
+                     r[row][2] * r[row][2]);
+  };
+  const float l0 = row_len(0);
+  const float l1 = row_len(1);
+  const float l2 = row_len(2);
+  if (l0 < 0.25f || l1 < 0.25f || l2 < 0.25f ||
+      l0 > 4.0f || l1 > 4.0f || l2 > 4.0f) {
+    return false;
+  }
+  const float d01 = r[0][0] * r[1][0] + r[0][1] * r[1][1] + r[0][2] * r[1][2];
+  const float d02 = r[0][0] * r[2][0] + r[0][1] * r[2][1] + r[0][2] * r[2][2];
+  const float d12 = r[1][0] * r[2][0] + r[1][1] * r[2][1] + r[1][2] * r[2][2];
+  const float det =
+      r[0][0] * (r[1][1] * r[2][2] - r[1][2] * r[2][1]) -
+      r[0][1] * (r[1][0] * r[2][2] - r[1][2] * r[2][0]) +
+      r[0][2] * (r[1][0] * r[2][1] - r[1][1] * r[2][0]);
+  if (std::fabs(det) < 0.05f || !std::isfinite(det)) return false;
+  score = std::fabs(l0 - 1.0f) + std::fabs(l1 - 1.0f) +
+          std::fabs(l2 - 1.0f) + std::fabs(d01) + std::fabs(d02) +
+          std::fabs(d12) + std::fabs(std::fabs(det) - 1.0f);
+  return std::isfinite(score);
+}
+
+size_t select_bind_matrix_offset(const uint8_t* d, size_t total,
+                                 size_t start, size_t matrix_count) {
+  if (matrix_count == 0 || start >= total) return start;
+  const uint64_t bytes_needed = static_cast<uint64_t>(matrix_count) * 48;
+  if (bytes_needed > total - start) return start;
+
+  const size_t max_padding = 16;
+  const size_t last =
+      std::min(start + max_padding, total - static_cast<size_t>(bytes_needed));
+  float best_score = 1.0e30f;
+  size_t best = start;
+  bool found = false;
+  for (size_t cand = start; cand <= last; ++cand) {
+    float total_score = 0.0f;
+    bool ok = true;
+    for (size_t i = 0; i < matrix_count; ++i) {
+      float score = 0.0f;
+      if (!bind_matrix_score(d, total, cand + i * 48, score)) {
+        ok = false;
+        break;
+      }
+      total_score += score;
+    }
+    if (ok && total_score < best_score) {
+      best_score = total_score;
+      best = cand;
+      found = true;
+    }
+  }
+
+  // Bind rows are exported as rigid inverse-bind matrices. If no plausible
+  // rigid matrix group is found, fall back to the original stream position.
+  return found ? best : start;
+}
+
+std::vector<std::string> group_child_refs(const std::vector<uint8_t>& body) {
+  std::vector<std::string> out;
+  for (size_t o = 0; o + 4 <= body.size(); ++o) {
+    uint32_t len = 0;
+    std::memcpy(&len, body.data() + o, 4);
+    if (len < 5 || len > 96 || o + 4 + len > body.size()) continue;
+    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
+    bool printable = true;
+    for (uint32_t k = 0; k < len; ++k) {
+      const unsigned char c = static_cast<unsigned char>(s[k]);
+      if (c < 0x20 || c >= 0x7f) {
+        printable = false;
+        break;
+      }
+    }
+    if (!printable) continue;
+    std::string name(s, len);
+    const bool object_ref =
+        (name.size() >= 5 && name.compare(name.size() - 5, 5, ".mesh") == 0) ||
+        (name.size() >= 4 && name.compare(name.size() - 4, 4, ".grp") == 0);
+    if (object_ref &&
+        std::find(out.begin(), out.end(), name) == out.end()) {
+      out.push_back(std::move(name));
+    }
+    o += 3 + len;
+  }
+  return out;
+}
+
 }  // namespace
 
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
@@ -133,16 +245,35 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
     }
 
     // --- skinning tail ---------------------------------------------------
-    // A small variable-length bone-group header sits between the faces and the
-    // bone palette (its exact split differs per mesh). Locate the palette
-    // robustly by scanning forward for the first plausible bone name, then read
-    // names until one is implausible, then one 3x4 bind matrix per name.
-    size_t scan = r.pos;
+    // PS2 character meshes carry a face-group table before the bone palette:
+    // u32 group_count followed by one byte per group. The group bytes sum to
+    // the face count; the palette strings begin immediately after them.
     size_t found = SIZE_MAX;
-    // The header is tiny; cap the search so a malformed entry can't run away.
-    const size_t scan_end = std::min(body.size(), r.pos + 64);
-    for (size_t o = scan; o + 4 <= scan_end; ++o) {
-      if (looks_like_bone_name(body.data(), body.size(), o)) { found = o; break; }
+    const size_t tail_start = r.pos;
+    if (tail_start + 4 <= body.size()) {
+      uint32_t group_count = 0;
+      std::memcpy(&group_count, body.data() + tail_start, 4);
+      if (group_count > 0 && group_count <= 64 &&
+          tail_start + 4 + group_count <= body.size()) {
+        uint32_t grouped_faces = 0;
+        for (uint32_t gi = 0; gi < group_count; ++gi) {
+          grouped_faces += body[tail_start + 4 + gi];
+        }
+        const size_t palette_off = tail_start + 4 + group_count;
+        if (grouped_faces == fcount &&
+            looks_like_bone_name(body.data(), body.size(), palette_off)) {
+          found = palette_off;
+        }
+      }
+    }
+
+    if (found == SIZE_MAX) {
+      size_t scan = r.pos;
+      // The header is tiny; cap the search so a malformed entry can't run away.
+      const size_t scan_end = std::min(body.size(), r.pos + 64);
+      for (size_t o = scan; o + 4 <= scan_end; ++o) {
+        if (looks_like_bone_name(body.data(), body.size(), o)) { found = o; break; }
+      }
     }
     if (found != SIZE_MAX) {
       r.pos = found;
@@ -150,6 +281,8 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
         mesh.bone_palette.push_back(r.str());
       }
       // One bind matrix per palette bone (only if they fit).
+      r.pos = select_bind_matrix_offset(body.data(), body.size(), r.pos,
+                                        mesh.bone_palette.size());
       if (static_cast<uint64_t>(mesh.bone_palette.size()) * 48 <= body.size() - r.pos) {
         for (size_t i = 0; i < mesh.bone_palette.size(); ++i)
           mesh.bind.push_back(r.matrix());
@@ -238,10 +371,57 @@ CharIKHand decode_ik_hand(const std::string& entry_name,
   hand.weight_prop = r.str();
   hand.hand = r.str();
   hand.target = r.str();
-  hand.enable_pos = r.u8() != 0;
-  hand.enable_rot = r.u8() != 0;
-  if (r.pos < r.n) hand.unknown_flag = r.u8() != 0;
+  hand.orientation = r.u8() != 0;
+  hand.stretch = r.u8() != 0;
+  if (r.pos < r.n) hand.scalable = r.u8() != 0;
   return hand;
+}
+
+CharIKMidi decode_ik_midi(const std::string& entry_name,
+                          const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  CharIKMidi midi;
+  midi.name = entry_name;
+  (void)r.i32();      // version 4 in GH2 PS2.
+  r.skip(kObjMeta);   // Hmx::Object metadata.
+  midi.bone = r.str();
+  return midi;
+}
+
+CharHair decode_hair(const std::string& entry_name,
+                     const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  CharHair hair;
+  hair.name = entry_name;
+  hair.version = r.i32();
+  r.skip(kObjMeta);
+  for (float& v : hair.globals) v = r.f32();
+  const uint32_t group_count = r.u32();
+  hair.groups.reserve(group_count);
+  for (uint32_t gi = 0; gi < group_count; ++gi) {
+    CharHairGroup group;
+    group.root_mesh = r.str();
+    group.root_offset = r.f32();
+    const uint32_t point_count = r.u32();
+    group.points.reserve(point_count);
+    for (uint32_t pi = 0; pi < point_count; ++pi) {
+      CharHairPoint point;
+      point.pos[0] = r.f32();
+      point.pos[1] = r.f32();
+      point.pos[2] = r.f32();
+      point.mesh = r.str();
+      point.length = r.f32();
+      point.flags_or_mode = r.u32();
+      point.parent = r.str();
+      point.radius = r.f32();
+      if (hair.version > 1) point.extra = r.f32();
+      group.points.push_back(std::move(point));
+    }
+    for (float& v : group.limits_or_mats) v = r.f32();
+    hair.groups.push_back(std::move(group));
+  }
+  if (r.pos < body.size()) hair.enabled = r.u8() != 0;
+  return hair;
 }
 
 CharLookAt decode_lookat(const std::string& entry_name,
@@ -423,8 +603,9 @@ bool find_current_bind_xfm(const Character& c, const std::string& name,
   return false;
 }
 
-std::array<float, 16> corrected_world_for(const Character& c,
-                                          const std::string& name) {
+std::array<float, 16> local_chain_world_for(const Character& c,
+                                            const std::string& name,
+                                            bool bind_pose) {
   const Xfm* current = nullptr;
   const Xfm* bind = nullptr;
   const Xfm* stored_world = nullptr;
@@ -433,8 +614,7 @@ std::array<float, 16> corrected_world_for(const Character& c,
     return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
   }
 
-  std::array<float, 16> current_world = xfm_to_mat4(*current);
-  std::array<float, 16> bind_world_from_locals = xfm_to_mat4(*bind);
+  std::array<float, 16> world = xfm_to_mat4(bind_pose ? *bind : *current);
   int guard = 0;
   while (!parent.empty() && guard++ < 128) {
     const Xfm* parent_current = nullptr;
@@ -445,11 +625,25 @@ std::array<float, 16> corrected_world_for(const Character& c,
                                ignored_world, next_parent)) {
       break;
     }
-    current_world = mat4_mul(current_world, xfm_to_mat4(*parent_current));
-    bind_world_from_locals =
-        mat4_mul(bind_world_from_locals, xfm_to_mat4(*parent_bind));
+    world = mat4_mul(
+        world, xfm_to_mat4(bind_pose ? *parent_bind : *parent_current));
     parent = next_parent;
   }
+  return world;
+}
+
+std::array<float, 16> corrected_world_for(const Character& c,
+                                          const std::string& name) {
+  const Xfm* current = nullptr;
+  const Xfm* bind = nullptr;
+  const Xfm* stored_world = nullptr;
+  std::string parent;
+  if (!find_current_bind_xfm(c, name, current, bind, stored_world, parent)) {
+    return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+  }
+
+  const auto current_world = local_chain_world_for(c, name, false);
+  const auto bind_world_from_locals = local_chain_world_for(c, name, true);
 
   const auto stored_bind_world = xfm_to_mat4(*stored_world);
   const auto bind_correction =
@@ -479,7 +673,6 @@ std::array<float, 16> Character::bone_world(const std::string& bone_name) const 
 std::array<float, 16> Character::bone_world_bind(const std::string& bone_name) const {
   // Return the BIND POSE world matrix directly from the stored Trans world matrix.
   // This was computed at export time and includes all scene-level transforms.
-  // Used as the reference frame for skinning: skin = inv(bind_world) * current_world.
   for (const milo_scene::TransObj& t : bones)
     if (t.name == bone_name) return xfm_to_mat4(t.world_stored);
   for (const SkinnedMesh& m : meshes)
@@ -488,8 +681,42 @@ std::array<float, 16> Character::bone_world_bind(const std::string& bone_name) c
   return id;
 }
 
+std::array<float, 16> Character::bone_world_local_chain(const std::string& bone_name) const {
+  return local_chain_world_for(*this, bone_name, false);
+}
+
+std::array<float, 16> Character::bone_world_bind_local_chain(const std::string& bone_name) const {
+  return local_chain_world_for(*this, bone_name, true);
+}
+
 std::array<float, 16> Character::mesh_world(const SkinnedMesh& m) const {
   return corrected_world_for(*this, m.name);
+}
+
+std::array<float, 16> Character::model_space_parent_delta(
+    const std::string& parent) const {
+  const auto bind = bone_world_bind_local_chain(parent);
+  const auto current = bone_world_local_chain(parent);
+  return mat4_mul(affine_inverse(bind), current);
+}
+
+std::array<float, 16> Character::attachment_parent_world(
+    const std::string& parent) const {
+  return mat4_mul(bone_world_bind(parent), model_space_parent_delta(parent));
+}
+
+std::array<float, 16> Character::mesh_attachment_world(
+    const SkinnedMesh& m, bool bind_local) const {
+  const Xfm* local = &m.local;
+  if (bind_local) {
+    for (size_t i = 0; i < meshes.size(); ++i) {
+      if (meshes[i].name == m.name && i < bind_mesh_local.size()) {
+        local = &bind_mesh_local[i];
+        break;
+      }
+    }
+  }
+  return mat4_mul(xfm_to_mat4(*local), attachment_parent_world(m.parent));
 }
 
 bool load_character(const std::string& hdr_path, const std::string& ark_path,
@@ -522,6 +749,11 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           out.bones.push_back(milo_scene::decode_trans(de.name, b));
         } else if (de.type == "Mat") {
           out.mats.push_back(milo_scene::decode_mat(de.name, b));
+        } else if (de.type == "Group") {
+          milo_scene::GroupObj group;
+          group.name = de.name;
+          group.children = group_child_refs(b);
+          out.groups.push_back(std::move(group));
         } else if (de.type == "CharUpperTwist") {
           out.upper_twists.push_back(decode_upper_twist(de.name, b));
         } else if (de.type == "CharForeTwist") {
@@ -530,10 +762,14 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           out.ik_rods.push_back(decode_ik_rod(de.name, b));
         } else if (de.type == "CharIKHand") {
           out.ik_hands.push_back(decode_ik_hand(de.name, b));
+        } else if (de.type == "CharIKMidi") {
+          out.ik_midis.push_back(decode_ik_midi(de.name, b));
         } else if (de.type == "CharLookAt") {
           out.lookats.push_back(decode_lookat(de.name, b));
         } else if (de.type == "CharEyes") {
           out.eyes.push_back(decode_eyes(de.name, b));
+        } else if (de.type == "CharHair") {
+          out.hairs.push_back(decode_hair(de.name, b));
         } else if (de.type == "FaceFxLipSyncServo") {
           out.lip_sync_servos.push_back(decode_lip_sync_servo(de.name, b));
         } else if (de.type == "CharDriver") {
@@ -550,14 +786,15 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
     }
     std::fprintf(stderr,
                  "[char] %s: %zu meshes (%d ok / %d fail), %zu bones, %zu mat, "
-                 "%zu upperTwist, %zu foreTwist, %zu ikRod, %zu ikHand, "
-                 "%zu lookAt, %zu eyes, %zu lipServo, %zu driver, "
+                 "%zu group, %zu upperTwist, %zu foreTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
+                 "%zu lookAt, %zu eyes, %zu hair, %zu lipServo, %zu driver, "
                  "%zu weightSetter\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
-                 out.bones.size(), out.mats.size(), out.upper_twists.size(),
-                 out.fore_twists.size(), out.ik_rods.size(),
-                 out.ik_hands.size(), out.lookats.size(), out.eyes.size(),
-                 out.lip_sync_servos.size(), out.drivers.size(),
+                 out.bones.size(), out.mats.size(), out.groups.size(),
+                 out.upper_twists.size(), out.fore_twists.size(), out.ik_rods.size(),
+                 out.ik_hands.size(), out.ik_midis.size(), out.lookats.size(),
+                 out.eyes.size(),
+                 out.hairs.size(), out.lip_sync_servos.size(), out.drivers.size(),
                  out.weight_setters.size());
     out.bind_mesh_local.clear();
     out.bind_mesh_local.reserve(out.meshes.size());

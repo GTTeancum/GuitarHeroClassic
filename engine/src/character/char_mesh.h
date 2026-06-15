@@ -127,9 +127,14 @@ struct CharIKHand {
   std::string weight_prop;
   std::string hand;
   std::string target;
-  bool enable_pos = true;
-  bool enable_rot = true;
-  bool unknown_flag = false;
+  bool orientation = true;
+  bool stretch = true;
+  bool scalable = false;
+};
+
+struct CharIKMidi {
+  std::string name;
+  std::string bone;
 };
 
 struct CharLookAt {
@@ -154,6 +159,46 @@ struct CharEyes {
   std::string name;
   std::vector<std::string> lookats;
   std::string upperlid_or_blink_bone;
+};
+
+struct CharHairPoint {
+  float pos[3] = {0, 0, 0};
+  std::string mesh;
+  float length = 0.0f;
+  uint32_t flags_or_mode = 0;
+  std::string parent;
+  float radius = 0.0f;
+  float extra = 0.0f;
+};
+
+struct CharHairGroup {
+  std::string root_mesh;
+  float root_offset = 0.0f;
+  std::vector<CharHairPoint> points;
+  float limits_or_mats[18] = {};
+};
+
+struct CharHair {
+  std::string name;
+  int32_t version = 0;
+  float globals[6] = {};
+  std::vector<CharHairGroup> groups;
+  bool enabled = true;
+};
+
+struct RuntimeHairPoint {
+  bool initialized = false;
+  bool has_world = false;
+  std::string mesh;
+  float curr_world[3] = {0, 0, 0};
+  float prev_world[3] = {0, 0, 0};
+  std::array<float, 16> world =
+      {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+};
+
+struct RuntimeHairState {
+  float last_time_seconds = -1.0f;
+  std::vector<RuntimeHairPoint> points;
 };
 
 struct FaceFxServoTarget {
@@ -197,15 +242,20 @@ struct Character {
   std::vector<milo_scene::Xfm> bind_mesh_local;
   std::vector<milo_scene::Xfm> bind_bone_local;
   std::vector<milo_scene::MatObj> mats;
+  std::vector<milo_scene::GroupObj> groups;
   std::vector<CharUpperTwist> upper_twists;
   std::vector<CharForeTwist> fore_twists;
   std::vector<CharIKRod> ik_rods;
   std::vector<CharIKHand> ik_hands;
+  std::vector<CharIKMidi> ik_midis;
   std::vector<CharLookAt> lookats;
   std::vector<CharEyes> eyes;
+  std::vector<CharHair> hairs;
   std::vector<FaceFxLipSyncServo> lip_sync_servos;
   std::vector<CharDriver> drivers;
   std::vector<CharWeightSetter> weight_setters;
+  std::map<std::string, float> runtime_weight_props;
+  RuntimeHairState runtime_hair;
 
   // Distinct diffuse-texture names referenced by the character's materials.
   std::vector<std::string> texture_names() const;
@@ -213,19 +263,31 @@ struct Character {
   // Resolve a material by name (nullptr if absent).
   const milo_scene::MatObj* find_mat(const std::string& name) const;
 
-  // Compute a bone's CURRENT POSE world matrix by walking the local-transform
-  // parent chain. At bind pose == bone_world_bind(); diverges during animation
-  // as local transforms are modified by the animation driver.
+  // Compute a bone's CURRENT POSE world matrix with the authored stored-world
+  // correction applied. Useful for constraints/attachments in scene space.
   std::array<float, 16> bone_world(const std::string& bone_name) const;
 
   // Return the BIND POSE world matrix directly from the stored Trans world
   // matrix (authored at export time, includes scene-level orientation).
-  // Used as the reference frame for LBS: skin = inv(bind_world) * current_world.
   std::array<float, 16> bone_world_bind(const std::string& bone_name) const;
+
+  // Compose the raw local-transform parent chain in current and bind pose.
+  // Character mesh vertices are authored in this basis, so LBS uses these as
+  // matching current/bind matrices instead of mixing with stored Trans worlds.
+  std::array<float, 16> bone_world_local_chain(const std::string& bone_name) const;
+  std::array<float, 16> bone_world_bind_local_chain(const std::string& bone_name) const;
 
   // Compose a mesh's own model-to-world matrix up its Trans parent chain. For a
   // character this is normally ~identity (vertices are already in model space).
   std::array<float, 16> mesh_world(const SkinnedMesh& m) const;
+
+  // Compose the PS2 attachment basis used by rigid face children whose mesh
+  // vertices are already authored in character model space, but whose local
+  // Trans rows live under an animated parent such as bone_head.mesh.
+  std::array<float, 16> model_space_parent_delta(const std::string& parent) const;
+  std::array<float, 16> attachment_parent_world(const std::string& parent) const;
+  std::array<float, 16> mesh_attachment_world(const SkinnedMesh& m,
+                                              bool bind_local) const;
 };
 
 // Decode one skinned-mesh entry body. Never throws: on failure returns a

@@ -37,13 +37,36 @@ struct Note {
     bool     star_power;     // true if this note falls inside a star power phrase
 };
 
+struct TextEvent {
+    uint32_t tick;
+    std::string text;
+};
+
+struct TrackTextEvent {
+    uint32_t tick;
+    std::string track;
+    std::string text;
+};
+
+struct DrumCue {
+    uint32_t tick;
+    int pitch = 0;
+    std::string event;
+};
+
 struct Chart {
     uint32_t ticks_per_beat = 480;
     std::vector<TempoChange> tempo_map;     // sorted by tick ascending
     std::vector<Note>        notes[4];      // [0]=Easy [1]=Medium [2]=Hard [3]=Expert
+    std::vector<Note>        bass_notes[4]; // PART RHYTHM/PART BASS gems by difficulty
+    std::vector<TextEvent>   text_events;   // GH2 world EVENTS track text
+    std::vector<TrackTextEvent> performer_events;  // role-specific text tracks
+    std::vector<DrumCue>     drum_cues;      // BAND DRUMS parser cue notes
+    std::vector<DrumCue>     bass_cues;      // BAND BASS speaker_pulse cues
 
     // Convert a MIDI tick to wall-clock seconds using the tempo map.
     double tick_to_sec(uint32_t tick) const;
+    uint32_t sec_to_tick(double sec) const;
 
     // Total song duration: time of the last note-off across all difficulties.
     double duration_sec() const;

@@ -7,6 +7,7 @@ add_library(ghogx_game STATIC
     highway_renderer.cpp highway_renderer.h
     audio_player.cpp     audio_player.h
     gameplay.cpp         gameplay.h
+    ../catalog.cpp       ../catalog.h
 )
 
 target_include_directories(ghogx_game PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
@@ -18,7 +19,10 @@ target_link_libraries(ghogx_game PUBLIC
     ghogx_chart
     ghogx_render
     ghogx_asset
+    ghogx_character
     ark_v3
+    dtb
+    milo
     vgs
 )
 

@@ -42,12 +42,21 @@ using Action = ghogx::render::Window::Action;
 
 std::unordered_set<std::string> compute_disabled(ScreenManager& mgr);  // fwd
 
+DataArray one_arg(DataNode n) {
+  DataArray a;
+  a.push(std::move(n));
+  return a;
+}
+
 // Append a panel's MILO (its (file) value, e.g. "main.milo" -> ui/gen/main.milo_ps2)
 // into the combined scene + texture set the renderer draws.
 void add_panel_milo(const std::string& hdr, const std::string& ark,
                     const std::string& file, milo_scene::Scene& combined,
                     std::map<std::string, asset::Image>& textures) {
   if (file.empty()) return;
+  // The helpbar panel is rebuilt from its authored tokens/textures in the overlay
+  // footer; drawing its raw MILO meshes leaves the source icons at scene origin.
+  if (file == "helpbar.milo") return;
   const std::string path = "ui/gen/" + file + "_ps2";  // "main.milo" -> ".milo_ps2"
   milo_scene::Scene s;
   if (!milo_scene::load_scene(hdr, ark, path, s)) return;
@@ -65,6 +74,7 @@ void add_panel_milo(const std::string& hdr, const std::string& ark,
   for (auto& mt : s.mats) combined.mats.push_back(std::move(mt));
   for (auto& tr : s.transes) combined.transes.push_back(std::move(tr));
   for (auto& c : s.cams) combined.cams.push_back(std::move(c));
+  for (auto& name : s.draw_order) combined.draw_order.push_back(std::move(name));
 
   std::vector<std::string> names(want.begin(), want.end());
   auto imgs = asset::load_milo_textures(hdr, ark, path, names);
@@ -85,6 +95,14 @@ std::vector<Symbol> screen_panel_names(Object* screen) {
   return out;
 }
 
+std::string panel_file(Object* panel) {
+  if (!panel) return {};
+  DataNode f = panel->get_property(Symbol("file"));
+  if (!f.as_symbol()) f = panel->handle_property(Symbol("file"), DataArray());
+  if (auto sym = f.as_symbol()) return std::string(sym->c_str());
+  return {};
+}
+
 // Build the renderer's scene from the current screen's panels' MILOs.
 void rebuild_scene(const std::string& hdr, const std::string& ark, ScreenManager& mgr,
                    Object* screen, ghogx::render::MiloSceneRenderer& renderer) {
@@ -92,9 +110,7 @@ void rebuild_scene(const std::string& hdr, const std::string& ark, ScreenManager
   std::map<std::string, asset::Image> textures;
   for (Symbol pn : screen_panel_names(screen)) {
     Object* panel = mgr.find_object(pn);
-    if (!panel) continue;
-    DataNode f = panel->get_property(Symbol("file"));
-    if (auto sym = f.as_symbol()) add_panel_milo(hdr, ark, std::string(sym->c_str()), combined, textures);
+    add_panel_milo(hdr, ark, panel_file(panel), combined, textures);
   }
   std::fprintf(stderr, "[menu] %s: %zu meshes, %zu textures\n",
                screen ? screen->name().c_str() : "?", combined.meshes.size(), textures.size());
@@ -141,6 +157,8 @@ void do_confirm(ScreenManager& mgr) {
   if (comp.valid() && compute_disabled(mgr).count(comp.c_str())) return;
   mgr.set_global(Symbol("component"), DataNode::Sym(comp));
   panel->handle_property(Symbol("SELECT_START_MSG"), DataArray());
+  if (mgr.current_screen() == screen)
+    screen->handle_property(Symbol("SELECT_START_MSG"), DataArray());
 }
 
 // Back (B/circle): go to the screen's (back_screen) if set (screens that navigate
@@ -308,6 +326,246 @@ void append_text_quads(const std::vector<MenuLabel>& labels, const MenuFont& fon
   }
 }
 
+void append_song_string(const std::string& text, const MenuFont& font, float x, float y,
+                        float z, float scale, uint32_t col,
+                        std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out) {
+  using TV = ghogx::render::MiloSceneRenderer::TextVertex;
+  float w = 0.0f;
+  auto quads = font.layout(text, &w);
+  const float capH = font.cap_height();
+  for (const auto& q : quads) {
+    auto V = [&](float qx, float qy, float u, float v) {
+      return TV{x + qx * scale, y, z - (qy - capH * 0.5f) * scale, u, v, col};
+    };
+    TV a = V(q.x0, q.y0, q.u0, q.v0), b = V(q.x1, q.y0, q.u1, q.v0),
+       c = V(q.x1, q.y1, q.u1, q.v1), d = V(q.x0, q.y1, q.u0, q.v1);
+    out.push_back(a); out.push_back(b); out.push_back(c);
+    out.push_back(a); out.push_back(c); out.push_back(d);
+  }
+}
+
+void append_image_quad(float x, float y, float z, float w, float h, uint32_t col,
+                       std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out) {
+  using TV = ghogx::render::MiloSceneRenderer::TextVertex;
+  const float x0 = x - w * 0.5f, x1 = x + w * 0.5f;
+  const float z0 = z - h * 0.5f, z1 = z + h * 0.5f;
+  TV a{x0, y, z1, 0.0f, 0.0f, col}, b{x1, y, z1, 1.0f, 0.0f, col};
+  TV c{x1, y, z0, 1.0f, 1.0f, col}, d{x0, y, z0, 0.0f, 1.0f, col};
+  out.push_back(a); out.push_back(b); out.push_back(c);
+  out.push_back(a); out.push_back(c); out.push_back(d);
+}
+
+void append_image_quad_uv(float x, float y, float z, float w, float h,
+                          float u0, float v0, float u1, float v1, uint32_t col,
+                          std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out) {
+  using TV = ghogx::render::MiloSceneRenderer::TextVertex;
+  const float x0 = x - w * 0.5f, x1 = x + w * 0.5f;
+  const float z0 = z - h * 0.5f, z1 = z + h * 0.5f;
+  TV a{x0, y, z1, u0, v0, col}, b{x1, y, z1, u1, v0, col};
+  TV c{x1, y, z0, u1, v1, col}, d{x0, y, z0, u0, v1, col};
+  out.push_back(a); out.push_back(b); out.push_back(c);
+  out.push_back(a); out.push_back(c); out.push_back(d);
+}
+
+struct HelpItem {
+  std::string control;
+  std::string token;
+};
+
+void collect_help_tokens(const DataNode& n, std::vector<HelpItem>& out) {
+  auto arr = n.as_array();
+  if (!arr) return;
+  if (arr->size() == 2) {
+    auto control = arr->at(0).as_symbol();
+    auto token = arr->at(1).as_symbol();
+    if (control && token) {
+      const char* c = control->c_str();
+      if (std::strcmp(c, "fret1") == 0 || std::strcmp(c, "fret2") == 0 ||
+          std::strcmp(c, "fret3") == 0 || std::strcmp(c, "strum") == 0 ||
+          std::strcmp(c, "start") == 0) {
+        out.push_back({control->c_str(), token->c_str()});
+        return;
+      }
+    }
+  }
+  for (std::size_t i = 0; i < arr->size(); ++i) collect_help_tokens(arr->at(i), out);
+}
+
+std::string help_label(const std::string& token,
+                       const std::map<std::string, std::string>& locale) {
+  if (auto it = locale.find(token); it != locale.end()) return it->second;
+  return token;
+}
+
+void append_help_footer(Object* screen, const MenuFont& font,
+                        const std::map<std::string, std::string>& locale,
+                        const std::map<std::string, asset::Image>& icons,
+                        std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out,
+                        std::vector<ghogx::render::MiloSceneRenderer::TextBatch>& batches) {
+  if (!screen) return;
+  std::vector<HelpItem> items;
+  collect_help_tokens(screen->get_property(Symbol("helpbar")), items);
+  if (items.empty()) return;
+
+  constexpr float kFooterZ = -212.0f;
+  constexpr float kFooterY = 0.0f;
+  constexpr float kFooterScale = 0.54f;
+  constexpr uint32_t kFooterCol = 0xFFE8E8E8u;
+  auto x_for_control = [](const std::string& control) {
+    if (control == "fret1" || control == "start") return -245.0f;
+    if (control == "fret2" || control == "fret3") return -55.0f;
+    if (control == "strum") return 250.0f;
+    return 0.0f;
+  };
+  auto tex_for_control = [](const std::string& control) -> const char* {
+    if (control == "fret1") return "hb_fret1.tex";
+    if (control == "fret2") return "hb_fret2.tex";
+    if (control == "fret3") return "hb_fret3.tex";
+    if (control == "strum") return "hb_strum.tex";
+    if (control == "start") return "hb_start.tex";
+    return "";
+  };
+  for (const HelpItem& item : items) {
+    const float x = x_for_control(item.control);
+    const bool strum = item.control == "strum";
+    const float icon_x = strum ? 181.8f : x - 34.0f;
+    const float icon_w = strum ? 54.0f : 27.0f;
+    const float icon_h = strum ? 18.0f : 27.0f;
+    const std::string label = help_label(item.token, locale);
+    float label_w = 0.0f;
+    font.layout(label, &label_w);
+    label_w *= kFooterScale;
+    const float box_left = std::min(icon_x - icon_w * 0.5f, x) - 12.0f;
+    const float box_right = std::max(icon_x + icon_w * 0.5f, x + label_w) + 14.0f;
+    const float box_x = (box_left + box_right) * 0.5f;
+    const float box_w = box_right - box_left;
+    auto mid_it = icons.find("help_box_mid.tex");
+    auto cap_it = icons.find("help_box_corner.tex");
+    if (mid_it != icons.end() && mid_it->second.valid() &&
+        cap_it != icons.end() && cap_it->second.valid()) {
+      std::vector<ghogx::render::MiloSceneRenderer::TextVertex> box_verts;
+      constexpr float kCapW = 16.0f;
+      constexpr float kBoxH = 40.0f;
+      append_image_quad_uv(box_x - box_w * 0.5f + kCapW * 0.5f, kFooterY,
+                           kFooterZ + 4.0f, kCapW, kBoxH, 0.0f, 0.0f, 1.0f, 1.0f,
+                           0xFFFFFFFFu, box_verts);
+      append_image_quad_uv(box_x + box_w * 0.5f - kCapW * 0.5f, kFooterY,
+                           kFooterZ + 4.0f, kCapW, kBoxH, 1.0f, 0.0f, 0.0f, 1.0f,
+                           0xFFFFFFFFu, box_verts);
+      batches.push_back({std::move(box_verts), &cap_it->second});
+      std::vector<ghogx::render::MiloSceneRenderer::TextVertex> mid_verts;
+      append_image_quad(box_x, kFooterY, kFooterZ + 4.0f, box_w - kCapW * 2.0f,
+                        kBoxH, 0xFFFFFFFFu, mid_verts);
+      batches.push_back({std::move(mid_verts), &mid_it->second});
+    }
+    const char* tex = tex_for_control(item.control);
+    if (auto it = icons.find(tex); it != icons.end() && it->second.valid()) {
+      std::vector<ghogx::render::MiloSceneRenderer::TextVertex> icon_verts;
+      append_image_quad(icon_x, kFooterY, kFooterZ + 4.0f, icon_w, icon_h,
+                        0xFFFFFFFFu, icon_verts);
+      batches.push_back({std::move(icon_verts), &it->second});
+    }
+    append_song_string(label, font, x, kFooterY, kFooterZ, kFooterScale, kFooterCol, out);
+  }
+}
+
+struct SongListEntry {
+  bool header = false;
+  std::string text;
+  int song_pos = -1;
+};
+
+std::string song_title_by_key(const ConfigDb& db, Symbol key) {
+  for (std::size_t i = 0; i < db.song_count(); ++i) {
+    if (db.song_key(i) != key) continue;
+    std::string title(db.song_field(i, Symbol("name")).as_string().value_or(""));
+    return title.empty() ? std::string(key.c_str()) : title;
+  }
+  return std::string(key.c_str());
+}
+
+std::vector<SongListEntry> quickplay_entries(
+    const ConfigDb& db, const std::map<std::string, std::string>& locale) {
+  std::vector<SongListEntry> out;
+  const DataArray* campaign = db.table(Symbol("campaign"));
+  auto order = campaign ? campaign->find_keyed(Symbol("order")) : nullptr;
+  int song_pos = 0;
+  if (order) {
+    for (std::size_t i = 1; i < order->size(); ++i) {
+      auto tier = order->at(i).as_array();
+      if (!tier || tier->empty()) continue;
+      Symbol tier_name = tier->at(0).as_symbol().value_or(Symbol());
+      std::string header_key = std::string("song_header_") + tier_name.c_str();
+      std::string header = header_key;
+      if (auto it = locale.find(header_key); it != locale.end()) header = it->second;
+      out.push_back({true, header, -1});
+      for (std::size_t j = 1; j < tier->size(); ++j) {
+        Symbol song = tier->at(j).as_symbol().value_or(Symbol());
+        if (!song.valid()) continue;
+        out.push_back({false, song_title_by_key(db, song), song_pos++});
+      }
+    }
+  }
+  if (!out.empty()) return out;
+
+  for (std::size_t i = 0; i < db.song_count(); ++i) {
+    std::string title(db.song_field(i, Symbol("name")).as_string().value_or(""));
+    if (title.empty()) title = db.song_key(i).c_str();
+    out.push_back({false, title, static_cast<int>(i)});
+  }
+  return out;
+}
+
+int display_row_for_song(const std::vector<SongListEntry>& entries, int selected_song) {
+  for (std::size_t i = 0; i < entries.size(); ++i)
+    if (!entries[i].header && entries[i].song_pos == selected_song) return static_cast<int>(i);
+  return 0;
+}
+
+void append_quickplay_song_list(ScreenManager& mgr, const ConfigDb& db,
+                                const std::map<std::string, std::string>& locale,
+                                const MenuFont& font,
+                                std::vector<ghogx::render::MiloSceneRenderer::TextVertex>& out) {
+  Object* list = mgr.resolve_object(Symbol("ss_song.lst"));
+  Object* panel = mgr.find_object(Symbol("sel_song_panel"));
+  int selected = 0;
+  if (list) selected = list->handle_property(Symbol("selected_pos"), DataArray()).as_int().value_or(0);
+  else if (panel) selected = panel->get_property(Symbol("ss_song_selected")).as_int().value_or(0);
+  if (selected < 0) selected = 0;
+
+  // ss_song.lst (sel_song_quickplay.milo): type song2, 5 visible rows, 40-unit
+  // row height. The first matrix in the UIList body is the local row origin.
+  constexpr int kVisibleRows = 7;
+  constexpr float kBaseX = 25.0f;
+  constexpr float kBaseY = 0.0f;
+  constexpr float kBaseZ = 105.0f;
+  constexpr float kRowH = 40.0f;
+  constexpr float kSongTextScale = 0.54f;
+  constexpr float kTitleX = -263.0f;
+  constexpr float kTitleZ = 0.0f;
+  constexpr float kHeaderX = -294.0f;
+  constexpr float kHeaderZ = 1.0f;
+
+  std::vector<SongListEntry> entries = quickplay_entries(db, locale);
+  int selected_display = display_row_for_song(entries, selected);
+  int first_display = std::max(0, selected_display - (kVisibleRows - 1));
+  for (int row = 0; row < kVisibleRows; ++row) {
+    int ei = first_display + row;
+    if (ei < 0 || ei >= static_cast<int>(entries.size())) break;
+    const SongListEntry& e = entries[ei];
+    float rz = kBaseZ - row * kRowH;
+    if (e.header) {
+      append_song_string(e.text, font, kBaseX + kHeaderX, kBaseY, rz + kHeaderZ,
+                         0.44f, 0xFFB30000u, out);
+    } else {
+      const bool foc = (e.song_pos == selected);
+      uint32_t title_col = foc ? 0xFF003CFFu : 0xFF1A1A1Au;
+      append_song_string(e.text, font, kBaseX + kTitleX, kBaseY, rz + kTitleZ,
+                         kSongTextScale, title_col, out);
+    }
+  }
+}
+
 // Items the original would disable: the main panel poll disables multiplayer when
 // `game is_missing_multi_controller` (main.dta). We evaluate that game condition.
 std::unordered_set<std::string> compute_disabled(ScreenManager& mgr) {
@@ -330,10 +588,9 @@ std::vector<MenuLabel> gather_labels(const std::string& hdr, const std::string& 
   std::vector<MenuLabel> out;
   for (Symbol pn : screen_panel_names(screen)) {
     Object* panel = mgr.find_object(pn);
-    if (!panel) continue;
-    auto sym = panel->get_property(Symbol("file")).as_symbol();
-    if (!sym) continue;
-    auto labels = extract_menu_labels(hdr, ark, "ui/gen/" + std::string(sym->c_str()) + "_ps2");
+    std::string file = panel_file(panel);
+    if (file.empty()) continue;
+    auto labels = extract_menu_labels(hdr, ark, "ui/gen/" + file + "_ps2");
     for (auto& l : labels) out.push_back(std::move(l));
   }
   return out;
@@ -342,13 +599,38 @@ std::vector<MenuLabel> gather_labels(const std::string& hdr, const std::string& 
 // Move focus down (dir>0) / up (dir<0) along the BandButton nav links, skipping
 // disabled items. Sets the focused panel's (focus) property to the new component.
 void focus_move(ScreenManager& mgr, const std::vector<MenuLabel>& labels,
-                const std::unordered_set<std::string>& disabled, int dir) {
+                const std::unordered_set<std::string>& disabled, int dir,
+                std::size_t song_count) {
   Object* screen = mgr.current_screen();
   if (!screen) return;
   Symbol fpn = screen->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
   Object* panel = fpn.valid() ? mgr.find_object(fpn) : nullptr;
   if (!panel) return;
   std::string cur = panel->get_property(Symbol("focus")).as_symbol().value_or(Symbol()).c_str();
+  if (cur == "ss_song.lst") {
+    Symbol stored("ss_song_selected");
+    if (Object* list = mgr.resolve_object(Symbol("ss_song.lst"))) {
+      int pos = list->handle_property(Symbol("selected_pos"), DataArray()).as_int().value_or(0);
+      pos += dir;
+      int max_pos = song_count > 0 ? static_cast<int>(song_count - 1) : 0;
+      if (pos < 0) pos = 0;
+      if (pos > max_pos) pos = max_pos;
+      list->handle_property(Symbol("set_selected"), one_arg(DataNode::Int(pos)));
+      panel->set_property(stored, DataNode::Int(pos));
+      if (Object* game = mgr.resolve_object(Symbol("game")))
+        game->handle_property(Symbol("set_song_index"), one_arg(DataNode::Int(pos)));
+      panel->handle_property(Symbol("SCROLL_MSG"), DataArray());
+    } else {
+      int pos = panel->get_property(stored).as_int().value_or(0) + dir;
+      int max_pos = song_count > 0 ? static_cast<int>(song_count - 1) : 0;
+      if (pos < 0) pos = 0;
+      if (pos > max_pos) pos = max_pos;
+      panel->set_property(stored, DataNode::Int(pos));
+      if (Object* game = mgr.resolve_object(Symbol("game")))
+        game->handle_property(Symbol("set_song_index"), one_arg(DataNode::Int(pos)));
+    }
+    return;
+  }
   for (size_t guard = 0; guard <= labels.size(); ++guard) {
     std::string next;
     if (dir > 0) {
@@ -368,7 +650,7 @@ void focus_move(ScreenManager& mgr, const std::vector<MenuLabel>& labels,
 // Rebuild the renderer's text overlay from the current screen's panels.
 void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager& mgr,
                   Object* screen, ghogx::render::MiloSceneRenderer& renderer,
-                  const MenuFont& font,
+                  const MenuFont& font, const MenuFont& song_font, const ConfigDb& db,
                   const std::map<std::string, std::string>& locale) {
   // The focused component (screen.focus -> panel; panel.focus -> component) is
   // drawn in the focused colour (yellow).
@@ -382,18 +664,39 @@ void rebuild_text(const std::string& hdr, const std::string& ark, ScreenManager&
   }
   std::unordered_set<std::string> disabled = compute_disabled(mgr);
   std::vector<ghogx::render::MiloSceneRenderer::TextVertex> verts;
+  std::vector<ghogx::render::MiloSceneRenderer::TextBatch> batches;
+  auto help_icons = asset::load_milo_textures(
+      hdr, ark, "ui/gen/helpbar.milo_ps2",
+      {"hb_fret1.tex", "hb_fret2.tex", "hb_fret3.tex", "hb_strum.tex", "hb_start.tex",
+       "help_box_mid.tex", "help_box_corner.tex"});
+  std::map<std::string, asset::Image> setlist_title;
+  if (screen && screen->name() == Symbol("qp_selsong_screen")) {
+    setlist_title = asset::load_milo_textures(
+        hdr, ark, "ui/gen/sel_song_quickplay.milo_ps2", {"setlist_top.tex"});
+  }
   for (Symbol pn : screen_panel_names(screen)) {
     Object* panel = mgr.find_object(pn);
-    if (!panel) continue;
-    DataNode f = panel->get_property(Symbol("file"));
-    auto sym = f.as_symbol();
-    if (!sym) continue;
-    auto labels = extract_menu_labels(hdr, ark, "ui/gen/" + std::string(sym->c_str()) + "_ps2");
+    std::string file = panel_file(panel);
+    if (file.empty()) continue;
+    auto labels = extract_menu_labels(hdr, ark, "ui/gen/" + file + "_ps2");
     append_text_quads(labels, font, locale, focused, disabled, verts);
   }
+  append_help_footer(screen, font, locale, help_icons, verts, batches);
+  if (auto it = setlist_title.find("setlist_top.tex");
+      it != setlist_title.end() && it->second.valid()) {
+    std::vector<ghogx::render::MiloSceneRenderer::TextVertex> title_verts;
+    append_image_quad(15.0f, 0.0f, 205.0f, 350.0f, 160.0f, 0xFFFFFFFFu, title_verts);
+    batches.push_back({std::move(title_verts), &it->second});
+  }
+  std::vector<ghogx::render::MiloSceneRenderer::TextVertex> song_verts;
+  if (screen && screen->name() == Symbol("qp_selsong_screen") && song_font.valid())
+    append_quickplay_song_list(mgr, db, locale, song_font, song_verts);
   std::fprintf(stderr, "[menu] focused component = '%s'\n", focused.c_str());
-  std::fprintf(stderr, "[menu] text: %zu glyph-verts\n", verts.size());
-  renderer.set_text(std::move(verts), font.atlas());
+  std::fprintf(stderr, "[menu] text: %zu glyph-verts, song-list: %zu glyph-verts\n",
+               verts.size(), song_verts.size());
+  batches.push_back({std::move(verts), &font.atlas()});
+  batches.push_back({std::move(song_verts), &song_font.atlas()});
+  renderer.set_text_batches(std::move(batches));
 }
 
 }  // namespace
@@ -418,6 +721,8 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   // The menu bitmap font ("impact") + the locale (button labels are loc keys).
   MenuFont impact_font;
   impact_font.load(hdr, ark, "ui/gen/impact.milo_ps2");
+  MenuFont song_font;
+  song_font.load(hdr, ark, "ui/gen/dyingmarker.milo_ps2");
   std::map<std::string, std::string> locale = load_locale(arkr, arks);
 
   // Boot to the main menu (the bootup_load memcard chain is wired later).
@@ -433,7 +738,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
   // set their state (e.g. multiplayer disabled via is_missing_multi_controller).
   mgr.update(0.0f);
   rebuild_scene(hdr, ark, mgr, shown, renderer);
-  rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, locale);
+  rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, song_font, db, locale);
 
   // Audit mode (GHOGX_MENU_DUMP=1): goto every *_screen object, rebuild its scene
   // + text, and report the mesh/texture/glyph counts. The fastest way to find
@@ -454,7 +759,7 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       std::vector<Symbol> pn = screen_panel_names(s);
       std::fprintf(stderr, "[dump] %-34s panels=%zu\n", nm.c_str(), pn.size());
       rebuild_scene(hdr, ark, mgr, s, renderer);
-      rebuild_text(hdr, ark, mgr, s, renderer, impact_font, locale);
+      rebuild_text(hdr, ark, mgr, s, renderer, impact_font, song_font, db, locale);
       renderer.draw();
       win->present();
     }
@@ -470,7 +775,16 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     if (!s) return "";
     Symbol fpn = s->get_property(Symbol("focus")).as_symbol().value_or(Symbol());
     Object* p = fpn.valid() ? mgr.find_object(fpn) : nullptr;
-    return p ? p->get_property(Symbol("focus")).as_symbol().value_or(Symbol()).c_str() : "";
+    std::string f = p ? p->get_property(Symbol("focus")).as_symbol().value_or(Symbol()).c_str() : "";
+    if (f == "ss_song.lst") {
+      int pos = 0;
+      if (Object* list = mgr.resolve_object(Symbol("ss_song.lst")))
+        pos = list->handle_property(Symbol("selected_pos"), DataArray()).as_int().value_or(0);
+      else if (Object* panel = mgr.find_object(Symbol("sel_song_panel")))
+        pos = panel->get_property(Symbol("ss_song_selected")).as_int().value_or(0);
+      f += ":" + std::to_string(pos);
+    }
+    return f;
   };
   std::string last_focus = focus_name();
 
@@ -499,16 +813,16 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
     if (dt > 0.1f) dt = 0.1f;
 
     // Input (live controller/keyboard) -> focus nav + the real menu scripts.
-    if (win->action_pressed(Action::Down))    focus_move(mgr, cur_labels, cur_disabled, +1);
-    if (win->action_pressed(Action::Up))      focus_move(mgr, cur_labels, cur_disabled, -1);
+    if (win->action_pressed(Action::Down))    focus_move(mgr, cur_labels, cur_disabled, +1, db.song_count());
+    if (win->action_pressed(Action::Up))      focus_move(mgr, cur_labels, cur_disabled, -1, db.song_count());
     if (win->action_pressed(Action::Confirm)) do_confirm(mgr);
     if (win->action_pressed(Action::Back))    do_back(mgr);
 
     // Scripted auto-nav (headless testing): one action per kNavStep frames.
     if (nav_i < nav.size() && frame == (nav_i + 1) * kNavStep) {
       const std::string& a = nav[nav_i++];
-      if (a == "down") focus_move(mgr, cur_labels, cur_disabled, +1);
-      else if (a == "up") focus_move(mgr, cur_labels, cur_disabled, -1);
+      if (a == "down") focus_move(mgr, cur_labels, cur_disabled, +1, db.song_count());
+      else if (a == "up") focus_move(mgr, cur_labels, cur_disabled, -1, db.song_count());
       else if (a == "confirm") do_confirm(mgr);
       else if (a == "back") do_back(mgr);
       else if (a.rfind("focus:", 0) == 0) {
@@ -528,11 +842,11 @@ int run_menu_mode(const std::string& hdr, const std::string& ark,
       cur_labels = gather_labels(hdr, ark, mgr, shown);
       cur_disabled = compute_disabled(mgr);
       rebuild_scene(hdr, ark, mgr, shown, renderer);
-      rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, locale);
+      rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, song_font, db, locale);
       last_focus = focus_name();
     } else if (focus_name() != last_focus) {
       last_focus = focus_name();
-      rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, locale);
+      rebuild_text(hdr, ark, mgr, shown, renderer, impact_font, song_font, db, locale);
     }
 
     renderer.draw();

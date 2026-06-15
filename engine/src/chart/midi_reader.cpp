@@ -8,6 +8,8 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <string>
+#include <utility>
 
 namespace ghogx::chart {
 
@@ -67,11 +69,24 @@ struct RawNote {
     int lane;
 };
 
+struct TrackNoteOn {
+    uint32_t tick;
+    int pitch;
+    int velocity;
+};
+
 // Star power region.
 struct SPRegion {
     uint32_t tick_on;
     uint32_t tick_off;
 };
+
+std::string clean_gh2_text_event(const uint8_t* data, uint32_t len) {
+    std::string s(reinterpret_cast<const char*>(data), len);
+    const size_t bracket = s.find('[');
+    if (bracket != std::string::npos && bracket > 0) s.erase(0, bracket);
+    return s;
+}
 
 // Parse one MTrk chunk. Fills raw_notes and sp_regions with new events.
 // tempo_map receives any meta tempo events.
@@ -81,6 +96,8 @@ void parse_track(const uint8_t* data, size_t start, size_t end,
                  std::vector<TempoChange>& tempo_map,
                  std::vector<RawNote>& raw_notes,
                  std::vector<SPRegion>& sp_regions,
+                 std::vector<TextEvent>& text_events,
+                 std::vector<TrackNoteOn>& note_ons,
                  std::string& name_out) {
     size_t pos = start;
     uint32_t abs_tick = 0;
@@ -125,7 +142,11 @@ void parse_track(const uint8_t* data, size_t start, size_t end,
                 tempo_map.push_back({abs_tick, us});
             } else if (meta_type == 0x03) {
                 // Track name.
-                name_out.assign(reinterpret_cast<const char*>(data + pos), meta_len);
+                name_out = clean_gh2_text_event(data + pos, meta_len);
+            } else if (meta_type == 0x01 || meta_type == 0x05 ||
+                       meta_type == 0x06 || meta_type == 0x07) {
+                std::string text = clean_gh2_text_event(data + pos, meta_len);
+                if (!text.empty()) text_events.push_back({abs_tick, std::move(text)});
             }
             pos += meta_len;
         } else if (status == 0xF0 || status == 0xF7) {
@@ -168,6 +189,11 @@ void parse_track(const uint8_t* data, size_t start, size_t end,
             bool is_off = (cmd == 0x80) || (cmd == 0x90 && p2 == 0);
 
             const int pitch = static_cast<int>(p1);
+
+            if (is_on) {
+                note_ons.push_back(
+                    {abs_tick, pitch, static_cast<int>(p2)});
+            }
 
             // Star power: MIDI note 116.
             if (pitch == 116) {
@@ -237,10 +263,43 @@ double Chart::tick_to_sec(uint32_t tick) const {
     return sec;
 }
 
+uint32_t Chart::sec_to_tick(double sec) const {
+    if (tempo_map.empty() || ticks_per_beat == 0 || sec <= 0.0) return 0;
+    double cur_sec = 0.0;
+    uint32_t cur_tick = 0;
+    uint32_t us_per_beat = 500000;
+    for (const auto& tc : tempo_map) {
+        if (tc.tick <= cur_tick) {
+            us_per_beat = tc.us_per_beat;
+            continue;
+        }
+        const double span_sec =
+            static_cast<double>(tc.tick - cur_tick) /
+            static_cast<double>(ticks_per_beat) *
+            (static_cast<double>(us_per_beat) * 1e-6);
+        if (cur_sec + span_sec >= sec) {
+            const double beat_sec = static_cast<double>(us_per_beat) * 1e-6;
+            const double ticks =
+                (sec - cur_sec) / beat_sec * static_cast<double>(ticks_per_beat);
+            return cur_tick + static_cast<uint32_t>(std::max(0.0, ticks));
+        }
+        cur_sec += span_sec;
+        cur_tick = tc.tick;
+        us_per_beat = tc.us_per_beat;
+    }
+    const double beat_sec = static_cast<double>(us_per_beat) * 1e-6;
+    const double ticks =
+        (sec - cur_sec) / beat_sec * static_cast<double>(ticks_per_beat);
+    return cur_tick + static_cast<uint32_t>(std::max(0.0, ticks));
+}
+
 double Chart::duration_sec() const {
     uint32_t last = 0;
     for (int d = 0; d < 4; ++d)
         for (const auto& n : notes[d])
+            last = std::max(last, n.tick_off);
+    for (int d = 0; d < 4; ++d)
+        for (const auto& n : bass_notes[d])
             last = std::max(last, n.tick_off);
     return tick_to_sec(last);
 }
@@ -313,6 +372,8 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     // Tempo events from any track (especially track 0) are also collected.
     std::vector<std::vector<RawNote>> all_raw(tracks.size());
     std::vector<std::vector<SPRegion>> all_sp(tracks.size());
+    std::vector<std::vector<TextEvent>> all_text(tracks.size());
+    std::vector<std::vector<TrackNoteOn>> all_note_ons(tracks.size());
 
     // Extra tempo events collected across all tracks (merged after).
     std::vector<TempoChange> extra_tempos;
@@ -320,7 +381,8 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     for (size_t t = 0; t < tracks.size(); ++t) {
         std::vector<TempoChange> local_tempos;
         parse_track(data, tracks[t].start, tracks[t].end,
-                    local_tempos, all_raw[t], all_sp[t], tracks[t].name);
+                    local_tempos, all_raw[t], all_sp[t], all_text[t],
+                    all_note_ons[t], tracks[t].name);
         // Merge tempos from all tracks.
         for (auto& tc : local_tempos)
             extra_tempos.push_back(tc);
@@ -346,7 +408,130 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
         chart.tempo_map = std::move(dedup);
     }
 
+    // GH2 venue/world events live on the EVENTS track. Performer tracks also
+    // contain text markers, but those drive character state and must not select
+    // world lighting presets.
+    std::vector<size_t> event_tracks;
+    for (size_t t = 0; t < tracks.size(); ++t) {
+        if (tracks[t].name == "EVENTS") event_tracks.push_back(t);
+    }
+    if (event_tracks.empty() && !tracks.empty()) {
+        event_tracks.push_back(0);
+        std::fprintf(stderr, "[midi] no EVENTS track found; using track 0 text events\n");
+    }
+    for (size_t t : event_tracks) {
+        for (auto& ev : all_text[t]) chart.text_events.push_back(std::move(ev));
+        std::fprintf(stderr, "[midi] using event track %zu '%s'\n",
+                     t, tracks[t].name.c_str());
+    }
+
+    for (size_t t = 0; t < tracks.size(); ++t) {
+        if (tracks[t].name == "EVENTS" || tracks[t].name.empty()) continue;
+        for (const auto& ev : all_text[t]) {
+            chart.performer_events.push_back({ev.tick, tracks[t].name, ev.text});
+        }
+        if (tracks[t].name == "BAND DRUMS") {
+            for (const auto& note : all_note_ons[t]) {
+                const char* event = nullptr;
+                // config/midi_parsers.dta::drummer_kick_drum maps stock GH2
+                // PS2 BAND DRUMS pitch 36 to kick_drum and 37 to crash_symbal.
+                // hit_snare/hit_hihat are real drummer messages, but traces
+                // show them through script/parser rows rather than these two
+                // MIDI pitches.
+                if (note.pitch == 36) event = "kick_drum";
+                if (note.pitch == 37) event = "crash_symbal";
+                if (!event) continue;
+                chart.drum_cues.push_back(
+                    {note.tick, note.pitch, std::string(event)});
+            }
+        } else if (tracks[t].name == "BAND BASS") {
+            for (const auto& note : all_note_ons[t]) {
+                // config/midi_parsers.dta::speaker_pulse maps BAND BASS
+                // pitch 36 to {handle (world bass_hit)}.
+                if (note.pitch != 36) continue;
+                chart.bass_cues.push_back(
+                    {note.tick, note.pitch, std::string("bass_hit")});
+            }
+        }
+    }
+
     // (Diagnostic pitch scan removed after format discovery.)
+    std::sort(chart.text_events.begin(), chart.text_events.end(),
+              [](const TextEvent& a, const TextEvent& b) {
+                  return a.tick < b.tick;
+              });
+    std::sort(chart.performer_events.begin(), chart.performer_events.end(),
+              [](const TrackTextEvent& a, const TrackTextEvent& b) {
+                  if (a.tick != b.tick) return a.tick < b.tick;
+                  return a.track < b.track;
+              });
+    std::sort(chart.drum_cues.begin(), chart.drum_cues.end(),
+              [](const DrumCue& a, const DrumCue& b) {
+                  if (a.tick != b.tick) return a.tick < b.tick;
+                  return a.pitch < b.pitch;
+              });
+    std::sort(chart.bass_cues.begin(), chart.bass_cues.end(),
+              [](const DrumCue& a, const DrumCue& b) {
+                  if (a.tick != b.tick) return a.tick < b.tick;
+                  return a.pitch < b.pitch;
+              });
+    std::fprintf(stderr, "[midi] text events=%zu\n", chart.text_events.size());
+    std::fprintf(stderr, "[midi] performer text events=%zu\n",
+                 chart.performer_events.size());
+    std::fprintf(stderr, "[midi] drum cues=%zu\n", chart.drum_cues.size());
+    std::fprintf(stderr, "[midi] bass cues=%zu\n", chart.bass_cues.size());
+
+    auto append_chart_notes = [&](const std::vector<RawNote>& src_notes,
+                                  const std::vector<SPRegion>& src_sp,
+                                  std::vector<Note> (&dst)[4]) {
+        std::vector<RawNote> sorted_notes = src_notes;
+        std::vector<SPRegion> sorted_sp = src_sp;
+        std::sort(sorted_notes.begin(), sorted_notes.end(),
+                  [](const RawNote& a, const RawNote& b) {
+                      if (a.diff != b.diff) return a.diff < b.diff;
+                      if (a.tick_on != b.tick_on) return a.tick_on < b.tick_on;
+                      return a.lane < b.lane;
+                  });
+        std::sort(sorted_sp.begin(), sorted_sp.end(),
+                  [](const SPRegion& a, const SPRegion& b) {
+                      return a.tick_on < b.tick_on;
+                  });
+
+        const uint32_t hopo_thresh = chart.ticks_per_beat / 3;
+        for (int d = 0; d < 4; ++d) {
+            uint32_t prev_tick_on = 0;
+            int prev_lane = -1;
+            bool first = true;
+            for (const auto& rn : sorted_notes) {
+                if (rn.diff != d) continue;
+                Note n;
+                n.tick_on = rn.tick_on;
+                n.tick_off = rn.tick_off;
+                n.lane = rn.lane;
+                n.is_hopo = false;
+                n.star_power = false;
+
+                if (!first && rn.lane != prev_lane) {
+                    const uint32_t gap = (rn.tick_on >= prev_tick_on)
+                                             ? (rn.tick_on - prev_tick_on)
+                                             : 0;
+                    n.is_hopo = (gap < hopo_thresh && gap > 0);
+                }
+
+                for (const auto& sp : sorted_sp) {
+                    if (sp.tick_off <= rn.tick_on) continue;
+                    if (sp.tick_on >= rn.tick_off) break;
+                    n.star_power = true;
+                    break;
+                }
+
+                dst[d].push_back(n);
+                prev_tick_on = rn.tick_on;
+                prev_lane = rn.lane;
+                first = false;
+            }
+        }
+    };
 
     // Select the guitar track(s) to use for notes.
     // For SMF type 0: all data is in track 0.
@@ -380,65 +565,28 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
         for (auto& s : all_sp[t])  sp_regions.push_back(s);
     }
 
-    // Sort raw notes by difficulty, then tick_on, then lane.
-    std::sort(raw_notes.begin(), raw_notes.end(),
-              [](const RawNote& a, const RawNote& b) {
-                  if (a.diff != b.diff) return a.diff < b.diff;
-                  if (a.tick_on != b.tick_on) return a.tick_on < b.tick_on;
-                  return a.lane < b.lane;
-              });
+    append_chart_notes(raw_notes, sp_regions, chart.notes);
 
-    std::sort(sp_regions.begin(), sp_regions.end(),
-              [](const SPRegion& a, const SPRegion& b) {
-                  return a.tick_on < b.tick_on;
-              });
-
-    // Convert raw notes to Note structs with HOPO + star power flags.
-    // HOPO threshold: gap from previous note < ticks_per_beat / 3.
-    const uint32_t hopo_thresh = chart.ticks_per_beat / 3;
-
-    for (int d = 0; d < 4; ++d) {
-        uint32_t prev_tick_on = 0;
-        int      prev_lane    = -1;
-        bool     first        = true;
-
-        for (const auto& rn : raw_notes) {
-            if (rn.diff != d) continue;
-
-            Note n;
-            n.tick_on  = rn.tick_on;
-            n.tick_off = rn.tick_off;
-            n.lane     = rn.lane;
-            n.is_hopo  = false;
-            n.star_power = false;
-
-            // HOPO: gap from the previous note < hopo_thresh, and it's a different lane.
-            if (!first && rn.lane != prev_lane) {
-                const uint32_t gap = (rn.tick_on >= prev_tick_on)
-                                     ? (rn.tick_on - prev_tick_on)
-                                     : 0;
-                n.is_hopo = (gap < hopo_thresh && gap > 0);
+    if (smf_format != 0) {
+        std::vector<RawNote> raw_bass_notes;
+        std::vector<SPRegion> bass_sp_regions;
+        for (size_t t = 0; t < tracks.size(); ++t) {
+            if (tracks[t].name != "PART RHYTHM" &&
+                tracks[t].name != "PART BASS") {
+                continue;
             }
-
-            // Star power: does this note fall inside any SP region?
-            for (const auto& sp : sp_regions) {
-                if (sp.tick_off <= rn.tick_on) continue;
-                if (sp.tick_on  >= rn.tick_off) break;
-                n.star_power = true;
-                break;
-            }
-
-            chart.notes[d].push_back(n);
-
-            prev_tick_on = rn.tick_on;
-            prev_lane    = rn.lane;
-            first        = false;
+            std::fprintf(stderr, "[midi] using bass track %zu '%s'\n",
+                         t, tracks[t].name.c_str());
+            for (auto& n : all_raw[t]) raw_bass_notes.push_back(n);
+            for (auto& s : all_sp[t]) bass_sp_regions.push_back(s);
         }
+        append_chart_notes(raw_bass_notes, bass_sp_regions, chart.bass_notes);
     }
 
-    std::fprintf(stderr, "[midi] parsed: Easy=%zu Med=%zu Hard=%zu Expert=%zu dur=%.1fs\n",
+    std::fprintf(stderr, "[midi] parsed: Easy=%zu Med=%zu Hard=%zu Expert=%zu BassMed=%zu dur=%.1fs\n",
                  chart.notes[0].size(), chart.notes[1].size(),
                  chart.notes[2].size(), chart.notes[3].size(),
+                 chart.bass_notes[1].size(),
                  chart.duration_sec());
     return chart;
 }

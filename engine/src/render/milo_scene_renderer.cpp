@@ -14,7 +14,9 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <unordered_set>
 #include <vector>
 
 namespace ghogx::render {
@@ -31,9 +33,43 @@ struct SVtx {
 constexpr DWORD kFVF =
     D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 
+std::array<float, 16> mul16(const std::array<float, 16>& a,
+                            const std::array<float, 16>& b) {
+  std::array<float, 16> r{};
+  for (int i = 0; i < 4; ++i)
+    for (int j = 0; j < 4; ++j) {
+      float s = 0.0f;
+      for (int k = 0; k < 4; ++k) s += a[i * 4 + k] * b[k * 4 + j];
+      r[i * 4 + j] = s;
+    }
+  return r;
+}
+
+std::array<float, 16> xfm_to_mat4(const milo_scene::Xfm& x) {
+  return {x.rot[0][0], x.rot[0][1], x.rot[0][2], 0.0f,
+          x.rot[1][0], x.rot[1][1], x.rot[1][2], 0.0f,
+          x.rot[2][0], x.rot[2][1], x.rot[2][2], 0.0f,
+          x.pos[0],    x.pos[1],    x.pos[2],    1.0f};
+}
+
+bool env_enabled(const char* name) {
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, name) != 0 || !value) return false;
+  const bool enabled = value[0] != '\0' && value[0] != '0';
+  std::free(value);
+  return enabled;
+}
+
 }  // namespace
 
 void OrbitCamera::eye(float out[3]) const {
+  if (authored) {
+    out[0] = authored_eye[0];
+    out[1] = authored_eye[1];
+    out[2] = authored_eye[2];
+    return;
+  }
   // Spherical about target. Up axis is world +Z (GH2 convention). At yaw=0 the
   // camera sits along -Y (in front of the stage looking toward +Y/back).
   const float cp = std::cos(pitch), sp = std::sin(pitch);
@@ -50,14 +86,104 @@ MiloSceneRenderer::MiloSceneRenderer(Window& win) : win_(&win) {
 MiloSceneRenderer::~MiloSceneRenderer() {
   for (auto& kv : tex_)
     if (kv.second) kv.second->Release();
-  if (text_tex_) text_tex_->Release();
+  for (auto* t : text_tex_)
+    if (t) t->Release();
 }
 
 void MiloSceneRenderer::set_text(std::vector<TextVertex> verts,
                                  const ghogx::asset::Image& atlas) {
-  if (text_tex_) { text_tex_->Release(); text_tex_ = nullptr; }
-  text_ = std::move(verts);
-  if (!text_.empty() && atlas.valid()) text_tex_ = upload(atlas);
+  std::vector<TextBatch> batches;
+  TextBatch b;
+  b.verts = std::move(verts);
+  b.atlas = &atlas;
+  batches.push_back(std::move(b));
+  set_text_batches(std::move(batches));
+}
+
+void MiloSceneRenderer::set_text_batches(std::vector<TextBatch> batches) {
+  for (auto* t : text_tex_)
+    if (t) t->Release();
+  text_tex_.clear();
+  text_.clear();
+  for (auto& b : batches) {
+    if (b.verts.empty() || !b.atlas || !b.atlas->valid()) continue;
+    IDirect3DTexture9* tex = upload(*b.atlas);
+    if (!tex) continue;
+    text_tex_.push_back(tex);
+    text_.push_back(std::move(b.verts));
+  }
+}
+
+void MiloSceneRenderer::set_world_transform(const std::array<float, 16>& m) {
+  world_transform_ = m;
+}
+
+void MiloSceneRenderer::set_additive_blend(bool additive) {
+  additive_blend_ = additive;
+}
+
+void MiloSceneRenderer::set_active_spotlights(std::vector<SpotlightState> spots) {
+  active_spotlights_.clear();
+  for (auto& spot : spots) active_spotlights_[spot.name] = std::move(spot);
+}
+
+void MiloSceneRenderer::set_hidden_meshes(std::unordered_set<std::string> mesh_names) {
+  hidden_meshes_ = std::move(mesh_names);
+}
+
+void MiloSceneRenderer::set_material_alpha_multipliers(
+    std::map<std::string, float> material_alpha) {
+  material_alpha_ = std::move(material_alpha);
+}
+
+void MiloSceneRenderer::set_mesh_translation_offsets(
+    std::map<std::string, std::array<float, 3>> offsets) {
+  mesh_translation_offsets_ = std::move(offsets);
+}
+
+void MiloSceneRenderer::trigger_mesh_pulse(const std::string& mesh_name,
+                                           float amplitude) {
+  mesh_pulses_[mesh_name] = std::max(mesh_pulses_[mesh_name], amplitude);
+}
+
+void MiloSceneRenderer::trigger_mesh_translation_anim(
+    const std::string& mesh_name, std::vector<MeshAnimKey> keys,
+    float frames_per_second) {
+  if (keys.size() < 2 || frames_per_second <= 0.0f) return;
+  std::sort(keys.begin(), keys.end(),
+            [](const MeshAnimKey& a, const MeshAnimKey& b) {
+              return a.frame < b.frame;
+            });
+  ActiveMeshAnim anim;
+  anim.keys = std::move(keys);
+  anim.frames_per_second = frames_per_second;
+  anim.elapsed = 0.0f;
+  active_mesh_anims_[mesh_name] = std::move(anim);
+}
+
+void MiloSceneRenderer::update(float dt_seconds) {
+  if (dt_seconds <= 0.0f) return;
+  if (!mesh_pulses_.empty()) {
+    for (auto it = mesh_pulses_.begin(); it != mesh_pulses_.end();) {
+      it->second = std::max(0.0f, it->second - dt_seconds * 10.0f);
+      if (it->second <= 0.001f) {
+        it = mesh_pulses_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+  if (!active_mesh_anims_.empty()) {
+    for (auto it = active_mesh_anims_.begin(); it != active_mesh_anims_.end();) {
+      it->second.elapsed += dt_seconds;
+      const float frame = it->second.elapsed * it->second.frames_per_second;
+      if (!it->second.keys.empty() && frame > it->second.keys.back().frame) {
+        it = active_mesh_anims_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
 }
 
 IDirect3DTexture9* MiloSceneRenderer::upload(const ghogx::asset::Image& img) {
@@ -101,6 +227,40 @@ void MiloSceneRenderer::set_scene(
                textures.size());
 
   frame_camera_on_bounds();
+  const milo_scene::CamObj* authored = nullptr;
+  for (const auto& c : scene_.cams) {
+    if (c.decoded && c.name == "default.cam") {
+      authored = &c;
+      break;
+    }
+  }
+  if (!authored) {
+    for (const auto& c : scene_.cams) {
+      if (c.decoded) {
+        authored = &c;
+        break;
+      }
+    }
+  }
+  if (authored) {
+    cam_.authored = true;
+    for (int k = 0; k < 3; ++k) {
+      cam_.authored_eye[k] = authored->local.pos[k];
+      cam_.authored_at[k] = authored->local.pos[k] + authored->local.rot[1][k] * 100.0f;
+      cam_.authored_up[k] = authored->local.rot[2][k];
+    }
+    cam_.fov = authored->fov;
+    cam_.near_z = authored->near_plane;
+    cam_.far_z = authored->far_plane;
+    std::fprintf(stderr,
+                 "[scene3d] authored camera %s eye=(%.1f %.1f %.1f) "
+                 "forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) fov=%.3f\n",
+                 authored->name.c_str(), cam_.authored_eye[0],
+                 cam_.authored_eye[1], cam_.authored_eye[2],
+                 authored->local.rot[1][0], authored->local.rot[1][1],
+                 authored->local.rot[1][2], cam_.authored_up[0],
+                 cam_.authored_up[1], cam_.authored_up[2], cam_.fov);
+  }
 }
 
 void MiloSceneRenderer::frame_camera_on_bounds() {
@@ -166,6 +326,15 @@ void MiloSceneRenderer::frame_camera_on_bounds() {
 }
 
 void MiloSceneRenderer::draw() {
+  draw_impl(true);
+}
+
+void MiloSceneRenderer::draw_over_scene(const OrbitCamera& cam) {
+  cam_ = cam;
+  draw_impl(false);
+}
+
+void MiloSceneRenderer::draw_impl(bool clear_target) {
   if (!dev_) return;
 
   const float aspect = win_->bb_height() > 0
@@ -175,17 +344,23 @@ void MiloSceneRenderer::draw() {
 
   float eye[3];
   cam_.eye(eye);
+  const float* at = cam_.authored ? cam_.authored_at : cam_.target;
+  const float* up = cam_.authored ? cam_.authored_up : nullptr;
   Mat4 view = Mat4::look_at_lh(eye[0], eye[1], eye[2],
-                               cam_.target[0], cam_.target[1], cam_.target[2],
-                               0.0f, 0.0f, 1.0f);  // world up = +Z
+                               at[0], at[1], at[2],
+                               up ? up[0] : 0.0f,
+                               up ? up[1] : 0.0f,
+                               up ? up[2] : 1.0f);
   Mat4 proj = Mat4::perspective_lh(cam_.fov, aspect, cam_.near_z, cam_.far_z);
   // GH2 world is right-handed; mirror clip-X for the LH D3D pipeline so the
   // scene isn't left/right flipped (same convention as the highway renderer).
   proj.m[0][0] = -proj.m[0][0];
 
   // A sky-ish dark blue clear so geometry silhouettes read even before textures.
-  dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-              D3DCOLOR_XRGB(20, 22, 34), 1.0f, 0);
+  if (clear_target) {
+    dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
+                D3DCOLOR_XRGB(20, 22, 34), 1.0f, 0);
+  }
   dev_->BeginScene();
 
   D3DMATRIX dv, dp;
@@ -196,11 +371,19 @@ void MiloSceneRenderer::draw() {
 
   dev_->SetFVF(kFVF);
   dev_->SetRenderState(D3DRS_ZENABLE, TRUE);
-  dev_->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-  // Mirroring clip-X flips winding; cull CW so front faces (originally CCW)
-  // stay visible. (If a venue reads inside-out we can flip this.)
-  dev_->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
-  dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+  dev_->SetRenderState(D3DRS_ZWRITEENABLE, additive_blend_ ? FALSE : TRUE);
+  // Mirroring clip-X flips winding for the D3D bridge. Keep the broadly
+  // validated CW default; debug overrides let individual venue winding issues
+  // be inspected without changing asset data.
+  DWORD cull_mode = D3DCULL_CW;
+  if (env_enabled("GHOGX_CULL_CCW")) cull_mode = D3DCULL_CCW;
+  if (env_enabled("GHOGX_CULL_NONE")) cull_mode = D3DCULL_NONE;
+  dev_->SetRenderState(D3DRS_CULLMODE, cull_mode);
+  dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+  dev_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+  dev_->SetRenderState(D3DRS_DESTBLEND,
+                       additive_blend_ ? D3DBLEND_ONE
+                                       : D3DBLEND_INVSRCALPHA);
 
   // Fixed-function lighting using the decoded normals. Bright ambient keeps all
   // textured surfaces readable (venues bake their own light into the textures;
@@ -236,36 +419,79 @@ void MiloSceneRenderer::draw() {
   dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
   dev_->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
   dev_->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-  dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+  dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+  dev_->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
   dev_->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
   D3DMATRIX wm;
   std::vector<SVtx> vb;
 
-  for (const auto& m : scene_.meshes) {
-    if (!m.decoded || m.vertex_count == 0 || m.face_count == 0) continue;
-
-    auto w = scene_.world_matrix(m);
+  auto draw_mesh_with_world = [&](const milo_scene::MeshObj& m,
+                                  const std::array<float, 16>& w,
+                                  const std::string* material_override = nullptr,
+                                  const SpotlightState* spotlight_state = nullptr) {
+    if (!m.decoded || m.vertex_count == 0 || m.face_count == 0) return;
     std::memcpy(&wm, w.data(), 64);
     dev_->SetTransform(D3DTS_WORLD, &wm);
 
-    // Bind the material's diffuse texture (untextured meshes draw lit-white) +
-    // its texcoord transform (UV tiling/offset; e.g. the menu brick wall tiles 4x3
-    // so the 256px brick tile repeats instead of stretching once across the wall).
     IDirect3DTexture9* texture = nullptr;
     float su = 1.0f, sv = 1.0f, tu = 0.0f, tv = 0.0f;
-    if (const auto* mat = scene_.find_mat(m.material)) {
+    float mr = 1.0f, mg = 1.0f, mb = 1.0f, ma = 1.0f;
+    bool material_additive = false;
+    const std::string& material =
+        (material_override && !material_override->empty()) ? *material_override
+                                                           : m.material;
+    if (const auto* mat = scene_.find_mat(material)) {
       auto it = tex_.find(mat->diffuse_tex);
       if (it != tex_.end()) texture = it->second;
       su = mat->tex_scale[0]; sv = mat->tex_scale[1];
       tu = mat->tex_offset[0]; tv = mat->tex_offset[1];
+      mr = mat->color[0]; mg = mat->color[1]; mb = mat->color[2]; ma = mat->color[3];
+      material_additive = mat->color[3] < 0.999f;
+    }
+    const bool draw_additive = additive_blend_ || material_additive;
+    dev_->SetRenderState(D3DRS_ZWRITEENABLE, draw_additive ? FALSE : TRUE);
+    dev_->SetRenderState(D3DRS_DESTBLEND,
+                         draw_additive ? D3DBLEND_ONE
+                                       : D3DBLEND_INVSRCALPHA);
+    if (spotlight_state) {
+      mr *= spotlight_state->r;
+      mg *= spotlight_state->g;
+      mb *= spotlight_state->b;
+      ma *= spotlight_state->intensity;
+    }
+    if (const auto alpha_it = material_alpha_.find(material);
+        alpha_it != material_alpha_.end()) {
+      ma *= alpha_it->second;
+    }
+    if (ma <= 0.001f) return;
+    if (env_enabled("GHOGX_LOG_ALPHA_MESHES") &&
+        (material_additive || ma < 0.999f || material.find("glow") != std::string::npos ||
+         material.find("beam") != std::string::npos)) {
+      static std::unordered_set<std::string> logged;
+      const std::string key = m.name + "|" + material;
+      if (logged.insert(key).second) {
+        std::fprintf(stderr,
+                     "[milo_scene] alpha mesh name=%s material=%s mat_alpha=%.3f additive=%d verts=%zu faces=%zu\n",
+                     m.name.c_str(), material.c_str(), ma,
+                     material_additive ? 1 : 0, m.verts.size(),
+                     m.indices.size() / 3);
+      }
+    }
+    if (material_additive) {
+      ma *= 0.5f;
     }
     if (texture) {
       dev_->SetTexture(0, texture);
+      const bool tiled = su > 1.01f || sv > 1.01f;
+      dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
+      dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
       dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
     } else {
       dev_->SetTexture(0, nullptr);
-      dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);  // lit colour
+      dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+      dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+      dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
     }
 
     vb.clear();
@@ -274,12 +500,11 @@ void MiloSceneRenderer::draw() {
       SVtx s;
       s.x = v.px; s.y = v.py; s.z = v.pz;
       s.nx = v.nx; s.ny = v.ny; s.nz = v.nz;
-      // GH2 vertex colour is usually white; use it as a tint on the lit result.
       const auto cc = [](float f) -> int {
         int i = static_cast<int>(f * 255.0f + 0.5f);
         return i < 0 ? 0 : (i > 255 ? 255 : i);
       };
-      s.color = D3DCOLOR_ARGB(255, cc(v.r), cc(v.g), cc(v.b));
+      s.color = D3DCOLOR_ARGB(cc(v.a * ma), cc(v.r * mr), cc(v.g * mg), cc(v.b * mb));
       s.u = v.u * su + tu;
       s.v = v.v * sv + tv;
       vb.push_back(s);
@@ -289,6 +514,244 @@ void MiloSceneRenderer::draw() {
         D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m.vertex_count),
         static_cast<UINT>(m.face_count), m.indices.data(), D3DFMT_INDEX16,
         vb.data(), sizeof(SVtx));
+  };
+
+  std::vector<const milo_scene::MeshObj*> draw_meshes;
+  draw_meshes.reserve(scene_.meshes.size());
+  std::unordered_set<const milo_scene::MeshObj*> queued;
+  for (const auto& name : scene_.draw_order) {
+    for (const auto& m : scene_.meshes) {
+      if (&m && queued.find(&m) == queued.end() && m.name == name) {
+        draw_meshes.push_back(&m);
+        queued.insert(&m);
+        break;
+      }
+    }
+  }
+  for (const auto& m : scene_.meshes) {
+    if (queued.insert(&m).second) draw_meshes.push_back(&m);
+  }
+
+  const bool draw_spotlight_instances =
+      !env_enabled("GHOGX_DISABLE_SPOTLIGHT_INSTANCES");
+  const bool debug_camera_meshes =
+      clear_target && env_enabled("GHOGX_DEBUG_CAMERA_MESHES");
+  struct CameraMeshHit {
+    std::string name;
+    std::string material;
+    float center[3] = {0, 0, 0};
+    float radius = 0.0f;
+    float distance = 0.0f;
+  };
+  std::vector<CameraMeshHit> camera_mesh_hits;
+  std::unordered_set<std::string> spotlight_template_meshes;
+  for (const auto& spot : scene_.spotlights) {
+    for (const auto& group : scene_.groups) {
+      if (group.name != spot.group) continue;
+      for (const auto& child : group.children) {
+        if (child.rfind(".mesh") != std::string::npos)
+          spotlight_template_meshes.insert(child);
+      }
+    }
+  }
+
+  for (const auto* mp : draw_meshes) {
+    const auto& m = *mp;
+    if (hidden_meshes_.find(m.name) != hidden_meshes_.end()) continue;
+    if (spotlight_template_meshes.find(m.name) != spotlight_template_meshes.end())
+      continue;
+    if (additive_blend_)
+      continue;
+    auto world = scene_.world_matrix(m);
+    if (const auto offset_it = mesh_translation_offsets_.find(m.name);
+        offset_it != mesh_translation_offsets_.end()) {
+      world[12] += offset_it->second[0];
+      world[13] += offset_it->second[1];
+      world[14] += offset_it->second[2];
+    }
+    const auto anim_it = active_mesh_anims_.find(m.name);
+    if (anim_it != active_mesh_anims_.end() &&
+        anim_it->second.keys.size() >= 2) {
+      const auto& anim = anim_it->second;
+      const float frame = anim.elapsed * anim.frames_per_second;
+      const auto* a = &anim.keys.front();
+      const auto* b = &anim.keys.back();
+      for (size_t i = 1; i < anim.keys.size(); ++i) {
+        if (frame <= anim.keys[i].frame) {
+          a = &anim.keys[i - 1];
+          b = &anim.keys[i];
+          break;
+        }
+      }
+      const float span = std::max(b->frame - a->frame, 0.001f);
+      const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+      world[12] += (a->pos[0] + (b->pos[0] - a->pos[0]) * t) -
+                   anim.keys.front().pos[0];
+      world[13] += (a->pos[1] + (b->pos[1] - a->pos[1]) * t) -
+                   anim.keys.front().pos[1];
+      world[14] += (a->pos[2] + (b->pos[2] - a->pos[2]) * t) -
+                   anim.keys.front().pos[2];
+    }
+    const auto pulse_it = mesh_pulses_.find(m.name);
+    if (pulse_it != mesh_pulses_.end()) {
+      world[14] += pulse_it->second;
+    }
+    if (debug_camera_meshes && m.decoded && !m.verts.empty()) {
+      float mn[3] = {0, 0, 0};
+      float mx[3] = {0, 0, 0};
+      bool have = false;
+      for (const auto& v : m.verts) {
+        const float p[3] = {
+            v.px * world[0] + v.py * world[4] + v.pz * world[8] + world[12],
+            v.px * world[1] + v.py * world[5] + v.pz * world[9] + world[13],
+            v.px * world[2] + v.py * world[6] + v.pz * world[10] + world[14]};
+        if (!have) {
+          for (int k = 0; k < 3; ++k) mn[k] = mx[k] = p[k];
+          have = true;
+        } else {
+          for (int k = 0; k < 3; ++k) {
+            mn[k] = std::min(mn[k], p[k]);
+            mx[k] = std::max(mx[k], p[k]);
+          }
+        }
+      }
+      if (have) {
+        CameraMeshHit hit;
+        hit.name = m.name;
+        hit.material = m.material;
+        for (int k = 0; k < 3; ++k) hit.center[k] = (mn[k] + mx[k]) * 0.5f;
+        const float rx = (mx[0] - mn[0]) * 0.5f;
+        const float ry = (mx[1] - mn[1]) * 0.5f;
+        const float rz = (mx[2] - mn[2]) * 0.5f;
+        hit.radius = std::sqrt(rx * rx + ry * ry + rz * rz);
+        const float dx = hit.center[0] - eye[0];
+        const float dy = hit.center[1] - eye[1];
+        const float dz = hit.center[2] - eye[2];
+        hit.distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+        if (hit.distance <= hit.radius + 30.0f) {
+          camera_mesh_hits.push_back(std::move(hit));
+        }
+      }
+    }
+    draw_mesh_with_world(m, mul16(world, world_transform_));
+  }
+
+  if (debug_camera_meshes && !camera_mesh_hits.empty()) {
+    static std::unordered_set<std::string> logged_eyes;
+    char key[128];
+    std::snprintf(key, sizeof(key), "%.0f:%.0f:%.0f", eye[0], eye[1], eye[2]);
+    if (logged_eyes.insert(key).second) {
+      std::sort(camera_mesh_hits.begin(), camera_mesh_hits.end(),
+                [](const auto& a, const auto& b) {
+                  return (a.distance - a.radius) < (b.distance - b.radius);
+                });
+      const size_t limit = std::min<size_t>(camera_mesh_hits.size(), 24);
+      std::fprintf(stderr,
+                   "[milo_scene] camera mesh proximity eye=(%.2f %.2f %.2f) hits=%zu\n",
+                   eye[0], eye[1], eye[2], camera_mesh_hits.size());
+      for (size_t i = 0; i < limit; ++i) {
+        const auto& h = camera_mesh_hits[i];
+        std::fprintf(
+            stderr,
+            "[milo_scene]   near[%zu] mesh=%s material=%s center=(%.2f %.2f %.2f) radius=%.2f dist=%.2f margin=%.2f\n",
+            i, h.name.c_str(), h.material.c_str(), h.center[0], h.center[1],
+            h.center[2], h.radius, h.distance, h.distance - h.radius);
+      }
+    }
+  }
+
+  if (draw_spotlight_instances) {
+    for (const auto& spot : scene_.spotlights) {
+      const auto active_it = active_spotlights_.find(spot.name);
+      if (!active_spotlights_.empty() && active_it == active_spotlights_.end()) {
+        continue;
+      }
+      if (spot.group == "superflare_cannon.grp") continue;
+      if (!spot.has_transform || spot.group.empty()) continue;
+      const milo_scene::GroupObj* group = nullptr;
+      for (const auto& g : scene_.groups) {
+        if (g.name == spot.group) {
+          group = &g;
+          break;
+        }
+      }
+      if (!group) continue;
+      auto spot_world = xfm_to_mat4(spot.world_stored);
+      if (active_it != active_spotlights_.end() &&
+          !active_it->second.target_mesh.empty()) {
+        for (const auto& target : scene_.meshes) {
+          if (target.name != active_it->second.target_mesh) continue;
+          const auto target_world = scene_.world_matrix(target);
+          const float origin[3] = {spot_world[12], spot_world[13],
+                                   spot_world[14]};
+          const float target_pos[3] = {target_world[12], target_world[13],
+                                       target_world[14]};
+          float forward[3] = {target_pos[0] - origin[0],
+                              target_pos[1] - origin[1],
+                              target_pos[2] - origin[2]};
+          float len = std::sqrt(forward[0] * forward[0] +
+                                forward[1] * forward[1] +
+                                forward[2] * forward[2]);
+          if (len > 0.001f) {
+            forward[0] /= len;
+            forward[1] /= len;
+            forward[2] /= len;
+            float aim_up[3] = {0.0f, 0.0f, 1.0f};
+            if (std::fabs(forward[2]) > 0.96f) {
+              aim_up[0] = 1.0f;
+              aim_up[1] = 0.0f;
+              aim_up[2] = 0.0f;
+            }
+            float right[3] = {
+                aim_up[1] * forward[2] - aim_up[2] * forward[1],
+                aim_up[2] * forward[0] - aim_up[0] * forward[2],
+                aim_up[0] * forward[1] - aim_up[1] * forward[0]};
+            float rlen = std::sqrt(right[0] * right[0] +
+                                   right[1] * right[1] +
+                                   right[2] * right[2]);
+            if (rlen > 0.001f) {
+              right[0] /= rlen;
+              right[1] /= rlen;
+              right[2] /= rlen;
+              aim_up[0] = forward[1] * right[2] - forward[2] * right[1];
+              aim_up[1] = forward[2] * right[0] - forward[0] * right[2];
+              aim_up[2] = forward[0] * right[1] - forward[1] * right[0];
+              spot_world[0] = right[0];
+              spot_world[1] = right[1];
+              spot_world[2] = right[2];
+              spot_world[4] = forward[0];
+              spot_world[5] = forward[1];
+              spot_world[6] = forward[2];
+              spot_world[8] = aim_up[0];
+              spot_world[9] = aim_up[1];
+              spot_world[10] = aim_up[2];
+            }
+          }
+          break;
+        }
+      }
+      spot_world = mul16(spot_world, world_transform_);
+      if (additive_blend_) {
+        if (active_it == active_spotlights_.end() || spot.circle_mesh.empty())
+          continue;
+        for (const auto& m : scene_.meshes) {
+          if (m.name != spot.circle_mesh) continue;
+          const std::string* mat =
+              spot.circle_material.empty() ? nullptr : &spot.circle_material;
+          draw_mesh_with_world(m, spot_world, mat, &active_it->second);
+          break;
+        }
+        continue;
+      }
+      for (const auto& child : group->children) {
+        if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
+        for (const auto& m : scene_.meshes) {
+          if (m.name != child) continue;
+          draw_mesh_with_world(m, spot_world);
+          break;
+        }
+      }
+    }
   }
 
   dev_->SetTexture(0, nullptr);
@@ -296,7 +759,7 @@ void MiloSceneRenderer::draw() {
   // ---- Menu text overlay: world-space glyph quads from the font atlas. -------
   // Drawn after the 3-D scene, alpha-blended, no depth write, unlit (the glyph
   // colour comes straight from the per-vertex tint modulated by the atlas alpha).
-  if (text_tex_ && text_.size() >= 3) {
+  if (!text_.empty()) {
     Mat4 ident = Mat4::identity();
     D3DMATRIX wi;
     std::memcpy(&wi, &ident, 64);
@@ -311,7 +774,6 @@ void MiloSceneRenderer::draw() {
     dev_->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);  // text faces either way
     dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
     dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-    dev_->SetTexture(0, text_tex_);
     // Glyph RGB is white; tint = diffuse. Coverage = atlas alpha * diffuse alpha.
     dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
     dev_->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
@@ -320,19 +782,23 @@ void MiloSceneRenderer::draw() {
     dev_->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
     dev_->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
-    std::vector<SVtx> tv;
-    tv.reserve(text_.size());
-    for (const auto& t : text_) {
-      SVtx s;
-      s.x = t.x; s.y = t.y; s.z = t.z;
-      s.nx = 0; s.ny = 1; s.nz = 0;
-      s.color = static_cast<D3DCOLOR>(t.argb);
-      s.u = t.u; s.v = t.v;
-      tv.push_back(s);
+    for (size_t bi = 0; bi < text_.size(); ++bi) {
+      if (bi >= text_tex_.size() || !text_tex_[bi] || text_[bi].size() < 3) continue;
+      dev_->SetTexture(0, text_tex_[bi]);
+      std::vector<SVtx> tv;
+      tv.reserve(text_[bi].size());
+      for (const auto& t : text_[bi]) {
+        SVtx s;
+        s.x = t.x; s.y = t.y; s.z = t.z;
+        s.nx = 0; s.ny = 1; s.nz = 0;
+        s.color = static_cast<D3DCOLOR>(t.argb);
+        s.u = t.u; s.v = t.v;
+        tv.push_back(s);
+      }
+      dev_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
+                            static_cast<UINT>(tv.size() / 3), tv.data(),
+                            sizeof(SVtx));
     }
-    dev_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
-                          static_cast<UINT>(tv.size() / 3), tv.data(),
-                          sizeof(SVtx));
     dev_->SetTexture(0, nullptr);
   }
 

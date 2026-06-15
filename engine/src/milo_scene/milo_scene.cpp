@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace ghogx::milo_scene {
 
@@ -88,6 +89,63 @@ void read_trans_block(Reader& r, Xfm& local, Xfm& world, std::string& parent) {
   parent = r.str();          // parent / target name
 }
 
+void read_spotlight_trans_block(Reader& r, Xfm& local, Xfm& world,
+                                std::string& parent) {
+  int32_t ver = r.i32();
+  (void)ver;                 // = 20 for GH2 PS2 Spotlight
+  r.skip(0x2c);              // Spotlight object metadata before Trans matrices.
+  local = r.matrix();
+  world = r.matrix();
+  r.skip(3);
+  parent = r.str();
+}
+
+std::vector<std::string> mesh_child_names(const std::vector<uint8_t>& body) {
+  std::vector<std::string> out;
+  for (size_t o = 0; o + 4 <= body.size(); ++o) {
+    uint32_t len;
+    std::memcpy(&len, body.data() + o, 4);
+    if (len < 6 || len > 96 || o + 4 + len > body.size()) continue;
+    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
+    bool printable = true;
+    for (uint32_t k = 0; k < len; ++k) {
+      char c = s[k];
+      if (c < 0x20 || c >= 0x7f) { printable = false; break; }
+    }
+    if (!printable) continue;
+    std::string name(s, len);
+    if (name.size() >= 5 && name.compare(name.size() - 5, 5, ".mesh") == 0)
+      out.push_back(std::move(name));
+    o += 3 + len;
+  }
+  return out;
+}
+
+std::vector<std::string> scan_strings(const std::vector<uint8_t>& body) {
+  std::vector<std::string> out;
+  for (size_t o = 0; o + 4 <= body.size(); ++o) {
+    uint32_t len;
+    std::memcpy(&len, body.data() + o, 4);
+    if (len == 0 || len > 96 || o + 4 + len > body.size()) continue;
+    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
+    bool printable = true;
+    bool has_alpha = false;
+    for (uint32_t k = 0; k < len; ++k) {
+      char c = s[k];
+      if (c < 0x20 || c >= 0x7f) {
+        printable = false;
+        break;
+      }
+      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) has_alpha = true;
+    }
+    if (!printable || !has_alpha) continue;
+    std::string value(s, len);
+    if (out.empty() || out.back() != value) out.push_back(std::move(value));
+    o += 3 + len;
+  }
+  return out;
+}
+
 }  // namespace
 
 TransObj decode_trans(const std::string& entry_name,
@@ -137,6 +195,71 @@ CamObj decode_cam(const std::string& entry_name,
     // Leave defaults; caller falls back to a framed orbit camera.
   }
   return c;
+}
+
+WaypointObj decode_waypoint(const std::string& entry_name,
+                            const std::vector<uint8_t>& body) {
+  WaypointObj w;
+  w.name = entry_name;
+  try {
+    // GH2 PS2 Waypoint is a Trans subclass, but its Trans block is embedded
+    // after Waypoint properties rather than at byte 0. In arena_chars.milo_ps2
+    // the embedded block is:
+    //   i32 9, local matrix, world matrix, 13 bytes, i32 flags
+    // The flags line up with macros.dta: guitarist0mp=512, singer=4,
+    // bassist=16, drummer=32.
+    size_t trans_ver_at = body.size();
+    for (size_t o = 0; o + 4 <= body.size(); ++o) {
+      int32_t v;
+      std::memcpy(&v, body.data() + o, 4);
+      if (v == 9 && o + 4 + 48 <= body.size()) {
+        trans_ver_at = o;
+        break;
+      }
+    }
+    if (trans_ver_at == body.size()) return w;
+    Reader r(body.data() + trans_ver_at + 4,
+             body.size() - (trans_ver_at + 4));
+    w.local = r.matrix();
+    if (r.pos + 48 <= r.n) w.world_stored = r.matrix();
+    const size_t flags_at = trans_ver_at + 4 + 109;
+    if (flags_at + 4 <= body.size())
+      std::memcpy(&w.flags, body.data() + flags_at, 4);
+    w.decoded = true;
+  } catch (const std::exception&) {
+  }
+  return w;
+}
+
+SpotlightObj decode_spotlight(const std::string& entry_name,
+                              const std::vector<uint8_t>& body) {
+  SpotlightObj s;
+  s.name = entry_name;
+  try {
+    Reader r(body.data(), body.size());
+    read_spotlight_trans_block(r, s.local, s.world_stored, s.parent);
+    s.has_transform = true;
+  } catch (const std::exception&) {
+    s.parent.clear();
+  }
+  for (const auto& ref : scan_strings(body)) {
+    if (ref.rfind(".mat") != std::string::npos) {
+      if (ref.find("spot_circle") != std::string::npos) {
+        s.circle_material = ref;
+      } else if (ref.find("lens") != std::string::npos) {
+        s.lens_material = ref;
+      } else if (s.material.empty()) {
+        s.material = ref;
+      }
+    } else if (ref.rfind(".grp") != std::string::npos) {
+      s.group = ref;
+    } else if (ref.rfind(".mesh") != std::string::npos) {
+      if (ref.rfind("SPOT_circle", 0) == 0) s.circle_mesh = ref;
+      s.target = ref;
+    }
+  }
+  s.decoded = true;
+  return s;
 }
 
 MatObj decode_mat(const std::string& entry_name,
@@ -214,8 +337,7 @@ MeshObj decode_mesh(const std::string& entry_name,
     }
     // Trans base.
     std::string trans_parent;
-    Xfm world_unused;
-    read_trans_block(r, mesh.local, world_unused, trans_parent);
+    read_trans_block(r, mesh.local, mesh.world_stored, trans_parent);
     mesh.parent = trans_parent;
 
     // Draw base: version (= 3) + 21 bytes (showing flag + bounding sphere +
@@ -226,8 +348,7 @@ MeshObj decode_mesh(const std::string& entry_name,
 
     // Mesh fields.
     mesh.material = r.str();           // material name
-    std::string geom_owner = r.str();  // geometry-owner name (usually self)
-    (void)geom_owner;
+    mesh.geometry_owner = r.str();     // geometry-owner name (usually self)
     r.skip(kObjMeta);                  // 9 bytes
     uint32_t vcount = r.u32();
 
@@ -324,6 +445,16 @@ std::array<float, 16> xfm_to_mat4(const Xfm& x) {
   return m;
 }
 
+bool xfm_nearly_equal(const Xfm& a, const Xfm& b) {
+  constexpr float kEps = 1.0e-4f;
+  for (int r = 0; r < 3; ++r)
+    for (int c = 0; c < 3; ++c)
+      if (std::fabs(a.rot[r][c] - b.rot[r][c]) > kEps) return false;
+  for (int c = 0; c < 3; ++c)
+    if (std::fabs(a.pos[c] - b.pos[c]) > kEps) return false;
+  return true;
+}
+
 }  // namespace
 
 const MatObj* Scene::find_mat(const std::string& name) const {
@@ -338,6 +469,7 @@ std::array<float, 16> Scene::world_matrix(const MeshObj& mesh) const {
   // parents resolve to identity, which is fine since groups carry no xfm).
   std::array<float, 16> acc = xfm_to_mat4(mesh.local);
   std::string parent = mesh.parent;
+  bool resolved_parent = false;
   int guard = 0;
   while (!parent.empty() && guard++ < 64) {
     const Xfm* px = nullptr;
@@ -348,8 +480,15 @@ std::array<float, 16> Scene::world_matrix(const MeshObj& mesh) const {
         if (mm.name == parent) { px = &mm.local; parent = mm.parent; break; }
     }
     if (!px) break;  // parent is a Group/Cam/View with no Trans xfm — stop.
+    resolved_parent = true;
     acc = mat4_mul(acc, xfm_to_mat4(*px));
   }
+  // The PS2 Trans block also carries the resolved world matrix immediately
+  // after local. Trust it when it has authored hierarchy state; when it is still
+  // identical to local and we can resolve a native parent chain, mirror the PS2
+  // dirty-world helper by composing the parent rows now.
+  if (!resolved_parent || !xfm_nearly_equal(mesh.local, mesh.world_stored))
+    return xfm_to_mat4(mesh.world_stored);
   return acc;
 }
 
@@ -370,6 +509,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
     out.dir_name = dir.dir_name;
     out.dir_type = dir.dir_type;
 
+    std::unordered_set<std::string> ordered_meshes;
     int mesh_ok = 0, mesh_fail = 0;
     for (const auto& de : dir.entries) {
       std::vector<uint8_t> b(payload.data() + de.offset,
@@ -385,16 +525,58 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
           out.mats.push_back(decode_mat(de.name, b));
         } else if (de.type == "Cam") {
           out.cams.push_back(decode_cam(de.name, b));
+        } else if (de.type == "Waypoint") {
+          out.waypoints.push_back(decode_waypoint(de.name, b));
+        } else if (de.type == "Spotlight") {
+          out.spotlights.push_back(decode_spotlight(de.name, b));
+        } else if (de.type == "Group") {
+          GroupObj group;
+          group.name = de.name;
+          group.children = mesh_child_names(b);
+          for (auto& child : group.children) {
+            if (ordered_meshes.insert(child).second)
+              out.draw_order.push_back(child);
+          }
+          out.groups.push_back(std::move(group));
         }
       } catch (const std::exception& ex) {
         std::fprintf(stderr, "[milo_scene]   %s '%s' decode: %s\n",
                      de.type.c_str(), de.name.c_str(), ex.what());
       }
     }
+    for (auto& m : out.meshes) {
+      if (m.vertex_count != 0 || m.geometry_owner.empty() || m.geometry_owner == m.name) continue;
+      for (const auto& owner : out.meshes) {
+        if (owner.name != m.geometry_owner || owner.vertex_count == 0) continue;
+        m.vertex_count = owner.vertex_count;
+        m.face_count = owner.face_count;
+        m.verts = owner.verts;
+        m.indices = owner.indices;
+        std::memcpy(m.bb_min, owner.bb_min, sizeof(m.bb_min));
+        std::memcpy(m.bb_max, owner.bb_max, sizeof(m.bb_max));
+        m.decoded = true;
+        m.error.clear();
+        break;
+      }
+    }
+    auto top_it = std::find(out.draw_order.begin(), out.draw_order.end(), "setlist_top.mesh");
+    if (top_it != out.draw_order.end()) {
+      std::string top = std::move(*top_it);
+      out.draw_order.erase(top_it);
+      out.draw_order.push_back(std::move(top));
+    }
     std::fprintf(stderr,
-                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu trans, %zu mat\n",
+                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
-                 out.transes.size(), out.mats.size());
+                 out.transes.size(), out.mats.size(), out.cams.size(),
+                 out.waypoints.size(), out.groups.size());
+    if (!out.spotlights.empty()) {
+      size_t transformed = 0;
+      for (const auto& spot : out.spotlights)
+        if (spot.has_transform) ++transformed;
+      std::fprintf(stderr, "[milo_scene]   %zu spotlights decoded (%zu with Trans base)\n",
+                   out.spotlights.size(), transformed);
+    }
     return true;
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[milo_scene] load_scene(%s): %s\n", milo_path.c_str(),

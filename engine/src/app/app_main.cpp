@@ -13,6 +13,7 @@
 //   ghogx_app --ark-dir <dir>         load splash + gameplay from PS2 ARK
 //   ghogx_app --song <shortname>      which song to play (default: shoutatthedevil)
 //   ghogx_app --difficulty <0-3>      chart difficulty (default: 1 = Medium)
+//   ghogx_app --show-window           keep screenshot runs visible/interactive
 
 #include "asset/milo_image.h"
 #include "character/char_clip.h"
@@ -406,6 +407,10 @@ class AppEngine : public ghogx::Engine {
     screenshot_frame_ = frame;
   }
 
+  void set_deterministic_gameplay_clock(bool deterministic) {
+    gameplay_.set_deterministic_clock(deterministic);
+  }
+
   // Force-load the song and skip directly to Playing state (for --auto-start).
   void force_start_song() {
     if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
@@ -424,30 +429,6 @@ struct CamOverride {
   bool has_yaw = false, has_pitch = false, has_dist = false, has_target = false;
   float yaw = 0, pitch = 0, dist = 0, target[3] = {0, 0, 0};
 };
-
-void post_rotate_local(ghogx::milo_scene::Xfm& xfm, int axis, float angle) {
-  const float ca = std::cos(angle);
-  const float sa = std::sin(angle);
-  for (int r = 0; r < 3; ++r) {
-    const float x = xfm.rot[r][0];
-    const float y = xfm.rot[r][1];
-    const float z = xfm.rot[r][2];
-    if (axis == 0) {
-      xfm.rot[r][1] = ca * y - sa * z;
-      xfm.rot[r][2] = sa * y + ca * z;
-    } else if (axis == 1) {
-      xfm.rot[r][0] = ca * x + sa * z;
-      xfm.rot[r][2] = -sa * x + ca * z;
-    } else {
-      xfm.rot[r][0] = ca * x - sa * y;
-      xfm.rot[r][1] = sa * x + ca * y;
-    }
-  }
-}
-
-bool is_front_hair_piece(const std::string& name) {
-  return name.rfind("hair_front", 0) == 0 || name.rfind("Hair_front", 0) == 0;
-}
 
 std::string normalize_milo_path(std::string path) {
   std::replace(path.begin(), path.end(), '\\', '/');
@@ -602,52 +583,6 @@ std::optional<float> env_float(const char* name) {
 #endif
 }
 
-void apply_hair_secondary_motion(ghogx::character::Character& character,
-                                 float t) {
-  for (auto& b : character.bones) {
-    float amp = 0.0f;
-    float phase = 0.0f;
-    if (b.name.find("bone_hair01") != std::string::npos) {
-      amp = 0.035f; phase = 0.0f;
-    } else if (b.name.find("bone_hair02") != std::string::npos) {
-      amp = 0.055f; phase = 0.7f;
-    } else if (b.name.find("bone_hair03") != std::string::npos) {
-      amp = 0.075f; phase = 1.3f;
-    } else if (b.name.find("bone_bangL") != std::string::npos) {
-      amp = 0.045f; phase = 1.9f;
-    } else if (b.name.find("bone_bangR") != std::string::npos) {
-      amp = 0.045f; phase = 2.5f;
-    }
-    if (amp == 0.0f) continue;
-    const float sway = std::sin(t * 3.4f + phase) * amp;
-    const float bob = std::sin(t * 4.7f + phase * 0.6f) * amp * 0.45f;
-    post_rotate_local(b.local, 1, sway);
-    post_rotate_local(b.local, 2, bob);
-  }
-
-  for (auto& m : character.meshes) {
-    if (!is_front_hair_piece(m.name)) continue;
-    const float phase = static_cast<float>((m.name.size() % 7) + 1) * 0.37f;
-    const float sway = std::sin(t * 3.2f + phase) * 0.035f;
-    post_rotate_local(m.local, 1, sway);
-  }
-}
-
-void apply_face_secondary_motion(ghogx::character::Character& character,
-                                 float t) {
-  const float talk = 0.5f + 0.5f * std::sin(t * 2.2f);
-  const float brow = std::sin(t * 1.3f + 0.4f) * 0.025f;
-  for (auto& b : character.bones) {
-    if (b.name.find("bone_jaw") != std::string::npos) {
-      post_rotate_local(b.local, 0, talk * 0.045f);
-    } else if (b.name.find("brow") != std::string::npos) {
-      post_rotate_local(b.local, 2, brow);
-    } else if (b.name.find("cheek") != std::string::npos) {
-      post_rotate_local(b.local, 1, std::sin(t * 1.7f) * 0.012f);
-    }
-  }
-}
-
 bool is_face_channel_name(const std::string& name) {
   std::string lower = name;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -675,6 +610,62 @@ void keep_face_channels_only(ghogx::character::CharClip& clip) {
   }
   std::fprintf(stderr, "[char] face-filtered '%s': kept %zu/%zu channels\n",
                clip.name.c_str(), kept, total);
+}
+
+bool is_lower_body_channel_name(const std::string& name) {
+  return name.find("pelvis") != std::string::npos ||
+         name.find("-thigh") != std::string::npos ||
+         name.find("-knee") != std::string::npos ||
+         name.find("-ankle") != std::string::npos ||
+         name.find("-foot") != std::string::npos ||
+         name.find("-toe") != std::string::npos;
+}
+
+void remove_lower_body_channels(ghogx::character::CharClip& clip) {
+  if (!clip.loaded) return;
+  size_t kept = 0;
+  size_t total = 0;
+  for (auto& frame : clip.frames) {
+    total += frame.size();
+    frame.erase(std::remove_if(frame.begin(), frame.end(),
+                               [](const ghogx::character::ClipChannel& ch) {
+                                 return is_lower_body_channel_name(ch.bone_name);
+                               }),
+                frame.end());
+    kept += frame.size();
+  }
+  std::fprintf(stderr, "[char] lower-body-filtered '%s': kept %zu/%zu channels\n",
+               clip.name.c_str(), kept, total);
+}
+
+bool filter_overlay_lower_body_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_FILTER_OVERLAY_LOWER_BODY") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_FILTER_OVERLAY_LOWER_BODY");
+  return value && value[0];
+#endif
+}
+
+bool viewer_auto_hand_overlays_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_VIEWER_AUTO_HAND_OVERLAYS") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_VIEWER_AUTO_HAND_OVERLAYS");
+  return value && value[0];
+#endif
 }
 
 int run_scene_mode(const std::string& hdr, const std::string& ark,
@@ -1000,6 +991,26 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     }
     return clip;
   };
+  auto main_driver_clip_milo = [&]() -> std::string {
+    for (const auto& driver : character_drivers) {
+      if (driver.name == "main.drv") return normalize_milo_path(driver.clip_milo);
+    }
+    return {};
+  };
+  auto default_main_clip_name = [&]() -> std::string {
+    const std::string main_milo = main_driver_clip_milo();
+    if (main_milo.find("bass_main") != std::string::npos) {
+      return "bassist_idle_medium_01";
+    }
+    if (main_milo.find("singer_main") != std::string::npos) {
+      return "singer_idle_medium_01";
+    }
+    if (main_milo.find("drummer_main") != std::string::npos) {
+      return "drummer_idle";
+    }
+    return (!guitar_milo.empty() && guitar_milo != "none") ? "idle_medium_01"
+                                                           : "stand_medium_01";
+  };
   if (!clip_arg.empty()) {
     loaded_clip = load_clip_spec(clip_arg);
   }
@@ -1023,7 +1034,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
       stem.resize(stem.size() - horse_suffix.size());
     }
   }
-  if ((!guitar_milo.empty() && guitar_milo != "none") &&
+  if (viewer_auto_hand_overlays_enabled() &&
+      (!guitar_milo.empty() && guitar_milo != "none") &&
       (resolved_strum_clip_arg.empty() || resolved_fret_clip_arg.empty())) {
     if (resolved_strum_clip_arg.empty()) {
       strum_clip = load_driver_clip("right_hand.drv", "strum_long_01");
@@ -1046,10 +1058,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   if (!resolved_strum_clip_arg.empty()) strum_clip = load_clip_spec(resolved_strum_clip_arg);
   if (!resolved_fret_clip_arg.empty()) fret_clip = load_clip_spec(resolved_fret_clip_arg);
   if (clip_arg.empty()) {
-    const std::string default_main_clip =
-        (!guitar_milo.empty() && guitar_milo != "none")
-            ? "idle_medium_01"
-            : "stand_medium_01";
+    const std::string default_main_clip = default_main_clip_name();
     loaded_clip = load_driver_clip("main.drv", default_main_clip);
     if (!loaded_clip.loaded && !base_dir.empty() && !stem.empty()) {
       loaded_clip = load_clip_spec(
@@ -1088,6 +1097,10 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   keep_face_channels_only(face_base_clip);
   keep_face_channels_only(face_clip);
   keep_face_channels_only(facefx_viseme_clip);
+  if (filter_overlay_lower_body_enabled()) {
+    remove_lower_body_channels(strum_clip);
+    remove_lower_body_channels(fret_clip);
+  }
   if (!guitar_milo.empty() && guitar_milo != "none") {
     if (!right_hand_weight_override && strum_clip.loaded) right_hand_weight = 1.0f;
     if (!left_hand_weight_override && fret_clip.loaded) left_hand_weight = 1.0f;
@@ -1206,6 +1219,19 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     // FaceFX graph names as pose-bank frame indices: RE shows Good*/Bad*,
     // EyesClosed, Blink, and EyeZCombiner are graph scalar channels, not
     // standalone transform poses.
+    if (right_hand_weight_override || left_hand_weight_override) {
+      ghogx::character::clear_runtime_ik_weights(renderer.character());
+      if (right_hand_weight_override) {
+        ghogx::character::set_runtime_ik_weight(renderer.character(),
+                                                "right.weight",
+                                                right_hand_weight);
+      }
+      if (left_hand_weight_override) {
+        ghogx::character::set_runtime_ik_weight(renderer.character(),
+                                                "left.weight",
+                                                left_hand_weight);
+      }
+    }
     ghogx::character::FaceFxEyeProperties eye_props;
     ghogx::character::apply_character_controllers(
         renderer.character(), static_cast<float>(pose_time), &eye_props);
@@ -1270,6 +1296,8 @@ int main(int argc, char** argv) {
   bool auto_start = false;  // skip splash/title, load song immediately
   std::string screenshot_path;
   int screenshot_frame = 30;
+  float fixed_dt = 0.0f;
+  bool show_window = false;
   CamOverride cam_ovr;  // optional --cam-* overrides for the scene viewer
 
   for (int i = 1; i < argc; ++i) {
@@ -1293,6 +1321,8 @@ int main(int argc, char** argv) {
       difficulty = std::atoi(argv[++i]);
     } else if (std::strcmp(argv[i], "--auto-start") == 0) {
       auto_start = true;
+    } else if (std::strcmp(argv[i], "--show-window") == 0) {
+      show_window = true;
     } else if (std::strcmp(argv[i], "--char") == 0 && i + 1 < argc) {
       char_milo = argv[++i];
     } else if (std::strcmp(argv[i], "--clip") == 0 && i + 1 < argc) {
@@ -1319,6 +1349,8 @@ int main(int argc, char** argv) {
       screenshot_path = argv[++i];
     } else if (std::strcmp(argv[i], "--screenshot-frame") == 0 && i + 1 < argc) {
       screenshot_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--fixed-dt") == 0 && i + 1 < argc) {
+      fixed_dt = static_cast<float>(std::atof(argv[++i]));
     } else if (std::strcmp(argv[i], "--cam-yaw") == 0 && i + 1 < argc) {
       cam_ovr.yaw = static_cast<float>(std::atof(argv[++i])); cam_ovr.has_yaw = true;
     } else if (std::strcmp(argv[i], "--cam-pitch") == 0 && i + 1 < argc) {
@@ -1331,6 +1363,10 @@ int main(int argc, char** argv) {
       cam_ovr.target[2] = static_cast<float>(std::atof(argv[++i]));
       cam_ovr.has_target = true;
     }
+  }
+
+  if (!screenshot_path.empty() && !show_window) {
+    _putenv_s("GHOGX_HIDE_WINDOW", "1");
   }
 
   // Resolve ARK paths.
@@ -1422,6 +1458,11 @@ int main(int argc, char** argv) {
   AppEngine engine(win.get());
   engine.set_ark(hdr, ark);
   engine.set_song(song_name, difficulty);
+  if (!screenshot_path.empty() && fixed_dt <= 0.0f) fixed_dt = 1.0f / 60.0f;
+  if (fixed_dt > 0.0f) {
+    engine.set_deterministic_gameplay_clock(true);
+    std::fprintf(stderr, "[ghogx] fixed dt enabled: %.6f\n", fixed_dt);
+  }
   if (!screenshot_path.empty()) {
     engine.set_screenshot(screenshot_path, screenshot_frame);
     // Auto-exit a couple frames after the capture.
@@ -1456,7 +1497,11 @@ int main(int argc, char** argv) {
     auto now = clock::now();
     float dt = std::chrono::duration<float>(now - last).count();
     last = now;
-    if (dt > 0.1f) dt = 0.1f;
+    if (fixed_dt > 0.0f) {
+      dt = fixed_dt;
+    } else if (dt > 0.1f) {
+      dt = 0.1f;
+    }
 
     engine.tick(dt);
 

@@ -75,6 +75,17 @@ std::vector<Song> extract_songs(const gh::dtb::Tree& tree) {
             }
         }
 
+        // Some song records can override the backing band as `(band singer bass
+        // drummer)`. `shoutatthedevil` does not, so gameplay falls back to
+        // config/gen/gh2.dtb's `(default_band ...)`.
+        if (auto band = gh::dtb::find_keyed(*root_node, "band")) {
+            const auto& bkids = gh::dtb::children(*band);
+            for (size_t i = 1; i < bkids.size(); ++i) {
+                if (auto name = gh::dtb::as_string(*bkids[i]))
+                    s.band.push_back(*name);
+            }
+        }
+
         out.push_back(std::move(s));
     }
     return out;

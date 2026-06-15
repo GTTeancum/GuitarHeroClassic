@@ -23,7 +23,9 @@
 #include <array>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
+#include <string_view>
 
 struct IDirect3DDevice9;
 struct IDirect3DTexture9;
@@ -58,6 +60,9 @@ class CharRenderer {
 
   ghogx::render::OrbitCamera& camera();
   void set_world_offset(float x, float y, float z);
+  void set_world_transform(const std::array<float, 16>& m);
+  std::optional<std::array<float, 16>> attached_prop_world(
+      std::string_view object_name) const;
   // Direct access to the character for pose modification (e.g. apply_clip_pose).
   Character& character();
 

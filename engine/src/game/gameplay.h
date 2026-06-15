@@ -8,12 +8,19 @@
 #pragma once
 
 #include "chart/midi_reader.h"
+#include "character/char_clip.h"
+#include "character/char_renderer.h"
 #include "game/audio_player.h"
 #include "game/highway_renderer.h"
+#include "render/milo_scene_renderer.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 namespace ghogx::render { class Window; }
 
@@ -26,6 +33,85 @@ struct HitResult {
 
 class Gameplay {
  public:
+  struct QuickplayRig {
+    std::string character_outfit;
+    std::string guitar;
+    std::string venue;
+    std::vector<std::string> band;
+  };
+  struct CameraKey {
+    std::string name;
+    float frame = 0.0f;
+    float eye[3] = {};
+    float quat[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    bool has_quat = false;
+    float forward[3] = {0.0f, 1.0f, 0.0f};
+    float up[3] = {0.0f, 0.0f, 1.0f};
+    bool has_basis = false;
+    std::string target_entity;
+    std::string target_subpart;
+    std::string distance;
+    std::string facing;
+    std::string solo = "ok";
+    bool special = false;
+    bool walk_ok = true;
+    bool starpower_ok = false;
+    bool low_excitement_ok = true;
+    std::vector<CameraKey> positions;
+  };
+  struct LightingPreset {
+    struct TargetState {
+      std::string target;
+      float intensity = 0.0f;
+      float color[3] = {1.0f, 1.0f, 1.0f};
+    };
+    struct Keyframe {
+      std::string name;
+      size_t record_start = 0;
+      size_t record_end = 0;
+      size_t label_offset = 0;
+      float duration = 0.0f;
+      float fade_out = 0.0f;
+      std::vector<std::string> mesh_targets;
+      std::vector<TargetState> target_states;
+      std::vector<std::string> spot_refs;
+      std::vector<std::string> env_refs;
+      std::vector<std::string> lit_refs;
+    };
+    std::string name;
+    std::string category;
+    std::string adjective;
+    uint32_t keyframe_count = 0;
+    uint32_t min_excitement = 0;
+    uint32_t max_excitement = 4;
+    std::vector<std::string> keyframe_names;
+    std::vector<size_t> keyframe_label_offsets;
+    std::vector<Keyframe> keyframes;
+  };
+  struct LightingSpotlight {
+    std::string name;
+    std::string target;
+    std::string material;
+    std::string group;
+  };
+  struct VenueAnimFilterTarget {
+    std::string mesh;
+    std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey> keys;
+  };
+  struct VenueAnimFilter {
+    std::string name;
+    float start_frame = 0.0f;
+    float end_frame = 0.0f;
+    float scale = 1.0f;
+    float period = 0.0f;
+    int type = 0;
+    std::vector<VenueAnimFilterTarget> targets;
+  };
+  struct VenueGroupVisibility {
+    std::vector<std::string> show_meshes;
+    std::vector<std::string> hide_meshes;
+  };
+
   Gameplay() = default;
   ~Gameplay() = default;
 
@@ -51,11 +137,16 @@ class Gameplay {
   // Song is finished when the audio clock passes the chart duration.
   bool is_finished() const;
   double song_time() const { return song_time_; }
+  void set_deterministic_clock(bool deterministic) {
+    deterministic_clock_ = deterministic;
+  }
   int    score()     const { return score_; }
   int    streak()    const { return streak_; }
   int    difficulty()const { return difficulty_; }
 
  private:
+  void apply_venue_event(const std::string& event_name, bool persistent = true);
+
   // Detect a strum-triggered or HOPO note hit in the given lane.
   HitResult try_hit(int lane, bool strummed, bool is_hopo_candidate);
 
@@ -63,7 +154,98 @@ class Gameplay {
   bool chart_loaded_ = false;
 
   AudioPlayer audio_;
+  bool deterministic_clock_ = false;
   std::unique_ptr<HighwayRenderer> highway_;
+  std::unique_ptr<ghogx::render::MiloSceneRenderer> world_;
+  std::unique_ptr<ghogx::render::MiloSceneRenderer> lighting_;
+  std::unique_ptr<ghogx::render::MiloSceneRenderer> drum_kit_;
+
+  struct Performer {
+    std::string role;
+    std::string character_name;
+    std::string event_track;
+    std::unique_ptr<ghogx::character::CharRenderer> renderer;
+    ghogx::character::CharClip idle_clip;
+    ghogx::character::CharClip intro_clip;
+    ghogx::character::CharClip active_clip;
+    ghogx::character::CharClip active_allbeat_clip;
+    ghogx::character::CharClip active_half_clip;
+    ghogx::character::CharClip active_nosnare_clip;
+    ghogx::character::CharClip face_base_clip;
+    std::vector<ghogx::character::CharClip> active_group_clips;
+    ghogx::character::CharClip strum_open_clip;
+    ghogx::character::CharClip strum_clip;
+    ghogx::character::CharClip fret_open_clip;
+    ghogx::character::CharClip fret_clip;
+    std::vector<ghogx::character::CharClip> fret_lane_clips;
+    ghogx::character::CharClipPlayer idle_player;
+    ghogx::character::CharClipPlayer intro_player;
+    ghogx::character::CharClipPlayer active_player;
+    ghogx::character::CharClipPlayer face_base_player;
+    ghogx::character::CharClipPlayer strum_open_player;
+    ghogx::character::CharClipPlayer strum_player;
+    ghogx::character::CharClipPlayer fret_open_player;
+    ghogx::character::CharClipPlayer fret_player;
+    bool midi_playing = false;
+    uint32_t last_note_tick = UINT32_MAX;
+    double last_strum_started = -9999.0;
+    std::string last_midi_marker;
+    std::string active_clip_mode;
+    size_t active_group_index = 0;
+    double active_group_started = 0.0;
+    uint32_t active_group_last_bar = UINT32_MAX;
+    uint32_t last_anim_note_mask = UINT32_MAX;
+    std::array<float, 16> world_transform = {1.0f, 0.0f, 0.0f, 0.0f,
+                                             0.0f, 1.0f, 0.0f, 0.0f,
+                                             0.0f, 0.0f, 1.0f, 0.0f,
+                                             0.0f, 0.0f, 0.0f, 1.0f};
+  };
+  std::vector<Performer> performers_;
+
+  std::optional<QuickplayRig> quickplay_rig_;
+  bool world_init_attempted_ = false;
+  std::vector<CameraKey> camera_keys_;
+  std::vector<CameraKey> regular_camera_keys_;
+  std::string active_regular_camera_;
+  std::string previous_regular_camera_;
+  double active_regular_camera_start_ = 0.0;
+  double active_camera_position_start_ = 0.0;
+  size_t active_camera_position_index_ = 0;
+  size_t previous_camera_position_index_ = 0;
+  double intro_camera_seconds_ = 0.0;
+  int camera_duration_min_bars_ = 2;
+  int camera_duration_max_bars_ = 4;
+  int camera_bars_left_ = 0;
+  uint32_t last_camera_bar_ = UINT32_MAX;
+  uint32_t last_forced_camera_event_tick_ = UINT32_MAX;
+  size_t camera_shot_counter_ = 0;
+  std::vector<LightingPreset> lighting_presets_;
+  std::vector<LightingSpotlight> lighting_spotlights_;
+  std::string active_lighting_preset_;
+  std::string active_lighting_keyframe_;
+  size_t active_lighting_keyframe_index_ = SIZE_MAX;
+  double active_lighting_preset_start_ = 0.0;
+  std::map<std::string, std::pair<std::string, float>>
+      venue_mat_anim_end_alpha_;
+  std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;
+  std::map<std::string, std::vector<std::string>> venue_event_filters_;
+  std::map<std::string, std::vector<std::string>> venue_filter_mesh_targets_;
+  std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
+  std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
+  std::map<std::string, std::vector<std::string>> venue_material_meshes_;
+  std::map<std::string, float> venue_material_alpha_;
+  std::map<std::string, std::array<float, 3>> venue_mesh_translation_offsets_;
+  std::unordered_set<std::string> venue_base_hidden_meshes_;
+  std::string active_venue_event_;
+  std::map<std::string,
+           std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>>
+      drum_mesh_translation_anims_;
+  std::map<std::string, std::vector<std::string>> drum_event_mesh_targets_;
+
+  double last_anim_time_ = -1.0;
+  uint32_t last_band_note_tick_ = UINT32_MAX;
+  size_t next_drum_cue_idx_ = 0;
+  size_t next_bass_cue_idx_ = 0;
 
   double   song_time_      = 0.0;
   int      difficulty_     = 3;

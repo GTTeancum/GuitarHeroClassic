@@ -48,6 +48,19 @@ bool UiObject::handle_builtin(Symbol msg, const DataArray& args, DataNode& out) 
     set_property(Symbol("text"), arg0(args));
     return true;
   }
+  if (std::strcmp(m, "set_provider") == 0) {
+    set_property(Symbol("provider"), arg0(args));
+    return true;
+  }
+  if (std::strcmp(m, "set_selected") == 0) {
+    set_property(Symbol("selected_pos"), arg0(args));
+    return true;
+  }
+  if (std::strcmp(m, "selected_pos") == 0) {
+    out = get_property(Symbol("selected_pos"));
+    if (!out.as_int()) out = DataNode::Int(0);
+    return true;
+  }
 
   // --- focus: a panel stores the focused child's name ---
   if (std::strcmp(m, "set_focus") == 0 || std::strcmp(m, "focus") == 0 ||

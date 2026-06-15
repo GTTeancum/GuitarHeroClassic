@@ -31,6 +31,10 @@
 //
 //   Mesh  (version 0x1c = 28):
 //     Trans base   (version 9 + 9 + 48 + 48 + 9 + parent string, as above)
+//                  The second matrix is preserved as the runtime world matrix;
+//                  venue/prop rendering uses it when it carries resolved
+//                  hierarchy state, falling back to local-parent composition
+//                  when it is still identical to local.
 //     Draw  base   : i32 version (= 3) + 21 bytes (showing flag + bounding
 //                    sphere [cx,cy,cz,r] + draw-order byte)
 //     str   material name (the Mat entry this mesh draws with)
@@ -78,6 +82,34 @@ struct CamObj {
   bool decoded = false;
 };
 
+struct WaypointObj {
+  std::string name;
+  Xfm local;
+  Xfm world_stored;
+  uint32_t flags = 0;
+  bool decoded = false;
+};
+
+struct SpotlightObj {
+  std::string name;
+  std::string parent;
+  Xfm local;
+  Xfm world_stored;
+  bool has_transform = false;
+  std::string material;
+  std::string group;
+  std::string target;
+  std::string circle_mesh;
+  std::string circle_material;
+  std::string lens_material;
+  bool decoded = false;
+};
+
+struct GroupObj {
+  std::string name;
+  std::vector<std::string> children;
+};
+
 struct MatObj {
   std::string name;          // entry name (e.g. "gem.mat")
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)
@@ -105,7 +137,9 @@ struct MeshObj {
   std::string name;          // entry name (e.g. "green_gem.mesh")
   std::string parent;        // Trans parent name (links into the parent chain)
   std::string material;      // Mat entry name this mesh draws with
+  std::string geometry_owner;// Mesh entry that owns reusable geometry.
   Xfm local;                 // the mesh's own Trans local matrix
+  Xfm world_stored;          // the stored Trans world matrix from the MILO
   uint32_t vertex_count = 0;
   uint32_t face_count = 0;
   std::vector<Vertex> verts;
@@ -124,6 +158,10 @@ TransObj decode_trans(const std::string& entry_name,
                       const std::vector<uint8_t>& body);
 CamObj decode_cam(const std::string& entry_name,
                   const std::vector<uint8_t>& body);
+WaypointObj decode_waypoint(const std::string& entry_name,
+                             const std::vector<uint8_t>& body);
+SpotlightObj decode_spotlight(const std::string& entry_name,
+                              const std::vector<uint8_t>& body);
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body);
 // Mesh decode never throws — on failure it returns a MeshObj with decoded=false
@@ -138,6 +176,10 @@ struct Scene {
   std::vector<TransObj> transes;
   std::vector<MatObj> mats;
   std::vector<CamObj> cams;
+  std::vector<WaypointObj> waypoints;
+  std::vector<SpotlightObj> spotlights;
+  std::vector<GroupObj> groups;
+  std::vector<std::string> draw_order;  // Group-authored Mesh child order.
   std::string dir_name;
   std::string dir_type;
 
