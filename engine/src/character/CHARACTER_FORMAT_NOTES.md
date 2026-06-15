@@ -267,6 +267,21 @@ Glam1 hair:
   local-attachment skin equation reduces the weighted Glam1 sheets back to
   identity-space skin matrices. Do not claim this as a visual hair fix; the
   remaining work is the weighted local hair sheet bind/current bridge.
+- 2026-06-15 render-state hair-card pass:
+  `engine/out/native_song_20260615/glam1_texture_alpha_diag/` proves the
+  visible Glam1 front/top sheets are not caused by sampler addressing or a
+  missing no-palette vertex alpha field. `hair-front.mesh` and `hair-top.mesh`
+  sample mostly opaque triangle centroids under wrap; clamp/mirror do not make
+  them transparent, and `hair-front.mesh` has all four vertex floats equal to
+  `1.0`. The useful visual delta came from culling: the old renderer forced
+  every material/name containing `hair` to `D3DCULL_NONE`, but
+  `engine/out/native_song_20260615/glam1_cull_modes/glam1_cull_cw_f180.bmp`
+  keeps the face/eyes visible while removing the worst inside-out sheet look.
+  `ccw` is visibly wrong. Native now leaves hair on the normal CW cull path
+  while preserving two-sided eyes/lashes. Validation:
+  `engine/out/native_song_20260615/glam1_hair_cull_default/glam1_hair_cull_default_f180.bmp`
+  and cross-check
+  `engine/out/native_song_20260615/hair_cull_crosscheck/rock2_hair_cull_default_f180.bmp`.
 
 Glam1 eyes / look-at:
 
@@ -691,6 +706,10 @@ Useful environment flags:
   stored-world position.
 - `GHOGX_DEBUG_WEIGHT_STATS=1`: logs per-mesh weight normalization and nonzero
   slot counts.
+- `GHOGX_DEBUG_TEXTURE_ALPHA=1`: logs per-drawn-mesh UV bounds, texture alpha
+  samples under wrap/clamp/mirror, and the four decoded vertex-float ranges.
+  Use this before changing sampler mode or assuming no-palette meshes carry
+  hidden alpha.
 - `GHOGX_DEBUG_SKIN_MATRIX=1`: logs first skin matrix per mesh; useful when a
   no-clip bind pose is unexpectedly non-identity.
 - `GHOGX_SKIN_MATRIX_MODE=<mode>`: diagnostic matrix override. Keep unset for

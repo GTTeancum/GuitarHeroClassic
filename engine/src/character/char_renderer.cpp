@@ -18,6 +18,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <set>
 #include <vector>
 
 namespace ghogx::character {
@@ -153,6 +154,21 @@ bool debug_meshes_enabled() {
 #endif
 }
 
+bool debug_texture_alpha_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_TEXTURE_ALPHA") == 0 && value &&
+      value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_TEXTURE_ALPHA");
+  return value && value[0];
+#endif
+}
+
 DWORD character_cull_mode(const SkinnedMesh* mesh = nullptr) {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -177,10 +193,8 @@ DWORD character_cull_mode(const SkinnedMesh* mesh = nullptr) {
                    [](unsigned char c) { return (char)std::tolower(c); });
     std::transform(material.begin(), material.end(), material.begin(),
                    [](unsigned char c) { return (char)std::tolower(c); });
-    if (name.find("hair") != std::string::npos ||
-        name.find("eye") != std::string::npos ||
+    if (name.find("eye") != std::string::npos ||
         name == "lashes.mesh" ||
-        material.find("hair") != std::string::npos ||
         material.find("eye") != std::string::npos) {
       return D3DCULL_NONE;
     }
@@ -728,6 +742,180 @@ void log_matrix_row(const char* tag,
                m[12], m[13], m[14], m[15]);
 }
 
+int wrapped_texel_coord(float uv, int size) {
+  if (size <= 0 || !std::isfinite(uv)) return 0;
+  const float wrapped = uv - std::floor(uv);
+  int coord = static_cast<int>(wrapped * static_cast<float>(size));
+  if (coord < 0) coord = 0;
+  if (coord >= size) coord = size - 1;
+  return coord;
+}
+
+int clamped_texel_coord(float uv, int size) {
+  if (size <= 0 || !std::isfinite(uv)) return 0;
+  const float clamped = std::clamp(uv, 0.0f, 1.0f);
+  int coord = static_cast<int>(clamped * static_cast<float>(size - 1));
+  if (coord < 0) coord = 0;
+  if (coord >= size) coord = size - 1;
+  return coord;
+}
+
+int mirrored_texel_coord(float uv, int size) {
+  if (size <= 0 || !std::isfinite(uv)) return 0;
+  float t = std::fmod(std::abs(uv), 2.0f);
+  if (t > 1.0f) t = 2.0f - t;
+  int coord = static_cast<int>(t * static_cast<float>(size - 1));
+  if (coord < 0) coord = 0;
+  if (coord >= size) coord = size - 1;
+  return coord;
+}
+
+uint8_t sample_alpha_mode(const ghogx::asset::Image& img, float u, float v,
+                          const char* mode) {
+  if (!img.valid()) return 255;
+  int x = 0;
+  int y = 0;
+  if (std::strcmp(mode, "clamp") == 0) {
+    x = clamped_texel_coord(u, img.width);
+    y = clamped_texel_coord(v, img.height);
+  } else if (std::strcmp(mode, "mirror") == 0) {
+    x = mirrored_texel_coord(u, img.width);
+    y = mirrored_texel_coord(v, img.height);
+  } else {
+    x = wrapped_texel_coord(u, img.width);
+    y = wrapped_texel_coord(v, img.height);
+  }
+  const size_t idx = (static_cast<size_t>(y) * img.width + x) * 4 + 3;
+  return idx < img.rgba.size() ? img.rgba[idx] : 255;
+}
+
+uint8_t sample_alpha(const ghogx::asset::Image& img, float u, float v) {
+  return sample_alpha_mode(img, u, v, "wrap");
+}
+
+void log_texture_alpha_stats(const SkinnedMesh& mesh,
+                             const milo_scene::MatObj* material,
+                             const ghogx::asset::Image* image) {
+  if (!image || !image->valid() || mesh.verts.empty()) return;
+  float min_u = mesh.verts[0].u;
+  float max_u = mesh.verts[0].u;
+  float min_v = mesh.verts[0].v;
+  float max_v = mesh.verts[0].v;
+  int vert_zero = 0;
+  int vert_lt32 = 0;
+  int vert_lt96 = 0;
+  int vert_opaque = 0;
+  for (const auto& vert : mesh.verts) {
+    min_u = std::min(min_u, vert.u);
+    max_u = std::max(max_u, vert.u);
+    min_v = std::min(min_v, vert.v);
+    max_v = std::max(max_v, vert.v);
+    const uint8_t a = sample_alpha(*image, vert.u, vert.v);
+    if (a == 0) ++vert_zero;
+    if (a < 32) ++vert_lt32;
+    if (a < 96) ++vert_lt96;
+    if (a >= 250) ++vert_opaque;
+  }
+
+  int tri_zero = 0;
+  int tri_lt32 = 0;
+  int tri_lt96 = 0;
+  int tri_opaque = 0;
+  int tri_samples = 0;
+  for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+    const uint16_t ia = mesh.indices[i + 0];
+    const uint16_t ib = mesh.indices[i + 1];
+    const uint16_t ic = mesh.indices[i + 2];
+    if (ia >= mesh.verts.size() || ib >= mesh.verts.size() ||
+        ic >= mesh.verts.size()) {
+      continue;
+    }
+    const auto& a = mesh.verts[ia];
+    const auto& b = mesh.verts[ib];
+    const auto& c = mesh.verts[ic];
+    const float u = (a.u + b.u + c.u) / 3.0f;
+    const float v = (a.v + b.v + c.v) / 3.0f;
+    const uint8_t alpha = sample_alpha(*image, u, v);
+    ++tri_samples;
+    if (alpha == 0) ++tri_zero;
+    if (alpha < 32) ++tri_lt32;
+    if (alpha < 96) ++tri_lt96;
+    if (alpha >= 250) ++tri_opaque;
+  }
+
+  std::fprintf(stderr,
+               "[tex-alpha] %-24s mat=%-18s tex=%-24s size=%dx%d",
+               mesh.name.c_str(), mesh.material.c_str(),
+               material ? material->diffuse_tex.c_str() : "", image->width,
+               image->height);
+  std::fprintf(stderr, " uv=(%.3f..%.3f, %.3f..%.3f)", min_u, max_u,
+               min_v, max_v);
+  std::fprintf(stderr, " verts=%llu a0=%d a<32=%d a<96=%d opaque=%d",
+               static_cast<unsigned long long>(mesh.verts.size()), vert_zero,
+               vert_lt32, vert_lt96, vert_opaque);
+  std::fprintf(stderr, " tris=%d a0=%d a<32=%d a<96=%d opaque=%d\n",
+               tri_samples, tri_zero, tri_lt32, tri_lt96, tri_opaque);
+
+  auto count_mode = [&](const char* mode, int& zero, int& lt32, int& lt96,
+                        int& opaque) {
+    zero = lt32 = lt96 = opaque = 0;
+    for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+      const uint16_t ia = mesh.indices[i + 0];
+      const uint16_t ib = mesh.indices[i + 1];
+      const uint16_t ic = mesh.indices[i + 2];
+      if (ia >= mesh.verts.size() || ib >= mesh.verts.size() ||
+          ic >= mesh.verts.size()) {
+        continue;
+      }
+      const auto& a = mesh.verts[ia];
+      const auto& b = mesh.verts[ib];
+      const auto& c = mesh.verts[ic];
+      const float u = (a.u + b.u + c.u) / 3.0f;
+      const float v = (a.v + b.v + c.v) / 3.0f;
+      const uint8_t alpha = sample_alpha_mode(*image, u, v, mode);
+      if (alpha == 0) ++zero;
+      if (alpha < 32) ++lt32;
+      if (alpha < 96) ++lt96;
+      if (alpha >= 250) ++opaque;
+    }
+  };
+  int cz = 0, c32 = 0, c96 = 0, co = 0;
+  int mz = 0, m32 = 0, m96 = 0, mo = 0;
+  count_mode("clamp", cz, c32, c96, co);
+  count_mode("mirror", mz, m32, m96, mo);
+  std::fprintf(stderr,
+               "[tex-alpha-address] %-24s wrap(a<96=%d opaque=%d) "
+               "clamp(a<96=%d opaque=%d) mirror(a<96=%d opaque=%d)\n",
+               mesh.name.c_str(), tri_lt96, tri_opaque, c96, co, m96, mo);
+}
+
+void log_vertex_float_stats(const SkinnedMesh& mesh) {
+  if (mesh.verts.empty()) return;
+  float mn[4] = {mesh.verts[0].w[0], mesh.verts[0].w[1], mesh.verts[0].w[2],
+                 mesh.verts[0].w[3]};
+  float mx[4] = {mn[0], mn[1], mn[2], mn[3]};
+  int zeros[4] = {};
+  int ones[4] = {};
+  for (const auto& v : mesh.verts) {
+    for (int i = 0; i < 4; ++i) {
+      mn[i] = std::min(mn[i], v.w[i]);
+      mx[i] = std::max(mx[i], v.w[i]);
+      if (std::abs(v.w[i]) < 1e-5f) ++zeros[i];
+      if (std::abs(v.w[i] - 1.0f) < 1e-5f) ++ones[i];
+    }
+  }
+  std::fprintf(stderr,
+               "[vertex-floats] %-24s palette=%zu mat=%-18s "
+               "f0=(%.3f..%.3f z=%d one=%d) "
+               "f1=(%.3f..%.3f z=%d one=%d) "
+               "f2=(%.3f..%.3f z=%d one=%d) "
+               "f3=(%.3f..%.3f z=%d one=%d)\n",
+               mesh.name.c_str(), mesh.bone_palette.size(),
+               mesh.material.c_str(), mn[0], mx[0], zeros[0], ones[0], mn[1],
+               mx[1], zeros[1], ones[1], mn[2], mx[2], zeros[2], ones[2],
+               mn[3], mx[3], zeros[3], ones[3]);
+}
+
 }  // namespace
 
 struct CharRenderer::Impl {
@@ -736,6 +924,8 @@ struct CharRenderer::Impl {
   Character character;
   OrbitCamera cam;
   std::map<std::string, IDirect3DTexture9*> tex;  // keyed by .tex entry name
+  std::map<std::string, ghogx::asset::Image> tex_images;
+  std::set<std::string> logged_texture_alpha_meshes;
   milo_scene::Scene prop_scene;
   std::map<std::string, IDirect3DTexture9*> prop_tex;
   std::string prop_attach_bone;
@@ -851,6 +1041,8 @@ void CharRenderer::set_character(
     Character character,
     const std::map<std::string, ghogx::asset::Image>& textures) {
   impl_->character = std::move(character);
+  impl_->tex_images = textures;
+  impl_->logged_texture_alpha_meshes.clear();
 
   // Save original bind-pose bone local transforms for restore-before-update.
   impl_->original_bone_local.clear();
@@ -1261,10 +1453,18 @@ void CharRenderer::draw_impl(bool clear_target) {
                        : D3DCOLOR_ARGB(255, 255, 255, 255);
 
     IDirect3DTexture9* texture = nullptr;
+    const ghogx::asset::Image* texture_image = nullptr;
     if (material && !highlight_mesh) {
       const auto* mat = material;
       auto it = impl.tex.find(mat->diffuse_tex);
       if (it != impl.tex.end()) texture = it->second;
+      auto image_it = impl.tex_images.find(mat->diffuse_tex);
+      if (image_it != impl.tex_images.end()) texture_image = &image_it->second;
+    }
+    if (debug_texture_alpha_enabled() &&
+        impl.logged_texture_alpha_meshes.insert(m.name).second) {
+      log_vertex_float_stats(m);
+      log_texture_alpha_stats(m, material, texture_image);
     }
     if (texture) {
       dev->SetTexture(0, texture);
