@@ -2059,7 +2059,7 @@ static void apply_ps2_upper_twists(
         (size_t)twist2_i >= bind_bones.size()) continue;
 
     const milo_scene::Xfm source_local =
-        character.bones[(size_t)twist2_i].local;
+        character.bones[(size_t)upper_i].local;
     float roll = ps2_twist_angle_from_local_rows(source_local);
     const bool twist1_parent_is_upper =
         character.bones[(size_t)twist1_i].parent == ut.upper_arm;
@@ -2074,14 +2074,14 @@ static void apply_ps2_upper_twists(
     if (debug_ik_enabled()) {
       std::fprintf(stderr,
                    "[twist-upper] %s source=%s upper=%s out1=%s out2=%s roll=%.4f factors=[%.4f %.4f]\n",
-                   ut.name.c_str(), ut.twist2.c_str(), ut.upper_arm.c_str(), ut.twist1.c_str(),
+                   ut.name.c_str(), ut.upper_arm.c_str(), ut.upper_arm.c_str(), ut.twist1.c_str(),
                    ut.twist2.c_str(), roll, first_factor, second_factor);
       log_debug_xfm_row("twist-upper-upper", ut.upper_arm.c_str(),
                         character.bones[(size_t)upper_i].local,
                         character.bone_world_local_chain(ut.upper_arm));
-      log_debug_xfm_row("twist-upper-src", ut.twist2.c_str(),
+      log_debug_xfm_row("twist-upper-src", ut.upper_arm.c_str(),
                         source_local,
-                        character.bone_world_local_chain(ut.twist2));
+                        character.bone_world_local_chain(ut.upper_arm));
       log_debug_xfm_row("twist-upper-out", ut.twist1.c_str(),
                         character.bones[(size_t)twist1_i].local,
                         character.bone_world_local_chain(ut.twist1));

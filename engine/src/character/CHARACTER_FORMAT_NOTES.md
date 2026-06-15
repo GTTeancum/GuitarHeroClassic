@@ -1065,6 +1065,22 @@ Useful environment flags:
   `woman_f900_foretwist_livebase_debugcam.bmp`,
   `shout_f1300_foretwist_livebase_debugcam.bmp`, and
   `woman_f900_foretwist_livebase_debugik.log`.
+- Native `CharUpperTwist` now uses `upper_arm` as the source/helper row and
+  writes the distributed X twist into `twist1` and `twist2`. This follows the
+  accepted object crosswalk where `CharUpperTwist` serializes
+  `upper_arm, twist1, twist2` and describes local-X rotation distributed from
+  the upper arm through the twist outputs. The earlier native path read
+  `twist2` as the source, effectively chasing its own output. Validation:
+  `engine/out/native_song_20260615/glam1_uppertwist_source_fix/glam1_uppertwist_source_fix_f900.bmp`
+  removes the right upper-arm wedge seen in
+  `engine/out/native_song_20260615/glam1_arm_output_probe/default/default_f900.bmp`
+  without enabling the rejected CharBone arm-output bridge.
+- Rejected arm probes on 2026-06-15: a narrow CharBone arm-output bridge
+  (`engine/out/native_song_20260615/glam1_arm_output_probe/arm_output/arm_output_f900.bmp`)
+  folded the right upper arm, and `glam1_arms.mat` mesh-bind/inverse mesh-bind
+  probes in `engine/out/native_song_20260615/glam1_arm_material_matrix_probe/`
+  exploded or folded the same pieces. Do not promote arm output-local
+  replacement or material mesh-bind for Glam1.
 - Native gameplay now keeps hand IK weights live while the open hand-driver
   clips are active. Accepted traces show `finger_open` / `strum_open` flowing
   through the same `left.weight` / `right.weight` -> `CharIKHand` route as note
