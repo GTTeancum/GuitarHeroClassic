@@ -300,6 +300,21 @@ Glam1 hair:
   to the follow-only controller Trans row semantics for `bone_hair01.mesh`,
   `bone_bangL.mesh`, and `bone_bangR.mesh`; fix that row production/consumption
   path before testing any more visual offsets.
+- 2026-06-15 checkpoint follow-up after `02a3d88`:
+  `engine/out/native_song_20260615/glam1_current_after_checkpoint/glam1_after_checkpoint_f900.bmp`
+  hashes identically to the checkpoint baseline
+  (`3DB5F4E9501944654D36056FB9E74E32D843F2931668C938A7C1CE9145DA09A1`),
+  so the gated single-point solver probe did not alter the default route. A
+  close-camera skip sweep in
+  `engine/out/native_song_20260615/glam1_close_skip_sweep/` shows the visible
+  side-hair silhouette is distributed across `hair-top.mesh`,
+  `hair-mid.mesh`, and `hair-side.mesh`, not one removable bad mesh. The
+  accepted PCSX2 close capture
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_eye_active_rows_20260611.window.png`
+  has the same broad hanging side-sheet shape, so do not "reattach" Glam1 hair
+  by hiding sheets or adding per-mesh offsets. Remaining work is limited to
+  trace-backed row production/consumption, especially where native follow rows
+  still collapse to identity in the local-attachment skin path.
 - 2026-06-15 render-state hair-card pass:
   `engine/out/native_song_20260615/glam1_texture_alpha_diag/` proves the
   visible Glam1 front/top sheets are not caused by sampler addressing or a
