@@ -4275,6 +4275,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     : performer_animation_note_cue(
                           song_time_, chart_,
                           chart_.notes[std::clamp(difficulty_, 0, 3)]);
+            const bool hand_driver_active =
+                !intro_active &&
+                (perf.role == "guitarist0" || perf.role == "bassist");
             if (!intro_active && performer_playing && perf.role == "guitarist0" &&
                 note_cue.active && note_cue.tick != perf.last_note_tick &&
                 perf.strum_clip.loaded) {
@@ -4299,7 +4302,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             const bool strum_overlay_live =
                 strum_duration > 0.0 &&
                 song_time_ - perf.last_strum_started <= strum_duration;
-            if (!intro_active && performer_playing && !strum_overlay_live &&
+            if (hand_driver_active && !strum_overlay_live &&
                 perf.strum_open_clip.loaded &&
                 perf.strum_player.current_clip() == &perf.strum_clip) {
                 perf.strum_player.play(
@@ -4330,8 +4333,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             clip ? clip->name : std::string{}});
                 };
 
-            if (!intro_active && performer_playing &&
-                (perf.role == "guitarist0" || perf.role == "bassist")) {
+            if (hand_driver_active) {
                 const uint32_t desired_mask =
                     perf_anim_note_cue.active ? (perf_anim_note_cue.mask & 0x1fu)
                                               : 0u;
@@ -4372,8 +4374,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 add_player_layer(perf.idle_player, 1.0f);
             }
             add_player_layer(perf.face_base_player, 1.0f);
-            if (!intro_active && performer_playing &&
-                (perf.role == "guitarist0" || perf.role == "bassist")) {
+            if (hand_driver_active) {
                 add_player_layer(perf.strum_player, 1.0f);
                 add_player_layer(perf.fret_player, 1.0f);
             }
@@ -4382,8 +4383,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     pose_layers, character, pose_relative);
             }
             ghogx::character::clear_runtime_ik_weights(character);
-            if (!intro_active && performer_playing &&
-                (perf.role == "guitarist0" || perf.role == "bassist")) {
+            if (hand_driver_active) {
                 // Accepted PS2 hand traces show finger_open/strum_open flowing
                 // through the same live left.weight/right.weight -> IK rows as
                 // note overlays. The scheduler changes the hand clip; it does
@@ -4405,8 +4405,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 ghogx::character::set_runtime_ik_weight(
                     character, "right.weight", right_weight);
             }
-            if (!intro_active && performer_playing && perf_anim_note_cue.active &&
-                (perf.role == "guitarist0" || perf.role == "bassist")) {
+            if (hand_driver_active && perf_anim_note_cue.active) {
                 ghogx::character::apply_ik_midi_fret_target(
                     character, perf_anim_note_cue.mask, midi_state.hand_map);
             }

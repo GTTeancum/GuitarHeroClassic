@@ -1892,6 +1892,7 @@ static float local_x_roll_delta_between_worlds(
 static bool apply_ps2_fore_twist(Character& character,
                                  const std::vector<milo_scene::Xfm>& bind_bones,
                                  const CharForeTwist& ft) {
+  if (disable_driven_twists_enabled()) return false;
   const int hand_i = find_bone_index(character, ft.hand);
   const int twist2_i = find_bone_index(character, ft.twist2);
   if (hand_i < 0 || twist2_i < 0) return false;
@@ -1907,11 +1908,12 @@ static bool apply_ps2_fore_twist(Character& character,
     return false;
 
   float roll = ps2_twist_angle_from_local_rows(character.bones[(size_t)hand_i].local);
-  roll = wrap_ps2_angle(roll + ft.offset_degrees * 0.01745329238474369f);
+  roll = -wrap_ps2_angle(roll + ft.offset_degrees * 0.01745329238474369f) *
+         0.3333333134651184f;
 
-  // In pcsx2_arm_ik_twist_trans_rows_20260611, glam1's foreTwist1 row keeps
-  // the live foreArm local basis/position and receives the same local-X twist
-  // as foreTwist2. Only upperTwist uses the traced split constants below.
+  // SLUS 0x00175678 wraps the helper angle plus side offset, scales it by
+  // 0x3eaaaa9f, and writes the negated row-vector X twist into both forearm
+  // output branches. The two output rows keep their own authored/live bases.
   write_ps2_x_twist(character.bones[(size_t)twist2_i].local,
                     bind_bones[(size_t)twist2_i], roll);
   write_ps2_x_twist(character.bones[(size_t)twist1_i].local,

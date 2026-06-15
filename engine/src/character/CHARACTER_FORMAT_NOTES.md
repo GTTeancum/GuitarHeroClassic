@@ -812,6 +812,20 @@ Useful environment flags:
   default baseline
   `engine/out/native_song_20260614/shout_f900_med_default_close_lhand_twistsign.bmp`
   left the hand detached, so the traced `CharIKHand` path is now promoted.
+- Foretwist scale/sign correction on 2026-06-15:
+  `ps2_function_snippets_twist_hair_ik_20260611.json` shows
+  `CharForeTwist` (`0x00175678`) calling the swing-removal helpers, adding the
+  serialized side offset, wrapping through `0x002ffd88`, then multiplying by
+  `0x3eaaaa9f` before writing the X rows. The accepted isolation samples
+  `pcsx2_controller_targets_foretwist_l_iso_state1_20260611.json` and
+  `pcsx2_controller_targets_foretwist_r_iso_state1_20260611.json` match
+  `output_roll = -wrap(extracted + side_offset) / 3`. Native now uses that
+  sign/scale in `apply_ps2_fore_twist`. Validation captures
+  `engine/out/native_song_20260615/foretwist_tracefix/rockabill1_psychobilly_lhand_t13.bmp`,
+  `glam1_shout_lhand_t16.bmp`, and
+  `deathmetal1_laidtorest_lhand_t13.bmp` keep the hand IK active while removing
+  Rockabill's prior thin forearm ribbon. `GHOGX_DISABLE_DRIVEN_TWISTS=1` now
+  suppresses interleaved foretwist too, so twist-off A/B captures are clean.
 - Rockabill native A/B on 2026-06-14 kept this shared, not character-specific:
   `engine/out/native_song_20260614/psychobilly_f900_rockabill_ab_default.bmp`
   showed the old postmultiply swing folding the arm, while
