@@ -318,6 +318,39 @@ controller, root/child Trans rows, field-gated reset branch, and per-character
 descriptor-to-object links. Static mesh reattachment is not enough, and stable
 hair descriptor/material rows do not imply stable hair/head deformation.
 
+Accepted full-matrix Glam1 hair writer follow-up:
+
+- `pcsx2_hair_transwrite_matrices_stridefix_20260615.json` reran the stock
+  GH2 `--state 1` hair/update trace with 16-word argument snapshots at
+  `0x00176fb8` and the shared `0x001dd7b8` Trans writer. A prior
+  `pcsx2_hair_transwrite_matrices_20260615.json` run is rejected because the
+  enlarged trace stub used the old `0x100` target stride and overlapped the
+  next stub.
+- The accepted stride-fixed run retained 278 `hair_update_00176fb8` calls and
+  7,914 `trans_write_001dd7b8` calls. Each retained Glam1 `hair.hair` tick is
+  immediately followed by three hair-controller Trans writes:
+  `bone_hair01.mesh` `0x00db81f0`, `bone_bangL.mesh` `0x00dbc7f0`, and
+  `bone_bangR.mesh` `0x00db73f0`.
+- The full `a1` matrices prove those writes are runtime world rows. Example
+  first tick rows:
+  `bone_hair01` row0 `(-0.9511, -0.3085, -0.0164)`, row1
+  `(0.0059, 0.0350, -0.9994)`, pos `(89.5529, 82.3053, 81.8235)`;
+  `bone_bangL` row0 `(-0.4715, 0.8818, 0.0066)`, row1
+  `(-0.0024, 0.0062, -1.0000)`, pos `(95.0709, 79.4619, 80.9965)`;
+  `bone_bangR` row0 `(0.4721, -0.8808, -0.0367)`, row1
+  `(-0.0188, 0.0316, -0.9993)`, pos `(87.8922, 75.0848, 80.9999)`.
+- The earlier sampled target rows still show authored local rows at
+  `+0x20..+0x50` and changing world rows at `+0x60..+0x90`. Therefore native
+  must not fix Glam1 by writing single-point local transforms. It must feed
+  the traced world-row controller result into the weighted hair-sheet bind
+  path correctly.
+- Native rejected probes from this evidence:
+  `glam1_follow_basis_bridge_f900.bmp` used solver direction as the runtime
+  basis and sheared hair across the face; `glam1_follow_roll_bridge_f900.bmp`
+  used the observed row0/row2 roll relation alone and still created a broad
+  forehead sheet. The remaining mismatch is mesh/bind-space consumption of
+  traced controller rows, not proof that the controller rows are absent.
+
 ### Hair And Eyes Per-Character Triage
 
 Current closure state for the characters called out by visual review:
