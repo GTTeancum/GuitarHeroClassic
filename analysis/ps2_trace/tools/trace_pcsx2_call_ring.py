@@ -89,12 +89,34 @@ def parse_sample_target(spec: str) -> tuple[str, int, int]:
     return name, int(addr_s, 0), int(size_s, 0)
 
 
+def record_words_for_mode(extended_regs: bool, hair_point_state: bool) -> int:
+    if hair_point_state:
+        return 64
+    return 8 if extended_regs else 4
+
+
+def record_shift_for_words(record_words: int) -> int:
+    record_bytes = record_words * 4
+    if record_bytes & (record_bytes - 1):
+        raise RuntimeError("record byte count must be a power of two")
+    return record_bytes.bit_length() - 1
+
+
+def hair_point_state_labels() -> list[str]:
+    labels = ["a0", "a1", "a2", "a3", "s0", "s1", "sp", "ra"]
+    labels += [f"s0_{off:02x}" for off in range(0x00, 0x64, 4)]
+    labels += [f"sp_{off:02x}" for off in range(0x20, 0x90, 4)]
+    while len(labels) < 64:
+        labels.append(f"pad_{len(labels):02d}")
+    return labels
+
+
 def make_ring_stub(
     func: int, data: int, orig1: int, orig2: int, ring_size: int,
-    extended_regs: bool,
+    extended_regs: bool, hair_point_state: bool,
 ) -> bytes:
     base = data + 0x100
-    record_words = 8 if extended_regs else 4
+    record_words = record_words_for_mode(extended_regs, hair_point_state)
     record_bytes = record_words * 4
     words = [
         orig1,
@@ -105,7 +127,7 @@ def make_ring_stub(
         ins_sw(REG["k1"], REG["k0"], data & 0xFFFF),
         ins_addiu(REG["k1"], REG["k1"], -1),
         ins_andi(REG["k1"], REG["k1"], ring_size - 1),
-        ins_sll(REG["k1"], REG["k1"], 5 if extended_regs else 4),
+        ins_sll(REG["k1"], REG["k1"], record_shift_for_words(record_words)),
         ins_lui(REG["k0"], (base >> 16) & 0xFFFF),
         ins_addiu(REG["k0"], REG["k0"], base & 0xFFFF),
         ins_addu(REG["k1"], REG["k1"], REG["k0"]),
@@ -121,6 +143,16 @@ def make_ring_stub(
             ins_sw(REG["sp"], REG["k1"], 24),
             ins_sw(REG["ra"], REG["k1"], 28),
         ]
+    if hair_point_state:
+        out_off = 32
+        for in_off in range(0x00, 0x64, 4):
+            words += [ins_lw(REG["k0"], REG["s0"], in_off),
+                      ins_sw(REG["k0"], REG["k1"], out_off)]
+            out_off += 4
+        for in_off in range(0x20, 0x90, 4):
+            words += [ins_lw(REG["k0"], REG["sp"], in_off),
+                      ins_sw(REG["k0"], REG["k1"], out_off)]
+            out_off += 4
     words += [
         ins_j(func + 8),
         0,
@@ -130,13 +162,15 @@ def make_ring_stub(
 
 def read_ring(
     handle: int, ee_base: int, data: int, ring_size: int, extended_regs: bool,
+    hair_point_state: bool,
 ) -> dict[str, object]:
-    record_words = 8 if extended_regs else 4
+    record_words = record_words_for_mode(extended_regs, hair_point_state)
     record_bytes = record_words * 4
     raw_count = read_process(handle, ee_base + data, 4)
     count = struct.unpack("<I", raw_count)[0] if len(raw_count) == 4 else 0
     raw = read_process(handle, ee_base + data + 0x100, ring_size * record_bytes)
     values = list(struct.unpack("<" + "I" * (len(raw) // 4), raw[: len(raw) & ~3])) if raw else []
+    labels = hair_point_state_labels() if hair_point_state else []
     records = []
     for i in range(0, len(values), record_words):
         if values[i : i + record_words] == [0] * record_words:
@@ -157,6 +191,11 @@ def read_ring(
                     "ra": f"0x{values[i + 7]:08x}",
                 }
             )
+        if hair_point_state:
+            rec["words"] = {
+                labels[j]: f"0x{values[i + j]:08x}"
+                for j in range(min(record_words, len(labels)))
+            }
         records.append(rec)
     return {"count": count, "records": records}
 
@@ -214,6 +253,11 @@ def main() -> int:
         help="also record s0/s1/sp/ra for each ring entry",
     )
     parser.add_argument(
+        "--hair-point-state",
+        action="store_true",
+        help="record s0 point fields and stack work rows at a hair write site",
+    )
+    parser.add_argument(
         "--sample-target",
         action="append",
         default=[],
@@ -227,7 +271,7 @@ def main() -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     targets = [parse_target(spec) for spec in args.target]
     sample_targets = [parse_sample_target(spec) for spec in args.sample_target]
-    record_bytes = (8 if args.extended_regs else 4) * 4
+    record_bytes = record_words_for_mode(args.extended_regs, args.hair_point_state) * 4
     data_stride = ((0x100 + args.ring_size * record_bytes + 0xFFF) // 0x1000) * 0x1000
     elf_base, _elf_off, elf_code = parse_elf_load(args.elf)
     original_ini = None
@@ -273,7 +317,7 @@ def main() -> int:
                 ee_base + stub,
                 make_ring_stub(
                     func, data, orig1, orig2, args.ring_size,
-                    args.extended_regs,
+                    args.extended_regs, args.hair_point_state,
                 ),
             )
             write_process_unprotect(handle, ee_base + func, b"".join([u32(ins_j(stub)), u32(0)]))
@@ -300,7 +344,7 @@ def main() -> int:
                     "func": patch["func"],
                     **read_ring(
                         handle, ee_base, data, args.ring_size,
-                        args.extended_regs,
+                        args.extended_regs, args.hair_point_state,
                     ),
                 }
             )
@@ -322,6 +366,7 @@ def main() -> int:
             "seconds": args.seconds,
             "ring_size": args.ring_size,
             "extended_regs": args.extended_regs,
+            "hair_point_state": args.hair_point_state,
             "data_stride": f"0x{data_stride:x}",
             "patches": patches,
             "samples": samples,
