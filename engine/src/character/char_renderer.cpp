@@ -569,6 +569,21 @@ bool debug_skin_matrix_enabled() {
 #endif
 }
 
+bool debug_skin_matrix_all_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_SKIN_MATRIX_ALL") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_SKIN_MATRIX_ALL");
+  return value && value[0];
+#endif
+}
+
 bool debug_hair_space_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -2057,8 +2072,10 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
       const std::array<float, 16> inv_bind = affine_inverse(bind_world);
       skin[i] = mul16(inv_bind, curr_world);
     }
-    if (debug_skin_matrix_enabled() &&
-        (i == 0 || debug_mesh_mode_enabled(mesh.name))) {
+    const bool debug_this_skin =
+        debug_skin_matrix_enabled() &&
+        (debug_skin_matrix_all_enabled() || debug_mesh_mode_enabled(mesh.name));
+    if (debug_this_skin && (i == 0 || debug_mesh_mode_enabled(mesh.name))) {
       const auto& s = skin[i];
       std::fprintf(stderr,
                    "[skin-matrix] %-24s bone=%-24s mode=%s "

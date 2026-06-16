@@ -467,6 +467,17 @@ Glam1 hair:
   same follow targets from the current runtime. Use this bridge to solve the
   root-parent/group matrix relation before changing default one-point hair
   behavior.
+- 2026-06-15 bounded A/B after the row bridge:
+  `engine/out/codex_goal_20260615_hair_rows2/glam1_rows_summary.log` proves
+  the default follow route still feeds `hair-side.mesh` identity skin rows for
+  `bone_bangL.mesh`, `bone_bangR.mesh`, and `bone_hair01.mesh`; the descriptor
+  row under the current head cancels against the local-attachment bind equation.
+  `engine/out/codex_goal_20260615_singlepoint_ab/glam1_singlepoint_summary.log`
+  proves the gated `GHOGX_ENABLE_SINGLE_POINT_HAIR_SOLVER` route makes those
+  rows non-identity only by moving the controller translations down/sideways
+  immediately after frame zero. Keep it diagnostic-only. The next native change
+  must reproduce the PS2 `point+0x30` matrix construction and point-state
+  initialization rather than anchoring one-point groups at `root==point`.
 
 Glam1 eyes / look-at:
 
