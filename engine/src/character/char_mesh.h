@@ -197,6 +197,8 @@ struct RuntimeHairPoint {
   float prev_velocity_world[3] = {0, 0, 0};
   float rest_world[3] = {0, 0, 0};
   float anchor_world[3] = {0, 0, 0};
+  bool has_orientation_world = false;
+  float orientation_world[3] = {0, 0, 1};
   std::array<float, 16> world =
       {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 };

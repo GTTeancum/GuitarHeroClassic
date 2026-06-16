@@ -637,6 +637,22 @@ Glam1 hair:
   every tick before weighted hair skinning. This promotes the traced
   follow-row write, while keeping `GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE`
   diagnostic-only.
+- 2026-06-16 native follow-row bridge promoted:
+  follow-only `CharHair` groups now keep the controller translation at the
+  decoded target row but build the runtime controller orientation from the
+  traced PS2 point vector (`row1 * point.length`) plus a persistent cached roll
+  row. The cached row initializes to the common Glam1 write-site phase
+  `0.5 * descriptor row0 - 0.8660254 * descriptor row2`, which matches the
+  paired trace rows for `bone_hair01.mesh`, `bone_bangL.mesh`, and
+  `bone_bangR.mesh` without moving the controller to the simulated strand
+  point. Rejected intermediate `engine/out/codex_goal_20260616_glam1_follow_ps2_basis_v2/`
+  used a 90-degree row0 initializer and visibly rolled cards across the face.
+  Accepted validation `engine/out/codex_goal_20260616_glam1_follow_ps2_basis_v3/`
+  shows Glam1 `hair-side.mesh` no longer receives identity skin rows for the
+  three live controller bones and the close frame keeps eyes visible while
+  reattaching the side hair. Rock2 cross-check
+  `engine/out/codex_goal_20260616_follow_ps2_basis_crosschecks/woman_rock2_follow_ps2_basis_f120.bmp`
+  still has unresolved hair chunks; do not call Rock2 closed from this pass.
 
 Glam1 eyes / look-at:
 
