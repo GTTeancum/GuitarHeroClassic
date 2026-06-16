@@ -3282,7 +3282,7 @@ static std::array<float, 16> ps2_single_point_hair_world(
 
 static Vec3 ps2_follow_initial_orientation(
     const std::array<float, 16>& descriptor_world) {
-  // The accepted Glam1 write-site trace initializes the cached roll row about
+  // Accepted PS2 follow-row traces initialize the cached roll row about
   // 150 degrees around the strand axis from the decoded target row2.
   return vadd(vscale(mat_row(descriptor_world, 0), 0.5f),
               vscale(mat_row(descriptor_world, 2), -0.8660254f));
@@ -3361,6 +3361,80 @@ static Vec3 hair_segment_endpoint_target(const Character& character,
 
 static Vec3 blend_vec(Vec3 a, Vec3 b, float t) {
   return vadd(vscale(a, 1.0f - t), vscale(b, t));
+}
+
+enum class EyeSide {
+  kUnknown,
+  kLeft,
+  kRight,
+};
+
+static std::string lower_ascii(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return s;
+}
+
+static EyeSide eye_side_from_name(const std::string& name) {
+  const std::string lower = lower_ascii(name);
+  if (lower.find("l-eye") != std::string::npos ||
+      lower.find("eye-l") != std::string::npos ||
+      lower.find("l_eye") != std::string::npos ||
+      lower.find("eye_l") != std::string::npos ||
+      lower.find("_eyel") != std::string::npos ||
+      lower.find("eyel.") != std::string::npos) {
+    return EyeSide::kLeft;
+  }
+  if (lower.find("r-eye") != std::string::npos ||
+      lower.find("eye-r") != std::string::npos ||
+      lower.find("r_eye") != std::string::npos ||
+      lower.find("eye_r") != std::string::npos ||
+      lower.find("_eyer") != std::string::npos ||
+      lower.find("eyer.") != std::string::npos) {
+    return EyeSide::kRight;
+  }
+  return EyeSide::kUnknown;
+}
+
+static EyeSide eye_side_for_lookat(const CharLookAt& look) {
+  for (const auto* name : {&look.name, &look.source, &look.target,
+                           &look.driven}) {
+    const EyeSide side = eye_side_from_name(*name);
+    if (side != EyeSide::kUnknown) return side;
+  }
+  return EyeSide::kUnknown;
+}
+
+static const char* eye_side_name(EyeSide side) {
+  switch (side) {
+    case EyeSide::kLeft:
+      return "left";
+    case EyeSide::kRight:
+      return "right";
+    case EyeSide::kUnknown:
+      return "unknown";
+  }
+  return "unknown";
+}
+
+static void set_facefx_eye_props(FaceFxEyeProperties& props, EyeSide side,
+                                 float x, float z) {
+  switch (side) {
+    case EyeSide::kLeft:
+      props.l_eye_x = x;
+      props.l_eye_z = z;
+      props.has_l_eye_x = true;
+      props.has_l_eye_z = true;
+      break;
+    case EyeSide::kRight:
+      props.r_eye_x = x;
+      props.r_eye_z = z;
+      props.has_r_eye_x = true;
+      props.has_r_eye_z = true;
+      break;
+    case EyeSide::kUnknown:
+      break;
+  }
 }
 
 static Vec3 enforce_hair_collision(const Character& character,
@@ -3941,17 +4015,14 @@ void apply_character_controllers(Character& character, float time_seconds,
         };
         const float x = norm_axis(yaw, hz_min, hz_max);
         const float z = norm_axis(pitch, vt_min, vt_max);
-        if (look.driven == "eye-L.mesh" || look.target == "eye-L.mesh") {
-          eye_props->l_eye_x = x;
-          eye_props->l_eye_z = z;
-          eye_props->has_l_eye_x = true;
-          eye_props->has_l_eye_z = true;
-        } else if (look.driven == "eye-R.mesh" ||
-                   look.target == "eye-R.mesh") {
-          eye_props->r_eye_x = x;
-          eye_props->r_eye_z = z;
-          eye_props->has_r_eye_x = true;
-          eye_props->has_r_eye_z = true;
+        const EyeSide side = eye_side_for_lookat(look);
+        set_facefx_eye_props(*eye_props, side, x, z);
+        if (debug_face_enabled()) {
+          std::fprintf(stderr,
+                       "[lookat-props] %s side=%s target=%s driven=%s "
+                       "x=%.4f z=%.4f\n",
+                       look.name.c_str(), eye_side_name(side),
+                       look.target.c_str(), look.driven.c_str(), x, z);
         }
       }
 

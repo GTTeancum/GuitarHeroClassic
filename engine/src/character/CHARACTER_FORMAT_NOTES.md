@@ -916,18 +916,26 @@ Glam1 eyes / look-at:
   The accepted row evidence still says the eye meshes match the PS2
   head-relative rows; the visible issue remains eyelid/lash/coverage state
   unless a new trace proves the eyeball rows themselves are wrong.
-- 2026-06-15 native/trace bridge caveat:
-  gameplay currently calls `apply_character_controllers(character, ...)`
-  without consuming `FaceFxEyeProperties`, and the viewer collects those
-  properties only as a local diagnostic. The accepted PS2 row evidence is not
-  a loose eye offset: `pcsx2_hair_eye_active_rows_20260611.json` shows
+- 2026-06-16 native/trace bridge update:
+  gameplay now consumes `FaceFxEyeProperties` from
+  `apply_character_controllers(character, ...)` and feeds them into FaceFX
+  servo registers. The export no longer keys left/right eye registers to exact
+  `eye-L.mesh` / `eye-R.mesh` names; it derives the side from the decoded
+  `CharLookAt` record names and their target/driven mesh names so alternate
+  PS2 spellings such as `l-eye.mesh`, `L-eye.mesh`, and `goth*_EyeL.mesh`
+  remain connected through the same shared path. The accepted PS2 row evidence
+  is not a loose eye offset: `pcsx2_hair_eye_active_rows_20260611.json` shows
   `CharEyes.eyes`, its pivot/child row, both per-side look-at rows, and both
   source eye rows moving together. A stock-state rerun from state 1 did not
   exercise the look-at update in the captured window (`0x0017d690` zero-hit
   while the Trans writer heartbeat fired), and patching the older
   `0x0017d658` address killed the heartbeat, so do not use that rerun as
-  negative eye evidence. Implement the `CharEyes` bridge only from accepted
-  rows that show the full resident/pivot/source-eye chain.
+  negative eye evidence. Continue implementing the `CharEyes` bridge only from
+  accepted rows that show the full resident/pivot/source-eye chain.
+  Validation:
+  `engine/out/codex_goal_20260616_eye_side_resolver/goth2_eye_side_v2.stderr.log`
+  shows `goth2_EyeL.mesh` and `goth2_EyeR.mesh` resolving to left/right
+  FaceFX eye registers without any character-specific branch.
 - 2026-06-15 native FaceFX graph/register bridge:
   native now loads the referenced `guitarist.fac` graph through each
   `FaceFxLipSyncServo`, parses `FxCombinerNode` / `FxBonePoseNode` graph input
