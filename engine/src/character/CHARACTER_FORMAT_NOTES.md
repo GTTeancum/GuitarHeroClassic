@@ -77,6 +77,17 @@ Do not infer authored space from the material alone. Hair, eyes, root-parented
 body meshes, and several distinct mesh record shapes use different transform
 bases.
 
+`ghogx_character_bind_audit` compares decoded per-palette bind rows against the
+mesh's own bind row and the palette bone bind rows. The 2026-06-16 selected
+audit (`engine/out/codex_goal_20260616_bind_space_audit/`) shows that many
+ordinary meshes across Metal Bass, Metal Singer, Rockabill1, Glam1, Rock2, and
+Metal1 have bind rows that resolve cleanly to their mesh local-chain row. This
+is a common MILO record property, not by itself a renderer route discriminator.
+Do not retire a named mesh-bind branch by replacing it with "all meshes whose
+bind rows match mesh-local"; that would just disguise the same guess as a broad
+rule. A promoted rule still needs an additional structural or runtime-trace
+reason that separates the affected mesh class from normal skinned body pieces.
+
 ## Skinning Spaces
 
 Normal body meshes are currently skinned in local-chain skeleton space:

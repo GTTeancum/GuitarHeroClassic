@@ -25,8 +25,14 @@ target_link_libraries(ghogx_character PUBLIC
     ark_v3 dtb ps2_texture milo
     d3d9
 )
+
+add_executable(ghogx_character_bind_audit char_bind_audit.cpp)
+target_link_libraries(ghogx_character_bind_audit PRIVATE ghogx_character)
+
 if(MSVC)
 target_compile_options(ghogx_character PRIVATE /W4)
+target_compile_options(ghogx_character_bind_audit PRIVATE /W4)
 else()
     target_compile_options(ghogx_character PRIVATE -Wall -Wextra)
+    target_compile_options(ghogx_character_bind_audit PRIVATE -Wall -Wextra)
 endif()
