@@ -478,6 +478,17 @@ Glam1 hair:
   immediately after frame zero. Keep it diagnostic-only. The next native change
   must reproduce the PS2 `point+0x30` matrix construction and point-state
   initialization rather than anchoring one-point groups at `root==point`.
+- 2026-06-16 local-hair per-palette bind/inverse-mesh probe rejected:
+  `engine/out/codex_goal_20260616_localhair_meshbind_invmesh_probe/` tested the
+  missing-looking bridge `mesh.bind[i] * current_controller_world *
+  inverse(mesh_world)` behind a temporary `GHOGX_LOCAL_HAIR_SKIN_MATRIX_MODE`.
+  The same Glam1 head camera rendered essentially unchanged from
+  `engine/out/codex_goal_20260616_glam1_current_audit/`, and `hair-side.mesh`
+  still logged identity skin rows for `bone_bangL.mesh`, `bone_bangR.mesh`, and
+  `bone_hair01.mesh` even with `hairOverride=1`. Do not promote another
+  local-attachment skin equation probe until the PS2 `0x00177878..0x001778f4`
+  point matrix construction is mapped; the remaining mismatch is upstream in
+  the controller row construction.
 - 2026-06-16 focused PCSX2 Glam1 hair point-state trace:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_point_state_retry_interpreter_20260616.json`
   reran the stock GH2 state-1 Retry path in interpreter mode, captured 535
