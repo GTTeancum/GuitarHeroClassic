@@ -213,17 +213,17 @@ DWORD character_cull_mode(const SkinnedMesh* mesh = nullptr) {
   return D3DCULL_CW;
 }
 
-bool disable_rockabill_arm_special_skin_enabled() {
+bool disable_mesh_local_arm_skin_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
   size_t len = 0;
   const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_ROCKABILL_ARM_SPECIAL_SKIN") == 0 &&
+      _dupenv_s(&value, &len, "GHOGX_DISABLE_MESH_LOCAL_ARM_SKIN") == 0 &&
       value && value[0];
   std::free(value);
   return enabled;
 #else
-  const char* value = std::getenv("GHOGX_DISABLE_ROCKABILL_ARM_SPECIAL_SKIN");
+  const char* value = std::getenv("GHOGX_DISABLE_MESH_LOCAL_ARM_SKIN");
   return value && value[0];
 #endif
 }
@@ -456,18 +456,25 @@ bool is_mesh_local_root_hair_piece(const SkinnedMesh& m) {
          has_compact_authored_bounds_near_origin(m);
 }
 
-bool is_rockabill_arm_mesh_piece(const SkinnedMesh& m) {
-  return (m.name == "L-arm.mesh" || m.name == "R-arm.mesh" ||
-          m.name.rfind("L-arm.", 0) == 0 || m.name.rfind("R-arm.", 0) == 0 ||
-          m.name.rfind("lod_L-arm", 0) == 0 ||
-          m.name.rfind("lod_R-arm", 0) == 0) &&
-         (m.material == "arm-L.mat" || m.material == "Rarm.mat");
+bool contains_arm_token(const std::string& n) {
+  std::string lower = n;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return (char)std::tolower(c); });
+  return lower.find("arm") != std::string::npos;
+}
+
+bool is_mesh_local_arm_piece(const SkinnedMesh& m) {
+  if (m.bone_palette.empty() || m.bind.empty()) return false;
+  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
+  if (!has_compact_authored_bounds_near_origin(m)) return false;
+  return contains_arm_token(m.material) &&
+         (contains_arm_token(m.name) || contains_arm_token(m.parent));
 }
 
 bool is_rockabill_mesh_bind_body_piece(const SkinnedMesh& m) {
   if (m.bone_palette.empty() || m.bind.empty()) return false;
   if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
-  if (is_rockabill_arm_mesh_piece(m)) return false;
+  if (is_mesh_local_arm_piece(m)) return false;
   return m.parent == "rockabill" || m.parent == "torso.mesh" ||
          m.parent == "legs.mesh";
 }
@@ -1455,7 +1462,7 @@ void CharRenderer::draw_impl(bool clear_target) {
       mw = impl.character.attachment_parent_world(m.parent);
     } else if (m.bone_palette.empty() || draw_hair_as_attachment ||
                raw_mesh_enabled(m.name) || root_parent_hair_bypass ||
-               is_rockabill_arm_mesh_piece(m) ||
+               is_mesh_local_arm_piece(m) ||
                is_metal_singer_mesh_world_piece(m) ||
                is_metal_singer_raw_mesh_piece(m)) {
       world_mode = "mesh-world";
@@ -1937,9 +1944,9 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
   const char* skin_mode = "lbs-local-chain";
   if (is_metal_singer_local_chain_mesh_piece(mesh)) {
     skin_mode = "metal-singer-local-chain";
-  } else if (is_rockabill_arm_mesh_piece(mesh) &&
-             !disable_rockabill_arm_special_skin_enabled()) {
-    skin_mode = "rockabill-arm-mesh-space";
+  } else if (is_mesh_local_arm_piece(mesh) &&
+             !disable_mesh_local_arm_skin_enabled()) {
+    skin_mode = "mesh-local-arm-space";
   } else if (uses_local_attachment_skin(mesh) && mesh.bind.size() >= nb) {
     skin_mode = local_hair_matrix_mode.empty()
                     ? "local-attachment"
@@ -1982,8 +1989,8 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
       const std::array<float, 16> bone_bind =
           character.bone_world_bind_local_chain(mesh.bone_palette[i]);
       skin[i] = mul16(mul16(mesh_bind, affine_inverse(bone_bind)), curr_world);
-    } else if (is_rockabill_arm_mesh_piece(mesh) &&
-               !disable_rockabill_arm_special_skin_enabled()) {
+    } else if (is_mesh_local_arm_piece(mesh) &&
+               !disable_mesh_local_arm_skin_enabled()) {
       const std::array<float, 16> mesh_world =
           character.mesh_world(mesh);
       const std::array<float, 16> inv_mesh_world = affine_inverse(mesh_world);

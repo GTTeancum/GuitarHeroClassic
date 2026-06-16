@@ -17,7 +17,7 @@ rephrased as a shared asset/controller shape. Current debt to retire:
 
 - `metal_singer` material/world branches.
 - `metal_bass` body-material mesh-bind branch.
-- `rockabill1` arm/body/alternate-leg branches.
+- `rockabill1` body/alternate-leg branches.
 
 Do not add new named-character branches. If a fix cannot be explained as a
 general PS2 record/controller rule, keep it as a diagnostic experiment only.
@@ -97,6 +97,21 @@ Observed case:
   - These hold lower-leg/shoe geometry.
   - They require mesh-bind-relative skinning.
   - Their weight slots are reversed relative to the palette order.
+
+Mesh-local arm pieces:
+
+- The former Rockabill arm path is now a format predicate, not a character
+  branch. It applies to weighted meshes whose authored bbox is compact around
+  the local origin, whose mesh name or parent contains an arm token, and whose
+  material also identifies arm geometry.
+- The 2026-06-16 generic inventory pass selects the 50 `L-arm`/`R-arm` and
+  `lod_L-arm`/`lod_R-arm` pieces in `rockabill1` and does not select other
+  compact weighted items such as belts, lashes, local hair, or shoe fragments.
+  These meshes continue through the existing mesh-space arm skinning equation,
+  now keyed to their decoded authored-space shape. Validation:
+  `engine/out/codex_goal_20260616_mesh_local_arm_validation/` shows Rockabill
+  arm pieces in `mode=mesh-local-arm-space` and the Glam1 control
+  `glam1.73.mesh` remaining on `mode=lbs-local-chain`.
 
 ## Hair
 
