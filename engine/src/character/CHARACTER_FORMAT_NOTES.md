@@ -478,6 +478,27 @@ Glam1 hair:
   immediately after frame zero. Keep it diagnostic-only. The next native change
   must reproduce the PS2 `point+0x30` matrix construction and point-state
   initialization rather than anchoring one-point groups at `root==point`.
+- 2026-06-16 focused PCSX2 Glam1 hair point-state trace:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_point_state_retry_interpreter_20260616.json`
+  reran the stock GH2 state-1 Retry path in interpreter mode, captured 535
+  `hair_update_00176fb8` calls, and sampled the live `hair.hair` object with
+  48 words. The captured header matches native decode and the accepted
+  full-matrix writer trace: source/owner `0x00b8be10`, globals
+  `[0.08, 0.10, 0.80, 1.00, 1.00, 0.30]`, group-array pointer
+  `hair+0x2c = 0x00fc9a00`, point/list pointer
+  `hair+0x30 = 0x00fc9bb0`, float at `hair+0x34 = 61.5256`, duplicate list
+  pointer at `hair+0x38 = 0x00fc9bb0`, reset/flag fields
+  `hair+0x40 = 0`, `hair+0x44 = 1`, and class/vtable-looking pointer
+  `hair+0x48 = 0x003e7840`. The `0x00fc9a00` group array is the accepted
+  0x90-byte stride: each row points at the owner object (`+0x04`), root Trans
+  (`+0x08`: `bone_hair01.mesh`, `bone_bangL.mesh`, `bone_bangR.mesh`), two
+  helper/state pointers (`+0x10/+0x14`), and stores the descriptor basis at
+  both `+0x30..+0x50` and `+0x60..+0x80`. The `hair+0x30` target is not a flat
+  decoded `CharHairPoint[3]`; it begins with list/header pointers and embedded
+  matrix rows. This confirms the native one-point path is under-modeled: a
+  correct default must add the PS2 list/header/work-matrix relation and cannot
+  be reduced to `group.root_mesh == point.mesh`, a point-parent swap, or a
+  renderer inverse-bind variant.
 
 Glam1 eyes / look-at:
 
