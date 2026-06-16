@@ -510,6 +510,22 @@ Glam1 hair:
   default local-attachment draw path until the PS2 `hair+0x30` list-head/work
   matrices are decoded; changing only the sheet world or per-palette bind mode
   does not reproduce the PS2 hair controller pipeline.
+- 2026-06-16 write-site `s0` trace:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_write_site_s0_sp_20260616.json`
+  hooks `0x001778e4` with extended register capture and records 741 hits in
+  the same active-song Glam1 route. Only three `s0` runtime objects feed the
+  hair Trans writer: `0x007bdc40`, `0x007b80f0`, and `0x007c4a50`. The paired
+  object dump
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_write_site_s0_objects_20260616.json`
+  maps the per-point layout: `+0x48` is the output Trans
+  (`bone_bangL.mesh`, `bone_bangR.mesh`, `bone_hair01.mesh`), `+0x4c` is
+  length `5.0`, `+0x50` is mode `3`, `+0x5c` is the collision parent
+  `bone_neck.mesh`, and `+0x60` is radius `3.5`. The first 0x40 bytes are
+  runtime point state: `+0x00` live/previous point position, `+0x10` current
+  frame delta, `+0x20` prior delta, and `+0x30` cached orientation row. This
+  closes the struct identity for the `0x001778e4..0x00177960` write/update
+  tail and makes the next native change a point-state implementation task,
+  not another renderer-space probe.
 - 2026-06-16 focused PCSX2 Glam1 hair point-state trace:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_point_state_retry_interpreter_20260616.json`
   reran the stock GH2 state-1 Retry path in interpreter mode, captured 535
