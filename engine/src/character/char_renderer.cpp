@@ -418,11 +418,6 @@ bool is_metal_singer_mesh_bind_material(const std::string& material) {
          material == "msinger_belt.mat";
 }
 
-bool is_metal_singer_mesh_world_piece(const SkinnedMesh& m) {
-  if (m.material == "msinger_arms.mat") return true;
-  return m.name == "msinger.13.mesh";
-}
-
 bool is_metal_bass_mesh_bind_material(const std::string& material) {
   return material == "bassist_body.mat";
 }
@@ -465,11 +460,23 @@ bool is_mesh_local_root_hair_piece(const SkinnedMesh& m) {
          has_compact_authored_bounds_near_origin(m);
 }
 
+bool has_suffix(const std::string& n, const char* suffix) {
+  const size_t len = std::strlen(suffix);
+  return n.size() >= len && n.compare(n.size() - len, len, suffix) == 0;
+}
+
 bool contains_arm_token(const std::string& n) {
   std::string lower = n;
   std::transform(lower.begin(), lower.end(), lower.begin(),
                  [](unsigned char c) { return (char)std::tolower(c); });
   return lower.find("arm") != std::string::npos;
+}
+
+bool palette_contains(const SkinnedMesh& m, const char* fragment) {
+  for (const auto& bone : m.bone_palette) {
+    if (bone.find(fragment) != std::string::npos) return true;
+  }
+  return false;
 }
 
 bool is_mesh_local_arm_piece(const SkinnedMesh& m) {
@@ -478,6 +485,34 @@ bool is_mesh_local_arm_piece(const SkinnedMesh& m) {
   if (!has_compact_authored_bounds_near_origin(m)) return false;
   return contains_arm_token(m.material) &&
          (contains_arm_token(m.name) || contains_arm_token(m.parent));
+}
+
+bool is_far_negative_mesh_parented_arm_piece(const SkinnedMesh& m) {
+  if (m.bone_palette.empty()) return false;
+  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
+  if (!has_suffix(m.parent, ".mesh")) return false;
+  if (contains_arm_token(m.parent)) return false;
+  if (!contains_arm_token(m.material)) return false;
+  if (!(m.bb_min[2] < -10.0f && m.bb_max[2] < -4.0f)) return false;
+  return palette_contains(m, "clavicle") ||
+         palette_contains(m, "upperArm") ||
+         palette_contains(m, "foreArm") ||
+         palette_contains(m, "hand") ||
+         palette_contains(m, "upperTwist");
+}
+
+bool is_compact_mesh_parented_head_detail_piece(const SkinnedMesh& m) {
+  if (m.bone_palette.size() != 3) return false;
+  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
+  if (!has_suffix(m.parent, ".mesh")) return false;
+  if (!has_compact_authored_bounds_near_origin(m, 8.0f)) return false;
+  return palette_contains(m, "bone_neck.mesh") &&
+         palette_contains(m, "bone_head.mesh");
+}
+
+bool is_raw_mesh_world_authored_piece(const SkinnedMesh& m) {
+  return is_far_negative_mesh_parented_arm_piece(m) ||
+         is_compact_mesh_parented_head_detail_piece(m);
 }
 
 bool is_rockabill_mesh_bind_body_piece(const SkinnedMesh& m) {
@@ -1472,7 +1507,7 @@ void CharRenderer::draw_impl(bool clear_target) {
     } else if (m.bone_palette.empty() || draw_hair_as_attachment ||
                raw_mesh_enabled(m.name) || root_parent_hair_bypass ||
                is_mesh_local_arm_piece(m) ||
-               is_metal_singer_mesh_world_piece(m)) {
+               is_raw_mesh_world_authored_piece(m)) {
       world_mode = "mesh-world";
       mw = impl.character.mesh_world(m);
     } else {
@@ -1889,7 +1924,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
   if (raw_mesh_enabled(mesh.name) || is_head_attachment_mesh(mesh) ||
       (is_root_parent_hair_piece(mesh) &&
        !is_weighted_root_parent_hair_piece(mesh)) ||
-      is_metal_singer_mesh_world_piece(mesh)) {
+      is_raw_mesh_world_authored_piece(mesh)) {
     if (debug_mesh_mode_enabled(mesh.name)) {
       std::fprintf(stderr,
                    "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu mode=raw-bypass\n",

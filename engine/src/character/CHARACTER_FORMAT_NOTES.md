@@ -15,7 +15,7 @@ flags, controller graph data, or accepted runtime traces.
 Named branches in the renderer are therefore temporary debt unless they can be
 rephrased as a shared asset/controller shape. Current debt to retire:
 
-- `metal_singer` material/world branches.
+- `metal_singer` material mesh-bind branch.
 - `metal_bass` body-material mesh-bind branch.
 - `rockabill1` body/alternate-leg branches.
 
@@ -123,6 +123,24 @@ Mesh-local arm pieces:
   `engine/out/codex_goal_20260616_mesh_local_arm_validation/` shows Rockabill
   arm pieces in `mode=mesh-local-arm-space` and the Glam1 control
   `glam1.73.mesh` remaining on `mode=lbs-local-chain`.
+
+Raw mesh-world authored pieces:
+
+- Some weighted meshes are not skinned through the normal palette equation at
+  all; their vertices are consumed as raw mesh-local vertices and drawn through
+  the mesh object's world row.
+- The former `metal_singer` world branch is now split into two format shapes:
+  far-negative mesh-parented arm pieces and compact mesh-parented head details.
+  The arm shape requires arm material naming, a non-arm mesh parent, upper-limb
+  palette bones, and authored bounds with `min_z < -10` and `max_z < -4`. The
+  compact head-detail shape requires a mesh parent, three palette bones
+  including `bone_neck.mesh` and `bone_head.mesh`, and compact authored bounds
+  near the local origin.
+- Validation: `engine/out/codex_goal_20260616_raw_mesh_world_predicates/`
+  keeps active `msinger` arm/head-detail pieces in `mode=raw-bypass` /
+  `world=mesh-world`, while Rockabill arm controls remain
+  `mode=mesh-local-arm-space` and Glam1 head/eye controls remain on their
+  existing generic routes.
 
 ## Hair
 
