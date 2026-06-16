@@ -499,6 +499,24 @@ Glam1 hair:
   correct default must add the PS2 list/header/work-matrix relation and cannot
   be reduced to `group.root_mesh == point.mesh`, a point-parent swap, or a
   renderer inverse-bind variant.
+- 2026-06-16 paired interpreter confirmation:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_point_trans_pair_interpreter_20260616.json`
+  captured the same Retry route with both `hair_update_00176fb8` and
+  `trans_write_001dd7b8` hooked. In the retained ring, 76 Glam1 hair ticks each
+  write exactly the three live hair controller rows first, before the broader
+  character Trans traffic: `bone_hair01.mesh`, `bone_bangL.mesh`, and
+  `bone_bangR.mesh` all appear 76 times. The first retained tick writes
+  `bone_hair01.mesh` row0 `(-0.8398, -0.5409, -0.0451)`, row1
+  `(-0.0201, 0.1141, -0.9933)`, pos `(87.180, 78.668, 81.939)`;
+  `bone_bangL.mesh` row0 `(-0.6789, 0.7304, 0.0745)`, row1
+  `(-0.0105, 0.0918, -0.9957)`, pos `(93.221, 77.430, 80.849)`;
+  and `bone_bangR.mesh` row0 `(0.6765, -0.7302, -0.0960)`, row1
+  `(-0.0263, 0.1062, -0.9940)`, pos `(87.466, 71.301, 80.836)`.
+  This paired run closes the timing concern: the group/list rows and the
+  visible controller Trans writes are from the same active in-song window.
+  Native must therefore generate dynamic controller rows from the PS2
+  group/list state before weighted hair-sheet skinning; simply changing the
+  sheet renderer cannot synthesize these writer rows.
 
 Glam1 eyes / look-at:
 
