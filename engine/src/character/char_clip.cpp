@@ -817,21 +817,6 @@ bool follow_hair_orientation_state_enabled() {
 #endif
 }
 
-bool hair_follow_trans_write_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_ENABLE_HAIR_FOLLOW_TRANS_WRITE") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_ENABLE_HAIR_FOLLOW_TRANS_WRITE");
-  return value && value[0];
-#endif
-}
-
 bool hair_follow_current_axis_state_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -3512,11 +3497,9 @@ static void apply_char_hair(Character& character, float time_seconds) {
 
         if (follow_only_group) {
           set_runtime_point_world(state, live_world_xfm);
-          if (hair_follow_trans_write_enabled()) {
-            const auto parent_world =
-                character.bone_world_local_chain(*target.parent);
-            set_local_from_world(*target.local, live_world_xfm, parent_world);
-          }
+          const auto parent_world =
+              character.bone_world_local_chain(*target.parent);
+          set_local_from_world(*target.local, live_world_xfm, parent_world);
           previous_point = live_world;
           first_point = false;
           if (debug_char_hair_enabled()) {

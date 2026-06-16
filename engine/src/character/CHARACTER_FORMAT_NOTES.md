@@ -547,6 +547,18 @@ Glam1 hair:
   proves that native needs the remaining PS2 matrix construction at
   `0x00177878..0x001778f4`, not just the point position/length/radius half of
   the point block.
+- 2026-06-16 same-window Glam1 hair Trans evidence:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_point_trans_samewindow_20260616.json`
+  captures 62 retained `hair_update_00176fb8` ticks and 186 immediate writes
+  to `bone_hair01.mesh`, `bone_bangL.mesh`, and `bone_bangR.mesh` in one
+  active window. Each per-call target snapshot already contains the submitted
+  matrix rows at target offsets `+0x60/+0x70/+0x80/+0x90`; the `a1` matrix
+  passed to `trans_write_001dd7b8` copies those rows (mean row dot products
+  are at or above 0.995 for row0 and 0.996 for rows1/2 across all three
+  targets). Native therefore must write follow-only `CharHair` target locals
+  every tick before weighted hair skinning. This promotes the traced
+  follow-row write, while keeping `GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE`
+  diagnostic-only.
 
 Glam1 eyes / look-at:
 
