@@ -54,6 +54,7 @@ struct ClipChannelLayer {
   float weight = 1.0f;
   const std::vector<CharClip::OutputBone>* output_bones = nullptr;
   std::string debug_name;
+  bool overlay_override = false;
 };
 
 enum CharPlayFlags : uint32_t {

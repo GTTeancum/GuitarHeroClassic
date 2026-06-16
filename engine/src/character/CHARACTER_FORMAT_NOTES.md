@@ -15,7 +15,8 @@ flags, controller graph data, or accepted runtime traces.
 Named branches in the renderer are therefore temporary debt unless they can be
 rephrased as a shared asset/controller shape. Current debt to retire:
 
-- `rockabill1` alternate-leg branch.
+- None currently accepted in renderer code. Keep this list honest when adding
+  new diagnostics.
 
 Retired debt:
 
@@ -24,6 +25,10 @@ Retired debt:
   by the shared `SkinnedMesh::mesh_local_bind_space` loader flag. That flag is
   derived from decoded bind rows and local-chain rows, not from outfit or
   material names.
+- The former `rockabill1` alternate-leg branch is now covered by the shared
+  terminal leg overlay duplicate rule: a two-bone ankle/toe leg mesh parented
+  to another leg mesh is skipped as a duplicate overlay by decoded mesh shape,
+  not by outfit name.
 
 Do not add new named-character branches. If a fix cannot be explained as a
 general PS2 record/controller rule, keep it as a diagnostic experiment only.
@@ -1519,6 +1524,18 @@ Useful environment flags:
   This follows the accepted hand-driver scheduler model where `left_hand.drv`
   / `right_hand.drv` rotate a live `+0x38` scheduler/blend pointer. Validation:
   `engine/out/native_song_20260614/shout_f1300_hand_driver_scheduler.bmp`.
+- Hand-driver layers are overlay lanes in the native song pose mixer. The
+  accepted no-wrap hand traces show the body clip output first, followed by
+  right/left hand scheduler source output before IK/twist dirties the same
+  arm/hand Trans family. Averaging colliding body and hand lanes by flat
+  `(type, name)` loses that ordering and can dilute authored strum/fret hand
+  poses. The promoted native rule is therefore keyed to the controller route:
+  layers sourced from the right/left hand drivers replace already-present
+  destination lanes for the channel IDs they own, while ordinary body/face
+  driver blending still uses descriptor-key interpolation. Validation:
+  `engine/out/codex_goal_20260616_hand_overlay_override_probe/` captures
+  `glam1`, `rockabill1`, and `metal1` in active song frames without adding any
+  character-specific branches.
 - A CharBone output-world bridge experiment is guarded behind
   `GHOGX_CHARBONE_OUTPUT_WORLD_BRIDGE` and is rejected for promotion. It
   composes animation output rows through their stored-world correction and

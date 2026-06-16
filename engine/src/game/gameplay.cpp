@@ -4395,7 +4395,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             bool pose_relative_set = false;
             auto add_player_layer =
                 [&](const ghogx::character::CharClipPlayer& player,
-                    float weight) {
+                    float weight, bool overlay_override = false) {
                     if (!player.active()) return;
                     auto channels = player.sampled_pose();
                     if (channels.empty()) return;
@@ -4411,7 +4411,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         ghogx::character::ClipChannelLayer{
                             std::move(channels), weight,
                             clip ? &clip->output_bones : nullptr,
-                            clip ? clip->name : std::string{}});
+                            clip ? clip->name : std::string{},
+                            overlay_override});
                 };
 
             if (hand_driver_active) {
@@ -4456,8 +4457,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
             add_player_layer(perf.face_base_player, 1.0f);
             if (hand_driver_active) {
-                add_player_layer(perf.strum_player, 1.0f);
-                add_player_layer(perf.fret_player, 1.0f);
+                add_player_layer(perf.strum_player, 1.0f, true);
+                add_player_layer(perf.fret_player, 1.0f, true);
             }
             if (!pose_layers.empty()) {
                 ghogx::character::apply_clip_channel_layers(

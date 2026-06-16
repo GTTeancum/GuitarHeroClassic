@@ -49,13 +49,6 @@ bool is_lod1(const std::string& n) {
   return n.find("_lod1") != std::string::npos || n.rfind("lod_", 0) == 0;
 }
 
-bool is_rockabill_legs_alternate(const SkinnedMesh& m) {
-  return m.name == "legs.2.mesh" && m.parent == "legs.mesh" &&
-         m.material == "legs.mat" && m.bone_palette.size() == 2 &&
-         m.bone_palette[0] == "bone_L-ankle.mesh" &&
-         m.bone_palette[1] == "bone_L-toe.mesh";
-}
-
 const milo_scene::GroupObj* find_character_group(const Character& character,
                                                  const std::string& name) {
   for (const auto& group : character.groups) {
@@ -463,6 +456,37 @@ bool has_suffix(const std::string& n, const char* suffix) {
   return n.size() >= len && n.compare(n.size() - len, len, suffix) == 0;
 }
 
+bool contains_case_insensitive(const std::string& n, const char* needle) {
+  std::string lower = n;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return (char)std::tolower(c); });
+  std::string lower_needle = needle ? needle : "";
+  std::transform(lower_needle.begin(), lower_needle.end(),
+                 lower_needle.begin(),
+                 [](unsigned char c) { return (char)std::tolower(c); });
+  return !lower_needle.empty() &&
+         lower.find(lower_needle) != std::string::npos;
+}
+
+bool is_ankle_toe_palette(const SkinnedMesh& m) {
+  if (m.bone_palette.size() != 2) return false;
+  const bool left = m.bone_palette[0] == "bone_L-ankle.mesh" &&
+                    m.bone_palette[1] == "bone_L-toe.mesh";
+  const bool right = m.bone_palette[0] == "bone_R-ankle.mesh" &&
+                     m.bone_palette[1] == "bone_R-toe.mesh";
+  return left || right;
+}
+
+bool is_terminal_leg_overlay_duplicate(const SkinnedMesh& m) {
+  if (m.bone_palette.empty() || m.bind.empty()) return false;
+  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
+  if (!is_ankle_toe_palette(m)) return false;
+  if (!has_suffix(m.parent, ".mesh")) return false;
+  return contains_case_insensitive(m.name, "leg") &&
+         contains_case_insensitive(m.parent, "leg") &&
+         contains_case_insensitive(m.material, "leg");
+}
+
 bool contains_arm_token(const std::string& n) {
   std::string lower = n;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -806,10 +830,9 @@ bool uses_local_attachment_skin(const SkinnedMesh& m) {
 
   if (m.parent != "bone_head.mesh") return false;
 
-  // CharHair pieces are authored as head-local attachments. Metal1 stores them
-  // in a compact head-local range around the origin; glam1 stores some pieces
-  // offset farther out in the same parent space. Body-space hair should stay
-  // on normal LBS.
+  // CharHair pieces are authored as head-local attachments. Some are stored in
+  // a compact head-local range around the origin; others are offset farther out
+  // in the same parent space. Body-space hair should stay on normal LBS.
   const bool compact_head_local =
       m.bb_min[0] > -25.0f && m.bb_max[0] < 25.0f &&
       m.bb_min[1] > -25.0f && m.bb_max[1] < 25.0f &&
@@ -1296,7 +1319,7 @@ void CharRenderer::frame_camera() {
         is_lod1(m.name) ||
         is_hidden_numbered_hair_variant(impl_->character, m) ||
         is_unsupported_dynamic_hair(m.name) ||
-        is_rockabill_legs_alternate(m)) continue;
+        is_terminal_leg_overlay_duplicate(m)) continue;
     for (const auto& v : m.verts) {
       const float p[3] = {v.px, v.py, v.pz};
       if (!impl_->have_bounds) {
@@ -1459,7 +1482,7 @@ void CharRenderer::draw_impl(bool clear_target) {
         is_hidden_numbered_hair_variant(impl.character, m) ||
         is_hidden_by_character_lod_group(impl.character, m) ||
         is_unsupported_dynamic_hair(m.name) ||
-        is_rockabill_legs_alternate(m)) continue;
+        is_terminal_leg_overlay_duplicate(m)) continue;
     const bool eye_mesh = is_eye_mesh(m.name);
     dev->SetRenderState(D3DRS_CULLMODE, character_cull_mode(&m));
     dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);

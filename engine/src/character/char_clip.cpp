@@ -4447,9 +4447,10 @@ void dump_lane_mixer_layers(const std::vector<ClipChannelLayer>& layers) {
                                  : layer.debug_name;
     std::fprintf(stderr,
                  "[lane-mix]   layer %zu name=%s weight=%.3f channels=%zu "
-                 "outputBones=%zu\n",
+                 "outputBones=%zu overlay=%d\n",
                  i, name.c_str(), layer.weight, layer.channels.size(),
-                 layer.output_bones ? layer.output_bones->size() : 0);
+                 layer.output_bones ? layer.output_bones->size() : 0,
+                 layer.overlay_override ? 1 : 0);
     for (const auto& ch : layer.channels) {
       if (!lane_mixer_interesting_channel(ch.bone_name)) continue;
       const std::string key =
@@ -4505,6 +4506,11 @@ std::vector<ClipChannel> blend_channel_layers(
       }
 
       AccumRef& acc = it->second;
+      if (layer.overlay_override && layer_weight >= 0.999f) {
+        out[acc.index] = ch;
+        acc.weight = layer_weight;
+        continue;
+      }
       const float total = acc.weight + layer_weight;
       if (total <= 0.0f) continue;
       blend_channel_into(out[acc.index], ch, layer_weight / total);
