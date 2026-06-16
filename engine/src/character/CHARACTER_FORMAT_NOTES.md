@@ -489,6 +489,27 @@ Glam1 hair:
   local-attachment skin equation probe until the PS2 `0x00177878..0x001778f4`
   point matrix construction is mapped; the remaining mismatch is upstream in
   the controller row construction.
+- 2026-06-16 accepted Glam1 group/target row checkpoint:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_group_point_rows_20260616.json`
+  samples the same in-song Glam1 window without bringing PCSX2 forward. The
+  three stable group descriptor bases exactly match native decoded
+  `CharHairGroup::limits_or_mats`, and the target Trans local rows for
+  `bone_hair01.mesh`, `bone_bangL.mesh`, and `bone_bangR.mesh` use those
+  bases with local translations `(4.513,-4.389,0.415)`,
+  `(4.527,0.637,4.154)`, and `(4.619,1.455,-4.216)`. A native
+  `GHOGX_DEBUG_BONES=1` capture at
+  `engine/out/codex_goal_20260616_glam1_bone_locals/` shows the same decoded
+  locals for the first Glam1 character, so the remaining detached-sheet issue is
+  not a raw Trans local-position decode error.
+- 2026-06-16 renderer-only local hair probes rejected:
+  `engine/out/codex_goal_20260616_glam1_localhair_world_identity_probe/` tested
+  `GHOGX_LOCAL_HAIR_WORLD_MODE=identity`, and
+  `engine/out/codex_goal_20260616_glam1_meshbind_local_probe/` tested
+  `GHOGX_LOCAL_HAIR_SKIN_MATRIX_MODE=meshbind_local`. Both make Glam1 side/top
+  hair visibly worse by pulling sheets away from the scalp. Keep the current
+  default local-attachment draw path until the PS2 `hair+0x30` list-head/work
+  matrices are decoded; changing only the sheet world or per-palette bind mode
+  does not reproduce the PS2 hair controller pipeline.
 - 2026-06-16 focused PCSX2 Glam1 hair point-state trace:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_point_state_retry_interpreter_20260616.json`
   reran the stock GH2 state-1 Retry path in interpreter mode, captured 535
