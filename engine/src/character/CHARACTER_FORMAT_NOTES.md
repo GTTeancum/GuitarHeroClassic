@@ -526,6 +526,17 @@ Glam1 hair:
   closes the struct identity for the `0x001778e4..0x00177960` write/update
   tail and makes the next native change a point-state implementation task,
   not another renderer-space probe.
+- 2026-06-16 rejected default promotion of the traced one-point write relation:
+  `engine/out/codex_goal_20260616_ps2single_promote_ab/` built successfully
+  and compared the same Glam1 camera/frame with the PS2-style relation enabled
+  by default versus `GHOGX_DISABLE_PS2_SINGLE_POINT_HAIR_STATE=1`. The promoted
+  default (`glam1_ps2single_default_f900.bmp`) over-rotates hair sheets into
+  the face, while the disabled capture (`glam1_ps2single_disabled_f900.bmp`)
+  keeps the prior, less-bad placement. The trace fact is still valid: PS2
+  writes the target Trans offset from the simulated point by `-row1 * length`.
+  Native must not promote that relation until `point+0x30` cached orientation
+  initialization and the group/list work-row setup are reproduced; otherwise
+  the dynamic row basis is underconstrained.
 - 2026-06-16 focused PCSX2 Glam1 hair point-state trace:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_point_state_retry_interpreter_20260616.json`
   reran the stock GH2 state-1 Retry path in interpreter mode, captured 535
