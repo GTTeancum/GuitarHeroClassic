@@ -91,12 +91,23 @@ space before the bone bind/current delta:
 
 `vertex * mesh_bind_local_chain * inverse(bone_bind_local_chain) * bone_current_local_chain`
 
-Observed case:
+Terminal lower-leg pieces can also be authored in mesh-local space. The runtime
+detects these by format shape instead of outfit name:
 
-- `metal_singer`: `msinger.8.mesh`, `msinger.17.mesh`
-  - These hold lower-leg/shoe geometry.
-  - They require mesh-bind-relative skinning.
-  - Their weight slots are reversed relative to the palette order.
+- exactly three palette bones ordered as same-side knee, ankle, toe.
+- per-palette bind matrices are present.
+- the authored bbox is far behind the mesh local origin (`max_z < -25`).
+
+The 2026-06-16 inventory pass selected `metal_singer` `msinger.8.mesh`,
+`msinger.17.mesh`, and the matching LOD records `msinger_lod1.6.mesh` /
+`msinger_lod1.13.mesh`. It excluded ordinary terminal lower-leg pieces from
+`glam1`, `goth2`, `metal1`, `punk1`, `rock2`, and the keyboardist, whose
+authored bboxes sit around local origin. The selected format shape uses the
+mesh-bind-relative equation above and the same reversed weight-slot order
+observed in the PS2 records. Validation:
+`engine/out/codex_goal_20260616_terminal_lower_leg_rule/` shows the active
+`msinger` pieces in `mode=mesh-local-terminal-lower-leg` while Glam1 and Metal1
+controls remain `mode=lbs-local-chain`.
 
 Mesh-local arm pieces:
 

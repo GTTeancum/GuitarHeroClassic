@@ -423,12 +423,26 @@ bool is_metal_singer_mesh_world_piece(const SkinnedMesh& m) {
   return m.name == "msinger.13.mesh";
 }
 
-bool is_metal_singer_local_chain_mesh_piece(const SkinnedMesh& m) {
-  return m.name == "msinger.8.mesh" || m.name == "msinger.17.mesh";
-}
-
 bool is_metal_bass_mesh_bind_material(const std::string& material) {
   return material == "bassist_body.mat";
+}
+
+bool is_terminal_lower_leg_palette(const SkinnedMesh& m) {
+  if (m.bone_palette.size() != 3) return false;
+  const bool left = m.bone_palette[0] == "bone_L-knee.mesh" &&
+                    m.bone_palette[1] == "bone_L-ankle.mesh" &&
+                    m.bone_palette[2] == "bone_L-toe.mesh";
+  const bool right = m.bone_palette[0] == "bone_R-knee.mesh" &&
+                     m.bone_palette[1] == "bone_R-ankle.mesh" &&
+                     m.bone_palette[2] == "bone_R-toe.mesh";
+  return left || right;
+}
+
+bool is_mesh_local_terminal_lower_leg_piece(const SkinnedMesh& m) {
+  if (m.bone_palette.empty() || m.bind.empty()) return false;
+  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
+  if (!is_terminal_lower_leg_palette(m)) return false;
+  return m.bb_max[2] < -25.0f;
 }
 
 bool is_weighted_root_parent_hair_piece(const SkinnedMesh& m) {
@@ -1925,7 +1939,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
        is_rockabill_mesh_bind_body_piece(mesh) ||
        is_metal_bass_mesh_bind_material(mesh.material) ||
        is_metal_singer_mesh_bind_material(mesh.material)) &&
-      !is_metal_singer_local_chain_mesh_piece(mesh) &&
+      !is_mesh_local_terminal_lower_leg_piece(mesh) &&
       mesh.bind.size() >= nb;
   const bool use_mesh_bind_inverse =
       use_mesh_bind_inverse_material_enabled(mesh.material) &&
@@ -1935,8 +1949,8 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
       uses_local_attachment_skin(mesh) ? local_hair_skin_matrix_mode()
                                        : std::string{};
   const char* skin_mode = "lbs-local-chain";
-  if (is_metal_singer_local_chain_mesh_piece(mesh)) {
-    skin_mode = "metal-singer-local-chain";
+  if (is_mesh_local_terminal_lower_leg_piece(mesh)) {
+    skin_mode = "mesh-local-terminal-lower-leg";
   } else if (is_mesh_local_arm_piece(mesh) &&
              !disable_mesh_local_arm_skin_enabled()) {
     skin_mode = "mesh-local-arm-space";
@@ -1976,7 +1990,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
         runtime_hair_world_override(character, mesh.bone_palette[i],
                                     hair_override);
     if (has_hair_override) curr_world = hair_override;
-    if (is_metal_singer_local_chain_mesh_piece(mesh)) {
+    if (is_mesh_local_terminal_lower_leg_piece(mesh)) {
       const std::array<float, 16> mesh_bind =
           character.bone_world_bind_local_chain(mesh.name);
       const std::array<float, 16> bone_bind =
@@ -2121,7 +2135,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
     for (size_t i = 0; i < nb && i < 4; ++i) {
       const bool reverse_slots =
           reverse_skin_weight_slots_enabled() ||
-          is_metal_singer_local_chain_mesh_piece(mesh);
+          is_mesh_local_terminal_lower_leg_piece(mesh);
       const size_t wi = reverse_slots ? (std::min<size_t>(nb, 4) - 1 - i) : i;
       const float wgt = v.w[wi];
       if (wgt == 0.0f) continue;
