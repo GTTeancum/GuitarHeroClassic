@@ -537,6 +537,25 @@ Glam1 hair:
   Native must not promote that relation until `point+0x30` cached orientation
   initialization and the group/list work-row setup are reproduced; otherwise
   the dynamic row basis is underconstrained.
+- 2026-06-16 rich write-site point-state trace:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_write_site_point_state_20260616.json`
+  records 762 hits at `0x001778e4` with each ring entry containing `s0`
+  fields and stack work rows. For every retained point, `s0+0x30` is the
+  previous tick's `sp+0x20`; the `jal 0x001dd7b8` delay slot stores that
+  `sp+0x20` row back to `s0+0x30`. This proves the cached orientation row is
+  a persistent point-state value, not a static descriptor row. The same records
+  show stack output position at `sp+0x30`, live point-related rows around
+  `sp+0x40/+0x50`, and the point-to-target vector around `sp+0x80`.
+- 2026-06-16 rejected seeded single-point diagnostic:
+  `engine/out/codex_goal_20260616_ps2single_seeded_ab/` tested a gated variant
+  that initialized the simulated point from `target + descriptor_row1 * length`
+  before applying the traced `-row1 * length` target write. It rendered far
+  better than the failed default promotion, but `hair-side.mesh` still logged
+  identity skin rows for `bone_bangL.mesh`, `bone_bangR.mesh`, and
+  `bone_hair01.mesh`, and the frame was not an obvious visual improvement over
+  default. Do not promote it. The remaining native mismatch is still the
+  weighted sheet consumption/root-parent work-matrix relation, not merely the
+  point-state seed.
 - 2026-06-16 focused PCSX2 Glam1 hair point-state trace:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_hair_point_state_retry_interpreter_20260616.json`
   reran the stock GH2 state-1 Retry path in interpreter mode, captured 535
