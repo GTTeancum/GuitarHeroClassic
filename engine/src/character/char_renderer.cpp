@@ -432,26 +432,16 @@ bool is_metal_singer_local_chain_mesh_piece(const SkinnedMesh& m) {
   return m.name == "msinger.8.mesh" || m.name == "msinger.17.mesh";
 }
 
-bool is_metal_bass_weighted_root_hair_piece(const SkinnedMesh& m) {
-  return m.name == "hair_lower.mesh" && m.material == "hair_bassist.mat";
-}
-
 bool is_metal_bass_mesh_bind_material(const std::string& material) {
   return material == "bassist_body.mat";
-}
-
-bool is_rock2_weighted_root_hair_piece(const SkinnedMesh& m) {
-  return (m.name == "hair-mid.mesh" || m.name == "hair-back.mesh") &&
-         (m.material == "rock2_hair.mat" || m.material == "rock2_hair2.mat");
 }
 
 bool is_rock2_mesh_bind_hair_piece(const SkinnedMesh& m) {
   return m.name == "hair-back.mesh" && m.material == "rock2_hair2.mat";
 }
 
-bool is_rockabill_weighted_root_hair_piece(const SkinnedMesh& m) {
-  return (m.name == "hair.mesh" || m.name == "hair 2.mesh") &&
-         m.material == "head.mat";
+bool is_weighted_root_parent_hair_piece(const SkinnedMesh& m) {
+  return is_root_parent_hair_piece(m) && !m.bone_palette.empty();
 }
 
 bool is_rockabill_arm_mesh_piece(const SkinnedMesh& m) {
@@ -1423,9 +1413,7 @@ void CharRenderer::draw_impl(bool clear_target) {
         (m.bone_palette.empty() || uses_local_attachment_skin(m));
     const bool root_parent_hair_bypass =
         is_root_parent_hair_piece(m) &&
-        !is_metal_bass_weighted_root_hair_piece(m) &&
-        !is_rock2_weighted_root_hair_piece(m) &&
-        !is_rockabill_weighted_root_hair_piece(m);
+        !is_weighted_root_parent_hair_piece(m);
     const char* world_mode = "identity";
     std::array<float, 16> mw{};
     if (is_head_attachment_mesh(m) || is_model_space_head_hair_attachment(m)) {
@@ -1873,9 +1861,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
   }
   if (raw_mesh_enabled(mesh.name) || is_head_attachment_mesh(mesh) ||
       (is_root_parent_hair_piece(mesh) &&
-       !is_metal_bass_weighted_root_hair_piece(mesh) &&
-       !is_rock2_weighted_root_hair_piece(mesh) &&
-       !is_rockabill_weighted_root_hair_piece(mesh)) ||
+       !is_weighted_root_parent_hair_piece(mesh)) ||
       is_metal_singer_raw_mesh_piece(mesh) ||
       is_metal_singer_mesh_world_piece(mesh)) {
     if (debug_mesh_mode_enabled(mesh.name)) {

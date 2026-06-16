@@ -3343,6 +3343,22 @@ static bool hair_anchor_position(const Character& character,
   return local_chain_position(character, point.mesh, out);
 }
 
+static Vec3 hair_segment_endpoint_target(const Character& character,
+                                         const CharHairGroup& group,
+                                         size_t point_index,
+                                         const CharHairPoint& point,
+                                         const std::array<float, 16>& target_world) {
+  if (point_index + 1 < group.points.size()) {
+    Vec3 next_pos{};
+    if (local_chain_position(character, group.points[point_index + 1].mesh,
+                             next_pos)) {
+      return next_pos;
+    }
+  }
+  const float length = std::max(0.001f, point.length);
+  return vadd(mat_pos(target_world), vscale(mat_row(target_world, 1), length));
+}
+
 static Vec3 blend_vec(Vec3 a, Vec3 b, float t) {
   return vadd(vscale(a, 1.0f - t), vscale(b, t));
 }
@@ -3430,7 +3446,43 @@ static void apply_char_hair(Character& character, float time_seconds) {
       Vec3 previous_point{};
       const bool follow_only_group =
           group.points.size() == 1 && !single_point_hair_solver_enabled();
-      for (const auto& point : group.points) {
+      auto write_ps2_chain_basis = [&](RuntimeHairPoint& chain_state,
+                                       const TransformTarget& chain_target,
+                                       const std::array<float, 16>& base_world,
+                                       Vec3 axis_target,
+                                       Vec3 solved_point,
+                                       const char* reason) {
+        if (!chain_target.local || !chain_target.parent ||
+            chain_target.parent->empty()) {
+          return;
+        }
+        auto desired_world =
+            ps2_follow_hair_world(chain_state, base_world, axis_target);
+        set_runtime_point_world(chain_state, desired_world);
+        const auto parent_world =
+            character.bone_world_local_chain(*chain_target.parent);
+        set_local_from_world(*chain_target.local, desired_world, parent_world);
+        if (debug_char_hair_enabled()) {
+          std::fprintf(stderr,
+                       "[charhair-ps2chain] %s point=%s root=%s coll=%s "
+                       "reason=%s solved=(%.3f %.3f %.3f) "
+                       "axisTarget=(%.3f %.3f %.3f) "
+                       "r0=(%.4f %.4f %.4f) r1=(%.4f %.4f %.4f) "
+                       "r2=(%.4f %.4f %.4f)\n",
+                       hair.name.c_str(),
+                       chain_target.name ? chain_target.name->c_str() : "",
+                       group.root_mesh.c_str(),
+                       chain_target.parent ? chain_target.parent->c_str() : "",
+                       reason, solved_point.x, solved_point.y, solved_point.z,
+                       axis_target.x, axis_target.y, axis_target.z,
+                       desired_world[0], desired_world[1], desired_world[2],
+                       desired_world[4], desired_world[5], desired_world[6],
+                       desired_world[8], desired_world[9], desired_world[10]);
+        }
+      };
+      for (size_t point_index = 0; point_index < group.points.size();
+           ++point_index) {
+        const auto& point = group.points[point_index];
         RuntimeHairPoint& state = character.runtime_hair.points[runtime_index++];
         TransformTarget target = find_transform_target(character, point.mesh);
         if (!target.local || !target.name || !target.parent ||
@@ -3466,7 +3518,9 @@ static void apply_char_hair(Character& character, float time_seconds) {
           }
         }
         const Vec3 live_world = mat_pos(live_world_xfm);
-        if (!state.initialized || state.mesh != point.mesh) {
+        const bool needs_state_init =
+            !state.initialized || state.mesh != point.mesh;
+        if (needs_state_init && follow_only_group) {
           state.initialized = true;
           state.mesh = point.mesh;
           const Vec3 initial_point =
@@ -3631,7 +3685,19 @@ static void apply_char_hair(Character& character, float time_seconds) {
           continue;
         }
 
-        Vec3 solved = live_world;
+        const Vec3 endpoint_target =
+            hair_segment_endpoint_target(character, group, point_index, point,
+                                         live_world_xfm);
+        if (needs_state_init) {
+          state.initialized = true;
+          state.mesh = point.mesh;
+          set_runtime_point_pos(state, endpoint_target, endpoint_target);
+          set_runtime_point_velocity(state, {0.0f, 0.0f, 0.0f},
+                                     {0.0f, 0.0f, 0.0f});
+          state.has_orientation_world = false;
+        }
+
+        Vec3 solved = endpoint_target;
         const Vec3 old_curr = runtime_point_pos(state);
         const Vec3 old_velocity = runtime_point_velocity(state);
         if (dt > 0.0f) {
@@ -3639,28 +3705,29 @@ static void apply_char_hair(Character& character, float time_seconds) {
               std::clamp(inertia * (1.0f - friction), 0.0f, 0.98f);
           Vec3 predicted = vadd(old_curr, vscale(old_velocity, damping));
           predicted.z -= 980.0f * gravity * dt * dt;
-          predicted = blend_vec(predicted, live_world, stiffness);
+          predicted = blend_vec(predicted, endpoint_target, stiffness);
 
           const float length =
               std::max(0.001f, point.length > 0.0f
                                    ? point.length
-                                   : vlen(vsub(live_world, anchor)));
+                                   : vlen(vsub(endpoint_target, anchor)));
           Vec3 dir = vsub(predicted, anchor);
-          if (vlen(dir) <= 1e-5f) dir = vsub(live_world, anchor);
+          if (vlen(dir) <= 1e-5f) dir = vsub(endpoint_target, anchor);
           dir = vnorm(dir, {0.0f, 0.0f, -1.0f});
           solved = vadd(anchor, vscale(dir, length));
           solved = enforce_hair_collision(character, point, solved);
-          solved = blend_vec(solved, live_world, stiffness * 0.35f);
+          solved = blend_vec(solved, endpoint_target, stiffness * 0.35f);
         }
 
-        const auto actual_parent_world =
-            character.bone_world_local_chain(*target.parent);
+        // PS2 stores the simulated point at s0+0x00, but submits the visible
+        // Trans row at the segment root. In chains, the point endpoint becomes
+        // the next controller's submitted position.
         auto desired_world = live_world_xfm;
-        desired_world[12] = solved.x;
-        desired_world[13] = solved.y;
-        desired_world[14] = solved.z;
-        set_runtime_point_world(state, desired_world);
-        set_local_from_world(*target.local, desired_world, actual_parent_world);
+        desired_world[12] = anchor.x;
+        desired_world[13] = anchor.y;
+        desired_world[14] = anchor.z;
+        write_ps2_chain_basis(state, target, desired_world, solved, solved,
+                              "segment");
         set_runtime_point_pos(state, solved, old_curr);
         set_runtime_point_velocity(state, vsub(solved, old_curr),
                                    old_velocity);

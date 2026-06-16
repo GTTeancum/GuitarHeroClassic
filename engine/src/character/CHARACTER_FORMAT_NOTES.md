@@ -121,16 +121,18 @@ Weighted body-space hair:
 
 - Can be parented to the character root and weighted to spine/head bones.
 - Should generally stay on normal skinning.
-
-Observed special case:
-
-- `metal_bass`: `hair_lower.mesh`
-  - Parent is `metal_bass`, material is `hair_bassist.mat`.
-  - It is weighted to spine/head palette bones and should use the normal
-    weighted root-parent hair path.
-  - A previous head-local attachment rule made it float above the arena stage.
-    Verification:
-    `engine/out/codex_native_shout_f1300_metal_bass_hair_weighted_20260614.bmp`.
+- 2026-06-16 generic inventory pass:
+  `engine/out/codex_goal_20260616_generic_inventory_raw/*.clean.log` shows
+  this is a format shape, not a character exception. Root-parented weighted
+  hair appears on `deathmetal1/hair.mesh`, `rock2/hair-mid.mesh`,
+  `rock2/hair-back.mesh`, `rockabill1/hair.mesh`,
+  `metal_bass/hair_lower.mesh`, `metal_drummer/drummer_hair.mesh`, and
+  `metal_keyboard/hair-lower.mesh`. Native now treats root-parented hair with a
+  real bone palette as weighted skinned geometry instead of routing it through
+  the old raw root-parent bypass. Validation:
+  `engine/out/codex_goal_20260616_root_hair_generic_validation/`.
+  The Rock2 `hair-back.mesh` mesh-bind path remains a separate mesh-space
+  issue; do not infer it from the character name.
 - `metal_bass`: `hair_top.mesh` / `bassist_body.mat`
   - Accepted PS2 trace evidence says the visible cap path is the
     descriptor/object row pair `hair_top.mesh` plus `bone_head.mesh`, not a
@@ -653,6 +655,22 @@ Glam1 hair:
   reattaching the side hair. Rock2 cross-check
   `engine/out/codex_goal_20260616_follow_ps2_basis_crosschecks/woman_rock2_follow_ps2_basis_f120.bmp`
   still has unresolved hair chunks; do not call Rock2 closed from this pass.
+- 2026-06-16 accepted Rock2 multi-point point-state trace:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_rock2_woman_hair_point_state_ring4096_20260616.json`
+  hooks the PS2 write site `0x001778e4` in active Woman gameplay and records
+  all 2,196 retained writes. The record's incoming `a0` is stale at this hook;
+  the real output target is `s0+0x48`, because the original `lw a0,72(s0)`
+  executes after the hook's first two replayed instructions. Grouping by
+  `s0+0x48` yields all nine Rock2 controllers:
+  `bone_hair-front.mesh`, `bone_R/L-hair01/02.mesh`, and
+  `bone_hair01..04.mesh`. For the multi-point chains, `s0+0x00` is the
+  simulated segment endpoint while stack `sp+0x30` is the submitted visible
+  Trans position: `bone_hair01.s0pos == bone_hair02.sp30`,
+  `bone_hair02.s0pos == bone_hair03.sp30`, `bone_hair03.s0pos ==
+  bone_hair04.sp30`, and the same relation holds for the two-point side
+  chains. Native chain rows therefore submit the visible controller at the
+  segment root/anchor and aim row1 at the endpoint. This is necessary format
+  coverage, not visual closure for Rock2 weighted hair-card consumption.
 
 Glam1 eyes / look-at:
 
@@ -929,8 +947,8 @@ Rockabill1 hair:
 
 - `hair.mesh` and `hair 2.mesh` are root-parented but have real
   `bone_head`/`bone_hair.mesh` palettes.
-- Treat them as weighted skinned meshes. The generic root-parent hair bypass
-  leaves the pompadour chunk floating above the head.
+- Treat them as weighted skinned meshes. The old root-parent hair bypass left
+  the pompadour chunk floating above the head.
 
 Rockabill1 arms:
 
