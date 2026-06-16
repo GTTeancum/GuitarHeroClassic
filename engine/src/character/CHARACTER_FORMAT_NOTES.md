@@ -1421,6 +1421,13 @@ Useful environment flags:
   disabling final hand placement breaks the hand/guitar relationship. Keep the
   default PS2 hand/foretwist route; the remaining issue is not fixed by rolling
   back driven twists or hand final placement.
+- 2026-06-15 rejected `glam1_hair.mat` mesh-bind probe:
+  `engine/out/codex_glam1_73_meshbind_material_20260615/` reran the same
+  `bone_L-hand` debug-camera frame with `GHOGX_USE_MESH_BIND_MATERIAL=glam1_hair.mat`.
+  It changed only 558 pixels against the default close capture and left the
+  visible `glam1.73.mesh` wrist/forearm wedge in place. Do not promote
+  material mesh-bind for numeric hair-material wrist sheets; the issue remains
+  in shared hand/foretwist row production or consumption.
 - 2026-06-15 resume close validation:
   `engine/out/codex_resume_20260615/shout_glam1_close_inspect/shout_glam1_close_f1300.bmp`
   is an intentional `GHOGX_DEBUG_GAMEPLAY_CAMERA=1` in-song close inspection of

@@ -2064,6 +2064,14 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                      mesh.name.c_str(), mesh.bone_palette[i].c_str(),
                      s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
                      s[8], s[9], s[10], s[11], s[12], s[13], s[14], s[15]);
+        for (int row = 0; row < 4; ++row) {
+          std::fprintf(stderr,
+                       "[skin-row] mesh=%s bone=%s row=%d "
+                       "%.5f %.5f %.5f %.5f\n",
+                       mesh.name.c_str(), mesh.bone_palette[i].c_str(), row,
+                       s[row * 4 + 0], s[row * 4 + 1],
+                       s[row * 4 + 2], s[row * 4 + 3]);
+        }
       }
     }
   }
@@ -2099,6 +2107,14 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                    "out=(%.4f %.4f %.4f) any=%d\n",
                    mesh.name.c_str(), v.px, v.py, v.pz, v.w[0], v.w[1],
                    v.w[2], v.w[3], p[0], p[1], p[2], any ? 1 : 0);
+      std::fprintf(stderr,
+                   "[skin-vtx] mesh=%s vi=0 raw=%.5f %.5f %.5f "
+                   "weights=%.5f %.5f %.5f %.5f\n",
+                   mesh.name.c_str(), v.px, v.py, v.pz, v.w[0], v.w[1],
+                   v.w[2], v.w[3]);
+      std::fprintf(stderr,
+                   "[skin-vtx-out] mesh=%s vi=0 out=%.5f %.5f %.5f any=%d\n",
+                   mesh.name.c_str(), p[0], p[1], p[2], any ? 1 : 0);
     }
   }
   if (debug_skin_matrix_enabled() && debug_mesh_mode_enabled(mesh.name) &&
