@@ -190,10 +190,13 @@ struct RuntimeHairPoint {
   bool initialized = false;
   bool has_world = false;
   std::string mesh;
+  uint32_t ps2_flags_or_mode = 0;
   float curr_world[3] = {0, 0, 0};
   float prev_world[3] = {0, 0, 0};
   float velocity_world[3] = {0, 0, 0};
   float prev_velocity_world[3] = {0, 0, 0};
+  float rest_world[3] = {0, 0, 0};
+  float anchor_world[3] = {0, 0, 0};
   std::array<float, 16> world =
       {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 };

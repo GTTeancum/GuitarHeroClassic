@@ -532,6 +532,21 @@ Glam1 hair:
   trace shows per-group helper/list work rows, so the missing native piece is
   still the PS2 group/list work-state bridge, not a different first-point
   anchor choice.
+- 2026-06-16 rejected PS2 single-point hair-state native probe:
+  `engine/out/codex_goal_20260616_ps2single_close_ab/` tested a default
+  one-point point-state path derived from the `0x00176fb8` point block:
+  authored/collision-parent rest position, PS2-sized gravity step, length/radius
+  enforcement, and final runtime `Trans` rows for `bone_hair01.mesh`,
+  `bone_bangL.mesh`, and `bone_bangR.mesh`. The full-basis variant produced
+  non-identity weighted hair skin rows, but the close Glam1 frame folded the
+  hair mass across the forehead. `engine/out/codex_goal_20260616_ps2single_posonly_close/`
+  removed the guessed basis reconstruction and kept position-only writes; the
+  close frame still formed the wrong helmet/side-tail shape and the weighted
+  sheet skin rows collapsed back to identity. Keep
+  `GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE=1` diagnostic-only. This route
+  proves that native needs the remaining PS2 matrix construction at
+  `0x00177878..0x001778f4`, not just the point position/length/radius half of
+  the point block.
 
 Glam1 eyes / look-at:
 

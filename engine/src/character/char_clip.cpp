@@ -786,6 +786,22 @@ bool single_point_hair_solver_enabled() {
 #endif
 }
 
+bool ps2_single_point_hair_state_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value =
+      std::getenv("GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE");
+  return value && value[0];
+#endif
+}
+
 bool follow_hair_orientation_state_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -3149,6 +3165,16 @@ static void set_runtime_point_world(RuntimeHairPoint& p,
   p.curr_world[2] = pos.z;
 }
 
+static void set_runtime_point_rest_anchor(RuntimeHairPoint& p, Vec3 rest,
+                                          Vec3 anchor) {
+  p.rest_world[0] = rest.x;
+  p.rest_world[1] = rest.y;
+  p.rest_world[2] = rest.z;
+  p.anchor_world[0] = anchor.x;
+  p.anchor_world[1] = anchor.y;
+  p.anchor_world[2] = anchor.z;
+}
+
 static bool local_chain_position(const Character& character,
                                  const std::string& name,
                                  Vec3& out) {
@@ -3199,6 +3225,24 @@ static bool descriptor_hair_follow_world(const Character& character,
   return true;
 }
 
+static bool authored_hair_point_world(const Character& character,
+                                      const CharHairPoint& point,
+                                      Vec3& out) {
+  std::array<float, 16> parent_world{};
+  if (!transform_local_chain_world(character, point.parent, parent_world)) {
+    return false;
+  }
+  milo_scene::Xfm local{};
+  local.rot[0][0] = 1.0f;
+  local.rot[1][1] = 1.0f;
+  local.rot[2][2] = 1.0f;
+  local.pos[0] = point.pos[0];
+  local.pos[1] = point.pos[1];
+  local.pos[2] = point.pos[2];
+  out = mat_pos(mat4_mul(xfm_to_mat4_local(local), parent_world));
+  return true;
+}
+
 static std::array<float, 16> follow_hair_orientation_state_world(
     const std::array<float, 16>& previous_world,
     const std::array<float, 16>& axis_source_world) {
@@ -3222,6 +3266,19 @@ static std::array<float, 16> follow_hair_orientation_state_world(
   out[8] = row2.x;
   out[9] = row2.y;
   out[10] = row2.z;
+  return out;
+}
+
+static std::array<float, 16> ps2_single_point_hair_world(
+    const std::array<float, 16>& descriptor_world,
+    Vec3 solved,
+    Vec3 anchor) {
+  (void)anchor;
+  std::array<float, 16> out = descriptor_world;
+  out[12] = solved.x;
+  out[13] = solved.y;
+  out[14] = solved.z;
+  out[15] = 1.0f;
   return out;
 }
 
@@ -3344,10 +3401,12 @@ static void apply_char_hair(Character& character, float time_seconds) {
         auto raw_live_world_xfm =
             character.bone_world_local_chain(*target.name);
         auto live_world_xfm = raw_live_world_xfm;
+        std::array<float, 16> descriptor_world{};
+        const bool has_descriptor_world =
+            descriptor_hair_follow_world(character, group, target,
+                                         descriptor_world);
         if (follow_only_group) {
-          std::array<float, 16> descriptor_world{};
-          if (descriptor_hair_follow_world(character, group, target,
-                                           descriptor_world)) {
+          if (has_descriptor_world) {
             live_world_xfm = descriptor_world;
             if (follow_hair_orientation_state_enabled()) {
               live_world_xfm = follow_hair_orientation_state_world(
@@ -3367,6 +3426,88 @@ static void apply_char_hair(Character& character, float time_seconds) {
           set_runtime_point_pos(state, live_world, live_world);
           set_runtime_point_velocity(state, {0.0f, 0.0f, 0.0f},
                                      {0.0f, 0.0f, 0.0f});
+        }
+
+        if (follow_only_group && has_descriptor_world &&
+            ps2_single_point_hair_state_enabled()) {
+          Vec3 rest = live_world;
+          if (!authored_hair_point_world(character, point, rest)) {
+            rest = live_world;
+          }
+          const Vec3 anchor = mat_pos(descriptor_world);
+          const bool state_shape_changed =
+              state.ps2_flags_or_mode != point.flags_or_mode;
+          if (state_shape_changed) {
+            set_runtime_point_pos(state, rest, rest);
+            set_runtime_point_velocity(state, {0.0f, 0.0f, 0.0f},
+                                       {0.0f, 0.0f, 0.0f});
+          }
+          state.ps2_flags_or_mode = point.flags_or_mode;
+          set_runtime_point_rest_anchor(state, rest, anchor);
+
+          Vec3 solved = runtime_point_pos(state);
+          const Vec3 old_curr = solved;
+          const Vec3 old_velocity = runtime_point_velocity(state);
+          if (dt > 0.0f) {
+            Vec3 velocity = old_velocity;
+            const float gravity_step =
+                (hair.globals[3] * -9.8f) / 152.4f;
+            velocity.z += gravity_step;
+            solved = vadd(solved, velocity);
+            solved = blend_vec(solved, rest,
+                               std::clamp(hair.globals[1], 0.0f, 1.0f));
+            const float length =
+                std::max(0.001f, point.length > 0.0f
+                                     ? point.length
+                                     : vlen(vsub(rest, anchor)));
+            Vec3 dir = vsub(solved, anchor);
+            if (vlen(dir) <= 1e-5f) dir = vsub(rest, anchor);
+            dir = vnorm(dir, mat_row(descriptor_world, 0));
+            solved = vadd(anchor, vscale(dir, length));
+            solved = enforce_hair_collision(character, point, solved);
+          } else {
+            const float length =
+                std::max(0.001f, point.length > 0.0f
+                                     ? point.length
+                                     : vlen(vsub(rest, anchor)));
+            Vec3 dir = vsub(rest, anchor);
+            dir = vnorm(dir, mat_row(descriptor_world, 0));
+            solved = vadd(anchor, vscale(dir, length));
+          }
+
+          const auto desired_world =
+              ps2_single_point_hair_world(descriptor_world, solved, anchor);
+          set_runtime_point_world(state, desired_world);
+          const auto parent_world =
+              character.bone_world_local_chain(*target.parent);
+          set_local_from_world(*target.local, desired_world, parent_world);
+          set_runtime_point_pos(state, solved, old_curr);
+          const Vec3 new_velocity =
+              vscale(vsub(solved, old_curr),
+                     std::clamp(hair.globals[0], 0.0f, 1.0f));
+          set_runtime_point_velocity(state, new_velocity, old_velocity);
+          previous_point = solved;
+          first_point = false;
+          if (debug_char_hair_enabled()) {
+            std::fprintf(stderr,
+                         "[charhair-ps2single] %s point=%s root=%s coll=%s "
+                         "rest=(%.3f %.3f %.3f) anchor=(%.3f %.3f %.3f) "
+                         "solved=(%.3f %.3f %.3f) "
+                         "vel=(%.4f %.4f %.4f) "
+                         "r0=(%.4f %.4f %.4f) r1=(%.4f %.4f %.4f) "
+                         "len=%.3f mode=%u dt=%.4f\n",
+                         hair.name.c_str(), point.mesh.c_str(),
+                         group.root_mesh.c_str(), point.parent.c_str(),
+                         rest.x, rest.y, rest.z,
+                         anchor.x, anchor.y, anchor.z,
+                         solved.x, solved.y, solved.z,
+                         new_velocity.x, new_velocity.y, new_velocity.z,
+                         desired_world[0], desired_world[1],
+                         desired_world[2], desired_world[4],
+                         desired_world[5], desired_world[6],
+                         point.length, point.flags_or_mode, dt);
+          }
+          continue;
         }
 
         if (follow_only_group) {
