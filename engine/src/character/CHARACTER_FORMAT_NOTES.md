@@ -17,7 +17,6 @@ rephrased as a shared asset/controller shape. Current debt to retire:
 
 - `metal_singer` material/world branches.
 - `metal_bass` body-material mesh-bind branch.
-- `rock2` `hair-back.mesh` mesh-bind branch.
 - `rockabill1` arm/body/alternate-leg branches.
 
 Do not add new named-character branches. If a fix cannot be explained as a
@@ -150,8 +149,12 @@ Weighted body-space hair:
   real bone palette as weighted skinned geometry instead of routing it through
   the old raw root-parent bypass. Validation:
   `engine/out/codex_goal_20260616_root_hair_generic_validation/`.
-  The Rock2 `hair-back.mesh` mesh-bind path remains a separate mesh-space
-  issue; do not infer it from the character name.
+  The former Rock2 `hair-back.mesh` mesh-bind path is now expressed as a
+  format rule: root-parented weighted hair with bind rows and compact authored
+  bounds near the local origin is mesh-local hair, so it consumes per-mesh bind
+  matrices. The same inventory pass shows other root-parent weighted hair
+  authored in head/body coordinates and leaves those on normal weighted
+  skinning.
 - `metal_bass`: `hair_top.mesh` / `bassist_body.mat`
   - Accepted PS2 trace evidence says the visible cap path is the
     descriptor/object row pair `hair_top.mesh` plus `bone_head.mesh`, not a
@@ -937,9 +940,12 @@ Rock2 hair:
 - `hair-mid.mesh` and `hair-back.mesh` are root-parented hair meshes with
   explicit `bone_head`/`bone_hair*` palettes.
 - `hair-mid.mesh` (`rock2_hair.mat`) works with normal weighted skinning.
-- `hair-back.mesh` (`rock2_hair2.mat`) must use the per-mesh bind matrices
-  before current bone transforms; normal local-chain bind skinning places this
-  back-hair mass under the character.
+- `hair-back.mesh` (`rock2_hair2.mat`) is the current observed compact
+  root-parent hair instance: its authored bbox stays near the local origin,
+  unlike `hair-mid.mesh` and the other root-parent hair pieces whose vertices
+  are authored in head/body coordinates. It therefore falls under the shared
+  mesh-local root-hair predicate and uses per-mesh bind matrices before current
+  bone transforms.
 - `rock2` also has `hair_front.hair` and `hair_back.hair` `CharHair`
   pollables. The common native `CharHair` poller now drives their decoded
   `bone_hair-front`, `bone_R/L-hair*`, `bone_hair01..04`, and

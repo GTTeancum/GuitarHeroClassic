@@ -436,12 +436,24 @@ bool is_metal_bass_mesh_bind_material(const std::string& material) {
   return material == "bassist_body.mat";
 }
 
-bool is_rock2_mesh_bind_hair_piece(const SkinnedMesh& m) {
-  return m.name == "hair-back.mesh" && m.material == "rock2_hair2.mat";
-}
-
 bool is_weighted_root_parent_hair_piece(const SkinnedMesh& m) {
   return is_root_parent_hair_piece(m) && !m.bone_palette.empty();
+}
+
+bool has_compact_authored_bounds_near_origin(const SkinnedMesh& m,
+                                             float limit = 25.0f) {
+  for (int axis = 0; axis < 3; ++axis) {
+    if (std::max(std::fabs(m.bb_min[axis]), std::fabs(m.bb_max[axis])) >
+        limit) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool is_mesh_local_root_hair_piece(const SkinnedMesh& m) {
+  return is_weighted_root_parent_hair_piece(m) && !m.bind.empty() &&
+         has_compact_authored_bounds_near_origin(m);
 }
 
 bool is_rockabill_arm_mesh_piece(const SkinnedMesh& m) {
@@ -1909,7 +1921,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
   std::vector<std::array<float, 16>> skin(nb);
   const bool use_mesh_bind =
       (use_mesh_bind_material_enabled(mesh.material) ||
-       is_rock2_mesh_bind_hair_piece(mesh) ||
+       is_mesh_local_root_hair_piece(mesh) ||
        is_rockabill_mesh_bind_body_piece(mesh) ||
        is_metal_bass_mesh_bind_material(mesh.material) ||
        is_metal_singer_mesh_bind_material(mesh.material)) &&
