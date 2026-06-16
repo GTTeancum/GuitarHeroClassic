@@ -1990,9 +1990,12 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                  nonzero_counts[3], nonzero_counts[4]);
   }
   std::vector<std::array<float, 16>> skin(nb);
-  const bool use_mesh_bind =
-      (use_mesh_bind_material_enabled(mesh.material) ||
-       is_mesh_local_root_hair_piece(mesh) ||
+  const bool use_stored_mesh_bind =
+      use_mesh_bind_material_enabled(mesh.material) &&
+      !is_mesh_local_terminal_lower_leg_piece(mesh) &&
+      mesh.bind.size() >= nb;
+  const bool use_mesh_local_bind =
+      (is_mesh_local_root_hair_piece(mesh) ||
        is_mesh_local_bind_space_piece(mesh)) &&
       !is_mesh_local_terminal_lower_leg_piece(mesh) &&
       mesh.bind.size() >= nb;
@@ -2013,7 +2016,9 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
     skin_mode = local_hair_matrix_mode.empty()
                     ? "local-attachment"
                     : local_hair_matrix_mode.c_str();
-  } else if (use_mesh_bind) {
+  } else if (use_mesh_local_bind) {
+    skin_mode = "mesh-local-bind";
+  } else if (use_stored_mesh_bind) {
     skin_mode = "mesh-bind";
   } else if (use_mesh_bind_inverse) {
     skin_mode = "mesh-bind-inverse";
@@ -2114,8 +2119,10 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                        xfm16(mesh.bind[i]));
         log_matrix_row("skin", mesh.name, mesh.bone_palette[i], skin[i]);
       }
-    } else if (use_mesh_bind && i < mesh.bind.size()) {
-      if (use_mesh_bind) curr_world = character.bone_world(mesh.bone_palette[i]);
+    } else if ((use_mesh_local_bind || use_stored_mesh_bind) &&
+               i < mesh.bind.size()) {
+      if (use_stored_mesh_bind)
+        curr_world = character.bone_world(mesh.bone_palette[i]);
       skin[i] = mul16(xfm16(mesh.bind[i]), curr_world);
     } else if (use_mesh_bind_inverse && i < mesh.bind.size()) {
       skin[i] = mul16(affine_inverse(xfm16(mesh.bind[i])), curr_world);

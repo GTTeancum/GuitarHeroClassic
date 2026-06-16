@@ -125,6 +125,25 @@ space before the bone bind/current delta:
 
 `vertex * mesh_bind_local_chain * inverse(bone_bind_local_chain) * bone_current_local_chain`
 
+The current row in that equation must stay in the same local-chain basis as the
+decoded `mesh_bind_local_chain` row. A 2026-06-16 renderer audit split the old
+combined mesh-bind branch into two shared format routes:
+
+- `mesh-local-bind`: meshes selected by decoded local-chain bind evidence use
+  local-chain current rows. Rock2 face/eye/hair-card shards and Glam1
+  local-chain hair records all fall in this class.
+- `mesh-bind`: meshes selected by stored mesh/material bind behavior keep using
+  the stored/corrected world current row.
+
+The old combined branch silently fed stored-world current rows into
+`mesh-local-bind` records. Validation in
+`engine/out/codex_goal_20260616_mesh_local_bind_current_basis/` shows the Rock2
+face/eye explosion in `Woman` is greatly reduced when the current row basis
+matches the decoded bind-space class, while the Glam1 `Shout At The Devil`
+cross-check does not regress. This is a basis-class rule only; remaining hair
+card issues still belong to the shared controller/skinning path, not to
+outfit-specific offsets.
+
 Terminal lower-leg pieces can also be authored in mesh-local space. The runtime
 detects these by format shape instead of outfit name:
 
