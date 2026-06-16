@@ -43,6 +43,10 @@ Open work:
   render-camera eye/aim/up.
 - Empty-target regular shots still use authored world-space pose/basis only.
   Do not invent targets for them without object-layout or runtime trace proof.
+- Theatre `flr_near_lft03x1` is the concrete guard case for that rule: the PS2
+  `CamShot` body has normal `flr_near_lft` metadata and decoded camera poses,
+  but no performer/source target string. Native must keep it as an
+  authored-world/aim-only shot, not skip it and not invent `guitarist0`.
 
 ## Performer Role Routing
 

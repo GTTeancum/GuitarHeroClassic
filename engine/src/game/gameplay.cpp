@@ -2902,14 +2902,6 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.target_subpart = c.key.target_subpart;
                 c.key.positions.push_back(std::move(pos));
             }
-            if (c.shot.rfind("flr_near_", 0) == 0 &&
-                c.key.target_entity.empty()) {
-                std::fprintf(
-                    stderr,
-                    "[world] regular CamShot skip unresolved target: %s\n",
-                    c.shot.c_str());
-                continue;
-            }
             c.off = pose_off;
             if (policy.intro_facing == "left") {
                 if (c.facing == "right") c.score += 4;
