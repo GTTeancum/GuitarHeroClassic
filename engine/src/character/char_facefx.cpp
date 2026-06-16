@@ -9,10 +9,12 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <limits>
+#include <unordered_set>
 
 namespace ghogx::character {
 
@@ -166,57 +168,39 @@ int find_bone(const Character& character, const std::string& fac_name) {
   return -1;
 }
 
-void skip_graph_base(FacReader& r) {
+bool supported_fac_version(uint32_t version) {
+  return version == 1200 || version == 1500;
+}
+
+FaceFxGraphNode read_graph_base(FacReader& r, std::string node_name,
+                                std::string class_name) {
+  FaceFxGraphNode node;
+  node.name = std::move(node_name);
+  node.class_name = std::move(class_name);
   (void)r.u16();  // graph version
-  (void)r.f32();  // min
-  (void)r.f32();  // max
-  (void)r.f32();  // default
+  node.min_value = r.f32();
+  node.max_value = r.f32();
+  node.default_value = r.f32();
   (void)r.u16();
   const uint32_t input_count = r.u32();
   (void)r.u32();
   if (input_count > 0) (void)r.u16();
+  node.inputs.reserve(input_count);
   for (uint32_t i = 0; i < input_count; ++i) {
-    (void)r.fx_string();  // input node name
+    FaceFxGraphInput input;
+    input.node = r.fx_string();
     (void)r.u16();
-    (void)r.fx_string();  // link function name
+    input.link_function = r.fx_string();
     (void)r.u32();
     (void)r.u32();
-    (void)r.f32();
+    input.weight = r.f32();
     (void)r.f32();
     (void)r.i32();
     (void)r.u32();
     (void)r.u16();
+    node.inputs.push_back(std::move(input));
   }
-}
-
-FaceFxPose read_bone_pose_node(FacReader& r, std::string node_name) {
-  skip_graph_base(r);
-  (void)r.u32();
-  (void)r.u16();
-  const uint32_t bone_count = r.u32();
-  (void)r.u32();
-  (void)r.u16();
-  FaceFxPose pose;
-  pose.name = std::move(node_name);
-  pose.bones.reserve(bone_count);
-  for (uint32_t i = 0; i < bone_count; ++i) {
-    FaceFxPoseBone b;
-    b.name = r.fx_string();
-    b.pos[0] = r.f32();
-    b.pos[1] = r.f32();
-    b.pos[2] = r.f32();
-    (void)r.u16();
-    for (float& q : b.quat_wxyz) q = r.f32();
-    (void)r.f32();
-    (void)r.f32();
-    (void)r.f32();
-    pose.bones.push_back(std::move(b));
-    if (i + 1 < bone_count) {
-      (void)r.u16();
-      (void)r.u32();
-    }
-  }
-  return pose;
+  return node;
 }
 
 uint16_t read_u16_at(const std::vector<uint8_t>& bytes, size_t pos) {
@@ -246,7 +230,8 @@ size_t find_next_fac_record(const std::vector<uint8_t>& bytes, size_t from) {
       if (!bytes_match(bytes, pos, cls)) continue;
       if (pos < 10) continue;
       const size_t string_header = pos - 6;
-      if (read_u16_at(bytes, string_header) != 1) continue;
+      const uint16_t string_flag = read_u16_at(bytes, string_header);
+      if (string_flag != 0 && string_flag != 1) continue;
       if (read_u32_at(bytes, string_header + 2) != cls.size()) continue;
       best = std::min(best, pos - 10);
     }
@@ -305,7 +290,7 @@ std::optional<FaceFxPose> parse_pose(const std::vector<uint8_t>& bytes,
     return std::nullopt;
   FacReader r{bytes.data(), bytes.size(), 4};
   const uint32_t version = r.u32();
-  if (version != 1500) return std::nullopt;
+  if (!supported_fac_version(version)) return std::nullopt;
   (void)r.fx_string();  // creator
   (void)r.fx_string();  // license/comment
   (void)r.u32();
@@ -345,7 +330,7 @@ std::optional<std::size_t> parse_pose_index(const std::vector<uint8_t>& bytes,
     return std::nullopt;
   FacReader r{bytes.data(), bytes.size(), 4};
   const uint32_t version = r.u32();
-  if (version != 1500) return std::nullopt;
+  if (!supported_fac_version(version)) return std::nullopt;
   (void)r.fx_string();
   (void)r.fx_string();
   (void)r.u32();
@@ -371,6 +356,115 @@ std::optional<std::size_t> parse_pose_index(const std::vector<uint8_t>& bytes,
     r.pos = next_record;
   }
   return std::nullopt;
+}
+
+std::optional<FaceFxGraph> parse_graph(const std::vector<uint8_t>& bytes) {
+  if (bytes.size() < 16 || std::memcmp(bytes.data(), "FACE", 4) != 0)
+    return std::nullopt;
+  FacReader r{bytes.data(), bytes.size(), 4};
+  const uint32_t version = r.u32();
+  if (!supported_fac_version(version)) return std::nullopt;
+  (void)r.fx_string();
+  (void)r.fx_string();
+  (void)r.u32();
+  (void)r.u32();
+  (void)r.u16();
+  const uint32_t node_count = r.u16();
+  (void)r.u16();
+
+  FaceFxGraph graph;
+  graph.nodes.reserve(node_count);
+  for (uint32_t i = 0; i < node_count && r.pos < r.n; ++i) {
+    (void)r.u32();
+    std::string class_name = r.fx_string();
+    (void)r.u32();
+    (void)r.u32();
+    (void)r.u16();
+    std::string node_name = r.fx_string();
+    const size_t body_start = r.pos;
+    const size_t next_record = find_next_fac_record(bytes, r.pos);
+    const size_t record_end =
+        next_record == std::numeric_limits<size_t>::max() ? bytes.size()
+                                                          : next_record;
+    if (class_name != "FxBonePoseNode" &&
+        class_name != "FxCombinerNodeP" &&
+        class_name != "FxCombinerNode") {
+      return std::nullopt;
+    }
+
+    FacReader graph_reader{bytes.data(), record_end, body_start};
+    FaceFxGraphNode node =
+        read_graph_base(graph_reader, node_name, class_name);
+    if (class_name == "FxBonePoseNode") {
+      if (auto pose =
+              read_pose_bone_table(bytes, body_start, record_end, node_name)) {
+        node.pose_index = graph.poses.size();
+        graph.poses.push_back(std::move(*pose));
+      }
+    }
+    graph.nodes.push_back(std::move(node));
+    if (next_record == std::numeric_limits<size_t>::max()) break;
+    r.pos = next_record;
+  }
+  return graph;
+}
+
+std::optional<FaceFxAnimation> parse_animation(
+    const std::vector<uint8_t>& bytes) {
+  if (bytes.size() < 64 || std::memcmp(bytes.data(), "FACE", 4) != 0)
+    return std::nullopt;
+  FacReader r{bytes.data(), bytes.size(), 4};
+  const uint32_t version = r.u32();
+  if (version != 1500) return std::nullopt;
+  (void)r.fx_string();  // creator
+  (void)r.fx_string();  // license/comment
+  (void)r.u32();        // observed 1000
+  (void)r.u32();        // observed 0
+  (void)r.u16();        // observed 0
+
+  FaceFxAnimation animation;
+  animation.name = r.fx_string();
+
+  (void)r.u16();  // observed 3 for GH2 .voc archives.
+  const uint32_t total_size = r.u32();
+  (void)r.u16();
+  const uint32_t curve_count = r.u32();
+  (void)r.u32();
+  (void)r.u16();
+  if (curve_count > 256 || total_size > bytes.size() + 16)
+    return std::nullopt;
+
+  animation.curves.reserve(curve_count);
+  for (uint32_t curve_index = 0; curve_index < curve_count && r.pos < r.n;
+       ++curve_index) {
+    FaceFxCurve curve;
+    curve.name = r.fx_string();
+    (void)r.u32();
+    (void)r.u32();
+    const uint32_t key_count = r.u32();
+    if (key_count > (r.n - r.pos) / 18) return std::nullopt;
+    curve.keys.reserve(key_count);
+    for (uint32_t key_index = 0; key_index < key_count; ++key_index) {
+      (void)r.u16();
+      FaceFxCurveKey key;
+      key.time = r.f32();
+      key.value = r.f32();
+      (void)r.f32();
+      (void)r.u32();
+      if (std::isfinite(key.time) && std::isfinite(key.value))
+        curve.keys.push_back(key);
+    }
+    if (curve_index + 1 < curve_count) {
+      r.skip(6);
+    }
+    std::sort(curve.keys.begin(), curve.keys.end(),
+              [](const FaceFxCurveKey& a, const FaceFxCurveKey& b) {
+                return a.time < b.time;
+              });
+    animation.curves.push_back(std::move(curve));
+  }
+  if (animation.curves.empty()) return std::nullopt;
+  return animation;
 }
 
 }  // namespace
@@ -420,6 +514,177 @@ std::optional<std::size_t> load_facefx_pose_index(
                  pose_name.c_str(), ex.what());
   }
   return std::nullopt;
+}
+
+std::optional<FaceFxGraph> load_facefx_graph(const std::string& hdr_path,
+                                             const std::string& ark_path,
+                                             const std::string& character_milo,
+                                             const Character& character) {
+  try {
+    gh::ark::ArkV3Reader ark = gh::ark::ArkV3Reader::load(hdr_path);
+    for (const auto& servo : character.lip_sync_servos) {
+      if (servo.facefx_path.empty()) continue;
+      const std::string fac_path =
+          resolve_relative(character_milo, servo.facefx_path);
+      auto entry = find_entry(ark, fac_path);
+      if (!entry) continue;
+      std::vector<uint8_t> bytes = ark.read_entry(*entry, {ark_path});
+      auto graph = parse_graph(bytes);
+      if (graph) {
+        std::fprintf(stderr, "[facefx] graph %s: %zu nodes, %zu poses\n",
+                     fac_path.c_str(), graph->nodes.size(),
+                     graph->poses.size());
+        return graph;
+      }
+    }
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[facefx] load graph: %s\n", ex.what());
+  }
+  return std::nullopt;
+}
+
+std::optional<FaceFxAnimation> load_facefx_animation(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& voc_path) {
+  try {
+    gh::ark::ArkV3Reader ark = gh::ark::ArkV3Reader::load(hdr_path);
+    auto entry = find_entry(ark, voc_path);
+    if (!entry) {
+      std::fprintf(stderr, "[facefx] animation not in ARK: %s\n",
+                   voc_path.c_str());
+      return std::nullopt;
+    }
+    std::vector<uint8_t> bytes = ark.read_entry(*entry, {ark_path});
+    auto animation = parse_animation(bytes);
+    if (animation) {
+      std::fprintf(stderr, "[facefx] animation %s: '%s' %zu curves\n",
+                   voc_path.c_str(), animation->name.c_str(),
+                   animation->curves.size());
+    } else {
+      std::fprintf(stderr, "[facefx] animation parse failed: %s size=%zu\n",
+                   voc_path.c_str(), bytes.size());
+    }
+    return animation;
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[facefx] load animation %s: %s\n", voc_path.c_str(),
+                 ex.what());
+  }
+  return std::nullopt;
+}
+
+float evaluate_facefx_node(
+    const FaceFxGraph& graph, const std::string& node_name,
+    const std::unordered_map<std::string, float>& registers) {
+  std::unordered_set<std::string> visiting;
+  std::function<float(const std::string&)> eval =
+      [&](const std::string& name) -> float {
+    auto reg_it = registers.find(name);
+    const FaceFxGraphNode* node = nullptr;
+    for (const auto& cand : graph.nodes) {
+      if (cand.name == name) {
+        node = &cand;
+        break;
+      }
+    }
+    if (!node) return reg_it == registers.end() ? 0.0f : reg_it->second;
+    if (reg_it != registers.end() && node->inputs.empty()) {
+      return std::clamp(reg_it->second, node->min_value, node->max_value);
+    }
+    if (!visiting.insert(name).second) return node->default_value;
+    float value = node->default_value;
+    for (const auto& input : node->inputs) {
+      value += eval(input.node) * input.weight;
+    }
+    visiting.erase(name);
+    return std::clamp(value, node->min_value, node->max_value);
+  };
+  return eval(node_name);
+}
+
+std::unordered_map<std::string, float> sample_facefx_animation(
+    const FaceFxAnimation& animation, float time) {
+  std::unordered_map<std::string, float> registers;
+  for (const auto& curve : animation.curves) {
+    if (curve.name.empty() || curve.keys.empty()) continue;
+    float value = curve.keys.front().value;
+    if (time <= curve.keys.front().time) {
+      value = curve.keys.front().value;
+    } else if (time >= curve.keys.back().time) {
+      value = curve.keys.back().value;
+    } else {
+      auto upper = std::upper_bound(
+          curve.keys.begin(), curve.keys.end(), time,
+          [](float t, const FaceFxCurveKey& key) { return t < key.time; });
+      if (upper == curve.keys.begin()) {
+        value = upper->value;
+      } else if (upper == curve.keys.end()) {
+        value = curve.keys.back().value;
+      } else {
+        const FaceFxCurveKey& b = *upper;
+        const FaceFxCurveKey& a = *(upper - 1);
+        const float span = b.time - a.time;
+        const float frac =
+            span > 1e-6f ? std::clamp((time - a.time) / span, 0.0f, 1.0f)
+                         : 0.0f;
+        value = a.value + (b.value - a.value) * frac;
+      }
+    }
+    registers[curve.name] = value;
+  }
+  return registers;
+}
+
+bool apply_facefx_animation_frame(
+    const FaceFxGraph& graph,
+    const std::unordered_map<std::string, float>& registers,
+    Character& character) {
+  const FaceFxPose* base = nullptr;
+  for (const auto& node : graph.nodes) {
+    if (!node.pose_index || *node.pose_index >= graph.poses.size()) continue;
+    const FaceFxPose& pose = graph.poses[*node.pose_index];
+    if (node.name == "Neutral" || pose.name == "Neutral") {
+      base = &pose;
+      break;
+    }
+  }
+  if (!base) return false;
+
+  bool applied = false;
+  for (const auto& node : graph.nodes) {
+    if (!node.pose_index || *node.pose_index >= graph.poses.size()) continue;
+    const FaceFxPose& pose = graph.poses[*node.pose_index];
+    if (node.name == "Neutral" || pose.name == "Neutral") continue;
+    const float weight =
+        evaluate_facefx_node(graph, node.name, registers);
+    if (weight <= 1e-5f) continue;
+    apply_facefx_pose_delta(*base, pose, weight, character);
+    applied = true;
+  }
+  return applied;
+}
+
+bool apply_facefx_pose_node_delta(
+    const FaceFxGraph& graph, const std::string& base_pose_name,
+    const std::string& pose_node_name,
+    const std::unordered_map<std::string, float>& registers,
+    Character& character) {
+  const FaceFxPose* base = nullptr;
+  const FaceFxPose* pose = nullptr;
+  for (const auto& node : graph.nodes) {
+    if (node.pose_index &&
+        *node.pose_index < graph.poses.size()) {
+      const FaceFxPose& cand = graph.poses[*node.pose_index];
+      if (node.name == base_pose_name || cand.name == base_pose_name)
+        base = &cand;
+      if (node.name == pose_node_name || cand.name == pose_node_name)
+        pose = &cand;
+    }
+  }
+  if (!base || !pose) return false;
+  const float weight = evaluate_facefx_node(graph, pose_node_name, registers);
+  if (weight <= 1e-5f) return false;
+  apply_facefx_pose_delta(*base, *pose, weight, character);
+  return true;
 }
 
 void apply_facefx_pose(const FaceFxPose& pose, float weight,

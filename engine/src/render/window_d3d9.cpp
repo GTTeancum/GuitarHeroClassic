@@ -146,14 +146,42 @@ std::unique_ptr<Window> Window::create(int width, int height, const char* title)
   pp.EnableAutoDepthStencil = TRUE;     // depth buffer for 3-D rendering
   pp.AutoDepthStencilFormat = D3DFMT_D24S8;
 
-  HRESULT hr = impl->d3d->CreateDevice(
-      D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, impl->hwnd,
-      D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &impl->dev);
+  const char* device_path = "HAL hardware VP D24S8 vsync";
+  auto try_create_device = [&](D3DDEVTYPE device_type, DWORD flags,
+                               D3DFORMAT depth_format, UINT interval,
+                               const char* label) {
+    pp.AutoDepthStencilFormat = depth_format;
+    pp.PresentationInterval = interval;
+    HRESULT attempt = impl->d3d->CreateDevice(D3DADAPTER_DEFAULT, device_type,
+                                              impl->hwnd, flags, &pp,
+                                              &impl->dev);
+    if (SUCCEEDED(attempt)) device_path = label;
+    return attempt;
+  };
+
+  HRESULT hr = try_create_device(D3DDEVTYPE_HAL,
+                                 D3DCREATE_HARDWARE_VERTEXPROCESSING,
+                                 D3DFMT_D24S8, D3DPRESENT_INTERVAL_ONE,
+                                 device_path);
   if (FAILED(hr)) {
     // Retry with software vertex processing (some adapters / headless setups).
-    hr = impl->d3d->CreateDevice(
-        D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, impl->hwnd,
-        D3DCREATE_SOFTWARE_VERTEXPROCESSING, &pp, &impl->dev);
+    hr = try_create_device(D3DDEVTYPE_HAL, D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                           D3DFMT_D24S8, D3DPRESENT_INTERVAL_ONE,
+                           "HAL software VP D24S8 vsync");
+  }
+  if (FAILED(hr)) {
+    // Hidden validation windows on some drivers reject D24S8/vsync paths even
+    // though the app only needs a depth buffer for screenshots.
+    hr = try_create_device(D3DDEVTYPE_HAL, D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                           D3DFMT_D16, D3DPRESENT_INTERVAL_IMMEDIATE,
+                           "HAL software VP D16 immediate");
+  }
+  if (FAILED(hr)) {
+    // Last-resort desktop validation path. It is slow if available, but keeps
+    // trace/screenshot runs independent of a foreground emulator or app window.
+    hr = try_create_device(D3DDEVTYPE_REF, D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                           D3DFMT_D16, D3DPRESENT_INTERVAL_IMMEDIATE,
+                           "REF software VP D16 immediate");
   }
   if (FAILED(hr)) {
     std::fprintf(stderr, "[ghogx] CreateDevice failed (hr=0x%08lX)\n",
@@ -163,8 +191,8 @@ std::unique_ptr<Window> Window::create(int width, int height, const char* title)
 
   impl->bb_w = width;
   impl->bb_h = height;
-  std::fprintf(stderr, "[ghogx] D3D9 window %dx%d created%s\n", width, height,
-               hide_window ? " (hidden)" : "");
+  std::fprintf(stderr, "[ghogx] D3D9 window %dx%d created%s via %s\n", width,
+               height, hide_window ? " (hidden)" : "", device_path);
   return win;
 }
 

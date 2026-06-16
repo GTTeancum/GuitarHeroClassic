@@ -192,6 +192,8 @@ struct RuntimeHairPoint {
   std::string mesh;
   float curr_world[3] = {0, 0, 0};
   float prev_world[3] = {0, 0, 0};
+  float velocity_world[3] = {0, 0, 0};
+  float prev_velocity_world[3] = {0, 0, 0};
   std::array<float, 16> world =
       {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 };

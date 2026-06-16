@@ -469,21 +469,57 @@ FaceFxLipSyncServo decode_lip_sync_servo(const std::string& entry_name,
   servo.name = entry_name;
   (void)r.i32();      // version 5 in GH2
   (void)r.i32();
-  (void)r.str();      // GH2 servo tag, normally "gh2".
-  while ((r.pos & 3u) != 0u && r.pos < r.n) r.skip(1);
-  (void)r.i32();
-  (void)r.f32();
-  (void)r.str();      // object/self name, usually "lip.servo"
-  servo.facefx_path = r.str();
-  servo.viseme_milo = r.str();
-  uint32_t count = r.u32();
-  for (uint32_t i = 0; i < count && r.pos < r.n; ++i) {
-    FaceFxServoTarget t;
-    t.object = r.str();
-    t.prop_type = r.i32();
-    t.property = r.str();
-    servo.targets.push_back(std::move(t));
+  (void)r.str();      // GH2 servo tag: "gh2" for guitarists, "singer" for vocalists.
+
+  // PS2 FaceFxLipSyncServo stores a single NUL terminator after the tag string,
+  // then the Weightable block. The old decoder aligned to 4 bytes, which only
+  // worked for the 3-byte "gh2" tag by accident and broke 6-byte "singer".
+  // Probe the few possible post-tag starts and keep the one whose following
+  // fields match the traced servo layout.
+  std::string best_facefx;
+  std::string best_viseme;
+  std::vector<FaceFxServoTarget> best_targets;
+  bool decoded = false;
+  const size_t tag_end = r.pos;
+  for (size_t start = tag_end; start <= tag_end + 4 && start < r.n; ++start) {
+    try {
+      Reader q = r;
+      q.pos = start;
+      const uint32_t weight_version = q.u32();
+      const float weight = q.f32();
+      const std::string self_name = q.str();
+      const std::string facefx_path = q.str();
+      const std::string viseme_milo = q.str();
+      const uint32_t count = q.u32();
+      if (weight_version != 2 || !std::isfinite(weight) ||
+          self_name != entry_name || facefx_path.find(".fac") == std::string::npos ||
+          viseme_milo.find(".milo") == std::string::npos || count > 64) {
+        continue;
+      }
+      std::vector<FaceFxServoTarget> targets;
+      for (uint32_t i = 0; i < count && q.pos < q.n; ++i) {
+        FaceFxServoTarget t;
+        t.object = q.str();
+        t.prop_type = q.i32();
+        t.property = q.str();
+        targets.push_back(std::move(t));
+      }
+      if (targets.size() != count) continue;
+      if (q.pos != q.n) continue;
+      best_facefx = facefx_path;
+      best_viseme = viseme_milo;
+      best_targets = std::move(targets);
+      decoded = true;
+      break;
+    } catch (const std::exception&) {
+      continue;
+    }
   }
+  if (!decoded)
+    throw std::runtime_error("char_mesh: FaceFxLipSyncServo layout not recognized");
+  servo.facefx_path = std::move(best_facefx);
+  servo.viseme_milo = std::move(best_viseme);
+  servo.targets = std::move(best_targets);
   return servo;
 }
 

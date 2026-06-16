@@ -315,3 +315,32 @@ Rejected native probe:
 - The change was reverted because it was not a clear visual improvement and did
   not prove the PS2 feed semantics. Do not reapply that shortcut without
   stronger mapping from `0x00175678`.
+
+2026-06-15 resume validation:
+
+- `engine/out/codex_resume_20260615/yyz_default_camera_recheck/yyz_default_f900.bmp`
+  and `.log` recheck the default native YYZ route without the debug gameplay
+  camera override. The log shows `funk1`, `metal_bass`, `metal_drummer`, and
+  `metal_keyboard` loading, `BAND KEYS` entering `[play]`, `chorus_okay.pst`
+  becoming active, drummer kick cues firing, and the regular camera sequence
+  starting after the six-bar intro (`flr_far_lft02`, `post_switch_cam`, then
+  later regular sweeps). Treat screenshots captured with
+  `GHOGX_DEBUG_GAMEPLAY_CAMERA=1` as character-inspection evidence only; that
+  env var intentionally replaces the authored camera and must not be used to
+  judge camera parity.
+- `engine/out/codex_resume_20260615/shout_default_band_recheck/shout_default_f1300.bmp`
+  and `.log` recheck a singer-song route with default camera/lighting. The log
+  shows `glam1`, `metal_singer`, `metal_bass`, and `metal_drummer` loading,
+  singer/bass/drum MIDI state changes, lighting preset/keyframe changes,
+  regular camera sweeps, `post_switch_cam`, and drum cues. The captured frame is
+  a coherent native arena stage shot, but it is too wide to close detailed
+  character fidelity.
+- `engine/out/codex_resume_20260615/crazyonyou_female_singer_recheck/crazyonyou_f900.bmp`
+  and `.log` recheck the female-singer route in the fest venue. The quickplay
+  rig resolves `alterna1`, `metal_bass`, `metal_drummer`, and
+  `female_singer`; the singer loads as role `singer`, uses
+  `singer_active_medium_01`, and renders in the native venue alongside the
+  guitarist, bassist, drummer, props, lighting presets/keyframes, and regular
+  camera/post-switch events. The generic clip loader still logs failed fallback
+  MILO path attempts before the generated PS2 path succeeds; treat that as log
+  noise unless it blocks trace readability or hides a missing accepted clip.

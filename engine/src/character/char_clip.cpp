@@ -786,6 +786,51 @@ bool single_point_hair_solver_enabled() {
 #endif
 }
 
+bool follow_hair_orientation_state_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_ENABLE_HAIR_FOLLOW_ORIENTATION_STATE") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_ENABLE_HAIR_FOLLOW_ORIENTATION_STATE");
+  return value && value[0];
+#endif
+}
+
+bool hair_follow_trans_write_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_ENABLE_HAIR_FOLLOW_TRANS_WRITE") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_ENABLE_HAIR_FOLLOW_TRANS_WRITE");
+  return value && value[0];
+#endif
+}
+
+bool hair_follow_current_axis_state_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_ENABLE_HAIR_FOLLOW_CURRENT_AXIS_STATE") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_ENABLE_HAIR_FOLLOW_CURRENT_AXIS_STATE");
+  return value && value[0];
+#endif
+}
+
 void log_character_controller_graph_once(const Character& character) {
   if (!controller_audit_enabled()) return;
   static std::unordered_set<std::string> logged;
@@ -875,12 +920,24 @@ void log_character_controller_graph_once(const Character& character) {
     for (const auto& group : hair.groups) {
       std::fprintf(stderr,
                    "[chargraph]     hairGroup root=%s rootOffset=%.3f "
-                   "points=%zu rows=[%.3f %.3f %.3f | %.3f %.3f %.3f]\n",
+                   "points=%zu rows=[%.3f %.3f %.3f | %.3f %.3f %.3f] "
+                   "all=[%.3f %.3f %.3f %.3f %.3f %.3f "
+                   "%.3f %.3f %.3f %.3f %.3f %.3f "
+                   "%.3f %.3f %.3f %.3f %.3f %.3f]\n",
                    group.root_mesh.c_str(), group.root_offset,
                    group.points.size(), group.limits_or_mats[0],
                    group.limits_or_mats[1], group.limits_or_mats[2],
                    group.limits_or_mats[9], group.limits_or_mats[10],
-                   group.limits_or_mats[11]);
+                   group.limits_or_mats[11], group.limits_or_mats[0],
+                   group.limits_or_mats[1], group.limits_or_mats[2],
+                   group.limits_or_mats[3], group.limits_or_mats[4],
+                   group.limits_or_mats[5], group.limits_or_mats[6],
+                   group.limits_or_mats[7], group.limits_or_mats[8],
+                   group.limits_or_mats[9], group.limits_or_mats[10],
+                   group.limits_or_mats[11], group.limits_or_mats[12],
+                   group.limits_or_mats[13], group.limits_or_mats[14],
+                   group.limits_or_mats[15], group.limits_or_mats[16],
+                   group.limits_or_mats[17]);
       for (const auto& point : group.points) {
         std::fprintf(stderr,
                      "[chargraph]       hairPoint mesh=%s parent=%s "
@@ -2167,7 +2224,6 @@ static void apply_ps2_ik_hand_targets(
     const milo_scene::Xfm upper_local0 = upper.local;
     const milo_scene::Xfm fore_local0 = fore.local;
     const auto upper_world0 = character.bone_world_local_chain(upper.name);
-    const auto fore_world0 = character.bone_world_local_chain(fore.name);
     const auto hand_world = character.bone_world_local_chain(hand.name);
     const Vec3 shoulder = mat_pos(upper_world0);
     const Vec3 target = mat_pos(target_world);
@@ -3060,8 +3116,18 @@ static Vec3 runtime_point_pos(const RuntimeHairPoint& p) {
   return {p.curr_world[0], p.curr_world[1], p.curr_world[2]};
 }
 
-static Vec3 runtime_point_prev(const RuntimeHairPoint& p) {
-  return {p.prev_world[0], p.prev_world[1], p.prev_world[2]};
+static Vec3 runtime_point_velocity(const RuntimeHairPoint& p) {
+  return {p.velocity_world[0], p.velocity_world[1], p.velocity_world[2]};
+}
+
+static void set_runtime_point_velocity(RuntimeHairPoint& p, Vec3 velocity,
+                                       Vec3 previous_velocity) {
+  p.velocity_world[0] = velocity.x;
+  p.velocity_world[1] = velocity.y;
+  p.velocity_world[2] = velocity.z;
+  p.prev_velocity_world[0] = previous_velocity.x;
+  p.prev_velocity_world[1] = previous_velocity.y;
+  p.prev_velocity_world[2] = previous_velocity.z;
 }
 
 static void set_runtime_point_pos(RuntimeHairPoint& p, Vec3 curr, Vec3 prev) {
@@ -3133,6 +3199,32 @@ static bool descriptor_hair_follow_world(const Character& character,
   return true;
 }
 
+static std::array<float, 16> follow_hair_orientation_state_world(
+    const std::array<float, 16>& previous_world,
+    const std::array<float, 16>& axis_source_world) {
+  const Vec3 axis = vnorm(mat_row(axis_source_world, 1), {0.0f, 0.0f, -1.0f});
+  Vec3 row0 = mat_row(previous_world, 0);
+  row0 = vsub(row0, vscale(axis, vdot(row0, axis)));
+  if (vlen(row0) <= 1e-5f) {
+    row0 = mat_row(axis_source_world, 0);
+    row0 = vsub(row0, vscale(axis, vdot(row0, axis)));
+  }
+  row0 = vnorm(row0, {1.0f, 0.0f, 0.0f});
+  const Vec3 row2 = vnorm(vcross(row0, axis), {0.0f, 1.0f, 0.0f});
+
+  std::array<float, 16> out = axis_source_world;
+  out[0] = row0.x;
+  out[1] = row0.y;
+  out[2] = row0.z;
+  out[4] = axis.x;
+  out[5] = axis.y;
+  out[6] = axis.z;
+  out[8] = row2.x;
+  out[9] = row2.y;
+  out[10] = row2.z;
+  return out;
+}
+
 static bool hair_anchor_position(const Character& character,
                                  const CharHairGroup& group,
                                  const CharHairPoint& point,
@@ -3144,7 +3236,7 @@ static bool hair_anchor_position(const Character& character,
     out = previous_point;
     return true;
   }
-  if (!group.root_mesh.empty() && group.root_mesh != point.mesh &&
+  if (!group.root_mesh.empty() &&
       local_chain_position(character, group.root_mesh, out)) {
     return true;
   }
@@ -3249,13 +3341,23 @@ static void apply_char_hair(Character& character, float time_seconds) {
           continue;
         }
 
-        auto live_world_xfm =
+        auto raw_live_world_xfm =
             character.bone_world_local_chain(*target.name);
+        auto live_world_xfm = raw_live_world_xfm;
         if (follow_only_group) {
           std::array<float, 16> descriptor_world{};
           if (descriptor_hair_follow_world(character, group, target,
                                            descriptor_world)) {
             live_world_xfm = descriptor_world;
+            if (follow_hair_orientation_state_enabled()) {
+              live_world_xfm = follow_hair_orientation_state_world(
+                  state.has_world ? state.world : raw_live_world_xfm,
+                  descriptor_world);
+            } else if (hair_follow_current_axis_state_enabled()) {
+              live_world_xfm = follow_hair_orientation_state_world(
+                  state.has_world ? state.world : raw_live_world_xfm,
+                  raw_live_world_xfm);
+            }
           }
         }
         const Vec3 live_world = mat_pos(live_world_xfm);
@@ -3263,10 +3365,17 @@ static void apply_char_hair(Character& character, float time_seconds) {
           state.initialized = true;
           state.mesh = point.mesh;
           set_runtime_point_pos(state, live_world, live_world);
+          set_runtime_point_velocity(state, {0.0f, 0.0f, 0.0f},
+                                     {0.0f, 0.0f, 0.0f});
         }
 
         if (follow_only_group) {
           set_runtime_point_world(state, live_world_xfm);
+          if (hair_follow_trans_write_enabled()) {
+            const auto parent_world =
+                character.bone_world_local_chain(*target.parent);
+            set_local_from_world(*target.local, live_world_xfm, parent_world);
+          }
           previous_point = live_world;
           first_point = false;
           if (debug_char_hair_enabled()) {
@@ -3291,12 +3400,12 @@ static void apply_char_hair(Character& character, float time_seconds) {
         }
 
         Vec3 solved = live_world;
+        const Vec3 old_curr = runtime_point_pos(state);
+        const Vec3 old_velocity = runtime_point_velocity(state);
         if (dt > 0.0f) {
-          const Vec3 curr = runtime_point_pos(state);
-          const Vec3 prev = runtime_point_prev(state);
           const float damping =
               std::clamp(inertia * (1.0f - friction), 0.0f, 0.98f);
-          Vec3 predicted = vadd(curr, vscale(vsub(curr, prev), damping));
+          Vec3 predicted = vadd(old_curr, vscale(old_velocity, damping));
           predicted.z -= 980.0f * gravity * dt * dt;
           predicted = blend_vec(predicted, live_world, stiffness);
 
@@ -3318,10 +3427,11 @@ static void apply_char_hair(Character& character, float time_seconds) {
         desired_world[12] = solved.x;
         desired_world[13] = solved.y;
         desired_world[14] = solved.z;
-        const Vec3 old_curr = runtime_point_pos(state);
         set_runtime_point_world(state, desired_world);
         set_local_from_world(*target.local, desired_world, actual_parent_world);
         set_runtime_point_pos(state, solved, old_curr);
+        set_runtime_point_velocity(state, vsub(solved, old_curr),
+                                   old_velocity);
         previous_point = solved;
         first_point = false;
 
@@ -3432,6 +3542,22 @@ void apply_character_controllers(Character& character, float time_seconds,
   apply_char_hair(character, time_seconds);
 
   if (debug_face_enabled()) {
+    for (const auto& b : character.bones) {
+      if (b.name != "bone_L-upperlid.mesh" &&
+          b.name != "bone_R-upperlid.mesh") {
+        continue;
+      }
+      const auto world = character.bone_world_local_chain(b.name);
+      std::fprintf(stderr,
+                   "[face] upperlid %s parent=%s world=(%.3f %.3f %.3f) "
+                   "local=(%.3f %.3f %.3f) "
+                   "rows=[%.3f %.3f %.3f|%.3f %.3f %.3f|%.3f %.3f %.3f]\n",
+                   b.name.c_str(), b.parent.c_str(), world[12], world[13],
+                   world[14], b.local.pos[0], b.local.pos[1], b.local.pos[2],
+                   b.local.rot[0][0], b.local.rot[0][1], b.local.rot[0][2],
+                   b.local.rot[1][0], b.local.rot[1][1], b.local.rot[1][2],
+                   b.local.rot[2][0], b.local.rot[2][1], b.local.rot[2][2]);
+    }
     for (const auto& m : character.meshes) {
       if (m.name != "eye-L.mesh" && m.name != "eye-R.mesh") continue;
       const auto parent_world = character.attachment_parent_world(m.parent);

@@ -64,6 +64,10 @@ bool debug_gameplay_camera_enabled() {
     return env_value("GHOGX_DEBUG_GAMEPLAY_CAMERA") != nullptr;
 }
 
+bool debug_face_enabled_game() {
+    return env_value("GHOGX_DEBUG_FACE") != nullptr;
+}
+
 bool debug_venue_filters_enabled() {
     return env_value("GHOGX_DEBUG_VENUE_FILTERS") != nullptr;
 }
@@ -140,6 +144,49 @@ void keep_hand_overlay_channels(ghogx::character::CharClip& clip) {
     std::fprintf(stderr,
                  "[world] hand-overlay filtered '%s': kept %zu/%zu channels\n",
                  clip.name.c_str(), kept, total);
+}
+
+std::optional<float> facefx_eye_register_value(
+    const ghogx::character::FaceFxServoTarget& target,
+    const ghogx::character::FaceFxEyeProperties& props) {
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+        return s;
+    };
+    const std::string prop = lower(target.property);
+    const std::string object = lower(target.object);
+    const bool left = prop.find("l-eye") != std::string::npos ||
+                      object == "eye-l.mesh" || object == "l-eye.mesh";
+    const bool right = prop.find("r-eye") != std::string::npos ||
+                       object == "eye-r.mesh" || object == "r-eye.mesh";
+    const bool x_axis = prop.find("eyex") != std::string::npos ||
+                        prop.find("eye-x") != std::string::npos ||
+                        target.prop_type == 0;
+    const bool z_axis = prop.find("eyez") != std::string::npos ||
+                        prop.find("eye-z") != std::string::npos ||
+                        target.prop_type == 2;
+    if (left && x_axis && props.has_l_eye_x) return props.l_eye_x;
+    if (left && z_axis && props.has_l_eye_z) return -props.l_eye_z;
+    if (right && x_axis && props.has_r_eye_x) return props.r_eye_x;
+    if (right && z_axis && props.has_r_eye_z) return -props.r_eye_z;
+    return std::nullopt;
+}
+
+std::unordered_map<std::string, float> facefx_registers_from_eye_servo(
+    const ghogx::character::Character& character,
+    const ghogx::character::FaceFxEyeProperties& props) {
+    std::unordered_map<std::string, float> registers;
+    for (const auto& servo : character.lip_sync_servos) {
+        for (const auto& target : servo.targets) {
+            if (target.property.empty()) continue;
+            if (auto value = facefx_eye_register_value(target, props)) {
+                registers[target.property] = *value;
+            }
+        }
+    }
+    return registers;
 }
 
 float env_float(const char* name, float fallback) {
@@ -3289,6 +3336,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     highway_.reset();
     world_init_attempted_ = false;
     quickplay_rig_.reset();
+    facefx_animation_.reset();
     camera_keys_.clear();
     regular_camera_keys_.clear();
     active_regular_camera_.clear();
@@ -3360,6 +3408,10 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     // --- Audio ---
     const std::string vgs_path = "songs/" + shortname + "/" + shortname + ".vgs";
     audio_.load_vgs(hdr_path, ark_path, vgs_path);  // non-fatal on failure
+
+    const std::string voc_path = "songs/" + shortname + "/" + shortname + ".voc";
+    facefx_animation_ =
+        ghogx::character::load_facefx_animation(hdr_path, ark_path, voc_path);
 
     quickplay_rig_ = resolve_quickplay_rig(hdr_path, ark_path, shortname);
     if (quickplay_rig_) {
@@ -3779,6 +3831,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 const auto character_drivers = character.drivers;
                 const auto facefx_servos = character.lip_sync_servos;
+                auto facefx_graph = ghogx::character::load_facefx_graph(
+                    hdr_path_, ark_path_, char_milo, character);
                 auto load_driver_clip_first =
                     [&](ghogx::character::CharClip& out,
                         const std::string& driver_name,
@@ -3824,6 +3878,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 perf.renderer =
                     std::make_unique<ghogx::character::CharRenderer>(win);
                 perf.renderer->set_character(std::move(character), textures);
+                perf.facefx_graph = std::move(facefx_graph);
 
                 if (auto start =
                         find_start_xfm(chars_scene, waypoint_name, start_flag)) {
@@ -4409,8 +4464,37 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 ghogx::character::apply_ik_midi_fret_target(
                     character, perf_anim_note_cue.mask, midi_state.hand_map);
             }
+            ghogx::character::FaceFxEyeProperties eye_props;
             ghogx::character::apply_character_controllers(
-                character, static_cast<float>(song_time_));
+                character, static_cast<float>(song_time_), &eye_props);
+            if (perf.facefx_graph) {
+                auto registers =
+                    facefx_animation_
+                        ? ghogx::character::sample_facefx_animation(
+                              *facefx_animation_,
+                              static_cast<float>(song_time_))
+                        : std::unordered_map<std::string, float>{};
+                for (const auto& [name, value] :
+                     facefx_registers_from_eye_servo(character, eye_props)) {
+                    registers[name] = value;
+                }
+                if (!registers.empty()) {
+                    const float eyez =
+                        ghogx::character::evaluate_facefx_node(
+                            *perf.facefx_graph, "EyeZCombiner", registers);
+                    const bool applied =
+                        ghogx::character::apply_facefx_animation_frame(
+                            *perf.facefx_graph, registers, character);
+                    if (debug_face_enabled_game()) {
+                        std::fprintf(
+                            stderr,
+                            "[facefx] role=%s EyeZCombiner=%.4f "
+                            "graph=%s regs=%zu\n",
+                            perf.role.c_str(), eyez, applied ? "applied" : "idle",
+                            registers.size());
+                    }
+                }
+            }
         }
 
         std::unordered_map<std::string, std::array<float, 3>> camera_targets;

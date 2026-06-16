@@ -253,6 +253,24 @@ Glam1 hair:
   while `meshbind_local` / `meshbind_stored` were effectively the old result.
   The next fix must derive the PS2 controller-row space relation, not select a
   generic bind formula by screenshot.
+- 2026-06-15 rejected draw-world inverse probe:
+  `engine/out/codex_resume_20260615/glam1_draw_world_inv_probe/` tested using
+  the renderer's corrected mesh draw world as the inverse space for weighted
+  local hair attachment. It still logged identity skin matrices for
+  `bone_bangL.mesh`, `bone_bangR.mesh`, and `bone_hair01.mesh`, so the Glam1
+  sheet collapse is not caused by a mismatch between local-chain mesh world and
+  corrected draw mesh world. Keep the fix upstream in traced controller-row
+  production/consumption rather than promoting a no-op render-space change.
+- 2026-06-15 rejected root-anchor single-point solver default:
+  `engine/out/codex_resume_20260615/glam1_singlepoint_solver_root_anchor/`
+  used the accepted `0x00176fb8` loop evidence that every point, including
+  Glam1's one-point groups, passes through the shared point solver and writes a
+  world row through `0x001dd7b8`. Native changed first-point anchoring to use
+  the group root even when the root and point names match, but making the
+  one-point solver default without the PS2 point-state initialization caused
+  the hair sheets to drop over the face. Keep `GHOGX_ENABLE_SINGLE_POINT_HAIR_SOLVER`
+  diagnostic-only until the point `+0x00/+0x10/+0x20` state and group
+  `+0x60/+0x70/+0x80` matrices are mapped completely from trace.
 - 2026-06-15 rejected sheet-world probes:
   `GHOGX_LOCAL_HAIR_WORLD_MODE=identity`, `parent`, and `attachment_parent`
   all produced the same hash under
@@ -349,6 +367,96 @@ Glam1 hair:
   128-unit skin translation and the visual result tore sheets upward/across the
   face. Keep the decoded row order as-is; the transpose relation seen against
   `mesh.bind` is not the PS2 runtime bridge.
+- 2026-06-15 rejected local-hair runtime inverse-bind bridge:
+  `engine/out/codex_resume_20260615/glam1_runtime_hair_bridge/` temporarily
+  routed local head hair meshes with live `CharHair` override bones through
+  `mesh.bind[i] * curr_world * inverse(mesh_world)`. The trace-backed
+  `bone_bangL.mesh`, `bone_bangR.mesh`, and `bone_hair01.mesh` overrides
+  reached the renderer, but `hair-side.mesh` still logged identity skin rows
+  for those palette slots. This proves the visible Glam1 side-sheet problem is
+  not solved by swapping to the per-palette inverse-bind equation.
+- 2026-06-15 rejected follow-only orientation-state/Trans-write probe:
+  `engine/out/codex_resume_20260615/glam1_hair_orientation_state_probe/`
+  preserved a previous follow-row basis and produced non-identity
+  `hair-side.mesh` rows after the first frame. The follow-up
+  `glam1_hair_orientation_transwrite_probe/` also wrote the row back through
+  the target `Trans`, matching the PS2 writer shape more closely, but it hashed
+  the same as the renderer-override-only probe. Close A/Bs
+  `glam1_hair_orientation_transwrite_close/` versus
+  `glam1_default_close_compare/` were inconclusive, and the Rock2 cross-check
+  `rock2_hair_orientation_transwrite_close/` visibly pulled a hair/face sheet
+  across the forehead compared with `rock2_default_close_compare/`. Do not
+  promote `GHOGX_ENABLE_HAIR_FOLLOW_ORIENTATION_STATE` or
+  `GHOGX_ENABLE_HAIR_FOLLOW_TRANS_WRITE` as defaults; the remaining fix needs
+  the traced PS2 hair writer row math, not a continuity-only row substitute.
+- 2026-06-15 rejected current-axis follow-row probe:
+  `engine/out/codex_resume_20260615/glam1_hair_current_axis_state_close/`
+  tested the narrower PS2-inspired variant where follow-only rows preserve
+  previous row0/row2 but take the strand axis from the live target/current row
+  instead of the static descriptor row. Glam1 stayed plausible in the close
+  shot, but `rock2_hair_current_axis_state_close/` pulled the same face/hair
+  sheet forward over Rock2's forehead. Do not promote
+  `GHOGX_ENABLE_HAIR_FOLLOW_CURRENT_AXIS_STATE`; the missing `0x00176fb8`
+  behavior is not just choosing descriptor-axis versus current-axis in the
+  follow row.
+- 2026-06-15 rejected local-hair mesh-bind transpose skin probe:
+  `engine/out/codex_resume_20260615/glam1_hair_bridge_raw_current_diag/`
+  adds raw-current logging and proves native default feeds the same target row
+  back through the runtime override (`raw_current == curr_world`) while the
+  local-attachment skin row collapses to identity. It also shows
+  `mesh.bind[i]` stores the same basis as the PS2 descriptor block in column
+  form. The gated renderer mode
+  `GHOGX_LOCAL_HAIR_SKIN_MATRIX_MODE=meshbind_transpose_invmesh` tested
+  `transpose(mesh.bind[i]) * curr_world * inverse(mesh_world)`, but
+  `glam1_localhair_meshbind_transpose_invmesh_close/` explodes a giant hair
+  sheet into the camera and
+  `rock2_localhair_meshbind_transpose_invmesh_close/` worsens the side-hair
+  shape. Keep this as rejected evidence; descriptor column/row agreement alone
+  is not the rendered weighted-sheet bridge.
+- 2026-06-15 rejected point-parent follow-row composition:
+  inverting the accepted PS2 `pcsx2_hair_transwrite_fulltarget_20260615.json`
+  `a1` writer matrices against the descriptor rows at `a0+0x20` shows
+  `bone_hair01.mesh`, `bone_bangL.mesh`, and `bone_bangR.mesh` all share a
+  common parent basis after each `hair_update_00176fb8` tick. That supports
+  the trace fact that the one-point Glam1 groups are not simply composed
+  through each driven Trans object's parent. A native probe changed
+  `descriptor_hair_follow_world()` to compose through `CharHairPoint::parent`
+  (`bone_neck.mesh`) instead of the target Trans parent; validation
+  `engine/out/codex_resume_20260615/glam1_73_point_parent_close/glam1_73_point_parent_close_f1300.bmp`
+  pulled the weighted hair sheets over Glam1's face, and the Rock2 cross-check
+  was not sufficient to justify the regression. Do not promote the point-parent
+  swap alone. The trace still implies a missing parent/work-matrix stage, but
+  the native implementation needs the full `0x00176fb8` point/group state
+  relation rather than substituting `point.parent` directly.
+- 2026-06-15 `0x00176fb8` hair offset map refinement:
+  `ps2_function_snippets_hair_full_20260615.json` shows the active update loop
+  using a 0x90-byte group stride and a 0x70-byte point stride. The group path
+  reads the root Trans at `group+0x08`, calls the transform helper on that root
+  and on the root's linked parent row, then composes three rows at
+  `group+0x60`, `group+0x70`, and `group+0x80` into the stack matrix passed to
+  point processing. The point path integrates `point+0x00` by `point+0x10`,
+  uses `point+0x30` as the stored previous/basis row, writes through the Trans
+  pointer at `point+0x48` via `0x001dd7b8`, branches on collision mode at
+  `point+0x50`, reads collision/ref linkage around `point+0x54..0x5c`, and
+  uses radius/softness fields at `point+0x60` and `point+0x64`. After the
+  writer it stores the new velocity at `point+0x10`, copies the old velocity
+  to `point+0x20`, and damps the new velocity with `hair+0x14`. This makes the
+  current native `RuntimeHairPoint` (`curr/prev/world` only) under-specified
+  for promoting the single-point solver. The next implementation step should
+  add the missing persistent point velocity/previous-velocity state and match
+  the root-parent group matrix setup before changing the default one-point
+  `hair.hair` route.
+- Native follow-up from that offset map: `RuntimeHairPoint` now stores explicit
+  velocity and previous-velocity vectors, and the existing non-follow solver
+  advances from that velocity state instead of deriving motion only from
+  `curr-prev` every frame. This is a state-layout correction toward PS2
+  `point+0x10/+0x20`; it deliberately does not enable the rejected default
+  single-point solver. Validation:
+  `engine/out/codex_resume_20260615/hair_velocity_state_validation/shout_glam1_velocity_state_f900.bmp`
+  and `woman_rock2_velocity_state_f900.bmp` both load native in-song routes
+  after a successful build. The frames are smoke checks only, not closure for
+  Glam1/Rock2 hair parity; the remaining missing piece is still the
+  root-parent group matrix setup/weighted sheet consumption path.
 
 Glam1 eyes / look-at:
 
@@ -413,6 +521,16 @@ Glam1 eyes / look-at:
   `lbs-local-chain` path and keeps lash bounds in the eye/lid band; the visual
   issue remains open on the shared `CharEyes`/pivot semantics rather than on a
   loose eye offset.
+- 2026-06-15 resume trace:
+  `engine/out/codex_resume_20260615/native_song_glam1_upperlid_rows_afterlog_resume/raw.log`
+  proves the neutral upperlid channels reach the live pose and produce stable
+  `bone_L/R-upperlid.mesh` local rows, while the resulting `lashes.mesh` LBS
+  matrices remain effectively identical to `bone_head.mesh`. The paired
+  `native_song_glam1_lashes_weightstats_resume/raw.log` shows `lashes.mesh`
+  has valid normalized weights, but 30/34 vertices are single-weight and only
+  4/34 blend two palette slots. Do not treat this as missing neutral clip data;
+  the remaining eye/lid mismatch is the traced CharEyes/look-at bridge and the
+  exact lash/eyelid consumption semantics.
 - 2026-06-15 wider native captures:
   `shout_glam1_eye_wider_default_f900.bmp`,
   `shout_glam1_eye_wider_hairhidden_highlight_f900.bmp`, and
@@ -455,6 +573,23 @@ Glam1 eyes / look-at:
   `shout_glam1_eye_forwardfallback_default_f900.bmp` confirms the player-visible
   frame remains stable. This is a promoted look-at math correction, not a final
   eyelid/face coverage fix.
+- 2026-06-15 rejected self-source eye-row probe:
+  `engine/out/codex_resume_20260615/native_song_glam1_selfsource_eye_row_resume/`
+  changed the synthetic `source == name` fallback to seed from the driven eye's
+  current row-1 instead of the head forward row. The A/B frame was visually
+  unchanged and the logged target row picked up a much larger downward pitch
+  (`pitch=-0.1742`) than the accepted PS2 small-bias look-at rows. Do not
+  promote this as the CharEyes bridge; it preserves an existing native eye row
+  but does not reproduce the traced shared pivot/source chain.
+- 2026-06-15 rejected target-row look-at basis probe:
+  `engine/out/codex_resume_20260615/glam1_lookat_target_basis/` changed native
+  self-source look-at math to use the resolved target eye row as the clamp
+  basis, following a narrow reading of the `0x0017d658` target-row resolve.
+  The logged first-frame `target_dir` moved to roughly
+  `(-0.086, 0.951, -0.297)` / `(-0.096, 0.950, -0.296)`, farther from the
+  accepted PS2 small-bias look-at rows than the current head-basis fallback.
+  Do not promote target-row basis alone; the missing piece remains the resident
+  `CharEyes` pivot/source chain, not a direct target-basis swap.
 - 2026-06-15 upperlid-relative probe:
   `shout_glam1_eye_centered_upperlidrel_on_f900.bmp` showed that applying
   relative quaternion math only to upperlid channels can move the lids without
@@ -502,6 +637,65 @@ Glam1 eyes / look-at:
   `0x0017d658` address killed the heartbeat, so do not use that rerun as
   negative eye evidence. Implement the `CharEyes` bridge only from accepted
   rows that show the full resident/pivot/source-eye chain.
+- 2026-06-15 native FaceFX graph/register bridge:
+  native now loads the referenced `guitarist.fac` graph through each
+  `FaceFxLipSyncServo`, parses `FxCombinerNode` / `FxBonePoseNode` graph input
+  links, publishes the decoded servo register targets (`L-eyeZ`, `R-eyeZ`,
+  `L-eyeX`, `R-eyeX`) from the live `CharLookAt` eye properties, and applies
+  the authored `EyesClosed` pose as a delta from authored `Neutral` according
+  to the evaluated graph weight. The implementation follows the local object
+  schema where `FaceFxLipSyncServo` maps FaceFX registers to `Trans` objects
+  and ops; it does not manually offset eyes or lids.
+  `engine/out/codex_resume_20260615/facefx_eye_graph_glam1_f900_zsign/raw.log`
+  proves `char/guitarist.fac` loaded with 25 nodes / 11 poses and the in-song
+  Glam1 path evaluated `EyeZCombiner=0.1000` with `EyesClosed=applied` from
+  four decoded servo registers. The matching screenshot
+  `glam1_facefx_eye_graph_zsign_f900.bmp` stays stable in the full venue
+  frame. This closes the missing servo-to-FaceFX graph consumption path for
+  normal guitarist eyes, but it is not final close-shot parity for all eyelid,
+  lash, and hair occlusion states.
+- 2026-06-15 `FaceFxLipSyncServo` string terminator refinement:
+  extracted PS2 `FaceFxLipSyncServo__lip.servo` bodies show the header as
+  `version=5`, `unk=0`, tag string, one NUL terminator byte, then the
+  `Weightable` block (`version=2`, `weight=1.0`, self name `lip.servo`),
+  FaceFX `.fac`, viseme `.milo`, and target count. The older native decoder
+  aligned after the tag string, which only worked accidentally for 3-byte
+  guitarist tag `gh2`: `rock2`/`glam1`/`metal1`/`alterna1` have tag end
+  `0x0f` and the weight block at `0x10`. Singer servos use tag `singer`, have
+  tag end `0x12`, and the weight block at `0x13`; 4-byte alignment jumps past
+  it and raises `implausible string length`. Native now probes the small
+  post-tag window and accepts only a complete, self-consistent servo layout.
+  Evidence set:
+  `engine/out/codex_resume_20260615/facefx_servo_decode_audit/{rock2,glam1,metal1,alterna1,metal_singer,female_singer}/entries/FaceFxLipSyncServo__lip.servo`.
+- 2026-06-15 singer FACE version refinement:
+  `char/guitarist.fac` is FACE version `1500`, but
+  `char/metal_singer/og/metal_singer.fac` is FACE version `1200`
+  (`creator=Harmonix`, comment `Karaoke Revolution Vol 4`, 16
+  `FxBonePoseNode` jaw-viseme records). The record bodies still carry the same
+  graph base fields used by the existing parser (`node value range 0..1`,
+  one `bone_jaw` pose target per viseme), but v1200 FAC record strings use
+  string flag `0` where the v1500 guitarist FAC uses flag `1`. Native now
+  accepts FACE versions `1200` and `1500` and allows either record string flag
+  in the scanner; this is format-version handling, not a singer-specific
+  visual offset.
+- 2026-06-15 song `.voc` FaceFX animation route:
+  extracted PS2 song vocal archives are FACE version `1500` animation records,
+  not character FAC graphs. The observed header is `FACE`, creator string,
+  license/comment string, `u32 1000`, `u32 0`, `u16 0`, animation/song name,
+  then an animation subheader (`u16 3`, archive byte size, `u16 0`, curve
+  count, `u32 0`, `u16 0`). Each curve stores a FaceFX string name, two zero
+  `u32`s, a key count, and 18-byte keys (`u16`, time float, value float,
+  tangent/aux float, `u32`). Non-final curves have a 6-byte zero trailer before
+  the next curve name. `songs/heartshapedbox/heartshapedbox.voc` decodes as
+  `HeartShapedBox_dryvox_16M` with 25 curves; the curve names include the
+  singer visemes (`Eat`, `If`, `Ox`, `Oat`, `Earth`, `Size`, `Church`, `Fave`,
+  `Though`, `Bump`, `New`, `Told`, `Roar`, `Wet`, `Cage`) plus head/gaze,
+  eyebrow, and blink channels. Native samples these curves by song time, merges
+  the live eye-servo registers, evaluates the decoded FAC graph, and applies
+  pose deltas from authored `Neutral`. Validation log
+  `engine/out/codex_facefx_voc_runtime_20260615/heartshapedbox_big_facefx3_f1300.log`
+  proves the song `.voc` loaded, guitarist and singer FAC graphs loaded, and
+  both guitarist and singer roles reached `graph=applied` during the run.
 
 Rock2 hair:
 
@@ -1158,6 +1352,29 @@ Useful environment flags:
   close frame (`E412C6FF8087891C9B2CD9CED8B12DB9E81A2441EA9B066FB4DD9DB9391A3663`),
   so this is a format-coverage fix, not proof that the remaining front-hair
   visual issue is solved.
+- 2026-06-15 rejected local-hair bind-cancel probe:
+  `engine/out/codex_resume_20260615/glam1_hair_bindcancel_patch/` changed the
+  weighted local hair sheet equation to cancel controller rows against the
+  sheet bind world instead of the current mesh world. It made the skin matrices
+  non-identity (`diag=(0.978 0.906 0.927)`) but the visual result was wrong:
+  the close Glam1 capture in `glam1_hair_bindcancel_patch_close/` tore sheets
+  into the camera/body, and the Rock2 cross-check in
+  `rock2_hair_bindcancel_patch/` detached a hair chunk below the body. Do not
+  promote this route; the remaining fix is not a simple bind/current cancel
+  swap in the weighted sheet renderer.
+- 2026-06-15 Rock2 native resume probes:
+  `engine/out/codex_resume_20260615/rock2_woman_hairspace_f900/rock2_hair_concise.txt`
+  proves the obvious bad hair frame is not missing controller polling:
+  `hair-front1.mesh` and `hair-top.mesh` use the local-attachment path,
+  `hair-back.mesh` uses mesh-bind, numbered `hair-back.*` variants use normal
+  LBS, and runtime `hairOverride=1` reaches several back-hair controller bones.
+  Highlight A/Bs in the same `codex_resume_20260615` folder reject
+  `GHOGX_DISABLE_CHAR_HAIR=1`, `GHOGX_DISABLE_LOCAL_HAIR_ATTACHMENT=1`,
+  `GHOGX_USE_MESH_BIND_MATERIAL=rock2_hair2.mat`,
+  `GHOGX_LOCAL_HAIR_SKIN_MATRIX_MODE=meshbind_local`, and
+  `GHOGX_LOCAL_HAIR_SKIN_MATRIX_MODE=curr_invbind` as complete fixes. Do not
+  promote those probes; the remaining Rock2 hair issue is still the shared
+  controller-row-to-weighted-card consumption path.
 - A native A/B of Rock2 with `GHOGX_DISABLE_LOOKAT=1` produced
   `woman_rock2_lookat_disabled_probe.bmp` hash
   `80C3F9C17FDF2CD057F50E25BF4C053CB95AD7F779D1897FC503574D1C68FA9C` and was
@@ -1204,6 +1421,15 @@ Useful environment flags:
   disabling final hand placement breaks the hand/guitar relationship. Keep the
   default PS2 hand/foretwist route; the remaining issue is not fixed by rolling
   back driven twists or hand final placement.
+- 2026-06-15 resume close validation:
+  `engine/out/codex_resume_20260615/shout_glam1_close_inspect/shout_glam1_close_f1300.bmp`
+  is an intentional `GHOGX_DEBUG_GAMEPLAY_CAMERA=1` in-song close inspection of
+  Glam1, not camera-parity evidence. It loads the normal Shout route, switches
+  the guitarist into `stand_fast_01`, and shows the eyes seated in the face with
+  the previously reported detached side-hair clump no longer reproducing in
+  this frame. This does not close Glam1 wrist deformation or the broader
+  Rock2/weighted-card hair path; those remain shared controller/skin
+  consumption work, not grounds for another local offset or hide-list fix.
 
 Every outfit audit should capture:
 

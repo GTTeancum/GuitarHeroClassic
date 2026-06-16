@@ -9,6 +9,7 @@
 
 #include "chart/midi_reader.h"
 #include "character/char_clip.h"
+#include "character/char_facefx.h"
 #include "character/char_renderer.h"
 #include "game/audio_player.h"
 #include "game/highway_renderer.h"
@@ -178,6 +179,7 @@ class Gameplay {
     ghogx::character::CharClip fret_open_clip;
     ghogx::character::CharClip fret_clip;
     std::vector<ghogx::character::CharClip> fret_lane_clips;
+    std::optional<ghogx::character::FaceFxGraph> facefx_graph;
     ghogx::character::CharClipPlayer idle_player;
     ghogx::character::CharClipPlayer intro_player;
     ghogx::character::CharClipPlayer active_player;
@@ -203,6 +205,7 @@ class Gameplay {
   std::vector<Performer> performers_;
 
   std::optional<QuickplayRig> quickplay_rig_;
+  std::optional<ghogx::character::FaceFxAnimation> facefx_animation_;
   bool world_init_attempted_ = false;
   std::vector<CameraKey> camera_keys_;
   std::vector<CameraKey> regular_camera_keys_;

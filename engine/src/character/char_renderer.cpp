@@ -1717,6 +1717,16 @@ std::array<float, 16> xfm16(const milo_scene::Xfm& x) {
   return m;
 }
 
+std::array<float, 16> transpose_xfm_rotation(const milo_scene::Xfm& x) {
+  auto m = xfm16(x);
+  for (int r = 0; r < 3; ++r) {
+    for (int c = r + 1; c < 3; ++c) {
+      std::swap(m[r * 4 + c], m[c * 4 + r]);
+    }
+  }
+  return m;
+}
+
 std::array<float, 16> raw_current_world(const Character& character,
                                         const std::string& name) {
   auto find_xfm = [&](const std::string& object_name,
@@ -1933,6 +1943,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
   for (size_t i = 0; i < nb; ++i) {
     std::array<float, 16> curr_world =
         character.bone_world_local_chain(mesh.bone_palette[i]);
+    const std::array<float, 16> raw_curr_world = curr_world;
     std::array<float, 16> hair_override{};
     const bool has_hair_override =
         is_hair_mesh_name(mesh.name) &&
@@ -1961,6 +1972,12 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
           (i == 0 || debug_mesh_mode_enabled(mesh.name));
       if (local_hair_matrix_mode == "meshbind_local") {
         skin[i] = mul16(xfm16(mesh.bind[i]), curr_world);
+      } else if (local_hair_matrix_mode == "meshbind_transpose_invmesh") {
+        const std::array<float, 16> mesh_world =
+            character.bone_world_local_chain(mesh.name);
+        skin[i] = mul16(mul16(transpose_xfm_rotation(mesh.bind[i]),
+                              curr_world),
+                        affine_inverse(mesh_world));
       } else if (local_hair_matrix_mode == "meshbind_stored") {
         const auto stored_curr = character.bone_world(mesh.bone_palette[i]);
         skin[i] = mul16(xfm16(mesh.bind[i]), stored_curr);
@@ -1983,6 +2000,10 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                               curr_world),
                         affine_inverse(mesh_world));
         if (log_hair_space) {
+          if (has_hair_override) {
+            log_matrix_row("raw_current", mesh.name, mesh.bone_palette[i],
+                           raw_curr_world);
+          }
           log_matrix_row("mesh_bind", mesh.name, mesh.bone_palette[i],
                          mesh_bind);
           log_matrix_row("bone_bind", mesh.name, mesh.bone_palette[i],
@@ -2031,8 +2052,19 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                    "hairOverride=%d diag=(%.3f %.3f %.3f) "
                    "pos=(%.3f %.3f %.3f)\n",
                    mesh.name.c_str(), mesh.bone_palette[i].c_str(),
-                   matrix_mode.c_str(), has_hair_override ? 1 : 0, s[0],
+                   skin_mode, has_hair_override ? 1 : 0, s[0],
                    s[5], s[10], s[12], s[13], s[14]);
+      if (debug_mesh_mode_enabled(mesh.name)) {
+        std::fprintf(stderr,
+                     "[skin-matrix-row] %-24s bone=%-24s "
+                     "r0=(%.4f %.4f %.4f %.4f) "
+                     "r1=(%.4f %.4f %.4f %.4f) "
+                     "r2=(%.4f %.4f %.4f %.4f) "
+                     "pos=(%.4f %.4f %.4f %.4f)\n",
+                     mesh.name.c_str(), mesh.bone_palette[i].c_str(),
+                     s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
+                     s[8], s[9], s[10], s[11], s[12], s[13], s[14], s[15]);
+      }
     }
   }
 
@@ -2059,6 +2091,38 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
     if (!any) { p = {v.px, v.py, v.pz}; n = {v.nx, v.ny, v.nz}; }
     out_pos[vi] = p;
     out_nrm[vi] = n;
+    if (vi == 0 && debug_skin_matrix_enabled() &&
+        debug_mesh_mode_enabled(mesh.name)) {
+      std::fprintf(stderr,
+                   "[skin-vertex0] %-24s raw=(%.4f %.4f %.4f) "
+                   "weights=(%.4f %.4f %.4f %.4f) "
+                   "out=(%.4f %.4f %.4f) any=%d\n",
+                   mesh.name.c_str(), v.px, v.py, v.pz, v.w[0], v.w[1],
+                   v.w[2], v.w[3], p[0], p[1], p[2], any ? 1 : 0);
+    }
+  }
+  if (debug_skin_matrix_enabled() && debug_mesh_mode_enabled(mesh.name) &&
+      !out_pos.empty()) {
+    size_t min_z_i = 0;
+    size_t max_z_i = 0;
+    for (size_t vi = 1; vi < out_pos.size(); ++vi) {
+      if (out_pos[vi][2] < out_pos[min_z_i][2]) min_z_i = vi;
+      if (out_pos[vi][2] > out_pos[max_z_i][2]) max_z_i = vi;
+    }
+    const SkinVertex& min_v = mesh.verts[min_z_i];
+    const SkinVertex& max_v = mesh.verts[max_z_i];
+    std::fprintf(stderr,
+                 "[skin-z-extreme] %-24s min_i=%zu raw=(%.4f %.4f %.4f) "
+                 "weights=(%.4f %.4f %.4f %.4f) out=(%.4f %.4f %.4f) "
+                 "max_i=%zu raw=(%.4f %.4f %.4f) "
+                 "weights=(%.4f %.4f %.4f %.4f) out=(%.4f %.4f %.4f)\n",
+                 mesh.name.c_str(), min_z_i, min_v.px, min_v.py, min_v.pz,
+                 min_v.w[0], min_v.w[1], min_v.w[2], min_v.w[3],
+                 out_pos[min_z_i][0], out_pos[min_z_i][1],
+                 out_pos[min_z_i][2], max_z_i, max_v.px, max_v.py, max_v.pz,
+                 max_v.w[0], max_v.w[1], max_v.w[2], max_v.w[3],
+                 out_pos[max_z_i][0], out_pos[max_z_i][1],
+                 out_pos[max_z_i][2]);
   }
 }
 
