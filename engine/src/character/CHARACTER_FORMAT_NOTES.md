@@ -5,6 +5,24 @@ native renderer online. They are intentionally implementation-facing: future
 custom guitarist support will need to preserve the same authored-space rules
 instead of assuming every mesh uses one universal skinning path.
 
+## Format-First Policy
+
+The native port must not ship character-specific visual hacks. A broken outfit
+can be used as a probe case, but the promoted rule must be keyed to decoded PS2
+format evidence: mesh parent shape, bone palette, bind matrices, material render
+flags, controller graph data, or accepted runtime traces.
+
+Named branches in the renderer are therefore temporary debt unless they can be
+rephrased as a shared asset/controller shape. Current debt to retire:
+
+- `metal_singer` material/world branches.
+- `metal_bass` body-material mesh-bind branch.
+- `rock2` `hair-back.mesh` mesh-bind branch.
+- `rockabill1` arm/body/alternate-leg branches.
+
+Do not add new named-character branches. If a fix cannot be explained as a
+general PS2 record/controller rule, keep it as a diagnostic experiment only.
+
 ## Asset Layout
 
 Typical playable character assets are loaded from ARK paths shaped like:
@@ -57,7 +75,8 @@ Each decoded `SkinnedMesh` carries:
   weight slots.
 
 Do not infer authored space from the material alone. Hair, eyes, root-parented
-body meshes, and a few outfit-specific pieces use different transform bases.
+body meshes, and several distinct mesh record shapes use different transform
+bases.
 
 ## Skinning Spaces
 
