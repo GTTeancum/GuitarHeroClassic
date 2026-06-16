@@ -12,6 +12,12 @@ can be used as a probe case, but the promoted rule must be keyed to decoded PS2
 format evidence: mesh parent shape, bone palette, bind matrices, material render
 flags, controller graph data, or accepted runtime traces.
 
+Final builds must learn the shared format well enough that named characters do
+not need bespoke repair paths. If Glam1, Rock2, Metal Bass, Deathmetal1,
+Rockabill1, or any other outfit exposes a bad hair/eye/arm/leg result, treat
+that as evidence that the common loader/controller/skin path is still
+under-modeled.
+
 Named branches in the renderer are therefore temporary debt unless they can be
 rephrased as a shared asset/controller shape. Current debt to retire:
 

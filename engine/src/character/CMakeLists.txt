@@ -29,10 +29,18 @@ target_link_libraries(ghogx_character PUBLIC
 add_executable(ghogx_character_bind_audit char_bind_audit.cpp)
 target_link_libraries(ghogx_character_bind_audit PRIVATE ghogx_character)
 
+add_executable(ghogx_character_no_named_fix_test character_no_named_fix_test.cpp)
+target_compile_definitions(ghogx_character_no_named_fix_test PRIVATE
+    GHOGX_CHARACTER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(NAME ghogx_character_no_named_fix_test
+         COMMAND ghogx_character_no_named_fix_test)
+
 if(MSVC)
 target_compile_options(ghogx_character PRIVATE /W4)
 target_compile_options(ghogx_character_bind_audit PRIVATE /W4)
+target_compile_options(ghogx_character_no_named_fix_test PRIVATE /W4)
 else()
     target_compile_options(ghogx_character PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_character_bind_audit PRIVATE -Wall -Wextra)
+    target_compile_options(ghogx_character_no_named_fix_test PRIVATE -Wall -Wextra)
 endif()
