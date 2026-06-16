@@ -431,7 +431,7 @@ bool is_mesh_local_bind_space_piece(const SkinnedMesh& m) {
   if (!m.mesh_local_bind_space || m.bone_palette.empty() || m.bind.empty()) {
     return false;
   }
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
+  if (is_shadow(m.name)) return false;
   return true;
 }
 

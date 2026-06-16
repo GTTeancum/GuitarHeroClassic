@@ -144,6 +144,18 @@ cross-check does not regress. This is a basis-class rule only; remaining hair
 card issues still belong to the shared controller/skinning path, not to
 outfit-specific offsets.
 
+The same `mesh-local-bind` route is not limited to non-hair names. A follow-up
+audit showed Rock2 `hair-back.*` and `hair-mid.*` cards, plus Metal Bass
+`hair_lower.mesh`, all decode with the same local-chain bind-space evidence but
+were still rendered through ordinary `lbs-local-chain` because the renderer
+excluded hair names from the generic predicate. The promoted rule now lets the
+decoded bind-space flag apply to hair records too; head-local attachment hair
+still wins earlier through the separate local-attachment route. Validation in
+`engine/out/codex_goal_20260616_hair_mesh_local_bind_probe/` moves the Rock2
+back/mid hair cards onto `mode=mesh-local-bind`, keeps Glam1's known close frame
+bit-identical to the prior local-attachment capture, and routes Metal Bass
+`hair_lower.mesh` through the same shared bind-space class.
+
 Terminal lower-leg pieces can also be authored in mesh-local space. The runtime
 detects these by format shape instead of outfit name:
 
