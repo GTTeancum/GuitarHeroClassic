@@ -616,6 +616,15 @@ std::array<float, 16> affine_inverse(const std::array<float, 16>& m) {
   return r;
 }
 
+float matrix_max_delta(const std::array<float, 16>& a,
+                       const std::array<float, 16>& b) {
+  float err = 0.0f;
+  for (int i = 0; i < 16; ++i) {
+    err = std::max(err, std::fabs(a[i] - b[i]));
+  }
+  return err;
+}
+
 bool find_current_bind_xfm(const Character& c, const std::string& name,
                            const Xfm*& current, const Xfm*& bind,
                            const Xfm*& stored_world,
@@ -685,6 +694,33 @@ std::array<float, 16> corrected_world_for(const Character& c,
   const auto bind_correction =
       mat4_mul(affine_inverse(bind_world_from_locals), stored_bind_world);
   return mat4_mul(current_world, bind_correction);
+}
+
+bool has_mesh_local_bind_space(const Character& c, const SkinnedMesh& m) {
+  if (!m.decoded || m.bone_palette.empty() ||
+      m.bind.size() < m.bone_palette.size()) {
+    return false;
+  }
+
+  const std::array<float, 16> identity =
+      {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+  const auto mesh_bind = local_chain_world_for(c, m.name, true);
+  float model_error = 0.0f;
+  float mesh_error = 0.0f;
+  for (size_t i = 0; i < m.bone_palette.size(); ++i) {
+    const auto bind_inv = xfm_to_mat4(m.bind[i]);
+    const auto product =
+        mat4_mul(bind_inv, local_chain_world_for(c, m.bone_palette[i], true));
+    model_error = std::max(model_error, matrix_max_delta(product, identity));
+    mesh_error = std::max(mesh_error, matrix_max_delta(product, mesh_bind));
+  }
+
+  constexpr float kMeshClose = 0.05f;
+  constexpr float kNontrivialModelOffset = 1.0f;
+  constexpr float kErrorRatio = 8.0f;
+  return mesh_error <= kMeshClose &&
+         model_error > kNontrivialModelOffset &&
+         model_error > mesh_error * kErrorRatio;
 }
 
 }  // namespace
@@ -838,6 +874,9 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
     out.bind_bone_local.clear();
     out.bind_bone_local.reserve(out.bones.size());
     for (const auto& b : out.bones) out.bind_bone_local.push_back(b.local);
+    for (auto& m : out.meshes) {
+      m.mesh_local_bind_space = has_mesh_local_bind_space(out, m);
+    }
     return true;
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[char] load_character(%s): %s\n", milo_path.c_str(),

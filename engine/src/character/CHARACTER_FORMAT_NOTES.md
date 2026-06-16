@@ -15,9 +15,15 @@ flags, controller graph data, or accepted runtime traces.
 Named branches in the renderer are therefore temporary debt unless they can be
 rephrased as a shared asset/controller shape. Current debt to retire:
 
-- `metal_singer` material mesh-bind branch.
-- `metal_bass` body-material mesh-bind branch.
-- `rockabill1` body/alternate-leg branches.
+- `rockabill1` alternate-leg branch.
+
+Retired debt:
+
+- `metal_singer` material mesh-bind branch, `metal_bass` body-material
+  mesh-bind branch, and the `rockabill1` body mesh-bind branch are now covered
+  by the shared `SkinnedMesh::mesh_local_bind_space` loader flag. That flag is
+  derived from decoded bind rows and local-chain rows, not from outfit or
+  material names.
 
 Do not add new named-character branches. If a fix cannot be explained as a
 general PS2 record/controller rule, keep it as a diagnostic experiment only.
@@ -85,8 +91,14 @@ Metal1 have bind rows that resolve cleanly to their mesh local-chain row. This
 is a common MILO record property, not by itself a renderer route discriminator.
 Do not retire a named mesh-bind branch by replacing it with "all meshes whose
 bind rows match mesh-local"; that would just disguise the same guess as a broad
-rule. A promoted rule still needs an additional structural or runtime-trace
-reason that separates the affected mesh class from normal skinned body pieces.
+rule. The promoted `mesh_local_bind_space` route additionally requires a
+nontrivial distance from model-space bind and a strong error ratio:
+`bind_inv * bone_bind_local_chain` must match the mesh local-chain bind row
+while staying far from identity. Validation in
+`engine/out/codex_goal_20260616_mesh_local_bind_rule_validation/` keeps
+`bassist_body.mat`, `msinger_*`, and Rockabill torso/leg body pieces on
+`mode=mesh-bind`, while Glam1 numeric hair/control pieces and Metal1 controls
+remain on their existing non-mesh-bind routes.
 
 ## Skinning Spaces
 
@@ -222,10 +234,14 @@ Weighted body-space hair:
     `engine/out/native_song_20260615/metal_bass_skin_matrix_ab/` showed
     `meshbind_local` / `meshbind_stored` removed the face slice, while
     `curr_invbind` exploded the body.
-  - Native now treats `bassist_body.mat` as a mesh-bind material. Validation:
-    `engine/out/native_song_20260615/metal_bass_meshbind_default/metal_bass_f80.bmp`
-    and log show `bassist.mesh` in `mode=mesh-bind` with normalized weights
-    (`sum=(1.000..1.000)`).
+  - Native originally treated `bassist_body.mat` as a temporary mesh-bind
+    material, but that character-specific branch has been retired. The loader
+    now promotes the same pieces through `mesh_local_bind_space` when decoded
+    bind rows reconstruct the mesh local-chain bind row with a nontrivial
+    offset from model bind. Validation:
+    `engine/out/codex_goal_20260616_mesh_local_bind_rule_validation/`
+    keeps `bassist.mesh` in `mode=mesh-bind` with normalized weights
+    (`sum=(1.000..1.000)`) without checking the outfit or material name.
   - `hair_top.mesh` is unweighted, parented to `bone_head.mesh`, and its own
     local Trans cancels the vertex bbox back into compact head-local space.
     This is distinct from Glam1 `hair-front.mesh`, whose vertices are already

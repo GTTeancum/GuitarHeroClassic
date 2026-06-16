@@ -412,16 +412,6 @@ bool raw_mesh_enabled(const std::string& mesh) {
   return false;
 }
 
-bool is_metal_singer_mesh_bind_material(const std::string& material) {
-  return material == "msinger_torso.mat" || material == "msinger_legs.mat" ||
-         material == "msinger_head.mat" || material == "msinger_hair.mat" ||
-         material == "msinger_belt.mat";
-}
-
-bool is_metal_bass_mesh_bind_material(const std::string& material) {
-  return material == "bassist_body.mat";
-}
-
 bool is_terminal_lower_leg_palette(const SkinnedMesh& m) {
   if (m.bone_palette.size() != 3) return false;
   const bool left = m.bone_palette[0] == "bone_L-knee.mesh" &&
@@ -442,6 +432,14 @@ bool is_mesh_local_terminal_lower_leg_piece(const SkinnedMesh& m) {
 
 bool is_weighted_root_parent_hair_piece(const SkinnedMesh& m) {
   return is_root_parent_hair_piece(m) && !m.bone_palette.empty();
+}
+
+bool is_mesh_local_bind_space_piece(const SkinnedMesh& m) {
+  if (!m.mesh_local_bind_space || m.bone_palette.empty() || m.bind.empty()) {
+    return false;
+  }
+  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
+  return true;
 }
 
 bool has_compact_authored_bounds_near_origin(const SkinnedMesh& m,
@@ -513,14 +511,6 @@ bool is_compact_mesh_parented_head_detail_piece(const SkinnedMesh& m) {
 bool is_raw_mesh_world_authored_piece(const SkinnedMesh& m) {
   return is_far_negative_mesh_parented_arm_piece(m) ||
          is_compact_mesh_parented_head_detail_piece(m);
-}
-
-bool is_rockabill_mesh_bind_body_piece(const SkinnedMesh& m) {
-  if (m.bone_palette.empty() || m.bind.empty()) return false;
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
-  if (is_mesh_local_arm_piece(m)) return false;
-  return m.parent == "rockabill" || m.parent == "torso.mesh" ||
-         m.parent == "legs.mesh";
 }
 
 bool is_parent_local_ankle_attachment(const SkinnedMesh& m) {
@@ -1980,9 +1970,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
   const bool use_mesh_bind =
       (use_mesh_bind_material_enabled(mesh.material) ||
        is_mesh_local_root_hair_piece(mesh) ||
-       is_rockabill_mesh_bind_body_piece(mesh) ||
-       is_metal_bass_mesh_bind_material(mesh.material) ||
-       is_metal_singer_mesh_bind_material(mesh.material)) &&
+       is_mesh_local_bind_space_piece(mesh)) &&
       !is_mesh_local_terminal_lower_leg_piece(mesh) &&
       mesh.bind.size() >= nb;
   const bool use_mesh_bind_inverse =

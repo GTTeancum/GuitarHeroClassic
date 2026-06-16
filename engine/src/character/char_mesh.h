@@ -88,6 +88,10 @@ struct SkinnedMesh {
   // pose, pre-inverted as stored in the Mesh skinning tail — DCC standard form).
   // LBS formula: skinned = v * bind_inv * bone_world.
   std::vector<milo_scene::Xfm> bind;
+  // True when stored bind rows reconstruct this mesh's own local-chain bind
+  // row, with a nontrivial offset from model-space bind. This records a PS2
+  // format shape for mesh-local body pieces and is not keyed to outfits.
+  bool mesh_local_bind_space = false;
 
   float bb_min[3] = {0, 0, 0};
   float bb_max[3] = {0, 0, 0};
