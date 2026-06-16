@@ -1559,6 +1559,15 @@ Useful environment flags:
   samples. This diagnostic does not justify a material or mesh-bind special
   case; the next wrist/card fix needs stronger PS2 row-to-native pose matching
   or traced function math for the hand/foretwist controller.
+- 2026-06-16 reverse-weight Glam1 wrist probe rejected:
+  `engine/out/codex_goal_20260616_glam1_wrist_row_compare/` compares the same
+  `bone_L-hand` route at frame 1300 against
+  `GHOGX_REVERSE_SKIN_WEIGHT_SLOTS=1`. The reverse-weight capture tears the
+  hand, fingers, and `glam1.73.mesh` wrist card across the guitar instead of
+  correcting the cuff/card relationship. Do not extend the metal-singer
+  reversed-weight rule to Glam1 numeric hair-material wrist meshes; continue in
+  the traced `CharIKHand` / `CharForeTwist` row math or PS2 row-to-native
+  comparison path.
 
 Every outfit audit should capture:
 
