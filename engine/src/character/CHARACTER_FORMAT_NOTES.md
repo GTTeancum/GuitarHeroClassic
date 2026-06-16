@@ -1447,6 +1447,16 @@ Useful environment flags:
   rows collapse to identity for the weighted sheets while the visible wrist
   deformation is on `glam1.73.mesh` consuming hand/foretwist rows; continue in
   the shared controller/twist/skin path.
+- 2026-06-15 compact Glam1 wrist row diagnostic:
+  `engine/out/codex_glam1_73_bind_current_rows_20260615/` captures the same
+  `bone_L-hand` close route with compact bind/current/stored/skin rows for
+  `glam1.73.mesh`. The final rows show `glam1.73.mesh` remains
+  `lbs-local-chain` / `identity-skinned`; both foretwist helper rows share the
+  current source-row family while keeping distinct bind rows, matching the
+  structural shape of the accepted PS2 `fore_l_out_a` / `fore_l_out_b` Trans
+  samples. This diagnostic does not justify a material or mesh-bind special
+  case; the next wrist/card fix needs stronger PS2 row-to-native pose matching
+  or traced function math for the hand/foretwist controller.
 
 Every outfit audit should capture:
 

@@ -798,6 +798,19 @@ void log_matrix_row(const char* tag,
                m[12], m[13], m[14], m[15]);
 }
 
+void log_compact_matrix_rows(const char* tag,
+                             const std::string& mesh,
+                             const std::string& bone,
+                             const std::array<float, 16>& m) {
+  for (int row = 0; row < 4; ++row) {
+    std::fprintf(stderr,
+                 "[skin-row-%s] mesh=%s bone=%s row=%d "
+                 "%.5f %.5f %.5f %.5f\n",
+                 tag, mesh.c_str(), bone.c_str(), row, m[row * 4 + 0],
+                 m[row * 4 + 1], m[row * 4 + 2], m[row * 4 + 3]);
+  }
+}
+
 int wrapped_texel_coord(float uv, int size) {
   if (size <= 0 || !std::isfinite(uv)) return 0;
   const float wrapped = uv - std::floor(uv);
@@ -2055,6 +2068,23 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                    skin_mode, has_hair_override ? 1 : 0, s[0],
                    s[5], s[10], s[12], s[13], s[14]);
       if (debug_mesh_mode_enabled(mesh.name)) {
+        const auto bind_lc =
+            character.bone_world_bind_local_chain(mesh.bone_palette[i]);
+        const auto curr_lc =
+            character.bone_world_local_chain(mesh.bone_palette[i]);
+        const auto bind_stored = character.bone_world_bind(mesh.bone_palette[i]);
+        const auto curr_stored = character.bone_world(mesh.bone_palette[i]);
+        const auto mesh_lc = character.bone_world_local_chain(mesh.name);
+        log_compact_matrix_rows("bind-lc", mesh.name, mesh.bone_palette[i],
+                                bind_lc);
+        log_compact_matrix_rows("curr-lc", mesh.name, mesh.bone_palette[i],
+                                curr_lc);
+        log_compact_matrix_rows("bind-stored", mesh.name, mesh.bone_palette[i],
+                                bind_stored);
+        log_compact_matrix_rows("curr-stored", mesh.name, mesh.bone_palette[i],
+                                curr_stored);
+        log_compact_matrix_rows("mesh-lc", mesh.name, mesh.bone_palette[i],
+                                mesh_lc);
         std::fprintf(stderr,
                      "[skin-matrix-row] %-24s bone=%-24s "
                      "r0=(%.4f %.4f %.4f %.4f) "
@@ -2064,14 +2094,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                      mesh.name.c_str(), mesh.bone_palette[i].c_str(),
                      s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
                      s[8], s[9], s[10], s[11], s[12], s[13], s[14], s[15]);
-        for (int row = 0; row < 4; ++row) {
-          std::fprintf(stderr,
-                       "[skin-row] mesh=%s bone=%s row=%d "
-                       "%.5f %.5f %.5f %.5f\n",
-                       mesh.name.c_str(), mesh.bone_palette[i].c_str(), row,
-                       s[row * 4 + 0], s[row * 4 + 1],
-                       s[row * 4 + 2], s[row * 4 + 3]);
-        }
+        log_compact_matrix_rows("skin", mesh.name, mesh.bone_palette[i], s);
       }
     }
   }
