@@ -3381,10 +3381,17 @@ static void apply_char_hair(Character& character, float time_seconds) {
           if (debug_char_hair_enabled()) {
             std::fprintf(stderr,
                          "[charhair-follow] %s point=%s root=%s coll=%s "
-                         "live=(%.3f %.3f %.3f) len=%.3f mode=%u\n",
+                         "live=(%.3f %.3f %.3f) "
+                         "r0=(%.4f %.4f %.4f) r1=(%.4f %.4f %.4f) "
+                         "r2=(%.4f %.4f %.4f) len=%.3f mode=%u\n",
                          hair.name.c_str(), point.mesh.c_str(),
                          group.root_mesh.c_str(), point.parent.c_str(),
                          live_world.x, live_world.y, live_world.z,
+                         live_world_xfm[0], live_world_xfm[1],
+                         live_world_xfm[2], live_world_xfm[4],
+                         live_world_xfm[5], live_world_xfm[6],
+                         live_world_xfm[8], live_world_xfm[9],
+                         live_world_xfm[10],
                          point.length, point.flags_or_mode);
           }
           continue;

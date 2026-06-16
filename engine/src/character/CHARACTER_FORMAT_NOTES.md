@@ -457,6 +457,16 @@ Glam1 hair:
   after a successful build. The frames are smoke checks only, not closure for
   Glam1/Rock2 hair parity; the remaining missing piece is still the
   root-parent group matrix setup/weighted sheet consumption path.
+- 2026-06-15 native row bridge: the follow-only `CharHair` debug output now
+  logs the three runtime basis rows for each driven point in addition to live
+  translation. This keeps the next comparison compact: accepted PS2
+  `pcsx2_hair_transwrite_fulltarget_20260615.json` gives post-`0x00176fb8`
+  `Trans::SetWorld` rows for `bone_hair01.mesh`, `bone_bangL.mesh`, and
+  `bone_bangR.mesh`, while native validation
+  `engine/out/codex_hair_compare_20260615_rows/glam1_hair_rows.log` gives the
+  same follow targets from the current runtime. Use this bridge to solve the
+  root-parent/group matrix relation before changing default one-point hair
+  behavior.
 
 Glam1 eyes / look-at:
 
