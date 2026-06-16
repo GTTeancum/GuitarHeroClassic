@@ -1,0 +1,4342 @@
+{
+  "pcsx2_pid": 5152,
+  "ee_base_host": "0x00007ff760000000",
+  "ee_base_source": "pcsx2_log",
+  "window_handle": "0x781d46",
+  "before_sample_screenshot": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-trace360\\analysis\\ps2_trace\\pcsx2_hair_group_point_rows_20260616.before_sample.window.png",
+  "screenshot": "C:\\Programming\\GitHub\\Guitar Hero II\\GuitarHeroOGX-trace360\\analysis\\ps2_trace\\pcsx2_hair_group_point_rows_20260616.window.png",
+  "seconds": 8.0,
+  "interval": 0.2,
+  "targets": [
+    {
+      "name": "hair_obj_00dbf5a0",
+      "addr": "0x00dbf5a0",
+      "size": 208,
+      "sample_count": 40,
+      "changed_count": 0,
+      "changed": [],
+      "initial_rows": [
+        {
+          "addr": "0x00dbf5a0",
+          "value": "0x00dbf5e8",
+          "kind": "ee_ram",
+          "ascii": "@x>"
+        },
+        {
+          "addr": "0x00dbf5a4",
+          "value": "0x003e7828",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5a8",
+          "value": "0x00dbf5e8",
+          "kind": "ee_ram",
+          "ascii": "@x>"
+        },
+        {
+          "addr": "0x00dbf5ac",
+          "value": "0x003e77e8",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5b0",
+          "value": "0x00b8be10",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5b4",
+          "value": "0x3da3d70a",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5b8",
+          "value": "0x3dcccccd",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5bc",
+          "value": "0x3f4ccccd",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5c0",
+          "value": "0x3f800000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5c4",
+          "value": "0x3f800000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5c8",
+          "value": "0x3e99999a",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5cc",
+          "value": "0x00fc9a00",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5d0",
+          "value": "0x00fc9bb0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5d4",
+          "value": "0x42761a2e",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5d8",
+          "value": "0x00fc9bb0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5dc",
+          "value": "0x00dbf5e8",
+          "kind": "ee_ram",
+          "ascii": "@x>"
+        },
+        {
+          "addr": "0x00dbf5e0",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5e4",
+          "value": "0x00000001",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5e8",
+          "value": "0x003e7840",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5ec",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5f0",
+          "value": "0x003f36d0",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5f4",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf5f8",
+          "value": "0x00dbf5e8",
+          "kind": "ee_ram",
+          "ascii": "@x>"
+        },
+        {
+          "addr": "0x00dbf5fc",
+          "value": "0x00db602d",
+          "kind": "ee_ram",
+          "ascii": "hair.hair"
+        },
+        {
+          "addr": "0x00dbf600",
+          "value": "0x00b8be10",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf604",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf608",
+          "value": "0x00dbf608",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf60c",
+          "value": "0x00dbf608",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf610",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf614",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf618",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf61c",
+          "value": "0x0300001a",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf620",
+          "value": "0x00dbf650",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf624",
+          "value": "0x003e8030",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf628",
+          "value": "0x00b8be10",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf62c",
+          "value": "0x003e5830",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf630",
+          "value": "0x00dbf650",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf634",
+          "value": "0x00db6af0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf638",
+          "value": "0x003e5830",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf63c",
+          "value": "0x00dbf650",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf640",
+          "value": "0x00dbb3f0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf644",
+          "value": "0x003e5830",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf648",
+          "value": "0x00dbf650",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf64c",
+          "value": "0x00dbabf0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf650",
+          "value": "0x003e7fb0",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf654",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf658",
+          "value": "0x003f36d0",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf65c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf660",
+          "value": "0x00dbf650",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf664",
+          "value": "0x00db6037",
+          "kind": "ee_ram",
+          "ascii": "upperTwist_L.ik"
+        },
+        {
+          "addr": "0x00dbf668",
+          "value": "0x00b8be10",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbf66c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        }
+      ]
+    },
+    {
+      "name": "hair_groups_00fc9a00",
+      "addr": "0x00fc9a00",
+      "size": 432,
+      "sample_count": 40,
+      "changed_count": 0,
+      "changed": [],
+      "initial_rows": [
+        {
+          "addr": "0x00fc9a00",
+          "value": "0x003e6d88",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a04",
+          "value": "0x00dbf5e8",
+          "kind": "ee_ram",
+          "ascii": "@x>"
+        },
+        {
+          "addr": "0x00fc9a08",
+          "value": "0x00db81f0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a0c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a10",
+          "value": "0x007c4a50",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a14",
+          "value": "0x007c4ac0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a18",
+          "value": "0x00000001",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a1c",
+          "value": "0x007c4ac0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a20",
+          "value": "0x00dbf5e8",
+          "kind": "ee_ram",
+          "ascii": "@x>"
+        },
+        {
+          "addr": "0x00fc9a24",
+          "value": "0x00090002",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a28",
+          "value": "0x00080000",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a2c",
+          "value": "0x000f000b",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a30",
+          "value": "0xbc11af11",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a34",
+          "value": "0xbd9b5c07",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a38",
+          "value": "0xbf7f4090",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a3c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a40",
+          "value": "0xbf7e4666",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a44",
+          "value": "0x3ded5982",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a48",
+          "value": "0x3829bdaf",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a4c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a50",
+          "value": "0x3deca668",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a54",
+          "value": "0x3f7d8846",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a58",
+          "value": "0xbd9c6c4f",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a5c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a60",
+          "value": "0xbc11af11",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a64",
+          "value": "0xbd9b5c07",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a68",
+          "value": "0xbf7f4090",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a6c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a70",
+          "value": "0xbf7e4666",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a74",
+          "value": "0x3ded5982",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a78",
+          "value": "0x3829bdaf",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a7c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a80",
+          "value": "0x3deca668",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a84",
+          "value": "0x3f7d8846",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a88",
+          "value": "0xbd9c6c4f",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a8c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a90",
+          "value": "0x003e6d88",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a94",
+          "value": "0x00dbf5e8",
+          "kind": "ee_ram",
+          "ascii": "@x>"
+        },
+        {
+          "addr": "0x00fc9a98",
+          "value": "0x00dbc7f0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9a9c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9aa0",
+          "value": "0x007bdc40",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9aa4",
+          "value": "0x007bdcb0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9aa8",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9aac",
+          "value": "0x007bdcb0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ab0",
+          "value": "0x00dbf5e8",
+          "kind": "ee_ram",
+          "ascii": "@x>"
+        },
+        {
+          "addr": "0x00fc9ab4",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ab8",
+          "value": "0xffff000f",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9abc",
+          "value": "0x3f800000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ac0",
+          "value": "0xbded45cb",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ac4",
+          "value": "0xbf7d0993",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ac8",
+          "value": "0xbdc88bf2",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9acc",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ad0",
+          "value": "0xbf7e42c8",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ad4",
+          "value": "0x3dee5039",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ad8",
+          "value": "0x3a099bbe",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9adc",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ae0",
+          "value": "0x3c3230b3",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ae4",
+          "value": "0x3dc74f0e",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ae8",
+          "value": "0xbf7ec506",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9aec",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9af0",
+          "value": "0xbded45cb",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9af4",
+          "value": "0xbf7d0993",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9af8",
+          "value": "0xbdc88bf2",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9afc",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b00",
+          "value": "0xbf7e42c8",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b04",
+          "value": "0x3dee5039",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b08",
+          "value": "0x3a099bbe",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b0c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b10",
+          "value": "0x3c3230b3",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b14",
+          "value": "0x3dc74f0e",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b18",
+          "value": "0xbf7ec506",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b1c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b20",
+          "value": "0x003e6d88",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b24",
+          "value": "0x00dbf5e8",
+          "kind": "ee_ram",
+          "ascii": "@x>"
+        },
+        {
+          "addr": "0x00fc9b28",
+          "value": "0x00db73f0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b2c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b30",
+          "value": "0x007b80f0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b34",
+          "value": "0x007b8160",
+          "kind": "ee_ram",
+          "ascii": "`p>"
+        },
+        {
+          "addr": "0x00fc9b38",
+          "value": "0x3f7e3033",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b3c",
+          "value": "0x007b8160",
+          "kind": "ee_ram",
+          "ascii": "`p>"
+        },
+        {
+          "addr": "0x00fc9b40",
+          "value": "0x00dbf5e8",
+          "kind": "ee_ram",
+          "ascii": "@x>"
+        },
+        {
+          "addr": "0x00fc9b44",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b48",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b4c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b50",
+          "value": "0x3ded45a0",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b54",
+          "value": "0x3f7d0994",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b58",
+          "value": "0x3dc88bd8",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b5c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b60",
+          "value": "0xbf7e4201",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b64",
+          "value": "0x3dee85cc",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b68",
+          "value": "0xba095665",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b6c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b70",
+          "value": "0xbc4356c7",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b74",
+          "value": "0xbdc70ea3",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b78",
+          "value": "0x3f7ec506",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b7c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b80",
+          "value": "0x3ded45a0",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b84",
+          "value": "0x3f7d0994",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b88",
+          "value": "0x3dc88bd8",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b8c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b90",
+          "value": "0xbf7e4201",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b94",
+          "value": "0x3dee85cc",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b98",
+          "value": "0xba095665",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9b9c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ba0",
+          "value": "0xbc4356c7",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ba4",
+          "value": "0xbdc70ea3",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ba8",
+          "value": "0x3f7ec506",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bac",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        }
+      ]
+    },
+    {
+      "name": "hair_points_00fc9bb0",
+      "addr": "0x00fc9bb0",
+      "size": 576,
+      "sample_count": 40,
+      "changed_count": 26,
+      "changed": [
+        {
+          "addr": "0x00fc9be0",
+          "first": "0x3efbdddd",
+          "last": "0x3ef63d1e",
+          "unique": [
+            "0x3efbdddd",
+            "0x3f09cc27",
+            "0x3ef54451",
+            "0x3f0fd006",
+            "0x3f280c7e",
+            "0x3f1e03ab",
+            "0x3f0fb96d",
+            "0x3f0c117e",
+            "0x3f0fb8e6",
+            "0x3f067aa5",
+            "0x3f012478",
+            "0x3f049114",
+            "0x3f07f768",
+            "0x3f122db3",
+            "0x3f0e2bb5",
+            "0x3f0cafc7"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9be4",
+          "first": "0xbe93578d",
+          "last": "0xbe0859a5",
+          "unique": [
+            "0xbe93578d",
+            "0xbe99fdd3",
+            "0xbe394805",
+            "0xbe2b9b99",
+            "0xbdc568b2",
+            "0x3d60fe9a",
+            "0x3e2a57f1",
+            "0x3e31f989",
+            "0x3dd23d50",
+            "0x3d02afb9",
+            "0xbc8f27ad",
+            "0xbd2b1b77",
+            "0xbd3c2f24",
+            "0xbd2d8e6a",
+            "0x3c574890",
+            "0xbce1d645"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9be8",
+          "first": "0x3256f916",
+          "last": "0x32a22b06",
+          "unique": [
+            "0x3256f916",
+            "0x329a525b",
+            "0x319c0110",
+            "0x329b2407",
+            "0x32cd2865",
+            "0x3165b458",
+            "0x3188c62b",
+            "0x329a2125",
+            "0x31c698b9",
+            "0x32858869",
+            "0x32825a14",
+            "0x3194c6a1",
+            "0x3291a650",
+            "0x31cab327",
+            "0x31455918",
+            "0x321b95d4"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9bf0",
+          "first": "0x3f304d0e",
+          "last": "0x3f010f5e",
+          "unique": [
+            "0x3f304d0e",
+            "0x3f22fe3a",
+            "0x3f277986",
+            "0x3f14a2dc",
+            "0x3f10078f",
+            "0x3f2d6b4d",
+            "0x3f54bcc9",
+            "0x3f5f8cb3",
+            "0x3f4b640e",
+            "0x3f2e4626",
+            "0x3f110001",
+            "0x3f06bf8b",
+            "0x3ee2c133",
+            "0x3ecee570",
+            "0x3f1019ec",
+            "0x3f2e6814"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9bf4",
+          "first": "0xbf14254b",
+          "last": "0xbf50e1e0",
+          "unique": [
+            "0xbf14254b",
+            "0xbf1796e6",
+            "0xbf30240f",
+            "0xbf394066",
+            "0xbf3ae3ec",
+            "0xbf366515",
+            "0xbf13c18d",
+            "0xbf001053",
+            "0xbf1a4db4",
+            "0xbf3cdd86",
+            "0xbf532fd4",
+            "0xbf56b649",
+            "0xbf62022c",
+            "0xbf65be2c",
+            "0xbf5200b5",
+            "0xbf333f0c"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9bf8",
+          "first": "0xafcb6a08",
+          "last": "0x3277e971",
+          "unique": [
+            "0xafcb6a08",
+            "0x32b3d291",
+            "0x32b221a5",
+            "0xb0fad41f",
+            "0xb18864d1",
+            "0x32b359c5",
+            "0x311d9836",
+            "0x32e0795c",
+            "0x335f1514",
+            "0x32c5e214",
+            "0x3310a3df",
+            "0x314d40a2",
+            "0x328d51f5",
+            "0x30b5383a",
+            "0x314ebece",
+            "0x333fae58"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c00",
+          "first": "0x3f30350b",
+          "last": "0x3f55213c",
+          "unique": [
+            "0x3f30350b",
+            "0x3f341d75",
+            "0x3f3dbf73",
+            "0x3f40f777",
+            "0x3f31b133",
+            "0x3f1fc3d8",
+            "0x3eea80f4",
+            "0x3ec0776c",
+            "0x3f0085a1",
+            "0x3f2ec9ee",
+            "0x3f4cf175",
+            "0x3f525508",
+            "0x3f5dbb40",
+            "0x3f5c8edc",
+            "0x3f46219f",
+            "0x3f2aa064"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c04",
+          "first": "0x3f436fc0",
+          "last": "0x3f0ff373",
+          "unique": [
+            "0x3f436fc0",
+            "0x3f3f6dce",
+            "0x3f3401ac",
+            "0x3f2b7969",
+            "0x3f2d37c9",
+            "0x3f3331d2",
+            "0x3f4cf492",
+            "0x3f596fc1",
+            "0x3f4aeaa6",
+            "0x3f2d09cd",
+            "0x3f112393",
+            "0x3f0b465d",
+            "0x3eef8f53",
+            "0x3ee0aac7",
+            "0x3f125fe3",
+            "0x3f36c1ff"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c08",
+          "first": "0xb084d63c",
+          "last": "0x32d5c55a",
+          "unique": [
+            "0xb084d63c",
+            "0x329cffbd",
+            "0x32b6c7ff",
+            "0xb0549f67",
+            "0xb1318b27",
+            "0x32b49a1e",
+            "0xb18c53cd",
+            "0x323a1c7e",
+            "0x32fc6a81",
+            "0x3299268e",
+            "0x334fd6d2",
+            "0xb115f434",
+            "0x32ce9c75",
+            "0xb0a7b824",
+            "0xb124880b",
+            "0x33265428"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c10",
+          "first": "0x42cd0072",
+          "last": "0x42cb132a",
+          "unique": [
+            "0x42cd0072",
+            "0x42cde4b5",
+            "0x42d22949",
+            "0x42d7d9e8",
+            "0x42d9a2f9",
+            "0x42d6686d",
+            "0x42cfafe5",
+            "0x42cb9a8a",
+            "0x42cad813",
+            "0x42cdd075",
+            "0x42d23861",
+            "0x42d5f65f",
+            "0x42dabf2f",
+            "0x42dbafc8",
+            "0x42d9ab43",
+            "0x42d59b6d"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c14",
+          "first": "0x42989f49",
+          "last": "0x429eac7d",
+          "unique": [
+            "0x42989f49",
+            "0x4299be10",
+            "0x429b0db3",
+            "0x429e647b",
+            "0x42a343a8",
+            "0x42a14fa3",
+            "0x429cb14a",
+            "0x429a09dc",
+            "0x4299fc8b",
+            "0x429a5478",
+            "0x429bb878",
+            "0x429cf376",
+            "0x429e3abc",
+            "0x429f3fac",
+            "0x429c9dc6",
+            "0x4298ebbd"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c18",
+          "first": "0x41b79c18",
+          "last": "0x41b79c09",
+          "unique": [
+            "0x41b79c18",
+            "0x41b79c19",
+            "0x41b79c00",
+            "0x41b79c20",
+            "0x41b79c11",
+            "0x41b79c12",
+            "0x41b79c1b",
+            "0x41b79c0f",
+            "0x41b79c1a",
+            "0x41b79c0a",
+            "0x41b79c17",
+            "0x41b79c1f",
+            "0x41b79c21",
+            "0x41b79c08",
+            "0x41b79c0b",
+            "0x41b79c09"
+          ],
+          "unique_count": 16,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c20",
+          "first": "0x3efbdddd",
+          "last": "0x3ef63d1e",
+          "unique": [
+            "0x3efbdddd",
+            "0x3f09cc27",
+            "0x3ef54451",
+            "0x3f0fd006",
+            "0x3f280c7e",
+            "0x3f1e03ab",
+            "0x3f0fb96d",
+            "0x3f0c117e",
+            "0x3f0fb8e6",
+            "0x3f067aa5",
+            "0x3f012478",
+            "0x3f049114",
+            "0x3f07f768",
+            "0x3f122db3",
+            "0x3f0e2bb5",
+            "0x3f0cafc7"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c24",
+          "first": "0xbe93578d",
+          "last": "0xbe0859a5",
+          "unique": [
+            "0xbe93578d",
+            "0xbe99fdd3",
+            "0xbe394805",
+            "0xbe2b9b99",
+            "0xbdc568b2",
+            "0x3d60fe9a",
+            "0x3e2a57f1",
+            "0x3e31f989",
+            "0x3dd23d50",
+            "0x3d02afb9",
+            "0xbc8f27ad",
+            "0xbd2b1b77",
+            "0xbd3c2f24",
+            "0xbd2d8e6a",
+            "0x3c574890",
+            "0xbce1d645"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c28",
+          "first": "0x3256f916",
+          "last": "0x32a22b06",
+          "unique": [
+            "0x3256f916",
+            "0x329a525b",
+            "0x319c0110",
+            "0x329b2407",
+            "0x32cd2865",
+            "0x3165b458",
+            "0x3188c62b",
+            "0x329a2125",
+            "0x31c698b9",
+            "0x32858869",
+            "0x32825a14",
+            "0x3194c6a1",
+            "0x3291a650",
+            "0x31cab327",
+            "0x31455918",
+            "0x321b95d4"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c30",
+          "first": "0x3f304d0e",
+          "last": "0x3f010f5e",
+          "unique": [
+            "0x3f304d0e",
+            "0x3f22fe3a",
+            "0x3f277986",
+            "0x3f14a2dc",
+            "0x3f10078f",
+            "0x3f2d6b4d",
+            "0x3f54bcc9",
+            "0x3f5f8cb3",
+            "0x3f4b640e",
+            "0x3f2e4626",
+            "0x3f110001",
+            "0x3f06bf8b",
+            "0x3ee2c133",
+            "0x3ecee570",
+            "0x3f1019ec",
+            "0x3f2e6814"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c34",
+          "first": "0xbf14254b",
+          "last": "0xbf50e1e0",
+          "unique": [
+            "0xbf14254b",
+            "0xbf1796e6",
+            "0xbf30240f",
+            "0xbf394066",
+            "0xbf3ae3ec",
+            "0xbf366515",
+            "0xbf13c18d",
+            "0xbf001053",
+            "0xbf1a4db4",
+            "0xbf3cdd86",
+            "0xbf532fd4",
+            "0xbf56b649",
+            "0xbf62022c",
+            "0xbf65be2c",
+            "0xbf5200b5",
+            "0xbf333f0c"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c38",
+          "first": "0xafcb6a08",
+          "last": "0x3277e971",
+          "unique": [
+            "0xafcb6a08",
+            "0x32b3d291",
+            "0x32b221a5",
+            "0xb0fad41f",
+            "0xb18864d1",
+            "0x32b359c5",
+            "0x311d9836",
+            "0x32e0795c",
+            "0x335f1514",
+            "0x32c5e214",
+            "0x3310a3df",
+            "0x314d40a2",
+            "0x328d51f5",
+            "0x30b5383a",
+            "0x314ebece",
+            "0x333fae58"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c40",
+          "first": "0x3f30350b",
+          "last": "0x3f55213c",
+          "unique": [
+            "0x3f30350b",
+            "0x3f341d75",
+            "0x3f3dbf73",
+            "0x3f40f777",
+            "0x3f31b133",
+            "0x3f1fc3d8",
+            "0x3eea80f4",
+            "0x3ec0776c",
+            "0x3f0085a1",
+            "0x3f2ec9ee",
+            "0x3f4cf175",
+            "0x3f525508",
+            "0x3f5dbb40",
+            "0x3f5c8edc",
+            "0x3f46219f",
+            "0x3f2aa064"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c44",
+          "first": "0x3f436fc0",
+          "last": "0x3f0ff373",
+          "unique": [
+            "0x3f436fc0",
+            "0x3f3f6dce",
+            "0x3f3401ac",
+            "0x3f2b7969",
+            "0x3f2d37c9",
+            "0x3f3331d2",
+            "0x3f4cf492",
+            "0x3f596fc1",
+            "0x3f4aeaa6",
+            "0x3f2d09cd",
+            "0x3f112393",
+            "0x3f0b465d",
+            "0x3eef8f53",
+            "0x3ee0aac7",
+            "0x3f125fe3",
+            "0x3f36c1ff"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c48",
+          "first": "0xb084d63c",
+          "last": "0x32d5c55a",
+          "unique": [
+            "0xb084d63c",
+            "0x329cffbd",
+            "0x32b6c7ff",
+            "0xb0549f67",
+            "0xb1318b27",
+            "0x32b49a1e",
+            "0xb18c53cd",
+            "0x323a1c7e",
+            "0x32fc6a81",
+            "0x3299268e",
+            "0x334fd6d2",
+            "0xb115f434",
+            "0x32ce9c75",
+            "0xb0a7b824",
+            "0xb124880b",
+            "0x33265428"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c50",
+          "first": "0x42cd0072",
+          "last": "0x42cb132a",
+          "unique": [
+            "0x42cd0072",
+            "0x42cde4b5",
+            "0x42d22949",
+            "0x42d7d9e8",
+            "0x42d9a2f9",
+            "0x42d6686d",
+            "0x42cfafe5",
+            "0x42cb9a8a",
+            "0x42cad813",
+            "0x42cdd075",
+            "0x42d23861",
+            "0x42d5f65f",
+            "0x42dabf2f",
+            "0x42dbafc8",
+            "0x42d9ab43",
+            "0x42d59b6d"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c54",
+          "first": "0x42989f49",
+          "last": "0x429eac7d",
+          "unique": [
+            "0x42989f49",
+            "0x4299be10",
+            "0x429b0db3",
+            "0x429e647b",
+            "0x42a343a8",
+            "0x42a14fa3",
+            "0x429cb14a",
+            "0x429a09dc",
+            "0x4299fc8b",
+            "0x429a5478",
+            "0x429bb878",
+            "0x429cf376",
+            "0x429e3abc",
+            "0x429f3fac",
+            "0x429c9dc6",
+            "0x4298ebbd"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9c58",
+          "first": "0x41b79c18",
+          "last": "0x41b79c09",
+          "unique": [
+            "0x41b79c18",
+            "0x41b79c19",
+            "0x41b79c00",
+            "0x41b79c20",
+            "0x41b79c11",
+            "0x41b79c12",
+            "0x41b79c1b",
+            "0x41b79c0f",
+            "0x41b79c1a",
+            "0x41b79c0a",
+            "0x41b79c17",
+            "0x41b79c1f",
+            "0x41b79c21",
+            "0x41b79c08",
+            "0x41b79c0b",
+            "0x41b79c09"
+          ],
+          "unique_count": 16,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9d08",
+          "first": "0x0076b9d0",
+          "last": "0x0076be50",
+          "unique": [
+            "0x0076b9d0",
+            "0x0076be50"
+          ],
+          "unique_count": 2,
+          "kind_first": "ee_ram",
+          "ascii_first": null,
+          "kind_last": "ee_ram",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00fc9d18",
+          "first": "0x40466bee",
+          "last": "0x4174cfc6",
+          "unique": [
+            "0x40466bee",
+            "0x405a6ea4",
+            "0x406e7114",
+            "0x4081390a",
+            "0x408b3a4b",
+            "0x40953b93",
+            "0x409f4133",
+            "0x40a94301",
+            "0x40b343a3",
+            "0x40bd40ab",
+            "0x40c74239",
+            "0x40d143c3",
+            "0x40db521d",
+            "0x40e54663",
+            "0x40ef4780",
+            "0x40f94c1a"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        }
+      ],
+      "initial_rows": [
+        {
+          "addr": "0x00fc9bb0",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bb4",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bb8",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bbc",
+          "value": "0x03000044",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bc0",
+          "value": "0x00fc9c90",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bc4",
+          "value": "0x00fc9cb8",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bc8",
+          "value": "0x003e6d88",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bcc",
+          "value": "0x00fc9c90",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bd0",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bd4",
+          "value": "0x00dd4f90",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bd8",
+          "value": "0x00fc9bd8",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bdc",
+          "value": "0x00fc9bd8",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9be0",
+          "value": "0x3efbdddd",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9be4",
+          "value": "0xbe93578d",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9be8",
+          "value": "0x3256f916",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bec",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bf0",
+          "value": "0x3f304d0e",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bf4",
+          "value": "0xbf14254b",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bf8",
+          "value": "0xafcb6a08",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9bfc",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c00",
+          "value": "0x3f30350b",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c04",
+          "value": "0x3f436fc0",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c08",
+          "value": "0xb084d63c",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c0c",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c10",
+          "value": "0x42cd0072",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c14",
+          "value": "0x42989f49",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c18",
+          "value": "0x41b79c18",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c1c",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c20",
+          "value": "0x3efbdddd",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c24",
+          "value": "0xbe93578d",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c28",
+          "value": "0x3256f916",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c2c",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c30",
+          "value": "0x3f304d0e",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c34",
+          "value": "0xbf14254b",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c38",
+          "value": "0xafcb6a08",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c3c",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c40",
+          "value": "0x3f30350b",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c44",
+          "value": "0x3f436fc0",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c48",
+          "value": "0xb084d63c",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c4c",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c50",
+          "value": "0x42cd0072",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c54",
+          "value": "0x42989f49",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c58",
+          "value": "0x41b79c18",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c5c",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c60",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c64",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c68",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c6c",
+          "value": "0x003e5830",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c70",
+          "value": "0x00fc9c90",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c74",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c78",
+          "value": "0x003e6a78",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c7c",
+          "value": "0x00dd4fa0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c80",
+          "value": "0x003e5830",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c84",
+          "value": "0x00fc9c90",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c88",
+          "value": "0x00dbacf0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c8c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c90",
+          "value": "0x003e69e0",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c94",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c98",
+          "value": "0x003f36d0",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9c9c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ca0",
+          "value": "0x00fc9c90",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ca4",
+          "value": "0x0044d630",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ca8",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cac",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cb0",
+          "value": "0x007966b0",
+          "kind": "ee_ram",
+          "ascii": "@ u"
+        },
+        {
+          "addr": "0x00fc9cb4",
+          "value": "0x00779bd0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cb8",
+          "value": "0x00fc9c90",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cbc",
+          "value": "0x003e6a60",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cc0",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cc4",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cc8",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ccc",
+          "value": "0x03000023",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cd0",
+          "value": "0x00fc9d24",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cd4",
+          "value": "0x3f800000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cd8",
+          "value": "0x003e81b0",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cdc",
+          "value": "0x00fc9d24",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ce0",
+          "value": "0x00fc9cd0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ce4",
+          "value": "0x00fc9d24",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ce8",
+          "value": "0x003e7380",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cec",
+          "value": "0x00b8ca60",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cf0",
+          "value": "0x003e7440",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cf4",
+          "value": "0x00fc9d24",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cf8",
+          "value": "0x00ff4150",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9cfc",
+          "value": "0x003e3230",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d00",
+          "value": "0x01019b90",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d04",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d08",
+          "value": "0x0076b9d0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d0c",
+          "value": "0x0044d630",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d10",
+          "value": "0x01023080",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d14",
+          "value": "0x00000004",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d18",
+          "value": "0x40466bee",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d1c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d20",
+          "value": "0x3f800000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d24",
+          "value": "0x003e73c0",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d28",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d2c",
+          "value": "0x003f36d0",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d30",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d34",
+          "value": "0x00fc9d24",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d38",
+          "value": "0x00ff27e7",
+          "kind": "ee_ram",
+          "ascii": "main.drv"
+        },
+        {
+          "addr": "0x00fc9d3c",
+          "value": "0x00b8ca60",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d40",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d44",
+          "value": "0x00fc9d44",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d48",
+          "value": "0x00fc9d44",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d4c",
+          "value": "0x00000009",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d50",
+          "value": "0x00200020",
+          "kind": "code_rodata",
+          "ascii": ";"
+        },
+        {
+          "addr": "0x00fc9d54",
+          "value": "0x00040010",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d58",
+          "value": "0x00000003",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d5c",
+          "value": "0x013bc3c0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d60",
+          "value": "0x013e5910",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d64",
+          "value": "0x013bc3c0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d68",
+          "value": "0x00ff4c40",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d6c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d70",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d74",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d78",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d7c",
+          "value": "0x030002a4",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d80",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d84",
+          "value": "0x003f00c8",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d88",
+          "value": "0x00dcc610",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d8c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d90",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d94",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d98",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9d9c",
+          "value": "0x3f4f3d87",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9da0",
+          "value": "0xbdc38171",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9da4",
+          "value": "0x3e24a136",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9da8",
+          "value": "0x3f0e770c",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9dac",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9db0",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9db4",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9db8",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9dbc",
+          "value": "0xffff0008",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9dc0",
+          "value": "0x3f800000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9dc4",
+          "value": "0x3f800000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9dc8",
+          "value": "0x00fc95f0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9dcc",
+          "value": "0x00000010",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9dd0",
+          "value": "0x0000000b",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9dd4",
+          "value": "0x000c0001",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9dd8",
+          "value": "0x003f00c8",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9ddc",
+          "value": "0x00dcd4c0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9de0",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9de4",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9de8",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00fc9dec",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        }
+      ]
+    },
+    {
+      "name": "hair_target_hair01_00db81f0",
+      "addr": "0x00db81f0",
+      "size": 160,
+      "sample_count": 40,
+      "changed_count": 12,
+      "changed": [
+        {
+          "addr": "0x00db8250",
+          "first": "0xbf5d35e9",
+          "last": "0xbf746378",
+          "unique": [
+            "0xbf5d35e9",
+            "0xbf6240d4",
+            "0xbf633de6",
+            "0xbf642bfb",
+            "0xbf64ae24",
+            "0xbf571a63",
+            "0xbf2eef04",
+            "0xbf13ec2c",
+            "0xbf1eee1d",
+            "0xbf5349dc",
+            "0xbf7cb96f",
+            "0xbf7efb20",
+            "0xbf7a5bb0",
+            "0xbf7471cf",
+            "0xbf6b83f0",
+            "0xbf5c8b4b"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8254",
+          "first": "0xbef355ec",
+          "last": "0xbe9616b7",
+          "unique": [
+            "0xbef355ec",
+            "0xbeed238a",
+            "0xbeeb4a77",
+            "0xbee27f4c",
+            "0xbedafc6a",
+            "0xbf0ac414",
+            "0xbf3a7347",
+            "0xbf504446",
+            "0xbf482ab0",
+            "0xbf0b9bbd",
+            "0xbdaf4f92",
+            "0x3c05f6d3",
+            "0xbe4b9548",
+            "0xbe9813de",
+            "0xbec5c32a",
+            "0xbefea441"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8258",
+          "first": "0xbe29a671",
+          "last": "0xbd55d09a",
+          "unique": [
+            "0xbe29a671",
+            "0xbd8778cc",
+            "0x3cf0fb7b",
+            "0x3dcbb4c7",
+            "0x3e0d91df",
+            "0xbc512efe",
+            "0xbd50ebcf",
+            "0x3d85d73a",
+            "0x3d682154",
+            "0x3e15cf26",
+            "0x3e09c3c7",
+            "0x3db5c8c6",
+            "0x3d82934d",
+            "0xbb7a736e",
+            "0xbd887903",
+            "0xbdd17ca9"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8260",
+          "first": "0x3df80589",
+          "last": "0x3bff7486",
+          "unique": [
+            "0x3df80589",
+            "0x3c292a26",
+            "0xbd45423f",
+            "0xbda9c72d",
+            "0xbde50474",
+            "0x3dcc6b07",
+            "0x3e6b70d9",
+            "0x3e1355d2",
+            "0x3c473691",
+            "0xbded3bdf",
+            "0xbe0e5f11",
+            "0xbdb626af",
+            "0xbd36fe0f",
+            "0xbc1334d1",
+            "0x3d9d07a5",
+            "0x3e1405b3"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8264",
+          "first": "0x3dfc3f11",
+          "last": "0x3e1a4379",
+          "unique": [
+            "0x3dfc3f11",
+            "0x3df9f113",
+            "0x3cee7d34",
+            "0xbd682c0c",
+            "0xbdb1097f",
+            "0xbe06a5b7",
+            "0xbe17ec01",
+            "0xbe38af39",
+            "0xbda7b3a1",
+            "0xbdb86d12",
+            "0x3d487206",
+            "0xbccd2d09",
+            "0xbdcad196",
+            "0x3d2af576",
+            "0xbc2e01e5",
+            "0xbd40fcd4"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8268",
+          "first": "0xbf7c26eb",
+          "last": "0xbf7d120e",
+          "unique": [
+            "0xbf7c26eb",
+            "0xbf7e1299",
+            "0xbf7f9826",
+            "0xbf7eb4b1",
+            "0xbf7d6e14",
+            "0xbf7c7cd0",
+            "0xbf763ac0",
+            "0xbf7917e6",
+            "0xbf7f1f0d",
+            "0xbf7d3ac1",
+            "0xbf7d3433",
+            "0xbf7ee7a3",
+            "0xbf7e7c14",
+            "0xbf7fc43f",
+            "0xbf7f3b5e",
+            "0xbf7d0621"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8270",
+          "first": "0x3efa202c",
+          "last": "0x3e9865c6",
+          "unique": [
+            "0x3efa202c",
+            "0x3eef7c9d",
+            "0x3eea7ac3",
+            "0x3ee43d26",
+            "0x3edee80f",
+            "0x3f086ea4",
+            "0x3f3165a1",
+            "0x3f4daa4b",
+            "0x3f48aaed",
+            "0x3f0d7859",
+            "0x3d9fe998",
+            "0xbbc1ef57",
+            "0x3e50d7fb",
+            "0x3e980546",
+            "0x3ec4ce7f",
+            "0x3ef936ba"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8274",
+          "first": "0xbf5f0599",
+          "last": "0xbf71b234",
+          "unique": [
+            "0xbf5f0599",
+            "0xbf60b984",
+            "0xbf633e8d",
+            "0xbf652112",
+            "0xbf66579d",
+            "0xbf547a5d",
+            "0xbf2b4265",
+            "0xbf0d8649",
+            "0xbf1e354c",
+            "0xbf55571a",
+            "0xbf7ec0a6",
+            "0xbf7fe940",
+            "0xbf799afc",
+            "0xbf74367f",
+            "0xbf6c1de2",
+            "0xbf5dc3f5"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8278",
+          "first": "0xbd482ea1",
+          "last": "0xbe10ed2b",
+          "unique": [
+            "0xbd482ea1",
+            "0xbdd31ae5",
+            "0xbd447fef",
+            "0x3c62e370",
+            "0x3cf0c456",
+            "0x3e288a2f",
+            "0x3e89a521",
+            "0x3e629404",
+            "0x3d772aa8",
+            "0x3c36ba38",
+            "0xbd76a10d",
+            "0x3cd2510e",
+            "0x3db4288a",
+            "0xbd2e2c4e",
+            "0x3d2153f3",
+            "0x3de65dc4"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8280",
+          "first": "0x429ffbba",
+          "last": "0x42a74dee",
+          "unique": [
+            "0x429ffbba",
+            "0x42a37d66",
+            "0x42a4d210",
+            "0x42aa4f78",
+            "0x42ae9ba5",
+            "0x42a8162d",
+            "0x429f7799",
+            "0x429c59db",
+            "0x429ea56f",
+            "0x42a3f919",
+            "0x42ab4d3d",
+            "0x42ae442d",
+            "0x42b14c4c",
+            "0x42b36d7b",
+            "0x42b089a3",
+            "0x42acc994"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8284",
+          "first": "0x429ca699",
+          "last": "0x42a0747a",
+          "unique": [
+            "0x429ca699",
+            "0x429c0625",
+            "0x42a1b94b",
+            "0x42a50d1c",
+            "0x42aa5d25",
+            "0x42ad8cca",
+            "0x42ac2cdb",
+            "0x42aa266d",
+            "0x42a92684",
+            "0x42a9e8c2",
+            "0x42a8385d",
+            "0x42a6f855",
+            "0x42a582ac",
+            "0x42a46a1c",
+            "0x42a47455",
+            "0x42a19afe"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db8288",
+          "first": "0x42aafeeb",
+          "last": "0x42a2cdf4",
+          "unique": [
+            "0x42aafeeb",
+            "0x42ac72ed",
+            "0x42abec28",
+            "0x42abab6c",
+            "0x42ab7cbc",
+            "0x42a90a3f",
+            "0x42a6b41f",
+            "0x42a695b1",
+            "0x42a7e26c",
+            "0x42a8b4ba",
+            "0x42a9425e",
+            "0x42a62a59",
+            "0x42a31a55",
+            "0x42a3a07f",
+            "0x42a34b29",
+            "0x42a21f88"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        }
+      ],
+      "initial_rows": [
+        {
+          "addr": "0x00db81f0",
+          "value": "0x00db82b0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db81f4",
+          "value": "0x00db82d8",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db81f8",
+          "value": "0x003e6d88",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db81fc",
+          "value": "0x00db82b0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8200",
+          "value": "0x00db9ef0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8204",
+          "value": "0x00000042",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8208",
+          "value": "0x00db8208",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db820c",
+          "value": "0x00db8208",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8210",
+          "value": "0xbc11af11",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8214",
+          "value": "0xbd9b5c07",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8218",
+          "value": "0xbf7f4090",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db821c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8220",
+          "value": "0xbf7e4666",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8224",
+          "value": "0x3ded5982",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8228",
+          "value": "0x3829bdaf",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db822c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8230",
+          "value": "0x3deca668",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8234",
+          "value": "0x3f7d8846",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8238",
+          "value": "0xbd9c6c4f",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db823c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8240",
+          "value": "0x40906949",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8244",
+          "value": "0xc08c6f14",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8248",
+          "value": "0x3ed4544f",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db824c",
+          "value": "0x3f800000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8250",
+          "value": "0xbf5d35e9",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8254",
+          "value": "0xbef355ec",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8258",
+          "value": "0xbe29a671",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db825c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8260",
+          "value": "0x3df80589",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8264",
+          "value": "0x3dfc3f11",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8268",
+          "value": "0xbf7c26eb",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db826c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8270",
+          "value": "0x3efa202c",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8274",
+          "value": "0xbf5f0599",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8278",
+          "value": "0xbd482ea1",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db827c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8280",
+          "value": "0x429ffbba",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8284",
+          "value": "0x429ca699",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db8288",
+          "value": "0x42aafeeb",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db828c",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        }
+      ]
+    },
+    {
+      "name": "hair_target_bangL_00dbc7f0",
+      "addr": "0x00dbc7f0",
+      "size": 160,
+      "sample_count": 40,
+      "changed_count": 12,
+      "changed": [
+        {
+          "addr": "0x00dbc850",
+          "first": "0xbf219774",
+          "last": "0xbeeb6c52",
+          "unique": [
+            "0xbf219774",
+            "0xbf1d2039",
+            "0xbf19cef6",
+            "0xbf182793",
+            "0xbf163afb",
+            "0xbf2d2d25",
+            "0xbf4df094",
+            "0xbf64f27b",
+            "0xbf61a71a",
+            "0xbf31792f",
+            "0xbe85e482",
+            "0xbe39b6b2",
+            "0xbec176c1",
+            "0xbeebd07e",
+            "0xbf0a2fbd",
+            "0xbf201ce2"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc854",
+          "first": "0x3f467d39",
+          "last": "0x3f624d9b",
+          "unique": [
+            "0x3f467d39",
+            "0x3f4932dc",
+            "0x3f4c4dc4",
+            "0x3f4ddddc",
+            "0x3f4ed755",
+            "0x3f3519c5",
+            "0x3f03aa0c",
+            "0x3eccb607",
+            "0x3ef19f61",
+            "0x3f37eaf1",
+            "0x3f7624af",
+            "0x3f7b478c",
+            "0x3f6bbe65",
+            "0x3f632b55",
+            "0x3f56dce2",
+            "0x3f43b5d8"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc858",
+          "first": "0x3ca3d5f3",
+          "last": "0x3dacdbb8",
+          "unique": [
+            "0x3ca3d5f3",
+            "0x3d992a39",
+            "0x3d3c9748",
+            "0x3bfd29fa",
+            "0xbd58c813",
+            "0xbe51b445",
+            "0xbe982ce4",
+            "0xbe4d9f32",
+            "0xbc9445b2",
+            "0x3d69c500",
+            "0x3dad0123",
+            "0xbd775e4d",
+            "0xbdc49584",
+            "0x3ca95e33",
+            "0xbd8488eb",
+            "0xbe1fde19"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc860",
+          "first": "0x3df92fa0",
+          "last": "0xbcac4c2a",
+          "unique": [
+            "0x3df92fa0",
+            "0x3ce7990c",
+            "0xbd345dc2",
+            "0xbd9f4226",
+            "0xbdcf81ae",
+            "0x3db39c7a",
+            "0x3e6b88dc",
+            "0x3e134ac5",
+            "0x3c83569d",
+            "0xbd11063b",
+            "0xbdf8f781",
+            "0xbe1f6237",
+            "0xbd670fc8",
+            "0xbc590897",
+            "0x3d85f323",
+            "0x3e0f576f"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc864",
+          "first": "0x3dfee273",
+          "last": "0x3dac6632",
+          "unique": [
+            "0x3dfee273",
+            "0x3deeb16c",
+            "0x3cc872ad",
+            "0xbd4439e1",
+            "0xbe0d70ea",
+            "0xbe4b7af4",
+            "0xbe4436f0",
+            "0xbe2c1401",
+            "0xbc09a582",
+            "0x3d38e949",
+            "0x3d5d3cea",
+            "0xbdb6dc4a",
+            "0xbe0169cc",
+            "0x3c867f4b",
+            "0xbd0ea79e",
+            "0xbdb1fa0c"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc868",
+          "first": "0xbf7c17b7",
+          "last": "0xbf7f08d8",
+          "unique": [
+            "0xbf7c17b7",
+            "0xbf7e26ff",
+            "0xbf7faccb",
+            "0xbf7eee12",
+            "0xbf7c3745",
+            "0xbf79e369",
+            "0xbf74424c",
+            "0xbf79a896",
+            "0xbf7ff544",
+            "0xbf7f940e",
+            "0xbf7db990",
+            "0xbf7bd84a",
+            "0xbf7d8952",
+            "0xbf7ff16b",
+            "0xbf7f4bd5",
+            "0xbf7c8053"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc870",
+          "first": "0xbf4418c6",
+          "last": "0xbf6344c0",
+          "unique": [
+            "0xbf4418c6",
+            "0xbf49fa59",
+            "0xbf4c5531",
+            "0xbf4ce951",
+            "0xbf4da7b6",
+            "0xbf3b31da",
+            "0xbf0c348c",
+            "0xbed8eabc",
+            "0xbef1a92d",
+            "0xbf38463d",
+            "0xbf751fb1",
+            "0xbf7894d6",
+            "0xbf6c94a2",
+            "0xbf6334a2",
+            "0xbf56d95f",
+            "0xbf44823f"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc874",
+          "first": "0xbf1e8094",
+          "last": "0xbeeb71b5",
+          "unique": [
+            "0xbf1e8094",
+            "0xbf1b7356",
+            "0xbf1a21d7",
+            "0xbf17ac22",
+            "0xbf12a30e",
+            "0xbf2da3c8",
+            "0xbf55fef3",
+            "0xbf66ab85",
+            "0xbf61b0a7",
+            "0xbf31b2c7",
+            "0xbe89f5e3",
+            "0xbe2d12e0",
+            "0xbebcd466",
+            "0xbeebe6f4",
+            "0xbf0ae3e0",
+            "0xbf2384ea"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc878",
+          "first": "0xbe310bf7",
+          "last": "0xbca4c60c",
+          "unique": [
+            "0xbe310bf7",
+            "0xbdc00225",
+            "0x3ca7746a",
+            "0x3dba6256",
+            "0x3e26d531",
+            "0x3d943c39",
+            "0x3d12d39a",
+            "0x3dbe014c",
+            "0xb9287f80",
+            "0xbbc00238",
+            "0x3dd273fa",
+            "0x3e2d06cd",
+            "0x3dcc3075",
+            "0x3b8965ee",
+            "0xbd13d8af",
+            "0xbd57b4f5"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc880",
+          "first": "0x42abbdc6",
+          "last": "0x42b2d88a",
+          "unique": [
+            "0x42abbdc6",
+            "0x42af076c",
+            "0x42b06a03",
+            "0x42b5ccae",
+            "0x42b9eac2",
+            "0x42b46586",
+            "0x42abed1a",
+            "0x42a8b8ff",
+            "0x42ab2171",
+            "0x42ae3540",
+            "0x42b1549b",
+            "0x42b73de0",
+            "0x42bc5070",
+            "0x42be5968",
+            "0x42bc2c62",
+            "0x42b8ec39"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc884",
+          "first": "0x42986a62",
+          "last": "0x429c1e3d",
+          "unique": [
+            "0x42986a62",
+            "0x42977315",
+            "0x429d3ec5",
+            "0x42a01002",
+            "0x42a5a0b2",
+            "0x42ab9254",
+            "0x42ad7d60",
+            "0x42ac1637",
+            "0x42a83330",
+            "0x42a2b396",
+            "0x429d5c0d",
+            "0x429e424b",
+            "0x429f8b37",
+            "0x429e8ed2",
+            "0x429fddd1",
+            "0x429e8c62"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00dbc888",
+          "first": "0x42abd18d",
+          "last": "0x42a099f2",
+          "unique": [
+            "0x42abd18d",
+            "0x42aac77a",
+            "0x42aa5fd0",
+            "0x42ab66ba",
+            "0x42a8e969",
+            "0x42a7cfb8",
+            "0x42a6a42c",
+            "0x42a6d247",
+            "0x42a79152",
+            "0x42a84eca",
+            "0x42a7a0dc",
+            "0x42a57223",
+            "0x42a30fa4",
+            "0x42a1d07c",
+            "0x42a2a448",
+            "0x42a2a030"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        }
+      ],
+      "initial_rows": [
+        {
+          "addr": "0x00dbc7f0",
+          "value": "0x00dbc8b0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc7f4",
+          "value": "0x00dbc8d8",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc7f8",
+          "value": "0x003e6d88",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc7fc",
+          "value": "0x00dbc8b0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc800",
+          "value": "0x00db9ef0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc804",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc808",
+          "value": "0x00dbc808",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc80c",
+          "value": "0x00dbc808",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc810",
+          "value": "0xbded45cb",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc814",
+          "value": "0xbf7d0993",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc818",
+          "value": "0xbdc88bf2",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc81c",
+          "value": "0xfd1c7300",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc820",
+          "value": "0xbf7e42c8",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc824",
+          "value": "0x3dee5039",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc828",
+          "value": "0x3a099bbe",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc82c",
+          "value": "0x97000000",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc830",
+          "value": "0x3c3230b3",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc834",
+          "value": "0x3dc74f0e",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc838",
+          "value": "0xbf7ec506",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc83c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc840",
+          "value": "0x4090dd78",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc844",
+          "value": "0x3f230b65",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc848",
+          "value": "0x4084efc6",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc84c",
+          "value": "0x3f800000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc850",
+          "value": "0xbf219774",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc854",
+          "value": "0x3f467d39",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc858",
+          "value": "0x3ca3d5f3",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc85c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc860",
+          "value": "0x3df92fa0",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc864",
+          "value": "0x3dfee273",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc868",
+          "value": "0xbf7c17b7",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc86c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc870",
+          "value": "0xbf4418c6",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc874",
+          "value": "0xbf1e8094",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc878",
+          "value": "0xbe310bf7",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc87c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc880",
+          "value": "0x42abbdc6",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc884",
+          "value": "0x42986a62",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc888",
+          "value": "0x42abd18d",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00dbc88c",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        }
+      ]
+    },
+    {
+      "name": "hair_target_bangR_00db73f0",
+      "addr": "0x00db73f0",
+      "size": 160,
+      "sample_count": 40,
+      "changed_count": 12,
+      "changed": [
+        {
+          "addr": "0x00db7450",
+          "first": "0x3f217a61",
+          "last": "0x3eeb0fe7",
+          "unique": [
+            "0x3f217a61",
+            "0x3f1c66bc",
+            "0x3f19d0d1",
+            "0x3f1827bd",
+            "0x3f153ce8",
+            "0x3f2d8a9e",
+            "0x3f4fc4b4",
+            "0x3f63f023",
+            "0x3f60d28e",
+            "0x3f30cc28",
+            "0x3e81ff46",
+            "0x3e29ef27",
+            "0x3ec26f6c",
+            "0x3eec423f",
+            "0x3f0a7269",
+            "0x3f20f0be"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7454",
+          "first": "0xbf469822",
+          "last": "0xbf5ec7af",
+          "unique": [
+            "0xbf469822",
+            "0xbf4a260d",
+            "0xbf4c3cbb",
+            "0xbf4ddfc5",
+            "0xbf4ff1fd",
+            "0xbf39906e",
+            "0xbf0803d2",
+            "0xbecc57e5",
+            "0xbeed27c2",
+            "0xbf352e66",
+            "0xbf771ed7",
+            "0xbf7bdef2",
+            "0xbf6c55eb",
+            "0xbf62dfa2",
+            "0xbf573381",
+            "0xbf44df02"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7458",
+          "first": "0xbc93359c",
+          "last": "0xbe36eeac",
+          "unique": [
+            "0xbc93359c",
+            "0xbd682c03",
+            "0xbd4cd265",
+            "0x3b4cbc9c",
+            "0x3c98ce5b",
+            "0x3dfb1d77",
+            "0x3e78c7df",
+            "0x3e602f7d",
+            "0x3df3fdce",
+            "0x3e186bc3",
+            "0xbd793ceb",
+            "0xbd88c0b0",
+            "0x3d72c3aa",
+            "0xbd27ae75",
+            "0x3cf15cb6",
+            "0x3decc530"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7460",
+          "first": "0x3dfa58b7",
+          "last": "0xbd9cb1db",
+          "unique": [
+            "0x3dfa58b7",
+            "0x3d258bd6",
+            "0xbd3fc90a",
+            "0xbd92ccf8",
+            "0xbdf98965",
+            "0x3cc0f50e",
+            "0x3e3759ab",
+            "0x3e246498",
+            "0x3dce4e46",
+            "0x3d86459d",
+            "0xbe0167fc",
+            "0xbe3b8e32",
+            "0xbda0485f",
+            "0xbcc90a3b",
+            "0x3d31f7aa",
+            "0x3de408fd"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7464",
+          "first": "0x3dfa48d3",
+          "last": "0x3e257d42",
+          "unique": [
+            "0x3dfa48d3",
+            "0x3dd227ac",
+            "0x3cdfd5b2",
+            "0xbd68d62b",
+            "0xbde17a78",
+            "0xbe14c5db",
+            "0xbe2db364",
+            "0xbe32eca1",
+            "0xbd83d3a5",
+            "0xbe1325ef",
+            "0x3cefba97",
+            "0x3d129063",
+            "0xbdc46751",
+            "0x3d08b509",
+            "0xbbe76cc8",
+            "0xbd6e0e30"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7468",
+          "first": "0xbf7c258d",
+          "last": "0xbf7bdfd5",
+          "unique": [
+            "0xbf7c258d",
+            "0xbf7e7037",
+            "0xbf7f9fa0",
+            "0xbf7eed2d",
+            "0xbf7c864c",
+            "0xbf7d3645",
+            "0xbf781750",
+            "0xbf78b04f",
+            "0xbf7e2a07",
+            "0xbf7cc959",
+            "0xbf7dd64a",
+            "0xbf7b80a5",
+            "0xbf7e0800",
+            "0xbf7fc7be",
+            "0xbf7fc07a",
+            "0xbf7df903"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7470",
+          "first": "0x3f442ace",
+          "last": "0x3f6294a6",
+          "unique": [
+            "0x3f442ace",
+            "0x3f4a678c",
+            "0x3f4c4962",
+            "0x3f4d0e64",
+            "0x3f4da5e1",
+            "0x3f3c1a8b",
+            "0x3f0e5cec",
+            "0x3eda17e8",
+            "0x3eef6185",
+            "0x3f3861f3",
+            "0x3f757d07",
+            "0x3f780ebf",
+            "0x3f6bf920",
+            "0x3f630751",
+            "0x3f570bbd",
+            "0x3f45083c"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7474",
+          "first": "0x3f1e7c31",
+          "last": "0x3eee45a5",
+          "unique": [
+            "0x3f1e7c31",
+            "0x3f1adc59",
+            "0x3f1a305a",
+            "0x3f1775b8",
+            "0x3f12a14b",
+            "0x3f2c640e",
+            "0x3f547c59",
+            "0x3f666d05",
+            "0x3f624854",
+            "0x3f311393",
+            "0x3e84d600",
+            "0x3e3378f6",
+            "0x3ebe90a4",
+            "0x3eec9201",
+            "0x3f0aa3f3",
+            "0x3f22f616"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7478",
+          "first": "0x3e300a6a",
+          "last": "0x3bf97ce0",
+          "unique": [
+            "0x3e300a6a",
+            "0x3dc1c0fb",
+            "0xbcab861b",
+            "0xbdbb401b",
+            "0xbe2711f2",
+            "0xbda6bd09",
+            "0xbd2e3c98",
+            "0xbdbb66b8",
+            "0xbc21b2e4",
+            "0xbd586e9a",
+            "0xbdea9e53",
+            "0xbe32731d",
+            "0xbdde8e65",
+            "0xbbd0018a",
+            "0x3d05f5ca",
+            "0x3d491253"
+          ],
+          "unique_count": 40,
+          "kind_first": "other",
+          "ascii_first": null,
+          "kind_last": "other",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7480",
+          "first": "0x429eeb85",
+          "last": "0x42a56961",
+          "unique": [
+            "0x429eeb85",
+            "0x42a17059",
+            "0x42a30002",
+            "0x42a81836",
+            "0x42ac8aa8",
+            "0x42a9be47",
+            "0x42a4ca64",
+            "0x42a2497f",
+            "0x42a167fb",
+            "0x429ed305",
+            "0x42a08a6c",
+            "0x42a701ed",
+            "0x42add33d",
+            "0x42afd68f",
+            "0x42aed181",
+            "0x42acf8bf"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7484",
+          "first": "0x428dec12",
+          "last": "0x429216b6",
+          "unique": [
+            "0x428dec12",
+            "0x428df63e",
+            "0x429329c2",
+            "0x429655e9",
+            "0x429b9bdf",
+            "0x429ec5f0",
+            "0x429e888a",
+            "0x429cc459",
+            "0x429a82b8",
+            "0x429beae9",
+            "0x429dec87",
+            "0x4299f16e",
+            "0x429703a8",
+            "0x42960f95",
+            "0x4295a691",
+            "0x4292b9de"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        },
+        {
+          "addr": "0x00db7488",
+          "first": "0x42a8f0e6",
+          "last": "0x429f4b77",
+          "unique": [
+            "0x42a8f0e6",
+            "0x42a7f038",
+            "0x42a948d4",
+            "0x42aab102",
+            "0x42aad37b",
+            "0x42aa3048",
+            "0x42a9872f",
+            "0x42a9672a",
+            "0x42a877cb",
+            "0x42a89d0b",
+            "0x42a87b44",
+            "0x42a65277",
+            "0x42a3918f",
+            "0x42a1ca53",
+            "0x42a2dffa",
+            "0x42a30bf7"
+          ],
+          "unique_count": 40,
+          "kind_first": "floatish",
+          "ascii_first": null,
+          "kind_last": "floatish",
+          "ascii_last": null
+        }
+      ],
+      "initial_rows": [
+        {
+          "addr": "0x00db73f0",
+          "value": "0x00db74b0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db73f4",
+          "value": "0x00db74d8",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db73f8",
+          "value": "0x003e6d88",
+          "kind": "code_rodata",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db73fc",
+          "value": "0x00db74b0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7400",
+          "value": "0x00db9ef0",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7404",
+          "value": "0x432b1869",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7408",
+          "value": "0x00db7408",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db740c",
+          "value": "0x00db7408",
+          "kind": "ee_ram",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7410",
+          "value": "0x3ded45a0",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7414",
+          "value": "0x3f7d0994",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7418",
+          "value": "0x3dc88bd8",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db741c",
+          "value": "0x00003d21",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7420",
+          "value": "0xbf7e4201",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7424",
+          "value": "0x3dee85cc",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7428",
+          "value": "0xba095665",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db742c",
+          "value": "0x3f5820d3",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7430",
+          "value": "0xbc4356c7",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7434",
+          "value": "0xbdc70ea3",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7438",
+          "value": "0x3f7ec506",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db743c",
+          "value": "0xf770432b",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7440",
+          "value": "0x4093cacf",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7444",
+          "value": "0x3fba4a24",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7448",
+          "value": "0xc086e797",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db744c",
+          "value": "0x3f800000",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7450",
+          "value": "0x3f217a61",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7454",
+          "value": "0xbf469822",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7458",
+          "value": "0xbc93359c",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db745c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7460",
+          "value": "0x3dfa58b7",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7464",
+          "value": "0x3dfa48d3",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7468",
+          "value": "0xbf7c258d",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db746c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7470",
+          "value": "0x3f442ace",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7474",
+          "value": "0x3f1e7c31",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7478",
+          "value": "0x3e300a6a",
+          "kind": "other",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db747c",
+          "value": "0x00000000",
+          "kind": "zero",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7480",
+          "value": "0x429eeb85",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7484",
+          "value": "0x428dec12",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db7488",
+          "value": "0x42a8f0e6",
+          "kind": "floatish",
+          "ascii": null
+        },
+        {
+          "addr": "0x00db748c",
+          "value": "0x44400000",
+          "kind": "floatish",
+          "ascii": null
+        }
+      ]
+    }
+  ]
+}
