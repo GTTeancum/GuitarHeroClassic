@@ -1430,6 +1430,16 @@ Useful environment flags:
   this frame. This does not close Glam1 wrist deformation or the broader
   Rock2/weighted-card hair path; those remain shared controller/skin
   consumption work, not grounds for another local offset or hide-list fix.
+- 2026-06-15 rejected local-hair `mesh.bind[i]`-only probe:
+  `engine/out/codex_local_hair_meshbind_only_20260615_close/` compared the
+  same debug-camera Glam1 close frame with the default local-attachment skin
+  path versus a gated diagnostic that used only each per-palette `mesh.bind[i]`
+  row as the skin matrix. The diagnostic changed 29,300 pixels but visibly
+  tore the top hair upward and removed authored hair mass, so do not promote a
+  bind-only local sheet cancellation. The useful evidence remains that default
+  rows collapse to identity for the weighted sheets while the visible wrist
+  deformation is on `glam1.73.mesh` consuming hand/foretwist rows; continue in
+  the shared controller/twist/skin path.
 
 Every outfit audit should capture:
 
