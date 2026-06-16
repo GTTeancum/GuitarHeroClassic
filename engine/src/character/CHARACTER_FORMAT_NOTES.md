@@ -517,6 +517,21 @@ Glam1 hair:
   Native must therefore generate dynamic controller rows from the PS2
   group/list state before weighted hair-sheet skinning; simply changing the
   sheet renderer cannot synthesize these writer rows.
+- 2026-06-16 rejected single-point parent-anchor native probe:
+  `engine/out/codex_goal_20260616_singlepoint_parent_anchor/` tested a gated
+  variant that still enabled the single-point solver but anchored the first
+  point through the decoded collision/parent Trans and authored point position
+  instead of `group.root_mesh == point.mesh`. The screenshot hash changed
+  (`glam1_parent_anchor_f180.bmp`
+  `175C9349D5E4FBA0115BE233F706E8CDCA0FC5FE82F9FCF11ED2517364742ECB`
+  versus default
+  `710FD0AA19B537601D48A8358B5396AA2AD382097CAF85984F09F0A056A185EB`), but
+  `hair-side.mesh` still logged identity skin rows for the live
+  `bone_bangL.mesh`, `bone_bangR.mesh`, and `bone_hair01.mesh` palette slots.
+  Do not promote this route or keep a runtime switch for it. The paired PS2
+  trace shows per-group helper/list work rows, so the missing native piece is
+  still the PS2 group/list work-state bridge, not a different first-point
+  anchor choice.
 
 Glam1 eyes / look-at:
 
