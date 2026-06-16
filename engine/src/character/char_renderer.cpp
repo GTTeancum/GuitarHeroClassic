@@ -423,11 +423,6 @@ bool is_metal_singer_mesh_world_piece(const SkinnedMesh& m) {
   return m.name == "msinger.13.mesh";
 }
 
-bool is_metal_singer_raw_mesh_piece(const SkinnedMesh& m) {
-  (void)m;
-  return false;
-}
-
 bool is_metal_singer_local_chain_mesh_piece(const SkinnedMesh& m) {
   return m.name == "msinger.8.mesh" || m.name == "msinger.17.mesh";
 }
@@ -1463,8 +1458,7 @@ void CharRenderer::draw_impl(bool clear_target) {
     } else if (m.bone_palette.empty() || draw_hair_as_attachment ||
                raw_mesh_enabled(m.name) || root_parent_hair_bypass ||
                is_mesh_local_arm_piece(m) ||
-               is_metal_singer_mesh_world_piece(m) ||
-               is_metal_singer_raw_mesh_piece(m)) {
+               is_metal_singer_mesh_world_piece(m)) {
       world_mode = "mesh-world";
       mw = impl.character.mesh_world(m);
     } else {
@@ -1881,7 +1875,6 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
   if (raw_mesh_enabled(mesh.name) || is_head_attachment_mesh(mesh) ||
       (is_root_parent_hair_piece(mesh) &&
        !is_weighted_root_parent_hair_piece(mesh)) ||
-      is_metal_singer_raw_mesh_piece(mesh) ||
       is_metal_singer_mesh_world_piece(mesh)) {
     if (debug_mesh_mode_enabled(mesh.name)) {
       std::fprintf(stderr,
