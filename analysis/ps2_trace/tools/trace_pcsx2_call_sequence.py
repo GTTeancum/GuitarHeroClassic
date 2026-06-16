@@ -667,6 +667,19 @@ def main() -> int:
         help="Write trace stubs/data only; assume target functions already jump to those stubs.",
     )
     parser.add_argument(
+        "--patch-before-input",
+        action="store_true",
+        help=(
+            "Install target jumps before retry/nav input while capture remains disabled. "
+            "Useful for savestates that remap or restart during Retry before the traced window."
+        ),
+    )
+    parser.add_argument(
+        "--refresh-ee-base-before-patch",
+        action="store_true",
+        help="Re-scan PCSX2 EE memory after retry/nav input and before installing trace hooks.",
+    )
+    parser.add_argument(
         "--arg-snapshot-words",
         type=int,
         default=0,
@@ -730,7 +743,7 @@ def main() -> int:
             ee_base, _matched_host = find_ee_base(handle, elf_base, elf_code)
             ee_base_source = "memory_scan"
         patches = []
-        if args.skip_code_patch:
+        if args.skip_code_patch or args.patch_before_input:
             write_process(handle, ee_base + args.data_base, b"\x00" * (0x100 + args.ring_size * record_bytes))
             write_process(handle, ee_base + enable_addr, u32(0))
             patches = install_trace_stubs(
@@ -744,7 +757,7 @@ def main() -> int:
                 args.data_base,
                 args.ring_size,
                 enable_addr,
-                patch_code=False,
+                patch_code=bool(args.patch_before_input),
                 arg_snapshot_words=args.arg_snapshot_words,
             )
         time.sleep(args.pre_retry_seconds)
@@ -766,9 +779,13 @@ def main() -> int:
             post_chord(current_hwnd(), keys, hold_seconds=0.12)
             time.sleep(wait_after)
 
+        if args.refresh_ee_base_before_patch and not args.skip_code_patch and not args.patch_before_input:
+            ee_base, _matched_host = find_ee_base(handle, elf_base, elf_code)
+            ee_base_source = "memory_scan_after_input"
+
         write_process(handle, ee_base + args.data_base, b"\x00" * (0x100 + args.ring_size * record_bytes))
         write_process(handle, ee_base + enable_addr, u32(0))
-        if not args.skip_code_patch:
+        if not args.skip_code_patch and not args.patch_before_input:
             patches = install_trace_stubs(
                 handle,
                 ee_base,
