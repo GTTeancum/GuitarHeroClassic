@@ -523,8 +523,17 @@ bool is_rockabill_mesh_bind_body_piece(const SkinnedMesh& m) {
          m.parent == "legs.mesh";
 }
 
-bool is_body_space_rigid_mesh(const SkinnedMesh& m) {
-  return m.name == "bootstrap_R.mesh";
+bool is_parent_local_ankle_attachment(const SkinnedMesh& m) {
+  if (!m.bone_palette.empty()) return false;
+  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) {
+    return false;
+  }
+  std::string material = m.material;
+  std::transform(material.begin(), material.end(), material.begin(),
+                 [](unsigned char c) { return (char)std::tolower(c); });
+  const bool ankle_parent = m.parent == "bone_L-ankle.mesh" ||
+                            m.parent == "bone_R-ankle.mesh";
+  return ankle_parent && material.find("leg") != std::string::npos;
 }
 
 bool is_head_attachment_mesh(const SkinnedMesh& m) {
@@ -1485,7 +1494,7 @@ void CharRenderer::draw_impl(bool clear_target) {
     } else if (is_local_space_head_hair_attachment(m)) {
       world_mode = "head-local-attachment";
       mw = impl.character.mesh_attachment_world(m, false);
-    } else if (is_body_space_rigid_mesh(m)) {
+    } else if (is_parent_local_ankle_attachment(m)) {
       world_mode = "parent-local-chain";
       mw = impl.character.bone_world_local_chain(m.parent);
     } else if (eye_mesh) {

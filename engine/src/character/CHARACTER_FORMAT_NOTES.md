@@ -1154,16 +1154,21 @@ Observed head attachments:
 ## Rigid Bone Attachments
 
 Some rigid meshes have no palette and are parented to a bone. Most can draw
-through the corrected mesh transform, but a few need the current parent bone's
-local-chain transform directly.
+through the corrected mesh transform, but ankle-local boot attachments are
+authored directly in the parent ankle bone space.
 
-Observed case:
+Ankle-local attachment rule:
 
-- `alterna1`: `bootstrap_R.mesh`
-  - Parent is `bone_R-ankle.mesh`.
-  - Stored/corrected mesh transform made the boot strap float near the hip.
-  - Drawing raw vertices through `bone_R-ankle.mesh` local-chain current world
-    keeps it attached to the boot in idle and active clips.
+- mesh has no bone palette.
+- parent is `bone_L-ankle.mesh` or `bone_R-ankle.mesh`.
+- material identifies leg geometry.
+
+The 2026-06-16 inventory pass selected `alterna1` `bootstrap_L.mesh` and
+`bootstrap_R.mesh` by this format shape. Validation:
+`engine/out/codex_goal_20260616_ankle_attachment_predicate/` shows both
+bootstraps on the parent-local-chain path after the change, while unweighted
+forearm/upper-arm controls (`goth2` laces and `metal_singer` knots) remain on
+the normal mesh-world route.
 
 ## Outfit Audit Log
 
@@ -1176,7 +1181,8 @@ Observed case:
     self-cutting; remaining shape/attachment issues should be traced through
     shared hair/render paths, not hidden or offset per character.
 - `alterna1`
-  - Fixed `bootstrap_R.mesh` as parent-local ankle attachment.
+  - Fixed `bootstrap_L.mesh` / `bootstrap_R.mesh` as parent-local ankle
+    attachments.
   - Fixed `lashes.mesh` as head-local attachment.
   - Verified in viewer idle, viewer active, and `crazyonyou` stage frame.
 - `funk1`
