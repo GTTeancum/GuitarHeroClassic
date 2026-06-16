@@ -126,6 +126,7 @@ class MiloSceneRenderer {
   std::array<float, 16> world_transform_ = {1, 0, 0, 0, 0, 1, 0, 0,
                                             0, 0, 1, 0, 0, 0, 0, 1};
   bool additive_blend_ = false;
+  bool active_spotlight_filter_ = false;
   std::map<std::string, SpotlightState> active_spotlights_;
   std::unordered_set<std::string> hidden_meshes_;
   std::map<std::string, float> material_alpha_;

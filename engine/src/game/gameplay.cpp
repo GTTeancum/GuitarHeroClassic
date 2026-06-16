@@ -1351,16 +1351,38 @@ float read_f32_at(const uint8_t* body, size_t size, size_t off, float fallback) 
     return v;
 }
 
+void add_unique_lighting_ref(std::vector<std::string>& refs,
+                             std::string value) {
+    if (std::find(refs.begin(), refs.end(), value) == refs.end())
+        refs.push_back(std::move(value));
+}
+
+void collect_lighting_object_refs(const std::vector<std::string>& strings,
+                                  std::vector<std::string>& spot_refs,
+                                  std::vector<std::string>& env_refs,
+                                  std::vector<std::string>& lit_refs) {
+    for (auto s : strings) {
+        if (s.rfind(".spot") != std::string::npos) {
+            add_unique_lighting_ref(spot_refs, std::move(s));
+        } else if (s.rfind(".env") != std::string::npos) {
+            add_unique_lighting_ref(env_refs, std::move(s));
+        } else if (s.rfind(".lit") != std::string::npos) {
+            add_unique_lighting_ref(lit_refs, std::move(s));
+        }
+    }
+}
+
 std::vector<std::string> extract_lighting_keyframe_labels(
     const uint8_t* body, size_t size, uint32_t count,
     std::vector<size_t>* label_offsets) {
+    constexpr size_t kLightPresetHeaderBytes = 0x1C;
     struct Candidate {
         size_t off = 0;
         size_t len = 0;
         std::string label;
     };
     std::vector<Candidate> candidates;
-    for (size_t i = 0; i + 4 <= size; ++i) {
+    for (size_t i = kLightPresetHeaderBytes; i + 4 <= size; ++i) {
         uint32_t len = 0;
         std::memcpy(&len, body + i, sizeof(len));
         if (len == 0 || len > 64 || i + 4 + len > size) continue;
@@ -1455,11 +1477,11 @@ std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
                     k.target_states.push_back(std::move(state));
                 }
             } else if (s.rfind(".spot") != std::string::npos) {
-                add_unique(k.spot_refs, std::move(s));
+                add_unique_lighting_ref(k.spot_refs, std::move(s));
             } else if (s.rfind(".env") != std::string::npos) {
-                add_unique(k.env_refs, std::move(s));
+                add_unique_lighting_ref(k.env_refs, std::move(s));
             } else if (s.rfind(".lit") != std::string::npos) {
-                add_unique(k.lit_refs, std::move(s));
+                add_unique_lighting_ref(k.lit_refs, std::move(s));
             }
         }
         out.push_back(std::move(k));
@@ -1504,6 +1526,8 @@ std::vector<Gameplay::LightingPreset> load_lighting_presets(
                 if (is_lighting_category(s)) p.category = s;
                 if (is_lighting_adjective(s)) p.adjective = s;
             }
+            collect_lighting_object_refs(strings, p.spot_refs, p.env_refs,
+                                         p.lit_refs);
             p.keyframe_names = extract_lighting_keyframe_labels(
                 body, static_cast<size_t>(de.size), p.keyframe_count,
                 &p.keyframe_label_offsets);
@@ -1516,10 +1540,12 @@ std::vector<Gameplay::LightingPreset> load_lighting_presets(
                      out.size());
         for (const auto& p : out) {
             std::fprintf(stderr,
-                         "[world]   LightPreset %s category=%s adjective=%s keyframes=%u excitement=%u..%u",
+                         "[world]   LightPreset %s category=%s adjective=%s keyframes=%u excitement=%u..%u preset_refs=%zu/%zu/%zu",
                          p.name.c_str(), p.category.c_str(),
                          p.adjective.c_str(), p.keyframe_count,
-                         p.min_excitement, p.max_excitement);
+                         p.min_excitement, p.max_excitement,
+                         p.spot_refs.size(), p.env_refs.size(),
+                         p.lit_refs.size());
             if (!p.keyframe_names.empty()) {
                 std::string labels;
                 for (size_t i = 0; i < p.keyframe_names.size(); ++i) {
@@ -4740,9 +4766,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         for (const auto& state : keyframe.target_states) {
                             states_by_target[state.target] = &state;
                         }
+                        auto preset_has_spot = [&](const std::string& name) {
+                            return preset->spot_refs.empty() ||
+                                   std::find(preset->spot_refs.begin(),
+                                             preset->spot_refs.end(), name) !=
+                                       preset->spot_refs.end();
+                        };
                         size_t targeted_spots = 0;
                         for (const auto& spot : lighting_spotlights_) {
                             if (spot.target.empty()) continue;
+                            if (!preset_has_spot(spot.name)) continue;
                             if (std::find(keyframe.mesh_targets.begin(),
                                           keyframe.mesh_targets.end(),
                                           spot.target) !=
@@ -4771,6 +4804,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         for (const auto& spot_ref : keyframe.spot_refs) {
                             const auto spot_it = spots_by_name.find(spot_ref);
                             if (spot_it == spots_by_name.end()) continue;
+                            if (!preset_has_spot(spot_it->second->name))
+                                continue;
                             ++direct_spots;
                             const auto state_it =
                                 states_by_target.find(spot_it->second->target);
@@ -4785,6 +4820,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 target_it != spots_by_target.end()) {
                                 for (const LightingSpotlight* spot : target_it->second) {
                                     if (!spot) continue;
+                                    if (!preset_has_spot(spot->name)) continue;
                                     ++inferred_spots;
                                     push_spot(*spot, &state);
                                 }
@@ -4794,6 +4830,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 infer_spotlight_from_target(state.target);
                             const auto spot_it = spots_by_name.find(spot_name);
                             if (spot_it != spots_by_name.end()) {
+                                if (!preset_has_spot(spot_it->second->name))
+                                    continue;
                                 ++inferred_spots;
                                 push_spot(*spot_it->second, &state);
                             }

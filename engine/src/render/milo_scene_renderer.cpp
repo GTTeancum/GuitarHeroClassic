@@ -123,6 +123,7 @@ void MiloSceneRenderer::set_additive_blend(bool additive) {
 }
 
 void MiloSceneRenderer::set_active_spotlights(std::vector<SpotlightState> spots) {
+  active_spotlight_filter_ = true;
   active_spotlights_.clear();
   for (auto& spot : spots) active_spotlights_[spot.name] = std::move(spot);
 }
@@ -214,6 +215,8 @@ void MiloSceneRenderer::set_scene(
     milo_scene::Scene scene,
     const std::map<std::string, ghogx::asset::Image>& textures) {
   scene_ = std::move(scene);
+  active_spotlight_filter_ = false;
+  active_spotlights_.clear();
 
   // Upload every texture once, keyed by its .tex entry name.
   for (auto& kv : tex_)
@@ -663,7 +666,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   if (draw_spotlight_instances) {
     for (const auto& spot : scene_.spotlights) {
       const auto active_it = active_spotlights_.find(spot.name);
-      if (!active_spotlights_.empty() && active_it == active_spotlights_.end()) {
+      if (active_spotlight_filter_ && active_it == active_spotlights_.end()) {
         continue;
       }
       if (spot.group == "superflare_cannon.grp") continue;
@@ -732,7 +735,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       }
       spot_world = mul16(spot_world, world_transform_);
       if (additive_blend_) {
-        if (active_it == active_spotlights_.end() || spot.circle_mesh.empty())
+        if (!active_spotlight_filter_ ||
+            active_it == active_spotlights_.end() || spot.circle_mesh.empty())
           continue;
         for (const auto& m : scene_.meshes) {
           if (m.name != spot.circle_mesh) continue;

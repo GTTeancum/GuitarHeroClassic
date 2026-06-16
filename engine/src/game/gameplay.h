@@ -88,6 +88,9 @@ class Gameplay {
     std::vector<std::string> keyframe_names;
     std::vector<size_t> keyframe_label_offsets;
     std::vector<Keyframe> keyframes;
+    std::vector<std::string> spot_refs;
+    std::vector<std::string> env_refs;
+    std::vector<std::string> lit_refs;
   };
   struct LightingSpotlight {
     std::string name;

@@ -111,6 +111,19 @@ Open work:
 - Camera/lighting candidate vtable trace had valid redirects but no nonzero
   calls in that run, so it is not accepted as runtime proof yet.
 
+2026-06-16 LightPreset decode note:
+
+- Arena `*_lighting.milo_ps2` `LightPreset` bodies store keyframe mesh-target
+  rows before each keyframe description label, but the `.spot`, `.env`, and
+  `.lit` object tables appear after the final keyframe record. Checked arena
+  presets consistently expose 51 spot refs, 12 env refs, and 12 lit refs in
+  that tail table. Native therefore keeps mesh target states per keyframe and
+  decodes spot/env/lit refs as preset-level lighting graph membership rather
+  than per-keyframe fields.
+- Target rows still choose and aim active spotlights. The preset spot table is
+  used as a data-backed guard for direct/inferred spotlight activation, avoiding
+  named venue or song rules.
+
 2026-06-14 native validation:
 
 - `engine/out/native_song_20260614/yyz_f900_med_default_fullband_keyboard.bmp`
