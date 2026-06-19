@@ -1782,6 +1782,17 @@ Useful environment flags:
   wrapped PS2 angles. `overlay_override` is retained only as lane metadata; it
   must not hard-replace anatomical arm rows unless a new accepted trace shows a
   specific destination class doing so.
+- Late native lane-collision probe
+  `engine/out/codex_goal_20260619_lane_vector_collision_probe_late/stderr.log`
+  reached active Glam1 MIDI hand-map playback (`HandMap_DropD2` choosing
+  `finger_open`, `finger_vibrato_middle`, and `finger_vibrato_ring`) and showed
+  no duplicate `pos:` collisions for `bone_fret_hand`, `bone_strum_hand`, or
+  the arm/twist family in those signatures. The observed duplicate rows are
+  quaternion channels on fingers/clavicle/upper arm and scalar `rotz` lanes
+  such as `bone_R-foreArm`. Do not chase vector-position accumulation for the
+  current Glam1 hand/card problem unless a new probe exposes a duplicated
+  vector lane; continue in quaternion/scalar arm lanes and downstream
+  hand/foretwist/card consumption.
 - Current 2026-06-19 validation captures
   `engine/out/codex_goal_20260619_current_arm_validation/rockabill_front_torso_f620.bmp`,
   `deathmetal_front_torso_f620.bmp`, and `glam1_front_torso_f620.bmp` show
