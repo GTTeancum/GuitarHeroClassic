@@ -1101,9 +1101,10 @@ Rockabill1 arms:
 - Arm pieces are named `L-arm.mesh`, `R-arm.mesh`, `L-arm.<n>.mesh`,
   `R-arm.<n>.mesh`, and `lod_*arm*`.
 - These meshes are parented under `L-arm.mesh`/`R-arm.mesh` object frames.
-- Skin them in the mesh object's local frame:
-  `mesh_world * inverse(bone_bind) * bone_current * inverse(mesh_world)`, then
-  draw through `mesh_world`.
+- Skin them in the mesh object's local frame using the decoded per-palette bind
+  row: `mesh.bind[i] * bone_current_local_chain * inverse(mesh_world)`, then draw
+  through `mesh_world`. This is equivalent to the traced mesh-local-chain class
+  without reconstructing bind space from the bone name.
 - Default model-space LBS explodes the arms even in bind pose. Raw drawing gives
   a clean bind pose but does not animate, so it is only diagnostic.
 - Current native validation reopened this as not finished:
@@ -1693,6 +1694,15 @@ Useful environment flags:
   removes the right upper-arm wedge seen in
   `engine/out/native_song_20260615/glam1_arm_output_probe/default/default_f900.bmp`
   without enabling the rejected CharBone arm-output bridge.
+- Follow-up PCSX2 evidence in
+  `analysis/ps2_trace/pcsx2_bass_upper_twist_child_rows_20260611.json` proves
+  the output bases/signs: `upperTwist1` keeps the live `upperArm` local row0 and
+  local translation, then applies `+0.666 * roll`; `upperTwist2` keeps its own
+  authored local helper basis and applies `-0.333 * roll`. The fitted trace rows
+  for both metal_bass sides match those factors, while the earlier native
+  bind-base/sign split left upper-arm weighted meshes visibly over-twisted.
+  Native validation for this pass is in
+  `engine/out/codex_goal_20260619_upper_twist_livebase_fix/`.
 - Rejected arm probes on 2026-06-15: a narrow CharBone arm-output bridge
   (`engine/out/native_song_20260615/glam1_arm_output_probe/arm_output/arm_output_f900.bmp`)
   folded the right upper arm, and `glam1_arms.mat` mesh-bind/inverse mesh-bind

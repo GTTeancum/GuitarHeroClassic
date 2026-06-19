@@ -2077,10 +2077,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
       const std::array<float, 16> mesh_world =
           character.mesh_world(mesh);
       const std::array<float, 16> inv_mesh_world = affine_inverse(mesh_world);
-      const std::array<float, 16> bone_bind =
-          character.bone_world_bind_local_chain(mesh.bone_palette[i]);
-      skin[i] = mul16(mul16(mul16(mesh_world, affine_inverse(bone_bind)),
-                            curr_world),
+      skin[i] = mul16(mul16(xfm16(mesh.bind[i]), curr_world),
                       inv_mesh_world);
     } else if (uses_local_attachment_skin(mesh) && i < mesh.bind.size()) {
       const bool log_hair_space =

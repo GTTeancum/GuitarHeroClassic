@@ -2125,14 +2125,15 @@ static void apply_ps2_upper_twists(
     const milo_scene::Xfm source_local =
         character.bones[(size_t)upper_i].local;
     float roll = ps2_twist_angle_from_local_rows(source_local);
-    const bool twist1_parent_is_upper =
-        character.bones[(size_t)twist1_i].parent == ut.upper_arm;
-    const float first_factor = twist1_parent_is_upper ? -0.6660000086f : -0.5f;
-    const float second_factor = twist1_parent_is_upper ? 0.3330000043f
-                                                       : 0.3333329856f;
+    const float first_factor = 0.6660000086f;
+    const float second_factor = -0.3330000043f;
 
+    // Accepted PCSX2 upper-twist row traces show twist1 preserving the live
+    // upper-arm X row/translation while twist2 remains its authored child
+    // helper. Both angles are derived from the same upper-arm local twist.
     write_ps2_x_twist(character.bones[(size_t)twist1_i].local,
-                      bind_bones[(size_t)twist1_i], roll * first_factor);
+                      character.bones[(size_t)upper_i].local,
+                      roll * first_factor);
     write_ps2_x_twist(character.bones[(size_t)twist2_i].local,
                       bind_bones[(size_t)twist2_i], roll * second_factor);
     if (debug_ik_enabled()) {
