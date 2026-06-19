@@ -1790,15 +1790,17 @@ Useful environment flags:
 - Native left-hand clip selection now comes from
   `config/gen/midi_parsers.dtb::GUITARFRETMAPPINGS` instead of a hardcoded
   lane-to-clip table. The DTB tables use `$mp.length` and the active
-  `HandMap_*` marker to select authored `finger_*` clip names; some events
-  return multiple clips, e.g. `HandMap_Default` long event `5` returns
-  `finger_vibrato_index` plus `finger_vibrato_ring`. Native therefore keeps
-  bounded concurrent fret players for the left-hand result and retriggers on
-  note tick/name changes, not only on the five-bit fret mask. Validation in
-  `engine/out/codex_goal_20260619_compound_handmap_validation/tattooedloveboys_hard_compound_handmap.log`
-  shows `loaded 7 HandMap fret mappings`, `guitarist0 loaded=21 maps=7`, then
-  post-intro Hard notes at ticks `15360` and `22560` with
-  `choices=finger_vibrato_index,finger_vibrato_ring` and `players=2`.
+  `HandMap_*` marker to select authored `finger_*` clip names. List-valued
+  branches such as `HandMap_Default` long event `5`
+  (`finger_vibrato_index`, `finger_vibrato_ring`) are scheduler child lists,
+  not simultaneous overlays. This follows the accepted PS2
+  `0x00198660`/`0x00199000` blend-entry traces where each entry owns a selected
+  child/list index. Native therefore loads every authored child clip but
+  schedules one child per MIDI note command and retriggers on note tick/name
+  changes, not only on the five-bit fret mask. The earlier
+  `engine/out/codex_goal_20260619_compound_handmap_validation/` path that
+  reported `players=2` for the two vibrato children is rejected as a native
+  parser mistake.
 - Hand-driver layers are overlay lanes in the native song pose mixer, but they
   are not final-bone replacement patches. The accepted no-wrap hand traces show
   body clip output followed by right/left hand scheduler source output before
@@ -1814,17 +1816,15 @@ Useful environment flags:
   wrapped PS2 angles. `overlay_override` is retained only as lane metadata; it
   must not hard-replace anatomical arm rows unless a new accepted trace shows a
   specific destination class doing so.
-- Late native lane-collision probe
-  `engine/out/codex_goal_20260619_lane_vector_collision_probe_late/stderr.log`
-  reached active Glam1 MIDI hand-map playback (`HandMap_DropD2` choosing
-  `finger_open`, `finger_vibrato_middle`, and `finger_vibrato_ring`) and showed
-  no duplicate `pos:` collisions for `bone_fret_hand`, `bone_strum_hand`, or
-  the arm/twist family in those signatures. The observed duplicate rows are
-  quaternion channels on fingers/clavicle/upper arm and scalar `rotz` lanes
-  such as `bone_R-foreArm`. Do not chase vector-position accumulation for the
-  current Glam1 hand/card problem unless a new probe exposes a duplicated
-  vector lane; continue in quaternion/scalar arm lanes and downstream
-  hand/foretwist/card consumption.
+- The 2026-06-19 dynamic-hand audit supersedes the older late lane-collision
+  note. `engine/out/codex_goal_20260619_dynamic_hand_current_audit/` exposed
+  duplicate `bone_fret_hand.pos` and `bone_fret_hand.quat` lanes when native
+  layered `finger_vibrato_index` and `finger_vibrato_ring` as concurrent
+  players. `engine/out/codex_goal_20260619_dynamic_hand_scheduler_fix/` fixes
+  the shared scheduler interpretation: `summary.txt` records
+  `bone_fret_hand_collision_matches=0`, `handmap_events=10`, and
+  `left_hand_zero_error_samples=1320` while the hand target continues moving
+  dynamically from MIDI-selected hand clips.
 - Current 2026-06-19 validation captures
   `engine/out/codex_goal_20260619_current_arm_validation/rockabill_front_torso_f620.bmp`,
   `deathmetal_front_torso_f620.bmp`, and `glam1_front_torso_f620.bmp` show

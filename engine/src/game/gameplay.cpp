@@ -3456,6 +3456,29 @@ std::vector<std::string> names_for_hand_choice(
     return note_length > 0.3 ? choice.short_names : choice.long_names;
 }
 
+std::vector<std::string> scheduled_hand_choice_names(
+    const std::vector<std::string>& candidates, size_t child_index) {
+    if (candidates.size() <= 1) return candidates;
+    return {candidates[child_index % candidates.size()]};
+}
+
+struct FretClipSelection {
+    std::vector<std::string> choices;
+    std::vector<std::string> selected;
+};
+
+FretClipSelection make_fret_clip_selection(std::vector<std::string> choices,
+                                           bool schedule_children,
+                                           size_t child_index) {
+    FretClipSelection selection;
+    selection.choices = std::move(choices);
+    selection.selected = schedule_children
+                             ? scheduled_hand_choice_names(selection.choices,
+                                                           child_index)
+                             : selection.choices;
+    return selection;
+}
+
 int first_lane_from_mask(uint32_t note_mask) {
     for (int lane = 0; lane < 5; ++lane) {
         if ((note_mask & (1u << lane)) != 0) return lane;
@@ -3470,32 +3493,41 @@ bool chord_rule_matches(const Gameplay::HandChordRule& rule,
            rule.keys.end();
 }
 
-std::vector<std::string> fret_clip_names_for_note(
+FretClipSelection fret_clip_selection_for_note(
     const std::map<std::string, Gameplay::FretHandMap>& maps,
-    const std::string& hand_map_name, uint32_t note_mask, double note_length) {
+    const std::string& hand_map_name, uint32_t note_mask, double note_length,
+    size_t child_index) {
     auto it = maps.find(hand_map_name);
     if (it == maps.end()) it = maps.find("HandMap_Default");
-    if (it == maps.end() || (note_mask & 0x1fu) == 0) return {"finger_open"};
+    if (it == maps.end() || (note_mask & 0x1fu) == 0)
+        return make_fret_clip_selection({"finger_open"}, false, child_index);
 
     const Gameplay::FretHandMap& map = it->second;
     const int first_lane = first_lane_from_mask(note_mask);
-    if (first_lane < 0) return {"finger_open"};
+    if (first_lane < 0)
+        return make_fret_clip_selection({"finger_open"}, false, child_index);
     const int event_key = first_lane + 1;
     const bool chord = (note_mask & (note_mask - 1u)) != 0;
     if (!chord) {
         auto names = names_for_hand_choice(map.single[(size_t)first_lane],
                                            note_length);
-        if (!names.empty()) return names;
+        if (!names.empty())
+            return make_fret_clip_selection(std::move(names), true,
+                                            child_index);
     } else {
         for (const auto& rule : map.chords) {
             if (!chord_rule_matches(rule, event_key)) continue;
             auto names = names_for_hand_choice(rule.choice, note_length);
-            if (!names.empty()) return names;
+            if (!names.empty())
+                return make_fret_clip_selection(std::move(names), true,
+                                                child_index);
         }
     }
-    return chord ? std::vector<std::string>{"finger_powerchord_1",
-                                            "finger_chord_bar"}
-                 : std::vector<std::string>{"finger_hold_index"};
+    return make_fret_clip_selection(
+        chord ? std::vector<std::string>{"finger_powerchord_1",
+                                         "finger_chord_bar"}
+              : std::vector<std::string>{"finger_hold_index"},
+        false, child_index);
 }
 
 std::vector<std::string> all_fret_hand_clip_names(
@@ -4713,10 +4745,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                        ? &perf.fret_open_clip
                                        : nullptr);
                 } else {
-                    requested_fret_names = fret_clip_names_for_note(
+                    const auto fret_selection = fret_clip_selection_for_note(
                         fret_hand_maps_, midi_state.hand_map, desired_mask,
-                        perf_anim_note_cue.length);
-                    for (const auto& clip_name : requested_fret_names) {
+                        perf_anim_note_cue.length,
+                        perf.fret_hand_scheduler_child_index);
+                    requested_fret_names = fret_selection.choices;
+                    for (const auto& clip_name : fret_selection.selected) {
                         auto named = perf.fret_named_clips.find(clip_name);
                         if (named != perf.fret_named_clips.end() &&
                             named->second.loaded) {
@@ -4741,6 +4775,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
 
+                const bool new_fret_note_event =
+                    desired_mask != 0 &&
+                    desired_tick != perf.last_anim_note_tick;
                 if (desired_mask != perf.last_anim_note_mask ||
                     desired_tick != perf.last_anim_note_tick ||
                     next_fret_names != perf.active_fret_clip_names) {
@@ -4794,6 +4831,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 ghogx::character::kCharPlayLoop,
                                 character_hand_driver_blend_seconds());
                         }
+                    }
+                    if (new_fret_note_event) {
+                        ++perf.fret_hand_scheduler_child_index;
                     }
                 }
             }

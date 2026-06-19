@@ -218,6 +218,7 @@ class Gameplay {
     uint32_t active_group_last_bar = UINT32_MAX;
     uint32_t last_anim_note_mask = UINT32_MAX;
     uint32_t last_anim_note_tick = UINT32_MAX;
+    size_t fret_hand_scheduler_child_index = 0;
     std::vector<std::string> active_fret_clip_names;
     std::array<float, 16> world_transform = {1.0f, 0.0f, 0.0f, 0.0f,
                                              0.0f, 1.0f, 0.0f, 0.0f,
