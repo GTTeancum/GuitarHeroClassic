@@ -1287,18 +1287,20 @@ Community metadata Rosetta:
   MIDI note selection: clip/IK/twist rows are active, and the next shared fix
   must be in the Trans/skin/attachment consumers rather than a static note-to-
   neck-spot override.
-- The foretwist source row must follow the live hand Trans bridge, not only the
-  pre-final authored hand local. In
+- The foretwist controller is linked to the same live hand Trans object that
+  `CharIKHand` updates, but it must not extract roll from the final target-world
+  override. In
   `analysis/ps2_trace/gh2dxu_hand_output_trans_bridge2_20260611.json`,
   `left_hand.ik +0x28 == 0x00e8cd80` and
   `foreTwist_L.ik +0x14 == 0x00e8cd80`; the right side matches the same shape
   with `right_hand.ik +0x28 == 0x00e86a80` and
-  `foreTwist_R.ik +0x14 == 0x00e86a80`. Native `CharForeTwist` therefore
-  derives its source angle from the runtime hand Trans override when IK has
-  submitted one, converted back into the hand parent-local basis, and falls
-  back to the decoded local row only when no live override exists. This keeps
-  MIDI-selected `bone_fret_hand` motion flowing through the downstream twist
-  consumer without inventing static fret positions.
+  `foreTwist_R.ik +0x14 == 0x00e86a80`. Later one-frame probes showed that
+  converting the final hand world override back into local space polluted the
+  foretwist roll. Native therefore keeps MIDI-selected `bone_fret_hand` motion
+  flowing through the final hand world bridge for descendants, props, and
+  skinning, while `CharForeTwist` extracts roll from the live IK hand local row
+  before that final target-world closure. This avoids inventing static fret
+  positions and avoids feeding a target bridge back into the twist source.
 - IK targets and arm solve rows must resolve in the same local-chain basis used
   by character skinning. Mixing corrected stored-world targets into the
   local-chain skeleton made rockabill's `bone_fret_hand.mesh` target land far
