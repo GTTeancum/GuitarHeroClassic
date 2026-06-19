@@ -1973,6 +1973,28 @@ static float local_x_roll_delta_between_worlds(
   return local_x_roll_delta(bind, current);
 }
 
+static milo_scene::Xfm live_local_for_twist_source(const Character& character,
+                                                   int bone_index) {
+  const auto& bone = character.bones[(size_t)bone_index];
+  auto local = bone.local;
+  const auto override_it = character.runtime_world_overrides.find(bone.name);
+  if (override_it == character.runtime_world_overrides.end()) return local;
+
+  std::array<float, 16> parent_world{
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      0, 0, 0, 1,
+  };
+  if (!bone.parent.empty()) {
+    parent_world = character.bone_world_local_chain(bone.parent);
+  }
+  mat4_to_xfm(mat4_mul(override_it->second, affine_inverse(parent_world)),
+              local);
+  normalize_xfm_rows(local);
+  return local;
+}
+
 static bool apply_ps2_fore_twist(Character& character,
                                  const std::vector<milo_scene::Xfm>& bind_bones,
                                  const CharForeTwist& ft) {
@@ -1991,7 +2013,9 @@ static bool apply_ps2_fore_twist(Character& character,
       (size_t)twist2_i >= bind_bones.size())
     return false;
 
-  float roll = ps2_twist_angle_from_local_rows(character.bones[(size_t)hand_i].local);
+  const milo_scene::Xfm hand_source =
+      live_local_for_twist_source(character, hand_i);
+  float roll = ps2_twist_angle_from_local_rows(hand_source);
   roll = -wrap_ps2_angle(roll + ft.offset_degrees * 0.01745329238474369f) *
          0.3333333134651184f;
 
@@ -2010,7 +2034,7 @@ static bool apply_ps2_fore_twist(Character& character,
                  ft.twist2.c_str(), ft.offset_degrees, roll,
                  1.0f, 1.0f);
     log_debug_xfm_row("twist-fore-src", ft.hand.c_str(),
-                      character.bones[(size_t)hand_i].local,
+                      hand_source,
                       character.bone_world_local_chain(ft.hand));
     log_debug_xfm_row("twist-fore-out",
                       character.bones[(size_t)twist1_i].name.c_str(),
