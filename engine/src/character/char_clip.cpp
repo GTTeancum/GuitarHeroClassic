@@ -1466,13 +1466,6 @@ static bool is_eye_mesh_name(const std::string& name) {
          name == "eyel.mesh" || name == "eyer.mesh";
 }
 
-static milo_scene::TransObj* find_bone(Character& character,
-                                       const std::string& name) {
-  for (auto& b : character.bones)
-    if (b.name == name || channel_matches_bone(b.name, name)) return &b;
-  return nullptr;
-}
-
 struct TransformTarget {
   milo_scene::Xfm* local = nullptr;
   const std::string* name = nullptr;
@@ -3977,53 +3970,16 @@ static void apply_char_hair(Character& character, float time_seconds) {
   }
 }
 
-static int fret_spot_for_note_mask(uint32_t note_mask,
-                                   const std::string& hand_map) {
-  if ((note_mask & 0x1fu) == 0) return 0;
-  int lane = 0;
-  while (lane < 5 && ((note_mask & (1u << lane)) == 0)) ++lane;
-  if (lane >= 5) return 0;
-
-  // The authored neutral row for GH2 guitarist bodies places bone_fret.mesh
-  // at spot_neck_fret04.mesh. Spread the five lanes over the 20 authored neck
-  // spots from that source row; hand-map events can shift this base position.
-  int spot = 4 + lane * 3;
-  if (hand_map.find("DropD2") != std::string::npos) spot += 2;
-  return std::clamp(spot, 1, 20);
-}
-
 void apply_ik_midi_fret_target(Character& character, uint32_t note_mask,
                                const std::string& hand_map) {
-  const int spot_index = fret_spot_for_note_mask(note_mask, hand_map);
-  if (spot_index <= 0) return;
-  char spot_name[32];
-  std::snprintf(spot_name, sizeof(spot_name), "spot_neck_fret%02d.mesh",
-                spot_index);
-  const milo_scene::TransObj* spot = find_bone(character, spot_name);
-  if (!spot) return;
-
-  for (const auto& ik : character.ik_midis) {
-    milo_scene::TransObj* bone = find_bone(character, ik.bone);
-    if (!bone) continue;
-    if (bone->parent == spot->parent) {
-      bone->local = spot->local;
-    } else {
-      milo_scene::Xfm moved = bone->local;
-      const auto spot_world = character.bone_world_local_chain(spot->name);
-      const auto parent_world =
-          bone->parent.empty()
-              ? std::array<float, 16>{1, 0, 0, 0, 0, 1, 0, 0,
-                                      0, 0, 1, 0, 0, 0, 0, 1}
-              : character.bone_world_local_chain(bone->parent);
-      set_local_from_world(moved, spot_world, parent_world);
-      bone->local = moved;
-    }
-    if (debug_ik_enabled()) {
-      std::fprintf(stderr, "[ikmidi] %s bone=%s -> %s map=%s mask=0x%02x\n",
-                   ik.name.c_str(), ik.bone.c_str(), spot_name,
-                   hand_map.c_str(), note_mask & 0x1fu);
-    }
-  }
+  (void)character;
+  (void)note_mask;
+  (void)hand_map;
+  // PS2 runtime traces show CharIKMidi's live fret.ik object updating a small
+  // near-1.0 scalar while the per-note fret-hand motion is authored in the
+  // hand-map selected finger_* clip outputs, especially bone_fret_hand.pos.
+  // Keep this hook as a named bridge for future exact CharIKMidi work, but do
+  // not invent a lane-to-spot transform override here.
 }
 
 void clear_runtime_ik_weights(Character& character) {

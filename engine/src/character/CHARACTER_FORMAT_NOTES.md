@@ -1254,20 +1254,39 @@ Community metadata Rosetta:
   to infer controller behavior.
 - `CharIKMidi` is part of the same fret-hand target graph. The local
   `char_objects_ps2.dta` class definition names the serialized field `bone`;
-  the runtime destination spot is selected later by MIDI/hand-map state. For
-  rockabill1, `fret.ik` serializes `bone_fret.mesh`; `bone_fret_hand.mesh` is
-  a child of that row, and authored destinations are
-  `spot_neck_fret01.mesh` through `spot_neck_fret20.mesh` under
-  `bone_pos_guitar.mesh`.
-- Native playback now decodes `CharIKMidi` and moves `bone_fret.mesh` to the
-  current note-selected `spot_neck_fretNN.mesh` before hand IK runs. This is
-  validated by `engine/out/ikmidi_20260614/small1_psychobilly_f900_ikmidi.log`,
-  which shows `fret.ik` moving through spots `04`, `07`, `10`, `13`, and `16`
-  for the active note masks. The lane-to-spot spread is conservative and should
-  be replaced if a later accepted hand-map trace proves a different mapping.
-  `config/gen/midi_parsers.dtb::GUITARFRETMAPPINGS` does not name
-  `spot_neck_fretNN` targets; it only proves the runtime fret-hand clip choices
-  below, so do not use it as spot-selection evidence.
+  for guitarist bodies, `fret.ik` serializes `bone_fret.mesh` and
+  `bone_fret_hand.mesh` is the child target consumed by the hand IK pass.
+  Authored destination helpers still exist as `spot_neck_fret01.mesh` through
+  `spot_neck_fret20.mesh` under `bone_pos_guitar.mesh`, but do not assume a
+  lane-to-spot formula without live selector proof.
+- 2026-06-19 GHDX autoplay probes corrected the earlier native shortcut:
+  `gh2dxu_fret_ik_vtable_trace_20260619.json` proves the active `fret.ik`
+  update method is `0x0017bbd0`, while
+  `gh2dxu_fret_ik_candidate_probe_20260619.json` and
+  `gh2dxu_fret_ik_pointer_follow_probe_20260619.json` show the live
+  `fret.ik` object at `0x00e67d20` changing only a near-1.0 scalar at
+  `+0x44`. The moving Trans rows are `bone_fret.mesh` and especially
+  `bone_fret_hand.mesh`; the latter is already driven by the hand-map selected
+  `finger_*` clip outputs. Native playback therefore must not move
+  `bone_fret.mesh` to guessed `spot_neck_fretNN.mesh` positions. Keep
+  `config/gen/midi_parsers.dtb::GUITARFRETMAPPINGS` scoped to clip choice until
+  a PS2 trace proves the exact neck-spot selector.
+- Native validation after removing the guessed override:
+  `engine/out/codex_goal_20260619_ikmidi_trace_corrected/woman_expert.stderr.log`
+  records 56 `[handmap]` MIDI-triggered clip-choice events and zero legacy
+  `[ikmidi]` spot-move lines; `woman_expert_f620.bmp` is the matching hidden
+  gameplay frame.
+- Follow-up dynamic-hand validation:
+  `engine/out/codex_goal_20260619_dynamic_hand_visible_probe/glam1_dynamic_hand_f1300.bmp`
+  hides the attached guitar prop and frames Glam1 during a late active hand-map
+  window. The matching log shows both hands resolving to their live targets with
+  `preFinalError=0.0000` while hand-map events in
+  `engine/out/codex_goal_20260619_handmap_runtime_validation/stderr.log` select
+  `finger_open`, `finger_vibrato_middle`, and `finger_vibrato_ring` from
+  `HandMap_DropD2`. Remaining arm/hair/card errors are therefore downstream of
+  MIDI note selection: clip/IK/twist rows are active, and the next shared fix
+  must be in the Trans/skin/attachment consumers rather than a static note-to-
+  neck-spot override.
 - IK targets and arm solve rows must resolve in the same local-chain basis used
   by character skinning. Mixing corrected stored-world targets into the
   local-chain skeleton made rockabill's `bone_fret_hand.mesh` target land far

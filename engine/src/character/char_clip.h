@@ -134,8 +134,9 @@ void set_runtime_ik_weight(Character& character, const std::string& weight_prop,
                            float weight);
 void clear_runtime_trans_worlds(Character& character);
 
-// Move CharIKMidi-authored fret helper bones to the note-selected authored
-// guitar-neck spot before the hand IK pass resolves its child target.
+// CharIKMidi bridge. Accepted PS2 traces currently prove MIDI-selected
+// finger_* clips move the fret-hand target; this hook intentionally does not
+// guess guitar-neck spots until the exact runtime selector is proven.
 void apply_ik_midi_fret_target(Character& character, uint32_t note_mask,
                                const std::string& hand_map = {});
 
