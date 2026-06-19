@@ -1331,6 +1331,11 @@ Useful environment flags:
   basses, and similar props while leaving performer loading, prop attachment
   rows, and camera targets intact. Use it for full-arm validation when the
   instrument occludes shoulder/elbow/wrist deformation.
+- `GHOGX_ONLY_PERFORMER=<role>`: diagnostic only; draws one loaded performer
+  such as `guitarist0`, `bassist`, `singer`, or `drummer` while leaving song
+  state, camera targets, performer animation, and venue/band loading intact.
+  Use it for in-song character screenshots when another performer or mic stand
+  blocks the arm/hair/eye evidence.
 - `GHOGX_RAW_MESH=<comma-list>`: draws selected meshes as raw vertices.
 - `GHOGX_REVERSE_SKIN_WEIGHT_SLOTS=1`: diagnostic only; do not apply globally.
 - `GHOGX_DEBUG_BONES=1`: logs decoded Trans hierarchy, local position, and

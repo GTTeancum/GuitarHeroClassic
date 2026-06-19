@@ -64,6 +64,11 @@ bool debug_gameplay_camera_enabled() {
     return env_value("GHOGX_DEBUG_GAMEPLAY_CAMERA") != nullptr;
 }
 
+std::string_view only_draw_performer_role() {
+    const char* role = env_value("GHOGX_ONLY_PERFORMER");
+    return role ? std::string_view(role) : std::string_view();
+}
+
 bool debug_face_enabled_game() {
     return env_value("GHOGX_DEBUG_FACE") != nullptr;
 }
@@ -4859,7 +4864,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
         if (drum_kit_) {
             drum_kit_->draw_over_scene(world_->camera());
         }
+        const std::string_view only_role = only_draw_performer_role();
         for (auto& perf : performers_) {
+            if (!only_role.empty() && perf.role != only_role) continue;
             if (!perf.renderer) continue;
             perf.renderer->draw_over_scene(world_->camera());
         }
