@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 #include <limits>
 #include <map>
 #include <optional>
@@ -1825,38 +1826,19 @@ std::array<float, 16> xfm_to_mat4(const ghogx::milo_scene::Xfm& x) {
             x.pos[0], x.pos[1], x.pos[2], 1.0f};
 }
 
-std::optional<ghogx::milo_scene::Xfm> guitarist_start_xfm(
-    const std::string& hdr_path, const std::string& ark_path,
-    const std::string& venue) {
-    const std::string chars_milo =
-        "world/" + venue + "/gen/" + venue + "_chars.milo_ps2";
-    ghogx::milo_scene::Scene chars;
-    if (!ghogx::milo_scene::load_scene(hdr_path, ark_path, chars_milo, chars))
-        return std::nullopt;
-
-    // char_objects_ps2.dta BandCharacter::enter picks kStartGuitarist0Mp when
-    // guitarist1 exists in the loaded dir. arena_chars has guitarist1, and
-    // macros.dta defines kStartGuitarist0Mp as 512.
-    for (const auto& w : chars.waypoints) {
-        if (w.decoded && w.name == "start_guitarist0mp.way") return w.local;
-    }
-    for (const auto& w : chars.waypoints) {
-        if (w.decoded && (w.flags & 512u)) return w.local;
-    }
-    for (const auto& w : chars.waypoints) {
-        if (w.decoded && (w.flags & 1u)) return w.local;
-    }
-    return std::nullopt;
-}
-
 std::optional<ghogx::milo_scene::Xfm> find_start_xfm(
     const ghogx::milo_scene::Scene& chars, std::string_view name,
-    uint32_t flag) {
-    for (const auto& w : chars.waypoints) {
-        if (w.decoded && w.name == name) return w.local;
+    std::initializer_list<uint32_t> flags) {
+    if (!name.empty()) {
+        for (const auto& w : chars.waypoints) {
+            if (w.decoded && w.name == name) return w.local;
+        }
     }
-    for (const auto& w : chars.waypoints) {
-        if (w.decoded && (w.flags & flag)) return w.local;
+    for (uint32_t flag : flags) {
+        if (flag == 0) continue;
+        for (const auto& w : chars.waypoints) {
+            if (w.decoded && (w.flags & flag)) return w.local;
+        }
     }
     return std::nullopt;
 }
@@ -3903,8 +3885,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 perf.renderer->set_character(std::move(character), textures);
                 perf.facefx_graph = std::move(facefx_graph);
 
-                if (auto start =
-                        find_start_xfm(chars_scene, waypoint_name, start_flag)) {
+                const auto start =
+                    perf.role == "guitarist0"
+                        ? find_start_xfm(chars_scene, waypoint_name,
+                                         {start_flag, 1u})
+                        : find_start_xfm(chars_scene, waypoint_name,
+                                         {start_flag});
+                if (start) {
                     perf.world_transform = xfm_to_mat4(*start);
                     perf.renderer->set_world_transform(perf.world_transform);
                     std::fprintf(stderr,
@@ -4177,8 +4164,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                               {},
                               {"drummer_active_medium_normal",
                                "drummer_active_medium_allbeat"});
-                if (auto start =
-                        find_start_xfm(chars_scene, "drummer_start.way", 32u)) {
+                if (auto start = find_start_xfm(chars_scene,
+                                                "drummer_start.way", {32u})) {
                     const std::string drums_milo =
                         "char/og/drums/gen/dw_" + quickplay_rig_->venue +
                         "_drums.milo_ps2";

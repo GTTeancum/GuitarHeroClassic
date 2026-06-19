@@ -383,3 +383,14 @@ Rejected native probe:
   The log shows `crash`, `hihat`, `kick`, and `snare` triggers mapped to kit
   meshes and repeated kick cues while the captured performer remains visually
   coherent behind the kit.
+- `char_objects_ps2.dta::BandCharacter::guitarist.enter` chooses
+  `kStartGuitarist0Mp` when a second guitarist exists, otherwise
+  `kStartGuitarist0`. Native start-waypoint lookup now preserves that ordered
+  flag fallback for `guitarist0` instead of treating the multiplayer start as
+  the only valid performer root. Singer, keyboardist, bassist, drummer, and the
+  drum kit keep their existing `start_flags` routes. Validation probes:
+  `engine/out/codex_goal_20260619_start_probe_yyz_after.log` and
+  `engine/out/codex_goal_20260619_start_probe_shout_after.log`.
+  `engine/out/codex_goal_20260619_start_probe_sweep/summary.txt` extends the
+  same hidden 3-frame route check across `small1`, `fest`, `battle`, and
+  `arena` songs; every loaded performer reports a decoded start transform.
