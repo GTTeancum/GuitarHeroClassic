@@ -1976,23 +1976,10 @@ static float local_x_roll_delta_between_worlds(
 static milo_scene::Xfm live_local_for_twist_source(const Character& character,
                                                    int bone_index) {
   const auto& bone = character.bones[(size_t)bone_index];
-  auto local = bone.local;
-  const auto override_it = character.runtime_world_overrides.find(bone.name);
-  if (override_it == character.runtime_world_overrides.end()) return local;
-
-  std::array<float, 16> parent_world{
-      1, 0, 0, 0,
-      0, 1, 0, 0,
-      0, 0, 1, 0,
-      0, 0, 0, 1,
-  };
-  if (!bone.parent.empty()) {
-    parent_world = character.bone_world_local_chain(bone.parent);
-  }
-  mat4_to_xfm(mat4_mul(override_it->second, affine_inverse(parent_world)),
-              local);
-  normalize_xfm_rows(local);
-  return local;
+  // CharIKHand's final Trans-world bridge is a post-solve world row. PS2 traces
+  // show CharForeTwist extracting roll from the live hand local row left by IK,
+  // not from that final world row converted back through the parent chain.
+  return bone.local;
 }
 
 static bool apply_ps2_fore_twist(Character& character,

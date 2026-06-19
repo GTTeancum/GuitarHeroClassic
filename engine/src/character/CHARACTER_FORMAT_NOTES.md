@@ -1647,6 +1647,19 @@ Useful environment flags:
   while `local_vs_target_world_delta` remains `1.884800` / `1.335300`. This
   closes the final-row bridge mismatch only; Rockabill1, Deathmetal1, and
   Glam1 still need shared skin/arm-consumer work.
+- 2026-06-19 live MIDI hand/foretwist source correction:
+  `engine/out/codex_goal_20260619_glam1_ik_probe_default/stderr.log` and
+  `engine/out/codex_goal_20260619_glam1_ik_probe_no_final/stderr.log` compare
+  the same Glam1 `finger_vibrato_middle` frame. Default native had
+  `CharForeTwist` reading the final hand world override converted back into
+  local space, producing `twist-fore-src bone_L-hand local_r0=[0.7481 -0.6184
+  -0.2406]` and `roll=0.6485`. Disabling the final hand bridge proved the
+  traced source should remain the IK hand local row,
+  `local_r0=[0.8705 0.1401 0.4717]`, with `roll=0.2860` for that pose. Native
+  now keeps the final hand world row as a transient Trans/world bridge for
+  descendants, props, and skinning, while `CharForeTwist` extracts from the
+  live hand local row. This is a shared controller-order/row-source fix, not a
+  Glam1 branch.
 - Rockabill native A/B on 2026-06-14 kept this shared, not character-specific:
   `engine/out/native_song_20260614/psychobilly_f900_rockabill_ab_default.bmp`
   showed the old postmultiply swing folding the arm, while
