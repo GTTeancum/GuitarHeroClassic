@@ -4457,6 +4457,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 add_player_layer(perf.strum_player, 1.0f, true);
                 add_player_layer(perf.fret_player, 1.0f, true);
             }
+            ghogx::character::clear_runtime_trans_worlds(character);
             if (!pose_layers.empty()) {
                 ghogx::character::apply_clip_channel_layers(
                     pose_layers, character, pose_relative);

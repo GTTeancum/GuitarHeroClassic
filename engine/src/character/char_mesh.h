@@ -266,6 +266,10 @@ struct Character {
   std::vector<CharDriver> drivers;
   std::vector<CharWeightSetter> weight_setters;
   std::map<std::string, float> runtime_weight_props;
+  // PS2 Trans controllers can submit live world rows through the shared
+  // writer without replacing the authored local rows that later controllers
+  // still read. These are cleared per sampled frame.
+  std::map<std::string, std::array<float, 16>> runtime_world_overrides;
   RuntimeHairState runtime_hair;
 
   // Distinct diffuse-texture names referenced by the character's materials.

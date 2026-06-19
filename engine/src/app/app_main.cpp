@@ -1181,6 +1181,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     if (cam.distance < 8.0f) cam.distance = 8.0f;
 
     renderer.update(dt);
+    ghogx::character::clear_runtime_trans_worlds(renderer.character());
     // Real-time clip playback through a viewer-side CharDriver play stack.
     if (clip_frame_override >= 0) {
       if (face_base_clip.loaded && !face_base_clip.frames.empty()) {

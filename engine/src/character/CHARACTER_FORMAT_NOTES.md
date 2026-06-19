@@ -732,6 +732,20 @@ Glam1 hair:
   Native must therefore generate dynamic controller rows from the PS2
   group/list state before weighted hair-sheet skinning; simply changing the
   sheet renderer cannot synthesize these writer rows.
+- 2026-06-19 native checkpoint after the arm/combiner pass:
+  `engine/out/codex_goal_20260619_hair_eye_validation/glam1_head_current_f620.bmp`
+  shows Glam1's eye meshes seated in the socket band in a live venue close-up;
+  do not reintroduce manual eye offsets from older empty-socket crops. The
+  compact hair audit
+  `engine/out/codex_goal_20260619_hair_eye_validation/glam1_hair_matrix_audit.stderr.log`
+  proves the runtime hair controller rows are reaching Glam1 weighted hair
+  sheets as non-identity local-attachment skin rows:
+  `hairOverride=1` for `bone_bangL.mesh`, `bone_bangR.mesh`, and
+  `bone_hair01.mesh` on `hair-side.mesh`, `hair-mid.mesh`,
+  `hair-lower.mesh`, and `hair-top.mesh`. Remaining Glam1 hair work is
+  therefore not a missing renderer hook or a loose eye/mesh offset; continue
+  from the PS2 group/list point-state relation if a later reference shows the
+  sheet silhouette still wrong.
 - 2026-06-16 rejected single-point parent-anchor native probe:
   `engine/out/codex_goal_20260616_singlepoint_parent_anchor/` tested a gated
   variant that still enabled the single-point solver but anchored the first
@@ -1507,6 +1521,22 @@ Useful environment flags:
   reduced `preFinalError` to `0.0757`. This is a shared
   `CharIKHand.stretch` rule, not an outfit branch. It is an IK-row correction,
   not proof that every visible arm/card issue is closed.
+- `CharIKHand` final Trans-world bridge on 2026-06-19:
+  `pcsx2_ik_trans_rows_20260614.json` shows `bone_L/R-hand.mesh` local rows
+  remain distinct from `bone_fret/strum_hand.mesh` local rows after
+  `CharIKHand`, while hand world rows/positions match destination world
+  rows/positions to float noise. The static `0x0017a080` final branch copies a
+  resolved matrix to the shared `0x001dd7b8` Trans writer. Native previously
+  converted that final world row back into `hand.local`, which polluted the
+  following `CharForeTwist` source. Native now records a transient
+  `runtime_world_overrides` Trans-world row for the final hand and leaves
+  `hand.local` intact; `bone_world_local_chain` consumes those overrides for
+  descendants and skinning. Validation in
+  `engine/out/codex_goal_20260619_trans_world_bridge_raw/glam1_bridge_raw_yaw210.stderr.log`
+  shows both Glam1 hands with `world_delta=0.000000` against their targets
+  while `local_vs_target_world_delta` remains `1.884800` / `1.335300`. This
+  closes the final-row bridge mismatch only; Rockabill1, Deathmetal1, and
+  Glam1 still need shared skin/arm-consumer work.
 - Rockabill native A/B on 2026-06-14 kept this shared, not character-specific:
   `engine/out/native_song_20260614/psychobilly_f900_rockabill_ab_default.bmp`
   showed the old postmultiply swing folding the arm, while
@@ -1615,18 +1645,60 @@ Useful environment flags:
   This follows the accepted hand-driver scheduler model where `left_hand.drv`
   / `right_hand.drv` rotate a live `+0x38` scheduler/blend pointer. Validation:
   `engine/out/native_song_20260614/shout_f1300_hand_driver_scheduler.bmp`.
-- Hand-driver layers are overlay lanes in the native song pose mixer. The
-  accepted no-wrap hand traces show the body clip output first, followed by
-  right/left hand scheduler source output before IK/twist dirties the same
-  arm/hand Trans family. Averaging colliding body and hand lanes by flat
-  `(type, name)` loses that ordering and can dilute authored strum/fret hand
-  poses. The promoted native rule is therefore keyed to the controller route:
-  layers sourced from the right/left hand drivers replace already-present
-  destination lanes for the channel IDs they own, while ordinary body/face
-  driver blending still uses descriptor-key interpolation. Validation:
-  `engine/out/codex_goal_20260616_hand_overlay_override_probe/` captures
-  `glam1`, `rockabill1`, and `metal1` in active song frames without adding any
-  character-specific branches.
+- Hand-driver layers are overlay lanes in the native song pose mixer, but they
+  are not final-bone replacement patches. The accepted no-wrap hand traces show
+  body clip output followed by right/left hand scheduler source output before
+  IK/twist dirties the same arm/hand Trans family. The 2026-06-19 deep
+  lane-mixer audit shows the native hand lanes only after the intro gate opens
+  (`t=10.167` in the `laidtorest` Deathmetal1 route), with
+  `strum_short_01` / `strum_open` colliding with body rows for
+  `bone_R-clavicle.quat`, `bone_R-upperArm.quat`, `bone_R-foreArm.rotz`,
+  `bone_R-hand.quat`, and distal finger/thumb rows. Native now follows the
+  traced `0x00168320` destination-array combiner: first rows are weighted,
+  duplicate quaternion rows are accumulated with sign correction and normalized
+  when converted to matrices, and duplicate scalar axis rows accumulate through
+  wrapped PS2 angles. `overlay_override` is retained only as lane metadata; it
+  must not hard-replace anatomical arm rows unless a new accepted trace shows a
+  specific destination class doing so.
+- Current 2026-06-19 validation captures
+  `engine/out/codex_goal_20260619_current_arm_validation/rockabill_front_torso_f620.bmp`,
+  `deathmetal_front_torso_f620.bmp`, and `glam1_front_torso_f620.bmp` show
+  coherent front-torso arms/hands for the previously problematic Rockabill1,
+  Deathmetal1, and Glam1 paths without character-specific fixes. This is a
+  shared controller/combiner validation point, not a full character sign-off;
+  if a later camera exposes arm deformation, compare the live lane rows and
+  skin-space rows before changing IK/twist constants.
+- Rejected 2026-06-19 arm A/B paths: `GHOGX_CHARBONE_OUTPUT_PARENT_BRIDGE`
+  converted helper-authored output rows through an output local chain and made
+  Deathmetal1/Rockabill1 worse; `GHOGX_SEQUENTIAL_CLIP_LANES` applied each
+  player lane separately and did not improve the same frames;
+  `GHOGX_DISABLE_MESH_LOCAL_ARM_SKIN=1` worsened sampled arms; and
+  `GHOGX_DISABLE_PS2_IK_HAND_FINAL_ORIENTATION=1` also regressed. The
+  parent-bridge and sequential-lane switches were removed after validation so
+  they cannot be mistaken for pending fixes.
+- Axis rotation channel blending on 2026-06-19 now follows the accepted
+  clip-output scalar-lane evidence. `ps2_function_snippets_clip_output_deep_20260611.json`
+  shows `0x0016ab88` handling angular wrap/trig before the `0x00168320`
+  combiner writes scalar rows. Native previously blended `.rotx` / `.roty` /
+  `.rotz` channels by straight numeric lerp inside `blend_channel_into`, which
+  is wrong at +/-pi crossings even though many sampled frames do not hit that
+  boundary. Native now blends scalar channels through `wrap_ps2_angle(rhs-lhs)`.
+  Validation in `engine/out/codex_goal_20260619_axis_wrap_blend/` shows the
+  Rockabill1 and Deathmetal1 f620 stress frames are bit-identical to the
+  previous default frames, so this is a trace-backed combiner correctness fix,
+  not a claim that the remaining visible arm issues are closed.
+- `GHOGX_DISABLE_AXIS_ROT_CHANNELS=1` remains a rejected diagnostic for arm
+  cleanup. `engine/out/codex_goal_20260619_axis_channel_ab/` shows Rockabill1
+  detaching from the guitar when scalar channels are removed, confirming the
+  scalar lane is required; the fix is how those rows are blended/applied, not
+  dropping them.
+- `GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` was rechecked after the hand/world and
+  overlay-lane fixes in
+  `engine/out/codex_goal_20260619_full_output_recheck/`. It no longer explodes
+  the sampled Rockabill1/Glam1/Deathmetal1 close frames, but pixel deltas
+  against same-camera defaults are broad and the exact packed
+  output/work-buffer-to-visible-Trans copy is still not mapped. Keep full
+  output as diagnostic; do not promote it globally from these samples.
 - A CharBone output-world bridge experiment is guarded behind
   `GHOGX_CHARBONE_OUTPUT_WORLD_BRIDGE` and is rejected for promotion. It
   composes animation output rows through their stored-world correction and

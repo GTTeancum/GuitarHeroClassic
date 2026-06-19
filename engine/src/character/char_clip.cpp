@@ -2351,14 +2351,14 @@ static void apply_ps2_ik_hand_targets(
         !ps2_ik_hand_final_disabled() &&
         (ik.stretch || ik.orientation || ps2_ik_hand_position_enabled());
     if (write_final) {
-      const auto parent_world = character.bone_world_local_chain(hand.parent);
       std::array<float, 16> solved_world = character.bone_world_local_chain(hand.name);
       if (ik.orientation && !ps2_ik_hand_final_orientation_disabled()) {
+        std::array<float, 16> desired_orientation = target_world;
         for (int r = 0; r < 3; ++r) {
           for (int c = 0; c < 3; ++c) {
             solved_world[r * 4 + c] =
                 solved_world[r * 4 + c] * (1.0f - ik_weight) +
-                target_world[r * 4 + c] * ik_weight;
+                desired_orientation[r * 4 + c] * ik_weight;
           }
         }
       }
@@ -2372,10 +2372,12 @@ static void apply_ps2_ik_hand_targets(
                            target_world[14] * ik_weight;
       }
       normalize_mat3_rows(solved_world);
-      milo_scene::Xfm solved_local = hand.local;
-      set_local_from_world(solved_local, solved_world, parent_world);
-      hand.local = solved_local;
-      normalize_xfm_rows(hand.local);
+      // SLUS final hand closure calls the shared Trans writer with a resolved
+      // matrix. Accepted row traces show hand world rows matching the
+      // destination while hand local rows remain distinct, so native keeps the
+      // authored local row for the following CharForeTwist and exposes only the
+      // live world row through the transient Trans bridge.
+      character.runtime_world_overrides[hand.name] = solved_world;
     }
 
     if (debug_ik_enabled()) {
@@ -3955,6 +3957,7 @@ void apply_ik_midi_fret_target(Character& character, uint32_t note_mask,
 
 void clear_runtime_ik_weights(Character& character) {
   character.runtime_weight_props.clear();
+  character.runtime_world_overrides.clear();
 }
 
 void set_runtime_ik_weight(Character& character, const std::string& weight_prop,
@@ -3963,10 +3966,15 @@ void set_runtime_ik_weight(Character& character, const std::string& weight_prop,
   character.runtime_weight_props[weight_prop] = std::clamp(weight, 0.0f, 1.0f);
 }
 
+void clear_runtime_trans_worlds(Character& character) {
+  character.runtime_world_overrides.clear();
+}
+
 void apply_character_controllers(Character& character, float time_seconds,
                                  FaceFxEyeProperties* eye_props) {
   (void)time_seconds;
   if (eye_props) *eye_props = {};
+  character.runtime_world_overrides.clear();
   log_character_controller_graph_once(character);
   std::vector<milo_scene::Xfm> bind_bones = character.bind_bone_local;
   if (bind_bones.size() != character.bones.size()) {
@@ -4367,6 +4375,10 @@ const ClipChannel* matching_channel(const std::vector<ClipChannel>& frame,
   return nullptr;
 }
 
+float blend_axis_angle(float a, float b, float t) {
+  return wrap_ps2_angle(a + wrap_ps2_angle(b - a) * t);
+}
+
 void blend_channel_into(ClipChannel& out, const ClipChannel& rhs, float t) {
   t = std::clamp(t, 0.0f, 1.0f);
   switch (out.type) {
@@ -4394,7 +4406,7 @@ void blend_channel_into(ClipChannel& out, const ClipChannel& rhs, float t) {
     case ClipChannel::kRotX:
     case ClipChannel::kRotY:
     case ClipChannel::kRotZ:
-      out.angle = out.angle * (1.0f - t) + rhs.angle * t;
+      out.angle = blend_axis_angle(out.angle, rhs.angle, t);
       break;
   }
 }
@@ -4487,6 +4499,33 @@ void dump_lane_channel_value(const ClipChannel& ch) {
   }
 }
 
+bool is_axis_rot_channel(const ClipChannel& ch) {
+  return ch.type == ClipChannel::kRotX || ch.type == ClipChannel::kRotY ||
+         ch.type == ClipChannel::kRotZ;
+}
+
+bool is_quat_channel(const ClipChannel& ch) {
+  return ch.type == ClipChannel::kQuat;
+}
+
+ClipChannel weighted_first_layer_channel(const ClipChannel& ch, float weight) {
+  ClipChannel out = ch;
+  if (is_axis_rot_channel(out)) {
+    out.angle = wrap_ps2_angle(out.angle * weight);
+  } else if (is_quat_channel(out)) {
+    for (float& q : out.quat) q *= weight;
+  }
+  return out;
+}
+
+void accumulate_quat_channel(ClipChannel& out, const ClipChannel& rhs,
+                             float weight) {
+  float dot = 0.0f;
+  for (int i = 0; i < 4; ++i) dot += out.quat[i] * rhs.quat[i];
+  const float sign = dot < 0.0f ? -1.0f : 1.0f;
+  for (int i = 0; i < 4; ++i) out.quat[i] += rhs.quat[i] * weight * sign;
+}
+
 void dump_lane_mixer_layers(const std::vector<ClipChannelLayer>& layers) {
   if (!debug_lane_mixer_enabled() || layers.empty()) return;
 
@@ -4568,14 +4607,27 @@ std::vector<ClipChannel> blend_channel_layers(
       const auto it = by_key.find(key);
       if (it == by_key.end()) {
         by_key.emplace(key, AccumRef{out.size(), layer_weight});
-        out.push_back(ch);
+        out.push_back(weighted_first_layer_channel(ch, layer_weight));
         continue;
       }
 
       AccumRef& acc = it->second;
-      if (layer.overlay_override && layer_weight >= 0.999f) {
-        out[acc.index] = ch;
-        acc.weight = layer_weight;
+      (void)layer.overlay_override;
+      if (is_quat_channel(ch)) {
+        // SLUS 0x00168320 accumulates quaternion rows into the shared
+        // destination block with sign correction. quat_to_rot() normalizes the
+        // accumulated row later when it becomes a transform.
+        accumulate_quat_channel(out[acc.index], ch, layer_weight);
+        acc.weight += layer_weight;
+        continue;
+      }
+      if (is_axis_rot_channel(ch)) {
+        // SLUS 0x00168320 accumulates scalar output rows into the shared
+        // destination block. Duplicated forearm axis rows from body + hand
+        // lanes must therefore add, not normalize by total source count.
+        out[acc.index].angle =
+            wrap_ps2_angle(out[acc.index].angle + ch.angle * layer_weight);
+        acc.weight += layer_weight;
         continue;
       }
       const float total = acc.weight + layer_weight;

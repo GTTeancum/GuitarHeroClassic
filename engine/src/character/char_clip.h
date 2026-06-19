@@ -132,6 +132,7 @@ void apply_character_controllers(Character& character, float time_seconds,
 void clear_runtime_ik_weights(Character& character);
 void set_runtime_ik_weight(Character& character, const std::string& weight_prop,
                            float weight);
+void clear_runtime_trans_worlds(Character& character);
 
 // Move CharIKMidi-authored fret helper bones to the note-selected authored
 // guitar-neck spot before the hand IK pass resolves its child target.

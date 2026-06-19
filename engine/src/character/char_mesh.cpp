@@ -648,9 +648,22 @@ bool find_current_bind_xfm(const Character& c, const std::string& name,
   return false;
 }
 
+bool find_runtime_world_override(const Character& c, const std::string& name,
+                                 std::array<float, 16>& out) {
+  const auto it = c.runtime_world_overrides.find(name);
+  if (it == c.runtime_world_overrides.end()) return false;
+  out = it->second;
+  return true;
+}
+
 std::array<float, 16> local_chain_world_for(const Character& c,
                                             const std::string& name,
                                             bool bind_pose) {
+  std::array<float, 16> override_world{};
+  if (!bind_pose && find_runtime_world_override(c, name, override_world)) {
+    return override_world;
+  }
+
   const Xfm* current = nullptr;
   const Xfm* bind = nullptr;
   const Xfm* stored_world = nullptr;
@@ -662,6 +675,12 @@ std::array<float, 16> local_chain_world_for(const Character& c,
   std::array<float, 16> world = xfm_to_mat4(bind_pose ? *bind : *current);
   int guard = 0;
   while (!parent.empty() && guard++ < 128) {
+    if (!bind_pose &&
+        find_runtime_world_override(c, parent, override_world)) {
+      world = mat4_mul(world, override_world);
+      break;
+    }
+
     const Xfm* parent_current = nullptr;
     const Xfm* parent_bind = nullptr;
     const Xfm* ignored_world = nullptr;
@@ -679,6 +698,11 @@ std::array<float, 16> local_chain_world_for(const Character& c,
 
 std::array<float, 16> corrected_world_for(const Character& c,
                                           const std::string& name) {
+  std::array<float, 16> override_world{};
+  if (find_runtime_world_override(c, name, override_world)) {
+    return override_world;
+  }
+
   const Xfm* current = nullptr;
   const Xfm* bind = nullptr;
   const Xfm* stored_world = nullptr;

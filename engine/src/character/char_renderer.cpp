@@ -2075,7 +2075,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
     } else if (is_mesh_local_arm_piece(mesh) &&
                !disable_mesh_local_arm_skin_enabled()) {
       const std::array<float, 16> mesh_world =
-          character.mesh_world(mesh);
+          character.bone_world_local_chain(mesh.name);
       const std::array<float, 16> inv_mesh_world = affine_inverse(mesh_world);
       skin[i] = mul16(mul16(xfm16(mesh.bind[i]), curr_world),
                       inv_mesh_world);
