@@ -1825,6 +1825,16 @@ Useful environment flags:
   `bone_fret_hand_collision_matches=0`, `handmap_events=10`, and
   `left_hand_zero_error_samples=1320` while the hand target continues moving
   dynamically from MIDI-selected hand clips.
+- The follow-up same-tick scheduler check in
+  `engine/out/codex_goal_20260619_fret_scheduler_stable_choice/` fixes a
+  subtler native bug in the list-valued child path. After selecting a child for
+  a new MIDI fret event, native advanced the child index immediately and then
+  recomputed the same active tick on the next frame, flipping tick `14880` from
+  `finger_vibrato_index` to `finger_vibrato_ring`. The selected child must be
+  held stable until the MIDI tick or mask changes, with the scheduler advance
+  applying to the next event. The validation summary now records
+  `handmap_events=9`, matching the nine distinct fret note events through the
+  frame-1300 Shout route, while `strummap_events=9` remains unchanged.
 - The right-hand strum driver is MIDI/parser driven too. Native previously
   loaded only the first available `strum_short_01` / `strum_long_01` /
   `strum_pick_01` fallback and replayed it for every strum. That was a native

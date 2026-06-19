@@ -4913,6 +4913,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const uint32_t desired_tick = perf_anim_note_cue.active
                                                   ? perf_anim_note_cue.tick
                                                   : UINT32_MAX;
+                const bool same_fret_note_event =
+                    desired_mask != 0 &&
+                    desired_mask == perf.last_anim_note_mask &&
+                    desired_tick == perf.last_anim_note_tick;
                 std::vector<const ghogx::character::CharClip*> next_fret_clips;
                 std::vector<std::string> requested_fret_names;
                 std::vector<std::string> next_fret_names;
@@ -4925,7 +4929,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         next_fret_names.push_back(std::move(label));
                     };
 
-                if (desired_mask == 0) {
+                if (same_fret_note_event) {
+                    // The PS2 hand driver schedules one child for the MIDI note
+                    // event. Keep that choice stable until a new tick/mask arrives;
+                    // otherwise list-valued HandMap entries rotate on the frame
+                    // after the event and replay the wrong child.
+                    requested_fret_names = perf.active_fret_clip_names;
+                    next_fret_names = perf.active_fret_clip_names;
+                } else if (desired_mask == 0) {
                     requested_fret_names.push_back("finger_open");
                     push_fret_clip("finger_open",
                                    perf.fret_open_clip.loaded
