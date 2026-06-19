@@ -806,6 +806,24 @@ Glam1 hair:
   chains. Native chain rows therefore submit the visible controller at the
   segment root/anchor and aim row1 at the endpoint. This is necessary format
   coverage, not visual closure for Rock2 weighted hair-card consumption.
+- 2026-06-19 native multi-point chain fix:
+  native now snapshots every multi-point `CharHair` group controller world row
+  before any point in that group is rewritten. Chain endpoints use the cached
+  unmodified next controller root, and the final segment extends from the
+  cached current controller row, so parent rewrites no longer collapse later
+  points into a straight vertical child chain. This implements the accepted
+  PS2 relation above without character names or mesh offsets. Validation
+  `engine/out/codex_goal_20260619_rock2_hair_cached_chain/rock2_cached_chain_y055_f900.bmp`
+  visibly pulls the large left/back Rock2 hair mass back onto the head versus
+  `engine/out/codex_goal_20260619_rock2_after_uppertwist/rock2_current_y055_f900.bmp`.
+  Focused row logs show later Rock2 back-chain points now retain distinct
+  relative directions instead of inheriting the first point's straight-down
+  basis. This does not close Rock2: the front-biased validation
+  `rock2_front_angle_cached_chain_y020_f900.bmp` still shows a detached-looking
+  right-side tuft. `GHOGX_HIGHLIGHT_MESH=hair-top.mesh` proves that tuft is the
+  right-hair weighted region of the head-local `hair-top.mesh` sheet, so the
+  remaining work is the shared local-attachment controller-row-to-weighted-card
+  consumption path, not a root-parent hair-card or per-mesh offset fix.
 
 Glam1 eyes / look-at:
 

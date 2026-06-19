@@ -3560,6 +3560,15 @@ static void apply_char_hair(Character& character, float time_seconds) {
       Vec3 previous_point{};
       const bool follow_only_group =
           group.points.size() == 1 && !single_point_hair_solver_enabled();
+      std::vector<std::array<float, 16>> group_point_worlds(
+          group.points.size());
+      std::vector<bool> has_group_point_world(group.points.size(), false);
+      if (!follow_only_group) {
+        for (size_t i = 0; i < group.points.size(); ++i) {
+          has_group_point_world[i] = transform_local_chain_world(
+              character, group.points[i].mesh, group_point_worlds[i]);
+        }
+      }
       auto write_ps2_chain_basis = [&](RuntimeHairPoint& chain_state,
                                        const TransformTarget& chain_target,
                                        const std::array<float, 16>& base_world,
@@ -3799,9 +3808,23 @@ static void apply_char_hair(Character& character, float time_seconds) {
           continue;
         }
 
-        const Vec3 endpoint_target =
-            hair_segment_endpoint_target(character, group, point_index, point,
-                                         live_world_xfm);
+        Vec3 endpoint_target{};
+        if (!follow_only_group && point_index + 1 < group.points.size() &&
+            has_group_point_world[point_index + 1]) {
+          endpoint_target = mat_pos(group_point_worlds[point_index + 1]);
+        } else if (!follow_only_group &&
+                   point_index < has_group_point_world.size() &&
+                   has_group_point_world[point_index]) {
+          const float length =
+              std::max(0.001f, point.length > 0.0f ? point.length : 0.001f);
+          endpoint_target = vadd(
+              mat_pos(group_point_worlds[point_index]),
+              vscale(mat_row(group_point_worlds[point_index], 1), length));
+        } else {
+          endpoint_target =
+              hair_segment_endpoint_target(character, group, point_index, point,
+                                           live_world_xfm);
+        }
         if (needs_state_init) {
           state.initialized = true;
           state.mesh = point.mesh;
@@ -3836,7 +3859,11 @@ static void apply_char_hair(Character& character, float time_seconds) {
         // PS2 stores the simulated point at s0+0x00, but submits the visible
         // Trans row at the segment root. In chains, the point endpoint becomes
         // the next controller's submitted position.
-        auto desired_world = live_world_xfm;
+        auto desired_world =
+            (!follow_only_group && point_index < has_group_point_world.size() &&
+             has_group_point_world[point_index])
+                ? group_point_worlds[point_index]
+                : live_world_xfm;
         desired_world[12] = anchor.x;
         desired_world[13] = anchor.y;
         desired_world[14] = anchor.z;
