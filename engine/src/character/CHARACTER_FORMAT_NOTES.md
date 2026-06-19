@@ -1671,7 +1671,12 @@ Useful environment flags:
   in `engine/out/codex_goal_20260619_arm_after_localtwist/` and close visual
   checks in `engine/out/codex_goal_20260619_arm_after_localtwist_close/` verify
   the same row-source rule on Rockabill1/Psychobilly and
-  Deathmetal1/Laid to Rest without per-character code.
+  Deathmetal1/Laid to Rest without per-character code. The focused Glam1 close
+  check
+  `engine/out/codex_goal_20260619_glam1_after_localtwist_close/glam1_lhand_close_f1300.bmp`
+  keeps the hand on the neck with no visible left-wrist/card blowout in that
+  angle, and the companion log shows `twist-fore-src` matching the live
+  `bone_L-hand` row at the screenshot point.
 - Rockabill native A/B on 2026-06-14 kept this shared, not character-specific:
   `engine/out/native_song_20260614/psychobilly_f900_rockabill_ab_default.bmp`
   showed the old postmultiply swing folding the arm, while
