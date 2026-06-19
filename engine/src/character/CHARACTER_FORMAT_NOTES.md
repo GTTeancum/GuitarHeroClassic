@@ -1720,6 +1720,13 @@ Useful environment flags:
   constant mismatch, but several shots are still partly occluded by the guitar
   or body. Treat them as a sanity check only, not a reason to mark Rockabill1,
   Deathmetal1, or Glam1 arms complete.
+- `engine/out/codex_goal_20260619_arm_visibility_recheck/` replaces the earlier
+  too-flattering side camera with wider torso views for Rockabill1 and
+  Deathmetal1. The compact excerpts show both final-frame hands landing on the
+  traced targets (`preFinalError=0.0000`) and both foretwist rows still updating
+  at the screenshot frame. This is only a guardrail: it confirms the gross
+  `CharIKHand` target path is alive, but it does not sign off arm/twist visual
+  fidelity. Continue investigating the shared twist row / skin-consumer path.
 - Rejected 2026-06-19 arm A/B paths: `GHOGX_CHARBONE_OUTPUT_PARENT_BRIDGE`
   converted helper-authored output rows through an output local chain and made
   Deathmetal1/Rockabill1 worse; `GHOGX_SEQUENTIAL_CLIP_LANES` applied each
@@ -1728,6 +1735,26 @@ Useful environment flags:
   `GHOGX_DISABLE_PS2_IK_HAND_FINAL_ORIENTATION=1` also regressed. The
   parent-bridge and sequential-lane switches were removed after validation so
   they cannot be mistaken for pending fixes.
+- 2026-06-19 Glam1.73 final-hand bridge A/B:
+  `engine/out/codex_goal_20260619_glam1_arm_traceback/` compares the default
+  `bone_L-hand` close frame against `GHOGX_DISABLE_PS2_IK_HAND_FINAL=1` with
+  the guitar hidden. The no-final capture changes hand orientation, but the
+  sampled bad-card vertex remains identical (`out=-9.30490 4.50230 42.54663`)
+  because vertex 0 has no hand weight and is driven by `bone_L-foreTwist1.mesh`
+  / `bone_L-foreTwist2.mesh`. Do not fix Glam1 wrist cards by excluding final
+  hand world rows from skinning; the remaining mismatch is in shared foretwist
+  row production/consumption or foretwist-weighted mesh bind space.
+- 2026-06-19 Glam1.73 in-song lane/IK/skin probe:
+  `engine/out/codex_goal_20260619_glam1_lane_ik_skin_probe/` keeps compact
+  final-frame rows after deleting the raw log. The marker log proves the run
+  reached `[play]` before the screenshot, the lane signature log shows no later
+  overlay signature churn after the initial `intro_01` + `neutral` blend, and
+  the final `CharIKHand` row matches the target with `preFinalError=0.0000`.
+  The same sampled bad-card vertex is still driven only by
+  `bone_L-foreTwist1.mesh`/`bone_L-foreTwist2.mesh` weights
+  (`0.15110`/`0.84890`). This rules out note-overlay timing, final hand
+  placement, and a hand-weight consumer as the direct cause; continue with the
+  shared foretwist row-to-card consumption path.
 - Axis rotation channel blending on 2026-06-19 now follows the accepted
   clip-output scalar-lane evidence. `ps2_function_snippets_clip_output_deep_20260611.json`
   shows `0x0016ab88` handling angular wrap/trig before the `0x00168320`
