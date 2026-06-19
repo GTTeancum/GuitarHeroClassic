@@ -1105,6 +1105,10 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     if (!right_hand_weight_override && strum_clip.loaded) right_hand_weight = 1.0f;
     if (!left_hand_weight_override && fret_clip.loaded) left_hand_weight = 1.0f;
   }
+  const bool viewer_hand_ik_weights_active =
+      right_hand_weight_override || left_hand_weight_override ||
+      ((!guitar_milo.empty() && guitar_milo != "none") &&
+       (strum_clip.loaded || fret_clip.loaded));
   if (loaded_clip.loaded) {
     main_player.play(loaded_clip,
                      ghogx::character::kCharPlayLoop |
@@ -1219,14 +1223,14 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     // FaceFX graph names as pose-bank frame indices: RE shows Good*/Bad*,
     // EyesClosed, Blink, and EyeZCombiner are graph scalar channels, not
     // standalone transform poses.
-    if (right_hand_weight_override || left_hand_weight_override) {
+    if (viewer_hand_ik_weights_active) {
       ghogx::character::clear_runtime_ik_weights(renderer.character());
-      if (right_hand_weight_override) {
+      if (right_hand_weight_override || strum_clip.loaded) {
         ghogx::character::set_runtime_ik_weight(renderer.character(),
                                                 "right.weight",
                                                 right_hand_weight);
       }
-      if (left_hand_weight_override) {
+      if (left_hand_weight_override || fret_clip.loaded) {
         ghogx::character::set_runtime_ik_weight(renderer.character(),
                                                 "left.weight",
                                                 left_hand_weight);

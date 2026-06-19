@@ -1914,3 +1914,17 @@ Every outfit audit should capture:
 2. Active viewer screenshot using the main performance clip.
 3. Stage screenshot with the outfit loaded as guitarist.
 4. Mesh debug log if any piece floats, disappears, or deforms.
+
+Viewer hand-overlay validation:
+
+- 2026-06-19 fixed the `--char` validation path so auto-loaded strum/fret
+  overlays also feed `right.weight` / `left.weight` into the runtime
+  `CharIKHand` weight map before controller polling. Before this, the viewer
+  could load and apply `strum_long_01` / `finger_powerchord_1` while both
+  `CharIKHand` controllers still saw `weight=0.000`, leaving Rockabill1 and
+  Deathmetal1 arms hanging in screenshots. This was a viewer/diagnostic
+  plumbing bug, not character-specific animation math. Validation:
+  `engine/out/codex_goal_20260619_viewer_arm_after_weight_fix/` shows the
+  same Rockabill1 and Deathmetal1 frames running `CharIKHand` at weight 1.0
+  and placing both hands on the guitar. Do not use pre-fix viewer hand-overlay
+  screenshots as evidence of native in-song arm deformation.
