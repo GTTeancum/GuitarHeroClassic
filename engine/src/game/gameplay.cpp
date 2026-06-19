@@ -3336,19 +3336,33 @@ std::optional<std::string> dtb_atom_text(const gh::dtb::Node& node) {
     return std::nullopt;
 }
 
-void collect_finger_clip_names(const gh::dtb::Node& node,
-                               std::vector<std::string>& out) {
+void collect_clip_names_with_prefix(const gh::dtb::Node& node,
+                                    std::string_view prefix,
+                                    std::vector<std::string>& out) {
     if (auto text = dtb_atom_text(node)) {
-        if (starts_with(*text, "finger_")) push_unique(out, *text);
+        if (starts_with(*text, prefix)) push_unique(out, *text);
         return;
     }
     if (!gh::dtb::is_array(node)) return;
     for (const auto& child : gh::dtb::children(node)) {
-        if (child) collect_finger_clip_names(*child, out);
+        if (child) collect_clip_names_with_prefix(*child, prefix, out);
     }
 }
 
-Gameplay::HandClipChoice parse_hand_clip_choice(const gh::dtb::Node& node) {
+std::optional<double> find_length_threshold(const gh::dtb::Node& node) {
+    if (auto f = gh::dtb::as_float(node)) return static_cast<double>(*f);
+    if (auto i = gh::dtb::as_int(node)) return static_cast<double>(*i);
+    if (!gh::dtb::is_array(node)) return std::nullopt;
+    std::optional<double> found;
+    for (const auto& child : gh::dtb::children(node)) {
+        if (!child) continue;
+        if (auto value = find_length_threshold(*child)) found = value;
+    }
+    return found;
+}
+
+Gameplay::HandClipChoice parse_prefixed_clip_choice(
+    const gh::dtb::Node& node, std::string_view prefix) {
     Gameplay::HandClipChoice choice;
     if (gh::dtb::is_array(node)) {
         const auto& kids = gh::dtb::children(node);
@@ -3356,8 +3370,14 @@ Gameplay::HandClipChoice parse_hand_clip_choice(const gh::dtb::Node& node) {
             const std::string head =
                 kids[0] ? gh::dtb::as_string(*kids[0]).value_or("") : "";
             if (head == "if_else") {
-                collect_finger_clip_names(*kids[2], choice.long_names);
-                collect_finger_clip_names(*kids[3], choice.short_names);
+                if (kids[1]) {
+                    if (auto threshold = find_length_threshold(*kids[1]))
+                        choice.length_threshold = *threshold;
+                }
+                collect_clip_names_with_prefix(*kids[2], prefix,
+                                               choice.long_names);
+                collect_clip_names_with_prefix(*kids[3], prefix,
+                                               choice.short_names);
                 if (choice.short_names.empty())
                     choice.short_names = choice.long_names;
                 if (choice.long_names.empty())
@@ -3367,9 +3387,13 @@ Gameplay::HandClipChoice parse_hand_clip_choice(const gh::dtb::Node& node) {
         }
     }
 
-    collect_finger_clip_names(node, choice.short_names);
+    collect_clip_names_with_prefix(node, prefix, choice.short_names);
     choice.long_names = choice.short_names;
     return choice;
+}
+
+Gameplay::HandClipChoice parse_hand_clip_choice(const gh::dtb::Node& node) {
+    return parse_prefixed_clip_choice(node, "finger_");
 }
 
 std::vector<int> parse_hand_chord_key(const gh::dtb::Node& node) {
@@ -3418,6 +3442,47 @@ void parse_hand_map_node(const gh::dtb::Node& node,
     maps[map.name] = std::move(map);
 }
 
+void parse_strum_map_node(
+    const gh::dtb::Node& node,
+    std::map<std::string, Gameplay::StrumHandMap>& maps) {
+    if (!gh::dtb::is_array(node)) return;
+    const auto& kids = gh::dtb::children(node);
+    if (kids.empty()) return;
+    const std::string name =
+        kids[0] ? gh::dtb::as_string(*kids[0]).value_or("") : "";
+    if (!starts_with(name, "StrumMap_")) return;
+
+    Gameplay::StrumHandMap map;
+    map.name = name;
+    if (auto events = gh::dtb::find_keyed(node, "events")) {
+        const auto& event_rows = gh::dtb::children(*events);
+        for (size_t i = 1; i < event_rows.size(); ++i) {
+            const auto& row = event_rows[i];
+            if (!row || !gh::dtb::is_array(*row)) continue;
+            const auto& row_kids = gh::dtb::children(*row);
+            if (row_kids.size() < 2 || !row_kids[0] || !row_kids[1])
+                continue;
+            auto choice = parse_prefixed_clip_choice(*row_kids[1], "strum_");
+            if (choice.short_names.empty() && choice.long_names.empty())
+                continue;
+            const std::string key =
+                gh::dtb::as_string(*row_kids[0]).value_or("");
+            if (key == "default") {
+                map.fallback = std::move(choice);
+            } else if (gh::dtb::is_array(*row_kids[0]) &&
+                       gh::dtb::children(*row_kids[0]).empty()) {
+                map.regular = std::move(choice);
+            }
+        }
+    }
+    if (map.regular.short_names.empty() && map.regular.long_names.empty())
+        map.regular = map.fallback;
+    if (map.fallback.short_names.empty() && map.fallback.long_names.empty())
+        map.fallback = map.regular;
+    if (!map.regular.short_names.empty() || !map.regular.long_names.empty())
+        maps[map.name] = std::move(map);
+}
+
 void collect_hand_maps_recursive(
     const gh::dtb::Node& node,
     std::map<std::string, Gameplay::FretHandMap>& maps) {
@@ -3425,6 +3490,16 @@ void collect_hand_maps_recursive(
     if (!gh::dtb::is_array(node)) return;
     for (const auto& child : gh::dtb::children(node)) {
         if (child) collect_hand_maps_recursive(*child, maps);
+    }
+}
+
+void collect_strum_maps_recursive(
+    const gh::dtb::Node& node,
+    std::map<std::string, Gameplay::StrumHandMap>& maps) {
+    parse_strum_map_node(node, maps);
+    if (!gh::dtb::is_array(node)) return;
+    for (const auto& child : gh::dtb::children(node)) {
+        if (child) collect_strum_maps_recursive(*child, maps);
     }
 }
 
@@ -3448,12 +3523,34 @@ std::map<std::string, Gameplay::FretHandMap> load_fret_hand_maps(
     return maps;
 }
 
+std::map<std::string, Gameplay::StrumHandMap> load_strum_hand_maps(
+    const std::string& hdr_path, const std::string& ark_path) {
+    std::map<std::string, Gameplay::StrumHandMap> maps;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find("config/gen/midi_parsers.dtb");
+        if (!entry) return maps;
+        auto tree = gh::dtb::parse(ark.read_entry(*entry, {ark_path}));
+        for (const auto& root : tree.root) {
+            if (root) collect_strum_maps_recursive(*root, maps);
+        }
+        std::fprintf(stderr, "[world] loaded %zu StrumMap mappings\n",
+                     maps.size());
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] config/gen/midi_parsers.dtb: %s\n",
+                     ex.what());
+    }
+    return maps;
+}
+
 std::vector<std::string> names_for_hand_choice(
     const Gameplay::HandClipChoice& choice, double note_length) {
     const std::vector<std::string>& preferred =
-        note_length > 0.3 ? choice.long_names : choice.short_names;
+        note_length > choice.length_threshold ? choice.long_names
+                                              : choice.short_names;
     if (!preferred.empty()) return preferred;
-    return note_length > 0.3 ? choice.short_names : choice.long_names;
+    return note_length > choice.length_threshold ? choice.short_names
+                                                 : choice.long_names;
 }
 
 std::vector<std::string> scheduled_hand_choice_names(
@@ -3528,6 +3625,45 @@ FretClipSelection fret_clip_selection_for_note(
                                          "finger_chord_bar"}
               : std::vector<std::string>{"finger_hold_index"},
         false, child_index);
+}
+
+FretClipSelection strum_clip_selection_for_note(
+    const std::map<std::string, Gameplay::StrumHandMap>& maps,
+    const std::string& strum_map_name, double note_length,
+    size_t child_index) {
+    auto it = maps.find(strum_map_name);
+    if (it == maps.end()) it = maps.find("StrumMap_Default");
+    if (it == maps.end())
+        return make_fret_clip_selection({"strum_short_01"}, false,
+                                        child_index);
+    const Gameplay::HandClipChoice& choice =
+        note_length > 0.0 ? it->second.regular : it->second.fallback;
+    auto names = names_for_hand_choice(choice, note_length);
+    if (!names.empty())
+        return make_fret_clip_selection(std::move(names), true, child_index);
+    return make_fret_clip_selection({"strum_short_01"}, false, child_index);
+}
+
+std::vector<std::string> all_strum_hand_clip_names(
+    const std::map<std::string, Gameplay::StrumHandMap>& maps) {
+    std::vector<std::string> out;
+    push_unique(out, "strum_open");
+    auto add_choice = [&](const Gameplay::HandClipChoice& choice) {
+        for (const auto& name : choice.short_names) push_unique(out, name);
+        for (const auto& name : choice.long_names) push_unique(out, name);
+    };
+    for (const auto& entry : maps) {
+        add_choice(entry.second.regular);
+        add_choice(entry.second.fallback);
+    }
+    for (const char* fallback :
+         {"strum_short_01", "strum_short_02", "strum_short_03",
+          "strum_short_04", "strum_long_01", "strum_long_02",
+          "strum_long_03", "strum_long_04", "strum_pick_01",
+          "strum_pick_02"}) {
+        push_unique(out, fallback);
+    }
+    return out;
 }
 
 std::vector<std::string> all_fret_hand_clip_names(
@@ -3651,6 +3787,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
                  chart_.notes[difficulty_].size(),
                  chart_.duration_sec());
     fret_hand_maps_ = load_fret_hand_maps(hdr_path, ark_path);
+    strum_hand_maps_ = load_strum_hand_maps(hdr_path, ark_path);
 
     // --- Audio ---
     const std::string vgs_path = "songs/" + shortname + "/" + shortname + ".vgs";
@@ -4310,6 +4447,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                          "strum_pick_01"});
                     }
                     keep_hand_overlay_channels(perf.strum_clip);
+                    for (const auto& clip_name :
+                         all_strum_hand_clip_names(strum_hand_maps_)) {
+                        if (clip_name == "strum_open") continue;
+                        ghogx::character::CharClip named_clip;
+                        const std::vector<std::string> names{clip_name};
+                        if (!load_driver_clip_names(named_clip,
+                                                    "right_hand.drv",
+                                                    names)) {
+                            load_clip_first(named_clip, hdr_path_, ark_path_,
+                                            strum_milo, names);
+                        }
+                        if (named_clip.loaded) {
+                            keep_hand_overlay_channels(named_clip);
+                            perf.strum_named_clips[clip_name] =
+                                std::move(named_clip);
+                        }
+                    }
                     static const char* kLaneFretClips[5] = {
                         "finger_hold_index", "finger_hold_middle",
                         "finger_hold_ring", "finger_hold_pinky",
@@ -4358,7 +4512,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         }
                     }
                     const bool right_hand_loaded =
-                        perf.strum_open_clip.loaded || perf.strum_clip.loaded;
+                        perf.strum_open_clip.loaded || perf.strum_clip.loaded ||
+                        !perf.strum_named_clips.empty();
                     const bool left_hand_loaded =
                         perf.fret_open_clip.loaded || perf.fret_clip.loaded ||
                         !perf.fret_named_clips.empty();
@@ -4369,7 +4524,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                  "[world] performer hand map clips: role=%s handDriver=%d loaded=%zu maps=%zu ikHands=%zu ikMidis=%zu\n",
                                  perf.role.c_str(),
                                  perf.hand_driver_available ? 1 : 0,
-                                 perf.fret_named_clips.size(),
+                                 perf.fret_named_clips.size() +
+                                     perf.strum_named_clips.size(),
                                  fret_hand_maps_.size(),
                                  hand_character.ik_hands.size(),
                                  hand_character.ik_midis.size());
@@ -4661,38 +4817,69 @@ void Gameplay::draw(ghogx::render::Window& win) {
                           chart_.notes[std::clamp(difficulty_, 0, 3)]);
             const bool hand_driver_active =
                 !intro_active && perf.hand_driver_available;
-            if (!intro_active && performer_playing && hand_driver_active &&
-                perf.role == "guitarist0" &&
-                note_cue.active && note_cue.tick != perf.last_note_tick &&
-                perf.strum_clip.loaded) {
-                perf.last_note_tick = note_cue.tick;
+            auto trigger_strum_clip = [&](const NoteCue& cue) {
+                if (!cue.active || cue.tick == perf.last_note_tick) return;
+                const ghogx::character::CharClip* next_clip = nullptr;
+                std::vector<std::string> requested_strum_names;
+                std::vector<std::string> selected_strum_names;
+                const auto strum_selection = strum_clip_selection_for_note(
+                    strum_hand_maps_, "StrumMap_Default", cue.length,
+                    perf.strum_hand_scheduler_child_index);
+                requested_strum_names = strum_selection.choices;
+                for (const auto& clip_name : strum_selection.selected) {
+                    auto named = perf.strum_named_clips.find(clip_name);
+                    if (named != perf.strum_named_clips.end() &&
+                        named->second.loaded) {
+                        next_clip = &named->second;
+                        selected_strum_names.push_back(clip_name);
+                        break;
+                    }
+                }
+                if (!next_clip && perf.strum_clip.loaded) {
+                    next_clip = &perf.strum_clip;
+                    selected_strum_names.push_back(perf.strum_clip.name);
+                }
+                if (!next_clip) return;
+                if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
+                    std::fprintf(
+                        stderr,
+                        "[strummap] role=%s map=StrumMap_Default tick=%u len=%.3f choices=",
+                        perf.role.c_str(), cue.tick, cue.length);
+                    for (size_t i = 0; i < requested_strum_names.size(); ++i) {
+                        std::fprintf(stderr, "%s%s", i == 0 ? "" : ",",
+                                     requested_strum_names[i].c_str());
+                    }
+                    std::fprintf(stderr, " selected=");
+                    for (size_t i = 0; i < selected_strum_names.size(); ++i) {
+                        std::fprintf(stderr, "%s%s", i == 0 ? "" : ",",
+                                     selected_strum_names[i].c_str());
+                    }
+                    std::fprintf(stderr, "\n");
+                }
+                perf.last_note_tick = cue.tick;
                 perf.last_strum_started = song_time_;
+                perf.last_strum_duration = next_clip->duration_seconds();
+                perf.active_strum_clip_names = selected_strum_names;
                 perf.strum_player.play(
-                    perf.strum_clip, ghogx::character::kCharPlayNoLoop,
+                    *next_clip, ghogx::character::kCharPlayNoLoop,
                     character_hand_driver_blend_seconds());
-            }
+                ++perf.strum_hand_scheduler_child_index;
+            };
             if (!intro_active && performer_playing && hand_driver_active &&
-                perf.role == "bassist" &&
-                perf_note_cue.active &&
-                perf_note_cue.tick != perf.last_note_tick &&
-                perf.strum_clip.loaded) {
-                perf.last_note_tick = perf_note_cue.tick;
-                perf.last_strum_started = song_time_;
-                perf.strum_player.play(
-                    perf.strum_clip, ghogx::character::kCharPlayNoLoop,
-                    character_hand_driver_blend_seconds());
+                (perf.role == "guitarist0" || perf.role == "bassist")) {
+                trigger_strum_clip(perf_note_cue);
             }
-            const double strum_duration =
-                perf.strum_clip.loaded ? perf.strum_clip.duration_seconds() : 0.0;
+            const double strum_duration = perf.last_strum_duration;
             const bool strum_overlay_live =
                 strum_duration > 0.0 &&
                 song_time_ - perf.last_strum_started <= strum_duration;
             if (hand_driver_active && !strum_overlay_live &&
                 perf.strum_open_clip.loaded &&
-                perf.strum_player.current_clip() == &perf.strum_clip) {
+                perf.strum_player.current_clip() != &perf.strum_open_clip) {
                 perf.strum_player.play(
                     perf.strum_open_clip, ghogx::character::kCharPlayLoop,
                     character_hand_driver_blend_seconds());
+                perf.active_strum_clip_names = {"strum_open"};
             }
             std::vector<ghogx::character::ClipChannelLayer> pose_layers;
             bool pose_relative = false;

@@ -1825,6 +1825,19 @@ Useful environment flags:
   `bone_fret_hand_collision_matches=0`, `handmap_events=10`, and
   `left_hand_zero_error_samples=1320` while the hand target continues moving
   dynamically from MIDI-selected hand clips.
+- The right-hand strum driver is MIDI/parser driven too. Native previously
+  loaded only the first available `strum_short_01` / `strum_long_01` /
+  `strum_pick_01` fallback and replayed it for every strum. That was a native
+  shortcut: `config/gen/midi_parsers.dtb::GUITARSTRUMMAPPINGS` has
+  `StrumMap_Default`, `StrumMap_punk`, and `StrumMap_softpick`, with
+  list-valued children such as `strum_short_01..04`,
+  `strum_long_01..04`, and `strum_pick_01..02`. Native now loads the authored
+  `strum_*` children and schedules one child per MIDI strum event, using the
+  DTB length thresholds just like the fret-hand child scheduler. Validation:
+  `engine/out/codex_goal_20260619_strum_map_scheduler_fix/summary.txt`
+  records `strummap_events=9`, loads all short/long/pick children, and shows
+  short notes selecting `strum_short_01..04` while long sustains select
+  `strum_long_01` / `strum_long_04`.
 - Current 2026-06-19 validation captures
   `engine/out/codex_goal_20260619_current_arm_validation/rockabill_front_torso_f620.bmp`,
   `deathmetal_front_torso_f620.bmp`, and `glam1_front_torso_f620.bmp` show

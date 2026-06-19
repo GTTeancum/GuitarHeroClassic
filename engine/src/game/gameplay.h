@@ -119,6 +119,7 @@ class Gameplay {
   struct HandClipChoice {
     std::vector<std::string> short_names;
     std::vector<std::string> long_names;
+    double length_threshold = 0.3;
   };
   struct HandChordRule {
     std::vector<int> keys;
@@ -128,6 +129,11 @@ class Gameplay {
     std::string name;
     std::array<HandClipChoice, 5> single;
     std::vector<HandChordRule> chords;
+  };
+  struct StrumHandMap {
+    std::string name;
+    HandClipChoice regular;
+    HandClipChoice fallback;
   };
 
   Gameplay() = default;
@@ -195,6 +201,7 @@ class Gameplay {
     ghogx::character::CharClip strum_clip;
     ghogx::character::CharClip fret_open_clip;
     ghogx::character::CharClip fret_clip;
+    std::map<std::string, ghogx::character::CharClip> strum_named_clips;
     std::vector<ghogx::character::CharClip> fret_lane_clips;
     std::map<std::string, ghogx::character::CharClip> fret_named_clips;
     std::optional<ghogx::character::FaceFxGraph> facefx_graph;
@@ -211,6 +218,7 @@ class Gameplay {
     bool midi_playing = false;
     uint32_t last_note_tick = UINT32_MAX;
     double last_strum_started = -9999.0;
+    double last_strum_duration = 0.0;
     std::string last_midi_marker;
     std::string active_clip_mode;
     size_t active_group_index = 0;
@@ -218,7 +226,9 @@ class Gameplay {
     uint32_t active_group_last_bar = UINT32_MAX;
     uint32_t last_anim_note_mask = UINT32_MAX;
     uint32_t last_anim_note_tick = UINT32_MAX;
+    size_t strum_hand_scheduler_child_index = 0;
     size_t fret_hand_scheduler_child_index = 0;
+    std::vector<std::string> active_strum_clip_names;
     std::vector<std::string> active_fret_clip_names;
     std::array<float, 16> world_transform = {1.0f, 0.0f, 0.0f, 0.0f,
                                              0.0f, 1.0f, 0.0f, 0.0f,
@@ -268,6 +278,7 @@ class Gameplay {
       drum_mesh_translation_anims_;
   std::map<std::string, std::vector<std::string>> drum_event_mesh_targets_;
   std::map<std::string, FretHandMap> fret_hand_maps_;
+  std::map<std::string, StrumHandMap> strum_hand_maps_;
 
   double last_anim_time_ = -1.0;
   uint32_t last_band_note_tick_ = UINT32_MAX;
