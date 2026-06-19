@@ -1660,6 +1660,18 @@ Useful environment flags:
   descendants, props, and skinning, while `CharForeTwist` extracts from the
   live hand local row. This is a shared controller-order/row-source fix, not a
   Glam1 branch.
+- Validation after the local-row source fix:
+  `engine/out/codex_goal_20260619_glam1_ik_probe_after_localtwist/stderr.log`
+  keeps final hand world closure active while `twist-fore-src` matches the live
+  `ik-ps2-row bone_L-hand` local rows and roll from the no-final diagnostic.
+  `engine/out/codex_goal_20260619_glam1_song_after_localtwist/stderr.log`
+  reaches the live Shout hand-map route (`finger_open` at tick `11520`,
+  `finger_vibrato_middle` at tick `12000`) and records 67 matching live
+  left-hand source rows in the short run. Cross-character same-route captures
+  in `engine/out/codex_goal_20260619_arm_after_localtwist/` and close visual
+  checks in `engine/out/codex_goal_20260619_arm_after_localtwist_close/` verify
+  the same row-source rule on Rockabill1/Psychobilly and
+  Deathmetal1/Laid to Rest without per-character code.
 - Rockabill native A/B on 2026-06-14 kept this shared, not character-specific:
   `engine/out/native_song_20260614/psychobilly_f900_rockabill_ab_default.bmp`
   showed the old postmultiply swing folding the arm, while
