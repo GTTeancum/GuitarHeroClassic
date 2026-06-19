@@ -207,6 +207,7 @@ class Gameplay {
     ghogx::character::CharClipPlayer fret_open_player;
     ghogx::character::CharClipPlayer fret_player;
     std::vector<ghogx::character::CharClipPlayer> fret_extra_players;
+    bool hand_driver_available = false;
     bool midi_playing = false;
     uint32_t last_note_tick = UINT32_MAX;
     double last_strum_started = -9999.0;

@@ -2231,3 +2231,24 @@ Viewer hand-overlay validation:
   validates `metal_drummer` in an active YYZ drummer mode with the theatre drum
   kit loaded. The companion log shows kick cues and allbeat/nosnare mode
   switches firing while the performer and kit remain visually coherent.
+
+2026-06-19 native MIDI hand-driver gate:
+
+- The in-song hand overlay path is data-gated, not role-name gated. A performer
+  enters the MIDI hand-driver stack only when the decoded character graph has
+  `CharIKHand` plus `CharIKMidi` controllers and the PS2 left/right hand clip
+  drivers load usable clips. This preserves the traced guitar route where MIDI
+  note masks select fret-hand clips dynamically, while avoiding empty hand-map
+  updates on performers whose PS2 graph does not expose that controller shape.
+- Validation:
+  `engine/out/codex_goal_20260619_hand_driver_gate_validation/stderr_1800.log`
+  shows Glam1 as `guitarist0` with `handDriver=1`, `loaded=21`, `maps=7`,
+  `ikHands=2`, and `ikMidis=1`. Later `[handmap]` lines switch from MIDI ticks
+  to `finger_open`, `finger_vibrato_middle`, `finger_vibrato_ring`, and
+  `finger_hold_index_hi`, each with `players=1`.
+- The same run shows `metal_bass` as `bassist` loading
+  `bassist_active_medium_01` from its main animation path and skipping the hand
+  driver with `handDriver=0 handGraph=0 handClips=0 ikHands=0 ikMidis=0`.
+  Do not force guitar-style `_fret` / `_strum` hand overlays onto this graph;
+  the shared loader should enable that path only when the character data proves
+  it exists.

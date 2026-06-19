@@ -4240,7 +4240,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                         {"drummer_active_medium_nosnare"});
                     }
                 }
-                if (perf.role == "guitarist0" || perf.role == "bassist") {
+                const auto& hand_character = perf.renderer->character();
+                const bool graph_has_midi_hand_driver =
+                    !hand_character.ik_hands.empty() &&
+                    !hand_character.ik_midis.empty();
+                const bool graph_has_hand_clip_drivers =
+                    std::any_of(character_drivers.begin(),
+                                character_drivers.end(),
+                                [](const auto& driver) {
+                                    return (driver.name == "left_hand.drv" ||
+                                            driver.name == "right_hand.drv") &&
+                                           !driver.clip_milo.empty();
+                                });
+                if (graph_has_midi_hand_driver &&
+                    graph_has_hand_clip_drivers) {
                     const std::string strum_milo =
                         "char/" + model_name + "/anims/gen/" + anim_stem +
                         "_strum.milo_ps2";
@@ -4312,11 +4325,31 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 std::move(named_clip);
                         }
                     }
+                    const bool right_hand_loaded =
+                        perf.strum_open_clip.loaded || perf.strum_clip.loaded;
+                    const bool left_hand_loaded =
+                        perf.fret_open_clip.loaded || perf.fret_clip.loaded ||
+                        !perf.fret_named_clips.empty();
+                    perf.hand_driver_available =
+                        graph_has_midi_hand_driver && right_hand_loaded &&
+                        left_hand_loaded;
                     std::fprintf(stderr,
-                                 "[world] performer hand map clips: role=%s loaded=%zu maps=%zu\n",
+                                 "[world] performer hand map clips: role=%s handDriver=%d loaded=%zu maps=%zu ikHands=%zu ikMidis=%zu\n",
                                  perf.role.c_str(),
+                                 perf.hand_driver_available ? 1 : 0,
                                  perf.fret_named_clips.size(),
-                                 fret_hand_maps_.size());
+                                 fret_hand_maps_.size(),
+                                 hand_character.ik_hands.size(),
+                                 hand_character.ik_midis.size());
+                } else if (perf.role == "guitarist0" ||
+                           perf.role == "bassist") {
+                    std::fprintf(stderr,
+                                 "[world] performer hand map skipped: role=%s handDriver=0 handGraph=%d handClips=%d ikHands=%zu ikMidis=%zu\n",
+                                 perf.role.c_str(),
+                                 graph_has_midi_hand_driver ? 1 : 0,
+                                 graph_has_hand_clip_drivers ? 1 : 0,
+                                 hand_character.ik_hands.size(),
+                                 hand_character.ik_midis.size());
                 }
                 std::fprintf(stderr,
                              "[world] performer loaded: role=%s track=%s char=%s model=%s\n",
@@ -4355,13 +4388,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         ghogx::character::kCharPlayLoop |
                             ghogx::character::kCharPlayNoBlend);
                 }
-                if (stored.strum_open_clip.loaded) {
+                if (stored.hand_driver_available &&
+                    stored.strum_open_clip.loaded) {
                     stored.strum_player.play(
                         stored.strum_open_clip,
                         ghogx::character::kCharPlayLoop |
                             ghogx::character::kCharPlayNoBlend);
                 }
-                if (stored.fret_open_clip.loaded) {
+                if (stored.hand_driver_available &&
+                    stored.fret_open_clip.loaded) {
                     stored.fret_player.play(
                         stored.fret_open_clip,
                         ghogx::character::kCharPlayLoop |
@@ -4593,9 +4628,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                           song_time_, chart_,
                           chart_.notes[std::clamp(difficulty_, 0, 3)]);
             const bool hand_driver_active =
-                !intro_active &&
-                (perf.role == "guitarist0" || perf.role == "bassist");
-            if (!intro_active && performer_playing && perf.role == "guitarist0" &&
+                !intro_active && perf.hand_driver_available;
+            if (!intro_active && performer_playing && hand_driver_active &&
+                perf.role == "guitarist0" &&
                 note_cue.active && note_cue.tick != perf.last_note_tick &&
                 perf.strum_clip.loaded) {
                 perf.last_note_tick = note_cue.tick;
@@ -4604,7 +4639,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     perf.strum_clip, ghogx::character::kCharPlayNoLoop,
                     character_hand_driver_blend_seconds());
             }
-            if (!intro_active && performer_playing && perf.role == "bassist" &&
+            if (!intro_active && performer_playing && hand_driver_active &&
+                perf.role == "bassist" &&
                 perf_note_cue.active &&
                 perf_note_cue.tick != perf.last_note_tick &&
                 perf.strum_clip.loaded) {
