@@ -35,13 +35,16 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cctype>
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace ghogx::character {
 
@@ -2195,6 +2198,76 @@ static float effective_ik_hand_weight(const Character& character,
   return std::clamp(weight, 0.0f, 1.0f);
 }
 
+enum class Ps2IkPollRole {
+  Fret,
+  Strum,
+  Other,
+};
+
+static bool contains_ci(const std::string& text, const char* needle) {
+  if (!needle || !*needle) return true;
+  const size_t needle_len = std::strlen(needle);
+  if (needle_len > text.size()) return false;
+  for (size_t i = 0; i + needle_len <= text.size(); ++i) {
+    size_t n = 0;
+    for (; n < needle_len; ++n) {
+      const unsigned char lhs = static_cast<unsigned char>(text[i + n]);
+      const unsigned char rhs = static_cast<unsigned char>(needle[n]);
+      if (std::tolower(lhs) != std::tolower(rhs)) break;
+    }
+    if (n == needle_len) return true;
+  }
+  return false;
+}
+
+static Ps2IkPollRole classify_ps2_ik_poll_role(const CharIKHand& ik) {
+  if (contains_ci(ik.name, "left") ||
+      contains_ci(ik.hand, "bone_l-hand") ||
+      contains_ci(ik.target, "fret") ||
+      contains_ci(ik.weight_prop, "left")) {
+    return Ps2IkPollRole::Fret;
+  }
+  if (contains_ci(ik.name, "right") ||
+      contains_ci(ik.hand, "bone_r-hand") ||
+      contains_ci(ik.target, "strum") ||
+      contains_ci(ik.weight_prop, "right")) {
+    return Ps2IkPollRole::Strum;
+  }
+  return Ps2IkPollRole::Other;
+}
+
+static std::vector<const CharIKHand*> ps2_ordered_ik_hands(
+    const Character& character) {
+  std::vector<const CharIKHand*> ordered;
+  ordered.reserve(character.ik_hands.size());
+  bool has_fret = false;
+  bool has_strum = false;
+  for (const auto& ik : character.ik_hands) {
+    ordered.push_back(&ik);
+    const Ps2IkPollRole role = classify_ps2_ik_poll_role(ik);
+    has_fret = has_fret || role == Ps2IkPollRole::Fret;
+    has_strum = has_strum || role == Ps2IkPollRole::Strum;
+  }
+  if (!has_fret || !has_strum) return ordered;
+
+  auto rank = [](const CharIKHand* ik) {
+    switch (classify_ps2_ik_poll_role(*ik)) {
+      case Ps2IkPollRole::Fret:
+        return 0;
+      case Ps2IkPollRole::Strum:
+        return 1;
+      case Ps2IkPollRole::Other:
+      default:
+        return 2;
+    }
+  };
+  std::stable_sort(ordered.begin(), ordered.end(),
+                   [&](const CharIKHand* lhs, const CharIKHand* rhs) {
+                     return rank(lhs) < rank(rhs);
+                   });
+  return ordered;
+}
+
 static void apply_ps2_ik_hand_targets(
     Character& character, const std::vector<milo_scene::Xfm>& bind_bones,
     std::unordered_set<std::string>& fore_twists_applied) {
@@ -2202,7 +2275,9 @@ static void apply_ps2_ik_hand_targets(
   // target world row into controller +0x50, writes a cosine-law Z bend into the
   // hand parent, then uses 0x002dad00/0x002daa30 vector-to-vector quaternion
   // rows to swing the upper arm before dirtying the Trans chain.
-  for (const auto& ik : character.ik_hands) {
+  const auto ik_hands = ps2_ordered_ik_hands(character);
+  for (const CharIKHand* ik_ptr : ik_hands) {
+    const CharIKHand& ik = *ik_ptr;
     const int hand_i = find_bone_index(character, ik.hand);
     const float ik_weight = effective_ik_hand_weight(character, ik);
     if (hand_i < 0 || ik_weight <= 0.0f) {
@@ -2422,9 +2497,9 @@ static void apply_ps2_ik_hand_targets(
       log_debug_world_row("ik-ps2-target", ik.target.c_str(), target_world);
     }
 
-    // Accepted active-song traces require each hand IK to be followed by its
-    // matching foretwist. The side order itself is asset/driver order, not a
-    // hard-coded left/right preference.
+    // Accepted active-song traces poll guitarist hand IK as fret/left followed
+    // by strum/right, with each hand immediately followed by its matching
+    // foretwist. Unknown/non-instrument roles keep their decoded order.
     for (const auto& ft : character.fore_twists) {
       if (!channel_matches_bone(ft.hand, ik.hand)) continue;
       if (apply_ps2_fore_twist(character, bind_bones, ft))

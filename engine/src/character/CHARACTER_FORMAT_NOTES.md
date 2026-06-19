@@ -1452,14 +1452,14 @@ Useful environment flags:
   `CharForeTwist`, then the other hand and foretwist, with upper twists later
   in the poll. Native now applies matching foretwists directly after each
   solved hand and skips those controllers in the later driven-twist pass.
-  Validation `engine/out/native_song_20260614/psychobilly_f900_twist_interleave.log`
-  shows repeated `right_hand.ik -> foreTwist_R.ik -> left_hand.ik ->
-  foreTwist_L.ik -> upperTwist_*` groups for rockabill1, and
-  `psychobilly_f900_twist_interleave.bmp` keeps the twist-ribbon fix.
-  `psychobilly_f10_graph_audit.log` proves that side order comes from the
-  decoded rockabill1 asset graph (`right_hand.ik` then `left_hand.ik`) rather
-  than a hard-coded side preference. Keep side order data-driven; the traced
-  invariant is that each hand IK is followed by its matching foretwist.
+  Earlier native validation in
+  `engine/out/native_song_20260614/psychobilly_f900_twist_interleave.log`
+  followed decoded `right_hand.ik -> foreTwist_R.ik -> left_hand.ik ->
+  foreTwist_L.ik` order for rockabill1. That was useful for proving the
+  per-hand IK/foretwist interleave, but the later accepted active-song traces
+  supersede decoded side order for instrument performers: the stable cadence is
+  fret/left first, then strum/right, with each hand followed by its matching
+  foretwist.
 - Cross-character validation
   `engine/out/native_song_20260614/shoutatthedevil_f1300_glam1_twist_interleave.log`
   shows the same in-song per-hand interleave for glam1, with decoded
@@ -1471,8 +1471,10 @@ Useful environment flags:
   accepted PS2 controller cadence instead of resolving upper twists immediately
   after foretwists. Validation
   `engine/out/native_song_20260614/psychobilly_f900_controller_order_hair_lookat_upper.log`
-  shows repeated `right_hand.ik -> foreTwist_R.ik -> left_hand.ik ->
-  foreTwist_L.ik -> l/r-eye.lookat -> upperTwist_*` groups, and
+  was captured before the accepted left/fret-first re-audit and shows the old
+  decoded side order before `l/r-eye.lookat -> upperTwist_*`; keep the upper
+  twist placement evidence from that log, but not its side-order conclusion.
+  The matching screenshot
   `psychobilly_f900_controller_order_hair_lookat_upper.bmp` keeps the improved
   no-ribbon arm silhouette.
 - Native validation after the twist-row sign fix:
@@ -1814,23 +1816,18 @@ Useful environment flags:
 - Native `CharIKHand` polling is now sorted into the accepted active-song
   cadence even when the decoded asset list stores right before left:
   `left_hand.ik -> foreTwist_L.ik -> right_hand.ik -> foreTwist_R.ik`.
-  Validation logs:
-  `woman_f900_ik_order_leftfirst_debugcam.log` and
-  `shout_f1300_ik_order_leftfirst_debugcam.log`. The matching screenshots hash
-  the same as the previous open-hand captures, so this is a controller-order
-  correctness fix without a visual regression in those frames.
-- 2026-06-14/15 follow-up rejects the hard-coded side preference. The decoded
-  glam1 graph stores `right_hand.ik` before `left_hand.ik`, and earlier
-  rockabill validation already required side order to come from the asset graph
-  while preserving the invariant that each `CharIKHand` tick is immediately
-  followed by its matching `CharForeTwist`. Native now iterates decoded
-  `CharIKHand` order directly and still runs matching foretwist in-place.
-  Validation:
-  `engine/out/native_song_20260614/glam1_asset_order_ik_f1300.log` shows
-  `right_hand.ik -> foreTwist_R.ik -> left_hand.ik -> foreTwist_L.ik` for
-  glam1. The wide screenshot hash matches the prior frame, so this is an
-  evidence/ordering correction, not proof that glam1's remaining visible issues
-  are closed.
+  The earlier decoded-order probe was superseded by accepted PS2 active-song
+  traces for Glam1, Metal1, and Rock2: instrument performers poll the fret/left
+  hand first and the strum/right hand second, with each `CharIKHand` tick
+  immediately followed by its matching `CharForeTwist`. Native implements this
+  as a shared role sort, not a character-name branch; unknown/non-instrument IK
+  records keep decoded order. Validation logs:
+  `woman_f900_ik_order_leftfirst_debugcam.log`,
+  `shout_f1300_ik_order_leftfirst_debugcam.log`, and
+  `engine/out/codex_goal_20260619_glam1_72_pollorder/glam1_72_pollorder_f700.log`
+  show the accepted cadence. The matching Glam1.72 screenshot hashes the same
+  as the previous default frame, so this is a controller-order correctness fix,
+  not proof that Glam1's remaining visible wrist/card deformation is closed.
 - `GHOGX_DEBUG_LANE_MIXER=1` logs the native body/hand descriptor collisions
   feeding the one-pose destination-style mixer. A guarded ordered/last-writer
   lane-blend probe was rejected: `woman_f900_ordered_lane_blend_debugcam.bmp`
@@ -1979,6 +1976,36 @@ Useful environment flags:
   reversed-weight rule to Glam1 numeric hair-material wrist meshes; continue in
   the traced `CharIKHand` / `CharForeTwist` row math or PS2 row-to-native
   comparison path.
+- 2026-06-19 rejected Glam1.72 mesh-local-arm consumer probe:
+  `engine/out/codex_goal_20260619_glam1_72_skin_consumer_probe/` forced
+  `glam1.72.mesh` through the mesh-local arm skin-consumer path. The capture
+  changed pixels but left the visible cuff/card deformation essentially intact;
+  `glam1_72_force_meshlocalarm_f700.log` shows vertex output almost identical
+  to the default path. Keep this mesh on the ordinary `lbs-local-chain` route
+  until a PS2 row trace proves a different consumer. The useful evidence is
+  still that disabling driven twists makes the isolated card coherent, so the
+  remaining fix belongs in shared hand/foretwist row production or consumption,
+  not a Glam1.72 render-path override.
+- 2026-06-19 rejected Glam1.72 twist/render-mode probes:
+  `engine/out/codex_goal_20260619_ik_swing_ab/` showed
+  `GHOGX_PS2_IK_POSTMULTIPLY_SWING=1` changes the frame but leaves the visible
+  cuff/card deformation. `engine/out/codex_goal_20260619_glam1_72_skin_mode_probe/`
+  rejected global `meshbind_local`, `meshbind_stored`, `stored_bind`, and
+  `curr_invbind` matrix modes for this class; `stored_bind`/`curr_invbind`
+  effectively throw the isolated mesh away. The raw-bypass probe in
+  `engine/out/codex_goal_20260619_glam1_72_raw_probe/` keeps the vertex card
+  coherent, which proves the vertex blob is sane but does not prove a native
+  render path.
+- 2026-06-19 `CharForeTwist` numeric non-culprit check:
+  `analysis/ps2_trace/pcsx2_arm_ik_twist_trans_rows_20260611.json` confirms
+  the current traced angle helper/composition for the accepted first Glam1 left
+  sample. Using `left_ik_src_00db89f0` local rows gives
+  `angle=-1.861915`, `roll=0.097040`, `cos=0.995295`, and `sin=0.096887`,
+  matching `fore_l_out_a_00db6ef0`'s pure-X local row. The paired
+  `fore_l_out_b_00db8cf0` row matches the live forearm basis with that same
+  X twist applied. Do not replace the shared foretwist writer with a
+  character/material branch; the remaining Glam1.72 mismatch needs stronger
+  PS2 row-to-native pose or skin-consumer evidence.
 
 Every outfit audit should capture:
 
