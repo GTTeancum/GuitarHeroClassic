@@ -1892,14 +1892,20 @@ static void write_ps2_z_bend(milo_scene::Xfm& dst,
                              float cos_angle,
                              float sin_angle) {
   dst = base;
-  // Same basis rule as the traced X-twist rows: the helper rotation is applied
-  // to the current/authored local basis, not written as an identity-basis
-  // matrix. Identity input still yields the sampled PS2 Z-bend rows.
-  for (int c = 0; c < 3; ++c) {
-    dst.rot[0][c] = cos_angle * base.rot[0][c] - sin_angle * base.rot[1][c];
-    dst.rot[1][c] = sin_angle * base.rot[0][c] + cos_angle * base.rot[1][c];
-    dst.rot[2][c] = base.rot[2][c];
-  }
+  // SLUS 0x0017a080 writes the elbow bend as pure helper rows on the bend
+  // parent while preserving the authored local position. Accepted PS2 Trans-row
+  // samples for the dirty bend parent show row0=[cos,-sin,0],
+  // row1=[sin,cos,0], row2=[0,0,1] rather than a composition with the incoming
+  // clip basis.
+  dst.rot[0][0] = cos_angle;
+  dst.rot[0][1] = -sin_angle;
+  dst.rot[0][2] = 0.0f;
+  dst.rot[1][0] = sin_angle;
+  dst.rot[1][1] = cos_angle;
+  dst.rot[1][2] = 0.0f;
+  dst.rot[2][0] = 0.0f;
+  dst.rot[2][1] = 0.0f;
+  dst.rot[2][2] = 1.0f;
 }
 
 static void normalize_xfm_rows(milo_scene::Xfm& xfm) {
@@ -2239,11 +2245,15 @@ static void apply_ps2_ik_hand_targets(
     const float upper_len = std::max(
         0.001f, vlen({fore_setup.pos[0], fore_setup.pos[1],
                       fore_setup.pos[2]}));
-    const float fore_len = std::max(
+    const float authored_fore_len = std::max(
         0.001f, vlen({hand_setup.pos[0], hand_setup.pos[1],
                       hand_setup.pos[2]}));
+    float fore_len = authored_fore_len;
     const Vec3 to_target = vsub(target, shoulder);
     const float raw_dist = vlen(to_target);
+    if (ik.stretch && raw_dist > upper_len + authored_fore_len) {
+      fore_len = std::max(authored_fore_len, raw_dist - upper_len);
+    }
     const float max_reach = upper_len + fore_len - 0.001f;
     const float min_reach = std::fabs(upper_len - fore_len) + 0.001f;
     const float dist = std::clamp(raw_dist, min_reach, max_reach);
@@ -2266,6 +2276,24 @@ static void apply_ps2_ik_hand_targets(
             fore_local0.rot[r][c] * (1.0f - ik_weight) +
             solved_fore.rot[r][c] * ik_weight;
     normalize_xfm_rows(fore.local);
+
+    if (ik.stretch && fore_len > authored_fore_len + 0.0005f) {
+      // `stretch` is a serialized CharIKHand mode, not a visual override:
+      // PS2 rows still write the hand Trans to the target, so the child row
+      // must lengthen before the upper-arm swing when the target is outside
+      // authored reach. This keeps the solved arm chain near the final hand
+      // row instead of snapping only the hand at the end.
+      const Vec3 local_hand_dir =
+          vnorm({hand_setup.pos[0], hand_setup.pos[1], hand_setup.pos[2]},
+                {1.0f, 0.0f, 0.0f});
+      const Vec3 stretched =
+          vscale(local_hand_dir,
+                 authored_fore_len * (1.0f - ik_weight) +
+                     fore_len * ik_weight);
+      hand.local.pos[0] = stretched.x;
+      hand.local.pos[1] = stretched.y;
+      hand.local.pos[2] = stretched.z;
+    }
 
     const auto upper_world_after_bend =
         character.bone_world_local_chain(upper.name);
@@ -2355,6 +2383,17 @@ static void apply_ps2_ik_hand_targets(
       const auto upper_world_post = character.bone_world_local_chain(upper.name);
       const auto fore_world_post = character.bone_world_local_chain(fore.name);
       const auto hand_world_post = character.bone_world_local_chain(hand.name);
+      std::fprintf(stderr,
+                   "[ik-ps2-swing] %s hand=%s target=%s currentLocal=[%.5f %.5f %.5f] targetLocal=[%.5f %.5f %.5f] quat=[%.5f %.5f %.5f %.5f]\n",
+                   ik.name.c_str(), ik.hand.c_str(), ik.target.c_str(),
+                   current_local.x, current_local.y, current_local.z,
+                   target_local.x, target_local.y, target_local.z,
+                   swing_quat[0], swing_quat[1], swing_quat[2],
+                   swing_quat[3]);
+      log_debug_world_row("ik-ps2-preswing-upper", upper.name.c_str(),
+                          upper_world_after_bend);
+      log_debug_world_row("ik-ps2-preswing-hand", hand.name.c_str(),
+                          hand_world_after_bend);
       std::fprintf(stderr,
                    "[ik-ps2] %s hand=%s target=%s weight=%.3f hand=[%.2f %.2f %.2f] target=[%.2f %.2f %.2f] len=(%.2f %.2f) dist=%.2f cos=%.3f swing=%s%s final=%d orient=%d stretch=%d bendParent=%s upper=%s\n",
                    ik.name.c_str(), ik.hand.c_str(), ik.target.c_str(),

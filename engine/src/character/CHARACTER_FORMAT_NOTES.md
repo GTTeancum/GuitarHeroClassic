@@ -1327,6 +1327,10 @@ Useful environment flags:
 - `GHOGX_DEBUG_SKIN_BOUNDS=1`: logs post-skin/post-world bounds.
 - `GHOGX_SKIP_MESH=<comma-list>`: hides meshes by substring.
 - `GHOGX_SKIP_MATERIAL=<substring>`: hides materials by substring.
+- `GHOGX_HIDE_ATTACHED_PROPS=1`: diagnostic only; hides attached guitars,
+  basses, and similar props while leaving performer loading, prop attachment
+  rows, and camera targets intact. Use it for full-arm validation when the
+  instrument occludes shoulder/elbow/wrist deformation.
 - `GHOGX_RAW_MESH=<comma-list>`: draws selected meshes as raw vertices.
 - `GHOGX_REVERSE_SKIN_WEIGHT_SLOTS=1`: diagnostic only; do not apply globally.
 - `GHOGX_DEBUG_BONES=1`: logs decoded Trans hierarchy, local position, and
@@ -1453,6 +1457,32 @@ Useful environment flags:
   `deathmetal1_laidtorest_lhand_t13.bmp` keep the hand IK active while removing
   Rockabill's prior thin forearm ribbon. `GHOGX_DISABLE_DRIVEN_TWISTS=1` now
   suppresses interleaved foretwist too, so twist-off A/B captures are clean.
+- Elbow Z-bend row correction on 2026-06-18:
+  `pcsx2_ik_trans_rows_20260614.json` shows the dirty bend-parent Trans row
+  written as pure helper rows (`row0=[cos,-sin,0]`, `row1=[sin,cos,0]`,
+  `row2=[0,0,1]`) while preserving local position. Native had composed that
+  bend with the incoming clip basis, which left the pre-final hand vector
+  shorter than the target vector. Validation in
+  `engine/out/codex_goal_20260618_arm_full_visibility/rockabill_ik_purezbend_excerpt.txt`
+  shows Rockabill current/target helper vector lengths now match and
+  `preFinalError=0.0000`; `rockabill_side_f900_purezbend.bmp`,
+  `deathmetal1_side_f900_purezbend.bmp`, and `glam1_side_f900_purezbend.bmp`
+  are visual follow-up captures. This fixes the traced bend-row mismatch but
+  does not close remaining arm/hair/card deformation.
+- `CharIKHand.stretch` child-row promotion on 2026-06-19:
+  the accepted object definition names `stretch` as a live serialized
+  `CharIKHand` flag, and accepted IK traces already require the final hand
+  Trans row to match the destination when `stretch` or `orientation` is set.
+  Native was only snapping the final hand row, leaving the solved upper/forearm
+  chain short when the destination exceeded the authored upper+forearm length.
+  Validation in
+  `engine/out/codex_goal_20260619_ikmidi_probe/glam1_ik_vectors_raw_f900_excerpt.txt`
+  showed Glam1 right-hand `stretch=1`, authored lengths `9.40 + 9.55`, target
+  distance `20.26`, and `preFinalError=1.3867`; the shared stretch solve in
+  `stretch_ik_excerpt.txt` lengthened the forearm child row to `10.86` and
+  reduced `preFinalError` to `0.0757`. This is a shared
+  `CharIKHand.stretch` rule, not an outfit branch. It is an IK-row correction,
+  not proof that every visible arm/card issue is closed.
 - Rockabill native A/B on 2026-06-14 kept this shared, not character-specific:
   `engine/out/native_song_20260614/psychobilly_f900_rockabill_ab_default.bmp`
   showed the old postmultiply swing folding the arm, while

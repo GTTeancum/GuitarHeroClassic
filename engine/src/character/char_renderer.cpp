@@ -249,6 +249,21 @@ bool debug_prop_enabled() {
 #endif
 }
 
+bool hide_attached_props_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_HIDE_ATTACHED_PROPS") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_HIDE_ATTACHED_PROPS");
+  return value && value[0];
+#endif
+}
+
 bool hide_eyes_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -1671,7 +1686,8 @@ void CharRenderer::draw_impl(bool clear_target) {
   }
   dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
 
-  if (impl.has_prop && !impl.prop_attach_bone.empty()) {
+  if (impl.has_prop && !impl.prop_attach_bone.empty() &&
+      !hide_attached_props_enabled()) {
     // Instrument textures are authored as opaque props in this path. Some PS2
     // prop texture alpha decodes as low/zero, so carrying the character alpha
     // test into prop drawing can discard a correctly loaded guitar entirely.
