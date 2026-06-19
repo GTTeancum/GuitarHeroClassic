@@ -15,6 +15,7 @@
 #include "game/highway_renderer.h"
 #include "render/milo_scene_renderer.h"
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -115,6 +116,19 @@ class Gameplay {
     std::vector<std::string> show_meshes;
     std::vector<std::string> hide_meshes;
   };
+  struct HandClipChoice {
+    std::vector<std::string> short_names;
+    std::vector<std::string> long_names;
+  };
+  struct HandChordRule {
+    std::vector<int> keys;
+    HandClipChoice choice;
+  };
+  struct FretHandMap {
+    std::string name;
+    std::array<HandClipChoice, 5> single;
+    std::vector<HandChordRule> chords;
+  };
 
   Gameplay() = default;
   ~Gameplay() = default;
@@ -182,6 +196,7 @@ class Gameplay {
     ghogx::character::CharClip fret_open_clip;
     ghogx::character::CharClip fret_clip;
     std::vector<ghogx::character::CharClip> fret_lane_clips;
+    std::map<std::string, ghogx::character::CharClip> fret_named_clips;
     std::optional<ghogx::character::FaceFxGraph> facefx_graph;
     ghogx::character::CharClipPlayer idle_player;
     ghogx::character::CharClipPlayer intro_player;
@@ -191,6 +206,7 @@ class Gameplay {
     ghogx::character::CharClipPlayer strum_player;
     ghogx::character::CharClipPlayer fret_open_player;
     ghogx::character::CharClipPlayer fret_player;
+    std::vector<ghogx::character::CharClipPlayer> fret_extra_players;
     bool midi_playing = false;
     uint32_t last_note_tick = UINT32_MAX;
     double last_strum_started = -9999.0;
@@ -200,6 +216,8 @@ class Gameplay {
     double active_group_started = 0.0;
     uint32_t active_group_last_bar = UINT32_MAX;
     uint32_t last_anim_note_mask = UINT32_MAX;
+    uint32_t last_anim_note_tick = UINT32_MAX;
+    std::vector<std::string> active_fret_clip_names;
     std::array<float, 16> world_transform = {1.0f, 0.0f, 0.0f, 0.0f,
                                              0.0f, 1.0f, 0.0f, 0.0f,
                                              0.0f, 0.0f, 1.0f, 0.0f,
@@ -247,6 +265,7 @@ class Gameplay {
            std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>>
       drum_mesh_translation_anims_;
   std::map<std::string, std::vector<std::string>> drum_event_mesh_targets_;
+  std::map<std::string, FretHandMap> fret_hand_maps_;
 
   double last_anim_time_ = -1.0;
   uint32_t last_band_note_tick_ = UINT32_MAX;

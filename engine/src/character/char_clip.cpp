@@ -3652,16 +3652,18 @@ static void apply_char_hair(Character& character, float time_seconds) {
                                        Vec3 axis_target,
                                        Vec3 solved_point,
                                        const char* reason) {
-        if (!chain_target.local || !chain_target.parent ||
+        if (!chain_target.name || !chain_target.parent ||
             chain_target.parent->empty()) {
           return;
         }
         auto desired_world =
             ps2_follow_hair_world(chain_state, base_world, axis_target);
+        // Accepted PS2 traces show CharHair submitting live Trans world rows
+        // through the shared writer. Keep those rows transient, like IK hands,
+        // so draw/skinning consumes the submitted row without rewriting the
+        // authored local row that later controllers may still inspect.
         set_runtime_point_world(chain_state, desired_world);
-        const auto parent_world =
-            character.bone_world_local_chain(*chain_target.parent);
-        set_local_from_world(*chain_target.local, desired_world, parent_world);
+        character.runtime_world_overrides[*chain_target.name] = desired_world;
         if (debug_char_hair_enabled()) {
           std::fprintf(stderr,
                        "[charhair-ps2chain] %s point=%s root=%s coll=%s "
@@ -3783,9 +3785,7 @@ static void apply_char_hair(Character& character, float time_seconds) {
           const auto desired_world =
               ps2_single_point_hair_world(descriptor_world, solved, anchor);
           set_runtime_point_world(state, desired_world);
-          const auto parent_world =
-              character.bone_world_local_chain(*target.parent);
-          set_local_from_world(*target.local, desired_world, parent_world);
+          character.runtime_world_overrides[*target.name] = desired_world;
           set_runtime_point_pos(state, solved, old_curr);
           const Vec3 new_velocity =
               vscale(vsub(solved, old_curr),
@@ -3824,9 +3824,7 @@ static void apply_char_hair(Character& character, float time_seconds) {
             auto desired_world =
                 ps2_follow_hair_world(state, descriptor_world, follow_rest);
             set_runtime_point_world(state, desired_world);
-            const auto parent_world =
-                character.bone_world_local_chain(*target.parent);
-            set_local_from_world(*target.local, desired_world, parent_world);
+            character.runtime_world_overrides[*target.name] = desired_world;
             set_runtime_point_pos(state, follow_rest, old_curr);
             set_runtime_point_velocity(state, vsub(follow_rest, old_curr),
                                        old_velocity);
@@ -3852,9 +3850,7 @@ static void apply_char_hair(Character& character, float time_seconds) {
             continue;
           }
           set_runtime_point_world(state, live_world_xfm);
-          const auto parent_world =
-              character.bone_world_local_chain(*target.parent);
-          set_local_from_world(*target.local, live_world_xfm, parent_world);
+          character.runtime_world_overrides[*target.name] = live_world_xfm;
           previous_point = live_world;
           first_point = false;
           if (debug_char_hair_enabled()) {

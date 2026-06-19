@@ -869,6 +869,16 @@ Glam1 hair:
   mesh-bind, identity-world, or disable-local-hair variants just because the
   controller rows are now live. The remaining Glam1/Rock2 hair issue is still
   the shared PS2 local-attachment controller-row-to-card consumption step.
+- 2026-06-19 Glam1 follow-up rejected renderer diagnostics:
+  `engine/out/codex_goal_20260619_glam1_local_chain_close_probe/` temporarily
+  tested drawing local-attachment hair cards with the same local-chain world
+  basis used by their mesh-local-chain bind audit. The close frame remained the
+  same folded top-card silhouette, so the draw-world basis is not the missing
+  shared fix. `engine/out/codex_goal_20260619_glam1_hair_zwrite_probe/`
+  temporarily forced blended hair materials to write depth again; it changed
+  layer visibility but did not correct the top/side card shape. Do not promote
+  local-chain draw-world or hair z-write toggles without new PS2 render-state
+  evidence.
 - 2026-06-19 Rock2 controller-row comparison:
   `engine/out/codex_goal_20260619_rock2_hair_row_compare/rock2_hair_rows_tail.log`
   keeps a compact native tail of the front-hair controller rows after deleting
@@ -883,6 +893,25 @@ Glam1 hair:
   `(0.07, -0.04, -0.997)`. Treat this as evidence that the remaining highlighted
   tuft is not a missing controller write. Do not change the shared CharHair
   matrix writer or draw-world path from this Rock2 close-up alone.
+- 2026-06-19 promoted CharHair runtime-world consumer bridge:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/codex_rock2_hair_card_rows_20260619.json`
+  captures the visible `hair-top.mesh` object row at `0x007ba390` changing
+  during active Woman gameplay, with nearby controller/object evidence for
+  `bone_hair01.mesh` and `bone_hair-front.mesh`. The older accepted writer
+  trace `gh2dxu_rock2_woman_hair_writer_rows_state1_ghdxelf_20260616.json`
+  showed the same family being submitted through the shared Trans writer, not
+  authored as static local-row edits. Native now mirrors that ownership:
+  `CharHair` submits each live controller row into
+  `Character::runtime_world_overrides`, just like the accepted IK hand bridge,
+  and leaves authored locals untouched for later graph consumers. Validation:
+  `engine/out/codex_goal_20260619_hair_world_override_validation/rock2_hair_override_f900.log`
+  shows `hair-top.mesh` consuming `hairOverride=1` skin rows while the draw
+  path still reports `world=mesh-world`; the Glam1 front viewer sweep
+  `engine/out/codex_goal_20260619_glam1_camera_sweep/glam1_y3p14.bmp` keeps
+  the eyes in their sockets and the hair mass attached around the head. This
+  is a shared format rule, not a Glam1/Rock2 branch. Rock2 still needs a
+  separate mesh-local bind-space card review for the `hair-mid`/`hair-back`
+  silhouettes before calling all hair complete.
 
 Glam1 eyes / look-at:
 
@@ -1236,6 +1265,9 @@ Community metadata Rosetta:
   which shows `fret.ik` moving through spots `04`, `07`, `10`, `13`, and `16`
   for the active note masks. The lane-to-spot spread is conservative and should
   be replaced if a later accepted hand-map trace proves a different mapping.
+  `config/gen/midi_parsers.dtb::GUITARFRETMAPPINGS` does not name
+  `spot_neck_fretNN` targets; it only proves the runtime fret-hand clip choices
+  below, so do not use it as spot-selection evidence.
 - IK targets and arm solve rows must resolve in the same local-chain basis used
   by character skinning. Mixing corrected stored-world targets into the
   local-chain skeleton made rockabill's `bone_fret_hand.mesh` target land far
@@ -1692,6 +1724,18 @@ Useful environment flags:
   This follows the accepted hand-driver scheduler model where `left_hand.drv`
   / `right_hand.drv` rotate a live `+0x38` scheduler/blend pointer. Validation:
   `engine/out/native_song_20260614/shout_f1300_hand_driver_scheduler.bmp`.
+- Native left-hand clip selection now comes from
+  `config/gen/midi_parsers.dtb::GUITARFRETMAPPINGS` instead of a hardcoded
+  lane-to-clip table. The DTB tables use `$mp.length` and the active
+  `HandMap_*` marker to select authored `finger_*` clip names; some events
+  return multiple clips, e.g. `HandMap_Default` long event `5` returns
+  `finger_vibrato_index` plus `finger_vibrato_ring`. Native therefore keeps
+  bounded concurrent fret players for the left-hand result and retriggers on
+  note tick/name changes, not only on the five-bit fret mask. Validation in
+  `engine/out/codex_goal_20260619_compound_handmap_validation/tattooedloveboys_hard_compound_handmap.log`
+  shows `loaded 7 HandMap fret mappings`, `guitarist0 loaded=21 maps=7`, then
+  post-intro Hard notes at ticks `15360` and `22560` with
+  `choices=finger_vibrato_index,finger_vibrato_ring` and `players=2`.
 - Hand-driver layers are overlay lanes in the native song pose mixer, but they
   are not final-bone replacement patches. The accepted no-wrap hand traces show
   body clip output followed by right/left hand scheduler source output before
