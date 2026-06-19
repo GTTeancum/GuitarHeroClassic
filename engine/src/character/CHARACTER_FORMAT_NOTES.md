@@ -838,6 +838,38 @@ Glam1 hair:
   right-hair weighted region of the head-local `hair-top.mesh` sheet, so the
   remaining work is the shared local-attachment controller-row-to-weighted-card
   consumption path, not a root-parent hair-card or per-mesh offset fix.
+- 2026-06-19 Rock2 local-hair consumer A/B:
+  `engine/out/codex_goal_20260619_rock2_hair_consumer_probe/rock2_hair_top_probe_f900.bmp`
+  recreated the front-angle `hair-top.mesh` highlight with focused skin/hair
+  logging. The deleted 36 MB diagnostic log showed `hair-top.mesh` remains
+  `mode=local-attachment`, its palette is `bone_head.mesh`,
+  `bone_L-hair01.mesh`, and `bone_R-hair01.mesh`, and both side hair rows reach
+  skinning with `hairOverride=1` and non-identity skin rows. The bind audit
+  classifies `hair-top.mesh` as `basis=mesh-local-chain` with
+  `meshLC(max)=0.00001`, so the current shared consumer is still in the right
+  decoded asset class. The follow-up
+  `engine/out/codex_goal_20260619_rock2_hair_worldmode_ab/` rechecked
+  `GHOGX_LOCAL_HAIR_WORLD_MODE=identity`, `parent`, and `attachment_parent` at
+  the same frame. `parent` and `attachment_parent` were identical and visibly
+  exposed the sheet behind the ear; `identity` only removed it from this camera
+  and is not trace-backed as a global solution. Keep these as rejected
+  diagnostics. Do not promote a world-mode override or character/name branch for
+  Rock2 hair; the next evidence must come from PS2 local-attachment
+  controller-row-to-card consumption, not another draw-world toggle.
+- 2026-06-19 Rock2 controller-row comparison:
+  `engine/out/codex_goal_20260619_rock2_hair_row_compare/rock2_hair_rows_tail.log`
+  keeps a compact native tail of the front-hair controller rows after deleting
+  the larger skin-matrix diagnostic. The accepted PS2 writer trace
+  `gh2dxu_rock2_woman_hair_writer_rows_state1_ghdxelf_20260616.json` submits
+  `bone_hair-front.mesh`, `bone_R-hair01.mesh`, `bone_R-hair02.mesh`,
+  `bone_L-hair01.mesh`, and `bone_L-hair02.mesh` with row1 mostly along `-Z`
+  and side-specific row0/row2 roll. Native now reaches the same matrix-shape
+  family for those controllers in the highlighted Rock2 frame, for example
+  `bone_R-hair01.mesh` tail rows stay near row1
+  `(0.01, -0.14, -0.99)` while PS2 sampled the same controller class near
+  `(0.07, -0.04, -0.997)`. Treat this as evidence that the remaining highlighted
+  tuft is not a missing controller write. Do not change the shared CharHair
+  matrix writer or draw-world path from this Rock2 close-up alone.
 
 Glam1 eyes / look-at:
 
