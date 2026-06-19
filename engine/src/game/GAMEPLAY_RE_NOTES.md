@@ -361,3 +361,25 @@ Rejected native probe:
   camera/post-switch events. The generic clip loader still logs failed fallback
   MILO path attempts before the generated PS2 path succeeds; treat that as log
   noise unless it blocks trace readability or hides a missing accepted clip.
+
+2026-06-19 current native role-route validation:
+
+- Use `> <log> 2>&1` for verbose native capture runs. PowerShell `2> <log>`
+  alone can leave the native stdout stream attached to the tool and make a
+  healthy bounded capture look hung under heavy logging.
+- `engine/out/codex_goal_20260619_role_audit/yyz_fullband_authcam_f700.bmp`
+  and `.full.log` recheck the no-singer instrumental route. The log resolves
+  `funk1`, `metal_bass`, `metal_drummer`, and `metal_keyboard`, loads the
+  theatre venue, theatre lighting, drum kit, drum triggers, and all performers.
+  `BAND KEYS` enters `[play]`; drummer mode changes between allbeat and
+  nosnare; kick cues fire; `chorus_okay.pst` activates; and regular camera
+  sweeps begin after the six-bar intro.
+- `engine/out/codex_goal_20260619_role_audit/yyz_keyboard_spine_f700.bmp`
+  is debug-camera inspection only. It confirms the same YYZ route can isolate
+  the keyboardist with the prop and active animation intact; do not use it for
+  camera parity.
+- `engine/out/codex_goal_20260619_role_audit/yyz_drummer_spine_f700.bmp`
+  and `.full.log` confirm the drummer/kit route in the same active song window.
+  The log shows `crash`, `hihat`, `kick`, and `snare` triggers mapped to kit
+  meshes and repeated kick cues while the captured performer remains visually
+  coherent behind the kit.

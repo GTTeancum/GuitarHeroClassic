@@ -2000,3 +2000,24 @@ Viewer hand-overlay validation:
   same Rockabill1 and Deathmetal1 frames running `CharIKHand` at weight 1.0
   and placing both hands on the guitar. Do not use pre-fix viewer hand-overlay
   screenshots as evidence of native in-song arm deformation.
+
+2026-06-19 role audit after the shared arm/hair trace bridge:
+
+- `engine/out/codex_goal_20260619_role_audit/shout_bassist_head_side_f640.bmp`
+  is a debug-camera in-song inspection of `metal_bass` as role `bassist` in
+  `shoutatthedevil`. The close side/back frame shows the blond lower hair mass
+  following the head/back instead of floating away in world space. This
+  validates the shared weighted root-parent hair path for the old `metal_bass`
+  detached-hair failure; it is not a face/camera parity capture.
+- `engine/out/codex_goal_20260619_role_audit/shout_singer_head_f640.bmp`
+  validates `metal_singer` in the same active song route. Hair, eyes, face, and
+  mic prop are coherently attached in-song, with the mic stand intentionally
+  occluding the centerline as it does in the real performer setup.
+- `engine/out/codex_goal_20260619_role_audit/yyz_keyboard_spine_f700.bmp`
+  validates the instrumental-song keyboardist route. `metal_keyboard` is
+  loaded as role `keyboard`, driven by `keyboard_active_medium`, with the
+  keyboard prop in place and no visible arm/hand ribboning in the active frame.
+- `engine/out/codex_goal_20260619_role_audit/yyz_drummer_spine_f700.bmp`
+  validates `metal_drummer` in an active YYZ drummer mode with the theatre drum
+  kit loaded. The companion log shows kick cues and allbeat/nosnare mode
+  switches firing while the performer and kit remain visually coherent.
