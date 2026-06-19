@@ -856,6 +856,19 @@ Glam1 hair:
   diagnostics. Do not promote a world-mode override or character/name branch for
   Rock2 hair; the next evidence must come from PS2 local-attachment
   controller-row-to-card consumption, not another draw-world toggle.
+- 2026-06-19 Glam1 local-hair consumer recheck after the newer non-identity
+  CharHair row bridge:
+  `engine/out/codex_goal_20260619_glam1_hair_consumer_recheck/` reran the
+  same live head camera with the existing shared diagnostics. The default and
+  `GHOGX_DISABLE_LOCAL_HAIR_ATTACHMENT=1` captures were visually equivalent at
+  this frame, while `GHOGX_LOCAL_HAIR_SKIN_MATRIX_MODE=meshbind_local` and
+  `GHOGX_LOCAL_HAIR_WORLD_MODE=identity` shaved or tore visible hair mass away
+  from the head. The compact summaries show `hair-top.mesh` still receiving
+  non-identity `hairOverride=1` rows in default mode. Keep the current
+  head-local weighted-card path as the least-wrong traced route; do not promote
+  mesh-bind, identity-world, or disable-local-hair variants just because the
+  controller rows are now live. The remaining Glam1/Rock2 hair issue is still
+  the shared PS2 local-attachment controller-row-to-card consumption step.
 - 2026-06-19 Rock2 controller-row comparison:
   `engine/out/codex_goal_20260619_rock2_hair_row_compare/rock2_hair_rows_tail.log`
   keeps a compact native tail of the front-hair controller rows after deleting
@@ -1702,6 +1715,11 @@ Useful environment flags:
   shared controller/combiner validation point, not a full character sign-off;
   if a later camera exposes arm deformation, compare the live lane rows and
   skin-space rows before changing IK/twist constants.
+- `engine/out/codex_goal_20260619_arm_wide_side_sanity/` adds wider side-angle
+  spot checks after the same pass. They do not expose a new traceable IK/twist
+  constant mismatch, but several shots are still partly occluded by the guitar
+  or body. Treat them as a sanity check only, not a reason to mark Rockabill1,
+  Deathmetal1, or Glam1 arms complete.
 - Rejected 2026-06-19 arm A/B paths: `GHOGX_CHARBONE_OUTPUT_PARENT_BRIDGE`
   converted helper-authored output rows through an output local chain and made
   Deathmetal1/Rockabill1 worse; `GHOGX_SEQUENTIAL_CLIP_LANES` applied each
