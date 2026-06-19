@@ -2149,6 +2149,26 @@ Useful environment flags:
   still that disabling driven twists makes the isolated card coherent, so the
   remaining fix belongs in shared hand/foretwist row production or consumption,
   not a Glam1.72 render-path override.
+- 2026-06-19 current `glam1.73.mesh` focused rows:
+  `engine/out/codex_goal_20260619_glam1_73_focused_skin_rows/glam1_73_skin_summary.txt`
+  renders/logs only the numeric hair-material wrist card at the active
+  `shoutatthedevil` frame 1300. In the current build the card is not missing
+  skin-row input: it remains `mode=lbs-local-chain`, but `bone_L-hand.mesh`,
+  `bone_L-foreTwist1.mesh`, and `bone_L-foreTwist2.mesh` all produce non-
+  identity skin matrices, and vertex 0 moves from roughly
+  `(-12.23, 4.18, 42.27)` early to `(-15.52, 6.51, 43.70)` late while weighted
+  only to the two foretwist helpers (`0.15110` / `0.84890`). Treat the current
+  wrist/card issue as a row-math/row-space mismatch in the shared
+  hand/foretwist chain, not as absent renderer consumption or a missing hand
+  target.
+- The matching no-driven-twist diagnostic
+  `engine/out/codex_goal_20260619_glam1_73_focused_no_driven_twist/glam1_73_no_twist_skin_summary.txt`
+  confirms the same card is materially downstream of driven foretwist rows:
+  vertex 0 finishes around `(-17.41, 2.73, 41.26)` with driven twists disabled
+  versus roughly `(-15.52, 6.51, 43.70)` on the default path. This is useful
+  attribution only. Disabling driven twists is still rejected as a final fix
+  because accepted PS2 traces show `CharForeTwist` live, and earlier full-body
+  captures showed the card/arm relationship regressing without it.
 - 2026-06-19 rejected Glam1.72 twist/render-mode probes:
   `engine/out/codex_goal_20260619_ik_swing_ab/` showed
   `GHOGX_PS2_IK_POSTMULTIPLY_SWING=1` changes the frame but leaves the visible
