@@ -3366,6 +3366,23 @@ struct NoteCue {
     double length = 0.0;
 };
 
+// Player difficulty owns scoring/highway only. Performer hand scheduling uses
+// the highest authored note lane for the song so character animation does not
+// change when the player selects Easy/Medium/Hard/Expert.
+size_t performer_chart_lane_index(
+    const std::vector<ghogx::chart::Note> (&lanes)[4]) {
+    for (int i = 3; i >= 0; --i) {
+        if (!lanes[static_cast<size_t>(i)].empty())
+            return static_cast<size_t>(i);
+    }
+    return 0;
+}
+
+const std::vector<ghogx::chart::Note>& performer_chart_notes(
+    const std::vector<ghogx::chart::Note> (&lanes)[4]) {
+    return lanes[performer_chart_lane_index(lanes)];
+}
+
 NoteCue current_note_cue(double song_time, const ghogx::chart::Chart& chart,
                          const std::vector<ghogx::chart::Note>& notes) {
     NoteCue cue;
@@ -3907,6 +3924,13 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
                  difficulty_,
                  chart_.notes[difficulty_].size(),
                  chart_.duration_sec());
+    const size_t guitar_perf_lane = performer_chart_lane_index(chart_.notes);
+    const size_t bass_perf_lane = performer_chart_lane_index(chart_.bass_notes);
+    std::fprintf(
+        stderr,
+        "[gameplay] performer note source: guitar_lane=%zu notes=%zu bass_lane=%zu notes=%zu player_diff=%d\n",
+        guitar_perf_lane, chart_.notes[guitar_perf_lane].size(),
+        bass_perf_lane, chart_.bass_notes[bass_perf_lane].size(), difficulty_);
     fret_hand_maps_ = load_fret_hand_maps(hdr_path, ark_path);
     strum_hand_maps_ = load_strum_hand_maps(hdr_path, ark_path);
 
@@ -4828,9 +4852,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                               ? 0.0
                               : std::max(0.0, song_time_ - last_anim_time_);
         last_anim_time_ = song_time_;
+        const auto& performer_guitar_notes = performer_chart_notes(chart_.notes);
+        const auto& performer_bass_notes =
+            performer_chart_notes(chart_.bass_notes);
         const NoteCue note_cue =
-            current_note_cue(song_time_, chart_,
-                             chart_.notes[std::clamp(difficulty_, 0, 3)]);
+            current_note_cue(song_time_, chart_, performer_guitar_notes);
         const bool intro_active =
             intro_camera_seconds_ > 0.0 && song_time_ < intro_camera_seconds_;
         if (drum_kit_) {
@@ -4950,18 +4976,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
             const NoteCue perf_note_cue =
                 (perf.role == "bassist")
-                    ? current_note_cue(
-                          song_time_, chart_,
-                          chart_.bass_notes[std::clamp(difficulty_, 0, 3)])
+                    ? current_note_cue(song_time_, chart_,
+                                       performer_bass_notes)
                     : note_cue;
             const NoteCue perf_anim_note_cue =
                 (perf.role == "bassist")
                     ? performer_animation_note_cue(
-                          song_time_, chart_,
-                          chart_.bass_notes[std::clamp(difficulty_, 0, 3)])
+                          song_time_, chart_, performer_bass_notes)
                     : performer_animation_note_cue(
-                          song_time_, chart_,
-                          chart_.notes[std::clamp(difficulty_, 0, 3)]);
+                          song_time_, chart_, performer_guitar_notes);
             const bool hand_driver_active =
                 !intro_active && perf.hand_driver_available;
             auto trigger_strum_clip = [&](const NoteCue& cue) {

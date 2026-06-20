@@ -2374,6 +2374,20 @@ Useful environment flags:
   `engine/out/codex_goal_20260620_left_hand_output_video/jordan_glam1_left_hand_close_native.mp4`
   show the corrected right-hand strum and continuing left-hand fret movement.
   `GHOGX_DISABLE_HAND_OUTPUT_LAYER=1` is a diagnostic escape hatch only.
+- 2026-06-20 performer note-source correction: player difficulty must not drive
+  band hand animation. Native scoring/highway still use `difficulty_`, but the
+  guitarist/bassist performer hand scheduler now selects the highest authored
+  note lane available in the song and keeps that source stable across player
+  difficulty. Validation in
+  `engine/out/codex_goal_20260620_performer_note_source_fix/summary.txt`
+  compares Jordan with player difficulty Easy and Expert: both runs log
+  `guitar_lane=3 notes=1802` and emit identical 123-event fret/strum streams.
+  The Easy-player visual proof
+  `jordan_easy_glam1_left_hand_neck_zoom_native.mp4` is neck-anchored, not
+  hand-following, so it shows the fretting hand changing against the guitar
+  neck while still using the same performance source. Use harder songs for
+  stress coverage; do not use the player difficulty selector as a character
+  animation multiplier.
 - 2026-06-20 cross-guitar hand-output sweep:
   `engine/out/codex_goal_20260620_cross_guitar_hand_output/` repeats the
   promoted hand-output route on `rockthistown`/Rockabill1 and
