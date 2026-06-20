@@ -835,13 +835,35 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
             break;
           }
         }
+        for (const auto& child : spot.instance_meshes) {
+          if (child == spot.target) continue;
+          if (child == spot.circle_mesh && drew_circle) continue;
+          if (std::find(group->children.begin(), group->children.end(),
+                        child) != group->children.end()) {
+            continue;
+          }
+          if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
+          for (const auto& m : scene_.meshes) {
+            if (m.name != child) continue;
+            draw_mesh_with_world(m, spot_world, nullptr, &active_it->second);
+            if (env_enabled("GHOGX_LOG_SPOTLIGHT_MESHES")) {
+              std::fprintf(stderr,
+                           "[milo_scene] spotlight direct mesh spot=%s mesh=%s material=%s world_pos=(%.2f %.2f %.2f)\n",
+                           spot.name.c_str(), m.name.c_str(),
+                           m.material.c_str(), spot_world[12], spot_world[13],
+                           spot_world[14]);
+            }
+            break;
+          }
+        }
         if (env_enabled("GHOGX_LOG_ALPHA_MESHES")) {
           static std::unordered_set<std::string> logged_spots;
           if (logged_spots.insert(spot.name).second) {
             std::fprintf(stderr,
-                         "[milo_scene] active spotlight name=%s group=%s children=%zu circle=%s target=%s intensity=%.3f color=(%.3f %.3f %.3f)\n",
+                         "[milo_scene] active spotlight name=%s group=%s children=%zu direct=%zu circle=%s target=%s intensity=%.3f color=(%.3f %.3f %.3f)\n",
                          spot.name.c_str(), spot.group.c_str(),
-                         group->children.size(), spot.circle_mesh.c_str(),
+                         group->children.size(), spot.instance_meshes.size(),
+                         spot.circle_mesh.c_str(),
                          active_it->second.target_mesh.c_str(),
                          active_it->second.intensity, active_it->second.r,
                          active_it->second.g, active_it->second.b);

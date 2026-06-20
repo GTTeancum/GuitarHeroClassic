@@ -100,6 +100,7 @@ struct SpotlightObj {
   std::string group;
   std::string target;
   std::string circle_mesh;
+  std::vector<std::string> instance_meshes;
   std::string circle_material;
   std::string lens_material;
   bool decoded = false;

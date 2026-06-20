@@ -5,6 +5,7 @@
 #include "ark_v3.h"
 #include "milo.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -262,6 +263,11 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
           ref.size() >= 12 &&
           ref.compare(ref.size() - 12, 12, "_target.mesh") == 0;
       if (authored_target || s.target.empty()) s.target = ref;
+      if (!authored_target &&
+          std::find(s.instance_meshes.begin(), s.instance_meshes.end(), ref) ==
+              s.instance_meshes.end()) {
+        s.instance_meshes.push_back(ref);
+      }
     }
   }
   s.decoded = true;

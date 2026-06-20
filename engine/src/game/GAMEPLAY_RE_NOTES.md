@@ -178,6 +178,19 @@ Open work:
   `(621,102)..(997,285)`. Frame 900 is unchanged for that camera/preset window.
   Treat this as proof that the shared lighting decode/render path is alive, not
   final lighting parity.
+- 2026-06-20 direct Spotlight mesh follow-up: Spotlight bodies can reference
+  instance meshes outside their group child list. Battle examples are
+  `spot_blurcle01.mesh` / `spot_blurcle02.mesh`, both authored with
+  `spotlight_circle.mat` after the lens/flare material refs. Native now keeps
+  non-target mesh refs on the decoded `SpotlightObj` and draws them through the
+  same active spotlight state, while skipping duplicates already present in the
+  group. Validation in
+  `engine/out/codex_goal_20260620_spotlight_direct_meshes/` shows
+  `basketball01_spotlight.spot` and `right_round01_spotlight.spot` drawing the
+  direct blur-circle meshes; `woman`/Battle frame 500 on/off changed pixels
+  increase to 31,943, bbox `(577,21)..(1085,285)`. YYZ/theatre sanity evidence
+  in `engine/out/codex_goal_20260620_spotlight_direct_meshes_yyz/` loads 44
+  decoded spotlights plus the keyboard route without crashing.
 
 2026-06-14 native validation:
 
