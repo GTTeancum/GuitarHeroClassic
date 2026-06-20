@@ -2567,6 +2567,26 @@ Useful environment flags:
   value spans between `1.2332` and `1.6422`; this is the current reminder that
   authored song density, not the player Expert selector, drives performer hand
   validation.
+- 2026-06-20 post-venue-effect tight hand recheck:
+  `engine/out/codex_goal_20260620_current_after_venue_hand_tight/` is the
+  current-tree hand checkpoint after commit `779f9bb`. The capture uses
+  `GHOGX_DEBUG_GAMEPLAY_CAMERA=1` anchored to `guitarist0:bone_pos_guitar.mesh`,
+  so the camera stays with the guitar instead of following the fret hand. Raw
+  BMP frame folders were deleted after MP4/contact-sheet encoding. The Jordan
+  dense window still runs player difficulty Easy while performer animation reads
+  `guitar_lane=3 notes=1802`; it emits 49 hand-map and 49 strum-map events with
+  masks `0x01`, `0x02`, `0x04`, `0x08`, and `0x10`, selects
+  `finger_hold_index`, `finger_hold_index_hi`, `finger_hold_middle_hi`,
+  `finger_hold_pinky`, and `finger_hold_ring_hi`, and rotates
+  `strum_short_01..04`. Post-controller rows span `bone_fret_hand`
+  X/Y/Z = `7.6744/15.0540/3.7324`, left finger rotation spans reach `1.6286`,
+  and right thumb/index rotation spans reach `1.7745`/`1.6056`. The same folder's
+  `mrfixit` chord window keeps player difficulty Easy with
+  `guitar_lane=3 notes=868`, emits 13 hand-map and 13 strum-map events, covers
+  chord masks `0x03`, `0x05`, `0x0a`, `0x14`, and `0x18`, and selects
+  `finger_powerchord_1` / `finger_powerchord_2`. This recheck supports the
+  shared hand-map/output route on the current tree; do not add a hand-specific
+  runtime change unless a new trace/native mismatch contradicts this evidence.
 - 2026-06-20 cross-guitar hand-output sweep:
   `engine/out/codex_goal_20260620_cross_guitar_hand_output/` repeats the
   promoted hand-output route on `rockthistown`/Rockabill1 and
