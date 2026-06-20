@@ -54,6 +54,12 @@ struct DrumCue {
     std::string event;
 };
 
+struct LightingCue {
+    uint32_t tick;
+    int pitch = 0;
+    std::string event;
+};
+
 struct Chart {
     uint32_t ticks_per_beat = 480;
     std::vector<TempoChange> tempo_map;     // sorted by tick ascending
@@ -63,6 +69,7 @@ struct Chart {
     std::vector<TrackTextEvent> performer_events;  // role-specific text tracks
     std::vector<DrumCue>     drum_cues;      // BAND DRUMS parser cue notes
     std::vector<DrumCue>     bass_cues;      // BAND BASS speaker_pulse cues
+    std::vector<LightingCue> lighting_cues;  // TRIGGERS lighting_parser cues
 
     // Convert a MIDI tick to wall-clock seconds using the tempo map.
     double tick_to_sec(uint32_t tick) const;

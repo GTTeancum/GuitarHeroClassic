@@ -191,6 +191,25 @@ Open work:
   increase to 31,943, bbox `(577,21)..(1085,285)`. YYZ/theatre sanity evidence
   in `engine/out/codex_goal_20260620_spotlight_direct_meshes_yyz/` loads 44
   decoded spotlights plus the keyboard route without crashing.
+- 2026-06-20 lighting MIDI cue follow-up: Rexglue real-play traces classify
+  `lighting_change` as MIDI-dispatched and `do_lighting_next_keyframe` /
+  `do_lighting_prev_keyframe` / `do_lighting_first_keyframe` as the keyframe
+  advance route. `config/midi_parsers.dta::lighting_parser` maps TRIGGERS
+  pitches `48`, `49`, and `50` to those messages with `start_offset -4` and
+  `zero_length TRUE`, while `world_objects_worldbase.dta` advances a keyframe
+  every cue only at great excitement and otherwise alternates through
+  `ignored_last_light_change`. Native now parses those TRIGGERS notes into
+  `Chart::lighting_cues`, applies the four-beat parser offset, and uses the
+  cue stream to drive `active_lighting_keyframe_index_`; the older
+  duration/beat loop remains only as a fallback for charts without lighting
+  cues. Validation:
+  `engine/out/codex_goal_20260620_lighting_midi_cues_surrender/` and
+  `engine/out/codex_goal_20260620_lighting_midi_cues_surrender_long/` run
+  stock PS2 `surrender` with authored camera/venue. The log decodes
+  `lighting cues=204`, dispatches early `first`/`next` cues through the
+  skip gate, changes presets from `blackout.pst` to `strobe_okay.pst`,
+  `verse_okay.pst`, and `color1.pst`, and renders nonblank arena frames.
+  This is traced keyframe-dispatch plumbing, not final render-light parity.
 
 2026-06-14 native validation:
 

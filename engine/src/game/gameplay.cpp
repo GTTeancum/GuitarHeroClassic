@@ -3921,6 +3921,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_lighting_keyframe_.clear();
     active_lighting_keyframe_index_ = SIZE_MAX;
     active_lighting_preset_start_ = 0.0;
+    next_lighting_cue_idx_ = 0;
+    ignored_last_light_change_ = false;
     venue_mat_anim_end_alpha_.clear();
     venue_event_mat_anims_.clear();
     venue_event_filters_.clear();
@@ -4119,13 +4121,15 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     };
     skip_cues_before(chart_.drum_cues, next_drum_cue_idx_);
     skip_cues_before(chart_.bass_cues, next_bass_cue_idx_);
+    skip_cues_before(chart_.lighting_cues, next_lighting_cue_idx_);
     last_camera_bar_ = UINT32_MAX;
     camera_bars_left_ = 0;
     last_forced_camera_event_tick_ = UINT32_MAX;
+    ignored_last_light_change_ = false;
     std::fprintf(stderr,
-                 "[gameplay] diagnostic seek: %.3fs player_note_idx=%zu drum_idx=%zu bass_idx=%zu\n",
+                 "[gameplay] diagnostic seek: %.3fs player_note_idx=%zu drum_idx=%zu bass_idx=%zu lighting_idx=%zu\n",
                  song_time_, next_note_idx_, next_drum_cue_idx_,
-                 next_bass_cue_idx_);
+                 next_bass_cue_idx_, next_lighting_cue_idx_);
 }
 
 void Gameplay::tick(float dt, uint32_t fret_mask) {
@@ -5610,10 +5614,56 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                  preset->keyframe_count, song_time_);
                 }
                 if (!preset->keyframes.empty()) {
+                    if (preset_changed ||
+                        active_lighting_keyframe_index_ == SIZE_MAX ||
+                        active_lighting_keyframe_index_ >=
+                            preset->keyframes.size()) {
+                        active_lighting_keyframe_index_ = 0;
+                    }
+                    while (next_lighting_cue_idx_ < chart_.lighting_cues.size()) {
+                        const auto& cue =
+                            chart_.lighting_cues[next_lighting_cue_idx_];
+                        const double cue_sec = chart_.tick_to_sec(cue.tick);
+                        if (cue_sec > song_time_) break;
+                        const bool high_excitement =
+                            active_venue_event_.find("great") !=
+                            std::string::npos;
+                        const bool apply_keyframe =
+                            high_excitement || ignored_last_light_change_;
+                        std::fprintf(
+                            stderr,
+                            "[world] lighting cue: %s pitch=%d tick=%u apply=%d ignored_last=%d excitement=%s t=%.3f preset=%s\n",
+                            cue.event.c_str(), cue.pitch, cue.tick,
+                            apply_keyframe ? 1 : 0,
+                            ignored_last_light_change_ ? 1 : 0,
+                            active_venue_event_.c_str(), song_time_,
+                            preset->name.c_str());
+                        if (apply_keyframe) {
+                            ignored_last_light_change_ = false;
+                            if (cue.event == "first") {
+                                active_lighting_keyframe_index_ = 0;
+                            } else if (cue.event == "next") {
+                                active_lighting_keyframe_index_ =
+                                    (active_lighting_keyframe_index_ + 1) %
+                                    preset->keyframes.size();
+                            } else if (cue.event == "prev") {
+                                active_lighting_keyframe_index_ =
+                                    (active_lighting_keyframe_index_ +
+                                     preset->keyframes.size() - 1) %
+                                    preset->keyframes.size();
+                            }
+                            active_lighting_keyframe_.clear();
+                        } else {
+                            ignored_last_light_change_ = true;
+                        }
+                        ++next_lighting_cue_idx_;
+                    }
                     const size_t keyframe_index =
-                        lighting_keyframe_index_at(
-                            *preset, chart_, song_time_,
-                            active_lighting_preset_start_);
+                        chart_.lighting_cues.empty()
+                            ? lighting_keyframe_index_at(
+                                  *preset, chart_, song_time_,
+                                  active_lighting_preset_start_)
+                            : active_lighting_keyframe_index_;
                     const auto& keyframe =
                         preset->keyframes[std::min(keyframe_index,
                                                    preset->keyframes.size() - 1)];

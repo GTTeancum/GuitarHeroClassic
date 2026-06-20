@@ -268,6 +268,8 @@ class Gameplay {
   std::string active_lighting_keyframe_;
   size_t active_lighting_keyframe_index_ = SIZE_MAX;
   double active_lighting_preset_start_ = 0.0;
+  size_t next_lighting_cue_idx_ = 0;
+  bool ignored_last_light_change_ = false;
   std::map<std::string, std::pair<std::string, float>>
       venue_mat_anim_end_alpha_;
   std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;

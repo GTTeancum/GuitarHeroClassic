@@ -452,6 +452,22 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                 chart.bass_cues.push_back(
                     {note.tick, note.pitch, std::string("bass_hit")});
             }
+        } else if (tracks[t].name == "TRIGGERS") {
+            for (const auto& note : all_note_ons[t]) {
+                // config/midi_parsers.dta::lighting_parser maps TRIGGERS
+                // pitches 48/49/50 to the WorldDir lighting keyframe messages.
+                // The parser has start_offset -4, which is authored in beats.
+                const char* event = nullptr;
+                if (note.pitch == 48) event = "next";
+                if (note.pitch == 49) event = "prev";
+                if (note.pitch == 50) event = "first";
+                if (!event) continue;
+                const uint32_t offset_ticks = chart.ticks_per_beat * 4u;
+                const uint32_t cue_tick =
+                    (note.tick > offset_ticks) ? note.tick - offset_ticks : 0u;
+                chart.lighting_cues.push_back(
+                    {cue_tick, note.pitch, std::string(event)});
+            }
         }
     }
 
@@ -475,11 +491,18 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                   if (a.tick != b.tick) return a.tick < b.tick;
                   return a.pitch < b.pitch;
               });
+    std::sort(chart.lighting_cues.begin(), chart.lighting_cues.end(),
+              [](const LightingCue& a, const LightingCue& b) {
+                  if (a.tick != b.tick) return a.tick < b.tick;
+                  return a.pitch < b.pitch;
+              });
     std::fprintf(stderr, "[midi] text events=%zu\n", chart.text_events.size());
     std::fprintf(stderr, "[midi] performer text events=%zu\n",
                  chart.performer_events.size());
     std::fprintf(stderr, "[midi] drum cues=%zu\n", chart.drum_cues.size());
     std::fprintf(stderr, "[midi] bass cues=%zu\n", chart.bass_cues.size());
+    std::fprintf(stderr, "[midi] lighting cues=%zu\n",
+                 chart.lighting_cues.size());
 
     auto append_chart_notes = [&](const std::vector<RawNote>& src_notes,
                                   const std::vector<SPRegion>& src_sp,

@@ -124,6 +124,9 @@ static void push_chunk(std::vector<uint8_t>& out, const char* tag,
 //   tick 641: Green (72)  on/off at 802  — gap=161 from start (no prev note) → not HOPO
 //   tick 802: Red   (73)  on/off at 963  — gap=161 → 161 > 160 → not HOPO
 //
+// Track 2 "TRIGGERS":
+//   lighting_parser cue notes for next/prev/first keyframe.
+//
 // ticks_per_beat = 480, tempo = 120 BPM (500000 us/beat).
 // HOPO threshold = 480/3 = 160 ticks.
 static std::vector<uint8_t> build_test_smf() {
@@ -166,15 +169,27 @@ static std::vector<uint8_t> build_test_smf() {
     t1.note_off(963, 73);  // Medium Red off
     t1.meta_eot();
 
+    // Track 2: lighting trigger notes.
+    TrackBuilder t2;
+    t2.meta_name("TRIGGERS");
+    t2.note_on (2400, 50); // lighting first, minus 4 beats => tick 480
+    t2.note_off(2400, 50);
+    t2.note_on (2880, 48); // lighting next, minus 4 beats => tick 960
+    t2.note_off(2880, 48);
+    t2.note_on (3360, 49); // lighting prev, minus 4 beats => tick 1440
+    t2.note_off(3360, 49);
+    t2.meta_eot();
+
     // Assemble SMF.
     std::vector<uint8_t> smf;
     smf.push_back('M'); smf.push_back('T'); smf.push_back('h'); smf.push_back('d');
     push_u32be(smf, 6);    // MThd length = 6
     push_u16be(smf, 1);    // format 1
-    push_u16be(smf, 2);    // 2 tracks
+    push_u16be(smf, 3);    // 3 tracks
     push_u16be(smf, 480);  // ticks per beat
     push_chunk(smf, "MTrk", t0.ev);
     push_chunk(smf, "MTrk", t1.ev);
+    push_chunk(smf, "MTrk", t2.ev);
     return smf;
 }
 
@@ -265,6 +280,20 @@ int main() {
     const double expected_dur = 963.0 / 480.0 * 0.5;
     const double dur = chart.duration_sec();
     CHECK(std::abs(dur - expected_dur) < 1e-4, "duration = last note-off time");
+
+    // --- Lighting parser cues from TRIGGERS pitch 48/49/50 ---
+    CHECK(chart.lighting_cues.size() == 3, "Lighting cues: 3");
+    if (chart.lighting_cues.size() == 3) {
+        CHECK(chart.lighting_cues[0].event == "first" &&
+              chart.lighting_cues[0].tick == 480,
+              "Lighting[0]: first at tick 480 after -4 beat offset");
+        CHECK(chart.lighting_cues[1].event == "next" &&
+              chart.lighting_cues[1].tick == 960,
+              "Lighting[1]: next at tick 960 after -4 beat offset");
+        CHECK(chart.lighting_cues[2].event == "prev" &&
+              chart.lighting_cues[2].tick == 1440,
+              "Lighting[2]: prev at tick 1440 after -4 beat offset");
+    }
 
     if (failures == 0)
         std::fprintf(stderr, "midi_reader_test: ALL PASS\n");
