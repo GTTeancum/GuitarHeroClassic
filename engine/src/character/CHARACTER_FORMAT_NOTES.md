@@ -2439,6 +2439,20 @@ Useful environment flags:
   `finger_hold_pinky`, `finger_hold_ring_hi`, `finger_open`). Raw BMP frames
   were deleted after encoding; keep only MP4s, sheets, logs, and the compact
   summary.
+- 2026-06-20 current dense Jordan left-hand recheck after the lighting commit:
+  `engine/out/codex_goal_20260620_current_dense_jordan_left/` repeats a fresh
+  native `jordan` capture at `--diagnostic-song-start 108.0`, still with player
+  difficulty Easy and performer source `guitar_lane=3 notes=1802`. Retained
+  outputs are `jordan_current_dense_left_hand_108s.mp4`,
+  `jordan_current_dense_left_hand_108s_sheet.jpg`, `run.log`, and
+  `summary.txt`; raw BMP frames were deleted after encoding. The normalized log
+  has 46 hand-map events over the 2-second window and five selected fret clips
+  (`finger_hold_index_hi`, `finger_hold_ring_hi`, `finger_hold_pinky`,
+  `finger_hold_middle_hi`, `finger_hold_index`). Post-controller rows show the
+  fret hand moving across the neck (world span X/Y/Z = 7.6297/16.1878/3.7972)
+  and left-finger row changes up to 0.33253 on `bone_L-pinky01`. This is the
+  current proof that hard authored song density, not player difficulty, is the
+  driver for visible fret-hand/finger changes.
 - 2026-06-20 dense authored-song hand stress:
   `engine/out/codex_goal_20260620_hand_dense_song_scan/song_hand_density.csv`
   scans the GH2 PS2 MIDIs and ranks the highest-populated guitar lane by dense
