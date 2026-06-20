@@ -4068,6 +4068,37 @@ bool Gameplay::is_finished() const {
     return song_time_ >= chart_.duration_sec() + 2.0;  // 2s grace after last note
 }
 
+void Gameplay::seek_for_diagnostic_capture(double seconds) {
+    if (!chart_loaded_) return;
+    song_time_ = std::clamp(seconds, 0.0, std::max(0.0, chart_.duration_sec()));
+    last_anim_time_ = song_time_;
+
+    const auto& player_notes = chart_.notes[std::clamp(difficulty_, 0, 3)];
+    next_note_idx_ = 0;
+    while (next_note_idx_ < player_notes.size() &&
+           chart_.tick_to_sec(player_notes[next_note_idx_].tick_on) <
+               song_time_ - kHitWindowSec) {
+        ++next_note_idx_;
+    }
+
+    auto skip_cues_before = [&](const auto& cues, size_t& index) {
+        index = 0;
+        while (index < cues.size() &&
+               chart_.tick_to_sec(cues[index].tick) < song_time_) {
+            ++index;
+        }
+    };
+    skip_cues_before(chart_.drum_cues, next_drum_cue_idx_);
+    skip_cues_before(chart_.bass_cues, next_bass_cue_idx_);
+    last_camera_bar_ = UINT32_MAX;
+    camera_bars_left_ = 0;
+    last_forced_camera_event_tick_ = UINT32_MAX;
+    std::fprintf(stderr,
+                 "[gameplay] diagnostic seek: %.3fs player_note_idx=%zu drum_idx=%zu bass_idx=%zu\n",
+                 song_time_, next_note_idx_, next_drum_cue_idx_,
+                 next_bass_cue_idx_);
+}
+
 void Gameplay::tick(float dt, uint32_t fret_mask) {
     if (!chart_loaded_) return;
 

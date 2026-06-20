@@ -2415,6 +2415,22 @@ Useful environment flags:
   `finger_hold_pinky`, `finger_hold_ring_hi`, `finger_open`). Raw BMP frames
   were deleted after encoding; keep only MP4s, sheets, logs, and the compact
   summary.
+- 2026-06-20 dense authored-song hand stress:
+  `engine/out/codex_goal_20260620_hand_dense_song_scan/song_hand_density.csv`
+  scans the GH2 PS2 MIDIs and ranks the highest-populated guitar lane by dense
+  hand-change windows. The best stress window is Jordan around 108.11s
+  (`151` note events and `149` mask changes in ten seconds), so player
+  difficulty remains Easy while performer animation still reads Expert-lane
+  data. Native now has a diagnostic-only
+  `--diagnostic-song-start <seconds>` capture flag that seeks the deterministic
+  song clock and skips old note/drum/bass cue indices; it is for validation,
+  not gameplay. Evidence in
+  `engine/out/codex_goal_20260620_hand_dense_seek/` keeps left/right MP4s,
+  contact sheets, and logs for Jordan at 108s. Both dense captures confirm
+  `guitar_lane=3 notes=1802` with player difficulty `0` and log `158`
+  hand-map plus `158` strum-map events in the bounded window. This is the
+  current hand priority checkpoint: future hand fixes should be tested against
+  these dense authored windows, not by changing player difficulty.
 - 2026-06-20 cross-guitar hand-output sweep:
   `engine/out/codex_goal_20260620_cross_guitar_hand_output/` repeats the
   promoted hand-output route on `rockthistown`/Rockabill1 and

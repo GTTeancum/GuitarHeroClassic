@@ -166,6 +166,9 @@ class Gameplay {
   void set_deterministic_clock(bool deterministic) {
     deterministic_clock_ = deterministic;
   }
+  // Diagnostic capture helper: jump the deterministic song clock to a known
+  // authored window without replaying all earlier note/cue events.
+  void seek_for_diagnostic_capture(double seconds);
   int    score()     const { return score_; }
   int    streak()    const { return streak_; }
   int    difficulty()const { return difficulty_; }

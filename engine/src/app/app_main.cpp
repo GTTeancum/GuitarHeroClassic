@@ -13,6 +13,8 @@
 //   ghogx_app --ark-dir <dir>         load splash + gameplay from PS2 ARK
 //   ghogx_app --song <shortname>      which song to play (default: shoutatthedevil)
 //   ghogx_app --difficulty <0-3>      chart difficulty (default: 1 = Medium)
+//   ghogx_app --diagnostic-song-start <sec>
+//                                      seek deterministic capture to a song time
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
 //   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
 //                                      capture numbered BMPs in gameplay mode
@@ -213,6 +215,9 @@ class AppEngine : public ghogx::Engine {
         std::fprintf(stderr, "[ghogx] START pressed -> loading song '%s' diff=%d\n",
                      song_name_.c_str(), song_diff_);
         if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
+          if (diagnostic_song_start_ > 0.0) {
+            gameplay_.seek_for_diagnostic_capture(diagnostic_song_start_);
+          }
           state_ = AppState::Playing;
           std::fprintf(stderr, "[ghogx] -> Playing\n");
         } else {
@@ -409,6 +414,7 @@ class AppEngine : public ghogx::Engine {
   std::string screenshot_path_;
   int         screenshot_frame_ = 0;
   ScreenshotSequence screenshot_sequence_;
+  double diagnostic_song_start_ = 0.0;
 
   // Synthetic held-key state for fret input.
   uint32_t held_fret_mask_ = 0;
@@ -429,9 +435,16 @@ class AppEngine : public ghogx::Engine {
     gameplay_.set_deterministic_clock(deterministic);
   }
 
+  void set_diagnostic_song_start(double seconds) {
+    diagnostic_song_start_ = std::max(0.0, seconds);
+  }
+
   // Force-load the song and skip directly to Playing state (for --auto-start).
   void force_start_song() {
     if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
+      if (diagnostic_song_start_ > 0.0) {
+        gameplay_.seek_for_diagnostic_capture(diagnostic_song_start_);
+      }
       state_ = AppState::Playing;
       started_ = true;
     }
@@ -1369,6 +1382,7 @@ int main(int argc, char** argv) {
   std::string screenshot_sequence_dir;
   std::string screenshot_sequence_frames_arg;
   float fixed_dt = 0.0f;
+  double diagnostic_song_start = 0.0;
   bool show_window = false;
   CamOverride cam_ovr;  // optional --cam-* overrides for the scene viewer
 
@@ -1391,6 +1405,9 @@ int main(int argc, char** argv) {
       song_name = argv[++i];
     } else if (std::strcmp(argv[i], "--difficulty") == 0 && i + 1 < argc) {
       difficulty = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--diagnostic-song-start") == 0 &&
+               i + 1 < argc) {
+      diagnostic_song_start = std::atof(argv[++i]);
     } else if (std::strcmp(argv[i], "--auto-start") == 0) {
       auto_start = true;
     } else if (std::strcmp(argv[i], "--show-window") == 0) {
@@ -1549,6 +1566,9 @@ int main(int argc, char** argv) {
   AppEngine engine(win.get());
   engine.set_ark(hdr, ark);
   engine.set_song(song_name, difficulty);
+  if (diagnostic_song_start > 0.0) {
+    engine.set_diagnostic_song_start(diagnostic_song_start);
+  }
   if (capture_enabled && fixed_dt <= 0.0f) fixed_dt = 1.0f / 60.0f;
   if (fixed_dt > 0.0f) {
     engine.set_deterministic_gameplay_clock(true);
