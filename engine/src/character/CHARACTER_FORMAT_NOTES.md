@@ -2388,6 +2388,19 @@ Useful environment flags:
   neck while still using the same performance source. Use harder songs for
   stress coverage; do not use the player difficulty selector as a character
   animation multiplier.
+- 2026-06-20 current hard-song hand recheck:
+  `engine/out/codex_goal_20260620_hard_song_hand_current/summary.txt` repeats
+  the Jordan validation on the current tree with player difficulty Easy and the
+  performer source still resolved to `guitar_lane=3 notes=1802`. The right-hand
+  MP4 (`right_hand_jordan/jordan_easy_glam1_right_hand_current.mp4`) shows the
+  pick hand curled and strumming while the log rotates `strum_short_01..04`
+  across 35 strum-map events. The left-hand zoom MP4
+  (`left_hand_jordan/jordan_easy_glam1_left_hand_zoom_current.mp4`) is
+  neck-anchored and shows fretting travel plus changing finger poses from 34
+  hand-map events (`finger_hold_index_hi`, `finger_hold_middle_hi`,
+  `finger_hold_pinky`, `finger_hold_ring_hi`, `finger_open`). Raw BMP frames
+  were deleted after encoding; keep only MP4s, sheets, logs, and the compact
+  summary.
 - 2026-06-20 cross-guitar hand-output sweep:
   `engine/out/codex_goal_20260620_cross_guitar_hand_output/` repeats the
   promoted hand-output route on `rockthistown`/Rockabill1 and
