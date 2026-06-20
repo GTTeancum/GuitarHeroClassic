@@ -2486,6 +2486,26 @@ Useful environment flags:
   and left-finger row changes up to 0.33253 on `bone_L-pinky01`. This is the
   current proof that hard authored song density, not player difficulty, is the
   driver for visible fret-hand/finger changes.
+- 2026-06-20 post hand-output-source dense Jordan recheck:
+  `engine/out/codex_goal_20260620_post_source_dense_jordan_hand/` repeats the
+  same Jordan 108s stress window after the narrow hand-output source pass. The
+  app still runs player difficulty Easy while the performer source is
+  `guitar_lane=3 notes=1802 player_diff=0`; raw BMP frames were deleted after
+  encoding. Retained evidence includes
+  `left_jordan_108s/jordan_post_source_left_hand_108s.mp4`,
+  `left_jordan_108s/jordan_post_source_left_hand_108s_sheet.jpg`,
+  `right_jordan_108s/jordan_post_source_right_hand_108s.mp4`,
+  `right_jordan_108s/jordan_post_source_right_hand_108s_sheet.jpg`, and
+  `summary.txt`. The left log has 46 hand-map events, 45 strum-map events, five
+  fret masks, and selected clips `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_ring_hi`, `finger_hold_pinky`, and
+  `finger_hold_index`; post-controller spans show fret-hand travel
+  X/Y/Z = 7.67494/16.68202/3.99019 and left-finger row changes up to 0.61535
+  on `bone_L-pinky01`. The right log rotates `strum_short_01..04`, with the
+  strum hand moving X/Y/Z = 10.22798/6.00560/4.33308 and a stable curled
+  pick-grip pose. This supersedes the older dense Jordan left-hand-only capture
+  as the current-tree hand regression checkpoint, but it is still not a global
+  sign-off for every character/song.
 - 2026-06-20 chord-rich left-hand proof:
   `engine/out/codex_goal_20260620_current_chord_mrfixit_left/` is the better
   current visual regression target for left-hand grip than the Jordan single-note
