@@ -5147,6 +5147,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             std::move(channels), weight,
                             clip ? &clip->output_bones : nullptr,
                             clip ? clip->name : std::string{},
+                            relative,
                             overlay_override});
                 };
 

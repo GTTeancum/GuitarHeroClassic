@@ -54,6 +54,7 @@ struct ClipChannelLayer {
   float weight = 1.0f;
   const std::vector<CharClip::OutputBone>* output_bones = nullptr;
   std::string debug_name;
+  bool relative = false;
   bool overlay_override = false;
 };
 

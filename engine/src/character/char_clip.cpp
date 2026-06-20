@@ -3345,14 +3345,25 @@ static void apply_hand_driver_output_layer(
 static void apply_hand_driver_output_layers(
     const std::vector<ClipChannel>& frame, Character& character, bool relative,
     const std::vector<ClipChannelLayer>& layers) {
-  if (hand_output_layer_disabled() || frame.empty()) return;
+  if (hand_output_layer_disabled()) return;
+  (void)frame;
+  (void)relative;
 
   bool has_hand_driver_overlay = false;
+  bool hand_relative = false;
+  bool hand_relative_set = false;
+  std::vector<ClipChannelLayer> hand_source_layers;
   for (const auto& layer : layers) {
     if (!layer.overlay_override || !layer.output_bones) continue;
     if (output_bones_have_hand_driver_root(*layer.output_bones)) {
       has_hand_driver_overlay = true;
-      break;
+      hand_source_layers.push_back(layer);
+      if (!hand_relative_set) {
+        hand_relative = layer.relative;
+        hand_relative_set = true;
+      } else if (hand_relative != layer.relative) {
+        hand_relative = false;
+      }
     }
   }
   if (!has_hand_driver_overlay) return;
@@ -3370,9 +3381,12 @@ static void apply_hand_driver_output_layers(
   }
   if (hand_output_bones.empty()) return;
 
+  const auto hand_frame = blend_channel_layers(hand_source_layers);
+  if (hand_frame.empty()) return;
+
   std::vector<ClipChannel> hand_channels;
-  hand_channels.reserve(frame.size());
-  for (const auto& ch : frame) {
+  hand_channels.reserve(hand_frame.size());
+  for (const auto& ch : hand_frame) {
     if (hand_keys.find(strip_transform_suffix(ch.bone_name)) ==
         hand_keys.end()) {
       continue;
@@ -3381,7 +3395,7 @@ static void apply_hand_driver_output_layers(
   }
   if (hand_channels.empty()) return;
 
-  apply_clip_pose_output_layer(hand_channels, 1.0f, character, relative,
+  apply_clip_pose_output_layer(hand_channels, 1.0f, character, hand_relative,
                                hand_output_bones, true);
 }
 
@@ -4750,9 +4764,10 @@ void dump_lane_mixer_layers(const std::vector<ClipChannelLayer>& layers) {
                                  : layer.debug_name;
     std::fprintf(stderr,
                  "[lane-mix]   layer %zu name=%s weight=%.3f channels=%zu "
-                 "outputBones=%zu overlay=%d\n",
+                 "outputBones=%zu relative=%d overlay=%d\n",
                  i, name.c_str(), layer.weight, layer.channels.size(),
                  layer.output_bones ? layer.output_bones->size() : 0,
+                 layer.relative ? 1 : 0,
                  layer.overlay_override ? 1 : 0);
     for (const auto& ch : layer.channels) {
       if (!lane_mixer_interesting_channel(ch.bone_name)) continue;

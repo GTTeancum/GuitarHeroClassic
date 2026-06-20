@@ -1842,6 +1842,32 @@ Useful environment flags:
   This follows the accepted hand-driver scheduler model where `left_hand.drv`
   / `right_hand.drv` rotate a live `+0x38` scheduler/blend pointer. Validation:
   `engine/out/native_song_20260614/shout_f1300_hand_driver_scheduler.bmp`.
+- 2026-06-20 hand-driver overlay source pass:
+  `engine/out/codex_goal_20260620_hand_overlay_collision_probe/run.log`
+  showed the descriptor mixer selecting the correct authored hand clips from
+  `mrfixit` (`finger_powerchord_1`, `finger_powerchord_2`, and rotating
+  `strum_short_*` clips from the highest authored guitar lane while the player
+  difficulty stayed Easy), but the shared frame still collided body rows such
+  as `stand_medium_04` with hand-driver rows on `bone_L-*finger*`,
+  `bone_R-*finger*`, thumbs, and right hand/forearm rows. Native now preserves
+  each `ClipChannelLayer`'s `relative` flag and runs the final hand-output
+  bridge from overlay hand-driver source layers only, while still collecting
+  destination `CharBone` rows from the full performer graph. This keeps the
+  trace-backed stable destination row model but prevents body active clips from
+  diluting the selected `finger_*` / `strum_*` source rows before the hand
+  output graph writes visible bones. Validation:
+  `engine/out/codex_goal_20260620_hand_overlay_source_fix/run.log` contains
+  the original broad four-layer diagnostic mix plus a second two-layer
+  hand-source mix (`strum_*` + `finger_*`) with no body source. Normalized
+  row comparison at the same `mrfixit` tick changed finger rotations, e.g.
+  `bone_L-middlefinger01` moved from
+  `r0=(0.97891 0.17653 -0.10277)` to
+  `r0=(0.91357 0.39605 -0.09232)`, and
+  `bone_R-middlefinger01` from `r0=(0.93880 0.25792 0.22833)` to
+  `r0=(0.77481 0.54184 0.32570)`, without changing the authored clip choice or
+  hand target position. A close debug validation video is retained at
+  `engine/out/codex_goal_20260620_hand_overlay_source_fix_close_video/mrfixit_hand_overlay_source_fix_close.mp4`;
+  raw BMP frames were removed after encoding.
 - Native left-hand clip selection now comes from
   `config/gen/midi_parsers.dtb::GUITARFRETMAPPINGS` instead of a hardcoded
   lane-to-clip table. The DTB tables use `$mp.length` and the active
