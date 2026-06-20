@@ -2453,6 +2453,17 @@ Useful environment flags:
   and left-finger row changes up to 0.33253 on `bone_L-pinky01`. This is the
   current proof that hard authored song density, not player difficulty, is the
   driver for visible fret-hand/finger changes.
+- 2026-06-20 chord-rich left-hand proof:
+  `engine/out/codex_goal_20260620_current_chord_mrfixit_left/` is the better
+  current visual regression target for left-hand grip than the Jordan single-note
+  window. `mrfixit` at `--diagnostic-song-start 17.0` keeps player difficulty
+  Easy while performer source resolves to `guitar_lane=3 notes=868`. The log has
+  13 hand-map events in the retained 2-second MP4, five unique fret masks
+  (`0x05`, `0x14`, `0x0a`, `0x18`, `0x03`), and selects
+  `finger_powerchord_1` / `finger_powerchord_2`; post-controller finger rows
+  move up to 0.32842 on `bone_L-index01` and 0.30114 on `bone_L-pinky01`.
+  The contact sheet shows a visibly curled/gripping fret hand, so use this
+  route before calling left-hand finger motion regressed.
 - 2026-06-20 dense authored-song hand stress:
   `engine/out/codex_goal_20260620_hand_dense_song_scan/song_hand_density.csv`
   scans the GH2 PS2 MIDIs and ranks the highest-populated guitar lane by dense
