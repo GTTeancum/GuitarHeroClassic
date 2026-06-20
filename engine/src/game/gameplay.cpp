@@ -2871,6 +2871,13 @@ std::vector<std::pair<Gameplay::CameraKey, size_t>> decode_camshot_poses(
                 c.key.up[i] = r[2][i];
             }
             c.key.has_basis = true;
+            if (off >= 4) {
+                const float fov = f32_at(off - 4);
+                if (std::isfinite(fov) && fov > 0.05f && fov < 2.5f) {
+                    c.key.fov = fov;
+                    c.key.has_fov = true;
+                }
+            }
             candidates.push_back(c);
         }
     next_offset:
@@ -2969,10 +2976,12 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     const auto& key = pose.first;
                     std::fprintf(
                         stderr,
-                        "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f)\n",
+                        "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) fov=%s%.3f\n",
                         de.name.c_str(), pose.second, key.eye[0], key.eye[1],
                         key.eye[2], key.forward[0], key.forward[1],
-                        key.forward[2], key.up[0], key.up[1], key.up[2]);
+                        key.forward[2], key.up[0], key.up[1], key.up[2],
+                        key.has_fov ? "" : "none/",
+                        key.has_fov ? key.fov : 0.0f);
                 }
             }
             size_t pose_off = decoded_poses.front().second;
@@ -3343,6 +3352,11 @@ void apply_camera_keys(
     camera_authored_up_for_key(*b, up_b);
     for (int i = 0; i < 3; ++i)
         cam.authored_up[i] = up_a[i] + (up_b[i] - up_a[i]) * t;
+    if (a->has_fov || b->has_fov) {
+        const float fov_a = a->has_fov ? a->fov : (b->has_fov ? b->fov : cam.fov);
+        const float fov_b = b->has_fov ? b->fov : fov_a;
+        cam.fov = fov_a + (fov_b - fov_a) * t;
+    }
     cam.near_z = 1.0f;
     cam.far_z = 6000.0f;
     if (debug_camera_enabled()) {
@@ -3350,12 +3364,12 @@ void apply_camera_keys(
             stderr,
             "[camera] frame=%.2f t=%.3f a=%s(%.2f) b=%s(%.2f) "
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
-            "up=(%.3f %.3f %.3f) targets=%zu\n",
+            "up=(%.3f %.3f %.3f) fov=%.3f targets=%zu\n",
             frame, t, a->name.c_str(), a->frame, b->name.c_str(), b->frame,
             cam.authored_eye[0], cam.authored_eye[1], cam.authored_eye[2],
             cam.authored_at[0], cam.authored_at[1], cam.authored_at[2],
             cam.authored_up[0], cam.authored_up[1], cam.authored_up[2],
-            targets.size());
+            cam.fov, targets.size());
     }
 }
 

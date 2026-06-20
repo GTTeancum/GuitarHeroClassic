@@ -50,6 +50,8 @@ class Gameplay {
     float forward[3] = {0.0f, 1.0f, 0.0f};
     float up[3] = {0.0f, 0.0f, 1.0f};
     bool has_basis = false;
+    float fov = 0.0f;
+    bool has_fov = false;
     std::string target_entity;
     std::string target_subpart;
     std::string distance;

@@ -41,6 +41,14 @@ Open work:
   `GHOGX_DEBUG_CAMERA=1`, native logs emit `camera-candidate` rows for each
   plausible decoded `CamShot` pose and final `[camera]` rows for the selected
   render-camera eye/aim/up.
+- 2026-06-20 CamShot layout pass: PS2 object data and the local
+  `world_objects_ps2.dta::CamShot` schema place `field_of_view` immediately
+  before the decoded camera transform. Native now decodes that value from
+  `pose_offset - 4` and interpolates it into the runtime camera. YYZ
+  `flr_near_rt03` validates the decode with FOV `0.746733`, but the resulting
+  native frame is still not camera-parity because the same key also carries
+  `screen_offset=(0.618077,-1.030767)` at `pose_offset + 0x30/+0x34`, and
+  native has not yet mapped the exact PS2 screen/projection application.
 - Empty-target regular shots still use authored world-space pose/basis only.
   Do not invent targets for them without object-layout or runtime trace proof.
 - Theatre `flr_near_lft03x1` is the concrete guard case for that rule: the PS2
