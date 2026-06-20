@@ -484,6 +484,19 @@ Glam1 hair:
   `glam1_head_yaw_m080_f780.png` keep both eye meshes seated in the socket band
   while preserving the broad hair sheets seen in the accepted PS2 close frame.
   This is evidence against a manual eye translation or sheet reattachment pass.
+- 2026-06-20 Glam1 hair row recheck after the dense hand work:
+  `engine/out/codex_goal_20260620_hair_row_recheck_glam1/` captures the same
+  in-song route with `GHOGX_DEBUG_CHAR_HAIR=1`,
+  `GHOGX_DEBUG_SKIN_MATRIX=1`, and focused mesh-mode logging. The current
+  native bridge writes PS2-follow rows for `bone_hair01.mesh`,
+  `bone_bangL.mesh`, and `bone_bangR.mesh`; the weighted Glam1 sheets
+  (`hair-side.mesh`, `hair-mid.mesh`, `hair-lower.mesh`, `hair-top.mesh`, and
+  `hair-bottom.mesh`) consume those rows as `hairOverride=1` non-identity
+  `local-attachment` skin matrices. The screenshot keeps eyes seated and the
+  side/lower hair attached, though the authored cards still have close-camera
+  ugliness. Do not promote another world-mode, hide-list, manual offset, or
+  renderer-only hair patch from this frame; reopen this path only with a newer
+  PS2/native mismatch showing the shared row bridge still diverges.
 - 2026-06-15 wrist close-up isolation after `88dc57e`:
   `engine/out/native_song_20260615/glam1_left_arm_mesh_isolate_after_88dc57e/`
   proves the obvious dark angular piece below the left glove is
