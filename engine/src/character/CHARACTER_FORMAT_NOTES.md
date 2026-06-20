@@ -2324,9 +2324,10 @@ Useful environment flags:
   `finger_hold_index_hi`, `finger_hold_middle_hi`). The BMP sequence,
   retained contact sheet, and MP4 show the native fret hand moving in-game
   while the strum hand stays on the guitar; raw BMP intermediates may be
-  deleted after encoding to keep disk use down. Treat arms as
-  provisionally accepted from this checkpoint; keep hands in validation until
-  more songs/outfits prove the same route under normal in-song motion.
+  deleted after encoding to keep disk use down. Treat arms as accepted from
+  this checkpoint unless a new native frame contradicts it; keep hands in
+  validation until more songs/outfits prove the same route under normal in-song
+  motion.
 - 2026-06-20 second native hand movement sweep:
   `engine/out/codex_goal_20260620_hand_movement_rockabill_native/` repeats the
   same compact validation on `rockthistown`, whose PS2 quickplay block resolves
@@ -2340,6 +2341,39 @@ Useful environment flags:
   reports `handDriver=0`, `handGraph=0`, `ikHands=0`, `ikMidis=0`; validate
   bassist hands through normal body/prop animation, not the guitarist
   hand-map scheduler.
+- 2026-06-20 both-hand native motion proof:
+  `engine/out/codex_goal_20260620_hand_video_native/` keeps an audio-less
+  20.4s native `shoutatthedevil` Glam1 run plus a zoomed two-panel derivative
+  (`shout_glam1_hand_zoom_native.mp4`) cropped from the same captured frames.
+  The compact event log pairs `StrumMap_Default` selections
+  (`strum_short_01..04`, `strum_long_02`, `strum_long_04`) with
+  `HandMap_DropD2` fret selections (`finger_open`,
+  `finger_vibrato_middle`, `finger_vibrato_ring`,
+  `finger_hold_index_hi`, `finger_hold_middle_hi`) across the video window.
+  This proves the native runtime is driving separate right-hand strum motion
+  and left-hand fret motion from song timing on Glam1, not merely leaving both
+  hands attached to the guitar. It is still a validation checkpoint, not a
+  global sign-off for every guitarist/outfit/song.
+- 2026-06-20 Jordan hand-output bridge: harder songs, not difficulty alone,
+  are the useful stress case for visible hand changes. The Jordan Glam1 run in
+  `engine/out/codex_goal_20260620_hand_jordan_pose_rows/` proves
+  `StrumMap_Default` selecting `strum_short_01..04` and `HandMap_DropD2`
+  selecting changing fret clips, but the first right-hand close frame still
+  rendered the fingers too flat. Raw `strum_short_01` clip dumps proved the
+  authored right-finger curl channels exist, and the diagnostic
+  `engine/out/codex_goal_20260620_right_hand_output_ab/` showed that broad
+  `GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` curls the fingers correctly but is too
+  broad to promote. Native now keeps the traced lane combiner, then applies a
+  narrow hand-driver CharBone output pass only when a hand overlay exposes
+  `bone_strum_hand` or `bone_fret_hand`; that pass rebases only hand, finger,
+  thumb, and hand-target rows through the active output graph. Validation:
+  `engine/out/codex_goal_20260620_right_hand_output_fix2/default_hand_output_f0780.png`
+  matches the broad-output hand curl without enabling global output, while
+  `engine/out/codex_goal_20260620_right_hand_output_video/jordan_glam1_right_hand_close_native.mp4`
+  and
+  `engine/out/codex_goal_20260620_left_hand_output_video/jordan_glam1_left_hand_close_native.mp4`
+  show the corrected right-hand strum and continuing left-hand fret movement.
+  `GHOGX_DISABLE_HAND_OUTPUT_LAYER=1` is a diagnostic escape hatch only.
 
 Every outfit audit should capture:
 

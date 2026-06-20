@@ -78,6 +78,10 @@ bool debug_venue_filters_enabled() {
     return env_value("GHOGX_DEBUG_VENUE_FILTERS") != nullptr;
 }
 
+bool debug_performer_start_enabled() {
+    return env_value("GHOGX_DEBUG_PERFORMER_START") != nullptr;
+}
+
 bool is_lower_body_clip_channel(std::string_view name) {
     return name.find("pelvis") != std::string_view::npos ||
            name.find("-thigh") != std::string_view::npos ||
@@ -693,6 +697,123 @@ std::string strip_mesh_suffix(std::string name) {
         name.resize(name.size() - suffix.size());
     }
     return name;
+}
+
+bool debug_hand_pose_rows_enabled() {
+    return env_value("GHOGX_DEBUG_HAND_POSE_ROWS") != nullptr;
+}
+
+bool hand_pose_bone_matches(std::string candidate, std::string wanted) {
+    return strip_mesh_suffix(std::move(candidate)) ==
+           strip_mesh_suffix(std::move(wanted));
+}
+
+const milo_scene::TransObj* find_hand_pose_bone(
+    const ghogx::character::Character& character, const char* wanted) {
+    for (const auto& bone : character.bones) {
+        if (hand_pose_bone_matches(bone.name, wanted)) return &bone;
+    }
+    return nullptr;
+}
+
+void dump_hand_pose_rows(const ghogx::character::Character& character,
+                         std::string_view role, std::string_view phase,
+                         double song_time, uint32_t tick, uint32_t mask,
+                         const std::vector<std::string>& strum_clips,
+                         const std::vector<std::string>& fret_clips) {
+    if (!debug_hand_pose_rows_enabled()) return;
+    if (const char* only = env_value("GHOGX_DEBUG_HAND_POSE_ROLE")) {
+        if (role != only) return;
+    }
+
+    const float stride =
+        std::max(0.0f, env_float("GHOGX_DEBUG_HAND_POSE_STRIDE", 0.0f));
+    if (stride > 0.0f) {
+        static std::unordered_map<std::string, double> next_log_time;
+        std::string key(role);
+        key += ':';
+        key += phase;
+        double& next_time = next_log_time[key];
+        if (song_time + 1e-5 < next_time) return;
+        next_time = song_time + static_cast<double>(stride);
+    }
+
+    auto print_clip_list = [](const std::vector<std::string>& names) {
+        if (names.empty()) {
+            std::fprintf(stderr, "-");
+            return;
+        }
+        for (size_t i = 0; i < names.size(); ++i) {
+            std::fprintf(stderr, "%s%s", i == 0 ? "" : ",",
+                         names[i].c_str());
+        }
+    };
+
+    std::fprintf(stderr,
+                 "[handpose] phase=%.*s role=%.*s t=%.3f tick=%u mask=0x%02x "
+                 "strum=",
+                 static_cast<int>(phase.size()), phase.data(),
+                 static_cast<int>(role.size()), role.data(), song_time, tick,
+                 mask & 0x1fu);
+    print_clip_list(strum_clips);
+    std::fprintf(stderr, " fret=");
+    print_clip_list(fret_clips);
+    std::fprintf(stderr, "\n");
+
+    static constexpr const char* kBones[] = {
+        "bone_fret_hand",
+        "bone_L-index01",
+        "bone_L-index02",
+        "bone_L-index03",
+        "bone_L-middlefinger01",
+        "bone_L-middlefinger02",
+        "bone_L-middlefinger03",
+        "bone_L-ringfinger01",
+        "bone_L-ringfinger02",
+        "bone_L-ringfinger03",
+        "bone_L-pinky01",
+        "bone_L-pinky02",
+        "bone_L-pinky03",
+        "bone_L-thumb01",
+        "bone_L-thumb02",
+        "bone_L-thumb03",
+        "bone_strum_hand",
+        "bone_R-index01",
+        "bone_R-index02",
+        "bone_R-index03",
+        "bone_R-middlefinger01",
+        "bone_R-middlefinger02",
+        "bone_R-middlefinger03",
+        "bone_R-ringfinger01",
+        "bone_R-ringfinger02",
+        "bone_R-ringfinger03",
+        "bone_R-pinky01",
+        "bone_R-pinky02",
+        "bone_R-pinky03",
+        "bone_R-thumb01",
+        "bone_R-thumb02",
+        "bone_R-thumb03",
+    };
+
+    for (const char* wanted : kBones) {
+        const auto* bone = find_hand_pose_bone(character, wanted);
+        if (!bone) continue;
+        const auto world = character.bone_world_local_chain(bone->name);
+        const auto& local = bone->local;
+        std::fprintf(
+            stderr,
+            "[handpose] phase=%.*s role=%.*s bone=%s exact=%s "
+            "localPos=(%.5f %.5f %.5f) world=(%.5f %.5f %.5f) "
+            "r0=(%.5f %.5f %.5f) r1=(%.5f %.5f %.5f) "
+            "r2=(%.5f %.5f %.5f)\n",
+            static_cast<int>(phase.size()), phase.data(),
+            static_cast<int>(role.size()), role.data(), wanted,
+            bone->name.c_str(), local.pos[0], local.pos[1], local.pos[2],
+            world[12], world[13], world[14], local.rot[0][0],
+            local.rot[0][1], local.rot[0][2], local.rot[1][0],
+            local.rot[1][1], local.rot[1][2], local.rot[2][0],
+            local.rot[2][1], local.rot[2][2]);
+    }
 }
 
 std::array<float, 16> mat4_mul_game(const std::array<float, 16>& a,
@@ -4296,6 +4417,32 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                  "[world] %s start xfm flags=%u pos=(%.1f %.1f %.1f)\n",
                                  perf.role.c_str(), start_flag, start->pos[0],
                                  start->pos[1], start->pos[2]);
+                    if (debug_performer_start_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world-start-row] %s row0 %.5f %.5f %.5f %.5f\n",
+                            perf.role.c_str(), perf.world_transform[0],
+                            perf.world_transform[1], perf.world_transform[2],
+                            perf.world_transform[3]);
+                        std::fprintf(
+                            stderr,
+                            "[world-start-row] %s row1 %.5f %.5f %.5f %.5f\n",
+                            perf.role.c_str(), perf.world_transform[4],
+                            perf.world_transform[5], perf.world_transform[6],
+                            perf.world_transform[7]);
+                        std::fprintf(
+                            stderr,
+                            "[world-start-row] %s row2 %.5f %.5f %.5f %.5f\n",
+                            perf.role.c_str(), perf.world_transform[8],
+                            perf.world_transform[9], perf.world_transform[10],
+                            perf.world_transform[11]);
+                        std::fprintf(
+                            stderr,
+                            "[world-start-row] %s row3 %.5f %.5f %.5f %.5f\n",
+                            perf.role.c_str(), perf.world_transform[12],
+                            perf.world_transform[13], perf.world_transform[14],
+                            perf.world_transform[15]);
+                    }
                 }
 
                 if (!prop_milo.empty()) {
@@ -5057,6 +5204,19 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 ghogx::character::apply_clip_channel_layers(
                     pose_layers, character, pose_relative);
             }
+            if (hand_driver_active) {
+                const uint32_t debug_hand_mask =
+                    perf_anim_note_cue.active
+                        ? (perf_anim_note_cue.mask & 0x1fu)
+                        : 0u;
+                const uint32_t debug_hand_tick =
+                    perf_anim_note_cue.active ? perf_anim_note_cue.tick
+                                              : UINT32_MAX;
+                dump_hand_pose_rows(
+                    character, perf.role, "postclip", song_time_,
+                    debug_hand_tick, debug_hand_mask,
+                    perf.active_strum_clip_names, perf.active_fret_clip_names);
+            }
             ghogx::character::clear_runtime_ik_weights(character);
             if (hand_driver_active) {
                 // Accepted PS2 hand traces show finger_open/strum_open flowing
@@ -5090,6 +5250,19 @@ void Gameplay::draw(ghogx::render::Window& win) {
             ghogx::character::FaceFxEyeProperties eye_props;
             ghogx::character::apply_character_controllers(
                 character, static_cast<float>(song_time_), &eye_props);
+            if (hand_driver_active) {
+                const uint32_t debug_hand_mask =
+                    perf_anim_note_cue.active
+                        ? (perf_anim_note_cue.mask & 0x1fu)
+                        : 0u;
+                const uint32_t debug_hand_tick =
+                    perf_anim_note_cue.active ? perf_anim_note_cue.tick
+                                              : UINT32_MAX;
+                dump_hand_pose_rows(
+                    character, perf.role, "postcontrollers", song_time_,
+                    debug_hand_tick, debug_hand_mask,
+                    perf.active_strum_clip_names, perf.active_fret_clip_names);
+            }
             if (perf.facefx_graph) {
                 auto registers =
                     facefx_animation_

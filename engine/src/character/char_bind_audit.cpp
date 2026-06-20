@@ -7,6 +7,7 @@
 
 #include "character/char_mesh.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -107,6 +108,100 @@ bool should_show_all(int argc, char** argv) {
   return false;
 }
 
+std::string mesh_detail_name(int argc, char** argv) {
+  for (int i = 1; i + 1 < argc; ++i) {
+    if (std::strcmp(argv[i], "--mesh-detail") == 0) return argv[i + 1];
+  }
+  return {};
+}
+
+struct Bounds {
+  float min[3] = {999999.0f, 999999.0f, 999999.0f};
+  float max[3] = {-999999.0f, -999999.0f, -999999.0f};
+  int count = 0;
+};
+
+void add_bounds(Bounds& b, const ghogx::character::SkinVertex& v) {
+  const float p[3] = {v.px, v.py, v.pz};
+  for (int axis = 0; axis < 3; ++axis) {
+    b.min[axis] = std::min(b.min[axis], p[axis]);
+    b.max[axis] = std::max(b.max[axis], p[axis]);
+  }
+  ++b.count;
+}
+
+void print_bounds(const char* label, const Bounds& b) {
+  if (b.count == 0) {
+    std::printf("%s count=0\n", label);
+    return;
+  }
+  std::printf(
+      "%s count=%d bbox=(%.3f %.3f %.3f)..(%.3f %.3f %.3f)\n",
+      label, b.count, b.min[0], b.min[1], b.min[2], b.max[0], b.max[1],
+      b.max[2]);
+}
+
+void audit_mesh_detail(const Character& c, const SkinnedMesh& m) {
+  const size_t nb = m.bone_palette.size();
+  std::printf(
+      "[mesh-detail] char=%s mesh=%s parent=%s mat=%s verts=%zu faces=%zu "
+      "palette=%zu bbox=(%.3f %.3f %.3f)..(%.3f %.3f %.3f)\n",
+      c.dir_name.c_str(), m.name.c_str(), m.parent.c_str(),
+      m.material.c_str(), m.verts.size(), m.indices.size() / 3, nb,
+      m.bb_min[0], m.bb_min[1], m.bb_min[2], m.bb_max[0], m.bb_max[1],
+      m.bb_max[2]);
+
+  std::vector<float> weight_sum(nb, 0.0f);
+  std::vector<float> weight_max(nb, 0.0f);
+  std::vector<int> nonzero_count(nb, 0);
+  std::vector<int> dominant_count(nb, 0);
+  std::vector<Bounds> nonzero_bounds(nb);
+  std::vector<Bounds> dominant_bounds(nb);
+  Bounds raw_bounds;
+  for (const auto& v : m.verts) {
+    add_bounds(raw_bounds, v);
+    size_t dominant = 0;
+    float dominant_weight = -1.0f;
+    for (size_t i = 0; i < nb && i < 4; ++i) {
+      const float w = v.w[i];
+      weight_sum[i] += w;
+      weight_max[i] = std::max(weight_max[i], w);
+      if (w > 0.001f) {
+        ++nonzero_count[i];
+        add_bounds(nonzero_bounds[i], v);
+      }
+      if (w > dominant_weight) {
+        dominant = i;
+        dominant_weight = w;
+      }
+    }
+    if (nb > 0 && dominant < nb && dominant_weight > 0.001f) {
+      ++dominant_count[dominant];
+      add_bounds(dominant_bounds[dominant], v);
+    }
+  }
+
+  print_bounds("[mesh-detail]   raw", raw_bounds);
+  for (size_t i = 0; i < nb; ++i) {
+    std::printf(
+        "[mesh-detail]   slot=%zu bone=%s weightSum=%.3f max=%.3f "
+        "nonzero=%d dominant=%d\n",
+        i, m.bone_palette[i].c_str(), weight_sum[i], weight_max[i],
+        nonzero_count[i], dominant_count[i]);
+    print_bounds("[mesh-detail]     nonzero", nonzero_bounds[i]);
+    print_bounds("[mesh-detail]     dominant", dominant_bounds[i]);
+    if (i < m.bind.size()) {
+      const auto bind = xfm_to_mat4(m.bind[i]);
+      std::printf(
+          "[mesh-detail]     bind row0=(%.4f %.4f %.4f) "
+          "row1=(%.4f %.4f %.4f) row2=(%.4f %.4f %.4f) "
+          "pos=(%.4f %.4f %.4f)\n",
+          bind[0], bind[1], bind[2], bind[4], bind[5], bind[6], bind[8],
+          bind[9], bind[10], bind[12], bind[13], bind[14]);
+    }
+  }
+}
+
 void audit_mesh(const Character& c, const SkinnedMesh& m, bool all) {
   const size_t nb = m.bone_palette.size();
   if (nb == 0 || m.bind.size() < nb) return;
@@ -179,7 +274,7 @@ std::vector<std::string> default_character_paths() {
 void usage() {
   std::fprintf(stderr,
                "usage: ghogx_character_bind_audit --ark-dir <GEN> [--all] "
-               "[char/...milo_ps2 ...]\n");
+               "[--mesh-detail <mesh>] [char/...milo_ps2 ...]\n");
 }
 
 }  // namespace
@@ -193,6 +288,8 @@ int main(int argc, char** argv) {
       ark_dir = argv[++i];
     } else if (arg == "--all") {
       // handled separately
+    } else if (arg == "--mesh-detail" && i + 1 < argc) {
+      ++i;
     } else if (!arg.empty() && arg[0] != '-') {
       milos.push_back(arg);
     } else {
@@ -205,6 +302,7 @@ int main(int argc, char** argv) {
     return 2;
   }
   if (milos.empty()) milos = default_character_paths();
+  const std::string detail_mesh = mesh_detail_name(argc, argv);
 
   const std::filesystem::path dir(ark_dir);
   const std::string hdr = (dir / "main.hdr").string();
@@ -221,6 +319,9 @@ int main(int argc, char** argv) {
     }
     for (const SkinnedMesh& m : c.meshes) {
       audit_mesh(c, m, all);
+      if (!detail_mesh.empty() && m.name == detail_mesh) {
+        audit_mesh_detail(c, m);
+      }
     }
   }
   return failed == 0 ? 0 : 1;

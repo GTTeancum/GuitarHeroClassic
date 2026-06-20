@@ -2916,6 +2916,49 @@ static std::array<float, 16> output_node_corrected_world(
                   mat4_mul(affine_inverse(bind_chain), stored_world));
 }
 
+static bool hand_output_layer_disabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool disabled =
+      _dupenv_s(&value, &len, "GHOGX_DISABLE_HAND_OUTPUT_LAYER") == 0 &&
+      value && value[0];
+  std::free(value);
+  return disabled;
+#else
+  const char* value = std::getenv("GHOGX_DISABLE_HAND_OUTPUT_LAYER");
+  return value && value[0];
+#endif
+}
+
+static bool is_hand_driver_root_key(const std::string& key) {
+  return key == "bone_strum" || key == "bone_strum_hand" ||
+         key == "bone_fret" || key == "bone_fret_hand";
+}
+
+static bool is_hand_driver_output_key(const std::string& key) {
+  if (is_hand_driver_root_key(key)) return true;
+  const bool left_or_right =
+      key.rfind("bone_L-", 0) == 0 || key.rfind("bone_R-", 0) == 0;
+  if (!left_or_right) return false;
+  return key.find("-hand") != std::string::npos ||
+         key.find("-index") != std::string::npos ||
+         key.find("-middlefinger") != std::string::npos ||
+         key.find("-ringfinger") != std::string::npos ||
+         key.find("-pinky") != std::string::npos ||
+         key.find("-thumb") != std::string::npos;
+}
+
+static bool output_bones_have_hand_driver_root(
+    const std::vector<CharClip::OutputBone>& output_bones) {
+  for (const auto& out : output_bones) {
+    if (is_hand_driver_root_key(strip_transform_suffix(out.name))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static int output_depth(const std::vector<OutputPoseNode>& nodes,
                         const std::unordered_map<std::string, size_t>& by_key,
                         size_t index) {
@@ -3131,7 +3174,8 @@ static void dump_charbone_output_map(
 
 static bool apply_clip_pose_output_layer(
     const std::vector<ClipChannel>& channels, float weight, Character& character,
-    bool relative, const std::vector<CharClip::OutputBone>& output_bones) {
+    bool relative, const std::vector<CharClip::OutputBone>& output_bones,
+    bool force_selected_output = false) {
   if (output_bones.empty()) {
     return false;
   }
@@ -3167,7 +3211,8 @@ static bool apply_clip_pose_output_layer(
       continue;
     }
     const bool driven_by_selected_output =
-        full_output_layer || output_map_lower_body_bone(it->first) ||
+        force_selected_output || full_output_layer ||
+        output_map_lower_body_bone(it->first) ||
         (face_output_layer && output_map_face_bone(it->first));
     if (!driven_by_selected_output) {
       direct_channels.push_back(ch);
@@ -3258,6 +3303,86 @@ static bool apply_clip_pose_output_layer(
                                    relative);
   }
   return true;
+}
+
+static void apply_hand_driver_output_layer(
+    const std::vector<ClipChannel>& frame, Character& character, bool relative,
+    const std::vector<CharClip::OutputBone>& source_output_bones) {
+  if (hand_output_layer_disabled() || frame.empty() ||
+      !output_bones_have_hand_driver_root(source_output_bones)) {
+    return;
+  }
+
+  std::vector<CharClip::OutputBone> hand_output_bones;
+  std::unordered_set<std::string> hand_keys;
+  for (const auto& out : source_output_bones) {
+    const std::string key = strip_transform_suffix(out.name);
+    if (!is_hand_driver_output_key(key)) continue;
+    if (!hand_keys.insert(key).second) continue;
+    hand_output_bones.push_back(out);
+  }
+  if (hand_output_bones.empty()) return;
+
+  std::vector<ClipChannel> hand_channels;
+  hand_channels.reserve(frame.size());
+  for (const auto& ch : frame) {
+    if (hand_keys.find(strip_transform_suffix(ch.bone_name)) ==
+        hand_keys.end()) {
+      continue;
+    }
+    hand_channels.push_back(ch);
+  }
+  if (hand_channels.empty()) return;
+
+  // Hand-driver clips carry their own CharBone output graph: fingers are
+  // authored under bone_strum_hand/bone_fret_hand targets, not the body clip's
+  // bind hand. Keep the normal combiner result, but apply these selected rows
+  // through that hand graph so the visible fingers inherit the authored grip.
+  apply_clip_pose_output_layer(hand_channels, 1.0f, character, relative,
+                               hand_output_bones, true);
+}
+
+static void apply_hand_driver_output_layers(
+    const std::vector<ClipChannel>& frame, Character& character, bool relative,
+    const std::vector<ClipChannelLayer>& layers) {
+  if (hand_output_layer_disabled() || frame.empty()) return;
+
+  bool has_hand_driver_overlay = false;
+  for (const auto& layer : layers) {
+    if (!layer.overlay_override || !layer.output_bones) continue;
+    if (output_bones_have_hand_driver_root(*layer.output_bones)) {
+      has_hand_driver_overlay = true;
+      break;
+    }
+  }
+  if (!has_hand_driver_overlay) return;
+
+  std::vector<CharClip::OutputBone> hand_output_bones;
+  std::unordered_set<std::string> hand_keys;
+  for (const auto& layer : layers) {
+    if (!layer.output_bones) continue;
+    for (const auto& out : *layer.output_bones) {
+      const std::string key = strip_transform_suffix(out.name);
+      if (!is_hand_driver_output_key(key)) continue;
+      if (!hand_keys.insert(key).second) continue;
+      hand_output_bones.push_back(out);
+    }
+  }
+  if (hand_output_bones.empty()) return;
+
+  std::vector<ClipChannel> hand_channels;
+  hand_channels.reserve(frame.size());
+  for (const auto& ch : frame) {
+    if (hand_keys.find(strip_transform_suffix(ch.bone_name)) ==
+        hand_keys.end()) {
+      continue;
+    }
+    hand_channels.push_back(ch);
+  }
+  if (hand_channels.empty()) return;
+
+  apply_clip_pose_output_layer(hand_channels, 1.0f, character, relative,
+                               hand_output_bones, true);
 }
 
 static size_t char_hair_point_count(const Character& character) {
@@ -4737,9 +4862,11 @@ void apply_clip_channel_layers(const std::vector<ClipChannelLayer>& layers,
 
   if (apply_clip_pose_output_layer(frame, 1.0f, character, relative,
                                    output_bones)) {
+    apply_hand_driver_output_layers(frame, character, relative, layers);
     return;
   }
   apply_clip_pose_sampled_direct(frame, 1.0f, character, relative);
+  apply_hand_driver_output_layers(frame, character, relative, layers);
 }
 
 void CharClipPlayer::clear() {
@@ -4810,12 +4937,17 @@ void CharClipPlayer::apply(Character& character, float weight) const {
   if (frame.empty()) return;
   const bool relative = sampled_pose_relative();
   const CharClip* current = current_clip();
-  if (current &&
-      apply_clip_pose_output_layer(frame, weight, character, relative,
-                                   current->output_bones)) {
+  if (current && apply_clip_pose_output_layer(frame, weight, character, relative,
+                                              current->output_bones)) {
+    apply_hand_driver_output_layer(frame, character, relative,
+                                   current->output_bones);
     return;
   }
   apply_clip_pose_sampled_direct(frame, weight, character, relative);
+  if (current) {
+    apply_hand_driver_output_layer(frame, character, relative,
+                                   current->output_bones);
+  }
 }
 
 std::vector<ClipChannel> CharClipPlayer::sampled_pose() const {
