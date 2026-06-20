@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <unordered_set>
 #include <vector>
 
@@ -379,6 +380,16 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   std::memcpy(&dp, &proj, 64);
   dev_->SetTransform(D3DTS_VIEW, &dv);
   dev_->SetTransform(D3DTS_PROJECTION, &dp);
+  const auto view_arr = [&]() {
+    std::array<float, 16> out{};
+    std::memcpy(out.data(), &view, 64);
+    return out;
+  }();
+  const auto proj_arr = [&]() {
+    std::array<float, 16> out{};
+    std::memcpy(out.data(), &proj, 64);
+    return out;
+  }();
 
   dev_->SetFVF(kFVF);
   dev_->SetRenderState(D3DRS_ZENABLE, TRUE);
@@ -452,6 +463,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     const std::string& material =
         (material_override && !material_override->empty()) ? *material_override
                                                            : m.material;
+    const bool debug_spotlight_solid =
+        spotlight_state && env_enabled("GHOGX_DEBUG_SPOTLIGHT_SOLID");
     if (const auto* mat = scene_.find_mat(material)) {
       auto it = tex_.find(mat->diffuse_tex);
       if (it != tex_.end()) texture = it->second;
@@ -474,6 +487,14 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     if (const auto alpha_it = material_alpha_.find(material);
         alpha_it != material_alpha_.end()) {
       ma *= alpha_it->second;
+    }
+    if (debug_spotlight_solid) {
+      texture = nullptr;
+      mr = 1.0f;
+      mg = 0.0f;
+      mb = 1.0f;
+      ma = 1.0f;
+      material_additive = false;
     }
     if (ma <= 0.001f) return;
     if (env_enabled("GHOGX_LOG_ALPHA_MESHES") &&
@@ -498,11 +519,19 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
       dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
       dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+      dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
     } else {
       dev_->SetTexture(0, nullptr);
       dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
       dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
       dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+      dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+    }
+
+    DWORD prev_lighting = TRUE;
+    if (debug_spotlight_solid) {
+      dev_->GetRenderState(D3DRS_LIGHTING, &prev_lighting);
+      dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
     }
 
     vb.clear();
@@ -525,6 +554,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m.vertex_count),
         static_cast<UINT>(m.face_count), m.indices.data(), D3DFMT_INDEX16,
         vb.data(), sizeof(SVtx));
+    if (debug_spotlight_solid) {
+      dev_->SetRenderState(D3DRS_LIGHTING, prev_lighting);
+    }
   };
 
   std::vector<const milo_scene::MeshObj*> draw_meshes;
@@ -532,7 +564,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   std::unordered_set<const milo_scene::MeshObj*> queued;
   for (const auto& name : scene_.draw_order) {
     for (const auto& m : scene_.meshes) {
-      if (&m && queued.find(&m) == queued.end() && m.name == name) {
+      if (queued.find(&m) == queued.end() && m.name == name) {
         draw_meshes.push_back(&m);
         queued.insert(&m);
         break;
@@ -689,7 +721,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       if (!group) continue;
       auto spot_world = xfm_to_mat4(spot.world_stored);
       if (active_it != active_spotlights_.end() &&
-          !active_it->second.target_mesh.empty()) {
+          !active_it->second.target_mesh.empty() &&
+          !env_enabled("GHOGX_DISABLE_SPOTLIGHT_TARGET_AIM")) {
         for (const auto& target : scene_.meshes) {
           if (target.name != active_it->second.target_mesh) continue;
           const auto target_world = scene_.world_matrix(target);
@@ -743,15 +776,79 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       }
       spot_world = mul16(spot_world, world_transform_);
       if (additive_blend_) {
-        if (!active_spotlight_filter_ ||
-            active_it == active_spotlights_.end() || spot.circle_mesh.empty())
+        if (!active_spotlight_filter_ || active_it == active_spotlights_.end())
           continue;
+        DWORD prev_z_enable = TRUE;
+        if (env_enabled("GHOGX_DISABLE_SPOTLIGHT_DEPTH")) {
+          dev_->GetRenderState(D3DRS_ZENABLE, &prev_z_enable);
+          dev_->SetRenderState(D3DRS_ZENABLE, FALSE);
+        }
+        bool drew_circle = false;
         for (const auto& m : scene_.meshes) {
-          if (m.name != spot.circle_mesh) continue;
+          if (spot.circle_mesh.empty() || m.name != spot.circle_mesh) continue;
           const std::string* mat =
               spot.circle_material.empty() ? nullptr : &spot.circle_material;
           draw_mesh_with_world(m, spot_world, mat, &active_it->second);
+          drew_circle = true;
           break;
+        }
+        for (const auto& child : group->children) {
+          if (child == spot.circle_mesh && drew_circle) continue;
+          if (hidden_meshes_.find(child) != hidden_meshes_.end()) continue;
+          for (const auto& m : scene_.meshes) {
+            if (m.name != child) continue;
+            draw_mesh_with_world(m, spot_world, nullptr, &active_it->second);
+            if (env_enabled("GHOGX_LOG_SPOTLIGHT_MESHES")) {
+              const auto wv = mul16(spot_world, view_arr);
+              const auto wvp = mul16(wv, proj_arr);
+              float min_x = std::numeric_limits<float>::infinity();
+              float min_y = std::numeric_limits<float>::infinity();
+              float max_x = -std::numeric_limits<float>::infinity();
+              float max_y = -std::numeric_limits<float>::infinity();
+              size_t in_front = 0;
+              size_t on_screen = 0;
+              for (const auto& v : m.verts) {
+                const float x =
+                    v.px * wvp[0] + v.py * wvp[4] + v.pz * wvp[8] + wvp[12];
+                const float y =
+                    v.px * wvp[1] + v.py * wvp[5] + v.pz * wvp[9] + wvp[13];
+                const float w =
+                    v.px * wvp[3] + v.py * wvp[7] + v.pz * wvp[11] + wvp[15];
+                if (w <= 0.001f) continue;
+                ++in_front;
+                const float nx = x / w;
+                const float ny = y / w;
+                min_x = std::min(min_x, nx);
+                max_x = std::max(max_x, nx);
+                min_y = std::min(min_y, ny);
+                max_y = std::max(max_y, ny);
+                if (nx >= -1.0f && nx <= 1.0f && ny >= -1.0f && ny <= 1.0f)
+                  ++on_screen;
+              }
+              std::fprintf(stderr,
+                           "[milo_scene] spotlight draw spot=%s mesh=%s material=%s world_pos=(%.2f %.2f %.2f) clip_verts=%zu/%zu on_screen=%zu ndc=(%.2f %.2f)..(%.2f %.2f)\n",
+                           spot.name.c_str(), m.name.c_str(),
+                           m.material.c_str(), spot_world[12], spot_world[13],
+                           spot_world[14], in_front, m.verts.size(), on_screen,
+                           min_x, min_y, max_x, max_y);
+            }
+            break;
+          }
+        }
+        if (env_enabled("GHOGX_LOG_ALPHA_MESHES")) {
+          static std::unordered_set<std::string> logged_spots;
+          if (logged_spots.insert(spot.name).second) {
+            std::fprintf(stderr,
+                         "[milo_scene] active spotlight name=%s group=%s children=%zu circle=%s target=%s intensity=%.3f color=(%.3f %.3f %.3f)\n",
+                         spot.name.c_str(), spot.group.c_str(),
+                         group->children.size(), spot.circle_mesh.c_str(),
+                         active_it->second.target_mesh.c_str(),
+                         active_it->second.intensity, active_it->second.r,
+                         active_it->second.g, active_it->second.b);
+          }
+        }
+        if (env_enabled("GHOGX_DISABLE_SPOTLIGHT_DEPTH")) {
+          dev_->SetRenderState(D3DRS_ZENABLE, prev_z_enable);
         }
         continue;
       }

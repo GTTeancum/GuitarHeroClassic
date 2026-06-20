@@ -93,10 +93,13 @@ void read_spotlight_trans_block(Reader& r, Xfm& local, Xfm& world,
                                 std::string& parent) {
   int32_t ver = r.i32();
   (void)ver;                 // = 20 for GH2 PS2 Spotlight
-  r.skip(0x2c);              // Spotlight object metadata before Trans matrices.
+  // Spotlight embeds its Trans block after a draw/property header. Raw GH2 PS2
+  // spotlights place the local matrix at entry+0x2a and the resolved world at
+  // entry+0x5a, followed by the normal 9-byte Trans metadata and parent string.
+  r.skip(0x26);
   local = r.matrix();
   world = r.matrix();
-  r.skip(3);
+  r.skip(kObjMeta);
   parent = r.str();
 }
 
@@ -255,7 +258,10 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
       s.group = ref;
     } else if (ref.rfind(".mesh") != std::string::npos) {
       if (ref.rfind("SPOT_circle", 0) == 0) s.circle_mesh = ref;
-      s.target = ref;
+      const bool authored_target =
+          ref.size() >= 12 &&
+          ref.compare(ref.size() - 12, 12, "_target.mesh") == 0;
+      if (authored_target || s.target.empty()) s.target = ref;
     }
   }
   s.decoded = true;

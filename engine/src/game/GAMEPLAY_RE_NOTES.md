@@ -149,6 +149,36 @@ Open work:
   used as a data-backed guard for direct/inferred spotlight activation, avoiding
   named venue or song rules.
 
+2026-06-20 lighting format follow-up:
+
+- `LightPreset` target rows are packed after the target string, not before it.
+  For a row whose length field starts at `pos`, `payload = pos + 4 + len`.
+  The row then carries nine bytes of metadata followed by unaligned floats:
+  `payload + 9` is the light amount, while `payload + 29/+33/+37` are RGB.
+  The floats between those fields match target/position-style data and are not
+  currently used as color. The previous native decoder read `pos - 36` and
+  `pos - 16/-12/-8`, which produced zero intensities for active rows.
+- `Spotlight` entries in `battle_lighting.milo_ps2` embed their Trans rows at
+  stable raw offsets: local matrix at entry `+0x2a`, resolved world matrix at
+  `+0x5a`, then the normal 9-byte Trans metadata and parent string. Native now
+  skips `0x26` bytes after the version word before reading those matrices.
+  Validation rows for `right_round03_spotlight.spot` decode to
+  `world_pos=(132.86,172.39,138.81)` instead of zero/garbage.
+- Spotlight object string order matters. If an object contains both
+  `lightXX_target.mesh` and later decorative meshes, the first
+  `_target.mesh` is the aiming target. Native preserves that target instead of
+  overwriting it with later mesh refs.
+- Render-state validation found a real D3D fixed-function edge: when a draw has
+  no texture, both color and alpha must select diffuse. Leaving alpha as
+  `texture * diffuse` makes null-texture debug/overlay draws contribute zero.
+- Evidence is retained under
+  `engine/out/codex_goal_20260620_lighting_real_after_alpha/`. With authored
+  materials and no debug solid override, `woman`/Battle frame 500 now differs
+  between spotlight instances on/off by 7,055 RGB pixels, bbox
+  `(621,102)..(997,285)`. Frame 900 is unchanged for that camera/preset window.
+  Treat this as proof that the shared lighting decode/render path is alive, not
+  final lighting parity.
+
 2026-06-14 native validation:
 
 - `engine/out/native_song_20260614/yyz_f900_med_default_fullband_keyboard.bmp`

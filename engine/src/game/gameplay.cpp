@@ -1590,17 +1590,21 @@ std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
                 add_unique(k.mesh_targets, std::move(s));
                 if (target.size() >= 12 &&
                     target.compare(target.size() - 12, 12, "_target.mesh") == 0 &&
-                    pos >= 36) {
+                    pos + 4 + len + 41 <= label_off) {
+                    const size_t payload = pos + 4 + len;
                     Gameplay::LightingPreset::TargetState state;
                     state.target = target;
+                    // LightPreset target rows are packed: string, nine bytes of
+                    // row metadata, then unaligned floats. The first float is the
+                    // light amount; the final vec3 is RGB.
                     state.intensity = std::clamp(
-                        read_f32_at(body, size, pos - 36, 0.0f), 0.0f, 1.0f);
+                        read_f32_at(body, size, payload + 9, 0.0f), 0.0f, 4.0f);
                     state.color[0] = std::clamp(
-                        read_f32_at(body, size, pos - 16, 1.0f), 0.0f, 4.0f);
+                        read_f32_at(body, size, payload + 29, 1.0f), 0.0f, 4.0f);
                     state.color[1] = std::clamp(
-                        read_f32_at(body, size, pos - 12, 1.0f), 0.0f, 4.0f);
+                        read_f32_at(body, size, payload + 33, 1.0f), 0.0f, 4.0f);
                     state.color[2] = std::clamp(
-                        read_f32_at(body, size, pos - 8, 1.0f), 0.0f, 4.0f);
+                        read_f32_at(body, size, payload + 37, 1.0f), 0.0f, 4.0f);
                     k.target_states.push_back(std::move(state));
                 }
             } else if (s.rfind(".spot") != std::string::npos) {
