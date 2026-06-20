@@ -14,6 +14,8 @@
 //   ghogx_app --song <shortname>      which song to play (default: shoutatthedevil)
 //   ghogx_app --difficulty <0-3>      chart difficulty (default: 1 = Medium)
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
+//   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
+//                                      capture numbered BMPs in gameplay mode
 
 #include "asset/milo_image.h"
 #include "character/char_clip.h"
@@ -40,12 +42,15 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 namespace {
+
+using ScreenshotSequence = std::map<uint64_t, std::string>;
 
 // A timed fade-through-black sequence of splash images (boot logos -> title).
 // Each non-final slide fades in, holds, fades out; the final slide fades in and
@@ -283,9 +288,17 @@ class AppEngine : public ghogx::Engine {
 
   void on_present() override {
     // Dev self-verification: capture the rendered frame before presenting.
+    const uint64_t frame = frame_count();
     if (!screenshot_path_.empty() &&
-        frame_count() == static_cast<uint64_t>(screenshot_frame_)) {
+        frame == static_cast<uint64_t>(screenshot_frame_)) {
       win_->save_screenshot(screenshot_path_.c_str());
+    }
+    const auto seq_it = screenshot_sequence_.find(frame);
+    if (seq_it != screenshot_sequence_.end()) {
+      win_->save_screenshot(seq_it->second.c_str());
+      std::fprintf(stderr, "[ghogx] saved screenshot %s at frame %llu\n",
+                   seq_it->second.c_str(),
+                   static_cast<unsigned long long>(frame));
     }
     win_->present();
   }
@@ -395,6 +408,7 @@ class AppEngine : public ghogx::Engine {
   // Dev screenshot capture.
   std::string screenshot_path_;
   int         screenshot_frame_ = 0;
+  ScreenshotSequence screenshot_sequence_;
 
   // Synthetic held-key state for fret input.
   uint32_t held_fret_mask_ = 0;
@@ -405,6 +419,10 @@ class AppEngine : public ghogx::Engine {
   void set_screenshot(const std::string& path, int frame) {
     screenshot_path_ = path;
     screenshot_frame_ = frame;
+  }
+
+  void set_screenshot_sequence(ScreenshotSequence sequence) {
+    screenshot_sequence_ = std::move(sequence);
   }
 
   void set_deterministic_gameplay_clock(bool deterministic) {
@@ -419,6 +437,53 @@ class AppEngine : public ghogx::Engine {
     }
   }
 };
+
+bool is_screenshot_frame_separator(char c) {
+  return c == ',' || c == ';' || c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
+std::vector<uint64_t> parse_screenshot_frames(const std::string& frames_arg) {
+  std::vector<uint64_t> frames;
+  const char* p = frames_arg.c_str();
+  while (*p) {
+    while (*p && is_screenshot_frame_separator(*p)) ++p;
+    if (!*p) break;
+    char* end = nullptr;
+    const unsigned long long frame = std::strtoull(p, &end, 10);
+    if (end == p) {
+      while (*p && !is_screenshot_frame_separator(*p)) ++p;
+      continue;
+    }
+    frames.push_back(static_cast<uint64_t>(frame));
+    p = end;
+  }
+  std::sort(frames.begin(), frames.end());
+  frames.erase(std::unique(frames.begin(), frames.end()), frames.end());
+  return frames;
+}
+
+ScreenshotSequence make_screenshot_sequence(const std::string& out_dir,
+                                            const std::string& frames_arg) {
+  ScreenshotSequence sequence;
+  const std::vector<uint64_t> frames = parse_screenshot_frames(frames_arg);
+  if (out_dir.empty() || frames.empty()) return sequence;
+
+  std::error_code ec;
+  std::filesystem::create_directories(out_dir, ec);
+  if (ec) {
+    std::fprintf(stderr, "[ghogx] failed to create screenshot dir %s: %s\n",
+                 out_dir.c_str(), ec.message().c_str());
+    return sequence;
+  }
+
+  for (const uint64_t frame : frames) {
+    char name[64];
+    std::snprintf(name, sizeof(name), "frame_%05llu.bmp",
+                  static_cast<unsigned long long>(frame));
+    sequence.emplace(frame, (std::filesystem::path(out_dir) / name).string());
+  }
+  return sequence;
+}
 
 // ---------------------------------------------------------------------------
 // --scene mode: load a .milo_ps2, decode its 3-D render objects, and draw the
@@ -1301,6 +1366,8 @@ int main(int argc, char** argv) {
   bool auto_start = false;  // skip splash/title, load song immediately
   std::string screenshot_path;
   int screenshot_frame = 30;
+  std::string screenshot_sequence_dir;
+  std::string screenshot_sequence_frames_arg;
   float fixed_dt = 0.0f;
   bool show_window = false;
   CamOverride cam_ovr;  // optional --cam-* overrides for the scene viewer
@@ -1354,6 +1421,10 @@ int main(int argc, char** argv) {
       screenshot_path = argv[++i];
     } else if (std::strcmp(argv[i], "--screenshot-frame") == 0 && i + 1 < argc) {
       screenshot_frame = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--screenshot-dir") == 0 && i + 1 < argc) {
+      screenshot_sequence_dir = argv[++i];
+    } else if (std::strcmp(argv[i], "--screenshot-frames") == 0 && i + 1 < argc) {
+      screenshot_sequence_frames_arg = argv[++i];
     } else if (std::strcmp(argv[i], "--fixed-dt") == 0 && i + 1 < argc) {
       fixed_dt = static_cast<float>(std::atof(argv[++i]));
     } else if (std::strcmp(argv[i], "--cam-yaw") == 0 && i + 1 < argc) {
@@ -1370,7 +1441,22 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (!screenshot_path.empty() && !show_window) {
+  const ScreenshotSequence screenshot_sequence =
+      make_screenshot_sequence(screenshot_sequence_dir, screenshot_sequence_frames_arg);
+  if (!screenshot_sequence_dir.empty() && screenshot_sequence.empty()) {
+    std::fprintf(stderr,
+                 "[ghogx] --screenshot-dir requires at least one valid --screenshot-frames value\n");
+    return 2;
+  }
+  if (!screenshot_sequence.empty() &&
+      (menu_mode || !scene_milo.empty() || !char_milo.empty() || hud_test)) {
+    std::fprintf(stderr,
+                 "[ghogx] --screenshot-dir/--screenshot-frames are currently gameplay-mode only\n");
+    return 2;
+  }
+  const bool capture_enabled = !screenshot_path.empty() || !screenshot_sequence.empty();
+
+  if (capture_enabled && !show_window) {
     _putenv_s("GHOGX_HIDE_WINDOW", "1");
   }
 
@@ -1463,7 +1549,7 @@ int main(int argc, char** argv) {
   AppEngine engine(win.get());
   engine.set_ark(hdr, ark);
   engine.set_song(song_name, difficulty);
-  if (!screenshot_path.empty() && fixed_dt <= 0.0f) fixed_dt = 1.0f / 60.0f;
+  if (capture_enabled && fixed_dt <= 0.0f) fixed_dt = 1.0f / 60.0f;
   if (fixed_dt > 0.0f) {
     engine.set_deterministic_gameplay_clock(true);
     std::fprintf(stderr, "[ghogx] fixed dt enabled: %.6f\n", fixed_dt);
@@ -1472,6 +1558,12 @@ int main(int argc, char** argv) {
     engine.set_screenshot(screenshot_path, screenshot_frame);
     // Auto-exit a couple frames after the capture.
     if (max_frames == 0) max_frames = screenshot_frame + 3;
+  }
+  if (!screenshot_sequence.empty()) {
+    engine.set_screenshot_sequence(screenshot_sequence);
+    if (max_frames == 0) {
+      max_frames = static_cast<int>(screenshot_sequence.rbegin()->first + 3);
+    }
   }
   if (auto_start && !hdr.empty()) {
     // Skip splash + title, load song immediately for diagnostic/dev runs.

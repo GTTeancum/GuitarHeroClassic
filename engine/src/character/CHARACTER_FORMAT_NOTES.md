@@ -2296,6 +2296,37 @@ Useful environment flags:
   visible wedge. Continue from shared `CharIKHand` row math / Trans dirty-world
   bridge evidence, not from static MIDI note positions or a Glam1-specific
   mesh route.
+- 2026-06-20 follow-up hand/arm row probe:
+  `engine/out/codex_goal_20260620_hand_row_probe/` keeps compact native rows
+  for a short `shoutatthedevil` Glam1 run plus focused `glam1.73.mesh` skin
+  rows. The native hand targets, hand local rows, foretwist rows, and vertex-0
+  output all move across adjacent frames, so the MIDI hand route remains live.
+  The same probe rechecked the accepted `pcsx2_ik_vec_calltime_20260614.json`
+  helper arguments: PS2 feeds `0x002dad00` with equal-length current/target
+  vectors, while native normalizes the pair before building the swing, so that
+  trace alone does not justify a new swing-order patch. `glam1.73.mesh` still
+  reports a near-identity mesh local-chain row (`~0.01020` translation only)
+  and stays on `mode=lbs-local-chain`; do not promote a mesh-local or
+  material-specific consumer from this evidence. Broad/side native captures in
+  the same folder and the earlier `codex_goal_20260619_arm_after_localtwist*`
+  folders no longer show the old catastrophic arm ribboning at those frames,
+  but they are not final arm sign-off. Continue with targeted stress-frame
+  reproduction if a visible arm bend remains, then patch only the shared
+  IK/twist/output/consumer rule proved by that mismatch.
+- 2026-06-20 native hand movement sweep:
+  `engine/out/codex_goal_20260620_hand_movement_native/` captures a fixed-dt
+  native `shoutatthedevil` gameplay run with `GHOGX_DEBUG_HAND_MAP=1`, camera
+  locked to `guitarist0`, and only that performer visible. The filtered log
+  proves the runtime loaded the real hand driver (`loaded=31`, `maps=7`,
+  `ikHands=2`, `ikMidis=1`), mapped the song to `HandMap_DropD2`, and selected
+  changing MIDI-driven hand clips/masks during the captured frames
+  (`finger_open`, `finger_vibrato_middle`, `finger_vibrato_ring`,
+  `finger_hold_index_hi`, `finger_hold_middle_hi`). The BMP sequence,
+  retained contact sheet, and MP4 show the native fret hand moving in-game
+  while the strum hand stays on the guitar; raw BMP intermediates may be
+  deleted after encoding to keep disk use down. Treat arms as
+  provisionally accepted from this checkpoint; keep hands in validation until
+  more songs/outfits prove the same route under normal in-song motion.
 
 Every outfit audit should capture:
 
