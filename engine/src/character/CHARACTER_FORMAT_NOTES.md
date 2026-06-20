@@ -2587,6 +2587,39 @@ Useful environment flags:
   `finger_powerchord_1` / `finger_powerchord_2`. This recheck supports the
   shared hand-map/output route on the current tree; do not add a hand-specific
   runtime change unless a new trace/native mismatch contradicts this evidence.
+- 2026-06-20 left-hand focused validation:
+  `engine/out/codex_goal_20260620_left_hand_focus_jordan_neckspot/` and
+  `engine/out/codex_goal_20260620_left_hand_focus_mrfixit_neckspot/` are the
+  fixed-neck, `GHOGX_ONLY_PERFORMER=guitarist0` captures made after the right
+  hand was accepted; a third route lives in
+  `engine/out/codex_goal_20260620_left_hand_focus_deathmetal_neckspot/`.
+  All three use `GHOGX_DEBUG_GAMEPLAY_CAMERA=1` anchored to the traced camera
+  target `guitarist0:spot_neck_fret20.mesh` instead of following
+  `bone_fret_hand`, so fret-hand travel is visible against the guitar neck.
+  The retained MP4s are `jordan_left_hand_neckspot_108s.mp4`,
+  `mrfixit_left_hand_neckspot_17s.mp4`, and
+  `laidtorest_deathmetal1_left_hand_neckspot_10s.mp4`; raw BMP frames were
+  deleted after encoding. Jordan still reads the authored performer source
+  `guitar_lane=3 notes=1802 player_diff=0` and emits 77 hand-map events over
+  the retained four-second clip, with masks `0x01`, `0x02`, `0x04`, `0x08`,
+  and `0x10`, selecting `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_pinky`, and `finger_hold_ring_hi`.
+  Its post-controller `bone_fret_hand` spans X/Y/Z =
+  `7.6714/16.1878/3.7972`; left index, pinky, and thumb finger joints show
+  rotation-value spans up to `1.6808`. Mr. Fix It exercises the chord route
+  with `guitar_lane=3 notes=868 player_diff=0`, 22 hand-map events, chord
+  masks `0x03`, `0x05`, `0x0a`, `0x14`, and `0x18`, and selected clips
+  `finger_powerchord_1` / `finger_powerchord_2`. Its `bone_fret_hand` spans
+  X/Y/Z = `7.8492/13.1624/14.0109`, and left finger/thumb joints show
+  rotation-value spans up to `1.9742`. Laid to Rest exercises the Deathmetal1
+  route with `guitar_lane=3 notes=1526 player_diff=3`, 29 hand-map events,
+  masks `0x02`, `0x04`, `0x08`, `0x0a`, and `0x10`, and selected clips
+  `finger_hold_index_hi`, `finger_hold_middle_hi`, `finger_hold_pinky`,
+  `finger_hold_ring_hi`, and `finger_powerchord_1`; its `bone_fret_hand`
+  spans X/Y/Z = `4.3301/16.4457/4.4295`, with left finger/thumb spans up to
+  `1.9089`. These three videos are the current left-hand visual checkpoint;
+  do not add character-specific or hand-specific
+  native fixes unless a new accepted trace/native mismatch contradicts them.
 - 2026-06-20 cross-guitar hand-output sweep:
   `engine/out/codex_goal_20260620_cross_guitar_hand_output/` repeats the
   promoted hand-output route on `rockthistown`/Rockabill1 and
