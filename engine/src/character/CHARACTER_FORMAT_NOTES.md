@@ -288,6 +288,14 @@ Weighted body-space hair:
     local Trans cancels the vertex bbox back into compact head-local space.
     This is distinct from Glam1 `hair-front.mesh`, whose vertices are already
     model-space and must stay on `head-model-delta`.
+  - 2026-06-20 isolation in
+    `engine/out/codex_goal_20260620_metal_bass_hair_isolation/summary.txt`
+    confirms `hair_top.mesh` is the blond cap/bang mesh and `hair_lower.mesh`
+    is not that face-covering cap. Hiding both named hair meshes still leaves
+    the brown beard/face mass, and the accepted PS2 wide frame
+    `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_bass_hair_mesh_descriptor_rows_20260611.window.png`
+    shows the same long hair-over-face bassist silhouette. Do not hide, offset,
+    or outfit-special-case these meshes without a closer accepted PS2 mismatch.
 
 Glam1 hair:
 
@@ -470,6 +478,12 @@ Glam1 hair:
   by hiding sheets or adding per-mesh offsets. Remaining work is limited to
   trace-backed row production/consumption, especially where native follow rows
   still collapse to identity in the local-attachment skin path.
+- 2026-06-20 current Glam1 audit:
+  `engine/out/codex_goal_20260620_hair_eye_current_audit/` rechecks the live
+  venue route at frame 780. `glam1_head_yaw_p080_f780.png` and
+  `glam1_head_yaw_m080_f780.png` keep both eye meshes seated in the socket band
+  while preserving the broad hair sheets seen in the accepted PS2 close frame.
+  This is evidence against a manual eye translation or sheet reattachment pass.
 - 2026-06-15 wrist close-up isolation after `88dc57e`:
   `engine/out/native_song_20260615/glam1_left_arm_mesh_isolate_after_88dc57e/`
   proves the obvious dark angular piece below the left glove is
