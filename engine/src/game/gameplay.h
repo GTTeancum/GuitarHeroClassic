@@ -256,8 +256,7 @@ class Gameplay {
   size_t active_camera_position_index_ = 0;
   size_t previous_camera_position_index_ = 0;
   double intro_camera_seconds_ = 0.0;
-  int camera_duration_min_bars_ = 2;
-  int camera_duration_max_bars_ = 4;
+  std::map<std::string, std::pair<int, int>> camera_duration_bars_;
   int camera_bars_left_ = 0;
   uint32_t last_camera_bar_ = UINT32_MAX;
   uint32_t last_forced_camera_event_tick_ = UINT32_MAX;

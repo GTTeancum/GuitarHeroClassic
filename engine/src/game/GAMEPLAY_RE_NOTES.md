@@ -210,6 +210,21 @@ Open work:
   skip gate, changes presets from `blackout.pst` to `strobe_okay.pst`,
   `verse_okay.pst`, and `color1.pst`, and renders nonblank arena frames.
   This is traced keyframe-dispatch plumbing, not final render-light parity.
+- 2026-06-20 camera duration follow-up: Rexglue real-play traces separate
+  shot selection at roughly six seconds from `post_switch_cam` position
+  changes at roughly two seconds, and
+  `world_objects_worldbase.dta::get_shot_duration` selects a random bar count
+  from `{find {world get camera_durations} {world get excitement_level}}`.
+  Native no longer collapses venue DTB camera durations to only the okay row;
+  it keeps all `kExcitementBoot`/`Bad`/`Okay`/`Great`/`Peak` rows and chooses
+  the active excitement row when `check_camera_shot`/regular camera selection
+  needs a new shot duration. Validation in
+  `engine/out/codex_goal_20260620_camera_duration_rows_surrender_clean2/`
+  runs stock PS2 `surrender` in the arena, logs the six-bar intro camera
+  window, then picks regular shots with `duration=kExcitementBad[3,4]` under
+  the native bad-excitement state while preserving `post_switch_cam` at the
+  traced two-second cadence. This validates the shared camera-duration route;
+  it does not claim final authored camera parity.
 
 2026-06-14 native validation:
 

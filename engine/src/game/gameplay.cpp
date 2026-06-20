@@ -832,8 +832,9 @@ std::array<float, 16> mat4_mul_game(const std::array<float, 16>& a,
 struct VenueCameraPolicy {
     std::string intro_distance;
     std::string intro_facing;
-    int okay_min_bars = 2;
-    int okay_max_bars = 4;
+    std::map<std::string, std::pair<int, int>> duration_bars = {
+        {"kExcitementOkay", {2, 4}},
+    };
 };
 
 VenueCameraPolicy load_venue_camera_policy(const std::string& hdr_path,
@@ -880,14 +881,13 @@ VenueCameraPolicy load_venue_camera_policy(const std::string& hdr_path,
                             if (!row || !gh::dtb::is_array(*row)) continue;
                             const auto& vals = gh::dtb::children(*row);
                             if (vals.size() < 3) continue;
-                            if (gh::dtb::as_string(*vals[0]).value_or("") !=
-                                "kExcitementOkay") {
-                                continue;
-                            }
-                            if (auto lo = gh::dtb::as_int(*vals[1]))
-                                p.okay_min_bars = *lo;
-                            if (auto hi = gh::dtb::as_int(*vals[2]))
-                                p.okay_max_bars = *hi;
+                            const std::string key =
+                                gh::dtb::as_string(*vals[0]).value_or("");
+                            if (key.empty()) continue;
+                            auto lo = gh::dtb::as_int(*vals[1]);
+                            auto hi = gh::dtb::as_int(*vals[2]);
+                            if (!lo || !hi) continue;
+                            p.duration_bars[key] = {*lo, *hi};
                         }
                     }
                 }
@@ -3205,6 +3205,29 @@ int deterministic_camera_duration_bars(int min_bars, int max_bars,
     return min_bars + static_cast<int>(counter % static_cast<size_t>(span));
 }
 
+std::string camera_excitement_duration_key(std::string_view venue_event) {
+    if (venue_event.find("peak") != std::string_view::npos)
+        return "kExcitementPeak";
+    if (venue_event.find("great") != std::string_view::npos)
+        return "kExcitementGreat";
+    if (venue_event.find("bad") != std::string_view::npos)
+        return "kExcitementBad";
+    if (venue_event.find("boot") != std::string_view::npos)
+        return "kExcitementBoot";
+    return "kExcitementOkay";
+}
+
+std::pair<std::string, std::pair<int, int>> camera_duration_range_for_event(
+    const std::map<std::string, std::pair<int, int>>& duration_bars,
+    std::string_view venue_event) {
+    std::string key = camera_excitement_duration_key(venue_event);
+    auto it = duration_bars.find(key);
+    if (it != duration_bars.end()) return {key, it->second};
+    it = duration_bars.find("kExcitementOkay");
+    if (it != duration_bars.end()) return {"kExcitementOkay", it->second};
+    return {"kExcitementOkay", {2, 4}};
+}
+
 const Gameplay::CameraKey* find_camera_key_by_name(
     const std::vector<Gameplay::CameraKey>& keys, std::string_view name) {
     for (const auto& key : keys) {
@@ -3909,8 +3932,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_position_index_ = 0;
     previous_camera_position_index_ = 0;
     intro_camera_seconds_ = 0.0;
-    camera_duration_min_bars_ = 2;
-    camera_duration_max_bars_ = 4;
+    camera_duration_bars_.clear();
+    camera_duration_bars_["kExcitementOkay"] = {2, 4};
     camera_bars_left_ = 0;
     last_camera_bar_ = UINT32_MAX;
     last_forced_camera_event_tick_ = UINT32_MAX;
@@ -4367,8 +4390,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const VenueCameraPolicy camera_policy =
                     load_venue_camera_policy(hdr_path_, ark_path_,
                                              quickplay_rig_->venue);
-                camera_duration_min_bars_ = camera_policy.okay_min_bars;
-                camera_duration_max_bars_ = camera_policy.okay_max_bars;
+                camera_duration_bars_ = camera_policy.duration_bars;
                 camera_bars_left_ = 6;
                 last_camera_bar_ = UINT32_MAX;
                 camera_keys_ = load_camera_position_keys(
@@ -5486,9 +5508,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
 
             if (force_camera || camera_bars_left_ <= 0 ||
                 active_regular_camera_.empty()) {
-                if (!force_camera) {
+                auto duration =
+                    camera_duration_range_for_event(camera_duration_bars_,
+                                                    active_venue_event_);
+                if (force_camera) {
+                    duration = {"force", {4, 4}};
+                } else {
                     camera_bars_left_ = deterministic_camera_duration_bars(
-                        camera_duration_min_bars_, camera_duration_max_bars_,
+                        duration.second.first, duration.second.second,
                         camera_shot_counter_);
                 }
                 ++camera_shot_counter_;
@@ -5504,21 +5531,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         regular_camera_keys_, current_key,
                         camera_shot_counter_, low_excitement,
                         kGuitaristWalking, kGuitaristStarpower)) {
-                if (active_regular_camera_ != key->name) {
-                    previous_regular_camera_ = active_regular_camera_;
-                    previous_camera_position_index_ =
-                        active_camera_position_index_;
-                    active_regular_camera_ = key->name;
-                    active_regular_camera_start_ = song_time_;
-                    active_camera_position_start_ = song_time_;
-                    active_camera_position_index_ = 0;
-                    std::fprintf(stderr,
-                                 "[world] regular camera sweep: %s -> %s bars_left=%d forced=%d bar=%u t=%.3f\n",
-                                 previous_regular_camera_.c_str(),
-                                 key->name.c_str(),
-                                 camera_bars_left_, force_camera ? 1 : 0, bar,
-                                 song_time_);
-                }
+                    if (active_regular_camera_ != key->name) {
+                        previous_regular_camera_ = active_regular_camera_;
+                        previous_camera_position_index_ =
+                            active_camera_position_index_;
+                        active_regular_camera_ = key->name;
+                        active_regular_camera_start_ = song_time_;
+                        active_camera_position_start_ = song_time_;
+                        active_camera_position_index_ = 0;
+                        std::fprintf(
+                            stderr,
+                            "[world] regular camera sweep: %s -> %s bars_left=%d duration=%s[%d,%d] forced=%d bar=%u t=%.3f\n",
+                            previous_regular_camera_.c_str(),
+                            key->name.c_str(), camera_bars_left_,
+                            duration.first.c_str(), duration.second.first,
+                            duration.second.second, force_camera ? 1 : 0, bar,
+                            song_time_);
+                    }
                 }
             }
             if (const auto* key =
