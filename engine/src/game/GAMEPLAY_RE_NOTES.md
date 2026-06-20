@@ -238,6 +238,28 @@ Open work:
   the native bad-excitement state while preserving `post_switch_cam` at the
   traced two-second cadence. This validates the shared camera-duration route;
   it does not claim final authored camera parity.
+- 2026-06-20 current authored-camera venue/band validation:
+  `engine/out/codex_goal_20260620_authored_venue_yyz_current/` captures stock
+  PS2 `yyz` from `--diagnostic-song-start 8.0` with no debug gameplay camera.
+  The retained MP4 `yyz_authored_camera_venue_band_8s.mp4` shows a nonblank
+  theatre-stage authored-camera run, while the log resolves `funk1`,
+  `metal_bass`, `metal_drummer`, and `metal_keyboard`, loads
+  `dw_theatre_drums`, routes `BAND KEYS` into `keyboard_active_medium`, fires
+  drum `kick_drum` cues, dispatches TRIGGERS lighting cues, activates
+  `chorus_okay.pst`, starts the regular camera at `flr_far_lft02`, and runs
+  `post_switch_cam` at `t=10.083`. This is current instrumental route
+  validation, not a camera-parity claim.
+  `engine/out/codex_goal_20260620_authored_venue_shout_current/` captures
+  stock PS2 `shoutatthedevil` from `--diagnostic-song-start 16.0`, also with
+  no debug gameplay camera. The retained MP4
+  `shout_authored_camera_venue_band_16s.mp4` shows a coherent arena stage with
+  the singer, guitarist, bassist, drummer, props, lighting, and moving authored
+  camera. The log resolves `glam1`, `metal_singer`, `metal_bass`, and
+  `metal_drummer`, loads `dw_arena_drums`, activates `color1.pst`, starts
+  regular camera `flr_far_rt02x3`, and runs `post_switch_cam` at `t=18.083`.
+  Continue treating these as current route-health evidence; exact camera
+  parity still depends on a focused trace if a native/PS2 camera mismatch is
+  reported.
 
 2026-06-14 native validation:
 
