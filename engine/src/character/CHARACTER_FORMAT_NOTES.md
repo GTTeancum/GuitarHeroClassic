@@ -2620,6 +2620,23 @@ Useful environment flags:
   `1.9089`. These three videos are the current left-hand visual checkpoint;
   do not add character-specific or hand-specific
   native fixes unless a new accepted trace/native mismatch contradicts them.
+- 2026-06-20 refreshed close left-hand checkpoint:
+  `engine/out/codex_goal_20260620_left_hand_focus_refresh_jordan_close/`
+  reruns the Jordan dense window on the current tree with the debug camera still
+  anchored to `guitarist0:spot_neck_fret20.mesh`, but tightened so the fret hand
+  and neck fill the frame. Retained outputs are
+  `jordan_left_hand_close_refresh_108s.mp4`,
+  `jordan_left_hand_close_refresh_108s_sheet.jpg`, and `run.log`; raw BMP
+  frames were deleted after encoding. The log records 77 `HandMap_Default`
+  events over the retained window with masks `0x01`, `0x02`, `0x04`, `0x08`,
+  and `0x10`, selecting `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_pinky`, and `finger_hold_ring_hi`.
+  Post-controller rows sample `bone_fret_hand` 101 times and span X/Y/Z =
+  `7.7314/16.6820/3.9902`; left finger rotation spans include
+  `bone_L-pinky01=0.6153`, `bone_L-ringfinger01=0.4101`,
+  `bone_L-middlefinger01=0.2568`, and `bone_L-thumb01=0.2359`. This is the
+  clearest current left-hand MP4 for user review after the right hand was
+  accepted.
 - 2026-06-20 cross-guitar hand-output sweep:
   `engine/out/codex_goal_20260620_cross_guitar_hand_output/` repeats the
   promoted hand-output route on `rockthistown`/Rockabill1 and
