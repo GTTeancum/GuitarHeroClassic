@@ -358,6 +358,14 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   // GH2 world is right-handed; mirror clip-X for the LH D3D pipeline so the
   // scene isn't left/right flipped (same convention as the highway renderer).
   proj.m[0][0] = -proj.m[0][0];
+  if (cam_.authored && !env_enabled("GHOGX_DISABLE_CAMERA_SCREEN_OFFSET")) {
+    // CamShot stores screen_offset in the same render-camera family that
+    // traces showed carrying stable 768.0 screen/projection values, not in
+    // already-normalized D3D clip units.
+    constexpr float kScreenOffsetToClip = 1.0f / 768.0f;
+    proj.m[2][0] += cam_.screen_offset[0] * kScreenOffsetToClip;
+    proj.m[2][1] += cam_.screen_offset[1] * kScreenOffsetToClip;
+  }
 
   // A sky-ish dark blue clear so geometry silhouettes read even before textures.
   if (clear_target) {

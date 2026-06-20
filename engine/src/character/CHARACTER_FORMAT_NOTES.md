@@ -939,6 +939,17 @@ Glam1 hair:
   is a shared format rule, not a Glam1/Rock2 branch. Rock2 still needs a
   separate mesh-local bind-space card review for the `hair-mid`/`hair-back`
   silhouettes before calling all hair complete.
+- 2026-06-20 Rock2 normal-camera recheck:
+  `engine/out/codex_goal_20260620_rock2_normal_camera_recheck/` captures
+  `woman` at frame 900 with the authored regular camera, no debug close-up, and
+  player difficulty Easy. The log resolves `rock2` as `guitarist0`, selects
+  `guitar_lane=3 notes=866` for performer animation, decodes the battle venue
+  regular CamShots, activates lighting, drum, and bass cues, and screenshots
+  `rock2_woman_normal_camera_f900.png`. In that stage framing the large Rock2
+  hair masses read attached; the remaining suspicious right-side tuft is still
+  a close-camera local-card parity question, not proof for a hide/offset or
+  character-specific patch. Reopen focused PS2 local-attachment card tracing
+  only if a normal gameplay-angle mismatch appears.
 
 Glam1 eyes / look-at:
 

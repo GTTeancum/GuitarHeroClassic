@@ -52,6 +52,8 @@ class Gameplay {
     bool has_basis = false;
     float fov = 0.0f;
     bool has_fov = false;
+    float screen_offset[2] = {0.0f, 0.0f};
+    bool has_screen_offset = false;
     std::string target_entity;
     std::string target_subpart;
     std::string distance;

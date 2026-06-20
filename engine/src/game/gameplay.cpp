@@ -2878,6 +2878,17 @@ std::vector<std::pair<Gameplay::CameraKey, size_t>> decode_camshot_poses(
                     c.key.has_fov = true;
                 }
             }
+            if (off + 56 <= size) {
+                const float sx = f32_at(off + 48);
+                const float sy = f32_at(off + 52);
+                if (std::isfinite(sx) && std::isfinite(sy) &&
+                    std::abs(sx) < 4.0f && std::abs(sy) < 4.0f) {
+                    c.key.screen_offset[0] = sx;
+                    c.key.screen_offset[1] = sy;
+                    c.key.has_screen_offset =
+                        std::abs(sx) > 0.0001f || std::abs(sy) > 0.0001f;
+                }
+            }
             candidates.push_back(c);
         }
     next_offset:
@@ -2982,6 +2993,13 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                         key.forward[2], key.up[0], key.up[1], key.up[2],
                         key.has_fov ? "" : "none/",
                         key.has_fov ? key.fov : 0.0f);
+                    if (key.has_screen_offset) {
+                        std::fprintf(stderr,
+                                     "[camera-candidate] shot=%s off=0x%zX screen_offset=(%.6f %.6f)\n",
+                                     de.name.c_str(), pose.second,
+                                     key.screen_offset[0],
+                                     key.screen_offset[1]);
+                    }
                 }
             }
             size_t pose_off = decoded_poses.front().second;
@@ -3357,6 +3375,12 @@ void apply_camera_keys(
         const float fov_b = b->has_fov ? b->fov : fov_a;
         cam.fov = fov_a + (fov_b - fov_a) * t;
     }
+    const float sx_a = a->has_screen_offset ? a->screen_offset[0] : 0.0f;
+    const float sy_a = a->has_screen_offset ? a->screen_offset[1] : 0.0f;
+    const float sx_b = b->has_screen_offset ? b->screen_offset[0] : 0.0f;
+    const float sy_b = b->has_screen_offset ? b->screen_offset[1] : 0.0f;
+    cam.screen_offset[0] = sx_a + (sx_b - sx_a) * t;
+    cam.screen_offset[1] = sy_a + (sy_b - sy_a) * t;
     cam.near_z = 1.0f;
     cam.far_z = 6000.0f;
     if (debug_camera_enabled()) {
@@ -3364,12 +3388,13 @@ void apply_camera_keys(
             stderr,
             "[camera] frame=%.2f t=%.3f a=%s(%.2f) b=%s(%.2f) "
             "eye=(%.2f %.2f %.2f) at=(%.2f %.2f %.2f) "
-            "up=(%.3f %.3f %.3f) fov=%.3f targets=%zu\n",
+            "up=(%.3f %.3f %.3f) fov=%.3f screen_offset=(%.6f %.6f) targets=%zu\n",
             frame, t, a->name.c_str(), a->frame, b->name.c_str(), b->frame,
             cam.authored_eye[0], cam.authored_eye[1], cam.authored_eye[2],
             cam.authored_at[0], cam.authored_at[1], cam.authored_at[2],
             cam.authored_up[0], cam.authored_up[1], cam.authored_up[2],
-            cam.fov, targets.size());
+            cam.fov, cam.screen_offset[0], cam.screen_offset[1],
+            targets.size());
     }
 }
 

@@ -49,6 +49,19 @@ Open work:
   native frame is still not camera-parity because the same key also carries
   `screen_offset=(0.618077,-1.030767)` at `pose_offset + 0x30/+0x34`, and
   native has not yet mapped the exact PS2 screen/projection application.
+- 2026-06-20 CamShot screen-offset decode/application pass:
+  native now carries the two `screen_offset` floats from `pose_offset + 0x30`
+  and `+0x34` through `CameraKey`, interpolates them with the selected
+  CamShot, and applies them to the authored projection matrix through the
+  accepted render-camera/screen family scale that traces showed carrying
+  stable `768.0` values. Validation folder
+  `engine/out/codex_goal_20260620_cam_screen_offset_yyz/` keeps a YYZ A/B with
+  `GHOGX_DISABLE_CAMERA_SCREEN_OFFSET=1`; the active `flr_near_rt03` guard logs
+  raw `screen_offset=(0.618077,-1.030767)`, but the 768-scaled projection nudge
+  is sub-pixel at the retained frame and the screenshots are byte-identical.
+  Treat this as structural field plumbing, not as final camera parity; exact
+  render-camera output-row semantics still require a focused trace if a native
+  camera mismatch depends on this field.
 - Empty-target regular shots still use authored world-space pose/basis only.
   Do not invent targets for them without object-layout or runtime trace proof.
 - Theatre `flr_near_lft03x1` is the concrete guard case for that rule: the PS2

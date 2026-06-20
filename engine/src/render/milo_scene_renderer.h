@@ -46,6 +46,7 @@ struct OrbitCamera {
   float authored_eye[3] = {0, 0, 0};
   float authored_at[3] = {0, 1, 0};
   float authored_up[3] = {0, 0, 1};
+  float screen_offset[2] = {0, 0};
 
   // Compute the eye position from yaw/pitch/distance about the target.
   void eye(float out[3]) const;
