@@ -1868,6 +1868,13 @@ Useful environment flags:
   hand target position. A close debug validation video is retained at
   `engine/out/codex_goal_20260620_hand_overlay_source_fix_close_video/mrfixit_hand_overlay_source_fix_close.mp4`;
   raw BMP frames were removed after encoding.
+  Current-tree cross-character probes in
+  `engine/out/codex_goal_20260620_hand_overlay_source_fix_cross/` validate the
+  same shared route on `rockabill1`/`rockthistown` and
+  `deathmetal1`/`laidtorest`: both runs use authored Expert performer lanes
+  while player difficulty is Easy, select `finger_powerchord_*` through the DTB
+  hand maps, and emit a body-free hand-source mixer signature such as
+  `strum_short_01:20:1000;finger_powerchord_2:17:1000`.
 - Native left-hand clip selection now comes from
   `config/gen/midi_parsers.dtb::GUITARFRETMAPPINGS` instead of a hardcoded
   lane-to-clip table. The DTB tables use `$mp.length` and the active
