@@ -2517,6 +2517,19 @@ Useful environment flags:
   move up to 0.32842 on `bone_L-index01` and 0.30114 on `bone_L-pinky01`.
   The contact sheet shows a visibly curled/gripping fret hand, so use this
   route before calling left-hand finger motion regressed.
+- 2026-06-20 current commit neck-anchored Mr. Fixit recheck:
+  `engine/out/codex_goal_20260620_current_commit_mrfixit_neck_anchor/` repeats
+  the same chord-rich window after the camera-duration commit, but locks the
+  debug camera to `guitarist0:bone_pos_guitar.mesh` with a neck offset instead
+  of following `bone_fret_hand`. This is the better visual proof for
+  hand-versus-neck travel: the retained MP4 and sheet show the hand changing
+  position and grip against the guitar neck while the log keeps player
+  difficulty Easy and performer source `guitar_lane=3 notes=868 player_diff=0`.
+  The run records 13 hand-map events, 12 strum-map events, masks `0x03`,
+  `0x05`, `0x0a`, `0x14`, and `0x18`, and selects
+  `finger_powerchord_1` / `finger_powerchord_2`. Prefer this neck-anchored
+  route over hand-following closeups when judging whether left-hand travel is
+  actually visible.
 - 2026-06-20 dense authored-song hand stress:
   `engine/out/codex_goal_20260620_hand_dense_song_scan/song_hand_density.csv`
   scans the GH2 PS2 MIDIs and ranks the highest-populated guitar lane by dense
