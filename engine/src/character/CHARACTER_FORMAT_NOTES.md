@@ -2327,6 +2327,19 @@ Useful environment flags:
   deleted after encoding to keep disk use down. Treat arms as
   provisionally accepted from this checkpoint; keep hands in validation until
   more songs/outfits prove the same route under normal in-song motion.
+- 2026-06-20 second native hand movement sweep:
+  `engine/out/codex_goal_20260620_hand_movement_rockabill_native/` repeats the
+  same compact validation on `rockthistown`, whose PS2 quickplay block resolves
+  to `rockabill1` / `lespaul` / `battle`. The retained log proves the same
+  shared guitarist hand-driver path (`loaded=31`, `maps=7`, `ikHands=2`,
+  `ikMidis=1`) and a rapid run of MIDI-selected fret clips
+  (`finger_hold_index_hi`, `finger_hold_index`, `finger_hold_pinky`,
+  `finger_open`) while the contact sheet/MP4 show in-game hand motion without
+  the prior arm collapse. A separate `bassist`-only load probe in
+  `engine/out/codex_goal_20260620_bassist_hand_probe/` shows `metal_bass`
+  reports `handDriver=0`, `handGraph=0`, `ikHands=0`, `ikMidis=0`; validate
+  bassist hands through normal body/prop animation, not the guitarist
+  hand-map scheduler.
 
 Every outfit audit should capture:
 
