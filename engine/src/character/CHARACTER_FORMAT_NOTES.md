@@ -2428,9 +2428,12 @@ Useful environment flags:
   `engine/out/codex_goal_20260620_hand_dense_seek/` keeps left/right MP4s,
   contact sheets, and logs for Jordan at 108s. Both dense captures confirm
   `guitar_lane=3 notes=1802` with player difficulty `0` and log `158`
-  hand-map plus `158` strum-map events in the bounded window. This is the
-  current hand priority checkpoint: future hand fixes should be tested against
-  these dense authored windows, not by changing player difficulty.
+  hand-map plus `158` strum-map events in the bounded window. The same folder
+  also keeps a Misirlou/Rockabill1 52s cross-character MP4/sheet/log from the
+  second-densest scan window; it confirms `rockabill1` on the shared hand
+  driver with `137` hand-map and `137` strum-map events. This is the current
+  hand priority checkpoint: future hand fixes should be tested against these
+  dense authored windows, not by changing player difficulty.
 - 2026-06-20 cross-guitar hand-output sweep:
   `engine/out/codex_goal_20260620_cross_guitar_hand_output/` repeats the
   promoted hand-output route on `rockthistown`/Rockabill1 and
