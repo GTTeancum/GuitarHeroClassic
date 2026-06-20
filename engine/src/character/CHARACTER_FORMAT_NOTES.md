@@ -1619,20 +1619,29 @@ Useful environment flags:
   `deathmetal1_side_f900_purezbend.bmp`, and `glam1_side_f900_purezbend.bmp`
   are visual follow-up captures. This fixes the traced bend-row mismatch but
   does not close remaining arm/hair/card deformation.
-- `CharIKHand.stretch` child-row promotion on 2026-06-19:
-  the accepted object definition names `stretch` as a live serialized
-  `CharIKHand` flag, and accepted IK traces already require the final hand
-  Trans row to match the destination when `stretch` or `orientation` is set.
-  Native was only snapping the final hand row, leaving the solved upper/forearm
-  chain short when the destination exceeded the authored upper+forearm length.
-  Validation in
-  `engine/out/codex_goal_20260619_ikmidi_probe/glam1_ik_vectors_raw_f900_excerpt.txt`
-  showed Glam1 right-hand `stretch=1`, authored lengths `9.40 + 9.55`, target
-  distance `20.26`, and `preFinalError=1.3867`; the shared stretch solve in
-  `stretch_ik_excerpt.txt` lengthened the forearm child row to `10.86` and
-  reduced `preFinalError` to `0.0757`. This is a shared
-  `CharIKHand.stretch` rule, not an outfit branch. It is an IK-row correction,
-  not proof that every visible arm/card issue is closed.
+- Rejected `CharIKHand.stretch` child-row promotion on 2026-06-20:
+  the 2026-06-19 native-only validation correctly noticed that out-of-reach
+  targets left a large pre-final hand error, but the chosen fix lengthened
+  `bone_*hand.mesh.local.pos`. That is not what the accepted PS2 function does.
+  In `ps2_function_snippets_arm_hand_deeper_20260611.json`, SLUS
+  `0x0017a080` uses controller `+0x3c` to replace the final hand matrix
+  translation with controller vector `+0x50` before calling the shared Trans
+  writer at `0x001dd7b8`; it does not write a longer child local row. The
+  static arm/twist row trace keeps `bone_R-hand.mesh +0x50 = 9.54699` and
+  `bone_L-hand.mesh +0x50 = 9.86975` while the stretch-capable controller
+  remains live. Native now leaves the authored hand local length intact, clamps
+  the elbow bend with the authored upper/fore lengths, and lets the final
+  Trans-world bridge close the hand to the target. Do not reintroduce local
+  child-row stretching as an arm fix.
+- Native validation after removing local stretch:
+  `engine/out/codex_goal_20260620_no_local_stretch/no_local_stretch_compact.txt`
+  shows Glam1 right-hand `stretch=1` with `authoredFore=9.54699`,
+  `fore=9.54699`, `bone_R-hand.mesh pos=[9.54699 0 0]`, and
+  `bone_R-foreTwist2.mesh pos=[4.77350 0 0]` while the target branch remains
+  live. `engine/out/codex_goal_20260620_rock2_no_local_stretch/rock2_no_local_stretch_compact.txt`
+  shows the same shape for Rock2 (`authoredFore=11.23994`,
+  `fore=11.23994`, `foreTwist2=5.61997`). These are row-shape validations,
+  not a final arms/hair sign-off.
 - `CharIKHand` final Trans-world bridge on 2026-06-19:
   `pcsx2_ik_trans_rows_20260614.json` shows `bone_L/R-hand.mesh` local rows
   remain distinct from `bone_fret/strum_hand.mesh` local rows after
@@ -1757,6 +1766,14 @@ Useful environment flags:
   rows when loading right/left hand driver clips. This preserves the trace
   split where main body driver output owns pelvis/thigh/knee/toe rows and
   `left_hand.drv` / `right_hand.drv` own hand/finger rows.
+- 2026-06-19 runtime output-table selection now treats gameplay hand overlays
+  as source lanes when a body/role layer already supplies `CharBone` output
+  records. Accepted traces `pcsx2_hand_dest_pointer_targets_20260611.json`
+  and `pcsx2_hand_output_trans_short_sequence_20260611.json` show a stable
+  performer destination ID/value set receiving fret/strum source lanes before
+  IK/twist; the hand clips should not replace that destination graph. If an
+  overlay clip is applied by itself, native still falls back to its own output
+  records for clip-viewer/debug coverage.
 - Native active `CharClipGroup normal` changes now use a scheduler-like blend
   window (`GHOGX_CHAR_DRIVER_BLEND_SECONDS`, default `0.25`) instead of hard
   `kCharPlayNoBlend` restarts. Accepted PS2 lower-body traces show the same
@@ -2244,6 +2261,41 @@ Useful environment flags:
   X twist applied. Do not replace the shared foretwist writer with a
   character/material branch; the remaining Glam1.72 mismatch needs stronger
   PS2 row-to-native pose or skin-consumer evidence.
+- Follow-up `CharForeTwist` position-field check on 2026-06-19:
+  SLUS `0x00175678` writes the twist2 helper Trans `+0x50` local-X position
+  field from half of the source hand Trans `+0x50`. The same accepted PCSX2 row sample
+  confirms `left_ik_src_00db89f0 +0x50 = 9.86975` and
+  `fore_l_out_a_00db6ef0 +0x50 = 4.93488`, with the right side matching the
+  same half-position rule (`9.54699 -> 4.77350`). Native now updates
+  `bone_*foreTwist2.mesh.local.pos[0]` from the live source hand local X
+  position each foretwist tick instead of preserving only the authored bind X
+  translation. Neighboring `+0x54/+0x58` fields remain the authored helper row.
+  This is a shared traced Trans-row rule and not a Glam1 card workaround.
+- 2026-06-20 native row checkpoint after the half-position rule:
+  `engine/out/codex_goal_20260620_ik_row_short_compare/ik_row_short_compact.txt`
+  confirms the MIDI-selected live hand rows are still moving and the final
+  hand target bridge remains active. The validated `foreTwist2` X field follows
+  the accepted half-position rule (`bone_R-hand.mesh local X 9.547 ->
+  bone_R-foreTwist2.mesh local X 4.773` late in the Shout run). Do not treat
+  this as arm sign-off: the same split-row capture shows the remaining visible
+  deformation belongs downstream in the shared pre-final `CharIKHand` bend /
+  forearm row feeding `foreTwist1`, not in MIDI note scheduling or a
+  character-specific Glam1 path.
+- 2026-06-20 Glam1.73 MIDI/foretwist skin checkpoint:
+  `engine/out/codex_goal_20260620_glam1_73_skin_rows_compact/glam1_73_skin_rows_tail.txt`
+  keeps only compact rows after deleting the 82 MB raw log. The run confirms
+  the song/MIDI path is still dynamic: left/right hand IK lengths, target
+  distances, and final hand/twist rows change across adjacent frames. The
+  visible `glam1.73.mesh` card is not missing skin input; it remains
+  `mode=lbs-local-chain`, consumes non-identity matrices from
+  `bone_L-foreTwist1.mesh` and `bone_L-foreTwist2.mesh`, and moves vertex 0
+  from the two foretwist weights (`0.15110` / `0.84890`). The bind audit's
+  `basis=mesh-local-chain` line is not enough to promote this card: the
+  stricter runtime predicate rejects near-identity model/local differences
+  around `0.01020`, and earlier mesh-bind/material probes did not fix the
+  visible wedge. Continue from shared `CharIKHand` row math / Trans dirty-world
+  bridge evidence, not from static MIDI note positions or a Glam1-specific
+  mesh route.
 
 Every outfit audit should capture:
 

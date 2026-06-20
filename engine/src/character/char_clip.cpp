@@ -1952,6 +1952,18 @@ static void log_debug_xfm_row(const char* tag, const char* name,
                world[4], world[5], world[6], world[8], world[9], world[10]);
 }
 
+static void log_debug_xfm_row_short(const char* tag, const char* name,
+                                    const milo_scene::Xfm& local) {
+  std::fprintf(stderr, "[%s-pos] %s pos=[%.5f %.5f %.5f]\n", tag, name,
+               local.pos[0], local.pos[1], local.pos[2]);
+  std::fprintf(stderr, "[%s-r0] %s r0=[%.5f %.5f %.5f]\n", tag, name,
+               local.rot[0][0], local.rot[0][1], local.rot[0][2]);
+  std::fprintf(stderr, "[%s-r1] %s r1=[%.5f %.5f %.5f]\n", tag, name,
+               local.rot[1][0], local.rot[1][1], local.rot[1][2]);
+  std::fprintf(stderr, "[%s-r2] %s r2=[%.5f %.5f %.5f]\n", tag, name,
+               local.rot[2][0], local.rot[2][1], local.rot[2][2]);
+}
+
 static void log_debug_world_row(const char* tag, const char* name,
                                 const std::array<float, 16>& world) {
   const Vec3 wp = mat_pos(world);
@@ -2008,9 +2020,12 @@ static bool apply_ps2_fore_twist(Character& character,
 
   // SLUS 0x00175678 wraps the helper angle plus side offset, scales it by
   // 0x3eaaaa9f, and writes the negated row-vector X twist into both forearm
-  // output branches. The two output rows keep their own authored/live bases.
+  // output branches. Twist2 gets a pure helper row and then copies half of
+  // the live source hand local X position into its Trans +0x50 field.
   write_ps2_x_twist(character.bones[(size_t)twist2_i].local,
                     bind_bones[(size_t)twist2_i], roll);
+  character.bones[(size_t)twist2_i].local.pos[0] =
+      hand_source.pos[0] * 0.5f;
   write_ps2_x_twist(character.bones[(size_t)twist1_i].local,
                     character.bones[(size_t)fore_i].local, roll);
   if (debug_ik_enabled()) {
@@ -2023,14 +2038,21 @@ static bool apply_ps2_fore_twist(Character& character,
     log_debug_xfm_row("twist-fore-src", ft.hand.c_str(),
                       hand_source,
                       character.bone_world_local_chain(ft.hand));
+    log_debug_xfm_row_short("twist-fore-src", ft.hand.c_str(),
+                            hand_source);
     log_debug_xfm_row("twist-fore-out",
                       character.bones[(size_t)twist1_i].name.c_str(),
                       character.bones[(size_t)twist1_i].local,
                       character.bone_world_local_chain(
                           character.bones[(size_t)twist1_i].name));
+    log_debug_xfm_row_short("twist-fore-out",
+                            character.bones[(size_t)twist1_i].name.c_str(),
+                            character.bones[(size_t)twist1_i].local);
     log_debug_xfm_row("twist-fore-out", ft.twist2.c_str(),
                       character.bones[(size_t)twist2_i].local,
                       character.bone_world_local_chain(ft.twist2));
+    log_debug_xfm_row_short("twist-fore-out", ft.twist2.c_str(),
+                            character.bones[(size_t)twist2_i].local);
   }
   return true;
 }
@@ -2331,9 +2353,10 @@ static void apply_ps2_ik_hand_targets(
     float fore_len = authored_fore_len;
     const Vec3 to_target = vsub(target, shoulder);
     const float raw_dist = vlen(to_target);
-    if (ik.stretch && raw_dist > upper_len + authored_fore_len) {
-      fore_len = std::max(authored_fore_len, raw_dist - upper_len);
-    }
+    // `stretch` is a final Trans branch in SLUS 0x0017a080: controller
+    // +0x3c replaces the final hand matrix translation with the live target
+    // vector at controller +0x50. It does not rewrite the hand child local
+    // length used by the elbow bend or later foretwist source rows.
     const float max_reach = upper_len + fore_len - 0.001f;
     const float min_reach = std::fabs(upper_len - fore_len) + 0.001f;
     const float dist = std::clamp(raw_dist, min_reach, max_reach);
@@ -2356,24 +2379,6 @@ static void apply_ps2_ik_hand_targets(
             fore_local0.rot[r][c] * (1.0f - ik_weight) +
             solved_fore.rot[r][c] * ik_weight;
     normalize_xfm_rows(fore.local);
-
-    if (ik.stretch && fore_len > authored_fore_len + 0.0005f) {
-      // `stretch` is a serialized CharIKHand mode, not a visual override:
-      // PS2 rows still write the hand Trans to the target, so the child row
-      // must lengthen before the upper-arm swing when the target is outside
-      // authored reach. This keeps the solved arm chain near the final hand
-      // row instead of snapping only the hand at the end.
-      const Vec3 local_hand_dir =
-          vnorm({hand_setup.pos[0], hand_setup.pos[1], hand_setup.pos[2]},
-                {1.0f, 0.0f, 0.0f});
-      const Vec3 stretched =
-          vscale(local_hand_dir,
-                 authored_fore_len * (1.0f - ik_weight) +
-                     fore_len * ik_weight);
-      hand.local.pos[0] = stretched.x;
-      hand.local.pos[1] = stretched.y;
-      hand.local.pos[2] = stretched.z;
-    }
 
     const auto upper_world_after_bend =
         character.bone_world_local_chain(upper.name);
@@ -2472,6 +2477,29 @@ static void apply_ps2_ik_hand_targets(
                    target_local.x, target_local.y, target_local.z,
                    swing_quat[0], swing_quat[1], swing_quat[2],
                    swing_quat[3]);
+      std::fprintf(stderr,
+                   "[ik-swing-cur] %s current=[%.5f %.5f %.5f]\n",
+                   ik.name.c_str(), current_local.x, current_local.y,
+                   current_local.z);
+      std::fprintf(stderr,
+                   "[ik-swing-target] %s target=[%.5f %.5f %.5f]\n",
+                   ik.name.c_str(), target_local.x, target_local.y,
+                   target_local.z);
+      std::fprintf(stderr,
+                   "[ik-swing-quat] %s quat=[%.5f %.5f %.5f %.5f]\n",
+                   ik.name.c_str(), swing_quat[0], swing_quat[1],
+                   swing_quat[2], swing_quat[3]);
+      std::fprintf(stderr,
+                   "[ik-solve-len] %s upper=%.5f authoredFore=%.5f "
+                   "fore=%.5f\n",
+                   ik.name.c_str(), upper_len, authored_fore_len, fore_len);
+      std::fprintf(stderr,
+                   "[ik-solve-dist] %s raw=%.5f dist=%.5f cos=%.5f\n",
+                   ik.name.c_str(), raw_dist, dist, cos_elbow);
+      std::fprintf(stderr,
+                   "[ik-solve-flags] %s stretch=%d orient=%d final=%d\n",
+                   ik.name.c_str(), ik.stretch ? 1 : 0,
+                   ik.orientation ? 1 : 0, write_final ? 1 : 0);
       log_debug_world_row("ik-ps2-preswing-upper", upper.name.c_str(),
                           upper_world_after_bend);
       log_debug_world_row("ik-ps2-preswing-hand", hand.name.c_str(),
@@ -2494,10 +2522,16 @@ static void apply_ps2_ik_hand_targets(
                    hand_world_before_final[14]);
       log_debug_xfm_row("ik-ps2-row", upper.name.c_str(), upper.local,
                         upper_world_post);
+      log_debug_xfm_row_short("ik-ps2-row", upper.name.c_str(),
+                              upper.local);
       log_debug_xfm_row("ik-ps2-row", fore.name.c_str(), fore.local,
                         fore_world_post);
+      log_debug_xfm_row_short("ik-ps2-row", fore.name.c_str(),
+                              fore.local);
       log_debug_xfm_row("ik-ps2-row", hand.name.c_str(), hand.local,
                         hand_world_post);
+      log_debug_xfm_row_short("ik-ps2-row", hand.name.c_str(),
+                              hand.local);
       log_debug_world_row("ik-ps2-target", ik.target.c_str(), target_world);
     }
 
@@ -4684,13 +4718,21 @@ void apply_clip_channel_layers(const std::vector<ClipChannelLayer>& layers,
 
   std::vector<CharClip::OutputBone> output_bones;
   std::unordered_set<std::string> output_keys;
-  for (const auto& layer : layers) {
-    if (!layer.output_bones) continue;
-    for (const auto& out : *layer.output_bones) {
-      const std::string key = strip_transform_suffix(out.name);
-      if (!output_keys.insert(key).second) continue;
-      output_bones.push_back(out);
+  auto collect_output_bones = [&](bool overlay_sources) {
+    for (const auto& layer : layers) {
+      if (layer.overlay_override != overlay_sources || !layer.output_bones) {
+        continue;
+      }
+      for (const auto& out : *layer.output_bones) {
+        const std::string key = strip_transform_suffix(out.name);
+        if (!output_keys.insert(key).second) continue;
+        output_bones.push_back(out);
+      }
     }
+  };
+  collect_output_bones(false);
+  if (output_bones.empty()) {
+    collect_output_bones(true);
   }
 
   if (apply_clip_pose_output_layer(frame, 1.0f, character, relative,
