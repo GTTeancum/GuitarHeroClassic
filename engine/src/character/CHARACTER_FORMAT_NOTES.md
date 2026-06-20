@@ -2549,6 +2549,24 @@ Useful environment flags:
   driver with `137` hand-map and `137` strum-map events. This is the current
   hand priority checkpoint: future hand fixes should be tested against these
   dense authored windows, not by changing player difficulty.
+- 2026-06-20 current easy-player dense Jordan revalidation:
+  `engine/out/codex_goal_20260620_dense_jordan_current_easy_authored/`
+  repeats the Jordan 108s stress route on the current tree with player
+  difficulty still Easy. The hidden raw-log pass confirms
+  `guitar_lane=3 notes=1802`, `player_diff=0`, `handDriver=1`, `ikHands=2`,
+  and `ikMidis=1`; the bounded window emits `53` hand-map and `53` strum-map
+  events with masks `0x01`, `0x02`, `0x04`, `0x08`, and `0x10`. Selected
+  fret clips are `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_pinky`, `finger_hold_ring_hi`, and
+  `finger_vibrato_pinky`; selected strum clips rotate through
+  `strum_short_01..04` plus `strum_long_02`. The neck-anchored left-hand MP4
+  and sheet live in `left_neck_108s/`, the right-strum MP4 and sheet live in
+  `right_strum_108s/`, and raw BMP frame directories were deleted after
+  encoding. The raw log records `bone_fret_hand` post-controller world travel
+  of X/Y/Z = `6.0177/14.0256/3.2325`, with individual left-finger rotation-row
+  value spans between `1.2332` and `1.6422`; this is the current reminder that
+  authored song density, not the player Expert selector, drives performer hand
+  validation.
 - 2026-06-20 cross-guitar hand-output sweep:
   `engine/out/codex_goal_20260620_cross_guitar_hand_output/` repeats the
   promoted hand-output route on `rockthistown`/Rockabill1 and
