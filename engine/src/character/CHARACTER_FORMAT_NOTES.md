@@ -2374,6 +2374,20 @@ Useful environment flags:
   `engine/out/codex_goal_20260620_left_hand_output_video/jordan_glam1_left_hand_close_native.mp4`
   show the corrected right-hand strum and continuing left-hand fret movement.
   `GHOGX_DISABLE_HAND_OUTPUT_LAYER=1` is a diagnostic escape hatch only.
+- 2026-06-20 cross-guitar hand-output sweep:
+  `engine/out/codex_goal_20260620_cross_guitar_hand_output/` repeats the
+  promoted hand-output route on `rockthistown`/Rockabill1 and
+  `laidtorest`/Deathmetal1, both with `GHOGX_ONLY_PERFORMER=guitarist0` and
+  the camera locked to `bone_strum_hand.mesh`. The retained logs prove each
+  route loads `handDriver=1`, `loaded=31`, `ikHands=2`, `ikMidis=1`, and
+  receives dense `StrumMap_Default` events during the capture. Deathmetal1's
+  contact sheet shows an obvious curled picking hand. Rockabill1 reads more
+  open by eye, but the raw clip-row check in `raw_clip_rows/` shows this is
+  authored data, not a native regression: its `strum_short_01` carries the
+  hand-driver output graph and distal finger `rotz` curls, while its first
+  finger-joint quats are looser than Deathmetal1's. Do not strengthen
+  Rockabill1's grip with a character or outfit override unless a PS2 runtime
+  mismatch proves a shared graph-consumption error.
 
 Every outfit audit should capture:
 
