@@ -210,6 +210,19 @@ Open work:
   skip gate, changes presets from `blackout.pst` to `strobe_okay.pst`,
   `verse_okay.pst`, and `color1.pst`, and renders nonblank arena frames.
   This is traced keyframe-dispatch plumbing, not final render-light parity.
+- 2026-06-20 venue-effect MIDI cue follow-up:
+  `config/midi_parsers.dta::effect_parser` maps TRIGGERS pitch `52` to
+  `{handle (world venue_effect)}` with `start_offset 0` and `zero_length TRUE`.
+  Native now parses those notes into `Chart::venue_cues` and dispatches
+  `venue_effect` at the authored MIDI tick as a transient world event, so it
+  does not overwrite persistent venue excitement state. Validation in
+  `engine/out/codex_goal_20260620_venue_effect_shout_102s/` runs stock PS2
+  `shoutatthedevil`, decodes `venue cues=58`, seeks to `100.000s` with
+  `venue_idx=9`, and dispatches pitch `52` at tick `77280`/`102.000s` while
+  rendering a nonblank arena frame. The same log reports no trigger visibility
+  route and no decoded `AnimFilter` transforms for `venue_effect` in this
+  capture, so this is exact parser/event plumbing rather than an invented
+  visible venue effect.
 - 2026-06-20 camera duration follow-up: Rexglue real-play traces separate
   shot selection at roughly six seconds from `post_switch_cam` position
   changes at roughly two seconds, and

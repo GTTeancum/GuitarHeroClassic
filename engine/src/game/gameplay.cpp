@@ -3961,6 +3961,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     last_band_note_tick_ = UINT32_MAX;
     next_drum_cue_idx_ = 0;
     next_bass_cue_idx_ = 0;
+    next_venue_cue_idx_ = 0;
 
     if (hdr_path.empty() || ark_path.empty()) {
         std::fprintf(stderr, "[gameplay] no ARK paths; cannot load song\n");
@@ -4144,15 +4145,17 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     };
     skip_cues_before(chart_.drum_cues, next_drum_cue_idx_);
     skip_cues_before(chart_.bass_cues, next_bass_cue_idx_);
+    skip_cues_before(chart_.venue_cues, next_venue_cue_idx_);
     skip_cues_before(chart_.lighting_cues, next_lighting_cue_idx_);
     last_camera_bar_ = UINT32_MAX;
     camera_bars_left_ = 0;
     last_forced_camera_event_tick_ = UINT32_MAX;
     ignored_last_light_change_ = false;
     std::fprintf(stderr,
-                 "[gameplay] diagnostic seek: %.3fs player_note_idx=%zu drum_idx=%zu bass_idx=%zu lighting_idx=%zu\n",
+                 "[gameplay] diagnostic seek: %.3fs player_note_idx=%zu drum_idx=%zu bass_idx=%zu venue_idx=%zu lighting_idx=%zu\n",
                  song_time_, next_note_idx_, next_drum_cue_idx_,
-                 next_bass_cue_idx_, next_lighting_cue_idx_);
+                 next_bass_cue_idx_, next_venue_cue_idx_,
+                 next_lighting_cue_idx_);
 }
 
 void Gameplay::tick(float dt, uint32_t fret_mask) {
@@ -4222,6 +4225,17 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                      cue.event.c_str(), cue.pitch, cue.tick, song_time_);
         apply_venue_event(cue.event, false);
         ++next_bass_cue_idx_;
+    }
+
+    while (next_venue_cue_idx_ < chart_.venue_cues.size()) {
+        const auto& cue = chart_.venue_cues[next_venue_cue_idx_];
+        const double cue_sec = chart_.tick_to_sec(cue.tick);
+        if (cue_sec > song_time_) break;
+        std::fprintf(stderr,
+                     "[world] venue cue: %s pitch=%d tick=%u t=%.3f\n",
+                     cue.event.c_str(), cue.pitch, cue.tick, song_time_);
+        apply_venue_event(cue.event, false);
+        ++next_venue_cue_idx_;
     }
 
     // Decay per-lane hit flames (~0.22 s lifetime).

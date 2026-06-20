@@ -126,6 +126,7 @@ static void push_chunk(std::vector<uint8_t>& out, const char* tag,
 //
 // Track 2 "TRIGGERS":
 //   lighting_parser cue notes for next/prev/first keyframe.
+//   effect_parser pitch 52 for world venue_effect.
 //
 // ticks_per_beat = 480, tempo = 120 BPM (500000 us/beat).
 // HOPO threshold = 480/3 = 160 ticks.
@@ -178,6 +179,8 @@ static std::vector<uint8_t> build_test_smf() {
     t2.note_off(2880, 48);
     t2.note_on (3360, 49); // lighting prev, minus 4 beats => tick 1440
     t2.note_off(3360, 49);
+    t2.note_on (3600, 52); // venue_effect, no parser offset
+    t2.note_off(3600, 52);
     t2.meta_eot();
 
     // Assemble SMF.
@@ -293,6 +296,15 @@ int main() {
         CHECK(chart.lighting_cues[2].event == "prev" &&
               chart.lighting_cues[2].tick == 1440,
               "Lighting[2]: prev at tick 1440 after -4 beat offset");
+    }
+
+    // --- effect_parser cue from TRIGGERS pitch 52 ---
+    CHECK(chart.venue_cues.size() == 1, "Venue cues: 1");
+    if (chart.venue_cues.size() == 1) {
+        CHECK(chart.venue_cues[0].event == "venue_effect" &&
+              chart.venue_cues[0].pitch == 52 &&
+              chart.venue_cues[0].tick == 3600,
+              "VenueCue[0]: venue_effect at authored tick 3600");
     }
 
     if (failures == 0)

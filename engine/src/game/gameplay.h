@@ -292,6 +292,7 @@ class Gameplay {
   uint32_t last_band_note_tick_ = UINT32_MAX;
   size_t next_drum_cue_idx_ = 0;
   size_t next_bass_cue_idx_ = 0;
+  size_t next_venue_cue_idx_ = 0;
 
   double   song_time_      = 0.0;
   int      difficulty_     = 3;

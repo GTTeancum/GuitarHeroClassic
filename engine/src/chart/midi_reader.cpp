@@ -461,12 +461,23 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                 if (note.pitch == 48) event = "next";
                 if (note.pitch == 49) event = "prev";
                 if (note.pitch == 50) event = "first";
-                if (!event) continue;
-                const uint32_t offset_ticks = chart.ticks_per_beat * 4u;
-                const uint32_t cue_tick =
-                    (note.tick > offset_ticks) ? note.tick - offset_ticks : 0u;
-                chart.lighting_cues.push_back(
-                    {cue_tick, note.pitch, std::string(event)});
+                if (event) {
+                    const uint32_t offset_ticks = chart.ticks_per_beat * 4u;
+                    const uint32_t cue_tick =
+                        (note.tick > offset_ticks) ? note.tick - offset_ticks : 0u;
+                    chart.lighting_cues.push_back(
+                        {cue_tick, note.pitch, std::string(event)});
+                }
+
+                // config/midi_parsers.dta::effect_parser maps TRIGGERS pitch
+                // 52 to {handle (world venue_effect)}. It has start_offset 0,
+                // so dispatch at the authored MIDI tick and let the venue's
+                // decoded EventTrigger/AnimFilter data decide whether it is
+                // visible.
+                if (note.pitch == 52) {
+                    chart.venue_cues.push_back(
+                        {note.tick, note.pitch, std::string("venue_effect")});
+                }
             }
         }
     }
@@ -496,6 +507,11 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                   if (a.tick != b.tick) return a.tick < b.tick;
                   return a.pitch < b.pitch;
               });
+    std::sort(chart.venue_cues.begin(), chart.venue_cues.end(),
+              [](const VenueCue& a, const VenueCue& b) {
+                  if (a.tick != b.tick) return a.tick < b.tick;
+                  return a.pitch < b.pitch;
+              });
     std::fprintf(stderr, "[midi] text events=%zu\n", chart.text_events.size());
     std::fprintf(stderr, "[midi] performer text events=%zu\n",
                  chart.performer_events.size());
@@ -503,6 +519,8 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     std::fprintf(stderr, "[midi] bass cues=%zu\n", chart.bass_cues.size());
     std::fprintf(stderr, "[midi] lighting cues=%zu\n",
                  chart.lighting_cues.size());
+    std::fprintf(stderr, "[midi] venue cues=%zu\n",
+                 chart.venue_cues.size());
 
     auto append_chart_notes = [&](const std::vector<RawNote>& src_notes,
                                   const std::vector<SPRegion>& src_sp,
