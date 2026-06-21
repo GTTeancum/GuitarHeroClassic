@@ -327,6 +327,27 @@ int main() {
               "FretPos[1]: pitch 59 -> spot 20");
     }
 
+    // --- player*_fret hand-driver cues from selected guitar gems ---
+    // This is separate from the player*_fret_pos MIDI notes above; it feeds
+    // left_hand.drv clip scheduling through GUITARFRETMAPPINGS. The tick-244
+    // Expert Blue gem is filtered by parser min_gap 0.12s after tick 240.
+    CHECK(chart.fret_hand_cues[3].size() == 4,
+          "Expert player_fret hand cues: 4");
+    if (chart.fret_hand_cues[3].size() == 4) {
+        CHECK(chart.fret_hand_cues[3][0].tick == 0 &&
+              chart.fret_hand_cues[3][0].mask == 0x01,
+              "HandCue[0]: Expert Green");
+        CHECK(chart.fret_hand_cues[3][1].tick == 120 &&
+              chart.fret_hand_cues[3][1].mask == 0x02,
+              "HandCue[1]: Expert Red");
+        CHECK(chart.fret_hand_cues[3][2].tick == 240 &&
+              chart.fret_hand_cues[3][2].mask == 0x04,
+              "HandCue[2]: Expert Yellow");
+        CHECK(chart.fret_hand_cues[3][3].tick == 360 &&
+              chart.fret_hand_cues[3][3].mask == 0x10,
+              "HandCue[3]: Expert Orange");
+    }
+
     if (failures == 0)
         std::fprintf(stderr, "midi_reader_test: ALL PASS\n");
     else

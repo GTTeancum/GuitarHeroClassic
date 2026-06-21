@@ -20,6 +20,7 @@ namespace ghogx::chart {
 namespace {
 
 constexpr double kFretPositionMinGapSeconds = 0.22;
+constexpr double kFretHandMinGapSeconds = 0.12;
 
 // Read a big-endian unsigned integer of `n` bytes (1..4) from `p`.
 // Returns 0 if n==0.
@@ -350,6 +351,49 @@ void apply_fret_position_min_gap(const Chart& chart,
     cues.swap(filtered);
 }
 
+void append_hand_gem_cues(const Chart& chart, const std::vector<Note>& notes,
+                          std::vector<HandGemCue>& dst) {
+    if (notes.empty()) return;
+
+    std::vector<Note> sorted = notes;
+    std::sort(sorted.begin(), sorted.end(),
+              [](const Note& a, const Note& b) {
+                  if (a.tick_on != b.tick_on) return a.tick_on < b.tick_on;
+                  return a.lane < b.lane;
+              });
+
+    double last_accepted_sec = 0.0;
+    bool have_accepted = false;
+    for (size_t i = 0; i < sorted.size();) {
+        const uint32_t tick = sorted[i].tick_on;
+        HandGemCue cue;
+        cue.tick = tick;
+        cue.tick_off = tick;
+        while (i < sorted.size() && sorted[i].tick_on == tick) {
+            cue.mask |= 1u << std::clamp(sorted[i].lane, 0, 4);
+            cue.tick_off = std::max(cue.tick_off, sorted[i].tick_off);
+            ++i;
+        }
+        if ((cue.mask & 0x1fu) == 0) continue;
+
+        const double cue_sec = chart.tick_to_sec(cue.tick);
+        if (have_accepted &&
+            cue_sec - last_accepted_sec < kFretHandMinGapSeconds) {
+            continue;
+        }
+        cue.length = std::max(0.0, chart.tick_to_sec(cue.tick_off) - cue_sec);
+        dst.push_back(cue);
+        last_accepted_sec = cue_sec;
+        have_accepted = true;
+    }
+}
+
+void append_hand_gem_cues(const Chart& chart,
+                          const std::vector<Note> (&src)[4],
+                          std::vector<HandGemCue> (&dst)[4]) {
+    for (int d = 0; d < 4; ++d) append_hand_gem_cues(chart, src[d], dst[d]);
+}
+
 // ---------------------------------------------------------------------------
 // parse_midi
 // ---------------------------------------------------------------------------
@@ -654,6 +698,7 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     }
 
     append_chart_notes(raw_notes, sp_regions, chart.notes);
+    append_hand_gem_cues(chart, chart.notes, chart.fret_hand_cues);
 
     if (smf_format != 0) {
         std::vector<RawNote> raw_bass_notes;
@@ -671,6 +716,8 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                                       chart.bass_fret_positions);
         }
         append_chart_notes(raw_bass_notes, bass_sp_regions, chart.bass_notes);
+        append_hand_gem_cues(chart, chart.bass_notes,
+                             chart.bass_fret_hand_cues);
     }
 
     sort_fret_position_cues(chart.fret_positions);
@@ -678,11 +725,13 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     sort_fret_position_cues(chart.bass_fret_positions);
     apply_fret_position_min_gap(chart, chart.bass_fret_positions);
 
-    std::fprintf(stderr, "[midi] parsed: Easy=%zu Med=%zu Hard=%zu Expert=%zu BassMed=%zu fretPos=%zu bassFretPos=%zu dur=%.1fs\n",
+    std::fprintf(stderr, "[midi] parsed: Easy=%zu Med=%zu Hard=%zu Expert=%zu BassMed=%zu fretPos=%zu bassFretPos=%zu handCues=%zu bassHandCues=%zu dur=%.1fs\n",
                  chart.notes[0].size(), chart.notes[1].size(),
                  chart.notes[2].size(), chart.notes[3].size(),
                  chart.bass_notes[1].size(), chart.fret_positions.size(),
                  chart.bass_fret_positions.size(),
+                 chart.fret_hand_cues[3].size(),
+                 chart.bass_fret_hand_cues[3].size(),
                  chart.duration_sec());
     return chart;
 }

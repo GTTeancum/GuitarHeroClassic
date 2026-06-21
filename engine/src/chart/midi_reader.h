@@ -61,6 +61,13 @@ struct FretPositionCue {
     int spot_index = 0;  // 1..20, maps to spot_neck_fretNN.mesh
 };
 
+struct HandGemCue {
+    uint32_t tick;
+    uint32_t tick_off;
+    uint32_t mask = 0;  // bits 0..4, from config/midi_parsers.dta::player*_fret
+    double length = 0.0;
+};
+
 struct LightingCue {
     uint32_t tick;
     int pitch = 0;
@@ -80,6 +87,8 @@ struct Chart {
     std::vector<Note>        bass_notes[4]; // PART RHYTHM/PART BASS gems by difficulty
     std::vector<FretPositionCue> fret_positions;      // PART GUITAR player*_fret_pos
     std::vector<FretPositionCue> bass_fret_positions; // PART BASS/RHYTHM player*_fret_pos
+    std::vector<HandGemCue>  fret_hand_cues[4];       // PART GUITAR player*_fret
+    std::vector<HandGemCue>  bass_fret_hand_cues[4];  // PART BASS/RHYTHM player*_fret
     std::vector<TextEvent>   text_events;   // GH2 world EVENTS track text
     std::vector<TrackTextEvent> performer_events;  // role-specific text tracks
     std::vector<DrumCue>     drum_cues;      // BAND DRUMS parser cue notes

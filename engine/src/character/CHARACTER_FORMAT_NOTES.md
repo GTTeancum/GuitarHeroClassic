@@ -1390,6 +1390,25 @@ Community metadata Rosetta:
   under the selected hand clips. Treat this as the current native proof that
   left-hand neck travel and clip-driven finger rows are active together; it is
   still not original-game final sign-off.
+- 2026-06-21 native `player*_fret` hand-driver correction:
+  `char_objects.dta` wires `player0_fret`/`player1_fret` into
+  `left_hand.drv`, while `player0_fret_pos`/`player1_fret_pos` separately feed
+  `fret.ik`. Native now parses an explicit `player*_fret`-style
+  `HandGemCue` stream from the selected performer gem track instead of using
+  the broader animation-note lookahead as the hand-driver source. The stream
+  groups simultaneous gem notes into a 5-bit mask and applies the traced
+  `GUITARFRETMAPPINGS` `min_gap 0.12`; runtime hand idle uses the parser
+  `max_gap 0.24`. If a chart has no parsed hand cues, native falls back to the
+  old note-derived cue only as compatibility glue. Validation:
+  `analysis/native_validation/ghdx_jordan_left_player_fret_current_20260621_0215/`
+  uses the GH2DX/Deluxe ARK on `jordan` Expert at the same 105s route and logs
+  `source=player_fret` for 48 hand-map events, while the separate
+  `player*_fret_pos` stream covers fret indices `5..13`. The retained MP4
+  `ghdx_jordan_left_player_fret_current.mp4` keeps the left hand on the upper
+  neck with visible finger-pose changes. Contact rows still keep
+  `bone_L-hand` exactly at `bone_fret_hand` (`0/0/0`) over 71 samples, with
+  thumb/finger child rows moving under the selected hand clips. This is a
+  shared parser/runtime fix, not a character-specific hand offset.
 - Follow-up dynamic-hand validation:
   `engine/out/codex_goal_20260619_dynamic_hand_visible_probe/glam1_dynamic_hand_f1300.bmp`
   hides the attached guitar prop and frames Glam1 during a late active hand-map

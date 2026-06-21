@@ -139,6 +139,12 @@ class Gameplay {
     HandClipChoice regular;
     HandClipChoice fallback;
   };
+  struct ActiveVenueAnimFilter {
+    std::string event_name;
+    std::vector<VenueAnimFilter> filters;
+    double start_time = 0.0;
+    bool persistent = true;
+  };
 
   Gameplay() = default;
   ~Gameplay() = default;
@@ -177,6 +183,7 @@ class Gameplay {
 
  private:
   void apply_venue_event(const std::string& event_name, bool persistent = true);
+  void update_active_venue_anim_filters();
 
   // Detect a strum-triggered or HOPO note hit in the given lane.
   HitResult try_hit(int lane, bool strummed, bool is_hopo_candidate);
@@ -279,6 +286,8 @@ class Gameplay {
   std::map<std::string, std::vector<std::string>> venue_material_meshes_;
   std::map<std::string, float> venue_material_alpha_;
   std::map<std::string, std::array<float, 3>> venue_mesh_translation_offsets_;
+  std::vector<ActiveVenueAnimFilter> active_venue_anim_filters_;
+  double last_venue_filter_debug_time_ = -1.0;
   std::unordered_set<std::string> venue_base_hidden_meshes_;
   std::string active_venue_event_;
   std::map<std::string,

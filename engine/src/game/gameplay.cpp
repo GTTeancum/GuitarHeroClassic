@@ -2635,6 +2635,44 @@ std::array<float, 3> sample_translation_offset(
     return out;
 }
 
+float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
+                            double elapsed_seconds, bool persistent) {
+    const float start = filter.start_frame;
+    const float end = std::max(filter.end_frame, start);
+    const float span = end - start;
+    if (!std::isfinite(span) || span <= 0.001f) return start;
+
+    const float scale =
+        std::isfinite(filter.scale) && std::fabs(filter.scale) > 0.001f
+            ? std::fabs(filter.scale)
+            : 1.0f;
+    float delta = static_cast<float>(std::max(0.0, elapsed_seconds) * 30.0) *
+                  scale;
+    if (persistent) {
+        const float loop_span =
+            std::isfinite(filter.period) && filter.period > 0.001f
+                ? filter.period
+                : span;
+        if (loop_span > 0.001f) delta = std::fmod(delta, loop_span);
+        if (delta > span) delta = std::fmod(delta, span);
+    } else {
+        delta = std::min(delta, span);
+    }
+    return start + std::clamp(delta, 0.0f, span);
+}
+
+double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter) {
+    const float start = filter.start_frame;
+    const float end = std::max(filter.end_frame, start);
+    const float span = end - start;
+    if (!std::isfinite(span) || span <= 0.001f) return 0.0;
+    const float scale =
+        std::isfinite(filter.scale) && std::fabs(filter.scale) > 0.001f
+            ? std::fabs(filter.scale)
+            : 1.0f;
+    return static_cast<double>(span) / (30.0 * static_cast<double>(scale));
+}
+
 std::map<std::string, Gameplay::VenueGroupVisibility>
 load_venue_group_visibility(const std::string& hdr_path,
                             const std::string& ark_path,
@@ -3709,6 +3747,20 @@ const std::vector<ghogx::chart::Note>& performer_chart_notes(
     return lanes[performer_chart_lane_index(lanes)];
 }
 
+size_t performer_hand_cue_lane_index(
+    const std::vector<ghogx::chart::HandGemCue> (&lanes)[4]) {
+    for (int i = 3; i >= 0; --i) {
+        if (!lanes[static_cast<size_t>(i)].empty())
+            return static_cast<size_t>(i);
+    }
+    return 0;
+}
+
+const std::vector<ghogx::chart::HandGemCue>& performer_hand_cues(
+    const std::vector<ghogx::chart::HandGemCue> (&lanes)[4]) {
+    return lanes[performer_hand_cue_lane_index(lanes)];
+}
+
 NoteCue current_note_cue(double song_time, const ghogx::chart::Chart& chart,
                          const std::vector<ghogx::chart::Note>& notes) {
     NoteCue cue;
@@ -3780,6 +3832,29 @@ NoteCue performer_animation_note_cue(
             cue.length = std::max(cue.length, off - on);
         }
     }
+    return cue;
+}
+
+NoteCue current_fret_hand_cue(
+    double song_time, const ghogx::chart::Chart& chart,
+    const std::vector<ghogx::chart::HandGemCue>& cues) {
+    NoteCue cue;
+    if (cues.empty()) return cue;
+    constexpr double kMaxGapSec = 0.24;
+    const uint32_t now_tick = chart.sec_to_tick(song_time);
+    const ghogx::chart::HandGemCue* chosen = nullptr;
+    for (const auto& candidate : cues) {
+        if (candidate.tick > now_tick) break;
+        chosen = &candidate;
+    }
+    if (!chosen) return cue;
+    const double on = chart.tick_to_sec(chosen->tick);
+    const double off = std::max(on, chart.tick_to_sec(chosen->tick_off));
+    if (song_time > off + kMaxGapSec) return cue;
+    cue.active = true;
+    cue.tick = chosen->tick;
+    cue.mask = chosen->mask & 0x1fu;
+    cue.length = chosen->length;
     return cue;
 }
 
@@ -4241,6 +4316,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_event_filters_.clear();
     venue_filter_mesh_targets_.clear();
     venue_event_anim_filters_.clear();
+    active_venue_anim_filters_.clear();
+    last_venue_filter_debug_time_ = -1.0;
     venue_event_group_visibility_.clear();
     venue_material_meshes_.clear();
     venue_material_alpha_.clear();
@@ -4321,6 +4398,13 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     if (persistent) {
         if (active_venue_event_ == event_name && world_) return;
         active_venue_event_ = event_name;
+        active_venue_anim_filters_.erase(
+            std::remove_if(active_venue_anim_filters_.begin(),
+                           active_venue_anim_filters_.end(),
+                           [](const ActiveVenueAnimFilter& active) {
+                               return active.persistent;
+                           }),
+            active_venue_anim_filters_.end());
     }
     std::vector<std::pair<std::string, float>> material_changes;
     if (persistent) {
@@ -4379,18 +4463,20 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     if (const auto filter_event_it =
             venue_event_anim_filters_.find(event_name);
         filter_event_it != venue_event_anim_filters_.end()) {
+        ActiveVenueAnimFilter active_filter;
+        active_filter.event_name = event_name;
+        active_filter.filters = filter_event_it->second;
+        active_filter.start_time = song_time_;
+        active_filter.persistent = persistent;
+        active_venue_anim_filters_.push_back(std::move(active_filter));
         for (const auto& filter : filter_event_it->second) {
-            const float frame = filter.start_frame;
-            for (const auto& target : filter.targets) {
-                venue_mesh_translation_offsets_[target.mesh] =
-                    sample_translation_offset(target.keys, frame);
-            }
             std::fprintf(
                 stderr,
-                "[world] venue event %s: AnimFilter %s frame %.2f..%.2f targets=%zu scale=%.3f period=%.3f type=%d\n",
+                "[world] venue event %s: AnimFilter %s frame %.2f..%.2f targets=%zu scale=%.3f period=%.3f type=%d %s\n",
                 event_name.c_str(), filter.name.c_str(), filter.start_frame,
                 filter.end_frame, filter.targets.size(), filter.scale,
-                filter.period, filter.type);
+                filter.period, filter.type,
+                persistent ? "persistent" : "transient");
         }
     } else if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
@@ -4399,9 +4485,60 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     }
     if (world_) {
         world_->set_material_alpha_multipliers(venue_material_alpha_);
-        world_->set_mesh_translation_offsets(venue_mesh_translation_offsets_);
         world_->set_hidden_meshes(std::move(hidden));
     }
+    update_active_venue_anim_filters();
+}
+
+void Gameplay::update_active_venue_anim_filters() {
+    if (!world_) return;
+    if (active_venue_anim_filters_.empty()) {
+        if (!venue_mesh_translation_offsets_.empty()) {
+            venue_mesh_translation_offsets_.clear();
+            world_->set_mesh_translation_offsets(venue_mesh_translation_offsets_);
+        }
+        return;
+    }
+
+    venue_mesh_translation_offsets_.clear();
+    const bool debug_sample =
+        debug_venue_filters_enabled() &&
+        (last_venue_filter_debug_time_ < 0.0 ||
+         song_time_ - last_venue_filter_debug_time_ >= 0.5);
+    if (debug_sample) last_venue_filter_debug_time_ = song_time_;
+    for (auto it = active_venue_anim_filters_.begin();
+         it != active_venue_anim_filters_.end();) {
+        const double elapsed = std::max(0.0, song_time_ - it->start_time);
+        double duration = 0.0;
+        for (const auto& filter : it->filters) {
+            duration =
+                std::max(duration, venue_filter_duration_seconds(filter));
+        }
+        if (!it->persistent && duration > 0.0 && elapsed > duration) {
+            it = active_venue_anim_filters_.erase(it);
+            continue;
+        }
+
+        for (const auto& filter : it->filters) {
+            const float frame =
+                venue_filter_frame_at(filter, elapsed, it->persistent);
+            for (const auto& target : filter.targets) {
+                const auto offset =
+                    sample_translation_offset(target.keys, frame);
+                venue_mesh_translation_offsets_[target.mesh] = offset;
+                if (debug_sample) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f offset=(%.3f %.3f %.3f) persistent=%d\n",
+                        it->event_name.c_str(), filter.name.c_str(),
+                        target.mesh.c_str(), frame, offset[0], offset[1],
+                        offset[2], it->persistent ? 1 : 0);
+                }
+            }
+        }
+        ++it;
+    }
+    world_->set_mesh_translation_offsets(venue_mesh_translation_offsets_);
 }
 
 // ---------------------------------------------------------------------------
@@ -4616,6 +4753,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     } else if (active_venue_event_.empty()) {
         apply_venue_event("excitement_okay");
     }
+    update_active_venue_anim_filters();
 
     prev_fret_mask_ = fret_mask;
 
@@ -5259,6 +5397,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
         const auto& performer_guitar_notes = performer_chart_notes(chart_.notes);
         const auto& performer_bass_notes =
             performer_chart_notes(chart_.bass_notes);
+        const auto& performer_guitar_hand_cues =
+            performer_hand_cues(chart_.fret_hand_cues);
+        const auto& performer_bass_hand_cues =
+            performer_hand_cues(chart_.bass_fret_hand_cues);
         const NoteCue note_cue =
             current_note_cue(song_time_, chart_, performer_guitar_notes);
         const bool intro_active =
@@ -5383,12 +5525,22 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     ? current_note_cue(song_time_, chart_,
                                        performer_bass_notes)
                     : note_cue;
+            const bool use_fret_hand_parser =
+                (perf.role == "bassist")
+                    ? !performer_bass_hand_cues.empty()
+                    : !performer_guitar_hand_cues.empty();
             const NoteCue perf_anim_note_cue =
                 (perf.role == "bassist")
-                    ? performer_animation_note_cue(
-                          song_time_, chart_, performer_bass_notes)
-                    : performer_animation_note_cue(
-                          song_time_, chart_, performer_guitar_notes);
+                    ? (use_fret_hand_parser
+                           ? current_fret_hand_cue(
+                                 song_time_, chart_, performer_bass_hand_cues)
+                           : performer_animation_note_cue(
+                                 song_time_, chart_, performer_bass_notes))
+                    : (use_fret_hand_parser
+                           ? current_fret_hand_cue(
+                                 song_time_, chart_, performer_guitar_hand_cues)
+                           : performer_animation_note_cue(
+                                 song_time_, chart_, performer_guitar_notes));
             const FretPositionState perf_fret_pos =
                 (perf.role == "bassist")
                     ? current_fret_position_state(
@@ -5563,8 +5715,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
                         std::fprintf(
                             stderr,
-                            "[handmap] role=%s map=%s mask=0x%02x tick=%u len=%.3f choices=",
-                            perf.role.c_str(), midi_state.hand_map.c_str(),
+                            "[handmap] role=%s source=%s map=%s mask=0x%02x tick=%u len=%.3f choices=",
+                            perf.role.c_str(),
+                            use_fret_hand_parser ? "player_fret"
+                                                 : "note_fallback",
+                            midi_state.hand_map.c_str(),
                             desired_mask & 0x1fu, desired_tick,
                             perf_anim_note_cue.length);
                         for (size_t i = 0; i < requested_fret_names.size();
