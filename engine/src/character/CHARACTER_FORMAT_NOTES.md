@@ -2724,6 +2724,33 @@ Useful environment flags:
   -0.497..0.339`. Treat this as the current native steady-state proof for the
   reported thumb-through-neck concern; a new hand-code change needs fresh
   PS2/native mismatch evidence, not a cold seek screenshot.
+- 2026-06-21 current GH2DX/Deluxe Jordan left-hand revalidation:
+  `analysis/native_validation/ghdx_jordan_left_hand_current_valid_20260621_0028/`
+  reruns the same dense Jordan route after native `player*_fret_pos` parsing.
+  The run uses the full GH2DX/Deluxe `MAIN_0.ARK` tree, `song=jordan`,
+  `difficulty=3`, a 105s diagnostic start, and a retained 108s..112s window.
+  The hand-targeted MP4
+  `ghdx_jordan_left_hand_current_valid.mp4` and sheet show Glam1's left hand on
+  the Les Paul neck with visible finger/hand pose changes. The log records 90
+  `HandMap_Default` events with masks `0x01`, `0x02`, `0x04`, `0x08`, and
+  `0x10`, selecting `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_pinky`, `finger_hold_ring_hi`, and
+  `finger_vibrato_pinky`. `player*_fret_pos` events cover fret indices
+  `5..13` during the run. In the visible `t >= 108.0` window,
+  post-controller `bone_L-hand` remains exactly at `bone_fret_hand`, while the
+  thumb/finger rows stay inside the 2026-06-20 accepted neck-side ranges:
+  `bone_L-thumb01` x/y/z = `1.034..1.035 / 0.040..0.040 / -0.649..-0.648`,
+  `bone_L-thumb02` = `2.228..2.465 / 1.751..1.874 / -1.348..-1.196`,
+  `bone_L-thumb03` = `3.418..3.823 / 2.620..2.956 / -1.491..-1.266`,
+  `bone_L-index01` = `4.511..4.512 / -0.202..-0.199 / -0.966..-0.961`, and
+  `bone_L-middlefinger01` =
+  `4.532..4.533 / -0.336..-0.332 / -0.114..-0.110`.
+  `analysis/native_validation/ghdx_jordan_left_hand_fixedneck_valid_20260621_0034/`
+  is the companion fixed-neck visual proof; its cropped MP4
+  `ghdx_jordan_left_hand_fixedneck_valid_crop.mp4` keeps the upper neck in
+  frame while the hand changes position/pose. These are current validation
+  artifacts for the shared hand-driver/IK route, not evidence for a new
+  character-specific fix.
 - 2026-06-20 fret-anchor correction for thumb/neck contact:
   the accepted basis for this rule is decoded prop geometry plus GH2DXu/GHDX
   autoplay fretting traces. The attached guitar props (`lespaull`,
