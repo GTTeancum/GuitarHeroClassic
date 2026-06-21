@@ -83,7 +83,8 @@ bool debug_performer_start_enabled() {
 }
 
 bool is_lower_body_clip_channel(std::string_view name) {
-    return name.find("pelvis") != std::string_view::npos ||
+    return name == "bone_facing" ||
+           name.find("pelvis") != std::string_view::npos ||
            name.find("-thigh") != std::string_view::npos ||
            name.find("-knee") != std::string_view::npos ||
            name.find("-ankle") != std::string_view::npos ||

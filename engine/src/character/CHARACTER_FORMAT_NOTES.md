@@ -532,6 +532,15 @@ Glam1 hair:
   remain ugly at this distance, but the current evidence still points at
   authored card shape/rendering and the shared local-hair row bridge, not a
   missing manual eye offset or Glam1-only reattachment.
+- 2026-06-21 fresh current hair/eye sweep:
+  `analysis/native_validation/glam1_hair_eye_current_sweep_20260621_1400/`
+  reruns the current GH2DX/Deluxe Jordan/Glam1 route from six head-camera
+  angles. `glam1_hair_eye_sweep_sheet.jpg` keeps both eyes visible in the
+  socket band and shows the blond hair cards attached around the head. The
+  broad cards remain unattractive in close-up, but this sweep again does not
+  reproduce the old empty-socket or detached lower-hair failure. Do not add a
+  manual eye translation, hide-list, or Glam1-only hair reattachment without a
+  newer accepted PS2/native mismatch.
 - 2026-06-15 wrist close-up isolation after `88dc57e`:
   `engine/out/native_song_20260615/glam1_left_arm_mesh_isolate_after_88dc57e/`
   proves the obvious dark angular piece below the left glove is
@@ -2374,6 +2383,28 @@ Useful environment flags:
   `laidtorest_f900_output_lower_layerpath.bmp`. These reduce the visible
   wide-stance failure without worsening known arm, prop, hair, or jacket-panel
   issues.
+- Hand-overlay filtering must treat `bone_facing` as part of this same
+  lower-body/root set. The hand drivers are overlay lanes for strum/fret
+  rows; they must not keep or own the body-facing root if a hand clip carries
+  it. `character_left_hand_contract_test.cpp` guards this shared split.
+- 2026-06-21 current lower-body sweep:
+  `analysis/native_validation/lower_body_current_sweep_20260621_1410/` captures
+  current GH2DX/Deluxe Glam1/Jordan, Rockabill1/Mr. Fix It, and
+  Deathmetal1/Laid to Rest full-body debug-camera checks with
+  `GHOGX_DEBUG_LEG_POSE=1`, graph selection logging, and output-map logging.
+  `lower_body_current_sweep_sheet.jpg` does not reproduce the old Rockabill1
+  cross-legged route or the previous extreme splayed stance. Final sampled
+  foot/toe widths are Rockabill1 and Deathmetal1 `foot2D=24.603` /
+  `toe2D=16.209`, and Glam1 `toe2D=25.061` from the current fast-clip window.
+  Keep this as a current route-health guard; it is not a full lower-body parity
+  signoff for every guitarist/song.
+- 2026-06-21 post-classifier smoke:
+  `analysis/native_validation/lower_body_overlay_root_postpatch_20260621_1422/`
+  rechecks Glam1/Jordan and Rockabill1/Mr. Fix It after adding `bone_facing`
+  to the hand-overlay lower-body filter. The sheet remains visually coherent
+  and the final leg-row widths are unchanged (`Glam1 toe2D=25.061`,
+  `Rockabill1 foot2D=24.603 / toe2D=16.209`), which confirms the root-row
+  ownership fix did not regress the current lower-body route.
 - `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT=1` disables that promoted lower
   bridge for A/B comparisons. `GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` remains the
   opt-in full output-layer experiment, and

@@ -141,6 +141,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "env_float(\"GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS\",0.08f)",
                  "hand-driver scheduler blend uses the traced fast default");
+  ok &= contains(gameplay_c,
+                 "returnname==\"bone_facing\"||name.find(\"pelvis\")",
+                 "hand overlays strip the body-facing root with lower-body rows");
 
   if (!ok) {
     std::cerr
