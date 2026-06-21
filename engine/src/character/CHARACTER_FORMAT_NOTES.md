@@ -1409,6 +1409,22 @@ Community metadata Rosetta:
   `bone_L-hand` exactly at `bone_fret_hand` (`0/0/0`) over 71 samples, with
   thumb/finger child rows moving under the selected hand clips. This is a
   shared parser/runtime fix, not a character-specific hand offset.
+- 2026-06-21 exact chord hand-map selector correction:
+  `GUITARFRETMAPPINGS` chord rows use both exact multi-key entries and
+  one-key root buckets. Native previously treated every chord row as "contains
+  the first event key", which preserved `HandMap_Default` powerchord buckets
+  but collapsed `HandMap_Solo` rows such as `(3 5)` into earlier rows such as
+  `(1 3)`. Native now resolves chord rows in three passes: exact multi-key
+  keyset, one-key root bucket, then empty fallback. Validation:
+  `analysis/native_validation/shout_solo_left_hand_exact_chord_video_20260621_0955/`
+  uses GH2DX/Deluxe `shoutatthedevil` Expert at diagnostic start `118s`; the
+  retained MP4 `shout_solo_left_hand_exact_chord.mp4` shows the fretting hand
+  through the Solo map window, while the log changes `HandMap_Solo`
+  `mask=0x14 tick=92040 len=0.695` from the pre-fix
+  `finger_vibrato_middle` selection to the exact `(3 5)` row's
+  `finger_vibrato_pinky_hi`. The same post-fix run keeps
+  `HandMap_Default` chord masks `0x0a` and `0x05` on `finger_powerchord_1`,
+  so the accepted root-bucket powerchord route remains intact.
 - Follow-up dynamic-hand validation:
   `engine/out/codex_goal_20260619_dynamic_hand_visible_probe/glam1_dynamic_hand_f1300.bmp`
   hides the attached guitar prop and frames Glam1 during a late active hand-map

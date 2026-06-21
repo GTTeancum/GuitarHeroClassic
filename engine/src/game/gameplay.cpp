@@ -4152,11 +4152,27 @@ int first_lane_from_mask(uint32_t note_mask) {
     return -1;
 }
 
-bool chord_rule_matches(const Gameplay::HandChordRule& rule,
-                        int first_event_key) {
-    if (rule.keys.empty()) return true;
-    return std::find(rule.keys.begin(), rule.keys.end(), first_event_key) !=
-           rule.keys.end();
+std::vector<int> event_keys_from_mask(uint32_t note_mask) {
+    std::vector<int> keys;
+    for (int lane = 0; lane < 5; ++lane) {
+        if ((note_mask & (1u << lane)) != 0) keys.push_back(lane + 1);
+    }
+    return keys;
+}
+
+bool chord_rule_exact_matches(const Gameplay::HandChordRule& rule,
+                              const std::vector<int>& chord_keys) {
+    return rule.keys.size() > 1 && rule.keys == chord_keys;
+}
+
+bool chord_rule_root_bucket_matches(const Gameplay::HandChordRule& rule,
+                                    int first_event_key) {
+    return rule.keys.size() == 1 && rule.keys.front() == first_event_key;
+}
+
+std::vector<std::string> names_for_chord_rule(
+    const Gameplay::HandChordRule& rule, double note_length) {
+    return names_for_hand_choice(rule.choice, note_length);
 }
 
 FretClipSelection fret_clip_selection_for_note(
@@ -4181,9 +4197,28 @@ FretClipSelection fret_clip_selection_for_note(
             return make_fret_clip_selection(std::move(names), true,
                                             child_index);
     } else {
+        const std::vector<int> chord_keys = event_keys_from_mask(note_mask);
+        const Gameplay::HandChordRule* empty_fallback = nullptr;
         for (const auto& rule : map.chords) {
-            if (!chord_rule_matches(rule, event_key)) continue;
-            auto names = names_for_hand_choice(rule.choice, note_length);
+            if (rule.keys.empty()) {
+                if (!empty_fallback) empty_fallback = &rule;
+                continue;
+            }
+            if (!chord_rule_exact_matches(rule, chord_keys)) continue;
+            auto names = names_for_chord_rule(rule, note_length);
+            if (!names.empty())
+                return make_fret_clip_selection(std::move(names), true,
+                                                child_index);
+        }
+        for (const auto& rule : map.chords) {
+            if (!chord_rule_root_bucket_matches(rule, event_key)) continue;
+            auto names = names_for_chord_rule(rule, note_length);
+            if (!names.empty())
+                return make_fret_clip_selection(std::move(names), true,
+                                                child_index);
+        }
+        if (empty_fallback) {
+            auto names = names_for_chord_rule(*empty_fallback, note_length);
             if (!names.empty())
                 return make_fret_clip_selection(std::move(names), true,
                                                 child_index);
