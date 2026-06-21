@@ -260,6 +260,22 @@ Open work:
   Continue treating these as current route-health evidence; exact camera
   parity still depends on a focused trace if a native/PS2 camera mismatch is
   reported.
+- 2026-06-21 current native validation refresh:
+  `analysis/native_validation/yyz_authored_venue_band_current_20260621_005321/`
+  captures stock PS2 `yyz` from `--diagnostic-song-start 8.0` with no debug
+  gameplay camera. The MP4 is nonblank and the log loads `funk1`,
+  `metal_bass`, `metal_drummer`, and `metal_keyboard`; `BAND KEYS` enters
+  `[play]`, drum cues fire, lighting keyframes advance, regular camera sweeps
+  run, and `post_switch_cam` fires. The visual window is a distant,
+  speaker-heavy theatre shot, so keep it as keyboard/drum/lighting/camera
+  route-health evidence, not camera composition signoff.
+  `analysis/native_validation/shout_authored_venue_band_current_20260621_005518/`
+  captures stock PS2 `shoutatthedevil` from `--diagnostic-song-start 16.0`
+  with no debug gameplay camera. The MP4 shows a coherent arena-stage route
+  with `glam1`, `metal_singer`, `metal_bass`, `metal_drummer`, drum kit, props,
+  lighting, and moving authored cameras. The singer marker is idle in this
+  exact window even though the singer route and `singer_active_medium_01` are
+  loaded, so do not use this as singer-performance parity signoff.
 
 2026-06-14 native validation:
 
