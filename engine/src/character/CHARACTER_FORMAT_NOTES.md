@@ -541,6 +541,28 @@ Glam1 hair:
   reproduce the old empty-socket or detached lower-hair failure. Do not add a
   manual eye translation, hide-list, or Glam1-only hair reattachment without a
   newer accepted PS2/native mismatch.
+- 2026-06-21 hair/eye contract checkpoint:
+  `analysis/native_validation/glam1_hair_eye_contract_current_20260621/`
+  reruns the current GH2DX/Deluxe Jordan/Glam1 route with a hidden head camera,
+  `GHOGX_DEBUG_FACE=1`, `GHOGX_DEBUG_CHAR_HAIR=1`, focused mesh-mode logging,
+  and raw BMP cleanup after encoding. The retained MP4 is
+  `glam1_hair_eye_contract_current.mp4`. The proof sheet keeps both eyes seated
+  and the blond hair mass attached around the head. The log records 1110
+  `charhair-follow-ps2` rows and 4810 `hairOverride=1` skin rows on the
+  weighted Glam1 hair sheets, including `hair-side.mesh`, `hair-mid.mesh`,
+  `hair-lower.mesh`, `hair-top.mesh`, and `hair-bottom.mesh` consuming
+  `bone_hair01.mesh`, `bone_bangL.mesh`, and `bone_bangR.mesh` as
+  `local-attachment`. It also records 740 eye/look-at rows; `eye-L.mesh` and
+  `eye-R.mesh` remain parented to `bone_head.mesh`, use the shared
+  `mesh-attachment` draw path, and receive `l-eye.lookat` / `r-eye.lookat`
+  properties. This is a current-tree regression guard for the shared hair/eye
+  path, not evidence for hiding authored hair cards or manually moving eyes.
+- `ghogx_character_hair_contract_test` now guards the hair trace gate in source:
+  runtime hair point state must retain current/previous velocity, rest/anchor,
+  and cached orientation fields; `CharHair` must submit runtime Trans rows for
+  renderer/skinning consumption; weighted hair skinning must consume those rows
+  via `runtime_hair_world_override`; and the rejected PS2 single-point solver
+  path must remain opt-in diagnostic state rather than the default route.
 - 2026-06-15 wrist close-up isolation after `88dc57e`:
   `engine/out/native_song_20260615/glam1_left_arm_mesh_isolate_after_88dc57e/`
   proves the obvious dark angular piece below the left glove is
@@ -3115,6 +3137,119 @@ Useful environment flags:
   stays `3.289..3.909 / 2.477..3.024 / -1.565..-1.269`. This is the current
   left-thumb visual/numeric guard for the shared runtime; do not use the
   invalid checkerboard micro-sweep output as evidence.
+- 2026-06-21 left-hand-only close finger review:
+  `analysis/native_validation/left_hand_close_finger_yawm075_20260621_current/`
+  uses the same accepted GH2DX/Deluxe `jordan` Expert route, hidden camera
+  target `guitarist0:bone_L-hand.mesh`, yaw `-0.75`, pitch `0.14`, distance
+  `23`, and FOV `0.42`. The retained MP4
+  `left_hand_close_finger_yawm075.mp4` is a close palm/finger-side view meant
+  only for fretting-hand review. The log records 64 `source=player_fret`
+  hand-map events across masks `0x01`, `0x02`, `0x04`, `0x08`, and `0x10`,
+  selected clips `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_pinky`, `finger_hold_ring_hi`, and
+  `finger_vibrato_pinky`, and fret-position events over indices `4..13`.
+  For `t >= 108.0`, `bone_L-hand` remains exactly `0/0/0` in
+  `bone_fret_hand` space over 366 samples; `bone_L-thumb01` stays
+  `1.034..1.035 / 0.040..0.040 / -0.649..-0.648`, `bone_L-thumb02` stays
+  `2.228..2.416 / 1.779..1.874 / -1.349..-1.229`, and `bone_L-thumb03`
+  stays `3.418..3.753 / 2.680..2.957 / -1.492..-1.325`. Reconstructing the
+  split `[handpose]` rows in `pose_rows_stderr.log` over 182 post-controller
+  samples confirms clip-driven left-finger rotation spans across the same run:
+  `bone_L-index01=0.17593`, `bone_L-index02=0.16303`,
+  `bone_L-middlefinger01=0.25683`, `bone_L-middlefinger02=0.17331`,
+  `bone_L-ringfinger01=0.41276`, `bone_L-ringfinger02=0.18357`,
+  `bone_L-pinky01=0.61535`, with distal rows smaller but present. This is the
+  current close-view companion to the neck-anchored/backside passes; it is not a
+  reason for character-specific offsets.
+- 2026-06-21 fret-position cue timing guard:
+  native `current_fret_position_state` no longer selects a future
+  `player*_fret_pos` cue through the diagnostic `song_time + 0.08` window. The
+  accepted local evidence documents `player*_fret_pos` as a separate MIDI
+  stream with `min_gap 0.22` feeding `fret.ik`; it does not document an
+  anticipatory target switch. The left-hand contract now requires
+  `cue.tick > now_tick` to stop selection and rejects a future-cue fallback, so
+  the fretting IK target advances when the authored cue is reached while finger
+  clips continue to come from `player*_fret`.
+- 2026-06-21 left-finger row validation:
+  `analysis/native_validation/left_hand_pose_rows_no_future_yawm075_20260621_current/`
+  and
+  `analysis/native_validation/left_hand_thumb_neck_pose_rows_no_future_yawm060_20260621_current/`
+  rerun the hidden Glam1/Jordan Expert left-hand route after the no-future
+  `player*_fret_pos` change. The retained MP4s are
+  `left_hand_pose_rows_no_future_yawm075.mp4` and
+  `left_hand_thumb_neck_pose_rows_no_future_yawm060.mp4`; raw BMP frames were
+  deleted after encoding. Both logs record 49 `source=player_fret` hand-map
+  selections across masks `0x01`, `0x02`, `0x04`, `0x08`, and `0x10`, selected
+  clips `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_pinky`, `finger_hold_ring_hi`, and
+  `finger_vibrato_pinky`, and 430 `player*_fret_pos` target rows over fret
+  indices `5..13`. With `GHOGX_DEBUG_HAND_POSE_ROWS=1` and stride `0.1`, the
+  left-finger rotation rows are no longer just inferred from origin deltas:
+  row spans are present for `bone_L-index01`, `bone_L-index02`,
+  `bone_L-middlefinger01`, `bone_L-ringfinger01`, and `bone_L-pinky01`. The
+  thumb-side pass keeps `bone_L-hand` exactly at `0/0/0` in
+  `bone_fret_hand` space while thumb rows remain in the negative-Z neck-side
+  band (`bone_L-thumb03` z `-1.565..-1.269`). This validates that the current
+  shared runtime is applying clip-driven left-finger/thumb rotation plus
+  `fret.ik` neck travel; it is not evidence for any character-specific offset.
+- 2026-06-21 neck-fixed left-hand visual review:
+  `analysis/native_validation/left_hand_neck_fixed_jordan_current_20260621_focus_v2/`
+  captures the current native GH2DX/GHDX Jordan route from diagnostic start
+  `102s` with the gameplay camera locked to
+  `guitarist0:spot_neck_fret12.mesh`. The retained MP4 is
+  `left_hand_neck_fixed_jordan_current.mp4`; raw BMP frames were deleted after
+  encoding. The fixed-neck view is the current visual artifact for judging
+  fretting-hand motion against the rendered guitar instead of following the
+  hand. The log records 56 `source=player_fret` hand-map selections on
+  `HandMap_Default`, fret-position rows over indices `5..14`, and selected
+  clips `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_pinky`, `finger_hold_ring_hi`,
+  `finger_vibrato_pinky`, and `finger_vibrato_ring`. Post-controller
+  `bone_L-hand` remains exactly `0/0/0` in `bone_fret_hand` space over 181
+  samples, while `bone_L-thumb01..03` stay in the negative-Z neck-side band in
+  that basis. This is shared left-hand route evidence only; do not derive
+  per-character offsets from this capture.
+- 2026-06-21 left-hand-only contact metric refresh:
+  `analysis/native_validation/left_hand_contact_metrics_jordan_20260621_current/`
+  reruns the accepted GH2DX/GHDX Jordan route hidden with only `guitarist0`
+  active and `GHOGX_DEBUG_LEFT_HAND_CONTACT=1`; no screenshots or code changes
+  were produced. Reconstructing the split log rows over 60 post-controller
+  samples confirms the same shared fretting-hand geometry: `bone_L-hand` stays
+  exactly `0/0/0` in `bone_fret_hand` space, `bone_L-thumb01` stays
+  `1.034..1.036 / 0.040..0.046 / -0.650..-0.647`, `bone_L-thumb02` stays
+  `2.128..2.540 / 1.631..1.913 / -1.405..-1.198`, and
+  `bone_L-thumb03` stays `3.289..3.914 / 2.474..3.024 / -1.565..-1.269`.
+  First finger rows remain in the accepted neck-side band too:
+  `bone_L-index01` is `4.511..4.512 / -0.201..-0.181 / -0.971..-0.958`,
+  while `bone_L-middlefinger01`, `bone_L-ringfinger01`, and
+  `bone_L-pinky01` span the front-side grip as authored. The existing
+  backside proof sheet in
+  `analysis/native_validation/ghdx_jordan_left_hand_thumb_backside_yaw290_20260621_1318/`
+  still shows the thumb wrapping behind the red neck. Treat this as a guard
+  against left-hand scope drift: if a future visual still looks wrong, reopen
+  shared skin/prop consumption with fresh accepted PS2/native mismatch
+  evidence; do not add thumb, Glam1, or outfit-specific offsets.
+- 2026-06-21 chord-route left-hand revalidation after no-future target:
+  `analysis/native_validation/left_hand_mrfixit_chord_rows_no_future_20260621_current/`
+  reruns the current native tree on the GH2DX/Deluxe `mrfixit` route, diagnostic
+  start `14s`, player difficulty Expert, camera target
+  `guitarist0:spot_neck_fret10.mesh`, and row/contact logging for
+  `guitarist0` only. The retained MP4 is
+  `left_hand_mrfixit_chord_rows_no_future.mp4`; raw BMP frames were deleted
+  after encoding. The route resolves to `rockabill1`/`lespaul`/`big`, uses the
+  authored Expert performer lane (`guitar_lane=3 notes=868`), logs 51
+  `source=player_fret` hand-map selections, and selects `finger_powerchord_1`,
+  `finger_powerchord_2`, `finger_open`, `finger_hold_index`,
+  `finger_hold_index_hi`, and `finger_hold_pinky` over masks including
+  `0x03`, `0x05`, `0x0a`, `0x14`, and `0x18`. `player*_fret_pos` target rows
+  cover fret indices `2`, `4`, `6`, `8`, and `11`. For `t >= 17.0`,
+  `bone_L-hand` remains exactly `0/0/0` in `bone_fret_hand` space, thumb rows
+  remain behind the fret-hand target (`bone_L-thumb01` z
+  `-1.745..-1.742`, `bone_L-thumb02` z `-2.876..-2.436`,
+  `bone_L-thumb03` z `-3.602..-2.767`), and the expanded row logger records
+  substantial clip-driven rotation spans on the fretting fingers
+  (`bone_L-index01`, `bone_L-ringfinger01`, and `bone_L-pinky01`). This is the
+  current chord/powerchord visual guard for the shared fretting-hand path.
 - 2026-06-21 accepted-tree left-hand fret review:
   `analysis/native_validation/ghdx_jordan_left_hand_fret_review_20260621_accepted_tree/`
   repeats the short neck-anchored Jordan/Glam1 review against the same combined

@@ -53,6 +53,220 @@ std::array<float, 16> xfm_to_mat4(const milo_scene::Xfm& x) {
           x.pos[0],    x.pos[1],    x.pos[2],    1.0f};
 }
 
+void apply_local_translation_delta(std::array<float, 16>& world,
+                                   const float delta[3]) {
+  const float dx = delta[0] * world[0] + delta[1] * world[4] +
+                   delta[2] * world[8];
+  const float dy = delta[0] * world[1] + delta[1] * world[5] +
+                   delta[2] * world[9];
+  const float dz = delta[0] * world[2] + delta[1] * world[6] +
+                   delta[2] * world[10];
+  world[12] += dx;
+  world[13] += dy;
+  world[14] += dz;
+}
+
+std::array<float, 4> normalize_quat_xyzw(std::array<float, 4> q) {
+  const float len = std::sqrt(q[0] * q[0] + q[1] * q[1] +
+                              q[2] * q[2] + q[3] * q[3]);
+  if (!std::isfinite(len) || len <= 0.000001f)
+    return {0.0f, 0.0f, 0.0f, 1.0f};
+  const float inv = 1.0f / len;
+  for (float& v : q) v *= inv;
+  return q;
+}
+
+std::array<float, 4> quat_conjugate_xyzw(std::array<float, 4> q) {
+  q[0] = -q[0];
+  q[1] = -q[1];
+  q[2] = -q[2];
+  return q;
+}
+
+std::array<float, 4> quat_mul_xyzw(const std::array<float, 4>& a,
+                                   const std::array<float, 4>& b) {
+  const float ax = a[0], ay = a[1], az = a[2], aw = a[3];
+  const float bx = b[0], by = b[1], bz = b[2], bw = b[3];
+  return normalize_quat_xyzw({
+      aw * bx + ax * bw + ay * bz - az * by,
+      aw * by - ax * bz + ay * bw + az * bx,
+      aw * bz + ax * by - ay * bx + az * bw,
+      aw * bw - ax * bx - ay * by - az * bz,
+  });
+}
+
+void quat_xyzw_to_row_rot(const std::array<float, 4>& q_in,
+                          float rot[3][3]) {
+  const auto q = normalize_quat_xyzw(q_in);
+  const float x = q[0], y = q[1], z = q[2], w = q[3];
+  rot[0][0] = 1.0f - 2.0f * (y * y + z * z);
+  rot[0][1] = 2.0f * (x * y + z * w);
+  rot[0][2] = 2.0f * (x * z - y * w);
+  rot[1][0] = 2.0f * (x * y - z * w);
+  rot[1][1] = 1.0f - 2.0f * (x * x + z * z);
+  rot[1][2] = 2.0f * (y * z + x * w);
+  rot[2][0] = 2.0f * (x * z + y * w);
+  rot[2][1] = 2.0f * (y * z - x * w);
+  rot[2][2] = 1.0f - 2.0f * (x * x + y * y);
+}
+
+void apply_local_rotation_delta(std::array<float, 16>& world,
+                                const std::array<float, 4>& quat_xyzw) {
+  float rot[3][3];
+  quat_xyzw_to_row_rot(quat_xyzw, rot);
+  std::array<float, 9> basis = {world[0], world[1], world[2],
+                                world[4], world[5], world[6],
+                                world[8], world[9], world[10]};
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      world[r * 4 + c] =
+          basis[r * 3 + 0] * rot[0][c] +
+          basis[r * 3 + 1] * rot[1][c] +
+          basis[r * 3 + 2] * rot[2][c];
+    }
+  }
+}
+
+void apply_local_scale_delta(std::array<float, 16>& world,
+                             const std::array<float, 3>& scale) {
+  for (int c = 0; c < 3; ++c) world[c] *= scale[0];
+  for (int c = 0; c < 3; ++c) world[4 + c] *= scale[1];
+  for (int c = 0; c < 3; ++c) world[8 + c] *= scale[2];
+}
+
+void apply_mesh_transform_sample(
+    std::array<float, 16>& world,
+    const MiloSceneRenderer::MeshTransformSample& sample) {
+  if (sample.has_translation)
+    apply_local_translation_delta(world, sample.translation.data());
+  if (sample.has_rotation)
+    apply_local_rotation_delta(world, sample.rotation_xyzw);
+  if (sample.has_scale)
+    apply_local_scale_delta(world, sample.scale);
+}
+
+const MiloSceneRenderer::MeshAnimKey* sample_vec_key(
+    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame,
+    const MiloSceneRenderer::MeshAnimKey** next) {
+  if (keys.empty()) {
+    *next = nullptr;
+    return nullptr;
+  }
+  const auto* a = &keys.front();
+  const auto* b = &keys.back();
+  for (size_t i = 1; i < keys.size(); ++i) {
+    if (frame <= keys[i].frame) {
+      a = &keys[i - 1];
+      b = &keys[i];
+      break;
+    }
+  }
+  *next = b;
+  return a;
+}
+
+std::array<float, 3> sample_vec_delta(
+    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame) {
+  std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
+  const MiloSceneRenderer::MeshAnimKey* b = nullptr;
+  const auto* a = sample_vec_key(keys, frame, &b);
+  if (!a || !b) return out;
+  const float span = std::max(b->frame - a->frame, 0.001f);
+  const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+  for (int i = 0; i < 3; ++i) {
+    const float p = a->pos[i] + (b->pos[i] - a->pos[i]) * t;
+    out[i] = p - keys.front().pos[i];
+  }
+  return out;
+}
+
+std::array<float, 3> sample_scale_ratio(
+    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame) {
+  std::array<float, 3> out = {1.0f, 1.0f, 1.0f};
+  const MiloSceneRenderer::MeshAnimKey* b = nullptr;
+  const auto* a = sample_vec_key(keys, frame, &b);
+  if (!a || !b) return out;
+  const float span = std::max(b->frame - a->frame, 0.001f);
+  const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+  for (int i = 0; i < 3; ++i) {
+    const float p = a->pos[i] + (b->pos[i] - a->pos[i]) * t;
+    const float base = keys.front().pos[i];
+    out[i] = std::fabs(base) > 0.0001f ? p / base : 1.0f;
+  }
+  return out;
+}
+
+std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
+                                     std::array<float, 4> b, float t) {
+  a = normalize_quat_xyzw(a);
+  b = normalize_quat_xyzw(b);
+  float dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+  if (dot < 0.0f) {
+    for (float& v : b) v = -v;
+    dot = -dot;
+  }
+  if (dot > 0.9995f) {
+    std::array<float, 4> out = {
+        a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t,
+        a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t};
+    return normalize_quat_xyzw(out);
+  }
+  dot = std::clamp(dot, -1.0f, 1.0f);
+  const float theta0 = std::acos(dot);
+  const float theta = theta0 * t;
+  const float sin_theta = std::sin(theta);
+  const float sin_theta0 = std::sin(theta0);
+  const float s0 = std::cos(theta) - dot * sin_theta / sin_theta0;
+  const float s1 = sin_theta / sin_theta0;
+  return normalize_quat_xyzw({a[0] * s0 + b[0] * s1,
+                              a[1] * s0 + b[1] * s1,
+                              a[2] * s0 + b[2] * s1,
+                              a[3] * s0 + b[3] * s1});
+}
+
+std::array<float, 4> sample_quat_delta(
+    const std::vector<MiloSceneRenderer::MeshQuatAnimKey>& keys, float frame) {
+  if (keys.empty()) return {0.0f, 0.0f, 0.0f, 1.0f};
+  const auto* a = &keys.front();
+  const auto* b = &keys.back();
+  for (size_t i = 1; i < keys.size(); ++i) {
+    if (frame <= keys[i].frame) {
+      a = &keys[i - 1];
+      b = &keys[i];
+      break;
+    }
+  }
+  const float span = std::max(b->frame - a->frame, 0.001f);
+  const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+  const std::array<float, 4> qa = {a->quat_xyzw[0], a->quat_xyzw[1],
+                                   a->quat_xyzw[2], a->quat_xyzw[3]};
+  const std::array<float, 4> qb = {b->quat_xyzw[0], b->quat_xyzw[1],
+                                   b->quat_xyzw[2], b->quat_xyzw[3]};
+  const auto cur = slerp_quat_xyzw(qa, qb, t);
+  const std::array<float, 4> base = {
+      keys.front().quat_xyzw[0], keys.front().quat_xyzw[1],
+      keys.front().quat_xyzw[2], keys.front().quat_xyzw[3]};
+  return quat_mul_xyzw(quat_conjugate_xyzw(normalize_quat_xyzw(base)), cur);
+}
+
+MiloSceneRenderer::MeshTransformSample sample_transform_anim(
+    const MiloSceneRenderer::MeshTransformAnim& anim, float frame) {
+  MiloSceneRenderer::MeshTransformSample sample;
+  if (anim.translation_keys.size() >= 2) {
+    sample.has_translation = true;
+    sample.translation = sample_vec_delta(anim.translation_keys, frame);
+  }
+  if (anim.rotation_keys.size() >= 2) {
+    sample.has_rotation = true;
+    sample.rotation_xyzw = sample_quat_delta(anim.rotation_keys, frame);
+  }
+  if (anim.scale_keys.size() >= 2) {
+    sample.has_scale = true;
+    sample.scale = sample_scale_ratio(anim.scale_keys, frame);
+  }
+  return sample;
+}
+
 bool env_enabled(const char* name) {
   char* value = nullptr;
   size_t len = 0;
@@ -141,6 +355,22 @@ void MiloSceneRenderer::set_material_alpha_multipliers(
 void MiloSceneRenderer::set_mesh_translation_offsets(
     std::map<std::string, std::array<float, 3>> offsets) {
   mesh_translation_offsets_ = std::move(offsets);
+  mesh_transform_offsets_.clear();
+  for (const auto& [mesh, offset] : mesh_translation_offsets_) {
+    MeshTransformSample sample;
+    sample.has_translation = true;
+    sample.translation = offset;
+    mesh_transform_offsets_[mesh] = sample;
+  }
+}
+
+void MiloSceneRenderer::set_mesh_transform_offsets(
+    std::map<std::string, MeshTransformSample> offsets) {
+  mesh_transform_offsets_ = std::move(offsets);
+  mesh_translation_offsets_.clear();
+  for (const auto& [mesh, sample] : mesh_transform_offsets_) {
+    if (sample.has_translation) mesh_translation_offsets_[mesh] = sample.translation;
+  }
 }
 
 void MiloSceneRenderer::trigger_mesh_pulse(const std::string& mesh_name,
@@ -151,16 +381,39 @@ void MiloSceneRenderer::trigger_mesh_pulse(const std::string& mesh_name,
 void MiloSceneRenderer::trigger_mesh_translation_anim(
     const std::string& mesh_name, std::vector<MeshAnimKey> keys,
     float frames_per_second) {
-  if (keys.size() < 2 || frames_per_second <= 0.0f) return;
-  std::sort(keys.begin(), keys.end(),
+  MeshTransformAnim anim;
+  anim.translation_keys = std::move(keys);
+  trigger_mesh_transform_anim(mesh_name, std::move(anim), frames_per_second);
+}
+
+void MiloSceneRenderer::trigger_mesh_transform_anim(
+    const std::string& mesh_name, MeshTransformAnim transform_anim,
+    float frames_per_second) {
+  if (frames_per_second <= 0.0f) return;
+  auto empty = [](const MeshTransformAnim& a) {
+    return a.translation_keys.size() < 2 && a.rotation_keys.size() < 2 &&
+           a.scale_keys.size() < 2;
+  };
+  if (empty(transform_anim)) return;
+  std::sort(transform_anim.translation_keys.begin(),
+            transform_anim.translation_keys.end(),
             [](const MeshAnimKey& a, const MeshAnimKey& b) {
               return a.frame < b.frame;
             });
-  ActiveMeshAnim anim;
-  anim.keys = std::move(keys);
-  anim.frames_per_second = frames_per_second;
-  anim.elapsed = 0.0f;
-  active_mesh_anims_[mesh_name] = std::move(anim);
+  std::sort(transform_anim.rotation_keys.begin(),
+            transform_anim.rotation_keys.end(),
+            [](const MeshQuatAnimKey& a, const MeshQuatAnimKey& b) {
+              return a.frame < b.frame;
+            });
+  std::sort(transform_anim.scale_keys.begin(), transform_anim.scale_keys.end(),
+            [](const MeshAnimKey& a, const MeshAnimKey& b) {
+              return a.frame < b.frame;
+            });
+  ActiveMeshAnim active;
+  active.anim = std::move(transform_anim);
+  active.frames_per_second = frames_per_second;
+  active.elapsed = 0.0f;
+  active_mesh_anims_[mesh_name] = std::move(active);
 }
 
 void MiloSceneRenderer::update(float dt_seconds) {
@@ -179,7 +432,19 @@ void MiloSceneRenderer::update(float dt_seconds) {
     for (auto it = active_mesh_anims_.begin(); it != active_mesh_anims_.end();) {
       it->second.elapsed += dt_seconds;
       const float frame = it->second.elapsed * it->second.frames_per_second;
-      if (!it->second.keys.empty() && frame > it->second.keys.back().frame) {
+      float last_frame = 0.0f;
+      if (!it->second.anim.translation_keys.empty()) {
+        last_frame =
+            std::max(last_frame, it->second.anim.translation_keys.back().frame);
+      }
+      if (!it->second.anim.rotation_keys.empty()) {
+        last_frame =
+            std::max(last_frame, it->second.anim.rotation_keys.back().frame);
+      }
+      if (!it->second.anim.scale_keys.empty()) {
+        last_frame = std::max(last_frame, it->second.anim.scale_keys.back().frame);
+      }
+      if (last_frame > 0.0f && frame > last_frame) {
         it = active_mesh_anims_.erase(it);
       } else {
         ++it;
@@ -606,34 +871,16 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     if (additive_blend_)
       continue;
     auto world = scene_.world_matrix(m);
-    if (const auto offset_it = mesh_translation_offsets_.find(m.name);
-        offset_it != mesh_translation_offsets_.end()) {
-      world[12] += offset_it->second[0];
-      world[13] += offset_it->second[1];
-      world[14] += offset_it->second[2];
+    if (const auto offset_it = mesh_transform_offsets_.find(m.name);
+        offset_it != mesh_transform_offsets_.end()) {
+      apply_mesh_transform_sample(world, offset_it->second);
     }
     const auto anim_it = active_mesh_anims_.find(m.name);
-    if (anim_it != active_mesh_anims_.end() &&
-        anim_it->second.keys.size() >= 2) {
-      const auto& anim = anim_it->second;
-      const float frame = anim.elapsed * anim.frames_per_second;
-      const auto* a = &anim.keys.front();
-      const auto* b = &anim.keys.back();
-      for (size_t i = 1; i < anim.keys.size(); ++i) {
-        if (frame <= anim.keys[i].frame) {
-          a = &anim.keys[i - 1];
-          b = &anim.keys[i];
-          break;
-        }
-      }
-      const float span = std::max(b->frame - a->frame, 0.001f);
-      const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
-      world[12] += (a->pos[0] + (b->pos[0] - a->pos[0]) * t) -
-                   anim.keys.front().pos[0];
-      world[13] += (a->pos[1] + (b->pos[1] - a->pos[1]) * t) -
-                   anim.keys.front().pos[1];
-      world[14] += (a->pos[2] + (b->pos[2] - a->pos[2]) * t) -
-                   anim.keys.front().pos[2];
+    if (anim_it != active_mesh_anims_.end()) {
+      const auto& active = anim_it->second;
+      const float frame = active.elapsed * active.frames_per_second;
+      apply_mesh_transform_sample(world,
+                                  sample_transform_anim(active.anim, frame));
     }
     const auto pulse_it = mesh_pulses_.find(m.name);
     if (pulse_it != mesh_pulses_.end()) {

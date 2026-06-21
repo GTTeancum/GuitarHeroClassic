@@ -105,7 +105,7 @@ class Gameplay {
   };
   struct VenueAnimFilterTarget {
     std::string mesh;
-    std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey> keys;
+    ghogx::render::MiloSceneRenderer::MeshTransformAnim anim;
   };
   struct VenueAnimFilter {
     std::string name;
@@ -119,6 +119,22 @@ class Gameplay {
   struct VenueGroupVisibility {
     std::vector<std::string> show_meshes;
     std::vector<std::string> hide_meshes;
+  };
+  struct VenueMaterialAnim {
+    std::string name;
+    std::string material;
+    float start_alpha = 1.0f;
+    float end_alpha = 1.0f;
+    float duration_frames = 0.0f;
+  };
+  struct ActiveVenueMaterialAnim {
+    std::string name;
+    std::string material;
+    float start_alpha = 1.0f;
+    float end_alpha = 1.0f;
+    double start_time = 0.0;
+    double duration_seconds = 0.0;
+    bool persistent = true;
   };
   struct HandClipChoice {
     std::vector<std::string> short_names;
@@ -174,6 +190,10 @@ class Gameplay {
   void set_deterministic_clock(bool deterministic) {
     deterministic_clock_ = deterministic;
   }
+  void set_diagnostic_autoplay(bool enabled) {
+    diagnostic_autoplay_ = enabled;
+    diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
+  }
   // Diagnostic capture helper: jump the deterministic song clock to a known
   // authored window without replaying all earlier note/cue events.
   void seek_for_diagnostic_capture(double seconds);
@@ -183,10 +203,22 @@ class Gameplay {
 
  private:
   void apply_venue_event(const std::string& event_name, bool persistent = true);
+  bool apply_venue_event_visibility(const std::string& event_name, bool log);
+  std::unordered_set<std::string> composed_venue_hidden_meshes() const;
+  void resend_active_venue_event();
+  void update_active_venue_material_anims();
   void update_active_venue_anim_filters();
+  void set_lighting_spot_targets(
+      std::vector<ghogx::render::MiloSceneRenderer::SpotlightState> targets,
+      double fade_seconds);
+  std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
+      interpolated_lighting_spots() const;
+  void update_lighting_spotlight_renderer();
 
   // Detect a strum-triggered or HOPO note hit in the given lane.
   HitResult try_hit(int lane, bool strummed, bool is_hopo_candidate);
+  uint32_t diagnostic_autoplay_fret_mask(
+      const std::vector<ghogx::chart::Note>& notes);
 
   ghogx::chart::Chart chart_;
   bool chart_loaded_ = false;
@@ -268,31 +300,45 @@ class Gameplay {
   uint32_t last_camera_bar_ = UINT32_MAX;
   uint32_t last_forced_camera_event_tick_ = UINT32_MAX;
   size_t camera_shot_counter_ = 0;
+  bool intro_end_dispatched_ = false;
+  bool should_resend_excitement_ = false;
   std::vector<LightingPreset> lighting_presets_;
   std::vector<LightingSpotlight> lighting_spotlights_;
   std::string active_lighting_preset_;
   std::string active_lighting_keyframe_;
   size_t active_lighting_keyframe_index_ = SIZE_MAX;
   double active_lighting_preset_start_ = 0.0;
+  std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
+      active_lighting_spot_targets_;
+  std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
+      lighting_transition_from_;
+  std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
+      lighting_transition_to_;
+  double lighting_transition_start_ = 0.0;
+  double lighting_transition_duration_ = 0.0;
+  bool lighting_transition_active_ = false;
   size_t next_lighting_cue_idx_ = 0;
   bool ignored_last_light_change_ = false;
-  std::map<std::string, std::pair<std::string, float>>
-      venue_mat_anim_end_alpha_;
+  std::map<std::string, VenueMaterialAnim> venue_mat_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_filters_;
   std::map<std::string, std::vector<std::string>> venue_filter_mesh_targets_;
   std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
   std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
+  std::vector<std::string> pending_transient_venue_events_;
   std::map<std::string, std::vector<std::string>> venue_material_meshes_;
   std::map<std::string, float> venue_material_alpha_;
+  std::vector<ActiveVenueMaterialAnim> active_venue_material_anims_;
   std::map<std::string, std::array<float, 3>> venue_mesh_translation_offsets_;
+  std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
+      venue_mesh_transform_offsets_;
   std::vector<ActiveVenueAnimFilter> active_venue_anim_filters_;
   double last_venue_filter_debug_time_ = -1.0;
   std::unordered_set<std::string> venue_base_hidden_meshes_;
+  std::unordered_set<std::string> venue_runtime_hidden_meshes_;
   std::string active_venue_event_;
-  std::map<std::string,
-           std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>>
-      drum_mesh_translation_anims_;
+  std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformAnim>
+      drum_mesh_transform_anims_;
   std::map<std::string, std::vector<std::string>> drum_event_mesh_targets_;
   std::map<std::string, FretHandMap> fret_hand_maps_;
   std::map<std::string, StrumHandMap> strum_hand_maps_;
@@ -307,6 +353,7 @@ class Gameplay {
   int      difficulty_     = 3;
   // Index of the next unprocessed note in chart_.notes[difficulty_].
   size_t   next_note_idx_  = 0;
+  std::vector<uint8_t> note_consumed_[4];
 
   int      score_          = 0;
   int      streak_         = 0;
@@ -322,6 +369,8 @@ class Gameplay {
 
   // Previous-frame fret mask for edge detection.
   uint32_t prev_fret_mask_  = 0;
+  bool diagnostic_autoplay_ = false;
+  uint32_t diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
 
   // Per-lane: has this lane's gem been hit this pass (so we don't double-hit)?
   bool lane_hit_[5] = {};

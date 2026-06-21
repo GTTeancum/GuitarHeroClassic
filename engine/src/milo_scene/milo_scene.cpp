@@ -6,10 +6,12 @@
 #include "milo.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
+#include <string_view>
 #include <unordered_set>
 
 namespace ghogx::milo_scene {
@@ -104,6 +106,23 @@ void read_spotlight_trans_block(Reader& r, Xfm& local, Xfm& world,
   parent = r.str();
 }
 
+Xfm read_matrix_at(const std::vector<uint8_t>& body, size_t offset) {
+  if (offset > body.size()) {
+    throw std::runtime_error("milo_scene: matrix offset past end");
+  }
+  Reader r(body.data() + offset, body.size() - offset);
+  return r.matrix();
+}
+
+float read_f32_at(const std::vector<uint8_t>& body, size_t offset) {
+  if (offset + 4 > body.size()) {
+    throw std::runtime_error("milo_scene: f32 offset past end");
+  }
+  float value = 0.0f;
+  std::memcpy(&value, body.data() + offset, sizeof(value));
+  return value;
+}
+
 std::vector<std::string> mesh_child_names(const std::vector<uint8_t>& body) {
   std::vector<std::string> out;
   for (size_t o = 0; o + 4 <= body.size(); ++o) {
@@ -148,6 +167,22 @@ std::vector<std::string> scan_strings(const std::vector<uint8_t>& body) {
     o += 3 + len;
   }
   return out;
+}
+
+std::string lower_ascii(std::string_view s) {
+  std::string out(s);
+  for (char& c : out) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+  return out;
+}
+
+bool is_spotlight_target_mesh(std::string_view name) {
+  constexpr size_t kSuffixLength = 12;
+  if (name.size() <= kSuffixLength) return false;
+  const std::string suffix =
+      lower_ascii(name.substr(name.size() - kSuffixLength));
+  return suffix == "_target.mesh" || suffix == ".target.mesh";
 }
 
 }  // namespace
@@ -259,9 +294,7 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
       s.group = ref;
     } else if (ref.rfind(".mesh") != std::string::npos) {
       if (ref.rfind("SPOT_circle", 0) == 0) s.circle_mesh = ref;
-      const bool authored_target =
-          ref.size() >= 12 &&
-          ref.compare(ref.size() - 12, 12, "_target.mesh") == 0;
+      const bool authored_target = is_spotlight_target_mesh(ref);
       if (authored_target || s.target.empty()) s.target = ref;
       if (!authored_target &&
           std::find(s.instance_meshes.begin(), s.instance_meshes.end(), ref) ==
@@ -272,6 +305,72 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
   }
   s.decoded = true;
   return s;
+}
+
+LightObj decode_light(const std::string& entry_name,
+                      const std::vector<uint8_t>& body) {
+  LightObj light;
+  light.name = entry_name;
+  try {
+    Reader r(body.data(), body.size());
+    const int32_t version = r.i32();
+    if (version != 6) {
+      throw std::runtime_error("milo_scene: unsupported Light version");
+    }
+    light.local = read_matrix_at(body, 0x11);
+    light.world_stored = read_matrix_at(body, 0x41);
+    for (int i = 0; i < 4; ++i) {
+      light.color[i] = read_f32_at(body, 0x7e + static_cast<size_t>(i) * 4);
+      if (!std::isfinite(light.color[i])) {
+        throw std::runtime_error("milo_scene: non-finite Light color");
+      }
+    }
+    light.range = read_f32_at(body, 0x8e);
+    if (!std::isfinite(light.range) || light.range < 0.0f) {
+      throw std::runtime_error("milo_scene: invalid Light range");
+    }
+    light.decoded = true;
+  } catch (const std::exception& ex) {
+    light.error = ex.what();
+  }
+  return light;
+}
+
+EnvironObj decode_environ(const std::string& entry_name,
+                          const std::vector<uint8_t>& body) {
+  EnvironObj env;
+  env.name = entry_name;
+  try {
+    Reader r(body.data(), body.size());
+    const int32_t version = r.i32();
+    if (version != 5) {
+      throw std::runtime_error("milo_scene: unsupported Environ version");
+    }
+    for (int i = 0; i < 4; ++i) {
+      env.color_a[i] = read_f32_at(body, 0x11 + static_cast<size_t>(i) * 4);
+      if (!std::isfinite(env.color_a[i])) {
+        throw std::runtime_error("milo_scene: non-finite Environ color_a");
+      }
+    }
+    env.range_a = read_f32_at(body, 0x21);
+    env.range_b = read_f32_at(body, 0x25);
+    for (int i = 0; i < 4; ++i) {
+      env.color_b[i] = read_f32_at(body, 0x29 + static_cast<size_t>(i) * 4);
+      if (!std::isfinite(env.color_b[i])) {
+        throw std::runtime_error("milo_scene: non-finite Environ color_b");
+      }
+    }
+    env.range = read_f32_at(body, 0x40);
+    if (!std::isfinite(env.range_a) || !std::isfinite(env.range_b) ||
+        !std::isfinite(env.range) || env.range_a < 0.0f ||
+        env.range_b < 0.0f || env.range < 0.0f) {
+      throw std::runtime_error("milo_scene: invalid Environ range");
+    }
+    env.decoded = true;
+  } catch (const std::exception& ex) {
+    env.error = ex.what();
+  }
+  return env;
 }
 
 MatObj decode_mat(const std::string& entry_name,
@@ -541,6 +640,10 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
           out.waypoints.push_back(decode_waypoint(de.name, b));
         } else if (de.type == "Spotlight") {
           out.spotlights.push_back(decode_spotlight(de.name, b));
+        } else if (de.type == "Light") {
+          out.lights.push_back(decode_light(de.name, b));
+        } else if (de.type == "Environ") {
+          out.environs.push_back(decode_environ(de.name, b));
         } else if (de.type == "Group") {
           GroupObj group;
           group.name = de.name;

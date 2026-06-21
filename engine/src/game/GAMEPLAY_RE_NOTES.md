@@ -166,8 +166,8 @@ Open work:
   `world_pos=(132.86,172.39,138.81)` instead of zero/garbage.
 - Spotlight object string order matters. If an object contains both
   `lightXX_target.mesh` and later decorative meshes, the first
-  `_target.mesh` is the aiming target. Native preserves that target instead of
-  overwriting it with later mesh refs.
+  `_target.mesh` or `.Target.mesh` is the aiming target. Native preserves that
+  target instead of overwriting it with later mesh refs.
 - Render-state validation found a real D3D fixed-function edge: when a draw has
   no texture, both color and alpha must select diffuse. Leaving alpha as
   `texture * diffuse` makes null-texture debug/overlay draws contribute zero.
@@ -210,6 +210,96 @@ Open work:
   skip gate, changes presets from `blackout.pst` to `strobe_okay.pst`,
   `verse_okay.pst`, and `color1.pst`, and renders nonblank arena frames.
   This is traced keyframe-dispatch plumbing, not final render-light parity.
+- 2026-06-21 lighting transition follow-up: the decoded `duration` /
+  `fade_out` fields now drive a stateful native spotlight target instead of a
+  snap-only `set_active_spotlights` call. On a keyframe change, native keeps the
+  current rendered spot state, builds the new target state from decoded
+  `LightPreset` rows, uses the outgoing keyframe `fade_out` when available,
+  converts PS2-authored frames at 30 fps, and interpolates RGB/intensity each
+  rendered frame before drawing the lighting overlay. Spotlights that leave the
+  target set remain in the transition with zero final intensity so they fade
+  out rather than disappearing. This is still the shared decoded lighting
+  graph path, not a venue/song-specific lighting rule.
+- 2026-06-21 LightPreset timing sanity follow-up:
+  `analysis/native_validation/fest_environ_decode_20260621_current/run_raw.log`
+  exposed `color1.pst` / `bassist` and related fest keyframes reading
+  `fade_frames=70373617072460814876672.000` when native trusted the four bytes
+  immediately after every label. The same source dump contains plausible
+  authored timing rows such as `920/500`, `480/50`, `240`, `80/0`, `60/30`,
+  `10`, and `1/1` frame counts. Native now keeps the label/target-row
+  discovery path but accepts only non-negative plausible LightPreset frame
+  counts before feeding duration/fade into the transition system; non-frame
+  packed bytes decode as zero instead of producing frozen lighting transitions.
+  Validation:
+  `analysis/native_validation/fest_lighting_timing_sanity_20260621_current/`
+  reruns `crazyonyou`/fest from `16.0s`; `color1.pst` keeps six active
+  spotlights while `fade_frames` changes from the bogus
+  `70373617072460814876672.000` to `0.000`, Environ coverage remains
+  `decoded=2 failed=0 preset_env_refs=13 matched=2 unmatched=11`, and regular
+  camera sweeps plus `post_switch_cam` still run. The companion
+  `analysis/native_validation/arena_lighting_timing_sanity_20260621_current/`
+  reruns `shoutatthedevil`/arena and preserves valid `920/500` and `920/350`
+  LightPreset timing rows while recording no six-digit, exponential, or miss
+  timing rows.
+- 2026-06-21 Light object decode follow-up:
+  `world/theatre/og/gen/theatre_lighting.milo_ps2` contains a concrete
+  `Light` entry, `spotlight01.lit`, with version `6`, local matrix at raw body
+  offset `0x11`, stored world matrix at `0x41`, RGBA floats at `0x7e`, and
+  range at `0x8e` (`1000.0` in the theatre dump). Native now decodes these raw
+  `Light` entries into `milo_scene::Scene::lights` and logs decoded light
+  coverage next to active `LightPreset` `.lit` refs before rendering. In the
+  traced theatre `chorus_okay.pst` case, the preset `.lit` refs are the
+  authored `char_*`, `crowd_*`, `hands`, and `flames` light names, not
+  `spotlight01.lit`; native therefore logs the mismatch and does not render the
+  decoded object as a substitute active light. This preserves the source data
+  for future render-light parity without inventing brightness or routing.
+- 2026-06-21 Environ object decode follow-up:
+  `world/fest/og/gen/fest_lighting.milo_ps2` contains concrete `Environ`
+  entries `lightbank.env` and `lightbank_bulbs.env`, both version `5` and body
+  size `68`. The accepted byte pass shows the first RGBA-ish float block at raw
+  offset `0x11`, two range/fog-ish floats at `0x21` and `0x25`, the second
+  RGBA-ish block at `0x29`, and a final range float at `0x40` (`1000.0` in
+  both retained fest dumps). Native now decodes these objects into
+  `milo_scene::Scene::environs` and logs coverage against active
+  `LightPreset` `.env` refs. It still does not apply Environ values to
+  renderer brightness; the field storage is source-backed, but the exact PS2
+  fixed-function/environment-light semantics remain an implementation gate.
+- 2026-06-21 LightPreset mesh-target spotlight follow-up:
+  the theatre validation log showed `chorus_okay.pst` keyframes with many
+  decoded mesh targets and `static_targeted_spots=18`, but native still emitted
+  `active_spots=0` because it only activated explicit `.spot` refs or parsed
+  target-state rows. The decoded `Spotlight` objects already map each `.spot`
+  to its authored `_target.mesh`, so native now treats a keyframe mesh target as
+  an activation route for every decoded spotlight aimed at that mesh, using the
+  decoded target-state color/intensity when present and the existing neutral
+  spotlight state otherwise. This is a shared LightPreset/Spotlight graph rule,
+  not a venue-specific light list.
+  Validation:
+  `analysis/native_validation/theatre_target_suffix_lighting_20260621_current/`
+  reruns stock PS2 `yyz` from `8.0s` and changes the same theatre keyframes
+  from the earlier `active_spots=0` state to `target_states=26` /
+  `active_spots=27` for `chorus_okay` and `target_states=52` /
+  `active_spots=27` for `chorus_great`, with authored RGB/intensity rows
+  attached to decoded `*.Target.mesh` targets. The same run preserves decoded
+  `spotlight01.lit` coverage, the unmatched active-preset `.lit` refs, regular
+  camera sweeps, and `post_switch_cam`.
+- 2026-06-21 Spotlight target suffix follow-up:
+  theatre lighting uses target names such as `right09.Target.mesh`, while some
+  other lighting rows use `_target.mesh`. Native was only accepting the lower
+  `_target.mesh` suffix in both `Spotlight` target decode and `LightPreset`
+  target-state extraction. The shared classifier now accepts both spellings
+  case-insensitively, preventing authored targets from being misfiled as
+  instance meshes and allowing the packed LightPreset amount/RGB rows to attach
+  to theatre spot targets. The intermediate debug-solid probe
+  `analysis/native_validation/theatre_spotlight_active_names_20260621_current/`
+  is retained as a route check for decoded `master_cannon.grp` instances.
+  Cross-venue validation:
+  `analysis/native_validation/arena_target_suffix_lighting_20260621_current/`
+  reruns stock PS2 `shoutatthedevil` from `16.0s`; arena lighting has no
+  decoded raw `Light` bodies, logs 12 unmatched `.lit` refs, keeps
+  `color1.pst` / `color2.pst` active with `target_states=15` and
+  `active_spots=4`, preserves regular camera sweeps and `post_switch_cam`, and
+  produces coherent stage frames at `frame_00240.bmp` and `frame_00470.bmp`.
 - 2026-06-20 venue-effect MIDI cue follow-up:
   `config/midi_parsers.dta::effect_parser` maps TRIGGERS pitch `52` to
   `{handle (world venue_effect)}` with `start_offset 0` and `zero_length TRUE`.
@@ -284,6 +374,136 @@ Open work:
   records the singer `[play]` marker, `singer_active_medium_01`, 193 singer
   FaceFX `graph=applied` rows, and five drum cues. This is character/FaceFX
   inspection evidence only, not authored-camera parity evidence.
+- 2026-06-21 route contract guard:
+  `ghogx_gameplay_venue_band_contract_test` locks the source-backed
+  orchestration shape described above. It checks keyboard role classification
+  and `BAND KEYS`, bassist bass-graph/gut-bass prop routing, venue-specific
+  `dw_<venue>_drums` loading and EventTrigger-first drum routing, the traced
+  stock GH2 drum MIDI pitch map (`36 -> kick_drum`, `37 -> crash_symbal`),
+  transient `bass_hit`/`venue_effect` dispatch, lighting TRIGGERS
+  `48/49/50` with the four-beat parser offset, and the separation between
+  regular camera duration rows and `post_switch_cam`. This is a drift guard for
+  the accepted PS2 route evidence; it does not claim final camera, lighting, or
+  animation parity by itself.
+- 2026-06-21 venue EventTrigger label-route follow-up:
+  arena geometry exposes trigger objects whose object names differ from their
+  payload event labels, for example `sky_excitement_bad.trig` carries label
+  `excitement_bad`. Native previously keyed group visibility and AnimFilter
+  routing by stripped object name only, so `apply_venue_event("excitement_bad")`
+  missed the decoded sky visibility route. The shared route now uses the
+  payload label as the primary key, keeps the object name as an alias, and
+  merges multiple triggers for one label. Validation:
+  `analysis/native_validation/venue_event_label_route_postfix_20260621_current/`
+  reruns stock PS2 `shoutatthedevil` at `--diagnostic-song-start 16`; the log
+  changes `excitement_okay` visibility from `show=0 hide=18` to
+  `show=2 hide=20` and changes `excitement_bad` from no route to
+  `show=0 hide=4`, while preserving `color1.pst -> bad.pst`, the lighting cue
+  skip gate under bad excitement, regular camera `flr_far_rt02x3`, and
+  `post_switch_cam`. `frame_00120.jpg` is a nonblank arena-stage sanity frame.
+  A separate no-miss preroll probe,
+  `analysis/native_validation/venue_anim_okay_preroll_20260621_current/`,
+  keeps `excitement_okay` active long enough for `searchlights.filt` to sample
+  frames `15..90` with nonzero offsets on `searchlight*.mesh`, proving the
+  decoded AnimFilter translation path is not just loaded but advancing.
+- 2026-06-21 drum-driven venue event follow-up:
+  the same arena trigger inventory exposes `city_lights_kickdrum.trig` with
+  payload label `kick_drum`. Native drummer cues already drove the venue-specific
+  drum kit, but they did not dispatch transient world EventTriggers. Drum cues
+  now also call `apply_venue_event(cue.event, false)`, so venue props/lights can
+  react to the same traced `BAND DRUMS` messages without changing persistent
+  excitement state. Validation:
+  `analysis/native_validation/venue_event_drum_route_postfix_20260621_current/`
+  reruns the same `shoutatthedevil` arena window; the log shows `kick_drum`
+  applying `trigger visibility show=8 hide=0`, starting
+  `speaker_kick_drum.filt` with 20 targets, and sampling 120 kick-drum
+  AnimFilter rows with nonzero offsets on speaker-stack meshes while the drum
+  kit cue, lighting preset/keyframe route, and `post_switch_cam` continue.
+  The follow-up
+  `analysis/native_validation/venue_event_visibility_compose_postfix_20260621_current/`
+  keeps the persistent `excitement_bad` visibility route active underneath
+  transient `kick_drum`: the log has `excitement_bad show=0 hide=4`,
+  `kick_drum show=8 hide=0`, two kick trigger applications, and 120
+  `speaker_kick_drum.filt` samples. This locks the layering rule that transient
+  venue hits compose over the active excitement state instead of replacing it.
+- 2026-06-21 player-fret venue event follow-up:
+  local Rexglue real-play notes record `hit_p0_fretN` as a player-hit world
+  property, with `N` 1-indexed from Green through Orange and hundreds of
+  hardware firings in the capture. Arena geometry also decodes
+  `city_lights_fret_1..5.trig` payload labels `hit_p0_fret1..5`. Native now
+  dispatches `hit_p0_fret{lane+1}` as a transient venue event from the shared
+  successful note-hit path, so venue props react through decoded EventTrigger
+  labels rather than arena object-name shortcuts. The contract guard locks the
+  helper and forbids direct `city_lights_fret` dispatch. A diagnostic native
+  autoplay switch exists only for validation capture; it feeds chart notes into
+  the normal `fret_mask` before strum edge detection, matching the accepted
+  direct-autoplay trace workflow without bypassing note-hit scoring or venue
+  dispatch. Validation:
+  `analysis/native_validation/venue_fret_hit_route_regression_20260621_current/`
+  reruns the arena window and confirms all five `hit_p0_fret*` label routes are
+  present while existing `excitement_bad`, `kick_drum`, `speaker_kick_drum.filt`,
+  lighting keyframe, regular camera, and `post_switch_cam` behavior still runs.
+  `analysis/native_validation/venue_fret_hit_autoplay_replay_20260621_current/`
+  reruns the same window with `--diagnostic-autoplay`; the first hit queues until
+  venue load, then replays through decoded `hit_p0_fret1` visibility, and the
+  whole run records 7 autoplay ticks, 9 `HIT` rows, 9 routed fret visibility
+  events, zero fret no-route rows, 4 kick-drum trigger applications, lighting
+  preset/keyframe changes, regular camera sweeps, and `post_switch_cam`.
+- 2026-06-21 note-consumption lighting follow-up: the first diagnostic autoplay
+  run exposed a native bookkeeping bug where notes already logged as `HIT`
+  stayed eligible for later miss processing. That fed false `excitement_bad`
+  events into the venue-lighting path and forced `bad.pst` despite valid player
+  hits. Native now keeps a per-difficulty consumed-note ledger sized from the
+  parsed chart; successful hits and misses consume the source note once,
+  diagnostic seek marks skipped notes consumed, and diagnostic autoplay ignores
+  consumed notes while still entering through the normal fret-mask/strum path.
+  Validation:
+  `analysis/native_validation/venue_note_consumption_lighting_20260621_current/`
+  reruns the arena autoplay window for 900 frames and records 33 `HIT` rows,
+  zero miss rows, 33 routed fret visibility events, zero fret no-route rows,
+  11 kick-drum trigger applications, 3 regular camera sweeps, 6
+  `post_switch_cam` moves, and lighting transitions into `chorus_great.pst` and
+  `flare_great.pst` once the streak reaches `excitement_great`.
+- 2026-06-21 venue lifecycle/visibility follow-up:
+  `config/macros.dta` declares `start` as a system world event and the accepted
+  real-play stack trace includes `prop:start` through the named-event dispatch
+  path. Arena geometry decodes `start.trig` with label `start` and a large
+  initial show/hide set, so native now applies that decoded route to the runtime
+  venue visibility state before the first world frame. EventTrigger visibility
+  is no longer rebuilt from scratch for each event; show/hide actions mutate a
+  runtime hidden-mesh state, and material alpha hides are composed on top so a
+  material fade cannot unhide a mesh that an EventTrigger explicitly hid.
+  `world_objects_worldbase.dta::intro_end` sets `should_resend_excitement`, and
+  `world/camshot.dta::start_shot` calls `world resend_excitement`, so native
+  now dispatches `intro_end` when the six-bar intro camera window closes and
+  consumes that latch on the next regular camera shot by re-entering the normal
+  persistent excitement event path. Validation:
+  `analysis/native_validation/venue_lifecycle_resend_20260621_current/` records
+  one `start` visibility application, one `intro_end` visibility application,
+  one `resend_excitement`, 33 `HIT` rows, zero miss rows, 33 routed fret
+  visibility events, 11 kick-drum routes, zero `excitement_bad` rows, 3 regular
+  camera sweeps, 6 `post_switch_cam` moves, 1,410 venue AnimFilter samples, and
+  great-state lighting through `chorus_great.pst` / `flare_great.pst`.
+- 2026-06-21 pre-load venue-event lifecycle follow-up:
+  native `tick()` can choose a persistent excitement state before the first
+  draw call has loaded `*_geom.milo_ps2` and decoded EventTrigger, MatAnim, and
+  AnimFilter route tables. That state should be latched, not applied against
+  empty route maps. `apply_venue_event(..., persistent=true)` now stores the
+  active excitement event until `draw()` has loaded the venue and then replays
+  it through the normal decoded route. Transient hits still queue separately and
+  replay after the persistent state, preserving the traced layering order.
+  Validation:
+  `analysis/native_validation/small1_preload_latch_venue_anim_20260621_current/`
+  reruns `psychobilly` from `10.0s` and changes the pre-load persistent row to
+  `excitement_okay: latched until venue load`, then applies decoded
+  `excitement_okay` visibility plus ceiling-swing AnimFilters after load. It
+  keeps 3,230 venue AnimFilter samples, 7 lighting keyframe activations, and
+  the regular camera/post-switch path. The companion
+  `analysis/native_validation/arena_preload_latch_lighting_anim_20260621_current/`
+  reruns `shoutatthedevil` from `16.0s` and preserves the richer arena route:
+  queued first fret hit, decoded `excitement_okay` MatAnim/AnimFilters,
+  kick-drum trigger visibility plus `speaker_kick_drum.filt`, 1,956 live venue
+  AnimFilter samples, two lighting keyframes, regular camera/post-switch
+  movement, and zero miss rows.
 
 2026-06-14 native validation:
 
@@ -360,9 +580,109 @@ Open work:
   body shape from `world/small1/og/gen/small1_geom.milo_ps2`.
 - `AnimFilter` is decoded separately as an animation-frame route. Native only
   applies venue filter transforms when an `AnimFilter` target resolves through
-  a decoded `TransAnim` translation key path; small1 excitement filters do not
-  currently resolve through that translation subset, so they remain documented
-  evidence gaps rather than guessed movement.
+  a decoded `TransAnim` translation key path. Current `small1` validation shows
+  persistent `excitement_*` triggers resolving through draw-group visibility
+  while transient player-fret speaker filters resolve through decoded
+  `EventTrigger -> AnimFilter -> TransAnim` routes; do not invent motion for
+  the visibility-only excitement gates without a runtime trace proving they own
+  animated TransAnim targets.
+- 2026-06-21 venue animation basis follow-up: decoded `TransAnim` keys are
+  local Trans movement for the target object, so native now applies sampled
+  venue/drum mesh deltas through each mesh's decoded world basis before adding
+  them to the matrix translation. This replaces the older direct world-X/Y/Z
+  addition and keeps persistent `AnimFilter` movement plus one-shot mesh
+  `TransAnim` playback on the same local-space path.
+- 2026-06-21 venue MatAnim follow-up: native already decoded `MatAnim`
+  material, start alpha, end alpha, and duration, but the runtime was only
+  storing `{material, end_alpha}` and jumping immediately. Venue events now
+  start an active material-alpha animation using the decoded duration at 30 fps,
+  sample alpha each tick, and then feed the same composed hidden-mesh path used
+  by EventTrigger visibility. Interrupted material fades begin from the current
+  native alpha instead of snapping back to a guessed value.
+  Validation:
+  `analysis/native_validation/venue_matanim_lighting_anim_20260621_current/`
+  runs stock PS2 `shoutatthedevil` from `16.0s` with diagnostic autoplay and
+  records 4 lighting transition targets, 9 lighting keyframe activations,
+  1,410 venue `AnimFilter` samples, `MatAnim searchlight_beam_on.mnm` starting
+  from venue excitement events with decoded `3.333s` duration, 3 regular camera
+  sweeps, 6 `post_switch_cam` moves, and zero miss rows. `frame_00870.bmp`
+  remains a coherent arena render after the local-basis and MatAnim changes.
+- 2026-06-21 venue MatAnim alpha-space follow-up:
+  fest geometry exposes `Rising_Souls.mnm -> rising_souls.mat` with raw keys
+  that previously logged as `alpha 100.000 -> 0.800 frames=10.0`. Native's D3D
+  renderer consumes material alpha as a `0..1` multiplier, so raw values above
+  that range must not participate in interpolation as literal alpha. The
+  MatAnim loader now clamps decoded start/end alpha to renderer alpha space, and
+  the per-tick sampler clamps the interpolated value before composing material
+  visibility. This keeps `100` equivalent to opaque instead of delaying fades
+  until the last few frames of a high-to-low interpolation. Validation:
+  `analysis/native_validation/fest_matanim_alpha_clamp_20260621_current/`
+  reruns `crazyonyou`/fest from `16.0s` with alpha/filter diagnostics; the
+  MatAnim load log changes `Rising_Souls.mnm` to `alpha 1.000 -> 0.800
+  frames=10.0`, the active `Rising_Soul_Plane.mesh` alpha sample is finite
+  (`0.683` at frame 260), `color1.pst` remains at `active_spots=6` with
+  `fade_frames=0.000`, and the `excitement_great` biker filters continue
+  sampling position/rotation frames through the same venue AnimFilter path.
+- 2026-06-21 small1 venue-animation refresh:
+  `analysis/native_validation/small1_venue_anim_probe_20260621_current/` runs
+  stock PS2 `psychobilly` from `10.0s` with diagnostic autoplay. The
+  translation-only native log from that pass
+  native log decodes `small1` geometry with 34 EventTrigger filter routes, 30
+  filter mesh-target rows, and 27 routed AnimFilter transform events. The run
+  records 2,720 `venue AnimFilter sample` rows from player-fret speaker events,
+  including `speaker_cone*.filt -> speaker_cone*.mesh` targets advancing
+  through frames `0..45+`. At that point persistent `excitement_okay` /
+  `excitement_great` looked visibility-only because native only accepted
+  translation keys; the transform-channel follow-up below supersedes that
+  interpretation by decoding the same ceiling-swing filters as rotation-key
+  animation. The same run keeps 3 regular camera sweeps, 4
+  `post_switch_cam` moves, 2 lighting transition targets, and zero miss rows.
+  Treat this as evidence that small1 speaker/fret venue animation is active
+  through the shared decoded route, not as a reason to synthesize unsupported
+  motion.
+- 2026-06-21 TransAnim channel follow-up: native venue/drum playback was still
+  structurally translation-only even though PS2 `TransAnim` bodies include
+  quaternion rotation and vec3 scale key blocks. `crash.tnm` in
+  `dw_small1_drums.milo_ps2` is the compact proof: it decodes as
+  `pos=0 rot=15 scale=0`, so the old `MeshAnimKey {frame,pos}` path could not
+  animate the crash cymbal at all. Native now decodes `TransAnim` into a shared
+  `MeshTransformAnim` with translation, rotation, and scale channels; persistent
+  venue `AnimFilter` samples and one-shot drum triggers both send
+  `MeshTransformSample` to the renderer. The renderer applies translation in
+  the target mesh's local basis, then applies local rotation and scale deltas
+  relative to the first authored key.
+  Validation:
+  `analysis/native_validation/small1_transform_channels_20260621_current/`
+  reruns stock PS2 `psychobilly` from `10.0s` with diagnostic autoplay and raw
+  logging. `run_raw.log` records 44 venue `TransAnim` decodes, 4 drum
+  `TransAnim` decodes, 2,836 live venue `AnimFilter` samples, 31 drummer cues,
+  3 regular camera sweeps, 4 `post_switch_cam` moves, and zero miss rows. Key
+  rows include `speaker_cone5.tnm -> speaker_cone5.mesh pos=5 rot=0 scale=3`,
+  live speaker samples with `pos=1 rot=0 scale=1`,
+  `light_hanging_cable*.tnm` rows with `pos=0 rot=101 scale=0`, live ceiling
+  swing samples with `pos=0 rot=1 scale=0`, `snare.tnm -> snare.mesh
+  pos=8 rot=8 scale=0`, and `crash.tnm -> crash.mesh pos=0 rot=15 scale=0`
+  followed by `crash_symbal` drum cues. `frame_00700.bmp` is coherent for the
+  small1 venue/drum route; it is not a character-hair signoff.
+- 2026-06-21 cross-venue post-animation sanity:
+  `analysis/native_validation/yyz_theatre_venue_band_post_anim_20260621_current/`
+  runs stock PS2 `yyz` from `8.0s` after the local-space TransAnim and MatAnim
+  changes. The log loads the theatre route with `funk1`, `metal_bass`,
+  `metal_drummer`, and `metal_keyboard`; `BAND KEYS` enters `[play]`, the
+  venue-specific `dw_theatre_drums` kit loads, 16 drummer cues fire with mode
+  changes, lighting presets advance to `chorus_okay.pst` /
+  `chorus_great.pst`, and authored cameras record 4 regular sweeps plus 3
+  `post_switch_cam` moves with zero miss rows. `frame_00700.bmp` is a coherent
+  distant theatre-stage route-health frame, not camera-composition parity.
+  `analysis/native_validation/crazyonyou_fest_female_singer_post_anim_20260621_current/`
+  runs stock PS2 `crazyonyou` from `16.0s` in the fest venue. The log loads
+  `alterna1`, `metal_bass`, `metal_drummer`, and `female_singer`, starts
+  `singer_active_medium_01`, loads `dw_fest_drums`, decodes fest MatAnim and
+  EventTrigger visibility routes, advances lighting and authored cameras, and
+  records zero miss rows. This window keeps singer FaceFX at `graph=idle`, so
+  keep it as fest/female-singer route-health evidence rather than active vocal
+  performance proof; the separate `shout_singer_active_close_valid` capture
+  remains the current active singer/FaceFX proof.
 - Native camera mesh proximity logging
   (`engine/out/native_song_20260614/psychobilly_f900_camera_mesh_probe.log`)
   identified the old `psychobilly` frame-900 occluder as the `tunnel.*`

@@ -105,14 +105,36 @@ class MiloSceneRenderer {
   void set_material_alpha_multipliers(std::map<std::string, float> material_alpha);
   void set_mesh_translation_offsets(
       std::map<std::string, std::array<float, 3>> offsets);
+  struct MeshTransformSample {
+    bool has_translation = false;
+    std::array<float, 3> translation = {0.0f, 0.0f, 0.0f};
+    bool has_rotation = false;
+    std::array<float, 4> rotation_xyzw = {0.0f, 0.0f, 0.0f, 1.0f};
+    bool has_scale = false;
+    std::array<float, 3> scale = {1.0f, 1.0f, 1.0f};
+  };
+  void set_mesh_transform_offsets(
+      std::map<std::string, MeshTransformSample> offsets);
   void trigger_mesh_pulse(const std::string& mesh_name, float amplitude);
   struct MeshAnimKey {
     float frame = 0.0f;
     float pos[3] = {0.0f, 0.0f, 0.0f};
   };
+  struct MeshQuatAnimKey {
+    float frame = 0.0f;
+    float quat_xyzw[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+  };
+  struct MeshTransformAnim {
+    std::vector<MeshAnimKey> translation_keys;
+    std::vector<MeshQuatAnimKey> rotation_keys;
+    std::vector<MeshAnimKey> scale_keys;
+  };
   void trigger_mesh_translation_anim(const std::string& mesh_name,
                                      std::vector<MeshAnimKey> keys,
                                      float frames_per_second);
+  void trigger_mesh_transform_anim(const std::string& mesh_name,
+                                   MeshTransformAnim anim,
+                                   float frames_per_second);
   void update(float dt_seconds);
 
  private:
@@ -132,9 +154,10 @@ class MiloSceneRenderer {
   std::unordered_set<std::string> hidden_meshes_;
   std::map<std::string, float> material_alpha_;
   std::map<std::string, std::array<float, 3>> mesh_translation_offsets_;
+  std::map<std::string, MeshTransformSample> mesh_transform_offsets_;
   std::map<std::string, float> mesh_pulses_;
   struct ActiveMeshAnim {
-    std::vector<MeshAnimKey> keys;
+    MeshTransformAnim anim;
     float frames_per_second = 30.0f;
     float elapsed = 0.0f;
   };

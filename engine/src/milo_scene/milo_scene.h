@@ -47,6 +47,22 @@
 //     faces : face_count × (3 × u16) triangle indices
 //     ...   per-material / bone-group trailing data (not needed to draw)
 
+//   Light (version 6, observed in theatre_lighting.milo_ps2):
+//     i32 version (= 6)
+//     13 bytes object/base header
+//     48 local matrix at raw offset 0x11
+//     48 stored world matrix at raw offset 0x41
+//     16 RGBA float color at raw offset 0x7e
+//     f32 range at raw offset 0x8e
+//
+//   Environ (version 5, observed in fest_lighting.milo_ps2):
+//     i32 version (= 5)
+//     13 bytes object/base header
+//     4 RGBA-ish floats at raw offset 0x11
+//     2 range/fog-ish floats at raw offset 0x21
+//     4 RGBA-ish floats at raw offset 0x29
+//     f32 range at raw offset 0x40
+
 #pragma once
 
 #include <array>
@@ -106,6 +122,27 @@ struct SpotlightObj {
   bool decoded = false;
 };
 
+struct LightObj {
+  std::string name;
+  Xfm local;
+  Xfm world_stored;
+  float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  float range = 0.0f;
+  bool decoded = false;
+  std::string error;
+};
+
+struct EnvironObj {
+  std::string name;
+  float color_a[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  float range_a = 0.0f;
+  float range_b = 0.0f;
+  float color_b[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  float range = 0.0f;
+  bool decoded = false;
+  std::string error;
+};
+
 struct GroupObj {
   std::string name;
   std::vector<std::string> children;
@@ -163,6 +200,10 @@ WaypointObj decode_waypoint(const std::string& entry_name,
                              const std::vector<uint8_t>& body);
 SpotlightObj decode_spotlight(const std::string& entry_name,
                               const std::vector<uint8_t>& body);
+LightObj decode_light(const std::string& entry_name,
+                      const std::vector<uint8_t>& body);
+EnvironObj decode_environ(const std::string& entry_name,
+                          const std::vector<uint8_t>& body);
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body);
 // Mesh decode never throws — on failure it returns a MeshObj with decoded=false
@@ -179,6 +220,8 @@ struct Scene {
   std::vector<CamObj> cams;
   std::vector<WaypointObj> waypoints;
   std::vector<SpotlightObj> spotlights;
+  std::vector<LightObj> lights;
+  std::vector<EnvironObj> environs;
   std::vector<GroupObj> groups;
   std::vector<std::string> draw_order;  // Group-authored Mesh child order.
   std::string dir_name;

@@ -1027,7 +1027,21 @@ void dump_hand_pose_rows(const ghogx::character::Character& character,
             std::strcmp(wanted, "bone_fret") == 0 ||
             std::strcmp(wanted, "bone_fret_hand") == 0 ||
             std::strcmp(wanted, "bone_L-hand") == 0 ||
-            std::strcmp(wanted, "bone_L-thumb01") == 0;
+            std::strcmp(wanted, "bone_L-thumb01") == 0 ||
+            std::strcmp(wanted, "bone_L-thumb02") == 0 ||
+            std::strcmp(wanted, "bone_L-thumb03") == 0 ||
+            std::strcmp(wanted, "bone_L-index01") == 0 ||
+            std::strcmp(wanted, "bone_L-index02") == 0 ||
+            std::strcmp(wanted, "bone_L-index03") == 0 ||
+            std::strcmp(wanted, "bone_L-middlefinger01") == 0 ||
+            std::strcmp(wanted, "bone_L-middlefinger02") == 0 ||
+            std::strcmp(wanted, "bone_L-middlefinger03") == 0 ||
+            std::strcmp(wanted, "bone_L-ringfinger01") == 0 ||
+            std::strcmp(wanted, "bone_L-ringfinger02") == 0 ||
+            std::strcmp(wanted, "bone_L-ringfinger03") == 0 ||
+            std::strcmp(wanted, "bone_L-pinky01") == 0 ||
+            std::strcmp(wanted, "bone_L-pinky02") == 0 ||
+            std::strcmp(wanted, "bone_L-pinky03") == 0;
         if (relation_bone) {
             std::fprintf(stderr,
                          "[hrow] ph=%.*s b=%s r0=(%.5f %.5f %.5f)\n",
@@ -1276,18 +1290,52 @@ std::unordered_set<std::string> mesh_names_with_materials(
     return hidden;
 }
 
-struct VenueMatAnim {
-    std::string name;
-    std::string material;
-    float start_alpha = 1.0f;
-    float end_alpha = 1.0f;
-    float duration_frames = 0.0f;
-};
+std::string strip_trigger_suffix(std::string name) {
+    constexpr std::string_view suffix = ".trig";
+    if (name.size() >= suffix.size() &&
+        name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+        name.resize(name.size() - suffix.size());
+    }
+    return name;
+}
 
-std::map<std::string, VenueMatAnim> load_venue_mat_anims(
+bool is_event_payload_label(std::string_view text) {
+    return !text.empty() && text.find('.') == std::string_view::npos;
+}
+
+void push_unique_ref(std::vector<std::string>& values, const std::string& ref) {
+    if (ref.empty()) return;
+    if (std::find(values.begin(), values.end(), ref) == values.end())
+        values.push_back(ref);
+}
+
+std::vector<std::string> event_trigger_route_keys(
+    const std::string& trigger_name, std::string_view payload_label) {
+    std::vector<std::string> keys;
+    if (is_event_payload_label(payload_label))
+        keys.emplace_back(payload_label);
+    const std::string object_key = strip_trigger_suffix(trigger_name);
+    push_unique_ref(keys, object_key);
+    return keys;
+}
+
+void merge_venue_group_visibility(Gameplay::VenueGroupVisibility& dst,
+                                  const Gameplay::VenueGroupVisibility& src) {
+    for (const auto& mesh : src.show_meshes)
+        push_unique_ref(dst.show_meshes, mesh);
+    for (const auto& mesh : src.hide_meshes)
+        push_unique_ref(dst.hide_meshes, mesh);
+}
+
+float clamp_material_alpha(float alpha) {
+    if (!std::isfinite(alpha)) return 1.0f;
+    return std::clamp(alpha, 0.0f, 1.0f);
+}
+
+std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
     const std::string& hdr_path, const std::string& ark_path,
     const std::string& milo_path) {
-    std::map<std::string, VenueMatAnim> out;
+    std::map<std::string, Gameplay::VenueMaterialAnim> out;
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
@@ -1330,11 +1378,11 @@ std::map<std::string, VenueMatAnim> load_venue_mat_anims(
             std::memcpy(&start_alpha, body + pos + 0, sizeof(start_alpha));
             std::memcpy(&end_alpha, body + pos + 8, sizeof(end_alpha));
             std::memcpy(&duration, body + pos + 12, sizeof(duration));
-            VenueMatAnim anim;
+            Gameplay::VenueMaterialAnim anim;
             anim.name = *anim_name;
             anim.material = *material;
-            anim.start_alpha = start_alpha;
-            anim.end_alpha = end_alpha;
+            anim.start_alpha = clamp_material_alpha(start_alpha);
+            anim.end_alpha = clamp_material_alpha(end_alpha);
             anim.duration_frames = duration;
             out[anim.name] = anim;
             std::fprintf(stderr,
@@ -1380,7 +1428,9 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
                 }
             }
             if (!mat_anims.empty()) {
-                out[event_name] = mat_anims;
+                auto& routed = out[event_name];
+                for (const auto& anim : mat_anims)
+                    push_unique_ref(routed, anim);
                 std::fprintf(stderr, "[world] EventTrigger %s MatAnims=",
                              event_name.c_str());
                 for (const auto& anim : mat_anims) {
@@ -1424,14 +1474,16 @@ std::map<std::string, std::vector<std::string>> load_venue_event_filters(
                 }
             }
             if (!filters.empty()) {
-                std::string event_name = de.name;
-                constexpr std::string_view suffix = ".trig";
-                if (event_name.size() >= suffix.size() &&
-                    event_name.compare(event_name.size() - suffix.size(),
-                                       suffix.size(), suffix) == 0) {
-                    event_name.resize(event_name.size() - suffix.size());
+                const std::string_view event_label =
+                    is_event_payload_label(strings.front())
+                        ? std::string_view(strings.front())
+                        : std::string_view{};
+                for (const auto& key :
+                     event_trigger_route_keys(de.name, event_label)) {
+                    auto& routed = out[key];
+                    for (const auto& filter : filters)
+                        push_unique_ref(routed, filter);
                 }
-                out[event_name] = std::move(filters);
             }
         }
         if (!out.empty()) {
@@ -1706,6 +1758,30 @@ bool is_lighting_object_ref(std::string_view s) {
            s == "guitarist0" || s == "bone_pelvis.mesh";
 }
 
+std::string lower_ascii(std::string_view s) {
+    std::string out(s);
+    for (char& c : out) {
+        c = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(c)));
+    }
+    return out;
+}
+
+std::optional<std::string> strip_spotlight_target_mesh_suffix(
+    std::string_view target) {
+    constexpr size_t kSuffixLength = 12;
+    if (target.size() <= kSuffixLength) return std::nullopt;
+    const std::string suffix =
+        lower_ascii(target.substr(target.size() - kSuffixLength));
+    if (suffix != "_target.mesh" && suffix != ".target.mesh")
+        return std::nullopt;
+    return std::string(target.substr(0, target.size() - kSuffixLength));
+}
+
+bool is_spotlight_target_mesh(std::string_view target) {
+    return strip_spotlight_target_mesh_suffix(target).has_value();
+}
+
 bool is_lighting_keyframe_label(std::string_view s) {
     if (s.size() < 2 || s.size() > 48) return false;
     if (is_lighting_category(s) || is_lighting_adjective(s) ||
@@ -1730,6 +1806,22 @@ float read_f32_at(const uint8_t* body, size_t size, size_t off, float fallback) 
     std::memcpy(&v, body + off, sizeof(v));
     if (!std::isfinite(v)) return fallback;
     return v;
+}
+
+bool plausible_lighting_frame_count(float frames) {
+    // Accepted dumps show LightPreset timing as authored frame counts. Packed
+    // string/table bytes can also sit after a keyframe label; reject those
+    // instead of letting them become multi-century fades.
+    constexpr float kMaxObservedLightPresetFrames = 920.0f;
+    constexpr float kConservativeSlack = 2.0f;
+    return std::isfinite(frames) && frames >= 0.0f &&
+           frames <= kMaxObservedLightPresetFrames * kConservativeSlack;
+}
+
+float read_light_preset_timing_f32(const uint8_t* body, size_t size,
+                                   size_t off) {
+    const float v = read_f32_at(body, size, off, 0.0f);
+    return plausible_lighting_frame_count(v) ? v : 0.0f;
 }
 
 void add_unique_lighting_ref(std::vector<std::string>& refs,
@@ -1825,9 +1917,10 @@ std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
         k.record_end = label_end;
         k.label_offset = label_off;
         // LightPreset keyframe editor schema stores description, duration,
-        // then fade_out. Keep these bytes as the timing authority.
-        k.duration = read_f32_at(body, size, label_end, 0.0f);
-        k.fade_out = read_f32_at(body, size, label_end + 4, 0.0f);
+        // then fade_out, but packed target/object data can follow labels in
+        // single-frame records. Keep only plausible authored frame counts.
+        k.duration = read_light_preset_timing_f32(body, size, label_end);
+        k.fade_out = read_light_preset_timing_f32(body, size, label_end + 4);
 
         for (size_t pos = record_start; pos + 4 <= label_off; ++pos) {
             uint32_t len = 0;
@@ -1842,8 +1935,7 @@ std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
             if (s.rfind(".mesh") != std::string::npos) {
                 const std::string target = s;
                 add_unique(k.mesh_targets, std::move(s));
-                if (target.size() >= 12 &&
-                    target.compare(target.size() - 12, 12, "_target.mesh") == 0 &&
+                if (is_spotlight_target_mesh(target) &&
                     pos + 4 + len + 41 <= label_off) {
                     const size_t payload = pos + 4 + len;
                     Gameplay::LightingPreset::TargetState state;
@@ -1962,10 +2054,130 @@ std::vector<Gameplay::LightingPreset> load_lighting_presets(
     return out;
 }
 
+void log_lighting_light_object_coverage(
+    const ghogx::milo_scene::Scene& lighting_scene,
+    const std::vector<Gameplay::LightingPreset>& presets) {
+    std::map<std::string, const ghogx::milo_scene::LightObj*> lights_by_name;
+    size_t failed_lights = 0;
+    for (const auto& light : lighting_scene.lights) {
+        if (!light.decoded) {
+            ++failed_lights;
+            std::fprintf(stderr,
+                         "[world] lighting Light object decode failed: %s %s\n",
+                         light.name.c_str(), light.error.c_str());
+            continue;
+        }
+        lights_by_name[light.name] = &light;
+        std::fprintf(
+            stderr,
+            "[world] lighting Light object decoded: %s pos=(%.3f %.3f %.3f) color=(%.3f %.3f %.3f %.3f) range=%.3f\n",
+            light.name.c_str(), light.world_stored.pos[0],
+            light.world_stored.pos[1], light.world_stored.pos[2],
+            light.color[0], light.color[1], light.color[2], light.color[3],
+            light.range);
+    }
+    std::map<std::string, const ghogx::milo_scene::EnvironObj*> environs_by_name;
+    size_t failed_environs = 0;
+    for (const auto& env : lighting_scene.environs) {
+        if (!env.decoded) {
+            ++failed_environs;
+            std::fprintf(stderr,
+                         "[world] lighting Environ object decode failed: %s %s\n",
+                         env.name.c_str(), env.error.c_str());
+            continue;
+        }
+        environs_by_name[env.name] = &env;
+        std::fprintf(
+            stderr,
+            "[world] lighting Environ object decoded: %s color_a=(%.3f %.3f %.3f %.3f) ranges=(%.3f %.3f %.3f) color_b=(%.3f %.3f %.3f %.3f)\n",
+            env.name.c_str(), env.color_a[0], env.color_a[1],
+            env.color_a[2], env.color_a[3], env.range_a, env.range_b,
+            env.range, env.color_b[0], env.color_b[1], env.color_b[2],
+            env.color_b[3]);
+    }
+
+    std::map<std::string, bool> lit_refs;
+    std::map<std::string, bool> env_refs;
+    auto add_lit_ref = [&](const std::string& ref) {
+        if (!ref.empty()) lit_refs[ref] = true;
+    };
+    auto add_env_ref = [&](const std::string& ref) {
+        if (!ref.empty()) env_refs[ref] = true;
+    };
+    for (const auto& preset : presets) {
+        for (const auto& ref : preset.lit_refs) add_lit_ref(ref);
+        for (const auto& ref : preset.env_refs) add_env_ref(ref);
+        for (const auto& keyframe : preset.keyframes) {
+            for (const auto& ref : keyframe.lit_refs) add_lit_ref(ref);
+            for (const auto& ref : keyframe.env_refs) add_env_ref(ref);
+        }
+    }
+
+    size_t matched_refs = 0;
+    size_t unmatched_refs = 0;
+    size_t unmatched_logged = 0;
+    for (const auto& [ref, unused] : lit_refs) {
+        (void)unused;
+        if (lights_by_name.find(ref) != lights_by_name.end()) {
+            ++matched_refs;
+            continue;
+        }
+        ++unmatched_refs;
+        if (unmatched_logged < 24) {
+            std::fprintf(
+                stderr,
+                "[world] lighting preset .lit ref has no decoded Light object: %s\n",
+                ref.c_str());
+            ++unmatched_logged;
+        }
+    }
+    std::fprintf(
+        stderr,
+        "[world] lighting Light object coverage: decoded=%zu failed=%zu preset_lit_refs=%zu matched=%zu unmatched=%zu\n",
+        lights_by_name.size(), failed_lights, lit_refs.size(), matched_refs,
+        unmatched_refs);
+
+    size_t matched_env_refs = 0;
+    size_t unmatched_env_refs = 0;
+    size_t unmatched_env_logged = 0;
+    for (const auto& [ref, unused] : env_refs) {
+        (void)unused;
+        if (environs_by_name.find(ref) != environs_by_name.end()) {
+            ++matched_env_refs;
+            continue;
+        }
+        ++unmatched_env_refs;
+        if (unmatched_env_logged < 24) {
+            std::fprintf(
+                stderr,
+                "[world] lighting preset .env ref has no decoded Environ object: %s\n",
+                ref.c_str());
+            ++unmatched_env_logged;
+        }
+    }
+    std::fprintf(
+        stderr,
+        "[world] lighting Environ object coverage: decoded=%zu failed=%zu preset_env_refs=%zu matched=%zu unmatched=%zu\n",
+        environs_by_name.size(), failed_environs, env_refs.size(),
+        matched_env_refs, unmatched_env_refs);
+}
+
 struct LightingRequest {
     std::string category = "INTRO";
     std::string adjective;
 };
+
+uint32_t venue_excitement_level(std::string_view venue_event) {
+    if (venue_event.find("peak") != std::string_view::npos) return 4;
+    if (venue_event.find("great") != std::string_view::npos) return 3;
+    if (venue_event.find("bad") != std::string_view::npos) return 1;
+    if (venue_event.find("boot") != std::string_view::npos) return 0;
+    return 2;
+}
+
+bool venue_excitement_is_high(std::string_view venue_event) {
+    return venue_excitement_level(venue_event) >= 3;
+}
 
 LightingRequest lighting_request_at(const ghogx::chart::Chart& chart,
                                     double song_time,
@@ -1997,16 +2209,16 @@ LightingRequest lighting_request_at(const ghogx::chart::Chart& chart,
 
 const Gameplay::LightingPreset* choose_lighting_preset(
     const std::vector<Gameplay::LightingPreset>& presets,
-    const LightingRequest& request) {
+    const LightingRequest& request,
+    uint32_t excitement_level) {
     const std::string_view primary = request.category;
     const std::string_view fallback =
         (request.category == "INTRO") ? std::string_view{} : "VERSECHORUSSOLO";
-    constexpr uint32_t kDefaultExcitement = 2;
     const Gameplay::LightingPreset* best = nullptr;
     const Gameplay::LightingPreset* unadjectived = nullptr;
     for (const auto& p : presets) {
-        if (kDefaultExcitement < p.min_excitement ||
-            kDefaultExcitement > p.max_excitement) {
+        if (excitement_level < p.min_excitement ||
+            excitement_level > p.max_excitement) {
             continue;
         }
         if (p.category != primary) continue;
@@ -2019,8 +2231,8 @@ const Gameplay::LightingPreset* choose_lighting_preset(
     if (!fallback.empty()) {
         const Gameplay::LightingPreset* fallback_unadjectived = nullptr;
         for (const auto& p : presets) {
-            if (kDefaultExcitement < p.min_excitement ||
-                kDefaultExcitement > p.max_excitement) {
+            if (excitement_level < p.min_excitement ||
+                excitement_level > p.max_excitement) {
                 continue;
             }
             if (p.category != fallback) continue;
@@ -2081,6 +2293,65 @@ size_t lighting_keyframe_index_at(const Gameplay::LightingPreset& preset,
     const uint32_t elapsed = tick >= start_tick ? tick - start_tick : 0;
     const uint32_t beat = elapsed / chart.ticks_per_beat;
     return static_cast<size_t>(beat % preset.keyframes.size());
+}
+
+constexpr double kLightingFramesPerSecond = 30.0;
+
+double authored_frames_to_seconds(float frames) {
+    return std::isfinite(frames) && frames > 0.0f
+               ? static_cast<double>(frames) / kLightingFramesPerSecond
+               : 0.0;
+}
+
+double lighting_frames_to_seconds(float frames) {
+    return authored_frames_to_seconds(frames);
+}
+
+using SpotlightState = ghogx::render::MiloSceneRenderer::SpotlightState;
+
+std::vector<SpotlightState> sorted_unique_spotlight_states(
+    std::vector<SpotlightState> spots) {
+    std::sort(spots.begin(), spots.end(), [](const auto& a, const auto& b) {
+        return a.name < b.name;
+    });
+    spots.erase(std::unique(spots.begin(), spots.end(),
+                            [](const auto& a, const auto& b) {
+                                return a.name == b.name;
+                            }),
+                spots.end());
+    return spots;
+}
+
+bool nearly_same(float a, float b) {
+    return std::fabs(a - b) <= 0.0001f;
+}
+
+bool same_spotlight_states(const std::vector<SpotlightState>& a,
+                           const std::vector<SpotlightState>& b) {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (a[i].name != b[i].name ||
+            a[i].target_mesh != b[i].target_mesh ||
+            !nearly_same(a[i].r, b[i].r) ||
+            !nearly_same(a[i].g, b[i].g) ||
+            !nearly_same(a[i].b, b[i].b) ||
+            !nearly_same(a[i].intensity, b[i].intensity)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::map<std::string, SpotlightState> spotlight_state_map(
+    const std::vector<SpotlightState>& spots) {
+    std::map<std::string, SpotlightState> out;
+    for (const auto& spot : spots) out[spot.name] = spot;
+    return out;
+}
+
+float mix_lighting(float a, float b, double t) {
+    return static_cast<float>(static_cast<double>(a) +
+                              (static_cast<double>(b) - a) * t);
 }
 
 std::string performer_event_track_for_role(std::string_view role) {
@@ -2188,13 +2459,12 @@ PerformerMidiState performer_midi_state_at(const ghogx::chart::Chart& chart,
 }
 
 std::string infer_spotlight_from_target(std::string_view target) {
-    constexpr std::string_view suffix = "_target.mesh";
-    if (target.size() <= suffix.size() ||
-        target.substr(target.size() - suffix.size()) != suffix) {
+    const auto base = strip_spotlight_target_mesh_suffix(target);
+    if (!base) {
         return {};
     }
-    std::string name(target.substr(0, target.size() - suffix.size()));
-    name += "_spotlight.spot";
+    std::string name(*base);
+    name += ".spot";
     return name;
 }
 
@@ -2484,8 +2754,15 @@ std::optional<std::string> first_mesh_target_in_transanim(const uint8_t* body,
     return std::nullopt;
 }
 
-std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>
-decode_transanim_translation_keys(const uint8_t* body, size_t size) {
+struct TransAnimVec3Block {
+    size_t offset = 0;
+    std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey> keys;
+    float delta = 0.0f;
+    bool scale_like = false;
+};
+
+std::vector<TransAnimVec3Block> decode_transanim_vec3_blocks(
+    const uint8_t* body, size_t size) {
     using Key = ghogx::render::MiloSceneRenderer::MeshAnimKey;
     auto u32_at = [&](size_t off) {
         uint32_t v = 0;
@@ -2497,21 +2774,22 @@ decode_transanim_translation_keys(const uint8_t* body, size_t size) {
         std::memcpy(&v, body + off, sizeof(v));
         return v;
     };
-    auto plausible_pos = [](float v) {
-        return std::isfinite(v) && std::abs(v) < 500.0f;
+    auto plausible_vec = [](float v) {
+        return std::isfinite(v) && std::abs(v) < 2000.0f;
     };
 
-    std::vector<Key> best;
-    float best_delta = 0.0f;
+    std::vector<TransAnimVec3Block> blocks;
     for (size_t off = 0; off + 4 <= size; ++off) {
         const uint32_t count = u32_at(off);
-        if (count < 2 || count > 32) continue;
+        if (count < 2 || count > 128) continue;
         const size_t start = off + 4;
         if (start + static_cast<size_t>(count) * 16 > size) continue;
-        std::vector<Key> keys;
-        keys.reserve(count);
+        TransAnimVec3Block block;
+        block.offset = off;
+        block.keys.reserve(count);
         float prev_frame = -1.0f;
         bool ok = true;
+        bool scale_like = true;
         for (uint32_t i = 0; i < count; ++i) {
             const size_t p = start + static_cast<size_t>(i) * 16;
             Key k;
@@ -2519,9 +2797,78 @@ decode_transanim_translation_keys(const uint8_t* body, size_t size) {
             k.pos[1] = f32_at(p + 4);
             k.pos[2] = f32_at(p + 8);
             k.frame = f32_at(p + 12);
-            if (!plausible_pos(k.pos[0]) || !plausible_pos(k.pos[1]) ||
-                !plausible_pos(k.pos[2]) || !std::isfinite(k.frame) ||
-                k.frame < prev_frame || k.frame > 500.0f) {
+            if (!plausible_vec(k.pos[0]) || !plausible_vec(k.pos[1]) ||
+                !plausible_vec(k.pos[2]) || !std::isfinite(k.frame) ||
+                k.frame < prev_frame || k.frame > 1000.0f) {
+                ok = false;
+                break;
+            }
+            for (float v : k.pos) {
+                if (v <= 0.001f || v > 20.0f) scale_like = false;
+            }
+            prev_frame = k.frame;
+            block.keys.push_back(k);
+        }
+        if (!ok) continue;
+        for (float v : block.keys.front().pos) {
+            if (v < 0.05f || v > 5.0f) scale_like = false;
+        }
+        float delta = 0.0f;
+        for (const auto& k : block.keys) {
+            const float dx = k.pos[0] - block.keys.front().pos[0];
+            const float dy = k.pos[1] - block.keys.front().pos[1];
+            const float dz = k.pos[2] - block.keys.front().pos[2];
+            delta = std::max(delta, std::sqrt(dx * dx + dy * dy + dz * dz));
+        }
+        if (delta <= 0.001f) continue;
+        block.delta = delta;
+        block.scale_like = scale_like;
+        blocks.push_back(std::move(block));
+    }
+    return blocks;
+}
+
+std::vector<ghogx::render::MiloSceneRenderer::MeshQuatAnimKey>
+decode_transanim_rotation_keys(const uint8_t* body, size_t size) {
+    using Key = ghogx::render::MiloSceneRenderer::MeshQuatAnimKey;
+    auto u32_at = [&](size_t off) {
+        uint32_t v = 0;
+        std::memcpy(&v, body + off, sizeof(v));
+        return v;
+    };
+    auto f32_at = [&](size_t off) {
+        float v = 0.0f;
+        std::memcpy(&v, body + off, sizeof(v));
+        return v;
+    };
+
+    std::vector<Key> best;
+    float best_delta = 0.0f;
+    for (size_t off = 0; off + 4 <= size; ++off) {
+        const uint32_t count = u32_at(off);
+        if (count < 2 || count > 128) continue;
+        const size_t start = off + 4;
+        if (start + static_cast<size_t>(count) * 20 > size) continue;
+        std::vector<Key> keys;
+        keys.reserve(count);
+        float prev_frame = -1.0f;
+        bool ok = true;
+        for (uint32_t i = 0; i < count; ++i) {
+            const size_t p = start + static_cast<size_t>(i) * 20;
+            Key k;
+            k.quat_xyzw[0] = f32_at(p + 0);
+            k.quat_xyzw[1] = f32_at(p + 4);
+            k.quat_xyzw[2] = f32_at(p + 8);
+            k.quat_xyzw[3] = f32_at(p + 12);
+            k.frame = f32_at(p + 16);
+            const float norm =
+                std::sqrt(k.quat_xyzw[0] * k.quat_xyzw[0] +
+                          k.quat_xyzw[1] * k.quat_xyzw[1] +
+                          k.quat_xyzw[2] * k.quat_xyzw[2] +
+                          k.quat_xyzw[3] * k.quat_xyzw[3]);
+            if (!std::isfinite(norm) || norm < 0.5f || norm > 1.5f ||
+                !std::isfinite(k.frame) || k.frame < prev_frame ||
+                k.frame > 1000.0f) {
                 ok = false;
                 break;
             }
@@ -2530,18 +2877,52 @@ decode_transanim_translation_keys(const uint8_t* body, size_t size) {
         }
         if (!ok) continue;
         float delta = 0.0f;
+        const auto& first = keys.front();
         for (const auto& k : keys) {
-            const float dx = k.pos[0] - keys.front().pos[0];
-            const float dy = k.pos[1] - keys.front().pos[1];
-            const float dz = k.pos[2] - keys.front().pos[2];
-            delta = std::max(delta, std::sqrt(dx * dx + dy * dy + dz * dz));
+            const float dot = std::abs(first.quat_xyzw[0] * k.quat_xyzw[0] +
+                                       first.quat_xyzw[1] * k.quat_xyzw[1] +
+                                       first.quat_xyzw[2] * k.quat_xyzw[2] +
+                                       first.quat_xyzw[3] * k.quat_xyzw[3]);
+            delta = std::max(delta, 1.0f - std::min(dot, 1.0f));
         }
-        if (delta > best_delta && delta > 0.001f) {
+        if (delta > best_delta && delta > 0.000001f) {
             best_delta = delta;
             best = std::move(keys);
         }
     }
     return best;
+}
+
+ghogx::render::MiloSceneRenderer::MeshTransformAnim decode_transanim_transform_anim(
+    const uint8_t* body, size_t size) {
+    ghogx::render::MiloSceneRenderer::MeshTransformAnim anim;
+    const auto blocks = decode_transanim_vec3_blocks(body, size);
+    const TransAnimVec3Block* translation = nullptr;
+    const TransAnimVec3Block* fallback_translation = nullptr;
+    const TransAnimVec3Block* scale = nullptr;
+    for (const auto& block : blocks) {
+        if (!fallback_translation || block.delta > fallback_translation->delta)
+            fallback_translation = &block;
+        if (!block.scale_like &&
+            (!translation || block.delta > translation->delta)) {
+            translation = &block;
+        }
+    }
+    if (!translation) translation = fallback_translation;
+    for (const auto& block : blocks) {
+        if (&block == translation || !block.scale_like) continue;
+        if (!scale || block.delta > scale->delta) scale = &block;
+    }
+    if (translation) anim.translation_keys = translation->keys;
+    if (scale) anim.scale_keys = scale->keys;
+    anim.rotation_keys = decode_transanim_rotation_keys(body, size);
+    return anim;
+}
+
+bool mesh_transform_anim_empty(
+    const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim) {
+    return anim.translation_keys.empty() && anim.rotation_keys.empty() &&
+           anim.scale_keys.empty();
 }
 
 std::vector<std::string> ascii_strings_in_object(const uint8_t* body,
@@ -2634,6 +3015,132 @@ std::array<float, 3> sample_translation_offset(
         out[i] = p - keys.front().pos[i];
     }
     return out;
+}
+
+std::array<float, 3> sample_scale_ratio(
+    const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
+    float frame) {
+    std::array<float, 3> out = {1.0f, 1.0f, 1.0f};
+    if (keys.empty()) return out;
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = std::max(b->frame - a->frame, 0.001f);
+    const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    for (int i = 0; i < 3; ++i) {
+        const float p = a->pos[i] + (b->pos[i] - a->pos[i]) * t;
+        const float base = keys.front().pos[i];
+        out[i] = std::fabs(base) > 0.0001f ? p / base : 1.0f;
+    }
+    return out;
+}
+
+std::array<float, 4> normalize_quat_xyzw(std::array<float, 4> q) {
+    const float len = std::sqrt(q[0] * q[0] + q[1] * q[1] +
+                                q[2] * q[2] + q[3] * q[3]);
+    if (!std::isfinite(len) || len <= 0.000001f)
+        return {0.0f, 0.0f, 0.0f, 1.0f};
+    const float inv = 1.0f / len;
+    for (float& v : q) v *= inv;
+    return q;
+}
+
+std::array<float, 4> quat_conjugate_xyzw(std::array<float, 4> q) {
+    q[0] = -q[0];
+    q[1] = -q[1];
+    q[2] = -q[2];
+    return q;
+}
+
+std::array<float, 4> quat_mul_xyzw(const std::array<float, 4>& a,
+                                   const std::array<float, 4>& b) {
+    const float ax = a[0], ay = a[1], az = a[2], aw = a[3];
+    const float bx = b[0], by = b[1], bz = b[2], bw = b[3];
+    return normalize_quat_xyzw({
+        aw * bx + ax * bw + ay * bz - az * by,
+        aw * by - ax * bz + ay * bw + az * bx,
+        aw * bz + ax * by - ay * bx + az * bw,
+        aw * bw - ax * bx - ay * by - az * bz,
+    });
+}
+
+std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
+                                     std::array<float, 4> b, float t) {
+    a = normalize_quat_xyzw(a);
+    b = normalize_quat_xyzw(b);
+    float dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+    if (dot < 0.0f) {
+        for (float& v : b) v = -v;
+        dot = -dot;
+    }
+    if (dot > 0.9995f) {
+        return normalize_quat_xyzw({a[0] + (b[0] - a[0]) * t,
+                                    a[1] + (b[1] - a[1]) * t,
+                                    a[2] + (b[2] - a[2]) * t,
+                                    a[3] + (b[3] - a[3]) * t});
+    }
+    dot = std::clamp(dot, -1.0f, 1.0f);
+    const float theta0 = std::acos(dot);
+    const float theta = theta0 * t;
+    const float sin_theta = std::sin(theta);
+    const float sin_theta0 = std::sin(theta0);
+    const float s0 = std::cos(theta) - dot * sin_theta / sin_theta0;
+    const float s1 = sin_theta / sin_theta0;
+    return normalize_quat_xyzw({a[0] * s0 + b[0] * s1,
+                                a[1] * s0 + b[1] * s1,
+                                a[2] * s0 + b[2] * s1,
+                                a[3] * s0 + b[3] * s1});
+}
+
+std::array<float, 4> sample_rotation_delta(
+    const std::vector<ghogx::render::MiloSceneRenderer::MeshQuatAnimKey>& keys,
+    float frame) {
+    if (keys.empty()) return {0.0f, 0.0f, 0.0f, 1.0f};
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = std::max(b->frame - a->frame, 0.001f);
+    const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const std::array<float, 4> qa = {a->quat_xyzw[0], a->quat_xyzw[1],
+                                     a->quat_xyzw[2], a->quat_xyzw[3]};
+    const std::array<float, 4> qb = {b->quat_xyzw[0], b->quat_xyzw[1],
+                                     b->quat_xyzw[2], b->quat_xyzw[3]};
+    const auto cur = slerp_quat_xyzw(qa, qb, t);
+    const std::array<float, 4> base = {
+        keys.front().quat_xyzw[0], keys.front().quat_xyzw[1],
+        keys.front().quat_xyzw[2], keys.front().quat_xyzw[3]};
+    return quat_mul_xyzw(quat_conjugate_xyzw(normalize_quat_xyzw(base)), cur);
+}
+
+ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
+    const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim,
+    float frame) {
+    ghogx::render::MiloSceneRenderer::MeshTransformSample sample;
+    if (anim.translation_keys.size() >= 2) {
+        sample.has_translation = true;
+        sample.translation = sample_translation_offset(anim.translation_keys, frame);
+    }
+    if (anim.rotation_keys.size() >= 2) {
+        sample.has_rotation = true;
+        sample.rotation_xyzw = sample_rotation_delta(anim.rotation_keys, frame);
+    }
+    if (anim.scale_keys.size() >= 2) {
+        sample.has_scale = true;
+        sample.scale = sample_scale_ratio(anim.scale_keys, frame);
+    }
+    return sample;
 }
 
 float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
@@ -2787,20 +3294,23 @@ load_venue_group_visibility(const std::string& hdr_path,
             if (!read_group_mesh_list(visibility.hide_meshes)) continue;
             if (visibility.show_meshes.empty() && visibility.hide_meshes.empty())
                 continue;
-            std::string event_name = de.name;
-            constexpr std::string_view suffix = ".trig";
-            if (event_name.size() >= suffix.size() &&
-                event_name.compare(event_name.size() - suffix.size(),
-                                   suffix.size(), suffix) == 0) {
-                event_name.resize(event_name.size() - suffix.size());
+            for (const auto& key :
+                 event_trigger_route_keys(de.name, event_label)) {
+                merge_venue_group_visibility(out[key], visibility);
             }
-            out[event_name] = std::move(visibility);
             if (debug_venue_filters_enabled()) {
                 std::fprintf(
                     stderr,
-                    "[world] venue EventTrigger visibility %s show=%zu hide=%zu label=%s\n",
-                    event_name.c_str(), out[event_name].show_meshes.size(),
-                    out[event_name].hide_meshes.size(), event_label.c_str());
+                    "[world] venue EventTrigger visibility %s show=%zu hide=%zu label=%s routes=",
+                    de.name.c_str(), visibility.show_meshes.size(),
+                    visibility.hide_meshes.size(), event_label.c_str());
+                const auto route_keys =
+                    event_trigger_route_keys(de.name, event_label);
+                for (size_t i = 0; i < route_keys.size(); ++i) {
+                    std::fprintf(stderr, "%s%s", i == 0 ? "" : ",",
+                                 route_keys[i].c_str());
+                }
+                std::fprintf(stderr, "\n");
             }
         }
     } catch (const std::exception& ex) {
@@ -2830,8 +3340,8 @@ load_venue_anim_filters(const std::string& hdr_path,
 
         std::map<std::string, std::string> transanim_mesh;
         std::map<std::string,
-                 std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>>
-            transanim_keys;
+                 ghogx::render::MiloSceneRenderer::MeshTransformAnim>
+            transanim_anims;
         std::map<std::string, std::vector<std::string>> event_filters;
 
         for (const auto& de : dir.entries) {
@@ -2855,25 +3365,30 @@ load_venue_anim_filters(const std::string& hdr_path,
             } else if (de.type == "TransAnim") {
                 auto target = first_mesh_target_in_transanim(body, size);
                 if (!target) continue;
-                auto keys = decode_transanim_translation_keys(body, size);
-                if (keys.empty()) continue;
+                auto anim = decode_transanim_transform_anim(body, size);
+                if (mesh_transform_anim_empty(anim)) continue;
                 transanim_mesh[de.name] = canonical_milo_ref(*target);
-                transanim_keys[de.name] = std::move(keys);
-            } else if (de.type == "EventTrigger") {
-                std::string event_name = de.name;
-                constexpr std::string_view suffix = ".trig";
-                if (event_name.size() >= suffix.size() &&
-                    event_name.compare(event_name.size() - suffix.size(),
-                                       suffix.size(), suffix) == 0) {
-                    event_name.resize(event_name.size() - suffix.size());
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue TransAnim %s -> %s pos=%zu rot=%zu scale=%zu\n",
+                        de.name.c_str(), target->c_str(),
+                        anim.translation_keys.size(), anim.rotation_keys.size(),
+                        anim.scale_keys.size());
                 }
-                for (const auto& s : scan_milo_strings(body, size)) {
+                transanim_anims[de.name] = std::move(anim);
+            } else if (de.type == "EventTrigger") {
+                const auto strings = scan_milo_strings(body, size);
+                const std::string_view event_label =
+                    !strings.empty() && is_event_payload_label(strings.front())
+                        ? std::string_view(strings.front())
+                        : std::string_view{};
+                for (const auto& s : strings) {
                     if (s.rfind(".filt") == std::string::npos) continue;
-                    auto& filters = event_filters[event_name];
-                    const auto ref = canonical_milo_ref(s);
-                    if (std::find(filters.begin(), filters.end(), ref) ==
-                        filters.end()) {
-                        filters.push_back(ref);
+                    for (const auto& key :
+                         event_trigger_route_keys(de.name, event_label)) {
+                        push_unique_ref(event_filters[key],
+                                        canonical_milo_ref(s));
                     }
                 }
             }
@@ -2923,14 +3438,14 @@ load_venue_anim_filters(const std::string& hdr_path,
 
             auto add_transanim = [&](const std::string& tnm) {
                 const auto mesh_it = transanim_mesh.find(tnm);
-                const auto key_it = transanim_keys.find(tnm);
+                const auto anim_it = transanim_anims.find(tnm);
                 if (mesh_it == transanim_mesh.end() ||
-                    key_it == transanim_keys.end()) {
+                    anim_it == transanim_anims.end()) {
                     return;
                 }
                 Gameplay::VenueAnimFilterTarget target;
                 target.mesh = mesh_it->second;
-                target.keys = key_it->second;
+                target.anim = anim_it->second;
                 filter.targets.push_back(std::move(target));
             };
             auto collect = [&](auto&& self, const std::string& ref,
@@ -2985,8 +3500,8 @@ load_venue_anim_filters(const std::string& hdr_path,
 
 struct DrumAnimData {
     std::map<std::string,
-             std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>>
-        mesh_translation_anims;
+             ghogx::render::MiloSceneRenderer::MeshTransformAnim>
+        mesh_transform_anims;
     std::map<std::string, std::vector<std::string>> event_mesh_targets;
 };
 
@@ -3016,13 +3531,15 @@ DrumAnimData load_drum_anim_data(const std::string& hdr_path,
                 auto target = first_mesh_target_in_transanim(body, size);
                 if (!target) continue;
                 transanim_mesh[de.name] = *target;
-                auto keys = decode_transanim_translation_keys(body, size);
-                if (keys.empty()) continue;
+                auto anim = decode_transanim_transform_anim(body, size);
+                if (mesh_transform_anim_empty(anim)) continue;
                 std::fprintf(
                     stderr,
-                    "[world] drum TransAnim %s -> %s translation keys=%zu\n",
-                    de.name.c_str(), target->c_str(), keys.size());
-                out.mesh_translation_anims[*target] = std::move(keys);
+                    "[world] drum TransAnim %s -> %s pos=%zu rot=%zu scale=%zu\n",
+                    de.name.c_str(), target->c_str(),
+                    anim.translation_keys.size(), anim.rotation_keys.size(),
+                    anim.scale_keys.size());
+                out.mesh_transform_anims[*target] = std::move(anim);
             } else if (de.type == "Group") {
                 group_children[de.name] = ascii_strings_in_object(body, size);
             } else if (de.type == "AnimFilter") {
@@ -3865,19 +4382,13 @@ FretPositionState current_fret_position_state(
     FretPositionState state;
     if (cues.empty()) return state;
     const uint32_t now_tick = chart.sec_to_tick(song_time);
-    const uint32_t lookahead_tick =
-        chart.sec_to_tick(song_time + 0.08);
     const ghogx::chart::FretPositionCue* chosen = nullptr;
-    const ghogx::chart::FretPositionCue* imminent = nullptr;
     for (const auto& cue : cues) {
-        if (cue.tick > lookahead_tick) break;
+        if (cue.tick > now_tick) break;
         if (cue.tick <= now_tick) {
             chosen = &cue;
-        } else if (!imminent) {
-            imminent = &cue;
         }
     }
-    if (!chosen) chosen = imminent;
     if (!chosen) return state;
     state.active = true;
     state.tick = chosen->tick;
@@ -4153,6 +4664,11 @@ int first_lane_from_mask(uint32_t note_mask) {
     return -1;
 }
 
+std::string player_fret_hit_event(int lane) {
+    const int fret = std::clamp(lane, 0, 4) + 1;
+    return "hit_p0_fret" + std::to_string(fret);
+}
+
 std::vector<int> event_keys_from_mask(uint32_t note_mask) {
     std::vector<int> keys;
     for (int lane = 0; lane < 5; ++lane) {
@@ -4310,13 +4826,15 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     hit_flash_mask_  = 0;
     miss_flash_mask_ = 0;
     prev_fret_mask_  = 0;
+    diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
+    for (auto& consumed : note_consumed_) consumed.clear();
     difficulty_   = std::clamp(difficulty, 0, 3);
     hdr_path_     = hdr_path;
     ark_path_     = ark_path;
     world_.reset();
     lighting_.reset();
     drum_kit_.reset();
-    drum_mesh_translation_anims_.clear();
+    drum_mesh_transform_anims_.clear();
     drum_event_mesh_targets_.clear();
     fret_hand_maps_.clear();
     performers_.clear();
@@ -4339,15 +4857,23 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     last_camera_bar_ = UINT32_MAX;
     last_forced_camera_event_tick_ = UINT32_MAX;
     camera_shot_counter_ = 0;
+    intro_end_dispatched_ = false;
+    should_resend_excitement_ = false;
     lighting_presets_.clear();
     lighting_spotlights_.clear();
     active_lighting_preset_.clear();
     active_lighting_keyframe_.clear();
     active_lighting_keyframe_index_ = SIZE_MAX;
     active_lighting_preset_start_ = 0.0;
+    active_lighting_spot_targets_.clear();
+    lighting_transition_from_.clear();
+    lighting_transition_to_.clear();
+    lighting_transition_start_ = 0.0;
+    lighting_transition_duration_ = 0.0;
+    lighting_transition_active_ = false;
     next_lighting_cue_idx_ = 0;
     ignored_last_light_change_ = false;
-    venue_mat_anim_end_alpha_.clear();
+    venue_mat_anims_.clear();
     venue_event_mat_anims_.clear();
     venue_event_filters_.clear();
     venue_filter_mesh_targets_.clear();
@@ -4355,10 +4881,14 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_venue_anim_filters_.clear();
     last_venue_filter_debug_time_ = -1.0;
     venue_event_group_visibility_.clear();
+    pending_transient_venue_events_.clear();
     venue_material_meshes_.clear();
     venue_material_alpha_.clear();
+    active_venue_material_anims_.clear();
     venue_mesh_translation_offsets_.clear();
+    venue_mesh_transform_offsets_.clear();
     venue_base_hidden_meshes_.clear();
+    venue_runtime_hidden_meshes_.clear();
     active_venue_event_.clear();
     last_anim_time_ = -1.0;
     last_band_note_tick_ = UINT32_MAX;
@@ -4390,6 +4920,9 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     }
 
     chart_ = ghogx::chart::parse_midi(mid_bytes);
+    for (int d = 0; d < 4; ++d) {
+        note_consumed_[d].assign(chart_.notes[d].size(), 0);
+    }
     chart_loaded_ = true;
 
     std::fprintf(stderr, "[gameplay] chart loaded: diff=%d notes=%zu dur=%.1fs\n",
@@ -4428,9 +4961,58 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     return true;
 }
 
+bool Gameplay::apply_venue_event_visibility(const std::string& event_name,
+                                            bool log) {
+    const auto visibility_it = venue_event_group_visibility_.find(event_name);
+    if (visibility_it == venue_event_group_visibility_.end()) return false;
+    for (const auto& mesh : visibility_it->second.show_meshes) {
+        venue_runtime_hidden_meshes_.erase(mesh);
+    }
+    for (const auto& mesh : visibility_it->second.hide_meshes) {
+        venue_runtime_hidden_meshes_.insert(mesh);
+    }
+    if (log) {
+        std::fprintf(
+            stderr,
+            "[world] venue event %s: trigger visibility show=%zu hide=%zu\n",
+            event_name.c_str(), visibility_it->second.show_meshes.size(),
+            visibility_it->second.hide_meshes.size());
+    }
+    return true;
+}
+
+std::unordered_set<std::string> Gameplay::composed_venue_hidden_meshes() const {
+    std::unordered_set<std::string> hidden = venue_runtime_hidden_meshes_;
+    for (const auto& [material, alpha] : venue_material_alpha_) {
+        if (alpha > 0.001f) continue;
+        const auto mesh_it = venue_material_meshes_.find(material);
+        if (mesh_it == venue_material_meshes_.end()) continue;
+        for (const auto& mesh : mesh_it->second) hidden.insert(mesh);
+    }
+    return hidden;
+}
+
 void Gameplay::apply_venue_event(const std::string& event_name,
                                  bool persistent) {
     if (event_name.empty()) return;
+    if (persistent && !world_) {
+        active_venue_event_ = event_name;
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] venue event %s: latched until venue load\n",
+                         event_name.c_str());
+        }
+        return;
+    }
+    if (!persistent && !world_) {
+        push_unique_ref(pending_transient_venue_events_, event_name);
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] venue event %s: queued until venue load\n",
+                         event_name.c_str());
+        }
+        return;
+    }
     if (persistent) {
         if (active_venue_event_ == event_name && world_) return;
         active_venue_event_ = event_name;
@@ -4449,24 +5031,42 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     auto event_it = venue_event_mat_anims_.find(event_name);
     if (event_it != venue_event_mat_anims_.end()) {
         for (const auto& anim_name : event_it->second) {
-            auto anim_it = venue_mat_anim_end_alpha_.find(anim_name);
-            if (anim_it == venue_mat_anim_end_alpha_.end()) continue;
-            venue_material_alpha_[anim_it->second.first] = anim_it->second.second;
-            material_changes.push_back(anim_it->second);
+            auto anim_it = venue_mat_anims_.find(anim_name);
+            if (anim_it == venue_mat_anims_.end()) continue;
+            const auto& anim = anim_it->second;
+            active_venue_material_anims_.erase(
+                std::remove_if(active_venue_material_anims_.begin(),
+                               active_venue_material_anims_.end(),
+                               [&](const ActiveVenueMaterialAnim& active) {
+                                   return active.material == anim.material;
+                               }),
+                active_venue_material_anims_.end());
+            const auto current_alpha = venue_material_alpha_.find(anim.material);
+            ActiveVenueMaterialAnim active_anim;
+            active_anim.name = anim.name;
+            active_anim.material = anim.material;
+            active_anim.start_alpha =
+                current_alpha == venue_material_alpha_.end()
+                    ? anim.start_alpha
+                    : current_alpha->second;
+            active_anim.end_alpha = anim.end_alpha;
+            active_anim.start_time = song_time_;
+            active_anim.duration_seconds =
+                authored_frames_to_seconds(anim.duration_frames);
+            active_anim.persistent = persistent;
+            venue_material_alpha_[anim.material] = active_anim.start_alpha;
+            material_changes.push_back({anim.material, anim.end_alpha});
             std::fprintf(stderr,
-                         "[world] venue event %s: %s -> %s alpha %.3f\n",
+                         "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f seconds=%.3f %s\n",
                          event_name.c_str(), anim_name.c_str(),
-                         anim_it->second.first.c_str(), anim_it->second.second);
-        }
-    }
-    std::unordered_set<std::string> hidden = venue_base_hidden_meshes_;
-    for (const auto& [material, alpha] : venue_material_alpha_) {
-        const auto mesh_it = venue_material_meshes_.find(material);
-        if (mesh_it == venue_material_meshes_.end()) continue;
-        if (alpha <= 0.001f) {
-            for (const auto& mesh : mesh_it->second) hidden.insert(mesh);
-        } else {
-            for (const auto& mesh : mesh_it->second) hidden.erase(mesh);
+                         anim.material.c_str(), active_anim.start_alpha,
+                         active_anim.end_alpha, active_anim.duration_seconds,
+                         persistent ? "persistent" : "transient");
+            if (active_anim.duration_seconds <= 0.0001) {
+                venue_material_alpha_[anim.material] = anim.end_alpha;
+            } else {
+                active_venue_material_anims_.push_back(std::move(active_anim));
+            }
         }
     }
     for (const auto& [material, alpha] : material_changes) {
@@ -4477,21 +5077,9 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                      alpha <= 0.001f ? "hide" : "show",
                      mesh_it->second.size());
     }
-    if (const auto visibility_it =
-            venue_event_group_visibility_.find(event_name);
-        visibility_it != venue_event_group_visibility_.end()) {
-        for (const auto& mesh : visibility_it->second.show_meshes) {
-            hidden.erase(mesh);
-        }
-        for (const auto& mesh : visibility_it->second.hide_meshes) {
-            hidden.insert(mesh);
-        }
-        std::fprintf(stderr,
-                     "[world] venue event %s: trigger visibility show=%zu hide=%zu\n",
-                     event_name.c_str(),
-                     visibility_it->second.show_meshes.size(),
-                     visibility_it->second.hide_meshes.size());
-    } else if (debug_venue_filters_enabled()) {
+    const bool current_visibility_applied =
+        apply_venue_event_visibility(event_name, true);
+    if (!current_visibility_applied && debug_venue_filters_enabled()) {
         std::fprintf(stderr,
                      "[world] venue event %s: no trigger visibility route\n",
                      event_name.c_str());
@@ -4521,22 +5109,60 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     }
     if (world_) {
         world_->set_material_alpha_multipliers(venue_material_alpha_);
-        world_->set_hidden_meshes(std::move(hidden));
+        world_->set_hidden_meshes(composed_venue_hidden_meshes());
     }
     update_active_venue_anim_filters();
+}
+
+void Gameplay::resend_active_venue_event() {
+    if (active_venue_event_.empty()) return;
+    const std::string active = active_venue_event_;
+    active_venue_event_.clear();
+    std::fprintf(stderr, "[world] resend_excitement: %s\n", active.c_str());
+    apply_venue_event(active, true);
+}
+
+void Gameplay::update_active_venue_material_anims() {
+    if (!world_) return;
+    bool changed = false;
+    for (auto it = active_venue_material_anims_.begin();
+         it != active_venue_material_anims_.end();) {
+        const double duration = std::max(0.0, it->duration_seconds);
+        const double t =
+            duration <= 0.0001
+                ? 1.0
+                : std::clamp((song_time_ - it->start_time) / duration,
+                             0.0, 1.0);
+        const float alpha = static_cast<float>(
+            static_cast<double>(it->start_alpha) +
+            (static_cast<double>(it->end_alpha) - it->start_alpha) * t);
+        venue_material_alpha_[it->material] = clamp_material_alpha(alpha);
+        changed = true;
+        if (t >= 1.0) {
+            it = active_venue_material_anims_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (changed) {
+        world_->set_material_alpha_multipliers(venue_material_alpha_);
+        world_->set_hidden_meshes(composed_venue_hidden_meshes());
+    }
 }
 
 void Gameplay::update_active_venue_anim_filters() {
     if (!world_) return;
     if (active_venue_anim_filters_.empty()) {
-        if (!venue_mesh_translation_offsets_.empty()) {
+        if (!venue_mesh_transform_offsets_.empty()) {
             venue_mesh_translation_offsets_.clear();
-            world_->set_mesh_translation_offsets(venue_mesh_translation_offsets_);
+            venue_mesh_transform_offsets_.clear();
+            world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
         }
         return;
     }
 
     venue_mesh_translation_offsets_.clear();
+    venue_mesh_transform_offsets_.clear();
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_venue_filter_debug_time_ < 0.0 ||
@@ -4559,22 +5185,136 @@ void Gameplay::update_active_venue_anim_filters() {
             const float frame =
                 venue_filter_frame_at(filter, elapsed, it->persistent);
             for (const auto& target : filter.targets) {
-                const auto offset =
-                    sample_translation_offset(target.keys, frame);
-                venue_mesh_translation_offsets_[target.mesh] = offset;
+                const auto sample = sample_mesh_transform(target.anim, frame);
+                venue_mesh_transform_offsets_[target.mesh] = sample;
+                if (sample.has_translation)
+                    venue_mesh_translation_offsets_[target.mesh] =
+                        sample.translation;
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f offset=(%.3f %.3f %.3f) persistent=%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f) persistent=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
-                        target.mesh.c_str(), frame, offset[0], offset[1],
-                        offset[2], it->persistent ? 1 : 0);
+                        target.mesh.c_str(), frame,
+                        sample.has_translation ? 1 : 0,
+                        sample.has_rotation ? 1 : 0,
+                        sample.has_scale ? 1 : 0, sample.translation[0],
+                        sample.translation[1], sample.translation[2],
+                        it->persistent ? 1 : 0);
                 }
             }
         }
         ++it;
     }
-    world_->set_mesh_translation_offsets(venue_mesh_translation_offsets_);
+    world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
+}
+
+void Gameplay::set_lighting_spot_targets(
+    std::vector<ghogx::render::MiloSceneRenderer::SpotlightState> targets,
+    double fade_seconds) {
+    targets = sorted_unique_spotlight_states(std::move(targets));
+    if (same_spotlight_states(active_lighting_spot_targets_, targets)) return;
+
+    std::vector<SpotlightState> current =
+        lighting_transition_active_ ? interpolated_lighting_spots()
+                                    : active_lighting_spot_targets_;
+    current = sorted_unique_spotlight_states(std::move(current));
+
+    const bool cold_start = current.empty() &&
+                            active_lighting_spot_targets_.empty() &&
+                            !lighting_transition_active_;
+    const double duration =
+        cold_start ? 0.0 : std::max(0.0, fade_seconds);
+    active_lighting_spot_targets_ = targets;
+    if (duration <= 0.0001) {
+        lighting_transition_from_.clear();
+        lighting_transition_to_.clear();
+        lighting_transition_active_ = false;
+        lighting_transition_duration_ = 0.0;
+        return;
+    }
+
+    const auto current_by_name = spotlight_state_map(current);
+    const auto target_by_name = spotlight_state_map(active_lighting_spot_targets_);
+    std::map<std::string, bool> names;
+    for (const auto& kv : current_by_name) names[kv.first] = true;
+    for (const auto& kv : target_by_name) names[kv.first] = true;
+
+    lighting_transition_from_.clear();
+    lighting_transition_to_.clear();
+    for (const auto& kv : names) {
+        const auto cur_it = current_by_name.find(kv.first);
+        const auto target_it = target_by_name.find(kv.first);
+        if (cur_it != current_by_name.end() &&
+            target_it != target_by_name.end()) {
+            lighting_transition_from_.push_back(cur_it->second);
+            lighting_transition_to_.push_back(target_it->second);
+        } else if (target_it != target_by_name.end()) {
+            SpotlightState from = target_it->second;
+            from.intensity = 0.0f;
+            lighting_transition_from_.push_back(std::move(from));
+            lighting_transition_to_.push_back(target_it->second);
+        } else if (cur_it != current_by_name.end()) {
+            SpotlightState to = cur_it->second;
+            to.intensity = 0.0f;
+            lighting_transition_from_.push_back(cur_it->second);
+            lighting_transition_to_.push_back(std::move(to));
+        }
+    }
+    lighting_transition_start_ = song_time_;
+    lighting_transition_duration_ = duration;
+    lighting_transition_active_ = !lighting_transition_from_.empty();
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(stderr,
+                     "[world] lighting transition target: from=%llu to=%llu final=%llu fade_seconds=%.3f t=%.3f\n",
+                     static_cast<unsigned long long>(
+                         lighting_transition_from_.size()),
+                     static_cast<unsigned long long>(
+                         lighting_transition_to_.size()),
+                     static_cast<unsigned long long>(
+                         active_lighting_spot_targets_.size()),
+                     lighting_transition_duration_, song_time_);
+    }
+}
+
+std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
+Gameplay::interpolated_lighting_spots() const {
+    if (!lighting_transition_active_ ||
+        lighting_transition_duration_ <= 0.0001 ||
+        lighting_transition_from_.size() != lighting_transition_to_.size()) {
+        return active_lighting_spot_targets_;
+    }
+    const double t = std::clamp(
+        (song_time_ - lighting_transition_start_) /
+            lighting_transition_duration_,
+        0.0, 1.0);
+    std::vector<SpotlightState> out;
+    out.reserve(lighting_transition_to_.size());
+    for (size_t i = 0; i < lighting_transition_to_.size(); ++i) {
+        const auto& from = lighting_transition_from_[i];
+        const auto& to = lighting_transition_to_[i];
+        SpotlightState spot = to;
+        if (spot.target_mesh.empty()) spot.target_mesh = from.target_mesh;
+        spot.r = mix_lighting(from.r, to.r, t);
+        spot.g = mix_lighting(from.g, to.g, t);
+        spot.b = mix_lighting(from.b, to.b, t);
+        spot.intensity = mix_lighting(from.intensity, to.intensity, t);
+        if (spot.intensity > 0.001f || t < 1.0) out.push_back(std::move(spot));
+    }
+    return sorted_unique_spotlight_states(std::move(out));
+}
+
+void Gameplay::update_lighting_spotlight_renderer() {
+    if (!lighting_) return;
+    if (lighting_transition_active_ &&
+        song_time_ >= lighting_transition_start_ + lighting_transition_duration_) {
+        lighting_transition_active_ = false;
+        lighting_transition_from_.clear();
+        lighting_transition_to_.clear();
+        lighting_->set_active_spotlights(active_lighting_spot_targets_);
+        return;
+    }
+    lighting_->set_active_spotlights(interpolated_lighting_spots());
 }
 
 // ---------------------------------------------------------------------------
@@ -4590,6 +5330,10 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     if (!chart_loaded_) return;
     song_time_ = std::clamp(seconds, 0.0, std::max(0.0, chart_.duration_sec()));
     last_anim_time_ = song_time_;
+    diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
+    for (int d = 0; d < 4; ++d) {
+        note_consumed_[d].assign(chart_.notes[d].size(), 0);
+    }
 
     const auto& player_notes = chart_.notes[std::clamp(difficulty_, 0, 3)];
     next_note_idx_ = 0;
@@ -4597,6 +5341,10 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
            chart_.tick_to_sec(player_notes[next_note_idx_].tick_on) <
                song_time_ - kHitWindowSec) {
         ++next_note_idx_;
+    }
+    auto& consumed = note_consumed_[std::clamp(difficulty_, 0, 3)];
+    for (size_t i = 0; i < next_note_idx_ && i < consumed.size(); ++i) {
+        consumed[i] = 1;
     }
 
     auto skip_cues_before = [&](const auto& cues, size_t& index) {
@@ -4613,12 +5361,61 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     last_camera_bar_ = UINT32_MAX;
     camera_bars_left_ = 0;
     last_forced_camera_event_tick_ = UINT32_MAX;
+    intro_end_dispatched_ = false;
+    should_resend_excitement_ = false;
+    active_lighting_preset_.clear();
+    active_lighting_keyframe_.clear();
+    active_lighting_keyframe_index_ = SIZE_MAX;
+    active_lighting_preset_start_ = song_time_;
+    active_lighting_spot_targets_.clear();
+    lighting_transition_from_.clear();
+    lighting_transition_to_.clear();
+    lighting_transition_start_ = song_time_;
+    lighting_transition_duration_ = 0.0;
+    lighting_transition_active_ = false;
+    active_venue_material_anims_.clear();
     ignored_last_light_change_ = false;
     std::fprintf(stderr,
                  "[gameplay] diagnostic seek: %.3fs player_note_idx=%zu drum_idx=%zu bass_idx=%zu venue_idx=%zu lighting_idx=%zu\n",
                  song_time_, next_note_idx_, next_drum_cue_idx_,
                  next_bass_cue_idx_, next_venue_cue_idx_,
                  next_lighting_cue_idx_);
+}
+
+uint32_t Gameplay::diagnostic_autoplay_fret_mask(
+    const std::vector<ghogx::chart::Note>& notes) {
+    const auto& consumed = note_consumed_[std::clamp(difficulty_, 0, 3)];
+    uint32_t tick = UINT32_MAX;
+    for (size_t i = next_note_idx_; i < notes.size(); ++i) {
+        if (i < consumed.size() && consumed[i]) continue;
+        const auto& note = notes[i];
+        const double note_sec = chart_.tick_to_sec(note.tick_on);
+        if (note_sec < song_time_ - kHitWindowSec) continue;
+        if (note_sec > song_time_ + kHitWindowSec) break;
+        tick = note.tick_on;
+        break;
+    }
+    if (tick == UINT32_MAX) return 0;
+
+    uint32_t mask = 0;
+    for (size_t i = next_note_idx_; i < notes.size(); ++i) {
+        if (i < consumed.size() && consumed[i]) continue;
+        const auto& note = notes[i];
+        if (note.tick_on < tick) continue;
+        if (note.tick_on > tick) break;
+        mask |= 1u << std::clamp(note.lane, 0, 4);
+    }
+    if (tick != diagnostic_autoplay_last_note_tick_) {
+        mask |= 1u << 5;
+        diagnostic_autoplay_last_note_tick_ = tick;
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[gameplay] diagnostic autoplay tick=%u mask=0x%02x t=%.3f\n",
+                tick, mask & 0x1fu, song_time_);
+        }
+    }
+    return mask;
 }
 
 void Gameplay::tick(float dt, uint32_t fret_mask) {
@@ -4645,12 +5442,13 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         std::fprintf(stderr,
                      "[world] drummer cue: %s pitch=%d tick=%u t=%.3f\n",
                      cue.event.c_str(), cue.pitch, cue.tick, song_time_);
+        apply_venue_event(cue.event, false);
         if (drum_kit_) {
             auto trigger_drum_anim = [&](const char* mesh_name) {
-                auto it = drum_mesh_translation_anims_.find(mesh_name);
-                if (it == drum_mesh_translation_anims_.end()) return false;
-                drum_kit_->trigger_mesh_translation_anim(mesh_name, it->second,
-                                                         30.0f);
+                auto it = drum_mesh_transform_anims_.find(mesh_name);
+                if (it == drum_mesh_transform_anims_.end()) return false;
+                drum_kit_->trigger_mesh_transform_anim(mesh_name, it->second,
+                                                       30.0f);
                 return true;
             };
             bool handled = false;
@@ -4710,14 +5508,23 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     miss_flash_mask_ = 0;
     std::memset(lane_hit_, 0, sizeof(lane_hit_));
 
+    const auto& notes = chart_.notes[difficulty_];
+    auto& consumed = note_consumed_[difficulty_];
+    if (consumed.size() != notes.size()) consumed.assign(notes.size(), 0);
+    if (diagnostic_autoplay_) {
+        fret_mask = diagnostic_autoplay_fret_mask(notes);
+    }
+
     const bool strummed =
         ((fret_mask & (1u << 5)) != 0) &&
         ((prev_fret_mask_ & (1u << 5)) == 0);  // rising edge on strum bit
 
-    const auto& notes = chart_.notes[difficulty_];
-
     // Advance next_note_idx_ past notes that are permanently missed or hit.
     while (next_note_idx_ < notes.size()) {
+        if (next_note_idx_ < consumed.size() && consumed[next_note_idx_]) {
+            ++next_note_idx_;
+            continue;
+        }
         const auto& n = notes[next_note_idx_];
         const double note_sec = chart_.tick_to_sec(n.tick_on);
         if (note_sec < song_time_ - kHitWindowSec) {
@@ -4728,6 +5535,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                 multiplier_ = 1;
                 std::fprintf(stderr, "[gameplay] miss lane=%d streak reset\n", n.lane);
             }
+            if (next_note_idx_ < consumed.size()) consumed[next_note_idx_] = 1;
             ++next_note_idx_;
         } else {
             break;
@@ -4736,6 +5544,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
 
     // Check upcoming notes for hits.
     for (size_t i = next_note_idx_; i < notes.size(); ++i) {
+        if (i < consumed.size() && consumed[i]) continue;
         const auto& n = notes[i];
         const double note_sec = chart_.tick_to_sec(n.tick_on);
 
@@ -4779,7 +5588,14 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             std::fprintf(stderr,
                 "[gameplay] HIT lane=%d tick=%u pts=%d streak=%d mult=%d score=%d\n",
                 n.lane, n.tick_on, pts, streak_, multiplier_, score_);
+            if (i < consumed.size()) consumed[i] = 1;
+            apply_venue_event(player_fret_hit_event(n.lane), false);
         }
+    }
+    while (next_note_idx_ < notes.size() &&
+           next_note_idx_ < consumed.size() &&
+           consumed[next_note_idx_]) {
+        ++next_note_idx_;
     }
 
     if (miss_flash_mask_ != 0) {
@@ -4789,6 +5605,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     } else if (active_venue_event_.empty()) {
         apply_venue_event("excitement_okay");
     }
+    update_active_venue_material_anims();
     update_active_venue_anim_filters();
 
     prev_fret_mask_ = fret_mask;
@@ -4825,11 +5642,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   "coplight_blue.grp"});
                 auto venue_mat_anims =
                     load_venue_mat_anims(hdr_path_, ark_path_, venue_geom);
-                venue_mat_anim_end_alpha_.clear();
-                for (const auto& [anim_name, anim] : venue_mat_anims) {
-                    venue_mat_anim_end_alpha_[anim_name] =
-                        {anim.material, anim.end_alpha};
-                }
+                venue_mat_anims_ = std::move(venue_mat_anims);
                 venue_event_mat_anims_ =
                     load_venue_event_mat_anims(hdr_path_, ark_path_,
                                                venue_geom);
@@ -4854,15 +5667,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
                 venue_base_hidden_meshes_ = std::move(hidden_venue_meshes);
+                venue_runtime_hidden_meshes_ = venue_base_hidden_meshes_;
+                apply_venue_event_visibility("start", true);
                 world_ = std::make_unique<ghogx::render::MiloSceneRenderer>(win);
                 world_->set_scene(std::move(venue_scene), venue_textures);
-                world_->set_hidden_meshes(venue_base_hidden_meshes_);
+                world_->set_hidden_meshes(composed_venue_hidden_meshes());
                 if (active_venue_event_.empty()) {
                     apply_venue_event("excitement_bad");
                 } else {
                     const std::string active = active_venue_event_;
                     active_venue_event_.clear();
                     apply_venue_event(active);
+                }
+                if (!pending_transient_venue_events_.empty()) {
+                    auto pending = std::move(pending_transient_venue_events_);
+                    pending_transient_venue_events_.clear();
+                    for (const auto& event : pending)
+                        apply_venue_event(event, false);
                 }
                 std::fprintf(stderr, "[world] venue loaded: %s\n", venue_geom.c_str());
                 const VenueCameraPolicy camera_policy =
@@ -4894,6 +5715,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     lighting_spotlights_.push_back(
                         {spot.name, spot.target, spot.material, spot.group});
                 }
+                lighting_presets_ = load_lighting_presets(
+                    hdr_path_, ark_path_, quickplay_rig_->venue);
+                log_lighting_light_object_coverage(lighting_scene,
+                                                   lighting_presets_);
                 auto lighting_textures = ghogx::asset::load_milo_textures(
                     hdr_path_, ark_path_, lighting_milo,
                     texture_names_for_scene(lighting_scene));
@@ -4902,8 +5727,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_scene(std::move(lighting_scene),
                                      lighting_textures);
                 lighting_->set_additive_blend(true);
-                lighting_presets_ = load_lighting_presets(
-                    hdr_path_, ark_path_, quickplay_rig_->venue);
                 std::fprintf(stderr, "[world] lighting overlay loaded: %s\n",
                              lighting_milo.c_str());
             }
@@ -5405,8 +6228,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         auto drum_anim_data =
                             load_drum_anim_data(hdr_path_, ark_path_,
                                                 drums_milo);
-                        drum_mesh_translation_anims_ =
-                            std::move(drum_anim_data.mesh_translation_anims);
+                        drum_mesh_transform_anims_ =
+                            std::move(drum_anim_data.mesh_transform_anims);
                         drum_event_mesh_targets_ =
                             std::move(drum_anim_data.event_mesh_targets);
                         std::fprintf(stderr,
@@ -5999,6 +6822,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
         }
 
+        if (!intro_end_dispatched_ && intro_camera_seconds_ > 0.0 &&
+            song_time_ >= intro_camera_seconds_) {
+            intro_end_dispatched_ = true;
+            should_resend_excitement_ = true;
+            apply_venue_event("intro_end", false);
+        }
+
         const bool in_intro_camera_window =
             intro_camera_seconds_ > 0.0 && song_time_ < intro_camera_seconds_;
         if (!in_intro_camera_window && !regular_camera_keys_.empty()) {
@@ -6072,6 +6902,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             duration.first.c_str(), duration.second.first,
                             duration.second.second, force_camera ? 1 : 0, bar,
                             song_time_);
+                        if (should_resend_excitement_) {
+                            should_resend_excitement_ = false;
+                            resend_active_venue_event();
+                        }
                     }
                 }
             }
@@ -6149,8 +6983,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
         if (lighting_) {
             const LightingRequest lighting_request =
                 lighting_request_at(chart_, song_time_, intro_camera_seconds_);
+            const uint32_t lighting_excitement =
+                venue_excitement_level(active_venue_event_);
             if (const auto* preset =
-                    choose_lighting_preset(lighting_presets_, lighting_request)) {
+                    choose_lighting_preset(lighting_presets_, lighting_request,
+                                           lighting_excitement)) {
                 const bool preset_changed =
                     active_lighting_preset_ != preset->name;
                 if (preset_changed) {
@@ -6159,13 +6996,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     active_lighting_keyframe_index_ = SIZE_MAX;
                     active_lighting_preset_start_ = song_time_;
                     std::fprintf(stderr,
-                                 "[world] lighting preset active: %s category=%s adjective=%s request=%s/%s keyframes=%u t=%.3f\n",
+                                 "[world] lighting preset active: %s category=%s adjective=%s request=%s/%s excitement=%u keyframes=%u t=%.3f\n",
                                  preset->name.c_str(),
                                  preset->category.c_str(),
                                  preset->adjective.c_str(),
                                  lighting_request.category.c_str(),
                                  lighting_request.adjective.c_str(),
-                                 preset->keyframe_count, song_time_);
+                                 lighting_excitement, preset->keyframe_count,
+                                 song_time_);
                 }
                 if (!preset->keyframes.empty()) {
                     if (preset_changed ||
@@ -6174,14 +7012,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             preset->keyframes.size()) {
                         active_lighting_keyframe_index_ = 0;
                     }
+                    const size_t previous_lighting_keyframe_index =
+                        active_lighting_keyframe_index_;
                     while (next_lighting_cue_idx_ < chart_.lighting_cues.size()) {
                         const auto& cue =
                             chart_.lighting_cues[next_lighting_cue_idx_];
                         const double cue_sec = chart_.tick_to_sec(cue.tick);
                         if (cue_sec > song_time_) break;
                         const bool high_excitement =
-                            active_venue_event_.find("great") !=
-                            std::string::npos;
+                            venue_excitement_is_high(active_venue_event_);
                         const bool apply_keyframe =
                             high_excitement || ignored_last_light_change_;
                         std::fprintf(
@@ -6224,6 +7063,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     if (active_lighting_keyframe_ != keyframe.name ||
                         active_lighting_keyframe_index_ != keyframe_index ||
                         preset_changed) {
+                        float transition_fade_frames = keyframe.fade_out;
+                        if (!preset_changed &&
+                            previous_lighting_keyframe_index != SIZE_MAX &&
+                            previous_lighting_keyframe_index <
+                                preset->keyframes.size() &&
+                            previous_lighting_keyframe_index != keyframe_index) {
+                            const float previous_fade =
+                                preset->keyframes[previous_lighting_keyframe_index]
+                                    .fade_out;
+                            if (std::isfinite(previous_fade) &&
+                                previous_fade > 0.0f) {
+                                transition_fade_frames = previous_fade;
+                            }
+                        }
                         active_lighting_keyframe_ = keyframe.name;
                         active_lighting_keyframe_index_ = keyframe_index;
                         std::map<std::string, const LightingSpotlight*> spots_by_name;
@@ -6244,17 +7097,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                              preset->spot_refs.end(), name) !=
                                        preset->spot_refs.end();
                         };
-                        size_t targeted_spots = 0;
-                        for (const auto& spot : lighting_spotlights_) {
-                            if (spot.target.empty()) continue;
-                            if (!preset_has_spot(spot.name)) continue;
-                            if (std::find(keyframe.mesh_targets.begin(),
-                                          keyframe.mesh_targets.end(),
-                                          spot.target) !=
-                                keyframe.mesh_targets.end()) {
-                                ++targeted_spots;
-                            }
-                        }
                         size_t inferred_spots = 0;
                         std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
                             active_spots;
@@ -6272,6 +7114,21 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             }
                             active_spots.push_back(std::move(out));
                         };
+                        size_t mesh_target_spots = 0;
+                        for (const auto& target : keyframe.mesh_targets) {
+                            const auto target_it = spots_by_target.find(target);
+                            if (target_it == spots_by_target.end()) continue;
+                            const auto state_it = states_by_target.find(target);
+                            for (const LightingSpotlight* spot : target_it->second) {
+                                if (!spot) continue;
+                                if (!preset_has_spot(spot->name)) continue;
+                                ++mesh_target_spots;
+                                push_spot(*spot,
+                                          state_it == states_by_target.end()
+                                              ? nullptr
+                                              : state_it->second);
+                            }
+                        }
                         size_t direct_spots = 0;
                         for (const auto& spot_ref : keyframe.spot_refs) {
                             const auto spot_it = spots_by_name.find(spot_ref);
@@ -6308,31 +7165,37 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 push_spot(*spot_it->second, &state);
                             }
                         }
-                        if (lighting_) {
-                            std::sort(active_spots.begin(), active_spots.end(),
-                                      [](const auto& a, const auto& b) {
-                                          return a.name < b.name;
-                                      });
-                            active_spots.erase(
-                                std::unique(active_spots.begin(), active_spots.end(),
-                                            [](const auto& a, const auto& b) {
-                                                return a.name == b.name;
-                                            }),
-                                active_spots.end());
-                            lighting_->set_active_spotlights(std::move(active_spots));
-                        }
+                        active_spots =
+                            sorted_unique_spotlight_states(std::move(active_spots));
+                        const size_t active_spot_count = active_spots.size();
+                        const double transition_fade_seconds =
+                            lighting_frames_to_seconds(transition_fade_frames);
+                        set_lighting_spot_targets(std::move(active_spots),
+                                                  transition_fade_seconds);
                         std::fprintf(
                             stderr,
-                            "[world] lighting keyframe active: %s[%zu] '%s' span=0x%zx..0x%zx targets=%zu target_states=%zu static_targeted_spots=%zu direct_spots=%zu inferred_spots=%zu t=%.3f\n",
-                            preset->name.c_str(), keyframe_index,
+                            "[world] lighting keyframe active: %s[%llu] '%s' span=0x%llx..0x%llx targets=%llu target_states=%llu static_targeted_spots=%llu direct_spots=%llu inferred_spots=%llu active_spots=%llu duration_frames=%.3f fade_frames=%.3f fade_seconds=%.3f t=%.3f\n",
+                            preset->name.c_str(),
+                            static_cast<unsigned long long>(keyframe_index),
                             keyframe.name.c_str(),
-                            keyframe.record_start, keyframe.record_end,
-                            keyframe.mesh_targets.size(),
-                            keyframe.target_states.size(), targeted_spots,
-                            direct_spots, inferred_spots, song_time_);
+                            static_cast<unsigned long long>(
+                                keyframe.record_start),
+                            static_cast<unsigned long long>(
+                                keyframe.record_end),
+                            static_cast<unsigned long long>(
+                                keyframe.mesh_targets.size()),
+                            static_cast<unsigned long long>(
+                                keyframe.target_states.size()),
+                            static_cast<unsigned long long>(mesh_target_spots),
+                            static_cast<unsigned long long>(direct_spots),
+                            static_cast<unsigned long long>(inferred_spots),
+                            static_cast<unsigned long long>(active_spot_count),
+                            keyframe.duration, transition_fade_frames,
+                            transition_fade_seconds, song_time_);
                     }
                 }
             }
+            update_lighting_spotlight_renderer();
             lighting_->draw_over_scene(world_->camera());
         }
         if (drum_kit_) {

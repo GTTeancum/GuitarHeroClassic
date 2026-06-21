@@ -139,6 +139,15 @@ int main() {
                  "use_fret_hand_parser?current_fret_hand_cue(",
                  "player*_fret hand cues drive the fretting fingers");
   ok &= contains(gameplay_c,
+                 "if(cue.tick>now_tick)break;",
+                 "player*_fret_pos target waits for the authored cue tick");
+  ok &= contains(gameplay_c,
+                 "if(!chosen)returnstate;",
+                 "fret-position IK target has no future-cue fallback");
+  ok &= contains(gameplay_c,
+                 "std::strcmp(wanted,\"bone_L-pinky03\")==0;",
+                 "left-hand row logger covers the full fretting finger chain");
+  ok &= contains(gameplay_c,
                  "env_float(\"GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS\",0.08f)",
                  "hand-driver scheduler blend uses the traced fast default");
   ok &= contains(gameplay_c,
