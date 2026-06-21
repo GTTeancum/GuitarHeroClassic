@@ -302,6 +302,13 @@ Weighted body-space hair:
     `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_bass_hair_mesh_descriptor_rows_20260611.window.png`
     shows the same long hair-over-face bassist silhouette. Do not hide, offset,
     or outfit-special-case these meshes without a closer accepted PS2 mismatch.
+  - 2026-06-21 current native checkpoint:
+    `analysis/native_validation/metal_bass_hair_current_20260621_0053/`
+    retains `metal_bass_hair_current_front_f120.bmp` and `capture.log`. The
+    close frame keeps the long blond/brown over-face hair mass attached to the
+    head/neck silhouette and does not reproduce a floating detached clump. This
+    is validation of the shared root/head hair handling, not license to hide or
+    offset the authored face-covering hair mass.
 
 Glam1 hair:
 
@@ -517,6 +524,14 @@ Glam1 hair:
   `r-eye.lookat` / `l-eye.lookat` properties. This is another negative result
   for manual eye translation, hair hiding, or character-specific reattachment;
   reopen only with a newer PS2/native mismatch.
+- 2026-06-21 current native Glam1 hair/eye checkpoint:
+  `analysis/native_validation/glam1_hair_eye_current_20260621_0045/` retains
+  `glam1_hair_eye_current_midface_f120.bmp` and `capture.log`. The frame shows
+  both eye meshes seated in the sockets and does not reproduce the old floating
+  side/lower hair clump from the same close-view family. The broad hair cards
+  remain ugly at this distance, but the current evidence still points at
+  authored card shape/rendering and the shared local-hair row bridge, not a
+  missing manual eye offset or Glam1-only reattachment.
 - 2026-06-15 wrist close-up isolation after `88dc57e`:
   `engine/out/native_song_20260615/glam1_left_arm_mesh_isolate_after_88dc57e/`
   proves the obvious dark angular piece below the left glove is
@@ -2905,6 +2920,12 @@ Viewer hand-overlay validation:
   validates `metal_drummer` in an active YYZ drummer mode with the theatre drum
   kit loaded. The companion log shows kick cues and allbeat/nosnare mode
   switches firing while the performer and kit remain visually coherent.
+- 2026-06-21 Deathmetal1 current native hair/eye checkpoint:
+  `analysis/native_validation/deathmetal1_hair_current_20260621_0101/` retains
+  `deathmetal1_hair_current_midface_f120.bmp` and `capture.log` from the
+  `laidtorest`/Deathmetal1 route. The close frame keeps both eyes seated and
+  the long side hair attached to the head silhouette. Treat this as current
+  shared-route validation, not a final close-shot lighting/material sign-off.
 
 2026-06-19 native MIDI hand-driver gate:
 
