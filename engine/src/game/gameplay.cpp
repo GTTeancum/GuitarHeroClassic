@@ -215,7 +215,7 @@ float character_driver_blend_seconds() {
 
 float character_hand_driver_blend_seconds() {
     return std::clamp(env_float("GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS",
-                                0.240005493f),
+                                0.08f),
                       0.0f, 1.0f);
 }
 

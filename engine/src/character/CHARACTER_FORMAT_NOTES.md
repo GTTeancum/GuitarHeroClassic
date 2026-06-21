@@ -1460,6 +1460,19 @@ Community metadata Rosetta:
   MIDI note selection: clip/IK/twist rows are active, and the next shared fix
   must be in the Trans/skin/attachment consumers rather than a static note-to-
   neck-spot override.
+- 2026-06-21 Glam1 left-hand trace guard:
+  do not use `gh2dxu_left_hand_jordan_explicit_parent_20260620.json` as a
+  Glam1 thumb-position oracle. Its screenshot shows a different female
+  guitarist, and its `bone_L_thumb01`/`bone_L_index01` `bone_fret_hand`-relative
+  offsets are therefore cross-character data. The same-character GH2DX Glam1
+  trace, `analysis/ps2_trace/gh2dxu_left_thumb_glam1_jordan_trace_20260620.json`,
+  confirms the live Glam1 PS2 local rows match native decode for the left-hand
+  bases: `bone_L-thumb01.mesh` stays at local `(1.035, 0.040, -0.649)` under
+  `bone_L-hand.mesh`, `bone_L-thumb02.mesh` at `(2.297, 0.000, 0.000)`, and
+  `bone_L-index01.mesh` at `(4.512, -0.201, -0.964)`. If the visible thumb or
+  finger contact is wrong, keep the investigation on the shared post-IK
+  Trans/skin/prop contact path; do not add a Glam1-specific static hand offset
+  or force first-level finger positions away from the decoded PS2 rows.
 - The foretwist controller is linked to the same live hand Trans object that
   `CharIKHand` updates, but it must not extract roll from the final target-world
   override. In
@@ -1977,6 +1990,23 @@ Useful environment flags:
   This follows the accepted hand-driver scheduler model where `left_hand.drv`
   / `right_hand.drv` rotate a live `+0x38` scheduler/blend pointer. Validation:
   `engine/out/native_song_20260614/shout_f1300_hand_driver_scheduler.bmp`.
+- 2026-06-21 left-hand blend guard: the native default for
+  `GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS` is `0.08`. Do not copy the `0.24`
+  hand-cue max-gap window into the blend timer; doing so keeps Jordan-speed
+  fret notes in long transitions and makes the fretting hand look static or
+  mushy. Native validation:
+  `analysis/native_validation/ghdx_jordan_left_hand_blend008_20260621_123919/ghdx_jordan_left_hand_blend008.mp4`
+  and
+  `analysis/native_validation/ghdx_jordan_left_hand_close_blend008_20260621_124110/ghdx_jordan_left_hand_close_blend008.mp4`.
+  A second post-blend chord route,
+  `analysis/native_validation/ghdx_mrfixit_left_hand_chord_blend008_20260621_124712/ghdx_mrfixit_left_hand_chord_blend008.mp4`,
+  keeps `mrfixit`/Rockabill1 on the shared `player_fret` route with fret
+  spots 2/4/6/8/11 and selected clips `finger_powerchord_1`,
+  `finger_powerchord_2`, `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_pinky`, and `finger_open`. At `t >= 17.0`, post-controller
+  `bone_L-hand` stays at `0/0/0` in `bone_fret_hand` space, while
+  `bone_L-thumb01` remains in the accepted neck-side band
+  `0.470..0.475 / 0.160..0.167 / -1.744..-1.743`.
 - 2026-06-20 hand-driver overlay source pass:
   `engine/out/codex_goal_20260620_hand_overlay_collision_probe/run.log`
   showed the descriptor mixer selecting the correct authored hand clips from
@@ -3017,6 +3047,56 @@ Useful environment flags:
   and dynamic left-finger rotations headed by `bone_L-pinky01`
   `0.60598`/`0.58729`. Treat this as a current regression guard for left-hand
   movement and finger curls, not as permission for any per-outfit hand offset.
+- 2026-06-21 focused Jordan/Glam1 left-hand thumb/neck pass:
+  `analysis/native_validation/ghdx_jordan_left_hand_thumb_neck_yawm060_20260621_125626/`
+  uses the `-0.60` yaw selected from
+  `analysis/native_validation/left_hand_thumb_angle_sweep_20260621_125307/`
+  to keep the fretting hand and neck in frame without the torso hiding the
+  finger side. The retained MP4
+  `ghdx_jordan_left_hand_thumb_neck_yawm060.mp4` records the same accepted
+  GH2DX/Deluxe `jordan` Expert route after the fast `0.08` hand-driver blend
+  restore: 483 fret events, 56 `player_fret` hand-map events, fret spots
+  `4..13`, and selected clips `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_pinky`, `finger_hold_ring_hi`, and
+  `finger_vibrato_pinky`. For `t >= 108.0`, post-controller rows keep
+  `bone_L-hand` at `0/0/0` in `bone_fret_hand` space while the thumb remains
+  in the accepted neck-side band: `bone_L-thumb01`
+  `1.034..1.035 / 0.040..0.040 / -0.649..-0.648`, `bone_L-thumb02`
+  `2.228..2.416 / 1.779..1.874 / -1.348..-1.229`, and `bone_L-thumb03`
+  `3.418..3.753 / 2.680..2.957 / -1.492..-1.325`. Use this pass for
+  left-hand-only contact review; if the visual still looks wrong, investigate
+  shared Trans/skin/prop contact consumption, not a Glam1-specific offset.
+- 2026-06-21 backside Jordan/Glam1 left-thumb pass:
+  `analysis/native_validation/ghdx_jordan_left_hand_thumb_backside_yaw290_20260621_1318/`
+  repeats the same accepted GH2DX/Deluxe `jordan` window from yaw `2.90`,
+  pitch `0.12`, distance `40`, and FOV `0.50`, after a throwaway micro-sweep
+  chose the first angle that actually shows the back of the neck. The retained
+  MP4 `ghdx_jordan_left_hand_thumb_backside_yaw290.mp4` shows the thumb side
+  wrapping around the red Les Paul neck while the log records 483 fret-position
+  rows across spots `4..13`, 56 `player_fret` hand-map events over masks
+  `0x01`, `0x02`, `0x04`, `0x08`, and `0x10`, and selected post-controller
+  clips `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_pinky`, `finger_hold_ring_hi`, and
+  `finger_vibrato_pinky`. In `bone_fret_hand` space, `bone_L-hand` stays
+  `0/0/0` over 81 post-controller samples; `bone_L-thumb01` stays
+  `1.034..1.035 / 0.040..0.046 / -0.650..-0.648`, `bone_L-thumb02` stays
+  `2.128..2.536 / 1.632..1.913 / -1.405..-1.198`, and `bone_L-thumb03`
+  stays `3.289..3.909 / 2.477..3.024 / -1.565..-1.269`. This is the current
+  left-thumb visual/numeric guard for the shared runtime; do not use the
+  invalid checkerboard micro-sweep output as evidence.
+- 2026-06-21 accepted-tree left-hand fret review:
+  `analysis/native_validation/ghdx_jordan_left_hand_fret_review_20260621_accepted_tree/`
+  repeats the short neck-anchored Jordan/Glam1 review against the same combined
+  GH2DX tree used by the prior accepted captures. The retained MP4
+  `ghdx_jordan_left_hand_fret_review_accepted_tree.mp4` and `proof_sheet.jpg`
+  show the fret hand travelling along the Les Paul neck while the log records
+  `Expert=1802`, `fretPos=570`, `handCues=1385`, `loaded=31`, `maps=19`,
+  `ikHands=2`, and `ikMidis=1`. Runtime hand events are all
+  `source=player_fret`, and `player*_fret_pos` drives fret spots `4..13`
+  during the retained window. A same-window run under
+  `ghdx_jordan_left_hand_fret_review_20260621_current/` used the Unified
+  platform tree and is useful as an A/B diagnostic, but do not promote it as the
+  left-hand oracle because that route reports only `maps=7`.
 - 2026-06-21 chord-rich Mr. Fix It/Rockabill1 left-hand validation:
   `analysis/native_validation/ghdx_mrfixit_left_hand_chord_neck_20260621_1128/`
   repeats the GH2DX/Deluxe `mrfixit` chord route from a 14s diagnostic start,

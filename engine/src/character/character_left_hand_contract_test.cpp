@@ -138,6 +138,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "use_fret_hand_parser?current_fret_hand_cue(",
                  "player*_fret hand cues drive the fretting fingers");
+  ok &= contains(gameplay_c,
+                 "env_float(\"GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS\",0.08f)",
+                 "hand-driver scheduler blend uses the traced fast default");
 
   if (!ok) {
     std::cerr
