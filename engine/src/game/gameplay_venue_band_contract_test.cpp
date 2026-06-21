@@ -99,12 +99,15 @@ int main() {
       read_file(milo_scene_dir / "milo_scene.h");
   const std::string milo_scene_renderer =
       read_file(render_dir / "milo_scene_renderer.cpp");
+  const std::string milo_scene_renderer_h =
+      read_file(render_dir / "milo_scene_renderer.h");
   const std::string gameplay_c = compact(gameplay);
   const std::string gameplay_h_c = compact(gameplay_h);
   const std::string midi_c = compact(midi_reader);
   const std::string milo_scene_cpp_c = compact(milo_scene_cpp);
   const std::string milo_scene_h_c = compact(milo_scene_h);
   const std::string renderer_c = compact(milo_scene_renderer);
+  const std::string renderer_h_c = compact(milo_scene_renderer_h);
   const std::string performer_entity_c =
       compact(function_body(gameplay, "is_performer_entity"));
   const std::string infer_camshot_c =
@@ -325,11 +328,56 @@ int main() {
                  "floatclamp_material_alpha(floatalpha)",
                  "venue MatAnim alpha is converted to renderer alpha space");
   ok &= contains(gameplay_c,
-                 "anim.start_alpha=clamp_material_alpha(start_alpha);",
+                 "key.value=clamp_material_alpha(key.value);",
                  "decoded venue MatAnim start alpha is clamped");
   ok &= contains(gameplay_c,
-                 "anim.end_alpha=clamp_material_alpha(end_alpha);",
+                 "anim.end_alpha=anim.alpha_keys.back().value;",
                  "decoded venue MatAnim end alpha is clamped");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<Vec3Key>tex_translation_keys;",
+                 "decoded venue MatAnim keeps texture translation keys");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<Vec3Key>tex_scale_keys;",
+                 "decoded venue MatAnim keeps texture scale keys");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<FloatKey>tex_rotation_keys;",
+                 "decoded venue MatAnim keeps texture rotation keys");
+  ok &= contains(gameplay_c,
+                 "uint32_ttrans_count=0;",
+                 "MatAnim loader reads texture translation channel count");
+  ok &= contains(gameplay_c,
+                 "uint32_tscale_count=0;",
+                 "MatAnim loader reads texture scale channel count");
+  ok &= contains(gameplay_c,
+                 "uint32_trot_count=0;",
+                 "MatAnim loader reads texture rotation channel count");
+  ok &= contains(gameplay_c,
+                 "sample_material_tex_transform(anim,0.0f);",
+                 "MatAnim texture transform initializes renderer override");
+  ok &= contains(gameplay_c,
+                 "floatmaterial_anim_tex_value_to_uv(floatvalue)",
+                 "MatAnim texture translation keeps authored raw UV offset");
+  ok &= contains(renderer_h_c,
+                 "structMaterialTexTransformSample",
+                 "renderer exposes material texture transform override state");
+  ok &= contains(renderer_h_c,
+                 "boolhas_scale=false;",
+                 "renderer material texture transform carries scale state");
+  ok &= contains(renderer_h_c,
+                 "boolhas_rotation=false;",
+                 "renderer material texture transform carries rotation state");
+  ok &= contains(renderer_c,
+                 "set_material_tex_transform_overrides",
+                 "renderer accepts material texture transform overrides");
+  ok &= contains(renderer_c,
+                 "transform.has_scale",
+                 "renderer applies MatAnim texture scale overrides");
+  ok &= contains(renderer_c,
+                 "transform.has_rotation",
+                 "renderer applies MatAnim texture rotation overrides");
+  ok &= contains(renderer_c,
+                 "constbooltiled=su>1.01f||sv>1.01f||material_tex_anim;",
+                 "animated material texture coordinates use wrapping");
   ok &= contains(gameplay_c,
                  "active_venue_material_anims_.push_back(std::move(active_anim));",
                  "venue MatAnim events start an active alpha animation");
@@ -347,6 +395,16 @@ int main() {
                  "std::map<std::string,std::vector<std::string>>"
                  "filter_mat_anims;",
                  "MatAnim loader resolves AnimFilter-indirected material animations");
+  ok &= contains(gameplay_c,
+                 "std::map<std::string,std::vector<std::string>>"
+                 "group_mat_anims;",
+                 "MatAnim loader resolves Group-contained material animations");
+  ok &= contains(gameplay_c,
+                 "push_unique_ref(filter_group_refs[filter_key],ref);",
+                 "AnimFilter material routes preserve authored group refs");
+  ok &= contains(gameplay_c,
+                 "constautogroup_it=group_mat_anims.find(ref);",
+                 "EventTrigger material routes expand authored group refs");
   ok &= contains(gameplay_c,
                  "elseif(ref.size()>5&&ref.rfind(\".filt\")==ref.size()-5)",
                  "EventTrigger MatAnim routing follows .filt indirection");

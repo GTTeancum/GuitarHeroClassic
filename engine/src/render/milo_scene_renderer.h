@@ -103,6 +103,16 @@ class MiloSceneRenderer {
   void set_active_spotlights(std::vector<SpotlightState> spots);
   void set_hidden_meshes(std::unordered_set<std::string> mesh_names);
   void set_material_alpha_multipliers(std::map<std::string, float> material_alpha);
+  struct MaterialTexTransformSample {
+    bool has_translation = false;
+    std::array<float, 2> translation = {0.0f, 0.0f};
+    bool has_scale = false;
+    std::array<float, 2> scale = {1.0f, 1.0f};
+    bool has_rotation = false;
+    float rotation_radians = 0.0f;
+  };
+  void set_material_tex_transform_overrides(
+      std::map<std::string, MaterialTexTransformSample> material_tex_transforms);
   void set_mesh_translation_offsets(
       std::map<std::string, std::array<float, 3>> offsets);
   struct MeshTransformSample {
@@ -153,6 +163,7 @@ class MiloSceneRenderer {
   std::map<std::string, SpotlightState> active_spotlights_;
   std::unordered_set<std::string> hidden_meshes_;
   std::map<std::string, float> material_alpha_;
+  std::map<std::string, MaterialTexTransformSample> material_tex_transforms_;
   std::map<std::string, std::array<float, 3>> mesh_translation_offsets_;
   std::map<std::string, MeshTransformSample> mesh_transform_offsets_;
   std::map<std::string, float> mesh_pulses_;

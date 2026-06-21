@@ -121,19 +121,37 @@ class Gameplay {
     std::vector<std::string> hide_meshes;
   };
   struct VenueMaterialAnim {
+    struct FloatKey {
+      float value = 0.0f;
+      float frame = 0.0f;
+    };
+    struct Vec3Key {
+      float value[3] = {0.0f, 0.0f, 0.0f};
+      float frame = 0.0f;
+    };
     std::string name;
     std::string material;
+    bool has_alpha = false;
     float start_alpha = 1.0f;
     float end_alpha = 1.0f;
     float duration_frames = 0.0f;
+    std::vector<FloatKey> alpha_keys;
+    std::vector<Vec3Key> tex_translation_keys;
+    std::vector<Vec3Key> tex_scale_keys;
+    std::vector<FloatKey> tex_rotation_keys;
   };
   struct ActiveVenueMaterialAnim {
     std::string name;
     std::string material;
+    bool has_alpha = false;
     float start_alpha = 1.0f;
     float end_alpha = 1.0f;
     double start_time = 0.0;
     double duration_seconds = 0.0;
+    float duration_frames = 0.0f;
+    std::vector<VenueMaterialAnim::Vec3Key> tex_translation_keys;
+    std::vector<VenueMaterialAnim::Vec3Key> tex_scale_keys;
+    std::vector<VenueMaterialAnim::FloatKey> tex_rotation_keys;
     bool persistent = true;
   };
   struct HandClipChoice {
@@ -324,6 +342,9 @@ class Gameplay {
   std::map<std::string, VenueMaterialAnim> lighting_mat_anims_;
   std::map<std::string, std::vector<std::string>> lighting_event_mat_anims_;
   std::map<std::string, float> lighting_material_alpha_;
+  std::map<std::string,
+           ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
+      lighting_material_tex_transforms_;
   std::vector<ActiveVenueMaterialAnim> active_lighting_material_anims_;
   std::map<std::string, VenueMaterialAnim> venue_mat_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;
@@ -334,6 +355,9 @@ class Gameplay {
   std::vector<std::string> pending_transient_venue_events_;
   std::map<std::string, std::vector<std::string>> venue_material_meshes_;
   std::map<std::string, float> venue_material_alpha_;
+  std::map<std::string,
+           ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
+      venue_material_tex_transforms_;
   std::vector<ActiveVenueMaterialAnim> active_venue_material_anims_;
   std::map<std::string, std::array<float, 3>> venue_mesh_translation_offsets_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>

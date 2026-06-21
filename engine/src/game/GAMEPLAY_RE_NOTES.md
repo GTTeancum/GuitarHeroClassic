@@ -635,6 +635,49 @@ Open work:
   geometry shape already decoded for `MatAnim`; unsupported lighting material
   channels are therefore logged rather than mapped to brightness or UV animation
   without trace-backed field semantics.
+- 2026-06-21 MatAnim channel schema note: the local community schema
+  `config/rnd_objects.dta` describes `MatAnim` as a material-property animator,
+  and `config/milo.dta` breaks its editor pages into Color, Alpha, Trans, Scale,
+  Rot, and Tex. The three lighting `smoke_lights.mnm` objects match that channel
+  order: after the target material/name strings they carry `color_count=0`,
+  `alpha_count=0`, then `trans_count=2` with rows equivalent to UV/material
+  translation keys at authored frames `0` and `100`, followed by one-key scale
+  and rotation channels. Native therefore must implement material texture
+  transform sampling for this route; treating it as alpha would incorrectly hide
+  `spotlight_default.mat`.
+- 2026-06-21 MatAnim texture-transform implementation: native now decodes
+  MatAnim channel counts in the PS2 order above instead of assuming the first
+  count is alpha. Alpha rows remain value/frame pairs. Trans rows are preserved
+  as x/y/z/frame keys and sampled on the song clock as raw texture-transform
+  values, not normalized percent values. Geometry evidence backs this: arena
+  `sky_clouds.mnm` moves `0 -> 1` over 100 frames, small1 TV animations use
+  sub-unit and multi-unit offsets, scale `1.0` is identity, and rotation keys
+  such as `0.017453292` are radians. Native therefore routes Trans, Scale, and
+  Rot to one renderer material texture-transform override and only switches to
+  wrapping while an animated material transform is active.
+- 2026-06-21 group-contained MatAnim route: several authored venue events do not
+  point directly at `.mnm` objects. `small1` routes `start` /
+  `excitement_okay` through groups such as `tv_good.grp`, `tv_bad.grp`, and
+  `barrel_smoke.grp`; `arena` routes sky/background material animation through
+  `stage_bkg_okay.grp` / `stage_bkg_great.grp`. Native now resolves
+  `EventTrigger -> Group -> MatAnim` and `EventTrigger -> AnimFilter -> Group ->
+  MatAnim` in the shared MatAnim route loader. Validation:
+  `analysis/native_validation/small1_group_matanim_route_20260621_current/`
+  logs `tv_*` and `barrel_smoke.mnm` events starting from group refs, and
+  `analysis/native_validation/arena_group_matanim_route_20260621_current/` logs
+  `sky_clouds.mnm`, `sky_green.mnm`, and `sky_orange.mnm` events from the
+  authored sky groups while preserving lighting overlay `smoke_lights.mnm`.
+- 2026-06-21 texture-transform validation pass:
+  `analysis/native_validation/small1_tex_xfm_scale_rot_20260621_current/`
+  proves small1 group-routed TV/barrel MatAnims are decoded and started with
+  authored Trans/Scale/Rot counts (`tv_nuke.mnm` has 3 translation, 3 scale, and
+  20 rotation keys; `tv_anarchy.mnm` has 12 translation, 5 scale, and 1 rotation
+  key). `analysis/native_validation/arena_tex_xfm_scale_rot_20260621_current/`
+  proves arena sky/background routes still expand from authored groups, city
+  light alpha events still fire from fret/kick triggers, and the lighting
+  overlay `smoke_lights.mnm` starts with 2 translation, 1 scale, and 1 rotation
+  key. Native screenshots from both runs render coherently after the full
+  material texture-transform path.
 - 2026-06-21 small1 venue-animation refresh:
   `analysis/native_validation/small1_venue_anim_probe_20260621_current/` runs
   stock PS2 `psychobilly` from `10.0s` with diagnostic autoplay. The

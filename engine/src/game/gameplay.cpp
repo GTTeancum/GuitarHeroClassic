@@ -1332,6 +1332,35 @@ float clamp_material_alpha(float alpha) {
     return std::clamp(alpha, 0.0f, 1.0f);
 }
 
+bool read_u32_advance(const uint8_t* body, size_t size, size_t& pos,
+                      uint32_t& out) {
+    if (pos + 4 > size) return false;
+    std::memcpy(&out, body + pos, sizeof(out));
+    pos += 4;
+    return true;
+}
+
+bool read_f32_advance(const uint8_t* body, size_t size, size_t& pos,
+                      float& out) {
+    if (pos + 4 > size) return false;
+    std::memcpy(&out, body + pos, sizeof(out));
+    pos += 4;
+    return std::isfinite(out);
+}
+
+bool skip_key_rows(size_t row_size, uint32_t count, size_t size, size_t& pos) {
+    if (count > 4096) return false;
+    const size_t bytes = row_size * static_cast<size_t>(count);
+    if (pos + bytes > size) return false;
+    pos += bytes;
+    return true;
+}
+
+float material_anim_tex_value_to_uv(float value) {
+    if (!std::isfinite(value)) return 0.0f;
+    return value;
+}
+
 std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
     const std::string& hdr_path, const std::string& ark_path,
     const std::string& milo_path) {
@@ -1367,28 +1396,102 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
             };
             auto material = read_string();
             auto anim_name = read_string();
-            if (!material || !anim_name || pos + 24 > size) continue;
-            uint32_t unk = 0, key_count = 0;
-            std::memcpy(&unk, body + pos, sizeof(unk));
-            pos += 4;
-            std::memcpy(&key_count, body + pos, sizeof(key_count));
-            pos += 4;
-            if (unk != 0 || key_count < 2 || pos + 16 > size) continue;
-            float start_alpha = 1.0f, end_alpha = 1.0f, duration = 0.0f;
-            std::memcpy(&start_alpha, body + pos + 0, sizeof(start_alpha));
-            std::memcpy(&end_alpha, body + pos + 8, sizeof(end_alpha));
-            std::memcpy(&duration, body + pos + 12, sizeof(duration));
+            if (!material || !anim_name) continue;
             Gameplay::VenueMaterialAnim anim;
             anim.name = *anim_name;
             anim.material = *material;
-            anim.start_alpha = clamp_material_alpha(start_alpha);
-            anim.end_alpha = clamp_material_alpha(end_alpha);
-            anim.duration_frames = duration;
+            uint32_t color_count = 0;
+            if (!read_u32_advance(body, size, pos, color_count) ||
+                !skip_key_rows(20, color_count, size, pos)) {
+                continue;
+            }
+            uint32_t alpha_count = 0;
+            if (!read_u32_advance(body, size, pos, alpha_count) ||
+                alpha_count > 4096) {
+                continue;
+            }
+            for (uint32_t i = 0; i < alpha_count; ++i) {
+                Gameplay::VenueMaterialAnim::FloatKey key;
+                if (!read_f32_advance(body, size, pos, key.value) ||
+                    !read_f32_advance(body, size, pos, key.frame)) {
+                    anim.alpha_keys.clear();
+                    break;
+                }
+                key.value = clamp_material_alpha(key.value);
+                anim.alpha_keys.push_back(key);
+                anim.duration_frames = std::max(anim.duration_frames, key.frame);
+            }
+            if (alpha_count != anim.alpha_keys.size()) continue;
+            anim.has_alpha = !anim.alpha_keys.empty();
+            if (anim.has_alpha) {
+                anim.start_alpha = anim.alpha_keys.front().value;
+                anim.end_alpha = anim.alpha_keys.back().value;
+            }
+            uint32_t trans_count = 0;
+            if (!read_u32_advance(body, size, pos, trans_count) ||
+                trans_count > 4096) {
+                continue;
+            }
+            for (uint32_t i = 0; i < trans_count; ++i) {
+                Gameplay::VenueMaterialAnim::Vec3Key key;
+                if (!read_f32_advance(body, size, pos, key.value[0]) ||
+                    !read_f32_advance(body, size, pos, key.value[1]) ||
+                    !read_f32_advance(body, size, pos, key.value[2]) ||
+                    !read_f32_advance(body, size, pos, key.frame)) {
+                    anim.tex_translation_keys.clear();
+                    break;
+                }
+                anim.tex_translation_keys.push_back(key);
+                anim.duration_frames = std::max(anim.duration_frames, key.frame);
+            }
+            if (trans_count != anim.tex_translation_keys.size()) continue;
+            uint32_t scale_count = 0;
+            if (!read_u32_advance(body, size, pos, scale_count) ||
+                scale_count > 4096) {
+                continue;
+            }
+            for (uint32_t i = 0; i < scale_count; ++i) {
+                Gameplay::VenueMaterialAnim::Vec3Key key;
+                if (!read_f32_advance(body, size, pos, key.value[0]) ||
+                    !read_f32_advance(body, size, pos, key.value[1]) ||
+                    !read_f32_advance(body, size, pos, key.value[2]) ||
+                    !read_f32_advance(body, size, pos, key.frame)) {
+                    anim.tex_scale_keys.clear();
+                    break;
+                }
+                anim.tex_scale_keys.push_back(key);
+                anim.duration_frames = std::max(anim.duration_frames, key.frame);
+            }
+            if (scale_count != anim.tex_scale_keys.size()) continue;
+            uint32_t rot_count = 0;
+            if (!read_u32_advance(body, size, pos, rot_count) ||
+                rot_count > 4096) {
+                continue;
+            }
+            for (uint32_t i = 0; i < rot_count; ++i) {
+                Gameplay::VenueMaterialAnim::FloatKey key;
+                if (!read_f32_advance(body, size, pos, key.value) ||
+                    !read_f32_advance(body, size, pos, key.frame)) {
+                    anim.tex_rotation_keys.clear();
+                    break;
+                }
+                anim.tex_rotation_keys.push_back(key);
+                anim.duration_frames = std::max(anim.duration_frames, key.frame);
+            }
+            if (rot_count != anim.tex_rotation_keys.size()) continue;
+            if (!anim.has_alpha && anim.tex_translation_keys.empty() &&
+                anim.tex_scale_keys.empty() && anim.tex_rotation_keys.empty()) {
+                continue;
+            }
             out[anim.name] = anim;
             std::fprintf(stderr,
-                         "[world] MatAnim %s -> %s alpha %.3f -> %.3f frames=%.1f\n",
+                         "[world] MatAnim %s -> %s alpha %.3f -> %.3f alpha_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu frames=%.1f\n",
                          anim.name.c_str(), anim.material.c_str(),
                          anim.start_alpha, anim.end_alpha,
+                         anim.alpha_keys.size(),
+                         anim.tex_translation_keys.size(),
+                         anim.tex_scale_keys.size(),
+                         anim.tex_rotation_keys.size(),
                          anim.duration_frames);
         }
     } catch (const std::exception& ex) {
@@ -1412,20 +1515,90 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
         auto dir = gh::milo::parse_directory(payload);
 
         std::map<std::string, std::vector<std::string>> filter_mat_anims;
+        std::map<std::string, std::vector<std::string>> filter_group_refs;
         for (const auto& de : dir.entries) {
             if (de.type != "AnimFilter" || de.offset + de.size > payload.size())
                 continue;
             const auto* body = payload.data() + de.offset;
             const auto strings =
                 scan_milo_strings(body, static_cast<size_t>(de.size));
-            auto& routed = filter_mat_anims[canonical_milo_ref(de.name)];
+            const auto filter_key = canonical_milo_ref(de.name);
+            auto& routed = filter_mat_anims[filter_key];
             for (const auto& s : strings) {
                 const auto ref = canonical_milo_ref(s);
                 if (ref.size() > 4 && ref.rfind(".mnm") == ref.size() - 4) {
                     push_unique_ref(routed, ref);
+                } else if (ref.size() > 4 &&
+                           ref.rfind(".grp") == ref.size() - 4) {
+                    push_unique_ref(filter_group_refs[filter_key], ref);
                 }
             }
-            if (routed.empty()) filter_mat_anims.erase(canonical_milo_ref(de.name));
+        }
+
+        std::map<std::string, std::vector<std::string>> group_refs;
+        for (const auto& de : dir.entries) {
+            if (de.type != "Group" || de.offset + de.size > payload.size())
+                continue;
+            auto& refs = group_refs[canonical_milo_ref(de.name)];
+            const auto strings = scan_milo_strings(
+                payload.data() + de.offset, static_cast<size_t>(de.size));
+            for (const auto& s : strings) {
+                const auto ref = canonical_milo_ref(s);
+                if ((ref.size() > 4 && ref.rfind(".mnm") == ref.size() - 4) ||
+                    (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5) ||
+                    (ref.size() > 4 && ref.rfind(".grp") == ref.size() - 4)) {
+                    push_unique_ref(refs, ref);
+                }
+            }
+        }
+
+        std::map<std::string, std::vector<std::string>> group_mat_anims;
+        auto collect_group_mat_anims =
+            [&](auto&& self, const std::string& group,
+                std::vector<std::string>& out,
+                std::unordered_set<std::string>& seen) -> void {
+            if (!seen.insert(group).second) return;
+            if (const auto cached = group_mat_anims.find(group);
+                cached != group_mat_anims.end()) {
+                for (const auto& anim : cached->second) push_unique_ref(out, anim);
+                return;
+            }
+            std::vector<std::string> resolved;
+            const auto refs_it = group_refs.find(group);
+            if (refs_it != group_refs.end()) {
+                for (const auto& ref : refs_it->second) {
+                    if (ref.size() > 4 && ref.rfind(".mnm") == ref.size() - 4) {
+                        push_unique_ref(resolved, ref);
+                    } else if (ref.size() > 5 &&
+                               ref.rfind(".filt") == ref.size() - 5) {
+                        const auto filter_it = filter_mat_anims.find(ref);
+                        if (filter_it == filter_mat_anims.end()) continue;
+                        for (const auto& anim : filter_it->second)
+                            push_unique_ref(resolved, anim);
+                    } else if (ref.size() > 4 &&
+                               ref.rfind(".grp") == ref.size() - 4) {
+                        self(self, ref, resolved, seen);
+                    }
+                }
+            }
+            group_mat_anims[group] = resolved;
+            for (const auto& anim : resolved) push_unique_ref(out, anim);
+        };
+        for (const auto& [group, refs] : group_refs) {
+            (void)refs;
+            std::vector<std::string> resolved;
+            std::unordered_set<std::string> seen;
+            collect_group_mat_anims(collect_group_mat_anims, group, resolved,
+                                    seen);
+        }
+        for (const auto& [filter, groups] : filter_group_refs) {
+            auto& routed = filter_mat_anims[filter];
+            for (const auto& group : groups) {
+                const auto group_it = group_mat_anims.find(group);
+                if (group_it == group_mat_anims.end()) continue;
+                for (const auto& anim : group_it->second)
+                    push_unique_ref(routed, anim);
+            }
         }
 
         for (const auto& de : dir.entries) {
@@ -1448,6 +1621,12 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
                     const auto filter_it = filter_mat_anims.find(ref);
                     if (filter_it == filter_mat_anims.end()) continue;
                     for (const auto& anim : filter_it->second)
+                        push_unique_ref(mat_anims, anim);
+                } else if (ref.size() > 4 &&
+                           ref.rfind(".grp") == ref.size() - 4) {
+                    const auto group_it = group_mat_anims.find(ref);
+                    if (group_it == group_mat_anims.end()) continue;
+                    for (const auto& anim : group_it->second)
                         push_unique_ref(mat_anims, anim);
                 }
             }
@@ -3169,6 +3348,94 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
         sample.scale = sample_scale_ratio(anim.scale_keys, frame);
     }
     return sample;
+}
+
+std::array<float, 2> sample_material_vec2_key(
+    const std::vector<Gameplay::VenueMaterialAnim::Vec3Key>& keys,
+    float frame) {
+    std::array<float, 2> out = {0.0f, 0.0f};
+    if (keys.empty()) return out;
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    for (int i = 0; i < 2; ++i) {
+        const float value = a->value[i] + (b->value[i] - a->value[i]) * t;
+        out[i] = value;
+    }
+    return out;
+}
+
+float sample_material_float_key(
+    const std::vector<Gameplay::VenueMaterialAnim::FloatKey>& keys,
+    float frame) {
+    if (keys.empty()) return 0.0f;
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    return a->value + (b->value - a->value) * t;
+}
+
+ghogx::render::MiloSceneRenderer::MaterialTexTransformSample
+sample_material_tex_transform(const Gameplay::ActiveVenueMaterialAnim& anim,
+                              float frame) {
+    ghogx::render::MiloSceneRenderer::MaterialTexTransformSample sample;
+    if (!anim.tex_translation_keys.empty()) {
+        const auto uv = sample_material_vec2_key(anim.tex_translation_keys, frame);
+        sample.has_translation = true;
+        sample.translation[0] = material_anim_tex_value_to_uv(uv[0]);
+        sample.translation[1] = material_anim_tex_value_to_uv(uv[1]);
+    }
+    if (!anim.tex_scale_keys.empty()) {
+        sample.has_scale = true;
+        sample.scale = sample_material_vec2_key(anim.tex_scale_keys, frame);
+    }
+    if (!anim.tex_rotation_keys.empty()) {
+        sample.has_rotation = true;
+        sample.rotation_radians =
+            sample_material_float_key(anim.tex_rotation_keys, frame);
+    }
+    return sample;
+}
+
+ghogx::render::MiloSceneRenderer::MaterialTexTransformSample
+sample_material_tex_transform(const Gameplay::VenueMaterialAnim& anim,
+                              float frame) {
+    Gameplay::ActiveVenueMaterialAnim active;
+    active.tex_translation_keys = anim.tex_translation_keys;
+    active.tex_scale_keys = anim.tex_scale_keys;
+    active.tex_rotation_keys = anim.tex_rotation_keys;
+    return sample_material_tex_transform(active, frame);
+}
+
+float material_anim_frame_at(float duration_frames, double elapsed_seconds,
+                             bool persistent) {
+    if (!std::isfinite(duration_frames) || duration_frames <= 0.001f)
+        return 0.0f;
+    float frame = static_cast<float>(std::max(0.0, elapsed_seconds) * 30.0);
+    if (persistent) {
+        frame = std::fmod(frame, duration_frames);
+    } else {
+        frame = std::min(frame, duration_frames);
+    }
+    return std::clamp(frame, 0.0f, duration_frames);
 }
 
 float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
@@ -4904,6 +5171,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_mat_anims_.clear();
     lighting_event_mat_anims_.clear();
     lighting_material_alpha_.clear();
+    lighting_material_tex_transforms_.clear();
     active_lighting_material_anims_.clear();
     venue_mat_anims_.clear();
     venue_event_mat_anims_.clear();
@@ -4916,6 +5184,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     pending_transient_venue_events_.clear();
     venue_material_meshes_.clear();
     venue_material_alpha_.clear();
+    venue_material_tex_transforms_.clear();
     active_venue_material_anims_.clear();
     venue_mesh_translation_offsets_.clear();
     venue_mesh_transform_offsets_.clear();
@@ -5060,12 +5329,18 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     if (persistent) {
         venue_mesh_translation_offsets_.clear();
     }
+    bool material_tex_changed = false;
     auto event_it = venue_event_mat_anims_.find(event_name);
     if (event_it != venue_event_mat_anims_.end()) {
         for (const auto& anim_name : event_it->second) {
             auto anim_it = venue_mat_anims_.find(anim_name);
             if (anim_it == venue_mat_anims_.end()) continue;
             const auto& anim = anim_it->second;
+            const bool has_tex_transform =
+                !anim.tex_translation_keys.empty() ||
+                !anim.tex_scale_keys.empty() ||
+                !anim.tex_rotation_keys.empty();
+            if (!anim.has_alpha && !has_tex_transform) continue;
             active_venue_material_anims_.erase(
                 std::remove_if(active_venue_material_anims_.begin(),
                                active_venue_material_anims_.end(),
@@ -5077,25 +5352,44 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             ActiveVenueMaterialAnim active_anim;
             active_anim.name = anim.name;
             active_anim.material = anim.material;
+            active_anim.has_alpha = anim.has_alpha;
             active_anim.start_alpha =
-                current_alpha == venue_material_alpha_.end()
-                    ? anim.start_alpha
-                    : current_alpha->second;
+                anim.has_alpha
+                    ? (current_alpha == venue_material_alpha_.end()
+                           ? anim.start_alpha
+                           : current_alpha->second)
+                    : 1.0f;
             active_anim.end_alpha = anim.end_alpha;
             active_anim.start_time = song_time_;
             active_anim.duration_seconds =
                 authored_frames_to_seconds(anim.duration_frames);
+            active_anim.duration_frames = anim.duration_frames;
+            active_anim.tex_translation_keys = anim.tex_translation_keys;
+            active_anim.tex_scale_keys = anim.tex_scale_keys;
+            active_anim.tex_rotation_keys = anim.tex_rotation_keys;
             active_anim.persistent = persistent;
-            venue_material_alpha_[anim.material] = active_anim.start_alpha;
-            material_changes.push_back({anim.material, anim.end_alpha});
+            if (anim.has_alpha) {
+                venue_material_alpha_[anim.material] = active_anim.start_alpha;
+                material_changes.push_back({anim.material, anim.end_alpha});
+            }
+            if (has_tex_transform) {
+                venue_material_tex_transforms_[anim.material] =
+                    sample_material_tex_transform(anim, 0.0f);
+                material_tex_changed = true;
+            }
             std::fprintf(stderr,
-                         "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f seconds=%.3f %s\n",
+                         "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f %s\n",
                          event_name.c_str(), anim_name.c_str(),
                          anim.material.c_str(), active_anim.start_alpha,
-                         active_anim.end_alpha, active_anim.duration_seconds,
+                         active_anim.end_alpha,
+                         active_anim.tex_translation_keys.size(),
+                         active_anim.tex_scale_keys.size(),
+                         active_anim.tex_rotation_keys.size(),
+                         active_anim.duration_seconds,
                          persistent ? "persistent" : "transient");
             if (active_anim.duration_seconds <= 0.0001) {
-                venue_material_alpha_[anim.material] = anim.end_alpha;
+                if (anim.has_alpha)
+                    venue_material_alpha_[anim.material] = anim.end_alpha;
             } else {
                 active_venue_material_anims_.push_back(std::move(active_anim));
             }
@@ -5141,6 +5435,9 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     }
     if (world_) {
         world_->set_material_alpha_multipliers(venue_material_alpha_);
+        if (material_tex_changed)
+            world_->set_material_tex_transform_overrides(
+                venue_material_tex_transforms_);
         world_->set_hidden_meshes(composed_venue_hidden_meshes());
     }
     update_active_venue_anim_filters();
@@ -5157,7 +5454,8 @@ void Gameplay::resend_active_venue_event() {
 
 void Gameplay::update_active_venue_material_anims() {
     if (!world_) return;
-    bool changed = false;
+    bool alpha_changed = false;
+    bool tex_changed = false;
     for (auto it = active_venue_material_anims_.begin();
          it != active_venue_material_anims_.end();) {
         const double duration = std::max(0.0, it->duration_seconds);
@@ -5166,21 +5464,40 @@ void Gameplay::update_active_venue_material_anims() {
                 ? 1.0
                 : std::clamp((song_time_ - it->start_time) / duration,
                              0.0, 1.0);
-        const float alpha = static_cast<float>(
-            static_cast<double>(it->start_alpha) +
-            (static_cast<double>(it->end_alpha) - it->start_alpha) * t);
-        venue_material_alpha_[it->material] = clamp_material_alpha(alpha);
-        changed = true;
-        if (t >= 1.0) {
+        if (it->has_alpha) {
+            const float alpha = static_cast<float>(
+                static_cast<double>(it->start_alpha) +
+                (static_cast<double>(it->end_alpha) - it->start_alpha) * t);
+            venue_material_alpha_[it->material] = clamp_material_alpha(alpha);
+            alpha_changed = true;
+        }
+        const bool has_tex_transform =
+            !it->tex_translation_keys.empty() ||
+            !it->tex_scale_keys.empty() ||
+            !it->tex_rotation_keys.empty();
+        if (has_tex_transform) {
+            const float frame = material_anim_frame_at(
+                it->duration_frames, song_time_ - it->start_time,
+                it->persistent);
+            venue_material_tex_transforms_[it->material] =
+                sample_material_tex_transform(*it, frame);
+            tex_changed = true;
+        }
+        const bool keep_persistent_tex =
+            it->persistent && has_tex_transform && duration > 0.0001;
+        if (t >= 1.0 && !keep_persistent_tex) {
             it = active_venue_material_anims_.erase(it);
         } else {
             ++it;
         }
     }
-    if (changed) {
+    if (alpha_changed) {
         world_->set_material_alpha_multipliers(venue_material_alpha_);
         world_->set_hidden_meshes(composed_venue_hidden_meshes());
     }
+    if (tex_changed)
+        world_->set_material_tex_transform_overrides(
+            venue_material_tex_transforms_);
 }
 
 void Gameplay::update_active_venue_anim_filters() {
@@ -5247,7 +5564,8 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
     auto event_it = lighting_event_mat_anims_.find(event_name);
     if (event_it == lighting_event_mat_anims_.end()) return;
 
-    bool changed = false;
+    bool alpha_changed = false;
+    bool tex_changed = false;
     for (const auto& anim_name : event_it->second) {
         auto anim_it = lighting_mat_anims_.find(anim_name);
         if (anim_it == lighting_mat_anims_.end()) {
@@ -5259,6 +5577,18 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
             continue;
         }
         const auto& anim = anim_it->second;
+        const bool has_tex_transform =
+            !anim.tex_translation_keys.empty() ||
+            !anim.tex_scale_keys.empty() ||
+            !anim.tex_rotation_keys.empty();
+        if (!anim.has_alpha && !has_tex_transform) {
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(stderr,
+                             "[world] lighting event %s: MatAnim %s has no supported material channels\n",
+                             event_name.c_str(), anim_name.c_str());
+            }
+            continue;
+        }
         active_lighting_material_anims_.erase(
             std::remove_if(active_lighting_material_anims_.begin(),
                            active_lighting_material_anims_.end(),
@@ -5270,34 +5600,56 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
         ActiveVenueMaterialAnim active_anim;
         active_anim.name = anim.name;
         active_anim.material = anim.material;
+        active_anim.has_alpha = anim.has_alpha;
         active_anim.start_alpha =
-            current_alpha == lighting_material_alpha_.end()
-                ? anim.start_alpha
-                : current_alpha->second;
+            anim.has_alpha
+                ? (current_alpha == lighting_material_alpha_.end()
+                       ? anim.start_alpha
+                       : current_alpha->second)
+                : 1.0f;
         active_anim.end_alpha = anim.end_alpha;
         active_anim.start_time = song_time_;
         active_anim.duration_seconds =
             authored_frames_to_seconds(anim.duration_frames);
+        active_anim.duration_frames = anim.duration_frames;
+        active_anim.tex_translation_keys = anim.tex_translation_keys;
+        active_anim.tex_scale_keys = anim.tex_scale_keys;
+        active_anim.tex_rotation_keys = anim.tex_rotation_keys;
         active_anim.persistent = true;
-        lighting_material_alpha_[anim.material] = active_anim.start_alpha;
+        if (anim.has_alpha)
+            lighting_material_alpha_[anim.material] = active_anim.start_alpha;
+        if (has_tex_transform) {
+            lighting_material_tex_transforms_[anim.material] =
+                sample_material_tex_transform(anim, 0.0f);
+            tex_changed = true;
+        }
         std::fprintf(stderr,
-                     "[world] lighting event %s: MatAnim %s -> %s alpha %.3f -> %.3f seconds=%.3f\n",
+                     "[world] lighting event %s: MatAnim %s -> %s alpha %.3f -> %.3f tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f\n",
                      event_name.c_str(), anim_name.c_str(), anim.material.c_str(),
                      active_anim.start_alpha, active_anim.end_alpha,
+                     active_anim.tex_translation_keys.size(),
+                     active_anim.tex_scale_keys.size(),
+                     active_anim.tex_rotation_keys.size(),
                      active_anim.duration_seconds);
         if (active_anim.duration_seconds <= 0.0001) {
-            lighting_material_alpha_[anim.material] = anim.end_alpha;
+            if (anim.has_alpha)
+                lighting_material_alpha_[anim.material] = anim.end_alpha;
         } else {
             active_lighting_material_anims_.push_back(std::move(active_anim));
         }
-        changed = true;
+        if (anim.has_alpha) alpha_changed = true;
     }
-    if (changed) lighting_->set_material_alpha_multipliers(lighting_material_alpha_);
+    if (alpha_changed)
+        lighting_->set_material_alpha_multipliers(lighting_material_alpha_);
+    if (tex_changed)
+        lighting_->set_material_tex_transform_overrides(
+            lighting_material_tex_transforms_);
 }
 
 void Gameplay::update_active_lighting_material_anims() {
     if (!lighting_) return;
-    bool changed = false;
+    bool alpha_changed = false;
+    bool tex_changed = false;
     for (auto it = active_lighting_material_anims_.begin();
          it != active_lighting_material_anims_.end();) {
         const double duration = std::max(0.0, it->duration_seconds);
@@ -5306,18 +5658,38 @@ void Gameplay::update_active_lighting_material_anims() {
                 ? 1.0
                 : std::clamp((song_time_ - it->start_time) / duration,
                              0.0, 1.0);
-        const float alpha = static_cast<float>(
-            static_cast<double>(it->start_alpha) +
-            (static_cast<double>(it->end_alpha) - it->start_alpha) * t);
-        lighting_material_alpha_[it->material] = clamp_material_alpha(alpha);
-        changed = true;
-        if (t >= 1.0) {
+        if (it->has_alpha) {
+            const float alpha = static_cast<float>(
+                static_cast<double>(it->start_alpha) +
+                (static_cast<double>(it->end_alpha) - it->start_alpha) * t);
+            lighting_material_alpha_[it->material] = clamp_material_alpha(alpha);
+            alpha_changed = true;
+        }
+        const bool has_tex_transform =
+            !it->tex_translation_keys.empty() ||
+            !it->tex_scale_keys.empty() ||
+            !it->tex_rotation_keys.empty();
+        if (has_tex_transform) {
+            const float frame = material_anim_frame_at(
+                it->duration_frames, song_time_ - it->start_time,
+                it->persistent);
+            lighting_material_tex_transforms_[it->material] =
+                sample_material_tex_transform(*it, frame);
+            tex_changed = true;
+        }
+        const bool keep_persistent_tex =
+            it->persistent && has_tex_transform && duration > 0.0001;
+        if (t >= 1.0 && !keep_persistent_tex) {
             it = active_lighting_material_anims_.erase(it);
         } else {
             ++it;
         }
     }
-    if (changed) lighting_->set_material_alpha_multipliers(lighting_material_alpha_);
+    if (alpha_changed)
+        lighting_->set_material_alpha_multipliers(lighting_material_alpha_);
+    if (tex_changed)
+        lighting_->set_material_tex_transform_overrides(
+            lighting_material_tex_transforms_);
 }
 
 void Gameplay::set_lighting_spot_targets(

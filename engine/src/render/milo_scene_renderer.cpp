@@ -352,6 +352,11 @@ void MiloSceneRenderer::set_material_alpha_multipliers(
   material_alpha_ = std::move(material_alpha);
 }
 
+void MiloSceneRenderer::set_material_tex_transform_overrides(
+    std::map<std::string, MaterialTexTransformSample> material_tex_transforms) {
+  material_tex_transforms_ = std::move(material_tex_transforms);
+}
+
 void MiloSceneRenderer::set_mesh_translation_offsets(
     std::map<std::string, std::array<float, 3>> offsets) {
   mesh_translation_offsets_ = std::move(offsets);
@@ -738,6 +743,26 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       mr = mat->color[0]; mg = mat->color[1]; mb = mat->color[2]; ma = mat->color[3];
       material_additive = mat->color[3] < 0.999f;
     }
+    bool material_tex_anim = false;
+    float rot = 0.0f;
+    if (const auto tex_it = material_tex_transforms_.find(material);
+        tex_it != material_tex_transforms_.end()) {
+      const auto& transform = tex_it->second;
+      if (transform.has_translation) {
+        tu = transform.translation[0];
+        tv = transform.translation[1];
+        material_tex_anim = true;
+      }
+      if (transform.has_scale) {
+        su = transform.scale[0];
+        sv = transform.scale[1];
+        material_tex_anim = true;
+      }
+      if (transform.has_rotation) {
+        rot = transform.rotation_radians;
+        material_tex_anim = true;
+      }
+    }
     const bool draw_additive = additive_blend_ || material_additive;
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, draw_additive ? FALSE : TRUE);
     dev_->SetRenderState(D3DRS_DESTBLEND,
@@ -780,7 +805,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     }
     if (texture) {
       dev_->SetTexture(0, texture);
-      const bool tiled = su > 1.01f || sv > 1.01f;
+      const bool tiled = su > 1.01f || sv > 1.01f || material_tex_anim;
       dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
       dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
       dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -810,8 +835,18 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         return i < 0 ? 0 : (i > 255 ? 255 : i);
       };
       s.color = D3DCOLOR_ARGB(cc(v.a * ma), cc(v.r * mr), cc(v.g * mg), cc(v.b * mb));
-      s.u = v.u * su + tu;
-      s.v = v.v * sv + tv;
+      float u = v.u * su;
+      float vv = v.v * sv;
+      if (material_tex_anim && std::fabs(rot) > 0.000001f) {
+        const float c = std::cos(rot);
+        const float sn = std::sin(rot);
+        const float ru = u * c - vv * sn;
+        const float rv = u * sn + vv * c;
+        u = ru;
+        vv = rv;
+      }
+      s.u = u + tu;
+      s.v = vv + tv;
       vb.push_back(s);
     }
 
