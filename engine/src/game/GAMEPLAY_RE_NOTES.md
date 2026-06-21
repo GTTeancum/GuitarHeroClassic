@@ -678,6 +678,23 @@ Open work:
   overlay `smoke_lights.mnm` starts with 2 translation, 1 scale, and 1 rotation
   key. Native screenshots from both runs render coherently after the full
   material texture-transform path.
+- 2026-06-21 AnimFilter field-order correction: extracted PS2 venue filter
+  objects show length-prefixed target refs followed by `scale`, `period`,
+  `start`, `end`, `type`, and `offset`. Examples:
+  `speaker_cone03.filt` has `scale=1`, `period=0`, `start=0`, `end=100`,
+  `type=0` (`kAnimRange`), and `offset=0.25`; `searchlights.filt` has
+  `type=2` (`kAnimShuttle`) and `offset=5`; `squid_okay.filt` and
+  `grim_okay_loop.filt` have `type=1` (`kAnimLoop`). Native previously read
+  the offset float as an integer type, producing raw bit-pattern values like
+  `1084227584`. The shared AnimFilter sampler now applies the authored offset
+  and uses `ANIM_ENUM` modes (`kAnimRange`, `kAnimLoop`, `kAnimShuttle`) when
+  sampling TransAnim frame ranges. Validation:
+  `analysis/native_validation/arena_animfilter_type_offset_20260621_current/`
+  logs `searchlights.filt offset=5.000 type=2`, looped grim/squid filters as
+  `type=1`, and coherent sampled frames after the change.
+  `analysis/native_validation/small1_animfilter_type_offset_20260621_current/`
+  logs speaker cones as `offset=0.250 type=0`, `Bass_amp_bass_hit.filt` as
+  `offset=0.150 type=0`, and stable venue screenshots.
 - 2026-06-21 small1 venue-animation refresh:
   `analysis/native_validation/small1_venue_anim_probe_20260621_current/` runs
   stock PS2 `psychobilly` from `10.0s` with diagnostic autoplay. The

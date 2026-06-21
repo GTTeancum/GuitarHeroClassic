@@ -113,6 +113,7 @@ class Gameplay {
     float end_frame = 0.0f;
     float scale = 1.0f;
     float period = 0.0f;
+    float offset_frame = 0.0f;
     int type = 0;
     std::vector<VenueAnimFilterTarget> targets;
   };

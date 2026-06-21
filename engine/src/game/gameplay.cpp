@@ -3445,23 +3445,49 @@ float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
     const float span = end - start;
     if (!std::isfinite(span) || span <= 0.001f) return start;
 
-    const float scale =
+    const double scale =
         std::isfinite(filter.scale) && std::fabs(filter.scale) > 0.001f
-            ? std::fabs(filter.scale)
-            : 1.0f;
-    float delta = static_cast<float>(std::max(0.0, elapsed_seconds) * 30.0) *
-                  scale;
-    if (persistent) {
-        const float loop_span =
-            std::isfinite(filter.period) && filter.period > 0.001f
-                ? filter.period
-                : span;
-        if (loop_span > 0.001f) delta = std::fmod(delta, loop_span);
-        if (delta > span) delta = std::fmod(delta, span);
+            ? std::fabs(static_cast<double>(filter.scale))
+            : 1.0;
+    double local_frame = 0.0;
+    if (std::isfinite(filter.period) && filter.period > 0.001f) {
+        local_frame =
+            (std::max(0.0, elapsed_seconds) / filter.period) *
+            static_cast<double>(span);
     } else {
-        delta = std::min(delta, span);
+        local_frame = std::max(0.0, elapsed_seconds) * 30.0 * scale;
     }
-    return start + std::clamp(delta, 0.0f, span);
+    if (std::isfinite(filter.offset_frame))
+        local_frame += static_cast<double>(filter.offset_frame);
+
+    auto positive_mod = [](double value, double modulus) {
+        if (modulus <= 0.001) return 0.0;
+        double out = std::fmod(value, modulus);
+        if (out < 0.0) out += modulus;
+        return out;
+    };
+
+    float frame = start;
+    switch (filter.type) {
+        case 1:  // kAnimLoop
+            frame = start + static_cast<float>(
+                              positive_mod(local_frame, span));
+            break;
+        case 2: {  // kAnimShuttle
+            const double phase =
+                positive_mod(local_frame, static_cast<double>(span) * 2.0);
+            const double shuttle =
+                phase <= span ? phase : (static_cast<double>(span) * 2.0 - phase);
+            frame = start + static_cast<float>(shuttle);
+            break;
+        }
+        case 0:  // kAnimRange
+        default:
+            (void)persistent;
+            frame = start + static_cast<float>(local_frame);
+            break;
+    }
+    return std::clamp(frame, start, end);
 }
 
 double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter) {
@@ -3469,11 +3495,16 @@ double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter) {
     const float end = std::max(filter.end_frame, start);
     const float span = end - start;
     if (!std::isfinite(span) || span <= 0.001f) return 0.0;
+    if (std::isfinite(filter.period) && filter.period > 0.001f)
+        return static_cast<double>(filter.period);
     const float scale =
         std::isfinite(filter.scale) && std::fabs(filter.scale) > 0.001f
             ? std::fabs(filter.scale)
             : 1.0f;
-    return static_cast<double>(span) / (30.0 * static_cast<double>(scale));
+    const double cycle =
+        filter.type == 2 ? static_cast<double>(span) * 2.0
+                         : static_cast<double>(span);
+    return cycle / (30.0 * static_cast<double>(scale));
 }
 
 std::map<std::string, Gameplay::VenueGroupVisibility>
@@ -3713,14 +3744,19 @@ load_venue_anim_filters(const std::string& hdr_path,
             filter.name = de.name;
             if (auto end = packed_string_end(body, size, target_raw)) {
                 // PS2 AnimFilter records store scale/period before the frame
-                // window in the small1 venue filters. Use only finite,
-                // plausible frame values; unsupported fields stay logged.
+                // window, then the ANIM_ENUM type and authored frame offset.
                 filter.scale = read_f32_or(body, size, *end + 0, 1.0f);
                 filter.period = read_f32_or(body, size, *end + 4, 0.0f);
                 filter.start_frame = read_f32_or(body, size, *end + 8, 0.0f);
                 filter.end_frame = read_f32_or(body, size, *end + 12,
                                                filter.start_frame);
-                filter.type = read_i32_or(body, size, *end + 20, 0);
+                filter.type = read_i32_or(body, size, *end + 16, 0);
+                filter.offset_frame = read_f32_or(body, size, *end + 20, 0.0f);
+                if (filter.type < 0 || filter.type > 2) filter.type = 0;
+                if (!std::isfinite(filter.offset_frame) ||
+                    std::fabs(filter.offset_frame) > 100000.0f) {
+                    filter.offset_frame = 0.0f;
+                }
                 if (!std::isfinite(filter.start_frame) ||
                     filter.start_frame < 0.0f || filter.start_frame > 500.0f) {
                     filter.start_frame = 0.0f;
@@ -5422,10 +5458,10 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         for (const auto& filter : filter_event_it->second) {
             std::fprintf(
                 stderr,
-                "[world] venue event %s: AnimFilter %s frame %.2f..%.2f targets=%zu scale=%.3f period=%.3f type=%d %s\n",
+                "[world] venue event %s: AnimFilter %s frame %.2f..%.2f targets=%zu scale=%.3f period=%.3f offset=%.3f type=%d %s\n",
                 event_name.c_str(), filter.name.c_str(), filter.start_frame,
                 filter.end_frame, filter.targets.size(), filter.scale,
-                filter.period, filter.type,
+                filter.period, filter.offset_frame, filter.type,
                 persistent ? "persistent" : "transient");
         }
     } else if (debug_venue_filters_enabled()) {

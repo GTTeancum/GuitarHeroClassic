@@ -665,6 +665,21 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);",
                  "venue AnimFilter runtime sends full transform samples to renderer");
+  ok &= contains(gameplay_h_c,
+                 "floatoffset_frame=0.0f;",
+                 "venue AnimFilter keeps authored frame offset");
+  ok &= contains(gameplay_c,
+                 "filter.type=read_i32_or(body,size,*end+16,0);",
+                 "venue AnimFilter reads ANIM_ENUM type from the traced int slot");
+  ok &= contains(gameplay_c,
+                 "filter.offset_frame=read_f32_or(body,size,*end+20,0.0f);",
+                 "venue AnimFilter reads frame offset from the traced float slot");
+  ok &= contains(gameplay_c,
+                 "case1://kAnimLoop",
+                 "venue AnimFilter honors kAnimLoop sampling");
+  ok &= contains(gameplay_c,
+                 "case2:{//kAnimShuttle",
+                 "venue AnimFilter honors kAnimShuttle sampling");
 
   ok &= contains(gameplay_c,
                  "camera_duration_range_for_event(camera_duration_bars_,"
