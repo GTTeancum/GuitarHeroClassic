@@ -2997,6 +2997,28 @@ Useful environment flags:
   hand travel against the neck plus clip-driven finger motion; do not replace
   it with stock-build evidence or a character-specific left-hand offset unless
   a fresh accepted PS2/native mismatch requires it.
+- 2026-06-21 chord-rich Mr. Fix It/Rockabill1 left-hand validation:
+  `analysis/native_validation/ghdx_mrfixit_left_hand_chord_neck_20260621_1128/`
+  repeats the GH2DX/Deluxe `mrfixit` chord route from a 14s diagnostic start,
+  retaining the ~17s..24s window with the camera locked to
+  `guitarist0:spot_neck_fret10.mesh`. This is a stronger current visual proof
+  for powerchord grip than the older partially occluded Mr. Fix It crop. The
+  run resolves quickplay to `rockabill1`/`lespaul`/`big`, reads the authored
+  Expert performer source (`guitar_lane=3 notes=868`), and logs 51
+  `player_fret` hand-map events. The runtime marker leaves `handmap=` blank,
+  which falls through to the default map; selected clips include
+  `finger_powerchord_1` 27 times, `finger_powerchord_2` 11 times, plus
+  `finger_open` and single hold clips. Masks cover `0x03`, `0x05`, `0x0a`,
+  `0x14`, and `0x18`, while `player*_fret_pos` drives spot indices `2`, `4`,
+  `6`, `8`, and `11`. For `t >= 17.0`, post-controller rows keep
+  `bone_L-hand` exactly at `bone_fret_hand` over 142 samples, with
+  `bone_fret_hand` world travel spans X/Y/Z =
+  `11.23847`/`14.17099`/`15.53487`. Left-finger rotation spans are visibly
+  dynamic in the chord window (`bone_L-index01` `0.52613`/`0.52179`,
+  `bone_L-pinky01` `0.55970`/`0.53577`, `bone_L-ringfinger01`
+  `0.35816`/`0.35719`). This validates the same shared hand path for chord
+  grip; do not add Rockabill1 or chord-specific offsets without a fresh
+  accepted PS2/native mismatch.
 - 2026-06-20 Mr. Fix It chord-route pre-roll recheck:
   `engine/out/codex_goal_20260620_left_hand_preroll_mrfixit_chords/` starts at
   14s and captures the 17s+ powerchord window. The crop attempts in this folder
