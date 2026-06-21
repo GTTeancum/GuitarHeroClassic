@@ -264,6 +264,41 @@ Open work:
   `LightPreset` `.env` refs. It still does not apply Environ values to
   renderer brightness; the field storage is source-backed, but the exact PS2
   fixed-function/environment-light semantics remain an implementation gate.
+- 2026-06-21 Environ dynamic-base follow-up:
+  venue geometry Environ bodies are not all the zero-light shape used by the
+  original fest lighting probe. `arena`/`small1` groups commonly point at
+  `.env` entries whose body starts with a version-5 object header, a u32 `.lit`
+  ref count, and length-prefixed light refs before the ambient/fog-ish block.
+  Examples retained under `analysis/venue_lighting_audit/*_geom_extract/`:
+  `stage.env` starts with `stage_light_02.lit` and `stage_light_03.lit`,
+  while `small1` `stage.env` starts with `STAGE_omni.lit`. Native now consumes
+  that `.lit` array, sets the Environ payload base after it, and reads the same
+  ambient/range/color/range fields relative to that base. This changes the
+  previously-garbage geometry environments into sane decoded ambient values,
+  for example arena `stage.env` `(1,1,1,1)`, arena `stage_bkg.env`
+  `(0.188,0.208,0.396,1)`, small1 `stage.env` `(0.290,0.129,0.067,1)`, and
+  small1 `bar.env` `(0.294,0.137,0.047,1)`.
+- 2026-06-21 Group/Mat environment routing follow-up:
+  local `rnd_objects.dta` defines `Group.environ` and `Mat.use_environ`.
+  Extracted venue groups carry `.env` refs at the tail of their group bodies
+  (`arena_geom_opaque.grp -> stage.env`, `city.grp -> city.env`,
+  `small1/stage.grp -> stage.env`, `small1/bar.grp -> bar.env`). Native now
+  preserves `.grp` children in decoded group refs, recursively maps meshes to
+  the nearest authored group environment, decodes `Mat.use_environ` /
+  `Mat.prelit` from the bytes immediately after material RGBA, and applies
+  per-mesh ambient only when the material opts into environment lighting.
+  `use_environ=0` is common on authored glow/neon/fire/TV-style materials, so
+  this gate prevents self-lit cards from being dimmed by stage ambient.
+  `GHOGX_DISABLE_ENVIRON_LIGHTING=1` keeps the previous renderer path for A/B
+  validation, and `GHOGX_LOG_ENVIRON_MESHES=1` logs mesh/environment coverage.
+- LightPreset `.env` refs in the captured arena/small1 runs are preset-level
+  graph-membership tables rather than per-keyframe rows (`keyframe env=0` in
+  the native logs). The actual `stage.env`/`bar.env` objects referenced by
+  those tables live in the venue geometry MILO, not always in the lighting
+  overlay MILO. Native therefore caches decoded venue geometry Environ objects
+  and reports LightPreset coverage as `matched_lighting` vs `matched_venue`.
+  Do not animate or swap active environments from those preset-level refs until
+  a trace shows the exact runtime route.
 - 2026-06-21 LightPreset mesh-target spotlight follow-up:
   the theatre validation log showed `chorus_okay.pst` keyframes with many
   decoded mesh targets and `static_targeted_spots=18`, but native still emitted

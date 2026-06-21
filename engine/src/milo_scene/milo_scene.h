@@ -26,7 +26,9 @@
 //     9     bytes
 //     i32   field (= 3 observed)
 //     4×f32 diffuse colour RGBA
-//     ...   blend / flag bytes (see decode for the byte we read)
+//     u8    use_environ (schema: modulate with environment ambient/lights)
+//     u8    prelit      (schema: vertex color/alpha feeds base or ambient)
+//     ...   blend / flag bytes
 //     str   diffuse texture name (".tex"); other strings may follow
 //
 //   Mesh  (version 0x1c = 28):
@@ -55,13 +57,19 @@
 //     16 RGBA float color at raw offset 0x7e
 //     f32 range at raw offset 0x8e
 //
-//   Environ (version 5, observed in fest_lighting.milo_ps2):
+//   Group (version 15 in venue geometry):
+//     ...   Draw/Anim/Trans fields and child object refs
+//     str   environ ref at the tail when the group draws under an Environ
+//
+//   Environ (version 5):
 //     i32 version (= 5)
-//     13 bytes object/base header
-//     4 RGBA-ish floats at raw offset 0x11
-//     2 range/fog-ish floats at raw offset 0x21
-//     4 RGBA-ish floats at raw offset 0x29
-//     f32 range at raw offset 0x40
+//     9 bytes object/base metadata
+//     u32 light ref count
+//     str[] .lit refs
+//     4 RGBA-ish floats at payload base + 0x00 (ambient_color)
+//     2 range/fog-ish floats at payload base + 0x10/+0x14
+//     4 RGBA-ish floats at payload base + 0x18
+//     f32 range at payload base + 0x2f
 
 #pragma once
 
@@ -134,6 +142,7 @@ struct LightObj {
 
 struct EnvironObj {
   std::string name;
+  std::vector<std::string> lights;
   float color_a[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   float range_a = 0.0f;
   float range_b = 0.0f;
@@ -146,6 +155,7 @@ struct EnvironObj {
 struct GroupObj {
   std::string name;
   std::vector<std::string> children;
+  std::string environment_ref;
 };
 
 struct MatObj {
@@ -160,6 +170,8 @@ struct MatObj {
   // stretched copy.
   float tex_scale[2] = {1.0f, 1.0f};
   float tex_offset[2] = {0.0f, 0.0f};
+  bool use_environ = false;
+  bool prelit = false;
   bool decoded = false;
 };
 
@@ -235,6 +247,8 @@ struct Scene {
 
   // Find a material by name (nullptr if absent).
   const MatObj* find_mat(const std::string& name) const;
+  // Find an environment by name (nullptr if absent or decode failed).
+  const EnvironObj* find_environ(const std::string& name) const;
 };
 
 // Load + decode a MILO straight from a PS2 ARK (hdr/ark). Runtime-native: reads

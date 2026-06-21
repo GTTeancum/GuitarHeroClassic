@@ -123,7 +123,8 @@ float read_f32_at(const std::vector<uint8_t>& body, size_t offset) {
   return value;
 }
 
-std::vector<std::string> mesh_child_names(const std::vector<uint8_t>& body) {
+std::vector<std::string> group_child_refs(const std::vector<uint8_t>& body,
+                                          std::string* environ_ref) {
   std::vector<std::string> out;
   for (size_t o = 0; o + 4 <= body.size(); ++o) {
     uint32_t len;
@@ -137,8 +138,16 @@ std::vector<std::string> mesh_child_names(const std::vector<uint8_t>& body) {
     }
     if (!printable) continue;
     std::string name(s, len);
-    if (name.size() >= 5 && name.compare(name.size() - 5, 5, ".mesh") == 0)
+    if (name.size() >= 5 && name.compare(name.size() - 5, 5, ".mesh") == 0) {
       out.push_back(std::move(name));
+    } else if (name.size() >= 4 &&
+               name.compare(name.size() - 4, 4, ".grp") == 0) {
+      out.push_back(std::move(name));
+    } else if (name.size() >= 4 &&
+               name.compare(name.size() - 4, 4, ".env") == 0 &&
+               environ_ref && environ_ref->empty()) {
+      *environ_ref = std::move(name);
+    }
     o += 3 + len;
   }
   return out;
@@ -346,21 +355,37 @@ EnvironObj decode_environ(const std::string& entry_name,
     if (version != 5) {
       throw std::runtime_error("milo_scene: unsupported Environ version");
     }
+    r.skip(kObjMeta);
+    const uint32_t light_count = r.u32();
+    if (light_count > 64) {
+      throw std::runtime_error("milo_scene: implausible Environ light count");
+    }
+    env.lights.reserve(light_count);
+    for (uint32_t i = 0; i < light_count; ++i) {
+      std::string ref = r.str();
+      if (ref.size() < 4 || ref.compare(ref.size() - 4, 4, ".lit") != 0) {
+        throw std::runtime_error("milo_scene: invalid Environ light ref");
+      }
+      env.lights.push_back(std::move(ref));
+    }
+
+    const size_t base = r.pos;
     for (int i = 0; i < 4; ++i) {
-      env.color_a[i] = read_f32_at(body, 0x11 + static_cast<size_t>(i) * 4);
+      env.color_a[i] = read_f32_at(body, base + static_cast<size_t>(i) * 4);
       if (!std::isfinite(env.color_a[i])) {
         throw std::runtime_error("milo_scene: non-finite Environ color_a");
       }
     }
-    env.range_a = read_f32_at(body, 0x21);
-    env.range_b = read_f32_at(body, 0x25);
+    env.range_a = read_f32_at(body, base + 0x10);
+    env.range_b = read_f32_at(body, base + 0x14);
     for (int i = 0; i < 4; ++i) {
-      env.color_b[i] = read_f32_at(body, 0x29 + static_cast<size_t>(i) * 4);
+      env.color_b[i] =
+          read_f32_at(body, base + 0x18 + static_cast<size_t>(i) * 4);
       if (!std::isfinite(env.color_b[i])) {
         throw std::runtime_error("milo_scene: non-finite Environ color_b");
       }
     }
-    env.range = read_f32_at(body, 0x40);
+    env.range = read_f32_at(body, base + 0x2f);
     if (!std::isfinite(env.range_a) || !std::isfinite(env.range_b) ||
         !std::isfinite(env.range) || env.range_a < 0.0f ||
         env.range_b < 0.0f || env.range < 0.0f) {
@@ -386,6 +411,11 @@ MatObj decode_mat(const std::string& entry_name,
   m.color[1] = r.f32();
   m.color[2] = r.f32();
   m.color[3] = r.f32();
+  const size_t flag_pos = r.pos;
+  if (flag_pos + 2 <= body.size()) {
+    m.use_environ = body[flag_pos] != 0;
+    m.prelit = body[flag_pos + 1] != 0;
+  }
   // Diffuse texcoord transform: 16 bytes of flags, then a 3x3 matrix (UV tiling on
   // the diagonal, UV offset in row 2, homogeneous [2][2]=1). Confirmed from the raw
   // bytes: mm_brick03.mat has scale (4,3) -> the 256px brick tile repeats across the
@@ -574,6 +604,12 @@ const MatObj* Scene::find_mat(const std::string& name) const {
   return nullptr;
 }
 
+const EnvironObj* Scene::find_environ(const std::string& name) const {
+  for (const EnvironObj& env : environs)
+    if (env.name == name && env.decoded) return &env;
+  return nullptr;
+}
+
 std::array<float, 16> Scene::world_matrix(const MeshObj& mesh) const {
   // Compose local * parent.local * parent.parent.local * ... up the chain.
   // Parents may be Trans or Group (we only have Trans/Mesh xfms here; Group
@@ -647,7 +683,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         } else if (de.type == "Group") {
           GroupObj group;
           group.name = de.name;
-          group.children = mesh_child_names(b);
+          group.children = group_child_refs(b, &group.environment_ref);
           for (auto& child : group.children) {
             if (ordered_meshes.insert(child).second)
               out.draw_order.push_back(child);

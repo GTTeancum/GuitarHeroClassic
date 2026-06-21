@@ -113,6 +113,7 @@ class MiloSceneRenderer {
   };
   void set_material_tex_transform_overrides(
       std::map<std::string, MaterialTexTransformSample> material_tex_transforms);
+  void set_environment_lighting_enabled(bool enabled);
   void set_mesh_translation_offsets(
       std::map<std::string, std::array<float, 3>> offsets);
   struct MeshTransformSample {
@@ -164,6 +165,8 @@ class MiloSceneRenderer {
   std::unordered_set<std::string> hidden_meshes_;
   std::map<std::string, float> material_alpha_;
   std::map<std::string, MaterialTexTransformSample> material_tex_transforms_;
+  bool environment_lighting_enabled_ = true;
+  std::map<std::string, std::string> mesh_environments_;
   std::map<std::string, std::array<float, 3>> mesh_translation_offsets_;
   std::map<std::string, MeshTransformSample> mesh_transform_offsets_;
   std::map<std::string, float> mesh_pulses_;

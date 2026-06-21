@@ -81,7 +81,9 @@ void test_mat() {
   put_zeros(b, 9);               // base metadata
   put_u32(b, 3);                 // field
   put_f32(b, 1); put_f32(b, 1); put_f32(b, 1); put_f32(b, 1);  // colour RGBA
-  put_zeros(b, 32);              // blend/flag block (scanned past)
+  b.push_back(1);                // use_environ
+  b.push_back(0);                // prelit
+  put_zeros(b, 30);              // rest of blend/flag block (scanned past)
   put_str(b, "gem.tex");         // diffuse texture
   put_zeros(b, 16);
 
@@ -89,9 +91,38 @@ void test_mat() {
   CHECK(m.decoded);
   CHECK(m.diffuse_tex == "gem.tex");
   CHECK(approx(m.color[0], 1.0f));
+  CHECK(m.use_environ);
+  CHECK(!m.prelit);
   std::printf("  [ok] Mat: tex=%s color=(%.0f,%.0f,%.0f,%.0f)\n",
               m.diffuse_tex.c_str(), m.color[0], m.color[1], m.color[2],
               m.color[3]);
+}
+
+void test_environ_with_lights() {
+  std::vector<uint8_t> b;
+  put_u32(b, 5);                 // Environ version
+  put_zeros(b, 9);               // base metadata
+  put_u32(b, 2);                 // dynamic light ref count
+  put_str(b, "stage_light_02.lit");
+  put_str(b, "stage_light_03.lit");
+  const size_t base = b.size();
+  put_f32(b, 0.25f); put_f32(b, 0.5f); put_f32(b, 0.75f); put_f32(b, 1.0f);
+  put_f32(b, 0.0f);
+  put_f32(b, 1.0f);
+  put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f);
+  while (b.size() < base + 0x2f) b.push_back(0);
+  put_f32(b, 1000.0f);
+
+  EnvironObj env = decode_environ("stage.env", b);
+  CHECK(env.decoded);
+  CHECK(env.lights.size() == 2);
+  CHECK(env.lights[0] == "stage_light_02.lit");
+  CHECK(approx(env.color_a[0], 0.25f));
+  CHECK(approx(env.color_a[2], 0.75f));
+  CHECK(approx(env.range, 1000.0f));
+  std::printf("  [ok] Environ: lights=%zu ambient=(%.2f,%.2f,%.2f)\n",
+              env.lights.size(), env.color_a[0], env.color_a[1],
+              env.color_a[2]);
 }
 
 void test_mesh() {
@@ -163,6 +194,7 @@ int main() {
   std::printf("milo_scene_test\n");
   test_trans();
   test_mat();
+  test_environ_with_lights();
   test_mesh();
   std::printf("ALL PASS\n");
   return 0;

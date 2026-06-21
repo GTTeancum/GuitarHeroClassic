@@ -33,6 +33,7 @@ struct SVtx {
 };
 constexpr DWORD kFVF =
     D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
+constexpr DWORD kDefaultSceneAmbient = D3DCOLOR_XRGB(170, 170, 178);
 
 std::array<float, 16> mul16(const std::array<float, 16>& a,
                             const std::array<float, 16>& b) {
@@ -276,6 +277,22 @@ bool env_enabled(const char* name) {
   return enabled;
 }
 
+bool has_suffix(const std::string& s, const char* suffix) {
+  const size_t suffix_len = std::strlen(suffix);
+  return s.size() >= suffix_len &&
+         s.compare(s.size() - suffix_len, suffix_len, suffix) == 0;
+}
+
+bool environ_color_sane(const milo_scene::EnvironObj& env) {
+  for (int i = 0; i < 4; ++i) {
+    if (!std::isfinite(env.color_a[i]) || env.color_a[i] < 0.0f ||
+        env.color_a[i] > 4.0f) {
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 void OrbitCamera::eye(float out[3]) const {
@@ -355,6 +372,10 @@ void MiloSceneRenderer::set_material_alpha_multipliers(
 void MiloSceneRenderer::set_material_tex_transform_overrides(
     std::map<std::string, MaterialTexTransformSample> material_tex_transforms) {
   material_tex_transforms_ = std::move(material_tex_transforms);
+}
+
+void MiloSceneRenderer::set_environment_lighting_enabled(bool enabled) {
+  environment_lighting_enabled_ = enabled;
 }
 
 void MiloSceneRenderer::set_mesh_translation_offsets(
@@ -488,6 +509,62 @@ void MiloSceneRenderer::set_scene(
   scene_ = std::move(scene);
   active_spotlight_filter_ = false;
   active_spotlights_.clear();
+  mesh_environments_.clear();
+
+  std::map<std::string, const milo_scene::GroupObj*> groups_by_name;
+  for (const auto& group : scene_.groups) {
+    groups_by_name[group.name] = &group;
+  }
+  size_t mesh_environment_conflicts = 0;
+  auto assign_group_environments =
+      [&](auto&& self, const std::string& group_name, std::string current_env,
+          std::unordered_set<std::string>& visiting) -> void {
+    if (!visiting.insert(group_name).second) return;
+    const auto group_it = groups_by_name.find(group_name);
+    if (group_it == groups_by_name.end() || !group_it->second) {
+      visiting.erase(group_name);
+      return;
+    }
+    const auto& group = *group_it->second;
+    if (!group.environment_ref.empty()) current_env = group.environment_ref;
+    for (const auto& child : group.children) {
+      if (has_suffix(child, ".mesh")) {
+        if (!current_env.empty()) {
+          const auto [it, inserted] =
+              mesh_environments_.emplace(child, current_env);
+          if (!inserted && it->second != current_env) {
+            ++mesh_environment_conflicts;
+          }
+        }
+      } else if (has_suffix(child, ".grp")) {
+        self(self, child, current_env, visiting);
+      }
+    }
+    visiting.erase(group_name);
+  };
+  for (const auto& group : scene_.groups) {
+    std::unordered_set<std::string> visiting;
+    assign_group_environments(assign_group_environments, group.name, {},
+                              visiting);
+  }
+  if (env_enabled("GHOGX_LOG_ENVIRON_MESHES")) {
+    size_t decoded_refs = 0;
+    size_t missing_refs = 0;
+    for (const auto& [mesh, env_name] : mesh_environments_) {
+      (void)mesh;
+      const auto* env = scene_.find_environ(env_name);
+      if (env && environ_color_sane(*env)) {
+        ++decoded_refs;
+      } else {
+        ++missing_refs;
+      }
+    }
+    std::fprintf(stderr,
+                 "[milo_scene] group environment map: groups=%zu meshes=%zu "
+                 "decoded_refs=%zu missing_refs=%zu conflicts=%zu\n",
+                 scene_.groups.size(), mesh_environments_.size(),
+                 decoded_refs, missing_refs, mesh_environment_conflicts);
+  }
 
   // Upload every texture once, keyed by its .tex entry name.
   for (auto& kv : tex_)
@@ -682,7 +759,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   // we just need enough fill that nothing is pure black), plus two opposed
   // directional lights so geometry still has shape regardless of facing.
   dev_->SetRenderState(D3DRS_LIGHTING, TRUE);
-  dev_->SetRenderState(D3DRS_AMBIENT, D3DCOLOR_XRGB(170, 170, 178));
+  dev_->SetRenderState(D3DRS_AMBIENT, kDefaultSceneAmbient);
   dev_->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE);
   dev_->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
   auto set_dir_light = [&](DWORD idx, float x, float y, float z, float bright) {
@@ -717,6 +794,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
 
   D3DMATRIX wm;
   std::vector<SVtx> vb;
+  const bool apply_environment_lighting =
+      environment_lighting_enabled_ &&
+      !env_enabled("GHOGX_DISABLE_ENVIRON_LIGHTING");
 
   auto draw_mesh_with_world = [&](const milo_scene::MeshObj& m,
                                   const std::array<float, 16>& w,
@@ -735,7 +815,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
                                                            : m.material;
     const bool debug_spotlight_solid =
         spotlight_state && env_enabled("GHOGX_DEBUG_SPOTLIGHT_SOLID");
-    if (const auto* mat = scene_.find_mat(material)) {
+    const milo_scene::MatObj* mat_obj = scene_.find_mat(material);
+    if (mat_obj) {
+      const auto* mat = mat_obj;
       auto it = tex_.find(mat->diffuse_tex);
       if (it != tex_.end()) texture = it->second;
       su = mat->tex_scale[0]; sv = mat->tex_scale[1];
@@ -743,6 +825,24 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       mr = mat->color[0]; mg = mat->color[1]; mb = mat->color[2]; ma = mat->color[3];
       material_additive = mat->color[3] < 0.999f;
     }
+    DWORD mesh_ambient = kDefaultSceneAmbient;
+    if (apply_environment_lighting && mat_obj && mat_obj->use_environ) {
+      const auto env_it = mesh_environments_.find(m.name);
+      const milo_scene::EnvironObj* env =
+          env_it == mesh_environments_.end()
+              ? nullptr
+              : scene_.find_environ(env_it->second);
+      if (env && environ_color_sane(*env)) {
+        const auto cc_env = [](float f) -> int {
+          int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
+          return i < 0 ? 0 : (i > 255 ? 255 : i);
+        };
+        mesh_ambient = D3DCOLOR_XRGB(cc_env(env->color_a[0]),
+                                     cc_env(env->color_a[1]),
+                                     cc_env(env->color_a[2]));
+      }
+    }
+    dev_->SetRenderState(D3DRS_AMBIENT, mesh_ambient);
     bool material_tex_anim = false;
     float rot = 0.0f;
     if (const auto tex_it = material_tex_transforms_.find(material);

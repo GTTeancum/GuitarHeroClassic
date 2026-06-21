@@ -557,9 +557,16 @@ int main() {
                  "std::vector<LightObj>lights;",
                  "decoded scenes retain Light entries alongside spotlights");
   ok &= contains(milo_scene_h_c,
-                 "structEnvironObj{std::stringname;floatcolor_a[4]="
+                 "structEnvironObj{std::stringname;std::vector<std::string>lights;"
+                 "floatcolor_a[4]="
                  "{1.0f,1.0f,1.0f,1.0f};floatrange_a=0.0f;",
                  "MILO scene exposes decoded raw Environ objects");
+  ok &= contains(milo_scene_h_c,
+                 "std::stringenvironment_ref;",
+                 "decoded Groups retain their authored Environ ref");
+  ok &= contains(milo_scene_h_c,
+                 "booluse_environ=false;boolprelit=false;",
+                 "decoded materials retain environment/prelit flags");
   ok &= contains(milo_scene_h_c,
                  "std::vector<EnvironObj>environs;",
                  "decoded scenes retain Environ entries alongside Light entries");
@@ -585,19 +592,34 @@ int main() {
                  "light.range=read_f32_at(body,0x8e);",
                  "Light decoder uses traced range offset");
   ok &= contains(milo_scene_cpp_c,
-                 "env.color_a[i]=read_f32_at(body,0x11+"
+                 "constuint32_tlight_count=r.u32();",
+                 "Environ decoder consumes authored light-ref array count");
+  ok &= contains(milo_scene_cpp_c,
+                 "env.lights.push_back(std::move(ref));",
+                 "Environ decoder retains authored .lit refs");
+  ok &= contains(milo_scene_cpp_c,
+                 "constsize_tbase=r.pos;",
+                 "Environ decoder uses dynamic payload base after .lit refs");
+  ok &= contains(milo_scene_cpp_c,
+                 "env.color_a[i]=read_f32_at(body,base+"
                  "static_cast<size_t>(i)*4);",
-                 "Environ decoder uses traced first color block offset");
+                 "Environ decoder uses dynamic first color block offset");
   ok &= contains(milo_scene_cpp_c,
-                 "env.range_a=read_f32_at(body,0x21);",
-                 "Environ decoder uses traced range-a offset");
+                 "env.range_a=read_f32_at(body,base+0x10);",
+                 "Environ decoder uses dynamic range-a offset");
   ok &= contains(milo_scene_cpp_c,
-                 "env.color_b[i]=read_f32_at(body,0x29+"
+                 "env.color_b[i]=read_f32_at(body,base+0x18+"
                  "static_cast<size_t>(i)*4);",
-                 "Environ decoder uses traced second color block offset");
+                 "Environ decoder uses dynamic second color block offset");
   ok &= contains(milo_scene_cpp_c,
-                 "env.range=read_f32_at(body,0x40);",
-                 "Environ decoder uses traced range offset");
+                 "env.range=read_f32_at(body,base+0x2f);",
+                 "Environ decoder uses dynamic range offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "group.children=group_child_refs(b,&group.environment_ref);",
+                 "Group decoder preserves authored Environ refs");
+  ok &= contains(milo_scene_cpp_c,
+                 "m.use_environ=body[flag_pos]!=0;",
+                 "Mat decoder preserves use_environ flag");
   ok &= contains(milo_scene_cpp_c,
                  "elseif(de.type==\"Light\"){"
                  "out.lights.push_back(decode_light(de.name,b));}",
@@ -614,20 +636,36 @@ int main() {
                  "Spotlight decoder uses the shared target classifier");
   ok &= contains(gameplay_c,
                  "log_lighting_light_object_coverage(lighting_scene,"
-                 "lighting_presets_);",
-                 "runtime logs decoded Light object coverage before rendering");
+                 "lighting_presets_,venue_environs_);",
+                 "runtime logs decoded Light/Environ coverage before rendering");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,ghogx::milo_scene::EnvironObj>"
+                 "venue_environs_;",
+                 "runtime caches venue geometry Environ objects for lighting refs");
   ok &= contains(gameplay_c,
                  "\"[world]lightingpreset.litrefhasnodecodedLightobject:",
                  "runtime reports preset .lit refs that are not decoded Light objects");
   ok &= contains(gameplay_c,
                  "\"[world]lightingEnvironobjectdecoded:",
                  "runtime logs decoded Environ object data");
+  ok &= contains(renderer_h_c,
+                 "mesh_environments_;",
+                 "renderer tracks mesh-to-Environ assignment");
+  ok &= contains(renderer_c,
+                 "mat_obj&&mat_obj->use_environ",
+                 "renderer gates Environ lighting on the decoded material flag");
+  ok &= contains(renderer_c,
+                 "scene_.find_environ(env_it->second)",
+                 "renderer resolves authored Environ refs before applying ambient");
   ok &= contains(gameplay_c,
                  "\"[world]lightingpreset.envrefhasnodecodedEnvironobject:",
                  "runtime reports preset .env refs that are not decoded Environ objects");
   ok &= contains(gameplay_c,
                  "\"[world]lightingEnvironobjectcoverage:",
                  "runtime logs Environ coverage against preset .env refs");
+  ok &= contains(gameplay_c,
+                 "matched_venue_env_refs",
+                 "LightPreset .env coverage resolves against venue geometry Environ objects");
   ok &= contains(renderer_c,
                  "voidapply_local_translation_delta(std::array<float,16>&world,"
                  "constfloatdelta[3])",
