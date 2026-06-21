@@ -2826,6 +2826,13 @@ Useful environment flags:
   `bone_L-index01` = `4.511..4.512 / -0.202..-0.199 / -0.966..-0.961`, and
   `bone_L-middlefinger01` =
   `4.532..4.533 / -0.336..-0.332 / -0.114..-0.110`.
+  `analysis/native_validation/ghdx_jordan_left_hand_current_neckproof_20260621_095954/`
+  is a same-day GH2DX/Deluxe rerun with the camera still locked to
+  `guitarist0:spot_neck_fret20.mesh`, but using a tighter side angle for user
+  review. Its MP4 keeps the Les Paul neck and fret hand in frame from
+  ~108s..114s; the log selects 63 `player_fret` events, covers fret indices
+  `4..13`, and keeps post-controller `bone_L-hand` exactly at
+  `bone_fret_hand` while thumb rows stay in the negative-Z neck-side band.
   `analysis/native_validation/ghdx_jordan_left_hand_fixedneck_valid_20260621_0034/`
   is the companion fixed-neck visual proof; its cropped MP4
   `ghdx_jordan_left_hand_fixedneck_valid_crop.mp4` keeps the upper neck in
