@@ -1030,6 +1030,16 @@ Glam1 eyes / look-at:
   do not move the eye meshes manually. If the eyes appear high/open in close
   shots, investigate eyelid/lash/face coverage or animation state around the
   PS2-matched eyes.
+- 2026-06-21 serialized `CharEyes` body audit:
+  `engine/build/ghogx.exe dump` against the accepted GH2DX/Deluxe ARK shows
+  Glam1, Rock2, and Deathmetal1 all serialize `CharEyes.eyes` as the same
+  53-byte body: version `3`, object metadata, look-at count `2`,
+  `l-eye.lookat`, `r-eye.lookat`, then an empty trailing string. There are no
+  hidden serialized pivot vectors, source rows, or manual eye offsets to decode
+  from this object body. The accepted pivot/source rows in the PCSX2 traces are
+  runtime `Trans` graph state, so a native eye fix must reproduce that
+  `CharEyes` / `CharLookAt` bridge from object relationships and trace rows,
+  not by inventing extra decoder fields or moving `eye-L/R.mesh`.
 - 2026-06-15 native close-shot follow-up:
   `shout_glam1_eye_lower_check_default_f900.bmp` and
   `shout_glam1_eye_lower_check_hairhidden_f900.bmp` confirmed the highlighted
@@ -2997,6 +3007,16 @@ Useful environment flags:
   hand travel against the neck plus clip-driven finger motion; do not replace
   it with stock-build evidence or a character-specific left-hand offset unless
   a fresh accepted PS2/native mismatch requires it.
+- 2026-06-21 fresh left-hand fretproof repeat:
+  `analysis/native_validation/ghdx_jordan_left_hand_fretproof_20260621_113254/`
+  reruns the same GH2DX/Deluxe `jordan` Expert route after the current build
+  with a fixed `spot_neck_fret12.mesh` camera and a retained MP4/contact sheet.
+  It again records `Expert=1802`, `fretPos=570`, `handCues=1385`, 93
+  `source=player_fret` hand-map events, fret-position indices `4..13`,
+  `bone_L-hand` exactly on `bone_fret_hand` over 202 post-controller samples,
+  and dynamic left-finger rotations headed by `bone_L-pinky01`
+  `0.60598`/`0.58729`. Treat this as a current regression guard for left-hand
+  movement and finger curls, not as permission for any per-outfit hand offset.
 - 2026-06-21 chord-rich Mr. Fix It/Rockabill1 left-hand validation:
   `analysis/native_validation/ghdx_mrfixit_left_hand_chord_neck_20260621_1128/`
   repeats the GH2DX/Deluxe `mrfixit` chord route from a 14s diagnostic start,
