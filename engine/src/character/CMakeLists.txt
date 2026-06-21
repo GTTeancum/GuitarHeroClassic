@@ -35,12 +35,23 @@ target_compile_definitions(ghogx_character_no_named_fix_test PRIVATE
 add_test(NAME ghogx_character_no_named_fix_test
          COMMAND ghogx_character_no_named_fix_test)
 
+add_executable(ghogx_character_left_hand_contract_test
+    character_left_hand_contract_test.cpp)
+target_compile_definitions(ghogx_character_left_hand_contract_test PRIVATE
+    GHOGX_CHARACTER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    GHOGX_GAME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../game")
+add_test(NAME ghogx_character_left_hand_contract_test
+         COMMAND ghogx_character_left_hand_contract_test)
+
 if(MSVC)
 target_compile_options(ghogx_character PRIVATE /W4)
 target_compile_options(ghogx_character_bind_audit PRIVATE /W4)
 target_compile_options(ghogx_character_no_named_fix_test PRIVATE /W4)
+target_compile_options(ghogx_character_left_hand_contract_test PRIVATE /W4)
 else()
     target_compile_options(ghogx_character PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_character_bind_audit PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_character_no_named_fix_test PRIVATE -Wall -Wextra)
+    target_compile_options(ghogx_character_left_hand_contract_test PRIVATE
+        -Wall -Wextra)
 endif()
