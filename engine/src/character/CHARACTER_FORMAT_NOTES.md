@@ -2899,3 +2899,12 @@ Viewer hand-overlay validation:
   Do not force guitar-style `_fret` / `_strum` hand overlays onto this graph;
   the shared loader should enable that path only when the character data proves
   it exists.
+- 2026-06-21 GH2DXu/GHDX validation repeats the same bassist gate after native
+  `player*_fret_pos` parsing was added. `mrfixit` now parses
+  `bassFretPos=272`, but
+  `analysis/native_validation/ghdx_mrfixit_bassist_hand_mingap_20260621_0026.log`
+  still reports `metal_bass` with `handDriver=0`, `handGraph=0`,
+  `ikHands=0`, and `ikMidis=0`, while loading `bassist_active_medium_01` and
+  playing `BAND BASS` cues. Keep bass coverage on the accepted body/prop
+  animation route unless a future accepted PS2 trace proves a bass-owned MIDI
+  hand-driver graph.
