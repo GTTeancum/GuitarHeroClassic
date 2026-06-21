@@ -2952,6 +2952,28 @@ Useful environment flags:
   `bone_fret_hand`; thumb rows stay in the accepted negative-Z neck-side band.
   The MP4 is useful secondary visual evidence, but the torso partially occludes
   the fret hand, so use the log as the stronger route proof.
+- 2026-06-21 current Rockabill1/Eddie Knox left-hand recheck:
+  `analysis/native_validation/ghdx_misirlou_rockabill_left_hand_20260621_1048/`
+  captures the GH2DX/Deluxe `misirlou` dense route from a 49.4s diagnostic
+  start, retaining the ~52.4s..56.4s window. The quickplay block resolves to
+  `rockabill1` / `lespaul` / `small2`, and the performer source remains the
+  authored Expert lane (`guitar_lane=3 notes=1426`). The retained MP4
+  `ghdx_misirlou_rockabill_left_hand.mp4` keeps the Les Paul neck and fretting
+  hand in frame; raw BMP frames were deleted after encoding. The log records
+  42 `player_fret` events across masks `0x01`, `0x02`, `0x04`, `0x07`,
+  `0x08`, `0x0d`, and `0x10`, selecting `finger_hold_index`,
+  `finger_hold_index_hi`, `finger_hold_middle_hi`, `finger_hold_pinky`,
+  `finger_hold_ring_hi`, `finger_powerchord_1`, and `finger_open`.
+  `player*_fret_pos` drives fret indices `1`, `2`, `5`, and `13..18`.
+  Post-controller `bone_L-hand` stays exactly at `bone_fret_hand`; thumb rows
+  remain in the accepted negative-Z neck-side band, with `bone_L-thumb01` at
+  `0.466..0.475 / 0.161..0.169 / -1.744..-1.743`. The companion row-only pass
+  `analysis/native_validation/ghdx_misirlou_rockabill_fingerrows_20260621_1052/`
+  confirms the looser Rockabill authored grip is still dynamic: the largest
+  post-controller left-finger rotation spans are `bone_L-pinky01` at
+  `0.39746`/`0.39741` and `bone_L-ringfinger01` at `0.32023`/`0.32011`.
+  This supports the same shared hand-driver/IK/output route; do not tighten
+  Rockabill1 fingers with an outfit override without a PS2 runtime mismatch.
 - 2026-06-20 Mr. Fix It chord-route pre-roll recheck:
   `engine/out/codex_goal_20260620_left_hand_preroll_mrfixit_chords/` starts at
   14s and captures the 17s+ powerchord window. The crop attempts in this folder
