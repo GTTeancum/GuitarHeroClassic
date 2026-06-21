@@ -276,6 +276,14 @@ Open work:
   lighting, and moving authored cameras. The singer marker is idle in this
   exact window even though the singer route and `singer_active_medium_01` are
   loaded, so do not use this as singer-performance parity signoff.
+  `analysis/native_validation/shout_singer_active_close_valid_20260621_005941/`
+  captures the same stock song from `--diagnostic-song-start 30.0` with a
+  debug camera on `singer:bone_head.mesh` after a log-only timestamp probe
+  found `BAND SINGER` in `[play]`. The MP4 and sheet show active singer
+  mouth/face changes with mic/stand and the drum kit visible behind; the log
+  records the singer `[play]` marker, `singer_active_medium_01`, 193 singer
+  FaceFX `graph=applied` rows, and five drum cues. This is character/FaceFX
+  inspection evidence only, not authored-camera parity evidence.
 
 2026-06-14 native validation:
 
