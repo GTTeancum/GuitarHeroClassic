@@ -18,6 +18,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <set>
 #include <vector>
 
@@ -37,6 +38,179 @@ struct SVtx {
 };
 constexpr DWORD kFVF =
     D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
+
+struct Bounds3 {
+  float mn[3] = {0, 0, 0};
+  float mx[3] = {0, 0, 0};
+  bool valid = false;
+};
+
+void add_bounds(Bounds3& b, const std::array<float, 3>& p) {
+  if (!b.valid) {
+    for (int k = 0; k < 3; ++k) b.mn[k] = b.mx[k] = p[k];
+    b.valid = true;
+    return;
+  }
+  for (int k = 0; k < 3; ++k) {
+    b.mn[k] = std::min(b.mn[k], p[k]);
+    b.mx[k] = std::max(b.mx[k], p[k]);
+  }
+}
+
+std::array<float, 3> xform_point(const std::array<float, 16>& m,
+                                 const std::array<float, 3>& p) {
+  return {
+      p[0] * m[0] + p[1] * m[4] + p[2] * m[8] + m[12],
+      p[0] * m[1] + p[1] * m[5] + p[2] * m[9] + m[13],
+      p[0] * m[2] + p[1] * m[6] + p[2] * m[10] + m[14],
+  };
+}
+
+std::array<float, 3> basis_delta(const std::array<float, 16>& basis,
+                                 const std::array<float, 3>& p) {
+  const float dx = p[0] - basis[12];
+  const float dy = p[1] - basis[13];
+  const float dz = p[2] - basis[14];
+  return {
+      basis[0] * dx + basis[1] * dy + basis[2] * dz,
+      basis[4] * dx + basis[5] * dy + basis[6] * dz,
+      basis[8] * dx + basis[9] * dy + basis[10] * dz,
+  };
+}
+
+float aabb_distance_sq(const milo_scene::MeshObj& mesh,
+                       const std::array<float, 3>& local) {
+  float d2 = 0.0f;
+  for (int k = 0; k < 3; ++k) {
+    float d = 0.0f;
+    if (local[k] < mesh.bb_min[k]) {
+      d = mesh.bb_min[k] - local[k];
+    } else if (local[k] > mesh.bb_max[k]) {
+      d = local[k] - mesh.bb_max[k];
+    }
+    d2 += d * d;
+  }
+  return d2;
+}
+
+std::array<float, 3> sub3(const std::array<float, 3>& a,
+                          const std::array<float, 3>& b) {
+  return {a[0] - b[0], a[1] - b[1], a[2] - b[2]};
+}
+
+std::array<float, 3> add3(const std::array<float, 3>& a,
+                          const std::array<float, 3>& b) {
+  return {a[0] + b[0], a[1] + b[1], a[2] + b[2]};
+}
+
+std::array<float, 3> scale3(const std::array<float, 3>& a, float s) {
+  return {a[0] * s, a[1] * s, a[2] * s};
+}
+
+float dot3(const std::array<float, 3>& a, const std::array<float, 3>& b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+std::array<float, 3> cross3(const std::array<float, 3>& a,
+                            const std::array<float, 3>& b) {
+  return {a[1] * b[2] - a[2] * b[1],
+          a[2] * b[0] - a[0] * b[2],
+          a[0] * b[1] - a[1] * b[0]};
+}
+
+std::array<float, 3> normalize3(const std::array<float, 3>& a) {
+  const float len2 = dot3(a, a);
+  if (len2 <= 1.0e-12f) return {0, 0, 0};
+  return scale3(a, 1.0f / std::sqrt(len2));
+}
+
+std::array<float, 3> closest_point_on_triangle(
+    const std::array<float, 3>& p, const std::array<float, 3>& a,
+    const std::array<float, 3>& b, const std::array<float, 3>& c) {
+  const auto ab = sub3(b, a);
+  const auto ac = sub3(c, a);
+  const auto ap = sub3(p, a);
+  const float d1 = dot3(ab, ap);
+  const float d2 = dot3(ac, ap);
+  if (d1 <= 0.0f && d2 <= 0.0f) return a;
+
+  const auto bp = sub3(p, b);
+  const float d3 = dot3(ab, bp);
+  const float d4 = dot3(ac, bp);
+  if (d3 >= 0.0f && d4 <= d3) return b;
+
+  const float vc = d1 * d4 - d3 * d2;
+  if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
+    const float v = d1 / (d1 - d3);
+    return add3(a, scale3(ab, v));
+  }
+
+  const auto cp = sub3(p, c);
+  const float d5 = dot3(ab, cp);
+  const float d6 = dot3(ac, cp);
+  if (d6 >= 0.0f && d5 <= d6) return c;
+
+  const float vb = d5 * d2 - d1 * d6;
+  if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
+    const float w = d2 / (d2 - d6);
+    return add3(a, scale3(ac, w));
+  }
+
+  const float va = d3 * d6 - d5 * d4;
+  if (va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f) {
+    const auto bc = sub3(c, b);
+    const float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+    return add3(b, scale3(bc, w));
+  }
+
+  const float denom = 1.0f / (va + vb + vc);
+  const float v = vb * denom;
+  const float w = vc * denom;
+  return add3(add3(a, scale3(ab, v)), scale3(ac, w));
+}
+
+struct MeshSurfaceClosest {
+  bool valid = false;
+  float dist_sq = std::numeric_limits<float>::infinity();
+  float signed_dist = 0.0f;
+  size_t tri = 0;
+  std::array<float, 3> closest{0, 0, 0};
+  std::array<float, 3> normal{0, 0, 0};
+};
+
+MeshSurfaceClosest closest_mesh_surface(const milo_scene::MeshObj& mesh,
+                                        const std::array<float, 3>& local) {
+  MeshSurfaceClosest best;
+  for (size_t tri = 0; tri + 2 < mesh.indices.size(); tri += 3) {
+    const uint16_t ia = mesh.indices[tri + 0];
+    const uint16_t ib = mesh.indices[tri + 1];
+    const uint16_t ic = mesh.indices[tri + 2];
+    if (ia >= mesh.verts.size() || ib >= mesh.verts.size() ||
+        ic >= mesh.verts.size()) {
+      continue;
+    }
+    const auto a = std::array<float, 3>{mesh.verts[ia].px, mesh.verts[ia].py,
+                                        mesh.verts[ia].pz};
+    const auto b = std::array<float, 3>{mesh.verts[ib].px, mesh.verts[ib].py,
+                                        mesh.verts[ib].pz};
+    const auto c = std::array<float, 3>{mesh.verts[ic].px, mesh.verts[ic].py,
+                                        mesh.verts[ic].pz};
+    const auto normal = normalize3(cross3(sub3(b, a), sub3(c, a)));
+    if (dot3(normal, normal) <= 0.0f) continue;
+    const auto closest = closest_point_on_triangle(local, a, b, c);
+    const auto delta = sub3(local, closest);
+    const float d2 = dot3(delta, delta);
+    if (!best.valid || d2 < best.dist_sq) {
+      best.valid = true;
+      best.dist_sq = d2;
+      best.signed_dist = dot3(delta, normal);
+      best.tri = tri / 3;
+      best.closest = closest;
+      best.normal = normal;
+    }
+  }
+  return best;
+}
 
 // A mesh is the flat blob-shadow decal (drawn on the floor) if its name starts
 // with "shadow". Skipping it keeps the character clean against the backdrop.
@@ -675,6 +849,21 @@ bool debug_skin_matrix_all_enabled() {
 #endif
 }
 
+bool debug_surface_contact_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_SURFACE_CONTACT") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_SURFACE_CONTACT");
+  return value && value[0];
+#endif
+}
+
 bool debug_hair_space_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -869,6 +1058,51 @@ bool runtime_hair_world_override(const Character& character,
   return false;
 }
 
+int character_bone_index(const Character& character, const std::string& name) {
+  for (size_t i = 0; i < character.bones.size(); ++i) {
+    if (character.bones[i].name == name) return static_cast<int>(i);
+  }
+  return -1;
+}
+
+const milo_scene::TransObj* scene_trans(
+    const milo_scene::Scene& scene,
+    const std::string& name) {
+  for (const auto& t : scene.transes) {
+    if (t.name == name) return &t;
+  }
+  return nullptr;
+}
+
+void reconcile_instrument_anchor(Character& character,
+                                 std::vector<milo_scene::Xfm>& original_locals,
+                                 const milo_scene::Scene& prop_scene,
+                                 const std::string& attach_bone,
+                                 const char* anchor_name) {
+  const auto* prop_anchor = scene_trans(prop_scene, anchor_name);
+  if (!prop_anchor || prop_anchor->parent != attach_bone) return;
+
+  const int bone_i = character_bone_index(character, anchor_name);
+  if (bone_i < 0) return;
+  auto& bone = character.bones[static_cast<size_t>(bone_i)];
+  if (bone.parent != attach_bone) return;
+
+  const auto old = bone.local;
+  bone.local = prop_anchor->local;
+  if (character.bind_bone_local.size() > static_cast<size_t>(bone_i))
+    character.bind_bone_local[static_cast<size_t>(bone_i)] =
+        prop_anchor->local;
+  if (original_locals.size() > static_cast<size_t>(bone_i))
+    original_locals[static_cast<size_t>(bone_i)] = prop_anchor->local;
+
+  std::fprintf(stderr,
+               "[char3d] instrument anchor %s from prop '%s': "
+               "local=(%.4f %.4f %.4f) was=(%.4f %.4f %.4f)\n",
+               anchor_name, prop_scene.dir_name.c_str(),
+               prop_anchor->local.pos[0], prop_anchor->local.pos[1],
+               prop_anchor->local.pos[2], old.pos[0], old.pos[1], old.pos[2]);
+}
+
 std::array<float, 16> mul16(const std::array<float, 16>& a,
                             const std::array<float, 16>& b);
 std::array<float, 16> affine_inverse(const std::array<float, 16>& m);
@@ -877,6 +1111,9 @@ std::array<float, 16> raw_current_world(const Character& character,
                                         const std::string& name);
 std::array<float, 16> scene_object_world(const milo_scene::Scene& scene,
                                          const std::string& name);
+std::optional<std::array<float, 16>> scene_object_stored_world(
+    const milo_scene::Scene& scene,
+    const std::string& name);
 
 std::array<float, 16> prop_attach_world(const Character& character,
                                         const std::string& attach_bone) {
@@ -1316,6 +1553,9 @@ void CharRenderer::set_attached_prop(
   impl_->prop_scene = std::move(scene);
   impl_->prop_attach_bone = attach_bone;
   impl_->has_prop = true;
+  reconcile_instrument_anchor(impl_->character, impl_->original_bone_local,
+                              impl_->prop_scene, impl_->prop_attach_bone,
+                              "bone_fret.mesh");
   for (const auto& kv : textures) {
     IDirect3DTexture9* t = upload(kv.second);
     if (t) impl_->prop_tex[kv.first] = t;
@@ -1608,6 +1848,166 @@ void CharRenderer::draw_impl(bool clear_target) {
                    m.name.c_str(), m.material.c_str(), spos.size(), mn[0],
                    mn[1], mn[2], mx[0], mx[1], mx[2]);
     }
+    if (debug_surface_contact_enabled() && debug_mesh_mode_enabled(m.name) &&
+        !spos.empty()) {
+      auto log_ref_space = [&](const char* ref_name) {
+        const int ref_i = character_bone_index(impl.character, ref_name);
+        if (ref_i < 0) return;
+        auto ref_world = impl.character.bone_world_local_chain(ref_name);
+        ref_world = mul16(ref_world, impl.world_transform);
+        Bounds3 b;
+        size_t max_front_i = 0;
+        std::array<float, 3> max_front{0, 0, 0};
+        for (size_t vi = 0; vi < spos.size(); ++vi) {
+          const auto world = xform_point(mw, spos[vi]);
+          const auto d = basis_delta(ref_world, world);
+          add_bounds(b, d);
+          if (vi == 0 || d[2] > max_front[2]) {
+            max_front_i = vi;
+            max_front = d;
+          }
+        }
+        const SkinVertex& v = m.verts[max_front_i];
+        std::fprintf(stderr,
+                     "[surface-contact] mesh=%s ref=%s verts=%zu "
+                     "localBounds=(%.4f %.4f %.4f)..(%.4f %.4f %.4f) "
+                     "maxFront_i=%zu local=(%.4f %.4f %.4f) "
+                     "raw=(%.4f %.4f %.4f) weights=(%.4f %.4f %.4f %.4f)\n",
+                     m.name.c_str(), ref_name, spos.size(), b.mn[0], b.mn[1],
+                     b.mn[2], b.mx[0], b.mx[1], b.mx[2], max_front_i,
+                     max_front[0], max_front[1], max_front[2], v.px, v.py,
+                     v.pz, v.w[0], v.w[1], v.w[2], v.w[3]);
+      };
+      log_ref_space("bone_fret_hand.mesh");
+      log_ref_space("bone_fret.mesh");
+
+      if (impl.has_prop && !impl.prop_attach_bone.empty()) {
+        const auto attach_world =
+            prop_attach_world(impl.character, impl.prop_attach_bone);
+        const auto prop_anchor_world =
+            scene_object_world(impl.prop_scene, impl.prop_attach_bone);
+        const auto prop_to_attach =
+            mul16(affine_inverse(prop_anchor_world), attach_world);
+        for (const auto& pm : impl.prop_scene.meshes) {
+          if (!pm.decoded || pm.verts.empty()) continue;
+          auto prop_world = mul16(impl.prop_scene.world_matrix(pm),
+                                  prop_to_attach);
+          prop_world = mul16(prop_world, impl.world_transform);
+          const auto inv_prop_world = affine_inverse(prop_world);
+          float best_d2 = 0.0f;
+          size_t best_i = 0;
+          int inside_count = 0;
+          std::array<float, 3> best_local{0, 0, 0};
+          const bool tri_contact =
+              (pm.name == "guitar.mesh" ||
+               pm.name == "guitar_strings.mesh") &&
+              !pm.indices.empty();
+          size_t tri_samples = 0;
+          float min_dist = std::numeric_limits<float>::infinity();
+          float max_dist = 0.0f;
+          float sum_dist = 0.0f;
+          float min_signed = std::numeric_limits<float>::infinity();
+          float max_signed = -std::numeric_limits<float>::infinity();
+          int negative_signed = 0;
+          size_t nearest_tri_i = 0;
+          size_t nearest_tri = 0;
+          size_t min_signed_i = 0;
+          size_t min_signed_tri = 0;
+          std::array<float, 3> nearest_tri_local{0, 0, 0};
+          std::array<float, 3> nearest_tri_closest{0, 0, 0};
+          std::array<float, 3> nearest_tri_normal{0, 0, 0};
+          std::array<float, 3> min_signed_local{0, 0, 0};
+          std::array<float, 3> min_signed_closest{0, 0, 0};
+          std::array<float, 3> min_signed_normal{0, 0, 0};
+          for (size_t vi = 0; vi < spos.size(); ++vi) {
+            const auto world = xform_point(mw, spos[vi]);
+            const auto local = xform_point(inv_prop_world, world);
+            const float d2 = aabb_distance_sq(pm, local);
+            if (vi == 0 || d2 < best_d2) {
+              best_d2 = d2;
+              best_i = vi;
+              best_local = local;
+            }
+            if (d2 == 0.0f) ++inside_count;
+            if (tri_contact) {
+              const auto hit = closest_mesh_surface(pm, local);
+              if (hit.valid) {
+                const float dist = std::sqrt(hit.dist_sq);
+                if (tri_samples == 0 || dist < min_dist) {
+                  min_dist = dist;
+                  nearest_tri_i = vi;
+                  nearest_tri = hit.tri;
+                  nearest_tri_local = local;
+                  nearest_tri_closest = hit.closest;
+                  nearest_tri_normal = hit.normal;
+                }
+                max_dist = std::max(max_dist, dist);
+                sum_dist += dist;
+                if (tri_samples == 0 || hit.signed_dist < min_signed) {
+                  min_signed = hit.signed_dist;
+                  min_signed_i = vi;
+                  min_signed_tri = hit.tri;
+                  min_signed_local = local;
+                  min_signed_closest = hit.closest;
+                  min_signed_normal = hit.normal;
+                }
+                max_signed = std::max(max_signed, hit.signed_dist);
+                if (hit.signed_dist < -1.0e-4f) ++negative_signed;
+                ++tri_samples;
+              }
+            }
+          }
+          const SkinVertex& v = m.verts[best_i];
+          std::fprintf(stderr,
+                       "[surface-prop] mesh=%s prop=%s mat=%s verts=%zu "
+                       "inside=%d nearest_i=%zu dist=%.4f "
+                       "propLocal=(%.4f %.4f %.4f) "
+                       "propBBox=(%.4f %.4f %.4f)..(%.4f %.4f %.4f) "
+                       "raw=(%.4f %.4f %.4f) weights=(%.4f %.4f %.4f %.4f)\n",
+                       m.name.c_str(), pm.name.c_str(), pm.material.c_str(),
+                       spos.size(), inside_count, best_i, std::sqrt(best_d2),
+                       best_local[0], best_local[1], best_local[2],
+                       pm.bb_min[0], pm.bb_min[1], pm.bb_min[2],
+                       pm.bb_max[0], pm.bb_max[1], pm.bb_max[2], v.px, v.py,
+                       v.pz, v.w[0], v.w[1], v.w[2], v.w[3]);
+          if (tri_contact && tri_samples > 0) {
+            const SkinVertex& nearest_v = m.verts[nearest_tri_i];
+            const SkinVertex& signed_v = m.verts[min_signed_i];
+            std::fprintf(
+                stderr,
+                "[surface-prop-tri] mesh=%s prop=%s verts=%zu tris=%zu "
+                "minDist=%.4f meanDist=%.4f maxDist=%.4f "
+                "minSigned=%.4f maxSigned=%.4f negSigned=%d "
+                "nearest_i=%zu tri=%zu local=(%.4f %.4f %.4f) "
+                "closest=(%.4f %.4f %.4f) normal=(%.4f %.4f %.4f) "
+                "raw=(%.4f %.4f %.4f) weights=(%.4f %.4f %.4f %.4f) "
+                "minSigned_i=%zu minSignedTri=%zu "
+                "minSignedLocal=(%.4f %.4f %.4f) "
+                "minSignedClosest=(%.4f %.4f %.4f) "
+                "minSignedNormal=(%.4f %.4f %.4f) "
+                "minSignedRaw=(%.4f %.4f %.4f) "
+                "minSignedWeights=(%.4f %.4f %.4f %.4f)\n",
+                m.name.c_str(), pm.name.c_str(), spos.size(),
+                pm.indices.size() / 3, min_dist,
+                sum_dist / static_cast<float>(tri_samples), max_dist,
+                min_signed, max_signed, negative_signed, nearest_tri_i,
+                nearest_tri, nearest_tri_local[0], nearest_tri_local[1],
+                nearest_tri_local[2], nearest_tri_closest[0],
+                nearest_tri_closest[1], nearest_tri_closest[2],
+                nearest_tri_normal[0], nearest_tri_normal[1],
+                nearest_tri_normal[2], nearest_v.px, nearest_v.py,
+                nearest_v.pz, nearest_v.w[0], nearest_v.w[1], nearest_v.w[2],
+                nearest_v.w[3], min_signed_i, min_signed_tri,
+                min_signed_local[0], min_signed_local[1],
+                min_signed_local[2], min_signed_closest[0],
+                min_signed_closest[1], min_signed_closest[2],
+                min_signed_normal[0], min_signed_normal[1],
+                min_signed_normal[2], signed_v.px, signed_v.py, signed_v.pz,
+                signed_v.w[0], signed_v.w[1], signed_v.w[2], signed_v.w[3]);
+          }
+        }
+      }
+    }
     D3DMATRIX dm{}; std::memcpy(&dm, mw.data(), 64);
     dev->SetTransform(D3DTS_WORLD, &dm);
 
@@ -1713,6 +2113,39 @@ void CharRenderer::draw_impl(bool clear_target) {
                    prop_anchor_world[12], prop_anchor_world[13],
                    prop_anchor_world[14], prop_to_attach[12],
                    prop_to_attach[13], prop_to_attach[14]);
+      static constexpr const char* kPropDebugObjects[] = {
+          "bone_pos_guitar.mesh",
+          "bone_fret.mesh",
+          "bone_fret_hand.mesh",
+          "guitar.mesh",
+          "guitar_strings.mesh",
+          "shadow_guitar.mesh",
+      };
+      for (const char* object_name : kPropDebugObjects) {
+        const auto stored_world =
+            scene_object_stored_world(impl.prop_scene, object_name);
+        if (!stored_world) continue;
+        const auto composed_world =
+            scene_object_world(impl.prop_scene, object_name);
+        const auto composed_char = mul16(composed_world, prop_to_attach);
+        const auto stored_char = mul16(*stored_world, prop_to_attach);
+        std::fprintf(stderr,
+                     "[prop-rel] obj=%s comp=(%.3f %.3f %.3f)\n",
+                     object_name, composed_world[12], composed_world[13],
+                     composed_world[14]);
+        std::fprintf(stderr,
+                     "[prop-rel] obj=%s stored=(%.3f %.3f %.3f)\n",
+                     object_name, (*stored_world)[12], (*stored_world)[13],
+                     (*stored_world)[14]);
+        std::fprintf(stderr,
+                     "[prop-rel] obj=%s char_comp=(%.3f %.3f %.3f)\n",
+                     object_name, composed_char[12], composed_char[13],
+                     composed_char[14]);
+        std::fprintf(stderr,
+                     "[prop-rel] obj=%s char_stored=(%.3f %.3f %.3f)\n",
+                     object_name, stored_char[12], stored_char[13],
+                     stored_char[14]);
+      }
     }
     D3DMATRIX wm;
     for (const auto& m : impl.prop_scene.meshes) {
@@ -1720,14 +2153,16 @@ void CharRenderer::draw_impl(bool clear_target) {
       if (is_shadow(m.name)) continue;
 
       auto local_world = impl.prop_scene.world_matrix(m);
-      auto world = mul16(local_world, prop_to_attach);
-      world = mul16(world, impl.world_transform);
+      auto character_world = mul16(local_world, prop_to_attach);
+      auto world = mul16(character_world, impl.world_transform);
       if (debug_prop_enabled() && impl.logged_prop_debug &&
           m.name == "guitar.mesh") {
         std::fprintf(stderr,
-                     "[prop] mesh %s local=(%.3f %.3f %.3f) world=(%.3f %.3f %.3f)\n",
+                     "[prop] mesh %s local=(%.3f %.3f %.3f) "
+                     "char=(%.3f %.3f %.3f) world=(%.3f %.3f %.3f)\n",
                      m.name.c_str(), local_world[12], local_world[13],
-                     local_world[14], world[12], world[13], world[14]);
+                     local_world[14], character_world[12], character_world[13],
+                     character_world[14], world[12], world[13], world[14]);
         impl.logged_prop_debug = false;
       }
       std::memcpy(&wm, world.data(), 64);
@@ -1921,6 +2356,18 @@ std::array<float, 16> scene_object_world(const milo_scene::Scene& scene,
     parent = next_parent;
   }
   return world;
+}
+
+std::optional<std::array<float, 16>> scene_object_stored_world(
+    const milo_scene::Scene& scene,
+    const std::string& name) {
+  for (const auto& m : scene.meshes) {
+    if (m.name == name) return scene.world_matrix(m);
+  }
+  for (const auto& t : scene.transes) {
+    if (t.name == name) return xfm16(t.world_stored);
+  }
+  return std::nullopt;
 }
 
 }  // namespace

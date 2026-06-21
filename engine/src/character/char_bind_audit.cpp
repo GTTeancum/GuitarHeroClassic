@@ -115,6 +115,13 @@ std::string mesh_detail_name(int argc, char** argv) {
   return {};
 }
 
+bool should_dump_verts(int argc, char** argv) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--dump-verts") == 0) return true;
+  }
+  return false;
+}
+
 struct Bounds {
   float min[3] = {999999.0f, 999999.0f, 999999.0f};
   float max[3] = {-999999.0f, -999999.0f, -999999.0f};
@@ -141,7 +148,8 @@ void print_bounds(const char* label, const Bounds& b) {
       b.max[2]);
 }
 
-void audit_mesh_detail(const Character& c, const SkinnedMesh& m) {
+void audit_mesh_detail(const Character& c, const SkinnedMesh& m,
+                       bool dump_verts) {
   const size_t nb = m.bone_palette.size();
   std::printf(
       "[mesh-detail] char=%s mesh=%s parent=%s mat=%s verts=%zu faces=%zu "
@@ -198,6 +206,16 @@ void audit_mesh_detail(const Character& c, const SkinnedMesh& m) {
           "pos=(%.4f %.4f %.4f)\n",
           bind[0], bind[1], bind[2], bind[4], bind[5], bind[6], bind[8],
           bind[9], bind[10], bind[12], bind[13], bind[14]);
+    }
+  }
+  if (dump_verts) {
+    for (size_t vi = 0; vi < m.verts.size(); ++vi) {
+      const auto& v = m.verts[vi];
+      std::printf(
+          "[mesh-vert] mesh=%s vi=%zu raw=(%.5f %.5f %.5f) "
+          "weights=(%.5f %.5f %.5f %.5f)\n",
+          m.name.c_str(), vi, v.px, v.py, v.pz, v.w[0], v.w[1],
+          v.w[2], v.w[3]);
     }
   }
 }
@@ -274,7 +292,8 @@ std::vector<std::string> default_character_paths() {
 void usage() {
   std::fprintf(stderr,
                "usage: ghogx_character_bind_audit --ark-dir <GEN> [--all] "
-               "[--mesh-detail <mesh>] [char/...milo_ps2 ...]\n");
+               "[--mesh-detail <mesh>] [--dump-verts] "
+               "[char/...milo_ps2 ...]\n");
 }
 
 }  // namespace
@@ -290,6 +309,8 @@ int main(int argc, char** argv) {
       // handled separately
     } else if (arg == "--mesh-detail" && i + 1 < argc) {
       ++i;
+    } else if (arg == "--dump-verts") {
+      // handled with --mesh-detail
     } else if (!arg.empty() && arg[0] != '-') {
       milos.push_back(arg);
     } else {
@@ -308,6 +329,7 @@ int main(int argc, char** argv) {
   const std::string hdr = (dir / "main.hdr").string();
   const std::string ark = (dir / "main_0.ark").string();
   const bool all = should_show_all(argc, argv);
+  const bool dump_verts = should_dump_verts(argc, argv);
 
   int failed = 0;
   for (const std::string& milo : milos) {
@@ -320,7 +342,7 @@ int main(int argc, char** argv) {
     for (const SkinnedMesh& m : c.meshes) {
       audit_mesh(c, m, all);
       if (!detail_mesh.empty() && m.name == detail_mesh) {
-        audit_mesh_detail(c, m);
+        audit_mesh_detail(c, m, dump_verts);
       }
     }
   }

@@ -19,6 +19,8 @@ namespace ghogx::chart {
 
 namespace {
 
+constexpr double kFretPositionMinGapSeconds = 0.22;
+
 // Read a big-endian unsigned integer of `n` bytes (1..4) from `p`.
 // Returns 0 if n==0.
 inline uint32_t read_be(const uint8_t* p, int n) {
@@ -58,6 +60,12 @@ bool decode_gem(int pitch, int& diff_out, int& lane_out) {
         }
     }
     return false;
+}
+
+bool decode_fret_position(int pitch, int& spot_index_out) {
+    if (pitch < 40 || pitch > 59) return false;
+    spot_index_out = pitch - 39;
+    return true;
 }
 
 
@@ -302,6 +310,44 @@ double Chart::duration_sec() const {
         for (const auto& n : bass_notes[d])
             last = std::max(last, n.tick_off);
     return tick_to_sec(last);
+}
+
+void append_fret_position_cues(const std::vector<TrackNoteOn>& src_notes,
+                               std::vector<FretPositionCue>& dst) {
+    for (const auto& note : src_notes) {
+        int spot_index = 0;
+        if (!decode_fret_position(note.pitch, spot_index)) continue;
+        dst.push_back({note.tick, note.pitch, spot_index});
+    }
+}
+
+void sort_fret_position_cues(std::vector<FretPositionCue>& cues) {
+    std::sort(cues.begin(), cues.end(),
+              [](const FretPositionCue& a, const FretPositionCue& b) {
+                  if (a.tick != b.tick) return a.tick < b.tick;
+                  return a.pitch < b.pitch;
+              });
+}
+
+void apply_fret_position_min_gap(const Chart& chart,
+                                 std::vector<FretPositionCue>& cues) {
+    if (cues.empty()) return;
+
+    std::vector<FretPositionCue> filtered;
+    filtered.reserve(cues.size());
+    double last_accepted_sec = 0.0;
+    bool have_accepted = false;
+    for (const auto& cue : cues) {
+        const double cue_sec = chart.tick_to_sec(cue.tick);
+        if (have_accepted &&
+            cue_sec - last_accepted_sec < kFretPositionMinGapSeconds) {
+            continue;
+        }
+        filtered.push_back(cue);
+        last_accepted_sec = cue_sec;
+        have_accepted = true;
+    }
+    cues.swap(filtered);
 }
 
 // ---------------------------------------------------------------------------
@@ -604,6 +650,7 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     for (size_t t : guitar_tracks) {
         for (auto& n : all_raw[t]) raw_notes.push_back(n);
         for (auto& s : all_sp[t])  sp_regions.push_back(s);
+        append_fret_position_cues(all_note_ons[t], chart.fret_positions);
     }
 
     append_chart_notes(raw_notes, sp_regions, chart.notes);
@@ -620,14 +667,22 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                          t, tracks[t].name.c_str());
             for (auto& n : all_raw[t]) raw_bass_notes.push_back(n);
             for (auto& s : all_sp[t]) bass_sp_regions.push_back(s);
+            append_fret_position_cues(all_note_ons[t],
+                                      chart.bass_fret_positions);
         }
         append_chart_notes(raw_bass_notes, bass_sp_regions, chart.bass_notes);
     }
 
-    std::fprintf(stderr, "[midi] parsed: Easy=%zu Med=%zu Hard=%zu Expert=%zu BassMed=%zu dur=%.1fs\n",
+    sort_fret_position_cues(chart.fret_positions);
+    apply_fret_position_min_gap(chart, chart.fret_positions);
+    sort_fret_position_cues(chart.bass_fret_positions);
+    apply_fret_position_min_gap(chart, chart.bass_fret_positions);
+
+    std::fprintf(stderr, "[midi] parsed: Easy=%zu Med=%zu Hard=%zu Expert=%zu BassMed=%zu fretPos=%zu bassFretPos=%zu dur=%.1fs\n",
                  chart.notes[0].size(), chart.notes[1].size(),
                  chart.notes[2].size(), chart.notes[3].size(),
-                 chart.bass_notes[1].size(),
+                 chart.bass_notes[1].size(), chart.fret_positions.size(),
+                 chart.bass_fret_positions.size(),
                  chart.duration_sec());
     return chart;
 }

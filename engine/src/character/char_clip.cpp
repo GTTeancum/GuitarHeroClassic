@@ -2186,13 +2186,14 @@ static void apply_ps2_upper_twists(
   }
 }
 
-static float effective_ik_hand_weight(const Character& character,
-                                      const CharIKHand& ik) {
+static float effective_ik_hand_solver_weight(const Character& character,
+                                             const CharIKHand& ik) {
   if (!ik.weight_prop.empty()) {
     const auto runtime = character.runtime_weight_props.find(ik.weight_prop);
     if (runtime != character.runtime_weight_props.end()) {
-      // PS2 CharIKHand reads the live scalar row reached from base+0x10.
-      // Once gameplay publishes that row, it is authoritative for this tick.
+      // MIDI hand-driver code writes the live left/right scalar each tick.
+      // That live row overrides serialized WeightSetter defaults such as the
+      // zeroed rows found on Deathmetal1's graph.
       return std::clamp(runtime->second, 0.0f, 1.0f);
     }
   }
@@ -2209,9 +2210,6 @@ static float effective_ik_hand_weight(const Character& character,
     }
   }
   if (has_weight_row) {
-    // Accepted traces resolve left.weight/right.weight as runtime rows. Their
-    // value gates the hand IK; a hand driver's serialized weight is not a live
-    // replacement for the scheduler-raised property.
     return std::clamp(row_weight, 0.0f, 1.0f);
   }
 
@@ -2222,6 +2220,20 @@ static float effective_ik_hand_weight(const Character& character,
     weight = std::max(weight, driver.weight);
   }
   return std::clamp(weight, 0.0f, 1.0f);
+}
+
+static float effective_ik_hand_target_blend_weight(const Character& character,
+                                                   const CharIKHand& ik) {
+  if (!ik.weight_prop.empty()) {
+    const auto runtime = character.runtime_weight_props.find(ik.weight_prop);
+    if (runtime != character.runtime_weight_props.end()) {
+      // PS2 CharIKHand reaches the live scalar row through base+0x10 and uses
+      // it while updating the persistent controller +0x50 target vector. The
+      // arm solve still runs against that live row at the graph's IK strength.
+      return std::clamp(runtime->second, 0.0f, 1.0f);
+    }
+  }
+  return effective_ik_hand_solver_weight(character, ik);
 }
 
 enum class Ps2IkPollRole {
@@ -2305,13 +2317,17 @@ static void apply_ps2_ik_hand_targets(
   for (const CharIKHand* ik_ptr : ik_hands) {
     const CharIKHand& ik = *ik_ptr;
     const int hand_i = find_bone_index(character, ik.hand);
-    const float ik_weight = effective_ik_hand_weight(character, ik);
-    if (hand_i < 0 || ik_weight <= 0.0f) {
+    const float solver_weight =
+        effective_ik_hand_solver_weight(character, ik);
+    const float target_blend_weight =
+        effective_ik_hand_target_blend_weight(character, ik);
+    if (hand_i < 0 || solver_weight <= 0.0f) {
       if (debug_ik_enabled()) {
         std::fprintf(stderr,
-                     "[ik-ps2] %s skipped hand=%s weight=%.3f hand_found=%d\n",
-                     ik.name.c_str(), ik.hand.c_str(), ik_weight,
-                     hand_i >= 0 ? 1 : 0);
+                     "[ik-ps2] %s skipped hand=%s solveWeight=%.3f "
+                     "targetBlend=%.5f hand_found=%d\n",
+                     ik.name.c_str(), ik.hand.c_str(), solver_weight,
+                     target_blend_weight, hand_i >= 0 ? 1 : 0);
       }
       continue;
     }
@@ -2335,7 +2351,24 @@ static void apply_ps2_ik_hand_targets(
     const auto upper_world0 = character.bone_world_local_chain(upper.name);
     const auto hand_world = character.bone_world_local_chain(hand.name);
     const Vec3 shoulder = mat_pos(upper_world0);
-    const Vec3 target = mat_pos(target_world);
+    const Vec3 raw_target = mat_pos(target_world);
+    const std::string live_key =
+        !ik.name.empty() ? ik.name : (ik.hand + "->" + ik.target);
+    Vec3 previous_live = mat_pos(hand_world);
+    if (const auto it = character.runtime_ik_hand_targets.find(live_key);
+        it != character.runtime_ik_hand_targets.end()) {
+      previous_live = {it->second[0], it->second[1], it->second[2]};
+    }
+    Vec3 target = raw_target;
+    if (target_blend_weight < 0.999f) {
+      target = vadd(vscale(previous_live, 1.0f - target_blend_weight),
+                    vscale(raw_target, target_blend_weight));
+    }
+    character.runtime_ik_hand_targets[live_key] =
+        {target.x, target.y, target.z};
+    target_world[12] = target.x;
+    target_world[13] = target.y;
+    target_world[14] = target.z;
     const milo_scene::Xfm& fore_setup =
         (static_cast<size_t>(fore_i) < bind_bones.size())
             ? bind_bones[static_cast<size_t>(fore_i)]
@@ -2376,8 +2409,8 @@ static void apply_ps2_ik_hand_targets(
     for (int r = 0; r < 3; ++r)
       for (int c = 0; c < 3; ++c)
         fore.local.rot[r][c] =
-            fore_local0.rot[r][c] * (1.0f - ik_weight) +
-            solved_fore.rot[r][c] * ik_weight;
+            fore_local0.rot[r][c] * (1.0f - solver_weight) +
+            solved_fore.rot[r][c] * solver_weight;
     normalize_xfm_rows(fore.local);
 
     const auto upper_world_after_bend =
@@ -2409,21 +2442,23 @@ static void apply_ps2_ik_hand_targets(
       for (int r = 0; r < 3; ++r) {
         for (int c = 0; c < 3; ++c) {
           upper.local.rot[r][c] =
-              upper.local.rot[r][c] * (1.0f - ik_weight) +
-              solved_upper.rot[r][c] * ik_weight;
+              upper.local.rot[r][c] * (1.0f - solver_weight) +
+              solved_upper.rot[r][c] * solver_weight;
         }
       }
       normalize_xfm_rows(upper.local);
     } else if (postmultiply_swing) {
       if (transpose_swing) transpose_rot3(swing_rot);
-      post_multiply_local_rot(upper.local, upper_local0, swing_rot, ik_weight);
+      post_multiply_local_rot(upper.local, upper_local0, swing_rot,
+                              solver_weight);
     } else {
       if (transpose_swing) transpose_rot3(swing_rot);
       // The accepted PS2 traces call vector-to-quat/quat-to-matrix and then
       // dirty the driven Trans row. In the native row-vector skeleton this
       // corresponds to applying the helper matrix before the authored local
       // row; postmultiply is retained only for A/B diagnostics.
-      pre_multiply_local_rot(upper.local, upper_local0, swing_rot, ik_weight);
+      pre_multiply_local_rot(upper.local, upper_local0, swing_rot,
+                             solver_weight);
     }
 
     const auto hand_world_before_final =
@@ -2441,19 +2476,19 @@ static void apply_ps2_ik_hand_targets(
         for (int r = 0; r < 3; ++r) {
           for (int c = 0; c < 3; ++c) {
             solved_world[r * 4 + c] =
-                solved_world[r * 4 + c] * (1.0f - ik_weight) +
-                desired_orientation[r * 4 + c] * ik_weight;
+                solved_world[r * 4 + c] * (1.0f - solver_weight) +
+                desired_orientation[r * 4 + c] * solver_weight;
           }
         }
       }
       if ((ik.stretch || ps2_ik_hand_position_enabled()) &&
           !ps2_ik_hand_final_position_disabled()) {
-        solved_world[12] = solved_world[12] * (1.0f - ik_weight) +
-                           target_world[12] * ik_weight;
-        solved_world[13] = solved_world[13] * (1.0f - ik_weight) +
-                           target_world[13] * ik_weight;
-        solved_world[14] = solved_world[14] * (1.0f - ik_weight) +
-                           target_world[14] * ik_weight;
+        solved_world[12] = solved_world[12] * (1.0f - solver_weight) +
+                           target_world[12] * solver_weight;
+        solved_world[13] = solved_world[13] * (1.0f - solver_weight) +
+                           target_world[13] * solver_weight;
+        solved_world[14] = solved_world[14] * (1.0f - solver_weight) +
+                           target_world[14] * solver_weight;
       }
       normalize_mat3_rows(solved_world);
       // SLUS final hand closure calls the shared Trans writer with a resolved
@@ -2500,15 +2535,21 @@ static void apply_ps2_ik_hand_targets(
                    "[ik-solve-flags] %s stretch=%d orient=%d final=%d\n",
                    ik.name.c_str(), ik.stretch ? 1 : 0,
                    ik.orientation ? 1 : 0, write_final ? 1 : 0);
+      std::fprintf(stderr,
+                   "[ik-live-target] %s raw=[%.5f %.5f %.5f] live=[%.5f %.5f %.5f] prev=[%.5f %.5f %.5f] weight=%.5f\n",
+                   ik.name.c_str(), raw_target.x, raw_target.y,
+                   raw_target.z, target.x, target.y, target.z,
+                   previous_live.x, previous_live.y, previous_live.z,
+                   target_blend_weight);
       log_debug_world_row("ik-ps2-preswing-upper", upper.name.c_str(),
                           upper_world_after_bend);
       log_debug_world_row("ik-ps2-preswing-hand", hand.name.c_str(),
                           hand_world_after_bend);
       std::fprintf(stderr,
-                   "[ik-ps2] %s hand=%s target=%s weight=%.3f hand=[%.2f %.2f %.2f] target=[%.2f %.2f %.2f] len=(%.2f %.2f) dist=%.2f cos=%.3f swing=%s%s final=%d orient=%d stretch=%d bendParent=%s upper=%s\n",
+                   "[ik-ps2] %s hand=%s target=%s solveWeight=%.3f targetBlend=%.5f hand=[%.2f %.2f %.2f] target=[%.2f %.2f %.2f] len=(%.2f %.2f) dist=%.2f cos=%.3f swing=%s%s final=%d orient=%d stretch=%d bendParent=%s upper=%s\n",
                    ik.name.c_str(), ik.hand.c_str(), ik.target.c_str(),
-                   ik_weight, hp.x, hp.y, hp.z, tp.x, tp.y, tp.z,
-                   upper_len, fore_len, raw_dist, cos_elbow,
+                   solver_weight, target_blend_weight, hp.x, hp.y, hp.z,
+                   tp.x, tp.y, tp.z, upper_len, fore_len, raw_dist, cos_elbow,
                    aimed_swing ? "aim" : (postmultiply_swing ? "post" : "pre"),
                    transpose_swing ? "+T" : "",
                    write_final ? 1 : 0, ik.orientation ? 1 : 0,
@@ -2549,7 +2590,7 @@ static void apply_ps2_ik_hand_targets(
 static void apply_legacy_ik_hands(Character& character) {
   for (const auto& ik : character.ik_hands) {
     const int hand_i = find_bone_index(character, ik.hand);
-    const float ik_weight = effective_ik_hand_weight(character, ik);
+    const float ik_weight = effective_ik_hand_solver_weight(character, ik);
     if (hand_i < 0 || ik_weight <= 0.0f) continue;
     auto& hand = character.bones[(size_t)hand_i];
     const int fore_i = find_bone_index(character, hand.parent);
@@ -2959,6 +3000,38 @@ static bool output_bones_have_hand_driver_root(
   return false;
 }
 
+enum class HandDriverOutputGroup {
+  Fret,
+  Strum,
+};
+
+static bool hand_driver_key_matches_group(const std::string& key,
+                                          HandDriverOutputGroup group) {
+  if (group == HandDriverOutputGroup::Fret) {
+    return key == "bone_fret" || key == "bone_fret_hand" ||
+           key.rfind("bone_L-", 0) == 0;
+  }
+  return key == "bone_strum" || key == "bone_strum_hand" ||
+         key.rfind("bone_R-", 0) == 0;
+}
+
+static bool output_bones_have_hand_driver_group_root(
+    const std::vector<CharClip::OutputBone>& output_bones,
+    HandDriverOutputGroup group) {
+  for (const auto& out : output_bones) {
+    const std::string key = strip_transform_suffix(out.name);
+    if (group == HandDriverOutputGroup::Fret &&
+        (key == "bone_fret" || key == "bone_fret_hand")) {
+      return true;
+    }
+    if (group == HandDriverOutputGroup::Strum &&
+        (key == "bone_strum" || key == "bone_strum_hand")) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static int output_depth(const std::vector<OutputPoseNode>& nodes,
                         const std::unordered_map<std::string, size_t>& by_key,
                         size_t index) {
@@ -3077,6 +3150,11 @@ static bool output_map_interesting_bone(const std::string& key) {
          key.find("-foreArm") != std::string::npos ||
          key.find("-clavicle") != std::string::npos ||
          key.find("-hand") != std::string::npos ||
+         key.find("-thumb") != std::string::npos ||
+         key.find("-index") != std::string::npos ||
+         key.find("-middlefinger") != std::string::npos ||
+         key.find("-ringfinger") != std::string::npos ||
+         key.find("-pinky") != std::string::npos ||
          key.find("face") != std::string::npos ||
          key.find("mouth") != std::string::npos ||
          key.find("lip") != std::string::npos ||
@@ -3334,10 +3412,12 @@ static void apply_hand_driver_output_layer(
   }
   if (hand_channels.empty()) return;
 
-  // Hand-driver clips carry their own CharBone output graph: fingers are
-  // authored under bone_strum_hand/bone_fret_hand targets, not the body clip's
-  // bind hand. Keep the normal combiner result, but apply these selected rows
-  // through that hand graph so the visible fingers inherit the authored grip.
+  // Hand-driver clips carry their own CharBone output graph. The first-level
+  // fingers are authored under bone_strum_hand/bone_fret_hand, while the live
+  // mesh skeleton keeps them under bone_R-hand/bone_L-hand. PS2 CharIKHand
+  // mounts the live hand onto that target after this clip pass, so the child
+  // rows must stay in hand-local space here; bridging through the pre-IK parent
+  // applies the offset a second time once the hand reaches the target.
   apply_clip_pose_output_layer(hand_channels, 1.0f, character, relative,
                                hand_output_bones, true);
 }
@@ -3349,15 +3429,34 @@ static void apply_hand_driver_output_layers(
   (void)frame;
   (void)relative;
 
-  bool has_hand_driver_overlay = false;
-  bool hand_relative = false;
-  bool hand_relative_set = false;
-  std::vector<ClipChannelLayer> hand_source_layers;
-  for (const auto& layer : layers) {
-    if (!layer.overlay_override || !layer.output_bones) continue;
-    if (output_bones_have_hand_driver_root(*layer.output_bones)) {
+  auto apply_group = [&](HandDriverOutputGroup group) {
+    bool has_hand_driver_overlay = false;
+    bool hand_relative = false;
+    bool hand_relative_set = false;
+    std::vector<ClipChannelLayer> hand_source_layers;
+    for (const auto& layer : layers) {
+      if (!layer.overlay_override || !layer.output_bones) continue;
+      if (!output_bones_have_hand_driver_group_root(*layer.output_bones,
+                                                    group)) {
+        continue;
+      }
+
+      std::vector<ClipChannel> group_channels;
+      group_channels.reserve(layer.channels.size());
+      for (const auto& ch : layer.channels) {
+        const std::string key = strip_transform_suffix(ch.bone_name);
+        if (!is_hand_driver_output_key(key) ||
+            !hand_driver_key_matches_group(key, group)) {
+          continue;
+        }
+        group_channels.push_back(ch);
+      }
+      if (group_channels.empty()) continue;
+
       has_hand_driver_overlay = true;
-      hand_source_layers.push_back(layer);
+      ClipChannelLayer group_layer = layer;
+      group_layer.channels = std::move(group_channels);
+      hand_source_layers.push_back(std::move(group_layer));
       if (!hand_relative_set) {
         hand_relative = layer.relative;
         hand_relative_set = true;
@@ -3365,38 +3464,44 @@ static void apply_hand_driver_output_layers(
         hand_relative = false;
       }
     }
-  }
-  if (!has_hand_driver_overlay) return;
+    if (!has_hand_driver_overlay) return;
 
-  std::vector<CharClip::OutputBone> hand_output_bones;
-  std::unordered_set<std::string> hand_keys;
-  for (const auto& layer : layers) {
-    if (!layer.output_bones) continue;
-    for (const auto& out : *layer.output_bones) {
-      const std::string key = strip_transform_suffix(out.name);
-      if (!is_hand_driver_output_key(key)) continue;
-      if (!hand_keys.insert(key).second) continue;
-      hand_output_bones.push_back(out);
+    std::vector<CharClip::OutputBone> hand_output_bones;
+    std::unordered_set<std::string> hand_keys;
+    for (const auto& layer : hand_source_layers) {
+      if (!layer.output_bones) continue;
+      for (const auto& out : *layer.output_bones) {
+        const std::string key = strip_transform_suffix(out.name);
+        if (!is_hand_driver_output_key(key) ||
+            !hand_driver_key_matches_group(key, group)) {
+          continue;
+        }
+        if (!hand_keys.insert(key).second) continue;
+        hand_output_bones.push_back(out);
+      }
     }
-  }
-  if (hand_output_bones.empty()) return;
+    if (hand_output_bones.empty()) return;
 
-  const auto hand_frame = blend_channel_layers(hand_source_layers);
-  if (hand_frame.empty()) return;
+    const auto hand_frame = blend_channel_layers(hand_source_layers);
+    if (hand_frame.empty()) return;
 
-  std::vector<ClipChannel> hand_channels;
-  hand_channels.reserve(hand_frame.size());
-  for (const auto& ch : hand_frame) {
-    if (hand_keys.find(strip_transform_suffix(ch.bone_name)) ==
-        hand_keys.end()) {
-      continue;
+    std::vector<ClipChannel> hand_channels;
+    hand_channels.reserve(hand_frame.size());
+    for (const auto& ch : hand_frame) {
+      if (hand_keys.find(strip_transform_suffix(ch.bone_name)) ==
+          hand_keys.end()) {
+        continue;
+      }
+      hand_channels.push_back(ch);
     }
-    hand_channels.push_back(ch);
-  }
-  if (hand_channels.empty()) return;
+    if (hand_channels.empty()) return;
 
-  apply_clip_pose_output_layer(hand_channels, 1.0f, character, hand_relative,
-                               hand_output_bones, true);
+    apply_clip_pose_output_layer(hand_channels, 1.0f, character, hand_relative,
+                                 hand_output_bones, true);
+  };
+
+  apply_group(HandDriverOutputGroup::Strum);
+  apply_group(HandDriverOutputGroup::Fret);
 }
 
 static size_t char_hair_point_count(const Character& character) {
@@ -4154,16 +4259,62 @@ static void apply_char_hair(Character& character, float time_seconds) {
   }
 }
 
-void apply_ik_midi_fret_target(Character& character, uint32_t note_mask,
-                               const std::string& hand_map) {
-  (void)character;
-  (void)note_mask;
-  (void)hand_map;
-  // PS2 runtime traces show CharIKMidi's live fret.ik object updating a small
-  // near-1.0 scalar while the per-note fret-hand motion is authored in the
-  // hand-map selected finger_* clip outputs, especially bone_fret_hand.pos.
-  // Keep this hook as a named bridge for future exact CharIKMidi work, but do
-  // not invent a lane-to-spot transform override here.
+static std::array<float, 16> blend_world_rows(
+    const std::array<float, 16>& a, const std::array<float, 16>& b,
+    float weight) {
+  weight = std::clamp(weight, 0.0f, 1.0f);
+  std::array<float, 16> out{};
+  for (size_t i = 0; i < out.size(); ++i) {
+    out[i] = a[i] * (1.0f - weight) + b[i] * weight;
+  }
+  out[15] = 1.0f;
+  normalize_mat3_rows(out);
+  return out;
+}
+
+void apply_ik_midi_fret_target(Character& character,
+                               const std::string& spot_name,
+                               float time_seconds) {
+  if (spot_name.empty()) return;
+  std::array<float, 16> spot_world{};
+  if (!transform_local_chain_world(character, spot_name, spot_world)) return;
+
+  constexpr float kBlendSeconds = 0.22f;
+  for (const auto& ik : character.ik_midis) {
+    if (ik.bone.empty()) continue;
+    const int bone_i = find_bone_index(character, ik.bone);
+    if (bone_i < 0 ||
+        static_cast<size_t>(bone_i) >= character.bones.size()) {
+      continue;
+    }
+    auto& bone = character.bones[static_cast<size_t>(bone_i)];
+    RuntimeIKMidiState& state = character.runtime_ik_midi_states[ik.name];
+    if (!state.initialized || state.active_spot != spot_name) {
+      state.initialized = true;
+      state.active_spot = spot_name;
+      state.spot_start_time_seconds = time_seconds;
+      state.start_world = character.bone_world_local_chain(bone.name);
+    }
+
+    const float age = std::max(0.0f, time_seconds - state.spot_start_time_seconds);
+    const float weight = kBlendSeconds > 0.0f ? age / kBlendSeconds : 1.0f;
+    const auto desired_world =
+        blend_world_rows(state.start_world, spot_world, weight);
+    std::array<float, 16> parent_world =
+        {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    if (!bone.parent.empty()) {
+      parent_world = character.bone_world_local_chain(bone.parent);
+    }
+    set_local_from_world(bone.local, desired_world, parent_world);
+    if (debug_ik_enabled()) {
+      std::fprintf(stderr,
+                   "[ikmidi] %s bone=%s spot=%s age=%.3f weight=%.3f "
+                   "target=[%.3f %.3f %.3f]\n",
+                   ik.name.c_str(), bone.name.c_str(), spot_name.c_str(),
+                   age, std::clamp(weight, 0.0f, 1.0f), desired_world[12],
+                   desired_world[13], desired_world[14]);
+    }
+  }
 }
 
 void clear_runtime_ik_weights(Character& character) {
@@ -4968,11 +5119,7 @@ void CharClipPlayer::apply(Character& character, float weight) const {
 std::vector<ClipChannel> CharClipPlayer::sampled_pose() const {
   if (layers_.empty()) return {};
   const Layer& current = layers_.back();
-  float current_weight = 1.0f;
-  if (current.blend_width > 0.0f) {
-    current_weight =
-        std::clamp(current.blend_progress / current.blend_width, 0.0f, 1.0f);
-  }
+  const float current_weight = current_blend_weight();
 
   if (layers_.size() > 1) {
     const Layer& previous = layers_[layers_.size() - 2];
@@ -5005,6 +5152,14 @@ std::vector<ClipChannel> CharClipPlayer::sampled_pose() const {
 bool CharClipPlayer::sampled_pose_relative() const {
   const CharClip* clip = current_clip();
   return clip && clip->relative;
+}
+
+float CharClipPlayer::current_blend_weight() const {
+  if (layers_.empty()) return 0.0f;
+  const Layer& current = layers_.back();
+  if (current.blend_width <= 0.0f) return 1.0f;
+  return std::clamp(current.blend_progress / current.blend_width, 0.0f,
+                    1.0f);
 }
 
 // Legacy single-frame entry point (frame 0).

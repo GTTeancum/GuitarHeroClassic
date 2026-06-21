@@ -214,7 +214,8 @@ float character_driver_blend_seconds() {
 }
 
 float character_hand_driver_blend_seconds() {
-    return std::clamp(env_float("GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS", 0.08f),
+    return std::clamp(env_float("GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS",
+                                0.240005493f),
                       0.0f, 1.0f);
 }
 
@@ -703,6 +704,10 @@ bool debug_hand_pose_rows_enabled() {
     return env_value("GHOGX_DEBUG_HAND_POSE_ROWS") != nullptr;
 }
 
+bool debug_left_hand_contact_enabled() {
+    return env_value("GHOGX_DEBUG_LEFT_HAND_CONTACT") != nullptr;
+}
+
 bool hand_pose_bone_matches(std::string candidate, std::string wanted) {
     return strip_mesh_suffix(std::move(candidate)) ==
            strip_mesh_suffix(std::move(wanted));
@@ -716,12 +721,206 @@ const milo_scene::TransObj* find_hand_pose_bone(
     return nullptr;
 }
 
+std::array<float, 3> mat4_pos_game(const std::array<float, 16>& m) {
+    return {m[12], m[13], m[14]};
+}
+
+std::array<float, 3> mat4_basis_delta_game(const std::array<float, 16>& basis,
+                                           const std::array<float, 3>& point) {
+    const float dx = point[0] - basis[12];
+    const float dy = point[1] - basis[13];
+    const float dz = point[2] - basis[14];
+    return {
+        basis[0] * dx + basis[1] * dy + basis[2] * dz,
+        basis[4] * dx + basis[5] * dy + basis[6] * dz,
+        basis[8] * dx + basis[9] * dy + basis[10] * dz,
+    };
+}
+
+std::array<float, 16> mat4_affine_inverse_game(
+    const std::array<float, 16>& m) {
+    const float a = m[0], b = m[1], c = m[2];
+    const float d = m[4], e = m[5], f = m[6];
+    const float g = m[8], h = m[9], i = m[10];
+    const float det =
+        a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    const float id = (std::fabs(det) > 1e-12f) ? 1.0f / det : 0.0f;
+    std::array<float, 16> r{};
+    r[0] = (e * i - f * h) * id;
+    r[1] = (c * h - b * i) * id;
+    r[2] = (b * f - c * e) * id;
+    r[4] = (f * g - d * i) * id;
+    r[5] = (a * i - c * g) * id;
+    r[6] = (c * d - a * f) * id;
+    r[8] = (d * h - e * g) * id;
+    r[9] = (b * g - a * h) * id;
+    r[10] = (a * e - b * d) * id;
+    const float tx = m[12], ty = m[13], tz = m[14];
+    r[12] = -(tx * r[0] + ty * r[4] + tz * r[8]);
+    r[13] = -(tx * r[1] + ty * r[5] + tz * r[9]);
+    r[14] = -(tx * r[2] + ty * r[6] + tz * r[10]);
+    r[15] = 1.0f;
+    return r;
+}
+
+std::array<float, 3> mat4_xform_point_game(
+    const std::array<float, 16>& m, const std::array<float, 3>& p) {
+    return {
+        p[0] * m[0] + p[1] * m[4] + p[2] * m[8] + m[12],
+        p[0] * m[1] + p[1] * m[5] + p[2] * m[9] + m[13],
+        p[0] * m[2] + p[1] * m[6] + p[2] * m[10] + m[14],
+    };
+}
+
+void dump_left_hand_prop_contact_rows(
+    const ghogx::character::Character& character, std::string_view role,
+    std::string_view phase, double song_time, uint32_t tick, uint32_t mask,
+    const std::array<float, 16>* performer_world,
+    const std::array<float, 16>* guitar_strings_world) {
+    if (!debug_left_hand_contact_enabled() || !performer_world ||
+        !guitar_strings_world) {
+        return;
+    }
+    if (const char* only = env_value("GHOGX_DEBUG_LEFT_HAND_CONTACT_ROLE")) {
+        if (role != only) return;
+    }
+
+    static constexpr const char* kPoints[] = {
+        "bone_L-hand",
+        "bone_L-thumb01",
+        "bone_L-thumb02",
+        "bone_L-thumb03",
+        "bone_L-index01",
+        "bone_L-index02",
+        "bone_L-index03",
+        "bone_L-middlefinger01",
+        "bone_L-middlefinger02",
+        "bone_L-middlefinger03",
+        "bone_L-ringfinger01",
+        "bone_L-ringfinger02",
+        "bone_L-ringfinger03",
+        "bone_L-pinky01",
+        "bone_L-pinky02",
+        "bone_L-pinky03",
+    };
+
+    const auto inv_strings = mat4_affine_inverse_game(*guitar_strings_world);
+    std::fprintf(stderr,
+                 "[hand-prop-ref] phase=%.*s role=%.*s t=%.3f tick=%u "
+                 "mask=0x%02x ref=guitar_strings.mesh "
+                 "world=(%.5f %.5f %.5f) "
+                 "r0=(%.5f %.5f %.5f) r1=(%.5f %.5f %.5f) "
+                 "r2=(%.5f %.5f %.5f)\n",
+                 static_cast<int>(phase.size()), phase.data(),
+                 static_cast<int>(role.size()), role.data(), song_time, tick,
+                 mask & 0x1fu, (*guitar_strings_world)[12],
+                 (*guitar_strings_world)[13], (*guitar_strings_world)[14],
+                 (*guitar_strings_world)[0], (*guitar_strings_world)[1],
+                 (*guitar_strings_world)[2], (*guitar_strings_world)[4],
+                 (*guitar_strings_world)[5], (*guitar_strings_world)[6],
+                 (*guitar_strings_world)[8], (*guitar_strings_world)[9],
+                 (*guitar_strings_world)[10]);
+
+    for (const char* point_name : kPoints) {
+        const auto* point = find_hand_pose_bone(character, point_name);
+        if (!point) continue;
+        const auto point_world = character.bone_world_local_chain(point->name);
+        const auto point_pos = mat4_pos_game(point_world);
+        const auto staged = mat4_xform_point_game(*performer_world, point_pos);
+        const auto local = mat4_xform_point_game(inv_strings, staged);
+        std::fprintf(stderr,
+                     "[hand-prop-contact] phase=%.*s role=%.*s t=%.3f "
+                     "tick=%u mask=0x%02x ref=guitar_strings.mesh "
+                     "point=%s exact=%s local=(%.5f %.5f %.5f) "
+                     "world=(%.5f %.5f %.5f)\n",
+                     static_cast<int>(phase.size()), phase.data(),
+                     static_cast<int>(role.size()), role.data(), song_time,
+                     tick, mask & 0x1fu, point_name, point->name.c_str(),
+                     local[0], local[1], local[2], staged[0], staged[1],
+                     staged[2]);
+    }
+}
+
+void dump_left_hand_contact_rows(
+    const ghogx::character::Character& character, std::string_view role,
+    std::string_view phase, double song_time, uint32_t tick, uint32_t mask) {
+    if (!debug_left_hand_contact_enabled()) return;
+    if (const char* only = env_value("GHOGX_DEBUG_LEFT_HAND_CONTACT_ROLE")) {
+        if (role != only) return;
+    }
+
+    static constexpr const char* kRefs[] = {
+        "bone_fret_hand",
+        "bone_fret",
+        "bone_pos_guitar",
+        "spot_neck_fret01",
+        "spot_neck_fret05",
+        "spot_neck_fret10",
+        "spot_neck_fret15",
+        "spot_neck_fret20",
+    };
+    static constexpr const char* kPoints[] = {
+        "bone_L-hand",
+        "bone_L-thumb01",
+        "bone_L-thumb02",
+        "bone_L-thumb03",
+        "bone_L-index01",
+        "bone_L-index02",
+        "bone_L-index03",
+        "bone_L-middlefinger01",
+        "bone_L-ringfinger01",
+        "bone_L-pinky01",
+    };
+
+    for (const char* ref_name : kRefs) {
+        const auto* ref = find_hand_pose_bone(character, ref_name);
+        if (!ref) continue;
+        const auto ref_world = character.bone_world_local_chain(ref->name);
+        const auto ref_pos = mat4_pos_game(ref_world);
+        std::fprintf(stderr,
+                     "[hand-contact-ref] phase=%.*s role=%.*s t=%.3f "
+                     "tick=%u mask=0x%02x ref=%s exact=%s "
+                     "world=(%.5f %.5f %.5f) "
+                     "r0=(%.5f %.5f %.5f) r1=(%.5f %.5f %.5f) "
+                     "r2=(%.5f %.5f %.5f)\n",
+                     static_cast<int>(phase.size()), phase.data(),
+                     static_cast<int>(role.size()), role.data(), song_time,
+                     tick, mask & 0x1fu, ref_name, ref->name.c_str(),
+                     ref_pos[0], ref_pos[1], ref_pos[2], ref_world[0],
+                     ref_world[1], ref_world[2], ref_world[4], ref_world[5],
+                     ref_world[6], ref_world[8], ref_world[9],
+                     ref_world[10]);
+
+        for (const char* point_name : kPoints) {
+            const auto* point = find_hand_pose_bone(character, point_name);
+            if (!point) continue;
+            const auto point_world = character.bone_world_local_chain(point->name);
+            const auto point_pos = mat4_pos_game(point_world);
+            const auto d = mat4_basis_delta_game(ref_world, point_pos);
+            std::fprintf(stderr,
+                         "[hand-contact] phase=%.*s role=%.*s t=%.3f "
+                         "tick=%u mask=0x%02x ref=%s point=%s exact=%s "
+                         "localDelta=(%.5f %.5f %.5f) "
+                         "world=(%.5f %.5f %.5f)\n",
+                         static_cast<int>(phase.size()), phase.data(),
+                         static_cast<int>(role.size()), role.data(),
+                         song_time, tick, mask & 0x1fu, ref_name, point_name,
+                         point->name.c_str(), d[0], d[1], d[2], point_pos[0],
+                         point_pos[1], point_pos[2]);
+        }
+    }
+}
+
 void dump_hand_pose_rows(const ghogx::character::Character& character,
                          std::string_view role, std::string_view phase,
                          double song_time, uint32_t tick, uint32_t mask,
                          const std::vector<std::string>& strum_clips,
-                         const std::vector<std::string>& fret_clips) {
-    if (!debug_hand_pose_rows_enabled()) return;
+                         const std::vector<std::string>& fret_clips,
+                         const std::array<float, 16>* performer_world,
+                         const std::array<float, 16>* guitar_strings_world) {
+    const bool dump_rows = debug_hand_pose_rows_enabled();
+    const bool dump_contact = debug_left_hand_contact_enabled();
+    if (!dump_rows && !dump_contact) return;
     if (const char* only = env_value("GHOGX_DEBUG_HAND_POSE_ROLE")) {
         if (role != only) return;
     }
@@ -737,6 +936,15 @@ void dump_hand_pose_rows(const ghogx::character::Character& character,
         if (song_time + 1e-5 < next_time) return;
         next_time = song_time + static_cast<double>(stride);
     }
+
+    if (dump_contact) {
+        dump_left_hand_contact_rows(character, role, phase, song_time, tick,
+                                    mask);
+        dump_left_hand_prop_contact_rows(character, role, phase, song_time,
+                                         tick, mask, performer_world,
+                                         guitar_strings_world);
+    }
+    if (!dump_rows) return;
 
     auto print_clip_list = [](const std::vector<std::string>& names) {
         if (names.empty()) {
@@ -761,6 +969,11 @@ void dump_hand_pose_rows(const ghogx::character::Character& character,
     std::fprintf(stderr, "\n");
 
     static constexpr const char* kBones[] = {
+        "bone_pos_guitar",
+        "bone_fret",
+        "bone_L-upperArm",
+        "bone_L-foreArm",
+        "bone_L-hand",
         "bone_fret_hand",
         "bone_L-index01",
         "bone_L-index02",
@@ -800,6 +1013,46 @@ void dump_hand_pose_rows(const ghogx::character::Character& character,
         if (!bone) continue;
         const auto world = character.bone_world_local_chain(bone->name);
         const auto& local = bone->local;
+        std::fprintf(stderr,
+                     "[hpos] ph=%.*s b=%s l=(%.5f %.5f %.5f)\n",
+                     static_cast<int>(phase.size()), phase.data(), wanted,
+                     local.pos[0], local.pos[1], local.pos[2]);
+        std::fprintf(stderr,
+                     "[hpos] ph=%.*s b=%s w=(%.5f %.5f %.5f)\n",
+                     static_cast<int>(phase.size()), phase.data(), wanted,
+                     world[12], world[13], world[14]);
+        const bool relation_bone =
+            std::strcmp(wanted, "bone_pos_guitar") == 0 ||
+            std::strcmp(wanted, "bone_fret") == 0 ||
+            std::strcmp(wanted, "bone_fret_hand") == 0 ||
+            std::strcmp(wanted, "bone_L-hand") == 0 ||
+            std::strcmp(wanted, "bone_L-thumb01") == 0;
+        if (relation_bone) {
+            std::fprintf(stderr,
+                         "[hrow] ph=%.*s b=%s r0=(%.5f %.5f %.5f)\n",
+                         static_cast<int>(phase.size()), phase.data(), wanted,
+                         local.rot[0][0], local.rot[0][1], local.rot[0][2]);
+            std::fprintf(stderr,
+                         "[hrow] ph=%.*s b=%s r1=(%.5f %.5f %.5f)\n",
+                         static_cast<int>(phase.size()), phase.data(), wanted,
+                         local.rot[1][0], local.rot[1][1], local.rot[1][2]);
+            std::fprintf(stderr,
+                         "[hrow] ph=%.*s b=%s r2=(%.5f %.5f %.5f)\n",
+                         static_cast<int>(phase.size()), phase.data(), wanted,
+                         local.rot[2][0], local.rot[2][1], local.rot[2][2]);
+            std::fprintf(stderr,
+                         "[hwrow] ph=%.*s b=%s r0=(%.5f %.5f %.5f)\n",
+                         static_cast<int>(phase.size()), phase.data(), wanted,
+                         world[0], world[1], world[2]);
+            std::fprintf(stderr,
+                         "[hwrow] ph=%.*s b=%s r1=(%.5f %.5f %.5f)\n",
+                         static_cast<int>(phase.size()), phase.data(), wanted,
+                         world[4], world[5], world[6]);
+            std::fprintf(stderr,
+                         "[hwrow] ph=%.*s b=%s r2=(%.5f %.5f %.5f)\n",
+                         static_cast<int>(phase.size()), phase.data(), wanted,
+                         world[8], world[9], world[10]);
+        }
         std::fprintf(
             stderr,
             "[handpose] phase=%.*s role=%.*s bone=%s exact=%s "
@@ -3432,6 +3685,13 @@ struct NoteCue {
     double length = 0.0;
 };
 
+struct FretPositionState {
+    bool active = false;
+    uint32_t tick = UINT32_MAX;
+    int spot_index = 0;
+    std::string spot_name;
+};
+
 // Player difficulty owns scoring/highway only. Performer hand scheduling uses
 // the highest authored note lane for the song so character animation does not
 // change when the player selects Easy/Medium/Hard/Expert.
@@ -3521,6 +3781,36 @@ NoteCue performer_animation_note_cue(
         }
     }
     return cue;
+}
+
+FretPositionState current_fret_position_state(
+    double song_time, const ghogx::chart::Chart& chart,
+    const std::vector<ghogx::chart::FretPositionCue>& cues) {
+    FretPositionState state;
+    if (cues.empty()) return state;
+    const uint32_t now_tick = chart.sec_to_tick(song_time);
+    const uint32_t lookahead_tick =
+        chart.sec_to_tick(song_time + 0.08);
+    const ghogx::chart::FretPositionCue* chosen = nullptr;
+    const ghogx::chart::FretPositionCue* imminent = nullptr;
+    for (const auto& cue : cues) {
+        if (cue.tick > lookahead_tick) break;
+        if (cue.tick <= now_tick) {
+            chosen = &cue;
+        } else if (!imminent) {
+            imminent = &cue;
+        }
+    }
+    if (!chosen) chosen = imminent;
+    if (!chosen) return state;
+    state.active = true;
+    state.tick = chosen->tick;
+    state.spot_index = chosen->spot_index;
+    char name[32] = {};
+    std::snprintf(name, sizeof(name), "spot_neck_fret%02d.mesh",
+                  std::clamp(chosen->spot_index, 1, 20));
+    state.spot_name = name;
+    return state;
 }
 
 bool starts_with(std::string_view text, std::string_view prefix) {
@@ -5099,6 +5389,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                           song_time_, chart_, performer_bass_notes)
                     : performer_animation_note_cue(
                           song_time_, chart_, performer_guitar_notes);
+            const FretPositionState perf_fret_pos =
+                (perf.role == "bassist")
+                    ? current_fret_position_state(
+                          song_time_, chart_, chart_.bass_fret_positions)
+                    : current_fret_position_state(
+                          song_time_, chart_, chart_.fret_positions);
             const bool hand_driver_active =
                 !intro_active && perf.hand_driver_available;
             auto trigger_strum_clip = [&](const NoteCue& cue) {
@@ -5350,22 +5646,31 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const uint32_t debug_hand_tick =
                     perf_anim_note_cue.active ? perf_anim_note_cue.tick
                                               : UINT32_MAX;
+                const auto guitar_strings_world =
+                    perf.renderer
+                        ? perf.renderer->attached_prop_world(
+                              "guitar_strings.mesh")
+                        : std::nullopt;
                 dump_hand_pose_rows(
                     character, perf.role, "postclip", song_time_,
                     debug_hand_tick, debug_hand_mask,
-                    perf.active_strum_clip_names, perf.active_fret_clip_names);
+                    perf.active_strum_clip_names, perf.active_fret_clip_names,
+                    &perf.world_transform,
+                    guitar_strings_world ? &*guitar_strings_world : nullptr);
             }
             ghogx::character::clear_runtime_ik_weights(character);
             if (hand_driver_active) {
-                // Accepted PS2 hand traces show finger_open/strum_open flowing
-                // through the same live left.weight/right.weight -> IK rows as
-                // note overlays. The scheduler changes the hand clip; it does
-                // not disable the hand IK between note hits.
+                // Accepted GH2DXu/GHDX autoplay sampling keeps
+                // left.weight/right.weight at ~1.0 while the hand-driver
+                // scheduler blends clips. The scheduler blends finger rows; it
+                // does not ease IK on/off at each fretting event.
                 bool fret_active = perf.fret_player.active();
-                for (const auto& player : perf.fret_extra_players)
+                for (const auto& player : perf.fret_extra_players) {
                     fret_active = fret_active || player.active();
+                }
                 float left_weight = fret_active ? 1.0f : 0.0f;
-                float right_weight = perf.strum_player.active() ? 1.0f : 0.0f;
+                float right_weight =
+                    perf.strum_player.active() ? 1.0f : 0.0f;
                 if (env_value("GHOGX_LEFT_WEIGHT") != nullptr) {
                     left_weight = std::clamp(
                         env_float("GHOGX_LEFT_WEIGHT", left_weight), 0.0f,
@@ -5381,9 +5686,17 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 ghogx::character::set_runtime_ik_weight(
                     character, "right.weight", right_weight);
             }
-            if (hand_driver_active && perf_anim_note_cue.active) {
+            if (hand_driver_active && perf_fret_pos.active) {
+                if (env_value("GHOGX_DEBUG_HAND_MAP") != nullptr) {
+                    std::fprintf(stderr,
+                                 "[fretpos] role=%s tick=%u spot=%s index=%d\n",
+                                 perf.role.c_str(), perf_fret_pos.tick,
+                                 perf_fret_pos.spot_name.c_str(),
+                                 perf_fret_pos.spot_index);
+                }
                 ghogx::character::apply_ik_midi_fret_target(
-                    character, perf_anim_note_cue.mask, midi_state.hand_map);
+                    character, perf_fret_pos.spot_name,
+                    static_cast<float>(song_time_));
             }
             ghogx::character::FaceFxEyeProperties eye_props;
             ghogx::character::apply_character_controllers(
@@ -5396,10 +5709,17 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const uint32_t debug_hand_tick =
                     perf_anim_note_cue.active ? perf_anim_note_cue.tick
                                               : UINT32_MAX;
+                const auto guitar_strings_world =
+                    perf.renderer
+                        ? perf.renderer->attached_prop_world(
+                              "guitar_strings.mesh")
+                        : std::nullopt;
                 dump_hand_pose_rows(
                     character, perf.role, "postcontrollers", song_time_,
                     debug_hand_tick, debug_hand_mask,
-                    perf.active_strum_clip_names, perf.active_fret_clip_names);
+                    perf.active_strum_clip_names, perf.active_fret_clip_names,
+                    &perf.world_transform,
+                    guitar_strings_world ? &*guitar_strings_world : nullptr);
             }
             if (perf.facefx_graph) {
                 auto registers =

@@ -85,6 +85,7 @@ class CharClipPlayer {
   void apply(Character& character, float weight = 1.0f) const;
   std::vector<ClipChannel> sampled_pose() const;
   bool sampled_pose_relative() const;
+  float current_blend_weight() const;
   bool active() const { return !layers_.empty(); }
   const CharClip* current_clip() const;
 
@@ -135,11 +136,11 @@ void set_runtime_ik_weight(Character& character, const std::string& weight_prop,
                            float weight);
 void clear_runtime_trans_worlds(Character& character);
 
-// CharIKMidi bridge. Accepted PS2 traces currently prove MIDI-selected
-// finger_* clips move the fret-hand target; this hook intentionally does not
-// guess guitar-neck spots until the exact runtime selector is proven.
-void apply_ik_midi_fret_target(Character& character, uint32_t note_mask,
-                               const std::string& hand_map = {});
+// CharIKMidi bridge. GHDX/PS2 player*_fret_pos maps MIDI pitches 40..59 to
+// spot_neck_fret01..20 and feeds the character's fret.ik object.
+void apply_ik_midi_fret_target(Character& character,
+                               const std::string& spot_name,
+                               float time_seconds);
 
 // Legacy single-frame helpers kept for --clip screenshot mode.
 std::vector<ClipChannel> load_clip_pose(const std::string& hdr_path,

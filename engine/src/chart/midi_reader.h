@@ -8,6 +8,7 @@
 //   Medium 72-76
 //   Hard   84-88
 //   Expert 96-100
+//   Fret-position animation: 40-59 (spot_neck_fret01..20)
 //   Star power phrase: note 116 on/off on any track
 //
 // HOPO threshold: gap from previous note < ticks_per_beat / 3.
@@ -54,6 +55,12 @@ struct DrumCue {
     std::string event;
 };
 
+struct FretPositionCue {
+    uint32_t tick;
+    int pitch = 0;       // 40..59 from config/midi_parsers.dta::player*_fret_pos
+    int spot_index = 0;  // 1..20, maps to spot_neck_fretNN.mesh
+};
+
 struct LightingCue {
     uint32_t tick;
     int pitch = 0;
@@ -71,6 +78,8 @@ struct Chart {
     std::vector<TempoChange> tempo_map;     // sorted by tick ascending
     std::vector<Note>        notes[4];      // [0]=Easy [1]=Medium [2]=Hard [3]=Expert
     std::vector<Note>        bass_notes[4]; // PART RHYTHM/PART BASS gems by difficulty
+    std::vector<FretPositionCue> fret_positions;      // PART GUITAR player*_fret_pos
+    std::vector<FretPositionCue> bass_fret_positions; // PART BASS/RHYTHM player*_fret_pos
     std::vector<TextEvent>   text_events;   // GH2 world EVENTS track text
     std::vector<TrackTextEvent> performer_events;  // role-specific text tracks
     std::vector<DrumCue>     drum_cues;      // BAND DRUMS parser cue notes

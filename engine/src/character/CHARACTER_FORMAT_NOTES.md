@@ -12,6 +12,12 @@ can be used as a probe case, but the promoted rule must be keyed to decoded PS2
 format evidence: mesh parent shape, bone palette, bind matrices, material render
 flags, controller graph data, or accepted runtime traces.
 
+For fretting-hand evidence, do not use the stock/retail PS2 build. The accepted
+runtime source is GH2DXu/GHDX with autoplay enabled so backing performers
+actually receive the authored fret/strum animation stream. Any old
+stock-labeled fretting/contact capture is obsolete unless a future note
+explicitly revalidates it for a non-fretting purpose.
+
 Final builds must learn the shared format well enough that named characters do
 not need bespoke repair paths. If Glam1, Rock2, Metal Bass, Deathmetal1,
 Rockabill1, or any other outfit exposes a bad hair/eye/arm/leg result, treat
@@ -497,6 +503,20 @@ Glam1 hair:
   ugliness. Do not promote another world-mode, hide-list, manual offset, or
   renderer-only hair patch from this frame; reopen this path only with a newer
   PS2/native mismatch showing the shared row bridge still diverges.
+- 2026-06-20 fresh Glam1 hair/eye checkpoint after the left-hand pre-roll
+  audit:
+  `engine/out/codex_goal_20260620_glam1_hair_eye_fresh_current/` captures a new
+  current native head close-up from the Jordan Glam1 route with
+  `GHOGX_DEBUG_FACE=1` and `GHOGX_DEBUG_CHAR_HAIR=1`. The fresh screenshot
+  `glam1_hair_eye_fresh_f240.png` still shows ugly broad authored hair cards
+  and thin strands, but it does not reproduce the old detached lower hair clump,
+  and both eye meshes remain visible in the socket band. The log shows
+  `hair.hair` emitting PS2-follow rows for `bone_hair01.mesh`,
+  `bone_bangL.mesh`, and `bone_bangR.mesh`, while `eye-R.mesh` and
+  `eye-L.mesh` stay parented to `bone_head.mesh` and receive their matching
+  `r-eye.lookat` / `l-eye.lookat` properties. This is another negative result
+  for manual eye translation, hair hiding, or character-specific reattachment;
+  reopen only with a newer PS2/native mismatch.
 - 2026-06-15 wrist close-up isolation after `88dc57e`:
   `engine/out/native_song_20260615/glam1_left_arm_mesh_isolate_after_88dc57e/`
   proves the obvious dark angular piece below the left glove is
@@ -1294,26 +1314,50 @@ Community metadata Rosetta:
   `char_objects_ps2.dta` class definition names the serialized field `bone`;
   for guitarist bodies, `fret.ik` serializes `bone_fret.mesh` and
   `bone_fret_hand.mesh` is the child target consumed by the hand IK pass.
-  Authored destination helpers still exist as `spot_neck_fret01.mesh` through
-  `spot_neck_fret20.mesh` under `bone_pos_guitar.mesh`, but do not assume a
-  lane-to-spot formula without live selector proof.
-- 2026-06-19 GHDX autoplay probes corrected the earlier native shortcut:
-  `gh2dxu_fret_ik_vtable_trace_20260619.json` proves the active `fret.ik`
-  update method is `0x0017bbd0`, while
-  `gh2dxu_fret_ik_candidate_probe_20260619.json` and
-  `gh2dxu_fret_ik_pointer_follow_probe_20260619.json` show the live
-  `fret.ik` object at `0x00e67d20` changing only a near-1.0 scalar at
-  `+0x44`. The moving Trans rows are `bone_fret.mesh` and especially
-  `bone_fret_hand.mesh`; the latter is already driven by the hand-map selected
-  `finger_*` clip outputs. Native playback therefore must not move
-  `bone_fret.mesh` to guessed `spot_neck_fretNN.mesh` positions. Keep
-  `config/gen/midi_parsers.dtb::GUITARFRETMAPPINGS` scoped to clip choice until
-  a PS2 trace proves the exact neck-spot selector.
-- Native validation after removing the guessed override:
-  `engine/out/codex_goal_20260619_ikmidi_trace_corrected/woman_expert.stderr.log`
-  records 56 `[handmap]` MIDI-triggered clip-choice events and zero legacy
-  `[ikmidi]` spot-move lines; `woman_expert_f620.bmp` is the matching hidden
-  gameplay frame.
+  Authored destination helpers exist as `spot_neck_fret01.mesh` through
+  `spot_neck_fret20.mesh` under `bone_pos_guitar.mesh`.
+- 2026-06-20 accepted GH2DXu/GHDX parser evidence supersedes the earlier
+  "do not move `bone_fret.mesh`" native no-op conclusion. In
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/external/Guitar-Hero-II-Deluxe/_ark/config/midi_parsers.dta`,
+  `player0_fret_pos` and `player1_fret_pos` are `(type midi)`, declare
+  `(min_gap 0.22)`, and map pitches 40..59 directly to
+  `spot_neck_fret01.mesh`..`spot_neck_fret20.mesh`. The matching
+  `char_objects.dta` graph wires `player*_fret_pos add_sink fret.ik`,
+  separate from `player*_fret add_sink left_hand.drv`. Therefore native must
+  preserve this stream as a fret-position controller, not infer fret spots
+  from five-lane gem masks.
+- 2026-06-21 native validation after preserving parser `min_gap 0.22`:
+  `analysis/native_validation/ghdx_jordan_left_hand_mingap_20260621_0005.log`
+  uses the GH2DXu/GHDX ARK only, parses `fretPos=570` and
+  `bassFretPos=281`, and logs `[fretpos]` events feeding
+  `[ikmidi] fret.ik bone=bone_fret.mesh spot=spot_neck_fretNN.mesh`.
+  The follow-up MP4
+  `analysis/native_validation/ghdx_jordan_left_hand_mingap_video_20260621_0007/ghdx_jordan_left_hand_mingap_native.mp4`
+  is a hidden native Jordan capture focused on `bone_fret_hand.mesh` and shows
+  the fretting hand moving along the neck. This is implementation evidence,
+  not final visual sign-off.
+- 2026-06-21 chord-shape validation after the same `min_gap` correction:
+  `analysis/native_validation/ghdx_mrfixit_left_hand_mingap_20260621_0012.log`
+  uses the GH2DXu/GHDX ARK only on `mrfixit`, parses `fretPos=272` and
+  `bassFretPos=272`, and selects `finger_powerchord_1` and
+  `finger_powerchord_2` from the hand map while `fret.ik` reaches full
+  weight. The retained hidden MP4
+  `analysis/native_validation/ghdx_mrfixit_left_hand_shape_mingap_video_20260621_0014/ghdx_mrfixit_left_hand_shape_mingap_native.mp4`
+  is a left-hand shape view; use it to confirm visible powerchord shape
+  changes, not as final thumb-depth proof.
+- 2026-06-21 Mr. Fix It post-controller contact rows after `min_gap`:
+  `analysis/native_validation/ghdx_mrfixit_left_contact_mingap_20260621_0018.log`
+  was parsed for `ref=bone_fret_hand` local deltas over 180 hidden native
+  frames. `bone_L-hand` stays exactly `0/0/0`; `bone_L-thumb01` stays
+  `x=0.466..0.474, y=0.164..0.165, z=-1.744..-1.742`;
+  `bone_L-thumb02` stays `z=-2.879..-2.436`; `bone_L-thumb03` stays
+  `z=-3.611..-2.767`; `bone_L-index01` stays `z=-2.329..-2.312`;
+  `bone_L-middlefinger01` stays `z=-1.227..-1.208`; `bone_L-ringfinger01`
+  stays `z=-0.048..-0.029`; and `bone_L-pinky01` stays
+  `z=1.080..1.097` for the selected powerchord shape. This proves the shared
+  hand mount and chord finger rows are active; any remaining thumb-depth
+  question should be judged against accepted PS2 contact rows for the same
+  route before changing code.
 - Follow-up dynamic-hand validation:
   `engine/out/codex_goal_20260619_dynamic_hand_visible_probe/glam1_dynamic_hand_f1300.bmp`
   hides the attached guitar prop and frames Glam1 during a late active hand-map
@@ -2637,6 +2681,147 @@ Useful environment flags:
   `bone_L-middlefinger01=0.2568`, and `bone_L-thumb01=0.2359`. This is the
   clearest current left-hand MP4 for user review after the right hand was
   accepted.
+- 2026-06-20 left-thumb contact recheck against live PS2 Trans rows:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_left_thumb_named_transforms_v2_20260620.json`
+  dynamically discovers the active PCSX2 objects by name, then samples live
+  transform rows instead of reusing stale addresses. For the sampled PS2 window,
+  the layout is local rows at `+0x20`, local position at `+0x50`, world rows at
+  `+0x60/+0x70/+0x80`, and world position at `+0x90`. In the `bone_fret_hand`
+  basis, PS2 keeps the left thumb behind the target plane:
+  `bone_L-thumb01` x/y/z = `1.080..1.791 / 0.660..1.147 / -1.677..-0.403`,
+  `bone_L-thumb02` = `2.508..3.226 / 1.796..2.535 / -2.180..-0.681`,
+  and `bone_L-index01` = `3.741..4.495 / -0.141..0.313 / -1.766..-0.495`.
+  The 108s native cold diagnostic seek initially blended from bind and produced
+  misleading contact rows, including `bone_L-thumb01` z crossing up to `0.149`.
+  A 105s seek with a 3s pre-roll before encoding the 108s window removes that
+  artifact: native `bone_L-thumb01` in the same `bone_fret_hand` basis becomes
+  x/y/z = `0.418..1.957 / -0.670..1.644 / -0.839..-0.222`, with
+  `bone_L-thumb02` = `1.619..3.326 / 1.078..3.477 / -1.538..-0.811` and
+  `bone_L-index01` = `3.895..5.435 / -0.911..1.403 / -1.155..-0.538`.
+  Treat cold mid-song diagnostic seeks as a validation artifact for hand
+  contact; use pre-roll or full-song state before declaring thumb/finger
+  penetration. Retained proof clip:
+  `engine/out/codex_goal_20260620_left_thumb_preroll_video/jordan_left_thumb_preroll_108s.mp4`.
+- 2026-06-20 dense Jordan left-hand pre-roll recheck:
+  `engine/out/codex_goal_20260620_left_hand_preroll_jordan_dense/` repeats the
+  dense Jordan hand window with a 105s diagnostic start and captures only the
+  108s+ window after the hand driver and IK state have settled. The retained
+  visual proof is
+  `jordan_left_hand_preroll_dense_108s_crop.mp4`; raw BMP frames were deleted
+  after encoding. The run uses `GHOGX_ONLY_PERFORMER=guitarist0`,
+  `GHOGX_DEBUG_HAND_MAP=1`, and `GHOGX_DEBUG_LEFT_HAND_CONTACT=1`. The log
+  keeps the authored performer source at `guitar_lane=3 notes=1802` while the
+  player is still on Easy, and the retained window selects
+  `finger_hold_index`, `finger_hold_index_hi`, `finger_hold_pinky`,
+  `finger_hold_ring_hi`, `finger_hold_middle_hi`, and `finger_vibrato_pinky`.
+  In the `bone_fret_hand` basis at `t >= 108.0`, post-controller native rows
+  stay in the accepted PS2 contact band for the thumb and first fingers:
+  `bone_L-thumb01` x/y/z = `0.053..2.027 / -0.815..1.644 / -1.032..-0.196`,
+  `bone_L-thumb02` = `1.247..3.326 / 1.018..3.477 / -1.731..-0.785`,
+  `bone_L-thumb03` = `2.678..4.858 / 1.514..4.171 / -1.450..-0.529`,
+  `bone_L-index01` = `3.530..5.505 / -1.056..1.403 / -1.348..-0.512`,
+  and `bone_L-middlefinger01` = `3.550..5.525 / -1.189..1.269 /
+  -0.497..0.339`. Treat this as the current native steady-state proof for the
+  reported thumb-through-neck concern; a new hand-code change needs fresh
+  PS2/native mismatch evidence, not a cold seek screenshot.
+- 2026-06-20 fret-anchor correction for thumb/neck contact:
+  the accepted basis for this rule is decoded prop geometry plus GH2DXu/GHDX
+  autoplay fretting traces. The attached guitar props (`lespaull`,
+  `flyingv_v2`, `guitar_sg`, `xplorer`) encode `bone_fret.mesh` under
+  `bone_pos_guitar.mesh` at local position `2.9884/0.3053/26.9909`, while
+  many guitarist character files carry the wider bind row
+  `4.3251/0.3053/26.9909`. The hand output layer was already driving
+  `bone_fret_hand.mesh` and the left finger/thumb rows, so the visual error
+  was not a thumb-specific bend: the moving hand target was under the wrong
+  fret parent for the rendered guitar neck. Native now reconciles the
+  character `bone_fret.mesh` current/bind/original locals from the attached
+  prop when both rows share the `bone_pos_guitar.mesh` parent. This is a
+  selected-instrument anchor rule, not a Glam1 or thumb hack. Validation:
+  `engine/out/codex_goal_20260620_left_thumb_fret_anchor_fix_validation/run.log`
+  logs the anchor copy and post-controller `bone_fret` at the PS2/prop value;
+  retained MP4s are in
+  `engine/out/codex_goal_20260620_left_thumb_fret_anchor_fix_video/`.
+- 2026-06-20 left-thumb parent-space correction after visual review:
+  the attempted hand-output parent bridge was wrong for first-level finger and
+  thumb rows. The output graph lists `bone_L-thumb01.mesh` under
+  `bone_fret_hand`, but the live mesh skeleton keeps it under `bone_L-hand`;
+  PS2 CharIKHand mounts `bone_L-hand` onto `bone_fret_hand` after the clip
+  pass. Bridging `bone_L-thumb01` through the pre-IK live parent therefore
+  applied the hand offset twice once IK ran. The bad native capture
+  `engine/out/codex_goal_20260620_left_thumb_current_bridge_recheck_v2/run.log`
+  shows this exactly: `postclip` `bone_L-thumb01` was sane in
+  `bone_fret_hand` space, but `postcontrollers` fell to z
+  `-20.193..-18.177`. Native now leaves selected hand-driver child rows in
+  hand-local space before IK. Validation:
+  `engine/out/codex_goal_20260620_left_thumb_handlocal_after_ik_recheck/`
+  retains `jordan_left_thumb_handlocal_after_ik_108s.mp4`, the close crop
+  `jordan_left_thumb_handlocal_after_ik_108s_close.mp4`, and `run.log`. In
+  that run, `postcontrollers` keeps `bone_L-hand` exactly at
+  `bone_fret_hand`, `bone_L-thumb01` at `1.035/0.040/-0.649`, and distal thumb
+  rows in the expected neck-side band (`bone_L-thumb02` x/y/z =
+  `2.229..2.465 / 1.751..1.873 / -1.348..-1.198`,
+  `bone_L-thumb03` = `3.419..3.823 / 2.621..2.955 / -1.490..-1.269`). The
+  GH2DXu/GHDX autoplay traces confirm first-level local positions may stay
+  bind-stable while world-space deltas move through the hand/IK rows. Do not
+  add thumb-specific offsets; preserve the shared order rule that hand-driver
+  children are sampled before CharIKHand, and IK supplies the parent-space
+  mount.
+- 2026-06-20 settled chord-route recheck after the hand-local correction:
+  `engine/out/codex_goal_20260620_mrfixit_chord_after_handlocal_fix/` starts
+  `mrfixit` at 14s, captures the 17s+ chord window, and keeps player difficulty
+  Easy while performer animation still reads the authored guitar lane. The run
+  records 24 hand-map events and 23 strum-map events; masks include `0x03`,
+  `0x05`, `0x0a`, `0x14`, and `0x18`, selecting `finger_powerchord_1` and
+  `finger_powerchord_2` plus the short lead-in hold clips. The neck-focused
+  MP4 is `mrfixit_chord_after_handlocal_fix_17s.mp4`, but that camera is partly
+  occluded by the instrument. The shape-focused rerun in
+  `engine/out/codex_goal_20260620_mrfixit_chord_shape_after_handlocal_fix/`
+  retains `mrfixit_chord_shape_after_handlocal_fix_17s.mp4`, using
+  `guitarist0:bone_L-hand.mesh` at yaw `0.60` to show the settled powerchord
+  curl. Parsing the settled `t >= 17.0` controller rows from the neck run shows
+  the powerchord window moving the ring/pinky side (`bone_L-ringfinger01`
+  rot span `0.19314`, `bone_L-pinky01` `0.22762`) while index/middle/thumb rows
+  are stable for the selected powerchord clips. Older cold 17s-seek evidence
+  that showed broader index/middle movement should not be used by itself as
+  proof of a settled chord pose; it includes diagnostic seek/blend state. Use
+  the pre-rolled neck and shape videos together when judging this route.
+- 2026-06-20 runtime hand-weight solver correction:
+  the post-fix cross-character contact run
+  `engine/out/codex_goal_20260620_deathmetal_left_contact_runtime_weight_fix/`
+  fixes the remaining Laid to Rest/Deathmetal1 thumb-through-neck symptom at
+  the shared IK weight source, not with a character offset. The pre-fix debug
+  run `engine/out/codex_goal_20260620_deathmetal_ik_debug_left_contact/run.log`
+  showed `left_hand.ik` and `right_hand.ik` skipped with `solveWeight=0.000`
+  even after the MIDI hand driver made the live target blend `1.000`; the
+  character graph serializes `left.weight`/`right.weight` WeightSetter rows at
+  `0.000`, and native was letting those stale rows override the runtime
+  hand-driver scalar. `effective_ik_hand_solver_weight` now checks
+  `runtime_weight_props` first, matching the accepted live scalar-row model used
+  by the gameplay hand driver. Validation: the Deathmetal1 retained MP4
+  `laidtorest_deathmetal_left_contact_runtime_weight_fix_10s.mp4` and sheet
+  show the fretting hand on the neck, and the contact log keeps `bone_L-hand`
+  exactly at `0/0/0` in `bone_fret_hand` space for all retained post-controller
+  samples. The same run selects `finger_powerchord_1` 11 times and
+  `finger_hold_index_hi` twice, with all four `strum_short_*` clips. The
+  Jordan/Glam regression
+  `engine/out/codex_goal_20260620_jordan_left_contact_runtime_weight_regression/`
+  keeps the earlier accepted thumb band after the solver change:
+  `bone_L-hand` stays `0/0/0`; `bone_L-thumb01` is
+  `1.035/0.040/-0.649`; `bone_L-thumb02` spans
+  `2.229..2.465 / 1.751..1.873 / -1.348..-1.198`; and
+  `bone_L-thumb03` spans
+  `3.419..3.823 / 2.621..2.955 / -1.490..-1.269`. Raw BMP frames for both
+  validation runs were deleted after encoding; do not reintroduce solver logic
+  that prioritizes serialized zero WeightSetter rows over live hand-driver
+  weights.
+- 2026-06-20 Mr. Fix It chord-route pre-roll recheck:
+  `engine/out/codex_goal_20260620_left_hand_preroll_mrfixit_chords/` starts at
+  14s and captures the 17s+ powerchord window. The crop attempts in this folder
+  are not strong fretting-hand visual proof because the debug camera angle hides
+  the hand, but the logs are useful route evidence: masks include `0x03`,
+  `0x05`, `0x0a`, `0x14`, and `0x18`, and the selected clips include
+  `finger_powerchord_1` and `finger_powerchord_2`. Use this as a scheduler
+  check only until a better chord-focused camera route is available.
 - 2026-06-20 cross-guitar hand-output sweep:
   `engine/out/codex_goal_20260620_cross_guitar_hand_output/` repeats the
   promoted hand-output route on `rockthistown`/Rockabill1 and

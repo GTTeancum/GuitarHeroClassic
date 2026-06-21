@@ -141,10 +141,13 @@ static std::vector<uint8_t> build_test_smf() {
     t1.meta_name("PART GUITAR");
 
     // Events in ascending tick order:
-    // tick 0: SP on (116), Expert Green on (96), Easy Green on (60).
+    // tick 0: SP on (116), Expert Green on (96), Easy Green on (60),
+    // and a player*_fret_pos cue (40 -> spot_neck_fret01).
     t1.note_on(0,   116);  // star power on
     t1.note_on(0,   96);   // Expert Green on
     t1.note_on(0,   60);   // Easy Green on
+    t1.note_on(0,   40);   // fret-position animation spot 1
+    t1.note_on(60,  44);   // dense fret-position cue filtered by min_gap
     // tick 120: Expert Green off, Red on.
     t1.note_off(120, 96);
     t1.note_on (120, 97);  // Expert Red on
@@ -167,6 +170,7 @@ static std::vector<uint8_t> build_test_smf() {
     t1.note_on (641, 72);  // Medium Green on
     t1.note_off(802, 72);  // Medium Green off
     t1.note_on (802, 73);  // Medium Red on
+    t1.note_on (900, 59);  // fret-position animation spot 20
     t1.note_off(963, 73);  // Medium Red off
     t1.meta_eot();
 
@@ -305,6 +309,22 @@ int main() {
               chart.venue_cues[0].pitch == 52 &&
               chart.venue_cues[0].tick == 3600,
               "VenueCue[0]: venue_effect at authored tick 3600");
+    }
+
+    // --- player*_fret_pos cues from PART GUITAR pitch 40..59 ---
+    // TRIGGERS pitch 50 above is a lighting cue and must not leak into this
+    // selected-guitar-track stream. The accepted GH2DXu parser also declares
+    // min_gap 0.22, so the tick-60 dense cue is intentionally filtered.
+    CHECK(chart.fret_positions.size() == 2, "Fret position cues: 2");
+    if (chart.fret_positions.size() == 2) {
+        CHECK(chart.fret_positions[0].tick == 0 &&
+              chart.fret_positions[0].pitch == 40 &&
+              chart.fret_positions[0].spot_index == 1,
+              "FretPos[0]: pitch 40 -> spot 1");
+        CHECK(chart.fret_positions[1].tick == 900 &&
+              chart.fret_positions[1].pitch == 59 &&
+              chart.fret_positions[1].spot_index == 20,
+              "FretPos[1]: pitch 59 -> spot 20");
     }
 
     if (failures == 0)

@@ -212,6 +212,14 @@ struct RuntimeHairState {
   std::vector<RuntimeHairPoint> points;
 };
 
+struct RuntimeIKMidiState {
+  bool initialized = false;
+  std::string active_spot;
+  float spot_start_time_seconds = 0.0f;
+  std::array<float, 16> start_world =
+      {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+};
+
 struct FaceFxServoTarget {
   std::string object;
   int32_t prop_type = 0;
@@ -266,6 +274,11 @@ struct Character {
   std::vector<CharDriver> drivers;
   std::vector<CharWeightSetter> weight_setters;
   std::map<std::string, float> runtime_weight_props;
+  std::map<std::string, RuntimeIKMidiState> runtime_ik_midi_states;
+  // Persistent CharIKHand controller +0x50 vectors. PS2 blends the destination
+  // Trans world position into this row and uses it for the hand solve/stretch
+  // write; it is controller state, not a per-frame authored bone local.
+  std::map<std::string, std::array<float, 3>> runtime_ik_hand_targets;
   // PS2 Trans controllers can submit live world rows through the shared
   // writer without replacing the authored local rows that later controllers
   // still read. These are cleared per sampled frame.
