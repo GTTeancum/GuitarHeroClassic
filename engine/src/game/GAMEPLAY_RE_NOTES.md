@@ -623,6 +623,18 @@ Open work:
   (`0.683` at frame 260), `color1.pst` remains at `active_spots=6` with
   `fade_frames=0.000`, and the `excitement_great` biker filters continue
   sampling position/rotation frames through the same venue AnimFilter path.
+- 2026-06-21 lighting-overlay event animation follow-up: arena, small1, and
+  theatre `*_lighting.milo_ps2` all carry the same authored route
+  `smoke_lights.trig` payload `start` -> `smoke_lights.filt` ->
+  `smoke_lights.mnm`. Native previously only found `.mnm` refs directly
+  embedded in an `EventTrigger`, so this lighting-overlay source route was
+  invisible to the runtime. Native now resolves `EventTrigger -> AnimFilter ->
+  MatAnim` indirection, loads separate lighting-overlay MatAnim route state from
+  the lighting MILO, and applies the authored `start` event when the overlay is
+  constructed. The `smoke_lights.mnm` channel is not the alpha-only venue
+  geometry shape already decoded for `MatAnim`; unsupported lighting material
+  channels are therefore logged rather than mapped to brightness or UV animation
+  without trace-backed field semantics.
 - 2026-06-21 small1 venue-animation refresh:
   `analysis/native_validation/small1_venue_anim_probe_20260621_current/` runs
   stock PS2 `psychobilly` from `10.0s` with diagnostic autoplay. The

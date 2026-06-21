@@ -208,6 +208,8 @@ class Gameplay {
   void resend_active_venue_event();
   void update_active_venue_material_anims();
   void update_active_venue_anim_filters();
+  void apply_lighting_event(const std::string& event_name);
+  void update_active_lighting_material_anims();
   void set_lighting_spot_targets(
       std::vector<ghogx::render::MiloSceneRenderer::SpotlightState> targets,
       double fade_seconds);
@@ -319,6 +321,10 @@ class Gameplay {
   bool lighting_transition_active_ = false;
   size_t next_lighting_cue_idx_ = 0;
   bool ignored_last_light_change_ = false;
+  std::map<std::string, VenueMaterialAnim> lighting_mat_anims_;
+  std::map<std::string, std::vector<std::string>> lighting_event_mat_anims_;
+  std::map<std::string, float> lighting_material_alpha_;
+  std::vector<ActiveVenueMaterialAnim> active_lighting_material_anims_;
   std::map<std::string, VenueMaterialAnim> venue_mat_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_filters_;

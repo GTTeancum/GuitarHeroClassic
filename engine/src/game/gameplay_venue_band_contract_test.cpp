@@ -344,6 +344,30 @@ int main() {
                  "update_active_venue_anim_filters();",
                  "venue material alpha samples before mesh AnimFilter samples");
   ok &= contains(gameplay_c,
+                 "std::map<std::string,std::vector<std::string>>"
+                 "filter_mat_anims;",
+                 "MatAnim loader resolves AnimFilter-indirected material animations");
+  ok &= contains(gameplay_c,
+                 "elseif(ref.size()>5&&ref.rfind(\".filt\")==ref.size()-5)",
+                 "EventTrigger MatAnim routing follows .filt indirection");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::vector<std::string>>"
+                 "lighting_event_mat_anims_;",
+                 "lighting overlay keeps its own EventTrigger MatAnim routes");
+  ok &= contains(gameplay_c,
+                 "lighting_event_mat_anims_=load_venue_event_mat_anims("
+                 "hdr_path_,ark_path_,lighting_milo);",
+                 "lighting overlay loads authored lighting MILO event animations");
+  ok &= contains(gameplay_c,
+                 "apply_lighting_event(\"start\");",
+                 "lighting overlay applies its authored start trigger");
+  ok &= contains(gameplay_c,
+                 "update_active_lighting_material_anims();",
+                 "lighting overlay material animation samples on the song clock");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingevent%s:MatAnim%sroutehasunsupportedchannelshape",
+                 "unsupported lighting MatAnim channels stay logged instead of guessed");
+  ok &= contains(gameplay_c,
                  "constboolcurrent_visibility_applied="
                  "apply_venue_event_visibility(event_name,true);",
                  "current venue EventTrigger visibility still applies through the latching path");
