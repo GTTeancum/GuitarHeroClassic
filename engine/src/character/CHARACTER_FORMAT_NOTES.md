@@ -2833,6 +2833,19 @@ Useful environment flags:
   ~108s..114s; the log selects 63 `player_fret` events, covers fret indices
   `4..13`, and keeps post-controller `bone_L-hand` exactly at
   `bone_fret_hand` while thumb rows stay in the negative-Z neck-side band.
+  `analysis/native_validation/ghdx_jordan_left_hand_thumbside_20260621_1034/`
+  is a follow-up thumb-side review capture from the same GH2DX/Deluxe route,
+  now locked to `guitarist0:spot_neck_fret12.mesh` with the retained MP4
+  `ghdx_jordan_left_hand_thumbside.mp4`. Its `t >= 108.0` post-controller
+  rows keep `bone_L-hand` exactly at `bone_fret_hand`, `bone_L-thumb01` at
+  `1.034..1.035 / 0.040..0.040 / -0.649..-0.648`, and distal thumb rows in
+  the accepted negative-Z neck-side band. The companion hidden row-only pass
+  `analysis/native_validation/ghdx_jordan_left_hand_fingerrows_20260621_1040/`
+  records the same `player_fret` route selecting `finger_hold_index`,
+  `finger_hold_index_hi`, `finger_hold_middle_hi`, `finger_hold_pinky`,
+  `finger_hold_ring_hi`, and `finger_vibrato_pinky`; post-controller rotation
+  spans show clip-driven finger curl, led by `bone_L-pinky01` components at
+  `0.60409`/`0.58614` and `bone_L-ringfinger01` at `0.40981`/`0.40534`.
   `analysis/native_validation/ghdx_jordan_left_hand_fixedneck_valid_20260621_0034/`
   is the companion fixed-neck visual proof; its cropped MP4
   `ghdx_jordan_left_hand_fixedneck_valid_crop.mp4` keeps the upper neck in
