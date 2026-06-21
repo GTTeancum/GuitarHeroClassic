@@ -299,6 +299,40 @@ Open work:
   and reports LightPreset coverage as `matched_lighting` vs `matched_venue`.
   Do not animate or swap active environments from those preset-level refs until
   a trace shows the exact runtime route.
+- The same split applies to `.lit` refs. `arena_geom.milo_ps2` owns concrete
+  Light entries such as `stage_light_02.lit`, `stage_light_03.lit`,
+  `stage_bkg_1.lit`, `grim_light.lit`, `squid_light.lit`,
+  `spotlight01.lit`, and `char_rim_lighting.lit`, while `small1_geom.milo_ps2`
+  owns `STAGE_omni.lit`, `STAGE_back_wall_flood.lit`, and `bar01.lit`.
+  Native now caches decoded venue geometry Light objects and reports
+  LightPreset `.lit` coverage as lighting-overlay matches vs venue-geometry
+  matches. This is still graph coverage; do not substitute those light bodies
+  into a render-light path unless the active preset/keyframe route proves the
+  intended object is live.
+- `Light` tail offsets after the Trans matrices now match the local
+  `rnd_objects.dta` schema: RGBA at raw `0x7e`, range at `0x8e`, type enum at
+  `0x92` (`0` point, `1` directional, `2` fake spot, `3` floor spot), then
+  `animate_color_from_preset` and `animate_position_from_preset` bytes at
+  `0x96`/`0x97`. Arena `stage_light_02.lit` / `stage_light_03.lit` decode as
+  directional, while small1 `STAGE_omni.lit`, `STAGE_back_wall_flood.lit`, and
+  `bar01.lit` decode as point lights.
+- Native has an opt-in probe for authored point/directional dynamic lights
+  through the decoded environment route: mesh -> nearest `Group.environ`,
+  material `use_environ`, Environ `.lit` list, then decoded `Light` object.
+  Unsupported `kLightFakeSpot` / `kLightFloorSpot` entries stay out of this D3D
+  light path because their visible behavior is represented by authored
+  spotlight/floor geometry, not a simple fixed-function light. The probe is
+  behind `GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS=1` (and still A/B-able with
+  `GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS=1`) because default-on validation made
+  arena's city/background jump to a peach wash. Keep it disabled until a trace
+  proves the active preset/keyframe-to-light math.
+  Validation after opt-in gating:
+  `analysis/native_validation/arena_light_bridge_optin_default_20260621_current`
+  and
+  `analysis/native_validation/small1_light_bridge_optin_default_20260621_current`
+  keep the venue `.lit`/`.env` coverage logs. Arena matched the prior
+  dynamic-light-off frame exactly, and same-build small1 default-vs-explicit
+  disabled comparison also produced a zero-pixel diff.
 - 2026-06-21 LightPreset mesh-target spotlight follow-up:
   the theatre validation log showed `chorus_okay.pst` keyframes with many
   decoded mesh targets and `static_targeted_spots=18`, but native still emitted

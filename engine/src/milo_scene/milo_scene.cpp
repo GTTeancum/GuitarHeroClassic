@@ -338,6 +338,16 @@ LightObj decode_light(const std::string& entry_name,
     if (!std::isfinite(light.range) || light.range < 0.0f) {
       throw std::runtime_error("milo_scene: invalid Light range");
     }
+    if (body.size() >= 0x96) {
+      int32_t type = 0;
+      std::memcpy(&type, body.data() + 0x92, sizeof(type));
+      if (type < 0 || type > 3) type = 0;
+      light.type = type;
+    }
+    if (body.size() > 0x96)
+      light.animate_color_from_preset = body[0x96] != 0;
+    if (body.size() > 0x97)
+      light.animate_position_from_preset = body[0x97] != 0;
     light.decoded = true;
   } catch (const std::exception& ex) {
     light.error = ex.what();
@@ -601,6 +611,12 @@ bool xfm_nearly_equal(const Xfm& a, const Xfm& b) {
 const MatObj* Scene::find_mat(const std::string& name) const {
   for (const MatObj& m : mats)
     if (m.name == name) return &m;
+  return nullptr;
+}
+
+const LightObj* Scene::find_light(const std::string& name) const {
+  for (const LightObj& light : lights)
+    if (light.name == name && light.decoded) return &light;
   return nullptr;
 }
 

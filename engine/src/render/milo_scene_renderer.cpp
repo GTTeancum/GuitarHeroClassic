@@ -34,6 +34,8 @@ struct SVtx {
 constexpr DWORD kFVF =
     D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 constexpr DWORD kDefaultSceneAmbient = D3DCOLOR_XRGB(170, 170, 178);
+constexpr DWORD kAuthoredLightFirstSlot = 2;
+constexpr DWORD kAuthoredLightSlotCount = 6;
 
 std::array<float, 16> mul16(const std::array<float, 16>& a,
                             const std::array<float, 16>& b) {
@@ -291,6 +293,21 @@ bool environ_color_sane(const milo_scene::EnvironObj& env) {
     }
   }
   return true;
+}
+
+bool light_color_sane(const milo_scene::LightObj& light) {
+  for (int i = 0; i < 4; ++i) {
+    if (!std::isfinite(light.color[i]) || light.color[i] < 0.0f ||
+        light.color[i] > 4.0f) {
+      return false;
+    }
+  }
+  return std::isfinite(light.range) && light.range >= 0.0f &&
+         light.range <= 100000.0f;
+}
+
+float vec_len3(float x, float y, float z) {
+  return std::sqrt(x * x + y * y + z * z);
 }
 
 }  // namespace
@@ -773,6 +790,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   };
   set_dir_light(0, 0.3f, 0.5f, -0.8f, 0.55f);   // key, from above-front
   set_dir_light(1, -0.4f, -0.6f, -0.5f, 0.30f);  // fill, opposite
+  for (DWORD i = 0; i < kAuthoredLightSlotCount; ++i) {
+    dev_->LightEnable(kAuthoredLightFirstSlot + i, FALSE);
+  }
   // Material: white diffuse + ambient so texture colour shows through fully.
   D3DMATERIAL9 mtrl{};
   mtrl.Diffuse.r = mtrl.Diffuse.g = mtrl.Diffuse.b = mtrl.Diffuse.a = 1.0f;
@@ -797,6 +817,64 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   const bool apply_environment_lighting =
       environment_lighting_enabled_ &&
       !env_enabled("GHOGX_DISABLE_ENVIRON_LIGHTING");
+  const bool apply_environment_dynamic_lights =
+      apply_environment_lighting &&
+      env_enabled("GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS") &&
+      !env_enabled("GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS");
+  std::string active_authored_light_key;
+  auto disable_authored_lights = [&]() {
+    if (active_authored_light_key.empty()) return;
+    for (DWORD i = 0; i < kAuthoredLightSlotCount; ++i) {
+      dev_->LightEnable(kAuthoredLightFirstSlot + i, FALSE);
+    }
+    active_authored_light_key.clear();
+  };
+  auto configure_authored_lights =
+      [&](const milo_scene::EnvironObj* env) {
+    if (!apply_environment_dynamic_lights || !env || env->lights.empty()) {
+      disable_authored_lights();
+      return;
+    }
+    if (active_authored_light_key == env->name) return;
+    for (DWORD i = 0; i < kAuthoredLightSlotCount; ++i) {
+      dev_->LightEnable(kAuthoredLightFirstSlot + i, FALSE);
+    }
+
+    DWORD slot = kAuthoredLightFirstSlot;
+    size_t enabled = 0;
+    for (const auto& ref : env->lights) {
+      if (slot >= kAuthoredLightFirstSlot + kAuthoredLightSlotCount) break;
+      const auto* light = scene_.find_light(ref);
+      if (!light || !light_color_sane(*light)) continue;
+      D3DLIGHT9 dl{};
+      dl.Diffuse.r = std::clamp(light->color[0], 0.0f, 4.0f);
+      dl.Diffuse.g = std::clamp(light->color[1], 0.0f, 4.0f);
+      dl.Diffuse.b = std::clamp(light->color[2], 0.0f, 4.0f);
+      dl.Diffuse.a = std::clamp(light->color[3], 0.0f, 1.0f);
+      if (light->type == 1) {
+        float dx = light->world_stored.rot[1][0];
+        float dy = light->world_stored.rot[1][1];
+        float dz = light->world_stored.rot[1][2];
+        const float len = vec_len3(dx, dy, dz);
+        if (len <= 0.0001f) continue;
+        dl.Type = D3DLIGHT_DIRECTIONAL;
+        dl.Direction = {dx / len, dy / len, dz / len};
+      } else if (light->type == 0) {
+        dl.Type = D3DLIGHT_POINT;
+        dl.Position = {light->world_stored.pos[0], light->world_stored.pos[1],
+                       light->world_stored.pos[2]};
+        dl.Range = std::max(light->range, 1.0f);
+        dl.Attenuation0 = 1.0f;
+      } else {
+        continue;
+      }
+      dev_->SetLight(slot, &dl);
+      dev_->LightEnable(slot, TRUE);
+      ++slot;
+      ++enabled;
+    }
+    active_authored_light_key = enabled == 0 ? std::string{} : env->name;
+  };
 
   auto draw_mesh_with_world = [&](const milo_scene::MeshObj& m,
                                   const std::array<float, 16>& w,
@@ -825,24 +903,25 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       mr = mat->color[0]; mg = mat->color[1]; mb = mat->color[2]; ma = mat->color[3];
       material_additive = mat->color[3] < 0.999f;
     }
-    DWORD mesh_ambient = kDefaultSceneAmbient;
+    const milo_scene::EnvironObj* mesh_env = nullptr;
     if (apply_environment_lighting && mat_obj && mat_obj->use_environ) {
       const auto env_it = mesh_environments_.find(m.name);
-      const milo_scene::EnvironObj* env =
-          env_it == mesh_environments_.end()
-              ? nullptr
-              : scene_.find_environ(env_it->second);
-      if (env && environ_color_sane(*env)) {
+      mesh_env = env_it == mesh_environments_.end()
+                     ? nullptr
+                     : scene_.find_environ(env_it->second);
+    }
+    DWORD mesh_ambient = kDefaultSceneAmbient;
+    if (mesh_env && environ_color_sane(*mesh_env)) {
         const auto cc_env = [](float f) -> int {
           int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
           return i < 0 ? 0 : (i > 255 ? 255 : i);
         };
-        mesh_ambient = D3DCOLOR_XRGB(cc_env(env->color_a[0]),
-                                     cc_env(env->color_a[1]),
-                                     cc_env(env->color_a[2]));
-      }
+        mesh_ambient = D3DCOLOR_XRGB(cc_env(mesh_env->color_a[0]),
+                                     cc_env(mesh_env->color_a[1]),
+                                     cc_env(mesh_env->color_a[2]));
     }
     dev_->SetRenderState(D3DRS_AMBIENT, mesh_ambient);
+    configure_authored_lights(mesh_env);
     bool material_tex_anim = false;
     float rot = 0.0f;
     if (const auto tex_it = material_tex_transforms_.find(material);

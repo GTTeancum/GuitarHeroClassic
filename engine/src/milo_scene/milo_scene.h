@@ -56,6 +56,10 @@
 //     48 stored world matrix at raw offset 0x41
 //     16 RGBA float color at raw offset 0x7e
 //     f32 range at raw offset 0x8e
+//     i32 type at raw offset 0x92 (0 point, 1 directional, 2 fake spot,
+//     3 floor spot)
+//     u8 animate_color_from_preset at raw offset 0x96
+//     u8 animate_position_from_preset at raw offset 0x97
 //
 //   Group (version 15 in venue geometry):
 //     ...   Draw/Anim/Trans fields and child object refs
@@ -136,6 +140,9 @@ struct LightObj {
   Xfm world_stored;
   float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   float range = 0.0f;
+  int type = 0;
+  bool animate_color_from_preset = false;
+  bool animate_position_from_preset = false;
   bool decoded = false;
   std::string error;
 };
@@ -247,6 +254,8 @@ struct Scene {
 
   // Find a material by name (nullptr if absent).
   const MatObj* find_mat(const std::string& name) const;
+  // Find a dynamic light by name (nullptr if absent or decode failed).
+  const LightObj* find_light(const std::string& name) const;
   // Find an environment by name (nullptr if absent or decode failed).
   const EnvironObj* find_environ(const std::string& name) const;
 };

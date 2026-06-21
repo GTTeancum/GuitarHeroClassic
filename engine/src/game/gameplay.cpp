@@ -2264,6 +2264,7 @@ std::vector<Gameplay::LightingPreset> load_lighting_presets(
 void log_lighting_light_object_coverage(
     const ghogx::milo_scene::Scene& lighting_scene,
     const std::vector<Gameplay::LightingPreset>& presets,
+    const std::map<std::string, ghogx::milo_scene::LightObj>& venue_lights,
     const std::map<std::string, ghogx::milo_scene::EnvironObj>& venue_environs) {
     std::map<std::string, const ghogx::milo_scene::LightObj*> lights_by_name;
     size_t failed_lights = 0;
@@ -2278,9 +2279,12 @@ void log_lighting_light_object_coverage(
         lights_by_name[light.name] = &light;
         std::fprintf(
             stderr,
-            "[world] lighting Light object decoded: %s pos=(%.3f %.3f %.3f) color=(%.3f %.3f %.3f %.3f) range=%.3f\n",
-            light.name.c_str(), light.world_stored.pos[0],
-            light.world_stored.pos[1], light.world_stored.pos[2],
+            "[world] lighting Light object decoded: %s type=%d anim_color=%d anim_pos=%d pos=(%.3f %.3f %.3f) color=(%.3f %.3f %.3f %.3f) range=%.3f\n",
+            light.name.c_str(), light.type,
+            light.animate_color_from_preset ? 1 : 0,
+            light.animate_position_from_preset ? 1 : 0,
+            light.world_stored.pos[0], light.world_stored.pos[1],
+            light.world_stored.pos[2],
             light.color[0], light.color[1], light.color[2], light.color[3],
             light.range);
     }
@@ -2322,12 +2326,17 @@ void log_lighting_light_object_coverage(
     }
 
     size_t matched_refs = 0;
+    size_t matched_venue_refs = 0;
     size_t unmatched_refs = 0;
     size_t unmatched_logged = 0;
     for (const auto& [ref, unused] : lit_refs) {
         (void)unused;
         if (lights_by_name.find(ref) != lights_by_name.end()) {
             ++matched_refs;
+            continue;
+        }
+        if (venue_lights.find(ref) != venue_lights.end()) {
+            ++matched_venue_refs;
             continue;
         }
         ++unmatched_refs;
@@ -2341,9 +2350,9 @@ void log_lighting_light_object_coverage(
     }
     std::fprintf(
         stderr,
-        "[world] lighting Light object coverage: decoded=%zu failed=%zu preset_lit_refs=%zu matched=%zu unmatched=%zu\n",
-        lights_by_name.size(), failed_lights, lit_refs.size(), matched_refs,
-        unmatched_refs);
+        "[world] lighting Light object coverage: decoded=%zu failed=%zu venue_decoded=%zu preset_lit_refs=%zu matched_lighting=%zu matched_venue=%zu unmatched=%zu\n",
+        lights_by_name.size(), failed_lights, venue_lights.size(),
+        lit_refs.size(), matched_refs, matched_venue_refs, unmatched_refs);
 
     size_t matched_env_refs = 0;
     size_t matched_venue_env_refs = 0;
@@ -5221,6 +5230,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_event_filters_.clear();
     venue_filter_mesh_targets_.clear();
     venue_event_anim_filters_.clear();
+    venue_lights_.clear();
     venue_environs_.clear();
     active_venue_anim_filters_.clear();
     last_venue_filter_debug_time_ = -1.0;
@@ -6194,6 +6204,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         meshes.push_back(mesh.name);
                     }
                 }
+                venue_lights_.clear();
+                for (const auto& light : venue_scene.lights) {
+                    if (light.decoded) venue_lights_[light.name] = light;
+                }
                 venue_environs_.clear();
                 for (const auto& env : venue_scene.environs) {
                     if (env.decoded) venue_environs_[env.name] = env;
@@ -6256,6 +6270,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     hdr_path_, ark_path_, quickplay_rig_->venue);
                 log_lighting_light_object_coverage(lighting_scene,
                                                    lighting_presets_,
+                                                   venue_lights_,
                                                    venue_environs_);
                 auto lighting_textures = ghogx::asset::load_milo_textures(
                     hdr_path_, ark_path_, lighting_milo,

@@ -551,7 +551,9 @@ int main() {
                  "lighting keyframe log includes transition timing evidence");
   ok &= contains(milo_scene_h_c,
                  "structLightObj{std::stringname;Xfmlocal;Xfmworld_stored;"
-                 "floatcolor[4]={1.0f,1.0f,1.0f,1.0f};floatrange=0.0f;",
+                 "floatcolor[4]={1.0f,1.0f,1.0f,1.0f};floatrange=0.0f;"
+                 "inttype=0;boolanimate_color_from_preset=false;"
+                 "boolanimate_position_from_preset=false;",
                  "MILO scene exposes decoded raw Light objects");
   ok &= contains(milo_scene_h_c,
                  "std::vector<LightObj>lights;",
@@ -591,6 +593,18 @@ int main() {
   ok &= contains(milo_scene_cpp_c,
                  "light.range=read_f32_at(body,0x8e);",
                  "Light decoder uses traced range offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "std::memcpy(&type,body.data()+0x92,sizeof(type));",
+                 "Light decoder uses traced type offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "light.animate_color_from_preset=body[0x96]!=0;",
+                 "Light decoder uses traced animate-color flag offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "light.animate_position_from_preset=body[0x97]!=0;",
+                 "Light decoder uses traced animate-position flag offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "constLightObj*Scene::find_light(conststd::string&name)const",
+                 "decoded scene resolves authored Light refs by name");
   ok &= contains(milo_scene_cpp_c,
                  "constuint32_tlight_count=r.u32();",
                  "Environ decoder consumes authored light-ref array count");
@@ -636,8 +650,12 @@ int main() {
                  "Spotlight decoder uses the shared target classifier");
   ok &= contains(gameplay_c,
                  "log_lighting_light_object_coverage(lighting_scene,"
-                 "lighting_presets_,venue_environs_);",
+                 "lighting_presets_,venue_lights_,venue_environs_);",
                  "runtime logs decoded Light/Environ coverage before rendering");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,ghogx::milo_scene::LightObj>"
+                 "venue_lights_;",
+                 "runtime caches venue geometry Light objects for lighting refs");
   ok &= contains(gameplay_h_c,
                  "std::map<std::string,ghogx::milo_scene::EnvironObj>"
                  "venue_environs_;",
@@ -645,6 +663,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]lightingpreset.litrefhasnodecodedLightobject:",
                  "runtime reports preset .lit refs that are not decoded Light objects");
+  ok &= contains(gameplay_c,
+                 "matched_venue_refs",
+                 "LightPreset .lit coverage resolves against venue geometry Light objects");
   ok &= contains(gameplay_c,
                  "\"[world]lightingEnvironobjectdecoded:",
                  "runtime logs decoded Environ object data");
@@ -657,6 +678,15 @@ int main() {
   ok &= contains(renderer_c,
                  "scene_.find_environ(env_it->second)",
                  "renderer resolves authored Environ refs before applying ambient");
+  ok &= contains(renderer_c,
+                 "scene_.find_light(ref)",
+                 "renderer resolves Environ-authored Light refs before applying dynamic lighting");
+  ok &= contains(renderer_c,
+                 "GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS",
+                 "renderer keeps authored dynamic environment lights opt-in until traced");
+  ok &= contains(renderer_c,
+                 "GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS",
+                 "renderer keeps authored dynamic environment lights A/B switchable");
   ok &= contains(gameplay_c,
                  "\"[world]lightingpreset.envrefhasnodecodedEnvironobject:",
                  "runtime reports preset .env refs that are not decoded Environ objects");
