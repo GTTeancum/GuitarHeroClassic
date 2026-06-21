@@ -1373,6 +1373,23 @@ Community metadata Rosetta:
   hand mount and chord finger rows are active; any remaining thumb-depth
   question should be judged against accepted PS2 contact rows for the same
   route before changing code.
+- 2026-06-21 close visual left-hand validation:
+  `analysis/native_validation/ghdx_jordan_left_hand_close_valid_20260621_004657/`
+  uses the GH2DXu/GHDX ARK only on `jordan` Expert, diagnostic start `105s`,
+  and a hidden camera locked to `guitarist0:spot_neck_fret12.mesh`. The MP4
+  `ghdx_jordan_left_hand_close_valid.mp4` keeps the fretting hand and upper
+  neck large in frame, and `ghdx_jordan_left_hand_close_valid_crop.mp4`
+  crops that same run to the thumb/fingers for review. This supersedes the
+  wider fixed-neck sheet for visual checks of finger articulation. The
+  normalized summary records
+  `player0_fret_pos` indices `5..13`, hand-map masks `01/02/04/08/10`, and
+  selected clips `finger_hold_index`, `finger_hold_index_hi`,
+  `finger_hold_middle_hi`, `finger_hold_pinky`, `finger_hold_ring_hi`, and
+  `finger_vibrato_pinky`. Post-controller `ref=bone_fret_hand` rows keep
+  `bone_L-hand` at exactly `0/0/0`, while thumb and finger child rows vary
+  under the selected hand clips. Treat this as the current native proof that
+  left-hand neck travel and clip-driven finger rows are active together; it is
+  still not original-game final sign-off.
 - Follow-up dynamic-hand validation:
   `engine/out/codex_goal_20260619_dynamic_hand_visible_probe/glam1_dynamic_hand_f1300.bmp`
   hides the attached guitar prop and frames Glam1 during a late active hand-map
