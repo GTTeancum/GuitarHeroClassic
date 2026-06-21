@@ -1425,6 +1425,20 @@ Community metadata Rosetta:
   `finger_vibrato_pinky_hi`. The same post-fix run keeps
   `HandMap_Default` chord masks `0x0a` and `0x05` on `finger_powerchord_1`,
   so the accepted root-bucket powerchord route remains intact.
+- 2026-06-21 bassist hand-driver audit:
+  `analysis/native_validation/shout_bassist_handmap_probe_20260621_1005/`
+  checks GH2DX/Deluxe `shoutatthedevil` with `GHOGX_ONLY_PERFORMER=bassist`
+  and `GHOGX_DEBUG_HAND_MAP=1`. The chart parser exposes `bassFretPos=318`
+  and `bassHandCues=597`, but native correctly reports a skipped hand map for
+  `metal_bass`: `handDriver=0`, `handGraph=0`, `handClips=0`, `ikHands=0`,
+  and `ikMidis=0`. The asset evidence agrees:
+  `char/metal_bass/og/gen/metal_bass.milo_ps2` has `main.drv` and upper-twist
+  controllers only, with no `left_hand.drv`, `right_hand.drv`, `CharIKHand`,
+  `CharIKMidi`, or `bone_fret_hand.mesh`; `bass_main.milo_ps2` bakes
+  `bone_pos_gutbass.trans`, `bone_L-hand.trans`, `bone_R-hand.trans`, and
+  coarse `finger0` channels into the main clip set. Do not graft guitarist
+  `finger_*` / `strum_*` hand-map drivers onto this bassist route without a
+  new accepted PS2 trace showing a different runtime driver.
 - Follow-up dynamic-hand validation:
   `engine/out/codex_goal_20260619_dynamic_hand_visible_probe/glam1_dynamic_hand_f1300.bmp`
   hides the attached guitar prop and frames Glam1 during a late active hand-map
