@@ -2974,6 +2974,29 @@ Useful environment flags:
   `0.39746`/`0.39741` and `bone_L-ringfinger01` at `0.32023`/`0.32011`.
   This supports the same shared hand-driver/IK/output route; do not tighten
   Rockabill1 fingers with an outfit override without a PS2 runtime mismatch.
+- 2026-06-21 extended Jordan/Glam1 neck-anchored left-hand validation:
+  `analysis/native_validation/ghdx_jordan_left_hand_long_neck_20260621_1118/`
+  repeats the GH2DX/Deluxe `jordan` dense route from a 105s diagnostic start,
+  retaining the ~108s..118s window with the camera locked to
+  `guitarist0:spot_neck_fret12.mesh` instead of following the hand. The MP4
+  `ghdx_jordan_left_hand_long_neck.mp4` keeps the Les Paul neck and fretting
+  hand in frame; raw BMP frames were deleted after encoding. The log records
+  `Expert=1802`, `fretPos=570`, `handCues=1385`, and 93 hand-map events, all
+  from `source=player_fret` on `HandMap_Default`, while `player*_fret_pos`
+  drives fret indices `4..13`. Selected fret clips are
+  `finger_hold_index`, `finger_hold_index_hi`, `finger_hold_middle_hi`,
+  `finger_hold_pinky`, `finger_hold_ring_hi`, and `finger_vibrato_pinky`.
+  For `t >= 108.0`, post-controller rows keep `bone_L-hand` exactly at
+  `bone_fret_hand` over 202 samples, while `bone_fret_hand` travels in world
+  space by X/Y/Z spans `10.54245`/`4.72320`/`7.10418`. Thumb rows stay in the
+  negative-Z neck-side band (`bone_L-thumb01` at
+  `1.034..1.035 / 0.040..0.040 / -0.649..-0.647`), and left-finger rotation
+  spans remain dynamic under the selected clips (`bone_L-pinky01`
+  `0.60598`/`0.58729`, `bone_L-ringfinger01` `0.41007`/`0.40540`,
+  `bone_L-middlefinger01` `0.19234`/`0.18949`). This is current proof for
+  hand travel against the neck plus clip-driven finger motion; do not replace
+  it with stock-build evidence or a character-specific left-hand offset unless
+  a fresh accepted PS2/native mismatch requires it.
 - 2026-06-20 Mr. Fix It chord-route pre-roll recheck:
   `engine/out/codex_goal_20260620_left_hand_preroll_mrfixit_chords/` starts at
   14s and captures the 17s+ powerchord window. The crop attempts in this folder
