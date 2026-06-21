@@ -2929,6 +2929,16 @@ Useful environment flags:
   validation runs were deleted after encoding; do not reintroduce solver logic
   that prioritizes serialized zero WeightSetter rows over live hand-driver
   weights.
+- 2026-06-21 current Deathmetal1 cross-character left-hand recheck:
+  `analysis/native_validation/ghdx_laidtorest_deathmetal_left_hand_current_20260621_100304/`
+  captures the GH2DX/Deluxe `laidtorest` route from a 7s diagnostic start,
+  retaining the ~10s..15s window. The log records 29 `player_fret` events
+  across masks `0x02`, `0x04`, `0x08`, `0x0a`, and `0x10`, selecting
+  `finger_powerchord_1` plus hold/open clips while `player*_fret_pos` drives
+  fret indices `3..6`. Post-controller rows keep `bone_L-hand` exactly at
+  `bone_fret_hand`; thumb rows stay in the accepted negative-Z neck-side band.
+  The MP4 is useful secondary visual evidence, but the torso partially occludes
+  the fret hand, so use the log as the stronger route proof.
 - 2026-06-20 Mr. Fix It chord-route pre-roll recheck:
   `engine/out/codex_goal_20260620_left_hand_preroll_mrfixit_chords/` starts at
   14s and captures the 17s+ powerchord window. The crop attempts in this folder
