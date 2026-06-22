@@ -1079,6 +1079,18 @@ Open work:
   remain coherent fest-stage renders. Because the dynamic-light bridge remains
   opt-in pending final color parity, treat this as route/sampling evidence, not
   a signoff that authored lighting color balance is final.
+- 2026-06-22 arena EnvAnim live-sampling validation:
+  `analysis/native_validation/venue_envanim_debug_arena_shout_20260622_current/`
+  reruns stock PS2 `shoutatthedevil` from `100.0s` with diagnostic autoplay and
+  `GHOGX_DEBUG_VENUE_FILTERS=1`. The run decodes `coplight_blue.enm` and
+  `coplight_red.enm`, routes them through `excitement_great.trig`, records 30
+  `venue EnvAnim sample` rows with cycling color values, and keeps the arena
+  fret-light MatAnim routes, flame ParticleSys cues, 3,082 AnimFilter samples,
+  15 lighting keyframes, regular cameras, and post-switch cameras active with
+  zero misses or unsupported channel rows. Captures `frame_00180.bmp`,
+  `frame_00300.bmp`, and `frame_00530.bmp` are coherent authored-camera arena
+  renders; use this as current proof that Environ color overrides advance in a
+  real song window.
 - Native camera mesh proximity logging
   (`engine/out/native_song_20260614/psychobilly_f900_camera_mesh_probe.log`)
   identified the old `psychobilly` frame-900 occluder as the `tunnel.*`
