@@ -9568,6 +9568,31 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             perf.active_group_index);
                     }
                 }
+                std::vector<std::string> band_jump_names =
+                    load_char_clip_group(hdr_path_, ark_path_, main_anim_milos,
+                                         "sync_jump");
+                if (band_jump_names.empty()) {
+                    if (perf.role == "bassist") {
+                        band_jump_names = {"bassist_band_jump", "band_jump"};
+                    } else if (perf.role == "singer") {
+                        band_jump_names = {"singer_band_jump", "band_jump"};
+                    } else {
+                        band_jump_names = {"band_jump"};
+                    }
+                }
+                if (!load_driver_clip_names(perf.band_jump_clip, "main.drv",
+                                            band_jump_names)) {
+                    load_clip_first_from_milos(perf.band_jump_clip, hdr_path_,
+                                               ark_path_, main_anim_milos,
+                                               band_jump_names);
+                }
+                if (perf.band_jump_clip.loaded) {
+                    std::fprintf(
+                        stderr,
+                        "[world] performer band_jump clip: role=%s char=%s clip=%s\n",
+                        perf.role.c_str(), perf.character_name.c_str(),
+                        perf.band_jump_clip.name.c_str());
+                }
                 if (perf.role == "drummer") {
                     if (!load_driver_clip_first(
                             perf.active_allbeat_clip, "main.drv",
@@ -9952,6 +9977,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             perf.idle_player.advance(static_cast<float>(dt));
             perf.intro_player.advance(static_cast<float>(dt));
             perf.active_player.advance(static_cast<float>(dt));
+            perf.band_jump_player.advance(static_cast<float>(dt));
             perf.face_base_player.advance(static_cast<float>(dt));
             perf.strum_open_player.advance(static_cast<float>(dt));
             perf.strum_player.advance(static_cast<float>(dt));
@@ -9959,6 +9985,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
             perf.fret_player.advance(static_cast<float>(dt));
             for (auto& player : perf.fret_extra_players) {
                 player.advance(static_cast<float>(dt));
+            }
+            if (perf.band_jump_player.active() &&
+                perf.last_band_jump_duration > 0.0 &&
+                song_time_ - perf.last_band_jump_started >
+                    perf.last_band_jump_duration) {
+                perf.band_jump_player.clear();
             }
             if (!intro_active && performer_playing &&
                 !perf.active_group_clips.empty() &&
@@ -9987,6 +10019,31 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                  "[world] performer group clip: role=%s group=normal clip=%s t=%.3f\n",
                                  perf.role.c_str(), next.name.c_str(),
                                  song_time_);
+                }
+            }
+            if (!intro_active && perf.band_jump_clip.loaded) {
+                for (const auto& ev : chart_.text_events) {
+                    const double event_time = chart_.tick_to_sec(ev.tick);
+                    if (event_time < song_time_ - std::max(0.001, dt * 1.5))
+                        continue;
+                    if (event_time > song_time_) break;
+                    if (ev.text != "[band_jump]") continue;
+                    if (ev.tick == perf.last_band_jump_tick) continue;
+                    perf.last_band_jump_tick = ev.tick;
+                    perf.last_band_jump_started = song_time_;
+                    perf.last_band_jump_duration =
+                        perf.band_jump_clip.duration_seconds();
+                    perf.band_jump_player.play(
+                        perf.band_jump_clip,
+                        ghogx::character::kCharPlayDirty |
+                            ghogx::character::kCharPlayNoLoop,
+                        character_driver_blend_seconds());
+                    std::fprintf(
+                        stderr,
+                        "[world] performer band_jump: role=%s clip=%s tick=%u duration=%.3f t=%.3f\n",
+                        perf.role.c_str(), perf.band_jump_clip.name.c_str(),
+                        ev.tick, perf.last_band_jump_duration, song_time_);
+                    break;
                 }
             }
             const NoteCue perf_note_cue =
@@ -10241,7 +10298,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
             }
 
-            if (intro_active && perf.intro_player.active()) {
+            if (!intro_active && perf.band_jump_player.active()) {
+                add_player_layer(perf.band_jump_player, 1.0f);
+            } else if (intro_active && perf.intro_player.active()) {
                 add_player_layer(perf.intro_player, 1.0f);
             } else if (!intro_active && performer_playing &&
                        perf.active_player.active()) {

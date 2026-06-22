@@ -1500,6 +1500,49 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(ev.text==\"[band_jump]\"){force_camera=excitement>1;",
                  "band_jump camera forces only above bad excitement");
+  ok &= contains(gameplay_h_c,
+                 "ghogx::character::CharClipband_jump_clip;",
+                 "performers carry the traced sync_jump/band_jump clip");
+  ok &= contains(gameplay_h_c,
+                 "ghogx::character::CharClipPlayerband_jump_player;",
+                 "performer band_jump uses an independent transient player");
+  ok &= contains(gameplay_h_c,
+                 "uint32_tlast_band_jump_tick=UINT32_MAX;",
+                 "band_jump dispatch is deduped per authored event tick");
+  ok &= contains(gameplay_c,
+                 "load_char_clip_group(hdr_path_,ark_path_,main_anim_milos,"
+                 "\"sync_jump\");",
+                 "performer band_jump first honors the traced sync_jump group");
+  ok &= contains(gameplay_c,
+                 "band_jump_names={\"bassist_band_jump\",\"band_jump\"};",
+                 "bassist band_jump uses the traced bassist clip name fallback");
+  ok &= contains(gameplay_c,
+                 "band_jump_names={\"singer_band_jump\",\"band_jump\"};",
+                 "singer band_jump uses the observed singer clip name fallback");
+  ok &= absent(gameplay_c, "drummer_band_jump",
+               "do not invent an unobserved drummer band_jump clip name");
+  ok &= absent(gameplay_c, "keyboard_band_jump",
+               "do not invent an unobserved keyboard band_jump clip name");
+  ok &= contains(gameplay_c,
+                 "load_driver_clip_names(perf.band_jump_clip,\"main.drv\","
+                 "band_jump_names)",
+                 "performer band_jump resolves through main.drv before fallback");
+  ok &= contains(gameplay_c,
+                 "perf.band_jump_player.play(perf.band_jump_clip,"
+                 "ghogx::character::kCharPlayDirty|"
+                 "ghogx::character::kCharPlayNoLoop,"
+                 "character_driver_blend_seconds());",
+                 "band_jump plays the traced dirty non-loop clip transiently");
+  ok &= contains(gameplay_c,
+                 "song_time_-perf.last_band_jump_started>"
+                 "perf.last_band_jump_duration){perf.band_jump_player.clear();}",
+                 "band_jump clears after authored clip duration");
+  ok &= appears_before(
+      gameplay_c,
+      "if(!intro_active&&perf.band_jump_player.active()){"
+      "add_player_layer(perf.band_jump_player,1.0f);}",
+      "elseif(!intro_active&&performer_playing&&perf.active_player.active())",
+      "band_jump temporarily supplies the base pose before active/idle fallback");
   ok &= contains(gameplay_c,
                  "ev.text==\"[crowd_lighters_slow]\"||",
                  "camera director listens for authored crowd lighter on messages");

@@ -397,6 +397,7 @@ class Gameplay {
     ghogx::character::CharClip active_allbeat_clip;
     ghogx::character::CharClip active_half_clip;
     ghogx::character::CharClip active_nosnare_clip;
+    ghogx::character::CharClip band_jump_clip;
     ghogx::character::CharClip face_base_clip;
     std::vector<ghogx::character::CharClip> active_group_clips;
     ghogx::character::CharClip strum_open_clip;
@@ -410,6 +411,7 @@ class Gameplay {
     ghogx::character::CharClipPlayer idle_player;
     ghogx::character::CharClipPlayer intro_player;
     ghogx::character::CharClipPlayer active_player;
+    ghogx::character::CharClipPlayer band_jump_player;
     ghogx::character::CharClipPlayer face_base_player;
     ghogx::character::CharClipPlayer strum_open_player;
     ghogx::character::CharClipPlayer strum_player;
@@ -421,6 +423,9 @@ class Gameplay {
     uint32_t last_note_tick = UINT32_MAX;
     double last_strum_started = -9999.0;
     double last_strum_duration = 0.0;
+    uint32_t last_band_jump_tick = UINT32_MAX;
+    double last_band_jump_started = -9999.0;
+    double last_band_jump_duration = 0.0;
     std::string last_midi_marker;
     std::string active_clip_mode;
     size_t active_group_index = 0;

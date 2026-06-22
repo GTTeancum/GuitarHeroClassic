@@ -1981,3 +1981,28 @@ Rejected native probe:
   `excitement_great`, the bridge fires `peak_off`, the script runs
   `sparks_off`, and `state_peak` returns to `0`. This is venue script/particle
   route validation, not camera-composition signoff.
+
+2026-06-22 performer band_jump clip bridge:
+
+- The accepted `BAND_JUMP` macro in `char_objects_ps2.dta` plays `kSyncJump`
+  dirty and then resumes the current graph-loop mode; the accepted
+  `pcsx2_bandjump_downbeat_row_objects_20260611.json` trace identifies the
+  authored `band_jump` row and payload. Native already used `[band_jump]` for
+  the forced camera route, but the performer sink side was still camera-only.
+- Native now loads a shared performer jump clip from the main driver path:
+  first the `sync_jump` `CharClipGroup`, then proven direct clip names
+  (`band_jump`, `singer_band_jump`, `bassist_band_jump`). It does not invent
+  unobserved `drummer_band_jump` or `keyboard_band_jump` names. The jump plays
+  as a transient dirty non-loop base pose while the normal active/idle player
+  keeps advancing underneath, then clears after the authored clip duration.
+  Face and hand overlay lanes remain independent.
+- `analysis/native_validation/performer_band_jump_shout_20260622_current/`
+  reruns stock PS2 `shoutatthedevil` hidden from `156.0s` with diagnostic
+  autoplay. The log loads `sync_jump -> band_jump` for `glam1`,
+  `singer_band_jump` for `metal_singer`, and `bassist_band_jump` for
+  `metal_bass`; all three fire at tick `120960` / `t=159.483` with a
+  `2.167s` authored duration. The same event still forces the authored jump
+  camera (`mode=jump`) and the run exits `0` with zero unsupported, miss, or
+  no-decoded route rows. `metal_drummer` has no decoded jump clip in this stock
+  asset path, so drummer absence is treated as asset-backed rather than filled
+  with a guessed clip name.
