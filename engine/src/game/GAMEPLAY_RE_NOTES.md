@@ -1581,3 +1581,32 @@ Rejected native probe:
   `world/small2/og/gen/small2_geom.milo_ps2` show zero concrete `EnvAnim`
   objects. Do not synthesize neon animation from those macros until a focused
   runtime trace or object assignment proves the missing mapping.
+
+2026-06-22 direct EventTrigger transform refs:
+
+- `analysis/venue_lighting_audit/small2_geom_eventtrigger_dump_20260622.txt`
+  shows `small2` fret/speaker triggers whose payload labels are the normal
+  runtime events (`hit_p0_fret1` through `hit_p0_fret5`) but whose action refs
+  point straight at `speaker_cone*.tnm` objects, for example
+  `speaker_cone02.tnm`, `speaker_cone13.tnm`, and related speaker-cone rows.
+  These are not wrapped in `.filt` objects, so the native
+  `EventTrigger -> AnimFilter -> TransAnim` bridge never saw them.
+- Native now records direct EventTrigger refs to `.tnm`, `.msnm`, `.meshanim`,
+  and `.grp` through the same payload-label/object-name route keys used by
+  filter events. Direct refs are expanded into synthetic `VenueAnimFilter`
+  rows, then sampled by the existing venue transform/MeshAnim runtime. This is
+  intentionally a shared object-reference decoder, not a `small2` or speaker
+  special case.
+- Synthetic direct filters use authored transform/MeshAnim key durations for
+  their frame window, so transient fret events expire through the same active
+  venue-animation lifecycle as authored filters.
+- Validation:
+  `analysis/native_validation/venue_direct_tnm_small2_20260622_current/`
+  reruns stock PS2 `youreallygotme` on small2 hidden with diagnostic autoplay.
+  The log loads 26 direct synthetic filters, starts 28 `hit_p0_fret*`
+  `AnimFilter direct_hit_p0_fret*` events, records 607 live fret-triggered
+  `venue AnimFilter sample` rows on `speaker_cone*.mesh`, records zero
+  `hit_p0_fret*` "no decoded AnimFilter transforms" rows, exits `0`, and keeps
+  zero miss rows. The retained frames are route-validation captures only; their
+  current small2 camera composition is visibly low/occluded and should not be
+  treated as camera parity evidence.

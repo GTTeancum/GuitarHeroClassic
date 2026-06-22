@@ -372,8 +372,23 @@ int main() {
                  "merge_venue_group_visibility(out[key],visibility);",
                  "multiple EventTriggers with the same payload label merge visibility");
   ok &= contains(gameplay_c,
-                 "push_unique_ref(event_filters[key],canonical_milo_ref(s));",
+                 "push_unique_ref(event_filters[key],ref);",
                  "AnimFilter EventTrigger refs route by payload label aliases");
+  ok &= contains(gameplay_c,
+                 "boolis_direct_venue_anim_ref(std::string_viewref)",
+                 "venue direct animation ref classifier is shared");
+  ok &= contains(gameplay_c,
+                 "event_direct_anim_refs[key],ref);",
+                 "EventTrigger direct TransAnim/MeshAnim refs route by payload aliases");
+  ok &= contains(gameplay_c,
+                 "mesh_transform_anim_duration_frames(anim_it->second)",
+                 "direct TransAnim routes use authored transform key duration");
+  ok &= contains(gameplay_c,
+                 "filter.name=\"direct_\"+event;",
+                 "direct EventTrigger refs become synthetic venue AnimFilters");
+  ok &= contains(gameplay_c,
+                 "collect_filter_targets(collect_filter_targets,filter,ref,seen)",
+                 "direct EventTrigger refs use the shared AnimFilter target collector");
   ok &= contains(gameplay_h_c,
                  "std::unordered_set<std::string>venue_runtime_hidden_meshes_;",
                  "venue EventTrigger visibility latches in runtime state");
