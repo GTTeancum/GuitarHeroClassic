@@ -396,8 +396,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "update_active_venue_material_anims();"
                  "update_active_venue_environment_anims();"
+                 "update_active_venue_particles();"
                  "update_active_venue_anim_filters();",
-                 "venue material/environment samples before mesh AnimFilter samples");
+                 "venue material/environment/particles sample before mesh AnimFilter samples");
   ok &= contains(gameplay_c,
                  "std::map<std::string,Gameplay::VenueEnvironmentAnim>"
                  "load_venue_env_anims",
@@ -428,6 +429,39 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->set_environment_color_overrides(venue_environment_colors_);",
                  "venue EnvAnim samples feed renderer overrides");
+  ok &= contains(milo_scene_h_c,
+                 "structParticleSysObj",
+                 "MILO scene decoder exposes ParticleSys objects");
+  ok &= contains(milo_scene_cpp_c,
+                 "ParticleSysObjdecode_particle_sys",
+                 "MILO scene decoder has a ParticleSys decoder");
+  ok &= contains(milo_scene_cpp_c,
+                 "constexprsize_tkParticleTransAt=0x19;",
+                 "ParticleSys decoder uses the traced embedded Trans offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.material=s;",
+                 "ParticleSys decoder keeps authored material refs");
+  ok &= contains(renderer_h_c,
+                 "set_active_particle_systems",
+                 "renderer accepts active ParticleSys event state");
+  ok &= contains(renderer_c,
+                 "D3DRS_POINTSPRITEENABLE",
+                 "renderer draws ParticleSys through point sprites");
+  ok &= contains(gameplay_h_c,
+                 "structVenueParticleRoute",
+                 "gameplay keeps particle event routes");
+  ok &= contains(gameplay_c,
+                 "load_venue_event_particles",
+                 "gameplay loads authored ParticleSys event routes");
+  ok &= contains(gameplay_c,
+                 "venue_event_particle_systems_=load_venue_event_particles(",
+                 "venue load wires ParticleSys routes");
+  ok &= contains(gameplay_c,
+                 "world_->set_active_particle_systems({});",
+                 "gameplay starts with event-filtered particles");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::update_active_venue_particles()",
+                 "venue particles have a per-tick lifetime update");
   ok &= contains(gameplay_c,
                  "std::map<std::string,std::vector<std::string>>"
                  "filter_mat_anims;",

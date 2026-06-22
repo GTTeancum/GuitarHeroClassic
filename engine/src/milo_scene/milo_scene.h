@@ -208,6 +208,24 @@ struct MeshObj {
   std::string error;         // non-empty if decode failed (mesh still listed)
 };
 
+struct ParticleSysObj {
+  std::string name;
+  std::string parent;
+  std::string material;
+  Xfm local;
+  Xfm world_stored;
+  bool showing = true;
+  float max_particles = 0.0f;
+  float velocity_min[3] = {0.0f, 0.0f, 0.0f};
+  float velocity_max[3] = {0.0f, 0.0f, 0.0f};
+  float lifetime_min = 1.0f;
+  float lifetime_max = 1.0f;
+  float size_start = 1.0f;
+  float size_end = 1.0f;
+  bool decoded = false;
+  std::string error;
+};
+
 // Decode one entry body (raw bytes = payload.data()+entry.offset, entry.size).
 // `entry_name` is the MILO entry name. Throws std::runtime_error on malformed
 // input; the scene loader catches per-entry so one bad object never aborts.
@@ -229,6 +247,8 @@ MatObj decode_mat(const std::string& entry_name,
 // and a populated .error, so the `mesh` subcommand can report it.
 MeshObj decode_mesh(const std::string& entry_name,
                     const std::vector<uint8_t>& body);
+ParticleSysObj decode_particle_sys(const std::string& entry_name,
+                                   const std::vector<uint8_t>& body);
 
 // A whole decoded scene: every Trans/Mat/Mesh in one MILO, plus the texture
 // names referenced by materials (so the caller can batch-load them).
@@ -242,6 +262,7 @@ struct Scene {
   std::vector<LightObj> lights;
   std::vector<EnvironObj> environs;
   std::vector<GroupObj> groups;
+  std::vector<ParticleSysObj> particles;
   std::vector<std::string> draw_order;  // Group-authored Mesh child order.
   std::string dir_name;
   std::string dir_type;
@@ -251,6 +272,7 @@ struct Scene {
   // scene). Returns a 4x4 row-major matrix flattened to 16 floats, in the
   // same convention as render::Mat4 (row vectors; translation in row 3).
   std::array<float, 16> world_matrix(const MeshObj& mesh) const;
+  std::array<float, 16> world_matrix(const ParticleSysObj& particle) const;
 
   // Find a material by name (nullptr if absent).
   const MatObj* find_mat(const std::string& name) const;

@@ -750,6 +750,23 @@ Open work:
   streak 10 the log starts both EnvAnims from `excitement_great`, keeps
   regular camera/post-switch and `chorus_great.pst` lighting, and the captured
   arena frames remain coherent after the coplight environment animation starts.
+- 2026-06-21 venue ParticleSys first pass: all GH2 venue MILO inventories show
+  `ParticleSys` / `ParticleSysAnim` as a broad shared venue-effect class
+  (150 `.part` objects and 48 `.panim` objects in the current eight-venue
+  inventory). PS2 `ParticleSys` bodies are version 27 with an embedded Trans
+  block at raw `+0x19`: Trans version 9, local/world matrices, normal 9-byte
+  Trans tail, parent string, then Draw version 3 / Draw body, followed by the
+  particle property floats. Native now decodes the authored particle material,
+  parent, max particle count, velocity range, lifetime range, and size range,
+  resolves `EventTrigger -> AnimFilter -> Group -> ParticleSysAnim ->
+  ParticleSys`, and renders active systems through D3D point sprites. This is a
+  shared loader/runtime route, not exact PS2 emitter physics yet. Validation:
+  `analysis/native_validation/arena_particles_firstpass_20260621_current/`
+  runs hidden stock PS2 `shoutatthedevil` from `16.0s` with diagnostic autoplay.
+  The log records arena geometry loading `20 particles (20 ok / 0 fail)`,
+  `venue ParticleSys routes loaded ...: 10 events`, `excitement_okay` starting
+  six persistent smoke/blood particle systems through the normal event path,
+  and coherent native frames at 480/600.
 - 2026-06-21 texture-transform validation pass:
   `analysis/native_validation/small1_tex_xfm_scale_rot_20260621_current/`
   proves small1 group-routed TV/barrel MatAnims are decoded and started with

@@ -592,7 +592,8 @@ std::vector<std::string> scan_milo_strings(const uint8_t* body, size_t size) {
 
 std::string canonical_milo_ref(std::string s) {
     static constexpr std::string_view suffixes[] = {
-        ".mesh", ".filt", ".grp", ".tnm", ".mnm", ".trig"};
+        ".mesh", ".filt", ".grp", ".tnm", ".mnm", ".enm",
+        ".part", ".panim", ".trig"};
     for (const auto suffix : suffixes) {
         const size_t pos = s.find(suffix);
         if (pos != std::string::npos) {
@@ -1724,6 +1725,163 @@ std::map<std::string, std::vector<std::string>> load_venue_event_env_anims(
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] EventTrigger EnvAnim load %s: %s\n",
+                     milo_path.c_str(), ex.what());
+    }
+    return out;
+}
+
+std::map<std::string, std::vector<Gameplay::VenueParticleRoute>>
+load_venue_event_particles(const std::string& hdr_path,
+                           const std::string& ark_path,
+                           const std::string& milo_path) {
+    std::map<std::string, std::vector<Gameplay::VenueParticleRoute>> out;
+    auto push_route =
+        [](std::vector<Gameplay::VenueParticleRoute>& routes,
+           Gameplay::VenueParticleRoute route) {
+            if (route.particle.empty()) return;
+            for (auto& existing : routes) {
+                if (existing.particle != route.particle) continue;
+                existing.duration_frames =
+                    std::max(existing.duration_frames, route.duration_frames);
+                return;
+            }
+            routes.push_back(std::move(route));
+        };
+    auto max_plausible_frame =
+        [](const uint8_t* body, size_t size) {
+            float max_frame = 0.0f;
+            for (size_t i = 0; i + 4 <= size; ++i) {
+                float f = 0.0f;
+                std::memcpy(&f, body + i, sizeof(f));
+                if (!std::isfinite(f) || f < 0.0f || f > 10000.0f)
+                    continue;
+                if (f >= 0.01f) max_frame = std::max(max_frame, f);
+            }
+            return max_frame;
+        };
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+
+        std::unordered_set<std::string> particle_names;
+        std::map<std::string, Gameplay::VenueParticleRoute> panim_routes;
+        std::map<std::string, std::vector<std::string>> filter_refs;
+        std::map<std::string, std::vector<std::string>> group_refs;
+        for (const auto& de : dir.entries) {
+            if (de.offset + de.size > payload.size()) continue;
+            const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (de.type == "ParticleSys") {
+                particle_names.insert(canonical_milo_ref(de.name));
+            } else if (de.type == "ParticleSysAnim") {
+                const auto strings = scan_milo_strings(body, size);
+                for (const auto& s : strings) {
+                    const auto ref = canonical_milo_ref(s);
+                    if (ref.size() > 5 &&
+                        ref.rfind(".part") == ref.size() - 5) {
+                        Gameplay::VenueParticleRoute route;
+                        route.particle = ref;
+                        route.duration_frames = max_plausible_frame(body, size);
+                        panim_routes[canonical_milo_ref(de.name)] = route;
+                        break;
+                    }
+                }
+            } else if (de.type == "AnimFilter" || de.type == "Group") {
+                auto& refs = de.type == "AnimFilter"
+                                 ? filter_refs[canonical_milo_ref(de.name)]
+                                 : group_refs[canonical_milo_ref(de.name)];
+                const auto strings = scan_milo_strings(body, size);
+                for (const auto& s : strings) {
+                    const auto ref = canonical_milo_ref(s);
+                    const bool object_ref =
+                        (ref.size() > 5 &&
+                         ref.rfind(".part") == ref.size() - 5) ||
+                        (ref.size() > 6 &&
+                         ref.rfind(".panim") == ref.size() - 6) ||
+                        (ref.size() > 5 &&
+                         ref.rfind(".filt") == ref.size() - 5) ||
+                        (ref.size() > 4 &&
+                         ref.rfind(".grp") == ref.size() - 4);
+                    if (object_ref) push_unique_ref(refs, ref);
+                }
+            }
+        }
+
+        auto collect_ref =
+            [&](auto&& self, const std::string& ref,
+                std::vector<Gameplay::VenueParticleRoute>& routes,
+                std::unordered_set<std::string>& seen) -> void {
+            if (!seen.insert(ref).second) return;
+            if (ref.size() > 5 && ref.rfind(".part") == ref.size() - 5) {
+                if (particle_names.find(ref) != particle_names.end()) {
+                    Gameplay::VenueParticleRoute route;
+                    route.particle = ref;
+                    push_route(routes, std::move(route));
+                }
+                return;
+            }
+            if (ref.size() > 6 && ref.rfind(".panim") == ref.size() - 6) {
+                const auto it = panim_routes.find(ref);
+                if (it != panim_routes.end()) push_route(routes, it->second);
+                return;
+            }
+            const auto& ref_map =
+                (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5)
+                    ? filter_refs
+                    : group_refs;
+            const auto refs_it = ref_map.find(ref);
+            if (refs_it == ref_map.end()) return;
+            for (const auto& child : refs_it->second)
+                self(self, child, routes, seen);
+        };
+
+        for (const auto& de : dir.entries) {
+            if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
+                continue;
+            const auto* body = payload.data() + de.offset;
+            const auto strings =
+                scan_milo_strings(body, static_cast<size_t>(de.size));
+            if (strings.empty()) continue;
+            const std::string_view event_label =
+                is_event_payload_label(strings.front()) ? std::string_view(strings.front())
+                                                        : std::string_view{};
+            std::vector<Gameplay::VenueParticleRoute> routes;
+            std::unordered_set<std::string> seen;
+            for (const auto& s : strings) {
+                const auto ref = canonical_milo_ref(s);
+                const bool object_ref =
+                    (ref.size() > 5 && ref.rfind(".part") == ref.size() - 5) ||
+                    (ref.size() > 6 && ref.rfind(".panim") == ref.size() - 6) ||
+                    (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5) ||
+                    (ref.size() > 4 && ref.rfind(".grp") == ref.size() - 4);
+                if (object_ref) collect_ref(collect_ref, ref, routes, seen);
+            }
+            if (routes.empty()) continue;
+            for (const auto& key : event_trigger_route_keys(de.name, event_label)) {
+                auto& routed = out[key];
+                for (const auto& route : routes) push_route(routed, route);
+            }
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(stderr, "[world] EventTrigger %s Particles=",
+                             de.name.c_str());
+                for (const auto& route : routes)
+                    std::fprintf(stderr, "%s(%.1f) ",
+                                 route.particle.c_str(), route.duration_frames);
+                std::fprintf(stderr, "\n");
+            }
+        }
+        if (!out.empty()) {
+            std::fprintf(stderr,
+                         "[world] venue ParticleSys routes loaded %s: %zu events\n",
+                         milo_path.c_str(), out.size());
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] EventTrigger ParticleSys load %s: %s\n",
                      milo_path.c_str(), ex.what());
     }
     return out;
@@ -5641,6 +5799,13 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                                return active.persistent;
                            }),
             active_venue_environment_anims_.end());
+        active_venue_particles_.erase(
+            std::remove_if(active_venue_particles_.begin(),
+                           active_venue_particles_.end(),
+                           [](const ActiveVenueParticleSystem& active) {
+                               return active.persistent;
+                           }),
+            active_venue_particles_.end());
     }
     std::vector<std::pair<std::string, float>> material_changes;
     bool material_tex_changed = false;
@@ -5750,6 +5915,33 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             }
         }
     }
+    if (const auto particle_it =
+            venue_event_particle_systems_.find(event_name);
+        particle_it != venue_event_particle_systems_.end()) {
+        for (const auto& route : particle_it->second) {
+            active_venue_particles_.erase(
+                std::remove_if(active_venue_particles_.begin(),
+                               active_venue_particles_.end(),
+                               [&](const ActiveVenueParticleSystem& active) {
+                                   return active.particle == route.particle &&
+                                          active.persistent == persistent;
+                               }),
+                active_venue_particles_.end());
+            ActiveVenueParticleSystem active;
+            active.particle = route.particle;
+            active.start_time = song_time_;
+            active.duration_seconds = authored_frames_to_seconds(
+                route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
+            active.persistent = persistent;
+            active_venue_particles_.push_back(std::move(active));
+            std::fprintf(
+                stderr,
+                "[world] venue event %s: ParticleSys %s seconds=%.3f %s\n",
+                event_name.c_str(), route.particle.c_str(),
+                active_venue_particles_.back().duration_seconds,
+                persistent ? "persistent" : "transient");
+        }
+    }
     for (const auto& [material, alpha] : material_changes) {
         const auto mesh_it = venue_material_meshes_.find(material);
         if (mesh_it == venue_material_meshes_.end()) continue;
@@ -5797,6 +5989,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             world_->set_environment_color_overrides(venue_environment_colors_);
         world_->set_hidden_meshes(composed_venue_hidden_meshes());
     }
+    update_active_venue_particles();
     update_active_venue_anim_filters();
     apply_lighting_event(event_name);
 }
@@ -5878,6 +6071,25 @@ void Gameplay::update_active_venue_environment_anims() {
     }
     if (changed)
         world_->set_environment_color_overrides(venue_environment_colors_);
+}
+
+void Gameplay::update_active_venue_particles() {
+    if (!world_) return;
+    std::unordered_set<std::string> active_particles;
+    for (auto it = active_venue_particles_.begin();
+         it != active_venue_particles_.end();) {
+        const double elapsed = std::max(0.0, song_time_ - it->start_time);
+        if (!it->persistent && elapsed > it->duration_seconds) {
+            it = active_venue_particles_.erase(it);
+            continue;
+        }
+        active_particles.insert(it->particle);
+        ++it;
+    }
+    if (active_particles != venue_active_particle_systems_) {
+        venue_active_particle_systems_ = std::move(active_particles);
+        world_->set_active_particle_systems(venue_active_particle_systems_);
+    }
 }
 
 void Gameplay::update_active_venue_anim_filters() {
@@ -6470,6 +6682,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     }
     update_active_venue_material_anims();
     update_active_venue_environment_anims();
+    update_active_venue_particles();
     update_active_venue_anim_filters();
     update_active_lighting_material_anims();
 
@@ -6516,6 +6729,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_event_env_anims_ =
                     load_venue_event_env_anims(hdr_path_, ark_path_,
                                                venue_geom);
+                venue_event_particle_systems_ =
+                    load_venue_event_particles(hdr_path_, ark_path_,
+                                               venue_geom);
                 venue_event_filters_ =
                     load_venue_event_filters(hdr_path_, ark_path_, venue_geom);
                 venue_filter_mesh_targets_ =
@@ -6549,6 +6765,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 apply_venue_event_visibility("start", true);
                 world_ = std::make_unique<ghogx::render::MiloSceneRenderer>(win);
                 world_->set_scene(std::move(venue_scene), venue_textures);
+                world_->set_active_particle_systems({});
                 world_->set_hidden_meshes(composed_venue_hidden_meshes());
                 if (active_venue_event_.empty()) {
                     apply_venue_event("excitement_bad");

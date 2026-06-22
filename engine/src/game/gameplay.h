@@ -173,6 +173,16 @@ class Gameplay {
     std::vector<VenueEnvironmentAnim::ColorKey> color_keys;
     bool persistent = true;
   };
+  struct VenueParticleRoute {
+    std::string particle;
+    float duration_frames = 0.0f;
+  };
+  struct ActiveVenueParticleSystem {
+    std::string particle;
+    double start_time = 0.0;
+    double duration_seconds = 0.0;
+    bool persistent = true;
+  };
   struct HandClipChoice {
     std::vector<std::string> short_names;
     std::vector<std::string> long_names;
@@ -245,6 +255,7 @@ class Gameplay {
   void resend_active_venue_event();
   void update_active_venue_material_anims();
   void update_active_venue_environment_anims();
+  void update_active_venue_particles();
   void update_active_venue_anim_filters();
   void apply_lighting_event(const std::string& event_name);
   void update_active_lighting_material_anims();
@@ -370,6 +381,8 @@ class Gameplay {
   std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;
   std::map<std::string, VenueEnvironmentAnim> venue_env_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_env_anims_;
+  std::map<std::string, std::vector<VenueParticleRoute>>
+      venue_event_particle_systems_;
   std::map<std::string, std::vector<std::string>> venue_event_filters_;
   std::map<std::string, std::vector<std::string>> venue_filter_mesh_targets_;
   std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
@@ -385,6 +398,8 @@ class Gameplay {
   std::vector<ActiveVenueMaterialAnim> active_venue_material_anims_;
   std::map<std::string, std::array<float, 4>> venue_environment_colors_;
   std::vector<ActiveVenueEnvironmentAnim> active_venue_environment_anims_;
+  std::unordered_set<std::string> venue_active_particle_systems_;
+  std::vector<ActiveVenueParticleSystem> active_venue_particles_;
   std::map<std::string, std::array<float, 3>> venue_mesh_translation_offsets_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
       venue_mesh_transform_offsets_;

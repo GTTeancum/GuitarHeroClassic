@@ -33,9 +33,29 @@ struct SVtx {
 };
 constexpr DWORD kFVF =
     D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
+struct PVtx {
+  float x, y, z;
+  D3DCOLOR color;
+};
+constexpr DWORD kParticleFVF = D3DFVF_XYZ | D3DFVF_DIFFUSE;
 constexpr DWORD kDefaultSceneAmbient = D3DCOLOR_XRGB(170, 170, 178);
 constexpr DWORD kAuthoredLightFirstSlot = 2;
 constexpr DWORD kAuthoredLightSlotCount = 6;
+
+DWORD float_to_dword(float value) {
+  DWORD out = 0;
+  std::memcpy(&out, &value, sizeof(out));
+  return out;
+}
+
+float hash01(uint32_t x) {
+  x ^= x >> 16;
+  x *= 0x7feb352du;
+  x ^= x >> 15;
+  x *= 0x846ca68bu;
+  x ^= x >> 16;
+  return static_cast<float>(x & 0x00ffffffu) / static_cast<float>(0x01000000u);
+}
 
 std::array<float, 16> mul16(const std::array<float, 16>& a,
                             const std::array<float, 16>& b) {
@@ -377,6 +397,12 @@ void MiloSceneRenderer::set_active_spotlights(std::vector<SpotlightState> spots)
   for (auto& spot : spots) active_spotlights_[spot.name] = std::move(spot);
 }
 
+void MiloSceneRenderer::set_active_particle_systems(
+    std::unordered_set<std::string> particle_names) {
+  active_particle_filter_ = true;
+  active_particle_systems_ = std::move(particle_names);
+}
+
 void MiloSceneRenderer::set_hidden_meshes(std::unordered_set<std::string> mesh_names) {
   hidden_meshes_ = std::move(mesh_names);
 }
@@ -466,6 +492,7 @@ void MiloSceneRenderer::trigger_mesh_transform_anim(
 
 void MiloSceneRenderer::update(float dt_seconds) {
   if (dt_seconds <= 0.0f) return;
+  particle_time_ += dt_seconds;
   if (!mesh_pulses_.empty()) {
     for (auto it = mesh_pulses_.begin(); it != mesh_pulses_.end();) {
       it->second = std::max(0.0f, it->second - dt_seconds * 10.0f);
@@ -1052,6 +1079,106 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     }
   };
 
+  auto draw_particle_system = [&](const milo_scene::ParticleSysObj& p) {
+    if (!p.decoded || !p.showing || p.material.empty()) return;
+    if (active_particle_filter_ &&
+        active_particle_systems_.find(p.name) == active_particle_systems_.end()) {
+      return;
+    }
+    const milo_scene::MatObj* mat = scene_.find_mat(p.material);
+    if (!mat) return;
+    IDirect3DTexture9* texture = nullptr;
+    if (const auto tex_it = tex_.find(mat->diffuse_tex); tex_it != tex_.end())
+      texture = tex_it->second;
+    if (!texture) return;
+
+    const int count = static_cast<int>(std::clamp(
+        p.max_particles > 0.0f ? std::round(p.max_particles) : 16.0f,
+        1.0f, 96.0f));
+    const float lifetime =
+        std::clamp((p.lifetime_min + p.lifetime_max) * 0.5f, 0.05f, 20.0f);
+    const float max_velocity =
+        std::max({std::fabs(p.velocity_min[0]), std::fabs(p.velocity_min[1]),
+                  std::fabs(p.velocity_min[2]), std::fabs(p.velocity_max[0]),
+                  std::fabs(p.velocity_max[1]), std::fabs(p.velocity_max[2])});
+    const float point_size = std::clamp(
+        std::max(p.size_start, p.size_end) * 12.0f + max_velocity * 0.02f,
+        3.0f, 80.0f);
+    const float spread = std::max(point_size * 0.25f, max_velocity * 0.015f);
+
+    auto world = mul16(scene_.world_matrix(p), world_transform_);
+    std::vector<PVtx> points;
+    points.reserve(static_cast<size_t>(count));
+    const uint32_t seed_base = static_cast<uint32_t>(
+        std::hash<std::string>{}(p.name) & 0xffffffffu);
+    for (int i = 0; i < count; ++i) {
+      const uint32_t seed = seed_base + static_cast<uint32_t>(i) * 977u;
+      const float h0 = hash01(seed + 1u);
+      const float h1 = hash01(seed + 2u);
+      const float h2 = hash01(seed + 3u);
+      const float h3 = hash01(seed + 4u);
+      const float phase = std::fmod(particle_time_ / lifetime + h0, 1.0f);
+      const float fade = 1.0f - phase;
+      float local[3] = {
+          (h1 - 0.5f) * spread,
+          (h2 - 0.5f) * spread,
+          (h3 - 0.5f) * spread,
+      };
+      for (int c = 0; c < 3; ++c) {
+        const float vel = p.velocity_min[c] +
+                          (p.velocity_max[c] - p.velocity_min[c]) *
+                              hash01(seed + 10u + static_cast<uint32_t>(c));
+        local[c] += vel * phase * lifetime * 0.05f;
+      }
+      PVtx v;
+      v.x = world[12] + local[0] * world[0] + local[1] * world[4] +
+            local[2] * world[8];
+      v.y = world[13] + local[0] * world[1] + local[1] * world[5] +
+            local[2] * world[9];
+      v.z = world[14] + local[0] * world[2] + local[1] * world[6] +
+            local[2] * world[10];
+      const auto cc = [](float f) -> int {
+        int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
+        return std::clamp(i, 0, 255);
+      };
+      const float alpha = std::clamp(mat->color[3] * (0.25f + fade * 0.75f),
+                                     0.0f, 1.0f);
+      v.color = D3DCOLOR_ARGB(cc(alpha), cc(mat->color[0]), cc(mat->color[1]),
+                              cc(mat->color[2]));
+      points.push_back(v);
+    }
+    if (points.empty()) return;
+
+    DWORD old_lighting = TRUE;
+    DWORD old_zwrite = TRUE;
+    DWORD old_src = D3DBLEND_SRCALPHA;
+    DWORD old_dest = D3DBLEND_INVSRCALPHA;
+    dev_->GetRenderState(D3DRS_LIGHTING, &old_lighting);
+    dev_->GetRenderState(D3DRS_ZWRITEENABLE, &old_zwrite);
+    dev_->GetRenderState(D3DRS_SRCBLEND, &old_src);
+    dev_->GetRenderState(D3DRS_DESTBLEND, &old_dest);
+    dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
+    dev_->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+    dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    dev_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    dev_->SetRenderState(D3DRS_DESTBLEND,
+                         mat->color[3] < 0.999f ? D3DBLEND_ONE
+                                                 : D3DBLEND_INVSRCALPHA);
+    dev_->SetRenderState(D3DRS_POINTSPRITEENABLE, TRUE);
+    dev_->SetRenderState(D3DRS_POINTSCALEENABLE, FALSE);
+    dev_->SetRenderState(D3DRS_POINTSIZE, float_to_dword(point_size));
+    dev_->SetTexture(0, texture);
+    dev_->SetFVF(kParticleFVF);
+    dev_->DrawPrimitiveUP(D3DPT_POINTLIST, static_cast<UINT>(points.size()),
+                          points.data(), sizeof(PVtx));
+    dev_->SetRenderState(D3DRS_POINTSPRITEENABLE, FALSE);
+    dev_->SetRenderState(D3DRS_LIGHTING, old_lighting);
+    dev_->SetRenderState(D3DRS_ZWRITEENABLE, old_zwrite);
+    dev_->SetRenderState(D3DRS_SRCBLEND, old_src);
+    dev_->SetRenderState(D3DRS_DESTBLEND, old_dest);
+    dev_->SetFVF(kFVF);
+  };
+
   std::vector<const milo_scene::MeshObj*> draw_meshes;
   draw_meshes.reserve(scene_.meshes.size());
   std::unordered_set<const milo_scene::MeshObj*> queued;
@@ -1152,6 +1279,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       }
     }
     draw_mesh_with_world(m, mul16(world, world_transform_));
+  }
+
+  if (!scene_.particles.empty() && !additive_blend_) {
+    for (const auto& particle : scene_.particles) {
+      draw_particle_system(particle);
+    }
   }
 
   if (debug_camera_meshes && !camera_mesh_hits.empty()) {

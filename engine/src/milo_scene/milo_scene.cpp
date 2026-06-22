@@ -561,6 +561,81 @@ MeshObj decode_mesh(const std::string& entry_name,
   return mesh;
 }
 
+ParticleSysObj decode_particle_sys(const std::string& entry_name,
+                                   const std::vector<uint8_t>& body) {
+  ParticleSysObj part;
+  part.name = entry_name;
+  try {
+    if (body.size() < 0x19 + 4 + 48 + 48 + kObjMeta + 4 + 25) {
+      throw std::runtime_error("milo_scene: ParticleSys body too small");
+    }
+    Reader head(body.data(), body.size());
+    const int32_t version = head.i32();
+    if (version != 27) {
+      throw std::runtime_error("milo_scene: unsupported ParticleSys version");
+    }
+
+    // ParticleSys is a Trans subclass, but GH2 PS2 embeds the Trans block after
+    // the object/draw header. The embedded Trans version is at raw +0x19 and is
+    // followed immediately by local/world matrices, the normal 9 Trans bytes,
+    // and the parent string.
+    constexpr size_t kParticleTransAt = 0x19;
+    Reader tr(body.data() + kParticleTransAt, body.size() - kParticleTransAt);
+    const int32_t trans_version = tr.i32();
+    if (trans_version != 9) {
+      throw std::runtime_error("milo_scene: missing ParticleSys Trans block");
+    }
+    part.local = tr.matrix();
+    part.world_stored = tr.matrix();
+    tr.skip(kObjMeta);
+    part.parent = tr.str();
+
+    const size_t draw_base = kParticleTransAt + tr.pos;
+    if (draw_base + 25 > body.size()) {
+      throw std::runtime_error("milo_scene: truncated ParticleSys Draw block");
+    }
+    int32_t draw_version = 0;
+    std::memcpy(&draw_version, body.data() + draw_base, sizeof(draw_version));
+    if (draw_version != 3) {
+      throw std::runtime_error("milo_scene: unsupported ParticleSys Draw block");
+    }
+    part.showing = body[draw_base + 4] != 0;
+
+    const size_t prop_base = draw_base + 25;
+    auto safe_f = [&](size_t off, float fallback) {
+      if (prop_base + off + 4 > body.size()) return fallback;
+      float value = read_f32_at(body, prop_base + off);
+      return std::isfinite(value) ? value : fallback;
+    };
+    const float particles_a = safe_f(0, 0.0f);
+    const float particles_b = safe_f(4, particles_a);
+    part.max_particles = std::clamp(std::max(particles_a, particles_b),
+                                    0.0f, 2000.0f);
+    for (int i = 0; i < 3; ++i) {
+      part.velocity_max[i] = safe_f(8 + static_cast<size_t>(i) * 4, 0.0f);
+      part.velocity_min[i] = safe_f(20 + static_cast<size_t>(i) * 4, 0.0f);
+    }
+    part.lifetime_min = std::max(0.05f, safe_f(32, 1.0f));
+    part.lifetime_max = std::max(part.lifetime_min, safe_f(36, part.lifetime_min));
+    part.size_start = std::max(0.01f, safe_f(56, 1.0f));
+    part.size_end = std::max(0.01f, safe_f(60, part.size_start));
+
+    for (const auto& s : scan_strings(body)) {
+      if (s.size() >= 4 && s.compare(s.size() - 4, 4, ".mat") == 0) {
+        part.material = s;
+        break;
+      }
+    }
+    if (part.material.empty()) {
+      throw std::runtime_error("milo_scene: ParticleSys has no material ref");
+    }
+    part.decoded = true;
+  } catch (const std::exception& ex) {
+    part.error = ex.what();
+  }
+  return part;
+}
+
 // ---------------------------------------------------------------------------
 // Scene assembly
 // ---------------------------------------------------------------------------
@@ -655,6 +730,30 @@ std::array<float, 16> Scene::world_matrix(const MeshObj& mesh) const {
   return acc;
 }
 
+std::array<float, 16> Scene::world_matrix(const ParticleSysObj& particle) const {
+  std::array<float, 16> acc = xfm_to_mat4(particle.local);
+  std::string parent = particle.parent;
+  bool resolved_parent = false;
+  int guard = 0;
+  while (!parent.empty() && guard++ < 64) {
+    const Xfm* px = nullptr;
+    for (const TransObj& t : transes)
+      if (t.name == parent) { px = &t.local; parent = t.parent; break; }
+    if (!px) {
+      for (const MeshObj& mm : meshes)
+        if (mm.name == parent) { px = &mm.local; parent = mm.parent; break; }
+    }
+    if (!px) break;
+    resolved_parent = true;
+    acc = mat4_mul(acc, xfm_to_mat4(*px));
+  }
+  if (!resolved_parent && !xfm_nearly_equal(particle.world_stored,
+                                            particle.local)) {
+    return xfm_to_mat4(particle.world_stored);
+  }
+  return acc;
+}
+
 bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                 const std::string& milo_path, Scene& out) {
   try {
@@ -674,6 +773,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
 
     std::unordered_set<std::string> ordered_meshes;
     int mesh_ok = 0, mesh_fail = 0;
+    int particle_ok = 0, particle_fail = 0;
     for (const auto& de : dir.entries) {
       std::vector<uint8_t> b(payload.data() + de.offset,
                              payload.data() + de.offset + de.size);
@@ -705,6 +805,10 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
               out.draw_order.push_back(child);
           }
           out.groups.push_back(std::move(group));
+        } else if (de.type == "ParticleSys") {
+          ParticleSysObj p = decode_particle_sys(de.name, b);
+          if (p.decoded) ++particle_ok; else ++particle_fail;
+          out.particles.push_back(std::move(p));
         }
       } catch (const std::exception& ex) {
         std::fprintf(stderr, "[milo_scene]   %s '%s' decode: %s\n",
@@ -733,8 +837,9 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
       out.draw_order.push_back(std::move(top));
     }
     std::fprintf(stderr,
-                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group\n",
+                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu particles (%d ok / %d fail), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
+                 out.particles.size(), particle_ok, particle_fail,
                  out.transes.size(), out.mats.size(), out.cams.size(),
                  out.waypoints.size(), out.groups.size());
     if (!out.spotlights.empty()) {
