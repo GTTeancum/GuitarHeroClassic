@@ -221,6 +221,13 @@ Open work:
   queue, matching `scheduled_t`/`t` on apply, and zero unsupported, miss,
   no-decoded, unresolved, or nonzero failed/error rows. This is traced
   keyframe-dispatch plumbing, not final render-light parity.
+  Follow-up breadth validation in
+  `analysis/native_validation/lighting_timing_crosscheck_20260622_current/`
+  reruns `arena/shoutatthedevil`, `battle/rockthistown`, `big/hangar18`, and
+  `small2/youreallygotme` after the queue timing change. All four exits are
+  `0` with zero unsupported, miss, no-decoded, or unresolved rows; the logs
+  record lighting cue queue/apply activity on all four routes plus active
+  venue samples, lighting samples, keyframes, and authored cameras.
 - 2026-06-22 lighting adjective filter follow-up:
   `world_objects.dta` defines `LIGHTING_ADJECTIVES` as only `blackout`,
   `strobe`, `flare`, `color1`, `color2`, and `sweep`. Some chart text events
