@@ -6815,9 +6815,76 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
 
     bool alpha_changed = false;
     bool tex_changed = false;
+    bool venue_alpha_changed = false;
+    bool venue_tex_changed = false;
     for (const auto& anim_name : event_it->second) {
         auto anim_it = lighting_mat_anims_.find(anim_name);
         if (anim_it == lighting_mat_anims_.end()) {
+            auto venue_anim_it = venue_mat_anims_.find(anim_name);
+            if (venue_anim_it != venue_mat_anims_.end() && world_) {
+                const auto& anim = venue_anim_it->second;
+                const bool has_tex_transform =
+                    !anim.tex_translation_keys.empty() ||
+                    !anim.tex_scale_keys.empty() ||
+                    !anim.tex_rotation_keys.empty();
+                if (!anim.has_alpha && !has_tex_transform) continue;
+                active_venue_material_anims_.erase(
+                    std::remove_if(active_venue_material_anims_.begin(),
+                                   active_venue_material_anims_.end(),
+                                   [&](const ActiveVenueMaterialAnim& active) {
+                                       return active.material == anim.material;
+                                   }),
+                    active_venue_material_anims_.end());
+                const auto current_alpha =
+                    venue_material_alpha_.find(anim.material);
+                ActiveVenueMaterialAnim active_anim;
+                active_anim.name = anim.name;
+                active_anim.material = anim.material;
+                active_anim.has_alpha = anim.has_alpha;
+                active_anim.start_alpha =
+                    anim.has_alpha
+                        ? (current_alpha == venue_material_alpha_.end()
+                               ? anim.start_alpha
+                               : current_alpha->second)
+                        : 1.0f;
+                active_anim.end_alpha = anim.end_alpha;
+                active_anim.start_time = song_time_;
+                active_anim.duration_seconds =
+                    authored_frames_to_seconds(anim.duration_frames);
+                active_anim.duration_frames = anim.duration_frames;
+                active_anim.tex_translation_keys = anim.tex_translation_keys;
+                active_anim.tex_scale_keys = anim.tex_scale_keys;
+                active_anim.tex_rotation_keys = anim.tex_rotation_keys;
+                active_anim.persistent = true;
+                if (anim.has_alpha) {
+                    venue_material_alpha_[anim.material] =
+                        active_anim.start_alpha;
+                    venue_alpha_changed = true;
+                }
+                if (has_tex_transform) {
+                    venue_material_tex_transforms_[anim.material] =
+                        sample_material_tex_transform(anim, 0.0f);
+                    venue_tex_changed = true;
+                }
+                std::fprintf(
+                    stderr,
+                    "[world] lighting event %s: venue MatAnim %s -> %s alpha %.3f -> %.3f tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f\n",
+                    event_name.c_str(), anim_name.c_str(),
+                    anim.material.c_str(), active_anim.start_alpha,
+                    active_anim.end_alpha,
+                    active_anim.tex_translation_keys.size(),
+                    active_anim.tex_scale_keys.size(),
+                    active_anim.tex_rotation_keys.size(),
+                    active_anim.duration_seconds);
+                if (active_anim.duration_seconds <= 0.0001) {
+                    if (anim.has_alpha)
+                        venue_material_alpha_[anim.material] = anim.end_alpha;
+                } else {
+                    active_venue_material_anims_.push_back(
+                        std::move(active_anim));
+                }
+                continue;
+            }
             if (debug_venue_filters_enabled()) {
                 std::fprintf(stderr,
                              "[world] lighting event %s: MatAnim %s route has unsupported channel shape\n",
@@ -6893,6 +6960,11 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
     if (tex_changed)
         lighting_->set_material_tex_transform_overrides(
             lighting_material_tex_transforms_);
+    if (venue_alpha_changed && world_)
+        world_->set_material_alpha_multipliers(venue_material_alpha_);
+    if (venue_tex_changed && world_)
+        world_->set_material_tex_transform_overrides(
+            venue_material_tex_transforms_);
 }
 
 void Gameplay::update_active_lighting_material_anims() {

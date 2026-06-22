@@ -724,6 +724,23 @@ Open work:
   such as `0.017453292` are radians. Native therefore routes Trans, Scale, and
   Rot to one renderer material texture-transform override and only switches to
   wrapping while an animated material transform is active.
+- 2026-06-21 lighting-to-venue MatAnim route: fest lighting overlay
+  `excitement_okay.trig` references `Rising_Souls.mnm`, but that `MatAnim`
+  lives in `fest_geom.milo_ps2`, not `fest_lighting.milo_ps2`. The PS2 body
+  decodes normally as version 7 with 6 alpha keys and 2 texture-translation
+  keys, so the previous native `unsupported channel shape` log was a cross-MILO
+  ownership bug rather than an unknown channel schema. `apply_lighting_event`
+  now falls back to the decoded venue-geometry MatAnim map and applies the
+  animation to the venue renderer when a lighting EventTrigger references a
+  geometry-owned material animation. Validation:
+  `analysis/native_validation/fest_cross_milo_matanim_rising_souls_20260621_current/`
+  reruns hidden stock PS2 `badreputation` from `15.0s` with diagnostic
+  autoplay and dynamic venue lights enabled. The log decodes `Rising_Souls.mnm`,
+  routes `lighting event excitement_okay: venue MatAnim Rising_Souls.mnm`,
+  no longer emits `unsupported channel shape`, still starts the
+  `stage_angel`/`stage_gargoyle` LightAnims from `venue_effect`, keeps lighting
+  keyframes and regular camera sweeps active, and captures coherent fest frames
+  at 180/300.
 - 2026-06-21 group-contained MatAnim route: several authored venue events do not
   point directly at `.mnm` objects. `small1` routes `start` /
   `excitement_okay` through groups such as `tv_good.grp`, `tv_bad.grp`, and
