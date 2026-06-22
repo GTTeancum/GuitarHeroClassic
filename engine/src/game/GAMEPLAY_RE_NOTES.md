@@ -1535,6 +1535,20 @@ Rejected native probe:
   bridge is not safe to enable by default. Keep the dynamic-light bridge gated
   until a PS2 trace proves how active lighting preset/keyframe target states
   should scale or select those decoded Light objects.
+- Follow-up PS2 trace:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_lighting_color_focus_retry_bg_20260622.json`
+  reruns the accepted stock GH2 savestate through background Retry input
+  without foregrounding PCSX2. It reproves live changes in the world lighting
+  state and mutable render-color rows: `0x00b78418 + 0x60/+0x70/+0x80` advance
+  through LightPreset/list pointers, `0x00b78418 + 0xb4` points at
+  `0x007fe790`, and `0x007fe790 + 0x10/+0x14/+0x18` moves through normalized
+  RGB-like values such as `(0.278,0.082,0.082)`,
+  `(0.106,0.106,0.259)`, and `(0.043,0.082,0.408)`. A static comparison
+  against decoded Big/Arena LightPreset target-state RGB rows found no direct
+  match, so these rows must not be substituted by averaging spotlight target
+  colors or by enabling the existing Environ dynamic-light probe. Treat this as
+  a sharper trace target for render-light semantics, not an implementation-ready
+  color formula.
 
 2026-06-22 Environ fog / preset-animation flag decode:
 
@@ -1653,6 +1667,15 @@ Rejected native probe:
   40 live `lighting MatAnim sample` rows with texture translation/scale/rotation
   channel counts, 10 lighting keyframe rows, 80 camera rows, and zero
   unsupported, miss, or missing-route rows.
+- Resume guard:
+  `analysis/native_validation/lighting_route_guard_20260622_resume/` reruns
+  the same Big/Hangar 18 hidden fixed-step route with no screenshot capture
+  after the dynamic-light trace guardrail was added. The current executable
+  exits `0`, loads full geometry/proxy/lighting texture coverage including the
+  lighting overlay fallback, records 40 `lighting MatAnim sample` rows, 10
+  lighting keyframes, regular/solo camera sweeps, 30,300 venue animation sample
+  rows, and zero unsupported, miss, or no-decoded route rows. The still-gated
+  `GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS` path remains disabled by default.
 
 2026-06-22 venue section message bridge:
 
