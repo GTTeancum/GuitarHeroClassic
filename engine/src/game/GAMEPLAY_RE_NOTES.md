@@ -891,6 +891,18 @@ Open work:
   events, keeps regular camera sweeps and lighting keyframes active, and the
   captured small2 frames at 180/300 remain coherent with the monitor speakers
   on-screen.
+- 2026-06-22 AnimFilter long-frame follow-up:
+  fest `zombie_loop.filt` targets `zombie.grp` and its traced filter row stores
+  `scale=0.75`, `start=600`, `end=1400`, `type=1`, `offset=0`. Native was
+  clamping AnimFilter start/end above `500` back to zero, so intro-end zombie
+  MeshAnim routes decoded but sampled frame `0.00` forever. The sanity clamp is
+  now widened to keep long authored venue frame windows. Validation:
+  `analysis/native_validation/fest_animfilter_long_frame_20260622_current/`
+  reruns hidden stock PS2 `badreputation` from `15.0s`; the log records
+  `zombie_loop.filt frame 600.00..1400.00` and advancing MeshAnim samples
+  `611.25`, `622.50`, `633.75`, and `645.00` on the four zombie `.msnm`
+  targets while regular camera, lighting preset, particle, and autoplay hit
+  routes continue.
 - 2026-06-21 texture-transform validation pass:
   `analysis/native_validation/small1_tex_xfm_scale_rot_20260621_current/`
   proves small1 group-routed TV/barrel MatAnims are decoded and started with

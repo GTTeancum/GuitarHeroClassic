@@ -4679,24 +4679,29 @@ load_venue_anim_filters(const std::string& hdr_path,
             if (auto end = packed_string_end(body, size, target_raw)) {
                 // PS2 AnimFilter records store scale/period before the frame
                 // window, then the ANIM_ENUM type and authored frame offset.
-                filter.scale = read_f32_or(body, size, *end + 0, 1.0f);
-                filter.period = read_f32_or(body, size, *end + 4, 0.0f);
-                filter.start_frame = read_f32_or(body, size, *end + 8, 0.0f);
-                filter.end_frame = read_f32_or(body, size, *end + 12,
+                const size_t timing_off = *end;
+                filter.scale = read_f32_or(body, size, timing_off, 1.0f);
+                filter.period = read_f32_or(body, size, timing_off + 4, 0.0f);
+                filter.start_frame =
+                    read_f32_or(body, size, timing_off + 8, 0.0f);
+                filter.end_frame = read_f32_or(body, size, timing_off + 12,
                                                filter.start_frame);
-                filter.type = read_i32_or(body, size, *end + 16, 0);
-                filter.offset_frame = read_f32_or(body, size, *end + 20, 0.0f);
+                filter.type = read_i32_or(body, size, timing_off + 16, 0);
+                filter.offset_frame =
+                    read_f32_or(body, size, timing_off + 20, 0.0f);
                 if (filter.type < 0 || filter.type > 2) filter.type = 0;
                 if (!std::isfinite(filter.offset_frame) ||
                     std::fabs(filter.offset_frame) > 100000.0f) {
                     filter.offset_frame = 0.0f;
                 }
                 if (!std::isfinite(filter.start_frame) ||
-                    filter.start_frame < 0.0f || filter.start_frame > 500.0f) {
+                    filter.start_frame < 0.0f ||
+                    filter.start_frame > 100000.0f) {
                     filter.start_frame = 0.0f;
                 }
                 if (!std::isfinite(filter.end_frame) ||
-                    filter.end_frame < 0.0f || filter.end_frame > 500.0f) {
+                    filter.end_frame < 0.0f ||
+                    filter.end_frame > 100000.0f) {
                     filter.end_frame = filter.start_frame;
                 }
             }

@@ -994,11 +994,14 @@ int main() {
                  "floatoffset_frame=0.0f;",
                  "venue AnimFilter keeps authored frame offset");
   ok &= contains(gameplay_c,
-                 "filter.type=read_i32_or(body,size,*end+16,0);",
+                 "filter.type=read_i32_or(body,size,timing_off+16,0);",
                  "venue AnimFilter reads ANIM_ENUM type from the traced int slot");
   ok &= contains(gameplay_c,
-                 "filter.offset_frame=read_f32_or(body,size,*end+20,0.0f);",
+                 "filter.offset_frame=read_f32_or(body,size,timing_off+20,0.0f);",
                  "venue AnimFilter reads frame offset from the traced float slot");
+  ok &= contains(gameplay_c,
+                 "filter.start_frame>100000.0f",
+                 "venue AnimFilter keeps long authored MeshAnim frame windows");
   ok &= contains(gameplay_c,
                  "case1://kAnimLoop",
                  "venue AnimFilter honors kAnimLoop sampling");
