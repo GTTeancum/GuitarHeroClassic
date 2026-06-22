@@ -1402,3 +1402,31 @@ Rejected native probe:
   particle effects, drum kit, performers, lighting, and cameras active. Treat
   this as venue-route health evidence only; it is not a final character fidelity
   signoff.
+
+2026-06-22 cross-venue post-MatAnim sweep:
+
+- `analysis/native_validation/cross_venue_route_sweep_20260622_current/`
+  reruns one hidden 240-frame diagnostic-autoplay window for each stock GH2
+  quickplay venue after the material color/texture channel decode:
+  `arena/shoutatthedevil`, `small1/psychobilly`, `fest/badreputation`,
+  `theatre/yyz`, `battle/rockthistown`, `big/hangar18`, and
+  `small2/youreallygotme`.
+- Every route exits with code `0` and records zero
+  `unsupported channel shape`, zero `has no supported material channels`, and
+  zero `miss=` / `MISS` rows. Live route counts from `summary.csv`:
+  `arena` MatAnim 148 / EnvAnim 10 / ParticleSys 30 / AnimFilter 1,312 /
+  cameras 2+1 / lighting presets 2 / keyframes 7; `small1` MatAnim 45 /
+  ParticleSys 48 / AnimFilter 482 / cameras 1+1 / presets 3 / keyframes 3;
+  `fest` MatAnim 18 / ParticleSys 168 / AnimFilter 16 / MeshAnim 28 /
+  cameras 1+1 / presets 1 / keyframes 2; `theatre` MatAnim 19 /
+  ParticleSys 65 / AnimFilter 54 / cameras 2+1 / presets 2 / keyframes 14;
+  `battle` MatAnim 33 / cameras 2+1 / presets 2 / keyframes 2; `big`
+  MatAnim 8 / ParticleSys 144 / AnimFilter 1,519 / cameras 2+1 / presets 3 /
+  keyframes 3; `small2` MatAnim 17 / MeshAnim 44 / cameras 1+1 / presets 4 /
+  keyframes 6.
+- Treat this sweep as route-regression coverage for venue material channels,
+  particles, AnimFilters, MeshAnim, authored cameras, and lighting preset
+  dispatch across all seven stock GH2 quickplay venues. It is not a final
+  dynamic-light color-parity signoff; the decoded environment dynamic-light
+  bridge remains opt-in until PS2 trace evidence proves the active
+  preset/keyframe-to-light brightness math.
