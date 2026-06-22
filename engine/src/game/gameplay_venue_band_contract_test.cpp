@@ -429,7 +429,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "venue_mesh_translation_offsets_.clear();"
                  "venue_mesh_transform_offsets_.clear();"
-                 "venue_mesh_position_overrides_.clear();",
+                 "venue_mesh_position_overrides_.clear();"
+                 "venue_mesh_texcoord_overrides_.clear();",
                  "venue reset clears transform and MeshAnim renderer overrides");
   ok &= appears_before(gameplay_c,
                        "world_->set_hidden_meshes(composed_venue_hidden_meshes());"
@@ -781,6 +782,9 @@ int main() {
                  "structVenueMeshAnim",
                  "gameplay keeps decoded MeshAnim vertex-frame state");
   ok &= contains(gameplay_h_c,
+                 "std::vector<TexCoordFrame>texcoord_frames;",
+                 "gameplay keeps decoded compact MeshAnim UV-frame state");
+  ok &= contains(gameplay_h_c,
                  "structVenueAnimFilterMeshTarget",
                  "AnimFilter routes can target MeshAnim vertex animation");
   ok &= contains(gameplay_c,
@@ -802,20 +806,38 @@ int main() {
                  "sample_mesh_anim_positions(target.anim,frame)",
                  "venue MeshAnim has a per-tick sampler");
   ok &= contains(gameplay_c,
+                 "sample_mesh_anim_texcoords(target.anim,frame)",
+                 "venue MeshAnim has a compact UV-frame sampler");
+  ok &= contains(gameplay_c,
                  "venue_mesh_position_overrides_[target.mesh]=",
                  "venue MeshAnim sampler stores vertex-position overrides");
   ok &= contains(gameplay_c,
+                 "venue_mesh_texcoord_overrides_[target.mesh]=",
+                 "venue MeshAnim sampler stores compact UV overrides");
+  ok &= contains(gameplay_c,
                  "world_->set_mesh_position_overrides(venue_mesh_position_overrides_);",
                  "venue MeshAnim samples feed renderer overrides");
+  ok &= contains(gameplay_c,
+                 "world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);",
+                 "venue MeshAnim UV samples feed renderer overrides");
   ok &= contains(renderer_h_c,
                  "set_mesh_position_overrides",
                  "renderer accepts MeshAnim vertex-position overrides");
+  ok &= contains(renderer_h_c,
+                 "set_mesh_texcoord_overrides",
+                 "renderer accepts MeshAnim UV overrides");
   ok &= contains(renderer_c,
                  "pos_it->second.size()==m.verts.size()",
                  "renderer guards MeshAnim overrides by exact vertex count");
   ok &= contains(renderer_c,
+                 "uv_it->second.size()==m.verts.size()",
+                 "renderer guards MeshAnim UV overrides by exact vertex count");
+  ok &= contains(renderer_c,
                  "(*position_override)[vi]",
                  "renderer applies MeshAnim override positions per vertex");
+  ok &= contains(renderer_c,
+                 "(*texcoord_override)[vi]",
+                 "renderer applies MeshAnim override UVs per vertex");
   ok &= contains(milo_scene_h_c,
                  "structParticleSysObj",
                  "MILO scene decoder exposes ParticleSys objects");

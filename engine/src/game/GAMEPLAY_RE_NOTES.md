@@ -2243,3 +2243,23 @@ Rejected native probe:
   in `analysis/native_validation/rnddir_proxy_routes_20260622_final_spotcheck/`
   confirms small1 no longer has stray aliases while big still fires
   `venue_effect`.
+- 2026-06-22 compact MeshAnim UV follow-up:
+  `analysis/venue_proxy_rnddir_20260622/big_extract/MeshAnim__flashpot_flash.msnm`
+  is not a 3-float vertex-position MeshAnim. It targets
+  `flashpot_flash.mesh`, stores two 4-vertex UV frames, and carries a 15-frame
+  duration. Native now falls through from false-positive position count pairs
+  into a shared compact UV MeshAnim decoder, samples those UV frames alongside
+  existing vertex-position MeshAnims, and passes exact-vertex-count UV
+  overrides through the common renderer. Validation:
+  `analysis/native_validation/meshanim_uv_big_flashpot_20260622_final/`
+  runs hidden stock PS2 `hangar18`/Big with diagnostic `venue_effect`;
+  `RndDir MeshAnim flashpot_flash.msnm -> flashpot_flash.mesh` logs
+  `frames=2 uv_frames=2 verts=4 duration=15.0`, both flashpot proxies report
+  `mesh_anims=1`, the authored proxy `animate 0.00..100.00` rows run, and
+  captured frames 40/70 render without unsupported, miss, or route-error rows.
+  Cross-route regression:
+  `analysis/native_validation/meshanim_uv_cross_route_sweep_20260622_current/`
+  reruns arena, small1, fest, theatre, battle, big, and small2 in hidden
+  fixed-step windows after the shared renderer UV override path. All seven
+  exits are `0` with zero unsupported rows and zero miss rows; the only broad
+  parser hits are benign `failed=0` Light/Environ coverage summaries.

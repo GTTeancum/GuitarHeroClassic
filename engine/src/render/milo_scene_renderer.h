@@ -139,6 +139,8 @@ class MiloSceneRenderer {
       std::map<std::string, MeshTransformSample> offsets);
   void set_mesh_position_overrides(
       std::map<std::string, std::vector<std::array<float, 3>>> positions);
+  void set_mesh_texcoord_overrides(
+      std::map<std::string, std::vector<std::array<float, 2>>> texcoords);
   void trigger_mesh_pulse(const std::string& mesh_name, float amplitude);
   struct MeshAnimKey {
     float frame = 0.0f;
@@ -193,6 +195,8 @@ class MiloSceneRenderer {
   std::map<std::string, MeshTransformSample> mesh_transform_offsets_;
   std::map<std::string, std::vector<std::array<float, 3>>>
       mesh_position_overrides_;
+  std::map<std::string, std::vector<std::array<float, 2>>>
+      mesh_texcoord_overrides_;
   std::map<std::string, float> mesh_pulses_;
   struct ActiveMeshAnim {
     MeshTransformAnim anim;

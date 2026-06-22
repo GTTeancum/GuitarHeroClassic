@@ -538,6 +538,11 @@ void MiloSceneRenderer::set_mesh_position_overrides(
   mesh_position_overrides_ = std::move(positions);
 }
 
+void MiloSceneRenderer::set_mesh_texcoord_overrides(
+    std::map<std::string, std::vector<std::array<float, 2>>> texcoords) {
+  mesh_texcoord_overrides_ = std::move(texcoords);
+}
+
 void MiloSceneRenderer::trigger_mesh_pulse(const std::string& mesh_name,
                                             float amplitude) {
   mesh_pulses_[mesh_name] = std::max(mesh_pulses_[mesh_name], amplitude);
@@ -1201,6 +1206,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         pos_it->second.size() == m.verts.size()) {
       position_override = &pos_it->second;
     }
+    const std::vector<std::array<float, 2>>* texcoord_override = nullptr;
+    if (const auto uv_it = mesh_texcoord_overrides_.find(m.name);
+        uv_it != mesh_texcoord_overrides_.end() &&
+        uv_it->second.size() == m.verts.size()) {
+      texcoord_override = &uv_it->second;
+    }
     for (size_t vi = 0; vi < m.verts.size(); ++vi) {
       const auto& v = m.verts[vi];
       SVtx s;
@@ -1220,8 +1231,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         return i < 0 ? 0 : (i > 255 ? 255 : i);
       };
       s.color = D3DCOLOR_ARGB(cc(v.a * ma), cc(v.r * mr), cc(v.g * mg), cc(v.b * mb));
-      float u = v.u * su;
-      float vv = v.v * sv;
+      const float base_u = texcoord_override ? (*texcoord_override)[vi][0] : v.u;
+      const float base_v = texcoord_override ? (*texcoord_override)[vi][1] : v.v;
+      float u = base_u * su;
+      float vv = base_v * sv;
       if (material_tex_anim && std::fabs(rot) > 0.000001f) {
         const float c = std::cos(rot);
         const float sn = std::sin(rot);

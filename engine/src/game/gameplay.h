@@ -180,6 +180,9 @@ class Gameplay {
     struct Frame {
       std::vector<std::array<float, 3>> positions;
     };
+    struct TexCoordFrame {
+      std::vector<std::array<float, 2>> texcoords;
+    };
     std::string name;
     std::string mesh;
     std::string keys_owner;
@@ -187,6 +190,7 @@ class Gameplay {
     uint32_t vertex_count = 0;
     float duration_frames = 0.0f;
     std::vector<Frame> frames;
+    std::vector<TexCoordFrame> texcoord_frames;
   };
   struct VenueAnimFilterTarget {
     std::string mesh;
@@ -625,6 +629,8 @@ class Gameplay {
       lighting_mesh_transform_offsets_;
   std::map<std::string, std::vector<std::array<float, 3>>>
       lighting_mesh_position_overrides_;
+  std::map<std::string, std::vector<std::array<float, 2>>>
+      lighting_mesh_texcoord_overrides_;
   std::vector<ActiveVenueAnimFilter> active_lighting_anim_filters_;
   double last_lighting_filter_debug_time_ = -1.0;
   std::unordered_set<std::string> lighting_base_hidden_meshes_;
@@ -689,6 +695,8 @@ class Gameplay {
       venue_mesh_transform_offsets_;
   std::map<std::string, std::vector<std::array<float, 3>>>
       venue_mesh_position_overrides_;
+  std::map<std::string, std::vector<std::array<float, 2>>>
+      venue_mesh_texcoord_overrides_;
   std::vector<ActiveVenueAnimFilter> active_venue_anim_filters_;
   double last_venue_filter_debug_time_ = -1.0;
   std::unordered_set<std::string> venue_base_hidden_meshes_;
