@@ -352,7 +352,7 @@ class Gameplay {
   void update_active_venue_light_anims();
   void update_active_venue_particles();
   void update_active_venue_anim_filters();
-  void apply_lighting_event(const std::string& event_name);
+  bool apply_lighting_event(const std::string& event_name);
   bool apply_lighting_event_visibility(const std::string& event_name,
                                        bool log);
   std::unordered_set<std::string> composed_lighting_hidden_meshes() const;

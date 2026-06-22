@@ -1845,11 +1845,32 @@ Rejected native probe:
   `theatre` MatAnim 47 / ParticleSys 108 / AnimFilter 1,765 /
   cameras 2+1 / presets 2 / keyframes 14; `battle` MatAnim 24 /
   ParticleSys 44 / AnimFilter 148 / MeshAnim 22 / cameras 2+1 / presets 2 /
-  keyframes 2; `big` MatAnim 4 / ParticleSys 204 / AnimFilter 2,322 /
+ keyframes 2; `big` MatAnim 4 / ParticleSys 204 / AnimFilter 2,322 /
   cameras 2+1 / presets 3 / keyframes 3; `small2` MatAnim 14 / EnvAnim 20 /
   ParticleSys 144 / AnimFilter 521 / MeshAnim 42 / cameras 1+1 / presets 4 /
   keyframes 6. This is current route-regression evidence, not final visual
   signoff.
+
+2026-06-22 route-aware venue/lighting diagnostics:
+
+- Native event diagnostics now wait for decoded route ownership before
+  reporting a missing venue/lighting route. `apply_lighting_event` returns
+  whether it applied a decoded lighting route, and `apply_venue_event` emits a
+  single combined `no decoded venue/lighting routes` row only when the event is
+  present in a decoded venue or lighting route table, or when
+  `--diagnostic-venue-event` explicitly requested that event. This keeps
+  gameplay-only cues such as fret, drum, and section markers from looking like
+  missing venue routes without suppressing real decoded-route failures.
+- `analysis/native_validation/route_aware_event_diagnostics_20260622_gated/`
+  reruns the same seven route/song smoke used by the current cross-route pass
+  for 300 frames hidden with diagnostic autoplay. All seven runs exit `0`, with
+  zero unsupported material-channel rows, zero miss rows, and
+  `combined_no_route=0` on every route. The remaining `no_decoded` rows are
+  entirely the existing lighting-preset `.lit` / `.env` reference breadcrumbs:
+  arena `7`, small1 `8`, fest `7`, theatre `8`, battle `8`, big `11`, and
+  small2 `6`. Route-family activity remains present in the same runs, including
+  MatAnim, ParticleSys, AnimFilter, MeshAnim, EnvAnim, LightAnim, lighting
+  presets, and lighting keyframes where authored by each venue.
 
 2026-06-22 unlabeled LightPreset keyframe fallback:
 

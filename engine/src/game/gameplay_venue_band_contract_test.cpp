@@ -877,6 +877,24 @@ int main() {
   ok &= contains(gameplay_c,
                  "voidGameplay::update_active_lighting_anim_filters()",
                  "lighting overlay AnimFilters sample on the song clock");
+  ok &= contains(gameplay_h_c,
+                 "boolapply_lighting_event(conststd::string&event_name);",
+                 "lighting event dispatch reports decoded route coverage");
+  ok &= contains(gameplay_c,
+                 "constboollighting_route_applied=apply_lighting_event(event_name);"
+                 "if(has_decoded_route_entry&&!venue_route_applied&&"
+                 "!lighting_route_applied&&"
+                 "debug_venue_filters_enabled())",
+                 "venue diagnostics wait for decoded route ownership on both route families");
+  ok &= contains(gameplay_c,
+                 "lighting_event_group_visibility_.find(event_name)!="
+                 "lighting_event_group_visibility_.end()||"
+                 "(!diagnostic_venue_event_.empty()&&"
+                 "diagnostic_venue_event_==event_name)",
+                 "venue diagnostics ignore non-venue gameplay cues unless explicitly requested");
+  ok &= contains(gameplay_c,
+                 "returnlighting_route_applied;",
+                 "lighting dispatch returns whether a decoded route applied");
   ok &= contains(gameplay_c,
                  "event_it==lighting_event_mat_anims_.end()&&"
                  "env_event_it==lighting_event_env_anims_.end()&&"
