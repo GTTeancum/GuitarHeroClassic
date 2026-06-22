@@ -1549,6 +1549,36 @@ Rejected native probe:
   colors or by enabling the existing Environ dynamic-light probe. Treat this as
   a sharper trace target for render-light semantics, not an implementation-ready
   color formula.
+- Follow-up PS2 argument-snapshot traces:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_lighting_apply_arg_snap_bg_20260622.json`
+  and
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_lighting_apply_arg_snap_long_bg_20260622.json`
+  were run through the no-focus/background PCSX2 path with lowered scratch
+  data placement after the first oversized probe exceeded 32 MB EE RAM before
+  launching the emulator. The short pass hit `0x00271288` twice and
+  `0x00271a08` twice; the longer pass hit `0x00271288` three times and
+  `0x00271a08` three times, with zero retained calls to `0x002716b8`,
+  `0x00271778`, `0x00271200`, `0x00280f60`, `0x00280fe8`, `0x00281070`,
+  `0x002c6808`, or `0x003b50e0`.
+- These traces strengthen the set/request half of the lighting route rather
+  than the final render-color half. The parent call shape is stable:
+  `set_lighting` receives world lighting state `0x00b78418` and feeds
+  `0x00271a08` rows such as `blackout`, `color1`, `color2`,
+  `section intro`, `section chorus_1`, `chorus`, `music_start`, and
+  `sync_wag`. The corresponding script row at `0x006006b0` contains
+  `do_lighting_next_keyframe`, `excitement_level`,
+  `ignored_last_light_change`, and `lighting_next_keyframe`, matching the
+  native MIDI cue/keyframe gate already implemented from the earlier accepted
+  trace notes. A separate `0x00271a08` call passes the live world-light
+  subobject at `0x00b78460`, whose sampled rows again expose
+  `0x00b784cc -> 0x007fe790`.
+- Because neither new run reached a same-window keyframe apply helper or final
+  color writer, do not use these traces to enable dynamic Environ lights or to
+  derive a new RGB formula. They are accepted evidence that native preset
+  request/category traversal should stay shared and list-driven; dynamic
+  renderer-color parity still needs a trace window that actually hits the
+  `0x002716b8 -> 0x00280f60` apply branch or a confirmed downstream consumer of
+  `0x007fe790`.
 
 2026-06-22 Environ fog / preset-animation flag decode:
 
