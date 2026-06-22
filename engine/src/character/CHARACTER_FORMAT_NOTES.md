@@ -1273,6 +1273,24 @@ Glam1 eyes / look-at:
   `engine/out/codex_facefx_voc_runtime_20260615/heartshapedbox_big_facefx3_f1300.log`
   proves the song `.voc` loaded, guitarist and singer FAC graphs loaded, and
   both guitarist and singer roles reached `graph=applied` during the run.
+- 2026-06-22 song `.voc` FACE version refinement:
+  current native runs exposed `songs/youreallygotme/youreallygotme.voc` and
+  `songs/psychobilly/psychobilly.voc` failing the song FaceFX animation parser.
+  The failure was the version gate, not the curve layout: extracted bytes under
+  `analysis/facefx_voc_parse_audit_20260622_current/` show both are FACE
+  version `1200`, creator `Harmonix`, comment `Karaoke Revolution Vol 4`,
+  animation subheader `0`, string flag `0`, total-size matching the file size,
+  25 curves, and the same 18-byte key rows used by the accepted v1500
+  `heartshapedbox` path. Native now accepts song FaceFX animation versions
+  `1200` and `1500` through the same shared parser. This is format-version
+  handling, not a `youreallygotme` or `psychobilly` song exception.
+  Validation:
+  `analysis/native_validation/facefx_voc_versions_20260622_current/` reruns
+  `youreallygotme`, `psychobilly`, and `heartshapedbox` with
+  `GHOGX_DEBUG_FACE=1`; all three load 25 animation curves and record zero
+  `animation parse failed` / `animation parse rejected` rows. The longer
+  `youreallygotme_long` run keeps 720 singer FaceFX evaluations with the v1200
+  curve register set and reaches `role=singer ... graph=applied` 75 times.
 
 Rock2 hair:
 

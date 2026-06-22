@@ -59,6 +59,7 @@ int main() {
   const std::filesystem::path source_dir = GHOGX_CHARACTER_SOURCE_DIR;
   const std::string char_mesh = read_file(source_dir / "char_mesh.cpp");
   const std::string char_clip = read_file(source_dir / "char_clip.cpp");
+  const std::string char_facefx = read_file(source_dir / "char_facefx.cpp");
   const std::string char_renderer = read_file(source_dir / "char_renderer.cpp");
 
   const std::string decode_eyes =
@@ -67,6 +68,8 @@ int main() {
       compact(function_body(char_clip, "apply_character_controllers"));
   const std::string eye_inset =
       compact(function_body(char_renderer, "eye_surface_inset"));
+  const std::string parse_animation =
+      compact(function_body(char_facefx, "parse_animation"));
   const std::string renderer_c = compact(char_renderer);
 
   bool ok = true;
@@ -88,6 +91,9 @@ int main() {
   ok &= contains(apply_controllers,
                  "set_facefx_eye_props(*eye_props,side,x,z);",
                  "look-at properties continue to feed the FaceFX eye bridge");
+  ok &= contains(parse_animation,
+                 "if(version!=1200&&version!=1500)",
+                 "song FaceFX animations accept traced v1200 and v1500 FACE archives");
 
   ok &= contains(eye_inset,
                  "if(env_eye_inset(override_inset))returnoverride_inset;"

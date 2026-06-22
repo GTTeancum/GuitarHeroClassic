@@ -411,11 +411,18 @@ std::optional<FaceFxGraph> parse_graph(const std::vector<uint8_t>& bytes) {
 
 std::optional<FaceFxAnimation> parse_animation(
     const std::vector<uint8_t>& bytes) {
-  if (bytes.size() < 64 || std::memcmp(bytes.data(), "FACE", 4) != 0)
+  if (bytes.size() < 64 || std::memcmp(bytes.data(), "FACE", 4) != 0) {
+    std::fprintf(stderr, "[facefx] animation parse rejected: missing FACE header size=%zu\n",
+                 bytes.size());
     return std::nullopt;
+  }
   FacReader r{bytes.data(), bytes.size(), 4};
   const uint32_t version = r.u32();
-  if (version != 1500) return std::nullopt;
+  if (version != 1200 && version != 1500) {
+    std::fprintf(stderr, "[facefx] animation parse rejected: version=%u\n",
+                 version);
+    return std::nullopt;
+  }
   (void)r.fx_string();  // creator
   (void)r.fx_string();  // license/comment
   (void)r.u32();        // observed 1000
@@ -425,14 +432,18 @@ std::optional<FaceFxAnimation> parse_animation(
   FaceFxAnimation animation;
   animation.name = r.fx_string();
 
-  (void)r.u16();  // observed 3 for GH2 .voc archives.
+  (void)r.u16();  // observed 0 for v1200 and 3 for v1500 GH2 .voc archives.
   const uint32_t total_size = r.u32();
   (void)r.u16();
   const uint32_t curve_count = r.u32();
   (void)r.u32();
   (void)r.u16();
-  if (curve_count > 256 || total_size > bytes.size() + 16)
+  if (curve_count > 256 || total_size > bytes.size() + 16) {
+    std::fprintf(stderr,
+                 "[facefx] animation parse rejected: total_size=%u bytes=%zu curves=%u\n",
+                 total_size, bytes.size(), curve_count);
     return std::nullopt;
+  }
 
   animation.curves.reserve(curve_count);
   for (uint32_t curve_index = 0; curve_index < curve_count && r.pos < r.n;
@@ -442,7 +453,13 @@ std::optional<FaceFxAnimation> parse_animation(
     (void)r.u32();
     (void)r.u32();
     const uint32_t key_count = r.u32();
-    if (key_count > (r.n - r.pos) / 18) return std::nullopt;
+    if (key_count > (r.n - r.pos) / 18) {
+      std::fprintf(stderr,
+                   "[facefx] animation parse rejected: curve=%u name=%s key_count=%u pos=%zu remaining=%zu\n",
+                   curve_index, curve.name.c_str(), key_count, r.pos,
+                   r.n - r.pos);
+      return std::nullopt;
+    }
     curve.keys.reserve(key_count);
     for (uint32_t key_index = 0; key_index < key_count; ++key_index) {
       (void)r.u16();
@@ -463,7 +480,12 @@ std::optional<FaceFxAnimation> parse_animation(
               });
     animation.curves.push_back(std::move(curve));
   }
-  if (animation.curves.empty()) return std::nullopt;
+  if (animation.curves.empty()) {
+    std::fprintf(stderr,
+                 "[facefx] animation parse rejected: no curves count=%u\n",
+                 curve_count);
+    return std::nullopt;
+  }
   return animation;
 }
 
