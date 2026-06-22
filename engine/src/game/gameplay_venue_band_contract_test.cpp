@@ -269,6 +269,25 @@ int main() {
                  "apply_venue_event(peak_transition_event,false);",
                  "peak_on/off bridge uses transient venue EventTrigger routing");
   ok &= contains(gameplay_h_c,
+                 "std::vector<ActiveVenueScriptTask>venue_script_tasks_;",
+                 "venue script tasks are retained as shared runtime state");
+  ok &= contains(gameplay_c,
+                 "step.kind=VenueScriptStep::Kind::ScheduleTask;",
+                 "DTB script_task/thread_task parse into executable task steps");
+  ok &= contains(gameplay_c,
+                 "cancel_venue_script_task_state_ref(step.name);",
+                 "delete [state] cancels the stored task object");
+  ok &= contains(gameplay_c,
+                 "venue_script_delay_seconds(amount,beat_units)",
+                 "task delays can run in seconds or chart beat units");
+  ok &= appears_before(gameplay_c,
+                       "update_venue_script_tasks();",
+                       "update_active_venue_material_anims();",
+                       "venue script tasks mature before venue animations sample");
+  ok &= absent(gameplay_c,
+               "Leave them inert until PS2 traces prove scheduling.",
+               "script_task scheduling must not regress to inert");
+  ok &= contains(gameplay_h_c,
                  "voidapply_venue_event(conststd::string&event_name,"
                  "boolpersistent=true,boolforce_persistent=false)",
                  "persistent venue events can be force-reapplied without changing state");

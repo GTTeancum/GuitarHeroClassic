@@ -1579,10 +1579,9 @@ Rejected native probe:
   shared venue-event router.
 - Native now maps `[verse]`, `[chorus]`, and `[solo]` to transient venue
   messages with an independent cursor, including diagnostic-seek skipping.
-  This deliberately does not expand nested DTB script logic such as arena's
-  `sparks_on` conditionals or delayed `script_task` bounces; only decoded
-  asset routes with matching event keys are allowed to run. Expanding those
-  script-side state machines should wait for a focused PS2/runtime trace.
+  Script-side state machines are handled by the venue DTB script bridge below;
+  decoded asset routes with matching event keys still remain the only render
+  side effects.
 
 2026-06-22 venue DTB script handler bridge:
 
@@ -1615,10 +1614,43 @@ Rejected native probe:
   big, and small2 after the bridge. All seven routes exit `0` with zero
   miss/unsupported rows; arena is the only stock route in this sweep with
   venue-local script handlers loaded.
-- Delayed `script_task` scheduling remains intentionally inert in this bridge.
-  The extracted arena DTB uses delayed bounce/reset tasks, but native should not
-  synthesize their timing until a focused trace proves the task scheduler
-  behavior and cancellation semantics.
+
+2026-06-22 venue script task scheduler bridge:
+
+- Focused PS2 trace evidence in
+  `analysis/pcsx2_trace/venue_task_scheduler_20260622_current/` captured the
+  shared task callback path rather than a native guess: `script_task_cb_002c5440`
+  constructed a live task once, `$task sleep` callback `0x002c64c0` fired 13
+  times, `$task loop` callback `0x002c6528` fired 13 times, and the task tick
+  callback `0x002c5e78` ran continuously. Static SLUS xrefs in
+  `ps2_task_string_xrefs.json` tie the registered `script_task`, `thread_task`,
+  `sleep`, `loop`, `units`, `delay`, `name`, and `script` symbols to the same
+  task manager registration block.
+- Native now parses arena/small venue task forms from DTB data into shared
+  runtime steps: `script_task`, `thread_task`, `(units kTaskSeconds)`,
+  `(units kTaskBeats)`, numeric and `{random_float min max}` delays,
+  `(name task_name)`, nested `(script ...)`, `delete task_name`,
+  `delete [state_object]`, `if {exists task_name}`, `$task sleep`,
+  `$task loop`, and `$task set_name`. Seconds delays use `song_time_`; beat
+  delays convert through the chart tempo map with `ticks_per_beat`, matching the
+  source distinction between `kTaskSeconds` and `kTaskBeats`.
+- The scheduler keeps task handles as object-state IDs, so arena
+  `set [onscript] {script_task ...}` returns a cancellable object and
+  `delete [onscript]` cancels it if it is still pending. Named task lookup is
+  shared for small1 `throw_task` and small2 `neon_task`; `$task set_name ""`
+  clears a running task's name after it begins, as authored in small1.
+- Validation:
+  `analysis/native_validation/arena_venue_script_task_chorus_20260622_current/`
+  runs stock PS2 `shoutatthedevil` through the native app hidden, with
+  `GHOGX_DEBUG_VENUE_FILTERS=1`, diagnostic venue `arena`, and diagnostic
+  event `peak_on`. The log reaches the authored first `[chorus]` at `t=25.500`,
+  sets `state_chorus=1`, evaluates `sparks_on` true, fires
+  `@filter:sparks` / `@filter:sparks_on`, schedules `script_task id=1`
+  with `state='onscript' delay=4.000 due=29.500 steps=1`, then runs that task
+  at `t=29.500` and fires `@filter:sparks_bounce` ParticleSys routes. Later
+  `[verse]` schedules the matching delayed `sparks_bounce_RESET` task, which
+  runs at `t=50.000`. This validates scheduler timing against authored arena
+  script data; object-level neon controller expansion remains separate work.
 
 2026-06-22 venue intro-start EventTrigger bridge:
 

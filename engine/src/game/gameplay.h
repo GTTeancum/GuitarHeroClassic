@@ -34,16 +34,41 @@ struct VenueScriptStep {
     CallHandler,
     FireFilter,
     IfAllStates,
+    IfTaskExists,
+    ScheduleTask,
+    CancelTask,
+    TaskSleep,
+    TaskLoop,
+    TaskSetName,
   };
   Kind kind = Kind::CallHandler;
   std::string name;
   int value = 0;
+  double delay = 0.0;
+  double delay_max = 0.0;
+  bool delay_random = false;
+  bool task_thread = false;
+  bool task_beat_units = false;
+  bool target_is_state_ref = false;
+  std::string assign_state;
   std::vector<std::string> state_names;
   std::vector<VenueScriptStep> children;
 };
 
 struct VenueScriptHandler {
   std::vector<VenueScriptStep> steps;
+};
+
+struct ActiveVenueScriptTask {
+  uint32_t id = 0;
+  std::string name;
+  std::string state_slot;
+  std::vector<VenueScriptStep> steps;
+  size_t cursor = 0;
+  double due_time = 0.0;
+  bool thread = false;
+  bool beat_units = false;
+  bool canceled = false;
 };
 
 struct HitResult {
@@ -370,6 +395,17 @@ class Gameplay {
   void execute_venue_script_event(const std::string& event_name);
   void execute_venue_script_steps(const std::vector<VenueScriptStep>& steps,
                                   std::vector<std::string>& stack);
+  void update_venue_script_tasks();
+  uint32_t schedule_venue_script_task(const VenueScriptStep& step);
+  void cancel_venue_script_task_by_id(uint32_t id);
+  void cancel_venue_script_task_by_name(const std::string& name);
+  void cancel_venue_script_task_state_ref(const std::string& state_name);
+  bool venue_script_task_exists(const std::string& name) const;
+  void clear_venue_script_task_refs(uint32_t id);
+  double venue_script_delay_seconds(double amount, bool beat_units) const;
+  double venue_script_delay_seconds(const VenueScriptStep& step,
+                                    bool inherited_beat_units);
+  double venue_script_random_float(double min_value, double max_value);
 
   // Detect a strum-triggered or HOPO note hit in the given lane.
   HitResult try_hit(int lane, bool strummed, bool is_hopo_candidate);
@@ -534,6 +570,11 @@ class Gameplay {
   std::map<std::string, VenueScriptHandler> venue_script_handlers_;
   std::map<std::string, int> venue_script_initial_state_;
   std::map<std::string, int> venue_script_state_;
+  std::map<std::string, uint32_t> venue_script_object_state_;
+  std::vector<ActiveVenueScriptTask> venue_script_tasks_;
+  uint32_t next_venue_script_task_id_ = 1;
+  uint32_t venue_script_rng_state_ = 0x9e3779b9u;
+  ActiveVenueScriptTask* running_venue_script_task_ = nullptr;
   bool executing_venue_script_ = false;
   std::map<std::string, ghogx::milo_scene::LightObj> venue_lights_;
   std::map<std::string, ghogx::milo_scene::EnvironObj> venue_environs_;

@@ -1499,6 +1499,38 @@ std::optional<int> dtb_bool_value(const gh::dtb::Node& node) {
     return std::nullopt;
 }
 
+std::optional<double> dtb_number_value(const gh::dtb::Node& node) {
+    if (auto f = gh::dtb::as_float(node)) return static_cast<double>(*f);
+    return std::nullopt;
+}
+
+std::string dtb_ref_or_atom_name(const gh::dtb::Node& node) {
+    if (auto ref = dtb_prop_ref_name(node)) return *ref;
+    return gh::dtb::as_string(node).value_or("");
+}
+
+bool parse_venue_script_delay_value(const gh::dtb::Node& node,
+                                    VenueScriptStep& step) {
+    if (auto number = dtb_number_value(node)) {
+        step.delay = std::max(0.0, *number);
+        step.delay_max = step.delay;
+        step.delay_random = false;
+        return true;
+    }
+    if (!gh::dtb::is_array(node)) return false;
+    const auto& kids = gh::dtb::children(node);
+    if (kids.size() < 3 || !kids[0] || !kids[1] || !kids[2]) return false;
+    if (gh::dtb::as_string(*kids[0]).value_or("") != "random_float")
+        return false;
+    auto min_value = dtb_number_value(*kids[1]);
+    auto max_value = dtb_number_value(*kids[2]);
+    if (!min_value || !max_value) return false;
+    step.delay = std::max(0.0, std::min(*min_value, *max_value));
+    step.delay_max = std::max(0.0, std::max(*min_value, *max_value));
+    step.delay_random = true;
+    return true;
+}
+
 bool collect_all_state_refs(const gh::dtb::Node& node,
                             std::vector<std::string>& states) {
     if (auto prop = dtb_prop_ref_name(node)) {
@@ -1520,12 +1552,61 @@ bool collect_all_state_refs(const gh::dtb::Node& node,
 void parse_venue_script_statement(const gh::dtb::Node& node,
                                   std::vector<VenueScriptStep>& steps);
 
+bool parse_venue_script_task_spec(const gh::dtb::Node& node,
+                                  VenueScriptStep& step);
+
+void parse_venue_script_node(const gh::dtb::Node& node,
+                             std::vector<VenueScriptStep>& steps) {
+    if (gh::dtb::is_array(node)) {
+        parse_venue_script_statement(node, steps);
+        return;
+    }
+    const std::string handler = gh::dtb::as_string(node).value_or("");
+    if (handler.empty()) return;
+    VenueScriptStep step;
+    step.kind = VenueScriptStep::Kind::CallHandler;
+    step.name = handler;
+    steps.push_back(std::move(step));
+}
+
 void parse_venue_script_sequence(const gh::dtb::NodeList& nodes,
                                  size_t first,
                                  std::vector<VenueScriptStep>& steps) {
     for (size_t i = first; i < nodes.size(); ++i) {
-        if (nodes[i]) parse_venue_script_statement(*nodes[i], steps);
+        if (nodes[i]) parse_venue_script_node(*nodes[i], steps);
     }
+}
+
+bool parse_venue_script_task_spec(const gh::dtb::Node& node,
+                                  VenueScriptStep& step) {
+    if (!gh::dtb::is_array(node)) return false;
+    const auto& kids = gh::dtb::children(node);
+    if (kids.empty() || !kids[0]) return false;
+    const std::string head = gh::dtb::as_string(*kids[0]).value_or("");
+    if (head != "script_task" && head != "thread_task") return false;
+
+    step = VenueScriptStep{};
+    step.kind = VenueScriptStep::Kind::ScheduleTask;
+    step.task_thread = (head == "thread_task");
+    step.delay = 0.0;
+    step.delay_max = 0.0;
+    for (size_t i = 1; i < kids.size(); ++i) {
+        if (!kids[i] || !gh::dtb::is_array(*kids[i])) continue;
+        const auto& row = gh::dtb::children(*kids[i]);
+        if (row.empty() || !row[0]) continue;
+        const std::string key = gh::dtb::as_string(*row[0]).value_or("");
+        if (key == "units" && row.size() >= 2 && row[1]) {
+            const std::string unit = gh::dtb::as_string(*row[1]).value_or("");
+            step.task_beat_units = (unit == "kTaskBeats");
+        } else if (key == "delay" && row.size() >= 2 && row[1]) {
+            parse_venue_script_delay_value(*row[1], step);
+        } else if (key == "name" && row.size() >= 2 && row[1]) {
+            step.name = dtb_ref_or_atom_name(*row[1]);
+        } else if (key == "script") {
+            parse_venue_script_sequence(row, 1, step.children);
+        }
+    }
+    return !step.children.empty();
 }
 
 void parse_venue_script_statement(const gh::dtb::Node& node,
@@ -1538,6 +1619,12 @@ void parse_venue_script_statement(const gh::dtb::Node& node,
 
     if (head == "set" && kids.size() >= 3 && kids[1] && kids[2]) {
         auto state = dtb_prop_ref_name(*kids[1]);
+        VenueScriptStep task_step;
+        if (state && parse_venue_script_task_spec(*kids[2], task_step)) {
+            task_step.assign_state = *state;
+            steps.push_back(std::move(task_step));
+            return;
+        }
         auto value = dtb_bool_value(*kids[2]);
         if (state && value) {
             VenueScriptStep step;
@@ -1547,6 +1634,30 @@ void parse_venue_script_statement(const gh::dtb::Node& node,
             steps.push_back(std::move(step));
         }
         return;
+    }
+
+    if (head == "$task" && kids.size() >= 2 && kids[1]) {
+        const std::string op = gh::dtb::as_string(*kids[1]).value_or("");
+        if (op == "sleep" && kids.size() >= 3 && kids[2]) {
+            VenueScriptStep step;
+            step.kind = VenueScriptStep::Kind::TaskSleep;
+            if (parse_venue_script_delay_value(*kids[2], step))
+                steps.push_back(std::move(step));
+            return;
+        }
+        if (op == "loop") {
+            VenueScriptStep step;
+            step.kind = VenueScriptStep::Kind::TaskLoop;
+            steps.push_back(std::move(step));
+            return;
+        }
+        if (op == "set_name" && kids.size() >= 3 && kids[2]) {
+            VenueScriptStep step;
+            step.kind = VenueScriptStep::Kind::TaskSetName;
+            step.name = dtb_ref_or_atom_name(*kids[2]);
+            steps.push_back(std::move(step));
+            return;
+        }
     }
 
     if ((head == "this" || head == "$this") && kids.size() >= 2 && kids[1]) {
@@ -1590,7 +1701,21 @@ void parse_venue_script_statement(const gh::dtb::Node& node,
 
     if (head == "if" && kids.size() >= 3 && kids[1]) {
         std::vector<std::string> states;
-        if (!collect_all_state_refs(*kids[1], states)) return;
+        if (!collect_all_state_refs(*kids[1], states)) {
+            if (gh::dtb::is_array(*kids[1])) {
+                const auto& cond = gh::dtb::children(*kids[1]);
+                if (cond.size() >= 2 && cond[0] && cond[1] &&
+                    gh::dtb::as_string(*cond[0]).value_or("") == "exists") {
+                    VenueScriptStep step;
+                    step.kind = VenueScriptStep::Kind::IfTaskExists;
+                    step.name = dtb_ref_or_atom_name(*cond[1]);
+                    parse_venue_script_sequence(kids, 2, step.children);
+                    if (!step.name.empty() && !step.children.empty())
+                        steps.push_back(std::move(step));
+                }
+            }
+            return;
+        }
         VenueScriptStep step;
         step.kind = VenueScriptStep::Kind::IfAllStates;
         step.state_names = std::move(states);
@@ -1599,9 +1724,20 @@ void parse_venue_script_statement(const gh::dtb::Node& node,
         return;
     }
 
-    // Delayed script_task scheduling, random sleeps, and task deletion need a
-    // timed script runtime. Leave them inert until PS2 traces prove scheduling.
-    if (head == "script_task" || head == "delete") return;
+    VenueScriptStep task_step;
+    if (parse_venue_script_task_spec(node, task_step)) {
+        steps.push_back(std::move(task_step));
+        return;
+    }
+
+    if (head == "delete" && kids.size() >= 2 && kids[1]) {
+        VenueScriptStep step;
+        step.kind = VenueScriptStep::Kind::CancelTask;
+        step.target_is_state_ref = dtb_prop_ref_name(*kids[1]).has_value();
+        step.name = dtb_ref_or_atom_name(*kids[1]);
+        if (!step.name.empty()) steps.push_back(std::move(step));
+        return;
+    }
 }
 
 struct VenueScriptData {
@@ -6912,6 +7048,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     difficulty_   = std::clamp(difficulty, 0, 3);
     hdr_path_     = hdr_path;
     ark_path_     = ark_path;
+    venue_script_rng_state_ = 0x9e3779b9u;
+    for (unsigned char c : shortname)
+        venue_script_rng_state_ =
+            venue_script_rng_state_ * 1664525u + static_cast<uint32_t>(c) +
+            1013904223u;
     world_.reset();
     lighting_.reset();
     drum_kit_.reset();
@@ -7014,6 +7155,10 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_script_handlers_.clear();
     venue_script_initial_state_.clear();
     venue_script_state_.clear();
+    venue_script_object_state_.clear();
+    venue_script_tasks_.clear();
+    next_venue_script_task_id_ = 1;
+    running_venue_script_task_ = nullptr;
     executing_venue_script_ = false;
     pending_transient_venue_events_.clear();
     venue_material_meshes_.clear();
@@ -7221,6 +7366,41 @@ void Gameplay::execute_venue_script_steps(
                 if (enabled) execute_venue_script_steps(step.children, stack);
                 break;
             }
+            case VenueScriptStep::Kind::IfTaskExists: {
+                const bool enabled = venue_script_task_exists(step.name);
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(stderr,
+                                 "[world] venue script if-exists %s result=%d\n",
+                                 step.name.c_str(), enabled ? 1 : 0);
+                }
+                if (enabled) execute_venue_script_steps(step.children, stack);
+                break;
+            }
+            case VenueScriptStep::Kind::ScheduleTask: {
+                schedule_venue_script_task(step);
+                break;
+            }
+            case VenueScriptStep::Kind::CancelTask: {
+                if (step.target_is_state_ref)
+                    cancel_venue_script_task_state_ref(step.name);
+                else
+                    cancel_venue_script_task_by_name(step.name);
+                break;
+            }
+            case VenueScriptStep::Kind::TaskSetName:
+                if (running_venue_script_task_) {
+                    running_venue_script_task_->name = step.name;
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(stderr,
+                                     "[world] venue script task %u set_name '%s'\n",
+                                     running_venue_script_task_->id,
+                                     step.name.c_str());
+                    }
+                }
+                break;
+            case VenueScriptStep::Kind::TaskSleep:
+            case VenueScriptStep::Kind::TaskLoop:
+                break;
         }
     }
 }
@@ -7238,6 +7418,227 @@ void Gameplay::execute_venue_script_event(const std::string& event_name) {
     }
     execute_venue_script_steps(handler_it->second.steps, stack);
     executing_venue_script_ = false;
+}
+
+double Gameplay::venue_script_random_float(double min_value, double max_value) {
+    if (max_value < min_value) std::swap(min_value, max_value);
+    venue_script_rng_state_ =
+        venue_script_rng_state_ * 1664525u + 1013904223u;
+    const double unit =
+        static_cast<double>((venue_script_rng_state_ >> 8) & 0x00ffffffu) /
+        static_cast<double>(0x01000000u);
+    return min_value + (max_value - min_value) * unit;
+}
+
+double Gameplay::venue_script_delay_seconds(double amount,
+                                            bool beat_units) const {
+    amount = std::max(0.0, amount);
+    if (!beat_units || chart_.ticks_per_beat == 0) return amount;
+    const uint32_t now_tick = chart_.sec_to_tick(song_time_);
+    const uint32_t delta_ticks =
+        static_cast<uint32_t>(std::round(
+            amount * static_cast<double>(chart_.ticks_per_beat)));
+    const double target_time = chart_.tick_to_sec(now_tick + delta_ticks);
+    return std::max(0.0, target_time - song_time_);
+}
+
+double Gameplay::venue_script_delay_seconds(const VenueScriptStep& step,
+                                            bool inherited_beat_units) {
+    const double amount =
+        step.delay_random
+            ? venue_script_random_float(step.delay, step.delay_max)
+            : step.delay;
+    const bool beat_units = step.task_beat_units || inherited_beat_units;
+    return venue_script_delay_seconds(amount, beat_units);
+}
+
+void Gameplay::clear_venue_script_task_refs(uint32_t id) {
+    for (auto it = venue_script_object_state_.begin();
+         it != venue_script_object_state_.end();) {
+        if (it->second == id)
+            it = venue_script_object_state_.erase(it);
+        else
+            ++it;
+    }
+}
+
+uint32_t Gameplay::schedule_venue_script_task(const VenueScriptStep& step) {
+    ActiveVenueScriptTask task;
+    task.id = next_venue_script_task_id_++;
+    task.name = step.name;
+    task.state_slot = step.assign_state;
+    task.steps = step.children;
+    task.thread = step.task_thread;
+    task.beat_units = step.task_beat_units;
+    task.cursor = 0;
+    task.due_time = song_time_ + venue_script_delay_seconds(step, false);
+    venue_script_tasks_.push_back(std::move(task));
+    ActiveVenueScriptTask& stored = venue_script_tasks_.back();
+    if (!stored.state_slot.empty()) {
+        venue_script_object_state_[stored.state_slot] = stored.id;
+    }
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] venue script schedule %s id=%u name='%s' state='%s' delay=%.3f due=%.3f steps=%zu units=%s\n",
+            stored.thread ? "thread_task" : "script_task", stored.id,
+            stored.name.c_str(), stored.state_slot.c_str(),
+            stored.due_time - song_time_, stored.due_time, stored.steps.size(),
+            stored.beat_units ? "beats" : "seconds");
+    }
+    return stored.id;
+}
+
+void Gameplay::cancel_venue_script_task_by_id(uint32_t id) {
+    if (id == 0) return;
+    bool canceled = false;
+    for (auto& task : venue_script_tasks_) {
+        if (task.id == id) {
+            task.canceled = true;
+            canceled = true;
+        }
+    }
+    if (running_venue_script_task_ && running_venue_script_task_->id == id) {
+        running_venue_script_task_->canceled = true;
+        canceled = true;
+    }
+    clear_venue_script_task_refs(id);
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(stderr,
+                     "[world] venue script cancel id=%u canceled=%d\n", id,
+                     canceled ? 1 : 0);
+    }
+}
+
+void Gameplay::cancel_venue_script_task_by_name(const std::string& name) {
+    if (name.empty()) return;
+    bool canceled = false;
+    for (auto& task : venue_script_tasks_) {
+        if (task.name == name) {
+            task.canceled = true;
+            clear_venue_script_task_refs(task.id);
+            canceled = true;
+        }
+    }
+    if (running_venue_script_task_ &&
+        running_venue_script_task_->name == name) {
+        running_venue_script_task_->canceled = true;
+        clear_venue_script_task_refs(running_venue_script_task_->id);
+        canceled = true;
+    }
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(stderr,
+                     "[world] venue script cancel name='%s' canceled=%d\n",
+                     name.c_str(), canceled ? 1 : 0);
+    }
+}
+
+void Gameplay::cancel_venue_script_task_state_ref(
+    const std::string& state_name) {
+    const auto it = venue_script_object_state_.find(state_name);
+    if (it == venue_script_object_state_.end()) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] venue script cancel state='%s' missing\n",
+                         state_name.c_str());
+        }
+        return;
+    }
+    const uint32_t id = it->second;
+    venue_script_object_state_.erase(it);
+    cancel_venue_script_task_by_id(id);
+}
+
+bool Gameplay::venue_script_task_exists(const std::string& name) const {
+    if (name.empty()) return false;
+    if (running_venue_script_task_ && !running_venue_script_task_->canceled &&
+        running_venue_script_task_->name == name) {
+        return true;
+    }
+    for (const auto& task : venue_script_tasks_) {
+        if (!task.canceled && task.name == name) return true;
+    }
+    return false;
+}
+
+void Gameplay::update_venue_script_tasks() {
+    const size_t tasks_to_scan = venue_script_tasks_.size();
+    size_t scanned = 0;
+    for (size_t i = 0; i < venue_script_tasks_.size() &&
+                       scanned < tasks_to_scan;) {
+        ++scanned;
+        if (venue_script_tasks_[i].canceled) {
+            clear_venue_script_task_refs(venue_script_tasks_[i].id);
+            venue_script_tasks_.erase(venue_script_tasks_.begin() + i);
+            continue;
+        }
+        if (venue_script_tasks_[i].due_time > song_time_ + 0.0001) {
+            ++i;
+            continue;
+        }
+
+        ActiveVenueScriptTask task = std::move(venue_script_tasks_[i]);
+        venue_script_tasks_.erase(venue_script_tasks_.begin() + i);
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] venue script task run id=%u name='%s' cursor=%zu steps=%zu t=%.3f\n",
+                         task.id, task.name.c_str(), task.cursor,
+                         task.steps.size(), song_time_);
+        }
+
+        bool paused = false;
+        bool looped = false;
+        running_venue_script_task_ = &task;
+        std::vector<std::string> stack;
+        while (!task.canceled && task.cursor < task.steps.size()) {
+            const VenueScriptStep& step = task.steps[task.cursor];
+            if (step.kind == VenueScriptStep::Kind::TaskSleep) {
+                const double delay =
+                    venue_script_delay_seconds(step, task.beat_units);
+                ++task.cursor;
+                task.due_time = song_time_ + delay;
+                paused = true;
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(stderr,
+                                 "[world] venue script task sleep id=%u delay=%.3f due=%.3f cursor=%zu\n",
+                                 task.id, delay, task.due_time, task.cursor);
+                }
+                break;
+            }
+            if (step.kind == VenueScriptStep::Kind::TaskLoop) {
+                task.cursor = 0;
+                task.due_time = song_time_;
+                paused = true;
+                looped = true;
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(stderr,
+                                 "[world] venue script task loop id=%u\n",
+                                 task.id);
+                }
+                break;
+            }
+            std::vector<VenueScriptStep> single;
+            single.push_back(step);
+            execute_venue_script_steps(single, stack);
+            ++task.cursor;
+        }
+        running_venue_script_task_ = nullptr;
+
+        if (task.canceled || (!paused && task.cursor >= task.steps.size())) {
+            clear_venue_script_task_refs(task.id);
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(stderr,
+                             "[world] venue script task done id=%u canceled=%d\n",
+                             task.id, task.canceled ? 1 : 0);
+            }
+            continue;
+        }
+        if (looped && task.steps.empty()) {
+            clear_venue_script_task_refs(task.id);
+            continue;
+        }
+        venue_script_tasks_.push_back(std::move(task));
+    }
 }
 
 void Gameplay::apply_venue_event(const std::string& event_name,
@@ -7675,6 +8076,10 @@ void Gameplay::clear_runtime_venue_animation_state() {
     active_venue_event_.clear();
     venue_camera_hidden_meshes_.clear();
     venue_script_state_ = venue_script_initial_state_;
+    venue_script_object_state_.clear();
+    venue_script_tasks_.clear();
+    next_venue_script_task_id_ = 1;
+    running_venue_script_task_ = nullptr;
     executing_venue_script_ = false;
 
     if (world_) {
@@ -9105,6 +9510,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     } else if (active_venue_event_.empty()) {
         apply_venue_event("excitement_okay");
     }
+    update_venue_script_tasks();
     update_active_venue_material_anims();
     update_active_venue_environment_anims();
     update_active_venue_light_anims();
@@ -9193,6 +9599,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     venue_script_handlers_ = script_data.handlers;
                     venue_script_initial_state_ = script_data.state;
                     venue_script_state_ = venue_script_initial_state_;
+                    venue_script_object_state_.clear();
+                    venue_script_tasks_.clear();
+                    next_venue_script_task_id_ = 1;
+                    running_venue_script_task_ = nullptr;
                     executing_venue_script_ = false;
                 }
                 venue_material_meshes_.clear();
