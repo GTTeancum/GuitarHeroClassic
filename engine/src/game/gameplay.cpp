@@ -8597,7 +8597,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     update_active_venue_light_anims();
     update_active_venue_particles();
     update_active_venue_anim_filters();
-    const bool lighting_route_applied = apply_lighting_event(event_name);
+    const bool lighting_route_applied =
+        apply_lighting_event(event_name, persistent);
     if (has_decoded_route_entry && !venue_route_applied &&
         !lighting_route_applied &&
         debug_venue_filters_enabled()) {
@@ -9021,7 +9022,8 @@ void Gameplay::update_active_venue_anim_filters() {
     world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
 }
 
-bool Gameplay::apply_lighting_event(const std::string& event_name) {
+bool Gameplay::apply_lighting_event(const std::string& event_name,
+                                    bool persistent) {
     if (event_name.empty() || !lighting_) return false;
     auto event_it = lighting_event_mat_anims_.find(event_name);
     auto env_event_it = lighting_event_env_anims_.find(event_name);
@@ -9100,7 +9102,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name) {
                     active_anim.tex_translation_keys = anim.tex_translation_keys;
                     active_anim.tex_scale_keys = anim.tex_scale_keys;
                     active_anim.tex_rotation_keys = anim.tex_rotation_keys;
-                    active_anim.persistent = true;
+                    active_anim.persistent = persistent;
                     if (anim.has_alpha) {
                         venue_material_alpha_[anim.material] =
                             active_anim.start_alpha;
@@ -9207,7 +9209,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name) {
             active_anim.tex_translation_keys = anim.tex_translation_keys;
             active_anim.tex_scale_keys = anim.tex_scale_keys;
             active_anim.tex_rotation_keys = anim.tex_rotation_keys;
-            active_anim.persistent = true;
+            active_anim.persistent = persistent;
             if (anim.has_alpha)
                 lighting_material_alpha_[anim.material] =
                     active_anim.start_alpha;
@@ -9277,7 +9279,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name) {
             active_anim.start_time = song_time_;
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
-            active_anim.persistent = true;
+            active_anim.persistent = persistent;
             lighting_environment_frames_[anim.environment] = 0.0f;
             lighting_environment_colors_[anim.environment] =
                 sample_environment_color_key(active_anim.color_keys, 0.0f);
@@ -9314,7 +9316,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name) {
             active_anim.start_time = song_time_;
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
-            active_anim.persistent = true;
+            active_anim.persistent = persistent;
             lighting_light_colors_[anim.light] =
                 sample_light_color_key(active_anim.color_keys, 0.0f);
             light_color_changed = true;
@@ -9372,16 +9374,17 @@ bool Gameplay::apply_lighting_event(const std::string& event_name) {
             active.duration_frames = route.duration_frames;
             active.emission_keys = route.emission_keys;
             active.size_keys = route.size_keys;
-            active.persistent = true;
+            active.persistent = persistent;
             active_lighting_particles_.push_back(std::move(active));
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: ParticleSys %s via %s emit_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f\n",
+                "[world] lighting event %s: ParticleSys %s via %s emit_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f %s\n",
                 event_name.c_str(), route.particle.c_str(),
                 route.anim.c_str(), route.emission_keys.size(),
                 route.size_keys.size(), route.duration_frames,
-                active_lighting_particles_.back().duration_seconds);
+                active_lighting_particles_.back().duration_seconds,
+                persistent ? "persistent" : "transient");
         }
     }
     if (filter_it != lighting_event_anim_filters_.end()) {
@@ -9396,7 +9399,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name) {
         active_filter.event_name = event_name;
         active_filter.filters = filter_it->second;
         active_filter.start_time = song_time_;
-        active_filter.persistent = true;
+        active_filter.persistent = persistent;
         active_lighting_anim_filters_.push_back(std::move(active_filter));
         if (!filter_it->second.empty()) lighting_route_applied = true;
         for (const auto& filter : filter_it->second) {
@@ -9618,6 +9621,10 @@ void Gameplay::update_active_lighting_particles() {
     for (auto it = active_lighting_particles_.begin();
          it != active_lighting_particles_.end();) {
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
+        if (!it->persistent && elapsed > it->duration_seconds) {
+            it = active_lighting_particles_.erase(it);
+            continue;
+        }
         const float frame =
             it->duration_frames > 0.001f
                 ? material_anim_frame_at(it->duration_frames, elapsed,
@@ -9636,9 +9643,10 @@ void Gameplay::update_active_lighting_particles() {
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f emit_keys=%zu size_keys=%zu\n",
+                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f emit_keys=%zu size_keys=%zu persistent=%d\n",
                     it->particle.c_str(), frame, intensity, size,
-                    it->emission_keys.size(), it->size_keys.size());
+                    it->emission_keys.size(), it->size_keys.size(),
+                    it->persistent ? 1 : 0);
             }
         }
         ++it;
@@ -9680,6 +9688,16 @@ void Gameplay::update_active_lighting_anim_filters() {
     for (auto it = active_lighting_anim_filters_.begin();
          it != active_lighting_anim_filters_.end();) {
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
+        double duration = 0.0;
+        for (const auto& filter : it->filters) {
+            duration =
+                std::max(duration, venue_filter_duration_seconds(filter));
+        }
+        if (!it->persistent && duration > 0.0 && elapsed > duration) {
+            it = active_lighting_anim_filters_.erase(it);
+            continue;
+        }
+
         for (const auto& filter : it->filters) {
             const float frame =
                 venue_filter_frame_at(filter, elapsed, it->persistent);

@@ -971,6 +971,10 @@ int main() {
                  "voidGameplay::update_active_lighting_particles()",
                  "lighting overlay particles sample on the song clock");
   ok &= contains(gameplay_c,
+                 "if(!it->persistent&&elapsed>it->duration_seconds){"
+                 "it=active_lighting_particles_.erase(it);continue;}",
+                 "lighting overlay one-shot particles expire like venue particles");
+  ok &= contains(gameplay_c,
                  "voidGameplay::update_active_lighting_environment_anims()",
                  "lighting overlay EnvAnim samples on the song clock");
   ok &= contains(gameplay_c,
@@ -979,15 +983,39 @@ int main() {
   ok &= contains(gameplay_c,
                  "voidGameplay::update_active_lighting_anim_filters()",
                  "lighting overlay AnimFilters sample on the song clock");
-  ok &= contains(gameplay_h_c,
-                 "boolapply_lighting_event(conststd::string&event_name);",
-                 "lighting event dispatch reports decoded route coverage");
   ok &= contains(gameplay_c,
-                 "constboollighting_route_applied=apply_lighting_event(event_name);"
+                 "duration=std::max(duration,venue_filter_duration_seconds(filter));"
+                 "}if(!it->persistent&&duration>0.0&&elapsed>duration){"
+                 "it=active_lighting_anim_filters_.erase(it);continue;}",
+                 "lighting overlay one-shot AnimFilters expire like venue filters");
+  ok &= contains(gameplay_h_c,
+                 "boolapply_lighting_event(conststd::string&event_name,"
+                 "boolpersistent=true);",
+                 "lighting event dispatch carries venue persistence");
+  ok &= contains(gameplay_c,
+                 "constboollighting_route_applied="
+                 "apply_lighting_event(event_name,persistent);"
                  "if(has_decoded_route_entry&&!venue_route_applied&&"
                  "!lighting_route_applied&&"
                  "debug_venue_filters_enabled())",
                  "venue diagnostics wait for decoded route ownership on both route families");
+  ok &= contains(gameplay_c,
+                 "active_anim.persistent=persistent;",
+                 "lighting overlay animations inherit transient versus persistent events");
+  ok &= contains(gameplay_c,
+                 "active.persistent=persistent;",
+                 "lighting overlay particles inherit transient versus persistent events");
+  ok &= contains(gameplay_c,
+                 "active_lighting_particles_.back().duration_seconds,"
+                 "persistent?\"persistent\":\"transient\");",
+                 "lighting ParticleSys diagnostics expose transient ownership");
+  ok &= contains(gameplay_c,
+                 "it->emission_keys.size(),it->size_keys.size(),"
+                 "it->persistent?1:0);",
+                 "lighting ParticleSys samples log persistent state");
+  ok &= contains(gameplay_c,
+                 "active_filter.persistent=persistent;",
+                 "lighting overlay AnimFilters inherit transient versus persistent events");
   ok &= contains(gameplay_c,
                  "lighting_event_group_visibility_.find(event_name)!="
                  "lighting_event_group_visibility_.end()||"

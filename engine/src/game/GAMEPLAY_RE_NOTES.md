@@ -2081,6 +2081,16 @@ Rejected native probe:
   `venue peak bridge excitement_peak -> peak_on`, exactly one later
   `venue peak bridge excitement_great -> peak_off`, and one
   `resend_excitement: excitement_peak`.
+- Follow-up validation in
+  `analysis/native_validation/lighting_transient_persistence_battle_20260622_after_expiry/`
+  closes the overlay lifetime gap for the same bridge. `apply_venue_event()`
+  now passes the event persistence bit through lighting overlay routes, and
+  lighting `ParticleSys` / `AnimFilter` active rows expire with the same
+  decoded duration rule as venue rows. The hidden Battle run records
+  `peak_on` and `peak_off` lighting particles as `transient`, with only eight
+  total `electric_fire.part` / `electric_sparkssmoke1.part` samples before
+  expiry instead of the previous indefinite sampling into the end of the
+  capture.
 - `analysis/native_validation/arena_peak_script_sparks_20260622_current/`
   validates the source-shaped venue script side of the same bridge. The run
   starts stock `shoutatthedevil` shortly before the authored first chorus,
