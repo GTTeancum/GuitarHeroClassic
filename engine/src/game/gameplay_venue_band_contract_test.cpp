@@ -243,6 +243,13 @@ int main() {
                        "diagnostic_autoplay_fret_mask(notes);}",
                        "constboolstrummed=",
                        "diagnostic autoplay feeds the normal strum edge path");
+  ok &= contains(gameplay_c,
+                 "if(diagnostic_autoplay_){for(size_ti=next_note_idx_;"
+                 "i<notes.size();++i){",
+                 "diagnostic autoplay catches up fixed-step crossed notes");
+  ok &= contains(gameplay_c,
+                 "score=%ddiagnostic_autoplay",
+                 "diagnostic autoplay catch-up rows remain log-verifiable");
   ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_venue_override(conststd::string&venue)",
                  "diagnostic venue override stays an explicit gameplay test hook");

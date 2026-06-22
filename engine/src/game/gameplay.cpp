@@ -10072,6 +10072,33 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         ((fret_mask & (1u << 5)) != 0) &&
         ((prev_fret_mask_ & (1u << 5)) == 0);  // rising edge on strum bit
 
+    if (diagnostic_autoplay_) {
+        for (size_t i = next_note_idx_; i < notes.size(); ++i) {
+            if (i < consumed.size() && consumed[i]) continue;
+            const auto& n = notes[i];
+            const double note_sec = chart_.tick_to_sec(n.tick_on);
+            if (note_sec > song_time_ + kHitWindowSec) break;
+
+            lane_hit_[n.lane] = true;
+            hit_flash_mask_ |= (1u << n.lane);
+            lane_flash_[n.lane] = 1.0f;
+            ++streak_;
+            if      (streak_ >= 30) multiplier_ = 4;
+            else if (streak_ >= 20) multiplier_ = 3;
+            else if (streak_ >= 10) multiplier_ = 2;
+            else                    multiplier_ = 1;
+
+            const int pts = 50 * multiplier_;
+            score_ += pts;
+            std::fprintf(
+                stderr,
+                "[gameplay] HIT lane=%d tick=%u pts=%d streak=%d mult=%d score=%d diagnostic_autoplay\n",
+                n.lane, n.tick_on, pts, streak_, multiplier_, score_);
+            if (i < consumed.size()) consumed[i] = 1;
+            apply_venue_event(player_fret_hit_event(n.lane), false);
+        }
+    }
+
     // Advance next_note_idx_ past notes that are permanently missed or hit.
     while (next_note_idx_ < notes.size()) {
         if (next_note_idx_ < consumed.size() && consumed[next_note_idx_]) {

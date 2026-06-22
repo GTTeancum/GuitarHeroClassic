@@ -575,9 +575,11 @@ Open work:
   labels rather than arena object-name shortcuts. The contract guard locks the
   helper and forbids direct `city_lights_fret` dispatch. A diagnostic native
   autoplay switch exists only for validation capture; it feeds chart notes into
-  the normal `fret_mask` before strum edge detection, matching the accepted
-  direct-autoplay trace workflow without bypassing note-hit scoring or venue
-  dispatch. Validation:
+  the normal `fret_mask` before strum edge detection for ordinary frame cadence,
+  and now has a fixed-step catch-up path that consumes any crossed notes before
+  the miss scanner can turn a coarse validation clock into false
+  `excitement_bad` lighting. Both paths still dispatch the same decoded
+  `hit_p0_fret*` venue events from source chart notes. Validation:
   `analysis/native_validation/venue_fret_hit_route_regression_20260621_current/`
   reruns the arena window and confirms all five `hit_p0_fret*` label routes are
   present while existing `excitement_bad`, `kick_drum`, `speaker_kick_drum.filt`,
@@ -603,6 +605,17 @@ Open work:
   11 kick-drum trigger applications, 3 regular camera sweeps, 6
   `post_switch_cam` moves, and lighting transitions into `chorus_great.pst` and
   `flare_great.pst` once the streak reaches `excitement_great`.
+- 2026-06-22 fixed-step diagnostic autoplay catch-up:
+  the validation-only autoplay path now consumes all unconsumed player notes at
+  or before `song_time + hit_window` before normal miss processing. This keeps
+  hidden venue/lighting sweeps with coarse deterministic frame steps from
+  fabricating misses and bad-excitement lighting while leaving non-diagnostic
+  player input untouched. Validation:
+  `analysis/native_validation/diagnostic_autoplay_fixedstep_catchup_fest_wait_20260622_current/`
+  reruns stock `badreputation` in the Fest venue with `--fixed-dt 0.25`,
+  diagnostic autoplay, and venue-filter logging; it exits `0` with 122
+  diagnostic `HIT` rows, zero miss rows, zero unsupported/no-route rows, and
+  zero `excitement_bad` venue events.
 - 2026-06-21 venue lifecycle/visibility follow-up:
   `config/macros.dta` declares `start` as a system world event and the accepted
   real-play stack trace includes `prop:start` through the named-event dispatch
