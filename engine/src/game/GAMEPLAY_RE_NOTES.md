@@ -903,6 +903,15 @@ Open work:
   `611.25`, `622.50`, `633.75`, and `645.00` on the four zombie `.msnm`
   targets while regular camera, lighting preset, particle, and autoplay hit
   routes continue.
+- 2026-06-22 AnimFilter zero-span offset follow-up:
+  fest `biker1_ok.filt` and `biker2_ok.filt` target `biker_1.grp` /
+  `biker_2.grp` and their traced PS2 filter rows store `scale=1`, `start=0`,
+  `end=0`, `type=1`, and authored `offset=7`. Native previously returned
+  `start` before applying `offset` when an AnimFilter span was zero, so the
+  Motocross TransAnim targets sampled frame `0.00` instead of the PS2-authored
+  static frame. Zero-span AnimFilters now still honor the authored offset as a
+  static sample frame, while keeping duration at zero rather than inventing a
+  playback window.
 - 2026-06-21 texture-transform validation pass:
   `analysis/native_validation/small1_tex_xfm_scale_rot_20260621_current/`
   proves small1 group-routed TV/barrel MatAnims are decoded and started with

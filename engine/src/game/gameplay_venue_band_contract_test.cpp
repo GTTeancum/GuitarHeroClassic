@@ -1000,6 +1000,9 @@ int main() {
                  "filter.offset_frame=read_f32_or(body,size,timing_off+20,0.0f);",
                  "venue AnimFilter reads frame offset from the traced float slot");
   ok &= contains(gameplay_c,
+                 "returnstd::max(0.0f,start+static_cast<float>(authored_offset));",
+                 "zero-span venue AnimFilters still sample the authored frame offset");
+  ok &= contains(gameplay_c,
                  "filter.start_frame>100000.0f",
                  "venue AnimFilter keeps long authored MeshAnim frame windows");
   ok &= contains(gameplay_c,

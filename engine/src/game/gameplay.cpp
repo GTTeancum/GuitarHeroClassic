@@ -4345,7 +4345,13 @@ float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
     const float start = filter.start_frame;
     const float end = std::max(filter.end_frame, start);
     const float span = end - start;
-    if (!std::isfinite(span) || span <= 0.001f) return start;
+    const double authored_offset = std::isfinite(filter.offset_frame)
+                                       ? static_cast<double>(filter.offset_frame)
+                                       : 0.0;
+    if (!std::isfinite(span) || span <= 0.001f) {
+        return std::max(0.0f,
+                        start + static_cast<float>(authored_offset));
+    }
 
     const double scale =
         std::isfinite(filter.scale) && std::fabs(filter.scale) > 0.001f
@@ -4359,8 +4365,7 @@ float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
     } else {
         local_frame = std::max(0.0, elapsed_seconds) * 30.0 * scale;
     }
-    if (std::isfinite(filter.offset_frame))
-        local_frame += static_cast<double>(filter.offset_frame);
+    local_frame += authored_offset;
 
     auto positive_mod = [](double value, double modulus) {
         if (modulus <= 0.001) return 0.0;
