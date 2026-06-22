@@ -1083,6 +1083,29 @@ Open work:
   `walk_ok`/`starpower_ok` only when native has accepted runtime state for
   those performer conditions. Walking and starpower are currently false until
   their runtime state bridge is traced.
+- 2026-06-22 solo and forced camera mode follow-up:
+  `world_objects_worldbase.dta::pick_regular_camera_shot` filters CamShots to
+  `solo (ok never)`, while `pick_solo_camera_shot` filters to `solo (ok only)`
+  and does not apply the regular far/behind repeat-distance guard. Native was
+  discarding `solo=only` CamShots during load, so authored solo shots such as
+  `SOLO_NEAR01` could never be selected. Native now keeps `solo=only` shots,
+  switches the shared camera selector into solo mode from the current authored
+  section, and logs `mode=solo`/`mode=regular`/`mode=jump` for validation.
+  The same pass wires the script-backed forced routes: `band_jump` uses the
+  decoded `jump_ok` predicate only above bad excitement, while
+  `sync_wag`/`sync_head_bang` force a new shot only above okay excitement.
+  Validation in
+  `analysis/native_validation/camera_solo_mode_jordan_20260622_current_clean/`
+  runs stock PS2 `jordan` from `105.0s`; the log loads `SOLO_NEAR01`, enters
+  `[solo_on]`, picks `SOLO_NEAR01` with `mode=solo`, runs
+  `post_switch_cam`, and keeps lighting on `request=SOLO/`. Regression
+  validation in
+  `analysis/native_validation/camera_regular_mode_shout_20260622_current/`
+  runs stock PS2 `shoutatthedevil` from `16.0s`; it picks
+  `flr_far_rt02x3` with `mode=regular`, keeps the `VERSE/color1` lighting
+  route, and runs `post_switch_cam`. The `.lit`/`.env` "no decoded" rows in
+  both logs are the existing lighting-graph breadcrumbs documented above, not
+  new camera-route failures.
 
 ### Character Controller Layout And Transform Feed
 

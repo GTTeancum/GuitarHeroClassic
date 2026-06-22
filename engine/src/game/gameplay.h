@@ -63,6 +63,7 @@ class Gameplay {
     bool walk_ok = true;
     bool starpower_ok = false;
     bool low_excitement_ok = true;
+    bool jump_ok = true;
     std::vector<CameraKey> positions;
   };
   struct LightingPreset {

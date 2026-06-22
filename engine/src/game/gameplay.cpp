@@ -5092,7 +5092,9 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             const std::string special = next_string_after(strings, "special");
             if (special == "TRUE") continue;
             const std::string solo = next_string_after(strings, "solo");
-            if (!solo.empty() && solo != "ok" && solo != "never") continue;
+            if (!solo.empty() && solo != "ok" && solo != "never" &&
+                solo != "only")
+                continue;
             auto decoded_poses =
                 decode_camshot_poses(body, static_cast<size_t>(de.size));
             if (decoded_poses.empty()) continue;
@@ -5136,6 +5138,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             c.key.low_excitement_ok =
                 camshot_bool_property(body, static_cast<size_t>(de.size),
                                       strings, "low_excitement_ok", true);
+            c.key.jump_ok = camshot_bool_property(
+                body, static_cast<size_t>(de.size), strings, "jump_ok", true);
             infer_camshot_target(strings, c.shot, c.key);
             for (auto& decoded_pose : decoded_poses) {
                 Gameplay::CameraKey pos = decoded_pose.first;
@@ -5147,6 +5151,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.walk_ok = c.key.walk_ok;
                 pos.starpower_ok = c.key.starpower_ok;
                 pos.low_excitement_ok = c.key.low_excitement_ok;
+                pos.jump_ok = c.key.jump_ok;
                 pos.target_entity = c.key.target_entity;
                 pos.target_subpart = c.key.target_subpart;
                 c.key.positions.push_back(std::move(pos));
@@ -5185,13 +5190,13 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s poses=%zu pose body+0x%zX score=%d special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s poses=%zu pose body+0x%zX score=%d special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.positions.size(), c.off, c.score,
                          key.special ? 1 : 0, key.walk_ok ? 1 : 0,
                          key.low_excitement_ok ? 1 : 0,
-                         key.starpower_ok ? 1 : 0);
+                         key.starpower_ok ? 1 : 0, key.jump_ok ? 1 : 0);
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] regular camera select: %s\n", ex.what());
@@ -5242,17 +5247,38 @@ bool string_in(std::string_view value,
     return false;
 }
 
+enum class CameraShotMode { Regular, Solo, Jump };
+
+const char* camera_shot_mode_label(CameraShotMode mode) {
+    switch (mode) {
+        case CameraShotMode::Regular:
+            return "regular";
+        case CameraShotMode::Solo:
+            return "solo";
+        case CameraShotMode::Jump:
+            return "jump";
+    }
+    return "regular";
+}
+
 bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
                               const Gameplay::CameraKey* previous,
                               bool low_excitement,
                               bool walking,
-                              bool starpower) {
-    // Community world_objects_worldbase.dta::pick_regular_camera_shot:
-    // alternate away from previous facing, avoid repeating far/behind
-    // distance, require solo ok/never and special FALSE, and only apply
-    // low/walk/starpower filters when the script pushes those predicates.
+                              bool starpower,
+                              CameraShotMode mode) {
+    // Community world_objects_worldbase.dta::pick_regular_camera_shot and
+    // pick_solo_camera_shot share the state filters, but differ in solo tags
+    // and the far/behind distance repeat guard. band_jump uses a separate
+    // jump_ok predicate over the same normal CamShot category set.
     if (key.special) return false;
-    if (!string_in(key.solo, {"", "ok", "never"})) return false;
+    if (mode == CameraShotMode::Jump) {
+        return key.jump_ok;
+    } else if (mode == CameraShotMode::Solo) {
+        if (!string_in(key.solo, {"", "ok", "only"})) return false;
+    } else {
+        if (!string_in(key.solo, {"", "ok", "never"})) return false;
+    }
     if (low_excitement && !key.low_excitement_ok) return false;
     if (walking && !key.walk_ok) return false;
     if (starpower && !key.starpower_ok) return false;
@@ -5266,7 +5292,8 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
             !string_in(key.facing, {"left", "null", ""})) {
             return false;
         }
-        if (previous->distance == "far" || previous->distance == "behind") {
+        if (mode == CameraShotMode::Regular &&
+            (previous->distance == "far" || previous->distance == "behind")) {
             if (!string_in(key.distance, {"null", "near", "closeup", ""})) {
                 return false;
             }
@@ -5281,13 +5308,14 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     size_t counter,
     bool low_excitement,
     bool walking,
-    bool starpower) {
+    bool starpower,
+    CameraShotMode mode) {
     if (keys.empty()) return nullptr;
     std::vector<const Gameplay::CameraKey*> filtered;
     for (const auto& key : keys) {
         if (&key == previous) continue;
         if (regular_camera_filter_ok(key, previous, low_excitement, walking,
-                                     starpower)) {
+                                     starpower, mode)) {
             filtered.push_back(&key);
         }
     }
@@ -5298,6 +5326,13 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     }
     if (filtered.empty()) return &keys[counter % keys.size()];
     return filtered[counter % filtered.size()];
+}
+
+bool camera_section_is_solo_at(const ghogx::chart::Chart& chart,
+                               double song_time,
+                               double intro_seconds) {
+    LightingRequest req = lighting_request_at(chart, song_time, intro_seconds);
+    return req.category == "SOLO";
 }
 
 uint32_t camera_bar_at(const ghogx::chart::Chart& chart, double song_time) {
@@ -8757,16 +8792,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
 
             bool force_camera = false;
+            std::optional<CameraShotMode> forced_camera_mode;
             for (const auto& ev : chart_.text_events) {
                 const double t = chart_.tick_to_sec(ev.tick);
                 if (t < song_time_ - std::max(0.001, dt * 1.5)) continue;
                 if (t > song_time_) break;
-                if (ev.text == "[sync_wag]" || ev.text == "[sync_head_bang]" ||
-                    ev.text == "[band_jump]") {
+                if (ev.text == "[band_jump]" || ev.text == "[sync_wag]" ||
+                    ev.text == "[sync_head_bang]") {
                     if (ev.tick == last_forced_camera_event_tick_) continue;
                     last_forced_camera_event_tick_ = ev.tick;
-                    force_camera = true;
-                    camera_bars_left_ = 4;
+                    const uint32_t excitement =
+                        venue_excitement_level(active_venue_event_);
+                    if (ev.text == "[band_jump]") {
+                        force_camera = excitement > 1;
+                        forced_camera_mode = CameraShotMode::Jump;
+                    } else {
+                        force_camera = excitement > 2;
+                    }
+                    if (force_camera) camera_bars_left_ = 4;
                     break;
                 }
             }
@@ -8790,12 +8833,19 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const bool low_excitement =
                     active_venue_event_.find("bad") != std::string::npos ||
                     active_venue_event_.find("boot") != std::string::npos;
+                const bool solo_camera = camera_section_is_solo_at(
+                    chart_, song_time_, intro_camera_seconds_);
+                CameraShotMode camera_mode =
+                    solo_camera ? CameraShotMode::Solo : CameraShotMode::Regular;
+                if (force_camera && forced_camera_mode) {
+                    camera_mode = *forced_camera_mode;
+                }
                 constexpr bool kGuitaristWalking = false;
                 constexpr bool kGuitaristStarpower = false;
                 if (const auto* key = choose_regular_camera_key_scripted(
                         regular_camera_keys_, current_key,
                         camera_shot_counter_, low_excitement,
-                        kGuitaristWalking, kGuitaristStarpower)) {
+                        kGuitaristWalking, kGuitaristStarpower, camera_mode)) {
                     const bool shot_changed =
                         active_regular_camera_ != key->name;
                     if (shot_changed) {
@@ -8808,12 +8858,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         active_camera_position_index_ = 0;
                         std::fprintf(
                             stderr,
-                            "[world] regular camera sweep: %s -> %s bars_left=%d duration=%s[%d,%d] forced=%d bar=%u t=%.3f\n",
+                            "[world] regular camera sweep: %s -> %s bars_left=%d duration=%s[%d,%d] mode=%s forced=%d bar=%u t=%.3f\n",
                             previous_regular_camera_.c_str(),
                             key->name.c_str(), camera_bars_left_,
                             duration.first.c_str(), duration.second.first,
-                            duration.second.second, force_camera ? 1 : 0, bar,
-                            song_time_);
+                            duration.second.second,
+                            camera_shot_mode_label(camera_mode),
+                            force_camera ? 1 : 0, bar, song_time_);
                     }
                     if (should_resend_excitement_) {
                         should_resend_excitement_ = false;

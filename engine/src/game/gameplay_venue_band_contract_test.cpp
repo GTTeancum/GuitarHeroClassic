@@ -1040,6 +1040,37 @@ int main() {
                  "camera_duration_range_for_event(camera_duration_bars_,"
                  "active_venue_event_)",
                  "regular camera uses active-excitement duration rows");
+  ok &= contains(gameplay_c,
+                 "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
+                 "camera loader keeps solo-only CamShots for solo sections");
+  ok &= contains(gameplay_c,
+                 "enumclassCameraShotMode{Regular,Solo,Jump};",
+                 "camera director has distinct regular/solo selection modes");
+  ok &= contains(gameplay_c,
+                 "if(mode==CameraShotMode::Jump){returnkey.jump_ok;}",
+                 "band_jump camera mode mirrors the jump_ok shot predicate");
+  ok &= contains(gameplay_c,
+                 "if(mode==CameraShotMode::Solo){if(!string_in(key.solo,{\"\","
+                 "\"ok\",\"only\"}))returnfalse;}",
+                 "solo camera mode mirrors pick_solo_camera_shot solo filter");
+  ok &= contains(gameplay_c,
+                 "if(!string_in(key.solo,{\"\",\"ok\",\"never\"}))returnfalse;",
+                 "regular camera mode mirrors pick_regular_camera_shot solo filter");
+  ok &= contains(gameplay_c,
+                 "constboolsolo_camera=camera_section_is_solo_at(",
+                 "camera mode is driven by the authored current section");
+  ok &= contains(gameplay_c,
+                 "solo_camera?CameraShotMode::Solo:CameraShotMode::Regular",
+                 "camera selection switches to solo mode for solo sections");
+  ok &= contains(gameplay_c,
+                 "camera_shot_mode_label(camera_mode)",
+                 "runtime camera logs expose regular versus solo mode");
+  ok &= contains(gameplay_c,
+                 "if(ev.text==\"[band_jump]\"){force_camera=excitement>1;",
+                 "band_jump camera forces only above bad excitement");
+  ok &= contains(gameplay_c,
+                 "}else{force_camera=excitement>2;}",
+                 "sync_wag/head_bang camera forces only above okay excitement");
   ok &= appears_before(gameplay_c,
                        "deterministic_camera_duration_bars(",
                        "\"[world]regularcamerasweep:",
