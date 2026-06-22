@@ -1273,8 +1273,14 @@ int main() {
                  "venue_environs_;",
                  "runtime caches venue geometry Environ objects for lighting refs");
   ok &= contains(gameplay_c,
+                 "boolis_performer_or_crowd_lit_ref(std::string_views)",
+                 "runtime classifies symbolic performer/crowd .lit refs separately");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingpreset.litperformer/crowdrigref:",
+                 "runtime reports performer/crowd .lit refs without pretending they are decoded Light misses");
+  ok &= contains(gameplay_c,
                  "\"[world]lightingpreset.litrefhasnodecodedLightobject:",
-                 "runtime reports preset .lit refs that are not decoded Light objects");
+                 "runtime still reports true preset .lit refs that are not decoded Light objects");
   ok &= contains(gameplay_c,
                  "matched_venue_refs",
                  "LightPreset .lit coverage resolves against venue geometry Light objects");
@@ -1300,8 +1306,14 @@ int main() {
                  "GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS",
                  "renderer keeps authored dynamic environment lights A/B switchable");
   ok &= contains(gameplay_c,
+                 "boolis_performer_or_crowd_env_ref(std::string_views)",
+                 "runtime classifies symbolic performer/crowd .env refs separately");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingpreset.envperformer/crowdrigref:",
+                 "runtime reports performer/crowd .env refs without pretending they are decoded Environ misses");
+  ok &= contains(gameplay_c,
                  "\"[world]lightingpreset.envrefhasnodecodedEnvironobject:",
-                 "runtime reports preset .env refs that are not decoded Environ objects");
+                 "runtime still reports true preset .env refs that are not decoded Environ objects");
   ok &= contains(gameplay_c,
                  "\"[world]lightingEnvironobjectcoverage:",
                  "runtime logs Environ coverage against preset .env refs");

@@ -1872,6 +1872,29 @@ Rejected native probe:
   MatAnim, ParticleSys, AnimFilter, MeshAnim, EnvAnim, LightAnim, lighting
   presets, and lighting keyframes where authored by each venue.
 
+2026-06-22 symbolic performer/crowd lighting rig refs:
+
+- The remaining lighting-preset `.lit` / `.env` reference breadcrumbs from the
+  route-aware diagnostics were audited against loaded PS2 lighting and venue
+  object inventories. Names such as `char_*`, `crowd_*`, `drummer_*`,
+  `rim_lighting.lit`, `band.env`, `character.env`, and `drummer.env` are
+  symbolic performer/crowd rig refs in the preset tables, not decoded
+  `Light`/`Environ` objects in the loaded lighting MILOs. When a matching venue
+  geometry object does exist, the coverage pass still counts it as
+  `matched_venue` before applying this symbolic classification.
+- Native now logs those symbolic rig refs separately and keeps true unresolved
+  object refs visible as `ref has no decoded Light/Environ object`. This is a
+  diagnostic/coverage refinement only: it does not apply performer lighting to
+  `CharRenderer`, does not enable the still-gated dynamic Environ bridge, and
+  does not invent character-specific visual offsets.
+- `analysis/native_validation/lighting_symbolic_rig_refs_20260622_current/`
+  reruns the seven stock GH2 route/song windows for 300 frames hidden with
+  diagnostic autoplay. All routes exit `0`, with zero unsupported rows, zero
+  miss rows, zero `no decoded` rows, zero true `ref has no decoded` rows, and
+  zero coverage rows with nonzero `unmatched`. The former reference breadcrumbs
+  are now accounted as symbolic rig refs: arena `7`, small1 `8`, fest `7`,
+  theatre `8`, battle `8`, big `11`, and small2 `6`.
+
 2026-06-22 unlabeled LightPreset keyframe fallback:
 
 - The current small2 route exposed a concrete lighting decoder gap:

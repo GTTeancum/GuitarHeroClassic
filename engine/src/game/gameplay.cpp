@@ -3101,6 +3101,18 @@ std::string lower_ascii(std::string_view s) {
     return out;
 }
 
+bool is_performer_or_crowd_lit_ref(std::string_view s) {
+    const std::string ref = lower_ascii(s);
+    return ref.rfind("char_", 0) == 0 || ref.rfind("crowd_", 0) == 0 ||
+           ref.rfind("drummer_", 0) == 0 || ref == "rim_lighting.lit";
+}
+
+bool is_performer_or_crowd_env_ref(std::string_view s) {
+    const std::string ref = lower_ascii(s);
+    return ref == "band.env" || ref == "character.env" ||
+           ref == "drummer.env";
+}
+
 std::optional<std::string> strip_spotlight_target_mesh_suffix(
     std::string_view target) {
     constexpr size_t kSuffixLength = 12;
@@ -3479,7 +3491,9 @@ void log_lighting_light_object_coverage(
 
     size_t matched_refs = 0;
     size_t matched_venue_refs = 0;
+    size_t performer_crowd_lit_refs = 0;
     size_t unmatched_refs = 0;
+    size_t performer_crowd_lit_logged = 0;
     size_t unmatched_logged = 0;
     for (const auto& [ref, unused] : lit_refs) {
         (void)unused;
@@ -3489,6 +3503,17 @@ void log_lighting_light_object_coverage(
         }
         if (venue_lights.find(ref) != venue_lights.end()) {
             ++matched_venue_refs;
+            continue;
+        }
+        if (is_performer_or_crowd_lit_ref(ref)) {
+            ++performer_crowd_lit_refs;
+            if (performer_crowd_lit_logged < 24) {
+                std::fprintf(
+                    stderr,
+                    "[world] lighting preset .lit performer/crowd rig ref: %s\n",
+                    ref.c_str());
+                ++performer_crowd_lit_logged;
+            }
             continue;
         }
         ++unmatched_refs;
@@ -3502,13 +3527,16 @@ void log_lighting_light_object_coverage(
     }
     std::fprintf(
         stderr,
-        "[world] lighting Light object coverage: decoded=%zu failed=%zu venue_decoded=%zu preset_lit_refs=%zu matched_lighting=%zu matched_venue=%zu unmatched=%zu\n",
+        "[world] lighting Light object coverage: decoded=%zu failed=%zu venue_decoded=%zu preset_lit_refs=%zu matched_lighting=%zu matched_venue=%zu performer_crowd_refs=%zu unmatched=%zu\n",
         lights_by_name.size(), failed_lights, venue_lights.size(),
-        lit_refs.size(), matched_refs, matched_venue_refs, unmatched_refs);
+        lit_refs.size(), matched_refs, matched_venue_refs,
+        performer_crowd_lit_refs, unmatched_refs);
 
     size_t matched_env_refs = 0;
     size_t matched_venue_env_refs = 0;
+    size_t performer_crowd_env_refs = 0;
     size_t unmatched_env_refs = 0;
+    size_t performer_crowd_env_logged = 0;
     size_t unmatched_env_logged = 0;
     for (const auto& [ref, unused] : env_refs) {
         (void)unused;
@@ -3518,6 +3546,17 @@ void log_lighting_light_object_coverage(
         }
         if (venue_environs.find(ref) != venue_environs.end()) {
             ++matched_venue_env_refs;
+            continue;
+        }
+        if (is_performer_or_crowd_env_ref(ref)) {
+            ++performer_crowd_env_refs;
+            if (performer_crowd_env_logged < 24) {
+                std::fprintf(
+                    stderr,
+                    "[world] lighting preset .env performer/crowd rig ref: %s\n",
+                    ref.c_str());
+                ++performer_crowd_env_logged;
+            }
             continue;
         }
         ++unmatched_env_refs;
@@ -3531,10 +3570,10 @@ void log_lighting_light_object_coverage(
     }
     std::fprintf(
         stderr,
-        "[world] lighting Environ object coverage: decoded=%zu failed=%zu venue_decoded=%zu preset_env_refs=%zu matched_lighting=%zu matched_venue=%zu unmatched=%zu\n",
+        "[world] lighting Environ object coverage: decoded=%zu failed=%zu venue_decoded=%zu preset_env_refs=%zu matched_lighting=%zu matched_venue=%zu performer_crowd_refs=%zu unmatched=%zu\n",
         environs_by_name.size(), failed_environs, venue_environs.size(),
         env_refs.size(), matched_env_refs, matched_venue_env_refs,
-        unmatched_env_refs);
+        performer_crowd_env_refs, unmatched_env_refs);
 }
 
 struct LightingRequest {
