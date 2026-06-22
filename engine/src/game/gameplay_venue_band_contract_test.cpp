@@ -116,6 +116,8 @@ int main() {
       compact(function_body(gameplay, "performer_event_track_for_role"));
   const std::string classify_roles_c =
       compact(function_body(gameplay, "classify_band_roles"));
+  const std::string find_start_xfm_c =
+      compact(function_body(gameplay, "find_start_xfm"));
 
   bool ok = true;
 
@@ -147,6 +149,15 @@ int main() {
                  "\"start_singer.way\",4u,{\"keyboard_idle\"},{},"
                  "{\"keyboard_active_medium\",\"keyboard_active_fast\"});",
                  "keyboard performer graph shape stays traced and shared");
+  ok &= appears_before(find_start_xfm_c,
+                       "for(uint32_tflag:flags){",
+                       "if(!name.empty()){",
+                       "performer start lookup honors decoded start_flags before waypoint-name fallback");
+  ok &= contains(gameplay_c,
+                 "add_performer(\"guitarist0\",quickplay_rig_->character_outfit,"
+                 "quickplay_rig_->character_outfit,"
+                 "quickplay_rig_->character_outfit,\"start_guitarist0.way\",1u,",
+                 "single-guitarist quickplay uses traced kStartGuitarist0 start route");
   ok &= contains(gameplay_c,
                  "if(perf.role==\"keyboard\"&&midi_state.marker.empty()){"
                  "midi_state.playing=true;}",

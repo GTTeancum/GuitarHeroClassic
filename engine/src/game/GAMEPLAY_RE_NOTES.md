@@ -865,6 +865,16 @@ Open work:
   transiently through that cue, companion MatAnim/ParticleSys/visibility/
   AnimFilter routes firing, active lighting keyframes, regular camera sweeps,
   and coherent native frames at 180/300.
+- 2026-06-22 resume validation:
+  `analysis/native_validation/fest_lightanim_resume_20260622_current/` reruns
+  stock PS2 `badreputation` from `15.0s` with diagnostic autoplay and dynamic
+  venue lights enabled. The log decodes the same `stage_angel.lnm` /
+  `stage_gargoyle.lnm` LightAnim route, resolves cross-MILO
+  `Rising_Souls.mnm` through the venue MatAnim path without the old unsupported
+  channel row, then dispatches the real `venue_effect` cue through MatAnim,
+  LightAnim, ParticleSys, visibility, and AnimFilter state. Captured frames
+  `frame_00180.bmp` and `frame_00300.bmp` are coherent fest-stage authored
+  camera renders with band, props, lighting, and venue animation.
 - 2026-06-21 venue MeshAnim route: extracted PS2 `MeshAnim` `.msnm` bodies are
   version 1 vertex-frame tables. Direct rows embed a target `.mesh` string,
   then frame and vertex counts followed by `frame_count * vertex_count` local
@@ -1148,12 +1158,20 @@ Rejected native probe:
   coherent behind the kit.
 - `char_objects_ps2.dta::BandCharacter::guitarist.enter` chooses
   `kStartGuitarist0Mp` when a second guitarist exists, otherwise
-  `kStartGuitarist0`. Native start-waypoint lookup now preserves that ordered
-  flag fallback for `guitarist0` instead of treating the multiplayer start as
-  the only valid performer root. Singer, keyboardist, bassist, drummer, and the
+  `kStartGuitarist0`. Current native quickplay has one guitarist, so
+  `guitarist0` now starts from the decoded `kStartGuitarist0` flag/name route;
+  the shared start-waypoint helper still honors decoded flags before falling
+  back to waypoint names, so a future second-guitarist route can explicitly
+  request the MP flag order instead of treating the multiplayer start as the
+  only valid performer root. Singer, keyboardist, bassist, drummer, and the
   drum kit keep their existing `start_flags` routes. Validation probes:
   `engine/out/codex_goal_20260619_start_probe_yyz_after.log` and
   `engine/out/codex_goal_20260619_start_probe_shout_after.log`.
   `engine/out/codex_goal_20260619_start_probe_sweep/summary.txt` extends the
   same hidden 3-frame route check across `small1`, `fest`, `battle`, and
   `arena` songs; every loaded performer reports a decoded start transform.
+  `analysis/native_validation/start_flag_fallback_20260622_current/run.log`
+  rechecks the current native single-guitarist `shoutatthedevil` route with
+  performer-start logging: `guitarist0 start xfm flags=1`, singer flag `4`,
+  bassist flag `16`, drummer flag `32`, the arena drum kit, regular camera, and
+  lighting keyframe rows all resolve in the same hidden song window.

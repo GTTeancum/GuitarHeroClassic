@@ -3381,15 +3381,15 @@ std::array<float, 16> xfm_to_mat4(const ghogx::milo_scene::Xfm& x) {
 std::optional<ghogx::milo_scene::Xfm> find_start_xfm(
     const ghogx::milo_scene::Scene& chars, std::string_view name,
     std::initializer_list<uint32_t> flags) {
-    if (!name.empty()) {
-        for (const auto& w : chars.waypoints) {
-            if (w.decoded && w.name == name) return w.local;
-        }
-    }
     for (uint32_t flag : flags) {
         if (flag == 0) continue;
         for (const auto& w : chars.waypoints) {
             if (w.decoded && (w.flags & flag)) return w.local;
+        }
+    }
+    if (!name.empty()) {
+        for (const auto& w : chars.waypoints) {
+            if (w.decoded && w.name == name) return w.local;
         }
     }
     return std::nullopt;
@@ -8060,7 +8060,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             add_performer("guitarist0", quickplay_rig_->character_outfit,
                           quickplay_rig_->character_outfit,
                           quickplay_rig_->character_outfit,
-                          "start_guitarist0mp.way", 512u,
+                          "start_guitarist0.way", 1u,
                           {"idle_medium_01", "stand_medium_01"},
                           {"intro_01", "intro_03", "intro_04"},
                           {"stand_medium_01", "stand_medium_02",
