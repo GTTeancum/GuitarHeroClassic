@@ -1430,3 +1430,19 @@ Rejected native probe:
   dynamic-light color-parity signoff; the decoded environment dynamic-light
   bridge remains opt-in until PS2 trace evidence proves the active
   preset/keyframe-to-light brightness math.
+
+2026-06-22 dynamic environment light A/B:
+
+- `analysis/native_validation/dynamic_light_ab_arena_20260622_current/`
+  reruns the same `shoutatthedevil` arena window twice at `100.0s`: once with
+  default rendering and once with `GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS=1`.
+  Both runs exit cleanly and hit the same camera, preset, and keyframe route
+  (`chorus_okay.pst`, then `chorus_great.pst` with `yellowish` / `teal`
+  keyframes), so the comparison isolates renderer lighting rather than song
+  state.
+- The default frame stays coherent. The dynamic-light frame still shifts the
+  arena city/backdrop area to a peach/yellow wash, matching the older rejected
+  probe. This confirms the raw mesh -> `Group.environ` -> `.lit` fixed-function
+  bridge is not safe to enable by default. Keep the dynamic-light bridge gated
+  until a PS2 trace proves how active lighting preset/keyframe target states
+  should scale or select those decoded Light objects.
