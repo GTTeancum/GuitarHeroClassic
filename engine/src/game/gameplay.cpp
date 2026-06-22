@@ -3361,14 +3361,16 @@ PerformerMidiState performer_midi_state_at(const ghogx::chart::Chart& chart,
     return state;
 }
 
-std::string infer_spotlight_from_target(std::string_view target) {
+std::vector<std::string> infer_spotlight_names_from_target(
+    std::string_view target) {
     const auto base = strip_spotlight_target_mesh_suffix(target);
     if (!base) {
         return {};
     }
-    std::string name(*base);
-    name += ".spot";
-    return name;
+    std::vector<std::string> names;
+    names.push_back(*base + ".spot");
+    names.push_back(*base + "_spotlight.spot");
+    return names;
 }
 
 std::array<float, 16> xfm_to_mat4(const ghogx::milo_scene::Xfm& x) {
@@ -9060,14 +9062,17 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 }
                                 continue;
                             }
-                            const std::string spot_name =
-                                infer_spotlight_from_target(state.target);
-                            const auto spot_it = spots_by_name.find(spot_name);
-                            if (spot_it != spots_by_name.end()) {
+                            for (const auto& spot_name :
+                                 infer_spotlight_names_from_target(
+                                     state.target)) {
+                                const auto spot_it =
+                                    spots_by_name.find(spot_name);
+                                if (spot_it == spots_by_name.end()) continue;
                                 if (!preset_has_spot(spot_it->second->name))
                                     continue;
                                 ++inferred_spots;
                                 push_spot(*spot_it->second, &state);
+                                break;
                             }
                         }
                         active_spots =

@@ -369,6 +369,24 @@ Open work:
   `color1.pst` / `color2.pst` active with `target_states=15` and
   `active_spots=4`, preserves regular camera sweeps and `post_switch_cam`, and
   produces coherent stage frames at `frame_00240.bmp` and `frame_00470.bmp`.
+- 2026-06-22 Spotlight name inference follow-up:
+  fest `LightPreset` rows target meshes such as `middle_right01_target.mesh`
+  and `top_front06_target.mesh`, while the corresponding decoded spot objects
+  are named `middle_right01_spotlight.spot` and
+  `top_front06_spotlight.spot`. Some spot objects do not carry the target mesh
+  ref in their own body, so the target-row route must infer both `<base>.spot`
+  and `<base>_spotlight.spot` from an authored `*_target.mesh` row before
+  deciding the row has no active spot. This is a shared naming rule derived from
+  the PS2 lighting objects, not a fest spot list. Validation:
+  `analysis/native_validation/fest_spotlight_name_infer_20260622_current/`
+  changes `verse_okay.pst[0]` from zero inferred spots to
+  `inferred_spots=2 active_spots=2`, while preserving the fest biker frame-7
+  AnimFilter samples and advancing zombie MeshAnim samples. Cross-venue
+  sanity in
+  `analysis/native_validation/arena_spotlight_name_infer_crosscheck_20260622_current/`
+  keeps the arena route loading performers/camera/venue events and increases
+  `color1.pst[0]` target-row activation to
+  `inferred_spots=15 active_spots=16`.
 - 2026-06-20 venue-effect MIDI cue follow-up:
   `config/midi_parsers.dta::effect_parser` maps TRIGGERS pitch `52` to
   `{handle (world venue_effect)}` with `start_offset 0` and `zero_length TRUE`.

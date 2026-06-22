@@ -783,8 +783,11 @@ int main() {
                  "if(is_spotlight_target_mesh(target)&&pos+4+len+41<=label_off)",
                  "LightPreset target-state rows use the shared target classifier");
   ok &= contains(gameplay_c,
-                 "name+=\".spot\";",
-                 "spotlight fallback inference does not invent _spotlight names");
+                 "names.push_back(*base+\".spot\");",
+                 "spotlight fallback inference preserves direct base .spot names");
+  ok &= contains(gameplay_c,
+                 "names.push_back(*base+\"_spotlight.spot\");",
+                 "spotlight fallback inference accepts PS2 _spotlight object names");
   ok &= contains(gameplay_c,
                  "for(constauto&target:keyframe.mesh_targets){constauto"
                  "target_it=spots_by_target.find(target);",
