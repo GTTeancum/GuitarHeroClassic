@@ -2082,11 +2082,14 @@ Rejected native probe:
   `venue peak bridge excitement_great -> peak_off`, and one
   `resend_excitement: excitement_peak`.
 - Follow-up validation in
-  `analysis/native_validation/lighting_transient_persistence_battle_20260622_after_expiry/`
+  `analysis/native_validation/lighting_transient_persistence_battle_20260622_replace_match/`
   closes the overlay lifetime gap for the same bridge. `apply_venue_event()`
   now passes the event persistence bit through lighting overlay routes, and
   lighting `ParticleSys` / `AnimFilter` active rows expire with the same
-  decoded duration rule as venue rows. The hidden Battle run records
+  decoded duration rule as venue rows. Lighting overlay particle replacement
+  also matches venue particle replacement by preserving rows from the other
+  persistence class, so a one-shot effect cannot erase an unrelated persistent
+  effect that shares the same particle asset. The hidden Battle run records
   `peak_on` and `peak_off` lighting particles as `transient`, with only eight
   total `electric_fire.part` / `electric_sparkssmoke1.part` samples before
   expiry instead of the previous indefinite sampling into the end of the

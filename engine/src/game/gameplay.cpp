@@ -9363,7 +9363,8 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 std::remove_if(active_lighting_particles_.begin(),
                                active_lighting_particles_.end(),
                                [&](const ActiveVenueParticleSystem& active) {
-                                   return active.particle == route.particle;
+                                    return active.particle == route.particle &&
+                                           active.persistent == persistent;
                                }),
                 active_lighting_particles_.end());
             ActiveVenueParticleSystem active;

@@ -1006,6 +1006,10 @@ int main() {
                  "active.persistent=persistent;",
                  "lighting overlay particles inherit transient versus persistent events");
   ok &= contains(gameplay_c,
+                 "returnactive.particle==route.particle&&"
+                 "active.persistent==persistent;",
+                 "lighting overlay particles only replace matching persistence rows");
+  ok &= contains(gameplay_c,
                  "active_lighting_particles_.back().duration_seconds,"
                  "persistent?\"persistent\":\"transient\");",
                  "lighting ParticleSys diagnostics expose transient ownership");
