@@ -3167,12 +3167,59 @@ std::vector<std::string> extract_lighting_keyframe_labels(
     return labels;
 }
 
+void populate_lighting_keyframe_payload(
+    Gameplay::LightingPreset::Keyframe& keyframe, const uint8_t* body,
+    size_t size, size_t record_start, size_t payload_end) {
+    const size_t end = std::min(size, payload_end);
+    for (size_t pos = record_start; pos + 4 <= end; ++pos) {
+        uint32_t len = 0;
+        std::memcpy(&len, body + pos, sizeof(len));
+        if (len == 0 || len > 96 || pos + 4 + len > end) continue;
+        std::string s(reinterpret_cast<const char*>(body + pos + 4), len);
+        const auto add_unique = [](std::vector<std::string>& refs,
+                                   std::string value) {
+            if (std::find(refs.begin(), refs.end(), value) == refs.end())
+                refs.push_back(std::move(value));
+        };
+        if (s.rfind(".mesh") != std::string::npos) {
+            const std::string target = s;
+            add_unique(keyframe.mesh_targets, std::move(s));
+            if (is_spotlight_target_mesh(target) &&
+                pos + 4 + len + 41 <= end) {
+                const size_t payload = pos + 4 + len;
+                Gameplay::LightingPreset::TargetState state;
+                state.target = target;
+                // LightPreset target rows are packed: string, nine bytes of
+                // row metadata, then unaligned floats. The first float is the
+                // light amount; the final vec3 is RGB.
+                state.intensity = std::clamp(
+                    read_f32_at(body, size, payload + 9, 0.0f), 0.0f, 4.0f);
+                state.color[0] = std::clamp(
+                    read_f32_at(body, size, payload + 29, 1.0f), 0.0f, 4.0f);
+                state.color[1] = std::clamp(
+                    read_f32_at(body, size, payload + 33, 1.0f), 0.0f, 4.0f);
+                state.color[2] = std::clamp(
+                    read_f32_at(body, size, payload + 37, 1.0f), 0.0f, 4.0f);
+                keyframe.target_states.push_back(std::move(state));
+            }
+        } else if (s.rfind(".spot") != std::string::npos) {
+            add_unique_lighting_ref(keyframe.spot_refs, std::move(s));
+        } else if (s.rfind(".env") != std::string::npos) {
+            add_unique_lighting_ref(keyframe.env_refs, std::move(s));
+        } else if (s.rfind(".lit") != std::string::npos) {
+            add_unique_lighting_ref(keyframe.lit_refs, std::move(s));
+        }
+    }
+}
+
 std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
-    const uint8_t* body, size_t size, const std::vector<std::string>& labels,
+    const uint8_t* body, size_t size, uint32_t count,
+    const std::vector<std::string>& labels,
     const std::vector<size_t>& label_offsets) {
     std::vector<Gameplay::LightingPreset::Keyframe> out;
     size_t record_start = 0;
-    for (size_t i = 0; i < labels.size() && i < label_offsets.size(); ++i) {
+    const size_t label_count = std::min(labels.size(), label_offsets.size());
+    for (size_t i = 0; i < label_count; ++i) {
         const size_t label_off = label_offsets[i];
         const size_t label_end = std::min(size, label_off + 4 + labels[i].size());
         if (label_off >= size || record_start >= label_end) continue;
@@ -3186,48 +3233,22 @@ std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
         // single-frame records. Keep only plausible authored frame counts.
         k.duration = read_light_preset_timing_f32(body, size, label_end);
         k.fade_out = read_light_preset_timing_f32(body, size, label_end + 4);
-
-        for (size_t pos = record_start; pos + 4 <= label_off; ++pos) {
-            uint32_t len = 0;
-            std::memcpy(&len, body + pos, sizeof(len));
-            if (len == 0 || len > 96 || pos + 4 + len > label_off) continue;
-            std::string s(reinterpret_cast<const char*>(body + pos + 4), len);
-            const auto add_unique = [](std::vector<std::string>& refs,
-                                       std::string value) {
-                if (std::find(refs.begin(), refs.end(), value) == refs.end())
-                    refs.push_back(std::move(value));
-            };
-            if (s.rfind(".mesh") != std::string::npos) {
-                const std::string target = s;
-                add_unique(k.mesh_targets, std::move(s));
-                if (is_spotlight_target_mesh(target) &&
-                    pos + 4 + len + 41 <= label_off) {
-                    const size_t payload = pos + 4 + len;
-                    Gameplay::LightingPreset::TargetState state;
-                    state.target = target;
-                    // LightPreset target rows are packed: string, nine bytes of
-                    // row metadata, then unaligned floats. The first float is the
-                    // light amount; the final vec3 is RGB.
-                    state.intensity = std::clamp(
-                        read_f32_at(body, size, payload + 9, 0.0f), 0.0f, 4.0f);
-                    state.color[0] = std::clamp(
-                        read_f32_at(body, size, payload + 29, 1.0f), 0.0f, 4.0f);
-                    state.color[1] = std::clamp(
-                        read_f32_at(body, size, payload + 33, 1.0f), 0.0f, 4.0f);
-                    state.color[2] = std::clamp(
-                        read_f32_at(body, size, payload + 37, 1.0f), 0.0f, 4.0f);
-                    k.target_states.push_back(std::move(state));
-                }
-            } else if (s.rfind(".spot") != std::string::npos) {
-                add_unique_lighting_ref(k.spot_refs, std::move(s));
-            } else if (s.rfind(".env") != std::string::npos) {
-                add_unique_lighting_ref(k.env_refs, std::move(s));
-            } else if (s.rfind(".lit") != std::string::npos) {
-                add_unique_lighting_ref(k.lit_refs, std::move(s));
-            }
-        }
+        populate_lighting_keyframe_payload(k, body, size, record_start,
+                                           label_off);
         out.push_back(std::move(k));
         record_start = label_end;
+    }
+    if (out.size() < count && record_start < size) {
+        Gameplay::LightingPreset::Keyframe k;
+        k.name = "unlabeled_" + std::to_string(out.size());
+        k.record_start = record_start;
+        k.record_end = size;
+        k.label_offset = size;
+        populate_lighting_keyframe_payload(k, body, size, record_start, size);
+        if (!k.mesh_targets.empty() || !k.spot_refs.empty() ||
+            !k.env_refs.empty() || !k.lit_refs.empty()) {
+            out.push_back(std::move(k));
+        }
     }
     return out;
 }
@@ -3274,8 +3295,8 @@ std::vector<Gameplay::LightingPreset> load_lighting_presets(
                 body, static_cast<size_t>(de.size), p.keyframe_count,
                 &p.keyframe_label_offsets);
             p.keyframes = extract_lighting_keyframes(
-                body, static_cast<size_t>(de.size), p.keyframe_names,
-                p.keyframe_label_offsets);
+                body, static_cast<size_t>(de.size), p.keyframe_count,
+                p.keyframe_names, p.keyframe_label_offsets);
             out.push_back(std::move(p));
         }
         std::fprintf(stderr, "[world] lighting presets decoded: %zu\n",

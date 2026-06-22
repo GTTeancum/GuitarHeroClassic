@@ -1046,6 +1046,22 @@ int main() {
                  "k.fade_out=read_light_preset_timing_f32(body,size,label_end+4);",
                  "LightPreset fade is sanitized before transition use");
   ok &= contains(gameplay_c,
+                 "voidpopulate_lighting_keyframe_payload("
+                 "Gameplay::LightingPreset::Keyframe&keyframe,"
+                 "constuint8_t*body,size_tsize,size_trecord_start,"
+                 "size_tpayload_end)",
+                 "LightPreset keyframe target-state scanning is shared");
+  ok &= contains(gameplay_c,
+                 "if(out.size()<count&&record_start<size){"
+                 "Gameplay::LightingPreset::Keyframek;",
+                 "counted unlabeled LightPreset frames are not dropped");
+  ok &= contains(gameplay_c,
+                 "k.name=\"unlabeled_\"+std::to_string(out.size());",
+                 "unlabeled LightPreset fallback frames are explicit in logs");
+  ok &= contains(gameplay_c,
+                 "populate_lighting_keyframe_payload(k,body,size,record_start,size);",
+                 "unlabeled LightPreset fallback scans the remaining payload");
+  ok &= contains(gameplay_c,
                  "set_lighting_spot_targets(std::move(active_spots),"
                  "transition_fade_seconds);",
                  "lighting keyframes update the shared transition target");
@@ -1053,7 +1069,7 @@ int main() {
                  "suffix!=\"_target.mesh\"&&suffix!=\".target.mesh\"",
                  "LightPreset target rows accept PS2 .Target.mesh spelling");
   ok &= contains(gameplay_c,
-                 "if(is_spotlight_target_mesh(target)&&pos+4+len+41<=label_off)",
+                 "if(is_spotlight_target_mesh(target)&&pos+4+len+41<=end)",
                  "LightPreset target-state rows use the shared target classifier");
   ok &= contains(gameplay_c,
                  "names.push_back(*base+\".spot\");",

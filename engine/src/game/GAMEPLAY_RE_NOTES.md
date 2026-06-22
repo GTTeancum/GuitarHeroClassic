@@ -1785,3 +1785,66 @@ Rejected native probe:
   FaceFX animation parse failures after the v1200 song `.voc` parser fix.
   `frame_00600.bmp` is retained as a coherent small2 band/venue render; it is
   route-health evidence, not dynamic-light color parity.
+
+2026-06-22 current cross-route FaceFX/venue smoke:
+
+- `analysis/native_validation/current_cross_route_facefx_after_v1200_20260622/`
+  reruns seven stock GH2 route/song pairs after the v1200 FaceFX parser fix:
+  `arena/shoutatthedevil`, `small1/psychobilly`, `fest/badreputation`,
+  `theatre/yyz`, `battle/rockthistown`, `big/hangar18`, and
+  `small2/youreallygotme`. All seven runs exit `0` with zero FaceFX parser
+  failures, zero unsupported material-channel rows, zero miss rows, and zero
+  PowerShell redirect wrapper noise.
+- The sweep proves song FaceFX and venue routes coexist in the current build:
+  six vocal songs load 25-curve `.voc` animations, including the two v1200
+  files (`psychobilly_dryvox_16m` and `YouReallyGotMe_dryvox_16m`), while
+  `theatre/yyz` correctly reports no `songs/yyz/yyz.voc` because it is the
+  instrumental keyboardist route. The short `psychobilly` window keeps singer
+  FaceFX idle, but the v1200 animation still loads cleanly; longer focused
+  singer runs remain the FaceFX motion proof.
+- Live route counts from `summary.csv`: `arena` MatAnim 218 / EnvAnim 12 /
+  ParticleSys 91 / AnimFilter 3,856 / cameras 2+1 / presets 2 / keyframes 7;
+  `small1` MatAnim 85 / ParticleSys 69 / AnimFilter 795 / cameras 1+1 /
+  presets 3 / keyframes 3; `fest` MatAnim 77 / ParticleSys 358 /
+  AnimFilter 1,488 / MeshAnim 60 / cameras 1+1 / presets 1 / keyframes 2;
+  `theatre` MatAnim 47 / ParticleSys 108 / AnimFilter 1,765 /
+  cameras 2+1 / presets 2 / keyframes 14; `battle` MatAnim 24 /
+  ParticleSys 44 / AnimFilter 148 / MeshAnim 22 / cameras 2+1 / presets 2 /
+  keyframes 2; `big` MatAnim 4 / ParticleSys 204 / AnimFilter 2,322 /
+  cameras 2+1 / presets 3 / keyframes 3; `small2` MatAnim 14 / EnvAnim 20 /
+  ParticleSys 144 / AnimFilter 521 / MeshAnim 42 / cameras 1+1 / presets 4 /
+  keyframes 6. This is current route-regression evidence, not final visual
+  signoff.
+
+2026-06-22 unlabeled LightPreset keyframe fallback:
+
+- The current small2 route exposed a concrete lighting decoder gap:
+  `sweep.pset` reports `keyframes=1` in the PS2 `LightPreset` body but has no
+  decoded description label, so native previously switched to the preset and
+  left the previous spotlight targets alive because `preset->keyframes` was
+  empty. The local `LightPreset` DTA describes the keyframe array as the
+  authored state sequence; a counted single-frame payload should not be
+  dropped just because its description string is absent.
+- Native now shares the keyframe payload scanner between labeled records and a
+  conservative unlabeled fallback. If decoded labels undershoot the authored
+  keyframe count and bytes remain, native emits one explicit
+  `unlabeled_<index>` keyframe covering the remaining payload, using the same
+  packed Spotlight target-state rows already accepted for labeled frames. This
+  is still a generic `LightPreset` decoder rule, not a small2 or `sweep`
+  special case, and it does not enable the still-gated dynamic Environ light
+  bridge.
+- `analysis/native_validation/lightpreset_unlabeled_small2_20260622_current/`
+  reruns stock `youreallygotme` from `16.0s` hidden with diagnostic autoplay.
+  The clean log records `LightPreset sweep.pset ... keyframes=1`, switches to
+  `lighting preset active: sweep.pset ... keyframes=1 t=16.983`, then applies
+  `lighting keyframe active: sweep.pset[0] 'unlabeled_0'` with 16 targets,
+  11 target-state rows, 21 direct spot refs, 8 inferred spots, and 21 active
+  spots. The run exits `0` with zero unsupported material-channel rows, zero
+  miss rows, zero FaceFX parser failures, and zero PowerShell wrapper noise.
+- `analysis/native_validation/lightpreset_unlabeled_cross_route_20260622_current/`
+  reruns the same seven-route smoke for 180 frames after the fallback. All
+  routes exit `0` with zero unsupported material-channel rows, zero miss rows,
+  zero FaceFX parser failures on vocal songs, and zero wrapper noise. Unlabeled
+  keyframes now activate only on routes whose current windows need them:
+  `battle/rockthistown` 2, `small2/youreallygotme` 1, and `theatre/yyz` 2;
+  other venues keep their labeled keyframe path unchanged.
