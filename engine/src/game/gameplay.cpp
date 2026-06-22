@@ -1502,6 +1502,7 @@ std::optional<int> dtb_bool_value(const gh::dtb::Node& node) {
 
 std::optional<double> dtb_number_value(const gh::dtb::Node& node) {
     if (auto f = gh::dtb::as_float(node)) return static_cast<double>(*f);
+    if (auto i = gh::dtb::as_int(node)) return static_cast<double>(*i);
     return std::nullopt;
 }
 
@@ -1582,13 +1583,30 @@ bool parse_venue_script_animate_rows(const gh::dtb::NodeList& rows,
         const auto& row = gh::dtb::children(*rows[i]);
         if (row.size() < 2 || !row[0] || !row[1]) continue;
         const std::string key = gh::dtb::as_string(*row[0]).value_or("");
-        const auto value = dtb_number_value(*row[1]);
-        if (!value) continue;
         if (key == "dest") {
+            const auto value = dtb_number_value(*row[1]);
+            if (!value) continue;
             step.anim_dest_frame = static_cast<float>(std::max(0.0, *value));
             saw_value = true;
         } else if (key == "period") {
-            step.anim_period = static_cast<float>(std::max(0.0, *value));
+            VenueScriptStep period_step;
+            if (!parse_venue_script_delay_value(*row[1], period_step))
+                continue;
+            step.anim_period =
+                static_cast<float>(std::max(0.0, period_step.delay));
+            step.anim_period_max =
+                static_cast<float>(std::max(0.0, period_step.delay_max));
+            step.anim_period_random = period_step.delay_random;
+            saw_value = true;
+        } else if (key == "range" && row.size() >= 3 && row[2]) {
+            const auto start = dtb_number_value(*row[1]);
+            const auto end = dtb_number_value(*row[2]);
+            if (!start || !end) continue;
+            step.anim_start_frame =
+                static_cast<float>(std::max(0.0, std::min(*start, *end)));
+            step.anim_end_frame =
+                static_cast<float>(std::max(0.0, std::max(*start, *end)));
+            step.anim_has_range = true;
             saw_value = true;
         }
     }
@@ -1604,7 +1622,10 @@ bool parse_venue_script_object_animate_statement(
     if (direct_target.empty()) return false;
 
     step = VenueScriptStep{};
-    step.kind = VenueScriptStep::Kind::AnimateEnv;
+    const bool target_is_this =
+        direct_target == "this" || direct_target == "$this";
+    step.kind = target_is_this ? VenueScriptStep::Kind::AnimateObject
+                               : VenueScriptStep::Kind::AnimateEnv;
     step.name = direct_target;
     step.target_is_property_ref = prop_target.has_value();
 
@@ -1744,6 +1765,21 @@ void parse_venue_script_statement(const gh::dtb::Node& node,
 
     if ((head == "this" || head == "$this") && kids.size() >= 2 && kids[1]) {
         const std::string handler = gh::dtb::as_string(*kids[1]).value_or("");
+        if (handler == "set_showing" && kids.size() >= 3 && kids[2]) {
+            if (auto value = dtb_bool_value(*kids[2])) {
+                VenueScriptStep step;
+                step.kind = VenueScriptStep::Kind::SetObjectShowing;
+                step.value = *value;
+                steps.push_back(std::move(step));
+            }
+            return;
+        }
+        if (handler == "stop_animation") {
+            VenueScriptStep step;
+            step.kind = VenueScriptStep::Kind::StopObjectAnimation;
+            steps.push_back(std::move(step));
+            return;
+        }
         if (!handler.empty()) {
             VenueScriptStep step;
             step.kind = VenueScriptStep::Kind::CallHandler;
@@ -1888,9 +1924,12 @@ VenueScriptData load_venue_script_handlers(const std::string& hdr_path,
             }
         }
 
-        if (auto object_dir = gh::dtb::find_keyed(resolved_tree, "ObjectDir")) {
-            if (auto object_types = gh::dtb::find_keyed(*object_dir, "types")) {
-                for (const auto& child : gh::dtb::children(*object_types)) {
+        auto collect_object_handlers = [&](const char* section_name) {
+            if (auto object_dir = gh::dtb::find_keyed(resolved_tree,
+                                                      section_name)) {
+                if (auto object_types = gh::dtb::find_keyed(*object_dir,
+                                                            "types")) {
+                    for (const auto& child : gh::dtb::children(*object_types)) {
                     if (!child || !gh::dtb::is_array(*child)) continue;
                     const auto& kids = gh::dtb::children(*child);
                     if (kids.empty() || !kids[0]) continue;
@@ -1916,7 +1955,10 @@ VenueScriptData load_venue_script_handlers(const std::string& hdr_path,
                         out.object_handlers.erase(type_name);
                 }
             }
-        }
+            }
+        };
+        collect_object_handlers("ObjectDir");
+        collect_object_handlers("RndDir");
 
         const size_t object_handler_count =
             venue_script_object_handler_count(out);
@@ -1991,7 +2033,7 @@ load_venue_event_script_messages(
     const std::map<std::string, std::map<std::string, VenueScriptHandler>>&
         object_handlers) {
     std::map<std::string, std::vector<VenueScriptObjectMessage>> out;
-    if (objects.empty() || object_handlers.empty()) return out;
+    if (objects.empty()) return out;
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         auto entry = ark.find(milo_path);
@@ -2000,6 +2042,25 @@ load_venue_event_script_messages(
         auto hdr = gh::milo::parse_header(bytes);
         auto payload = gh::milo::inflate_payload(bytes, hdr);
         auto dir = gh::milo::parse_directory(payload);
+        std::map<std::string, std::vector<std::string>> group_proxy_objects;
+        for (const auto& de : dir.entries) {
+            if (de.type != "Group" || de.offset + de.size > payload.size())
+                continue;
+            auto& children = group_proxy_objects[canonical_milo_ref(de.name)];
+            const auto strings = scan_milo_strings(
+                payload.data() + de.offset, static_cast<size_t>(de.size));
+            for (const auto& s : strings) {
+                const auto ref = canonical_milo_ref(s);
+                const auto object_it = objects.find(ref);
+                if (object_it == objects.end()) continue;
+                if (object_it->second.properties.find("proxy_milo") ==
+                    object_it->second.properties.end()) {
+                    continue;
+                }
+                push_unique_ref(children, ref);
+            }
+            if (children.empty()) group_proxy_objects.erase(de.name);
+        }
         for (const auto& de : dir.entries) {
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
                 continue;
@@ -2022,7 +2083,10 @@ load_venue_event_script_messages(
                     handlers_it != object_handlers.end() &&
                     handlers_it->second.find(message_name) !=
                         handlers_it->second.end();
-                if (handler_exists &&
+                const bool proxy_message =
+                    object_it->second.properties.find("proxy_milo") !=
+                    object_it->second.properties.end();
+                if ((handler_exists || proxy_message) &&
                     is_plain_script_message_atom(message_name)) {
                     push_unique_script_message(
                         messages,
@@ -2031,6 +2095,16 @@ load_venue_event_script_messages(
                     continue;
                 }
                 ++i;
+            }
+            for (const auto& s : strings) {
+                const auto ref = canonical_milo_ref(s);
+                const auto group_it = group_proxy_objects.find(ref);
+                if (group_it == group_proxy_objects.end()) continue;
+                for (const auto& object_name : group_it->second) {
+                    push_unique_script_message(
+                        messages,
+                        VenueScriptObjectMessage{object_name, "start"});
+                }
             }
             if (messages.empty()) continue;
 
@@ -6047,6 +6121,285 @@ load_venue_anim_filters(const std::string& hdr_path,
     return out;
 }
 
+std::string directory_of_milo_path(const std::string& milo_path) {
+    const size_t slash = milo_path.find_last_of('/');
+    return slash == std::string::npos ? std::string() : milo_path.substr(0, slash);
+}
+
+std::string normalize_proxy_milo_path(const std::string& owner_milo_path,
+                                      std::string proxy_ref) {
+    std::replace(proxy_ref.begin(), proxy_ref.end(), '\\', '/');
+    while (proxy_ref.rfind("../", 0) == 0) proxy_ref.erase(0, 3);
+    if (proxy_ref.size() >= 5 &&
+        proxy_ref.compare(proxy_ref.size() - 5, 5, ".milo") == 0) {
+        proxy_ref += "_ps2";
+    }
+    if (proxy_ref.find('/') != std::string::npos) return proxy_ref;
+    const std::string base_dir = directory_of_milo_path(owner_milo_path);
+    return base_dir.empty() ? proxy_ref : base_dir + "/" + proxy_ref;
+}
+
+bool is_rnddir_type_atom(std::string_view value) {
+    if (value.size() < 2 || value.find('.') != std::string_view::npos)
+        return false;
+    for (char c : value) {
+        const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        (c >= '0' && c <= '9') || c == '_';
+        if (!ok) return false;
+    }
+    return true;
+}
+
+void push_particle_route_unique(
+    std::vector<Gameplay::VenueParticleRoute>& routes,
+    Gameplay::VenueParticleRoute route) {
+    if (route.particle.empty()) return;
+    for (auto& existing : routes) {
+        if (existing.particle != route.particle) continue;
+        existing.duration_frames =
+            std::max(existing.duration_frames, route.duration_frames);
+        if (existing.emission_keys.size() < route.emission_keys.size()) {
+            existing.anim = route.anim;
+            existing.keys_owner = route.keys_owner;
+            existing.emission_keys = route.emission_keys;
+        }
+        if (existing.size_keys.size() < route.size_keys.size()) {
+            existing.anim = route.anim;
+            existing.keys_owner = route.keys_owner;
+            existing.size_keys = route.size_keys;
+        }
+        return;
+    }
+    routes.push_back(std::move(route));
+}
+
+std::vector<Gameplay::VenueParticleRoute>
+load_all_venue_particle_routes(const std::string& hdr_path,
+                               const std::string& ark_path,
+                               const std::string& milo_path) {
+    std::vector<Gameplay::VenueParticleRoute> out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        std::unordered_set<std::string> particle_names;
+        std::map<std::string, Gameplay::VenueParticleRoute> panim_routes;
+        for (const auto& de : dir.entries) {
+            if (de.offset + de.size > payload.size()) continue;
+            const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (de.type == "ParticleSys") {
+                particle_names.insert(canonical_milo_ref(de.name));
+            } else if (de.type == "ParticleSysAnim") {
+                auto route = decode_particle_anim_route(de.name, body, size);
+                if (!route.anim.empty() && !route.particle.empty())
+                    panim_routes[route.anim] = std::move(route);
+            }
+        }
+        for (auto& [name, route] : panim_routes) {
+            if (route.keys_owner.empty()) continue;
+            const auto owner = panim_routes.find(route.keys_owner);
+            if (owner == panim_routes.end()) continue;
+            if (route.emission_keys.empty() &&
+                !owner->second.emission_keys.empty()) {
+                route.emission_keys = owner->second.emission_keys;
+            }
+            if (route.size_keys.empty() && !owner->second.size_keys.empty()) {
+                route.size_keys = owner->second.size_keys;
+            }
+            route.duration_frames =
+                std::max(route.duration_frames, owner->second.duration_frames);
+        }
+        std::unordered_set<std::string> routed_particles;
+        for (const auto& [name, route] : panim_routes) {
+            push_particle_route_unique(out, route);
+            routed_particles.insert(route.particle);
+        }
+        for (const auto& particle : particle_names) {
+            if (routed_particles.find(particle) != routed_particles.end())
+                continue;
+            Gameplay::VenueParticleRoute route;
+            route.particle = particle;
+            push_particle_route_unique(out, std::move(route));
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] proxy ParticleSys load %s: %s\n",
+                     milo_path.c_str(), ex.what());
+    }
+    return out;
+}
+
+Gameplay::VenueAnimFilter load_rnddir_directory_anim(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path) {
+    Gameplay::VenueAnimFilter filter;
+    filter.name = "__rnddir_directory_anim";
+    filter.scale = 1.0f;
+    filter.period = 0.0f;
+    filter.type = 0;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return filter;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        std::map<std::string, Gameplay::VenueMeshAnim> meshanim_anims;
+        for (const auto& de : dir.entries) {
+            if (de.offset + de.size > payload.size()) continue;
+            const uint8_t* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (de.type == "TransAnim") {
+                auto target = first_mesh_target_in_transanim(body, size);
+                if (!target) continue;
+                auto anim = decode_transanim_transform_anim(body, size);
+                if (mesh_transform_anim_empty(anim)) continue;
+                Gameplay::VenueAnimFilterTarget out_target;
+                out_target.mesh = canonical_milo_ref(*target);
+                out_target.anim = std::move(anim);
+                filter.end_frame =
+                    std::max(filter.end_frame,
+                             mesh_transform_anim_duration_frames(
+                                 out_target.anim));
+                filter.targets.push_back(std::move(out_target));
+            } else if (de.type == "MeshAnim") {
+                auto anim = decode_venue_mesh_anim(de.name, body, size);
+                if (!anim.name.empty()) meshanim_anims[anim.name] = std::move(anim);
+            }
+        }
+        for (auto& [name, anim] : meshanim_anims) {
+            if (!anim.frames.empty() || anim.keys_owner.empty()) continue;
+            const auto owner = meshanim_anims.find(anim.keys_owner);
+            if (owner == meshanim_anims.end() || owner->second.frames.empty())
+                continue;
+            anim.frames = owner->second.frames;
+            anim.frame_count = owner->second.frame_count;
+            anim.vertex_count = owner->second.vertex_count;
+            anim.duration_frames = owner->second.duration_frames;
+        }
+        for (auto& [name, anim] : meshanim_anims) {
+            if (anim.mesh.empty() || anim.frames.empty()) continue;
+            Gameplay::VenueAnimFilterMeshTarget target;
+            target.mesh = anim.mesh;
+            target.anim = std::move(anim);
+            filter.end_frame =
+                std::max(filter.end_frame, target.anim.duration_frames);
+            filter.mesh_anim_targets.push_back(std::move(target));
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] proxy directory anim load %s: %s\n",
+                     milo_path.c_str(), ex.what());
+    }
+    return filter;
+}
+
+std::map<std::string, Gameplay::VenueProxyObject> load_venue_proxy_objects(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& owner_milo_path, ghogx::render::Window& win) {
+    std::map<std::string, Gameplay::VenueProxyObject> out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(owner_milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        for (const auto& de : dir.entries) {
+            if (de.type != "RndDir" || de.offset + de.size > payload.size())
+                continue;
+            const uint8_t* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            const auto strings = packed_strings_with_offsets(body, size);
+            std::string proxy_ref;
+            std::string proxy_type;
+            bool after_proxy_ref = false;
+            std::vector<std::string> event_aliases;
+            after_proxy_ref = false;
+            for (const auto& hit : strings) {
+                if (hit.value.size() >= 5 &&
+                    hit.value.find(".milo") != std::string::npos) {
+                    proxy_ref = hit.value;
+                    after_proxy_ref = true;
+                    break;
+                }
+                if (proxy_type.empty() && is_rnddir_type_atom(hit.value))
+                    proxy_type = hit.value;
+            }
+            for (const auto& hit : strings) {
+                if (hit.value == proxy_ref) {
+                    after_proxy_ref = true;
+                    continue;
+                }
+                if (!after_proxy_ref || !is_plain_script_message_atom(hit.value))
+                    continue;
+                if (hit.value == "start" || hit.value == "stop" ||
+                    hit.value == "throw" || hit.value == "animate" ||
+                    hit.value == "set_showing" ||
+                    hit.value == "stop_animation") {
+                    continue;
+                }
+                if (hit.value == proxy_type || hit.value == "RndDir")
+                    continue;
+                push_unique_ref(event_aliases, hit.value);
+            }
+            if (proxy_ref.empty()) continue;
+            if (proxy_type.empty()) proxy_type = "RndDir";
+            const std::string proxy_path =
+                normalize_proxy_milo_path(owner_milo_path, proxy_ref);
+
+            ghogx::milo_scene::Scene proxy_scene;
+            if (!ghogx::milo_scene::load_scene(hdr_path, ark_path, proxy_path,
+                                               proxy_scene)) {
+                continue;
+            }
+            Gameplay::VenueProxyObject proxy;
+            proxy.name = de.name;
+            proxy.type = proxy_type;
+            proxy.milo_path = proxy_path;
+            proxy.event_aliases = std::move(event_aliases);
+            for (const auto& mesh : proxy_scene.meshes)
+                proxy.all_meshes.push_back(mesh.name);
+            proxy.directory_anim =
+                load_rnddir_directory_anim(hdr_path, ark_path, proxy_path);
+            proxy.mat_anims = load_venue_mat_anims(hdr_path, ark_path, proxy_path);
+            proxy.particle_routes =
+                load_all_venue_particle_routes(hdr_path, ark_path, proxy_path);
+            auto proxy_textures = ghogx::asset::load_milo_textures(
+                hdr_path, ark_path, proxy_path,
+                texture_names_for_scene_and_mat_anims(proxy_scene,
+                                                      proxy.mat_anims));
+            proxy.renderer =
+                std::make_unique<ghogx::render::MiloSceneRenderer>(win);
+            proxy.renderer->set_scene(std::move(proxy_scene), proxy_textures);
+            proxy.renderer->set_hidden_meshes(
+                std::unordered_set<std::string>(proxy.all_meshes.begin(),
+                                                proxy.all_meshes.end()));
+            proxy.renderer->set_active_particle_systems({});
+            proxy.renderer->set_particle_intensities({});
+            proxy.renderer->set_particle_sizes({});
+            std::fprintf(
+                stderr,
+                "[world] RndDir proxy %s type=%s path=%s meshes=%zu trans=%zu mesh_anims=%zu mat_anims=%zu particles=%zu aliases=%zu\n",
+                proxy.name.c_str(), proxy.type.c_str(), proxy.milo_path.c_str(),
+                proxy.all_meshes.size(), proxy.directory_anim.targets.size(),
+                proxy.directory_anim.mesh_anim_targets.size(),
+                proxy.mat_anims.size(), proxy.particle_routes.size(),
+                proxy.event_aliases.size());
+            out[proxy.name] = std::move(proxy);
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] RndDir proxy load %s: %s\n",
+                     owner_milo_path.c_str(), ex.what());
+    }
+    return out;
+}
+
 struct DrumAnimData {
     std::map<std::string,
              ghogx::render::MiloSceneRenderer::MeshTransformAnim>
@@ -7830,15 +8183,112 @@ bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
     return false;
 }
 
+void Gameplay::set_venue_proxy_object_showing(const std::string& object_name,
+                                              bool showing) {
+    auto proxy_it = venue_proxy_objects_.find(object_name);
+    if (proxy_it == venue_proxy_objects_.end()) return;
+    auto& proxy = proxy_it->second;
+    proxy.showing = showing;
+    if (!proxy.renderer) return;
+    if (showing) {
+        proxy.renderer->set_hidden_meshes({});
+    } else {
+        proxy.renderer->set_hidden_meshes(std::unordered_set<std::string>(
+            proxy.all_meshes.begin(), proxy.all_meshes.end()));
+        proxy.renderer->set_active_particle_systems({});
+        proxy.renderer->set_particle_intensities({});
+        proxy.renderer->set_particle_sizes({});
+    }
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(stderr, "[world] RndDir proxy %s showing=%d\n",
+                     object_name.c_str(), showing ? 1 : 0);
+    }
+}
+
+void Gameplay::start_venue_proxy_object_animation(
+    const std::string& object_name, float start_frame, float end_frame,
+    float period_seconds) {
+    auto proxy_it = venue_proxy_objects_.find(object_name);
+    if (proxy_it == venue_proxy_objects_.end()) return;
+    auto& proxy = proxy_it->second;
+    float authored_end = proxy.directory_anim.end_frame;
+    for (const auto& [name, anim] : proxy.mat_anims) {
+        (void)name;
+        authored_end = std::max(authored_end, anim.duration_frames);
+    }
+    for (const auto& route : proxy.particle_routes)
+        authored_end = std::max(authored_end, route.duration_frames);
+    if (!std::isfinite(start_frame) || start_frame < 0.0f) start_frame = 0.0f;
+    if (!std::isfinite(end_frame) || end_frame <= start_frame)
+        end_frame = authored_end > start_frame ? authored_end : start_frame + 1.0f;
+    proxy.animating = true;
+    proxy.anim_start_time = song_time_;
+    proxy.anim_start_frame = start_frame;
+    proxy.anim_end_frame = end_frame;
+    proxy.anim_period = std::max(0.0f, period_seconds);
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] RndDir proxy %s animate %.2f..%.2f period=%.3f authored_end=%.2f\n",
+            object_name.c_str(), proxy.anim_start_frame, proxy.anim_end_frame,
+            proxy.anim_period, authored_end);
+    }
+}
+
+void Gameplay::stop_venue_proxy_object_animation(
+    const std::string& object_name) {
+    auto proxy_it = venue_proxy_objects_.find(object_name);
+    if (proxy_it == venue_proxy_objects_.end()) return;
+    auto& proxy = proxy_it->second;
+    proxy.animating = false;
+    if (proxy.renderer) {
+        proxy.renderer->set_mesh_transform_offsets({});
+        proxy.renderer->set_mesh_position_overrides({});
+        proxy.renderer->set_material_alpha_multipliers({});
+        proxy.renderer->set_material_color_overrides({});
+        proxy.renderer->set_material_texture_overrides({});
+        proxy.renderer->set_material_tex_transform_overrides({});
+        proxy.renderer->set_active_particle_systems({});
+        proxy.renderer->set_particle_intensities({});
+        proxy.renderer->set_particle_sizes({});
+    }
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(stderr, "[world] RndDir proxy %s stop_animation\n",
+                     object_name.c_str());
+    }
+}
+
+bool Gameplay::execute_venue_proxy_object_message(
+    const VenueScriptObjectMessage& message) {
+    auto proxy_it = venue_proxy_objects_.find(message.object);
+    if (proxy_it == venue_proxy_objects_.end()) return false;
+    if (message.message == "stop") {
+        set_venue_proxy_object_showing(message.object, false);
+        stop_venue_proxy_object_animation(message.object);
+        return true;
+    }
+    if (message.message == "start" || message.message == "throw" ||
+        message.message == "venue_effect") {
+        set_venue_proxy_object_showing(message.object, true);
+        start_venue_proxy_object_animation(
+            message.object, 0.0f, proxy_it->second.directory_anim.end_frame,
+            0.0f);
+        return true;
+    }
+    return false;
+}
+
 bool Gameplay::execute_venue_script_object_message(
     const VenueScriptObjectMessage& message) {
     const auto object_it = venue_script_objects_.find(message.object);
     if (object_it == venue_script_objects_.end()) return false;
     const auto handlers_it =
         venue_script_object_handlers_.find(object_it->second.type);
-    if (handlers_it == venue_script_object_handlers_.end()) return false;
+    if (handlers_it == venue_script_object_handlers_.end())
+        return execute_venue_proxy_object_message(message);
     const auto handler_it = handlers_it->second.find(message.message);
-    if (handler_it == handlers_it->second.end()) return false;
+    if (handler_it == handlers_it->second.end())
+        return execute_venue_proxy_object_message(message);
 
     const std::string prev_object = venue_script_context_object_;
     const std::string prev_type = venue_script_context_type_;
@@ -7963,6 +8413,34 @@ void Gameplay::execute_venue_script_steps(
                                             step.anim_period);
                 break;
             }
+            case VenueScriptStep::Kind::AnimateObject: {
+                if (venue_script_context_object_.empty()) break;
+                const double period =
+                    step.anim_period_random
+                        ? venue_script_random_float(step.anim_period,
+                                                    step.anim_period_max)
+                        : static_cast<double>(step.anim_period);
+                const float start =
+                    step.anim_has_range ? step.anim_start_frame : 0.0f;
+                const float end =
+                    step.anim_has_range ? step.anim_end_frame
+                                        : step.anim_dest_frame;
+                start_venue_proxy_object_animation(
+                    venue_script_context_object_, start, end,
+                    static_cast<float>(std::max(0.0, period)));
+                break;
+            }
+            case VenueScriptStep::Kind::SetObjectShowing:
+                if (!venue_script_context_object_.empty()) {
+                    set_venue_proxy_object_showing(
+                        venue_script_context_object_, step.value != 0);
+                }
+                break;
+            case VenueScriptStep::Kind::StopObjectAnimation:
+                if (!venue_script_context_object_.empty())
+                    stop_venue_proxy_object_animation(
+                        venue_script_context_object_);
+                break;
             case VenueScriptStep::Kind::IfAllStates: {
                 bool enabled = true;
                 for (const auto& state : step.state_names) {
@@ -8739,6 +9217,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     venue_script_context_object_.clear();
     venue_script_context_type_.clear();
     executing_venue_script_ = false;
+    venue_proxy_objects_.clear();
 
     if (world_) {
         venue_runtime_hidden_meshes_ = venue_base_hidden_meshes_;
@@ -9087,6 +9566,119 @@ void Gameplay::update_active_venue_anim_filters() {
     }
     world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
     world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
+}
+
+void Gameplay::update_venue_proxy_objects() {
+    for (auto& [object_name, proxy] : venue_proxy_objects_) {
+        if (!proxy.renderer) continue;
+        if (!proxy.showing) {
+            proxy.renderer->set_hidden_meshes(std::unordered_set<std::string>(
+                proxy.all_meshes.begin(), proxy.all_meshes.end()));
+            continue;
+        }
+        proxy.renderer->set_hidden_meshes({});
+        if (!proxy.animating) continue;
+
+        Gameplay::VenueAnimFilter filter = proxy.directory_anim;
+        filter.start_frame = proxy.anim_start_frame;
+        filter.end_frame = proxy.anim_end_frame;
+        filter.period = proxy.anim_period;
+        filter.type = 0;
+        const double elapsed = std::max(0.0, song_time_ - proxy.anim_start_time);
+        const float frame = venue_filter_frame_at(filter, elapsed, false);
+
+        std::map<std::string,
+                 ghogx::render::MiloSceneRenderer::MeshTransformSample>
+            transform_offsets;
+        std::map<std::string, std::vector<std::array<float, 3>>>
+            position_overrides;
+        for (const auto& target : filter.targets) {
+            transform_offsets[target.mesh] =
+                sample_mesh_transform(target.anim, frame);
+        }
+        for (const auto& target : filter.mesh_anim_targets) {
+            auto positions = sample_mesh_anim_positions(target.anim, frame);
+            if (!positions.empty())
+                position_overrides[target.mesh] = std::move(positions);
+        }
+        proxy.renderer->set_mesh_transform_offsets(std::move(transform_offsets));
+        proxy.renderer->set_mesh_position_overrides(std::move(position_overrides));
+
+        std::map<std::string, float> material_alpha;
+        std::map<std::string, std::array<float, 4>> material_colors;
+        std::map<std::string, std::string> material_textures;
+        std::map<std::string,
+                 ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
+            material_tex_transforms;
+        for (const auto& [anim_name, anim] : proxy.mat_anims) {
+            (void)anim_name;
+            if (anim.has_alpha && !anim.alpha_keys.empty()) {
+                material_alpha[anim.material] =
+                    clamp_material_alpha(
+                        sample_material_float_key(anim.alpha_keys, frame));
+            } else if (anim.has_alpha) {
+                const float span = std::max(0.001f, anim.duration_frames);
+                const float t = std::clamp(frame / span, 0.0f, 1.0f);
+                material_alpha[anim.material] =
+                    clamp_material_alpha(anim.start_alpha +
+                                         (anim.end_alpha - anim.start_alpha) *
+                                             t);
+            }
+            if (!anim.color_keys.empty())
+                material_colors[anim.material] =
+                    sample_material_color_key(anim.color_keys, frame);
+            if (!anim.texture_keys.empty()) {
+                const auto tex = sample_material_texture_key(anim.texture_keys,
+                                                             frame);
+                if (!tex.empty()) material_textures[anim.material] = tex;
+            }
+            if (!anim.tex_translation_keys.empty() ||
+                !anim.tex_scale_keys.empty() ||
+                !anim.tex_rotation_keys.empty()) {
+                material_tex_transforms[anim.material] =
+                    sample_material_tex_transform(anim, frame);
+            }
+        }
+        proxy.renderer->set_material_alpha_multipliers(std::move(material_alpha));
+        proxy.renderer->set_material_color_overrides(std::move(material_colors));
+        proxy.renderer->set_material_texture_overrides(std::move(material_textures));
+        proxy.renderer->set_material_tex_transform_overrides(
+            std::move(material_tex_transforms));
+
+        const double duration = venue_filter_duration_seconds(filter);
+        const bool particle_window = duration <= 0.0 || elapsed <= duration + 1.0;
+        std::unordered_set<std::string> active_particles;
+        std::map<std::string, float> particle_intensities;
+        std::map<std::string, float> particle_sizes;
+        if (particle_window) {
+            for (const auto& route : proxy.particle_routes) {
+                if (route.particle.empty()) continue;
+                const float intensity =
+                    sample_particle_emission(route.emission_keys, frame);
+                if (intensity <= 0.001f) continue;
+                active_particles.insert(route.particle);
+                particle_intensities[route.particle] =
+                    std::max(particle_intensities[route.particle], intensity);
+                if (!route.size_keys.empty()) {
+                    particle_sizes[route.particle] =
+                        std::max(particle_sizes[route.particle],
+                                 sample_particle_size(route.size_keys, frame));
+                }
+            }
+        }
+        proxy.renderer->set_active_particle_systems(std::move(active_particles));
+        proxy.renderer->set_particle_intensities(std::move(particle_intensities));
+        proxy.renderer->set_particle_sizes(std::move(particle_sizes));
+    }
+}
+
+void Gameplay::draw_venue_proxy_objects(
+    const ghogx::render::OrbitCamera& cam) {
+    for (auto& [object_name, proxy] : venue_proxy_objects_) {
+        (void)object_name;
+        if (!proxy.renderer || !proxy.showing) continue;
+        proxy.renderer->draw_over_scene(cam);
+    }
 }
 
 bool Gameplay::apply_lighting_event(const std::string& event_name,
@@ -10347,10 +10939,26 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     venue_event_script_messages_.clear();
                     auto script_objects = load_venue_script_object_instances(
                         hdr_path_, ark_path_, venue_geom);
+                    venue_proxy_objects_ =
+                        load_venue_proxy_objects(hdr_path_, ark_path_,
+                                                 venue_geom, win);
+                    for (const auto& [name, proxy] : venue_proxy_objects_) {
+                        VenueScriptObjectInstance object;
+                        object.type = proxy.type.empty() ? "RndDir" : proxy.type;
+                        object.properties["proxy_milo"] = proxy.milo_path;
+                        script_objects[name] = std::move(object);
+                    }
                     venue_event_script_messages_ =
                         load_venue_event_script_messages(
                             hdr_path_, ark_path_, venue_geom, script_objects,
                             venue_script_object_handlers_);
+                    for (const auto& [name, proxy] : venue_proxy_objects_) {
+                        for (const auto& alias : proxy.event_aliases) {
+                            push_unique_script_message(
+                                venue_event_script_messages_[alias],
+                                VenueScriptObjectMessage{name, "start"});
+                        }
+                    }
                     for (auto& [name, object] : script_objects)
                         venue_script_objects_[name] = std::move(object);
                     venue_script_object_state_.clear();
@@ -11891,7 +12499,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 cam.fov = env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_FOV", 0.55f);
             }
         }
+        update_venue_proxy_objects();
         world_->draw();
+        draw_venue_proxy_objects(world_->camera());
         if (lighting_) {
             const LightingRequest lighting_request =
                 lighting_request_at(chart_, song_time_, intro_camera_seconds_);

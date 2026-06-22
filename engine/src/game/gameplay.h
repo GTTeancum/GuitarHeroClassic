@@ -34,6 +34,9 @@ struct VenueScriptStep {
     CallHandler,
     FireFilter,
     AnimateEnv,
+    AnimateObject,
+    SetObjectShowing,
+    StopObjectAnimation,
     IfAllStates,
     IfTaskExists,
     ScheduleTask,
@@ -54,6 +57,11 @@ struct VenueScriptStep {
   bool target_is_property_ref = false;
   float anim_dest_frame = 0.0f;
   float anim_period = 0.0f;
+  float anim_period_max = 0.0f;
+  bool anim_period_random = false;
+  float anim_start_frame = 0.0f;
+  float anim_end_frame = 0.0f;
+  bool anim_has_range = false;
   std::string assign_state;
   std::vector<std::string> state_names;
   std::vector<VenueScriptStep> children;
@@ -313,6 +321,23 @@ class Gameplay {
     std::vector<VenueParticleRoute::EmissionKey> size_keys;
     bool persistent = true;
   };
+  struct VenueProxyObject {
+    std::string name;
+    std::string type;
+    std::string milo_path;
+    std::unique_ptr<ghogx::render::MiloSceneRenderer> renderer;
+    VenueAnimFilter directory_anim;
+    std::map<std::string, VenueMaterialAnim> mat_anims;
+    std::vector<VenueParticleRoute> particle_routes;
+    std::vector<std::string> all_meshes;
+    std::vector<std::string> event_aliases;
+    bool showing = false;
+    bool animating = false;
+    double anim_start_time = 0.0;
+    float anim_start_frame = 0.0f;
+    float anim_end_frame = 0.0f;
+    float anim_period = 0.0f;
+  };
   struct HandClipChoice {
     std::vector<std::string> short_names;
     std::vector<std::string> long_names;
@@ -428,6 +453,17 @@ class Gameplay {
   bool apply_venue_script_env_anim(const std::string& anim_name,
                                    float dest_frame,
                                    float period_seconds);
+  bool execute_venue_proxy_object_message(
+      const VenueScriptObjectMessage& message);
+  void set_venue_proxy_object_showing(const std::string& object_name,
+                                      bool showing);
+  void start_venue_proxy_object_animation(const std::string& object_name,
+                                          float start_frame,
+                                          float end_frame,
+                                          float period_seconds);
+  void stop_venue_proxy_object_animation(const std::string& object_name);
+  void update_venue_proxy_objects();
+  void draw_venue_proxy_objects(const ghogx::render::OrbitCamera& cam);
   void update_venue_script_tasks();
   uint32_t schedule_venue_script_task(const VenueScriptStep& step);
   void cancel_venue_script_task_by_id(uint32_t id);
@@ -603,6 +639,7 @@ class Gameplay {
       venue_event_particle_systems_;
   std::map<std::string, std::vector<std::string>> venue_event_filters_;
   std::map<std::string, std::vector<std::string>> venue_filter_mesh_targets_;
+  std::map<std::string, VenueProxyObject> venue_proxy_objects_;
   std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
   std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
   std::map<std::string, VenueScriptHandler> venue_script_handlers_;

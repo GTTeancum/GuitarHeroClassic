@@ -2208,6 +2208,38 @@ Rejected native probe:
   `psychobilly`/small1. Both routes exit `0` with zero miss rows, zero
   unsupported material-channel rows, and zero missing venue/lighting-route
   rows. Fest decodes 20 lighting Sets and small1 decodes 5. The exercised stock
-  LightPreset bodies still report `sets=0`, so current active spotlight
-  selection remains target-state driven; this pass is object-format coverage,
-  not a claimed visual lighting-color parity change.
+ LightPreset bodies still report `sets=0`, so current active spotlight
+ selection remains target-state driven; this pass is object-format coverage,
+ not a claimed visual lighting-color parity change.
+
+2026-06-22 RndDir proxy venue effects:
+
+- Venue geometry MILOs can carry `RndDir` objects that proxy small, separate
+  MILO directories instead of ordinary mesh/group children. Retained PS2
+  bodies show the owner object contains the proxy `.milo` path and route atoms:
+  small1 beer-toss objects point at
+  `../small1_geom_bottle_throw_proxy.milo` with type `bottle_throw`, while big
+  flashpot objects point at `../big_geom_flashpot_proxy.milo` and include the
+  `venue_effect` alias. The actual proxy MILOs are present in the stock PS2
+  ARK as same-`gen` `.milo_ps2` entries and contain their own Mesh, Mat,
+  TransAnim, MatAnim, MeshAnim, ParticleSys, and ParticleSysAnim bodies.
+- Native now loads those proxy RndDirs as hidden overlay scenes, using the same
+  PS2 MILO decoders and the venue camera. `RndDir` type handlers are loaded
+  from the venue DTB alongside `ObjectDir` handlers, so small1's authored
+  `bottle_throw` `start`/`throw`/`stop` script drives `set_showing`,
+  `stop_animation`, and `$this animate range 0 63` rather than a hand-coded
+  beer effect. EventTriggers can also resolve proxy objects through a Group
+  ref, and proxy body event aliases route to a default `start` message; this
+  is what lets big's `venue_effect` start both flashpot proxies.
+- Validation:
+  `analysis/native_validation/rnddir_proxy_routes_20260622_after_routes/`
+  runs hidden fixed-step windows for small1/`psychobilly` and big/`hangar18`.
+  Small1 logs `1 object_types / 3 object_handlers`, routes
+  `excitement_great_bottles.trig` to the four beer RndDirs, then executes
+  delayed `showing=1` and `animate 0.00..63.00` rows from the DTB task script.
+  Big logs both `big_geom_flashpot_PROXY` objects with 15 TransAnim targets,
+  7 MatAnims, 6 particle routes, routes `flashpots.trig` through the group,
+  and starts both proxies from the `venue_effect` alias. The final spot-check
+  in `analysis/native_validation/rnddir_proxy_routes_20260622_final_spotcheck/`
+  confirms small1 no longer has stray aliases while big still fires
+  `venue_effect`.

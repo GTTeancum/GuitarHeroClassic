@@ -293,8 +293,22 @@ int main() {
                  "VenueScriptHandler>>venue_script_object_handlers_;",
                  "venue runtime keeps DTB ObjectDir type handlers");
   ok &= contains(gameplay_c,
-                 "step.kind=VenueScriptStep::Kind::AnimateEnv;",
-                 "venue object animate commands become executable EnvAnim steps");
+                 "step.kind=target_is_this?VenueScriptStep::Kind::AnimateObject"
+                 ":VenueScriptStep::Kind::AnimateEnv;",
+                 "RndDir $this animate commands split from property EnvAnim steps");
+  ok &= contains(gameplay_h_c,
+                 "AnimateObject,SetObjectShowing,StopObjectAnimation,",
+                 "venue script runtime has RndDir object animation/show/stop steps");
+  ok &= contains(gameplay_c,
+                 "collect_object_handlers(\"ObjectDir\");"
+                 "collect_object_handlers(\"RndDir\");",
+                 "venue script handlers include RndDir type sections");
+  ok &= contains(gameplay_c,
+                 "load_venue_proxy_objects(hdr_path_,ark_path_,venue_geom,win)",
+                 "venue load discovers RndDir proxy objects from the authored MILO");
+  ok &= contains(gameplay_c,
+                 "VenueScriptObjectMessage{name,\"start\"}",
+                 "RndDir proxy event aliases route to object start messages");
   ok &= contains(gameplay_c,
                  "step.target_is_property_ref=prop_target.has_value();",
                  "venue object animate commands preserve property-ref targets");
