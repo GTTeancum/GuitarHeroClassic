@@ -8725,7 +8725,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         regular_camera_keys_, current_key,
                         camera_shot_counter_, low_excitement,
                         kGuitaristWalking, kGuitaristStarpower)) {
-                    if (active_regular_camera_ != key->name) {
+                    const bool shot_changed =
+                        active_regular_camera_ != key->name;
+                    if (shot_changed) {
                         previous_regular_camera_ = active_regular_camera_;
                         previous_camera_position_index_ =
                             active_camera_position_index_;
@@ -8741,10 +8743,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             duration.first.c_str(), duration.second.first,
                             duration.second.second, force_camera ? 1 : 0, bar,
                             song_time_);
-                        if (should_resend_excitement_) {
-                            should_resend_excitement_ = false;
-                            resend_active_venue_event();
-                        }
+                    }
+                    if (should_resend_excitement_) {
+                        should_resend_excitement_ = false;
+                        resend_active_venue_event();
                     }
                 }
             }

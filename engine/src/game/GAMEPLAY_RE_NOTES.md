@@ -552,6 +552,21 @@ Open work:
   visibility events, 11 kick-drum routes, zero `excitement_bad` rows, 3 regular
   camera sweeps, 6 `post_switch_cam` moves, 1,410 venue AnimFilter samples, and
   great-state lighting through `chorus_great.pst` / `flare_great.pst`.
+- 2026-06-21 regular-camera shot-start lifecycle follow-up:
+  `start_shot -> world resend_excitement` is a shot-start side effect, not a
+  camera-name-change side effect. Native now consumes `should_resend_excitement`
+  after the scripted regular camera selector returns a key even if a constrained
+  or one-shot camera set resolves to the already-active camera. The existing
+  changed-camera sweep bookkeeping remains separate. The route contract guards
+  this so future camera-parity work cannot accidentally gate the traced
+  resend-excitement latch behind `active_regular_camera_ != key->name`.
+  Validation:
+  `analysis/native_validation/venue_resend_shot_start_20260621_current/`
+  reruns stock PS2 `shoutatthedevil` from `16.0s` with diagnostic autoplay.
+  The log records `intro_end`, a regular camera shot start at `t=16.017`,
+  `resend_excitement: excitement_okay`, the re-entered `excitement_okay`
+  MatAnim/ParticleSys/visibility/AnimFilter route, active lighting keyframes,
+  and coherent arena frames at 120/240.
 - 2026-06-21 pre-load venue-event lifecycle follow-up:
   native `tick()` can choose a persistent excitement state before the first
   draw call has loaded `*_geom.milo_ps2` and decoded EventTrigger, MatAnim, and

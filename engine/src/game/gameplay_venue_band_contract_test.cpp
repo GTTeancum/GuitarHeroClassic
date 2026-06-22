@@ -646,6 +646,14 @@ int main() {
                  "should_resend_excitement_=false;"
                  "resend_active_venue_event();",
                  "regular camera shot start consumes the resend-excitement latch");
+  ok &= contains(gameplay_c,
+                 "if(shot_changed){previous_regular_camera_=active_regular_camera_;",
+                 "regular camera shot change is tracked separately from shot-start effects");
+  ok &= contains(gameplay_c,
+                 "}if(should_resend_excitement_){"
+                 "should_resend_excitement_=false;"
+                 "resend_active_venue_event();}",
+                 "resend-excitement latch is not gated by camera-name changes");
 
   ok &= contains(gameplay_c,
                  "while(next_lighting_cue_idx_<chart_.lighting_cues.size())",
