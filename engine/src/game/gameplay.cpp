@@ -6329,6 +6329,13 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                                return active.persistent;
                            }),
             active_venue_anim_filters_.end());
+        active_venue_material_anims_.erase(
+            std::remove_if(active_venue_material_anims_.begin(),
+                           active_venue_material_anims_.end(),
+                           [](const ActiveVenueMaterialAnim& active) {
+                               return active.persistent;
+                           }),
+            active_venue_material_anims_.end());
         active_venue_environment_anims_.erase(
             std::remove_if(active_venue_environment_anims_.begin(),
                            active_venue_environment_anims_.end(),

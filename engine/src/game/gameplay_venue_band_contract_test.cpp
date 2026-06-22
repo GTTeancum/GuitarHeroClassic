@@ -321,6 +321,13 @@ int main() {
                  "active_venue_material_anims_;",
                  "runtime tracks in-flight material alpha animation");
   ok &= contains(gameplay_c,
+                 "active_venue_material_anims_.erase("
+                 "std::remove_if(active_venue_material_anims_.begin(),"
+                 "active_venue_material_anims_.end(),"
+                 "[](constActiveVenueMaterialAnim&active){"
+                 "returnactive.persistent;})",
+                 "persistent venue events clear prior persistent MatAnim playback");
+  ok &= contains(gameplay_c,
                  "active_anim.duration_seconds="
                  "authored_frames_to_seconds(anim.duration_frames);",
                  "venue MatAnim duration is converted to runtime seconds");

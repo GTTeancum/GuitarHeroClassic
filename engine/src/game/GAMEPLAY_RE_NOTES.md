@@ -567,6 +567,21 @@ Open work:
   `resend_excitement: excitement_okay`, the re-entered `excitement_okay`
   MatAnim/ParticleSys/visibility/AnimFilter route, active lighting keyframes,
   and coherent arena frames at 120/240.
+- 2026-06-21 persistent MatAnim lifecycle follow-up:
+  persistent venue-event changes already clear the previous persistent
+  AnimFilter, EnvAnim, LightAnim, and ParticleSys playback before applying the
+  new decoded event. Native now clears previous persistent MatAnim playback in
+  the same block, so old excitement material animations stop advancing after a
+  new persistent state is chosen. Current sampled material alpha/texture state
+  remains available for interrupted fades and for new authored MatAnim rows to
+  pick up as their start value; this is lifecycle cleanup, not a material reset
+  shortcut. Validation:
+  `analysis/native_validation/venue_persistent_matanim_lifecycle_20260621_current`
+  ran stock PS2 `shoutatthedevil` from `16.0s` for 900 fixed-dt frames with
+  diagnostic autoplay and venue-filter logging. The log has 33 note hits, zero
+  misses, 3 regular camera sweeps, 6 post-switch camera beats, 9 lighting
+  keyframes, and 177 venue MatAnim event rows; frame 870 remains a coherent
+  arena render after the persistent event changes.
 - 2026-06-21 pre-load venue-event lifecycle follow-up:
   native `tick()` can choose a persistent excitement state before the first
   draw call has loaded `*_geom.milo_ps2` and decoded EventTrigger, MatAnim, and
