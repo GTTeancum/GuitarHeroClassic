@@ -1623,10 +1623,11 @@ Rejected native probe:
   `Intro.tnm`; the six-bar intro window therefore kept rendering from
   `default.cam`.
 - Native now accepts `Intro*` CamShot names as intro camera candidates and, when
-  a selected intro CamShot has no `.tnm` ref, routes it through an explicit
+  no intro CamShot candidate has a `.tnm` route, falls back to an explicit
   `CamShot:<name>` path that decodes the embedded CamShot pose rows with the
-  existing `decode_camshot_poses` parser. This is a generic direct-CamShot
-  fallback for venues with embedded intro poses, not a small2-specific camera.
+  existing `decode_camshot_poses` parser. Venues with authored `.tnm` intro
+  routes keep those routes. This is a generic direct-CamShot fallback for
+  venues with embedded intro poses, not a small2-specific camera.
 - Validation:
   `analysis/native_validation/small2_direct_intro_camshot_20260622_current/`
   reruns stock PS2 `youreallygotme` on small2 hidden with camera debug. The log
@@ -1645,3 +1646,11 @@ Rejected native probe:
   with venue props, drum kit, lights, and band visible. The old blonde hair
   attachment issue is visible in these captures and remains character-loader
   work, not a venue camera regression.
+- Priority regression:
+  `analysis/native_validation/theatre_intro_regression_after_direct_camshot_fix_20260622_current/`
+  reruns `yyz` in theatre and confirms venues with authored TransAnim intro
+  cameras still choose `Intro01 -> Camera01.tnm`, decode 94 position keys and 3
+  rotation keys, and never enter the `CamShot:` direct fallback. The companion
+  `analysis/native_validation/small2_direct_intro_camshot_after_priority_fix_20260622_current/`
+  rerun confirms small2 still chooses `Intro01 -> CamShot:Intro01` with 2 direct
+  poses where no `.tnm` intro candidate exists.

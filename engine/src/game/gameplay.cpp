@@ -1234,6 +1234,7 @@ std::string select_intro_camera_anim(const std::string& hdr_path,
             std::string shot;
             std::string anim;
             int score = 0;
+            bool direct_camshot_pose = false;
         };
         std::vector<Candidate> candidates;
         for (const auto& de : dir.entries) {
@@ -1265,6 +1266,7 @@ std::string select_intro_camera_anim(const std::string& hdr_path,
                 !decode_camshot_poses(body, static_cast<size_t>(de.size))
                      .empty()) {
                 c.anim = std::string(kDirectIntroCamShotPrefix) + de.name;
+                c.direct_camshot_pose = true;
             }
             if (c.anim.empty()) continue;
             const std::string distance = next_string_after(strings, "distance");
@@ -1280,6 +1282,17 @@ std::string select_intro_camera_anim(const std::string& hdr_path,
             candidates.push_back(std::move(c));
         }
         if (!candidates.empty()) {
+            const bool has_transanim_candidate = std::any_of(
+                candidates.begin(), candidates.end(),
+                [](const Candidate& c) { return !c.direct_camshot_pose; });
+            if (has_transanim_candidate) {
+                candidates.erase(
+                    std::remove_if(candidates.begin(), candidates.end(),
+                                   [](const Candidate& c) {
+                                       return c.direct_camshot_pose;
+                                   }),
+                    candidates.end());
+            }
             std::stable_sort(candidates.begin(), candidates.end(),
                              [](const Candidate& a, const Candidate& b) {
                                  return a.score > b.score;

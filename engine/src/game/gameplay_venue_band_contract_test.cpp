@@ -1177,6 +1177,12 @@ int main() {
                  "c.anim=std::string(kDirectIntroCamShotPrefix)+de.name;",
                  "intro CamShots without TransAnim refs can route by embedded pose");
   ok &= contains(gameplay_c,
+                 "constboolhas_transanim_candidate=std::any_of(",
+                 "direct intro CamShot route is only a fallback when no TransAnim candidate exists");
+  ok &= contains(gameplay_c,
+                 "returnc.direct_camshot_pose;",
+                 "direct intro CamShot candidates are removed when TransAnim candidates exist");
+  ok &= contains(gameplay_c,
                  "anim_name.compare(0,kDirectIntroCamShotPrefixLen,"
                  "kDirectIntroCamShotPrefix)==0",
                  "camera key loader recognizes direct CamShot intro routes");
