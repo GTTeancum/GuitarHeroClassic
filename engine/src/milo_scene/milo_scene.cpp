@@ -399,12 +399,19 @@ EnvironObj decode_environ(const std::string& entry_name,
     }
     env.range_a = read_f32_at(body, base + 0x10);
     env.range_b = read_f32_at(body, base + 0x14);
+    env.fog_start = env.range_a;
+    env.fog_end = env.range_b;
     for (int i = 0; i < 4; ++i) {
       env.color_b[i] =
           read_f32_at(body, base + 0x18 + static_cast<size_t>(i) * 4);
       if (!std::isfinite(env.color_b[i])) {
         throw std::runtime_error("milo_scene: non-finite Environ color_b");
       }
+      env.fog_color[i] = env.color_b[i];
+    }
+    if (base + 0x29 < body.size()) {
+      env.fog_enabled = body[base + 0x28] != 0;
+      env.animate_from_preset = body[base + 0x29] != 0;
     }
     env.range = read_f32_at(body, base + 0x2f);
     if (!std::isfinite(env.range_a) || !std::isfinite(env.range_b) ||

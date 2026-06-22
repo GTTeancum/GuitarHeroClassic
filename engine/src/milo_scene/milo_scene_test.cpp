@@ -137,6 +137,7 @@ void test_environ_with_lights() {
   put_f32(b, 1.0f);
   put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f);
   while (b.size() < base + 0x2f) b.push_back(0);
+  b[base + 0x29] = 1;            // animate_from_preset
   put_f32(b, 1000.0f);
 
   EnvironObj env = decode_environ("stage.env", b);
@@ -145,6 +146,8 @@ void test_environ_with_lights() {
   CHECK(env.lights[0] == "stage_light_02.lit");
   CHECK(approx(env.color_a[0], 0.25f));
   CHECK(approx(env.color_a[2], 0.75f));
+  CHECK(!env.fog_enabled);
+  CHECK(env.animate_from_preset);
   CHECK(approx(env.range, 1000.0f));
   std::printf("  [ok] Environ: lights=%zu ambient=(%.2f,%.2f,%.2f)\n",
               env.lights.size(), env.color_a[0], env.color_a[1],
@@ -163,6 +166,7 @@ void test_environ_with_extensionless_light() {
   put_f32(b, 1.0f);
   put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f);
   while (b.size() < base + 0x2f) b.push_back(0);
+  b[base + 0x29] = 1;            // animate_from_preset
   put_f32(b, 1000.0f);
 
   EnvironObj env = decode_environ("curtain_light", b);
@@ -171,9 +175,38 @@ void test_environ_with_extensionless_light() {
   CHECK(env.lights[0] == "curtain");
   CHECK(approx(env.color_a[0], 0.30f));
   CHECK(approx(env.range_a, 250.0f));
+  CHECK(approx(env.fog_start, 250.0f));
+  CHECK(env.animate_from_preset);
   CHECK(approx(env.range, 1000.0f));
   std::printf("  [ok] Environ extensionless light: %s -> %s\n",
               env.name.c_str(), env.lights[0].c_str());
+}
+
+void test_environ_with_fog() {
+  std::vector<uint8_t> b;
+  put_u32(b, 5);                 // Environ version
+  put_zeros(b, 9);               // base metadata
+  put_u32(b, 0);                 // dynamic light ref count
+  const size_t base = b.size();
+  put_f32(b, 0.07f); put_f32(b, 0.04f); put_f32(b, 0.14f); put_f32(b, 1.0f);
+  put_f32(b, 0.0f);              // fog_start
+  put_f32(b, 3000.0f);           // fog_end
+  put_f32(b, 0.5f); put_f32(b, 0.0f); put_f32(b, 0.5f); put_f32(b, 1.0f);
+  while (b.size() < base + 0x2f) b.push_back(0);
+  b[base + 0x28] = 1;            // fog_enable
+  b[base + 0x29] = 0;            // animate_from_preset
+  put_f32(b, 1000.0f);
+
+  EnvironObj env = decode_environ("op_Art_projection.env", b);
+  CHECK(env.decoded);
+  CHECK(env.fog_enabled);
+  CHECK(!env.animate_from_preset);
+  CHECK(approx(env.fog_start, 0.0f));
+  CHECK(approx(env.fog_end, 3000.0f));
+  CHECK(approx(env.fog_color[0], 0.5f));
+  CHECK(approx(env.fog_color[2], 0.5f));
+  std::printf("  [ok] Environ fog: %s start=%.0f end=%.0f\n",
+              env.name.c_str(), env.fog_start, env.fog_end);
 }
 
 void test_mesh() {
@@ -248,6 +281,7 @@ int main() {
   test_light();
   test_environ_with_lights();
   test_environ_with_extensionless_light();
+  test_environ_with_fog();
   test_mesh();
   std::printf("ALL PASS\n");
   return 0;

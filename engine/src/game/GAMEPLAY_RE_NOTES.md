@@ -1523,6 +1523,43 @@ Rejected native probe:
   until a PS2 trace proves how active lighting preset/keyframe target states
   should scale or select those decoded Light objects.
 
+2026-06-22 Environ fog / preset-animation flag decode:
+
+- The local `rnd_objects.dta` `Environ` schema lists `fog_enable`,
+  `fog_color`, `fog_start`, `fog_end`, and `animate_from_preset`. A retained
+  byte audit over venue and lighting `Environ__*` bodies shows the payload
+  after the light-ref array as: ambient RGBA, `fog_start` at `base + 0x10`,
+  `fog_end` at `base + 0x14`, fog color RGBA at `base + 0x18`, then
+  `fog_enable` at `base + 0x28` and `animate_from_preset` at `base + 0x29`.
+  Common venue Environs carry `00 01 ...` there (no fog, preset-animated);
+  small2 `op_Art_projection.env` carries `01 00 ...` with fog color
+  `(0.5, 0.0, 0.5, 1.0)` and range `0..3000`; small2 neon array Environs
+  commonly carry `00 00 ...` and are driven by explicit `EnvAnim` routes.
+- Native now exposes those fields on decoded `EnvironObj` and logs
+  `fog=` / `animate_preset=` with the Environ coverage rows. The renderer
+  applies authored per-Environ fog only when `fog_enable` is set and the start
+  / end range is sane, with `GHOGX_DISABLE_ENVIRON_FOG=1` as the A/B kill
+  switch. This is independent of, and does not enable, the still-gated
+  dynamic environment light bridge.
+- Follow-up validation found that this decode path was not reaching the
+  renderer because lighting-overlay scenes are marked additive and
+  `MiloSceneRenderer::draw_impl` skipped the regular mesh and particle passes
+  whenever `additive_blend_` was true. That was a renderer gate, not a trace or
+  object-routing failure: small2 `projections.grp` maps `back_projection.mesh`
+  and `trippy_graphic1.mesh` through `op_Art_projection.env`, and
+  `trippy_pojection.mat` has `use_environ` set. Native now draws regular
+  overlay meshes and active overlay particles through the same additive blend
+  state, while still skipping spotlight template meshes in the normal pass.
+  Validation:
+  `analysis/native_validation/environ_fog_overlay_draw_20260622_resume/`
+  logs `Environ fog active: op_Art_projection.env`, live
+  `op_art_projection.enm` samples, active dry-ice particle samples, and exits
+  after 80 frames. The screenshot sanity run
+  `analysis/native_validation/environ_fog_overlay_draw_capture_20260622_resume/`
+  retains `frame_00040.bmp` and `frame_00080.bmp` with visible projection /
+  floor-light overlay contribution. These frames prove the overlay draw route
+  is no longer blank; they are not final lighting color parity.
+
 2026-06-22 diagnostic stone venue override:
 
 - `config/gh2.dta` lists `stone` in the authored venue set and

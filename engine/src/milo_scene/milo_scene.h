@@ -71,8 +71,11 @@
 //     u32 light ref count
 //     str[] .lit refs
 //     4 RGBA-ish floats at payload base + 0x00 (ambient_color)
-//     2 range/fog-ish floats at payload base + 0x10/+0x14
-//     4 RGBA-ish floats at payload base + 0x18
+//     f32 fog_start at payload base + 0x10
+//     f32 fog_end at payload base + 0x14
+//     4 RGBA-ish floats at payload base + 0x18 (fog_color when fog is enabled)
+//     u8 fog_enable at payload base + 0x28
+//     u8 animate_from_preset at payload base + 0x29
 //     f32 range at payload base + 0x2f
 
 #pragma once
@@ -151,6 +154,11 @@ struct EnvironObj {
   std::string name;
   std::vector<std::string> lights;
   float color_a[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  float fog_start = 0.0f;
+  float fog_end = 0.0f;
+  float fog_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  bool fog_enabled = false;
+  bool animate_from_preset = false;
   float range_a = 0.0f;
   float range_b = 0.0f;
   float color_b[4] = {1.0f, 1.0f, 1.0f, 1.0f};

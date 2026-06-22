@@ -600,6 +600,12 @@ int main() {
   ok &= contains(renderer_c,
                  "material_textures_.find(material)",
                  "renderer applies MatAnim material texture overrides");
+  ok &= absent(renderer_c,
+               "if(additive_blend_)continue;autoworld=scene_.world_matrix(m);",
+               "additive lighting overlay regular mesh skip");
+  ok &= absent(renderer_c,
+               "if(!scene_.particles.empty()&&!additive_blend_)",
+               "additive lighting overlay particle skip");
   ok &= contains(renderer_h_c,
                  "set_environment_color_overrides",
                  "renderer accepts EnvAnim environment color overrides");
@@ -1249,8 +1255,12 @@ int main() {
   ok &= contains(milo_scene_h_c,
                  "structEnvironObj{std::stringname;std::vector<std::string>lights;"
                  "floatcolor_a[4]="
-                 "{1.0f,1.0f,1.0f,1.0f};floatrange_a=0.0f;",
+                 "{1.0f,1.0f,1.0f,1.0f};floatfog_start=0.0f;",
                  "MILO scene exposes decoded raw Environ objects");
+  ok &= contains(milo_scene_h_c,
+                 "floatfog_color[4]={1.0f,1.0f,1.0f,1.0f};"
+                 "boolfog_enabled=false;boolanimate_from_preset=false;",
+                 "MILO scene exposes Environ fog and LightPreset animation flags");
   ok &= contains(milo_scene_h_c,
                  "std::stringenvironment_ref;",
                  "decoded Groups retain their authored Environ ref");
@@ -1319,9 +1329,21 @@ int main() {
                  "env.range_a=read_f32_at(body,base+0x10);",
                  "Environ decoder uses dynamic range-a offset");
   ok &= contains(milo_scene_cpp_c,
+                 "env.fog_start=env.range_a;",
+                 "Environ decoder aliases traced fog-start field");
+  ok &= contains(milo_scene_cpp_c,
                  "env.color_b[i]=read_f32_at(body,base+0x18+"
                  "static_cast<size_t>(i)*4);",
                  "Environ decoder uses dynamic second color block offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "env.fog_color[i]=env.color_b[i];",
+                 "Environ decoder aliases traced fog-color block");
+  ok &= contains(milo_scene_cpp_c,
+                 "env.fog_enabled=body[base+0x28]!=0;",
+                 "Environ decoder uses traced fog-enable byte");
+  ok &= contains(milo_scene_cpp_c,
+                 "env.animate_from_preset=body[base+0x29]!=0;",
+                 "Environ decoder uses traced animate-from-preset byte");
   ok &= contains(milo_scene_cpp_c,
                  "env.range=read_f32_at(body,base+0x2f);",
                  "Environ decoder uses dynamic range offset");
@@ -1396,6 +1418,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]lightingEnvironobjectdecoded:",
                  "runtime logs decoded Environ object data");
+  ok &= contains(gameplay_c,
+                 "fog=%danimate_preset=%d",
+                 "runtime logs Environ fog and preset-animation flags");
   ok &= contains(renderer_h_c,
                  "mesh_environments_;",
                  "renderer tracks mesh-to-Environ assignment");
@@ -1405,6 +1430,27 @@ int main() {
   ok &= contains(renderer_c,
                  "scene_.find_environ(env_it->second)",
                  "renderer resolves authored Environ refs before applying ambient");
+  ok &= contains(renderer_c,
+                 "boolenviron_fog_sane(constmilo_scene::EnvironObj&env)",
+                 "renderer validates authored Environ fog before applying it");
+  ok &= contains(renderer_c,
+                 "GHOGX_DISABLE_ENVIRON_FOG",
+                 "renderer keeps authored Environ fog A/B switchable");
+  ok &= contains(renderer_c,
+                 "dev_->SetRenderState(D3DRS_FOGENABLE,TRUE);",
+                 "renderer enables authored Environ fog per mesh");
+  ok &= contains(renderer_c,
+                 "dev_->SetRenderState(D3DRS_FOGCOLOR,d3d_color_from_rgba(env->fog_color));",
+                 "renderer applies authored Environ fog color");
+  ok &= contains(renderer_c,
+                 "dev_->SetRenderState(D3DRS_FOGSTART,float_to_dword(env->fog_start));",
+                 "renderer applies authored Environ fog start distance");
+  ok &= contains(renderer_c,
+                 "dev_->SetRenderState(D3DRS_FOGEND,float_to_dword(env->fog_end));",
+                 "renderer applies authored Environ fog end distance");
+  ok &= contains(renderer_c,
+                 "disable_authored_fog();",
+                 "renderer clears authored fog after scoped mesh rendering");
   ok &= contains(renderer_c,
                  "scene_.find_light(ref)",
                  "renderer resolves Environ-authored Light refs before applying dynamic lighting");

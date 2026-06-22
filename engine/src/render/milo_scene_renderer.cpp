@@ -48,6 +48,29 @@ DWORD float_to_dword(float value) {
   return out;
 }
 
+int color_channel(float value) {
+  const int out =
+      static_cast<int>(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
+  return std::clamp(out, 0, 255);
+}
+
+D3DCOLOR d3d_color_from_rgba(const float color[4]) {
+  return D3DCOLOR_XRGB(color_channel(color[0]), color_channel(color[1]),
+                       color_channel(color[2]));
+}
+
+bool environ_fog_sane(const milo_scene::EnvironObj& env) {
+  if (!env.fog_enabled) return false;
+  if (!std::isfinite(env.fog_start) || !std::isfinite(env.fog_end)) {
+    return false;
+  }
+  if (env.fog_end <= env.fog_start + 1.0f) return false;
+  for (float value : env.fog_color) {
+    if (!std::isfinite(value)) return false;
+  }
+  return true;
+}
+
 float hash01(uint32_t x) {
   x ^= x >> 16;
   x *= 0x7feb352du;
@@ -840,6 +863,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   dev_->SetRenderState(D3DRS_AMBIENT, kDefaultSceneAmbient);
   dev_->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE);
   dev_->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
+  dev_->SetRenderState(D3DRS_FOGENABLE, FALSE);
   auto set_dir_light = [&](DWORD idx, float x, float y, float z, float bright) {
     D3DLIGHT9 light{};
     light.Type = D3DLIGHT_DIRECTIONAL;
@@ -882,6 +906,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       apply_environment_lighting &&
       env_enabled("GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS") &&
       !env_enabled("GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS");
+  const bool apply_environment_fog =
+      apply_environment_lighting && !env_enabled("GHOGX_DISABLE_ENVIRON_FOG");
   std::string active_authored_light_key;
   auto disable_authored_lights = [&]() {
     if (active_authored_light_key.empty()) return;
@@ -941,6 +967,36 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       ++enabled;
     }
     active_authored_light_key = enabled == 0 ? std::string{} : env->name;
+  };
+  std::string active_authored_fog_key;
+  auto disable_authored_fog = [&]() {
+    if (active_authored_fog_key.empty()) return;
+    dev_->SetRenderState(D3DRS_FOGENABLE, FALSE);
+    active_authored_fog_key.clear();
+  };
+  auto configure_authored_fog = [&](const milo_scene::EnvironObj* env) {
+    if (!apply_environment_fog || !env || !environ_fog_sane(*env)) {
+      disable_authored_fog();
+      return;
+    }
+    if (active_authored_fog_key == env->name) return;
+    dev_->SetRenderState(D3DRS_FOGENABLE, TRUE);
+    dev_->SetRenderState(D3DRS_FOGCOLOR, d3d_color_from_rgba(env->fog_color));
+    dev_->SetRenderState(D3DRS_FOGTABLEMODE, D3DFOG_NONE);
+    dev_->SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_LINEAR);
+    dev_->SetRenderState(D3DRS_FOGSTART, float_to_dword(env->fog_start));
+    dev_->SetRenderState(D3DRS_FOGEND, float_to_dword(env->fog_end));
+    if (env_enabled("GHOGX_LOG_ENVIRON_FOG")) {
+      static std::unordered_set<std::string> logged_fog_envs;
+      if (logged_fog_envs.insert(env->name).second) {
+        std::fprintf(stderr,
+                     "[milo_scene] Environ fog active: %s start=%.3f end=%.3f color=(%.3f %.3f %.3f %.3f)\n",
+                     env->name.c_str(), env->fog_start, env->fog_end,
+                     env->fog_color[0], env->fog_color[1], env->fog_color[2],
+                     env->fog_color[3]);
+      }
+    }
+    active_authored_fog_key = env->name;
   };
 
   auto draw_mesh_with_world = [&](const milo_scene::MeshObj& m,
@@ -1014,6 +1070,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
                                      cc_env(env_color[2]));
     }
     dev_->SetRenderState(D3DRS_AMBIENT, mesh_ambient);
+    configure_authored_fog(mesh_env);
     configure_authored_lights(mesh_env);
     bool material_tex_anim = false;
     float rot = 0.0f;
@@ -1304,8 +1361,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     if (hidden_meshes_.find(m.name) != hidden_meshes_.end()) continue;
     if (spotlight_template_meshes.find(m.name) != spotlight_template_meshes.end())
       continue;
-    if (additive_blend_)
-      continue;
     auto world = scene_.world_matrix(m);
     if (const auto offset_it = mesh_transform_offsets_.find(m.name);
         offset_it != mesh_transform_offsets_.end()) {
@@ -1361,8 +1416,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     }
     draw_mesh_with_world(m, mul16(world, world_transform_));
   }
+  disable_authored_fog();
 
-  if (!scene_.particles.empty() && !additive_blend_) {
+  if (!scene_.particles.empty()) {
     for (const auto& particle : scene_.particles) {
       draw_particle_system(particle);
     }
@@ -1573,6 +1629,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       }
     }
   }
+  disable_authored_fog();
 
   dev_->SetTexture(0, nullptr);
 
