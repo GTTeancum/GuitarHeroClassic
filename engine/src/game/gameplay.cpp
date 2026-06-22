@@ -679,11 +679,35 @@ std::optional<bool> milo_bool_property(const uint8_t* body, size_t size,
     return std::nullopt;
 }
 
+std::optional<int> milo_i32_property(const uint8_t* body, size_t size,
+                                     std::string_view key) {
+    if (key.empty() || key.size() > 64) return std::nullopt;
+    for (size_t i = 0; i + 4 + key.size() + 8 <= size; ++i) {
+        uint32_t len = 0;
+        std::memcpy(&len, body + i, sizeof(len));
+        if (len != key.size()) continue;
+        if (std::memcmp(body + i + 4, key.data(), key.size()) != 0) continue;
+        const size_t value_off = i + 4 + key.size();
+        uint32_t tag = 0;
+        int32_t value = 0;
+        std::memcpy(&tag, body + value_off, sizeof(tag));
+        std::memcpy(&value, body + value_off + 4, sizeof(value));
+        if (tag == 0) return static_cast<int>(value);
+    }
+    return std::nullopt;
+}
+
 bool camshot_bool_property(const uint8_t* body, size_t size,
                            const std::vector<std::string>& strings,
                            std::string_view key, bool fallback) {
     if (auto value = milo_bool_property(body, size, key)) return *value;
     return bool_string_after(strings, key, fallback);
+}
+
+int camshot_i32_property(const uint8_t* body, size_t size, std::string_view key,
+                         int fallback) {
+    if (auto value = milo_i32_property(body, size, key)) return *value;
+    return fallback;
 }
 
 bool is_performer_entity(std::string_view s) {
@@ -1220,6 +1244,7 @@ struct IntroCameraSelection {
     std::string anim = "Intro.tnm";
     bool hide_crowd = false;
     bool crowd_face_camera = false;
+    int force_char_lod = -1;
 };
 
 IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
@@ -1245,6 +1270,7 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             bool direct_camshot_pose = false;
             bool hide_crowd = false;
             bool crowd_face_camera = false;
+            int force_char_lod = -1;
         };
         std::vector<Candidate> candidates;
         for (const auto& de : dir.entries) {
@@ -1272,6 +1298,8 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             c.crowd_face_camera =
                 camshot_bool_property(body, static_cast<size_t>(de.size),
                                       strings, "crowd_face_camera", false);
+            c.force_char_lod = camshot_i32_property(
+                body, static_cast<size_t>(de.size), "force_char_lod", -1);
             for (const auto& s : strings) {
                 if (s.size() > 4 && s.rfind(".tnm") == s.size() - 4) {
                     c.anim = s;
@@ -1314,18 +1342,20 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
                                  return a.score > b.score;
                              });
             std::fprintf(stderr,
-                         "[world] intro CamShot %s -> %s (score=%d, policy distance=%s facing=%s hide_crowd=%d crowd_face_camera=%d)\n",
+                         "[world] intro CamShot %s -> %s (score=%d, policy distance=%s facing=%s hide_crowd=%d crowd_face_camera=%d force_char_lod=%d)\n",
                          candidates.front().shot.c_str(),
                          candidates.front().anim.c_str(), candidates.front().score,
                          policy.intro_distance.c_str(),
                          policy.intro_facing.c_str(),
                          candidates.front().hide_crowd ? 1 : 0,
-                         candidates.front().crowd_face_camera ? 1 : 0);
+                         candidates.front().crowd_face_camera ? 1 : 0,
+                         candidates.front().force_char_lod);
             IntroCameraSelection selected;
             selected.shot = candidates.front().shot;
             selected.anim = candidates.front().anim;
             selected.hide_crowd = candidates.front().hide_crowd;
             selected.crowd_face_camera = candidates.front().crowd_face_camera;
+            selected.force_char_lod = candidates.front().force_char_lod;
             return selected;
         }
     } catch (const std::exception& ex) {
@@ -4724,6 +4754,9 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 const bool crowd_face_camera =
                     camshot_bool_property(body, static_cast<size_t>(de.size),
                                           strings, "crowd_face_camera", false);
+                const int force_char_lod =
+                    camshot_i32_property(body, static_cast<size_t>(de.size),
+                                         "force_char_lod", -1);
                 auto decoded_poses =
                     decode_camshot_poses(body, static_cast<size_t>(de.size));
                 for (auto& pose : decoded_poses) {
@@ -4731,15 +4764,16 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                     pose.first.frame = 0.0f;
                     pose.first.hide_crowd = hide_crowd;
                     pose.first.crowd_face_camera = crowd_face_camera;
+                    pose.first.force_char_lod = force_char_lod;
                     out.push_back(pose.first);
                 }
                 if (!out.empty()) {
                     std::fprintf(
                         stderr,
-                        "[world] intro CamShot %s: %zu direct poses first body+0x%zX hide_crowd=%d crowd_face_camera=%d\n",
+                        "[world] intro CamShot %s: %zu direct poses first body+0x%zX hide_crowd=%d crowd_face_camera=%d force_char_lod=%d\n",
                         de.name.c_str(), out.size(),
                         decoded_poses.front().second, hide_crowd ? 1 : 0,
-                        crowd_face_camera ? 1 : 0);
+                        crowd_face_camera ? 1 : 0, force_char_lod);
                 }
                 return out;
             }
@@ -6967,6 +7001,9 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             c.key.crowd_face_camera =
                 camshot_bool_property(body, static_cast<size_t>(de.size),
                                       strings, "crowd_face_camera", false);
+            c.key.force_char_lod =
+                camshot_i32_property(body, static_cast<size_t>(de.size),
+                                     "force_char_lod", -1);
             infer_camshot_target(strings, c.shot, c.key);
             for (auto& decoded_pose : decoded_poses) {
                 Gameplay::CameraKey pos = decoded_pose.first;
@@ -6982,6 +7019,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.lighter = c.key.lighter;
                 pos.hide_crowd = c.key.hide_crowd;
                 pos.crowd_face_camera = c.key.crowd_face_camera;
+                pos.force_char_lod = c.key.force_char_lod;
                 pos.target_entity = c.key.target_entity;
                 pos.target_subpart = c.key.target_subpart;
                 c.key.positions.push_back(std::move(pos));
@@ -7020,7 +7058,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s poses=%zu pose body+0x%zX score=%d special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s poses=%zu pose body+0x%zX score=%d special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.positions.size(), c.off, c.score,
@@ -7028,7 +7066,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.low_excitement_ok ? 1 : 0,
                          key.starpower_ok ? 1 : 0, key.jump_ok ? 1 : 0,
                          key.lighter ? 1 : 0, key.hide_crowd ? 1 : 0,
-                         key.crowd_face_camera ? 1 : 0);
+                         key.crowd_face_camera ? 1 : 0, key.force_char_lod);
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] regular camera select: %s\n", ex.what());
@@ -11309,14 +11347,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 for (auto& key : camera_keys_) {
                     key.hide_crowd = intro_camera.hide_crowd;
                     key.crowd_face_camera = intro_camera.crowd_face_camera;
+                    key.force_char_lod = intro_camera.force_char_lod;
                 }
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(stderr,
-                                 "[world] intro camera flags: shot=%s anim=%s keys=%zu hide_crowd=%d crowd_face_camera=%d\n",
+                                 "[world] intro camera flags: shot=%s anim=%s keys=%zu hide_crowd=%d crowd_face_camera=%d force_char_lod=%d\n",
                                  intro_camera.shot.c_str(),
                                  intro_camera.anim.c_str(), camera_keys_.size(),
                                  intro_camera.hide_crowd ? 1 : 0,
-                                 intro_camera.crowd_face_camera ? 1 : 0);
+                                 intro_camera.crowd_face_camera ? 1 : 0,
+                                 intro_camera.force_char_lod);
                 }
                 regular_camera_keys_ = load_regular_camera_keys(
                     hdr_path_, ark_path_, quickplay_rig_->venue, camera_policy);

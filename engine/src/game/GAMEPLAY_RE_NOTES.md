@@ -2461,3 +2461,27 @@ Rejected native probe:
   zero unsupported, miss, no decoded, unresolved, and error rows while still
   sampling lighting MatAnim plus route-specific venue MeshAnim/AnimFilter
   activity.
+
+2026-06-22 CamShot force-char-LOD preservation:
+
+- `world/gen/camshot.dta` calls `world set_min_lod [force_char_lod]` when a
+  CamShot starts. A fresh stock PS2 audit in
+  `analysis/camshot_property_audit_20260622_current/` dumps all eight venue
+  CamShot pools and confirms the field is not just schema noise: every venue
+  has authored `force_char_lod` values, with the common pattern that `band_POV*`
+  shots carry `1` while many normal/intro/near shots carry `-1`.
+- Native now preserves that signed packed-MILO int through the shared CamShot
+  property reader and carries it on `CameraKey` for selected intro CamShots,
+  direct `CamShot:` intro fallback poses, regular shots, and per-pose camera
+  variants. Runtime camera logs include `force_char_lod` beside the existing
+  `hide_crowd` / `crowd_face_camera` flags.
+- Validation:
+  `analysis/native_validation/camshot_force_lod_small2_20260622_current/`
+  runs stock PS2 `youreallygotme` through small2 with hidden fixed-step
+  diagnostic autoplay and screenshots at frames 30/60/80. The run exits `0`,
+  records intro/direct camera `force_char_lod=-1`, records
+  `band_POV01`/`band_POV02`/`band_POV03` with `force_char_lod=1`, and has zero
+  unsupported, no decoded, unresolved, missing, `MISS`, `miss=`, or error rows.
+  This is a format-preservation bridge only; it deliberately does not change
+  character mesh LOD rendering until a native visual mismatch proves the
+  renderer side is needed.

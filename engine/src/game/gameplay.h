@@ -134,6 +134,7 @@ class Gameplay {
     bool lighter = false;
     bool hide_crowd = false;
     bool crowd_face_camera = false;
+    int force_char_lod = -1;
     std::vector<CameraKey> positions;
   };
   struct LightingPreset {
