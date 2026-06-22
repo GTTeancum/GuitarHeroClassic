@@ -1354,6 +1354,45 @@ std::vector<std::string> texture_names_for_scene_and_mat_anims(
     return std::vector<std::string>(unique.begin(), unique.end());
 }
 
+std::unordered_set<std::string> material_refs_for_scene_and_mat_anims(
+    const ghogx::milo_scene::Scene& scene,
+    const std::map<std::string, Gameplay::VenueMaterialAnim>& mat_anims) {
+    std::unordered_set<std::string> refs;
+    for (const auto& mesh : scene.meshes)
+        if (!mesh.material.empty()) refs.insert(mesh.material);
+    for (const auto& particle : scene.particles)
+        if (!particle.material.empty()) refs.insert(particle.material);
+    for (const auto& spot : scene.spotlights) {
+        if (!spot.material.empty()) refs.insert(spot.material);
+        if (!spot.circle_material.empty()) refs.insert(spot.circle_material);
+        if (!spot.lens_material.empty()) refs.insert(spot.lens_material);
+    }
+    for (const auto& [_, anim] : mat_anims)
+        if (!anim.material.empty()) refs.insert(anim.material);
+    return refs;
+}
+
+size_t merge_missing_materials_from(
+    ghogx::milo_scene::Scene& scene,
+    const std::vector<ghogx::milo_scene::MatObj>& source_mats,
+    const std::unordered_set<std::string>& needed_refs,
+    std::vector<std::string>* added_names = nullptr) {
+    std::unordered_set<std::string> existing;
+    existing.reserve(scene.mats.size() + source_mats.size());
+    for (const auto& mat : scene.mats) existing.insert(mat.name);
+
+    size_t added = 0;
+    for (const auto& mat : source_mats) {
+        if (mat.name.empty() || needed_refs.find(mat.name) == needed_refs.end())
+            continue;
+        if (!existing.insert(mat.name).second) continue;
+        scene.mats.push_back(mat);
+        if (added_names) added_names->push_back(mat.name);
+        ++added;
+    }
+    return added;
+}
+
 std::unordered_set<std::string> mesh_names_in_groups(
     const ghogx::milo_scene::Scene& scene,
     std::initializer_list<const char*> group_names) {
@@ -11104,6 +11143,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             const std::string venue_geom =
                 "world/" + quickplay_rig_->venue + "/og/gen/" +
                 quickplay_rig_->venue + "_geom.milo_ps2";
+            std::vector<ghogx::milo_scene::MatObj> venue_geom_materials;
             ghogx::milo_scene::Scene venue_scene;
             if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_, venue_geom,
                                               venue_scene)) {
@@ -11215,6 +11255,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 venue_base_hidden_meshes_ = std::move(hidden_venue_meshes);
                 venue_runtime_hidden_meshes_ = venue_base_hidden_meshes_;
+                venue_geom_materials = venue_scene.mats;
                 world_ = std::make_unique<ghogx::render::MiloSceneRenderer>(win);
                 world_->set_scene(std::move(venue_scene), venue_textures);
                 world_->set_active_particle_systems({});
@@ -11340,6 +11381,26 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                                    lighting_presets_,
                                                    venue_lights_,
                                                    venue_environs_);
+                std::vector<std::string> borrowed_materials;
+                const auto needed_lighting_materials =
+                    material_refs_for_scene_and_mat_anims(lighting_scene,
+                                                          lighting_mat_anims_);
+                const size_t borrowed_material_count =
+                    merge_missing_materials_from(lighting_scene,
+                                                 venue_geom_materials,
+                                                 needed_lighting_materials,
+                                                 &borrowed_materials);
+                if (debug_venue_filters_enabled() &&
+                    borrowed_material_count > 0) {
+                    std::fprintf(
+                        stderr,
+                        "[world] lighting material fallback: borrowed %zu "
+                        "from venue geometry",
+                        borrowed_material_count);
+                    for (const auto& name : borrowed_materials)
+                        std::fprintf(stderr, " %s", name.c_str());
+                    std::fprintf(stderr, "\n");
+                }
                 auto lighting_textures =
                     ghogx::asset::load_milo_textures_from_sources(
                         hdr_path_, ark_path_,

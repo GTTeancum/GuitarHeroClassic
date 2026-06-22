@@ -1030,6 +1030,33 @@ int main() {
                  "texture_names_for_scene_and_mat_anims("
                  "lighting_scene,lighting_mat_anims_));",
                  "lighting overlay textures fall back to paired venue geometry MILO");
+  ok &= contains(gameplay_c,
+                 "std::unordered_set<std::string>"
+                 "material_refs_for_scene_and_mat_anims(",
+                 "lighting overlay gathers exact material refs before fallback");
+  ok &= contains(gameplay_c,
+                 "size_tmerge_missing_materials_from("
+                 "ghogx::milo_scene::Scene&scene,",
+                 "lighting overlay has a generic missing-Mat merge helper");
+  ok &= contains(gameplay_c,
+                 "std::vector<ghogx::milo_scene::MatObj>"
+                 "venue_geom_materials;",
+                 "venue geometry Mat records are kept for lighting fallback");
+  ok &= contains(gameplay_c,
+                 "venue_geom_materials=venue_scene.mats;",
+                 "venue geometry Mat records are captured before scene move");
+  ok &= contains(gameplay_c,
+                 "merge_missing_materials_from(lighting_scene,"
+                 "venue_geom_materials,needed_lighting_materials,"
+                 "&borrowed_materials);",
+                 "lighting overlay borrows only referenced missing Mat records");
+  ok &= appears_before(gameplay_c,
+                       "merge_missing_materials_from(lighting_scene,"
+                       "venue_geom_materials,needed_lighting_materials,"
+                       "&borrowed_materials);",
+                       "texture_names_for_scene_and_mat_anims("
+                       "lighting_scene,lighting_mat_anims_));",
+                       "lighting Mat fallback happens before texture requests");
   ok &= absent(gameplay,
                "track_light_obj.tex",
                "lighting texture fallback must not special-case arena texture names");

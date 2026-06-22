@@ -2401,3 +2401,32 @@ Rejected native probe:
   frames. All seven exits are `0`, every lighting overlay reports full
   requested texture coverage, and the parser records `bad_rows=0` for
   unresolved textures, unsupported rows, miss rows, and missing ARK entries.
+
+2026-06-22 lighting overlay geometry material fallback:
+
+- Raw scene scans found the same PS2 resource split at the material-record
+  level: lighting overlay meshes can name `.mat` objects that are not stored
+  in `<venue>_lighting.milo_ps2` but are present in the paired
+  `<venue>_geom.milo_ps2`. Confirmed examples are arena
+  `searchlight.mat` / `track light obj.mat`, battle `lightrigface.mat` /
+  `lamp.mat`, fest `light_body.mat`, and small2 `op_pat-1.mat`.
+- Native now collects exact material references from lighting overlay meshes,
+  spotlights, particles, and lighting `MatAnim` targets, then copies only
+  those missing `MatObj` records from the already-loaded geometry scene before
+  building the lighting texture request list and before `set_scene`. Overlay
+  local material records keep precedence, and there are no material-name or
+  venue-name special cases.
+- Validation:
+  `analysis/native_validation/lighting_material_geom_fallback_arena_20260622_current/`
+  runs arena `shoutatthedevil` for 260 hidden fixed-step frames with
+  screenshots at 80/160/240. It exits `0` and logs:
+  `lighting material fallback: borrowed 2 from venue geometry searchlight.mat
+  track light obj.mat`, with zero unsupported, miss, no decoded, unresolved,
+  and error rows.
+  `analysis/native_validation/lighting_material_geom_fallback_crosscheck_20260622_current/`
+  reruns battle, fest, and small2 for 100 hidden fixed-step frames. All three
+  exits are `0`; battle borrows `lightrigface.mat` / `lamp.mat`, fest borrows
+  `light_body.mat`, and small2 borrows `op_pat-1.mat`. Each route again has
+  zero unsupported, miss, no decoded, unresolved, and error rows while still
+  sampling lighting MatAnim plus route-specific venue MeshAnim/AnimFilter
+  activity.
