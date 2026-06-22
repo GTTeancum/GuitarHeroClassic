@@ -83,6 +83,8 @@ class Gameplay {
     bool low_excitement_ok = true;
     bool jump_ok = true;
     bool lighter = false;
+    bool hide_crowd = false;
+    bool crowd_face_camera = false;
     std::vector<CameraKey> positions;
   };
   struct LightingPreset {
@@ -342,6 +344,7 @@ class Gameplay {
                          bool force_persistent = false);
   bool apply_venue_event_visibility(const std::string& event_name, bool log);
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;
+  void apply_camera_crowd_visibility(const CameraKey& key);
   void resend_active_venue_event();
   void clear_runtime_venue_animation_state();
   void update_active_venue_material_anims();
@@ -559,6 +562,8 @@ class Gameplay {
   double last_venue_filter_debug_time_ = -1.0;
   std::unordered_set<std::string> venue_base_hidden_meshes_;
   std::unordered_set<std::string> venue_runtime_hidden_meshes_;
+  std::unordered_set<std::string> venue_crowd_meshes_;
+  std::unordered_set<std::string> venue_camera_hidden_meshes_;
   std::string active_venue_event_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformAnim>
       drum_mesh_transform_anims_;

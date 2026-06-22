@@ -1378,6 +1378,39 @@ int main() {
   ok &= contains(gameplay_c,
                  "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
                  "camera loader keeps solo-only CamShots for solo sections");
+  ok &= contains(gameplay_h_c,
+                 "boolhide_crowd=false;boolcrowd_face_camera=false;",
+                 "CameraKey keeps authored crowd CamShot flags");
+  ok &= contains(gameplay_c,
+                 "c.key.hide_crowd=camshot_bool_property(",
+                 "regular camera loader decodes CamShot hide_crowd");
+  ok &= contains(gameplay_c,
+                 "c.key.crowd_face_camera=camshot_bool_property(",
+                 "regular camera loader decodes CamShot crowd_face_camera");
+  ok &= contains(gameplay_c,
+                 "pose.first.hide_crowd=hide_crowd;",
+                 "direct intro CamShot path preserves hide_crowd");
+  ok &= contains(gameplay_c,
+                 "pos.hide_crowd=c.key.hide_crowd;",
+                 "regular camera pose variants inherit crowd visibility flags");
+  ok &= contains(gameplay_c,
+                 "venue_crowd_meshes_=mesh_names_for_crowd(venue_scene);",
+                 "venue load builds an authored crowd mesh set");
+  ok &= contains(gameplay_c,
+                 "hidden.insert(venue_camera_hidden_meshes_.begin(),",
+                 "camera crowd hides compose with venue visibility state");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::apply_camera_crowd_visibility(constCameraKey&key)",
+                 "camera runtime owns source-backed crowd visibility");
+  ok &= contains(gameplay_c,
+                 "if(key.hide_crowd)next_hidden=venue_crowd_meshes_;",
+                 "hide_crowd selects only decoded crowd meshes");
+  ok &= contains(gameplay_c,
+                 "apply_camera_crowd_visibility(current_position);",
+                 "regular camera path applies crowd visibility flags");
+  ok &= contains(gameplay_c,
+                 "apply_camera_crowd_visibility(camera_keys_.front());",
+                 "intro camera path applies direct CamShot crowd visibility flags");
   ok &= contains(gameplay_c,
                  "enumclassCameraShotMode{Regular,Solo,Jump,Lighter};",
                  "camera director has distinct regular/solo/jump/lighter modes");

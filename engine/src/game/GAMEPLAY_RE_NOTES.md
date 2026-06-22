@@ -1366,6 +1366,37 @@ Rejected native probe:
   The known `.lit`/`.env` "no decoded" rows remain lighting graph breadcrumbs,
   not camera route failures.
 
+2026-06-22 CamShot crowd visibility route:
+
+- Source route:
+  `_community_re/Guitar-Hero-II-Deluxe-Unified/_ark/world/camshot.dta`
+  calls `[crowd] crowd_update` on shot start and then sets the crowd's
+  rotate flag from the CamShot `crowd_face_camera` property. The same CamShot
+  object schema carries `hide_crowd`, visible in stock PS2 CamShot dumps such
+  as `analysis/venue_lighting_audit/small2_gen_camshot_dump_20260622.txt`.
+- Native now decodes `hide_crowd` and `crowd_face_camera` with the same packed
+  bool reader used for `walk_ok`, `low_excitement_ok`, `starpower_ok`,
+  `jump_ok`, and `special`. Regular camera pose variants and direct embedded
+  intro CamShot poses carry those flags through `CameraKey`.
+- Because native does not yet instantiate the full crowd character system, the
+  current source-backed visual bridge applies only the `hide_crowd` half:
+  venue load builds a generic authored crowd mesh set from group names, mesh
+  names, and material names containing `crowd`, and selected camera keys
+  compose that set into `composed_venue_hidden_meshes()`. This layers with
+  EventTrigger visibility and material-alpha hiding instead of replacing those
+  routes. `crowd_face_camera` is preserved and logged for the future crowd
+  actor route, but it does not rotate static venue meshes.
+- Validation:
+  `analysis/native_validation/camera_crowd_flags_shout_20260622_current/`
+  reruns the existing stock `shoutatthedevil` lighter-camera window and proves
+  the flag decode without changing the lighter/jump route. The longer follow-up
+  `analysis/native_validation/camera_crowd_flags_shout_long_20260622_current/`
+  runs the same route until the regular director selects
+  `flr_near_rt01xbass.shot`; the log records 15 decoded venue crowd meshes,
+  `camera crowd visibility: shot=flr_near_rt01xbass.shot hide=1 meshes=15`,
+  then `flr_far_lft03 hide=0 meshes=0`. The run exits `0` and records zero
+  miss/unsupported material-channel rows.
+
 2026-06-22 battle MatAnim color/texture channel route:
 
 - Stock PS2 `config/gen/songs.dtb` maps `rockthistown` to
