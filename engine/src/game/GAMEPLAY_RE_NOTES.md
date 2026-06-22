@@ -2185,5 +2185,29 @@ Rejected native probe:
   the normal run logs only active `master_can.mesh` Spotlight draws. That proves
   those visible fan shapes are regular projection/fog overlay meshes
   (`opArt_projection`, `trippy_projection`, floor fog/glow), not active
-  Spotlight instances. This is renderer/route evidence, not final RedOctane
-  venue visual signoff.
+ Spotlight instances. This is renderer/route evidence, not final RedOctane
+ venue visual signoff.
+
+2026-06-22 lighting Spotlight Set coverage:
+
+- Lighting overlay MILOs carry authored `Set` objects in several venues
+  (`fest`, `small1`, `stone`, and `theatre`). Retained PS2 bodies show a
+  compact collection shape: 13 bytes of object/base data, a little-endian
+  spot-ref count at `+0x0d`, then length-prefixed `.spot` refs. Examples:
+  `fest_lighting` `STARS.set` expands to four ceiling-front spotlights, and
+  `small1_lighting` `Set Front.set` expands to six front light-can spotlights.
+- Native now decodes those lighting `Set` bodies while loading
+  `LightPreset` data, treats known `.set` names as object refs rather than
+  possible keyframe labels, and expands any direct preset/keyframe Set refs
+  into the existing `spot_refs` filter. This keeps Set support inside the
+  shared LightPreset/Spotlight path; it does not add venue-specific light
+  lists and does not enable the still-gated dynamic Environ light bridge.
+- Validation:
+  `analysis/native_validation/lighting_set_expansion_fest_small1_20260622_current/`
+  reruns hidden diagnostic-autoplay windows for stock `badreputation`/fest and
+  `psychobilly`/small1. Both routes exit `0` with zero miss rows, zero
+  unsupported material-channel rows, and zero missing venue/lighting-route
+  rows. Fest decodes 20 lighting Sets and small1 decodes 5. The exercised stock
+  LightPreset bodies still report `sets=0`, so current active spotlight
+  selection remains target-state driven; this pass is object-format coverage,
+  not a claimed visual lighting-color parity change.

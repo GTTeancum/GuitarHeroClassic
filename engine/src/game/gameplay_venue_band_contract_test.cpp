@@ -1250,7 +1250,8 @@ int main() {
                  "Gameplay::LightingPreset::Keyframe&keyframe,"
                  "constuint8_t*body,size_tsize,size_trecord_start,"
                  "size_tpayload_end,boolinclude_object_refs,"
-                 "constLightingObjectNameSets*names)",
+                 "constLightingObjectNameSets*names,"
+                 "constLightingSpotlightSetMap*spot_sets)",
                  "LightPreset keyframe target-state scanning is shared");
   ok &= contains(gameplay_c,
                  "if(out.size()<count&&record_start<size){"
@@ -1261,7 +1262,7 @@ int main() {
                  "unlabeled LightPreset fallback frames are explicit in logs");
   ok &= contains(gameplay_c,
                  "populate_lighting_keyframe_payload(k,body,size,record_start,size,"
-                 "false,names);",
+                 "false,names,spot_sets);",
                  "unlabeled LightPreset fallback scans the remaining payload without tail refs");
   ok &= contains(gameplay_c,
                  "include_object_refs&&(s.rfind(\".spot\")",
@@ -1447,8 +1448,20 @@ int main() {
   ok &= contains(gameplay_c,
                  "returnknown_lighting_ref(s,names->spots)||"
                  "known_lighting_ref(s,names->environs)||"
-                 "known_lighting_ref(s,names->lights);",
-                 "LightPreset label scanner rejects extensionless known object refs");
+                 "known_lighting_ref(s,names->lights)||"
+                 "known_lighting_ref(s,names->sets);",
+                 "LightPreset label scanner rejects known object and Set refs");
+  ok &= contains(gameplay_c,
+                 "std::vector<std::string>decode_lighting_spotlight_set",
+                 "lighting Set bodies are decoded as spotlight collections");
+  ok &= contains(gameplay_c,
+                 "collect_lighting_object_refs(strings,&local_names,"
+                 "&spotlight_sets,p.spot_refs,&p.spot_set_refs,"
+                 "p.env_refs,p.lit_refs);",
+                 "LightPreset Set refs expand into the existing spotlight filter");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<std::string>spot_set_refs;",
+                 "LightingPreset keeps decoded Set refs for validation");
   ok &= contains(gameplay_h_c,
                  "std::unordered_set<std::string>venue_light_names_;",
                  "runtime caches raw venue geometry Light names for extensionless refs");

@@ -3518,6 +3518,7 @@ struct LightingObjectNameSets {
     std::unordered_set<std::string> spots;
     std::unordered_set<std::string> environs;
     std::unordered_set<std::string> lights;
+    std::unordered_set<std::string> sets;
 };
 
 bool known_lighting_ref(std::string_view s,
@@ -3531,7 +3532,8 @@ bool is_lighting_object_ref(std::string_view s,
     if (!names) return false;
     return known_lighting_ref(s, names->spots) ||
            known_lighting_ref(s, names->environs) ||
-           known_lighting_ref(s, names->lights);
+           known_lighting_ref(s, names->lights) ||
+           known_lighting_ref(s, names->sets);
 }
 
 std::string lower_ascii(std::string_view s) {
@@ -3619,15 +3621,56 @@ void add_unique_lighting_ref(std::vector<std::string>& refs,
         refs.push_back(std::move(value));
 }
 
+std::vector<std::string> decode_lighting_spotlight_set(
+    const uint8_t* body, size_t size) {
+    std::vector<std::string> refs;
+    constexpr size_t kSetCountOffset = 0x0D;
+    constexpr size_t kSetRefsOffset = 0x11;
+    if (!body || size < kSetRefsOffset) return refs;
+    uint32_t count = 0;
+    std::memcpy(&count, body + kSetCountOffset, sizeof(count));
+    size_t pos = kSetRefsOffset;
+    for (uint32_t i = 0; i < count && pos + 4 <= size; ++i) {
+        uint32_t len = 0;
+        std::memcpy(&len, body + pos, sizeof(len));
+        pos += 4;
+        if (len == 0 || len > 128 || pos + len > size) break;
+        std::string ref(reinterpret_cast<const char*>(body + pos), len);
+        pos += len;
+        if (ref.rfind(".spot") != std::string::npos)
+            add_unique_lighting_ref(refs, std::move(ref));
+    }
+    return refs;
+}
+
+using LightingSpotlightSetMap =
+    std::map<std::string, std::vector<std::string>>;
+
+void add_lighting_spot_set_ref(
+    const std::string& set_ref, const LightingSpotlightSetMap* spot_sets,
+    std::vector<std::string>* set_refs, std::vector<std::string>& spot_refs) {
+    if (!spot_sets) return;
+    const auto set_it = spot_sets->find(set_ref);
+    if (set_it == spot_sets->end()) return;
+    if (set_refs) add_unique_lighting_ref(*set_refs, set_ref);
+    for (const auto& spot : set_it->second)
+        add_unique_lighting_ref(spot_refs, spot);
+}
+
 void collect_lighting_object_refs(const std::vector<std::string>& strings,
                                   const LightingObjectNameSets* names,
+                                  const LightingSpotlightSetMap* spot_sets,
                                   std::vector<std::string>& spot_refs,
+                                  std::vector<std::string>* spot_set_refs,
                                   std::vector<std::string>& env_refs,
                                   std::vector<std::string>& lit_refs) {
     for (auto s : strings) {
         if (s.rfind(".spot") != std::string::npos ||
             (names && known_lighting_ref(s, names->spots))) {
             add_unique_lighting_ref(spot_refs, std::move(s));
+        } else if (s.rfind(".set") != std::string::npos ||
+                   (names && known_lighting_ref(s, names->sets))) {
+            add_lighting_spot_set_ref(s, spot_sets, spot_set_refs, spot_refs);
         } else if (s.rfind(".env") != std::string::npos ||
                    (names && known_lighting_ref(s, names->environs))) {
             add_unique_lighting_ref(env_refs, std::move(s));
@@ -3699,7 +3742,8 @@ std::vector<std::string> extract_lighting_keyframe_labels(
 void populate_lighting_keyframe_payload(
     Gameplay::LightingPreset::Keyframe& keyframe, const uint8_t* body,
     size_t size, size_t record_start, size_t payload_end,
-    bool include_object_refs, const LightingObjectNameSets* names) {
+    bool include_object_refs, const LightingObjectNameSets* names,
+    const LightingSpotlightSetMap* spot_sets) {
     const size_t end = std::min(size, payload_end);
     for (size_t pos = record_start; pos + 4 <= end; ++pos) {
         uint32_t len = 0;
@@ -3737,6 +3781,11 @@ void populate_lighting_keyframe_payload(
                     (names && known_lighting_ref(s, names->spots)))) {
             add_unique_lighting_ref(keyframe.spot_refs, std::move(s));
         } else if (include_object_refs &&
+                   (s.rfind(".set") != std::string::npos ||
+                    (names && known_lighting_ref(s, names->sets)))) {
+            add_lighting_spot_set_ref(s, spot_sets, &keyframe.spot_set_refs,
+                                      keyframe.spot_refs);
+        } else if (include_object_refs &&
                    (s.rfind(".env") != std::string::npos ||
                     (names && known_lighting_ref(s, names->environs)))) {
             add_unique_lighting_ref(keyframe.env_refs, std::move(s));
@@ -3752,7 +3801,8 @@ std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
     const uint8_t* body, size_t size, uint32_t count,
     const std::vector<std::string>& labels,
     const std::vector<size_t>& label_offsets,
-    const LightingObjectNameSets* names) {
+    const LightingObjectNameSets* names,
+    const LightingSpotlightSetMap* spot_sets) {
     std::vector<Gameplay::LightingPreset::Keyframe> out;
     size_t record_start = 0;
     const size_t label_count = std::min(labels.size(), label_offsets.size());
@@ -3771,7 +3821,7 @@ std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
         k.duration = read_light_preset_timing_f32(body, size, label_end);
         k.fade_out = read_light_preset_timing_f32(body, size, label_end + 4);
         populate_lighting_keyframe_payload(k, body, size, record_start,
-                                           label_off, true, names);
+                                           label_off, true, names, spot_sets);
         out.push_back(std::move(k));
         record_start = label_end;
     }
@@ -3785,7 +3835,7 @@ std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
         // preset-level spot/env/lit tail table, so recover only packed mesh
         // target-state rows here.
         populate_lighting_keyframe_payload(k, body, size, record_start, size,
-                                           false, names);
+                                           false, names, spot_sets);
         if (!k.mesh_targets.empty()) {
             out.push_back(std::move(k));
         }
@@ -3807,6 +3857,21 @@ std::vector<Gameplay::LightingPreset> load_lighting_presets(
         auto hdr = gh::milo::parse_header(bytes);
         auto payload = gh::milo::inflate_payload(bytes, hdr);
         auto dir = gh::milo::parse_directory(payload);
+        LightingObjectNameSets local_names =
+            names ? *names : LightingObjectNameSets{};
+        LightingSpotlightSetMap spotlight_sets;
+        for (const auto& de : dir.entries) {
+            if (de.type != "Set" || de.offset + de.size > payload.size())
+                continue;
+            const uint8_t* body = payload.data() + de.offset;
+            auto refs =
+                decode_lighting_spotlight_set(body, static_cast<size_t>(de.size));
+            local_names.sets.insert(de.name);
+            spotlight_sets[de.name] = refs;
+            std::fprintf(stderr,
+                         "[world] lighting Set %s spot_refs=%zu\n",
+                         de.name.c_str(), refs.size());
+        }
         for (const auto& de : dir.entries) {
             if (de.type != "LightPreset" ||
                 de.offset + de.size > payload.size() || de.size < 0x1C) {
@@ -3829,26 +3894,28 @@ std::vector<Gameplay::LightingPreset> load_lighting_presets(
                 if (is_lighting_category(s)) p.category = s;
                 if (is_lighting_adjective(s)) p.adjective = s;
             }
-            collect_lighting_object_refs(strings, names, p.spot_refs,
+            collect_lighting_object_refs(strings, &local_names, &spotlight_sets,
+                                         p.spot_refs, &p.spot_set_refs,
                                          p.env_refs, p.lit_refs);
             p.keyframe_names = extract_lighting_keyframe_labels(
                 body, static_cast<size_t>(de.size), p.keyframe_count,
-                names, &p.keyframe_label_offsets);
+                &local_names, &p.keyframe_label_offsets);
             p.keyframes = extract_lighting_keyframes(
                 body, static_cast<size_t>(de.size), p.keyframe_count,
-                p.keyframe_names, p.keyframe_label_offsets, names);
+                p.keyframe_names, p.keyframe_label_offsets, &local_names,
+                &spotlight_sets);
             out.push_back(std::move(p));
         }
         std::fprintf(stderr, "[world] lighting presets decoded: %zu\n",
                      out.size());
         for (const auto& p : out) {
             std::fprintf(stderr,
-                         "[world]   LightPreset %s category=%s adjective=%s keyframes=%u excitement=%u..%u preset_refs=%zu/%zu/%zu",
+                         "[world]   LightPreset %s category=%s adjective=%s keyframes=%u excitement=%u..%u preset_refs=%zu/%zu/%zu sets=%zu",
                          p.name.c_str(), p.category.c_str(),
                          p.adjective.c_str(), p.keyframe_count,
                          p.min_excitement, p.max_excitement,
                          p.spot_refs.size(), p.env_refs.size(),
-                         p.lit_refs.size());
+                         p.lit_refs.size(), p.spot_set_refs.size());
             if (!p.keyframe_names.empty()) {
                 std::string labels;
                 for (size_t i = 0; i < p.keyframe_names.size(); ++i) {

@@ -144,6 +144,7 @@ class Gameplay {
       std::vector<std::string> mesh_targets;
       std::vector<TargetState> target_states;
       std::vector<std::string> spot_refs;
+      std::vector<std::string> spot_set_refs;
       std::vector<std::string> env_refs;
       std::vector<std::string> lit_refs;
     };
@@ -157,6 +158,7 @@ class Gameplay {
     std::vector<size_t> keyframe_label_offsets;
     std::vector<Keyframe> keyframes;
     std::vector<std::string> spot_refs;
+    std::vector<std::string> spot_set_refs;
     std::vector<std::string> env_refs;
     std::vector<std::string> lit_refs;
   };
