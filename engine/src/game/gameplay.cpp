@@ -9013,6 +9013,10 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                          peak_transition_event.c_str());
         }
         apply_venue_event(peak_transition_event, false);
+        venue_route_applied = true;
+    } else if (persistent && force_persistent &&
+               is_peak_excitement_event(event_name)) {
+        venue_route_applied = true;
     }
     auto event_it = venue_event_mat_anims_.find(event_name);
     const bool has_decoded_route_entry =

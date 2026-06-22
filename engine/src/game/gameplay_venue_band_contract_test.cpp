@@ -284,6 +284,15 @@ int main() {
   ok &= contains(gameplay_c,
                  "apply_venue_event(peak_transition_event,false);",
                  "peak_on/off bridge uses transient venue EventTrigger routing");
+  ok &= contains(gameplay_c,
+                 "apply_venue_event(peak_transition_event,false);"
+                 "venue_route_applied=true;",
+                 "peak bridge counts as the decoded route for the persistent excitement event");
+  ok &= contains(gameplay_c,
+                 "persistent&&force_persistent&&"
+                 "is_peak_excitement_event(event_name)){"
+                 "venue_route_applied=true;",
+                 "resending an already-active peak state does not fabricate another peak_on route");
   ok &= contains(gameplay_h_c,
                  "std::vector<ActiveVenueScriptTask>venue_script_tasks_;",
                  "venue script tasks are retained as shared runtime state");

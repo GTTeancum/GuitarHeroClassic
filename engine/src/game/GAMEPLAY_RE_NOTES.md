@@ -2119,6 +2119,18 @@ Rejected native probe:
   `excitement_great`, the bridge fires `peak_off`, the script runs
   `sparks_off`, and `state_peak` returns to `0`. This is venue script/particle
   route validation, not camera-composition signoff.
+- Follow-up validation in
+  `analysis/native_validation/peak_bridge_route_applied_battle_20260622_final/`
+  closes a false missing-route diagnostic from the same Battle peak path. The
+  persistent `excitement_peak` event is represented by the traced transient
+  `peak_on` bridge rather than by its own EventTrigger table entry, and a
+  forced `resend_excitement` of an already-active peak state must not fabricate
+  a second `peak_on`. Native now counts the bridge, plus same-peak forced
+  resend, as satisfying the persistent event. The focused hidden Battle run
+  exits `0` with zero `unsupported`, zero `MISS` / `miss=`, zero
+  `no decoded venue/lighting routes`, one `peak_on`, one `peak_off`, one
+  `resend_excitement: excitement_peak`, 613 lighting animation samples, 94
+  camera rows, and 14 active lighting keyframe rows.
 
 2026-06-22 performer band_jump clip bridge:
 
