@@ -18,6 +18,10 @@
 #define GHOGX_CHART_SOURCE_DIR "."
 #endif
 
+#ifndef GHOGX_CHARACTER_SOURCE_DIR
+#define GHOGX_CHARACTER_SOURCE_DIR "."
+#endif
+
 #ifndef GHOGX_MILO_SCENE_SOURCE_DIR
 #define GHOGX_MILO_SCENE_SOURCE_DIR "."
 #endif
@@ -93,6 +97,7 @@ int main() {
   const std::filesystem::path game_dir = GHOGX_GAME_SOURCE_DIR;
   const std::filesystem::path asset_dir = GHOGX_ASSET_SOURCE_DIR;
   const std::filesystem::path chart_dir = GHOGX_CHART_SOURCE_DIR;
+  const std::filesystem::path character_dir = GHOGX_CHARACTER_SOURCE_DIR;
   const std::filesystem::path milo_scene_dir = GHOGX_MILO_SCENE_SOURCE_DIR;
   const std::filesystem::path render_dir = GHOGX_RENDER_SOURCE_DIR;
   const std::string gameplay = read_file(game_dir / "gameplay.cpp");
@@ -100,6 +105,10 @@ int main() {
   const std::string milo_image = read_file(asset_dir / "milo_image.cpp");
   const std::string milo_image_h = read_file(asset_dir / "milo_image.h");
   const std::string midi_reader = read_file(chart_dir / "midi_reader.cpp");
+  const std::string char_renderer =
+      read_file(character_dir / "char_renderer.cpp");
+  const std::string char_renderer_h =
+      read_file(character_dir / "char_renderer.h");
   const std::string milo_scene_cpp =
       read_file(milo_scene_dir / "milo_scene.cpp");
   const std::string milo_scene_h =
@@ -113,6 +122,8 @@ int main() {
   const std::string milo_image_c = compact(milo_image);
   const std::string milo_image_h_c = compact(milo_image_h);
   const std::string midi_c = compact(midi_reader);
+  const std::string char_renderer_c = compact(char_renderer);
+  const std::string char_renderer_h_c = compact(char_renderer_h);
   const std::string milo_scene_cpp_c = compact(milo_scene_cpp);
   const std::string milo_scene_h_c = compact(milo_scene_h);
   const std::string renderer_c = compact(milo_scene_renderer);
@@ -1842,6 +1853,42 @@ int main() {
   ok &= contains(gameplay_c,
                  "key.force_char_lod=intro_camera.force_char_lod;",
                  "intro TransAnim camera keys inherit selected force_char_lod");
+  ok &= contains(gameplay_h_c,
+                 "intactive_force_char_lod_=-1;",
+                 "runtime tracks the selected CamShot character LOD");
+  ok &= contains(gameplay_c,
+                 "active_force_char_lod_=current_position.force_char_lod;",
+                 "regular camera path selects authored character LOD");
+  ok &= contains(gameplay_c,
+                 "active_force_char_lod_=camera_keys_.front().force_char_lod;",
+                 "intro camera path selects authored character LOD");
+  ok &= contains(gameplay_c,
+                 "perf.renderer->set_min_lod(active_force_char_lod_);",
+                 "performer renderers receive selected CamShot character LOD");
+  ok &= contains(char_renderer_h_c,
+                 "voidset_min_lod(intmin_lod);",
+                 "character renderer exposes shared minimum LOD selection");
+  ok &= contains(char_renderer_c,
+                 "boolis_hidden_by_character_lod_selection("
+                 "constCharacter&character,constSkinnedMesh&mesh,intmin_lod)",
+                 "character renderer selects meshes through authored LOD groups");
+  ok &= contains(char_renderer_c,
+                 "if(min_lod>=1&&has_lod1){return!"
+                 "character_group_contains_mesh(character,\"lod1.grp\",mesh.name);}",
+                 "forced LOD1 draws only decoded lod1.grp members");
+  ok &= contains(char_renderer_c,
+                 "constintclamped=std::max(0,min_lod);",
+                 "negative CamShot LOD resets to high-detail character meshes");
+  ok &= contains(char_renderer_c,
+                 "impl_->min_lod=clamped;",
+                 "character renderer stores the clamped CamShot LOD");
+  ok &= contains(char_renderer_c,
+                 "\"[char3d]min_lodactive:%d\\n\"",
+                 "character LOD changes are debug-verifiable");
+  ok &= contains(gameplay_c,
+                 "\"[world]regularcamerasweep:%s->%sbars_left=%d"
+                 "duration=%s[%d,%d]mode=%sforced=%dforce_char_lod=%d",
+                 "regular camera sweep logs selected character LOD");
   ok &= contains(gameplay_c,
                  "\"[world]introcameraflags:shot=%sanim=%skeys=%zu"
                  "hide_crowd=%dcrowd_face_camera=%dforce_char_lod=%d\\n\"",

@@ -258,6 +258,17 @@ bool is_hidden_by_character_lod_group(const Character& character,
   return character_group_contains_mesh(character, "lod1.grp", mesh.name);
 }
 
+bool is_hidden_by_character_lod_selection(const Character& character,
+                                          const SkinnedMesh& mesh,
+                                          int min_lod) {
+  const bool has_lod1 = find_character_group(character, "lod1.grp") != nullptr;
+  if (min_lod >= 1 && has_lod1) {
+    return !character_group_contains_mesh(character, "lod1.grp", mesh.name);
+  }
+  if (is_lod1(mesh.name)) return true;
+  return is_hidden_by_character_lod_group(character, mesh);
+}
+
 // Numbered dot-variant hair meshes can be real draw members. Rock2's decoded
 // PS2 lod0.grp includes hair-back.1.mesh through hair-back.6.mesh, so a global
 // "numbered hair is hidden" rule drops authored visible hair. Keep the name
@@ -1348,6 +1359,7 @@ struct CharRenderer::Impl {
   float world_offset[3] = {0.0f, 0.0f, 0.0f};
   std::array<float, 16> world_transform = {1, 0, 0, 0, 0, 1, 0, 0,
                                            0, 0, 1, 0, 0, 0, 0, 1};
+  int min_lod = 0;
 
   // Procedural idle animation time (seconds).
   float anim_t = 0.0f;
@@ -1383,6 +1395,15 @@ void CharRenderer::set_world_offset(float x, float y, float z) {
 void CharRenderer::set_world_transform(const std::array<float, 16>& m) {
   impl_->world_transform = m;
   impl_->world_offset[0] = impl_->world_offset[1] = impl_->world_offset[2] = 0.0f;
+}
+
+void CharRenderer::set_min_lod(int min_lod) {
+  const int clamped = std::max(0, min_lod);
+  if (impl_->min_lod == clamped) return;
+  impl_->min_lod = clamped;
+  if (debug_meshes_enabled()) {
+    std::fprintf(stderr, "[char3d] min_lod active: %d\n", impl_->min_lod);
+  }
 }
 
 std::optional<std::array<float, 16>> CharRenderer::attached_prop_world(
@@ -1570,9 +1591,10 @@ void CharRenderer::frame_camera() {
   // Bind pose = stored model-space positions; bound the non-shadow body meshes.
   for (const auto& m : impl_->character.meshes) {
     if (!m.decoded || !m.showing || m.verts.empty() || is_shadow(m.name) ||
-        is_hidden_by_character_lod_group(impl_->character, m) ||
-        is_lod1(m.name) ||
-        is_hidden_numbered_hair_variant(impl_->character, m) ||
+        is_hidden_by_character_lod_selection(impl_->character, m,
+                                             impl_->min_lod) ||
+        (impl_->min_lod < 1 &&
+         is_hidden_numbered_hair_variant(impl_->character, m)) ||
         is_unsupported_dynamic_hair(m.name) ||
         is_terminal_leg_overlay_duplicate(m)) continue;
     for (const auto& v : m.verts) {
@@ -1733,9 +1755,11 @@ void CharRenderer::draw_impl(bool clear_target) {
         std::fprintf(stderr, "[skip-eye] %s\n", m.name.c_str());
       continue;
     }
-    if (is_shadow(m.name) || is_lod1(m.name) ||
-        is_hidden_numbered_hair_variant(impl.character, m) ||
-        is_hidden_by_character_lod_group(impl.character, m) ||
+    if (is_shadow(m.name) ||
+        is_hidden_by_character_lod_selection(impl.character, m,
+                                             impl.min_lod) ||
+        (impl.min_lod < 1 &&
+         is_hidden_numbered_hair_variant(impl.character, m)) ||
         is_unsupported_dynamic_hair(m.name) ||
         is_terminal_leg_overlay_duplicate(m)) continue;
     const bool eye_mesh = is_eye_mesh(m.name);

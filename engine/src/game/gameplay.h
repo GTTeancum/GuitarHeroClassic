@@ -579,6 +579,7 @@ class Gameplay {
   uint32_t last_camera_bar_ = UINT32_MAX;
   uint32_t last_forced_camera_event_tick_ = UINT32_MAX;
   size_t camera_shot_counter_ = 0;
+  int active_force_char_lod_ = -1;
   bool did_lighter_cam_ = false;
   bool crowd_lighter_on_ = false;
   bool intro_end_dispatched_ = false;

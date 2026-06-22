@@ -8074,6 +8074,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     last_camera_bar_ = UINT32_MAX;
     last_forced_camera_event_tick_ = UINT32_MAX;
     camera_shot_counter_ = 0;
+    active_force_char_lod_ = -1;
     did_lighter_cam_ = false;
     crowd_lighter_on_ = false;
     intro_end_dispatched_ = false;
@@ -10870,6 +10871,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     last_camera_bar_ = UINT32_MAX;
     camera_bars_left_ = 0;
     last_forced_camera_event_tick_ = UINT32_MAX;
+    active_force_char_lod_ = -1;
     did_lighter_cam_ = false;
     crowd_lighter_on_ = false;
     intro_end_dispatched_ = false;
@@ -12651,6 +12653,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
 
         const bool in_intro_camera_window =
             intro_camera_seconds_ > 0.0 && song_time_ < intro_camera_seconds_;
+        active_force_char_lod_ = -1;
         if (!in_intro_camera_window && !regular_camera_keys_.empty()) {
             const uint32_t bar = camera_bar_at(chart_, song_time_);
             if (last_camera_bar_ == UINT32_MAX) {
@@ -12761,13 +12764,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         active_camera_position_index_ = 0;
                         std::fprintf(
                             stderr,
-                            "[world] regular camera sweep: %s -> %s bars_left=%d duration=%s[%d,%d] mode=%s forced=%d bar=%u t=%.3f\n",
+                            "[world] regular camera sweep: %s -> %s bars_left=%d duration=%s[%d,%d] mode=%s forced=%d force_char_lod=%d bar=%u t=%.3f\n",
                             previous_regular_camera_.c_str(),
                             key->name.c_str(), camera_bars_left_,
                             duration.first.c_str(), duration.second.first,
                             duration.second.second,
                             camera_shot_mode_label(camera_mode),
-                            force_camera ? 1 : 0, bar, song_time_);
+                            force_camera ? 1 : 0, key->force_char_lod, bar,
+                            song_time_);
                     }
                     if (should_resend_excitement_) {
                         should_resend_excitement_ = false;
@@ -12797,6 +12801,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 const CameraKey current_position =
                     camera_position_for(*key, active_camera_position_index_);
+                active_force_char_lod_ = current_position.force_char_lod;
                 const CameraKey* previous_shot =
                     find_camera_key_by_name(regular_camera_keys_,
                                             previous_regular_camera_);
@@ -12816,6 +12821,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 apply_camera_crowd_visibility(current_position);
             }
         } else if (in_intro_camera_window && !camera_keys_.empty()) {
+            active_force_char_lod_ = camera_keys_.front().force_char_lod;
             apply_camera_keys(world_->camera(), camera_keys_, song_time_,
                               camera_targets);
             apply_camera_crowd_visibility(camera_keys_.front());
@@ -13102,6 +13108,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
         for (auto& perf : performers_) {
             if (!only_role.empty() && perf.role != only_role) continue;
             if (!perf.renderer) continue;
+            perf.renderer->set_min_lod(active_force_char_lod_);
             perf.renderer->draw_over_scene(world_->camera());
         }
         return;

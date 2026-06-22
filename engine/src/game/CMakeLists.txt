@@ -49,6 +49,7 @@ target_compile_definitions(ghogx_gameplay_venue_band_contract_test PRIVATE
     GHOGX_GAME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     GHOGX_ASSET_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../asset"
     GHOGX_CHART_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../chart"
+    GHOGX_CHARACTER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../character"
     GHOGX_MILO_SCENE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../milo_scene"
     GHOGX_RENDER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../render")
 add_test(NAME ghogx_gameplay_venue_band_contract_test

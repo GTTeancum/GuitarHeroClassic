@@ -2475,6 +2475,11 @@ Rejected native probe:
   direct `CamShot:` intro fallback poses, regular shots, and per-pose camera
   variants. Runtime camera logs include `force_char_lod` beside the existing
   `hide_crowd` / `crowd_face_camera` flags.
+- Follow-up implementation: the active CamShot now drives
+  `CharRenderer::set_min_lod` for every performer. Negative/no-force values
+  clamp back to high-detail character meshes; `force_char_lod >= 1` selects the
+  decoded `lod1.grp` membership when that group exists. This keeps the route as
+  a shared authored LOD-group rule and avoids character-specific mesh lists.
 - Validation:
   `analysis/native_validation/camshot_force_lod_small2_20260622_current/`
   runs stock PS2 `youreallygotme` through small2 with hidden fixed-step
@@ -2482,6 +2487,13 @@ Rejected native probe:
   records intro/direct camera `force_char_lod=-1`, records
   `band_POV01`/`band_POV02`/`band_POV03` with `force_char_lod=1`, and has zero
   unsupported, no decoded, unresolved, missing, `MISS`, `miss=`, or error rows.
-  This is a format-preservation bridge only; it deliberately does not change
-  character mesh LOD rendering until a native visual mismatch proves the
-  renderer side is needed.
+  Renderer validation:
+  `analysis/native_validation/camshot_force_lod_runtime_small2_20260622_current/`
+  reruns the same small2 route from `16.0s` with camera/mesh/filter debug.
+  The run exits `0`, selects
+  `flr_near_rt04 -> band_POV02 ... force_char_lod=1` at `t=57.266`, emits
+  four `[char3d] min_lod active: 1` rows for the active performers, keeps
+  `post_switch_cam` on `band_POV02`, records 8,751 venue/lighting sample rows,
+  and has no game/runtime unsupported, missing, miss, unresolved, or error
+  rows. The only `error` text in the log is PowerShell's redirected native
+  stderr wrapper around normal app output.
