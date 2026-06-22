@@ -842,6 +842,49 @@ int main() {
   ok &= contains(gameplay_c,
                  "apply_venue_event(venue_event_name,false);",
                  "section venue messages are transient and do not overwrite excitement state");
+  ok &= contains(gameplay_h_c,
+                 "structVenueScriptStep",
+                 "venue DTB script bridge has explicit decoded step storage");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,VenueScriptHandler>"
+                 "venue_script_handlers_;",
+                 "gameplay keeps venue-local DTB handlers per loaded venue");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,int>venue_script_initial_state_;",
+                 "venue script state can reset to DTB initial values");
+  ok &= contains(gameplay_c,
+                 "VenueScriptDataload_venue_script_handlers("
+                 "conststd::string&hdr_path,conststd::string&ark_path,"
+                 "conststd::string&venue)",
+                 "venue script handlers load from world/<venue>/gen/<venue>.dtb");
+  ok &= contains(gameplay_c,
+                 "venue_filter_route_key(std::stringfilter_ref)",
+                 "direct DTB filter animations use an internal route key");
+  ok &= contains(gameplay_c,
+                 "\"@filter:\"+strip_milo_ref_suffix",
+                 "internal filter route keys cannot collide with venue handler names");
+  ok &= contains(gameplay_c,
+                 "head.size()>5&&head.rfind(\".filt\")==head.size()-5",
+                 "venue script parser recognizes direct .filt animate commands");
+  ok &= contains(gameplay_c,
+                 "head==\"if\"&&kids.size()>=3&&kids[1]",
+                 "venue script parser preserves state-gated conditionals");
+  ok &= contains(gameplay_c,
+                 "collect_all_state_refs(*kids[1],states)",
+                 "venue script conditionals are state-backed instead of unconditional aliases");
+  ok &= contains(gameplay_c,
+                 "caseVenueScriptStep::Kind::IfAllStates:",
+                 "venue script executor evaluates state-gated commands");
+  ok &= contains(gameplay_c,
+                 "execute_venue_script_event(event_name);",
+                 "venue events run decoded DTB handlers before route tables");
+  ok &= contains(gameplay_c,
+                 "venue_script_state_=venue_script_initial_state_;",
+                 "diagnostic seek restores venue script state");
+  ok &= contains(gameplay_c,
+                 "load_venue_script_handlers(hdr_path_,ark_path_,"
+                 "quickplay_rig_->venue)",
+                 "loaded venue installs its DTB script handlers");
   ok &= contains(gameplay_c,
                  "uint32_tvenue_excitement_level(std::string_viewvenue_event)",
                  "lighting uses a shared venue-excitement level mapper");

@@ -28,6 +28,24 @@ namespace ghogx::render { class Window; }
 
 namespace ghogx::game {
 
+struct VenueScriptStep {
+  enum class Kind {
+    SetState,
+    CallHandler,
+    FireFilter,
+    IfAllStates,
+  };
+  Kind kind = Kind::CallHandler;
+  std::string name;
+  int value = 0;
+  std::vector<std::string> state_names;
+  std::vector<VenueScriptStep> children;
+};
+
+struct VenueScriptHandler {
+  std::vector<VenueScriptStep> steps;
+};
+
 struct HitResult {
     bool hit;
     bool was_hopo;
@@ -334,6 +352,9 @@ class Gameplay {
   std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
       interpolated_lighting_spots() const;
   void update_lighting_spotlight_renderer();
+  void execute_venue_script_event(const std::string& event_name);
+  void execute_venue_script_steps(const std::vector<VenueScriptStep>& steps,
+                                  std::vector<std::string>& stack);
 
   // Detect a strum-triggered or HOPO note hit in the given lane.
   HitResult try_hit(int lane, bool strummed, bool is_hopo_candidate);
@@ -462,6 +483,10 @@ class Gameplay {
   std::map<std::string, std::vector<std::string>> venue_filter_mesh_targets_;
   std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
   std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
+  std::map<std::string, VenueScriptHandler> venue_script_handlers_;
+  std::map<std::string, int> venue_script_initial_state_;
+  std::map<std::string, int> venue_script_state_;
+  bool executing_venue_script_ = false;
   std::map<std::string, ghogx::milo_scene::LightObj> venue_lights_;
   std::map<std::string, ghogx::milo_scene::EnvironObj> venue_environs_;
   std::vector<std::string> pending_transient_venue_events_;

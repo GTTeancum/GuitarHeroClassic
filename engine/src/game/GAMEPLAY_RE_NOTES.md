@@ -1549,6 +1549,42 @@ Rejected native probe:
   asset routes with matching event keys are allowed to run. Expanding those
   script-side state machines should wait for a focused PS2/runtime trace.
 
+2026-06-22 venue DTB script handler bridge:
+
+- The arena venue DTB in
+  `analysis/venue_lighting_audit/world_dtb_20260622/world_arena_gen_arena.dtb.dta`
+  shows that section handlers are not simple filter aliases: `chorus` sets
+  `state_chorus` and calls `sparks_on`, while `sparks_on` only animates
+  `sparks.filt` / `sparks_on.filt` when both `state_peak` and `state_chorus`
+  are true. Native now loads venue-local handlers and initial `state_*` values
+  from `world/<venue>/gen/<venue>.dtb`, evaluates the traced `set [state]`,
+  `$this handler`, direct `{*.filt animate}`, and `if` over state properties,
+  then fires direct filter commands through internal `@filter:<name>` route
+  keys. The internal key keeps handler names such as `sparks_on` from
+  colliding with direct filter routes, so conditionals stay authoritative.
+- Direct filter commands reuse the existing decoded route tables: MatAnim,
+  EnvAnim, LightAnim, ParticleSys, and transform/MeshAnim AnimFilter loaders
+  now expose each decoded `.filt` under its internal `@filter:` key. This is
+  still a shared DTB/MILO bridge, not an arena-specific spark rule.
+- Validation:
+  `analysis/native_validation/venue_script_bridge_arena_20260622_current/`
+  reruns stock PS2 `shoutatthedevil` on arena hidden with
+  `GHOGX_DEBUG_VENUE_FILTERS=1`. The log loads 7 arena script handlers and 3
+  state values, executes the opening `[verse]` handler, calls `sparks_off`,
+  evaluates the two-state gate false, and records zero `@filter:sparks_on` or
+  `venue event @filter:sparks_on` rows. The same run exits `0`, records zero
+  miss/unsupported rows, and frame 180 is a coherent authored-camera arena
+  render.
+- `analysis/native_validation/venue_script_bridge_cross_venue_20260622_current/`
+  reruns 180-frame hidden windows for arena, small1, fest, theatre, battle,
+  big, and small2 after the bridge. All seven routes exit `0` with zero
+  miss/unsupported rows; arena is the only stock route in this sweep with
+  venue-local script handlers loaded.
+- Delayed `script_task` scheduling remains intentionally inert in this bridge.
+  The extracted arena DTB uses delayed bounce/reset tasks, but native should not
+  synthesize their timing until a focused trace proves the task scheduler
+  behavior and cancellation semantics.
+
 2026-06-22 venue intro-start EventTrigger bridge:
 
 - Cross-venue PS2 EventTrigger dumps show an authored `intro_start` payload in
