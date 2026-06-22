@@ -1506,3 +1506,12 @@ Rejected native probe:
   `post_switch_cam` moves, 2 active lighting presets/keyframes, zero miss rows,
   and zero unsupported material-channel rows. Frame 350 remains a coherent
   authored-camera stone venue render.
+- `analysis/native_validation/cross_venue_start_event_regression_20260622_current/`
+  reruns short hidden diagnostic-autoplay windows for all seven stock quickplay
+  venues after this change. All routes exit `0` with zero miss rows and zero
+  unsupported material-channel rows. Authored venue-start routes now fire where
+  present: `arena` 4 MatAnim / 16 ParticleSys / 2 AnimFilter, `small1` 14 / 3 /
+  3, `fest` 8 / 29 / 4, `theatre` 5 / 9 / 3, `big` 0 / 8 / 1, `battle` 0 / 0 /
+  1, and `small2` 0 / 0 / 0 for the geometry venue. The same sweep preserves
+  regular cameras, `post_switch_cam`, lighting preset/keyframe dispatch, and
+  venue animation samples across the stock routes.
