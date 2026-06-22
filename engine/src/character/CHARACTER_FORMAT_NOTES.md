@@ -1276,14 +1276,16 @@ Glam1 eyes / look-at:
 - 2026-06-22 song `.voc` FACE version refinement:
   current native runs exposed `songs/youreallygotme/youreallygotme.voc` and
   `songs/psychobilly/psychobilly.voc` failing the song FaceFX animation parser.
-  The failure was the version gate, not the curve layout: extracted bytes under
-  `analysis/facefx_voc_parse_audit_20260622_current/` show both are FACE
-  version `1200`, creator `Harmonix`, comment `Karaoke Revolution Vol 4`,
-  animation subheader `0`, string flag `0`, total-size matching the file size,
-  25 curves, and the same 18-byte key rows used by the accepted v1500
-  `heartshapedbox` path. Native now accepts song FaceFX animation versions
-  `1200` and `1500` through the same shared parser. This is format-version
-  handling, not a `youreallygotme` or `psychobilly` song exception.
+  The failure was the version gate, not the curve layout: the full PS2 song
+  vocal audit in `analysis/facefx_voc_full_audit_20260622_current/` extracts
+  all 95 `songs/*/*.voc` archives and parses every curve block. The corpus has
+  88 FACE version `1500` files with animation subheader `3` / string flag `1`,
+  and 7 FACE version `1200` files with animation subheader `0` / string flag
+  `0`; every file has total-size matching the file size, 25 curves, and the
+  same 18-byte key rows used by the accepted v1500 `heartshapedbox` path.
+  Native now accepts song FaceFX animation versions `1200` and `1500` through
+  the same shared parser. This is format-version handling, not a song-specific
+  exception.
   Validation:
   `analysis/native_validation/facefx_voc_versions_20260622_current/` reruns
   `youreallygotme`, `psychobilly`, and `heartshapedbox` with

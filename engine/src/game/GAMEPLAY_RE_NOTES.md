@@ -1781,6 +1781,7 @@ Rejected native probe:
   9 events`, starts `op_art_projection.enm` and `trippy_projection.enm` from
   `excitement_great`, records 42 live `lighting EnvAnim sample` rows, exits
   `0`, and records zero `unsupported channel shape`, zero
-  `has no supported material channels`, and zero `MISS` / ` miss=` rows.
+  `has no supported material channels`, zero `MISS` / ` miss=` rows, and zero
+  FaceFX animation parse failures after the v1200 song `.voc` parser fix.
   `frame_00600.bmp` is retained as a coherent small2 band/venue render; it is
   route-health evidence, not dynamic-light color parity.
