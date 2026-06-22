@@ -1382,6 +1382,20 @@ int main() {
                  "boolhide_crowd=false;boolcrowd_face_camera=false;",
                  "CameraKey keeps authored crowd CamShot flags");
   ok &= contains(gameplay_c,
+                 "structIntroCameraSelection{std::stringshot;"
+                 "std::stringanim=\"Intro.tnm\";boolhide_crowd=false;"
+                 "boolcrowd_face_camera=false;};",
+                 "intro CamShot selector has a metadata carrier");
+  ok &= contains(gameplay_c,
+                 "c.hide_crowd=camshot_bool_property(",
+                 "intro CamShot selector decodes hide_crowd");
+  ok &= contains(gameplay_c,
+                 "c.crowd_face_camera=camshot_bool_property(",
+                 "intro CamShot selector decodes crowd_face_camera");
+  ok &= contains(gameplay_c,
+                 "selected.hide_crowd=candidates.front().hide_crowd;",
+                 "selected intro TransAnim route preserves hide_crowd");
+  ok &= contains(gameplay_c,
                  "c.key.hide_crowd=camshot_bool_property(",
                  "regular camera loader decodes CamShot hide_crowd");
   ok &= contains(gameplay_c,
@@ -1393,6 +1407,16 @@ int main() {
   ok &= contains(gameplay_c,
                  "pos.hide_crowd=c.key.hide_crowd;",
                  "regular camera pose variants inherit crowd visibility flags");
+  ok &= contains(gameplay_c,
+                 "key.hide_crowd=intro_camera.hide_crowd;",
+                 "intro TransAnim camera keys inherit selected hide_crowd");
+  ok &= contains(gameplay_c,
+                 "key.crowd_face_camera=intro_camera.crowd_face_camera;",
+                 "intro TransAnim camera keys inherit selected crowd_face_camera");
+  ok &= contains(gameplay_c,
+                 "\"[world]introcameraflags:shot=%sanim=%skeys=%zu"
+                 "hide_crowd=%dcrowd_face_camera=%d\\n\"",
+                 "intro TransAnim camera flag stamping is runtime-verifiable");
   ok &= contains(gameplay_c,
                  "venue_crowd_meshes_=mesh_names_for_crowd(venue_scene);",
                  "venue load builds an authored crowd mesh set");

@@ -1377,7 +1377,11 @@ Rejected native probe:
 - Native now decodes `hide_crowd` and `crowd_face_camera` with the same packed
   bool reader used for `walk_ok`, `low_excitement_ok`, `starpower_ok`,
   `jump_ok`, and `special`. Regular camera pose variants and direct embedded
-  intro CamShot poses carry those flags through `CameraKey`.
+  intro CamShot poses carry those flags through `CameraKey`. TransAnim-backed
+  intro cameras now preserve the selected intro CamShot's crowd flags through
+  the intro selector and stamp them onto the loaded intro camera keys before
+  runtime visibility is applied, so the `.tnm` route no longer drops the
+  metadata.
 - Because native does not yet instantiate the full crowd character system, the
   current source-backed visual bridge applies only the `hide_crowd` half:
   venue load builds a generic authored crowd mesh set from group names, mesh
