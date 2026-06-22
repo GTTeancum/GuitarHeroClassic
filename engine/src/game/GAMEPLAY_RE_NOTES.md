@@ -1268,3 +1268,39 @@ Rejected native probe:
   performer-start logging: `guitarist0 start xfm flags=1`, singer flag `4`,
   bassist flag `16`, drummer flag `32`, the arena drum kit, regular camera, and
   lighting keyframe rows all resolve in the same hidden song window.
+
+2026-06-22 crowd-lighter camera route:
+
+- Source route:
+  `_community_re/Guitar-Hero-II-Deluxe-Unified/_ark/world/crowd.dta`
+  dispatches `crowd_lighters_slow` and `crowd_lighters_fast` by recording the
+  old `[lighter]` state, setting the new lighter tempo, and calling
+  `world pick_lighter_shot` only when `world get did_lighter_cam` is false and
+  the old lighter state was `off`. `crowd_lighters_off` sets `[lighter] off`
+  and calls `world force_pick_shot`.
+- Source world behavior:
+  `_community_re/Guitar-Hero-II-Deluxe-Unified/_ark/world/world_objects_worldbase.dta`
+  defines `LIGHTER_SHOT_DURATION` as `5`. `pick_lighter_shot` sets
+  `[camera_bars_left]` to that value, sets `[did_lighter_cam] TRUE`, and
+  performs `pick_shot LIGHTER`. `force_pick_shot` instead sets
+  `[camera_bars_left]` through `get_shot_duration` and then calls
+  `pick_new_shot`.
+- Native implication: authored `LIGHTER` CamShots must live in the decoded
+  camera pool even though the stock PS2 `lighter` CamShot is authored
+  `special=1`. The regular, solo, and jump routes reject `lighter` shots; the
+  lighter route accepts only `lighter` shots and deliberately checks that
+  before the regular `special` rejection.
+- Stock PS2 `shoutatthedevil` EVENTS MIDI timing used for the native check:
+  `[crowd_lighters_fast]` at `156.941s`, `[band_jump]` at `159.481s`, and
+  `[crowd_lighters_off]` with `[sync_wag]` at `161.997s`.
+- Current native validation:
+  `analysis/native_validation/camera_lighter_shout_20260622_current/`.
+  The log loads `regular CamShot lighter ... special=1 ... lighter=1`, then at
+  `t=156.950` switches `flr_far_rt02x3 -> lighter` with
+  `duration=lighter[5,5] mode=lighter forced=1`. At `t=159.483`,
+  `[band_jump]` switches `lighter -> flr_far_rt04` with
+  `duration=jump[4,4] mode=jump forced=1`. At `t=162.000`,
+  `[crowd_lighters_off]` returns through the normal forced-shot duration path
+  and activates `chorus_okay.pst`; `chorus_great.pst` follows at `t=162.567`.
+  The known `.lit`/`.env` "no decoded" rows remain lighting graph breadcrumbs,
+  not camera route failures.

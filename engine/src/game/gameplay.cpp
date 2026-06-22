@@ -5073,6 +5073,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             const uint8_t* body = payload.data() + de.offset;
             auto strings = scan_milo_strings(body, static_cast<size_t>(de.size));
             bool normal_category = false;
+            bool lighter_category = false;
+            bool intro_category = false;
             for (const auto& s : strings) {
                 if (s == "flr_near_lft" || s == "flr_near_rt" ||
                     s == "flr_far_lft" || s == "flr_far_rt" ||
@@ -5081,13 +5083,15 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     s == "SOLO_FAR") {
                     normal_category = true;
                 }
+                if (s == "LIGHTER") {
+                    lighter_category = true;
+                }
                 if (s == "INTRO" || s == "INTRO_FAST" ||
-                    s == "INTRO_ENCORE" || s == "LIGHTER") {
-                    normal_category = false;
-                    break;
+                    s == "INTRO_ENCORE") {
+                    intro_category = true;
                 }
             }
-            if (!normal_category) continue;
+            if (intro_category || (!normal_category && !lighter_category)) continue;
 
             const std::string special = next_string_after(strings, "special");
             if (special == "TRUE") continue;
@@ -5140,6 +5144,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                                       strings, "low_excitement_ok", true);
             c.key.jump_ok = camshot_bool_property(
                 body, static_cast<size_t>(de.size), strings, "jump_ok", true);
+            c.key.lighter = lighter_category;
             infer_camshot_target(strings, c.shot, c.key);
             for (auto& decoded_pose : decoded_poses) {
                 Gameplay::CameraKey pos = decoded_pose.first;
@@ -5152,6 +5157,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.starpower_ok = c.key.starpower_ok;
                 pos.low_excitement_ok = c.key.low_excitement_ok;
                 pos.jump_ok = c.key.jump_ok;
+                pos.lighter = c.key.lighter;
                 pos.target_entity = c.key.target_entity;
                 pos.target_subpart = c.key.target_subpart;
                 c.key.positions.push_back(std::move(pos));
@@ -5190,13 +5196,14 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s poses=%zu pose body+0x%zX score=%d special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s poses=%zu pose body+0x%zX score=%d special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.positions.size(), c.off, c.score,
                          key.special ? 1 : 0, key.walk_ok ? 1 : 0,
                          key.low_excitement_ok ? 1 : 0,
-                         key.starpower_ok ? 1 : 0, key.jump_ok ? 1 : 0);
+                         key.starpower_ok ? 1 : 0, key.jump_ok ? 1 : 0,
+                         key.lighter ? 1 : 0);
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] regular camera select: %s\n", ex.what());
@@ -5247,7 +5254,7 @@ bool string_in(std::string_view value,
     return false;
 }
 
-enum class CameraShotMode { Regular, Solo, Jump };
+enum class CameraShotMode { Regular, Solo, Jump, Lighter };
 
 const char* camera_shot_mode_label(CameraShotMode mode) {
     switch (mode) {
@@ -5257,6 +5264,8 @@ const char* camera_shot_mode_label(CameraShotMode mode) {
             return "solo";
         case CameraShotMode::Jump:
             return "jump";
+        case CameraShotMode::Lighter:
+            return "lighter";
     }
     return "regular";
 }
@@ -5269,9 +5278,13 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
                               CameraShotMode mode) {
     // Community world_objects_worldbase.dta::pick_regular_camera_shot and
     // pick_solo_camera_shot share the state filters, but differ in solo tags
-    // and the far/behind distance repeat guard. band_jump uses a separate
-    // jump_ok predicate over the same normal CamShot category set.
+    // and the far/behind distance repeat guard. band_jump and crowd lighters
+    // use separate predicates over the same decoded CamShot pool.
+    if (mode == CameraShotMode::Lighter) {
+        return key.lighter;
+    }
     if (key.special) return false;
+    if (key.lighter) return false;
     if (mode == CameraShotMode::Jump) {
         return key.jump_ok;
     } else if (mode == CameraShotMode::Solo) {
@@ -6193,6 +6206,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     last_camera_bar_ = UINT32_MAX;
     last_forced_camera_event_tick_ = UINT32_MAX;
     camera_shot_counter_ = 0;
+    did_lighter_cam_ = false;
+    crowd_lighter_on_ = false;
     intro_end_dispatched_ = false;
     should_resend_excitement_ = false;
     lighting_presets_.clear();
@@ -7271,6 +7286,8 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     last_camera_bar_ = UINT32_MAX;
     camera_bars_left_ = 0;
     last_forced_camera_event_tick_ = UINT32_MAX;
+    did_lighter_cam_ = false;
+    crowd_lighter_on_ = false;
     intro_end_dispatched_ = false;
     should_resend_excitement_ = false;
     active_lighting_preset_.clear();
@@ -8793,12 +8810,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
 
             bool force_camera = false;
             std::optional<CameraShotMode> forced_camera_mode;
+            std::optional<int> forced_camera_bars;
             for (const auto& ev : chart_.text_events) {
                 const double t = chart_.tick_to_sec(ev.tick);
                 if (t < song_time_ - std::max(0.001, dt * 1.5)) continue;
                 if (t > song_time_) break;
                 if (ev.text == "[band_jump]" || ev.text == "[sync_wag]" ||
-                    ev.text == "[sync_head_bang]") {
+                    ev.text == "[sync_head_bang]" ||
+                    ev.text == "[crowd_lighters_slow]" ||
+                    ev.text == "[crowd_lighters_fast]" ||
+                    ev.text == "[crowd_lighters_off]") {
                     if (ev.tick == last_forced_camera_event_tick_) continue;
                     last_forced_camera_event_tick_ = ev.tick;
                     const uint32_t excitement =
@@ -8806,10 +8827,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     if (ev.text == "[band_jump]") {
                         force_camera = excitement > 1;
                         forced_camera_mode = CameraShotMode::Jump;
+                        forced_camera_bars = 4;
+                    } else if (ev.text == "[crowd_lighters_slow]" ||
+                               ev.text == "[crowd_lighters_fast]") {
+                        const bool was_off = !crowd_lighter_on_;
+                        crowd_lighter_on_ = true;
+                        if (!did_lighter_cam_ && was_off) {
+                            did_lighter_cam_ = true;
+                            force_camera = true;
+                            forced_camera_mode = CameraShotMode::Lighter;
+                            forced_camera_bars = 5;
+                        }
+                    } else if (ev.text == "[crowd_lighters_off]") {
+                        crowd_lighter_on_ = false;
+                        force_camera = true;
                     } else {
                         force_camera = excitement > 2;
+                        forced_camera_bars = 4;
                     }
-                    if (force_camera) camera_bars_left_ = 4;
                     break;
                 }
             }
@@ -8820,7 +8855,17 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     camera_duration_range_for_event(camera_duration_bars_,
                                                     active_venue_event_);
                 if (force_camera) {
-                    duration = {"force", {4, 4}};
+                    if (forced_camera_bars) {
+                        camera_bars_left_ = *forced_camera_bars;
+                        duration = {camera_shot_mode_label(
+                                        forced_camera_mode.value_or(
+                                            CameraShotMode::Regular)),
+                                    {*forced_camera_bars, *forced_camera_bars}};
+                    } else {
+                        camera_bars_left_ = deterministic_camera_duration_bars(
+                            duration.second.first, duration.second.second,
+                            camera_shot_counter_);
+                    }
                 } else {
                     camera_bars_left_ = deterministic_camera_duration_bars(
                         duration.second.first, duration.second.second,

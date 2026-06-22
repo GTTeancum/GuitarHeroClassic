@@ -1044,11 +1044,21 @@ int main() {
                  "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
                  "camera loader keeps solo-only CamShots for solo sections");
   ok &= contains(gameplay_c,
-                 "enumclassCameraShotMode{Regular,Solo,Jump};",
-                 "camera director has distinct regular/solo selection modes");
+                 "enumclassCameraShotMode{Regular,Solo,Jump,Lighter};",
+                 "camera director has distinct regular/solo/jump/lighter modes");
   ok &= contains(gameplay_c,
                  "if(mode==CameraShotMode::Jump){returnkey.jump_ok;}",
                  "band_jump camera mode mirrors the jump_ok shot predicate");
+  ok &= contains(gameplay_c,
+                 "if(mode==CameraShotMode::Lighter){returnkey.lighter;}",
+                 "crowd lighter camera mode picks only authored LIGHTER CamShots");
+  ok &= appears_before(gameplay_c,
+                       "if(mode==CameraShotMode::Lighter){returnkey.lighter;}",
+                       "if(key.special)returnfalse;",
+                       "LIGHTER CamShots remain selectable even when authored special");
+  ok &= contains(gameplay_c,
+                 "if(key.lighter)returnfalse;",
+                 "regular/solo/jump camera modes reject LIGHTER CamShots");
   ok &= contains(gameplay_c,
                  "if(mode==CameraShotMode::Solo){if(!string_in(key.solo,{\"\","
                  "\"ok\",\"only\"}))returnfalse;}",
@@ -1069,8 +1079,26 @@ int main() {
                  "if(ev.text==\"[band_jump]\"){force_camera=excitement>1;",
                  "band_jump camera forces only above bad excitement");
   ok &= contains(gameplay_c,
-                 "}else{force_camera=excitement>2;}",
+                 "ev.text==\"[crowd_lighters_slow]\"||",
+                 "camera director listens for authored crowd lighter on messages");
+  ok &= contains(gameplay_c,
+                 "forced_camera_mode=CameraShotMode::Lighter;",
+                 "crowd lighter messages force the LIGHTER camera category");
+  ok &= contains(gameplay_c,
+                 "forced_camera_bars=5;",
+                 "crowd lighter camera uses LIGHTER_SHOT_DURATION");
+  ok &= contains(gameplay_c,
+                 "ev.text==\"[crowd_lighters_off]\"",
+                 "camera director listens for authored crowd lighter off messages");
+  ok &= contains(gameplay_c,
+                 "crowd_lighter_on_=false;force_camera=true;",
+                 "crowd_lighters_off mirrors force_pick_shot");
+  ok &= contains(gameplay_c,
+                 "}else{force_camera=excitement>2;forced_camera_bars=4;}",
                  "sync_wag/head_bang camera forces only above okay excitement");
+  ok &= contains(gameplay_h_c,
+                 "booldid_lighter_cam_=false;",
+                 "camera state keeps the script did_lighter_cam guard");
   ok &= appears_before(gameplay_c,
                        "deterministic_camera_duration_bars(",
                        "\"[world]regularcamerasweep:",

@@ -64,6 +64,7 @@ class Gameplay {
     bool starpower_ok = false;
     bool low_excitement_ok = true;
     bool jump_ok = true;
+    bool lighter = false;
     std::vector<CameraKey> positions;
   };
   struct LightingPreset {
@@ -400,6 +401,8 @@ class Gameplay {
   uint32_t last_camera_bar_ = UINT32_MAX;
   uint32_t last_forced_camera_event_tick_ = UINT32_MAX;
   size_t camera_shot_counter_ = 0;
+  bool did_lighter_cam_ = false;
+  bool crowd_lighter_on_ = false;
   bool intro_end_dispatched_ = false;
   bool should_resend_excitement_ = false;
   std::vector<LightingPreset> lighting_presets_;
