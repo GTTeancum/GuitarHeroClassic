@@ -1881,3 +1881,12 @@ Rejected native probe:
   `show=0 hide=1`, and the matching decoded particle routes. Both runs exit
   `0`; `long_frame_0003.bmp` is retained only as a sanity frame for the loaded
   Battle venue and performers.
+- Follow-up validation in
+  `analysis/native_validation/venue_peak_bridge_resend_20260622_current/`
+  tightened resend semantics. `resend_active_venue_event()` now force-reapplies
+  the active persistent event without clearing `active_venue_event_`, so
+  `resend_excitement: excitement_peak` does not fabricate a second
+  `peak_on`. The run records exactly one
+  `venue peak bridge excitement_peak -> peak_on`, exactly one later
+  `venue peak bridge excitement_great -> peak_off`, and one
+  `resend_excitement: excitement_peak`.

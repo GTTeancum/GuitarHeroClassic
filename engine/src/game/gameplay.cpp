@@ -7095,7 +7095,8 @@ void Gameplay::execute_venue_script_event(const std::string& event_name) {
 }
 
 void Gameplay::apply_venue_event(const std::string& event_name,
-                                 bool persistent) {
+                                 bool persistent,
+                                 bool force_persistent) {
     if (event_name.empty()) return;
     if (persistent && !world_) {
         active_venue_event_ = event_name;
@@ -7119,7 +7120,10 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     bool peak_transition = false;
     std::string peak_transition_event;
     if (persistent) {
-        if (active_venue_event_ == event_name && world_) return;
+        if (active_venue_event_ == event_name && world_ &&
+            !force_persistent) {
+            return;
+        }
         const bool was_peak = is_peak_excitement_event(active_venue_event_);
         const bool is_peak = is_peak_excitement_event(event_name);
         peak_transition = was_peak != is_peak;
@@ -7443,9 +7447,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
 void Gameplay::resend_active_venue_event() {
     if (active_venue_event_.empty()) return;
     const std::string active = active_venue_event_;
-    active_venue_event_.clear();
     std::fprintf(stderr, "[world] resend_excitement: %s\n", active.c_str());
-    apply_venue_event(active, true);
+    apply_venue_event(active, true, true);
 }
 
 void Gameplay::clear_runtime_venue_animation_state() {

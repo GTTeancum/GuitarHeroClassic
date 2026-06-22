@@ -338,7 +338,8 @@ class Gameplay {
   int    difficulty()const { return difficulty_; }
 
  private:
-  void apply_venue_event(const std::string& event_name, bool persistent = true);
+  void apply_venue_event(const std::string& event_name, bool persistent = true,
+                         bool force_persistent = false);
   bool apply_venue_event_visibility(const std::string& event_name, bool log);
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;
   void resend_active_venue_event();

@@ -268,6 +268,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "apply_venue_event(peak_transition_event,false);",
                  "peak_on/off bridge uses transient venue EventTrigger routing");
+  ok &= contains(gameplay_h_c,
+                 "voidapply_venue_event(conststd::string&event_name,"
+                 "boolpersistent=true,boolforce_persistent=false)",
+                 "persistent venue events can be force-reapplied without changing state");
+  ok &= contains(gameplay_c,
+                 "active_venue_event_==event_name&&world_&&"
+                 "!force_persistent",
+                 "normal repeated persistent venue events still no-op");
+  ok &= contains(gameplay_c,
+                 "apply_venue_event(active,true,true);",
+                 "resending the active excitement event does not fabricate a peak transition");
   ok &= contains(gameplay_c,
                  "diagnostic_venue_event_applied_=false;",
                  "diagnostic venue event resets when a song loads");
@@ -909,8 +920,10 @@ int main() {
                  "voidGameplay::resend_active_venue_event(){"
                  "if(active_venue_event_.empty())return;"
                  "conststd::stringactive=active_venue_event_;"
-                 "active_venue_event_.clear();",
-                 "resend_excitement re-enters the normal persistent venue event path");
+                 "std::fprintf(stderr,\"[world]resend_excitement:%s\\n\","
+                 "active.c_str());"
+                 "apply_venue_event(active,true,true);",
+                 "resend_excitement force-reapplies persistent routes without clearing active state");
   ok &= contains(gameplay_c,
                  "should_resend_excitement_=false;"
                  "resend_active_venue_event();",
