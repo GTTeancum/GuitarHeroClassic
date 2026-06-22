@@ -1766,3 +1766,21 @@ Rejected native probe:
   zero miss rows, and zero PowerShell redirect wrapper noise. This cross-check
   covers a normal stock venue route rather than only the diagnostic stone
   override.
+
+2026-06-22 EnvAnim route-summary evidence:
+
+- The shared EnvAnim EventTrigger loader now emits the same route-count summary
+  row as LightAnim and ParticleSys:
+  `venue EnvAnim routes loaded <milo>: <events> events`. This does not change
+  runtime behavior; it makes native route validation prove EnvAnim coverage
+  with the same summary shape used by the other decoded event-route families.
+- `analysis/native_validation/envanim_route_summary_small2_20260622_current/`
+  reruns PS2 `youreallygotme` in the authored `small2` venue hidden with
+  diagnostic autoplay for 900 frames. The log records
+  `venue EnvAnim routes loaded world/small2/og/gen/small2_lighting.milo_ps2:
+  9 events`, starts `op_art_projection.enm` and `trippy_projection.enm` from
+  `excitement_great`, records 42 live `lighting EnvAnim sample` rows, exits
+  `0`, and records zero `unsupported channel shape`, zero
+  `has no supported material channels`, and zero `MISS` / ` miss=` rows.
+  `frame_00600.bmp` is retained as a coherent small2 band/venue render; it is
+  route-health evidence, not dynamic-light color parity.

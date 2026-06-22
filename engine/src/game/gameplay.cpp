@@ -2246,6 +2246,11 @@ std::map<std::string, std::vector<std::string>> load_venue_event_env_anims(
                 }
             }
         }
+        if (!out.empty()) {
+            std::fprintf(stderr,
+                         "[world] venue EnvAnim routes loaded %s: %zu events\n",
+                         milo_path.c_str(), out.size());
+        }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] EventTrigger EnvAnim load %s: %s\n",
                      milo_path.c_str(), ex.what());

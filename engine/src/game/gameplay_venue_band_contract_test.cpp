@@ -574,6 +574,9 @@ int main() {
                  "group_env_anims;",
                  "EnvAnim loader resolves Group-contained environment animations");
   ok &= contains(gameplay_c,
+                 "\"[world]venueEnvAnimroutesloaded%s:%zuevents",
+                 "EnvAnim route loader emits the same summary evidence as LightAnim/ParticleSys");
+  ok &= contains(gameplay_c,
                  "venue_event_env_anims_=load_venue_event_env_anims(",
                  "venue load wires EventTrigger EnvAnim routes");
   ok &= contains(gameplay_c,
