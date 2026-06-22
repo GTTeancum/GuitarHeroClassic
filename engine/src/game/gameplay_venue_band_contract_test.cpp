@@ -1049,7 +1049,7 @@ int main() {
                  "voidpopulate_lighting_keyframe_payload("
                  "Gameplay::LightingPreset::Keyframe&keyframe,"
                  "constuint8_t*body,size_tsize,size_trecord_start,"
-                 "size_tpayload_end)",
+                 "size_tpayload_end,boolinclude_object_refs)",
                  "LightPreset keyframe target-state scanning is shared");
   ok &= contains(gameplay_c,
                  "if(out.size()<count&&record_start<size){"
@@ -1059,8 +1059,15 @@ int main() {
                  "k.name=\"unlabeled_\"+std::to_string(out.size());",
                  "unlabeled LightPreset fallback frames are explicit in logs");
   ok &= contains(gameplay_c,
-                 "populate_lighting_keyframe_payload(k,body,size,record_start,size);",
-                 "unlabeled LightPreset fallback scans the remaining payload");
+                 "populate_lighting_keyframe_payload(k,body,size,record_start,size,"
+                 "false);",
+                 "unlabeled LightPreset fallback scans the remaining payload without tail refs");
+  ok &= contains(gameplay_c,
+                 "include_object_refs&&s.rfind(\".spot\")",
+                 "unlabeled LightPreset fallback does not promote preset-level spot refs");
+  ok &= contains(gameplay_c,
+                 "if(!k.mesh_targets.empty()){out.push_back(std::move(k));}",
+                 "tail-only unlabeled LightPreset refs are not emitted as keyframes");
   ok &= contains(gameplay_c,
                  "set_lighting_spot_targets(std::move(active_spots),"
                  "transition_fade_seconds);",

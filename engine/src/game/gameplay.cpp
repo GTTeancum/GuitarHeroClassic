@@ -3169,7 +3169,8 @@ std::vector<std::string> extract_lighting_keyframe_labels(
 
 void populate_lighting_keyframe_payload(
     Gameplay::LightingPreset::Keyframe& keyframe, const uint8_t* body,
-    size_t size, size_t record_start, size_t payload_end) {
+    size_t size, size_t record_start, size_t payload_end,
+    bool include_object_refs) {
     const size_t end = std::min(size, payload_end);
     for (size_t pos = record_start; pos + 4 <= end; ++pos) {
         uint32_t len = 0;
@@ -3202,11 +3203,11 @@ void populate_lighting_keyframe_payload(
                     read_f32_at(body, size, payload + 37, 1.0f), 0.0f, 4.0f);
                 keyframe.target_states.push_back(std::move(state));
             }
-        } else if (s.rfind(".spot") != std::string::npos) {
+        } else if (include_object_refs && s.rfind(".spot") != std::string::npos) {
             add_unique_lighting_ref(keyframe.spot_refs, std::move(s));
-        } else if (s.rfind(".env") != std::string::npos) {
+        } else if (include_object_refs && s.rfind(".env") != std::string::npos) {
             add_unique_lighting_ref(keyframe.env_refs, std::move(s));
-        } else if (s.rfind(".lit") != std::string::npos) {
+        } else if (include_object_refs && s.rfind(".lit") != std::string::npos) {
             add_unique_lighting_ref(keyframe.lit_refs, std::move(s));
         }
     }
@@ -3234,7 +3235,7 @@ std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
         k.duration = read_light_preset_timing_f32(body, size, label_end);
         k.fade_out = read_light_preset_timing_f32(body, size, label_end + 4);
         populate_lighting_keyframe_payload(k, body, size, record_start,
-                                           label_off);
+                                           label_off, true);
         out.push_back(std::move(k));
         record_start = label_end;
     }
@@ -3244,9 +3245,12 @@ std::vector<Gameplay::LightingPreset::Keyframe> extract_lighting_keyframes(
         k.record_start = record_start;
         k.record_end = size;
         k.label_offset = size;
-        populate_lighting_keyframe_payload(k, body, size, record_start, size);
-        if (!k.mesh_targets.empty() || !k.spot_refs.empty() ||
-            !k.env_refs.empty() || !k.lit_refs.empty()) {
+        // Without a description label there is no reliable boundary before the
+        // preset-level spot/env/lit tail table, so recover only packed mesh
+        // target-state rows here.
+        populate_lighting_keyframe_payload(k, body, size, record_start, size,
+                                           false);
+        if (!k.mesh_targets.empty()) {
             out.push_back(std::move(k));
         }
     }

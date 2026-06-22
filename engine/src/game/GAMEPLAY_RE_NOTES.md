@@ -1828,23 +1828,24 @@ Rejected native probe:
 - Native now shares the keyframe payload scanner between labeled records and a
   conservative unlabeled fallback. If decoded labels undershoot the authored
   keyframe count and bytes remain, native emits one explicit
-  `unlabeled_<index>` keyframe covering the remaining payload, using the same
-  packed Spotlight target-state rows already accepted for labeled frames. This
-  is still a generic `LightPreset` decoder rule, not a small2 or `sweep`
-  special case, and it does not enable the still-gated dynamic Environ light
-  bridge.
-- `analysis/native_validation/lightpreset_unlabeled_small2_20260622_current/`
-  reruns stock `youreallygotme` from `16.0s` hidden with diagnostic autoplay.
-  The clean log records `LightPreset sweep.pset ... keyframes=1`, switches to
+  `unlabeled_<index>` keyframe covering the remaining payload, but the
+  unlabeled path accepts only packed Spotlight target-state rows. Without a
+  description label there is no reliable boundary before the preset-level
+  `.spot`/`.env`/`.lit` tail tables, so those object refs stay preset-level
+  and are not promoted to per-keyframe refs. This is still a generic
+  `LightPreset` decoder rule, not a small2 or `sweep` special case, and it
+  does not enable the still-gated dynamic Environ light bridge.
+- `analysis/native_validation/lightpreset_unlabeled_target_only_cross_route_20260622_current/`
+  reruns the seven-route smoke for 180 frames after the target-only fallback.
+  All routes exit `0` with zero unsupported material-channel rows, zero miss
+  rows, zero FaceFX parser failures on vocal songs, and zero wrapper noise.
+  The summary records `unlabeled_direct_spots=0` for every route, proving that
+  preset tail tables are no longer treated as per-keyframe spot refs.
+- In that run, stock `small2/youreallygotme` from `16.0s` records
+  `LightPreset sweep.pset ... keyframes=1`, switches to
   `lighting preset active: sweep.pset ... keyframes=1 t=16.983`, then applies
   `lighting keyframe active: sweep.pset[0] 'unlabeled_0'` with 16 targets,
-  11 target-state rows, 21 direct spot refs, 8 inferred spots, and 21 active
-  spots. The run exits `0` with zero unsupported material-channel rows, zero
-  miss rows, zero FaceFX parser failures, and zero PowerShell wrapper noise.
-- `analysis/native_validation/lightpreset_unlabeled_cross_route_20260622_current/`
-  reruns the same seven-route smoke for 180 frames after the fallback. All
-  routes exit `0` with zero unsupported material-channel rows, zero miss rows,
-  zero FaceFX parser failures on vocal songs, and zero wrapper noise. Unlabeled
-  keyframes now activate only on routes whose current windows need them:
-  `battle/rockthistown` 2, `small2/youreallygotme` 1, and `theatre/yyz` 2;
-  other venues keep their labeled keyframe path unchanged.
+  11 target-state rows, 0 direct spot refs, 8 inferred spots, and 9 active
+  spots. `battle/rockthistown` still recovers an unlabeled target-state frame
+  for `verse_great.pst`, while the previous tail-only `theatre/yyz`
+  pseudo-frame is no longer emitted.
