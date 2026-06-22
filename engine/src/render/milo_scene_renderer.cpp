@@ -452,8 +452,13 @@ void MiloSceneRenderer::set_mesh_transform_offsets(
   }
 }
 
+void MiloSceneRenderer::set_mesh_position_overrides(
+    std::map<std::string, std::vector<std::array<float, 3>>> positions) {
+  mesh_position_overrides_ = std::move(positions);
+}
+
 void MiloSceneRenderer::trigger_mesh_pulse(const std::string& mesh_name,
-                                           float amplitude) {
+                                            float amplitude) {
   mesh_pulses_[mesh_name] = std::max(mesh_pulses_[mesh_name], amplitude);
 }
 
@@ -1057,9 +1062,25 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
 
     vb.clear();
     vb.reserve(m.vertex_count);
-    for (const auto& v : m.verts) {
+    const std::vector<std::array<float, 3>>* position_override = nullptr;
+    if (const auto pos_it = mesh_position_overrides_.find(m.name);
+        pos_it != mesh_position_overrides_.end() &&
+        pos_it->second.size() == m.verts.size()) {
+      position_override = &pos_it->second;
+    }
+    for (size_t vi = 0; vi < m.verts.size(); ++vi) {
+      const auto& v = m.verts[vi];
       SVtx s;
-      s.x = v.px; s.y = v.py; s.z = v.pz;
+      if (position_override) {
+        const auto& p = (*position_override)[vi];
+        s.x = p[0];
+        s.y = p[1];
+        s.z = p[2];
+      } else {
+        s.x = v.px;
+        s.y = v.py;
+        s.z = v.pz;
+      }
       s.nx = v.nx; s.ny = v.ny; s.nz = v.nz;
       const auto cc = [](float f) -> int {
         int i = static_cast<int>(f * 255.0f + 0.5f);

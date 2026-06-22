@@ -785,6 +785,22 @@ Open work:
   transiently through that cue, companion MatAnim/ParticleSys/visibility/
   AnimFilter routes firing, active lighting keyframes, regular camera sweeps,
   and coherent native frames at 180/300.
+- 2026-06-21 venue MeshAnim route: extracted PS2 `MeshAnim` `.msnm` bodies are
+  version 1 vertex-frame tables. Direct rows embed a target `.mesh` string,
+  then frame and vertex counts followed by `frame_count * vertex_count` local
+  XYZ positions; owner rows can instead reference another `.msnm` key source.
+  Native now preserves `.msnm` / `.meshanim` refs, resolves `EventTrigger ->
+  AnimFilter/Group -> MeshAnim`, samples vertex positions on the same
+  AnimFilter clock used by TransAnim, and feeds exact-count mesh position
+  overrides to the renderer. Validation:
+  `analysis/native_validation/small2_meshanim_youreallygotme_20260621_current/`
+  runs hidden stock PS2 `youreallygotme` from `16.0s` with diagnostic autoplay.
+  The log decodes `monitor_speaker01.msnm` and `monitor_speaker02.msnm` as
+  3-frame / 39-vertex animations, routes both through `floormonitor` and
+  `kick_drum`, records 84 live `venue MeshAnim sample` rows from real drum
+  events, keeps regular camera sweeps and lighting keyframes active, and the
+  captured small2 frames at 180/300 remain coherent with the monitor speakers
+  on-screen.
 - 2026-06-21 texture-transform validation pass:
   `analysis/native_validation/small1_tex_xfm_scale_rot_20260621_current/`
   proves small1 group-routed TV/barrel MatAnims are decoded and started with

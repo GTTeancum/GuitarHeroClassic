@@ -593,7 +593,7 @@ std::vector<std::string> scan_milo_strings(const uint8_t* body, size_t size) {
 std::string canonical_milo_ref(std::string s) {
     static constexpr std::string_view suffixes[] = {
         ".mesh", ".filt", ".grp", ".tnm", ".mnm", ".enm", ".lnm",
-        ".part", ".panim", ".trig"};
+        ".msnm", ".meshanim", ".part", ".panim", ".trig"};
     for (const auto suffix : suffixes) {
         const size_t pos = s.find(suffix);
         if (pos != std::string::npos) {
@@ -3555,6 +3555,150 @@ std::optional<std::string> first_mesh_target_in_transanim(const uint8_t* body,
     return std::nullopt;
 }
 
+struct PackedStringHit {
+    size_t offset = 0;
+    size_t end = 0;
+    std::string value;
+};
+
+std::vector<PackedStringHit> packed_strings_with_offsets(const uint8_t* body,
+                                                         size_t size) {
+    std::vector<PackedStringHit> out;
+    for (size_t off = 0; off + 4 <= size; ++off) {
+        uint32_t len = 0;
+        std::memcpy(&len, body + off, sizeof(len));
+        if (len == 0 || len > 96 || off + 4 + len > size) continue;
+        const char* s = reinterpret_cast<const char*>(body + off + 4);
+        bool printable = true;
+        for (uint32_t i = 0; i < len; ++i) {
+            const unsigned char c = static_cast<unsigned char>(s[i]);
+            if (c < 32 || c > 126) {
+                printable = false;
+                break;
+            }
+        }
+        if (!printable) continue;
+        out.push_back({off, off + 4 + len, std::string(s, s + len)});
+    }
+    return out;
+}
+
+uint32_t read_u32_at_unchecked(const uint8_t* body, size_t off) {
+    uint32_t v = 0;
+    std::memcpy(&v, body + off, sizeof(v));
+    return v;
+}
+
+float read_f32_at_unchecked(const uint8_t* body, size_t off) {
+    float v = 0.0f;
+    std::memcpy(&v, body + off, sizeof(v));
+    return v;
+}
+
+Gameplay::VenueMeshAnim decode_venue_mesh_anim(
+    const std::string& entry_name, const uint8_t* body, size_t size) {
+    Gameplay::VenueMeshAnim anim;
+    anim.name = canonical_milo_ref(entry_name);
+    if (size < 32 || read_u32_at_unchecked(body, 0) != 1) return anim;
+
+    const auto strings = packed_strings_with_offsets(body, size);
+    const PackedStringHit* mesh_string = nullptr;
+    const PackedStringHit* self_string = nullptr;
+    const PackedStringHit* owner_string = nullptr;
+    for (const auto& hit : strings) {
+        const auto ref = canonical_milo_ref(hit.value);
+        if (!mesh_string && ref.size() > 5 &&
+            ref.rfind(".mesh") == ref.size() - 5) {
+            mesh_string = &hit;
+        }
+        if (ref == anim.name) self_string = &hit;
+    }
+    for (const auto& hit : strings) {
+        const auto ref = canonical_milo_ref(hit.value);
+        if (ref != anim.name && ref.size() > 5 &&
+            ref.rfind(".msnm") == ref.size() - 5) {
+            owner_string = &hit;
+            break;
+        }
+    }
+    if (mesh_string) anim.mesh = canonical_milo_ref(mesh_string->value);
+    if (owner_string) anim.keys_owner = canonical_milo_ref(owner_string->value);
+
+    const size_t limit = self_string ? self_string->offset : size;
+    auto valid_count_pair = [&](size_t off, uint32_t& frames,
+                                uint32_t& verts) -> bool {
+        if (off + 8 > limit) return false;
+        frames = read_u32_at_unchecked(body, off);
+        verts = read_u32_at_unchecked(body, off + 4);
+        if (frames == 0 || frames > 4096 || verts == 0 || verts > 20000)
+            return false;
+        const uint64_t samples = static_cast<uint64_t>(frames) * verts;
+        if (samples > 2000000ull) return false;
+        const uint64_t bytes = samples * 12ull;
+        if (bytes > static_cast<uint64_t>(limit - (off + 8))) return false;
+        return true;
+    };
+
+    uint32_t frames = 0;
+    uint32_t verts = 0;
+    size_t count_off = std::string::npos;
+    if (mesh_string && valid_count_pair(mesh_string->end, frames, verts)) {
+        count_off = mesh_string->end;
+    } else {
+        for (size_t off = 13; off + 8 <= std::min<size_t>(limit, 160); ++off) {
+            if (valid_count_pair(off, frames, verts)) {
+                count_off = off;
+                break;
+            }
+        }
+    }
+    if (count_off == std::string::npos) return anim;
+
+    anim.frame_count = frames;
+    anim.vertex_count = verts;
+    if (self_string && self_string->offset >= 12) {
+        const float duration = read_f32_at_unchecked(body, self_string->offset - 12);
+        if (std::isfinite(duration) && duration > 0.001f &&
+            duration < 100000.0f) {
+            anim.duration_frames = duration;
+        }
+    }
+    if (anim.duration_frames <= 0.001f)
+        anim.duration_frames = frames > 1 ? 100.0f : 0.0f;
+
+    const size_t data = count_off + 8;
+    anim.frames.resize(frames);
+    size_t pos = data;
+    bool ok = true;
+    for (uint32_t f = 0; f < frames && ok; ++f) {
+        auto& frame = anim.frames[f];
+        frame.positions.resize(verts);
+        for (uint32_t v = 0; v < verts; ++v) {
+            std::array<float, 3> p{};
+            for (int c = 0; c < 3; ++c) {
+                if (pos + 4 > size) {
+                    ok = false;
+                    break;
+                }
+                p[c] = read_f32_at_unchecked(body, pos);
+                pos += 4;
+                if (!std::isfinite(p[c]) || std::fabs(p[c]) > 1000000.0f) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (!ok) break;
+            frame.positions[v] = p;
+        }
+    }
+    if (!ok) {
+        anim.frames.clear();
+        anim.frame_count = 0;
+        anim.vertex_count = 0;
+    }
+    return anim;
+}
+
 struct TransAnimVec3Block {
     size_t offset = 0;
     std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey> keys;
@@ -3944,6 +4088,33 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
     return sample;
 }
 
+std::vector<std::array<float, 3>> sample_mesh_anim_positions(
+    const Gameplay::VenueMeshAnim& anim, float frame) {
+    if (anim.frames.empty() || anim.vertex_count == 0) return {};
+    if (anim.frames.size() == 1 || anim.duration_frames <= 0.001f)
+        return anim.frames.front().positions;
+    const float clamped_frame =
+        std::clamp(frame, 0.0f, std::max(anim.duration_frames, 0.0f));
+    const float key_pos =
+        (clamped_frame / std::max(anim.duration_frames, 0.001f)) *
+        static_cast<float>(anim.frames.size() - 1);
+    const size_t a = static_cast<size_t>(
+        std::clamp(std::floor(key_pos), 0.0f,
+                   static_cast<float>(anim.frames.size() - 1)));
+    const size_t b = std::min(a + 1, anim.frames.size() - 1);
+    const float t = std::clamp(key_pos - static_cast<float>(a), 0.0f, 1.0f);
+    const auto& fa = anim.frames[a].positions;
+    const auto& fb = anim.frames[b].positions;
+    if (fa.size() != fb.size()) return {};
+    std::vector<std::array<float, 3>> out;
+    out.resize(fa.size());
+    for (size_t i = 0; i < fa.size(); ++i) {
+        for (int c = 0; c < 3; ++c)
+            out[i][c] = fa[i][c] + (fb[i][c] - fa[i][c]) * t;
+    }
+    return out;
+}
+
 std::array<float, 2> sample_material_vec2_key(
     const std::vector<Gameplay::VenueMaterialAnim::Vec3Key>& keys,
     float frame) {
@@ -4311,6 +4482,7 @@ load_venue_anim_filters(const std::string& hdr_path,
         std::map<std::string,
                  ghogx::render::MiloSceneRenderer::MeshTransformAnim>
             transanim_anims;
+        std::map<std::string, Gameplay::VenueMeshAnim> meshanim_anims;
         std::map<std::string, std::vector<std::string>> event_filters;
 
         for (const auto& de : dir.entries) {
@@ -4324,7 +4496,9 @@ load_venue_anim_filters(const std::string& hdr_path,
                     const bool object_ref =
                         ref.rfind(".mesh") != std::string::npos ||
                         ref.rfind(".grp") != std::string::npos ||
-                        ref.rfind(".tnm") != std::string::npos;
+                        ref.rfind(".tnm") != std::string::npos ||
+                        ref.rfind(".msnm") != std::string::npos ||
+                        ref.rfind(".meshanim") != std::string::npos;
                     if (!object_ref) continue;
                     if (std::find(children.begin(), children.end(), ref) ==
                         children.end()) {
@@ -4346,6 +4520,11 @@ load_venue_anim_filters(const std::string& hdr_path,
                         anim.scale_keys.size());
                 }
                 transanim_anims[de.name] = std::move(anim);
+            } else if (de.type == "MeshAnim") {
+                auto anim = decode_venue_mesh_anim(de.name, body, size);
+                if (!anim.name.empty()) {
+                    meshanim_anims[anim.name] = std::move(anim);
+                }
             } else if (de.type == "EventTrigger") {
                 const auto strings = scan_milo_strings(body, size);
                 const std::string_view event_label =
@@ -4362,6 +4541,28 @@ load_venue_anim_filters(const std::string& hdr_path,
                 }
             }
         }
+        for (auto& [name, anim] : meshanim_anims) {
+            if (!anim.frames.empty() || anim.keys_owner.empty()) continue;
+            const auto owner = meshanim_anims.find(anim.keys_owner);
+            if (owner == meshanim_anims.end() || owner->second.frames.empty())
+                continue;
+            anim.frames = owner->second.frames;
+            anim.frame_count = owner->second.frame_count;
+            anim.vertex_count = owner->second.vertex_count;
+            anim.duration_frames = owner->second.duration_frames;
+        }
+        if (debug_venue_filters_enabled()) {
+            for (const auto& [name, anim] : meshanim_anims) {
+                if (anim.frames.empty()) continue;
+                std::fprintf(
+                    stderr,
+                    "[world] venue MeshAnim %s -> %s frames=%u verts=%u duration=%.1f%s%s\n",
+                    anim.name.c_str(), anim.mesh.c_str(), anim.frame_count,
+                    anim.vertex_count, anim.duration_frames,
+                    anim.keys_owner.empty() ? "" : " keys_owner=",
+                    anim.keys_owner.c_str());
+            }
+        }
 
         std::map<std::string, Gameplay::VenueAnimFilter> filters_by_name;
         for (const auto& de : dir.entries) {
@@ -4375,6 +4576,8 @@ load_venue_anim_filters(const std::string& hdr_path,
                 const auto ref = canonical_milo_ref(s);
                 if (ref.rfind(".grp") != std::string::npos ||
                     ref.rfind(".tnm") != std::string::npos ||
+                    ref.rfind(".msnm") != std::string::npos ||
+                    ref.rfind(".meshanim") != std::string::npos ||
                     ref.rfind(".mesh") != std::string::npos) {
                     target_ref = ref;
                     target_raw = s;
@@ -4422,11 +4625,26 @@ load_venue_anim_filters(const std::string& hdr_path,
                 target.anim = anim_it->second;
                 filter.targets.push_back(std::move(target));
             };
+            auto add_meshanim = [&](const std::string& msnm) {
+                const auto anim_it = meshanim_anims.find(msnm);
+                if (anim_it == meshanim_anims.end()) return;
+                const auto& anim = anim_it->second;
+                if (anim.mesh.empty() || anim.frames.empty()) return;
+                Gameplay::VenueAnimFilterMeshTarget target;
+                target.mesh = anim.mesh;
+                target.anim = anim;
+                filter.mesh_anim_targets.push_back(std::move(target));
+            };
             auto collect = [&](auto&& self, const std::string& ref,
                                std::unordered_set<std::string>& seen) -> void {
                 if (!seen.insert(ref).second) return;
                 if (ref.rfind(".tnm") != std::string::npos) {
                     add_transanim(ref);
+                    return;
+                }
+                if (ref.rfind(".msnm") != std::string::npos ||
+                    ref.rfind(".meshanim") != std::string::npos) {
+                    add_meshanim(ref);
                     return;
                 }
                 if (ref.rfind(".grp") != std::string::npos) {
@@ -4439,7 +4657,7 @@ load_venue_anim_filters(const std::string& hdr_path,
             };
             std::unordered_set<std::string> seen;
             collect(collect, target_ref, seen);
-            if (!filter.targets.empty()) {
+            if (!filter.targets.empty() || !filter.mesh_anim_targets.empty()) {
                 filters_by_name[de.name] = std::move(filter);
             }
         }
@@ -4459,9 +4677,13 @@ load_venue_anim_filters(const std::string& hdr_path,
                          milo_path.c_str(), out.size(), routed);
             if (debug_venue_filters_enabled()) {
                 for (const auto& [event, filters] : out) {
+                    size_t mesh_anim_targets = 0;
+                    for (const auto& filter : filters)
+                        mesh_anim_targets += filter.mesh_anim_targets.size();
                     std::fprintf(stderr,
-                                 "[world] venue AnimFilter event key: %s filters=%zu\n",
-                                 event.c_str(), filters.size());
+                                 "[world] venue AnimFilter event key: %s filters=%zu mesh_anims=%zu\n",
+                                 event.c_str(), filters.size(),
+                                 mesh_anim_targets);
                 }
             }
         }
@@ -5877,6 +6099,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_venue_environment_anims_.clear();
     venue_mesh_translation_offsets_.clear();
     venue_mesh_transform_offsets_.clear();
+    venue_mesh_position_overrides_.clear();
     venue_base_hidden_meshes_.clear();
     venue_runtime_hidden_meshes_.clear();
     active_venue_event_.clear();
@@ -6236,10 +6459,11 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         for (const auto& filter : filter_event_it->second) {
             std::fprintf(
                 stderr,
-                "[world] venue event %s: AnimFilter %s frame %.2f..%.2f targets=%zu scale=%.3f period=%.3f offset=%.3f type=%d %s\n",
+                "[world] venue event %s: AnimFilter %s frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d %s\n",
                 event_name.c_str(), filter.name.c_str(), filter.start_frame,
-                filter.end_frame, filter.targets.size(), filter.scale,
-                filter.period, filter.offset_frame, filter.type,
+                filter.end_frame, filter.targets.size(),
+                filter.mesh_anim_targets.size(), filter.scale, filter.period,
+                filter.offset_frame, filter.type,
                 persistent ? "persistent" : "transient");
         }
     } else if (debug_venue_filters_enabled()) {
@@ -6386,16 +6610,20 @@ void Gameplay::update_active_venue_particles() {
 void Gameplay::update_active_venue_anim_filters() {
     if (!world_) return;
     if (active_venue_anim_filters_.empty()) {
-        if (!venue_mesh_transform_offsets_.empty()) {
+        if (!venue_mesh_transform_offsets_.empty() ||
+            !venue_mesh_position_overrides_.empty()) {
             venue_mesh_translation_offsets_.clear();
             venue_mesh_transform_offsets_.clear();
+            venue_mesh_position_overrides_.clear();
             world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
+            world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
         }
         return;
     }
 
     venue_mesh_translation_offsets_.clear();
     venue_mesh_transform_offsets_.clear();
+    venue_mesh_position_overrides_.clear();
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_venue_filter_debug_time_ < 0.0 ||
@@ -6436,10 +6664,25 @@ void Gameplay::update_active_venue_anim_filters() {
                         it->persistent ? 1 : 0);
                 }
             }
+            for (const auto& target : filter.mesh_anim_targets) {
+                auto positions = sample_mesh_anim_positions(target.anim, frame);
+                if (!positions.empty())
+                    venue_mesh_position_overrides_[target.mesh] =
+                        std::move(positions);
+                if (debug_sample) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u persistent=%d\n",
+                        it->event_name.c_str(), filter.name.c_str(),
+                        target.mesh.c_str(), target.anim.name.c_str(), frame,
+                        target.anim.vertex_count, it->persistent ? 1 : 0);
+                }
+            }
         }
         ++it;
     }
     world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
+    world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
 }
 
 void Gameplay::apply_lighting_event(const std::string& event_name) {

@@ -465,6 +465,48 @@ int main() {
   ok &= contains(renderer_c,
                  "light_color_overrides_.find(ref)",
                  "renderer applies LightAnim overrides through Light refs");
+  ok &= contains(gameplay_c,
+                 "\".msnm\",\".meshanim\"",
+                 "canonical venue refs preserve MeshAnim suffixes");
+  ok &= contains(gameplay_h_c,
+                 "structVenueMeshAnim",
+                 "gameplay keeps decoded MeshAnim vertex-frame state");
+  ok &= contains(gameplay_h_c,
+                 "structVenueAnimFilterMeshTarget",
+                 "AnimFilter routes can target MeshAnim vertex animation");
+  ok &= contains(gameplay_c,
+                 "Gameplay::VenueMeshAnimdecode_venue_mesh_anim",
+                 "venue MeshAnim loader exists");
+  ok &= contains(gameplay_c,
+                 "read_u32_at_unchecked(body,0)!=1",
+                 "venue MeshAnim loader keeps traced PS2 version");
+  ok &= contains(gameplay_c,
+                 "anim.keys_owner=canonical_milo_ref(owner_string->value);",
+                 "venue MeshAnim loader preserves key-owner references");
+  ok &= contains(gameplay_c,
+                 "meshanim_anims[anim.name]=std::move(anim);",
+                 "venue load caches decoded MeshAnim bodies");
+  ok &= contains(gameplay_c,
+                 "filter.mesh_anim_targets.push_back(std::move(target));",
+                 "AnimFilter routes resolve MeshAnim targets");
+  ok &= contains(gameplay_c,
+                 "sample_mesh_anim_positions(target.anim,frame)",
+                 "venue MeshAnim has a per-tick sampler");
+  ok &= contains(gameplay_c,
+                 "venue_mesh_position_overrides_[target.mesh]=",
+                 "venue MeshAnim sampler stores vertex-position overrides");
+  ok &= contains(gameplay_c,
+                 "world_->set_mesh_position_overrides(venue_mesh_position_overrides_);",
+                 "venue MeshAnim samples feed renderer overrides");
+  ok &= contains(renderer_h_c,
+                 "set_mesh_position_overrides",
+                 "renderer accepts MeshAnim vertex-position overrides");
+  ok &= contains(renderer_c,
+                 "pos_it->second.size()==m.verts.size()",
+                 "renderer guards MeshAnim overrides by exact vertex count");
+  ok &= contains(renderer_c,
+                 "(*position_override)[vi]",
+                 "renderer applies MeshAnim override positions per vertex");
   ok &= contains(milo_scene_h_c,
                  "structParticleSysObj",
                  "MILO scene decoder exposes ParticleSys objects");
