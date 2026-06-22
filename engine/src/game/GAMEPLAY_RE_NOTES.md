@@ -225,6 +225,22 @@ Open work:
   camera movement. `analysis/native_validation/lighting_valid_adjective_regression_20260622_current/`
   reruns `shoutatthedevil`/arena and preserves the valid
   `request=VERSE/color1` route into `color1.pst`.
+- 2026-06-22 lighting category fallback follow-up:
+  `world_objects_worldbase.dta::one_bar_to` passes ordered category lists to
+  `set_lighting`: verse and chorus both try the current category, then
+  `VERSECHORUS`, then `VERSECHORUSSOLO`; solo tries `SOLO`, then
+  `VERSECHORUSSOLO`. Native previously tried only the primary category and a
+  hard `VERSECHORUSSOLO` fallback, and its fallback branch could prefer an
+  unadjectived fallback over an unadjectived primary preset. Preset selection
+  now follows the authored list order: exact adjective matches across that
+  list first, then unadjectived matches in the same order, then a last-resort
+  category match. Validation:
+  `analysis/native_validation/lighting_category_fallback_yyz_20260622_current/`
+  keeps YYZ/theatre on direct `CHORUS` presets with category-only requests and
+  active lighting cues, while
+  `analysis/native_validation/lighting_category_fallback_color1_20260622_current/`
+  keeps the valid `VERSE/color1` request falling through to the authored
+  `VERSECHORUSSOLO` `color1.pst`.
 - 2026-06-21 lighting transition follow-up: the decoded `duration` /
   `fade_out` fields now drive a stateful native spotlight target instead of a
   snap-only `set_active_spotlights` call. On a keyframe change, native keeps the

@@ -3118,43 +3118,44 @@ const Gameplay::LightingPreset* choose_lighting_preset(
     const std::vector<Gameplay::LightingPreset>& presets,
     const LightingRequest& request,
     uint32_t excitement_level) {
-    const std::string_view primary = request.category;
-    const std::string_view fallback =
-        (request.category == "INTRO") ? std::string_view{} : "VERSECHORUSSOLO";
-    const Gameplay::LightingPreset* best = nullptr;
-    const Gameplay::LightingPreset* unadjectived = nullptr;
-    for (const auto& p : presets) {
-        if (excitement_level < p.min_excitement ||
-            excitement_level > p.max_excitement) {
-            continue;
+    auto category_candidates = [&]() {
+        std::vector<std::string_view> out;
+        out.push_back(request.category);
+        if (request.category == "VERSE" || request.category == "CHORUS") {
+            out.push_back("VERSECHORUS");
+            out.push_back("VERSECHORUSSOLO");
+        } else if (request.category == "SOLO") {
+            out.push_back("VERSECHORUSSOLO");
         }
-        if (p.category != primary) continue;
-        if (!request.adjective.empty() && p.adjective == request.adjective) {
-            return &p;
+        return out;
+    };
+    const auto categories = category_candidates();
+    auto matches_category = [&](const Gameplay::LightingPreset& p,
+                                std::string_view category) {
+        return p.category == category &&
+               excitement_level >= p.min_excitement &&
+               excitement_level <= p.max_excitement;
+    };
+    if (!request.adjective.empty()) {
+        for (std::string_view category : categories) {
+            for (const auto& p : presets) {
+                if (!matches_category(p, category)) continue;
+                if (p.adjective == request.adjective) return &p;
+            }
         }
-        if (!unadjectived && p.adjective.empty()) unadjectived = &p;
-        if (!best) best = &p;
     }
-    if (!fallback.empty()) {
-        const Gameplay::LightingPreset* fallback_unadjectived = nullptr;
+    for (std::string_view category : categories) {
         for (const auto& p : presets) {
-            if (excitement_level < p.min_excitement ||
-                excitement_level > p.max_excitement) {
-                continue;
-            }
-            if (p.category != fallback) continue;
-            if (!request.adjective.empty() && p.adjective == request.adjective) {
-                return &p;
-            }
-            if (!fallback_unadjectived && p.adjective.empty()) {
-                fallback_unadjectived = &p;
-            }
-            if (!best) best = &p;
+            if (!matches_category(p, category)) continue;
+            if (p.adjective.empty()) return &p;
         }
-        if (fallback_unadjectived) return fallback_unadjectived;
     }
-    if (unadjectived) return unadjectived;
-    return best;
+    for (std::string_view category : categories) {
+        for (const auto& p : presets) {
+            if (matches_category(p, category)) return &p;
+        }
+    }
+    return nullptr;
 }
 
 size_t lighting_keyframe_index_at(const Gameplay::LightingPreset& preset,

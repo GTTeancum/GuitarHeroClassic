@@ -736,6 +736,20 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(is_lighting_adjective(candidate)){req.adjective=candidate;}",
                  "lighting request ignores unsupported chart lighting adjectives");
+  ok &= contains(gameplay_c,
+                 "if(request.category==\"VERSE\"||request.category==\"CHORUS\")"
+                 "{out.push_back(\"VERSECHORUS\");out.push_back("
+                 "\"VERSECHORUSSOLO\");}",
+                 "lighting category fallback mirrors one_bar_to verse/chorus order");
+  ok &= contains(gameplay_c,
+                 "elseif(request.category==\"SOLO\"){out.push_back("
+                 "\"VERSECHORUSSOLO\");}",
+                 "lighting category fallback mirrors one_bar_to solo order");
+  ok &= contains(gameplay_c,
+                 "if(!request.adjective.empty()){for(std::string_viewcategory:"
+                 "categories){for(constauto&p:presets){if(!matches_category(p,"
+                 "category))continue;if(p.adjective==request.adjective)return&p;}}}",
+                 "lighting adjective selection tries authored category fallbacks first");
   ok &= absent(gameplay_c,
                "constexpruint32_tkDefaultExcitement=2;",
                "lighting preset selection must not hardcode okay excitement");
