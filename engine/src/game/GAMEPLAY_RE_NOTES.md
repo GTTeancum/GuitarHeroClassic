@@ -1890,3 +1890,15 @@ Rejected native probe:
   `venue peak bridge excitement_peak -> peak_on`, exactly one later
   `venue peak bridge excitement_great -> peak_off`, and one
   `resend_excitement: excitement_peak`.
+- `analysis/native_validation/arena_peak_script_sparks_20260622_current/`
+  validates the source-shaped venue script side of the same bridge. The run
+  starts stock `shoutatthedevil` shortly before the authored first chorus,
+  forces `excitement_peak`, then lets the real `[chorus]` text event fire.
+  The log records `venue script event peak_on`, `state_peak=1`, a first
+  `sparks_on` test with `result=0`, then `venue script event chorus`,
+  `state_chorus=1`, `sparks_on` with `result=1`, and routed
+  `@filter:sparks` / `@filter:sparks_on` ParticleSys events with live
+  `sparks.part` samples. When diagnostic autoplay later enters
+  `excitement_great`, the bridge fires `peak_off`, the script runs
+  `sparks_off`, and `state_peak` returns to `0`. This is venue script/particle
+  route validation, not camera-composition signoff.
