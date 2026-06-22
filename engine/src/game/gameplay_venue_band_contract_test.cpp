@@ -1771,6 +1771,15 @@ int main() {
                  "decode_camshot_poses(body,static_cast<size_t>(de.size));",
                  "direct intro CamShot route reuses the decoded CamShot pose parser");
   ok &= contains(gameplay_c,
+                 "boolneutral_basis=false;",
+                 "CamShot pose candidates track exact neutral-basis rows");
+  ok &= contains(gameplay_c,
+                 "constboolhas_non_neutral_pose=std::any_of(",
+                 "CamShot pose parser detects real non-neutral pose rows");
+  ok &= contains(gameplay_c,
+                 "if(has_non_neutral_pose){candidates.erase(",
+                 "CamShot parser keeps neutral-only shots but drops neutral scanner false positives");
+  ok &= contains(gameplay_c,
                  "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
                  "camera loader keeps solo-only CamShots for solo sections");
   ok &= contains(gameplay_h_c,

@@ -68,6 +68,25 @@ Open work:
   `CamShot` body has normal `flr_near_lft` metadata and decoded camera poses,
   but no performer/source target string. Native must keep it as an
   authored-world/aim-only shot, not skip it and not invent `guitarist0`.
+- 2026-06-22 CamShot neutral-basis scanner false-positive filter:
+  Arena camera debug showed the heuristic sliding parser accepting exact
+  neutral-basis rows (`forward=(0,1,0)`, `up=(0,0,1)`) as additional poses in
+  CamShots that also contain non-neutral authored pose rows. Those rows caused
+  `post_switch_cam` to switch into scanner artifacts such as
+  `flr_near_lft01x12w` body `+0x28A` instead of staying on the real
+  body `+0x1EF` pose. Native now tags exact neutral-basis candidates and drops
+  them only when the same CamShot has at least one non-neutral pose; neutral-only
+  CamShots are preserved. Validation:
+  `analysis/native_validation/arena_camera_debug_repro_20260622_current/`
+  versus
+  `analysis/native_validation/arena_camera_neutral_filter_20260622_current/`
+  keeps 40 decoded arena CamShots and 11 regular sweeps, reduces neutral-basis
+  candidate rows from 14 to 1, and reduces bogus post-switch rows from 24 to 10.
+  The focused small2 regression in
+  `analysis/native_validation/small2_direct_intro_camshot_neutral_filter_regression_20260622_current/`
+  still chooses `Intro01 -> CamShot:Intro01`, decodes 2 direct poses, exits `0`,
+  and retains the valid neutral-only route shape. This is a parser false-positive
+  removal, not final camera-composition signoff.
 
 ## Performer Role Routing
 

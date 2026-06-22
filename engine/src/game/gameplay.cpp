@@ -6736,6 +6736,7 @@ std::vector<std::pair<Gameplay::CameraKey, size_t>> decode_camshot_poses(
         Gameplay::CameraKey key;
         size_t off = 0;
         float score = 0.0f;
+        bool neutral_basis = false;
     };
     std::vector<Candidate> candidates;
     for (size_t off = 0; off + 48 <= size; ++off) {
@@ -6777,6 +6778,7 @@ std::vector<std::pair<Gameplay::CameraKey, size_t>> decode_camshot_poses(
             c.off = off;
             c.score = 10.0f - std::abs(n0 - 1.0f) - std::abs(n1 - 1.0f) -
                       std::abs(n2 - 1.0f);
+            c.neutral_basis = identity < 0.001f;
             if (identity < 0.25f) c.score -= 4.0f;
             c.key.frame = 0.0f;
             c.key.eye[0] = pos[0];
@@ -6812,6 +6814,17 @@ std::vector<std::pair<Gameplay::CameraKey, size_t>> decode_camshot_poses(
         continue;
     }
     if (candidates.empty()) return {};
+    const bool has_non_neutral_pose =
+        std::any_of(candidates.begin(), candidates.end(),
+                    [](const Candidate& c) { return !c.neutral_basis; });
+    if (has_non_neutral_pose) {
+        candidates.erase(
+            std::remove_if(candidates.begin(), candidates.end(),
+                           [](const Candidate& c) {
+                               return c.neutral_basis;
+                           }),
+            candidates.end());
+    }
     std::stable_sort(candidates.begin(), candidates.end(),
                      [](const Candidate& a, const Candidate& b) {
                          return a.off < b.off;
