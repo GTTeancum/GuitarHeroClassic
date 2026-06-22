@@ -272,6 +272,45 @@ int main() {
   ok &= contains(gameplay_c,
                  "for(constauto&event:pending)apply_venue_event(event,false);",
                  "queued transient venue events replay through normal route");
+  ok &= contains(gameplay_h_c,
+                 "voidclear_runtime_venue_animation_state();",
+                 "gameplay exposes one derived venue animation reset helper");
+  ok &= contains(gameplay_c,
+                 "clear_runtime_venue_animation_state();"
+                 "ignored_last_light_change_=false;",
+                 "diagnostic seek clears derived venue animation state");
+  ok &= contains(gameplay_c,
+                 "lighting_material_alpha_.clear();"
+                 "lighting_material_tex_transforms_.clear();"
+                 "active_lighting_material_anims_.clear();",
+                 "venue reset clears lighting overlay material animation state");
+  ok &= contains(gameplay_c,
+                 "venue_active_particle_systems_.clear();"
+                 "venue_particle_intensities_.clear();"
+                 "active_venue_particles_.clear();",
+                 "venue reset clears active particle systems and intensities");
+  ok &= contains(gameplay_c,
+                 "venue_mesh_translation_offsets_.clear();"
+                 "venue_mesh_transform_offsets_.clear();"
+                 "venue_mesh_position_overrides_.clear();",
+                 "venue reset clears transform and MeshAnim renderer overrides");
+  ok &= contains(gameplay_c,
+                 "venue_runtime_hidden_meshes_=venue_base_hidden_meshes_;"
+                 "apply_venue_event_visibility(\"start\",false);",
+                 "venue reset restores authored start visibility from base state");
+  ok &= contains(gameplay_c,
+                 "world_->set_active_particle_systems("
+                 "venue_active_particle_systems_);"
+                 "world_->set_particle_intensities("
+                 "venue_particle_intensities_);",
+                 "venue reset pushes cleared particle state to renderer");
+  ok &= contains(gameplay_c,
+                 "lighting_->set_material_alpha_multipliers("
+                 "lighting_material_alpha_);"
+                 "lighting_->set_material_tex_transform_overrides("
+                 "lighting_material_tex_transforms_);"
+                 "apply_lighting_event(\"start\");",
+                 "venue reset replays lighting overlay start animation");
   ok &= absent(gameplay_c,
                "apply_venue_event(\"city_lights_fret",
                "fret venue events must route by decoded payload label, not arena object names");

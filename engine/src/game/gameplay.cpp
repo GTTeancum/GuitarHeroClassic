@@ -6600,6 +6600,53 @@ void Gameplay::resend_active_venue_event() {
     apply_venue_event(active, true);
 }
 
+void Gameplay::clear_runtime_venue_animation_state() {
+    lighting_material_alpha_.clear();
+    lighting_material_tex_transforms_.clear();
+    active_lighting_material_anims_.clear();
+
+    venue_material_alpha_.clear();
+    venue_material_tex_transforms_.clear();
+    active_venue_material_anims_.clear();
+    venue_environment_colors_.clear();
+    active_venue_environment_anims_.clear();
+    venue_light_colors_.clear();
+    active_venue_light_anims_.clear();
+    venue_active_particle_systems_.clear();
+    venue_particle_intensities_.clear();
+    active_venue_particles_.clear();
+    last_venue_particle_debug_time_ = -1.0;
+    active_venue_anim_filters_.clear();
+    last_venue_filter_debug_time_ = -1.0;
+    venue_mesh_translation_offsets_.clear();
+    venue_mesh_transform_offsets_.clear();
+    venue_mesh_position_overrides_.clear();
+    pending_transient_venue_events_.clear();
+    active_venue_event_.clear();
+
+    if (world_) {
+        venue_runtime_hidden_meshes_ = venue_base_hidden_meshes_;
+        apply_venue_event_visibility("start", false);
+        world_->set_material_alpha_multipliers(venue_material_alpha_);
+        world_->set_material_tex_transform_overrides(
+            venue_material_tex_transforms_);
+        world_->set_environment_color_overrides(venue_environment_colors_);
+        world_->set_light_color_overrides(venue_light_colors_);
+        world_->set_active_particle_systems(venue_active_particle_systems_);
+        world_->set_particle_intensities(venue_particle_intensities_);
+        world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
+        world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
+        world_->set_hidden_meshes(composed_venue_hidden_meshes());
+    }
+
+    if (lighting_) {
+        lighting_->set_material_alpha_multipliers(lighting_material_alpha_);
+        lighting_->set_material_tex_transform_overrides(
+            lighting_material_tex_transforms_);
+        apply_lighting_event("start");
+    }
+}
+
 void Gameplay::update_active_venue_material_anims() {
     if (!world_) return;
     bool alpha_changed = false;
@@ -7184,7 +7231,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     lighting_transition_start_ = song_time_;
     lighting_transition_duration_ = 0.0;
     lighting_transition_active_ = false;
-    active_venue_material_anims_.clear();
+    clear_runtime_venue_animation_state();
     ignored_last_light_change_ = false;
     std::fprintf(stderr,
                  "[gameplay] diagnostic seek: %.3fs player_note_idx=%zu drum_idx=%zu bass_idx=%zu venue_idx=%zu lighting_idx=%zu\n",

@@ -582,6 +582,22 @@ Open work:
   misses, 3 regular camera sweeps, 6 post-switch camera beats, 9 lighting
   keyframes, and 177 venue MatAnim event rows; frame 870 remains a coherent
   arena render after the persistent event changes.
+- 2026-06-21 diagnostic venue-runtime reset follow-up:
+  diagnostic mid-song seeks are validation tooling, but stale derived venue
+  state there can create false lighting/animation evidence. Native now clears
+  runtime-only venue and lighting animation caches on diagnostic seek: active
+  venue/lighting MatAnim playback, EnvAnim/LightAnim overrides, ParticleSys
+  state, AnimFilter/MeshAnim transform overrides, transient event queues, and
+  the active persistent excitement latch. If renderers already exist, the reset
+  pushes empty overrides, restores base plus authored `start` visibility, and
+  replays the lighting overlay `start` trigger before the normal next-tick
+  excitement event is chosen. Validation:
+  `analysis/native_validation/venue_diagnostic_seek_reset_20260621_current/`
+  reruns stock PS2 `shoutatthedevil` from a 16.0s diagnostic seek for 360
+  fixed-dt frames. The log records the seek, `start` visibility, re-entered
+  `excitement_okay` MatAnim/ParticleSys/AnimFilter routes, 9 note hits, zero
+  misses, 2 regular camera sweeps, and 2 lighting keyframes; frame 300 is a
+  coherent arena render with performers, props, lighting, and venue animation.
 - 2026-06-21 pre-load venue-event lifecycle follow-up:
   native `tick()` can choose a persistent excitement state before the first
   draw call has loaded `*_geom.milo_ps2` and decoded EventTrigger, MatAnim, and

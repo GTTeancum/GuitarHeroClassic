@@ -299,6 +299,7 @@ class Gameplay {
   bool apply_venue_event_visibility(const std::string& event_name, bool log);
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;
   void resend_active_venue_event();
+  void clear_runtime_venue_animation_state();
   void update_active_venue_material_anims();
   void update_active_venue_environment_anims();
   void update_active_venue_light_anims();
