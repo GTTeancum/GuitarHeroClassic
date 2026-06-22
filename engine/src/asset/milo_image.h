@@ -46,4 +46,12 @@ std::map<std::string, Image> load_milo_textures(
     const std::string& hdr_path, const std::string& ark_path,
     const std::string& milo_path, const std::vector<std::string>& entry_names);
 
+// Load MULTIPLE named Tex entries from the first MILO that contains each entry.
+// This mirrors PS2 venue composition where overlay MILOs may reference textures
+// stored in their paired geometry MILO instead of duplicating bitmap payloads.
+std::map<std::string, Image> load_milo_textures_from_sources(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& milo_paths,
+    const std::vector<std::string>& entry_names);
+
 }  // namespace ghogx::asset

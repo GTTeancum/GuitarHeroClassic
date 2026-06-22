@@ -11303,10 +11303,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                                    lighting_presets_,
                                                    venue_lights_,
                                                    venue_environs_);
-                auto lighting_textures = ghogx::asset::load_milo_textures(
-                    hdr_path_, ark_path_, lighting_milo,
-                    texture_names_for_scene_and_mat_anims(
-                        lighting_scene, lighting_mat_anims_));
+                auto lighting_textures =
+                    ghogx::asset::load_milo_textures_from_sources(
+                        hdr_path_, ark_path_,
+                        std::vector<std::string>{lighting_milo, venue_geom},
+                        texture_names_for_scene_and_mat_anims(
+                            lighting_scene, lighting_mat_anims_));
                 lighting_ =
                     std::make_unique<ghogx::render::MiloSceneRenderer>(win);
                 lighting_->set_scene(std::move(lighting_scene),

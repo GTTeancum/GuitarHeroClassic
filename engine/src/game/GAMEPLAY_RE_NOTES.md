@@ -2263,3 +2263,32 @@ Rejected native probe:
   fixed-step windows after the shared renderer UV override path. All seven
   exits are `0` with zero unsupported rows and zero miss rows; the only broad
   parser hits are benign `failed=0` Light/Environ coverage summaries.
+
+2026-06-22 lighting overlay geometry texture fallback:
+
+- Native texture diagnostics in
+  `analysis/native_validation/lighting_texture_missing_names_20260622_current/`
+  showed lighting overlay MILOs requesting textures that were not `Tex`
+  entries in the overlay itself: arena `track_light_obj.tex`, small1
+  `op_stagelight01.tex`, battle `bat_lampsmall.tex`, big
+  `metal_with_light.tex`, and small2 `op_glowblue.tex` / `op_pat01.tex`.
+  Direct PS2 ARK object-directory dumps prove each missing overlay texture is
+  present in the paired venue geometry MILO. This is a PS2 resource-layout
+  dependency, not six venue-specific missing-art cases.
+- Native now exposes `asset::load_milo_textures_from_sources`, which decodes
+  the first source containing each requested `Tex` while preserving primary
+  source precedence. Lighting overlays request textures from
+  `[<venue>_lighting.milo_ps2, <venue>_geom.milo_ps2]`, so overlay-local
+  textures still win and shared geometry textures only fill real overlay
+  misses. The path is generic and has no texture-name special cases.
+- Validation:
+  `analysis/native_validation/lighting_texture_geom_fallback_20260622_current/`
+  reruns the five formerly short overlay routes with
+  `GHOGX_DEBUG_TEXTURE_LOAD=1`; all exits are `0` and the affected overlays
+  now report full texture coverage from two sources: arena `9/9`, small1
+  `6/6`, battle `35/35`, big `6/6`, and small2 `17/17`. The wider sweep in
+  `analysis/native_validation/lighting_texture_geom_fallback_route_sweep_20260622_current/`
+  reruns arena, small1, fest, theatre, battle, big, and small2 for 120 fixed
+  frames. All seven exits are `0`, every lighting overlay reports full
+  requested texture coverage, and the parser records `bad_rows=0` for
+  unresolved textures, unsupported rows, miss rows, and missing ARK entries.

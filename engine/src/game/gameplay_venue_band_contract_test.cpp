@@ -10,6 +10,10 @@
 #define GHOGX_GAME_SOURCE_DIR "."
 #endif
 
+#ifndef GHOGX_ASSET_SOURCE_DIR
+#define GHOGX_ASSET_SOURCE_DIR "."
+#endif
+
 #ifndef GHOGX_CHART_SOURCE_DIR
 #define GHOGX_CHART_SOURCE_DIR "."
 #endif
@@ -87,11 +91,14 @@ std::string function_body(const std::string& source,
 
 int main() {
   const std::filesystem::path game_dir = GHOGX_GAME_SOURCE_DIR;
+  const std::filesystem::path asset_dir = GHOGX_ASSET_SOURCE_DIR;
   const std::filesystem::path chart_dir = GHOGX_CHART_SOURCE_DIR;
   const std::filesystem::path milo_scene_dir = GHOGX_MILO_SCENE_SOURCE_DIR;
   const std::filesystem::path render_dir = GHOGX_RENDER_SOURCE_DIR;
   const std::string gameplay = read_file(game_dir / "gameplay.cpp");
   const std::string gameplay_h = read_file(game_dir / "gameplay.h");
+  const std::string milo_image = read_file(asset_dir / "milo_image.cpp");
+  const std::string milo_image_h = read_file(asset_dir / "milo_image.h");
   const std::string midi_reader = read_file(chart_dir / "midi_reader.cpp");
   const std::string milo_scene_cpp =
       read_file(milo_scene_dir / "milo_scene.cpp");
@@ -103,6 +110,8 @@ int main() {
       read_file(render_dir / "milo_scene_renderer.h");
   const std::string gameplay_c = compact(gameplay);
   const std::string gameplay_h_c = compact(gameplay_h);
+  const std::string milo_image_c = compact(milo_image);
+  const std::string milo_image_h_c = compact(milo_image_h);
   const std::string midi_c = compact(midi_reader);
   const std::string milo_scene_cpp_c = compact(milo_scene_cpp);
   const std::string milo_scene_h_c = compact(milo_scene_h);
@@ -996,6 +1005,40 @@ int main() {
                  "lighting_event_group_visibility_=load_venue_group_visibility("
                  "hdr_path_,ark_path_,lighting_milo,lighting_scene);",
                  "lighting overlay loads authored lighting MILO visibility routes");
+  ok &= contains(milo_image_h_c,
+                 "load_milo_textures_from_sources",
+                 "asset loader exposes a shared multi-MILO texture source path");
+  ok &= contains(milo_image_c,
+                 "if(out.find(de.name)!=out.end())continue;",
+                 "multi-source texture loading preserves first-source precedence");
+  ok &= contains(milo_image_c,
+                 "found.insert(stats.found.begin(),stats.found.end());",
+                 "multi-source texture loading tracks fallback Tex coverage");
+  ok &= contains(gameplay_c,
+                 "ghogx::asset::load_milo_textures_from_sources("
+                 "hdr_path_,ark_path_,std::vector<std::string>{"
+                 "lighting_milo,venue_geom},"
+                 "texture_names_for_scene_and_mat_anims("
+                 "lighting_scene,lighting_mat_anims_));",
+                 "lighting overlay textures fall back to paired venue geometry MILO");
+  ok &= absent(gameplay,
+               "track_light_obj.tex",
+               "lighting texture fallback must not special-case arena texture names");
+  ok &= absent(gameplay,
+               "op_stagelight01.tex",
+               "lighting texture fallback must not special-case small-club texture names");
+  ok &= absent(gameplay,
+               "bat_lampsmall.tex",
+               "lighting texture fallback must not special-case battle texture names");
+  ok &= absent(gameplay,
+               "metal_with_light.tex",
+               "lighting texture fallback must not special-case big-venue texture names");
+  ok &= absent(gameplay,
+               "op_glowblue.tex",
+               "lighting texture fallback must not special-case small2 glow texture names");
+  ok &= absent(gameplay,
+               "op_pat01.tex",
+               "lighting texture fallback must not special-case small2 pattern texture names");
   ok &= contains(gameplay_h_c,
                  "std::map<std::string,std::vector<VenueScriptObjectMessage>>"
                  "lighting_event_script_messages_;",

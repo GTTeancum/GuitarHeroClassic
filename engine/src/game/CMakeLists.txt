@@ -47,6 +47,7 @@ add_executable(ghogx_gameplay_venue_band_contract_test
     gameplay_venue_band_contract_test.cpp)
 target_compile_definitions(ghogx_gameplay_venue_band_contract_test PRIVATE
     GHOGX_GAME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    GHOGX_ASSET_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../asset"
     GHOGX_CHART_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../chart"
     GHOGX_MILO_SCENE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../milo_scene"
     GHOGX_RENDER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../render")
