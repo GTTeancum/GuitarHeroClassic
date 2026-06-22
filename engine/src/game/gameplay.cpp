@@ -3485,6 +3485,10 @@ bool venue_excitement_is_high(std::string_view venue_event) {
     return venue_excitement_level(venue_event) >= 3;
 }
 
+bool is_peak_excitement_event(std::string_view venue_event) {
+    return venue_event == "excitement_peak";
+}
+
 LightingRequest lighting_request_at(const ghogx::chart::Chart& chart,
                                     double song_time,
                                     double intro_seconds) {
@@ -6899,6 +6903,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_base_hidden_meshes_.clear();
     venue_runtime_hidden_meshes_.clear();
     active_venue_event_.clear();
+    diagnostic_venue_event_applied_ = false;
     last_anim_time_ = -1.0;
     last_band_note_tick_ = UINT32_MAX;
     next_drum_cue_idx_ = 0;
@@ -7111,8 +7116,14 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         return;
     }
     execute_venue_script_event(event_name);
+    bool peak_transition = false;
+    std::string peak_transition_event;
     if (persistent) {
         if (active_venue_event_ == event_name && world_) return;
+        const bool was_peak = is_peak_excitement_event(active_venue_event_);
+        const bool is_peak = is_peak_excitement_event(event_name);
+        peak_transition = was_peak != is_peak;
+        peak_transition_event = is_peak ? "peak_on" : "peak_off";
         active_venue_event_ = event_name;
         active_venue_anim_filters_.erase(
             std::remove_if(active_venue_anim_filters_.begin(),
@@ -7162,6 +7173,15 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         venue_environment_colors_.clear();
         light_color_changed = !venue_light_colors_.empty();
         venue_light_colors_.clear();
+    }
+    if (peak_transition) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] venue peak bridge %s -> %s\n",
+                         event_name.c_str(),
+                         peak_transition_event.c_str());
+        }
+        apply_venue_event(peak_transition_event, false);
     }
     auto event_it = venue_event_mat_anims_.find(event_name);
     if (event_it != venue_event_mat_anims_.end()) {
@@ -9100,6 +9120,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 apply_lighting_event("intro_start");
                 std::fprintf(stderr, "[world] lighting overlay loaded: %s\n",
                               lighting_milo.c_str());
+            }
+            if (!diagnostic_venue_event_.empty() &&
+                !diagnostic_venue_event_applied_ && world_) {
+                diagnostic_venue_event_applied_ = true;
+                std::fprintf(stderr, "[world] diagnostic venue event: %s\n",
+                             diagnostic_venue_event_.c_str());
+                apply_venue_event(diagnostic_venue_event_, true);
             }
 
             ghogx::milo_scene::Scene chars_scene;

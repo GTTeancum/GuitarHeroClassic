@@ -1849,3 +1849,35 @@ Rejected native probe:
   spots. `battle/rockthistown` still recovers an unlabeled target-state frame
   for `verse_great.pst`, while the previous tail-only `theatre/yyz`
   pseudo-frame is no longer emitted.
+
+2026-06-22 peak event bridge:
+
+- The accepted source/trace evidence separates peak state from direct MIDI
+  trigger data. Stock `config/gen/midi_parsers.dtb` only maps the TRIGGERS
+  lighting parser pitches for first/next/prev and effect parser pitch 52 for
+  `world venue_effect`; it does not define a peak-on/off trigger. The extracted
+  worldbase script maps `kExcitementPeak` to the persistent
+  `excitement_peak` handler, while the accepted char script and PCSX2 trace
+  notes expose `peak_on_player`, `peak_off_player`, `peak_on`, and `peak_off`
+  as authored runtime messages.
+- Native now bridges only the exact persistent `excitement_peak` transition to
+  transient `peak_on`, and any transition from peak back to another persistent
+  excitement event to transient `peak_off`. This keeps peak visuals in the
+  shared EventTrigger/AnimFilter/ParticleSys/visibility route path and avoids a
+  guessed gameplay threshold for when peak should be entered.
+- `--diagnostic-venue-event <event>` was added as a one-shot validation hook.
+  It applies the requested persistent venue event after the world/lighting
+  route tables have loaded, so route evidence can be captured without
+  hardcoding gameplay scoring or star-power state.
+- `analysis/native_validation/venue_peak_bridge_20260622_current/` validates
+  stock `battle/rockthistown` with hidden D3D capture. `run.log` records the
+  forced `diagnostic venue event: excitement_peak`, then
+  `venue peak bridge excitement_peak -> peak_on`, followed by Battle lighting
+  visibility `show=1 hide=0` and the decoded `electric_fire.part` /
+  `electric_sparkssmoke1.part` particle routes. `run_long.log` continues with
+  diagnostic autoplay until the native player streak enters
+  `excitement_great`; it then records
+  `venue peak bridge excitement_great -> peak_off`, lighting visibility
+  `show=0 hide=1`, and the matching decoded particle routes. Both runs exit
+  `0`; `long_frame_0003.bmp` is retained only as a sanity frame for the loaded
+  Battle venue and performers.

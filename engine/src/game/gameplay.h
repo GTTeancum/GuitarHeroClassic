@@ -326,6 +326,10 @@ class Gameplay {
   void set_diagnostic_venue_override(const std::string& venue) {
     diagnostic_venue_override_ = venue;
   }
+  void set_diagnostic_venue_event(const std::string& event_name) {
+    diagnostic_venue_event_ = event_name;
+    diagnostic_venue_event_applied_ = false;
+  }
   // Diagnostic capture helper: jump the deterministic song clock to a known
   // authored window without replaying all earlier note/cue events.
   void seek_for_diagnostic_capture(double seconds);
@@ -591,6 +595,8 @@ class Gameplay {
   bool diagnostic_autoplay_ = false;
   uint32_t diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
   std::string diagnostic_venue_override_;
+  std::string diagnostic_venue_event_;
+  bool diagnostic_venue_event_applied_ = false;
 
   // Per-lane: has this lane's gem been hit this pass (so we don't double-hit)?
   bool lane_hit_[5] = {};

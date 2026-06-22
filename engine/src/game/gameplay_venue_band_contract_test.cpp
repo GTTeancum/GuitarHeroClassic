@@ -249,6 +249,31 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::stringdiagnostic_venue_override_;",
                  "diagnostic venue override is not a global song route");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_venue_event(conststd::string&event_name)",
+                 "diagnostic venue event stays an explicit gameplay test hook");
+  ok &= contains(gameplay_h_c,
+                 "std::stringdiagnostic_venue_event_;",
+                 "diagnostic venue event is scoped to gameplay validation");
+  ok &= contains(gameplay_h_c,
+                 "booldiagnostic_venue_event_applied_=false;",
+                 "diagnostic venue event is one-shot per load");
+  ok &= contains(gameplay_c,
+                 "boolis_peak_excitement_event(std::string_viewvenue_event){"
+                 "returnvenue_event==\"excitement_peak\";}",
+                 "peak bridge only recognizes the traced excitement_peak event");
+  ok &= contains(gameplay_c,
+                 "peak_transition_event=is_peak?\"peak_on\":\"peak_off\";",
+                 "peak excitement transitions fan out to traced peak_on/off events");
+  ok &= contains(gameplay_c,
+                 "apply_venue_event(peak_transition_event,false);",
+                 "peak_on/off bridge uses transient venue EventTrigger routing");
+  ok &= contains(gameplay_c,
+                 "diagnostic_venue_event_applied_=false;",
+                 "diagnostic venue event resets when a song loads");
+  ok &= contains(gameplay_c,
+                 "apply_venue_event(diagnostic_venue_event_,true);",
+                 "diagnostic venue event exercises the persistent event path");
   ok &= appears_before(gameplay_c,
                        "quickplay_rig_=resolve_quickplay_rig(",
                        "if(!diagnostic_venue_override_.empty()){",
