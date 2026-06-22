@@ -1640,6 +1640,19 @@ Rejected native probe:
   lighting presets/keyframes, zero miss rows, and zero unsupported
   material-channel rows. The captured frame 180 is a coherent authored-camera
   small1 venue render with TV/material-heavy stage content visible.
+- Follow-up: lighting-overlay MatAnim routes now emit matching
+  `lighting MatAnim sample` rows under `GHOGX_DEBUG_VENUE_FILTERS`. Big
+  `smoke_lights.mnm` already sampled texture transform channels on the lighting
+  overlay, but the lack of live sample rows made the route look weaker than the
+  venue MatAnim path in validation. This is an evidence/diagnostic bridge for
+  the existing decoded route, not a visual lighting-color parity claim.
+  Validation:
+  `analysis/native_validation/lighting_matanim_sample_big_20260622_current/`
+  reruns stock PS2 `hangar18`/Big from `80.0s` with hidden diagnostic autoplay.
+  It records the `smoke_lights.mnm -> smoke_lights.mat` lighting start route,
+  40 live `lighting MatAnim sample` rows with texture translation/scale/rotation
+  channel counts, 10 lighting keyframe rows, 80 camera rows, and zero
+  unsupported, miss, or missing-route rows.
 
 2026-06-22 venue section message bridge:
 

@@ -1065,6 +1065,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "voidGameplay::update_active_lighting_particles()",
                  "lighting overlay particles sample on the song clock");
+  ok &= contains(gameplay_h_c,
+                 "doublelast_lighting_mat_anim_debug_time_=-1.0;",
+                 "lighting overlay MatAnim sample logging has its own throttle");
+  ok &= contains(gameplay_c,
+                 "\"[world]lightingMatAnimsample%s->%sframe=%.2falpha=%.3f"
+                 "color_keys=%zutexture_keys=%zutex_trans_keys=%zu"
+                 "tex_scale_keys=%zutex_rot_keys=%zupersistent=%d\\n\"",
+                 "lighting overlay MatAnim sampler emits debug rows for native validation");
+  ok &= contains(gameplay_c,
+                 "if(debug_sample)last_lighting_mat_anim_debug_time_=song_time_;",
+                 "lighting overlay MatAnim sample logging is throttled like venue MatAnim");
   ok &= contains(gameplay_c,
                  "if(!it->persistent&&elapsed>it->duration_seconds){"
                  "it=active_lighting_particles_.erase(it);continue;}",
