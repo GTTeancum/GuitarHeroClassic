@@ -6464,6 +6464,13 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
 
     quickplay_rig_ = resolve_quickplay_rig(hdr_path, ark_path, shortname);
     if (quickplay_rig_) {
+        if (!diagnostic_venue_override_.empty()) {
+            std::fprintf(stderr,
+                         "[world] diagnostic venue override: %s -> %s\n",
+                         quickplay_rig_->venue.c_str(),
+                         diagnostic_venue_override_.c_str());
+            quickplay_rig_->venue = diagnostic_venue_override_;
+        }
         std::fprintf(stderr, "[world] quickplay rig: character=%s guitar=%s venue=%s band=",
                      quickplay_rig_->character_outfit.c_str(),
                      quickplay_rig_->guitar.c_str(), quickplay_rig_->venue.c_str());

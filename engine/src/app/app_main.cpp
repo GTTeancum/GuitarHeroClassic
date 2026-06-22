@@ -16,6 +16,7 @@
 //   ghogx_app --diagnostic-song-start <sec>
 //                                      seek deterministic capture to a song time
 //   ghogx_app --diagnostic-autoplay    chart-driven native validation input
+//   ghogx_app --diagnostic-venue <v>   route capture through another GH2 venue
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
 //   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
 //                                      capture numbered BMPs in gameplay mode
@@ -438,6 +439,10 @@ class AppEngine : public ghogx::Engine {
 
   void set_diagnostic_autoplay(bool enabled) {
     gameplay_.set_diagnostic_autoplay(enabled);
+  }
+
+  void set_diagnostic_venue_override(const std::string& venue) {
+    gameplay_.set_diagnostic_venue_override(venue);
   }
 
   void set_diagnostic_song_start(double seconds) {
@@ -1389,6 +1394,7 @@ int main(int argc, char** argv) {
   float fixed_dt = 0.0f;
   double diagnostic_song_start = 0.0;
   bool diagnostic_autoplay = false;
+  std::string diagnostic_venue;
   bool show_window = false;
   CamOverride cam_ovr;  // optional --cam-* overrides for the scene viewer
 
@@ -1416,6 +1422,8 @@ int main(int argc, char** argv) {
       diagnostic_song_start = std::atof(argv[++i]);
     } else if (std::strcmp(argv[i], "--diagnostic-autoplay") == 0) {
       diagnostic_autoplay = true;
+    } else if (std::strcmp(argv[i], "--diagnostic-venue") == 0 && i + 1 < argc) {
+      diagnostic_venue = argv[++i];
     } else if (std::strcmp(argv[i], "--auto-start") == 0) {
       auto_start = true;
     } else if (std::strcmp(argv[i], "--show-window") == 0) {
@@ -1574,6 +1582,11 @@ int main(int argc, char** argv) {
   AppEngine engine(win.get());
   engine.set_ark(hdr, ark);
   engine.set_song(song_name, difficulty);
+  if (!diagnostic_venue.empty()) {
+    engine.set_diagnostic_venue_override(diagnostic_venue);
+    std::fprintf(stderr, "[ghogx] diagnostic venue override: %s\n",
+                 diagnostic_venue.c_str());
+  }
   if (diagnostic_autoplay) {
     engine.set_diagnostic_autoplay(true);
     std::fprintf(stderr, "[ghogx] diagnostic autoplay enabled\n");

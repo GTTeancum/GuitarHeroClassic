@@ -303,6 +303,11 @@ class Gameplay {
     diagnostic_autoplay_ = enabled;
     diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
   }
+  // Diagnostic venue breadth helper: keeps song/band data from songs.dtb, but
+  // routes world/lighting/characters/drums through another authored venue.
+  void set_diagnostic_venue_override(const std::string& venue) {
+    diagnostic_venue_override_ = venue;
+  }
   // Diagnostic capture helper: jump the deterministic song clock to a known
   // authored window without replaying all earlier note/cue events.
   void seek_for_diagnostic_capture(double seconds);
@@ -523,6 +528,7 @@ class Gameplay {
   uint32_t prev_fret_mask_  = 0;
   bool diagnostic_autoplay_ = false;
   uint32_t diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
+  std::string diagnostic_venue_override_;
 
   // Per-lane: has this lane's gem been hit this pass (so we don't double-hit)?
   bool lane_hit_[5] = {};

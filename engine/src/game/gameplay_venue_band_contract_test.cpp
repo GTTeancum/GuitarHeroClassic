@@ -243,6 +243,19 @@ int main() {
                        "diagnostic_autoplay_fret_mask(notes);}",
                        "constboolstrummed=",
                        "diagnostic autoplay feeds the normal strum edge path");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_venue_override(conststd::string&venue)",
+                 "diagnostic venue override stays an explicit gameplay test hook");
+  ok &= contains(gameplay_h_c,
+                 "std::stringdiagnostic_venue_override_;",
+                 "diagnostic venue override is not a global song route");
+  ok &= appears_before(gameplay_c,
+                       "quickplay_rig_=resolve_quickplay_rig(",
+                       "if(!diagnostic_venue_override_.empty()){",
+                       "diagnostic venue override only runs after songs.dtb rig resolution");
+  ok &= contains(gameplay_c,
+                 "quickplay_rig_->venue=diagnostic_venue_override_;",
+                 "diagnostic venue override feeds the shared venue loader");
   ok &= contains(gameplay_c,
                  "apply_venue_event(player_fret_hit_event(n.lane),false);",
                  "successful player note hits dispatch transient fret venue events");

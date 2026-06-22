@@ -1465,3 +1465,22 @@ Rejected native probe:
   bridge is not safe to enable by default. Keep the dynamic-light bridge gated
   until a PS2 trace proves how active lighting preset/keyframe target states
   should scale or select those decoded Light objects.
+
+2026-06-22 diagnostic stone venue override:
+
+- `config/gh2.dta` lists `stone` in the authored venue set and
+  `world/world_objects.dta` merges `stone/stone.dta`, but the stock quickplay
+  song routes covered by `songs.dtb` do not exercise it. Native now exposes a
+  diagnostic-only `--diagnostic-venue <venue>` route that keeps the resolved
+  quickplay song, band, guitar, chart, and performer data, then swaps only the
+  venue symbol before the normal world/lighting/chars/drums loaders run.
+- `analysis/native_validation/stone_diagnostic_venue_override_20260622_current/`
+  reruns stock PS2 `shoutatthedevil` with `--diagnostic-venue stone`,
+  diagnostic autoplay, hidden rendering, and screenshots at frames 120/240/350.
+  The log shows `arena -> stone`, loads `world/stone/og/gen/stone_geom.milo_ps2`,
+  `world/stone/og/gen/stone_lighting.milo_ps2`, and
+  `char/og/drums/gen/dw_stone_drums.milo_ps2`, then runs authored regular
+  camera sweeps, `post_switch_cam`, lighting presets/keyframes, LightAnim,
+  MeshAnim, and AnimFilter samples with zero miss rows and zero unsupported
+  material-channel rows. Frames 240 and 350 are coherent authored-camera stone
+  venue renders, so `stone` is now covered as venue-runtime breadth evidence.
