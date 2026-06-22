@@ -151,6 +151,17 @@ class Gameplay {
     float duration_frames = 0.0f;
     std::vector<ColorKey> color_keys;
   };
+  struct VenueLightAnim {
+    struct ColorKey {
+      float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+      float frame = 0.0f;
+    };
+    std::string name;
+    std::string light;
+    std::string keys_owner;
+    float duration_frames = 0.0f;
+    std::vector<ColorKey> color_keys;
+  };
   struct ActiveVenueMaterialAnim {
     std::string name;
     std::string material;
@@ -171,6 +182,14 @@ class Gameplay {
     double start_time = 0.0;
     float duration_frames = 0.0f;
     std::vector<VenueEnvironmentAnim::ColorKey> color_keys;
+    bool persistent = true;
+  };
+  struct ActiveVenueLightAnim {
+    std::string name;
+    std::string light;
+    double start_time = 0.0;
+    float duration_frames = 0.0f;
+    std::vector<VenueLightAnim::ColorKey> color_keys;
     bool persistent = true;
   };
   struct VenueParticleRoute {
@@ -255,6 +274,7 @@ class Gameplay {
   void resend_active_venue_event();
   void update_active_venue_material_anims();
   void update_active_venue_environment_anims();
+  void update_active_venue_light_anims();
   void update_active_venue_particles();
   void update_active_venue_anim_filters();
   void apply_lighting_event(const std::string& event_name);
@@ -381,6 +401,8 @@ class Gameplay {
   std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;
   std::map<std::string, VenueEnvironmentAnim> venue_env_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_env_anims_;
+  std::map<std::string, VenueLightAnim> venue_light_anims_;
+  std::map<std::string, std::vector<std::string>> venue_event_light_anims_;
   std::map<std::string, std::vector<VenueParticleRoute>>
       venue_event_particle_systems_;
   std::map<std::string, std::vector<std::string>> venue_event_filters_;
@@ -398,6 +420,8 @@ class Gameplay {
   std::vector<ActiveVenueMaterialAnim> active_venue_material_anims_;
   std::map<std::string, std::array<float, 4>> venue_environment_colors_;
   std::vector<ActiveVenueEnvironmentAnim> active_venue_environment_anims_;
+  std::map<std::string, std::array<float, 4>> venue_light_colors_;
+  std::vector<ActiveVenueLightAnim> active_venue_light_anims_;
   std::unordered_set<std::string> venue_active_particle_systems_;
   std::vector<ActiveVenueParticleSystem> active_venue_particles_;
   std::map<std::string, std::array<float, 3>> venue_mesh_translation_offsets_;

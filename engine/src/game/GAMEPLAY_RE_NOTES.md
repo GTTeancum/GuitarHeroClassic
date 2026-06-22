@@ -767,6 +767,24 @@ Open work:
   `venue ParticleSys routes loaded ...: 10 events`, `excitement_okay` starting
   six persistent smoke/blood particle systems through the normal event path,
   and coherent native frames at 480/600.
+- 2026-06-21 venue LightAnim route: extracted PS2 `LightAnim` `.lnm` bodies are
+  version 2 with the same 25-byte pre-target prefix used by venue `MatAnim` /
+  `EnvAnim`, followed by the target `.lit` string, a color-key count, and
+  RGBA+frame rows. Fest `stage_angel.lnm` owns seven keys from frame 0..200;
+  `stage_gargoyle.lnm` targets `gargoyle_light.lit` and references
+  `stage_angel.lnm` as its key owner. Native now decodes `.lnm` objects, copies
+  key-owner rows, resolves `EventTrigger -> AnimFilter/Group -> LightAnim`,
+  starts active light color animations on venue events, samples them on the song
+  clock, and feeds per-Light color overrides to the venue renderer's authored
+  dynamic light route. Validation:
+  `analysis/native_validation/fest_lightanim_event_badreputation_20260621_current/`
+  runs hidden stock PS2 `badreputation` from `15.0s` with diagnostic autoplay
+  and dynamic venue lights enabled. The log records `stage_angel.lnm` /
+  `stage_gargoyle.lnm` decode, `venue LightAnim routes loaded ...: 2 events`,
+  the real MIDI `venue_effect` cue at `19.400s`, both LightAnims starting
+  transiently through that cue, companion MatAnim/ParticleSys/visibility/
+  AnimFilter routes firing, active lighting keyframes, regular camera sweeps,
+  and coherent native frames at 180/300.
 - 2026-06-21 texture-transform validation pass:
   `analysis/native_validation/small1_tex_xfm_scale_rot_20260621_current/`
   proves small1 group-routed TV/barrel MatAnims are decoded and started with

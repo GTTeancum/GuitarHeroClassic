@@ -396,9 +396,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "update_active_venue_material_anims();"
                  "update_active_venue_environment_anims();"
+                 "update_active_venue_light_anims();"
                  "update_active_venue_particles();"
                  "update_active_venue_anim_filters();",
-                 "venue material/environment/particles sample before mesh AnimFilter samples");
+                 "venue material/environment/lights/particles sample before mesh AnimFilter samples");
   ok &= contains(gameplay_c,
                  "std::map<std::string,Gameplay::VenueEnvironmentAnim>"
                  "load_venue_env_anims",
@@ -429,6 +430,41 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->set_environment_color_overrides(venue_environment_colors_);",
                  "venue EnvAnim samples feed renderer overrides");
+  ok &= contains(gameplay_h_c,
+                 "structVenueLightAnim",
+                 "gameplay keeps decoded LightAnim state");
+  ok &= contains(gameplay_c,
+                 "std::map<std::string,Gameplay::VenueLightAnim>"
+                 "load_venue_light_anims",
+                 "venue LightAnim loader exists");
+  ok &= contains(gameplay_c,
+                 "if(version!=2)continue;",
+                 "venue LightAnim loader keeps traced PS2 version");
+  ok &= contains(gameplay_c,
+                 "anim.keys_owner=ref;",
+                 "venue LightAnim loader preserves key-owner references");
+  ok &= contains(gameplay_c,
+                 "std::map<std::string,std::vector<std::string>>"
+                 "load_venue_event_light_anims",
+                 "gameplay loads authored LightAnim event routes");
+  ok &= contains(gameplay_c,
+                 "venue_event_light_anims_=load_venue_event_light_anims(",
+                 "venue load wires EventTrigger LightAnim routes");
+  ok &= contains(gameplay_c,
+                 "active_venue_light_anims_.push_back(std::move(active_anim));",
+                 "venue LightAnim events start active light animation");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::update_active_venue_light_anims()",
+                 "venue LightAnim has a per-tick sampler");
+  ok &= contains(gameplay_c,
+                 "world_->set_light_color_overrides(venue_light_colors_);",
+                 "venue LightAnim samples feed renderer overrides");
+  ok &= contains(renderer_h_c,
+                 "set_light_color_overrides",
+                 "renderer accepts LightAnim light color overrides");
+  ok &= contains(renderer_c,
+                 "light_color_overrides_.find(ref)",
+                 "renderer applies LightAnim overrides through Light refs");
   ok &= contains(milo_scene_h_c,
                  "structParticleSysObj",
                  "MILO scene decoder exposes ParticleSys objects");

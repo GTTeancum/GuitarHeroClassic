@@ -426,6 +426,11 @@ void MiloSceneRenderer::set_environment_color_overrides(
   environment_color_overrides_ = std::move(environment_colors);
 }
 
+void MiloSceneRenderer::set_light_color_overrides(
+    std::map<std::string, std::array<float, 4>> light_colors) {
+  light_color_overrides_ = std::move(light_colors);
+}
+
 void MiloSceneRenderer::set_mesh_translation_offsets(
     std::map<std::string, std::array<float, 3>> offsets) {
   mesh_translation_offsets_ = std::move(offsets);
@@ -878,11 +883,17 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       if (slot >= kAuthoredLightFirstSlot + kAuthoredLightSlotCount) break;
       const auto* light = scene_.find_light(ref);
       if (!light || !light_color_sane(*light)) continue;
+      std::array<float, 4> light_color = {light->color[0], light->color[1],
+                                          light->color[2], light->color[3]};
+      if (const auto color_it = light_color_overrides_.find(ref);
+          color_it != light_color_overrides_.end()) {
+        light_color = color_it->second;
+      }
       D3DLIGHT9 dl{};
-      dl.Diffuse.r = std::clamp(light->color[0], 0.0f, 4.0f);
-      dl.Diffuse.g = std::clamp(light->color[1], 0.0f, 4.0f);
-      dl.Diffuse.b = std::clamp(light->color[2], 0.0f, 4.0f);
-      dl.Diffuse.a = std::clamp(light->color[3], 0.0f, 1.0f);
+      dl.Diffuse.r = std::clamp(light_color[0], 0.0f, 4.0f);
+      dl.Diffuse.g = std::clamp(light_color[1], 0.0f, 4.0f);
+      dl.Diffuse.b = std::clamp(light_color[2], 0.0f, 4.0f);
+      dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
       if (light->type == 1) {
         float dx = light->world_stored.rot[1][0];
         float dy = light->world_stored.rot[1][1];

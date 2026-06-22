@@ -592,7 +592,7 @@ std::vector<std::string> scan_milo_strings(const uint8_t* body, size_t size) {
 
 std::string canonical_milo_ref(std::string s) {
     static constexpr std::string_view suffixes[] = {
-        ".mesh", ".filt", ".grp", ".tnm", ".mnm", ".enm",
+        ".mesh", ".filt", ".grp", ".tnm", ".mnm", ".enm", ".lnm",
         ".part", ".panim", ".trig"};
     for (const auto suffix : suffixes) {
         const size_t pos = s.find(suffix);
@@ -1573,6 +1573,198 @@ std::map<std::string, Gameplay::VenueEnvironmentAnim> load_venue_env_anims(
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] EnvAnim load %s: %s\n",
+                     milo_path.c_str(), ex.what());
+    }
+    return out;
+}
+
+std::map<std::string, Gameplay::VenueLightAnim> load_venue_light_anims(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path) {
+    std::map<std::string, Gameplay::VenueLightAnim> out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        for (const auto& de : dir.entries) {
+            if (de.type != "LightAnim" || de.offset + de.size > payload.size())
+                continue;
+            const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (size < 40) continue;
+            uint32_t version = 0;
+            std::memcpy(&version, body, sizeof(version));
+            if (version != 2) continue;
+            size_t pos = 25;
+            auto read_string = [&]() -> std::optional<std::string> {
+                if (pos + 4 > size) return std::nullopt;
+                uint32_t len = 0;
+                std::memcpy(&len, body + pos, sizeof(len));
+                pos += 4;
+                if (len == 0 || len > 96 || pos + len > size)
+                    return std::nullopt;
+                std::string s(reinterpret_cast<const char*>(body + pos), len);
+                pos += len;
+                return s;
+            };
+            auto light = read_string();
+            if (!light || light->rfind(".lit") == std::string::npos)
+                continue;
+            uint32_t color_count = 0;
+            if (!read_u32_advance(body, size, pos, color_count) ||
+                color_count > 4096) {
+                continue;
+            }
+            Gameplay::VenueLightAnim anim;
+            anim.name = canonical_milo_ref(de.name);
+            anim.light = canonical_milo_ref(*light);
+            for (uint32_t i = 0; i < color_count; ++i) {
+                Gameplay::VenueLightAnim::ColorKey key;
+                bool ok = true;
+                for (int c = 0; c < 4; ++c) {
+                    ok = ok && read_f32_advance(body, size, pos, key.color[c]);
+                    key.color[c] = std::clamp(key.color[c], 0.0f, 4.0f);
+                }
+                ok = ok && read_f32_advance(body, size, pos, key.frame);
+                if (!ok || key.frame < 0.0f || key.frame > 10000.0f) {
+                    anim.color_keys.clear();
+                    break;
+                }
+                anim.color_keys.push_back(key);
+                anim.duration_frames = std::max(anim.duration_frames, key.frame);
+            }
+            if (color_count != anim.color_keys.size()) continue;
+            if (anim.color_keys.empty()) {
+                const auto strings = scan_milo_strings(body, size);
+                for (const auto& s : strings) {
+                    const auto ref = canonical_milo_ref(s);
+                    if (ref != anim.name && ref.size() > 4 &&
+                        ref.rfind(".lnm") == ref.size() - 4) {
+                        anim.keys_owner = ref;
+                        break;
+                    }
+                }
+            }
+            out[anim.name] = anim;
+        }
+        for (auto& [name, anim] : out) {
+            if (!anim.color_keys.empty() || anim.keys_owner.empty()) continue;
+            const auto owner = out.find(anim.keys_owner);
+            if (owner == out.end() || owner->second.color_keys.empty()) continue;
+            anim.color_keys = owner->second.color_keys;
+            anim.duration_frames = owner->second.duration_frames;
+        }
+        for (const auto& [name, anim] : out) {
+            if (anim.color_keys.empty()) continue;
+            std::fprintf(stderr,
+                         "[world] LightAnim %s -> %s color_keys=%zu frames=%.1f%s%s\n",
+                         anim.name.c_str(), anim.light.c_str(),
+                         anim.color_keys.size(), anim.duration_frames,
+                         anim.keys_owner.empty() ? "" : " keys_owner=",
+                         anim.keys_owner.c_str());
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] LightAnim load %s: %s\n",
+                     milo_path.c_str(), ex.what());
+    }
+    return out;
+}
+
+std::map<std::string, std::vector<std::string>> load_venue_event_light_anims(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path) {
+    std::map<std::string, std::vector<std::string>> out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+
+        std::map<std::string, std::vector<std::string>> filter_refs;
+        std::map<std::string, std::vector<std::string>> group_refs;
+        for (const auto& de : dir.entries) {
+            if (de.offset + de.size > payload.size()) continue;
+            if (de.type != "AnimFilter" && de.type != "Group") continue;
+            const auto* body = payload.data() + de.offset;
+            const auto strings =
+                scan_milo_strings(body, static_cast<size_t>(de.size));
+            auto& refs = de.type == "AnimFilter"
+                             ? filter_refs[canonical_milo_ref(de.name)]
+                             : group_refs[canonical_milo_ref(de.name)];
+            for (const auto& s : strings) {
+                const auto ref = canonical_milo_ref(s);
+                const bool object_ref =
+                    (ref.size() > 4 && ref.rfind(".lnm") == ref.size() - 4) ||
+                    (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5) ||
+                    (ref.size() > 4 && ref.rfind(".grp") == ref.size() - 4);
+                if (object_ref) push_unique_ref(refs, ref);
+            }
+        }
+        auto collect_ref =
+            [&](auto&& self, const std::string& ref,
+                std::vector<std::string>& routes,
+                std::unordered_set<std::string>& seen) -> void {
+            if (!seen.insert(ref).second) return;
+            if (ref.size() > 4 && ref.rfind(".lnm") == ref.size() - 4) {
+                push_unique_ref(routes, ref);
+                return;
+            }
+            const auto& ref_map =
+                (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5)
+                    ? filter_refs
+                    : group_refs;
+            const auto refs_it = ref_map.find(ref);
+            if (refs_it == ref_map.end()) return;
+            for (const auto& child : refs_it->second)
+                self(self, child, routes, seen);
+        };
+        for (const auto& de : dir.entries) {
+            if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
+                continue;
+            const auto* body = payload.data() + de.offset;
+            const auto strings =
+                scan_milo_strings(body, static_cast<size_t>(de.size));
+            if (strings.empty()) continue;
+            const std::string_view event_label =
+                is_event_payload_label(strings.front()) ? std::string_view(strings.front())
+                                                        : std::string_view{};
+            std::vector<std::string> light_anims;
+            std::unordered_set<std::string> seen;
+            for (const auto& s : strings) {
+                const auto ref = canonical_milo_ref(s);
+                const bool object_ref =
+                    (ref.size() > 4 && ref.rfind(".lnm") == ref.size() - 4) ||
+                    (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5) ||
+                    (ref.size() > 4 && ref.rfind(".grp") == ref.size() - 4);
+                if (object_ref) collect_ref(collect_ref, ref, light_anims, seen);
+            }
+            if (light_anims.empty()) continue;
+            for (const auto& key : event_trigger_route_keys(de.name, event_label)) {
+                auto& routed = out[key];
+                for (const auto& anim : light_anims) push_unique_ref(routed, anim);
+            }
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(stderr, "[world] EventTrigger %s LightAnims=",
+                             de.name.c_str());
+                for (const auto& anim : light_anims)
+                    std::fprintf(stderr, "%s ", anim.c_str());
+                std::fprintf(stderr, "\n");
+            }
+        }
+        if (!out.empty()) {
+            std::fprintf(stderr,
+                         "[world] venue LightAnim routes loaded %s: %zu events\n",
+                         milo_path.c_str(), out.size());
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] EventTrigger LightAnim load %s: %s\n",
                      milo_path.c_str(), ex.what());
     }
     return out;
@@ -3851,6 +4043,31 @@ std::array<float, 4> sample_environment_color_key(
     return out;
 }
 
+std::array<float, 4> sample_light_color_key(
+    const std::vector<Gameplay::VenueLightAnim::ColorKey>& keys,
+    float frame) {
+    if (keys.empty()) return {1.0f, 1.0f, 1.0f, 1.0f};
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    std::array<float, 4> out{};
+    for (int i = 0; i < 4; ++i) {
+        const float hi = i == 3 ? 1.0f : 4.0f;
+        out[i] = std::clamp(a->color[i] + (b->color[i] - a->color[i]) * t,
+                            0.0f, hi);
+    }
+    return out;
+}
+
 float material_anim_frame_at(float duration_frames, double elapsed_seconds,
                              bool persistent) {
     if (!std::isfinite(duration_frames) || duration_frames <= 0.001f)
@@ -5639,6 +5856,10 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_event_mat_anims_.clear();
     venue_env_anims_.clear();
     venue_event_env_anims_.clear();
+    venue_light_anims_.clear();
+    venue_event_light_anims_.clear();
+    venue_light_colors_.clear();
+    active_venue_light_anims_.clear();
     venue_event_filters_.clear();
     venue_filter_mesh_targets_.clear();
     venue_event_anim_filters_.clear();
@@ -5799,6 +6020,13 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                                return active.persistent;
                            }),
             active_venue_environment_anims_.end());
+        active_venue_light_anims_.erase(
+            std::remove_if(active_venue_light_anims_.begin(),
+                           active_venue_light_anims_.end(),
+                           [](const ActiveVenueLightAnim& active) {
+                               return active.persistent;
+                           }),
+            active_venue_light_anims_.end());
         active_venue_particles_.erase(
             std::remove_if(active_venue_particles_.begin(),
                            active_venue_particles_.end(),
@@ -5810,10 +6038,13 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     std::vector<std::pair<std::string, float>> material_changes;
     bool material_tex_changed = false;
     bool environment_color_changed = false;
+    bool light_color_changed = false;
     if (persistent) {
         venue_mesh_translation_offsets_.clear();
         environment_color_changed = !venue_environment_colors_.empty();
         venue_environment_colors_.clear();
+        light_color_changed = !venue_light_colors_.empty();
+        venue_light_colors_.clear();
     }
     auto event_it = venue_event_mat_anims_.find(event_name);
     if (event_it != venue_event_mat_anims_.end()) {
@@ -5915,6 +6146,42 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             }
         }
     }
+    if (const auto light_event_it =
+            venue_event_light_anims_.find(event_name);
+        light_event_it != venue_event_light_anims_.end()) {
+        for (const auto& anim_name : light_event_it->second) {
+            const auto anim_it = venue_light_anims_.find(anim_name);
+            if (anim_it == venue_light_anims_.end()) continue;
+            const auto& anim = anim_it->second;
+            if (anim.color_keys.empty()) continue;
+            active_venue_light_anims_.erase(
+                std::remove_if(active_venue_light_anims_.begin(),
+                               active_venue_light_anims_.end(),
+                               [&](const ActiveVenueLightAnim& active) {
+                                   return active.light == anim.light;
+                               }),
+                active_venue_light_anims_.end());
+            ActiveVenueLightAnim active_anim;
+            active_anim.name = anim.name;
+            active_anim.light = anim.light;
+            active_anim.start_time = song_time_;
+            active_anim.duration_frames = anim.duration_frames;
+            active_anim.color_keys = anim.color_keys;
+            active_anim.persistent = persistent;
+            venue_light_colors_[anim.light] =
+                sample_light_color_key(active_anim.color_keys, 0.0f);
+            light_color_changed = true;
+            std::fprintf(
+                stderr,
+                "[world] venue event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f %s\n",
+                event_name.c_str(), anim.name.c_str(), anim.light.c_str(),
+                anim.color_keys.size(), anim.duration_frames,
+                persistent ? "persistent" : "transient");
+            if (anim.duration_frames > 0.001f) {
+                active_venue_light_anims_.push_back(std::move(active_anim));
+            }
+        }
+    }
     if (const auto particle_it =
             venue_event_particle_systems_.find(event_name);
         particle_it != venue_event_particle_systems_.end()) {
@@ -5987,8 +6254,11 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 venue_material_tex_transforms_);
         if (environment_color_changed)
             world_->set_environment_color_overrides(venue_environment_colors_);
+        if (light_color_changed)
+            world_->set_light_color_overrides(venue_light_colors_);
         world_->set_hidden_meshes(composed_venue_hidden_meshes());
     }
+    update_active_venue_light_anims();
     update_active_venue_particles();
     update_active_venue_anim_filters();
     apply_lighting_event(event_name);
@@ -6071,6 +6341,27 @@ void Gameplay::update_active_venue_environment_anims() {
     }
     if (changed)
         world_->set_environment_color_overrides(venue_environment_colors_);
+}
+
+void Gameplay::update_active_venue_light_anims() {
+    if (!world_) return;
+    if (active_venue_light_anims_.empty()) return;
+
+    bool changed = false;
+    for (auto it = active_venue_light_anims_.begin();
+         it != active_venue_light_anims_.end();) {
+        const float frame = material_anim_frame_at(
+            it->duration_frames, song_time_ - it->start_time, it->persistent);
+        venue_light_colors_[it->light] =
+            sample_light_color_key(it->color_keys, frame);
+        changed = true;
+        if (!it->persistent && frame >= it->duration_frames - 0.001f) {
+            it = active_venue_light_anims_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (changed) world_->set_light_color_overrides(venue_light_colors_);
 }
 
 void Gameplay::update_active_venue_particles() {
@@ -6682,6 +6973,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     }
     update_active_venue_material_anims();
     update_active_venue_environment_anims();
+    update_active_venue_light_anims();
     update_active_venue_particles();
     update_active_venue_anim_filters();
     update_active_lighting_material_anims();
@@ -6729,6 +7021,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_event_env_anims_ =
                     load_venue_event_env_anims(hdr_path_, ark_path_,
                                                venue_geom);
+                venue_light_anims_ =
+                    load_venue_light_anims(hdr_path_, ark_path_, venue_geom);
+                venue_event_light_anims_ =
+                    load_venue_event_light_anims(hdr_path_, ark_path_,
+                                                 venue_geom);
                 venue_event_particle_systems_ =
                     load_venue_event_particles(hdr_path_, ark_path_,
                                                venue_geom);
