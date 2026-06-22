@@ -1557,6 +1557,18 @@ Rejected native probe:
   dynamic-light color-parity signoff; the decoded environment dynamic-light
   bridge remains opt-in until PS2 trace evidence proves the active
   preset/keyframe-to-light brightness math.
+- Post camera-parser checkpoint:
+  `analysis/native_validation/venue_lighting_anim_health_after_camera_20260622_current/`
+  reruns the same seven stock GH2 venue/song routes after the neutral-basis
+  CamShot scanner filter. All seven hidden fixed-step runs exit `0` with zero
+  unsupported rows, zero `MISS` / `miss=` rows, zero `no decoded` rows, and
+  zero unresolved rows. The broad "error" scan only matches benign
+  `failed=0` Light/Environ coverage summaries. Live sample rows remain active
+  across venue animation and lighting: arena 31,256 venue / 85 lighting,
+  small1 12,447 / 101, fest 31,124 / 111, theatre 22,322 / 155, battle
+  7 / 1,814, big 58,466 / 80, and small2 7,539 / 1,501. This preserves the
+  venue-lighting/animation route health after the camera parser change; it is
+  still not dynamic-light color-parity signoff.
 
 2026-06-22 dynamic environment light A/B:
 
