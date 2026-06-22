@@ -2523,6 +2523,46 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
 
         std::map<std::string, std::vector<std::string>> filter_mat_anims;
         std::map<std::string, std::vector<std::string>> filter_group_refs;
+        std::unordered_set<std::string> noop_mat_anims;
+        auto mat_anim_has_no_channels = [](const uint8_t* body,
+                                           size_t size) -> bool {
+            if (size < 40) return false;
+            uint32_t version = 0;
+            std::memcpy(&version, body, sizeof(version));
+            if (version != 7) return false;
+            size_t pos = 25;
+            auto read_string = [&]() -> bool {
+                if (pos + 4 > size) return false;
+                uint32_t len = 0;
+                std::memcpy(&len, body + pos, sizeof(len));
+                pos += 4;
+                if (len == 0 || len > 96 || pos + len > size) return false;
+                pos += len;
+                return true;
+            };
+            if (!read_string() || !read_string()) return false;
+            for (int i = 0; i < 6; ++i) {
+                if (pos + 4 > size) return false;
+                uint32_t count = 0;
+                std::memcpy(&count, body + pos, sizeof(count));
+                pos += 4;
+                if (count != 0) return false;
+            }
+            return true;
+        };
+        for (const auto& de : dir.entries) {
+            if (de.type != "MatAnim" || de.offset + de.size > payload.size())
+                continue;
+            if (mat_anim_has_no_channels(payload.data() + de.offset,
+                                         static_cast<size_t>(de.size))) {
+                noop_mat_anims.insert(canonical_milo_ref(de.name));
+            }
+        }
+        auto push_supported_mat_ref = [&](std::vector<std::string>& values,
+                                          const std::string& ref) {
+            if (noop_mat_anims.find(ref) != noop_mat_anims.end()) return;
+            push_unique_ref(values, ref);
+        };
         for (const auto& de : dir.entries) {
             if (de.type != "AnimFilter" || de.offset + de.size > payload.size())
                 continue;
@@ -2534,7 +2574,7 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
             for (const auto& s : strings) {
                 const auto ref = canonical_milo_ref(s);
                 if (ref.size() > 4 && ref.rfind(".mnm") == ref.size() - 4) {
-                    push_unique_ref(routed, ref);
+                    push_supported_mat_ref(routed, ref);
                 } else if (ref.size() > 4 &&
                            ref.rfind(".grp") == ref.size() - 4) {
                     push_unique_ref(filter_group_refs[filter_key], ref);
@@ -2551,7 +2591,8 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
                 payload.data() + de.offset, static_cast<size_t>(de.size));
             for (const auto& s : strings) {
                 const auto ref = canonical_milo_ref(s);
-                if ((ref.size() > 4 && ref.rfind(".mnm") == ref.size() - 4) ||
+                if ((ref.size() > 4 && ref.rfind(".mnm") == ref.size() - 4 &&
+                     noop_mat_anims.find(ref) == noop_mat_anims.end()) ||
                     (ref.size() > 5 && ref.rfind(".filt") == ref.size() - 5) ||
                     (ref.size() > 4 && ref.rfind(".grp") == ref.size() - 4)) {
                     push_unique_ref(refs, ref);
@@ -2575,7 +2616,7 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
             if (refs_it != group_refs.end()) {
                 for (const auto& ref : refs_it->second) {
                     if (ref.size() > 4 && ref.rfind(".mnm") == ref.size() - 4) {
-                        push_unique_ref(resolved, ref);
+                        push_supported_mat_ref(resolved, ref);
                     } else if (ref.size() > 5 &&
                                ref.rfind(".filt") == ref.size() - 5) {
                         const auto filter_it = filter_mat_anims.find(ref);
@@ -2627,7 +2668,7 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
             for (const auto& s : strings) {
                 const auto ref = canonical_milo_ref(s);
                 if (ref.size() > 4 && ref.rfind(".mnm") == ref.size() - 4) {
-                    push_unique_ref(mat_anims, ref);
+                    push_supported_mat_ref(mat_anims, ref);
                 } else if (ref.size() > 5 &&
                            ref.rfind(".filt") == ref.size() - 5) {
                     const auto filter_it = filter_mat_anims.find(ref);
@@ -6755,11 +6796,25 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     ignored_last_light_change_ = false;
     lighting_mat_anims_.clear();
     lighting_event_mat_anims_.clear();
+    lighting_event_particle_systems_.clear();
+    lighting_event_anim_filters_.clear();
+    lighting_event_group_visibility_.clear();
     lighting_material_alpha_.clear();
     lighting_material_colors_.clear();
     lighting_material_textures_.clear();
     lighting_material_tex_transforms_.clear();
     active_lighting_material_anims_.clear();
+    lighting_active_particle_systems_.clear();
+    lighting_particle_intensities_.clear();
+    lighting_particle_sizes_.clear();
+    active_lighting_particles_.clear();
+    last_lighting_particle_debug_time_ = -1.0;
+    lighting_mesh_transform_offsets_.clear();
+    lighting_mesh_position_overrides_.clear();
+    active_lighting_anim_filters_.clear();
+    last_lighting_filter_debug_time_ = -1.0;
+    lighting_base_hidden_meshes_.clear();
+    lighting_runtime_hidden_meshes_.clear();
     venue_mat_anims_.clear();
     venue_event_mat_anims_.clear();
     venue_env_anims_.clear();
@@ -7339,6 +7394,15 @@ void Gameplay::clear_runtime_venue_animation_state() {
     lighting_material_textures_.clear();
     lighting_material_tex_transforms_.clear();
     active_lighting_material_anims_.clear();
+    lighting_active_particle_systems_.clear();
+    lighting_particle_intensities_.clear();
+    lighting_particle_sizes_.clear();
+    active_lighting_particles_.clear();
+    last_lighting_particle_debug_time_ = -1.0;
+    lighting_mesh_transform_offsets_.clear();
+    lighting_mesh_position_overrides_.clear();
+    active_lighting_anim_filters_.clear();
+    last_lighting_filter_debug_time_ = -1.0;
 
     venue_material_alpha_.clear();
     venue_material_colors_.clear();
@@ -7391,7 +7455,15 @@ void Gameplay::clear_runtime_venue_animation_state() {
         lighting_->set_material_texture_overrides(lighting_material_textures_);
         lighting_->set_material_tex_transform_overrides(
             lighting_material_tex_transforms_);
+        lighting_runtime_hidden_meshes_ = lighting_base_hidden_meshes_;
+        lighting_->set_active_particle_systems(lighting_active_particle_systems_);
+        lighting_->set_particle_intensities(lighting_particle_intensities_);
+        lighting_->set_particle_sizes(lighting_particle_sizes_);
+        lighting_->set_mesh_transform_offsets(lighting_mesh_transform_offsets_);
+        lighting_->set_mesh_position_overrides(lighting_mesh_position_overrides_);
+        lighting_->set_hidden_meshes(composed_lighting_hidden_meshes());
         apply_lighting_event("start");
+        apply_lighting_event("intro_start");
     }
 }
 
@@ -7691,7 +7763,15 @@ void Gameplay::update_active_venue_anim_filters() {
 void Gameplay::apply_lighting_event(const std::string& event_name) {
     if (event_name.empty() || !lighting_) return;
     auto event_it = lighting_event_mat_anims_.find(event_name);
-    if (event_it == lighting_event_mat_anims_.end()) return;
+    auto visibility_it = lighting_event_group_visibility_.find(event_name);
+    auto particle_it = lighting_event_particle_systems_.find(event_name);
+    auto filter_it = lighting_event_anim_filters_.find(event_name);
+    if (event_it == lighting_event_mat_anims_.end() &&
+        visibility_it == lighting_event_group_visibility_.end() &&
+        particle_it == lighting_event_particle_systems_.end() &&
+        filter_it == lighting_event_anim_filters_.end()) {
+        return;
+    }
 
     bool alpha_changed = false;
     bool color_changed = false;
@@ -7701,6 +7781,7 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
     bool venue_color_changed = false;
     bool venue_texture_changed = false;
     bool venue_tex_changed = false;
+    if (event_it != lighting_event_mat_anims_.end()) {
     for (const auto& anim_name : event_it->second) {
         auto anim_it = lighting_mat_anims_.find(anim_name);
         if (anim_it == lighting_mat_anims_.end()) {
@@ -7895,6 +7976,7 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
         }
         if (anim.has_alpha) alpha_changed = true;
     }
+    }
     if (alpha_changed)
         lighting_->set_material_alpha_multipliers(lighting_material_alpha_);
     if (color_changed)
@@ -7913,6 +7995,96 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
     if (venue_tex_changed && world_)
         world_->set_material_tex_transform_overrides(
             venue_material_tex_transforms_);
+    const bool lighting_visibility_applied =
+        apply_lighting_event_visibility(event_name, true);
+    if (!lighting_visibility_applied && debug_venue_filters_enabled()) {
+        std::fprintf(stderr,
+                     "[world] lighting event %s: no trigger visibility route\n",
+                     event_name.c_str());
+    }
+    if (particle_it != lighting_event_particle_systems_.end()) {
+        for (const auto& route : particle_it->second) {
+            active_lighting_particles_.erase(
+                std::remove_if(active_lighting_particles_.begin(),
+                               active_lighting_particles_.end(),
+                               [&](const ActiveVenueParticleSystem& active) {
+                                   return active.particle == route.particle;
+                               }),
+                active_lighting_particles_.end());
+            ActiveVenueParticleSystem active;
+            active.particle = route.particle;
+            active.start_time = song_time_;
+            active.duration_seconds = authored_frames_to_seconds(
+                route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
+            active.duration_frames = route.duration_frames;
+            active.emission_keys = route.emission_keys;
+            active.size_keys = route.size_keys;
+            active.persistent = true;
+            active_lighting_particles_.push_back(std::move(active));
+            std::fprintf(
+                stderr,
+                "[world] lighting event %s: ParticleSys %s via %s emit_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f\n",
+                event_name.c_str(), route.particle.c_str(),
+                route.anim.c_str(), route.emission_keys.size(),
+                route.size_keys.size(), route.duration_frames,
+                active_lighting_particles_.back().duration_seconds);
+        }
+    }
+    if (filter_it != lighting_event_anim_filters_.end()) {
+        active_lighting_anim_filters_.erase(
+            std::remove_if(active_lighting_anim_filters_.begin(),
+                           active_lighting_anim_filters_.end(),
+                           [&](const ActiveVenueAnimFilter& active) {
+                               return active.event_name == event_name;
+                           }),
+            active_lighting_anim_filters_.end());
+        ActiveVenueAnimFilter active_filter;
+        active_filter.event_name = event_name;
+        active_filter.filters = filter_it->second;
+        active_filter.start_time = song_time_;
+        active_filter.persistent = true;
+        active_lighting_anim_filters_.push_back(std::move(active_filter));
+        for (const auto& filter : filter_it->second) {
+            std::fprintf(
+                stderr,
+                "[world] lighting event %s: AnimFilter %s frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d\n",
+                event_name.c_str(), filter.name.c_str(), filter.start_frame,
+                filter.end_frame, filter.targets.size(),
+                filter.mesh_anim_targets.size(), filter.scale, filter.period,
+                filter.offset_frame, filter.type);
+        }
+    } else if (debug_venue_filters_enabled()) {
+        std::fprintf(stderr,
+                     "[world] lighting event %s: no decoded AnimFilter transforms\n",
+                     event_name.c_str());
+    }
+    update_active_lighting_particles();
+    update_active_lighting_anim_filters();
+}
+
+bool Gameplay::apply_lighting_event_visibility(const std::string& event_name,
+                                               bool log) {
+    const auto visibility_it = lighting_event_group_visibility_.find(event_name);
+    if (visibility_it == lighting_event_group_visibility_.end()) return false;
+    for (const auto& mesh : visibility_it->second.show_meshes) {
+        lighting_runtime_hidden_meshes_.erase(mesh);
+    }
+    for (const auto& mesh : visibility_it->second.hide_meshes) {
+        lighting_runtime_hidden_meshes_.insert(mesh);
+    }
+    if (lighting_) lighting_->set_hidden_meshes(composed_lighting_hidden_meshes());
+    if (log) {
+        std::fprintf(
+            stderr,
+            "[world] lighting event %s: trigger visibility show=%zu hide=%zu\n",
+            event_name.c_str(), visibility_it->second.show_meshes.size(),
+            visibility_it->second.hide_meshes.size());
+    }
+    return true;
+}
+
+std::unordered_set<std::string> Gameplay::composed_lighting_hidden_meshes() const {
+    return lighting_runtime_hidden_meshes_;
 }
 
 void Gameplay::update_active_lighting_material_anims() {
@@ -7984,6 +8156,119 @@ void Gameplay::update_active_lighting_material_anims() {
     if (tex_changed)
         lighting_->set_material_tex_transform_overrides(
             lighting_material_tex_transforms_);
+}
+
+void Gameplay::update_active_lighting_particles() {
+    if (!lighting_) return;
+    std::unordered_set<std::string> active_particles;
+    std::map<std::string, float> particle_intensities;
+    std::map<std::string, float> particle_sizes;
+    const bool debug_sample =
+        debug_venue_filters_enabled() &&
+        (last_lighting_particle_debug_time_ < 0.0 ||
+         song_time_ - last_lighting_particle_debug_time_ >= 0.5);
+    for (auto it = active_lighting_particles_.begin();
+         it != active_lighting_particles_.end();) {
+        const double elapsed = std::max(0.0, song_time_ - it->start_time);
+        const float frame =
+            it->duration_frames > 0.001f
+                ? material_anim_frame_at(it->duration_frames, elapsed,
+                                         it->persistent)
+                : static_cast<float>(elapsed * kLightingFramesPerSecond);
+        const float intensity = sample_particle_emission(it->emission_keys, frame);
+        const float size = sample_particle_size(it->size_keys, frame);
+        if (intensity > 0.001f) {
+            active_particles.insert(it->particle);
+            auto& intensity_slot = particle_intensities[it->particle];
+            intensity_slot = std::max(intensity_slot, intensity);
+            if (!it->size_keys.empty()) {
+                auto& size_slot = particle_sizes[it->particle];
+                size_slot = std::max(size_slot, size);
+            }
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f emit_keys=%zu size_keys=%zu\n",
+                    it->particle.c_str(), frame, intensity, size,
+                    it->emission_keys.size(), it->size_keys.size());
+            }
+        }
+        ++it;
+    }
+    if (debug_sample) last_lighting_particle_debug_time_ = song_time_;
+    if (active_particles != lighting_active_particle_systems_ ||
+        particle_intensities != lighting_particle_intensities_ ||
+        particle_sizes != lighting_particle_sizes_) {
+        lighting_active_particle_systems_ = std::move(active_particles);
+        lighting_particle_intensities_ = std::move(particle_intensities);
+        lighting_particle_sizes_ = std::move(particle_sizes);
+        lighting_->set_active_particle_systems(lighting_active_particle_systems_);
+        lighting_->set_particle_intensities(lighting_particle_intensities_);
+        lighting_->set_particle_sizes(lighting_particle_sizes_);
+    }
+}
+
+void Gameplay::update_active_lighting_anim_filters() {
+    if (!lighting_) return;
+    if (active_lighting_anim_filters_.empty()) {
+        if (!lighting_mesh_transform_offsets_.empty() ||
+            !lighting_mesh_position_overrides_.empty()) {
+            lighting_mesh_transform_offsets_.clear();
+            lighting_mesh_position_overrides_.clear();
+            lighting_->set_mesh_transform_offsets(lighting_mesh_transform_offsets_);
+            lighting_->set_mesh_position_overrides(
+                lighting_mesh_position_overrides_);
+        }
+        return;
+    }
+
+    lighting_mesh_transform_offsets_.clear();
+    lighting_mesh_position_overrides_.clear();
+    const bool debug_sample =
+        debug_venue_filters_enabled() &&
+        (last_lighting_filter_debug_time_ < 0.0 ||
+         song_time_ - last_lighting_filter_debug_time_ >= 0.5);
+    if (debug_sample) last_lighting_filter_debug_time_ = song_time_;
+    for (auto it = active_lighting_anim_filters_.begin();
+         it != active_lighting_anim_filters_.end();) {
+        const double elapsed = std::max(0.0, song_time_ - it->start_time);
+        for (const auto& filter : it->filters) {
+            const float frame =
+                venue_filter_frame_at(filter, elapsed, it->persistent);
+            for (const auto& target : filter.targets) {
+                const auto sample = sample_mesh_transform(target.anim, frame);
+                lighting_mesh_transform_offsets_[target.mesh] = sample;
+                if (debug_sample) {
+                    std::fprintf(
+                        stderr,
+                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f)\n",
+                        it->event_name.c_str(), filter.name.c_str(),
+                        target.mesh.c_str(), frame,
+                        sample.has_translation ? 1 : 0,
+                        sample.has_rotation ? 1 : 0,
+                        sample.has_scale ? 1 : 0, sample.translation[0],
+                        sample.translation[1], sample.translation[2]);
+                }
+            }
+            for (const auto& target : filter.mesh_anim_targets) {
+                auto positions = sample_mesh_anim_positions(target.anim, frame);
+                if (!positions.empty())
+                    lighting_mesh_position_overrides_[target.mesh] =
+                        std::move(positions);
+                if (debug_sample) {
+                    std::fprintf(
+                        stderr,
+                        "[world] lighting MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u\n",
+                        it->event_name.c_str(), filter.name.c_str(),
+                        target.mesh.c_str(), target.anim.name.c_str(), frame,
+                        target.anim.vertex_count);
+                }
+            }
+        }
+        ++it;
+    }
+    lighting_->set_mesh_transform_offsets(lighting_mesh_transform_offsets_);
+    lighting_->set_mesh_position_overrides(lighting_mesh_position_overrides_);
 }
 
 void Gameplay::set_lighting_spot_targets(
@@ -8412,6 +8697,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     update_active_venue_particles();
     update_active_venue_anim_filters();
     update_active_lighting_material_anims();
+    update_active_lighting_particles();
+    update_active_lighting_anim_filters();
 
     prev_fret_mask_ = fret_mask;
 
@@ -8560,6 +8847,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_event_mat_anims_ =
                     load_venue_event_mat_anims(hdr_path_, ark_path_,
                                                lighting_milo);
+                lighting_event_particle_systems_ =
+                    load_venue_event_particles(hdr_path_, ark_path_,
+                                               lighting_milo);
+                lighting_event_anim_filters_ =
+                    load_venue_anim_filters(hdr_path_, ark_path_,
+                                            lighting_milo, lighting_scene);
+                lighting_event_group_visibility_ =
+                    load_venue_group_visibility(hdr_path_, ark_path_,
+                                                lighting_milo, lighting_scene);
                 lighting_presets_ = load_lighting_presets(
                     hdr_path_, ark_path_, quickplay_rig_->venue);
                 log_lighting_light_object_coverage(lighting_scene,
@@ -8575,7 +8871,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_scene(std::move(lighting_scene),
                                      lighting_textures);
                 lighting_->set_additive_blend(true);
+                lighting_base_hidden_meshes_.clear();
+                lighting_runtime_hidden_meshes_ = lighting_base_hidden_meshes_;
+                lighting_->set_active_particle_systems({});
+                lighting_->set_particle_intensities({});
+                lighting_->set_particle_sizes({});
+                lighting_->set_mesh_transform_offsets({});
+                lighting_->set_mesh_position_overrides({});
+                lighting_->set_hidden_meshes(composed_lighting_hidden_meshes());
                 apply_lighting_event("start");
+                apply_lighting_event("intro_start");
                 std::fprintf(stderr, "[world] lighting overlay loaded: %s\n",
                               lighting_milo.c_str());
             }

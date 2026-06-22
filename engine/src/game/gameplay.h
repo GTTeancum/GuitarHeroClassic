@@ -345,7 +345,12 @@ class Gameplay {
   void update_active_venue_particles();
   void update_active_venue_anim_filters();
   void apply_lighting_event(const std::string& event_name);
+  bool apply_lighting_event_visibility(const std::string& event_name,
+                                       bool log);
+  std::unordered_set<std::string> composed_lighting_hidden_meshes() const;
   void update_active_lighting_material_anims();
+  void update_active_lighting_particles();
+  void update_active_lighting_anim_filters();
   void set_lighting_spot_targets(
       std::vector<ghogx::render::MiloSceneRenderer::SpotlightState> targets,
       double fade_seconds);
@@ -464,6 +469,11 @@ class Gameplay {
   bool ignored_last_light_change_ = false;
   std::map<std::string, VenueMaterialAnim> lighting_mat_anims_;
   std::map<std::string, std::vector<std::string>> lighting_event_mat_anims_;
+  std::map<std::string, std::vector<VenueParticleRoute>>
+      lighting_event_particle_systems_;
+  std::map<std::string, std::vector<VenueAnimFilter>>
+      lighting_event_anim_filters_;
+  std::map<std::string, VenueGroupVisibility> lighting_event_group_visibility_;
   std::map<std::string, float> lighting_material_alpha_;
   std::map<std::string, std::array<float, 4>> lighting_material_colors_;
   std::map<std::string, std::string> lighting_material_textures_;
@@ -471,6 +481,19 @@ class Gameplay {
            ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
       lighting_material_tex_transforms_;
   std::vector<ActiveVenueMaterialAnim> active_lighting_material_anims_;
+  std::unordered_set<std::string> lighting_active_particle_systems_;
+  std::map<std::string, float> lighting_particle_intensities_;
+  std::map<std::string, float> lighting_particle_sizes_;
+  std::vector<ActiveVenueParticleSystem> active_lighting_particles_;
+  double last_lighting_particle_debug_time_ = -1.0;
+  std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
+      lighting_mesh_transform_offsets_;
+  std::map<std::string, std::vector<std::array<float, 3>>>
+      lighting_mesh_position_overrides_;
+  std::vector<ActiveVenueAnimFilter> active_lighting_anim_filters_;
+  double last_lighting_filter_debug_time_ = -1.0;
+  std::unordered_set<std::string> lighting_base_hidden_meshes_;
+  std::unordered_set<std::string> lighting_runtime_hidden_meshes_;
   std::map<std::string, VenueMaterialAnim> venue_mat_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;
   std::map<std::string, VenueEnvironmentAnim> venue_env_anims_;

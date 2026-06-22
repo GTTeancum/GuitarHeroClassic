@@ -1690,3 +1690,36 @@ Rejected native probe:
   `analysis/native_validation/small2_direct_intro_camshot_after_priority_fix_20260622_current/`
   rerun confirms small2 still chooses `Intro01 -> CamShot:Intro01` with 2 direct
   poses where no `.tnm` intro candidate exists.
+
+2026-06-22 lighting-overlay EventTrigger routes:
+
+- The lighting overlay MILOs contain authored EventTrigger routes beyond the
+  earlier MatAnim-only `smoke_lights` path. The retained dumps show examples
+  such as `world/battle/og/gen/battle_lighting.milo_ps2` `Start.trig` and
+  `effects_excitement_great.trig`, whose refs run through `.filt`, `.grp`,
+  `ParticleSys`, direct `MeshAnim`, and visibility lists inside the lighting
+  overlay itself. Native now loads separate lighting-overlay ParticleSys,
+  AnimFilter/MeshAnim, and visibility route maps from the lighting MILO and
+  samples them against the lighting renderer, leaving venue-geometry runtime
+  state separate.
+- Lighting overlay construction now replays both `start` and `intro_start` so
+  overlay triggers whose payload is `intro_start` are not lost when the venue
+  geometry already dispatched that event before the lighting renderer existed.
+  Diagnostic seek resets the overlay particle/filter/visibility state alongside
+  the existing overlay material state.
+- `battle_lighting.milo_ps2` includes `ticker_glow.mnm` as a zero-channel
+  version-7 MatAnim body: it has the normal material/name header and all six
+  channel counts are zero. The event MatAnim route loader now treats same-MILO
+  zero-channel MatAnims as inert no-ops, while still leaving non-empty unknown
+  channel shapes visible as unsupported logs.
+- Validation:
+  `analysis/native_validation/lighting_overlay_routes_battle_20260622_rerun/`
+  reruns stock PS2 `rockthistown` on `battle` hidden with diagnostic autoplay.
+  The log loads 16 lighting-overlay ParticleSys route events and 17
+  lighting-overlay AnimFilter route events, starts overlay `start`,
+  `intro_start`, and `excitement_great` routes, records 35 live
+  `lighting ParticleSys sample` rows, 90 live `lighting AnimFilter sample`
+  rows, and `lighting MeshAnim sample` rows for `electric_outlet_anim.mesh`,
+  exits `0`, and records zero unsupported material rows, zero overlay no-route
+  hit-event spam, and zero miss rows. Frames 180 and 300 are coherent authored
+  battle-camera renders.

@@ -353,9 +353,15 @@ int main() {
                  "lighting_->set_material_texture_overrides("
                  "lighting_material_textures_);"
                  "lighting_->set_material_tex_transform_overrides("
-                 "lighting_material_tex_transforms_);"
-                 "apply_lighting_event(\"start\");",
-                 "venue reset replays lighting overlay start animation");
+                 "lighting_material_tex_transforms_);",
+                 "venue reset pushes cleared lighting material state");
+  ok &= contains(gameplay_c,
+                 "lighting_runtime_hidden_meshes_=lighting_base_hidden_meshes_;",
+                 "venue reset restores lighting overlay base visibility");
+  ok &= contains(gameplay_c,
+                 "apply_lighting_event(\"start\");"
+                 "apply_lighting_event(\"intro_start\");",
+                 "venue reset replays lighting overlay start/intro animation");
   ok &= absent(gameplay_c,
                "apply_venue_event(\"city_lights_fret",
                "fret venue events must route by decoded payload label, not arena object names");
@@ -760,17 +766,62 @@ int main() {
   ok &= contains(gameplay_c,
                  "elseif(ref.size()>5&&ref.rfind(\".filt\")==ref.size()-5)",
                  "EventTrigger MatAnim routing follows .filt indirection");
+  ok &= contains(gameplay_c,
+                 "std::unordered_set<std::string>noop_mat_anims;",
+                 "EventTrigger MatAnim routing tracks same-MILO zero-channel no-ops");
+  ok &= contains(gameplay_c,
+                 "noop_mat_anims.find(ref)!=noop_mat_anims.end())return;",
+                 "same-MILO zero-channel MatAnim refs are not treated as unsupported routes");
   ok &= contains(gameplay_h_c,
                  "std::map<std::string,std::vector<std::string>>"
                  "lighting_event_mat_anims_;",
                  "lighting overlay keeps its own EventTrigger MatAnim routes");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::vector<VenueParticleRoute>>"
+                 "lighting_event_particle_systems_;",
+                 "lighting overlay keeps its own EventTrigger ParticleSys routes");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::vector<VenueAnimFilter>>"
+                 "lighting_event_anim_filters_;",
+                 "lighting overlay keeps its own EventTrigger AnimFilter routes");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,VenueGroupVisibility>"
+                 "lighting_event_group_visibility_;",
+                 "lighting overlay keeps its own EventTrigger visibility routes");
   ok &= contains(gameplay_c,
                  "lighting_event_mat_anims_=load_venue_event_mat_anims("
                  "hdr_path_,ark_path_,lighting_milo);",
                  "lighting overlay loads authored lighting MILO event animations");
   ok &= contains(gameplay_c,
+                 "lighting_event_particle_systems_=load_venue_event_particles("
+                 "hdr_path_,ark_path_,lighting_milo);",
+                 "lighting overlay loads authored lighting MILO particle routes");
+  ok &= contains(gameplay_c,
+                 "lighting_event_anim_filters_=load_venue_anim_filters("
+                 "hdr_path_,ark_path_,lighting_milo,lighting_scene);",
+                 "lighting overlay loads authored lighting MILO transform routes");
+  ok &= contains(gameplay_c,
+                 "lighting_event_group_visibility_=load_venue_group_visibility("
+                 "hdr_path_,ark_path_,lighting_milo,lighting_scene);",
+                 "lighting overlay loads authored lighting MILO visibility routes");
+  ok &= contains(gameplay_c,
                  "apply_lighting_event(\"start\");",
                  "lighting overlay applies its authored start trigger");
+  ok &= contains(gameplay_c,
+                 "apply_lighting_event(\"intro_start\");",
+                 "lighting overlay applies its authored intro_start trigger");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::update_active_lighting_particles()",
+                 "lighting overlay particles sample on the song clock");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::update_active_lighting_anim_filters()",
+                 "lighting overlay AnimFilters sample on the song clock");
+  ok &= contains(gameplay_c,
+                 "event_it==lighting_event_mat_anims_.end()&&"
+                 "visibility_it==lighting_event_group_visibility_.end()&&"
+                 "particle_it==lighting_event_particle_systems_.end()&&"
+                 "filter_it==lighting_event_anim_filters_.end()",
+                 "lighting overlay ignores unrelated venue events without debug spam");
   ok &= contains(gameplay_c,
                  "update_active_lighting_material_anims();",
                  "lighting overlay material animation samples on the song clock");
