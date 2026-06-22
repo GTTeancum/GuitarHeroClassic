@@ -509,6 +509,9 @@ int main() {
                  "venue_material_alpha_[it->material]=clamp_material_alpha(alpha);",
                  "venue MatAnim sampler updates material alpha over time");
   ok &= contains(gameplay_c,
+                 "\"[world]venueMatAnimsample%s->%sframe=%.2falpha=%.3f",
+                 "venue MatAnim sampler emits debug rows for native validation");
+  ok &= contains(gameplay_c,
                  "autovenue_anim_it=venue_mat_anims_.find(anim_name);",
                  "lighting EventTriggers can resolve venue-geometry MatAnim refs");
   ok &= contains(gameplay_c,

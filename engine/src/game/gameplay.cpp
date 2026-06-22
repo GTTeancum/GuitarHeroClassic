@@ -6397,6 +6397,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_material_textures_.clear();
     venue_material_tex_transforms_.clear();
     active_venue_material_anims_.clear();
+    last_venue_mat_anim_debug_time_ = -1.0;
     venue_environment_colors_.clear();
     active_venue_environment_anims_.clear();
     venue_mesh_translation_offsets_.clear();
@@ -6864,6 +6865,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     venue_material_textures_.clear();
     venue_material_tex_transforms_.clear();
     active_venue_material_anims_.clear();
+    last_venue_mat_anim_debug_time_ = -1.0;
     venue_environment_colors_.clear();
     active_venue_environment_anims_.clear();
     venue_light_colors_.clear();
@@ -6917,6 +6919,10 @@ void Gameplay::update_active_venue_material_anims() {
     bool color_changed = false;
     bool texture_changed = false;
     bool tex_changed = false;
+    const bool debug_sample =
+        debug_venue_filters_enabled() &&
+        (last_venue_mat_anim_debug_time_ < 0.0 ||
+         song_time_ - last_venue_mat_anim_debug_time_ >= 0.5);
     for (auto it = active_venue_material_anims_.begin();
          it != active_venue_material_anims_.end();) {
         const double duration = std::max(0.0, it->duration_seconds);
@@ -6925,6 +6931,22 @@ void Gameplay::update_active_venue_material_anims() {
                 ? 1.0
                 : std::clamp((song_time_ - it->start_time) / duration,
                              0.0, 1.0);
+        const bool has_color = !it->color_keys.empty();
+        const bool has_texture = !it->texture_keys.empty();
+        const bool has_tex_transform =
+            !it->tex_translation_keys.empty() ||
+            !it->tex_scale_keys.empty() ||
+            !it->tex_rotation_keys.empty();
+        const bool has_frame_sample =
+            has_color || has_texture || has_tex_transform;
+        const float frame =
+            has_frame_sample
+                ? material_anim_frame_at(it->duration_frames,
+                                         song_time_ - it->start_time,
+                                         it->persistent)
+                : static_cast<float>(
+                      std::clamp(t, 0.0, 1.0) *
+                      static_cast<double>(std::max(0.0f, it->duration_frames)));
         if (it->has_alpha) {
             const float alpha = static_cast<float>(
                 static_cast<double>(it->start_alpha) +
@@ -6932,35 +6954,31 @@ void Gameplay::update_active_venue_material_anims() {
             venue_material_alpha_[it->material] = clamp_material_alpha(alpha);
             alpha_changed = true;
         }
-        const bool has_color = !it->color_keys.empty();
         if (has_color) {
-            const float frame = material_anim_frame_at(
-                it->duration_frames, song_time_ - it->start_time,
-                it->persistent);
             venue_material_colors_[it->material] =
                 sample_material_color_key(it->color_keys, frame);
             color_changed = true;
         }
-        const bool has_texture = !it->texture_keys.empty();
         if (has_texture) {
-            const float frame = material_anim_frame_at(
-                it->duration_frames, song_time_ - it->start_time,
-                it->persistent);
             venue_material_textures_[it->material] =
                 sample_material_texture_key(it->texture_keys, frame);
             texture_changed = true;
         }
-        const bool has_tex_transform =
-            !it->tex_translation_keys.empty() ||
-            !it->tex_scale_keys.empty() ||
-            !it->tex_rotation_keys.empty();
         if (has_tex_transform) {
-            const float frame = material_anim_frame_at(
-                it->duration_frames, song_time_ - it->start_time,
-                it->persistent);
             venue_material_tex_transforms_[it->material] =
                 sample_material_tex_transform(*it, frame);
             tex_changed = true;
+        }
+        if (debug_sample) {
+            const float alpha =
+                it->has_alpha ? venue_material_alpha_[it->material] : -1.0f;
+            std::fprintf(
+                stderr,
+                "[world] venue MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d\n",
+                it->name.c_str(), it->material.c_str(), frame, alpha,
+                it->color_keys.size(), it->texture_keys.size(),
+                it->tex_translation_keys.size(), it->tex_scale_keys.size(),
+                it->tex_rotation_keys.size(), it->persistent ? 1 : 0);
         }
         const bool keep_persistent_tex =
             it->persistent && (has_color || has_texture || has_tex_transform) &&
@@ -6971,6 +6989,7 @@ void Gameplay::update_active_venue_material_anims() {
             ++it;
         }
     }
+    if (debug_sample) last_venue_mat_anim_debug_time_ = song_time_;
     if (alpha_changed) {
         world_->set_material_alpha_multipliers(venue_material_alpha_);
         world_->set_hidden_meshes(composed_venue_hidden_meshes());

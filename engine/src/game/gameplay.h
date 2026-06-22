@@ -473,6 +473,7 @@ class Gameplay {
            ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
       venue_material_tex_transforms_;
   std::vector<ActiveVenueMaterialAnim> active_venue_material_anims_;
+  double last_venue_mat_anim_debug_time_ = -1.0;
   std::map<std::string, std::array<float, 4>> venue_environment_colors_;
   std::vector<ActiveVenueEnvironmentAnim> active_venue_environment_anims_;
   std::map<std::string, std::array<float, 4>> venue_light_colors_;

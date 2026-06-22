@@ -1515,3 +1515,21 @@ Rejected native probe:
   1, and `small2` 0 / 0 / 0 for the geometry venue. The same sweep preserves
   regular cameras, `post_switch_cam`, lighting preset/keyframe dispatch, and
   venue animation samples across the stock routes.
+
+2026-06-22 venue MatAnim validation rows:
+
+- The venue material-animation sampler already applied alpha/color/texture/UV
+  overrides each frame, but unlike EnvAnim, LightAnim, ParticleSys, and
+  AnimFilter it emitted no live sample rows. This made native validation look
+  like start MatAnims fired without proving their channels advanced.
+- Native now logs `venue MatAnim sample` rows under `GHOGX_DEBUG_VENUE_FILTERS`
+  with the sampled frame, alpha (or `-1` when the route has no alpha channel),
+  and channel counts for color, texture, translation, scale, and rotation.
+- `analysis/native_validation/venue_matanim_sample_logging_small1_20260622_current/`
+  reruns stock PS2 `psychobilly`/`small1` hidden with diagnostic autoplay. The
+  log records 14 `venue event start: MatAnim` rows and 42 `venue MatAnim sample`
+  rows (for example `tv_nuke.mnm`, `tv_bomb_big.mnm`, `tv_snow.mnm`), while
+  preserving particles, AnimFilters, regular camera, `post_switch_cam`,
+  lighting presets/keyframes, zero miss rows, and zero unsupported
+  material-channel rows. The captured frame 180 is a coherent authored-camera
+  small1 venue render with TV/material-heavy stage content visible.
