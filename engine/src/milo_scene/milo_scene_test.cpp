@@ -79,7 +79,7 @@ void test_mat() {
   std::vector<uint8_t> b;
   put_u32(b, 27);                // version 0x1b
   put_zeros(b, 9);               // base metadata
-  put_u32(b, 3);                 // field
+  put_u32(b, 4);                 // kBlendSrcAlphaAdd
   put_f32(b, 1); put_f32(b, 1); put_f32(b, 1); put_f32(b, 1);  // colour RGBA
   b.push_back(1);                // use_environ
   b.push_back(0);                // prelit
@@ -91,11 +91,12 @@ void test_mat() {
   CHECK(m.decoded);
   CHECK(m.diffuse_tex == "gem.tex");
   CHECK(approx(m.color[0], 1.0f));
+  CHECK(m.blend == 4);
   CHECK(m.use_environ);
   CHECK(!m.prelit);
-  std::printf("  [ok] Mat: tex=%s color=(%.0f,%.0f,%.0f,%.0f)\n",
-              m.diffuse_tex.c_str(), m.color[0], m.color[1], m.color[2],
-              m.color[3]);
+  std::printf("  [ok] Mat: tex=%s blend=%u color=(%.0f,%.0f,%.0f,%.0f)\n",
+              m.diffuse_tex.c_str(), static_cast<unsigned>(m.blend),
+              m.color[0], m.color[1], m.color[2], m.color[3]);
 }
 
 void test_light() {

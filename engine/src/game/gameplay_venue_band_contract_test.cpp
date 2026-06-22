@@ -606,6 +606,30 @@ int main() {
   ok &= absent(renderer_c,
                "if(!scene_.particles.empty()&&!additive_blend_)",
                "additive lighting overlay particle skip");
+  ok &= absent(renderer_c,
+               "constbooldraw_additive=additive_blend_||material_additive;",
+               "regular mesh blend must not be forced by lighting overlay");
+  ok &= contains(renderer_c,
+                 "BlendStateblend_state_for(uint8_tblend)",
+                 "renderer maps authored Mat BLEND_ENUM values");
+  ok &= contains(renderer_c,
+                 "material_blend=mat->blend;",
+                 "renderer consumes decoded material blend");
+  ok &= contains(renderer_c,
+                 "dev_->SetRenderState(D3DRS_BLENDOP,blend_state.op);",
+                 "renderer applies authored material blend operation");
+  ok &= contains(renderer_c,
+                 "dev_->SetRenderState(D3DRS_SRCBLEND,blend_state.src);",
+                 "renderer applies authored material source blend");
+  ok &= contains(renderer_c,
+                 "dev_->SetRenderState(D3DRS_DESTBLEND,blend_state.dest);",
+                 "renderer applies authored material destination blend");
+  ok &= contains(renderer_c,
+                 "for(constauto&mesh:spot.instance_meshes)",
+                 "spotlight instance meshes are owned by the Spotlight pass");
+  ok &= contains(renderer_c,
+                 "spotlight_template_meshes.insert(mesh);",
+                 "regular overlay pass skips Spotlight-owned instance meshes");
   ok &= contains(renderer_h_c,
                  "set_environment_color_overrides",
                  "renderer accepts EnvAnim environment color overrides");
@@ -1353,6 +1377,12 @@ int main() {
   ok &= contains(milo_scene_cpp_c,
                  "m.use_environ=body[flag_pos]!=0;",
                  "Mat decoder preserves use_environ flag");
+  ok &= contains(milo_scene_cpp_c,
+                 "constuint32_tblend=r.u32();",
+                 "Mat decoder reads BLEND_ENUM before material color");
+  ok &= contains(milo_scene_cpp_c,
+                 "m.blend=static_cast<uint8_t>(blend);",
+                 "Mat decoder stores the authored blend enum");
   ok &= contains(milo_scene_cpp_c,
                  "elseif(de.type==\"Light\"){"
                  "out.lights.push_back(decode_light(de.name,b));}",

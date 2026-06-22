@@ -24,11 +24,11 @@
 //   Mat  (material, version 0x1b = 27):
 //     i32   version (= 27)
 //     9     bytes
-//     i32   field (= 3 observed)
+//     i32   blend (BLEND_ENUM from macros.dta)
 //     4×f32 diffuse colour RGBA
 //     u8    use_environ (schema: modulate with environment ambient/lights)
 //     u8    prelit      (schema: vertex color/alpha feeds base or ambient)
-//     ...   blend / flag bytes
+//     ...   flag / texture-state bytes
 //     str   diffuse texture name (".tex"); other strings may follow
 //
 //   Mesh  (version 0x1c = 28):
@@ -177,7 +177,7 @@ struct MatObj {
   std::string name;          // entry name (e.g. "gem.mat")
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)
   float color[4] = {1, 1, 1, 1};  // diffuse RGBA
-  uint8_t blend = 0;         // blend-mode byte (0 = opaque-ish; see decode)
+  uint8_t blend = 0;         // BLEND_ENUM from macros.dta: Src/Add/SrcAlpha/...
   // Diffuse texcoord transform (3x3 in the Mat; diagonal = UV scale/tiling, row 2
   // = UV offset). u' = u*tex_scale[0] + tex_offset[0]; v' = v*tex_scale[1] + ...
   // E.g. mm_brick03.mat tiles 4x3 so the brick tile repeats across the wall;

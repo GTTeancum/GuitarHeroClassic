@@ -42,6 +42,45 @@ constexpr DWORD kDefaultSceneAmbient = D3DCOLOR_XRGB(170, 170, 178);
 constexpr DWORD kAuthoredLightFirstSlot = 2;
 constexpr DWORD kAuthoredLightSlotCount = 6;
 
+enum MiloBlend : uint8_t {
+  kBlendDest = 0,
+  kBlendSrc = 1,
+  kBlendAdd = 2,
+  kBlendSrcAlpha = 3,
+  kBlendSrcAlphaAdd = 4,
+  kBlendSubtract = 5,
+  kBlendMultiply = 6,
+};
+
+struct BlendState {
+  DWORD src = D3DBLEND_SRCALPHA;
+  DWORD dest = D3DBLEND_INVSRCALPHA;
+  DWORD op = D3DBLENDOP_ADD;
+  bool additive = false;
+};
+
+BlendState blend_state_for(uint8_t blend) {
+  switch (blend) {
+    case kBlendDest:
+      return {D3DBLEND_ZERO, D3DBLEND_ONE, D3DBLENDOP_ADD, false};
+    case kBlendSrc:
+      return {D3DBLEND_ONE, D3DBLEND_ZERO, D3DBLENDOP_ADD, false};
+    case kBlendAdd:
+      return {D3DBLEND_ONE, D3DBLEND_ONE, D3DBLENDOP_ADD, true};
+    case kBlendSrcAlpha:
+      return {D3DBLEND_SRCALPHA, D3DBLEND_INVSRCALPHA, D3DBLENDOP_ADD,
+              false};
+    case kBlendSrcAlphaAdd:
+      return {D3DBLEND_SRCALPHA, D3DBLEND_ONE, D3DBLENDOP_ADD, true};
+    case kBlendSubtract:
+      return {D3DBLEND_SRCALPHA, D3DBLEND_ONE, D3DBLENDOP_REVSUBTRACT, true};
+    case kBlendMultiply:
+      return {D3DBLEND_DESTCOLOR, D3DBLEND_ZERO, D3DBLENDOP_ADD, false};
+    default:
+      return {};
+  }
+}
+
 DWORD float_to_dword(float value) {
   DWORD out = 0;
   std::memcpy(&out, &value, sizeof(out));
@@ -841,7 +880,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
 
   dev_->SetFVF(kFVF);
   dev_->SetRenderState(D3DRS_ZENABLE, TRUE);
-  dev_->SetRenderState(D3DRS_ZWRITEENABLE, additive_blend_ ? FALSE : TRUE);
+  dev_->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
   // Mirroring clip-X flips winding for the D3D bridge. Keep the broadly
   // validated CW default; debug overrides let individual venue winding issues
   // be inspected without changing asset data.
@@ -851,9 +890,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   dev_->SetRenderState(D3DRS_CULLMODE, cull_mode);
   dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
   dev_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-  dev_->SetRenderState(D3DRS_DESTBLEND,
-                       additive_blend_ ? D3DBLEND_ONE
-                                       : D3DBLEND_INVSRCALPHA);
+  dev_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+  dev_->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
 
   // Fixed-function lighting using the decoded normals. Bright ambient keeps all
   // textured surfaces readable (venues bake their own light into the textures;
@@ -1010,7 +1048,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     IDirect3DTexture9* texture = nullptr;
     float su = 1.0f, sv = 1.0f, tu = 0.0f, tv = 0.0f;
     float mr = 1.0f, mg = 1.0f, mb = 1.0f, ma = 1.0f;
-    bool material_additive = false;
+    uint8_t material_blend = kBlendSrcAlpha;
     const std::string& material =
         (material_override && !material_override->empty()) ? *material_override
                                                            : m.material;
@@ -1024,7 +1062,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       su = mat->tex_scale[0]; sv = mat->tex_scale[1];
       tu = mat->tex_offset[0]; tv = mat->tex_offset[1];
       mr = mat->color[0]; mg = mat->color[1]; mb = mat->color[2]; ma = mat->color[3];
-      material_additive = mat->color[3] < 0.999f;
+      material_blend = mat->blend;
     }
     if (const auto tex_name_it = material_textures_.find(material);
         tex_name_it != material_textures_.end() && !tex_name_it->second.empty()) {
@@ -1041,7 +1079,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       mg = c[1];
       mb = c[2];
       ma = c[3];
-      material_additive = material_additive || ma < 0.999f;
     }
     const milo_scene::EnvironObj* mesh_env = nullptr;
     if (apply_environment_lighting && mat_obj && mat_obj->use_environ) {
@@ -1092,11 +1129,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         material_tex_anim = true;
       }
     }
-    const bool draw_additive = additive_blend_ || material_additive;
-    dev_->SetRenderState(D3DRS_ZWRITEENABLE, draw_additive ? FALSE : TRUE);
-    dev_->SetRenderState(D3DRS_DESTBLEND,
-                         draw_additive ? D3DBLEND_ONE
-                                       : D3DBLEND_INVSRCALPHA);
     if (spotlight_state) {
       mr *= spotlight_state->r;
       mg *= spotlight_state->g;
@@ -1113,24 +1145,32 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       mg = 0.0f;
       mb = 1.0f;
       ma = 1.0f;
-      material_additive = false;
+      material_blend = kBlendSrc;
     }
     if (ma <= 0.001f) return;
+    const BlendState blend_state = blend_state_for(material_blend);
+    const bool disable_zwrite =
+        blend_state.additive || material_blend == kBlendSubtract ||
+        material_blend == kBlendMultiply || ma < 0.999f;
+    dev_->SetRenderState(D3DRS_ZWRITEENABLE, disable_zwrite ? FALSE : TRUE);
+    dev_->SetRenderState(D3DRS_BLENDOP, blend_state.op);
+    dev_->SetRenderState(D3DRS_SRCBLEND, blend_state.src);
+    dev_->SetRenderState(D3DRS_DESTBLEND, blend_state.dest);
     if (env_enabled("GHOGX_LOG_ALPHA_MESHES") &&
-        (material_additive || ma < 0.999f || material.find("glow") != std::string::npos ||
+        (blend_state.additive || ma < 0.999f ||
+         material.find("glow") != std::string::npos ||
          material.find("beam") != std::string::npos)) {
       static std::unordered_set<std::string> logged;
       const std::string key = m.name + "|" + material;
       if (logged.insert(key).second) {
         std::fprintf(stderr,
-                     "[milo_scene] alpha mesh name=%s material=%s mat_alpha=%.3f additive=%d verts=%zu faces=%zu\n",
-                     m.name.c_str(), material.c_str(), ma,
-                     material_additive ? 1 : 0, m.verts.size(),
+                     "[milo_scene] alpha mesh name=%s material=%s blend=%u "
+                     "mat_alpha=%.3f additive=%d verts=%zu faces=%zu\n",
+                     m.name.c_str(), material.c_str(),
+                     static_cast<unsigned>(material_blend), ma,
+                     blend_state.additive ? 1 : 0, m.verts.size(),
                      m.indices.size() / 3);
       }
-    }
-    if (material_additive) {
-      ma *= 0.5f;
     }
     if (texture) {
       dev_->SetTexture(0, texture);
@@ -1291,17 +1331,19 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     DWORD old_zwrite = TRUE;
     DWORD old_src = D3DBLEND_SRCALPHA;
     DWORD old_dest = D3DBLEND_INVSRCALPHA;
+    DWORD old_op = D3DBLENDOP_ADD;
+    const BlendState blend_state = blend_state_for(mat->blend);
     dev_->GetRenderState(D3DRS_LIGHTING, &old_lighting);
     dev_->GetRenderState(D3DRS_ZWRITEENABLE, &old_zwrite);
     dev_->GetRenderState(D3DRS_SRCBLEND, &old_src);
     dev_->GetRenderState(D3DRS_DESTBLEND, &old_dest);
+    dev_->GetRenderState(D3DRS_BLENDOP, &old_op);
     dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
     dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
-    dev_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-    dev_->SetRenderState(D3DRS_DESTBLEND,
-                         mat->color[3] < 0.999f ? D3DBLEND_ONE
-                                                 : D3DBLEND_INVSRCALPHA);
+    dev_->SetRenderState(D3DRS_BLENDOP, blend_state.op);
+    dev_->SetRenderState(D3DRS_SRCBLEND, blend_state.src);
+    dev_->SetRenderState(D3DRS_DESTBLEND, blend_state.dest);
     dev_->SetRenderState(D3DRS_POINTSPRITEENABLE, TRUE);
     dev_->SetRenderState(D3DRS_POINTSCALEENABLE, FALSE);
     dev_->SetRenderState(D3DRS_POINTSIZE, float_to_dword(point_size));
@@ -1314,6 +1356,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, old_zwrite);
     dev_->SetRenderState(D3DRS_SRCBLEND, old_src);
     dev_->SetRenderState(D3DRS_DESTBLEND, old_dest);
+    dev_->SetRenderState(D3DRS_BLENDOP, old_op);
     dev_->SetFVF(kFVF);
   };
 
@@ -1346,13 +1389,33 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   };
   std::vector<CameraMeshHit> camera_mesh_hits;
   std::unordered_set<std::string> spotlight_template_meshes;
-  for (const auto& spot : scene_.spotlights) {
-    for (const auto& group : scene_.groups) {
-      if (group.name != spot.group) continue;
-      for (const auto& child : group.children) {
-        if (child.rfind(".mesh") != std::string::npos)
-          spotlight_template_meshes.insert(child);
+  auto add_spotlight_group_meshes = [&](const std::string& group_name) {
+    std::vector<std::string> pending{group_name};
+    std::unordered_set<std::string> seen_groups;
+    while (!pending.empty()) {
+      const std::string current = pending.back();
+      pending.pop_back();
+      if (!seen_groups.insert(current).second) continue;
+      for (const auto& group : scene_.groups) {
+        if (group.name != current) continue;
+        for (const auto& child : group.children) {
+          if (child.rfind(".mesh") != std::string::npos) {
+            spotlight_template_meshes.insert(child);
+          } else if (child.rfind(".grp") != std::string::npos) {
+            pending.push_back(child);
+          }
+        }
+        break;
       }
+    }
+  };
+  for (const auto& spot : scene_.spotlights) {
+    add_spotlight_group_meshes(spot.group);
+    if (!spot.target.empty()) spotlight_template_meshes.insert(spot.target);
+    if (!spot.circle_mesh.empty())
+      spotlight_template_meshes.insert(spot.circle_mesh);
+    for (const auto& mesh : spot.instance_meshes) {
+      if (!mesh.empty()) spotlight_template_meshes.insert(mesh);
     }
   }
 

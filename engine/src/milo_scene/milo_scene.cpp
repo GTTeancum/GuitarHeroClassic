@@ -434,7 +434,12 @@ MatObj decode_mat(const std::string& entry_name,
   int32_t ver = r.i32();     // = 27
   (void)ver;
   r.skip(kObjMeta);          // base metadata
-  (void)r.i32();             // field (= 3 observed)
+  const uint32_t blend = r.u32();
+  if (blend <= 6) {
+    // macros.dta BLEND_ENUM. This precedes colour in real GH2 PS2 Mat entries:
+    // kBlendDest/Src/Add/SrcAlpha/SrcAlphaAdd/Subtract/Multiply.
+    m.blend = static_cast<uint8_t>(blend);
+  }
   m.color[0] = r.f32();
   m.color[1] = r.f32();
   m.color[2] = r.f32();
@@ -463,7 +468,7 @@ MatObj decode_mat(const std::string& entry_name,
       }
     }
   }
-  // The blend / flag bytes follow the colour. We don't need their exact split
+  // The flag / texture-state bytes follow the colour. We don't need their exact split
   // to draw; the diffuse texture name is the load-bearing field. Scan forward
   // from here for the first length-prefixed ".tex" string — robust against the
   // version-specific flag block between colour and the texture reference.
@@ -483,9 +488,6 @@ MatObj decode_mat(const std::string& entry_name,
     std::string cand(s, len);
     if (cand.size() >= 4 && cand.compare(cand.size() - 4, 4, ".tex") == 0) {
       m.diffuse_tex = cand;
-      // The blend byte sits a few bytes before the name on these mats; grab the
-      // byte right after the colour as the blend flag (documented best-effort).
-      if (start < body.size()) m.blend = body[start];
       break;
     }
   }

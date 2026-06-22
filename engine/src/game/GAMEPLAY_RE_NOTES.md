@@ -2118,3 +2118,46 @@ Rejected native probe:
   no-decoded route rows. `metal_drummer` has no decoded jump clip in this stock
   asset path, so drummer absence is treated as asset-backed rather than filled
   with a guessed clip name.
+
+2026-06-22 material BLEND_ENUM and projection-lighting pass:
+
+- The local PS2 runtime schema in `system/run/config/macros.dta` defines
+  `BLEND_ENUM` as `kBlendDest`, `kBlendSrc`, `kBlendAdd`,
+  `kBlendSrcAlpha`, `kBlendSrcAlphaAdd`, `kBlendSubtract`, and
+  `kBlendMultiply`. Real small2 material bodies prove the `u32` immediately
+  after the object metadata is that enum, not a disposable observed field:
+  `Mat__spotlight_default.mat` and `Mat__floor_glowred.mat` decode as
+  `kBlendAdd`, `Mat__opArt_projection.mat` and `Mat__spot_circle.mat` decode
+  as `kBlendSrcAlphaAdd`, and ordinary opaque/source materials decode as
+  `kBlendSrc` or `kBlendSrcAlpha`.
+- Native now stores that value in `MatObj::blend` before material color decode
+  and maps it to per-material D3D blend state in `MiloSceneRenderer`. This
+  replaces the older scene-wide `additive_blend_` / material-alpha heuristic:
+  regular venue geometry, lighting overlay meshes, and particles all use the
+  authored material blend rather than forcing every overlay draw through one
+  additive state or dimming alpha materials globally.
+- The retained texture-alpha probe in
+  `analysis/native_validation/material_blend_texture_alpha_20260622_resume/`
+  decoded the wrapped `Tex__spot_circle.tex`, `Tex__smoke_lights.tex`,
+  `Tex__opArt_projection.tex`, and floor glow textures. Their decoded alpha
+  channels are fully opaque, so the projection and light-mask softness cannot
+  be recovered by alpha-cutting those textures. They are authored RGB masks
+  whose visibility comes from material blend, material color, environment, and
+  route state.
+- Spotlight-owned template meshes are now excluded from the normal overlay pass
+  by walking each decoded `Spotlight` group recursively and by also excluding
+  its target, circle mesh, and direct instance mesh refs. They remain drawable
+  only through the active Spotlight path. Validation in
+  `analysis/native_validation/spotlight_owned_mesh_skip_small2_20260622_resume/`
+  removes the earlier regular-pass `spotlight_random04/05/06.mesh` alpha rows
+  while preserving active spotlight logs.
+- Follow-up A/B in
+  `analysis/native_validation/spotlight_ab_small2_20260622_resume3/` captured
+  stock `small2/youreallygotme` with active Spotlights on and with
+  `GHOGX_DISABLE_SPOTLIGHT_INSTANCES=1`. Both runs exit `0`; the frame-80
+  captures are visually identical for the large white/black fan shapes while
+  the normal run logs only active `master_can.mesh` Spotlight draws. That proves
+  those visible fan shapes are regular projection/fog overlay meshes
+  (`opArt_projection`, `trippy_projection`, floor fog/glow), not active
+  Spotlight instances. This is renderer/route evidence, not final RedOctane
+  venue visual signoff.
