@@ -408,6 +408,10 @@ void MiloSceneRenderer::set_particle_intensities(
   particle_intensities_ = std::move(intensities);
 }
 
+void MiloSceneRenderer::set_particle_sizes(std::map<std::string, float> sizes) {
+  particle_sizes_ = std::move(sizes);
+}
+
 void MiloSceneRenderer::set_hidden_meshes(std::unordered_set<std::string> mesh_names) {
   hidden_meshes_ = std::move(mesh_names);
 }
@@ -1173,9 +1177,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         std::max({std::fabs(p.velocity_min[0]), std::fabs(p.velocity_min[1]),
                   std::fabs(p.velocity_min[2]), std::fabs(p.velocity_max[0]),
                   std::fabs(p.velocity_max[1]), std::fabs(p.velocity_max[2])});
+    float authored_size = std::max(p.size_start, p.size_end);
+    if (const auto size_it = particle_sizes_.find(p.name);
+        size_it != particle_sizes_.end()) {
+      authored_size = std::max(0.0f, size_it->second);
+    }
     const float point_size = std::clamp(
-        std::max(p.size_start, p.size_end) * 12.0f + max_velocity * 0.02f,
-        3.0f, 80.0f);
+        authored_size * 12.0f + max_velocity * 0.02f, 3.0f, 80.0f);
     const float spread = std::max(point_size * 0.25f, max_velocity * 0.015f);
 
     auto world = mul16(scene_.world_matrix(p), world_transform_);

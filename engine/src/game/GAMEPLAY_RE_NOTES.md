@@ -896,6 +896,25 @@ Open work:
   their 3-key `.panim` routes, samples six keyed flame intensities, keeps
   authored lighting keyframes and regular camera sweeps active, and captures
   coherent arena frames at 120/180 with the flame effect visible.
+- 2026-06-22 ParticleSysAnim start-size channel follow-up: the local
+  `config/milo.dta` editor pages list `PartAnim Start Size` separately from
+  emit rate, and stock PS2 arena flame `.panim` bodies carry a second scalar
+  key block immediately after the self animation ref. `flames_1.panim` keeps
+  three emit-rate keys through frame `10` plus three start-size keys
+  `10 -> 10 -> 0` through frame `30`; `flames_2.panim` and `flames_3.panim`
+  copy those owner rows. Native now preserves that second scalar block as
+  particle size keys, copies it through `keys_owner`, samples it per tick, and
+  feeds authored point-sprite size overrides to the renderer by particle name.
+  Validation:
+  `analysis/native_validation/arena_particle_size_keys_shout_20260622_current/`
+  reruns hidden stock PS2 `shoutatthedevil` from `100.0s` with diagnostic
+  autoplay and `GHOGX_DEBUG_VENUE_FILTERS=1`. The log records `venue_effect`
+  starting `flame_1.part`, `flame_2.part`, and `flame_3.part` with
+  `emit_keys=3 size_keys=3 frames=30.0`, six live flame samples with
+  `size=10.000`, zero unsupported material channels, zero misses, active
+  lighting keyframes, regular camera/post-switch routes, and coherent arena
+  captures at frames 120/180/240. This is shared ParticleSysAnim channel
+  support; it does not change the still-gated authored dynamic-light bridge.
 - 2026-06-21 venue LightAnim route: extracted PS2 `LightAnim` `.lnm` bodies are
   version 2 with the same 25-byte pre-target prefix used by venue `MatAnim` /
   `EnvAnim`, followed by the target `.lit` string, a color-key count, and

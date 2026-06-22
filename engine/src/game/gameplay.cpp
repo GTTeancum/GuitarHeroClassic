@@ -2044,37 +2044,53 @@ Gameplay::VenueParticleRoute decode_particle_anim_route(
     if (owner_string) route.keys_owner = canonical_milo_ref(owner_string->value);
     if (!particle_string) return route;
 
-    const size_t limit = self_string ? self_string->offset : size;
-    const size_t count_off = particle_string->end + 8;
-    if (count_off + 4 > limit) return route;
-    const uint32_t key_count = read_u32_at_unchecked(body, count_off);
-    if (key_count == 0 || key_count > 512) return route;
-    const uint64_t key_bytes = static_cast<uint64_t>(key_count) * 12ull;
-    if (key_bytes > static_cast<uint64_t>(limit - (count_off + 4)))
-        return route;
+    auto decode_scalar_keys =
+        [&](size_t count_off,
+            size_t block_limit,
+            std::vector<Gameplay::VenueParticleRoute::EmissionKey>& keys) {
+            block_limit = std::min(block_limit, size);
+            if (count_off + 4 > block_limit) return false;
+            const uint32_t key_count = read_u32_at_unchecked(body, count_off);
+            if (key_count == 0 || key_count > 512) return false;
+            const uint64_t key_bytes = static_cast<uint64_t>(key_count) * 12ull;
+            if (key_bytes > static_cast<uint64_t>(block_limit - (count_off + 4)))
+                return false;
+            std::vector<Gameplay::VenueParticleRoute::EmissionKey> decoded;
+            decoded.reserve(key_count);
+            size_t pos = count_off + 4;
+            for (uint32_t i = 0; i < key_count; ++i) {
+                Gameplay::VenueParticleRoute::EmissionKey key;
+                key.min_value = read_f32_at_unchecked(body, pos);
+                key.max_value = read_f32_at_unchecked(body, pos + 4);
+                key.frame = read_f32_at_unchecked(body, pos + 8);
+                pos += 12;
+                if (!std::isfinite(key.min_value) ||
+                    !std::isfinite(key.max_value) ||
+                    !std::isfinite(key.frame) || key.frame < 0.0f ||
+                    key.frame > 100000.0f) {
+                    return false;
+                }
+                route.duration_frames =
+                    std::max(route.duration_frames, key.frame);
+                decoded.push_back(key);
+            }
+            std::sort(decoded.begin(), decoded.end(),
+                      [](const auto& a, const auto& b) {
+                          return a.frame < b.frame;
+                      });
+            keys = std::move(decoded);
+            return true;
+        };
 
-    size_t pos = count_off + 4;
-    route.emission_keys.reserve(key_count);
-    for (uint32_t i = 0; i < key_count; ++i) {
-        Gameplay::VenueParticleRoute::EmissionKey key;
-        key.min_value = read_f32_at_unchecked(body, pos);
-        key.max_value = read_f32_at_unchecked(body, pos + 4);
-        key.frame = read_f32_at_unchecked(body, pos + 8);
-        pos += 12;
-        if (!std::isfinite(key.min_value) || !std::isfinite(key.max_value) ||
-            !std::isfinite(key.frame) || key.frame < 0.0f ||
-            key.frame > 100000.0f) {
-            route.emission_keys.clear();
-            route.duration_frames = 0.0f;
-            return route;
-        }
-        route.duration_frames = std::max(route.duration_frames, key.frame);
-        route.emission_keys.push_back(key);
-    }
-    std::sort(route.emission_keys.begin(), route.emission_keys.end(),
-              [](const auto& a, const auto& b) {
-                  return a.frame < b.frame;
-              });
+    const size_t limit = self_string ? self_string->offset : size;
+    const size_t emission_count_off = particle_string->end + 8;
+    if (emission_count_off + 4 <= limit)
+        decode_scalar_keys(emission_count_off, limit, route.emission_keys);
+    // The local editor schema exposes PartAnim Start Size as a second scalar
+    // page. In GH2 PS2 flame .panim bodies it follows the self animation ref
+    // and extends the authored particle tail beyond the emit-rate stop frame.
+    if (self_string && self_string->end + 4 <= size)
+        decode_scalar_keys(self_string->end, size, route.size_keys);
     return route;
 }
 
@@ -2095,6 +2111,11 @@ load_venue_event_particles(const std::string& hdr_path,
                     existing.anim = route.anim;
                     existing.keys_owner = route.keys_owner;
                     existing.emission_keys = route.emission_keys;
+                }
+                if (existing.size_keys.size() < route.size_keys.size()) {
+                    existing.anim = route.anim;
+                    existing.keys_owner = route.keys_owner;
+                    existing.size_keys = route.size_keys;
                 }
                 return;
             }
@@ -2144,14 +2165,19 @@ load_venue_event_particles(const std::string& hdr_path,
             }
         }
         for (auto& [name, route] : panim_routes) {
-            if (!route.emission_keys.empty() || route.keys_owner.empty())
-                continue;
+            if (route.keys_owner.empty()) continue;
             const auto owner = panim_routes.find(route.keys_owner);
-            if (owner == panim_routes.end() ||
-                owner->second.emission_keys.empty())
+            if (owner == panim_routes.end())
                 continue;
-            route.emission_keys = owner->second.emission_keys;
-            route.duration_frames = owner->second.duration_frames;
+            if (route.emission_keys.empty() &&
+                !owner->second.emission_keys.empty()) {
+                route.emission_keys = owner->second.emission_keys;
+            }
+            if (route.size_keys.empty() && !owner->second.size_keys.empty()) {
+                route.size_keys = owner->second.size_keys;
+            }
+            route.duration_frames =
+                std::max(route.duration_frames, owner->second.duration_frames);
         }
 
         auto collect_ref =
@@ -2214,7 +2240,8 @@ load_venue_event_particles(const std::string& hdr_path,
                 for (const auto& route : routes) {
                     std::fprintf(stderr, "%s via %s keys=%zu frames=%.1f ",
                                  route.particle.c_str(), route.anim.c_str(),
-                                 route.emission_keys.size(),
+                                 route.emission_keys.size() +
+                                     route.size_keys.size(),
                                  route.duration_frames);
                 }
                 std::fprintf(stderr, "\n");
@@ -4421,6 +4448,27 @@ float sample_particle_emission(
     return std::clamp(va + (vb - va) * t, 0.0f, 8.0f);
 }
 
+float sample_particle_size(
+    const std::vector<Gameplay::VenueParticleRoute::EmissionKey>& keys,
+    float frame) {
+    if (keys.empty()) return 0.0f;
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const float va = particle_emission_key_value(*a);
+    const float vb = particle_emission_key_value(*b);
+    return std::clamp(va + (vb - va) * t, 0.0f, 200.0f);
+}
+
 float material_anim_frame_at(float duration_frames, double elapsed_seconds,
                              bool persistent) {
     if (!std::isfinite(duration_frames) || duration_frames <= 0.001f)
@@ -6331,6 +6379,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_event_particle_systems_.clear();
     venue_active_particle_systems_.clear();
     venue_particle_intensities_.clear();
+    venue_particle_sizes_.clear();
     active_venue_particles_.clear();
     last_venue_particle_debug_time_ = -1.0;
     venue_event_filters_.clear();
@@ -6715,14 +6764,15 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
             active.duration_frames = route.duration_frames;
             active.emission_keys = route.emission_keys;
+            active.size_keys = route.size_keys;
             active.persistent = persistent;
             active_venue_particles_.push_back(std::move(active));
             std::fprintf(
                 stderr,
-                "[world] venue event %s: ParticleSys %s via %s keys=%zu frames=%.1f seconds=%.3f %s\n",
+                "[world] venue event %s: ParticleSys %s via %s emit_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f %s\n",
                 event_name.c_str(), route.particle.c_str(),
                 route.anim.c_str(), route.emission_keys.size(),
-                route.duration_frames,
+                route.size_keys.size(), route.duration_frames,
                 active_venue_particles_.back().duration_seconds,
                 persistent ? "persistent" : "transient");
         }
@@ -6815,6 +6865,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     last_venue_light_anim_debug_time_ = -1.0;
     venue_active_particle_systems_.clear();
     venue_particle_intensities_.clear();
+    venue_particle_sizes_.clear();
     active_venue_particles_.clear();
     last_venue_particle_debug_time_ = -1.0;
     active_venue_anim_filters_.clear();
@@ -6837,6 +6888,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
         world_->set_light_color_overrides(venue_light_colors_);
         world_->set_active_particle_systems(venue_active_particle_systems_);
         world_->set_particle_intensities(venue_particle_intensities_);
+        world_->set_particle_sizes(venue_particle_sizes_);
         world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
         world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
         world_->set_hidden_meshes(composed_venue_hidden_meshes());
@@ -6999,6 +7051,7 @@ void Gameplay::update_active_venue_particles() {
     if (!world_) return;
     std::unordered_set<std::string> active_particles;
     std::map<std::string, float> particle_intensities;
+    std::map<std::string, float> particle_sizes;
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_venue_particle_debug_time_ < 0.0 ||
@@ -7016,27 +7069,36 @@ void Gameplay::update_active_venue_particles() {
                                          it->persistent)
                 : static_cast<float>(elapsed * kLightingFramesPerSecond);
         const float intensity = sample_particle_emission(it->emission_keys, frame);
+        const float size = sample_particle_size(it->size_keys, frame);
         if (intensity > 0.001f) {
             active_particles.insert(it->particle);
             auto& slot = particle_intensities[it->particle];
             slot = std::max(slot, intensity);
+            if (!it->size_keys.empty()) {
+                auto& size_slot = particle_sizes[it->particle];
+                size_slot = std::max(size_slot, size);
+            }
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f keys=%zu persistent=%d\n",
-                    it->particle.c_str(), frame, intensity,
-                    it->emission_keys.size(), it->persistent ? 1 : 0);
+                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f emit_keys=%zu size_keys=%zu persistent=%d\n",
+                    it->particle.c_str(), frame, intensity, size,
+                    it->emission_keys.size(), it->size_keys.size(),
+                    it->persistent ? 1 : 0);
             }
         }
         ++it;
     }
     if (debug_sample) last_venue_particle_debug_time_ = song_time_;
     if (active_particles != venue_active_particle_systems_ ||
-        particle_intensities != venue_particle_intensities_) {
+        particle_intensities != venue_particle_intensities_ ||
+        particle_sizes != venue_particle_sizes_) {
         venue_active_particle_systems_ = std::move(active_particles);
         venue_particle_intensities_ = std::move(particle_intensities);
+        venue_particle_sizes_ = std::move(particle_sizes);
         world_->set_active_particle_systems(venue_active_particle_systems_);
         world_->set_particle_intensities(venue_particle_intensities_);
+        world_->set_particle_sizes(venue_particle_sizes_);
     }
 }
 
@@ -7908,6 +7970,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 world_->set_scene(std::move(venue_scene), venue_textures);
                 world_->set_active_particle_systems({});
                 world_->set_particle_intensities({});
+                world_->set_particle_sizes({});
                 world_->set_hidden_meshes(composed_venue_hidden_meshes());
                 if (active_venue_event_.empty()) {
                     apply_venue_event("excitement_bad");

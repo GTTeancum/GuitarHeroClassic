@@ -300,8 +300,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "venue_active_particle_systems_.clear();"
                  "venue_particle_intensities_.clear();"
+                 "venue_particle_sizes_.clear();"
                  "active_venue_particles_.clear();",
-                 "venue reset clears active particle systems and intensities");
+                 "venue reset clears active particle systems, intensities, and sizes");
   ok &= contains(gameplay_c,
                  "venue_mesh_translation_offsets_.clear();"
                  "venue_mesh_transform_offsets_.clear();"
@@ -315,7 +316,9 @@ int main() {
                  "world_->set_active_particle_systems("
                  "venue_active_particle_systems_);"
                  "world_->set_particle_intensities("
-                 "venue_particle_intensities_);",
+                 "venue_particle_intensities_);"
+                 "world_->set_particle_sizes("
+                 "venue_particle_sizes_);",
                  "venue reset pushes cleared particle state to renderer");
   ok &= contains(gameplay_c,
                  "lighting_->set_material_alpha_multipliers("
@@ -641,14 +644,23 @@ int main() {
                  "route.keys_owner=canonical_milo_ref(owner_string->value);",
                  "ParticleSysAnim loader preserves key-owner references");
   ok &= contains(gameplay_c,
-                 "route.emission_keys.push_back(key);",
+                 "decode_scalar_keys(emission_count_off,limit,route.emission_keys);",
                  "ParticleSysAnim loader stores authored emission keys");
   ok &= contains(gameplay_c,
                  "route.duration_frames=std::max(route.duration_frames,key.frame);",
                  "ParticleSysAnim duration comes from authored key frames");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<EmissionKey>size_keys;",
+                 "ParticleSysAnim route keeps authored start-size keys");
+  ok &= contains(gameplay_c,
+                 "decode_scalar_keys(self_string->end,size,route.size_keys);",
+                 "ParticleSysAnim loader decodes the post-self start-size block");
   ok &= contains(gameplay_c,
                  "route.emission_keys=owner->second.emission_keys;",
-                 "ParticleSysAnim owner rows copy key data");
+                 "ParticleSysAnim owner rows copy emission key data");
+  ok &= contains(gameplay_c,
+                 "route.size_keys=owner->second.size_keys;",
+                 "ParticleSysAnim owner rows copy size key data");
   ok &= contains(gameplay_c,
                  "load_venue_event_particles",
                  "gameplay loads authored ParticleSys event routes");
@@ -665,14 +677,26 @@ int main() {
                  "sample_particle_emission(it->emission_keys,frame)",
                  "venue particles sample authored ParticleSysAnim emission");
   ok &= contains(gameplay_c,
+                 "sample_particle_size(it->size_keys,frame)",
+                 "venue particles sample authored ParticleSysAnim start size");
+  ok &= contains(gameplay_c,
                  "world_->set_particle_intensities(venue_particle_intensities_);",
                  "venue particle intensity samples feed renderer overrides");
+  ok &= contains(gameplay_c,
+                 "world_->set_particle_sizes(venue_particle_sizes_);",
+                 "venue particle size samples feed renderer overrides");
   ok &= contains(renderer_h_c,
                  "set_particle_intensities",
                  "renderer accepts particle intensity samples");
+  ok &= contains(renderer_h_c,
+                 "set_particle_sizes",
+                 "renderer accepts particle size samples");
   ok &= contains(renderer_c,
                  "particle_intensities_.find(p.name)",
                  "renderer applies particle intensity by authored particle name");
+  ok &= contains(renderer_c,
+                 "particle_sizes_.find(p.name)",
+                 "renderer applies particle start size by authored particle name");
   ok &= contains(renderer_c,
                  "std::round(p.max_particles):16.0f)*std::max(intensity,0.0f)",
                  "renderer scales ParticleSys count by sampled intensity");
