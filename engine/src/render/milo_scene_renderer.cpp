@@ -395,6 +395,11 @@ void MiloSceneRenderer::set_environment_lighting_enabled(bool enabled) {
   environment_lighting_enabled_ = enabled;
 }
 
+void MiloSceneRenderer::set_environment_color_overrides(
+    std::map<std::string, std::array<float, 4>> environment_colors) {
+  environment_color_overrides_ = std::move(environment_colors);
+}
+
 void MiloSceneRenderer::set_mesh_translation_offsets(
     std::map<std::string, std::array<float, 3>> offsets) {
   mesh_translation_offsets_ = std::move(offsets);
@@ -912,13 +917,22 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     }
     DWORD mesh_ambient = kDefaultSceneAmbient;
     if (mesh_env && environ_color_sane(*mesh_env)) {
+        std::array<float, 4> env_color = {mesh_env->color_a[0],
+                                          mesh_env->color_a[1],
+                                          mesh_env->color_a[2],
+                                          mesh_env->color_a[3]};
+        if (const auto color_it =
+                environment_color_overrides_.find(mesh_env->name);
+            color_it != environment_color_overrides_.end()) {
+          env_color = color_it->second;
+        }
         const auto cc_env = [](float f) -> int {
           int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
           return i < 0 ? 0 : (i > 255 ? 255 : i);
         };
-        mesh_ambient = D3DCOLOR_XRGB(cc_env(mesh_env->color_a[0]),
-                                     cc_env(mesh_env->color_a[1]),
-                                     cc_env(mesh_env->color_a[2]));
+        mesh_ambient = D3DCOLOR_XRGB(cc_env(env_color[0]),
+                                     cc_env(env_color[1]),
+                                     cc_env(env_color[2]));
     }
     dev_->SetRenderState(D3DRS_AMBIENT, mesh_ambient);
     configure_authored_lights(mesh_env);

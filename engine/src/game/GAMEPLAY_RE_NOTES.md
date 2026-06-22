@@ -736,6 +736,20 @@ Open work:
   `analysis/native_validation/arena_group_matanim_route_20260621_current/` logs
   `sky_clouds.mnm`, `sky_green.mnm`, and `sky_orange.mnm` events from the
   authored sky groups while preserving lighting overlay `smoke_lights.mnm`.
+- 2026-06-21 venue EnvAnim route: arena geometry contains `EnvAnim`
+  `coplight_blue.enm` and `coplight_red.enm`, both version 4. The body shape is
+  the same 25-byte pre-target prefix used by venue `MatAnim`, followed by the
+  target `.env` string, a color-key count, then RGBA+frame rows. The coplight
+  rows are 0/50/100-frame color cycles for `coplight_blue.env` and
+  `coplight_red.env`. Native now resolves `EventTrigger -> AnimFilter -> Group
+  -> EnvAnim`, starts active environment color animations from those decoded
+  keys, samples them on the song clock, and feeds per-Environ color overrides
+  through the existing material `use_environ` gate. Validation:
+  `analysis/native_validation/arena_envanim_coplights_great_20260621_current/`
+  reruns stock PS2 `shoutatthedevil` from `16.0s` with diagnostic autoplay; at
+  streak 10 the log starts both EnvAnims from `excitement_great`, keeps
+  regular camera/post-switch and `chorus_great.pst` lighting, and the captured
+  arena frames remain coherent after the coplight environment animation starts.
 - 2026-06-21 texture-transform validation pass:
   `analysis/native_validation/small1_tex_xfm_scale_rot_20260621_current/`
   proves small1 group-routed TV/barrel MatAnims are decoded and started with

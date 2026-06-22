@@ -141,6 +141,16 @@ class Gameplay {
     std::vector<Vec3Key> tex_scale_keys;
     std::vector<FloatKey> tex_rotation_keys;
   };
+  struct VenueEnvironmentAnim {
+    struct ColorKey {
+      float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+      float frame = 0.0f;
+    };
+    std::string name;
+    std::string environment;
+    float duration_frames = 0.0f;
+    std::vector<ColorKey> color_keys;
+  };
   struct ActiveVenueMaterialAnim {
     std::string name;
     std::string material;
@@ -153,6 +163,14 @@ class Gameplay {
     std::vector<VenueMaterialAnim::Vec3Key> tex_translation_keys;
     std::vector<VenueMaterialAnim::Vec3Key> tex_scale_keys;
     std::vector<VenueMaterialAnim::FloatKey> tex_rotation_keys;
+    bool persistent = true;
+  };
+  struct ActiveVenueEnvironmentAnim {
+    std::string name;
+    std::string environment;
+    double start_time = 0.0;
+    float duration_frames = 0.0f;
+    std::vector<VenueEnvironmentAnim::ColorKey> color_keys;
     bool persistent = true;
   };
   struct HandClipChoice {
@@ -226,6 +244,7 @@ class Gameplay {
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;
   void resend_active_venue_event();
   void update_active_venue_material_anims();
+  void update_active_venue_environment_anims();
   void update_active_venue_anim_filters();
   void apply_lighting_event(const std::string& event_name);
   void update_active_lighting_material_anims();
@@ -349,6 +368,8 @@ class Gameplay {
   std::vector<ActiveVenueMaterialAnim> active_lighting_material_anims_;
   std::map<std::string, VenueMaterialAnim> venue_mat_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_mat_anims_;
+  std::map<std::string, VenueEnvironmentAnim> venue_env_anims_;
+  std::map<std::string, std::vector<std::string>> venue_event_env_anims_;
   std::map<std::string, std::vector<std::string>> venue_event_filters_;
   std::map<std::string, std::vector<std::string>> venue_filter_mesh_targets_;
   std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
@@ -362,6 +383,8 @@ class Gameplay {
            ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
       venue_material_tex_transforms_;
   std::vector<ActiveVenueMaterialAnim> active_venue_material_anims_;
+  std::map<std::string, std::array<float, 4>> venue_environment_colors_;
+  std::vector<ActiveVenueEnvironmentAnim> active_venue_environment_anims_;
   std::map<std::string, std::array<float, 3>> venue_mesh_translation_offsets_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
       venue_mesh_transform_offsets_;

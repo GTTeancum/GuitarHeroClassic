@@ -369,6 +369,12 @@ int main() {
   ok &= contains(renderer_c,
                  "set_material_tex_transform_overrides",
                  "renderer accepts material texture transform overrides");
+  ok &= contains(renderer_h_c,
+                 "set_environment_color_overrides",
+                 "renderer accepts EnvAnim environment color overrides");
+  ok &= contains(renderer_c,
+                 "environment_color_overrides_.find(mesh_env->name)",
+                 "renderer applies EnvAnim color overrides through Environ refs");
   ok &= contains(renderer_c,
                  "transform.has_scale",
                  "renderer applies MatAnim texture scale overrides");
@@ -389,8 +395,39 @@ int main() {
                  "venue MatAnim sampler updates material alpha over time");
   ok &= contains(gameplay_c,
                  "update_active_venue_material_anims();"
+                 "update_active_venue_environment_anims();"
                  "update_active_venue_anim_filters();",
-                 "venue material alpha samples before mesh AnimFilter samples");
+                 "venue material/environment samples before mesh AnimFilter samples");
+  ok &= contains(gameplay_c,
+                 "std::map<std::string,Gameplay::VenueEnvironmentAnim>"
+                 "load_venue_env_anims",
+                 "venue EnvAnim loader exists");
+  ok &= contains(gameplay_c,
+                 "if(version!=4)continue;",
+                 "venue EnvAnim loader keeps traced PS2 version");
+  ok &= contains(gameplay_c,
+                 "color_keys=%zu",
+                 "venue EnvAnim logs decoded color key coverage");
+  ok &= contains(gameplay_c,
+                 "std::map<std::string,std::vector<std::string>>"
+                 "filter_env_anims;",
+                 "EnvAnim loader resolves AnimFilter-indirected environment animations");
+  ok &= contains(gameplay_c,
+                 "std::map<std::string,std::vector<std::string>>"
+                 "group_env_anims;",
+                 "EnvAnim loader resolves Group-contained environment animations");
+  ok &= contains(gameplay_c,
+                 "venue_event_env_anims_=load_venue_event_env_anims(",
+                 "venue load wires EventTrigger EnvAnim routes");
+  ok &= contains(gameplay_c,
+                 "active_venue_environment_anims_.push_back(std::move(active_anim));",
+                 "venue EnvAnim events start active environment animation");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::update_active_venue_environment_anims()",
+                 "venue EnvAnim has a per-tick sampler");
+  ok &= contains(gameplay_c,
+                 "world_->set_environment_color_overrides(venue_environment_colors_);",
+                 "venue EnvAnim samples feed renderer overrides");
   ok &= contains(gameplay_c,
                  "std::map<std::string,std::vector<std::string>>"
                  "filter_mat_anims;",
