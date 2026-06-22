@@ -6237,6 +6237,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_event_light_anims_.clear();
     venue_light_colors_.clear();
     active_venue_light_anims_.clear();
+    last_venue_env_anim_debug_time_ = -1.0;
+    last_venue_light_anim_debug_time_ = -1.0;
     venue_event_particle_systems_.clear();
     venue_active_particle_systems_.clear();
     venue_particle_intensities_.clear();
@@ -6679,6 +6681,8 @@ void Gameplay::clear_runtime_venue_animation_state() {
     active_venue_environment_anims_.clear();
     venue_light_colors_.clear();
     active_venue_light_anims_.clear();
+    last_venue_env_anim_debug_time_ = -1.0;
+    last_venue_light_anim_debug_time_ = -1.0;
     venue_active_particle_systems_.clear();
     venue_particle_intensities_.clear();
     active_venue_particles_.clear();
@@ -6767,20 +6771,33 @@ void Gameplay::update_active_venue_environment_anims() {
     if (active_venue_environment_anims_.empty()) return;
 
     bool changed = false;
+    const bool debug_sample =
+        debug_venue_filters_enabled() &&
+        (last_venue_env_anim_debug_time_ < 0.0 ||
+         song_time_ - last_venue_env_anim_debug_time_ >= 0.5);
     for (auto it = active_venue_environment_anims_.begin();
          it != active_venue_environment_anims_.end();) {
         const float frame = material_anim_frame_at(
             it->duration_frames, song_time_ - it->start_time,
             it->persistent);
-        venue_environment_colors_[it->environment] =
-            sample_environment_color_key(it->color_keys, frame);
+        const auto color = sample_environment_color_key(it->color_keys, frame);
+        venue_environment_colors_[it->environment] = color;
         changed = true;
+        if (debug_sample) {
+            std::fprintf(
+                stderr,
+                "[world] venue EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d\n",
+                it->name.c_str(), it->environment.c_str(), frame, color[0],
+                color[1], color[2], color[3], it->color_keys.size(),
+                it->persistent ? 1 : 0);
+        }
         if (!it->persistent && frame >= it->duration_frames - 0.001f) {
             it = active_venue_environment_anims_.erase(it);
         } else {
             ++it;
         }
     }
+    if (debug_sample) last_venue_env_anim_debug_time_ = song_time_;
     if (changed)
         world_->set_environment_color_overrides(venue_environment_colors_);
 }
@@ -6790,19 +6807,32 @@ void Gameplay::update_active_venue_light_anims() {
     if (active_venue_light_anims_.empty()) return;
 
     bool changed = false;
+    const bool debug_sample =
+        debug_venue_filters_enabled() &&
+        (last_venue_light_anim_debug_time_ < 0.0 ||
+         song_time_ - last_venue_light_anim_debug_time_ >= 0.5);
     for (auto it = active_venue_light_anims_.begin();
          it != active_venue_light_anims_.end();) {
         const float frame = material_anim_frame_at(
             it->duration_frames, song_time_ - it->start_time, it->persistent);
-        venue_light_colors_[it->light] =
-            sample_light_color_key(it->color_keys, frame);
+        const auto color = sample_light_color_key(it->color_keys, frame);
+        venue_light_colors_[it->light] = color;
         changed = true;
+        if (debug_sample) {
+            std::fprintf(
+                stderr,
+                "[world] venue LightAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d\n",
+                it->name.c_str(), it->light.c_str(), frame, color[0], color[1],
+                color[2], color[3], it->color_keys.size(),
+                it->persistent ? 1 : 0);
+        }
         if (!it->persistent && frame >= it->duration_frames - 0.001f) {
             it = active_venue_light_anims_.erase(it);
         } else {
             ++it;
         }
     }
+    if (debug_sample) last_venue_light_anim_debug_time_ = song_time_;
     if (changed) world_->set_light_color_overrides(venue_light_colors_);
 }
 

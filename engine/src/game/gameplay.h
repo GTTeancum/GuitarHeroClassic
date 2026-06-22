@@ -454,6 +454,8 @@ class Gameplay {
   std::vector<ActiveVenueEnvironmentAnim> active_venue_environment_anims_;
   std::map<std::string, std::array<float, 4>> venue_light_colors_;
   std::vector<ActiveVenueLightAnim> active_venue_light_anims_;
+  double last_venue_env_anim_debug_time_ = -1.0;
+  double last_venue_light_anim_debug_time_ = -1.0;
   std::unordered_set<std::string> venue_active_particle_systems_;
   std::map<std::string, float> venue_particle_intensities_;
   std::vector<ActiveVenueParticleSystem> active_venue_particles_;

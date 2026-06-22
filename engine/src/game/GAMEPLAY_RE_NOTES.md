@@ -1049,6 +1049,36 @@ Open work:
   keep it as fest/female-singer route-health evidence rather than active vocal
   performance proof; the separate `shout_singer_active_close_valid` capture
   remains the current active singer/FaceFX proof.
+- 2026-06-22 small1 live venue-animation debug validation:
+  `analysis/native_validation/venue_anim_debug_small1_psychobilly_20260622_current/`
+  reruns stock PS2 `psychobilly` from `10.0s` with diagnostic autoplay and
+  `GHOGX_DEBUG_VENUE_FILTERS=1`. The bounded hidden run exits cleanly after
+  480 frames, records 1,425 `venue AnimFilter sample` rows, 96
+  `venue ParticleSys sample` rows, 244 `venue event ... AnimFilter` starts,
+  22 venue `MatAnim` event rows, 4 active lighting keyframes, 3 active lighting
+  presets, 2 regular camera sweeps, 3 `post_switch_cam` moves, and zero misses
+  or unsupported channel rows. The sampled paths include persistent
+  `excitement_okay` ceiling-swing filters and repeated player-fret
+  `speaker_cone*.filt` filters driven by diagnostic autoplay hits. Captured
+  frames `frame_00180.bmp`, `frame_00300.bmp`, and `frame_00470.bmp` are
+  coherent authored-camera small1 stage renders with band, drum kit, TVs,
+  speakers, particles, lighting, and venue animation active.
+- 2026-06-22 fest LightAnim live-sampling validation:
+  `analysis/native_validation/venue_lightanim_debug_fest_badreputation_20260622_current/`
+  reruns stock PS2 `badreputation` from `15.0s` with diagnostic autoplay,
+  `GHOGX_DEBUG_VENUE_FILTERS=1`, and the existing opt-in
+  `GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS=1` bridge. Native debug logging now
+  prints EnvAnim/LightAnim samples on the same half-second cadence used for
+  ParticleSys/AnimFilter samples. The run decodes `stage_angel.lnm` and
+  `stage_gargoyle.lnm`, dispatches the real MIDI `venue_effect` cue at
+  `t=19.400`, starts both LightAnims through that event, records 16
+  `venue LightAnim sample` rows with advancing frame/color values from frame
+  `0.00` through `105.00`, and keeps companion ParticleSys, MeshAnim,
+  AnimFilter, lighting-keyframe, regular-camera, and post-switch routes active.
+  Captured frames `frame_00180.bmp`, `frame_00300.bmp`, and `frame_00470.bmp`
+  remain coherent fest-stage renders. Because the dynamic-light bridge remains
+  opt-in pending final color parity, treat this as route/sampling evidence, not
+  a signoff that authored lighting color balance is final.
 - Native camera mesh proximity logging
   (`engine/out/native_song_20260614/psychobilly_f900_camera_mesh_probe.log`)
   identified the old `psychobilly` frame-900 occluder as the `tunnel.*`
