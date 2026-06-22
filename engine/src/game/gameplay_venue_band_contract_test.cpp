@@ -797,6 +797,28 @@ int main() {
                  "while(next_lighting_cue_idx_<chart_.lighting_cues.size())",
                  "lighting keyframes are driven by parsed MIDI cue stream");
   ok &= contains(gameplay_c,
+                 "std::optional<std::string_view>section_venue_event_name("
+                 "std::string_viewtext_event)",
+                 "EVENTS section text has a shared venue-message mapper");
+  ok &= contains(gameplay_h_c,
+                 "size_tnext_section_venue_event_idx_=0;",
+                 "venue section text dispatch has its own cue cursor");
+  ok &= contains(gameplay_c,
+                 "while(next_section_venue_event_idx_<chart_.text_events.size()"
+                 "&&chart_.tick_to_sec(chart_.text_events["
+                 "next_section_venue_event_idx_].tick)<song_time_)",
+                 "diagnostic seek skips already elapsed venue section text events");
+  ok &= contains(gameplay_c,
+                 "while(next_section_venue_event_idx_<chart_.text_events.size())"
+                 "{constauto&ev=chart_.text_events[next_section_venue_event_idx_];",
+                 "venue section text events are consumed in tick order");
+  ok &= contains(gameplay_c,
+                 "conststd::stringvenue_event_name(*venue_event);",
+                 "section venue messages materialize stable event names");
+  ok &= contains(gameplay_c,
+                 "apply_venue_event(venue_event_name,false);",
+                 "section venue messages are transient and do not overwrite excitement state");
+  ok &= contains(gameplay_c,
                  "uint32_tvenue_excitement_level(std::string_viewvenue_event)",
                  "lighting uses a shared venue-excitement level mapper");
   ok &= contains(gameplay_c,

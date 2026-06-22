@@ -1533,3 +1533,18 @@ Rejected native probe:
   lighting presets/keyframes, zero miss rows, and zero unsupported
   material-channel rows. The captured frame 180 is a coherent authored-camera
   small1 venue render with TV/material-heavy stage content visible.
+
+2026-06-22 venue section message bridge:
+
+- Stock venue DTBs define venue-local section handlers such as arena
+  `chorus`, `verse`, and `solo`; those handlers can in turn call authored
+  animation routes like `sparks_on` / `sparks_off`. Native already used the
+  same EVENTS text (`[verse]`, `[chorus]`, `[solo]`) for lighting category and
+  camera-section state, but did not forward the section messages into the
+  shared venue-event router.
+- Native now maps `[verse]`, `[chorus]`, and `[solo]` to transient venue
+  messages with an independent cursor, including diagnostic-seek skipping.
+  This deliberately does not expand nested DTB script logic such as arena's
+  `sparks_on` conditionals or delayed `script_task` bounces; only decoded
+  asset routes with matching event keys are allowed to run. Expanding those
+  script-side state machines should wait for a focused PS2/runtime trace.

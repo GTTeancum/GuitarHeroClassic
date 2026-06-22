@@ -3192,6 +3192,14 @@ LightingRequest lighting_request_at(const ghogx::chart::Chart& chart,
     return req;
 }
 
+std::optional<std::string_view> section_venue_event_name(
+    std::string_view text_event) {
+    if (text_event == "[verse]") return "verse";
+    if (text_event == "[chorus]") return "chorus";
+    if (text_event == "[solo]") return "solo";
+    return std::nullopt;
+}
+
 const Gameplay::LightingPreset* choose_lighting_preset(
     const std::vector<Gameplay::LightingPreset>& presets,
     const LightingRequest& request,
@@ -6411,6 +6419,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     next_drum_cue_idx_ = 0;
     next_bass_cue_idx_ = 0;
     next_venue_cue_idx_ = 0;
+    next_section_venue_event_idx_ = 0;
 
     if (hdr_path.empty() || ark_path.empty()) {
         std::fprintf(stderr, "[gameplay] no ARK paths; cannot load song\n");
@@ -7653,6 +7662,13 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     skip_cues_before(chart_.bass_cues, next_bass_cue_idx_);
     skip_cues_before(chart_.venue_cues, next_venue_cue_idx_);
     skip_cues_before(chart_.lighting_cues, next_lighting_cue_idx_);
+    next_section_venue_event_idx_ = 0;
+    while (next_section_venue_event_idx_ < chart_.text_events.size() &&
+           chart_.tick_to_sec(
+               chart_.text_events[next_section_venue_event_idx_].tick) <
+               song_time_) {
+        ++next_section_venue_event_idx_;
+    }
     last_camera_bar_ = UINT32_MAX;
     camera_bars_left_ = 0;
     last_forced_camera_event_tick_ = UINT32_MAX;
@@ -7794,6 +7810,21 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                      cue.event.c_str(), cue.pitch, cue.tick, song_time_);
         apply_venue_event(cue.event, false);
         ++next_venue_cue_idx_;
+    }
+
+    while (next_section_venue_event_idx_ < chart_.text_events.size()) {
+        const auto& ev = chart_.text_events[next_section_venue_event_idx_];
+        const double ev_sec = chart_.tick_to_sec(ev.tick);
+        if (ev_sec > song_time_) break;
+        if (auto venue_event = section_venue_event_name(ev.text)) {
+            const std::string venue_event_name(*venue_event);
+            std::fprintf(stderr,
+                         "[world] section venue cue: %s text=%s tick=%u t=%.3f\n",
+                         venue_event_name.c_str(), ev.text.c_str(), ev.tick,
+                         song_time_);
+            apply_venue_event(venue_event_name, false);
+        }
+        ++next_section_venue_event_idx_;
     }
 
     // Decay per-lane hit flames (~0.22 s lifetime).
