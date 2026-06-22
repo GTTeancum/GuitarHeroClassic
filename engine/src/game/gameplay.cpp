@@ -6796,6 +6796,10 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     ignored_last_light_change_ = false;
     lighting_mat_anims_.clear();
     lighting_event_mat_anims_.clear();
+    lighting_env_anims_.clear();
+    lighting_event_env_anims_.clear();
+    lighting_light_anims_.clear();
+    lighting_event_light_anims_.clear();
     lighting_event_particle_systems_.clear();
     lighting_event_anim_filters_.clear();
     lighting_event_group_visibility_.clear();
@@ -6804,6 +6808,12 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_material_textures_.clear();
     lighting_material_tex_transforms_.clear();
     active_lighting_material_anims_.clear();
+    lighting_environment_colors_.clear();
+    active_lighting_environment_anims_.clear();
+    lighting_light_colors_.clear();
+    active_lighting_light_anims_.clear();
+    last_lighting_env_anim_debug_time_ = -1.0;
+    last_lighting_light_anim_debug_time_ = -1.0;
     lighting_active_particle_systems_.clear();
     lighting_particle_intensities_.clear();
     lighting_particle_sizes_.clear();
@@ -7394,6 +7404,12 @@ void Gameplay::clear_runtime_venue_animation_state() {
     lighting_material_textures_.clear();
     lighting_material_tex_transforms_.clear();
     active_lighting_material_anims_.clear();
+    lighting_environment_colors_.clear();
+    active_lighting_environment_anims_.clear();
+    lighting_light_colors_.clear();
+    active_lighting_light_anims_.clear();
+    last_lighting_env_anim_debug_time_ = -1.0;
+    last_lighting_light_anim_debug_time_ = -1.0;
     lighting_active_particle_systems_.clear();
     lighting_particle_intensities_.clear();
     lighting_particle_sizes_.clear();
@@ -7455,6 +7471,9 @@ void Gameplay::clear_runtime_venue_animation_state() {
         lighting_->set_material_texture_overrides(lighting_material_textures_);
         lighting_->set_material_tex_transform_overrides(
             lighting_material_tex_transforms_);
+        lighting_->set_environment_color_overrides(
+            lighting_environment_colors_);
+        lighting_->set_light_color_overrides(lighting_light_colors_);
         lighting_runtime_hidden_meshes_ = lighting_base_hidden_meshes_;
         lighting_->set_active_particle_systems(lighting_active_particle_systems_);
         lighting_->set_particle_intensities(lighting_particle_intensities_);
@@ -7763,10 +7782,14 @@ void Gameplay::update_active_venue_anim_filters() {
 void Gameplay::apply_lighting_event(const std::string& event_name) {
     if (event_name.empty() || !lighting_) return;
     auto event_it = lighting_event_mat_anims_.find(event_name);
+    auto env_event_it = lighting_event_env_anims_.find(event_name);
+    auto light_event_it = lighting_event_light_anims_.find(event_name);
     auto visibility_it = lighting_event_group_visibility_.find(event_name);
     auto particle_it = lighting_event_particle_systems_.find(event_name);
     auto filter_it = lighting_event_anim_filters_.find(event_name);
     if (event_it == lighting_event_mat_anims_.end() &&
+        env_event_it == lighting_event_env_anims_.end() &&
+        light_event_it == lighting_event_light_anims_.end() &&
         visibility_it == lighting_event_group_visibility_.end() &&
         particle_it == lighting_event_particle_systems_.end() &&
         filter_it == lighting_event_anim_filters_.end()) {
@@ -7777,6 +7800,8 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
     bool color_changed = false;
     bool texture_changed = false;
     bool tex_changed = false;
+    bool environment_color_changed = false;
+    bool light_color_changed = false;
     bool venue_alpha_changed = false;
     bool venue_color_changed = false;
     bool venue_texture_changed = false;
@@ -7977,6 +8002,75 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
         if (anim.has_alpha) alpha_changed = true;
     }
     }
+    if (env_event_it != lighting_event_env_anims_.end()) {
+        for (const auto& anim_name : env_event_it->second) {
+            const auto anim_it = lighting_env_anims_.find(anim_name);
+            if (anim_it == lighting_env_anims_.end()) continue;
+            const auto& anim = anim_it->second;
+            if (anim.color_keys.empty()) continue;
+            active_lighting_environment_anims_.erase(
+                std::remove_if(
+                    active_lighting_environment_anims_.begin(),
+                    active_lighting_environment_anims_.end(),
+                    [&](const ActiveVenueEnvironmentAnim& active) {
+                        return active.environment == anim.environment;
+                    }),
+                active_lighting_environment_anims_.end());
+            ActiveVenueEnvironmentAnim active_anim;
+            active_anim.name = anim.name;
+            active_anim.environment = anim.environment;
+            active_anim.start_time = song_time_;
+            active_anim.duration_frames = anim.duration_frames;
+            active_anim.color_keys = anim.color_keys;
+            active_anim.persistent = true;
+            lighting_environment_colors_[anim.environment] =
+                sample_environment_color_key(active_anim.color_keys, 0.0f);
+            environment_color_changed = true;
+            std::fprintf(
+                stderr,
+                "[world] lighting event %s: EnvAnim %s -> %s color_keys=%zu frames=%.1f\n",
+                event_name.c_str(), anim.name.c_str(),
+                anim.environment.c_str(), anim.color_keys.size(),
+                anim.duration_frames);
+            if (anim.duration_frames > 0.001f) {
+                active_lighting_environment_anims_.push_back(
+                    std::move(active_anim));
+            }
+        }
+    }
+    if (light_event_it != lighting_event_light_anims_.end()) {
+        for (const auto& anim_name : light_event_it->second) {
+            const auto anim_it = lighting_light_anims_.find(anim_name);
+            if (anim_it == lighting_light_anims_.end()) continue;
+            const auto& anim = anim_it->second;
+            if (anim.color_keys.empty()) continue;
+            active_lighting_light_anims_.erase(
+                std::remove_if(active_lighting_light_anims_.begin(),
+                               active_lighting_light_anims_.end(),
+                               [&](const ActiveVenueLightAnim& active) {
+                                   return active.light == anim.light;
+                               }),
+                active_lighting_light_anims_.end());
+            ActiveVenueLightAnim active_anim;
+            active_anim.name = anim.name;
+            active_anim.light = anim.light;
+            active_anim.start_time = song_time_;
+            active_anim.duration_frames = anim.duration_frames;
+            active_anim.color_keys = anim.color_keys;
+            active_anim.persistent = true;
+            lighting_light_colors_[anim.light] =
+                sample_light_color_key(active_anim.color_keys, 0.0f);
+            light_color_changed = true;
+            std::fprintf(
+                stderr,
+                "[world] lighting event %s: LightAnim %s -> %s color_keys=%zu frames=%.1f\n",
+                event_name.c_str(), anim.name.c_str(), anim.light.c_str(),
+                anim.color_keys.size(), anim.duration_frames);
+            if (anim.duration_frames > 0.001f) {
+                active_lighting_light_anims_.push_back(std::move(active_anim));
+            }
+        }
+    }
     if (alpha_changed)
         lighting_->set_material_alpha_multipliers(lighting_material_alpha_);
     if (color_changed)
@@ -7986,6 +8080,11 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
     if (tex_changed)
         lighting_->set_material_tex_transform_overrides(
             lighting_material_tex_transforms_);
+    if (environment_color_changed)
+        lighting_->set_environment_color_overrides(
+            lighting_environment_colors_);
+    if (light_color_changed)
+        lighting_->set_light_color_overrides(lighting_light_colors_);
     if (venue_alpha_changed && world_)
         world_->set_material_alpha_multipliers(venue_material_alpha_);
     if (venue_color_changed && world_)
@@ -8058,6 +8157,8 @@ void Gameplay::apply_lighting_event(const std::string& event_name) {
                      "[world] lighting event %s: no decoded AnimFilter transforms\n",
                      event_name.c_str());
     }
+    update_active_lighting_environment_anims();
+    update_active_lighting_light_anims();
     update_active_lighting_particles();
     update_active_lighting_anim_filters();
 }
@@ -8156,6 +8257,78 @@ void Gameplay::update_active_lighting_material_anims() {
     if (tex_changed)
         lighting_->set_material_tex_transform_overrides(
             lighting_material_tex_transforms_);
+}
+
+void Gameplay::update_active_lighting_environment_anims() {
+    if (!lighting_) return;
+    if (active_lighting_environment_anims_.empty()) return;
+
+    bool changed = false;
+    const bool debug_sample =
+        debug_venue_filters_enabled() &&
+        (last_lighting_env_anim_debug_time_ < 0.0 ||
+         song_time_ - last_lighting_env_anim_debug_time_ >= 0.5);
+    for (auto it = active_lighting_environment_anims_.begin();
+         it != active_lighting_environment_anims_.end();) {
+        const float frame = material_anim_frame_at(
+            it->duration_frames, song_time_ - it->start_time,
+            it->persistent);
+        const auto color = sample_environment_color_key(it->color_keys, frame);
+        lighting_environment_colors_[it->environment] = color;
+        changed = true;
+        if (debug_sample) {
+            std::fprintf(
+                stderr,
+                "[world] lighting EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d\n",
+                it->name.c_str(), it->environment.c_str(), frame, color[0],
+                color[1], color[2], color[3], it->color_keys.size(),
+                it->persistent ? 1 : 0);
+        }
+        if (!it->persistent && frame >= it->duration_frames - 0.001f) {
+            it = active_lighting_environment_anims_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (debug_sample) last_lighting_env_anim_debug_time_ = song_time_;
+    if (changed)
+        lighting_->set_environment_color_overrides(
+            lighting_environment_colors_);
+}
+
+void Gameplay::update_active_lighting_light_anims() {
+    if (!lighting_) return;
+    if (active_lighting_light_anims_.empty()) return;
+
+    bool changed = false;
+    const bool debug_sample =
+        debug_venue_filters_enabled() &&
+        (last_lighting_light_anim_debug_time_ < 0.0 ||
+         song_time_ - last_lighting_light_anim_debug_time_ >= 0.5);
+    for (auto it = active_lighting_light_anims_.begin();
+         it != active_lighting_light_anims_.end();) {
+        const float frame = material_anim_frame_at(
+            it->duration_frames, song_time_ - it->start_time,
+            it->persistent);
+        const auto color = sample_light_color_key(it->color_keys, frame);
+        lighting_light_colors_[it->light] = color;
+        changed = true;
+        if (debug_sample) {
+            std::fprintf(
+                stderr,
+                "[world] lighting LightAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d\n",
+                it->name.c_str(), it->light.c_str(), frame, color[0],
+                color[1], color[2], color[3], it->color_keys.size(),
+                it->persistent ? 1 : 0);
+        }
+        if (!it->persistent && frame >= it->duration_frames - 0.001f) {
+            it = active_lighting_light_anims_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (debug_sample) last_lighting_light_anim_debug_time_ = song_time_;
+    if (changed) lighting_->set_light_color_overrides(lighting_light_colors_);
 }
 
 void Gameplay::update_active_lighting_particles() {
@@ -8697,6 +8870,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     update_active_venue_particles();
     update_active_venue_anim_filters();
     update_active_lighting_material_anims();
+    update_active_lighting_environment_anims();
+    update_active_lighting_light_anims();
     update_active_lighting_particles();
     update_active_lighting_anim_filters();
 
@@ -8847,6 +9022,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_event_mat_anims_ =
                     load_venue_event_mat_anims(hdr_path_, ark_path_,
                                                lighting_milo);
+                lighting_env_anims_ =
+                    load_venue_env_anims(hdr_path_, ark_path_, lighting_milo);
+                lighting_event_env_anims_ =
+                    load_venue_event_env_anims(hdr_path_, ark_path_,
+                                               lighting_milo);
+                lighting_light_anims_ =
+                    load_venue_light_anims(hdr_path_, ark_path_, lighting_milo);
+                lighting_event_light_anims_ =
+                    load_venue_event_light_anims(hdr_path_, ark_path_,
+                                                 lighting_milo);
                 lighting_event_particle_systems_ =
                     load_venue_event_particles(hdr_path_, ark_path_,
                                                lighting_milo);
@@ -8873,6 +9058,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_additive_blend(true);
                 lighting_base_hidden_meshes_.clear();
                 lighting_runtime_hidden_meshes_ = lighting_base_hidden_meshes_;
+                lighting_->set_environment_color_overrides({});
+                lighting_->set_light_color_overrides({});
                 lighting_->set_active_particle_systems({});
                 lighting_->set_particle_intensities({});
                 lighting_->set_particle_sizes({});

@@ -1723,3 +1723,46 @@ Rejected native probe:
   exits `0`, and records zero unsupported material rows, zero overlay no-route
   hit-event spam, and zero miss rows. Frames 180 and 300 are coherent authored
   battle-camera renders.
+
+2026-06-22 lighting-overlay EnvAnim/LightAnim routes:
+
+- The same lighting overlay object inventory shows effect routes that are not
+  material-only: `stone_lighting.milo_ps2` has 6 `EnvAnim` objects, 1
+  `LightAnim`, 64 `AnimFilter` objects, 35 `ParticleSys` objects, and 16
+  `EventTrigger` objects. Its retained EventTrigger dump routes
+  `start`/`intro_start` through overlay filters/groups that expand to
+  `intro_start*.enm` and `bonfire_stack.lnm`. Native now loads separate
+  lighting-overlay EnvAnim/LightAnim route maps from the lighting MILO and
+  samples them against the lighting renderer's environment/light color override
+  state. This deliberately reuses the shared venue EnvAnim/LightAnim decoder and
+  sampler structures; it is not a stone-specific lighting hack.
+- Overlay reset/diagnostic seek now clears the lighting EnvAnim/LightAnim
+  runtime state and reapplies the authored `start` and `intro_start` overlay
+  triggers alongside the previously bridged material, particle, transform, and
+  visibility state.
+- Validation:
+  `analysis/native_validation/lighting_overlay_env_light_stone_20260622_current_clean/`
+  reruns stock PS2 `shoutatthedevil` with the diagnostic `stone` venue override
+  hidden and diagnostic autoplay. The log decodes lighting overlay
+  `bonfire_stack.lnm`, records EventTrigger EnvAnim rows for
+  `intro_start5.enm`, `intro_start4.enm`, `intro_start3.enm`,
+  `intro_start2.enm`, and `intro_start01.enm`, starts those routes from
+  `start`/`intro_start`, starts `bonfire_stack.lnm` from `intro_start`, records
+  48 live `lighting EnvAnim sample` rows and 16 live
+  `lighting LightAnim sample` rows with advancing frame/color values, exits `0`,
+  and records zero unsupported rows, zero miss rows, and zero PowerShell
+  redirect wrapper noise. Frames 180, 300, and 420 are retained as route
+  validation captures; camera composition parity is not claimed from this
+  diagnostic override run.
+- Stock-route cross-check:
+  `analysis/native_validation/lighting_overlay_envanim_small2_20260622_current/`
+  reruns PS2 `youreallygotme` in its authored `small2` venue hidden with
+  diagnostic autoplay. The lighting overlay EventTrigger decoder records
+  `effects_excitement_bad`, `effects_excitement_okay`, and
+  `effects_excitement_great` EnvAnim rows for `op_art_projection.enm` and
+  `trippy_projection.enm`; the native run starts both from
+  `excitement_great`, records 16 live `lighting EnvAnim sample` rows with
+  advancing color/frame values, exits `0`, and records zero unsupported rows,
+  zero miss rows, and zero PowerShell redirect wrapper noise. This cross-check
+  covers a normal stock venue route rather than only the diagnostic stone
+  override.

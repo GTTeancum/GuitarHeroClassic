@@ -349,6 +349,8 @@ class Gameplay {
                                        bool log);
   std::unordered_set<std::string> composed_lighting_hidden_meshes() const;
   void update_active_lighting_material_anims();
+  void update_active_lighting_environment_anims();
+  void update_active_lighting_light_anims();
   void update_active_lighting_particles();
   void update_active_lighting_anim_filters();
   void set_lighting_spot_targets(
@@ -469,6 +471,10 @@ class Gameplay {
   bool ignored_last_light_change_ = false;
   std::map<std::string, VenueMaterialAnim> lighting_mat_anims_;
   std::map<std::string, std::vector<std::string>> lighting_event_mat_anims_;
+  std::map<std::string, VenueEnvironmentAnim> lighting_env_anims_;
+  std::map<std::string, std::vector<std::string>> lighting_event_env_anims_;
+  std::map<std::string, VenueLightAnim> lighting_light_anims_;
+  std::map<std::string, std::vector<std::string>> lighting_event_light_anims_;
   std::map<std::string, std::vector<VenueParticleRoute>>
       lighting_event_particle_systems_;
   std::map<std::string, std::vector<VenueAnimFilter>>
@@ -481,6 +487,12 @@ class Gameplay {
            ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
       lighting_material_tex_transforms_;
   std::vector<ActiveVenueMaterialAnim> active_lighting_material_anims_;
+  std::map<std::string, std::array<float, 4>> lighting_environment_colors_;
+  std::vector<ActiveVenueEnvironmentAnim> active_lighting_environment_anims_;
+  std::map<std::string, std::array<float, 4>> lighting_light_colors_;
+  std::vector<ActiveVenueLightAnim> active_lighting_light_anims_;
+  double last_lighting_env_anim_debug_time_ = -1.0;
+  double last_lighting_light_anim_debug_time_ = -1.0;
   std::unordered_set<std::string> lighting_active_particle_systems_;
   std::map<std::string, float> lighting_particle_intensities_;
   std::map<std::string, float> lighting_particle_sizes_;

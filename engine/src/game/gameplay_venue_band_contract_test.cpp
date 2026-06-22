@@ -777,6 +777,14 @@ int main() {
                  "lighting_event_mat_anims_;",
                  "lighting overlay keeps its own EventTrigger MatAnim routes");
   ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::vector<std::string>>"
+                 "lighting_event_env_anims_;",
+                 "lighting overlay keeps its own EventTrigger EnvAnim routes");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::vector<std::string>>"
+                 "lighting_event_light_anims_;",
+                 "lighting overlay keeps its own EventTrigger LightAnim routes");
+  ok &= contains(gameplay_h_c,
                  "std::map<std::string,std::vector<VenueParticleRoute>>"
                  "lighting_event_particle_systems_;",
                  "lighting overlay keeps its own EventTrigger ParticleSys routes");
@@ -792,6 +800,14 @@ int main() {
                  "lighting_event_mat_anims_=load_venue_event_mat_anims("
                  "hdr_path_,ark_path_,lighting_milo);",
                  "lighting overlay loads authored lighting MILO event animations");
+  ok &= contains(gameplay_c,
+                 "lighting_event_env_anims_=load_venue_event_env_anims("
+                 "hdr_path_,ark_path_,lighting_milo);",
+                 "lighting overlay loads authored lighting MILO EnvAnim routes");
+  ok &= contains(gameplay_c,
+                 "lighting_event_light_anims_=load_venue_event_light_anims("
+                 "hdr_path_,ark_path_,lighting_milo);",
+                 "lighting overlay loads authored lighting MILO LightAnim routes");
   ok &= contains(gameplay_c,
                  "lighting_event_particle_systems_=load_venue_event_particles("
                  "hdr_path_,ark_path_,lighting_milo);",
@@ -814,17 +830,29 @@ int main() {
                  "voidGameplay::update_active_lighting_particles()",
                  "lighting overlay particles sample on the song clock");
   ok &= contains(gameplay_c,
+                 "voidGameplay::update_active_lighting_environment_anims()",
+                 "lighting overlay EnvAnim samples on the song clock");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::update_active_lighting_light_anims()",
+                 "lighting overlay LightAnim samples on the song clock");
+  ok &= contains(gameplay_c,
                  "voidGameplay::update_active_lighting_anim_filters()",
                  "lighting overlay AnimFilters sample on the song clock");
   ok &= contains(gameplay_c,
                  "event_it==lighting_event_mat_anims_.end()&&"
+                 "env_event_it==lighting_event_env_anims_.end()&&"
+                 "light_event_it==lighting_event_light_anims_.end()&&"
                  "visibility_it==lighting_event_group_visibility_.end()&&"
                  "particle_it==lighting_event_particle_systems_.end()&&"
                  "filter_it==lighting_event_anim_filters_.end()",
                  "lighting overlay ignores unrelated venue events without debug spam");
   ok &= contains(gameplay_c,
-                 "update_active_lighting_material_anims();",
-                 "lighting overlay material animation samples on the song clock");
+                 "update_active_lighting_material_anims();"
+                 "update_active_lighting_environment_anims();"
+                 "update_active_lighting_light_anims();"
+                 "update_active_lighting_particles();"
+                 "update_active_lighting_anim_filters();",
+                 "lighting overlay material/environment/lights/particles/filter animations sample on the song clock");
   ok &= contains(gameplay_c,
                  "\"[world]lightingevent%s:MatAnim%sroutehasunsupportedchannelshape",
                  "unsupported lighting MatAnim channels stay logged instead of guessed");
