@@ -327,6 +327,12 @@ int main() {
                        "if(active_venue_event_.empty()){"
                        "apply_venue_event(\"excitement_bad\");}",
                        "initial venue start EventTrigger runs before persistent excitement");
+  ok &= appears_before(gameplay_c,
+                       "apply_venue_event(\"start\",false);"
+                       "apply_venue_event(\"intro_start\",false);",
+                       "if(active_venue_event_.empty()){"
+                       "apply_venue_event(\"excitement_bad\");}",
+                       "initial venue intro_start EventTrigger runs before persistent excitement");
   ok &= contains(gameplay_c,
                  "venue_runtime_hidden_meshes_=venue_base_hidden_meshes_;"
                  "apply_venue_event_visibility(\"start\",false);",
@@ -763,6 +769,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "apply_venue_event(\"start\",false);",
                  "decoded start.trig initializes runtime venue events");
+  ok &= contains(gameplay_c,
+                 "apply_venue_event(\"intro_start\",false);",
+                 "decoded intro_start EventTrigger initializes runtime venue events");
   ok &= contains(gameplay_c,
                  "world_->set_hidden_meshes(composed_venue_hidden_meshes());",
                  "renderer receives composed venue visibility state");

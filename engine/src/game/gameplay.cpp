@@ -8029,6 +8029,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 world_->set_particle_sizes({});
                 world_->set_hidden_meshes(composed_venue_hidden_meshes());
                 apply_venue_event("start", false);
+                apply_venue_event("intro_start", false);
                 if (active_venue_event_.empty()) {
                     apply_venue_event("excitement_bad");
                 } else {

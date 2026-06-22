@@ -1548,3 +1548,36 @@ Rejected native probe:
   `sparks_on` conditionals or delayed `script_task` bounces; only decoded
   asset routes with matching event keys are allowed to run. Expanding those
   script-side state machines should wait for a focused PS2/runtime trace.
+
+2026-06-22 venue intro-start EventTrigger bridge:
+
+- Cross-venue PS2 EventTrigger dumps show an authored `intro_start` payload in
+  multiple venue geometry and lighting MILOs: small1 `intro_start`, small2
+  `intro.trig -> intro_start` / lighting `start.trig -> intro_start`, big
+  `Intro_start.trig -> intro_start`, stone geometry and lighting
+  `intro_start`, and battle lighting `intro_start`. Native already dispatched
+  the separate `start` one-shot and `intro_end`, but geometry triggers whose
+  payload was `intro_start` did not run unless their stripped object name also
+  happened to be `start`.
+- Native now dispatches `apply_venue_event("intro_start", false)` immediately
+  after the decoded `start` one-shot and before persistent excitement replay.
+  This keeps the route in the shared EventTrigger/AnimFilter/MatAnim/
+  ParticleSys path, rather than adding venue-specific rules. Existing
+  `intro_end` dispatch remains the close of the intro lifecycle.
+- Validation:
+  `analysis/native_validation/venue_intro_start_small2_20260622_current/`
+  reruns stock PS2 `youreallygotme` on small2 from song start. The log starts
+  `fan_anims.filt` from `intro_start`, records 21 live `venue AnimFilter
+  sample` rows for `op_fan.op_fan01/02/03.mesh`, keeps lighting presets active,
+  exits `0`, and records zero miss rows. A second hidden run,
+  `analysis/native_validation/venue_intro_start_big_override_20260622_current/`,
+  uses the diagnostic big-venue override and starts `curtain_rising.filt` from
+  `intro_start`, with 216 AnimFilter samples, 214 ParticleSys samples, lighting
+  presets active, exit `0`, and zero miss rows. The retained frames are coherent
+  intro-camera venue renders, not final camera-composition parity.
+- The small2 `neon_controller` DTB type remains intentionally unimplemented.
+  Its editor slots `env1..env9` default to empty strings, and filtered dumps of
+  `world/small2/gen/small2.milo_ps2` plus
+  `world/small2/og/gen/small2_geom.milo_ps2` show zero concrete `EnvAnim`
+  objects. Do not synthesize neon animation from those macros until a focused
+  runtime trace or object assignment proves the missing mapping.
