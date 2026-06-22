@@ -102,6 +102,7 @@ class MiloSceneRenderer {
   void set_additive_blend(bool additive);
   void set_active_spotlights(std::vector<SpotlightState> spots);
   void set_active_particle_systems(std::unordered_set<std::string> particle_names);
+  void set_particle_intensities(std::map<std::string, float> intensities);
   void set_hidden_meshes(std::unordered_set<std::string> mesh_names);
   void set_material_alpha_multipliers(std::map<std::string, float> material_alpha);
   struct MaterialTexTransformSample {
@@ -171,6 +172,7 @@ class MiloSceneRenderer {
   std::map<std::string, SpotlightState> active_spotlights_;
   bool active_particle_filter_ = false;
   std::unordered_set<std::string> active_particle_systems_;
+  std::map<std::string, float> particle_intensities_;
   float particle_time_ = 0.0f;
   std::unordered_set<std::string> hidden_meshes_;
   std::map<std::string, float> material_alpha_;

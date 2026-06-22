@@ -590,6 +590,46 @@ std::vector<std::string> scan_milo_strings(const uint8_t* body, size_t size) {
     return out;
 }
 
+struct PackedStringHit {
+    size_t offset = 0;
+    size_t end = 0;
+    std::string value;
+};
+
+std::vector<PackedStringHit> packed_strings_with_offsets(const uint8_t* body,
+                                                         size_t size) {
+    std::vector<PackedStringHit> out;
+    for (size_t off = 0; off + 4 <= size; ++off) {
+        uint32_t len = 0;
+        std::memcpy(&len, body + off, sizeof(len));
+        if (len == 0 || len > 96 || off + 4 + len > size) continue;
+        const char* s = reinterpret_cast<const char*>(body + off + 4);
+        bool printable = true;
+        for (uint32_t i = 0; i < len; ++i) {
+            const unsigned char c = static_cast<unsigned char>(s[i]);
+            if (c < 32 || c > 126) {
+                printable = false;
+                break;
+            }
+        }
+        if (!printable) continue;
+        out.push_back({off, off + 4 + len, std::string(s, s + len)});
+    }
+    return out;
+}
+
+uint32_t read_u32_at_unchecked(const uint8_t* body, size_t off) {
+    uint32_t v = 0;
+    std::memcpy(&v, body + off, sizeof(v));
+    return v;
+}
+
+float read_f32_at_unchecked(const uint8_t* body, size_t off) {
+    float v = 0.0f;
+    std::memcpy(&v, body + off, sizeof(v));
+    return v;
+}
+
 std::string canonical_milo_ref(std::string s) {
     static constexpr std::string_view suffixes[] = {
         ".mesh", ".filt", ".grp", ".tnm", ".mnm", ".enm", ".lnm",
@@ -1922,6 +1962,71 @@ std::map<std::string, std::vector<std::string>> load_venue_event_env_anims(
     return out;
 }
 
+Gameplay::VenueParticleRoute decode_particle_anim_route(
+    const std::string& entry_name, const uint8_t* body, size_t size) {
+    Gameplay::VenueParticleRoute route;
+    route.anim = canonical_milo_ref(entry_name);
+    if (size < 32 || read_u32_at_unchecked(body, 0) != 3) return route;
+
+    const auto strings = packed_strings_with_offsets(body, size);
+    const PackedStringHit* particle_string = nullptr;
+    const PackedStringHit* self_string = nullptr;
+    const PackedStringHit* owner_string = nullptr;
+    for (const auto& hit : strings) {
+        const auto ref = canonical_milo_ref(hit.value);
+        if (!particle_string && ref.size() > 5 &&
+            ref.rfind(".part") == ref.size() - 5) {
+            particle_string = &hit;
+        }
+        if (ref == route.anim) self_string = &hit;
+    }
+    for (const auto& hit : strings) {
+        const auto ref = canonical_milo_ref(hit.value);
+        if (ref != route.anim && ref.size() > 6 &&
+            ref.rfind(".panim") == ref.size() - 6) {
+            owner_string = &hit;
+            break;
+        }
+    }
+    if (particle_string)
+        route.particle = canonical_milo_ref(particle_string->value);
+    if (owner_string) route.keys_owner = canonical_milo_ref(owner_string->value);
+    if (!particle_string) return route;
+
+    const size_t limit = self_string ? self_string->offset : size;
+    const size_t count_off = particle_string->end + 8;
+    if (count_off + 4 > limit) return route;
+    const uint32_t key_count = read_u32_at_unchecked(body, count_off);
+    if (key_count == 0 || key_count > 512) return route;
+    const uint64_t key_bytes = static_cast<uint64_t>(key_count) * 12ull;
+    if (key_bytes > static_cast<uint64_t>(limit - (count_off + 4)))
+        return route;
+
+    size_t pos = count_off + 4;
+    route.emission_keys.reserve(key_count);
+    for (uint32_t i = 0; i < key_count; ++i) {
+        Gameplay::VenueParticleRoute::EmissionKey key;
+        key.min_value = read_f32_at_unchecked(body, pos);
+        key.max_value = read_f32_at_unchecked(body, pos + 4);
+        key.frame = read_f32_at_unchecked(body, pos + 8);
+        pos += 12;
+        if (!std::isfinite(key.min_value) || !std::isfinite(key.max_value) ||
+            !std::isfinite(key.frame) || key.frame < 0.0f ||
+            key.frame > 100000.0f) {
+            route.emission_keys.clear();
+            route.duration_frames = 0.0f;
+            return route;
+        }
+        route.duration_frames = std::max(route.duration_frames, key.frame);
+        route.emission_keys.push_back(key);
+    }
+    std::sort(route.emission_keys.begin(), route.emission_keys.end(),
+              [](const auto& a, const auto& b) {
+                  return a.frame < b.frame;
+              });
+    return route;
+}
+
 std::map<std::string, std::vector<Gameplay::VenueParticleRoute>>
 load_venue_event_particles(const std::string& hdr_path,
                            const std::string& ark_path,
@@ -1935,21 +2040,14 @@ load_venue_event_particles(const std::string& hdr_path,
                 if (existing.particle != route.particle) continue;
                 existing.duration_frames =
                     std::max(existing.duration_frames, route.duration_frames);
+                if (existing.emission_keys.size() < route.emission_keys.size()) {
+                    existing.anim = route.anim;
+                    existing.keys_owner = route.keys_owner;
+                    existing.emission_keys = route.emission_keys;
+                }
                 return;
             }
             routes.push_back(std::move(route));
-        };
-    auto max_plausible_frame =
-        [](const uint8_t* body, size_t size) {
-            float max_frame = 0.0f;
-            for (size_t i = 0; i + 4 <= size; ++i) {
-                float f = 0.0f;
-                std::memcpy(&f, body + i, sizeof(f));
-                if (!std::isfinite(f) || f < 0.0f || f > 10000.0f)
-                    continue;
-                if (f >= 0.01f) max_frame = std::max(max_frame, f);
-            }
-            return max_frame;
         };
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
@@ -1971,18 +2069,9 @@ load_venue_event_particles(const std::string& hdr_path,
             if (de.type == "ParticleSys") {
                 particle_names.insert(canonical_milo_ref(de.name));
             } else if (de.type == "ParticleSysAnim") {
-                const auto strings = scan_milo_strings(body, size);
-                for (const auto& s : strings) {
-                    const auto ref = canonical_milo_ref(s);
-                    if (ref.size() > 5 &&
-                        ref.rfind(".part") == ref.size() - 5) {
-                        Gameplay::VenueParticleRoute route;
-                        route.particle = ref;
-                        route.duration_frames = max_plausible_frame(body, size);
-                        panim_routes[canonical_milo_ref(de.name)] = route;
-                        break;
-                    }
-                }
+                auto route = decode_particle_anim_route(de.name, body, size);
+                if (!route.anim.empty() && !route.particle.empty())
+                    panim_routes[route.anim] = std::move(route);
             } else if (de.type == "AnimFilter" || de.type == "Group") {
                 auto& refs = de.type == "AnimFilter"
                                  ? filter_refs[canonical_milo_ref(de.name)]
@@ -2002,6 +2091,16 @@ load_venue_event_particles(const std::string& hdr_path,
                     if (object_ref) push_unique_ref(refs, ref);
                 }
             }
+        }
+        for (auto& [name, route] : panim_routes) {
+            if (!route.emission_keys.empty() || route.keys_owner.empty())
+                continue;
+            const auto owner = panim_routes.find(route.keys_owner);
+            if (owner == panim_routes.end() ||
+                owner->second.emission_keys.empty())
+                continue;
+            route.emission_keys = owner->second.emission_keys;
+            route.duration_frames = owner->second.duration_frames;
         }
 
         auto collect_ref =
@@ -2061,9 +2160,12 @@ load_venue_event_particles(const std::string& hdr_path,
             if (debug_venue_filters_enabled()) {
                 std::fprintf(stderr, "[world] EventTrigger %s Particles=",
                              de.name.c_str());
-                for (const auto& route : routes)
-                    std::fprintf(stderr, "%s(%.1f) ",
-                                 route.particle.c_str(), route.duration_frames);
+                for (const auto& route : routes) {
+                    std::fprintf(stderr, "%s via %s keys=%zu frames=%.1f ",
+                                 route.particle.c_str(), route.anim.c_str(),
+                                 route.emission_keys.size(),
+                                 route.duration_frames);
+                }
                 std::fprintf(stderr, "\n");
             }
         }
@@ -3555,46 +3657,6 @@ std::optional<std::string> first_mesh_target_in_transanim(const uint8_t* body,
     return std::nullopt;
 }
 
-struct PackedStringHit {
-    size_t offset = 0;
-    size_t end = 0;
-    std::string value;
-};
-
-std::vector<PackedStringHit> packed_strings_with_offsets(const uint8_t* body,
-                                                         size_t size) {
-    std::vector<PackedStringHit> out;
-    for (size_t off = 0; off + 4 <= size; ++off) {
-        uint32_t len = 0;
-        std::memcpy(&len, body + off, sizeof(len));
-        if (len == 0 || len > 96 || off + 4 + len > size) continue;
-        const char* s = reinterpret_cast<const char*>(body + off + 4);
-        bool printable = true;
-        for (uint32_t i = 0; i < len; ++i) {
-            const unsigned char c = static_cast<unsigned char>(s[i]);
-            if (c < 32 || c > 126) {
-                printable = false;
-                break;
-            }
-        }
-        if (!printable) continue;
-        out.push_back({off, off + 4 + len, std::string(s, s + len)});
-    }
-    return out;
-}
-
-uint32_t read_u32_at_unchecked(const uint8_t* body, size_t off) {
-    uint32_t v = 0;
-    std::memcpy(&v, body + off, sizeof(v));
-    return v;
-}
-
-float read_f32_at_unchecked(const uint8_t* body, size_t off) {
-    float v = 0.0f;
-    std::memcpy(&v, body + off, sizeof(v));
-    return v;
-}
-
 Gameplay::VenueMeshAnim decode_venue_mesh_anim(
     const std::string& entry_name, const uint8_t* body, size_t size) {
     Gameplay::VenueMeshAnim anim;
@@ -4237,6 +4299,32 @@ std::array<float, 4> sample_light_color_key(
                             0.0f, hi);
     }
     return out;
+}
+
+float particle_emission_key_value(
+    const Gameplay::VenueParticleRoute::EmissionKey& key) {
+    return std::max(0.0f, (key.min_value + key.max_value) * 0.5f);
+}
+
+float sample_particle_emission(
+    const std::vector<Gameplay::VenueParticleRoute::EmissionKey>& keys,
+    float frame) {
+    if (keys.empty()) return 1.0f;
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const float va = particle_emission_key_value(*a);
+    const float vb = particle_emission_key_value(*b);
+    return std::clamp(va + (vb - va) * t, 0.0f, 8.0f);
 }
 
 float material_anim_frame_at(float duration_frames, double elapsed_seconds,
@@ -6082,6 +6170,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_event_light_anims_.clear();
     venue_light_colors_.clear();
     active_venue_light_anims_.clear();
+    venue_event_particle_systems_.clear();
+    venue_active_particle_systems_.clear();
+    venue_particle_intensities_.clear();
+    active_venue_particles_.clear();
+    last_venue_particle_debug_time_ = -1.0;
     venue_event_filters_.clear();
     venue_filter_mesh_targets_.clear();
     venue_event_anim_filters_.clear();
@@ -6422,12 +6515,16 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active.start_time = song_time_;
             active.duration_seconds = authored_frames_to_seconds(
                 route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
+            active.duration_frames = route.duration_frames;
+            active.emission_keys = route.emission_keys;
             active.persistent = persistent;
             active_venue_particles_.push_back(std::move(active));
             std::fprintf(
                 stderr,
-                "[world] venue event %s: ParticleSys %s seconds=%.3f %s\n",
+                "[world] venue event %s: ParticleSys %s via %s keys=%zu frames=%.1f seconds=%.3f %s\n",
                 event_name.c_str(), route.particle.c_str(),
+                route.anim.c_str(), route.emission_keys.size(),
+                route.duration_frames,
                 active_venue_particles_.back().duration_seconds,
                 persistent ? "persistent" : "transient");
         }
@@ -6591,6 +6688,11 @@ void Gameplay::update_active_venue_light_anims() {
 void Gameplay::update_active_venue_particles() {
     if (!world_) return;
     std::unordered_set<std::string> active_particles;
+    std::map<std::string, float> particle_intensities;
+    const bool debug_sample =
+        debug_venue_filters_enabled() &&
+        (last_venue_particle_debug_time_ < 0.0 ||
+         song_time_ - last_venue_particle_debug_time_ >= 0.5);
     for (auto it = active_venue_particles_.begin();
          it != active_venue_particles_.end();) {
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
@@ -6598,12 +6700,33 @@ void Gameplay::update_active_venue_particles() {
             it = active_venue_particles_.erase(it);
             continue;
         }
-        active_particles.insert(it->particle);
+        const float frame =
+            it->duration_frames > 0.001f
+                ? material_anim_frame_at(it->duration_frames, elapsed,
+                                         it->persistent)
+                : static_cast<float>(elapsed * kLightingFramesPerSecond);
+        const float intensity = sample_particle_emission(it->emission_keys, frame);
+        if (intensity > 0.001f) {
+            active_particles.insert(it->particle);
+            auto& slot = particle_intensities[it->particle];
+            slot = std::max(slot, intensity);
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f keys=%zu persistent=%d\n",
+                    it->particle.c_str(), frame, intensity,
+                    it->emission_keys.size(), it->persistent ? 1 : 0);
+            }
+        }
         ++it;
     }
-    if (active_particles != venue_active_particle_systems_) {
+    if (debug_sample) last_venue_particle_debug_time_ = song_time_;
+    if (active_particles != venue_active_particle_systems_ ||
+        particle_intensities != venue_particle_intensities_) {
         venue_active_particle_systems_ = std::move(active_particles);
+        venue_particle_intensities_ = std::move(particle_intensities);
         world_->set_active_particle_systems(venue_active_particle_systems_);
+        world_->set_particle_intensities(venue_particle_intensities_);
     }
 }
 
@@ -7306,6 +7429,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 world_ = std::make_unique<ghogx::render::MiloSceneRenderer>(win);
                 world_->set_scene(std::move(venue_scene), venue_textures);
                 world_->set_active_particle_systems({});
+                world_->set_particle_intensities({});
                 world_->set_hidden_meshes(composed_venue_hidden_meshes());
                 if (active_venue_event_.empty()) {
                     apply_venue_event("excitement_bad");

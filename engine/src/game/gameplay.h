@@ -210,13 +210,23 @@ class Gameplay {
     bool persistent = true;
   };
   struct VenueParticleRoute {
+    struct EmissionKey {
+      float min_value = 0.0f;
+      float max_value = 0.0f;
+      float frame = 0.0f;
+    };
+    std::string anim;
     std::string particle;
+    std::string keys_owner;
     float duration_frames = 0.0f;
+    std::vector<EmissionKey> emission_keys;
   };
   struct ActiveVenueParticleSystem {
     std::string particle;
     double start_time = 0.0;
     double duration_seconds = 0.0;
+    float duration_frames = 0.0f;
+    std::vector<VenueParticleRoute::EmissionKey> emission_keys;
     bool persistent = true;
   };
   struct HandClipChoice {
@@ -440,7 +450,9 @@ class Gameplay {
   std::map<std::string, std::array<float, 4>> venue_light_colors_;
   std::vector<ActiveVenueLightAnim> active_venue_light_anims_;
   std::unordered_set<std::string> venue_active_particle_systems_;
+  std::map<std::string, float> venue_particle_intensities_;
   std::vector<ActiveVenueParticleSystem> active_venue_particles_;
+  double last_venue_particle_debug_time_ = -1.0;
   std::map<std::string, std::array<float, 3>> venue_mesh_translation_offsets_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
       venue_mesh_transform_offsets_;

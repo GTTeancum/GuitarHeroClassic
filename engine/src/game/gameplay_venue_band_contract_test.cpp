@@ -529,6 +529,24 @@ int main() {
                  "structVenueParticleRoute",
                  "gameplay keeps particle event routes");
   ok &= contains(gameplay_c,
+                 "Gameplay::VenueParticleRoutedecode_particle_anim_route",
+                 "gameplay decodes ParticleSysAnim key rows");
+  ok &= contains(gameplay_c,
+                 "read_u32_at_unchecked(body,0)!=3",
+                 "ParticleSysAnim loader keeps traced PS2 version");
+  ok &= contains(gameplay_c,
+                 "route.keys_owner=canonical_milo_ref(owner_string->value);",
+                 "ParticleSysAnim loader preserves key-owner references");
+  ok &= contains(gameplay_c,
+                 "route.emission_keys.push_back(key);",
+                 "ParticleSysAnim loader stores authored emission keys");
+  ok &= contains(gameplay_c,
+                 "route.duration_frames=std::max(route.duration_frames,key.frame);",
+                 "ParticleSysAnim duration comes from authored key frames");
+  ok &= contains(gameplay_c,
+                 "route.emission_keys=owner->second.emission_keys;",
+                 "ParticleSysAnim owner rows copy key data");
+  ok &= contains(gameplay_c,
                  "load_venue_event_particles",
                  "gameplay loads authored ParticleSys event routes");
   ok &= contains(gameplay_c,
@@ -540,6 +558,21 @@ int main() {
   ok &= contains(gameplay_c,
                  "voidGameplay::update_active_venue_particles()",
                  "venue particles have a per-tick lifetime update");
+  ok &= contains(gameplay_c,
+                 "sample_particle_emission(it->emission_keys,frame)",
+                 "venue particles sample authored ParticleSysAnim emission");
+  ok &= contains(gameplay_c,
+                 "world_->set_particle_intensities(venue_particle_intensities_);",
+                 "venue particle intensity samples feed renderer overrides");
+  ok &= contains(renderer_h_c,
+                 "set_particle_intensities",
+                 "renderer accepts particle intensity samples");
+  ok &= contains(renderer_c,
+                 "particle_intensities_.find(p.name)",
+                 "renderer applies particle intensity by authored particle name");
+  ok &= contains(renderer_c,
+                 "std::round(p.max_particles):16.0f)*std::max(intensity,0.0f)",
+                 "renderer scales ParticleSys count by sampled intensity");
   ok &= contains(gameplay_c,
                  "std::map<std::string,std::vector<std::string>>"
                  "filter_mat_anims;",

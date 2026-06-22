@@ -403,6 +403,11 @@ void MiloSceneRenderer::set_active_particle_systems(
   active_particle_systems_ = std::move(particle_names);
 }
 
+void MiloSceneRenderer::set_particle_intensities(
+    std::map<std::string, float> intensities) {
+  particle_intensities_ = std::move(intensities);
+}
+
 void MiloSceneRenderer::set_hidden_meshes(std::unordered_set<std::string> mesh_names) {
   hidden_meshes_ = std::move(mesh_names);
 }
@@ -1117,6 +1122,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         active_particle_systems_.find(p.name) == active_particle_systems_.end()) {
       return;
     }
+    float intensity = 1.0f;
+    if (const auto intensity_it = particle_intensities_.find(p.name);
+        intensity_it != particle_intensities_.end()) {
+      intensity = intensity_it->second;
+    }
+    intensity = std::clamp(intensity, 0.0f, 8.0f);
+    if (intensity <= 0.001f) return;
     const milo_scene::MatObj* mat = scene_.find_mat(p.material);
     if (!mat) return;
     IDirect3DTexture9* texture = nullptr;
@@ -1125,7 +1137,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     if (!texture) return;
 
     const int count = static_cast<int>(std::clamp(
-        p.max_particles > 0.0f ? std::round(p.max_particles) : 16.0f,
+        (p.max_particles > 0.0f ? std::round(p.max_particles) : 16.0f) *
+            std::max(intensity, 0.0f),
         1.0f, 96.0f));
     const float lifetime =
         std::clamp((p.lifetime_min + p.lifetime_max) * 0.5f, 0.05f, 20.0f);
@@ -1174,7 +1187,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         return std::clamp(i, 0, 255);
       };
       const float alpha = std::clamp(mat->color[3] * (0.25f + fade * 0.75f),
-                                     0.0f, 1.0f);
+                                     0.0f, 1.0f) *
+                          std::clamp(intensity, 0.0f, 1.0f);
       v.color = D3DCOLOR_ARGB(cc(alpha), cc(mat->color[0]), cc(mat->color[1]),
                               cc(mat->color[2]));
       points.push_back(v);

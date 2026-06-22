@@ -767,6 +767,23 @@ Open work:
   `venue ParticleSys routes loaded ...: 10 events`, `excitement_okay` starting
   six persistent smoke/blood particle systems through the normal event path,
   and coherent native frames at 480/600.
+- 2026-06-21 ParticleSysAnim key follow-up: extracted PS2 `ParticleSysAnim`
+  `.panim` bodies are version 3, target a `.part` object, then carry an
+  unaligned key count after the target string plus 8 bytes. Each key row is
+  two emission values and an authored frame. Some rows, for example
+  `flames_2.panim`, keep their own target particle but copy keys from another
+  `.panim`, so native now preserves key-owner references instead of scanning
+  for the largest plausible float. The event route stores those key rows,
+  transient/persistent particle systems sample them on the same authored
+  30 fps clock as other venue animation, and the renderer scales particle count
+  and alpha from the sampled emission intensity. Validation:
+  `analysis/native_validation/arena_particles_panim_keys_venueeffect_20260621_current/`
+  runs hidden stock PS2 `shoutatthedevil` from `100.0s` with diagnostic
+  autoplay. The log records real `venue_effect` cues at `102.000s` and
+  `103.283s`, starts `flame_1.part`, `flame_2.part`, and `flame_3.part` from
+  their 3-key `.panim` routes, samples six keyed flame intensities, keeps
+  authored lighting keyframes and regular camera sweeps active, and captures
+  coherent arena frames at 120/180 with the flame effect visible.
 - 2026-06-21 venue LightAnim route: extracted PS2 `LightAnim` `.lnm` bodies are
   version 2 with the same 25-byte pre-target prefix used by venue `MatAnim` /
   `EnvAnim`, followed by the target `.lit` string, a color-key count, and
