@@ -1635,3 +1635,13 @@ Rejected native probe:
   and keeps zero miss rows. Frames 120, 300, and 470 are coherent stage renders
   with the full band and small2 venue visible, replacing the earlier
   default-camera low/occluded route-validation frames.
+- Follow-up validation:
+  `analysis/native_validation/small2_intro_to_regular_camera_20260622_current/`
+  extends the same song to 820 frames. The run keeps the direct `Intro01`
+  route, starts the post-intro regular camera at `flr_far_lft02`, records one
+  `post_switch_cam`, 11 lighting preset/keyframe activations, 61 direct
+  `hit_p0_fret*` AnimFilter events, exit `0`, and zero miss/unsupported rows.
+  Frames 650, 760, and 819 are coherent regular-camera small2 stage renders
+  with venue props, drum kit, lights, and band visible. The old blonde hair
+  attachment issue is visible in these captures and remains character-loader
+  work, not a venue camera regression.
