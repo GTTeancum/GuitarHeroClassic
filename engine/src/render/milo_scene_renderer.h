@@ -105,6 +105,10 @@ class MiloSceneRenderer {
   void set_particle_intensities(std::map<std::string, float> intensities);
   void set_hidden_meshes(std::unordered_set<std::string> mesh_names);
   void set_material_alpha_multipliers(std::map<std::string, float> material_alpha);
+  void set_material_color_overrides(
+      std::map<std::string, std::array<float, 4>> material_colors);
+  void set_material_texture_overrides(
+      std::map<std::string, std::string> material_textures);
   struct MaterialTexTransformSample {
     bool has_translation = false;
     std::array<float, 2> translation = {0.0f, 0.0f};
@@ -176,6 +180,8 @@ class MiloSceneRenderer {
   float particle_time_ = 0.0f;
   std::unordered_set<std::string> hidden_meshes_;
   std::map<std::string, float> material_alpha_;
+  std::map<std::string, std::array<float, 4>> material_colors_;
+  std::map<std::string, std::string> material_textures_;
   std::map<std::string, MaterialTexTransformSample> material_tex_transforms_;
   bool environment_lighting_enabled_ = true;
   std::map<std::string, std::string> mesh_environments_;

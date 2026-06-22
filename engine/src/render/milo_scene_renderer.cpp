@@ -417,6 +417,16 @@ void MiloSceneRenderer::set_material_alpha_multipliers(
   material_alpha_ = std::move(material_alpha);
 }
 
+void MiloSceneRenderer::set_material_color_overrides(
+    std::map<std::string, std::array<float, 4>> material_colors) {
+  material_colors_ = std::move(material_colors);
+}
+
+void MiloSceneRenderer::set_material_texture_overrides(
+    std::map<std::string, std::string> material_textures) {
+  material_textures_ = std::move(material_textures);
+}
+
 void MiloSceneRenderer::set_material_tex_transform_overrides(
     std::map<std::string, MaterialTexTransformSample> material_tex_transforms) {
   material_tex_transforms_ = std::move(material_tex_transforms);
@@ -947,14 +957,31 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     const bool debug_spotlight_solid =
         spotlight_state && env_enabled("GHOGX_DEBUG_SPOTLIGHT_SOLID");
     const milo_scene::MatObj* mat_obj = scene_.find_mat(material);
+    std::string diffuse_tex;
     if (mat_obj) {
       const auto* mat = mat_obj;
-      auto it = tex_.find(mat->diffuse_tex);
-      if (it != tex_.end()) texture = it->second;
+      diffuse_tex = mat->diffuse_tex;
       su = mat->tex_scale[0]; sv = mat->tex_scale[1];
       tu = mat->tex_offset[0]; tv = mat->tex_offset[1];
       mr = mat->color[0]; mg = mat->color[1]; mb = mat->color[2]; ma = mat->color[3];
       material_additive = mat->color[3] < 0.999f;
+    }
+    if (const auto tex_name_it = material_textures_.find(material);
+        tex_name_it != material_textures_.end() && !tex_name_it->second.empty()) {
+      diffuse_tex = tex_name_it->second;
+    }
+    if (!diffuse_tex.empty()) {
+      auto it = tex_.find(diffuse_tex);
+      if (it != tex_.end()) texture = it->second;
+    }
+    if (const auto color_it = material_colors_.find(material);
+        color_it != material_colors_.end()) {
+      const auto& c = color_it->second;
+      mr = c[0];
+      mg = c[1];
+      mb = c[2];
+      ma = c[3];
+      material_additive = material_additive || ma < 0.999f;
     }
     const milo_scene::EnvironObj* mesh_env = nullptr;
     if (apply_environment_lighting && mat_obj && mat_obj->use_environ) {

@@ -149,16 +149,26 @@ class Gameplay {
       float value[3] = {0.0f, 0.0f, 0.0f};
       float frame = 0.0f;
     };
+    struct ColorKey {
+      float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+      float frame = 0.0f;
+    };
+    struct TextureKey {
+      std::string texture;
+      float frame = 0.0f;
+    };
     std::string name;
     std::string material;
     bool has_alpha = false;
     float start_alpha = 1.0f;
     float end_alpha = 1.0f;
     float duration_frames = 0.0f;
+    std::vector<ColorKey> color_keys;
     std::vector<FloatKey> alpha_keys;
     std::vector<Vec3Key> tex_translation_keys;
     std::vector<Vec3Key> tex_scale_keys;
     std::vector<FloatKey> tex_rotation_keys;
+    std::vector<TextureKey> texture_keys;
   };
   struct VenueEnvironmentAnim {
     struct ColorKey {
@@ -190,6 +200,8 @@ class Gameplay {
     double start_time = 0.0;
     double duration_seconds = 0.0;
     float duration_frames = 0.0f;
+    std::vector<VenueMaterialAnim::ColorKey> color_keys;
+    std::vector<VenueMaterialAnim::TextureKey> texture_keys;
     std::vector<VenueMaterialAnim::Vec3Key> tex_translation_keys;
     std::vector<VenueMaterialAnim::Vec3Key> tex_scale_keys;
     std::vector<VenueMaterialAnim::FloatKey> tex_rotation_keys;
@@ -425,6 +437,8 @@ class Gameplay {
   std::map<std::string, VenueMaterialAnim> lighting_mat_anims_;
   std::map<std::string, std::vector<std::string>> lighting_event_mat_anims_;
   std::map<std::string, float> lighting_material_alpha_;
+  std::map<std::string, std::array<float, 4>> lighting_material_colors_;
+  std::map<std::string, std::string> lighting_material_textures_;
   std::map<std::string,
            ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
       lighting_material_tex_transforms_;
@@ -446,6 +460,8 @@ class Gameplay {
   std::vector<std::string> pending_transient_venue_events_;
   std::map<std::string, std::vector<std::string>> venue_material_meshes_;
   std::map<std::string, float> venue_material_alpha_;
+  std::map<std::string, std::array<float, 4>> venue_material_colors_;
+  std::map<std::string, std::string> venue_material_textures_;
   std::map<std::string,
            ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
       venue_material_tex_transforms_;

@@ -1346,3 +1346,38 @@ Rejected native probe:
   and activates `chorus_okay.pst`; `chorus_great.pst` follows at `t=162.567`.
   The known `.lit`/`.env` "no decoded" rows remain lighting graph breadcrumbs,
   not camera route failures.
+
+2026-06-22 battle MatAnim color/texture channel route:
+
+- Stock PS2 `config/gen/songs.dtb` maps `rockthistown` to
+  `rockabill1` / `lespaul` / `battle`. A hidden validation window from
+  `52.0s` initially rendered the route and camera switches cleanly, but the
+  log exposed 12 `MatAnim ... unsupported channel shape` rows on battle
+  lighting events. Hex dumps of `world/battle/og/gen/battle_lighting.milo_ps2`
+  showed these were shared `MatAnim` channel variants, not battle-specific
+  exceptions: the first channel is a 20-byte RGBA+frame color-key stream, and
+  the later texture channel is `count` followed by repeated
+  `Tex` string + frame rows.
+- Native now decodes and samples those shared material channels through the
+  existing active `VenueMaterialAnim` path. Material color keys feed renderer
+  material RGBA overrides; texture keys feed discrete diffuse texture overrides
+  by material name. Animated texture names are added to the same MILO texture
+  request before `set_scene`, so texture swaps only use decoded PS2 `Tex`
+  entries from their owning MILO.
+- Validation:
+  `analysis/native_validation/battle_matanim_texture_rockthistown_20260622_current/`
+  reruns stock PS2 `rockthistown` with diagnostic autoplay, hidden rendering,
+  and `GHOGX_DEBUG_VENUE_FILTERS=1`. The bounded run exits cleanly after
+  600 frames, loads `rockabill1` / `metal_singer` / `metal_bass` /
+  `metal_drummer`, `dw_battle_drums`, and `battle` venue/lighting. The log
+  decodes `fire_tex.mnm` with `texture_keys=3`, `ticker_texanim.mnm` with
+  `texture_keys=3`, multiple spark/fire color-key MatAnims, and records
+  `unsupported channel shape = 0`, `has no supported material channels = 0`,
+  `miss= = 0`, 3 regular camera sweeps, 3 `post_switch_cam` moves, 2 active
+  lighting keyframes, and 3 active lighting presets. The active fire and ticker
+  textures referenced by those routes are present in
+  `battle_lighting.milo_ps2`; the lighting texture loader reports `34/35`
+  requested textures because one non-blocking requested texture did not decode,
+  but the exercised MatAnim routes are no longer unsupported. Captured frames
+  `frame_00180.bmp`, `frame_00360.bmp`, and `frame_00590.bmp` remain coherent
+  authored-camera battle renders.

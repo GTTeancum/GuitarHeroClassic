@@ -292,6 +292,8 @@ int main() {
                  "diagnostic seek clears derived venue animation state");
   ok &= contains(gameplay_c,
                  "lighting_material_alpha_.clear();"
+                 "lighting_material_colors_.clear();"
+                 "lighting_material_textures_.clear();"
                  "lighting_material_tex_transforms_.clear();"
                  "active_lighting_material_anims_.clear();",
                  "venue reset clears lighting overlay material animation state");
@@ -318,6 +320,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "lighting_->set_material_alpha_multipliers("
                  "lighting_material_alpha_);"
+                 "lighting_->set_material_color_overrides("
+                 "lighting_material_colors_);"
+                 "lighting_->set_material_texture_overrides("
+                 "lighting_material_textures_);"
                  "lighting_->set_material_tex_transform_overrides("
                  "lighting_material_tex_transforms_);"
                  "apply_lighting_event(\"start\");",
@@ -391,6 +397,12 @@ int main() {
                  "anim.end_alpha=anim.alpha_keys.back().value;",
                  "decoded venue MatAnim end alpha is clamped");
   ok &= contains(gameplay_h_c,
+                 "std::vector<ColorKey>color_keys;",
+                 "decoded venue MatAnim keeps material color keys");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<TextureKey>texture_keys;",
+                 "decoded venue MatAnim keeps material texture keys");
+  ok &= contains(gameplay_h_c,
                  "std::vector<Vec3Key>tex_translation_keys;",
                  "decoded venue MatAnim keeps texture translation keys");
   ok &= contains(gameplay_h_c,
@@ -400,6 +412,12 @@ int main() {
                  "std::vector<FloatKey>tex_rotation_keys;",
                  "decoded venue MatAnim keeps texture rotation keys");
   ok &= contains(gameplay_c,
+                 "uint32_tcolor_count=0;",
+                 "MatAnim loader reads material color channel count");
+  ok &= contains(gameplay_c,
+                 "uint32_ttexture_count=0;",
+                 "MatAnim loader reads material texture channel count");
+  ok &= contains(gameplay_c,
                  "uint32_ttrans_count=0;",
                  "MatAnim loader reads texture translation channel count");
   ok &= contains(gameplay_c,
@@ -408,6 +426,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "uint32_trot_count=0;",
                  "MatAnim loader reads texture rotation channel count");
+  ok &= contains(gameplay_c,
+                 "sample_material_color_key(anim.color_keys,0.0f);",
+                 "MatAnim color channel initializes renderer override");
+  ok &= contains(gameplay_c,
+                 "sample_material_texture_key(anim.texture_keys,0.0f);",
+                 "MatAnim texture channel initializes renderer override");
   ok &= contains(gameplay_c,
                  "sample_material_tex_transform(anim,0.0f);",
                  "MatAnim texture transform initializes renderer override");
@@ -426,6 +450,18 @@ int main() {
   ok &= contains(renderer_c,
                  "set_material_tex_transform_overrides",
                  "renderer accepts material texture transform overrides");
+  ok &= contains(renderer_h_c,
+                 "set_material_color_overrides",
+                 "renderer accepts material color overrides");
+  ok &= contains(renderer_c,
+                 "material_colors_.find(material)",
+                 "renderer applies MatAnim material color overrides");
+  ok &= contains(renderer_h_c,
+                 "set_material_texture_overrides",
+                 "renderer accepts material texture overrides");
+  ok &= contains(renderer_c,
+                 "material_textures_.find(material)",
+                 "renderer applies MatAnim material texture overrides");
   ok &= contains(renderer_h_c,
                  "set_environment_color_overrides",
                  "renderer accepts EnvAnim environment color overrides");
