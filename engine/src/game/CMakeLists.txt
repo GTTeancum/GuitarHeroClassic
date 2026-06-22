@@ -20,6 +20,7 @@ target_link_libraries(ghogx_game PUBLIC
     ghogx_render
     ghogx_asset
     ghogx_character
+    ghogx_script
     ark_v3
     dtb
     milo

@@ -1678,12 +1678,33 @@ Rejected native probe:
   `intro_start`, with 216 AnimFilter samples, 214 ParticleSys samples, lighting
   presets active, exit `0`, and zero miss rows. The retained frames are coherent
   intro-camera venue renders, not final camera-composition parity.
-- The small2 `neon_controller` DTB type remains intentionally unimplemented.
-  Its editor slots `env1..env9` default to empty strings, and filtered dumps of
-  `world/small2/gen/small2.milo_ps2` plus
-  `world/small2/og/gen/small2_geom.milo_ps2` show zero concrete `EnvAnim`
-  objects. Do not synthesize neon animation from those macros until a focused
-  runtime trace or object assignment proves the missing mapping.
+- The small2 `neon_controller` DTB type is now bridged through the same script
+  loader used for WorldDir handlers. The important source fact is that the
+  handler bodies live in the preprocessed
+  `world/small2/gen/small2.dtb` `ObjectDir -> types -> neon_controller` rows,
+  while the concrete object instances and their `env1..env9` property maps live
+  in `world/small2/og/gen/small2_lighting.milo_ps2` as `ObjectDir__neon_a` and
+  `ObjectDir__neon_b`.
+- Evidence:
+  `analysis/venue_lighting_audit/world_dtb_20260622/world_small2_gen_small2.dtb.dta`
+  exposes the `neon_controller` handlers plus `ENV_ON`/`ENV_OFF` macros that
+  call `animate(dest, period)` on `[envN]`. The extracted object bodies in
+  `analysis/venue_object_inventory_20260621_current/small2_lighting_extract/`
+  map `neon_a.env1..env9` to `neon_array00.enm..neon_array08.enm` and
+  `neon_b.env1..env9` to the `_copy` EnvAnims. The matching
+  `analysis/venue_lighting_audit/small2_lighting_eventtrigger_dump_20260622.txt`
+  route proves `neon_fast_blink.trig` sends `neon_a.fast_blink` and
+  `neon_b.fast_blink`.
+- Native validation:
+  `analysis/native_validation/small2_neon_controller_20260622_082610/` reruns
+  `youreallygotme` on diagnostic `small2` with `neon_fast_blink`. The log loads
+  `1 object_types` / `12 object_handlers`, two script objects, and nine
+  script-message events. It schedules separate `neon_task` thread tasks for
+  `neon_a` and `neon_b`, resolves all 18 referenced neon EnvAnims, and drives
+  them to frame `10` then back to frame `0` with the authored periods. The
+  smaller neon EnvAnim bodies inherit their two color keys from
+  `neon_array00.enm` via a generic `.enm` `keys_owner` path, matching the
+  object payloads instead of a small2-specific alias.
 
 2026-06-22 direct EventTrigger transform refs:
 

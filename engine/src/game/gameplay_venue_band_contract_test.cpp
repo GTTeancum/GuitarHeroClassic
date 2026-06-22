@@ -275,6 +275,40 @@ int main() {
                  "step.kind=VenueScriptStep::Kind::ScheduleTask;",
                  "DTB script_task/thread_task parse into executable task steps");
   ok &= contains(gameplay_c,
+                 "ghogx::script::preprocess(tree.root,opts)",
+                 "venue DTB handlers run through the traced macro preprocessor");
+  ok &= contains(gameplay_c,
+                 "if(head.empty()&&gh::dtb::is_array(*kids[0])){"
+                 "parse_venue_script_sequence(kids,0,steps);return;}",
+                 "venue script parser descends into preprocessed wrapper arrays");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::map<std::string,"
+                 "VenueScriptHandler>>venue_script_object_handlers_;",
+                 "venue runtime keeps DTB ObjectDir type handlers");
+  ok &= contains(gameplay_c,
+                 "step.kind=VenueScriptStep::Kind::AnimateEnv;",
+                 "venue object animate commands become executable EnvAnim steps");
+  ok &= contains(gameplay_c,
+                 "step.target_is_property_ref=prop_target.has_value();",
+                 "venue object animate commands preserve property-ref targets");
+  ok &= contains(gameplay_c,
+                 "load_venue_script_object_instances("
+                 "hdr_path_,ark_path_,lighting_milo)",
+                 "lighting MILO ObjectDir instances feed the shared venue script bridge");
+  ok &= contains(gameplay_c,
+                 "load_venue_event_script_messages("
+                 "hdr_path_,ark_path_,lighting_milo,script_objects,"
+                 "venue_script_object_handlers_)",
+                 "lighting EventTriggers route object messages through DTB object handlers");
+  ok &= contains(gameplay_c,
+                 "task.object_name=venue_script_context_object_;"
+                 "task.object_type=venue_script_context_type_;",
+                 "venue script tasks remember their current object context");
+  ok &= contains(gameplay_c,
+                 "task.name==name&&"
+                 "task.object_name==venue_script_context_object_",
+                 "venue script task name checks are scoped per object instance");
+  ok &= contains(gameplay_c,
                  "cancel_venue_script_task_state_ref(step.name);",
                  "delete [state] cancels the stored task object");
   ok &= contains(gameplay_c,
@@ -617,6 +651,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(version!=4)continue;",
                  "venue EnvAnim loader keeps traced PS2 version");
+  ok &= contains(gameplay_h_c,
+                 "std::stringenvironment;std::stringkeys_owner;",
+                 "venue EnvAnim keeps inherited key-owner refs");
+  ok &= contains(gameplay_c,
+                 "ref.rfind(\".enm\")==ref.size()-4){"
+                 "anim.keys_owner=ref;",
+                 "venue EnvAnim loader decodes inherited .enm key owners");
+  ok &= contains(gameplay_c,
+                 "if(!anim.color_keys.empty()||anim.keys_owner.empty())continue;"
+                 "constautoowner=out.find(anim.keys_owner);",
+                 "venue EnvAnim loader resolves inherited key-owner tracks");
   ok &= contains(gameplay_c,
                  "color_keys=%zu",
                  "venue EnvAnim logs decoded color key coverage");
@@ -878,6 +923,14 @@ int main() {
                  "lighting_event_group_visibility_=load_venue_group_visibility("
                  "hdr_path_,ark_path_,lighting_milo,lighting_scene);",
                  "lighting overlay loads authored lighting MILO visibility routes");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::vector<VenueScriptObjectMessage>>"
+                 "lighting_event_script_messages_;",
+                 "lighting overlay keeps EventTrigger object-message routes");
+  ok &= contains(gameplay_c,
+                 "execute_venue_script_object_messages("
+                 "lighting_event_script_messages_,event_name)",
+                 "lighting overlay dispatches decoded object-message routes");
   ok &= contains(gameplay_c,
                  "apply_lighting_event(\"start\");",
                  "lighting overlay applies its authored start trigger");
@@ -908,9 +961,11 @@ int main() {
   ok &= contains(gameplay_c,
                  "lighting_event_group_visibility_.find(event_name)!="
                  "lighting_event_group_visibility_.end()||"
+                 "lighting_event_script_messages_.find(event_name)!="
+                 "lighting_event_script_messages_.end()||"
                  "(!diagnostic_venue_event_.empty()&&"
                  "diagnostic_venue_event_==event_name)",
-                 "venue diagnostics ignore non-venue gameplay cues unless explicitly requested");
+                 "venue diagnostics include script-message routes before diagnostic-only events");
   ok &= contains(gameplay_c,
                  "returnlighting_route_applied;",
                  "lighting dispatch returns whether a decoded route applied");
@@ -920,7 +975,8 @@ int main() {
                  "light_event_it==lighting_event_light_anims_.end()&&"
                  "visibility_it==lighting_event_group_visibility_.end()&&"
                  "particle_it==lighting_event_particle_systems_.end()&&"
-                 "filter_it==lighting_event_anim_filters_.end()",
+                 "filter_it==lighting_event_anim_filters_.end()&&"
+                 "script_it==lighting_event_script_messages_.end()",
                  "lighting overlay ignores unrelated venue events without debug spam");
   ok &= contains(gameplay_c,
                  "update_active_lighting_material_anims();"

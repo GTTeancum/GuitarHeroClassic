@@ -33,6 +33,7 @@ struct VenueScriptStep {
     SetState,
     CallHandler,
     FireFilter,
+    AnimateEnv,
     IfAllStates,
     IfTaskExists,
     ScheduleTask,
@@ -50,6 +51,9 @@ struct VenueScriptStep {
   bool task_thread = false;
   bool task_beat_units = false;
   bool target_is_state_ref = false;
+  bool target_is_property_ref = false;
+  float anim_dest_frame = 0.0f;
+  float anim_period = 0.0f;
   std::string assign_state;
   std::vector<std::string> state_names;
   std::vector<VenueScriptStep> children;
@@ -62,6 +66,8 @@ struct VenueScriptHandler {
 struct ActiveVenueScriptTask {
   uint32_t id = 0;
   std::string name;
+  std::string object_name;
+  std::string object_type;
   std::string state_slot;
   std::vector<VenueScriptStep> steps;
   size_t cursor = 0;
@@ -69,6 +75,16 @@ struct ActiveVenueScriptTask {
   bool thread = false;
   bool beat_units = false;
   bool canceled = false;
+};
+
+struct VenueScriptObjectInstance {
+  std::string type;
+  std::map<std::string, std::string> properties;
+};
+
+struct VenueScriptObjectMessage {
+  std::string object;
+  std::string message;
 };
 
 struct HitResult {
@@ -222,6 +238,7 @@ class Gameplay {
     };
     std::string name;
     std::string environment;
+    std::string keys_owner;
     float duration_frames = 0.0f;
     std::vector<ColorKey> color_keys;
   };
@@ -256,9 +273,13 @@ class Gameplay {
     std::string name;
     std::string environment;
     double start_time = 0.0;
+    double duration_seconds = 0.0;
     float duration_frames = 0.0f;
+    float start_frame = 0.0f;
+    float end_frame = 0.0f;
     std::vector<VenueEnvironmentAnim::ColorKey> color_keys;
     bool persistent = true;
+    bool target_frame_mode = false;
   };
   struct ActiveVenueLightAnim {
     std::string name;
@@ -393,8 +414,17 @@ class Gameplay {
       interpolated_lighting_spots() const;
   void update_lighting_spotlight_renderer();
   void execute_venue_script_event(const std::string& event_name);
+  bool execute_venue_script_object_messages(
+      const std::map<std::string, std::vector<VenueScriptObjectMessage>>&
+          routes,
+      const std::string& event_name);
+  bool execute_venue_script_object_message(
+      const VenueScriptObjectMessage& message);
   void execute_venue_script_steps(const std::vector<VenueScriptStep>& steps,
                                   std::vector<std::string>& stack);
+  bool apply_venue_script_env_anim(const std::string& anim_name,
+                                   float dest_frame,
+                                   float period_seconds);
   void update_venue_script_tasks();
   uint32_t schedule_venue_script_task(const VenueScriptStep& step);
   void cancel_venue_script_task_by_id(uint32_t id);
@@ -402,6 +432,8 @@ class Gameplay {
   void cancel_venue_script_task_state_ref(const std::string& state_name);
   bool venue_script_task_exists(const std::string& name) const;
   void clear_venue_script_task_refs(uint32_t id);
+  std::string venue_script_context_state_key(
+      const std::string& state_name) const;
   double venue_script_delay_seconds(double amount, bool beat_units) const;
   double venue_script_delay_seconds(const VenueScriptStep& step,
                                     bool inherited_beat_units);
@@ -529,6 +561,8 @@ class Gameplay {
   std::map<std::string, std::vector<VenueAnimFilter>>
       lighting_event_anim_filters_;
   std::map<std::string, VenueGroupVisibility> lighting_event_group_visibility_;
+  std::map<std::string, std::vector<VenueScriptObjectMessage>>
+      lighting_event_script_messages_;
   std::map<std::string, float> lighting_material_alpha_;
   std::map<std::string, std::array<float, 4>> lighting_material_colors_;
   std::map<std::string, std::string> lighting_material_textures_;
@@ -537,6 +571,7 @@ class Gameplay {
       lighting_material_tex_transforms_;
   std::vector<ActiveVenueMaterialAnim> active_lighting_material_anims_;
   std::map<std::string, std::array<float, 4>> lighting_environment_colors_;
+  std::map<std::string, float> lighting_environment_frames_;
   std::vector<ActiveVenueEnvironmentAnim> active_lighting_environment_anims_;
   std::map<std::string, std::array<float, 4>> lighting_light_colors_;
   std::vector<ActiveVenueLightAnim> active_lighting_light_anims_;
@@ -568,6 +603,11 @@ class Gameplay {
   std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
   std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
   std::map<std::string, VenueScriptHandler> venue_script_handlers_;
+  std::map<std::string, std::map<std::string, VenueScriptHandler>>
+      venue_script_object_handlers_;
+  std::map<std::string, VenueScriptObjectInstance> venue_script_objects_;
+  std::map<std::string, std::vector<VenueScriptObjectMessage>>
+      venue_event_script_messages_;
   std::map<std::string, int> venue_script_initial_state_;
   std::map<std::string, int> venue_script_state_;
   std::map<std::string, uint32_t> venue_script_object_state_;
@@ -575,6 +615,8 @@ class Gameplay {
   uint32_t next_venue_script_task_id_ = 1;
   uint32_t venue_script_rng_state_ = 0x9e3779b9u;
   ActiveVenueScriptTask* running_venue_script_task_ = nullptr;
+  std::string venue_script_context_object_;
+  std::string venue_script_context_type_;
   bool executing_venue_script_ = false;
   std::map<std::string, ghogx::milo_scene::LightObj> venue_lights_;
   std::map<std::string, ghogx::milo_scene::EnvironObj> venue_environs_;
@@ -589,6 +631,7 @@ class Gameplay {
   std::vector<ActiveVenueMaterialAnim> active_venue_material_anims_;
   double last_venue_mat_anim_debug_time_ = -1.0;
   std::map<std::string, std::array<float, 4>> venue_environment_colors_;
+  std::map<std::string, float> venue_environment_frames_;
   std::vector<ActiveVenueEnvironmentAnim> active_venue_environment_anims_;
   std::map<std::string, std::array<float, 4>> venue_light_colors_;
   std::vector<ActiveVenueLightAnim> active_venue_light_anims_;

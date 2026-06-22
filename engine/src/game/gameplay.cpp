@@ -9,6 +9,7 @@
 #include "dtb.h"
 #include "milo_scene/milo_scene.h"
 #include "milo.h"
+#include "script/preprocess.h"
 
 #include <algorithm>
 #include <array>
@@ -1549,6 +1550,78 @@ bool collect_all_state_refs(const gh::dtb::Node& node,
     return !states.empty();
 }
 
+bool is_plain_script_message_atom(std::string_view text) {
+    if (text.empty() || text.find('.') != std::string_view::npos) return false;
+    for (const char c : text) {
+        const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        (c >= '0' && c <= '9') || c == '_';
+        if (!ok) return false;
+    }
+    return true;
+}
+
+void push_unique_script_message(
+    std::vector<VenueScriptObjectMessage>& messages,
+    VenueScriptObjectMessage message) {
+    if (message.object.empty() || message.message.empty()) return;
+    for (const auto& existing : messages) {
+        if (existing.object == message.object &&
+            existing.message == message.message) {
+            return;
+        }
+    }
+    messages.push_back(std::move(message));
+}
+
+bool parse_venue_script_animate_rows(const gh::dtb::NodeList& rows,
+                                     size_t first,
+                                     VenueScriptStep& step) {
+    bool saw_value = false;
+    for (size_t i = first; i < rows.size(); ++i) {
+        if (!rows[i] || !gh::dtb::is_array(*rows[i])) continue;
+        const auto& row = gh::dtb::children(*rows[i]);
+        if (row.size() < 2 || !row[0] || !row[1]) continue;
+        const std::string key = gh::dtb::as_string(*row[0]).value_or("");
+        const auto value = dtb_number_value(*row[1]);
+        if (!value) continue;
+        if (key == "dest") {
+            step.anim_dest_frame = static_cast<float>(std::max(0.0, *value));
+            saw_value = true;
+        } else if (key == "period") {
+            step.anim_period = static_cast<float>(std::max(0.0, *value));
+            saw_value = true;
+        }
+    }
+    return saw_value;
+}
+
+bool parse_venue_script_object_animate_statement(
+    const gh::dtb::NodeList& kids, VenueScriptStep& step) {
+    if (kids.size() < 2 || !kids[0] || !kids[1]) return false;
+    const auto prop_target = dtb_prop_ref_name(*kids[0]);
+    const std::string direct_target =
+        prop_target ? *prop_target : dtb_ref_or_atom_name(*kids[0]);
+    if (direct_target.empty()) return false;
+
+    step = VenueScriptStep{};
+    step.kind = VenueScriptStep::Kind::AnimateEnv;
+    step.name = direct_target;
+    step.target_is_property_ref = prop_target.has_value();
+
+    if (gh::dtb::is_array(*kids[1])) {
+        const auto& call = gh::dtb::children(*kids[1]);
+        if (call.empty() || !call[0] ||
+            gh::dtb::as_string(*call[0]).value_or("") != "animate") {
+            return false;
+        }
+        return parse_venue_script_animate_rows(call, 1, step);
+    }
+    if (gh::dtb::as_string(*kids[1]).value_or("") == "animate") {
+        return parse_venue_script_animate_rows(kids, 2, step);
+    }
+    return false;
+}
+
 void parse_venue_script_statement(const gh::dtb::Node& node,
                                   std::vector<VenueScriptStep>& steps);
 
@@ -1614,7 +1687,16 @@ void parse_venue_script_statement(const gh::dtb::Node& node,
     if (!gh::dtb::is_array(node)) return;
     const auto& kids = gh::dtb::children(node);
     if (kids.empty() || !kids[0]) return;
+    VenueScriptStep anim_step;
+    if (parse_venue_script_object_animate_statement(kids, anim_step)) {
+        steps.push_back(std::move(anim_step));
+        return;
+    }
     const std::string head = gh::dtb::as_string(*kids[0]).value_or("");
+    if (head.empty() && gh::dtb::is_array(*kids[0])) {
+        parse_venue_script_sequence(kids, 0, steps);
+        return;
+    }
     if (head.empty()) return;
 
     if (head == "set" && kids.size() >= 3 && kids[1] && kids[2]) {
@@ -1742,8 +1824,19 @@ void parse_venue_script_statement(const gh::dtb::Node& node,
 
 struct VenueScriptData {
     std::map<std::string, VenueScriptHandler> handlers;
+    std::map<std::string, std::map<std::string, VenueScriptHandler>>
+        object_handlers;
     std::map<std::string, int> state;
 };
+
+size_t venue_script_object_handler_count(const VenueScriptData& data) {
+    size_t count = 0;
+    for (const auto& [type, handlers] : data.object_handlers) {
+        (void)type;
+        count += handlers.size();
+    }
+    return count;
+}
 
 VenueScriptData load_venue_script_handlers(const std::string& hdr_path,
                                            const std::string& ark_path,
@@ -1756,7 +1849,12 @@ VenueScriptData load_venue_script_handlers(const std::string& hdr_path,
         auto entry = ark.find(dtb_path);
         if (!entry) return out;
         auto tree = gh::dtb::parse(ark.read_entry(*entry, {ark_path}));
-        auto world_dir = gh::dtb::find_keyed(tree, "WorldDir");
+        ghogx::script::PreprocessOptions opts;
+        opts.defines = {"HX_EE", "PS2"};
+        gh::dtb::Tree resolved_tree;
+        resolved_tree.root = ghogx::script::preprocess(tree.root, opts);
+
+        auto world_dir = gh::dtb::find_keyed(resolved_tree, "WorldDir");
         if (!world_dir) return out;
         auto types = gh::dtb::find_keyed(*world_dir, "types");
         if (!types) return out;
@@ -1790,15 +1888,183 @@ VenueScriptData load_venue_script_handlers(const std::string& hdr_path,
             }
         }
 
-        if (!out.handlers.empty()) {
+        if (auto object_dir = gh::dtb::find_keyed(resolved_tree, "ObjectDir")) {
+            if (auto object_types = gh::dtb::find_keyed(*object_dir, "types")) {
+                for (const auto& child : gh::dtb::children(*object_types)) {
+                    if (!child || !gh::dtb::is_array(*child)) continue;
+                    const auto& kids = gh::dtb::children(*child);
+                    if (kids.empty() || !kids[0]) continue;
+                    const std::string type_name =
+                        gh::dtb::as_string(*kids[0]).value_or("");
+                    if (type_name.empty()) continue;
+                    auto& type_handlers = out.object_handlers[type_name];
+                    for (const auto& row_node : gh::dtb::children(*child)) {
+                        if (!row_node || !gh::dtb::is_array(*row_node))
+                            continue;
+                        const auto& row = gh::dtb::children(*row_node);
+                        if (row.empty() || !row[0]) continue;
+                        const std::string key =
+                            gh::dtb::as_string(*row[0]).value_or("");
+                        if (key.empty() || key == "editor") continue;
+                        VenueScriptHandler handler;
+                        parse_venue_script_sequence(row, 1, handler.steps);
+                        if (!handler.steps.empty()) {
+                            type_handlers[key] = std::move(handler);
+                        }
+                    }
+                    if (type_handlers.empty())
+                        out.object_handlers.erase(type_name);
+                }
+            }
+        }
+
+        const size_t object_handler_count =
+            venue_script_object_handler_count(out);
+        if (!out.handlers.empty() || object_handler_count != 0) {
             std::fprintf(stderr,
-                         "[world] venue script handlers loaded %s: %zu handlers %zu states\n",
+                         "[world] venue script handlers loaded %s: %zu handlers %zu object_types %zu object_handlers %zu states\n",
                          dtb_path.c_str(), out.handlers.size(),
+                         out.object_handlers.size(), object_handler_count,
                          out.state.size());
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] venue script handlers load %s: %s\n",
                      venue.c_str(), ex.what());
+    }
+    return out;
+}
+
+std::map<std::string, VenueScriptObjectInstance>
+load_venue_script_object_instances(const std::string& hdr_path,
+                                   const std::string& ark_path,
+                                   const std::string& milo_path) {
+    std::map<std::string, VenueScriptObjectInstance> out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        for (const auto& de : dir.entries) {
+            if (de.type != "ObjectDir" || de.offset + de.size > payload.size())
+                continue;
+            const auto strings = packed_strings_with_offsets(
+                payload.data() + de.offset, static_cast<size_t>(de.size));
+            if (strings.empty()) continue;
+            VenueScriptObjectInstance object;
+            object.type = strings.front().value;
+            for (size_t i = 1; i + 1 < strings.size(); i += 2) {
+                const std::string& key = strings[i].value;
+                const std::string value =
+                    canonical_milo_ref(strings[i + 1].value);
+                if (!key.empty() && !value.empty())
+                    object.properties[key] = value;
+            }
+            if (object.type.empty() || object.properties.empty()) continue;
+            out[de.name] = std::move(object);
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(stderr,
+                             "[world] venue script object %s type=%s props=%zu from %s\n",
+                             de.name.c_str(), out[de.name].type.c_str(),
+                             out[de.name].properties.size(), milo_path.c_str());
+            }
+        }
+        if (!out.empty()) {
+            std::fprintf(stderr,
+                         "[world] venue script objects loaded %s: %zu objects\n",
+                         milo_path.c_str(), out.size());
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] venue script objects load %s: %s\n",
+                     milo_path.c_str(), ex.what());
+    }
+    return out;
+}
+
+std::map<std::string, std::vector<VenueScriptObjectMessage>>
+load_venue_event_script_messages(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path,
+    const std::map<std::string, VenueScriptObjectInstance>& objects,
+    const std::map<std::string, std::map<std::string, VenueScriptHandler>>&
+        object_handlers) {
+    std::map<std::string, std::vector<VenueScriptObjectMessage>> out;
+    if (objects.empty() || object_handlers.empty()) return out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        for (const auto& de : dir.entries) {
+            if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
+                continue;
+            const auto strings = scan_milo_strings(
+                payload.data() + de.offset, static_cast<size_t>(de.size));
+            if (strings.empty()) continue;
+
+            std::vector<VenueScriptObjectMessage> messages;
+            for (size_t i = 0; i + 1 < strings.size();) {
+                const std::string object_name = canonical_milo_ref(strings[i]);
+                const auto object_it = objects.find(object_name);
+                if (object_it == objects.end()) {
+                    ++i;
+                    continue;
+                }
+                const std::string& message_name = strings[i + 1];
+                const auto handlers_it =
+                    object_handlers.find(object_it->second.type);
+                const bool handler_exists =
+                    handlers_it != object_handlers.end() &&
+                    handlers_it->second.find(message_name) !=
+                        handlers_it->second.end();
+                if (handler_exists &&
+                    is_plain_script_message_atom(message_name)) {
+                    push_unique_script_message(
+                        messages,
+                        VenueScriptObjectMessage{object_name, message_name});
+                    i += 2;
+                    continue;
+                }
+                ++i;
+            }
+            if (messages.empty()) continue;
+
+            const bool first_is_object =
+                objects.find(canonical_milo_ref(strings.front())) !=
+                objects.end();
+            const std::string_view event_label =
+                !first_is_object && is_event_payload_label(strings.front())
+                    ? std::string_view(strings.front())
+                    : std::string_view{};
+            for (const auto& key : event_trigger_route_keys(de.name, event_label)) {
+                auto& routed = out[key];
+                for (const auto& message : messages)
+                    push_unique_script_message(routed, message);
+            }
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(stderr,
+                             "[world] EventTrigger %s script messages=",
+                             de.name.c_str());
+                for (const auto& message : messages) {
+                    std::fprintf(stderr, "%s.%s ", message.object.c_str(),
+                                 message.message.c_str());
+                }
+                std::fprintf(stderr, "\n");
+            }
+        }
+        if (!out.empty()) {
+            std::fprintf(stderr,
+                         "[world] venue script message routes loaded %s: %zu events\n",
+                         milo_path.c_str(), out.size());
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] EventTrigger script message load %s: %s\n",
+                     milo_path.c_str(), ex.what());
     }
     return out;
 }
@@ -2083,15 +2349,35 @@ std::map<std::string, Gameplay::VenueEnvironmentAnim> load_venue_env_anims(
                 anim.color_keys.push_back(key);
                 anim.duration_frames = std::max(anim.duration_frames, key.frame);
             }
-            if (color_count != anim.color_keys.size() ||
-                anim.color_keys.empty()) {
-                continue;
+            if (color_count != anim.color_keys.size()) continue;
+            if (anim.color_keys.empty()) {
+                const auto strings = scan_milo_strings(body, size);
+                for (const auto& s : strings) {
+                    const auto ref = canonical_milo_ref(s);
+                    if (ref != anim.name && ref.size() > 4 &&
+                        ref.rfind(".enm") == ref.size() - 4) {
+                        anim.keys_owner = ref;
+                        break;
+                    }
+                }
             }
             out[anim.name] = anim;
+        }
+        for (auto& [name, anim] : out) {
+            if (!anim.color_keys.empty() || anim.keys_owner.empty()) continue;
+            const auto owner = out.find(anim.keys_owner);
+            if (owner == out.end() || owner->second.color_keys.empty()) continue;
+            anim.color_keys = owner->second.color_keys;
+            anim.duration_frames = owner->second.duration_frames;
+        }
+        for (const auto& [name, anim] : out) {
+            if (anim.color_keys.empty()) continue;
             std::fprintf(stderr,
-                         "[world] EnvAnim %s -> %s color_keys=%zu frames=%.1f\n",
+                         "[world] EnvAnim %s -> %s color_keys=%zu frames=%.1f%s%s\n",
                          anim.name.c_str(), anim.environment.c_str(),
-                         anim.color_keys.size(), anim.duration_frames);
+                         anim.color_keys.size(), anim.duration_frames,
+                         anim.keys_owner.empty() ? "" : " keys_owner=",
+                         anim.keys_owner.c_str());
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] EnvAnim load %s: %s\n",
@@ -7106,12 +7392,14 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_event_particle_systems_.clear();
     lighting_event_anim_filters_.clear();
     lighting_event_group_visibility_.clear();
+    lighting_event_script_messages_.clear();
     lighting_material_alpha_.clear();
     lighting_material_colors_.clear();
     lighting_material_textures_.clear();
     lighting_material_tex_transforms_.clear();
     active_lighting_material_anims_.clear();
     lighting_environment_colors_.clear();
+    lighting_environment_frames_.clear();
     active_lighting_environment_anims_.clear();
     lighting_light_colors_.clear();
     active_lighting_light_anims_.clear();
@@ -7153,12 +7441,17 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     last_venue_filter_debug_time_ = -1.0;
     venue_event_group_visibility_.clear();
     venue_script_handlers_.clear();
+    venue_script_object_handlers_.clear();
+    venue_script_objects_.clear();
+    venue_event_script_messages_.clear();
     venue_script_initial_state_.clear();
     venue_script_state_.clear();
     venue_script_object_state_.clear();
     venue_script_tasks_.clear();
     next_venue_script_task_id_ = 1;
     running_venue_script_task_ = nullptr;
+    venue_script_context_object_.clear();
+    venue_script_context_type_.clear();
     executing_venue_script_ = false;
     pending_transient_venue_events_.clear();
     venue_material_meshes_.clear();
@@ -7169,6 +7462,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_venue_material_anims_.clear();
     last_venue_mat_anim_debug_time_ = -1.0;
     venue_environment_colors_.clear();
+    venue_environment_frames_.clear();
     active_venue_environment_anims_.clear();
     venue_mesh_translation_offsets_.clear();
     venue_mesh_transform_offsets_.clear();
@@ -7305,38 +7599,229 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
     world_->set_hidden_meshes(composed_venue_hidden_meshes());
 }
 
+std::string Gameplay::venue_script_context_state_key(
+    const std::string& state_name) const {
+    if (venue_script_context_object_.empty()) return state_name;
+    return venue_script_context_object_ + "." + state_name;
+}
+
+bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
+                                           float dest_frame,
+                                           float period_seconds) {
+    const std::string ref = canonical_milo_ref(anim_name);
+    const float clamped_period =
+        std::isfinite(period_seconds) ? std::max(0.0f, period_seconds) : 0.0f;
+
+    auto apply_lighting = [&]() -> bool {
+        if (!lighting_) return false;
+        const auto anim_it = lighting_env_anims_.find(ref);
+        if (anim_it == lighting_env_anims_.end()) return false;
+        const auto& anim = anim_it->second;
+        if (anim.color_keys.empty()) return false;
+        const float target =
+            std::clamp(dest_frame, 0.0f, std::max(0.0f, anim.duration_frames));
+        const auto current_it =
+            lighting_environment_frames_.find(anim.environment);
+        const float start =
+            current_it == lighting_environment_frames_.end()
+                ? 0.0f
+                : std::clamp(current_it->second, 0.0f,
+                             std::max(0.0f, anim.duration_frames));
+        active_lighting_environment_anims_.erase(
+            std::remove_if(
+                active_lighting_environment_anims_.begin(),
+                active_lighting_environment_anims_.end(),
+                [&](const ActiveVenueEnvironmentAnim& active) {
+                    return active.environment == anim.environment;
+                }),
+            active_lighting_environment_anims_.end());
+        const float initial_frame =
+            clamped_period <= 0.0001f ? target : start;
+        lighting_environment_frames_[anim.environment] = initial_frame;
+        lighting_environment_colors_[anim.environment] =
+            sample_environment_color_key(anim.color_keys, initial_frame);
+        lighting_->set_environment_color_overrides(
+            lighting_environment_colors_);
+        if (clamped_period > 0.0001f &&
+            std::fabs(target - start) > 0.0001f) {
+            ActiveVenueEnvironmentAnim active;
+            active.name = anim.name;
+            active.environment = anim.environment;
+            active.start_time = song_time_;
+            active.duration_seconds = clamped_period;
+            active.duration_frames = anim.duration_frames;
+            active.start_frame = start;
+            active.end_frame = target;
+            active.color_keys = anim.color_keys;
+            active.persistent = false;
+            active.target_frame_mode = true;
+            active_lighting_environment_anims_.push_back(std::move(active));
+        }
+        std::fprintf(
+            stderr,
+            "[world] venue script EnvAnim %s -> %s dest=%.2f period=%.3f layer=lighting\n",
+            anim.name.c_str(), anim.environment.c_str(), target,
+            clamped_period);
+        return true;
+    };
+
+    auto apply_venue = [&]() -> bool {
+        if (!world_) return false;
+        const auto anim_it = venue_env_anims_.find(ref);
+        if (anim_it == venue_env_anims_.end()) return false;
+        const auto& anim = anim_it->second;
+        if (anim.color_keys.empty()) return false;
+        const float target =
+            std::clamp(dest_frame, 0.0f, std::max(0.0f, anim.duration_frames));
+        const auto current_it = venue_environment_frames_.find(anim.environment);
+        const float start =
+            current_it == venue_environment_frames_.end()
+                ? 0.0f
+                : std::clamp(current_it->second, 0.0f,
+                             std::max(0.0f, anim.duration_frames));
+        active_venue_environment_anims_.erase(
+            std::remove_if(active_venue_environment_anims_.begin(),
+                           active_venue_environment_anims_.end(),
+                           [&](const ActiveVenueEnvironmentAnim& active) {
+                               return active.environment == anim.environment;
+                           }),
+            active_venue_environment_anims_.end());
+        const float initial_frame =
+            clamped_period <= 0.0001f ? target : start;
+        venue_environment_frames_[anim.environment] = initial_frame;
+        venue_environment_colors_[anim.environment] =
+            sample_environment_color_key(anim.color_keys, initial_frame);
+        world_->set_environment_color_overrides(venue_environment_colors_);
+        if (clamped_period > 0.0001f &&
+            std::fabs(target - start) > 0.0001f) {
+            ActiveVenueEnvironmentAnim active;
+            active.name = anim.name;
+            active.environment = anim.environment;
+            active.start_time = song_time_;
+            active.duration_seconds = clamped_period;
+            active.duration_frames = anim.duration_frames;
+            active.start_frame = start;
+            active.end_frame = target;
+            active.color_keys = anim.color_keys;
+            active.persistent = false;
+            active.target_frame_mode = true;
+            active_venue_environment_anims_.push_back(std::move(active));
+        }
+        std::fprintf(
+            stderr,
+            "[world] venue script EnvAnim %s -> %s dest=%.2f period=%.3f layer=venue\n",
+            anim.name.c_str(), anim.environment.c_str(), target,
+            clamped_period);
+        return true;
+    };
+
+    if (apply_lighting()) return true;
+    if (apply_venue()) return true;
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(stderr,
+                     "[world] venue script EnvAnim %s unresolved\n",
+                     ref.c_str());
+    }
+    return false;
+}
+
+bool Gameplay::execute_venue_script_object_message(
+    const VenueScriptObjectMessage& message) {
+    const auto object_it = venue_script_objects_.find(message.object);
+    if (object_it == venue_script_objects_.end()) return false;
+    const auto handlers_it =
+        venue_script_object_handlers_.find(object_it->second.type);
+    if (handlers_it == venue_script_object_handlers_.end()) return false;
+    const auto handler_it = handlers_it->second.find(message.message);
+    if (handler_it == handlers_it->second.end()) return false;
+
+    const std::string prev_object = venue_script_context_object_;
+    const std::string prev_type = venue_script_context_type_;
+    const bool prev_executing = executing_venue_script_;
+    venue_script_context_object_ = message.object;
+    venue_script_context_type_ = object_it->second.type;
+    executing_venue_script_ = true;
+    std::vector<std::string> stack;
+    stack.push_back(message.object + "." + message.message);
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(stderr,
+                     "[world] venue script object %s type=%s message=%s\n",
+                     message.object.c_str(), object_it->second.type.c_str(),
+                     message.message.c_str());
+    }
+    execute_venue_script_steps(handler_it->second.steps, stack);
+    venue_script_context_object_ = prev_object;
+    venue_script_context_type_ = prev_type;
+    executing_venue_script_ = prev_executing;
+    return true;
+}
+
+bool Gameplay::execute_venue_script_object_messages(
+    const std::map<std::string, std::vector<VenueScriptObjectMessage>>& routes,
+    const std::string& event_name) {
+    const auto route_it = routes.find(event_name);
+    if (route_it == routes.end()) return false;
+    bool applied = false;
+    for (const auto& message : route_it->second) {
+        applied = execute_venue_script_object_message(message) || applied;
+    }
+    return applied;
+}
+
 void Gameplay::execute_venue_script_steps(
     const std::vector<VenueScriptStep>& steps, std::vector<std::string>& stack) {
     for (const auto& step : steps) {
         switch (step.kind) {
             case VenueScriptStep::Kind::SetState:
-                venue_script_state_[step.name] = step.value;
+                venue_script_state_[venue_script_context_state_key(step.name)] =
+                    step.value;
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(stderr,
                                  "[world] venue script set %s=%d\n",
-                                 step.name.c_str(), step.value);
+                                 venue_script_context_state_key(step.name).c_str(),
+                                 step.value);
                 }
                 break;
             case VenueScriptStep::Kind::CallHandler: {
-                if (std::find(stack.begin(), stack.end(), step.name) !=
+                const VenueScriptHandler* handler = nullptr;
+                std::string handler_key = step.name;
+                if (!venue_script_context_type_.empty()) {
+                    const auto type_it = venue_script_object_handlers_.find(
+                        venue_script_context_type_);
+                    if (type_it != venue_script_object_handlers_.end()) {
+                        const auto object_handler =
+                            type_it->second.find(step.name);
+                        if (object_handler != type_it->second.end()) {
+                            handler = &object_handler->second;
+                            handler_key = venue_script_context_type_ + "::" +
+                                          step.name;
+                        }
+                    }
+                }
+                if (!handler) {
+                    const auto handler_it =
+                        venue_script_handlers_.find(step.name);
+                    if (handler_it != venue_script_handlers_.end())
+                        handler = &handler_it->second;
+                }
+                if (std::find(stack.begin(), stack.end(), handler_key) !=
                     stack.end()) {
                     if (debug_venue_filters_enabled()) {
                         std::fprintf(
                             stderr,
                             "[world] venue script recursion skipped: %s\n",
-                            step.name.c_str());
+                            handler_key.c_str());
                     }
                     break;
                 }
-                const auto handler_it = venue_script_handlers_.find(step.name);
-                if (handler_it == venue_script_handlers_.end()) break;
+                if (!handler) break;
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(stderr,
                                  "[world] venue script call %s\n",
-                                 step.name.c_str());
+                                 handler_key.c_str());
                 }
-                stack.push_back(step.name);
-                execute_venue_script_steps(handler_it->second.steps, stack);
+                stack.push_back(handler_key);
+                execute_venue_script_steps(handler->steps, stack);
                 stack.pop_back();
                 break;
             }
@@ -7348,10 +7833,37 @@ void Gameplay::execute_venue_script_steps(
                 }
                 apply_venue_event(step.name, false);
                 break;
+            case VenueScriptStep::Kind::AnimateEnv: {
+                std::string target = step.name;
+                if (step.target_is_property_ref &&
+                    !venue_script_context_object_.empty()) {
+                    const auto object_it =
+                        venue_script_objects_.find(venue_script_context_object_);
+                    if (object_it != venue_script_objects_.end()) {
+                        const auto prop_it =
+                            object_it->second.properties.find(step.name);
+                        if (prop_it != object_it->second.properties.end())
+                            target = prop_it->second;
+                    }
+                }
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue script animate-env target=%s resolved=%s dest=%.2f period=%.3f object=%s\n",
+                        step.name.c_str(), target.c_str(),
+                        step.anim_dest_frame, step.anim_period,
+                        venue_script_context_object_.c_str());
+                }
+                apply_venue_script_env_anim(target, step.anim_dest_frame,
+                                            step.anim_period);
+                break;
+            }
             case VenueScriptStep::Kind::IfAllStates: {
                 bool enabled = true;
                 for (const auto& state : step.state_names) {
-                    const auto state_it = venue_script_state_.find(state);
+                    const auto state_key =
+                        venue_script_context_state_key(state);
+                    const auto state_it = venue_script_state_.find(state_key);
                     if (state_it == venue_script_state_.end() ||
                         state_it->second == 0) {
                         enabled = false;
@@ -7410,6 +7922,10 @@ void Gameplay::execute_venue_script_event(const std::string& event_name) {
     const auto handler_it = venue_script_handlers_.find(event_name);
     if (handler_it == venue_script_handlers_.end()) return;
     executing_venue_script_ = true;
+    const std::string prev_object = venue_script_context_object_;
+    const std::string prev_type = venue_script_context_type_;
+    venue_script_context_object_.clear();
+    venue_script_context_type_.clear();
     std::vector<std::string> stack;
     stack.push_back(event_name);
     if (debug_venue_filters_enabled()) {
@@ -7417,6 +7933,8 @@ void Gameplay::execute_venue_script_event(const std::string& event_name) {
                      event_name.c_str());
     }
     execute_venue_script_steps(handler_it->second.steps, stack);
+    venue_script_context_object_ = prev_object;
+    venue_script_context_type_ = prev_type;
     executing_venue_script_ = false;
 }
 
@@ -7466,7 +7984,11 @@ uint32_t Gameplay::schedule_venue_script_task(const VenueScriptStep& step) {
     ActiveVenueScriptTask task;
     task.id = next_venue_script_task_id_++;
     task.name = step.name;
-    task.state_slot = step.assign_state;
+    task.object_name = venue_script_context_object_;
+    task.object_type = venue_script_context_type_;
+    task.state_slot = step.assign_state.empty()
+                          ? std::string()
+                          : venue_script_context_state_key(step.assign_state);
     task.steps = step.children;
     task.thread = step.task_thread;
     task.beat_units = step.task_beat_units;
@@ -7480,9 +8002,10 @@ uint32_t Gameplay::schedule_venue_script_task(const VenueScriptStep& step) {
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
-            "[world] venue script schedule %s id=%u name='%s' state='%s' delay=%.3f due=%.3f steps=%zu units=%s\n",
+            "[world] venue script schedule %s id=%u name='%s' object='%s' state='%s' delay=%.3f due=%.3f steps=%zu units=%s\n",
             stored.thread ? "thread_task" : "script_task", stored.id,
-            stored.name.c_str(), stored.state_slot.c_str(),
+            stored.name.c_str(), stored.object_name.c_str(),
+            stored.state_slot.c_str(),
             stored.due_time - song_time_, stored.due_time, stored.steps.size(),
             stored.beat_units ? "beats" : "seconds");
     }
@@ -7514,33 +8037,38 @@ void Gameplay::cancel_venue_script_task_by_name(const std::string& name) {
     if (name.empty()) return;
     bool canceled = false;
     for (auto& task : venue_script_tasks_) {
-        if (task.name == name) {
+        if (task.name == name &&
+            task.object_name == venue_script_context_object_) {
             task.canceled = true;
             clear_venue_script_task_refs(task.id);
             canceled = true;
         }
     }
     if (running_venue_script_task_ &&
-        running_venue_script_task_->name == name) {
+        running_venue_script_task_->name == name &&
+        running_venue_script_task_->object_name ==
+            venue_script_context_object_) {
         running_venue_script_task_->canceled = true;
         clear_venue_script_task_refs(running_venue_script_task_->id);
         canceled = true;
     }
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
-                     "[world] venue script cancel name='%s' canceled=%d\n",
-                     name.c_str(), canceled ? 1 : 0);
+                     "[world] venue script cancel name='%s' object='%s' canceled=%d\n",
+                     name.c_str(), venue_script_context_object_.c_str(),
+                     canceled ? 1 : 0);
     }
 }
 
 void Gameplay::cancel_venue_script_task_state_ref(
     const std::string& state_name) {
-    const auto it = venue_script_object_state_.find(state_name);
+    const std::string state_key = venue_script_context_state_key(state_name);
+    const auto it = venue_script_object_state_.find(state_key);
     if (it == venue_script_object_state_.end()) {
         if (debug_venue_filters_enabled()) {
             std::fprintf(stderr,
                          "[world] venue script cancel state='%s' missing\n",
-                         state_name.c_str());
+                         state_key.c_str());
         }
         return;
     }
@@ -7552,11 +8080,16 @@ void Gameplay::cancel_venue_script_task_state_ref(
 bool Gameplay::venue_script_task_exists(const std::string& name) const {
     if (name.empty()) return false;
     if (running_venue_script_task_ && !running_venue_script_task_->canceled &&
-        running_venue_script_task_->name == name) {
+        running_venue_script_task_->name == name &&
+        running_venue_script_task_->object_name ==
+            venue_script_context_object_) {
         return true;
     }
     for (const auto& task : venue_script_tasks_) {
-        if (!task.canceled && task.name == name) return true;
+        if (!task.canceled && task.name == name &&
+            task.object_name == venue_script_context_object_) {
+            return true;
+        }
     }
     return false;
 }
@@ -7588,6 +8121,10 @@ void Gameplay::update_venue_script_tasks() {
 
         bool paused = false;
         bool looped = false;
+        const std::string prev_object = venue_script_context_object_;
+        const std::string prev_type = venue_script_context_type_;
+        venue_script_context_object_ = task.object_name;
+        venue_script_context_type_ = task.object_type;
         running_venue_script_task_ = &task;
         std::vector<std::string> stack;
         while (!task.canceled && task.cursor < task.steps.size()) {
@@ -7623,6 +8160,8 @@ void Gameplay::update_venue_script_tasks() {
             ++task.cursor;
         }
         running_venue_script_task_ = nullptr;
+        venue_script_context_object_ = prev_object;
+        venue_script_context_type_ = prev_type;
 
         if (task.canceled || (!paused && task.cursor >= task.steps.size())) {
             clear_venue_script_task_refs(task.id);
@@ -7664,6 +8203,9 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         return;
     }
     execute_venue_script_event(event_name);
+    const bool venue_script_object_applied =
+        execute_venue_script_object_messages(venue_event_script_messages_,
+                                             event_name);
     bool peak_transition = false;
     std::string peak_transition_event;
     if (persistent) {
@@ -7747,6 +8289,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             venue_event_anim_filters_.end() ||
         venue_event_group_visibility_.find(event_name) !=
             venue_event_group_visibility_.end() ||
+        venue_event_script_messages_.find(event_name) !=
+            venue_event_script_messages_.end() ||
         lighting_event_mat_anims_.find(event_name) !=
             lighting_event_mat_anims_.end() ||
         lighting_event_env_anims_.find(event_name) !=
@@ -7759,6 +8303,8 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             lighting_event_anim_filters_.end() ||
         lighting_event_group_visibility_.find(event_name) !=
             lighting_event_group_visibility_.end() ||
+        lighting_event_script_messages_.find(event_name) !=
+            lighting_event_script_messages_.end() ||
         (!diagnostic_venue_event_.empty() &&
          diagnostic_venue_event_ == event_name);
     if (event_it != venue_event_mat_anims_.end()) {
@@ -7876,6 +8422,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
             active_anim.persistent = persistent;
+            venue_environment_frames_[anim.environment] = 0.0f;
             venue_environment_colors_[anim.environment] =
                 sample_environment_color_key(active_anim.color_keys, 0.0f);
             environment_color_changed = true;
@@ -7972,6 +8519,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     const bool current_visibility_applied =
         apply_venue_event_visibility(event_name, true);
     if (current_visibility_applied) venue_route_applied = true;
+    if (venue_script_object_applied) venue_route_applied = true;
     if (const auto filter_event_it =
             venue_event_anim_filters_.find(event_name);
         filter_event_it != venue_event_anim_filters_.end()) {
@@ -8035,6 +8583,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     lighting_material_tex_transforms_.clear();
     active_lighting_material_anims_.clear();
     lighting_environment_colors_.clear();
+    lighting_environment_frames_.clear();
     active_lighting_environment_anims_.clear();
     lighting_light_colors_.clear();
     active_lighting_light_anims_.clear();
@@ -8057,6 +8606,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     active_venue_material_anims_.clear();
     last_venue_mat_anim_debug_time_ = -1.0;
     venue_environment_colors_.clear();
+    venue_environment_frames_.clear();
     active_venue_environment_anims_.clear();
     venue_light_colors_.clear();
     active_venue_light_anims_.clear();
@@ -8080,6 +8630,8 @@ void Gameplay::clear_runtime_venue_animation_state() {
     venue_script_tasks_.clear();
     next_venue_script_task_id_ = 1;
     running_venue_script_task_ = nullptr;
+    venue_script_context_object_.clear();
+    venue_script_context_type_.clear();
     executing_venue_script_ = false;
 
     if (world_) {
@@ -8222,10 +8774,25 @@ void Gameplay::update_active_venue_environment_anims() {
          song_time_ - last_venue_env_anim_debug_time_ >= 0.5);
     for (auto it = active_venue_environment_anims_.begin();
          it != active_venue_environment_anims_.end();) {
-        const float frame = material_anim_frame_at(
-            it->duration_frames, song_time_ - it->start_time,
-            it->persistent);
+        const double elapsed = std::max(0.0, song_time_ - it->start_time);
+        float frame = 0.0f;
+        bool done = false;
+        if (it->target_frame_mode) {
+            const double duration = std::max(0.0, it->duration_seconds);
+            const double t =
+                duration <= 0.0001
+                    ? 1.0
+                    : std::clamp(elapsed / duration, 0.0, 1.0);
+            frame = static_cast<float>(
+                static_cast<double>(it->start_frame) +
+                (static_cast<double>(it->end_frame) - it->start_frame) * t);
+            done = t >= 1.0;
+        } else {
+            frame = material_anim_frame_at(it->duration_frames, elapsed,
+                                           it->persistent);
+        }
         const auto color = sample_environment_color_key(it->color_keys, frame);
+        venue_environment_frames_[it->environment] = frame;
         venue_environment_colors_[it->environment] = color;
         changed = true;
         if (debug_sample) {
@@ -8236,7 +8803,9 @@ void Gameplay::update_active_venue_environment_anims() {
                 color[1], color[2], color[3], it->color_keys.size(),
                 it->persistent ? 1 : 0);
         }
-        if (!it->persistent && frame >= it->duration_frames - 0.001f) {
+        if ((it->target_frame_mode && done) ||
+            (!it->target_frame_mode && !it->persistent &&
+             frame >= it->duration_frames - 0.001f)) {
             it = active_venue_environment_anims_.erase(it);
         } else {
             ++it;
@@ -8422,12 +8991,14 @@ bool Gameplay::apply_lighting_event(const std::string& event_name) {
     auto visibility_it = lighting_event_group_visibility_.find(event_name);
     auto particle_it = lighting_event_particle_systems_.find(event_name);
     auto filter_it = lighting_event_anim_filters_.find(event_name);
+    auto script_it = lighting_event_script_messages_.find(event_name);
     if (event_it == lighting_event_mat_anims_.end() &&
         env_event_it == lighting_event_env_anims_.end() &&
         light_event_it == lighting_event_light_anims_.end() &&
         visibility_it == lighting_event_group_visibility_.end() &&
         particle_it == lighting_event_particle_systems_.end() &&
-        filter_it == lighting_event_anim_filters_.end()) {
+        filter_it == lighting_event_anim_filters_.end() &&
+        script_it == lighting_event_script_messages_.end()) {
         return false;
     }
 
@@ -8441,7 +9012,9 @@ bool Gameplay::apply_lighting_event(const std::string& event_name) {
     bool venue_color_changed = false;
     bool venue_texture_changed = false;
     bool venue_tex_changed = false;
-    bool lighting_route_applied = false;
+    bool lighting_route_applied =
+        execute_venue_script_object_messages(lighting_event_script_messages_,
+                                             event_name);
     if (event_it != lighting_event_mat_anims_.end()) {
         for (const auto& anim_name : event_it->second) {
             auto anim_it = lighting_mat_anims_.find(anim_name);
@@ -8667,6 +9240,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name) {
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
             active_anim.persistent = true;
+            lighting_environment_frames_[anim.environment] = 0.0f;
             lighting_environment_colors_[anim.environment] =
                 sample_environment_color_key(active_anim.color_keys, 0.0f);
             environment_color_changed = true;
@@ -8916,10 +9490,25 @@ void Gameplay::update_active_lighting_environment_anims() {
          song_time_ - last_lighting_env_anim_debug_time_ >= 0.5);
     for (auto it = active_lighting_environment_anims_.begin();
          it != active_lighting_environment_anims_.end();) {
-        const float frame = material_anim_frame_at(
-            it->duration_frames, song_time_ - it->start_time,
-            it->persistent);
+        const double elapsed = std::max(0.0, song_time_ - it->start_time);
+        float frame = 0.0f;
+        bool done = false;
+        if (it->target_frame_mode) {
+            const double duration = std::max(0.0, it->duration_seconds);
+            const double t =
+                duration <= 0.0001
+                    ? 1.0
+                    : std::clamp(elapsed / duration, 0.0, 1.0);
+            frame = static_cast<float>(
+                static_cast<double>(it->start_frame) +
+                (static_cast<double>(it->end_frame) - it->start_frame) * t);
+            done = t >= 1.0;
+        } else {
+            frame = material_anim_frame_at(it->duration_frames, elapsed,
+                                           it->persistent);
+        }
         const auto color = sample_environment_color_key(it->color_keys, frame);
+        lighting_environment_frames_[it->environment] = frame;
         lighting_environment_colors_[it->environment] = color;
         changed = true;
         if (debug_sample) {
@@ -8930,7 +9519,9 @@ void Gameplay::update_active_lighting_environment_anims() {
                 color[1], color[2], color[3], it->color_keys.size(),
                 it->persistent ? 1 : 0);
         }
-        if (!it->persistent && frame >= it->duration_frames - 0.001f) {
+        if ((it->target_frame_mode && done) ||
+            (!it->target_frame_mode && !it->persistent &&
+             frame >= it->duration_frames - 0.001f)) {
             it = active_lighting_environment_anims_.erase(it);
         } else {
             ++it;
@@ -9597,8 +10188,20 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         load_venue_script_handlers(hdr_path_, ark_path_,
                                                    quickplay_rig_->venue);
                     venue_script_handlers_ = script_data.handlers;
+                    venue_script_object_handlers_ =
+                        script_data.object_handlers;
                     venue_script_initial_state_ = script_data.state;
                     venue_script_state_ = venue_script_initial_state_;
+                    venue_script_objects_.clear();
+                    venue_event_script_messages_.clear();
+                    auto script_objects = load_venue_script_object_instances(
+                        hdr_path_, ark_path_, venue_geom);
+                    venue_event_script_messages_ =
+                        load_venue_event_script_messages(
+                            hdr_path_, ark_path_, venue_geom, script_objects,
+                            venue_script_object_handlers_);
+                    for (auto& [name, object] : script_objects)
+                        venue_script_objects_[name] = std::move(object);
                     venue_script_object_state_.clear();
                     venue_script_tasks_.clear();
                     next_venue_script_task_id_ = 1;
@@ -9713,6 +10316,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_event_group_visibility_ =
                     load_venue_group_visibility(hdr_path_, ark_path_,
                                                 lighting_milo, lighting_scene);
+                {
+                    auto script_objects = load_venue_script_object_instances(
+                        hdr_path_, ark_path_, lighting_milo);
+                    lighting_event_script_messages_ =
+                        load_venue_event_script_messages(
+                            hdr_path_, ark_path_, lighting_milo,
+                            script_objects, venue_script_object_handlers_);
+                    for (auto& [name, object] : script_objects)
+                        venue_script_objects_[name] = std::move(object);
+                }
                 lighting_presets_ = load_lighting_presets(
                     hdr_path_, ark_path_, quickplay_rig_->venue);
                 log_lighting_light_object_coverage(lighting_scene,
