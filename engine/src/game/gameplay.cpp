@@ -11573,15 +11573,18 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         band_jump_names = {"bassist_band_jump", "band_jump"};
                     } else if (perf.role == "singer") {
                         band_jump_names = {"singer_band_jump", "band_jump"};
-                    } else {
+                    } else if (perf.role == "guitarist0") {
                         band_jump_names = {"band_jump"};
                     }
                 }
-                if (!load_driver_clip_names(perf.band_jump_clip, "main.drv",
-                                            band_jump_names)) {
-                    load_clip_first_from_milos(perf.band_jump_clip, hdr_path_,
-                                               ark_path_, main_anim_milos,
-                                               band_jump_names);
+                if (!band_jump_names.empty()) {
+                    if (!load_driver_clip_names(perf.band_jump_clip, "main.drv",
+                                                band_jump_names)) {
+                        load_clip_first_from_milos(perf.band_jump_clip,
+                                                   hdr_path_, ark_path_,
+                                                   main_anim_milos,
+                                                   band_jump_names);
+                    }
                 }
                 if (perf.band_jump_clip.loaded) {
                     std::fprintf(

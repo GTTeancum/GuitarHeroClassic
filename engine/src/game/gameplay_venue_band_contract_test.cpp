@@ -1838,6 +1838,18 @@ int main() {
   ok &= contains(gameplay_c,
                  "band_jump_names={\"singer_band_jump\",\"band_jump\"};",
                  "singer band_jump uses the observed singer clip name fallback");
+  ok &= contains(gameplay_c,
+                 "elseif(perf.role==\"guitarist0\"){"
+                 "band_jump_names={\"band_jump\"};}",
+                 "generic band_jump fallback is limited to the traced guitarist route");
+  ok &= contains(gameplay_c,
+                 "if(!band_jump_names.empty()){"
+                 "if(!load_driver_clip_names(perf.band_jump_clip,\"main.drv\","
+                 "band_jump_names))",
+                 "roles without an accepted jump clip skip band_jump loading");
+  ok &= absent(gameplay_c,
+               "else{band_jump_names={\"band_jump\"};}",
+               "do not assign generic band_jump to every non-singer/non-bassist role");
   ok &= absent(gameplay_c, "drummer_band_jump",
                "do not invent an unobserved drummer band_jump clip name");
   ok &= absent(gameplay_c, "keyboard_band_jump",

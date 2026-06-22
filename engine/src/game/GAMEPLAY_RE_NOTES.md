@@ -2144,6 +2144,18 @@ Rejected native probe:
   no-decoded route rows. `metal_drummer` has no decoded jump clip in this stock
   asset path, so drummer absence is treated as asset-backed rather than filled
   with a guessed clip name.
+- Follow-up: the later seven-route sweep still showed native trying the generic
+  `band_jump` fallback for drummer on every route and for keyboard on YYZ,
+  producing duplicate `[clip] 'band_jump' not found` rows despite the accepted
+  evidence above. Native now only uses generic `band_jump` as the guitarist
+  fallback; singer and bassist keep their observed role-specific fallbacks, and
+  drummer/keyboard only load a jump if an actual decoded `sync_jump`
+  `CharClipGroup` supplies one. Validation:
+  `analysis/native_validation/bandjump_role_fallback_20260622_current/`
+  reruns arena from the known `band_jump` event window and theatre/YYZ for the
+  keyboard load path. Both exits are `0`; guitarist, singer, and bassist still
+  load/fire the observed jump clips in arena, and drummer/keyboard produce zero
+  generic `band_jump` not-found rows.
 
 2026-06-22 material BLEND_ENUM and projection-lighting pass:
 
