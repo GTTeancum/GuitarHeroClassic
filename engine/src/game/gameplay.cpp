@@ -4326,6 +4326,7 @@ size_t lighting_keyframe_index_at(const Gameplay::LightingPreset& preset,
 }
 
 constexpr double kLightingFramesPerSecond = 30.0;
+constexpr double kLightingAdvanceDelaySeconds = 4.0;
 
 double authored_frames_to_seconds(float frames) {
     return std::isfinite(frames) && frames > 0.0f
@@ -4335,6 +4336,17 @@ double authored_frames_to_seconds(float frames) {
 
 double lighting_frames_to_seconds(float frames) {
     return authored_frames_to_seconds(frames);
+}
+
+size_t lighting_keyframe_index_after_event(std::string_view event,
+                                           size_t current,
+                                           size_t count) {
+    if (count == 0) return 0;
+    if (current == SIZE_MAX || current >= count) current = 0;
+    if (event == "first") return 0;
+    if (event == "next") return (current + 1) % count;
+    if (event == "prev") return (current + count - 1) % count;
+    return current;
 }
 
 using SpotlightState = ghogx::render::MiloSceneRenderer::SpotlightState;
@@ -7989,6 +8001,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_transition_duration_ = 0.0;
     lighting_transition_active_ = false;
     next_lighting_cue_idx_ = 0;
+    pending_lighting_advances_.clear();
     ignored_last_light_change_ = false;
     lighting_mat_anims_.clear();
     lighting_event_mat_anims_.clear();
@@ -10781,6 +10794,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     lighting_transition_start_ = song_time_;
     lighting_transition_duration_ = 0.0;
     lighting_transition_active_ = false;
+    pending_lighting_advances_.clear();
     clear_runtime_venue_animation_state();
     ignored_last_light_change_ = false;
     std::fprintf(stderr,
@@ -12775,23 +12789,47 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             preset->name.c_str());
                         if (apply_keyframe) {
                             ignored_last_light_change_ = false;
-                            if (cue.event == "first") {
-                                active_lighting_keyframe_index_ = 0;
-                            } else if (cue.event == "next") {
-                                active_lighting_keyframe_index_ =
-                                    (active_lighting_keyframe_index_ + 1) %
-                                    preset->keyframes.size();
-                            } else if (cue.event == "prev") {
-                                active_lighting_keyframe_index_ =
-                                    (active_lighting_keyframe_index_ +
-                                     preset->keyframes.size() - 1) %
-                                    preset->keyframes.size();
+                            pending_lighting_advances_.push_back(
+                                {cue.event, cue.pitch, cue.tick,
+                                 song_time_ + kLightingAdvanceDelaySeconds});
+                            if (debug_venue_filters_enabled()) {
+                                std::fprintf(
+                                    stderr,
+                                    "[world] lighting cue queued: %s pitch=%d tick=%u apply_t=%.3f delay=%.3f preset=%s\n",
+                                    cue.event.c_str(), cue.pitch, cue.tick,
+                                    song_time_ + kLightingAdvanceDelaySeconds,
+                                    kLightingAdvanceDelaySeconds,
+                                    preset->name.c_str());
                             }
-                            active_lighting_keyframe_.clear();
                         } else {
                             ignored_last_light_change_ = true;
                         }
                         ++next_lighting_cue_idx_;
+                    }
+                    while (!pending_lighting_advances_.empty() &&
+                           pending_lighting_advances_.front().apply_time <=
+                               song_time_ + 0.0001) {
+                        const PendingLightingAdvance pending =
+                            pending_lighting_advances_.front();
+                        pending_lighting_advances_.erase(
+                            pending_lighting_advances_.begin());
+                        const size_t previous_index =
+                            active_lighting_keyframe_index_;
+                        active_lighting_keyframe_index_ =
+                            lighting_keyframe_index_after_event(
+                                pending.event, active_lighting_keyframe_index_,
+                                preset->keyframes.size());
+                        active_lighting_keyframe_.clear();
+                        std::fprintf(
+                            stderr,
+                            "[world] lighting cue apply: %s pitch=%d cue_tick=%u previous=%llu next=%llu scheduled_t=%.3f t=%.3f preset=%s\n",
+                            pending.event.c_str(), pending.pitch,
+                            pending.cue_tick,
+                            static_cast<unsigned long long>(previous_index),
+                            static_cast<unsigned long long>(
+                                active_lighting_keyframe_index_),
+                            pending.apply_time, song_time_,
+                            preset->name.c_str());
                     }
                     const size_t keyframe_index =
                         chart_.lighting_cues.empty()

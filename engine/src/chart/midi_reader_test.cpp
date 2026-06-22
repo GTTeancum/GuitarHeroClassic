@@ -177,14 +177,14 @@ static std::vector<uint8_t> build_test_smf() {
     // Track 2: lighting trigger notes.
     TrackBuilder t2;
     t2.meta_name("TRIGGERS");
-    t2.note_on (2400, 50); // lighting first, minus 4 beats => tick 480
-    t2.note_off(2400, 50);
-    t2.note_on (2880, 48); // lighting next, minus 4 beats => tick 960
-    t2.note_off(2880, 48);
-    t2.note_on (3360, 49); // lighting prev, minus 4 beats => tick 1440
-    t2.note_off(3360, 49);
     t2.note_on (3600, 52); // venue_effect, no parser offset
     t2.note_off(3600, 52);
+    t2.note_on (4800, 50); // lighting first, minus traced 4s => tick 960
+    t2.note_off(4800, 50);
+    t2.note_on (5280, 48); // lighting next, minus traced 4s => tick 1440
+    t2.note_off(5280, 48);
+    t2.note_on (5760, 49); // lighting prev, minus traced 4s => tick 1920
+    t2.note_off(5760, 49);
     t2.meta_eot();
 
     // Assemble SMF.
@@ -292,14 +292,14 @@ int main() {
     CHECK(chart.lighting_cues.size() == 3, "Lighting cues: 3");
     if (chart.lighting_cues.size() == 3) {
         CHECK(chart.lighting_cues[0].event == "first" &&
-              chart.lighting_cues[0].tick == 480,
-              "Lighting[0]: first at tick 480 after -4 beat offset");
+              chart.lighting_cues[0].tick == 960,
+              "Lighting[0]: first at tick 960 after traced -4s offset");
         CHECK(chart.lighting_cues[1].event == "next" &&
-              chart.lighting_cues[1].tick == 960,
-              "Lighting[1]: next at tick 960 after -4 beat offset");
+              chart.lighting_cues[1].tick == 1440,
+              "Lighting[1]: next at tick 1440 after traced -4s offset");
         CHECK(chart.lighting_cues[2].event == "prev" &&
-              chart.lighting_cues[2].tick == 1440,
-              "Lighting[2]: prev at tick 1440 after -4 beat offset");
+              chart.lighting_cues[2].tick == 1920,
+              "Lighting[2]: prev at tick 1920 after traced -4s offset");
     }
 
     // --- effect_parser cue from TRIGGERS pitch 52 ---

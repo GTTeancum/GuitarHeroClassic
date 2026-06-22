@@ -198,18 +198,29 @@ Open work:
   pitches `48`, `49`, and `50` to those messages with `start_offset -4` and
   `zero_length TRUE`, while `world_objects_worldbase.dta` advances a keyframe
   every cue only at great excitement and otherwise alternates through
-  `ignored_last_light_change`. Native now parses those TRIGGERS notes into
-  `Chart::lighting_cues`, applies the four-beat parser offset, and uses the
-  cue stream to drive `active_lighting_keyframe_index_`; the older
-  duration/beat loop remains only as a fallback for charts without lighting
-  cues. Validation:
+  `ignored_last_light_change`. Follow-up PS2 static/runtime traces show the
+  keyframe handlers enqueue direction records through `0x00280f60`,
+  `0x00280fe8`, or `0x00281070`; each helper reads the global timer, adds
+  `4.0`, and appends `{+1,-1,0, apply_time}` style rows to the lighting queue.
+  Native therefore parses the `start_offset -4` side as four seconds, queues
+  the actual `first` / `next` / `prev` advance for `song_time + 4.0`, and uses
+  the cue stream to drive `active_lighting_keyframe_index_` when the queued
+  apply matures; the older duration/beat loop remains only as a fallback for
+  charts without lighting cues. Validation:
   `engine/out/codex_goal_20260620_lighting_midi_cues_surrender/` and
   `engine/out/codex_goal_20260620_lighting_midi_cues_surrender_long/` run
   stock PS2 `surrender` with authored camera/venue. The log decodes
   `lighting cues=204`, dispatches early `first`/`next` cues through the
   skip gate, changes presets from `blackout.pst` to `strobe_okay.pst`,
   `verse_okay.pst`, and `color1.pst`, and renders nonblank arena frames.
-  This is traced keyframe-dispatch plumbing, not final render-light parity.
+  Current validation in
+  `analysis/native_validation/lighting_queue_timing_small1_20260622_current/`
+  reruns stock PS2 `psychobilly` on `small1` hidden from `10.0s` with
+  diagnostic autoplay and fixed `0.25s` steps. The clean `stderr.log` shows
+  45 queued lighting cue rows, 40 matured apply rows, `delay=4.000` on the
+  queue, matching `scheduled_t`/`t` on apply, and zero unsupported, miss,
+  no-decoded, unresolved, or nonzero failed/error rows. This is traced
+  keyframe-dispatch plumbing, not final render-light parity.
 - 2026-06-22 lighting adjective filter follow-up:
   `world_objects.dta` defines `LIGHTING_ADJECTIVES` as only `blackout`,
   `strobe`, `flare`, `color1`, `color2`, and `sweep`. Some chart text events
@@ -521,7 +532,8 @@ Open work:
   `dw_<venue>_drums` loading and EventTrigger-first drum routing, the traced
   stock GH2 drum MIDI pitch map (`36 -> kick_drum`, `37 -> crash_symbal`),
   transient `bass_hit`/`venue_effect` dispatch, lighting TRIGGERS
-  `48/49/50` with the four-beat parser offset, and the separation between
+  `48/49/50` with the traced four-second parser offset plus delayed apply
+  queue, and the separation between
   regular camera duration rows and `post_switch_cam`. This is a drift guard for
   the accepted PS2 route evidence; it does not claim final camera, lighting, or
   animation parity by itself.

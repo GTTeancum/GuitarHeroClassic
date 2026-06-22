@@ -546,15 +546,16 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
             for (const auto& note : all_note_ons[t]) {
                 // config/midi_parsers.dta::lighting_parser maps TRIGGERS
                 // pitches 48/49/50 to the WorldDir lighting keyframe messages.
-                // The parser has start_offset -4, which is authored in beats.
+                // PS2 traces show the handler queues the keyframe apply for
+                // current timer + 4.0, so the parser's -4 offset is seconds.
                 const char* event = nullptr;
                 if (note.pitch == 48) event = "next";
                 if (note.pitch == 49) event = "prev";
                 if (note.pitch == 50) event = "first";
                 if (event) {
-                    const uint32_t offset_ticks = chart.ticks_per_beat * 4u;
-                    const uint32_t cue_tick =
-                        (note.tick > offset_ticks) ? note.tick - offset_ticks : 0u;
+                    const double dispatch_sec =
+                        std::max(0.0, chart.tick_to_sec(note.tick) - 4.0);
+                    const uint32_t cue_tick = chart.sec_to_tick(dispatch_sec);
                     chart.lighting_cues.push_back(
                         {cue_tick, note.pitch, std::string(event)});
                 }

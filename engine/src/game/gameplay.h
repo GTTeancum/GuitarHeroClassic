@@ -170,6 +170,12 @@ class Gameplay {
     std::vector<std::string> env_refs;
     std::vector<std::string> lit_refs;
   };
+  struct PendingLightingAdvance {
+    std::string event;
+    int pitch = 0;
+    uint32_t cue_tick = 0;
+    double apply_time = 0.0;
+  };
   struct LightingSpotlight {
     std::string name;
     std::string target;
@@ -592,6 +598,7 @@ class Gameplay {
   double lighting_transition_duration_ = 0.0;
   bool lighting_transition_active_ = false;
   size_t next_lighting_cue_idx_ = 0;
+  std::vector<PendingLightingAdvance> pending_lighting_advances_;
   bool ignored_last_light_change_ = false;
   std::map<std::string, VenueMaterialAnim> lighting_mat_anims_;
   std::map<std::string, std::vector<std::string>> lighting_event_mat_anims_;

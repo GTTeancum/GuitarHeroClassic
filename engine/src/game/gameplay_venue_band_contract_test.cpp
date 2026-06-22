@@ -229,8 +229,8 @@ int main() {
                  "if(note.pitch==50)event=\"first\";",
                  "TRIGGERS 48/49/50 feed lighting keyframe messages");
   ok &= contains(midi_c,
-                 "constuint32_toffset_ticks=chart.ticks_per_beat*4u;",
-                 "lighting parser keeps traced minus-four-beat offset");
+                 "chart.tick_to_sec(note.tick)-4.0",
+                 "lighting parser keeps traced minus-four-second offset");
   ok &= contains(midi_c,
                  "if(note.pitch==52){chart.venue_cues.push_back("
                  "{note.tick,note.pitch,std::string(\"venue_effect\")});}",
@@ -1305,13 +1305,12 @@ int main() {
                "constexpruint32_tkDefaultExcitement=2;",
                "lighting preset selection must not hardcode okay excitement");
   ok &= contains(gameplay_c,
-                 "if(cue.event==\"first\"){active_lighting_keyframe_index_=0;}"
-                 "elseif(cue.event==\"next\"){active_lighting_keyframe_index_="
-                 "(active_lighting_keyframe_index_+1)%preset->keyframes.size();}"
-                 "elseif(cue.event==\"prev\"){active_lighting_keyframe_index_="
-                 "(active_lighting_keyframe_index_+preset->keyframes.size()-1)%"
-                 "preset->keyframes.size();}",
-                 "lighting cue events advance first/next/prev exactly");
+                 "song_time_+kLightingAdvanceDelaySeconds",
+                 "lighting cue events use the traced PS2 timer-plus-four queue");
+  ok &= contains(gameplay_c,
+                 "lighting_keyframe_index_after_event(pending.event,"
+                 "active_lighting_keyframe_index_,preset->keyframes.size())",
+                 "queued lighting cue events advance first/next/prev exactly");
   ok &= contains(gameplay_c,
                  "chart_.lighting_cues.empty()?lighting_keyframe_index_at("
                  "*preset,chart_,song_time_,active_lighting_preset_start_):"
