@@ -1146,6 +1146,12 @@ struct VenueCameraPolicy {
     };
 };
 
+constexpr const char* kDirectIntroCamShotPrefix = "CamShot:";
+constexpr size_t kDirectIntroCamShotPrefixLen = 8;
+
+std::vector<std::pair<Gameplay::CameraKey, size_t>> decode_camshot_poses(
+    const uint8_t* body, size_t size);
+
 VenueCameraPolicy load_venue_camera_policy(const std::string& hdr_path,
                                            const std::string& ark_path,
                                            const std::string& venue) {
@@ -1239,6 +1245,12 @@ std::string select_intro_camera_anim(const std::string& hdr_path,
             for (const auto& s : strings) {
                 if (s == "INTRO") is_intro = true;
             }
+            std::string shot_lower(de.name);
+            std::transform(shot_lower.begin(), shot_lower.end(),
+                           shot_lower.begin(), [](unsigned char c) {
+                               return static_cast<char>(std::tolower(c));
+                           });
+            if (shot_lower.rfind("intro", 0) == 0) is_intro = true;
             if (!is_intro) continue;
             Candidate c;
             c.shot = de.name;
@@ -1248,6 +1260,11 @@ std::string select_intro_camera_anim(const std::string& hdr_path,
                     c.anim = s;
                     break;
                 }
+            }
+            if (c.anim.empty() &&
+                !decode_camshot_poses(body, static_cast<size_t>(de.size))
+                     .empty()) {
+                c.anim = std::string(kDirectIntroCamShotPrefix) + de.name;
             }
             if (c.anim.empty()) continue;
             const std::string distance = next_string_after(strings, "distance");
@@ -1259,7 +1276,7 @@ std::string select_intro_camera_anim(const std::string& hdr_path,
             if (!policy.intro_facing.empty() && facing == policy.intro_facing) {
                 c.score += 2;
             }
-            if (c.shot.rfind("intro", 0) == 0) c.score += 1;
+            if (shot_lower.rfind("intro", 0) == 0) c.score += 1;
             candidates.push_back(std::move(c));
         }
         if (!candidates.empty()) {
@@ -3619,6 +3636,34 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
         auto hdr = gh::milo::parse_header(bytes);
         auto payload = gh::milo::inflate_payload(bytes, hdr);
         auto dir = gh::milo::parse_directory(payload);
+        if (anim_name.compare(0, kDirectIntroCamShotPrefixLen,
+                              kDirectIntroCamShotPrefix) == 0) {
+            const std::string shot_name =
+                anim_name.substr(kDirectIntroCamShotPrefixLen);
+            for (const auto& de : dir.entries) {
+                if (de.type != "CamShot" || de.name != shot_name ||
+                    de.offset + de.size > payload.size()) {
+                    continue;
+                }
+                const uint8_t* body = payload.data() + de.offset;
+                auto decoded_poses =
+                    decode_camshot_poses(body, static_cast<size_t>(de.size));
+                for (auto& pose : decoded_poses) {
+                    pose.first.name = de.name;
+                    pose.first.frame = 0.0f;
+                    out.push_back(pose.first);
+                }
+                if (!out.empty()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] intro CamShot %s: %zu direct poses first body+0x%zX\n",
+                        de.name.c_str(), out.size(),
+                        decoded_poses.front().second);
+                }
+                return out;
+            }
+            return out;
+        }
         const gh::milo::Entry* anim = nullptr;
         for (const auto& de : dir.entries) {
             if (de.type == "TransAnim" && de.name == anim_name) {

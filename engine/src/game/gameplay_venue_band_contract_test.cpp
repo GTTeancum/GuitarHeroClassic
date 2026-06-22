@@ -1168,6 +1168,22 @@ int main() {
                  "active_venue_event_)",
                  "regular camera uses active-excitement duration rows");
   ok &= contains(gameplay_c,
+                 "constexprconstchar*kDirectIntroCamShotPrefix=\"CamShot:\";",
+                 "intro camera fallback uses an explicit direct CamShot route");
+  ok &= contains(gameplay_c,
+                 "if(shot_lower.rfind(\"intro\",0)==0)is_intro=true;",
+                 "intro camera selector accepts Intro-prefixed CamShot names");
+  ok &= contains(gameplay_c,
+                 "c.anim=std::string(kDirectIntroCamShotPrefix)+de.name;",
+                 "intro CamShots without TransAnim refs can route by embedded pose");
+  ok &= contains(gameplay_c,
+                 "anim_name.compare(0,kDirectIntroCamShotPrefixLen,"
+                 "kDirectIntroCamShotPrefix)==0",
+                 "camera key loader recognizes direct CamShot intro routes");
+  ok &= contains(gameplay_c,
+                 "decode_camshot_poses(body,static_cast<size_t>(de.size));",
+                 "direct intro CamShot route reuses the decoded CamShot pose parser");
+  ok &= contains(gameplay_c,
                  "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
                  "camera loader keeps solo-only CamShots for solo sections");
   ok &= contains(gameplay_c,

@@ -1610,3 +1610,28 @@ Rejected native probe:
   zero miss rows. The retained frames are route-validation captures only; their
   current small2 camera composition is visibly low/occluded and should not be
   treated as camera parity evidence.
+
+2026-06-22 direct intro CamShot camera route:
+
+- `analysis/venue_lighting_audit/small2_gen_camshot_dump_20260622.txt` and
+  `analysis/venue_lighting_audit/small2_gen_objdir_20260622.txt` show that
+  `world/small2/gen/small2.milo_ps2` has authored CamShot entries such as
+  `Intro01`, `Intro_fast`, and `intro_encore`, but
+  `analysis/venue_lighting_audit/small2_gen_transanim_dump_20260622.txt`
+  shows zero `TransAnim` entries in that MILO. Native's intro camera selector
+  only accepted CamShots containing a `.tnm` ref, then fell back to absent
+  `Intro.tnm`; the six-bar intro window therefore kept rendering from
+  `default.cam`.
+- Native now accepts `Intro*` CamShot names as intro camera candidates and, when
+  a selected intro CamShot has no `.tnm` ref, routes it through an explicit
+  `CamShot:<name>` path that decodes the embedded CamShot pose rows with the
+  existing `decode_camshot_poses` parser. This is a generic direct-CamShot
+  fallback for venues with embedded intro poses, not a small2-specific camera.
+- Validation:
+  `analysis/native_validation/small2_direct_intro_camshot_20260622_current/`
+  reruns stock PS2 `youreallygotme` on small2 hidden with camera debug. The log
+  records `intro CamShot Intro01 -> CamShot:Intro01`, loads 2 direct poses from
+  body `+0x13E`, emits 480 authored camera samples from `Intro01`, exits `0`,
+  and keeps zero miss rows. Frames 120, 300, and 470 are coherent stage renders
+  with the full band and small2 venue visible, replacing the earlier
+  default-camera low/occluded route-validation frames.
