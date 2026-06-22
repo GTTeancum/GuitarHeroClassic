@@ -330,6 +330,28 @@ Open work:
   and reports LightPreset coverage as `matched_lighting` vs `matched_venue`.
   Do not animate or swap active environments from those preset-level refs until
   a trace shows the exact runtime route.
+- 2026-06-22 Big venue extensionless light/env follow-up:
+  `world/big/og/gen/big_lighting.milo_ps2` `chorus_great.pst` references
+  extensionless object names `curtain_light` and `curtain`; these are real
+  venue-geometry objects (`Environ__curtain_light`, `Light__curtain`), not
+  LightPreset keyframe labels. Native now builds LightPreset label/ref
+  classification from the raw lighting-overlay and venue-geometry object-name
+  sets, so extensionless known objects are retained as refs and rejected as
+  labels. `Environ__curtain_light` itself contains one extensionless light ref
+  string, `curtain`, so the Environ decoder now accepts either explicit `.lit`
+  refs or extensionless Harmonix object identifiers. Validation:
+  `analysis/native_validation/big_curtain_light_environ_decode_20260622_085948/`
+  loads `hangar18`/Big with `chorus_great.pst` reporting `preset_refs=33/7/12`,
+  only `teal and white` as the decoded keyframe label, Light coverage
+  `matched_venue=4 unmatched=0`, and Environ coverage
+  `matched_venue=4 unmatched=0`.
+  Current-build breadth check:
+  `analysis/native_validation/venue_lighting_route_sweep_20260622_090113/`
+  reruns `shoutatthedevil`/arena, `yyz`/theatre, `hangar18`/Big, and
+  `psychobilly`/small1; all four routes report Light and Environ
+  `unmatched=0` while still dispatching venue AnimFilters, lighting presets /
+  keyframes, and authored regular camera sweeps. This is object/reference
+  coverage and event-route evidence, not final lighting color parity.
 - The same split applies to `.lit` refs. `arena_geom.milo_ps2` owns concrete
   Light entries such as `stage_light_02.lit`, `stage_light_03.lit`,
   `stage_bkg_1.lit`, `grim_light.lit`, `squid_light.lit`,

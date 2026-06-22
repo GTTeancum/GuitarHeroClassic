@@ -151,6 +151,31 @@ void test_environ_with_lights() {
               env.color_a[2]);
 }
 
+void test_environ_with_extensionless_light() {
+  std::vector<uint8_t> b;
+  put_u32(b, 5);                 // Environ version
+  put_zeros(b, 9);               // base metadata
+  put_u32(b, 1);                 // dynamic light ref count
+  put_str(b, "curtain");         // GH2 PS2 Big uses Light__curtain
+  const size_t base = b.size();
+  put_f32(b, 0.30f); put_f32(b, 0.30f); put_f32(b, 0.30f); put_f32(b, 1.0f);
+  put_f32(b, 250.0f);
+  put_f32(b, 1.0f);
+  put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f); put_f32(b, 1.0f);
+  while (b.size() < base + 0x2f) b.push_back(0);
+  put_f32(b, 1000.0f);
+
+  EnvironObj env = decode_environ("curtain_light", b);
+  CHECK(env.decoded);
+  CHECK(env.lights.size() == 1);
+  CHECK(env.lights[0] == "curtain");
+  CHECK(approx(env.color_a[0], 0.30f));
+  CHECK(approx(env.range_a, 250.0f));
+  CHECK(approx(env.range, 1000.0f));
+  std::printf("  [ok] Environ extensionless light: %s -> %s\n",
+              env.name.c_str(), env.lights[0].c_str());
+}
+
 void test_mesh() {
   std::vector<uint8_t> b;
   put_u32(b, 28);                // mesh version 0x1c
@@ -222,6 +247,7 @@ int main() {
   test_mat();
   test_light();
   test_environ_with_lights();
+  test_environ_with_extensionless_light();
   test_mesh();
   std::printf("ALL PASS\n");
   return 0;

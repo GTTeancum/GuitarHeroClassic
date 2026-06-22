@@ -618,6 +618,8 @@ class Gameplay {
   std::string venue_script_context_object_;
   std::string venue_script_context_type_;
   bool executing_venue_script_ = false;
+  std::unordered_set<std::string> venue_light_names_;
+  std::unordered_set<std::string> venue_environ_names_;
   std::map<std::string, ghogx::milo_scene::LightObj> venue_lights_;
   std::map<std::string, ghogx::milo_scene::EnvironObj> venue_environs_;
   std::vector<std::string> pending_transient_venue_events_;

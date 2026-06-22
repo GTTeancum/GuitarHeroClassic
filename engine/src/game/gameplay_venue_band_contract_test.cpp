@@ -1180,7 +1180,8 @@ int main() {
                  "voidpopulate_lighting_keyframe_payload("
                  "Gameplay::LightingPreset::Keyframe&keyframe,"
                  "constuint8_t*body,size_tsize,size_trecord_start,"
-                 "size_tpayload_end,boolinclude_object_refs)",
+                 "size_tpayload_end,boolinclude_object_refs,"
+                 "constLightingObjectNameSets*names)",
                  "LightPreset keyframe target-state scanning is shared");
   ok &= contains(gameplay_c,
                  "if(out.size()<count&&record_start<size){"
@@ -1191,10 +1192,10 @@ int main() {
                  "unlabeled LightPreset fallback frames are explicit in logs");
   ok &= contains(gameplay_c,
                  "populate_lighting_keyframe_payload(k,body,size,record_start,size,"
-                 "false);",
+                 "false,names);",
                  "unlabeled LightPreset fallback scans the remaining payload without tail refs");
   ok &= contains(gameplay_c,
-                 "include_object_refs&&s.rfind(\".spot\")",
+                 "include_object_refs&&(s.rfind(\".spot\")",
                  "unlabeled LightPreset fallback does not promote preset-level spot refs");
   ok &= contains(gameplay_c,
                  "if(!k.mesh_targets.empty()){out.push_back(std::move(k));}",
@@ -1296,8 +1297,17 @@ int main() {
                  "constuint32_tlight_count=r.u32();",
                  "Environ decoder consumes authored light-ref array count");
   ok &= contains(milo_scene_cpp_c,
+                 "boolis_environ_light_ref(std::string_viewref)",
+                 "Environ decoder validates both .lit and extensionless light refs");
+  ok &= contains(milo_scene_cpp_c,
+                 "ref.compare(ref.size()-4,4,\".lit\")==0",
+                 "Environ decoder still accepts explicit .lit light refs");
+  ok &= contains(milo_scene_cpp_c,
+                 "std::isalnum(uc)||c=='_'",
+                 "Environ decoder accepts PS2 extensionless Light object refs");
+  ok &= contains(milo_scene_cpp_c,
                  "env.lights.push_back(std::move(ref));",
-                 "Environ decoder retains authored .lit refs");
+                 "Environ decoder retains authored light refs");
   ok &= contains(milo_scene_cpp_c,
                  "constsize_tbase=r.pos;",
                  "Environ decoder uses dynamic payload base after .lit refs");
@@ -1339,6 +1349,27 @@ int main() {
                  "log_lighting_light_object_coverage(lighting_scene,"
                  "lighting_presets_,venue_lights_,venue_environs_);",
                  "runtime logs decoded Light/Environ coverage before rendering");
+  ok &= contains(gameplay_c,
+                 "structLightingObjectNameSets{"
+                 "std::unordered_set<std::string>spots;",
+                 "LightPreset scanner receives object-name sets");
+  ok &= contains(gameplay_c,
+                 "returnknown_lighting_ref(s,names->spots)||"
+                 "known_lighting_ref(s,names->environs)||"
+                 "known_lighting_ref(s,names->lights);",
+                 "LightPreset label scanner rejects extensionless known object refs");
+  ok &= contains(gameplay_h_c,
+                 "std::unordered_set<std::string>venue_light_names_;",
+                 "runtime caches raw venue geometry Light names for extensionless refs");
+  ok &= contains(gameplay_h_c,
+                 "std::unordered_set<std::string>venue_environ_names_;",
+                 "runtime caches raw venue geometry Environ names for extensionless refs");
+  ok &= contains(gameplay_c,
+                 "venue_light_names_.insert(light.name);",
+                 "venue Light name cache includes raw scene entries even before decode succeeds");
+  ok &= contains(gameplay_c,
+                 "venue_environ_names_.insert(env.name);",
+                 "venue Environ name cache includes raw scene entries even before decode succeeds");
   ok &= contains(gameplay_h_c,
                  "std::map<std::string,ghogx::milo_scene::LightObj>"
                  "venue_lights_;",
@@ -1359,6 +1390,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "matched_venue_refs",
                  "LightPreset .lit coverage resolves against venue geometry Light objects");
+  ok &= contains(gameplay_c,
+                 "names&&known_lighting_ref(s,names->lights)",
+                 "LightPreset .lit coverage accepts extensionless decoded Light names");
   ok &= contains(gameplay_c,
                  "\"[world]lightingEnvironobjectdecoded:",
                  "runtime logs decoded Environ object data");
@@ -1395,6 +1429,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "matched_venue_env_refs",
                  "LightPreset .env coverage resolves against venue geometry Environ objects");
+  ok &= contains(gameplay_c,
+                 "names&&known_lighting_ref(s,names->environs)",
+                 "LightPreset .env coverage accepts extensionless decoded Environ names");
   ok &= contains(renderer_c,
                  "voidapply_local_translation_delta(std::array<float,16>&world,"
                  "constfloatdelta[3])",

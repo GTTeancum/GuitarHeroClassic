@@ -80,6 +80,17 @@ struct Reader {
 // string. Constant across all GH2 PS2 render objects we have inspected.
 constexpr size_t kObjMeta = 9;
 
+bool is_environ_light_ref(std::string_view ref) {
+  if (ref.empty()) return false;
+  if (ref.size() >= 4 && ref.compare(ref.size() - 4, 4, ".lit") == 0)
+    return true;
+  for (char c : ref) {
+    const unsigned char uc = static_cast<unsigned char>(c);
+    if (!(std::isalnum(uc) || c == '_')) return false;
+  }
+  return true;
+}
+
 // Read the Trans portion that every Trans/Mesh starts with, leaving the cursor
 // just past the Trans parent string. Returns local matrix, world matrix, parent.
 void read_trans_block(Reader& r, Xfm& local, Xfm& world, std::string& parent) {
@@ -373,7 +384,7 @@ EnvironObj decode_environ(const std::string& entry_name,
     env.lights.reserve(light_count);
     for (uint32_t i = 0; i < light_count; ++i) {
       std::string ref = r.str();
-      if (ref.size() < 4 || ref.compare(ref.size() - 4, 4, ".lit") != 0) {
+      if (!is_environ_light_ref(ref)) {
         throw std::runtime_error("milo_scene: invalid Environ light ref");
       }
       env.lights.push_back(std::move(ref));
