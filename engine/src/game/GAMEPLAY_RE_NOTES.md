@@ -1484,3 +1484,25 @@ Rejected native probe:
   MeshAnim, and AnimFilter samples with zero miss rows and zero unsupported
   material-channel rows. Frames 240 and 350 are coherent authored-camera stone
   venue renders, so `stone` is now covered as venue-runtime breadth evidence.
+
+2026-06-22 venue start EventTrigger dispatch:
+
+- The first stone validation exposed decoded `Start.trig` MatAnim and
+  ParticleSys routes that did not sample because native initialized only
+  start-event visibility before applying the current excitement state. The
+  extracted `EventTrigger__Start.trig` body begins with the lower-case packed
+  payload label `start`, followed by filter/group refs, matching the same
+  EventTrigger route shape already used for later venue cues.
+- Native now dispatches `apply_venue_event("start", false)` after the world
+  renderer is created and before the persistent excitement event. This keeps
+  `start` as a one-shot trigger instead of replacing the latched excitement
+  state, while routing the authored start MatAnims, ParticleSys, AnimFilters,
+  and visibility through the shared event path.
+- `analysis/native_validation/stone_start_event_dispatch_20260622_current/`
+  reruns the same hidden `stone` override window. The log records 8
+  `venue event start: MatAnim` rows, 3 `venue event start: ParticleSys` rows,
+  3 `venue event start: AnimFilter` rows, and 6 live `venue ParticleSys sample`
+  rows, while preserving `dw_stone_drums`, 2 regular camera sweeps, 2
+  `post_switch_cam` moves, 2 active lighting presets/keyframes, zero miss rows,
+  and zero unsupported material-channel rows. Frame 350 remains a coherent
+  authored-camera stone venue render.

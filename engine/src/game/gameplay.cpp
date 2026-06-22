@@ -7972,13 +7972,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 venue_base_hidden_meshes_ = std::move(hidden_venue_meshes);
                 venue_runtime_hidden_meshes_ = venue_base_hidden_meshes_;
-                apply_venue_event_visibility("start", true);
                 world_ = std::make_unique<ghogx::render::MiloSceneRenderer>(win);
                 world_->set_scene(std::move(venue_scene), venue_textures);
                 world_->set_active_particle_systems({});
                 world_->set_particle_intensities({});
                 world_->set_particle_sizes({});
                 world_->set_hidden_meshes(composed_venue_hidden_meshes());
+                apply_venue_event("start", false);
                 if (active_venue_event_.empty()) {
                     apply_venue_event("excitement_bad");
                 } else {

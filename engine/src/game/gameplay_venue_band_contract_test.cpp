@@ -321,6 +321,12 @@ int main() {
                  "venue_mesh_transform_offsets_.clear();"
                  "venue_mesh_position_overrides_.clear();",
                  "venue reset clears transform and MeshAnim renderer overrides");
+  ok &= appears_before(gameplay_c,
+                       "world_->set_hidden_meshes(composed_venue_hidden_meshes());"
+                       "apply_venue_event(\"start\",false);",
+                       "if(active_venue_event_.empty()){"
+                       "apply_venue_event(\"excitement_bad\");}",
+                       "initial venue start EventTrigger runs before persistent excitement");
   ok &= contains(gameplay_c,
                  "venue_runtime_hidden_meshes_=venue_base_hidden_meshes_;"
                  "apply_venue_event_visibility(\"start\",false);",
@@ -752,9 +758,8 @@ int main() {
                  "apply_venue_event_visibility(event_name,true);",
                  "current venue EventTrigger visibility still applies through the latching path");
   ok &= contains(gameplay_c,
-                 "venue_runtime_hidden_meshes_=venue_base_hidden_meshes_;"
-                 "apply_venue_event_visibility(\"start\",true);",
-                 "decoded start.trig initializes runtime venue visibility");
+                 "apply_venue_event(\"start\",false);",
+                 "decoded start.trig initializes runtime venue events");
   ok &= contains(gameplay_c,
                  "world_->set_hidden_meshes(composed_venue_hidden_meshes());",
                  "renderer receives composed venue visibility state");
