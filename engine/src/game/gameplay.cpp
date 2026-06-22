@@ -3103,7 +3103,11 @@ LightingRequest lighting_request_at(const ghogx::chart::Chart& chart,
                 ev.text.find(')', open == std::string::npos ? 0 : open);
             if (open != std::string::npos && close != std::string::npos &&
                 close > open + 1) {
-                req.adjective = ev.text.substr(open + 1, close - open - 1);
+                const std::string candidate =
+                    ev.text.substr(open + 1, close - open - 1);
+                if (is_lighting_adjective(candidate)) {
+                    req.adjective = candidate;
+                }
             }
         }
     }

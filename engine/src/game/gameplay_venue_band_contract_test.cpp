@@ -729,6 +729,13 @@ int main() {
                  "choose_lighting_preset(lighting_presets_,lighting_request,"
                  "lighting_excitement)",
                  "lighting preset selection consumes active venue excitement");
+  ok &= contains(gameplay_c,
+                 "\"blackout\",\"strobe\",\"flare\",\"color1\",\"color2\","
+                 "\"sweep\"",
+                 "lighting request parser keeps the authored LIGHTING_ADJECTIVES set");
+  ok &= contains(gameplay_c,
+                 "if(is_lighting_adjective(candidate)){req.adjective=candidate;}",
+                 "lighting request ignores unsupported chart lighting adjectives");
   ok &= absent(gameplay_c,
                "constexpruint32_tkDefaultExcitement=2;",
                "lighting preset selection must not hardcode okay excitement");

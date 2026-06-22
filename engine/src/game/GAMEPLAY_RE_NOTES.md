@@ -210,6 +210,21 @@ Open work:
   skip gate, changes presets from `blackout.pst` to `strobe_okay.pst`,
   `verse_okay.pst`, and `color1.pst`, and renders nonblank arena frames.
   This is traced keyframe-dispatch plumbing, not final render-light parity.
+- 2026-06-22 lighting adjective filter follow-up:
+  `world_objects.dta` defines `LIGHTING_ADJECTIVES` as only `blackout`,
+  `strobe`, `flare`, `color1`, `color2`, and `sweep`. Some chart text events
+  seen in theatre/YYZ validation carry unsupported symbols such as
+  `[lighting (chase)]`; native previously copied that string into the lighting
+  request and then reached the category-only preset only by fallback. The
+  request parser now clears the adjective on a lighting event but only stores
+  it when it is in the authored adjective set, so unsupported chart strings
+  behave as category-only lighting instead of becoming phantom preset names.
+  Validation: `analysis/native_validation/lighting_adjective_filter_20260622_current/`
+  reruns `yyz`/theatre from `8.0s` and changes the active preset request from
+  `CHORUS/chase` to `CHORUS/` while preserving keyframe cues and post-switch
+  camera movement. `analysis/native_validation/lighting_valid_adjective_regression_20260622_current/`
+  reruns `shoutatthedevil`/arena and preserves the valid
+  `request=VERSE/color1` route into `color1.pst`.
 - 2026-06-21 lighting transition follow-up: the decoded `duration` /
   `fade_out` fields now drive a stateful native spotlight target instead of a
   snap-only `set_active_spotlights` call. On a keyframe change, native keeps the
