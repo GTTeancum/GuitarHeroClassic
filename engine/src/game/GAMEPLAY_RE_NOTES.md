@@ -1381,3 +1381,24 @@ Rejected native probe:
   but the exercised MatAnim routes are no longer unsupported. Captured frames
   `frame_00180.bmp`, `frame_00360.bmp`, and `frame_00590.bmp` remain coherent
   authored-camera battle renders.
+
+2026-06-22 big venue route validation:
+
+- Stock PS2 `config/gen/songs.dtb` maps `hangar18` to
+  `metal1` / `sg` / `big`. `analysis/native_validation/big_venue_debug_hangar18_20260622_current/`
+  reruns a hidden native window from `80.0s` with diagnostic autoplay and
+  `GHOGX_DEBUG_VENUE_FILTERS=1`.
+- The run exits cleanly after 600 frames and loads `big_geom.milo_ps2`,
+  `big_lighting.milo_ps2`, `metal1`, `metal_singer`, `metal_bass`,
+  `metal_drummer`, and `dw_big_drums`. The venue log records 54 particle
+  event starts, 25 AnimFilter starts, 360 live `venue ParticleSys sample`
+  rows, 8,511 live `venue AnimFilter sample` rows, 4 lighting keyframes,
+  4 lighting presets, 3 regular camera sweeps, and 1 `post_switch_cam` row.
+  It records zero `unsupported channel shape`, zero
+  `has no supported material channels`, zero decode failures, and zero
+  `miss=` / `MISS` rows.
+- Captures `frame_00180.bmp`, `frame_00360.bmp`, and `frame_00590.bmp` are
+  coherent authored-camera `big` venue renders with fan/speaker animation,
+  particle effects, drum kit, performers, lighting, and cameras active. Treat
+  this as venue-route health evidence only; it is not a final character fidelity
+  signoff.
