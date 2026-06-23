@@ -2931,3 +2931,19 @@ Rejected native probe:
   sweeps, two active lighting presets/keyframes, four drummer cues, and zero
   unsupported, decoded-route miss, unresolved/missing, nonzero failed, or real
   runtime error rows.
+
+2026-06-23 arena camera composition checkpoint:
+
+- `analysis/native_validation/arena_camera_composition_current/` reruns stock
+  PS2 `shoutatthedevil` in arena from `16.0s` with hidden fixed-step diagnostic
+  autoplay and `GHOGX_DEBUG_CAMERA=1`. It exits `0` and confirms the scripted
+  regular-camera route is selecting traced authored shot names and target refs
+  (`flr_near_rt01x23w`, `balcony_lft01`, then forced
+  `flr_near_rt02_singer`) with no selector-order or cross-shot-blend
+  regression. The remaining mismatch is pose/result composition: selected
+  arena eyes still land at values such as `z=-221.38` and `z=-318.44`, while
+  the accepted PS2 relocated arena result rows documented above were around
+  `z=60..82` in the active gameplay window. Keep this as an implementation
+  gate for the shared CamShot result/path/projection bridge; do not solve it
+  with shot-name clamps, arena-only offsets, or restored synthetic cross-shot
+  blending.
