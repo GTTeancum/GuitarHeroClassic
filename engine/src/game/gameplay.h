@@ -125,6 +125,7 @@ class Gameplay {
     std::string target_subpart;
     std::string parent_entity;
     std::string parent_subpart;
+    bool use_parent_rotation = false;
     bool camshot_refs_decoded = false;
     std::string distance;
     std::string facing;

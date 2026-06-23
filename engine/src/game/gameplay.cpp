@@ -890,6 +890,9 @@ std::optional<Gameplay::CameraKey> decode_camshot_pose_refs(
     }
     refs.parent_entity = std::move(parent_entity);
     refs.parent_subpart = std::move(parent_subpart);
+    if (cursor < size && body[cursor] <= 1) {
+        refs.use_parent_rotation = body[cursor] != 0;
+    }
     return refs;
 }
 
@@ -7066,6 +7069,7 @@ std::vector<std::pair<Gameplay::CameraKey, size_t>> decode_camshot_poses(
                 c.key.target_subpart = std::move(refs->target_subpart);
                 c.key.parent_entity = std::move(refs->parent_entity);
                 c.key.parent_subpart = std::move(refs->parent_subpart);
+                c.key.use_parent_rotation = refs->use_parent_rotation;
                 c.key.camshot_refs_decoded = refs->camshot_refs_decoded;
             }
             candidates.push_back(c);
@@ -7185,7 +7189,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     resolve_unqualified_camshot_target(de.name, key);
                     std::fprintf(
                         stderr,
-                        "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) fov=%s%.3f target=%s:%s parent=%s:%s refs=%d\n",
+                        "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) fov=%s%.3f target=%s:%s parent=%s:%s parent_rot=%d refs=%d\n",
                         de.name.c_str(), pose.second, key.eye[0], key.eye[1],
                         key.eye[2], key.forward[0], key.forward[1],
                         key.forward[2], key.up[0], key.up[1], key.up[2],
@@ -7193,6 +7197,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                         key.has_fov ? key.fov : 0.0f,
                         key.target_entity.c_str(), key.target_subpart.c_str(),
                         key.parent_entity.c_str(), key.parent_subpart.c_str(),
+                        key.use_parent_rotation ? 1 : 0,
                         key.camshot_refs_decoded ? 1 : 0);
                     if (key.has_screen_offset) {
                         std::fprintf(stderr,
@@ -7264,6 +7269,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     pos.target_subpart = c.key.target_subpart;
                     pos.parent_entity = c.key.parent_entity;
                     pos.parent_subpart = c.key.parent_subpart;
+                    pos.use_parent_rotation = c.key.use_parent_rotation;
                     pos.camshot_refs_decoded = c.key.camshot_refs_decoded;
                 }
                 c.key.positions.push_back(std::move(pos));
@@ -7280,10 +7286,11 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s refs=%d poses=%zu pose body+0x%zX order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu pose body+0x%zX order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
+                         key.use_parent_rotation ? 1 : 0,
                          key.camshot_refs_decoded ? 1 : 0, key.positions.size(),
                          c.off, c.order,
                          key.special ? 1 : 0, key.walk_ok ? 1 : 0,
@@ -7568,17 +7575,19 @@ std::array<float, 3> camera_authored_at_for_key(
                             1.0f - 2.0f * (x * x + z * z),
                             2.0f * (y * z + x * w)};
         const auto world_forward =
-            parent ? transform_vector_game(parent->world, forward)
-                   : std::array<float, 3>{forward[0], forward[1], forward[2]};
+            (parent && key.use_parent_rotation)
+                ? transform_vector_game(parent->world, forward)
+                : std::array<float, 3>{forward[0], forward[1], forward[2]};
         return {eye[0] + world_forward[0] * 100.0f,
                 eye[1] + world_forward[1] * 100.0f,
                 eye[2] + world_forward[2] * 100.0f};
     }
     if (key.has_basis) {
         const auto world_forward =
-            parent ? transform_vector_game(parent->world, key.forward)
-                   : std::array<float, 3>{key.forward[0], key.forward[1],
-                                          key.forward[2]};
+            (parent && key.use_parent_rotation)
+                ? transform_vector_game(parent->world, key.forward)
+                : std::array<float, 3>{key.forward[0], key.forward[1],
+                                       key.forward[2]};
         return {eye[0] + world_forward[0] * 100.0f,
                 eye[1] + world_forward[1] * 100.0f,
                 eye[2] + world_forward[2] * 100.0f};
@@ -7608,6 +7617,10 @@ std::array<float, 3> camera_authored_eye_for_key(
     // CamShot keyframe targets are resolved in camera_authored_at_for_key().
     // The separate parent field is the traced live source used by the PS2
     // Trans path to resolve a path-frame camera offset.
+    if (!key.use_parent_rotation) {
+        return {key.eye[0] + parent->world[12], key.eye[1] + parent->world[13],
+                key.eye[2] + parent->world[14]};
+    }
     return transform_point_game(parent->world, key.eye);
 }
 
@@ -7638,8 +7651,9 @@ void camera_authored_up_for_key(
                        2.0f * (y * z - x * w),
                        1.0f - 2.0f * (x * x + y * y)};
         const auto world_up =
-            parent ? transform_vector_game(parent->world, up)
-                   : std::array<float, 3>{up[0], up[1], up[2]};
+            (parent && key.use_parent_rotation)
+                ? transform_vector_game(parent->world, up)
+                : std::array<float, 3>{up[0], up[1], up[2]};
         out[0] = world_up[0];
         out[1] = world_up[1];
         out[2] = world_up[2];
@@ -7647,8 +7661,9 @@ void camera_authored_up_for_key(
     }
     if (key.has_basis) {
         const auto world_up =
-            parent ? transform_vector_game(parent->world, key.up)
-                   : std::array<float, 3>{key.up[0], key.up[1], key.up[2]};
+            (parent && key.use_parent_rotation)
+                ? transform_vector_game(parent->world, key.up)
+                : std::array<float, 3>{key.up[0], key.up[1], key.up[2]};
         out[0] = world_up[0];
         out[1] = world_up[1];
         out[2] = world_up[2];

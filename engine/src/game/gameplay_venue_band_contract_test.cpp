@@ -1868,6 +1868,7 @@ int main() {
                  "CamShot basis decoder treats row 0 as forward and row 2 as up");
   ok &= contains(gameplay_h_c,
                  "std::stringparent_entity;std::stringparent_subpart;"
+                 "booluse_parent_rotation=false;"
                  "boolcamshot_refs_decoded=false;",
                  "CameraKey keeps CamShot parent refs distinct from aim targets");
   ok &= contains(gameplay_c,
@@ -1883,6 +1884,9 @@ int main() {
                  "refs.parent_entity=std::move(parent_entity);"
                  "refs.parent_subpart=std::move(parent_subpart);",
                  "CamShot ref decoder preserves the separate camera parent field");
+  ok &= contains(gameplay_c,
+                 "refs.use_parent_rotation=body[cursor]!=0;",
+                 "CamShot ref decoder preserves the keyframe use_parent_rotation byte");
   ok &= contains(gameplay_c,
                  "if(!c.key.camshot_refs_decoded){"
                  "infer_camshot_target(strings,c.shot,c.key);}",
@@ -1906,7 +1910,8 @@ int main() {
                  "regular camera pose variants complete decoded unqualified target refs");
   ok &= contains(gameplay_c,
                  "pos.parent_entity=c.key.parent_entity;"
-                 "pos.parent_subpart=c.key.parent_subpart;",
+                 "pos.parent_subpart=c.key.parent_subpart;"
+                 "pos.use_parent_rotation=c.key.use_parent_rotation;",
                  "regular camera pose variants inherit fallback parent refs");
   ok &= contains(gameplay_c,
                  "structCameraTarget{std::array<float,16>world=",
@@ -1925,8 +1930,12 @@ int main() {
                  "returntransform_point_game(parent->world,key.eye);",
                  "camera parent source applies the full path-frame transform");
   ok &= contains(gameplay_c,
+                 "if(!key.use_parent_rotation){return{key.eye[0]+parent->world[12]",
+                 "camera parent source can translate without rotating when authored");
+  ok &= contains(gameplay_c,
+                 "(parent&&key.use_parent_rotation)?"
                  "transform_vector_game(parent->world,key.forward)",
-                 "camera parent source transforms authored basis vectors");
+                 "camera parent source gates authored basis rotation by use_parent_rotation");
   ok &= contains(gameplay_c,
                  "if(!key.target_entity.empty()){autoit=targets.find(",
                  "camera target refs drive look-at before authored basis");
@@ -1935,7 +1944,8 @@ int main() {
                  "targeted CamShots keep authored camera roll instead of performer-bone roll");
   ok &= contains(gameplay_c,
                  "if(key.has_basis){constautoworld_forward="
-                 "parent?transform_vector_game(parent->world,key.forward)",
+                 "(parent&&key.use_parent_rotation)?"
+                 "transform_vector_game(parent->world,key.forward)",
                  "empty-target camera shots preserve decoded basis as look direction");
   ok &= contains(gameplay_c,
                  "previous->name!=current.name",

@@ -65,6 +65,24 @@ Open work:
   `analysis/native_validation/camshot_unqualified_target_crossroute_current/`
   covers arena, small2, battle, big, and theatre with camera, venue event, and
   lighting rows active and the same unresolved-target guard clear.
+- 2026-06-23 CamShot parent-rotation byte: the local PS2
+  `world_objects_ps2.dta::CamShot` keyframe schema includes
+  `use_parent_rotation` immediately after the `parent` ref. Raw stock PS2 arena
+  bodies in `analysis/camshot_raw_probe_20260623_current/` match a compact
+  byte at that position: `SOLO_NEAR03.shot` has parent
+  `guitarist0:spot_neck_fret20.mesh` followed by `01`, while shots such as
+  `flr_near_rt02` and `flr_near_lft02` have performer parents followed by
+  `00`. Native now decodes that byte into `CameraKey::use_parent_rotation`.
+  Parented camera keys always inherit parent translation, but only rotate the
+  authored eye/basis/up vectors when this source field is true; target look-at
+  remains driven by decoded `targets`. Validation:
+  `analysis/native_validation/camshot_parent_rotation_20260623_current/`
+  builds from the stock PS2 `GEN` assets, auto-starts arena
+  `shoutatthedevil`, seeks to 16s, exits `0`, logs both `parent_rot=0` and
+  `parent_rot=1` decoded CamShots, and has no missing-ARK or unsupported rows.
+  This removes a broad native composition error for parented shots; it is not
+  final arena camera parity, because empty-parent low arena shots still need the
+  shared CamShot result/path/projection bridge documented below.
 - 2026-06-20 CamShot layout pass: PS2 object data and the local
   `world_objects_ps2.dta::CamShot` schema place `field_of_view` immediately
   before the decoded camera transform. Native now decodes that value from

@@ -18,6 +18,7 @@
 /*.log.*
 /*.png
 /smoke_shots/
+/analysis/
 
 # Backups
 /*.bak
