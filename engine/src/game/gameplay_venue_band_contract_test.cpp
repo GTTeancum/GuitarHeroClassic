@@ -1843,6 +1843,10 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(has_non_neutral_pose){candidates.erase(",
                  "CamShot parser keeps neutral-only shots but drops neutral scanner false positives");
+  ok &= contains(gameplay_c,
+                 "c.key.forward[i]=r[0][i];"
+                 "c.key.up[i]=r[2][i];",
+                 "CamShot basis decoder treats row 0 as forward and row 2 as up");
   ok &= contains(gameplay_h_c,
                  "std::stringparent_entity;std::stringparent_subpart;"
                  "boolcamshot_refs_decoded=false;",
@@ -1869,12 +1873,31 @@ int main() {
                  "pos.parent_subpart=c.key.parent_subpart;",
                  "regular camera pose variants inherit fallback parent refs");
   ok &= contains(gameplay_c,
-                 "std::optional<std::array<float,3>>camera_parent_for_key(",
+                 "structCameraTarget{std::array<float,16>world=",
+                 "camera target runtime keeps full Trans-style rows");
+  ok &= contains(gameplay_c,
+                 "std::unordered_map<std::string,CameraTarget>camera_targets;",
+                 "camera target map stores transforms instead of points");
+  ok &= contains(gameplay_c,
+                 "std::optional<CameraTarget>camera_parent_for_key(",
                  "camera runtime resolves source from CamShot parent refs");
   ok &= contains(gameplay_c,
                  "constautoparent=camera_parent_for_key(key,targets);"
                  "if(!parent)returneye;",
                  "camera eye movement uses parent refs instead of aim target refs");
+  ok &= contains(gameplay_c,
+                 "returntransform_point_game(parent->world,key.eye);",
+                 "camera parent source applies the full path-frame transform");
+  ok &= contains(gameplay_c,
+                 "transform_vector_game(parent->world,key.forward)",
+                 "camera parent source transforms authored basis vectors");
+  ok &= contains(gameplay_c,
+                 "if(key.has_basis){constautoworld_forward="
+                 "parent?transform_vector_game(parent->world,key.forward)",
+                 "camera runtime preserves decoded basis before target fallback");
+  ok &= contains(gameplay_c,
+                 "if(!key.target_entity.empty()){autoit=targets.find(",
+                 "camera target refs remain a fallback when no authored basis/quaternion is present");
   ok &= contains(gameplay_c,
                  "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
                  "camera loader keeps solo-only CamShots for solo sections");

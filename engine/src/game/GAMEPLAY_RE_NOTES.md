@@ -7,10 +7,11 @@
   `pick_new_shot` / `start_shot` at roughly bar-scale cadence, plus
   `post_switch_cam` for intra-shot camera position changes.
 - `CamShot` / `BandCamShot` data contains a path-frame camera transform,
-  keyframe aim targets, and a separate parent/source object. Accepted PS2
+  keyframe target refs, and a separate parent/source object. Accepted PS2
   traces split this from the final render-camera result row. Native resolves
-  moving source shots by adding the live parent transform to the decoded
-  path-frame eye; keyframe targets remain aim-only.
+  moving source shots by composing the decoded path-frame eye/basis through the
+  live parent transform; target refs are retained as runtime composition
+  metadata and a fallback when no authored basis/quaternion exists.
 - Evidence from hidden native captures:
   - `engine/out/codex_native_yyz_f500_regular_camera_20260614.bmp` used an
     older broad target-relative eye path and rendered a clipped floor-level
@@ -157,6 +158,54 @@ Open work:
   scan of all camera debug rows finds `0` cases where `a=<shot>` and `b=<shot>`
   names differ, so post-fix interpolation is limited to same-shot position
   changes.
+- 2026-06-23 GH2DXu arena camera row relocation:
+  the direct PS2 route for `arena/shoutatthedevil` with autoplay, save disabled,
+  `glam1`, and `flying_v` reached active in-song gameplay and proved that the
+  old retail/Battle result-row addresses (`0x00b92ef0`, `0x00b92f50`,
+  `0x00b930e0`, `0x00b8e9d0`, `0x00b8ea10`) are static in this GH2DXu direct
+  route. The same camera output family is relocated around
+  `0x00cea830`/`0x00cea890`/`0x00ceaa20`/`0x00ceab20`, with the active
+  screenshot and samples stored under
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_camera_*_20260623.*`.
+  The mutable clusters mirror the accepted PS2 camera model: a result family,
+  child/result rows, output/projection rows carrying repeated `768.0` screen
+  fields, and a stable source/authored row. Example output translations in
+  `0x00ceaa20` change from roughly `(94.7,-18.9,82.2)` to
+  `(174.3,7.1,60.0)`, while the current native arena frame still drives the
+  renderer from decoded static CamShot poses such as
+  `flr_near_rt02_singer eye=(125,-353,-315)` and can look upward through venue
+  rigging. Treat this as structural evidence for implementing the shared
+  CamShot result/path/projection bridge, not as license to hardcode arena camera
+  positions or restore synthetic cross-shot blending.
+- 2026-06-23 rejected arena camera rerun:
+  `analysis/pcsx2_trace/arena_camera_live_rows_20260623/` tried to resample the
+  relocated GH2DXu camera rows together with live `current_shot` symbols, but
+  the associated PCSX2 HWND capture was already on the `shoutatthedevil` fail
+  menu at 14% complete and the row sampler recorded zero live changes. Do not
+  use it as gameplay evidence. The temporary
+  `GH2DXu_PS2_trace_arena_camera_live.iso` and staging folder were deleted
+  immediately after the rejected capture.
+- 2026-06-23 CamShot authored-basis correction: accepted PS2 camera result
+  rows (`gdx_cam_output_00ceaa20` in
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_camera_relocated_rows_20260623.json`)
+  carry a complete render-camera basis as `forward, position, right, up`, with
+  the derived view rows using `right/up/forward` columns and 768.0 projection
+  constants. The packed CamShot pose row uses the same axis order before the
+  eye translation. Native now decodes CamShot row 0 as forward and row 2 as up,
+  and preserves that decoded basis before falling back to direct target
+  look-at. This avoids the previous shared failure mode where a low/offset
+  camera pose was re-aimed straight at a performer target and could look up
+  through arena geometry. This is a shared result-row bridge step, not a
+  shot-specific clamp or singer-camera hack.
+  Validation:
+  `analysis/native_validation/camera_basis_target_fallback_arena_shout_20260623_current/`
+  builds on the previous bad arena `_singer` shot and exits `0`; the retained
+  frame no longer points upward through the rigging, but it is still low and
+  occluded by foreground arena geometry, so final camera result-row composition
+  remains open. `analysis/native_validation/camera_basis_crossroute_smoke_20260623_current/`
+  runs small2, battle, big, stone, and theatre routes after the shared basis
+  change; all exits are `0`, regular camera sweeps and lighting presets remain
+  active, and no new temp ISO/staging artifacts were produced.
 
 ## Performer Role Routing
 

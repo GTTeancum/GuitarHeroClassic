@@ -1299,6 +1299,31 @@ std::array<float, 16> mat4_mul_game(const std::array<float, 16>& a,
     return r;
 }
 
+struct CameraTarget {
+    std::array<float, 16> world = {1.0f, 0.0f, 0.0f, 0.0f,
+                                   0.0f, 1.0f, 0.0f, 0.0f,
+                                   0.0f, 0.0f, 1.0f, 0.0f,
+                                   0.0f, 0.0f, 0.0f, 1.0f};
+};
+
+std::array<float, 3> mat4_position_game(const std::array<float, 16>& m) {
+    return {m[12], m[13], m[14]};
+}
+
+std::array<float, 3> transform_point_game(const std::array<float, 16>& m,
+                                          const float p[3]) {
+    return {p[0] * m[0] + p[1] * m[4] + p[2] * m[8] + m[12],
+            p[0] * m[1] + p[1] * m[5] + p[2] * m[9] + m[13],
+            p[0] * m[2] + p[1] * m[6] + p[2] * m[10] + m[14]};
+}
+
+std::array<float, 3> transform_vector_game(const std::array<float, 16>& m,
+                                           const float v[3]) {
+    return {v[0] * m[0] + v[1] * m[4] + v[2] * m[8],
+            v[0] * m[1] + v[1] * m[5] + v[2] * m[9],
+            v[0] * m[2] + v[1] * m[6] + v[2] * m[10]};
+}
+
 struct VenueCameraPolicy {
     std::string intro_distance;
     std::string intro_facing;
@@ -7002,7 +7027,10 @@ std::vector<std::pair<Gameplay::CameraKey, size_t>> decode_camshot_poses(
             c.key.eye[2] = pos[2];
             c.key.has_quat = false;
             for (int i = 0; i < 3; ++i) {
-                c.key.forward[i] = r[1][i];
+                // Accepted PS2 render-camera rows store the complete camera
+                // basis as forward, position, right, up. The packed CamShot
+                // pose uses the same axis order before the eye translation.
+                c.key.forward[i] = r[0][i];
                 c.key.up[i] = r[2][i];
             }
             c.key.has_basis = true;
@@ -7497,18 +7525,15 @@ std::vector<Gameplay::CameraKey> regular_camera_sweep_keys(
     return keys;
 }
 
+std::optional<CameraTarget> camera_parent_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets);
+
 std::array<float, 3> camera_authored_at_for_key(
     const Gameplay::CameraKey& key,
-    const std::unordered_map<std::string, std::array<float, 3>>& targets,
+    const std::unordered_map<std::string, CameraTarget>& targets,
     const float eye[3]) {
-    if (!key.target_entity.empty()) {
-        auto it = targets.find(
-            camera_target_id(key.target_entity, key.target_subpart));
-        if (it == targets.end() && !key.target_subpart.empty()) {
-            it = targets.find(camera_target_id(key.target_entity, {}));
-        }
-        if (it != targets.end()) return it->second;
-    }
+    const auto parent = camera_parent_for_key(key, targets);
     if (key.has_quat) {
         float q[4] = {key.quat[0], key.quat[1], key.quat[2], key.quat[3]};
         const float n =
@@ -7517,37 +7542,39 @@ std::array<float, 3> camera_authored_at_for_key(
             for (float& v : q) v /= n;
         }
         const float x = q[0], y = q[1], z = q[2], w = q[3];
-        return {eye[0] + 2.0f * (x * y - z * w) * 100.0f,
-                eye[1] + (1.0f - 2.0f * (x * x + z * z)) * 100.0f,
-                eye[2] + 2.0f * (y * z + x * w) * 100.0f};
+        float forward[3] = {2.0f * (x * y - z * w),
+                            1.0f - 2.0f * (x * x + z * z),
+                            2.0f * (y * z + x * w)};
+        const auto world_forward =
+            parent ? transform_vector_game(parent->world, forward)
+                   : std::array<float, 3>{forward[0], forward[1], forward[2]};
+        return {eye[0] + world_forward[0] * 100.0f,
+                eye[1] + world_forward[1] * 100.0f,
+                eye[2] + world_forward[2] * 100.0f};
     }
     if (key.has_basis) {
-        return {eye[0] + key.forward[0] * 100.0f,
-                eye[1] + key.forward[1] * 100.0f,
-                eye[2] + key.forward[2] * 100.0f};
+        const auto world_forward =
+            parent ? transform_vector_game(parent->world, key.forward)
+                   : std::array<float, 3>{key.forward[0], key.forward[1],
+                                          key.forward[2]};
+        return {eye[0] + world_forward[0] * 100.0f,
+                eye[1] + world_forward[1] * 100.0f,
+                eye[2] + world_forward[2] * 100.0f};
+    }
+    if (!key.target_entity.empty()) {
+        auto it = targets.find(
+            camera_target_id(key.target_entity, key.target_subpart));
+        if (it == targets.end() && !key.target_subpart.empty()) {
+            it = targets.find(camera_target_id(key.target_entity, {}));
+        }
+        if (it != targets.end()) return mat4_position_game(it->second.world);
     }
     return {0.0f, -80.0f, -330.0f};
 }
 
-std::optional<std::array<float, 3>> camera_target_for_key(
+std::optional<CameraTarget> camera_parent_for_key(
     const Gameplay::CameraKey& key,
-    const std::unordered_map<std::string, std::array<float, 3>>& targets) {
-    auto lookup = [&](std::string_view entity, std::string_view subpart)
-        -> std::optional<std::array<float, 3>> {
-        if (entity.empty()) return std::nullopt;
-        auto it = targets.find(camera_target_id(entity, subpart));
-        if (it == targets.end() && !subpart.empty()) {
-            it = targets.find(camera_target_id(entity, {}));
-        }
-        if (it == targets.end()) return std::nullopt;
-        return it->second;
-    };
-    return lookup(key.target_entity, key.target_subpart);
-}
-
-std::optional<std::array<float, 3>> camera_parent_for_key(
-    const Gameplay::CameraKey& key,
-    const std::unordered_map<std::string, std::array<float, 3>>& targets) {
+    const std::unordered_map<std::string, CameraTarget>& targets) {
     if (key.parent_entity.empty()) return std::nullopt;
     auto it = targets.find(camera_target_id(key.parent_entity,
                                             key.parent_subpart));
@@ -7555,24 +7582,26 @@ std::optional<std::array<float, 3>> camera_parent_for_key(
         it = targets.find(camera_target_id(key.parent_entity, {}));
     }
     if (it == targets.end()) return std::nullopt;
-    return it->second;
+    return CameraTarget{it->second.world};
 }
 
 std::array<float, 3> camera_authored_eye_for_key(
     const Gameplay::CameraKey& key,
-    const std::unordered_map<std::string, std::array<float, 3>>& targets) {
+    const std::unordered_map<std::string, CameraTarget>& targets) {
     std::array<float, 3> eye = {key.eye[0], key.eye[1], key.eye[2]};
     const auto parent = camera_parent_for_key(key, targets);
     if (!parent) return eye;
     // CamShot keyframe targets are aim-only. The separate parent field is the
-    // traced live source used to resolve a path-frame camera offset.
-    eye[0] += (*parent)[0];
-    eye[1] += (*parent)[1];
-    eye[2] += (*parent)[2];
-    return eye;
+    // traced live source used by the PS2 Trans path to resolve a path-frame
+    // camera offset.
+    return transform_point_game(parent->world, key.eye);
 }
 
-void camera_authored_up_for_key(const Gameplay::CameraKey& key, float out[3]) {
+void camera_authored_up_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    float out[3]) {
+    const auto parent = camera_parent_for_key(key, targets);
     if (key.has_quat) {
         float q[4] = {key.quat[0], key.quat[1], key.quat[2], key.quat[3]};
         const float n =
@@ -7581,15 +7610,24 @@ void camera_authored_up_for_key(const Gameplay::CameraKey& key, float out[3]) {
             for (float& v : q) v /= n;
         }
         const float x = q[0], y = q[1], z = q[2], w = q[3];
-        out[0] = 2.0f * (x * z + y * w);
-        out[1] = 2.0f * (y * z - x * w);
-        out[2] = 1.0f - 2.0f * (x * x + y * y);
+        float up[3] = {2.0f * (x * z + y * w),
+                       2.0f * (y * z - x * w),
+                       1.0f - 2.0f * (x * x + y * y)};
+        const auto world_up =
+            parent ? transform_vector_game(parent->world, up)
+                   : std::array<float, 3>{up[0], up[1], up[2]};
+        out[0] = world_up[0];
+        out[1] = world_up[1];
+        out[2] = world_up[2];
         return;
     }
     if (key.has_basis) {
-        out[0] = key.up[0];
-        out[1] = key.up[1];
-        out[2] = key.up[2];
+        const auto world_up =
+            parent ? transform_vector_game(parent->world, key.up)
+                   : std::array<float, 3>{key.up[0], key.up[1], key.up[2]};
+        out[0] = world_up[0];
+        out[1] = world_up[1];
+        out[2] = world_up[2];
         return;
     }
     out[0] = 0.0f;
@@ -7601,7 +7639,7 @@ void apply_camera_keys(
     ghogx::render::OrbitCamera& cam,
     const std::vector<Gameplay::CameraKey>& keys,
     double song_time,
-    const std::unordered_map<std::string, std::array<float, 3>>& targets = {}) {
+    const std::unordered_map<std::string, CameraTarget>& targets = {}) {
     if (keys.empty()) return;
     const float frame = static_cast<float>(song_time * 30.0);
     const Gameplay::CameraKey* a = &keys.front();
@@ -7632,8 +7670,8 @@ void apply_camera_keys(
         cam.authored_at[i] = at_a[i] + (at_b[i] - at_a[i]) * t;
     float up_a[3] = {};
     float up_b[3] = {};
-    camera_authored_up_for_key(*a, up_a);
-    camera_authored_up_for_key(*b, up_b);
+    camera_authored_up_for_key(*a, targets, up_a);
+    camera_authored_up_for_key(*b, targets, up_b);
     for (int i = 0; i < 3; ++i)
         cam.authored_up[i] = up_a[i] + (up_b[i] - up_a[i]) * t;
     if (a->has_fov || b->has_fov) {
@@ -12894,7 +12932,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
         }
 
-        std::unordered_map<std::string, std::array<float, 3>> camera_targets;
+        std::unordered_map<std::string, CameraTarget> camera_targets;
         for (auto& perf : performers_) {
             if (!perf.renderer) continue;
             auto& character = perf.renderer->character();
@@ -12903,7 +12941,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const auto world =
                     mat4_mul_game(local_world, perf.world_transform);
                 camera_targets[camera_target_id(perf.role, subpart)] =
-                    {world[12], world[13], world[14]};
+                    CameraTarget{world};
             };
             for (const auto& bone : character.bones) {
                 // Camera focus targets must live in the same authored basis as
@@ -12928,12 +12966,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             perf.renderer->attached_prop_world(subpart);
                         if (!prop_world) return;
                         camera_targets[camera_target_id(perf.role, subpart)] =
-                            {(*prop_world)[12], (*prop_world)[13],
-                             (*prop_world)[14]};
+                            CameraTarget{*prop_world};
                         camera_targets[camera_target_id(
                             perf.role, strip_mesh_suffix(subpart))] =
-                            {(*prop_world)[12], (*prop_world)[13],
-                             (*prop_world)[14]};
+                            CameraTarget{*prop_world};
                     };
                     add_ref(key.target_entity, key.target_subpart);
                     add_ref(key.parent_entity, key.parent_subpart);
@@ -13156,12 +13192,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
             if (target != camera_targets.end()) {
                 auto& cam = world_->camera();
+                const auto target_pos = mat4_position_game(target->second.world);
                 cam.authored = false;
-                cam.target[0] = target->second[0] +
+                cam.target[0] = target_pos[0] +
                     env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_TARGET_X", 0.0f);
-                cam.target[1] = target->second[1] +
+                cam.target[1] = target_pos[1] +
                     env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_TARGET_Y", 0.0f);
-                cam.target[2] = target->second[2] +
+                cam.target[2] = target_pos[2] +
                     env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_TARGET_Z", 6.0f);
                 cam.yaw = env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_YAW", 0.0f);
                 cam.pitch =
