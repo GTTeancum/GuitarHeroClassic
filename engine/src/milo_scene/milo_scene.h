@@ -127,6 +127,9 @@ struct SpotlightObj {
   Xfm local;
   Xfm world_stored;
   bool has_transform = false;
+  float default_color[3] = {1.0f, 1.0f, 1.0f};
+  float default_intensity = 1.0f;
+  bool has_default_state = false;
   std::string material;
   std::string group;
   std::string target;

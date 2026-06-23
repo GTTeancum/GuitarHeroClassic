@@ -182,6 +182,9 @@ class Gameplay {
     std::string target;
     std::string material;
     std::string group;
+    float default_color[3] = {1.0f, 1.0f, 1.0f};
+    float default_intensity = 1.0f;
+    bool has_default_state = false;
   };
   struct VenueMeshAnim {
     struct Frame {
@@ -574,6 +577,8 @@ class Gameplay {
   size_t active_camera_position_index_ = 0;
   size_t previous_camera_position_index_ = 0;
   double intro_camera_seconds_ = 0.0;
+  std::string camera_intro_distance_;
+  std::string camera_intro_facing_;
   std::map<std::string, std::pair<int, int>> camera_duration_bars_;
   int camera_bars_left_ = 0;
   uint32_t last_camera_bar_ = UINT32_MAX;

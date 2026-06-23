@@ -189,6 +189,36 @@ std::vector<std::string> scan_strings(const std::vector<uint8_t>& body) {
   return out;
 }
 
+struct ScannedString {
+  size_t offset = 0;
+  std::string value;
+};
+
+std::vector<ScannedString> scan_strings_with_offsets(
+    const std::vector<uint8_t>& body) {
+  std::vector<ScannedString> out;
+  for (size_t o = 0; o + 4 <= body.size(); ++o) {
+    uint32_t len;
+    std::memcpy(&len, body.data() + o, 4);
+    if (len == 0 || len > 96 || o + 4 + len > body.size()) continue;
+    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
+    bool printable = true;
+    bool has_alpha = false;
+    for (uint32_t k = 0; k < len; ++k) {
+      char c = s[k];
+      if (c < 0x20 || c >= 0x7f) {
+        printable = false;
+        break;
+      }
+      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) has_alpha = true;
+    }
+    if (!printable || !has_alpha) continue;
+    out.push_back({o, std::string(s, len)});
+    o += 3 + len;
+  }
+  return out;
+}
+
 std::string lower_ascii(std::string_view s) {
   std::string out(s);
   for (char& c : out) {
@@ -203,6 +233,55 @@ bool is_spotlight_target_mesh(std::string_view name) {
   const std::string suffix =
       lower_ascii(name.substr(name.size() - kSuffixLength));
   return suffix == "_target.mesh" || suffix == ".target.mesh";
+}
+
+bool f32_in_unit_range(float v) {
+  return std::isfinite(v) && v >= 0.0f && v <= 1.01f;
+}
+
+bool read_spotlight_default_state(const std::vector<uint8_t>& body,
+                                  const std::vector<ScannedString>& strings,
+                                  float color[3], float& intensity) {
+  const auto parent_it = std::find_if(strings.begin(), strings.end(),
+                                      [](const ScannedString& s) {
+                                        return s.value.rfind("_RndDir") !=
+                                               std::string::npos;
+                                      });
+  if (parent_it == strings.end()) return false;
+  const size_t after_parent =
+      parent_it->offset + 4 + static_cast<size_t>(parent_it->value.size());
+  const auto first_payload_it =
+      std::find_if(strings.begin(), strings.end(),
+                   [&](const ScannedString& s) {
+                     return s.offset >= after_parent &&
+                            s.value.rfind(".mat") == std::string::npos;
+                   });
+  if (first_payload_it == strings.end()) return false;
+  const std::string lower = lower_ascii(first_payload_it->value);
+  if (lower.rfind(".mesh") != std::string::npos ||
+      lower.rfind(".mat") != std::string::npos) {
+    return false;
+  }
+  const bool group_payload =
+      lower.size() >= 4 && lower.compare(lower.size() - 4, 4, ".grp") == 0;
+  const size_t string_end = first_payload_it->offset + 4 +
+                            static_cast<size_t>(first_payload_it->value.size());
+  const size_t color_offset = string_end + (group_payload ? 8 : 4);
+  if (color_offset + 16 > body.size()) return false;
+  const float r = read_f32_at(body, color_offset);
+  const float g = read_f32_at(body, color_offset + 4);
+  const float b = read_f32_at(body, color_offset + 8);
+  const float a = read_f32_at(body, color_offset + 12);
+  if (!f32_in_unit_range(r) || !f32_in_unit_range(g) ||
+      !f32_in_unit_range(b) || !f32_in_unit_range(a)) {
+    return false;
+  }
+  if (r + g + b <= 0.001f || a <= 0.001f) return false;
+  color[0] = r;
+  color[1] = g;
+  color[2] = b;
+  intensity = a;
+  return true;
 }
 
 }  // namespace
@@ -301,7 +380,10 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
   } catch (const std::exception&) {
     s.parent.clear();
   }
-  for (const auto& ref : scan_strings(body)) {
+  const std::vector<ScannedString> strings = scan_strings_with_offsets(body);
+  bool has_authored_target = false;
+  for (const auto& scanned : strings) {
+    const auto& ref = scanned.value;
     if (ref.rfind(".mat") != std::string::npos) {
       if (ref.find("spot_circle") != std::string::npos) {
         s.circle_material = ref;
@@ -315,6 +397,7 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
     } else if (ref.rfind(".mesh") != std::string::npos) {
       if (ref.rfind("SPOT_circle", 0) == 0) s.circle_mesh = ref;
       const bool authored_target = is_spotlight_target_mesh(ref);
+      has_authored_target = has_authored_target || authored_target;
       if (authored_target || s.target.empty()) s.target = ref;
       if (!authored_target &&
           std::find(s.instance_meshes.begin(), s.instance_meshes.end(), ref) ==
@@ -322,6 +405,11 @@ SpotlightObj decode_spotlight(const std::string& entry_name,
         s.instance_meshes.push_back(ref);
       }
     }
+  }
+  if (!has_authored_target) {
+    s.has_default_state =
+        read_spotlight_default_state(body, strings, s.default_color,
+                                     s.default_intensity);
   }
   s.decoded = true;
   return s;

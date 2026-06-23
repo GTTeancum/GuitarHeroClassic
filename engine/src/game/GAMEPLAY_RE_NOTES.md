@@ -87,6 +87,64 @@ Open work:
   still chooses `Intro01 -> CamShot:Intro01`, decodes 2 direct poses, exits `0`,
   and retains the valid neutral-only route shape. This is a parser false-positive
   removal, not final camera-composition signoff.
+- 2026-06-22 regular CamShot source-filter ordering:
+  `world_objects_worldbase.dta::pick_regular_camera_shot` builds a filter from
+  current-shot `facing` / `distance` or, when no current shot exists, the
+  venue `intro_camera_facing` / `intro_camera_distance`, then calls
+  `pick_shot NORMAL_CAMSHOT_CATEGORIES`. Native had been sorting the regular
+  CamShot pool with the intro policy as a score, which mixed the intro
+  selector rule into the regular camera route. Native now preserves decoded
+  MILO directory order for the regular camera pool and applies the intro
+  policy only as the first-shot previous-camera fallback used by the source
+  filter. If the full transition/state filter finds no candidate, native may
+  relax the transition and state predicates, but it now keeps the authored
+  mode/category predicate (`regular`, `solo`, `jump`, or `lighter`) instead of
+  falling back to any CamShot. Validation:
+  `analysis/native_validation/regular_camera_source_filter_shout_20260622_current/`
+  runs stock PS2 `shoutatthedevil` hidden from `16.0s`; it logs ordered
+  regular CamShots, selects `flr_near_rt01x23w` after intro because the
+  source-shaped previous filter is `distance=near` / `facing=left`, continues
+  through regular sweeps and `post_switch_cam`, captures a coherent arena
+  frame, and records zero unsupported, miss, no-decoded, unresolved, or error
+  rows. The fallback-tightened rerun
+  `analysis/native_validation/regular_camera_source_filter_fallback_shout_20260622_current/`
+  preserves the same source-shaped camera sequence and the same zero-negative
+  health scan after the wrong-category fallback was removed.
+- 2026-06-22 start-shot camera handoff follow-up:
+  native Battle captures showed the extra native-only cross-shot camera blend
+  flying through foreground venue geometry during a `band_POV03 -> farpower`
+  change. A no-front PCSX2 sample,
+  `analysis/ps2_trace/pcsx2_camera_result_rows_headless_retry_20260622_resume.json`,
+  reran the accepted Battle state and sampled the mutable camera result rows
+  (`0x00b92ef0`, `0x00b92f50`, `0x00b930e0`, `0x00b8e9d0`, and
+  `0x00b8ea10`). The result family stayed on one authored camera for samples
+  `0..53`, then switched directly to the next camera family at sample `54`
+  and continued with only small live motion. That matches the script-level
+  split between `start_shot` and `post_switch_cam`: a new shot family should
+  cut to the selected authored shot, while same-shot `post_switch_cam`
+  position changes remain the intra-shot transition path. Native now skips the
+  synthetic 1.25s interpolation when `previous->name != current.name`, keeping
+  the existing short blend only for same-shot position changes. Validation:
+  `analysis/native_validation/battle_camera_cut_handoff_20260622_resume/`
+  reruns stock PS2 `rockthistown` in Battle hidden with diagnostic autoplay,
+  fixed `0.25s` steps, and camera/venue debug logs. It exits `0`, captures
+  coherent Battle frames at `24`, `72`, and `144`, keeps the same-shot
+  `post_switch_cam` blend rows, and the former problem frame at `72` now logs
+  `a=farpower b=farpower t=0.000` instead of the old
+  `band_POV03 -> farpower` cross-shot fly-through. The health scan records
+  zero unsupported, miss, no-decoded, unresolved, missing, or real error rows;
+  the only `error`/`failed` text hits are the PowerShell stderr wrapper and
+  `failed=0` coverage summaries.
+- Post-fix sweep:
+  `analysis/native_validation/venue_lighting_route_sweep_after_camera_cut_20260622_bounded/`
+  reruns the seven stock route representatives with hidden bounded native
+  processes and `GHOGX_DEBUG_CAMERA` / `GHOGX_DEBUG_VENUE_FILTERS`. All seven
+  routes exit `0` without timeout, report zero unsupported, miss, no-decoded,
+  unresolved, missing, or error rows, keep venue/lighting animation samples and
+  active lighting presets/keyframes, and log `140` camera rows each. A follow-up
+  scan of all camera debug rows finds `0` cases where `a=<shot>` and `b=<shot>`
+  names differ, so post-fix interpolation is limited to same-shot position
+  changes.
 
 ## Performer Role Routing
 
@@ -247,6 +305,24 @@ Open work:
   `0` with zero unsupported, miss, no-decoded, or unresolved rows; the logs
   record lighting cue queue/apply activity on all four routes plus active
   venue samples, lighting samples, keyframes, and authored cameras.
+- 2026-06-22 PCSX2 lighting keyqueue trace refresh:
+  current PCSX2 exposes SLUS code pages as read-only to external
+  `WriteProcessMemory`, so the accepted route is now a throwaway prepatched
+  savestate generated from the stock indexed state. The known-hot control
+  `analysis/ps2_trace/pcsx2_known_hot_stateprepatch_hardened_control_20260622_current.json`
+  proves the patched-state trace ring records in-song calls without live code
+  writes. The lighting run
+  `analysis/ps2_trace/pcsx2_lighting_keyqueue_stateprepatch_20260622_current.json`
+  captures stock PS2 `shoutatthedevil` in the arena for 60 seconds and records
+  `set_lighting` (`0x00271288`) 14 times, its child (`0x00271a08`) 17 times,
+  the `+1` keyframe handler (`0x002716b8`) 3 times, and the `+1` enqueue
+  helper (`0x00280f60`) 3 times. The `-1`, first-keyframe, and queue-overflow
+  writer routes were zero-hit in this window. Decoded FPU args show `+1`
+  handler/enqueue hits around `12.007`, `28.014`, and `54.010` seconds, while
+  later `set_lighting` traffic lands around the expected timer-plus-four
+  windows. Treat this as fresh PS2 evidence for the existing four-second queue
+  route and as the current safe tracing method, not as permission to enable the
+  still-gated authored dynamic-light bridge.
 - 2026-06-22 lighting adjective filter follow-up:
   `world_objects.dta` defines `LIGHTING_ADJECTIVES` as only `blackout`,
   `strobe`, `flare`, `color1`, `color2`, and `sweep`. Some chart text events
@@ -1629,6 +1705,31 @@ Rejected native probe:
   renderer-color parity still needs a trace window that actually hits the
   `0x002716b8 -> 0x00280f60` apply branch or a confirmed downstream consumer of
   `0x007fe790`.
+- Follow-up consumer-side trace:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_env_color_consumer_20260622_resume.json`
+  reruns the accepted stock active-song state with no-focus/background PCSX2
+  input and a prepatched state. The screenshot is active gameplay, the patched
+  state was deleted after capture, and the trace records 86
+  `color_interp_find_003a8b88`, 86 `color_interp_replace_003a8f80`, 85
+  `color_interp_update_003a9170`, and 44 `color_interp_apply_003a8e38` calls.
+  The new `0x003a8e38` hits are still called from `0x003a8f80` with the global
+  color-list row at `0x00b784c4` and stack color payloads; they are list
+  maintenance for the already-accepted color runner path, not a final
+  renderer/dynamic-light writer. Keep the native dynamic Environ light bridge
+  disabled by default until a later trace finds the real consumer.
+- Accepted trace analysis checkpoint:
+  `0x003a8e38` is reached only from `0x003a8f80` (`ra=0x003a9154`) in the
+  accepted consumer trace. All retained calls pass stack scratch color rows as
+  `a0=0x01ffe7d0`, the global color-list row as `a1=0x00b784c4`, and a stack
+  destination as `a3=0x01ffe7e0`; the source payloads carry the familiar
+  normalized RGB triples such as `(0.106,0.106,0.259)`,
+  `(0.350,0.000,0.350)`, and `(0.043,0.082,0.408)`. `0x003a9170` and
+  `0x003a8f80` both keep updating the same `0x00b784c4` list family and
+  pointer slots such as `0x007fe790`, `0x00782580`, and `0x00845ca0`. This
+  strengthens the decision to leave `GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS` as an
+  explicit opt-in: sampled `LightAnim` colors may feed decoded `Light` refs
+  when the probe is enabled, but no accepted trace has promoted those values to
+  default venue brightness.
 
 2026-06-22 Environ fog / preset-animation flag decode:
 
@@ -2352,6 +2453,41 @@ Rejected native probe:
  selection remains target-state driven; this pass is object-format coverage,
  not a claimed visual lighting-color parity change.
 
+2026-06-22 PS2 Spotlight object default-state decode:
+
+- Accepted PCSX2 trace
+  `analysis/ps2_trace/pcsx2_color_runner_scale_20260622_current.json`
+  records the stock PS2 Battle route calling `0x00275ee0` into the color
+  runner `0x0026f378` for eleven named `Spotlight` objects. The runtime source
+  vector handed to `0x00275ee0` matches object-authored default rows for
+  non-target special spotlights: `square01_spotlight.spot` receives
+  `(1.0, 1.0, 0.878431)`, and `SHADOW_light.spot` receives
+  `(0.105882, 0.105882, 0.258824)`.
+- Raw stock PS2 `world/battle/og/gen/battle_lighting.milo_ps2` confirms those
+  values are in the `Spotlight` body after the embedded Trans parent string.
+  If the first post-parent payload string is a `.grp`, RGB starts eight bytes
+  after that string (`square01`); if it is a performer/object token, RGB starts
+  four bytes after that string (`SHADOW_light`). The following float is the
+  authored default intensity/alpha. Targeted beam spotlights keep neutral
+  native defaults unless a `LightPreset` target-state row supplies runtime
+  color; their nearby float runs also include aim/template fields and are not
+  promoted as colors.
+- Native now decodes that shared `SpotlightObj` default state, carries it
+  through `Gameplay::LightingSpotlight`, and seeds the active spotlight state
+  from it before applying any `LightPreset::TargetState` override. This keeps
+  the fix in the common Spotlight/LightPreset path; it does not enable
+  `GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS` and does not add Battle-specific light
+  lists.
+- Validation:
+  `analysis/native_validation/spotlight_default_state_battle_20260622_rerun/`
+  runs stock `rockthistown`/Battle hidden with diagnostic autoplay and fixed
+  `0.25s` steps. It exits `0`, captures nonblank Battle frames, logs
+  `lighting Spotlights decoded: total=11 default_states=4`, and specifically
+  logs the decoded defaults for `square01_spotlight.spot` and
+  `SHADOW_light.spot`. The same log continues through authored lighting
+  presets/keyframes (`verse_okay`, `verse_great`, `color1`) with no
+  unsupported, unresolved, or error rows.
+
 2026-06-22 RndDir proxy venue effects:
 
 - Venue geometry MILOs can carry `RndDir` objects that proxy small, separate
@@ -2497,3 +2633,42 @@ Rejected native probe:
   and has no game/runtime unsupported, missing, miss, unresolved, or error
   rows. The only `error` text in the log is PowerShell's redirected native
   stderr wrapper around normal app output.
+
+2026-06-22 resumed venue/lighting focus validation:
+
+- Current `Debug` `ghogx_app` rebuild and `ctest --test-dir
+  out/build/engine-vs -C Debug --output-on-failure` pass locally, including the
+  venue/band orchestration contract and all character contract guards.
+- `analysis/native_validation/resume_venue_lighting_focus_20260622_current/`
+  reruns four hidden fixed-step native routes against the stock PS2 `GEN` ARK
+  after the camera/lighting/proxy/LOD work: `small2/youreallygotme` for direct
+  intro cameras, lighting EnvAnim, direct event refs, and force-char-LOD;
+  `big/hangar18` with diagnostic `venue_effect` for RndDir proxy flashpots and
+  compact UV MeshAnim; `battle/rockthistown` with diagnostic
+  `excitement_peak` for peak bridge, spotlight defaults, overlay particles, and
+  camera cuts; and diagnostic `stone/shoutatthedevil` for overlay EnvAnim /
+  LightAnim / material fallback coverage.
+- All four routes exit `0` with zero unsupported rows, zero miss rows, zero
+  combined decoded-route misses, zero unresolved rows, zero missing rows, zero
+  nonzero `failed=` coverage rows, and zero real error rows. The only retained
+  `no decoded` text is Stone `char.env`, which the symbolic performer/crowd rig
+  classifier keeps out of the true unresolved bucket.
+- Route evidence remains live in the same sweep: small2 records 340 camera rows,
+  17 regular sweeps, 27 `post_switch_cam` moves, 90 lighting keyframes, 340
+  lighting EnvAnim samples, 1,990 MeshAnim samples, and 17,358 venue AnimFilter
+  samples. Big records 14 RndDir rows, flashpot proxy load/animate rows, 15
+  regular sweeps, 4 `post_switch_cam` moves, 18 lighting keyframes, 1,536 venue
+  particle samples, and 73,570 venue AnimFilter samples. Battle records the
+  exact `peak_on` / `peak_off` bridge, 260 camera rows, 32 lighting keyframes,
+  631 lighting particle samples, 1,149 lighting AnimFilter samples, and the
+  traced `square01_spotlight.spot` / `SHADOW_light.spot` defaults. Stone records
+  220 camera rows, 38 lighting keyframes, 330 lighting EnvAnim samples, 110
+  lighting LightAnim samples, 3,824 lighting particle samples, and 7,328 venue
+  AnimFilter samples.
+- Focused LOD proof in
+  `analysis/native_validation/resume_venue_lighting_focus_20260622_current/small2_lod_debug_meshes/`
+  reruns the opening small2 `band_POV02` window with `GHOGX_DEBUG_MESHES=1`.
+  It records `force_char_lod=1` on the selected CamShot, eight renderer-side
+  `[char3d] min_lod active` rows, then a clean return to `min_lod active: 0`
+  when the camera switches back to a non-forced shot. This validates the runtime
+  handoff from decoded CamShot metadata to shared character LOD selection.

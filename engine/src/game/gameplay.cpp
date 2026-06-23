@@ -6895,7 +6895,7 @@ std::optional<Gameplay::CameraKey> decode_static_camshot_pose(
 
 std::vector<Gameplay::CameraKey> load_regular_camera_keys(
     const std::string& hdr_path, const std::string& ark_path,
-    const std::string& venue, const VenueCameraPolicy& policy) {
+    const std::string& venue) {
     std::vector<Gameplay::CameraKey> out;
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
@@ -6914,7 +6914,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             std::string facing;
             Gameplay::CameraKey key;
             size_t off = 0;
-            int score = 0;
+            size_t order = 0;
         };
         std::vector<Candidate> candidates;
         for (const auto& de : dir.entries) {
@@ -7025,32 +7025,10 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 c.key.positions.push_back(std::move(pos));
             }
             c.off = pose_off;
-            if (policy.intro_facing == "left") {
-                if (c.facing == "right") c.score += 4;
-                if (c.facing == "null" || c.facing.empty()) c.score += 2;
-                if (c.facing == "left") c.score -= 4;
-            } else if (policy.intro_facing == "right") {
-                if (c.facing == "left") c.score += 4;
-                if (c.facing == "null" || c.facing.empty()) c.score += 2;
-                if (c.facing == "right") c.score -= 4;
-            }
-            if (policy.intro_distance == "far" ||
-                policy.intro_distance == "behind") {
-                if (c.distance == "near" || c.distance == "closeup" ||
-                    c.distance == "null" || c.distance.empty()) {
-                    c.score += 2;
-                }
-                if (c.distance == policy.intro_distance) c.score -= 2;
-            }
-            if (c.shot.rfind("flr_", 0) == 0) c.score += 1;
+            c.order = candidates.size();
             candidates.push_back(std::move(c));
         }
         if (candidates.empty()) return out;
-        std::stable_sort(candidates.begin(), candidates.end(),
-                         [](const Candidate& a, const Candidate& b) {
-                             if (a.score != b.score) return a.score > b.score;
-                             return a.shot < b.shot;
-                         });
         out.reserve(candidates.size());
         for (const auto& c : candidates) {
             Gameplay::CameraKey key = c.key;
@@ -7058,10 +7036,10 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s poses=%zu pose body+0x%zX score=%d special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s poses=%zu pose body+0x%zX order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
-                         key.positions.size(), c.off, c.score,
+                         key.positions.size(), c.off, c.order,
                          key.special ? 1 : 0, key.walk_ok ? 1 : 0,
                          key.low_excitement_ok ? 1 : 0,
                          key.starpower_ok ? 1 : 0, key.jump_ok ? 1 : 0,
@@ -7133,6 +7111,32 @@ const char* camera_shot_mode_label(CameraShotMode mode) {
     return "regular";
 }
 
+bool camera_mode_filter_ok(const Gameplay::CameraKey& key,
+                           CameraShotMode mode) {
+    if (mode == CameraShotMode::Lighter) {
+        return key.lighter;
+    }
+    if (key.special) return false;
+    if (key.lighter) return false;
+    if (mode == CameraShotMode::Jump) {
+        return key.jump_ok;
+    }
+    if (mode == CameraShotMode::Solo) {
+        return string_in(key.solo, {"", "ok", "only"});
+    }
+    return string_in(key.solo, {"", "ok", "never"});
+}
+
+bool camera_state_filter_ok(const Gameplay::CameraKey& key,
+                            bool low_excitement,
+                            bool walking,
+                            bool starpower) {
+    if (low_excitement && !key.low_excitement_ok) return false;
+    if (walking && !key.walk_ok) return false;
+    if (starpower && !key.starpower_ok) return false;
+    return true;
+}
+
 bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
                               const Gameplay::CameraKey* previous,
                               bool low_excitement,
@@ -7143,21 +7147,9 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
     // pick_solo_camera_shot share the state filters, but differ in solo tags
     // and the far/behind distance repeat guard. band_jump and crowd lighters
     // use separate predicates over the same decoded CamShot pool.
-    if (mode == CameraShotMode::Lighter) {
-        return key.lighter;
-    }
-    if (key.special) return false;
-    if (key.lighter) return false;
-    if (mode == CameraShotMode::Jump) {
-        return key.jump_ok;
-    } else if (mode == CameraShotMode::Solo) {
-        if (!string_in(key.solo, {"", "ok", "only"})) return false;
-    } else {
-        if (!string_in(key.solo, {"", "ok", "never"})) return false;
-    }
-    if (low_excitement && !key.low_excitement_ok) return false;
-    if (walking && !key.walk_ok) return false;
-    if (starpower && !key.starpower_ok) return false;
+    if (!camera_mode_filter_ok(key, mode)) return false;
+    if (!camera_state_filter_ok(key, low_excitement, walking, starpower))
+        return false;
 
     if (previous) {
         if (previous->facing == "left" &&
@@ -7197,10 +7189,22 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     }
     if (filtered.empty()) {
         for (const auto& key : keys) {
-            if (&key != previous) filtered.push_back(&key);
+            if (&key == previous) continue;
+            if (!camera_mode_filter_ok(key, mode)) continue;
+            if (!camera_state_filter_ok(key, low_excitement, walking,
+                                        starpower)) {
+                continue;
+            }
+            filtered.push_back(&key);
         }
     }
-    if (filtered.empty()) return &keys[counter % keys.size()];
+    if (filtered.empty()) {
+        for (const auto& key : keys) {
+            if (&key == previous) continue;
+            if (camera_mode_filter_ok(key, mode)) filtered.push_back(&key);
+        }
+    }
+    if (filtered.empty()) return nullptr;
     return filtered[counter % filtered.size()];
 }
 
@@ -7274,6 +7278,7 @@ std::vector<Gameplay::CameraKey> regular_camera_sweep_keys(
     constexpr double kSweepSeconds = 1.25;
     std::vector<Gameplay::CameraKey> keys;
     if (!previous || song_time < start_time ||
+        previous->name != current.name ||
         song_time >= start_time + kSweepSeconds) {
         keys.push_back(current);
         return keys;
@@ -8068,6 +8073,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_position_index_ = 0;
     previous_camera_position_index_ = 0;
     intro_camera_seconds_ = 0.0;
+    camera_intro_distance_.clear();
+    camera_intro_facing_.clear();
     camera_duration_bars_.clear();
     camera_duration_bars_["kExcitementOkay"] = {2, 4};
     camera_bars_left_ = 0;
@@ -11337,6 +11344,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const VenueCameraPolicy camera_policy =
                     load_venue_camera_policy(hdr_path_, ark_path_,
                                              quickplay_rig_->venue);
+                camera_intro_distance_ = camera_policy.intro_distance;
+                camera_intro_facing_ = camera_policy.intro_facing;
                 camera_duration_bars_ = camera_policy.duration_bars;
                 camera_bars_left_ = 6;
                 last_camera_bar_ = UINT32_MAX;
@@ -11361,7 +11370,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                  intro_camera.force_char_lod);
                 }
                 regular_camera_keys_ = load_regular_camera_keys(
-                    hdr_path_, ark_path_, quickplay_rig_->venue, camera_policy);
+                    hdr_path_, ark_path_, quickplay_rig_->venue);
                 intro_camera_seconds_ = intro_camera_duration_seconds(chart_);
                 std::fprintf(stderr,
                              "[world] intro camera window: %.3fs (6 bars)\n",
@@ -11375,9 +11384,39 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                               lighting_milo, lighting_scene)) {
                 lighting_spotlights_.clear();
                 lighting_spotlights_.reserve(lighting_scene.spotlights.size());
+                size_t lighting_spotlight_defaults = 0;
                 for (const auto& spot : lighting_scene.spotlights) {
                     lighting_spotlights_.push_back(
-                        {spot.name, spot.target, spot.material, spot.group});
+                        {spot.name,
+                         spot.target,
+                         spot.material,
+                         spot.group,
+                         {spot.default_color[0],
+                          spot.default_color[1],
+                          spot.default_color[2]},
+                         spot.default_intensity,
+                         spot.has_default_state});
+                    if (spot.has_default_state) {
+                        ++lighting_spotlight_defaults;
+                        if (debug_venue_filters_enabled()) {
+                            std::fprintf(
+                                stderr,
+                                "[world] lighting Spotlight default: %s color=(%.3f %.3f %.3f) intensity=%.3f target=%s group=%s\n",
+                                spot.name.c_str(), spot.default_color[0],
+                                spot.default_color[1], spot.default_color[2],
+                                spot.default_intensity, spot.target.c_str(),
+                                spot.group.c_str());
+                        }
+                    }
+                }
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] lighting Spotlights decoded: total=%llu default_states=%llu\n",
+                        static_cast<unsigned long long>(
+                            lighting_spotlights_.size()),
+                        static_cast<unsigned long long>(
+                            lighting_spotlight_defaults));
                 }
                 lighting_mat_anims_ =
                     load_venue_mat_anims(hdr_path_, ark_path_, lighting_milo);
@@ -12736,6 +12775,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const CameraKey* current_key =
                     find_camera_key_by_name(regular_camera_keys_,
                                             active_regular_camera_);
+                std::optional<CameraKey> intro_filter_key;
+                if (!current_key &&
+                    (!camera_intro_distance_.empty() ||
+                     !camera_intro_facing_.empty())) {
+                    intro_filter_key.emplace();
+                    intro_filter_key->name = "intro_camera_policy";
+                    intro_filter_key->distance = camera_intro_distance_;
+                    intro_filter_key->facing = camera_intro_facing_;
+                    current_key = &*intro_filter_key;
+                }
                 const bool low_excitement =
                     active_venue_event_.find("bad") != std::string::npos ||
                     active_venue_event_.find("boot") != std::string::npos;
@@ -13005,6 +13054,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             ghogx::render::MiloSceneRenderer::SpotlightState out;
                             out.name = spot.name;
                             out.target_mesh = spot.target;
+                            if (spot.has_default_state) {
+                                out.r = spot.default_color[0];
+                                out.g = spot.default_color[1];
+                                out.b = spot.default_color[2];
+                                out.intensity = spot.default_intensity;
+                            }
                             if (state) {
                                 out.target_mesh = state->target;
                                 out.r = state->color[0];

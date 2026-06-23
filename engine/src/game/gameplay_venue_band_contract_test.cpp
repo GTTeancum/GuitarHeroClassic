@@ -132,6 +132,8 @@ int main() {
       compact(function_body(gameplay, "is_performer_entity"));
   const std::string infer_camshot_c =
       compact(function_body(gameplay, "infer_camshot_target"));
+  const std::string regular_camera_loader_c =
+      compact(function_body(gameplay, "load_regular_camera_keys"));
   const std::string event_track_c =
       compact(function_body(gameplay, "performer_event_track_for_role"));
   const std::string classify_roles_c =
@@ -1673,6 +1675,15 @@ int main() {
                  "scene_.find_light(ref)",
                  "renderer resolves Environ-authored Light refs before applying dynamic lighting");
   ok &= contains(renderer_c,
+                 "constboolapply_environment_dynamic_lights=apply_environment_lighting&&env_enabled(\"GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS\")&&!env_enabled(\"GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS\");",
+                 "authored Environ dynamic lights require an explicit opt-in gate");
+  ok &= contains(renderer_c,
+                 "if(!apply_environment_dynamic_lights||!env||env->lights.empty()){disable_authored_lights();return;}",
+                 "authored Environ dynamic lights shut off cleanly when the gate is closed");
+  ok &= contains(renderer_c,
+                 "light_color_overrides_.find(ref)",
+                 "sampled LightAnim colors only feed decoded Environ light refs");
+  ok &= contains(renderer_c,
                  "GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS",
                  "renderer keeps authored dynamic environment lights opt-in until traced");
   ok &= contains(renderer_c,
@@ -1759,6 +1770,34 @@ int main() {
                  "camera_duration_range_for_event(camera_duration_bars_,"
                  "active_venue_event_)",
                  "regular camera uses active-excitement duration rows");
+  ok &= contains(regular_camera_loader_c,
+                 "c.order=candidates.size();",
+                 "regular camera loader preserves decoded CamShot order");
+  ok &= absent(regular_camera_loader_c,
+               "intro_facing",
+               "regular camera loader must not sort by intro facing policy");
+  ok &= absent(regular_camera_loader_c,
+               "intro_distance",
+               "regular camera loader must not sort by intro distance policy");
+  ok &= absent(regular_camera_loader_c,
+               "std::stable_sort(candidates.begin(),candidates.end()",
+               "regular camera loader must not reorder source CamShot candidates");
+  ok &= contains(gameplay_h_c,
+                 "std::stringcamera_intro_distance_;"
+                 "std::stringcamera_intro_facing_;",
+                 "runtime keeps intro policy only for first regular-shot filters");
+  ok &= contains(gameplay_c,
+                 "camera_intro_distance_=camera_policy.intro_distance;"
+                 "camera_intro_facing_=camera_policy.intro_facing;",
+                 "venue load stores intro camera policy separately from regular camera order");
+  ok &= contains(gameplay_c,
+                 "if(!current_key&&(!camera_intro_distance_.empty()||"
+                 "!camera_intro_facing_.empty()))",
+                 "first regular camera shot uses the source intro-policy fallback filter");
+  ok &= contains(gameplay_c,
+                 "intro_filter_key->distance=camera_intro_distance_;"
+                 "intro_filter_key->facing=camera_intro_facing_;",
+                 "first regular camera fallback supplies previous distance and facing");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kDirectIntroCamShotPrefix=\"CamShot:\";",
                  "intro camera fallback uses an explicit direct CamShot route");
@@ -1928,11 +1967,11 @@ int main() {
                  "if(key.lighter)returnfalse;",
                  "regular/solo/jump camera modes reject LIGHTER CamShots");
   ok &= contains(gameplay_c,
-                 "if(mode==CameraShotMode::Solo){if(!string_in(key.solo,{\"\","
-                 "\"ok\",\"only\"}))returnfalse;}",
+                 "if(mode==CameraShotMode::Solo){returnstring_in(key.solo,"
+                 "{\"\",\"ok\",\"only\"});}",
                  "solo camera mode mirrors pick_solo_camera_shot solo filter");
   ok &= contains(gameplay_c,
-                 "if(!string_in(key.solo,{\"\",\"ok\",\"never\"}))returnfalse;",
+                 "returnstring_in(key.solo,{\"\",\"ok\",\"never\"});",
                  "regular camera mode mirrors pick_regular_camera_shot solo filter");
   ok &= contains(gameplay_c,
                  "constboolsolo_camera=camera_section_is_solo_at(",
@@ -1943,6 +1982,24 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_shot_mode_label(camera_mode)",
                  "runtime camera logs expose regular versus solo mode");
+  ok &= contains(gameplay_c,
+                 "boolcamera_mode_filter_ok(constGameplay::CameraKey&key,"
+                 "CameraShotModemode)",
+                 "camera fallback keeps mode/category predicates separate");
+  ok &= contains(gameplay_c,
+                 "if(!camera_mode_filter_ok(key,mode))returnfalse;",
+                 "strict camera filter starts from authored mode/category predicates");
+  ok &= contains(gameplay_c,
+                 "if(!camera_mode_filter_ok(key,mode))continue;"
+                 "if(!camera_state_filter_ok(key,low_excitement,walking,",
+                 "camera fallback can relax transition filters without crossing modes");
+  ok &= contains(gameplay_c,
+                 "if(camera_mode_filter_ok(key,mode))"
+                 "filtered.push_back(&key);",
+                 "last camera fallback still refuses wrong authored camera modes");
+  ok &= contains(gameplay_c,
+                 "if(filtered.empty())returnnullptr;",
+                 "camera selection does not invent a wrong-category fallback shot");
   ok &= contains(gameplay_c,
                  "if(ev.text==\"[band_jump]\"){force_camera=excitement>1;",
                  "band_jump camera forces only above bad excitement");
@@ -2030,6 +2087,9 @@ int main() {
                        "\"[world]regularcamerasweep:",
                        "\"[world]post_switch_cam:",
                        "regular shot duration and post_switch_cam stay separate");
+  ok &= contains(gameplay_c,
+                 "previous->name!=current.name",
+                 "start_shot camera changes cut between authored shot families");
   ok &= contains(gameplay_c,
                  "constexprdoublekPostSwitchSeconds=2.06;",
                  "post_switch_cam keeps traced roughly two-second cadence");
