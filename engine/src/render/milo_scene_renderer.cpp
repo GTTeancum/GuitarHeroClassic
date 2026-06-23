@@ -1582,6 +1582,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     draw_mesh_with_world(m, mul16(world, world_transform_));
   }
   disable_authored_fog();
+  disable_authored_lights();
 
   if (!scene_.particles.empty()) {
     for (const auto& particle : scene_.particles) {
@@ -1795,6 +1796,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     }
   }
   disable_authored_fog();
+  disable_authored_lights();
 
   dev_->SetTexture(0, nullptr);
 

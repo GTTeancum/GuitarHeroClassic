@@ -2910,3 +2910,24 @@ Rejected native probe:
   runtime errors after excluding accepted fallback clip lookup noise. The
   cleanup guard after the run again reported zero `GH2DXu_PS2_trace_*` staging
   folders and zero temporary ISO/MDS files.
+
+2026-06-23 authored dynamic-light state cleanup:
+
+- The authored Environ dynamic-light bridge remains opt-in behind
+  `GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS`; the accepted PS2 traces still do not
+  identify the final renderer/color writer. While auditing that gated path,
+  native found a renderer state-scope mismatch: authored Environ fog was
+  cleared after mesh/spotlight passes, but authored dynamic light slots were
+  only cleared when the next mesh lacked an applicable Environ. Native now
+  clears those authored light slots at the same pass boundaries as authored
+  fog so opt-in probes cannot leak one mesh's decoded Environ lights into
+  particles, spotlight instances, or overlays. This is render-state hygiene
+  for the shared gated bridge, not a default lighting-color parity change.
+- Validation:
+  `analysis/native_validation/dynamic_light_state_cleanup_current/` runs a
+  24-frame hidden opt-in smoke of stock `shoutatthedevil` in arena from
+  `16.0s`, reading the extracted PS2 `GEN` directly with no generated ISO,
+  MDS, emulator, or trace staging. It exits `0`, records two regular camera
+  sweeps, two active lighting presets/keyframes, four drummer cues, and zero
+  unsupported, decoded-route miss, unresolved/missing, nonzero failed, or real
+  runtime error rows.

@@ -1672,6 +1672,9 @@ int main() {
                  "disable_authored_fog();",
                  "renderer clears authored fog after scoped mesh rendering");
   ok &= contains(renderer_c,
+                 "disable_authored_lights();",
+                 "renderer clears authored dynamic lights after scoped mesh rendering");
+  ok &= contains(renderer_c,
                  "scene_.find_light(ref)",
                  "renderer resolves Environ-authored Light refs before applying dynamic lighting");
   ok &= contains(renderer_c,
