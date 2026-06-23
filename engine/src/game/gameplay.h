@@ -718,6 +718,7 @@ class Gameplay {
   std::unordered_set<std::string> venue_runtime_hidden_meshes_;
   std::unordered_set<std::string> venue_crowd_meshes_;
   std::unordered_set<std::string> venue_camera_hidden_meshes_;
+  bool venue_camera_crowd_face_camera_ = false;
   std::string active_venue_event_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformAnim>
       drum_mesh_transform_anims_;

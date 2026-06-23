@@ -1532,13 +1532,15 @@ Rejected native probe:
   runtime visibility is applied, so the `.tnm` route no longer drops the
   metadata.
 - Because native does not yet instantiate the full crowd character system, the
-  current source-backed visual bridge applies only the `hide_crowd` half:
-  venue load builds a generic authored crowd mesh set from group names, mesh
-  names, and material names containing `crowd`, and selected camera keys
-  compose that set into `composed_venue_hidden_meshes()`. This layers with
+  current source-backed visual bridge applies the two CamShot crowd flags to
+  the generic authored crowd mesh set built from group names, mesh names, and
+  material names containing `crowd`. `hide_crowd` composes that set into
+  `composed_venue_hidden_meshes()`. `crowd_face_camera` now sends the same
+  decoded set to the venue renderer, which yaws those meshes toward the active
+  camera after authored mesh transforms/animations are sampled. This layers with
   EventTrigger visibility and material-alpha hiding instead of replacing those
-  routes. `crowd_face_camera` is preserved and logged for the future crowd
-  actor route, but it does not rotate static venue meshes.
+  routes, and remains a generic crowd-route bridge rather than a venue-specific
+  mesh hack.
 - Validation:
   `analysis/native_validation/camera_crowd_flags_shout_20260622_current/`
   reruns the existing stock `shoutatthedevil` lighter-camera window and proves
@@ -1549,6 +1551,12 @@ Rejected native probe:
   `camera crowd visibility: shot=flr_near_rt01xbass.shot hide=1 meshes=15`,
   then `flr_far_lft03 hide=0 meshes=0`. The run exits `0` and records zero
   miss/unsupported material-channel rows.
+  `analysis/native_validation/camera_crowd_face_meshes_shout_20260622_current/`
+  reruns the known `crowd_lighters_fast` window from `156.0s` with hidden
+  rendering and no screenshots. The log records the forced `lighter` camera
+  sweep; the renderer bridge row includes
+  `shot=lighter hide=0 meshes=0 face_camera=1 face_meshes=15`, then clears the
+  face-camera mesh set on the following jump camera. The run exits `0`.
 
 2026-06-22 battle MatAnim color/texture channel route:
 

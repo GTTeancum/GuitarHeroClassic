@@ -8310,15 +8310,27 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
     if (!world_) return;
     std::unordered_set<std::string> next_hidden;
     if (key.hide_crowd) next_hidden = venue_crowd_meshes_;
-    if (next_hidden == venue_camera_hidden_meshes_) return;
+    const bool next_face_camera =
+        key.crowd_face_camera && !venue_crowd_meshes_.empty();
+    if (next_hidden == venue_camera_hidden_meshes_ &&
+        next_face_camera == venue_camera_crowd_face_camera_) {
+        return;
+    }
     venue_camera_hidden_meshes_ = std::move(next_hidden);
+    venue_camera_crowd_face_camera_ = next_face_camera;
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
-                     "[world] camera crowd visibility: shot=%s hide=%d meshes=%zu face_camera=%d\n",
+                     "[world] camera crowd visibility: shot=%s hide=%d meshes=%zu face_camera=%d face_meshes=%zu\n",
                      key.name.c_str(), key.hide_crowd ? 1 : 0,
                      venue_camera_hidden_meshes_.size(),
-                     key.crowd_face_camera ? 1 : 0);
+                     venue_camera_crowd_face_camera_ ? 1 : 0,
+                     venue_camera_crowd_face_camera_
+                         ? venue_crowd_meshes_.size()
+                         : 0u);
     }
+    world_->set_face_camera_meshes(venue_camera_crowd_face_camera_
+                                       ? venue_crowd_meshes_
+                                       : std::unordered_set<std::string>{});
     world_->set_hidden_meshes(composed_venue_hidden_meshes());
 }
 
@@ -9482,6 +9494,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     pending_transient_venue_events_.clear();
     active_venue_event_.clear();
     venue_camera_hidden_meshes_.clear();
+    venue_camera_crowd_face_camera_ = false;
     venue_script_state_ = venue_script_initial_state_;
     venue_script_object_state_.clear();
     venue_script_tasks_.clear();
@@ -9508,6 +9521,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
         world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
         world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
         world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
+        world_->set_face_camera_meshes({});
         world_->set_hidden_meshes(composed_venue_hidden_meshes());
     }
 
@@ -11212,6 +11226,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   "coplight_blue.grp"});
                 venue_crowd_meshes_ = mesh_names_for_crowd(venue_scene);
                 venue_camera_hidden_meshes_.clear();
+                venue_camera_crowd_face_camera_ = false;
                 if (!venue_crowd_meshes_.empty()) {
                     std::fprintf(stderr,
                                  "[world] venue crowd meshes: %zu\n",
@@ -11324,6 +11339,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 world_->set_mesh_transform_offsets({});
                 world_->set_mesh_position_overrides({});
                 world_->set_mesh_texcoord_overrides({});
+                world_->set_face_camera_meshes({});
                 world_->set_hidden_meshes(composed_venue_hidden_meshes());
                 apply_venue_event("start", false);
                 apply_venue_event("intro_start", false);

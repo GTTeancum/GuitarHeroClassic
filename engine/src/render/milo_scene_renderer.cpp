@@ -230,6 +230,64 @@ void apply_mesh_transform_sample(
     apply_local_scale_delta(world, sample.scale);
 }
 
+void apply_face_camera_yaw(std::array<float, 16>& world,
+                           const milo_scene::MeshObj& mesh,
+                           const float eye[3]) {
+  float normal[3] = {0.0f, 0.0f, 0.0f};
+  for (const auto& v : mesh.verts) {
+    normal[0] += v.nx;
+    normal[1] += v.ny;
+    normal[2] += v.nz;
+  }
+  const float normal_len =
+      std::sqrt(normal[0] * normal[0] + normal[1] * normal[1] +
+                normal[2] * normal[2]);
+  if (normal_len > 0.000001f) {
+    const float inv_len = 1.0f / normal_len;
+    normal[0] *= inv_len;
+    normal[1] *= inv_len;
+    normal[2] *= inv_len;
+  } else {
+    normal[0] = 0.0f;
+    normal[1] = 1.0f;
+    normal[2] = 0.0f;
+  }
+  float current[3] = {
+      normal[0] * world[0] + normal[1] * world[4] + normal[2] * world[8],
+      normal[0] * world[1] + normal[1] * world[5] + normal[2] * world[9],
+      normal[0] * world[2] + normal[1] * world[6] + normal[2] * world[10],
+  };
+  current[2] = 0.0f;
+  const float current_len =
+      std::sqrt(current[0] * current[0] + current[1] * current[1]);
+  if (current_len <= 0.000001f) return;
+  current[0] /= current_len;
+  current[1] /= current_len;
+
+  float desired[3] = {eye[0] - world[12], eye[1] - world[13], 0.0f};
+  const float desired_len =
+      std::sqrt(desired[0] * desired[0] + desired[1] * desired[1]);
+  if (desired_len <= 0.000001f) return;
+  desired[0] /= desired_len;
+  desired[1] /= desired_len;
+
+  const float cross = current[0] * desired[1] - current[1] * desired[0];
+  const float dot = std::clamp(current[0] * desired[0] +
+                                   current[1] * desired[1],
+                               -1.0f, 1.0f);
+  const float angle = std::atan2(cross, dot);
+  if (!std::isfinite(angle) || std::fabs(angle) <= 0.000001f) return;
+  const float c = std::cos(angle);
+  const float s = std::sin(angle);
+  for (int r = 0; r < 3; ++r) {
+    const int base = r * 4;
+    const float x = world[base + 0];
+    const float y = world[base + 1];
+    world[base + 0] = x * c - y * s;
+    world[base + 1] = x * s + y * c;
+  }
+}
+
 const MiloSceneRenderer::MeshAnimKey* sample_vec_key(
     const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame,
     const MiloSceneRenderer::MeshAnimKey** next) {
@@ -541,6 +599,11 @@ void MiloSceneRenderer::set_mesh_position_overrides(
 void MiloSceneRenderer::set_mesh_texcoord_overrides(
     std::map<std::string, std::vector<std::array<float, 2>>> texcoords) {
   mesh_texcoord_overrides_ = std::move(texcoords);
+}
+
+void MiloSceneRenderer::set_face_camera_meshes(
+    std::unordered_set<std::string> mesh_names) {
+  face_camera_meshes_ = std::move(mesh_names);
 }
 
 void MiloSceneRenderer::trigger_mesh_pulse(const std::string& mesh_name,
@@ -1452,6 +1515,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     const auto pulse_it = mesh_pulses_.find(m.name);
     if (pulse_it != mesh_pulses_.end()) {
       world[14] += pulse_it->second;
+    }
+    if (face_camera_meshes_.find(m.name) != face_camera_meshes_.end()) {
+      apply_face_camera_yaw(world, m, eye);
     }
     if (debug_camera_meshes && m.decoded && !m.verts.empty()) {
       float mn[3] = {0, 0, 0};

@@ -1944,6 +1944,21 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(key.hide_crowd)next_hidden=venue_crowd_meshes_;",
                  "hide_crowd selects only decoded crowd meshes");
+  ok &= contains(gameplay_h_c,
+                 "boolvenue_camera_crowd_face_camera_=false;",
+                 "camera-facing crowd state is tracked separately from hidden meshes");
+  ok &= contains(gameplay_c,
+                 "key.crowd_face_camera&&!venue_crowd_meshes_.empty()",
+                 "crowd_face_camera is gated by decoded crowd meshes");
+  ok &= contains(gameplay_c,
+                 "world_->set_face_camera_meshes(venue_camera_crowd_face_camera_",
+                 "camera-facing crowd meshes are sent to the venue renderer");
+  ok &= contains(renderer_h_c,
+                 "voidset_face_camera_meshes(std::unordered_set<std::string>mesh_names);",
+                 "renderer exposes a generic face-camera mesh set");
+  ok &= contains(renderer_c,
+                 "apply_face_camera_yaw(world,m,eye);",
+                 "renderer applies camera-facing yaw to selected meshes");
   ok &= contains(gameplay_c,
                  "apply_camera_crowd_visibility(current_position);",
                  "regular camera path applies crowd visibility flags");
