@@ -1155,24 +1155,25 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
                      ? nullptr
                      : scene_.find_environ(env_it->second);
     }
+    std::array<float, 4> mesh_env_color = {1.0f, 1.0f, 1.0f, 1.0f};
+    bool has_mesh_env_color = false;
     DWORD mesh_ambient = kDefaultSceneAmbient;
     if (mesh_env && environ_color_sane(*mesh_env)) {
-        std::array<float, 4> env_color = {mesh_env->color_a[0],
-                                          mesh_env->color_a[1],
-                                          mesh_env->color_a[2],
-                                          mesh_env->color_a[3]};
+        mesh_env_color = {mesh_env->color_a[0], mesh_env->color_a[1],
+                          mesh_env->color_a[2], mesh_env->color_a[3]};
         if (const auto color_it =
                 environment_color_overrides_.find(mesh_env->name);
             color_it != environment_color_overrides_.end()) {
-          env_color = color_it->second;
+          mesh_env_color = color_it->second;
         }
+        has_mesh_env_color = true;
         const auto cc_env = [](float f) -> int {
           int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
           return i < 0 ? 0 : (i > 255 ? 255 : i);
         };
-        mesh_ambient = D3DCOLOR_XRGB(cc_env(env_color[0]),
-                                     cc_env(env_color[1]),
-                                     cc_env(env_color[2]));
+        mesh_ambient = D3DCOLOR_XRGB(cc_env(mesh_env_color[0]),
+                                     cc_env(mesh_env_color[1]),
+                                     cc_env(mesh_env_color[2]));
     }
     dev_->SetRenderState(D3DRS_AMBIENT, mesh_ambient);
     configure_authored_fog(mesh_env);
@@ -1206,6 +1207,17 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     if (const auto alpha_it = material_alpha_.find(material);
         alpha_it != material_alpha_.end()) {
       ma *= alpha_it->second;
+    }
+    const bool prelit_material =
+        mat_obj && mat_obj->prelit && !env_enabled("GHOGX_DISABLE_PRELIT_MATERIALS");
+    if (prelit_material && has_mesh_env_color) {
+      // Prelit materials bypass D3D fixed lighting below. Preserve the authored
+      // Mat.use_environ route by folding the current Environ/EnvAnim color into
+      // the same diffuse path that vertex colors and material colors use.
+      mr *= std::clamp(mesh_env_color[0], 0.0f, 4.0f);
+      mg *= std::clamp(mesh_env_color[1], 0.0f, 4.0f);
+      mb *= std::clamp(mesh_env_color[2], 0.0f, 4.0f);
+      ma *= std::clamp(mesh_env_color[3], 0.0f, 1.0f);
     }
     if (debug_spotlight_solid) {
       texture = nullptr;
@@ -1255,8 +1267,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
     }
 
-    const bool prelit_material =
-        mat_obj && mat_obj->prelit && !env_enabled("GHOGX_DISABLE_PRELIT_MATERIALS");
     const bool disable_mesh_lighting = debug_spotlight_solid || prelit_material;
     DWORD prev_lighting = TRUE;
     if (disable_mesh_lighting) {

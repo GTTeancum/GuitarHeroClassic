@@ -1698,6 +1698,12 @@ int main() {
                  "prelit_material;",
                  "prelit materials share the fixed-lighting disable path");
   ok &= contains(renderer_c,
+                 "if(prelit_material&&has_mesh_env_color)",
+                 "prelit use-environ materials keep EnvAnim color after fixed lighting is disabled");
+  ok &= contains(renderer_c,
+                 "mr*=std::clamp(mesh_env_color[0],0.0f,4.0f);",
+                 "prelit use-environ materials fold authored environment RGB into diffuse color");
+  ok &= contains(renderer_c,
                  "GHOGX_LOG_PRELIT_MESHES",
                  "prelit renderer path has focused debug logging");
   ok &= contains(gameplay_c,

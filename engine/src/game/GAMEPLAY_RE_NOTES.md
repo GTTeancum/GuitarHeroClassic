@@ -2852,3 +2852,34 @@ Rejected native probe:
   performers, and lighting still visible. Arena's retained frame still exposes
   the pre-existing camera-composition issue in that shot, so do not use it as a
   camera-parity signoff.
+
+2026-06-23 prelit `use_environ` color handoff:
+
+- A targeted source probe extracted only `world/small2/og/gen/small2_lighting.milo_ps2`
+  and `small2_geom.milo_ps2` to a temp directory, inspected the material/group
+  bodies, then deleted the temp directory in the same command. The projection
+  and glow materials that drive the visually loud small2 overlay are authored
+  as both `use_environ=1` and `prelit=1`: `trippy_pojection.mat`,
+  `opArt_projection.mat`, `floor_fog_mat.mat`, `neon_glow_*`, and
+  `spotlight_default.mat`. The active groups route these meshes through
+  decoded Environ objects (`projections.grp` -> `op_Art_projection.env`,
+  `op_art_projection.grp` -> `trippy_projection.env`) that are driven by
+  `EnvAnim`.
+- The previous prelit renderer path correctly disabled fixed-function lighting
+  for prelit meshes, but that also meant `Mat.use_environ` color only affected
+  non-prelit meshes through `D3DRS_AMBIENT`. Native now preserves the authored
+  environment route for prelit materials by folding the current Environ /
+  EnvAnim color into the diffuse vertex/material multiplier before disabling
+  fixed lighting. This is shared material behavior; it does not name small2,
+  projection meshes, or texture assets.
+- Validation:
+  `analysis/native_validation/prelit_use_environ_small2_20260623_current/`
+  reruns stock `youreallygotme` in small2 with diagnostic autoplay,
+  `excitement_great`, fixed-step timing, and one retained frame at 80. The app
+  exits `0`, the log records the expected `lighting event excitement_great`
+  MatAnim/EnvAnim rows for `op_art_projection` and `trippy_projection`, and
+  `frame_00080.bmp` shows the projection overlay darkened/tinted by authored
+  Environ color instead of rendering as full-strength white masks. The only
+  retained `error` text is PowerShell's redirected native stderr wrapper, not a
+  runtime route failure. Cleanup audits before and after the run reported zero
+  `GH2DXu_PS2_trace_*` staging folders and zero temporary ISO/MDS files.
