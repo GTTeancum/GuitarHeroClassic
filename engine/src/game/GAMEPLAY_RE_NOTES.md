@@ -53,7 +53,18 @@ Open work:
   `guitarist0:bone_neck.mesh` at `+0x1ac/+0x1ba`, which is the source for the
   live eye offset. Native now decodes pose-local target and parent refs from
   the CamShot keyframe tail and uses flat string inference only if that binary
-  ref decode fails.
+  ref decode fails. The same raw-probe pass also shows arena shots such as
+  `flr_near_rt01x23w` and `flr_near_rt01xbass.shot` can encode an empty target
+  entity with target subpart `spot_neck_fret20.mesh`. Native resolves only that
+  missing target entity from shot context (`bass` -> `bassist`, default ->
+  `guitarist0`) and leaves parent/source refs untouched. Validation:
+  `analysis/native_validation/camshot_unqualified_target_current/` exits `0`,
+  has no `target=:spot_neck` rows, and logs both
+  `target=guitarist0:spot_neck_fret20.mesh` and
+  `target=bassist:spot_neck_fret20.mesh`. Cross-route smoke
+  `analysis/native_validation/camshot_unqualified_target_crossroute_current/`
+  covers arena, small2, battle, big, and theatre with camera, venue event, and
+  lighting rows active and the same unresolved-target guard clear.
 - 2026-06-20 CamShot layout pass: PS2 object data and the local
   `world_objects_ps2.dta::CamShot` schema place `field_of_view` immediately
   before the decoded camera transform. Native now decodes that value from

@@ -720,17 +720,25 @@ bool is_target_subpart(std::string_view s) {
            s.find(".mesh") != std::string_view::npos;
 }
 
+const char* camshot_entity_from_name(std::string_view name) {
+    if (name.find("bass") != std::string_view::npos) return "bassist";
+    if (name.find("singer") != std::string_view::npos) return "singer";
+    if (name.find("drum") != std::string_view::npos) return "drummer";
+    if (name.find("key") != std::string_view::npos) return "keyboard";
+    return nullptr;
+}
+
+void resolve_unqualified_camshot_target(std::string_view shot_name,
+                                        Gameplay::CameraKey& key) {
+    if (!key.target_entity.empty() || key.target_subpart.empty()) return;
+    const char* hinted_entity = camshot_entity_from_name(shot_name);
+    key.target_entity = hinted_entity ? hinted_entity : "guitarist0";
+}
+
 void infer_camshot_target(const std::vector<std::string>& strings,
                           std::string_view shot_name,
                           Gameplay::CameraKey& key) {
-    auto entity_from_shot = [](std::string_view name) -> const char* {
-        if (name.find("bass") != std::string_view::npos) return "bassist";
-        if (name.find("singer") != std::string_view::npos) return "singer";
-        if (name.find("drum") != std::string_view::npos) return "drummer";
-        if (name.find("key") != std::string_view::npos) return "keyboard";
-        return nullptr;
-    };
-    const char* hinted_entity = entity_from_shot(shot_name);
+    const char* hinted_entity = camshot_entity_from_name(shot_name);
     for (size_t i = 0; i < strings.size(); ++i) {
         if (!is_performer_entity(strings[i])) continue;
         key.target_entity = hinted_entity ? hinted_entity : strings[i];
@@ -4966,6 +4974,7 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                     decode_camshot_poses(body, static_cast<size_t>(de.size));
                 for (auto& pose : decoded_poses) {
                     pose.first.name = de.name;
+                    resolve_unqualified_camshot_target(de.name, pose.first);
                     pose.first.frame = 0.0f;
                     pose.first.hide_crowd = hide_crowd;
                     pose.first.crowd_face_camera = crowd_face_camera;
@@ -7171,7 +7180,9 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             if (decoded_poses.empty()) continue;
             if (debug_camera_enabled()) {
                 for (const auto& pose : decoded_poses) {
-                    const auto& key = pose.first;
+                    Gameplay::CameraKey key = pose.first;
+                    key.name = de.name;
+                    resolve_unqualified_camshot_target(de.name, key);
                     std::fprintf(
                         stderr,
                         "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) fov=%s%.3f target=%s:%s parent=%s:%s refs=%d\n",
@@ -7228,10 +7239,13 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 decode_camshot_hide_list_refs(body, static_cast<size_t>(de.size));
             if (!c.key.camshot_refs_decoded) {
                 infer_camshot_target(strings, c.shot, c.key);
+            } else {
+                resolve_unqualified_camshot_target(c.shot, c.key);
             }
             for (auto& decoded_pose : decoded_poses) {
                 Gameplay::CameraKey pos = decoded_pose.first;
                 pos.name = c.shot;
+                resolve_unqualified_camshot_target(c.shot, pos);
                 pos.distance = c.key.distance;
                 pos.facing = c.key.facing;
                 pos.solo = c.key.solo;

@@ -130,6 +130,8 @@ int main() {
   const std::string renderer_h_c = compact(milo_scene_renderer_h);
   const std::string performer_entity_c =
       compact(function_body(gameplay, "is_performer_entity"));
+  const std::string camshot_entity_c =
+      compact(function_body(gameplay, "camshot_entity_from_name"));
   const std::string infer_camshot_c =
       compact(function_body(gameplay, "infer_camshot_target"));
   const std::string regular_camera_loader_c =
@@ -146,7 +148,7 @@ int main() {
   ok &= contains(performer_entity_c,
                  "s==\"singer\"||s==\"drummer\"||s==\"keyboard\";",
                  "camera/target performer entities include keyboard");
-  ok &= contains(infer_camshot_c,
+  ok &= contains(camshot_entity_c,
                  "if(name.find(\"key\")!=std::string_view::npos)"
                  "return\"keyboard\";",
                  "camera target inference routes key shots to keyboard");
@@ -1885,6 +1887,23 @@ int main() {
                  "if(!c.key.camshot_refs_decoded){"
                  "infer_camshot_target(strings,c.shot,c.key);}",
                  "regular camera loader only uses flat target inference when binary refs fail");
+  ok &= contains(gameplay_c,
+                 "voidresolve_unqualified_camshot_target("
+                 "std::string_viewshot_name,Gameplay::CameraKey&key)",
+                 "CamShot target resolver has a shared unqualified-ref helper");
+  ok &= contains(gameplay_c,
+                 "if(!key.target_entity.empty()||"
+                 "key.target_subpart.empty())return;",
+                 "unqualified CamShot resolver only fills missing target entities");
+  ok &= contains(gameplay_c,
+                 "key.target_entity=hinted_entity?hinted_entity:\"guitarist0\";",
+                 "unqualified CamShot target refs inherit performer context");
+  ok &= contains(gameplay_c,
+                 "else{resolve_unqualified_camshot_target(c.shot,c.key);}",
+                 "regular camera loader completes decoded unqualified target refs");
+  ok &= contains(gameplay_c,
+                 "resolve_unqualified_camshot_target(c.shot,pos);",
+                 "regular camera pose variants complete decoded unqualified target refs");
   ok &= contains(gameplay_c,
                  "pos.parent_entity=c.key.parent_entity;"
                  "pos.parent_subpart=c.key.parent_subpart;",
