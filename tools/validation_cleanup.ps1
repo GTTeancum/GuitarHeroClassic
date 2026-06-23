@@ -1,5 +1,6 @@
 param(
     [string]$Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
+    [string[]]$TraceRoots = @(),
     [switch]$DeleteTraceStaging,
     [int]$Top = 15
 )
@@ -7,16 +8,35 @@ param(
 $ErrorActionPreference = "Stop"
 
 $resolvedRoot = (Resolve-Path -LiteralPath $Root).Path
+$defaultTraceRoots = @($resolvedRoot)
+$parentRoot = Split-Path -Parent $resolvedRoot
+if ($parentRoot) {
+    $defaultTraceRoots += $parentRoot
+}
+$resolvedTraceRoots = @(
+    @($defaultTraceRoots + $TraceRoots) |
+        Where-Object { $_ } |
+        ForEach-Object { (Resolve-Path -LiteralPath $_).Path } |
+        Select-Object -Unique
+)
 
 function Format-MB([long]$bytes) {
     return [math]::Round($bytes / 1MB, 2)
 }
 
 Write-Host "Validation cleanup audit root: $resolvedRoot"
+Write-Host "Trace staging audit roots:"
+$resolvedTraceRoots | ForEach-Object { Write-Host "  $_" }
 
-$traceDirs = @(Get-ChildItem -LiteralPath $resolvedRoot -Recurse -Force -Directory -Filter "GH2DXu_PS2_trace_*" -ErrorAction SilentlyContinue)
-$traceImages = @(Get-ChildItem -LiteralPath $resolvedRoot -Recurse -Force -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -match "GH2DXu_PS2_trace_.*\.(iso|mds)$" })
+$traceDirs = @()
+$traceImages = @()
+foreach ($traceRoot in $resolvedTraceRoots) {
+    $traceDirs += @(Get-ChildItem -LiteralPath $traceRoot -Recurse -Force -Directory -Filter "GH2DXu_PS2_trace_*" -ErrorAction SilentlyContinue)
+    $traceImages += @(Get-ChildItem -LiteralPath $traceRoot -Recurse -Force -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match "GH2DXu_PS2_trace_.*\.(iso|mds)$" })
+}
+$traceDirs = @($traceDirs | Sort-Object FullName -Unique)
+$traceImages = @($traceImages | Sort-Object FullName -Unique)
 
 if ($traceDirs.Count -eq 0 -and $traceImages.Count -eq 0) {
     Write-Host "Trace staging artifacts: none"
@@ -29,9 +49,17 @@ if ($traceDirs.Count -eq 0 -and $traceImages.Count -eq 0) {
 
 if ($DeleteTraceStaging) {
     foreach ($file in $traceImages) {
+        $filePath = (Resolve-Path -LiteralPath $file.FullName).Path
+        if (-not ($resolvedTraceRoots | Where-Object { $filePath.StartsWith($_, [System.StringComparison]::OrdinalIgnoreCase) })) {
+            throw "Refusing to delete trace image outside audit roots: $filePath"
+        }
         Remove-Item -LiteralPath $file.FullName -Force
     }
     foreach ($dir in $traceDirs) {
+        $dirPath = (Resolve-Path -LiteralPath $dir.FullName).Path
+        if (-not ($resolvedTraceRoots | Where-Object { $dirPath.StartsWith($_, [System.StringComparison]::OrdinalIgnoreCase) })) {
+            throw "Refusing to delete trace directory outside audit roots: $dirPath"
+        }
         Remove-Item -LiteralPath $dir.FullName -Recurse -Force
     }
     Write-Host "Deleted trace staging artifacts: dirs=$($traceDirs.Count) files=$($traceImages.Count)"
