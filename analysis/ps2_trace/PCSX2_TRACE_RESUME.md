@@ -32,6 +32,15 @@ implementation-ready:
   `C:\Programming\GitHub\Guitar Hero II\Guitar Hero II PS2 (USA).iso`.
 - Use Rexglue/community object metadata only as the compass for names,
   expected class behavior, and interpretation.
+- 2026-06-19 hand/fret correction: GHDX autoplay probes
+  `gh2dxu_fret_ik_vtable_trace_20260619.json`,
+  `gh2dxu_fret_ik_candidate_probe_20260619.json`, and
+  `gh2dxu_fret_ik_pointer_follow_probe_20260619.json` prove the live
+  `fret.ik` object (`0x00e67d20`) updates through `0x0017bbd0` but only
+  changes a near-1.0 scalar at `+0x44`; the moving per-note hand target is in
+  the MIDI-selected `finger_*` clip outputs, especially `bone_fret_hand.pos`.
+  Do not restore a native lane-to-`spot_neck_fretNN.mesh` transform guess unless
+  a new PS2 trace proves the exact selector.
 
 The complete trace map must cover:
 
@@ -188,6 +197,16 @@ Read these before launching PCSX2 or changing any code:
 - Do not treat a screenshot of a startup error as a successful input probe.
 - Do not burn more runs retrying raw-executable/statefile input paths. The
   accepted active-song route is the real ISO plus indexed `-state 1`.
+- Exception: for current PCSX2 builds that expose SLUS code pages as read-only
+  to external `WriteProcessMemory`, generate a throwaway prepatched `.p2s` from
+  the accepted indexed state with
+  `tools/prepatch_pcsx2_state_call_sequence.py`, then run
+  `tools/trace_pcsx2_call_sequence.py --statefile <patched.p2s>
+  --patch-manifest <manifest.json> --skip-code-patch --skip-stub-write`.
+  This route is accepted by
+  `pcsx2_known_hot_stateprepatch_hardened_control_20260622_current.json` and
+  `pcsx2_lighting_keyqueue_stateprepatch_20260622_current.json`; it avoids live
+  code-page writes while still using the normal writable trace ring.
 - Do not force PCSX2 to the foreground. The user explicitly asked not to.
 - Do not use `--focus-window` unless the user explicitly approves it.
 - Do not use screen capture that can grab the Codex window. Use the trace tools'
@@ -199,7 +218,8 @@ Read these before launching PCSX2 or changing any code:
   unless the screenshot proves the right in-song window and the sampled camera
   window should exercise that system.
 - Do not patch SLUS text/code pages with direct `WriteProcessMemory`; this
-  failed with error `998`. Live object/vtable redirection works.
+  failed with error `998`. Use the patched-state trace route for function-entry
+  hooks, or live object/vtable redirection where the target page is writable.
 - Do not use impossible counter values such as `0x3c19xxxx`; those came from
   scratch/counter contamination and are rejected.
 - Do not infer native fixes from isolated visual guesses. The user rejected
@@ -2733,6 +2753,32 @@ Accepted CamShot path/apply object sample:
   path/keyframe records, not static metadata. Continue by statically and
   dynamically tracing downstream from `0x00262b08`, `0x0026c900`, and
   `0x0026ae00` into the final Trans/render-camera handoff.
+
+Accepted headless camera result-row handoff sample:
+
+- Tool: `tools/sample_pcsx2_object_words.py`.
+- Report: `pcsx2_camera_result_rows_headless_retry_20260622_resume.json`.
+- Log: `pcsx2_camera_result_rows_headless_retry_20260622_resume.log`.
+- Command used the accepted real ISO plus indexed `-state 1` path with
+  no-front/background PCSX2 input, `--pre-retry-seconds 4`,
+  `--retry-pulses 2`, `--post-retry-seconds 3`, `--seconds 24`,
+  `--interval 0.2`, and explicit object targets for mutable camera result/path
+  rows `0x00b92ef0`, `0x00b92f50`, `0x00b930e0`, `0x00b8e9d0`,
+  `0x00b8ea10`, `0x01ffe750`, and `0x01ffe790`.
+- Target sample/change counts:
+  - `cam_result_00b92ef0`: `120` samples, `107` changed rows.
+  - `cam_child_a_00b92f50`: `120` samples, `95` changed rows.
+  - `cam_result_path_00b930e0`: `120` samples, `38` changed rows.
+  - `cam_path_00b8e9d0`: `120` samples, `73` changed rows.
+  - `cam_path_frame_00b8ea10`: `120` samples, `74` changed rows.
+  - `stack_result_a_01ffe750`: `120` samples, `93` changed rows.
+  - `stack_result_b_01ffe790`: `120` samples, `94` changed rows.
+- Interpretation: the Battle result family stayed on one authored camera family
+  for the early window, then switched directly to the next family and continued
+  with small live motion. This supports native cutting between distinct
+  `start_shot` families and reserving interpolation for same-shot
+  `post_switch_cam` position changes. It does not close exact final render
+  camera field naming or all camera blend math.
 
 Accepted CamShot downstream child sequence traces:
 
@@ -10952,3 +10998,48 @@ Rejected GH80s PAL venue/camera/lighting attempts:
 GH80s closeout status: closed for this trace phase by user decision after the
 accepted character, camera, venue, and lighting evidence above. Return to the
 main trace plan rather than continuing GH80s breadth work.
+
+GH2 Battle Spotlight color runner follow-up (2026-06-22):
+
+- `pcsx2_color_runner_scale_20260622_current.json` is accepted in-song Battle
+  evidence for the PS2 Spotlight color path. The traced chain is
+  `0x00275ee0 -> 0x0026f378 -> 0x003a9170/0x003a8f80`, with
+  `0x00275ee0` storing the source RGB into each Spotlight object and applying
+  `f12` as the scalar/fade. The run retained 253 `color_scale_commit_00275ee0`
+  calls, 253 `color_runner_0026f378` calls, 86 replace calls, and 85 update
+  calls.
+- `pcsx2_color_runner_objects_20260622_current.json` maps the eleven live
+  object addresses to Battle Spotlight names:
+  `basketball01/02/03_spotlight.spot`, `left_round01/02/03_spotlight.spot`,
+  `right_round01/02/03_spotlight.spot`, `square01_spotlight.spot`, and
+  `SHADOW_light.spot`.
+- The trace source vectors match raw `battle_lighting.milo_ps2` object defaults
+  for the non-target special spotlights. `square01_spotlight.spot` commits
+  RGB `(1.0, 1.0, 0.878431)`, which is stored eight bytes after its first
+  post-parent `.grp` string. `SHADOW_light.spot` commits
+  `(0.105882, 0.105882, 0.258824)`, stored four bytes after its first
+  post-parent performer token. Targeted round/basketball spots receive runtime
+  `LightPreset` target-state colors and scalar fades through the color manager;
+  do not treat their aim/template float runs as object default RGB.
+- `pcsx2_env_color_consumer_20260622_resume.json` is accepted active-song
+  follow-up evidence for the color-list helper side. It used the prepatched
+  state route with background input and retained an active gameplay screenshot.
+  Counts: `color_interp_find_003a8b88` 86, `color_interp_replace_003a8f80` 86,
+  `color_interp_update_003a9170` 85, and `color_interp_apply_003a8e38` 44. The
+  new `0x003a8e38` hits come from `0x003a8f80` and carry the global color-list
+  row `0x00b784c4` plus stack color rows; this closes that helper as internal
+  color-list maintenance, not as a final renderer or dynamic Environ light
+  consumer. Do not enable native `GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS` from
+  this trace.
+- Local JSON analysis of the accepted consumer trace confirms the helper shape:
+  all 44 `0x003a8e38` calls have `ra=0x003a9154`, `a0=0x01ffe7d0`,
+  `a1=0x00b784c4`, and `a3=0x01ffe7e0`. The stack payloads carry normalized
+  RGB triples, while `0x003a9170` / `0x003a8f80` keep rotating list slots such
+  as `0x007fe790`, `0x00782580`, and `0x00845ca0` inside the same
+  `0x00b784c4` color-list family. Treat this as color-list plumbing only.
+- `pcsx2_lighting_color_consumer_snapshot_20260622_current.json` and
+  `pcsx2_lighting_color_consumer_noretry_20260622_current.json` are rejected as
+  active renderer-light evidence. Their retained screenshots are SONG FAILED /
+  retry-menu captures rather than active gameplay; the no-retry run records
+  zero calls, and the snapshot run must not supersede the accepted
+  `pcsx2_env_color_consumer_20260622_resume.json` route.

@@ -23,13 +23,23 @@ kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
 kernel32.CloseHandle.restype = wintypes.BOOL
 
-REG = {"zero": 0, "a0": 4, "a1": 5, "a2": 6, "a3": 7, "k0": 26, "k1": 27}
+REG = {
+    "zero": 0,
+    "a0": 4,
+    "a1": 5,
+    "a2": 6,
+    "a3": 7,
+    "sp": 29,
+    "k0": 26,
+    "k1": 27,
+    "ra": 31,
+}
 
 
 def record_words_for_arg_snapshot(arg_snapshot_words: int) -> int:
     if arg_snapshot_words <= 0:
-        return 8
-    needed = 8 + arg_snapshot_words * 2
+        return 16
+    needed = 10 + arg_snapshot_words * 2
     record_words = 32
     while record_words < needed:
         record_words *= 2
@@ -64,8 +74,16 @@ def ins_andi(rt: int, rs: int, imm: int) -> int:
     return 0x30000000 | (rs << 21) | (rt << 16) | (imm & 0xFFFF)
 
 
+def ins_ori(rt: int, rs: int, imm: int) -> int:
+    return 0x34000000 | (rs << 21) | (rt << 16) | (imm & 0xFFFF)
+
+
 def ins_beq(rs: int, rt: int, imm: int) -> int:
     return 0x10000000 | (rs << 21) | (rt << 16) | (imm & 0xFFFF)
+
+
+def ins_bne(rs: int, rt: int, imm: int) -> int:
+    return 0x14000000 | (rs << 21) | (rt << 16) | (imm & 0xFFFF)
 
 
 def ins_sll(rd: int, rt: int, shamt: int) -> int:
@@ -400,6 +418,8 @@ def make_sequence_stub(
     ring_size: int,
     enable_addr: int | None = None,
     arg_snapshot_words: int = 0,
+    filter_reg: str | None = None,
+    filter_value: int | None = None,
 ) -> bytes:
     base = data + 0x100
     enable = data + 0x80 if enable_addr is None else enable_addr
@@ -408,6 +428,21 @@ def make_sequence_stub(
     words = [
         orig1,
         orig2,
+    ]
+    filter_branch_index = None
+    if filter_reg is not None and filter_value is not None:
+        if filter_reg not in ("a0", "a1", "a2", "a3"):
+            raise RuntimeError(f"unsupported trace filter register {filter_reg}")
+        words.extend(
+            [
+                ins_lui(REG["k0"], (filter_value >> 16) & 0xFFFF),
+                ins_ori(REG["k0"], REG["k0"], filter_value & 0xFFFF),
+                0,  # bne filter_reg,k0,return; filled below.
+                0,
+            ]
+        )
+        filter_branch_index = len(words) - 2
+    words.extend([
         ins_lui(REG["k0"], (enable >> 16) & 0xFFFF),
         ins_lw(REG["k1"], REG["k0"], enable & 0xFFFF),
         0,  # beq k1,zero,return; filled below once the return index is known.
@@ -434,7 +469,11 @@ def make_sequence_stub(
         ins_sw(REG["k0"], REG["k1"], 24),
         ins_mfc1(REG["k0"], 20),
         ins_sw(REG["k0"], REG["k1"], 28),
-    ]
+        ins_sw(REG["ra"], REG["k1"], 32),
+        ins_lw(REG["k0"], REG["sp"], 48),
+        ins_sw(REG["k0"], REG["k1"], 36),
+    ])
+    enable_branch_index = len(words) - 27
     if arg_snapshot_words:
         # Optional helper-trace mode: snapshot words pointed to by a0/a1 at
         # call time. Use only for targets whose argument pointers are known
@@ -442,9 +481,9 @@ def make_sequence_stub(
         for word_i in range(arg_snapshot_words):
             words.extend([
                 ins_lw(REG["k0"], REG["a0"], word_i * 4),
-                ins_sw(REG["k0"], REG["k1"], 32 + word_i * 4),
+                ins_sw(REG["k0"], REG["k1"], 40 + word_i * 4),
             ])
-        a1_base = 32 + arg_snapshot_words * 4
+        a1_base = 40 + arg_snapshot_words * 4
         for word_i in range(arg_snapshot_words):
             words.extend([
                 ins_lw(REG["k0"], REG["a1"], word_i * 4),
@@ -455,8 +494,13 @@ def make_sequence_stub(
         0,
     ])
     return_index = len(words) - 2
-    branch_index = 4
-    words[branch_index] = ins_beq(REG["k1"], REG["zero"], return_index - (branch_index + 1))
+    if filter_branch_index is not None:
+        words[filter_branch_index] = ins_bne(
+            REG[filter_reg], REG["k0"], return_index - (filter_branch_index + 1)
+        )
+    words[enable_branch_index] = ins_beq(
+        REG["k1"], REG["zero"], return_index - (enable_branch_index + 1)
+    )
     return b"".join(u32(word) for word in words)
 
 
@@ -494,6 +538,8 @@ def install_trace_stubs(
     enable_addr: int,
     patch_code: bool,
     arg_snapshot_words: int = 0,
+    filter_reg: str | None = None,
+    filter_value: int | None = None,
 ) -> list[dict[str, object]]:
     patches = []
     stub_stride = 0x800 if arg_snapshot_words > 16 else (0x300 if arg_snapshot_words > 4 else 0x100)
@@ -519,11 +565,44 @@ def install_trace_stubs(
                 ring_size,
                 enable_addr,
                 arg_snapshot_words,
+                filter_reg,
+                filter_value,
             ),
         )
         if patch_code:
             write_process_unprotect(handle, ee_base + func, b"".join([u32(ins_j(stub)), u32(0)]))
-        patches.append({"name": name, "func": f"0x{func:08x}", "stub": f"0x{stub:08x}", "func_id": i + 1})
+        patch = {
+            "name": name,
+            "func": f"0x{func:08x}",
+            "stub": f"0x{stub:08x}",
+            "func_id": i + 1,
+        }
+        if filter_reg is not None and filter_value is not None:
+            patch["filter_reg"] = filter_reg
+            patch["filter_value"] = f"0x{filter_value:08x}"
+        patches.append(patch)
+    return patches
+
+
+def manifest_patches_for_targets(
+    targets: list[tuple[str, int]],
+    manifest_entries: dict[tuple[str, int], dict[str, object]],
+) -> list[dict[str, object]]:
+    patches = []
+    for i, (name, func) in enumerate(targets):
+        entry = manifest_entries.get((name, func))
+        if not entry:
+            raise RuntimeError(
+                f"Target {name}=0x{func:08x} is missing from --patch-manifest"
+            )
+        patches.append(
+            {
+                "name": name,
+                "func": f"0x{func:08x}",
+                "stub": entry["stub"],
+                "func_id": i + 1,
+            }
+        )
     return patches
 
 
@@ -557,14 +636,16 @@ def read_sequence(
                 "f12_bits": f"0x{vals[i + 5]:08x}",
                 "f13_bits": f"0x{vals[i + 6]:08x}",
                 "f20_bits": f"0x{vals[i + 7]:08x}",
+                "ra": f"0x{vals[i + 8]:08x}",
+                "sp48_word": f"0x{vals[i + 9]:08x}",
             }
         )
         if arg_snapshot_words > 0:
             record["a0_words"] = [
-                f"0x{vals[i + 8 + j]:08x}" for j in range(arg_snapshot_words)
+                f"0x{vals[i + 10 + j]:08x}" for j in range(arg_snapshot_words)
             ]
             record["a1_words"] = [
-                f"0x{vals[i + 8 + arg_snapshot_words + j]:08x}"
+                f"0x{vals[i + 10 + arg_snapshot_words + j]:08x}"
                 for j in range(arg_snapshot_words)
             ]
         records.append(record)
@@ -578,6 +659,11 @@ def main() -> int:
     parser.add_argument("--iso", required=True, type=Path)
     parser.add_argument("--elf", required=True, type=Path)
     parser.add_argument("--state", type=int, default=1)
+    parser.add_argument(
+        "--statefile",
+        type=Path,
+        help="Load an explicit PCSX2 savestate file instead of a numbered slot.",
+    )
     parser.add_argument("--no-state", action="store_true")
     parser.add_argument("--log", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
@@ -667,6 +753,11 @@ def main() -> int:
         help="Write trace stubs/data only; assume target functions already jump to those stubs.",
     )
     parser.add_argument(
+        "--skip-stub-write",
+        action="store_true",
+        help="Assume stubs are already embedded in the loaded state/ELF; only clear data and enable capture.",
+    )
+    parser.add_argument(
         "--patch-before-input",
         action="store_true",
         help=(
@@ -685,6 +776,16 @@ def main() -> int:
         default=0,
         help="Opt-in helper mode: record this many words from a0/a1 pointers at call time (max 48).",
     )
+    parser.add_argument(
+        "--filter-reg",
+        choices=["a0", "a1", "a2", "a3"],
+        help="Only record calls where this argument register equals --filter-value.",
+    )
+    parser.add_argument(
+        "--filter-value",
+        type=lambda x: int(x, 0),
+        help="Argument value used with --filter-reg for trace-stub recording.",
+    )
     parser.add_argument("--disable-ee-recompiler", action="store_true")
     parser.add_argument("--gui", action="store_true")
     parser.add_argument("--require-screenshot", action="store_true")
@@ -699,6 +800,8 @@ def main() -> int:
         raise RuntimeError("--ring-size must be a power of two")
     if args.arg_snapshot_words < 0 or args.arg_snapshot_words > 48:
         raise RuntimeError("--arg-snapshot-words must be between 0 and 48")
+    if (args.filter_reg is None) != (args.filter_value is None):
+        raise RuntimeError("--filter-reg and --filter-value must be supplied together")
     enable_addr = args.data_base + 0x80 if args.enable_addr is None else args.enable_addr
     record_words = record_words_for_arg_snapshot(args.arg_snapshot_words)
     record_bytes = record_words * 4
@@ -725,7 +828,12 @@ def main() -> int:
     if args.disable_ee_recompiler:
         original_ini = patch_recompiler_setting(args.ini, enable_ee=False)
 
-    state_args = [] if args.no_state else ["-state", str(args.state)]
+    if args.no_state:
+        state_args = []
+    elif args.statefile:
+        state_args = ["-statefile", str(args.statefile)]
+    else:
+        state_args = ["-state", str(args.state)]
     proc = subprocess.Popen(
         [str(args.pcsx2)]
         + ([] if args.gui else ["-nogui"])
@@ -743,7 +851,9 @@ def main() -> int:
             ee_base, _matched_host = find_ee_base(handle, elf_base, elf_code)
             ee_base_source = "memory_scan"
         patches = []
-        if args.skip_code_patch or args.patch_before_input:
+        if args.skip_code_patch and args.skip_stub_write:
+            patches = manifest_patches_for_targets(targets, manifest_entries)
+        elif args.skip_code_patch or args.patch_before_input:
             write_process(handle, ee_base + args.data_base, b"\x00" * (0x100 + args.ring_size * record_bytes))
             write_process(handle, ee_base + enable_addr, u32(0))
             patches = install_trace_stubs(
@@ -759,6 +869,8 @@ def main() -> int:
                 enable_addr,
                 patch_code=bool(args.patch_before_input),
                 arg_snapshot_words=args.arg_snapshot_words,
+                filter_reg=args.filter_reg,
+                filter_value=args.filter_value,
             )
         time.sleep(args.pre_retry_seconds)
         hwnd = process_window(proc.pid)
@@ -799,6 +911,8 @@ def main() -> int:
                 enable_addr,
                 patch_code=True,
                 arg_snapshot_words=args.arg_snapshot_words,
+                filter_reg=args.filter_reg,
+                filter_value=args.filter_value,
         )
         write_process(handle, ee_base + enable_addr, u32(1))
         for key, wait_after in args.trace_nav_key:
@@ -835,6 +949,9 @@ def main() -> int:
             "patches": patches,
             **sequence,
         }
+        if args.filter_reg is not None and args.filter_value is not None:
+            report["filter_reg"] = args.filter_reg
+            report["filter_value"] = f"0x{args.filter_value:08x}"
         if args.sample_a0:
             report["sampled_a0_rows"] = sample_unique_a0_rows(
                 handle,
