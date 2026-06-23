@@ -599,11 +599,12 @@ MeshObj decode_mesh(const std::string& entry_name,
     read_trans_block(r, mesh.local, mesh.world_stored, trans_parent);
     mesh.parent = trans_parent;
 
-    // Draw base: version (= 3) + 21 bytes (showing flag + bounding sphere +
-    // draw-order). We skip the body; the sphere is recomputed as a bbox below.
+    // Draw base: version (= 3), showing flag, then sphere + draw-order. The
+    // same byte is already used by skinned character meshes and ParticleSys.
     int32_t draw_ver = r.i32();
     (void)draw_ver;
-    r.skip(21);
+    mesh.showing = r.u8() != 0;
+    r.skip(20);
 
     // Mesh fields.
     mesh.material = r.str();           // material name

@@ -835,7 +835,7 @@ void MiloSceneRenderer::frame_camera_on_bounds() {
   // plane (skybox can be far away).
   std::vector<float> vx, vy, vz;
   for (const auto& m : scene_.meshes) {
-    if (!m.decoded || m.vertex_count == 0) continue;
+    if (!m.decoded || !m.showing || m.vertex_count == 0) continue;
     auto w = scene_.world_matrix(m);
     for (const auto& v : m.verts) {
       const float wx = v.px*w[0] + v.py*w[4] + v.pz*w[8]  + w[12];

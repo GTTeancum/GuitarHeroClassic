@@ -2704,3 +2704,39 @@ Rejected native probe:
   `no decoded` rows and zero unmatched env coverage, and keeps 160 camera rows,
   8 regular sweeps, 36 lighting keyframes, 3,814 lighting samples, and 7,536
   venue samples.
+
+2026-06-23 static scene `Draw.showing` decode:
+
+- The theatre/YYZ native visual probe exposed a pale rectangular slab that
+  survived `GHOGX_ONLY_PERFORMER=__none__` and
+  `GHOGX_DISABLE_SPOTLIGHT_INSTANCES=1`, so it was not a character, prop, drum
+  kit, or active spotlight instance. The systemic mismatch was in the static
+  scene Mesh decoder: skinned character meshes and ParticleSys already consume
+  the Draw-base `showing` byte, but `milo_scene::decode_mesh` skipped that byte
+  as part of the remaining Draw body and defaulted every venue mesh visible.
+- Native now decodes `MeshObj::showing` from the same Draw-base byte and seeds
+  the existing venue/lighting runtime hidden-mesh sets from meshes authored
+  hidden at load time. EventTrigger and script show/hide routes can still
+  remove a mesh from those sets later. This is a shared MILO format fix, not a
+  theatre mesh-name override; authored theatre alpha/light meshes such as
+  `flame_shadow.mesh`, `flame_shadow_2.mesh`, and `shadow_clip_mask.mesh` still
+  log and route after the change.
+- Validation:
+  `cmake --build out/build/engine-vs --config Debug` and
+  `ctest --test-dir out/build/engine-vs -C Debug -R milo_scene
+  --output-on-failure` pass. The hidden native probe in
+  `analysis/native_validation/theatre_slab_showing_runtime_hidden_20260623_current/`
+  reruns stock PS2 `yyz` in `theatre` from `16.0s` with frame 80 captured. It
+  exits `0`; `frame_00080.bmp` no longer shows the pale slab over the stage,
+  while the log still records the expected theatre venue, lighting, AnimFilter,
+  and alpha mesh routes.
+- Post-change route sweep:
+  `analysis/native_validation/showing_decode_route_sweep_20260623_current/`
+  runs theatre/`yyz`, Big/`hangar18` with `venue_effect`, Battle/
+  `rockthistown` with `excitement_peak`, small2/`youreallygotme`, and Stone/
+  `shoutatthedevil` with `excitement_great`. All five exits are `0`; all five
+  capture frame 80; log scans show no runtime unsupported, miss, unresolved,
+  missing, failed-route, or error rows beyond PowerShell's redirected-stderr
+  wrapper. The sweep keeps live venue/lighting samples on every route, proving
+  the initial hidden-set seed does not suppress EventTrigger, RndDir,
+  AnimFilter, particle, camera, or lighting activity.

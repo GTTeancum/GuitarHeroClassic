@@ -215,6 +215,7 @@ struct MeshObj {
   // Bounding box (object-space), filled after decode.
   float bb_min[3] = {0, 0, 0};
   float bb_max[3] = {0, 0, 0};
+  bool showing = true;
   bool decoded = false;
   std::string error;         // non-empty if decode failed (mesh still listed)
 };

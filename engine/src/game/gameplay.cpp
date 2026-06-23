@@ -11225,6 +11225,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 auto hidden_venue_meshes = mesh_names_in_groups(
                     venue_scene, {"coplight_red.grp",
                                   "coplight_blue.grp"});
+                for (const auto& mesh : venue_scene.meshes) {
+                    if (!mesh.showing) hidden_venue_meshes.insert(mesh.name);
+                }
                 venue_crowd_meshes_ = mesh_names_for_crowd(venue_scene);
                 venue_camera_hidden_meshes_.clear();
                 venue_camera_crowd_face_camera_ = false;
@@ -11520,10 +11523,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             lighting_scene, lighting_mat_anims_));
                 lighting_ =
                     std::make_unique<ghogx::render::MiloSceneRenderer>(win);
+                lighting_base_hidden_meshes_.clear();
+                for (const auto& mesh : lighting_scene.meshes) {
+                    if (!mesh.showing)
+                        lighting_base_hidden_meshes_.insert(mesh.name);
+                }
                 lighting_->set_scene(std::move(lighting_scene),
                                      lighting_textures);
                 lighting_->set_additive_blend(true);
-                lighting_base_hidden_meshes_.clear();
                 lighting_runtime_hidden_meshes_ = lighting_base_hidden_meshes_;
                 lighting_->set_environment_color_overrides({});
                 lighting_->set_light_color_overrides({});

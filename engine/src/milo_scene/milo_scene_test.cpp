@@ -222,7 +222,9 @@ void test_mesh() {
   put_str(b, "track.view");      // trans parent
   // Draw base.
   put_u32(b, 3);                 // draw version
-  put_zeros(b, 21);              // showing + sphere + draw-order
+  const size_t draw_showing_offset = b.size();
+  b.push_back(1);                // showing
+  put_zeros(b, 20);              // sphere + draw-order
   // Mesh fields.
   put_str(b, "gem.mat");         // material
   put_str(b, "tri.mesh");        // geometry owner
@@ -248,6 +250,7 @@ void test_mesh() {
   CHECK(m.indices.size() == 3 && m.indices[2] == 2);
   CHECK(m.material == "gem.mat");
   CHECK(m.parent == "track.view");
+  CHECK(m.showing);
   CHECK(approx(m.local.pos[0], 1.0f) && approx(m.local.pos[2], 3.0f));
   // bbox of the unit triangle.
   CHECK(approx(m.bb_min[0], 0.0f) && approx(m.bb_max[0], 1.0f));
@@ -271,6 +274,12 @@ void test_mesh() {
   CHECK(approx(w[14], 3.0f));
   std::printf("  [ok] world compose: translation=(%.0f,%.0f,%.0f)\n", w[12],
               w[13], w[14]);
+
+  std::vector<uint8_t> hidden = b;
+  hidden[draw_showing_offset] = 0;
+  MeshObj h = decode_mesh("hidden.mesh", hidden);
+  CHECK(h.decoded);
+  CHECK(!h.showing);
 }
 
 }  // namespace
