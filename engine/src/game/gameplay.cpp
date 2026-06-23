@@ -3696,7 +3696,8 @@ bool is_performer_or_crowd_lit_ref(std::string_view s) {
 
 bool is_performer_or_crowd_env_ref(std::string_view s) {
     const std::string ref = lower_ascii(s);
-    return ref == "band.env" || ref == "character.env" ||
+    return ref == "band.env" || ref == "char.env" ||
+           ref == "character.env" ||
            ref == "drummer.env";
 }
 

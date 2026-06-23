@@ -2680,3 +2680,27 @@ Rejected native probe:
   `[char3d] min_lod active` rows, then a clean return to `min_lod active: 0`
   when the camera switches back to a non-forced shot. This validates the runtime
   handoff from decoded CamShot metadata to shared character LOD selection.
+
+2026-06-23 symbolic `char.env` classification follow-up:
+
+- The fresh hidden venue/lighting probe in
+  `analysis/native_validation/venue_lighting_probe_20260623_current/` reran
+  small2, battle, big, stone, and theatre routes after the crowd-camera work.
+  All five exits are `0`; every route keeps live camera sweeps, lighting
+  keyframes, and venue/lighting animation samples with zero unsupported,
+  miss, unresolved, missing, or nonzero failed rows. The only true route-health
+  false positive was Stone logging
+  `lighting preset .env ref has no decoded Environ object: char.env`.
+- `char.env` is the same symbolic performer/crowd lighting-rig family as the
+  already-classified `band.env`, `character.env`, and `drummer.env`, not a
+  decoded `Environ` object to instantiate as a renderer light. Native now keeps
+  it in the shared symbolic `.env` classifier so health sweeps do not report it
+  as a missing decoded route.
+- Validation:
+  `analysis/native_validation/symbolic_char_env_probe_20260623_current/`
+  reruns diagnostic `stone/shoutatthedevil` hidden for 160 fixed-step frames.
+  It exits `0`, records one
+  `lighting preset .env performer/crowd rig ref: char.env` row, records zero
+  `no decoded` rows and zero unmatched env coverage, and keeps 160 camera rows,
+  8 regular sweeps, 36 lighting keyframes, 3,814 lighting samples, and 7,536
+  venue samples.

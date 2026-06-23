@@ -1693,6 +1693,9 @@ int main() {
                  "boolis_performer_or_crowd_env_ref(std::string_views)",
                  "runtime classifies symbolic performer/crowd .env refs separately");
   ok &= contains(gameplay_c,
+                 "ref==\"band.env\"||ref==\"char.env\"||ref==\"character.env\"",
+                 "runtime keeps Stone char.env in symbolic performer/crowd .env refs");
+  ok &= contains(gameplay_c,
                  "\"[world]lightingpreset.envperformer/crowdrigref:",
                  "runtime reports performer/crowd .env refs without pretending they are decoded Environ misses");
   ok &= contains(gameplay_c,
