@@ -195,6 +195,31 @@ Open work:
   use it as gameplay evidence. The temporary
   `GH2DXu_PS2_trace_arena_camera_live.iso` and staging folder were deleted
   immediately after the rejected capture.
+- 2026-06-23 GH2DXu camera trace basefix follow-up:
+  the accepted direct-route state must be loaded with explicit statefile
+  `C:/Games/Emulators/PCSX2/sstates/GHDX-00300 (A9BBA52A).01.p2s` and ELF
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/external/Guitar-Hero-II-Deluxe-Unified/out/ps2/GHDX_003.00`.
+  Indexed `-state 1` is rejected by PCSX2 for the combined GH2DX image because
+  it cannot resolve `SYSTEM.CNF`, and normal EE-base scanning may not find the
+  ELF prefix in this state. The usable fallback derives EE base from static ELF
+  string guest addresses: for example, live `current_shot` at host
+  `region+0x6a840` minus ELF guest `0x00442840` gives
+  `ee_base_host=0x7ff800000000`. The retained traces are:
+  `analysis/pcsx2_trace/arena_camera_symbol_bridge_current/battle_camera_symbol_bridge_basefix.json`,
+  `camera_call_sequence_basefix.json`, and
+  `camera_live_00ca9700.json`.
+- The basefix traces corrected two tempting but wrong camera assumptions.
+  First, the live `current_shot`/`next_shot` cells sampled in that state are
+  script metadata/object graph cells, not the currently selected shot-name
+  value. They dereference around `world/world_objects_worldbase.dtb`,
+  `current_shot`, and `pick_new_shot`, so they cannot be used to correlate a
+  final camera output row to a native CamShot by name. Second, the hot
+  `0x00263410` route passes moving blocks around `0x00ca9700/10/30/50`, but
+  those rows decode as small clip/projection-like values rather than a clean
+  world-space render camera. Do not drive native world camera from the
+  `0x00ca9700` family and do not treat the symbol cells as live selected-shot
+  strings; the remaining camera work is still the shared CamShot
+  result/path/projection bridge.
 - 2026-06-23 CamShot authored-basis correction: accepted PS2 camera result
   rows (`gdx_cam_output_00ceaa20` in
   `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_camera_relocated_rows_20260623.json`)
@@ -2931,6 +2956,30 @@ Rejected native probe:
   sweeps, two active lighting presets/keyframes, four drummer cues, and zero
   unsupported, decoded-route miss, unresolved/missing, nonzero failed, or real
   runtime error rows.
+
+2026-06-23 lighting reset spotlight-state cleanup:
+
+- Native diagnostic seek/reset was already clearing venue material overlays,
+  EnvAnim state, LightAnim state, MeshAnim state, visibility overrides,
+  particle state, and lighting material animation state, but it did not clear
+  the active spotlight target/transition containers or push an empty active
+  spotlight list back into the renderer. That could leave a stale decoded
+  spotlight overlay alive until the next lighting keyframe replaced it. Native
+  now clears `active_lighting_spot_targets_`,
+  `lighting_transition_from_`, `lighting_transition_to_`, and the transition
+  timers/active flag inside `clear_runtime_venue_animation_state()`, then calls
+  `lighting_->set_active_spotlights({})` together with the existing cleared
+  material/env/light renderer state. This is shared reset hygiene, not a
+  venue-specific lighting-color adjustment.
+- Validation:
+  `analysis/native_validation/lighting_reset_spot_clear_20260623_current/`
+  reruns arena, small2, battle, big, and theatre hidden from accepted stock
+  PS2 `GEN` assets with diagnostic seek, autoplay, fixed step, and no
+  screenshots or generated disc/staging output. All five routes exit `0` and
+  log quickplay rig load, diagnostic seek, venue load, camera metadata, live
+  lighting keyframes, and diagnostic autoplay hits with no `NativeCommandError`
+  wrapper rows, no missing ARK rows, and no unsupported-content rows. The
+  cleanup check found no `GH2DXu_PS2_trace_*` staging folders from the run.
 
 2026-06-23 arena camera composition checkpoint:
 

@@ -9728,6 +9728,12 @@ void Gameplay::resend_active_venue_event() {
 }
 
 void Gameplay::clear_runtime_venue_animation_state() {
+    active_lighting_spot_targets_.clear();
+    lighting_transition_from_.clear();
+    lighting_transition_to_.clear();
+    lighting_transition_start_ = song_time_;
+    lighting_transition_duration_ = 0.0;
+    lighting_transition_active_ = false;
     lighting_material_alpha_.clear();
     lighting_material_colors_.clear();
     lighting_material_textures_.clear();
@@ -9811,6 +9817,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     }
 
     if (lighting_) {
+        lighting_->set_active_spotlights({});
         lighting_->set_material_alpha_multipliers(lighting_material_alpha_);
         lighting_->set_material_color_overrides(lighting_material_colors_);
         lighting_->set_material_texture_overrides(lighting_material_textures_);

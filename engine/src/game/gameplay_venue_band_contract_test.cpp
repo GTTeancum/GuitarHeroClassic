@@ -452,6 +452,11 @@ int main() {
                  "active_lighting_material_anims_.clear();",
                  "venue reset clears lighting overlay material animation state");
   ok &= contains(gameplay_c,
+                 "active_lighting_spot_targets_.clear();"
+                 "lighting_transition_from_.clear();"
+                 "lighting_transition_to_.clear();",
+                 "venue reset clears active lighting spotlight transition state");
+  ok &= contains(gameplay_c,
                  "venue_active_particle_systems_.clear();"
                  "venue_particle_intensities_.clear();"
                  "venue_particle_sizes_.clear();"
@@ -497,6 +502,9 @@ int main() {
                  "lighting_->set_material_tex_transform_overrides("
                  "lighting_material_tex_transforms_);",
                  "venue reset pushes cleared lighting material state");
+  ok &= contains(gameplay_c,
+                 "lighting_->set_active_spotlights({});",
+                 "venue reset pushes cleared active spotlights to renderer");
   ok &= contains(gameplay_c,
                  "lighting_runtime_hidden_meshes_=lighting_base_hidden_meshes_;",
                  "venue reset restores lighting overlay base visibility");
