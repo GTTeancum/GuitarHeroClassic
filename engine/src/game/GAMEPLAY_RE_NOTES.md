@@ -2893,3 +2893,20 @@ Rejected native probe:
   retained `error` text is PowerShell's redirected native stderr wrapper, not a
   runtime route failure. Cleanup audits before and after the run reported zero
   `GH2DXu_PS2_trace_*` staging folders and zero temporary ISO/MDS files.
+
+2026-06-23 bounded venue/band route-health probe:
+
+- `analysis/native_validation/venue_band_route_health_current/` reruns stock
+  PS2 `yyz` in theatre from `8.0s` with hidden fixed-step diagnostic autoplay
+  and `GHOGX_DEBUG_VENUE_FILTERS=1`. The run reads the extracted PS2 `GEN`
+  directly; no emulator, generated ISO, MDS, or trace staging directory is
+  created. It exits `0` and records `metal_keyboard` entering `[play]` on
+  `BAND KEYS`, `dw_theatre_drums` loading with four decoded drum triggers, 44
+  drummer cues, eight regular camera sweeps, six `post_switch_cam` rows, six
+  active lighting presets, 71 lighting keyframes, 16,050 venue AnimFilter
+  samples, 419 venue ParticleSys samples, and 50 lighting MatAnim samples.
+  A focused scan reports zero unsupported rows, zero decoded-route misses, zero
+  unresolved/missing rows, zero nonzero failed coverage rows, and zero real
+  runtime errors after excluding accepted fallback clip lookup noise. The
+  cleanup guard after the run again reported zero `GH2DXu_PS2_trace_*` staging
+  folders and zero temporary ISO/MDS files.
