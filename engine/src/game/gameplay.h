@@ -123,6 +123,9 @@ class Gameplay {
     bool has_screen_offset = false;
     std::string target_entity;
     std::string target_subpart;
+    std::string parent_entity;
+    std::string parent_subpart;
+    bool camshot_refs_decoded = false;
     std::string distance;
     std::string facing;
     std::string solo = "ok";

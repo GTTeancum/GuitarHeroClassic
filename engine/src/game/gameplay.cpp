@@ -749,6 +749,69 @@ void infer_camshot_target(const std::vector<std::string>& strings,
     }
 }
 
+bool read_camshot_ref_string_at(const uint8_t* body, size_t size,
+                                size_t& cursor, std::string& out) {
+    if (cursor + 4 > size) return false;
+    const uint32_t len = read_u32_at_unchecked(body, cursor);
+    cursor += 4;
+    if (len > 128 || cursor + len > size) return false;
+    for (uint32_t i = 0; i < len; ++i) {
+        const uint8_t c = body[cursor + i];
+        if (c < 0x20 || c > 0x7e) return false;
+    }
+    out.assign(reinterpret_cast<const char*>(body + cursor),
+               reinterpret_cast<const char*>(body + cursor + len));
+    cursor += len;
+    return true;
+}
+
+std::optional<Gameplay::CameraKey> decode_camshot_pose_refs(
+    const uint8_t* body, size_t size, size_t pose_off) {
+    // The PS2 CamShot keyframe tail stores three DOF floats after
+    // screen_offset, then keyframe targets, then the camera parent.
+    constexpr size_t kRefTailOffset = 48 + 8 + 12;
+    if (pose_off + kRefTailOffset + 4 > size) return std::nullopt;
+    size_t cursor = pose_off + kRefTailOffset;
+    const uint32_t target_count = read_u32_at_unchecked(body, cursor);
+    cursor += 4;
+    if (target_count > 8) return std::nullopt;
+
+    Gameplay::CameraKey refs;
+    refs.camshot_refs_decoded = true;
+    if (target_count > 0) {
+        if (cursor + 4 > size) return std::nullopt;
+        const uint32_t target_struct = read_u32_at_unchecked(body, cursor);
+        cursor += 4;
+        if (target_struct != 0x14) return std::nullopt;
+        for (uint32_t i = 0; i < target_count; ++i) {
+            std::string entity;
+            std::string subpart;
+            if (!read_camshot_ref_string_at(body, size, cursor, entity) ||
+                !read_camshot_ref_string_at(body, size, cursor, subpart)) {
+                return std::nullopt;
+            }
+            if (i == 0) {
+                refs.target_entity = std::move(entity);
+                refs.target_subpart = std::move(subpart);
+            }
+        }
+    }
+
+    if (cursor + 4 > size) return refs;
+    const uint32_t parent_struct = read_u32_at_unchecked(body, cursor);
+    if (parent_struct != 0x14) return refs;
+    cursor += 4;
+    std::string parent_entity;
+    std::string parent_subpart;
+    if (!read_camshot_ref_string_at(body, size, cursor, parent_entity) ||
+        !read_camshot_ref_string_at(body, size, cursor, parent_subpart)) {
+        return std::nullopt;
+    }
+    refs.parent_entity = std::move(parent_entity);
+    refs.parent_subpart = std::move(parent_subpart);
+    return refs;
+}
+
 std::string camera_target_id(std::string_view entity, std::string_view subpart) {
     std::string id(entity);
     if (!subpart.empty()) {
@@ -6843,6 +6906,13 @@ std::vector<std::pair<Gameplay::CameraKey, size_t>> decode_camshot_poses(
                         std::abs(sx) > 0.0001f || std::abs(sy) > 0.0001f;
                 }
             }
+            if (auto refs = decode_camshot_pose_refs(body, size, off)) {
+                c.key.target_entity = std::move(refs->target_entity);
+                c.key.target_subpart = std::move(refs->target_subpart);
+                c.key.parent_entity = std::move(refs->parent_entity);
+                c.key.parent_subpart = std::move(refs->parent_subpart);
+                c.key.camshot_refs_decoded = refs->camshot_refs_decoded;
+            }
             candidates.push_back(c);
         }
     next_offset:
@@ -6958,12 +7028,15 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     const auto& key = pose.first;
                     std::fprintf(
                         stderr,
-                        "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) fov=%s%.3f\n",
+                        "[camera-candidate] shot=%s off=0x%zX eye=(%.2f %.2f %.2f) forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) fov=%s%.3f target=%s:%s parent=%s:%s refs=%d\n",
                         de.name.c_str(), pose.second, key.eye[0], key.eye[1],
                         key.eye[2], key.forward[0], key.forward[1],
                         key.forward[2], key.up[0], key.up[1], key.up[2],
                         key.has_fov ? "" : "none/",
-                        key.has_fov ? key.fov : 0.0f);
+                        key.has_fov ? key.fov : 0.0f,
+                        key.target_entity.c_str(), key.target_subpart.c_str(),
+                        key.parent_entity.c_str(), key.parent_subpart.c_str(),
+                        key.camshot_refs_decoded ? 1 : 0);
                     if (key.has_screen_offset) {
                         std::fprintf(stderr,
                                      "[camera-candidate] shot=%s off=0x%zX screen_offset=(%.6f %.6f)\n",
@@ -7005,7 +7078,9 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             c.key.force_char_lod =
                 camshot_i32_property(body, static_cast<size_t>(de.size),
                                      "force_char_lod", -1);
-            infer_camshot_target(strings, c.shot, c.key);
+            if (!c.key.camshot_refs_decoded) {
+                infer_camshot_target(strings, c.shot, c.key);
+            }
             for (auto& decoded_pose : decoded_poses) {
                 Gameplay::CameraKey pos = decoded_pose.first;
                 pos.name = c.shot;
@@ -7021,8 +7096,13 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.hide_crowd = c.key.hide_crowd;
                 pos.crowd_face_camera = c.key.crowd_face_camera;
                 pos.force_char_lod = c.key.force_char_lod;
-                pos.target_entity = c.key.target_entity;
-                pos.target_subpart = c.key.target_subpart;
+                if (!pos.camshot_refs_decoded) {
+                    pos.target_entity = c.key.target_entity;
+                    pos.target_subpart = c.key.target_subpart;
+                    pos.parent_entity = c.key.parent_entity;
+                    pos.parent_subpart = c.key.parent_subpart;
+                    pos.camshot_refs_decoded = c.key.camshot_refs_decoded;
+                }
                 c.key.positions.push_back(std::move(pos));
             }
             c.off = pose_off;
@@ -7037,10 +7117,12 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s poses=%zu pose body+0x%zX order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s refs=%d poses=%zu pose body+0x%zX order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
-                         key.positions.size(), c.off, c.order,
+                         key.parent_entity.c_str(), key.parent_subpart.c_str(),
+                         key.camshot_refs_decoded ? 1 : 0, key.positions.size(),
+                         c.off, c.order,
                          key.special ? 1 : 0, key.walk_ok ? 1 : 0,
                          key.low_excitement_ok ? 1 : 0,
                          key.starpower_ok ? 1 : 0, key.jump_ok ? 1 : 0,
@@ -7328,11 +7410,27 @@ std::array<float, 3> camera_authored_at_for_key(
 std::optional<std::array<float, 3>> camera_target_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, std::array<float, 3>>& targets) {
-    if (key.target_entity.empty()) return std::nullopt;
-    auto it = targets.find(camera_target_id(key.target_entity,
-                                            key.target_subpart));
-    if (it == targets.end() && !key.target_subpart.empty()) {
-        it = targets.find(camera_target_id(key.target_entity, {}));
+    auto lookup = [&](std::string_view entity, std::string_view subpart)
+        -> std::optional<std::array<float, 3>> {
+        if (entity.empty()) return std::nullopt;
+        auto it = targets.find(camera_target_id(entity, subpart));
+        if (it == targets.end() && !subpart.empty()) {
+            it = targets.find(camera_target_id(entity, {}));
+        }
+        if (it == targets.end()) return std::nullopt;
+        return it->second;
+    };
+    return lookup(key.target_entity, key.target_subpart);
+}
+
+std::optional<std::array<float, 3>> camera_parent_for_key(
+    const Gameplay::CameraKey& key,
+    const std::unordered_map<std::string, std::array<float, 3>>& targets) {
+    if (key.parent_entity.empty()) return std::nullopt;
+    auto it = targets.find(camera_target_id(key.parent_entity,
+                                            key.parent_subpart));
+    if (it == targets.end() && !key.parent_subpart.empty()) {
+        it = targets.find(camera_target_id(key.parent_entity, {}));
     }
     if (it == targets.end()) return std::nullopt;
     return it->second;
@@ -7342,21 +7440,13 @@ std::array<float, 3> camera_authored_eye_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, std::array<float, 3>>& targets) {
     std::array<float, 3> eye = {key.eye[0], key.eye[1], key.eye[2]};
-    const bool body_bone_source =
-        key.target_subpart.rfind("bone_", 0) == 0;
-    if (body_bone_source) {
-        const auto target = camera_target_for_key(key, targets);
-        if (!target) return eye;
-        // Accepted PS2 CamShot traces split the moving path frame from the
-        // final result frame. The result-frame translation is the path-frame
-        // camera offset resolved through the live body-bone source transform.
-        // Prop/spot targets stay aim-only until their camera-source transform
-        // branch is mapped. Guitar/bass prop target positions are now
-        // validated for focus targets, but not for path-frame eye offsets.
-        eye[0] += (*target)[0];
-        eye[1] += (*target)[1];
-        eye[2] += (*target)[2];
-    }
+    const auto parent = camera_parent_for_key(key, targets);
+    if (!parent) return eye;
+    // CamShot keyframe targets are aim-only. The separate parent field is the
+    // traced live source used to resolve a path-frame camera offset.
+    eye[0] += (*parent)[0];
+    eye[1] += (*parent)[1];
+    eye[2] += (*parent)[2];
     return eye;
 }
 
@@ -12677,21 +12767,22 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
             auto add_prop_camera_targets = [&](const std::vector<CameraKey>& keys) {
                 for (const auto& key : keys) {
-                    if (key.target_entity != perf.role ||
-                        key.target_subpart.empty()) {
-                        continue;
-                    }
-                    auto prop_world =
-                        perf.renderer->attached_prop_world(key.target_subpart);
-                    if (!prop_world) continue;
-                    camera_targets[camera_target_id(perf.role,
-                                                    key.target_subpart)] =
-                        {(*prop_world)[12], (*prop_world)[13],
-                         (*prop_world)[14]};
-                    camera_targets[camera_target_id(
-                        perf.role, strip_mesh_suffix(key.target_subpart))] =
-                        {(*prop_world)[12], (*prop_world)[13],
-                         (*prop_world)[14]};
+                    auto add_ref = [&](const std::string& entity,
+                                       const std::string& subpart) {
+                        if (entity != perf.role || subpart.empty()) return;
+                        auto prop_world =
+                            perf.renderer->attached_prop_world(subpart);
+                        if (!prop_world) return;
+                        camera_targets[camera_target_id(perf.role, subpart)] =
+                            {(*prop_world)[12], (*prop_world)[13],
+                             (*prop_world)[14]};
+                        camera_targets[camera_target_id(
+                            perf.role, strip_mesh_suffix(subpart))] =
+                            {(*prop_world)[12], (*prop_world)[13],
+                             (*prop_world)[14]};
+                    };
+                    add_ref(key.target_entity, key.target_subpart);
+                    add_ref(key.parent_entity, key.parent_subpart);
                 }
             };
             add_prop_camera_targets(camera_keys_);

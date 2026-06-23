@@ -1832,6 +1832,38 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(has_non_neutral_pose){candidates.erase(",
                  "CamShot parser keeps neutral-only shots but drops neutral scanner false positives");
+  ok &= contains(gameplay_h_c,
+                 "std::stringparent_entity;std::stringparent_subpart;"
+                 "boolcamshot_refs_decoded=false;",
+                 "CameraKey keeps CamShot parent refs distinct from aim targets");
+  ok &= contains(gameplay_c,
+                 "std::optional<Gameplay::CameraKey>decode_camshot_pose_refs(",
+                 "CamShot pose parser has a keyframe target/parent ref decoder");
+  ok &= contains(gameplay_c,
+                 "constexprsize_tkRefTailOffset=48+8+12;",
+                 "CamShot ref decoder starts after pose, screen offset, and DOF floats");
+  ok &= contains(gameplay_c,
+                 "if(target_count>0){",
+                 "CamShot ref decoder treats an empty target array as an authored empty target");
+  ok &= contains(gameplay_c,
+                 "refs.parent_entity=std::move(parent_entity);"
+                 "refs.parent_subpart=std::move(parent_subpart);",
+                 "CamShot ref decoder preserves the separate camera parent field");
+  ok &= contains(gameplay_c,
+                 "if(!c.key.camshot_refs_decoded){"
+                 "infer_camshot_target(strings,c.shot,c.key);}",
+                 "regular camera loader only uses flat target inference when binary refs fail");
+  ok &= contains(gameplay_c,
+                 "pos.parent_entity=c.key.parent_entity;"
+                 "pos.parent_subpart=c.key.parent_subpart;",
+                 "regular camera pose variants inherit fallback parent refs");
+  ok &= contains(gameplay_c,
+                 "std::optional<std::array<float,3>>camera_parent_for_key(",
+                 "camera runtime resolves source from CamShot parent refs");
+  ok &= contains(gameplay_c,
+                 "constautoparent=camera_parent_for_key(key,targets);"
+                 "if(!parent)returneye;",
+                 "camera eye movement uses parent refs instead of aim target refs");
   ok &= contains(gameplay_c,
                  "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
                  "camera loader keeps solo-only CamShots for solo sections");

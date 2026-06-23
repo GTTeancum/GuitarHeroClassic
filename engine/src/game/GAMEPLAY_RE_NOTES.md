@@ -6,12 +6,11 @@
   updates together. Camera shot selection is a two-tier system:
   `pick_new_shot` / `start_shot` at roughly bar-scale cadence, plus
   `post_switch_cam` for intra-shot camera position changes.
-- `CamShot` / `BandCamShot` data contains a path-frame camera transform and an
-  optional focus/source object. Accepted PS2 traces split this from the final
-  render-camera result row. Native now resolves body-bone source shots by
-  adding the live body-bone target position to the decoded path-frame eye; empty
-  targets and prop/spot targets remain authored-world/aim-only until their
-  source transform branch is mapped.
+- `CamShot` / `BandCamShot` data contains a path-frame camera transform,
+  keyframe aim targets, and a separate parent/source object. Accepted PS2
+  traces split this from the final render-camera result row. Native resolves
+  moving source shots by adding the live parent transform to the decoded
+  path-frame eye; keyframe targets remain aim-only.
 - Evidence from hidden native captures:
   - `engine/out/codex_native_yyz_f500_regular_camera_20260614.bmp` used an
     older broad target-relative eye path and rendered a clipped floor-level
@@ -41,6 +40,19 @@ Open work:
   `GHOGX_DEBUG_CAMERA=1`, native logs emit `camera-candidate` rows for each
   plausible decoded `CamShot` pose and final `[camera]` rows for the selected
   render-camera eye/aim/up.
+- 2026-06-23 CamShot target/parent correction: local
+  `world_objects_ps2.dta::CamShot` schema says keyframe `targets` are
+  "Target(s) that the camera should look at", while `parent` is "Parent that
+  the camera should attach itself to". Raw stock PS2 objects in
+  `analysis/camshot_raw_probe_20260623_current/` match that layout after each
+  decoded pose: Stone `band_POV01` pose `+0x19d` has target
+  `guitarist0:bone_spine2.mesh` at `+0x1e9/+0x1f7` and an empty parent, so its
+  path-frame eye must stay authored-world. Small1 `flr_near_lft01` pose
+  `+0x14a` has target `guitarist0` at `+0x196` and parent
+  `guitarist0:bone_neck.mesh` at `+0x1ac/+0x1ba`, which is the source for the
+  live eye offset. Native now decodes pose-local target and parent refs from
+  the CamShot keyframe tail and uses flat string inference only if that binary
+  ref decode fails.
 - 2026-06-20 CamShot layout pass: PS2 object data and the local
   `world_objects_ps2.dta::CamShot` schema place `field_of_view` immediately
   before the decoded camera transform. Native now decodes that value from
