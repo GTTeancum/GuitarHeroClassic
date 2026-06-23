@@ -81,6 +81,16 @@ Open work:
   `CamShot` body has normal `flr_near_lft` metadata and decoded camera poses,
   but no performer/source target string. Native must keep it as an
   authored-world/aim-only shot, not skip it and not invent `guitarist0`.
+- 2026-06-23 small2 camera correction: `targets` now drive the runtime
+  look-at whenever a decoded CamShot target exists, while `parent` remains only
+  the source transform for the eye/path-frame offset. The previous basis-first
+  path made small2 `band_POV02` and spine-parented `flr_near_rt03` look into
+  foreground geometry even though the decoded target named the performer.
+  Targeted shots also keep authored camera roll instead of inheriting performer
+  bone roll through the `up` vector. Empty target shots still use authored
+  basis. The existing source-traced cut between authored shot families remains
+  intact; only same-shot `post_switch_cam` position changes use the short
+  native interpolation path.
 - 2026-06-22 CamShot neutral-basis scanner false-positive filter:
   Arena camera debug showed the heuristic sliding parser accepting exact
   neutral-basis rows (`forward=(0,1,0)`, `up=(0,0,1)`) as additional poses in

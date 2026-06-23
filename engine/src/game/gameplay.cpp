@@ -7534,6 +7534,14 @@ std::array<float, 3> camera_authored_at_for_key(
     const std::unordered_map<std::string, CameraTarget>& targets,
     const float eye[3]) {
     const auto parent = camera_parent_for_key(key, targets);
+    if (!key.target_entity.empty()) {
+        auto it = targets.find(
+            camera_target_id(key.target_entity, key.target_subpart));
+        if (it == targets.end() && !key.target_subpart.empty()) {
+            it = targets.find(camera_target_id(key.target_entity, {}));
+        }
+        if (it != targets.end()) return mat4_position_game(it->second.world);
+    }
     if (key.has_quat) {
         float q[4] = {key.quat[0], key.quat[1], key.quat[2], key.quat[3]};
         const float n =
@@ -7561,14 +7569,6 @@ std::array<float, 3> camera_authored_at_for_key(
                 eye[1] + world_forward[1] * 100.0f,
                 eye[2] + world_forward[2] * 100.0f};
     }
-    if (!key.target_entity.empty()) {
-        auto it = targets.find(
-            camera_target_id(key.target_entity, key.target_subpart));
-        if (it == targets.end() && !key.target_subpart.empty()) {
-            it = targets.find(camera_target_id(key.target_entity, {}));
-        }
-        if (it != targets.end()) return mat4_position_game(it->second.world);
-    }
     return {0.0f, -80.0f, -330.0f};
 }
 
@@ -7591,9 +7591,9 @@ std::array<float, 3> camera_authored_eye_for_key(
     std::array<float, 3> eye = {key.eye[0], key.eye[1], key.eye[2]};
     const auto parent = camera_parent_for_key(key, targets);
     if (!parent) return eye;
-    // CamShot keyframe targets are aim-only. The separate parent field is the
-    // traced live source used by the PS2 Trans path to resolve a path-frame
-    // camera offset.
+    // CamShot keyframe targets are resolved in camera_authored_at_for_key().
+    // The separate parent field is the traced live source used by the PS2
+    // Trans path to resolve a path-frame camera offset.
     return transform_point_game(parent->world, key.eye);
 }
 
@@ -7601,7 +7601,17 @@ void camera_authored_up_for_key(
     const Gameplay::CameraKey& key,
     const std::unordered_map<std::string, CameraTarget>& targets,
     float out[3]) {
-    const auto parent = camera_parent_for_key(key, targets);
+    bool target_controls_up = false;
+    if (!key.target_entity.empty()) {
+        auto it = targets.find(
+            camera_target_id(key.target_entity, key.target_subpart));
+        if (it == targets.end() && !key.target_subpart.empty()) {
+            it = targets.find(camera_target_id(key.target_entity, {}));
+        }
+        target_controls_up = it != targets.end();
+    }
+    const std::optional<CameraTarget> parent =
+        target_controls_up ? std::nullopt : camera_parent_for_key(key, targets);
     if (key.has_quat) {
         float q[4] = {key.quat[0], key.quat[1], key.quat[2], key.quat[3]};
         const float n =

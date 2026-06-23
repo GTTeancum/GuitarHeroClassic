@@ -1898,12 +1898,18 @@ int main() {
                  "transform_vector_game(parent->world,key.forward)",
                  "camera parent source transforms authored basis vectors");
   ok &= contains(gameplay_c,
+                 "if(!key.target_entity.empty()){autoit=targets.find(",
+                 "camera target refs drive look-at before authored basis");
+  ok &= contains(gameplay_c,
+                 "target_controls_up=it!=targets.end();",
+                 "targeted CamShots keep authored camera roll instead of performer-bone roll");
+  ok &= contains(gameplay_c,
                  "if(key.has_basis){constautoworld_forward="
                  "parent?transform_vector_game(parent->world,key.forward)",
-                 "camera runtime preserves decoded basis before target fallback");
+                 "empty-target camera shots preserve decoded basis as look direction");
   ok &= contains(gameplay_c,
-                 "if(!key.target_entity.empty()){autoit=targets.find(",
-                 "camera target refs remain a fallback when no authored basis/quaternion is present");
+                 "previous->name!=current.name",
+                 "regular camera sweeps only blend same-shot position changes");
   ok &= contains(gameplay_c,
                  "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
                  "camera loader keeps solo-only CamShots for solo sections");
