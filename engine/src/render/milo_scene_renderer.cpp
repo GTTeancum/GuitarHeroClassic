@@ -1255,10 +1255,23 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
     }
 
+    const bool prelit_material =
+        mat_obj && mat_obj->prelit && !env_enabled("GHOGX_DISABLE_PRELIT_MATERIALS");
+    const bool disable_mesh_lighting = debug_spotlight_solid || prelit_material;
     DWORD prev_lighting = TRUE;
-    if (debug_spotlight_solid) {
+    if (disable_mesh_lighting) {
       dev_->GetRenderState(D3DRS_LIGHTING, &prev_lighting);
       dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
+      if (prelit_material && env_enabled("GHOGX_LOG_PRELIT_MESHES")) {
+        static std::unordered_set<std::string> logged_prelit;
+        const std::string key = m.name + "|" + material;
+        if (logged_prelit.insert(key).second) {
+          std::fprintf(stderr,
+                       "[milo_scene] prelit material disables fixed lighting: "
+                       "mesh=%s material=%s\n",
+                       m.name.c_str(), material.c_str());
+        }
+      }
     }
 
     vb.clear();
@@ -1315,7 +1328,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m.vertex_count),
         static_cast<UINT>(m.face_count), m.indices.data(), D3DFMT_INDEX16,
         vb.data(), sizeof(SVtx));
-    if (debug_spotlight_solid) {
+    if (disable_mesh_lighting) {
       dev_->SetRenderState(D3DRS_LIGHTING, prev_lighting);
     }
   };

@@ -1689,6 +1689,17 @@ int main() {
   ok &= contains(renderer_c,
                  "GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS",
                  "renderer keeps authored dynamic environment lights A/B switchable");
+  ok &= contains(renderer_c,
+                 "constboolprelit_material=mat_obj&&mat_obj->prelit&&"
+                 "!env_enabled(\"GHOGX_DISABLE_PRELIT_MATERIALS\");",
+                 "renderer honors decoded Mat.prelit with an A/B kill switch");
+  ok &= contains(renderer_c,
+                 "constbooldisable_mesh_lighting=debug_spotlight_solid||"
+                 "prelit_material;",
+                 "prelit materials share the fixed-lighting disable path");
+  ok &= contains(renderer_c,
+                 "GHOGX_LOG_PRELIT_MESHES",
+                 "prelit renderer path has focused debug logging");
   ok &= contains(gameplay_c,
                  "boolis_performer_or_crowd_env_ref(std::string_views)",
                  "runtime classifies symbolic performer/crowd .env refs separately");

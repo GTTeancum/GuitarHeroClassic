@@ -2780,3 +2780,26 @@ Rejected native probe:
   wrapper. The sweep keeps live venue/lighting samples on every route, proving
   the initial hidden-set seed does not suppress EventTrigger, RndDir,
   AnimFilter, particle, camera, or lighting activity.
+
+2026-06-23 material `prelit` render flag:
+
+- The local `rnd_objects.dta` material schema and the existing PS2 material
+  decode both expose `Mat.prelit`, but the renderer still sent every venue mesh
+  through the generic fixed-function scene lights. Native now treats decoded
+  prelit materials as already carrying authored vertex/texture lighting and
+  disables fixed-function relighting for that mesh only. This is a shared
+  material flag path, not a venue-specific brightness tweak; it remains A/B-able
+  through `GHOGX_DISABLE_PRELIT_MATERIALS=1` and can log the exact mesh/material
+  pairs with `GHOGX_LOG_PRELIT_MESHES=1`.
+- Validation:
+  `analysis/native_validation/prelit_material_renderer_20260623_current/`
+  runs hidden A/B captures for stock `shoutatthedevil`/arena and
+  `rockthistown`/Battle. Default rendering logs 161 arena and 111 Battle prelit
+  mesh/material pairs using the new path; the kill-switch runs log zero by
+  design. Both routes keep lighting keyframes active and save frame captures.
+  Battle frame 80 demonstrates the effect clearly: the kill-switch frame blows
+  the gym walls/props out under the generic light wash, while the decoded prelit
+  path keeps the darker authored room tone with the scoreboard, props,
+  performers, and lighting still visible. Arena's retained frame still exposes
+  the pre-existing camera-composition issue in that shot, so do not use it as a
+  camera-parity signoff.
