@@ -765,6 +765,79 @@ bool read_camshot_ref_string_at(const uint8_t* body, size_t size,
     return true;
 }
 
+bool is_camshot_category_name(std::string_view s) {
+    static constexpr std::string_view kCategories[] = {
+        "flr_near_lft", "flr_near_rt", "flr_far_lft", "flr_far_rt",
+        "band_POV",     "balcony_lft", "balcony_rt", "SOLO_NEAR",
+        "SOLO_FAR",     "LIGHTER"};
+    for (const auto category : kCategories) {
+        if (s == category) return true;
+    }
+    return false;
+}
+
+std::optional<size_t> last_camshot_category_end(const uint8_t* body,
+                                                size_t size) {
+    std::optional<size_t> best;
+    for (size_t off = 0; off + 4 <= size; ++off) {
+        const uint32_t len = read_u32_at_unchecked(body, off);
+        if (len == 0 || len > 32 || off + 4 + len > size) continue;
+        std::string_view s(reinterpret_cast<const char*>(body + off + 4), len);
+        bool ascii = true;
+        for (char c : s) {
+            const unsigned char ch = static_cast<unsigned char>(c);
+            if (ch < 0x20 || ch > 0x7e) {
+                ascii = false;
+                break;
+            }
+        }
+        if (!ascii || !is_camshot_category_name(s)) continue;
+        best = off + 4 + len;
+    }
+    return best;
+}
+
+bool camshot_hide_list_ref_plausible(std::string_view ref) {
+    if (ref.empty() || ref.size() > 96) return false;
+    if (ref.find(".mesh") != std::string_view::npos) return true;
+    if (ref.find(".grp") != std::string_view::npos) return true;
+    if (ref == "crowd" || ref == "drummer" || ref == "singer" ||
+        ref == "guitarist0" || ref == "guitarist1" || ref == "bassist" ||
+        ref == "keyboard") {
+        return true;
+    }
+    return false;
+}
+
+std::vector<std::string> decode_camshot_hide_list_refs(const uint8_t* body,
+                                                       size_t size) {
+    constexpr uint32_t kMiloObjectArrayTag = 0x17;
+    auto category_end = last_camshot_category_end(body, size);
+    if (!category_end) return {};
+    const size_t search_end = std::min(size, *category_end + 96);
+    for (size_t off = *category_end; off + 8 <= search_end; ++off) {
+        if (read_u32_at_unchecked(body, off) != kMiloObjectArrayTag) continue;
+        const uint32_t count = read_u32_at_unchecked(body, off + 4);
+        if (count == 0 || count > 32) continue;
+        size_t cursor = off + 8;
+        std::vector<std::string> refs;
+        refs.reserve(count);
+        bool ok = true;
+        bool plausible = false;
+        for (uint32_t i = 0; i < count; ++i) {
+            std::string ref;
+            if (!read_camshot_ref_string_at(body, size, cursor, ref)) {
+                ok = false;
+                break;
+            }
+            plausible = plausible || camshot_hide_list_ref_plausible(ref);
+            refs.push_back(std::move(ref));
+        }
+        if (ok && plausible) return refs;
+    }
+    return {};
+}
+
 std::optional<Gameplay::CameraKey> decode_camshot_pose_refs(
     const uint8_t* body, size_t size, size_t pose_off) {
     // The PS2 CamShot keyframe tail stores three DOF floats after
@@ -1308,6 +1381,7 @@ struct IntroCameraSelection {
     bool hide_crowd = false;
     bool crowd_face_camera = false;
     int force_char_lod = -1;
+    std::vector<std::string> hide_list_refs;
 };
 
 IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
@@ -1334,6 +1408,7 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             bool hide_crowd = false;
             bool crowd_face_camera = false;
             int force_char_lod = -1;
+            std::vector<std::string> hide_list_refs;
         };
         std::vector<Candidate> candidates;
         for (const auto& de : dir.entries) {
@@ -1355,6 +1430,8 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             Candidate c;
             c.shot = de.name;
             c.anim = {};
+            c.hide_list_refs =
+                decode_camshot_hide_list_refs(body, static_cast<size_t>(de.size));
             c.hide_crowd =
                 camshot_bool_property(body, static_cast<size_t>(de.size),
                                       strings, "hide_crowd", false);
@@ -1419,6 +1496,7 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             selected.hide_crowd = candidates.front().hide_crowd;
             selected.crowd_face_camera = candidates.front().crowd_face_camera;
             selected.force_char_lod = candidates.front().force_char_lod;
+            selected.hide_list_refs = candidates.front().hide_list_refs;
             return selected;
         }
     } catch (const std::exception& ex) {
@@ -1512,6 +1590,41 @@ std::unordered_set<std::string> mesh_names_in_groups(
         }
     }
     return hidden;
+}
+
+std::map<std::string, std::vector<std::string>> mesh_names_by_group(
+    const ghogx::milo_scene::Scene& scene) {
+    std::map<std::string, std::vector<std::string>> group_children;
+    for (const auto& group : scene.groups) {
+        group_children[canonical_milo_ref(group.name)] = group.children;
+    }
+
+    std::map<std::string, std::vector<std::string>> out;
+    auto add_group_meshes = [&](auto&& self, const std::string& group_name,
+                                std::vector<std::string>& meshes,
+                                std::unordered_set<std::string>& seen) -> void {
+        const std::string group_ref = canonical_milo_ref(group_name);
+        if (!seen.insert(group_ref).second) return;
+        const auto it = group_children.find(group_ref);
+        if (it == group_children.end()) return;
+        for (const auto& child : it->second) {
+            const std::string ref = canonical_milo_ref(child);
+            if (ref.rfind(".mesh") != std::string::npos) {
+                if (std::find(meshes.begin(), meshes.end(), ref) == meshes.end())
+                    meshes.push_back(ref);
+            } else if (ref.rfind(".grp") != std::string::npos) {
+                self(self, ref, meshes, seen);
+            }
+        }
+    };
+
+    for (const auto& group : scene.groups) {
+        std::vector<std::string> meshes;
+        std::unordered_set<std::string> seen;
+        add_group_meshes(add_group_meshes, group.name, meshes, seen);
+        if (!meshes.empty()) out[canonical_milo_ref(group.name)] = std::move(meshes);
+    }
+    return out;
 }
 
 std::string lowercase_ascii(std::string s) {
@@ -4821,6 +4934,9 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 const int force_char_lod =
                     camshot_i32_property(body, static_cast<size_t>(de.size),
                                          "force_char_lod", -1);
+                const auto hide_list_refs =
+                    decode_camshot_hide_list_refs(body,
+                                                  static_cast<size_t>(de.size));
                 auto decoded_poses =
                     decode_camshot_poses(body, static_cast<size_t>(de.size));
                 for (auto& pose : decoded_poses) {
@@ -4829,15 +4945,17 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                     pose.first.hide_crowd = hide_crowd;
                     pose.first.crowd_face_camera = crowd_face_camera;
                     pose.first.force_char_lod = force_char_lod;
+                    pose.first.hide_list_refs = hide_list_refs;
                     out.push_back(pose.first);
                 }
                 if (!out.empty()) {
                     std::fprintf(
                         stderr,
-                        "[world] intro CamShot %s: %zu direct poses first body+0x%zX hide_crowd=%d crowd_face_camera=%d force_char_lod=%d\n",
+                        "[world] intro CamShot %s: %zu direct poses first body+0x%zX hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu\n",
                         de.name.c_str(), out.size(),
                         decoded_poses.front().second, hide_crowd ? 1 : 0,
-                        crowd_face_camera ? 1 : 0, force_char_lod);
+                        crowd_face_camera ? 1 : 0, force_char_lod,
+                        hide_list_refs.size());
                 }
                 return out;
             }
@@ -7078,6 +7196,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             c.key.force_char_lod =
                 camshot_i32_property(body, static_cast<size_t>(de.size),
                                      "force_char_lod", -1);
+            c.key.hide_list_refs =
+                decode_camshot_hide_list_refs(body, static_cast<size_t>(de.size));
             if (!c.key.camshot_refs_decoded) {
                 infer_camshot_target(strings, c.shot, c.key);
             }
@@ -7096,6 +7216,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.hide_crowd = c.key.hide_crowd;
                 pos.crowd_face_camera = c.key.crowd_face_camera;
                 pos.force_char_lod = c.key.force_char_lod;
+                pos.hide_list_refs = c.key.hide_list_refs;
                 if (!pos.camshot_refs_decoded) {
                     pos.target_entity = c.key.target_entity;
                     pos.target_subpart = c.key.target_subpart;
@@ -7117,7 +7238,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s refs=%d poses=%zu pose body+0x%zX order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s refs=%d poses=%zu pose body+0x%zX order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -7127,7 +7248,8 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.low_excitement_ok ? 1 : 0,
                          key.starpower_ok ? 1 : 0, key.jump_ok ? 1 : 0,
                          key.lighter ? 1 : 0, key.hide_crowd ? 1 : 0,
-                         key.crowd_face_camera ? 1 : 0, key.force_char_lod);
+                         key.crowd_face_camera ? 1 : 0, key.force_char_lod,
+                         key.hide_list_refs.size());
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] regular camera select: %s\n", ex.what());
@@ -8283,6 +8405,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_mesh_texcoord_overrides_.clear();
     venue_base_hidden_meshes_.clear();
     venue_runtime_hidden_meshes_.clear();
+    venue_crowd_meshes_.clear();
+    venue_mesh_names_.clear();
+    venue_group_meshes_.clear();
+    venue_camera_hidden_meshes_.clear();
+    venue_camera_crowd_face_camera_ = false;
     active_venue_event_.clear();
     diagnostic_venue_event_applied_ = false;
     last_anim_time_ = -1.0;
@@ -8401,6 +8528,24 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
     if (!world_) return;
     std::unordered_set<std::string> next_hidden;
     if (key.hide_crowd) next_hidden = venue_crowd_meshes_;
+    for (const auto& raw_ref : key.hide_list_refs) {
+        const std::string ref = canonical_milo_ref(raw_ref);
+        if (crowd_ref_name(ref)) {
+            next_hidden.insert(venue_crowd_meshes_.begin(),
+                               venue_crowd_meshes_.end());
+            continue;
+        }
+        const auto group_it = venue_group_meshes_.find(ref);
+        if (group_it != venue_group_meshes_.end()) {
+            next_hidden.insert(group_it->second.begin(), group_it->second.end());
+            continue;
+        }
+        if (ref.rfind(".mesh") != std::string::npos &&
+            (venue_mesh_names_.empty() ||
+             venue_mesh_names_.find(ref) != venue_mesh_names_.end())) {
+            next_hidden.insert(ref);
+        }
+    }
     const bool next_face_camera =
         key.crowd_face_camera && !venue_crowd_meshes_.empty();
     if (next_hidden == venue_camera_hidden_meshes_ &&
@@ -8411,8 +8556,9 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
     venue_camera_crowd_face_camera_ = next_face_camera;
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
-                     "[world] camera crowd visibility: shot=%s hide=%d meshes=%zu face_camera=%d face_meshes=%zu\n",
+                     "[world] camera crowd visibility: shot=%s hide=%d hide_list=%zu meshes=%zu face_camera=%d face_meshes=%zu\n",
                      key.name.c_str(), key.hide_crowd ? 1 : 0,
+                     key.hide_list_refs.size(),
                      venue_camera_hidden_meshes_.size(),
                      venue_camera_crowd_face_camera_ ? 1 : 0,
                      venue_camera_crowd_face_camera_
@@ -11319,6 +11465,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     if (!mesh.showing) hidden_venue_meshes.insert(mesh.name);
                 }
                 venue_crowd_meshes_ = mesh_names_for_crowd(venue_scene);
+                venue_mesh_names_.clear();
+                venue_mesh_names_.reserve(venue_scene.meshes.size());
+                for (const auto& mesh : venue_scene.meshes) {
+                    venue_mesh_names_.insert(mesh.name);
+                }
+                venue_group_meshes_ = mesh_names_by_group(venue_scene);
                 venue_camera_hidden_meshes_.clear();
                 venue_camera_crowd_face_camera_ = false;
                 if (!venue_crowd_meshes_.empty()) {
@@ -11469,15 +11621,17 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     key.hide_crowd = intro_camera.hide_crowd;
                     key.crowd_face_camera = intro_camera.crowd_face_camera;
                     key.force_char_lod = intro_camera.force_char_lod;
+                    key.hide_list_refs = intro_camera.hide_list_refs;
                 }
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(stderr,
-                                 "[world] intro camera flags: shot=%s anim=%s keys=%zu hide_crowd=%d crowd_face_camera=%d force_char_lod=%d\n",
+                                 "[world] intro camera flags: shot=%s anim=%s keys=%zu hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu\n",
                                  intro_camera.shot.c_str(),
                                  intro_camera.anim.c_str(), camera_keys_.size(),
                                  intro_camera.hide_crowd ? 1 : 0,
                                  intro_camera.crowd_face_camera ? 1 : 0,
-                                 intro_camera.force_char_lod);
+                                 intro_camera.force_char_lod,
+                                 intro_camera.hide_list_refs.size());
                 }
                 regular_camera_keys_ = load_regular_camera_keys(
                     hdr_path_, ark_path_, quickplay_rig_->venue);

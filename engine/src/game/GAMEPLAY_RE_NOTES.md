@@ -1570,6 +1570,34 @@ Rejected native probe:
   `shot=lighter hide=0 meshes=0 face_camera=1 face_meshes=15`, then clears the
   face-camera mesh set on the following jump camera. The run exits `0`.
 
+2026-06-23 CamShot hide-list preservation:
+
+- The local `world_objects_ps2.dta::CamShot` schema includes a shot-level
+  `hide_list` object array alongside `hide_crowd`, `crowd_face_camera`, and
+  `force_char_lod`. Raw stock PS2 Stone CamShot bodies in
+  `analysis/camshot_raw_probe_20260623_current/stone_extract/` confirm the
+  packed field shape after the shot category string: `band_POV01` stores PS2
+  object-array tag `0x17`, count `3`, then `hill01.mesh`,
+  `flowers12.mesh`, and `flowersmall04.mesh`; `band_POV03` stores count `4`
+  and includes `drummer` plus the same foliage meshes.
+- Native now decodes that authored hide list for intro-selected CamShots,
+  direct embedded `CamShot:` intro routes, and regular camera shots. Runtime
+  visibility applies `.mesh` refs directly, expands `.grp` refs through the
+  decoded venue group map, and treats `crowd` refs as the shared crowd mesh set.
+  This composes with `hide_crowd`, EventTrigger visibility, and material-alpha
+  hiding instead of replacing those routes.
+- Validation:
+  `analysis/native_validation/stone_camshot_hidelist_20260623_current/` runs
+  Stone/`shoutatthedevil` from the diagnostic song-start window. The log
+  decodes hide lists on `band_POV01`, `band_POV02`, `band_POV03`,
+  `balcony_lft01`, `balcony_lft02`, `balcony_lft03`, `lighter`, and other
+  shots, then applies the selected `band_POV01` list with
+  `camera crowd visibility: shot=band_POV01 hide=0 hide_list=3 meshes=3`.
+  The run exits `0`. This is source-backed CamShot metadata plumbing, but it
+  does not resolve the remaining Stone under-stage/foreground camera mismatch;
+  that still requires a focused camera transform/composition trace rather than
+  ad hoc mesh hiding.
+
 2026-06-22 battle MatAnim color/texture channel route:
 
 - Stock PS2 `config/gen/songs.dtb` maps `rockthistown` to

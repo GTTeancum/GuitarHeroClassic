@@ -138,6 +138,7 @@ class Gameplay {
     bool hide_crowd = false;
     bool crowd_face_camera = false;
     int force_char_lod = -1;
+    std::vector<std::string> hide_list_refs;
     std::vector<CameraKey> positions;
   };
   struct LightingPreset {
@@ -720,6 +721,8 @@ class Gameplay {
   std::unordered_set<std::string> venue_base_hidden_meshes_;
   std::unordered_set<std::string> venue_runtime_hidden_meshes_;
   std::unordered_set<std::string> venue_crowd_meshes_;
+  std::unordered_set<std::string> venue_mesh_names_;
+  std::map<std::string, std::vector<std::string>> venue_group_meshes_;
   std::unordered_set<std::string> venue_camera_hidden_meshes_;
   bool venue_camera_crowd_face_camera_ = false;
   std::string active_venue_event_;

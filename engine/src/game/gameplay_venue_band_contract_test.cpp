@@ -1871,6 +1871,15 @@ int main() {
                  "boolhide_crowd=false;boolcrowd_face_camera=false;"
                  "intforce_char_lod=-1;",
                  "CameraKey keeps authored crowd/LOD CamShot flags");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<std::string>hide_list_refs;",
+                 "CameraKey keeps authored CamShot hide_list refs");
+  ok &= contains(gameplay_c,
+                 "std::vector<std::string>decode_camshot_hide_list_refs(",
+                 "CamShot loader decodes authored hide_list object arrays");
+  ok &= contains(gameplay_c,
+                 "constexpruint32_tkMiloObjectArrayTag=0x17;",
+                 "CamShot hide_list parser uses the traced PS2 object-array tag");
   ok &= contains(gameplay_c,
                  "std::optional<int>milo_i32_property(",
                  "packed MILO property reader preserves signed CamShot ints");
@@ -1880,7 +1889,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "structIntroCameraSelection{std::stringshot;"
                  "std::stringanim=\"Intro.tnm\";boolhide_crowd=false;"
-                 "boolcrowd_face_camera=false;intforce_char_lod=-1;};",
+                 "boolcrowd_face_camera=false;intforce_char_lod=-1;"
+                 "std::vector<std::string>hide_list_refs;};",
                  "intro CamShot selector has a metadata carrier");
   ok &= contains(gameplay_c,
                  "c.hide_crowd=camshot_bool_property(",
@@ -1892,11 +1902,17 @@ int main() {
                  "c.force_char_lod=camshot_i32_property(",
                  "intro CamShot selector decodes force_char_lod");
   ok &= contains(gameplay_c,
+                 "c.hide_list_refs=decode_camshot_hide_list_refs(",
+                 "intro CamShot selector decodes hide_list refs");
+  ok &= contains(gameplay_c,
                  "selected.hide_crowd=candidates.front().hide_crowd;",
                  "selected intro TransAnim route preserves hide_crowd");
   ok &= contains(gameplay_c,
                  "selected.force_char_lod=candidates.front().force_char_lod;",
                  "selected intro TransAnim route preserves force_char_lod");
+  ok &= contains(gameplay_c,
+                 "selected.hide_list_refs=candidates.front().hide_list_refs;",
+                 "selected intro TransAnim route preserves hide_list refs");
   ok &= contains(gameplay_c,
                  "c.key.hide_crowd=camshot_bool_property(",
                  "regular camera loader decodes CamShot hide_crowd");
@@ -1907,17 +1923,26 @@ int main() {
                  "c.key.force_char_lod=camshot_i32_property(",
                  "regular camera loader decodes CamShot force_char_lod");
   ok &= contains(gameplay_c,
+                 "c.key.hide_list_refs=decode_camshot_hide_list_refs(",
+                 "regular camera loader decodes CamShot hide_list refs");
+  ok &= contains(gameplay_c,
                  "pose.first.hide_crowd=hide_crowd;",
                  "direct intro CamShot path preserves hide_crowd");
   ok &= contains(gameplay_c,
                  "pose.first.force_char_lod=force_char_lod;",
                  "direct intro CamShot path preserves force_char_lod");
   ok &= contains(gameplay_c,
+                 "pose.first.hide_list_refs=hide_list_refs;",
+                 "direct intro CamShot path preserves hide_list refs");
+  ok &= contains(gameplay_c,
                  "pos.hide_crowd=c.key.hide_crowd;",
                  "regular camera pose variants inherit crowd visibility flags");
   ok &= contains(gameplay_c,
                  "pos.force_char_lod=c.key.force_char_lod;",
                  "regular camera pose variants inherit force_char_lod");
+  ok &= contains(gameplay_c,
+                 "pos.hide_list_refs=c.key.hide_list_refs;",
+                 "regular camera pose variants inherit hide_list refs");
   ok &= contains(gameplay_c,
                  "key.hide_crowd=intro_camera.hide_crowd;",
                  "intro TransAnim camera keys inherit selected hide_crowd");
@@ -1927,6 +1952,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "key.force_char_lod=intro_camera.force_char_lod;",
                  "intro TransAnim camera keys inherit selected force_char_lod");
+  ok &= contains(gameplay_c,
+                 "key.hide_list_refs=intro_camera.hide_list_refs;",
+                 "intro TransAnim camera keys inherit selected hide_list refs");
   ok &= contains(gameplay_h_c,
                  "intactive_force_char_lod_=-1;",
                  "runtime tracks the selected CamShot character LOD");
@@ -1965,7 +1993,8 @@ int main() {
                  "regular camera sweep logs selected character LOD");
   ok &= contains(gameplay_c,
                  "\"[world]introcameraflags:shot=%sanim=%skeys=%zu"
-                 "hide_crowd=%dcrowd_face_camera=%dforce_char_lod=%d\\n\"",
+                 "hide_crowd=%dcrowd_face_camera=%dforce_char_lod=%d"
+                 "hide_list=%zu\\n\"",
                  "intro TransAnim camera flag/LOD stamping is runtime-verifiable");
   ok &= contains(gameplay_c,
                  "venue_crowd_meshes_=mesh_names_for_crowd(venue_scene);",
@@ -1979,6 +2008,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(key.hide_crowd)next_hidden=venue_crowd_meshes_;",
                  "hide_crowd selects only decoded crowd meshes");
+  ok &= contains(gameplay_c,
+                 "for(constauto&raw_ref:key.hide_list_refs){",
+                 "camera visibility applies authored CamShot hide_list refs");
+  ok &= contains(gameplay_c,
+                 "venue_group_meshes_=mesh_names_by_group(venue_scene);",
+                 "venue load builds a group mesh map for CamShot hide_list refs");
   ok &= contains(gameplay_h_c,
                  "boolvenue_camera_crowd_face_camera_=false;",
                  "camera-facing crowd state is tracked separately from hidden meshes");
