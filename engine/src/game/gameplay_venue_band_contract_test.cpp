@@ -410,11 +410,11 @@ int main() {
                        "FoFiX session path bypasses the legacy local hit scanner");
   ok &= contains(app_main_c,
                  "win_->guitar_input_held()|"
-                 "(win_->guitar_input_edge()&(1u<<5))",
-                 "playable song input uses raw held frets and edge strum");
+                 "(win_->guitar_input_edge()&((1u<<5)|(1u<<6)))",
+                 "playable song input uses raw held frets and edge strum/star power");
   ok &= contains(app_main_c,
                  "Keyboard:A/S/D/F/G=frets;Space=strum;"
-                 "Enter=Start/confirm",
+                 "Shift/H=starpower;Enter=Start/confirm",
                  "startup help advertises the real keyboard guitar mapping");
   ok &= contains(window_d3d9_c,
                  "if(impl_->key_now['A'])gh|=(1u<<0);",
@@ -425,6 +425,13 @@ int main() {
   ok &= contains(window_d3d9_c,
                  "if(impl_->key_now[VK_SPACE])gh|=(1u<<5);",
                  "keyboard Space maps to strum edge source");
+  ok &= contains(window_d3d9_c,
+                 "if(impl_->key_now[VK_SHIFT]||impl_->key_now['H'])"
+                 "gh|=(1u<<6);",
+                 "keyboard Shift/H maps to star power edge source");
+  ok &= contains(window_d3d9_c,
+                 "pad&XINPUT_GAMEPAD_BACK)||(pad&XINPUT_GAMEPAD_Y",
+                 "controller Back/Y maps to star power edge source");
   ok &= contains(window_d3d9_c,
                  "returnimpl_->gh_now&0x1F;",
                  "gameplay receives held fret state separately from strum edge");

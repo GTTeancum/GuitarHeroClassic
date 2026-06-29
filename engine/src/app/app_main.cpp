@@ -154,11 +154,10 @@ class AppEngine : public ghogx::Engine {
         }
       }
     } else if (state_ == AppState::Playing) {
-      // Guitar input: held frets (bits 0-4) combined with strum edge (bit 5).
+      // Guitar input: held frets plus edge-only strum/star-power actions.
       const uint32_t fret_mask =
           win_->guitar_input_held() |
-          (win_->guitar_input_edge() & (1u << 5)) |  // strum = edge-only
-          (win_->action_pressed(Action::Start) ? (1u << 6) : 0u);
+          (win_->guitar_input_edge() & ((1u << 5) | (1u << 6)));
       gameplay_.tick(dt, fret_mask);
       if (gameplay_.failed()) {
         std::fprintf(stderr, "[ghogx] song failed; final score %d\n",
@@ -1629,7 +1628,7 @@ int main(int argc, char** argv) {
                max_frames ? " (bounded)" : " (Esc or close to quit)");
   std::fprintf(stderr, "[ghogx] song='%s' difficulty=%d\n",
                song_name.c_str(), difficulty);
-  std::fprintf(stderr, "[ghogx] Keyboard: A/S/D/F/G = frets; Space=strum; Enter=Start/confirm\n");
+  std::fprintf(stderr, "[ghogx] Keyboard: A/S/D/F/G = frets; Space=strum; Shift/H=star power; Enter=Start/confirm\n");
 
   while (!win->should_close()) {
     win->pump();

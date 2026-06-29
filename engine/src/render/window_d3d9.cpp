@@ -35,8 +35,9 @@ struct Window::Impl {
   unsigned short pad_now  = 0;
   unsigned short pad_prev = 0;
 
-  // GH2 guitar input: 6-bit mask (bits 0-4 = frets, bit 5 = strum axis).
-  // Built from keyboard ASDFC + Space AND from XInput LT/LB/RB/RT/A + stick.
+  // GH2 guitar input: bits 0-4 = frets, bit 5 = strum, bit 6 = star power.
+  // Built from keyboard ASDFG + Space/Shift/H and XInput LT/LB/RB/RT/A +
+  // stick/Back/Y.
   uint32_t gh_now  = 0;  // current frame (raw held)
   uint32_t gh_prev = 0;  // previous frame (for edge detection)
   unsigned char lt_now = 0;  // XInput left trigger (0-255)
@@ -239,6 +240,8 @@ void Window::pump() {
     constexpr SHORT kStrumDead = 20000;
     if (xs.Gamepad.sThumbLY > kStrumDead || xs.Gamepad.sThumbLY < -kStrumDead)
       gh |= (1u << 5);
+    if ((pad & XINPUT_GAMEPAD_BACK) || (pad & XINPUT_GAMEPAD_Y))
+      gh |= (1u << 6);
   }
   impl_->pad_now = pad;
 
@@ -249,6 +252,7 @@ void Window::pump() {
   if (impl_->key_now['F'])       gh |= (1u << 3);
   if (impl_->key_now['G'])       gh |= (1u << 4);
   if (impl_->key_now[VK_SPACE])  gh |= (1u << 5);
+  if (impl_->key_now[VK_SHIFT] || impl_->key_now['H']) gh |= (1u << 6);
   impl_->gh_now = gh;
 }
 

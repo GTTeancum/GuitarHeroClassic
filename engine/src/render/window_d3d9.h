@@ -79,11 +79,12 @@ class Window {
   //   bit 4 = Orange  (keyboard: G  | XInput: A button           )
   //   bit 5 = Strum   (keyboard: Space | XInput: left-stick -Y > 0.5
   //                                    or left-stick +Y > 0.5       )
+  //   bit 6 = Star Power (keyboard: Shift/H | XInput: Back/Y)
   // Edge-triggered: each bit is 1 only on the frame it rose from 0→1.
   uint32_t guitar_input_edge() const;
 
   // Same layout but HELD state (1 as long as the button is down).
-  // Fret keys are held; strum (bit 5) is always edge-only (use guitar_input_edge).
+  // Fret keys are held; strum/star power are edge-only (use guitar_input_edge).
   uint32_t guitar_input_held() const;
 
   // Opaque implementation state (Win32 + D3D9); defined in the .cpp. Public
