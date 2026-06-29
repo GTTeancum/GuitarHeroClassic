@@ -3062,6 +3062,9 @@ int main() {
                  "!evaluation||!evaluation->has_complete_writer_builder_pair",
                  "trace-complete writer bridge refuses retained rows without immediate builder-pair evidence");
   ok &= contains(gameplay_c,
+                 "!evaluation->has_writer_bridge_payload_delta",
+                 "trace-complete writer bridge refuses complete-pair traces without sampled writer payload delta evidence");
+  ok &= contains(gameplay_c,
                  "evaluation->camera_system_shape!=\"complete_writer_builder_pair\"",
                  "trace-complete writer bridge requires the analyzer's complete camera-system graph shape");
   ok &= contains(gameplay_c,
@@ -3094,6 +3097,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "pair=completeshape=",
                  "generic PS2 writer bridge provenance includes the accepted analyzer camera-system shape");
+  ok &= contains(gameplay_c,
+                 "writer_bridge_payload_delta=1",
+                 "generic PS2 writer bridge provenance marks traces that have promotable writer payload delta evidence");
   ok &= contains(gameplay_c,
                  "complete_count=",
                  "generic PS2 writer bridge provenance includes complete writer-builder pair counts");
@@ -3175,6 +3181,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "complete_writer_builder_pair_count",
                  "retained PS2 source-record diagnostics carry complete writer-builder pair counts");
+  ok &= contains(gameplay_c,
+                 "has_writer_bridge_payload_delta",
+                 "retained PS2 source-record diagnostics distinguish complete-pair traces from promotable writer-bridge traces");
   ok &= contains(gameplay_c,
                  "projection_matrix_rows",
                  "retained PS2 projection diagnostics keep the sampled builder matrix row block");

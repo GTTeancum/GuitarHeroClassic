@@ -6194,6 +6194,7 @@ struct Ps2SourceRecordTraceContext {
     bool has_projection_payload = false;
     bool has_builder_basis = false;
     bool has_complete_writer_builder_pair = false;
+    bool has_writer_bridge_payload_delta = false;
     int complete_writer_builder_pair_count = 0;
     int incomplete_writer_builder_pair_count = 0;
     std::string camera_system_shape;
@@ -6229,6 +6230,7 @@ struct Ps2SourceRecordEvaluation {
     bool has_projection_payload = false;
     bool has_builder_basis = false;
     bool has_complete_writer_builder_pair = false;
+    bool has_writer_bridge_payload_delta = false;
     int complete_writer_builder_pair_count = 0;
     int incomplete_writer_builder_pair_count = 0;
     std::string camera_system_shape;
@@ -6264,6 +6266,7 @@ struct Ps2SourceRecordTraceEntry {
     std::array<float, 3> builder_up;
     bool has_builder_basis;
     bool has_complete_writer_builder_pair;
+    bool has_writer_bridge_payload_delta;
     int complete_writer_builder_pair_count;
     int incomplete_writer_builder_pair_count;
     std::string_view camera_system_shape;
@@ -6304,6 +6307,7 @@ constexpr Ps2SourceRecordTraceEntry kRetainedPs2SourceRecordTraceTable[] = {
       {258.967468f, -229.590378f, 99.474648f},
       {0.877756f, 0.477849f, 0.000559f},
       {-0.080145f, 0.146065f, 0.985412f},
+      true,
       true,
       true,
       512,
@@ -6369,6 +6373,8 @@ ps2_source_record_trace_context_for_key(const Gameplay::CameraKey& key) {
         context.has_builder_basis = entry.has_builder_basis;
         context.has_complete_writer_builder_pair =
             entry.has_complete_writer_builder_pair;
+        context.has_writer_bridge_payload_delta =
+            entry.has_writer_bridge_payload_delta;
         context.complete_writer_builder_pair_count =
             entry.complete_writer_builder_pair_count;
         context.incomplete_writer_builder_pair_count =
@@ -6428,6 +6434,8 @@ evaluate_retained_ps2_source_record_trace_context(
     evaluation.has_builder_basis = trace_context->has_builder_basis;
     evaluation.has_complete_writer_builder_pair =
         trace_context->has_complete_writer_builder_pair;
+    evaluation.has_writer_bridge_payload_delta =
+        trace_context->has_writer_bridge_payload_delta;
     evaluation.complete_writer_builder_pair_count =
         trace_context->complete_writer_builder_pair_count;
     evaluation.incomplete_writer_builder_pair_count =
@@ -11554,6 +11562,7 @@ std::string camera_writer_builder_pair_provenance(
         return {};
     }
     return " pair=complete shape=" + evaluation.camera_system_shape +
+           " writer_bridge_payload_delta=1" +
            " complete_count=" +
            std::to_string(evaluation.complete_writer_builder_pair_count) +
            " incomplete_count=" +
@@ -12214,6 +12223,7 @@ std::optional<CameraResultRows> camera_trace_complete_writer_bridge_rows(
     const auto evaluation =
         evaluate_retained_ps2_source_record_trace_context(key);
     if (!evaluation || !evaluation->has_complete_writer_builder_pair ||
+        !evaluation->has_writer_bridge_payload_delta ||
         evaluation->camera_system_shape != "complete_writer_builder_pair" ||
         evaluation->complete_writer_builder_pair_count <= 0 ||
         evaluation->incomplete_writer_builder_pair_count != 0) {

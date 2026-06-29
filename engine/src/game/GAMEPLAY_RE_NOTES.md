@@ -6345,3 +6345,27 @@ Rejected native probe:
   `camera-matrix result_frame` rows both show the complete shape/count/trace
   provenance on the accepted `writer-builder_basis_delta` path. Health scan
   only found lighting coverage summaries with `failed=0`.
+
+2026-06-29 camera promotion payload-evidence gate:
+- Split native camera promotion evidence into two requirements. A trace must
+  first prove `complete_writer_builder_pair`, but it must also carry sampled
+  writer-bridge payload-delta evidence before it can feed submitted native
+  camera rows. Existing complete-pair traces such as
+  `gh2dxu_arena_result_builder_a2_follow_20260629_014856` and
+  `gh2dxu_arena_source_delta_follow_20260628` remain structural camera-system
+  evidence, not promotion evidence, because the retained analyzer inventory
+  has no writer payload transforms or builder-to-writer deltas for them.
+- Native retained source-record diagnostics now expose
+  `has_writer_bridge_payload_delta`, the opt-in trace-complete bridge refuses
+  entries without it, and submitted writer-bridge provenance logs
+  `writer_bridge_payload_delta=1` on the accepted balcony handoff route.
+- Validation:
+  `analysis/native_validation/camera_payload_evidence_gate_20260629/` rebuilds
+  `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in `20.1s`, passes
+  the focused contract in `0.2s`, and runs the opt-in native probe in `71.8s`.
+  The submitted `ps2_writer_bridge_from_builder(...)` rows and
+  `camera-matrix result_frame` rows include
+  `writer_bridge_payload_delta=1`, `shape=complete_writer_builder_pair`,
+  `complete_count=512`, `incomplete_count=0`, and
+  `path_delta=writer-builder_basis_delta`. Health scan only found lighting
+  coverage summaries with `failed=0`.
