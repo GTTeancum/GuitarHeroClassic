@@ -21,6 +21,23 @@ struct FoFiXSessionNote {
   double beat_seconds = 0.0;
   double hit_early_sec = 0.0;
   double hit_late_sec = 0.0;
+  size_t source_index = static_cast<size_t>(-1);
+};
+
+enum class FoFiXSessionEventType {
+  Hit,
+  Miss,
+  Overstrum,
+  Sustain,
+};
+
+struct FoFiXSessionEvent {
+  FoFiXSessionEventType type = FoFiXSessionEventType::Hit;
+  double time = 0.0;
+  uint32_t mask = 0;
+  int gem_count = 0;
+  int score_delta = 0;
+  size_t source_index = static_cast<size_t>(-1);
 };
 
 class FoFiXGameplaySession {
@@ -45,6 +62,9 @@ class FoFiXGameplaySession {
   int hits() const { return hits_; }
   int misses() const { return misses_; }
   int overstrums() const { return overstrums_; }
+  const std::vector<FoFiXSessionEvent>& last_events() const {
+    return last_events_;
+  }
 
  private:
   struct ActiveSustain {
@@ -53,6 +73,7 @@ class FoFiXGameplaySession {
     double start_time = 0.0;
     double end_time = 0.0;
     double beat_seconds = 0.5;
+    size_t source_index = static_cast<size_t>(-1);
   };
 
   FoFiXHitWindow window_for_note(size_t index) const;
@@ -73,6 +94,7 @@ class FoFiXGameplaySession {
   std::vector<FoFiXSessionNote> notes_;
   std::vector<uint8_t> consumed_;
   std::vector<ActiveSustain> active_sustains_;
+  std::vector<FoFiXSessionEvent> last_events_;
   FoFiXHitWindow hit_window_;
   double beat_seconds_ = 0.5;
   double last_time_ = 0.0;

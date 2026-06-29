@@ -33,10 +33,20 @@ int main() {
     CHECK(session.score() == 50 && session.streak() == 1 &&
               session.hits() == 1,
           "strummed note hit scores and starts streak");
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].type == FoFiXSessionEventType::Hit &&
+              session.last_events()[0].mask == kGreen &&
+              session.last_events()[0].gem_count == 1 &&
+              session.last_events()[0].score_delta == 50,
+          "FoFiX session reports hit delta for native presentation");
     session.tick(1.1, kGreen);
     session.tick(1.3, kRed | kStrum);
     CHECK(session.overstrums() == 1 && session.streak() == 0,
           "wrong extra strum resets streak as overstrum");
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].type ==
+                  FoFiXSessionEventType::Overstrum,
+          "FoFiX session reports overstrum delta for native presentation");
   }
 
   {
@@ -62,6 +72,11 @@ int main() {
     session.tick(1.2, kStrum);
     CHECK(session.misses() == 1 && session.overstrums() == 1,
           "late bad strum applies both FoFiX missed-note and bad-pick penalties");
+    CHECK(session.last_events().size() == 2 &&
+              session.last_events()[0].type == FoFiXSessionEventType::Miss &&
+              session.last_events()[1].type ==
+                  FoFiXSessionEventType::Overstrum,
+          "FoFiX session reports miss and bad-pick deltas on the same tick");
   }
 
   {
@@ -138,6 +153,12 @@ int main() {
     session.tick(2.0, kGreen);
     CHECK(session.score() == 150,
           "one-second held sustain adds FoFiX sustain score");
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].type ==
+                  FoFiXSessionEventType::Sustain &&
+              session.last_events()[0].mask == kGreen &&
+              session.last_events()[0].score_delta == 100,
+          "FoFiX session reports sustain delta for native presentation");
   }
 
   {
@@ -257,6 +278,9 @@ int main() {
     FoFiXGameplaySession session =
         FoFiXGameplaySession::FromChart(chart, 3);
     session.tick(0.0, kGreen | kStrum);
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].source_index == 0,
+          "chart-backed session reports source note index for hit presentation");
     session.tick(0.25, kRed);
     session.tick(0.847, kYellow | kStrum);
     session.tick(2.0, kYellow);

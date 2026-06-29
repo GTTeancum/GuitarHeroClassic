@@ -85,6 +85,7 @@ FoFiXGameplaySession FoFiXGameplaySession::FromChart(
         beat_seconds_at_tick(chart, note.tick_on),
         window.early_sec,
         window.late_sec,
+        notes.size(),
     });
   }
   return FoFiXGameplaySession(std::move(notes));
@@ -155,9 +156,20 @@ void FoFiXGameplaySession::award_sustain(const ActiveSustain& sustain,
   const double held_seconds =
       std::max(0.0, std::min(held_until, sustain.end_time) -
                         sustain.start_time);
-  score_.score += fofix_sustain_score(
+  const int points = fofix_sustain_score(
       held_seconds, sustain.gem_count, sustain.beat_seconds,
       score_.multiplier * fofix_star_power_score_multiplier(star_power_));
+  score_.score += points;
+  if (points > 0) {
+    last_events_.push_back(FoFiXSessionEvent{
+        FoFiXSessionEventType::Sustain,
+        held_until,
+        sustain.mask,
+        sustain.gem_count,
+        points,
+        sustain.source_index,
+    });
+  }
 }
 
 void FoFiXGameplaySession::update_sustains(double song_time,
@@ -195,7 +207,8 @@ void FoFiXGameplaySession::start_sustain(size_t start,
   if (mask == 0 || gems <= 0 || end_time == 1.0e30) return;
   active_sustains_.push_back(
       ActiveSustain{mask, gems, std::max(song_time, notes_[start].time),
-                    end_time, notes_[start].beat_seconds});
+                    end_time, notes_[start].beat_seconds,
+                    notes_[start].source_index});
 }
 
 void FoFiXGameplaySession::apply_hit(size_t start,
@@ -203,10 +216,11 @@ void FoFiXGameplaySession::apply_hit(size_t start,
                                      double song_time) {
   const int gem_count = group_gem_count(start, end);
   if (gem_count <= 0) return;
+  const uint32_t mask = group_mask(start, end);
   active_sustains_.clear();
   observe_star_phrase(start, end, true);
-  fofix_apply_hit(score_, gem_count,
-                  fofix_star_power_score_multiplier(star_power_));
+  const FoFiXScoreAward award = fofix_apply_hit(
+      score_, gem_count, fofix_star_power_score_multiplier(star_power_));
   fofix_apply_rock_hit(
       rock_,
       static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
@@ -215,9 +229,19 @@ void FoFiXGameplaySession::apply_hit(size_t start,
   }
   start_sustain(start, end, song_time);
   ++hits_;
+  last_events_.push_back(FoFiXSessionEvent{
+      FoFiXSessionEventType::Hit,
+      song_time,
+      mask,
+      gem_count,
+      award.points,
+      notes_[start].source_index,
+  });
 }
 
 void FoFiXGameplaySession::apply_miss(size_t start, size_t end) {
+  const uint32_t mask = group_mask(start, end);
+  const int gem_count = group_gem_count(start, end);
   observe_star_phrase(start, end, false);
   fofix_apply_miss(score_);
   fofix_apply_rock_miss(
@@ -227,6 +251,14 @@ void FoFiXGameplaySession::apply_miss(size_t start, size_t end) {
     if (i < consumed_.size()) consumed_[i] = 1;
   }
   ++misses_;
+  last_events_.push_back(FoFiXSessionEvent{
+      FoFiXSessionEventType::Miss,
+      notes_[start].time,
+      mask,
+      gem_count,
+      0,
+      notes_[start].source_index,
+  });
 }
 
 void FoFiXGameplaySession::apply_skip(size_t start, size_t end) {
@@ -242,9 +274,18 @@ void FoFiXGameplaySession::apply_overstrum() {
       rock_,
       static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
   ++overstrums_;
+  last_events_.push_back(FoFiXSessionEvent{
+      FoFiXSessionEventType::Overstrum,
+      last_time_,
+      0,
+      0,
+      0,
+      static_cast<size_t>(-1),
+  });
 }
 
 void FoFiXGameplaySession::seek_without_scoring(double song_time) {
+  last_events_.clear();
   last_time_ = std::max(0.0, song_time);
   prev_fret_mask_ = 0;
   active_sustains_.clear();
@@ -268,6 +309,7 @@ void FoFiXGameplaySession::seek_without_scoring(double song_time) {
 }
 
 void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
+  last_events_.clear();
   const double dt = std::max(0.0, song_time - last_time_);
   last_time_ = std::max(last_time_, song_time);
   if ((fret_mask & (1u << 6)) != 0) {
