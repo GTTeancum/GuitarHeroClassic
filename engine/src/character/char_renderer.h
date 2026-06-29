@@ -62,14 +62,16 @@ class CharRenderer {
   void set_world_offset(float x, float y, float z);
   void set_world_transform(const std::array<float, 16>& m);
   void set_min_lod(int min_lod);
+  void set_use_scene_lighting(bool enabled);
+  void set_color_modulation(float r, float g, float b, float a = 1.0f);
   std::optional<std::array<float, 16>> attached_prop_world(
       std::string_view object_name) const;
   // Direct access to the character for pose modification (e.g. apply_clip_pose).
   Character& character();
 
-  // Advance the procedural idle animation by dt seconds. The idle oscillates
-  // the spine/torso bones with a gentle sway; this is a placeholder until full
-  // CharClipSamples multi-frame decode is implemented.
+  // Advance renderer-owned transient state for one frame. Character motion is
+  // supplied by decoded CharClip/controller paths; update resets from bind so
+  // removed procedural sway does not contaminate sampled poses.
   void update(float dt);
 
   // Draw the character for one frame (clear + camera + all meshes).

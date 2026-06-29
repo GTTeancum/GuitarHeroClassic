@@ -153,6 +153,20 @@ int main() {
   ok &= contains(gameplay_c,
                  "returnname==\"bone_facing\"||name.find(\"pelvis\")",
                  "hand overlays strip the body-facing root with lower-body rows");
+  ok &= contains(char_clip_c,
+                 "staticbooloutput_map_lower_body_bone("
+                 "conststd::string&key){returnkey==\"bone_facing\"||"
+                 "key==\"bone_pelvis\"",
+                 "lower-body output bridge owns the body-facing root and pelvis");
+  ok &= contains(char_clip_c,
+                 "key.find(\"-ankle\")!=std::string::npos",
+                 "lower-body output bridge keeps traced ankle rows");
+  ok &= contains(char_clip_c,
+                 "(!full_output_layer&&!charbone_lower_body_output_disabled())",
+                 "lower-body CharBone output bridge is enabled by default");
+  ok &= contains(char_clip_c,
+                 "\"GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT\"",
+                 "lower-body CharBone bridge has an explicit A/B disable switch");
 
   if (!ok) {
     std::cerr

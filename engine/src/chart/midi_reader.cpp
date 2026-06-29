@@ -574,15 +574,18 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
     }
 
     // (Diagnostic pitch scan removed after format discovery.)
-    std::sort(chart.text_events.begin(), chart.text_events.end(),
-              [](const TextEvent& a, const TextEvent& b) {
-                  return a.tick < b.tick;
-              });
-    std::sort(chart.performer_events.begin(), chart.performer_events.end(),
-              [](const TrackTextEvent& a, const TrackTextEvent& b) {
-                  if (a.tick != b.tick) return a.tick < b.tick;
-                  return a.track < b.track;
-              });
+    // GH2 script-driving text events are ordered data. Keep authored order for
+    // equal-tick rows so camera, performer, and venue message streams do not
+    // scramble same-frame directives after the parse pass.
+    std::stable_sort(chart.text_events.begin(), chart.text_events.end(),
+                     [](const TextEvent& a, const TextEvent& b) {
+                         return a.tick < b.tick;
+                     });
+    std::stable_sort(chart.performer_events.begin(),
+                     chart.performer_events.end(),
+                     [](const TrackTextEvent& a, const TrackTextEvent& b) {
+                         return a.tick < b.tick;
+                     });
     std::sort(chart.drum_cues.begin(), chart.drum_cues.end(),
               [](const DrumCue& a, const DrumCue& b) {
                   if (a.tick != b.tick) return a.tick < b.tick;
@@ -598,11 +601,10 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                   if (a.tick != b.tick) return a.tick < b.tick;
                   return a.pitch < b.pitch;
               });
-    std::sort(chart.venue_cues.begin(), chart.venue_cues.end(),
-              [](const VenueCue& a, const VenueCue& b) {
-                  if (a.tick != b.tick) return a.tick < b.tick;
-                  return a.pitch < b.pitch;
-              });
+    std::stable_sort(chart.venue_cues.begin(), chart.venue_cues.end(),
+                     [](const VenueCue& a, const VenueCue& b) {
+                         return a.tick < b.tick;
+                     });
     std::fprintf(stderr, "[midi] text events=%zu\n", chart.text_events.size());
     std::fprintf(stderr, "[midi] performer text events=%zu\n",
                  chart.performer_events.size());

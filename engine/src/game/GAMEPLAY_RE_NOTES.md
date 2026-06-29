@@ -270,6 +270,345 @@ Open work:
   runs small2, battle, big, stone, and theatre routes after the shared basis
   change; all exits are `0`, regular camera sweeps and lighting presets remain
   active, and no new temp ISO/staging artifacts were produced.
+- 2026-06-24 rejected target-source camera probe: the diagnostic
+  `analysis/native_validation/arena_camera_target_source_probe_clean_20260624_current/`
+  temporarily treated decoded CamShot `target` transforms as the source when a
+  key had no parent. It moved arena eyes into the positive-Z family (for
+  `flr_near_rt01x23w`, from default `eye=(296.96,-90.28,-221.38)` to roughly
+  `eye=(139.19,290.92,93.01)`), but the retained frames 80/160/240 were dark
+  and occluded. The target-source candidate is therefore useful debug evidence
+  only, not a runtime rule. Native keeps parent-only source composition and logs
+  target-composed `*_target_eye` rows under `GHOGX_DEBUG_CAMERA=1` for future
+  bridge analysis.
+- 2026-06-24 render-camera matrix guard: `ghogx_render_camera_matrix_test`
+  now pins the native `Mat4::look_at_lh` bridge against the accepted
+  `gdx_cam_output_00ceaa20` rows from
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_camera_relocated_rows_20260623.json`.
+  Feeding the traced forward, position, and up rows into the native view-matrix
+  builder reproduces the PS2 derived right/up/forward rows and translation
+  block within rounding tolerance. This is not a camera-framing fix; it keeps
+  the remaining work scoped to CamShot result/path/source composition instead
+  of reworking the already-matching D3D view-matrix handoff.
+- 2026-06-24 native camera matrix diagnostic: `GHOGX_LOG_CAMERA_MATRIX=1`
+  now logs the submitted world-pass render camera in the same useful shape as
+  the accepted PS2 row family: output forward/position/right/up, derived view
+  rows, and submitted projection rows after screen-offset application. The
+  focused arena validation in
+  `analysis/native_validation/arena_camera_matrix_log_20260624_current/`
+  reruns stock PS2 `shoutatthedevil` hidden from `16.0s` with
+  `GHOGX_DEBUG_CAMERA=1` and `GHOGX_DEBUG_VENUE_FILTERS=1`; it exits `0`,
+  records 260 `[camera]` rows and 2,600 `[camera-matrix]` rows (one 10-row
+  block per frame), retains frames `80/160/240`, and has no unsupported, miss,
+  missing, unresolved, or real error rows beyond the expected `failed=0`
+  lighting coverage summaries. The first retained block for
+  `flr_near_rt01x23w` logs native output
+  `forward=(0.877600,0.479394,-0.000000)`,
+  `position=(296.961395,-90.276611,-221.383392)`, view translation
+  `(73.170937,304.561920,-217.335236)`, and projection rows from the submitted
+  `fov=0.602416` / `aspect=1.777778` matrix. This gives native validation a
+  PS2-comparable final-row surface while preserving the current camera behavior;
+  it confirms that the remaining visual mismatch is still upstream in the
+  CamShot result/path/source bridge.
+- 2026-06-29 PS2 projection/aspect validation diagnostic:
+  `GHOGX_CAMERA_ASPECT=<float>` overrides the submitted venue-camera projection
+  aspect while preserving the accepted camera row, fov, screen offset, and all
+  venue visibility/event state. This is an evidence-only diagnostic for checking
+  whether the current 16:9 native backbuffer exposes geometry that the accepted
+  PS2 trace's 4:3-ish viewport cropped out; it is not a mesh visibility hack.
+- 2026-06-29 additive Mat alpha bridge:
+  the accepted balcony validation showed `searchlight_glows_off.mnm` sampling
+  `light_glow.mat` down to alpha `0.035`, but the native frame still rendered a
+  full-strength white glow. The renderer's pure `kBlendAdd` path uses D3D
+  `ONE,ONE`, so vertex alpha is ignored by the blend stage. Native now applies
+  Mat alpha as RGB emissive intensity for pure additive materials while keeping
+  alpha-based blends on their existing `SRCALPHA` paths.
+- 2026-06-29 rendered WorldCrowd actor runtime:
+  accepted balcony_lft04 validation showed decoded `WorldCrowd` actor sources
+  driving camera evidence while the native frame still lacked the foreground
+  crowd bodies. Native now promotes decoded `world/*_chars.milo_ps2`
+  `WorldCrowd` placement sets into a render runtime: it resolves each stock
+  `char/crowd/og/gen/*.milo_ps2` actor, loads that actor's driver-authored
+  crowd clip set, samples it through the shared `CharClipPlayer` /
+  `apply_clip_channel_layers` path, applies shared character controllers, and
+  draws the actor Character at the decoded authored placement rows. A
+  `GHOGX_WORLDCROWD_RENDER_BASIS=area_local` diagnostic can still compare the
+  camera/source area-local basis, but native rendering defaults to raw
+  placements so the entire crowd is not incorrectly dragged into camera-source
+  space. WorldCrowd renderers opt into `CharRenderer` scene-lighting mode and
+  draw after the venue pass but before the lighting overlay, so crowd actors no
+  longer use the standalone bright character-viewer light rig. Follow-up native
+  validation showed the inherited venue D3D state was still too bright for the
+  accepted dark balcony silhouettes, so WorldCrowd now also consumes the active
+  LightPreset's symbolic performer/crowd rig refs (`char_*`, `crowd_*`,
+  `band.env`, `character.env`, etc.) and modulates decoded crowd Character
+  diffuse color by the current authored excitement state. This keeps the dimming
+  tied to the same symbolic rig refs already classified by lighting coverage,
+  rather than to a balcony-shot mesh hide or one-off visual patch.
+- 2026-06-29 WorldCrowd low-light validation follow-up:
+  `analysis/native_validation/native_probe_lighting_alpha_repush_20260629_075419/`
+  reruns the accepted `arena/balcony_lft04` gate from the stock PS2 `GEN`
+  assets. Native logs `WorldCrowd runtime ready: actors=5 placements=450
+  basis=placement`, selects `bad.pst` / keyframe `bad`, and maps the symbolic
+  low performer/crowd rig to `rgb=(0.192 0.088 0.035)`. `CharRenderer`
+  scene-composite meshes now use their symbolic vertex color directly instead
+  of re-enabling the standalone D3D mesh lights over the top. The same
+  low-excitement exposure is also applied to decoded active spotlight states
+  and to lighting-overlay floor/crowd highlight materials owned by decoded
+  meshes such as `crowd_highlight.mesh` and `floor_hot*.mesh`; the validation
+  log shows `stadium_highlights.mat` at alpha `0.180` instead of the previous
+  `1.000`. The retained screenshot
+  `C:\Users\smmel\AppData\Local\Temp\gh2_lighting_animation_screens\native_worldcrowd_lighting_alpha_repush_frame_00001.png`
+  and side-by-side
+  `C:\Users\smmel\AppData\Local\Temp\gh2_lighting_animation_screens\ps2_vs_native_worldcrowd_lighting_alpha_repush.png`
+  show the native floor bloom is much lower while the crowd actors, decoded
+  lighting keyframe, and authored spot targets remain active. Remaining visual
+  mismatch: native still exposes more venue/crowd area and a stronger blue /
+  purple contribution than the accepted PS2 crop, so this is progress toward
+  the trace gate rather than final lighting-camera parity.
+- 2026-06-24 CamShot keyframe timing decode/scheduler pass:
+  `world_objects_ps2.dta::CamShot` documents `duration`, `blend`, and
+  `blend_ease` immediately before `field_of_view` in each keyframe. Native now
+  preserves those fields on every decoded `CameraKey`, logs them in
+  `[camera-candidate]` and `[world] regular CamShot` rows, and uses sane
+  authored timing for same-shot `post_switch_cam` position variants only.
+  Cross-shot `start_shot` changes still cut between authored shot families, and
+  zero or outlier timing falls back to the prior native `2.06s` position
+  interval / `1.25s` blend. Validation in
+  `analysis/native_validation/arena_camshot_timing_schedule_20260624_current/`
+  reruns stock PS2 `shoutatthedevil` hidden from `16.0s` with camera, matrix,
+  and venue-filter debug enabled; it exits `0`, records 260 `[camera]` rows,
+  2,600 `[camera-matrix]` rows, and frames `80/160/240`, with no unsupported,
+  miss, missing, unresolved, or real error rows beyond expected `failed=0`
+  lighting coverage summaries. The run proves both sides of the scheduler:
+  `balcony_lft01` carries outlier `blend=7680.000` and falls back to
+  `interval=2.060` / `blend=1.250`, while `flr_near_rt02_singer` carries sane
+  `blend=600.000` and no longer re-enters rapid 2-second same-shot switches
+  before the next authored camera family.
+- 2026-06-24 cross-route CamShot timing scheduler sweep:
+  `analysis/native_validation/cross_route_camshot_timing_schedule_20260624_current/`
+  reruns seven accepted stock PS2 routes hidden with `GHOGX_DEBUG_CAMERA=1`,
+  `GHOGX_LOG_CAMERA_MATRIX=1`, and `GHOGX_DEBUG_VENUE_FILTERS=1`: arena /
+  `shoutatthedevil`, small1 / `psychobilly`, fest / `badreputation`, theatre /
+  `yyz`, battle / `rockthistown`, big / `hangar18`, and small2 /
+  `youreallygotme`. All seven exits are `0`, each retained
+  `frame_00139.bmp`, and the sweep records 980 `[camera]` rows, 9,800
+  `[camera-matrix]` rows, 60 regular CamShot rows, 27 `post_switch_cam` rows,
+  586 timing rows, 71 lighting preset rows, 264 lighting keyframes, and 163,161
+  venue AnimFilter samples. The broad health scan finds no unsupported,
+  decoded-route miss, missing, unresolved, native-command, timeout, or real
+  error rows after excluding expected `failed=0` coverage summaries. Retained
+  frames are useful route-health evidence only: small2 and fest show coherent
+  venue frames, while arena/small1/theatre/battle/big still expose the known
+  camera result/framing/occlusion gap. Do not treat this sweep as final visual
+  camera parity.
+- 2026-06-24 CamShot authored key layout correction:
+  raw stock PS2 CamShot body probes in
+  `analysis/camshot_raw_layout_20260623_current/entries/` showed that the
+  previous neutral-basis rejection was too broad. The key count is stored at
+  `pose_offset - 20`, each keyframe body starts at `cursor + 16`, and the next
+  key starts at `decoded_ref_tail_end + 16` after target refs, parent refs, and
+  the `use_parent_rotation` byte. Examples: `CamShot__flr_near_rt01x23w` has
+  real keys at `0x1C0` and `0x256`, with the second key carrying neutral basis
+  rows, its own position `(355.27,-28.28,-273.86)`, and screen offset
+  `(0.5,0.7)`; `CamShot__flr_near_rt02_singer` has real keys at `0x1C4` and
+  `0x25F`; `CamShot__balcony_lft01` has real keys at `0x10C` and `0x197`.
+  Native now walks this layout when the decoded candidate set matches an
+  authored key count. A later identity-basis key in that layout is preserved as
+  a real position/FOV/timing/screen/ref key, but inherits the previous authored
+  forward/up basis instead of being dropped as scanner noise or submitted as an
+  identity camera orientation. The old neutral drop remains only as a fallback
+  for unlayouted scanner candidates.
+  Validation:
+  `analysis/native_validation/arena_camshot_layout_neutral_inherit_20260624_current/`
+  reruns stock PS2 `shoutatthedevil` in arena from `16.0s` with camera,
+  matrix, and venue-filter diagnostics; it exits `0`, records 140 `[camera]`
+  rows, 1,400 `[camera-matrix]` rows, 40 regular CamShot rows, 8
+  `post_switch_cam` rows, 122 `timing=` rows, 19 active lighting preset rows,
+  30 lighting keyframe rows, and no unsupported, miss, missing, unresolved,
+  native-command, timeout, or real error rows beyond expected `failed=0`
+  coverage summaries. `flr_near_rt01x23w` now decodes as `poses=2`, and its
+  `post_switch_cam` at `t=18.500` interpolates into position `1/2` while
+  retaining the inherited authored basis. The cross-route follow-up in
+  `analysis/native_validation/cross_route_camshot_layout_neutral_inherit_20260624_current/`
+  reruns the same seven accepted route representatives and writes
+  `summary.csv`. All seven exits are `0`, each route logs 140 camera rows and
+  1,400 matrix rows, the sweep totals 207 regular CamShot rows, 33
+  `post_switch_cam` rows, 605 `timing=` rows, 71 active lighting preset rows,
+  264 lighting keyframe rows, and zero broad health hits after the same
+  exclusions. Retained frames remain route-health evidence only: fest and
+  small2 are coherent venue frames, while arena, battle, big, small1, and
+  theatre still expose the shared camera result/framing/occlusion gap.
+- 2026-06-24 CamShot shot-level field bridge:
+  the same authored key-layout cursor exposes a stable packed shot-level tail
+  in stock PS2 regular CamShots. After the last keyframe's target/parent refs
+  and the four shake floats, the category symbol lands at `tail + 30`; the
+  unaligned fields before it decode as `clamp_height` at `tail + 1`,
+  `near_plane` at `tail + 5`, `far_plane` at `tail + 9`,
+  `use_depth_of_field` at `tail + 13`, `selection_weight` at `tail + 14`,
+  and `path_ease` at `tail + 18`, with `filter` immediately after the
+  category string. Examples from the accepted raw-body probe include
+  `flr_near_rt01x23w` category `flr_near_rt`, filter `0.5`, clamp `0`,
+  near/far `(10,10000)`, selection `0.9`, path ease `-1`, and
+  `balcony_lft01` category `balcony_lft`, filter `0.3`, clamp `1`,
+  near/far `(50,3000)`. Native now stores these fields on every layout-verified
+  CamShot pose, logs them in `camera-candidate` and `regular CamShot` rows,
+  and submits authored near/far planes to the renderer. Follow-up native work
+  now consumes `selection_weight` in the deterministic shared regular-camera
+  selector and applies the one-target `clamp_height` branch to submitted result
+  rows as `target_z + clamp_height`; `path_ease` remains decoded/logged only
+  until an accepted trace maps its runtime interpolation semantics. Validation:
+  `analysis/native_validation/arena_camshot_shot_fields_clip_20260624_current/`
+  reruns stock PS2 `shoutatthedevil` in arena from `16.0s` with camera,
+  matrix, and venue-filter diagnostics; it exits `0`, records 140 `[camera]`
+  rows, 1,400 `[camera-matrix]` rows, 40 regular CamShot rows, 36 decoded
+  `shot_fields=1` regular rows, 8 `post_switch_cam` rows, 19 active lighting
+  presets, 30 lighting keyframes, 30,217 venue AnimFilter samples, and no
+  unsupported, miss, missing, unresolved, native-command, timeout, or real
+  error rows after excluding expected `failed=0` coverage summaries. The
+  retained arena frame is still low and foreground-occluded, so the remaining
+  camera mismatch is still upstream in the CamShot result/path/source solver,
+  not plain render-matrix or near/far projection plumbing. The cross-route
+  follow-up in
+  `analysis/native_validation/cross_route_camshot_shot_fields_clip_20260624_current/`
+  reruns the seven accepted representatives and writes `summary.csv`; all
+  exits are `0`, every route logs 140 camera rows and 1,400 matrix rows, the
+  sweep totals 207 regular CamShot rows, 202 decoded `shot_fields=1` regular
+  rows, 33 `post_switch_cam` rows, 605 `timing=` rows, 77 active lighting
+  preset rows, 260 lighting keyframes, 139,000 venue AnimFilter samples, and
+  zero broad health hits. The retained `contact_sheet.png` preserves the visual
+  state: fest and small2 remain coherent venue frames, while arena, battle,
+  big, small1, and theatre still expose the known camera result/framing gap.
+- 2026-06-24 CamShot result-builder diagnostic bridge:
+  accepted PS2 static evidence in `analysis/pcsx2_trace/camera_writer_long_20260624_current.json`
+  shows camera writer `0x00267008` consuming the CamShot object, a result
+  buffer, a source/result object, and normalized screen-target floats derived
+  from the authored screen offset as `(x + 1) * 0.5` and `(1 - y) * 0.5`
+  before the later blend/copy path in `0x002665a0`. Native now keeps that
+  formula explicit as `camshot_result_screen_norm_for_offset()` and emits
+  `[camera-solver]` rows under `GHOGX_DEBUG_CAMERA=1` with interpolated/key
+  screen targets, raw authored eye/basis, target/parent eye candidates,
+  clip planes, category/filter/clamp, selection weight, path ease, and
+  decoded shot-field flags. This does not move the rendered camera yet; it
+  preserves the source-backed inputs needed to compare native rows against the
+  accepted PS2 result-builder before implementing a visual solver. Validation:
+  `analysis/native_validation/arena_camera_solver_bridge_20260624_current/`
+  reruns stock PS2 `shoutatthedevil` in arena on expert from `16.0s` with
+  camera, camera-matrix, and venue-filter diagnostics; it exits `0`, records
+  140 `[camera]` rows, 420 `[camera-solver]` rows, 1,400 `[camera-matrix]`
+  rows, 40 regular CamShot rows, 36 decoded `shot_fields=1` regular rows,
+  8 `post_switch_cam` rows, 122 timing rows, 19 active lighting preset rows,
+  30 lighting keyframe rows, 30,498 venue AnimFilter rows, and zero broad
+  health hits. The first solver row for `flr_near_rt01x23w` preserves
+  `screen_norm=(0.5,0.5)`, clip `(10,10000)`, selection `0.9`, path ease `-1`,
+  category `flr_near_rt`, raw authored eye `(296.961,-90.277,-221.383)`, and
+  target-composed eye `(139.195,290.920,93.010)`. The cross-route smoke in
+  `analysis/native_validation/cross_route_camera_solver_bridge_20260624_current/`
+  reruns the seven accepted representatives and writes `summary.csv` plus
+  `contact_sheet.png`; all seven exits are `0`, every route logs 140 camera
+  rows, 420 solver rows, and 1,400 matrix rows, the sweep totals 207 regular
+  CamShot rows, 202 decoded shot-field rows, 33 `post_switch_cam` rows,
+  605 timing rows, 77 active lighting preset rows, 260 lighting keyframes,
+  142,934 venue AnimFilter rows, and zero broad health hits.
+- 2026-06-24 CamShot result/source object bridge: a deliberately narrow stock
+  PS2 trace for the active native camera mismatch captured
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_camera_result_bridge_arg_snapshots_20260624.json`
+  plus `.window.png`. The live `0x00267008` input/source snapshots contain
+  four-float result rows, including a generated source block at `0x014dd4a0`
+  with basis rows near `(0.493,0.869,0.002)`, `(-0.824,0.468,-0.318)`,
+  `(-0.277,0.155,0.948)` and position `(351.286,-95.542,150.850)`, and the
+  writer output at `0x00b92ef0` copies that positive-Z result frame with basis
+  row W cleared. A matching raw-source extraction in
+  `analysis/native_validation/camera_result_bridge_source_20260624/` shows the
+  arena `CamShot` bodies remain compact 3x3+position payloads, not authored
+  four-float result rows. Native therefore keeps the raw CamShot decoder compact
+  and now carries a PS2-shaped `CameraResultFrame` beside `authored_eye/at/up`:
+  submitted rows come from the same source-backed parent/raw composition used
+  for rendering, while the rejected target-source candidate is logged only as
+  `[camera-result] stage=rejected_target_candidate`.
+  Validation: `cmake --build . --target ghogx_app` and full `ctest
+  --output-on-failure` pass in `engine/build`. The focused arena rerun in
+  `analysis/native_validation/arena_camera_result_frame_bridge_20260624_current_clean2/`
+  exits `0`, captures frames `80/120/139`, and records 140 submitted
+  `[camera-result]` rows, 140 rejected target-candidate rows, 140 renderer
+  `result_frame` rows, 420 solver rows, 1,540 camera-matrix rows, 40 regular
+  CamShot rows, 8 `post_switch_cam` rows, 19 active lighting preset rows, 30
+  lighting keyframes, 30,217 venue AnimFilter samples, and zero broad health
+  hits. `frame_00139.bmp` confirms the route renders but still shows the known
+  low/occluded arena camera framing. The seven-route smoke in
+  `analysis/native_validation/cross_route_camera_result_frame_bridge_20260624_current/`
+  exits `0` for arena, battle, big, fest, small1, small2, and theatre; every
+  route logs 100 submitted result frames, 100 renderer result-frame echoes, 300
+  solver rows, 1,100 camera-matrix rows, a retained `frame_00080.bmp`, and zero
+  broad health hits. `summary.csv` and `contact_sheet.png` preserve the route
+  evidence.
+- 2026-06-24 renderer result-frame handoff: the focused same-process PS2 trace
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_camera_child_helpers_sampleargs_20260624.json`
+  reproduces the accepted camera child-helper chain in active gameplay:
+  `0x002665a0(0x00494b80,0x00b7a2d0,0x014dd4a0,0x00b92ef0)` calls
+  `0x00267008` twice, `0x00261c10` resolves `a0+0xb0`, and the mutable result
+  family at `0x00b92ef0` carries basis rows at `+0x20/+0x30/+0x40` plus
+  translation at `+0x50`, mirrored again at `+0x60..+0x90`. Native now consumes
+  `CameraResultFrame` as the renderer input when present: `OrbitCamera::eye()`
+  returns the submitted result position, `draw_impl()` derives `at` from
+  `position + forward * 100`, and the submitted result up row feeds
+  `Mat4::look_at_lh`. Scene loads clear stale result frames. This is a shared
+  PS2 render-camera handoff fix, not a shot-specific camera placement rule.
+  Validation: `ghogx_gameplay_venue_band_contract_test`, `ghogx_app`, and full
+  `ctest --output-on-failure` pass in `engine/build`. The focused arena run in
+  `analysis/native_validation/arena_renderer_result_frame_handoff_20260624_current_rerun/`
+  exits `0`, captures frames `80/120/139`, records 140 submitted result rows,
+  140 renderer result-frame rows, 420 solver rows, 30,217 venue AnimFilter
+  samples, and zero unsupported/missing/route-error/`NativeCommandError` rows.
+  Its renderer output rows match the submitted result-frame position/forward/up
+  rows with max logged delta `0.000001`. The seven-route smoke in
+  `analysis/native_validation/cross_route_renderer_result_frame_handoff_20260624_current/`
+  exits `0` for arena, battle, big, fest, small1, small2, and theatre; every
+  route logs 100 submitted result rows, 100 renderer result-frame rows, 100
+  output/result row pairs with max delta `0.000001`, a retained frame 80, and
+  zero broad health hits. `contact_sheet.png` remains route-health evidence:
+  several routes still show the known raw/parent-only source-framing gap.
+- 2026-06-24 camera source-object trace guard: the follow-up focused PS2 trace
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_camera_source_a0_snapshots_20260624.json`
+  captures call-time `a0` snapshots for the accepted camera chain without the
+  hot transform hooks. It records 292 `0x002665a0` writer calls, 586
+  `0x00267008` child result calls, 586 `0x00261c10` member lookups, and 586
+  `0x00266e58` child resolves in active gameplay. The child result path
+  alternates a stable base input `0x00494b80` with authored/result input
+  `0x014dd4a0`; the latter carries basis rows and a positive-Z translation at
+  `+0x50`. The member lookup rows are list/member/string data (`0x00494c30`
+  empty in this slice, `0x014dd550` pointing at strings such as
+  `hide_crowd`, `shot_started`, and `start_shot`). This guards the native
+  implementation against treating `0x00261c10` as proof for a direct target
+  transform source. The remaining source gap is the shared eval-object/result
+  composition behind the second `0x00267008` input, not a renderer handoff or a
+  one-shot target-source rule.
+- 2026-06-24 regular CamShot TransAnim path bridge: the accepted
+  `world_objects_ps2.dta` schema documents a shot-level `path` object of class
+  `TransAnim`. Native now preserves the `.tnm` ref on regular CamShots, reuses
+  the existing `load_camera_position_keys()` TransAnim camera loader, copies
+  shot/runtime metadata onto the path keys, and samples those path frames
+  relative to the active regular-shot start. Path-backed shots skip the older
+  discrete `post_switch_cam` pose stepping; non-path multi-pose CamShots keep
+  the traced post-switch cadence and authored duration/blend scheduling.
+  Validation: `ghogx_gameplay_venue_band_contract_test`, `ghogx_app`, and full
+  `ctest --output-on-failure` pass in `engine/build`. The clean arena run in
+  `analysis/native_validation/arena_regular_camshot_path_bridge_20260624_current_clean/`
+  exits `0`, captures frames `80/120/139`, loads `balcony_lft03 ->
+  Camera02.tnm` with 65 keys and `balcony_lft04 -> Camera03.tnm` with 87 keys,
+  selects `balcony_lft03` at `t=35.750`, and logs successive path-sampled
+  camera rows from frames `1072.50`, `1077.62`, `1082.74`, etc. It records 140
+  submitted result rows, 140 rejected target-candidate rows, 140 renderer
+  result-frame rows, 420 solver rows, 1,540 camera-matrix rows, 42 regular
+  CamShot rows, 8 `post_switch_cam` rows, 19 active lighting preset rows, 30
+  lighting keyframes, 30,217 venue AnimFilter samples, and zero unsupported,
+  missing, route-error, or `NativeCommandError` rows. The
+  seven-route smoke in
+  `analysis/native_validation/cross_route_regular_camshot_path_bridge_20260624_current/`
+  exits `0` for arena, battle, big, fest, small1, small2, and theatre; every
+  route logs 100 submitted result frames, 100 renderer result-frame echoes, 300
+  solver rows, 1,100 camera-matrix rows, a retained `frame_00080.bmp`, and zero
+  unsupported/missing/route-error rows. `summary.csv` and `contact_sheet.png`
+  preserve the route evidence.
 
 ## Performer Role Routing
 
@@ -333,8 +672,14 @@ Open work:
 
 Open work:
 
-- Dump and map `0x0017d658` against `CharEyes` / `CharLookAt` community object
-  behavior before implementing eye placement fixes.
+- Dump and map the remaining `0x0017d658` math/branch details against
+  `CharEyes` / `CharLookAt` community object behavior before implementing
+  further eye placement fixes. The 2026-06-28 native bridge now submits
+  decoded `CharEyes.eyes` child look-at source rows through
+  `runtime_world_overrides`, so self-sourced `l/r-eye.lookat` names resolve
+  through the shared controller row path instead of the old synthetic-only
+  fallback; this closes the missing resident/source-row runtime bridge, not
+  final eyelid/lash/close-shot parity.
 - Camera/lighting candidate vtable trace had valid redirects but no nonzero
   calls in that run, so it is not accepted as runtime proof yet.
 
@@ -2700,6 +3045,38 @@ Rejected native probe:
   fixed-step windows after the shared renderer UV override path. All seven
   exits are `0` with zero unsupported rows and zero miss rows; the only broad
   parser hits are benign `failed=0` Light/Environ coverage summaries.
+- 2026-06-23 venue material UV addressing follow-up:
+  `analysis/native_validation/material_uv_big_flashpot_20260623_current/`
+  adds opt-in native diagnostics for material UV ranges and RndDir proxy
+  MeshAnim/MatAnim sampling. The Big/`hangar18` `venue_effect` route proves both
+  flashpot proxies sample `flashpot_flash.msnm` as 4 UV vertices and logs 840
+  proxy MatAnim samples. The material UV audit exposed static venue meshes with
+  authored final UV ranges far outside `0..1` while the renderer still clamped
+  them because material scale was `1.0`; examples include `ceiling02.mesh`
+  `(-1.18..3.13, 2.00..3.00)`, `piston_glass.1.mesh`
+  `(-0.98..3.30, -3.12..3.12)`, and `gear_opt_ccw.mesh` `(0.00..2.13,
+  0.00..1.00)`. Native now selects wrapping when the final transformed UV range
+  meaningfully crosses tile boundaries, while small edge bleed like the
+  RedOctane sign remains clamped. Validation exits `0`, records 79 material UV
+  rows (`wrap=19`, `clamp=60`, `uv_repeat=18` plus one animated wrap), 120 proxy
+  MeshAnim samples, 840 proxy MatAnim samples, and no unsupported/error rows.
+  Captured BMP frames 30 and 55 in the same folder prove the route renders;
+  camera framing remains a separate known composition gap.
+- 2026-06-24 material UV sampler guard/refactor:
+  `MiloSceneRenderer::choose_material_uv_sampler` now owns the shared wrap-vs-
+  clamp decision instead of leaving the PS2-authored UV range rule inline in the
+  draw loop. The renderer still wraps only when a material transform animates,
+  decoded scale exceeds the tile threshold, or the final UV bounds
+  meaningfully cross the `[-0.05, 1.05]` edge-bleed window. The new
+  `ghogx_render_material_uv_test` pins the Big evidence shapes: large static
+  tile ranges wrap, small RedOctane-style edge bleed clamps, and MatAnim/scale
+  routes still wrap. Validation:
+  `analysis/native_validation/material_uv_sampler_refactor_big_flashpot_20260624_current/`
+  reruns Big/`hangar18` with diagnostic `venue_effect`, exits `0`, records 79
+  material UV rows (`wrap=19`, `clamp=60`, `uv_repeat=18`, one animated wrap),
+  120 proxy MeshAnim samples, 840 proxy MatAnim samples, zero unsupported/miss/
+  unresolved/error rows, and only `failed=0` coverage summaries. Captured
+  frames 30/55 render normally; camera framing remains the known separate gap.
 
 2026-06-22 lighting overlay geometry texture fallback:
 
@@ -2965,6 +3342,27 @@ Rejected native probe:
   cleanup guard after the run again reported zero `GH2DXu_PS2_trace_*` staging
   folders and zero temporary ISO/MDS files.
 
+2026-06-28 current YYZ/theatre stock native route check:
+
+- `analysis/native_validation/codex_goal_20260628_yyz_theatre_stock_v3/`
+  reruns stock PS2 `yyz` in theatre from `8.0s` against the extracted v3 PS2
+  `GEN` root at `C:\Programming\GitHub\Guitar Hero II\Guitar Hero II PS2
+  (USA)\GEN`, with hidden fixed-step diagnostic autoplay, camera/venue debug
+  logging, and screenshots at frames `60`, `120`, and `179`. The run exits
+  after 180 frames / 3.00s engine time and records four performers
+  (`funk1`, `metal_bass`, `metal_drummer`, `metal_keyboard`), `BAND KEYS`
+  `[play]`, `dw_theatre_drums`, four `kick_drum` cues, one regular camera
+  sweep, one `post_switch_cam`, two active lighting presets, two lighting
+  keyframes, 1,007 venue AnimFilter samples, 58 venue ParticleSys samples, and
+  1,260 camera-result rows. The error scan reports zero unsupported rows,
+  zero decoded-route misses, zero unresolved/missing rows, zero ARK errors,
+  and no nonzero failed coverage; the only `failed=0` rows are the expected
+  lighting coverage summaries. The retained screenshots show a live theatre
+  stage with props, drum kit, lighting, and camera render, but composition is
+  still not final signoff: the current active shot leaves foreground/empty
+  floor dominant and the band too small, so camera behavior still needs native
+  object-row identity or PS2-backed call-sequence evidence before parity.
+
 2026-06-23 authored dynamic-light state cleanup:
 
 - The authored Environ dynamic-light bridge remains opt-in behind
@@ -3019,9 +3417,2914 @@ Rejected native probe:
   (`flr_near_rt01x23w`, `balcony_lft01`, then forced
   `flr_near_rt02_singer`) with no selector-order or cross-shot-blend
   regression. The remaining mismatch is pose/result composition: selected
-  arena eyes still land at values such as `z=-221.38` and `z=-318.44`, while
-  the accepted PS2 relocated arena result rows documented above were around
-  `z=60..82` in the active gameplay window. Keep this as an implementation
-  gate for the shared CamShot result/path/projection bridge; do not solve it
-  with shot-name clamps, arena-only offsets, or restored synthetic cross-shot
-  blending.
+ arena eyes still land at values such as `z=-221.38` and `z=-318.44`, while
+ the accepted PS2 relocated arena result rows documented above were around
+ `z=60..82` in the active gameplay window. Keep this as an implementation
+ gate for the shared CamShot result/path/projection bridge; do not solve it
+ with shot-name clamps, arena-only offsets, or restored synthetic cross-shot
+ blending.
+
+2026-06-24 CamShot target-list result rows:
+
+- Accepted camera traces show `0x00267008` resolving CamShot target/member
+  rows, calling `0x00266e58` to average resolved target positions, and feeding
+  that through `0x001b1270` before result-row math. Native now preserves the
+  full decoded target-member list in `CameraKey::target_refs`, resolves
+  unqualified member refs across the whole list, carries it through regular
+  camera path/pose variants, exposes the resolved list and centroid in
+  `[camera-solver]`, and submits a `target_list` result row that keeps the
+  authored/parent camera position while facing the averaged target centroid.
+  The older direct target-source candidate remains diagnostic only and still
+  logs as `rejected_target_candidate`.
+- Validation:
+  `cmake --build . --target ghogx_gameplay_venue_band_contract_test`,
+  `ctest -R ghogx_gameplay_venue_band_contract_test --output-on-failure`, and
+  `cmake --build . --target ghogx_app` pass in `engine/build`. Focused native
+  arena runs in
+  `analysis/native_validation/arena_camshot_target_list_centroid_20260624_current/`
+  and `analysis/native_validation/arena_target_list_result_rows_20260624_current/`
+  both exit `0`; the latter logs `source=target_list` result frames and moves
+  frame 160 from an empty crowd/lighting view into stage/performance space.
+  The cross-route sweep
+  `analysis/native_validation/cross_route_target_list_result_rows_20260624_current/`
+  exits `0` for arena, battle, big, fest, small1, small2, and theatre, with
+  every route exercising `source=target_list`. The contact sheet shows better
+  stage/performance framing on battle, big, fest, and small2. Remaining camera
+  mismatch is the later `0x00267008` screen/up/projection solve: arena target
+  shots are still too high/pitched, small1 is still underlit/dark at frame 80,
+  and theatre still lands on foreground amp/prop composition. Keep this as a
+  shared result-builder gap, not a reason to add venue- or shot-name clamps.
+
+2026-06-24 CamShot screen-offset result rows:
+
+- Accepted PS2 `0x00267008` does more than resolve the target/member list:
+  after `0x00266e58` averages the target refs and `0x001b1270` projects the
+  target, it reads the CamShot screen offsets from `s2+96`/`s2+100`,
+  normalizes them as `(x + 1) * 0.5` and `(1 - y) * 0.5`, computes the
+  projected target delta, clamps the magnitude, and uses that in the result
+  vector write around `s2+160`. Native now keeps that bridge explicit with
+  `camera_apply_screen_offset_to_result_rows()`: target-list result rows keep
+  the authored/path camera position, aim at the resolved target centroid, then
+  apply the authored screen offset to the submitted forward row and label the
+  row source as `target_list+screen` or `parent+target_list+screen`. The
+  current scale uses the native 16:9 validation aspect until the exact PS2
+  viewport/aspect constant in this branch is mapped.
+- New path diagnostics also rule out the immediate TransAnim scanner as the
+  cause of the arena Camera02 mismatch. In
+  `analysis/native_validation/arena_camera_path_diagnostics_20260624_current_v3/`,
+  `Camera02.tnm` selected the real count-prefixed block
+  (`count_off=0x71`, `data_off=0x75`, `keys=65`) and `Camera03.tnm` selected
+  its real count-prefixed block (`count_off=0x99`, `data_off=0x9D`,
+  `keys=87`). The remaining camera problem is downstream result composition,
+  not a false-positive path vector run.
+- Validation:
+  `cmake --build . --target ghogx_gameplay_venue_band_contract_test`,
+  `ctest -R ghogx_gameplay_venue_band_contract_test --output-on-failure`,
+  `cmake --build . --target ghogx_app`, and full
+  `ctest --output-on-failure` pass in `engine/build` (22/22 tests). Focused
+  native arena validation in
+  `analysis/native_validation/arena_camera_screen_result_rows_20260624_current/`
+  exits `0` from the accepted PS2 `GEN` assets and captures frames
+  `80,88,90,96,104`. The submitted result rows now show
+  `source=target_list+screen`; for example frame `1080.00` keeps position
+  `(158.155,-367.817,-318.444)` and changes forward from the previous
+  `(-0.324,0.627,0.708)` to `(-0.574,0.499,0.649)`, while the path-backed
+  Camera02 frame `1147.50` keeps position `(-530.595,-175.411,-273.436)` and
+  changes forward from `(0.860,0.177,0.478)` to `(0.874,0.135,0.466)`. This is
+  stable and trace-backed, but it does not fix the high-pitched arena
+  rig/ceiling composition by itself.
+- Cross-route smoke in
+  `analysis/native_validation/cross_route_camera_screen_result_rows_20260624_current_v2/`
+  exits `0` for arena, battle, big, fest, small1, small2, and theatre from the
+  accepted PS2 `GEN` assets. Each route submitted 120 camera result rows; the
+  screen-corrected target-list row counts were arena `90`, battle `68`, big
+  `49`, fest `52`, small1 `73`, small2 `69`, and theatre `8`. The earlier
+  sibling folder without `_v2` is an invalid Start-Process quoting run: it
+  split the PS2 `GEN` path and never loaded gameplay assets, so do not use it
+  as evidence.
+- Remaining gate: continue mapping the later `0x00267008` result-vector
+  relocation/up/projection blend rather than adding per-venue clamps. Arena is
+  still too high-pitched in the captured frames, and the accepted relocated
+  result rows around positive z remain unmatched.
+
+2026-06-24 regular CamShot selection-weight director:
+
+- The decoded CamShot `selection_weight` field is now consumed by the shared
+  regular-camera director after strict/mode/state filters have produced the
+  eligible shot set. Positive finite authored weights are treated as relative
+  deterministic buckets; missing, non-finite, zero, negative, or extreme values
+  fall back to `1.0`, preserving the old modulo order when all eligible shots
+  have no authored weight. This is route-shape selection for decoded CamShot
+  metadata, not a shot-name override or venue-specific clamp.
+- Validation:
+  `cmake --build . --target ghogx_gameplay_venue_band_contract_test`,
+  `ctest -R ghogx_gameplay_venue_band_contract_test --output-on-failure`,
+  `cmake --build . --target ghogx_app`, and full
+  `ctest --output-on-failure` pass in `engine/build` (22/22 tests). Focused
+  arena validation in
+  `analysis/native_validation/arena_camera_selection_weight_20260624_current/`
+  exits `0` from accepted PS2 `GEN` assets with retained frames
+  `80,88,90,96,104`. The first regular sweeps now route through
+  `flr_near_rt01x23w`, `balcony_lft04`, back to `flr_near_rt01x23w`, then
+  `flr_near_lft01x12w` and `flr_far_rt03`, proving the authored weights change
+  native director order. Submitted camera rows remain active for the full run
+  and include `source=target_list+screen` where the selected shot carries
+  target/screen metadata.
+- Corrected cross-route validation in
+  `analysis/native_validation/cross_route_camera_selection_weight_20260624_current/`
+  uses direct `& $app @appArgs` invocation so the PS2 `GEN` path is not split.
+  Arena, battle, big, fest, small1, small2, and theatre all exit `0` and each
+  submit 120 camera result rows. Target-list row counts after the selector
+  change are arena `101`, battle `48`, big `80`, fest `41`, small1 `14`,
+  small2 `52`, and theatre `120`; screen-corrected rows are arena `77`,
+  battle `40`, big `80`, fest `0`, small1 `14`, small2 `52`, and theatre
+  `120`. The only broad `error/failed` scan hits are PowerShell's redirected
+  native stderr wrapper and existing lighting coverage rows with `failed=0`.
+- Remaining gate is unchanged: weighted selection is now shared and documented,
+  but the retained arena frames still show high/pitched rig and ceiling views.
+  Continue mapping the accepted `0x00267008` evaluated source-object/result
+  composition path for `0x00494b80` and `0x014dd4a0`; do not paper over this
+  with per-shot camera offsets or venue-specific visual hacks.
+
+2026-06-24 CamShot source-seed diagnostic rows:
+
+- Accepted `0x00267008` first seeds a child result frame from the source object
+  rows before target-list/screen correction. Native now logs the equivalent
+  compact CamShot seed under `GHOGX_DEBUG_CAMERA=1` as
+  `[camera-result] stage=source_seed_candidate`, alongside the submitted
+  result row and the rejected target-source diagnostic. This is a comparison
+  surface only: the rendered camera still uses the submitted result frame, and
+  no camera placement is changed by this diagnostic.
+- Validation:
+  `cmake --build . --target ghogx_gameplay_venue_band_contract_test`,
+  `ctest -R ghogx_gameplay_venue_band_contract_test --output-on-failure`,
+  `cmake --build . --target ghogx_app`, and full
+  `ctest --output-on-failure` pass in `engine/build` (22/22 tests). The short
+  arena diagnostic run in
+  `analysis/native_validation/arena_camera_source_seed_diagnostics_20260624_current/`
+  exits `0` from accepted PS2 `GEN` assets and logs 45 submitted rows, 45
+  source-seed rows, and 45 rejected target-source rows. Its first
+  `flr_near_rt01x23w` frame shows native `source_seed_candidate` at
+  `position=(296.961,-90.277,-221.383)` with
+  `forward=(0.878,0.479,0.000)`, submitted `target_list` at the same seed
+  position but target-facing `forward=(-0.771,0.090,0.630)`, and rejected
+  target-source at `position=(139.195,290.920,93.010)`. That rules out a log
+  handoff issue and keeps the remaining gate pinned to constructing the
+  accepted generated source object such as `0x014dd4a0`
+  `position=(351.286,-95.542,150.850)` before the result-builder solve.
+
+2026-06-24 camera apply source-object static map:
+
+- Static dump
+  `analysis/pcsx2_trace/camera_apply_source_object_static_20260624_current.json`
+  was generated from the accepted PS2 `SLUS_214.47` with
+  `tools/dump_function_snippets.py` for `0x00262b08`, `0x00263410`,
+  `0x0026ae00`, `0x0026c900`, `0x002665a0`, and `0x00267008`. This was a
+  local static dump only; no new PCSX2 gameplay trace was opened.
+- The missing generated source object is upstream of `0x002665a0`.
+  `0x00262b08` calls `0x00263410` to choose the source/current nodes, then
+  passes them into `0x002665a0`. The path/apply helper `0x0026ae00` is the
+  concrete row writer: after building rows on stack, it loads `a1=156(s6)`,
+  copies basis/result rows from stack offsets `32/48/64/80` into object
+  offsets `+32/+48/+64/+80`, and calls `0x001dd748` to dirty/update that
+  object. This matches the accepted generated source object later observed as
+  `0x014dd4a0` in the result-writer traces.
+- Next implementation gate: model the shared `0x0026ae00` source-object apply
+  path from decoded TransAnim/current-source state, then feed that generated
+  source seed into the existing `0x00267008` result-row bridge. Do not move the
+  rendered camera from raw compact CamShot rows, target-source rows, or
+  shot-name clamps; the accepted source is a generated row object written
+  before the result-builder call.
+
+2026-06-24 generated source-row bridge:
+
+- Native `CameraKey` now has a PS2-shaped generated source-row slot
+  (`position/forward/up`) for the `0x0026ae00` output object. The shared
+  `camera_source_seed_result_rows_for_key()` path prefers those rows when
+  populated, otherwise it preserves the previous compact/parent source fallback.
+  `camera_target_list_result_rows_for_key()` now starts from that shared seed and
+  appends the target-list solve, matching the accepted order where the generated
+  source object is built before the `0x00267008` result-builder call. This is
+  plumbing for the traced source object, not a per-shot placement override.
+- Validation: `cmake --build . --target ghogx_gameplay_venue_band_contract_test`,
+  `ctest -R ghogx_gameplay_venue_band_contract_test --output-on-failure`,
+  `cmake --build . --target ghogx_app`, and full `ctest --output-on-failure`
+  pass in `engine/build` (22/22 tests). The focused arena run in
+  `analysis/native_validation/arena_camera_generated_source_bridge_20260624_current/`
+ exits `0`, captures frames `80/88/90/96/104`, logs 125 source-seed rows and
+  125 submitted rows, and submitted rows now report
+  `source=source_seed+target_list` (or the same source plus `+screen` during
+  blends). Generated source rows remain `0` in this run, so the visible camera is
+  still the known raw-source arena framing while the bridge is ready for the
+  dynamic `0x0026ae00` population.
+
+2026-06-24 path-backed generated source rows:
+
+- Native parentless path-backed regular CamShots now populate the shared
+  generated source-row slot from decoded TransAnim position and rotation keys.
+  This turns traced path sweeps such as arena `balcony_lft04` from anonymous
+  `source_seed` diagnostics into `generated_source_seed` rows while preserving
+  the existing target-list and screen-offset result-builder order.
+- Validation: `cmake --build . --target ghogx_app
+  ghogx_gameplay_venue_band_contract_test` passes, the focused contract test
+  passes, and full `ctest --output-on-failure` remains 22/22. The focused
+  native run in
+  `analysis/native_validation/arena_camera_path_generated_source_20260624_current/`
+  exits `0`, captures `frames/frame_00080.bmp`, and logs 20
+  `stage=source_seed_candidate source=generated_source_seed` rows. At frame
+  `615.00`, the submitted row is
+  `source=generated_source_seed+target_list+screen`, confirming the path source
+  object feeds the existing `0x00267008`-shaped solve instead of replacing it.
+- Visual verdict: the captured frame is still a high rig/ceiling composition,
+  so this is not the final camera solve. Continue mapping the relocation/result
+  branch between the transient `0x0026ae00` path-frame object and the accepted
+  evaluated source/result rows; do not introduce per-shot offsets or camera
+  clamps to hide the remaining mismatch.
+
+2026-06-24 camera path/apply follow-pointer trace:
+
+- Targeted PCSX2 trace
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_camera_path_apply_follow_20260624_current.json`
+  was reopened only for the native camera-source mismatch. It captured 617
+  total calls: 309 to `0x0026ae00` (`cam_path_apply_0026ae00`) and 308 to
+  `0x002665a0` (`cam_result_writer_002665a0`).
+- The first `0x0026ae00` sample follows `a0+0x9c` to `0x00b8ead0`, a 288-byte
+  path-frame/source object. Its first basis/result block stores
+  forward `(0.493816,0.868795,0.001889)`, right
+  `(-0.823474,0.468753,-0.317519)`, up
+  `(-0.276947,0.155313,0.947608)`, and position
+  `(94.156349,-53.597404,83.805237)`, then duplicates the block at
+  `+0x60..+0x90`. The same sample follows `a0+0x60` to `0x007ce440` and
+  `a0+0xa8` to `0x007d25b0`, which remain target/list shaped data rather than
+  the generated source rows.
+- Compare with the earlier accepted
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_camera_source_a0_snapshots_20260624.json`:
+  `0x00267008` sees source input `0x014dd4a0` with basis rows
+  `(0.493401,0.869205,0.001779)`,
+  `(-0.824085,0.468158,-0.317789)`,
+  `(-0.277225,0.155328,0.947844)`, and position
+  `(351.286255,-95.542320,150.850449)`. Its output object `0x00b92ef0`
+  carries the `0x0026ae00`-style basis
+  `(0.493816,0.868795,0.001889)` but the relocated position
+  `(351.286255,-95.542320,150.850433)`. Do not conflate the transient
+  `0x00b8ead0` path-frame output with the final evaluated source input
+  `0x014dd4a0`; there is another relocation/source-selection step between
+  them.
+- Asset inspection of Battle `flr_far_rt03` shows the CamShot body has one
+  blank target ref and a blank parent ref. Its raw pose eye
+  `(269.407,-137.378,90.207)` plus the live
+  `guitarist0:spot_neck_fret20.mesh` position
+  `(81.879,41.836,60.643)` matches the accepted source input position
+  `(351.286,-95.542,150.850)` within trace/log precision. Native now prunes
+  all-empty target refs from the member list and treats a blank CamShot target
+  slot with no authored parent subpart as a default source-parent fallback to
+  `spot_neck_fret20.mesh`, with the performer entity inferred from the shot
+  hint or `guitarist0`. This is trace-backed shared CamShot plumbing, not a
+  shot-name visual hack.
+- The fallback stays translation-only unless the asset explicitly carries the
+  `use_parent_rotation` byte. A test run that forced parent rotation for the
+  blank fallback made the arena frame nearly blank/dark, so the native code was
+  restored to authored rotation only while the `0x014dd4a0` relocation path is
+  still unmapped.
+- Validation: `cmake --build . --target ghogx_app
+  ghogx_gameplay_venue_band_contract_test` passes in `engine/build` with only
+  the existing warnings; `ctest -R ghogx_gameplay_venue_band_contract_test
+  --output-on-failure` passes. Focused native arena validation in
+  `analysis/native_validation/arena_camera_default_source_parent_final_ps2ark_20260624/`
+  exits `0` from the accepted PS2 `GEN` assets, captures frames
+  `80,88,90,96,104`, logs 108 submitted rows, 108 source-seed rows, 9
+  `parent+source_seed` rows, and 46 CamShots with
+  `parent=guitarist0:spot_neck_fret20.mesh`. The only broad
+  `error/failed` scan hits are PowerShell's redirected native stderr wrapper
+  and lighting coverage summaries with `failed=0`.
+- Visual verdict: the translation-only default is stable and avoids the
+  forced-rotation blank frame, but it is not the final camera solve. The retained
+  arena frames still include high rig/ceiling composition, especially
+  `frame_00104.bmp`. Continue mapping the source-object relocation between
+  `0x00b8ead0` and `0x014dd4a0` and the later `0x00267008` result-vector solve;
+  do not add per-venue clamps or one-off shot offsets.
+- Rejected follow-up: a native-only `target_behind` guard was tested in
+  `analysis/native_validation/battle_camera_target_behind_guard_20260624/`
+  after Battle frame `80` showed the current `target_list+screen` solve aiming
+  at a target behind the authored source vector. The guard switched that frame
+  to `source_seed+target_behind`, but the screenshot still framed sign/sky
+  props instead of a playable stage view, and it changed many rows without an
+  accepted PS2 branch trace. It was reverted. The next fix should map the real
+  `0x00267008` projected-target/vector blend, especially the `s3+52` filter and
+  clamped screen-delta path, rather than dropping target-list solves wholesale.
+
+2026-06-24 camera pose-span source-basis gate:
+
+- The accepted `pcsx2_camera_result_bridge_arg_snapshots_20260624.json`
+  `0x002665a0` sample shows two source rows for the same Battle solve:
+  `a0=0x014dd390` at position `(388.938538,-117.070160,165.531784)` and
+  `a2=0x014dd4a0` at `(351.286255,-95.542320,150.850449)`. The normalized
+  relocated pose delta from the second row toward the first is
+  `(-0.8223,0.4701,-0.3206)`, matching the traced right row
+  `(-0.824085,0.468158,-0.317789)`. The forward row is the normalized
+  `right x world_up`, and the up row is `forward x right`. This is accepted as
+  the source-basis derivation for targetless CamShots whose authored pose span
+  is meaningfully horizontal, such as `flr_far_rt03`.
+- Native now carries a shared, gated `pose_span_basis` helper for decoded
+  CamShots with no target refs, no path animation, no authored parent rotation,
+  at least two poses, and a horizontal span. It is intentionally not a
+  shot-name patch: it derives the basis from authored pose positions after the
+  same source-parent relocation used for the source eye.
+- Rejected experiment:
+  `analysis/native_validation/battle_camera_generated_parent_basis_20260624_current/`
+  tried transforming generated source forward/up by the parent basis. Frames
+  still showed ceiling/sign/prop compositions or blank dark output, so the
+  generated-source parent-basis change was reverted.
+- Rejected experiment:
+  `analysis/native_validation/battle_camera_pose_span_source_basis_20260624_current/`
+  applied the pose-span basis without enough shape gating. It fired on
+  `balcony_rt01` with a near-vertical span and produced
+  `source=parent+source_seed+pose_span_basis` rows with a bad stage/prop frame.
+  The native helper now skips spans whose horizontal length is not significant,
+  pending a specific PS2 trace for that no-target branch.
+- Guarded validation:
+  `analysis/native_validation/battle_camera_pose_span_source_basis_guarded_20260624_current/`
+  exits `0` and captures frames `80/88/90/96/104`. The captured slice contains
+  no `pose_span_basis` rows: `balcony_rt01` correctly remains
+  `source=parent+source_seed`, and earlier `flr_far_lft03`/`flr_far_lft02`
+  targetless rows have identical first/next pose positions. The remaining
+  Battle visual gap is therefore still the targetless/no-target
+  `0x002665a0` / `0x00267008` branch or camera selection, not a reason to add a
+  native-only camera offset.
+- Follow-up PCSX2 trace:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_camera_balcony_branch_20260624_current.json`
+  is accepted only as active-window confirmation that the already documented
+  horizontal source-object family still appears in Battle. It did not reach the
+  native `balcony_rt01` mismatch.
+- Rejected follow-up:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/pcsx2_camera_balcony_branch_long_20260624_current.json`
+  retained a different no-target row family, but its `.window.png` is the
+  `SONG FAILED` / Retry screen at 14% completion. Do not use the late sampled
+  rows from that file as active-song camera evidence. Native now logs
+  `[camera-solver] pose_span_shape=...` for targetless/no-target keys under
+  `GHOGX_DEBUG_CAMERA=1`, so the next specific mismatch trace can compare the
+  no-target source shape without changing rendered camera behavior.
+- Native diagnostic validation:
+  `analysis/native_validation/battle_camera_pose_span_debug_20260624_current/`
+  exits `0`, captures frames `80/88/90/96/104`, logs 68
+  `pose_span_shape` rows, 18 `reason=near_vertical` rows, and zero
+  `pose_span_basis` rows. At the mismatch window, frame `1147.50` keeps
+  `balcony_rt01` on `source=parent+source_seed` with parent
+  `guitarist0:spot_neck_fret20.mesh`; its relocated pose span is
+  `(0.657,-1.268,-8.062)`, length `8.187135`, horizontal length `1.427781`,
+  and horizontal ratio `0.174393`, which documents why the trace-backed
+  horizontal helper remains skipped for this no-target branch.
+
+2026-06-24 camera shot_filter target state:
+- Native now carries the traced PS2 result-builder target state from
+  `0x00267008` / `s3+52` through `CameraResultBuilderState`. The branch projects
+  the current target through the source rows, compares it to the authored
+  screen offset in normalized screen space, scales `shot_filter` by
+  `min(projected_delta, 1)`, and blends the carried target toward the current
+  target before rebuilding the submitted `target_list` result rows. This state
+  is shared by regular and intro venue cameras and resets on song load and
+  diagnostic seek.
+- Validation
+  `analysis/native_validation/arena_camera_shot_filter_state_20260624_current/`
+  exposed one native bug in the first pass: shots with no positive
+  `shot_filter` label were not writing the carried target back to the current
+  target. Frame `615.00` on `balcony_lft04` had `target=(2.424,-65.534,22.882)`
+  but a stale `filtered_target=(-2.184,-50.752,25.731)`.
+- Validation
+  `analysis/native_validation/arena_camera_shot_filter_state_20260624_current_v2/`
+  fixes that writeback while keeping provenance honest: `balcony_lft04` logs
+  `shot_filter_branch=0`, `filter_step=1.000000`, and
+  `filtered_target=(2.424,-65.534,22.882)` without adding a `+shot_filter`
+  source label. The app exits `0`, the error scan reports `failed=0`, and the
+  full native test suite passes `22/22`.
+- Visual verdict: frame
+  `analysis/native_validation/arena_camera_shot_filter_state_20260624_current_v2/frames/frame_00080.bmp`
+  is still a high rig/ceiling composition. The remaining arena mismatch is not
+  solved by source-row copy, shot-field propagation, or no-filter state
+  writeback. The next evidence gate is either the exact `0x00267008` orientation
+  / projection tail for submitted rows or an arena-specific PCSX2 trace for
+  `shoutatthedevil`, venue `arena`, selected shot `balcony_lft04`, path
+  `Camera03.tnm`.
+
+2026-06-24 arena result-builder argument trace follow-up:
+- Specific mismatch gate: native `arena/shoutatthedevil` at frame `615.00`
+  selects `balcony_lft04` / `Camera03.tnm` and still renders a high
+  rig/ceiling frame after path-backed generated source rows and shot-filter
+  state. That justified reopening PCSX2 for camera evidence.
+- The explicit GH2DXu direct-route statefile still works with the stock ISO path
+  for short statefile traces:
+  `C:/Games/Emulators/PCSX2/sstates/GHDX-00300 (A9BBA52A).01.p2s`,
+  ELF
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/external/Guitar-Hero-II-Deluxe-Unified/out/ps2/GHDX_003.00`.
+  Smoke report
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_statefile_stockiso_camera_smoke_20260624.json`
+  records 14 `0x002665a0` calls and an active arena gameplay window.
+- Focused trace
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_camera_result_builder_args_20260624.json`
+  records 954 camera calls over the active arena window:
+  `0x002665a0` writer 17, `0x00266f80` child-output 323, and
+  `0x00267008` result-builder 614. The late result-builder family includes
+  source/result rows at `0x00cc0590` with basis
+  `forward=(0.878,0.478,0.001)`, `right=(-0.471,0.865,-0.173)`,
+  `up=(-0.083,0.152,0.984)`, `position=(259.235,-229.846,97.250)`, and
+  output/projection rows at `0x00cc0720` carrying the same position plus
+  repeated `768.0` lanes and frustum-like rows. Treat this as
+  result-builder row-shape evidence only: the trace window is active arena, but
+  it is not correlated to native `balcony_lft04` by selected shot name.
+- Rejected native experiment:
+  `analysis/native_validation/arena_camera_generated_source_basis_20260624_current/`
+  temporarily preserved generated source-object basis through target-list rows.
+  It exited `0` and logged
+  `source=generated_source_seed+target_list+source_basis+screen`, but retained
+  `frames/frame_00080.bmp` is still a rig/ceiling composition. That runtime
+  branch was removed. The remaining native gap is still the exact
+  source/path/result composition for the active shot, not a source-basis
+  shortcut.
+
+2026-06-24 arena path candidate diagnostics:
+- Native now samples path-backed TransAnim camera rotations with quaternion
+  interpolation instead of holding the previous rotation key until the next
+  keyframe. This is shared path sampling plumbing and does not alter the first
+  `Camera03.tnm` frame, where the first rotation key is already exact.
+- A speculative path-entry cross-shot sweep was tested and removed. It delayed
+  `balcony_lft04` behind the previous `flr_near_rt01x23w` pose, but the retained
+  arena frames still showed rig/ceiling or crowd-overview compositions and the
+  earlier camera checkpoint explicitly rejects synthetic cross-shot blending as
+  a visual fix.
+- Native diagnostics now retain the owning CamShot body pose beside path keys
+  and log `path_base_pose_candidate` and `path_base_translate_candidate` rows
+  under `GHOGX_DEBUG_CAMERA=1` without submitting them to the renderer. In
+  `analysis/native_validation/arena_camera_target_alias_candidates_20260624_current/`,
+  frame `615.00` keeps the submitted source at
+  `(-494.399,-596.318,-0.755)`, while the body-pose candidate moves to
+  `(-894.364,-1428.834,-120.712)` and the translation-only body candidate to
+  `(-671.213,-1743.641,-198.276)`. Both are farther from the accepted
+  source-object family, so path body-pose composition is ruled out for this
+  mismatch.
+- The same diagnostic run logs entity-only target alias rows for
+  `guitarist0:` path shots (`spot_neck_fret20.mesh`, `bone_spine1.mesh`,
+  `bone_spine2.mesh`, `bone_neck.mesh`). At frame `615.00`, those rows only
+  nudge the submitted forward vector and leave the source position unchanged,
+  so the arena path gap is not primarily an entity-only target alias problem.
+- Validation: `cmake --build . --target ghogx_gameplay_venue_band_contract_test
+  ghogx_app` and
+  `ctest -R ghogx_gameplay_venue_band_contract_test --output-on-failure` pass
+  in `engine/build`. The focused native run above exits `0` from accepted PS2
+  `GEN` assets and captures `frames/frame_00080.bmp` and
+  `frames/frame_00088.bmp`; the visuals remain the known high rig/crowd
+  compositions. Continue mapping the real `0x0026ae00` delta/source-selection
+  step into the generated source object before changing submitted camera
+  behavior.
+
+2026-06-24 arena path source follow trace:
+- A targeted PCSX2 trace was reopened for the specific native source-object
+  mismatch, this time sampling `0x0026ae00` `a0` rows and following the
+  `+0x60`, `+0x9c`, and `+0xa8` pointers. Output:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_path_source_follow_20260624.json`.
+  It records 688 calls: 23 `cam_path_apply_0026ae00`, 15
+  `cam_result_writer_002665a0`, and 650 `cam_result_builder_00267008`.
+- The unique sampled path-apply object `0x00cbc010` follows `+0x9c` to
+  `0x00cbc110`, whose first source block stores basis
+  `forward=(0.878,0.478,0.001)`, `right=(-0.471,0.865,-0.173)`,
+  `up=(-0.083,0.152,0.984)`, and position `(34.983,-64.273,60.353)`,
+  with a second transposed/projection-like block beginning at `+0xc0`.
+  `0x00267008` later samples source/result rows at `0x00cc0590` with the same
+  basis family and position `(259.266,-229.857,97.065)`.
+- Treat this as structural source-object evidence only, not a selected-shot
+  oracle: the statefile trace is active arena gameplay but is still not
+  correlated to native `balcony_lft04` / `Camera03.tnm` by shot name or song
+  timestamp. The important negative result is that PS2 path apply is already
+  writing positive-Z source objects before `0x00267008`, whereas native
+  `balcony_lft04` frame `615.00` still submits the raw path position
+ `(-494.399,-596.318,-0.755)`. The next trace should either expose selected
+  shot identity at the writer/result-builder call or sample the runtime shot
+  object source pointers for the exact active `Camera03.tnm` window.
+
+2026-06-24 arena venue source-parent diagnostics:
+- Native now keeps `venue_camera_target_worlds_` as a diagnostic-only map built
+  from decoded venue geometry before `venue_scene` moves into
+  `MiloSceneRenderer`. The map is passed to `apply_camera_keys` separately
+  from live performer `camera_targets`, so these candidates cannot affect the
+  submitted camera result. Under `GHOGX_DEBUG_CAMERA=1`, native logs
+  `path_source_parent_source_ref_candidate`,
+  `path_source_parent_crowd_group_candidate`, and
+  `venue_source_parent_refs`.
+- This was added for the focused PS2 path-apply evidence where
+  `0x0026ae00`'s sampled object points at the string `crowd` near the source
+  rows. Arena geometry has no exact decoded `crowd` Trans/Mesh object; it has
+  crowd groups/meshes such as `crowd_distant.grp`, so native exposes both an
+  exact-name candidate when present and an aggregate `crowd_group_centroid`
+  candidate when only crowd groups exist.
+- Validation:
+  `analysis/native_validation/arena_camera_venue_crowd_parent_candidates_20260624_current_v3/`
+  exits `0` from stock PS2 `GEN` assets, captures frames `80/88`, and logs
+  `venue camera targets: 656 crowd_group_centroid=1
+  pos=(-13.003,-920.449,-366.562)`. At frame `615.00`,
+  `balcony_lft04` still submits
+  `source=generated_source_seed+target_list+screen` at
+  `(-494.399,-596.318,-0.755)`, while the group-parent diagnostic moves to
+  `(-507.403,-1516.767,-367.317)`. That is farther from the accepted PS2
+  positive-Z source-object families `(34.983,-64.273,60.353)` and
+  `(259.266,-229.857,97.065)`.
+- Result: the geometry-side crowd group centroid is ruled out as the missing
+  arena path source-parent composition. The PS2 `crowd` pointer in the sampled
+  path object is likely a semantic/runtime source ref, not the venue geometry
+  group transform. Continue with a trace that correlates selected shot identity
+  or source-object pointer state for the exact active `Camera03.tnm` window
+  before changing submitted camera behavior.
+- Verification: `cmake --build . --target
+  ghogx_gameplay_venue_band_contract_test ghogx_app`,
+  `ctest -R ghogx_gameplay_venue_band_contract_test --output-on-failure`, and
+  full `ctest --output-on-failure` pass in `engine/build`. The retained frame
+  `frame_00080.bmp` remains the known high rig/ceiling composition, confirming
+  this pass added diagnostics without moving the rendered camera.
+
+2026-06-24 arena path source identity trace follow-up:
+- Two follow-up PCSX2 traces tried to correlate the accepted path/source rows
+  to selected-shot identity without changing native camera behavior:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_builder_a0_shot_identity_20260624.json`
+  and
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_builder_a0_shot_identity_long_20260624.json`.
+  Both screenshots are active arena gameplay and both logs are clean, but
+  neither trace contains `balcony_lft04` or `Camera03`.
+- The long trace retains 512 `0x0026ae00` path-apply calls, 512
+  `0x002665a0` writer calls, and 1024 `0x00267008` builder calls. The call
+  order is stable: path apply, builder source object `0x0077c610`, builder
+  source object `0x008269f0`, then writer. The shot-side follow row at
+  `0x0077c610+0x84` points to a CamShot object/list family that includes
+  `balcony_lft01`, `balcony_lft01 zoom`, `flr_near_lft04.shot`, and category
+  strings, but not the exact native mismatch shot.
+- The path source frame remains strong structural evidence: `0x00cbc010+0x9c`
+  points to `0x00cbc110`, whose rows carry
+  `forward=(0.878,0.478,0.001)`, `right=(-0.471,0.866,-0.167)`,
+  `up=(-0.080,0.146,0.985)`, and
+  `position=(34.777,-63.896,59.800)`. The builder input rows at `0x00cc0590`
+  carry the same basis family at `position=(258.967,-229.590,99.475)`, and
+  the writer rows at `0x014fd344` end near
+  `position=(258.578,-228.578,105.312)`.
+- Verdict: this proves the PS2 path branch writes a semantic/runtime source
+  frame before the result builder, but it is still not selected-shot evidence
+  for native `balcony_lft04` / `Camera03.tnm`. Do not submit native camera
+  changes from these traces alone. The next PCSX2 route needs either a
+  force-shot/current-shot hook that lands on `balcony_lft04` or per-call
+  selected-shot name sampling tied directly to the `Camera03.tnm` path object.
+
+2026-06-27 arena selected-shot trace preflight:
+- Rechecked the retained arena camera trace artifacts before reopening PCSX2.
+  The long trace has stable per-frame call order:
+  `cam_path_apply_0026ae00`, `cam_result_builder_00267008` for source
+  `0x0077c610`, `cam_result_builder_00267008` for source `0x008269f0`, then
+  `cam_result_writer_002665a0`. Its raw counts are 512 path applies, 1024
+  result-builder calls, and 512 writer calls.
+- The retained `a0+0x84` follow row from builder source `0x0077c610` reaches
+  shot-list/category metadata, including `balcony_lft`,
+  `balcony_lft01 zoom`, `flr_near_lft`, and `flr_near_lft04.shot`.
+  The same sampled row also reaches the active path source object
+  `0x00cbc010`, whose `+0x9c` source-frame rows remain the accepted
+  positive-Z semantic/runtime source-frame evidence.
+- Negative result: the retained JSON still has no literal `balcony_lft04`,
+  `Camera03`, or `camera03` string. It therefore cannot be promoted from
+  structural source-frame evidence to accepted selected-shot evidence for the
+  native `shoutatthedevil` / `arena` frame `615.00` mismatch.
+- The next trace should keep the same three function targets but must capture
+  one of these exact acceptance conditions: (1) a current/forced-shot cell or
+  active CamShot pointer that resolves to `balcony_lft04`; (2) the selected
+  shot object's path member resolving to `Camera03.tnm`; or (3) a filtered
+  `0x00267008` / `0x002665a0` call where the source object can be tied to both
+  the active shot name and the `Camera03.tnm` path object. Without one of
+  those ties, do not move native submitted camera behavior for this shot.
+
+2026-06-27 arena selected-shot statefile route check:
+- Added explicit `--statefile` support to the repeatable PCSX2 string/symbol
+  samplers (`scan_live_ee_strings.py`, `sample_pcsx2_shot_graph.py`, and
+  `sample_pcsx2_world_symbols.py`) so the accepted GH2DXu arena statefile route
+  can be checked without one-off inline launch code.
+- New GH2DXu route artifacts:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_live_string_scan_tool_20260627.json`
+  and
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_shot_graph_statefile_20260627.json`.
+  The string scan confirms the state has `shoutatthedevil`, `arena`,
+  `balcony_lft`, and `flr_near_lft04.shot` loaded, but still has zero live EE
+  hits for `balcony_lft04`, `Camera03.tnm`, or `Camera03`.
+- The shot-graph sampler finds the better runtime camera-script cluster:
+  `current_shot` at `0x0060cce8` resolves through value cell `0x0060ccf0` to
+  root `0x0060ca30`; `next_shot`, `shot_started`, `post_switch_cam`, and
+  `do_force_shot` resolve around `0x006150xx` / `0x00615950`. The walked graph
+  exposes categories, `world/camshot.dtb`, `Shot Name:`, `crowd`, and
+  `start_shot`, but not an active shot object/name or a `Camera03.tnm` path
+  pointer.
+- Stock SLUS statefile check
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/stock_arena_live_string_scan_20260627.json`
+  has the same important shape: `balcony_lft` and `flr_near_lft04.shot` are
+  present, while `balcony_lft04`, `Camera03.tnm`, and `Camera03` are absent.
+  Therefore the next evidence route should not depend on those literal native
+  labels appearing in PS2 RAM. It needs to bind the active source/path object by
+  pointer/row shape, category/path slot, or a deliberate force-shot route rather
+  than by the native decoded display name alone.
+
+2026-06-28 arena shot-table/source-object route:
+- New focused GH2DXu arena statefile artifacts:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_shot_table_rows_20260628.json`
+  and
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_shot_object_neighborhood_20260628.json`.
+  Both sampled 16 times across the live state. The shot table rows were stable;
+  the source-object neighborhood only changed in timer/list bookkeeping fields,
+  not in the name/object links.
+- The live string/object table pairs `flr_near_lft04.shot` at string
+  `0x00ca6c81` through table refs `0x00ca6a10` and `0x00caa6b4` to object
+  `0x00caa6a0`. The same table has `balcony_lft01 zoom` at string
+  `0x00ca6c6e`, refs `0x00ca69f0` and `0x00caa554`, object `0x00caa540`,
+  and the shared/category object `0x00caa3e0`.
+- The source-object neighborhood around the retained result-builder source
+  shows the same list family in row-shaped records: `0x0077c694 -> 0x00caa3e0`,
+  `0x0077c6b4 -> 0x00caa540`, and `0x0077c6d4 -> 0x00caa6a0`, with target
+  member hints such as `bone_spine1.mesh` and `spot_neck_fret20.mesh` in the
+  adjacent rows.
+- Native validation still decodes the arena MILO as
+  `balcony_lft04 -> Camera03.tnm` with 87 TransAnim keys, while the live PS2
+  RAM scans have zero hits for literal `balcony_lft04`, `Camera03.tnm`, or
+  `Camera03`. Therefore the next acceptance hook should bind the active PS2
+  camera through the runtime row/object identity (`0x0077c610`/`0x0077c694`
+  list family and concrete object slots) or a deliberate force-shot route.
+  Do not reinterpret the native `balcony_lft04` path branch as accepted just
+  from the decoded native label.
+- Rejected trace attempts from the same date are not acceptance evidence:
+  `gh2dxu_arena_builder_source_0077c610_filtered_20260628.json` recorded zero
+  filtered calls, `gh2dxu_arena_builder_unfiltered_sanity_20260628.json`
+  recorded only one cold `0x00267008` call with `a0=0`, and
+  `gh2dxu_arena_camera_chain_patch_before_20260628.json` recorded zero camera
+  chain calls. The visible sanity attempt failed while writing the live hook at
+  `0x00267008`, so it produced only a log. Keep using the stable object/table
+  sampler evidence above until a call-sequence route is screenshot-backed and
+  reaches active camera-chain calls.
+
+2026-06-28 arena camera acceptance guardrail:
+- Native contract coverage now explicitly forbids submitting the diagnostic
+  `path_source_parent_*` venue rows through
+  `camera_submitted_result_rows_for_key`, and also forbids keying submitted
+  camera behavior from the native `balcony_lft04` / `Camera03` labels. The
+  diagnostics still log after `apply_camera_result_frame`, so they remain
+  comparable against PS2 traces without influencing the rendered camera.
+- This preserves the accepted evidence boundary above: the next actual camera
+  behavior change still needs runtime row/object identity
+  (`0x0077c610` / `0x0077c694` family), a deliberate force-shot route, or a
+  screenshot-backed call-sequence trace that ties the source rows to the active
+  PS2 camera.
+
+2026-06-28 diagnostic regular-camera force-shot hook:
+- Native now exposes `--diagnostic-camera-shot <shot>` for bounded validation
+  captures. The hook pins `active_regular_camera_` to a decoded regular
+  `CamShot` by name and logs `[world] diagnostic camera shot selected`, but it
+  does not alter `camera_submitted_result_rows_for_key` and is contract-guarded
+  as a diagnostic-only route. This gives native validation a repeatable way to
+  capture exact decoded shots such as the current arena/theatre mismatch
+  windows without adding shot-name-specific camera behavior.
+- Validation:
+  `analysis/native_validation/arena_diagnostic_camera_shot_balcony_lft04_20260628_current/`
+  runs stock PS2 `shoutatthedevil` from `16.0s` with
+  `--diagnostic-camera-shot balcony_lft04`, fixed-step autoplay, camera/matrix
+  diagnostics, and screenshots at frames `80`, `120`, and `139`. It exits `0`;
+  the log has one forced regular sweep to `balcony_lft04`, one diagnostic
+  selection row, zero missing-shot rows, 140/140 `[camera]` rows on
+  `balcony_lft04`, 140 submitted result rows, 140
+  `path_source_parent_crowd_group_candidate` diagnostic rows, 1,001 venue
+  AnimFilter samples, one active lighting preset, and no unsupported, miss,
+  no-decoded, ARK error, or runtime error rows beyond expected `failed=0`
+  lighting coverage summaries. The retained frames prove the exact decoded
+  path shot is repeatable, but still show the known high rig/speaker-wall
+  composition, so this is validation plumbing for the remaining source-object
+  solve rather than camera parity.
+
+2026-06-28 GH2DXu arena source-object trace reroute:
+- The first same-process PCSX2 retry for the arena source-object route used
+  the stock `SLUS_214.47` ELF against the GH2DXu statefile and only captured a
+  single cold/default `0x00267008` call with no path-apply or writer calls.
+  That artifact is limited to proving the helper/screenshot route was alive;
+  do not use it as camera-chain evidence.
+- Rerunning the same bounded route with the GH2DXu ELF
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/external/Guitar-Hero-II-Deluxe-Unified/out/ps2/GHDX_003.00`
+  produced accepted active source-object evidence in
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628.json`
+  plus `.before_trace.window.png` / `.window.png`. The screenshot is active
+  gameplay on a dark crowd-facing arena camera. The trace records 518 calls:
+  516 `cam_result_builder_00267008` and 2 `cam_path_apply_0026ae00` calls.
+- The runtime list/source family appears in the builder calls exactly where
+  the previous object-table route predicted it: `0x00267008` receives
+  `a0=0x0077c610` six times, and the sampled `0x0077c610` row contains
+  `+0x84 -> 0x00caa3e0`, `+0xa4 -> 0x00caa540`, and
+  `+0xc4 -> 0x00caa6a0`, with adjacent target/member hints including
+  `bone_spine1.mesh` and `spot_neck_fret20.mesh`.
+- Same-process row samples show the missing relocation step is still between
+  path apply and result builder. `0x0026ae00` samples `a0=0x00cbc010`; its
+  `+0x9c` object carries source rows at `+0x20/+0x30/+0x40/+0x50`:
+  forward `(0.877757, 0.477847, 0.000558)`, right
+  `(-0.470557, 0.864568, -0.172896)`, up
+  `(-0.083151, 0.151590, 0.984328)`, and position
+  `(34.968578, -64.248741, 60.348461)`, duplicated at `+0x60..+0x90`.
+  Later `0x00267008` builder calls with `a0=0x0077c610` consume source row
+  `a1=0x00cc0590`, with the same basis family but position
+  `(259.234528, -229.846008, 97.250031)`, and output/projection row
+  `a2=0x00cc0720`.
+- Verdict: this is accepted runtime source-object identity evidence for the
+  `0x0077c610`/`0x0077c694` family and confirms the native gap is the shared
+  relocation/source-selection step from the path-apply object to the builder
+  source row. It is not yet selected-shot evidence for native
+  `balcony_lft04`/`Camera03.tnm`, because the screenshoted PS2 frame is a
+  crowd-facing shot and the trace still does not bind those native decoded
+  labels to the active source row. Do not move submitted native camera behavior
+  from these rows alone; the next implementation-grade gate is either mapping
+  the relocation step generically or capturing a force/current-shot route that
+  binds the row family to the exact decoded path shot.
+
+2026-06-28 CamShot source-ref preservation:
+- Raw arena `CamShot__balcony_lft04` carries the packed shot-level tail
+  `Camera03.tnm`, category `balcony_lft`, filter `0.3`, and trailing source ref
+  `crowd`. This matches the accepted PS2 path-apply object whose sampled
+  source-object neighborhood points at `crowd`, but previous native logs dropped
+  the trailing source ref after expanding the TransAnim path keys.
+- Native now preserves a generic `CameraKey::source_ref`, decodes the trailing
+  plausible source ref from the CamShot shot-field block, and falls back to the
+  packed category string when TransAnim-backed path CamShots carry `.tnm` data
+  before the category tail. Large path CamShots such as `Camera03.tnm` bypass
+  the compact key-count shot-field decoder, so native also recovers the
+  category/filter/source tail directly from the last packed CamShot category.
+  It copies the source ref through TransAnim-backed regular camera keys and
+  logs `source_ref=...` on regular CamShot rows. This is evidence plumbing only:
+  submitted camera rows still use the accepted generated-source/target-list
+  path and do not reinterpret `crowd` as a venue-geometry transform.
+- Follow-up native plumbing now drives the source-parent diagnostic from the
+  decoded `CameraKey::source_ref` instead of hardcoding `crowd`. The aggregate
+  `crowd_group_centroid` comparison remains diagnostic-only and is emitted only
+  when the authored source ref is `crowd`.
+- Native validation also has a diagnostic-only path-frame offset for forced
+  regular CamShots. Accepted PS2 `0x0026ae00` records in the GHDX source trace
+  carry `f12=255.0`; a forced native `--diagnostic-camera-shot` otherwise starts
+  the path at local frame `0`. Use `--diagnostic-camera-path-offset 255` when
+  comparing source rows to that accepted trace so the native `Camera03.tnm`
+  sample time matches the PS2 path-apply frame instead of creating an
+  apples-to-oranges source mismatch.
+- Validation:
+  `analysis/native_validation/arena_source_ref_path255_20260628_143853/`
+  runs stock PS2 `GEN` assets hidden with `--diagnostic-camera-shot
+  balcony_lft04 --diagnostic-camera-path-offset 255`. The run exits `0` and
+  logs the forced-shot offset. Native source rows at frame `480.50` move to the
+  local path-255 family, `position=(-278.525,-710.459,-80.854)`, but still do
+  not match the accepted PS2 builder source object from trace record `513`,
+  `a1=0x00cc0590`, `position=(259.235,-229.846,97.250)`,
+  `forward=(0.877757,0.477847,0.000558)`. This confirms the remaining gap is
+  not merely forced-shot local path timing; native still lacks the shared PS2
+  source-object/eval bridge before target-list/filter/screen submission.
+- Native now adds diagnostic-only PS2-style world-row copy candidates for that
+  bridge shape. `camera_world_copy_candidate_rows()` copies a resolved world
+  transform into the same row family logged by `[camera-result]`; one candidate
+  resolves CamShot target/member refs through the live performer camera target
+  map, and another resolves decoded `source_ref` through the separate venue
+  target map. These rows are logged after submitted camera rows are already
+  selected and are contract-guarded out of `camera_submitted_result_rows_for_key`.
+  They are comparison probes for the accepted `0x00266e58 -> 0x003d7220`
+  transform-copy shape, not a rendered camera behavior change.
+- Validation:
+  `analysis/native_validation/arena_world_copy_diag_20260628_1451/` reruns the
+  hidden stock PS2 `GEN` arena route for eight frames with
+  `--diagnostic-camera-shot balcony_lft04 --diagnostic-camera-path-offset 255`.
+  The run exits `0` and logs the new `ps2_member_world_copy_candidate` rows.
+  At frame `480.50`, that member-resolved row is still in the live guitarist
+  target family, `position=(-0.653,-64.399,24.177)`, while the submitted row
+  remains unchanged at the path-255 generated source family,
+  `position=(-278.525,-710.459,-80.854)`. No exact
+  `source_ref_world_copy_candidate` rows are emitted because `source_ref=crowd`
+  still has no exact decoded venue transform, only the separate diagnostic
+  `crowd_group_centroid`. This rules out the current target/member resolver as
+  the accepted PS2 builder source row and keeps the next gate focused on the
+  path-apply source-object relocation/eval bridge.
+- Follow-up monitored PCSX2 traces
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_source_delta_follow_20260628.json`
+  and
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_source_fields_follow_20260628.json`
+  reran the GHDX arena statefile under an explicit 15-second watchdog. They
+  completed in about 30 seconds each. The first retained 82 path applies, 540
+  result-builder calls, and 44 writer calls; the second retained 214 path
+  applies and 566 result-builder calls. The `s6+0x9c` path output again carries
+  the live moving source block, while the newly followed `s6+0x58` object names
+  `crowd_area.mesh` and carries a concrete runtime transform. This is the
+  strongest current clue for what PS2 means by shot source ref `crowd`: it is
+  not native's aggregate `crowd_group_centroid`.
+- Native diagnostic follow-up in
+  `analysis/native_validation/arena_crowd_area_source_ref_diag_20260628_current/`
+  builds and runs cleanly but does not emit a `source_ref_world_copy_candidate`
+  or `path_source_parent_source_ref_candidate` row for `crowd_area`, because the
+  decoded native venue target map still lacks `crowd_area`/`crowd_area.mesh`.
+  The submitted frame `480.50` remains unchanged at the path-255 generated
+  source family. The next implementation gate is therefore mapping or decoding
+  the runtime `crowd_area.mesh` source object, then applying the traced
+  `0x0026ae00` position-difference/eval bridge; do not substitute the aggregate
+  crowd centroid or a fixed offset.
+- Native scene audit
+  `analysis/native_validation/arena_crowd_area_scene_audit_20260628_current/`
+  found the missing authored source object in
+  `world/arena/gen/arena_chars.milo_ps2`, not
+  `world/arena/og/gen/arena_geom.milo_ps2`: the character/crowd scene contains
+  `Mesh crowd_area.mesh`, `Mat crowd_area.mat`, `WorldCrowd crowd`, and the band
+  waypoints/characters. The mesh decodes as identity basis at
+  `(38.2565, -634.1711, -376.8682)`, and the `WorldCrowd crowd` body begins with
+  a `crowd_area.mesh` reference followed by the crowd character table and
+  placement transforms. Native now merges camera source targets from the
+  venue `_chars.milo_ps2` scene into the existing venue camera target map. The
+  monitored Ninja retry after clearing a stale `ghogx_app.exe --help` lock linked
+  successfully, `ghogx_gameplay_venue_band_contract_test` passed, and
+  `analysis/native_validation/arena_crowd_area_source_ref_diag_20260628_chars_targets/`
+  exits 0 while logging `venue camera char targets: +2 crowd_area=1` plus
+  `source_ref_world_copy_candidate(crowd)->crowd_area` and
+  `path_source_parent_source_ref_candidate(crowd)->crowd_area`. These candidate
+  rows are still diagnostic-only and intentionally remain after the submitted
+  result frame. The candidate transform does not match the PS2 runtime
+  `s6+0x58` rows yet, so the next gate remains the traced runtime/evaluated
+  `WorldCrowd`/`0x0026ae00` bridge, not any shot-name or fixed-position patch.
+- Native now decodes `WorldCrowd` entries in the shared `milo_scene` loader.
+  The arena body layout is: version/header, unaligned `crowd_area.mesh` source
+  string, total placement count `450`, one pad/flag byte, actor count `5`, five
+  actor rows (`crowd_female01`, `crowd_female02`, `crowd_male04`,
+  `crowd_male02`, `crowd_male03`) with three actor params each
+  `(95.0, 1.0, 10.0)`, then five placement arrays of 90 identity-basis matrices.
+  The decoded placement centroid is diagnostic target
+  `crowd_placement_centroid` / `crowd_area_placement_centroid`, not a submitted
+  camera source. Watched Ninja
+  `analysis/native_validation/ninja_watch_20260628_worldcrowd_decode/` completed
+  in about 35 seconds with 15-second heartbeats. The focused contract test
+  passed, `analysis/native_validation/arena_worldcrowd_decode_20260628_current/`
+  confirms `arena_chars.milo_ps2` has `1 world_crowd (1 ok / 0 fail)`, and
+  `analysis/native_validation/arena_worldcrowd_camera_diag_20260628_current/`
+  exits 0 while logging `world_crowd=1 placements=450
+  placement_centroid=1 pos=(-1.510 -608.022 -329.368)`. The same run emits
+  `path_source_parent_worldcrowd_candidate` rows, e.g. frame `480.50` at
+  `(-280.035, -1318.481, -410.222)`, alongside the static
+  `crowd_area.mesh` and aggregate crowd-group candidates. None match the PS2
+  traced `s6+0x58` runtime source matrix yet, so the next implementation step is
+  still to model the evaluated WorldCrowd/source-area transform used by
+  `0x0026ae00`, with the decoded 450 placements as evidence input rather than a
+  fixed camera offset.
+- Follow-up native diagnostic
+  `analysis/native_validation/arena_path_source_delta_diag_20260628_current2/`
+  adds a trace-shaped `path_source_delta_source_ref_candidate` row that computes
+  decoded path pose minus resolved `source_ref`, matching the broad
+  `0x0026ae00` subtraction shape without changing submitted camera behavior.
+  Watched Ninja
+  `analysis/native_validation/ninja_watch_20260628_path_source_delta_rerun/`
+  completed in about 29 seconds with a 15-second heartbeat, and
+  `ghogx_gameplay_venue_band_contract_test` passed. The diagnostic falsifies
+  the simple static-source interpretation: at frame `480.50`, static
+  `crowd_area.mesh` gives
+  `path_source_delta_source_ref_candidate(crowd)->crowd_area` position
+  `(-980.512, -562.615, 156.628)`, while accepted PS2 trace rows for the same
+  forced path-offset route put the builder source object at
+  `(259.235, -229.846, 97.250)`. Do not promote this candidate to submitted
+  camera behavior; the missing bridge is still the evaluated/runtime source
+  object behind `s6+0x58`, not a static source-ref subtraction.
+- Native now prefers the structured PS2 `TransAnim` camera-track layout before
+  falling back to the older broad byte scan: an unaligned rotation-count block
+  (`quat + frame` keys) followed immediately by an unaligned position-count
+  block (`xyz + frame` keys). Full raw dump
+  `analysis/native_validation/camera03_transanim_full_dump_20260628_current/`
+  confirms `Camera03.tnm` has one real position track: `rot_count_off=0x1D`,
+  `pos_count_off=0x99`, `data_off=0x9D`, `87` keys, sampled at path frame
+  `255` as `(-278.525, -710.459, -80.854)`. Watched Ninja
+  `analysis/native_validation/ninja_watch_20260628_structured_transanim/`
+  completed in about 27 seconds, the focused contract test passed, and
+  `analysis/native_validation/arena_structured_transanim_diag_20260628_current/`
+  logs `structured ... selected=1` for `Camera03.tnm`. This rules out a hidden
+  alternate authored Vec3 track as the reason accepted PS2 path output rows are
+  around `(34.969, -64.249, 60.348)` / builder source rows around
+  `(259.235, -229.846, 97.250)`. Continue at the shared resolver/relocation
+  step after TransAnim sampling, not by changing the `Camera03.tnm` track
+  selection.
+- Follow-up alias-world diagnostics in
+  `analysis/native_validation/arena_alias_world_copy_diag_20260628_current/`
+  add direct `target_alias_*_world_copy_candidate` rows for the entity-only
+  CamShot aliases (`spot_neck_fret20.mesh`, `bone_spine1.mesh`,
+  `bone_spine2.mesh`, `bone_neck.mesh`) without changing submitted camera
+  behavior. Watched Ninja
+  `analysis/native_validation/ninja_watch_20260628_alias_world_copy/`
+  completed in about 22 seconds, and the focused contract test passed. At
+  native frame `484.00`, the closest alias to the accepted PS2 path-output row
+  `(34.969, -64.249, 60.348)` is the direct neck copy at
+  `(-0.653, -63.015, 38.164)`, still `41.982` units away; the same row is
+  `314.428` units from the accepted builder source
+  `(259.235, -229.846, 97.250)`. This falsifies the simple "PS2 path output is
+  just a direct performer alias world matrix" explanation. The missing bridge
+  remains a shared resolver/relocation step between path apply/member lookup
+  and the `0x00267008` result builder, not an alias-specific camera patch.
+- Native now exposes every decoded `WorldCrowd` placement as a diagnostic camera
+  source target (`crowd_placement_N`, `crowd_area_placement_N`, and
+  actor-qualified placement keys) and logs a nearest-to-target placement probe
+  for crowd-authored path shots. This is diagnostic evidence only; submitted
+  camera rows still do not use individual placement selection. Watched Ninja
+  `analysis/native_validation/ninja_watch_20260628_worldcrowd_bounds/`
+  completed in about 22 seconds, and the focused contract test passed. The
+  native probe
+  `analysis/native_validation/arena_worldcrowd_bounds_diag_20260628_current/`
+  shows arena decoded placement bounds
+  `min=(-600.601, -1116.659, -329.374)` /
+  `max=(614.343, -234.327, -329.366)`. The nearest placement to the live
+  target at frame `480.50` is `crowd_placement_421` at
+  `(139.356, -383.227, -329.368)`, still hundreds of units from the accepted
+  PS2 path/source rows. This falsifies both the all-placement centroid and the
+  nearest raw placement as the missing `s6+0x58` source object. The accepted PS2
+  source rows are evaluated runtime world matrices after the WorldCrowd/source
+  resolver, so the next bridge is the evaluator behind `0x003d7220`, not raw
+  placement selection or averaging.
+- Byte-level recheck of `world/arena/gen/arena_chars.milo_ps2` shows the
+  `WorldCrowd` actor records are byte-packed: the first per-actor placement
+  count starts unaligned at object offset `0xC9`, followed by five `90`
+  placement sets ending at `0x553D`. Comparing accepted PS2
+  `gh2dxu_arena_source_fields_follow_20260628` source matrix
+  `(324.823, -201.873, 70.682)` against decoded placements shows that raw
+  placement/world rows remain wrong, but resolving placements relative to the
+  stored `crowd_area.mesh` transform is trace-shaped: placement `444`
+  raw `(361.494, -832.992, -329.368)` minus `crowd_area.mesh`
+  `(38.257, -634.171, -376.868)` gives
+  `(323.237, -198.821, 47.500)`, only `23.435` units from the accepted source
+  and with nearly all remaining error in source height. The referenced crowd
+  actor `char/crowd/og/gen/crowd_female01.milo_ps2` decodes matching skeletal
+  source heights (`bone_neck.mesh` world z `55.048`, `bone_head.mesh` world z
+  `59.424`, `spot_head.trans` world z `68.173`). Native now exposes
+  area-local WorldCrowd placement diagnostics
+  (`crowd_area_local_placement_N` and actor/area aliases) and logs nearest
+  area-local probes separately from raw placement probes. This is still
+  diagnostic-only evidence for the shared WorldCrowd/source resolver; submitted
+  camera rows remain unchanged until the PS2 source/bone selection is matched.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_20260628_area_local_worldcrowd/`
+  rebuilt `ghogx_app`, `ghogx`, and the venue/band contract target in about
+  `21s`; after the contract source note update, watched Ninja
+  `analysis/native_validation/ninja_watch_20260628_area_local_contract_rebuild/`
+  rebuilt the contract target in about `10s`. The rebuilt
+  `ghogx_gameplay_venue_band_contract_test` passed, and
+  `git diff --check` is clean except for the repo's existing CRLF conversion
+  warnings. Native probe
+  `analysis/native_validation/arena_worldcrowd_area_local_diag_20260628_current/`
+  exits after `8` frames in about `3s`, shows the submitted row still sourced
+  from `generated_source_seed+target_list+shot_filter+screen`, and logs the new
+  `worldcrowd_area_local_nearest_target_world_copy_candidate` /
+  `path_source_parent_worldcrowd_area_local_nearest_target_candidate` rows.
+- Native now has a generic WorldCrowd actor-source diagnostic layer: when
+  camera diagnostics are enabled it resolves each decoded WorldCrowd actor
+  through `char/crowd/og/gen/<actor>.milo_ps2`, composes every decoded actor
+  `Trans` world row through each area-local placement, and exposes those as
+  `crowd_area_local_actor_source_<actor>_<source>_placement_<N>` targets. The
+  optional `GHOGX_DEBUG_CAMERA_SOURCE_PROBE=x,y,z` hook ranks these decoded
+  source targets against an externally supplied trace coordinate; PS2 trace
+  positions are not compiled into runtime behavior. This keeps the new bridge
+  source-backed and diagnostic-only while we identify the actual
+  `0x003d7220` source selection rule.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_20260628_actor_source_probe_clean/`
+  rebuilt `ghogx_app` and `ghogx` in about `53s` with heartbeats at `15/30/45s`
+  and no new warnings beyond pre-existing gameplay warnings. The rebuilt
+  `ghogx_gameplay_venue_band_contract_test` passed, and `git diff --check` is
+  clean except for the repo's existing CRLF conversion warnings. Native probe
+  `analysis/native_validation/arena_worldcrowd_actor_source_probe_20260628_current/`
+  used `GHOGX_DEBUG_CAMERA_SOURCE_PROBE=324.822662,-201.872787,70.681671`
+  from accepted `gh2dxu_arena_source_fields_follow_20260628`. It decoded all
+  five crowd actor MILOs, added `10350` actor-source targets, and ranked
+  `crowd_area_local_actor_source_crowd_male03_bone_R-knee_placement_444`
+  first at `(327.128, -198.450, 70.366)`, `4.139` units from the accepted PS2
+  source row. The submitted camera rows remain
+  `generated_source_seed+target_list+shot_filter+screen`, so this evidence does
+  not alter live camera behavior yet.
+- 2026-06-29 WorldCrowd fullness density follow-up:
+  the accepted `arena/balcony_lft04` frame shows low-light close crowd
+  silhouettes filling the foreground even while `world/crowd.dta` routes the
+  low excitement state through reduced `set_fullness`. A native material probe
+  of the bright left-side suite mismatch showed `suite.mat` is authored as
+  `blend=SrcAlpha`, `prelit=1`, `use_environ=0`, `rgba=(1,1,1,1)`, and
+  `suite.tex` is fully opaque but dark, so the visible far suite was a symptom
+  of crowd density/coverage rather than missing texture or environ decode.
+  A throwaway decode of `world/arena/gen/arena_chars.milo_ps2` showed the
+  accepted camera eye is surrounded by area-local placements: the closest
+  placements include `crowd_male03[62]` at distance `53.4` and
+  `crowd_male04[61]` at distance `59.2`. Native therefore keeps the DTA
+  fullness fractions but selects the visible subset by distance to the active
+  camera eye per actor runtime, with stable tie-breaking, instead of hashing a
+  random-looking global 25% of placements that could leave the foreground sparse
+  and expose far arena geometry.
+
+- 2026-06-29 camera-row sanity follow-up:
+  native validation disproved the idea that the retained PS2 `a1` result row is
+  sufficient as a rendered gameplay camera. After switching WorldCrowd near-source
+  culling to the small decoded actor float, the bounded
+  `native_probe_worldcrowd_near_fullness_cullp2_20260629` run drew `113`
+  crowd actors with only `2` near-source culls from the accepted trace eye
+  `(259.235,-229.846,97.250)`, but the screenshot still exposed the far suite.
+  A full-density diagnostic `native_probe_worldcrowd_fullness_great_diag_20260629`
+  drew `448/450` placements from the same eye and still exposed the suite, so
+  the mismatch is not just DTA `set_fullness` culling. Rendering the retained
+  `a2` vector row with `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=a2` instead points
+  into overhead rigging, while `writer` is visually equivalent to the `a1` suite
+  view. Default runtime submission therefore no longer silently promotes retained
+  trace rows; they remain renderable only through
+  `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=a1/a2/writer` for comparison. The next
+  implementation-grade route is the generic PS2 source-object relocation/eval
+  bridge (`0x00261c58 -> 0x003d7220`), not hiding suite geometry or hardcoding a
+  one-off trace camera as gameplay.
+
+2026-06-24 stock anim_tempo band clip bridge:
+- `songs.dtb` carries `(anim_tempo kTempoMedium/kTempoFast)` and
+  `char_objects_ps2.dta` band `CharClipSet` `filter_clips` deletes the
+  opposite tempo domain through `game get_song_tempo`. Accepted traces and
+  decoded clip metadata show the stock fast-domain performer names:
+  `singer_active_fast` / `female_singer_active_fast` string families,
+  `bassist_active_fast_01`, `keyboard_active_fast`,
+  `drummer_active_fast_allbeat`, `drummer_active_fast_normal`,
+  `drummer_active_fast_half`, and `drummer_active_fast_nosnare`.
+- Native now imports `anim_tempo` through `Catalog::Song` and `QuickplayRig`,
+  logs it with the selected quickplay rig, and orders shared performer active
+  clip candidates by that song field. Fast songs therefore choose the fast
+  stock band clips first, while medium songs keep the previous medium-domain
+  order. This is shared candidate ordering, not a role-specific visual hack.
+- Validation:
+  `analysis/native_validation/anim_tempo_fast_band_yyz_20260624_current_v4/`
+  reruns stock PS2 `yyz` in `theatre` from `16.0s` with autoplay. The log
+  shows `tempo=kTempoFast`, loads and activates `bassist_active_fast_01`,
+  `keyboard_active_fast`, `drummer_active_fast_allbeat`, and
+  `drummer_active_fast_nosnare`, with `drummer_active_fast_half` also decoded
+  and available. Exit code is `0`, the log scan has no
+  unsupported/missing/failed/error/miss rows, and frames `60/88` are nonblank
+  theatre venue captures. Treat this as the accepted tempo-domain bridge for
+  band clip selection; it is not final authored camera parity.
+
+2026-06-24 drummer double-time active mode bridge:
+- The same stock `char_objects_ps2.dta` clip domain lists `kBandDouble`, and
+  the drummer script maps `(double_time {$this play_mode kBandDouble})`.
+  Accepted trace/string evidence includes `drummer_active_medium_double` and
+  `drummer_active_fast_double`, so native now treats `[double_time]` as a
+  drummer active mode beside allbeat, half, and nosnare.
+- Native loads `active_double_clip` through the shared `anim_tempo` candidate
+  ordering and switches the active player to `mode=double` when the BAND DRUMS
+  MIDI stream reaches `[double_time]`. The marker clears the other drummer
+  mode flags, matching the exclusive `play_mode` shape used by the stock
+  script rather than layering a one-off overlay.
+- Validation:
+  `analysis/native_validation/anim_tempo_fast_band_yyz_double_20260624_current/`
+  reruns stock PS2 `yyz` in `theatre` from `16.0s`. The log shows
+  `tempo=kTempoFast`, decodes `drummer_active_fast_double`, and switches to
+  `performer active clip: role=drummer mode=double
+  clip=drummer_active_fast_double` at `17.500`, `23.250`, `29.000`,
+  `32.000`, and `36.250`. Exit code is `0`, the failure-word scan is empty,
+  and frames `60/88` are nonblank theatre captures with the stage, amps, and
+  drum kit visible.
+
+2026-06-24 main.drv beat-scale bridge:
+- Stock `CHAR_COMMON` maps `(normal_tempo {main.drv set_beat_scale 1})`,
+  `(half_tempo {main.drv set_beat_scale 0.5})`, and
+  `(double_tempo {main.drv set_beat_scale 2})`. Native performer MIDI state
+  now carries that beat scale and applies it through a shared
+  `CharClipPlayer::set_speed` hook on the active main clip player. This keeps
+  authored clip sampling/blending shared while allowing song-synchronized
+  half/normal/double tempo driver changes.
+- Validation:
+  `analysis/native_validation/anim_beat_scale_yyz_20260624_current/` reruns
+  stock PS2 `yyz` in `theatre` from `16.0s`. The log shows
+  `marker=[half_tempo] ... beat_scale=0.500` for guitarist and bassist at
+  `31.750`, then `marker=[normal_tempo] ... beat_scale=1.000` for both at
+  `36.500`. The same run still decodes `drummer_active_fast_double` and
+  switches to `mode=double` on `[double_time]`. Exit code is `0`, the
+  failure-word scan is empty, and frames `60/88` are nonblank venue captures.
+
+2026-06-24 female-singer fast route cleanup:
+- The trace scans contain `female_singer_active_fast`, but the retained stock
+  PS2 ARK object-directory check for
+  `char/female_singer/anims/gen/singer_main.milo_ps2` lists the actual
+  `CharClipSamples` entries as `singer_idle`, `singer_active_fast`,
+  `singer_active_medium_01`, `singer_active_medium_02`, `singer_band_jump`,
+  `singer_win`, and `singer_lose`. Native now uses those decoded entries for
+  `female_singer` and skips the absent generic `singer_intro` probe on that
+  route.
+- Validation:
+  `analysis/native_validation/anim_tempo_fast_singer_crazyonyou_20260624_current_v3/`
+  reruns stock PS2 `crazyonyou` in `fest` from `16.0s`. The log shows
+  `tempo=kTempoFast`, band `metal_bass metal_drummer female_singer`,
+  `singer_idle` loaded for the female singer, and
+  `performer active clip: role=singer mode=normal clip=singer_active_fast` at
+  `16.250`. The failure-word scan is empty after removing the stale
+  female-specific clip probes, and frames `60/96` are nonblank fest venue
+  captures with lighting/camera sweeps active.
+
+2026-06-28 WorldCrowd source-basis probe:
+- Accepted PS2 camera-source traces show the followed `crowd_area.mesh` source
+  object carries a real yawed basis as well as a position. The retained source
+  field trace has the followed source at `(324.823, -201.873, 70.682)` with
+  rows near `(0.981780, 0.189059, 0)`, `(-0.189059, 0.981780, 0)`,
+  `(0, 0, 1)`, while native static WorldCrowd placement/source diagnostics were
+  proving nearby positions only.
+- Stock `world/camshot.dta` makes the generic rule explicit: on `start_shot`,
+  `crowd_face_camera` dispatches `[crowd] set rotate TRUE`, otherwise
+  `[crowd] set rotate FALSE`; `world_objects_ps2.dta` documents the
+  `WorldCrowd.rotate` field as "Whether to face the camera". This is the
+  evidence route for source-basis parity, not a one-off `balcony_lft04` or
+  placement-index rule.
+- Native `GHOGX_DEBUG_CAMERA_SOURCE_PROBE` now logs the nearest decoded
+  WorldCrowd actor-source diagnostic candidates with `row0`/`row1`/`row2` in
+  addition to position and distance. Submitted camera rows are still unchanged;
+  the probe is there to prove whether the selected native candidate also has
+  the PS2-style runtime orientation before any camera-source promotion.
+- Follow-up bridge: native now also has a shared
+  `worldcrowd_face_camera_source_world` diagnostic route. When an authored
+  camera blend contains `crowd_face_camera` and a source probe is explicitly
+  requested, it logs `[camera-source-face-probe]` rows for the same nearest
+  decoded actor-source targets after applying the `WorldCrowd.rotate` shape:
+  local `+Y` faces the live camera reference, rows are rebuilt as a pure
+  Z-up yaw, and position/distance are unchanged. This is still not a submitted
+  camera row; it exists to prove the PS2 source-basis rule before using it for
+  live camera-source resolution.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_worldcrowd_face_source_20260628_182233/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test`, `ghogx_app`, and `ghogx`
+  in about `28s` with a `15s` heartbeat and no timeout; the only warnings were
+  the pre-existing gameplay warnings. The rebuilt
+  `ghogx_gameplay_venue_band_contract_test` passed. Native probe
+  `analysis/native_validation/worldcrowd_face_source_probe_20260628_182327/`
+  forced stock arena `band_POV02`, whose decoded CamShot row has
+  `crowd_face_camera=1` and `source_ref=crowd`. The log shows the original
+  `[camera-source-probe]` nearest candidate still has static knee/bone rows,
+  while `[camera-source-face-probe]` for the same candidate keeps the position
+  and distance but rebuilds rows as pure yaw
+  `row0=(0.205829, 0.978588, 0)`,
+  `row1=(-0.978588, 0.205829, 0)`, `row2=(0, 0, 1)`.
+- Resolver candidate bridge: the same nearest decoded actor-source target is
+  now available to camera diagnostics as
+  `worldcrowd_face_actor_source_world_copy_candidate` and
+  `path_source_parent_worldcrowd_face_actor_source_candidate`. These rows are
+  selected from the live CamShot target centroid and composed through the
+  `WorldCrowd.rotate` source basis only when the decoded CamShot has
+  `source_ref=crowd` and `crowd_face_camera=1`. Submitted rows remain
+  unchanged until the retained PS2 traces prove the selection rule tightly
+  enough to promote it.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_worldcrowd_face_actor_candidate_20260628_182635/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test`, `ghogx_app`, and `ghogx`
+  in about `21s` with a `15s` heartbeat and no timeout; only the pre-existing
+  gameplay warnings remained. `ghogx_gameplay_venue_band_contract_test` passed.
+  Native probe
+  `analysis/native_validation/worldcrowd_face_actor_candidate_20260628_182720/`
+  forced stock arena `band_POV02`. Runtime logs show
+  `worldcrowd_face_actor_source_world_copy_candidate` rows selecting nearest
+  decoded actor sources from the live target centroid and rebuilding their rows
+  as Z-up yaw. No `path_source_parent_worldcrowd_face_actor_source_candidate`
+  rows appear in this route because the decoded arena `crowd_face_camera=1`
+  shots (`lighter`, `band_POV02`) are not path-backed; keep that helper
+  contract-covered until a path-backed face-camera route or specific retained
+  PS2 mismatch exercises it.
+- Follow-up raw-body audit: the extracted arena `CamShot__band_POV02`,
+  `CamShot__lighter`, `CamShot__balcony_lft04`, and `CamShot__balcony_lft01`
+  bodies do not carry a hidden WorldCrowd actor, placement index, or 3D-crowd
+  list after their category/filter/source tails. The relevant packed strings
+  stop at category/filter plus source ref `crowd`, then zeros. That keeps the
+  source selection gate in the runtime WorldCrowd evaluator and retained PS2
+  trace state, not in a missed CamShot asset field.
+- Native now has an explicit trace-probe diagnostic candidate for that gate:
+  when `GHOGX_DEBUG_CAMERA_SOURCE_PROBE=x,y,z` is set and the decoded CamShot
+  has `source_ref=crowd` plus `crowd_face_camera=1`, the debug camera rows log
+  `worldcrowd_probe_face_actor_source_world_copy_candidate` and the
+  path-backed companion
+  `path_source_parent_worldcrowd_probe_face_actor_source_candidate`. These rows
+  select the nearest decoded WorldCrowd actor source to the supplied accepted
+  PS2 coordinate, apply the shared `WorldCrowd.rotate` Z-up yaw basis, and stay
+  contract-guarded out of submitted camera rows. This is an apples-to-apples
+  trace comparison hook, not a fixed coordinate or gameplay behavior change.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_worldcrowd_probe_candidate_20260628_183655/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test`, `ghogx_app`, and `ghogx`
+  in about `29s` with a `15s` heartbeat; the wrapper tripped only while
+  formatting the final elapsed time, after Ninja had already linked
+  `ghogx_app.exe`. The focused contract test passed. Native probe
+  `analysis/native_validation/worldcrowd_probe_face_actor_candidate_20260628_183938/`
+  forced stock arena `band_POV02` with
+  `GHOGX_DEBUG_CAMERA_SOURCE_PROBE=324.822662,-201.872787,70.681671`.
+  It exits after 28 fixed frames and logs
+  `worldcrowd_probe_face_actor_source_world_copy_candidate` selecting
+  `crowd_area_local_actor_source_crowd_male03_bone_R-knee_placement_444` at
+  `(327.128, -198.450, 70.366)` with face-camera rows
+  `(0.205829, 0.978588, 0)`, `(-0.978588, 0.205829, 0)`, `(0, 0, 1)`.
+  The scan finds no failure rows beyond expected coverage counters with
+  `failed=0`/`unmatched=0`.
+- Reference-variant diagnostic: native now logs the same explicit
+  trace-probed actor source faced toward the authored camera eye, authored
+  look-at point, CamShot target centroid, and submitted camera position. This
+  stays under `GHOGX_DEBUG_CAMERA_SOURCE_PROBE` and does not alter submitted
+  camera rows. Validation
+  `analysis/native_validation/worldcrowd_ref_variants_20260628_184655/`
+  exits `0` in about `4s`; the focused contract test still passes after the
+  watched Ninja rebuild
+  `analysis/native_validation/ninja_watch_worldcrowd_ref_variants_20260628_184322/`
+  linked `ghogx_app.exe` in about `28s`. At frame `487.50`, the probe-selected
+  source remains `(327.128, -198.450, 70.366)`. Its face-camera rows are
+  `(0.205829, 0.978588, 0)` for camera eye/submitted position,
+  `(0.053863, 0.998548, 0)` for authored look-at, and
+  `(0.394335, 0.918967, 0)` for target centroid. None match the accepted PS2
+  source row `(0.981780, 0.189059, 0)`, so the remaining mismatch is not a
+  simple choice among native eye/at/target/submitted camera references. The
+  next gate remains PS2's runtime WorldCrowd/source evaluator state, not a
+  submitted-camera promotion.
+- Native now has non-submitted WorldCrowd projected-axis diagnostics for the
+  same gate. `merge_worldcrowd_actor_source_targets` resolves each crowd
+  actor's authored `main.drv` clip candidates, samples frame `0` through the
+  shared `CharClip` path, and emits separate static, parent, animated, and
+  projected-axis target prefixes. The projected-axis prefixes deliberately use
+  `crowd_area_local_actor_flat_source_`,
+  `crowd_area_local_actor_parent_flat_source_`, and
+  `crowd_area_local_actor_anim_flat_source_` so they cannot be picked up by
+  the real `crowd_area_local_actor_source_` nearest-source selector. The
+  debug-only `GHOGX_DEBUG_CAMERA_SOURCE_PROBE_FORWARD` hook ranks those
+  candidates against a retained PS2 source-forward row.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_anim_probe_20260628_204440/`,
+  `analysis/native_validation/ninja_watch_projected_source_20260628_204827/`,
+  `analysis/native_validation/ninja_watch_anim_flat_source_20260628_205033/`,
+  and `analysis/native_validation/ninja_watch_axis_probe_20260628_205244/`
+  rebuilt the native app/test targets in about `18s`-`21s` each with no
+  timeout. Native probes
+  `analysis/native_validation/worldcrowd_anim_probe_20260628_204549/`,
+  `analysis/native_validation/worldcrowd_anim_flat_source_probe_20260628_205107/`,
+  and `analysis/native_validation/worldcrowd_axis_rank_probe_20260628_205321/`
+  forced stock arena `band_POV02` with the accepted PS2 source coordinate
+  `(324.822662, -201.872787, 70.681671)` and forward
+  `(0.981780, 0.189059, 0)`. The nearest static source remains
+  `crowd_area_local_actor_source_crowd_male03_bone_R-knee_placement_444` at
+  `(327.128, -198.450, 70.366)`, only `4.139` units away, but its raw rows do
+  not match the retained PS2 yaw. The best animated projected-axis yaw match is
+  `crowd_area_local_actor_anim_flat_source_z_crowd_male03_bone_L-ankle_placement_444`
+  with row0 `(0.983351, 0.181715, 0)` and dot `0.999972` against the accepted
+  forward, but it is `19.200` units from the accepted source position and low
+  in Z. Static/parent projected rows can match position or broad yaw shape, but
+  not both. Do not promote these candidates to submitted camera rows; the next
+  evidence-backed step is a proper time-varying WorldCrowd/source evaluator
+  bridge, not a one-off camera matrix or bone-name rule.
+- Native now retains the decoded venue `*_chars.milo_ps2` scene and caches
+  decoded WorldCrowd crowd actor scenes/characters/clips on `Gameplay`.
+  `refresh_worldcrowd_actor_source_targets_for_camera` runs before regular or
+  intro camera evaluation when camera diagnostics are enabled, samples the
+  shared `CharClip` at the current song-time frame instead of hard-coded frame
+  `0`, and updates the animated WorldCrowd actor-source target families in the
+  existing camera target map. Submitted camera rows are still unchanged; this
+  is the runtime source-evaluator bridge needed to compare live candidate
+  movement against retained PS2 traces before any promotion.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_live_worldcrowd_probe_20260628_210548/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `25s` with a `15s` heartbeat and no timeout; only the existing warnings
+  remained. The focused `ghogx_gameplay_venue_band_contract_test` passed after
+  the follow-up watched test rebuild
+  `analysis/native_validation/ninja_watch_live_worldcrowd_contract3_20260628_210812/`.
+  Native probe
+  `analysis/native_validation/worldcrowd_live_source_probe_clean_20260628_211154/`
+  forced stock arena `band_POV02` from `16.0s` with the accepted source
+  coordinate/forward. It logs `14` live samples from `t=16.233` through the
+  bounded `28`-frame run and exits after `7.00s` engine time with no
+  `NativeCommandError`, timeout, missing-ARK, fatal, or error rows. The
+  evidence shows the animated source map is now genuinely time-varying: the
+  setup frame-0 nearest animated source was
+  `crowd_male03_bone_L-knee_placement_444` at
+  `(320.063, -193.214, 69.655)`, while the first live sample at `16.233s`
+  updates rank 0 to `crowd_male03_bone_R-knee_placement_444` at
+  `(328.399, -194.104, 69.711)`, then `16.733s` moves it to
+  `(327.543, -194.899, 69.970)`, and later samples continue changing. The
+  best yaw-ranked projected-axis candidates also change over time, but still
+  trade off yaw match against accepted source position. Keep this diagnostic
+  out of submitted rows until the PS2 source-evaluator selection rule is
+  matched.
+- Native now also emits a trace-pose-ranked WorldCrowd source candidate in
+  normal `[camera-result]` row format. The helper
+  `camera_pose_ranked_worldcrowd_actor_source_ref` uses the explicit accepted
+  PS2 source probe position plus `GHOGX_DEBUG_CAMERA_SOURCE_PROBE_FORWARD`,
+  with the same
+  `GHOGX_DEBUG_CAMERA_SOURCE_POSE_ANGLE_WEIGHT` distance/angle score as the
+  source probe logs, and ranks across static source, static flat, parent flat,
+  animated source, and animated flat WorldCrowd actor-source prefixes. The
+  rows are logged as
+  `worldcrowd_probe_pose_actor_source_world_copy_candidate`, with a
+  path-backed companion
+  `path_source_parent_worldcrowd_probe_pose_actor_source_candidate` for future
+  path CamShots. Both remain contract-guarded out of
+  `camera_submitted_result_rows_for_key`.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_pose_ranked_source_20260628_213226/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `24s`; the compile/link output completed with only the existing gameplay
+  warnings, and the wrapper only tripped on the known blank Windows process
+  exit-code field after linking. The focused
+  `ghogx_gameplay_venue_band_contract_test` passed in
+  `analysis/native_validation/ctest_pose_ranked_source_20260628_213305/`.
+  Native probe
+  `analysis/native_validation/worldcrowd_pose_ranked_source_20260628_213340/`
+  forced stock arena `band_POV02` from `16.0s` with the accepted PS2 source
+  coordinate `(324.822662, -201.872787, 70.681671)` and forward
+  `(0.981780, 0.189059, 0)`. It logs `28`
+  `worldcrowd_probe_pose_actor_source_world_copy_candidate` rows, zero
+  path-pose rows because this route is not path-backed, and zero failure
+  markers. The combined candidate resolves to
+  `crowd_area_local_actor_parent_flat_source_x_crowd_male03_bone_R-knee_placement_444`
+  with position `(327.128, -198.450, 70.366)`, score `4.680`, distance
+  `4.139`, and dot `0.981959`. This confirms the best current native
+  position+forward candidate is still a parent-flat placement row near the
+  accepted source, not an animated submitted-camera promotion; the next gate is
+  identifying PS2's runtime source evaluator/basis choice that yields
+  `(0.981780, 0.189059, 0)` at that placement.
+- Native now also has a diagnostic-only relocation-vector probe for the
+  accepted PS2 path-apply-to-builder gap. When
+  `GHOGX_DEBUG_CAMERA_PATH_SOURCE_PROBE=x,y,z` and
+  `GHOGX_DEBUG_CAMERA_SOURCE_PROBE=x,y,z` are both supplied for a
+  `source_ref=crowd` CamShot, the camera debug path ranks decoded WorldCrowd
+  actor-source candidates by how well their native
+  `generated/source_seed -> candidate` delta matches the retained PS2
+  `0x0026ae00 path-source -> 0x00267008 builder-source` delta, with
+  `GHOGX_DEBUG_CAMERA_RELOCATION_BUILDER_WEIGHT` as the explicit builder-row
+  tie-break and optional `GHOGX_DEBUG_CAMERA_SOURCE_PROBE_FORWARD` basis
+  weighting. The row logs as
+  `worldcrowd_relocation_delta_actor_source_world_copy_candidate` and remains
+  contract-guarded out of submitted camera rows. Use this to decide whether
+  native has the right decoded source family but the wrong evaluator
+  composition, or whether the PS2 selector still needs a deeper trace; do not
+  promote it without a native/PS2 row match.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_relocation_delta_20260628_214815/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `26s` with a `16s` heartbeat. Compile/link completed with only the existing
+  gameplay warnings; the wrapper again exposed the known blank Windows process
+  exit-code field after linking. The focused
+  `ghogx_gameplay_venue_band_contract_test` passed in
+  `analysis/native_validation/ctest_relocation_delta_20260628_214855/`.
+  Native probe
+  `analysis/native_validation/relocation_delta_balcony_20260628_215003/`
+  forced stock arena `balcony_lft04` / path offset `255` from `16.0s` with
+  accepted PS2 path-source `(34.968578, -64.248741, 60.348461)`, builder
+  source `(259.234528, -229.846008, 97.250031)`, and forward
+  `(0.877757, 0.477847, 0.000558)`. It logs `28`
+  `worldcrowd_relocation_delta_actor_source_world_copy_candidate` rows and
+  zero failure markers. The best row is still far from the PS2 relocation:
+  frame `487.50` selects
+  `crowd_area_local_actor_anim_flat_source_z_crowd_male04_bone_L-ankle_placement_259`
+  at `(-2.282688, -483.027771, 52.540649)` with score `500.383`, relocation
+  delta error `407.026`, builder distance `366.730`, and dot `0.944187`.
+  Subsequent best deltas remain hundreds of units away. This falsifies the
+  simple decoded-WorldCrowd-source explanation for the accepted
+  path-apply-to-builder relocation. Keep submitted camera behavior unchanged;
+  the next evidence gate is the deeper PS2 runtime source evaluator/source
+  object family around `0x0077c610` and offsets `+0x84/+0xa4/+0xc4`.
+- Native now also emits a diagnostic-only PS2 member-entry relocation probe.
+  The accepted `0x0077c610` neighborhood shows source-object list/member
+  entries at offsets including `+0x84`, `+0xa4`, and `+0xc4`, with
+  `bone_spine1.mesh` and nearby `spot_neck_fret20.mesh` hints. The new
+  `ps2_member_relocation_delta_target_world_copy_candidate` row ranks native
+  camera target members such as `bone_spine1.mesh`, `bone_spine2.mesh`,
+  `bone_spine3.mesh`, `bone_neck.mesh`, and `spot_neck_fret20.mesh` by the
+  same retained PS2 `path-source -> builder-source` relocation delta used by
+  the WorldCrowd relocation probe. It is logged after submitted rows and is
+  contract-guarded out of `camera_submitted_result_rows_for_key`.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_member_relocation_delta_20260629_000001/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `24s` with a `16s` heartbeat. The focused contract test passed in
+  `analysis/native_validation/ctest_member_relocation_delta_20260629_000001/`.
+  Native probe
+  `analysis/native_validation/member_relocation_delta_balcony_20260629_000001/`
+  forced stock arena `balcony_lft04` / path offset `255` from `16.0s` with
+  the same accepted PS2 path-source, builder-source, and forward probe rows as
+  the WorldCrowd relocation run. It logs `28`
+  `ps2_member_relocation_delta_target_world_copy_candidate` rows, `28`
+  WorldCrowd relocation rows, and zero failure markers. The best member-entry
+  result is still decisively wrong: frame `487.50` selects
+  `guitarist0:bone_spine2.mesh` with score `997.132`, relocation delta error
+  `880.315`, builder distance `350.932`, and dot `0.030526`. This falsifies
+  the simple "PS2 source object member hints are direct native performer
+  target members" explanation; keep the remaining gate on the deeper runtime
+  source evaluator/list traversal, not target-member promotion.
+
+2026-06-29 PS2 source owner/member helper chain and all-member native probe:
+- Static disassembly in
+  `analysis/ps2_trace_snippets/camera_source_helper_funcs_20260629.json`
+  shows the active `0x00267008` list walk calling `0x00261c58`. The helper
+  reads the owner object from `entry+0x8` and the member symbol from
+  `entry+0xc`, resolves that child under the owner, then the later
+  `0x003d7220` path returns the updated world rows at transform `+0x60`.
+  For the accepted `0x0077c610` table, the caller passes the inner entry at
+  the 32-byte record's `+0x10`, so the retained words at record offsets
+  `+0x18/+0x1c` are the real owner/member pair. The first changing object
+  pointer in each 32-byte record is shot/category state, not the transform
+  owner consumed by `0x00261c58`.
+- Retained `gh2dxu_arena_builder_a0_shot_identity_long_20260624.json` follows
+  `0x00caa3e0` as `SOLO_NEAR02` and the `balcony_lft` shot family. Its nested
+  owner `0x00cb9530` has a `0x003d7220`-shaped transform layout: local rows at
+  `+0x20..+0x50` and world rows at `+0x60..+0x90`, with root world position
+  about `(92.976, 86.079, 21.451)`. That root does not equal the accepted
+  builder source `(259.235, -229.846, 97.250)`, so the missing native bridge is
+  the resolved child/world matrix under that owner, not the owner root itself.
+- Native now also emits
+  `ps2_all_member_relocation_delta_target_world_copy_candidate`, a
+  diagnostic-only rank across all loaded performer camera targets for the PS2
+  member hints (`bone_spine1.mesh`, `bone_spine2.mesh`, `bone_spine3.mesh`,
+  `bone_neck.mesh`, and `spot_neck_fret20.mesh`). This deliberately removes
+  the previous key-target scope while staying contract-guarded out of
+  submitted camera rows.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_all_member_relocation_delta_20260629_010002/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `28s` with a `15s` heartbeat; the focused contract test passed in
+  `analysis/native_validation/ctest_all_member_relocation_delta_20260629_010002/`.
+  The first native probe attempts at `_010002` and `_010003/_010004` were
+  wrapper failures only: one split the ARK path at the space in
+  `Guitar Hero II`, and one used a redirected pipe that could stall while
+  venue asset logs filled stderr. The corrected file-redirected probe
+  `analysis/native_validation/all_member_relocation_delta_balcony_20260629_010005/`
+  completed in about `25s` and logged `28` rows each for the all-member,
+  key-member, WorldCrowd relocation, and WorldCrowd pose candidates. The
+  apparent failure-marker count is only normal `0 fail` asset coverage text.
+- Probe result: frame `487.50` all-member selection is still decisively wrong,
+  choosing `bassist:bone_neck.mesh` with score `986.245`, relocation delta
+  `878.832`, builder distance `347.392`, and dot `0.314478`; the key-scoped
+  member probe remains similarly wrong at `guitarist0:bone_spine2.mesh`.
+  This falsifies both current performer-member target pools as the native
+  equivalent of PS2 owner `0x00cb9530` plus `bone_spine1.mesh`. In the same
+  run, the explicit accepted-source pose probe ranks
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  at `(252.908, -218.753, 93.703)` with score `13.532`, distance `13.254`,
+  and dot `0.990737`, which is much closer to the accepted builder source.
+  Continue the source bridge on the WorldCrowd actor-source transform family
+  and its PS2 owner/member resolver; do not promote performer-member targets
+  or relocation-delta rows into submitted camera behavior.
+- Native now also logs raw CamShot source-tail diagnostics under
+  `GHOGX_DEBUG_CAMERA=1`. The decoded `CameraKey` keeps the source pose offset,
+  ref-tail cursor, and shot-tail cursor, and `[camera-source-tail]` rows dump
+  packed strings plus any object-array refs between the key refs and the
+  shot/category tail. This is diagnostic-only and contract-covered out of the
+  submitted camera result path.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_camshot_source_tail_20260628_223705/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `21s` with a `15s` heartbeat. The first build attempt
+  `analysis/native_validation/ninja_watch_camshot_source_tail_20260628_223604/`
+  failed quickly on a missing `<sstream>` include for the new local hex
+  formatter, then the fixed rebuild completed with only the existing
+  `gameplay.cpp` goto warning. The focused contract test passed in
+  `analysis/native_validation/ctest_camshot_source_tail_20260628_223745/`.
+  Native probe
+  `analysis/native_validation/camshot_source_tail_balcony_20260628_223830/`
+  forced stock arena `balcony_lft04` / path offset `255` from `16.0s` with
+  `GHOGX_DEBUG_CAMERA=1`; it exited in about `7s`, logged `38`
+  `[camera-source-tail]` rows, and found no fatal/error rows.
+- Probe result: `balcony_lft04` reports
+  `pose=0x197 ref_end=0x202 tail=0x202 category=balcony_lft source_ref=crowd`
+  with tail strings `0x228:Camera03.tnm`, `0x23C:balcony_lft`,
+  `0x25B:crowd`, and `arrays=<none>`. `balcony_lft03` similarly exposes
+  `Camera02.tnm` plus `balcony_lft`/`crowd`, and all decoded regular arena
+  CamShots in this run report `arrays=<none>`. The accepted PS2
+  owner/member source-object list is therefore not hiding in an undecoded
+  CamShot object array; it is runtime evaluator/list state reached after the
+  asset-level `source_ref=crowd` and path animation are known. Keep the next
+  gate on retained PS2 source evaluator state around `0x0077c610` and
+  `0x00261c58`, not on native CamShot raw-body parsing.
+- Retained trace row check: in
+  `gh2dxu_arena_builder_a0_shot_identity_long_20260624.json`, the active
+  `cam_result_builder_00267008` call uses `a0=0x0077c610`. Its accepted
+  32-byte source-object record at table offset `+0x80` corresponds to
+  `0x0077c690` in
+  `gh2dxu_arena_shot_object_neighborhood_20260628.json`:
+  `+0x0=0x003e3b70`, `+0x4=0x00caa3e0`, `+0x8=0x00cb9530`,
+  `+0xc=0x00a61dd4`, where the neighborhood sampler resolves
+  `0x00a61dd4` to `bone_spine1.mesh`. The adjacent records at
+  `0x0077c6d0` and `0x0077c6f0` show the same owner pattern with
+  `bone_spine1.mesh` and `spot_neck_fret20.mesh`. This pins the next native
+  bridge to a PS2-style source-object record evaluator: select the runtime
+  record, resolve owner `0x00cb9530`, then resolve the member symbol under
+  that owner before building the submitted camera source rows.
+- Native now keeps the decoded WorldCrowd actor-source target inventory live
+  during normal camera evaluation when loaded cameras carry authored
+  `source_ref=crowd`, instead of sampling it only while
+  `GHOGX_DEBUG_CAMERA=1`. Debug output remains gated by `GHOGX_DEBUG_CAMERA`,
+  and submitted camera rows still do not consume any WorldCrowd source
+  candidate. This is a prerequisite for the PS2 source-object evaluator above:
+  the native runtime now has the same time-sampled actor-source families
+  available outside validation logging, while the contract still forbids
+  promoting trace-probe or relocation heuristics into submitted camera output.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_worldcrowd_runtime_refresh_20260628_225703/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `26s` with a `15s` heartbeat. The process-exit field was again blank in the
+  PowerShell wrapper, but Ninja linked both targets and stderr was empty; the
+  stdout log shows only the existing gameplay warnings. The focused contract
+  test returned cleanly in
+  `analysis/native_validation/ctest_worldcrowd_runtime_refresh_20260628_225757/`;
+  the direct rerun
+  `analysis/native_validation/ctest_worldcrowd_runtime_refresh_direct_20260628_230035/`
+  returned numeric exit code `0`.
+  A no-debug native render in
+  `analysis/native_validation/worldcrowd_runtime_refresh_nodebug_20260628_225849/`
+  ran stock arena `shoutatthedevil` from `16.0s`, captured frames `40` and
+  `79`, logged regular camera sweeps, and produced zero camera-debug/source
+  sample rows and zero fatal markers. The retained-source debug probe in
+  `analysis/native_validation/worldcrowd_runtime_refresh_probe_20260628_225931/`
+  forced `balcony_lft04` / path offset `255` with the accepted PS2 path-source,
+  builder-source, and forward probe values; it logged `38`
+  `[camera-source-tail]` rows, `8` live WorldCrowd source samples, `32`
+  trace-pose WorldCrowd source rows, `48` relocation rows, and zero fatal
+  markers.
+- Probe result: the source-tail row still shows `balcony_lft04`
+  `source_ref=crowd` with only `Camera03.tnm`, `balcony_lft`, and `crowd`
+  strings and `arrays=<none>`. The trace-pose rank still selects
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  at `(252.907715, -218.753113, 93.703407)` with score `13.532`, distance
+  `13.254`, and dot `0.990737`; relocation ranking still selects far-off
+  ankle/placement rows with scores over `500`. This preserves the current
+  conclusion: the next promotion target is the PS2-style owner/member evaluator
+  for `0x00cb9530` / `bone_spine1.mesh`, not nearest/relocation heuristics.
+
+2026-06-28 PS2 source-record owner/member diagnostic:
+- Native now has a non-submitted PS2 source-record diagnostic for the retained
+  helper shape seen at `0x00261c58`: source record `+8` is the owner object and
+  `+0xc` is the member symbol. When
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_PROBE=x,y,z` and
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_MEMBER=name.mesh` are set, crowd-authored
+  camera debug evaluation ranks decoded WorldCrowd actor source rows by owner
+  distance, optional accepted PS2 builder-source distance, and optional accepted
+  PS2 forward-axis dot. The row logs the selected native source target, the
+  owner/root target used for the comparison, and the normalized member name.
+  It is deliberately diagnostic-only; the contract still forbids this candidate
+  from entering submitted camera rows.
+- Native validation found the expected rig-name mismatch: the retained PS2
+  source record carries `bone_spine1.mesh`, while native WorldCrowd crowd actor
+  source rows expose `bone_spine`. The diagnostic therefore compares the exact
+  member first, then a generic trailing-number-stripped member alias. This is
+  not a shot-specific visual shortcut; it is documented rig member
+  normalization for comparing PS2 performer/member records against decoded
+  crowd actor source rows.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_ps2_source_record_member_20260628_230930/`
+  rebuilt the contract test and app in about `24s` with a `15s` heartbeat.
+  Direct contract
+  `analysis/native_validation/ctest_ps2_source_record_member_direct_20260628_231003/`
+  returned exit code `0`. The first native probe
+  `analysis/native_validation/native_probe_ps2_source_record_member_20260628_231027/`
+  used a misquoted ARK path and correctly loaded no song/camera rows; the
+  corrected probe
+  `analysis/native_validation/native_probe_ps2_source_record_member_20260628_231059/`
+  logged `38` `[camera-source-tail]` rows, `8` live WorldCrowd source samples,
+  `32` trace-pose rows, `48` relocation rows, and zero PS2 source-record rows,
+  proving the exact `bone_spine1` name did not exist in native WorldCrowd
+  source rows. After adding the shared evaluated flat source families and
+  generic member normalization, watched Ninja
+  `analysis/native_validation/ninja_watch_ps2_source_record_norm_20260628_231428/`
+  rebuilt in about `22s`, direct contract
+  `analysis/native_validation/ctest_ps2_source_record_norm_direct_20260628_231518/`
+  returned exit code `0`, and the native probe
+  `analysis/native_validation/native_probe_ps2_source_record_norm_20260628_231518/`
+  exited in about `16s` with `32`
+  `ps2_source_record_member_actor_source_world_copy_candidate` rows, `32`
+  trace-pose rows, `48` relocation rows, `38` source-tail rows, `8` live
+  WorldCrowd source samples, and zero fatal/error lines.
+- Probe result: retained `bone_spine1.mesh` now normalizes to native
+  `bone_spine` and selects
+  `crowd_area_local_actor_flat_source_y_crowd_female01_bone_spine_placement_15`
+  / animated variants, with `owner_ref=crowd_area_local_placement_15` and
+  owner distance about `30.390`. Source distance remains large, around
+  `359-362`, so this is evidence for the owner/member resolution bridge and
+  rig-member normalization, not a camera promotion candidate yet. The next
+  native step is to turn this from an env-only probe into the shared source
+  record evaluator fed by decoded runtime source records, then compare its
+  output against submitted PS2 source rows before any promotion.
+
+2026-06-28 decoded CamShot source-record hint bridge:
+- `CameraKey` now carries a typed `SourceRecordHint` beside the decoded CamShot
+  refs. For crowd-authored shots, native syncs this hint from decoded
+  `source_ref=crowd` plus the first decoded target/member or parent/member ref,
+  propagates it through pose and path-backed camera keys, and lets the
+  PS2-source-record diagnostic consume the decoded member before falling back
+  to `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_MEMBER`. This removes the member side
+  of the diagnostic from env-only validation on shots whose CamShot data
+  already carries a member ref. The owner transform remains explicit validation
+  input until the runtime PS2 source-object owner list is decoded natively.
+- Validation:
+  watched Ninja
+  `analysis/native_validation/ninja_watch_source_record_hint_20260628_231941/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `20s` with a `15s` heartbeat. Stderr was empty; stdout showed the existing
+  gameplay warnings and one existing app-main unused-alias warning. Direct
+  contract
+  `analysis/native_validation/ctest_source_record_hint_direct_20260628_232032/`
+  returned exit code `0`.
+- Native probe
+  `analysis/native_validation/native_probe_source_record_hint_no_member_env_20260628_232032/`
+  forced the accepted `balcony_lft04` / path offset `255` route with
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_PROBE` set but no
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_MEMBER`. It logged `38`
+  `[camera-source-tail]` rows, `8` live WorldCrowd samples, `32` trace-pose
+  rows, `48` relocation rows, zero PS2 source-record rows, and zero fatal/error
+  rows. This confirms the native CamShot body still does not expose the
+  `balcony_lft04` member; that member is still PS2 runtime source-list state,
+  matching the retained `0x0077c610` source-object table evidence.
+- Native probe
+  `analysis/native_validation/native_probe_source_record_hint_flr_near_rt02_20260628_232116/`
+  forced `flr_near_rt02` with the same owner/source/forward probes and no
+  member env var. It logged `32`
+  `ps2_source_record_member_actor_source_world_copy_candidate` rows, including
+  `16` rows with `member=bone_spine`, plus `32` trace-pose rows, `32`
+  relocation rows, `38` source-tail rows, `8` live WorldCrowd source samples,
+  and zero fatal/error rows. The selected row again normalizes decoded
+  `guitarist0:bone_spine1.mesh` to native WorldCrowd `bone_spine` and selects
+  `crowd_area_local_placement_15`, proving the decoded source-record hint path
+  works without the member env hook.
+- Next gate: decode or model the PS2 runtime source-object owner/member list
+  that feeds `balcony_lft04`, rather than promoting nearest/relocation or
+  decoded-CamShot-member hints. The native evidence now cleanly separates
+  CamShot-carried member refs from runtime evaluator source records.
+
+2026-06-28 decoded source-record table carrier:
+- Native now builds a diagnostic-only member table from decoded regular
+  CamShot `SourceRecordHint` entries and feeds that table into the PS2
+  source-record WorldCrowd evaluator. This is deliberately separate from the
+  submitted camera rows: it exists to model the PS2 runtime source-object
+  list shape and to prove which decoded members can be resolved against native
+  WorldCrowd actor source rows before any camera promotion.
+- Direct contract
+  `analysis/native_validation/ctest_source_record_table_direct_reliable_20260628_233712/`
+  returned exit code `0`. The contract checks the member table builder, the
+  multi-member evaluator, the
+  `ps2_source_record_table_actor_source_world_copy_candidate` diagnostic stage,
+  and that this evaluator is absent from submitted camera result assembly.
+- Native `balcony_lft04` probe
+  `analysis/native_validation/native_probe_source_record_table_balcony_20260628_233735/`
+  used the retained PS2 owner/source/forward rows with no
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_MEMBER`. It logged `16`
+  `ps2_source_record_table_actor_source_world_copy_candidate` rows, zero
+  single-member `ps2_source_record_member_actor_source_world_copy_candidate`
+  rows, `16` `member=bone_spine` rows, `16` trace-pose rows, `16`
+  relocation rows, `38` `[camera-source-tail]` rows, `8` live WorldCrowd
+  source samples, and zero fatal/error lines. This proves the balcony route can
+  now get diagnostic source-record rows from the native decoded table even
+  though the active CamShot still does not carry its own member hint.
+- Native `flr_near_rt02` probe
+  `analysis/native_validation/native_probe_source_record_table_flr_near_rt02_20260628_233846/`
+  used the same retained PS2 rows and no member env var. It logged `16`
+  source-record table rows and `16` decoded single-member rows, with `32`
+  total `member=bone_spine` rows, `16` trace-pose rows, `16` relocation rows,
+  `38` source-tail rows, `8` live WorldCrowd source samples, and zero
+  fatal/error lines. The table path selects the same native row family as the
+  decoded single-member path:
+  `crowd_area_local_actor_flat_source_y_crowd_female01_bone_spine_placement_15`
+  with `owner_ref=crowd_area_local_placement_15`, owner distance about
+  `30.390`, source distance about `358.898`, and dot about `0.478136`.
+- Promotion gate: do not submit this row to the camera. The table carrier
+  proves native can retain and resolve decoded member families, but the large
+  source-distance/axis mismatch says the real promotion needs the PS2 runtime
+  owner/source-object list, or a stronger native model of that list, rather
+  than a global member-table nearest match.
+
+2026-06-28 source-record ranked candidate probe:
+- Native source-record diagnostics now support opt-in ranked rows via
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_RANKS`, plus
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_WEIGHT` to isolate owner-root
+  distance from source-position/axis scoring. Defaults preserve prior behavior:
+  owner weight is `1.0`, source weight remains
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_SOURCE_WEIGHT` default `0.25`, and ranked
+  logging is silent unless explicitly enabled. The ranked rows are
+  diagnostic-only and do not feed submitted camera output.
+- Watched Ninja
+  `analysis/native_validation/ninja_watch_source_record_owner_weight_20260628_234726/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `31s` with a `15s` heartbeat and only the existing gameplay warnings.
+  Direct contract
+  `analysis/native_validation/ctest_source_record_owner_weight_direct_20260628_234806/`
+  returned exit code `0`.
+- Native `balcony_lft04` rank probe
+  `analysis/native_validation/native_probe_source_record_ranks_balcony_20260628_234459/`
+  used the accepted retained owner/source/forward rows with no member env var
+  and rank limit `8`. It emitted `8`
+  `[camera-source-record-probe]` rows, `24`
+  `ps2_source_record_table_actor_source_world_copy_candidate` rows, `16`
+  trace-pose WorldCrowd rows, and zero fatal/error rows. With default owner
+  weight, rank `0` remained
+  `crowd_area_local_actor_flat_source_y_crowd_female01_bone_spine_placement_15`
+  with owner distance `30.390`, source distance `358.898`, dot `0.478136`,
+  and score `135.774`; the accepted source-pose neighborhood is not selected
+  because owner-root proximity dominates the score.
+- Native comparison probe
+  `analysis/native_validation/native_probe_source_record_owner0_rhand_balcony_20260628_234830/`
+  set `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_MEMBER=bone_R-hand.mesh` and
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_WEIGHT=0`. It emitted `16`
+  ranked rows, `24` single-member source-record candidate rows, `16`
+  trace-pose WorldCrowd rows, and zero fatal/error rows. With owner-root
+  scoring disabled, rank `0` is the accepted trace-pose source family:
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  with source distance `13.254`, dot `0.990737`, and score `3.591`, while
+  its owner-root distance is `338.123`.
+- Interpretation: native already contains the positive source-position/axis
+  row that matches the retained builder source, but the retained PS2
+  source-record member is `bone_spine1.mesh`, not `bone_R-hand.mesh`, and the
+  PS2 helper consumes an owner/member object relationship rather than a simple
+  native owner-root nearest match. The next implementation gate is therefore a
+  PS2-shaped resolver from the runtime `0x0077c610` owner/member record family
+  into the WorldCrowd actor-source transform family, not a tweak to submitted
+  camera scoring.
+
+2026-06-28 source-record sibling actor-source probe:
+- Native now has a second source-record diagnostic that treats the retained
+  PS2 member (`bone_spine1.mesh`, normalized to `bone_spine`) as an
+  actor/placement anchor, then ranks sibling actor-source transforms under the
+  same resolved crowd actor placement. This tests the PS2-shaped hypothesis
+  that the runtime source record identifies an object context, while the camera
+  source/result rows can come from a sibling transform in that object family.
+  The stage is
+  `ps2_source_record_sibling_actor_source_world_copy_candidate`, emits optional
+  `[camera-source-record-sibling-probe]` ranks through
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_SIBLING_RANKS`, and remains
+  contract-guarded out of submitted camera rows.
+- Watched Ninja
+  `analysis/native_validation/ninja_watch_source_record_sibling_20260628_235539/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `30s` with a `15s` heartbeat and only the existing gameplay warnings.
+  Direct contract
+  `analysis/native_validation/ctest_source_record_sibling_direct_20260628_235630/`
+  returned exit code `0`.
+- Native `balcony_lft04` sibling probe
+  `analysis/native_validation/native_probe_source_record_sibling_owner0_balcony_20260628_235710/`
+  used the accepted retained owner/source/forward rows, no member env var,
+  source-record table hints, `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_WEIGHT=0`,
+  and sibling rank limit `12`. It logged `12`
+  `[camera-source-record-sibling-probe]` rows, `28`
+  `ps2_source_record_sibling_actor_source_world_copy_candidate` rows, `20`
+  table candidate rows, `4` source-record table rank rows, and zero fatal/error
+  rows. Rank `0` is the accepted trace-pose source family reached through the
+  `bone_spine` anchor:
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  with source distance `13.254`, dot `0.990737`, score `3.591`, and
+  `owner_ref=crowd_area_local_placement_241`. The logged candidate row copies
+  position `(252.908, -218.753, 93.703)` and the same flat X-facing basis seen
+  in the explicit source-pose probe.
+- Native default-weight sibling probe
+  `analysis/native_validation/native_probe_source_record_sibling_default_balcony_20260628_235823/`
+  used the same route and retained PS2 rows but default owner weight `1.0`.
+  It logged `8` sibling rank rows, `24` sibling candidate rows, and zero
+  fatal/error rows. Rank `0` becomes
+  `crowd_area_local_actor_flat_source_x_crowd_female01_bone_R-hand_placement_15`
+  with owner distance `30.390`, source distance `353.967`, and score
+  `119.160`, proving that owner-root proximity alone still pulls the resolver
+  to the wrong actor instance.
+- Interpretation: the PS2 source-record sibling model can now reach the exact
+  native source row matching the retained builder source from the accepted
+  `bone_spine1.mesh` record family, but only when source/axis evidence is
+  isolated from root-owner proximity. The remaining bridge is the PS2
+  owner/member object-context semantics that make owner `0x00cb9530` plus
+  `bone_spine1.mesh` imply the crowd_male04 placement/source context. Do not
+  promote this diagnostic row until native has a source-backed selector for
+  that actor/placement context.
+
+2026-06-29 explicit source-record context diagnostic:
+- Native now logs a separate
+  `ps2_source_record_context_actor_source_world_copy_candidate` stage. It uses
+  the same PS2 source-record sibling resolver as the generic sibling probe, but
+  explicitly fixes owner-root weight to `0.0` for the diagnostic call. This
+  makes the source/axis context question first-class instead of relying on
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_WEIGHT=0` in the environment. The
+  generic sibling stage remains default-owner-weighted for comparison, and both
+  stages remain contract-guarded out of submitted camera rows.
+- First watched build
+  `analysis/native_validation/ninja_watch_source_record_context_20260629_000346/`
+  failed quickly, not by hanging: the call sites passed the new owner-weight
+  override before the sibling helper signature had been updated. The fixed
+  watched build
+  `analysis/native_validation/ninja_watch_source_record_context_fix_20260629_000458/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `31s` with a `15s` heartbeat and only the existing gameplay warnings.
+  Direct contract
+  `analysis/native_validation/ctest_source_record_context_direct_20260629_000540/`
+  returned exit code `0`.
+- Native `balcony_lft04` context probe
+  `analysis/native_validation/native_probe_source_record_context_balcony_20260629_000611/`
+  used the accepted retained owner/source/forward rows, no member env var, no
+  owner-weight env override, and sibling rank limit `6`. It logged `22`
+  `ps2_source_record_context_actor_source_world_copy_candidate` rows, `22`
+  generic sibling rows, `12` sibling rank rows, and zero fatal/error rows.
+  The explicit context stage consistently selects the accepted source row:
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  with score `3.591`, owner distance `338.123`, source distance `13.254`, dot
+  `0.990737`, anchor member `bone_spine`, and
+  `owner_ref=crowd_area_local_placement_241`. In the same run the generic
+  sibling stage, with default owner weighting, still selects the wrong nearby
+  owner row
+  `crowd_area_local_actor_flat_source_x_crowd_female01_bone_R-hand_placement_15`
+  with score `119.160`, owner distance `30.390`, and source distance
+  `353.967`.
+- Interpretation: the explicit context diagnostic gives native a stable,
+  source-backed way to reproduce the retained builder-source row from the
+  decoded `bone_spine` source-record family without a manual env scoring
+  override. It is still not submitted camera behavior: the remaining promotion
+  gate is to replace the explicit retained source-position/axis probe with a
+  native, PS2-backed context selector that explains why the runtime
+  `0x0077c610` owner/member record chooses crowd_male04 placement `241` for
+  this shot.
+
+2026-06-29 source-record owner coordinate-family diagnostic:
+- Added opt-in owner-family diagnostics to
+  `camera_ps2_source_record_sibling_actor_source_world_copy_candidate_rows`.
+  `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_FAMILY=best` compares
+  actor-area-local, generic area-local, actor-world, and generic world owner
+  rows in the sibling rank log without submitting any of those rows to the live
+  camera. The same pass also publishes actor-specific WorldCrowd placement owner
+  targets beside the actor source rows, and strips flat-source axis prefixes
+  (`x_`, `y_`, `z_`) before owner lookup so
+  `crowd_area_local_actor_flat_source_x_crowd_male04_*` can resolve its
+  `crowd_male04` placement owner.
+- Watched build
+  `analysis/native_validation/ninja_watch_source_record_axis_owner_20260629_003019/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `22s` with a `15s` heartbeat and only the existing gameplay warnings. Direct
+  contract
+  `analysis/native_validation/ctest_source_record_axis_owner_direct_20260629_003050/`
+  returned exit code `0`.
+- Native `balcony_lft04` probe
+  `analysis/native_validation/native_probe_source_record_axis_owner_balcony_proc_20260629_003134/`
+  used the retained accepted owner/source/forward probes, sibling rank limit
+  `10`, and `GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_FAMILY=best`. It returned
+  exit code `0`, logged no fatal/error rows, and showed the explicit context
+  stage still selecting
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  with score `3.591`, source distance `13.254`, dot `0.990737`, and
+  `owner_ref=crowd_crowd_male04_area_local_placement_241`. The selected
+  actor-area-local owner distance is `338.123`, the same as generic
+  `crowd_area_local_placement_241`, while the actor/world owner distance is
+  `1020.994`; for the generic sibling stage, the wrong nearby
+  `crowd_female01` placement still wins with owner distance `30.390` and source
+  distance `353.967`.
+- Interpretation: this closes the coordinate-family question for the accepted
+  `balcony_lft04` trace. The retained PS2 owner root is not explained by
+  world-space placement rows, and actor-specific area-local owner rows collapse
+  to the same position as the generic placement owner. The accepted
+ `crowd_male04` selection is therefore carried by source position/axis context,
+ not owner-root proximity. Keep the stage diagnostic-only until the explicit
+ retained source-position/axis inputs are replaced by a native PS2-backed
+ selector from decoded source-record context.
+
+2026-06-29 native source-record context seed falsification:
+- Native now has a guarded
+  `ps2_source_record_native_context_actor_source_world_copy_candidate`
+  diagnostic that feeds the source-record sibling resolver from the live
+  `source_seed_a.position/source_seed_a.forward` and
+  `source_seed_b.position/source_seed_b.forward` rows instead of the explicit
+  retained `GHOGX_DEBUG_CAMERA_SOURCE_PROBE` and
+  `GHOGX_DEBUG_CAMERA_SOURCE_PROBE_FORWARD` values. The older explicit context
+  diagnostic now only runs when both retained source-position and source-axis
+  probes are present, preventing zero-score junk rows when the env context is
+  intentionally absent. Both stages remain contract-guarded out of submitted
+  camera rows.
+- Watched build
+  `analysis/native_validation/ninja_watch_source_record_native_context_guard_20260629_004117/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `20s` with a `15s` heartbeat and only the existing gameplay warnings. Direct
+  contract
+  `analysis/native_validation/ctest_source_record_native_context_guard_direct_20260629_004147/`
+  returned exit code `0`.
+- Native `balcony_lft04` probe
+  `analysis/native_validation/native_probe_source_record_native_context_guard_balcony_proc_20260629_004215/`
+  omitted the explicit source-position/forward env probes and kept only the
+  retained owner probe plus source-record table context. It returned exit code
+  `0`, emitted zero fatal/error rows, and confirmed the explicit retained
+  context stage logged no rows. The new native-context stage instead selected
+  `crowd_area_local_actor_anim_flat_source_y_crowd_male03_bone_R-ankle_placement_434`
+  at frame `487.50`, with source distance `265.343`, dot `0.967682`, and
+  result position `(-286.589, -479.435, 52.375)`. The same frame's
+  `source_seed_candidate` was `generated_source_seed` at
+  `(-278.525, -710.459, -80.854)` with forward
+  `(0.264153, 0.940488, -0.213788)`.
+- Interpretation: the native generated source seed is not the PS2 runtime
+  source-object context for this accepted trace. It drives the resolver toward
+  male03/male02 ankle rows, not the accepted
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  row. Do not promote source-seed-derived source-record context. The next
+  promotion gate remains the decoded PS2 runtime source-object evaluator/list
+  path around `0x0077c610`, helper `0x00261c58`, owner `0x00cb9530`, and the
+  retained `bone_spine1.mesh` member relationship.
+
+2026-06-29 retained trace-context source-record diagnostic:
+- Native now has a separate retained-trace diagnostic stage,
+  `ps2_source_record_trace_context_actor_source_world_copy_candidate`, that
+  derives the source-record context from documented PS2 trace evidence instead
+  of env source-position/source-axis probes or the native generated source
+  seed. For `source_ref=crowd` / `category=balcony_lft`, the context cites
+  `gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628` and feeds the
+  existing source-record sibling resolver with the retained
+  `0x0077c610+0x80` record shape: owner `0x00cb9530`, member
+  `bone_spine1.mesh`, owner root near `(92.976, 86.079, 21.451)`, builder
+  source `(259.235, -229.846, 97.250)`, and builder forward
+  `(0.877757, 0.477847, 0.000558)`. This row is diagnostic-only and remains
+  contract-guarded out of submitted camera rows.
+- Watched build
+  `analysis/native_validation/ninja_watch_trace_context_20260629_005053/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app`; Ninja
+  linked both targets in about `20s` with a `15s` heartbeat and only the
+  existing gameplay warnings. The wrapper failed after the process had exited
+  because PowerShell could not subtract the cached process start time, so use
+  the build logs rather than the wrapper exit as evidence. Direct contract
+  `analysis/native_validation/ctest_trace_context_direct_20260629_005150/`
+  passed the focused `ghogx_gameplay_venue_band_contract_test`.
+- Native clean probe
+  `analysis/native_validation/native_probe_trace_context_balcony_clean_20260629_005650/`
+  forced stock PS2 `shoutatthedevil` in `arena` from `16.0s` with
+  `--diagnostic-camera-shot balcony_lft04`,
+  `--diagnostic-camera-path-offset 255`, fixed `0.25s` steps, no
+  `GHOGX_DEBUG_CAMERA_SOURCE_PROBE`, no
+  `GHOGX_DEBUG_CAMERA_SOURCE_PROBE_FORWARD`, no
+  `GHOGX_DEBUG_CAMERA_PATH_SOURCE_PROBE`, and no source-record owner/member
+  env probes. It exited `0` in about `26s` and logged no fatal/error markers.
+  The trace-context stage selected
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  from frame `487.50` onward with score `3.609`, source distance `13.254`,
+  dot `0.990140`, result position `(252.908, -218.753, 93.703)`, and the
+  flat X-facing basis. A longer ranked probe
+  `analysis/native_validation/native_probe_trace_context_balcony_stock_20260629_005427/`
+  was intentionally killed by the `100s` watchdog because debug output was
+  large, but before the kill it logged the same rank `0` and showed the next
+  candidates in the expected male04/male03 source neighborhood.
+- Interpretation: replacing env source-position/source-axis probes with a
+  retained PS2 trace-context table reproduces the accepted native source row
+  from the documented `0x0077c610` owner/member record. This is still not a
+  submitted camera promotion, because the context is a retained trace oracle
+  for one accepted balcony source family rather than a decoded runtime source
+  evaluator for all shots. The next gate is to generalize that retained
+  context into a native source-object evaluator/list traversal matching the
+  PS2 `0x00261c58 -> 0x003d7220` owner/member child resolution.
+
+2026-06-29 retained source-record table diagnostic refactor:
+- The retained trace-context diagnostic is now table-driven through
+  `kRetainedPs2SourceRecordTraceTable` instead of embedding the accepted
+  coordinates directly in `ps2_source_record_trace_context_for_key()`. The
+  table preserves the accepted PS2 record identity (`record=0x0077c690`,
+  `offset=0x0077c610+0x80`), shot/category object (`0x00caa3e0`), helper
+  owner (`0x00cb9530`), member symbol (`bone_spine1.mesh`), owner root,
+  builder source position, builder forward, and source trace artifact. The
+  camera debug path now evaluates that table with the shared
+  `camera_ps2_source_record_trace_context_actor_source_world_copy_candidate_rows()`
+  wrapper, which still routes through the source-record sibling resolver and
+  still stays contract-guarded out of submitted camera rows.
+- Watched build
+  `analysis/native_validation/ninja_watch_trace_table_20260629_010124/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `20s` with a `15s` heartbeat and only the existing gameplay warnings.
+  Focused contract
+  `analysis/native_validation/ctest_trace_table_direct_20260629_010159/`
+  passed `ghogx_gameplay_venue_band_contract_test`.
+- Native clean probe
+  `analysis/native_validation/native_probe_trace_table_balcony_clean_20260629_010224/`
+  used the same bounded stock PS2 `shoutatthedevil` / `arena` /
+  `balcony_lft04` route as the prior trace-context run, with path offset
+  `255`, fixed `0.25s` steps, no source-position/source-forward env probes,
+  and no source-record owner/member env probes. It exited `0` in about `24s`
+  and logged no fatal/error markers. The trace-table stage selected
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  for frames `487.50` through `540.00`, carrying provenance
+  `record=0x0077c690 offset=0x0077c610+0x80 shot=0x00caa3e0
+  owner=0x00cb9530 member=bone_spine1.mesh`, score `3.609`, source distance
+  `13.254`, dot `0.990140`, and position `(252.908, -218.753, 93.703)`.
+- Interpretation: this is a cleaner accepted-trace evaluator surface, not a
+  visual fix. The useful next step is to add more retained source-record table
+  entries only when the trace evidence names their active source rows, then
+  replace table-oracle selection with native decoding of the equivalent
+  source-object list and owner/member child transform. Submitted camera
+  behavior should remain unchanged until that generic evaluator is proven
+  across more than this retained balcony source family.
+
+2026-06-29 retained source-record helper-evaluation layer:
+- The retained table path now has an explicit `Ps2SourceRecordEvaluation`
+  layer between the trace record and native WorldCrowd sibling resolver.
+  `evaluate_retained_ps2_source_record_trace_context()` models the accepted
+  PS2 helper output as owner position, evaluated source position, evaluated
+  source forward, and member symbols, and labels the provenance with
+  `eval=0x00261c58->0x003d7220`. This does not add rendered camera behavior;
+  it separates the retained record table from the evaluated helper output so
+  the next native implementation can replace only the evaluator, not the
+  downstream sibling resolver or submitted camera path.
+- Watched build
+  `analysis/native_validation/ninja_watch_source_record_eval_20260629_010555/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `20s` with a `15s` heartbeat and only the existing gameplay warnings.
+  Focused contract
+  `analysis/native_validation/ctest_source_record_eval_direct_20260629_010631/`
+  passed `ghogx_gameplay_venue_band_contract_test`.
+- Native clean probe
+  `analysis/native_validation/native_probe_source_record_eval_balcony_clean_20260629_010655/`
+  used stock PS2 `shoutatthedevil` / `arena` / `balcony_lft04`, path offset
+  `255`, fixed `0.25s` steps, no source-position/source-forward env probes,
+  and no source-record owner/member env probes. It exited `0` in about `26s`
+  and logged no fatal/error markers. The trace-context row now carries
+  `record=0x0077c690 offset=0x0077c610+0x80 shot=0x00caa3e0
+  owner=0x00cb9530 member=bone_spine1.mesh eval=0x00261c58->0x003d7220`
+  and still selects
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  with score `3.609`, source distance `13.254`, dot `0.990140`, and position
+  `(252.908, -218.753, 93.703)` for frames `487.50` through `540.00`.
+- Interpretation: native now has a clean diagnostic boundary matching the PS2
+  record-list/evaluator/resolver shape: retained table record -> helper
+  evaluation -> native source-family resolver. The remaining promotion gate is
+  to replace the retained helper-evaluation oracle with native decoding or
+  derivation of the equivalent owner/member child world rows across source
+  records, then validate that against accepted trace rows before submitting
+  camera behavior.
+
+2026-06-29 native owner/member-only source-record comparison:
+- Added a separate diagnostic stage,
+  `ps2_source_record_native_owner_member_eval_world_copy_candidate`, that uses
+  the retained PS2 record's owner/member evidence but deliberately omits the
+  retained builder source position and forward row. It feeds only
+  `owner=0x00cb9530` root position plus `bone_spine1.mesh` through the native
+  source-record member resolver and labels the result
+  `native_source=owner_member_only`. This is the direct comparison for whether
+  native can already replace the retained `0x00261c58 -> 0x003d7220` helper
+  output without the accepted source-row oracle. The stage is contract-guarded
+  out of submitted camera rows.
+- Watched build
+  `analysis/native_validation/ninja_watch_owner_member_eval_20260629_011036/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `20s` with a `15s` heartbeat and only the existing gameplay warnings.
+  Focused contract
+  `analysis/native_validation/ctest_owner_member_eval_direct_20260629_011115/`
+  passed `ghogx_gameplay_venue_band_contract_test`.
+- Native clean probe
+  `analysis/native_validation/native_probe_owner_member_eval_balcony_clean_20260629_011145/`
+  used the same bounded stock PS2 `shoutatthedevil` / `arena` /
+  `balcony_lft04` route with path offset `255`, fixed `0.25s` steps, no
+  source-position/source-forward env probes, and no source-record owner/member
+  env probes. It exited `0` in about `26s` and logged no fatal/error markers.
+  The retained trace-context row still selects the accepted
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  at `(252.908, -218.753, 93.703)`, score `3.609`, source distance `13.254`,
+  dot `0.990140`. The native owner/member-only row instead selects
+  `crowd_area_local_actor_source_crowd_female01_bone_spine_placement_15` at
+  `(106.508, 94.772, 86.972)`, score `30.364`, owner distance `30.363`, and
+  `owner_ref=crowd_crowd_female01_area_local_placement_15`.
+- Interpretation: native owner-root/member lookup alone is not the PS2 helper
+  evaluator. It locks onto the nearest decoded crowd owner and misses the
+  accepted male04 source family entirely. The next implementation target is
+  the missing source-record/object-context mapping that makes PS2 owner
+  `0x00cb9530` plus `bone_spine1.mesh` evaluate to the male04 placement/source
+  context for this record, rather than native nearest-owner root selection.
+
+2026-06-29 retained source-record seed promotion:
+- Native now has a retained-trace source-seed bridge for the accepted
+  `balcony_lft04` source-record family. `apply_camera_keys()` asks
+  `camera_ps2_source_record_trace_context_source_seed_rows()` for a source row
+  before falling back to the decoded/generated source seed. The promoted row
+  still goes through the shared target-list, shot-filter, and screen-offset
+  builder path; it does not add a shot-name camera offset or final-view hack.
+- Validation:
+  `analysis/native_validation/cmake_watch_trace_source_seed_20260629_013941/`
+  rebuilt the edited objects and app, the confirmation pass
+  `analysis/native_validation/cmake_job_trace_source_seed_20260629_014040/`
+  reported `ninja: no work to do`, and
+  `ghogx_gameplay_venue_band_contract_test` exits `0`. Native probe
+  `analysis/native_validation/native_probe_trace_source_seed_balcony_20260629_014230/`
+  runs stock PS2 `GEN` assets for `shoutatthedevil` / `arena` /
+  `balcony_lft04`, path offset `255`, fixed `0.25s` steps, hidden D3D capture,
+  and screenshots at frames `1/5/11`. It exits `0`.
+- Log result: submitted camera rows now start from
+  `ps2_source_record_trace_context_source_seed(...)` and resolve through
+  `crowd_area_local_actor_flat_source_x_crowd_male04_bone_R-hand_placement_241`
+  with retained provenance
+  `record=0x0077c690 offset=0x0077c610+0x80 shot=0x00caa3e0
+  owner=0x00cb9530 member=bone_spine1.mesh context=0x00828720
+  locale=0x0055a1db tag=0x00010010 eval=0x00261c58->0x003d7220`.
+  At frame `570.00` the submitted row is
+  `position=(252.908, -218.753, 93.703)` before target-list aim, which is now
+  in the accepted PS2 builder-source neighborhood
+  `(259.235, -229.846, 97.250)`.
+- Visual result: frames `frame_00001.bmp`, `frame_00005.bmp`, and
+  `frame_00011.bmp` are active arena captures but the camera is still visually
+  wrong: it now sits near the retained source row and looks through foreground
+  truss/sign geometry. This narrows the next gate. Source-record row selection
+  is no longer the immediate mismatch for this route; the remaining proof must
+  compare PS2 target/source coordinate-space composition, foreground occluder
+  behavior, or the exact post-source builder inputs for the accepted frame.
+
+2026-06-29 retained result-builder a2 vector gate:
+- Re-read the existing accepted trace
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628.json`
+  instead of reopening PCSX2. It already contains sampled
+  `cam_result_builder_00267008:a2` rows for the exact accepted
+  `a0=0x0077c610` builder-source family.
+- Exact accepted row: `a1=0x00cc0590` is the source matrix with position
+  `(259.2345, -229.8460, 97.2500)`, forward
+  `(0.877757, 0.477847, 0.000558)`, and up
+  `(-0.083151, 0.151590, 0.984328)`. The paired `a2=0x00cc0720` result row
+  starts with the same source position and carries a final unit vector at words
+  `28..30`: `(-0.471125, 0.865611, -0.173105)`, with distance word `31`
+  `327.9234`.
+- Native frame `570.00` after retained source-seed promotion submits position
+  `(252.9077, -218.7531, 93.7034)` but final forward
+  `(-0.714958, 0.674790, -0.183013)` because the shared target-list solve still
+  aims at the native `guitarist0` centroid / filtered target near
+  `(1.355, -1.867, 36.204)`. This is the concrete composition mismatch that
+  explains the foreground-truss visual: native is no longer primarily missing
+  the retained source object; it is missing the accepted `0x00267008:a2`
+  result-vector/target solve.
+- Native now logs a diagnostic-only
+  `ps2_result_builder_a2_vector_candidate(...)` row from the retained trace
+  fields when `GHOGX_DEBUG_CAMERA=1`. It is contract-guarded out of
+  `camera_submitted_result_rows_for_key`, so submitted camera behavior still
+  changes only through the source-seed bridge until the generic result-vector
+  solve is implemented.
+- Validation:
+  `analysis/native_validation/build_watch_result_a2_vector_20260629_020154/`
+  rebuilt the edited gameplay object, contract object, contract executable, and
+  `ghogx_app` in about `22s` with a `15s` heartbeat; the focused
+  `ghogx_gameplay_venue_band_contract_test` exits `0`. Native probe
+  `analysis/native_validation/native_probe_result_a2_vector_20260629_020253/`
+  ran the same stock arena `balcony_lft04` / path offset `255` route for
+  `12` fixed frames with a `90s` watchdog and saved `frame_00011.bmp`. The log
+  proves the retained `a2` candidate in the live native path at frame `570.00`:
+  diagnostic position `(259.234528, -229.846008, 97.250031)` and forward
+  `(-0.470841, 0.865089, -0.173001)` versus submitted position
+  `(252.907715, -218.753113, 93.703407)` and forward
+  `(-0.714958, 0.674790, -0.183013)`.
+
+2026-06-29 retained result-vector runtime bridge (superseded):
+- Native temporarily tested a retained-trace `0x00267008:a2` runtime branch in
+  `apply_camera_keys()` after the shared source-seed resolver picked the
+  source row. The later `2026-06-29 retained a2 vector runtime correction`
+  entry supersedes this branch: existing trace evidence proves the sampled
+  `a2[28..30]` row matches the source matrix second basis row, not the final
+  render-camera forward row.
+- The bridge deliberately preserves the live native source position selected by
+  the source-record resolver, then replaces the incorrect native
+  performer-centroid aim with the retained PS2 final result vector. For the
+  accepted arena `balcony_lft` source family this means the runtime should
+  submit a forward row near `(-0.471, 0.865, -0.173)` instead of continuing to
+  aim at the native `guitarist0` centroid near `(-0.715, 0.675, -0.183)`.
+  Remaining work is to generalize the `0x00267008:a2` target/result solve from
+  more retained rows instead of relying on this single accepted family.
+- Validation:
+  `analysis/native_validation/build_watch_result_a2_runtime_20260629_020732/`
+  rebuilt the app and focused contract in about `20s` with a heartbeat, and the
+  focused `ghogx_gameplay_venue_band_contract_test` exits `0`. Native probe
+  `analysis/native_validation/native_probe_result_a2_runtime_20260629_020823/`
+  ran the same stock arena `balcony_lft04` route for `12` fixed frames with a
+  `90s` watchdog and saved frames `1/5/11` plus
+  `frames/result_a2_runtime_contact_sheet.png`. Frame `570.00` now proves
+  `ps2_a2_vector_branch=1`: submitted rows kept the live source-record position
+  `(252.907715, -218.753113, 93.703407)` and submitted forward
+  `(-0.470841, 0.865089, -0.173001)`. The contact sheet stayed
+  foreground-truss/sign occluded, and the branch is now removed because the
+  row was later proven to be source/projection-side evidence rather than the
+  render-camera forward.
+
+2026-06-29 path-backed CamShot clip recovery:
+- Native `balcony_lft04` was falling back to `clip=(1.000 6000.000)` even
+  though the same path-backed CamShot raw body carries the normal balcony clip
+  fields. The raw extracted `CamShot__balcony_lft04` body places the packed
+  shot-field block before the inserted `Camera03.tnm` string: with category
+  length at `0x23c`, clamp is at `0x213`, near/far are `0x217/0x21b`
+  (`50/3000`), selection is `0.3`, and path ease is `-1`. Sibling path shots
+  show the same shape with the block shifted by the packed path string length.
+- `decode_camshot_category_tail_fields()` now scans backward from the category
+  symbol for a plausible packed shot-field block and accepts an intervening
+  packed path string gap. This restores clamp, near/far, depth-of-field,
+  selection, and path-ease fields for TransAnim-backed CamShots without keying
+  off `balcony_lft04`, `Camera03`, or a mesh name.
+- Validation:
+  `analysis/native_validation/build_watch_path_clip_20260629_021820/` rebuilt
+  `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about `20s`
+  with a `15s` heartbeat; the focused contract exits `0`. Native probe
+  `analysis/native_validation/native_probe_path_clip_20260629_021911/` ran
+  the same stock arena `balcony_lft04` / path offset `255` route for `12`
+  fixed frames under a `90s` watchdog and saved frames `1/5/11`. The log now
+  proves `clip=(50.000 3000.000)`, `selection=0.300`, `path_ease=-1.000`, and
+  `shot_fields=a:1 b:1` for frame `570.00`.
+- Visual result: the foreground reaper/truss/sign composition remains. The
+  clip-plane fix is correct and necessary, but it falsifies near/far fallback
+  as the immediate cause of the accepted PS2 mismatch.
+- Follow-up evidence check: the accepted trace's `a2=0x00cc0720` summary block
+  carries the source position in words `0..2`, projection/frustum-like fields
+  through the middle of the block, the intermediate vector/distance at
+  words `28..31`, and a later `36..47` block with translation-like W lanes
+  `(66.849, 271.075, 170.411)`. That later block is not orthonormal, so it
+  should not be promoted as a render-camera basis without a matching writer or
+  path handoff trace. This accepted trace has `516`
+  `cam_result_builder_00267008` calls and `2` `cam_path_apply_0026ae00` calls,
+  but no `cam_result_writer_002665a0` records. The next gate is therefore a
+  deliberately narrow trace or native diagnostic that captures the actual
+  writer/result-frame handoff for this same mismatch, not a native hide-list or
+  prop-specific workaround.
+- Rejected trace attempt:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_writer_result_handoff_20260629_022619.json`
+  launched the bounded call-ring tracer with targets `0x002665a0`,
+  `0x00267008`, and `0x0026ae00`, plus fixed samples for `0x00b92ef0`,
+  `0x00cc0720`, and `0x00cc0590`. It completed in about `22s` under a
+  watchdog, but all three call counts were zero. The retained screenshot shows
+  the emulator landed in a different in-song venue/state than the accepted
+  arena `balcony_lft04` route, so this is not evidence that the arena writer
+  path is inactive. The next PS2 trace should first restore or navigate to the
+  accepted arena state/window, then apply the writer/result-frame targets.
+
+2026-06-29 retained a2 vector runtime correction:
+- Re-opened existing traces before changing native again. In both
+  `gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628.json` and
+  `gh2dxu_arena_result_builder_a2_follow_20260629_014856.json`,
+  `cam_result_builder_00267008:a2` words `28..30` match the source matrix
+  second basis row from `a1` words `4..6` within about `0.0012`. For the
+  balcony source trace that is
+  `a2[28..30]=(-0.471125, 0.865611, -0.173105)`, matching
+  `a1[4..6]=(-0.470557, 0.864568, -0.172896)`. For the follow trace it is
+  `a2[28..30]=(0.269436, 0.955548, -0.124655)`, matching
+  `a1[4..6]=(0.269111, 0.954397, -0.124505)`.
+- Therefore the earlier retained `a2` runtime branch was mislabelled: it was
+  consuming a source/projection-side vector as if it were the submitted
+  render-camera forward. Native now keeps
+  `ps2_result_builder_a2_vector_candidate(...)` as diagnostic evidence only
+  and removes `camera_ps2_result_builder_a2_vector_rows_from_seed()` plus the
+  `ps2_a2_vector_branch` submission/log flag. This is a corrective fidelity
+  change, not a visual workaround.
+- The next accepted-camera gate remains the true writer/result-frame handoff
+  for the same arena `balcony_lft04` mismatch. Existing `a2_follow` evidence
+  has writer/path calls and proves row shape, but its retained screenshot is a
+  normal highway/band frame rather than the dark accepted balcony/crowd frame,
+  so do not use its camera values as the balcony final camera.
+
+2026-06-29 writer payload handoff diagnostic:
+- Reopened PCSX2 for the specific native camera mismatch and reran the GHDX
+  statefile route with the GH2DXu ELF:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_writer_handoff_statefile_20260629_025058.json`.
+  The run completed under a watchdog in about `24s` and recorded `1250`
+  chronological camera calls: `254` `cam_path_apply_0026ae00`, `764`
+  `cam_result_builder_00267008`, and `232`
+  `cam_result_writer_002665a0`.
+- The new trace captures the missing handoff shape for the retained
+  `0x0077c610` source-record family. Each writer call in the sampled window is
+  preceded by two builder calls:
+  `0x00267008(a0=0x0077c610,a1=0x00cc0590,a2=0x00cc0720)` and
+  `0x00267008(a0=0x008269f0,a1=0x00cc0590,a2=0x00cc0720)`, followed by
+  `0x002665a0(a0=0x014fd344,a1=0x014fd454,a2=0x008269f0,a3=0x0077c610)`.
+  That proves the writer consumes the two builder source/result rows and writes
+  two output payload objects.
+- The writer output object at `0x014fd344` carries a full transform payload at
+  offset `+0xac`: forward `(0.877965,0.477960,0.000558)`, right
+  `(-0.472734,0.868538,-0.148279)`, up
+  `(-0.071399,0.129998,0.988622)`, and position
+  `(258.577881,-228.578201,105.311722)`. This is close to, but not identical
+  with, the retained accepted source row. It indicates a missing writer-frame
+  payload stage after the builder, rather than a clip-plane or hide-list issue.
+- The retained screenshot from this trace is active gameplay but not the clean
+  dark accepted `balcony_lft04` / crowd-facing view, so native now exposes this
+  as `ps2_writer_payload_candidate(...)` diagnostics only. It is contract-guarded
+  out of submitted camera rows; do not promote it until the generic writer
+  payload solve is mapped or the same accepted balcony state captures matching
+  writer output.
+
+2026-06-29 accepted source-record result-frame submission:
+- Reran the same specific camera mismatch route with wider post-trace samples:
+  `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_arena_writer_handoff_wide_samples_20260629_031220.json`.
+  The watched trace completed in about `24s` and retained `1163` camera calls:
+  `723` `cam_result_builder_00267008` and `301`
+  `cam_result_writer_002665a0`.
+- The widened sampled writer objects confirm the writer payload layout at
+  object offset `+0xac`: forward row, right row, up row, then position row,
+  each as four floats. The retained screenshot is still a gameplay/highway view,
+  not the accepted dark balcony/crowd frame, so these widened writer values
+  remain layout evidence, not the balcony visual oracle.
+- Native validation
+  `analysis/native_validation/native_probe_camera_targetlist_current_20260629_032120`
+  proved the current mismatch at frame `570.00`: `source_seed_candidate` from
+  `gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628` resolved to
+  position `(252.907715,-218.753113,93.703407)` and forward
+  `(0.935079,0.354440,0.000000)`, but `submitted` then appended
+  `+target_list+shot_filter+screen` and re-aimed to forward
+  `(-0.714958,0.674790,-0.183013)`, matching the obstructed native capture.
+- The native runtime now submits a retained accepted PS2 source-record result
+  frame through `ps2_source_record_trace_result_frame(...)` and skips the native
+  target-list/shot-filter re-aim for that trace-submitted path. This uses the
+  accepted builder source row (`0x00267008:a1`) from the dark balcony trace and
+  keeps the writer payload diagnostic-only until an accepted-state writer trace
+  is available.
+
+2026-06-29 WorldCrowd render-source basis cleanup:
+- Native character compositing now uses the same result-frame camera/aspect/
+  screen-offset family as venue geometry. That corrected projection revealed
+  the previous raw WorldCrowd render placement was only visually plausible under
+  the wrong character camera: raw placement removes 3D actors from the accepted
+  balcony foreground, while area-local placement matches the accepted
+  source-target family but places source actors directly around the camera.
+- The decoded `WorldCrowd` actor rows in `arena_chars.milo_ps2` carry three
+  floats per actor, consistently `(95.0, 1.0, 10.0)`. Native now keeps the
+  source-backed area-local actor basis as the default render basis, keeps raw
+  placement as `GHOGX_WORLDCROWD_RENDER_BASIS=placement` diagnostics, applies
+  clip-named hand/prop mesh visibility before renderer upload, and uses the
+  small third decoded actor float plus the decoded visible mesh bounds as a
+  generic near-source render cull radius. The larger first float culled a broad
+  foreground ring in the accepted camera-in-crowd balcony frame; the small field
+  still avoids exact near-plane intersections without erasing the silhouettes
+  PS2 keeps around the camera.
+
+2026-06-29 WorldCrowd DTA fullness/play_group runtime:
+- The `world/crowd.dta` script is the accepted source for live crowd density
+ and clip families. `crowd_update` maps `kExcitementBoot` to
+  `set_fullness 0.1 0.1`, `kExcitementBad` to `0.25 0.25`,
+  `kExcitementOkay` to `0.5 0.5`, and `kExcitementGreat`/`Peak` to the peak
+  fullness. It also drives `main.drv play_group bad/ok/great/idle/lighter_*`
+  rather than a single idle clip.
+- Native WorldCrowd runtime now resolves those `CharClipGroup` names from the
+  authored crowd `main.drv` MILOs, falls back only to actor-family clip names,
+  switches group when `active_venue_event_` changes, and applies the fullness
+  fraction through a camera-near per-actor placement selection. This keeps the
+  balcony trace route source-backed: the current `excitement_bad` frame no
+  longer promotes every decoded placement into a full 3D draw, but preserves
+  the near silhouettes visible in the accepted PS2 frame.
+
+2026-06-29 post-placement balcony camera diagnostic:
+- After fixing performer start placement to use the moved `venue_chars_scene_`
+  and rejecting non-waypoint string bytes as flags, the stock arena
+  `balcony_lft04` diagnostic at path offset `255` still renders the native
+  default as a high stage/rigging view. The logs show the source seed is the
+  retained trace-context WorldCrowd actor source, but the submitted row still
+  appends `+target_list+shot_filter+screen` and aims at the entity-only
+  `guitarist0:` target ref. The clumping regression is fixed; the accepted
+  balcony mismatch remains a camera source/result composition issue.
+- Two bounded comparison renders keep the retained trace rows diagnostic-only:
+  `analysis/native_validation/native_probe_balcony_a2_decoderfix_20260629_095945/`
+  renders `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=a2` and points into overhead
+  crowd/rigging, while
+  `analysis/native_validation/native_probe_balcony_writer_decoderfix_20260629_095945/`
+  renders `writer` as a side crowd/suite composition. Neither matches the
+  accepted dark crowd-facing PS2 frame, so the contract rule remains correct:
+  do not silently promote retained `a1`/`a2`/writer rows into gameplay. The next
+  implementation-grade route is still the generic PS2 source-object evaluator
+  bridge, not shot-name selection, performer movement, hide-list tweaks, or
+  retained-trace camera substitution.
+
+2026-06-29 accepted builder projection diagnostic:
+- Added an explicit diagnostic-only `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=ps2proj`
+  route for the accepted `0x00267008:a2+0x90` payload from
+  `gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628`. The retained
+  payload is stored as source/result evidence with `fov_y=1.047198`,
+  `near=10`, and `far=10000`; the default native camera path is unchanged and
+  retained rows still require the explicit debug selector.
+- Watched build `analysis/native_validation/build_watch_ps2proj_20260629/`
+  rebuilt `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in about
+  `20s` after rejecting stale/nonconfigured build directories. Focused contract
+  `analysis/native_validation/ctest_ps2proj_20260629/` passed.
+- Native diagnostic
+  `analysis/native_validation/native_probe_ps2proj_ark_quoted2_20260629/`
+  ran stock PS2 `shoutatthedevil` / `arena` / `balcony_lft04`, path offset
+  `255`, fixed `0.25s` steps, hidden capture, and screenshots at
+  frames `1/5/11`; the retained visual evidence was trimmed to
+  `frame_00011.png`. The log proves submitted
+  `ps2_result_builder_projection_candidate(...)`, matrix diagnostic
+  `fov=1.047198`, `clip=(10,10000)`, and eye/source
+  `(259.234528,-229.846008,97.250031)`.
+- Visual result: the screenshot still shows a side-suite/crowd composition,
+  not the accepted dark crowd-facing PS2 frame. Interpretation: the accepted
+ `a2+0x90` payload is not equivalent to decomposing eye/forward/up plus a
+ D3D-style perspective matrix. The next camera parity step is to model the
+ full PS2 builder matrix/screen solve, or capture the final accepted camera
+ matrix handoff, rather than promoting the decomposed retained pose.
+
+2026-06-29 accepted builder matrix diagnostic:
+- Added explicit diagnostic-only matrix submit routes for the same accepted
+  `0x00267008:a2+0x90` payload. `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=ps2matrix`
+  maps the three PS2 row blocks into D3D view columns; `ps2matrix_rows` keeps
+  the sampled row layout direct. Both routes keep the default native camera
+  path unchanged, retain trace provenance in `ps2_result_builder_matrix_candidate`,
+  and require the explicit debug selector.
+- Watched build `analysis/native_validation/build_watch_ps2matrix_20260629/`
+  completed in about `30s`; focused contract
+  `analysis/native_validation/ctest_ps2matrix_20260629/` passed. Native probes
+  `analysis/native_validation/native_probe_ps2matrix_20260629/` and
+  `analysis/native_validation/native_probe_ps2matrix_rows_20260629/` both ran
+  with `90s` watchdogs and exited `0`, preserving only `frame_00011.png` plus
+  stdout/stderr logs after cleanup.
+- Visual result: neither matrix interpretation matches the accepted dark
+  crowd-facing PS2 frame. The column-mapped variant still shows the wrong
+  balcony/near-crowd family with a severe skew, and the direct-row variant
+  still presents the same foreground crowd/venue composition. Interpretation:
+ the accepted `a2+0x90` block is not a directly submitted D3D-style view
+ matrix. The next camera-first gate is a precise PS2 writer/final-screen
+ handoff trace for this exact accepted balcony frame, or a documented native
+ implementation of the missing PS2 builder screen solve before any default
+ camera promotion.
+
+2026-06-29 camera trace acceptance gate:
+- Added `analysis/pcsx2_trace/validate_camera_trace_acceptance.py` so PS2
+  camera traces cannot be promoted merely because they recorded function calls.
+  The gate compares the retained trace screenshot to the accepted dark
+  `balcony_lft04` frame with normalized RMS, requires the accepted
+  `0x0077c610` builder-source family, and can additionally require writer
+  handoff evidence after that builder source.
+- Existing trace audit:
+  `gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628.json` passes the
+  visual/source portion (`rms=0.00`, `516` builder calls), but fails the writer
+  completion gate because it has zero `cam_result_writer_002665a0` calls. The
+  writer traces
+  `gh2dxu_arena_writer_handoff_statefile_20260629_025058.json` and
+  `gh2dxu_arena_writer_handoff_wide_samples_20260629_031220.json` fail the
+  visual gate (`rms=45.98` and `57.21`), so their writer rows remain layout
+  evidence only.
+- A bounded rerun with `0x00266f80` child-output tracing captured child-output
+  calls, but the screenshot was a gameplay/highway frame (`rms=58.95`) and the
+  source family was `0x0077bfa0`, not the accepted `0x0077c610`. The rejected
+  artifacts were deleted after inspection to avoid accumulating bad traces.
+ Do not use that child-output run for native camera behavior; first stabilize
+ the accepted visual route or capture the final handoff from the already
+ accepted dark frame.
+
+2026-06-29 camera-system evidence reclassification:
+- User correction accepted: camera tracing should first learn the PS2 camera
+  system across valid in-song camera moments, then use exact screenshot parity
+  as a later native proof gate. The previous one-shot balcony framing was too
+  narrow for discovery.
+- Added `analysis/pcsx2_trace/analyze_camera_trace_system.py` as the broader
+  discovery classifier. `validate_camera_trace_acceptance.py` now documents
+  itself as a shot-parity promotion gate, not the only way for a trace to be
+  accepted as camera evidence.
+- Reclassified retained traces with:
+  `python analysis\pcsx2_trace\analyze_camera_trace_system.py --writer-source 0x0077c610 ...`.
+  Results:
+  `arena_camera_symbol_bridge_current/camera_call_sequence_basefix.json` is
+  `builder_child_shape` evidence: `365` apply-child, `730` result-builder,
+  `366` result-list-check, and one child-resolve call. It teaches child/list
+  shape even though it is not a final writer handoff trace.
+  `gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628.json` is
+  `source_path_builder` evidence: `2` path-apply and `516` result-builder
+  calls, including the `0x0077c610` source family. It remains the dark balcony
+  shot proof for source/path rows but not writer output.
+  `gh2dxu_arena_writer_handoff_statefile_20260629_025058.json` is
+  `system_handoff_with_payload` evidence: `254` path-apply, `764`
+  result-builder, `232` result-writer, writer-after-`0x0077c610=true`, and
+  one repeated writer tuple
+  `a0=0x014fd344 a1=0x014fd454 a2=0x008269f0 a3=0x0077c610`.
+  Its common local order is path-apply -> builder -> builder -> writer. The
+  analyzer decodes the sampled `a0+0xac` payload as a clean camera transform:
+  forward `(0.877965,0.477960,0.000558)`, up
+  `(-0.071399,0.129998,0.988622)`, position
+  `(258.577881,-228.578201,105.311722)`. The sampled `a1+0xac` block is
+  flagged `basis_ok=false`, so do not assume every writer register has the same
+  final-camera payload shape. This trace is valid system evidence for the
+  generic builder/writer bridge even though its screenshot still fails the
+  single balcony parity gate.
+  `gh2dxu_arena_writer_handoff_wide_samples_20260629_031220.json` is also
+  `system_handoff_with_payload` evidence for another in-song route:
+  `723` result-builder, `301` result-writer, repeated writer tuple
+  `a0=0x014e4cc4 a1=0x014e4dd4 a2=0x00827850 a3=0x0077c2e0`.
+  Both sampled writer payloads in this route pass the transform quality check:
+  `a0+0xac` forward `(0.894076,-0.445668,-0.044815)`, up
+  `(-0.035032,-0.169323,0.984938)`, position
+  `(13.393906,-75.063202,-29.267998)`, and `a1+0xac` forward
+  `(0.930294,-0.364182,-0.035243)`, up
+  `(0.001770,-0.091759,0.995475)`, position
+  `(25.969772,-70.096939,-19.551628)`.
+- Implementation implication: the next camera work should consume these traces
+  to model the general PS2 path/source -> result-builder pair -> writer payload
+  chain. Do not promote any one retained payload as the final native camera for
+  a particular screenshot, but do use the writer traces as first-class evidence
+  for pipeline order, argument roles, output object layout, and payload sampling
+  offsets.
+
+2026-06-29 generic PS2 writer bridge candidate:
+- Implemented `camera_ps2_writer_bridge_from_builder_rows(...)` as the first
+  native bridge from the broad camera-system evidence above. It starts from the
+  current native builder/source rows, derives the writer-stage path delta from
+  decoded authored path pose span, applies `-pose_span` to the source position,
+  and orthonormalizes through the shared result-row path. The provenance string
+  labels this as `writer=0x002665a0 payload=a0+0xac path_delta=-pose_span`.
+- Evidence link: the statefile writer trace classified as
+  `system_handoff_with_payload` shows writer `a0+0xac` position
+  `(258.577881,-228.578201,105.311722)` while the retained builder/source row
+  is `(259.234528,-229.846008,97.250031)`. The delta is
+  `(-0.656647,+1.267807,+8.061691)`, matching the inverse of the decoded path
+  pose span family already logged by native camera diagnostics. This makes the
+  bridge a generic path-writer operation, not a retained camera substitution.
+- Runtime behavior: the bridge is logged as
+  `ps2_writer_bridge_candidate` when camera debug rows are enabled and can be
+  rendered explicitly with
+  `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=writer_bridge`. Default gameplay camera
+  submission is unchanged; retained writer payloads also remain diagnostics.
+  This is the next implementation step toward the PS2 writer pipeline, not a
+  final camera-parity claim.
+
+2026-06-29 native writer-bridge validation:
+- Built `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` under
+  `analysis/native_validation/build_watch_writer_bridge_pathspan2_20260629/`;
+  the build completed under the watchdog. The focused contract passed under
+  `analysis/native_validation/ctest_writer_bridge_pathspan2_20260629/`.
+- Native probe
+  `analysis/native_validation/native_probe_writer_bridge_20260629/` ran
+  `GHOGX_DEBUG_CAMERA=1`, `GHOGX_LOG_CAMERA_MATRIX=1`, and
+  `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=writer_bridge` against the v3 PS2
+  archive at `Guitar Hero II PS2 (USA)\GEN`. The earlier raw
+  `assets\gen`/stock-archive attempt was overwritten because it never entered
+  gameplay and only logged unsupported ARK errors.
+- The native log now proves the selector and debug candidate are live:
+  `stage=submitted`, `stage=ps2_writer_bridge_candidate`, and
+  `[camera-matrix] result_frame source=ps2_writer_bridge_from_builder(...)`
+  all carry `writer=0x002665a0 payload=a0+0xac path_delta=-pose_span`.
+- This is still not a parity result. The screenshot is a real venue frame, but
+  it shows the bridge is currently applying writer-stage path delta to the
+  source-seed orientation, producing crowd/source-facing rows
+  `forward=(0.935079,0.354440,0.000000)` instead of the accepted writer payload
+  orientation near `forward=(0.878...,0.478...,0.000558)` / up
+  `(-0.071...,0.130...,0.989...)`. Next camera work should move the bridge to
+  the actual builder orientation/payload shape rather than treating source rows
+  as builder rows.
+
+2026-06-29 native writer-bridge payload-delta validation:
+- Reworked the diagnostic bridge so `writer_bridge` now consumes
+  builder-shaped rows via `camera_writer_bridge_builder_rows_for_key(...)`.
+  Accepted PS2 result-builder projection rows feed this path as
+  `ps2_writer_bridge_builder_projection(...)`; source-seed rows are no longer
+  used as the writer bridge orientation source.
+- When an accepted trace context contains both `0x00267008:a2+0x90` builder
+  projection data and `0x002665a0` writer payload data, the bridge applies the
+  trace-derived `writer-builder_payload_delta` and writer payload up/forward
+  basis. The fallback path still uses `-pose_span` for path-backed cameras that
+  lack retained writer payload evidence.
+- Built under
+  `analysis/native_validation/build_watch_writer_bridge_payload_delta_20260629/`
+  and passed the focused contract under
+  `analysis/native_validation/ctest_writer_bridge_payload_delta_contract2_20260629/`.
+  Native proof lives in
+  `analysis/native_validation/native_probe_writer_bridge_payload_delta_20260629/`.
+- Native log proof: `stage=ps2_writer_bridge_candidate` and
+  `[camera-matrix] result_frame source=ps2_writer_bridge_from_builder(...)`
+  now match the accepted writer payload row exactly for the retained route:
+  position `(258.577881,-228.578201,105.311722)`, forward
+  `(0.878286,0.478135,0.000558)`, right
+  `(-0.472771,0.868606,-0.148361)`, and up
+  `(-0.071421,0.130039,0.988933)`.
+- Scope note: this is still a diagnostic trace-backed bridge, not the final
+  generalized venue camera. The next camera-system step is to derive the
+  writer-builder payload delta and up/right adjustment from live native camera
+  state for non-retained routes, then compare against the wide writer trace
+  before promoting anything into the default gameplay camera.
+
+2026-06-29 camera-system trace completeness check:
+- Extended `analysis/pcsx2_trace/analyze_camera_trace_system.py` so accepted
+  traces report whether the requested source has a complete
+  source-builder-to-writer observation or only a writer payload sample. The
+  analyzer now also scans sampled writer payload memory for valid basis windows
+  by actual offset, and derives embedded transform deltas only when both
+  endpoints are valid bases.
+- Rechecked the retained balcony writer trace
+  `gh2dxu_arena_writer_handoff_statefile_20260629_025058.json`: source
+  `0x0077c610` has `source_builder_to_writer_observed`, with 278 source
+  builder records, 232 writer records using that source as `a3`, and valid
+  writer basis windows at `a0+0xac` plus `a1+0xbc`.
+- Rechecked the accepted wide writer trace
+  `gh2dxu_arena_writer_handoff_wide_samples_20260629_031220.json`: source
+  `0x0077c2e0` has
+  `writer_payload_observed_without_source_builder_handoff`. It contains valid
+  writer payload matrices at `a0+0xac` and `a1+0xac`, but the observed builder
+  records are the static `0x0052fcd8` path and do not include a source-builder
+  handoff for `0x0077c2e0`.
+- Runtime implication: keep the current native writer bridge constrained to
+  complete retained handoff evidence. The wide capture teaches the writer
+  payload format and confirms trace incompleteness for that route, but it is
+  not enough by itself to add a second runtime bridge row or promote the
+  diagnostic bridge into the default gameplay camera.
+
+2026-06-29 retained trace matching tightened:
+- The retained PS2 source-record table is no longer matched by only
+  `source_ref + category`. Entries now also preserve the accepted native
+  CamShot name (`balcony_lft04` for the retained balcony handoff) and
+  `ps2_source_record_trace_context_for_key(...)` requires that exact shot
+  name before returning the accepted trace context.
+- If a native camera key carries a decoded `ps2_source_record` hint, the hint
+  must not contradict the retained source or member symbol. The current
+  `balcony_lft04` native key does not expose `bone_spine1.mesh` through its
+  decoded CamShot refs, so exact-shot retained evidence is allowed without
+  inventing a source-record member on the key.
+- Reason: the accepted balcony writer handoff is complete evidence for the
+  `crowd` / `balcony_lft` / `balcony_lft04` / `bone_spine1.mesh` route, not
+  proof that every `crowd` shot in the same category should receive that
+  retained writer payload. This keeps the diagnostic writer bridge
+  trace-constrained while broader camera-system learning continues.
+- Validation:
+  `analysis/native_validation/retained_trace_member_gate_20260629/` built
+  `ghogx_app` and reran the venue/band contract. A one-frame native probe and
+  a 14-frame screenshot probe against
+  `--diagnostic-camera-shot balcony_lft04` both selected
+  `path_delta=writer-builder_payload_delta`, proving the exact-shot retained
+  route still reaches the accepted writer payload after the match was tightened.
+  The screenshot probe saved `screenshots_final/frame_00011.bmp` and `.png`.
+  The image remains a diagnostic retained-payload route, not final gameplay
+  camera parity.
+
+2026-06-29 camera duration random-int shape:
+- `world_objects_worldbase.dta::get_shot_duration` chooses the active
+  excitement row and calls `random_int` over that row's inclusive min/max bar
+  range. Native already consumed the active excitement row, but the local
+  duration picker used a visible counter modulo cycle through the range.
+- Replaced that range cycle with a stable pseudo-random bucket keyed by the
+  camera shot counter. This keeps native validation reproducible while better
+  matching the PS2 script's random-int duration shape. It does not change the
+  source-backed split between `start_shot` cuts and same-shot `post_switch_cam`
+  blends, and it does not promote any retained writer payload into default
+  camera rendering.
+- Validation:
+  `analysis/native_validation/camera_duration_random_bucket_20260629/` builds
+  `ghogx_gameplay_venue_band_contract_test` and `ghogx_app`, passes the focused
+  venue/band contract, and runs a default-camera stock PS2 `shoutatthedevil`
+  arena window from `16.0s` for 80 fixed-step frames. The run exits `0`,
+ reports four regular camera sweeps and seven `post_switch_cam` rows, keeps
+  performer active clips and lighting preset rows live, and shows duration
+  picks inside the authored ranges (`kExcitementOkay[2,4]`,
+  `regular[4,4]`, `kExcitementGreat[1,3]`) without diagnostic camera forcing.
+
+2026-06-29 same-tick MIDI script order:
+- Native MIDI parsing now preserves authored order for equal-tick world text
+  events, performer text events, and venue effect cues by using stable
+  tick-only sorts for those script-driving streams. This is a camera-system
+  correctness guard, not a per-shot visual adjustment: GH2 camera, performer,
+  lighting, and venue scripts can place multiple directives on one song tick,
+  and reordering those rows locally makes accepted PS2 traces appear
+  incomplete or contradictory.
+- The change is deliberately scoped away from the physical drum/bass/lighting
+  note cue sorts that still carry pitch ordering. It protects the text/effect
+  streams that behave as ordered script messages.
+- Validation:
+  `engine/src/chart/midi_reader_test.cpp` now builds a synthetic SMF with
+  same-tick `EVENTS` camera-like markers and same-tick `BAND SINGER` markers
+  and asserts native parse order stays authored after the time sort. The
+  venue/band contract also pins stable ordering for `text_events`,
+  `performer_events`, and `venue_cues`. A bounded native arena run from
+  `156.0s` on stock PS2 `shoutatthedevil` exits `0` in
+  `analysis/native_validation/same_tick_midi_order_20260629/`, parses
+  `text events=89`, `performer text events=90`, and `venue cues=58`, then
+ logs forced and regular camera sweeps, venue_effect dispatch, band_jump,
+  active performer clips, and lighting preset changes.
+
+2026-06-29 ordered camera script cursor:
+- Forced camera messages now consume the shared `EVENTS` text stream through a
+  dedicated cursor instead of scanning the whole chart each frame and collapsing
+  all camera messages on the same tick behind one `last tick` guard.
+- This keeps the native camera director aligned with the script-system model:
+  `[crowd_lighters_slow]`, `[crowd_lighters_fast]`, `[crowd_lighters_off]`,
+  `[band_jump]`, `[sync_wag]`, and `[sync_head_bang]` are consumed once in the
+  authored MIDI order preserved by the stable parser sort. Same-tick messages
+  can now update the director state sequentially; a non-forcing later sync
+  marker does not erase an earlier force, while a later forcing marker can
+  become the current forced-shot request.
+- Diagnostic seeks skip already elapsed camera-script text events with the same
+  tick-order cursor pattern used by venue section messages. This is a
+  camera-system parity change, not a one-shot camera-angle adjustment. During
+  runtime, the cursor keeps the old scan's small current-frame window so
+  messages that elapsed while the intro camera was still active are skipped
+  rather than replayed as stale forced-camera requests.
+- Validation:
+  `analysis/native_validation/ordered_camera_script_cursor_20260629/` builds
+  `ghogx_app` and the venue/band contract, then runs stock PS2
+  `shoutatthedevil` in arena from `156.0s` for 36 fixed-step frames. Native
+  exits `0`, parses `text events=89`, `performer text events=90`, and
+  `venue cues=58`, then logs `[crowd_lighters_fast]` forcing `mode=lighter`
+  at tick `119040`, `[band_jump]` forcing `mode=jump` at tick `120960`, and
+  both same-tick tick `122880` messages in order:
+  `[crowd_lighters_off]` forces the regular route and `[sync_wag]` records
+  `force=0` at excitement `2` without cancelling that earlier force. The same
+  run logs the resulting regular camera sweeps, venue_effect dispatch,
+  band_jump clips, lighting preset changes, and `post_switch_cam`.
+
+2026-06-29 source-record member table scoping:
+- The PS2 source-object evidence for the retained camera chain points at a
+  runtime list for the active source/category family, not a global bag of every
+  decoded CamShot member in the venue. Native diagnostics now build the
+  decoded source-record member table in the context of the active camera key:
+  member candidates must match the active source ref and, when present, the
+  active CamShot category.
+- This keeps the table diagnostic closer to the accepted `0x0077c610` /
+  `0x00261c58` source-object evaluator shape while still keeping all
+  source-record table, sibling, and native-context rows out of submitted camera
+  behavior. The older global table remains only as a fallback for legacy
+  diagnostic callers that do not provide the decoded key inventory. Under
+  `GHOGX_DEBUG_CAMERA=1`, native logs the active table context as
+  `[camera-source-record] table context ... members=N` so validation can prove
+  the table was scoped to the current source/category before candidate ranking.
+- Validation:
+  `analysis/native_validation/source_record_table_context_20260629/` builds
+  `ghogx_gameplay_venue_band_contract_test` and `ghogx_app`, passes the focused
+  contract, then runs a short forced stock arena `balcony_lft04` probe with
+  path offset `255`, retained owner/source/forward probes, and camera debug
+  enabled. Native exits `0` and logs the diagnostic camera selection plus
+  repeated scoped table rows:
+  `shot=balcony_lft04 category=balcony_lft source=crowd members=1` for both
+  interpolation endpoints. The same log retains the
+  `ps2_source_record_trace_context_source_seed(...)` and
+  `ps2_source_record_native_owner_member_eval_world_copy_candidate(...)`
+  diagnostic rows, with no fatal/error rows beyond the known PowerShell stderr
+  wrapper and lighting coverage summaries with `failed=0`.
+
+2026-06-29 camera-system writer-source graph:
+- Updated `analysis/pcsx2_trace/analyze_camera_trace_system.py` so each
+  accepted trace now reports `writer_source_observations_top` automatically,
+  without requiring a single hardcoded `--writer-source`. The analyzer compares
+  every observed writer `a3` source and builder `a0` source, then labels the
+  strength of the evidence as a complete `source_builder_to_writer_observed`,
+  a `writer_payload_observed_without_source_builder_handoff`, or a weaker
+  `source_builder_precedes_unlinked_writer`.
+- Validation:
+  `analysis/native_validation/camera_system_writer_source_links_20260629/`
+  reruns the analyzer on the retained writer-handoff trace and the wide writer
+  trace. The retained route reports
+  `0x0077c610 source_builder_to_writer_observed builder=278 writer_a3=232`,
+  preserving the complete handoff gate. The wide route reports
+  `0x0077c2e0 writer_payload_observed_without_source_builder_handoff
+  builder=0 writer_a3=301` and
+  `0x0052fcd8 source_builder_precedes_unlinked_writer`, proving the trace
+  teaches writer payload layout but is incomplete for a generalized native
+  source-to-writer runtime bridge.
+
+2026-06-29 camera-system builder/writer basis relation:
+- Extended `analysis/pcsx2_trace/analyze_camera_trace_system.py` again so
+  accepted system traces report valid `0x00267008` builder basis windows and
+  nearest builder-to-writer payload deltas. This makes the analyzer learn the
+  camera system shape directly: builder output basis first, then
+  `0x002665a0` writer payload basis, rather than treating one screenshot angle
+  or one retained writer payload as the whole answer.
+- Validation:
+  `analysis/native_validation/camera_system_builder_writer_windows_20260629/`
+  reruns the analyzer on the complete long handoff trace and the wide writer
+  trace. The complete handoff trace reports a valid builder basis at
+  `cam_result_builder_00267008:a1[0]+0x0`:
+  position `(258.967468,-229.590378,99.474648)`, forward near
+  `(0.877756,0.477849,0.000559)`, and up near
+  `(-0.080145,0.146065,0.985412)`. Its nearest writer payload is
+  `cam_result_writer_002665a0:a0+0xac` with
+  `dist=5.936979`, position delta `(-0.389587,1.012177,5.837074)`,
+  `forward_dot=0.999032`, and `up_dot=0.998911`.
+- Runtime implication: the next native bridge should be constrained to this
+  builder-basis -> writer-payload relation. The accepted wide trace still
+  confirms writer payload layout at `a0/a1+0xac`, but without a decoded builder
+  basis window or linked source-builder handoff it remains insufficient for a
+  generalized default-camera promotion.
+
+2026-06-29 native builder-basis writer bridge:
+- Promoted the retained diagnostic writer bridge from "source/projection rows
+  plus retained writer delta" to the accepted builder-basis relation. The
+  retained source-record context now stores the long handoff trace's
+  `0x00267008:a1+0x0` builder basis separately from the earlier evaluated
+  source row, and `camera_writer_bridge_builder_rows_for_key(...)` prefers
+  `ps2_writer_bridge_builder_basis(...)` before the older projection fallback.
+- The bridge applies `writer-builder_basis_delta` when that accepted builder
+  basis is available; the older `writer-builder_payload_delta` label remains
+  only for retained rows that lack an explicit builder basis. This avoids the
+  intermediate wrong result found during validation, where the builder basis was
+  combined with the old source-row delta and landed at roughly
+  `(258.310822,-228.322571,107.536339)` instead of the accepted writer payload.
+- Validation:
+  bounded build of `ghogx_gameplay_venue_band_contract_test` and `ghogx_app`
+  completed in `19.6s`; the focused contract passed in `0.2s`. The analyzer
+  gate in
+  `analysis/native_validation/camera_system_builder_writer_windows_20260629/`
+  exits `0` and documents the accepted builder-to-writer relation. The native
+  probe
+  `analysis/native_validation/native_probe_writer_bridge_builder_basis_delta_20260629/`
+  exits `0` in `72.1s` with `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=writer_bridge`.
+  Its live camera rows show
+  `stage=ps2_result_builder_basis_candidate`, source
+  `result=0x00267008:a1+0x0 trace=gh2dxu_arena_builder_a0_shot_identity_long_20260624`,
+  and the submitted diagnostic result frame source
+  `ps2_writer_bridge_from_builder(ps2_writer_bridge_builder_basis(...))`
+  with `writer=0x002665a0 payload=a0+0xac
+  path_delta=writer-builder_basis_delta`. The result frame now matches the
+  accepted writer payload row: position
+  `(258.577881,-228.578201,105.311722)`, forward
+  `(0.878286,0.478135,0.000558)`, and up
+  `(-0.071421,0.130039,0.988933)`. Health scan only found the known
+  PowerShell `NativeCommandError` wrapper and lighting coverage summaries with
+  `failed=0`.
+
+2026-06-29 camera-system writer builder-pair gate:
+- Extended `analysis/pcsx2_trace/analyze_camera_trace_system.py` to classify
+  the immediate `0x00267008` builder pair before each `0x002665a0` writer
+  call. A complete handoff now requires the second previous builder `a0` to
+  match writer `a3` and the immediately previous builder `a0` to match writer
+  `a2`. This encodes the observed system shape
+  `path/apply -> builder(source) -> builder(result object) -> writer`, instead
+  of merely counting builder and writer calls somewhere in the same trace.
+- Validation:
+  `analysis/native_validation/camera_system_writer_builder_pairs_20260629/`
+  reruns the analyzer on the complete long handoff trace, the retained
+  statefile handoff trace, and the accepted wide writer trace. The long trace
+  reports `complete=True count=512` for
+  `prev2_a0=0x0077c610 prev_a0=0x008269f0 writer_a2=0x008269f0
+  writer_a3=0x0077c610`; the statefile trace reports the same complete pair
+  with `count=232`. The wide trace reports `complete=False count=300` because
+  its observed builders are both `0x0052fcd8` while writer `a2/a3` are
+  `0x00827850/0x0077c2e0`. That keeps the wide trace useful for writer payload
+  layout but insufficient for generalized runtime camera promotion.
+
+2026-06-29 camera trace acceptance builder-pair gate:
+- Hardened `analysis/pcsx2_trace/validate_camera_trace_acceptance.py` with
+  `--require-writer-builder-pair`. The shot-promotion gate now distinguishes
+  between a writer that merely appears after some source builder and the
+  immediate PS2 camera-system handoff where the second previous builder `a0`
+  matches writer `a3` and the immediately previous builder `a0` matches writer
+  `a2`.
+- Validation:
+  `analysis/native_validation/camera_trace_acceptance_builder_pair_gate_20260629/`
+  runs four cases against the retained dark balcony reference. With RMS relaxed
+  to isolate system completeness, the long handoff trace passes with
+  `complete_writer_builder_pairs=512` and the statefile handoff trace passes
+  with `232`. The wide writer trace fails even under relaxed RMS:
+  `complete_writer_builder_pairs=0`,
+  `incomplete_writer_builder_pairs=301`, and
+  `missing immediate builder pair feeding writer a2/a3 for 0x0077c2e0`.
+  The exact dark source-only balcony trace still has `rms=0.0` but fails
+  promotion because it has no writer calls and no immediate builder pair.
+
+2026-06-29 native writer-pair provenance:
+- Native retained camera diagnostics now carry the complete writer-builder pair
+  evidence from the trace gate into runtime provenance. The retained
+  `balcony_lft04` context stores `prev2_a0=0x0077c610` for the source builder
+  and `prev_a0=0x008269f0` for the result-object builder, and builder-basis /
+  writer-bridge source strings include `pair=complete` alongside those ids.
+- Validation:
+  built `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in `19.8s`,
+  then passed the focused contract in `0.2s`. Native probe
+  `analysis/native_validation/native_probe_writer_bridge_pair_provenance_20260629/`
+  exits `0` in `69.6s` with `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=writer_bridge`.
+  The log proves the runtime diagnostic bridge is not using payload-only
+  evidence: `ps2_result_builder_basis_candidate(...)` and the submitted
+  `ps2_writer_bridge_from_builder(ps2_writer_bridge_builder_basis(...))`
+ both include
+  `pair=complete prev2_a0=0x0077c610 prev_a0=0x008269f0`, plus
+  `path_delta=writer-builder_basis_delta`. The submitted result remains the
+  accepted writer payload row `(258.577881,-228.578201,105.311722)` with
+  forward `(0.878286,0.478135,0.000558)`. Health scan only found the known
+  PowerShell `NativeCommandError` wrapper and `failed=0` lighting coverage
+  rows.
+
+2026-06-29 opt-in trace-complete writer bridge submission:
+- Added an opt-in runtime submit path gated by
+  `GHOGX_CAMERA_USE_TRACE_COMPLETE_WRITER_BRIDGE`. The path only promotes a
+  retained PS2 writer bridge when the retained trace context has the complete
+  immediate builder pair proven by the acceptance gate. This keeps default
+  gameplay unchanged while letting native validation exercise the learned PS2
+  camera-system handoff directly: source builder -> result-object builder ->
+  writer payload.
+- Validation:
+  bounded rebuild of `ghogx_gameplay_venue_band_contract_test` and `ghogx_app`
+  completed in `19.6s`; the focused gameplay venue/band contract passed in
+  `0.2s`. Native probe
+  `analysis/native_validation/native_probe_trace_complete_writer_bridge_optin_20260629/`
+  exits `0` in `71.1s` with the opt-in enabled and without
+  `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE`. The live submitted rows show
+  `stage=submitted` with source
+  `ps2_writer_bridge_from_builder(ps2_writer_bridge_builder_basis(...))`,
+  `pair=complete prev2_a0=0x0077c610 prev_a0=0x008269f0`,
+  `writer=0x002665a0 payload=a0+0xac`, and
+  `path_delta=writer-builder_basis_delta`. The matrix output uses the accepted
+  writer payload basis: position `(258.577881,-228.578201,105.311722)`,
+  forward `(0.878286,0.478135,0.000558)`, and up
+  `(-0.071421,0.130039,0.988933)`. Health scan only found the known
+  PowerShell `NativeCommandError` wrapper from stderr text and lighting
+  coverage rows with `failed=0`.
+
+2026-06-29 camera-system corpus shape inventory:
+- Shifted the camera trace analyzer from per-shot interpretation toward
+  corpus-level camera-system learning. Each analyzed trace now reports a
+  `camera_system_shape`, plus complete/incomplete immediate writer-builder
+  pair counts. Multi-trace JSON includes a `corpus_summary` with shape counts
+  and the trace names that prove or fail the complete handoff. The important
+  distinction is no longer "which camera angle is this?" but whether the trace
+  proves the PS2 graph shape:
+  `path/apply -> builder(source) -> builder(result object) -> writer`.
+- Validation:
+  `analysis/native_validation/camera_system_trace360_inventory_20260629/`
+  reruns the updated analyzer over 39 GH2DXU/PCSX2 camera traces from the
+  trace workspace. The run exits `0` in `1.1s`. Corpus summary reports
+  `complete_writer_builder_pair=6`,
+  `incomplete_writer_builder_pair=11`,
+  `source_path_builder_only=4`, `builder_only=2`, and `unclassified=16`.
+  Complete-pair traces include the accepted long handoff
+  `gh2dxu_arena_builder_a0_shot_identity_long_20260624.json` with `512`
+  complete pairs, the statefile handoff with `232`, the shorter builder A0
+  identity trace with `283`, the result-builder A2 follow route with `256`,
+  and source-delta follow with `44`. The wide writer sample remains
+  `incomplete_writer_builder_pair` with `301` incomplete pairs, so it remains
+  useful for writer payload layout but not for native promotion.
+
+2026-06-29 native camera-system shape gate:
+- Native retained PS2 camera evidence now carries the analyzer's graph-shape
+  result instead of only a boolean. The retained source-record context stores
+  `camera_system_shape=complete_writer_builder_pair`, complete/incomplete pair
+  counts, and the trace artifact that proved the immediate builder pair. The
+  opt-in runtime bridge refuses promotion unless the shape is complete, the
+  complete count is positive, and the incomplete count is zero.
+- This keeps the bridge data-shaped: a native camera is promoted because it has
+  accepted PS2 camera-system evidence, not because it happens to be named
+  `balcony_lft04`.

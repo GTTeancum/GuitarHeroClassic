@@ -1462,8 +1462,18 @@ static int find_mesh_index(const Character& character, const std::string& name) 
 }
 
 static bool is_eye_mesh_name(const std::string& name) {
-  return name == "eye-L.mesh" || name == "eye-R.mesh" ||
-         name == "eyel.mesh" || name == "eyer.mesh";
+  std::string lower = name;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return (char)std::tolower(c); });
+  return lower.rfind("eye-", 0) == 0 ||
+         lower.rfind("l-eye.", 0) == 0 ||
+         lower.rfind("r-eye.", 0) == 0 ||
+         lower.find("_eyel") != std::string::npos ||
+         lower.find("_eyer") != std::string::npos ||
+         lower.find("eye_l") != std::string::npos ||
+         lower.find("eye_r") != std::string::npos ||
+         lower.find("eyel.") != std::string::npos ||
+         lower.find("eyer.") != std::string::npos;
 }
 
 struct TransformTarget {
@@ -1522,6 +1532,11 @@ static void dump_leg_pose(const Character& character) {
 
 static bool transform_world(const Character& character, const std::string& name,
                             std::array<float, 16>& out) {
+  const auto runtime_it = character.runtime_world_overrides.find(name);
+  if (runtime_it != character.runtime_world_overrides.end()) {
+    out = runtime_it->second;
+    return true;
+  }
   for (const auto& b : character.bones) {
     if (b.name == name || channel_matches_bone(b.name, name)) {
       out = character.bone_world(b.name);
@@ -1541,6 +1556,11 @@ static bool transform_world(const Character& character, const std::string& name,
 static bool transform_local_chain_world(const Character& character,
                                         const std::string& name,
                                         std::array<float, 16>& out) {
+  const auto runtime_it = character.runtime_world_overrides.find(name);
+  if (runtime_it != character.runtime_world_overrides.end()) {
+    out = runtime_it->second;
+    return true;
+  }
   for (const auto& b : character.bones) {
     if (b.name == name || channel_matches_bone(b.name, name)) {
       out = character.bone_world_local_chain(b.name);
@@ -3836,6 +3856,69 @@ static void set_facefx_eye_props(FaceFxEyeProperties& props, EyeSide side,
   }
 }
 
+static const CharLookAt* find_lookat_controller(const Character& character,
+                                                const std::string& name) {
+  for (const auto& look : character.lookats) {
+    if (look.name == name) return &look;
+  }
+  return nullptr;
+}
+
+static const SkinnedMesh* find_mesh_by_name(const Character& character,
+                                            const std::string& name) {
+  for (const auto& mesh : character.meshes) {
+    if (mesh.name == name || channel_matches_bone(mesh.name, name)) {
+      return &mesh;
+    }
+  }
+  return nullptr;
+}
+
+static void submit_char_eyes_runtime_rows(Character& character) {
+  if (character.eyes.empty()) return;
+  for (const auto& eyes : character.eyes) {
+    std::array<float, 16> pivot_world =
+        {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    Vec3 pivot_pos{};
+    size_t pivot_count = 0;
+    bool have_pivot = false;
+    for (const auto& lookat_name : eyes.lookats) {
+      const CharLookAt* look = find_lookat_controller(character, lookat_name);
+      if (!look) continue;
+      const std::string& source_mesh =
+          !look->driven.empty() ? look->driven : look->target;
+      if (source_mesh.empty()) continue;
+      std::array<float, 16> source_world{};
+      if (!transform_local_chain_world(character, source_mesh, source_world)) {
+        continue;
+      }
+      // Accepted PS2 rows show the self-sourced CharLookAt controller resolving
+      // through the source eye Trans row owned by CharEyes. Submit that row by
+      // controller name so the shared transform resolver can consume it without
+      // moving the authored eye mesh.
+      character.runtime_world_overrides[look->name] = source_world;
+      if (!look->source.empty()) {
+        character.runtime_world_overrides[look->source] = source_world;
+      }
+
+      const SkinnedMesh* mesh = find_mesh_by_name(character, source_mesh);
+      if (mesh && !mesh->parent.empty()) {
+        pivot_world = character.attachment_parent_world(mesh->parent);
+        have_pivot = true;
+      }
+      pivot_pos = vadd(pivot_pos, mat_pos(source_world));
+      ++pivot_count;
+    }
+    if (!eyes.name.empty() && have_pivot && pivot_count > 0) {
+      const Vec3 avg = vscale(pivot_pos, 1.0f / static_cast<float>(pivot_count));
+      pivot_world[12] = avg.x;
+      pivot_world[13] = avg.y;
+      pivot_world[14] = avg.z;
+      character.runtime_world_overrides[eyes.name] = pivot_world;
+    }
+  }
+}
+
 static Vec3 enforce_hair_collision(const Character& character,
                                    const CharHairPoint& point,
                                    Vec3 solved) {
@@ -4350,6 +4433,7 @@ void apply_character_controllers(Character& character, float time_seconds,
   if (arm_ik_enabled()) apply_legacy_ik_hands(character);
   apply_driven_twists(character, bind_bones, fore_twists_applied);
   apply_char_hair(character, time_seconds);
+  submit_char_eyes_runtime_rows(character);
 
   if (debug_face_enabled()) {
     for (const auto& b : character.bones) {
@@ -5066,6 +5150,13 @@ void CharClipPlayer::play(const CharClip& clip, uint32_t flags,
     layers_.push_back(prev);
   }
   layers_.push_back(next);
+}
+
+void CharClipPlayer::set_speed(float speed) {
+  if (!std::isfinite(speed) || speed <= 0.0f) speed = 1.0f;
+  for (auto& layer : layers_) {
+    layer.speed = speed;
+  }
 }
 
 void CharClipPlayer::advance(float dt_seconds) {

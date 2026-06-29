@@ -1214,6 +1214,31 @@ Glam1 eyes / look-at:
   `engine/out/codex_goal_20260616_eye_side_resolver/goth2_eye_side_v2.stderr.log`
   shows `goth2_EyeL.mesh` and `goth2_EyeR.mesh` resolving to left/right
   FaceFX eye registers without any character-specific branch.
+- 2026-06-28 native CharEyes runtime-row bridge:
+  `apply_character_controllers()` now submits a per-frame runtime world row for
+  each decoded `CharEyes.eyes` child look-at controller before the look-at pass.
+  The submitted `l-eye.lookat` / `r-eye.lookat` rows are sourced from the
+  decoded driven/target eye mesh attachment rows and exposed through the shared
+  `runtime_world_overrides` resolver. This matches the accepted PS2 evidence
+  that self-sourced `CharLookAt` updates resolve through source eye rows owned
+  by the resident `CharEyes`/pivot graph; it does not move authored eye meshes
+  or add per-character offsets. The bridge also submits a resident
+  `CharEyes.eyes` pivot row using the shared eye parent basis plus the averaged
+  source-eye position so future controller consumers can resolve the resident
+  row by name. Validation: guarded real Ninja build of `ghogx_character` passed
+  after compiling `char_clip.cpp`, and `ctest -R
+  ghogx_character_eye_bridge_contract_test --output-on-failure` passed.
+- 2026-06-28 alternate eye-name attachment resolver:
+  `transform_world()` / `transform_local_chain_world()` now classify alternate
+  PS2 eye mesh spellings (`L-eye.mesh`, `R-eye.mesh`, `goth*_EyeL.mesh`,
+  `goth*_EyeR.mesh`, etc.) with the same attachment-basis path as
+  `eye-L.mesh` / `eye-R.mesh`. This keeps the 2026-06-16 side-resolver
+  coverage aligned with the transform path used by `CharLookAt` and
+  `CharEyes`, instead of silently falling back to generic mesh-world
+  composition for non-classic names. Validation: guarded real Ninja build of
+  `ghogx_character` plus `ghogx_character_eye_bridge_contract_test`, followed
+  by `ctest -R ghogx_character_eye_bridge_contract_test --output-on-failure`,
+  passed.
 - 2026-06-15 native FaceFX graph/register bridge:
   native now loads the referenced `guitarist.fac` graph through each
   `FaceFxLipSyncServo`, parses `FxCombinerNode` / `FxBonePoseNode` graph input
@@ -2454,6 +2479,13 @@ Useful environment flags:
   lower-only mode when full output is explicitly enabled. Do not promote the
   full bridge until the packed output/work-buffer-to-visible-Trans copy is
   mapped.
+- 2026-06-28 lower-body contract guard:
+  `ghogx_character_left_hand_contract_test` now explicitly pins the promoted
+  lower-body bridge to default-on `CharBone` output rows for `bone_facing`,
+  `bone_pelvis`, thigh/knee/ankle/foot/toe, and keeps the
+  `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT` A/B switch visible. This guards the
+  accepted split where hand overlays do not own root/lower-body rows while the
+  full output layer remains rejected/opt-in.
 - 2026-06-15 Glam1 wrist isolate promoted a narrow render-path correction:
   numeric meshes can be hair draw members by material, not only by mesh name.
   `glam1.73.mesh` is named numerically but uses `glam1_hair.mat`, blends, and

@@ -48,6 +48,7 @@ std::vector<Song> extract_songs(const gh::dtb::Tree& tree) {
         s.shortname    = *shortname;
         s.display_name = keyed_string(*root_node, "name").value_or("");
         s.artist       = keyed_string(*root_node, "artist").value_or("");
+        s.anim_tempo   = keyed_string(*root_node, "anim_tempo").value_or("");
 
         // (song ...) sub-array holds the master mix paths.
         if (auto song_arr = gh::dtb::find_keyed(*root_node, "song")) {

@@ -19,6 +19,10 @@
 //   ghogx_app --diagnostic-venue <v>   route capture through another GH2 venue
 //   ghogx_app --diagnostic-venue-event <event>
 //                                      force one persistent venue event after load
+//   ghogx_app --diagnostic-camera-shot <shot>
+//                                      pin a decoded regular CamShot for capture
+//   ghogx_app --diagnostic-camera-path-offset <frames>
+//                                      start a forced CamShot at a local path frame
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
 //   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
 //                                      capture numbered BMPs in gameplay mode
@@ -449,6 +453,13 @@ class AppEngine : public ghogx::Engine {
 
   void set_diagnostic_venue_event(const std::string& event_name) {
     gameplay_.set_diagnostic_venue_event(event_name);
+  }
+
+  void set_diagnostic_camera_shot(const std::string& shot_name) {
+    gameplay_.set_diagnostic_camera_shot(shot_name);
+  }
+  void set_diagnostic_camera_path_offset_frames(double frames) {
+    gameplay_.set_diagnostic_camera_path_offset_frames(frames);
   }
 
   void set_diagnostic_song_start(double seconds) {
@@ -1402,6 +1413,8 @@ int main(int argc, char** argv) {
   bool diagnostic_autoplay = false;
   std::string diagnostic_venue;
   std::string diagnostic_venue_event;
+  std::string diagnostic_camera_shot;
+  double diagnostic_camera_path_offset_frames = 0.0;
   bool show_window = false;
   CamOverride cam_ovr;  // optional --cam-* overrides for the scene viewer
 
@@ -1434,6 +1447,12 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--diagnostic-venue-event") == 0 &&
                i + 1 < argc) {
       diagnostic_venue_event = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-camera-shot") == 0 &&
+               i + 1 < argc) {
+      diagnostic_camera_shot = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-camera-path-offset") == 0 &&
+               i + 1 < argc) {
+      diagnostic_camera_path_offset_frames = std::atof(argv[++i]);
     } else if (std::strcmp(argv[i], "--auto-start") == 0) {
       auto_start = true;
     } else if (std::strcmp(argv[i], "--show-window") == 0) {
@@ -1601,6 +1620,18 @@ int main(int argc, char** argv) {
     engine.set_diagnostic_venue_event(diagnostic_venue_event);
     std::fprintf(stderr, "[ghogx] diagnostic venue event: %s\n",
                  diagnostic_venue_event.c_str());
+  }
+  if (!diagnostic_camera_shot.empty()) {
+    engine.set_diagnostic_camera_shot(diagnostic_camera_shot);
+    engine.set_diagnostic_camera_path_offset_frames(
+        diagnostic_camera_path_offset_frames);
+    std::fprintf(stderr, "[ghogx] diagnostic camera shot: %s\n",
+                 diagnostic_camera_shot.c_str());
+    if (diagnostic_camera_path_offset_frames != 0.0) {
+      std::fprintf(stderr,
+                   "[ghogx] diagnostic camera path offset frames: %.3f\n",
+                   diagnostic_camera_path_offset_frames);
+    }
   }
   if (diagnostic_autoplay) {
     engine.set_diagnostic_autoplay(true);

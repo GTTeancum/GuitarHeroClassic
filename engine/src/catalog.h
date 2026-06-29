@@ -32,6 +32,7 @@ struct Song {
     std::string artist;             // (artist "...")
     std::string midi_path;          // (song (midi_file ...))
     std::string master_audio_path;  // (song (name songs/<x>/<x>))  (no ext)
+    std::string anim_tempo;         // (anim_tempo kTempoMedium/kTempoFast)
     std::optional<int32_t> preview_start_ms;
     std::optional<int32_t> preview_end_ms;
     std::optional<Quickplay> quickplay;

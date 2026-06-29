@@ -419,6 +419,120 @@ bool env_enabled(const char* name) {
   return enabled;
 }
 
+float env_float_or(const char* name, float fallback, float min_value,
+                   float max_value) {
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, name) != 0 || !value) return fallback;
+  char* end = nullptr;
+  const float parsed = std::strtof(value, &end);
+  std::free(value);
+  if (end == value || !std::isfinite(parsed)) return fallback;
+  if (parsed < min_value || parsed > max_value) return fallback;
+  return parsed;
+}
+
+void normalize3(float v[3]) {
+  const float len = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  if (len <= 1e-6f) return;
+  v[0] /= len;
+  v[1] /= len;
+  v[2] /= len;
+}
+
+void log_camera_matrix_rows(const OrbitCamera& cam, const float eye[3],
+                            const float at[3], const float up[3],
+                            float aspect, const Mat4& view,
+                            const Mat4& proj) {
+  float forward[3] = {at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]};
+  normalize3(forward);
+  const float right[3] = {view.m[0][0], view.m[1][0], view.m[2][0]};
+  const float adjusted_up[3] = {view.m[0][1], view.m[1][1], view.m[2][1]};
+  std::fprintf(
+      stderr,
+      "[camera-matrix] authored=%d fov=%.6f aspect=%.6f near=%.6f far=%.6f "
+      "screen_offset=(%.6f %.6f) eye=(%.6f %.6f %.6f) "
+      "at=(%.6f %.6f %.6f) up_in=(%.6f %.6f %.6f)\n",
+      cam.authored ? 1 : 0, cam.fov, aspect, cam.near_z, cam.far_z,
+      cam.screen_offset[0], cam.screen_offset[1], eye[0], eye[1], eye[2],
+      at[0], at[1], at[2], up[0], up[1], up[2]);
+  std::fprintf(
+      stderr,
+      "[camera-matrix] output forward=(%.6f %.6f %.6f 0.000000) "
+      "position=(%.6f %.6f %.6f 1.000000) "
+      "right=(%.6f %.6f %.6f 0.000000) up=(%.6f %.6f %.6f 0.000000)\n",
+      forward[0], forward[1], forward[2], eye[0], eye[1], eye[2], right[0],
+      right[1], right[2], adjusted_up[0], adjusted_up[1], adjusted_up[2]);
+  if (cam.result_frame.valid) {
+    std::fprintf(
+        stderr,
+        "[camera-matrix] result_frame source=%s "
+        "custom_view=%d custom_projection=%d "
+        "position=(%.6f %.6f %.6f 1.000000) "
+        "forward=(%.6f %.6f %.6f 0.000000) "
+        "right=(%.6f %.6f %.6f 0.000000) "
+        "up=(%.6f %.6f %.6f 0.000000)\n",
+        cam.result_frame.source.c_str(), cam.result_frame.has_custom_view ? 1 : 0,
+        cam.result_frame.has_custom_projection ? 1 : 0, cam.result_frame.position[0],
+        cam.result_frame.position[1], cam.result_frame.position[2],
+        cam.result_frame.forward[0], cam.result_frame.forward[1],
+        cam.result_frame.forward[2], cam.result_frame.right[0],
+        cam.result_frame.right[1], cam.result_frame.right[2],
+        cam.result_frame.up[0], cam.result_frame.up[1],
+        cam.result_frame.up[2]);
+    if (cam.result_frame.has_custom_view) {
+      std::fprintf(
+          stderr,
+          "[camera-matrix] custom_view row0=(%.6f %.6f %.6f %.6f) "
+          "row1=(%.6f %.6f %.6f %.6f) "
+          "row2=(%.6f %.6f %.6f %.6f) "
+          "row3=(%.6f %.6f %.6f %.6f)\n",
+          cam.result_frame.custom_view[0], cam.result_frame.custom_view[1],
+          cam.result_frame.custom_view[2], cam.result_frame.custom_view[3],
+          cam.result_frame.custom_view[4], cam.result_frame.custom_view[5],
+          cam.result_frame.custom_view[6], cam.result_frame.custom_view[7],
+          cam.result_frame.custom_view[8], cam.result_frame.custom_view[9],
+          cam.result_frame.custom_view[10], cam.result_frame.custom_view[11],
+          cam.result_frame.custom_view[12], cam.result_frame.custom_view[13],
+          cam.result_frame.custom_view[14], cam.result_frame.custom_view[15]);
+    }
+    if (cam.result_frame.has_custom_projection) {
+      std::fprintf(
+          stderr,
+          "[camera-matrix] custom_projection row0=(%.6f %.6f %.6f %.6f) "
+          "row1=(%.6f %.6f %.6f %.6f) "
+          "row2=(%.6f %.6f %.6f %.6f) "
+          "row3=(%.6f %.6f %.6f %.6f)\n",
+          cam.result_frame.custom_projection[0],
+          cam.result_frame.custom_projection[1],
+          cam.result_frame.custom_projection[2],
+          cam.result_frame.custom_projection[3],
+          cam.result_frame.custom_projection[4],
+          cam.result_frame.custom_projection[5],
+          cam.result_frame.custom_projection[6],
+          cam.result_frame.custom_projection[7],
+          cam.result_frame.custom_projection[8],
+          cam.result_frame.custom_projection[9],
+          cam.result_frame.custom_projection[10],
+          cam.result_frame.custom_projection[11],
+          cam.result_frame.custom_projection[12],
+          cam.result_frame.custom_projection[13],
+          cam.result_frame.custom_projection[14],
+          cam.result_frame.custom_projection[15]);
+    }
+  }
+  for (int r = 0; r < 4; ++r) {
+    std::fprintf(stderr,
+                 "[camera-matrix] view row%d=(%.6f %.6f %.6f %.6f)\n", r,
+                 view.m[r][0], view.m[r][1], view.m[r][2], view.m[r][3]);
+  }
+  for (int r = 0; r < 4; ++r) {
+    std::fprintf(stderr,
+                 "[camera-matrix] proj row%d=(%.6f %.6f %.6f %.6f)\n", r,
+                 proj.m[r][0], proj.m[r][1], proj.m[r][2], proj.m[r][3]);
+  }
+}
+
 bool has_suffix(const std::string& s, const char* suffix) {
   const size_t suffix_len = std::strlen(suffix);
   return s.size() >= suffix_len &&
@@ -452,7 +566,32 @@ float vec_len3(float x, float y, float z) {
 
 }  // namespace
 
+MiloSceneRenderer::MaterialUvSamplerDecision choose_material_uv_sampler(
+    const MiloSceneRenderer::MaterialUvBounds& final_uv_bounds,
+    float scale_u, float scale_v, bool material_tex_anim) {
+  const bool bounds_sane =
+      final_uv_bounds.valid && std::isfinite(final_uv_bounds.min_u) &&
+      std::isfinite(final_uv_bounds.min_v) &&
+      std::isfinite(final_uv_bounds.max_u) &&
+      std::isfinite(final_uv_bounds.max_v);
+  const bool uv_repeats =
+      bounds_sane &&
+      (final_uv_bounds.min_u < -0.05f ||
+       final_uv_bounds.min_v < -0.05f ||
+       final_uv_bounds.max_u > 1.05f ||
+       final_uv_bounds.max_v > 1.05f);
+  return {uv_repeats,
+          scale_u > 1.01f || scale_v > 1.01f || material_tex_anim ||
+              uv_repeats};
+}
+
 void OrbitCamera::eye(float out[3]) const {
+  if (result_frame.valid) {
+    out[0] = result_frame.position[0];
+    out[1] = result_frame.position[1];
+    out[2] = result_frame.position[2];
+    return;
+  }
   if (authored) {
     out[0] = authored_eye[0];
     out[1] = authored_eye[1];
@@ -785,6 +924,7 @@ void MiloSceneRenderer::set_scene(
   std::fprintf(stderr, "[scene3d] uploaded %zu/%zu textures\n", tex_.size(),
                textures.size());
 
+  cam_.result_frame = {};
   frame_camera_on_bounds();
   const milo_scene::CamObj* authored = nullptr;
   for (const auto& c : scene_.cams) {
@@ -896,31 +1036,56 @@ void MiloSceneRenderer::draw_over_scene(const OrbitCamera& cam) {
 void MiloSceneRenderer::draw_impl(bool clear_target) {
   if (!dev_) return;
 
-  const float aspect = win_->bb_height() > 0
-                           ? static_cast<float>(win_->bb_width()) /
-                                 static_cast<float>(win_->bb_height())
-                           : 16.0f / 9.0f;
+  const float backbuffer_aspect =
+      win_->bb_height() > 0 ? static_cast<float>(win_->bb_width()) /
+                                  static_cast<float>(win_->bb_height())
+                            : 16.0f / 9.0f;
+  const float aspect =
+      env_float_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect, 0.5f, 3.0f);
 
   float eye[3];
   cam_.eye(eye);
+  float result_at[3] = {};
   const float* at = cam_.authored ? cam_.authored_at : cam_.target;
   const float* up = cam_.authored ? cam_.authored_up : nullptr;
+  if (cam_.result_frame.valid) {
+    for (int k = 0; k < 3; ++k) {
+      result_at[k] = cam_.result_frame.position[k] +
+                     cam_.result_frame.forward[k] * 100.0f;
+    }
+    at = result_at;
+    up = cam_.result_frame.up;
+  }
   Mat4 view = Mat4::look_at_lh(eye[0], eye[1], eye[2],
                                at[0], at[1], at[2],
                                up ? up[0] : 0.0f,
                                up ? up[1] : 0.0f,
                                up ? up[2] : 1.0f);
   Mat4 proj = Mat4::perspective_lh(cam_.fov, aspect, cam_.near_z, cam_.far_z);
+  if (cam_.result_frame.valid && cam_.result_frame.has_custom_view) {
+    std::memcpy(&view, cam_.result_frame.custom_view, 64);
+  }
+  if (cam_.result_frame.valid && cam_.result_frame.has_custom_projection) {
+    std::memcpy(&proj, cam_.result_frame.custom_projection, 64);
+  }
   // GH2 world is right-handed; mirror clip-X for the LH D3D pipeline so the
   // scene isn't left/right flipped (same convention as the highway renderer).
-  proj.m[0][0] = -proj.m[0][0];
-  if (cam_.authored && !env_enabled("GHOGX_DISABLE_CAMERA_SCREEN_OFFSET")) {
+  if (!(cam_.result_frame.valid && cam_.result_frame.has_custom_projection)) {
+    proj.m[0][0] = -proj.m[0][0];
+  }
+  if ((cam_.authored || cam_.result_frame.valid) &&
+      !(cam_.result_frame.valid && cam_.result_frame.has_custom_projection) &&
+      !env_enabled("GHOGX_DISABLE_CAMERA_SCREEN_OFFSET")) {
     // CamShot stores screen_offset in the same render-camera family that
     // traces showed carrying stable 768.0 screen/projection values, not in
     // already-normalized D3D clip units.
     constexpr float kScreenOffsetToClip = 1.0f / 768.0f;
     proj.m[2][0] += cam_.screen_offset[0] * kScreenOffsetToClip;
     proj.m[2][1] += cam_.screen_offset[1] * kScreenOffsetToClip;
+  }
+  if (clear_target && env_enabled("GHOGX_LOG_CAMERA_MATRIX")) {
+    log_camera_matrix_rows(cam_, eye, at, up ? up : cam_.authored_up, aspect,
+                           view, proj);
   }
 
   // A sky-ish dark blue clear so geometry silhouettes read even before textures.
@@ -1227,8 +1392,15 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       ma = 1.0f;
       material_blend = kBlendSrc;
     }
-    if (ma <= 0.001f) return;
     const BlendState blend_state = blend_state_for(material_blend);
+    if (material_blend == kBlendAdd && ma < 0.999f) {
+      // ONE/ONE additive blending ignores vertex alpha, so treat Mat alpha as
+      // authored emissive intensity for fading glows/beams.
+      mr *= ma;
+      mg *= ma;
+      mb *= ma;
+    }
+    if (ma <= 0.001f) return;
     const bool disable_zwrite =
         blend_state.additive || material_blend == kBlendSubtract ||
         material_blend == kBlendMultiply || ma < 0.999f;
@@ -1252,9 +1424,80 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
                      m.indices.size() / 3);
       }
     }
+    const std::vector<std::array<float, 2>>* texcoord_override = nullptr;
+    if (const auto uv_it = mesh_texcoord_overrides_.find(m.name);
+        uv_it != mesh_texcoord_overrides_.end() &&
+        uv_it->second.size() == m.verts.size()) {
+      texcoord_override = &uv_it->second;
+    }
+    float base_min_u = std::numeric_limits<float>::infinity();
+    float base_min_v = std::numeric_limits<float>::infinity();
+    float base_max_u = -std::numeric_limits<float>::infinity();
+    float base_max_v = -std::numeric_limits<float>::infinity();
+    float final_min_u = std::numeric_limits<float>::infinity();
+    float final_min_v = std::numeric_limits<float>::infinity();
+    float final_max_u = -std::numeric_limits<float>::infinity();
+    float final_max_v = -std::numeric_limits<float>::infinity();
+    bool has_uv_range = false;
+    if (texture) {
+      has_uv_range = true;
+      for (size_t vi = 0; vi < m.verts.size(); ++vi) {
+        const auto& v = m.verts[vi];
+        const float base_u =
+            texcoord_override ? (*texcoord_override)[vi][0] : v.u;
+        const float base_v =
+            texcoord_override ? (*texcoord_override)[vi][1] : v.v;
+        base_min_u = std::min(base_min_u, base_u);
+        base_min_v = std::min(base_min_v, base_v);
+        base_max_u = std::max(base_max_u, base_u);
+        base_max_v = std::max(base_max_v, base_v);
+        float u = base_u * su;
+        float vv = base_v * sv;
+        if (material_tex_anim && std::fabs(rot) > 0.000001f) {
+          const float c = std::cos(rot);
+          const float sn = std::sin(rot);
+          const float ru = u * c - vv * sn;
+          const float rv = u * sn + vv * c;
+          u = ru;
+          vv = rv;
+        }
+        u += tu;
+        vv += tv;
+        final_min_u = std::min(final_min_u, u);
+        final_min_v = std::min(final_min_v, vv);
+        final_max_u = std::max(final_max_u, u);
+        final_max_v = std::max(final_max_v, vv);
+      }
+    }
+    const auto uv_sampler = choose_material_uv_sampler(
+        MiloSceneRenderer::MaterialUvBounds{
+            has_uv_range, final_min_u, final_min_v, final_max_u, final_max_v},
+        su, sv, material_tex_anim);
+    const bool uv_repeats = uv_sampler.uv_repeats;
+    const bool tiled = uv_sampler.wrap;
+    if (texture && env_enabled("GHOGX_LOG_MATERIAL_UV")) {
+      static std::unordered_set<std::string> logged_material_uv;
+      const std::string key = m.name + "|" + material + "|" + diffuse_tex +
+                              "|" + (tiled ? "wrap" : "clamp") +
+                              "|" + (texcoord_override ? "uvanim" : "static");
+      if (logged_material_uv.insert(key).second) {
+        std::fprintf(
+            stderr,
+            "[milo_scene] material_uv mesh=%s material=%s tex=%s verts=%zu "
+            "base=[%.3f..%.3f %.3f..%.3f] final=[%.3f..%.3f %.3f..%.3f] "
+            "scale=(%.3f %.3f) offset=(%.3f %.3f) rot=%.3f anim=%d "
+            "uv_override=%d uv_repeat=%d sampler=%s blend=%u prelit=%d\n",
+            m.name.c_str(), material.c_str(), diffuse_tex.c_str(),
+            m.verts.size(), base_min_u, base_max_u, base_min_v, base_max_v,
+            final_min_u, final_max_u, final_min_v, final_max_v, su, sv, tu,
+            tv, rot, material_tex_anim ? 1 : 0, texcoord_override ? 1 : 0,
+            uv_repeats ? 1 : 0, tiled ? "wrap" : "clamp",
+            static_cast<unsigned>(material_blend),
+            prelit_material ? 1 : 0);
+      }
+    }
     if (texture) {
       dev_->SetTexture(0, texture);
-      const bool tiled = su > 1.01f || sv > 1.01f || material_tex_anim;
       dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
       dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, tiled ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
       dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -1291,12 +1534,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         pos_it != mesh_position_overrides_.end() &&
         pos_it->second.size() == m.verts.size()) {
       position_override = &pos_it->second;
-    }
-    const std::vector<std::array<float, 2>>* texcoord_override = nullptr;
-    if (const auto uv_it = mesh_texcoord_overrides_.find(m.name);
-        uv_it != mesh_texcoord_overrides_.end() &&
-        uv_it->second.size() == m.verts.size()) {
-      texcoord_override = &uv_it->second;
     }
     for (size_t vi = 0; vi < m.verts.size(); ++vi) {
       const auto& v = m.verts[vi];
@@ -1487,6 +1724,20 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     float distance = 0.0f;
   };
   std::vector<CameraMeshHit> camera_mesh_hits;
+  struct ProjectedCameraMeshHit {
+    std::string name;
+    std::string material;
+    float min_x = 0.0f;
+    float min_y = 0.0f;
+    float max_x = 0.0f;
+    float max_y = 0.0f;
+    float clipped_area = 0.0f;
+    size_t in_front = 0;
+    size_t on_screen = 0;
+    size_t verts = 0;
+    float distance = 0.0f;
+  };
+  std::vector<ProjectedCameraMeshHit> projected_camera_mesh_hits;
   std::unordered_set<std::string> spotlight_template_meshes;
   auto add_spotlight_group_meshes = [&](const std::string& group_name) {
     std::vector<std::string> pending{group_name};
@@ -1542,6 +1793,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     if (face_camera_meshes_.find(m.name) != face_camera_meshes_.end()) {
       apply_face_camera_yaw(world, m, eye);
     }
+    const auto draw_world = mul16(world, world_transform_);
     if (debug_camera_meshes && m.decoded && !m.verts.empty()) {
       float mn[3] = {0, 0, 0};
       float mx[3] = {0, 0, 0};
@@ -1578,8 +1830,65 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
           camera_mesh_hits.push_back(std::move(hit));
         }
       }
+      const auto wv = mul16(draw_world, view_arr);
+      const auto wvp = mul16(wv, proj_arr);
+      float min_x = std::numeric_limits<float>::infinity();
+      float min_y = std::numeric_limits<float>::infinity();
+      float max_x = -std::numeric_limits<float>::infinity();
+      float max_y = -std::numeric_limits<float>::infinity();
+      size_t in_front = 0;
+      size_t on_screen = 0;
+      for (const auto& v : m.verts) {
+        const float x =
+            v.px * wvp[0] + v.py * wvp[4] + v.pz * wvp[8] + wvp[12];
+        const float y =
+            v.px * wvp[1] + v.py * wvp[5] + v.pz * wvp[9] + wvp[13];
+        const float w =
+            v.px * wvp[3] + v.py * wvp[7] + v.pz * wvp[11] + wvp[15];
+        if (w <= 0.001f) continue;
+        ++in_front;
+        const float nx = x / w;
+        const float ny = y / w;
+        min_x = std::min(min_x, nx);
+        max_x = std::max(max_x, nx);
+        min_y = std::min(min_y, ny);
+        max_y = std::max(max_y, ny);
+        if (nx >= -1.0f && nx <= 1.0f && ny >= -1.0f && ny <= 1.0f) {
+          ++on_screen;
+        }
+      }
+      if (in_front > 0 && std::isfinite(min_x) && std::isfinite(min_y) &&
+          std::isfinite(max_x) && std::isfinite(max_y)) {
+        const float clipped_min_x = std::max(min_x, -1.0f);
+        const float clipped_max_x = std::min(max_x, 1.0f);
+        const float clipped_min_y = std::max(min_y, -1.0f);
+        const float clipped_max_y = std::min(max_y, 1.0f);
+        const float clipped_w =
+            std::max(0.0f, clipped_max_x - clipped_min_x);
+        const float clipped_h =
+            std::max(0.0f, clipped_max_y - clipped_min_y);
+        const float clipped_area = clipped_w * clipped_h;
+        if (clipped_area > 0.0001f || on_screen > 0) {
+          ProjectedCameraMeshHit hit;
+          hit.name = m.name;
+          hit.material = m.material;
+          hit.min_x = min_x;
+          hit.min_y = min_y;
+          hit.max_x = max_x;
+          hit.max_y = max_y;
+          hit.clipped_area = clipped_area;
+          hit.in_front = in_front;
+          hit.on_screen = on_screen;
+          hit.verts = m.verts.size();
+          const float dx = draw_world[12] - eye[0];
+          const float dy = draw_world[13] - eye[1];
+          const float dz = draw_world[14] - eye[2];
+          hit.distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+          projected_camera_mesh_hits.push_back(std::move(hit));
+        }
+      }
     }
-    draw_mesh_with_world(m, mul16(world, world_transform_));
+    draw_mesh_with_world(m, draw_world);
   }
   disable_authored_fog();
   disable_authored_lights();
@@ -1610,6 +1919,36 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
             "[milo_scene]   near[%zu] mesh=%s material=%s center=(%.2f %.2f %.2f) radius=%.2f dist=%.2f margin=%.2f\n",
             i, h.name.c_str(), h.material.c_str(), h.center[0], h.center[1],
             h.center[2], h.radius, h.distance, h.distance - h.radius);
+      }
+    }
+  }
+  if (debug_camera_meshes && !projected_camera_mesh_hits.empty()) {
+    static std::unordered_set<std::string> logged_projected_eyes;
+    char key[128];
+    std::snprintf(key, sizeof(key), "%.0f:%.0f:%.0f", eye[0], eye[1], eye[2]);
+    if (logged_projected_eyes.insert(key).second) {
+      std::sort(projected_camera_mesh_hits.begin(),
+                projected_camera_mesh_hits.end(),
+                [](const auto& a, const auto& b) {
+                  if (a.clipped_area != b.clipped_area) {
+                    return a.clipped_area > b.clipped_area;
+                  }
+                  return a.distance < b.distance;
+                });
+      const size_t limit =
+          std::min<size_t>(projected_camera_mesh_hits.size(), 32);
+      std::fprintf(stderr,
+                   "[milo_scene] camera mesh projection eye=(%.2f %.2f %.2f) hits=%zu\n",
+                   eye[0], eye[1], eye[2],
+                   projected_camera_mesh_hits.size());
+      for (size_t i = 0; i < limit; ++i) {
+        const auto& h = projected_camera_mesh_hits[i];
+        std::fprintf(
+            stderr,
+            "[milo_scene]   projected[%zu] mesh=%s material=%s area=%.4f verts=%zu/%zu on_screen=%zu ndc=(%.2f %.2f)..(%.2f %.2f) dist=%.2f\n",
+            i, h.name.c_str(), h.material.c_str(), h.clipped_area,
+            h.in_front, h.verts, h.on_screen, h.min_x, h.min_y, h.max_x,
+            h.max_y, h.distance);
       }
     }
   }

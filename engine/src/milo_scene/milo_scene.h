@@ -238,6 +238,26 @@ struct ParticleSysObj {
   std::string error;
 };
 
+struct WorldCrowdActor {
+  std::string name;
+  float params[3] = {0.0f, 0.0f, 0.0f};
+};
+
+struct WorldCrowdPlacementSet {
+  std::string actor_name;
+  std::vector<Xfm> placements;
+};
+
+struct WorldCrowdObj {
+  std::string name;
+  std::string area_mesh;
+  uint32_t total_placements = 0;
+  std::vector<WorldCrowdActor> actors;
+  std::vector<WorldCrowdPlacementSet> placement_sets;
+  bool decoded = false;
+  std::string error;
+};
+
 // Decode one entry body (raw bytes = payload.data()+entry.offset, entry.size).
 // `entry_name` is the MILO entry name. Throws std::runtime_error on malformed
 // input; the scene loader catches per-entry so one bad object never aborts.
@@ -261,6 +281,8 @@ MeshObj decode_mesh(const std::string& entry_name,
                     const std::vector<uint8_t>& body);
 ParticleSysObj decode_particle_sys(const std::string& entry_name,
                                    const std::vector<uint8_t>& body);
+WorldCrowdObj decode_world_crowd(const std::string& entry_name,
+                                 const std::vector<uint8_t>& body);
 
 // A whole decoded scene: every Trans/Mat/Mesh in one MILO, plus the texture
 // names referenced by materials (so the caller can batch-load them).
@@ -275,6 +297,7 @@ struct Scene {
   std::vector<EnvironObj> environs;
   std::vector<GroupObj> groups;
   std::vector<ParticleSysObj> particles;
+  std::vector<WorldCrowdObj> world_crowds;
   std::vector<std::string> draw_order;  // Group-authored Mesh child order.
   std::string dir_name;
   std::string dir_type;

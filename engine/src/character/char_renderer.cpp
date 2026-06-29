@@ -39,6 +39,28 @@ struct SVtx {
 constexpr DWORD kFVF =
     D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 
+bool char_env_enabled(const char* name) {
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, name) != 0 || !value) return false;
+  const bool enabled = value[0] && value[0] != '0';
+  std::free(value);
+  return enabled;
+}
+
+float char_env_float_or(const char* name, float fallback, float min_value,
+                        float max_value) {
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, name) != 0 || !value) return fallback;
+  char* end = nullptr;
+  const float parsed = std::strtof(value, &end);
+  std::free(value);
+  if (end == value || !std::isfinite(parsed)) return fallback;
+  if (parsed < min_value || parsed > max_value) return fallback;
+  return parsed;
+}
+
 struct Bounds3 {
   float mn[3] = {0, 0, 0};
   float mx[3] = {0, 0, 0};
@@ -1360,6 +1382,8 @@ struct CharRenderer::Impl {
   std::array<float, 16> world_transform = {1, 0, 0, 0, 0, 1, 0, 0,
                                            0, 0, 1, 0, 0, 0, 0, 1};
   int min_lod = 0;
+  bool use_scene_lighting = false;
+  float color_mod[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
   // Procedural idle animation time (seconds).
   float anim_t = 0.0f;
@@ -1404,6 +1428,17 @@ void CharRenderer::set_min_lod(int min_lod) {
   if (debug_meshes_enabled()) {
     std::fprintf(stderr, "[char3d] min_lod active: %d\n", impl_->min_lod);
   }
+}
+
+void CharRenderer::set_use_scene_lighting(bool enabled) {
+  impl_->use_scene_lighting = enabled;
+}
+
+void CharRenderer::set_color_modulation(float r, float g, float b, float a) {
+  impl_->color_mod[0] = std::clamp(r, 0.0f, 4.0f);
+  impl_->color_mod[1] = std::clamp(g, 0.0f, 4.0f);
+  impl_->color_mod[2] = std::clamp(b, 0.0f, 4.0f);
+  impl_->color_mod[3] = std::clamp(a, 0.0f, 1.0f);
 }
 
 std::optional<std::array<float, 16>> CharRenderer::attached_prop_world(
@@ -1658,20 +1693,38 @@ void CharRenderer::draw_impl(bool clear_target) {
   Window* win = impl.win;
   OrbitCamera& cam = impl.cam;
 
-  const float aspect =
+  const float backbuffer_aspect =
       win->bb_height() > 0
-          ? static_cast<float>(win->bb_width()) / static_cast<float>(win->bb_height())
+          ? static_cast<float>(win->bb_width()) /
+                static_cast<float>(win->bb_height())
           : 16.0f / 9.0f;
+  const float aspect =
+      char_env_float_or("GHOGX_CAMERA_ASPECT", backbuffer_aspect, 0.5f, 3.0f);
 
   float eye[3];
   cam.eye(eye);
+  float result_at[3] = {};
   const float* at = cam.authored ? cam.authored_at : cam.target;
   const float* up = cam.authored ? cam.authored_up : nullptr;
+  if (cam.result_frame.valid) {
+    for (int k = 0; k < 3; ++k) {
+      result_at[k] = cam.result_frame.position[k] +
+                     cam.result_frame.forward[k] * 100.0f;
+    }
+    at = result_at;
+    up = cam.result_frame.up;
+  }
   Mat4 view = Mat4::look_at_lh(eye[0], eye[1], eye[2], at[0], at[1], at[2],
                                up ? up[0] : 0.0f, up ? up[1] : 0.0f,
                                up ? up[2] : 1.0f);
   Mat4 proj = Mat4::perspective_lh(cam.fov, aspect, cam.near_z, cam.far_z);
   proj.m[0][0] = -proj.m[0][0];  // RH world -> LH clip (no left/right flip)
+  if ((cam.authored || cam.result_frame.valid) &&
+      !char_env_enabled("GHOGX_DISABLE_CAMERA_SCREEN_OFFSET")) {
+    constexpr float kScreenOffsetToClip = 1.0f / 768.0f;
+    proj.m[2][0] += cam.screen_offset[0] * kScreenOffsetToClip;
+    proj.m[2][1] += cam.screen_offset[1] * kScreenOffsetToClip;
+  }
 
   if (clear_target) {
     dev->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
@@ -1696,23 +1749,28 @@ void CharRenderer::draw_impl(bool clear_target) {
   dev->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
   dev->SetRenderState(D3DRS_ALPHAREF, 96);
 
-  // Lighting: bright ambient (textures carry their own shading) + two opposed
-  // directional lights so the skin/outfit has shape regardless of facing.
+  // Standalone viewer lighting uses bright ambient plus two opposed directional
+  // lights. Venue composites can opt into the existing scene light state.
   dev->SetRenderState(D3DRS_LIGHTING, TRUE);
-  dev->SetRenderState(D3DRS_AMBIENT, D3DCOLOR_XRGB(150, 150, 158));
+  dev->SetRenderState(D3DRS_COLORVERTEX, TRUE);
+  dev->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
+  dev->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_COLOR1);
   dev->SetRenderState(D3DRS_NORMALIZENORMALS, TRUE);
   dev->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
-  auto set_light = [&](DWORD i, float x, float y, float z, float b) {
-    D3DLIGHT9 l{};
-    l.Type = D3DLIGHT_DIRECTIONAL;
-    l.Diffuse.r = l.Diffuse.g = l.Diffuse.b = b;
-    float ll = std::sqrt(x * x + y * y + z * z);
-    l.Direction = {x / ll, y / ll, z / ll};
-    dev->SetLight(i, &l);
-    dev->LightEnable(i, TRUE);
-  };
-  set_light(0, 0.3f, -0.6f, -0.5f, 0.6f);  // key from front-above
-  set_light(1, -0.4f, 0.6f, -0.3f, 0.3f);   // fill from behind
+  if (!impl.use_scene_lighting) {
+    dev->SetRenderState(D3DRS_AMBIENT, D3DCOLOR_XRGB(150, 150, 158));
+    auto set_light = [&](DWORD i, float x, float y, float z, float b) {
+      D3DLIGHT9 l{};
+      l.Type = D3DLIGHT_DIRECTIONAL;
+      l.Diffuse.r = l.Diffuse.g = l.Diffuse.b = b;
+      float ll = std::sqrt(x * x + y * y + z * z);
+      l.Direction = {x / ll, y / ll, z / ll};
+      dev->SetLight(i, &l);
+      dev->LightEnable(i, TRUE);
+    };
+    set_light(0, 0.3f, -0.6f, -0.5f, 0.6f);  // key from front-above
+    set_light(1, -0.4f, 0.6f, -0.3f, 0.3f);  // fill from behind
+  }
   D3DMATERIAL9 mtrl{};
   mtrl.Diffuse.r = mtrl.Diffuse.g = mtrl.Diffuse.b = mtrl.Diffuse.a = 1.0f;
   mtrl.Ambient.r = mtrl.Ambient.g = mtrl.Ambient.b = mtrl.Ambient.a = 1.0f;
@@ -1765,7 +1823,9 @@ void CharRenderer::draw_impl(bool clear_target) {
     const bool eye_mesh = is_eye_mesh(m.name);
     dev->SetRenderState(D3DRS_CULLMODE, character_cull_mode(&m));
     dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-    dev->SetRenderState(D3DRS_LIGHTING, eye_mesh ? FALSE : TRUE);
+    dev->SetRenderState(
+        D3DRS_LIGHTING,
+        impl.use_scene_lighting ? FALSE : (eye_mesh ? FALSE : TRUE));
 
     // Skin the mesh using linear-blend skinning.
     skin_to_pose(m, impl.character, spos, snrm);
@@ -2056,11 +2116,18 @@ void CharRenderer::draw_impl(bool clear_target) {
     const D3DCOLOR mesh_color =
         highlight_mesh
             ? D3DCOLOR_ARGB(255, 255, 0, 255)
-            : material ? D3DCOLOR_ARGB(color_byte(material->color[3]),
-                                       color_byte(material->color[0]),
-                                       color_byte(material->color[1]),
-                                       color_byte(material->color[2]))
-                       : D3DCOLOR_ARGB(255, 255, 255, 255);
+            : material ? D3DCOLOR_ARGB(color_byte(material->color[3] *
+                                                  impl.color_mod[3]),
+                                       color_byte(material->color[0] *
+                                                  impl.color_mod[0]),
+                                       color_byte(material->color[1] *
+                                                  impl.color_mod[1]),
+                                       color_byte(material->color[2] *
+                                                  impl.color_mod[2]))
+                       : D3DCOLOR_ARGB(color_byte(impl.color_mod[3]),
+                                       color_byte(impl.color_mod[0]),
+                                       color_byte(impl.color_mod[1]),
+                                       color_byte(impl.color_mod[2]));
 
     IDirect3DTexture9* texture = nullptr;
     const ghogx::asset::Image* texture_image = nullptr;

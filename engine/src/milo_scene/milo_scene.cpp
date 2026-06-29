@@ -134,6 +134,26 @@ float read_f32_at(const std::vector<uint8_t>& body, size_t offset) {
   return value;
 }
 
+uint32_t read_u32_at(const std::vector<uint8_t>& body, size_t offset) {
+  if (offset + 4 > body.size()) {
+    throw std::runtime_error("milo_scene: u32 offset past end");
+  }
+  uint32_t value = 0;
+  std::memcpy(&value, body.data() + offset, sizeof(value));
+  return value;
+}
+
+std::string read_string_at(const std::vector<uint8_t>& body, size_t& offset) {
+  const uint32_t len = read_u32_at(body, offset);
+  offset += 4;
+  if (len > body.size() - offset || len > (1u << 20)) {
+    throw std::runtime_error("milo_scene: implausible string length");
+  }
+  std::string s(reinterpret_cast<const char*>(body.data() + offset), len);
+  offset += len;
+  return s;
+}
+
 std::vector<std::string> group_child_refs(const std::vector<uint8_t>& body,
                                           std::string* environ_ref) {
   std::vector<std::string> out;
@@ -345,7 +365,9 @@ WaypointObj decode_waypoint(const std::string& entry_name,
     // the embedded block is:
     //   i32 9, local matrix, world matrix, 13 bytes, i32 flags
     // The flags line up with macros.dta: guitarist0mp=512, singer=4,
-    // bassist=16, drummer=32.
+    // bassist=16, drummer=32. Some authored walk/interact waypoints append
+    // extra property strings after the Trans rows; reject values outside the
+    // documented bitfield so those string bytes cannot masquerade as starts.
     size_t trans_ver_at = body.size();
     for (size_t o = 0; o + 4 <= body.size(); ++o) {
       int32_t v;
@@ -361,8 +383,12 @@ WaypointObj decode_waypoint(const std::string& entry_name,
     w.local = r.matrix();
     if (r.pos + 48 <= r.n) w.world_stored = r.matrix();
     const size_t flags_at = trans_ver_at + 4 + 109;
-    if (flags_at + 4 <= body.size())
-      std::memcpy(&w.flags, body.data() + flags_at, 4);
+    if (flags_at + 4 <= body.size()) {
+      uint32_t flags = 0;
+      std::memcpy(&flags, body.data() + flags_at, 4);
+      constexpr uint32_t kWaypointFlagsMask = 0x00000fff;
+      if ((flags & ~kWaypointFlagsMask) == 0) w.flags = flags;
+    }
     w.decoded = true;
   } catch (const std::exception&) {
   }
@@ -745,6 +771,82 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
   return part;
 }
 
+WorldCrowdObj decode_world_crowd(const std::string& entry_name,
+                                 const std::vector<uint8_t>& body) {
+  WorldCrowdObj crowd;
+  crowd.name = entry_name;
+  try {
+    const auto strings = scan_strings_with_offsets(body);
+    const auto area_it = std::find_if(
+        strings.begin(), strings.end(), [](const ScannedString& s) {
+          return s.value.size() >= 5 &&
+                 s.value.compare(s.value.size() - 5, 5, ".mesh") == 0;
+        });
+    if (area_it == strings.end()) {
+      throw std::runtime_error("milo_scene: WorldCrowd has no area mesh ref");
+    }
+
+    crowd.area_mesh = area_it->value;
+    const size_t after_area = area_it->offset + 4 + area_it->value.size();
+    crowd.total_placements = read_u32_at(body, after_area);
+
+    // GH2 PS2 arena_chars.milo_ps2 stores one pad/flag byte after the total
+    // placement count, then a u32 actor count and actor records:
+    //   str actor, f32 param0, f32 param1, f32 param2.
+    const size_t actor_count_offset = after_area + 5;
+    const uint32_t actor_count = read_u32_at(body, actor_count_offset);
+    if (actor_count == 0 || actor_count > 128) {
+      throw std::runtime_error("milo_scene: implausible WorldCrowd actor count");
+    }
+
+    size_t cursor = actor_count_offset + 4;
+    crowd.actors.reserve(actor_count);
+    for (uint32_t i = 0; i < actor_count; ++i) {
+      WorldCrowdActor actor;
+      actor.name = read_string_at(body, cursor);
+      if (actor.name.empty()) {
+        throw std::runtime_error("milo_scene: empty WorldCrowd actor name");
+      }
+      for (float& value : actor.params) {
+        value = read_f32_at(body, cursor);
+        cursor += 4;
+      }
+      crowd.actors.push_back(std::move(actor));
+    }
+
+    uint32_t decoded_placements = 0;
+    crowd.placement_sets.reserve(crowd.actors.size());
+    for (const auto& actor : crowd.actors) {
+      const uint32_t count = read_u32_at(body, cursor);
+      cursor += 4;
+      if (count > 4096 ||
+          static_cast<uint64_t>(count) * 48u > body.size() - cursor) {
+        throw std::runtime_error(
+            "milo_scene: implausible WorldCrowd placement count");
+      }
+      WorldCrowdPlacementSet set;
+      set.actor_name = actor.name;
+      set.placements.reserve(count);
+      for (uint32_t i = 0; i < count; ++i) {
+        Reader r(body.data() + cursor, body.size() - cursor);
+        set.placements.push_back(r.matrix());
+        cursor += 48;
+      }
+      decoded_placements += count;
+      crowd.placement_sets.push_back(std::move(set));
+    }
+    if (crowd.total_placements != 0 &&
+        decoded_placements != crowd.total_placements) {
+      throw std::runtime_error(
+          "milo_scene: WorldCrowd placement total mismatch");
+    }
+    crowd.decoded = true;
+  } catch (const std::exception& ex) {
+    crowd.error = ex.what();
+  }
+  return crowd;
+}
+
 // ---------------------------------------------------------------------------
 // Scene assembly
 // ---------------------------------------------------------------------------
@@ -883,6 +985,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
     std::unordered_set<std::string> ordered_meshes;
     int mesh_ok = 0, mesh_fail = 0;
     int particle_ok = 0, particle_fail = 0;
+    int world_crowd_ok = 0, world_crowd_fail = 0;
     for (const auto& de : dir.entries) {
       std::vector<uint8_t> b(payload.data() + de.offset,
                              payload.data() + de.offset + de.size);
@@ -918,6 +1021,10 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
           ParticleSysObj p = decode_particle_sys(de.name, b);
           if (p.decoded) ++particle_ok; else ++particle_fail;
           out.particles.push_back(std::move(p));
+        } else if (de.type == "WorldCrowd") {
+          WorldCrowdObj c = decode_world_crowd(de.name, b);
+          if (c.decoded) ++world_crowd_ok; else ++world_crowd_fail;
+          out.world_crowds.push_back(std::move(c));
         }
       } catch (const std::exception& ex) {
         std::fprintf(stderr, "[milo_scene]   %s '%s' decode: %s\n",
@@ -946,11 +1053,12 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
       out.draw_order.push_back(std::move(top));
     }
     std::fprintf(stderr,
-                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu particles (%d ok / %d fail), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group\n",
+                 "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu particles (%d ok / %d fail), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group, %zu world_crowd (%d ok / %d fail)\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
                  out.particles.size(), particle_ok, particle_fail,
                  out.transes.size(), out.mats.size(), out.cams.size(),
-                 out.waypoints.size(), out.groups.size());
+                 out.waypoints.size(), out.groups.size(),
+                 out.world_crowds.size(), world_crowd_ok, world_crowd_fail);
     if (!out.spotlights.empty()) {
       size_t transformed = 0;
       for (const auto& spot : out.spotlights)

@@ -95,6 +95,7 @@ std::string function_body(const std::string& source,
 
 int main() {
   const std::filesystem::path game_dir = GHOGX_GAME_SOURCE_DIR;
+  const std::filesystem::path source_dir = game_dir.parent_path();
   const std::filesystem::path asset_dir = GHOGX_ASSET_SOURCE_DIR;
   const std::filesystem::path chart_dir = GHOGX_CHART_SOURCE_DIR;
   const std::filesystem::path character_dir = GHOGX_CHARACTER_SOURCE_DIR;
@@ -102,6 +103,8 @@ int main() {
   const std::filesystem::path render_dir = GHOGX_RENDER_SOURCE_DIR;
   const std::string gameplay = read_file(game_dir / "gameplay.cpp");
   const std::string gameplay_h = read_file(game_dir / "gameplay.h");
+  const std::string catalog = read_file(source_dir / "catalog.cpp");
+  const std::string catalog_h = read_file(source_dir / "catalog.h");
   const std::string milo_image = read_file(asset_dir / "milo_image.cpp");
   const std::string milo_image_h = read_file(asset_dir / "milo_image.h");
   const std::string midi_reader = read_file(chart_dir / "midi_reader.cpp");
@@ -119,6 +122,8 @@ int main() {
       read_file(render_dir / "milo_scene_renderer.h");
   const std::string gameplay_c = compact(gameplay);
   const std::string gameplay_h_c = compact(gameplay_h);
+  const std::string catalog_c = compact(catalog);
+  const std::string catalog_h_c = compact(catalog_h);
   const std::string milo_image_c = compact(milo_image);
   const std::string milo_image_h_c = compact(milo_image_h);
   const std::string midi_c = compact(midi_reader);
@@ -136,12 +141,24 @@ int main() {
       compact(function_body(gameplay, "infer_camshot_target"));
   const std::string regular_camera_loader_c =
       compact(function_body(gameplay, "load_regular_camera_keys"));
+  const std::string camera_submit_c =
+      compact(function_body(gameplay, "camera_submitted_result_rows_for_key"));
   const std::string event_track_c =
       compact(function_body(gameplay, "performer_event_track_for_role"));
   const std::string classify_roles_c =
       compact(function_body(gameplay, "classify_band_roles"));
   const std::string find_start_xfm_c =
       compact(function_body(gameplay, "find_start_xfm"));
+  const std::string refresh_worldcrowd_sources_c = compact(function_body(
+      gameplay, "Gameplay::refresh_worldcrowd_actor_source_targets_for_camera"));
+  const std::string rebuild_worldcrowd_runtime_c = compact(function_body(
+      gameplay, "Gameplay::rebuild_worldcrowd_actor_runtime"));
+  const std::string update_worldcrowd_runtime_c = compact(function_body(
+      gameplay, "Gameplay::update_worldcrowd_actor_runtime"));
+  const std::string update_worldcrowd_lighting_c = compact(function_body(
+      gameplay, "Gameplay::update_worldcrowd_actor_lighting"));
+  const std::string draw_worldcrowd_runtime_c = compact(function_body(
+      gameplay, "Gameplay::draw_worldcrowd_actor_runtime"));
 
   bool ok = true;
 
@@ -168,9 +185,80 @@ int main() {
   ok &= contains(classify_roles_c,
                  "band[2].find(\"keyboard\")==std::string::npos",
                  "drummer positional fallback excludes keyboard");
+  ok &= contains(catalog_h_c,
+                 "std::stringanim_tempo;",
+                 "song catalog carries songs.dtb anim_tempo");
+  ok &= contains(catalog_c,
+                 "s.anim_tempo=keyed_string(*root_node,\"anim_tempo\")"
+                 ".value_or(\"\");",
+                 "song catalog imports stock anim_tempo");
+  ok &= contains(gameplay_h_c,
+                 "std::stringanim_tempo;",
+                 "quickplay rig carries stock anim_tempo into gameplay");
+  ok &= contains(gameplay_c,
+                 "song.anim_tempo,std::move(band)",
+                 "quickplay rig resolves anim_tempo beside band data");
+  ok &= contains(gameplay_c,
+                 "clip_candidates_by_anim_tempo(active_names,rig_anim_tempo)",
+                 "performer active clips are ordered by stock anim_tempo");
+  ok &= contains(gameplay_c,
+                 "if(anim_tempo==\"kTempoFast\")",
+                 "kTempoFast selects fast band clips before medium fallbacks");
+  ok &= contains(gameplay_c,
+                 "if(singer.find(\"female_singer\")!="
+                 "std::string::npos){add_performer(\"singer\",singer,"
+                 "singer,\"singer\",\"singer_start.way\",4u,"
+                 "{\"singer_idle\"},{},"
+                 "{\"singer_active_medium_01\","
+                 "\"singer_active_medium_02\",\"singer_active_fast\"",
+                 "female singer uses decoded idle/active clips and skips absent intro");
+  ok &= contains(gameplay_c,
+                 "\"singer_active_medium_01\",\"singer_active_medium_02\","
+                 "\"singer_active_fast\"",
+                 "generic singer active candidates keep trace-backed fast clip");
+  ok &= contains(gameplay_c,
+                 "\"drummer_active_fast_normal\",\"drummer_active_fast_allbeat\"",
+                 "drummer active candidates include trace-backed fast clips");
+  ok &= contains(gameplay_c,
+                 "drummer_active_fast_half",
+                 "drummer half-time mode can use the trace-backed fast clip");
+  ok &= contains(gameplay_h_c,
+                 "CharClipactive_double_clip;",
+                 "drummer carries the stock kBandDouble clip slot");
+  ok &= contains(gameplay_c,
+                 "elseif(ev.text==\"[double_time]\"){state.playing=true;"
+                 "state.double_time=true;state.allbeat=false;"
+                 "state.half_time=false;state.no_snare=false;}",
+                 "BAND DRUMS double_time marker selects kBandDouble mode");
+  ok &= contains(gameplay_c,
+                 "\"drummer_active_medium_double\","
+                 "\"drummer_active_fast_double\"",
+                 "drummer double-time mode loads stock tempo-domain clips");
+  ok &= contains(gameplay_c,
+                 "if(midi_state.double_time&&"
+                 "perf.active_double_clip.loaded){desired_active="
+                 "&perf.active_double_clip;desired_mode=\"double\";}",
+                 "drummer double-time mode drives the active clip switch");
+  ok &= contains(gameplay_c,
+                 "elseif(ev.text==\"[normal_tempo]\"){"
+                 "state.main_beat_scale=1.0f;}"
+                 "elseif(ev.text==\"[half_tempo]\"){"
+                 "state.main_beat_scale=0.5f;}"
+                 "elseif(ev.text==\"[double_tempo]\"){"
+                 "state.main_beat_scale=2.0f;}",
+                 "CHAR_COMMON tempo markers drive main.drv beat scale");
+  ok &= contains(gameplay_c,
+                 "perf.active_player.set_speed("
+                 "midi_state.main_beat_scale);",
+                 "performer active main driver applies traced beat scale");
+  ok &= contains(read_file(std::filesystem::path(GHOGX_CHARACTER_SOURCE_DIR) /
+                           "char_clip.h"),
+                 "void set_speed(float speed);",
+                 "CharClipPlayer exposes a shared beat-scale speed hook");
   ok &= contains(gameplay_c,
                  "add_performer(\"keyboard\",keyboard,keyboard,\"keyboard\","
-                 "\"start_singer.way\",4u,{\"keyboard_idle\"},{},"
+                 "\"start_singer.way\",4u,{\"keyboard_idle\"},"
+                 "{},"
                  "{\"keyboard_active_medium\",\"keyboard_active_fast\"});",
                  "keyboard performer graph shape stays traced and shared");
   ok &= appears_before(find_start_xfm_c,
@@ -180,8 +268,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "add_performer(\"guitarist0\",quickplay_rig_->character_outfit,"
                  "quickplay_rig_->character_outfit,"
-                 "quickplay_rig_->character_outfit,\"start_guitarist0.way\",1u,",
-                 "single-guitarist quickplay uses traced kStartGuitarist0 start route");
+                 "quickplay_rig_->character_outfit,\"start_guitarist0mp.way\",512u,",
+                 "single-guitarist quickplay uses decoded arena guitarist0 start route");
   ok &= contains(gameplay_c,
                  "if(perf.role==\"keyboard\"&&midi_state.marker.empty()){"
                  "midi_state.playing=true;}",
@@ -191,9 +279,10 @@ int main() {
                  "add_performer(\"bassist\",bass,bass,\"bass\","
                  "\"bassist_start.way\",16u,{\"bassist_idle_medium_01\","
                  "\"bassist_idle_medium_02\"},{\"bassist_intro\"},"
-                 "{\"bassist_active_medium_01\",\"bassist_active_medium_02\"},"
+                 "{\"bassist_active_medium_01\",\"bassist_active_medium_02\","
+                 "\"bassist_active_fast_01\",\"bassist_active_fast_02\"},"
                  "bass_prop,\"bone_pos_gutbass.mesh\");",
-                 "bassist uses bass graph and gut-bass prop attachment");
+                 "bassist uses bass graph, tempo candidates, and gut-bass prop attachment");
   ok &= contains(gameplay_c,
                  "\"char/og/drums/gen/dw_\"+quickplay_rig_->venue+"
                  "\"_drums.milo_ps2\"",
@@ -250,6 +339,18 @@ int main() {
                  "if(note.pitch==52){chart.venue_cues.push_back("
                  "{note.tick,note.pitch,std::string(\"venue_effect\")});}",
                  "TRIGGERS 52 dispatches venue_effect at authored tick");
+  ok &= contains(midi_c,
+                 "std::stable_sort(chart.text_events.begin(),"
+                 "chart.text_events.end()",
+                 "world text events preserve authored same-tick order");
+  ok &= contains(midi_c,
+                 "std::stable_sort(chart.performer_events.begin(),"
+                 "chart.performer_events.end()",
+                 "performer text events preserve authored same-tick order");
+  ok &= contains(midi_c,
+                 "std::stable_sort(chart.venue_cues.begin(),"
+                 "chart.venue_cues.end()",
+                 "venue effect cues preserve authored same-tick order");
   ok &= contains(gameplay_c,
                  "apply_venue_event(cue.event,false);++next_venue_cue_idx_;",
                  "venue_effect is transient and does not replace excitement");
@@ -286,6 +387,32 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::stringdiagnostic_venue_event_;",
                  "diagnostic venue event is scoped to gameplay validation");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_camera_shot(conststd::string&shot_name)",
+                 "diagnostic camera shot stays an explicit gameplay test hook");
+  ok &= contains(gameplay_h_c,
+                 "std::stringdiagnostic_camera_shot_;",
+                 "diagnostic camera shot is scoped to gameplay validation");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_camera_path_offset_frames(doubleframes)",
+                 "diagnostic camera path frame offset stays an explicit validation hook");
+  ok &= contains(gameplay_h_c,
+                 "doublediagnostic_camera_path_offset_frames_=0.0;",
+                 "diagnostic camera path frame offset is scoped to gameplay validation");
+  ok &= contains(gameplay_c,
+                 "key=find_camera_key_by_name(regular_camera_keys_,"
+                 "diagnostic_camera_shot_);",
+                 "diagnostic camera shot pins a decoded regular CamShot by name");
+  ok &= contains(gameplay_c,
+                 "active_regular_camera_start_=song_time_-"
+                 "diagnostic_camera_path_offset_frames_/30.0;",
+                 "diagnostic forced camera can align local TransAnim path frame to PS2 traces");
+  ok &= contains(gameplay_c,
+                 "diagnosticcamerashotselected",
+                 "diagnostic camera shot selection is log-verifiable");
+  ok &= contains(gameplay_c,
+                 "path_offset_frames=%.3f",
+                 "diagnostic camera path offset is log-verifiable");
   ok &= contains(gameplay_h_c,
                  "booldiagnostic_venue_event_applied_=false;",
                  "diagnostic venue event is one-shot per load");
@@ -496,7 +623,7 @@ int main() {
                  "venue reset pushes cleared particle state to renderer");
   ok &= contains(gameplay_c,
                  "lighting_->set_material_alpha_multipliers("
-                 "lighting_material_alpha_);"
+                 "composed_lighting_material_alpha());"
                  "lighting_->set_material_color_overrides("
                  "lighting_material_colors_);"
                  "lighting_->set_material_texture_overrides("
@@ -688,6 +815,9 @@ int main() {
                  "dev_->SetRenderState(D3DRS_DESTBLEND,blend_state.dest);",
                  "renderer applies authored material destination blend");
   ok &= contains(renderer_c,
+                 "material_blend==kBlendAdd&&ma<0.999f",
+                 "pure additive Mat alpha attenuates RGB intensity because ONE/ONE ignores vertex alpha");
+  ok &= contains(renderer_c,
                  "for(constauto&mesh:spot.instance_meshes)",
                  "spotlight instance meshes are owned by the Spotlight pass");
   ok &= contains(renderer_c,
@@ -706,8 +836,35 @@ int main() {
                  "transform.has_rotation",
                  "renderer applies MatAnim texture rotation overrides");
   ok &= contains(renderer_c,
-                 "constbooltiled=su>1.01f||sv>1.01f||material_tex_anim;",
-                 "animated material texture coordinates use wrapping");
+                 "constbooluv_repeats=bounds_sane&&",
+                 "renderer detects authored UVs that cross tile boundaries");
+  ok &= contains(renderer_c,
+                 "scale_u>1.01f||scale_v>1.01f||material_tex_anim||uv_repeats",
+                 "animated and authored repeating texture coordinates use wrapping");
+  ok &= contains(renderer_c,
+                 "constautouv_sampler=choose_material_uv_sampler(",
+                 "draw loop uses the shared material UV sampler decision");
+  ok &= contains(renderer_c,
+                 "clear_target&&env_enabled(\"GHOGX_LOG_CAMERA_MATRIX\")",
+                 "renderer keeps the native camera matrix diagnostic opt-in on the submitted world pass");
+  ok &= contains(renderer_c,
+                 "env_float_or(\"GHOGX_CAMERA_ASPECT\",backbuffer_aspect,0.5f,3.0f)",
+                 "renderer exposes an opt-in camera aspect diagnostic for PS2 projection validation");
+  ok &= contains(renderer_c,
+                 "cam_.result_frame.has_custom_view",
+                 "renderer applies custom camera matrices only from explicit result-frame diagnostics");
+  ok &= contains(renderer_c,
+                 "\"[camera-matrix]custom_viewrow0=(%.6f%.6f%.6f%.6f)\"",
+                 "camera matrix diagnostic emits retained custom view rows");
+  ok &= contains(renderer_c,
+                 "\"[camera-matrix]outputforward=(%.6f%.6f%.6f0.000000)\"",
+                 "camera matrix diagnostic emits PS2-style output basis rows");
+  ok &= contains(renderer_c,
+                 "\"[camera-matrix]viewrow%d=(%.6f%.6f%.6f%.6f)",
+                 "camera matrix diagnostic emits derived view rows");
+  ok &= contains(renderer_c,
+                 "\"[camera-matrix]projrow%d=(%.6f%.6f%.6f%.6f)",
+                 "camera matrix diagnostic emits submitted projection rows");
   ok &= contains(gameplay_c,
                  "active_venue_material_anims_.push_back(std::move(active_anim));",
                  "venue MatAnim events start an active alpha animation");
@@ -1258,15 +1415,34 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "size_tnext_section_venue_event_idx_=0;",
                  "venue section text dispatch has its own cue cursor");
+  ok &= contains(gameplay_h_c,
+                 "size_tnext_forced_camera_event_idx_=0;",
+                 "forced camera script text dispatch has its own cue cursor");
   ok &= contains(gameplay_c,
                  "while(next_section_venue_event_idx_<chart_.text_events.size()"
                  "&&chart_.tick_to_sec(chart_.text_events["
                  "next_section_venue_event_idx_].tick)<song_time_)",
                  "diagnostic seek skips already elapsed venue section text events");
   ok &= contains(gameplay_c,
+                 "while(next_forced_camera_event_idx_<chart_.text_events.size()"
+                 "&&chart_.tick_to_sec(chart_.text_events["
+                 "next_forced_camera_event_idx_].tick)<song_time_)",
+                 "diagnostic seek skips already elapsed forced camera text events");
+  ok &= contains(gameplay_c,
                  "while(next_section_venue_event_idx_<chart_.text_events.size())"
                  "{constauto&ev=chart_.text_events[next_section_venue_event_idx_];",
                  "venue section text events are consumed in tick order");
+  ok &= contains(gameplay_c,
+                 "while(next_forced_camera_event_idx_<chart_.text_events.size())"
+                 "{constauto&ev=chart_.text_events[next_forced_camera_event_idx_];",
+                 "forced camera text events are consumed in authored tick order");
+  ok &= contains(gameplay_c,
+                 "constdoubleforced_camera_event_window=std::max(0.001,dt*1.5);",
+                 "forced camera cursor does not replay stale intro-window messages");
+  ok &= appears_before(gameplay_c,
+                       "if(t<song_time_-forced_camera_event_window)",
+                       "if(t>song_time_)break;",
+                       "forced camera cursor skips stale messages before waiting on future messages");
   ok &= contains(gameplay_c,
                  "conststd::stringvenue_event_name(*venue_event);",
                  "section venue messages materialize stable event names");
@@ -1450,8 +1626,11 @@ int main() {
                  "lighting transition log exposes stateful fade validation");
   ok &= contains(gameplay_c,
                  "update_lighting_spotlight_renderer();"
+                 "update_worldcrowd_actor_lighting();"
+                 "draw_worldcrowd_actor_runtime(world_->camera());"
+                 "worldcrowd_drawn=true;"
                  "lighting_->draw_over_scene(world_->camera());",
-                 "lighting renderer samples transition before drawing");
+                 "lighting renderer samples transition before the crowd and lighting overlay draw");
   ok &= contains(gameplay_c,
                  "fade_seconds=%.3f",
                  "lighting keyframe log includes transition timing evidence");
@@ -1482,6 +1661,13 @@ int main() {
   ok &= contains(milo_scene_h_c,
                  "std::vector<EnvironObj>environs;",
                  "decoded scenes retain Environ entries alongside Light entries");
+  ok &= contains(milo_scene_h_c,
+                 "structWorldCrowdObj{std::stringname;"
+                 "std::stringarea_mesh;uint32_ttotal_placements=0;",
+                 "MILO scene exposes decoded WorldCrowd source-area metadata");
+  ok &= contains(milo_scene_h_c,
+                 "std::vector<WorldCrowdObj>world_crowds;",
+                 "decoded scenes retain WorldCrowd entries alongside render objects");
   ok &= contains(milo_scene_cpp_c,
                  "LightObjdecode_light(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
@@ -1490,6 +1676,16 @@ int main() {
                  "EnvironObjdecode_environ(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
                  "raw Environ object decoder exists");
+  ok &= contains(milo_scene_cpp_c,
+                 "WorldCrowdObjdecode_world_crowd("
+                 "conststd::string&entry_name,conststd::vector<uint8_t>&body)",
+                 "raw WorldCrowd object decoder exists");
+  ok &= contains(milo_scene_cpp_c,
+                 "crowd.total_placements=read_u32_at(body,after_area);",
+                 "WorldCrowd decoder preserves the authored placement total");
+  ok &= contains(milo_scene_cpp_c,
+                 "out.world_crowds.push_back(std::move(c));",
+                 "scene assembly retains decoded WorldCrowd objects");
   ok &= contains(milo_scene_cpp_c,
                  "light.local=read_matrix_at(body,0x11);",
                  "Light decoder uses traced local matrix offset");
@@ -1803,6 +1999,15 @@ int main() {
                  "camera_duration_range_for_event(camera_duration_bars_,"
                  "active_venue_event_)",
                  "regular camera uses active-excitement duration rows");
+  ok &= contains(gameplay_c,
+                 "world_objects_worldbase.dta::get_shot_durationusesrandom_int",
+                 "camera duration picker remains tied to the PS2 random_int script route");
+  ok &= contains(gameplay_c,
+                 "state*=0x7feb352du;",
+                 "camera duration picker uses a stable pseudo-random bucket instead of a visible range cycle");
+  ok &= contains(gameplay_c,
+                 "state%static_cast<uint32_t>(span)",
+                 "camera duration picker stays within the authored inclusive min/max span");
   ok &= contains(regular_camera_loader_c,
                  "c.order=candidates.size();",
                  "regular camera loader preserves decoded CamShot order");
@@ -1860,8 +2065,32 @@ int main() {
                  "constboolhas_non_neutral_pose=std::any_of(",
                  "CamShot pose parser detects real non-neutral pose rows");
   ok &= contains(gameplay_c,
+                 "cursor=candidates[*idx].ref_end+16;",
+                 "CamShot parser walks authored keyframe layout between pose ref tails");
+  ok &= contains(gameplay_c,
+                 "decode_camshot_shot_fields(body,size,cursor);",
+                 "CamShot parser decodes shot-level fields only after an authored key layout");
+  ok &= contains(gameplay_c,
+                 "constexprsize_tkShotCategoryOffset=30;",
+                 "CamShot shot-field decoder anchors the unaligned tail on the category symbol");
+  ok &= contains(gameplay_c,
+                 "constfloatnear_z=read_f32_at_unchecked(body,tail_off+"
+                 "kShotNearPlaneOffset);",
+                 "CamShot shot-field decoder preserves authored near plane");
+  ok &= contains(gameplay_c,
+                 "constfloatfar_z=read_f32_at_unchecked(body,tail_off+"
+                 "kShotFarPlaneOffset);",
+                 "CamShot shot-field decoder preserves authored far plane");
+  ok &= contains(gameplay_c,
+                 "constfloatfilter=read_f32_at_unchecked(body,filter_off);",
+                 "CamShot shot-field decoder reads filter immediately after category");
+  ok &= contains(gameplay_c,
+                 "key.key.forward[axis]=prev.key.forward[axis];"
+                 "key.key.up[axis]=prev.key.up[axis];",
+                 "neutral-basis CamShot keyframes inherit the previous authored basis");
+  ok &= contains(gameplay_c,
                  "if(has_non_neutral_pose){candidates.erase(",
-                 "CamShot parser keeps neutral-only shots but drops neutral scanner false positives");
+                 "CamShot fallback scanner still drops unlayouted neutral false positives");
   ok &= contains(gameplay_c,
                  "c.key.forward[i]=r[0][i];"
                  "c.key.up[i]=r[2][i];",
@@ -1880,12 +2109,35 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(target_count>0){",
                  "CamShot ref decoder treats an empty target array as an authored empty target");
+  ok &= contains(gameplay_h_c,
+                 "structTargetRef{std::stringentity;std::stringsubpart;};",
+                 "CameraKey has a typed CamShot target member ref");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<TargetRef>target_refs;",
+                 "CameraKey preserves the full CamShot target member list");
   ok &= contains(gameplay_c,
-                 "refs.parent_entity=std::move(parent_entity);"
-                 "refs.parent_subpart=std::move(parent_subpart);",
+                 "out.key.target_refs.push_back({std::move(entity),"
+                 "std::move(subpart)});",
+                 "CamShot ref decoder preserves every target member ref");
+  ok &= contains(gameplay_c,
+                 "sync_primary_camshot_target(out.key);",
+                 "CamShot ref decoder keeps the legacy primary target synced");
+  ok &= contains(gameplay_c,
+                 "saw_blank_target_ref&&out.key.parent_subpart.empty()",
+                 "blank CamShot target slots are recognized as source-parent fallbacks");
+  ok &= contains(gameplay_c,
+                 "out.key.parent_subpart=\"spot_neck_fret20.mesh\";",
+                 "blank CamShot target slots use the traced default source prop");
+  ok &= contains(gameplay_c,
+                 "if(key.parent_entity.empty()&&!key.parent_subpart.empty()){"
+                 "key.parent_entity=default_entity;}",
+                 "unqualified CamShot source parents inherit the hinted performer entity");
+  ok &= contains(gameplay_c,
+                 "out.key.parent_entity=std::move(parent_entity);"
+                 "out.key.parent_subpart=std::move(parent_subpart);",
                  "CamShot ref decoder preserves the separate camera parent field");
   ok &= contains(gameplay_c,
-                 "refs.use_parent_rotation=body[cursor]!=0;",
+                 "out.key.use_parent_rotation=body[cursor]!=0;",
                  "CamShot ref decoder preserves the keyframe use_parent_rotation byte");
   ok &= contains(gameplay_c,
                  "if(!c.key.camshot_refs_decoded){"
@@ -1909,9 +2161,7 @@ int main() {
                  "resolve_unqualified_camshot_target(c.shot,pos);",
                  "regular camera pose variants complete decoded unqualified target refs");
   ok &= contains(gameplay_c,
-                 "pos.parent_entity=c.key.parent_entity;"
-                 "pos.parent_subpart=c.key.parent_subpart;"
-                 "pos.use_parent_rotation=c.key.use_parent_rotation;",
+                 "copy_camshot_ref_fields(c.key,pos);",
                  "regular camera pose variants inherit fallback parent refs");
   ok &= contains(gameplay_c,
                  "structCameraTarget{std::array<float,16>world=",
@@ -1937,18 +2187,1334 @@ int main() {
                  "transform_vector_game(parent->world,key.forward)",
                  "camera parent source gates authored basis rotation by use_parent_rotation");
   ok &= contains(gameplay_c,
-                 "if(!key.target_entity.empty()){autoit=targets.find(",
-                 "camera target refs drive look-at before authored basis");
+                 "if(key.has_basis){constautoworld_forward="
+                 "(parent&&key.use_parent_rotation)?"
+                 "transform_vector_game(parent->world,key.forward)",
+                 "basis-bearing CamShots preserve decoded look direction before target fallback");
   ok &= contains(gameplay_c,
-                 "target_controls_up=it!=targets.end();",
-                 "targeted CamShots keep authored camera roll instead of performer-bone roll");
+                 "if(!key.target_entity.empty()||!key.target_refs.empty()){"
+                 "if(autocentroid=camera_target_centroid_for_key(key,targets))",
+                 "camera target ref centroid is the fallback when no authored orientation exists");
+  ok &= contains(gameplay_c,
+                 "PS20x00266e58resolveseveryCamShottarget/memberrefandaverages",
+                 "camera target centroid is tied to accepted PS2 member-list evidence");
+  ok &= contains(gameplay_c,
+                 "std::optional<CameraResultRows>"
+                 "camera_target_list_result_rows_for_key(",
+                 "camera result builder has a target-list result-row branch");
+  ok &= contains(gameplay_c,
+                 "CameraResultRowsrows="
+                 "camera_source_seed_result_rows_for_key(key,targets);",
+                 "target-list result rows start from the shared source seed rows");
+  ok &= contains(gameplay_c,
+                 "rows.source+=\"+target_list\";",
+                 "target-list result rows preserve source-seed provenance");
+  ok &= contains(gameplay_c,
+                 "if(autotarget_rows=camera_target_list_result_rows_for_key"
+                 "(key,targets))return*target_rows;",
+                 "submitted CamShot result rows use the traced target-list branch first");
+  ok &= contains(gameplay_c,
+                 "\"target_ref_count=a:%zub:%zutarget_refs=a:%sb:%s\"",
+                 "camera debug logs expose target-list member counts");
+  ok &= contains(gameplay_c,
+                 "\"target_centroid=a:(%.3f%.3f%.3f)\"",
+                 "camera debug logs expose target-list centroid positions");
+  ok &= contains(gameplay_c,
+                 "conststd::optional<CameraTarget>parent="
+                 "camera_parent_for_key(key,targets);",
+                 "camera up rotation is driven by the CamShot parent/source ref");
   ok &= contains(gameplay_c,
                  "if(key.has_basis){constautoworld_forward="
                  "(parent&&key.use_parent_rotation)?"
                  "transform_vector_game(parent->world,key.forward)",
                  "empty-target camera shots preserve decoded basis as look direction");
+  ok &= contains(gameplay_h_c,
+                 "floatduration_frames=0.0f;floatblend_frames=0.0f;"
+                 "floatblend_ease=0.0f;boolhas_timing=false;",
+                 "CameraKey preserves CamShot keyframe timing fields");
+  ok &= contains(gameplay_h_c,
+                 "std::stringcategory;floatshot_filter=0.0f;"
+                 "boolhas_shot_filter=false;floatclamp_height=0.0f;"
+                 "boolhas_clamp_height=false;",
+                 "CameraKey preserves CamShot category/filter/clamp fields");
+  ok &= contains(gameplay_h_c,
+                 "structCameraResultBuilderState{"
+                 "boolhas_filtered_target=false;"
+                 "std::array<float,3>filtered_target",
+                 "camera result builder keeps the PS2 carried target vector");
+  ok &= contains(gameplay_h_c,
+                 "CameraResultBuilderStatecamera_result_builder_state_;",
+                 "gameplay owns persistent PS2 camera result-builder state");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::array<float,16>>"
+                 "venue_camera_target_worlds_;",
+                 "venue camera diagnostics keep venue transforms separate from performer targets");
+  ok &= contains(gameplay_h_c,
+                 "floatnear_plane=0.0f;floatfar_plane=0.0f;"
+                 "boolhas_clip_planes=false;",
+                 "CameraKey preserves CamShot authored clip planes");
+  ok &= contains(gameplay_h_c,
+                 "booluse_depth_of_field=false;"
+                 "boolhas_use_depth_of_field=false;"
+                 "floatselection_weight=0.0f;"
+                 "boolhas_selection_weight=false;"
+                 "floatpath_ease=0.0f;boolhas_path_ease=false;"
+                 "std::stringsource_ref;"
+                 "boolcamshot_shot_fields_decoded=false;",
+                 "CameraKey preserves remaining CamShot shot-level fields including source refs");
   ok &= contains(gameplay_c,
-                 "previous->name!=current.name",
+                 "boolcamshot_source_ref_plausible(std::string_viewref)",
+                 "CamShot source refs are decoded by a shared plausibility helper");
+  ok &= contains(gameplay_c,
+                 "out.source_ref=hit.value;",
+                 "CamShot shot-field decoder preserves trailing source refs");
+  ok &= contains(gameplay_c,
+                 "if(!category_off_opt||!category_offset_valid"
+                 "(*category_off_opt)){",
+                 "CamShot shot-field decoder falls back to packed tail categories");
+  ok &= contains(gameplay_c,
+                 "std::optional<CamshotShotFields>"
+                 "decode_camshot_category_tail_fields(",
+                 "large TransAnim path CamShots keep category/filter/source tails");
+  ok &= contains(gameplay_c,
+                 "autoshot_gap_plausible=[&](size_tbegin,size_tend)",
+                 "path CamShot category-tail recovery permits packed path strings between clip fields and category");
+  ok &= contains(gameplay_c,
+                 "for(size_tblock=scan_begin;block+21<=category_off;++block)",
+                 "path CamShot category-tail recovery scans for the packed shot-field block before category");
+  ok &= contains(gameplay_c,
+                 "if(!shot_gap_plausible(block+21,category_off))continue;",
+                 "path CamShot category-tail recovery rejects non-string gaps before category");
+  ok &= contains(gameplay_c,
+                 "if(packed_block){out.clamp_height=packed_block->clamp;",
+                 "path CamShot category-tail recovery restores clamp and clip fields from the packed block");
+  ok &= contains(gameplay_c,
+                 "if(c.key.has_path_anim&&!c.key.camshot_shot_fields_decoded){"
+                 "if(autofields=decode_camshot_category_tail_fields",
+                 "path-backed CamShots recover shot-field tails outside compact key layout");
+  ok &= contains(gameplay_c,
+                 "key.source_ref=fields.source_ref;",
+                 "CamShot source refs are copied into CameraKey shot fields");
+  ok &= contains(gameplay_c,
+                 "to.source_ref=from.source_ref;",
+                 "TransAnim-backed camera keys inherit source refs");
+  ok &= contains(gameplay_c,
+                 "source_ref=%s",
+                 "regular CamShot logs expose decoded source refs");
+  ok &= contains(gameplay_h_c,
+                 "std::stringpath_anim;boolhas_path_anim=false;",
+                 "CameraKey preserves authored CamShot TransAnim path refs");
+  ok &= contains(gameplay_h_c,
+                 "floatpath_base_eye[3]={};"
+                 "floatpath_base_forward[3]={0.0f,1.0f,0.0f};"
+                 "floatpath_base_up[3]={0.0f,0.0f,1.0f};"
+                 "boolhas_path_base_pose=false;",
+                 "CameraKey can retain the owning CamShot pose beside path keys");
+  ok &= contains(gameplay_h_c,
+                 "floatgenerated_source_position[3]={};"
+                 "floatgenerated_source_forward[3]={0.0f,1.0f,0.0f};"
+                 "floatgenerated_source_up[3]={0.0f,0.0f,1.0f};"
+                 "boolhas_generated_source_rows=false;",
+                 "CameraKey can carry the PS2 generated camera source object rows");
+  ok &= contains(gameplay_c,
+                 "std::stringcamshot_path_anim_ref(",
+                 "regular CamShot loader extracts documented .tnm path refs");
+  ok &= contains(gameplay_c,
+                 "c.key.path_anim=path_anim;c.key.has_path_anim="
+                 "!path_anim.empty();",
+                 "regular CamShot keys retain path-ref ownership");
+  ok &= contains(gameplay_c,
+                 "load_camera_position_keys(hdr_path,ark_path,venue,"
+                 "c.key.path_anim)",
+                 "regular CamShot paths reuse the shared TransAnim camera loader");
+  ok &= contains(gameplay_c,
+                 "copy_camshot_runtime_fields(c.key,path_pos);",
+                 "path-backed camera keys inherit CamShot runtime metadata");
+  ok &= contains(gameplay_c,
+                 "path_pos.path_base_eye[axis]=path_base_pose.eye[axis];",
+                 "path-backed camera diagnostics retain the owning CamShot body pose");
+  ok &= contains(gameplay_c,
+                 "if(path_pos.parent_entity.empty()){"
+                 "populate_camera_generated_source_rows(path_pos);}",
+                 "parentless path-backed TransAnim camera keys populate generated source rows");
+  ok &= contains(gameplay_c,
+                 "returnslerp_quat_xyzw(qa,qb,t);",
+                 "path-backed TransAnim camera rotations are sampled by quaternion interpolation");
+  ok &= contains(gameplay_c,
+                 "structured_transanim_position_run",
+                 "path-backed TransAnim camera positions prefer the structured PS2 track layout");
+  ok &= contains(gameplay_c,
+                 "\"[camera-path]anim=%sstructuredrot_count_off=0x%zX\"",
+                 "camera path diagnostics expose structured TransAnim track offsets");
+  ok &= contains(gameplay_c,
+                 "voidpopulate_camera_generated_source_rows"
+                 "(Gameplay::CameraKey&key)",
+                 "camera generated source rows are derived through a shared helper");
+  ok &= contains(gameplay_c,
+                 "\"[world]regularCamShotpath%sanim=%skeys=%zu\\n\"",
+                 "regular CamShot path bridge logs accepted path loads");
+  ok &= contains(gameplay_c,
+                 "std::array<float,2>camshot_result_screen_norm_for_offset"
+                 "(floatx,floaty){return{(x+1.0f)*0.5f,"
+                 "(1.0f-y)*0.5f};}",
+                 "PS2 camera result-builder screen target normalization is explicit");
+  ok &= contains(gameplay_c,
+                 "boolcamera_apply_screen_offset_to_result_rows("
+                 "CameraResultRows&rows,constGameplay::CameraKey&key)",
+                 "camera result rows apply traced screen-offset aim correction");
+  ok &= contains(gameplay_c,
+                 "boolcamera_apply_clamp_height_to_result_rows("
+                 "CameraResultRows&rows,constGameplay::CameraKey&key,"
+                 "conststd::unordered_map<std::string,CameraTarget>&targets)",
+                 "camera result rows apply traced single-target clamp_height");
+  ok &= contains(gameplay_c,
+                 "if(ref_count!=1u)returnfalse;",
+                 "camera clamp_height follows the one-target PS2 branch gate");
+  ok &= contains(gameplay_c,
+                 "constfloatclamped_z=target_pos[2]+key.clamp_height;",
+                 "camera clamp_height uses target world z plus authored offset");
+  ok &= contains(gameplay_c,
+                 "rows.position[2]=clamped_z;"
+                 "rows.source+=\"+clamp_height\";",
+                 "camera clamp_height mutates source position and labels provenance");
+  ok &= contains(gameplay_c,
+                 "rows.forward[0]-rows.right[0]*key.screen_offset[0]*tan_x-"
+                 "rows.up[0]*key.screen_offset[1]*tan_y",
+                 "screen offset correction adjusts submitted result forward vector");
+  ok &= contains(gameplay_c,
+                 "floatcamera_result_builder_shot_filter_step(",
+                 "camera result rows consume the traced s3+52 shot filter branch");
+  ok &= contains(gameplay_c,
+                 "returnstd::clamp(key.shot_filter*projected_delta,0.0f,1.0f);",
+                 "camera shot_filter is scaled by the clamped projected target delta");
+  ok &= contains(gameplay_c,
+                 "state->filtered_target[axis]=state->filtered_target[axis]*old_weight+"
+                 "target[axis]*filter_step;",
+                 "camera shot_filter blends the carried target toward the current target");
+  ok &= contains(gameplay_c,
+                 "std::optional<CameraResultRows>"
+                 "camera_target_list_result_rows_from_seed(",
+                 "camera target-list rows can run from an already blended source seed");
+  ok &= contains(gameplay_c,
+                 "std::map<std::string,std::array<float,16>>"
+                 "build_venue_camera_target_worlds(",
+                 "venue camera diagnostics build source-parent candidates from decoded venue geometry");
+  ok &= contains(gameplay_c,
+                 "out[\"crowd_group_centroid\"]="
+                 "camera_target_world_at_position(crowd_sum);",
+                 "PS2 crowd source-parent diagnostic has an aggregate crowd-group candidate");
+  ok &= contains(gameplay_c,
+                 "merge_venue_camera_target_worlds("
+                 "venue_camera_target_worlds_,venue_chars_scene_);",
+                 "venue camera source target map includes the retained venue character/crowd scene");
+  ok &= contains(gameplay_c,
+                 "add_target(crowd.name+\"_placement_centroid\","
+                 "centroid_world);",
+                 "decoded WorldCrowd placements expose a generic camera diagnostic centroid");
+  ok &= contains(gameplay_c,
+                 "add_target(crowd.name+\"_placement_\"+",
+                 "decoded WorldCrowd placements expose individual diagnostic source targets");
+  ok &= contains(gameplay_c,
+                 "add_target(crowd.name+\"_area_local_placement_\"+",
+                 "WorldCrowd diagnostics expose area-local placement targets");
+  ok &= contains(gameplay_c,
+                 "camera_path_source_parent_candidate_rows_for_key(",
+                 "path-backed camera diagnostics can compose source rows through a venue parent");
+  ok &= contains(gameplay_c,
+                 "camera_path_source_delta_candidate_rows_for_key(",
+                 "path-backed camera diagnostics can compare PS2 path/source delta rows");
+  ok &= contains(gameplay_c,
+                 "CameraResultRowscamera_world_copy_candidate_rows(",
+                 "camera diagnostics can copy PS2-style world transform rows");
+  ok &= contains(gameplay_c,
+                 "camera_member_world_copy_candidate_rows_for_key(",
+                 "camera diagnostics can compare PS2 member-resolved world rows");
+  ok &= contains(gameplay_c,
+                 "camera_source_ref_world_copy_candidate_rows(",
+                 "camera diagnostics can compare decoded source-ref world rows");
+  ok &= contains(gameplay_c,
+                 "conststd::map<std::string,std::array<float,16>>*"
+                 "venue_targets=nullptr",
+                 "venue source-parent diagnostics are passed separately from live camera targets");
+  ok &= contains(gameplay_c,
+                 "camera_entity_only_target_alias_centroid(",
+                 "entity-only CamShot target diagnostics can compare documented member aliases");
+  ok &= contains(gameplay_c,
+                 "camera_entity_only_target_alias_world_copy_candidate_rows_for_key(",
+                 "entity-only CamShot target diagnostics can compare direct alias world-copy rows");
+  ok &= contains(gameplay_c,
+                 "camera_nearest_worldcrowd_placement_ref(",
+                 "crowd-authored camera diagnostics can select the nearest decoded WorldCrowd placement");
+  ok &= contains(gameplay_c,
+                 "camera_path_source_parent_nearest_worldcrowd_candidate_rows_for_key(",
+                 "path-backed camera diagnostics can compose through a nearest WorldCrowd placement");
+  ok &= contains(gameplay_c,
+                 "camera_nearest_worldcrowd_area_local_placement_ref(",
+                 "crowd-authored camera diagnostics can select the nearest area-local WorldCrowd placement");
+  ok &= contains(gameplay_c,
+                 "camera_path_source_parent_nearest_worldcrowd_area_local_candidate_rows_for_key(",
+                 "path-backed camera diagnostics can compose through a nearest area-local WorldCrowd placement");
+  ok &= contains(gameplay_c,
+                 "camera_nearest_worldcrowd_actor_source_ref(",
+                 "crowd-authored camera diagnostics can select the nearest decoded actor source");
+  ok &= contains(gameplay_c,
+                 "camera_worldcrowd_nearest_face_actor_source_world_copy_candidate_rows(",
+                 "camera diagnostics can copy the nearest WorldCrowd.rotate actor-source rows");
+  ok &= contains(gameplay_c,
+                 "camera_path_source_parent_nearest_worldcrowd_face_actor_source_candidate_rows_for_key(",
+                 "path-backed camera diagnostics can compose through a WorldCrowd.rotate actor source");
+  ok &= contains(gameplay_c,
+                 "merge_worldcrowd_actor_source_targets(",
+                 "WorldCrowd diagnostics can compose area-local placements with decoded actor source transforms");
+  ok &= contains(gameplay_c,
+                 "\"char/crowd/og/gen/\"+std::string(actor_name)+\".milo_ps2\"",
+                 "WorldCrowd actor source diagnostics resolve stock crowd actor MILOs generically");
+  ok &= contains(gameplay_c,
+                 "mat4_mul_game(xfm_to_mat4(source.world_stored),"
+                 "area_local_world)",
+                 "WorldCrowd actor source diagnostics compose decoded source transforms through area-local placements");
+  ok &= contains(gameplay_c,
+                 "worldcrowd_actor_main_milo_candidates(",
+                 "WorldCrowd actor animation diagnostics resolve the authored main.drv clip set");
+  ok &= contains(gameplay_c,
+                 "driver_milo_candidates_game(actor_milo,driver.clip_milo)",
+                 "WorldCrowd actor animation diagnostics follow driver-authored MILO refs");
+  ok &= contains(gameplay_c,
+                 "worldcrowd_clip_frame_at_time(*actor_clip,"
+                 "sample_time_seconds)",
+                 "WorldCrowd actor animation diagnostics sample clips from an explicit runtime time");
+  ok &= contains(gameplay_c,
+                 "apply_clip_frame(*actor_clip,sample_frame,sampled)",
+                 "WorldCrowd actor animation diagnostics use the shared CharClip frame applier");
+  ok &= contains(gameplay_h_c,
+                 "venue_chars_scene_;",
+                 "Gameplay retains the decoded venue chars scene for live WorldCrowd source refresh");
+  ok &= contains(gameplay_h_c,
+                 "worldcrowd_actor_clips_;",
+                 "Gameplay caches decoded WorldCrowd actor clips instead of reloading them per frame");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,WorldCrowdActorRuntime>"
+                 "worldcrowd_actor_runtime_;",
+                 "Gameplay owns a rendered WorldCrowd actor runtime cache");
+  ok &= contains(gameplay_c,
+                 "rebuild_worldcrowd_actor_runtime(win);",
+                 "venue load promotes decoded WorldCrowd actors into the render runtime");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "worldcrowd_actor_milo_path(set.actor_name)",
+                 "WorldCrowd runtime resolves the authored crowd actor MILO generically");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "worldcrowd_actor_main_milo_candidates(*actor_path,"
+                 "character)",
+                 "WorldCrowd runtime uses driver-authored crowd animation MILOs");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "runtime.renderer->set_character(std::move(character),"
+                 "textures);",
+                 "WorldCrowd runtime renders decoded crowd Character assets");
+  ok &= contains(gameplay_c,
+                 "if(basis&&std::strcmp(basis,\"placement\")==0)returnfalse;"
+                 "returntrue;",
+                 "WorldCrowd runtime defaults to the source-backed area-local actor basis");
+  ok &= contains(gameplay_c,
+                 "apply_worldcrowd_actor_mesh_visibility(",
+                 "WorldCrowd runtime applies clip-named crowd mesh variant visibility");
+  ok &= contains(gameplay_c,
+                 "worldcrowd_actor_near_source_cull_radius(",
+                 "WorldCrowd runtime derives near-source render culling from decoded actor rows");
+  ok &= contains(gameplay_c,
+                 "constfloatradius=actor.params[2];",
+                 "WorldCrowd near-source render culling uses the small decoded actor radius field");
+  ok &= contains(gameplay_h_c,
+                 "floatnear_source_cull_radius=0.0f;",
+                 "WorldCrowd actor runtime stores the decoded near-source cull radius");
+  ok &= contains(gameplay_h_c,
+                 "floatvisible_bounds_radius=0.0f;",
+                 "WorldCrowd actor runtime stores visible actor bounds for near-source culling");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,ghogx::character::CharClip>"
+                 "clips_by_group;",
+                 "WorldCrowd actor runtime stores DTA play_group clips");
+  ok &= contains(gameplay_h_c,
+                 "std::stringactive_group;",
+                 "WorldCrowd actor runtime tracks the active DTA play_group");
+  ok &= contains(gameplay_h_c,
+                 "floatfullness_fraction=1.0f;",
+                 "WorldCrowd actor runtime tracks DTA set_fullness density");
+  ok &= contains(gameplay_c,
+                 "worldcrowd_actor_visible_bounds_radius(",
+                 "WorldCrowd runtime derives the body-radius part of near-source culling from visible decoded meshes");
+  ok &= contains(gameplay_c,
+                 "worldcrowd_clip_group_for_event(",
+                 "WorldCrowd runtime maps native excitement to DTA crowd play_group names");
+  ok &= contains(gameplay_c,
+                 "worldcrowd_fullness_for_event(",
+                 "WorldCrowd runtime maps native excitement to DTA set_fullness fractions");
+  ok &= contains(gameplay_c,
+                 "worldcrowd_placement_visible_by_fullness(",
+                 "WorldCrowd runtime applies DTA set_fullness through camera-near placement selection");
+  ok &= contains(gameplay_c,
+                 "std::stable_sort(ranked.begin(),ranked.end()",
+                 "WorldCrowd fullness selection preserves nearest silhouettes deterministically");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "runtime.placement_worlds,eye,runtime.fullness_fraction",
+                 "WorldCrowd draw evaluates DTA fullness against the active camera eye");
+  ok &= contains(gameplay_c,
+                 "venue_camera_crowd_face_camera_?worldcrowd_face_camera_source_world("
+                 "placement_world,camera_ref):placement_world",
+                 "3D WorldCrowd actors honor the authored CamShot crowd_face_camera yaw path");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "apply_worldcrowd_actor_mesh_visibility(character,clip.name);",
+                 "WorldCrowd actor mesh variants are resolved before renderer upload");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "load_char_clip_group(hdr_path_,ark_path_,main_milos,"
+                 "group_name)",
+                 "WorldCrowd runtime resolves authored DTA main.drv play_group clip sets");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "runtime.clips_by_group=std::move(clips_by_group);",
+                 "WorldCrowd runtime stores decoded play_group clips after load");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "runtime.fullness_fraction=worldcrowd_fullness_for_event("
+                 "active_venue_event_);",
+                 "WorldCrowd runtime initializes DTA crowd fullness from the active event");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "runtime.visible_bounds_radius=visible_bounds_radius;",
+                 "WorldCrowd runtime records visible actor bounds before renderer ownership transfer");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "runtime->near_source_cull_radius="
+                 "worldcrowd_actor_near_source_cull_radius(crowd,set.actor_name);",
+                 "WorldCrowd runtime assigns actor-table near-source cull radii per placement set");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "culled_near_source",
+                 "WorldCrowd draw skips actors whose decoded source radius contains the active camera");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "culled_fullness",
+                 "WorldCrowd draw skips placements above the active DTA fullness fraction");
+  ok &= contains(update_worldcrowd_runtime_c,
+                 "runtime.fullness_fraction=worldcrowd_fullness_for_event("
+                 "active_venue_event_);",
+                 "WorldCrowd runtime updates DTA fullness when song excitement changes");
+  ok &= contains(update_worldcrowd_runtime_c,
+                 "runtime.clips_by_group.find(desired_group)",
+                 "WorldCrowd runtime switches authored play_group clips when excitement changes");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "use_area_local_basis?area_local_world:placement_world",
+                 "WorldCrowd runtime can fall back to raw placements as an explicit diagnostic basis");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "mat4_mul_game(placement_world,area_world_inv)",
+                 "WorldCrowd runtime composes decoded placements into the accepted area-local source basis");
+  ok &= contains(update_worldcrowd_runtime_c,
+                 "runtime.player.sampled_pose()",
+                 "WorldCrowd runtime samples actor clips every gameplay frame");
+  ok &= contains(update_worldcrowd_runtime_c,
+                 "apply_clip_channel_layers(",
+                 "WorldCrowd runtime uses the shared character clip mixer");
+  ok &= contains(update_worldcrowd_runtime_c,
+                 "apply_character_controllers(",
+                 "WorldCrowd runtime applies shared character controllers after clip sampling");
+  ok &= contains(char_renderer_h_c,
+                 "set_use_scene_lighting(boolenabled);",
+                 "character renderer exposes a venue scene-lighting mode");
+  ok &= contains(char_renderer_h_c,
+                 "set_color_modulation(floatr,floatg,floatb,floata=1.0f);",
+                 "character renderer exposes shared color modulation for symbolic lighting rigs");
+  ok &= contains(char_renderer_c,
+                 "material->color[0]*impl.color_mod[0]",
+                 "character renderer applies color modulation to material diffuse colors");
+  ok &= contains(char_renderer_c,
+                 "D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_COLOR1",
+                 "character renderer routes vertex diffuse modulation through fixed-function lighting");
+  ok &= contains(char_renderer_c,
+                 "D3DRS_AMBIENTMATERIALSOURCE,D3DMCS_COLOR1",
+                 "character renderer routes vertex ambient modulation through fixed-function lighting");
+  ok &= contains(char_renderer_c,
+                 "if(!impl.use_scene_lighting){",
+                 "scene-lighting character composites do not install standalone viewer lights");
+  ok &= contains(char_renderer_c,
+                 "impl.use_scene_lighting?FALSE:(eye_mesh?FALSE:TRUE)",
+                 "scene-lighting character composites use symbolic vertex color instead of overriding it with D3D mesh lights");
+  ok &= contains(char_renderer_c,
+                 "char_env_float_or(\"GHOGX_CAMERA_ASPECT\","
+                 "backbuffer_aspect,0.5f,3.0f)",
+                 "character renderer composites use the same PS2 camera aspect override as venue geometry");
+  ok &= contains(char_renderer_c,
+                 "result_at[k]=cam.result_frame.position[k]+"
+                 "cam.result_frame.forward[k]*100.0f;",
+                 "character renderer composites aim through PS2 result-frame forward when present");
+  ok &= contains(char_renderer_c,
+                 "up=cam.result_frame.up;",
+                 "character renderer composites use PS2 result-frame up vector when present");
+  ok &= contains(char_renderer_c,
+                 "proj.m[2][0]+=cam.screen_offset[0]*"
+                 "kScreenOffsetToClip;",
+                 "character renderer composites apply CamShot screen offset like venue geometry");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "runtime.renderer->set_use_scene_lighting(true);",
+                 "WorldCrowd actors inherit venue lighting instead of standalone viewer lighting");
+  ok &= contains(update_worldcrowd_lighting_c,
+                 "is_performer_or_crowd_lit_ref(ref)||"
+                 "is_performer_or_crowd_env_ref(ref)",
+                 "WorldCrowd lighting reads active symbolic performer/crowd rig refs");
+  ok &= contains(update_worldcrowd_lighting_c,
+                 "venue_excitement_level(active_venue_event_)",
+                 "WorldCrowd lighting follows the authored excitement state");
+  ok &= contains(update_worldcrowd_lighting_c,
+                 "runtime.renderer->set_color_modulation(mod_r,mod_g,mod_b,"
+                 "1.0f);",
+                 "WorldCrowd actors receive the active symbolic lighting color");
+  ok &= contains(update_worldcrowd_lighting_c,
+                 "has_tone(\"bad\")||has_tone(\"grim\")||"
+                 "has_low_symbolic_rig",
+                 "WorldCrowd lighting tints decoded low/bad symbolic rigs from PS2 labels");
+  ok &= contains(gameplay_c,
+                 "lighting_spot_exposure_for_event(active_venue_event_);",
+                 "lighting spot overlays are exposure-scaled by the authored venue excitement state");
+  ok &= contains(gameplay_c,
+                 "out.intensity*=spotlight_exposure;",
+                 "decoded spotlight target activation is preserved while low-excitement additive overlays are dimmed");
+  ok &= contains(gameplay_h_c,
+                 "composed_venue_material_alpha()const;",
+                 "gameplay exposes a composed venue material-alpha map");
+  ok &= contains(gameplay_c,
+                 "is_excitement_scaled_venue_highlight_material(material,"
+                 "meshes)",
+                 "low-excitement venue exposure applies to authored floor/crowd highlight materials");
+  ok &= contains(gameplay_c,
+                 "authored_alpha*exposure",
+                 "venue highlight exposure preserves decoded material alpha before scaling");
+  ok &= contains(gameplay_c,
+                 "world_->set_material_alpha_multipliers("
+                 "composed_venue_material_alpha());",
+                 "world renderer receives composed venue material alpha rather than raw route state");
+  ok &= contains(gameplay_h_c,
+                 "composed_lighting_material_alpha()const;",
+                 "gameplay exposes a composed lighting-overlay material-alpha map");
+  ok &= contains(gameplay_h_c,
+                 "lighting_material_meshes_;",
+                 "gameplay indexes lighting overlay materials by decoded mesh");
+  ok &= contains(gameplay_c,
+                 "lighting_material_meshes_[mesh.material].push_back("
+                 "mesh.name);",
+                 "lighting overlay material exposure is backed by decoded mesh ownership");
+  ok &= contains(gameplay_c,
+                 "lighting_->set_material_alpha_multipliers("
+                 "composed_lighting_material_alpha());",
+                 "lighting renderer receives composed material alpha rather than raw route state");
+  ok &= contains(gameplay_c,
+                 "if(lighting_){lighting_->set_material_alpha_multipliers("
+                 "composed_lighting_material_alpha());}",
+                 "venue excitement changes repush composed material alpha to the lighting overlay");
+  ok &= contains(gameplay_c,
+                 "update_lighting_spotlight_renderer();"
+                 "update_worldcrowd_actor_lighting();"
+                 "draw_worldcrowd_actor_runtime(world_->camera());",
+                 "WorldCrowd actors draw after active lighting preset/keyframe selection and before the lighting overlay");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "runtime.renderer->draw_over_scene(cam);",
+                 "WorldCrowd runtime composites decoded actor geometry into the venue");
+  ok &= contains(gameplay_c,
+                 "refresh_worldcrowd_actor_source_targets_for_camera();",
+                 "camera evaluation refreshes WorldCrowd actor-source targets at the current song time");
+  ok &= contains(refresh_worldcrowd_sources_c,
+                 "if(!venue_chars_scene_loaded_)return;",
+                 "WorldCrowd source refresh is available outside debug logging");
+  ok &= contains(refresh_worldcrowd_sources_c,
+                 "constbooldebug_camera=debug_camera_enabled();",
+                 "WorldCrowd source refresh keeps debug logging separate from sampling");
+  ok &= contains(refresh_worldcrowd_sources_c,
+                 "canonical_milo_ref(key.source_ref)==\"crowd\"",
+                 "WorldCrowd source refresh is gated by authored crowd source refs when debug is off");
+  ok &= absent(refresh_worldcrowd_sources_c,
+               "!debug_camera_enabled()||!venue_chars_scene_loaded_",
+               "WorldCrowd source refresh must not disappear when camera debug logging is off");
+  ok &= contains(gameplay_c,
+                 "\"[world]WorldCrowdliveactorsourcesamplet=%.3f",
+                 "WorldCrowd live source refresh has an evidence-gated native validation log");
+  ok &= contains(gameplay_h_c,
+                 "last_worldcrowd_actor_source_probe_log_time_",
+                 "WorldCrowd live source probe logs are throttled during native validation");
+  ok &= contains(gameplay_c,
+                 "\"_area_local_actor_anim_source_\"",
+                 "WorldCrowd actor animation diagnostics keep evaluated source rows separate from static source rows");
+  ok &= contains(gameplay_c,
+                 "worldcrowd_projected_axis_source_world(",
+                 "WorldCrowd source diagnostics can project decoded basis rows into PS2-style Z-up yaw probes");
+  ok &= contains(gameplay_c,
+                 "\"_area_local_actor_flat_source_\"",
+                 "WorldCrowd static projected-axis diagnostics use a non-overlapping target prefix");
+  ok &= contains(gameplay_c,
+                 "\"_area_local_actor_parent_flat_source_\"",
+                 "WorldCrowd parent projected-axis diagnostics use a non-overlapping target prefix");
+  ok &= contains(gameplay_c,
+                 "\"_area_local_actor_anim_flat_source_\"",
+                 "WorldCrowd animated projected-axis diagnostics use a non-overlapping target prefix");
+  ok &= absent(gameplay_c,
+               "\"_area_local_actor_source_flat_\"",
+               "projected-axis diagnostics must not overlap the live actor-source selector prefix");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_SOURCE_PROBE",
+                 "camera source probe stays an explicit diagnostic validation hook");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_SOURCE_PROBE_FORWARD",
+                 "camera source axis probe stays an explicit diagnostic validation hook");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_PATH_SOURCE_PROBE",
+                 "camera relocation probe requires an explicit retained PS2 path-source row");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_PROBE",
+                 "camera source-record diagnostics can use the retained PS2 owner transform row");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_SOURCE_RECORD_MEMBER",
+                 "camera source-record diagnostics can use the retained PS2 member symbol");
+  ok &= contains(gameplay_h_c,
+                 "structSourceRecordHint{std::stringsource_ref;",
+                 "CameraKey carries a typed PS2 source-record hint beside decoded CamShot refs");
+  ok &= contains(gameplay_h_c,
+                 "boolhas_ps2_source_record=false;",
+                 "CameraKey can distinguish decoded source-record hints from absent source-record data");
+  ok &= contains(gameplay_c,
+                 "sync_camshot_source_record_hint(",
+                 "CamShot decode syncs source-record hints from decoded source refs and members");
+  ok &= contains(gameplay_c,
+                 "key.has_ps2_source_record&&"
+                 "!key.ps2_source_record.member.empty()",
+                 "camera source-record diagnostics prefer decoded CamShot member hints over env-only probes");
+  ok &= contains(gameplay_c,
+                 "camera_source_record_member_table_for_keys(",
+                 "camera source-record diagnostics build a native member table from decoded regular CamShots");
+  ok &= contains(gameplay_c,
+                 "camera_source_record_member_table_for_key_context(",
+                 "camera source-record diagnostics can scope member tables to the active source/category");
+  ok &= contains(gameplay_c,
+                 "if(!context.category.empty()){if(candidate.category.empty())"
+                 "returnfalse;",
+                 "active source-record member table rejects candidates without matching category context");
+  ok &= contains(gameplay_c,
+                 "canonical_milo_ref(candidate.category)!="
+                 "canonical_milo_ref(context.category)",
+                 "active source-record member table filters decoded CamShots by category");
+  ok &= contains(gameplay_c,
+                 "\"[camera-source-record]tablecontextshot=%scategory=%s"
+                 "source=%smembers=%zuendpoint=a\\n\"",
+                 "camera debug logs expose the active source-record table context");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_source_record_members_actor_source_world_copy_candidate_rows(",
+                 "camera source-record diagnostics can rank a decoded member table against retained PS2 owner rows");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_source_record_sibling_actor_source_world_copy_candidate_rows(",
+                 "camera source-record diagnostics can rank sibling source transforms under a PS2 owner/member actor placement");
+  ok &= contains(gameplay_c,
+                 "\"ps2_source_record_context_actor_source_world_copy_candidate\",0.0f",
+                 "camera source-record context diagnostics isolate source/axis scoring from owner-root proximity");
+  ok &= contains(gameplay_c,
+                 "if(source_probe&&source_probe_forward){"
+                 "ps2_source_record_context_actor_source_world_copy_candidate",
+                 "explicit PS2 source-record context rows require retained source position and axis inputs");
+  ok &= contains(gameplay_c,
+                 "log_camera_source_axis_probe(",
+                 "camera source probes can rank WorldCrowd candidate axes against a retained PS2 forward row");
+  ok &= contains(gameplay_c,
+                 "log_camera_source_pose_probe(",
+                 "camera source probes can rank WorldCrowd candidates by retained PS2 position and forward row together");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_SOURCE_POSE_ANGLE_WEIGHT",
+                 "camera source pose probe keeps the distance/angle tradeoff explicit for validation");
+  ok &= contains(gameplay_c,
+                 "\"[camera-source-pose-probe]prefix=%.*s",
+                 "camera source pose probe emits trace-comparable combined source rows");
+  ok &= contains(gameplay_c,
+                 "camera_pose_ranked_worldcrowd_actor_source_ref(",
+                 "camera diagnostics can select a WorldCrowd actor source by retained PS2 position and forward row together");
+  ok &= contains(gameplay_c,
+                 "camera_relocation_ranked_worldcrowd_actor_source_ref(",
+                 "camera diagnostics can rank WorldCrowd actor sources by retained PS2 path-to-builder relocation");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_RELOCATION_BUILDER_WEIGHT",
+                 "camera relocation probe keeps the builder-position tie-break explicit for validation");
+  ok &= contains(gameplay_c,
+                 "camera_worldcrowd_probe_pose_actor_source_world_copy_candidate_rows(",
+                 "camera diagnostics can emit explicit trace-pose ranked WorldCrowd source rows");
+  ok &= contains(gameplay_c,
+                 "camera_worldcrowd_relocation_delta_actor_source_world_copy_candidate_rows(",
+                 "camera diagnostics can emit explicit path-source to builder-source relocation rows");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_source_record_member_actor_source_world_copy_candidate_rows(",
+                 "camera diagnostics can rank WorldCrowd actor sources by PS2 owner/member source records");
+  ok &= contains(gameplay_c,
+                 "score_prefix(\"_area_local_actor_anim_flat_source_\");",
+                 "PS2 source-record diagnostics include evaluated animated WorldCrowd source rows");
+  ok &= contains(gameplay_c,
+                 "trailing_digit_stripped",
+                 "PS2 source-record diagnostics can compare numbered performer members against generic crowd rig members");
+  ok &= contains(gameplay_c,
+                 "member=%s",
+                 "PS2 source-record diagnostics log the native member name selected by normalization");
+  ok &= contains(gameplay_c,
+                 "owner_ref=%s)",
+                 "PS2 source-record diagnostics log the native owner/root row used for member resolution");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_SOURCE_RECORD_RANKS",
+                 "PS2 source-record diagnostics can opt into ranked candidate rows");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_WEIGHT",
+                 "PS2 source-record diagnostics can isolate owner-root scoring from source-pose scoring");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_SOURCE_RECORD_SIBLING_RANKS",
+                 "PS2 source-record sibling diagnostics can opt into ranked candidate rows");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_SOURCE_RECORD_OWNER_FAMILY",
+                 "PS2 source-record sibling diagnostics can compare owner-root coordinate families");
+  ok &= contains(gameplay_c,
+                 "actor.rfind(crowd_actor_prefix,0)==0",
+                 "PS2 source-record owner diagnostics do not double-prefix crowd actor placement refs");
+  ok &= contains(gameplay_c,
+                 "add_actor_owner_target(set.actor_name+\"_area_local\"",
+                 "WorldCrowd actor-source target build publishes actor-specific area-local owner placement rows");
+  ok &= contains(gameplay_c,
+                 "owner_actor_from_source_actor(",
+                 "PS2 source-record owner diagnostics strip flat-source axis prefixes before owner placement lookup");
+  ok &= contains(gameplay_c,
+                 "\"[camera-source-record-probe]source=%srank=%zu",
+                 "PS2 source-record diagnostics expose ranked owner/source/member candidates");
+  ok &= contains(gameplay_c,
+                 "\"[camera-source-record-sibling-probe]source=%srank=%zu",
+                 "PS2 source-record diagnostics expose sibling source candidates under resolved actor placements");
+  ok &= contains(gameplay_c,
+                 "owner_family=%s",
+                 "PS2 source-record sibling diagnostics log the selected owner coordinate family");
+  ok &= contains(gameplay_c,
+                 "actor_world_owner=%.3f",
+                 "PS2 source-record sibling diagnostics report world-space owner distances beside area-local owner distances");
+  ok &= contains(gameplay_c,
+                 "camera_relocation_ranked_member_target_ref(",
+                 "camera diagnostics can rank PS2 hinted member targets by retained path-to-builder relocation");
+  ok &= contains(gameplay_c,
+                 "camera_relocation_ranked_any_member_target_ref(",
+                 "camera diagnostics can rank all loaded member targets by retained path-to-builder relocation");
+  ok &= contains(gameplay_c,
+                 "camera_member_relocation_delta_target_world_copy_candidate_rows_for_key(",
+                 "camera diagnostics can emit explicit PS2 member-entry relocation rows");
+  ok &= contains(gameplay_c,
+                 "camera_all_member_relocation_delta_target_world_copy_candidate_rows(",
+                 "camera diagnostics can emit all-member PS2 relocation rows without key-scope filtering");
+  ok &= contains(gameplay_h_c,
+                 "size_tcamshot_shot_tail_offset=0;",
+                 "regular CamShot decode keeps the raw source-tail offset for PS2 source-object diagnostics");
+  ok &= contains(gameplay_c,
+                 "log_camshot_source_tail_diagnostic(",
+                 "camera diagnostics log raw CamShot source-tail strings and object arrays");
+  ok &= contains(gameplay_c,
+                 "\"[camera-source-tail]shot=%.*spose=%s0x%zX",
+                 "camera source-tail diagnostics expose pose/ref/tail offsets for retained trace comparison");
+  ok &= contains(gameplay_c,
+                 "camera_path_source_parent_worldcrowd_probe_pose_actor_source_candidate_rows_for_key(",
+                 "path-backed camera diagnostics can compose through explicit trace-pose ranked WorldCrowd source rows");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"worldcrowd_probe_pose_actor_source_world_copy_candidate\"",
+                 "camera diagnostics log trace-pose ranked WorldCrowd source rows without submitting them");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"worldcrowd_relocation_delta_actor_source_world_copy_candidate\"",
+                 "camera diagnostics log path-source relocation-ranked WorldCrowd rows without submitting them");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"ps2_source_record_member_actor_source_world_copy_candidate\"",
+                 "camera diagnostics log PS2 owner/member-ranked WorldCrowd source rows without submitting them");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"ps2_source_record_table_actor_source_world_copy_candidate\"",
+                 "camera diagnostics log PS2 source-record table-ranked WorldCrowd rows without submitting them");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"ps2_source_record_sibling_actor_source_world_copy_candidate\"",
+                 "camera diagnostics log PS2 source-record sibling source rows without submitting them");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"ps2_source_record_context_actor_source_world_copy_candidate\"",
+                 "camera diagnostics log PS2 source-record source/axis context rows without submitting them");
+  ok &= contains(gameplay_c,
+                 "\"ps2_source_record_native_context_actor_source_world_copy_candidate\"",
+                 "camera diagnostics can compare PS2 source-record rows against native generated source context");
+  ok &= contains(gameplay_c,
+                 "source_seed_a.position,source_seed_a.forward",
+                 "native source-record context uses evaluated native source seed rows, not env source probes");
+  ok &= contains(gameplay_c,
+                 "ps2_source_record_trace_context_for_key(",
+                 "camera diagnostics can derive retained PS2 source-record context from documented trace evidence");
+  ok &= contains(gameplay_c,
+                 "ps2_source_record_trace_entry_matches_key(",
+                 "retained PS2 source-record traces use an explicit evidence matcher");
+  ok &= contains(gameplay_c,
+                 "canonical_milo_ref(key.name)",
+                 "retained PS2 source-record traces match the exact accepted CamShot name");
+  ok &= contains(gameplay_c,
+                 "\"balcony_lft04\"",
+                 "retained PS2 source-record traces preserve the accepted CamShot name");
+  ok &= contains(gameplay_c,
+                 "if(!key.has_ps2_source_record)returntrue;",
+                 "retained PS2 source-record traces allow exact-shot matches when native CamShot refs do not decode the source-record member");
+  ok &= contains(gameplay_c,
+                 "canonical_milo_ref(key.ps2_source_record.member)==",
+                 "retained PS2 source-record traces reject contradictory decoded member symbols");
+  ok &= contains(gameplay_c,
+                 "kRetainedPs2SourceRecordTraceTable",
+                 "retained PS2 source-record diagnostics are table-driven by trace records");
+  ok &= contains(gameplay_c,
+                 "\"0x0077c690\"",
+                 "retained PS2 source-record diagnostics preserve the accepted record address");
+  ok &= contains(gameplay_c,
+                 "\"0x0077c610+0x80\"",
+                 "retained PS2 source-record diagnostics preserve the accepted table offset");
+  ok &= contains(gameplay_c,
+                 "\"0x00cb9530\"",
+                 "retained PS2 source-record diagnostics preserve the helper owner object");
+  ok &= contains(gameplay_c,
+                 "\"bone_spine1.mesh\"",
+                 "retained PS2 source-record diagnostics preserve the helper member symbol");
+  ok &= contains(gameplay_c,
+                 "\"0x00828720\"",
+                 "retained PS2 source-record diagnostics preserve the accepted context object field");
+  ok &= contains(gameplay_c,
+                 "\"0x0055a1db\"",
+                 "retained PS2 source-record diagnostics preserve the accepted locale/context field");
+  ok &= contains(gameplay_c,
+                 "\"0x00010010\"",
+                 "retained PS2 source-record diagnostics preserve the accepted record tag");
+  ok &= contains(gameplay_c,
+                 "+\"context=\"+",
+                 "retained PS2 source-record provenance labels the context object field");
+  ok &= contains(gameplay_c,
+                 "+\"tag=\"+",
+                 "retained PS2 source-record provenance labels the record tag field");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_source_record_trace_context_actor_source_world_copy_candidate_rows(",
+                 "camera diagnostics evaluate retained PS2 source-record table rows through the shared sibling resolver");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_source_record_trace_context_source_seed_rows(",
+                 "retained PS2 source-record rows can feed the shared runtime source-seed path");
+  ok &= contains(gameplay_c,
+                 "\"ps2_source_record_trace_context_source_seed(\"",
+                 "retained PS2 source-record source seeds keep trace provenance in submitted camera rows");
+  ok &= contains(gameplay_c,
+                 "camera_source_seed_rows_for_runtime(",
+                 "runtime source seed selection can prefer retained PS2 source-record context rows before target-list composition");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_source_record_trace_context_source_seed_rows("
+                 "*venue_targets,key)",
+                 "runtime source seed selection uses the native venue target map to resolve retained PS2 source records");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_source_record_trace_result_frame_rows(",
+                 "runtime logs retained accepted PS2 source-record result frames for diagnostics");
+  ok &= contains(gameplay_c,
+                 "\"ps2_source_record_trace_result_frame(\"",
+                 "retained accepted PS2 source-record result frames keep trace provenance in submitted rows");
+  ok &= contains(gameplay_c,
+                 "result=0x00267008:a1",
+                 "retained accepted PS2 source-record result frames identify the sampled builder source row");
+  ok &= contains(gameplay_c,
+                 "camera_submitted_rows_for_runtime(",
+                 "runtime submitted camera selection keeps trace-row diagnostics beside native rows");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE",
+                 "retained PS2 trace rows are renderable only through an explicit diagnostic submit selector");
+  ok &= contains(gameplay_c,
+                 "std::strcmp(candidate,\"a1\")==0",
+                 "diagnostic submit selector can render the retained a1 trace row for comparison");
+  ok &= absent(gameplay_c,
+               "if(ps2_trace_result)return*ps2_trace_result;",
+               "retained PS2 trace rows must not silently replace default native submitted cameras");
+  ok &= contains(gameplay_c,
+                 "result_a.source.find(\"ps2_\")",
+                 "runtime tracks trace-row submission from the actually selected candidate");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_result_builder_a2_vector_candidate_rows(",
+                 "camera diagnostics expose the retained PS2 result-builder a2 vector row");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_result_builder_projection_candidate_rows(",
+                 "camera diagnostics expose the retained PS2 result-builder projection payload row");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_result_builder_basis_candidate_rows(",
+                 "camera diagnostics expose the retained PS2 result-builder basis row");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_result_builder_matrix_candidate_rows(",
+                 "camera diagnostics expose the retained PS2 result-builder matrix payload row");
+  ok &= contains(gameplay_c,
+                 "std::strcmp(candidate,\"ps2proj\")==0",
+                 "diagnostic submit selector can render the retained PS2 projection payload explicitly");
+  ok &= contains(gameplay_c,
+                 "std::strcmp(candidate,\"ps2matrix\")==0",
+                 "diagnostic submit selector can render the retained PS2 matrix payload explicitly");
+  ok &= contains(gameplay_c,
+                 "std::strcmp(candidate,\"ps2matrix_rows\")==0",
+                 "diagnostic submit selector can render the retained PS2 matrix row-layout payload explicitly");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_writer_payload_candidate_rows(",
+                 "camera diagnostics expose the retained PS2 writer payload row");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_writer_bridge_from_builder_rows(",
+                 "camera diagnostics expose the generic PS2 writer bridge derived from native builder/source rows");
+  ok &= contains(gameplay_c,
+                 "camera_writer_bridge_builder_rows_for_key(",
+                 "generic PS2 writer bridge consumes builder-shaped rows instead of source-seed rows");
+  ok &= contains(gameplay_c,
+                 "camera_trace_complete_writer_bridge_rows(",
+                 "runtime can exercise the trace-complete writer bridge through a guarded path");
+  ok &= contains(gameplay_c,
+                 "!evaluation||!evaluation->has_complete_writer_builder_pair",
+                 "trace-complete writer bridge refuses retained rows without immediate builder-pair evidence");
+  ok &= contains(gameplay_c,
+                 "evaluation->camera_system_shape!=\"complete_writer_builder_pair\"",
+                 "trace-complete writer bridge requires the analyzer's complete camera-system graph shape");
+  ok &= contains(gameplay_c,
+                 "evaluation->complete_writer_builder_pair_count<=0",
+                 "trace-complete writer bridge requires positive complete writer-builder pair evidence");
+  ok &= contains(gameplay_c,
+                 "evaluation->incomplete_writer_builder_pair_count!=0",
+                 "trace-complete writer bridge refuses mixed or incomplete writer-builder pair evidence");
+  ok &= contains(gameplay_c,
+                 "GHOGX_CAMERA_USE_TRACE_COMPLETE_WRITER_BRIDGE",
+                 "trace-complete writer bridge submission requires an explicit native validation opt-in");
+  ok &= contains(gameplay_c,
+                 "ps2_writer_bridge_builder_projection(",
+                 "accepted PS2 result-builder projection rows can feed the generic writer bridge");
+  ok &= contains(gameplay_c,
+                 "ps2_writer_bridge_builder_basis(",
+                 "accepted PS2 result-builder basis rows feed the generic writer bridge before projection fallback");
+  ok &= contains(gameplay_c,
+                 "path_delta_source=\"-pose_span\"",
+                 "generic PS2 writer bridge applies the traced writer path delta rather than a retained camera position");
+  ok &= contains(gameplay_c,
+                 "writer-builder_payload_delta",
+                 "generic PS2 writer bridge can apply the accepted trace writer-builder payload delta");
+  ok &= contains(gameplay_c,
+                 "writer-builder_basis_delta",
+                 "generic PS2 writer bridge applies the accepted writer-minus-builder-basis delta when the builder basis is known");
+  ok &= contains(gameplay_c,
+                 "pair=completeprev2_a0=",
+                 "generic PS2 writer bridge provenance requires the immediate complete writer-builder pair");
+  ok &= contains(gameplay_c,
+                 "\"0x008269f0\"",
+                 "retained PS2 writer-builder pair preserves the accepted result-builder object id");
+  ok &= contains(gameplay_h,
+                 "has_path_pose_span",
+                 "path-sampled camera keys retain the original authored path span for generic writer-bridge diagnostics");
+  ok &= contains(gameplay_c,
+                 "key.has_path_pose_span",
+                 "generic PS2 writer bridge still works after path animation expands to sampled camera keys");
+  ok &= contains(gameplay_c,
+                 "!key.has_path_anim&&camera_key_has_target_refs(key)",
+                 "path-backed camera-system span discovery is not blocked by target-list refs");
+  ok &= contains(gameplay_c,
+                 "std::strcmp(candidate,\"writer_bridge\")==0",
+                 "diagnostic submit selector can render the generic PS2 writer bridge across path-backed cameras");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"ps2_writer_bridge_candidate\"",
+                 "camera debug logs expose the generic PS2 writer bridge without submitting it by default");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"ps2_result_builder_basis_candidate\"",
+                 "camera debug logs expose the accepted PS2 result-builder basis without submitting it by default");
+  ok &= absent(gameplay_c,
+               "camera_ps2_result_builder_a2_vector_rows_from_seed(",
+               "retained PS2 a2 projection/vector diagnostics are not submitted as render-camera forward rows");
+  ok &= absent(camera_submit_c,
+               "ps2_writer_payload_candidate",
+               "retained PS2 writer payload diagnostics are not submitted as render-camera rows");
+  ok &= absent(camera_submit_c,
+               "ps2_writer_bridge_candidate",
+               "generic PS2 writer bridge diagnostics are not submitted as render-camera rows by default");
+  ok &= absent(gameplay_c,
+               "result_ps2_a2_vector_branch=true;",
+               "runtime no longer labels the retained PS2 a2 diagnostic row as a submitted result-frame branch");
+  ok &= contains(gameplay_c,
+                 "\"ps2_result_builder_a2_vector_candidate(\"",
+                 "retained PS2 result-builder a2 vector diagnostics keep trace provenance");
+  ok &= contains(gameplay_c,
+                 "\"ps2_result_builder_projection_candidate(\"",
+                 "retained PS2 result-builder projection diagnostics keep trace provenance");
+  ok &= contains(gameplay_c,
+                 "\"ps2_result_builder_basis_candidate(\"",
+                 "retained PS2 result-builder basis diagnostics keep trace provenance");
+  ok &= contains(gameplay_c,
+                 "\"ps2_result_builder_matrix_candidate(\"",
+                 "retained PS2 result-builder matrix diagnostics keep trace provenance");
+  ok &= contains(gameplay_c,
+                 "result=0x00267008:a2",
+                 "retained PS2 result-vector diagnostics identify the sampled builder output register");
+  ok &= contains(gameplay_c,
+                 "result=0x00267008:a2+0x90",
+                 "retained PS2 projection diagnostics identify the sampled builder payload block");
+  ok &= contains(gameplay_c,
+                 "result=0x00267008:a1+0x0",
+                 "retained PS2 builder basis diagnostics identify the accepted builder output row");
+  ok &= contains(gameplay_c,
+                 "gh2dxu_arena_builder_a0_shot_identity_long_20260624",
+                 "retained PS2 builder basis diagnostics cite the accepted long handoff trace artifact");
+  ok &= contains(gameplay_c,
+                 "evaluation->has_complete_writer_builder_pair",
+                 "retained PS2 builder basis diagnostics carry complete writer-builder pair evidence into native logs");
+  ok &= contains(gameplay_c,
+                 "camera_system_shape",
+                 "retained PS2 source-record diagnostics carry analyzer camera-system shape evidence");
+  ok &= contains(gameplay_c,
+                 "complete_writer_builder_pair_count",
+                 "retained PS2 source-record diagnostics carry complete writer-builder pair counts");
+  ok &= contains(gameplay_c,
+                 "projection_matrix_rows",
+                 "retained PS2 projection diagnostics keep the sampled builder matrix row block");
+  ok &= contains(gameplay_c,
+                 "writer=0x002665a0",
+                 "retained PS2 writer-payload diagnostics identify the sampled writer handoff");
+  ok &= contains(gameplay_c,
+                 "gh2dxu_arena_writer_handoff_statefile_20260629_025058",
+                 "retained PS2 writer-payload diagnostics cite the accepted statefile trace artifact");
+  ok &= contains(gameplay_c,
+                 "structPs2SourceRecordEvaluation",
+                 "retained PS2 source-record diagnostics model the helper output separately from table records");
+  ok &= contains(gameplay_c,
+                 "evaluate_retained_ps2_source_record_trace_context(",
+                 "retained PS2 source-record diagnostics pass through an explicit helper-evaluation layer");
+  ok &= contains(gameplay_c,
+                 "eval=0x00261c58->0x003d7220",
+                 "retained PS2 source-record provenance names the accepted owner/member helper path");
+  ok &= contains(gameplay_c,
+                 "evaluation->evaluated_position",
+                 "retained PS2 source-record diagnostics use the evaluated helper output as the source row");
+  ok &= contains(gameplay_c,
+                 "evaluation->builder_position",
+                 "retained PS2 source-record diagnostics preserve the accepted builder basis position separately");
+  ok &= contains(gameplay_c,
+                 "evaluation->member_symbols",
+                 "retained PS2 source-record diagnostics keep member symbols on the evaluated record");
+  ok &= contains(gameplay_c,
+                 "camera_ps2_source_record_native_owner_member_eval_world_copy_candidate_rows(",
+                 "camera diagnostics can compare native owner/member-only evaluation against retained PS2 helper output");
+  ok &= contains(gameplay_c,
+                 "\"ps2_source_record_native_owner_member_eval_world_copy_candidate\"",
+                 "camera diagnostics log native owner/member-only source-record evaluation separately");
+  ok &= contains(gameplay_c,
+                 "native_source=owner_member_only",
+                 "native owner/member-only source-record diagnostics do not consume retained builder source rows");
+  ok &= contains(gameplay_c,
+                 "\"ps2_source_record_trace_context_actor_source_world_copy_candidate\"",
+                 "camera diagnostics log retained PS2 trace-context source-record rows separately from env/native probes");
+  ok &= contains(gameplay_c,
+                 "gh2dxu_arena_balcony_lft04_source_trace_ghdxelf_20260628",
+                 "retained PS2 trace-context rows cite the accepted source-object trace artifact");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"ps2_member_relocation_delta_target_world_copy_candidate\"",
+                 "camera diagnostics log PS2 member-entry relocation rows without submitting them");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"ps2_all_member_relocation_delta_target_world_copy_candidate\"",
+                 "camera diagnostics log all-member PS2 relocation rows without submitting them");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"path_source_parent_worldcrowd_probe_pose_actor_source_candidate\"",
+                 "camera diagnostics log path composition through trace-pose ranked WorldCrowd source rows");
+  ok &= contains(gameplay_c,
+                 "if(applies_filter)rows.source+=\"+shot_filter\";",
+                 "camera result row provenance labels the stateful shot_filter branch");
+  ok &= contains(gameplay_c,
+                 "camera_result_builder_filtered_target(rows,key,target,state,"
+                 "out_filter_step,out_projected_delta);if(applies_filter)",
+                 "camera result builder still updates carried target when shot_filter is absent");
+  ok &= contains(gameplay_c,
+                 "rows.source+=\"+screen\";",
+                 "screen-corrected target-list result rows are explicitly labeled");
+  ok &= contains(gameplay_c,
+                 "CameraResultBuilderState*result_builder_state=nullptr",
+                 "camera runtime accepts the persistent PS2 result-builder state");
+  ok &= contains(gameplay_c,
+                 "&camera_result_builder_state_",
+                 "regular and intro venue cameras pass persistent result-builder state");
+  ok &= contains(gameplay_c,
+                 "camera_result_builder_state_.reset();",
+                 "camera result-builder state resets on song load and diagnostic seek");
+  ok &= contains(gameplay_c,
+                 "\"[camera-solver]frame=%.2fps2_result_builder=0x00267008\"",
+                 "camera debug logs expose the PS2 CamShot result-builder bridge");
+  ok &= contains(gameplay_c,
+                 "\"[camera-solver]frame=%.2fshot_filter_branch=%d\"",
+                 "camera debug logs expose shot_filter branch state");
+  ok &= contains(renderer_h_c,
+                 "structCameraResultFrame{boolvalid=false;std::stringsource;",
+                 "renderer camera carries an explicit PS2-shaped result frame");
+  ok &= contains(renderer_h_c,
+                 "boolhas_custom_view=false;",
+                 "renderer camera result frames can carry an opt-in PS2 matrix diagnostic");
+  ok &= contains(renderer_h_c,
+                 "floatcustom_view[16]",
+                 "renderer camera result frames carry custom view rows only when explicitly selected");
+  ok &= contains(renderer_h_c,
+                 "CameraResultFrameresult_frame;",
+                 "orbit camera keeps the submitted result frame beside authored eye/at/up");
+  ok &= contains(gameplay_c,
+                 "cam.result_frame.valid=true;"
+                 "cam.result_frame.source=rows.source;",
+                 "gameplay writes the submitted CamShot result frame to the renderer camera");
+  ok &= contains(renderer_c,
+                 "if(result_frame.valid){out[0]=result_frame.position[0];",
+                 "renderer eye uses submitted PS2-shaped result-frame position");
+  ok &= contains(renderer_c,
+                 "result_at[k]=cam_.result_frame.position[k]+"
+                 "cam_.result_frame.forward[k]*100.0f;",
+                 "renderer derives look-at from submitted result-frame forward");
+  ok &= contains(renderer_c,
+                 "up=cam_.result_frame.up;",
+                 "renderer derives up vector from submitted result-frame rows");
+  ok &= contains(gameplay_c,
+                 "\"[camera-result]frame=%.2fps2_result_builder=0x00267008\"",
+                 "camera debug logs expose submitted result-frame rows");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"ps2_result_builder_matrix_candidate\",",
+                 "camera debug logs expose retained PS2 matrix diagnostics without submitting them by default");
+  ok &= contains(gameplay_c,
+                 "log_result_rows(\"rejected_target_candidate\",",
+                 "rejected target-source camera candidate remains diagnostic only");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"path_base_pose_candidate\",",
+                 "path-backed camera logs compare CamShot-pose composition without submitting it");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"path_base_translate_candidate\",",
+                 "path-backed camera logs compare CamShot translation composition without submitting it");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"ps2_member_world_copy_candidate\",",
+                 "path-backed camera logs compare member-resolved PS2 world-row copies without submitting them");
+  ok &= absent(camera_submit_c,
+               "log_camshot_source_tail_diagnostic(",
+               "raw CamShot source-tail diagnostics must not participate in submitted camera rows");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"source_ref_world_copy_candidate\",",
+                 "path-backed camera logs compare decoded source-ref world-row copies without submitting them");
+  ok &= contains(gameplay_c,
+                 "key.source_ref.empty()",
+                 "path-backed camera source-parent diagnostics are driven by decoded CamShot source refs");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"path_source_parent_source_ref_candidate\",",
+                 "path-backed camera logs compare decoded CamShot source-parent refs without submitting them");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"path_source_delta_source_ref_candidate\",",
+                 "path-backed camera logs compare decoded CamShot path/source delta refs without submitting them");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"path_source_parent_crowd_group_candidate\",",
+                 "path-backed camera logs compare venue crowd-group source-parent refs only for crowd-authored shots");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"path_source_parent_worldcrowd_candidate\",",
+                 "path-backed camera logs compare decoded WorldCrowd placement source-parent refs only for crowd-authored shots");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"worldcrowd_nearest_target_world_copy_candidate\",",
+                 "camera diagnostics log the nearest decoded WorldCrowd placement to the live target");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"worldcrowd_area_local_nearest_target_world_copy_candidate\",",
+                 "camera diagnostics log the nearest decoded area-local WorldCrowd placement");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"path_source_parent_worldcrowd_nearest_target_candidate\",",
+                 "camera diagnostics log path composition through the nearest decoded WorldCrowd placement");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows(\"path_source_parent_worldcrowd_area_local_nearest_target_candidate\",",
+                 "camera diagnostics log path composition through nearest decoded area-local WorldCrowd placement");
+  ok &= contains(gameplay_c,
+                 "log_nearest_camera_target_probe("
+                 "venue_camera_target_worlds_,"
+                 "\"crowd_area_local_actor_source_\"",
+                 "camera diagnostics can probe nearest decoded WorldCrowd actor-source targets");
+  ok &= contains(gameplay_c,
+                 "row0=(%.6f%.6f%.6f)row1=(%.6f%.6f%.6f)"
+                 "\"\"row2=(%.6f%.6f%.6f)",
+                 "camera source probes expose candidate orientation, not just position");
+  ok &= contains(gameplay_c,
+                 "worldcrowd_face_camera_source_world(",
+                 "WorldCrowd.rotate source diagnostics build a shared face-camera source basis");
+  ok &= contains(gameplay_c,
+                 "out[0]=desired[1];out[1]=-desired[0];out[2]=0.0f;"
+                 "out[4]=desired[0];out[5]=desired[1];out[6]=0.0f;"
+                 "out[8]=0.0f;out[9]=0.0f;out[10]=1.0f;",
+                 "WorldCrowd face-camera source rows use the PS2-style Z-up yaw shape");
+  ok &= contains(gameplay_c,
+                 "a->crowd_face_camera||b->crowd_face_camera",
+                 "WorldCrowd face-camera source probe is gated by authored CamShot crowd_face_camera");
+  ok &= contains(gameplay_c,
+                 "\"[camera-source-face-probe]frame=%.2f",
+                 "camera source probes expose WorldCrowd.rotate face-camera candidates");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"worldcrowd_face_actor_source_world_copy_candidate\"",
+                 "camera diagnostics log nearest WorldCrowd.rotate actor-source world rows");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"path_source_parent_worldcrowd_face_actor_source_candidate\"",
+                 "camera diagnostics log path composition through WorldCrowd.rotate actor sources");
+  ok &= contains(gameplay_c,
+                 "camera_worldcrowd_probe_face_actor_source_world_copy_candidate_rows(",
+                 "camera diagnostics can select a WorldCrowd.rotate actor source from an explicit trace probe");
+  ok &= contains(gameplay_c,
+                 "camera_path_source_parent_worldcrowd_probe_face_actor_source_candidate_rows_for_key(",
+                 "path-backed camera diagnostics can compose through an explicit trace-probed WorldCrowd.rotate source");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"worldcrowd_probe_face_actor_source_world_copy_candidate\"",
+                 "camera diagnostics log explicit trace-probed WorldCrowd.rotate source rows");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"path_source_parent_worldcrowd_probe_face_actor_source_candidate\"",
+                 "camera diagnostics log path composition through explicit trace-probed WorldCrowd.rotate sources");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"worldcrowd_probe_face_actor_source_at_candidate\"",
+                 "camera diagnostics compare trace-probed WorldCrowd.rotate rows against the authored look-at reference");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"worldcrowd_probe_face_actor_source_target_candidate\"",
+                 "camera diagnostics compare trace-probed WorldCrowd.rotate rows against the CamShot target reference");
+  ok &= contains(gameplay_c,
+                 "log_optional_result_rows("
+                 "\"worldcrowd_probe_face_actor_source_submitted_candidate\"",
+                 "camera diagnostics compare trace-probed WorldCrowd.rotate rows against the submitted camera position");
+  ok &= absent(camera_submit_c,
+               "camera_path_source_parent_candidate_rows_for_key(",
+               "path source-parent candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_path_source_delta_candidate_rows_for_key(",
+               "path/source delta candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_member_world_copy_candidate_rows_for_key(",
+               "member world-copy candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_source_ref_world_copy_candidate_rows(",
+               "source-ref world-copy candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_entity_only_target_alias_world_copy_candidate_rows_for_key(",
+               "target alias world-copy candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_path_source_parent_nearest_worldcrowd_candidate_rows_for_key(",
+               "nearest WorldCrowd placement candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_path_source_parent_nearest_worldcrowd_area_local_candidate_rows_for_key(",
+               "nearest area-local WorldCrowd placement candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_path_source_parent_nearest_worldcrowd_face_actor_source_candidate_rows_for_key(",
+               "nearest WorldCrowd face-camera actor-source candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_path_source_parent_worldcrowd_probe_face_actor_source_candidate_rows_for_key(",
+               "trace-probed WorldCrowd face-camera actor-source candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_path_source_parent_worldcrowd_probe_pose_actor_source_candidate_rows_for_key(",
+               "trace-pose ranked WorldCrowd actor-source candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_worldcrowd_probe_pose_actor_source_world_copy_candidate_rows(",
+               "trace-pose ranked WorldCrowd world-copy candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_worldcrowd_relocation_delta_actor_source_world_copy_candidate_rows(",
+               "path-source relocation-ranked WorldCrowd world-copy candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_ps2_source_record_member_actor_source_world_copy_candidate_rows(",
+               "PS2 owner/member source-record candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_ps2_source_record_members_actor_source_world_copy_candidate_rows(",
+               "PS2 source-record table candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_ps2_source_record_sibling_actor_source_world_copy_candidate_rows(",
+               "PS2 source-record sibling candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "ps2_source_record_context_actor_source_world_copy_candidate",
+               "PS2 source-record context candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "ps2_source_record_native_context_actor_source_world_copy_candidate",
+               "PS2 native-context source-record candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "ps2_source_record_trace_context_actor_source_world_copy_candidate",
+               "retained PS2 trace-context source-record candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "ps2_result_builder_a2_vector_candidate",
+               "retained PS2 result-builder a2 vector candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "ps2_result_builder_a2_vector",
+               "retained PS2 result-builder a2 runtime bridge stays outside the standalone submit helper");
+  ok &= absent(camera_submit_c,
+               "ps2_source_record_native_owner_member_eval_world_copy_candidate",
+               "native owner/member-only source-record candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_member_relocation_delta_target_world_copy_candidate_rows_for_key(",
+               "PS2 member-entry relocation candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "camera_all_member_relocation_delta_target_world_copy_candidate_rows(",
+               "all-member PS2 relocation candidates are not submitted camera rows");
+  ok &= absent(camera_submit_c,
+               "merge_worldcrowd_actor_source_targets(",
+               "WorldCrowd actor-source diagnostics are not submitted camera rows");
+  ok &= absent(camera_submit_c, "balcony_lft04",
+               "camera submit path does not key accepted behavior off native shot labels");
+  ok &= absent(camera_submit_c, "Camera03",
+               "camera submit path does not key accepted behavior off native path labels");
+  ok &= appears_before(gameplay_c,
+                       "apply_camera_result_frame(cam,submitted_result);",
+                       "path_source_parent_ref_candidate_a="
+                       "source_parent_candidate(*a);",
+                       "venue source-parent diagnostics are computed only after submitted result rows");
+  ok &= contains(gameplay_c,
+                 "\"[camera-solver]frame=%.2fvenue_source_parent_refs\"",
+                 "camera debug logs expose venue source-parent diagnostic availability");
+  ok &= contains(gameplay_c,
+                 "\"placement_bounds=%dmin=(%.3f%.3f%.3f)\"",
+                 "camera debug logs expose decoded WorldCrowd placement bounds");
+  ok &= contains(gameplay_c,
+                 "log_target_alias_rows(\"target_alias_spot_neck_candidate\",",
+                 "entity-only target alias diagnostics compare live neck/fret target rows");
+  ok &= contains(gameplay_c,
+                 "log_target_alias_rows(\"target_alias_spine1_candidate\",",
+                 "entity-only target alias diagnostics compare live spine target rows");
+  ok &= contains(gameplay_c,
+                 "log_target_alias_world_copy_rows(\"target_alias_spot_neck_world_copy_candidate\",",
+                 "entity-only target alias diagnostics log direct neck/fret world rows");
+  ok &= contains(gameplay_c,
+                 "log_target_alias_world_copy_rows(\"target_alias_spine1_world_copy_candidate\",",
+                 "entity-only target alias diagnostics log direct spine world rows");
+  ok &= contains(renderer_c,
+                 "\"[camera-matrix]result_framesource=%s\"",
+                 "renderer matrix validation echoes the submitted result frame");
+  ok &= contains(gameplay_c,
+                 "\"screen_norm=(%.6f%.6f)a_screen_norm=(%.6f%.6f)\"",
+                 "camera debug logs expose interpolated and key screen targets");
+  ok &= contains(gameplay_c,
+                 "target_eye=a:(%.3f%.3f%.3f)",
+                 "camera debug logs expose source-target eye candidates");
+  ok &= contains(gameplay_c,
+                 "\"clip=(%.3f%.3f)selection=a:%s%.3fb:%s%.3f\"",
+                 "camera debug logs carry shot-level solver inputs");
+  ok &= contains(gameplay_c,
+                 "constfloatduration=f32_at(off-16);"
+                 "constfloatblend=f32_at(off-12);"
+                 "constfloatblend_ease=f32_at(off-8);",
+                 "CamShot pose parser decodes duration/blend fields before FOV");
+  ok &= contains(gameplay_c,
+                 "doubleauthored_camshot_blend_seconds(",
+                 "same-shot camera transitions can use authored CamShot blend timing");
+  ok &= contains(gameplay_c,
+                 "doubleauthored_camshot_position_seconds(",
+                 "post_switch_cam scheduling can use authored CamShot duration/blend timing");
+  ok &= contains(gameplay_c,
+                 "same_shot?authored_camshot_blend_seconds(*previous,kSweepSeconds)",
+                 "authored CamShot blend timing is limited to same-shot position transitions");
+  ok &= contains(gameplay_c,
+                 "authored_camshot_position_seconds(active_position_for_timing,kPostSwitchSeconds)",
+                 "authored CamShot timing controls same-shot post_switch interval only when sane");
+  ok &= contains(gameplay_c,
+                 "std::vector<Gameplay::CameraKey>regular_camera_path_keys(",
+                 "path-backed regular CamShots keep the authored TransAnim sequence");
+  ok &= contains(gameplay_c,
+                 "key.frame=start_frame+(key.frame-first_frame);",
+                 "path-backed regular CamShot frames are sampled relative to shot start");
+  ok &= contains(gameplay_c,
+                 "!key->has_path_anim&&key->positions.size()>1",
+                 "path-backed regular CamShots skip discrete post_switch stepping");
+  ok &= contains(gameplay_c,
+                 "regular_camera_path_keys(*key,active_regular_camera_start_,camera_targets)",
+                 "runtime samples path-backed regular cameras with shot-local frames and target context");
+  ok &= contains(gameplay_c,
+                 "\"[world]post_switch_cam:%spos=%zu/%zuinterval=%.3fblend=%.3ftiming=%s",
+                 "post_switch_cam validation rows include authored interval and blend timing");
+  ok &= contains(gameplay_c,
+                 "constboolsame_shot=previous&&previous->name==current.name;",
                  "regular camera sweeps only blend same-shot position changes");
   ok &= contains(gameplay_c,
                  "solo!=\"ok\"&&solo!=\"never\"&&solo!=\"only\"",
@@ -2030,6 +3596,23 @@ int main() {
                  "pos.hide_list_refs=c.key.hide_list_refs;",
                  "regular camera pose variants inherit hide_list refs");
   ok &= contains(gameplay_c,
+                 "copy_camshot_shot_fields(c.key,pos);",
+                 "regular camera pose variants inherit decoded shot-level fields");
+  ok &= contains(gameplay_c,
+                 "if(a->has_clip_planes||b->has_clip_planes)",
+                 "runtime camera applies authored CamShot clip planes");
+  ok &= contains(gameplay_c,
+                 "cam.near_z=near_z;cam.far_z=far_z;",
+                 "runtime camera submits authored clip planes to renderer");
+  ok &= contains(gameplay_c,
+                 "\"[world]regularCamShot%sdistance=%sfacing=%starget=%s:%s"
+                 "parent=%s:%sparent_rot=%drefs=%dposes=%zuposebody+0x%zX"
+                 "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
+                 "low_excitement_ok=%dstarpower_ok=%djump_ok=%dlighter=%d"
+                 "hide_crowd=%dcrowd_face_camera=%dforce_char_lod=%d"
+                 "hide_list=%zushot_fields=%dcategory=%s",
+                 "regular camera validation logs decoded shot-level fields");
+  ok &= contains(gameplay_c,
                  "key.hide_crowd=intro_camera.hide_crowd;",
                  "intro TransAnim camera keys inherit selected hide_crowd");
   ok &= contains(gameplay_c,
@@ -2100,6 +3683,16 @@ int main() {
   ok &= contains(gameplay_c,
                  "venue_group_meshes_=mesh_names_by_group(venue_scene);",
                  "venue load builds a group mesh map for CamShot hide_list refs");
+  ok &= contains(gameplay_c,
+                 "venue_camera_target_worlds_="
+                 "build_venue_camera_target_worlds(venue_scene);",
+                 "venue load builds diagnostic venue source-parent targets");
+  ok &= contains(gameplay_c,
+                 "venue_camera_target_worlds_.clear();",
+                 "venue diagnostic camera targets reset on song load");
+  ok &= contains(gameplay_c,
+                 "&venue_camera_target_worlds_",
+                 "regular and intro cameras pass diagnostic venue source-parent targets");
   ok &= contains(gameplay_h_c,
                  "boolvenue_camera_crowd_face_camera_=false;",
                  "camera-facing crowd state is tracked separately from hidden meshes");
@@ -2172,7 +3765,62 @@ int main() {
                  "if(filtered.empty())returnnullptr;",
                  "camera selection does not invent a wrong-category fallback shot");
   ok &= contains(gameplay_c,
-                 "if(ev.text==\"[band_jump]\"){force_camera=excitement>1;",
+                 "floatregular_camera_selection_weight("
+                 "constGameplay::CameraKey&key)",
+                 "regular camera selector consumes decoded CamShot selection_weight");
+  ok &= contains(gameplay_c,
+                 "returnkey.selection_weight;",
+                 "positive authored CamShot selection_weight is preserved as a relative weight");
+  ok &= contains(gameplay_c,
+                 "floatpick=std::fmod(static_cast<float>(counter),total);",
+                 "weighted regular camera selection remains deterministic");
+  ok &= contains(gameplay_c,
+                 "returnchoose_weighted_regular_camera_key(filtered,counter);",
+                 "regular camera fallback chooses through authored selection weights");
+  ok &= contains(gameplay_c,
+                 "CameraResultRowscamera_source_seed_result_rows_for_key(",
+                 "camera diagnostics expose the compact PS2 source seed rows");
+  ok &= contains(gameplay_c,
+                 "if(key.has_generated_source_rows){"
+                 "rows.source=\"generated_source_seed\";",
+                 "source seed rows prefer the generated PS2 source object when present");
+  ok &= contains(gameplay_c,
+                 "rows.source=parent?\"parent+source_seed\":\"source_seed\";",
+                 "source seed diagnostics preserve parent/source provenance");
+  ok &= contains(gameplay_c,
+                 "boolcamera_apply_pose_span_source_basis(",
+                 "source seed rows can derive the traced pose-span source basis");
+  ok &= contains(gameplay_c,
+                 "!key.camshot_refs_decoded||key.use_parent_rotation||"
+                 "key.has_path_anim||camera_key_has_target_refs(key)",
+                 "pose-span source basis stays limited to decoded targetless parent-source CamShots");
+  ok &= contains(gameplay_c,
+                 "conststd::array<float,3>span={first[0]-next[0],",
+                 "pose-span source basis uses the authored relocated pose delta");
+  ok &= contains(gameplay_c,
+                 "horizontal_len<=span_len*0.25f",
+                 "pose-span source basis skips near-vertical pose spans until the PS2 no-target branch is mapped");
+  ok &= contains(gameplay_c,
+                 "camera_cross_axis(right,{0.0f,0.0f,1.0f})",
+                 "pose-span source basis rebuilds the traced horizontal forward row");
+  ok &= contains(gameplay_c,
+                 "rows.source+=\"+pose_span_basis\";",
+                 "pose-span source rows label the traced source-object basis");
+  ok &= contains(gameplay_c,
+                 "if(key.has_generated_source_rows||"
+                 "(parent&&!camera_key_has_target_refs(key))){"
+                 "returncamera_source_seed_result_rows_for_key(key,targets);}",
+                 "targetless generated or parent-source CamShots submit evaluated source rows");
+  ok &= contains(gameplay_c,
+                 "log_result_rows(\"source_seed_candidate\",source_seed_result,1,1);",
+                 "debug camera logs compare source seed rows before submitted rows");
+  ok &= contains(gameplay_c,
+                 "\"[camera-solver]frame=%.2fpose_span_shape=%s\"",
+                 "debug camera logs expose targetless no-target pose-span source shape");
+  ok &= contains(gameplay_c,
+                 "if(ev.text==\"[band_jump]\"){cue_forced_camera=excitement>1;"
+                 "if(cue_forced_camera){force_camera=true;"
+                 "forced_camera_mode=CameraShotMode::Jump;",
                  "band_jump camera forces only above bad excitement");
   ok &= contains(gameplay_h_c,
                  "ghogx::character::CharClipband_jump_clip;",
@@ -2242,10 +3890,13 @@ int main() {
                  "ev.text==\"[crowd_lighters_off]\"",
                  "camera director listens for authored crowd lighter off messages");
   ok &= contains(gameplay_c,
-                 "crowd_lighter_on_=false;force_camera=true;",
+                 "crowd_lighter_on_=false;cue_forced_camera=true;"
+                 "force_camera=true;",
                  "crowd_lighters_off mirrors force_pick_shot");
   ok &= contains(gameplay_c,
-                 "}else{force_camera=excitement>2;forced_camera_bars=4;}",
+                 "}else{cue_forced_camera=excitement>2;"
+                 "if(cue_forced_camera){force_camera=true;"
+                 "forced_camera_mode.reset();forced_camera_bars=4;}}",
                  "sync_wag/head_bang camera forces only above okay excitement");
   ok &= contains(gameplay_h_c,
                  "booldid_lighter_cam_=false;",
@@ -2259,7 +3910,7 @@ int main() {
                        "\"[world]post_switch_cam:",
                        "regular shot duration and post_switch_cam stay separate");
   ok &= contains(gameplay_c,
-                 "previous->name!=current.name",
+                 "!same_shot",
                  "start_shot camera changes cut between authored shot families");
   ok &= contains(gameplay_c,
                  "constexprdoublekPostSwitchSeconds=2.06;",

@@ -19,3 +19,21 @@ if(MSVC)
 else()
     target_compile_options(ghogx_render PRIVATE -Wall -Wextra)
 endif()
+
+add_executable(ghogx_render_material_uv_test material_uv_sampler_test.cpp)
+target_link_libraries(ghogx_render_material_uv_test PRIVATE ghogx_render)
+add_test(NAME ghogx_render_material_uv_test
+         COMMAND ghogx_render_material_uv_test)
+
+add_executable(ghogx_render_camera_matrix_test camera_matrix_test.cpp)
+target_link_libraries(ghogx_render_camera_matrix_test PRIVATE ghogx_render)
+add_test(NAME ghogx_render_camera_matrix_test
+         COMMAND ghogx_render_camera_matrix_test)
+
+if(MSVC)
+    target_compile_options(ghogx_render_material_uv_test PRIVATE /W4)
+    target_compile_options(ghogx_render_camera_matrix_test PRIVATE /W4)
+else()
+    target_compile_options(ghogx_render_material_uv_test PRIVATE -Wall -Wextra)
+    target_compile_options(ghogx_render_camera_matrix_test PRIVATE -Wall -Wextra)
+endif()

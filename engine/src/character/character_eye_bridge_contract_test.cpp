@@ -91,6 +91,25 @@ int main() {
   ok &= contains(apply_controllers,
                  "set_facefx_eye_props(*eye_props,side,x,z);",
                  "look-at properties continue to feed the FaceFX eye bridge");
+  ok &= contains(apply_controllers,
+                 "submit_char_eyes_runtime_rows(character);",
+                 "CharEyes submits its traced resident/source rows before look-at");
+  ok &= contains(compact(char_clip),
+                 "conststd::string&source_mesh="
+                 "!look->driven.empty()?look->driven:look->target;",
+                 "CharEyes source rows come from the driven eye mesh when present");
+  ok &= contains(compact(char_clip),
+                 "character.runtime_world_overrides[look->name]=source_world;",
+                 "self-sourced CharLookAt resolves through the CharEyes source row");
+  ok &= contains(compact(char_clip),
+                 "character.runtime_world_overrides[eyes.name]=pivot_world;",
+                 "resident CharEyes.eyes pivot row is submitted with the source-eye chain");
+  ok &= contains(compact(char_clip),
+                 "constautoruntime_it=character.runtime_world_overrides.find(name);",
+                 "transform resolution consumes submitted controller Trans rows");
+  ok &= contains(compact(function_body(char_clip, "is_eye_mesh_name")),
+                 "lower.find(\"_eyel\")!=std::string::npos",
+                 "alternate PS2 eye mesh spellings use the eye attachment basis");
   ok &= contains(parse_animation,
                  "if(version!=1200&&version!=1500)",
                  "song FaceFX animations accept traced v1200 and v1500 FACE archives");

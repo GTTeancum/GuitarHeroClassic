@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 // ---------------------------------------------------------------------------
@@ -85,6 +86,17 @@ struct TrackBuilder {
         ev.push_back(static_cast<uint8_t>(us_per_beat & 0xFF));
     }
 
+    void meta_text(uint32_t abs_tick, const char* text) {
+        push_vlq(ev, abs_tick - cursor);
+        ev.push_back(0xFF);
+        ev.push_back(0x01);
+        const auto len = static_cast<uint8_t>(std::strlen(text));
+        ev.push_back(len);
+        for (int i = 0; i < static_cast<int>(len); ++i)
+            ev.push_back(static_cast<uint8_t>(text[i]));
+        cursor = abs_tick;
+    }
+
     void meta_eot() {
         push_vlq(ev, 0);
         ev.push_back(0xFF);
@@ -127,6 +139,12 @@ static void push_chunk(std::vector<uint8_t>& out, const char* tag,
 // Track 2 "TRIGGERS":
 //   lighting_parser cue notes for next/prev/first keyframe.
 //   effect_parser pitch 52 for world venue_effect.
+//
+// Track 3 "EVENTS":
+//   same-tick world text markers, verifying authored order is stable.
+//
+// Track 4 "BAND SINGER":
+//   same-tick performer text markers, verifying authored order is stable.
 //
 // ticks_per_beat = 480, tempo = 120 BPM (500000 us/beat).
 // HOPO threshold = 480/3 = 160 ticks.
@@ -187,16 +205,34 @@ static std::vector<uint8_t> build_test_smf() {
     t2.note_off(5760, 49);
     t2.meta_eot();
 
+    // Track 3: world text events in authored same-tick order.
+    TrackBuilder t3;
+    t3.meta_name("EVENTS");
+    t3.meta_text(2400, "[camera_a]");
+    t3.meta_text(2400, "[camera_b]");
+    t3.meta_text(2410, "[camera_c]");
+    t3.meta_eot();
+
+    // Track 4: performer text events in authored same-tick order.
+    TrackBuilder t4;
+    t4.meta_name("BAND SINGER");
+    t4.meta_text(2400, "[sing_idle]");
+    t4.meta_text(2400, "[sing_phrase]");
+    t4.meta_text(2410, "[sing_release]");
+    t4.meta_eot();
+
     // Assemble SMF.
     std::vector<uint8_t> smf;
     smf.push_back('M'); smf.push_back('T'); smf.push_back('h'); smf.push_back('d');
     push_u32be(smf, 6);    // MThd length = 6
     push_u16be(smf, 1);    // format 1
-    push_u16be(smf, 3);    // 3 tracks
+    push_u16be(smf, 5);    // 5 tracks
     push_u16be(smf, 480);  // ticks per beat
     push_chunk(smf, "MTrk", t0.ev);
     push_chunk(smf, "MTrk", t1.ev);
     push_chunk(smf, "MTrk", t2.ev);
+    push_chunk(smf, "MTrk", t3.ev);
+    push_chunk(smf, "MTrk", t4.ev);
     return smf;
 }
 
@@ -309,6 +345,36 @@ int main() {
               chart.venue_cues[0].pitch == 52 &&
               chart.venue_cues[0].tick == 3600,
               "VenueCue[0]: venue_effect at authored tick 3600");
+    }
+
+    // --- same-tick script text ordering ---
+    CHECK(chart.text_events.size() == 3, "World text events: 3");
+    if (chart.text_events.size() == 3) {
+        CHECK(chart.text_events[0].tick == 2400 &&
+              chart.text_events[0].text == "[camera_a]",
+              "TextEvent[0]: same-tick authored order A");
+        CHECK(chart.text_events[1].tick == 2400 &&
+              chart.text_events[1].text == "[camera_b]",
+              "TextEvent[1]: same-tick authored order B");
+        CHECK(chart.text_events[2].tick == 2410 &&
+              chart.text_events[2].text == "[camera_c]",
+              "TextEvent[2]: later marker remains after same-tick rows");
+    }
+
+    CHECK(chart.performer_events.size() == 3, "Performer text events: 3");
+    if (chart.performer_events.size() == 3) {
+        CHECK(chart.performer_events[0].tick == 2400 &&
+              chart.performer_events[0].track == "BAND SINGER" &&
+              chart.performer_events[0].text == "[sing_idle]",
+              "PerformerEvent[0]: same-tick authored order idle");
+        CHECK(chart.performer_events[1].tick == 2400 &&
+              chart.performer_events[1].track == "BAND SINGER" &&
+              chart.performer_events[1].text == "[sing_phrase]",
+              "PerformerEvent[1]: same-tick authored order phrase");
+        CHECK(chart.performer_events[2].tick == 2410 &&
+              chart.performer_events[2].track == "BAND SINGER" &&
+              chart.performer_events[2].text == "[sing_release]",
+              "PerformerEvent[2]: later marker remains after same-tick rows");
     }
 
     // --- player*_fret_pos cues from PART GUITAR pitch 40..59 ---

@@ -100,15 +100,35 @@ struct HitResult {
     bool was_hopo;
 };
 
+struct CameraResultBuilderState {
+  bool has_filtered_target = false;
+  std::array<float, 3> filtered_target = {0.0f, 0.0f, 0.0f};
+
+  void reset() {
+    has_filtered_target = false;
+    filtered_target = {0.0f, 0.0f, 0.0f};
+  }
+};
+
 class Gameplay {
  public:
   struct QuickplayRig {
     std::string character_outfit;
     std::string guitar;
     std::string venue;
+    std::string anim_tempo;
     std::vector<std::string> band;
   };
   struct CameraKey {
+    struct TargetRef {
+      std::string entity;
+      std::string subpart;
+    };
+    struct SourceRecordHint {
+      std::string source_ref;
+      std::string owner_entity;
+      std::string member;
+    };
     std::string name;
     float frame = 0.0f;
     float eye[3] = {};
@@ -119,10 +139,51 @@ class Gameplay {
     bool has_basis = false;
     float fov = 0.0f;
     bool has_fov = false;
+    float duration_frames = 0.0f;
+    float blend_frames = 0.0f;
+    float blend_ease = 0.0f;
+    bool has_timing = false;
     float screen_offset[2] = {0.0f, 0.0f};
     bool has_screen_offset = false;
+    std::string category;
+    float shot_filter = 0.0f;
+    bool has_shot_filter = false;
+    float clamp_height = 0.0f;
+    bool has_clamp_height = false;
+    float near_plane = 0.0f;
+    float far_plane = 0.0f;
+    bool has_clip_planes = false;
+    bool use_depth_of_field = false;
+    bool has_use_depth_of_field = false;
+    float selection_weight = 0.0f;
+    bool has_selection_weight = false;
+    float path_ease = 0.0f;
+    bool has_path_ease = false;
+    std::string source_ref;
+    bool camshot_shot_fields_decoded = false;
+    size_t camshot_pose_body_offset = 0;
+    bool has_camshot_pose_body_offset = false;
+    size_t camshot_ref_tail_end = 0;
+    bool has_camshot_ref_tail_end = false;
+    size_t camshot_shot_tail_offset = 0;
+    bool has_camshot_shot_tail_offset = false;
+    std::string path_anim;
+    bool has_path_anim = false;
+    float path_base_eye[3] = {};
+    float path_base_forward[3] = {0.0f, 1.0f, 0.0f};
+    float path_base_up[3] = {0.0f, 0.0f, 1.0f};
+    bool has_path_base_pose = false;
+    float path_pose_span[3] = {};
+    bool has_path_pose_span = false;
+    float generated_source_position[3] = {};
+    float generated_source_forward[3] = {0.0f, 1.0f, 0.0f};
+    float generated_source_up[3] = {0.0f, 0.0f, 1.0f};
+    bool has_generated_source_rows = false;
     std::string target_entity;
     std::string target_subpart;
+    std::vector<TargetRef> target_refs;
+    SourceRecordHint ps2_source_record;
+    bool has_ps2_source_record = false;
     std::string parent_entity;
     std::string parent_subpart;
     bool use_parent_rotation = false;
@@ -424,6 +485,12 @@ class Gameplay {
     diagnostic_venue_event_ = event_name;
     diagnostic_venue_event_applied_ = false;
   }
+  void set_diagnostic_camera_shot(const std::string& shot_name) {
+    diagnostic_camera_shot_ = shot_name;
+  }
+  void set_diagnostic_camera_path_offset_frames(double frames) {
+    diagnostic_camera_path_offset_frames_ = frames;
+  }
   // Diagnostic capture helper: jump the deterministic song clock to a known
   // authored window without replaying all earlier note/cue events.
   void seek_for_diagnostic_capture(double seconds);
@@ -436,7 +503,9 @@ class Gameplay {
                          bool force_persistent = false);
   bool apply_venue_event_visibility(const std::string& event_name, bool log);
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;
+  std::map<std::string, float> composed_venue_material_alpha() const;
   void apply_camera_crowd_visibility(const CameraKey& key);
+  void refresh_worldcrowd_actor_source_targets_for_camera();
   void resend_active_venue_event();
   void clear_runtime_venue_animation_state();
   void update_active_venue_material_anims();
@@ -449,6 +518,7 @@ class Gameplay {
   bool apply_lighting_event_visibility(const std::string& event_name,
                                        bool log);
   std::unordered_set<std::string> composed_lighting_hidden_meshes() const;
+  std::map<std::string, float> composed_lighting_material_alpha() const;
   void update_active_lighting_material_anims();
   void update_active_lighting_environment_anims();
   void update_active_lighting_light_anims();
@@ -496,6 +566,13 @@ class Gameplay {
   double venue_script_delay_seconds(const VenueScriptStep& step,
                                     bool inherited_beat_units);
   double venue_script_random_float(double min_value, double max_value);
+  void rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win);
+  void update_worldcrowd_actor_runtime(float dt);
+  void update_worldcrowd_actor_lighting(
+      const LightingPreset* preset = nullptr,
+      const LightingPreset::Keyframe* keyframe = nullptr);
+  void draw_worldcrowd_actor_runtime(
+      const ghogx::render::OrbitCamera& cam);
 
   // Detect a strum-triggered or HOPO note hit in the given lane.
   HitResult try_hit(int lane, bool strummed, bool is_hopo_candidate);
@@ -521,6 +598,7 @@ class Gameplay {
     ghogx::character::CharClip intro_clip;
     ghogx::character::CharClip active_clip;
     ghogx::character::CharClip active_allbeat_clip;
+    ghogx::character::CharClip active_double_clip;
     ghogx::character::CharClip active_half_clip;
     ghogx::character::CharClip active_nosnare_clip;
     ghogx::character::CharClip band_jump_clip;
@@ -587,8 +665,9 @@ class Gameplay {
   std::map<std::string, std::pair<int, int>> camera_duration_bars_;
   int camera_bars_left_ = 0;
   uint32_t last_camera_bar_ = UINT32_MAX;
-  uint32_t last_forced_camera_event_tick_ = UINT32_MAX;
+  size_t next_forced_camera_event_idx_ = 0;
   size_t camera_shot_counter_ = 0;
+  CameraResultBuilderState camera_result_builder_state_;
   int active_force_char_lod_ = -1;
   bool did_lighter_cam_ = false;
   bool crowd_lighter_on_ = false;
@@ -632,6 +711,7 @@ class Gameplay {
            ghogx::render::MiloSceneRenderer::MaterialTexTransformSample>
       lighting_material_tex_transforms_;
   std::vector<ActiveVenueMaterialAnim> active_lighting_material_anims_;
+  std::map<std::string, std::vector<std::string>> lighting_material_meshes_;
   double last_lighting_mat_anim_debug_time_ = -1.0;
   std::map<std::string, std::array<float, 4>> lighting_environment_colors_;
   std::map<std::string, float> lighting_environment_frames_;
@@ -724,6 +804,30 @@ class Gameplay {
   std::unordered_set<std::string> venue_crowd_meshes_;
   std::unordered_set<std::string> venue_mesh_names_;
   std::map<std::string, std::vector<std::string>> venue_group_meshes_;
+  std::map<std::string, std::array<float, 16>> venue_camera_target_worlds_;
+  ghogx::milo_scene::Scene venue_chars_scene_;
+  bool venue_chars_scene_loaded_ = false;
+  std::map<std::string, ghogx::milo_scene::Scene> worldcrowd_actor_scenes_;
+  std::map<std::string, ghogx::character::Character> worldcrowd_actor_characters_;
+  std::map<std::string, ghogx::character::CharClip> worldcrowd_actor_clips_;
+  struct WorldCrowdActorRuntime {
+    std::string actor_name;
+    std::string actor_milo;
+    std::unique_ptr<ghogx::character::CharRenderer> renderer;
+    ghogx::character::CharClip clip;
+    std::map<std::string, ghogx::character::CharClip> clips_by_group;
+    ghogx::character::CharClipPlayer player;
+    std::string active_group;
+    std::vector<std::array<float, 16>> placement_worlds;
+    float near_source_cull_radius = 0.0f;
+    float visible_bounds_radius = 0.0f;
+    float fullness_fraction = 1.0f;
+  };
+  std::map<std::string, WorldCrowdActorRuntime> worldcrowd_actor_runtime_;
+  size_t worldcrowd_actor_runtime_placements_ = 0;
+  std::string last_worldcrowd_actor_lighting_key_;
+  double last_worldcrowd_actor_source_sample_time_ = -1.0;
+  double last_worldcrowd_actor_source_probe_log_time_ = -1.0;
   std::unordered_set<std::string> venue_camera_hidden_meshes_;
   bool venue_camera_crowd_face_camera_ = false;
   std::string active_venue_event_;
@@ -764,6 +868,8 @@ class Gameplay {
   uint32_t diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
   std::string diagnostic_venue_override_;
   std::string diagnostic_venue_event_;
+  std::string diagnostic_camera_shot_;
+  double diagnostic_camera_path_offset_frames_ = 0.0;
   bool diagnostic_venue_event_applied_ = false;
 
   // Per-lane: has this lane's gem been hit this pass (so we don't double-hit)?

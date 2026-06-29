@@ -81,6 +81,7 @@ class CharClipPlayer {
   void clear();
   void play(const CharClip& clip, uint32_t flags = kCharPlayLoop,
             float blend_width = -1.0f, float speed = 1.0f);
+  void set_speed(float speed);
   void advance(float dt_seconds);
   void apply(Character& character, float weight = 1.0f) const;
   std::vector<ClipChannel> sampled_pose() const;

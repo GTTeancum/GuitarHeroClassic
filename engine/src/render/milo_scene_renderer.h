@@ -32,6 +32,25 @@ namespace ghogx::render {
 
 class Window;
 
+struct CameraResultFrame {
+  bool valid = false;
+  std::string source;
+  float position[3] = {0, 0, 0};
+  float forward[3] = {0, 1, 0};
+  float right[3] = {1, 0, 0};
+  float up[3] = {0, 0, 1};
+  bool has_custom_view = false;
+  bool has_custom_projection = false;
+  float custom_view[16] = {1, 0, 0, 0,
+                           0, 1, 0, 0,
+                           0, 0, 1, 0,
+                           0, 0, 0, 1};
+  float custom_projection[16] = {1, 0, 0, 0,
+                                 0, 1, 0, 0,
+                                 0, 0, 1, 0,
+                                 0, 0, 0, 1};
+};
+
 // An orbit camera around a target point: yaw/pitch/distance, with the GH2 world
 // convention (X across, Y depth, Z up). Driven by arrow keys / WASD.
 struct OrbitCamera {
@@ -46,6 +65,7 @@ struct OrbitCamera {
   float authored_eye[3] = {0, 0, 0};
   float authored_at[3] = {0, 1, 0};
   float authored_up[3] = {0, 0, 1};
+  CameraResultFrame result_frame;
   float screen_offset[2] = {0, 0};
 
   // Compute the eye position from yaw/pitch/distance about the target.
@@ -117,6 +137,17 @@ class MiloSceneRenderer {
     std::array<float, 2> scale = {1.0f, 1.0f};
     bool has_rotation = false;
     float rotation_radians = 0.0f;
+  };
+  struct MaterialUvBounds {
+    bool valid = false;
+    float min_u = 0.0f;
+    float min_v = 0.0f;
+    float max_u = 0.0f;
+    float max_v = 0.0f;
+  };
+  struct MaterialUvSamplerDecision {
+    bool uv_repeats = false;
+    bool wrap = false;
   };
   void set_material_tex_transform_overrides(
       std::map<std::string, MaterialTexTransformSample> material_tex_transforms);
@@ -219,5 +250,9 @@ class MiloSceneRenderer {
   float bb_max_[3] = {0, 0, 0};
   bool have_bounds_ = false;
 };
+
+MiloSceneRenderer::MaterialUvSamplerDecision choose_material_uv_sampler(
+    const MiloSceneRenderer::MaterialUvBounds& final_uv_bounds,
+    float scale_u, float scale_v, bool material_tex_anim);
 
 }  // namespace ghogx::render
