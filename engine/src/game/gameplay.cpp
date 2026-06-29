@@ -18398,14 +18398,6 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         }
     };
 
-    auto finish_active_sustains = [&](double held_until,
-                                      const char* reason) {
-        for (const ActiveSustain& sustain : active_sustains_) {
-            award_sustain(sustain, held_until, reason);
-        }
-        active_sustains_.clear();
-    };
-
     auto update_active_sustains = [&]() {
         if (active_sustains_.empty()) return;
         const uint32_t held_frets = fret_mask & 0x1fu;
@@ -18456,9 +18448,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         int gem_count = 0;
         group_mask_and_count(start, end, required_mask, gem_count);
         if (gem_count <= 0) return;
-        if (!active_sustains_.empty()) {
-            finish_active_sustains(song_time_, "repick");
-        }
+        active_sustains_.clear();
         observe_star_phrase_group(start, end, true);
 
         FoFiXScoreState state =
@@ -18522,7 +18512,11 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                      fret_mask & 0x1fu, fofix_rock_fill(rock_));
     };
 
-    update_active_sustains();
+    if (strummed && !diagnostic_autoplay_) {
+        active_sustains_.clear();
+    } else {
+        update_active_sustains();
+    }
 
     if (diagnostic_autoplay_) {
         for (size_t i = next_note_idx_; i < notes.size(); ++i) {

@@ -95,6 +95,27 @@ int main() {
   }
 
   {
+    FoFiXGameplaySession session({{1.0, 2.0, kGreen, false, false}});
+    session.tick(1.0, kGreen | kStrum);
+    session.tick(1.5, kGreen | kStrum);
+    session.tick(2.0, kGreen);
+    CHECK(session.score() == 50 && session.overstrums() == 1,
+          "manual strum during sustain clears FoFiX tail bonus");
+  }
+
+  {
+    FoFiXGameplaySession session({
+        {1.0, 2.0, kGreen, false, false},
+        {1.5, 1.5, kRed, false, false},
+    });
+    session.tick(1.0, kGreen | kStrum);
+    session.tick(1.5, kRed | kStrum);
+    session.tick(2.0, kRed);
+    CHECK(session.score() == 100 && session.hits() == 2,
+          "new hit during sustain does not award a repick tail bonus");
+  }
+
+  {
     FoFiXGameplaySession session({
         {1.0, 1.0, kGreen, false, true},
         {1.5, 1.5, kRed, false, true},

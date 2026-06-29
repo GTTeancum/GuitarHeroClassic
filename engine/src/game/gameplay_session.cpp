@@ -203,8 +203,6 @@ void FoFiXGameplaySession::apply_hit(size_t start,
                                      double song_time) {
   const int gem_count = group_gem_count(start, end);
   if (gem_count <= 0) return;
-  for (const ActiveSustain& sustain : active_sustains_)
-    award_sustain(sustain, song_time);
   active_sustains_.clear();
   observe_star_phrase(start, end, true);
   fofix_apply_hit(score_, gem_count,
@@ -277,10 +275,12 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   }
   fofix_update_star_power(star_power_, dt);
 
-  const uint32_t held_frets = fret_mask & 0x1fu;
-  update_sustains(song_time, held_frets);
-
   const bool strummed = (fret_mask & (1u << 5)) != 0;
+  const uint32_t held_frets = fret_mask & 0x1fu;
+  if (strummed)
+    active_sustains_.clear();
+  else
+    update_sustains(song_time, held_frets);
   bool hit_this_frame = false;
   bool missed_this_frame = false;
 
