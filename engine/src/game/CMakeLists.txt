@@ -5,6 +5,7 @@
 
 add_library(ghogx_gameplay_rules STATIC
     gameplay_rules.cpp gameplay_rules.h
+    gameplay_session.cpp gameplay_session.h
 )
 target_include_directories(ghogx_gameplay_rules PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
@@ -71,11 +72,17 @@ add_executable(ghogx_gameplay_rules_test gameplay_rules_test.cpp)
 target_link_libraries(ghogx_gameplay_rules_test PRIVATE ghogx_gameplay_rules)
 add_test(NAME ghogx_gameplay_rules_test COMMAND ghogx_gameplay_rules_test)
 
+add_executable(ghogx_gameplay_session_test gameplay_session_test.cpp)
+target_link_libraries(ghogx_gameplay_session_test PRIVATE ghogx_gameplay_rules)
+add_test(NAME ghogx_gameplay_session_test COMMAND ghogx_gameplay_session_test)
+
 if(MSVC)
     target_compile_options(ghogx_gameplay_venue_band_contract_test PRIVATE /W4)
     target_compile_options(ghogx_gameplay_rules_test PRIVATE /W4)
+    target_compile_options(ghogx_gameplay_session_test PRIVATE /W4)
 else()
     target_compile_options(ghogx_gameplay_venue_band_contract_test PRIVATE
         -Wall -Wextra)
     target_compile_options(ghogx_gameplay_rules_test PRIVATE -Wall -Wextra)
+    target_compile_options(ghogx_gameplay_session_test PRIVATE -Wall -Wextra)
 endif()

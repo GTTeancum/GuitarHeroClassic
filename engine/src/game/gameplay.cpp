@@ -18428,24 +18428,24 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         commit_rock_meter();
         note_hit_this_frame = true;
 
-        for (size_t j = start; j < end; ++j) {
-            if (j < consumed.size() && consumed[j]) continue;
-            const auto& n = notes[j];
+        for (size_t i = start; i < end; ++i) {
+            if (i < consumed.size() && consumed[i]) continue;
+            const auto& n = notes[i];
             lane_hit_[n.lane] = true;
             hit_flash_mask_ |= (1u << n.lane);
             lane_flash_[n.lane] = 1.0f;
-            if (j < consumed.size()) consumed[j] = 1;
+            if (i < consumed.size()) consumed[i] = 1;
             apply_venue_event(player_fret_hit_event(n.lane), false);
         }
         start_sustain_group(start, end);
 
-        std::fprintf(
-            stderr,
-            "[gameplay] HIT tick=%u mask=0x%02x gems=%d pts=%d streak=%d mult=%d score=%d rock=%.2f sp=%.2f%s\n",
-            notes[start].tick_on, required_mask & 0x1fu, gem_count,
-            award.points, streak_, multiplier_, score_,
-            fofix_rock_fill(rock_), fofix_star_power_fill(star_power_),
-            autoplay ? " diagnostic_autoplay" : "");
+        const char* hit_log_format = autoplay
+            ? "[gameplay] HIT tick=%u mask=0x%02x gems=%d pts=%d streak=%d mult=%d score=%d diagnostic_autoplay rock=%.2f sp=%.2f\n"
+            : "[gameplay] HIT tick=%u mask=0x%02x gems=%d pts=%d streak=%d mult=%d score=%d rock=%.2f sp=%.2f\n";
+        std::fprintf(stderr, hit_log_format, notes[start].tick_on,
+                     required_mask & 0x1fu, gem_count, award.points, streak_,
+                     multiplier_, score_, fofix_rock_fill(rock_),
+                     fofix_star_power_fill(star_power_));
     };
 
     auto apply_overstrum = [&]() {
