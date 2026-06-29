@@ -41,6 +41,9 @@ struct FoFiXSessionEvent {
   uint32_t mask = 0;
   int gem_count = 0;
   int score_delta = 0;
+  int score = 0;
+  int streak = 0;
+  int multiplier = 1;
   size_t source_index = static_cast<size_t>(-1);
   uint32_t source_tick = UINT32_MAX;
   double rock_fill = 0.0;

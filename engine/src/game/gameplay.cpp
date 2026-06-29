@@ -18269,9 +18269,10 @@ void Gameplay::update_gameplay_session_mirror(uint32_t fret_mask) {
             }
             std::fprintf(
                 stderr,
-                "[gameplay] FoFiX session event type=%s t=%.3f mask=0x%02x gems=%d pts=%d source=%zu tick=%u rock=%.4f sp=%.4f fail=%d\n",
+                "[gameplay] FoFiX session event type=%s t=%.3f mask=0x%02x gems=%d pts=%d score=%d streak=%d mult=%d source=%zu tick=%u rock=%.4f sp=%.4f fail=%d\n",
                 type, event.time, event.mask & 0x1fu, event.gem_count,
-                event.score_delta, event.source_index, event.source_tick,
+                event.score_delta, event.score, event.streak,
+                event.multiplier, event.source_index, event.source_tick,
                 event.rock_fill, event.star_power_fill,
                 event.failed ? 1 : 0);
         }

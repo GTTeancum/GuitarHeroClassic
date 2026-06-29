@@ -38,6 +38,9 @@ int main() {
               session.last_events()[0].mask == kGreen &&
               session.last_events()[0].gem_count == 1 &&
               session.last_events()[0].score_delta == 50 &&
+              session.last_events()[0].score == 50 &&
+              session.last_events()[0].streak == 1 &&
+              session.last_events()[0].multiplier == 1 &&
               session.last_events()[0].rock_fill > 0.5001 &&
               session.last_events()[0].star_power_fill == 0.0 &&
               !session.last_events()[0].failed,
@@ -51,6 +54,9 @@ int main() {
                   FoFiXSessionEventType::Overstrum &&
               session.last_events()[0].mask == kRed,
           "FoFiX session reports overstrum delta for native presentation");
+    CHECK(session.last_events()[0].streak == 0 &&
+              session.last_events()[0].multiplier == 1,
+          "FoFiX overstrum event snapshots reset score state");
   }
 
   {

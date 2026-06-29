@@ -145,6 +145,9 @@ FoFiXSessionEvent FoFiXGameplaySession::make_event(
   event.mask = mask;
   event.gem_count = gem_count;
   event.score_delta = score_delta;
+  event.score = score_.score;
+  event.streak = score_.streak;
+  event.multiplier = score_.multiplier;
   event.source_index = source_index;
   event.source_tick = source_tick;
   event.rock_fill = fofix_rock_fill(rock_);
