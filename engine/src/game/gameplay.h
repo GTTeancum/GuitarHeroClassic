@@ -12,6 +12,7 @@
 #include "character/char_facefx.h"
 #include "character/char_renderer.h"
 #include "game/audio_player.h"
+#include "game/gameplay_rules.h"
 #include "game/highway_renderer.h"
 #include "render/milo_scene_renderer.h"
 
@@ -496,6 +497,10 @@ class Gameplay {
   void seek_for_diagnostic_capture(double seconds);
   int    score()     const { return score_; }
   int    streak()    const { return streak_; }
+  int    multiplier()const { return multiplier_; }
+  float  star_power_fill() const;
+  float  rock_fill() const;
+  bool   failed() const { return failed_; }
   int    difficulty()const { return difficulty_; }
 
  private:
@@ -853,6 +858,11 @@ class Gameplay {
   int      score_          = 0;
   int      streak_         = 0;
   int      multiplier_     = 1;
+  FoFiXRockState rock_;
+  FoFiXStarPowerState star_power_;
+  bool     failed_         = false;
+  bool     star_phrase_active_ = false;
+  bool     star_phrase_missed_ = false;
 
   // Per-frame hit/miss feedback for the renderer (cleared each tick).
   uint32_t hit_flash_mask_  = 0;

@@ -223,6 +223,7 @@ class AppEngine : public ghogx::Engine {
         std::fprintf(stderr, "[ghogx] START pressed -> loading song '%s' diff=%d\n",
                      song_name_.c_str(), song_diff_);
         if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
+          reset_hud_load();
           if (diagnostic_song_start_ > 0.0) {
             gameplay_.seek_for_diagnostic_capture(diagnostic_song_start_);
           }
@@ -239,6 +240,12 @@ class AppEngine : public ghogx::Engine {
           win_->guitar_input_held() |
           (win_->guitar_input_edge() & (1u << 5));  // strum = edge-only
       gameplay_.tick(dt, fret_mask);
+      if (gameplay_.failed()) {
+        std::fprintf(stderr, "[ghogx] song failed; final score %d\n",
+                     gameplay_.score());
+        state_ = AppState::Title;
+        started_ = false;
+      }
       if (gameplay_.is_finished()) {
         std::fprintf(stderr, "[ghogx] song finished — final score %d\n", gameplay_.score());
         state_ = AppState::Title;
@@ -250,6 +257,7 @@ class AppEngine : public ghogx::Engine {
   void on_render(float /*dt*/) override {
     if (state_ == AppState::Playing) {
       gameplay_.draw(*win_);
+      draw_gameplay_hud();
       return;
     }
 
@@ -413,6 +421,9 @@ class AppEngine : public ghogx::Engine {
 
   // Song gameplay.
   ghogx::game::Gameplay gameplay_;
+  ghogx::hud::HudRenderer hud_;
+  bool hud_load_attempted_ = false;
+  bool hud_ready_ = false;
   std::string hdr_path_;
   std::string ark_path_;
   std::string song_name_ = "shoutatthedevil";
@@ -469,12 +480,41 @@ class AppEngine : public ghogx::Engine {
   // Force-load the song and skip directly to Playing state (for --auto-start).
   void force_start_song() {
     if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
+      reset_hud_load();
       if (diagnostic_song_start_ > 0.0) {
         gameplay_.seek_for_diagnostic_capture(diagnostic_song_start_);
       }
       state_ = AppState::Playing;
       started_ = true;
     }
+  }
+
+  void reset_hud_load() {
+    hud_load_attempted_ = false;
+    hud_ready_ = false;
+  }
+
+  void ensure_hud_loaded() {
+    if (hud_load_attempted_) return;
+    hud_load_attempted_ = true;
+    if (hdr_path_.empty() || ark_path_.empty()) return;
+    auto* dev = static_cast<IDirect3DDevice9*>(win_->device_ptr());
+    hud_ready_ = hud_.load(dev, hdr_path_, ark_path_);
+  }
+
+  void draw_gameplay_hud() {
+    ensure_hud_loaded();
+    if (!hud_ready_) return;
+
+    ghogx::hud::HudState state;
+    state.score = gameplay_.score();
+    state.streak = gameplay_.streak();
+    state.multiplier = gameplay_.multiplier();
+    state.sp_fill = gameplay_.star_power_fill();
+    state.rock_fill = gameplay_.rock_fill();
+
+    auto* dev = static_cast<IDirect3DDevice9*>(win_->device_ptr());
+    hud_.draw(dev, state);
   }
 };
 

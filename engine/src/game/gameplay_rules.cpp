@@ -8,6 +8,12 @@ namespace {
 
 constexpr double kFoFiXStandardHitScale = 1.2;
 constexpr double kMillisecondsPerSecond = 1000.0;
+constexpr double kRockMax = 30000.0;
+constexpr double kMinBase = 400.0;
+constexpr double kPlusBase = 15.0;
+constexpr double kMinGain = 2.0;
+constexpr double kPlusGain = 7.0;
+constexpr double kStarPhraseAward = 25.0;
 
 int popcount5(uint32_t mask) {
   int count = 0;
@@ -87,6 +93,63 @@ FoFiXScoreAward fofix_apply_hit(FoFiXScoreState& state, int gem_count) {
 void fofix_apply_miss(FoFiXScoreState& state) {
   state.streak = 0;
   state.multiplier = 1;
+}
+
+void fofix_apply_rock_hit(FoFiXRockState& state, double power_multiplier) {
+  power_multiplier = std::max(1.0, power_multiplier);
+  if (state.value < kRockMax) {
+    state.plus_amount += kPlusGain * power_multiplier;
+    state.value += state.plus_amount * power_multiplier;
+  }
+  state.value = std::clamp(state.value, 0.0, kRockMax);
+  if (state.minus_amount > kMinBase) {
+    state.minus_amount -= (kMinGain / 2.0) * power_multiplier;
+  }
+  state.minus_amount = std::max(state.minus_amount, kMinBase);
+  state.plus_amount = std::max(state.plus_amount, kPlusBase);
+}
+
+void fofix_apply_rock_miss(FoFiXRockState& state, double power_multiplier) {
+  power_multiplier = std::max(1.0, power_multiplier);
+  state.minus_amount += kMinGain / power_multiplier;
+  const double rock_minus = state.minus_amount / power_multiplier;
+  state.value -= rock_minus;
+  if (state.plus_amount > kPlusBase) {
+    state.plus_amount -= (kPlusGain * 2.0) / power_multiplier;
+  }
+  state.value = std::clamp(state.value, 0.0, kRockMax);
+  state.minus_amount = std::max(state.minus_amount, kMinBase);
+  state.plus_amount = std::max(state.plus_amount, kPlusBase);
+}
+
+void fofix_apply_rock_overstrum(FoFiXRockState& state,
+                                double power_multiplier) {
+  power_multiplier = std::max(1.0, power_multiplier);
+  state.minus_amount += kMinGain / 5.0 / power_multiplier;
+  const double rock_minus = state.minus_amount / 5.0 / power_multiplier;
+  state.value -= rock_minus;
+  if (state.plus_amount > kPlusBase) {
+    state.plus_amount -= kPlusGain / 2.5 / power_multiplier;
+  }
+  state.value = std::clamp(state.value, 0.0, kRockMax);
+  state.minus_amount = std::max(state.minus_amount, kMinBase);
+  state.plus_amount = std::max(state.plus_amount, kPlusBase);
+}
+
+double fofix_rock_fill(const FoFiXRockState& state) {
+  return std::clamp(state.value / kRockMax, 0.0, 1.0);
+}
+
+bool fofix_rock_failed(const FoFiXRockState& state) {
+  return state.value <= 0.0;
+}
+
+void fofix_award_star_phrase(FoFiXStarPowerState& state) {
+  state.value = std::clamp(state.value + kStarPhraseAward, 0.0, 100.0);
+}
+
+double fofix_star_power_fill(const FoFiXStarPowerState& state) {
+  return std::clamp(state.value / 100.0, 0.0, 1.0);
 }
 
 }  // namespace ghogx::game

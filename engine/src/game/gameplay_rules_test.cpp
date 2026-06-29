@@ -55,6 +55,32 @@ int main() {
   CHECK(score.streak == 0 && score.multiplier == 1,
         "miss resets streak and multiplier");
 
+  FoFiXRockState rock;
+  CHECK(fofix_rock_fill(rock) > 0.499 && fofix_rock_fill(rock) < 0.501,
+        "rock meter starts halfway");
+  fofix_apply_rock_hit(rock);
+  CHECK(rock.value == 15022.0 && rock.plus_amount == 22.0,
+        "first normal hit raises rock by ramped plus amount");
+  fofix_apply_rock_miss(rock);
+  CHECK(rock.value == 14620.0 && rock.minus_amount == 402.0 &&
+            rock.plus_amount == 15.0,
+        "normal miss ramps penalty and clamps recovery amount");
+  fofix_apply_rock_overstrum(rock);
+  CHECK(rock.value > 14539.5 && rock.value < 14540.0 &&
+            rock.minus_amount > 402.3 && rock.minus_amount < 402.5,
+        "overstrum applies FoFiX lessMissed-style rock penalty");
+
+  FoFiXStarPowerState star;
+  fofix_award_star_phrase(star);
+  CHECK(fofix_star_power_fill(star) > 0.249 &&
+            fofix_star_power_fill(star) < 0.251,
+        "completed star phrase awards a quarter meter");
+  for (int i = 0; i < 8; ++i) {
+    fofix_award_star_phrase(star);
+  }
+  CHECK(fofix_star_power_fill(star) == 1.0,
+        "star power is capped at a full meter");
+
   if (failures == 0) {
     std::fprintf(stderr, "gameplay_rules_test: PASS\n");
   }

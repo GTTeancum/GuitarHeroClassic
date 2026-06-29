@@ -14591,6 +14591,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     score_        = 0;
     streak_       = 0;
     multiplier_   = 1;
+    rock_         = FoFiXRockState{};
+    star_power_   = FoFiXStarPowerState{};
+    failed_       = false;
+    star_phrase_active_ = false;
+    star_phrase_missed_ = false;
     hit_flash_mask_  = 0;
     miss_flash_mask_ = 0;
     prev_fret_mask_  = 0;
@@ -17541,6 +17546,14 @@ bool Gameplay::is_finished() const {
     return song_time_ >= chart_.duration_sec() + 2.0;  // 2s grace after last note
 }
 
+float Gameplay::star_power_fill() const {
+    return static_cast<float>(fofix_star_power_fill(star_power_));
+}
+
+float Gameplay::rock_fill() const {
+    return static_cast<float>(fofix_rock_fill(rock_));
+}
+
 void Gameplay::seek_for_diagnostic_capture(double seconds) {
     if (!chart_loaded_) return;
     song_time_ = std::clamp(seconds, 0.0, std::max(0.0, chart_.duration_sec()));
@@ -18232,6 +18245,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     const bool strummed =
         ((fret_mask & (1u << 5)) != 0) &&
         ((prev_fret_mask_ & (1u << 5)) == 0);  // rising edge on strum bit
+    bool note_hit_this_frame = false;
 
     auto note_group_end = [&](size_t start) {
         const uint32_t tick = notes[start].tick_on;
@@ -18253,10 +18267,49 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         }
     };
 
+    auto group_has_star_power = [&](size_t start, size_t end) {
+        for (size_t j = start; j < end; ++j) {
+            if (j < consumed.size() && consumed[j]) continue;
+            if (notes[j].star_power) return true;
+        }
+        return false;
+    };
+
+    auto finish_star_phrase = [&]() {
+        if (!star_phrase_active_) return;
+        if (!star_phrase_missed_) {
+            fofix_award_star_phrase(star_power_);
+            std::fprintf(stderr,
+                         "[gameplay] star phrase complete sp=%.2f\n",
+                         fofix_star_power_fill(star_power_));
+        } else {
+            std::fprintf(stderr, "[gameplay] star phrase missed\n");
+        }
+        star_phrase_active_ = false;
+        star_phrase_missed_ = false;
+    };
+
+    auto observe_star_phrase_group = [&](size_t start, size_t end, bool hit) {
+        const bool has_star_power = group_has_star_power(start, end);
+        if (!has_star_power) {
+            finish_star_phrase();
+            return;
+        }
+        if (!star_phrase_active_) {
+            star_phrase_active_ = true;
+            star_phrase_missed_ = false;
+        }
+        if (!hit) star_phrase_missed_ = true;
+    };
+
     auto commit_score_state = [&](const FoFiXScoreState& state) {
         score_ = state.score;
         streak_ = state.streak;
         multiplier_ = state.multiplier;
+    };
+
+    auto commit_rock_meter = [&]() {
+        failed_ = fofix_rock_failed(rock_);
     };
 
     auto apply_hit_group = [&](size_t start, size_t end, bool autoplay) {
@@ -18264,11 +18317,15 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         int gem_count = 0;
         group_mask_and_count(start, end, required_mask, gem_count);
         if (gem_count <= 0) return;
+        observe_star_phrase_group(start, end, true);
 
         FoFiXScoreState state =
             gameplay_score_state(score_, streak_, multiplier_);
         const FoFiXScoreAward award = fofix_apply_hit(state, gem_count);
         commit_score_state(state);
+        fofix_apply_rock_hit(rock_);
+        commit_rock_meter();
+        note_hit_this_frame = true;
 
         for (size_t j = start; j < end; ++j) {
             if (j < consumed.size() && consumed[j]) continue;
@@ -18282,10 +18339,24 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
 
         std::fprintf(
             stderr,
-            "[gameplay] HIT tick=%u mask=0x%02x gems=%d pts=%d streak=%d mult=%d score=%d%s\n",
+            "[gameplay] HIT tick=%u mask=0x%02x gems=%d pts=%d streak=%d mult=%d score=%d rock=%.2f sp=%.2f%s\n",
             notes[start].tick_on, required_mask & 0x1fu, gem_count,
             award.points, streak_, multiplier_, score_,
+            fofix_rock_fill(rock_), fofix_star_power_fill(star_power_),
             autoplay ? " diagnostic_autoplay" : "");
+    };
+
+    auto apply_overstrum = [&]() {
+        FoFiXScoreState state =
+            gameplay_score_state(score_, streak_, multiplier_);
+        fofix_apply_miss(state);
+        commit_score_state(state);
+        fofix_apply_rock_overstrum(rock_);
+        commit_rock_meter();
+        miss_flash_mask_ |= (fret_mask & 0x1fu);
+        std::fprintf(stderr,
+                     "[gameplay] overstrum mask=0x%02x streak reset rock=%.2f\n",
+                     fret_mask & 0x1fu, fofix_rock_fill(rock_));
     };
 
     if (diagnostic_autoplay_) {
@@ -18314,6 +18385,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         const double note_sec = chart_.tick_to_sec(n.tick_on);
         const FoFiXHitWindow window = hit_window_at_tick(chart_, n.tick_on);
         if (fofix_note_missed(song_time_, note_sec, window)) {
+            observe_star_phrase_group(next_note_idx_, end, false);
             bool missed = false;
             for (size_t j = next_note_idx_; j < end; ++j) {
                 if (j < consumed.size() && consumed[j]) continue;
@@ -18329,9 +18401,12 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                     gameplay_score_state(score_, streak_, multiplier_);
                 fofix_apply_miss(state);
                 commit_score_state(state);
+                fofix_apply_rock_miss(rock_);
+                commit_rock_meter();
                 std::fprintf(stderr,
-                             "[gameplay] miss tick=%u mask=0x%02x streak reset\n",
-                             n.tick_on, miss_flash_mask_ & 0x1fu);
+                             "[gameplay] miss tick=%u mask=0x%02x streak reset rock=%.2f\n",
+                             n.tick_on, miss_flash_mask_ & 0x1fu,
+                             fofix_rock_fill(rock_));
             }
             next_note_idx_ = end;
         } else {
@@ -18397,10 +18472,18 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         }
         i = end - 1;
     }
+    if (strummed && !note_hit_this_frame && miss_flash_mask_ == 0 &&
+        !diagnostic_autoplay_ &&
+        (fret_mask & 0x1fu) != 0) {
+        apply_overstrum();
+    }
     while (next_note_idx_ < notes.size() &&
            next_note_idx_ < consumed.size() &&
            consumed[next_note_idx_]) {
         ++next_note_idx_;
+    }
+    if (next_note_idx_ >= notes.size()) {
+        finish_star_phrase();
     }
 
     if (miss_flash_mask_ != 0) {
