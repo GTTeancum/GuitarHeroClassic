@@ -18185,7 +18185,7 @@ void apply_gameplay_backing_camera(
     cam.target[1] = center[1] + std::max(28.0f, span_y * 0.14f);
     cam.target[2] = center[2] + std::max(16.0f, span_z * 0.08f);
     cam.yaw = 0.30f;
-    cam.pitch = 0.035f;
+    cam.pitch = 0.175f;
     cam.distance = std::clamp(span * 1.80f, 540.0f, 840.0f);
     cam.fov = 0.70f;
     cam.near_z = 10.0f;
