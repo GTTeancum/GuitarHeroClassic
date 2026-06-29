@@ -376,6 +376,25 @@ int main() {
                  "score=%ddiagnostic_autoplay",
                  "diagnostic autoplay catch-up rows remain log-verifiable");
   ok &= contains(gameplay_h_c,
+                 "inthit_count_=0;"
+                 "intmiss_count_=0;"
+                 "intoverstrum_count_=0;",
+                 "live gameplay records FoFiX hit miss and overstrum counts");
+  ok &= contains(gameplay_c,
+                 "gameplay_session_mirror_->hits()!=hit_count_||"
+                 "gameplay_session_mirror_->misses()!=miss_count_||"
+                 "gameplay_session_mirror_->overstrums()!=overstrum_count_",
+                 "FoFiX mirror mismatch checks event counts as well as gauges");
+  ok &= contains(gameplay_c,
+                 "++hit_count_;",
+                 "live hit path increments FoFiX mirror hit count");
+  ok &= contains(gameplay_c,
+                 "++overstrum_count_;",
+                 "live overstrum path increments FoFiX mirror overstrum count");
+  ok &= contains(gameplay_c,
+                 "++miss_count_;",
+                 "live miss path increments FoFiX mirror miss count");
+  ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_venue_override(conststd::string&venue)",
                  "diagnostic venue override stays an explicit gameplay test hook");
   ok &= contains(gameplay_h_c,

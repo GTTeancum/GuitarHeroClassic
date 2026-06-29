@@ -870,6 +870,9 @@ class Gameplay {
   int      score_          = 0;
   int      streak_         = 0;
   int      multiplier_     = 1;
+  int      hit_count_      = 0;
+  int      miss_count_     = 0;
+  int      overstrum_count_ = 0;
   FoFiXRockState rock_;
   FoFiXStarPowerState star_power_;
   std::optional<FoFiXGameplaySession> gameplay_session_mirror_;
