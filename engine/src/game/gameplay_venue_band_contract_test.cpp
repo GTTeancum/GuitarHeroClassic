@@ -103,6 +103,8 @@ int main() {
   const std::filesystem::path render_dir = GHOGX_RENDER_SOURCE_DIR;
   const std::string gameplay = read_file(game_dir / "gameplay.cpp");
   const std::string gameplay_h = read_file(game_dir / "gameplay.h");
+  const std::string highway_renderer =
+      read_file(game_dir / "highway_renderer.cpp");
   const std::string catalog = read_file(source_dir / "catalog.cpp");
   const std::string catalog_h = read_file(source_dir / "catalog.h");
   const std::string milo_image = read_file(asset_dir / "milo_image.cpp");
@@ -122,6 +124,7 @@ int main() {
       read_file(render_dir / "milo_scene_renderer.h");
   const std::string gameplay_c = compact(gameplay);
   const std::string gameplay_h_c = compact(gameplay_h);
+  const std::string highway_renderer_c = compact(highway_renderer);
   const std::string catalog_c = compact(catalog);
   const std::string catalog_h_c = compact(catalog_h);
   const std::string milo_image_c = compact(milo_image);
@@ -375,6 +378,19 @@ int main() {
   ok &= contains(gameplay_c,
                  "score=%ddiagnostic_autoplay",
                  "diagnostic autoplay catch-up rows remain log-verifiable");
+  ok &= contains(highway_renderer_c,
+                 "constuint32_tfirst_tick=chart.sec_to_tick(first_sec);"
+                 "constuint32_tlast_tick=chart.sec_to_tick(last_sec);",
+                 "highway beat-line window is derived through tempo-map seconds to ticks");
+  ok &= contains(highway_renderer_c,
+                 "constdoublebt=chart.tick_to_sec(beat_tick);",
+                 "highway beat lines use tempo-map tick timing like notes");
+  ok &= contains(highway_renderer_c,
+                 "beat_tick+=chart.ticks_per_beat;",
+                 "highway beat lines advance by MIDI beat ticks");
+  ok &= absent(highway_renderer_c,
+               "chart.tick_to_sec(chart.ticks_per_beat)-chart.tick_to_sec(0)",
+               "highway beat lines must not assume the first tempo for the full song");
   ok &= contains(gameplay_h_c,
                  "inthit_count_=0;"
                  "intmiss_count_=0;"

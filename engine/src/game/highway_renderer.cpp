@@ -260,20 +260,24 @@ void HighwayRenderer::draw(double song_time, const ghogx::chart::Chart& chart,
   // --- 3) Beat lines (barline texture across the board) ---
   {
     IDirect3DTexture9* bar = tex("barline_gw.tex");
-    if (bar) {
-      const double beat_sec = chart.tick_to_sec(chart.ticks_per_beat) - chart.tick_to_sec(0);
-      if (beat_sec > 0.01) {
-        const double first = std::floor((song_time - trail) / beat_sec) * beat_sec;
-        for (int b = 0; b < 256; ++b) {
-          const double bt = first + b * beat_sec;
-          const float y = note_y(bt);
-          if (y < kRemoveY) continue;
-          if (y > kTopY) break;
+    if (bar && chart.ticks_per_beat > 0) {
+      const double first_sec = std::max(0.0, song_time - trail);
+      const double last_sec = std::max(first_sec, song_time + lead);
+      const uint32_t first_tick = chart.sec_to_tick(first_sec);
+      const uint32_t last_tick = chart.sec_to_tick(last_sec);
+      uint32_t beat_tick =
+          (first_tick / chart.ticks_per_beat) * chart.ticks_per_beat;
+      for (int b = 0; b < 256 && beat_tick <= last_tick; ++b) {
+        const double bt = chart.tick_to_sec(beat_tick);
+        const float y = note_y(bt);
+        if (y >= kRemoveY && y <= kTopY) {
           const int a = static_cast<int>(110 * depth_fade(y));
           V3 q[4]; flat_quad(q, 0.0f, y, kBoardZ + 0.02f, kBoardHalfX, 0.5f,
                              D3DCOLOR_ARGB(a, 255, 255, 255));
           draw_quad(dev_, bar, q);
         }
+        if (beat_tick > UINT32_MAX - chart.ticks_per_beat) break;
+        beat_tick += chart.ticks_per_beat;
       }
     }
   }
