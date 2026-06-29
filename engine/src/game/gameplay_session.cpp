@@ -268,7 +268,7 @@ void FoFiXGameplaySession::apply_skip(size_t start, size_t end) {
   }
 }
 
-void FoFiXGameplaySession::apply_overstrum() {
+void FoFiXGameplaySession::apply_overstrum(uint32_t held_frets) {
   fofix_apply_miss(score_);
   fofix_apply_rock_overstrum(
       rock_,
@@ -277,7 +277,7 @@ void FoFiXGameplaySession::apply_overstrum() {
   last_events_.push_back(FoFiXSessionEvent{
       FoFiXSessionEventType::Overstrum,
       last_time_,
-      0,
+      held_frets & 0x1fu,
       0,
       0,
       static_cast<size_t>(-1),
@@ -414,7 +414,7 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
       observe_star_phrase(overstrum_candidate_start, overstrum_candidate_end,
                           false);
     }
-    apply_overstrum();
+    apply_overstrum(held_frets);
   }
   prev_fret_mask_ = fret_mask;
 }

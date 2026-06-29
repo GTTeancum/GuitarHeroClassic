@@ -45,7 +45,8 @@ int main() {
           "wrong extra strum resets streak as overstrum");
     CHECK(session.last_events().size() == 1 &&
               session.last_events()[0].type ==
-                  FoFiXSessionEventType::Overstrum,
+                  FoFiXSessionEventType::Overstrum &&
+              session.last_events()[0].mask == kRed,
           "FoFiX session reports overstrum delta for native presentation");
   }
 
@@ -65,6 +66,11 @@ int main() {
     session.tick(1.3, kStrum);
     CHECK(session.overstrums() == 1 && session.streak() == 0,
           "empty extra strum resets streak as FoFiX overstrum");
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].type ==
+                  FoFiXSessionEventType::Overstrum &&
+              session.last_events()[0].mask == 0,
+          "empty FoFiX overstrum reports no held fret mask");
   }
 
   {
@@ -75,7 +81,8 @@ int main() {
     CHECK(session.last_events().size() == 2 &&
               session.last_events()[0].type == FoFiXSessionEventType::Miss &&
               session.last_events()[1].type ==
-                  FoFiXSessionEventType::Overstrum,
+                  FoFiXSessionEventType::Overstrum &&
+              session.last_events()[1].mask == 0,
           "FoFiX session reports miss and bad-pick deltas on the same tick");
   }
 
