@@ -18165,6 +18165,14 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     else
         song_time_ += static_cast<double>(dt);
 
+    if ((fret_mask & (1u << 6)) != 0) {
+        if (fofix_activate_star_power(star_power_)) {
+            std::fprintf(stderr, "[gameplay] star power activated sp=%.2f\n",
+                         fofix_star_power_fill(star_power_));
+        }
+    }
+    fofix_update_star_power(star_power_, static_cast<double>(dt));
+
     while (next_drum_cue_idx_ < chart_.drum_cues.size()) {
         const auto& cue = chart_.drum_cues[next_drum_cue_idx_];
         const double cue_sec = chart_.tick_to_sec(cue.tick);
@@ -18338,7 +18346,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                               sustain.start_time);
         const int points = fofix_sustain_score(
             held_seconds, sustain.gem_count, sustain.beat_seconds,
-            multiplier_);
+            multiplier_ * fofix_star_power_score_multiplier(star_power_));
         if (points > 0) {
             score_ += points;
             std::fprintf(stderr,
@@ -18413,7 +18421,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
 
         FoFiXScoreState state =
             gameplay_score_state(score_, streak_, multiplier_);
-        const FoFiXScoreAward award = fofix_apply_hit(state, gem_count);
+        const FoFiXScoreAward award = fofix_apply_hit(
+            state, gem_count, fofix_star_power_score_multiplier(star_power_));
         commit_score_state(state);
         fofix_apply_rock_hit(rock_);
         commit_rock_meter();
@@ -20516,7 +20525,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     camera_mode = *forced_camera_mode;
                 }
                 constexpr bool kGuitaristWalking = false;
-                constexpr bool kGuitaristStarpower = false;
+                const bool guitarist_starpower = star_power_.active;
                 const CameraKey* key = nullptr;
                 if (!diagnostic_camera_shot_.empty()) {
                     key = find_camera_key_by_name(regular_camera_keys_,
@@ -20531,7 +20540,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 if (!key) {
                     key = choose_regular_camera_key_scripted(
                         regular_camera_keys_, current_key, camera_shot_counter_,
-                        low_excitement, kGuitaristWalking, kGuitaristStarpower,
+                        low_excitement, kGuitaristWalking, guitarist_starpower,
                         camera_mode);
                 }
                 if (key) {

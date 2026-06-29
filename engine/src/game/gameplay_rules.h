@@ -45,7 +45,9 @@ bool fofix_match_frets(uint32_t held_frets, uint32_t required_frets);
 
 int fofix_multiplier_for_streak(int streak);
 
-FoFiXScoreAward fofix_apply_hit(FoFiXScoreState& state, int gem_count);
+FoFiXScoreAward fofix_apply_hit(FoFiXScoreState& state,
+                                int gem_count,
+                                int power_multiplier = 1);
 
 void fofix_apply_miss(FoFiXScoreState& state);
 
@@ -64,7 +66,13 @@ bool fofix_rock_failed(const FoFiXRockState& state);
 
 void fofix_award_star_phrase(FoFiXStarPowerState& state);
 
+bool fofix_activate_star_power(FoFiXStarPowerState& state);
+
+void fofix_update_star_power(FoFiXStarPowerState& state, double dt_seconds);
+
 double fofix_star_power_fill(const FoFiXStarPowerState& state);
+
+int fofix_star_power_score_multiplier(const FoFiXStarPowerState& state);
 
 int fofix_sustain_score(double held_seconds,
                         int note_count,

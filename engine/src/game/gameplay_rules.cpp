@@ -14,6 +14,8 @@ constexpr double kPlusBase = 15.0;
 constexpr double kMinGain = 2.0;
 constexpr double kPlusGain = 7.0;
 constexpr double kStarPhraseAward = 25.0;
+constexpr double kStarActivationThreshold = 50.0;
+constexpr double kStarDrainDivisorMs = 200.0;
 constexpr double kBaseSustainScore = 0.1;
 
 int popcount5(uint32_t mask) {
@@ -82,11 +84,14 @@ int fofix_multiplier_for_streak(int streak) {
   return 1;
 }
 
-FoFiXScoreAward fofix_apply_hit(FoFiXScoreState& state, int gem_count) {
+FoFiXScoreAward fofix_apply_hit(FoFiXScoreState& state,
+                                int gem_count,
+                                int power_multiplier) {
   ++state.streak;
   state.multiplier = fofix_multiplier_for_streak(state.streak);
   const int gems = std::max(1, gem_count);
-  const int points = gems * 50 * state.multiplier;
+  const int points = gems * 50 * state.multiplier *
+                     std::max(1, power_multiplier);
   state.score += points;
   return FoFiXScoreAward{points, state.multiplier};
 }
@@ -149,8 +154,27 @@ void fofix_award_star_phrase(FoFiXStarPowerState& state) {
   state.value = std::clamp(state.value + kStarPhraseAward, 0.0, 100.0);
 }
 
+bool fofix_activate_star_power(FoFiXStarPowerState& state) {
+  if (state.active || state.value < kStarActivationThreshold) return false;
+  state.active = true;
+  return true;
+}
+
+void fofix_update_star_power(FoFiXStarPowerState& state, double dt_seconds) {
+  if (!state.active || dt_seconds <= 0.0) return;
+  state.value -= (dt_seconds * kMillisecondsPerSecond) / kStarDrainDivisorMs;
+  if (state.value <= 0.0) {
+    state.value = 0.0;
+    state.active = false;
+  }
+}
+
 double fofix_star_power_fill(const FoFiXStarPowerState& state) {
   return std::clamp(state.value / 100.0, 0.0, 1.0);
+}
+
+int fofix_star_power_score_multiplier(const FoFiXStarPowerState& state) {
+  return state.active ? 2 : 1;
 }
 
 int fofix_sustain_score(double held_seconds,

@@ -460,7 +460,8 @@ class Gameplay {
   // Called each frame.
   // dt        — frame delta seconds.
   // fret_mask — current button bitmask:
-  //             bit0=Green  bit1=Red  bit2=Yellow  bit3=Blue  bit4=Orange  bit5=Strum.
+  //             bit0=Green  bit1=Red  bit2=Yellow  bit3=Blue
+  //             bit4=Orange bit5=Strum bit6=Star power activation.
   void tick(float dt, uint32_t fret_mask);
 
   // Draw the highway for this frame. Creates the HighwayRenderer on first call.

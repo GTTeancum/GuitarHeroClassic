@@ -54,6 +54,9 @@ int main() {
   fofix_apply_miss(score);
   CHECK(score.streak == 0 && score.multiplier == 1,
         "miss resets streak and multiplier");
+  FoFiXScoreAward powered = fofix_apply_hit(score, 1, 2);
+  CHECK(powered.points == 100 && score.score == 850,
+        "active star power doubles note score before streak multiplier");
 
   FoFiXRockState rock;
   CHECK(fofix_rock_fill(rock) > 0.499 && fofix_rock_fill(rock) < 0.501,
@@ -71,6 +74,7 @@ int main() {
         "overstrum applies FoFiX lessMissed-style rock penalty");
 
   FoFiXStarPowerState star;
+  CHECK(!fofix_activate_star_power(star), "cannot activate below half meter");
   fofix_award_star_phrase(star);
   CHECK(fofix_star_power_fill(star) > 0.249 &&
             fofix_star_power_fill(star) < 0.251,
@@ -80,6 +84,16 @@ int main() {
   }
   CHECK(fofix_star_power_fill(star) == 1.0,
         "star power is capped at a full meter");
+  CHECK(fofix_activate_star_power(star), "can activate at or above half meter");
+  CHECK(fofix_star_power_score_multiplier(star) == 2,
+        "active star power doubles scoring");
+  fofix_update_star_power(star, 10.0);
+  CHECK(star.active && fofix_star_power_fill(star) > 0.499 &&
+            fofix_star_power_fill(star) < 0.501,
+        "star power drains at five percent per second");
+  fofix_update_star_power(star, 10.0);
+  CHECK(!star.active && fofix_star_power_fill(star) == 0.0,
+        "star power deactivates when drained");
 
   CHECK(fofix_sustain_score(0.13, 1, 0.5, 4) == 0,
         "sustain scoring waits until past FoFiX quarter-beat threshold");

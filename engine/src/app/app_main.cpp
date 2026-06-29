@@ -238,7 +238,8 @@ class AppEngine : public ghogx::Engine {
       // Guitar input: held frets (bits 0-4) combined with strum edge (bit 5).
       const uint32_t fret_mask =
           win_->guitar_input_held() |
-          (win_->guitar_input_edge() & (1u << 5));  // strum = edge-only
+          (win_->guitar_input_edge() & (1u << 5)) |  // strum = edge-only
+          (win_->action_pressed(Action::Start) ? (1u << 6) : 0u);
       gameplay_.tick(dt, fret_mask);
       if (gameplay_.failed()) {
         std::fprintf(stderr, "[ghogx] song failed; final score %d\n",
