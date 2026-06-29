@@ -282,7 +282,6 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   else
     update_sustains(song_time, held_frets);
   bool hit_this_frame = false;
-  bool missed_this_frame = false;
   bool overstrum_candidate_seen = false;
   size_t overstrum_candidate_start = 0;
   size_t overstrum_candidate_end = 0;
@@ -297,7 +296,6 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
                            window_for_note(next_note_)))
       break;
     apply_miss(next_note_, end);
-    missed_this_frame = true;
     next_note_ = end;
   }
 
@@ -361,7 +359,7 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   }
   if (next_note_ >= notes_.size()) finish_star_phrase();
 
-  if (strummed && !hit_this_frame && !missed_this_frame) {
+  if (strummed && !hit_this_frame) {
     if (overstrum_candidate_seen &&
         group_star_power(overstrum_candidate_start, overstrum_candidate_end)) {
       observe_star_phrase(overstrum_candidate_start, overstrum_candidate_end,

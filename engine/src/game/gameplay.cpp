@@ -18647,8 +18647,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         }
         i = end - 1;
     }
-    if (strummed && !note_hit_this_frame && miss_flash_mask_ == 0 &&
-        !diagnostic_autoplay_) {
+    if (strummed && !note_hit_this_frame && !diagnostic_autoplay_) {
         if (overstrum_candidate_seen &&
             group_has_star_power(overstrum_candidate_start,
                                  overstrum_candidate_end)) {

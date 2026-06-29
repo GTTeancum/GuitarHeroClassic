@@ -47,6 +47,13 @@ int main() {
   }
 
   {
+    FoFiXGameplaySession session({{1.0, 1.0, kGreen, false, false}});
+    session.tick(1.2, kStrum);
+    CHECK(session.misses() == 1 && session.overstrums() == 1,
+          "late bad strum applies both FoFiX missed-note and bad-pick penalties");
+  }
+
+  {
     FoFiXGameplaySession session({
         {1.0, 1.0, kGreen, false, false},
         {1.1, 1.1, kRed, true, false},
