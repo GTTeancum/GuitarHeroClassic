@@ -11,7 +11,7 @@
 //   Fret-position animation: 40-59 (spot_neck_fret01..20)
 //   Star power phrase: note 116 on/off on any track
 //
-// HOPO threshold: gap from previous note < ticks_per_beat / 3.
+// HOPO threshold: FoFiX/GH2 default cutoff is 170 ticks at 480 PPQ.
 //
 // The guitar part lives on the track named "PART GUITAR"; "T1 GEMS" is the
 // GH1 / older Harmonix fallback. For SMF type 0 every event is in track 0.
@@ -34,7 +34,7 @@ struct Note {
     uint32_t tick_on;
     uint32_t tick_off;
     int      lane;           // 0=Green 1=Red 2=Yellow 3=Blue 4=Orange
-    bool     is_hopo;        // true if gap from previous note < ticks_per_beat/3
+    bool     is_hopo;        // true if gap from previous note is within GH2 cutoff
     bool     star_power;     // true if this note falls inside a star power phrase
 };
 

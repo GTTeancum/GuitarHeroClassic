@@ -21,6 +21,7 @@ namespace {
 
 constexpr double kFretPositionMinGapSeconds = 0.22;
 constexpr double kFretHandMinGapSeconds = 0.12;
+constexpr uint32_t kFoFiXGh2HopoCutoffTicks = 170;
 
 // Read a big-endian unsigned integer of `n` bytes (1..4) from `p`.
 // Returns 0 if n==0.
@@ -631,7 +632,7 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                       return a.tick_on < b.tick_on;
                   });
 
-        const uint32_t hopo_thresh = chart.ticks_per_beat / 3;
+        const uint32_t hopo_thresh = kFoFiXGh2HopoCutoffTicks;
         for (int d = 0; d < 4; ++d) {
             uint32_t prev_tick_on = 0;
             int prev_lane = -1;
@@ -649,7 +650,7 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                     const uint32_t gap = (rn.tick_on >= prev_tick_on)
                                              ? (rn.tick_on - prev_tick_on)
                                              : 0;
-                    n.is_hopo = (gap < hopo_thresh && gap > 0);
+                    n.is_hopo = (gap <= hopo_thresh && gap > 0);
                 }
 
                 for (const auto& sp : sorted_sp) {

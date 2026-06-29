@@ -123,7 +123,7 @@ static void push_chunk(std::vector<uint8_t>& out, const char* tag,
 //
 // Expert (pitch 96-100):
 //   tick 0:   Green (96)  on/off at 120  — first note, not HOPO
-//   tick 120: Red   (97)  on/off at 240  — gap=120, 120/3=160 threshold → 120 < 160 → HOPO
+//   tick 120: Red   (97)  on/off at 240  — gap=120, FoFiX/GH2 170-tick cutoff → HOPO
 //   tick 240: Yellow(98)  on/off at 244  — gap=120 → HOPO
 //   tick 244: Blue  (99)  on/off at 360  — gap=4 → HOPO
 //   tick 360: Orange(100) on/off at 480  — gap=116 → HOPO
@@ -134,7 +134,7 @@ static void push_chunk(std::vector<uint8_t>& out, const char* tag,
 //
 // Medium (pitch 72-76):
 //   tick 641: Green (72)  on/off at 802  — gap=161 from start (no prev note) → not HOPO
-//   tick 802: Red   (73)  on/off at 963  — gap=161 → 161 > 160 → not HOPO
+//   tick 811: Red   (73)  on/off at 963  — gap=170 → within FoFiX/GH2 cutoff → HOPO
 //
 // Track 2 "TRIGGERS":
 //   lighting_parser cue notes for next/prev/first keyframe.
@@ -147,7 +147,7 @@ static void push_chunk(std::vector<uint8_t>& out, const char* tag,
 //   same-tick performer text markers, verifying authored order is stable.
 //
 // ticks_per_beat = 480, tempo = 120 BPM (500000 us/beat).
-// HOPO threshold = 480/3 = 160 ticks.
+// HOPO threshold = FoFiX/GH2 default 170 ticks.
 static std::vector<uint8_t> build_test_smf() {
     // Track 0: tempo.
     TrackBuilder t0;
@@ -184,10 +184,10 @@ static std::vector<uint8_t> build_test_smf() {
     t1.note_off(480, 100);
     // tick 481: SP off (so Orange at 360 is inside [0,481)).
     t1.note_off(481, 116); // star power off
-    // Medium notes (no HOPO, gap=161):
+    // Medium notes (second note is exactly on the FoFiX/GH2 cutoff):
     t1.note_on (641, 72);  // Medium Green on
     t1.note_off(802, 72);  // Medium Green off
-    t1.note_on (802, 73);  // Medium Red on
+    t1.note_on (811, 73);  // Medium Red on
     t1.note_on (900, 59);  // fret-position animation spot 20
     t1.note_off(963, 73);  // Medium Red off
     t1.meta_eot();
@@ -279,11 +279,12 @@ int main() {
         CHECK(n.star_power,      "Easy[0]: inside SP region [0,481)");
     }
 
-    // --- Medium: 2 notes, neither HOPO (gap=161 > threshold 160) ---
+    // --- Medium: 2 notes, second is HOPO (gap=170 <= FoFiX/GH2 cutoff 170) ---
     CHECK(chart.notes[1].size() == 2, "Medium: 2 notes");
     if (chart.notes[1].size() >= 2) {
         CHECK(!chart.notes[1][0].is_hopo, "Medium[0]: not HOPO (first note)");
-        CHECK(!chart.notes[1][1].is_hopo, "Medium[1]: not HOPO (gap 161 > 160)");
+        CHECK(chart.notes[1][1].tick_on == 811, "Medium[1]: tick_on = 811");
+        CHECK(chart.notes[1][1].is_hopo, "Medium[1]: HOPO (gap 170 <= 170)");
         // Tick 641 is after SP end (481) -> not star power.
         CHECK(!chart.notes[1][0].star_power, "Medium[0]: not SP");
         CHECK(!chart.notes[1][1].star_power, "Medium[1]: not SP");
@@ -302,19 +303,19 @@ int main() {
         CHECK(e[0].star_power,                        "Expert[0]: SP");
 
         CHECK(e[1].lane == 1 && e[1].tick_on == 120,  "Expert[1]: Red@120");
-        CHECK(e[1].is_hopo,                            "Expert[1]: HOPO (gap 120<160)");
+        CHECK(e[1].is_hopo,                            "Expert[1]: HOPO (gap 120<=170)");
         CHECK(e[1].star_power,                         "Expert[1]: SP");
 
         CHECK(e[2].lane == 2 && e[2].tick_on == 240,  "Expert[2]: Yellow@240");
-        CHECK(e[2].is_hopo,                            "Expert[2]: HOPO (gap 120<160)");
+        CHECK(e[2].is_hopo,                            "Expert[2]: HOPO (gap 120<=170)");
         CHECK(e[2].star_power,                         "Expert[2]: SP");
 
         CHECK(e[3].lane == 3 && e[3].tick_on == 244,  "Expert[3]: Blue@244");
-        CHECK(e[3].is_hopo,                            "Expert[3]: HOPO (gap 4<160)");
+        CHECK(e[3].is_hopo,                            "Expert[3]: HOPO (gap 4<=170)");
         CHECK(e[3].star_power,                         "Expert[3]: SP");
 
         CHECK(e[4].lane == 4 && e[4].tick_on == 360,  "Expert[4]: Orange@360");
-        CHECK(e[4].is_hopo,                            "Expert[4]: HOPO (gap 116<160)");
+        CHECK(e[4].is_hopo,                            "Expert[4]: HOPO (gap 116<=170)");
         CHECK(e[4].star_power,                         "Expert[4]: SP (tick 360 < 481)");
     }
 
