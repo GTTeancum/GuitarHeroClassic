@@ -124,6 +124,9 @@ int main() {
       read_file(render_dir / "milo_scene_renderer.cpp");
   const std::string milo_scene_renderer_h =
       read_file(render_dir / "milo_scene_renderer.h");
+  const std::string app_main = read_file(source_dir / "app/app_main.cpp");
+  const std::string window_d3d9 =
+      read_file(render_dir / "window_d3d9.cpp");
   const std::string gameplay_c = compact(gameplay);
   const std::string gameplay_h_c = compact(gameplay_h);
   const std::string highway_renderer_c = compact(highway_renderer);
@@ -139,6 +142,8 @@ int main() {
   const std::string milo_scene_h_c = compact(milo_scene_h);
   const std::string renderer_c = compact(milo_scene_renderer);
   const std::string renderer_h_c = compact(milo_scene_renderer_h);
+  const std::string app_main_c = compact(app_main);
+  const std::string window_d3d9_c = compact(window_d3d9);
   const std::string performer_entity_c =
       compact(function_body(gameplay, "is_performer_entity"));
   const std::string camshot_entity_c =
@@ -387,6 +392,32 @@ int main() {
   ok &= contains(gameplay_c,
                  "score=%ddiagnostic_autoplay",
                  "diagnostic autoplay catch-up rows remain log-verifiable");
+  ok &= contains(app_main_c,
+                 "win_->guitar_input_held()|"
+                 "(win_->guitar_input_edge()&(1u<<5))",
+                 "playable song input uses raw held frets and edge strum");
+  ok &= contains(app_main_c,
+                 "Keyboard:A/S/D/F/G=frets;Space=strum;"
+                 "Enter=Start/confirm",
+                 "startup help advertises the real keyboard guitar mapping");
+  ok &= contains(window_d3d9_c,
+                 "if(impl_->key_now['A'])gh|=(1u<<0);",
+                 "keyboard A maps to green fret as raw held guitar input");
+  ok &= contains(window_d3d9_c,
+                 "if(impl_->key_now['G'])gh|=(1u<<4);",
+                 "keyboard G maps to orange fret as raw held guitar input");
+  ok &= contains(window_d3d9_c,
+                 "if(impl_->key_now[VK_SPACE])gh|=(1u<<5);",
+                 "keyboard Space maps to strum edge source");
+  ok &= contains(window_d3d9_c,
+                 "returnimpl_->gh_now&0x1F;",
+                 "gameplay receives held fret state separately from strum edge");
+  ok &= contains(window_d3d9_c,
+                 "returnimpl_->gh_now&~impl_->gh_prev;",
+                 "gameplay receives strum as an edge-capable guitar mask");
+  ok &= absent(app_main_c,
+               "update_held_fret_mask",
+               "playable guitar input must not use the old synthetic action latch");
   ok &= contains(highway_renderer_c,
                  "constuint32_tfirst_tick=chart.sec_to_tick(first_sec);"
                  "constuint32_tlast_tick=chart.sec_to_tick(last_sec);",

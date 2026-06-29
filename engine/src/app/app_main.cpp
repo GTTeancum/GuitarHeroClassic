@@ -121,87 +121,6 @@ class AppEngine : public ghogx::Engine {
   }
 
  protected:
-  // Build the fret_mask from current input for the gameplay tick.
-  // Keyboard mapping:
-  //   A = Green   S = Red   D = Yellow   F = Blue   G = Orange   Space = Strum
-  // XInput: Green=A Yellow=Y Red=B Blue=X Orange=RB  Strum=RT (axis)
-  // (Strum: right trigger axis > 0.5 treated as a digital press.)
-  uint32_t build_fret_mask() const {
-    // We need raw key state; use action_pressed for now (edge-triggered won't
-    // work well for held notes, but the Action enum is all we expose). We check
-    // held keys via a small helper that checks whether the key is currently down
-    // by examining both the "now pressed" transition AND whether we can detect
-    // it is held. Since action_pressed is edge-only, we keep a shadow bitmask
-    // updated here and in on_pre_frame.
-    return held_fret_mask_;
-  }
-
-  // Update the held fret bitmask from raw input each pump.
-  // We maintain this by toggling bits on key-press (action_pressed edge) and
-  // clearing them on the next frame when the action is no longer pressed.
-  // Since Window exposes only edge-triggered Action queries, we use a simple
-  // latch: set bit on press, clear after one frame without a new press.
-  // This is a reasonable approximation given the current Window API.
-  void update_held_fret_mask() {
-    // For true held-key detection we'd need key_now[] exposed; since we don't
-    // have that, we synthesize it: a lane is "held" if it fired action_pressed
-    // this frame OR was already held and the action fires again (Windows
-    // key-repeat). We reset to 0 each frame and OR in whatever pressed.
-    // Strum is edge-only (bit 5) — set to 1 only on rising edge.
-    uint32_t mask = 0;
-
-    // Use Confirm as a proxy for "any key held" (it's the only truly continuous
-    // concept in Action). Instead, we use the fact that action_pressed fires
-    // EACH FRAME that the key is freshly down (no auto-repeat from Window).
-    // So we accumulate: if a lane was pressed last frame, assume still held
-    // (simple sticky latch), cleared once it hasn't fired for 2 frames.
-    // Simpler: just OR action_pressed results + a decay counter.
-    //
-    // Cleaner approach that actually works with the current Window API:
-    // The Window only gives us edge events. We track a "lane is considered held"
-    // bitmask that is:
-    //   - Set to 1 when action_pressed fires for that lane.
-    //   - Reset to 0 after N frames without another press (key-repeat for Windows
-    //     at ~30/s means ~2 frames at 60fps; we use 3 frames as threshold).
-    //
-    // For strum: bit 5 is always freshly computed each frame (edge only).
-
-    // Lane press detection (keyboard): A S D F G keys.
-    // We don't have direct VK access through Window::Action, so we can't
-    // distinguish "is A held" from "A edge-triggered". For now, the fret
-    // buttons are toggled on each Confirm/action press, and the strum is
-    // triggered once per Space press. The gameplay tick handles note hits
-    // based on strum + fret state.
-
-    // Map Window::Action to fret lanes and strum:
-    //   Confirm = strum (Space/Enter/A-button)
-    //   Up = Green (arrow up / D-pad up)
-    //   Down = Red (arrow down / D-pad down)
-    //   Left = Yellow (arrow left / D-pad left)
-    //   Right = Blue (arrow right / D-pad right)
-    //   Back = Orange (Backspace / B-button)
-    // This is a temporary keyboard mapping that uses the existing Action enum.
-
-    if (win_->action_pressed(Action::Up))      { mask |= (1u << 0); lane_hold_frames_[0] = kHoldFrames; }
-    if (win_->action_pressed(Action::Down))    { mask |= (1u << 1); lane_hold_frames_[1] = kHoldFrames; }
-    if (win_->action_pressed(Action::Left))    { mask |= (1u << 2); lane_hold_frames_[2] = kHoldFrames; }
-    if (win_->action_pressed(Action::Right))   { mask |= (1u << 3); lane_hold_frames_[3] = kHoldFrames; }
-    if (win_->action_pressed(Action::Back))    { mask |= (1u << 4); lane_hold_frames_[4] = kHoldFrames; }
-
-    // Decay hold counters and OR in still-held lanes.
-    for (int i = 0; i < 5; ++i) {
-        if (lane_hold_frames_[i] > 0) {
-            mask |= (1u << i);
-            --lane_hold_frames_[i];
-        }
-    }
-
-    // Strum = Confirm (edge-triggered, bit 5).
-    if (win_->action_pressed(Action::Confirm)) { mask |= (1u << 5); }
-
-    held_fret_mask_ = mask;
-  }
-
   void on_pre_frame(float dt) override {
     const bool confirm = win_->action_pressed(Action::Confirm) ||
                          win_->action_pressed(Action::Start);
@@ -408,7 +327,6 @@ class AppEngine : public ghogx::Engine {
   static constexpr int kTexW = 256;
   static constexpr int kTexH = 256;
   static constexpr int kCell = 32;
-  static constexpr int kHoldFrames = 3;  // frames a lane key is considered "held"
 
   ghogx::render::Window* win_;
   ghogx::render::SceneD3D9 scene_;
@@ -435,10 +353,6 @@ class AppEngine : public ghogx::Engine {
   int         screenshot_frame_ = 0;
   ScreenshotSequence screenshot_sequence_;
   double diagnostic_song_start_ = 0.0;
-
-  // Synthetic held-key state for fret input.
-  uint32_t held_fret_mask_ = 0;
-  int lane_hold_frames_[5] = {};
 
  public:
   // Capture frame `frame` to a BMP for dev self-verification.
@@ -995,8 +909,6 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& face_clip_arg = "",
                   const std::string& char_scene_milo = "",
                   const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f}) {
-  using Action = ghogx::render::Window::Action;
-
   ghogx::character::Character character;
   if (!ghogx::character::load_character(hdr, ark, milo_path, character)) {
     std::fprintf(stderr, "[char] failed to load %s\n", milo_path.c_str());
@@ -1717,7 +1629,7 @@ int main(int argc, char** argv) {
                max_frames ? " (bounded)" : " (Esc or close to quit)");
   std::fprintf(stderr, "[ghogx] song='%s' difficulty=%d\n",
                song_name.c_str(), difficulty);
-  std::fprintf(stderr, "[ghogx] Keyboard: Up/Down/Left/Right/Back = frets; Space=strum; Enter=Start\n");
+  std::fprintf(stderr, "[ghogx] Keyboard: A/S/D/F/G = frets; Space=strum; Enter=Start/confirm\n");
 
   while (!win->should_close()) {
     win->pump();
