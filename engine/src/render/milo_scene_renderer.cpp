@@ -81,6 +81,10 @@ BlendState blend_state_for(uint8_t blend) {
   }
 }
 
+bool is_authored_invisible_material(const std::string& material) {
+  return material == "invisible.mat";
+}
+
 DWORD float_to_dword(float value) {
   DWORD out = 0;
   std::memcpy(&out, &value, sizeof(out));
@@ -1285,6 +1289,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     const std::string& material =
         (material_override && !material_override->empty()) ? *material_override
                                                            : m.material;
+    if (is_authored_invisible_material(material)) return;
     const bool debug_spotlight_solid =
         spotlight_state && env_enabled("GHOGX_DEBUG_SPOTLIGHT_SOLID");
     const milo_scene::MatObj* mat_obj = scene_.find_mat(material);

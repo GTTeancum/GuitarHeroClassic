@@ -17720,6 +17720,7 @@ void Gameplay::refresh_worldcrowd_actor_source_targets_for_camera() {
 void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
     worldcrowd_actor_runtime_.clear();
     worldcrowd_actor_runtime_placements_ = 0;
+    if (!worldcrowd_actor_runtime_enabled()) return;
     if (!venue_chars_scene_loaded_) return;
 
     std::map<std::string, std::array<float, 16>> mesh_worlds;
@@ -17868,7 +17869,14 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
     }
 }
 
+bool Gameplay::worldcrowd_actor_runtime_enabled() const {
+    return !diagnostic_camera_shot_.empty() ||
+           env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr ||
+           env_value("GHOGX_ENABLE_WORLDCROWD_ACTORS") != nullptr;
+}
+
 void Gameplay::update_worldcrowd_actor_runtime(float dt) {
+    if (!worldcrowd_actor_runtime_enabled()) return;
     for (auto& [actor_path, runtime] : worldcrowd_actor_runtime_) {
         (void)actor_path;
         if (!runtime.renderer) continue;
@@ -18061,6 +18069,7 @@ void Gameplay::update_worldcrowd_actor_lighting(
 
 void Gameplay::draw_worldcrowd_actor_runtime(
     const ghogx::render::OrbitCamera& cam) {
+    if (!worldcrowd_actor_runtime_enabled()) return;
     float eye[3] = {0.0f, 0.0f, 0.0f};
     cam.eye(eye);
     const std::array<float, 3> camera_ref = {eye[0], eye[1], eye[2]};
@@ -18117,6 +18126,81 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                      active_venue_event_.c_str(), eye[0], eye[1], eye[2]);
     }
 }
+
+namespace {
+
+void apply_gameplay_backing_camera(
+    ghogx::render::MiloSceneRenderer* world,
+    const std::unordered_map<std::string, CameraTarget>& targets,
+    bool diagnostic_camera_shot_active) {
+    if (!world || debug_gameplay_camera_enabled() ||
+        diagnostic_camera_shot_active ||
+        env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr) {
+        return;
+    }
+
+    std::vector<std::array<float, 3>> points;
+    auto add_target_point = [&](const std::string& id) {
+        const auto it = targets.find(id);
+        if (it == targets.end()) return;
+        points.push_back(mat4_position_game(it->second.world));
+    };
+    for (const char* role : {"guitarist0", "singer", "bassist", "drummer",
+                             "keyboard"}) {
+        const std::string prefix(role);
+        const size_t before = points.size();
+        add_target_point(camera_target_id(prefix, "bone_spine1.mesh"));
+        add_target_point(camera_target_id(prefix, "bone_spine1"));
+        if (points.size() == before) {
+            add_target_point(camera_target_id(prefix, {}));
+        }
+    }
+    if (points.empty()) return;
+
+    std::array<float, 3> mn = points.front();
+    std::array<float, 3> mx = points.front();
+    std::array<float, 3> sum = {0.0f, 0.0f, 0.0f};
+    for (const auto& p : points) {
+        for (int axis = 0; axis < 3; ++axis) {
+            mn[axis] = std::min(mn[axis], p[axis]);
+            mx[axis] = std::max(mx[axis], p[axis]);
+            sum[axis] += p[axis];
+        }
+    }
+    const float inv_count = 1.0f / static_cast<float>(points.size());
+    const std::array<float, 3> center = {
+        sum[0] * inv_count, sum[1] * inv_count, sum[2] * inv_count};
+    const float span_x = mx[0] - mn[0];
+    const float span_y = mx[1] - mn[1];
+    const float span_z = mx[2] - mn[2];
+    const float span =
+        std::sqrt(span_x * span_x + span_y * span_y + span_z * span_z);
+
+    auto& cam = world->camera();
+    cam.authored = false;
+    cam.result_frame.valid = false;
+    cam.screen_offset[0] = 0.0f;
+    cam.screen_offset[1] = 0.0f;
+    cam.target[0] = center[0];
+    cam.target[1] = center[1] + std::max(60.0f, span_y * 0.25f);
+    cam.target[2] = center[2] + std::max(105.0f, span_z * 0.45f);
+    cam.yaw = 0.0f;
+    cam.pitch = 0.38f;
+    cam.distance = std::clamp(span * 2.15f, 620.0f, 1050.0f);
+    cam.fov = 0.76f;
+    cam.near_z = 10.0f;
+    cam.far_z = 12000.0f;
+    if (debug_gameplay_camera_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] gameplay backing camera: performers=%zu "
+            "target=(%.2f %.2f %.2f) dist=%.2f span=%.2f\n",
+            points.size(), cam.target[0], cam.target[1], cam.target[2],
+            cam.distance, span);
+    }
+}
+
+}  // namespace
 
 uint32_t Gameplay::diagnostic_autoplay_fret_mask(
     const std::vector<ghogx::chart::Note>& notes) {
@@ -20799,6 +20883,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 cam.fov = env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_FOV", 0.55f);
             }
         }
+        apply_gameplay_backing_camera(world_.get(), camera_targets,
+                                      !diagnostic_camera_shot_.empty());
         update_venue_proxy_objects();
         world_->draw();
         draw_venue_proxy_objects(world_->camera());

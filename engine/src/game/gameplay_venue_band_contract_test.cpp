@@ -3817,6 +3817,9 @@ int main() {
   ok &= contains(renderer_c,
                  "apply_face_camera_yaw(world,m,eye);",
                  "renderer applies camera-facing yaw to selected meshes");
+  ok &= contains(renderer_c,
+                 "is_authored_invisible_material(material)",
+                 "renderer suppresses authored invisible material clip masks");
   ok &= contains(gameplay_c,
                  "apply_camera_crowd_visibility(current_position);",
                  "regular camera path applies crowd visibility flags");
@@ -3852,6 +3855,31 @@ int main() {
   ok &= contains(gameplay_c,
                  "solo_camera?CameraShotMode::Solo:CameraShotMode::Regular",
                  "camera selection switches to solo mode for solo sections");
+  ok &= contains(gameplay_c,
+                 "voidapply_gameplay_backing_camera(",
+                 "gameplay owns a stable composite backing camera policy");
+  ok &= contains(gameplay_c,
+                 "env_value(\"GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS\")!=nullptr",
+                 "authored PS2 gameplay cameras remain opt-in for validation");
+  ok &= contains(gameplay_c,
+                 "debug_gameplay_camera_enabled()",
+                 "manual gameplay camera diagnostics bypass the backing camera");
+  ok &= contains(gameplay_c,
+                 "apply_gameplay_backing_camera(world_.get(),camera_targets,"
+                 "!diagnostic_camera_shot_.empty());",
+                 "playable composite view is applied after authored camera metadata updates");
+  ok &= contains(gameplay_c,
+                 "camera_target_id(prefix,\"bone_spine1.mesh\")",
+                 "gameplay backing camera frames performer spine targets");
+  ok &= contains(gameplay_h_c,
+                 "boolworldcrowd_actor_runtime_enabled()const;",
+                 "WorldCrowd actor runtime has one opt-in policy gate");
+  ok &= contains(gameplay_c,
+                 "env_value(\"GHOGX_ENABLE_WORLDCROWD_ACTORS\")!=nullptr",
+                 "unfinished WorldCrowd actor rendering remains validation opt-in");
+  ok &= contains(gameplay_c,
+                 "if(!worldcrowd_actor_runtime_enabled())return;",
+                 "WorldCrowd actor rebuild/update/draw share the same runtime gate");
   ok &= contains(gameplay_c,
                  "camera_shot_mode_label(camera_mode)",
                  "runtime camera logs expose regular versus solo mode");

@@ -575,6 +575,7 @@ class Gameplay {
                                     bool inherited_beat_units);
   double venue_script_random_float(double min_value, double max_value);
   void rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win);
+  bool worldcrowd_actor_runtime_enabled() const;
   void update_worldcrowd_actor_runtime(float dt);
   void update_worldcrowd_actor_lighting(
       const LightingPreset* preset = nullptr,
