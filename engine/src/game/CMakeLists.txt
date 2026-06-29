@@ -8,6 +8,7 @@ add_library(ghogx_gameplay_rules STATIC
     gameplay_session.cpp gameplay_session.h
 )
 target_include_directories(ghogx_gameplay_rules PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(ghogx_gameplay_rules PUBLIC ghogx_chart)
 
 if(MSVC)
     target_compile_options(ghogx_gameplay_rules PRIVATE /W4)

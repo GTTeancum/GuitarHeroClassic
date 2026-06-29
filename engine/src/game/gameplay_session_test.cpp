@@ -1,5 +1,7 @@
 #include "game/gameplay_session.h"
 
+#include "chart/midi_reader.h"
+
 #include <cstdio>
 
 namespace {
@@ -100,6 +102,29 @@ int main() {
     session.tick(25.2, 0);
     CHECK(!session.star_power_active() && session.star_power_fill() == 0.0,
           "star power drains out over time");
+  }
+
+  {
+    ghogx::chart::Chart chart;
+    chart.ticks_per_beat = 480;
+    chart.tempo_map = {
+        {0, 500000},
+        {960, 1000000},
+    };
+    chart.notes[3] = {
+        {0, 0, 0, false, false},
+        {240, 240, 1, true, false},
+        {960, 1440, 2, false, false},
+    };
+
+    FoFiXGameplaySession session =
+        FoFiXGameplaySession::FromChart(chart, 3);
+    session.tick(0.0, kGreen | kStrum);
+    session.tick(0.25, kRed);
+    session.tick(0.847, kYellow | kStrum);
+    session.tick(2.0, kYellow);
+    CHECK(session.score() == 250 && session.hits() == 3,
+          "chart-backed session uses MIDI ticks, HOPOs, tempo hit windows, and sustain beat scale");
   }
 
   if (failures == 0) {

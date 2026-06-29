@@ -6,6 +6,10 @@
 #include <cstdint>
 #include <vector>
 
+namespace ghogx::chart {
+struct Chart;
+}
+
 namespace ghogx::game {
 
 struct FoFiXSessionNote {
@@ -14,12 +18,17 @@ struct FoFiXSessionNote {
   uint32_t mask = 0;
   bool hopo = false;
   bool star_power = false;
+  double beat_seconds = 0.0;
+  double hit_early_sec = 0.0;
+  double hit_late_sec = 0.0;
 };
 
 class FoFiXGameplaySession {
  public:
   explicit FoFiXGameplaySession(std::vector<FoFiXSessionNote> notes,
                                 double bpm = 120.0);
+  static FoFiXGameplaySession FromChart(const ghogx::chart::Chart& chart,
+                                        int difficulty);
 
   void tick(double song_time, uint32_t fret_mask);
 
@@ -40,8 +49,10 @@ class FoFiXGameplaySession {
     int gem_count = 0;
     double start_time = 0.0;
     double end_time = 0.0;
+    double beat_seconds = 0.5;
   };
 
+  FoFiXHitWindow window_for_note(size_t index) const;
   size_t group_end(size_t start) const;
   uint32_t group_mask(size_t start, size_t end) const;
   int group_gem_count(size_t start, size_t end) const;

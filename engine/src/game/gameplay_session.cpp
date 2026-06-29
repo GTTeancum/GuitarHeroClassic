@@ -1,6 +1,9 @@
 #include "game/gameplay_session.h"
 
+#include "chart/midi_reader.h"
+
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 namespace ghogx::game {
@@ -24,18 +27,73 @@ int first_lane(uint32_t mask) {
   return 0;
 }
 
+double tempo_bpm_at_tick(const ghogx::chart::Chart& chart, uint32_t tick) {
+  uint32_t us_per_beat = 500000;
+  for (const auto& tempo : chart.tempo_map) {
+    if (tempo.tick > tick) break;
+    if (tempo.us_per_beat != 0) us_per_beat = tempo.us_per_beat;
+  }
+  return 60000000.0 / static_cast<double>(us_per_beat);
+}
+
+double beat_seconds_at_tick(const ghogx::chart::Chart& chart, uint32_t tick) {
+  const double bpm = tempo_bpm_at_tick(chart, tick);
+  return bpm > 0.0 ? 60.0 / bpm : 0.5;
+}
+
 }  // namespace
 
 FoFiXGameplaySession::FoFiXGameplaySession(std::vector<FoFiXSessionNote> notes,
                                            double bpm)
     : notes_(std::move(notes)), hit_window_(fofix_hit_window_for_bpm(bpm)) {
+  beat_seconds_ = bpm > 0.0 ? 60.0 / bpm : 0.5;
   std::sort(notes_.begin(), notes_.end(),
             [](const FoFiXSessionNote& a, const FoFiXSessionNote& b) {
               if (a.time != b.time) return a.time < b.time;
               return a.mask < b.mask;
             });
+  for (FoFiXSessionNote& note : notes_) {
+    if (note.end_time < note.time) note.end_time = note.time;
+    if (note.beat_seconds <= 0.0 || !std::isfinite(note.beat_seconds)) {
+      note.beat_seconds = beat_seconds_;
+    }
+    if (note.hit_early_sec <= 0.0 || !std::isfinite(note.hit_early_sec)) {
+      note.hit_early_sec = hit_window_.early_sec;
+    }
+    if (note.hit_late_sec <= 0.0 || !std::isfinite(note.hit_late_sec)) {
+      note.hit_late_sec = hit_window_.late_sec;
+    }
+  }
   consumed_.assign(notes_.size(), 0);
-  beat_seconds_ = bpm > 0.0 ? 60.0 / bpm : 0.5;
+}
+
+FoFiXGameplaySession FoFiXGameplaySession::FromChart(
+    const ghogx::chart::Chart& chart, int difficulty) {
+  const int diff = std::clamp(difficulty, 0, 3);
+  std::vector<FoFiXSessionNote> notes;
+  notes.reserve(chart.notes[diff].size());
+  for (const auto& note : chart.notes[diff]) {
+    const double bpm = tempo_bpm_at_tick(chart, note.tick_on);
+    const FoFiXHitWindow window = fofix_hit_window_for_bpm(bpm);
+    notes.push_back(FoFiXSessionNote{
+        chart.tick_to_sec(note.tick_on),
+        std::max(chart.tick_to_sec(note.tick_on),
+                 chart.tick_to_sec(note.tick_off)),
+        1u << std::clamp(note.lane, 0, 4),
+        note.is_hopo,
+        note.star_power,
+        beat_seconds_at_tick(chart, note.tick_on),
+        window.early_sec,
+        window.late_sec,
+    });
+  }
+  return FoFiXGameplaySession(std::move(notes));
+}
+
+FoFiXHitWindow FoFiXGameplaySession::window_for_note(size_t index) const {
+  if (index >= notes_.size()) return hit_window_;
+  return FoFiXHitWindow{notes_[index].hit_early_sec,
+                        notes_[index].hit_late_sec};
 }
 
 size_t FoFiXGameplaySession::group_end(size_t start) const {
@@ -98,7 +156,7 @@ void FoFiXGameplaySession::award_sustain(const ActiveSustain& sustain,
       std::max(0.0, std::min(held_until, sustain.end_time) -
                         sustain.start_time);
   score_.score += fofix_sustain_score(
-      held_seconds, sustain.gem_count, beat_seconds_,
+      held_seconds, sustain.gem_count, sustain.beat_seconds,
       score_.multiplier * fofix_star_power_score_multiplier(star_power_));
 }
 
@@ -128,7 +186,8 @@ void FoFiXGameplaySession::start_sustain(size_t start,
   int gems = 0;
   double end_time = 1.0e30;
   for (size_t i = start; i < end; ++i) {
-    if (notes_[i].end_time <= notes_[i].time + beat_seconds_ / 4.0) continue;
+    if (notes_[i].end_time <= notes_[i].time + notes_[i].beat_seconds / 4.0)
+      continue;
     mask |= notes_[i].mask & 0x1fu;
     gems += std::max(1, popcount5(notes_[i].mask));
     end_time = std::min(end_time, notes_[i].end_time);
@@ -136,7 +195,7 @@ void FoFiXGameplaySession::start_sustain(size_t start,
   if (mask == 0 || gems <= 0 || end_time == 1.0e30) return;
   active_sustains_.push_back(
       ActiveSustain{mask, gems, std::max(song_time, notes_[start].time),
-                    end_time});
+                    end_time, notes_[start].beat_seconds});
 }
 
 void FoFiXGameplaySession::apply_hit(size_t start,
@@ -195,7 +254,8 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
       continue;
     }
     const size_t end = group_end(next_note_);
-    if (!fofix_note_missed(song_time, notes_[next_note_].time, hit_window_))
+    if (!fofix_note_missed(song_time, notes_[next_note_].time,
+                           window_for_note(next_note_)))
       break;
     apply_miss(next_note_, end);
     missed_this_frame = true;
@@ -206,8 +266,9 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
     if (i < consumed_.size() && consumed_[i]) continue;
     const size_t end = group_end(i);
     const double note_time = notes_[i].time;
-    if (note_time > song_time + hit_window_.early_sec) break;
-    if (!fofix_note_in_window(song_time, note_time, hit_window_)) {
+    const FoFiXHitWindow window = window_for_note(i);
+    if (note_time > song_time + window.early_sec) break;
+    if (!fofix_note_in_window(song_time, note_time, window)) {
       i = end - 1;
       continue;
     }
