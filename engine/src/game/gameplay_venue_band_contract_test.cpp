@@ -438,6 +438,12 @@ int main() {
                  "failed_=gameplay_session_mirror_->failed();",
                  "live fail state is adopted from the FoFiX session");
   ok &= contains(gameplay_c,
+                 "for(constauto&event:gameplay_session_mirror_->last_events())",
+                 "FoFiX session tick events are surfaced to native validation logs");
+  ok &= contains(gameplay_c,
+                 "FoFiXsessioneventtype=%st=%.3fmask=0x%02xgems=%dpts=%dsource=%zu",
+                 "FoFiX session event logs include mask score delta and source note");
+  ok &= contains(gameplay_c,
                  "++hit_count_;",
                  "live hit path increments FoFiX mirror hit count");
   ok &= contains(gameplay_c,

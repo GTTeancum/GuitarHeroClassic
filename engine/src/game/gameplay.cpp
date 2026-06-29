@@ -18249,6 +18249,22 @@ uint32_t Gameplay::diagnostic_autoplay_fret_mask(
 void Gameplay::update_gameplay_session_mirror(uint32_t fret_mask) {
     if (!gameplay_session_mirror_) return;
     gameplay_session_mirror_->tick(song_time_, fret_mask);
+    if (debug_gameplay_session_enabled()) {
+        for (const auto& event : gameplay_session_mirror_->last_events()) {
+            const char* type = "hit";
+            switch (event.type) {
+            case FoFiXSessionEventType::Hit: type = "hit"; break;
+            case FoFiXSessionEventType::Miss: type = "miss"; break;
+            case FoFiXSessionEventType::Overstrum: type = "overstrum"; break;
+            case FoFiXSessionEventType::Sustain: type = "sustain"; break;
+            }
+            std::fprintf(
+                stderr,
+                "[gameplay] FoFiX session event type=%s t=%.3f mask=0x%02x gems=%d pts=%d source=%zu\n",
+                type, event.time, event.mask & 0x1fu, event.gem_count,
+                event.score_delta, event.source_index);
+        }
+    }
     const bool mismatch =
         gameplay_session_mirror_->score() != score_ ||
         gameplay_session_mirror_->streak() != streak_ ||
