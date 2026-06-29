@@ -3,6 +3,17 @@
 # ghogx_game: song gameplay system (highway renderer, audio player, state machine).
 # Windows-only (D3D9 + XAudio2).
 
+add_library(ghogx_gameplay_rules STATIC
+    gameplay_rules.cpp gameplay_rules.h
+)
+target_include_directories(ghogx_gameplay_rules PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+if(MSVC)
+    target_compile_options(ghogx_gameplay_rules PRIVATE /W4)
+else()
+    target_compile_options(ghogx_gameplay_rules PRIVATE -Wall -Wextra)
+endif()
+
 add_library(ghogx_game STATIC
     highway_renderer.cpp highway_renderer.h
     audio_player.cpp     audio_player.h
@@ -16,6 +27,7 @@ target_include_directories(ghogx_game PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 # ghogx_render for Window + D3D9.
 # ark_v3 + vgs for asset loading inside gameplay/audio_player.
 target_link_libraries(ghogx_game PUBLIC
+    ghogx_gameplay_rules
     ghogx_chart
     ghogx_render
     ghogx_asset
@@ -55,9 +67,15 @@ target_compile_definitions(ghogx_gameplay_venue_band_contract_test PRIVATE
 add_test(NAME ghogx_gameplay_venue_band_contract_test
          COMMAND ghogx_gameplay_venue_band_contract_test)
 
+add_executable(ghogx_gameplay_rules_test gameplay_rules_test.cpp)
+target_link_libraries(ghogx_gameplay_rules_test PRIVATE ghogx_gameplay_rules)
+add_test(NAME ghogx_gameplay_rules_test COMMAND ghogx_gameplay_rules_test)
+
 if(MSVC)
     target_compile_options(ghogx_gameplay_venue_band_contract_test PRIVATE /W4)
+    target_compile_options(ghogx_gameplay_rules_test PRIVATE /W4)
 else()
     target_compile_options(ghogx_gameplay_venue_band_contract_test PRIVATE
         -Wall -Wextra)
+    target_compile_options(ghogx_gameplay_rules_test PRIVATE -Wall -Wextra)
 endif()

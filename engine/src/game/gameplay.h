@@ -875,9 +875,6 @@ class Gameplay {
   // Per-lane: has this lane's gem been hit this pass (so we don't double-hit)?
   bool lane_hit_[5] = {};
 
-  // Hit window: ±70 ms around the note's ideal time.
-  static constexpr double kHitWindowSec = 0.070;
-
   std::string hdr_path_;
   std::string ark_path_;
 };

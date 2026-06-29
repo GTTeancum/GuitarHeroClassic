@@ -1,6 +1,7 @@
 // engine/src/game/gameplay.cpp
 
 #include "game/gameplay.h"
+#include "game/gameplay_rules.h"
 #include "render/window_d3d9.h"
 
 #include "asset/milo_image.h"
@@ -32,6 +33,28 @@
 namespace ghogx::game {
 
 namespace {
+
+double tempo_bpm_at_tick(const ghogx::chart::Chart& chart, uint32_t tick) {
+    uint32_t us_per_beat = 500000;
+    for (const auto& tempo : chart.tempo_map) {
+        if (tempo.tick > tick) break;
+        if (tempo.us_per_beat != 0) us_per_beat = tempo.us_per_beat;
+    }
+    return 60000000.0 / static_cast<double>(us_per_beat);
+}
+
+FoFiXHitWindow hit_window_at_tick(const ghogx::chart::Chart& chart,
+                                  uint32_t tick) {
+    return fofix_hit_window_for_bpm(tempo_bpm_at_tick(chart, tick));
+}
+
+FoFiXScoreState gameplay_score_state(int score, int streak, int multiplier) {
+    FoFiXScoreState state;
+    state.score = score;
+    state.streak = streak;
+    state.multiplier = multiplier;
+    return state;
+}
 
 bool debug_camera_enabled() {
 #ifdef _MSC_VER
@@ -17529,9 +17552,12 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
 
     const auto& player_notes = chart_.notes[std::clamp(difficulty_, 0, 3)];
     next_note_idx_ = 0;
-    while (next_note_idx_ < player_notes.size() &&
-           chart_.tick_to_sec(player_notes[next_note_idx_].tick_on) <
-               song_time_ - kHitWindowSec) {
+    while (next_note_idx_ < player_notes.size()) {
+        const auto& note = player_notes[next_note_idx_];
+        if (!fofix_note_missed(song_time_, chart_.tick_to_sec(note.tick_on),
+                               hit_window_at_tick(chart_, note.tick_on))) {
+            break;
+        }
         ++next_note_idx_;
     }
     auto& consumed = note_consumed_[std::clamp(difficulty_, 0, 3)];
@@ -18061,8 +18087,10 @@ uint32_t Gameplay::diagnostic_autoplay_fret_mask(
         if (i < consumed.size() && consumed[i]) continue;
         const auto& note = notes[i];
         const double note_sec = chart_.tick_to_sec(note.tick_on);
-        if (note_sec < song_time_ - kHitWindowSec) continue;
-        if (note_sec > song_time_ + kHitWindowSec) break;
+        const FoFiXHitWindow window = hit_window_at_tick(chart_, note.tick_on);
+        if (fofix_note_missed(song_time_, note_sec, window)) continue;
+        if (note_sec > song_time_ + window.early_sec) break;
+        if (!fofix_note_in_window(song_time_, note_sec, window)) continue;
         tick = note.tick_on;
         break;
     }
@@ -18205,30 +18233,73 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         ((fret_mask & (1u << 5)) != 0) &&
         ((prev_fret_mask_ & (1u << 5)) == 0);  // rising edge on strum bit
 
-    if (diagnostic_autoplay_) {
-        for (size_t i = next_note_idx_; i < notes.size(); ++i) {
-            if (i < consumed.size() && consumed[i]) continue;
-            const auto& n = notes[i];
-            const double note_sec = chart_.tick_to_sec(n.tick_on);
-            if (note_sec > song_time_ + kHitWindowSec) break;
+    auto note_group_end = [&](size_t start) {
+        const uint32_t tick = notes[start].tick_on;
+        size_t end = start + 1;
+        while (end < notes.size() && notes[end].tick_on == tick) ++end;
+        return end;
+    };
 
+    auto group_mask_and_count = [&](size_t start, size_t end,
+                                    uint32_t& required_mask,
+                                    int& gem_count) {
+        required_mask = 0;
+        gem_count = 0;
+        for (size_t j = start; j < end; ++j) {
+            if (j < consumed.size() && consumed[j]) continue;
+            const auto& note = notes[j];
+            required_mask |= 1u << std::clamp(note.lane, 0, 4);
+            ++gem_count;
+        }
+    };
+
+    auto commit_score_state = [&](const FoFiXScoreState& state) {
+        score_ = state.score;
+        streak_ = state.streak;
+        multiplier_ = state.multiplier;
+    };
+
+    auto apply_hit_group = [&](size_t start, size_t end, bool autoplay) {
+        uint32_t required_mask = 0;
+        int gem_count = 0;
+        group_mask_and_count(start, end, required_mask, gem_count);
+        if (gem_count <= 0) return;
+
+        FoFiXScoreState state =
+            gameplay_score_state(score_, streak_, multiplier_);
+        const FoFiXScoreAward award = fofix_apply_hit(state, gem_count);
+        commit_score_state(state);
+
+        for (size_t j = start; j < end; ++j) {
+            if (j < consumed.size() && consumed[j]) continue;
+            const auto& n = notes[j];
             lane_hit_[n.lane] = true;
             hit_flash_mask_ |= (1u << n.lane);
             lane_flash_[n.lane] = 1.0f;
-            ++streak_;
-            if      (streak_ >= 30) multiplier_ = 4;
-            else if (streak_ >= 20) multiplier_ = 3;
-            else if (streak_ >= 10) multiplier_ = 2;
-            else                    multiplier_ = 1;
-
-            const int pts = 50 * multiplier_;
-            score_ += pts;
-            std::fprintf(
-                stderr,
-                "[gameplay] HIT lane=%d tick=%u pts=%d streak=%d mult=%d score=%d diagnostic_autoplay\n",
-                n.lane, n.tick_on, pts, streak_, multiplier_, score_);
-            if (i < consumed.size()) consumed[i] = 1;
+            if (j < consumed.size()) consumed[j] = 1;
             apply_venue_event(player_fret_hit_event(n.lane), false);
+        }
+
+        std::fprintf(
+            stderr,
+            "[gameplay] HIT tick=%u mask=0x%02x gems=%d pts=%d streak=%d mult=%d score=%d%s\n",
+            notes[start].tick_on, required_mask & 0x1fu, gem_count,
+            award.points, streak_, multiplier_, score_,
+            autoplay ? " diagnostic_autoplay" : "");
+    };
+
+    if (diagnostic_autoplay_) {
+        for (size_t i = next_note_idx_; i < notes.size(); ++i) {
+            if (i < consumed.size() && consumed[i]) continue;
+            const size_t end = note_group_end(i);
+            const auto& n = notes[i];
+            const double note_sec = chart_.tick_to_sec(n.tick_on);
+            const FoFiXHitWindow window = hit_window_at_tick(chart_, n.tick_on);
+            if (note_sec > song_time_ + window.early_sec) break;
+            if (fofix_note_in_window(song_time_, note_sec, window)) {
+                apply_hit_group(i, end, true);
+            }
+            i = end - 1;
         }
     }
 
@@ -18239,17 +18310,30 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             continue;
         }
         const auto& n = notes[next_note_idx_];
+        const size_t end = note_group_end(next_note_idx_);
         const double note_sec = chart_.tick_to_sec(n.tick_on);
-        if (note_sec < song_time_ - kHitWindowSec) {
-            // Note passed without being hit.
-            if (!lane_hit_[n.lane]) {
-                miss_flash_mask_ |= (1u << n.lane);
-                streak_ = 0;
-                multiplier_ = 1;
-                std::fprintf(stderr, "[gameplay] miss lane=%d streak reset\n", n.lane);
+        const FoFiXHitWindow window = hit_window_at_tick(chart_, n.tick_on);
+        if (fofix_note_missed(song_time_, note_sec, window)) {
+            bool missed = false;
+            for (size_t j = next_note_idx_; j < end; ++j) {
+                if (j < consumed.size() && consumed[j]) continue;
+                const auto& note = notes[j];
+                if (!lane_hit_[note.lane]) {
+                    miss_flash_mask_ |= (1u << note.lane);
+                    missed = true;
+                }
+                if (j < consumed.size()) consumed[j] = 1;
             }
-            if (next_note_idx_ < consumed.size()) consumed[next_note_idx_] = 1;
-            ++next_note_idx_;
+            if (missed) {
+                FoFiXScoreState state =
+                    gameplay_score_state(score_, streak_, multiplier_);
+                fofix_apply_miss(state);
+                commit_score_state(state);
+                std::fprintf(stderr,
+                             "[gameplay] miss tick=%u mask=0x%02x streak reset\n",
+                             n.tick_on, miss_flash_mask_ & 0x1fu);
+            }
+            next_note_idx_ = end;
         } else {
             break;
         }
@@ -18258,52 +18342,60 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     // Check upcoming notes for hits.
     for (size_t i = next_note_idx_; i < notes.size(); ++i) {
         if (i < consumed.size() && consumed[i]) continue;
+        const size_t end = note_group_end(i);
         const auto& n = notes[i];
         const double note_sec = chart_.tick_to_sec(n.tick_on);
+        const FoFiXHitWindow window = hit_window_at_tick(chart_, n.tick_on);
 
         // Past the lookahead window — stop processing.
-        if (note_sec > song_time_ + kHitWindowSec) break;
+        if (note_sec > song_time_ + window.early_sec) break;
 
-        // Already hit this lane this frame.
-        if (lane_hit_[n.lane]) continue;
+        uint32_t required_mask = 0;
+        int gem_count = 0;
+        group_mask_and_count(i, end, required_mask, gem_count);
+        if (gem_count <= 0) {
+            i = end - 1;
+            continue;
+        }
 
-        // Within hit window: note_sec ∈ [song_time - kHitWindowSec, song_time + kHitWindowSec].
-        if (std::abs(note_sec - song_time_) > kHitWindowSec) continue;
+        bool already_hit_lane = false;
+        for (int lane = 0; lane < 5; ++lane) {
+            if ((required_mask & (1u << lane)) != 0 && lane_hit_[lane]) {
+                already_hit_lane = true;
+                break;
+            }
+        }
+        if (already_hit_lane) {
+            i = end - 1;
+            continue;
+        }
+
+        // Within FoFiX hit window.
+        if (!fofix_note_in_window(song_time_, note_sec, window)) {
+            i = end - 1;
+            continue;
+        }
 
         const bool lane_pressed = (fret_mask >> n.lane) & 1;
-        const bool is_hopo_candidate = n.is_hopo && (streak_ > 0);
+        const bool is_hopo_candidate = (gem_count == 1) && n.is_hopo &&
+                                       (streak_ > 0);
+        const uint32_t held_frets = fret_mask & 0x1fu;
 
         bool can_hit = false;
         if (is_hopo_candidate && lane_pressed) {
-            // HOPO: just pressing (not strumming) counts.
-            // Make sure this is a new press (edge).
             const bool was_pressed = (prev_fret_mask_ >> n.lane) & 1;
-            can_hit = lane_pressed && !was_pressed;
+            can_hit = lane_pressed && !was_pressed &&
+                      fofix_match_frets(held_frets, required_mask);
         }
-        if (!can_hit && strummed && lane_pressed) {
+        if (!can_hit && strummed &&
+            fofix_match_frets(held_frets, required_mask)) {
             can_hit = true;
         }
 
         if (can_hit) {
-            lane_hit_[n.lane] = true;
-            hit_flash_mask_ |= (1u << n.lane);
-            lane_flash_[n.lane] = 1.0f;  // light the strikeline flame
-            ++streak_;
-            // Multiplier: 1→2 at 10, 2→3 at 20, 3→4 at 30, cap at 4.
-            if      (streak_ >= 30) multiplier_ = 4;
-            else if (streak_ >= 20) multiplier_ = 3;
-            else if (streak_ >= 10) multiplier_ = 2;
-            else                    multiplier_ = 1;
-
-            const int pts = 50 * multiplier_;
-            score_ += pts;
-
-            std::fprintf(stderr,
-                "[gameplay] HIT lane=%d tick=%u pts=%d streak=%d mult=%d score=%d\n",
-                n.lane, n.tick_on, pts, streak_, multiplier_, score_);
-            if (i < consumed.size()) consumed[i] = 1;
-            apply_venue_event(player_fret_hit_event(n.lane), false);
+            apply_hit_group(i, end, false);
         }
+        i = end - 1;
     }
     while (next_note_idx_ < notes.size() &&
            next_note_idx_ < consumed.size() &&
