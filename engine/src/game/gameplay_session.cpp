@@ -280,7 +280,8 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
     return;
   }
 
-  const bool strummed = (fret_mask & (1u << 5)) != 0;
+  const bool strummed =
+      (fret_mask & (1u << 5)) != 0 && (prev_fret_mask_ & (1u << 5)) == 0;
   const uint32_t held_frets = fret_mask & 0x1fu;
   if (strummed)
     active_sustains_.clear();

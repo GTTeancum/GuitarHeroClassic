@@ -33,6 +33,7 @@ int main() {
     CHECK(session.score() == 50 && session.streak() == 1 &&
               session.hits() == 1,
           "strummed note hit scores and starts streak");
+    session.tick(1.1, kGreen);
     session.tick(1.3, kRed | kStrum);
     CHECK(session.overstrums() == 1 && session.streak() == 0,
           "wrong extra strum resets streak as overstrum");
@@ -41,6 +42,16 @@ int main() {
   {
     FoFiXGameplaySession session({{1.0, 1.0, kGreen, false, false}});
     session.tick(1.0, kGreen | kStrum);
+    session.tick(1.01, kGreen | kStrum);
+    CHECK(session.score() == 50 && session.streak() == 1 &&
+              session.overstrums() == 0,
+          "held strum does not create repeated FoFiX overstrums");
+  }
+
+  {
+    FoFiXGameplaySession session({{1.0, 1.0, kGreen, false, false}});
+    session.tick(1.0, kGreen | kStrum);
+    session.tick(1.1, kGreen);
     session.tick(1.3, kStrum);
     CHECK(session.overstrums() == 1 && session.streak() == 0,
           "empty extra strum resets streak as FoFiX overstrum");
@@ -56,13 +67,14 @@ int main() {
   {
     FoFiXGameplaySession session({{100.0, 100.0, kGreen, false, false}});
     double t = 1.0;
-    for (int i = 0; i < 300 && !session.failed(); ++i, t += 0.1) {
-      session.tick(t, kStrum);
+    for (int i = 0; i < 450 && !session.failed(); ++i, t += 0.1) {
+      session.tick(t, (i & 1) ? 0 : kStrum);
     }
     CHECK(session.failed(), "repeated bad picks can fail the song");
     const int overstrums = session.overstrums();
     const int score = session.score();
-    session.tick(t + 0.1, kGreen | kStrum);
+    session.tick(t + 0.1, 0);
+    session.tick(t + 0.2, kGreen | kStrum);
     CHECK(session.overstrums() == overstrums && session.score() == score,
           "failed FoFiX session ignores later picks and scoring");
   }
@@ -118,6 +130,7 @@ int main() {
   {
     FoFiXGameplaySession session({{1.0, 2.0, kGreen, false, false}});
     session.tick(1.0, kGreen | kStrum);
+    session.tick(1.1, kGreen);
     session.tick(1.5, kGreen | kStrum);
     session.tick(2.0, kGreen);
     CHECK(session.score() == 50 && session.overstrums() == 1,
@@ -130,6 +143,7 @@ int main() {
         {1.5, 1.5, kRed, false, false},
     });
     session.tick(1.0, kGreen | kStrum);
+    session.tick(1.1, kGreen);
     session.tick(1.5, kRed | kStrum);
     session.tick(2.0, kRed);
     CHECK(session.score() == 100 && session.hits() == 2,
@@ -143,7 +157,9 @@ int main() {
         {2.0, 2.0, kYellow, false, false},
     });
     session.tick(1.0, kGreen | kStrum);
+    session.tick(1.1, kGreen);
     session.tick(1.5, kRed | kStrum);
+    session.tick(1.6, kRed);
     session.tick(2.0, kYellow | kStrum);
     CHECK(session.star_power_fill() > 0.249 &&
               session.star_power_fill() < 0.251,
@@ -156,7 +172,9 @@ int main() {
         {1.5, 1.5, kRed, false, false},
     });
     session.tick(1.0, kRed | kStrum);
+    session.tick(1.005, kRed);
     session.tick(1.01, kGreen | kStrum);
+    session.tick(1.1, kGreen);
     session.tick(1.5, kRed | kStrum);
     CHECK(session.overstrums() == 1 && session.hits() == 2 &&
               session.star_power_fill() == 0.0,
@@ -176,13 +194,21 @@ int main() {
         {5.2, 5.2, kGreen, false, false},
     });
     session.tick(1.0, kGreen | kStrum);
+    session.tick(1.1, kGreen);
     session.tick(1.5, kRed | kStrum);
+    session.tick(1.6, kRed);
     session.tick(2.0, kGreen | kStrum);
+    session.tick(2.1, kGreen);
     session.tick(2.5, kRed | kStrum);
+    session.tick(2.6, kRed);
     session.tick(3.0, kGreen | kStrum);
+    session.tick(3.1, kGreen);
     session.tick(3.5, kRed | kStrum);
+    session.tick(3.6, kRed);
     session.tick(4.0, kGreen | kStrum);
+    session.tick(4.1, kGreen);
     session.tick(4.5, kRed | kStrum);
+    session.tick(4.6, kRed);
     CHECK(session.star_power_fill() > 0.999, "four phrases fill star meter");
     CHECK(!session.star_power_state().active &&
               session.star_power_state().value > 99.9,
