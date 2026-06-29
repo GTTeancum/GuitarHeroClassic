@@ -18248,7 +18248,6 @@ uint32_t Gameplay::diagnostic_autoplay_fret_mask(
 
 void Gameplay::update_gameplay_session_mirror(uint32_t fret_mask) {
     if (!gameplay_session_mirror_) return;
-    if (diagnostic_autoplay_) return;
     gameplay_session_mirror_->tick(song_time_, fret_mask);
     const bool mismatch =
         gameplay_session_mirror_->score() != score_ ||
@@ -18663,21 +18662,6 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         update_active_sustains();
     }
 
-    if (diagnostic_autoplay_) {
-        for (size_t i = next_note_idx_; i < notes.size(); ++i) {
-            if (i < consumed.size() && consumed[i]) continue;
-            const size_t end = note_group_end(i);
-            const auto& n = notes[i];
-            const double note_sec = chart_.tick_to_sec(n.tick_on);
-            const FoFiXHitWindow window = hit_window_at_tick(chart_, n.tick_on);
-            if (note_sec > song_time_ + window.early_sec) break;
-            if (fofix_note_in_window(song_time_, note_sec, window)) {
-                apply_hit_group(i, end, true);
-            }
-            i = end - 1;
-        }
-    }
-
     // Advance next_note_idx_ past notes that are permanently missed or hit.
     while (next_note_idx_ < notes.size()) {
         if (next_note_idx_ < consumed.size() && consumed[next_note_idx_]) {
@@ -18790,7 +18774,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             if (strummed) {
                 skip_groups_before(i);
             }
-            apply_hit_group(i, end, false);
+            apply_hit_group(i, end, diagnostic_autoplay_);
+            break;
         }
         i = end - 1;
     }

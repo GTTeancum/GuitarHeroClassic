@@ -374,10 +374,16 @@ int main() {
                        "diagnostic_autoplay_fret_mask(notes);}",
                        "constboolstrummed=",
                        "diagnostic autoplay feeds the normal strum edge path");
+  ok &= absent(gameplay_c,
+               "if(diagnostic_autoplay_){for(size_ti=next_note_idx_;"
+               "i<notes.size();++i){",
+               "diagnostic autoplay must not bypass normal note-hit scanning");
+  ok &= absent(gameplay_c,
+               "if(diagnostic_autoplay_)return;gameplay_session_mirror_->tick(",
+               "diagnostic autoplay must still tick the FoFiX session");
   ok &= contains(gameplay_c,
-                 "if(diagnostic_autoplay_){for(size_ti=next_note_idx_;"
-                 "i<notes.size();++i){",
-                 "diagnostic autoplay catches up fixed-step crossed notes");
+                 "apply_hit_group(i,end,diagnostic_autoplay_);break;",
+                 "normal hit path logs autoplay hits and consumes one group per strum");
   ok &= contains(gameplay_c,
                  "score=%ddiagnostic_autoplay",
                  "diagnostic autoplay catch-up rows remain log-verifiable");
