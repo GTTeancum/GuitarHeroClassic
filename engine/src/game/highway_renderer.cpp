@@ -88,12 +88,17 @@ void flat_quad(V3 out[4], float cx, float cy, float z, float hx, float hy,
   out[3] = { cx + hx, cy - hy, z, col, 1.0f, 1.0f };  // near-right
 }
 
-void draw_quad(IDirect3DDevice9* dev, IDirect3DTexture9* texture, const V3 c[4]) {
+void draw_quad(IDirect3DDevice9* dev,
+               IDirect3DTexture9* texture,
+               const V3 c[4],
+               bool use_texture_alpha = true) {
   const V3 tris[6] = { c[0], c[1], c[2], c[1], c[3], c[2] };
   if (texture) {
     dev->SetTexture(0, texture);
     dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-    dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAOP,
+                              use_texture_alpha ? D3DTOP_MODULATE
+                                                : D3DTOP_SELECTARG2);
   } else {
     dev->SetTexture(0, nullptr);
     dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
@@ -262,7 +267,7 @@ void HighwayRenderer::draw_impl(double song_time,
         { -kBoardHalfX, yN, kBoardZ, near_c, 0.0f, vN },
         {  kBoardHalfX, yN, kBoardZ, near_c, 1.0f, vN },
     };
-    draw_quad(dev_, board, q);
+    draw_quad(dev_, board, q, false);
   }
 
   // --- 2) Lane divider lines (between the 5 lanes) ---

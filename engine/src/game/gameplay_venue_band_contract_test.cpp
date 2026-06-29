@@ -459,6 +459,12 @@ int main() {
                  "(*consumed_notes)[note_index]){continue;}",
                  "highway skips gem heads already consumed by FoFiX gameplay");
   ok &= contains(highway_renderer_c,
+                 "use_texture_alpha?D3DTOP_MODULATE:D3DTOP_SELECTARG2",
+                 "highway renderer can keep opaque textured surfaces from bleeding venue geometry through");
+  ok &= contains(highway_renderer_c,
+                 "draw_quad(dev_,board,q,false);",
+                 "playable highway board ignores texture alpha over the 3D venue");
+  ok &= contains(highway_renderer_c,
                  "draw_impl(song_time,chart,difficulty,fret_held_mask,hit_flash,"
                  "lookahead_sec,false,consumed_notes);",
                  "highway draw_over_scene preserves the already-rendered 3D venue");
