@@ -18466,7 +18466,9 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         const FoFiXScoreAward award = fofix_apply_hit(
             state, gem_count, fofix_star_power_score_multiplier(star_power_));
         commit_score_state(state);
-        fofix_apply_rock_hit(rock_);
+        fofix_apply_rock_hit(
+            rock_,
+            static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
         commit_rock_meter();
         note_hit_this_frame = true;
 
@@ -18495,7 +18497,9 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             gameplay_score_state(score_, streak_, multiplier_);
         fofix_apply_miss(state);
         commit_score_state(state);
-        fofix_apply_rock_overstrum(rock_);
+        fofix_apply_rock_overstrum(
+            rock_,
+            static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
         commit_rock_meter();
         miss_flash_mask_ |= (fret_mask & 0x1fu);
         std::fprintf(stderr,
@@ -18547,7 +18551,10 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                     gameplay_score_state(score_, streak_, multiplier_);
                 fofix_apply_miss(state);
                 commit_score_state(state);
-                fofix_apply_rock_miss(rock_);
+                fofix_apply_rock_miss(
+                    rock_,
+                    static_cast<double>(
+                        fofix_star_power_score_multiplier(star_power_)));
                 commit_rock_meter();
                 std::fprintf(stderr,
                              "[gameplay] miss tick=%u mask=0x%02x streak reset rock=%.2f\n",

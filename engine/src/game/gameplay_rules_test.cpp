@@ -72,6 +72,15 @@ int main() {
   CHECK(rock.value > 14539.5 && rock.value < 14540.0 &&
             rock.minus_amount > 402.3 && rock.minus_amount < 402.5,
         "overstrum applies FoFiX lessMissed-style rock penalty");
+  FoFiXRockState powered_rock;
+  fofix_apply_rock_hit(powered_rock, 2.0);
+  CHECK(powered_rock.value == 15058.0 &&
+            powered_rock.plus_amount == 29.0,
+        "active star power doubles FoFiX rock gain via multi");
+  fofix_apply_rock_miss(powered_rock, 2.0);
+  CHECK(powered_rock.value == 14857.5 &&
+            powered_rock.minus_amount == 401.0,
+        "active star power softens FoFiX rock miss penalty via multi");
 
   FoFiXStarPowerState star;
   CHECK(!fofix_activate_star_power(star), "cannot activate below half meter");

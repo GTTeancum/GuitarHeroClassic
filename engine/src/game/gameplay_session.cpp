@@ -209,7 +209,9 @@ void FoFiXGameplaySession::apply_hit(size_t start,
   observe_star_phrase(start, end, true);
   fofix_apply_hit(score_, gem_count,
                   fofix_star_power_score_multiplier(star_power_));
-  fofix_apply_rock_hit(rock_);
+  fofix_apply_rock_hit(
+      rock_,
+      static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
   for (size_t i = start; i < end; ++i) {
     if (i < consumed_.size()) consumed_[i] = 1;
   }
@@ -220,7 +222,9 @@ void FoFiXGameplaySession::apply_hit(size_t start,
 void FoFiXGameplaySession::apply_miss(size_t start, size_t end) {
   observe_star_phrase(start, end, false);
   fofix_apply_miss(score_);
-  fofix_apply_rock_miss(rock_);
+  fofix_apply_rock_miss(
+      rock_,
+      static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
   for (size_t i = start; i < end; ++i) {
     if (i < consumed_.size()) consumed_[i] = 1;
   }
@@ -229,7 +233,9 @@ void FoFiXGameplaySession::apply_miss(size_t start, size_t end) {
 
 void FoFiXGameplaySession::apply_overstrum() {
   fofix_apply_miss(score_);
-  fofix_apply_rock_overstrum(rock_);
+  fofix_apply_rock_overstrum(
+      rock_,
+      static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
   ++overstrums_;
 }
 
