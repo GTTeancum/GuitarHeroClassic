@@ -18577,6 +18577,9 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     }
 
     // Check upcoming notes for hits.
+    bool overstrum_candidate_seen = false;
+    size_t overstrum_candidate_start = 0;
+    size_t overstrum_candidate_end = 0;
     for (size_t i = next_note_idx_; i < notes.size(); ++i) {
         if (i < consumed.size() && consumed[i]) continue;
         const size_t end = note_group_end(i);
@@ -18594,7 +18597,6 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             i = end - 1;
             continue;
         }
-
         bool already_hit_lane = false;
         for (int lane = 0; lane < 5; ++lane) {
             if ((required_mask & (1u << lane)) != 0 && lane_hit_[lane]) {
@@ -18611,6 +18613,11 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         if (!fofix_note_in_window(song_time_, note_sec, window)) {
             i = end - 1;
             continue;
+        }
+        if (strummed && !overstrum_candidate_seen) {
+            overstrum_candidate_seen = true;
+            overstrum_candidate_start = i;
+            overstrum_candidate_end = end;
         }
 
         const bool lane_pressed = (fret_mask >> n.lane) & 1;
@@ -18642,6 +18649,12 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     }
     if (strummed && !note_hit_this_frame && miss_flash_mask_ == 0 &&
         !diagnostic_autoplay_) {
+        if (overstrum_candidate_seen &&
+            group_has_star_power(overstrum_candidate_start,
+                                 overstrum_candidate_end)) {
+            observe_star_phrase_group(overstrum_candidate_start,
+                                      overstrum_candidate_end, false);
+        }
         apply_overstrum();
     }
     while (next_note_idx_ < notes.size() &&

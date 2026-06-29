@@ -133,6 +133,19 @@ int main() {
     FoFiXGameplaySession session({
         {1.0, 1.0, kGreen, false, true},
         {1.5, 1.5, kRed, false, false},
+    });
+    session.tick(1.0, kRed | kStrum);
+    session.tick(1.01, kGreen | kStrum);
+    session.tick(1.5, kRed | kStrum);
+    CHECK(session.overstrums() == 1 && session.hits() == 2 &&
+              session.star_power_fill() == 0.0,
+          "wrong strum inside a star note window breaks FoFiX star phrase");
+  }
+
+  {
+    FoFiXGameplaySession session({
+        {1.0, 1.0, kGreen, false, true},
+        {1.5, 1.5, kRed, false, false},
         {2.0, 2.0, kGreen, false, true},
         {2.5, 2.5, kRed, false, false},
         {3.0, 3.0, kGreen, false, true},

@@ -283,6 +283,9 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
     update_sustains(song_time, held_frets);
   bool hit_this_frame = false;
   bool missed_this_frame = false;
+  bool overstrum_candidate_seen = false;
+  size_t overstrum_candidate_start = 0;
+  size_t overstrum_candidate_end = 0;
 
   while (next_note_ < notes_.size()) {
     if (next_note_ < consumed_.size() && consumed_[next_note_]) {
@@ -314,6 +317,11 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
     if (gem_count <= 0 || required == 0) {
       i = end - 1;
       continue;
+    }
+    if (strummed && !overstrum_candidate_seen) {
+      overstrum_candidate_seen = true;
+      overstrum_candidate_start = i;
+      overstrum_candidate_end = end;
     }
 
     const bool is_hopo = gem_count == 1 && notes_[i].hopo && score_.streak > 0;
@@ -353,8 +361,14 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   }
   if (next_note_ >= notes_.size()) finish_star_phrase();
 
-  if (strummed && !hit_this_frame && !missed_this_frame)
+  if (strummed && !hit_this_frame && !missed_this_frame) {
+    if (overstrum_candidate_seen &&
+        group_star_power(overstrum_candidate_start, overstrum_candidate_end)) {
+      observe_star_phrase(overstrum_candidate_start, overstrum_candidate_end,
+                          false);
+    }
     apply_overstrum();
+  }
   prev_fret_mask_ = fret_mask;
 }
 
