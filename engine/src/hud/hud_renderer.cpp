@@ -1,4 +1,4 @@
-// engine/src/hud/hud_renderer.cpp — see hud_renderer.h for the design.
+// engine/src/hud/hud_renderer.cpp -- see hud_renderer.h for the design.
 //
 // Layout note (all numbers are AUTHORED HUD-space units decoded from the PS2
 // MILO Group/Mesh Trans matrices, X = horizontal, Z = vertical, Y ~ depth):
@@ -43,7 +43,7 @@ constexpr const char* kHudMilo   = "hud/gen/hud.milo_ps2";
 constexpr const char* kCrowdMilo = "hud/gen/crowd_meter.milo_ps2";
 constexpr const char* kStarMilo  = "hud/gen/star_meter.milo_ps2";
 
-// --- Authored-coordinate → screen mapping ---------------------------------
+// --- Authored-coordinate -> screen mapping ---------------------------------
 // The HUD lives in a box ~[-340..+340] X by ~[-210..+40] Z (the score panel is
 // near Z=-130, the meters near the top). The real ui.cam is a near-orthographic
 // view down the depth (Y) axis; for a 2-D overlay we fit that box to the back
@@ -65,67 +65,28 @@ uint32_t argb(int a, int r, int g, int b) {
   return (uint32_t(a) << 24) | (uint32_t(r) << 16) | (uint32_t(g) << 8) | uint32_t(b);
 }
 
-// 3x3 (row-major) + translation, the composed-world form we carry locally.
-struct M34 {
-  float r[3][3] = {{1,0,0},{0,1,0},{0,0,1}};
-  float t[3] = {0,0,0};
-};
-
-M34 from_xfm(const ghogx::milo_scene::Xfm& x) {
-  M34 m;
-  for (int i = 0; i < 3; ++i)
-    for (int j = 0; j < 3; ++j) m.r[i][j] = x.rot[i][j];
-  m.t[0] = x.pos[0]; m.t[1] = x.pos[1]; m.t[2] = x.pos[2];
-  return m;
-}
-
-// out = a applied first, then b (point * a * b, row-vector convention): this
-// composes a child (a) into its parent (b).
-M34 compose(const M34& a, const M34& b) {
-  M34 o;
-  for (int i = 0; i < 3; ++i)
-    for (int j = 0; j < 3; ++j) {
-      float s = 0;
-      for (int k = 0; k < 3; ++k) s += a.r[i][k] * b.r[k][j];
-      o.r[i][j] = s;
-    }
-  // a.t transformed by b's rotation + b.t
-  for (int j = 0; j < 3; ++j) {
-    float s = b.t[j];
-    for (int k = 0; k < 3; ++k) s += a.t[k] * b.r[k][j];
-    o.t[j] = s;
-  }
-  return o;
-}
-
-void apply(const M34& m, float x, float y, float z, float out[3]) {
-  out[0] = x * m.r[0][0] + y * m.r[1][0] + z * m.r[2][0] + m.t[0];
-  out[1] = x * m.r[0][1] + y * m.r[1][1] + z * m.r[2][1] + m.t[1];
-  out[2] = x * m.r[0][2] + y * m.r[1][2] + z * m.r[2][2] + m.t[2];
-}
-
 // Decode a Group/RndDir entry's embedded Trans matrix + parent name.
 //
 // Byte-layout (decoded from hud1_score_meter0.view raw bytes):
 //   [0]    i32  group version (= 12)
 //   [4]    9 bytes Object base metadata
-//   [13]   12 bytes RndDir/Group-specific fields (3 × i32: sub-version, flags…)
+//   [13]   12 bytes RndDir/Group-specific fields (3 x i32: sub-version, flags...)
 //   [25]   i32  trans_version  (= 9)
-//   [29]   48 bytes local matrix (9 × f32 rotation + 3 × f32 position)
+//   [29]   48 bytes local matrix (9 x f32 rotation + 3 x f32 position)
 //   [77]   48 bytes world matrix (same layout)
 //   [125]  9 bytes Trans flags
 //   [134]  length-prefixed parent string
 //
 // Critical difference from a standalone Trans entry (decode_trans): the embedded
 // Trans has NO kObjMeta skip between trans_version and the matrix. Skipping 9
-// bytes (as read_trans_block does) reads wrong data — confirmed by hex dump.
+// bytes (as read_trans_block does) reads wrong data -- confirmed by hex dump.
 //
 // We search for the first occurrence of the dword 9 (= trans_version) at a
-// position ≥ 4, then read the matrix directly after it (no meta skip) and verify
+// position >= 4, then read the matrix directly after it (no meta skip) and verify
 // the result is a plausible (scaled) rotation matrix.
 bool decode_group_xfm(const uint8_t* body, size_t n, ghogx::milo_scene::Xfm& local,
                       std::string& parent) {
-  // Find the first trans_version = 9 dword at byte offset ≥ 4 (skip any leading
+  // Find the first trans_version = 9 dword at byte offset >= 4 (skip any leading
   // version int that might itself equal 9).
   const uint8_t pat[4] = {9, 0, 0, 0};
   size_t idx = SIZE_MAX;
@@ -134,7 +95,7 @@ bool decode_group_xfm(const uint8_t* body, size_t n, ghogx::milo_scene::Xfm& loc
   }
   if (idx == SIZE_MAX) return false;
 
-  // Skip trans_version — NO additional meta bytes before the local matrix.
+  // Skip trans_version -- NO additional meta bytes before the local matrix.
   size_t p = idx + 4;
   if (p + 48 > n) return false;
   ghogx::milo_scene::Xfm m;
@@ -178,26 +139,26 @@ struct LoadedMesh {
   // Raw object-space vertices (x,y,z + uv) and the triangle index list, kept
   // verbatim so we can transform each vertex to world space and draw the mesh
   // regardless of which plane it is authored in (some HUD quads use X-Z, some
-  // X-Y). Only small quad meshes are retained (the HUD panels are ≤ a few verts).
+  // X-Y). Only small quad meshes are retained (the HUD panels are <= a few verts).
   struct V { float x, y, z, u, vv; };
   std::vector<V> verts;
   std::vector<uint16_t> idx;
-  bool quad = false;      // true if a small (≤8 vtx) drawable quad-ish mesh
+  bool quad = false;      // true if a small (<=8 vtx) drawable quad-ish mesh
 };
 
 struct GroupX { ghogx::milo_scene::Xfm local; std::string parent; };
 
 struct MiloLayout {
   std::vector<LoadedMesh> meshes;
-  std::unordered_map<std::string, GroupX> groups;       // name → xfm
-  std::unordered_map<std::string, std::string> mat_tex; // material → diffuse tex
+  std::unordered_map<std::string, GroupX> groups;       // name -> xfm
+  std::unordered_map<std::string, std::string> mat_tex; // material -> diffuse tex
   bool ok = false;
 };
 
 // Keep a decoded mesh's raw geometry (verts + UVs + triangles) verbatim. We
 // transform every vertex to world space at use time, so the authored plane
 // (X-Z vs X-Y) doesn't matter. Large meshes (the chrome shells, >64 verts) are
-// dropped — we only need the flat panel quads, digits and meter art.
+// dropped -- we only need the flat panel quads, digits and meter art.
 void extract_quad(const ghogx::milo_scene::MeshObj& m, LoadedMesh& lm) {
   if (m.vertex_count < 3 || m.vertex_count > 8 || m.face_count == 0) { lm.quad = false; return; }
   lm.verts.reserve(m.vertex_count);
@@ -248,33 +209,6 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
   return out;
 }
 
-// Compose a mesh's world matrix by walking Mesh-local then up the Group/Mesh
-// parent chain (Groups carry transforms; the chain terminates at the root view
-// whose parent is a non-transform node).
-M34 world_of(const MiloLayout& L, const LoadedMesh& m) {
-  M34 acc = from_xfm(m.local);
-  std::string parent = m.parent;
-  int guard = 0;
-  while (!parent.empty() && guard++ < 32) {
-    auto g = L.groups.find(parent);
-    if (g != L.groups.end()) {
-      acc = compose(acc, from_xfm(g->second.local));
-      parent = g->second.parent;
-      continue;
-    }
-    bool found = false;
-    for (const auto& mm : L.meshes)
-      if (mm.name == parent) { acc = compose(acc, from_xfm(mm.local)); parent = mm.parent; found = true; break; }
-    if (!found) break;
-  }
-  return acc;
-}
-
-const LoadedMesh* find_mesh(const MiloLayout& L, const std::string& name) {
-  for (const auto& m : L.meshes) if (m.name == name) return &m;
-  return nullptr;
-}
-
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -290,7 +224,7 @@ IDirect3DTexture9* HudRenderer::tex(const std::string& name) const {
 
 namespace {
 // Upload one RGBA image (the asset loader yields R,G,B,A byte order) to a
-// MANAGED A8R8G8B8 D3D texture (swizzle RGBA→BGRA), as the highway does.
+// MANAGED A8R8G8B8 D3D texture (swizzle RGBA->BGRA), as the highway does.
 IDirect3DTexture9* upload(IDirect3DDevice9* dev, const ghogx::asset::Image& img) {
   if (!img.valid()) return nullptr;
   IDirect3DTexture9* t = nullptr;
@@ -318,11 +252,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   dev_ = dev;
   if (!dev_) return false;
 
-  // 1) Parse the three HUD MILOs for geometry + transforms.
+  // 1) Parse the core HUD MILO so missing/corrupt HUD assets fail loudly.
   MiloLayout hud  = load_milo_layout(hdr_path, ark_path, kHudMilo);
   if (!hud.ok) { std::fprintf(stderr, "[hud] core hud.milo failed\n"); return false; }
-  MiloLayout crowd = load_milo_layout(hdr_path, ark_path, kCrowdMilo);
-  MiloLayout star  = load_milo_layout(hdr_path, ark_path, kStarMilo);
 
   // 2) Load + upload every texture we reference from each MILO.
   auto load_set = [&](const std::string& milo, const std::vector<std::string>& names) {
@@ -349,121 +281,47 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                        "amp_chrome_base.tex","specular2.tex"});
   std::fprintf(stderr, "[hud] uploaded %zu textures\n", textures_.size());
 
-  // 3) Capture the authored geometry of the elements we drive. We compose each
-  //    mesh's world matrix and either (a) keep its real triangles as a static
-  //    draw item, or (b) reduce it to a world X-Z bounding box "slot" that the
-  //    dynamic content (digits / fills) is placed into.
-
-  // Build a static draw item from a mesh's real (world-transformed) triangles.
-  auto static_item = [&](const MiloLayout& L, const LoadedMesh& m) {
-    if (!m.quad) return;
-    M34 w = world_of(L, m);
-    Quad q;
-    q.verts.reserve(m.verts.size());
-    for (const auto& vtx : m.verts) {
-      float c[3]; apply(w, vtx.x, vtx.y, vtx.z, c);
-      q.verts.push_back({c[0], c[1], c[2], vtx.u, vtx.vv});
-    }
-    q.idx = m.idx;
-    auto it = L.mat_tex.find(m.material);
-    q.tex = (it != L.mat_tex.end()) ? tex(it->second) : nullptr;
-    static_quads_.push_back(std::move(q));
+  // 3) The in-song overlay must be screen anchored. Drawing meter-local art
+  // through the venue projection made the star/rock pieces appear out at the
+  // highway horizon. These slots are virtual screen rectangles converted back
+  // into the renderer's HUD coordinate system, so every meter remains a 2-D
+  // overlay on any viewport.
+  auto screen_slot = [](float nx, float ny, float nw, float nh) {
+    Slot s;
+    s.cx = (0.5f - nx) * kWorldPerScreenX;
+    s.cz = kZTop + ny * (kZBot - kZTop);
+    s.hw = nw * kWorldPerScreenX * 0.5f;
+    s.hh = nh * (kZBot - kZTop) * 0.5f;
+    s.ok = true;
+    return s;
   };
 
-  // Reduce a mesh to a world X-Z box slot (center + half-extents). Robust to the
-  // mesh's authored plane: we project every world vertex onto X (horizontal) and
-  // Z (vertical) and take the bounds.
-  auto world_slot = [&](const MiloLayout& L, const LoadedMesh& m, Slot& s) {
-    if (!m.quad) { s.ok = false; return; }
-    // Compose the world matrix by walking the parent chain, then take vertex
-    // bounds. If the composed matrix is degenerate (huge values), fall back to
-    // using the raw vertex positions directly (GH2 HUD meshes are often authored
-    // in world space with a near-identity local Trans).
-    M34 w = world_of(L, m);
-    float minx=1e9f,maxx=-1e9f,minz=1e9f,maxz=-1e9f;
-    for (const auto& vtx : m.verts) {
-      float c[3]; apply(w, vtx.x, vtx.y, vtx.z, c);
-      minx=std::min(minx,c[0]); maxx=std::max(maxx,c[0]);
-      minz=std::min(minz,c[2]); maxz=std::max(maxz,c[2]);
-    }
-    // Sanity-check: HUD authored coordinates span at most ~±1000 units.
-    const float kSane = 2000.0f;
-    if (std::abs(minx) > kSane || std::abs(maxx) > kSane ||
-        std::abs(minz) > kSane || std::abs(maxz) > kSane) {
-      // Parent-chain gave garbage; fall back to raw vertex positions.
-      minx=1e9f; maxx=-1e9f; minz=1e9f; maxz=-1e9f;
-      M34 ident;  // identity
-      for (const auto& vtx : m.verts) {
-        float c[3]; apply(ident, vtx.x, vtx.y, vtx.z, c);
-        minx=std::min(minx,c[0]); maxx=std::max(maxx,c[0]);
-        minz=std::min(minz,c[2]); maxz=std::max(maxz,c[2]);
-      }
-    }
-    s.cx=(minx+maxx)*0.5f; s.cz=(minz+maxz)*0.5f;
-    s.hw=(maxx-minx)*0.5f; s.hh=(maxz-minz)*0.5f; s.ok=true;
-  };
+  static_quads_.clear();
 
-  // -- static frame: the score shell + outline + the multi-hud multiplier
-  //    frame/lens/logo, drawn from their real geometry. --
-  for (const char* nm : {"score_shell.mesh", "score_shell_outline.mesh",
-                         "score_num_frame.mesh", "multi_hud_frame.mesh",
-                         "multi_hud_lens.mesh", "multi_hud_outline.mesh"}) {
-    if (auto* m = find_mesh(hud, nm)) static_item(hud, *m);
+  // Score shell and six right-aligned score digits.
+  Slot score_panel = screen_slot(0.830f, 0.185f, 0.170f, 0.125f);
+  push_rect(static_quads_, score_panel.cx, score_panel.cz, score_panel.hw,
+            score_panel.hh, tex("score_frame.tex"), argb(220, 255, 255, 255));
+  score_slot_count_ = 6;
+  for (int i = 0; i < score_slot_count_; ++i) {
+    score_slot_[i] = screen_slot(0.862f - static_cast<float>(i) * 0.025f,
+                                 0.184f, 0.022f, 0.060f);
   }
 
-  // -- score digit slots: each score_num_N.mesh world box (N = on-screen pos). --
-  score_slot_count_ = 0;
-  for (int i = 1; i <= 9 && score_slot_count_ < 10; ++i) {
-    auto* m = find_mesh(hud, "score_num_" + std::to_string(i) + ".mesh");
-    if (!m || !m->quad) break;
-    Slot s; world_slot(hud, *m, s);
-    if (s.ok) score_slot_[score_slot_count_++] = s;
-  }
+  // Combo/streak and multiplier live under the score shell.
+  streak_slot_ = screen_slot(0.853f, 0.262f, 0.017f, 0.045f);
+  streak_step_ = -streak_slot_.hw * 2.15f;
+  mult_slot_ = screen_slot(0.918f, 0.262f, 0.055f, 0.060f);
+  push_rect(static_quads_, mult_slot_.cx, mult_slot_.cz, mult_slot_.hw * 1.12f,
+            mult_slot_.hh * 1.08f, tex("multi_hud_frame.tex"),
+            argb(210, 255, 255, 255));
 
-  // -- streak number anchor (we tile leftwards for >1 digit) --
-  if (auto* m = find_mesh(hud, "score_streak_1.mesh")) {
-    world_slot(hud, *m, streak_slot_);
-    streak_step_ = streak_slot_.hw * 2.1f;
-  }
-
-  // -- multiplier indicator placement box (the score_mult_frame quad) --
-  if (auto* m = find_mesh(hud, "score_mult_frame.mesh")) world_slot(hud, *m, mult_slot_);
-
-  // -- rock/crowd VU meter (lives under hud1_rock_meter.view; geometry in the
-  //    crowd_meter MILO, authored about the rock-meter local origin). Offset the
-  //    crowd-local positions by the host group's world translation. --
-  const float rock_host[3] = {235.0f, -4.36f, -132.29f};  // hud1_rock_meter.view world
-  if (crowd.ok) {
-    if (auto* face = find_mesh(crowd, "rock_face_2d.mesh")) {
-      Slot s; world_slot(crowd, *face, s);
-      rock_face_.cx = rock_host[0] + s.cx;
-      rock_face_.cz = rock_host[2] + s.cz;
-      rock_face_.hw = std::max(40.0f, s.hw); rock_face_.hh = std::max(28.0f, s.hh);
-      rock_face_.ok = true;
-    }
-    if (auto* nd = find_mesh(crowd, "rock_needle.mesh")) {
-      Slot s; world_slot(crowd, *nd, s);
-      rock_needle_pivot_.cx = rock_host[0] + s.cx;
-      rock_needle_pivot_.cz = rock_host[2] + s.cz + 28.0f;  // pivot below face
-      rock_needle_pivot_.ok = true;
-      rock_needle_len_ = std::max(40.0f, rock_face_.hh * 0.95f);
-    }
-  }
-  if (!rock_face_.ok) {  // fallback anchor even if crowd milo missing
-    rock_face_.cx = rock_host[0]; rock_face_.cz = rock_host[2];
-    rock_face_.hw = 70.0f; rock_face_.hh = 46.0f; rock_face_.ok = true;
-    rock_needle_pivot_.cx = rock_host[0]; rock_needle_pivot_.cz = rock_host[2] + 28.0f;
-    rock_needle_pivot_.ok = true; rock_needle_len_ = 46.0f;
-  }
-
-  // -- star-power amp tube: vertical bar. Anchor to the same rock_meter host,
-  //    offset to the amp tube position (the amp meter sits beside the rock VU).
-  //    The fill bar runs vertically; we place it from the star_meter geometry.
-  sp_bar_.cx = rock_host[0] - 92.0f;   // amp_chrome_base.mesh authored at X~-91
-  sp_bar_.cz = rock_host[2];
-  sp_bar_.hw = 10.0f;                  // amp_inside_bar half-width
-  sp_bar_.hh = 60.0f;                  // tube half-height
-  sp_bar_.ok = true;
+  // Rock/crowd and star-power meters sit on the upper-left, clear of the
+  // fretboard and stage perspective.
+  rock_face_ = screen_slot(0.135f, 0.245f, 0.125f, 0.150f);
+  rock_needle_pivot_ = screen_slot(0.135f, 0.326f, 0.010f, 0.010f);
+  rock_needle_len_ = rock_face_.hh * 0.45f;
+  sp_bar_ = screen_slot(0.056f, 0.244f, 0.026f, 0.165f);
 
   build_static();
   loaded_ = true;
@@ -480,8 +338,8 @@ void HudRenderer::build_static() {
 void HudRenderer::project(float wx, float wz, int bbw, int bbh,
                           float& px, float& py) const {
   // Flip X (authored X grows left-on-screen for the score panel) and center.
-  float nx = (kHudCenterX - wx) / kWorldPerScreenX + 0.5f;   // 0..1 left→right
-  float ny = (wz - kZTop) / (kZBot - kZTop);                 // 0..1 top→bottom
+  float nx = (kHudCenterX - wx) / kWorldPerScreenX + 0.5f;   // 0..1 left->right
+  float ny = (wz - kZTop) / (kZBot - kZTop);                 // 0..1 top->bottom
   px = nx * static_cast<float>(bbw);
   py = ny * static_cast<float>(bbh);
 }
@@ -536,7 +394,7 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
       dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
       dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
     }
-    // Project every vertex (world X→screen X, world Z→screen Y) and expand the
+    // Project every vertex (world X->screen X, world Z->screen Y) and expand the
     // index list into a flat triangle vertex array for DrawPrimitiveUP.
     sv.clear();
     sv.reserve(q.idx.size());
@@ -575,8 +433,8 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
   if (score_slot_count_ <= 0) return;
   const int n = score_slot_count_;
   // After X-flip: slot[0] (authored leftmost, score_num_1) is the RIGHTMOST on
-  // screen — it holds the ONES digit. Slot[n-1] is leftmost on screen = most
-  // significant digit. Assign s[n-1-i] to slot[i] so screen reads left→right.
+  // screen -- it holds the ONES digit. Slot[n-1] is leftmost on screen = most
+  // significant digit. Assign s[n-1-i] to slot[i] so screen reads left->right.
   char buf[16];
   std::snprintf(buf, sizeof(buf), "%0*d", n, std::max(0, score));  // zero-pad to n
   std::string s(buf);
@@ -609,46 +467,65 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
 
 void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const {
   if (!mult_slot_.ok || multiplier < 2) return;  // 1x shows nothing in GH2
-  const char* name = nullptr;
-  switch (multiplier) {
-    case 2: name = "hud_2x.tex"; break;
-    case 3: name = "hud_4x.tex"; break;   // GH2 art set: 2x + 4x sheets; 3x reuses
-    default: name = "hud_4x.tex"; break;
-  }
-  IDirect3DTexture9* t = tex(name);
-  if (!t) t = tex("hud_2x.tex");
-  if (!t) return;
   const Slot& sl = mult_slot_;
-  push_rect(out, sl.cx, sl.cz, sl.hw * 0.9f, sl.hh * 0.8f, t, 0xFFFFFFFF);
+  const int clamped = std::clamp(multiplier, 2, 9);
+  IDirect3DTexture9* digit =
+      tex(std::string("score_") + char('0' + clamped) + ".tex");
+  IDirect3DTexture9* x = tex("score_x.tex");
+  if (!digit && !x) return;
+
+  // Authored X is flipped during projection: positive X lands farther left.
+  push_rect(out, sl.cx + sl.hw * 0.24f, sl.cz, sl.hw * 0.28f,
+            sl.hh * 0.62f, digit, digit ? 0xFFFFFFFF : argb(255, 255, 230, 120));
+  push_rect(out, sl.cx - sl.hw * 0.23f, sl.cz, sl.hw * 0.28f,
+            sl.hh * 0.62f, x, x ? 0xFFFFFFFF : argb(255, 255, 230, 120));
 }
 
 void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
   if (!sp_bar_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& sl = sp_bar_;
-  // tube background (cleartube/chrome) full height
-  if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
-    push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(220, 200, 200, 220));
+  push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, nullptr, argb(165, 8, 14, 32));
 
   // fill bar (amp_inside_bar) grows from the bottom upward to `fill`.
-  IDirect3DTexture9* fillt = tex("amp_inside_bar.tex");
   // bottomZ stays fixed; topZ rises as fill increases. cz_fill = midpoint, hh_fill = half-height.
   float bottomZ  = sl.cz + sl.hh;
   float cz_fill  = bottomZ - sl.hh * fill;
   float hh_fill  = sl.hh * fill;
   if (hh_fill > 0.5f)
-    push_rect(out, sl.cx, cz_fill, sl.hw * 0.7f, hh_fill, fillt,
-              fillt ? 0xFFFFFFFF : argb(235, 80, 200, 255), /*additive=*/true);
+    push_rect(out, sl.cx, cz_fill, sl.hw * 0.58f, hh_fill, nullptr,
+              argb(235, 60, 190, 255));
+
+  if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
+    push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(210, 220, 225, 255));
 }
 
 void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   if (!rock_face_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& f = rock_face_;
+  push_rect(out, f.cx, f.cz, f.hw, f.hh, nullptr, argb(135, 12, 12, 18));
+
   // dial face: rock_meter_2d.tex (or the "ROCK" variant)
   IDirect3DTexture9* face = tex("rock_meter_2d_rock.tex");
   if (!face) face = tex("rock_meter_2d.tex");
-  push_rect(out, f.cx, f.cz, f.hw, f.hh, face, face ? 0xFFFFFFFF : argb(200, 30, 30, 36));
+  push_rect(out, f.cx, f.cz, f.hw, f.hh, face,
+            face ? 0xFFFFFFFF : argb(200, 30, 30, 36));
+
+  const float bar_hw = f.hw * 0.58f;
+  const float bar_hh = f.hh * 0.085f;
+  const float bar_cz = f.cz + f.hh * 0.70f;
+  push_rect(out, f.cx, bar_cz, bar_hw, bar_hh, nullptr, argb(210, 15, 15, 20));
+  const uint32_t fill_color =
+      fill < 0.35f ? argb(235, 220, 45, 35)
+                   : (fill < 0.68f ? argb(235, 235, 205, 45)
+                                    : argb(235, 80, 220, 95));
+  const float fill_hw = bar_hw * fill;
+  if (fill_hw > 0.5f) {
+    push_rect(out, f.cx + bar_hw * (1.0f - fill), bar_cz, fill_hw, bar_hh,
+              nullptr, fill_color);
+  }
+
   // needle: swings from left (fill 0, danger) to right (fill 1, max). Drawn as a
   // thin textured quad rotated about the pivot.
   if (rock_needle_pivot_.ok) {
@@ -666,7 +543,6 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     rot( hw, -L, x1, z1);  // TR tip
     rot(-hw, 0,  x2, z2);  // BL pivot
     rot( hw, 0,  x3, z3);  // BR pivot
-    IDirect3DTexture9* nt = tex("rock_needle.tex");
     Quad q;
     q.verts = {
         {x0, 0.0f, z0, 0.0f, 0.0f},
@@ -675,8 +551,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
         {x3, 0.0f, z3, 1.0f, 1.0f},
     };
     q.idx = {0, 1, 2,  1, 3, 2};
-    q.tex = nt;
-    q.color = nt ? 0xFFFFFFFF : argb(255, 255, 60, 40);  // red needle if no tex
+    q.tex = nullptr;
+    q.color = fill_color;
     out.push_back(std::move(q));
   }
 }
