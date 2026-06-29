@@ -22,6 +22,7 @@ struct FoFiXSessionNote {
   double hit_early_sec = 0.0;
   double hit_late_sec = 0.0;
   size_t source_index = static_cast<size_t>(-1);
+  uint32_t source_tick = UINT32_MAX;
 };
 
 enum class FoFiXSessionEventType {
@@ -41,6 +42,7 @@ struct FoFiXSessionEvent {
   int gem_count = 0;
   int score_delta = 0;
   size_t source_index = static_cast<size_t>(-1);
+  uint32_t source_tick = UINT32_MAX;
   double rock_fill = 0.0;
   double star_power_fill = 0.0;
   bool failed = false;
@@ -80,6 +82,7 @@ class FoFiXGameplaySession {
     double end_time = 0.0;
     double beat_seconds = 0.5;
     size_t source_index = static_cast<size_t>(-1);
+    uint32_t source_tick = UINT32_MAX;
   };
 
   FoFiXHitWindow window_for_note(size_t index) const;
@@ -92,7 +95,8 @@ class FoFiXGameplaySession {
                                uint32_t mask,
                                int gem_count,
                                int score_delta,
-                               size_t source_index) const;
+                               size_t source_index,
+                               uint32_t source_tick) const;
   void finish_star_phrase();
   void observe_star_phrase(size_t start, size_t end, bool hit);
   void award_sustain(const ActiveSustain& sustain, double held_until);
@@ -118,6 +122,7 @@ class FoFiXGameplaySession {
   bool star_phrase_active_ = false;
   bool star_phrase_missed_ = false;
   size_t star_phrase_source_index_ = static_cast<size_t>(-1);
+  uint32_t star_phrase_source_tick_ = UINT32_MAX;
   int hits_ = 0;
   int misses_ = 0;
   int overstrums_ = 0;

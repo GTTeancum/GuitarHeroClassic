@@ -86,6 +86,7 @@ FoFiXGameplaySession FoFiXGameplaySession::FromChart(
         window.early_sec,
         window.late_sec,
         notes.size(),
+        note.tick_on,
     });
   }
   return FoFiXGameplaySession(std::move(notes));
@@ -136,7 +137,8 @@ FoFiXSessionEvent FoFiXGameplaySession::make_event(
     uint32_t mask,
     int gem_count,
     int score_delta,
-    size_t source_index) const {
+    size_t source_index,
+    uint32_t source_tick) const {
   FoFiXSessionEvent event;
   event.type = type;
   event.time = time;
@@ -144,6 +146,7 @@ FoFiXSessionEvent FoFiXGameplaySession::make_event(
   event.gem_count = gem_count;
   event.score_delta = score_delta;
   event.source_index = source_index;
+  event.source_tick = source_tick;
   event.rock_fill = fofix_rock_fill(rock_);
   event.star_power_fill = fofix_star_power_fill(star_power_);
   event.failed = fofix_rock_failed(rock_);
@@ -156,15 +159,18 @@ void FoFiXGameplaySession::finish_star_phrase() {
     fofix_award_star_phrase(star_power_);
     last_events_.push_back(make_event(FoFiXSessionEventType::StarPhraseComplete,
                                       last_time_, 0, 0, 0,
-                                      star_phrase_source_index_));
+                                      star_phrase_source_index_,
+                                      star_phrase_source_tick_));
   } else {
     last_events_.push_back(make_event(FoFiXSessionEventType::StarPhraseMiss,
                                       last_time_, 0, 0, 0,
-                                      star_phrase_source_index_));
+                                      star_phrase_source_index_,
+                                      star_phrase_source_tick_));
   }
   star_phrase_active_ = false;
   star_phrase_missed_ = false;
   star_phrase_source_index_ = static_cast<size_t>(-1);
+  star_phrase_source_tick_ = UINT32_MAX;
 }
 
 void FoFiXGameplaySession::observe_star_phrase(size_t start,
@@ -178,6 +184,7 @@ void FoFiXGameplaySession::observe_star_phrase(size_t start,
     star_phrase_active_ = true;
     star_phrase_missed_ = false;
     star_phrase_source_index_ = notes_[start].source_index;
+    star_phrase_source_tick_ = notes_[start].source_tick;
   }
   if (!hit) star_phrase_missed_ = true;
 }
@@ -195,7 +202,8 @@ void FoFiXGameplaySession::award_sustain(const ActiveSustain& sustain,
     last_events_.push_back(make_event(FoFiXSessionEventType::Sustain,
                                       held_until, sustain.mask,
                                       sustain.gem_count, points,
-                                      sustain.source_index));
+                                      sustain.source_index,
+                                      sustain.source_tick));
   }
 }
 
@@ -235,7 +243,8 @@ void FoFiXGameplaySession::start_sustain(size_t start,
   active_sustains_.push_back(
       ActiveSustain{mask, gems, std::max(song_time, notes_[start].time),
                     end_time, notes_[start].beat_seconds,
-                    notes_[start].source_index});
+                    notes_[start].source_index,
+                    notes_[start].source_tick});
 }
 
 void FoFiXGameplaySession::apply_hit(size_t start,
@@ -258,7 +267,8 @@ void FoFiXGameplaySession::apply_hit(size_t start,
   ++hits_;
   last_events_.push_back(make_event(FoFiXSessionEventType::Hit, song_time,
                                     mask, gem_count, award.points,
-                                    notes_[start].source_index));
+                                    notes_[start].source_index,
+                                    notes_[start].source_tick));
 }
 
 void FoFiXGameplaySession::apply_miss(size_t start, size_t end) {
@@ -275,7 +285,8 @@ void FoFiXGameplaySession::apply_miss(size_t start, size_t end) {
   ++misses_;
   last_events_.push_back(make_event(FoFiXSessionEventType::Miss,
                                     notes_[start].time, mask, gem_count, 0,
-                                    notes_[start].source_index));
+                                    notes_[start].source_index,
+                                    notes_[start].source_tick));
 }
 
 void FoFiXGameplaySession::apply_skip(size_t start, size_t end) {
@@ -293,7 +304,7 @@ void FoFiXGameplaySession::apply_overstrum(uint32_t held_frets) {
   ++overstrums_;
   last_events_.push_back(make_event(FoFiXSessionEventType::Overstrum,
                                     last_time_, held_frets & 0x1fu, 0, 0,
-                                    static_cast<size_t>(-1)));
+                                    static_cast<size_t>(-1), UINT32_MAX));
 }
 
 void FoFiXGameplaySession::seek_without_scoring(double song_time) {
@@ -304,6 +315,7 @@ void FoFiXGameplaySession::seek_without_scoring(double song_time) {
   star_phrase_active_ = false;
   star_phrase_missed_ = false;
   star_phrase_source_index_ = static_cast<size_t>(-1);
+  star_phrase_source_tick_ = UINT32_MAX;
   while (next_note_ < notes_.size()) {
     if (next_note_ < consumed_.size() && consumed_[next_note_]) {
       ++next_note_;
@@ -329,7 +341,7 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
     if (fofix_activate_star_power(star_power_)) {
       last_events_.push_back(make_event(FoFiXSessionEventType::StarPowerActivate,
                                         song_time, 1u << 6, 0, 0,
-                                        static_cast<size_t>(-1)));
+                                        static_cast<size_t>(-1), UINT32_MAX));
     }
   }
   fofix_update_star_power(star_power_, dt);

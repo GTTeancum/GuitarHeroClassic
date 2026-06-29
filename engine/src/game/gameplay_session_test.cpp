@@ -307,11 +307,22 @@ int main() {
         FoFiXGameplaySession::FromChart(chart, 3);
     session.tick(0.0, kGreen | kStrum);
     CHECK(session.last_events().size() == 1 &&
-              session.last_events()[0].source_index == 0,
-          "chart-backed session reports source note index for hit presentation");
+              session.last_events()[0].source_index == 0 &&
+              session.last_events()[0].source_tick == 0,
+          "chart-backed session reports source note index and tick for hit presentation");
     session.tick(0.25, kRed);
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].source_index == 1 &&
+              session.last_events()[0].source_tick == 240,
+          "chart-backed session reports source tick for HOPO presentation");
     session.tick(0.847, kYellow | kStrum);
     session.tick(2.0, kYellow);
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].type ==
+                  FoFiXSessionEventType::Sustain &&
+              session.last_events()[0].source_index == 2 &&
+              session.last_events()[0].source_tick == 960,
+          "chart-backed session reports source tick for sustain presentation");
     CHECK(session.score() == 250 && session.hits() == 3,
           "chart-backed session uses MIDI ticks, HOPOs, tempo hit windows, and sustain beat scale");
   }
