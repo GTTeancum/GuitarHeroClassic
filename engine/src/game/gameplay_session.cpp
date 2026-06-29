@@ -366,7 +366,8 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   last_events_.clear();
   const double dt = std::max(0.0, song_time - last_time_);
   last_time_ = std::max(last_time_, song_time);
-  if ((fret_mask & (1u << 6)) != 0) {
+  if ((fret_mask & (1u << 6)) != 0 &&
+      (prev_fret_mask_ & (1u << 6)) == 0) {
     if (fofix_activate_star_power(star_power_)) {
       last_events_.push_back(make_event(FoFiXSessionEventType::StarPowerActivate,
                                         song_time, 1u << 6, 0, 0,

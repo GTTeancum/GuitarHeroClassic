@@ -303,6 +303,38 @@ int main() {
   }
 
   {
+    FoFiXGameplaySession session({
+        {1.0, 1.0, kGreen, false, true},
+        {1.5, 1.5, kRed, false, false},
+        {2.0, 2.0, kGreen, false, true},
+        {2.5, 2.5, kRed, false, false},
+    });
+    session.tick(0.5, kStar);
+    session.tick(1.0, kStar | kGreen | kStrum);
+    session.tick(1.1, kStar | kGreen);
+    session.tick(1.5, kStar | kRed | kStrum);
+    session.tick(1.6, kStar | kRed);
+    session.tick(2.0, kStar | kGreen | kStrum);
+    session.tick(2.1, kStar | kGreen);
+    session.tick(2.5, kStar | kRed | kStrum);
+    session.tick(2.6, kStar | kRed);
+    CHECK(!session.star_power_active() &&
+              session.star_power_fill() > 0.499 &&
+              session.star_power_fill() < 0.501,
+          "held star power does not auto-activate when phrases reach half meter");
+    CHECK(session.last_events().empty(),
+          "held star power produces no activation event after crossing threshold");
+    session.tick(2.7, 0);
+    session.tick(2.8, kStar);
+    CHECK(session.star_power_active(),
+          "fresh star-power press activates after threshold is available");
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].type ==
+                  FoFiXSessionEventType::StarPowerActivate,
+          "fresh star-power edge reports one activation event");
+  }
+
+  {
     ghogx::chart::Chart chart;
     chart.ticks_per_beat = 480;
     chart.tempo_map = {
