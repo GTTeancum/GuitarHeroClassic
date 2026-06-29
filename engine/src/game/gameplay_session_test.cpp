@@ -63,6 +63,22 @@ int main() {
   }
 
   {
+    FoFiXGameplaySession session({
+        {0.8, 0.8, kYellow, false, false},
+        {1.0, 1.0, kGreen, false, false},
+        {1.05, 1.05, kRed, true, false},
+    });
+    session.tick(0.8, kYellow | kStrum);
+    session.tick(1.05, kRed);
+    CHECK(session.score() == 50 && session.streak() == 1 &&
+              session.hits() == 1,
+          "HOPO cannot jump over an earlier unmatched in-window candidate");
+    session.tick(1.3, 0);
+    CHECK(session.misses() == 2 && session.streak() == 0,
+          "blocked HOPO candidates still miss later through the normal miss path");
+  }
+
+  {
     FoFiXGameplaySession session({{1.0, 2.0, kGreen, false, false}});
     session.tick(1.0, kGreen | kStrum);
     session.tick(2.0, kGreen);

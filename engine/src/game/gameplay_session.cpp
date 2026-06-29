@@ -326,6 +326,9 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
     if (!can_hit && strummed) {
       can_hit = fofix_match_frets(held_frets, required);
     }
+    if (!strummed && !can_hit) {
+      break;
+    }
     if (can_hit) {
       if (strummed) {
         for (size_t skipped = next_note_; skipped < i;) {

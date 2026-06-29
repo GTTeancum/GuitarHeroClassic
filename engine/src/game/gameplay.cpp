@@ -18634,6 +18634,9 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             fofix_match_frets(held_frets, required_mask)) {
             can_hit = true;
         }
+        if (!strummed && !can_hit) {
+            break;
+        }
 
         if (can_hit) {
             if (strummed) {
