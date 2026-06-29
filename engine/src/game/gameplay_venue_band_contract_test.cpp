@@ -3065,6 +3065,15 @@ int main() {
                  "!evaluation->has_writer_bridge_payload_delta",
                  "trace-complete writer bridge refuses complete-pair traces without sampled writer payload delta evidence");
   ok &= contains(gameplay_c,
+                 "evaluation->writer_bridge_payload_delta_support_count<=0",
+                 "trace-complete writer bridge requires positive payload-delta support trace count");
+  ok &= contains(gameplay_c,
+                 "evaluation->writer_bridge_payload_delta_min_distance<=0.0f",
+                 "trace-complete writer bridge requires a measured payload-delta distance range");
+  ok &= contains(gameplay_c,
+                 "evaluation->writer_bridge_payload_delta_max_distance<evaluation->writer_bridge_payload_delta_min_distance",
+                 "trace-complete writer bridge rejects invalid payload-delta distance ranges");
+  ok &= contains(gameplay_c,
                  "evaluation->camera_system_shape!=\"complete_writer_builder_pair\"",
                  "trace-complete writer bridge requires the analyzer's complete camera-system graph shape");
   ok &= contains(gameplay_c,
@@ -3100,6 +3109,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "writer_bridge_payload_delta=1",
                  "generic PS2 writer bridge provenance marks traces that have promotable writer payload delta evidence");
+  ok &= contains(gameplay_c,
+                 "payload_delta_support=",
+                 "generic PS2 writer bridge provenance includes the number of supporting payload-delta traces");
+  ok &= contains(gameplay_c,
+                 "payload_delta_dist_range=",
+                 "generic PS2 writer bridge provenance includes the accepted payload-delta distance range");
   ok &= contains(gameplay_c,
                  "complete_count=",
                  "generic PS2 writer bridge provenance includes complete writer-builder pair counts");
@@ -3184,6 +3199,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "has_writer_bridge_payload_delta",
                  "retained PS2 source-record diagnostics distinguish complete-pair traces from promotable writer-bridge traces");
+  ok &= contains(gameplay_c,
+                 "writer_bridge_payload_delta_support_count",
+                 "retained PS2 source-record diagnostics carry payload-delta support counts");
   ok &= contains(gameplay_c,
                  "projection_matrix_rows",
                  "retained PS2 projection diagnostics keep the sampled builder matrix row block");

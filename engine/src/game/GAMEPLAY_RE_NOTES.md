@@ -6369,3 +6369,16 @@ Rejected native probe:
   `complete_count=512`, `incomplete_count=0`, and
   `path_delta=writer-builder_basis_delta`. Health scan only found lighting
   coverage summaries with `failed=0`.
+
+2026-06-29 camera payload-delta support range:
+- Promotable native camera evidence now records that the current accepted
+  writer-bridge payload delta is supported by three complete-pair traces:
+  `gh2dxu_arena_builder_a0_shot_identity_20260624`,
+  `gh2dxu_arena_builder_a0_shot_identity_long_20260624`, and
+  `gh2dxu_arena_writer_handoff_statefile_20260629_025058`. Their sampled
+  builder-to-writer distances are `5.891969`, `5.936979`, and `6.227738`.
+- The opt-in trace-complete bridge now refuses entries without a positive
+  payload-delta support count or a valid measured distance range. Runtime
+  provenance logs `payload_delta_support=3` and
+  `payload_delta_dist_range=5.891969..6.227738`, making the current promoted
+  camera route corpus-backed rather than a single-sample promotion.

@@ -6195,6 +6195,9 @@ struct Ps2SourceRecordTraceContext {
     bool has_builder_basis = false;
     bool has_complete_writer_builder_pair = false;
     bool has_writer_bridge_payload_delta = false;
+    int writer_bridge_payload_delta_support_count = 0;
+    float writer_bridge_payload_delta_min_distance = 0.0f;
+    float writer_bridge_payload_delta_max_distance = 0.0f;
     int complete_writer_builder_pair_count = 0;
     int incomplete_writer_builder_pair_count = 0;
     std::string camera_system_shape;
@@ -6231,6 +6234,9 @@ struct Ps2SourceRecordEvaluation {
     bool has_builder_basis = false;
     bool has_complete_writer_builder_pair = false;
     bool has_writer_bridge_payload_delta = false;
+    int writer_bridge_payload_delta_support_count = 0;
+    float writer_bridge_payload_delta_min_distance = 0.0f;
+    float writer_bridge_payload_delta_max_distance = 0.0f;
     int complete_writer_builder_pair_count = 0;
     int incomplete_writer_builder_pair_count = 0;
     std::string camera_system_shape;
@@ -6267,6 +6273,9 @@ struct Ps2SourceRecordTraceEntry {
     bool has_builder_basis;
     bool has_complete_writer_builder_pair;
     bool has_writer_bridge_payload_delta;
+    int writer_bridge_payload_delta_support_count;
+    float writer_bridge_payload_delta_min_distance;
+    float writer_bridge_payload_delta_max_distance;
     int complete_writer_builder_pair_count;
     int incomplete_writer_builder_pair_count;
     std::string_view camera_system_shape;
@@ -6310,6 +6319,9 @@ constexpr Ps2SourceRecordTraceEntry kRetainedPs2SourceRecordTraceTable[] = {
       true,
       true,
       true,
+      3,
+      5.891969f,
+      6.227738f,
       512,
       0,
       "complete_writer_builder_pair",
@@ -6375,6 +6387,12 @@ ps2_source_record_trace_context_for_key(const Gameplay::CameraKey& key) {
             entry.has_complete_writer_builder_pair;
         context.has_writer_bridge_payload_delta =
             entry.has_writer_bridge_payload_delta;
+        context.writer_bridge_payload_delta_support_count =
+            entry.writer_bridge_payload_delta_support_count;
+        context.writer_bridge_payload_delta_min_distance =
+            entry.writer_bridge_payload_delta_min_distance;
+        context.writer_bridge_payload_delta_max_distance =
+            entry.writer_bridge_payload_delta_max_distance;
         context.complete_writer_builder_pair_count =
             entry.complete_writer_builder_pair_count;
         context.incomplete_writer_builder_pair_count =
@@ -6436,6 +6454,12 @@ evaluate_retained_ps2_source_record_trace_context(
         trace_context->has_complete_writer_builder_pair;
     evaluation.has_writer_bridge_payload_delta =
         trace_context->has_writer_bridge_payload_delta;
+    evaluation.writer_bridge_payload_delta_support_count =
+        trace_context->writer_bridge_payload_delta_support_count;
+    evaluation.writer_bridge_payload_delta_min_distance =
+        trace_context->writer_bridge_payload_delta_min_distance;
+    evaluation.writer_bridge_payload_delta_max_distance =
+        trace_context->writer_bridge_payload_delta_max_distance;
     evaluation.complete_writer_builder_pair_count =
         trace_context->complete_writer_builder_pair_count;
     evaluation.incomplete_writer_builder_pair_count =
@@ -11556,6 +11580,12 @@ camera_ps2_result_builder_projection_candidate_rows(
     return rows;
 }
 
+std::string camera_format_metric_float(float value) {
+    char buffer[32];
+    std::snprintf(buffer, sizeof(buffer), "%.6f", value);
+    return buffer;
+}
+
 std::string camera_writer_builder_pair_provenance(
     const Ps2SourceRecordEvaluation& evaluation) {
     if (!evaluation.has_complete_writer_builder_pair) {
@@ -11563,6 +11593,15 @@ std::string camera_writer_builder_pair_provenance(
     }
     return " pair=complete shape=" + evaluation.camera_system_shape +
            " writer_bridge_payload_delta=1" +
+           " payload_delta_support=" +
+           std::to_string(
+               evaluation.writer_bridge_payload_delta_support_count) +
+           " payload_delta_dist_range=" +
+           camera_format_metric_float(
+               evaluation.writer_bridge_payload_delta_min_distance) +
+           ".." +
+           camera_format_metric_float(
+               evaluation.writer_bridge_payload_delta_max_distance) +
            " complete_count=" +
            std::to_string(evaluation.complete_writer_builder_pair_count) +
            " incomplete_count=" +
@@ -12224,6 +12263,10 @@ std::optional<CameraResultRows> camera_trace_complete_writer_bridge_rows(
         evaluate_retained_ps2_source_record_trace_context(key);
     if (!evaluation || !evaluation->has_complete_writer_builder_pair ||
         !evaluation->has_writer_bridge_payload_delta ||
+        evaluation->writer_bridge_payload_delta_support_count <= 0 ||
+        evaluation->writer_bridge_payload_delta_min_distance <= 0.0f ||
+        evaluation->writer_bridge_payload_delta_max_distance <
+            evaluation->writer_bridge_payload_delta_min_distance ||
         evaluation->camera_system_shape != "complete_writer_builder_pair" ||
         evaluation->complete_writer_builder_pair_count <= 0 ||
         evaluation->incomplete_writer_builder_pair_count != 0) {
