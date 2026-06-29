@@ -4,7 +4,10 @@
 
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
+#include <map>
+#include <mutex>
 #include <sstream>
 
 namespace gh::ark {
@@ -59,9 +62,53 @@ std::string string_at(const std::vector<uint8_t>& blob, uint32_t off) {
     return std::string(s, std::strlen(s));
 }
 
+struct FileStamp {
+    std::filesystem::file_time_type write_time{};
+    uintmax_t size = 0;
+    bool valid = false;
+};
+
+FileStamp stamp_file(const std::string& path) {
+    std::error_code ec;
+    FileStamp stamp;
+    stamp.write_time = std::filesystem::last_write_time(path, ec);
+    if (ec) return {};
+    stamp.size = std::filesystem::file_size(path, ec);
+    if (ec) return {};
+    stamp.valid = true;
+    return stamp;
+}
+
+std::string cache_key_for(const std::string& path) {
+    std::error_code ec;
+    auto absolute = std::filesystem::absolute(path, ec);
+    if (ec) return path;
+    return absolute.lexically_normal().string();
+}
+
+struct CachedHdr {
+    FileStamp stamp;
+    ArkV3Reader reader;
+};
+
 }  // anonymous namespace
 
 ArkV3Reader ArkV3Reader::load(const std::string& hdr_path) {
+    static std::mutex cache_mutex;
+    static std::map<std::string, CachedHdr> cache;
+
+    const std::string cache_key = cache_key_for(hdr_path);
+    const FileStamp stamp = stamp_file(hdr_path);
+    if (stamp.valid) {
+        std::lock_guard<std::mutex> lock(cache_mutex);
+        const auto cached = cache.find(cache_key);
+        if (cached != cache.end() &&
+            cached->second.stamp.size == stamp.size &&
+            cached->second.stamp.write_time == stamp.write_time) {
+            return cached->second.reader;
+        }
+    }
+
     auto bytes = read_file(hdr_path);
     Reader r(bytes);
 
@@ -140,6 +187,11 @@ ArkV3Reader ArkV3Reader::load(const std::string& hdr_path) {
         oss << "HDR has " << r.remaining()
             << " unread bytes after entry table; format may differ for this ARK";
         throw std::runtime_error(oss.str());
+    }
+
+    if (stamp.valid) {
+        std::lock_guard<std::mutex> lock(cache_mutex);
+        cache[cache_key] = CachedHdr{stamp, out};
     }
 
     return out;
