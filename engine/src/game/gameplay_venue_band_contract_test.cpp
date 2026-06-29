@@ -420,6 +420,18 @@ int main() {
                  "gameplay_session_mirror_->overstrums()!=overstrum_count_",
                  "FoFiX mirror mismatch checks event counts as well as gauges");
   ok &= contains(gameplay_c,
+                 "score_=gameplay_session_mirror_->score();",
+                 "live gameplay score is adopted from the FoFiX session");
+  ok &= contains(gameplay_c,
+                 "rock_=gameplay_session_mirror_->rock_state();",
+                 "live rock meter is adopted from the FoFiX session");
+  ok &= contains(gameplay_c,
+                 "star_power_=gameplay_session_mirror_->star_power_state();",
+                 "live star power is adopted from the FoFiX session");
+  ok &= contains(gameplay_c,
+                 "failed_=gameplay_session_mirror_->failed();",
+                 "live fail state is adopted from the FoFiX session");
+  ok &= contains(gameplay_c,
                  "++hit_count_;",
                  "live hit path increments FoFiX mirror hit count");
   ok &= contains(gameplay_c,

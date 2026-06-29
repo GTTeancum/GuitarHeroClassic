@@ -18262,25 +18262,33 @@ void Gameplay::update_gameplay_session_mirror(uint32_t fret_mask) {
                   fofix_rock_fill(rock_)) > 0.0001 ||
         std::fabs(gameplay_session_mirror_->star_power_fill() -
                   fofix_star_power_fill(star_power_)) > 0.0001;
-    if (!mismatch || !debug_gameplay_session_enabled()) return;
-    if (gameplay_session_mirror_last_log_time_ >= 0.0 &&
-        song_time_ - gameplay_session_mirror_last_log_time_ < 0.25) {
-        return;
+    if (mismatch && debug_gameplay_session_enabled() &&
+        (gameplay_session_mirror_last_log_time_ < 0.0 ||
+         song_time_ - gameplay_session_mirror_last_log_time_ >= 0.25)) {
+        gameplay_session_mirror_last_log_time_ = song_time_;
+        std::fprintf(
+            stderr,
+            "[gameplay] FoFiX session mismatch t=%.3f live(score=%d streak=%d mult=%d hits=%d misses=%d overstrums=%d rock=%.4f sp=%.4f fail=%d) mirror(score=%d streak=%d mult=%d hits=%d misses=%d overstrums=%d rock=%.4f sp=%.4f fail=%d)\n",
+            song_time_, score_, streak_, multiplier_, hit_count_, miss_count_,
+            overstrum_count_, fofix_rock_fill(rock_),
+            fofix_star_power_fill(star_power_), failed_ ? 1 : 0,
+            gameplay_session_mirror_->score(), gameplay_session_mirror_->streak(),
+            gameplay_session_mirror_->multiplier(), gameplay_session_mirror_->hits(),
+            gameplay_session_mirror_->misses(),
+            gameplay_session_mirror_->overstrums(),
+            gameplay_session_mirror_->rock_fill(),
+            gameplay_session_mirror_->star_power_fill(),
+            gameplay_session_mirror_->failed() ? 1 : 0);
     }
-    gameplay_session_mirror_last_log_time_ = song_time_;
-    std::fprintf(
-        stderr,
-        "[gameplay] FoFiX session mismatch t=%.3f live(score=%d streak=%d mult=%d hits=%d misses=%d overstrums=%d rock=%.4f sp=%.4f fail=%d) mirror(score=%d streak=%d mult=%d hits=%d misses=%d overstrums=%d rock=%.4f sp=%.4f fail=%d)\n",
-        song_time_, score_, streak_, multiplier_, hit_count_, miss_count_,
-        overstrum_count_, fofix_rock_fill(rock_),
-        fofix_star_power_fill(star_power_), failed_ ? 1 : 0,
-        gameplay_session_mirror_->score(), gameplay_session_mirror_->streak(),
-        gameplay_session_mirror_->multiplier(), gameplay_session_mirror_->hits(),
-        gameplay_session_mirror_->misses(),
-        gameplay_session_mirror_->overstrums(),
-        gameplay_session_mirror_->rock_fill(),
-        gameplay_session_mirror_->star_power_fill(),
-        gameplay_session_mirror_->failed() ? 1 : 0);
+    score_ = gameplay_session_mirror_->score();
+    streak_ = gameplay_session_mirror_->streak();
+    multiplier_ = gameplay_session_mirror_->multiplier();
+    hit_count_ = gameplay_session_mirror_->hits();
+    miss_count_ = gameplay_session_mirror_->misses();
+    overstrum_count_ = gameplay_session_mirror_->overstrums();
+    rock_ = gameplay_session_mirror_->rock_state();
+    star_power_ = gameplay_session_mirror_->star_power_state();
+    failed_ = gameplay_session_mirror_->failed();
 }
 
 void Gameplay::tick(float dt, uint32_t fret_mask) {

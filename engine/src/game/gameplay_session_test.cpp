@@ -184,12 +184,19 @@ int main() {
     session.tick(4.0, kGreen | kStrum);
     session.tick(4.5, kRed | kStrum);
     CHECK(session.star_power_fill() > 0.999, "four phrases fill star meter");
+    CHECK(!session.star_power_state().active &&
+              session.star_power_state().value > 99.9,
+          "session exposes raw full star meter for live gameplay adoption");
     session.tick(5.1, kStar);
     CHECK(session.star_power_active(), "star power activates at half or more");
+    CHECK(session.star_power_state().active,
+          "session exposes raw active star power state for live gameplay adoption");
     const int before_powered_note = session.score();
     session.tick(5.2, kGreen | kStrum);
     CHECK(session.score() - before_powered_note == 100,
           "active star power doubles subsequent note score");
+    CHECK(session.rock_state().value > 15000.0,
+          "session exposes raw FoFiX rock state for live gameplay adoption");
     session.tick(25.2, 0);
     CHECK(!session.star_power_active() && session.star_power_fill() == 0.0,
           "star power drains out over time");

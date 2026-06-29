@@ -38,6 +38,8 @@ class FoFiXGameplaySession {
   int multiplier() const { return score_.multiplier; }
   double rock_fill() const { return fofix_rock_fill(rock_); }
   double star_power_fill() const { return fofix_star_power_fill(star_power_); }
+  const FoFiXRockState& rock_state() const { return rock_; }
+  const FoFiXStarPowerState& star_power_state() const { return star_power_; }
   bool star_power_active() const { return star_power_.active; }
   bool failed() const { return fofix_rock_failed(rock_); }
   int hits() const { return hits_; }
