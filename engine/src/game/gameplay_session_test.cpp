@@ -127,6 +127,19 @@ int main() {
           "chart-backed session uses MIDI ticks, HOPOs, tempo hit windows, and sustain beat scale");
   }
 
+  {
+    FoFiXGameplaySession session({
+        {1.0, 1.0, kGreen, false, false},
+        {2.0, 2.0, kRed, false, false},
+    });
+    session.seek_without_scoring(1.3);
+    CHECK(session.score() == 0 && session.misses() == 0,
+          "diagnostic seek consumes earlier notes without scoring or miss penalties");
+    session.tick(2.0, kRed | kStrum);
+    CHECK(session.score() == 50 && session.hits() == 1,
+          "session remains playable after no-score seek");
+  }
+
   if (failures == 0) {
     std::fprintf(stderr, "gameplay_session_test: PASS\n");
   }

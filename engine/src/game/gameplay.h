@@ -12,6 +12,7 @@
 #include "character/char_facefx.h"
 #include "character/char_renderer.h"
 #include "game/audio_player.h"
+#include "game/gameplay_session.h"
 #include "game/gameplay_rules.h"
 #include "game/highway_renderer.h"
 #include "render/milo_scene_renderer.h"
@@ -523,6 +524,7 @@ class Gameplay {
                             bool persistent = true);
   bool apply_lighting_event_visibility(const std::string& event_name,
                                        bool log);
+  void update_gameplay_session_mirror(uint32_t fret_mask);
   std::unordered_set<std::string> composed_lighting_hidden_meshes() const;
   std::map<std::string, float> composed_lighting_material_alpha() const;
   void update_active_lighting_material_anims();
@@ -870,6 +872,8 @@ class Gameplay {
   int      multiplier_     = 1;
   FoFiXRockState rock_;
   FoFiXStarPowerState star_power_;
+  std::optional<FoFiXGameplaySession> gameplay_session_mirror_;
+  double gameplay_session_mirror_last_log_time_ = -1.0;
   bool     failed_         = false;
   bool     star_phrase_active_ = false;
   bool     star_phrase_missed_ = false;

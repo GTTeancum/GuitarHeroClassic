@@ -233,6 +233,29 @@ void FoFiXGameplaySession::apply_overstrum() {
   ++overstrums_;
 }
 
+void FoFiXGameplaySession::seek_without_scoring(double song_time) {
+  last_time_ = std::max(0.0, song_time);
+  prev_fret_mask_ = 0;
+  active_sustains_.clear();
+  star_phrase_active_ = false;
+  star_phrase_missed_ = false;
+  while (next_note_ < notes_.size()) {
+    if (next_note_ < consumed_.size() && consumed_[next_note_]) {
+      ++next_note_;
+      continue;
+    }
+    if (!fofix_note_missed(last_time_, notes_[next_note_].time,
+                           window_for_note(next_note_))) {
+      break;
+    }
+    const size_t end = group_end(next_note_);
+    for (size_t i = next_note_; i < end; ++i) {
+      if (i < consumed_.size()) consumed_[i] = 1;
+    }
+    next_note_ = end;
+  }
+}
+
 void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   const double dt = std::max(0.0, song_time - last_time_);
   last_time_ = std::max(last_time_, song_time);

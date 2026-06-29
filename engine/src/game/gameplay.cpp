@@ -100,6 +100,10 @@ bool debug_gameplay_camera_enabled() {
     return env_value("GHOGX_DEBUG_GAMEPLAY_CAMERA") != nullptr;
 }
 
+bool debug_gameplay_session_enabled() {
+    return env_value("GHOGX_DEBUG_GAMEPLAY_SESSION") != nullptr;
+}
+
 std::string_view only_draw_performer_role() {
     const char* role = env_value("GHOGX_ONLY_PERFORMER");
     return role ? std::string_view(role) : std::string_view();
@@ -14603,6 +14607,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     multiplier_   = 1;
     rock_         = FoFiXRockState{};
     star_power_   = FoFiXStarPowerState{};
+    gameplay_session_mirror_.reset();
+    gameplay_session_mirror_last_log_time_ = -1.0;
     failed_       = false;
     star_phrase_active_ = false;
     star_phrase_missed_ = false;
@@ -14813,6 +14819,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     for (int d = 0; d < 4; ++d) {
         note_consumed_[d].assign(chart_.notes[d].size(), 0);
     }
+    gameplay_session_mirror_ =
+        FoFiXGameplaySession::FromChart(chart_, difficulty_);
     chart_loaded_ = true;
 
     std::fprintf(stderr, "[gameplay] chart loaded: diff=%d notes=%zu dur=%.1fs\n",
@@ -17589,6 +17597,9 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     for (size_t i = 0; i < next_note_idx_ && i < consumed.size(); ++i) {
         consumed[i] = 1;
     }
+    if (gameplay_session_mirror_) {
+        gameplay_session_mirror_->seek_without_scoring(song_time_);
+    }
 
     auto skip_cues_before = [&](const auto& cues, size_t& index) {
         index = 0;
@@ -18148,6 +18159,37 @@ uint32_t Gameplay::diagnostic_autoplay_fret_mask(
     return mask | sustain_mask;
 }
 
+void Gameplay::update_gameplay_session_mirror(uint32_t fret_mask) {
+    if (!gameplay_session_mirror_) return;
+    if (diagnostic_autoplay_) return;
+    gameplay_session_mirror_->tick(song_time_, fret_mask);
+    const bool mismatch =
+        gameplay_session_mirror_->score() != score_ ||
+        gameplay_session_mirror_->streak() != streak_ ||
+        gameplay_session_mirror_->multiplier() != multiplier_ ||
+        gameplay_session_mirror_->failed() != failed_ ||
+        std::fabs(gameplay_session_mirror_->rock_fill() -
+                  fofix_rock_fill(rock_)) > 0.0001 ||
+        std::fabs(gameplay_session_mirror_->star_power_fill() -
+                  fofix_star_power_fill(star_power_)) > 0.0001;
+    if (!mismatch || !debug_gameplay_session_enabled()) return;
+    if (gameplay_session_mirror_last_log_time_ >= 0.0 &&
+        song_time_ - gameplay_session_mirror_last_log_time_ < 0.25) {
+        return;
+    }
+    gameplay_session_mirror_last_log_time_ = song_time_;
+    std::fprintf(
+        stderr,
+        "[gameplay] FoFiX session mismatch t=%.3f live(score=%d streak=%d mult=%d rock=%.4f sp=%.4f fail=%d) mirror(score=%d streak=%d mult=%d rock=%.4f sp=%.4f fail=%d)\n",
+        song_time_, score_, streak_, multiplier_, fofix_rock_fill(rock_),
+        fofix_star_power_fill(star_power_), failed_ ? 1 : 0,
+        gameplay_session_mirror_->score(), gameplay_session_mirror_->streak(),
+        gameplay_session_mirror_->multiplier(),
+        gameplay_session_mirror_->rock_fill(),
+        gameplay_session_mirror_->star_power_fill(),
+        gameplay_session_mirror_->failed() ? 1 : 0);
+}
+
 void Gameplay::tick(float dt, uint32_t fret_mask) {
     if (!chart_loaded_) return;
 
@@ -18589,6 +18631,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     if (next_note_idx_ >= notes.size()) {
         finish_star_phrase();
     }
+    update_gameplay_session_mirror(fret_mask);
 
     if (miss_flash_mask_ != 0) {
         apply_venue_event("excitement_bad");

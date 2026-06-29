@@ -31,6 +31,7 @@ class FoFiXGameplaySession {
                                         int difficulty);
 
   void tick(double song_time, uint32_t fret_mask);
+  void seek_without_scoring(double song_time);
 
   int score() const { return score_.score; }
   int streak() const { return score_.streak; }
