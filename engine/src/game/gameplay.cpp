@@ -21261,7 +21261,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
             highway_->load_textures(hdr_path_, ark_path_);
         }
         highway_->draw_over_scene(song_time_, chart_, difficulty_,
-                                  prev_fret_mask_ & 0x1F, lane_flash_, 1.5f);
+                                  prev_fret_mask_ & 0x1F, lane_flash_, 1.5f,
+                                  &note_consumed_[std::clamp(difficulty_, 0, 3)]);
         return;
     }
 
@@ -21272,7 +21273,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
     }
     // song_time_ is the audio-synced master clock (set in tick()).
     highway_->draw(song_time_, chart_, difficulty_,
-                   prev_fret_mask_ & 0x1F /* held frets */, lane_flash_, 1.5f);
+                   prev_fret_mask_ & 0x1F /* held frets */, lane_flash_, 1.5f,
+                   &note_consumed_[std::clamp(difficulty_, 0, 3)]);
 }
 
 }  // namespace ghogx::game

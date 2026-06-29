@@ -173,9 +173,10 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
 
 void HighwayRenderer::draw(double song_time, const ghogx::chart::Chart& chart,
                            int difficulty, uint32_t fret_held_mask,
-                           const float hit_flash[5], float lookahead_sec) {
+                           const float hit_flash[5], float lookahead_sec,
+                           const std::vector<uint8_t>* consumed_notes) {
   draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
-            lookahead_sec, true);
+            lookahead_sec, true, consumed_notes);
 }
 
 void HighwayRenderer::draw_over_scene(double song_time,
@@ -183,9 +184,10 @@ void HighwayRenderer::draw_over_scene(double song_time,
                                       int difficulty,
                                       uint32_t fret_held_mask,
                                       const float hit_flash[5],
-                                      float lookahead_sec) {
+                                      float lookahead_sec,
+                                      const std::vector<uint8_t>* consumed_notes) {
   draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
-            lookahead_sec, false);
+            lookahead_sec, false, consumed_notes);
 }
 
 void HighwayRenderer::draw_impl(double song_time,
@@ -194,7 +196,8 @@ void HighwayRenderer::draw_impl(double song_time,
                                 uint32_t fret_held_mask,
                                 const float hit_flash[5],
                                 float /*lookahead_sec*/,
-                                bool clear_target) {
+                                bool clear_target,
+                                const std::vector<uint8_t>* consumed_notes) {
   if (!dev_) return;
   if (clear_target) {
     dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
@@ -347,7 +350,12 @@ void HighwayRenderer::draw_impl(double song_time,
   {
     struct VG { float y; int lane; bool star; };
     std::vector<VG> vis;
-    for (const auto& n : notes) {
+    for (size_t note_index = 0; note_index < notes.size(); ++note_index) {
+      if (consumed_notes && note_index < consumed_notes->size() &&
+          (*consumed_notes)[note_index]) {
+        continue;
+      }
+      const auto& n = notes[note_index];
       const double on = chart.tick_to_sec(n.tick_on);
       if (on < song_time - trail) continue;
       if (on > song_time + lead) break;

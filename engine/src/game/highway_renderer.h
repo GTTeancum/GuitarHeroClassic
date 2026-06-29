@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <vector>
 
 struct IDirect3DDevice9;
 struct IDirect3DTexture9;
@@ -46,16 +47,19 @@ class HighwayRenderer {
   //   lookahead_sec  — seconds of chart visible ahead of the strikeline.
   void draw(double song_time, const ghogx::chart::Chart& chart, int difficulty,
             uint32_t fret_held_mask, const float hit_flash[5],
-            float lookahead_sec = 1.5f);
+            float lookahead_sec = 1.5f,
+            const std::vector<uint8_t>* consumed_notes = nullptr);
   void draw_over_scene(double song_time, const ghogx::chart::Chart& chart,
                        int difficulty, uint32_t fret_held_mask,
-                       const float hit_flash[5], float lookahead_sec = 1.5f);
+                       const float hit_flash[5], float lookahead_sec = 1.5f,
+                       const std::vector<uint8_t>* consumed_notes = nullptr);
 
  private:
   void draw_impl(double song_time, const ghogx::chart::Chart& chart,
                  int difficulty, uint32_t fret_held_mask,
                  const float hit_flash[5], float lookahead_sec,
-                 bool clear_target);
+                 bool clear_target,
+                 const std::vector<uint8_t>* consumed_notes);
   IDirect3DTexture9* tex(const std::string& name) const;
 
   ghogx::render::Window* win_;

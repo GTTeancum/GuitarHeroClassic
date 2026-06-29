@@ -451,9 +451,16 @@ int main() {
                  "voiddraw_over_scene(doublesong_time,"
                  "constghogx::chart::Chart&chart,intdifficulty,",
                  "highway renderer exposes a no-clear draw path for venue composition");
+  ok &= contains(highway_renderer_h_c,
+                 "conststd::vector<uint8_t>*consumed_notes=nullptr",
+                 "highway renderer accepts the FoFiX consumed-note ledger");
+  ok &= contains(highway_renderer_c,
+                 "if(consumed_notes&&note_index<consumed_notes->size()&&"
+                 "(*consumed_notes)[note_index]){continue;}",
+                 "highway skips gem heads already consumed by FoFiX gameplay");
   ok &= contains(highway_renderer_c,
                  "draw_impl(song_time,chart,difficulty,fret_held_mask,hit_flash,"
-                 "lookahead_sec,false);",
+                 "lookahead_sec,false,consumed_notes);",
                  "highway draw_over_scene preserves the already-rendered 3D venue");
   ok &= contains(gameplay_c,
                  "world_->draw();",
@@ -462,6 +469,9 @@ int main() {
                        "world_->draw();",
                        "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
                        "3D venue path composites the playable highway before returning");
+  ok &= contains(gameplay_c,
+                 "&note_consumed_[std::clamp(difficulty_,0,3)]",
+                 "playable highway rendering is driven by live FoFiX-consumed notes");
   ok &= contains(gameplay_h_c,
                  "inthit_count_=0;"
                  "intmiss_count_=0;"
