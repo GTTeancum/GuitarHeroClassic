@@ -18269,9 +18269,10 @@ void Gameplay::update_gameplay_session_mirror(uint32_t fret_mask) {
             }
             std::fprintf(
                 stderr,
-                "[gameplay] FoFiX session event type=%s t=%.3f mask=0x%02x gems=%d pts=%d source=%zu\n",
+                "[gameplay] FoFiX session event type=%s t=%.3f mask=0x%02x gems=%d pts=%d source=%zu rock=%.4f sp=%.4f fail=%d\n",
                 type, event.time, event.mask & 0x1fu, event.gem_count,
-                event.score_delta, event.source_index);
+                event.score_delta, event.source_index, event.rock_fill,
+                event.star_power_fill, event.failed ? 1 : 0);
         }
     }
     const bool mismatch =

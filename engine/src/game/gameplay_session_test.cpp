@@ -37,7 +37,10 @@ int main() {
               session.last_events()[0].type == FoFiXSessionEventType::Hit &&
               session.last_events()[0].mask == kGreen &&
               session.last_events()[0].gem_count == 1 &&
-              session.last_events()[0].score_delta == 50,
+              session.last_events()[0].score_delta == 50 &&
+              session.last_events()[0].rock_fill > 0.5001 &&
+              session.last_events()[0].star_power_fill == 0.0 &&
+              !session.last_events()[0].failed,
           "FoFiX session reports hit delta for native presentation");
     session.tick(1.1, kGreen);
     session.tick(1.3, kRed | kStrum);
@@ -82,7 +85,8 @@ int main() {
               session.last_events()[0].type == FoFiXSessionEventType::Miss &&
               session.last_events()[1].type ==
                   FoFiXSessionEventType::Overstrum &&
-              session.last_events()[1].mask == 0,
+              session.last_events()[1].mask == 0 &&
+              session.last_events()[1].rock_fill < 0.5,
           "FoFiX session reports miss and bad-pick deltas on the same tick");
   }
 
@@ -208,6 +212,8 @@ int main() {
     CHECK(session.last_events().size() == 2 &&
               session.last_events()[0].type ==
                   FoFiXSessionEventType::StarPhraseComplete &&
+              session.last_events()[0].star_power_fill > 0.249 &&
+              session.last_events()[0].star_power_fill < 0.251 &&
               session.last_events()[1].type == FoFiXSessionEventType::Hit,
           "FoFiX session reports star phrase completion before boundary hit");
   }

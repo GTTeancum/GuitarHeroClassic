@@ -441,8 +441,8 @@ int main() {
                  "for(constauto&event:gameplay_session_mirror_->last_events())",
                  "FoFiX session tick events are surfaced to native validation logs");
   ok &= contains(gameplay_c,
-                 "FoFiXsessioneventtype=%st=%.3fmask=0x%02xgems=%dpts=%dsource=%zu",
-                 "FoFiX session event logs include mask score delta and source note");
+                 "FoFiXsessioneventtype=%st=%.3fmask=0x%02xgems=%dpts=%dsource=%zurock=%.4fsp=%.4ffail=%d",
+                 "FoFiX session event logs include mask gauges score delta and source note");
   ok &= contains(gameplay_c,
                  "++hit_count_;",
                  "live hit path increments FoFiX mirror hit count");

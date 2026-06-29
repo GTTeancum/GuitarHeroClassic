@@ -41,6 +41,9 @@ struct FoFiXSessionEvent {
   int gem_count = 0;
   int score_delta = 0;
   size_t source_index = static_cast<size_t>(-1);
+  double rock_fill = 0.0;
+  double star_power_fill = 0.0;
+  bool failed = false;
 };
 
 class FoFiXGameplaySession {
@@ -84,6 +87,12 @@ class FoFiXGameplaySession {
   uint32_t group_mask(size_t start, size_t end) const;
   int group_gem_count(size_t start, size_t end) const;
   bool group_star_power(size_t start, size_t end) const;
+  FoFiXSessionEvent make_event(FoFiXSessionEventType type,
+                               double time,
+                               uint32_t mask,
+                               int gem_count,
+                               int score_delta,
+                               size_t source_index) const;
   void finish_star_phrase();
   void observe_star_phrase(size_t start, size_t end, bool hit);
   void award_sustain(const ActiveSustain& sustain, double held_until);
