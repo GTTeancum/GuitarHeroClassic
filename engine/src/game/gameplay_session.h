@@ -29,6 +29,9 @@ enum class FoFiXSessionEventType {
   Miss,
   Overstrum,
   Sustain,
+  StarPhraseComplete,
+  StarPhraseMiss,
+  StarPowerActivate,
 };
 
 struct FoFiXSessionEvent {
@@ -105,6 +108,7 @@ class FoFiXGameplaySession {
   FoFiXStarPowerState star_power_;
   bool star_phrase_active_ = false;
   bool star_phrase_missed_ = false;
+  size_t star_phrase_source_index_ = static_cast<size_t>(-1);
   int hits_ = 0;
   int misses_ = 0;
   int overstrums_ = 0;

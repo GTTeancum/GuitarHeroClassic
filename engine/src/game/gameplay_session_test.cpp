@@ -205,6 +205,11 @@ int main() {
     CHECK(session.star_power_fill() > 0.249 &&
               session.star_power_fill() < 0.251,
           "completed star phrase awards quarter meter at phrase boundary");
+    CHECK(session.last_events().size() == 2 &&
+              session.last_events()[0].type ==
+                  FoFiXSessionEventType::StarPhraseComplete &&
+              session.last_events()[1].type == FoFiXSessionEventType::Hit,
+          "FoFiX session reports star phrase completion before boundary hit");
   }
 
   {
@@ -220,6 +225,11 @@ int main() {
     CHECK(session.overstrums() == 1 && session.hits() == 2 &&
               session.star_power_fill() == 0.0,
           "wrong strum inside a star note window breaks FoFiX star phrase");
+    CHECK(session.last_events().size() == 2 &&
+              session.last_events()[0].type ==
+                  FoFiXSessionEventType::StarPhraseMiss &&
+              session.last_events()[1].type == FoFiXSessionEventType::Hit,
+          "FoFiX session reports missed star phrase before boundary hit");
   }
 
   {
@@ -258,6 +268,11 @@ int main() {
     CHECK(session.star_power_active(), "star power activates at half or more");
     CHECK(session.star_power_state().active,
           "session exposes raw active star power state for live gameplay adoption");
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].type ==
+                  FoFiXSessionEventType::StarPowerActivate &&
+              session.last_events()[0].mask == kStar,
+          "FoFiX session reports star power activation for native presentation");
     const int before_powered_note = session.score();
     session.tick(5.2, kGreen | kStrum);
     CHECK(session.score() - before_powered_note == 100,

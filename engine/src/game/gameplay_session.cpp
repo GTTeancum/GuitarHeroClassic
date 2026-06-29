@@ -132,9 +132,29 @@ bool FoFiXGameplaySession::group_star_power(size_t start, size_t end) const {
 
 void FoFiXGameplaySession::finish_star_phrase() {
   if (!star_phrase_active_) return;
-  if (!star_phrase_missed_) fofix_award_star_phrase(star_power_);
+  if (!star_phrase_missed_) {
+    fofix_award_star_phrase(star_power_);
+    last_events_.push_back(FoFiXSessionEvent{
+        FoFiXSessionEventType::StarPhraseComplete,
+        last_time_,
+        0,
+        0,
+        0,
+        star_phrase_source_index_,
+    });
+  } else {
+    last_events_.push_back(FoFiXSessionEvent{
+        FoFiXSessionEventType::StarPhraseMiss,
+        last_time_,
+        0,
+        0,
+        0,
+        star_phrase_source_index_,
+    });
+  }
   star_phrase_active_ = false;
   star_phrase_missed_ = false;
+  star_phrase_source_index_ = static_cast<size_t>(-1);
 }
 
 void FoFiXGameplaySession::observe_star_phrase(size_t start,
@@ -147,6 +167,7 @@ void FoFiXGameplaySession::observe_star_phrase(size_t start,
   if (!star_phrase_active_) {
     star_phrase_active_ = true;
     star_phrase_missed_ = false;
+    star_phrase_source_index_ = notes_[start].source_index;
   }
   if (!hit) star_phrase_missed_ = true;
 }
@@ -291,6 +312,7 @@ void FoFiXGameplaySession::seek_without_scoring(double song_time) {
   active_sustains_.clear();
   star_phrase_active_ = false;
   star_phrase_missed_ = false;
+  star_phrase_source_index_ = static_cast<size_t>(-1);
   while (next_note_ < notes_.size()) {
     if (next_note_ < consumed_.size() && consumed_[next_note_]) {
       ++next_note_;
@@ -313,7 +335,16 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   const double dt = std::max(0.0, song_time - last_time_);
   last_time_ = std::max(last_time_, song_time);
   if ((fret_mask & (1u << 6)) != 0) {
-    fofix_activate_star_power(star_power_);
+    if (fofix_activate_star_power(star_power_)) {
+      last_events_.push_back(FoFiXSessionEvent{
+          FoFiXSessionEventType::StarPowerActivate,
+          song_time,
+          1u << 6,
+          0,
+          0,
+          static_cast<size_t>(-1),
+      });
+    }
   }
   fofix_update_star_power(star_power_, dt);
   if (fofix_rock_failed(rock_)) {

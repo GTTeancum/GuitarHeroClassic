@@ -18257,6 +18257,15 @@ void Gameplay::update_gameplay_session_mirror(uint32_t fret_mask) {
             case FoFiXSessionEventType::Miss: type = "miss"; break;
             case FoFiXSessionEventType::Overstrum: type = "overstrum"; break;
             case FoFiXSessionEventType::Sustain: type = "sustain"; break;
+            case FoFiXSessionEventType::StarPhraseComplete:
+                type = "star_phrase_complete";
+                break;
+            case FoFiXSessionEventType::StarPhraseMiss:
+                type = "star_phrase_miss";
+                break;
+            case FoFiXSessionEventType::StarPowerActivate:
+                type = "star_power_activate";
+                break;
             }
             std::fprintf(
                 stderr,
