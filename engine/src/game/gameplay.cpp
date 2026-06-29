@@ -18302,9 +18302,10 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     hit_flash_mask_  = 0;
     miss_flash_mask_ = 0;
     std::memset(lane_hit_, 0, sizeof(lane_hit_));
+    bool bad_gameplay_feedback_this_frame = false;
 
     auto update_presentation_after_gameplay = [&]() {
-        if (miss_flash_mask_ != 0) {
+        if (bad_gameplay_feedback_this_frame || miss_flash_mask_ != 0) {
             apply_venue_event("excitement_bad");
         } else if (streak_ >= 10) {
             apply_venue_event("excitement_great");
@@ -18547,6 +18548,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
         commit_rock_meter();
         miss_flash_mask_ |= (fret_mask & 0x1fu);
+        bad_gameplay_feedback_this_frame = true;
         std::fprintf(stderr,
                      "[gameplay] overstrum mask=0x%02x streak reset rock=%.2f\n",
                      fret_mask & 0x1fu, fofix_rock_fill(rock_));
@@ -18591,6 +18593,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                 const auto& note = notes[j];
                 if (!lane_hit_[note.lane]) {
                     miss_flash_mask_ |= (1u << note.lane);
+                    bad_gameplay_feedback_this_frame = true;
                     missed = true;
                 }
                 if (j < consumed.size()) consumed[j] = 1;

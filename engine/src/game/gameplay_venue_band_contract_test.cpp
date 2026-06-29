@@ -597,6 +597,17 @@ int main() {
                  "venue_mesh_position_overrides_.clear();"
                  "venue_mesh_texcoord_overrides_.clear();",
                  "venue reset clears transform and MeshAnim renderer overrides");
+  ok &= contains(gameplay_c,
+                 "boolbad_gameplay_feedback_this_frame=false;",
+                 "runtime tracks bad gameplay feedback separately from lane miss mask");
+  ok &= contains(gameplay_c,
+                 "if(bad_gameplay_feedback_this_frame||miss_flash_mask_!=0){"
+                 "apply_venue_event(\"excitement_bad\");}",
+                 "empty overstrums can drive bad venue feedback without fake lane bits");
+  ok &= contains(gameplay_c,
+                 "miss_flash_mask_|=(fret_mask&0x1fu);"
+                 "bad_gameplay_feedback_this_frame=true;",
+                 "overstrums mark bad gameplay feedback even with no held frets");
   ok &= appears_before(gameplay_c,
                        "world_->set_hidden_meshes(composed_venue_hidden_meshes());"
                        "apply_venue_event(\"start\",false);",
