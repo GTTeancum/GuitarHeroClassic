@@ -524,7 +524,8 @@ class Gameplay {
                             bool persistent = true);
   bool apply_lighting_event_visibility(const std::string& event_name,
                                        bool log);
-  void update_gameplay_session_mirror(uint32_t fret_mask);
+  bool update_gameplay_session_mirror(uint32_t fret_mask,
+                                      bool emit_presentation);
   std::unordered_set<std::string> composed_lighting_hidden_meshes() const;
   std::map<std::string, float> composed_lighting_material_alpha() const;
   void update_active_lighting_material_anims();

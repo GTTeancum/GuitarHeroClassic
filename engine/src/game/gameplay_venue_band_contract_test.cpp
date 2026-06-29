@@ -392,6 +392,22 @@ int main() {
   ok &= contains(gameplay_c,
                  "score=%ddiagnostic_autoplay",
                  "diagnostic autoplay catch-up rows remain log-verifiable");
+  ok &= contains(gameplay_c,
+                 "gameplay_session_mirror_->diagnostic_autoplay_mask(song_time_)",
+                 "diagnostic autoplay uses FoFiX session note/sustain state");
+  ok &= contains(gameplay_c,
+                 "if(gameplay_session_mirror_){"
+                 "bad_gameplay_feedback_this_frame="
+                 "update_gameplay_session_mirror(fret_mask,true);"
+                 "update_presentation_after_gameplay();"
+                 "prev_fret_mask_=fret_mask;print_score_summary();return;}",
+                 "playable runtime uses FoFiX session as the live gameplay path");
+  ok &= appears_before(gameplay_c,
+                       "if(gameplay_session_mirror_){"
+                       "bad_gameplay_feedback_this_frame="
+                       "update_gameplay_session_mirror(fret_mask,true);",
+                       "constboolstrummed=",
+                       "FoFiX session path bypasses the legacy local hit scanner");
   ok &= contains(app_main_c,
                  "win_->guitar_input_held()|"
                  "(win_->guitar_input_edge()&(1u<<5))",
@@ -452,11 +468,6 @@ int main() {
                  "intoverstrum_count_=0;",
                  "live gameplay records FoFiX hit miss and overstrum counts");
   ok &= contains(gameplay_c,
-                 "gameplay_session_mirror_->hits()!=hit_count_||"
-                 "gameplay_session_mirror_->misses()!=miss_count_||"
-                 "gameplay_session_mirror_->overstrums()!=overstrum_count_",
-                 "FoFiX mirror mismatch checks event counts as well as gauges");
-  ok &= contains(gameplay_c,
                  "score_=gameplay_session_mirror_->score();",
                  "live gameplay score is adopted from the FoFiX session");
   ok &= contains(gameplay_c,
@@ -475,14 +486,20 @@ int main() {
                  "FoFiXsessioneventtype=%st=%.3fmask=0x%02xgems=%dpts=%dscore=%dstreak=%dmult=%dsource=%zutick=%urock=%.4fsp=%.4ffail=%d",
                  "FoFiX session event logs include score state mask gauges source note and MIDI tick");
   ok &= contains(gameplay_c,
-                 "++hit_count_;",
-                 "live hit path increments FoFiX mirror hit count");
+                 "lane_flash_[lane]=1.0f;"
+                 "apply_venue_event(player_fret_hit_event(lane),false);",
+                 "FoFiX hit events drive native lane flames and venue feedback");
   ok &= contains(gameplay_c,
-                 "++overstrum_count_;",
-                 "live overstrum path increments FoFiX mirror overstrum count");
+                 "caseFoFiXSessionEventType::Overstrum:"
+                 "miss_flash_mask_|=(event.mask&0x1fu);"
+                 "bad_gameplay_feedback=true;",
+                 "FoFiX overstrum events drive bad native feedback");
   ok &= contains(gameplay_c,
-                 "++miss_count_;",
-                 "live miss path increments FoFiX mirror miss count");
+                 "caseFoFiXSessionEventType::Miss:"
+                 "mark_source_group_consumed(event);"
+                 "miss_flash_mask_|=(event.mask&0x1fu);"
+                 "bad_gameplay_feedback=true;",
+                 "FoFiX miss events drive bad native feedback and note consumption");
   ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_venue_override(conststd::string&venue)",
                  "diagnostic venue override stays an explicit gameplay test hook");

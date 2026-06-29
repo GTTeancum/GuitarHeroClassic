@@ -336,6 +336,32 @@ void FoFiXGameplaySession::seek_without_scoring(double song_time) {
   }
 }
 
+uint32_t FoFiXGameplaySession::diagnostic_autoplay_mask(
+    double song_time) const {
+  uint32_t sustain_mask = 0;
+  for (const ActiveSustain& sustain : active_sustains_) {
+    if (song_time >= sustain.start_time && song_time <= sustain.end_time) {
+      sustain_mask |= sustain.mask;
+    }
+  }
+
+  size_t target = notes_.size();
+  for (size_t i = next_note_; i < notes_.size(); ++i) {
+    if (i < consumed_.size() && consumed_[i]) continue;
+    const FoFiXHitWindow window = window_for_note(i);
+    if (fofix_note_missed(song_time, notes_[i].time, window)) continue;
+    if (notes_[i].time > song_time + window.early_sec) break;
+    if (!fofix_note_in_window(song_time, notes_[i].time, window)) continue;
+    target = i;
+    break;
+  }
+  if (target >= notes_.size()) return sustain_mask;
+
+  const size_t end = group_end(target);
+  const uint32_t mask = group_mask(target, end);
+  return sustain_mask | mask | (1u << 5);
+}
+
 void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   last_events_.clear();
   const double dt = std::max(0.0, song_time - last_time_);

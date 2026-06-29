@@ -166,8 +166,14 @@ int main() {
 
   {
     FoFiXGameplaySession session({{1.0, 2.0, kGreen, false, false}});
+    CHECK(session.diagnostic_autoplay_mask(0.95) == (kGreen | kStrum),
+          "FoFiX diagnostic autoplay strums the next in-window note group");
     session.tick(1.0, kGreen | kStrum);
+    CHECK(session.diagnostic_autoplay_mask(1.2) == kGreen,
+          "FoFiX diagnostic autoplay holds active sustain tails without restrumming");
     session.tick(2.0, kGreen);
+    CHECK(session.diagnostic_autoplay_mask(2.1) == 0,
+          "FoFiX diagnostic autoplay releases after consumed sustain tails");
     CHECK(session.score() == 150,
           "one-second held sustain adds FoFiX sustain score");
     CHECK(session.last_events().size() == 1 &&

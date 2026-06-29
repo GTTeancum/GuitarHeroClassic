@@ -18204,6 +18204,17 @@ void apply_gameplay_backing_camera(
 
 uint32_t Gameplay::diagnostic_autoplay_fret_mask(
     const std::vector<ghogx::chart::Note>& notes) {
+    if (gameplay_session_mirror_) {
+        const uint32_t mask =
+            gameplay_session_mirror_->diagnostic_autoplay_mask(song_time_);
+        if ((mask & (1u << 5)) != 0 && debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[gameplay] diagnostic autoplay session mask=0x%02x t=%.3f\n",
+                mask & 0x1fu, song_time_);
+        }
+        return mask;
+    }
     const auto& consumed = note_consumed_[std::clamp(difficulty_, 0, 3)];
     uint32_t sustain_mask = 0;
     for (const auto& sustain : active_sustains_) {
@@ -18246,27 +18257,48 @@ uint32_t Gameplay::diagnostic_autoplay_fret_mask(
     return mask | sustain_mask;
 }
 
-void Gameplay::update_gameplay_session_mirror(uint32_t fret_mask) {
-    if (!gameplay_session_mirror_) return;
+bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
+                                              bool emit_presentation) {
+    if (!gameplay_session_mirror_) return false;
     gameplay_session_mirror_->tick(song_time_, fret_mask);
-    if (debug_gameplay_session_enabled()) {
-        for (const auto& event : gameplay_session_mirror_->last_events()) {
-            const char* type = "hit";
-            switch (event.type) {
-            case FoFiXSessionEventType::Hit: type = "hit"; break;
-            case FoFiXSessionEventType::Miss: type = "miss"; break;
-            case FoFiXSessionEventType::Overstrum: type = "overstrum"; break;
-            case FoFiXSessionEventType::Sustain: type = "sustain"; break;
-            case FoFiXSessionEventType::StarPhraseComplete:
-                type = "star_phrase_complete";
-                break;
-            case FoFiXSessionEventType::StarPhraseMiss:
-                type = "star_phrase_miss";
-                break;
-            case FoFiXSessionEventType::StarPowerActivate:
-                type = "star_power_activate";
-                break;
-            }
+
+    bool bad_gameplay_feedback = false;
+    auto mark_source_group_consumed = [&](const FoFiXSessionEvent& event) {
+        if (event.source_index == static_cast<size_t>(-1) ||
+            event.source_tick == UINT32_MAX) {
+            return;
+        }
+        auto& consumed = note_consumed_[std::clamp(difficulty_, 0, 3)];
+        const auto& notes = chart_.notes[std::clamp(difficulty_, 0, 3)];
+        for (size_t i = event.source_index;
+             i < notes.size() && notes[i].tick_on == event.source_tick; ++i) {
+            if (i < consumed.size()) consumed[i] = 1;
+        }
+        while (next_note_idx_ < notes.size() &&
+               next_note_idx_ < consumed.size() &&
+               consumed[next_note_idx_]) {
+            ++next_note_idx_;
+        }
+    };
+
+    for (const auto& event : gameplay_session_mirror_->last_events()) {
+        const char* type = "hit";
+        switch (event.type) {
+        case FoFiXSessionEventType::Hit: type = "hit"; break;
+        case FoFiXSessionEventType::Miss: type = "miss"; break;
+        case FoFiXSessionEventType::Overstrum: type = "overstrum"; break;
+        case FoFiXSessionEventType::Sustain: type = "sustain"; break;
+        case FoFiXSessionEventType::StarPhraseComplete:
+            type = "star_phrase_complete";
+            break;
+        case FoFiXSessionEventType::StarPhraseMiss:
+            type = "star_phrase_miss";
+            break;
+        case FoFiXSessionEventType::StarPowerActivate:
+            type = "star_power_activate";
+            break;
+        }
+        if (debug_gameplay_session_enabled()) {
             std::fprintf(
                 stderr,
                 "[gameplay] FoFiX session event type=%s t=%.3f mask=0x%02x gems=%d pts=%d score=%d streak=%d mult=%d source=%zu tick=%u rock=%.4f sp=%.4f fail=%d\n",
@@ -18276,36 +18308,62 @@ void Gameplay::update_gameplay_session_mirror(uint32_t fret_mask) {
                 event.rock_fill, event.star_power_fill,
                 event.failed ? 1 : 0);
         }
-    }
-    const bool mismatch =
-        gameplay_session_mirror_->score() != score_ ||
-        gameplay_session_mirror_->streak() != streak_ ||
-        gameplay_session_mirror_->multiplier() != multiplier_ ||
-        gameplay_session_mirror_->hits() != hit_count_ ||
-        gameplay_session_mirror_->misses() != miss_count_ ||
-        gameplay_session_mirror_->overstrums() != overstrum_count_ ||
-        gameplay_session_mirror_->failed() != failed_ ||
-        std::fabs(gameplay_session_mirror_->rock_fill() -
-                  fofix_rock_fill(rock_)) > 0.0001 ||
-        std::fabs(gameplay_session_mirror_->star_power_fill() -
-                  fofix_star_power_fill(star_power_)) > 0.0001;
-    if (mismatch && debug_gameplay_session_enabled() &&
-        (gameplay_session_mirror_last_log_time_ < 0.0 ||
-         song_time_ - gameplay_session_mirror_last_log_time_ >= 0.25)) {
-        gameplay_session_mirror_last_log_time_ = song_time_;
-        std::fprintf(
-            stderr,
-            "[gameplay] FoFiX session mismatch t=%.3f live(score=%d streak=%d mult=%d hits=%d misses=%d overstrums=%d rock=%.4f sp=%.4f fail=%d) mirror(score=%d streak=%d mult=%d hits=%d misses=%d overstrums=%d rock=%.4f sp=%.4f fail=%d)\n",
-            song_time_, score_, streak_, multiplier_, hit_count_, miss_count_,
-            overstrum_count_, fofix_rock_fill(rock_),
-            fofix_star_power_fill(star_power_), failed_ ? 1 : 0,
-            gameplay_session_mirror_->score(), gameplay_session_mirror_->streak(),
-            gameplay_session_mirror_->multiplier(), gameplay_session_mirror_->hits(),
-            gameplay_session_mirror_->misses(),
-            gameplay_session_mirror_->overstrums(),
-            gameplay_session_mirror_->rock_fill(),
-            gameplay_session_mirror_->star_power_fill(),
-            gameplay_session_mirror_->failed() ? 1 : 0);
+        if (!emit_presentation) continue;
+
+        switch (event.type) {
+        case FoFiXSessionEventType::Hit:
+            mark_source_group_consumed(event);
+            for (int lane = 0; lane < 5; ++lane) {
+                if ((event.mask & (1u << lane)) == 0) continue;
+                lane_hit_[lane] = true;
+                hit_flash_mask_ |= (1u << lane);
+                lane_flash_[lane] = 1.0f;
+                apply_venue_event(player_fret_hit_event(lane), false);
+            }
+            std::fprintf(stderr,
+                         "[gameplay] HIT tick=%u mask=0x%02x gems=%d pts=%d streak=%d mult=%d score=%d rock=%.2f sp=%.2f%s\n",
+                         event.source_tick, event.mask & 0x1fu,
+                         event.gem_count, event.score_delta, event.streak,
+                         event.multiplier, event.score, event.rock_fill,
+                         event.star_power_fill,
+                         diagnostic_autoplay_ ? " diagnostic_autoplay" : "");
+            break;
+        case FoFiXSessionEventType::Miss:
+            mark_source_group_consumed(event);
+            miss_flash_mask_ |= (event.mask & 0x1fu);
+            bad_gameplay_feedback = true;
+            std::fprintf(stderr,
+                         "[gameplay] miss tick=%u mask=0x%02x streak reset rock=%.2f\n",
+                         event.source_tick, event.mask & 0x1fu,
+                         event.rock_fill);
+            break;
+        case FoFiXSessionEventType::Overstrum:
+            miss_flash_mask_ |= (event.mask & 0x1fu);
+            bad_gameplay_feedback = true;
+            std::fprintf(stderr,
+                         "[gameplay] overstrum mask=0x%02x streak reset rock=%.2f\n",
+                         event.mask & 0x1fu, event.rock_fill);
+            break;
+        case FoFiXSessionEventType::Sustain:
+            std::fprintf(stderr,
+                         "[gameplay] sustain end mask=0x%02x gems=%d pts=%d score=%d\n",
+                         event.mask & 0x1fu, event.gem_count,
+                         event.score_delta, event.score);
+            break;
+        case FoFiXSessionEventType::StarPhraseComplete:
+            std::fprintf(stderr,
+                         "[gameplay] star phrase complete sp=%.2f\n",
+                         event.star_power_fill);
+            break;
+        case FoFiXSessionEventType::StarPhraseMiss:
+            std::fprintf(stderr, "[gameplay] star phrase missed\n");
+            break;
+        case FoFiXSessionEventType::StarPowerActivate:
+            std::fprintf(stderr,
+                         "[gameplay] star power activated sp=%.2f\n",
+                         event.star_power_fill);
+            break;
+        }
     }
     score_ = gameplay_session_mirror_->score();
     streak_ = gameplay_session_mirror_->streak();
@@ -18316,6 +18374,7 @@ void Gameplay::update_gameplay_session_mirror(uint32_t fret_mask) {
     rock_ = gameplay_session_mirror_->rock_state();
     star_power_ = gameplay_session_mirror_->star_power_state();
     failed_ = gameplay_session_mirror_->failed();
+    return bad_gameplay_feedback;
 }
 
 void Gameplay::tick(float dt, uint32_t fret_mask) {
@@ -18335,13 +18394,15 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     else
         song_time_ += static_cast<double>(dt);
 
-    if ((fret_mask & (1u << 6)) != 0) {
+    if (!gameplay_session_mirror_ && (fret_mask & (1u << 6)) != 0) {
         if (fofix_activate_star_power(star_power_)) {
             std::fprintf(stderr, "[gameplay] star power activated sp=%.2f\n",
                          fofix_star_power_fill(star_power_));
         }
     }
-    fofix_update_star_power(star_power_, static_cast<double>(dt));
+    if (!gameplay_session_mirror_) {
+        fofix_update_star_power(star_power_, static_cast<double>(dt));
+    }
 
     while (next_drum_cue_idx_ < chart_.drum_cues.size()) {
         const auto& cue = chart_.drum_cues[next_drum_cue_idx_];
@@ -18465,7 +18526,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
 
     if (failed_) {
         active_sustains_.clear();
-        update_gameplay_session_mirror(fret_mask);
+        bad_gameplay_feedback_this_frame =
+            update_gameplay_session_mirror(fret_mask, true);
         update_presentation_after_gameplay();
         prev_fret_mask_ = fret_mask;
         print_score_summary();
@@ -18477,6 +18539,14 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     if (consumed.size() != notes.size()) consumed.assign(notes.size(), 0);
     if (diagnostic_autoplay_) {
         fret_mask = diagnostic_autoplay_fret_mask(notes);
+    }
+    if (gameplay_session_mirror_) {
+        bad_gameplay_feedback_this_frame =
+            update_gameplay_session_mirror(fret_mask, true);
+        update_presentation_after_gameplay();
+        prev_fret_mask_ = fret_mask;
+        print_score_summary();
+        return;
     }
 
     const bool strummed =
@@ -18824,7 +18894,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     if (next_note_idx_ >= notes.size()) {
         finish_star_phrase();
     }
-    update_gameplay_session_mirror(fret_mask);
+    update_gameplay_session_mirror(fret_mask, false);
 
     update_presentation_after_gameplay();
 
