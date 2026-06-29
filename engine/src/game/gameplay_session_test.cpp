@@ -105,6 +105,19 @@ int main() {
 
   {
     FoFiXGameplaySession session({
+        {1.0, 1.0, kGreen, false, false},
+        {1.05, 1.05, kGreen, false, false},
+    });
+    session.tick(1.03, kGreen | kStrum);
+    CHECK(session.score() == 50 && session.hits() == 1,
+          "single FoFiX strum consumes only one note group");
+    session.tick(1.3, kGreen);
+    CHECK(session.misses() == 1,
+          "second in-window group remains live after the first strum hit");
+  }
+
+  {
+    FoFiXGameplaySession session({
         {0.8, 0.8, kYellow, false, false},
         {1.0, 1.0, kGreen, false, false},
         {1.05, 1.05, kRed, true, false},

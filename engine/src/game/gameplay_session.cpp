@@ -355,6 +355,7 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
       }
       apply_hit(i, end, song_time);
       hit_this_frame = true;
+      break;
     }
     i = end - 1;
   }
