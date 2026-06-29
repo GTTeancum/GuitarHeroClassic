@@ -40,6 +40,8 @@ struct Window::Impl {
   // stick/Back/Y.
   uint32_t gh_now  = 0;  // current frame (raw held)
   uint32_t gh_prev = 0;  // previous frame (for edge detection)
+  int gh_strum_now = 0;   // -1/+1 for stick strum direction, 2 for keyboard
+  int gh_strum_prev = 0;
   unsigned char lt_now = 0;  // XInput left trigger (0-255)
   unsigned char rt_now = 0;  // XInput right trigger (0-255)
 };
@@ -215,7 +217,9 @@ void Window::pump() {
   // bits so stick + d-pad both drive menu navigation.
   unsigned short pad = 0;
   impl_->gh_prev = impl_->gh_now;
+  impl_->gh_strum_prev = impl_->gh_strum_now;
   uint32_t gh = 0;
+  int gh_strum = 0;
   XINPUT_STATE xs = {};
   if (XInputGetState(0, &xs) == ERROR_SUCCESS) {
     pad = xs.Gamepad.wButtons;
@@ -238,8 +242,13 @@ void Window::pump() {
     if (pad & XINPUT_GAMEPAD_A)                   gh |= (1u << 4);  // Orange
     // Strum: left-stick vertical axis (either direction) past a generous dead zone.
     constexpr SHORT kStrumDead = 20000;
-    if (xs.Gamepad.sThumbLY > kStrumDead || xs.Gamepad.sThumbLY < -kStrumDead)
+    if (xs.Gamepad.sThumbLY > kStrumDead) {
+      gh_strum = 1;
       gh |= (1u << 5);
+    } else if (xs.Gamepad.sThumbLY < -kStrumDead) {
+      gh_strum = -1;
+      gh |= (1u << 5);
+    }
     if ((pad & XINPUT_GAMEPAD_BACK) || (pad & XINPUT_GAMEPAD_Y))
       gh |= (1u << 6);
   }
@@ -251,9 +260,17 @@ void Window::pump() {
   if (impl_->key_now['D'])       gh |= (1u << 2);
   if (impl_->key_now['F'])       gh |= (1u << 3);
   if (impl_->key_now['G'])       gh |= (1u << 4);
-  if (impl_->key_now[VK_SPACE])  gh |= (1u << 5);
+  if (impl_->key_now[VK_SPACE]) {
+    if (gh_strum == 0) gh_strum = 2;
+    gh |= (1u << 5);
+  }
   if (impl_->key_now[VK_SHIFT] || impl_->key_now['H']) gh |= (1u << 6);
+  if ((gh & (1u << 5)) != 0 && gh_strum != 0 &&
+      gh_strum != impl_->gh_strum_prev) {
+    impl_->gh_prev &= ~(1u << 5);
+  }
   impl_->gh_now = gh;
+  impl_->gh_strum_now = gh_strum;
 }
 
 uint32_t Window::guitar_input_edge() const {

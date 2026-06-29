@@ -423,7 +423,8 @@ int main() {
                  "if(impl_->key_now['G'])gh|=(1u<<4);",
                  "keyboard G maps to orange fret as raw held guitar input");
   ok &= contains(window_d3d9_c,
-                 "if(impl_->key_now[VK_SPACE])gh|=(1u<<5);",
+                 "if(impl_->key_now[VK_SPACE]){"
+                 "if(gh_strum==0)gh_strum=2;gh|=(1u<<5);}",
                  "keyboard Space maps to strum edge source");
   ok &= contains(window_d3d9_c,
                  "if(impl_->key_now[VK_SHIFT]||impl_->key_now['H'])"
@@ -432,6 +433,19 @@ int main() {
   ok &= contains(window_d3d9_c,
                  "pad&XINPUT_GAMEPAD_BACK)||(pad&XINPUT_GAMEPAD_Y",
                  "controller Back/Y maps to star power edge source");
+  ok &= contains(window_d3d9_c,
+                 "intgh_strum_now=0;",
+                 "window input keeps XInput strum direction state");
+  ok &= contains(window_d3d9_c,
+                 "if(xs.Gamepad.sThumbLY>kStrumDead){"
+                 "gh_strum=1;gh|=(1u<<5);}"
+                 "elseif(xs.Gamepad.sThumbLY<-kStrumDead){"
+                 "gh_strum=-1;gh|=(1u<<5);}",
+                 "controller up and down strums are tracked as distinct directions");
+  ok &= contains(window_d3d9_c,
+                 "gh_strum!=impl_->gh_strum_prev){"
+                 "impl_->gh_prev&=~(1u<<5);}",
+                 "changing strum direction emits a fresh gameplay strum edge");
   ok &= contains(window_d3d9_c,
                  "returnimpl_->gh_now&0x1F;",
                  "gameplay receives held fret state separately from strum edge");
