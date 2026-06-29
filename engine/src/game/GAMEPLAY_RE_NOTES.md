@@ -6328,3 +6328,20 @@ Rejected native probe:
 - This keeps the bridge data-shaped: a native camera is promoted because it has
   accepted PS2 camera-system evidence, not because it happens to be named
   `balcony_lft04`.
+
+2026-06-29 native camera pair provenance logs:
+- Factored native writer-builder pair provenance through one formatter so the
+  builder-basis candidate and writer-bridge result both carry the analyzer
+  graph-shape proof. Submitted camera logs now include
+  `pair=complete`, `shape=complete_writer_builder_pair`,
+  `complete_count=512`, `incomplete_count=0`,
+  `trace=gh2dxu_arena_builder_a0_shot_identity_long_20260624`,
+  `prev2_a0=0x0077c610`, and `prev_a0=0x008269f0`.
+- Validation:
+  `analysis/native_validation/camera_pair_provenance_logs_20260629/` rebuilds
+  `ghogx_gameplay_venue_band_contract_test` and `ghogx_app` in `19.6s`, passes
+  the focused contract in `0.2s`, and runs the opt-in native probe in `69.6s`.
+  The probe exits `0`; submitted `ps2_writer_bridge_from_builder(...)` rows and
+  `camera-matrix result_frame` rows both show the complete shape/count/trace
+  provenance on the accepted `writer-builder_basis_delta` path. Health scan
+  only found lighting coverage summaries with `failed=0`.

@@ -3089,8 +3089,26 @@ int main() {
                  "writer-builder_basis_delta",
                  "generic PS2 writer bridge applies the accepted writer-minus-builder-basis delta when the builder basis is known");
   ok &= contains(gameplay_c,
-                 "pair=completeprev2_a0=",
-                 "generic PS2 writer bridge provenance requires the immediate complete writer-builder pair");
+                 "camera_writer_builder_pair_provenance(",
+                 "generic PS2 writer bridge shares one camera-system pair provenance formatter");
+  ok &= contains(gameplay_c,
+                 "pair=completeshape=",
+                 "generic PS2 writer bridge provenance includes the accepted analyzer camera-system shape");
+  ok &= contains(gameplay_c,
+                 "complete_count=",
+                 "generic PS2 writer bridge provenance includes complete writer-builder pair counts");
+  ok &= contains(gameplay_c,
+                 "incomplete_count=",
+                 "generic PS2 writer bridge provenance includes incomplete writer-builder pair counts");
+  ok &= contains(gameplay_c,
+                 "trace=\"+evaluation.writer_builder_pair_trace_artifact",
+                 "generic PS2 writer bridge provenance cites the trace artifact proving the complete pair");
+  ok &= contains(gameplay_c,
+                 "prev2_a0=",
+                 "generic PS2 writer bridge provenance requires the immediate source-builder id");
+  ok &= contains(gameplay_c,
+                 "prev_a0=",
+                 "generic PS2 writer bridge provenance requires the immediate result-builder id");
   ok &= contains(gameplay_c,
                  "\"0x008269f0\"",
                  "retained PS2 writer-builder pair preserves the accepted result-builder object id");

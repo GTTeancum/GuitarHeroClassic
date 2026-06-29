@@ -11548,6 +11548,21 @@ camera_ps2_result_builder_projection_candidate_rows(
     return rows;
 }
 
+std::string camera_writer_builder_pair_provenance(
+    const Ps2SourceRecordEvaluation& evaluation) {
+    if (!evaluation.has_complete_writer_builder_pair) {
+        return {};
+    }
+    return " pair=complete shape=" + evaluation.camera_system_shape +
+           " complete_count=" +
+           std::to_string(evaluation.complete_writer_builder_pair_count) +
+           " incomplete_count=" +
+           std::to_string(evaluation.incomplete_writer_builder_pair_count) +
+           " trace=" + evaluation.writer_builder_pair_trace_artifact +
+           " prev2_a0=" + evaluation.writer_source_builder +
+           " prev_a0=" + evaluation.writer_result_builder;
+}
+
 std::optional<CameraResultRows> camera_ps2_result_builder_basis_candidate_rows(
     const Gameplay::CameraKey& key) {
     const auto evaluation =
@@ -11556,16 +11571,12 @@ std::optional<CameraResultRows> camera_ps2_result_builder_basis_candidate_rows(
         return std::nullopt;
     }
     CameraResultRows rows;
-    std::string pair_provenance;
-    if (evaluation->has_complete_writer_builder_pair) {
-        pair_provenance = " pair=complete prev2_a0=" +
-                          evaluation->writer_source_builder +
-                          " prev_a0=" + evaluation->writer_result_builder;
-    }
+    const std::string pair_provenance =
+        camera_writer_builder_pair_provenance(*evaluation);
     rows.source = std::string("ps2_result_builder_basis_candidate(") +
                   evaluation->evidence +
                   " result=0x00267008:a1+0x0 trace="
-                  "gh2dxu_arena_builder_a0_shot_identity_long_20260624" +
+                  + evaluation->writer_builder_pair_trace_artifact +
                   pair_provenance + ")";
     rows.position = evaluation->builder_position;
     rows.forward = evaluation->builder_forward;
@@ -11910,12 +11921,8 @@ std::optional<CameraResultRows> camera_ps2_writer_bridge_from_builder_rows(
         path_delta_source = evaluation->has_builder_basis
                                 ? "writer-builder_basis_delta"
                                 : "writer-builder_payload_delta";
-        if (evaluation->has_complete_writer_builder_pair) {
-            path_delta_source += " pair=complete prev2_a0=" +
-                                 evaluation->writer_source_builder +
-                                 " prev_a0=" +
-                                 evaluation->writer_result_builder;
-        }
+        path_delta_source +=
+            camera_writer_builder_pair_provenance(*evaluation);
         for (int axis = 0; axis < 3; ++axis) {
             builder_rows.position[axis] +=
                 evaluation->writer_position[axis] - builder_origin[axis];
