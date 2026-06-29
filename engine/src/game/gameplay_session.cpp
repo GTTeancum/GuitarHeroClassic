@@ -274,6 +274,11 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
     fofix_activate_star_power(star_power_);
   }
   fofix_update_star_power(star_power_, dt);
+  if (fofix_rock_failed(rock_)) {
+    active_sustains_.clear();
+    prev_fret_mask_ = fret_mask;
+    return;
+  }
 
   const bool strummed = (fret_mask & (1u << 5)) != 0;
   const uint32_t held_frets = fret_mask & 0x1fu;

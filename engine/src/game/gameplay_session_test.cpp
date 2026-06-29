@@ -54,6 +54,20 @@ int main() {
   }
 
   {
+    FoFiXGameplaySession session({{100.0, 100.0, kGreen, false, false}});
+    double t = 1.0;
+    for (int i = 0; i < 300 && !session.failed(); ++i, t += 0.1) {
+      session.tick(t, kStrum);
+    }
+    CHECK(session.failed(), "repeated bad picks can fail the song");
+    const int overstrums = session.overstrums();
+    const int score = session.score();
+    session.tick(t + 0.1, kGreen | kStrum);
+    CHECK(session.overstrums() == overstrums && session.score() == score,
+          "failed FoFiX session ignores later picks and scoring");
+  }
+
+  {
     FoFiXGameplaySession session({
         {1.0, 1.0, kGreen, false, false},
         {1.1, 1.1, kRed, true, false},

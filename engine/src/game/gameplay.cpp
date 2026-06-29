@@ -18303,6 +18303,46 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     miss_flash_mask_ = 0;
     std::memset(lane_hit_, 0, sizeof(lane_hit_));
 
+    auto update_presentation_after_gameplay = [&]() {
+        if (miss_flash_mask_ != 0) {
+            apply_venue_event("excitement_bad");
+        } else if (streak_ >= 10) {
+            apply_venue_event("excitement_great");
+        } else if (active_venue_event_.empty()) {
+            apply_venue_event("excitement_okay");
+        }
+        update_venue_script_tasks();
+        update_active_venue_material_anims();
+        update_active_venue_environment_anims();
+        update_active_venue_light_anims();
+        update_active_venue_particles();
+        update_active_venue_anim_filters();
+        update_active_lighting_material_anims();
+        update_active_lighting_environment_anims();
+        update_active_lighting_light_anims();
+        update_active_lighting_particles();
+        update_active_lighting_anim_filters();
+    };
+
+    auto print_score_summary = [&]() {
+        static double last_print = 0.0;
+        if (song_time_ - last_print >= 1.0) {
+            last_print = song_time_;
+            std::fprintf(stderr,
+                         "[gameplay] t=%.1f score=%d streak=%d mult=%d\n",
+                         song_time_, score_, streak_, multiplier_);
+        }
+    };
+
+    if (failed_) {
+        active_sustains_.clear();
+        update_gameplay_session_mirror(fret_mask);
+        update_presentation_after_gameplay();
+        prev_fret_mask_ = fret_mask;
+        print_score_summary();
+        return;
+    }
+
     const auto& notes = chart_.notes[difficulty_];
     auto& consumed = note_consumed_[difficulty_];
     if (consumed.size() != notes.size()) consumed.assign(notes.size(), 0);
@@ -18666,34 +18706,12 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     }
     update_gameplay_session_mirror(fret_mask);
 
-    if (miss_flash_mask_ != 0) {
-        apply_venue_event("excitement_bad");
-    } else if (streak_ >= 10) {
-        apply_venue_event("excitement_great");
-    } else if (active_venue_event_.empty()) {
-        apply_venue_event("excitement_okay");
-    }
-    update_venue_script_tasks();
-    update_active_venue_material_anims();
-    update_active_venue_environment_anims();
-    update_active_venue_light_anims();
-    update_active_venue_particles();
-    update_active_venue_anim_filters();
-    update_active_lighting_material_anims();
-    update_active_lighting_environment_anims();
-    update_active_lighting_light_anims();
-    update_active_lighting_particles();
-    update_active_lighting_anim_filters();
+    update_presentation_after_gameplay();
 
     prev_fret_mask_ = fret_mask;
 
     // Print score summary once per second.
-    static double last_print = 0.0;
-    if (song_time_ - last_print >= 1.0) {
-        last_print = song_time_;
-        std::fprintf(stderr, "[gameplay] t=%.1f score=%d streak=%d mult=%d\n",
-                     song_time_, score_, streak_, multiplier_);
-    }
+    print_score_summary();
 }
 
 // ---------------------------------------------------------------------------
