@@ -65,6 +65,7 @@ class FoFiXGameplaySession {
   void start_sustain(size_t start, size_t end, double song_time);
   void apply_hit(size_t start, size_t end, double song_time);
   void apply_miss(size_t start, size_t end);
+  void apply_skip(size_t start, size_t end);
   void apply_overstrum();
 
   std::vector<FoFiXSessionNote> notes_;

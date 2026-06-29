@@ -18492,6 +18492,21 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                      fofix_star_power_fill(star_power_));
     };
 
+    auto skip_groups_before = [&](size_t target) {
+        for (size_t skipped = next_note_idx_; skipped < target;) {
+            if (skipped < consumed.size() && consumed[skipped]) {
+                ++skipped;
+                continue;
+            }
+            const size_t skipped_end = note_group_end(skipped);
+            observe_star_phrase_group(skipped, skipped_end, false);
+            for (size_t j = skipped; j < skipped_end; ++j) {
+                if (j < consumed.size()) consumed[j] = 1;
+            }
+            skipped = skipped_end;
+        }
+    };
+
     auto apply_overstrum = [&]() {
         FoFiXScoreState state =
             gameplay_score_state(score_, streak_, multiplier_);
@@ -18621,6 +18636,9 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         }
 
         if (can_hit) {
+            if (strummed) {
+                skip_groups_before(i);
+            }
             apply_hit_group(i, end, false);
         }
         i = end - 1;

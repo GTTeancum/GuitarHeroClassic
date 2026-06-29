@@ -231,6 +231,13 @@ void FoFiXGameplaySession::apply_miss(size_t start, size_t end) {
   ++misses_;
 }
 
+void FoFiXGameplaySession::apply_skip(size_t start, size_t end) {
+  observe_star_phrase(start, end, false);
+  for (size_t i = start; i < end; ++i) {
+    if (i < consumed_.size()) consumed_[i] = 1;
+  }
+}
+
 void FoFiXGameplaySession::apply_overstrum() {
   fofix_apply_miss(score_);
   fofix_apply_rock_overstrum(
@@ -320,6 +327,17 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
       can_hit = fofix_match_frets(held_frets, required);
     }
     if (can_hit) {
+      if (strummed) {
+        for (size_t skipped = next_note_; skipped < i;) {
+          if (skipped < consumed_.size() && consumed_[skipped]) {
+            ++skipped;
+            continue;
+          }
+          const size_t skipped_end = group_end(skipped);
+          apply_skip(skipped, skipped_end);
+          skipped = skipped_end;
+        }
+      }
       apply_hit(i, end, song_time);
       hit_this_frame = true;
     }

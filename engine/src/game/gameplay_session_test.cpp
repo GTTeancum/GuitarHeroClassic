@@ -51,6 +51,18 @@ int main() {
   }
 
   {
+    FoFiXGameplaySession session({
+        {1.0, 1.0, kGreen, false, false},
+        {1.05, 1.05, kRed, false, false},
+    });
+    session.tick(1.05, kRed | kStrum);
+    session.tick(1.3, 0);
+    CHECK(session.score() == 50 && session.streak() == 1 &&
+              session.hits() == 1 && session.misses() == 0,
+          "strumming a later matched note skips earlier in-window candidates without a miss");
+  }
+
+  {
     FoFiXGameplaySession session({{1.0, 2.0, kGreen, false, false}});
     session.tick(1.0, kGreen | kStrum);
     session.tick(2.0, kGreen);
