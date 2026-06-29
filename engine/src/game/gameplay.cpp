@@ -48,6 +48,16 @@ FoFiXHitWindow hit_window_at_tick(const ghogx::chart::Chart& chart,
     return fofix_hit_window_for_bpm(tempo_bpm_at_tick(chart, tick));
 }
 
+double beat_seconds_at_tick(const ghogx::chart::Chart& chart, uint32_t tick) {
+    const double bpm = tempo_bpm_at_tick(chart, tick);
+    return bpm > 0.0 ? 60.0 / bpm : 0.5;
+}
+
+bool note_has_sustain_tail(const ghogx::chart::Chart& chart,
+                           const ghogx::chart::Note& note) {
+    return note.tick_off > note.tick_on + chart.ticks_per_beat / 4;
+}
+
 FoFiXScoreState gameplay_score_state(int score, int streak, int multiplier) {
     FoFiXScoreState state;
     state.score = score;
@@ -14596,6 +14606,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     failed_       = false;
     star_phrase_active_ = false;
     star_phrase_missed_ = false;
+    active_sustains_.clear();
     hit_flash_mask_  = 0;
     miss_flash_mask_ = 0;
     prev_fret_mask_  = 0;
@@ -17559,6 +17570,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     song_time_ = std::clamp(seconds, 0.0, std::max(0.0, chart_.duration_sec()));
     last_anim_time_ = song_time_;
     diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
+    active_sustains_.clear();
     for (int d = 0; d < 4; ++d) {
         note_consumed_[d].assign(chart_.notes[d].size(), 0);
     }
@@ -18095,6 +18107,12 @@ void Gameplay::draw_worldcrowd_actor_runtime(
 uint32_t Gameplay::diagnostic_autoplay_fret_mask(
     const std::vector<ghogx::chart::Note>& notes) {
     const auto& consumed = note_consumed_[std::clamp(difficulty_, 0, 3)];
+    uint32_t sustain_mask = 0;
+    for (const auto& sustain : active_sustains_) {
+        if (song_time_ >= sustain.start_time && song_time_ <= sustain.end_time) {
+            sustain_mask |= sustain.mask;
+        }
+    }
     uint32_t tick = UINT32_MAX;
     for (size_t i = next_note_idx_; i < notes.size(); ++i) {
         if (i < consumed.size() && consumed[i]) continue;
@@ -18107,7 +18125,7 @@ uint32_t Gameplay::diagnostic_autoplay_fret_mask(
         tick = note.tick_on;
         break;
     }
-    if (tick == UINT32_MAX) return 0;
+    if (tick == UINT32_MAX) return sustain_mask;
 
     uint32_t mask = 0;
     for (size_t i = next_note_idx_; i < notes.size(); ++i) {
@@ -18127,7 +18145,7 @@ uint32_t Gameplay::diagnostic_autoplay_fret_mask(
                 tick, mask & 0x1fu, song_time_);
         }
     }
-    return mask;
+    return mask | sustain_mask;
 }
 
 void Gameplay::tick(float dt, uint32_t fret_mask) {
@@ -18312,11 +18330,85 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         failed_ = fofix_rock_failed(rock_);
     };
 
+    auto award_sustain = [&](const ActiveSustain& sustain,
+                             double held_until,
+                             const char* reason) {
+        const double held_seconds =
+            std::max(0.0, std::min(held_until, sustain.end_time) -
+                              sustain.start_time);
+        const int points = fofix_sustain_score(
+            held_seconds, sustain.gem_count, sustain.beat_seconds,
+            multiplier_);
+        if (points > 0) {
+            score_ += points;
+            std::fprintf(stderr,
+                         "[gameplay] sustain %s mask=0x%02x gems=%d held=%.3f pts=%d score=%d\n",
+                         reason, sustain.mask & 0x1fu, sustain.gem_count,
+                         held_seconds, points, score_);
+        }
+    };
+
+    auto finish_active_sustains = [&](double held_until,
+                                      const char* reason) {
+        for (const ActiveSustain& sustain : active_sustains_) {
+            award_sustain(sustain, held_until, reason);
+        }
+        active_sustains_.clear();
+    };
+
+    auto update_active_sustains = [&]() {
+        if (active_sustains_.empty()) return;
+        const uint32_t held_frets = fret_mask & 0x1fu;
+        std::vector<ActiveSustain> keep;
+        keep.reserve(active_sustains_.size());
+        for (const ActiveSustain& sustain : active_sustains_) {
+            if (song_time_ >= sustain.end_time) {
+                award_sustain(sustain, sustain.end_time, "end");
+                continue;
+            }
+            if (!fofix_match_frets(held_frets, sustain.mask)) {
+                award_sustain(sustain, song_time_, "release");
+                continue;
+            }
+            keep.push_back(sustain);
+        }
+        active_sustains_ = std::move(keep);
+    };
+
+    auto start_sustain_group = [&](size_t start, size_t end) {
+        uint32_t sustain_mask = 0;
+        int sustain_gems = 0;
+        double sustain_end = std::numeric_limits<double>::infinity();
+        for (size_t j = start; j < end; ++j) {
+            const auto& note = notes[j];
+            if (!note_has_sustain_tail(chart_, note)) continue;
+            sustain_mask |= 1u << std::clamp(note.lane, 0, 4);
+            ++sustain_gems;
+            sustain_end =
+                std::min(sustain_end, chart_.tick_to_sec(note.tick_off));
+        }
+        if (sustain_gems <= 0 || sustain_mask == 0 ||
+            !std::isfinite(sustain_end)) {
+            return;
+        }
+        const double note_sec = chart_.tick_to_sec(notes[start].tick_on);
+        ActiveSustain sustain;
+        sustain.mask = sustain_mask;
+        sustain.gem_count = sustain_gems;
+        sustain.start_time = std::max(song_time_, note_sec);
+        sustain.end_time = std::max(sustain.start_time, sustain_end);
+        sustain.beat_seconds = beat_seconds_at_tick(chart_, notes[start].tick_on);
+        active_sustains_.push_back(sustain);
+    };
+
     auto apply_hit_group = [&](size_t start, size_t end, bool autoplay) {
         uint32_t required_mask = 0;
         int gem_count = 0;
         group_mask_and_count(start, end, required_mask, gem_count);
         if (gem_count <= 0) return;
+        if (!active_sustains_.empty()) {
+            finish_active_sustains(song_time_, "repick");
+        }
         observe_star_phrase_group(start, end, true);
 
         FoFiXScoreState state =
@@ -18336,6 +18428,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             if (j < consumed.size()) consumed[j] = 1;
             apply_venue_event(player_fret_hit_event(n.lane), false);
         }
+        start_sustain_group(start, end);
 
         std::fprintf(
             stderr,
@@ -18358,6 +18451,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                      "[gameplay] overstrum mask=0x%02x streak reset rock=%.2f\n",
                      fret_mask & 0x1fu, fofix_rock_fill(rock_));
     };
+
+    update_active_sustains();
 
     if (diagnostic_autoplay_) {
         for (size_t i = next_note_idx_; i < notes.size(); ++i) {

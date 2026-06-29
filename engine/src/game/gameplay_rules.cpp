@@ -14,6 +14,7 @@ constexpr double kPlusBase = 15.0;
 constexpr double kMinGain = 2.0;
 constexpr double kPlusGain = 7.0;
 constexpr double kStarPhraseAward = 25.0;
+constexpr double kBaseSustainScore = 0.1;
 
 int popcount5(uint32_t mask) {
   int count = 0;
@@ -150,6 +151,21 @@ void fofix_award_star_phrase(FoFiXStarPowerState& state) {
 
 double fofix_star_power_fill(const FoFiXStarPowerState& state) {
   return std::clamp(state.value / 100.0, 0.0, 1.0);
+}
+
+int fofix_sustain_score(double held_seconds,
+                        int note_count,
+                        double beat_seconds,
+                        int multiplier) {
+  if (held_seconds <= 0.0 || note_count <= 0 || beat_seconds <= 0.0)
+    return 0;
+  if (held_seconds <= 1.1 * beat_seconds / 4.0)
+    return 0;
+  const double held_ms = held_seconds * kMillisecondsPerSecond;
+  const int base_score =
+      static_cast<int>(kBaseSustainScore * held_ms *
+                       static_cast<double>(note_count));
+  return base_score * std::max(1, multiplier);
 }
 
 }  // namespace ghogx::game

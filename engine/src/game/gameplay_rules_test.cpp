@@ -81,6 +81,13 @@ int main() {
   CHECK(fofix_star_power_fill(star) == 1.0,
         "star power is capped at a full meter");
 
+  CHECK(fofix_sustain_score(0.13, 1, 0.5, 4) == 0,
+        "sustain scoring waits until past FoFiX quarter-beat threshold");
+  CHECK(fofix_sustain_score(1.0, 1, 0.5, 4) == 400,
+        "single-note one-second sustain scores through multiplier");
+  CHECK(fofix_sustain_score(1.0, 2, 0.5, 2) == 400,
+        "chord sustain scores each held gem");
+
   if (failures == 0) {
     std::fprintf(stderr, "gameplay_rules_test: PASS\n");
   }

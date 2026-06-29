@@ -849,6 +849,15 @@ class Gameplay {
   size_t next_venue_cue_idx_ = 0;
   size_t next_section_venue_event_idx_ = 0;
 
+  struct ActiveSustain {
+    uint32_t mask = 0;
+    int gem_count = 0;
+    double start_time = 0.0;
+    double end_time = 0.0;
+    double beat_seconds = 0.5;
+  };
+  std::vector<ActiveSustain> active_sustains_;
+
   double   song_time_      = 0.0;
   int      difficulty_     = 3;
   // Index of the next unprocessed note in chart_.notes[difficulty_].

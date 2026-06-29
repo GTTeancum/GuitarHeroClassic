@@ -66,4 +66,9 @@ void fofix_award_star_phrase(FoFiXStarPowerState& state);
 
 double fofix_star_power_fill(const FoFiXStarPowerState& state);
 
+int fofix_sustain_score(double held_seconds,
+                        int note_count,
+                        double beat_seconds,
+                        int multiplier);
+
 }  // namespace ghogx::game
