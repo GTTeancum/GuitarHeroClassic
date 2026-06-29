@@ -173,9 +173,33 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
 
 void HighwayRenderer::draw(double song_time, const ghogx::chart::Chart& chart,
                            int difficulty, uint32_t fret_held_mask,
-                           const float hit_flash[5], float /*lookahead_sec*/) {
+                           const float hit_flash[5], float lookahead_sec) {
+  draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
+            lookahead_sec, true);
+}
+
+void HighwayRenderer::draw_over_scene(double song_time,
+                                      const ghogx::chart::Chart& chart,
+                                      int difficulty,
+                                      uint32_t fret_held_mask,
+                                      const float hit_flash[5],
+                                      float lookahead_sec) {
+  draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
+            lookahead_sec, false);
+}
+
+void HighwayRenderer::draw_impl(double song_time,
+                                const ghogx::chart::Chart& chart,
+                                int difficulty,
+                                uint32_t fret_held_mask,
+                                const float hit_flash[5],
+                                float /*lookahead_sec*/,
+                                bool clear_target) {
   if (!dev_) return;
-  dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0,0,0), 1.0f, 0);
+  if (clear_target) {
+    dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
+                D3DCOLOR_XRGB(0,0,0), 1.0f, 0);
+  }
   dev_->BeginScene();
 
   // --- Camera: the exact track.cam transform ---

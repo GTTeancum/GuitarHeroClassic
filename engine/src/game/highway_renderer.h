@@ -47,8 +47,15 @@ class HighwayRenderer {
   void draw(double song_time, const ghogx::chart::Chart& chart, int difficulty,
             uint32_t fret_held_mask, const float hit_flash[5],
             float lookahead_sec = 1.5f);
+  void draw_over_scene(double song_time, const ghogx::chart::Chart& chart,
+                       int difficulty, uint32_t fret_held_mask,
+                       const float hit_flash[5], float lookahead_sec = 1.5f);
 
  private:
+  void draw_impl(double song_time, const ghogx::chart::Chart& chart,
+                 int difficulty, uint32_t fret_held_mask,
+                 const float hit_flash[5], float lookahead_sec,
+                 bool clear_target);
   IDirect3DTexture9* tex(const std::string& name) const;
 
   ghogx::render::Window* win_;

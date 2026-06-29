@@ -105,6 +105,8 @@ int main() {
   const std::string gameplay_h = read_file(game_dir / "gameplay.h");
   const std::string highway_renderer =
       read_file(game_dir / "highway_renderer.cpp");
+  const std::string highway_renderer_h =
+      read_file(game_dir / "highway_renderer.h");
   const std::string catalog = read_file(source_dir / "catalog.cpp");
   const std::string catalog_h = read_file(source_dir / "catalog.h");
   const std::string milo_image = read_file(asset_dir / "milo_image.cpp");
@@ -125,6 +127,7 @@ int main() {
   const std::string gameplay_c = compact(gameplay);
   const std::string gameplay_h_c = compact(gameplay_h);
   const std::string highway_renderer_c = compact(highway_renderer);
+  const std::string highway_renderer_h_c = compact(highway_renderer_h);
   const std::string catalog_c = compact(catalog);
   const std::string catalog_h_c = compact(catalog_h);
   const std::string milo_image_c = compact(milo_image);
@@ -391,6 +394,21 @@ int main() {
   ok &= absent(highway_renderer_c,
                "chart.tick_to_sec(chart.ticks_per_beat)-chart.tick_to_sec(0)",
                "highway beat lines must not assume the first tempo for the full song");
+  ok &= contains(highway_renderer_h_c,
+                 "voiddraw_over_scene(doublesong_time,"
+                 "constghogx::chart::Chart&chart,intdifficulty,",
+                 "highway renderer exposes a no-clear draw path for venue composition");
+  ok &= contains(highway_renderer_c,
+                 "draw_impl(song_time,chart,difficulty,fret_held_mask,hit_flash,"
+                 "lookahead_sec,false);",
+                 "highway draw_over_scene preserves the already-rendered 3D venue");
+  ok &= contains(gameplay_c,
+                 "world_->draw();",
+                 "venue draw path still renders the 3D world before overlays");
+  ok &= appears_before(gameplay_c,
+                       "world_->draw();",
+                       "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
+                       "3D venue path composites the playable highway before returning");
   ok &= contains(gameplay_h_c,
                  "inthit_count_=0;"
                  "intmiss_count_=0;"

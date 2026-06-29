@@ -21079,6 +21079,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
             perf.renderer->set_min_lod(active_force_char_lod_);
             perf.renderer->draw_over_scene(world_->camera());
         }
+        if (!highway_) {
+            highway_ = std::make_unique<HighwayRenderer>(win);
+            highway_->load_textures(hdr_path_, ark_path_);
+        }
+        highway_->draw_over_scene(song_time_, chart_, difficulty_,
+                                  prev_fret_mask_ & 0x1F, lane_flash_, 1.5f);
         return;
     }
 
