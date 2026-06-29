@@ -10,6 +10,8 @@ namespace ghogx::game {
 
 namespace {
 
+constexpr double kFoFiXDigitalWhammyStarPowerPerSecond = 0.05 * 60.0;
+
 int popcount5(uint32_t mask) {
   int count = 0;
   mask &= 0x1fu;
@@ -211,10 +213,13 @@ void FoFiXGameplaySession::award_sustain(const ActiveSustain& sustain,
 }
 
 void FoFiXGameplaySession::update_sustains(double song_time,
-                                           uint32_t held_frets) {
+                                           double dt_seconds,
+                                           uint32_t held_frets,
+                                           bool whammy) {
   if (active_sustains_.empty()) return;
   std::vector<ActiveSustain> keep;
   keep.reserve(active_sustains_.size());
+  bool whammy_awarded = false;
   for (const ActiveSustain& sustain : active_sustains_) {
     if (song_time >= sustain.end_time) {
       award_sustain(sustain, sustain.end_time);
@@ -223,6 +228,23 @@ void FoFiXGameplaySession::update_sustains(double song_time,
     if (!fofix_match_frets(held_frets, sustain.mask)) {
       award_sustain(sustain, song_time);
       continue;
+    }
+    if (whammy && sustain.star_power_tail && !whammy_awarded &&
+        song_time - sustain.start_time > sustain.beat_seconds / 8.0) {
+      const double before = star_power_.value;
+      star_power_.value =
+          std::clamp(star_power_.value +
+                         std::max(0.0, dt_seconds) *
+                             kFoFiXDigitalWhammyStarPowerPerSecond,
+                     0.0, 100.0);
+      if (star_power_.value > before) {
+        whammy_awarded = true;
+        last_events_.push_back(make_event(FoFiXSessionEventType::StarPowerWhammy,
+                                          song_time, sustain.mask,
+                                          sustain.gem_count, 0,
+                                          sustain.source_index,
+                                          sustain.source_tick));
+      }
     }
     keep.push_back(sustain);
   }
@@ -235,17 +257,19 @@ void FoFiXGameplaySession::start_sustain(size_t start,
   uint32_t mask = 0;
   int gems = 0;
   double end_time = 1.0e30;
+  bool star_power_tail = false;
   for (size_t i = start; i < end; ++i) {
     if (notes_[i].end_time <= notes_[i].time + notes_[i].beat_seconds / 4.0)
       continue;
     mask |= notes_[i].mask & 0x1fu;
     gems += std::max(1, popcount5(notes_[i].mask));
     end_time = std::min(end_time, notes_[i].end_time);
+    star_power_tail = star_power_tail || notes_[i].star_power;
   }
   if (mask == 0 || gems <= 0 || end_time == 1.0e30) return;
   active_sustains_.push_back(
       ActiveSustain{mask, gems, std::max(song_time, notes_[start].time),
-                    end_time, notes_[start].beat_seconds,
+                    end_time, notes_[start].beat_seconds, star_power_tail,
                     notes_[start].source_index,
                     notes_[start].source_tick});
 }
@@ -384,10 +408,11 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   const bool strummed =
       (fret_mask & (1u << 5)) != 0 && (prev_fret_mask_ & (1u << 5)) == 0;
   const uint32_t held_frets = fret_mask & 0x1fu;
+  const bool whammy = (fret_mask & (1u << 7)) != 0;
   if (strummed)
     active_sustains_.clear();
   else
-    update_sustains(song_time, held_frets);
+    update_sustains(song_time, dt, held_frets, whammy);
   bool hit_this_frame = false;
   bool overstrum_candidate_seen = false;
   size_t overstrum_candidate_start = 0;

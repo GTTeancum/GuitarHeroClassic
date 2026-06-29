@@ -1628,7 +1628,7 @@ int main(int argc, char** argv) {
                max_frames ? " (bounded)" : " (Esc or close to quit)");
   std::fprintf(stderr, "[ghogx] song='%s' difficulty=%d\n",
                song_name.c_str(), difficulty);
-  std::fprintf(stderr, "[ghogx] Keyboard: A/S/D/F/G = frets; Space=strum; Shift/H=star power; Enter=Start/confirm\n");
+  std::fprintf(stderr, "[ghogx] Keyboard: A/S/D/F/G = frets; Space=strum; Shift/H=star power; K=whammy; Enter=Start/confirm\n");
 
   while (!win->should_close()) {
     win->pump();

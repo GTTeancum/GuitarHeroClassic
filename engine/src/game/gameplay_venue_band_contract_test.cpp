@@ -103,6 +103,10 @@ int main() {
   const std::filesystem::path render_dir = GHOGX_RENDER_SOURCE_DIR;
   const std::string gameplay = read_file(game_dir / "gameplay.cpp");
   const std::string gameplay_h = read_file(game_dir / "gameplay.h");
+  const std::string gameplay_session =
+      read_file(game_dir / "gameplay_session.cpp");
+  const std::string gameplay_session_h =
+      read_file(game_dir / "gameplay_session.h");
   const std::string highway_renderer =
       read_file(game_dir / "highway_renderer.cpp");
   const std::string highway_renderer_h =
@@ -129,6 +133,8 @@ int main() {
       read_file(render_dir / "window_d3d9.cpp");
   const std::string gameplay_c = compact(gameplay);
   const std::string gameplay_h_c = compact(gameplay_h);
+  const std::string gameplay_session_c = compact(gameplay_session);
+  const std::string gameplay_session_h_c = compact(gameplay_session_h);
   const std::string highway_renderer_c = compact(highway_renderer);
   const std::string highway_renderer_h_c = compact(highway_renderer_h);
   const std::string catalog_c = compact(catalog);
@@ -414,7 +420,7 @@ int main() {
                  "playable song input uses raw held frets and edge strum/star power");
   ok &= contains(app_main_c,
                  "Keyboard:A/S/D/F/G=frets;Space=strum;"
-                 "Shift/H=starpower;Enter=Start/confirm",
+                 "Shift/H=starpower;K=whammy;Enter=Start/confirm",
                  "startup help advertises the real keyboard guitar mapping");
   ok &= contains(window_d3d9_c,
                  "if(impl_->key_now['A'])gh|=(1u<<0);",
@@ -431,8 +437,15 @@ int main() {
                  "gh|=(1u<<6);",
                  "keyboard Shift/H maps to star power edge source");
   ok &= contains(window_d3d9_c,
+                 "if(impl_->key_now['K'])gh|=(1u<<7);",
+                 "keyboard K maps to held whammy killswitch input");
+  ok &= contains(window_d3d9_c,
                  "pad&XINPUT_GAMEPAD_BACK)||(pad&XINPUT_GAMEPAD_Y",
                  "controller Back/Y maps to star power edge source");
+  ok &= contains(window_d3d9_c,
+                 "xs.Gamepad.sThumbRY>kStrumDead||"
+                 "xs.Gamepad.sThumbRY<-kStrumDead",
+                 "controller right stick maps to held whammy killswitch input");
   ok &= contains(window_d3d9_c,
                  "intgh_strum_now=0;",
                  "window input keeps XInput strum direction state");
@@ -447,8 +460,8 @@ int main() {
                  "impl_->gh_prev&=~(1u<<5);}",
                  "changing strum direction emits a fresh gameplay strum edge");
   ok &= contains(window_d3d9_c,
-                 "returnimpl_->gh_now&0x1F;",
-                 "gameplay receives held fret state separately from strum edge");
+                 "returnimpl_->gh_now&(0x1Fu|(1u<<7));",
+                 "gameplay receives held fret and whammy state separately from edge inputs");
   ok &= contains(window_d3d9_c,
                  "returnimpl_->gh_now&~impl_->gh_prev;",
                  "gameplay receives strum as an edge-capable guitar mask");
@@ -524,6 +537,18 @@ int main() {
   ok &= contains(gameplay_c,
                  "star_power_=gameplay_session_mirror_->star_power_state();",
                  "live star power is adopted from the FoFiX session");
+  ok &= contains(gameplay_session_h_c,
+                 "boolstar_power_tail=false;",
+                 "FoFiX session remembers whether an active sustain can award whammy star power");
+  ok &= contains(gameplay_session_c,
+                 "kFoFiXDigitalWhammyStarPowerPerSecond=0.05*60.0;",
+                 "FoFiX whammy star-power gain uses the source digital chunk at a deterministic 60 Hz rate");
+  ok &= contains(gameplay_session_c,
+                 "FoFiXSessionEventType::StarPowerWhammy",
+                 "FoFiX whammy star-power gain emits a native session event");
+  ok &= contains(gameplay_c,
+                 "caseFoFiXSessionEventType::StarPowerWhammy:",
+                 "FoFiX whammy star-power events are surfaced to native validation logs");
   ok &= contains(gameplay_c,
                  "failed_=gameplay_session_mirror_->failed();",
                  "live fail state is adopted from the FoFiX session");

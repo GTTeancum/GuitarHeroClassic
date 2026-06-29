@@ -33,6 +33,7 @@ enum class FoFiXSessionEventType {
   StarPhraseComplete,
   StarPhraseMiss,
   StarPowerActivate,
+  StarPowerWhammy,
 };
 
 struct FoFiXSessionEvent {
@@ -85,6 +86,7 @@ class FoFiXGameplaySession {
     double start_time = 0.0;
     double end_time = 0.0;
     double beat_seconds = 0.5;
+    bool star_power_tail = false;
     size_t source_index = static_cast<size_t>(-1);
     uint32_t source_tick = UINT32_MAX;
   };
@@ -104,7 +106,10 @@ class FoFiXGameplaySession {
   void finish_star_phrase();
   void observe_star_phrase(size_t start, size_t end, bool hit);
   void award_sustain(const ActiveSustain& sustain, double held_until);
-  void update_sustains(double song_time, uint32_t held_frets);
+  void update_sustains(double song_time,
+                       double dt_seconds,
+                       uint32_t held_frets,
+                       bool whammy);
   void start_sustain(size_t start, size_t end, double song_time);
   void apply_hit(size_t start, size_t end, double song_time);
   void apply_miss(size_t start, size_t end);

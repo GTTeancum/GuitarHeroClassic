@@ -18182,12 +18182,12 @@ void apply_gameplay_backing_camera(
     cam.screen_offset[0] = 0.0f;
     cam.screen_offset[1] = 0.0f;
     cam.target[0] = center[0];
-    cam.target[1] = center[1] + std::max(60.0f, span_y * 0.25f);
-    cam.target[2] = center[2] + std::max(105.0f, span_z * 0.45f);
+    cam.target[1] = center[1] + std::max(20.0f, span_y * 0.10f);
+    cam.target[2] = center[2] + std::max(18.0f, span_z * 0.12f);
     cam.yaw = 0.0f;
-    cam.pitch = 0.38f;
-    cam.distance = std::clamp(span * 2.15f, 620.0f, 1050.0f);
-    cam.fov = 0.76f;
+    cam.pitch = 0.055f;
+    cam.distance = std::clamp(span * 1.90f, 560.0f, 900.0f);
+    cam.fov = 0.68f;
     cam.near_z = 10.0f;
     cam.far_z = 12000.0f;
     if (debug_gameplay_camera_enabled()) {
@@ -18297,6 +18297,9 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
         case FoFiXSessionEventType::StarPowerActivate:
             type = "star_power_activate";
             break;
+        case FoFiXSessionEventType::StarPowerWhammy:
+            type = "star_power_whammy";
+            break;
         }
         if (debug_gameplay_session_enabled()) {
             std::fprintf(
@@ -18362,6 +18365,11 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
             std::fprintf(stderr,
                          "[gameplay] star power activated sp=%.2f\n",
                          event.star_power_fill);
+            break;
+        case FoFiXSessionEventType::StarPowerWhammy:
+            std::fprintf(stderr,
+                         "[gameplay] star power whammy mask=0x%02x sp=%.2f\n",
+                         event.mask & 0x1fu, event.star_power_fill);
             break;
         }
     }
@@ -20677,7 +20685,11 @@ void Gameplay::draw(ghogx::render::Window& win) {
             intro_camera_seconds_ > 0.0 && song_time_ < intro_camera_seconds_;
         active_force_char_lod_ = -1;
         refresh_worldcrowd_actor_source_targets_for_camera();
-        if (!in_intro_camera_window && !regular_camera_keys_.empty()) {
+        const bool authored_gameplay_cameras_active =
+            !diagnostic_camera_shot_.empty() ||
+            env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr;
+        if (authored_gameplay_cameras_active && !in_intro_camera_window &&
+            !regular_camera_keys_.empty()) {
             const uint32_t bar = camera_bar_at(chart_, song_time_);
             if (last_camera_bar_ == UINT32_MAX) {
                 last_camera_bar_ = bar;
@@ -20936,7 +20948,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &regular_camera_keys_);
                 apply_camera_crowd_visibility(current_position);
             }
-        } else if (in_intro_camera_window && !camera_keys_.empty()) {
+        } else if (authored_gameplay_cameras_active &&
+                   in_intro_camera_window && !camera_keys_.empty()) {
             active_force_char_lod_ = camera_keys_.front().force_char_lod;
             apply_camera_keys(world_->camera(), camera_keys_, song_time_,
                               camera_targets,

@@ -21,6 +21,7 @@ constexpr uint32_t kRed = 1u << 1;
 constexpr uint32_t kYellow = 1u << 2;
 constexpr uint32_t kStrum = 1u << 5;
 constexpr uint32_t kStar = 1u << 6;
+constexpr uint32_t kWhammy = 1u << 7;
 
 }  // namespace
 
@@ -192,6 +193,35 @@ int main() {
     session.tick(2.0, kGreen);
     CHECK(session.score() == 50 && session.overstrums() == 1,
           "manual strum during sustain clears FoFiX tail bonus");
+  }
+
+  {
+    FoFiXGameplaySession session({
+        {1.0, 2.0, kGreen, false, true},
+        {3.0, 3.0, kRed, false, true},
+    });
+    session.tick(1.0, kGreen | kStrum);
+    session.tick(1.05, kGreen | kWhammy);
+    CHECK(session.star_power_fill() == 0.0,
+          "FoFiX whammy waits for a valid held sustain length");
+    session.tick(1.25, kGreen | kWhammy);
+    CHECK(session.star_power_fill() > 0.005 &&
+              session.star_power_fill() < 0.007,
+          "digital whammy adds FoFiX-style star power on valid star sustains");
+    CHECK(session.last_events().size() == 1 &&
+              session.last_events()[0].type ==
+                  FoFiXSessionEventType::StarPowerWhammy &&
+              session.last_events()[0].mask == kGreen &&
+              session.last_events()[0].star_power_fill > 0.005,
+          "FoFiX whammy gain is surfaced for native presentation");
+  }
+
+  {
+    FoFiXGameplaySession session({{1.0, 2.0, kGreen, false, false}});
+    session.tick(1.0, kGreen | kStrum);
+    session.tick(1.25, kGreen | kWhammy);
+    CHECK(session.star_power_fill() == 0.0 && session.last_events().empty(),
+          "FoFiX whammy does not award meter on non-star sustain tails");
   }
 
   {
