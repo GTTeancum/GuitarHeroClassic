@@ -18647,8 +18647,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         i = end - 1;
     }
     if (strummed && !note_hit_this_frame && miss_flash_mask_ == 0 &&
-        !diagnostic_autoplay_ &&
-        (fret_mask & 0x1fu) != 0) {
+        !diagnostic_autoplay_) {
         apply_overstrum();
     }
     while (next_note_idx_ < notes.size() &&

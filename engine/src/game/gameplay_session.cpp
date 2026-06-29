@@ -353,7 +353,7 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   }
   if (next_note_ >= notes_.size()) finish_star_phrase();
 
-  if (strummed && !hit_this_frame && !missed_this_frame && held_frets != 0)
+  if (strummed && !hit_this_frame && !missed_this_frame)
     apply_overstrum();
   prev_fret_mask_ = fret_mask;
 }

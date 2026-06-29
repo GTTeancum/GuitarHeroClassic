@@ -39,6 +39,14 @@ int main() {
   }
 
   {
+    FoFiXGameplaySession session({{1.0, 1.0, kGreen, false, false}});
+    session.tick(1.0, kGreen | kStrum);
+    session.tick(1.3, kStrum);
+    CHECK(session.overstrums() == 1 && session.streak() == 0,
+          "empty extra strum resets streak as FoFiX overstrum");
+  }
+
+  {
     FoFiXGameplaySession session({
         {1.0, 1.0, kGreen, false, false},
         {1.1, 1.1, kRed, true, false},
