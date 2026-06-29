@@ -85,6 +85,25 @@ bool is_authored_invisible_material(const std::string& material) {
   return material == "invisible.mat";
 }
 
+bool mesh_matches_env_spec(const char* name, const std::string& mesh) {
+  char* value = nullptr;
+  size_t len = 0;
+  const bool has = _dupenv_s(&value, &len, name) == 0 && value && value[0];
+  std::string spec = has ? value : "";
+  std::free(value);
+  if (spec.empty()) return false;
+  size_t start = 0;
+  while (start <= spec.size()) {
+    const size_t comma = spec.find(',', start);
+    const std::string needle = spec.substr(
+        start, comma == std::string::npos ? std::string::npos : comma - start);
+    if (!needle.empty() && mesh.find(needle) != std::string::npos) return true;
+    if (comma == std::string::npos) break;
+    start = comma + 1;
+  }
+  return false;
+}
+
 DWORD float_to_dword(float value) {
   DWORD out = 0;
   std::memcpy(&out, &value, sizeof(out));
@@ -1279,6 +1298,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
                                   const std::string* material_override = nullptr,
                                   const SpotlightState* spotlight_state = nullptr) {
     if (!m.decoded || m.vertex_count == 0 || m.face_count == 0) return;
+    if (mesh_matches_env_spec("GHOGX_SKIP_VENUE_MESH", m.name)) return;
     std::memcpy(&wm, w.data(), 64);
     dev_->SetTransform(D3DTS_WORLD, &wm);
 
@@ -1301,6 +1321,23 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       tu = mat->tex_offset[0]; tv = mat->tex_offset[1];
       mr = mat->color[0]; mg = mat->color[1]; mb = mat->color[2]; ma = mat->color[3];
       material_blend = mat->blend;
+    }
+    if (env_enabled("GHOGX_LOG_VENUE_MATERIAL") &&
+        (m.name.find("stadium_spotlight") != std::string::npos ||
+         material.find("stadium_rays") != std::string::npos ||
+         material.find("searchlight_beam") != std::string::npos)) {
+      static std::unordered_set<std::string> logged_materials;
+      const std::string key = m.name + "|" + material;
+      if (logged_materials.insert(key).second) {
+        std::fprintf(stderr,
+                     "[milo_scene] venue material mesh=%s material=%s "
+                     "tex=%s blend=%u color=(%.3f %.3f %.3f %.3f) "
+                     "prelit=%d use_environ=%d\n",
+                     m.name.c_str(), material.c_str(), diffuse_tex.c_str(),
+                     static_cast<unsigned>(material_blend), mr, mg, mb, ma,
+                     mat_obj && mat_obj->prelit ? 1 : 0,
+                     mat_obj && mat_obj->use_environ ? 1 : 0);
+      }
     }
     if (const auto tex_name_it = material_textures_.find(material);
         tex_name_it != material_textures_.end() && !tex_name_it->second.empty()) {

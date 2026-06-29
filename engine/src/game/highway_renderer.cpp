@@ -21,7 +21,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <string>
 #include <vector>
 
 namespace ghogx::game {
@@ -68,6 +70,27 @@ const char* gem_tex_name(int lane) {
     default: return "gem_orange.tex";
   }
 }
+
+bool is_lane_gem_tex_name(const std::string& name) {
+  return name == "gem_green.tex" || name == "gem_red.tex" ||
+         name == "gem_yellow.tex" || name == "gem_blue.tex" ||
+         name == "gem_orange.tex";
+}
+
+uint8_t lane_gem_alpha(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+  if (r <= 8 && g <= 8 && b <= 8) return 0;
+  return a;
+}
+
+bool env_enabled(const char* name) {
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, name) == 0 && value && value[0] != '\0';
+  std::free(value);
+  return enabled;
+}
+
 const char* now_ring_name(int lane) {
   switch (lane) {
     case 0: return "now_green_add.tex";
@@ -152,6 +175,7 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
 
   for (auto& kv : imgs) {
     const ghogx::asset::Image& img = kv.second;
+    const bool color_key_lane_gem = is_lane_gem_tex_name(kv.first);
     IDirect3DTexture9* t = nullptr;
     if (FAILED(dev_->CreateTexture(static_cast<UINT>(img.width),
                                    static_cast<UINT>(img.height), 1, 0,
@@ -163,8 +187,14 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
         auto* dst = static_cast<uint8_t*>(lr.pBits) + y * lr.Pitch;
         const uint8_t* src = img.rgba.data() + static_cast<size_t>(y) * img.width * 4;
         for (int x = 0; x < img.width; ++x) {
-          dst[x*4+0] = src[x*4+2]; dst[x*4+1] = src[x*4+1];
-          dst[x*4+2] = src[x*4+0]; dst[x*4+3] = src[x*4+3];
+          const uint8_t r = src[x*4+0];
+          const uint8_t g = src[x*4+1];
+          const uint8_t b = src[x*4+2];
+          const uint8_t a = color_key_lane_gem
+              ? lane_gem_alpha(r, g, b, src[x*4+3])
+              : src[x*4+3];
+          dst[x*4+0] = b; dst[x*4+1] = g;
+          dst[x*4+2] = r; dst[x*4+3] = a;
         }
       }
       t->UnlockRect(0);
@@ -315,7 +345,7 @@ void HighwayRenderer::draw_impl(double song_time,
   }
 
   // --- 4) Sustain tails (before gems) ---
-  {
+  if (!env_enabled("GHOGX_DISABLE_HIGHWAY_SUSTAINS")) {
     IDirect3DTexture9* tail = tex("tail2.tex");
     const uint32_t sustain_min = chart.ticks_per_beat / 4;
     static const D3DCOLOR lane_rgb[5] = {
@@ -337,7 +367,7 @@ void HighwayRenderer::draw_impl(double song_time,
   }
 
   // --- 5) Fret-target rings at the strikeline (additive) ---
-  {
+  if (!env_enabled("GHOGX_DISABLE_HIGHWAY_RINGS")) {
     dev_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
     for (int lane = 0; lane < 5; ++lane) {
       const bool held = (fret_held_mask >> lane) & 1;
@@ -371,15 +401,17 @@ void HighwayRenderer::draw_impl(double song_time,
     for (const auto& g : vis) {
       const int a = static_cast<int>(255 * depth_fade(g.y));
       const float x = lane_x(g.lane);
-      if (shadow) {
+      if (shadow && !env_enabled("GHOGX_DISABLE_HIGHWAY_GEM_SHADOWS")) {
         V3 s[4]; flat_quad(s, x, g.y, kBoardZ + 0.03f, kGemHalf*1.2f, kGemHalf*1.2f,
                            D3DCOLOR_ARGB(a*3/5, 255, 255, 255));
         draw_quad(dev_, shadow, s);
       }
       IDirect3DTexture9* gt = tex(g.star ? "stargem.tex" : gem_tex_name(g.lane));
       if (!gt) gt = tex("gem.tex");
-      V3 q[4]; flat_quad(q, x, g.y, kGemZ, kGemHalf, kGemHalf, D3DCOLOR_ARGB(a,255,255,255));
-      draw_quad(dev_, gt, q);
+      if (!env_enabled("GHOGX_DISABLE_HIGHWAY_GEMS")) {
+        V3 q[4]; flat_quad(q, x, g.y, kGemZ, kGemHalf, kGemHalf, D3DCOLOR_ARGB(a,255,255,255));
+        draw_quad(dev_, gt, q);
+      }
     }
   }
 

@@ -465,6 +465,17 @@ int main() {
                  "draw_quad(dev_,board,q,false);",
                  "playable highway board ignores texture alpha over the 3D venue");
   ok &= contains(highway_renderer_c,
+                 "name==\"gem_green.tex\"||name==\"gem_red.tex\"||"
+                 "name==\"gem_yellow.tex\"||name==\"gem_blue.tex\"||"
+                 "name==\"gem_orange.tex\"",
+                 "lane gem textures are the only color-keyed highway textures");
+  ok &= contains(highway_renderer_c,
+                 "if(r<=8&&g<=8&&b<=8)return0;",
+                 "lane gem black-card backgrounds are made transparent at upload");
+  ok &= contains(highway_renderer_c,
+                 "constboolcolor_key_lane_gem=is_lane_gem_tex_name(kv.first);",
+                 "highway texture upload gates color-keying by texture name");
+  ok &= contains(highway_renderer_c,
                  "draw_impl(song_time,chart,difficulty,fret_held_mask,hit_flash,"
                  "lookahead_sec,false,consumed_notes);",
                  "highway draw_over_scene preserves the already-rendered 3D venue");
