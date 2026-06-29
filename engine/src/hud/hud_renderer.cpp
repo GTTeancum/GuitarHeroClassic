@@ -318,10 +318,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   // Rock/crowd and star-power meters sit on the upper-left, clear of the
   // fretboard and stage perspective.
-  rock_face_ = screen_slot(0.135f, 0.245f, 0.125f, 0.150f);
-  rock_needle_pivot_ = screen_slot(0.135f, 0.326f, 0.010f, 0.010f);
-  rock_needle_len_ = rock_face_.hh * 0.45f;
-  sp_bar_ = screen_slot(0.056f, 0.244f, 0.026f, 0.165f);
+  rock_face_ = screen_slot(0.125f, 0.245f, 0.086f, 0.153f);
+  rock_needle_pivot_ = screen_slot(0.125f, 0.300f, 0.010f, 0.010f);
+  rock_needle_len_ = rock_face_.hh * 0.62f;
+  sp_bar_ = screen_slot(0.055f, 0.250f, 0.024f, 0.160f);
 
   build_static();
   loaded_ = true;
@@ -485,16 +485,17 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
   if (!sp_bar_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& sl = sp_bar_;
-  push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, nullptr, argb(165, 8, 14, 32));
 
   // fill bar (amp_inside_bar) grows from the bottom upward to `fill`.
   // bottomZ stays fixed; topZ rises as fill increases. cz_fill = midpoint, hh_fill = half-height.
   float bottomZ  = sl.cz + sl.hh;
   float cz_fill  = bottomZ - sl.hh * fill;
   float hh_fill  = sl.hh * fill;
-  if (hh_fill > 0.5f)
-    push_rect(out, sl.cx, cz_fill, sl.hw * 0.58f, hh_fill, nullptr,
-              argb(235, 60, 190, 255));
+  IDirect3DTexture9* fillt = tex("amp_inside_bar.tex");
+  if (hh_fill > 0.5f) {
+    push_rect(out, sl.cx, cz_fill, sl.hw * 0.62f, hh_fill, fillt,
+              fillt ? argb(230, 120, 205, 255) : argb(220, 75, 165, 255));
+  }
 
   if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
     push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(210, 220, 225, 255));
@@ -504,26 +505,14 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   if (!rock_face_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& f = rock_face_;
-  push_rect(out, f.cx, f.cz, f.hw, f.hh, nullptr, argb(135, 12, 12, 18));
 
-  // dial face: rock_meter_2d.tex (or the "ROCK" variant)
-  IDirect3DTexture9* face = tex("rock_meter_2d_rock.tex");
-  if (!face) face = tex("rock_meter_2d.tex");
+  IDirect3DTexture9* face = tex("rock_meter_2d.tex");
   push_rect(out, f.cx, f.cz, f.hw, f.hh, face,
-            face ? 0xFFFFFFFF : argb(200, 30, 30, 36));
+            face ? 0xFFFFFFFF : argb(200, 210, 170, 65));
 
-  const float bar_hw = f.hw * 0.58f;
-  const float bar_hh = f.hh * 0.085f;
-  const float bar_cz = f.cz + f.hh * 0.70f;
-  push_rect(out, f.cx, bar_cz, bar_hw, bar_hh, nullptr, argb(210, 15, 15, 20));
-  const uint32_t fill_color =
-      fill < 0.35f ? argb(235, 220, 45, 35)
-                   : (fill < 0.68f ? argb(235, 235, 205, 45)
-                                    : argb(235, 80, 220, 95));
-  const float fill_hw = bar_hw * fill;
-  if (fill_hw > 0.5f) {
-    push_rect(out, f.cx + bar_hw * (1.0f - fill), bar_cz, fill_hw, bar_hh,
-              nullptr, fill_color);
+  if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
+    push_rect(out, f.cx, f.cz - f.hh * 0.96f, f.hw * 1.15f, f.hh * 0.58f,
+              label, 0xFFFFFFFF);
   }
 
   // needle: swings from left (fill 0, danger) to right (fill 1, max). Drawn as a
@@ -551,8 +540,9 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
         {x3, 0.0f, z3, 1.0f, 1.0f},
     };
     q.idx = {0, 1, 2,  1, 3, 2};
-    q.tex = nullptr;
-    q.color = fill_color;
+    IDirect3DTexture9* nt = tex("rock_needle.tex");
+    q.tex = nt;
+    q.color = nt ? 0xFFFFFFFF : argb(255, 20, 20, 20);
     out.push_back(std::move(q));
   }
 }
