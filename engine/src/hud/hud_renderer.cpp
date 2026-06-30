@@ -1223,20 +1223,20 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
       native_rock_light_green_ok_;
   if (have_native_lights) {
     Quad red = native_rock_light_green_;
-    red.color = argb(90, 255, 45, 35);
+    red.color = argb(115, 255, 50, 38);
     Quad yellow = native_rock_light_yellow_;
-    yellow.color = argb(85, 255, 220, 60);
+    yellow.color = argb(110, 255, 225, 62);
     Quad green = native_rock_light_red_;
-    green.color = argb(80, 70, 255, 90);
+    green.color = argb(105, 75, 255, 92);
     out.push_back(red);
     out.push_back(yellow);
     out.push_back(green);
     Quad active_light = fill < 0.25f ? native_rock_light_green_
                       : fill < 0.55f ? native_rock_light_yellow_
                                      : native_rock_light_red_;
-    active_light.color = fill < 0.25f ? argb(180, 255, 55, 45)
-                       : fill < 0.55f ? argb(170, 255, 235, 70)
-                                      : argb(160, 85, 255, 95);
+    active_light.color = fill < 0.25f ? argb(215, 255, 60, 48)
+                       : fill < 0.55f ? argb(205, 255, 238, 74)
+                                      : argb(190, 90, 255, 100);
     out.push_back(active_light);
   } else if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
     const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
