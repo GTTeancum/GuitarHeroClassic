@@ -874,8 +874,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     const float cx = (min_x + max_x) * 0.5f;
     const float cz = (min_z + max_z) * 0.5f;
     constexpr float kLabelScaleX = 0.84f;
-    constexpr float kLabelScaleZ = 0.80f;
-    const float lower = rock_face_.hh * 0.08f;
+    constexpr float kLabelScaleZ = 0.72f;
+    const float lower = rock_face_.hh * 0.16f;
     for (Quad::V& v : q.verts) {
       v.wx = cx + (v.wx - cx) * kLabelScaleX;
       v.wz = cz + (v.wz - cz) * kLabelScaleZ + lower;
@@ -926,7 +926,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
                      argb(70, 150, 215, 245), true);
     append_star_mesh("amp_inside_disk.mesh", native_star_front_, 0, false,
-                     false, true, nullptr, true);
+                     false, true);
     append_star_mesh("amp_glass.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_chrome_base.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_chrome_top.mesh", native_star_front_, 0, false);
@@ -1071,6 +1071,10 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
     if (!t) continue;
     if (i < 10 && native_score_digit_ok_[i]) {
       Quad q = native_score_digit_[i];
+      for (Quad::V& v : q.verts) {
+        v.wz += score_slot_[i].hh * 0.25f;
+        v.wy = left_hud_depth_at(v.wx);
+      }
       q.tex = t;
       q.color = 0xFFFFFFFF;
       q.additive = false;
@@ -1135,7 +1139,7 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
     float cx = sl.cx - (static_cast<float>(i) - center) * streak_step_;
     float cz = sl.cz - sl.hh * 2.28f +
                std::pow(std::abs(arc_t), 1.45f) * sl.hh * 1.52f +
-               sl.hh * 1.55f;
+               sl.hh * 2.27f;
     IDirect3DTexture9* glow =
         tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
     if (!glow) glow = tex("score_streak_glow.tex");
