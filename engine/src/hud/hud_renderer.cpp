@@ -1109,12 +1109,12 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
     if (clamped > 4 && native_mult_glow_ok_) out.push_back(native_mult_glow_);
     if (clamped > 4 && native_mult_frame_ok_) {
       Quad active_frame = native_mult_frame_;
-      active_frame.color = argb(235, 95, 225, 255);
+      active_frame.color = argb(225, 190, 238, 255);
       out.push_back(std::move(active_frame));
     }
     const Slot& x_slot = mult_digit_slot_[0];
     const Slot& digit_slot = mult_digit_slot_[1];
-    const float scale = clamped > 4 ? 0.74f : 0.86f;
+    const float scale = clamped > 4 ? 0.62f : 0.80f;
     const uint32_t digit_color =
         clamped > 4 ? argb(255, 205, 245, 255) : 0xFFFFFFFF;
     const float x_hw = x_slot.hw * scale;
