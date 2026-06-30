@@ -504,7 +504,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   mult_slot_ = screen_slot(0.125f, 0.902f, 0.090f, 0.110f);
 
   // GH2's star tube sits above the right-side rock/crowd meter.
-  sp_bar_ = screen_slot(0.862f, 0.666f, 0.158f, 0.062f);
+  sp_bar_ = screen_slot(0.862f, 0.652f, 0.158f, 0.105f);
   rock_face_ = screen_slot(0.862f, 0.820f, 0.180f, 0.255f);
   rock_needle_pivot_ = screen_slot(0.862f, 0.905f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.90f;
@@ -538,16 +538,17 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     b.ok = (b.max_x - b.min_x) > 0.001f && (b.max_z - b.min_z) > 0.001f;
     return b;
   };
-  auto make_meter_mesh = [&](const LoadedMesh& mesh, const MeshBounds& bounds,
-                             uint32_t color, bool additive, bool flip_v,
-                             bool flip_z) {
+  auto make_slot_mesh = [&](const MiloLayout& layout, const LoadedMesh& mesh,
+                            const MeshBounds& bounds, const Slot& slot,
+                            uint32_t color, bool additive, bool flip_v,
+                            bool flip_z) {
     Quad q;
-    auto mat = crowd.mat_tex.find(mesh.material);
-    if (mat != crowd.mat_tex.end()) q.tex = tex(mat->second);
+    auto mat = layout.mat_tex.find(mesh.material);
+    if (mat != layout.mat_tex.end()) q.tex = tex(mat->second);
     if (color != 0) {
       q.color = color;
-    } else if (auto tint = crowd.mat_color.find(mesh.material);
-               tint != crowd.mat_color.end()) {
+    } else if (auto tint = layout.mat_color.find(mesh.material);
+               tint != layout.mat_color.end()) {
       q.color = tint->second;
     } else {
       q.color = 0xFFFFFFFF;
@@ -561,15 +562,15 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         std::clamp((source_center_z - bounds.min_z) / (bounds.max_z - bounds.min_z),
                    0.0f, 1.0f);
     const float mapped_center_z =
-        rock_face_.cz + rock_face_.hh - source_center_t * rock_face_.hh * 2.0f;
-    const float z_scale = (rock_face_.hh * 2.0f) / (bounds.max_z - bounds.min_z);
+        slot.cz + slot.hh - source_center_t * slot.hh * 2.0f;
+    const float z_scale = (slot.hh * 2.0f) / (bounds.max_z - bounds.min_z);
     q.verts.reserve(mesh.verts.size());
     for (const auto& v : mesh.verts) {
       float x, y, z;
       transform_point(mesh.world, v, x, y, z);
       const float tx = std::clamp((x - bounds.min_x) / (bounds.max_x - bounds.min_x),
                                   0.0f, 1.0f);
-      const float wx = rock_face_.cx - rock_face_.hw + tx * rock_face_.hw * 2.0f;
+      const float wx = slot.cx - slot.hw + tx * slot.hw * 2.0f;
       const float z_delta = (z - source_center_z) * z_scale;
       const float wz = mapped_center_z + (flip_z ? -z_delta : z_delta);
       q.verts.push_back({wx, right_hud_depth_at(wx), wz, v.u,
@@ -583,7 +584,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                                bool flip_v = false, bool flip_z = false) {
     ok = false;
     if (const LoadedMesh* mesh = find_mesh(crowd, name)) {
-      Quad q = make_meter_mesh(*mesh, bounds, color, additive, flip_v, flip_z);
+      Quad q = make_slot_mesh(crowd, *mesh, bounds, rock_face_, color, additive,
+                              flip_v, flip_z);
       if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
         out = std::move(q);
         ok = true;
@@ -607,6 +609,32 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     assign_meter_mesh("rock_light_green_front.mesh", rock_bounds,
                       native_rock_light_green_, native_rock_light_green_ok_,
                       argb(150, 85, 255, 90), true, true, true);
+  }
+
+  native_star_back_.clear();
+  native_star_front_.clear();
+  const LoadedMesh* star_bounds_mesh = find_mesh(star, "amp_tube_glow.mesh");
+  if (!star_bounds_mesh) star_bounds_mesh = find_mesh(star, "amp_glass.mesh");
+  if (star_bounds_mesh) {
+    const MeshBounds star_bounds = bounds_for(*star_bounds_mesh);
+    auto append_star_mesh = [&](const char* name, std::vector<Quad>& target,
+                                uint32_t color, bool additive,
+                                bool flip_v = false, bool flip_z = true) {
+      if (const LoadedMesh* mesh = find_mesh(star, name)) {
+        Quad q = make_slot_mesh(star, *mesh, star_bounds, sp_bar_, color,
+                                additive, flip_v, flip_z);
+        if ((q.tex || color != 0) && q.verts.size() >= 3 && q.idx.size() >= 3)
+          target.push_back(std::move(q));
+      }
+    };
+    append_star_mesh("amp_inside_bar.mesh", native_star_back_,
+                     argb(135, 185, 210, 220), false);
+    append_star_mesh("amp_tube_glow.mesh", native_star_front_,
+                     argb(170, 220, 240, 255), false);
+    append_star_mesh("amp_glass.mesh", native_star_front_,
+                     argb(100, 220, 245, 255), false);
+    append_star_mesh("amp_chrome_base.mesh", native_star_front_, 0, false);
+    append_star_mesh("amp_chrome_top.mesh", native_star_front_, 0, false);
   }
 
   build_static();
@@ -831,26 +859,30 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& sl = sp_bar_;
 
-  if (IDirect3DTexture9* base = tex("amp_chrome_base.tex")) {
-    push_rect(out, sl.cx - sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
-              sl.hh * 0.95f, base, 0xFFFFFFFF, false,
-              right_hud_depth_at(sl.cx - sl.hw * 0.70f),
-              right_hud_depth_at(sl.cx - sl.hw * 1.26f));
-    push_rect(out, sl.cx + sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
-              sl.hh * 0.95f, base, 0xFFFFFFFF, false,
-              right_hud_depth_at(sl.cx + sl.hw * 1.26f),
-              right_hud_depth_at(sl.cx + sl.hw * 0.70f));
-  }
-  if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
-    push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(230, 220, 235, 255),
-              false, right_hud_depth_at(sl.cx + sl.hw),
-              right_hud_depth_at(sl.cx - sl.hw));
+  if (!native_star_back_.empty()) {
+    out.insert(out.end(), native_star_back_.begin(), native_star_back_.end());
+  } else {
+    if (IDirect3DTexture9* base = tex("amp_chrome_base.tex")) {
+      push_rect(out, sl.cx - sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
+                sl.hh * 0.95f, base, 0xFFFFFFFF, false,
+                right_hud_depth_at(sl.cx - sl.hw * 0.70f),
+                right_hud_depth_at(sl.cx - sl.hw * 1.26f));
+      push_rect(out, sl.cx + sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
+                sl.hh * 0.95f, base, 0xFFFFFFFF, false,
+                right_hud_depth_at(sl.cx + sl.hw * 1.26f),
+                right_hud_depth_at(sl.cx + sl.hw * 0.70f));
+    }
+    if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
+      push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(230, 220, 235, 255),
+                false, right_hud_depth_at(sl.cx + sl.hw),
+                right_hud_depth_at(sl.cx - sl.hw));
 
-  if (IDirect3DTexture9* empty = tex("amp_inside_bar.tex")) {
-    push_rect(out, sl.cx, sl.cz, sl.hw * 0.86f, sl.hh * 0.30f, empty,
-              argb(90, 185, 210, 220), false,
-              right_hud_depth_at(sl.cx + sl.hw * 0.86f),
-              right_hud_depth_at(sl.cx - sl.hw * 0.86f));
+    if (IDirect3DTexture9* empty = tex("amp_inside_bar.tex")) {
+      push_rect(out, sl.cx, sl.cz, sl.hw * 0.86f, sl.hh * 0.30f, empty,
+                argb(90, 185, 210, 220), false,
+                right_hud_depth_at(sl.cx + sl.hw * 0.86f),
+                right_hud_depth_at(sl.cx - sl.hw * 0.86f));
+    }
   }
 
   // GH2 presents the star meter as a right-side horizontal tube. Projection
@@ -879,6 +911,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
                 right_hud_depth_at(sl.cx - sl.hw * 1.04f));
     }
   }
+
+  if (!native_star_front_.empty())
+    out.insert(out.end(), native_star_front_.begin(), native_star_front_.end());
 }
 
 void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
