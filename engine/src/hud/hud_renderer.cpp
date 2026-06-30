@@ -55,12 +55,10 @@ constexpr float kZBot =  120.0f;  // maps near the bottom
 constexpr float kHudPerspective = 0.0017f;
 constexpr float kHudVanishX = 0.5f;
 constexpr float kHudVanishY = 0.67f;
-constexpr float kNearHudDepth = -8.0f;
-constexpr float kFarHudDepth = 32.0f;
 constexpr float kRightHudNearDepth = -18.0f;
 constexpr float kRightHudFarDepth = 62.0f;
-constexpr float kLeftHudLeftDepth = kNearHudDepth;
-constexpr float kLeftHudRightDepth = kFarHudDepth;
+constexpr float kLeftHudLeftDepth = -14.0f;
+constexpr float kLeftHudRightDepth = 42.0f;
 constexpr float kRightHudLeftDepth = kRightHudFarDepth;
 constexpr float kRightHudRightDepth = kRightHudNearDepth;
 constexpr float kLeftHudPanelNx = 0.102f;
@@ -579,7 +577,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   // GH2's star tube sits above the right-side rock/crowd meter. These anchors
   // are matched against the PS2 in-song HUD reference, then filled with the
   // original star_meter/crowd_meter MILO meshes rather than replacement art.
-  sp_bar_ = screen_slot(0.856f, 0.716f, 0.186f, 0.125f);
+  sp_bar_ = screen_slot(0.848f, 0.716f, 0.186f, 0.125f);
   rock_face_ = screen_slot(0.850f, 0.882f, 0.187f, 0.216f);
   rock_needle_pivot_ = screen_slot(0.850f, 0.974f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.90f;
@@ -894,6 +892,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                      argb(115, 145, 215, 250), true);
     append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
                      argb(70, 150, 215, 245), true);
+    append_star_mesh("amp_inside_disk.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_glass.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_chrome_base.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_chrome_top.mesh", native_star_front_, 0, false);
