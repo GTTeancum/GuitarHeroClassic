@@ -613,26 +613,30 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   native_star_back_.clear();
   native_star_front_.clear();
+  native_star_ready_glow_.clear();
   const LoadedMesh* star_bounds_mesh = find_mesh(star, "amp_tube_glow.mesh");
   if (!star_bounds_mesh) star_bounds_mesh = find_mesh(star, "amp_glass.mesh");
   if (star_bounds_mesh) {
     const MeshBounds star_bounds = bounds_for(*star_bounds_mesh);
     auto append_star_mesh = [&](const char* name, std::vector<Quad>& target,
                                 uint32_t color, bool additive,
-                                bool flip_v = false, bool flip_z = true) {
+                                bool flip_v = false, bool flip_z = true,
+                                const char* tex_override = nullptr) {
       if (const LoadedMesh* mesh = find_mesh(star, name)) {
         Quad q = make_slot_mesh(star, *mesh, star_bounds, sp_bar_, color,
                                 additive, flip_v, flip_z);
+        if (tex_override) q.tex = tex(tex_override);
         if ((q.tex || color != 0) && q.verts.size() >= 3 && q.idx.size() >= 3)
           target.push_back(std::move(q));
       }
     };
     append_star_mesh("amp_inside_bar.mesh", native_star_back_,
                      argb(135, 185, 210, 220), false);
-    append_star_mesh("amp_tube_glow.mesh", native_star_front_,
-                     argb(170, 220, 240, 255), false);
+    append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
+                     argb(125, 115, 205, 255), true);
     append_star_mesh("amp_glass.mesh", native_star_front_,
-                     argb(100, 220, 245, 255), false);
+                     argb(185, 255, 255, 255), false, false, true,
+                     "cleartube.tex");
     append_star_mesh("amp_chrome_base.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_chrome_top.mesh", native_star_front_, 0, false);
   }
@@ -902,7 +906,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
   }
 
   if (fill >= 0.5f) {
-    if (IDirect3DTexture9* ready = tex("amp_tube_glow.tex")) {
+    if (!native_star_ready_glow_.empty()) {
+      out.insert(out.end(), native_star_ready_glow_.begin(),
+                 native_star_ready_glow_.end());
+    } else if (IDirect3DTexture9* ready = tex("amp_tube_glow.tex")) {
       push_rect(out, sl.cx, sl.cz, sl.hw * 1.04f, sl.hh * 0.92f, ready,
                 argb(125, 115, 205, 255), true,
                 right_hud_depth_at(sl.cx + sl.hw * 1.04f),

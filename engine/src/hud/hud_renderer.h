@@ -130,6 +130,7 @@ class HudRenderer {
   Quad native_rock_light_green_;
   std::vector<Quad> native_star_back_;
   std::vector<Quad> native_star_front_;
+  std::vector<Quad> native_star_ready_glow_;
   bool native_rock_face_ok_ = false;
   bool native_rock_frame_ok_ = false;
   bool native_rock_label_ok_ = false;
