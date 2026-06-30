@@ -619,7 +619,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   auto make_slot_mesh = [&](const MiloLayout& layout, const LoadedMesh& mesh,
                             const MeshBounds& bounds, const Slot& slot,
                             uint32_t color, bool additive, bool flip_v,
-                            bool flip_z, bool right_side = true) {
+                            bool flip_z, bool right_side = true,
+                            float authored_y_depth_scale = 0.0f) {
     Quad q;
     auto mat = layout.mat_tex.find(mesh.material);
     if (mat != layout.mat_tex.end()) q.tex = tex(mat->second);
@@ -641,6 +642,18 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           return uv == layout.mat_uv.end() ? MatUvXfm{} : uv->second;
         }();
     const float source_center_z = (mesh_bounds.min_z + mesh_bounds.max_z) * 0.5f;
+    float source_center_y = 0.0f;
+    if (std::abs(authored_y_depth_scale) > 0.0001f) {
+      float min_y = std::numeric_limits<float>::max();
+      float max_y = std::numeric_limits<float>::lowest();
+      for (const auto& v : mesh.verts) {
+        float x, y, z;
+        transform_point(mesh.world, v, x, y, z);
+        min_y = std::min(min_y, y);
+        max_y = std::max(max_y, y);
+      }
+      source_center_y = (min_y + max_y) * 0.5f;
+    }
     const float source_center_t =
         std::clamp((source_center_z - bounds.min_z) / (bounds.max_z - bounds.min_z),
                    0.0f, 1.0f);
@@ -658,8 +671,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       const float wz = mapped_center_z + (flip_z ? -z_delta : z_delta);
       const float u = v.u * uv_xfm.scale[0] + uv_xfm.offset[0];
       const float vv = v.vv * uv_xfm.scale[1] + uv_xfm.offset[1];
-      q.verts.push_back({wx, right_side ? right_hud_depth_at(wx)
-                                        : left_hud_depth_at(wx),
+      const float base_depth =
+          right_side ? right_hud_depth_at(wx) : left_hud_depth_at(wx);
+      q.verts.push_back({wx, base_depth + (y - source_center_y) *
+                                            authored_y_depth_scale,
                          wz, u,
                          flip_v ? 1.0f - vv : vv});
     }
@@ -835,7 +850,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                                 const char* tex_override = nullptr) {
       if (const LoadedMesh* mesh = find_mesh(star, name)) {
         Quad q = make_slot_mesh(star, *mesh, star_bounds, sp_bar_, color,
-                                additive, flip_v, flip_z);
+                                additive, flip_v, flip_z, true, 1.15f);
         if (tex_override) q.tex = tex(tex_override);
         if ((q.tex || color != 0) && q.verts.size() >= 3 && q.idx.size() >= 3)
           target.push_back(std::move(q));
