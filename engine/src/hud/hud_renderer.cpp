@@ -328,6 +328,7 @@ bool uses_edge_black_matte(const std::string& name) {
          name == "rock_meter_2d.tex" ||
          name == "rock_meter_2d_rock.tex" ||
          name == "cleartube.tex" ||
+         name == "chrome.tex" ||
          name == "amp_chrome_base.tex";
 }
 
@@ -503,6 +504,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   rock_needle_len_ = rock_face_.hh * 0.62f;
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
+  native_rock_frame_ok_ = false;
   native_rock_light_red_ok_ = native_rock_light_yellow_ok_ = false;
   native_rock_light_green_ok_ = false;
 
@@ -545,16 +547,23 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     }
     q.additive = additive;
     if (!bounds.ok || !q.tex) return q;
+    const MeshBounds mesh_bounds = bounds_for(mesh);
+    if (!mesh_bounds.ok) return q;
+    const float source_center_z = (mesh_bounds.min_z + mesh_bounds.max_z) * 0.5f;
+    const float source_center_t =
+        std::clamp((source_center_z - bounds.min_z) / (bounds.max_z - bounds.min_z),
+                   0.0f, 1.0f);
+    const float mapped_center_z =
+        rock_face_.cz + rock_face_.hh - source_center_t * rock_face_.hh * 2.0f;
+    const float z_scale = (rock_face_.hh * 2.0f) / (bounds.max_z - bounds.min_z);
     q.verts.reserve(mesh.verts.size());
     for (const auto& v : mesh.verts) {
       float x, y, z;
       transform_point(mesh.world, v, x, y, z);
       const float tx = std::clamp((x - bounds.min_x) / (bounds.max_x - bounds.min_x),
                                   0.0f, 1.0f);
-      const float tz = std::clamp((z - bounds.min_z) / (bounds.max_z - bounds.min_z),
-                                  0.0f, 1.0f);
       const float wx = rock_face_.cx - rock_face_.hw + tx * rock_face_.hw * 2.0f;
-      const float wz = rock_face_.cz - rock_face_.hh + tz * rock_face_.hh * 2.0f;
+      const float wz = mapped_center_z + (z - source_center_z) * z_scale;
       q.verts.push_back({wx, right_hud_depth_at(wx), wz, v.u, v.vv});
     }
     q.idx = mesh.idx;
@@ -576,6 +585,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     const MeshBounds rock_bounds = bounds_for(*rock_frame);
     assign_meter_mesh("rock_face_2d.mesh", rock_bounds, native_rock_face_,
                       native_rock_face_ok_, 0, false);
+    assign_meter_mesh("rock_frame.mesh", rock_bounds, native_rock_frame_,
+                      native_rock_frame_ok_, 0, false);
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
                       native_rock_label_ok_, 0, false);
     assign_meter_mesh("rock_light_red.mesh", rock_bounds, native_rock_light_red_,
@@ -897,6 +908,10 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     push_rect(out, f.cx, f.cz - f.hh * 0.12f, f.hw * 0.88f, f.hh * 0.58f,
               light, color, true, right_hud_depth_at(f.cx + f.hw * 0.88f),
               right_hud_depth_at(f.cx - f.hw * 0.88f));
+  }
+
+  if (native_rock_frame_ok_) {
+    out.push_back(native_rock_frame_);
   }
 
   // needle: swings from left (fill 0, danger) to right (fill 1, max). Drawn as a

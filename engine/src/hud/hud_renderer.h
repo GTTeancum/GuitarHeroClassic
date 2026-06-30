@@ -123,11 +123,13 @@ class HudRenderer {
   float rock_needle_len_ = 0;
 
   Quad native_rock_face_;
+  Quad native_rock_frame_;
   Quad native_rock_label_;
   Quad native_rock_light_red_;
   Quad native_rock_light_yellow_;
   Quad native_rock_light_green_;
   bool native_rock_face_ok_ = false;
+  bool native_rock_frame_ok_ = false;
   bool native_rock_label_ok_ = false;
   bool native_rock_light_red_ok_ = false;
   bool native_rock_light_yellow_ok_ = false;
