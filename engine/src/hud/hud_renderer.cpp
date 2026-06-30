@@ -664,7 +664,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                                        score_panel);
     if (native_mult_glow_.tex && native_mult_glow_.verts.size() >= 3 &&
         native_mult_glow_.idx.size() >= 3) {
-      native_mult_glow_.color = argb(215, 60, 210, 255);
+      native_mult_glow_.color = argb(145, 70, 210, 255);
+      native_mult_glow_.additive = true;
       native_mult_glow_ok_ = true;
     }
     mult_digit_slot_[0] =
