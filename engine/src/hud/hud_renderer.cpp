@@ -1004,14 +1004,20 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
     if (clamped > 4 && native_mult_glow_ok_) out.push_back(native_mult_glow_);
     const Slot& x_slot = mult_digit_slot_[0];
     const Slot& digit_slot = mult_digit_slot_[1];
-    push_rect(out, x_slot.cx, x_slot.cz, x_slot.hw, x_slot.hh, x,
-              0xFFFFFFFF, false,
-              left_hud_depth_at(x_slot.cx + x_slot.hw),
-              left_hud_depth_at(x_slot.cx - x_slot.hw));
-    push_rect(out, digit_slot.cx, digit_slot.cz, digit_slot.hw, digit_slot.hh,
-              digit, 0xFFFFFFFF, false,
-              left_hud_depth_at(digit_slot.cx + digit_slot.hw),
-              left_hud_depth_at(digit_slot.cx - digit_slot.hw));
+    const float scale = clamped > 4 ? 0.74f : 0.86f;
+    const uint32_t digit_color =
+        clamped > 4 ? argb(255, 205, 245, 255) : 0xFFFFFFFF;
+    const float x_hw = x_slot.hw * scale;
+    const float x_hh = x_slot.hh * scale;
+    const float digit_hw = digit_slot.hw * scale;
+    const float digit_hh = digit_slot.hh * scale;
+    push_rect(out, x_slot.cx, x_slot.cz, x_hw, x_hh, x, digit_color,
+              false, left_hud_depth_at(x_slot.cx + x_hw),
+              left_hud_depth_at(x_slot.cx - x_hw));
+    push_rect(out, digit_slot.cx, digit_slot.cz, digit_hw, digit_hh,
+              digit, digit_color, false,
+              left_hud_depth_at(digit_slot.cx + digit_hw),
+              left_hud_depth_at(digit_slot.cx - digit_hw));
     return;
   }
   const Slot& sl = mult_slot_;
