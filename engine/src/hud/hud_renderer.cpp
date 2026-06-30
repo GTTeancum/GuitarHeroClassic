@@ -505,13 +505,14 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   for (Slot& slot : mult_digit_slot_) slot = {};
 
   // GH2's star tube sits above the right-side rock/crowd meter.
-  sp_bar_ = screen_slot(0.865f, 0.695f, 0.168f, 0.098f);
-  rock_face_ = screen_slot(0.872f, 0.858f, 0.210f, 0.198f);
-  rock_needle_pivot_ = screen_slot(0.872f, 0.942f, 0.010f, 0.010f);
+  sp_bar_ = screen_slot(0.807f, 0.690f, 0.178f, 0.108f);
+  rock_face_ = screen_slot(0.817f, 0.814f, 0.226f, 0.216f);
+  rock_needle_pivot_ = screen_slot(0.817f, 0.906f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.90f;
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
   native_rock_label_glow_ok_ = false;
+  native_rock_label_front_glow_ok_ = false;
   native_rock_needle_ok_ = native_rock_needle_led_ok_ = false;
   native_streak_pip_ok_ = false;
   native_mult_glow_ok_ = false;
@@ -707,6 +708,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                       native_rock_label_ok_, 0, false, true, true);
     assign_meter_mesh("hud_rock_light.mesh", rock_bounds, native_rock_label_glow_,
                       native_rock_label_glow_ok_, 0, true, true, true);
+    assign_meter_mesh("hud_rock_light_front.mesh", rock_bounds,
+                      native_rock_label_front_glow_,
+                      native_rock_label_front_glow_ok_, 0, true, true, true);
     assign_meter_mesh("rock_needle.mesh", rock_bounds, native_rock_needle_,
                       native_rock_needle_ok_, 0, false, false, true);
     assign_meter_mesh("vu_needle_led.mesh", rock_bounds, native_rock_needle_led_,
@@ -728,6 +732,11 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   }
   if (native_rock_label_glow_ok_) {
     for (Quad::V& v : native_rock_label_glow_.verts) {
+      v.wy = right_hud_depth_at(v.wx);
+    }
+  }
+  if (native_rock_label_front_glow_ok_) {
+    for (Quad::V& v : native_rock_label_front_glow_.verts) {
       v.wy = right_hud_depth_at(v.wx);
     }
   }
@@ -1253,6 +1262,9 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     out.push_back(native_rock_label_);
     if (native_rock_label_glow_ok_) {
       out.push_back(native_rock_label_glow_);
+    }
+    if (native_rock_label_front_glow_ok_) {
+      out.push_back(native_rock_label_front_glow_);
     }
   } else if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
     Quad q;
