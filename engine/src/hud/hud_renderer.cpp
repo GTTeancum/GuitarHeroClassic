@@ -320,6 +320,12 @@ bool uses_edge_black_matte(const std::string& name) {
       name[6] >= '0' && name[6] <= '9' &&
       name.compare(7, 4, ".tex") == 0;
   if (score_digit || name == "score_x.tex") return true;
+  const bool score_streak_glow =
+      name == "score_streak_glow.tex" ||
+      (name.rfind("score_streak_glow_", 0) == 0 &&
+       name.size() > 18 &&
+       name.compare(name.size() - 4, 4, ".tex") == 0);
+  if (score_streak_glow) return true;
   return name == "score_frame.tex" ||
          name == "score_frame_outline.tex" ||
          name == "score_mult_frame.tex" ||
@@ -765,7 +771,8 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
       IDirect3DTexture9* glow =
           tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
       if (!glow) glow = tex("score_streak_glow.tex");
-      push_rect(out, cx, cz, sl.hw * 1.75f, sl.hh * 1.75f, glow,
+      const float glow_cz = cz - sl.hh * 0.38f;
+      push_rect(out, cx, glow_cz, sl.hw * 1.75f, sl.hh * 1.75f, glow,
                 argb(230, 255, 255, 255), false,
                 left_hud_depth_at(cx + sl.hw * 1.75f),
                 left_hud_depth_at(cx - sl.hw * 1.75f));
@@ -928,10 +935,10 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     constexpr float kRockLabelV0 = 0.196f;
     constexpr float kRockLabelV1 = 0.823f;
     q.verts = {
-        { cx - hw, right_hud_depth_at(cx - hw), cz - hh, kRockLabelU0, kRockLabelV1 },
-        { cx + hw, right_hud_depth_at(cx + hw), cz - hh, kRockLabelU1, kRockLabelV1 },
-        { cx - hw, right_hud_depth_at(cx - hw), cz + hh, kRockLabelU0, kRockLabelV0 },
-        { cx + hw, right_hud_depth_at(cx + hw), cz + hh, kRockLabelU1, kRockLabelV0 },
+        { cx - hw, right_hud_depth_at(cx - hw), cz - hh, kRockLabelU0, kRockLabelV0 },
+        { cx + hw, right_hud_depth_at(cx + hw), cz - hh, kRockLabelU1, kRockLabelV0 },
+        { cx - hw, right_hud_depth_at(cx - hw), cz + hh, kRockLabelU0, kRockLabelV1 },
+        { cx + hw, right_hud_depth_at(cx + hw), cz + hh, kRockLabelU1, kRockLabelV1 },
     };
     q.idx = {0, 1, 2, 1, 3, 2};
     q.tex = label;
