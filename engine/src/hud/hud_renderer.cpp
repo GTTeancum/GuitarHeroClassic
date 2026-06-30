@@ -482,8 +482,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   // GH2 frames the highway with the in-song HUD in the lower gameplay band:
   // score/multiplier to the left of the fretboard, star/rock to the right.
-  Slot score_panel = screen_slot(0.102f, 0.842f, 0.180f, 0.240f);
-  Slot score_frame = screen_slot(0.112f, 0.792f, 0.094f, 0.067f);
+  Slot score_panel = screen_slot(0.102f, 0.806f, 0.180f, 0.240f);
+  Slot score_frame = screen_slot(0.112f, 0.756f, 0.094f, 0.067f);
   push_rect(static_quads_, score_panel.cx, score_panel.cz, score_panel.hw,
             score_panel.hh, tex("score_frame.tex"), 0xFFFFFFFF, false,
             left_hud_depth_at(score_panel.cx + score_panel.hw),
@@ -495,13 +495,13 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   score_slot_count_ = 6;
   for (int i = 0; i < score_slot_count_; ++i) {
     score_slot_[i] = screen_slot(0.152f - static_cast<float>(i) * 0.0160f,
-                                 0.799f, 0.0106f, 0.044f);
+                                 0.763f, 0.0106f, 0.044f);
   }
 
   // Combo/streak and multiplier live under the score shell.
-  streak_slot_ = screen_slot(0.112f, 0.852f, 0.0048f, 0.0105f);
+  streak_slot_ = screen_slot(0.112f, 0.816f, 0.0048f, 0.0105f);
   streak_step_ = streak_slot_.hw * 4.15f;
-  mult_slot_ = screen_slot(0.125f, 0.902f, 0.090f, 0.110f);
+  mult_slot_ = screen_slot(0.125f, 0.866f, 0.090f, 0.110f);
 
   // GH2's star tube sits above the right-side rock/crowd meter.
   sp_bar_ = screen_slot(0.868f, 0.715f, 0.176f, 0.112f);
@@ -968,10 +968,10 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     constexpr float kRockLabelV0 = 0.196f;
     constexpr float kRockLabelV1 = 0.823f;
     q.verts = {
-        { cx - hw, right_hud_depth_at(cx - hw), cz - hh, kRockLabelU0, kRockLabelV0 },
-        { cx + hw, right_hud_depth_at(cx + hw), cz - hh, kRockLabelU1, kRockLabelV0 },
-        { cx - hw, right_hud_depth_at(cx - hw), cz + hh, kRockLabelU0, kRockLabelV1 },
-        { cx + hw, right_hud_depth_at(cx + hw), cz + hh, kRockLabelU1, kRockLabelV1 },
+        { cx - hw, right_hud_depth_at(cx - hw), cz - hh, kRockLabelU0, kRockLabelV1 },
+        { cx + hw, right_hud_depth_at(cx + hw), cz - hh, kRockLabelU1, kRockLabelV1 },
+        { cx - hw, right_hud_depth_at(cx - hw), cz + hh, kRockLabelU0, kRockLabelV0 },
+        { cx + hw, right_hud_depth_at(cx + hw), cz + hh, kRockLabelU1, kRockLabelV0 },
     };
     q.idx = {0, 1, 2, 1, 3, 2};
     q.tex = label;
