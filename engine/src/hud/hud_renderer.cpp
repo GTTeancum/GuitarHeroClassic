@@ -57,10 +57,12 @@ constexpr float kHudVanishX = 0.5f;
 constexpr float kHudVanishY = 0.67f;
 constexpr float kNearHudDepth = -8.0f;
 constexpr float kFarHudDepth = 32.0f;
+constexpr float kRightHudNearDepth = -18.0f;
+constexpr float kRightHudFarDepth = 62.0f;
 constexpr float kLeftHudLeftDepth = kNearHudDepth;
 constexpr float kLeftHudRightDepth = kFarHudDepth;
-constexpr float kRightHudLeftDepth = kFarHudDepth;
-constexpr float kRightHudRightDepth = kNearHudDepth;
+constexpr float kRightHudLeftDepth = kRightHudFarDepth;
+constexpr float kRightHudRightDepth = kRightHudNearDepth;
 constexpr float kLeftHudPanelNx = 0.102f;
 constexpr float kLeftHudPanelNw = 0.180f;
 constexpr float kLeftHudWorldMin =
@@ -90,6 +92,28 @@ float right_hud_depth_at(float wx) {
 
 uint32_t argb(int a, int r, int g, int b) {
   return (uint32_t(a) << 24) | (uint32_t(r) << 16) | (uint32_t(g) << 8) | uint32_t(b);
+}
+
+std::string first_material_ref(const std::vector<uint8_t>& body) {
+  for (size_t o = 0; o + 4 <= body.size(); ++o) {
+    uint32_t len = 0;
+    std::memcpy(&len, body.data() + o, 4);
+    if (len < 5 || len > 80 || o + 4 + len > body.size()) continue;
+    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
+    bool printable = true;
+    for (uint32_t k = 0; k < len; ++k) {
+      if (s[k] < 0x20 || s[k] >= 0x7f) {
+        printable = false;
+        break;
+      }
+    }
+    if (!printable) continue;
+    std::string cand(s, len);
+    if (cand.size() >= 4 && cand.compare(cand.size() - 4, 4, ".mat") == 0) {
+      return cand;
+    }
+  }
+  return {};
 }
 
 // Decode a Group/RndDir entry's embedded Trans matrix + parent name.
@@ -188,6 +212,7 @@ struct MiloLayout {
   std::unordered_map<std::string, std::string> mat_tex; // material -> diffuse tex
   std::unordered_map<std::string, uint32_t> mat_color;   // material -> ARGB tint
   std::unordered_map<std::string, MatUvXfm> mat_uv;      // material -> diffuse UV xform
+  std::unordered_map<std::string, std::string> mat_ref;  // material -> referenced material
   bool ok = false;
 };
 
@@ -240,6 +265,10 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         std::vector<uint8_t> body(b, b + n);
         auto mat = ghogx::milo_scene::decode_mat(de.name, body);
         if (!mat.diffuse_tex.empty()) out.mat_tex[de.name] = mat.diffuse_tex;
+        if (mat.diffuse_tex.empty()) {
+          std::string ref = first_material_ref(body);
+          if (!ref.empty()) out.mat_ref[de.name] = std::move(ref);
+        }
         out.mat_uv[de.name] =
             MatUvXfm{{mat.tex_scale[0], mat.tex_scale[1]},
                      {mat.tex_offset[0], mat.tex_offset[1]}};
@@ -249,6 +278,33 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         out.mat_color[de.name] =
             argb(c(mat.color[3]), c(mat.color[0]), c(mat.color[1]), c(mat.color[2]));
       }
+    }
+    for (int pass = 0; pass < 4; ++pass) {
+      bool changed = false;
+      for (const auto& kv : out.mat_ref) {
+        const std::string& name = kv.first;
+        const std::string& ref = kv.second;
+        if (out.mat_tex.find(name) == out.mat_tex.end()) {
+          auto tex = out.mat_tex.find(ref);
+          if (tex != out.mat_tex.end()) {
+            out.mat_tex[name] = tex->second;
+            changed = true;
+          }
+        }
+        auto ref_uv = out.mat_uv.find(ref);
+        if (ref_uv != out.mat_uv.end()) {
+          auto uv = out.mat_uv.find(name);
+          if (uv == out.mat_uv.end() ||
+              uv->second.scale[0] != ref_uv->second.scale[0] ||
+              uv->second.scale[1] != ref_uv->second.scale[1] ||
+              uv->second.offset[0] != ref_uv->second.offset[0] ||
+              uv->second.offset[1] != ref_uv->second.offset[1]) {
+            out.mat_uv[name] = ref_uv->second;
+            changed = true;
+          }
+        }
+      }
+      if (!changed) break;
     }
     out.ok = true;
   } catch (const std::exception& ex) {
@@ -518,8 +574,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   mult_slot_ = screen_slot(0.111f, 0.906f, 0.090f, 0.110f);
   for (Slot& slot : mult_digit_slot_) slot = {};
 
-  // GH2's star tube sits above the right-side rock/crowd meter.
-  sp_bar_ = screen_slot(0.807f, 0.690f, 0.178f, 0.108f);
+  // GH2's star tube sits above the right-side rock/crowd meter. These anchors
+  // are matched against the PS2 in-song HUD reference, then filled with the
+  // original star_meter/crowd_meter MILO meshes rather than replacement art.
+  sp_bar_ = screen_slot(0.790f, 0.648f, 0.224f, 0.125f);
   rock_face_ = screen_slot(0.817f, 0.814f, 0.226f, 0.216f);
   rock_needle_pivot_ = screen_slot(0.817f, 0.906f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.90f;
@@ -793,9 +851,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                      argb(115, 145, 215, 250), true);
     append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
                      argb(70, 150, 215, 245), true);
-    append_star_mesh("amp_glass.mesh", native_star_front_,
-                     argb(225, 255, 255, 255), false, false, true,
-                     "cleartube.tex");
+    append_star_mesh("amp_glass.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_chrome_base.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_chrome_top.mesh", native_star_front_, 0, false);
   }
