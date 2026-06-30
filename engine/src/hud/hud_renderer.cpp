@@ -909,9 +909,11 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
     IDirect3DTexture9* t = tex(std::string("score_") + d + ".tex");
     if (!t) continue;
     const Slot& sl = score_slot_[i];
-    push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, t, 0xFFFFFFFF, false,
-              left_hud_depth_at(sl.cx + sl.hw),
-              left_hud_depth_at(sl.cx - sl.hw));
+    const float digit_hw = sl.hw * 0.88f;
+    const float digit_hh = sl.hh * 0.86f;
+    push_rect(out, sl.cx, sl.cz, digit_hw, digit_hh, t, 0xFFFFFFFF, false,
+              left_hud_depth_at(sl.cx + digit_hw),
+              left_hud_depth_at(sl.cx - digit_hw));
   }
 }
 
