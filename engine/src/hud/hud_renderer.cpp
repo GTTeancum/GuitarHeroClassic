@@ -1014,6 +1014,7 @@ void HudRenderer::push_rect(std::vector<Quad>& out, float cx, float cz, float hw
 void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
   if (score_slot_count_ <= 0) return;
   const int n = score_slot_count_;
+  IDirect3DTexture9* blank = tex("score_none.tex");
   // After X-flip: slot[0] (authored leftmost, score_num_1) is the RIGHTMOST on
   // screen -- it holds the ONES digit. Slot[n-1] is leftmost on screen = most
   // significant digit. Assign s[n-1-i] to slot[i] so screen reads left->right.
@@ -1024,10 +1025,14 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
   for (int i = 0; i < n; ++i) {
     if (!score_slot_[i].ok) continue;
     const int src = static_cast<int>(s.size()) - 1 - i;
-    if (src < 0) continue;
-    char d = s[src];  // slot[0] = ones; higher slots blank when score is short
-    if (d < '0' || d > '9') continue;
-    IDirect3DTexture9* t = tex(std::string("score_") + d + ".tex");
+    IDirect3DTexture9* t = nullptr;
+    if (src < 0) {
+      t = blank;
+    } else {
+      char d = s[src];  // slot[0] = ones; higher slots blank when score is short
+      if (d < '0' || d > '9') continue;
+      t = tex(std::string("score_") + d + ".tex");
+    }
     if (!t) continue;
     const Slot& sl = score_slot_[i];
     const float digit_hw = sl.hw * 0.88f;
@@ -1119,7 +1124,18 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
 void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const {
   if (!mult_slot_.ok) return;
   if (mult_digit_slot_[0].ok && mult_digit_slot_[1].ok) {
-    if (multiplier < 2) return;
+    if (multiplier < 2) {
+      IDirect3DTexture9* blank = tex("score_none.tex");
+      if (!blank) return;
+      for (const Slot& slot : mult_digit_slot_) {
+        const float hw = slot.hw * 0.80f;
+        const float hh = slot.hh * 0.80f;
+        push_rect(out, slot.cx, slot.cz, hw, hh, blank, 0xFFFFFFFF, false,
+                  left_hud_depth_at(slot.cx + hw),
+                  left_hud_depth_at(slot.cx - hw));
+      }
+      return;
+    }
     const int clamped = std::clamp(multiplier, 2, 9);
     IDirect3DTexture9* x = tex("score_x.tex");
     IDirect3DTexture9* digit =
