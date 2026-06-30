@@ -958,7 +958,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     const float a = (0.5f - fill) * 1.6f;  // projection flips X; low must land left
     const float ca = std::cos(a), sa = std::sin(a);
     const float px = rock_needle_pivot_.cx, pz = rock_needle_pivot_.cz;
-    const float L = rock_needle_len_ * 1.06f, hw = 4.6f;
+    const float L = rock_needle_len_ * 1.12f;
+    const float hw = f.hw * 0.070f;
     // local needle quad: from pivot (z=0) up to z=-L, width 2*hw
     auto rot = [&](float lx, float lz, float& ox, float& oz) {
       ox = px + lx * ca - lz * sa;
@@ -979,19 +980,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     q.idx = {0, 1, 2,  1, 3, 2};
     IDirect3DTexture9* nt = tex("rock_needle.tex");
     q.tex = nt;
-    q.color = nt ? argb(255, 255, 238, 150) : argb(255, 210, 185, 55);
+    q.color = nt ? argb(255, 28, 28, 22) : argb(255, 28, 28, 22);
     out.push_back(std::move(q));
-
-    if (IDirect3DTexture9* led = tex("glodot01.tex")) {
-      const float tip_x = (x0 + x1) * 0.5f;
-      const float tip_z = (z0 + z1) * 0.5f;
-      const float dot_hw = f.hw * 0.060f;
-      const float dot_hh = f.hh * 0.045f;
-      push_rect(out, tip_x, tip_z, dot_hw, dot_hh, led,
-                argb(255, 255, 72, 62), false,
-                right_hud_depth_at(tip_x + dot_hw),
-                right_hud_depth_at(tip_x - dot_hw));
-    }
   }
 }
 
