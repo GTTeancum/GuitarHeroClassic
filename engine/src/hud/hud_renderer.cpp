@@ -511,6 +511,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   rock_needle_len_ = rock_face_.hh * 0.90f;
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
+  native_rock_label_glow_ok_ = false;
   native_rock_needle_ok_ = native_rock_needle_led_ok_ = false;
   native_streak_pip_ok_ = false;
   native_mult_glow_ok_ = false;
@@ -704,6 +705,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     // texture V orientation.
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
                       native_rock_label_ok_, 0, false, true, true);
+    assign_meter_mesh("hud_rock_light.mesh", rock_bounds, native_rock_label_glow_,
+                      native_rock_label_glow_ok_, 0, true, true, true);
     assign_meter_mesh("rock_needle.mesh", rock_bounds, native_rock_needle_,
                       native_rock_needle_ok_, 0, false, false, true);
     assign_meter_mesh("vu_needle_led.mesh", rock_bounds, native_rock_needle_led_,
@@ -720,6 +723,11 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   }
   if (native_rock_label_ok_) {
     for (Quad::V& v : native_rock_label_.verts) {
+      v.wy = right_hud_depth_at(v.wx);
+    }
+  }
+  if (native_rock_label_glow_ok_) {
+    for (Quad::V& v : native_rock_label_glow_.verts) {
       v.wy = right_hud_depth_at(v.wx);
     }
   }
@@ -1243,6 +1251,9 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
 
   if (native_rock_label_ok_) {
     out.push_back(native_rock_label_);
+    if (native_rock_label_glow_ok_) {
+      out.push_back(native_rock_label_glow_);
+    }
   } else if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
     Quad q;
     const float hw = f.hw * 0.70f;

@@ -126,6 +126,7 @@ class HudRenderer {
   Quad native_rock_face_;
   Quad native_rock_frame_;
   Quad native_rock_label_;
+  Quad native_rock_label_glow_;
   Quad native_rock_needle_;
   Quad native_rock_needle_led_;
   Quad native_streak_pip_;
@@ -141,6 +142,7 @@ class HudRenderer {
   bool native_rock_face_ok_ = false;
   bool native_rock_frame_ok_ = false;
   bool native_rock_label_ok_ = false;
+  bool native_rock_label_glow_ok_ = false;
   bool native_rock_needle_ok_ = false;
   bool native_rock_needle_led_ok_ = false;
   bool native_streak_pip_ok_ = false;
