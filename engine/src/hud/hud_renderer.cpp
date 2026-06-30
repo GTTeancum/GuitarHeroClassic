@@ -600,7 +600,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     assign_meter_mesh("rock_frame.mesh", rock_bounds, native_rock_frame_,
                       native_rock_frame_ok_, 0, false, false, true);
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
-                      native_rock_label_ok_, 0, false, true, true);
+                      native_rock_label_ok_, 0, false, false, true);
     assign_meter_mesh("rock_light_red_front.mesh", rock_bounds, native_rock_light_red_,
                       native_rock_light_red_ok_, argb(170, 255, 55, 45), true, true, true);
     assign_meter_mesh("rock_light_yellow_front.mesh", rock_bounds,
