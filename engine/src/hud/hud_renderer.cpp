@@ -588,6 +588,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   native_rock_needle_ok_ = native_rock_needle_led_ok_ = false;
   for (bool& ok : native_score_digit_ok_) ok = false;
   for (bool& ok : native_streak_pips_ok_) ok = false;
+  for (bool& ok : native_mult_digit_ok_) ok = false;
   native_streak_pip_ok_ = false;
   native_mult_frame_ok_ = false;
   native_mult_glow_ok_ = false;
@@ -780,10 +781,16 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       native_mult_glow_.additive = true;
       native_mult_glow_ok_ = true;
     }
-    mult_digit_slot_[0] =
-        quad_slot(make_left_mesh("score_mult_2.mesh", score_bounds, score_panel));
-    mult_digit_slot_[1] =
-        quad_slot(make_left_mesh("score_mult_3.mesh", score_bounds, score_panel));
+    for (int i = 0; i < 2; ++i) {
+      const std::string name =
+          "score_mult_" + std::to_string(i + 2) + ".mesh";
+      Quad q = make_left_mesh(name.c_str(), score_bounds, score_panel);
+      mult_digit_slot_[i] = quad_slot(q);
+      if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
+        native_mult_digit_[i] = std::move(q);
+        native_mult_digit_ok_[i] = true;
+      }
+    }
     for (int i = 0; i < 10; ++i) {
       const std::string name =
           "score_streak_" + std::to_string(i + 1) + ".mesh";
@@ -1193,9 +1200,21 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
 void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const {
   if (!mult_slot_.ok) return;
   if (mult_digit_slot_[0].ok && mult_digit_slot_[1].ok) {
+    const bool have_native_mult_digits =
+        native_mult_digit_ok_[0] && native_mult_digit_ok_[1];
     if (multiplier < 2) {
       IDirect3DTexture9* blank = tex("score_none.tex");
       if (!blank) return;
+      if (have_native_mult_digits) {
+        for (const Quad& src : native_mult_digit_) {
+          Quad q = src;
+          q.tex = blank;
+          q.color = 0xFFFFFFFF;
+          q.additive = false;
+          out.push_back(std::move(q));
+        }
+        return;
+      }
       for (const Slot& slot : mult_digit_slot_) {
         const float hw = slot.hw * 0.80f;
         const float hh = slot.hh * 0.80f;
@@ -1216,11 +1235,25 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
       active_frame.color = argb(225, 190, 238, 255);
       out.push_back(std::move(active_frame));
     }
+    const uint32_t digit_color =
+        clamped > 4 ? argb(255, 205, 245, 255) : 0xFFFFFFFF;
+    if (have_native_mult_digits) {
+      Quad x_quad = native_mult_digit_[0];
+      x_quad.tex = x;
+      x_quad.color = digit_color;
+      x_quad.additive = false;
+      out.push_back(std::move(x_quad));
+
+      Quad digit_quad = native_mult_digit_[1];
+      digit_quad.tex = digit;
+      digit_quad.color = digit_color;
+      digit_quad.additive = false;
+      out.push_back(std::move(digit_quad));
+      return;
+    }
     const Slot& x_slot = mult_digit_slot_[0];
     const Slot& digit_slot = mult_digit_slot_[1];
     const float scale = clamped > 4 ? 0.62f : 0.80f;
-    const uint32_t digit_color =
-        clamped > 4 ? argb(255, 205, 245, 255) : 0xFFFFFFFF;
     const float x_hw = x_slot.hw * scale;
     const float x_hh = x_slot.hh * scale;
     const float digit_hw = digit_slot.hw * scale;

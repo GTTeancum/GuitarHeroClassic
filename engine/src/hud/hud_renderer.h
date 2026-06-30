@@ -122,6 +122,8 @@ class HudRenderer {
   bool native_streak_pips_ok_[10] = {};
   Slot mult_slot_;        // multiplier indicator fallback center/extent
   Slot mult_digit_slot_[2];// native score_mult_2/3 slots: [0]=X, [1]=digit
+  Quad native_mult_digit_[2];
+  bool native_mult_digit_ok_[2] = {};
   Slot sp_bar_;           // star-power fill bar extent (vertical)
   Slot rock_face_;        // rock meter dial face center/extent
   Slot rock_needle_pivot_;// needle pivot + length
