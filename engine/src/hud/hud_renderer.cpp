@@ -69,8 +69,8 @@ constexpr float kLeftHudWorldMin =
     (0.5f - (kLeftHudPanelNx + kLeftHudPanelNw * 0.5f)) * kWorldPerScreenX;
 constexpr float kLeftHudWorldMax =
     (0.5f - (kLeftHudPanelNx - kLeftHudPanelNw * 0.5f)) * kWorldPerScreenX;
-constexpr float kRightHudPanelNx = 0.866f;
-constexpr float kRightHudPanelNw = 0.230f;
+constexpr float kRightHudPanelNx = 0.850f;
+constexpr float kRightHudPanelNw = 0.195f;
 constexpr float kRightHudWorldMin =
     (0.5f - (kRightHudPanelNx + kRightHudPanelNw * 0.5f)) * kWorldPerScreenX;
 constexpr float kRightHudWorldMax =
@@ -579,8 +579,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   // GH2's star tube sits above the right-side rock/crowd meter. These anchors
   // are matched against the PS2 in-song HUD reference, then filled with the
   // original star_meter/crowd_meter MILO meshes rather than replacement art.
-  sp_bar_ = screen_slot(0.844f, 0.716f, 0.202f, 0.125f);
-  rock_face_ = screen_slot(0.850f, 0.882f, 0.203f, 0.216f);
+  sp_bar_ = screen_slot(0.856f, 0.716f, 0.186f, 0.125f);
+  rock_face_ = screen_slot(0.850f, 0.882f, 0.187f, 0.216f);
   rock_needle_pivot_ = screen_slot(0.850f, 0.974f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.90f;
 
