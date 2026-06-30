@@ -67,11 +67,25 @@ constexpr float kLeftHudWorldMin =
     (0.5f - (kLeftHudPanelNx + kLeftHudPanelNw * 0.5f)) * kWorldPerScreenX;
 constexpr float kLeftHudWorldMax =
     (0.5f - (kLeftHudPanelNx - kLeftHudPanelNw * 0.5f)) * kWorldPerScreenX;
+constexpr float kRightHudPanelNx = 0.810f;
+constexpr float kRightHudPanelNw = 0.255f;
+constexpr float kRightHudWorldMin =
+    (0.5f - (kRightHudPanelNx + kRightHudPanelNw * 0.5f)) * kWorldPerScreenX;
+constexpr float kRightHudWorldMax =
+    (0.5f - (kRightHudPanelNx - kRightHudPanelNw * 0.5f)) * kWorldPerScreenX;
 
 float left_hud_depth_at(float wx) {
   const float t = std::clamp((wx - kLeftHudWorldMin) /
                              (kLeftHudWorldMax - kLeftHudWorldMin), 0.0f, 1.0f);
   return kLeftHudRightDepth + (kLeftHudLeftDepth - kLeftHudRightDepth) * t;
+}
+
+float right_hud_depth_at(float wx) {
+  const float t =
+      std::clamp((wx - kRightHudWorldMin) /
+                     (kRightHudWorldMax - kRightHudWorldMin),
+                 0.0f, 1.0f);
+  return kRightHudRightDepth + (kRightHudLeftDepth - kRightHudRightDepth) * t;
 }
 
 uint32_t argb(int a, int r, int g, int b) {
@@ -458,11 +472,13 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   Slot score_panel = screen_slot(0.102f, 0.842f, 0.180f, 0.240f);
   push_rect(static_quads_, score_panel.cx, score_panel.cz, score_panel.hw,
             score_panel.hh, tex("score_frame.tex"), 0xFFFFFFFF, false,
-            kLeftHudLeftDepth, kLeftHudRightDepth);
+            left_hud_depth_at(score_panel.cx + score_panel.hw),
+            left_hud_depth_at(score_panel.cx - score_panel.hw));
   Slot score_frame = screen_slot(0.110f, 0.792f, 0.105f, 0.067f);
   push_rect(static_quads_, score_frame.cx, score_frame.cz, score_frame.hw,
             score_frame.hh, tex("score_num_frame.tex"), 0xFFFFFFFF, false,
-            kLeftHudLeftDepth, kLeftHudRightDepth);
+            left_hud_depth_at(score_frame.cx + score_frame.hw),
+            left_hud_depth_at(score_frame.cx - score_frame.hw));
   score_slot_count_ = 6;
   for (int i = 0; i < score_slot_count_; ++i) {
     score_slot_[i] = screen_slot(0.160f - static_cast<float>(i) * 0.0178f,
@@ -704,19 +720,23 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
   if (IDirect3DTexture9* base = tex("amp_chrome_base.tex")) {
     push_rect(out, sl.cx - sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
               sl.hh * 0.95f, base, 0xFFFFFFFF, false,
-              kRightHudLeftDepth, kRightHudRightDepth);
+              right_hud_depth_at(sl.cx - sl.hw * 0.70f),
+              right_hud_depth_at(sl.cx - sl.hw * 1.26f));
     push_rect(out, sl.cx + sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
               sl.hh * 0.95f, base, 0xFFFFFFFF, false,
-              kRightHudLeftDepth, kRightHudRightDepth);
+              right_hud_depth_at(sl.cx + sl.hw * 1.26f),
+              right_hud_depth_at(sl.cx + sl.hw * 0.70f));
   }
   if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
     push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(230, 220, 235, 255),
-              false, kRightHudLeftDepth, kRightHudRightDepth);
+              false, right_hud_depth_at(sl.cx + sl.hw),
+              right_hud_depth_at(sl.cx - sl.hw));
 
   if (IDirect3DTexture9* empty = tex("amp_inside_bar.tex")) {
     push_rect(out, sl.cx, sl.cz, sl.hw * 0.86f, sl.hh * 0.30f, empty,
               argb(90, 185, 210, 220), false,
-              kRightHudLeftDepth, kRightHudRightDepth);
+              right_hud_depth_at(sl.cx + sl.hw * 0.86f),
+              right_hud_depth_at(sl.cx - sl.hw * 0.86f));
   }
 
   // GH2 presents the star meter as a right-side horizontal tube. Projection
@@ -727,11 +747,13 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
   if (fill_hw > 0.5f) {
     push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.52f, fillt,
               fillt ? argb(230, 120, 205, 255) : argb(220, 75, 165, 255),
-              false, kRightHudLeftDepth, kRightHudRightDepth);
+              false, right_hud_depth_at(fill_cx + fill_hw),
+              right_hud_depth_at(fill_cx - fill_hw));
     if (IDirect3DTexture9* glow = tex("amp_bar_glow.tex")) {
       push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.72f, glow,
                 argb(150, 135, 210, 255), true,
-                kRightHudLeftDepth, kRightHudRightDepth);
+                right_hud_depth_at(fill_cx + fill_hw),
+                right_hud_depth_at(fill_cx - fill_hw));
     }
   }
 
@@ -739,7 +761,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
     if (IDirect3DTexture9* ready = tex("amp_tube_glow.tex")) {
       push_rect(out, sl.cx, sl.cz, sl.hw * 1.04f, sl.hh * 0.92f, ready,
                 argb(125, 115, 205, 255), true,
-                kRightHudLeftDepth, kRightHudRightDepth);
+                right_hud_depth_at(sl.cx + sl.hw * 1.04f),
+                right_hud_depth_at(sl.cx - sl.hw * 1.04f));
     }
   }
 }
@@ -752,19 +775,21 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   IDirect3DTexture9* face = tex("rock_meter_2d.tex");
   push_rect(out, f.cx, f.cz, f.hw, f.hh, face,
             face ? 0xFFFFFFFF : argb(200, 210, 170, 65), false,
-            kRightHudLeftDepth, kRightHudRightDepth);
+            right_hud_depth_at(f.cx + f.hw), right_hud_depth_at(f.cx - f.hw));
 
   if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
     push_rect(out, f.cx, f.cz + f.hh * 0.42f, f.hw * 0.92f, f.hh * 0.38f,
               label, argb(255, 30, 255, 70), false,
-              kRightHudLeftDepth, kRightHudRightDepth);
+              right_hud_depth_at(f.cx + f.hw * 0.92f),
+              right_hud_depth_at(f.cx - f.hw * 0.92f));
   }
   if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
     const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
                          : fill < 0.55f ? argb(125, 255, 225, 65)
                          : argb(105, 80, 255, 90);
     push_rect(out, f.cx, f.cz - f.hh * 0.12f, f.hw * 0.88f, f.hh * 0.58f,
-              light, color, true, kRightHudLeftDepth, kRightHudRightDepth);
+              light, color, true, right_hud_depth_at(f.cx + f.hw * 0.88f),
+              right_hud_depth_at(f.cx - f.hw * 0.88f));
   }
 
   // needle: swings from left (fill 0, danger) to right (fill 1, max). Drawn as a
@@ -774,10 +799,6 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     const float ca = std::cos(a), sa = std::sin(a);
     const float px = rock_needle_pivot_.cx, pz = rock_needle_pivot_.cz;
     const float L = rock_needle_len_, hw = 3.5f;
-    auto depth_for = [&](float wx) {
-      const float t = std::clamp((wx - (f.cx - f.hw)) / (f.hw * 2.0f), 0.0f, 1.0f);
-      return kRightHudRightDepth + (kRightHudLeftDepth - kRightHudRightDepth) * t;
-    };
     // local needle quad: from pivot (z=0) up to z=-L, width 2*hw
     auto rot = [&](float lx, float lz, float& ox, float& oz) {
       ox = px + lx * ca - lz * sa;
@@ -790,10 +811,10 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     rot( hw, 0,  x3, z3);  // BR pivot
     Quad q;
     q.verts = {
-        {x0, depth_for(x0), z0, 0.0f, 0.0f},
-        {x1, depth_for(x1), z1, 1.0f, 0.0f},
-        {x2, depth_for(x2), z2, 0.0f, 1.0f},
-        {x3, depth_for(x3), z3, 1.0f, 1.0f},
+        {x0, right_hud_depth_at(x0), z0, 0.0f, 0.0f},
+        {x1, right_hud_depth_at(x1), z1, 1.0f, 0.0f},
+        {x2, right_hud_depth_at(x2), z2, 0.0f, 1.0f},
+        {x3, right_hud_depth_at(x3), z3, 1.0f, 1.0f},
     };
     q.idx = {0, 1, 2,  1, 3, 2};
     IDirect3DTexture9* nt = tex("rock_needle.tex");
