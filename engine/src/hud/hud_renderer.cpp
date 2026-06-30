@@ -1224,8 +1224,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
     }
   }
 
-  // GH2 presents the star meter as a right-side horizontal tube. Projection
-  // flips X, so screen-left is higher world X.
+  // GH2's tube fills from the right cap toward the left. Projection flips X,
+  // so screen-right is the lower world-X side of the decoded meter mesh.
   auto append_clipped_fill = [&](const std::vector<Quad>& source) {
     bool drew = false;
     for (const Quad& src : source) {
@@ -1237,8 +1237,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
         max_x = std::max(max_x, v.wx);
       }
       if (!(max_x > min_x)) continue;
-      const float clip_x = max_x - (max_x - min_x) * fill;
-      auto inside = [&](const Quad::V& v) { return v.wx >= clip_x; };
+      const float clip_x = min_x + (max_x - min_x) * fill;
+      auto inside = [&](const Quad::V& v) { return v.wx <= clip_x; };
       auto intersect = [&](const Quad::V& a, const Quad::V& b) {
         const float denom = b.wx - a.wx;
         const float t = std::abs(denom) < 0.00001f ? 0.0f : (clip_x - a.wx) / denom;
@@ -1306,7 +1306,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
 
   if (!drew_native_fill) {
     float fill_hw = sl.hw * fill;
-    float fill_cx = sl.cx + sl.hw - fill_hw;
+    float fill_cx = sl.cx - sl.hw + fill_hw;
     IDirect3DTexture9* fillt = tex("amp_inside_bar.tex");
     if (fill_hw > 0.5f) {
       push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.52f, fillt,
