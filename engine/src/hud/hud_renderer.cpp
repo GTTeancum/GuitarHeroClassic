@@ -586,6 +586,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   native_rock_label_glow_ok_ = false;
   native_rock_label_front_glow_ok_ = false;
   native_rock_needle_ok_ = native_rock_needle_led_ok_ = false;
+  for (bool& ok : native_score_digit_ok_) ok = false;
+  for (bool& ok : native_streak_pips_ok_) ok = false;
   native_streak_pip_ok_ = false;
   native_mult_frame_ok_ = false;
   native_mult_glow_ok_ = false;
@@ -747,10 +749,16 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     int native_score_slots = 0;
     for (int i = 0; i < score_slot_count_; ++i) {
       const std::string name = "score_num_" + std::to_string(i + 1) + ".mesh";
-      Slot slot = quad_slot(make_left_mesh(name.c_str(), score_bounds, score_panel));
+      Quad digit_quad = make_left_mesh(name.c_str(), score_bounds, score_panel);
+      Slot slot = quad_slot(digit_quad);
       if (slot.ok) {
         score_slot_[i] = slot;
         ++native_score_slots;
+      }
+      if (digit_quad.tex && digit_quad.verts.size() >= 3 &&
+          digit_quad.idx.size() >= 3) {
+        native_score_digit_[i] = std::move(digit_quad);
+        native_score_digit_ok_[i] = true;
       }
     }
     if (native_score_slots == score_slot_count_) {
@@ -776,13 +784,27 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         quad_slot(make_left_mesh("score_mult_2.mesh", score_bounds, score_panel));
     mult_digit_slot_[1] =
         quad_slot(make_left_mesh("score_mult_3.mesh", score_bounds, score_panel));
-    native_streak_pip_ = make_left_mesh("score_streak_1.mesh", score_bounds,
-                                        score_panel);
-    if (native_streak_pip_.tex && native_streak_pip_.verts.size() >= 3 &&
-        native_streak_pip_.idx.size() >= 3) {
+    for (int i = 0; i < 10; ++i) {
+      const std::string name =
+          "score_streak_" + std::to_string(i + 1) + ".mesh";
+      Quad pip = make_left_mesh(name.c_str(), score_bounds, score_panel);
+      if (pip.tex && pip.verts.size() >= 3 && pip.idx.size() >= 3) {
+        for (Quad::V& v : pip.verts) {
+          v.wx += score_panel.hw * 0.70f;
+          v.wz -= score_panel.hh * 0.23f;
+          v.wy = left_hud_depth_at(v.wx);
+        }
+        native_streak_pips_[i] = std::move(pip);
+        native_streak_pips_ok_[i] = true;
+      }
+    }
+    native_streak_pip_ = native_streak_pips_[0];
+    if (native_streak_pips_ok_[0]) {
       native_streak_pip_ok_ = true;
-      const Slot pip_slot = quad_slot(native_streak_pip_);
+      const Slot pip_slot = quad_slot(native_streak_pips_[0]);
       if (pip_slot.ok) {
+        streak_slot_.cx = pip_slot.cx;
+        streak_slot_.cz = pip_slot.cz;
         streak_slot_.hw = pip_slot.hw;
         streak_slot_.hh = pip_slot.hh;
         streak_step_ = pip_slot.hw * 1.82f;
@@ -844,12 +866,12 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     }
     const float cx = (min_x + max_x) * 0.5f;
     const float cz = (min_z + max_z) * 0.5f;
-    constexpr float kLabelScaleX = 0.86f;
-    constexpr float kLabelScaleZ = 0.86f;
-    const float raise = rock_face_.hh * 0.19f;
+    constexpr float kLabelScaleX = 0.84f;
+    constexpr float kLabelScaleZ = 0.80f;
+    const float lower = rock_face_.hh * 0.08f;
     for (Quad::V& v : q.verts) {
       v.wx = cx + (v.wx - cx) * kLabelScaleX;
-      v.wz = cz + (v.wz - cz) * kLabelScaleZ - raise;
+      v.wz = cz + (v.wz - cz) * kLabelScaleZ + lower;
       v.wy = right_hud_depth_at(v.wx);
     }
   };
@@ -871,11 +893,15 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     auto append_star_mesh = [&](const char* name, std::vector<Quad>& target,
                                 uint32_t color, bool additive,
                                 bool flip_v = false, bool flip_z = true,
-                                const char* tex_override = nullptr) {
+                                const char* tex_override = nullptr,
+                                bool flip_u = false) {
       if (const LoadedMesh* mesh = find_mesh(star, name)) {
         Quad q = make_slot_mesh(star, *mesh, star_bounds, sp_bar_, color,
                                 additive, flip_v, flip_z, true, 1.15f);
         if (tex_override) q.tex = tex(tex_override);
+        if (flip_u) {
+          for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
+        }
         if ((q.tex || color != 0) && q.verts.size() >= 3 && q.idx.size() >= 3)
           target.push_back(std::move(q));
       }
@@ -892,7 +918,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                      argb(115, 145, 215, 250), true);
     append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
                      argb(70, 150, 215, 245), true);
-    append_star_mesh("amp_inside_disk.mesh", native_star_front_, 0, false);
+    append_star_mesh("amp_inside_disk.mesh", native_star_front_, 0, false,
+                     false, true, nullptr, true);
     append_star_mesh("amp_glass.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_chrome_base.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_chrome_top.mesh", native_star_front_, 0, false);
@@ -1035,6 +1062,14 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
       t = tex(std::string("score_") + d + ".tex");
     }
     if (!t) continue;
+    if (i < 10 && native_score_digit_ok_[i]) {
+      Quad q = native_score_digit_[i];
+      q.tex = t;
+      q.color = 0xFFFFFFFF;
+      q.additive = false;
+      out.push_back(std::move(q));
+      continue;
+    }
     const Slot& sl = score_slot_[i];
     const float digit_hw = sl.hw * 0.88f;
     const float digit_hh = sl.hh * 0.86f;
@@ -1051,6 +1086,39 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
   constexpr int kPipCount = 10;
   const int safe_streak = std::max(0, streak);
   const int lit = safe_streak >= 30 ? kPipCount : safe_streak % kPipCount;
+  bool have_native_pip_arc = true;
+  for (int i = 0; i < kPipCount; ++i) {
+    if (!native_streak_pips_ok_[i]) {
+      have_native_pip_arc = false;
+      break;
+    }
+  }
+  if (have_native_pip_arc) {
+    for (int i = 0; i < kPipCount; ++i) {
+      if (i >= lit) continue;
+      const int stage = 3;
+      const int mesh_index = (kPipCount - 1) - i;
+      IDirect3DTexture9* glow =
+          tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
+      if (!glow) glow = tex("score_streak_glow.tex");
+      IDirect3DTexture9* streak_tex =
+          tex(std::string("score_streak_") + char('0' + stage) + ".tex");
+      if (!streak_tex) streak_tex = tex("score_streak.tex");
+      Quad q = native_streak_pips_[mesh_index];
+      if (streak_tex) q.tex = streak_tex;
+      q.color = argb(195, 220, 185, 245);
+      q.additive = false;
+      out.push_back(std::move(q));
+      if (glow) {
+        Quad g = native_streak_pips_[mesh_index];
+        g.tex = glow;
+        g.color = argb(18, 255, 255, 255);
+        g.additive = true;
+        out.push_back(std::move(g));
+      }
+    }
+    return;
+  }
   const Slot& sl = streak_slot_;
   const float center = (static_cast<float>(kPipCount) - 1.0f) * 0.5f;
   for (int i = 0; i < kPipCount; ++i) {

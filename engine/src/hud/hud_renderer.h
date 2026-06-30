@@ -113,9 +113,13 @@ class HudRenderer {
   // Decoded slot geometry, in authored coordinates, captured at load from the
   // real Mesh transforms so digits/fills land exactly where GH2 places them.
   Slot score_slot_[10];   // score_num_1..N centers (left→right reading order)
+  Quad native_score_digit_[10];
+  bool native_score_digit_ok_[10] = {};
   int  score_slot_count_ = 0;
   Slot streak_slot_;      // anchor + step for the streak digits
   float streak_step_ = 0;
+  Quad native_streak_pips_[10];
+  bool native_streak_pips_ok_[10] = {};
   Slot mult_slot_;        // multiplier indicator fallback center/extent
   Slot mult_digit_slot_[2];// native score_mult_2/3 slots: [0]=X, [1]=digit
   Slot sp_bar_;           // star-power fill bar extent (vertical)
