@@ -298,30 +298,31 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   static_quads_.clear();
 
-  // Score shell and six right-aligned score digits.
-  Slot score_panel = screen_slot(0.830f, 0.185f, 0.170f, 0.125f);
+  // GH2 frames the highway with the in-song HUD in the lower gameplay band:
+  // score/multiplier to the left of the fretboard, rock meter to the right.
+  Slot score_panel = screen_slot(0.155f, 0.760f, 0.170f, 0.125f);
   push_rect(static_quads_, score_panel.cx, score_panel.cz, score_panel.hw,
             score_panel.hh, tex("score_frame.tex"), argb(220, 255, 255, 255));
   score_slot_count_ = 6;
   for (int i = 0; i < score_slot_count_; ++i) {
-    score_slot_[i] = screen_slot(0.862f - static_cast<float>(i) * 0.025f,
-                                 0.184f, 0.022f, 0.060f);
+    score_slot_[i] = screen_slot(0.197f - static_cast<float>(i) * 0.025f,
+                                 0.759f, 0.022f, 0.060f);
   }
 
   // Combo/streak and multiplier live under the score shell.
-  streak_slot_ = screen_slot(0.853f, 0.262f, 0.017f, 0.045f);
+  streak_slot_ = screen_slot(0.188f, 0.837f, 0.017f, 0.045f);
   streak_step_ = -streak_slot_.hw * 2.15f;
-  mult_slot_ = screen_slot(0.918f, 0.262f, 0.055f, 0.060f);
+  mult_slot_ = screen_slot(0.103f, 0.837f, 0.055f, 0.060f);
   push_rect(static_quads_, mult_slot_.cx, mult_slot_.cz, mult_slot_.hw * 1.12f,
             mult_slot_.hh * 1.08f, tex("multi_hud_frame.tex"),
             argb(210, 255, 255, 255));
 
-  // Rock/crowd and star-power meters sit on the upper-left, clear of the
-  // fretboard and stage perspective.
-  rock_face_ = screen_slot(0.125f, 0.245f, 0.086f, 0.153f);
-  rock_needle_pivot_ = screen_slot(0.125f, 0.300f, 0.010f, 0.010f);
+  // Star power sits with the lower-left gameplay cluster; rock/crowd is the
+  // matching lower-right meter.
+  rock_face_ = screen_slot(0.875f, 0.760f, 0.086f, 0.153f);
+  rock_needle_pivot_ = screen_slot(0.875f, 0.815f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.62f;
-  sp_bar_ = screen_slot(0.055f, 0.250f, 0.024f, 0.160f);
+  sp_bar_ = screen_slot(0.055f, 0.770f, 0.024f, 0.160f);
 
   build_static();
   loaded_ = true;
