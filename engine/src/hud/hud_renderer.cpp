@@ -504,9 +504,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   mult_slot_ = screen_slot(0.125f, 0.902f, 0.090f, 0.110f);
 
   // GH2's star tube sits above the right-side rock/crowd meter.
-  sp_bar_ = screen_slot(0.820f, 0.686f, 0.150f, 0.062f);
-  rock_face_ = screen_slot(0.825f, 0.835f, 0.164f, 0.238f);
-  rock_needle_pivot_ = screen_slot(0.825f, 0.914f, 0.010f, 0.010f);
+  sp_bar_ = screen_slot(0.862f, 0.666f, 0.158f, 0.062f);
+  rock_face_ = screen_slot(0.862f, 0.820f, 0.180f, 0.255f);
+  rock_needle_pivot_ = screen_slot(0.862f, 0.905f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.90f;
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
