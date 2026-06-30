@@ -930,7 +930,8 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
     const float arc_t = (static_cast<float>(i) - center) / center;
     float cx = sl.cx - (static_cast<float>(i) - center) * streak_step_;
     float cz = sl.cz - sl.hh * 2.28f +
-               std::pow(std::abs(arc_t), 1.45f) * sl.hh * 1.52f;
+               std::pow(std::abs(arc_t), 1.45f) * sl.hh * 1.52f +
+               sl.hh * 0.20f;
     IDirect3DTexture9* glow =
         tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
     if (!glow) glow = tex("score_streak_glow.tex");
