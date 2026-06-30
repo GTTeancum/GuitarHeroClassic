@@ -510,6 +510,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   rock_needle_len_ = rock_face_.hh * 0.90f;
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
+  native_rock_needle_ok_ = native_rock_needle_led_ok_ = false;
   native_rock_frame_ok_ = false;
   native_rock_light_red_ok_ = native_rock_light_yellow_ok_ = false;
   native_rock_light_green_ok_ = false;
@@ -601,6 +602,11 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                       native_rock_frame_ok_, 0, false, false, true);
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
                       native_rock_label_ok_, 0, false, false, true);
+    assign_meter_mesh("rock_needle.mesh", rock_bounds, native_rock_needle_,
+                      native_rock_needle_ok_, 0, false, false, true);
+    assign_meter_mesh("vu_needle_led.mesh", rock_bounds, native_rock_needle_led_,
+                      native_rock_needle_led_ok_, argb(220, 255, 90, 45),
+                      true, false, true);
     assign_meter_mesh("rock_light_red_front.mesh", rock_bounds, native_rock_light_red_,
                       native_rock_light_red_ok_, argb(170, 255, 55, 45), true, true, true);
     assign_meter_mesh("rock_light_yellow_front.mesh", rock_bounds,
@@ -1099,36 +1105,56 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     out.push_back(native_rock_frame_);
   }
 
-  // needle: swings from left (fill 0, danger) to right (fill 1, max). Drawn as a
-  // thin textured quad rotated about the pivot.
+  // needle: swings from left (fill 0, danger) to right (fill 1, max). Prefer
+  // GH2's decoded needle strip + LED tip meshes; keep the old strip only as a
+  // missing-asset fallback.
   if (rock_needle_pivot_.ok) {
-    const float a = (0.5f - fill) * 1.6f;  // projection flips X; low must land left
-    const float ca = std::cos(a), sa = std::sin(a);
     const float px = rock_needle_pivot_.cx, pz = rock_needle_pivot_.cz;
-    const float L = rock_needle_len_ * 1.12f;
-    const float hw = f.hw * 0.070f;
-    // local needle quad: from pivot (z=0) up to z=-L, width 2*hw
-    auto rot = [&](float lx, float lz, float& ox, float& oz) {
-      ox = px + lx * ca - lz * sa;
-      oz = pz + lx * sa + lz * ca;
+    auto append_rotated = [&](const Quad& src) {
+      Quad q = src;
+      constexpr float kNativeNeedleFill = 0.25f;
+      const float a = (kNativeNeedleFill - fill) * 1.6f;
+      const float ca = std::cos(a), sa = std::sin(a);
+      for (Quad::V& v : q.verts) {
+        const float dx = v.wx - px;
+        const float dz = v.wz - pz;
+        v.wx = px + dx * ca - dz * sa;
+        v.wz = pz + dx * sa + dz * ca;
+        v.wy = right_hud_depth_at(v.wx);
+      }
+      out.push_back(std::move(q));
     };
-    float x0,z0, x1,z1, x2,z2, x3,z3;
-    rot(-hw, -L, x0, z0);  // TL tip
-    rot( hw, -L, x1, z1);  // TR tip
-    rot(-hw, 0,  x2, z2);  // BL pivot
-    rot( hw, 0,  x3, z3);  // BR pivot
-    Quad q;
-    q.verts = {
-        {x0, right_hud_depth_at(x0), z0, 0.0f, 0.0f},
-        {x1, right_hud_depth_at(x1), z1, 1.0f, 0.0f},
-        {x2, right_hud_depth_at(x2), z2, 0.0f, 1.0f},
-        {x3, right_hud_depth_at(x3), z3, 1.0f, 1.0f},
-    };
-    q.idx = {0, 1, 2,  1, 3, 2};
-    IDirect3DTexture9* nt = tex("rock_needle.tex");
-    q.tex = nt;
-    q.color = nt ? argb(255, 28, 28, 22) : argb(255, 28, 28, 22);
-    out.push_back(std::move(q));
+    if (native_rock_needle_ok_) {
+      append_rotated(native_rock_needle_);
+      if (native_rock_needle_led_ok_) append_rotated(native_rock_needle_led_);
+    } else {
+      const float a = (0.5f - fill) * 1.6f;  // projection flips X; low must land left
+      const float ca = std::cos(a), sa = std::sin(a);
+      const float L = rock_needle_len_ * 1.12f;
+      const float hw = f.hw * 0.070f;
+      // local needle quad: from pivot (z=0) up to z=-L, width 2*hw
+      auto rot = [&](float lx, float lz, float& ox, float& oz) {
+        ox = px + lx * ca - lz * sa;
+        oz = pz + lx * sa + lz * ca;
+      };
+      float x0,z0, x1,z1, x2,z2, x3,z3;
+      rot(-hw, -L, x0, z0);  // TL tip
+      rot( hw, -L, x1, z1);  // TR tip
+      rot(-hw, 0,  x2, z2);  // BL pivot
+      rot( hw, 0,  x3, z3);  // BR pivot
+      Quad q;
+      q.verts = {
+          {x0, right_hud_depth_at(x0), z0, 0.0f, 0.0f},
+          {x1, right_hud_depth_at(x1), z1, 1.0f, 0.0f},
+          {x2, right_hud_depth_at(x2), z2, 0.0f, 1.0f},
+          {x3, right_hud_depth_at(x3), z3, 1.0f, 1.0f},
+      };
+      q.idx = {0, 1, 2,  1, 3, 2};
+      IDirect3DTexture9* nt = tex("rock_needle.tex");
+      q.tex = nt;
+      q.color = nt ? argb(255, 28, 28, 22) : argb(255, 28, 28, 22);
+      out.push_back(std::move(q));
+    }
   }
 }
 
