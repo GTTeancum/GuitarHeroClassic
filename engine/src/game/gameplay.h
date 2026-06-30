@@ -500,6 +500,7 @@ class Gameplay {
   int    score()     const { return score_; }
   int    streak()    const { return streak_; }
   int    multiplier()const { return multiplier_; }
+  bool   star_power_active() const { return star_power_.active; }
   float  star_power_fill() const;
   float  rock_fill() const;
   bool   failed() const { return failed_; }

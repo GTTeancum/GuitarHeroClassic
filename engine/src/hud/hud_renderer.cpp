@@ -1,19 +1,8 @@
 // engine/src/hud/hud_renderer.cpp -- see hud_renderer.h for the design.
 //
-// Layout note (all numbers are AUTHORED HUD-space units decoded from the PS2
-// MILO Group/Mesh Trans matrices, X = horizontal, Z = vertical, Y ~ depth):
-//
-//   hud1_score_meter0.view  world (-236.8, -4.4, -157.7)  scale 0.65, +40deg tilt
-//     score_shell.mesh      the chrome score housing
-//     score_num_1..6.mesh   the 6 score digit slots  (Z ~ -131, X -267..-206)
-//     score_streak_1.mesh   the streak/combo number  (Z ~ -167)
-//     score_mult_frame.mesh + score_mult_2/3.mesh     the "x N" multiplier
-//   hud1_rock_meter.view    world (+235.0, -4.4, -132.3)
-//     (hosts star_meter_1p = the amp tube, crowd_meter_1p = the VU rock gauge)
-//
-// We transform each mesh's 4 corners by its composed world matrix, then project
-// (worldX, worldZ) orthographically to back-buffer pixels. That bakes the real
-// shape + scale + tilt of every GH2 panel into the screen-space quad.
+// Runtime HUD renderer for GH2's in-song score/multiplier/star/rock overlay.
+// The art is loaded directly from the PS2 hud/gen/*.milo_ps2 assets and placed
+// into the gameplay viewport using the screen composition seen in GH2 footage.
 
 #include "hud/hud_renderer.h"
 
@@ -33,6 +22,8 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
+#include <unordered_set>
 #include <unordered_map>
 
 namespace ghogx::hud {
@@ -139,11 +130,13 @@ struct LoadedMesh {
   // Raw object-space vertices (x,y,z + uv) and the triangle index list, kept
   // verbatim so we can transform each vertex to world space and draw the mesh
   // regardless of which plane it is authored in (some HUD quads use X-Z, some
-  // X-Y). Only small quad meshes are retained (the HUD panels are <= a few verts).
+  // X-Y). Larger native HUD frames are retained too; their mesh silhouettes are
+  // part of the GH2 look and should not be approximated with rectangles.
   struct V { float x, y, z, u, vv; };
+  ghogx::milo_scene::Xfm world;
   std::vector<V> verts;
   std::vector<uint16_t> idx;
-  bool quad = false;      // true if a small (<=8 vtx) drawable quad-ish mesh
+  bool quad = false;      // true if the mesh has drawable decoded triangles
 };
 
 struct GroupX { ghogx::milo_scene::Xfm local; std::string parent; };
@@ -157,10 +150,13 @@ struct MiloLayout {
 
 // Keep a decoded mesh's raw geometry (verts + UVs + triangles) verbatim. We
 // transform every vertex to world space at use time, so the authored plane
-// (X-Z vs X-Y) doesn't matter. Large meshes (the chrome shells, >64 verts) are
-// dropped -- we only need the flat panel quads, digits and meter art.
+// (X-Z vs X-Y) doesn't matter.
 void extract_quad(const ghogx::milo_scene::MeshObj& m, LoadedMesh& lm) {
-  if (m.vertex_count < 3 || m.vertex_count > 8 || m.face_count == 0) { lm.quad = false; return; }
+  if (m.vertex_count < 3 || m.face_count == 0 ||
+      m.vertex_count > std::numeric_limits<uint16_t>::max()) {
+    lm.quad = false;
+    return;
+  }
   lm.verts.reserve(m.vertex_count);
   for (const auto& vtx : m.verts)
     lm.verts.push_back({vtx.px, vtx.py, vtx.pz, vtx.u, vtx.v});
@@ -190,6 +186,7 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         LoadedMesh lm;
         lm.name = de.name; lm.parent = mo.parent; lm.material = mo.material;
         lm.local = mo.local;
+        lm.world = mo.world_stored;
         extract_quad(mo, lm);
         out.meshes.push_back(std::move(lm));
       } else if (de.type == "Group") {
@@ -245,6 +242,7 @@ IDirect3DTexture9* upload(IDirect3DDevice9* dev, const ghogx::asset::Image& img)
   }
   return t;
 }
+
 }  // namespace
 
 bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
@@ -255,6 +253,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   // 1) Parse the core HUD MILO so missing/corrupt HUD assets fail loudly.
   MiloLayout hud  = load_milo_layout(hdr_path, ark_path, kHudMilo);
   if (!hud.ok) { std::fprintf(stderr, "[hud] core hud.milo failed\n"); return false; }
+  MiloLayout crowd = load_milo_layout(hdr_path, ark_path, kCrowdMilo);
+  MiloLayout star = load_milo_layout(hdr_path, ark_path, kStarMilo);
 
   // 2) Load + upload every texture we reference from each MILO.
   auto load_set = [&](const std::string& milo, const std::vector<std::string>& names) {
@@ -264,6 +264,18 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       if (auto* t = upload(dev_, kv.second)) textures_[kv.first] = t;
     }
   };
+  auto load_layout_textures = [&](const std::string& milo, const MiloLayout& layout) {
+    std::vector<std::string> names;
+    std::unordered_set<std::string> seen;
+    for (const auto& kv : layout.mat_tex) {
+      if (!kv.second.empty() && seen.insert(kv.second).second)
+        names.push_back(kv.second);
+    }
+    load_set(milo, names);
+  };
+  load_layout_textures(kHudMilo, hud);
+  load_layout_textures(kCrowdMilo, crowd);
+  load_layout_textures(kStarMilo, star);
   std::vector<std::string> digit_names;
   for (int i = 0; i <= 9; ++i) digit_names.push_back("score_" + std::to_string(i) + ".tex");
   load_set(kHudMilo, digit_names);
@@ -302,30 +314,29 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   static_quads_.clear();
 
   // GH2 frames the highway with the in-song HUD in the lower gameplay band:
-  // score/multiplier to the left of the fretboard, rock meter to the right.
-  Slot score_panel = screen_slot(0.155f, 0.760f, 0.170f, 0.125f);
+  // score/multiplier to the left of the fretboard, star/rock to the right.
+  Slot score_panel = screen_slot(0.220f, 0.805f, 0.165f, 0.220f);
   push_rect(static_quads_, score_panel.cx, score_panel.cz, score_panel.hw,
-            score_panel.hh, tex("score_frame.tex"), argb(220, 255, 255, 255));
+            score_panel.hh, tex("score_frame.tex"), 0xFFFFFFFF);
+  Slot score_frame = screen_slot(0.222f, 0.750f, 0.104f, 0.050f);
+  push_rect(static_quads_, score_frame.cx, score_frame.cz, score_frame.hw,
+            score_frame.hh, tex("score_num_frame.tex"), 0xFFFFFFFF);
   score_slot_count_ = 6;
   for (int i = 0; i < score_slot_count_; ++i) {
-    score_slot_[i] = screen_slot(0.197f - static_cast<float>(i) * 0.025f,
-                                 0.759f, 0.022f, 0.060f);
+    score_slot_[i] = screen_slot(0.263f - static_cast<float>(i) * 0.017f,
+                                 0.750f, 0.0135f, 0.043f);
   }
 
   // Combo/streak and multiplier live under the score shell.
-  streak_slot_ = screen_slot(0.188f, 0.837f, 0.008f, 0.024f);
+  streak_slot_ = screen_slot(0.220f, 0.820f, 0.0072f, 0.021f);
   streak_step_ = streak_slot_.hw * 2.62f;
-  mult_slot_ = screen_slot(0.103f, 0.837f, 0.055f, 0.060f);
-  push_rect(static_quads_, mult_slot_.cx, mult_slot_.cz, mult_slot_.hw * 1.12f,
-            mult_slot_.hh * 1.08f, tex("multi_hud_frame.tex"),
-            argb(210, 255, 255, 255));
+  mult_slot_ = screen_slot(0.220f, 0.895f, 0.070f, 0.082f);
 
-  // Star power sits with the lower-left gameplay cluster; rock/crowd is the
-  // matching lower-right meter.
-  rock_face_ = screen_slot(0.875f, 0.760f, 0.086f, 0.153f);
-  rock_needle_pivot_ = screen_slot(0.875f, 0.815f, 0.010f, 0.010f);
+  // GH2's star tube sits above the right-side rock/crowd meter.
+  sp_bar_ = screen_slot(0.795f, 0.695f, 0.165f, 0.055f);
+  rock_face_ = screen_slot(0.805f, 0.835f, 0.135f, 0.185f);
+  rock_needle_pivot_ = screen_slot(0.805f, 0.888f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.62f;
-  sp_bar_ = screen_slot(0.055f, 0.770f, 0.024f, 0.160f);
 
   build_static();
   loaded_ = true;
@@ -440,12 +451,14 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
   // screen -- it holds the ONES digit. Slot[n-1] is leftmost on screen = most
   // significant digit. Assign s[n-1-i] to slot[i] so screen reads left->right.
   char buf[16];
-  std::snprintf(buf, sizeof(buf), "%0*d", n, std::max(0, score));  // zero-pad to n
+  std::snprintf(buf, sizeof(buf), "%d", std::max(0, score));
   std::string s(buf);
   if (static_cast<int>(s.size()) > n) s = s.substr(s.size() - n);  // clamp overflow
   for (int i = 0; i < n; ++i) {
     if (!score_slot_[i].ok) continue;
-    char d = s[n - 1 - i];  // slot[0] = ones = s[n-1]; slot[n-1] = MSB = s[0]
+    const int src = static_cast<int>(s.size()) - 1 - i;
+    if (src < 0) continue;
+    char d = s[src];  // slot[0] = ones; higher slots blank when score is short
     if (d < '0' || d > '9') continue;
     IDirect3DTexture9* t = tex(std::string("score_") + d + ".tex");
     if (!t) continue;
@@ -459,7 +472,7 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
   // GH2's score panel uses a small native streak/progress strip rather than a
   // plain numeric combo counter. Fill ten pips toward the next multiplier tier.
   const int safe_streak = std::max(0, streak);
-  const int tier = safe_streak >= 30 ? 4
+  const int tier = safe_streak >= 30 ? 3
                    : safe_streak >= 20 ? 3
                    : safe_streak >= 10 ? 2
                    : safe_streak > 0 ? 1
@@ -501,12 +514,17 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
       tex(std::string("score_") + char('0' + clamped) + ".tex");
   IDirect3DTexture9* x = tex("score_x.tex");
   if (!digit && !x) return;
+  if (clamped > 4) {
+    push_rect(out, sl.cx, sl.cz, sl.hw * 0.92f, sl.hh * 0.88f,
+              tex("score_mult_frame.tex"), argb(255, 75, 220, 255));
+  }
+  const uint32_t digit_color = clamped > 4 ? argb(255, 0, 0, 0) : 0xFFFFFFFF;
 
   // Authored X is flipped during projection: positive X lands farther left.
-  push_rect(out, sl.cx + sl.hw * 0.24f, sl.cz, sl.hw * 0.28f,
-            sl.hh * 0.62f, digit, digit ? 0xFFFFFFFF : argb(255, 255, 230, 120));
-  push_rect(out, sl.cx - sl.hw * 0.23f, sl.cz, sl.hw * 0.28f,
-            sl.hh * 0.62f, x, x ? 0xFFFFFFFF : argb(255, 255, 230, 120));
+  push_rect(out, sl.cx + sl.hw * 0.24f, sl.cz, sl.hw * 0.30f,
+            sl.hh * 0.66f, x, x ? digit_color : argb(255, 0, 0, 0));
+  push_rect(out, sl.cx - sl.hw * 0.24f, sl.cz, sl.hw * 0.30f,
+            sl.hh * 0.66f, digit, digit ? digit_color : argb(255, 0, 0, 0));
 }
 
 void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
@@ -515,34 +533,36 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
   const Slot& sl = sp_bar_;
 
   if (IDirect3DTexture9* base = tex("amp_chrome_base.tex")) {
-    push_rect(out, sl.cx, sl.cz + sl.hh * 0.88f, sl.hw * 1.22f,
-              sl.hh * 0.34f, base, 0xFFFFFFFF);
+    push_rect(out, sl.cx - sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
+              sl.hh * 0.95f, base, 0xFFFFFFFF);
+    push_rect(out, sl.cx + sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
+              sl.hh * 0.95f, base, 0xFFFFFFFF);
   }
+  if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
+    push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(230, 220, 235, 255));
 
-  // fill bar (amp_inside_bar) grows from the bottom upward to `fill`.
-  // bottomZ stays fixed; topZ rises as fill increases. cz_fill = midpoint, hh_fill = half-height.
-  float bottomZ  = sl.cz + sl.hh;
-  float cz_fill  = bottomZ - sl.hh * fill;
-  float hh_fill  = sl.hh * fill;
+  // GH2 presents the star meter as a right-side horizontal tube. Projection
+  // flips X, so screen-left is higher world X.
+  float fill_hw = sl.hw * fill;
+  float fill_cx = sl.cx + sl.hw - fill_hw;
   IDirect3DTexture9* fillt = tex("amp_inside_bar.tex");
-  if (hh_fill > 0.5f) {
-    push_rect(out, sl.cx, cz_fill, sl.hw * 0.62f, hh_fill, fillt,
+  if (fill_hw > 0.5f) {
+    push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.52f, fillt,
               fillt ? argb(230, 120, 205, 255) : argb(220, 75, 165, 255));
+    push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.46f, nullptr,
+              argb(190, 90, 220, 255), true);
     if (IDirect3DTexture9* glow = tex("amp_bar_glow.tex")) {
-      push_rect(out, sl.cx, cz_fill, sl.hw * 0.90f, hh_fill * 1.08f, glow,
+      push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.72f, glow,
                 argb(150, 135, 210, 255), true);
     }
   }
 
   if (fill >= 0.5f) {
     if (IDirect3DTexture9* ready = tex("amp_tube_glow.tex")) {
-      push_rect(out, sl.cx, sl.cz, sl.hw * 1.12f, sl.hh * 1.03f, ready,
+      push_rect(out, sl.cx, sl.cz, sl.hw * 1.04f, sl.hh * 0.92f, ready,
                 argb(125, 115, 205, 255), true);
     }
   }
-
-  if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
-    push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(210, 220, 225, 255));
 }
 
 void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
@@ -555,8 +575,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
             face ? 0xFFFFFFFF : argb(200, 210, 170, 65));
 
   if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
-    push_rect(out, f.cx, f.cz - f.hh * 0.96f, f.hw * 1.15f, f.hh * 0.58f,
-              label, 0xFFFFFFFF);
+    push_rect(out, f.cx, f.cz + f.hh * 0.54f, f.hw * 0.92f, f.hh * 0.38f,
+              label, argb(255, 30, 255, 70));
   }
   if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
     const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
@@ -569,7 +589,7 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   // needle: swings from left (fill 0, danger) to right (fill 1, max). Drawn as a
   // thin textured quad rotated about the pivot.
   if (rock_needle_pivot_.ok) {
-    const float a = (fill - 0.5f) * 1.6f;  // -0.8..+0.8 rad sweep
+    const float a = (0.5f - fill) * 1.6f;  // projection flips X; low must land left
     const float ca = std::cos(a), sa = std::sin(a);
     const float px = rock_needle_pivot_.cx, pz = rock_needle_pivot_.cz;
     const float L = rock_needle_len_, hw = 3.5f;

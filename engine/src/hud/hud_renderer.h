@@ -6,20 +6,16 @@
 // entirely from the game's OWN art: the PanelDir scenes in hud/gen/hud.milo_ps2
 // (+ crowd_meter / star_meter). It draws:
 //
-//   * the numeric SCORE        (top-right "score shell" panel, score_N.tex
+//   * the numeric SCORE        (lower-left "score shell" panel, score_N.tex
 //                               digit set rendered in the score_num_* slots)
 //   * the STREAK / combo count (score_streak_N.tex digits below the score)
 //   * the MULTIPLIER indicator (hud_2x/4x.tex inside the multi_hud frame)
-//   * the STAR-POWER meter     (the vertical "amp" tube — amp_chrome_base /
-//                               amp_inside_bar from star_meter.milo_ps2)
+//   * the STAR-POWER meter     (the horizontal "amp" tube above the rock meter)
 //   * the ROCK / CROWD meter   (the VU gauge — rock_face_2d + a swinging
 //                               rock_needle from crowd_meter.milo_ps2)
 //
-// All geometry positions come from the MILO Group/Mesh Trans transforms decoded
-// straight from the PS2 bytes (runtime-native; nothing is pre-extracted). The
-// HUD's authored coordinate system (X = horizontal, Z = vertical, Y ~ depth) is
-// mapped orthographically to the back buffer, calibrated so the panels land
-// where GH2 puts them.
+// The runtime loads the HUD art from PS2 MILO bytes and anchors it in the
+// gameplay viewport to match the GH2 in-song composition.
 //
 // Self-contained: this module owns its own MILO parse + texture upload and does
 // not disturb the highway renderer, the scene renderer, or the gameplay path.
@@ -81,6 +77,8 @@ class HudRenderer {
     uint32_t color = 0xFFFFFFFF;  // ARGB modulate
     bool additive = false;
   };
+  struct Slot { float cx = 0, cz = 0, hw = 0, hh = 0; bool ok = false; };
+
   // Helper: append an axis-aligned quad (in world X-Z) to a draw list.
   static void push_rect(std::vector<Quad>& out, float cx, float cz, float hw,
                         float hh, IDirect3DTexture9* tex, uint32_t color,
@@ -112,7 +110,6 @@ class HudRenderer {
 
   // Decoded slot geometry, in authored coordinates, captured at load from the
   // real Mesh transforms so digits/fills land exactly where GH2 places them.
-  struct Slot { float cx = 0, cz = 0, hw = 0, hh = 0; bool ok = false; };
   Slot score_slot_[10];   // score_num_1..N centers (left→right reading order)
   int  score_slot_count_ = 0;
   Slot streak_slot_;      // anchor + step for the streak digits

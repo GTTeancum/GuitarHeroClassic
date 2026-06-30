@@ -23,6 +23,8 @@
 //                                      pin a decoded regular CamShot for capture
 //   ghogx_app --diagnostic-camera-path-offset <frames>
 //                                      start a forced CamShot at a local path frame
+//   ghogx_app --hud-test [--hud-score N] [--hud-streak N]
+//                         [--hud-multiplier N] [--hud-sp 0..1] [--hud-rock 0..1]
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
 //   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
 //                                      capture numbered BMPs in gameplay mode
@@ -423,7 +425,8 @@ class AppEngine : public ghogx::Engine {
     ghogx::hud::HudState state;
     state.score = gameplay_.score();
     state.streak = gameplay_.streak();
-    state.multiplier = gameplay_.multiplier();
+    state.multiplier = gameplay_.multiplier() *
+                       (gameplay_.star_power_active() ? 2 : 1);
     state.sp_fill = gameplay_.star_power_fill();
     state.rock_fill = gameplay_.rock_fill();
 
@@ -828,13 +831,21 @@ int run_scene_mode(const std::string& hdr, const std::string& ark,
 
 // ---------------------------------------------------------------------------
 // --hud-test mode: draw the in-song HUD overlay (score / streak / multiplier /
-// star-power meter / rock-crowd meter) from the real hud/gen/*.milo_ps2 art,
-// over a dark background, with fixed sample values. Disjoint from every other
-// mode (own window + loop) so it can't disturb the gameplay/scene/char paths.
+// star-power meter / rock-crowd meter) from the real hud/gen/*.milo_ps2 art.
+// Disjoint from every other mode (own window + loop) so it can't disturb the
+// gameplay/scene/char paths.
 // ---------------------------------------------------------------------------
+struct HudTestOptions {
+  int score = 12345;
+  int streak = 27;
+  int multiplier = 3;
+  float sp_fill = 0.6f;
+  float rock_fill = 0.7f;
+};
+
 int run_hud_test_mode(const std::string& hdr, const std::string& ark,
                       const std::string& screenshot_path, int screenshot_frame,
-                      int max_frames) {
+                      int max_frames, const HudTestOptions& options) {
   auto win = ghogx::render::Window::create(1280, 720, "GuitarHeroOGX — HUD test");
   if (!win) {
     std::fprintf(stderr, "[hud-test] failed to create window/device\n");
@@ -848,13 +859,12 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
     return 1;
   }
 
-  // Fixed sample values per the task brief.
   ghogx::hud::HudState st;
-  st.score = 12345;
-  st.streak = 27;
-  st.multiplier = 3;
-  st.sp_fill = 0.6f;
-  st.rock_fill = 0.7f;
+  st.score = std::max(0, options.score);
+  st.streak = std::max(0, options.streak);
+  st.multiplier = std::clamp(options.multiplier, 1, 9);
+  st.sp_fill = std::clamp(options.sp_fill, 0.0f, 1.0f);
+  st.rock_fill = std::clamp(options.rock_fill, 0.0f, 1.0f);
 
   using clock = std::chrono::steady_clock;
   const auto target_frame = std::chrono::duration<double>(1.0 / 60.0);
@@ -1352,6 +1362,7 @@ int main(int argc, char** argv) {
   std::array<float, 3> char_offset = {0.0f, 0.0f, 0.0f};
   int clip_frame_override = -1;  // --clip-frame N: force anim frame N (no time playback)
   bool hud_test = false;   // --hud-test: draw the in-song HUD overlay only
+  HudTestOptions hud_test_options;
   bool menu_mode = false;  // --menu: the windowed menu system
   std::string song_name = "shoutatthedevil";
   int difficulty = 0;  // Easy
@@ -1383,6 +1394,17 @@ int main(int argc, char** argv) {
       char_scene_milo = argv[++i];
     } else if (std::strcmp(argv[i], "--hud-test") == 0) {
       hud_test = true;
+    } else if (std::strcmp(argv[i], "--hud-score") == 0 && i + 1 < argc) {
+      hud_test_options.score = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--hud-streak") == 0 && i + 1 < argc) {
+      hud_test_options.streak = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--hud-multiplier") == 0 &&
+               i + 1 < argc) {
+      hud_test_options.multiplier = std::atoi(argv[++i]);
+    } else if (std::strcmp(argv[i], "--hud-sp") == 0 && i + 1 < argc) {
+      hud_test_options.sp_fill = std::atof(argv[++i]);
+    } else if (std::strcmp(argv[i], "--hud-rock") == 0 && i + 1 < argc) {
+      hud_test_options.rock_fill = std::atof(argv[++i]);
     } else if (std::strcmp(argv[i], "--menu") == 0) {
       menu_mode = true;
     } else if (std::strcmp(argv[i], "--song") == 0 && i + 1 < argc) {
@@ -1528,7 +1550,8 @@ int main(int argc, char** argv) {
       std::fprintf(stderr, "[ghogx] --hud-test requires --ark-dir\n");
       return 2;
     }
-    return run_hud_test_mode(hdr, ark, screenshot_path, screenshot_frame, max_frames);
+    return run_hud_test_mode(hdr, ark, screenshot_path, screenshot_frame,
+                             max_frames, hud_test_options);
   }
 
   ghogx::asset::Image image;
