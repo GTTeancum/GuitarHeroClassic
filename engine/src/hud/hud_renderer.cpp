@@ -482,7 +482,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   // GH2 frames the highway with the in-song HUD in the lower gameplay band:
   // score/multiplier to the left of the fretboard, star/rock to the right.
-  Slot score_panel = screen_slot(0.102f, 0.812f, 0.196f, 0.258f);
+  Slot score_panel = screen_slot(0.118f, 0.812f, 0.196f, 0.258f);
   Slot score_frame = screen_slot(0.112f, 0.756f, 0.094f, 0.067f);
   push_rect(static_quads_, score_panel.cx, score_panel.cz, score_panel.hw,
             score_panel.hh, tex("score_frame.tex"), 0xFFFFFFFF, false,
@@ -499,7 +499,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   }
 
   // Combo/streak and multiplier live under the score shell.
-  streak_slot_ = screen_slot(0.112f, 0.816f, 0.0048f, 0.0105f);
+  streak_slot_ = screen_slot(0.128f, 0.816f, 0.0048f, 0.0105f);
   streak_step_ = streak_slot_.hw * 4.15f;
   mult_slot_ = screen_slot(0.125f, 0.866f, 0.090f, 0.110f);
   for (Slot& slot : mult_digit_slot_) slot = {};
