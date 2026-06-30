@@ -700,8 +700,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                       native_rock_face_ok_, 0, false, false, true);
     assign_meter_mesh("rock_frame.mesh", rock_bounds, native_rock_frame_,
                       native_rock_frame_ok_, 0, false, false, true);
-    // The meter is vertically mirrored into HUD space by flip_z. Keep the
-    // decoded ROCK glyph texture upright or the R/K become vertically inverted.
+    // The ROCK glyph uses the same vertically mirrored HUD placement as the
+    // meter, but the texture V must remain in its authored order to stay readable.
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
                       native_rock_label_ok_, 0, false, false, true);
     assign_meter_mesh("rock_needle.mesh", rock_bounds, native_rock_needle_,
@@ -768,7 +768,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
                      argb(90, 120, 200, 240), true);
     append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
-                     argb(120, 145, 215, 245), true);
+                     argb(70, 140, 210, 245), true);
     append_star_mesh("amp_glass.mesh", native_star_front_,
                      argb(185, 255, 255, 255), false, false, true,
                      "cleartube.tex");
@@ -1260,10 +1260,10 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     constexpr float kRockLabelV0 = 0.196f;
     constexpr float kRockLabelV1 = 0.823f;
     q.verts = {
-        { cx - hw, right_hud_depth_at(cx - hw), cz - hh, kRockLabelU0, kRockLabelV1 },
-        { cx + hw, right_hud_depth_at(cx + hw), cz - hh, kRockLabelU1, kRockLabelV1 },
-        { cx - hw, right_hud_depth_at(cx - hw), cz + hh, kRockLabelU0, kRockLabelV0 },
-        { cx + hw, right_hud_depth_at(cx + hw), cz + hh, kRockLabelU1, kRockLabelV0 },
+        { cx - hw, right_hud_depth_at(cx - hw), cz - hh, kRockLabelU0, kRockLabelV0 },
+        { cx + hw, right_hud_depth_at(cx + hw), cz - hh, kRockLabelU1, kRockLabelV0 },
+        { cx - hw, right_hud_depth_at(cx - hw), cz + hh, kRockLabelU0, kRockLabelV1 },
+        { cx + hw, right_hud_depth_at(cx + hw), cz + hh, kRockLabelU1, kRockLabelV1 },
     };
     q.idx = {0, 1, 2, 1, 3, 2};
     q.tex = label;
