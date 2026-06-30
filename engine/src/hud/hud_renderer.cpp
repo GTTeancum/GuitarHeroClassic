@@ -884,6 +884,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     };
     append_star_mesh("amp_inside_bar.mesh", native_star_back_,
                      argb(175, 210, 230, 238), false);
+    append_star_mesh("amp_glass_black.mesh", native_star_back_,
+                     argb(92, 40, 52, 62), false);
     append_star_mesh("amp_inside_bar.mesh", native_star_fill_,
                      argb(245, 110, 225, 255), false);
     append_star_mesh("amp_inside_bar_path.mesh", native_star_fill_glow_,
