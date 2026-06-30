@@ -452,8 +452,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   }
 
   // Combo/streak and multiplier live under the score shell.
-  streak_slot_ = screen_slot(0.112f, 0.867f, 0.0058f, 0.0140f);
-  streak_step_ = streak_slot_.hw * 3.80f;
+  streak_slot_ = screen_slot(0.112f, 0.852f, 0.0048f, 0.0105f);
+  streak_step_ = streak_slot_.hw * 4.15f;
   mult_slot_ = screen_slot(0.125f, 0.902f, 0.090f, 0.110f);
 
   // GH2's star tube sits above the right-side rock/crowd meter.
@@ -615,16 +615,16 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
     if (!t) t = tex("score_streak.tex");
     const float arc_t = (static_cast<float>(i) - 4.5f) / 4.5f;
     float cx = sl.cx - (static_cast<float>(i) - 4.5f) * streak_step_;
-    float cz = sl.cz + std::pow(std::abs(arc_t), 1.55f) * sl.hh * 2.2f;
+    float cz = sl.cz + std::pow(std::abs(arc_t), 1.55f) * sl.hh * 1.15f;
     push_rect(out, cx, cz, sl.hw, sl.hh, t,
-              on ? 0xFFFFFFFF : argb(190, 255, 255, 255), false,
+              on ? argb(235, 255, 255, 255) : argb(170, 255, 255, 255), false,
               kLeftHudLeftDepth, kLeftHudRightDepth);
     if (on) {
       IDirect3DTexture9* glow =
           tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
       if (!glow) glow = tex("score_streak_glow.tex");
-      push_rect(out, cx, cz, sl.hw * 1.02f, sl.hh * 1.02f, glow,
-                argb(28, 255, 255, 255), true,
+      push_rect(out, cx, cz, sl.hw * 0.92f, sl.hh * 0.92f, glow,
+                argb(16, 255, 255, 255), true,
                 kLeftHudLeftDepth, kLeftHudRightDepth);
     }
   }
