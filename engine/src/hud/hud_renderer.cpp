@@ -600,6 +600,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   };
 
   std::vector<Quad> native_static_quads;
+  bool mapped_score_num_frame = false;
   auto make_left_mesh = [&](const char* name, const MeshBounds& bounds,
                             const Slot& slot, bool flip_v = false,
                             bool flip_z = true) {
@@ -644,6 +645,20 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   if (const LoadedMesh* score_shell = find_mesh(hud, "score_shell.mesh")) {
     const MeshBounds score_bounds = bounds_for(*score_shell);
     append_left_mesh("score_shell.mesh", score_bounds, score_panel);
+    append_left_mesh("score_num_frame.mesh", score_bounds, score_panel);
+    mapped_score_num_frame = true;
+    int native_score_slots = 0;
+    for (int i = 0; i < score_slot_count_; ++i) {
+      const std::string name = "score_num_" + std::to_string(i + 1) + ".mesh";
+      Slot slot = quad_slot(make_left_mesh(name.c_str(), score_bounds, score_panel));
+      if (slot.ok) {
+        score_slot_[i] = slot;
+        ++native_score_slots;
+      }
+    }
+    if (native_score_slots == score_slot_count_) {
+      std::fprintf(stderr, "[hud] score digits anchored from native meshes\n");
+    }
     append_left_mesh("score_mult_frame.mesh", score_bounds, score_panel);
     native_mult_glow_ = make_left_mesh("score_mult_glow.mesh", score_bounds,
                                        score_panel);
@@ -668,7 +683,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       }
     }
   }
-  if (const LoadedMesh* score_num_frame = find_mesh(hud, "score_num_frame.mesh")) {
+  if (!mapped_score_num_frame &&
+      find_mesh(hud, "score_num_frame.mesh")) {
+    const LoadedMesh* score_num_frame = find_mesh(hud, "score_num_frame.mesh");
     append_left_mesh("score_num_frame.mesh", bounds_for(*score_num_frame),
                      score_frame);
   }
@@ -682,6 +699,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                       native_rock_face_ok_, 0, false, false, true);
     assign_meter_mesh("rock_frame.mesh", rock_bounds, native_rock_frame_,
                       native_rock_frame_ok_, 0, false, false, true);
+    // The meter is vertically mirrored into HUD space by flip_z. Keep the
+    // decoded ROCK glyph texture upright or the R/K become vertically inverted.
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
                       native_rock_label_ok_, 0, false, false, true);
     assign_meter_mesh("rock_needle.mesh", rock_bounds, native_rock_needle_,
