@@ -116,7 +116,8 @@ class HudRenderer {
   int  score_slot_count_ = 0;
   Slot streak_slot_;      // anchor + step for the streak digits
   float streak_step_ = 0;
-  Slot mult_slot_;        // multiplier indicator center/extent
+  Slot mult_slot_;        // multiplier indicator fallback center/extent
+  Slot mult_digit_slot_[2];// native score_mult_2/3 slots: [0]=X, [1]=digit
   Slot sp_bar_;           // star-power fill bar extent (vertical)
   Slot rock_face_;        // rock meter dial face center/extent
   Slot rock_needle_pivot_;// needle pivot + length
@@ -127,6 +128,7 @@ class HudRenderer {
   Quad native_rock_label_;
   Quad native_rock_needle_;
   Quad native_rock_needle_led_;
+  Quad native_mult_glow_;
   Quad native_rock_light_red_;
   Quad native_rock_light_yellow_;
   Quad native_rock_light_green_;
@@ -140,6 +142,7 @@ class HudRenderer {
   bool native_rock_label_ok_ = false;
   bool native_rock_needle_ok_ = false;
   bool native_rock_needle_led_ok_ = false;
+  bool native_mult_glow_ok_ = false;
   bool native_rock_light_red_ok_ = false;
   bool native_rock_light_yellow_ok_ = false;
   bool native_rock_light_green_ok_ = false;

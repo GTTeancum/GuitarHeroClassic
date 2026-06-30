@@ -502,6 +502,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   streak_slot_ = screen_slot(0.112f, 0.816f, 0.0048f, 0.0105f);
   streak_step_ = streak_slot_.hw * 4.15f;
   mult_slot_ = screen_slot(0.125f, 0.866f, 0.090f, 0.110f);
+  for (Slot& slot : mult_digit_slot_) slot = {};
 
   // GH2's star tube sits above the right-side rock/crowd meter.
   sp_bar_ = screen_slot(0.842f, 0.690f, 0.172f, 0.108f);
@@ -511,6 +512,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
   native_rock_needle_ok_ = native_rock_needle_led_ok_ = false;
+  native_mult_glow_ok_ = false;
   native_rock_frame_ok_ = false;
   native_rock_light_red_ok_ = native_rock_light_yellow_ok_ = false;
   native_rock_light_green_ok_ = false;
@@ -597,23 +599,62 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   };
 
   std::vector<Quad> native_static_quads;
+  auto make_left_mesh = [&](const char* name, const MeshBounds& bounds,
+                            const Slot& slot, bool flip_v = false,
+                            bool flip_z = true) {
+    Quad q;
+    if (const LoadedMesh* mesh = find_mesh(hud, name)) {
+      q = make_slot_mesh(hud, *mesh, bounds, slot, 0xFFFFFFFF, false,
+                         flip_v, flip_z, false);
+    }
+    return q;
+  };
+  auto quad_slot = [](const Quad& q) {
+    Slot slot;
+    if (q.verts.empty()) return slot;
+    float min_x = std::numeric_limits<float>::max();
+    float max_x = std::numeric_limits<float>::lowest();
+    float min_z = std::numeric_limits<float>::max();
+    float max_z = std::numeric_limits<float>::lowest();
+    for (const Quad::V& v : q.verts) {
+      min_x = std::min(min_x, v.wx);
+      max_x = std::max(max_x, v.wx);
+      min_z = std::min(min_z, v.wz);
+      max_z = std::max(max_z, v.wz);
+    }
+    slot.cx = (min_x + max_x) * 0.5f;
+    slot.cz = (min_z + max_z) * 0.5f;
+    slot.hw = (max_x - min_x) * 0.5f;
+    slot.hh = (max_z - min_z) * 0.5f;
+    slot.ok = slot.hw > 0.001f && slot.hh > 0.001f;
+    return slot;
+  };
   auto append_left_mesh = [&](const char* name, const MeshBounds& bounds,
                               const Slot& slot, bool flip_v = false,
                               bool flip_z = true) {
-    if (const LoadedMesh* mesh = find_mesh(hud, name)) {
-      Quad q = make_slot_mesh(hud, *mesh, bounds, slot, 0xFFFFFFFF, false,
-                              flip_v, flip_z, false);
-      if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
-        native_static_quads.push_back(std::move(q));
-      }
-    }
+    Quad q = make_left_mesh(name, bounds, slot, flip_v, flip_z);
+    if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3)
+      native_static_quads.push_back(std::move(q));
   };
   if (const LoadedMesh* score_outline = find_mesh(hud, "score_shell_outline.mesh")) {
     const MeshBounds score_bounds = bounds_for(*score_outline);
     append_left_mesh("score_shell_outline.mesh", score_bounds, score_panel);
   }
   if (const LoadedMesh* score_shell = find_mesh(hud, "score_shell.mesh")) {
-    append_left_mesh("score_shell.mesh", bounds_for(*score_shell), score_panel);
+    const MeshBounds score_bounds = bounds_for(*score_shell);
+    append_left_mesh("score_shell.mesh", score_bounds, score_panel);
+    append_left_mesh("score_mult_frame.mesh", score_bounds, score_panel);
+    native_mult_glow_ = make_left_mesh("score_mult_glow.mesh", score_bounds,
+                                       score_panel);
+    if (native_mult_glow_.tex && native_mult_glow_.verts.size() >= 3 &&
+        native_mult_glow_.idx.size() >= 3) {
+      native_mult_glow_.color = argb(215, 60, 210, 255);
+      native_mult_glow_ok_ = true;
+    }
+    mult_digit_slot_[0] =
+        quad_slot(make_left_mesh("score_mult_2.mesh", score_bounds, score_panel));
+    mult_digit_slot_[1] =
+        quad_slot(make_left_mesh("score_mult_3.mesh", score_bounds, score_panel));
   }
   if (const LoadedMesh* score_num_frame = find_mesh(hud, "score_num_frame.mesh")) {
     append_left_mesh("score_num_frame.mesh", bounds_for(*score_num_frame),
@@ -874,6 +915,26 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
 
 void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const {
   if (!mult_slot_.ok) return;
+  if (mult_digit_slot_[0].ok && mult_digit_slot_[1].ok) {
+    if (multiplier < 2) return;
+    const int clamped = std::clamp(multiplier, 2, 9);
+    IDirect3DTexture9* x = tex("score_x.tex");
+    IDirect3DTexture9* digit =
+        tex(std::string("score_") + char('0' + clamped) + ".tex");
+    if (!x || !digit) return;
+    if (clamped > 4 && native_mult_glow_ok_) out.push_back(native_mult_glow_);
+    const Slot& x_slot = mult_digit_slot_[0];
+    const Slot& digit_slot = mult_digit_slot_[1];
+    push_rect(out, x_slot.cx, x_slot.cz, x_slot.hw, x_slot.hh, x,
+              0xFFFFFFFF, false,
+              left_hud_depth_at(x_slot.cx + x_slot.hw),
+              left_hud_depth_at(x_slot.cx - x_slot.hw));
+    push_rect(out, digit_slot.cx, digit_slot.cz, digit_slot.hw, digit_slot.hh,
+              digit, 0xFFFFFFFF, false,
+              left_hud_depth_at(digit_slot.cx + digit_slot.hw),
+              left_hud_depth_at(digit_slot.cx - digit_slot.hw));
+    return;
+  }
   const Slot& sl = mult_slot_;
   if (multiplier < 2) {
     if (IDirect3DTexture9* frame = tex("score_mult_frame.tex")) {
