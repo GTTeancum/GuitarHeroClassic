@@ -533,7 +533,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     return b;
   };
   auto make_meter_mesh = [&](const LoadedMesh& mesh, const MeshBounds& bounds,
-                             uint32_t color, bool additive) {
+                             uint32_t color, bool additive, bool flip_v,
+                             bool flip_z) {
     Quad q;
     auto mat = crowd.mat_tex.find(mesh.material);
     if (mat != crowd.mat_tex.end()) q.tex = tex(mat->second);
@@ -563,17 +564,20 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       const float tx = std::clamp((x - bounds.min_x) / (bounds.max_x - bounds.min_x),
                                   0.0f, 1.0f);
       const float wx = rock_face_.cx - rock_face_.hw + tx * rock_face_.hw * 2.0f;
-      const float wz = mapped_center_z + (z - source_center_z) * z_scale;
-      q.verts.push_back({wx, right_hud_depth_at(wx), wz, v.u, v.vv});
+      const float z_delta = (z - source_center_z) * z_scale;
+      const float wz = mapped_center_z + (flip_z ? -z_delta : z_delta);
+      q.verts.push_back({wx, right_hud_depth_at(wx), wz, v.u,
+                         flip_v ? 1.0f - v.vv : v.vv});
     }
     q.idx = mesh.idx;
     return q;
   };
   auto assign_meter_mesh = [&](const char* name, const MeshBounds& bounds, Quad& out,
-                               bool& ok, uint32_t color, bool additive) {
+                               bool& ok, uint32_t color, bool additive,
+                               bool flip_v = false, bool flip_z = false) {
     ok = false;
     if (const LoadedMesh* mesh = find_mesh(crowd, name)) {
-      Quad q = make_meter_mesh(*mesh, bounds, color, additive);
+      Quad q = make_meter_mesh(*mesh, bounds, color, additive, flip_v, flip_z);
       if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
         out = std::move(q);
         ok = true;
@@ -584,19 +588,19 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   if (const LoadedMesh* rock_frame = find_mesh(crowd, "rock_frame.mesh")) {
     const MeshBounds rock_bounds = bounds_for(*rock_frame);
     assign_meter_mesh("rock_face_2d.mesh", rock_bounds, native_rock_face_,
-                      native_rock_face_ok_, 0, false);
+                      native_rock_face_ok_, 0, false, false, true);
     assign_meter_mesh("rock_frame.mesh", rock_bounds, native_rock_frame_,
-                      native_rock_frame_ok_, 0, false);
+                      native_rock_frame_ok_, 0, false, false, true);
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
-                      native_rock_label_ok_, 0, false);
-    assign_meter_mesh("rock_light_red.mesh", rock_bounds, native_rock_light_red_,
-                      native_rock_light_red_ok_, 0, true);
-    assign_meter_mesh("rock_light_yellow.mesh", rock_bounds,
+                      native_rock_label_ok_, 0, false, true, true);
+    assign_meter_mesh("rock_light_red_front.mesh", rock_bounds, native_rock_light_red_,
+                      native_rock_light_red_ok_, argb(170, 255, 55, 45), true, true, true);
+    assign_meter_mesh("rock_light_yellow_front.mesh", rock_bounds,
                       native_rock_light_yellow_, native_rock_light_yellow_ok_,
-                      0, true);
-    assign_meter_mesh("rock_light_green.mesh", rock_bounds,
+                      argb(160, 255, 230, 65), true, true, true);
+    assign_meter_mesh("rock_light_green_front.mesh", rock_bounds,
                       native_rock_light_green_, native_rock_light_green_ok_,
-                      0, true);
+                      argb(150, 85, 255, 90), true, true, true);
   }
 
   build_static();
@@ -875,6 +879,10 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& f = rock_face_;
 
+  if (native_rock_frame_ok_) {
+    out.push_back(native_rock_frame_);
+  }
+
   if (native_rock_face_ok_) {
     out.push_back(native_rock_face_);
   } else {
@@ -884,22 +892,25 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
               right_hud_depth_at(f.cx + f.hw), right_hud_depth_at(f.cx - f.hw));
   }
 
-  if (native_rock_label_ok_) {
-    out.push_back(native_rock_label_);
-  } else if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
-    push_rect(out, f.cx, f.cz + f.hh * 0.42f, f.hw * 0.92f, f.hh * 0.38f,
-              label, 0xFFFFFFFF, false,
-              right_hud_depth_at(f.cx + f.hw * 0.92f),
-              right_hud_depth_at(f.cx - f.hw * 0.92f));
-  }
-
   const bool have_native_lights =
       native_rock_light_red_ok_ && native_rock_light_yellow_ok_ &&
       native_rock_light_green_ok_;
   if (have_native_lights) {
-    const Quad& active_light = fill < 0.25f ? native_rock_light_red_
-                              : fill < 0.55f ? native_rock_light_yellow_
-                                             : native_rock_light_green_;
+    Quad red = native_rock_light_green_;
+    red.color = argb(90, 255, 45, 35);
+    Quad yellow = native_rock_light_yellow_;
+    yellow.color = argb(85, 255, 220, 60);
+    Quad green = native_rock_light_red_;
+    green.color = argb(80, 70, 255, 90);
+    out.push_back(red);
+    out.push_back(yellow);
+    out.push_back(green);
+    Quad active_light = fill < 0.25f ? native_rock_light_green_
+                      : fill < 0.55f ? native_rock_light_yellow_
+                                     : native_rock_light_red_;
+    active_light.color = fill < 0.25f ? argb(180, 255, 55, 45)
+                       : fill < 0.55f ? argb(170, 255, 235, 70)
+                                      : argb(160, 85, 255, 95);
     out.push_back(active_light);
   } else if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
     const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
@@ -910,8 +921,28 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
               right_hud_depth_at(f.cx - f.hw * 0.88f));
   }
 
-  if (native_rock_frame_ok_) {
-    out.push_back(native_rock_frame_);
+  if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
+    Quad q;
+    const float hw = f.hw * 0.70f;
+    const float hh = f.hh * 0.27f;
+    const float cx = f.cx;
+    const float cz = f.cz + f.hh * 0.13f;
+    constexpr float kRockLabelU0 = 0.002f;
+    constexpr float kRockLabelU1 = 1.000f;
+    constexpr float kRockLabelV0 = 0.196f;
+    constexpr float kRockLabelV1 = 0.823f;
+    q.verts = {
+        { cx - hw, right_hud_depth_at(cx - hw), cz - hh, kRockLabelU0, kRockLabelV1 },
+        { cx + hw, right_hud_depth_at(cx + hw), cz - hh, kRockLabelU1, kRockLabelV1 },
+        { cx - hw, right_hud_depth_at(cx - hw), cz + hh, kRockLabelU0, kRockLabelV0 },
+        { cx + hw, right_hud_depth_at(cx + hw), cz + hh, kRockLabelU1, kRockLabelV0 },
+    };
+    q.idx = {0, 1, 2, 1, 3, 2};
+    q.tex = label;
+    q.color = native_rock_label_ok_ ? native_rock_label_.color : 0xFFFFFFFF;
+    out.push_back(std::move(q));
+  } else if (native_rock_label_ok_) {
+    out.push_back(native_rock_label_);
   }
 
   // needle: swings from left (fill 0, danger) to right (fill 1, max). Drawn as a
