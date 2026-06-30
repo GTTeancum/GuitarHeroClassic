@@ -940,6 +940,7 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
     if (native_streak_pip_ok_) {
       if (!on) continue;
       Quad q = native_streak_pip_;
+      constexpr float kLitPipScale = 0.78f;
       const Slot src = [&]() {
         Slot slot;
         float min_x = std::numeric_limits<float>::max();
@@ -957,27 +958,25 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
         slot.ok = max_x > min_x && max_z > min_z;
         return slot;
       }();
-      const float dx = cx - src.cx;
-      const float dz = cz - src.cz;
       for (Quad::V& v : q.verts) {
-        v.wx += dx;
-        v.wz += dz;
+        v.wx = cx + (v.wx - src.cx) * kLitPipScale;
+        v.wz = cz + (v.wz - src.cz) * kLitPipScale;
         v.wy = left_hud_depth_at(v.wx);
       }
       q.tex = on ? (streak_tex ? streak_tex : glow)
                  : (streak_tex ? streak_tex : native_streak_pip_.tex);
-      q.color = on ? argb(210, 220, 185, 245)
+      q.color = on ? argb(195, 220, 185, 245)
                    : argb(165, 255, 255, 255);
       out.push_back(std::move(q));
       if (on && glow) {
         Quad g = native_streak_pip_;
         for (Quad::V& v : g.verts) {
-          v.wx += dx;
-          v.wz += dz;
+          v.wx = cx + (v.wx - src.cx) * 0.94f;
+          v.wz = cz + (v.wz - src.cz) * 0.94f;
           v.wy = left_hud_depth_at(v.wx);
         }
         g.tex = glow;
-        g.color = argb(26, 255, 255, 255);
+        g.color = argb(18, 255, 255, 255);
         g.additive = true;
         out.push_back(std::move(g));
       }
