@@ -52,11 +52,11 @@ constexpr float kWorldPerScreenX = 760.0f;  // authored X span across full width
 // cluster around Z=-80..-190; we want them in the TOP ~45% of the screen.
 constexpr float kZTop = -210.0f;  // maps near the top of the screen
 constexpr float kZBot =  120.0f;  // maps near the bottom
-constexpr float kHudPerspective = 0.0015f;
+constexpr float kHudPerspective = 0.0017f;
 constexpr float kHudVanishX = 0.5f;
 constexpr float kHudVanishY = 0.67f;
-constexpr float kNearHudDepth = -4.0f;
-constexpr float kFarHudDepth = 13.0f;
+constexpr float kNearHudDepth = -6.0f;
+constexpr float kFarHudDepth = 24.0f;
 constexpr float kLeftHudLeftDepth = kNearHudDepth;
 constexpr float kLeftHudRightDepth = kFarHudDepth;
 constexpr float kRightHudLeftDepth = kFarHudDepth;
@@ -447,12 +447,12 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
             kLeftHudLeftDepth, kLeftHudRightDepth);
   score_slot_count_ = 6;
   for (int i = 0; i < score_slot_count_; ++i) {
-    score_slot_[i] = screen_slot(0.162f - static_cast<float>(i) * 0.0185f,
-                                 0.792f, 0.0132f, 0.055f);
+    score_slot_[i] = screen_slot(0.160f - static_cast<float>(i) * 0.0178f,
+                                 0.790f, 0.0112f, 0.044f);
   }
 
   // Combo/streak and multiplier live under the score shell.
-  streak_slot_ = screen_slot(0.112f, 0.852f, 0.0064f, 0.0175f);
+  streak_slot_ = screen_slot(0.112f, 0.867f, 0.0058f, 0.0140f);
   streak_step_ = streak_slot_.hw * 3.80f;
   mult_slot_ = screen_slot(0.125f, 0.902f, 0.090f, 0.110f);
 
@@ -624,15 +624,22 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
           tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
       if (!glow) glow = tex("score_streak_glow.tex");
       push_rect(out, cx, cz, sl.hw * 1.02f, sl.hh * 1.02f, glow,
-                argb(42, 255, 255, 255), true,
+                argb(28, 255, 255, 255), true,
                 kLeftHudLeftDepth, kLeftHudRightDepth);
     }
   }
 }
 
 void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const {
-  if (!mult_slot_.ok || multiplier < 2) return;  // 1x shows nothing in GH2
+  if (!mult_slot_.ok) return;
   const Slot& sl = mult_slot_;
+  if (multiplier < 2) {
+    if (IDirect3DTexture9* frame = tex("score_mult_frame.tex")) {
+      push_rect(out, sl.cx, sl.cz, sl.hw * 0.88f, sl.hh * 0.78f, frame,
+                0xFFFFFFFF, false, kLeftHudLeftDepth, kLeftHudRightDepth);
+    }
+    return;
+  }
   const int clamped = std::clamp(multiplier, 2, 9);
   if (clamped == 2 || clamped == 4) {
     if (IDirect3DTexture9* plate =
