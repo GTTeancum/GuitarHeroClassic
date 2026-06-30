@@ -719,21 +719,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                       argb(150, 85, 255, 90), true, true, true);
   }
   if (native_rock_label_ok_) {
-    float min_x = std::numeric_limits<float>::max();
-    float max_x = std::numeric_limits<float>::lowest();
-    float min_z = std::numeric_limits<float>::max();
-    float max_z = std::numeric_limits<float>::lowest();
-    for (const Quad::V& v : native_rock_label_.verts) {
-      min_x = std::min(min_x, v.wx);
-      max_x = std::max(max_x, v.wx);
-      min_z = std::min(min_z, v.wz);
-      max_z = std::max(max_z, v.wz);
-    }
-    const float cx = (min_x + max_x) * 0.5f;
-    const float cz = (min_z + max_z) * 0.5f;
     for (Quad::V& v : native_rock_label_.verts) {
-      v.wx = cx + (v.wx - cx) * 0.74f + rock_face_.hw * 0.06f;
-      v.wz = cz + (v.wz - cz) * 0.62f + rock_face_.hh * 0.02f;
       v.wy = right_hud_depth_at(v.wx);
     }
   }
