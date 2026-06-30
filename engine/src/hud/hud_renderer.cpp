@@ -498,10 +498,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   mult_slot_ = screen_slot(0.125f, 0.902f, 0.090f, 0.110f);
 
   // GH2's star tube sits above the right-side rock/crowd meter.
-  sp_bar_ = screen_slot(0.800f, 0.686f, 0.220f, 0.072f);
-  rock_face_ = screen_slot(0.825f, 0.835f, 0.205f, 0.220f);
-  rock_needle_pivot_ = screen_slot(0.825f, 0.894f, 0.010f, 0.010f);
-  rock_needle_len_ = rock_face_.hh * 0.62f;
+  sp_bar_ = screen_slot(0.820f, 0.686f, 0.150f, 0.062f);
+  rock_face_ = screen_slot(0.825f, 0.835f, 0.164f, 0.238f);
+  rock_needle_pivot_ = screen_slot(0.825f, 0.914f, 0.010f, 0.010f);
+  rock_needle_len_ = rock_face_.hh * 0.90f;
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
   native_rock_frame_ok_ = false;
@@ -879,10 +879,6 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& f = rock_face_;
 
-  if (native_rock_frame_ok_) {
-    out.push_back(native_rock_frame_);
-  }
-
   if (native_rock_face_ok_) {
     out.push_back(native_rock_face_);
   } else {
@@ -945,13 +941,17 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     out.push_back(native_rock_label_);
   }
 
+  if (native_rock_frame_ok_) {
+    out.push_back(native_rock_frame_);
+  }
+
   // needle: swings from left (fill 0, danger) to right (fill 1, max). Drawn as a
   // thin textured quad rotated about the pivot.
   if (rock_needle_pivot_.ok) {
     const float a = (0.5f - fill) * 1.6f;  // projection flips X; low must land left
     const float ca = std::cos(a), sa = std::sin(a);
     const float px = rock_needle_pivot_.cx, pz = rock_needle_pivot_.cz;
-    const float L = rock_needle_len_, hw = 3.5f;
+    const float L = rock_needle_len_ * 1.06f, hw = 4.6f;
     // local needle quad: from pivot (z=0) up to z=-L, width 2*hw
     auto rot = [&](float lx, float lz, float& ox, float& oz) {
       ox = px + lx * ca - lz * sa;
@@ -972,8 +972,19 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     q.idx = {0, 1, 2,  1, 3, 2};
     IDirect3DTexture9* nt = tex("rock_needle.tex");
     q.tex = nt;
-    q.color = nt ? 0xFFFFFFFF : argb(255, 20, 20, 20);
+    q.color = nt ? argb(255, 255, 238, 150) : argb(255, 210, 185, 55);
     out.push_back(std::move(q));
+
+    if (IDirect3DTexture9* led = tex("glodot01.tex")) {
+      const float tip_x = (x0 + x1) * 0.5f;
+      const float tip_z = (z0 + z1) * 0.5f;
+      const float dot_hw = f.hw * 0.060f;
+      const float dot_hh = f.hh * 0.045f;
+      push_rect(out, tip_x, tip_z, dot_hw, dot_hh, led,
+                argb(255, 255, 72, 62), false,
+                right_hud_depth_at(tip_x + dot_hw),
+                right_hud_depth_at(tip_x - dot_hw));
+    }
   }
 }
 
