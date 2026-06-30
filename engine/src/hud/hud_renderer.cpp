@@ -928,8 +928,8 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
     const int stage = on ? 3 : 1;
     const float arc_t = (static_cast<float>(i) - center) / center;
     float cx = sl.cx - (static_cast<float>(i) - center) * streak_step_;
-    float cz = sl.cz - sl.hh * 2.10f +
-               std::pow(std::abs(arc_t), 1.55f) * sl.hh * 1.08f;
+    float cz = sl.cz - sl.hh * 2.28f +
+               std::pow(std::abs(arc_t), 1.45f) * sl.hh * 1.52f;
     IDirect3DTexture9* glow =
         tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
     if (!glow) glow = tex("score_streak_glow.tex");
@@ -965,7 +965,8 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
       }
       q.tex = on ? (streak_tex ? streak_tex : glow)
                  : (streak_tex ? streak_tex : native_streak_pip_.tex);
-      q.color = on ? 0xFFFFFFFF : argb(165, 255, 255, 255);
+      q.color = on ? argb(230, 240, 225, 255)
+                   : argb(165, 255, 255, 255);
       out.push_back(std::move(q));
       if (on && glow) {
         Quad g = native_streak_pip_;
@@ -975,7 +976,7 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
           v.wy = left_hud_depth_at(v.wx);
         }
         g.tex = glow;
-        g.color = argb(85, 255, 255, 255);
+        g.color = argb(42, 255, 255, 255);
         g.additive = true;
         out.push_back(std::move(g));
       }
