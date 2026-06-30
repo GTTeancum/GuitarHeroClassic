@@ -702,15 +702,15 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                       native_rock_face_ok_, 0, false, false, true);
     assign_meter_mesh("rock_frame.mesh", rock_bounds, native_rock_frame_,
                       native_rock_frame_ok_, 0, false, false, true);
-    // The ROCK glyph shares the meter's vertically mirrored placement and
-    // texture V orientation.
+    // The ROCK glyph shares the meter's vertically mirrored placement, but its
+    // label textures already read upright in authored V.
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
-                      native_rock_label_ok_, 0, false, true, true);
+                      native_rock_label_ok_, 0, false, false, true);
     assign_meter_mesh("hud_rock_light.mesh", rock_bounds, native_rock_label_glow_,
-                      native_rock_label_glow_ok_, 0, true, true, true);
+                      native_rock_label_glow_ok_, 0, true, false, true);
     assign_meter_mesh("hud_rock_light_front.mesh", rock_bounds,
                       native_rock_label_front_glow_,
-                      native_rock_label_front_glow_ok_, 0, true, true, true);
+                      native_rock_label_front_glow_ok_, 0, true, false, true);
     assign_meter_mesh("rock_needle.mesh", rock_bounds, native_rock_needle_,
                       native_rock_needle_ok_, 0, false, false, true);
     assign_meter_mesh("vu_needle_led.mesh", rock_bounds, native_rock_needle_led_,
