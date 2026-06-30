@@ -25,6 +25,8 @@
 //                                      start a forced CamShot at a local path frame
 //   ghogx_app --hud-test [--hud-score N] [--hud-streak N]
 //                         [--hud-multiplier N] [--hud-sp 0..1] [--hud-rock 0..1]
+//                                      (same --hud-* flags force gameplay HUD
+//                                       state for diagnostic screenshots)
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
 //   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
 //                                      capture numbered BMPs in gameplay mode
@@ -354,6 +356,7 @@ class AppEngine : public ghogx::Engine {
   int         screenshot_frame_ = 0;
   ScreenshotSequence screenshot_sequence_;
   double diagnostic_song_start_ = 0.0;
+  std::optional<ghogx::hud::HudState> diagnostic_hud_override_;
 
  public:
   // Capture frame `frame` to a BMP for dev self-verification.
@@ -393,6 +396,10 @@ class AppEngine : public ghogx::Engine {
     diagnostic_song_start_ = std::max(0.0, seconds);
   }
 
+  void set_diagnostic_hud_override(const ghogx::hud::HudState& state) {
+    diagnostic_hud_override_ = state;
+  }
+
   // Force-load the song and skip directly to Playing state (for --auto-start).
   void force_start_song() {
     if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
@@ -429,6 +436,7 @@ class AppEngine : public ghogx::Engine {
                        (gameplay_.star_power_active() ? 2 : 1);
     state.sp_fill = gameplay_.star_power_fill();
     state.rock_fill = gameplay_.rock_fill();
+    if (diagnostic_hud_override_) state = *diagnostic_hud_override_;
 
     auto* dev = static_cast<IDirect3DDevice9*>(win_->device_ptr());
     hud_.draw(dev, state);
@@ -1363,6 +1371,7 @@ int main(int argc, char** argv) {
   int clip_frame_override = -1;  // --clip-frame N: force anim frame N (no time playback)
   bool hud_test = false;   // --hud-test: draw the in-song HUD overlay only
   HudTestOptions hud_test_options;
+  bool hud_options_requested = false;
   bool menu_mode = false;  // --menu: the windowed menu system
   std::string song_name = "shoutatthedevil";
   int difficulty = 0;  // Easy
@@ -1396,15 +1405,20 @@ int main(int argc, char** argv) {
       hud_test = true;
     } else if (std::strcmp(argv[i], "--hud-score") == 0 && i + 1 < argc) {
       hud_test_options.score = std::atoi(argv[++i]);
+      hud_options_requested = true;
     } else if (std::strcmp(argv[i], "--hud-streak") == 0 && i + 1 < argc) {
       hud_test_options.streak = std::atoi(argv[++i]);
+      hud_options_requested = true;
     } else if (std::strcmp(argv[i], "--hud-multiplier") == 0 &&
                i + 1 < argc) {
       hud_test_options.multiplier = std::atoi(argv[++i]);
+      hud_options_requested = true;
     } else if (std::strcmp(argv[i], "--hud-sp") == 0 && i + 1 < argc) {
       hud_test_options.sp_fill = std::atof(argv[++i]);
+      hud_options_requested = true;
     } else if (std::strcmp(argv[i], "--hud-rock") == 0 && i + 1 < argc) {
       hud_test_options.rock_fill = std::atof(argv[++i]);
+      hud_options_requested = true;
     } else if (std::strcmp(argv[i], "--menu") == 0) {
       menu_mode = true;
     } else if (std::strcmp(argv[i], "--song") == 0 && i + 1 < argc) {
@@ -1614,6 +1628,20 @@ int main(int argc, char** argv) {
   }
   if (diagnostic_song_start > 0.0) {
     engine.set_diagnostic_song_start(diagnostic_song_start);
+  }
+  if (hud_options_requested) {
+    ghogx::hud::HudState override_state;
+    override_state.score = std::max(0, hud_test_options.score);
+    override_state.streak = std::max(0, hud_test_options.streak);
+    override_state.multiplier = std::clamp(hud_test_options.multiplier, 1, 9);
+    override_state.sp_fill = std::clamp(hud_test_options.sp_fill, 0.0f, 1.0f);
+    override_state.rock_fill = std::clamp(hud_test_options.rock_fill, 0.0f, 1.0f);
+    engine.set_diagnostic_hud_override(override_state);
+    std::fprintf(stderr,
+                 "[ghogx] diagnostic HUD override: score=%d streak=%d mult=%dx sp=%.2f rock=%.2f\n",
+                 override_state.score, override_state.streak,
+                 override_state.multiplier, override_state.sp_fill,
+                 override_state.rock_fill);
   }
   if (capture_enabled && fixed_dt <= 0.0f) fixed_dt = 1.0f / 60.0f;
   if (fixed_dt > 0.0f) {
