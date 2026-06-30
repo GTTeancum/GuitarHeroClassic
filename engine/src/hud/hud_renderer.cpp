@@ -833,6 +833,25 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   auto place_rock_label = [&](Quad& q) {
     for (Quad::V& v : q.verts) {
       v.wx += rock_face_.hw * kRockLabelScreenLeftBias;
+    }
+    float min_x = std::numeric_limits<float>::max();
+    float max_x = std::numeric_limits<float>::lowest();
+    float min_z = std::numeric_limits<float>::max();
+    float max_z = std::numeric_limits<float>::lowest();
+    for (const Quad::V& v : q.verts) {
+      min_x = std::min(min_x, v.wx);
+      max_x = std::max(max_x, v.wx);
+      min_z = std::min(min_z, v.wz);
+      max_z = std::max(max_z, v.wz);
+    }
+    const float cx = (min_x + max_x) * 0.5f;
+    const float cz = (min_z + max_z) * 0.5f;
+    constexpr float kLabelScaleX = 0.86f;
+    constexpr float kLabelScaleZ = 0.86f;
+    const float raise = rock_face_.hh * 0.19f;
+    for (Quad::V& v : q.verts) {
+      v.wx = cx + (v.wx - cx) * kLabelScaleX;
+      v.wz = cz + (v.wz - cz) * kLabelScaleZ - raise;
       v.wy = right_hud_depth_at(v.wx);
     }
   };
