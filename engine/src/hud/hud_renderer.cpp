@@ -600,7 +600,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     assign_meter_mesh("rock_frame.mesh", rock_bounds, native_rock_frame_,
                       native_rock_frame_ok_, 0, false, false, true);
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
-                      native_rock_label_ok_, 0, false, true, true);
+                      native_rock_label_ok_, 0, false, false, true);
     assign_meter_mesh("rock_light_red_front.mesh", rock_bounds, native_rock_light_red_,
                       native_rock_light_red_ok_, argb(170, 255, 55, 45), true, true, true);
     assign_meter_mesh("rock_light_yellow_front.mesh", rock_bounds,
@@ -779,32 +779,30 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
 void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
   if (!streak_slot_.ok) return;
   // GH2's score panel uses a small native streak/progress strip rather than a
-  // plain numeric combo counter. Fill ten pips toward the next multiplier tier.
+  // plain numeric combo counter. Fill the native socket arc toward the next tier.
+  constexpr int kPipCount = 12;
   const int safe_streak = std::max(0, streak);
-  const int lit = safe_streak >= 30 ? 10 : safe_streak % 10;
+  const int lit = safe_streak >= 30 ? kPipCount : safe_streak % kPipCount;
   const Slot& sl = streak_slot_;
-  for (int i = 0; i < 10; ++i) {
+  const float center = (static_cast<float>(kPipCount) - 1.0f) * 0.5f;
+  for (int i = 0; i < kPipCount; ++i) {
     const bool on = i < lit;
-    const int stage = on ? 3 : 0;
-    IDirect3DTexture9* t =
-        tex(std::string("score_streak_") + char('0' + stage) + ".tex");
-    if (!t) t = tex("score_streak.tex");
-    const float arc_t = (static_cast<float>(i) - 4.5f) / 4.5f;
-    float cx = sl.cx - (static_cast<float>(i) - 4.5f) * streak_step_;
-    float cz = sl.cz + std::pow(std::abs(arc_t), 1.55f) * sl.hh * 1.15f;
-    push_rect(out, cx, cz, sl.hw, sl.hh, t,
-              on ? argb(235, 255, 255, 255) : argb(170, 255, 255, 255), false,
-              left_hud_depth_at(cx + sl.hw), left_hud_depth_at(cx - sl.hw));
-    if (on) {
-      IDirect3DTexture9* glow =
-          tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
-      if (!glow) glow = tex("score_streak_glow.tex");
-      const float glow_cz = cz - sl.hh * 0.38f;
-      push_rect(out, cx, glow_cz, sl.hw * 1.75f, sl.hh * 1.75f, glow,
-                argb(230, 255, 255, 255), false,
-                left_hud_depth_at(cx + sl.hw * 1.75f),
-                left_hud_depth_at(cx - sl.hw * 1.75f));
-    }
+    const int stage = on ? 3 : 1;
+    const float arc_t = (static_cast<float>(i) - center) / center;
+    float cx = sl.cx - (static_cast<float>(i) - center) * streak_step_;
+    float cz = sl.cz - sl.hh * 2.10f +
+               std::pow(std::abs(arc_t), 1.55f) * sl.hh * 1.08f;
+    IDirect3DTexture9* glow =
+        tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
+    if (!glow) glow = tex("score_streak_glow.tex");
+    if (!glow) glow = tex(std::string("score_streak_") + char('0' + stage) + ".tex");
+    if (!glow) glow = tex("score_streak.tex");
+    const float pip_hw = sl.hw * 1.70f;
+    const float pip_hh = sl.hh * 1.70f;
+    push_rect(out, cx, cz, pip_hw, pip_hh, glow,
+              on ? argb(240, 255, 255, 255) : argb(120, 255, 255, 255),
+              false, left_hud_depth_at(cx + pip_hw),
+              left_hud_depth_at(cx - pip_hw));
   }
 }
 
