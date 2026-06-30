@@ -664,7 +664,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                                        score_panel);
     if (native_mult_glow_.tex && native_mult_glow_.verts.size() >= 3 &&
         native_mult_glow_.idx.size() >= 3) {
-      native_mult_glow_.color = argb(145, 70, 210, 255);
+      native_mult_glow_.color = argb(105, 65, 190, 235);
       native_mult_glow_.additive = true;
       native_mult_glow_ok_ = true;
     }
@@ -966,7 +966,7 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
       }
       q.tex = on ? (streak_tex ? streak_tex : glow)
                  : (streak_tex ? streak_tex : native_streak_pip_.tex);
-      q.color = on ? argb(230, 240, 225, 255)
+      q.color = on ? argb(210, 220, 185, 245)
                    : argb(165, 255, 255, 255);
       out.push_back(std::move(q));
       if (on && glow) {
@@ -977,7 +977,7 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
           v.wy = left_hud_depth_at(v.wx);
         }
         g.tex = glow;
-        g.color = argb(42, 255, 255, 255);
+        g.color = argb(26, 255, 255, 255);
         g.additive = true;
         out.push_back(std::move(g));
       }
