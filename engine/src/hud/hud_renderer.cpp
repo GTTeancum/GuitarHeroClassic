@@ -624,8 +624,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     const float cx = (min_x + max_x) * 0.5f;
     const float cz = (min_z + max_z) * 0.5f;
     for (Quad::V& v : native_rock_label_.verts) {
-      v.wx = cx + (v.wx - cx) * 0.82f + rock_face_.hw * 0.05f;
-      v.wz = cz + (v.wz - cz) * 0.72f + rock_face_.hh * 0.12f;
+      v.wx = cx + (v.wx - cx) * 0.74f + rock_face_.hw * 0.06f;
+      v.wz = cz + (v.wz - cz) * 0.62f + rock_face_.hh * 0.02f;
       v.wy = right_hud_depth_at(v.wx);
     }
   }
