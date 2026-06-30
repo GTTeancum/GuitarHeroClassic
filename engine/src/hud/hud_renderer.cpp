@@ -67,8 +67,8 @@ constexpr float kLeftHudWorldMin =
     (0.5f - (kLeftHudPanelNx + kLeftHudPanelNw * 0.5f)) * kWorldPerScreenX;
 constexpr float kLeftHudWorldMax =
     (0.5f - (kLeftHudPanelNx - kLeftHudPanelNw * 0.5f)) * kWorldPerScreenX;
-constexpr float kRightHudPanelNx = 0.848f;
-constexpr float kRightHudPanelNw = 0.255f;
+constexpr float kRightHudPanelNx = 0.866f;
+constexpr float kRightHudPanelNw = 0.230f;
 constexpr float kRightHudWorldMin =
     (0.5f - (kRightHudPanelNx + kRightHudPanelNw * 0.5f)) * kWorldPerScreenX;
 constexpr float kRightHudWorldMax =
@@ -505,9 +505,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   for (Slot& slot : mult_digit_slot_) slot = {};
 
   // GH2's star tube sits above the right-side rock/crowd meter.
-  sp_bar_ = screen_slot(0.845f, 0.730f, 0.178f, 0.108f);
-  rock_face_ = screen_slot(0.855f, 0.854f, 0.226f, 0.216f);
-  rock_needle_pivot_ = screen_slot(0.855f, 0.946f, 0.010f, 0.010f);
+  sp_bar_ = screen_slot(0.865f, 0.695f, 0.168f, 0.098f);
+  rock_face_ = screen_slot(0.872f, 0.858f, 0.210f, 0.198f);
+  rock_needle_pivot_ = screen_slot(0.872f, 0.942f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.90f;
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
