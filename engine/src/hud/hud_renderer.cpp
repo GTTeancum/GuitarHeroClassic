@@ -1023,7 +1023,7 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
   if (!streak_slot_.ok) return;
   // GH2's score panel uses a small native streak/progress strip rather than a
   // plain numeric combo counter. Fill the native socket arc toward the next tier.
-  constexpr int kPipCount = 12;
+  constexpr int kPipCount = 10;
   const int safe_streak = std::max(0, streak);
   const int lit = safe_streak >= 30 ? kPipCount : safe_streak % kPipCount;
   const Slot& sl = streak_slot_;
