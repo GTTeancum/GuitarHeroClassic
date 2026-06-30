@@ -579,9 +579,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   // GH2's star tube sits above the right-side rock/crowd meter. These anchors
   // are matched against the PS2 in-song HUD reference, then filled with the
   // original star_meter/crowd_meter MILO meshes rather than replacement art.
-  sp_bar_ = screen_slot(0.790f, 0.648f, 0.224f, 0.125f);
-  rock_face_ = screen_slot(0.817f, 0.814f, 0.226f, 0.216f);
-  rock_needle_pivot_ = screen_slot(0.817f, 0.906f, 0.010f, 0.010f);
+  sp_bar_ = screen_slot(0.850f, 0.716f, 0.224f, 0.125f);
+  rock_face_ = screen_slot(0.850f, 0.882f, 0.226f, 0.216f);
+  rock_needle_pivot_ = screen_slot(0.850f, 0.974f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.90f;
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
@@ -589,6 +589,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   native_rock_label_front_glow_ok_ = false;
   native_rock_needle_ok_ = native_rock_needle_led_ok_ = false;
   native_streak_pip_ok_ = false;
+  native_mult_frame_ok_ = false;
   native_mult_glow_ok_ = false;
   native_rock_frame_ok_ = false;
   native_rock_light_red_ok_ = native_rock_light_yellow_ok_ = false;
@@ -757,12 +758,19 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     if (native_score_slots == score_slot_count_) {
       std::fprintf(stderr, "[hud] score digits anchored from native meshes\n");
     }
-    append_left_mesh("score_mult_frame.mesh", score_bounds, score_panel);
+    {
+      Quad q = make_left_mesh("score_mult_frame.mesh", score_bounds, score_panel);
+      if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
+        native_static_quads.push_back(q);
+        native_mult_frame_ = std::move(q);
+        native_mult_frame_ok_ = true;
+      }
+    }
     native_mult_glow_ = make_left_mesh("score_mult_glow.mesh", score_bounds,
                                        score_panel);
     if (native_mult_glow_.tex && native_mult_glow_.verts.size() >= 3 &&
         native_mult_glow_.idx.size() >= 3) {
-      native_mult_glow_.color = argb(105, 65, 190, 235);
+      native_mult_glow_.color = argb(135, 80, 220, 255);
       native_mult_glow_.additive = true;
       native_mult_glow_ok_ = true;
     }
@@ -1098,6 +1106,11 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
         tex(std::string("score_") + char('0' + clamped) + ".tex");
     if (!x || !digit) return;
     if (clamped > 4 && native_mult_glow_ok_) out.push_back(native_mult_glow_);
+    if (clamped > 4 && native_mult_frame_ok_) {
+      Quad active_frame = native_mult_frame_;
+      active_frame.color = argb(235, 95, 225, 255);
+      out.push_back(std::move(active_frame));
+    }
     const Slot& x_slot = mult_digit_slot_[0];
     const Slot& digit_slot = mult_digit_slot_[1];
     const float scale = clamped > 4 ? 0.74f : 0.86f;
