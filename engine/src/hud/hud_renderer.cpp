@@ -61,6 +61,18 @@ constexpr float kLeftHudLeftDepth = kNearHudDepth;
 constexpr float kLeftHudRightDepth = kFarHudDepth;
 constexpr float kRightHudLeftDepth = kFarHudDepth;
 constexpr float kRightHudRightDepth = kNearHudDepth;
+constexpr float kLeftHudPanelNx = 0.102f;
+constexpr float kLeftHudPanelNw = 0.180f;
+constexpr float kLeftHudWorldMin =
+    (0.5f - (kLeftHudPanelNx + kLeftHudPanelNw * 0.5f)) * kWorldPerScreenX;
+constexpr float kLeftHudWorldMax =
+    (0.5f - (kLeftHudPanelNx - kLeftHudPanelNw * 0.5f)) * kWorldPerScreenX;
+
+float left_hud_depth_at(float wx) {
+  const float t = std::clamp((wx - kLeftHudWorldMin) /
+                             (kLeftHudWorldMax - kLeftHudWorldMin), 0.0f, 1.0f);
+  return kLeftHudRightDepth + (kLeftHudLeftDepth - kLeftHudRightDepth) * t;
+}
 
 uint32_t argb(int a, int r, int g, int b) {
   return (uint32_t(a) << 24) | (uint32_t(r) << 16) | (uint32_t(g) << 8) | uint32_t(b);
@@ -282,6 +294,12 @@ namespace {
 // Upload one RGBA image (the asset loader yields R,G,B,A byte order) to a
 // MANAGED A8R8G8B8 D3D texture (swizzle RGBA->BGRA), as the highway does.
 bool uses_edge_black_matte(const std::string& name) {
+  const bool score_digit =
+      name.size() == 11 &&
+      name.compare(0, 6, "score_") == 0 &&
+      name[6] >= '0' && name[6] <= '9' &&
+      name.compare(7, 4, ".tex") == 0;
+  if (score_digit || name == "score_x.tex") return true;
   return name == "score_frame.tex" ||
          name == "score_frame_outline.tex" ||
          name == "score_mult_frame.tex" ||
@@ -448,7 +466,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   score_slot_count_ = 6;
   for (int i = 0; i < score_slot_count_; ++i) {
     score_slot_[i] = screen_slot(0.160f - static_cast<float>(i) * 0.0178f,
-                                 0.790f, 0.0112f, 0.044f);
+                                 0.799f, 0.0112f, 0.044f);
   }
 
   // Combo/streak and multiplier live under the score shell.
@@ -596,7 +614,8 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
     if (!t) continue;
     const Slot& sl = score_slot_[i];
     push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, t, 0xFFFFFFFF, false,
-              kLeftHudLeftDepth, kLeftHudRightDepth);
+              left_hud_depth_at(sl.cx + sl.hw),
+              left_hud_depth_at(sl.cx - sl.hw));
   }
 }
 
@@ -618,14 +637,15 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
     float cz = sl.cz + std::pow(std::abs(arc_t), 1.55f) * sl.hh * 1.15f;
     push_rect(out, cx, cz, sl.hw, sl.hh, t,
               on ? argb(235, 255, 255, 255) : argb(170, 255, 255, 255), false,
-              kLeftHudLeftDepth, kLeftHudRightDepth);
+              left_hud_depth_at(cx + sl.hw), left_hud_depth_at(cx - sl.hw));
     if (on) {
       IDirect3DTexture9* glow =
           tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
       if (!glow) glow = tex("score_streak_glow.tex");
       push_rect(out, cx, cz, sl.hw * 0.92f, sl.hh * 0.92f, glow,
                 argb(16, 255, 255, 255), true,
-                kLeftHudLeftDepth, kLeftHudRightDepth);
+                left_hud_depth_at(cx + sl.hw * 0.92f),
+                left_hud_depth_at(cx - sl.hw * 0.92f));
     }
   }
 }
@@ -636,7 +656,9 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
   if (multiplier < 2) {
     if (IDirect3DTexture9* frame = tex("score_mult_frame.tex")) {
       push_rect(out, sl.cx, sl.cz, sl.hw * 0.88f, sl.hh * 0.78f, frame,
-                0xFFFFFFFF, false, kLeftHudLeftDepth, kLeftHudRightDepth);
+                0xFFFFFFFF, false,
+                left_hud_depth_at(sl.cx + sl.hw * 0.88f),
+                left_hud_depth_at(sl.cx - sl.hw * 0.88f));
     }
     return;
   }
@@ -645,7 +667,9 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
     if (IDirect3DTexture9* plate =
             tex(clamped == 2 ? "hud_2x.tex" : "hud_4x.tex")) {
       push_rect(out, sl.cx, sl.cz, sl.hw * 0.72f, sl.hh * 0.80f, plate,
-                0xFFFFFFFF, false, kLeftHudLeftDepth, kLeftHudRightDepth);
+                0xFFFFFFFF, false,
+                left_hud_depth_at(sl.cx + sl.hw * 0.72f),
+                left_hud_depth_at(sl.cx - sl.hw * 0.72f));
       return;
     }
   }
@@ -656,17 +680,20 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
   if (clamped > 4) {
     push_rect(out, sl.cx, sl.cz, sl.hw * 0.92f, sl.hh * 0.88f,
               tex("score_mult_frame.tex"), argb(255, 75, 220, 255), false,
-              kLeftHudLeftDepth, kLeftHudRightDepth);
+              left_hud_depth_at(sl.cx + sl.hw * 0.92f),
+              left_hud_depth_at(sl.cx - sl.hw * 0.92f));
   }
   const uint32_t digit_color = clamped > 4 ? argb(255, 0, 0, 0) : 0xFFFFFFFF;
 
   // Authored X is flipped during projection: positive X lands farther left.
   push_rect(out, sl.cx + sl.hw * 0.24f, sl.cz, sl.hw * 0.30f,
             sl.hh * 0.66f, x, x ? digit_color : argb(255, 0, 0, 0), false,
-            kLeftHudLeftDepth, kLeftHudRightDepth);
+            left_hud_depth_at(sl.cx + sl.hw * 0.54f),
+            left_hud_depth_at(sl.cx - sl.hw * 0.06f));
   push_rect(out, sl.cx - sl.hw * 0.24f, sl.cz, sl.hw * 0.30f,
             sl.hh * 0.66f, digit, digit ? digit_color : argb(255, 0, 0, 0),
-            false, kLeftHudLeftDepth, kLeftHudRightDepth);
+            false, left_hud_depth_at(sl.cx + sl.hw * 0.06f),
+            left_hud_depth_at(sl.cx - sl.hw * 0.54f));
 }
 
 void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
