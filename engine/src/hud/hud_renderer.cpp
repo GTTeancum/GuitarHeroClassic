@@ -612,6 +612,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   }
 
   native_star_back_.clear();
+  native_star_fill_.clear();
+  native_star_fill_glow_.clear();
   native_star_front_.clear();
   native_star_ready_glow_.clear();
   const LoadedMesh* star_bounds_mesh = find_mesh(star, "amp_tube_glow.mesh");
@@ -632,8 +634,14 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     };
     append_star_mesh("amp_inside_bar.mesh", native_star_back_,
                      argb(135, 185, 210, 220), false);
+    append_star_mesh("amp_inside_bar.mesh", native_star_fill_,
+                     argb(240, 110, 220, 255), false);
+    append_star_mesh("amp_inside_bar_path.mesh", native_star_fill_glow_,
+                     argb(215, 115, 215, 255), true);
+    append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
+                     argb(135, 125, 215, 255), true);
     append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
-                     argb(125, 115, 205, 255), true);
+                     argb(210, 150, 225, 255), true);
     append_star_mesh("amp_glass.mesh", native_star_front_,
                      argb(185, 255, 255, 255), false, false, true,
                      "cleartube.tex");
@@ -889,19 +897,99 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
 
   // GH2 presents the star meter as a right-side horizontal tube. Projection
   // flips X, so screen-left is higher world X.
-  float fill_hw = sl.hw * fill;
-  float fill_cx = sl.cx + sl.hw - fill_hw;
-  IDirect3DTexture9* fillt = tex("amp_inside_bar.tex");
-  if (fill_hw > 0.5f) {
-    push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.52f, fillt,
-              fillt ? argb(230, 120, 205, 255) : argb(220, 75, 165, 255),
-              false, right_hud_depth_at(fill_cx + fill_hw),
-              right_hud_depth_at(fill_cx - fill_hw));
-    if (IDirect3DTexture9* glow = tex("amp_bar_glow.tex")) {
-      push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.72f, glow,
-                argb(150, 135, 210, 255), true,
-                right_hud_depth_at(fill_cx + fill_hw),
+  auto append_clipped_fill = [&](const std::vector<Quad>& source) {
+    bool drew = false;
+    for (const Quad& src : source) {
+      if (src.verts.size() < 3 || src.idx.size() < 3) continue;
+      float min_x = std::numeric_limits<float>::max();
+      float max_x = std::numeric_limits<float>::lowest();
+      for (const Quad::V& v : src.verts) {
+        min_x = std::min(min_x, v.wx);
+        max_x = std::max(max_x, v.wx);
+      }
+      if (!(max_x > min_x)) continue;
+      const float clip_x = max_x - (max_x - min_x) * fill;
+      auto inside = [&](const Quad::V& v) { return v.wx >= clip_x; };
+      auto intersect = [&](const Quad::V& a, const Quad::V& b) {
+        const float denom = b.wx - a.wx;
+        const float t = std::abs(denom) < 0.00001f ? 0.0f : (clip_x - a.wx) / denom;
+        Quad::V out_v;
+        out_v.wx = clip_x;
+        out_v.wy = a.wy + (b.wy - a.wy) * t;
+        out_v.wz = a.wz + (b.wz - a.wz) * t;
+        out_v.u = a.u + (b.u - a.u) * t;
+        out_v.v = a.v + (b.v - a.v) * t;
+        return out_v;
+      };
+
+      Quad clipped;
+      clipped.tex = src.tex;
+      clipped.color = src.color;
+      clipped.additive = src.additive;
+      for (size_t i = 0; i + 2 < src.idx.size(); i += 3) {
+        if (src.idx[i] >= src.verts.size() ||
+            src.idx[i + 1] >= src.verts.size() ||
+            src.idx[i + 2] >= src.verts.size()) {
+          continue;
+        }
+        std::vector<Quad::V> poly = {
+            src.verts[src.idx[i]],
+            src.verts[src.idx[i + 1]],
+            src.verts[src.idx[i + 2]],
+        };
+        std::vector<Quad::V> out_poly;
+        for (size_t j = 0; j < poly.size(); ++j) {
+          const Quad::V& a = poly[j];
+          const Quad::V& b = poly[(j + 1) % poly.size()];
+          const bool a_in = inside(a);
+          const bool b_in = inside(b);
+          if (a_in && b_in) {
+            out_poly.push_back(b);
+          } else if (a_in && !b_in) {
+            out_poly.push_back(intersect(a, b));
+          } else if (!a_in && b_in) {
+            out_poly.push_back(intersect(a, b));
+            out_poly.push_back(b);
+          }
+        }
+        if (out_poly.size() < 3) continue;
+        const uint16_t base = static_cast<uint16_t>(clipped.verts.size());
+        clipped.verts.insert(clipped.verts.end(), out_poly.begin(), out_poly.end());
+        for (size_t j = 1; j + 1 < out_poly.size(); ++j) {
+          clipped.idx.push_back(base);
+          clipped.idx.push_back(static_cast<uint16_t>(base + j));
+          clipped.idx.push_back(static_cast<uint16_t>(base + j + 1));
+        }
+      }
+      if (clipped.verts.size() >= 3 && clipped.idx.size() >= 3) {
+        out.push_back(std::move(clipped));
+        drew = true;
+      }
+    }
+    return drew;
+  };
+
+  bool drew_native_fill = false;
+  if (fill > 0.005f) {
+    drew_native_fill |= append_clipped_fill(native_star_fill_);
+    drew_native_fill |= append_clipped_fill(native_star_fill_glow_);
+  }
+
+  if (!drew_native_fill) {
+    float fill_hw = sl.hw * fill;
+    float fill_cx = sl.cx + sl.hw - fill_hw;
+    IDirect3DTexture9* fillt = tex("amp_inside_bar.tex");
+    if (fill_hw > 0.5f) {
+      push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.52f, fillt,
+                fillt ? argb(230, 120, 205, 255) : argb(220, 75, 165, 255),
+                false, right_hud_depth_at(fill_cx + fill_hw),
                 right_hud_depth_at(fill_cx - fill_hw));
+      if (IDirect3DTexture9* glow = tex("amp_bar_glow.tex")) {
+        push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.72f, glow,
+                  argb(150, 135, 210, 255), true,
+                  right_hud_depth_at(fill_cx + fill_hw),
+                  right_hud_depth_at(fill_cx - fill_hw));
+      }
     }
   }
 
