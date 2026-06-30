@@ -1282,8 +1282,11 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     const float px = rock_needle_pivot_.cx, pz = rock_needle_pivot_.cz;
     auto append_rotated = [&](const Quad& src) {
       Quad q = src;
-      constexpr float kNativeNeedleFill = 0.25f;
-      const float a = (kNativeNeedleFill - fill) * 1.6f;
+      // Map the gameplay rock value into GH2's visible red-to-green needle
+      // sweep. Values solidly in the green band should reach the right side,
+      // not linger around the meter center.
+      const float meter_t = std::clamp((fill - 0.10f) / 0.55f, 0.0f, 1.0f);
+      const float a = 0.25f - meter_t * 1.80f;
       const float ca = std::cos(a), sa = std::sin(a);
       for (Quad::V& v : q.verts) {
         const float dx = v.wx - px;
