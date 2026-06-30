@@ -82,7 +82,8 @@ class HudRenderer {
   // Helper: append an axis-aligned quad (in world X-Z) to a draw list.
   static void push_rect(std::vector<Quad>& out, float cx, float cz, float hw,
                         float hh, IDirect3DTexture9* tex, uint32_t color,
-                        bool additive = false);
+                        bool additive = false, float screen_left_depth = 0.0f,
+                        float screen_right_depth = 0.0f);
 
   IDirect3DTexture9* tex(const std::string& name) const;
 
@@ -99,7 +100,8 @@ class HudRenderer {
   void emit_rock_meter(std::vector<Quad>& out, float fill) const;
 
   // Map a HUD-space (worldX, worldZ) point to back-buffer pixels.
-  void project(float wx, float wz, int bbw, int bbh, float& px, float& py) const;
+  void project(float wx, float wy, float wz, int bbw, int bbh,
+               float& px, float& py) const;
 
   bool loaded_ = false;
   IDirect3DDevice9* dev_ = nullptr;
