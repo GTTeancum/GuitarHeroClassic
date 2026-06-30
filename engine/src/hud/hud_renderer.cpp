@@ -542,7 +542,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   auto make_slot_mesh = [&](const MiloLayout& layout, const LoadedMesh& mesh,
                             const MeshBounds& bounds, const Slot& slot,
                             uint32_t color, bool additive, bool flip_v,
-                            bool flip_z) {
+                            bool flip_z, bool right_side = true) {
     Quad q;
     auto mat = layout.mat_tex.find(mesh.material);
     if (mat != layout.mat_tex.end()) q.tex = tex(mat->second);
@@ -574,7 +574,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       const float wx = slot.cx - slot.hw + tx * slot.hw * 2.0f;
       const float z_delta = (z - source_center_z) * z_scale;
       const float wz = mapped_center_z + (flip_z ? -z_delta : z_delta);
-      q.verts.push_back({wx, right_hud_depth_at(wx), wz, v.u,
+      q.verts.push_back({wx, right_side ? right_hud_depth_at(wx)
+                                        : left_hud_depth_at(wx),
+                         wz, v.u,
                          flip_v ? 1.0f - v.vv : v.vv});
     }
     q.idx = mesh.idx;
@@ -593,6 +595,33 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       }
     }
   };
+
+  std::vector<Quad> native_static_quads;
+  auto append_left_mesh = [&](const char* name, const MeshBounds& bounds,
+                              const Slot& slot, bool flip_v = false,
+                              bool flip_z = true) {
+    if (const LoadedMesh* mesh = find_mesh(hud, name)) {
+      Quad q = make_slot_mesh(hud, *mesh, bounds, slot, 0xFFFFFFFF, false,
+                              flip_v, flip_z, false);
+      if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
+        native_static_quads.push_back(std::move(q));
+      }
+    }
+  };
+  if (const LoadedMesh* score_outline = find_mesh(hud, "score_shell_outline.mesh")) {
+    const MeshBounds score_bounds = bounds_for(*score_outline);
+    append_left_mesh("score_shell_outline.mesh", score_bounds, score_panel);
+  }
+  if (const LoadedMesh* score_shell = find_mesh(hud, "score_shell.mesh")) {
+    append_left_mesh("score_shell.mesh", bounds_for(*score_shell), score_panel);
+  }
+  if (const LoadedMesh* score_num_frame = find_mesh(hud, "score_num_frame.mesh")) {
+    append_left_mesh("score_num_frame.mesh", bounds_for(*score_num_frame),
+                     score_frame);
+  }
+  if (!native_static_quads.empty()) {
+    static_quads_ = std::move(native_static_quads);
+  }
 
   if (const LoadedMesh* rock_frame = find_mesh(crowd, "rock_frame.mesh")) {
     const MeshBounds rock_bounds = bounds_for(*rock_frame);
