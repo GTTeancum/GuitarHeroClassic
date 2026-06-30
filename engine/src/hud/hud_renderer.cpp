@@ -760,17 +760,17 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       }
     };
     append_star_mesh("amp_inside_bar.mesh", native_star_back_,
-                     argb(135, 185, 210, 220), false);
+                     argb(175, 210, 230, 238), false);
     append_star_mesh("amp_inside_bar.mesh", native_star_fill_,
-                     argb(235, 95, 220, 255), false);
+                     argb(245, 110, 225, 255), false);
     append_star_mesh("amp_inside_bar_path.mesh", native_star_fill_glow_,
-                     argb(140, 95, 210, 255), true);
+                     argb(165, 120, 220, 255), true);
     append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
-                     argb(90, 120, 200, 240), true);
+                     argb(115, 145, 215, 250), true);
     append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
-                     argb(45, 135, 200, 235), true);
+                     argb(70, 150, 215, 245), true);
     append_star_mesh("amp_glass.mesh", native_star_front_,
-                     argb(185, 255, 255, 255), false, false, true,
+                     argb(225, 255, 255, 255), false, false, true,
                      "cleartube.tex");
     append_star_mesh("amp_chrome_base.mesh", native_star_front_, 0, false);
     append_star_mesh("amp_chrome_top.mesh", native_star_front_, 0, false);
