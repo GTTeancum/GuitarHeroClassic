@@ -177,11 +177,17 @@ struct LoadedMesh {
 
 struct GroupX { ghogx::milo_scene::Xfm local; std::string parent; };
 
+struct MatUvXfm {
+  float scale[2] = {1.0f, 1.0f};
+  float offset[2] = {0.0f, 0.0f};
+};
+
 struct MiloLayout {
   std::vector<LoadedMesh> meshes;
   std::unordered_map<std::string, GroupX> groups;       // name -> xfm
   std::unordered_map<std::string, std::string> mat_tex; // material -> diffuse tex
   std::unordered_map<std::string, uint32_t> mat_color;   // material -> ARGB tint
+  std::unordered_map<std::string, MatUvXfm> mat_uv;      // material -> diffuse UV xform
   bool ok = false;
 };
 
@@ -234,6 +240,9 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         std::vector<uint8_t> body(b, b + n);
         auto mat = ghogx::milo_scene::decode_mat(de.name, body);
         if (!mat.diffuse_tex.empty()) out.mat_tex[de.name] = mat.diffuse_tex;
+        out.mat_uv[de.name] =
+            MatUvXfm{{mat.tex_scale[0], mat.tex_scale[1]},
+                     {mat.tex_offset[0], mat.tex_offset[1]}};
         auto c = [](float v) {
           return static_cast<int>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f);
         };
@@ -287,13 +296,18 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
       u1 = std::max(u1, v.u); v1 = std::max(v1, v.vv);
     }
     auto tex = layout.mat_tex.find(m.material);
+    auto uv = layout.mat_uv.find(m.material);
+    const MatUvXfm uv_xfm = uv == layout.mat_uv.end() ? MatUvXfm{} : uv->second;
     std::fprintf(stderr,
                  "[hud-dump] %-27s mat=%-28s tex=%-24s parent=%-24s "
-                 "x=%.3f..%.3f y=%.3f..%.3f z=%.3f..%.3f uv=%.3f..%.3f/%.3f..%.3f verts=%zu idx=%zu\n",
+                 "x=%.3f..%.3f y=%.3f..%.3f z=%.3f..%.3f "
+                 "uv=%.3f..%.3f/%.3f..%.3f uvxfm=(%.3f %.3f)+(%.3f %.3f) "
+                 "verts=%zu idx=%zu\n",
                  m.name.c_str(), m.material.c_str(),
                  tex == layout.mat_tex.end() ? "" : tex->second.c_str(),
                  m.parent.c_str(), mn[0], mx[0], mn[1], mx[1], mn[2], mx[2],
-                 u0, u1, v0, v1, m.verts.size(), m.idx.size());
+                 u0, u1, v0, v1, uv_xfm.scale[0], uv_xfm.scale[1],
+                 uv_xfm.offset[0], uv_xfm.offset[1], m.verts.size(), m.idx.size());
   }
 }
 
@@ -563,6 +577,11 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     if (!bounds.ok || !q.tex) return q;
     const MeshBounds mesh_bounds = bounds_for(mesh);
     if (!mesh_bounds.ok) return q;
+    const MatUvXfm uv_xfm =
+        [&]() {
+          auto uv = layout.mat_uv.find(mesh.material);
+          return uv == layout.mat_uv.end() ? MatUvXfm{} : uv->second;
+        }();
     const float source_center_z = (mesh_bounds.min_z + mesh_bounds.max_z) * 0.5f;
     const float source_center_t =
         std::clamp((source_center_z - bounds.min_z) / (bounds.max_z - bounds.min_z),
@@ -579,10 +598,12 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       const float wx = slot.cx - slot.hw + tx * slot.hw * 2.0f;
       const float z_delta = (z - source_center_z) * z_scale;
       const float wz = mapped_center_z + (flip_z ? -z_delta : z_delta);
+      const float u = v.u * uv_xfm.scale[0] + uv_xfm.offset[0];
+      const float vv = v.vv * uv_xfm.scale[1] + uv_xfm.offset[1];
       q.verts.push_back({wx, right_side ? right_hud_depth_at(wx)
                                         : left_hud_depth_at(wx),
-                         wz, v.u,
-                         flip_v ? 1.0f - v.vv : v.vv});
+                         wz, u,
+                         flip_v ? 1.0f - vv : vv});
     }
     q.idx = mesh.idx;
     return q;
