@@ -554,8 +554,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   // GH2 frames the highway with the in-song HUD in the lower gameplay band:
   // score/multiplier to the left of the fretboard, star/rock to the right.
-  Slot score_panel = screen_slot(0.104f, 0.852f, 0.196f, 0.258f);
-  Slot score_frame = screen_slot(0.098f, 0.796f, 0.094f, 0.067f);
+  Slot score_panel = screen_slot(0.140f, 0.862f, 0.176f, 0.238f);
+  Slot score_frame = screen_slot(0.146f, 0.796f, 0.094f, 0.067f);
   push_rect(static_quads_, score_panel.cx, score_panel.cz, score_panel.hw,
             score_panel.hh, tex("score_frame.tex"), 0xFFFFFFFF, false,
             left_hud_depth_at(score_panel.cx + score_panel.hw),
@@ -566,21 +566,21 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
             left_hud_depth_at(score_frame.cx - score_frame.hw));
   score_slot_count_ = 6;
   for (int i = 0; i < score_slot_count_; ++i) {
-    score_slot_[i] = screen_slot(0.138f - static_cast<float>(i) * 0.0160f,
+    score_slot_[i] = screen_slot(0.186f - static_cast<float>(i) * 0.0160f,
                                  0.803f, 0.0106f, 0.044f);
   }
 
   // Combo/streak and multiplier live under the score shell.
-  streak_slot_ = screen_slot(0.114f, 0.856f, 0.0048f, 0.0105f);
+  streak_slot_ = screen_slot(0.162f, 0.856f, 0.0048f, 0.0105f);
   streak_step_ = streak_slot_.hw * 4.15f;
-  mult_slot_ = screen_slot(0.111f, 0.906f, 0.090f, 0.110f);
+  mult_slot_ = screen_slot(0.159f, 0.906f, 0.090f, 0.110f);
   for (Slot& slot : mult_digit_slot_) slot = {};
 
   // GH2's star tube sits above the right-side rock/crowd meter. These anchors
   // are matched against the PS2 in-song HUD reference, then filled with the
   // original star_meter/crowd_meter MILO meshes rather than replacement art.
-  sp_bar_ = screen_slot(0.850f, 0.716f, 0.224f, 0.125f);
-  rock_face_ = screen_slot(0.850f, 0.882f, 0.226f, 0.216f);
+  sp_bar_ = screen_slot(0.844f, 0.716f, 0.202f, 0.125f);
+  rock_face_ = screen_slot(0.850f, 0.882f, 0.203f, 0.216f);
   rock_needle_pivot_ = screen_slot(0.850f, 0.974f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.90f;
 
@@ -787,6 +787,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       if (pip_slot.ok) {
         streak_slot_.hw = pip_slot.hw;
         streak_slot_.hh = pip_slot.hh;
+        streak_step_ = pip_slot.hw * 1.82f;
       }
     }
   }
