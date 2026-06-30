@@ -512,6 +512,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
   native_rock_needle_ok_ = native_rock_needle_led_ok_ = false;
+  native_streak_pip_ok_ = false;
   native_mult_glow_ok_ = false;
   native_rock_frame_ok_ = false;
   native_rock_light_red_ok_ = native_rock_light_yellow_ok_ = false;
@@ -655,6 +656,17 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         quad_slot(make_left_mesh("score_mult_2.mesh", score_bounds, score_panel));
     mult_digit_slot_[1] =
         quad_slot(make_left_mesh("score_mult_3.mesh", score_bounds, score_panel));
+    native_streak_pip_ = make_left_mesh("score_streak_1.mesh", score_bounds,
+                                        score_panel);
+    if (native_streak_pip_.tex && native_streak_pip_.verts.size() >= 3 &&
+        native_streak_pip_.idx.size() >= 3) {
+      native_streak_pip_ok_ = true;
+      const Slot pip_slot = quad_slot(native_streak_pip_);
+      if (pip_slot.ok) {
+        streak_slot_.hw = pip_slot.hw;
+        streak_slot_.hh = pip_slot.hh;
+      }
+    }
   }
   if (const LoadedMesh* score_num_frame = find_mesh(hud, "score_num_frame.mesh")) {
     append_left_mesh("score_num_frame.mesh", bounds_for(*score_num_frame),
@@ -902,14 +914,61 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
     IDirect3DTexture9* glow =
         tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
     if (!glow) glow = tex("score_streak_glow.tex");
-    if (!glow) glow = tex(std::string("score_streak_") + char('0' + stage) + ".tex");
-    if (!glow) glow = tex("score_streak.tex");
-    const float pip_hw = sl.hw * 1.70f;
-    const float pip_hh = sl.hh * 1.70f;
-    push_rect(out, cx, cz, pip_hw, pip_hh, glow,
-              on ? argb(240, 255, 255, 255) : argb(120, 255, 255, 255),
-              false, left_hud_depth_at(cx + pip_hw),
-              left_hud_depth_at(cx - pip_hw));
+    IDirect3DTexture9* streak_tex =
+        tex(std::string("score_streak_") + char('0' + stage) + ".tex");
+    if (!streak_tex) streak_tex = tex("score_streak.tex");
+    if (native_streak_pip_ok_) {
+      if (!on) continue;
+      Quad q = native_streak_pip_;
+      const Slot src = [&]() {
+        Slot slot;
+        float min_x = std::numeric_limits<float>::max();
+        float max_x = std::numeric_limits<float>::lowest();
+        float min_z = std::numeric_limits<float>::max();
+        float max_z = std::numeric_limits<float>::lowest();
+        for (const Quad::V& v : q.verts) {
+          min_x = std::min(min_x, v.wx);
+          max_x = std::max(max_x, v.wx);
+          min_z = std::min(min_z, v.wz);
+          max_z = std::max(max_z, v.wz);
+        }
+        slot.cx = (min_x + max_x) * 0.5f;
+        slot.cz = (min_z + max_z) * 0.5f;
+        slot.ok = max_x > min_x && max_z > min_z;
+        return slot;
+      }();
+      const float dx = cx - src.cx;
+      const float dz = cz - src.cz;
+      for (Quad::V& v : q.verts) {
+        v.wx += dx;
+        v.wz += dz;
+        v.wy = left_hud_depth_at(v.wx);
+      }
+      q.tex = on ? (streak_tex ? streak_tex : glow)
+                 : (streak_tex ? streak_tex : native_streak_pip_.tex);
+      q.color = on ? 0xFFFFFFFF : argb(165, 255, 255, 255);
+      out.push_back(std::move(q));
+      if (on && glow) {
+        Quad g = native_streak_pip_;
+        for (Quad::V& v : g.verts) {
+          v.wx += dx;
+          v.wz += dz;
+          v.wy = left_hud_depth_at(v.wx);
+        }
+        g.tex = glow;
+        g.color = argb(85, 255, 255, 255);
+        g.additive = true;
+        out.push_back(std::move(g));
+      }
+    } else {
+      if (!glow) glow = streak_tex;
+      const float pip_hw = sl.hw * 1.70f;
+      const float pip_hh = sl.hh * 1.70f;
+      push_rect(out, cx, cz, pip_hw, pip_hh, glow,
+                on ? argb(240, 255, 255, 255) : argb(120, 255, 255, 255),
+                false, left_hud_depth_at(cx + pip_hw),
+                left_hud_depth_at(cx - pip_hw));
+    }
   }
 }
 
