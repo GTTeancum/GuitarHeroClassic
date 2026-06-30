@@ -605,16 +605,11 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
   // GH2's score panel uses a small native streak/progress strip rather than a
   // plain numeric combo counter. Fill ten pips toward the next multiplier tier.
   const int safe_streak = std::max(0, streak);
-  const int tier = safe_streak >= 30 ? 3
-                   : safe_streak >= 20 ? 3
-                   : safe_streak >= 10 ? 2
-                   : safe_streak > 0 ? 1
-                   : 0;
   const int lit = safe_streak >= 30 ? 10 : safe_streak % 10;
   const Slot& sl = streak_slot_;
   for (int i = 0; i < 10; ++i) {
     const bool on = i < lit;
-    const int stage = on ? std::clamp(tier, 1, 4) : 0;
+    const int stage = on ? 3 : 0;
     IDirect3DTexture9* t =
         tex(std::string("score_streak_") + char('0' + stage) + ".tex");
     if (!t) t = tex("score_streak.tex");
@@ -684,9 +679,11 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
     push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(230, 220, 235, 255),
               false, kRightHudLeftDepth, kRightHudRightDepth);
 
-  push_rect(out, sl.cx, sl.cz, sl.hw * 0.86f, sl.hh * 0.30f, nullptr,
-            argb(85, 210, 235, 245), false,
-            kRightHudLeftDepth, kRightHudRightDepth);
+  if (IDirect3DTexture9* empty = tex("amp_inside_bar.tex")) {
+    push_rect(out, sl.cx, sl.cz, sl.hw * 0.86f, sl.hh * 0.30f, empty,
+              argb(90, 185, 210, 220), false,
+              kRightHudLeftDepth, kRightHudRightDepth);
+  }
 
   // GH2 presents the star meter as a right-side horizontal tube. Projection
   // flips X, so screen-left is higher world X.
@@ -697,9 +694,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
     push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.52f, fillt,
               fillt ? argb(230, 120, 205, 255) : argb(220, 75, 165, 255),
               false, kRightHudLeftDepth, kRightHudRightDepth);
-    push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.46f, nullptr,
-              argb(190, 90, 220, 255), true,
-              kRightHudLeftDepth, kRightHudRightDepth);
     if (IDirect3DTexture9* glow = tex("amp_bar_glow.tex")) {
       push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.72f, glow,
                 argb(150, 135, 210, 255), true,
