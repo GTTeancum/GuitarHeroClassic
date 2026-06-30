@@ -138,6 +138,18 @@ int main() {
 
   {
     FoFiXGameplaySession session({
+        {1.0, 1.0, kGreen, false, false, 0.5, 0.0, 0.0, 0, 100},
+        {1.05, 1.05, kRed, false, false, 0.5, 0.0, 0.0, 1, 105},
+    });
+    session.tick(1.05, kRed | kStrum);
+    std::vector<uint8_t> consumed(2, 0);
+    session.copy_source_consumed(consumed);
+    CHECK(consumed[0] == 1 && consumed[1] == 1,
+          "FoFiX session exposes skipped and hit chart notes as consumed for highway rendering");
+  }
+
+  {
+    FoFiXGameplaySession session({
         {1.0, 1.0, kGreen, false, false},
         {1.05, 1.05, kGreen, false, false},
     });

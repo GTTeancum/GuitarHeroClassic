@@ -62,6 +62,7 @@ class FoFiXGameplaySession {
   void tick(double song_time, uint32_t fret_mask);
   void seek_without_scoring(double song_time);
   uint32_t diagnostic_autoplay_mask(double song_time) const;
+  void copy_source_consumed(std::vector<uint8_t>& out) const;
 
   int score() const { return score_.score; }
   int streak() const { return score_.streak; }

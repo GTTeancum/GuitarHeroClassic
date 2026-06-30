@@ -386,6 +386,17 @@ uint32_t FoFiXGameplaySession::diagnostic_autoplay_mask(
   return sustain_mask | mask | (1u << 5);
 }
 
+void FoFiXGameplaySession::copy_source_consumed(
+    std::vector<uint8_t>& out) const {
+  std::fill(out.begin(), out.end(), 0);
+  for (size_t i = 0; i < notes_.size() && i < consumed_.size(); ++i) {
+    if (!consumed_[i]) continue;
+    const size_t source = notes_[i].source_index;
+    if (source == static_cast<size_t>(-1) || source >= out.size()) continue;
+    out[source] = 1;
+  }
+}
+
 void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   last_events_.clear();
   const double dt = std::max(0.0, song_time - last_time_);

@@ -526,6 +526,7 @@ class Gameplay {
                                        bool log);
   bool update_gameplay_session_mirror(uint32_t fret_mask,
                                       bool emit_presentation);
+  void sync_consumed_notes_from_gameplay_session();
   std::unordered_set<std::string> composed_lighting_hidden_meshes() const;
   std::map<std::string, float> composed_lighting_material_alpha() const;
   void update_active_lighting_material_anims();

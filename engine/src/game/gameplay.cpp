@@ -17602,6 +17602,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     }
     if (gameplay_session_mirror_) {
         gameplay_session_mirror_->seek_without_scoring(song_time_);
+        sync_consumed_notes_from_gameplay_session();
     }
 
     auto skip_cues_before = [&](const auto& cues, size_t& index) {
@@ -18382,7 +18383,23 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
     rock_ = gameplay_session_mirror_->rock_state();
     star_power_ = gameplay_session_mirror_->star_power_state();
     failed_ = gameplay_session_mirror_->failed();
+    sync_consumed_notes_from_gameplay_session();
     return bad_gameplay_feedback;
+}
+
+void Gameplay::sync_consumed_notes_from_gameplay_session() {
+    if (!gameplay_session_mirror_ || !chart_loaded_) return;
+    const int diff = std::clamp(difficulty_, 0, 3);
+    const auto& notes = chart_.notes[diff];
+    auto& consumed = note_consumed_[diff];
+    if (consumed.size() != notes.size()) consumed.assign(notes.size(), 0);
+    gameplay_session_mirror_->copy_source_consumed(consumed);
+    next_note_idx_ = 0;
+    while (next_note_idx_ < notes.size() &&
+           next_note_idx_ < consumed.size() &&
+           consumed[next_note_idx_]) {
+        ++next_note_idx_;
+    }
 }
 
 void Gameplay::tick(float dt, uint32_t fret_mask) {
