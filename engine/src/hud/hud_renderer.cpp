@@ -52,11 +52,11 @@ constexpr float kWorldPerScreenX = 760.0f;  // authored X span across full width
 // cluster around Z=-80..-190; we want them in the TOP ~45% of the screen.
 constexpr float kZTop = -210.0f;  // maps near the top of the screen
 constexpr float kZBot =  120.0f;  // maps near the bottom
-constexpr float kHudPerspective = 0.0014f;
+constexpr float kHudPerspective = 0.0015f;
 constexpr float kHudVanishX = 0.5f;
 constexpr float kHudVanishY = 0.67f;
-constexpr float kNearHudDepth = -3.0f;
-constexpr float kFarHudDepth = 9.0f;
+constexpr float kNearHudDepth = -4.0f;
+constexpr float kFarHudDepth = 13.0f;
 constexpr float kLeftHudLeftDepth = kNearHudDepth;
 constexpr float kLeftHudRightDepth = kFarHudDepth;
 constexpr float kRightHudLeftDepth = kFarHudDepth;
@@ -216,6 +216,55 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
   return out;
 }
 
+bool interesting_hud_mesh(const std::string& name) {
+  return name.find("score") != std::string::npos ||
+         name.find("multi_hud") != std::string::npos ||
+         name.find("amp_") != std::string::npos ||
+         name.find("rock") != std::string::npos ||
+         name.find("needle") != std::string::npos ||
+         name.find("vu_") != std::string::npos;
+}
+
+void transform_point(const ghogx::milo_scene::Xfm& xfm, const LoadedMesh::V& v,
+                     float& x, float& y, float& z) {
+  x = v.x * xfm.rot[0][0] + v.y * xfm.rot[1][0] + v.z * xfm.rot[2][0] + xfm.pos[0];
+  y = v.x * xfm.rot[0][1] + v.y * xfm.rot[1][1] + v.z * xfm.rot[2][1] + xfm.pos[1];
+  z = v.x * xfm.rot[0][2] + v.y * xfm.rot[1][2] + v.z * xfm.rot[2][2] + xfm.pos[2];
+}
+
+void dump_hud_layout(const char* tag, const MiloLayout& layout) {
+  if (GetEnvironmentVariableA("GHOGX_HUD_DUMP", nullptr, 0) == 0) return;
+  std::fprintf(stderr, "[hud-dump] layout=%s meshes=%zu groups=%zu mats=%zu\n",
+               tag, layout.meshes.size(), layout.groups.size(), layout.mat_tex.size());
+  for (const LoadedMesh& m : layout.meshes) {
+    if (!m.quad || !interesting_hud_mesh(m.name)) continue;
+    float mn[3] = {std::numeric_limits<float>::max(),
+                   std::numeric_limits<float>::max(),
+                   std::numeric_limits<float>::max()};
+    float mx[3] = {std::numeric_limits<float>::lowest(),
+                   std::numeric_limits<float>::lowest(),
+                   std::numeric_limits<float>::lowest()};
+    float u0 = std::numeric_limits<float>::max(), v0 = std::numeric_limits<float>::max();
+    float u1 = std::numeric_limits<float>::lowest(), v1 = std::numeric_limits<float>::lowest();
+    for (const auto& v : m.verts) {
+      float x, y, z;
+      transform_point(m.world, v, x, y, z);
+      mn[0] = std::min(mn[0], x); mn[1] = std::min(mn[1], y); mn[2] = std::min(mn[2], z);
+      mx[0] = std::max(mx[0], x); mx[1] = std::max(mx[1], y); mx[2] = std::max(mx[2], z);
+      u0 = std::min(u0, v.u); v0 = std::min(v0, v.vv);
+      u1 = std::max(u1, v.u); v1 = std::max(v1, v.vv);
+    }
+    auto tex = layout.mat_tex.find(m.material);
+    std::fprintf(stderr,
+                 "[hud-dump] %-27s mat=%-28s tex=%-24s parent=%-24s "
+                 "x=%.3f..%.3f y=%.3f..%.3f z=%.3f..%.3f uv=%.3f..%.3f/%.3f..%.3f verts=%zu idx=%zu\n",
+                 m.name.c_str(), m.material.c_str(),
+                 tex == layout.mat_tex.end() ? "" : tex->second.c_str(),
+                 m.parent.c_str(), mn[0], mx[0], mn[1], mx[1], mn[2], mx[2],
+                 u0, u1, v0, v1, m.verts.size(), m.idx.size());
+  }
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -325,6 +374,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   if (!hud.ok) { std::fprintf(stderr, "[hud] core hud.milo failed\n"); return false; }
   MiloLayout crowd = load_milo_layout(hdr_path, ark_path, kCrowdMilo);
   MiloLayout star = load_milo_layout(hdr_path, ark_path, kStarMilo);
+  dump_hud_layout("hud", hud);
+  dump_hud_layout("crowd", crowd);
+  dump_hud_layout("star", star);
 
   // 2) Load + upload every texture we reference from each MILO.
   auto load_set = [&](const std::string& milo, const std::vector<std::string>& names) {
@@ -385,29 +437,29 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   // GH2 frames the highway with the in-song HUD in the lower gameplay band:
   // score/multiplier to the left of the fretboard, star/rock to the right.
-  Slot score_panel = screen_slot(0.215f, 0.812f, 0.150f, 0.220f);
+  Slot score_panel = screen_slot(0.102f, 0.842f, 0.180f, 0.240f);
   push_rect(static_quads_, score_panel.cx, score_panel.cz, score_panel.hw,
             score_panel.hh, tex("score_frame.tex"), 0xFFFFFFFF, false,
             kLeftHudLeftDepth, kLeftHudRightDepth);
-  Slot score_frame = screen_slot(0.222f, 0.750f, 0.094f, 0.056f);
+  Slot score_frame = screen_slot(0.110f, 0.792f, 0.105f, 0.067f);
   push_rect(static_quads_, score_frame.cx, score_frame.cz, score_frame.hw,
             score_frame.hh, tex("score_num_frame.tex"), 0xFFFFFFFF, false,
             kLeftHudLeftDepth, kLeftHudRightDepth);
   score_slot_count_ = 6;
   for (int i = 0; i < score_slot_count_; ++i) {
-    score_slot_[i] = screen_slot(0.258f - static_cast<float>(i) * 0.015f,
-                                 0.750f, 0.0122f, 0.046f);
+    score_slot_[i] = screen_slot(0.162f - static_cast<float>(i) * 0.0185f,
+                                 0.792f, 0.0132f, 0.055f);
   }
 
   // Combo/streak and multiplier live under the score shell.
-  streak_slot_ = screen_slot(0.220f, 0.805f, 0.0076f, 0.021f);
-  streak_step_ = streak_slot_.hw * 2.82f;
-  mult_slot_ = screen_slot(0.220f, 0.875f, 0.070f, 0.100f);
+  streak_slot_ = screen_slot(0.112f, 0.852f, 0.0064f, 0.0175f);
+  streak_step_ = streak_slot_.hw * 3.80f;
+  mult_slot_ = screen_slot(0.125f, 0.902f, 0.090f, 0.110f);
 
   // GH2's star tube sits above the right-side rock/crowd meter.
-  sp_bar_ = screen_slot(0.775f, 0.690f, 0.170f, 0.072f);
-  rock_face_ = screen_slot(0.775f, 0.835f, 0.150f, 0.200f);
-  rock_needle_pivot_ = screen_slot(0.775f, 0.890f, 0.010f, 0.010f);
+  sp_bar_ = screen_slot(0.872f, 0.686f, 0.205f, 0.072f);
+  rock_face_ = screen_slot(0.885f, 0.835f, 0.220f, 0.220f);
+  rock_needle_pivot_ = screen_slot(0.885f, 0.894f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.62f;
 
   build_static();
@@ -568,7 +620,7 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
     if (!t) t = tex("score_streak.tex");
     const float arc_t = (static_cast<float>(i) - 4.5f) / 4.5f;
     float cx = sl.cx - (static_cast<float>(i) - 4.5f) * streak_step_;
-    float cz = sl.cz + std::pow(std::abs(arc_t), 1.55f) * sl.hh * 1.9f;
+    float cz = sl.cz + std::pow(std::abs(arc_t), 1.55f) * sl.hh * 2.2f;
     push_rect(out, cx, cz, sl.hw, sl.hh, t,
               on ? 0xFFFFFFFF : argb(190, 255, 255, 255), false,
               kLeftHudLeftDepth, kLeftHudRightDepth);
@@ -576,8 +628,8 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
       IDirect3DTexture9* glow =
           tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
       if (!glow) glow = tex("score_streak_glow.tex");
-      push_rect(out, cx, cz, sl.hw * 1.12f, sl.hh * 1.12f, glow,
-                argb(70, 255, 255, 255), true,
+      push_rect(out, cx, cz, sl.hw * 1.02f, sl.hh * 1.02f, glow,
+                argb(42, 255, 255, 255), true,
                 kLeftHudLeftDepth, kLeftHudRightDepth);
     }
   }
@@ -631,6 +683,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
   if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
     push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(230, 220, 235, 255),
               false, kRightHudLeftDepth, kRightHudRightDepth);
+
+  push_rect(out, sl.cx, sl.cz, sl.hw * 0.86f, sl.hh * 0.30f, nullptr,
+            argb(85, 210, 235, 245), false,
+            kRightHudLeftDepth, kRightHudRightDepth);
 
   // GH2 presents the star meter as a right-side horizontal tube. Projection
   // flips X, so screen-left is higher world X.
