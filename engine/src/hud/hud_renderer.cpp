@@ -270,6 +270,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   load_set(kHudMilo, {"score_none.tex","score_x.tex","score_frame.tex","score_num_frame.tex",
                       "score_streak.tex","score_streak_0.tex","score_streak_1.tex",
                       "score_streak_2.tex","score_streak_3.tex","score_streak_4.tex",
+                      "score_streak_glow.tex","score_streak_glow_0.tex",
+                      "score_streak_glow_1.tex","score_streak_glow_2.tex",
+                      "score_streak_glow_3.tex","score_streak_glow_4.tex",
                       "hud_2x.tex","hud_4x.tex","hud_2x_star.tex","hud_4x_star.tex",
                       "multi_hud_frame.tex","multi_hud_needle.tex","multi_hud_lens.tex",
                       "multi_hud_outline.tex","multi_hud_logo.tex","score_mult_frame.tex",
@@ -310,8 +313,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   }
 
   // Combo/streak and multiplier live under the score shell.
-  streak_slot_ = screen_slot(0.188f, 0.837f, 0.017f, 0.045f);
-  streak_step_ = -streak_slot_.hw * 2.15f;
+  streak_slot_ = screen_slot(0.188f, 0.837f, 0.008f, 0.024f);
+  streak_step_ = streak_slot_.hw * 2.62f;
   mult_slot_ = screen_slot(0.103f, 0.837f, 0.055f, 0.060f);
   push_rect(static_quads_, mult_slot_.cx, mult_slot_.cz, mult_slot_.hw * 1.12f,
             mult_slot_.hh * 1.08f, tex("multi_hud_frame.tex"),
@@ -453,16 +456,32 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
 
 void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
   if (!streak_slot_.ok) return;
-  // "score_streak.tex" is the small label; we render the streak count as score
-  // digits scaled to the streak slot, tiling leftwards from the anchor.
-  std::string s = std::to_string(std::max(0, streak));
+  // GH2's score panel uses a small native streak/progress strip rather than a
+  // plain numeric combo counter. Fill ten pips toward the next multiplier tier.
+  const int safe_streak = std::max(0, streak);
+  const int tier = safe_streak >= 30 ? 4
+                   : safe_streak >= 20 ? 3
+                   : safe_streak >= 10 ? 2
+                   : safe_streak > 0 ? 1
+                   : 0;
+  const int lit = safe_streak >= 30 ? 10 : safe_streak % 10;
   const Slot& sl = streak_slot_;
-  for (int i = 0; i < static_cast<int>(s.size()); ++i) {
-    char d = s[s.size() - 1 - i];
-    IDirect3DTexture9* t = tex(std::string("score_") + d + ".tex");
-    if (!t) continue;
-    float cx = sl.cx - static_cast<float>(i) * streak_step_;
-    push_rect(out, cx, sl.cz, sl.hw, sl.hh, t, argb(255, 255, 230, 120));
+  for (int i = 0; i < 10; ++i) {
+    const bool on = i < lit;
+    const int stage = on ? std::clamp(tier, 1, 4) : 0;
+    IDirect3DTexture9* t =
+        tex(std::string("score_streak_") + char('0' + stage) + ".tex");
+    if (!t) t = tex("score_streak.tex");
+    float cx = sl.cx - (static_cast<float>(i) - 4.5f) * streak_step_;
+    push_rect(out, cx, sl.cz, sl.hw, sl.hh, t,
+              on ? 0xFFFFFFFF : argb(190, 255, 255, 255));
+    if (on) {
+      IDirect3DTexture9* glow =
+          tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
+      if (!glow) glow = tex("score_streak_glow.tex");
+      push_rect(out, cx, sl.cz, sl.hw * 1.12f, sl.hh * 1.12f, glow,
+                argb(70, 255, 255, 255), true);
+    }
   }
 }
 
@@ -470,6 +489,14 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
   if (!mult_slot_.ok || multiplier < 2) return;  // 1x shows nothing in GH2
   const Slot& sl = mult_slot_;
   const int clamped = std::clamp(multiplier, 2, 9);
+  if (clamped == 2 || clamped == 4) {
+    if (IDirect3DTexture9* plate =
+            tex(clamped == 2 ? "hud_2x.tex" : "hud_4x.tex")) {
+      push_rect(out, sl.cx, sl.cz, sl.hw * 0.72f, sl.hh * 0.80f, plate,
+                0xFFFFFFFF);
+      return;
+    }
+  }
   IDirect3DTexture9* digit =
       tex(std::string("score_") + char('0' + clamped) + ".tex");
   IDirect3DTexture9* x = tex("score_x.tex");
@@ -487,6 +514,11 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& sl = sp_bar_;
 
+  if (IDirect3DTexture9* base = tex("amp_chrome_base.tex")) {
+    push_rect(out, sl.cx, sl.cz + sl.hh * 0.88f, sl.hw * 1.22f,
+              sl.hh * 0.34f, base, 0xFFFFFFFF);
+  }
+
   // fill bar (amp_inside_bar) grows from the bottom upward to `fill`.
   // bottomZ stays fixed; topZ rises as fill increases. cz_fill = midpoint, hh_fill = half-height.
   float bottomZ  = sl.cz + sl.hh;
@@ -496,6 +528,17 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
   if (hh_fill > 0.5f) {
     push_rect(out, sl.cx, cz_fill, sl.hw * 0.62f, hh_fill, fillt,
               fillt ? argb(230, 120, 205, 255) : argb(220, 75, 165, 255));
+    if (IDirect3DTexture9* glow = tex("amp_bar_glow.tex")) {
+      push_rect(out, sl.cx, cz_fill, sl.hw * 0.90f, hh_fill * 1.08f, glow,
+                argb(150, 135, 210, 255), true);
+    }
+  }
+
+  if (fill >= 0.5f) {
+    if (IDirect3DTexture9* ready = tex("amp_tube_glow.tex")) {
+      push_rect(out, sl.cx, sl.cz, sl.hw * 1.12f, sl.hh * 1.03f, ready,
+                argb(125, 115, 205, 255), true);
+    }
   }
 
   if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
@@ -514,6 +557,13 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
     push_rect(out, f.cx, f.cz - f.hh * 0.96f, f.hw * 1.15f, f.hh * 0.58f,
               label, 0xFFFFFFFF);
+  }
+  if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
+    const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
+                         : fill < 0.55f ? argb(125, 255, 225, 65)
+                         : argb(105, 80, 255, 90);
+    push_rect(out, f.cx, f.cz - f.hh * 0.12f, f.hw * 0.88f, f.hh * 0.58f,
+              light, color, true);
   }
 
   // needle: swings from left (fill 0, danger) to right (fill 1, max). Drawn as a
