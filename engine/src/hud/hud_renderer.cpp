@@ -181,6 +181,7 @@ struct MiloLayout {
   std::vector<LoadedMesh> meshes;
   std::unordered_map<std::string, GroupX> groups;       // name -> xfm
   std::unordered_map<std::string, std::string> mat_tex; // material -> diffuse tex
+  std::unordered_map<std::string, uint32_t> mat_color;   // material -> ARGB tint
   bool ok = false;
 };
 
@@ -233,6 +234,11 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         std::vector<uint8_t> body(b, b + n);
         auto mat = ghogx::milo_scene::decode_mat(de.name, body);
         if (!mat.diffuse_tex.empty()) out.mat_tex[de.name] = mat.diffuse_tex;
+        auto c = [](float v) {
+          return static_cast<int>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f);
+        };
+        out.mat_color[de.name] =
+            argb(c(mat.color[3]), c(mat.color[0]), c(mat.color[1]), c(mat.color[2]));
       }
     }
     out.ok = true;
@@ -495,6 +501,92 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   rock_face_ = screen_slot(0.825f, 0.835f, 0.205f, 0.220f);
   rock_needle_pivot_ = screen_slot(0.825f, 0.894f, 0.010f, 0.010f);
   rock_needle_len_ = rock_face_.hh * 0.62f;
+
+  native_rock_face_ok_ = native_rock_label_ok_ = false;
+  native_rock_light_red_ok_ = native_rock_light_yellow_ok_ = false;
+  native_rock_light_green_ok_ = false;
+
+  struct MeshBounds {
+    float min_x = 0, max_x = 0, min_z = 0, max_z = 0;
+    bool ok = false;
+  };
+  auto find_mesh = [](const MiloLayout& layout, const char* name) -> const LoadedMesh* {
+    for (const LoadedMesh& mesh : layout.meshes)
+      if (mesh.name == name && mesh.quad) return &mesh;
+    return nullptr;
+  };
+  auto bounds_for = [](const LoadedMesh& mesh) {
+    MeshBounds b;
+    b.min_x = b.min_z = std::numeric_limits<float>::max();
+    b.max_x = b.max_z = std::numeric_limits<float>::lowest();
+    for (const auto& v : mesh.verts) {
+      float x, y, z;
+      transform_point(mesh.world, v, x, y, z);
+      b.min_x = std::min(b.min_x, x);
+      b.max_x = std::max(b.max_x, x);
+      b.min_z = std::min(b.min_z, z);
+      b.max_z = std::max(b.max_z, z);
+    }
+    b.ok = (b.max_x - b.min_x) > 0.001f && (b.max_z - b.min_z) > 0.001f;
+    return b;
+  };
+  auto make_meter_mesh = [&](const LoadedMesh& mesh, const MeshBounds& bounds,
+                             uint32_t color, bool additive) {
+    Quad q;
+    auto mat = crowd.mat_tex.find(mesh.material);
+    if (mat != crowd.mat_tex.end()) q.tex = tex(mat->second);
+    if (color != 0) {
+      q.color = color;
+    } else if (auto tint = crowd.mat_color.find(mesh.material);
+               tint != crowd.mat_color.end()) {
+      q.color = tint->second;
+    } else {
+      q.color = 0xFFFFFFFF;
+    }
+    q.additive = additive;
+    if (!bounds.ok || !q.tex) return q;
+    q.verts.reserve(mesh.verts.size());
+    for (const auto& v : mesh.verts) {
+      float x, y, z;
+      transform_point(mesh.world, v, x, y, z);
+      const float tx = std::clamp((x - bounds.min_x) / (bounds.max_x - bounds.min_x),
+                                  0.0f, 1.0f);
+      const float tz = std::clamp((z - bounds.min_z) / (bounds.max_z - bounds.min_z),
+                                  0.0f, 1.0f);
+      const float wx = rock_face_.cx - rock_face_.hw + tx * rock_face_.hw * 2.0f;
+      const float wz = rock_face_.cz - rock_face_.hh + tz * rock_face_.hh * 2.0f;
+      q.verts.push_back({wx, right_hud_depth_at(wx), wz, v.u, v.vv});
+    }
+    q.idx = mesh.idx;
+    return q;
+  };
+  auto assign_meter_mesh = [&](const char* name, const MeshBounds& bounds, Quad& out,
+                               bool& ok, uint32_t color, bool additive) {
+    ok = false;
+    if (const LoadedMesh* mesh = find_mesh(crowd, name)) {
+      Quad q = make_meter_mesh(*mesh, bounds, color, additive);
+      if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
+        out = std::move(q);
+        ok = true;
+      }
+    }
+  };
+
+  if (const LoadedMesh* rock_frame = find_mesh(crowd, "rock_frame.mesh")) {
+    const MeshBounds rock_bounds = bounds_for(*rock_frame);
+    assign_meter_mesh("rock_face_2d.mesh", rock_bounds, native_rock_face_,
+                      native_rock_face_ok_, 0, false);
+    assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
+                      native_rock_label_ok_, 0, false);
+    assign_meter_mesh("rock_light_red.mesh", rock_bounds, native_rock_light_red_,
+                      native_rock_light_red_ok_, 0, true);
+    assign_meter_mesh("rock_light_yellow.mesh", rock_bounds,
+                      native_rock_light_yellow_, native_rock_light_yellow_ok_,
+                      0, true);
+    assign_meter_mesh("rock_light_green.mesh", rock_bounds,
+                      native_rock_light_green_, native_rock_light_green_ok_,
+                      0, true);
+  }
 
   build_static();
   loaded_ = true;
@@ -772,18 +864,33 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& f = rock_face_;
 
-  IDirect3DTexture9* face = tex("rock_meter_2d.tex");
-  push_rect(out, f.cx, f.cz, f.hw, f.hh, face,
-            face ? 0xFFFFFFFF : argb(200, 210, 170, 65), false,
-            right_hud_depth_at(f.cx + f.hw), right_hud_depth_at(f.cx - f.hw));
+  if (native_rock_face_ok_) {
+    out.push_back(native_rock_face_);
+  } else {
+    IDirect3DTexture9* face = tex("rock_meter_2d.tex");
+    push_rect(out, f.cx, f.cz, f.hw, f.hh, face,
+              face ? 0xFFFFFFFF : argb(200, 210, 170, 65), false,
+              right_hud_depth_at(f.cx + f.hw), right_hud_depth_at(f.cx - f.hw));
+  }
 
-  if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
+  if (native_rock_label_ok_) {
+    out.push_back(native_rock_label_);
+  } else if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
     push_rect(out, f.cx, f.cz + f.hh * 0.42f, f.hw * 0.92f, f.hh * 0.38f,
-              label, argb(255, 30, 255, 70), false,
+              label, 0xFFFFFFFF, false,
               right_hud_depth_at(f.cx + f.hw * 0.92f),
               right_hud_depth_at(f.cx - f.hw * 0.92f));
   }
-  if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
+
+  const bool have_native_lights =
+      native_rock_light_red_ok_ && native_rock_light_yellow_ok_ &&
+      native_rock_light_green_ok_;
+  if (have_native_lights) {
+    const Quad& active_light = fill < 0.25f ? native_rock_light_red_
+                              : fill < 0.55f ? native_rock_light_yellow_
+                                             : native_rock_light_green_;
+    out.push_back(active_light);
+  } else if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
     const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
                          : fill < 0.55f ? argb(125, 255, 225, 65)
                          : argb(105, 80, 255, 90);
