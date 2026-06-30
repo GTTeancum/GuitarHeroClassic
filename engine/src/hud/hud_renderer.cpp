@@ -477,19 +477,19 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   // GH2 frames the highway with the in-song HUD in the lower gameplay band:
   // score/multiplier to the left of the fretboard, star/rock to the right.
   Slot score_panel = screen_slot(0.102f, 0.842f, 0.180f, 0.240f);
+  Slot score_frame = screen_slot(0.112f, 0.792f, 0.094f, 0.067f);
   push_rect(static_quads_, score_panel.cx, score_panel.cz, score_panel.hw,
             score_panel.hh, tex("score_frame.tex"), 0xFFFFFFFF, false,
             left_hud_depth_at(score_panel.cx + score_panel.hw),
             left_hud_depth_at(score_panel.cx - score_panel.hw));
-  Slot score_frame = screen_slot(0.110f, 0.792f, 0.105f, 0.067f);
   push_rect(static_quads_, score_frame.cx, score_frame.cz, score_frame.hw,
             score_frame.hh, tex("score_num_frame.tex"), 0xFFFFFFFF, false,
             left_hud_depth_at(score_frame.cx + score_frame.hw),
             left_hud_depth_at(score_frame.cx - score_frame.hw));
   score_slot_count_ = 6;
   for (int i = 0; i < score_slot_count_; ++i) {
-    score_slot_[i] = screen_slot(0.160f - static_cast<float>(i) * 0.0178f,
-                                 0.799f, 0.0112f, 0.044f);
+    score_slot_[i] = screen_slot(0.152f - static_cast<float>(i) * 0.0160f,
+                                 0.799f, 0.0106f, 0.044f);
   }
 
   // Combo/streak and multiplier live under the score shell.
@@ -765,10 +765,10 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
       IDirect3DTexture9* glow =
           tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
       if (!glow) glow = tex("score_streak_glow.tex");
-      push_rect(out, cx, cz, sl.hw * 0.92f, sl.hh * 0.92f, glow,
-                argb(16, 255, 255, 255), true,
-                left_hud_depth_at(cx + sl.hw * 0.92f),
-                left_hud_depth_at(cx - sl.hw * 0.92f));
+      push_rect(out, cx, cz, sl.hw * 1.75f, sl.hh * 1.75f, glow,
+                argb(230, 255, 255, 255), false,
+                left_hud_depth_at(cx + sl.hw * 1.75f),
+                left_hud_depth_at(cx - sl.hw * 1.75f));
     }
   }
 }
