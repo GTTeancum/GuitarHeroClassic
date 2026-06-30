@@ -75,6 +75,8 @@ constexpr float kRightHudWorldMin =
     (0.5f - (kRightHudPanelNx + kRightHudPanelNw * 0.5f)) * kWorldPerScreenX;
 constexpr float kRightHudWorldMax =
     (0.5f - (kRightHudPanelNx - kRightHudPanelNw * 0.5f)) * kWorldPerScreenX;
+// Projection flips X, so positive HUD X moves the ROCK label left on screen.
+constexpr float kRockLabelScreenLeftBias = 0.13f;
 
 float left_hud_depth_at(float wx) {
   const float t = std::clamp((wx - kLeftHudWorldMin) /
@@ -819,20 +821,16 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                       native_rock_light_green_, native_rock_light_green_ok_,
                       argb(150, 85, 255, 90), true, true, true);
   }
-  if (native_rock_label_ok_) {
-    for (Quad::V& v : native_rock_label_.verts) {
+  auto place_rock_label = [&](Quad& q) {
+    for (Quad::V& v : q.verts) {
+      v.wx += rock_face_.hw * kRockLabelScreenLeftBias;
       v.wy = right_hud_depth_at(v.wx);
     }
-  }
-  if (native_rock_label_glow_ok_) {
-    for (Quad::V& v : native_rock_label_glow_.verts) {
-      v.wy = right_hud_depth_at(v.wx);
-    }
-  }
+  };
+  if (native_rock_label_ok_) place_rock_label(native_rock_label_);
+  if (native_rock_label_glow_ok_) place_rock_label(native_rock_label_glow_);
   if (native_rock_label_front_glow_ok_) {
-    for (Quad::V& v : native_rock_label_front_glow_.verts) {
-      v.wy = right_hud_depth_at(v.wx);
-    }
+    place_rock_label(native_rock_label_front_glow_);
   }
 
   native_star_back_.clear();
@@ -1362,7 +1360,7 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     Quad q;
     const float hw = f.hw * 0.70f;
     const float hh = f.hh * 0.27f;
-    const float cx = f.cx;
+    const float cx = f.cx + f.hw * kRockLabelScreenLeftBias;
     const float cz = f.cz + f.hh * 0.13f;
     constexpr float kRockLabelU0 = 0.002f;
     constexpr float kRockLabelU1 = 1.000f;
