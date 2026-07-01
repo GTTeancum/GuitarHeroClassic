@@ -287,6 +287,26 @@ int main() {
                  "quickplay_rig_->character_outfit,"
                  "quickplay_rig_->character_outfit,\"start_guitarist0mp.way\",512u,",
                  "single-guitarist quickplay uses decoded arena guitarist0 start route");
+  ok &= contains(gameplay_h_c,
+                 "std::stringhighway_surface_ref_;",
+                 "gameplay keeps the selected guitarist highway surface reference");
+  ok &= contains(gameplay_c,
+                 "highway_surface_ref_=ghogx::asset::"
+                 "resolve_track_surface_bitmap_path(",
+                 "quickplay character outfit resolves the highway surface selection");
+  ok &= contains(gameplay_c,
+                 "if(role==\"guitarist0\"){highway_surface_ref_="
+                 "ghogx::asset::resolve_track_surface_bitmap_path(",
+                 "loaded guitarist0 performer refreshes the highway surface reference");
+  ok &= contains(gameplay_c,
+                 "highway_->load_textures(hdr_path_,ark_path_,"
+                 "highway_surface_ref_);",
+                 "highway renderer loads the selected guitarist surface");
+  ok &= contains(gameplay_c,
+                 "if(!highway_->textures_loaded_for_surface("
+                 "highway_surface_ref_)){highway_->load_textures("
+                 "hdr_path_,ark_path_,highway_surface_ref_);}",
+                 "gameplay reloads highway art when the selected guitarist surface changes");
   ok &= contains(gameplay_c,
                  "if(perf.role==\"keyboard\"&&midi_state.marker.empty()){"
                  "midi_state.playing=true;}",
@@ -473,11 +493,11 @@ int main() {
                  "constuint32_tlast_tick=chart.sec_to_tick(last_sec);",
                  "highway beat-line window is derived through tempo-map seconds to ticks");
   ok &= contains(highway_renderer_c,
-                 "constdoublebt=chart.tick_to_sec(beat_tick);",
-                 "highway beat lines use tempo-map tick timing like notes");
+                 "constdoublebt=chart.tick_to_sec(line_tick);",
+                 "highway timing lines use tempo-map tick timing like notes");
   ok &= contains(highway_renderer_c,
-                 "beat_tick+=chart.ticks_per_beat;",
-                 "highway beat lines advance by MIDI beat ticks");
+                 "line_tick+=subdiv;",
+                 "highway timing lines advance by MIDI subdivision ticks");
   ok &= absent(highway_renderer_c,
                "chart.tick_to_sec(chart.ticks_per_beat)-chart.tick_to_sec(0)",
                "highway beat lines must not assume the first tempo for the full song");
@@ -485,6 +505,15 @@ int main() {
                  "voiddraw_over_scene(doublesong_time,"
                  "constghogx::chart::Chart&chart,intdifficulty,",
                  "highway renderer exposes a no-clear draw path for venue composition");
+  ok &= contains(highway_renderer_h_c,
+                 "boolstar_power_active=false",
+                 "highway renderer accepts live star-power state");
+  ok &= contains(highway_renderer_h_c,
+                 "intcombo_multiplier=1",
+                 "highway renderer accepts live combo multiplier state");
+  ok &= contains(highway_renderer_h_c,
+                 "floatsurface_flash=0.0f",
+                 "highway renderer accepts live multiplier surface-flash state");
   ok &= contains(highway_renderer_h_c,
                  "conststd::vector<uint8_t>*consumed_notes=nullptr",
                  "highway renderer accepts the FoFiX consumed-note ledger");
@@ -533,17 +562,413 @@ int main() {
                  "star_mesh_[lane]=convert_mesh(name+\"_star.mesh\");",
                  "highway loads native per-lane star-note meshes");
   ok &= contains(highway_renderer_c,
-                 "draw_runtime_mesh(star_mesh_[g.lane],x,g.y,tint);",
+                 "gem_glow_mesh_=convert_mesh(\"glow.mesh\");",
+                 "highway loads the native regular gem glow overlay mesh");
+  ok &= contains(highway_renderer_c,
+                 "tail_mesh_[lane]=convert_mesh(\"tail02.mesh\","
+                 "\"tail_\"+name+\".mat\");",
+                 "highway loads native lane-colored sustain-tail meshes");
+  ok &= contains(highway_renderer_c,
+                 "held_tail_mesh_=convert_mesh(\"tail02.mesh\","
+                 "\"tail_white.mat\");",
+                 "highway loads the native held sustain-tail mesh");
+  ok &= contains(highway_renderer_c,
+                 "star_tail_mesh_=convert_mesh(\"tail02.mesh\","
+                 "\"tail_glow_tight.mat\");",
+                 "highway loads the native star-power sustain-tail mesh");
+  ok &= contains(highway_renderer_c,
+                 "bonus_tail_mesh_=convert_mesh(\"tail02.mesh\","
+                 "\"tail_bonus.mat\");",
+                 "highway loads the native active-star-power bonus sustain-tail mesh");
+  ok &= contains(highway_renderer_c,
+                 "bonus_gem_mesh_=convert_mesh(\"gem_bonus.mesh\");",
+                 "highway loads the native active-star-power bonus gem mesh");
+  ok &= contains(highway_renderer_c,
+                 "bonus_gem_overlay_mesh_=convert_mesh(\"gem_bonus2.mesh\");",
+                 "highway loads the native active-star-power bonus gem overlay mesh");
+  ok &= contains(highway_renderer_c,
+                 "gem_sparkle_mesh_=convert_mesh(\"gem_sparkle.mesh\");",
+                 "highway loads the native star-note sparkle mesh");
+  ok &= contains(highway_renderer_c,
+                 "bonus_spark1_mesh_=convert_mesh(\"gem_bonus_spark1.mesh\");",
+                 "highway loads the first native active-star-power bonus sparkle mesh");
+  ok &= contains(highway_renderer_c,
+                 "bonus_spark2_mesh_=convert_mesh(\"gem_bonus_spark2.mesh\");",
+                 "highway loads the second native active-star-power bonus sparkle mesh");
+  ok &= contains(highway_renderer_c,
+                 "track_surface_mesh_=convert_mesh(\"track_surface5.mesh\");",
+                 "highway loads the native five-lane track surface mesh");
+  ok &= contains(highway_renderer_c,
+                 "track_mask_mesh_=convert_mesh(\"track_mask.mesh\");",
+                 "highway loads the native five-lane track mask mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "conststd::string&surface_ref=std::string()",
+                 "highway texture load accepts a resolved guitarist surface reference");
+  ok &= contains(highway_renderer_h_c,
+                 "booltextures_loaded_for_surface(conststd::string&surface_ref)const{"
+                 "returnloaded_&&loaded_surface_ref_==surface_ref;}",
+                 "highway renderer tracks which guitarist surface is currently loaded");
+  ok &= contains(highway_renderer_c,
+                 "ghogx::asset::load_track_surface_bitmap("
+                 "hdr_path,ark_path,surface_ref,&surface_path)",
+                 "highway asks the asset layer for the resolved guitarist track surface");
+  ok &= contains(highway_renderer_c,
+                 "voidHighwayRenderer::release_textures(){",
+                 "highway renderer can release stale selected-surface textures");
+  ok &= contains(highway_renderer_c,
+                 "if(!textures_.empty())release_textures();",
+                 "highway texture reloads clear the previous guitarist surface first");
+  ok &= contains(highway_renderer_c,
+                 "loaded_surface_ref_=loaded_?surface_ref:std::string{};",
+                 "highway renderer records the loaded guitarist surface reference");
+  ok &= contains(highway_renderer_h_c,
+                 "std::stringloaded_surface_ref_;",
+                 "highway renderer stores the loaded guitarist surface reference");
+  ok &= contains(highway_renderer_c,
+                 "textures_[\"track_surface.tex\"]=t;",
+                 "selected character surface replaces the track surface material texture");
+  ok &= contains(highway_renderer_h_c,
+                 "boolselected_surface_loaded_=false;",
+                 "highway tracks whether a guitarist-specific surface was uploaded");
+  ok &= contains(highway_renderer_c,
+                 "selected_surface_loaded_=true;",
+                 "highway marks successful guitarist surface uploads");
+  ok &= contains(highway_renderer_c,
+                 "track_side_rails_mesh_=convert_mesh(\"track_side_rails5.mesh\");",
+                 "highway loads native track side rails");
+  ok &= contains(highway_renderer_c,
+                 "load_track_mat_anim_colors(hdr_path,ark_path)",
+                 "highway loads authored track side-rail MatAnim colors");
+  ok &= contains(highway_renderer_c,
+                 "*material!=\"track_side_rails.mat\"&&"
+                 "*material!=\"track_surface.mat\"",
+                 "highway MatAnim color loader covers side rails and track surface material");
+  ok &= contains(highway_renderer_c,
+                 "side_rails_none_=side_rail_color_from_anim("
+                 "side_rail_anims,\"side_rails_none.mnm\",false);",
+                 "highway resolves the authored neutral side-rail state");
+  ok &= contains(highway_renderer_c,
+                 "side_rails_warning_=side_rail_color_from_anim("
+                 "side_rail_anims,\"side_rails_warning.mnm\",true);",
+                 "highway resolves the authored warning side-rail state");
+  ok &= contains(highway_renderer_c,
+                 "side_rails_star_=side_rail_color_from_anim("
+                 "side_rail_anims,\"side_rails_star.mnm\",false);",
+                 "highway resolves the authored star-power side-rail state");
+  ok &= contains(highway_renderer_c,
+                 "side_rails_warning_star_=side_rail_color_from_anim("
+                 "side_rail_anims,\"side_rails_warning_star.mnm\",true);",
+                 "highway resolves the authored warning-plus-star side-rail state");
+  ok &= contains(highway_renderer_c,
+                 "side-railMatAnimstates:none=%dwarning=%dstar=%dwarning_star=%d",
+                 "highway logs authored side-rail MatAnim state coverage");
+  ok &= contains(highway_renderer_c,
+                 "constboolside_rail_force_warning="
+                 "env_enabled(\"GHOGX_FORCE_HIGHWAY_SIDE_RAIL_WARNING\")||"
+                 "env_enabled(\"GHOGX_FORCE_HIGHWAY_SIDE_RAIL_WARNING_STAR\");",
+                 "highway has a diagnostic gate for warning side-rail captures");
+  ok &= contains(highway_renderer_c,
+                 "constboolside_rail_force_star="
+                 "env_enabled(\"GHOGX_FORCE_HIGHWAY_SIDE_RAIL_STAR\")||"
+                 "env_enabled(\"GHOGX_FORCE_HIGHWAY_SIDE_RAIL_WARNING_STAR\");",
+                 "highway has a diagnostic gate for star side-rail captures");
+  ok &= contains(highway_renderer_c,
+                 "side_rail_d3d_color(side_rail_color)",
+                 "highway draws side rails with the authored live MatAnim state");
+  ok &= contains(highway_renderer_c,
+                 "surface_flash_2x_=mat_anim_color_key("
+                 "side_rail_anims,\"surface_flash_2x.mnm\",1);",
+                 "highway resolves the authored 2x track-surface flash color");
+  ok &= contains(highway_renderer_c,
+                 "surface_flash_3x_=mat_anim_color_key("
+                 "side_rail_anims,\"surface_flash_3x.mnm\",1);",
+                 "highway resolves the authored 3x track-surface flash color");
+  ok &= contains(highway_renderer_c,
+                 "surface_flash_4x_=mat_anim_color_key("
+                 "side_rail_anims,\"surface_flash_4x.mnm\",1);",
+                 "highway resolves the authored 4x track-surface flash color");
+  ok &= contains(highway_renderer_c,
+                 "surfaceflashMatAnimstates:2x=%d3x=%d4x=%d",
+                 "highway logs authored track-surface flash MatAnim coverage");
+  ok &= contains(highway_renderer_c,
+                 "constfloatsurface_flash_strength=("
+                 "env_enabled(\"GHOGX_FORCE_HIGHWAY_SURFACE_FLASH_2X\")||"
+                 "env_enabled(\"GHOGX_FORCE_HIGHWAY_SURFACE_FLASH_3X\")||"
+                 "env_enabled(\"GHOGX_FORCE_HIGHWAY_SURFACE_FLASH_4X\"))"
+                 "?1.0f:std::clamp(surface_flash,0.0f,1.0f);",
+                 "highway applies live or diagnostic authored surface-flash strength");
+  ok &= contains(highway_renderer_c,
+                 "multiply_rgb(D3DCOLOR_ARGB(255,120,120,130),"
+                 "surface_flash_color,surface_flash_strength)",
+                 "highway tints the scrolling surface through authored surface-flash colors");
+  ok &= contains(highway_renderer_c,
+                 "track_lane_lines_mesh_=convert_mesh(\"track_lane_lines5.mesh\");",
+                 "highway loads native track lane-line geometry");
+  ok &= contains(highway_renderer_c,
+                 "star_power_track_glow_mesh_=convert_mesh("
+                 "\"lightning_trackglow.mesh\");",
+                 "highway loads the native star-power track glow mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshstar_power_track_glow_mesh_;",
+                 "highway keeps the native star-power track glow mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshtrack_mask_mesh_;",
+                 "highway keeps the native track-mask mesh");
+  ok &= contains(highway_renderer_c,
+                 "mask=%d",
+                 "highway logs native track-mask availability");
+  ok &= contains(highway_renderer_c,
+                 "glow=%d",
+                 "highway logs native regular gem glow availability");
+  ok &= contains(highway_renderer_c,
+                 "spglow=%d",
+                 "highway logs native star-power track glow availability");
+  ok &= contains(highway_renderer_c,
+                 "constboolstar_power_glow_active=("
+                 "star_power_active||env_enabled("
+                 "\"GHOGX_FORCE_HIGHWAY_STARPOWER_GLOW\"))&&"
+                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_STARPOWER_GLOW\");",
+                 "highway gates the native track glow on live star power or diagnostic capture");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh(star_power_track_glow_mesh_,0.0f,0.0f,"
+                 "D3DCOLOR_ARGB(180,255,255,255),1.0f,true);",
+                 "highway draws the authored star-power track glow mesh additively");
+  ok &= contains(highway_renderer_c,
+                 "bar_line_mesh_=convert_mesh(\"bar_line5.mesh\");",
+                 "highway loads native downbeat bar-line geometry");
+  ok &= contains(highway_renderer_c,
+                 "beat_line_mesh_=convert_mesh(\"beat_line5.mesh\");",
+                 "highway loads native beat-line geometry");
+  ok &= contains(highway_renderer_c,
+                 "half_beat_line_mesh_=convert_mesh(\"half_beat_line5.mesh\");",
+                 "highway loads native half-beat subdivision geometry");
+  ok &= contains(highway_renderer_c,
+                 "quarter_beat_line_mesh_=convert_mesh(\"quarter_beat_line5.mesh\");",
+                 "highway loads native quarter-beat subdivision geometry");
+  ok &= contains(highway_renderer_c,
+                 "gem_smasher_mesh_=convert_mesh(\"gem_smasher.mesh\");",
+                 "highway loads native fret-target smasher geometry");
+  ok &= contains(highway_renderer_c,
+                 "hit_flame_mesh_=convert_mesh(\"smash_flamelight.mesh\");",
+                 "highway loads native hit-flame geometry");
+  ok &= contains(highway_renderer_c,
+                 "star_collect_flame_mesh_=convert_mesh("
+                 "\"smash_flamelight_starcollect.mesh\");",
+                 "highway loads native star-collect hit-flame geometry");
+  ok &= contains(highway_renderer_c,
+                 "bonus_hit_flame_mesh_=convert_mesh("
+                 "\"smash_flamelight_bonus.mesh\");",
+                 "highway loads native active-star-power bonus hit-flame geometry");
+  ok &= contains(highway_renderer_c,
+                 "miss_mesh_=convert_mesh(\"miss.mesh\",\"gem_miss.mat\");",
+                 "highway loads native miss feedback geometry");
+  ok &= contains(highway_renderer_c,
+                 "miss_top_mesh_=convert_mesh(\"top_miss.mesh\","
+                 "\"gem_miss_1.mat\");",
+                 "highway loads native miss feedback overlay geometry");
+  ok &= contains(highway_renderer_c,
+                 "bonus_smasher_texture_name_=material_texture("
+                 "\"gem_smasher_bonus.mat\");",
+                 "highway resolves the native active-star-power bonus smasher material");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshstar_collect_flame_mesh_;",
+                 "highway keeps the native star-collect hit-flame mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshbonus_gem_mesh_;",
+                 "highway keeps the native active-star-power bonus gem mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshgem_sparkle_mesh_;",
+                 "highway keeps the native star-note sparkle mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshgem_glow_mesh_;",
+                 "highway keeps the native regular gem glow overlay mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshbonus_spark1_mesh_;",
+                 "highway keeps the first native active-star-power bonus sparkle mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshbonus_spark2_mesh_;",
+                 "highway keeps the second native active-star-power bonus sparkle mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshbonus_tail_mesh_;",
+                 "highway keeps the native active-star-power bonus tail mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshbonus_hit_flame_mesh_;",
+                 "highway keeps the native active-star-power bonus hit-flame mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshmiss_mesh_;",
+                 "highway keeps the native miss feedback mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshmiss_top_mesh_;",
+                 "highway keeps the native miss feedback overlay mesh");
+  ok &= contains(highway_renderer_c,
+                 "combo_lightning_mesh_[i]=convert_mesh("
+                 "\"smash_combo_lightning0\"+std::to_string(i+1)+\".mesh\");",
+                 "highway loads native combo-lightning hit feedback meshes");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<RuntimeMesh,3>combo_lightning_mesh_;",
+                 "highway keeps the native combo-lightning mesh tier set");
+  ok &= contains(highway_renderer_c,
+                 "mesh.name.rfind(\"track_explode\",0)!=0",
+                 "highway discovers native track-explode meshes by authored name prefix");
+  ok &= contains(highway_renderer_c,
+                 "track_explode_meshes_.push_back(std::move(mesh));",
+                 "highway keeps the native track-explode mesh family");
+  ok &= contains(highway_renderer_h_c,
+                 "std::vector<RuntimeMesh>track_explode_meshes_;",
+                 "highway stores authored track-explode meshes for bad feedback");
+  ok &= contains(highway_renderer_c,
+                 "GHOGX_FORCE_HIGHWAY_TRACK_EXPLODE",
+                 "highway has a diagnostic gate for visual track-explode captures");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh(mesh,0.0f,0.0f,"
+                 "D3DCOLOR_ARGB(alpha,255,255,255),1.0f,true);",
+                 "highway draws the native track-explode meshes during bad feedback");
+  ok &= contains(highway_renderer_c,
+                 "starcollect=%d",
+                 "highway logs native star-collect hit-flame availability");
+  ok &= contains(highway_renderer_c,
+                 "combo=%d",
+                 "highway logs native combo-lightning mesh availability");
+  ok &= contains(highway_renderer_c,
+                 "nativebonusmeshes:gem=%doverlay=%dtail=%dsmasher=%dflame=%d",
+                 "highway logs active-star-power bonus mesh availability");
+  ok &= contains(highway_renderer_c,
+                 "nativegemsparklemeshes:star=%dbonus1=%dbonus2=%d",
+                 "highway logs native sparkle mesh availability");
+  ok &= contains(highway_renderer_c,
+                 "material_texture(\"gem_smasher_\"+name+\".mat\")",
+                 "fret targets resolve lane-colored smasher materials from track.milo");
+  ok &= contains(highway_renderer_c,
+                 "material_texture(\"gem_smasher_\"+name+\"_1.mat\")",
+                 "fret targets resolve lane-colored additive smasher materials from track.milo");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh(track_surface_mesh_,0.0f,0.0f,"
+                 "D3DCOLOR_ARGB(255,255,255,255),1.0f,false);",
+                 "highway draws the native track surface opaquely before gameplay notes");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh(track_mask_mesh_,0.0f,0.0f,"
+                 "D3DCOLOR_ARGB(255,255,255,255),1.0f,false);",
+                 "highway draws the native track mask from the authored surface group");
+  ok &= contains(highway_renderer_c,
+                 "GHOGX_DISABLE_HIGHWAY_TRACK_MASK",
+                 "highway exposes a diagnostic switch to compare native track mask captures");
+  ok &= contains(highway_renderer_c,
+                 "if(selected_surface_loaded_){draw_track_surface_quad();}",
+                 "selected guitarist surfaces draw through the visible scrolling board mapping");
+  ok &= contains(highway_renderer_c,
+                 "if(!out.texture_name.empty())texture_names.insert(out.texture_name);",
+                 "highway renderer keeps textureless native track materials drawable");
+  ok &= contains(highway_renderer_c,
+                 "y-line_mesh->center_y",
+                 "native beat/bar line placement compensates for authored mesh center");
+  ok &= contains(highway_renderer_c,
+                 "if(downbeat&&bar_line_mesh_.ok){",
+                 "downbeats use the native bar-line mesh when available");
+  ok &= contains(highway_renderer_c,
+                 "constuint32_tsubdiv=std::max<uint32_t>(1,"
+                 "chart.ticks_per_beat/4);",
+                 "highway walks authored quarter-beat timing subdivisions");
+  ok &= contains(highway_renderer_c,
+                 "elseif(half&&half_beat_line_mesh_.ok){",
+                 "half-beat subdivisions use the native half-beat line mesh");
+  ok &= contains(highway_renderer_c,
+                 "elseif(quarter_beat_line_mesh_.ok){",
+                 "quarter-beat subdivisions use the native quarter-beat line mesh");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh(gem_smasher_mesh_,x,kStrikeY,base);",
+                 "fret targets draw through centered native smasher mesh geometry");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh_with_texture(gem_smasher_mesh_,"
+                 "smasher_texture,x,kStrikeY,base);",
+                 "native fret targets draw with lane-colored smasher textures");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh_with_texture(gem_smasher_mesh_,"
+                 "smasher_add_texture,x,kStrikeY,",
+                 "held fret targets layer lane-colored additive smasher textures");
+  ok &= contains(highway_renderer_c,
+                 "constboolbonus_highway_active=("
+                 "star_power_active||env_enabled(\"GHOGX_FORCE_HIGHWAY_BONUS\"))&&"
+                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_BONUS\");",
+                 "active star power gates native bonus highway presentation");
+  ok &= contains(highway_renderer_c,
+                 "bonus_highway_active&&!bonus_smasher_texture_name_.empty()"
+                 "?bonus_smasher_texture_name_:smasher_texture_names_[lane];",
+                 "active star power swaps fret targets to the native bonus smasher material");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh(mesh,cx-mesh.center_x*scale,"
+                 "cy-mesh.center_y*scale,tint,scale,use_texture_alpha);",
+                 "native gameplay meshes are centered before runtime lane placement");
+  ok &= contains(highway_renderer_h_c,
+                 "draw_centered_runtime_mesh_scaled",
+                 "highway renderer can scale native sustain-tail meshes by segment length");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh_scaled(*mesh,lane_x(lane),cy,"
+                 "color,half_width/mesh_hx,hy/mesh_hy,1.0f);",
+                 "sustain tails stretch native tail geometry instead of only flat quads");
+  ok &= contains(highway_renderer_c,
+                 "bonus_highway_active&&bonus_tail_mesh_.ok",
+                 "active star power swaps sustain tails to the native bonus tail mesh");
+  ok &= contains(highway_renderer_c,
+                 "constRuntimeMesh*flame_mesh=bonus_highway_active&&"
+                 "bonus_hit_flame_mesh_.ok?&bonus_hit_flame_mesh_:"
+                 "star_f>0.01f&&star_collect_flame_mesh_.ok?"
+                 "&star_collect_flame_mesh_:hit_flame_mesh_.ok?"
+                 "&hit_flame_mesh_:nullptr;",
+                 "hit flashes choose native starcollect geometry for star-note hits");
+  ok &= contains(highway_renderer_c,
+                 "bonus_highway_active&&bonus_hit_flame_mesh_.ok?"
+                 "&bonus_hit_flame_mesh_:",
+                 "active star power swaps hit flashes to the native bonus hit-flame mesh");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh_scaled(*flame_mesh,"
+                 "lane_x(lane),kStrikeY,",
+                 "native hit-flame mesh is placed per hit lane at the strikeline");
+  ok &= contains(highway_renderer_c,
+                 "constintcombo_tier=force_combo_lightning?3:"
+                 "std::clamp(combo_multiplier-1,0,3);",
+                 "combo feedback tier follows the live FoFiX multiplier");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh_scaled(combo_lightning_mesh_[i],"
+                 "lane_x(lane),kStrikeY,",
+                 "native combo lightning is placed per hit lane at the strikeline");
+  ok &= contains(highway_renderer_c,
+                 "constbooldrew_native_smashers="
+                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_NATIVE_SMASHERS\")&&"
+                 "gem_smasher_mesh_.ok;",
+                 "native fret-target smasher availability is tracked before ring fallback");
+  ok &= contains(highway_renderer_c,
+                 "if(!drew_native_smashers){dev_->SetRenderState("
+                 "D3DRS_DESTBLEND,D3DBLEND_ONE);",
+                 "flat target ring quads are fallback-only when native smashers are unavailable");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh(star_mesh_[g.lane],x,g.y,tint);",
                  "star notes draw through native track mesh geometry");
   ok &= contains(highway_renderer_c,
-                 "draw_runtime_mesh(hopo_mesh_[g.lane],x,g.y,tint);",
+                 "draw_centered_runtime_mesh(gem_sparkle_mesh_,x,g.y,tint);",
+                 "star notes layer the native sparkle mesh");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh(hopo_mesh_[g.lane],x,g.y,tint);",
                  "HOPO notes draw through native track mesh geometry");
   ok &= contains(highway_renderer_c,
-                 "draw_runtime_mesh(gem_mesh_[g.lane],x,g.y,tint);",
+                 "draw_centered_runtime_mesh(gem_mesh_[g.lane],x,g.y,tint);",
                  "regular notes draw through native track mesh geometry");
   ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh(gem_glow_mesh_,x,g.y,tint);",
+                 "regular and HOPO notes layer the native glow mesh");
+  ok &= contains(highway_renderer_c,
+                 "if(bonus_highway_active&&bonus_gem_mesh_.ok){",
+                 "active star power swaps visible notes to the native bonus gem mesh");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh(bonus_spark1_mesh_,x,g.y,tint);",
+                 "active star power layers the first native bonus sparkle mesh");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh(bonus_spark2_mesh_,x,g.y,tint);",
+                 "active star power layers the second native bonus sparkle mesh");
+  ok &= contains(highway_renderer_c,
                  "draw_impl(song_time,chart,difficulty,fret_held_mask,hit_flash,"
-                 "lookahead_sec,false,consumed_notes,active_sustains);",
+                 "lookahead_sec,false,consumed_notes,active_sustains,"
+                 "star_power_active,star_collect_flash,miss_flash,"
+                 "combo_multiplier,bad_feedback_flash,surface_flash);",
                  "highway draw_over_scene preserves the already-rendered 3D venue");
   ok &= contains(highway_renderer_c,
                  "constfloatauthored_lead=(kTopY-kStrikeY)/speed;",
@@ -565,6 +990,32 @@ int main() {
   ok &= contains(gameplay_c,
                  "&active_session_sustains_",
                  "playable highway rendering is driven by live FoFiX sustain tails");
+  ok &= contains(gameplay_c,
+                 "&active_session_sustains_,star_power_.active,"
+                 "star_collect_flash_,miss_flash_,multiplier_,"
+                 "failed_?1.0f:bad_highway_flash_,"
+                 "multiplier_surface_flash_);",
+                 "playable highway rendering is driven by live FoFiX star-power miss multiplier bad-feedback and surface-flash state");
+  ok &= contains(gameplay_h_c,
+                 "floatstar_collect_flash_[5]={};",
+                 "live gameplay stores native star-collect hit-flame intensity");
+  ok &= contains(gameplay_h_c,
+                 "floatmiss_flash_[5]={};",
+                 "live gameplay stores native miss feedback intensity");
+  ok &= contains(gameplay_h_c,
+                 "floatbad_highway_flash_=0.0f;",
+                 "live gameplay stores native whole-track bad feedback intensity");
+  ok &= contains(gameplay_h_c,
+                 "floatmultiplier_surface_flash_=0.0f;",
+                 "live gameplay stores native multiplier track-surface flash intensity");
+  ok &= contains(gameplay_c,
+                 "if(event.multiplier>multiplier_){"
+                 "multiplier_surface_flash_=1.0f;}",
+                 "FoFiX session multiplier increases trigger native surface flash");
+  ok &= contains(gameplay_c,
+                 "multiplier_surface_flash_=std::max(0.0f,"
+                 "multiplier_surface_flash_-dt*4.0f);",
+                 "native multiplier surface flash decays frame-to-frame");
   ok &= contains(gameplay_h_c,
                  "inthit_count_=0;"
                  "intmiss_count_=0;"
@@ -614,19 +1065,30 @@ int main() {
                  "FoFiXsessioneventtype=%st=%.3fmask=0x%02xgems=%dpts=%dscore=%dstreak=%dmult=%dsource=%zutick=%urock=%.4fsp=%.4ffail=%d",
                  "FoFiX session event logs include score state mask gauges source note and MIDI tick");
   ok &= contains(gameplay_c,
-                 "lane_flash_[lane]=1.0f;"
-                 "apply_venue_event(player_fret_hit_event(lane),false);",
+                 "autosource_group_has_star_power=",
+                 "FoFiX hit events derive star-collect presentation from source chart groups");
+  ok &= contains(gameplay_c,
+                 "constboolstar_collect=source_group_has_star_power(event);",
+                 "FoFiX hit events mark star-note source groups for native presentation");
+  ok &= contains(gameplay_c,
+                 "lane_flash_[lane]=1.0f;",
                  "FoFiX hit events drive native lane flames and venue feedback");
+  ok &= contains(gameplay_c,
+                 "if(star_collect)star_collect_flash_[lane]=1.0f;",
+                 "FoFiX star-note hit events drive native star-collect flames");
+  ok &= contains(gameplay_c,
+                 "miss_flash_[lane]=1.0f;",
+                 "FoFiX miss and overstrum events drive native miss feedback");
   ok &= contains(gameplay_c,
                  "caseFoFiXSessionEventType::Overstrum:"
                  "miss_flash_mask_|=(event.mask&0x1fu);"
-                 "bad_gameplay_feedback=true;",
-                 "FoFiX overstrum events drive bad native feedback");
+                 "for(intlane=0;lane<5;++lane){",
+                 "FoFiX overstrum events drive native miss-lane feedback");
   ok &= contains(gameplay_c,
                  "caseFoFiXSessionEventType::Miss:"
                  "mark_source_group_consumed(event);"
                  "miss_flash_mask_|=(event.mask&0x1fu);"
-                 "bad_gameplay_feedback=true;",
+                 "for(intlane=0;lane<5;++lane){",
                  "FoFiX miss events drive bad native feedback and note consumption");
   ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_venue_override(conststd::string&venue)",
@@ -855,11 +1317,16 @@ int main() {
                  "runtime tracks bad gameplay feedback separately from lane miss mask");
   ok &= contains(gameplay_c,
                  "if(bad_gameplay_feedback_this_frame||miss_flash_mask_!=0){"
+                 "bad_highway_flash_=1.0f;"
                  "apply_venue_event(\"excitement_bad\");}",
-                 "empty overstrums can drive bad venue feedback without fake lane bits");
+                 "empty overstrums can drive bad venue and highway feedback without fake lane bits");
   ok &= contains(gameplay_c,
-                 "miss_flash_mask_|=(fret_mask&0x1fu);"
-                 "bad_gameplay_feedback_this_frame=true;",
+                 "++overstrum_count_;"
+                 "miss_flash_mask_|=(fret_mask&0x1fu);",
+                 "overstrums mark lane miss feedback when frets are held");
+  ok &= contains(gameplay_c,
+                 "bad_gameplay_feedback_this_frame=true;"
+                 "std::fprintf(stderr,\"[gameplay]overstrum",
                  "overstrums mark bad gameplay feedback even with no held frets");
   ok &= appears_before(gameplay_c,
                        "world_->set_hidden_meshes(composed_venue_hidden_meshes());"
@@ -1461,6 +1928,36 @@ int main() {
   ok &= contains(milo_image_h_c,
                  "load_milo_textures_from_sources",
                  "asset loader exposes a shared multi-MILO texture source path");
+  ok &= contains(milo_image_h_c,
+                 "load_ps2_bitmap_from_ark",
+                 "asset loader exposes loose PS2 bitmap loading for track surfaces");
+  ok &= contains(milo_image_h_c,
+                 "track_surface_bitmap_path_for_outfit",
+                 "asset loader exposes the stock outfit track-surface fallback");
+  ok &= contains(milo_image_h_c,
+                 "resolve_track_surface_bitmap_path",
+                 "asset loader exposes the guitarist MILO track-surface resolver");
+  ok &= contains(milo_image_c,
+                 "\"track/surfaces/gen/\"+normalized+\"_keep.bmp_ps2\"",
+                 "asset resolver maps outfit keys to native GH2 track-surface bitmaps");
+  ok &= contains(milo_image_c,
+                 "track_surface_reference_path(value)",
+                 "asset resolver scans character MILO strings for explicit track-surface references");
+  ok &= contains(milo_image_c,
+                 "first_existing_track_surface(ark,"
+                 "track_surface_candidates_for_ref(value))",
+                 "asset resolver validates explicit character track-surface references against the ARK");
+  ok &= contains(milo_image_c,
+                 "first_existing_track_surface(ark,"
+                 "track_surface_candidates_for_ref(outfit_key))",
+                 "asset resolver falls back to the selected guitarist outfit without a hardcoded character map");
+  ok &= contains(milo_image_c,
+                 "load_track_surface_bitmap(",
+                 "asset loader reads the selected guitarist track surface bitmap");
+  ok &= contains(milo_image_c,
+                 "gh::tex::parse(bytes);"
+                 "out.rgba=gh::tex::decode_to_rgba(bitmap);",
+                 "loose PS2 bitmap loader decodes ARK HMXBitmap entries");
   ok &= contains(milo_image_c,
                  "if(out.find(de.name)!=out.end())continue;",
                  "multi-source texture loading preserves first-source precedence");

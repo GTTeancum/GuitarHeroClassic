@@ -54,4 +54,33 @@ std::map<std::string, Image> load_milo_textures_from_sources(
     const std::vector<std::string>& milo_paths,
     const std::vector<std::string>& entry_names);
 
+// Load a raw PS2 HMX bitmap entry directly from the ARK, e.g.
+// track/surfaces/gen/<character>_keep.bmp_ps2.
+Image load_ps2_bitmap_from_ark(const std::string& hdr_path,
+                               const std::string& ark_path,
+                               const std::string& entry_path);
+
+// Resolve the guitarist-specific track surface selected by a character load.
+// GH2 stores the playable highway art as loose PS2 bitmap entries under
+// track/surfaces/gen/. The resolver first looks for an authored track/surfaces
+// reference in the character MILO, then falls back to the selected outfit key.
+std::string resolve_track_surface_bitmap_path(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& character_milo_path, const std::string& outfit_key);
+
+// Convert a selected outfit/model key to the stock GH2 loose bitmap path.
+std::string track_surface_bitmap_path_for_outfit(std::string outfit_key);
+
+// Load a resolved surface reference. A full track/surfaces/... path is used
+// directly; a bare outfit/model key is accepted for compatibility.
+Image load_track_surface_bitmap(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& surface_ref,
+    std::string* resolved_entry_path = nullptr);
+
+Image load_track_surface_bitmap_for_outfit(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& outfit_key,
+    std::string* resolved_entry_path = nullptr);
+
 }  // namespace ghogx::asset

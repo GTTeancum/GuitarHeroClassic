@@ -661,6 +661,7 @@ class Gameplay {
   std::vector<Performer> performers_;
 
   std::optional<QuickplayRig> quickplay_rig_;
+  std::string highway_surface_ref_;
   std::optional<ghogx::character::FaceFxAnimation> facefx_animation_;
   bool world_init_attempted_ = false;
   std::vector<CameraKey> camera_keys_;
@@ -893,6 +894,10 @@ class Gameplay {
   // Per-lane hit-flame intensity (1.0 on hit, decays to 0). Drives the
   // strikeline flames in the renderer.
   float lane_flash_[5] = {};
+  float star_collect_flash_[5] = {};
+  float miss_flash_[5] = {};
+  float bad_highway_flash_ = 0.0f;
+  float multiplier_surface_flash_ = 0.0f;
 
   // Previous-frame fret mask for edge detection.
   uint32_t prev_fret_mask_  = 0;

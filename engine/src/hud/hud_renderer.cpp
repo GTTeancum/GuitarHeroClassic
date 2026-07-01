@@ -461,6 +461,42 @@ constexpr const char* kLayoutTuningNames[] = {
 constexpr size_t kLayoutTuningCount =
     sizeof(kLayoutTuningNames) / sizeof(kLayoutTuningNames[0]);
 
+void mark_baked_layout_tuning_loaded(bool* loaded, size_t count) {
+  std::fill(loaded, loaded + std::min(count, kLayoutTuningCount), true);
+}
+
+std::string find_default_layout_tuning_file() {
+  namespace fs = std::filesystem;
+  std::vector<fs::path> roots;
+  std::error_code ec;
+  roots.push_back(fs::current_path(ec));
+
+  char exe_path[MAX_PATH] = {};
+  const DWORD exe_len = GetModuleFileNameA(nullptr, exe_path,
+                                           static_cast<DWORD>(sizeof(exe_path)));
+  if (exe_len > 0 && exe_len < sizeof(exe_path)) {
+    roots.push_back(fs::path(exe_path).parent_path());
+  }
+
+  for (fs::path root : roots) {
+    if (root.empty()) continue;
+    for (int depth = 0; depth < 8 && !root.empty(); ++depth) {
+      const fs::path candidates[] = {
+          root / "hud_layout.txt",
+          root / "hud_tuning" / "hud_layout.txt",
+          root / "engine" / "out" / "hud_tuning" / "hud_layout.txt",
+      };
+      for (const fs::path& candidate : candidates) {
+        if (fs::is_regular_file(candidate, ec)) return candidate.string();
+      }
+      const fs::path parent = root.parent_path();
+      if (parent == root) break;
+      root = parent;
+    }
+  }
+  return {};
+}
+
 HudRenderer::LayoutRect* layout_rect_by_index(HudRenderer::LayoutTuning& tuning,
                                               size_t index) {
   switch (index) {
@@ -526,6 +562,11 @@ float apply_signed_size_delta(float value, float delta) {
 }
 }  // namespace
 
+HudRenderer::HudRenderer() {
+  mark_baked_layout_tuning_loaded(layout_tuning_loaded_,
+                                  std::size(layout_tuning_loaded_));
+}
+
 void HudRenderer::set_layout_tuning_file(const std::string& path) {
   layout_tuning_file_ = path;
   if (!path.empty()) load_layout_tuning_file(path);
@@ -535,6 +576,8 @@ bool HudRenderer::load_layout_tuning_file(const std::string& path) {
   std::ifstream in(path);
   if (!in) return false;
   std::fill(std::begin(layout_tuning_loaded_), std::end(layout_tuning_loaded_), false);
+  mark_baked_layout_tuning_loaded(layout_tuning_loaded_,
+                                  std::size(layout_tuning_loaded_));
   std::string line;
   bool rock_parented_file = false;
   bool star_full_bounds_file = false;
@@ -818,6 +861,14 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                        "amp_bar_glow.tex","amp_tube_glow.tex","chrome.tex","outline.tex",
                        "amp_chrome_base.tex","specular2.tex"});
   std::fprintf(stderr, "[hud] uploaded %zu textures\n", textures_.size());
+
+  if (layout_tuning_file_.empty()) {
+    const std::string default_tuning = find_default_layout_tuning_file();
+    if (!default_tuning.empty()) {
+      layout_tuning_file_ = default_tuning;
+      load_layout_tuning_file(layout_tuning_file_);
+    }
+  }
 
   // 3) The in-song overlay must be screen anchored. Drawing meter-local art
   // through the venue projection made the star/rock pieces appear out at the

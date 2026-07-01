@@ -14627,6 +14627,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     miss_flash_mask_ = 0;
     prev_fret_mask_  = 0;
     diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
+    for (float& flash : lane_flash_) flash = 0.0f;
+    for (float& flash : star_collect_flash_) flash = 0.0f;
+    for (float& flash : miss_flash_) flash = 0.0f;
+    bad_highway_flash_ = 0.0f;
+    multiplier_surface_flash_ = 0.0f;
     for (auto& consumed : note_consumed_) consumed.clear();
     difficulty_   = std::clamp(difficulty, 0, 3);
     hdr_path_     = hdr_path;
@@ -14646,6 +14651,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     highway_.reset();
     world_init_attempted_ = false;
     quickplay_rig_.reset();
+    highway_surface_ref_.clear();
     facefx_animation_.reset();
     camera_keys_.clear();
     regular_camera_keys_.clear();
@@ -14857,6 +14863,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
 
     quickplay_rig_ = resolve_quickplay_rig(hdr_path, ark_path, shortname);
     if (quickplay_rig_) {
+        const std::string char_milo =
+            "char/" + quickplay_rig_->character_outfit + "/og/gen/" +
+            quickplay_rig_->character_outfit + ".milo_ps2";
+        highway_surface_ref_ = ghogx::asset::resolve_track_surface_bitmap_path(
+            hdr_path, ark_path, char_milo, quickplay_rig_->character_outfit);
         if (!diagnostic_venue_override_.empty()) {
             std::fprintf(stderr,
                          "[world] diagnostic venue override: %s -> %s\n",
@@ -18289,6 +18300,18 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
             ++next_note_idx_;
         }
     };
+    auto source_group_has_star_power = [&](const FoFiXSessionEvent& event) {
+        if (event.source_index == static_cast<size_t>(-1) ||
+            event.source_tick == UINT32_MAX) {
+            return false;
+        }
+        const auto& notes = chart_.notes[std::clamp(difficulty_, 0, 3)];
+        for (size_t i = event.source_index;
+             i < notes.size() && notes[i].tick_on == event.source_tick; ++i) {
+            if (notes[i].star_power) return true;
+        }
+        return false;
+    };
 
     for (const auto& event : gameplay_session_mirror_->last_events()) {
         const char* type = "hit";
@@ -18323,13 +18346,18 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
         if (!emit_presentation) continue;
 
         switch (event.type) {
-        case FoFiXSessionEventType::Hit:
+        case FoFiXSessionEventType::Hit: {
             mark_source_group_consumed(event);
+            if (event.multiplier > multiplier_) {
+                multiplier_surface_flash_ = 1.0f;
+            }
+            const bool star_collect = source_group_has_star_power(event);
             for (int lane = 0; lane < 5; ++lane) {
                 if ((event.mask & (1u << lane)) == 0) continue;
                 lane_hit_[lane] = true;
                 hit_flash_mask_ |= (1u << lane);
                 lane_flash_[lane] = 1.0f;
+                if (star_collect) star_collect_flash_[lane] = 1.0f;
                 apply_venue_event(player_fret_hit_event(lane), false);
             }
             std::fprintf(stderr,
@@ -18340,9 +18368,13 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                          event.star_power_fill,
                          diagnostic_autoplay_ ? " diagnostic_autoplay" : "");
             break;
+        }
         case FoFiXSessionEventType::Miss:
             mark_source_group_consumed(event);
             miss_flash_mask_ |= (event.mask & 0x1fu);
+            for (int lane = 0; lane < 5; ++lane) {
+                if ((event.mask & (1u << lane)) != 0) miss_flash_[lane] = 1.0f;
+            }
             bad_gameplay_feedback = true;
             std::fprintf(stderr,
                          "[gameplay] miss tick=%u mask=0x%02x streak reset rock=%.2f\n",
@@ -18351,6 +18383,9 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
             break;
         case FoFiXSessionEventType::Overstrum:
             miss_flash_mask_ |= (event.mask & 0x1fu);
+            for (int lane = 0; lane < 5; ++lane) {
+                if ((event.mask & (1u << lane)) != 0) miss_flash_[lane] = 1.0f;
+            }
             bad_gameplay_feedback = true;
             std::fprintf(stderr,
                          "[gameplay] overstrum mask=0x%02x streak reset rock=%.2f\n",
@@ -18521,8 +18556,15 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     }
 
     // Decay per-lane hit flames (~0.22 s lifetime).
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < 5; ++i) {
         lane_flash_[i] = std::max(0.0f, lane_flash_[i] - dt * 4.5f);
+        star_collect_flash_[i] =
+            std::max(0.0f, star_collect_flash_[i] - dt * 4.5f);
+        miss_flash_[i] = std::max(0.0f, miss_flash_[i] - dt * 3.4f);
+    }
+    bad_highway_flash_ = std::max(0.0f, bad_highway_flash_ - dt * 2.8f);
+    multiplier_surface_flash_ =
+        std::max(0.0f, multiplier_surface_flash_ - dt * 4.0f);
 
     // Clear per-frame feedback.
     hit_flash_mask_  = 0;
@@ -18532,6 +18574,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
 
     auto update_presentation_after_gameplay = [&]() {
         if (bad_gameplay_feedback_this_frame || miss_flash_mask_ != 0) {
+            bad_highway_flash_ = 1.0f;
             apply_venue_event("excitement_bad");
         } else if (streak_ >= 10) {
             apply_venue_event("excitement_great");
@@ -18647,6 +18690,9 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     };
 
     auto commit_score_state = [&](const FoFiXScoreState& state) {
+        if (state.multiplier > multiplier_) {
+            multiplier_surface_flash_ = 1.0f;
+        }
         score_ = state.score;
         streak_ = state.streak;
         multiplier_ = state.multiplier;
@@ -18745,6 +18791,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             lane_hit_[n.lane] = true;
             hit_flash_mask_ |= (1u << n.lane);
             lane_flash_[n.lane] = 1.0f;
+            if (n.star_power) star_collect_flash_[n.lane] = 1.0f;
             if (i < consumed.size()) consumed[i] = 1;
             apply_venue_event(player_fret_hit_event(n.lane), false);
         }
@@ -18785,6 +18832,9 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         commit_rock_meter();
         ++overstrum_count_;
         miss_flash_mask_ |= (fret_mask & 0x1fu);
+        for (int lane = 0; lane < 5; ++lane) {
+            if ((fret_mask & (1u << lane)) != 0) miss_flash_[lane] = 1.0f;
+        }
         bad_gameplay_feedback_this_frame = true;
         std::fprintf(stderr,
                      "[gameplay] overstrum mask=0x%02x streak reset rock=%.2f\n",
@@ -18815,6 +18865,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                 const auto& note = notes[j];
                 if (!lane_hit_[note.lane]) {
                     miss_flash_mask_ |= (1u << note.lane);
+                    miss_flash_[note.lane] = 1.0f;
                     bad_gameplay_feedback_this_frame = true;
                     missed = true;
                 }
@@ -19511,6 +19562,16 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     std::fprintf(stderr, "[world] performer failed: %s\n",
                                  char_milo.c_str());
                     return;
+                }
+                if (role == "guitarist0") {
+                    highway_surface_ref_ =
+                        ghogx::asset::resolve_track_surface_bitmap_path(
+                            hdr_path_, ark_path_, char_milo, model_name);
+                    std::fprintf(stderr,
+                                 "[highway] guitarist surface: character=%s "
+                                 "surface=%s\n",
+                                 model_name.c_str(),
+                                 highway_surface_ref_.c_str());
                 }
                 const auto character_drivers = character.drivers;
                 const auto facefx_servos = character.lip_sync_servos;
@@ -21300,25 +21361,40 @@ void Gameplay::draw(ghogx::render::Window& win) {
         }
         if (!highway_) {
             highway_ = std::make_unique<HighwayRenderer>(win);
-            highway_->load_textures(hdr_path_, ark_path_);
+        }
+        if (!highway_->textures_loaded_for_surface(highway_surface_ref_)) {
+            highway_->load_textures(hdr_path_, ark_path_, highway_surface_ref_);
         }
         highway_->draw_over_scene(song_time_, chart_, difficulty_,
                                   prev_fret_mask_ & 0x1F, lane_flash_, 1.5f,
                                   &note_consumed_[std::clamp(difficulty_, 0, 3)],
-                                  &active_session_sustains_);
+                                  &active_session_sustains_,
+                                  star_power_.active,
+                                  star_collect_flash_,
+                                  miss_flash_,
+                                  multiplier_,
+                                  failed_ ? 1.0f : bad_highway_flash_,
+                                  multiplier_surface_flash_);
         return;
     }
 
     if (!highway_) {
         highway_ = std::make_unique<HighwayRenderer>(win);
-        // Load the GH2 track texture set natively from the ARK (once).
-        highway_->load_textures(hdr_path_, ark_path_);
+    }
+    if (!highway_->textures_loaded_for_surface(highway_surface_ref_)) {
+        highway_->load_textures(hdr_path_, ark_path_, highway_surface_ref_);
     }
     // song_time_ is the audio-synced master clock (set in tick()).
     highway_->draw(song_time_, chart_, difficulty_,
                    prev_fret_mask_ & 0x1F /* held frets */, lane_flash_, 1.5f,
                    &note_consumed_[std::clamp(difficulty_, 0, 3)],
-                   &active_session_sustains_);
+                   &active_session_sustains_,
+                   star_power_.active,
+                   star_collect_flash_,
+                   miss_flash_,
+                   multiplier_,
+                   failed_ ? 1.0f : bad_highway_flash_,
+                   multiplier_surface_flash_);
 }
 
 }  // namespace ghogx::game

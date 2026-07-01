@@ -7,11 +7,15 @@
 #include "milo_tex.h"
 #include "ps2_texture.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <cstdio>
+#include <cstring>
 #include <map>
 #include <optional>
 #include <stdexcept>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -28,6 +32,93 @@ std::optional<gh::ark::Entry> find_entry(const gh::ark::ArkV3Reader& ark,
   return e;
 }
 
+bool starts_with(std::string_view s, std::string_view prefix) {
+  return s.size() >= prefix.size() && s.substr(0, prefix.size()) == prefix;
+}
+
+bool ends_with(std::string_view s, std::string_view suffix) {
+  return s.size() >= suffix.size() &&
+         s.substr(s.size() - suffix.size(), suffix.size()) == suffix;
+}
+
+std::string normalize_outfit_surface_key(std::string key);
+
+std::string normalize_pathish(std::string value) {
+  std::replace(value.begin(), value.end(), '\\', '/');
+  for (char& c : value) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+  return value;
+}
+
+std::vector<std::string> scan_packed_strings(const uint8_t* body, size_t size) {
+  std::vector<std::string> out;
+  for (size_t off = 0; off + 4 <= size; ++off) {
+    uint32_t len = 0;
+    std::memcpy(&len, body + off, sizeof(len));
+    if (len == 0 || len > 128 || off + 4 + len > size) continue;
+    const char* s = reinterpret_cast<const char*>(body + off + 4);
+    bool printable = true;
+    for (uint32_t i = 0; i < len; ++i) {
+      const unsigned char c = static_cast<unsigned char>(s[i]);
+      if (c < 32 || c > 126) {
+        printable = false;
+        break;
+      }
+    }
+    if (!printable) continue;
+    std::string value(s, s + len);
+    if (value.find_first_of(
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") ==
+        std::string::npos) {
+      continue;
+    }
+    if (out.empty() || out.back() != value) out.push_back(std::move(value));
+    off += 3 + len;
+  }
+  return out;
+}
+
+std::string track_surface_reference_path(std::string surface_ref) {
+  surface_ref = normalize_pathish(std::move(surface_ref));
+  const size_t embedded = surface_ref.find("track/surfaces/");
+  if (embedded != std::string::npos) surface_ref.erase(0, embedded);
+  if (starts_with(surface_ref, "track/surfaces/")) return surface_ref;
+  return {};
+}
+
+std::vector<std::string> track_surface_candidates_for_ref(
+    const std::string& surface_ref) {
+  std::vector<std::string> out;
+  std::string path = track_surface_reference_path(surface_ref);
+  if (!path.empty()) {
+    out.push_back(path);
+    if (ends_with(path, ".bmp")) {
+      std::string gen_path = path;
+      if (!starts_with(gen_path, "track/surfaces/gen/")) {
+        gen_path.insert(std::string("track/surfaces/").size(), "gen/");
+      }
+      gen_path += "_ps2";
+      out.push_back(gen_path);
+    }
+    return out;
+  }
+
+  const std::string key = normalize_outfit_surface_key(surface_ref);
+  if (!key.empty()) {
+    out.push_back("track/surfaces/gen/" + key + "_keep.bmp_ps2");
+  }
+  return out;
+}
+
+std::string first_existing_track_surface(const gh::ark::ArkV3Reader& ark,
+                                         const std::vector<std::string>& paths) {
+  for (const auto& path : paths) {
+    if (!path.empty() && find_entry(ark, path)) return path;
+  }
+  return {};
+}
+
 bool debug_texture_load_enabled() {
   char* value = nullptr;
   size_t len = 0;
@@ -36,6 +127,21 @@ bool debug_texture_load_enabled() {
       value[0];
   std::free(value);
   return enabled;
+}
+
+std::string normalize_outfit_surface_key(std::string key) {
+  std::replace(key.begin(), key.end(), '\\', '/');
+  const size_t slash = key.find_last_of('/');
+  if (slash != std::string::npos) key.erase(0, slash + 1);
+  const std::string suffix = ".milo_ps2";
+  if (key.size() > suffix.size() &&
+      key.compare(key.size() - suffix.size(), suffix.size(), suffix) == 0) {
+    key.erase(key.size() - suffix.size());
+  }
+  for (char& c : key) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+  return key;
 }
 
 struct TextureSourceStats {
@@ -249,6 +355,122 @@ std::map<std::string, Image> load_milo_textures_from_sources(
                  label.c_str(), ex.what());
   }
   return out;
+}
+
+Image load_ps2_bitmap_from_ark(const std::string& hdr_path,
+                               const std::string& ark_path,
+                               const std::string& entry_path) {
+  Image out;
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    auto entry = find_entry(ark, entry_path);
+    if (!entry) {
+      std::fprintf(stderr, "[asset] bitmap not found in ARK: %s\n",
+                   entry_path.c_str());
+      return out;
+    }
+
+    const auto bytes = ark.read_entry(*entry, {ark_path});
+    const auto bitmap = gh::tex::parse(bytes);
+    out.rgba = gh::tex::decode_to_rgba(bitmap);
+    out.width = bitmap.width;
+    out.height = bitmap.height;
+    if (out.valid()) {
+      std::fprintf(stderr, "[asset] %s -> %dx%d\n", entry_path.c_str(),
+                   out.width, out.height);
+    }
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[asset] load_ps2_bitmap_from_ark(%s): %s\n",
+                 entry_path.c_str(), ex.what());
+  }
+  return out;
+}
+
+std::string track_surface_bitmap_path_for_outfit(std::string outfit_key) {
+  const std::string normalized = normalize_outfit_surface_key(std::move(outfit_key));
+  if (normalized.empty()) return {};
+  return "track/surfaces/gen/" + normalized + "_keep.bmp_ps2";
+}
+
+std::string resolve_track_surface_bitmap_path(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& character_milo_path, const std::string& outfit_key) {
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+
+    if (!character_milo_path.empty()) {
+      auto entry = find_entry(ark, character_milo_path);
+      if (entry) {
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        for (const auto& de : dir.entries) {
+          if (de.offset + de.size > payload.size()) continue;
+          const auto strings = scan_packed_strings(
+              payload.data() + de.offset, static_cast<size_t>(de.size));
+          for (const auto& value : strings) {
+            if (track_surface_reference_path(value).empty()) continue;
+            const std::string resolved = first_existing_track_surface(
+                ark, track_surface_candidates_for_ref(value));
+            if (!resolved.empty()) {
+              std::fprintf(stderr,
+                           "[asset] character highway surface: %s -> %s "
+                           "(milo reference)\n",
+                           character_milo_path.c_str(), resolved.c_str());
+              return resolved;
+            }
+          }
+        }
+      }
+    }
+
+    const std::string resolved = first_existing_track_surface(
+        ark, track_surface_candidates_for_ref(outfit_key));
+    if (!resolved.empty()) {
+      std::fprintf(stderr,
+                   "[asset] character highway surface: %s -> %s "
+                   "(outfit key)\n",
+                   outfit_key.c_str(), resolved.c_str());
+      return resolved;
+    }
+
+    const std::string derived = track_surface_bitmap_path_for_outfit(outfit_key);
+    if (!derived.empty()) {
+      std::fprintf(stderr,
+                   "[asset] character highway surface not found in ARK: %s\n",
+                   derived.c_str());
+    }
+    return derived;
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[asset] resolve_track_surface_bitmap_path(%s): %s\n",
+                 outfit_key.c_str(), ex.what());
+  }
+  return {};
+}
+
+Image load_track_surface_bitmap(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& surface_ref, std::string* resolved_entry_path) {
+  const auto candidates = track_surface_candidates_for_ref(surface_ref);
+  std::string entry_path = candidates.empty() ? std::string{} : candidates.front();
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    const std::string resolved = first_existing_track_surface(ark, candidates);
+    if (!resolved.empty()) entry_path = resolved;
+  } catch (const std::exception&) {
+    // The actual bitmap load below will log the concrete failure.
+  }
+  if (resolved_entry_path) *resolved_entry_path = entry_path;
+  if (entry_path.empty()) return {};
+  return load_ps2_bitmap_from_ark(hdr_path, ark_path, entry_path);
+}
+
+Image load_track_surface_bitmap_for_outfit(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& outfit_key, std::string* resolved_entry_path) {
+  return load_track_surface_bitmap(hdr_path, ark_path, outfit_key,
+                                   resolved_entry_path);
 }
 
 }  // namespace ghogx::asset

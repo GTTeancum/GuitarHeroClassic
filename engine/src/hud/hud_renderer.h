@@ -47,28 +47,28 @@ class HudRenderer {
  public:
   struct LayoutRect { float cx = 0, cy = 0, w = 0, h = 0, rot = 0; int z = 0; };
   struct LayoutTuning {
-    LayoutRect score_panel = {0.124f, 0.792f, 0.238f, 0.285f};
-    LayoutRect score_frame = {0.455f, 0.345f, 0.780f, 0.182f};
-    LayoutRect mult_panel = {0.455f, 0.785f, 0.280f, 0.265f};
-    LayoutRect streak_panel = {0.545f, 0.545f, 0.560f, 0.145f};
-    LayoutRect right_panel = {0.855f, 0.765f, 0.215f, 0.400f};
-    LayoutRect rock_face = {0.506f, 0.580f, 0.900f, 0.620f};
-    LayoutRect sp_bar = {0.496667f, 0.215323f, 1.046667f, 0.590323f};
-    LayoutRect rock_needle = {0.500000f, 0.741935f, 0.064444f, 0.050000f};
-    LayoutRect sp_back = {};
-    LayoutRect sp_fill = {};
-    LayoutRect sp_ready = {};
-    LayoutRect sp_front = {};
-    LayoutRect sp_glass = {};
-    LayoutRect sp_base = {};
-    LayoutRect sp_top = {};
-    LayoutRect sp_caps = {};
-    LayoutRect rock_frame = {};
-    LayoutRect rock_lights = {};
-    LayoutRect rock_label = {};
+    LayoutRect score_panel = {0.162000f, 0.786000f, 0.238000f, 0.285000f, 35.000000f, 0};
+    LayoutRect score_frame = {0.501000f, 0.221000f, 0.780000f, 0.182000f, 0.000000f, 0};
+    LayoutRect mult_panel = {0.499000f, 0.737001f, 0.280000f, 0.265000f, 0.000000f, 0};
+    LayoutRect streak_panel = {0.499001f, 0.499001f, 0.659999f, 0.183000f, 0.000000f, 0};
+    LayoutRect right_panel = {0.841000f, 0.775000f, 0.221000f, 0.416000f, -23.000000f, 0};
+    LayoutRect rock_face = {0.514000f, 0.580000f, 0.900000f, 0.620000f, 0.000000f, -2};
+    LayoutRect sp_bar = {0.506667f, -0.196677f, 1.046667f, 0.552323f, 0.000000f, 0};
+    LayoutRect rock_needle = {0.500000f, 0.883933f, 0.060444f, 0.072000f, 0.000000f, 0};
+    LayoutRect sp_back = {0.528259f, 0.474064f, 0.833603f, 0.537315f, 0.000000f, 0};
+    LayoutRect sp_fill = {0.527681f, 0.474661f, 0.832446f, 0.093702f, 0.000000f, 0};
+    LayoutRect sp_ready = {0.511480f, 0.471305f, 0.975406f, 0.942611f, 0.000000f, 0};
+    LayoutRect sp_front = {0.521013f, 0.473242f, 0.034849f, 0.516810f, 0.000000f, 0};
+    LayoutRect sp_glass = {0.528254f, 0.474064f, 0.831885f, 0.540018f, 0.000000f, 0};
+    LayoutRect sp_base = {0.973194f, 0.471120f, 0.053612f, 0.484176f, 0.000000f, 0};
+    LayoutRect sp_top = {0.058717f, 0.474064f, 0.117433f, 0.554580f, 0.000000f, 0};
+    LayoutRect sp_caps = {0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0};
+    LayoutRect rock_frame = {0.500000f, 0.500000f, 1.000000f, 1.000000f, 0.000000f, 2};
+    LayoutRect rock_lights = {0.504246f, 0.299074f, 0.853360f, 0.309868f, 0.000000f, 0};
+    LayoutRect rock_label = {0.575686f, 0.634160f, 0.750733f, 0.481095f, 0.000000f, 0};
   };
 
-  HudRenderer() = default;
+  HudRenderer();
   ~HudRenderer();
 
   HudRenderer(const HudRenderer&) = delete;
@@ -82,9 +82,11 @@ class HudRenderer {
             const std::string& ark_path);
   bool loaded() const { return loaded_; }
 
-  // Optional live layout tuning used by --hud-test. The file format is plain
-  // text: one "name cx cy w h rot_deg z" row per editable element, all normalized.
-  // Older "name cx cy w h" and "name cx cy w h rot_deg" rows still load.
+  // Optional live layout tuning used by --hud-test. The baked defaults are the
+  // approved tuned layout; a present hud_layout.txt overlays those values.
+  // The file format is plain text: one "name cx cy w h rot_deg z" row per
+  // editable element, all normalized. Older "name cx cy w h" and
+  // "name cx cy w h rot_deg" rows still load.
   void set_layout_tuning_file(const std::string& path);
   bool save_layout_tuning_file() const;
   size_t layout_tuning_count() const;
