@@ -14617,6 +14617,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     rock_         = FoFiXRockState{};
     star_power_   = FoFiXStarPowerState{};
     gameplay_session_mirror_.reset();
+    active_session_sustains_.clear();
     gameplay_session_mirror_last_log_time_ = -1.0;
     failed_       = false;
     star_phrase_active_ = false;
@@ -17588,6 +17589,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     last_anim_time_ = song_time_;
     diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
     active_sustains_.clear();
+    active_session_sustains_.clear();
     for (int d = 0; d < 4; ++d) {
         note_consumed_[d].assign(chart_.notes[d].size(), 0);
     }
@@ -18394,12 +18396,16 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
 }
 
 void Gameplay::sync_consumed_notes_from_gameplay_session() {
-    if (!gameplay_session_mirror_ || !chart_loaded_) return;
+    if (!gameplay_session_mirror_ || !chart_loaded_) {
+        active_session_sustains_.clear();
+        return;
+    }
     const int diff = std::clamp(difficulty_, 0, 3);
     const auto& notes = chart_.notes[diff];
     auto& consumed = note_consumed_[diff];
     if (consumed.size() != notes.size()) consumed.assign(notes.size(), 0);
     gameplay_session_mirror_->copy_source_consumed(consumed);
+    gameplay_session_mirror_->copy_active_sustains(active_session_sustains_);
     next_note_idx_ = 0;
     while (next_note_idx_ < notes.size() &&
            next_note_idx_ < consumed.size() &&
@@ -21298,7 +21304,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
         }
         highway_->draw_over_scene(song_time_, chart_, difficulty_,
                                   prev_fret_mask_ & 0x1F, lane_flash_, 1.5f,
-                                  &note_consumed_[std::clamp(difficulty_, 0, 3)]);
+                                  &note_consumed_[std::clamp(difficulty_, 0, 3)],
+                                  &active_session_sustains_);
         return;
     }
 
@@ -21310,7 +21317,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
     // song_time_ is the audio-synced master clock (set in tick()).
     highway_->draw(song_time_, chart_, difficulty_,
                    prev_fret_mask_ & 0x1F /* held frets */, lane_flash_, 1.5f,
-                   &note_consumed_[std::clamp(difficulty_, 0, 3)]);
+                   &note_consumed_[std::clamp(difficulty_, 0, 3)],
+                   &active_session_sustains_);
 }
 
 }  // namespace ghogx::game

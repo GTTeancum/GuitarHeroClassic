@@ -9,6 +9,8 @@
 // (notes travel from +Y toward 0 = strikeline), Z = up.
 
 #include "game/highway_renderer.h"
+#include "game/gameplay_session.h"
+#include "milo_scene/milo_scene.h"
 #include "render/window_d3d9.h"
 #include "render/scene_d3d9.h"   // Mat4
 #include "asset/milo_image.h"
@@ -23,6 +25,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -68,6 +71,16 @@ const char* gem_tex_name(int lane) {
     case 2: return "gem_yellow.tex";
     case 3: return "gem_blue.tex";
     default: return "gem_orange.tex";
+  }
+}
+
+const char* lane_name(int lane) {
+  switch (lane) {
+    case 0: return "green";
+    case 1: return "red";
+    case 2: return "yellow";
+    case 3: return "blue";
+    default: return "orange";
   }
 }
 
@@ -157,10 +170,54 @@ IDirect3DTexture9* HighwayRenderer::tex(const std::string& name) const {
   return it == textures_.end() ? nullptr : it->second;
 }
 
+void HighwayRenderer::draw_runtime_mesh(const RuntimeMesh& mesh,
+                                        float cx,
+                                        float cy,
+                                        uint32_t tint,
+                                        float scale) const {
+  if (!dev_ || !mesh.ok || mesh.indices.empty() || mesh.verts.empty()) return;
+  std::vector<V3> tris;
+  tris.reserve(mesh.indices.size());
+  const float ta = static_cast<float>((tint >> 24) & 0xff) / 255.0f;
+  const float tr = static_cast<float>((tint >> 16) & 0xff) / 255.0f;
+  const float tg = static_cast<float>((tint >> 8) & 0xff) / 255.0f;
+  const float tb = static_cast<float>(tint & 0xff) / 255.0f;
+  for (uint16_t idx : mesh.indices) {
+    if (idx >= mesh.verts.size()) continue;
+    const auto& v = mesh.verts[idx];
+    const int a = std::clamp(static_cast<int>(v.a * ta * 255.0f), 0, 255);
+    const int r = std::clamp(static_cast<int>(v.r * tr * 255.0f), 0, 255);
+    const int g = std::clamp(static_cast<int>(v.g * tg * 255.0f), 0, 255);
+    const int b = std::clamp(static_cast<int>(v.b * tb * 255.0f), 0, 255);
+    tris.push_back({cx + v.x * scale, cy + v.y * scale, v.z * scale,
+                    D3DCOLOR_ARGB(a, r, g, b), v.u, v.v});
+  }
+  if (tris.empty()) return;
+  IDirect3DTexture9* texture = tex(mesh.texture_name);
+  if (texture) {
+    dev_->SetTexture(0, texture);
+    dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+  } else {
+    dev_->SetTexture(0, nullptr);
+    dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+    dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+  }
+  dev_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,
+                        static_cast<UINT>(tris.size() / 3),
+                        tris.data(), sizeof(V3));
+}
+
 bool HighwayRenderer::load_textures(const std::string& hdr_path,
                                     const std::string& ark_path) {
   if (!dev_) return false;
-  const std::vector<std::string> names = {
+  for (auto& mesh : gem_mesh_) mesh = RuntimeMesh{};
+  for (auto& mesh : hopo_mesh_) mesh = RuntimeMesh{};
+  for (auto& mesh : star_mesh_) mesh = RuntimeMesh{};
+  for (auto& mesh : star_top_mesh_) mesh = RuntimeMesh{};
+  star_base_mesh_ = RuntimeMesh{};
+
+  std::set<std::string> texture_names = {
       "track_surface.tex", "wood.tex", "track_fade.tex", "barline_gw.tex",
       "gem_green.tex", "gem_red.tex", "gem_yellow.tex", "gem_blue.tex", "gem_orange.tex",
       "gem.tex", "gem_glow.tex", "gem_shadow.tex", "stargem.tex",
@@ -169,6 +226,73 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
       "smasher_on.tex", "smasher_off.tex",
       "tail2.tex", "tail_tight.tex", "flame_part.tex",
   };
+
+  ghogx::milo_scene::Scene track_scene;
+  if (ghogx::milo_scene::load_scene(hdr_path, ark_path,
+                                    "track/gen/track.milo_ps2",
+                                    track_scene)) {
+    auto find_mesh = [&](const std::string& mesh_name)
+        -> const ghogx::milo_scene::MeshObj* {
+      for (const auto& mesh : track_scene.meshes) {
+        if (mesh.name == mesh_name && mesh.decoded) return &mesh;
+      }
+      return nullptr;
+    };
+    auto convert_mesh = [&](const std::string& mesh_name) {
+      RuntimeMesh out;
+      const auto* mesh = find_mesh(mesh_name);
+      if (!mesh || mesh->verts.empty() || mesh->indices.empty()) return out;
+      const auto* mat = track_scene.find_mat(mesh->material);
+      if (!mat || mat->diffuse_tex.empty()) return out;
+      out.texture_name = mat->diffuse_tex;
+      texture_names.insert(out.texture_name);
+      out.verts.reserve(mesh->verts.size());
+      for (const auto& src : mesh->verts) {
+        MeshVertex dst;
+        dst.x = src.px * mesh->local.rot[0][0] +
+                src.py * mesh->local.rot[1][0] +
+                src.pz * mesh->local.rot[2][0] + mesh->local.pos[0];
+        dst.y = src.px * mesh->local.rot[0][1] +
+                src.py * mesh->local.rot[1][1] +
+                src.pz * mesh->local.rot[2][1] + mesh->local.pos[1];
+        dst.z = src.px * mesh->local.rot[0][2] +
+                src.py * mesh->local.rot[1][2] +
+                src.pz * mesh->local.rot[2][2] + mesh->local.pos[2];
+        dst.r = src.r;
+        dst.g = src.g;
+        dst.b = src.b;
+        dst.a = src.a;
+        dst.u = src.u;
+        dst.v = src.v;
+        out.verts.push_back(dst);
+      }
+      out.indices = mesh->indices;
+      out.ok = !out.verts.empty() && !out.indices.empty();
+      return out;
+    };
+    for (int lane = 0; lane < 5; ++lane) {
+      const std::string name = lane_name(lane);
+      gem_mesh_[lane] = convert_mesh(name + "_gem.mesh");
+      hopo_mesh_[lane] = convert_mesh(name + "_hopo.mesh");
+      star_mesh_[lane] = convert_mesh(name + "_star.mesh");
+      star_top_mesh_[lane] = convert_mesh(name + "_top_star.mesh");
+    }
+    star_base_mesh_ = convert_mesh("star_base.mesh");
+    std::fprintf(stderr,
+                 "[highway] native note meshes: gems=%d hopos=%d stars=%d\n",
+                 static_cast<int>(std::count_if(
+                     gem_mesh_.begin(), gem_mesh_.end(),
+                     [](const RuntimeMesh& m) { return m.ok; })),
+                 static_cast<int>(std::count_if(
+                     hopo_mesh_.begin(), hopo_mesh_.end(),
+                     [](const RuntimeMesh& m) { return m.ok; })),
+                 static_cast<int>(std::count_if(
+                     star_mesh_.begin(), star_mesh_.end(),
+                     [](const RuntimeMesh& m) { return m.ok; })));
+  }
+
+  const std::vector<std::string> names(texture_names.begin(),
+                                       texture_names.end());
   auto imgs = ghogx::asset::load_milo_textures(hdr_path, ark_path,
                                                "track/gen/track.milo_ps2", names);
   if (imgs.empty()) { std::fprintf(stderr, "[highway] no track textures\n"); return false; }
@@ -209,9 +333,10 @@ bool HighwayRenderer::load_textures(const std::string& hdr_path,
 void HighwayRenderer::draw(double song_time, const ghogx::chart::Chart& chart,
                            int difficulty, uint32_t fret_held_mask,
                            const float hit_flash[5], float lookahead_sec,
-                           const std::vector<uint8_t>* consumed_notes) {
+                           const std::vector<uint8_t>* consumed_notes,
+                           const std::vector<FoFiXSessionSustain>* active_sustains) {
   draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
-            lookahead_sec, true, consumed_notes);
+            lookahead_sec, true, consumed_notes, active_sustains);
 }
 
 void HighwayRenderer::draw_over_scene(double song_time,
@@ -220,9 +345,10 @@ void HighwayRenderer::draw_over_scene(double song_time,
                                       uint32_t fret_held_mask,
                                       const float hit_flash[5],
                                       float lookahead_sec,
-                                      const std::vector<uint8_t>* consumed_notes) {
+                                      const std::vector<uint8_t>* consumed_notes,
+                                      const std::vector<FoFiXSessionSustain>* active_sustains) {
   draw_impl(song_time, chart, difficulty, fret_held_mask, hit_flash,
-            lookahead_sec, false, consumed_notes);
+            lookahead_sec, false, consumed_notes, active_sustains);
 }
 
 void HighwayRenderer::draw_impl(double song_time,
@@ -232,7 +358,8 @@ void HighwayRenderer::draw_impl(double song_time,
                                 const float hit_flash[5],
                                 float lookahead_sec,
                                 bool clear_target,
-                                const std::vector<uint8_t>* consumed_notes) {
+                                const std::vector<uint8_t>* consumed_notes,
+                                const std::vector<FoFiXSessionSustain>* active_sustains) {
   if (!dev_) return;
   if (clear_target) {
     dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
@@ -347,23 +474,51 @@ void HighwayRenderer::draw_impl(double song_time,
 
   // --- 4) Sustain tails (before gems) ---
   if (!env_enabled("GHOGX_DISABLE_HIGHWAY_SUSTAINS")) {
-    IDirect3DTexture9* tail = tex("tail2.tex");
+    IDirect3DTexture9* raw_tail = tex("tail2.tex");
+    IDirect3DTexture9* held_tail = tex("tail_tight.tex");
+    if (!held_tail) held_tail = raw_tail;
     const uint32_t sustain_min = chart.ticks_per_beat / 4;
     static const D3DCOLOR lane_rgb[5] = {
         D3DCOLOR_ARGB(225,60,230,70), D3DCOLOR_ARGB(225,235,60,50),
         D3DCOLOR_ARGB(225,240,210,40), D3DCOLOR_ARGB(225,60,150,235),
         D3DCOLOR_ARGB(225,245,140,30) };
-    for (const auto& n : notes) {
+    auto draw_tail_segment = [&](int lane, double on, double off,
+                                 IDirect3DTexture9* texture,
+                                 float half_width, D3DCOLOR color) {
+      if (lane < 0 || lane >= 5) return;
+      if (off < song_time - trail) return;
+      if (on > song_time + lead) return;
+      float y0 = std::max(note_y(on), kStrikeY);     // clamp near to strike
+      float y1 = std::min(note_y(off), kTopY);
+      if (y1 <= y0) return;
+      const float cy = (y0 + y1) * 0.5f, hy = (y1 - y0) * 0.5f;
+      V3 q[4];
+      flat_quad(q, lane_x(lane), cy, kGemZ - 0.02f, half_width, hy, color);
+      draw_quad(dev_, texture, q);
+    };
+    for (size_t note_index = 0; note_index < notes.size(); ++note_index) {
+      if (consumed_notes && note_index < consumed_notes->size() &&
+          (*consumed_notes)[note_index]) {
+        continue;
+      }
+      const auto& n = notes[note_index];
       const double on = chart.tick_to_sec(n.tick_on), off = chart.tick_to_sec(n.tick_off);
       if (off < song_time - trail) continue;
       if (on > song_time + lead) break;
       if (n.tick_off <= n.tick_on + sustain_min) continue;
-      float y0 = std::max(note_y(on), kStrikeY);     // clamp near to strike
-      float y1 = std::min(note_y(off), kTopY);
-      if (y1 <= y0) continue;
-      const float cy = (y0 + y1) * 0.5f, hy = (y1 - y0) * 0.5f;
-      V3 q[4]; flat_quad(q, lane_x(n.lane), cy, kGemZ - 0.02f, 0.55f, hy, lane_rgb[n.lane]);
-      draw_quad(dev_, tail, q);
+      draw_tail_segment(n.lane, on, off, raw_tail, 0.55f, lane_rgb[n.lane]);
+    }
+    if (active_sustains) {
+      for (const auto& sustain : *active_sustains) {
+        for (int lane = 0; lane < 5; ++lane) {
+          if ((sustain.mask & (1u << lane)) == 0) continue;
+          const D3DCOLOR color = sustain.star_power_tail
+              ? D3DCOLOR_ARGB(245, 150, 225, 255)
+              : D3DCOLOR_ARGB(245, 255, 255, 255);
+          draw_tail_segment(lane, sustain.start_time, sustain.end_time,
+                            held_tail, 0.40f, color);
+        }
+      }
     }
   }
 
@@ -384,7 +539,7 @@ void HighwayRenderer::draw_impl(double song_time,
 
   // --- 6) Gems (far -> near) ---
   {
-    struct VG { float y; int lane; bool star; };
+    struct VG { float y; int lane; bool star; bool hopo; };
     std::vector<VG> vis;
     for (size_t note_index = 0; note_index < notes.size(); ++note_index) {
       if (consumed_notes && note_index < consumed_notes->size() &&
@@ -395,7 +550,8 @@ void HighwayRenderer::draw_impl(double song_time,
       const double on = chart.tick_to_sec(n.tick_on);
       if (on < song_time - trail) continue;
       if (on > song_time + lead) break;
-      vis.push_back({ note_y(on), n.lane, n.star_power });
+      vis.push_back({ note_y(on), std::clamp(n.lane, 0, 4),
+                      n.star_power, n.is_hopo });
     }
     std::sort(vis.begin(), vis.end(), [](const VG& a, const VG& b){ return a.y > b.y; });
     IDirect3DTexture9* shadow = tex("gem_shadow.tex");
@@ -407,11 +563,30 @@ void HighwayRenderer::draw_impl(double song_time,
                            D3DCOLOR_ARGB(a*3/5, 255, 255, 255));
         draw_quad(dev_, shadow, s);
       }
-      IDirect3DTexture9* gt = tex(g.star ? "stargem.tex" : gem_tex_name(g.lane));
-      if (!gt) gt = tex("gem.tex");
       if (!env_enabled("GHOGX_DISABLE_HIGHWAY_GEMS")) {
-        V3 q[4]; flat_quad(q, x, g.y, kGemZ, kGemHalf, kGemHalf, D3DCOLOR_ARGB(a,255,255,255));
-        draw_quad(dev_, gt, q);
+        const D3DCOLOR tint = D3DCOLOR_ARGB(a, 255, 255, 255);
+        bool drew_native = false;
+        if (g.star && star_mesh_[g.lane].ok) {
+          if (star_base_mesh_.ok) draw_runtime_mesh(star_base_mesh_, x, g.y, tint);
+          draw_runtime_mesh(star_mesh_[g.lane], x, g.y, tint);
+          if (star_top_mesh_[g.lane].ok) {
+            draw_runtime_mesh(star_top_mesh_[g.lane], x, g.y, tint);
+          }
+          drew_native = true;
+        } else if (g.hopo && hopo_mesh_[g.lane].ok) {
+          draw_runtime_mesh(hopo_mesh_[g.lane], x, g.y, tint);
+          drew_native = true;
+        } else if (gem_mesh_[g.lane].ok) {
+          draw_runtime_mesh(gem_mesh_[g.lane], x, g.y, tint);
+          drew_native = true;
+        }
+        if (!drew_native) {
+          IDirect3DTexture9* gt =
+              tex(g.star ? "stargem.tex" : gem_tex_name(g.lane));
+          if (!gt) gt = tex("gem.tex");
+          V3 q[4]; flat_quad(q, x, g.y, kGemZ, kGemHalf, kGemHalf, tint);
+          draw_quad(dev_, gt, q);
+        }
       }
     }
   }

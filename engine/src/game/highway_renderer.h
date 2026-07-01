@@ -13,6 +13,7 @@
 
 #include "chart/midi_reader.h"
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -24,6 +25,8 @@ struct IDirect3DTexture9;
 namespace ghogx::render { class Window; }
 
 namespace ghogx::game {
+
+struct FoFiXSessionSustain;
 
 class HighwayRenderer {
  public:
@@ -48,23 +51,45 @@ class HighwayRenderer {
   void draw(double song_time, const ghogx::chart::Chart& chart, int difficulty,
             uint32_t fret_held_mask, const float hit_flash[5],
             float lookahead_sec = 1.5f,
-            const std::vector<uint8_t>* consumed_notes = nullptr);
+            const std::vector<uint8_t>* consumed_notes = nullptr,
+            const std::vector<FoFiXSessionSustain>* active_sustains = nullptr);
   void draw_over_scene(double song_time, const ghogx::chart::Chart& chart,
                        int difficulty, uint32_t fret_held_mask,
                        const float hit_flash[5], float lookahead_sec = 1.5f,
-                       const std::vector<uint8_t>* consumed_notes = nullptr);
+                       const std::vector<uint8_t>* consumed_notes = nullptr,
+                       const std::vector<FoFiXSessionSustain>* active_sustains = nullptr);
 
  private:
+  struct MeshVertex {
+    float x = 0.0f, y = 0.0f, z = 0.0f;
+    float r = 1.0f, g = 1.0f, b = 1.0f, a = 1.0f;
+    float u = 0.0f, v = 0.0f;
+  };
+  struct RuntimeMesh {
+    std::string texture_name;
+    std::vector<MeshVertex> verts;
+    std::vector<uint16_t> indices;
+    bool ok = false;
+  };
+
   void draw_impl(double song_time, const ghogx::chart::Chart& chart,
                  int difficulty, uint32_t fret_held_mask,
                  const float hit_flash[5], float lookahead_sec,
                  bool clear_target,
-                 const std::vector<uint8_t>* consumed_notes);
+                 const std::vector<uint8_t>* consumed_notes,
+                 const std::vector<FoFiXSessionSustain>* active_sustains);
   IDirect3DTexture9* tex(const std::string& name) const;
+  void draw_runtime_mesh(const RuntimeMesh& mesh, float cx, float cy,
+                         uint32_t tint, float scale = 1.0f) const;
 
   ghogx::render::Window* win_;
   IDirect3DDevice9* dev_ = nullptr;
   std::map<std::string, IDirect3DTexture9*> textures_;
+  std::array<RuntimeMesh, 5> gem_mesh_;
+  std::array<RuntimeMesh, 5> hopo_mesh_;
+  std::array<RuntimeMesh, 5> star_mesh_;
+  std::array<RuntimeMesh, 5> star_top_mesh_;
+  RuntimeMesh star_base_mesh_;
   bool loaded_ = false;
 };
 

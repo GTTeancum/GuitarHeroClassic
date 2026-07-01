@@ -397,6 +397,22 @@ void FoFiXGameplaySession::copy_source_consumed(
   }
 }
 
+void FoFiXGameplaySession::copy_active_sustains(
+    std::vector<FoFiXSessionSustain>& out) const {
+  out.clear();
+  out.reserve(active_sustains_.size());
+  for (const ActiveSustain& sustain : active_sustains_) {
+    out.push_back(FoFiXSessionSustain{
+        sustain.mask,
+        sustain.start_time,
+        sustain.end_time,
+        sustain.star_power_tail,
+        sustain.source_index,
+        sustain.source_tick,
+    });
+  }
+}
+
 void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   last_events_.clear();
   const double dt = std::max(0.0, song_time - last_time_);

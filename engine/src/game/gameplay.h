@@ -880,6 +880,7 @@ class Gameplay {
   FoFiXRockState rock_;
   FoFiXStarPowerState star_power_;
   std::optional<FoFiXGameplaySession> gameplay_session_mirror_;
+  std::vector<FoFiXSessionSustain> active_session_sustains_;
   double gameplay_session_mirror_last_log_time_ = -1.0;
   bool     failed_         = false;
   bool     star_phrase_active_ = false;

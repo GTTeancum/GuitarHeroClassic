@@ -3,6 +3,7 @@
 #include "chart/midi_reader.h"
 
 #include <cstdio>
+#include <vector>
 
 namespace {
 
@@ -195,6 +196,27 @@ int main() {
               session.last_events()[0].mask == kGreen &&
               session.last_events()[0].score_delta == 100,
           "FoFiX session reports sustain delta for native presentation");
+  }
+
+  {
+    FoFiXGameplaySession session({
+        {1.0, 2.0, kGreen, false, true, 0.5, 0.0, 0.0, 7, 480},
+    });
+    std::vector<FoFiXSessionSustain> sustains;
+    session.copy_active_sustains(sustains);
+    CHECK(sustains.empty(), "FoFiX active sustain export starts empty");
+    session.tick(1.0, kGreen | kStrum);
+    session.copy_active_sustains(sustains);
+    CHECK(sustains.size() == 1 && sustains[0].mask == kGreen &&
+              sustains[0].star_power_tail && sustains[0].source_index == 7 &&
+              sustains[0].source_tick == 480 &&
+              sustains[0].start_time >= 1.0 &&
+              sustains[0].end_time == 2.0,
+          "FoFiX session exports held sustain tails for native highway rendering");
+    session.tick(2.0, kGreen);
+    session.copy_active_sustains(sustains);
+    CHECK(sustains.empty(),
+          "FoFiX active sustain export clears when the held tail ends");
   }
 
   {

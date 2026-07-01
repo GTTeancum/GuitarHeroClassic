@@ -52,6 +52,15 @@ struct FoFiXSessionEvent {
   bool failed = false;
 };
 
+struct FoFiXSessionSustain {
+  uint32_t mask = 0;
+  double start_time = 0.0;
+  double end_time = 0.0;
+  bool star_power_tail = false;
+  size_t source_index = static_cast<size_t>(-1);
+  uint32_t source_tick = UINT32_MAX;
+};
+
 class FoFiXGameplaySession {
  public:
   explicit FoFiXGameplaySession(std::vector<FoFiXSessionNote> notes,
@@ -63,6 +72,7 @@ class FoFiXGameplaySession {
   void seek_without_scoring(double song_time);
   uint32_t diagnostic_autoplay_mask(double song_time) const;
   void copy_source_consumed(std::vector<uint8_t>& out) const;
+  void copy_active_sustains(std::vector<FoFiXSessionSustain>& out) const;
 
   int score() const { return score_.score; }
   int streak() const { return score_.streak; }

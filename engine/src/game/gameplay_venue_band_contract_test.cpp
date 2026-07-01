@@ -488,10 +488,20 @@ int main() {
   ok &= contains(highway_renderer_h_c,
                  "conststd::vector<uint8_t>*consumed_notes=nullptr",
                  "highway renderer accepts the FoFiX consumed-note ledger");
+  ok &= contains(highway_renderer_h_c,
+                 "conststd::vector<FoFiXSessionSustain>*"
+                 "active_sustains=nullptr",
+                 "highway renderer accepts FoFiX active sustain tails");
   ok &= contains(highway_renderer_c,
                  "if(consumed_notes&&note_index<consumed_notes->size()&&"
                  "(*consumed_notes)[note_index]){continue;}",
                  "highway skips gem heads already consumed by FoFiX gameplay");
+  ok &= contains(highway_renderer_c,
+                 "for(constauto&sustain:*active_sustains)",
+                 "highway draws held sustain tails from the FoFiX session");
+  ok &= contains(highway_renderer_c,
+                 "IDirect3DTexture9*held_tail=tex(\"tail_tight.tex\");",
+                 "held sustain tails use native GH2 highway tail art");
   ok &= contains(highway_renderer_c,
                  "use_texture_alpha?D3DTOP_MODULATE:D3DTOP_SELECTARG2",
                  "highway renderer can keep opaque textured surfaces from bleeding venue geometry through");
@@ -510,8 +520,30 @@ int main() {
                  "constboolcolor_key_lane_gem=is_lane_gem_tex_name(kv.first);",
                  "highway texture upload gates color-keying by texture name");
   ok &= contains(highway_renderer_c,
+                 "ghogx::milo_scene::load_scene(hdr_path,ark_path,"
+                 "\"track/gen/track.milo_ps2\",track_scene)",
+                 "highway decodes native track.milo_ps2 mesh objects");
+  ok &= contains(highway_renderer_c,
+                 "gem_mesh_[lane]=convert_mesh(name+\"_gem.mesh\");",
+                 "highway loads native per-lane gem meshes");
+  ok &= contains(highway_renderer_c,
+                 "hopo_mesh_[lane]=convert_mesh(name+\"_hopo.mesh\");",
+                 "highway loads native per-lane HOPO meshes");
+  ok &= contains(highway_renderer_c,
+                 "star_mesh_[lane]=convert_mesh(name+\"_star.mesh\");",
+                 "highway loads native per-lane star-note meshes");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh(star_mesh_[g.lane],x,g.y,tint);",
+                 "star notes draw through native track mesh geometry");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh(hopo_mesh_[g.lane],x,g.y,tint);",
+                 "HOPO notes draw through native track mesh geometry");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh(gem_mesh_[g.lane],x,g.y,tint);",
+                 "regular notes draw through native track mesh geometry");
+  ok &= contains(highway_renderer_c,
                  "draw_impl(song_time,chart,difficulty,fret_held_mask,hit_flash,"
-                 "lookahead_sec,false,consumed_notes);",
+                 "lookahead_sec,false,consumed_notes,active_sustains);",
                  "highway draw_over_scene preserves the already-rendered 3D venue");
   ok &= contains(highway_renderer_c,
                  "constfloatauthored_lead=(kTopY-kStrikeY)/speed;",
@@ -530,11 +562,17 @@ int main() {
   ok &= contains(gameplay_c,
                  "&note_consumed_[std::clamp(difficulty_,0,3)]",
                  "playable highway rendering is driven by live FoFiX-consumed notes");
+  ok &= contains(gameplay_c,
+                 "&active_session_sustains_",
+                 "playable highway rendering is driven by live FoFiX sustain tails");
   ok &= contains(gameplay_h_c,
                  "inthit_count_=0;"
                  "intmiss_count_=0;"
                  "intoverstrum_count_=0;",
                  "live gameplay records FoFiX hit miss and overstrum counts");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<FoFiXSessionSustain>active_session_sustains_;",
+                 "live gameplay stores FoFiX active sustain tails for rendering");
   ok &= contains(gameplay_c,
                  "score_=gameplay_session_mirror_->score();",
                  "live gameplay score is adopted from the FoFiX session");
@@ -547,6 +585,16 @@ int main() {
   ok &= contains(gameplay_session_h_c,
                  "boolstar_power_tail=false;",
                  "FoFiX session remembers whether an active sustain can award whammy star power");
+  ok &= contains(gameplay_session_h_c,
+                 "voidcopy_active_sustains(std::vector<FoFiXSessionSustain>&out)const;",
+                 "FoFiX session exposes active sustain tails to native presentation");
+  ok &= contains(gameplay_session_c,
+                 "out.push_back(FoFiXSessionSustain{",
+                 "FoFiX session exports active sustain tail snapshots");
+  ok &= contains(gameplay_c,
+                 "gameplay_session_mirror_->copy_active_sustains("
+                 "active_session_sustains_);",
+                 "live gameplay syncs FoFiX active sustain tails each tick");
   ok &= contains(gameplay_session_c,
                  "kFoFiXDigitalWhammyStarPowerPerSecond=0.05*60.0;",
                  "FoFiX whammy star-power gain uses the source digital chunk at a deterministic 60 Hz rate");
