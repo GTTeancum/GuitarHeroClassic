@@ -318,6 +318,10 @@ bool Window::key_down(int virtual_key) const {
 
 bool Window::should_close() const { return impl_->should_close; }
 
+void Window::set_title(const char* title) {
+  if (impl_ && impl_->hwnd) SetWindowTextA(impl_->hwnd, title ? title : "");
+}
+
 void* Window::device_ptr() const {
   return impl_ ? static_cast<void*>(impl_->dev) : nullptr;
 }

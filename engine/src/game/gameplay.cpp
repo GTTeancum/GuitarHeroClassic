@@ -11623,9 +11623,22 @@ std::string camera_format_metric_float(float value) {
     return buffer;
 }
 
+bool camera_has_promotable_writer_bridge_evidence(
+    const Ps2SourceRecordEvaluation& evaluation) {
+    return evaluation.has_complete_writer_builder_pair &&
+           evaluation.has_writer_bridge_payload_delta &&
+           evaluation.writer_bridge_payload_delta_support_count > 0 &&
+           evaluation.writer_bridge_payload_delta_min_distance > 0.0f &&
+           evaluation.writer_bridge_payload_delta_max_distance >=
+               evaluation.writer_bridge_payload_delta_min_distance &&
+           evaluation.camera_system_shape == "complete_writer_builder_pair" &&
+           evaluation.complete_writer_builder_pair_count > 0 &&
+           evaluation.incomplete_writer_builder_pair_count == 0;
+}
+
 std::string camera_writer_builder_pair_provenance(
     const Ps2SourceRecordEvaluation& evaluation) {
-    if (!evaluation.has_complete_writer_builder_pair) {
+    if (!camera_has_promotable_writer_bridge_evidence(evaluation)) {
         return {};
     }
     return " pair=complete shape=" + evaluation.camera_system_shape +
@@ -12298,15 +12311,8 @@ std::optional<CameraResultRows> camera_trace_complete_writer_bridge_rows(
     const std::unordered_map<std::string, CameraTarget>& targets) {
     const auto evaluation =
         evaluate_retained_ps2_source_record_trace_context(key);
-    if (!evaluation || !evaluation->has_complete_writer_builder_pair ||
-        !evaluation->has_writer_bridge_payload_delta ||
-        evaluation->writer_bridge_payload_delta_support_count <= 0 ||
-        evaluation->writer_bridge_payload_delta_min_distance <= 0.0f ||
-        evaluation->writer_bridge_payload_delta_max_distance <
-            evaluation->writer_bridge_payload_delta_min_distance ||
-        evaluation->camera_system_shape != "complete_writer_builder_pair" ||
-        evaluation->complete_writer_builder_pair_count <= 0 ||
-        evaluation->incomplete_writer_builder_pair_count != 0) {
+    if (!evaluation ||
+        !camera_has_promotable_writer_bridge_evidence(*evaluation)) {
         return std::nullopt;
     }
     const auto builder_rows =

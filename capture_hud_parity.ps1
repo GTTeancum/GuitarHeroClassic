@@ -6,6 +6,17 @@ param(
   [switch]$Build,
   [string]$InactiveRef = "",
   [string]$ActiveRef = "",
+  [int]$InactiveScore = 121168,
+  [int]$InactiveStreak = 18,
+  [int]$InactiveMultiplier = 4,
+  [double]$InactiveSp = 0.10,
+  [double]$InactiveRock = 0.75,
+  [int]$ActiveScore = 851305,
+  [int]$ActiveStreak = 38,
+  [int]$ActiveMultiplier = 4,
+  [double]$ActiveSp = 0.80,
+  [double]$ActiveRock = 0.90,
+  [string]$HudTunePath = "",
   [int]$CaptureTimeoutSec = 90
 )
 
@@ -27,7 +38,8 @@ function Run-Step([string]$Name, [scriptblock]$Body) {
 }
 
 function Run-Capture([string]$Name, [int]$Score, [int]$Streak,
-                     [int]$Multiplier, [double]$Sp, [double]$Rock) {
+                     [int]$Multiplier, [double]$Sp, [double]$Rock,
+                     [bool]$StarActive = $false) {
   $shot = Join-Path $OutDir "$Name.bmp"
   $log = Join-Path $OutDir "$Name.stderr.log"
   $stdoutLog = Join-Path $OutDir "$Name.stdout.log"
@@ -47,6 +59,12 @@ function Run-Capture([string]$Name, [int]$Score, [int]$Streak,
     "--screenshot-frame", "63",
     "--frames", "66"
   )
+  if ($HudTunePath) {
+    $appArgs += @("--hud-tune", $HudTunePath)
+  }
+  if ($StarActive) {
+    $appArgs += @("--hud-star-active")
+  }
 
   function Quote-NativeArg([string]$Arg) {
     if ($Arg -match '[\s"]') {
@@ -115,10 +133,58 @@ function Add-Thumb([System.Drawing.Graphics]$Graphics,
   }
 }
 
+function Normalize-RefImage([string]$Path, [string]$Name) {
+  Add-Type -AssemblyName System.Drawing
+  $img = [System.Drawing.Image]::FromFile($Path)
+  try {
+    $srcX = 0
+    $srcY = 0
+    $srcW = $img.Width
+    $srcH = $img.Height
+    if ($img.Width -eq 656 -and $img.Height -eq 519) {
+      $srcX = 8
+      $srcY = 91
+      $srcW = 640
+      $srcH = 360
+    } elseif ([Math]::Abs(($img.Width / [double]$img.Height) - (16.0 / 9.0)) -gt 0.02) {
+      $target = 16.0 / 9.0
+      $current = $img.Width / [double]$img.Height
+      if ($current -gt $target) {
+        $srcW = [int]($img.Height * $target)
+        $srcX = [int](($img.Width - $srcW) / 2)
+      } else {
+        $srcH = [int]($img.Width / $target)
+        $srcY = [int](($img.Height - $srcH) / 2)
+      }
+    }
+
+    $bmp = New-Object System.Drawing.Bitmap 1280, 720
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    try {
+      $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+      $g.DrawImage($img,
+        (New-Object System.Drawing.Rectangle 0, 0, 1280, 720),
+        (New-Object System.Drawing.Rectangle $srcX, $srcY, $srcW, $srcH),
+        [System.Drawing.GraphicsUnit]::Pixel)
+      $out = Join-Path $OutDir $Name
+      $bmp.Save($out, [System.Drawing.Imaging.ImageFormat]::Png)
+      return $out
+    } finally {
+      $g.Dispose()
+      $bmp.Dispose()
+    }
+  } finally {
+    $img.Dispose()
+  }
+}
+
 function Make-ContactSheet {
   if (-not ($InactiveRef -and $ActiveRef)) { return }
   if (-not (Test-Path -LiteralPath $InactiveRef)) { return }
   if (-not (Test-Path -LiteralPath $ActiveRef)) { return }
+
+  $inactiveRefNorm = Normalize-RefImage $InactiveRef "ps2_inactive_ref_normalized.png"
+  $activeRefNorm = Normalize-RefImage $ActiveRef "ps2_active_ref_normalized.png"
 
   Add-Type -AssemblyName System.Drawing
   $w = 420
@@ -127,9 +193,9 @@ function Make-ContactSheet {
   $g = [System.Drawing.Graphics]::FromImage($bmp)
   try {
     $g.Clear([System.Drawing.Color]::FromArgb(12, 12, 16))
-    Add-Thumb $g $InactiveRef "PS2 inactive ref" 0 0 $w $h
+    Add-Thumb $g $inactiveRefNorm "PS2 inactive ref" 0 0 $w $h
     Add-Thumb $g (Join-Path $OutDir "ingame_inactive_hud.bmp") "Native inactive" $w 0 $w $h
-    Add-Thumb $g $ActiveRef "PS2 active ref" 0 $h $w $h
+    Add-Thumb $g $activeRefNorm "PS2 active ref" 0 $h $w $h
     Add-Thumb $g (Join-Path $OutDir "ingame_active_hud.bmp") "Native active" $w $h $w $h
     $sheet = Join-Path $OutDir "hud_gameplay_parity_compare.png"
     $bmp.Save($sheet, [System.Drawing.Imaging.ImageFormat]::Png)
@@ -157,8 +223,10 @@ if (-not (Test-Path -LiteralPath (Join-Path $ArkDir "MAIN.HDR")) -and
   throw "missing MAIN.HDR/main.hdr under $ArkDir"
 }
 
-Run-Capture "ingame_inactive_hud" 45763 18 1 0.10 0.75
-Run-Capture "ingame_active_hud" 481632 38 8 0.80 0.90
+Run-Capture "ingame_inactive_hud" $InactiveScore $InactiveStreak `
+  $InactiveMultiplier $InactiveSp $InactiveRock $false
+Run-Capture "ingame_active_hud" $ActiveScore $ActiveStreak `
+  $ActiveMultiplier $ActiveSp $ActiveRock $true
 Make-ContactSheet
 
 Write-Host "out_dir=$OutDir"

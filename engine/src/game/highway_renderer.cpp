@@ -230,7 +230,7 @@ void HighwayRenderer::draw_impl(double song_time,
                                 int difficulty,
                                 uint32_t fret_held_mask,
                                 const float hit_flash[5],
-                                float /*lookahead_sec*/,
+                                float lookahead_sec,
                                 bool clear_target,
                                 const std::vector<uint8_t>* consumed_notes) {
   if (!dev_) return;
@@ -316,7 +316,8 @@ void HighwayRenderer::draw_impl(double song_time,
 
   if (difficulty < 0 || difficulty > 3) { dev_->EndScene(); return; }
   const auto& notes = chart.notes[difficulty];
-  const float lead = (kTopY - kStrikeY) / speed;       // seconds from spawn to strike
+  const float authored_lead = (kTopY - kStrikeY) / speed; // seconds from spawn to strike
+  const float lead = std::min(authored_lead, std::max(0.0f, lookahead_sec));
   const float trail = (kStrikeY - kRemoveY) / speed;   // seconds strike to prune
 
   // --- 3) Beat lines (barline texture across the board) ---

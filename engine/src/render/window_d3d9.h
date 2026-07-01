@@ -33,6 +33,7 @@ class Window {
   // XInput controller state for action_pressed().
   void pump();
   bool should_close() const;
+  void set_title(const char* title);
 
   // High-level menu input actions, mapped from keyboard + an Xbox controller
   // (player 1). Edge-triggered: true only on the frame the action went from

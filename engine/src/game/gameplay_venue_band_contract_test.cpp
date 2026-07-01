@@ -513,6 +513,13 @@ int main() {
                  "draw_impl(song_time,chart,difficulty,fret_held_mask,hit_flash,"
                  "lookahead_sec,false,consumed_notes);",
                  "highway draw_over_scene preserves the already-rendered 3D venue");
+  ok &= contains(highway_renderer_c,
+                 "constfloatauthored_lead=(kTopY-kStrikeY)/speed;",
+                 "highway preserves the authored board-depth lead window");
+  ok &= contains(highway_renderer_c,
+                 "constfloatlead=std::min(authored_lead,"
+                 "std::max(0.0f,lookahead_sec));",
+                 "highway lookahead_sec can narrow the rendered chart window without extending past the authored board");
   ok &= contains(gameplay_c,
                  "world_->draw();",
                  "venue draw path still renders the 3D world before overlays");
@@ -3268,29 +3275,29 @@ int main() {
                  "camera_trace_complete_writer_bridge_rows(",
                  "runtime can exercise the trace-complete writer bridge through a guarded path");
   ok &= contains(gameplay_c,
-                 "!evaluation||!evaluation->has_complete_writer_builder_pair",
-                 "trace-complete writer bridge refuses retained rows without immediate builder-pair evidence");
+                 "evaluation.has_complete_writer_builder_pair&&",
+                 "shared trace-complete writer bridge gate refuses rows without immediate builder-pair evidence");
   ok &= contains(gameplay_c,
-                 "!evaluation->has_writer_bridge_payload_delta",
-                 "trace-complete writer bridge refuses complete-pair traces without sampled writer payload delta evidence");
+                 "evaluation.has_writer_bridge_payload_delta&&",
+                 "shared trace-complete writer bridge gate refuses complete-pair traces without sampled writer payload delta evidence");
   ok &= contains(gameplay_c,
-                 "evaluation->writer_bridge_payload_delta_support_count<=0",
-                 "trace-complete writer bridge requires positive payload-delta support trace count");
+                 "evaluation.writer_bridge_payload_delta_support_count>0&&",
+                 "shared trace-complete writer bridge gate requires positive payload-delta support trace count");
   ok &= contains(gameplay_c,
-                 "evaluation->writer_bridge_payload_delta_min_distance<=0.0f",
-                 "trace-complete writer bridge requires a measured payload-delta distance range");
+                 "evaluation.writer_bridge_payload_delta_min_distance>0.0f&&",
+                 "shared trace-complete writer bridge gate requires a measured payload-delta distance range");
   ok &= contains(gameplay_c,
-                 "evaluation->writer_bridge_payload_delta_max_distance<evaluation->writer_bridge_payload_delta_min_distance",
-                 "trace-complete writer bridge rejects invalid payload-delta distance ranges");
+                 "evaluation.writer_bridge_payload_delta_max_distance>=evaluation.writer_bridge_payload_delta_min_distance",
+                 "shared trace-complete writer bridge gate rejects invalid payload-delta distance ranges");
   ok &= contains(gameplay_c,
-                 "evaluation->camera_system_shape!=\"complete_writer_builder_pair\"",
-                 "trace-complete writer bridge requires the analyzer's complete camera-system graph shape");
+                 "evaluation.camera_system_shape==\"complete_writer_builder_pair\"",
+                 "shared trace-complete writer bridge gate requires the analyzer's complete camera-system graph shape");
   ok &= contains(gameplay_c,
-                 "evaluation->complete_writer_builder_pair_count<=0",
-                 "trace-complete writer bridge requires positive complete writer-builder pair evidence");
+                 "evaluation.complete_writer_builder_pair_count>0&&",
+                 "shared trace-complete writer bridge gate requires positive complete writer-builder pair evidence");
   ok &= contains(gameplay_c,
-                 "evaluation->incomplete_writer_builder_pair_count!=0",
-                 "trace-complete writer bridge refuses mixed or incomplete writer-builder pair evidence");
+                 "evaluation.incomplete_writer_builder_pair_count==0",
+                 "shared trace-complete writer bridge gate refuses mixed or incomplete writer-builder pair evidence");
   ok &= contains(gameplay_c,
                  "GHOGX_CAMERA_USE_TRACE_COMPLETE_WRITER_BRIDGE",
                  "trace-complete writer bridge submission requires an explicit native validation opt-in");
@@ -3312,6 +3319,15 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_writer_builder_pair_provenance(",
                  "generic PS2 writer bridge shares one camera-system pair provenance formatter");
+  ok &= contains(gameplay_c,
+                 "camera_has_promotable_writer_bridge_evidence(",
+                 "trace-complete writer bridge and provenance share one promotable-evidence gate");
+  ok &= contains(gameplay_c,
+                 "!camera_has_promotable_writer_bridge_evidence(*evaluation)",
+                 "trace-complete writer bridge rejects rows through the shared promotable-evidence gate");
+  ok &= contains(gameplay_c,
+                 "if(!camera_has_promotable_writer_bridge_evidence(evaluation))",
+                 "writer-builder provenance cannot claim payload-delta promotion without the full gate");
   ok &= contains(gameplay_c,
                  "pair=completeshape=",
                  "generic PS2 writer bridge provenance includes the accepted analyzer camera-system shape");
@@ -3397,7 +3413,7 @@ int main() {
                  "gh2dxu_arena_builder_a0_shot_identity_long_20260624",
                  "retained PS2 builder basis diagnostics cite the accepted long handoff trace artifact");
   ok &= contains(gameplay_c,
-                 "evaluation->has_complete_writer_builder_pair",
+                 "evaluation.has_complete_writer_builder_pair",
                  "retained PS2 builder basis diagnostics carry complete writer-builder pair evidence into native logs");
   ok &= contains(gameplay_c,
                  "camera_system_shape",

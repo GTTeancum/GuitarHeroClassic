@@ -41,6 +41,12 @@ bool contains(const std::string& haystack, const std::string& needle,
   return false;
 }
 
+bool nonempty(const std::string& value, const char* label) {
+  if (!value.empty()) return true;
+  std::cerr << "Missing left-hand contract scope: " << label << "\n";
+  return false;
+}
+
 bool appears_before(const std::string& haystack, const std::string& first,
                     const std::string& second, const char* label) {
   const size_t a = haystack.find(first);
@@ -79,12 +85,16 @@ int main() {
       read_file(game_dir / "gameplay.cpp");
   const std::string char_clip_c = compact(char_clip);
   const std::string gameplay_c = compact(gameplay);
+  const std::string gameplay_draw_c =
+      compact(function_body(gameplay, "void Gameplay::draw("));
   const std::string solver_weight_c =
       compact(function_body(char_clip, "effective_ik_hand_solver_weight"));
   const std::string target_blend_c =
       compact(function_body(char_clip, "effective_ik_hand_target_blend_weight"));
 
   bool ok = true;
+
+  ok &= nonempty(gameplay_draw_c, "Gameplay::draw performer presentation path");
 
   ok &= contains(char_clip_c,
                  "returnkey==\"bone_fret\"||key==\"bone_fret_hand\"||"
@@ -126,12 +136,12 @@ int main() {
                  "requested_fret_names=perf.active_fret_clip_names;"
                  "next_fret_names=perf.active_fret_clip_names;",
                  "stable HandMap child selection is preserved between frames");
-  ok &= appears_before(gameplay_c,
+  ok &= appears_before(gameplay_draw_c,
                        "set_runtime_ik_weight(character,\"left.weight\","
                        "left_weight);",
                        "apply_ik_midi_fret_target(",
                        "left IK weight is live before MIDI fret target solve");
-  ok &= appears_before(gameplay_c,
+  ok &= appears_before(gameplay_draw_c,
                        "apply_ik_midi_fret_target(",
                        "apply_character_controllers(",
                        "MIDI fret target is applied before CharIKHand solve");

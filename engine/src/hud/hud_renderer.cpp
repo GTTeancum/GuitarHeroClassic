@@ -22,8 +22,14 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iterator>
 #include <limits>
 #include <queue>
+#include <sstream>
+#include <string>
 #include <unordered_set>
 #include <unordered_map>
 
@@ -32,6 +38,8 @@ namespace ghogx::hud {
 namespace {
 
 constexpr const char* kHudMilo   = "hud/gen/hud.milo_ps2";
+constexpr const char* kScoreMilo = "hud/gen/score_display.milo_ps2";
+constexpr const char* kStreakMilo = "hud/gen/streak_display.milo_ps2";
 constexpr const char* kCrowdMilo = "hud/gen/crowd_meter.milo_ps2";
 constexpr const char* kStarMilo  = "hud/gen/star_meter.milo_ps2";
 
@@ -55,10 +63,11 @@ constexpr float kZBot =  120.0f;  // maps near the bottom
 constexpr float kHudPerspective = 0.0017f;
 constexpr float kHudVanishX = 0.5f;
 constexpr float kHudVanishY = 0.67f;
-constexpr float kRightHudNearDepth = -18.0f;
-constexpr float kRightHudFarDepth = 62.0f;
-constexpr float kLeftHudLeftDepth = -14.0f;
-constexpr float kLeftHudRightDepth = 42.0f;
+constexpr bool kFlatHudAlignmentPass = true;
+constexpr float kRightHudNearDepth = -12.0f;
+constexpr float kRightHudFarDepth = 36.0f;
+constexpr float kLeftHudLeftDepth = -8.0f;
+constexpr float kLeftHudRightDepth = 24.0f;
 constexpr float kRightHudLeftDepth = kRightHudFarDepth;
 constexpr float kRightHudRightDepth = kRightHudNearDepth;
 constexpr float kLeftHudPanelNx = 0.102f;
@@ -67,22 +76,45 @@ constexpr float kLeftHudWorldMin =
     (0.5f - (kLeftHudPanelNx + kLeftHudPanelNw * 0.5f)) * kWorldPerScreenX;
 constexpr float kLeftHudWorldMax =
     (0.5f - (kLeftHudPanelNx - kLeftHudPanelNw * 0.5f)) * kWorldPerScreenX;
-constexpr float kRightHudPanelNx = 0.850f;
-constexpr float kRightHudPanelNw = 0.195f;
+constexpr float kRightHudPanelNx = 0.806f;
+constexpr float kRightHudPanelNw = 0.165f;
 constexpr float kRightHudWorldMin =
     (0.5f - (kRightHudPanelNx + kRightHudPanelNw * 0.5f)) * kWorldPerScreenX;
 constexpr float kRightHudWorldMax =
     (0.5f - (kRightHudPanelNx - kRightHudPanelNw * 0.5f)) * kWorldPerScreenX;
 // Projection flips X, so positive HUD X moves the ROCK label left on screen.
 constexpr float kRockLabelScreenLeftBias = 0.13f;
+constexpr uint8_t kHudGroupLeft = 1;
+constexpr uint8_t kHudGroupRight = 2;
+constexpr uint8_t kElemScorePanel = 0;
+constexpr uint8_t kElemScoreFrame = 1;
+constexpr uint8_t kElemMultPanel = 2;
+constexpr uint8_t kElemStreakPanel = 3;
+constexpr uint8_t kElemRightPanel = 4;
+constexpr uint8_t kElemSpBar = 5;
+constexpr uint8_t kElemRockFace = 6;
+constexpr uint8_t kElemRockNeedle = 7;
+constexpr uint8_t kElemSpBack = 8;
+constexpr uint8_t kElemSpFill = 9;
+constexpr uint8_t kElemSpReady = 10;
+constexpr uint8_t kElemSpFront = 11;
+constexpr uint8_t kElemSpGlass = 12;
+constexpr uint8_t kElemSpBase = 13;
+constexpr uint8_t kElemSpTop = 14;
+constexpr uint8_t kElemSpCaps = 15;
+constexpr uint8_t kElemRockFrame = 16;
+constexpr uint8_t kElemRockLights = 17;
+constexpr uint8_t kElemRockLabel = 18;
 
 float left_hud_depth_at(float wx) {
+  if (kFlatHudAlignmentPass) return 0.0f;
   const float t = std::clamp((wx - kLeftHudWorldMin) /
                              (kLeftHudWorldMax - kLeftHudWorldMin), 0.0f, 1.0f);
   return kLeftHudRightDepth + (kLeftHudLeftDepth - kLeftHudRightDepth) * t;
 }
 
 float right_hud_depth_at(float wx) {
+  if (kFlatHudAlignmentPass) return 0.0f;
   const float t =
       std::clamp((wx - kRightHudWorldMin) /
                      (kRightHudWorldMax - kRightHudWorldMin),
@@ -94,7 +126,8 @@ uint32_t argb(int a, int r, int g, int b) {
   return (uint32_t(a) << 24) | (uint32_t(r) << 16) | (uint32_t(g) << 8) | uint32_t(b);
 }
 
-std::string first_material_ref(const std::vector<uint8_t>& body) {
+std::string first_ref_with_suffix(const std::vector<uint8_t>& body,
+                                  const char* suffix) {
   for (size_t o = 0; o + 4 <= body.size(); ++o) {
     uint32_t len = 0;
     std::memcpy(&len, body.data() + o, 4);
@@ -109,11 +142,23 @@ std::string first_material_ref(const std::vector<uint8_t>& body) {
     }
     if (!printable) continue;
     std::string cand(s, len);
-    if (cand.size() >= 4 && cand.compare(cand.size() - 4, 4, ".mat") == 0) {
+    const size_t suffix_len = std::strlen(suffix);
+    if (cand.size() >= suffix_len &&
+        cand.compare(cand.size() - suffix_len, suffix_len, suffix) == 0) {
       return cand;
     }
   }
   return {};
+}
+
+std::string first_material_ref(const std::vector<uint8_t>& body) {
+  return first_ref_with_suffix(body, ".mat");
+}
+
+std::string first_mesh_ref(const std::vector<uint8_t>& body,
+                           const std::string& self) {
+  std::string ref = first_ref_with_suffix(body, ".mesh");
+  return ref == self ? std::string{} : ref;
 }
 
 // Decode a Group/RndDir entry's embedded Trans matrix + parent name.
@@ -186,6 +231,7 @@ struct LoadedMesh {
   std::string name;
   std::string parent;
   std::string material;
+  std::string mesh_ref;
   ghogx::milo_scene::Xfm local;
   // Raw object-space vertices (x,y,z + uv) and the triangle index list, kept
   // verbatim so we can transform each vertex to world space and draw the mesh
@@ -253,6 +299,8 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         auto mo = ghogx::milo_scene::decode_mesh(de.name, body);
         LoadedMesh lm;
         lm.name = de.name; lm.parent = mo.parent; lm.material = mo.material;
+        lm.mesh_ref = first_mesh_ref(body, de.name);
+        if (lm.material.empty()) lm.material = first_material_ref(body);
         lm.local = mo.local;
         lm.world = mo.world_stored;
         extract_quad(mo, lm);
@@ -278,6 +326,18 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         out.mat_color[de.name] =
             argb(c(mat.color[3]), c(mat.color[0]), c(mat.color[1]), c(mat.color[2]));
       }
+    }
+    for (LoadedMesh& mesh : out.meshes) {
+      if (mesh.quad || mesh.mesh_ref.empty()) continue;
+      const auto src =
+          std::find_if(out.meshes.begin(), out.meshes.end(),
+                       [&](const LoadedMesh& other) {
+                         return other.name == mesh.mesh_ref && other.quad;
+                       });
+      if (src == out.meshes.end()) continue;
+      mesh.verts = src->verts;
+      mesh.idx = src->idx;
+      mesh.quad = !mesh.verts.empty() && !mesh.idx.empty();
     }
     for (int pass = 0; pass < 4; ++pass) {
       bool changed = false;
@@ -372,7 +432,213 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
 // ---------------------------------------------------------------------------
 
 HudRenderer::~HudRenderer() {
+  clear_loaded_resources();
+}
+
+void HudRenderer::clear_loaded_resources() {
+  loaded_ = false;
   for (auto& kv : textures_) if (kv.second) kv.second->Release();
+  textures_.clear();
+  static_quads_.clear();
+  native_star_back_.clear();
+  native_star_fill_.clear();
+  native_star_fill_glow_.clear();
+  native_star_front_.clear();
+  native_star_glass_.clear();
+  native_star_base_.clear();
+  native_star_top_.clear();
+  native_star_caps_.clear();
+  native_star_ready_glow_.clear();
+}
+
+namespace {
+constexpr const char* kLayoutTuningNames[] = {
+    "score_panel", "score_frame", "mult_panel", "streak_panel",
+    "right_panel", "sp_bar", "rock_face", "rock_needle",
+    "sp_back", "sp_fill", "sp_ready", "sp_front",
+    "sp_glass", "sp_base", "sp_top", "sp_caps",
+    "rock_frame", "rock_lights", "rock_label"};
+constexpr size_t kLayoutTuningCount =
+    sizeof(kLayoutTuningNames) / sizeof(kLayoutTuningNames[0]);
+
+HudRenderer::LayoutRect* layout_rect_by_index(HudRenderer::LayoutTuning& tuning,
+                                              size_t index) {
+  switch (index) {
+    case 0: return &tuning.score_panel;
+    case 1: return &tuning.score_frame;
+    case 2: return &tuning.mult_panel;
+    case 3: return &tuning.streak_panel;
+    case 4: return &tuning.right_panel;
+    case 5: return &tuning.sp_bar;
+    case 6: return &tuning.rock_face;
+    case 7: return &tuning.rock_needle;
+    case 8: return &tuning.sp_back;
+    case 9: return &tuning.sp_fill;
+    case 10: return &tuning.sp_ready;
+    case 11: return &tuning.sp_front;
+    case 12: return &tuning.sp_glass;
+    case 13: return &tuning.sp_base;
+    case 14: return &tuning.sp_top;
+    case 15: return &tuning.sp_caps;
+    case 16: return &tuning.rock_frame;
+    case 17: return &tuning.rock_lights;
+    case 18: return &tuning.rock_label;
+    default: return nullptr;
+  }
+}
+
+HudRenderer::LayoutRect* layout_rect_by_name(HudRenderer::LayoutTuning& tuning,
+                                             const std::string& name) {
+  for (size_t i = 0; i < kLayoutTuningCount; ++i) {
+    if (name == kLayoutTuningNames[i]) return layout_rect_by_index(tuning, i);
+  }
+  return nullptr;
+}
+
+size_t layout_rect_index_by_name(const std::string& name) {
+  for (size_t i = 0; i < kLayoutTuningCount; ++i) {
+    if (name == kLayoutTuningNames[i]) return i;
+  }
+  return kLayoutTuningCount;
+}
+
+bool layout_rect_can_rotate(size_t index) {
+  return index == 0 || index == 4;
+}
+
+bool layout_rect_is_star_child(size_t index) {
+  return index >= 8 && index <= 15;
+}
+
+float apply_signed_size_delta(float value, float delta) {
+  constexpr float kMinAbs = 0.001f;
+  float out = value + delta;
+  if ((value > 0.0f && out <= 0.0f) || (value < 0.0f && out >= 0.0f)) {
+    const float crossed = std::max(kMinAbs, std::abs(delta));
+    return delta < 0.0f ? -crossed : crossed;
+  }
+  if (std::abs(out) < kMinAbs) {
+    if (delta < 0.0f && value > 0.0f) return -kMinAbs;
+    if (delta > 0.0f && value < 0.0f) return kMinAbs;
+    return out < 0.0f ? -kMinAbs : kMinAbs;
+  }
+  return out;
+}
+}  // namespace
+
+void HudRenderer::set_layout_tuning_file(const std::string& path) {
+  layout_tuning_file_ = path;
+  if (!path.empty()) load_layout_tuning_file(path);
+}
+
+bool HudRenderer::load_layout_tuning_file(const std::string& path) {
+  std::ifstream in(path);
+  if (!in) return false;
+  std::fill(std::begin(layout_tuning_loaded_), std::end(layout_tuning_loaded_), false);
+  std::string line;
+  bool rock_parented_file = false;
+  bool star_full_bounds_file = false;
+  bool loaded_sp_bar = false;
+  bool loaded_rock_needle = false;
+  while (std::getline(in, line)) {
+    const size_t comment = line.find('#');
+    if (comment != std::string::npos) {
+      if (line.find("rock_parented=1") != std::string::npos) {
+        rock_parented_file = true;
+      }
+      if (line.find("star_full_bounds=1") != std::string::npos) {
+        star_full_bounds_file = true;
+      }
+      line.resize(comment);
+    }
+    std::istringstream ss(line);
+    std::string name;
+    LayoutRect rect;
+    if (!(ss >> name >> rect.cx >> rect.cy >> rect.w >> rect.h)) continue;
+    if (!(ss >> rect.rot)) rect.rot = 0.0f;
+    if (!(ss >> rect.z)) rect.z = 0;
+    const size_t rect_index = layout_rect_index_by_name(name);
+    if (layout_rect_is_star_child(rect_index) && !star_full_bounds_file) {
+      continue;
+    }
+    if (rect_index < kLayoutTuningCount &&
+        rect_index != 0 && rect_index != 4 &&
+        (std::abs(rect.w) < 0.001f || std::abs(rect.h) < 0.001f)) {
+      continue;
+    }
+    if (LayoutRect* dst = layout_rect_by_name(layout_tuning_, name)) {
+      if (!layout_rect_can_rotate(rect_index)) rect.rot = 0.0f;
+      *dst = rect;
+      if (rect_index < std::size(layout_tuning_loaded_)) {
+        layout_tuning_loaded_[rect_index] = true;
+      }
+      loaded_sp_bar = loaded_sp_bar || name == "sp_bar";
+      loaded_rock_needle = loaded_rock_needle || name == "rock_needle";
+    }
+  }
+  if (!rock_parented_file) {
+    auto reparent_from_right_to_rock = [&](LayoutRect& child) {
+      const LayoutRect& rock = layout_tuning_.rock_face;
+      if (std::abs(rock.w) < 0.001f || std::abs(rock.h) < 0.001f) return;
+      child.cx = (child.cx - (rock.cx - rock.w)) / (rock.w * 2.0f);
+      child.cy = (child.cy - (rock.cy - rock.h)) / (rock.h * 2.0f);
+      child.w /= rock.w;
+      child.h /= rock.h;
+    };
+    if (loaded_sp_bar) reparent_from_right_to_rock(layout_tuning_.sp_bar);
+    if (loaded_rock_needle) reparent_from_right_to_rock(layout_tuning_.rock_needle);
+  }
+  std::fprintf(stderr, "[hud-tune] loaded %s\n", path.c_str());
+  return true;
+}
+
+bool HudRenderer::save_layout_tuning_file() const {
+  if (layout_tuning_file_.empty()) return false;
+  namespace fs = std::filesystem;
+  const fs::path path(layout_tuning_file_);
+  std::error_code ec;
+  if (path.has_parent_path()) fs::create_directories(path.parent_path(), ec);
+  std::ofstream out(layout_tuning_file_, std::ios::trunc);
+  if (!out) return false;
+  out << "# GuitarHeroOGX HUD layout tuning\n";
+  out << "# rock_parented=1\n";
+  out << "# star_full_bounds=1\n";
+  out << "# name cx cy w h rot_deg z\n";
+  out << std::fixed << std::setprecision(6);
+  for (size_t i = 0; i < kLayoutTuningCount; ++i) {
+    const LayoutRect* r = layout_rect_by_index(
+        const_cast<LayoutTuning&>(layout_tuning_), i);
+    if (!r) continue;
+    out << kLayoutTuningNames[i] << ' ' << r->cx << ' ' << r->cy << ' '
+        << r->w << ' ' << r->h << ' ' << r->rot << ' ' << r->z << '\n';
+  }
+  return true;
+}
+
+size_t HudRenderer::layout_tuning_count() const {
+  return kLayoutTuningCount;
+}
+
+const char* HudRenderer::layout_tuning_name(size_t index) const {
+  return index < kLayoutTuningCount ? kLayoutTuningNames[index] : "";
+}
+
+bool HudRenderer::layout_tuning_can_rotate(size_t index) const {
+  return layout_rect_can_rotate(index);
+}
+
+bool HudRenderer::nudge_layout_tuning(size_t index, float dx, float dy,
+                                      float dw, float dh, float drot, int dz) {
+  LayoutRect* r = layout_rect_by_index(layout_tuning_, index);
+  if (!r) return false;
+  r->cx += dx;
+  r->cy += dy;
+  r->w = apply_signed_size_delta(r->w, dw);
+  r->h = apply_signed_size_delta(r->h, dh);
+  if (layout_rect_can_rotate(index)) r->rot += drot;
+  r->z += dz;
+  if (index < std::size(layout_tuning_loaded_)) layout_tuning_loaded_[index] = true;
+  return true;
 }
 
 IDirect3DTexture9* HudRenderer::tex(const std::string& name) const {
@@ -481,15 +747,20 @@ IDirect3DTexture9* upload(IDirect3DDevice9* dev, const std::string& name,
 
 bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                        const std::string& ark_path) {
+  clear_loaded_resources();
   dev_ = dev;
   if (!dev_) return false;
 
   // 1) Parse the core HUD MILO so missing/corrupt HUD assets fail loudly.
   MiloLayout hud  = load_milo_layout(hdr_path, ark_path, kHudMilo);
   if (!hud.ok) { std::fprintf(stderr, "[hud] core hud.milo failed\n"); return false; }
+  MiloLayout score = load_milo_layout(hdr_path, ark_path, kScoreMilo);
+  MiloLayout streak = load_milo_layout(hdr_path, ark_path, kStreakMilo);
   MiloLayout crowd = load_milo_layout(hdr_path, ark_path, kCrowdMilo);
   MiloLayout star = load_milo_layout(hdr_path, ark_path, kStarMilo);
   dump_hud_layout("hud", hud);
+  dump_hud_layout("score", score);
+  dump_hud_layout("streak", streak);
   dump_hud_layout("crowd", crowd);
   dump_hud_layout("star", star);
 
@@ -511,11 +782,14 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     load_set(milo, names);
   };
   load_layout_textures(kHudMilo, hud);
+  if (score.ok) load_layout_textures(kScoreMilo, score);
+  if (streak.ok) load_layout_textures(kStreakMilo, streak);
   load_layout_textures(kCrowdMilo, crowd);
   load_layout_textures(kStarMilo, star);
   std::vector<std::string> digit_names;
   for (int i = 0; i <= 9; ++i) digit_names.push_back("score_" + std::to_string(i) + ".tex");
   load_set(kHudMilo, digit_names);
+  if (score.ok) load_set(kScoreMilo, digit_names);
   load_set(kHudMilo, {"score_none.tex","score_x.tex","score_frame.tex","score_num_frame.tex",
                       "score_streak.tex","score_streak_0.tex","score_streak_1.tex",
                       "score_streak_2.tex","score_streak_3.tex","score_streak_4.tex",
@@ -526,6 +800,18 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                       "multi_hud_frame.tex","multi_hud_needle.tex","multi_hud_lens.tex",
                       "multi_hud_outline.tex","multi_hud_logo.tex","score_mult_frame.tex",
                       "score_frame_outline.tex","rokk.tex","outline.tex","metaltube.tex"});
+  if (score.ok) load_set(kScoreMilo, {"score_none.tex","score_x.tex",
+                                      "score_num_frame.tex"});
+  if (streak.ok) load_set(kStreakMilo,
+                          {"score_none.tex","score_x.tex","score_frame.tex",
+                           "score_frame_outline.tex","score_mult_frame.tex",
+                           "score_streak.tex","score_streak_0.tex",
+                           "score_streak_1.tex","score_streak_2.tex",
+                           "score_streak_3.tex","score_streak_4.tex",
+                           "score_streak_glow.tex","score_streak_glow_0.tex",
+                           "score_streak_glow_1.tex","score_streak_glow_2.tex",
+                           "score_streak_glow_3.tex",
+                           "score_streak_glow_4.tex"});
   load_set(kCrowdMilo, {"rock_meter_2d.tex","rock_meter_2d_rock.tex","rock_needle.tex",
                         "rock_light.tex","hud_meter_top_glow.tex","glodot01.tex","flare_glow.tex"});
   load_set(kStarMilo, {"amp_chrome_base.tex","amp_inside_bar.tex","cleartube.tex",
@@ -547,21 +833,45 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     s.ok = true;
     return s;
   };
+  auto child_slot = [](const Slot& parent, float nx, float ny,
+                       float nw, float nh) {
+    Slot s;
+    s.cx = parent.cx - parent.hw + nx * parent.hw * 2.0f;
+    s.cz = parent.cz - parent.hh + ny * parent.hh * 2.0f;
+    s.hw = parent.hw * nw;
+    s.hh = parent.hh * nh;
+    s.ok = parent.ok;
+    return s;
+  };
 
   static_quads_.clear();
 
   // GH2 frames the highway with the in-song HUD in the lower gameplay band:
   // score/multiplier to the left of the fretboard, star/rock to the right.
-  Slot score_panel = screen_slot(0.140f, 0.862f, 0.176f, 0.238f);
-  Slot score_frame = screen_slot(0.146f, 0.796f, 0.094f, 0.067f);
+  const LayoutTuning& lt = layout_tuning_;
+  Slot score_panel = screen_slot(lt.score_panel.cx, lt.score_panel.cy,
+                                 lt.score_panel.w, lt.score_panel.h);
+  Slot score_frame = child_slot(score_panel, lt.score_frame.cx, lt.score_frame.cy,
+                                lt.score_frame.w, lt.score_frame.h);
+  Slot mult_panel = child_slot(score_panel, lt.mult_panel.cx, lt.mult_panel.cy,
+                               lt.mult_panel.w, lt.mult_panel.h);
+  Slot streak_panel = child_slot(score_panel, lt.streak_panel.cx,
+                                 lt.streak_panel.cy, lt.streak_panel.w,
+                                 lt.streak_panel.h);
+  Slot right_panel = screen_slot(lt.right_panel.cx, lt.right_panel.cy,
+                                 lt.right_panel.w, lt.right_panel.h);
+  left_parent_slot_ = score_panel;
+  right_parent_slot_ = right_panel;
   push_rect(static_quads_, score_panel.cx, score_panel.cz, score_panel.hw,
             score_panel.hh, tex("score_frame.tex"), 0xFFFFFFFF, false,
             left_hud_depth_at(score_panel.cx + score_panel.hw),
-            left_hud_depth_at(score_panel.cx - score_panel.hw));
+            left_hud_depth_at(score_panel.cx - score_panel.hw), kHudGroupLeft,
+            kElemScorePanel);
   push_rect(static_quads_, score_frame.cx, score_frame.cz, score_frame.hw,
             score_frame.hh, tex("score_num_frame.tex"), 0xFFFFFFFF, false,
             left_hud_depth_at(score_frame.cx + score_frame.hw),
-            left_hud_depth_at(score_frame.cx - score_frame.hw));
+            left_hud_depth_at(score_frame.cx - score_frame.hw), kHudGroupLeft,
+            kElemScoreFrame);
   score_slot_count_ = 6;
   for (int i = 0; i < score_slot_count_; ++i) {
     score_slot_[i] = screen_slot(0.186f - static_cast<float>(i) * 0.0160f,
@@ -569,18 +879,21 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   }
 
   // Combo/streak and multiplier live under the score shell.
-  streak_slot_ = screen_slot(0.162f, 0.856f, 0.0048f, 0.0105f);
-  streak_step_ = streak_slot_.hw * 4.15f;
-  mult_slot_ = screen_slot(0.159f, 0.906f, 0.090f, 0.110f);
+  streak_slot_ = streak_panel;
+  streak_step_ = streak_panel.hw / 9.0f;
+  mult_slot_ = mult_panel;
   for (Slot& slot : mult_digit_slot_) slot = {};
 
-  // GH2's star tube sits above the right-side rock/crowd meter. These anchors
-  // are matched against the PS2 in-song HUD reference, then filled with the
-  // original star_meter/crowd_meter MILO meshes rather than replacement art.
-  sp_bar_ = screen_slot(0.848f, 0.734f, 0.186f, 0.125f);
-  rock_face_ = screen_slot(0.850f, 0.882f, 0.187f, 0.216f);
-  rock_needle_pivot_ = screen_slot(0.850f, 0.974f, 0.010f, 0.010f);
-  rock_needle_len_ = rock_face_.hh * 0.90f;
+  // GH2's star tube sits above the rock/crowd meter, so it is parented to the
+  // ROCK face rather than the outer right-side panel.
+  rock_face_ = child_slot(right_panel, lt.rock_face.cx, lt.rock_face.cy,
+                          lt.rock_face.w, lt.rock_face.h);
+  sp_bar_ = child_slot(rock_face_, lt.sp_bar.cx, lt.sp_bar.cy,
+                       lt.sp_bar.w, lt.sp_bar.h);
+  rock_needle_pivot_ = child_slot(rock_face_, lt.rock_needle.cx,
+                                  lt.rock_needle.cy, lt.rock_needle.w,
+                                  lt.rock_needle.h);
+  rock_needle_len_ = std::abs(rock_face_.hh) * 0.90f;
 
   native_rock_face_ok_ = native_rock_label_ok_ = false;
   native_rock_label_glow_ok_ = false;
@@ -597,7 +910,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   native_rock_light_green_ok_ = false;
 
   struct MeshBounds {
-    float min_x = 0, max_x = 0, min_z = 0, max_z = 0;
+    float min_x = 0, max_x = 0, min_y = 0, max_y = 0, min_z = 0, max_z = 0;
     bool ok = false;
   };
   auto find_mesh = [](const MiloLayout& layout, const char* name) -> const LoadedMesh* {
@@ -607,24 +920,41 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   };
   auto bounds_for = [](const LoadedMesh& mesh) {
     MeshBounds b;
-    b.min_x = b.min_z = std::numeric_limits<float>::max();
-    b.max_x = b.max_z = std::numeric_limits<float>::lowest();
+    b.min_x = b.min_y = b.min_z = std::numeric_limits<float>::max();
+    b.max_x = b.max_y = b.max_z = std::numeric_limits<float>::lowest();
     for (const auto& v : mesh.verts) {
       float x, y, z;
       transform_point(mesh.world, v, x, y, z);
       b.min_x = std::min(b.min_x, x);
       b.max_x = std::max(b.max_x, x);
+      b.min_y = std::min(b.min_y, y);
+      b.max_y = std::max(b.max_y, y);
       b.min_z = std::min(b.min_z, z);
       b.max_z = std::max(b.max_z, z);
     }
     b.ok = (b.max_x - b.min_x) > 0.001f && (b.max_z - b.min_z) > 0.001f;
     return b;
   };
+  auto include_bounds = [](MeshBounds& dst, const MeshBounds& src) {
+    if (!src.ok) return;
+    if (!dst.ok) {
+      dst = src;
+      return;
+    }
+    dst.min_x = std::min(dst.min_x, src.min_x);
+    dst.max_x = std::max(dst.max_x, src.max_x);
+    dst.min_y = std::min(dst.min_y, src.min_y);
+    dst.max_y = std::max(dst.max_y, src.max_y);
+    dst.min_z = std::min(dst.min_z, src.min_z);
+    dst.max_z = std::max(dst.max_z, src.max_z);
+    dst.ok = true;
+  };
   auto make_slot_mesh = [&](const MiloLayout& layout, const LoadedMesh& mesh,
                             const MeshBounds& bounds, const Slot& slot,
                             uint32_t color, bool additive, bool flip_v,
                             bool flip_z, bool right_side = true,
-                            float authored_y_depth_scale = 0.0f) {
+                            float authored_y_depth_scale = -1.0f,
+                            bool flip_x = false) {
     Quad q;
     auto mat = layout.mat_tex.find(mesh.material);
     if (mat != layout.mat_tex.end()) q.tex = tex(mat->second);
@@ -640,45 +970,45 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     if (!bounds.ok || !q.tex) return q;
     const MeshBounds mesh_bounds = bounds_for(mesh);
     if (!mesh_bounds.ok) return q;
+    const float x_scale = (slot.hw * 2.0f) / (bounds.max_x - bounds.min_x);
+    const float z_scale = (slot.hh * 2.0f) / (bounds.max_z - bounds.min_z);
+    const float source_depth_range = mesh_bounds.max_y - mesh_bounds.min_y;
+    float depth_scale = authored_y_depth_scale;
+    if (depth_scale < 0.0f) {
+      depth_scale = source_depth_range > 0.5f
+          ? std::max(std::abs(x_scale), std::abs(z_scale))
+          : 0.0f;
+    }
+    q.preserve_depth = std::abs(depth_scale) > 0.0001f;
     const MatUvXfm uv_xfm =
         [&]() {
           auto uv = layout.mat_uv.find(mesh.material);
           return uv == layout.mat_uv.end() ? MatUvXfm{} : uv->second;
         }();
     const float source_center_z = (mesh_bounds.min_z + mesh_bounds.max_z) * 0.5f;
-    float source_center_y = 0.0f;
-    if (std::abs(authored_y_depth_scale) > 0.0001f) {
-      float min_y = std::numeric_limits<float>::max();
-      float max_y = std::numeric_limits<float>::lowest();
-      for (const auto& v : mesh.verts) {
-        float x, y, z;
-        transform_point(mesh.world, v, x, y, z);
-        min_y = std::min(min_y, y);
-        max_y = std::max(max_y, y);
-      }
-      source_center_y = (min_y + max_y) * 0.5f;
-    }
+    const float source_center_y = q.preserve_depth
+        ? (mesh_bounds.min_y + mesh_bounds.max_y) * 0.5f
+        : 0.0f;
     const float source_center_t =
         std::clamp((source_center_z - bounds.min_z) / (bounds.max_z - bounds.min_z),
                    0.0f, 1.0f);
     const float mapped_center_z =
         slot.cz + slot.hh - source_center_t * slot.hh * 2.0f;
-    const float z_scale = (slot.hh * 2.0f) / (bounds.max_z - bounds.min_z);
     q.verts.reserve(mesh.verts.size());
     for (const auto& v : mesh.verts) {
       float x, y, z;
       transform_point(mesh.world, v, x, y, z);
       const float tx = std::clamp((x - bounds.min_x) / (bounds.max_x - bounds.min_x),
                                   0.0f, 1.0f);
-      const float wx = slot.cx - slot.hw + tx * slot.hw * 2.0f;
+      const float mapped_tx = flip_x ? 1.0f - tx : tx;
+      const float wx = slot.cx - slot.hw + mapped_tx * slot.hw * 2.0f;
       const float z_delta = (z - source_center_z) * z_scale;
       const float wz = mapped_center_z + (flip_z ? -z_delta : z_delta);
       const float u = v.u * uv_xfm.scale[0] + uv_xfm.offset[0];
       const float vv = v.vv * uv_xfm.scale[1] + uv_xfm.offset[1];
       const float base_depth =
           right_side ? right_hud_depth_at(wx) : left_hud_depth_at(wx);
-      q.verts.push_back({wx, base_depth + (y - source_center_y) *
-                                            authored_y_depth_scale,
+      q.verts.push_back({wx, base_depth + (y - source_center_y) * depth_scale,
                          wz, u,
                          flip_v ? 1.0f - vv : vv});
     }
@@ -687,11 +1017,14 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   };
   auto assign_meter_mesh = [&](const char* name, const MeshBounds& bounds, Quad& out,
                                bool& ok, uint32_t color, bool additive,
-                               bool flip_v = false, bool flip_z = false) {
+                               bool flip_v = false, bool flip_z = false,
+                               uint8_t element = kElemRockFace) {
     ok = false;
     if (const LoadedMesh* mesh = find_mesh(crowd, name)) {
       Quad q = make_slot_mesh(crowd, *mesh, bounds, rock_face_, color, additive,
                               flip_v, flip_z);
+      q.group = kHudGroupRight;
+      q.element = element;
       if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
         out = std::move(q);
         ok = true;
@@ -708,6 +1041,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     if (const LoadedMesh* mesh = find_mesh(hud, name)) {
       q = make_slot_mesh(hud, *mesh, bounds, slot, 0xFFFFFFFF, false,
                          flip_v, flip_z, false);
+      q.group = kHudGroupLeft;
     }
     return q;
   };
@@ -733,24 +1067,94 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   };
   auto append_left_mesh = [&](const char* name, const MeshBounds& bounds,
                               const Slot& slot, bool flip_v = false,
-                              bool flip_z = true) {
+                              bool flip_z = true,
+                              uint8_t element = kElemScorePanel) {
     Quad q = make_left_mesh(name, bounds, slot, flip_v, flip_z);
+    q.group = kHudGroupLeft;
+    q.element = element;
     if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3)
       native_static_quads.push_back(std::move(q));
   };
-  if (const LoadedMesh* score_outline = find_mesh(hud, "score_shell_outline.mesh")) {
-    const MeshBounds score_bounds = bounds_for(*score_outline);
-    append_left_mesh("score_shell_outline.mesh", score_bounds, score_panel);
-  }
-  if (const LoadedMesh* score_shell = find_mesh(hud, "score_shell.mesh")) {
+  const MiloLayout& left_shell_layout = streak.ok ? streak : hud;
+  const MiloLayout& left_score_layout = score.ok ? score : hud;
+  const MiloLayout& left_streak_layout = streak.ok ? streak : hud;
+  const MiloLayout& left_mult_layout = streak.ok ? streak : hud;
+
+  if (const LoadedMesh* score_shell =
+          find_mesh(left_shell_layout, "score_shell.mesh")) {
     const MeshBounds score_bounds = bounds_for(*score_shell);
-    append_left_mesh("score_shell.mesh", score_bounds, score_panel);
-    append_left_mesh("score_num_frame.mesh", score_bounds, score_panel);
-    mapped_score_num_frame = true;
+    auto append_left_layout_mesh =
+        [&](const MiloLayout& layout, const char* name,
+            const MeshBounds& bounds, const Slot& slot,
+            bool flip_v = false, bool flip_z = true,
+            uint8_t element = kElemScorePanel) {
+          if (const LoadedMesh* mesh = find_mesh(layout, name)) {
+            Quad q = make_slot_mesh(layout, *mesh, bounds, slot, 0xFFFFFFFF,
+                                    false, flip_v, flip_z, false);
+            q.group = kHudGroupLeft;
+            q.element = element;
+            if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3)
+              native_static_quads.push_back(std::move(q));
+          }
+        };
+    auto make_left_layout_mesh =
+        [&](const MiloLayout& layout, const char* name,
+            const MeshBounds& bounds, const Slot& slot,
+            bool flip_v = false, bool flip_z = true,
+            uint8_t element = kElemScorePanel) {
+          Quad q;
+          if (const LoadedMesh* mesh = find_mesh(layout, name)) {
+            q = make_slot_mesh(layout, *mesh, bounds, slot, 0xFFFFFFFF,
+                               false, flip_v, flip_z, false);
+            q.group = kHudGroupLeft;
+            q.element = element;
+          }
+          return q;
+        };
+    append_left_layout_mesh(left_shell_layout, "score_shell_outline.mesh",
+                            score_bounds, score_panel, false, true,
+                            kElemScorePanel);
+    append_left_layout_mesh(left_shell_layout, "score_shell.mesh",
+                            score_bounds, score_panel, false, true,
+                            kElemScorePanel);
+    if (const LoadedMesh* score_num_frame =
+            find_mesh(left_score_layout, "score_num_frame.mesh")) {
+      const MeshBounds score_num_bounds = bounds_for(*score_num_frame);
+      append_left_layout_mesh(left_score_layout, "score_num_frame.mesh",
+                              score_num_bounds, score_frame, false, true,
+                              kElemScoreFrame);
+      mapped_score_num_frame = true;
+      for (int i = 0; i < score_slot_count_; ++i) {
+        const std::string name = "score_num_" + std::to_string(i + 1) + ".mesh";
+        Quad digit_quad = make_left_layout_mesh(left_score_layout, name.c_str(),
+                                                score_num_bounds, score_frame,
+                                                false, true, kElemScoreFrame);
+        Slot slot = quad_slot(digit_quad);
+        if (slot.ok) {
+          score_slot_[i] = slot;
+        }
+        if (digit_quad.tex && digit_quad.verts.size() >= 3 &&
+            digit_quad.idx.size() >= 3) {
+          native_score_digit_[i] = std::move(digit_quad);
+          native_score_digit_ok_[i] = true;
+        }
+      }
+    } else {
+      append_left_layout_mesh(left_shell_layout, "score_num_frame.mesh",
+                              score_bounds, score_panel, false, true,
+                              kElemScoreFrame);
+      mapped_score_num_frame = true;
+    }
     int native_score_slots = 0;
     for (int i = 0; i < score_slot_count_; ++i) {
       const std::string name = "score_num_" + std::to_string(i + 1) + ".mesh";
-      Quad digit_quad = make_left_mesh(name.c_str(), score_bounds, score_panel);
+      if (native_score_digit_ok_[i]) {
+        ++native_score_slots;
+        continue;
+      }
+      Quad digit_quad = make_left_layout_mesh(left_shell_layout, name.c_str(),
+                                              score_bounds, score_panel, false,
+                                              true, kElemScoreFrame);
       Slot slot = quad_slot(digit_quad);
       if (slot.ok) {
         score_slot_[i] = slot;
@@ -765,16 +1169,24 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     if (native_score_slots == score_slot_count_) {
       std::fprintf(stderr, "[hud] score digits anchored from native meshes\n");
     }
+    const LoadedMesh* score_mult_frame_mesh =
+        find_mesh(left_mult_layout, "score_mult_frame.mesh");
+    const MeshBounds mult_bounds =
+        score_mult_frame_mesh ? bounds_for(*score_mult_frame_mesh) : score_bounds;
     {
-      Quad q = make_left_mesh("score_mult_frame.mesh", score_bounds, score_panel);
+      Quad q = make_left_layout_mesh(left_mult_layout, "score_mult_frame.mesh",
+                                     mult_bounds, mult_panel, false, true,
+                                     kElemMultPanel);
       if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
         native_static_quads.push_back(q);
         native_mult_frame_ = std::move(q);
         native_mult_frame_ok_ = true;
       }
     }
-    native_mult_glow_ = make_left_mesh("score_mult_glow.mesh", score_bounds,
-                                       score_panel);
+    native_mult_glow_ =
+        make_left_layout_mesh(left_mult_layout, "score_mult_glow.mesh",
+                              mult_bounds, mult_panel, false, true,
+                              kElemMultPanel);
     if (native_mult_glow_.tex && native_mult_glow_.verts.size() >= 3 &&
         native_mult_glow_.idx.size() >= 3) {
       native_mult_glow_.color = argb(135, 80, 220, 255);
@@ -784,23 +1196,32 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     for (int i = 0; i < 2; ++i) {
       const std::string name =
           "score_mult_" + std::to_string(i + 2) + ".mesh";
-      Quad q = make_left_mesh(name.c_str(), score_bounds, score_panel);
+      Quad q = make_left_layout_mesh(left_mult_layout, name.c_str(),
+                                     mult_bounds, mult_panel, false, true,
+                                     kElemMultPanel);
       mult_digit_slot_[i] = quad_slot(q);
       if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
         native_mult_digit_[i] = std::move(q);
         native_mult_digit_ok_[i] = true;
       }
     }
+    MeshBounds streak_bounds;
     for (int i = 0; i < 10; ++i) {
       const std::string name =
           "score_streak_" + std::to_string(i + 1) + ".mesh";
-      Quad pip = make_left_mesh(name.c_str(), score_bounds, score_panel);
+      if (const LoadedMesh* pip_mesh = find_mesh(left_streak_layout,
+                                                 name.c_str())) {
+        include_bounds(streak_bounds, bounds_for(*pip_mesh));
+      }
+    }
+    if (!streak_bounds.ok) streak_bounds = score_bounds;
+    for (int i = 0; i < 10; ++i) {
+      const std::string name =
+          "score_streak_" + std::to_string(i + 1) + ".mesh";
+      Quad pip = make_left_layout_mesh(left_streak_layout, name.c_str(),
+                                       streak_bounds, streak_panel, false, true,
+                                       kElemStreakPanel);
       if (pip.tex && pip.verts.size() >= 3 && pip.idx.size() >= 3) {
-        for (Quad::V& v : pip.verts) {
-          v.wx += score_panel.hw * 0.70f;
-          v.wz -= score_panel.hh * 0.23f;
-          v.wy = left_hud_depth_at(v.wx);
-        }
         native_streak_pips_[i] = std::move(pip);
         native_streak_pips_ok_[i] = true;
       }
@@ -822,7 +1243,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       find_mesh(hud, "score_num_frame.mesh")) {
     const LoadedMesh* score_num_frame = find_mesh(hud, "score_num_frame.mesh");
     append_left_mesh("score_num_frame.mesh", bounds_for(*score_num_frame),
-                     score_frame);
+                     score_frame, false, true, kElemScoreFrame);
   }
   if (!native_static_quads.empty()) {
     static_quads_ = std::move(native_static_quads);
@@ -833,29 +1254,37 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     assign_meter_mesh("rock_face_2d.mesh", rock_bounds, native_rock_face_,
                       native_rock_face_ok_, 0, false, false, true);
     assign_meter_mesh("rock_frame.mesh", rock_bounds, native_rock_frame_,
-                      native_rock_frame_ok_, 0, false, false, true);
+                      native_rock_frame_ok_, 0, false, false, true,
+                      kElemRockFrame);
     // The ROCK glyph shares the meter's vertically mirrored placement, but its
     // label textures already read upright in authored V.
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
-                      native_rock_label_ok_, 0, false, false, true);
+                      native_rock_label_ok_, 0, false, false, true,
+                      kElemRockLabel);
     assign_meter_mesh("hud_rock_light.mesh", rock_bounds, native_rock_label_glow_,
-                      native_rock_label_glow_ok_, 0, true, false, true);
+                      native_rock_label_glow_ok_, 0, true, false, true,
+                      kElemRockLabel);
     assign_meter_mesh("hud_rock_light_front.mesh", rock_bounds,
                       native_rock_label_front_glow_,
-                      native_rock_label_front_glow_ok_, 0, true, false, true);
+                      native_rock_label_front_glow_ok_, 0, true, false, true,
+                      kElemRockLabel);
     assign_meter_mesh("rock_needle.mesh", rock_bounds, native_rock_needle_,
-                      native_rock_needle_ok_, 0, false, false, true);
+                      native_rock_needle_ok_, 0, false, false, true,
+                      kElemRockNeedle);
     assign_meter_mesh("vu_needle_led.mesh", rock_bounds, native_rock_needle_led_,
                       native_rock_needle_led_ok_, argb(220, 255, 90, 45),
-                      true, false, true);
+                      true, false, true, kElemRockNeedle);
     assign_meter_mesh("rock_light_red_front.mesh", rock_bounds, native_rock_light_red_,
-                      native_rock_light_red_ok_, argb(170, 255, 55, 45), true, true, true);
+                      native_rock_light_red_ok_, argb(170, 255, 55, 45), true,
+                      true, true, kElemRockLights);
     assign_meter_mesh("rock_light_yellow_front.mesh", rock_bounds,
                       native_rock_light_yellow_, native_rock_light_yellow_ok_,
-                      argb(160, 255, 230, 65), true, true, true);
+                      argb(160, 255, 230, 65), true, true, true,
+                      kElemRockLights);
     assign_meter_mesh("rock_light_green_front.mesh", rock_bounds,
                       native_rock_light_green_, native_rock_light_green_ok_,
-                      argb(150, 85, 255, 90), true, true, true);
+                      argb(150, 85, 255, 90), true, true, true,
+                      kElemRockLights);
   }
   auto place_rock_label = [&](Quad& q) {
     for (Quad::V& v : q.verts) {
@@ -873,13 +1302,12 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     }
     const float cx = (min_x + max_x) * 0.5f;
     const float cz = (min_z + max_z) * 0.5f;
-    constexpr float kLabelScaleX = 0.84f;
-    constexpr float kLabelScaleZ = 0.72f;
-    const float lower = rock_face_.hh * 0.16f;
+    constexpr float kLabelScaleX = 1.12f;
+    constexpr float kLabelScaleZ = 1.10f;
+    const float lower = rock_face_.hh * 0.02f;
     for (Quad::V& v : q.verts) {
       v.wx = cx + (v.wx - cx) * kLabelScaleX;
       v.wz = cz + (v.wz - cz) * kLabelScaleZ + lower;
-      v.wy = right_hud_depth_at(v.wx);
     }
   };
   if (native_rock_label_ok_) place_rock_label(native_rock_label_);
@@ -892,19 +1320,44 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   native_star_fill_.clear();
   native_star_fill_glow_.clear();
   native_star_front_.clear();
+  native_star_glass_.clear();
+  native_star_base_.clear();
+  native_star_top_.clear();
+  native_star_caps_.clear();
   native_star_ready_glow_.clear();
-  const LoadedMesh* star_bounds_mesh = find_mesh(star, "amp_tube_glow.mesh");
-  if (!star_bounds_mesh) star_bounds_mesh = find_mesh(star, "amp_glass.mesh");
-  if (star_bounds_mesh) {
-    const MeshBounds star_bounds = bounds_for(*star_bounds_mesh);
+  MeshBounds star_bounds;
+  const char* star_bound_meshes[] = {
+      "amp_glass_black.mesh", "amp_chrome_top.mesh",
+      "amp_tube_glow.mesh", "amp_inside_disk.mesh",
+      "amp_inside_bar_path.mesh", "amp_chrome_base.mesh",
+      "amp_tube_glow_meter.mesh", "amp_inside_bar.mesh",
+      "amp_glass.mesh"};
+  for (const char* name : star_bound_meshes) {
+    if (const LoadedMesh* mesh = find_mesh(star, name)) {
+      include_bounds(star_bounds, bounds_for(*mesh));
+    }
+  }
+  if (!star_bounds.ok) {
+    if (const LoadedMesh* mesh = find_mesh(star, "amp_tube_glow.mesh")) {
+      star_bounds = bounds_for(*mesh);
+    } else if (const LoadedMesh* mesh = find_mesh(star, "amp_glass.mesh")) {
+      star_bounds = bounds_for(*mesh);
+    }
+  }
+  if (star_bounds.ok) {
     auto append_star_mesh = [&](const char* name, std::vector<Quad>& target,
                                 uint32_t color, bool additive,
                                 bool flip_v = false, bool flip_z = true,
                                 const char* tex_override = nullptr,
-                                bool flip_u = false) {
+                                bool flip_u = true,
+                                uint8_t element = kElemSpBar,
+                                float depth_scale = 0.0f) {
       if (const LoadedMesh* mesh = find_mesh(star, name)) {
         Quad q = make_slot_mesh(star, *mesh, star_bounds, sp_bar_, color,
-                                additive, flip_v, flip_z, true, 1.15f);
+                                additive, flip_v, flip_z, true, depth_scale,
+                                true);
+        q.group = kHudGroupRight;
+        q.element = element;
         if (tex_override) q.tex = tex(tex_override);
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
@@ -914,22 +1367,109 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       }
     };
     append_star_mesh("amp_inside_bar.mesh", native_star_back_,
-                     argb(175, 210, 230, 238), false);
+                     argb(175, 210, 230, 238), false, false, true,
+                     nullptr, true, kElemSpBack, 0.0f);
     append_star_mesh("amp_glass_black.mesh", native_star_back_,
-                     argb(92, 40, 52, 62), false);
+                     argb(92, 40, 52, 62), false, false, true,
+                     nullptr, true, kElemSpBack, 0.0f);
     append_star_mesh("amp_inside_bar.mesh", native_star_fill_,
-                     argb(255, 100, 230, 255), false);
+                     argb(255, 100, 230, 255), false, false, true,
+                     nullptr, true, kElemSpFill, 0.0f);
     append_star_mesh("amp_inside_bar_path.mesh", native_star_fill_glow_,
-                     argb(205, 125, 225, 255), true);
+                     argb(205, 125, 225, 255), true, false, true,
+                     nullptr, true, kElemSpFill, 0.0f);
     append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
-                     argb(155, 145, 220, 255), true);
+                     argb(155, 145, 220, 255), true, false, true,
+                     nullptr, true, kElemSpFill, 0.0f);
     append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
-                     argb(120, 150, 220, 255), true);
+                     argb(120, 150, 220, 255), true, false, true,
+                     nullptr, true, kElemSpReady, 0.0f);
     append_star_mesh("amp_inside_disk.mesh", native_star_front_, 0, false,
-                     false, true);
-    append_star_mesh("amp_glass.mesh", native_star_front_, 0, false);
-    append_star_mesh("amp_chrome_base.mesh", native_star_front_, 0, false);
-    append_star_mesh("amp_chrome_top.mesh", native_star_front_, 0, false);
+                     false, true, nullptr, true, kElemSpFront, -1.0f);
+    append_star_mesh("amp_glass.mesh", native_star_glass_, 0, false,
+                     false, true, nullptr, true, kElemSpGlass, -1.0f);
+    append_star_mesh("amp_chrome_base.mesh", native_star_base_, 0, false,
+                     false, true, nullptr, true, kElemSpBase, -1.0f);
+    append_star_mesh("amp_chrome_top.mesh", native_star_top_, 0, false,
+                     false, true, nullptr, true, kElemSpTop, -1.0f);
+  }
+
+  auto union_slot_for_quads = [&](const std::vector<const Quad*>& quads) {
+    Slot out;
+    float min_x = std::numeric_limits<float>::max();
+    float max_x = std::numeric_limits<float>::lowest();
+    float min_z = std::numeric_limits<float>::max();
+    float max_z = std::numeric_limits<float>::lowest();
+    bool any = false;
+    for (const Quad* q : quads) {
+      if (!q) continue;
+      for (const Quad::V& v : q->verts) {
+        min_x = std::min(min_x, v.wx);
+        max_x = std::max(max_x, v.wx);
+        min_z = std::min(min_z, v.wz);
+        max_z = std::max(max_z, v.wz);
+        any = true;
+      }
+    }
+    if (!any || !(max_x > min_x) || !(max_z > min_z)) return out;
+    out.cx = (min_x + max_x) * 0.5f;
+    out.cz = (min_z + max_z) * 0.5f;
+    out.hw = (max_x - min_x) * 0.5f;
+    out.hh = (max_z - min_z) * 0.5f;
+    out.ok = true;
+    return out;
+  };
+  auto init_child_rect_from_slot = [&](uint8_t element, const Slot& parent,
+                                      const Slot& child) {
+    if (element >= kLayoutTuningCount ||
+        element >= std::size(layout_tuning_loaded_) ||
+        layout_tuning_loaded_[element] || !parent.ok || !child.ok ||
+        std::abs(parent.hw) < 0.001f || std::abs(parent.hh) < 0.001f) {
+      return;
+    }
+    if (LayoutRect* r = layout_rect_by_index(layout_tuning_, element)) {
+      r->cx = (child.cx - (parent.cx - parent.hw)) / (parent.hw * 2.0f);
+      r->cy = (child.cz - (parent.cz - parent.hh)) / (parent.hh * 2.0f);
+      r->w = child.hw / std::abs(parent.hw);
+      r->h = child.hh / std::abs(parent.hh);
+    }
+  };
+  auto init_child_rect_from_vector = [&](uint8_t element, const Slot& parent,
+                                        const std::vector<Quad>& source) {
+    std::vector<const Quad*> refs;
+    refs.reserve(source.size());
+    for (const Quad& q : source) refs.push_back(&q);
+    init_child_rect_from_slot(element, parent, union_slot_for_quads(refs));
+  };
+  init_child_rect_from_vector(kElemSpBack, sp_bar_, native_star_back_);
+  init_child_rect_from_vector(kElemSpFill, sp_bar_, native_star_fill_);
+  if (native_star_fill_.empty()) {
+    init_child_rect_from_vector(kElemSpFill, sp_bar_, native_star_fill_glow_);
+  }
+  init_child_rect_from_vector(kElemSpReady, sp_bar_, native_star_ready_glow_);
+  init_child_rect_from_vector(kElemSpFront, sp_bar_, native_star_front_);
+  init_child_rect_from_vector(kElemSpGlass, sp_bar_, native_star_glass_);
+  init_child_rect_from_vector(kElemSpBase, sp_bar_, native_star_base_);
+  init_child_rect_from_vector(kElemSpTop, sp_bar_, native_star_top_);
+  init_child_rect_from_vector(kElemSpCaps, sp_bar_, native_star_caps_);
+  init_child_rect_from_slot(kElemRockFrame, rock_face_, quad_slot(native_rock_frame_));
+  {
+    std::vector<const Quad*> lights;
+    if (native_rock_light_red_ok_) lights.push_back(&native_rock_light_red_);
+    if (native_rock_light_yellow_ok_) lights.push_back(&native_rock_light_yellow_);
+    if (native_rock_light_green_ok_) lights.push_back(&native_rock_light_green_);
+    init_child_rect_from_slot(kElemRockLights, rock_face_,
+                              union_slot_for_quads(lights));
+  }
+  {
+    std::vector<const Quad*> label;
+    if (native_rock_label_ok_) label.push_back(&native_rock_label_);
+    if (native_rock_label_glow_ok_) label.push_back(&native_rock_label_glow_);
+    if (native_rock_label_front_glow_ok_) {
+      label.push_back(&native_rock_label_front_glow_);
+    }
+    init_child_rect_from_slot(kElemRockLabel, rock_face_,
+                              union_slot_for_quads(label));
   }
 
   build_static();
@@ -974,11 +1514,160 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
 
   // Assemble the full quad list: static frame, then dynamic content.
   std::vector<Quad> quads = static_quads_;
+  const bool star_power_visual = state.sp_active;
   emit_star_power(quads, state.sp_fill);
   emit_rock_meter(quads, state.rock_fill);
-  emit_multiplier(quads, state.multiplier);
-  emit_streak(quads, state.streak);
+  emit_multiplier(quads, state.multiplier, star_power_visual);
+  emit_streak(quads, state.streak, star_power_visual);
   emit_score_digits(quads, state.score);
+
+  auto apply_element_slot_tuning = [&](uint8_t element, const Slot& parent) {
+    if (!parent.ok || element >= kLayoutTuningCount) return;
+    const LayoutRect* r = layout_rect_by_index(
+        const_cast<LayoutTuning&>(layout_tuning_), element);
+    if (!r || std::abs(r->w) < 0.001f || std::abs(r->h) < 0.001f) return;
+    float min_x = std::numeric_limits<float>::max();
+    float max_x = std::numeric_limits<float>::lowest();
+    float min_z = std::numeric_limits<float>::max();
+    float max_z = std::numeric_limits<float>::lowest();
+    float min_y = std::numeric_limits<float>::max();
+    float max_y = std::numeric_limits<float>::lowest();
+    bool any = false;
+    for (const Quad& q : quads) {
+      if (q.element != element) continue;
+      for (const Quad::V& v : q.verts) {
+        min_x = std::min(min_x, v.wx);
+        max_x = std::max(max_x, v.wx);
+        min_z = std::min(min_z, v.wz);
+        max_z = std::max(max_z, v.wz);
+        min_y = std::min(min_y, v.wy);
+        max_y = std::max(max_y, v.wy);
+        any = true;
+      }
+    }
+    if (!any || !(max_x > min_x) || !(max_z > min_z)) return;
+    const float src_cx = (min_x + max_x) * 0.5f;
+    const float src_cz = (min_z + max_z) * 0.5f;
+    const float src_hw = (max_x - min_x) * 0.5f;
+    const float src_hh = (max_z - min_z) * 0.5f;
+    const float src_depth = (min_y + max_y) * 0.5f;
+    const float dst_cx = parent.cx - parent.hw + r->cx * parent.hw * 2.0f;
+    const float dst_cz = parent.cz - parent.hh + r->cy * parent.hh * 2.0f;
+    const float dst_hw = parent.hw * r->w;
+    const float dst_hh = parent.hh * r->h;
+    const float depth_scale =
+        std::max(std::abs(dst_hw / src_hw), std::abs(dst_hh / src_hh));
+    for (Quad& q : quads) {
+      if (q.element != element) continue;
+      for (Quad::V& v : q.verts) {
+        const float tx = (v.wx - src_cx) / src_hw;
+        const float tz = (v.wz - src_cz) / src_hh;
+        const float depth_delta = (v.wy - src_depth) * depth_scale;
+        v.wx = dst_cx + tx * dst_hw;
+        v.wz = dst_cz + tz * dst_hh;
+        const float base_depth = q.group == kHudGroupLeft
+            ? left_hud_depth_at(v.wx)
+            : right_hud_depth_at(v.wx);
+        v.wy = q.preserve_depth ? base_depth + depth_delta : base_depth;
+      }
+    }
+  };
+  apply_element_slot_tuning(kElemSpBack, sp_bar_);
+  apply_element_slot_tuning(kElemSpFill, sp_bar_);
+  apply_element_slot_tuning(kElemSpReady, sp_bar_);
+  apply_element_slot_tuning(kElemSpFront, sp_bar_);
+  apply_element_slot_tuning(kElemSpGlass, sp_bar_);
+  apply_element_slot_tuning(kElemSpBase, sp_bar_);
+  apply_element_slot_tuning(kElemSpTop, sp_bar_);
+  apply_element_slot_tuning(kElemSpCaps, sp_bar_);
+  apply_element_slot_tuning(kElemRockFrame, rock_face_);
+  apply_element_slot_tuning(kElemRockLights, rock_face_);
+  apply_element_slot_tuning(kElemRockLabel, rock_face_);
+
+  auto group_parent_for_quad = [&](const Quad& q, const Slot*& parent,
+                                   float& rot) {
+    parent = nullptr;
+    rot = 0.0f;
+    if (q.group == kHudGroupLeft) {
+      parent = &left_parent_slot_;
+      rot = layout_tuning_.score_panel.rot;
+    } else if (q.group == kHudGroupRight) {
+      parent = &right_parent_slot_;
+      rot = layout_tuning_.right_panel.rot;
+    }
+  };
+
+  auto project_render_vertex = [&](const Quad& q, const Quad::V& vv,
+                                   float& px, float& py, float& rhw) {
+    rhw = 1.0f;
+    const Slot* parent = nullptr;
+    float rot = 0.0f;
+    group_parent_for_quad(q, parent, rot);
+    if (!parent || !parent->ok || std::abs(rot) < 0.001f) {
+      project(vv.wx, 0.0f, vv.wz, bbw, bbh, px, py);
+      return;
+    }
+
+    constexpr float kPi = 3.14159265358979323846f;
+    const float a = rot * kPi / 180.0f;
+    const float ca = std::cos(a);
+    const float sa = std::sin(a);
+    const float dx = vv.wx - parent->cx;
+    const float dz = vv.wz - parent->cz;
+    const float base_depth = q.group == kHudGroupLeft
+        ? left_hud_depth_at(vv.wx)
+        : right_hud_depth_at(vv.wx);
+    // The score HUD is authored as screen-space pieces. Collapse its source
+    // depth so parent yaw turns the whole score plate inward as one flat group.
+    const bool keep_source_depth = q.group == kHudGroupRight && q.preserve_depth;
+    const float local_depth = keep_source_depth ? (vv.wy - base_depth) : 0.0f;
+    const float rotated_x = dx * ca + local_depth * sa;
+    const float rotated_depth = local_depth * ca - dx * sa;
+    const float camera = std::max(
+        240.0f,
+        std::max(std::abs(parent->hw) * 7.0f, std::abs(parent->hh) * 6.0f));
+    const float denom =
+        std::clamp(camera + rotated_depth, camera * 0.35f, camera * 2.5f);
+    const float scale = camera / denom;
+    const float wx = parent->cx + rotated_x * scale;
+    const float wz = parent->cz + dz * scale;
+    project(wx, 0.0f, wz, bbw, bbh, px, py);
+    rhw = scale;
+  };
+
+  auto z_for_quad = [&](const Quad& q) {
+    int z = 0;
+    if (q.group == kHudGroupLeft && q.element != kElemScorePanel) {
+      z += layout_tuning_.score_panel.z;
+    } else if (q.group == kHudGroupRight && q.element != kElemRightPanel) {
+      z += layout_tuning_.right_panel.z;
+      if (q.element == kElemSpBar || q.element == kElemSpBack ||
+          q.element == kElemSpFill || q.element == kElemSpReady ||
+          q.element == kElemSpFront || q.element == kElemSpGlass ||
+          q.element == kElemSpBase || q.element == kElemSpTop ||
+          q.element == kElemSpCaps || q.element == kElemRockNeedle ||
+          q.element == kElemRockFrame || q.element == kElemRockLights ||
+          q.element == kElemRockLabel) {
+        z += layout_tuning_.rock_face.z;
+      }
+      if (q.element == kElemSpBack || q.element == kElemSpFill ||
+          q.element == kElemSpReady || q.element == kElemSpFront ||
+          q.element == kElemSpGlass || q.element == kElemSpBase ||
+          q.element == kElemSpTop || q.element == kElemSpCaps) {
+        z += layout_tuning_.sp_bar.z;
+      }
+    }
+    if (q.element >= kLayoutTuningCount) return z;
+    const LayoutRect* r = layout_rect_by_index(
+        const_cast<LayoutTuning&>(layout_tuning_), q.element);
+    return z + (r ? r->z : 0);
+  };
+  std::vector<size_t> draw_order(quads.size());
+  for (size_t i = 0; i < draw_order.size(); ++i) draw_order[i] = i;
+  std::stable_sort(draw_order.begin(), draw_order.end(),
+                   [&](size_t a, size_t b) {
+                     return z_for_quad(quads[a]) < z_for_quad(quads[b]);
+                   });
 
   // Render state: pre-transformed screen quads, alpha-blended, no Z, no light.
   dev->BeginScene();
@@ -998,7 +1687,8 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   dev->SetFVF(kScreenFVF);
 
   std::vector<ScreenVtx> sv;
-  for (const Quad& q : quads) {
+  for (size_t draw_index : draw_order) {
+    const Quad& q = quads[draw_index];
     if (q.verts.size() < 3 || q.idx.size() < 3) continue;
     dev->SetRenderState(D3DRS_DESTBLEND, q.additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA);
     if (q.tex) {
@@ -1017,9 +1707,10 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     for (uint16_t id : q.idx) {
       if (id >= q.verts.size()) { sv.clear(); break; }
       const Quad::V& vv = q.verts[id];
-      float px, py; project(vv.wx, vv.wy, vv.wz, bbw, bbh, px, py);
+      float px, py, rhw; project_render_vertex(q, vv, px, py, rhw);
       // The X-flip in project() mirrors textures; invert U to compensate.
-      sv.push_back({ px - 0.5f, py - 0.5f, 0.0f, 1.0f, q.color, 1.0f - vv.u, vv.v });
+      sv.push_back({ px - 0.5f, py - 0.5f, 0.0f, rhw, q.color,
+                     1.0f - vv.u, vv.v });
     }
     if (sv.size() < 3) continue;
     dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, static_cast<UINT>(sv.size() / 3),
@@ -1033,7 +1724,8 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
 void HudRenderer::push_rect(std::vector<Quad>& out, float cx, float cz, float hw,
                             float hh, IDirect3DTexture9* t, uint32_t color,
                             bool additive, float screen_left_depth,
-                            float screen_right_depth) {
+                            float screen_right_depth, uint8_t group,
+                            uint8_t element) {
   Quad q;
   q.verts = {
       { cx - hw, screen_right_depth, cz - hh, 0.0f, 0.0f },  // 0 TL
@@ -1042,7 +1734,8 @@ void HudRenderer::push_rect(std::vector<Quad>& out, float cx, float cz, float hw
       { cx + hw, screen_left_depth,  cz + hh, 1.0f, 1.0f },  // 3 BR
   };
   q.idx = { 0, 1, 2,  1, 3, 2 };
-  q.tex = t; q.color = color; q.additive = additive;
+  q.tex = t; q.color = color; q.additive = additive; q.group = group;
+  q.element = element;
   out.push_back(std::move(q));
 }
 
@@ -1071,10 +1764,6 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
     if (!t) continue;
     if (i < 10 && native_score_digit_ok_[i]) {
       Quad q = native_score_digit_[i];
-      for (Quad::V& v : q.verts) {
-        v.wz += score_slot_[i].hh * 0.25f;
-        v.wy = left_hud_depth_at(v.wx);
-      }
       q.tex = t;
       q.color = 0xFFFFFFFF;
       q.additive = false;
@@ -1086,11 +1775,13 @@ void HudRenderer::emit_score_digits(std::vector<Quad>& out, int score) const {
     const float digit_hh = sl.hh * 0.86f;
     push_rect(out, sl.cx, sl.cz, digit_hw, digit_hh, t, 0xFFFFFFFF, false,
               left_hud_depth_at(sl.cx + digit_hw),
-              left_hud_depth_at(sl.cx - digit_hw));
+              left_hud_depth_at(sl.cx - digit_hw), kHudGroupLeft,
+              kElemScoreFrame);
   }
 }
 
-void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
+void HudRenderer::emit_streak(std::vector<Quad>& out, int streak,
+                              bool star_power_visual) const {
   if (!streak_slot_.ok) return;
   // GH2's score panel uses a small native streak/progress strip rather than a
   // plain numeric combo counter. Fill the native socket arc toward the next tier.
@@ -1106,26 +1797,30 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
   }
   if (have_native_pip_arc) {
     for (int i = 0; i < kPipCount; ++i) {
-      if (i >= lit) continue;
-      const int stage = 3;
       const int mesh_index = (kPipCount - 1) - i;
-      IDirect3DTexture9* glow =
-          tex(std::string("score_streak_glow_") + char('0' + stage) + ".tex");
-      if (!glow) glow = tex("score_streak_glow.tex");
+      Quad q = native_streak_pips_[mesh_index];
+      const bool on = i < lit;
+      if (!on) continue;
+      const int stage = star_power_visual ? 4 : 3;
       IDirect3DTexture9* streak_tex =
           tex(std::string("score_streak_") + char('0' + stage) + ".tex");
       if (!streak_tex) streak_tex = tex("score_streak.tex");
-      Quad q = native_streak_pips_[mesh_index];
       if (streak_tex) q.tex = streak_tex;
-      q.color = argb(195, 220, 185, 245);
+      q.color = 0xFFFFFFFF;
       q.additive = false;
       out.push_back(std::move(q));
-      if (glow) {
-        Quad g = native_streak_pips_[mesh_index];
-        g.tex = glow;
-        g.color = argb(18, 255, 255, 255);
-        g.additive = true;
-        out.push_back(std::move(g));
+      if (on) {
+        IDirect3DTexture9* glow =
+            tex(std::string("score_streak_glow_") + char('0' + stage) +
+                ".tex");
+        if (!glow) glow = tex("score_streak_glow.tex");
+        if (glow) {
+          Quad g = native_streak_pips_[mesh_index];
+          g.tex = glow;
+          g.color = argb(20, 255, 255, 255);
+          g.additive = true;
+          out.push_back(std::move(g));
+        }
       }
     }
     return;
@@ -1134,7 +1829,7 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
   const float center = (static_cast<float>(kPipCount) - 1.0f) * 0.5f;
   for (int i = 0; i < kPipCount; ++i) {
     const bool on = i < lit;
-    const int stage = on ? 3 : 1;
+      const int stage = star_power_visual && on ? 4 : (on ? 3 : 1);
     const float arc_t = (static_cast<float>(i) - center) / center;
     float cx = sl.cx - (static_cast<float>(i) - center) * streak_step_;
     float cz = sl.cz - sl.hh * 2.28f +
@@ -1196,12 +1891,14 @@ void HudRenderer::emit_streak(std::vector<Quad>& out, int streak) const {
       push_rect(out, cx, cz, pip_hw, pip_hh, glow,
                 on ? argb(240, 255, 255, 255) : argb(120, 255, 255, 255),
                 false, left_hud_depth_at(cx + pip_hw),
-                left_hud_depth_at(cx - pip_hw));
+                left_hud_depth_at(cx - pip_hw), kHudGroupLeft,
+                kElemStreakPanel);
     }
   }
 }
 
-void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const {
+void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier,
+                                  bool star_power_visual) const {
   if (!mult_slot_.ok) return;
   if (mult_digit_slot_[0].ok && mult_digit_slot_[1].ok) {
     const bool have_native_mult_digits =
@@ -1224,7 +1921,8 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
         const float hh = slot.hh * 0.80f;
         push_rect(out, slot.cx, slot.cz, hw, hh, blank, 0xFFFFFFFF, false,
                   left_hud_depth_at(slot.cx + hw),
-                  left_hud_depth_at(slot.cx - hw));
+                  left_hud_depth_at(slot.cx - hw), kHudGroupLeft,
+                  kElemMultPanel);
       }
       return;
     }
@@ -1233,14 +1931,14 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
     IDirect3DTexture9* digit =
         tex(std::string("score_") + char('0' + clamped) + ".tex");
     if (!x || !digit) return;
-    if (clamped > 4 && native_mult_glow_ok_) out.push_back(native_mult_glow_);
-    if (clamped > 4 && native_mult_frame_ok_) {
+    if (star_power_visual && native_mult_glow_ok_) out.push_back(native_mult_glow_);
+    if (star_power_visual && native_mult_frame_ok_) {
       Quad active_frame = native_mult_frame_;
       active_frame.color = argb(225, 190, 238, 255);
       out.push_back(std::move(active_frame));
     }
     const uint32_t digit_color =
-        clamped > 4 ? argb(255, 205, 245, 255) : 0xFFFFFFFF;
+        star_power_visual ? argb(255, 205, 245, 255) : 0xFFFFFFFF;
     if (have_native_mult_digits) {
       Quad x_quad = native_mult_digit_[0];
       x_quad.tex = x;
@@ -1264,11 +1962,13 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
     const float digit_hh = digit_slot.hh * scale;
     push_rect(out, x_slot.cx, x_slot.cz, x_hw, x_hh, x, digit_color,
               false, left_hud_depth_at(x_slot.cx + x_hw),
-              left_hud_depth_at(x_slot.cx - x_hw));
+              left_hud_depth_at(x_slot.cx - x_hw), kHudGroupLeft,
+              kElemMultPanel);
     push_rect(out, digit_slot.cx, digit_slot.cz, digit_hw, digit_hh,
               digit, digit_color, false,
               left_hud_depth_at(digit_slot.cx + digit_hw),
-              left_hud_depth_at(digit_slot.cx - digit_hw));
+              left_hud_depth_at(digit_slot.cx - digit_hw), kHudGroupLeft,
+              kElemMultPanel);
     return;
   }
   const Slot& sl = mult_slot_;
@@ -1277,7 +1977,8 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
       push_rect(out, sl.cx, sl.cz, sl.hw * 0.88f, sl.hh * 0.78f, frame,
                 0xFFFFFFFF, false,
                 left_hud_depth_at(sl.cx + sl.hw * 0.88f),
-                left_hud_depth_at(sl.cx - sl.hw * 0.88f));
+                left_hud_depth_at(sl.cx - sl.hw * 0.88f), kHudGroupLeft,
+                kElemMultPanel);
     }
     return;
   }
@@ -1288,7 +1989,8 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
       push_rect(out, sl.cx, sl.cz, sl.hw * 0.72f, sl.hh * 0.80f, plate,
                 0xFFFFFFFF, false,
                 left_hud_depth_at(sl.cx + sl.hw * 0.72f),
-                left_hud_depth_at(sl.cx - sl.hw * 0.72f));
+                left_hud_depth_at(sl.cx - sl.hw * 0.72f), kHudGroupLeft,
+                kElemMultPanel);
       return;
     }
   }
@@ -1296,23 +1998,28 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier) const 
       tex(std::string("score_") + char('0' + clamped) + ".tex");
   IDirect3DTexture9* x = tex("score_x.tex");
   if (!digit && !x) return;
-  if (clamped > 4) {
+  if (star_power_visual || clamped > 4) {
     push_rect(out, sl.cx, sl.cz, sl.hw * 0.92f, sl.hh * 0.88f,
               tex("score_mult_frame.tex"), argb(255, 75, 220, 255), false,
               left_hud_depth_at(sl.cx + sl.hw * 0.92f),
-              left_hud_depth_at(sl.cx - sl.hw * 0.92f));
+              left_hud_depth_at(sl.cx - sl.hw * 0.92f), kHudGroupLeft,
+              kElemMultPanel);
   }
-  const uint32_t digit_color = clamped > 4 ? argb(255, 0, 0, 0) : 0xFFFFFFFF;
+  const uint32_t digit_color =
+      star_power_visual ? argb(255, 205, 245, 255)
+                        : (clamped > 4 ? argb(255, 0, 0, 0) : 0xFFFFFFFF);
 
   // Authored X is flipped during projection: positive X lands farther left.
   push_rect(out, sl.cx + sl.hw * 0.24f, sl.cz, sl.hw * 0.30f,
             sl.hh * 0.66f, x, x ? digit_color : argb(255, 0, 0, 0), false,
             left_hud_depth_at(sl.cx + sl.hw * 0.54f),
-            left_hud_depth_at(sl.cx - sl.hw * 0.06f));
+            left_hud_depth_at(sl.cx - sl.hw * 0.06f), kHudGroupLeft,
+            kElemMultPanel);
   push_rect(out, sl.cx - sl.hw * 0.24f, sl.cz, sl.hw * 0.30f,
             sl.hh * 0.66f, digit, digit ? digit_color : argb(255, 0, 0, 0),
             false, left_hud_depth_at(sl.cx + sl.hw * 0.06f),
-            left_hud_depth_at(sl.cx - sl.hw * 0.54f));
+            left_hud_depth_at(sl.cx - sl.hw * 0.54f), kHudGroupLeft,
+            kElemMultPanel);
 }
 
 void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
@@ -1327,22 +2034,25 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
       push_rect(out, sl.cx - sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
                 sl.hh * 0.95f, base, 0xFFFFFFFF, false,
                 right_hud_depth_at(sl.cx - sl.hw * 0.70f),
-                right_hud_depth_at(sl.cx - sl.hw * 1.26f));
+                right_hud_depth_at(sl.cx - sl.hw * 1.26f), kHudGroupRight,
+                kElemSpCaps);
       push_rect(out, sl.cx + sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
                 sl.hh * 0.95f, base, 0xFFFFFFFF, false,
                 right_hud_depth_at(sl.cx + sl.hw * 1.26f),
-                right_hud_depth_at(sl.cx + sl.hw * 0.70f));
+                right_hud_depth_at(sl.cx + sl.hw * 0.70f), kHudGroupRight,
+                kElemSpCaps);
     }
     if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
       push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(230, 220, 235, 255),
                 false, right_hud_depth_at(sl.cx + sl.hw),
-                right_hud_depth_at(sl.cx - sl.hw));
+                right_hud_depth_at(sl.cx - sl.hw), kHudGroupRight, kElemSpBack);
 
     if (IDirect3DTexture9* empty = tex("amp_inside_bar.tex")) {
       push_rect(out, sl.cx, sl.cz, sl.hw * 0.86f, sl.hh * 0.30f, empty,
                 argb(90, 185, 210, 220), false,
                 right_hud_depth_at(sl.cx + sl.hw * 0.86f),
-                right_hud_depth_at(sl.cx - sl.hw * 0.86f));
+                right_hud_depth_at(sl.cx - sl.hw * 0.86f), kHudGroupRight,
+                kElemSpBack);
     }
   }
 
@@ -1377,6 +2087,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
       clipped.tex = src.tex;
       clipped.color = src.color;
       clipped.additive = src.additive;
+      clipped.group = src.group;
+      clipped.element = src.element;
       for (size_t i = 0; i + 2 < src.idx.size(); i += 3) {
         if (src.idx[i] >= src.verts.size() ||
             src.idx[i + 1] >= src.verts.size() ||
@@ -1434,12 +2146,14 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
       push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.52f, fillt,
                 fillt ? argb(230, 120, 205, 255) : argb(220, 75, 165, 255),
                 false, right_hud_depth_at(fill_cx + fill_hw),
-                right_hud_depth_at(fill_cx - fill_hw));
+                right_hud_depth_at(fill_cx - fill_hw), kHudGroupRight,
+                kElemSpFill);
       if (IDirect3DTexture9* glow = tex("amp_bar_glow.tex")) {
         push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.72f, glow,
                   argb(150, 135, 210, 255), true,
                   right_hud_depth_at(fill_cx + fill_hw),
-                  right_hud_depth_at(fill_cx - fill_hw));
+                  right_hud_depth_at(fill_cx - fill_hw), kHudGroupRight,
+                  kElemSpFill);
       }
     }
   }
@@ -1452,12 +2166,21 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
       push_rect(out, sl.cx, sl.cz, sl.hw * 1.04f, sl.hh * 0.92f, ready,
                 argb(125, 115, 205, 255), true,
                 right_hud_depth_at(sl.cx + sl.hw * 1.04f),
-                right_hud_depth_at(sl.cx - sl.hw * 1.04f));
+                right_hud_depth_at(sl.cx - sl.hw * 1.04f), kHudGroupRight,
+                kElemSpReady);
     }
   }
 
   if (!native_star_front_.empty())
     out.insert(out.end(), native_star_front_.begin(), native_star_front_.end());
+  if (!native_star_glass_.empty())
+    out.insert(out.end(), native_star_glass_.begin(), native_star_glass_.end());
+  if (!native_star_base_.empty())
+    out.insert(out.end(), native_star_base_.begin(), native_star_base_.end());
+  if (!native_star_top_.empty())
+    out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
+  if (!native_star_caps_.empty())
+    out.insert(out.end(), native_star_caps_.begin(), native_star_caps_.end());
 }
 
 void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
@@ -1471,7 +2194,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     IDirect3DTexture9* face = tex("rock_meter_2d.tex");
     push_rect(out, f.cx, f.cz, f.hw, f.hh, face,
               face ? 0xFFFFFFFF : argb(200, 210, 170, 65), false,
-              right_hud_depth_at(f.cx + f.hw), right_hud_depth_at(f.cx - f.hw));
+              right_hud_depth_at(f.cx + f.hw),
+              right_hud_depth_at(f.cx - f.hw), kHudGroupRight, kElemRockFace);
   }
 
   const bool have_native_lights =
@@ -1500,7 +2224,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
                          : argb(105, 80, 255, 90);
     push_rect(out, f.cx, f.cz - f.hh * 0.12f, f.hw * 0.88f, f.hh * 0.58f,
               light, color, true, right_hud_depth_at(f.cx + f.hw * 0.88f),
-              right_hud_depth_at(f.cx - f.hw * 0.88f));
+              right_hud_depth_at(f.cx - f.hw * 0.88f), kHudGroupRight,
+              kElemRockLights);
   }
 
   if (native_rock_label_ok_) {
@@ -1530,6 +2255,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     q.idx = {0, 1, 2, 1, 3, 2};
     q.tex = label;
     q.color = 0xFFFFFFFF;
+    q.group = kHudGroupRight;
+    q.element = kElemRockLabel;
     out.push_back(std::move(q));
   }
 
@@ -1551,11 +2278,12 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
       const float a = 0.25f - meter_t * 1.80f;
       const float ca = std::cos(a), sa = std::sin(a);
       for (Quad::V& v : q.verts) {
+        const float depth_delta = v.wy - right_hud_depth_at(v.wx);
         const float dx = v.wx - px;
         const float dz = v.wz - pz;
         v.wx = px + dx * ca - dz * sa;
         v.wz = pz + dx * sa + dz * ca;
-        v.wy = right_hud_depth_at(v.wx);
+        v.wy = right_hud_depth_at(v.wx) + depth_delta;
       }
       out.push_back(std::move(q));
     };
@@ -1588,6 +2316,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
       IDirect3DTexture9* nt = tex("rock_needle.tex");
       q.tex = nt;
       q.color = nt ? argb(255, 28, 28, 22) : argb(255, 28, 28, 22);
+      q.group = kHudGroupRight;
+      q.element = kElemRockNeedle;
       out.push_back(std::move(q));
     }
   }

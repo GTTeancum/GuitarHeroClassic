@@ -25,8 +25,12 @@
 //                                      start a forced CamShot at a local path frame
 //   ghogx_app --hud-test [--hud-score N] [--hud-streak N]
 //                         [--hud-multiplier N] [--hud-sp 0..1] [--hud-rock 0..1]
+//                         [--hud-star-active]
+//                         [--hud-ref-highway]
+//                         [--hud-tune <file>]
 //                                      (same --hud-* flags force gameplay HUD
 //                                       state for diagnostic screenshots)
+//   ghogx_app --hud-tune <file>       load saved HUD layout in gameplay/capture
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
 //   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
 //                                      capture numbered BMPs in gameplay mode
@@ -43,6 +47,14 @@
 #include "render/window_d3d9.h"
 #include "render/scene_d3d9.h"
 #include "render/milo_scene_renderer.h"
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 
 #include <algorithm>
 #include <array>
@@ -350,6 +362,7 @@ class AppEngine : public ghogx::Engine {
   std::string ark_path_;
   std::string song_name_ = "shoutatthedevil";
   int         song_diff_ = 0;  // Easy
+  std::string hud_tune_file_;
 
   // Dev screenshot capture.
   std::string screenshot_path_;
@@ -400,6 +413,12 @@ class AppEngine : public ghogx::Engine {
     diagnostic_hud_override_ = state;
   }
 
+  void set_hud_tuning_file(const std::string& path) {
+    hud_tune_file_ = path;
+    hud_.set_layout_tuning_file(hud_tune_file_);
+    reset_hud_load();
+  }
+
   // Force-load the song and skip directly to Playing state (for --auto-start).
   void force_start_song() {
     if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
@@ -422,6 +441,7 @@ class AppEngine : public ghogx::Engine {
     hud_load_attempted_ = true;
     if (hdr_path_.empty() || ark_path_.empty()) return;
     auto* dev = static_cast<IDirect3DDevice9*>(win_->device_ptr());
+    if (!hud_tune_file_.empty()) hud_.set_layout_tuning_file(hud_tune_file_);
     hud_ready_ = hud_.load(dev, hdr_path_, ark_path_);
   }
 
@@ -435,6 +455,7 @@ class AppEngine : public ghogx::Engine {
     state.multiplier = gameplay_.multiplier() *
                        (gameplay_.star_power_active() ? 2 : 1);
     state.sp_fill = gameplay_.star_power_fill();
+    state.sp_active = gameplay_.star_power_active();
     state.rock_fill = gameplay_.rock_fill();
     if (diagnostic_hud_override_) state = *diagnostic_hud_override_;
 
@@ -848,7 +869,13 @@ struct HudTestOptions {
   int streak = 27;
   int multiplier = 3;
   float sp_fill = 0.6f;
+  bool sp_active = false;
   float rock_fill = 0.7f;
+  std::string tune_file;
+  bool ref_highway = false;
+  std::string ref_song = "shoutatthedevil";
+  int ref_difficulty = 1;
+  double ref_song_time = 12.0;
 };
 
 int run_hud_test_mode(const std::string& hdr, const std::string& ark,
@@ -862,9 +889,25 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
   auto* dev = static_cast<IDirect3DDevice9*>(win->device_ptr());
 
   ghogx::hud::HudRenderer hud;
+  if (!options.tune_file.empty()) hud.set_layout_tuning_file(options.tune_file);
   if (!hud.load(dev, hdr, ark)) {
     std::fprintf(stderr, "[hud-test] HUD load failed\n");
     return 1;
+  }
+  ghogx::game::Gameplay ref_gameplay;
+  bool ref_highway_ready = false;
+  if (options.ref_highway) {
+    ref_gameplay.set_deterministic_clock(true);
+    ref_gameplay.set_diagnostic_autoplay(true);
+    ref_highway_ready = ref_gameplay.load_song(
+        hdr, ark, options.ref_song, options.ref_difficulty);
+    if (ref_highway_ready && options.ref_song_time > 0.0) {
+      ref_gameplay.seek_for_diagnostic_capture(options.ref_song_time);
+    }
+    std::fprintf(stderr, "[hud-test] highway reference %s song=%s diff=%d time=%.2f\n",
+                 ref_highway_ready ? "ready" : "failed",
+                 options.ref_song.c_str(), options.ref_difficulty,
+                 options.ref_song_time);
   }
 
   ghogx::hud::HudState st;
@@ -872,6 +915,7 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
   st.streak = std::max(0, options.streak);
   st.multiplier = std::clamp(options.multiplier, 1, 9);
   st.sp_fill = std::clamp(options.sp_fill, 0.0f, 1.0f);
+  st.sp_active = options.sp_active;
   st.rock_fill = std::clamp(options.rock_fill, 0.0f, 1.0f);
 
   using clock = std::chrono::steady_clock;
@@ -879,17 +923,106 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
   uint64_t frame = 0;
   if (!screenshot_path.empty() && max_frames == 0) max_frames = screenshot_frame + 3;
 
-  std::fprintf(stderr, "[hud-test] score=%d streak=%d mult=%dx sp=%.2f rock=%.2f\n",
-               st.score, st.streak, st.multiplier, st.sp_fill, st.rock_fill);
+  std::fprintf(stderr,
+               "[hud-test] score=%d streak=%d mult=%dx sp=%.2f active=%d rock=%.2f\n",
+               st.score, st.streak, st.multiplier, st.sp_fill,
+               st.sp_active ? 1 : 0, st.rock_fill);
+  if (!options.tune_file.empty()) {
+    std::fprintf(stderr,
+                 "[hud-tune] Tab/[ ] select, arrows move, Shift+arrows scale, "
+                 "Q/E yaw parents, PgUp/PgDn order, Ctrl=fine, Space=coarse, "
+                 "Ctrl+S save -> %s\n",
+                 options.tune_file.c_str());
+  }
+
+  std::array<bool, 256> prev_keys = {};
+  size_t tune_index = 0;
+  auto update_tune_title = [&]() {
+    if (options.tune_file.empty()) return;
+    char title[256];
+    std::snprintf(title, sizeof(title), "GuitarHeroOGX - HUD tune [%zu/%zu] %s%s",
+                  tune_index + 1, hud.layout_tuning_count(),
+                  hud.layout_tuning_name(tune_index),
+                  hud.layout_tuning_can_rotate(tune_index) ? " (parent)" : "");
+    win->set_title(title);
+  };
+  update_tune_title();
 
   while (!win->should_close()) {
     win->pump();
     if (win->should_close()) break;
+    auto key_edge = [&](int vk) {
+      return vk >= 0 && vk < static_cast<int>(prev_keys.size()) &&
+             win->key_down(vk) && !prev_keys[static_cast<size_t>(vk)];
+    };
+
+    if (!options.tune_file.empty() && hud.layout_tuning_count() > 0) {
+      bool selection_changed = false;
+      if (key_edge(VK_TAB) || key_edge(VK_OEM_6)) {
+        if (win->key_down(VK_SHIFT)) {
+          tune_index = tune_index == 0 ? hud.layout_tuning_count() - 1
+                                       : tune_index - 1;
+        } else {
+          tune_index = (tune_index + 1) % hud.layout_tuning_count();
+        }
+        selection_changed = true;
+      } else if (key_edge(VK_OEM_4)) {
+        tune_index = tune_index == 0 ? hud.layout_tuning_count() - 1
+                                     : tune_index - 1;
+        selection_changed = true;
+      }
+      if (selection_changed) update_tune_title();
+
+      const bool fine = win->key_down(VK_CONTROL);
+      const bool coarse = win->key_down(VK_SPACE);
+      const bool scale = win->key_down(VK_SHIFT);
+      const float step = fine ? 0.0005f : (coarse ? 0.0200f : 0.0020f);
+      const float rot_step = fine ? 0.25f : (coarse ? 10.0f : 1.0f);
+      const int z_step = coarse ? 20 : 1;
+      float dx = 0.0f, dy = 0.0f, dw = 0.0f, dh = 0.0f;
+      float drot = 0.0f;
+      int dz = 0;
+      if (scale) {
+        if (key_edge(VK_LEFT))  dw -= step;
+        if (key_edge(VK_RIGHT)) dw += step;
+        if (key_edge(VK_UP))    dh -= step;
+        if (key_edge(VK_DOWN))  dh += step;
+      } else {
+        if (key_edge(VK_LEFT))  dx -= step;
+        if (key_edge(VK_RIGHT)) dx += step;
+        if (key_edge(VK_UP))    dy -= step;
+        if (key_edge(VK_DOWN))  dy += step;
+      }
+      if (hud.layout_tuning_can_rotate(tune_index)) {
+        if (key_edge('Q')) drot -= rot_step;
+        if (key_edge('E')) drot += rot_step;
+      }
+      if (key_edge(VK_PRIOR)) dz += z_step;
+      if (key_edge(VK_NEXT)) dz -= z_step;
+      if ((dx != 0.0f || dy != 0.0f || dw != 0.0f || dh != 0.0f ||
+           drot != 0.0f || dz != 0) &&
+          hud.nudge_layout_tuning(tune_index, dx, dy, dw, dh, drot, dz)) {
+        if (!hud.load(dev, hdr, ark)) {
+          std::fprintf(stderr, "[hud-tune] HUD reload failed after nudge\n");
+          return 1;
+        }
+      }
+      if (win->key_down(VK_CONTROL) && key_edge('S')) {
+        const bool saved = hud.save_layout_tuning_file();
+        std::fprintf(stderr, "[hud-tune] %s %s\n",
+                     saved ? "saved" : "failed to save",
+                     options.tune_file.c_str());
+      }
+    }
 
     auto now = clock::now();
 
-    // Dark stage-ish background so the HUD art reads clearly.
-    win->clear(0.06f, 0.06f, 0.09f);
+    if (ref_highway_ready) {
+      ref_gameplay.draw(*win);
+    } else {
+      // Dark stage-ish background so the HUD art reads clearly.
+      win->clear(0.06f, 0.06f, 0.09f);
+    }
     hud.draw(dev, st);
 
     if (!screenshot_path.empty() && frame == static_cast<uint64_t>(screenshot_frame)) {
@@ -901,6 +1034,8 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
 
     ++frame;
     if (max_frames && frame >= static_cast<uint64_t>(max_frames)) break;
+    for (size_t i = 0; i < prev_keys.size(); ++i)
+      prev_keys[i] = win->key_down(static_cast<int>(i));
     auto spent = clock::now() - now;
     if (spent < target_frame) std::this_thread::sleep_for(target_frame - spent);
   }
@@ -1416,18 +1551,28 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--hud-sp") == 0 && i + 1 < argc) {
       hud_test_options.sp_fill = std::atof(argv[++i]);
       hud_options_requested = true;
+    } else if (std::strcmp(argv[i], "--hud-star-active") == 0) {
+      hud_test_options.sp_active = true;
+      hud_options_requested = true;
     } else if (std::strcmp(argv[i], "--hud-rock") == 0 && i + 1 < argc) {
       hud_test_options.rock_fill = std::atof(argv[++i]);
       hud_options_requested = true;
+    } else if (std::strcmp(argv[i], "--hud-tune") == 0 && i + 1 < argc) {
+      hud_test_options.tune_file = argv[++i];
+    } else if (std::strcmp(argv[i], "--hud-ref-highway") == 0) {
+      hud_test_options.ref_highway = true;
     } else if (std::strcmp(argv[i], "--menu") == 0) {
       menu_mode = true;
     } else if (std::strcmp(argv[i], "--song") == 0 && i + 1 < argc) {
       song_name = argv[++i];
+      hud_test_options.ref_song = song_name;
     } else if (std::strcmp(argv[i], "--difficulty") == 0 && i + 1 < argc) {
       difficulty = std::atoi(argv[++i]);
+      hud_test_options.ref_difficulty = difficulty;
     } else if (std::strcmp(argv[i], "--diagnostic-song-start") == 0 &&
                i + 1 < argc) {
       diagnostic_song_start = std::atof(argv[++i]);
+      hud_test_options.ref_song_time = diagnostic_song_start;
     } else if (std::strcmp(argv[i], "--diagnostic-autoplay") == 0) {
       diagnostic_autoplay = true;
     } else if (std::strcmp(argv[i], "--diagnostic-venue") == 0 && i + 1 < argc) {
@@ -1635,13 +1780,19 @@ int main(int argc, char** argv) {
     override_state.streak = std::max(0, hud_test_options.streak);
     override_state.multiplier = std::clamp(hud_test_options.multiplier, 1, 9);
     override_state.sp_fill = std::clamp(hud_test_options.sp_fill, 0.0f, 1.0f);
+    override_state.sp_active = hud_test_options.sp_active;
     override_state.rock_fill = std::clamp(hud_test_options.rock_fill, 0.0f, 1.0f);
     engine.set_diagnostic_hud_override(override_state);
     std::fprintf(stderr,
-                 "[ghogx] diagnostic HUD override: score=%d streak=%d mult=%dx sp=%.2f rock=%.2f\n",
+                 "[ghogx] diagnostic HUD override: score=%d streak=%d mult=%dx sp=%.2f active=%d rock=%.2f\n",
                  override_state.score, override_state.streak,
                  override_state.multiplier, override_state.sp_fill,
-                 override_state.rock_fill);
+                 override_state.sp_active ? 1 : 0, override_state.rock_fill);
+  }
+  if (!hud_test_options.tune_file.empty()) {
+    engine.set_hud_tuning_file(hud_test_options.tune_file);
+    std::fprintf(stderr, "[ghogx] HUD layout tuning: %s\n",
+                 hud_test_options.tune_file.c_str());
   }
   if (capture_enabled && fixed_dt <= 0.0f) fixed_dt = 1.0f / 60.0f;
   if (fixed_dt > 0.0f) {
