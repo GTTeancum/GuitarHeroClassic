@@ -17,6 +17,7 @@
 //                                      seek deterministic capture to a song time
 //   ghogx_app --diagnostic-autoplay    chart-driven native validation input
 //   ghogx_app --diagnostic-venue <v>   route capture through another GH2 venue
+//   ghogx_app --diagnostic-character <c>
 //   ghogx_app --diagnostic-venue-event <event>
 //                                      force one persistent venue event after load
 //   ghogx_app --diagnostic-camera-shot <shot>
@@ -108,6 +109,20 @@ struct SplashSequence {
   }
 };
 
+bool diagnostic_hide_hud_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_HIDE_HUD") == 0 && value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_HIDE_HUD");
+  return value && value[0];
+#endif
+}
+
 // Engine whose render/present phases drive the window. Plays the splash
 // sequence if set; else shows a single loaded image; else an animated
 // procedural checkerboard (exercises the texture-upload + sampled-draw path).
@@ -192,7 +207,16 @@ class AppEngine : public ghogx::Engine {
   void on_render(float /*dt*/) override {
     if (state_ == AppState::Playing) {
       gameplay_.draw(*win_);
-      draw_gameplay_hud();
+      if (!diagnostic_hide_hud_enabled()) {
+        draw_gameplay_hud();
+      } else {
+        static bool logged_hide_hud = false;
+        if (!logged_hide_hud) {
+          logged_hide_hud = true;
+          std::fprintf(stderr,
+                       "[diagnostic-hud] GHOGX_HIDE_HUD active; skipping HUD draw\n");
+        }
+      }
       return;
     }
 
@@ -392,6 +416,14 @@ class AppEngine : public ghogx::Engine {
 
   void set_diagnostic_venue_override(const std::string& venue) {
     gameplay_.set_diagnostic_venue_override(venue);
+  }
+
+  void set_diagnostic_character_override(const std::string& character) {
+    gameplay_.set_diagnostic_character_override(character);
+  }
+
+  void set_diagnostic_guitar_override(const std::string& guitar) {
+    gameplay_.set_diagnostic_guitar_override(guitar);
   }
 
   void set_diagnostic_venue_event(const std::string& event_name) {
@@ -1519,6 +1551,8 @@ int main(int argc, char** argv) {
   double diagnostic_song_start = 0.0;
   bool diagnostic_autoplay = false;
   std::string diagnostic_venue;
+  std::string diagnostic_character;
+  std::string diagnostic_guitar;
   std::string diagnostic_venue_event;
   std::string diagnostic_camera_shot;
   double diagnostic_camera_path_offset_frames = 0.0;
@@ -1577,6 +1611,12 @@ int main(int argc, char** argv) {
       diagnostic_autoplay = true;
     } else if (std::strcmp(argv[i], "--diagnostic-venue") == 0 && i + 1 < argc) {
       diagnostic_venue = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-character") == 0 &&
+               i + 1 < argc) {
+      diagnostic_character = argv[++i];
+    } else if (std::strcmp(argv[i], "--diagnostic-guitar") == 0 &&
+               i + 1 < argc) {
+      diagnostic_guitar = argv[++i];
     } else if (std::strcmp(argv[i], "--diagnostic-venue-event") == 0 &&
                i + 1 < argc) {
       diagnostic_venue_event = argv[++i];
@@ -1749,6 +1789,16 @@ int main(int argc, char** argv) {
     engine.set_diagnostic_venue_override(diagnostic_venue);
     std::fprintf(stderr, "[ghogx] diagnostic venue override: %s\n",
                  diagnostic_venue.c_str());
+  }
+  if (!diagnostic_character.empty()) {
+    engine.set_diagnostic_character_override(diagnostic_character);
+    std::fprintf(stderr, "[ghogx] diagnostic character override: %s\n",
+                 diagnostic_character.c_str());
+  }
+  if (!diagnostic_guitar.empty()) {
+    engine.set_diagnostic_guitar_override(diagnostic_guitar);
+    std::fprintf(stderr, "[ghogx] diagnostic guitar override: %s\n",
+                 diagnostic_guitar.c_str());
   }
   if (!diagnostic_venue_event.empty()) {
     engine.set_diagnostic_venue_event(diagnostic_venue_event);

@@ -484,6 +484,17 @@ class Gameplay {
   void set_diagnostic_venue_override(const std::string& venue) {
     diagnostic_venue_override_ = venue;
   }
+  // Diagnostic roster helper: keeps the stock song/venue/guitar selection, but
+  // substitutes guitarist0's outfit so visual-fidelity captures can cover every
+  // playable character without changing gameplay rules.
+  void set_diagnostic_character_override(const std::string& character) {
+    diagnostic_character_override_ = character;
+  }
+  // Diagnostic prop helper: keeps the stock song/venue/character selection, but
+  // substitutes guitarist0's quickplay guitar symbol for prop-anchor traces.
+  void set_diagnostic_guitar_override(const std::string& guitar) {
+    diagnostic_guitar_override_ = guitar;
+  }
   void set_diagnostic_venue_event(const std::string& event_name) {
     diagnostic_venue_event_ = event_name;
     diagnostic_venue_event_applied_ = false;
@@ -904,6 +915,8 @@ class Gameplay {
   bool diagnostic_autoplay_ = false;
   uint32_t diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
   std::string diagnostic_venue_override_;
+  std::string diagnostic_character_override_;
+  std::string diagnostic_guitar_override_;
   std::string diagnostic_venue_event_;
   std::string diagnostic_camera_shot_;
   double diagnostic_camera_path_offset_frames_ = 0.0;

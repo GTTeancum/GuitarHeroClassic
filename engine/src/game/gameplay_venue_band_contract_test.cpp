@@ -980,6 +980,26 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->draw();",
                  "venue draw path still renders the 3D world before overlays");
+  ok &= contains(gameplay_c,
+                 "booldiagnostic_hide_highway_enabled(){returnenv_value("
+                 "\"GHOGX_HIDE_HIGHWAY\")!=nullptr||env_value("
+                 "\"GHOGX_DIAGNOSTIC_HIDE_HIGHWAY\")!=nullptr;}",
+                 "highway hiding is diagnostic-only and opt-in");
+  ok &= contains(gameplay_c,
+                 "\"[diagnostic-highway]hiddenmode=%st=%.3fenv=%s\\n\"",
+                 "diagnostic highway hiding emits proof logs");
+  ok &= appears_before(
+      gameplay_c,
+      "if(diagnostic_hide_highway_enabled()){"
+      "log_diagnostic_highway_hidden_once(song_time_,true);return;}",
+      "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
+      "diagnostic highway hiding skips only the 3D over-scene highway overlay");
+  ok &= contains(app_main_c,
+                 "diagnostic_hide_hud_enabled()",
+                 "HUD hiding is an app-level diagnostic capture hook");
+  ok &= contains(app_main_c,
+                 "\"[diagnostic-hud]GHOGX_HIDE_HUDactive;skippingHUDdraw\\n\"",
+                 "diagnostic HUD hiding emits proof logs");
   ok &= appears_before(gameplay_c,
                        "world_->draw();",
                        "highway_->draw_over_scene(song_time_,chart_,difficulty_,",
@@ -1096,6 +1116,30 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::stringdiagnostic_venue_override_;",
                  "diagnostic venue override is not a global song route");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_character_override(conststd::string&character)",
+                 "diagnostic character override stays an explicit gameplay test hook");
+  ok &= contains(gameplay_h_c,
+                 "std::stringdiagnostic_character_override_;",
+                 "diagnostic character override is scoped to roster visual validation");
+  ok &= contains(gameplay_c,
+                 "diagnosticcharacteroverride:%s->%s",
+                 "diagnostic character override logs stock and substituted guitarist outfit");
+  ok &= contains(gameplay_c,
+                 "quickplay_rig_->character_outfit=diagnostic_character_override_;",
+                 "diagnostic character override feeds the shared performer loader");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_guitar_override(conststd::string&guitar)",
+                 "diagnostic guitar override stays an explicit prop-trace hook");
+  ok &= contains(gameplay_h_c,
+                 "std::stringdiagnostic_guitar_override_;",
+                 "diagnostic guitar override is scoped to prop-anchor validation");
+  ok &= contains(gameplay_c,
+                 "diagnosticguitaroverride:%s->%s",
+                 "diagnostic guitar override logs stock and substituted prop symbol");
+  ok &= contains(gameplay_c,
+                 "quickplay_rig_->guitar=diagnostic_guitar_override_;",
+                 "diagnostic guitar override feeds the shared prop loader");
   ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_venue_event(conststd::string&event_name)",
                  "diagnostic venue event stays an explicit gameplay test hook");

@@ -131,6 +131,26 @@ bool is_valid_category_name(const std::string& name) {
   return c >= 0 && c <= 8;
 }
 
+float env_float_or(const char* name, float fallback) {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, name) != 0 || !value || !value[0]) {
+    std::free(value);
+    return fallback;
+  }
+  char* end = nullptr;
+  const float parsed = std::strtof(value, &end);
+  std::free(value);
+#else
+  const char* value = std::getenv(name);
+  if (!value || !value[0]) return fallback;
+  char* end = nullptr;
+  const float parsed = std::strtof(value, &end);
+#endif
+  return end && end != value && std::isfinite(parsed) ? parsed : fallback;
+}
+
 size_t channel_size(int cat, int compression) {
   if (cat == 0 || cat == 1) return compression < 2 ? 12u : 6u;
   if (cat == 2) {
@@ -833,6 +853,60 @@ bool hair_follow_current_axis_state_enabled() {
   const char* value = std::getenv("GHOGX_ENABLE_HAIR_FOLLOW_CURRENT_AXIS_STATE");
   return value && value[0];
 #endif
+}
+
+void log_char_hair_source_once(const Character& character,
+                               const CharHair& hair) {
+  if (!debug_char_hair_enabled()) return;
+  static std::unordered_set<std::string> logged;
+  const std::string key = character.dir_name + "|" + hair.name;
+  if (!logged.insert(key).second) return;
+
+  size_t point_count = 0;
+  size_t follow_only_groups = 0;
+  size_t chain_groups = 0;
+  for (const auto& group : hair.groups) {
+    point_count += group.points.size();
+    if (group.points.size() == 1) {
+      ++follow_only_groups;
+    } else if (!group.points.empty()) {
+      ++chain_groups;
+    }
+  }
+
+  std::fprintf(stderr,
+               "[charhair-source] character=%s hair=%s "
+               "source=decoded-CharHair version=%d enabled=%d "
+               "groups=%zu points=%zu followOnlyGroups=%zu chainGroups=%zu "
+               "solver=%s ps2SingleState=%s "
+               "globals=(%.4f %.4f %.4f %.4f %.4f %.4f)\n",
+               character.dir_name.c_str(), hair.name.c_str(), hair.version,
+               hair.enabled ? 1 : 0, hair.groups.size(), point_count,
+               follow_only_groups, chain_groups,
+               single_point_hair_solver_enabled() ? "single-point" : "follow",
+               ps2_single_point_hair_state_enabled() ? "on" : "off",
+               hair.globals[0], hair.globals[1], hair.globals[2],
+               hair.globals[3], hair.globals[4], hair.globals[5]);
+
+  for (size_t group_i = 0; group_i < hair.groups.size(); ++group_i) {
+    const auto& group = hair.groups[group_i];
+    std::fprintf(stderr,
+                 "[charhair-source-group] hair=%s group=%zu root=%s "
+                 "points=%zu rootOffset=%.4f\n",
+                 hair.name.c_str(), group_i, group.root_mesh.c_str(),
+                 group.points.size(), group.root_offset);
+    for (size_t point_i = 0; point_i < group.points.size(); ++point_i) {
+      const auto& point = group.points[point_i];
+      std::fprintf(stderr,
+                   "[charhair-source-point] hair=%s group=%zu point=%zu "
+                   "mesh=%s coll=%s pos=(%.4f %.4f %.4f) len=%.4f "
+                   "radius=%.4f align=%.4f mode=%u\n",
+                   hair.name.c_str(), group_i, point_i, point.mesh.c_str(),
+                   point.parent.c_str(), point.pos[0], point.pos[1],
+                   point.pos[2], point.length, point.radius, point.extra,
+                   point.flags_or_mode);
+    }
+  }
 }
 
 void log_character_controller_graph_once(const Character& character) {
@@ -2997,6 +3071,10 @@ static bool is_hand_driver_root_key(const std::string& key) {
          key == "bone_fret" || key == "bone_fret_hand";
 }
 
+static bool is_constant_fret_hand_target_key(const std::string& key) {
+  return key == "bone_fret_hand";
+}
+
 static bool is_hand_driver_output_key(const std::string& key) {
   if (is_hand_driver_root_key(key)) return true;
   const bool left_or_right =
@@ -3158,7 +3236,8 @@ static bool charbone_output_compare_enabled() {
 }
 
 static bool output_map_interesting_bone(const std::string& key) {
-  return key == "bone_facing" || key == "bone_pelvis" ||
+  return is_hand_driver_root_key(key) ||
+         key == "bone_facing" || key == "bone_pelvis" ||
          key.find("-thigh") != std::string::npos ||
          key.find("-knee") != std::string::npos ||
          key.find("-ankle") != std::string::npos ||
@@ -3332,6 +3411,15 @@ static bool apply_clip_pose_output_layer(
     if (!node_driven[i]) continue;
     apply_pending_pose_weighted(poses[i], nodes[i].current_local, weight,
                                 relative);
+  }
+
+  if (force_selected_output) {
+    for (size_t i = 0; i < nodes.size(); ++i) {
+      if (node_driven[i]) continue;
+      if (is_constant_fret_hand_target_key(nodes[i].key)) {
+        node_driven[i] = true;
+      }
+    }
   }
 
   dump_charbone_output_map(character, nodes, by_key, node_driven);
@@ -3989,6 +4077,7 @@ static void apply_char_hair(Character& character, float time_seconds) {
 
   size_t runtime_index = 0;
   for (const auto& hair : character.hairs) {
+    log_char_hair_source_once(character, hair);
     const float stiffness = std::clamp(hair.globals[0], 0.0f, 1.0f);
     const float inertia = std::clamp(hair.globals[2], 0.0f, 1.0f);
     const float gravity = std::max(0.0f, hair.globals[3] * hair.globals[4]);
@@ -4362,7 +4451,9 @@ void apply_ik_midi_fret_target(Character& character,
   std::array<float, 16> spot_world{};
   if (!transform_local_chain_world(character, spot_name, spot_world)) return;
 
-  constexpr float kBlendSeconds = 0.22f;
+  const float blend_seconds =
+      std::clamp(env_float_or("GHOGX_IKMIDI_BLEND_SECONDS", 0.08f), 0.0f,
+                 0.22f);
   for (const auto& ik : character.ik_midis) {
     if (ik.bone.empty()) continue;
     const int bone_i = find_bone_index(character, ik.bone);
@@ -4380,7 +4471,7 @@ void apply_ik_midi_fret_target(Character& character,
     }
 
     const float age = std::max(0.0f, time_seconds - state.spot_start_time_seconds);
-    const float weight = kBlendSeconds > 0.0f ? age / kBlendSeconds : 1.0f;
+    const float weight = blend_seconds > 0.0f ? age / blend_seconds : 1.0f;
     const auto desired_world =
         blend_world_rows(state.start_world, spot_world, weight);
     std::array<float, 16> parent_world =
@@ -4391,11 +4482,12 @@ void apply_ik_midi_fret_target(Character& character,
     set_local_from_world(bone.local, desired_world, parent_world);
     if (debug_ik_enabled()) {
       std::fprintf(stderr,
-                   "[ikmidi] %s bone=%s spot=%s age=%.3f weight=%.3f "
+                   "[ikmidi] %s bone=%s spot=%s age=%.3f blend=%.3f "
+                   "weight=%.3f "
                    "target=[%.3f %.3f %.3f]\n",
                    ik.name.c_str(), bone.name.c_str(), spot_name.c_str(),
-                   age, std::clamp(weight, 0.0f, 1.0f), desired_world[12],
-                   desired_world[13], desired_world[14]);
+                   age, blend_seconds, std::clamp(weight, 0.0f, 1.0f),
+                   desired_world[12], desired_world[13], desired_world[14]);
     }
   }
 }

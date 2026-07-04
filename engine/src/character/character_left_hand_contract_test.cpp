@@ -81,9 +81,12 @@ int main() {
   const std::filesystem::path game_dir = GHOGX_GAME_SOURCE_DIR;
   const std::string char_clip =
       read_file(character_dir / "char_clip.cpp");
+  const std::string char_renderer =
+      read_file(character_dir / "char_renderer.cpp");
   const std::string gameplay =
       read_file(game_dir / "gameplay.cpp");
   const std::string char_clip_c = compact(char_clip);
+  const std::string char_renderer_c = compact(char_renderer);
   const std::string gameplay_c = compact(gameplay);
   const std::string gameplay_draw_c =
       compact(function_body(gameplay, "void Gameplay::draw("));
@@ -107,6 +110,16 @@ int main() {
                  "apply_clip_pose_output_layer(hand_channels,1.0f,character,"
                  "hand_relative,hand_output_bones,true);",
                  "hand-driver child rows stay hand-local before IK");
+  ok &= contains(char_clip_c,
+                 "staticboolis_constant_fret_hand_target_key("
+                 "conststd::string&key){returnkey==\"bone_fret_hand\";}",
+                 "constant fret-hand target root is sourced from hand output");
+  ok &= contains(char_clip_c,
+                 "if(force_selected_output){for(size_ti=0;i<nodes.size();++i)"
+                 "{if(node_driven[i])continue;"
+                 "if(is_constant_fret_hand_target_key(nodes[i].key)){"
+                 "node_driven[i]=true;}}}",
+                 "hand output applies authored constant bone_fret_hand rows");
   ok &= contains(char_clip_c,
                  "constautoik_hands=ps2_ordered_ik_hands(character);",
                  "PS2 IK hand polling order is used");
@@ -160,6 +173,66 @@ int main() {
   ok &= contains(gameplay_c,
                  "env_float(\"GHOGX_CHAR_HAND_DRIVER_BLEND_SECONDS\",0.08f)",
                  "hand-driver scheduler blend uses the traced fast default");
+  ok &= contains(char_clip_c,
+                 "env_float_or(\"GHOGX_IKMIDI_BLEND_SECONDS\",0.08f)",
+                 "MIDI fret-position target blend uses the fast hand default");
+  ok &= contains(char_clip_c,
+                 "std::clamp(env_float_or(\"GHOGX_IKMIDI_BLEND_SECONDS\","
+                 "0.08f),0.0f,0.22f)",
+                 "MIDI fret-position target blend is capped at parser min-gap");
+  ok &= contains(char_clip_c,
+                 "blend=%.3f",
+                 "MIDI fret-position target logs the resolved blend width");
+  ok &= contains(gameplay_c,
+                 "\"[hand-active-fret-prop]phase=%.*srole=%.*s\"",
+                 "left-hand prop diagnostics log the active fret target");
+  ok &= contains(gameplay_c,
+                 "dump_left_hand_contact_rows(character,role,phase,song_time,"
+                 "tick,mask,active_fret_spot);",
+                 "left-hand diagnostics compare points against active fret target");
+  ok &= contains(char_renderer_c,
+                 "if(bone.parent!=prop_anchor->parent)return;",
+                 "selected guitar prop anchors require matching parent rows");
+  ok &= contains(char_renderer_c,
+                 "reconcile_instrument_anchor(impl_->character,"
+                 "impl_->original_bone_local,impl_->prop_scene,"
+                 "impl_->prop_attach_bone,\"bone_fret_hand.mesh\");",
+                 "left-hand IK target bind row records the selected guitar prop child anchor");
+  ok &= contains(char_renderer_c,
+                 "for(intfret=1;fret<=20;++fret){std::snprintf(anchor,"
+                 "sizeof(anchor),\"spot_neck_fret%02d.mesh\",fret);"
+                 "reconcile_instrument_anchor(character,original_locals,"
+                 "prop_scene,attach_bone,anchor);}",
+                 "active fret-position targets are sourced from the selected guitar prop");
+  ok &= contains(char_renderer_c,
+                 "source=prop-asset",
+                 "instrument anchor logs identify selected guitar prop rows");
+  ok &= contains(char_renderer_c,
+                 "bone.local=prop_anchor->local;",
+                 "renderer prop reconciliation does not inject live animation target rows");
+  ok &= contains(char_clip_c,
+                 "[clip-output]%-28sparent=%-28slocalPos=(%.3f%.3f%.3f)",
+                 "live fret-hand target rows are decoded from CharBone output data");
+  ok &= contains(char_clip_c,
+                 "returnis_hand_driver_root_key(key)||key==\"bone_facing\"",
+                 "CharBone output diagnostics include fret-hand root targets");
+  ok &= contains(char_renderer_c,
+                 "boolis_guitar_strings_prop_mesh(conststd::string&name){"
+                 "returnname==\"guitar_strings.mesh\";}",
+                 "attached guitar string mesh is identified explicitly");
+  ok &= contains(char_renderer_c,
+                 "constboolstring_texture_alpha=texture&&"
+                 "is_guitar_strings_prop_mesh(m.name);",
+                 "guitar strings preserve texture alpha without changing all props");
+  ok &= contains(char_renderer_c,
+                 "dev->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);",
+                 "guitar string prop alpha samples the diffuse texture alpha");
+  ok &= contains(char_renderer_c,
+                 "\"[prop-alpha]mesh=%smat=%stex=%ssize=%dx%d\"",
+                 "prop alpha diagnostics prove the string texture alpha path");
+  ok &= contains(char_renderer_c,
+                 "\"[prop-alpha-counts]mesh=%svertZero=%dvertLt32=%d\"",
+                 "prop alpha diagnostics expose string texture transparency counts");
   ok &= contains(gameplay_c,
                  "returnname==\"bone_facing\"||name.find(\"pelvis\")",
                  "hand overlays strip the body-facing root with lower-body rows");

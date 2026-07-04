@@ -100,6 +100,24 @@ bool debug_gameplay_camera_enabled() {
     return env_value("GHOGX_DEBUG_GAMEPLAY_CAMERA") != nullptr;
 }
 
+bool diagnostic_hide_highway_enabled() {
+    return env_value("GHOGX_HIDE_HIGHWAY") != nullptr ||
+           env_value("GHOGX_DIAGNOSTIC_HIDE_HIGHWAY") != nullptr;
+}
+
+void log_diagnostic_highway_hidden_once(double song_time, bool over_scene) {
+    static bool logged_over_scene = false;
+    static bool logged_direct = false;
+    bool& logged = over_scene ? logged_over_scene : logged_direct;
+    if (logged) return;
+    logged = true;
+    std::fprintf(stderr,
+                 "[diagnostic-highway] hidden mode=%s t=%.3f env=%s\n",
+                 over_scene ? "over_scene" : "direct", song_time,
+                 env_value("GHOGX_HIDE_HIGHWAY") ? "GHOGX_HIDE_HIGHWAY"
+                                                 : "GHOGX_DIAGNOSTIC_HIDE_HIGHWAY");
+}
+
 bool debug_gameplay_session_enabled() {
     return env_value("GHOGX_DEBUG_GAMEPLAY_SESSION") != nullptr;
 }
@@ -1658,7 +1676,8 @@ void dump_left_hand_prop_contact_rows(
     const ghogx::character::Character& character, std::string_view role,
     std::string_view phase, double song_time, uint32_t tick, uint32_t mask,
     const std::array<float, 16>* performer_world,
-    const std::array<float, 16>* guitar_strings_world) {
+    const std::array<float, 16>* guitar_strings_world,
+    const std::string* active_fret_spot) {
     if (!debug_left_hand_contact_enabled() || !performer_world ||
         !guitar_strings_world) {
         return;
@@ -1703,6 +1722,36 @@ void dump_left_hand_prop_contact_rows(
                  (*guitar_strings_world)[8], (*guitar_strings_world)[9],
                  (*guitar_strings_world)[10]);
 
+    if (active_fret_spot && !active_fret_spot->empty()) {
+        const auto* spot = find_hand_pose_bone(character, active_fret_spot->c_str());
+        if (spot) {
+            const auto spot_world = character.bone_world_local_chain(spot->name);
+            const auto spot_pos = mat4_pos_game(spot_world);
+            const auto staged = mat4_xform_point_game(*performer_world, spot_pos);
+            const auto local = mat4_xform_point_game(inv_strings, staged);
+            std::fprintf(stderr,
+                         "[hand-active-fret-prop] phase=%.*s role=%.*s "
+                         "t=%.3f tick=%u mask=0x%02x spot=%s exact=%s "
+                         "stringsLocal=(%.5f %.5f %.5f) "
+                         "char=(%.5f %.5f %.5f) world=(%.5f %.5f %.5f)\n",
+                         static_cast<int>(phase.size()), phase.data(),
+                         static_cast<int>(role.size()), role.data(),
+                         song_time, tick, mask & 0x1fu,
+                         active_fret_spot->c_str(), spot->name.c_str(),
+                         local[0], local[1], local[2], spot_pos[0],
+                         spot_pos[1], spot_pos[2], staged[0], staged[1],
+                         staged[2]);
+        } else {
+            std::fprintf(stderr,
+                         "[hand-active-fret-prop] phase=%.*s role=%.*s "
+                         "t=%.3f tick=%u mask=0x%02x spot=%s resolved=0\n",
+                         static_cast<int>(phase.size()), phase.data(),
+                         static_cast<int>(role.size()), role.data(),
+                         song_time, tick, mask & 0x1fu,
+                         active_fret_spot->c_str());
+        }
+    }
+
     for (const char* point_name : kPoints) {
         const auto* point = find_hand_pose_bone(character, point_name);
         if (!point) continue;
@@ -1725,7 +1774,8 @@ void dump_left_hand_prop_contact_rows(
 
 void dump_left_hand_contact_rows(
     const ghogx::character::Character& character, std::string_view role,
-    std::string_view phase, double song_time, uint32_t tick, uint32_t mask) {
+    std::string_view phase, double song_time, uint32_t tick, uint32_t mask,
+    const std::string* active_fret_spot) {
     if (!debug_left_hand_contact_enabled()) return;
     if (const char* only = env_value("GHOGX_DEBUG_LEFT_HAND_CONTACT_ROLE")) {
         if (role != only) return;
@@ -1754,9 +1804,9 @@ void dump_left_hand_contact_rows(
         "bone_L-pinky01",
     };
 
-    for (const char* ref_name : kRefs) {
+    auto log_ref = [&](const char* ref_name) {
         const auto* ref = find_hand_pose_bone(character, ref_name);
-        if (!ref) continue;
+        if (!ref) return;
         const auto ref_world = character.bone_world_local_chain(ref->name);
         const auto ref_pos = mat4_pos_game(ref_world);
         std::fprintf(stderr,
@@ -1790,6 +1840,21 @@ void dump_left_hand_contact_rows(
                          point->name.c_str(), d[0], d[1], d[2], point_pos[0],
                          point_pos[1], point_pos[2]);
         }
+    };
+
+    for (const char* ref_name : kRefs) {
+        log_ref(ref_name);
+    }
+    if (active_fret_spot && !active_fret_spot->empty()) {
+        bool already_logged = false;
+        for (const char* ref_name : kRefs) {
+            if (*active_fret_spot == ref_name ||
+                *active_fret_spot == std::string(ref_name) + ".mesh") {
+                already_logged = true;
+                break;
+            }
+        }
+        if (!already_logged) log_ref(active_fret_spot->c_str());
     }
 }
 
@@ -1799,7 +1864,8 @@ void dump_hand_pose_rows(const ghogx::character::Character& character,
                          const std::vector<std::string>& strum_clips,
                          const std::vector<std::string>& fret_clips,
                          const std::array<float, 16>* performer_world,
-                         const std::array<float, 16>* guitar_strings_world) {
+                         const std::array<float, 16>* guitar_strings_world,
+                         const std::string* active_fret_spot) {
     const bool dump_rows = debug_hand_pose_rows_enabled();
     const bool dump_contact = debug_left_hand_contact_enabled();
     if (!dump_rows && !dump_contact) return;
@@ -1821,10 +1887,11 @@ void dump_hand_pose_rows(const ghogx::character::Character& character,
 
     if (dump_contact) {
         dump_left_hand_contact_rows(character, role, phase, song_time, tick,
-                                    mask);
+                                    mask, active_fret_spot);
         dump_left_hand_prop_contact_rows(character, role, phase, song_time,
                                          tick, mask, performer_world,
-                                         guitar_strings_world);
+                                         guitar_strings_world,
+                                         active_fret_spot);
     }
     if (!dump_rows) return;
 
@@ -14863,6 +14930,20 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
 
     quickplay_rig_ = resolve_quickplay_rig(hdr_path, ark_path, shortname);
     if (quickplay_rig_) {
+        if (!diagnostic_character_override_.empty()) {
+            std::fprintf(stderr,
+                         "[world] diagnostic character override: %s -> %s\n",
+                         quickplay_rig_->character_outfit.c_str(),
+                         diagnostic_character_override_.c_str());
+            quickplay_rig_->character_outfit = diagnostic_character_override_;
+        }
+        if (!diagnostic_guitar_override_.empty()) {
+            std::fprintf(stderr,
+                         "[world] diagnostic guitar override: %s -> %s\n",
+                         quickplay_rig_->guitar.c_str(),
+                         diagnostic_guitar_override_.c_str());
+            quickplay_rig_->guitar = diagnostic_guitar_override_;
+        }
         const std::string char_milo =
             "char/" + quickplay_rig_->character_outfit + "/og/gen/" +
             quickplay_rig_->character_outfit + ".milo_ps2";
@@ -20603,12 +20684,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         ? perf.renderer->attached_prop_world(
                               "guitar_strings.mesh")
                         : std::nullopt;
+                const std::string* active_fret_spot =
+                    perf_fret_pos.active ? &perf_fret_pos.spot_name : nullptr;
                 dump_hand_pose_rows(
                     character, perf.role, "postclip", song_time_,
                     debug_hand_tick, debug_hand_mask,
                     perf.active_strum_clip_names, perf.active_fret_clip_names,
                     &perf.world_transform,
-                    guitar_strings_world ? &*guitar_strings_world : nullptr);
+                    guitar_strings_world ? &*guitar_strings_world : nullptr,
+                    active_fret_spot);
             }
             ghogx::character::clear_runtime_ik_weights(character);
             if (hand_driver_active) {
@@ -20666,12 +20750,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         ? perf.renderer->attached_prop_world(
                               "guitar_strings.mesh")
                         : std::nullopt;
+                const std::string* active_fret_spot =
+                    perf_fret_pos.active ? &perf_fret_pos.spot_name : nullptr;
                 dump_hand_pose_rows(
                     character, perf.role, "postcontrollers", song_time_,
                     debug_hand_tick, debug_hand_mask,
                     perf.active_strum_clip_names, perf.active_fret_clip_names,
                     &perf.world_transform,
-                    guitar_strings_world ? &*guitar_strings_world : nullptr);
+                    guitar_strings_world ? &*guitar_strings_world : nullptr,
+                    active_fret_spot);
             }
             if (perf.facefx_graph) {
                 auto registers =
@@ -21359,6 +21446,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
             perf.renderer->set_min_lod(active_force_char_lod_);
             perf.renderer->draw_over_scene(world_->camera());
         }
+        if (diagnostic_hide_highway_enabled()) {
+            log_diagnostic_highway_hidden_once(song_time_, true);
+            return;
+        }
         if (!highway_) {
             highway_ = std::make_unique<HighwayRenderer>(win);
         }
@@ -21378,6 +21469,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
         return;
     }
 
+    if (diagnostic_hide_highway_enabled()) {
+        log_diagnostic_highway_hidden_once(song_time_, false);
+        return;
+    }
     if (!highway_) {
         highway_ = std::make_unique<HighwayRenderer>(win);
     }

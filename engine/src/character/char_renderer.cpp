@@ -335,6 +335,10 @@ bool is_hair_render_mesh(const SkinnedMesh& m) {
   return is_hair_mesh_name(m.name) || is_hair_material_name(m.material);
 }
 
+bool is_guitar_strings_prop_mesh(const std::string& name) {
+  return name == "guitar_strings.mesh";
+}
+
 bool is_bone_parent_name(const std::string& n) {
   return n.rfind("bone_", 0) == 0 || n.rfind("spot_", 0) == 0 ||
          n.find(".mesh") != std::string::npos ||
@@ -1113,12 +1117,16 @@ void reconcile_instrument_anchor(Character& character,
                                  const std::string& attach_bone,
                                  const char* anchor_name) {
   const auto* prop_anchor = scene_trans(prop_scene, anchor_name);
-  if (!prop_anchor || prop_anchor->parent != attach_bone) return;
+  if (!prop_anchor) return;
 
   const int bone_i = character_bone_index(character, anchor_name);
   if (bone_i < 0) return;
   auto& bone = character.bones[static_cast<size_t>(bone_i)];
-  if (bone.parent != attach_bone) return;
+  if (bone.parent != prop_anchor->parent) return;
+  if (prop_anchor->parent != attach_bone &&
+      character_bone_index(character, prop_anchor->parent) < 0) {
+    return;
+  }
 
   const auto old = bone.local;
   bone.local = prop_anchor->local;
@@ -1130,10 +1138,23 @@ void reconcile_instrument_anchor(Character& character,
 
   std::fprintf(stderr,
                "[char3d] instrument anchor %s from prop '%s': "
-               "local=(%.4f %.4f %.4f) was=(%.4f %.4f %.4f)\n",
+               "parent=%s local=(%.4f %.4f %.4f) "
+               "was=(%.4f %.4f %.4f) source=prop-asset\n",
                anchor_name, prop_scene.dir_name.c_str(),
-               prop_anchor->local.pos[0], prop_anchor->local.pos[1],
-               prop_anchor->local.pos[2], old.pos[0], old.pos[1], old.pos[2]);
+               prop_anchor->parent.c_str(), prop_anchor->local.pos[0],
+               prop_anchor->local.pos[1], prop_anchor->local.pos[2],
+               old.pos[0], old.pos[1], old.pos[2]);
+}
+
+void reconcile_instrument_fret_targets(
+    Character& character, std::vector<milo_scene::Xfm>& original_locals,
+    const milo_scene::Scene& prop_scene, const std::string& attach_bone) {
+  char anchor[32];
+  for (int fret = 1; fret <= 20; ++fret) {
+    std::snprintf(anchor, sizeof(anchor), "spot_neck_fret%02d.mesh", fret);
+    reconcile_instrument_anchor(character, original_locals, prop_scene,
+                                attach_bone, anchor);
+  }
 }
 
 std::array<float, 16> mul16(const std::array<float, 16>& a,
@@ -1333,6 +1354,68 @@ void log_texture_alpha_stats(const SkinnedMesh& mesh,
                mesh.name.c_str(), tri_lt96, tri_opaque, c96, co, m96, mo);
 }
 
+void log_prop_texture_alpha_stats(const milo_scene::MeshObj& mesh,
+                                  const milo_scene::MatObj* material,
+                                  const ghogx::asset::Image* image,
+                                  bool texture_alpha_enabled) {
+  if (!image || !image->valid() || mesh.verts.empty()) return;
+  int vert_zero = 0;
+  int vert_lt32 = 0;
+  int vert_lt96 = 0;
+  int vert_opaque = 0;
+  for (const auto& vert : mesh.verts) {
+    const uint8_t alpha = sample_alpha(*image, vert.u, vert.v);
+    if (alpha == 0) ++vert_zero;
+    if (alpha < 32) ++vert_lt32;
+    if (alpha < 96) ++vert_lt96;
+    if (alpha >= 250) ++vert_opaque;
+  }
+
+  int tri_zero = 0;
+  int tri_lt32 = 0;
+  int tri_lt96 = 0;
+  int tri_opaque = 0;
+  int tri_samples = 0;
+  for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3) {
+    const uint16_t ia = mesh.indices[i + 0];
+    const uint16_t ib = mesh.indices[i + 1];
+    const uint16_t ic = mesh.indices[i + 2];
+    if (ia >= mesh.verts.size() || ib >= mesh.verts.size() ||
+        ic >= mesh.verts.size()) {
+      continue;
+    }
+    const auto& a = mesh.verts[ia];
+    const auto& b = mesh.verts[ib];
+    const auto& c = mesh.verts[ic];
+    const float u = (a.u + b.u + c.u) / 3.0f;
+    const float v = (a.v + b.v + c.v) / 3.0f;
+    const uint8_t alpha = sample_alpha(*image, u, v);
+    ++tri_samples;
+    if (alpha == 0) ++tri_zero;
+    if (alpha < 32) ++tri_lt32;
+    if (alpha < 96) ++tri_lt96;
+    if (alpha >= 250) ++tri_opaque;
+  }
+
+  std::fprintf(stderr,
+               "[prop-alpha] mesh=%s mat=%s tex=%s size=%dx%d "
+               "textureAlpha=%d verts=%u a0=%d a<32=%d a<96=%d opaque=%d "
+               "tris=%d a0=%d a<32=%d a<96=%d opaque=%d\n",
+               mesh.name.c_str(), mesh.material.c_str(),
+               material ? material->diffuse_tex.c_str() : "", image->width,
+               image->height, texture_alpha_enabled ? 1 : 0,
+               static_cast<unsigned>(mesh.verts.size()), vert_zero, vert_lt32,
+               vert_lt96, vert_opaque, tri_samples, tri_zero, tri_lt32,
+               tri_lt96, tri_opaque);
+  std::fprintf(stderr,
+               "[prop-alpha-counts] mesh=%s vertZero=%d vertLt32=%d "
+               "vertLt96=%d vertOpaque=%d triSamples=%d triZero=%d "
+               "triLt32=%d triLt96=%d triOpaque=%d\n",
+               mesh.name.c_str(), vert_zero, vert_lt32, vert_lt96,
+               vert_opaque, tri_samples, tri_zero, tri_lt32, tri_lt96,
+               tri_opaque);
+}
+
 void log_vertex_float_stats(const SkinnedMesh& mesh) {
   if (mesh.verts.empty()) return;
   float mn[4] = {mesh.verts[0].w[0], mesh.verts[0].w[1], mesh.verts[0].w[2],
@@ -1372,6 +1455,8 @@ struct CharRenderer::Impl {
   std::set<std::string> logged_texture_alpha_meshes;
   milo_scene::Scene prop_scene;
   std::map<std::string, IDirect3DTexture9*> prop_tex;
+  std::map<std::string, ghogx::asset::Image> prop_tex_images;
+  std::set<std::string> logged_prop_texture_alpha_meshes;
   std::string prop_attach_bone;
   bool has_prop = false;
   bool logged_prop_debug = false;
@@ -1606,12 +1691,21 @@ void CharRenderer::set_attached_prop(
   for (auto& kv : impl_->prop_tex)
     if (kv.second) kv.second->Release();
   impl_->prop_tex.clear();
+  impl_->prop_tex_images = textures;
+  impl_->logged_prop_texture_alpha_meshes.clear();
   impl_->prop_scene = std::move(scene);
   impl_->prop_attach_bone = attach_bone;
   impl_->has_prop = true;
   reconcile_instrument_anchor(impl_->character, impl_->original_bone_local,
                               impl_->prop_scene, impl_->prop_attach_bone,
                               "bone_fret.mesh");
+  reconcile_instrument_anchor(impl_->character, impl_->original_bone_local,
+                              impl_->prop_scene, impl_->prop_attach_bone,
+                              "bone_fret_hand.mesh");
+  reconcile_instrument_fret_targets(impl_->character,
+                                    impl_->original_bone_local,
+                                    impl_->prop_scene,
+                                    impl_->prop_attach_bone);
   for (const auto& kv : textures) {
     IDirect3DTexture9* t = upload(kv.second);
     if (t) impl_->prop_tex[kv.first] = t;
@@ -2179,12 +2273,12 @@ void CharRenderer::draw_impl(bool clear_target) {
 
   if (impl.has_prop && !impl.prop_attach_bone.empty() &&
       !hide_attached_props_enabled()) {
-    // Instrument textures are authored as opaque props in this path. Some PS2
-    // prop texture alpha decodes as low/zero, so carrying the character alpha
-    // test into prop drawing can discard a correctly loaded guitar entirely.
+    // Most instrument prop surfaces are opaque, but the authored string card is
+    // a texture-alpha cutout and must keep its diffuse texture alpha.
     dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
     dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
     dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+    dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
     dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
     dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
@@ -2260,17 +2354,47 @@ void CharRenderer::draw_impl(bool clear_target) {
       dev->SetTransform(D3DTS_WORLD, &wm);
 
       IDirect3DTexture9* texture = nullptr;
-      if (const auto* mat = impl.prop_scene.find_mat(m.material)) {
+      const milo_scene::MatObj* mat = impl.prop_scene.find_mat(m.material);
+      const ghogx::asset::Image* texture_image = nullptr;
+      if (mat) {
         auto it = impl.prop_tex.find(mat->diffuse_tex);
         if (it != impl.prop_tex.end()) texture = it->second;
+        auto image_it = impl.prop_tex_images.find(mat->diffuse_tex);
+        if (image_it != impl.prop_tex_images.end())
+          texture_image = &image_it->second;
+      }
+
+      const bool string_texture_alpha =
+          texture && is_guitar_strings_prop_mesh(m.name);
+      if (debug_texture_alpha_enabled() &&
+          impl.logged_prop_texture_alpha_meshes.insert(m.name).second) {
+        log_prop_texture_alpha_stats(m, mat, texture_image,
+                                     string_texture_alpha);
       }
       if (texture) {
         dev->SetTexture(0, texture);
         dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-        dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
-        dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+        if (string_texture_alpha) {
+          dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+          dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+          dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+          dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+          dev->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+          dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+          dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+          dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+        } else {
+          dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+          dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+          dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+          dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+          dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+        }
       } else {
         dev->SetTexture(0, nullptr);
+        dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+        dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+        dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
         dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
         dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
         dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
@@ -2298,6 +2422,7 @@ void CharRenderer::draw_impl(bool clear_target) {
   }
 
   dev->SetTexture(0, nullptr);
+  dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
   dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
   dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
   dev->EndScene();

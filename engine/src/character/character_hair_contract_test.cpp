@@ -89,6 +89,21 @@ int main() {
                  "constboolfollow_only_group=group.points.size()==1&&!"
                  "single_point_hair_solver_enabled();",
                  "single-point hair stays follow-only by default");
+  ok &= contains(char_clip_c,
+                 "[charhair-source]",
+                 "hair debug log inventories decoded CharHair data");
+  ok &= contains(char_clip_c,
+                 "source=decoded-CharHair",
+                 "hair source log names decoded CharHair as the evidence path");
+  ok &= contains(char_clip_c,
+                 "followOnlyGroups=%zu",
+                 "hair source log distinguishes one-point follow groups");
+  ok &= contains(char_clip_c,
+                 "ps2SingleState=%s",
+                 "hair source log exposes rejected single-point probe state");
+  ok &= contains(apply_hair_c,
+                 "log_char_hair_source_once(character,hair);",
+                 "CharHair source inventory runs from the native hair poller");
   ok &= contains(apply_hair_c,
                  "character.runtime_world_overrides[*target.name]="
                  "desired_world;",
