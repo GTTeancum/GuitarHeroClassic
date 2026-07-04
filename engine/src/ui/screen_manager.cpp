@@ -11,11 +11,74 @@ namespace ghogx::ui {
 
 ScreenManager::ScreenManager() = default;
 
+namespace {
+
+int direct_audit_score(ScreenManager* mgr) {
+  if (!mgr) return 0;
+  if (Object* player = mgr->resolve_object(Symbol("player0"))) {
+    int score = player->handle_property(Symbol("score"), DataArray())
+                    .as_int()
+                    .value_or(0);
+    if (score > 0) return score;
+  }
+  if (Object* campaign = mgr->resolve_object(Symbol("campaign"))) {
+    return campaign->handle_property(Symbol("career_score"), DataArray())
+        .as_int()
+        .value_or(0);
+  }
+  return 0;
+}
+
+void seed_cashaward_from_campaign(ScreenManager* mgr, Object* screen) {
+  if (!mgr || !screen) return;
+  if (screen->name() != Symbol("cashaward_screen") ||
+      screen->get_property(Symbol("new_cash")).as_int().value_or(0) > 0) {
+    return;
+  }
+  Object* campaign = mgr->resolve_object(Symbol("campaign"));
+  if (!campaign) return;
+  DataArray args;
+  args.push(DataNode::Int(direct_audit_score(mgr)));
+  auto result = campaign->handle_property(Symbol("finish_song"), args).as_array();
+  if (!result || result->size() < 3) return;
+  screen->set_property(Symbol("new_cash"), result->at(1));
+  screen->set_property(Symbol("new_cash_reason"), result->at(2));
+}
+
+void seed_direct_screen_state(ScreenManager* mgr, Object* screen) {
+  if (!screen) return;
+  const char* name = screen->name().c_str();
+  if (Object* gamecfg = mgr ? mgr->resolve_object(Symbol("gamecfg")) : nullptr) {
+    if (std::strcmp(name, "endgame_screen") == 0 ||
+        std::strcmp(name, "cashaward_screen") == 0) {
+      gamecfg->set_property(Symbol("mode"), DataNode::Sym(Symbol("career")));
+    } else if (std::strcmp(name, "multi_compete_screen") == 0) {
+      gamecfg->set_property(Symbol("mode"), DataNode::Sym(Symbol("multi_vs")));
+    } else if (std::strcmp(name, "multi_compete_coop_screen") == 0) {
+      gamecfg->set_property(Symbol("mode"), DataNode::Sym(Symbol("multi_coop")));
+    }
+  }
+  seed_cashaward_from_campaign(mgr, screen);
+  if (std::strcmp(name, "multi_sel_character_screen") == 0) {
+    if (Object* p = mgr ? mgr->find_object(Symbol("multi_char_outfit0")) : nullptr)
+      p->set_property(Symbol("active"), DataNode::Int(0));
+    if (Object* p = mgr ? mgr->find_object(Symbol("multi_char_outfit1")) : nullptr)
+      p->set_property(Symbol("active"), DataNode::Int(0));
+  }
+}
+
+}  // namespace
+
 // --- registry --------------------------------------------------------------
 void ScreenManager::add_object(std::unique_ptr<Object> obj) {
   registry_.add(std::move(obj));
 }
 Object* ScreenManager::find_object(Symbol name) { return registry_.find(name); }
+
+void ScreenManager::register_runtime_class(Symbol cls, RuntimeCreator creator) {
+  if (!cls.valid() || !creator) return;
+  runtime_creators_[cls.id()] = std::move(creator);
+}
 
 void ScreenManager::add_singleton(Symbol name, std::unique_ptr<Object> obj) {
   singletons_[name.id()] = obj.get();
@@ -72,11 +135,23 @@ void ScreenManager::exit_sequence(Object* screen, bool back) {
 
 void ScreenManager::enter_sequence(Object* screen, bool back) {
   if (!screen) return;
+  seed_direct_screen_state(this, screen);
   send_screen_panels(screen, Symbol("change_proxies"), /*screen_first=*/false);
   send_screen_panels(screen, Symbol("load"), /*screen_first=*/false);
   send_screen_panels(screen, Symbol("finish_load"), /*screen_first=*/false);
   screen->handle_property(back ? Symbol("ui_enter_back") : Symbol("ui_enter"), DataArray());
   send_screen_panels(screen, Symbol("enter"), /*screen_first=*/false);  // sub-objects then screen
+  const char* screen_name = screen->name().c_str();
+  const bool loading_screen =
+      std::strcmp(screen_name, "loading_screen") == 0 ||
+      std::strcmp(screen_name, "practice_loading_screen") == 0;
+  // Loading completion is driven by async bank/song load state in the retail
+  // game. The menu editor has no gameplay load to wait on, so keep these
+  // screens inspectable instead of immediately firing their game-screen jump.
+  if (!loading_screen) {
+    send_screen_panels(screen, Symbol("TRANSITION_COMPLETE_MSG"),
+                       /*screen_first=*/false);
+  }
   // Scene-state ID is refined per-screen (harmonix_symbols.h:904) when the
   // gameplay handoff is wired; menus are NORMAL/MENU here.
   scene_state_ = 1;
@@ -130,6 +205,11 @@ DataNode ScreenManager::run_script(const gh::dtb::NodeList& roots) {
   return last;
 }
 
+void ScreenManager::set_locale(const std::map<std::string, std::string>& locale) {
+  locale_.clear();
+  for (const auto& kv : locale) locale_.emplace(kv.first, kv.second);
+}
+
 // --- Object (the `ui` object messages) -------------------------------------
 DataNode ScreenManager::handle_property(Symbol msg, const DataArray& args) {
   const char* m = msg.c_str();
@@ -177,8 +257,33 @@ DataNode ScreenManager::get_global(Symbol name) {
 void ScreenManager::set_global(Symbol name, DataNode value) {
   globals_[name.id()] = std::move(value);
 }
+Object* ScreenManager::create_object(Symbol cls, Symbol name) {
+  if (!cls.valid() || !name.valid()) return nullptr;
+  std::unique_ptr<Object> obj;
+  auto creator = runtime_creators_.find(cls.id());
+  if (creator != runtime_creators_.end()) {
+    obj = creator->second(name);
+  } else {
+    obj = ClassReg::instance().create(cls);
+  }
+  if (!obj) return nullptr;
+  obj->set_name(name);
+  if (auto* ui = dynamic_cast<UiObject*>(obj.get())) ui->set_manager(this);
+  return registry_.add(std::move(obj));
+}
+std::shared_ptr<gh::dtb::Node> ScreenManager::resolve_function(Symbol name) {
+  auto it = functions_.find(name.id());
+  return it == functions_.end() ? nullptr : it->second;
+}
+std::string ScreenManager::localize(Symbol token) {
+  auto it = locale_.find(token.c_str());
+  return it == locale_.end() ? std::string(token.c_str()) : it->second;
+}
 void ScreenManager::on_unhandled(const std::string& what) {
   if (unhandled_seen_.emplace(what, true).second) unhandled_.push_back(what);
+}
+void ScreenManager::add_function(Symbol name, std::shared_ptr<gh::dtb::Node> block) {
+  functions_[name.id()] = std::move(block);
 }
 
 // --- singleton stubs -------------------------------------------------------
@@ -198,6 +303,17 @@ class StubObject : public Object {
     const char* m = msg.c_str();
     if (std::strcmp(c, "taskmgr") == 0 && std::strcmp(m, "ui_seconds") == 0)
       return DataNode::Float(mgr_->ui_seconds());
+    if (std::strcmp(c, "options") == 0 &&
+        std::strcmp(m, "get_sync_offset") == 0) {
+      DataNode offset = get_property(Symbol("sync_offset"));
+      return offset.empty() ? DataNode::Int(0) : offset;
+    }
+    if (std::strcmp(c, "options") == 0 &&
+        std::strcmp(m, "set_sync_offset") == 0) {
+      set_property(Symbol("sync_offset"),
+                   args.size() ? args.at(0) : DataNode::Int(0));
+      return DataNode();
+    }
     if (std::strcmp(m, "num_profiles") == 0) return DataNode::Int(0);
     if (std::strcmp(m, "tutorials_done") == 0) return DataNode::Int(1);
     if (std::strcmp(m, "is_missing_multi_controller") == 0) return DataNode::Sym(Symbol("TRUE"));
@@ -220,8 +336,8 @@ class StubObject : public Object {
 
 void install_default_singletons(ScreenManager& mgr) {
   static const char* kNames[] = {"taskmgr",      "game",    "gamecfg",   "campaign",
-                                 "synth",        "profilemgr", "meta",   "song_provider",
-                                 "content_mgr",  "helpbar", "options",   "leaderboards"};
+                                 "synth",        "profilemgr", "song_provider",
+                                 "content_mgr",  "options",   "leaderboards"};
   for (const char* n : kNames)
     mgr.add_singleton(Symbol(n), std::make_unique<StubObject>(Symbol(n), &mgr));
 }

@@ -4,6 +4,7 @@
 
 #include "core/object.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -43,18 +44,56 @@ DataNode to_literal(const Node& n) {
 
 Object* node_to_object(const DataNode& v, Env& env) {
   if (Object* o = v.as_object()) return o;
-  if (auto s = v.as_symbol()) return env.host ? env.host->resolve_object(*s) : nullptr;
+  if (auto s = v.as_string()) return env.host ? env.host->resolve_object(Symbol(*s)) : nullptr;
   return nullptr;
+}
+
+std::shared_ptr<DataArray> array_value(const DataNode& v, Env& env) {
+  if (auto a = v.as_array()) return a;
+  if (auto s = v.as_string()) {
+    if (env.host) {
+      if (auto a = env.host->get_global(Symbol(*s)).as_array()) return a;
+    }
+  }
+  return nullptr;
+}
+
+int int_value(const DataNode& v, int fallback = 0) {
+  if (auto i = v.as_int()) return *i;
+  if (auto f = v.as_float()) return static_cast<int>(*f);
+  if (auto arr = v.as_array()) {
+    if (arr->size() == 1) return int_value(arr->at(0), fallback);
+  }
+  return fallback;
+}
+
+DataNode bi_new(const Node& cmd, Env& env) {
+  const auto& kids = gh::dtb::children(cmd);
+  if (kids.size() < 3 || !env.host) return DataNode();
+  if (!is_symbol(*kids[1]) || !is_symbol(*kids[2])) {
+    env.host->on_unhandled("new?:args");
+    return DataNode();
+  }
+  Symbol cls = node_sym(*kids[1]);
+  Symbol name = node_sym(*kids[2]);
+  if (Object* obj = env.host->create_object(cls, name))
+    return DataNode::Obj(obj);
+  env.host->on_unhandled(std::string("new?:") + cls.c_str());
+  return DataNode();
 }
 
 // --- builtin table ---------------------------------------------------------
 enum Builtin {
   BI_NONE = 0,
-  BI_IF, BI_IF_ELSE, BI_DO, BI_SWITCH, BI_FOREACH, BI_SET,
+  BI_IF, BI_IF_ELSE, BI_COND, BI_DO, BI_SWITCH, BI_FOREACH, BI_SET,
   BI_EQ, BI_NE, BI_LT, BI_GT, BI_LE, BI_GE,
   BI_NOT, BI_AND, BI_OR,
   BI_ADD, BI_SUB, BI_MUL, BI_DIV,
-  BI_SPRINTF, BI_LOCALIZE, BI_PRINT,
+  BI_TO_INT, BI_MAX, BI_MOD, BI_PLUS_EQ, BI_INC,
+  BI_ELEM, BI_RANDOM_ELEM, BI_REMOVE_ELEM, BI_PUSH_BACK, BI_RESIZE,
+  BI_FIND_ELEM, BI_SIZE,
+  BI_FOREACH_INT, BI_NEW, BI_PRINTF, BI_SCRIPT, BI_SCRIPT_TASK,
+  BI_SPRINT, BI_SPRINTF, BI_LOCALIZE, BI_PRINT,
 };
 
 int lookup_builtin(Symbol s) {
@@ -62,15 +101,26 @@ int lookup_builtin(Symbol s) {
     std::unordered_map<const void*, int> m;
     auto add = [&](const char* name, int id) { m[Symbol(name).id()] = id; };
     add("if", BI_IF);          add("if_else", BI_IF_ELSE);
+    add("cond", BI_COND);
     add("do", BI_DO);          add("switch", BI_SWITCH);
     add("foreach", BI_FOREACH);add("set", BI_SET);
+    add("foreach_int", BI_FOREACH_INT);
     add("==", BI_EQ);          add("!=", BI_NE);
     add("<", BI_LT);           add(">", BI_GT);
     add("<=", BI_LE);          add(">=", BI_GE);
     add("!", BI_NOT);          add("&&", BI_AND);   add("||", BI_OR);
     add("+", BI_ADD);          add("-", BI_SUB);
     add("*", BI_MUL);          add("/", BI_DIV);
-    add("sprintf", BI_SPRINTF);add("localize", BI_LOCALIZE);
+    add("int", BI_TO_INT);     add("max", BI_MAX);   add("mod", BI_MOD);
+    add("+=", BI_PLUS_EQ);     add("++", BI_INC);
+    add("elem", BI_ELEM);      add("random_elem", BI_RANDOM_ELEM);
+    add("remove_elem", BI_REMOVE_ELEM);
+    add("push_back", BI_PUSH_BACK); add("resize", BI_RESIZE);
+    add("find_elem", BI_FIND_ELEM); add("size", BI_SIZE);
+    add("new", BI_NEW);        add("printf", BI_PRINTF);
+    add("script", BI_SCRIPT);  add("script_task", BI_SCRIPT_TASK);
+    add("sprint", BI_SPRINT);  add("sprintf", BI_SPRINTF);
+    add("localize", BI_LOCALIZE);
     add("print", BI_PRINT);
     return m;
   }();
@@ -126,11 +176,21 @@ bool node_equal(const DataNode& a, const DataNode& b) {
     return a.as_symbol().value() == b.as_symbol().value();
   if (a.type() == DataType::kObject || b.type() == DataType::kObject)
     return a.as_object() == b.as_object();
+  if (a.type() == DataType::kArray || b.type() == DataType::kArray) {
+    auto aa = a.as_array(), ba = b.as_array();
+    if (!aa || !ba || aa->size() != ba->size()) return false;
+    for (std::size_t i = 0; i < aa->size(); ++i) {
+      if (!node_equal(aa->at(i), ba->at(i))) return false;
+    }
+    return true;
+  }
   // fall back to text compare (symbol/string)
   auto as = a.as_string(), bs = b.as_string();
   if (as && bs) return *as == *bs;
   return a.type() == DataType::kEmpty && b.type() == DataType::kEmpty;
 }
+
+Symbol message_name(const Node& n, Env& env);
 
 // --- Interp ----------------------------------------------------------------
 DataNode Interp::eval(const Node& n, Env& env) {
@@ -176,6 +236,36 @@ Object* Interp::eval_object(const Node& head, Env& env) {
   return node_to_object(eval(head, env), env);
 }
 
+DataNode Interp::read_target(const Node& target, Env& env) {
+  if (is_prop_ref(target)) {
+    const NodeList& pr = gh::dtb::children(target);
+    return (!pr.empty() && env.self) ? env.self->get_property(node_sym(*pr[0]))
+                                    : DataNode();
+  }
+  if (is_variable(target)) {
+    Symbol name = node_sym(target);
+    if (env.scope) {
+      if (DataNode* v = env.scope->find(name)) return *v;
+    }
+    return env.host ? env.host->get_global(name) : DataNode();
+  }
+  return eval(target, env);
+}
+
+void Interp::assign_target(const Node& target, DataNode value, Env& env) {
+  if (is_prop_ref(target)) {
+    const NodeList& pr = gh::dtb::children(target);
+    if (!pr.empty() && env.self) env.self->set_property(node_sym(*pr[0]), std::move(value));
+    return;
+  }
+  if (is_variable(target)) {
+    Symbol name = node_sym(target);
+    if (!(env.scope && env.scope->assign(name, value))) {
+      if (env.host) env.host->set_global(name, std::move(value));
+    }
+  }
+}
+
 DataNode Interp::eval_command(const Node& cmd, Env& env) {
   const NodeList& kids = gh::dtb::children(cmd);
   if (kids.empty()) return DataNode();
@@ -186,10 +276,14 @@ DataNode Interp::eval_command(const Node& cmd, Env& env) {
     switch (lookup_builtin(h)) {
       case BI_IF: return bi_if(cmd, env, false);
       case BI_IF_ELSE: return bi_if(cmd, env, true);
+      case BI_COND: return bi_cond(cmd, env);
       case BI_DO: return bi_do(cmd, env);
       case BI_SWITCH: return bi_switch(cmd, env);
       case BI_FOREACH: return bi_foreach(cmd, env);
+      case BI_FOREACH_INT: return bi_foreach_int(cmd, env);
       case BI_SET: return bi_set(cmd, env);
+      case BI_PLUS_EQ: return bi_mutate_number(cmd, env, BI_PLUS_EQ);
+      case BI_INC: return bi_mutate_number(cmd, env, BI_INC);
       case BI_EQ: return bi_compare(cmd, env, BI_EQ);
       case BI_NE: return bi_compare(cmd, env, BI_NE);
       case BI_LT: return bi_compare(cmd, env, BI_LT);
@@ -203,10 +297,35 @@ DataNode Interp::eval_command(const Node& cmd, Env& env) {
       case BI_SUB: return bi_arith(cmd, env, BI_SUB);
       case BI_MUL: return bi_arith(cmd, env, BI_MUL);
       case BI_DIV: return bi_arith(cmd, env, BI_DIV);
+      case BI_TO_INT: return bi_math_func(cmd, env, BI_TO_INT);
+      case BI_MAX: return bi_math_func(cmd, env, BI_MAX);
+      case BI_MOD: return bi_math_func(cmd, env, BI_MOD);
+      case BI_ELEM: return bi_elem(cmd, env);
+      case BI_RANDOM_ELEM: return bi_random_elem(cmd, env);
+      case BI_REMOVE_ELEM: return bi_remove_elem(cmd, env);
+      case BI_PUSH_BACK: return bi_push_back(cmd, env);
+      case BI_RESIZE: return bi_resize(cmd, env);
+      case BI_FIND_ELEM: return bi_find_elem(cmd, env);
+      case BI_SIZE: return bi_size(cmd, env);
+      case BI_NEW: return bi_new(cmd, env);
+      case BI_PRINTF:
+      case BI_SCRIPT_TASK: return DataNode();
+      case BI_SCRIPT: return eval_seq(kids, 1, env);
+      case BI_SPRINT: return bi_sprint(cmd, env);
       case BI_SPRINTF: return bi_sprintf(cmd, env);
       case BI_LOCALIZE: return bi_localize(cmd, env);
       case BI_PRINT: return bi_print(cmd, env);
       default: break;  // not a builtin -> object message via symbol target
+    }
+    if (env.host) {
+      if (auto fn = env.host->resolve_function(h)) {
+        NodeList fk = gh::dtb::children(*fn);
+        if (fk.size() >= 2) {
+          NodeList handler(fk.begin() + 1, fk.end());
+          DataArray args = eval_args(cmd, 1, env);
+          return run_handler(handler, env.self, args, env);
+        }
+      }
     }
     Object* t = env.host ? env.host->resolve_object(h) : nullptr;
     if (!t) {
@@ -214,9 +333,18 @@ DataNode Interp::eval_command(const Node& cmd, Env& env) {
       return DataNode();
     }
     if (kids.size() < 2) return DataNode();
-    Symbol msg = node_sym(*kids[1]);
+    Symbol msg = message_name(*kids[1], env);
+    if (!msg.valid()) {
+      if (env.host) env.host->on_unhandled("message?:<expr>");
+      return DataNode();
+    }
     DataArray args = eval_args(cmd, 2, env);
-    return t->handle_property(msg, args);
+    DataNode result = t->handle_property(msg, args);
+    if (auto arr = result.as_array()) {
+      for (std::size_t i = 0; i < arr->size() && 2 + i < kids.size(); ++i)
+        assign_target(*kids[2 + i], arr->at(i), env);
+    }
+    return result;
   }
 
   // head is $var / {command} / [prop] -> object target
@@ -226,9 +354,26 @@ DataNode Interp::eval_command(const Node& cmd, Env& env) {
     return DataNode();
   }
   if (kids.size() < 2) return DataNode();
-  Symbol msg = node_sym(*kids[1]);
+  Symbol msg = message_name(*kids[1], env);
+  if (!msg.valid()) {
+    if (env.host) env.host->on_unhandled("message?:<expr>");
+    return DataNode();
+  }
   DataArray args = eval_args(cmd, 2, env);
-  return t->handle_property(msg, args);
+  DataNode result = t->handle_property(msg, args);
+  if (auto arr = result.as_array()) {
+    for (std::size_t i = 0; i < arr->size() && 2 + i < kids.size(); ++i)
+      assign_target(*kids[2 + i], arr->at(i), env);
+  }
+  return result;
+}
+
+Symbol message_name(const Node& n, Env& env) {
+  if (is_symbol(n)) return node_sym(n);
+  DataNode value = env.host ? Interp().eval(n, env) : DataNode();
+  if (auto s = value.as_symbol()) return *s;
+  if (auto text = value.as_string()) return Symbol(std::string(*text).c_str());
+  return Symbol();
 }
 
 DataNode Interp::run_handler(const NodeList& handler_body, Object* self,
@@ -270,6 +415,18 @@ DataNode Interp::bi_if(const Node& c, Env& env, bool has_else) {
   return DataNode();
 }
 
+DataNode Interp::bi_cond(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  for (std::size_t i = 1; i < k.size(); ++i) {
+    if (!is_data_array(*k[i])) continue;
+    const NodeList& cse = gh::dtb::children(*k[i]);
+    if (cse.empty()) continue;
+    if (truthy(eval(*cse[0], env)))
+      return cse.size() > 1 ? eval_seq(cse, 1, env) : DataNode();
+  }
+  return DataNode();
+}
+
 DataNode Interp::bi_do(const Node& c, Env& env) {
   const NodeList& k = gh::dtb::children(c);
   Scope scope(env.scope);
@@ -304,15 +461,37 @@ DataNode Interp::bi_switch(const Node& c, Env& env) {
 
 DataNode Interp::bi_foreach(const Node& c, Env& env) {
   const NodeList& k = gh::dtb::children(c);
-  if (k.size() < 3 || !is_variable(*k[1]) || !is_data_array(*k[2])) return DataNode();
+  if (k.size() < 3 || !is_variable(*k[1])) return DataNode();
   Symbol var = node_sym(*k[1]);
   Scope scope(env.scope);
   Env e = env;
   e.scope = &scope;
   scope.declare(var, DataNode());
-  for (const auto& item : gh::dtb::children(*k[2])) {
-    scope.assign(var, to_literal(*item));
+  DataNode source = is_data_array(*k[2]) ? to_literal(*k[2]) : eval(*k[2], e);
+  auto arr = array_value(source, e);
+  if (!arr) return DataNode();
+  for (std::size_t i = 0; i < arr->size(); ++i) {
+    scope.assign(var, arr->at(i));
     eval_seq(k, 3, e);
+  }
+  return DataNode();
+}
+
+DataNode Interp::bi_foreach_int(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 4 || !is_variable(*k[1])) return DataNode();
+  Symbol var = node_sym(*k[1]);
+  int begin = int_value(eval(*k[2], env), 0);
+  int end = int_value(eval(*k[3], env), begin);
+  Scope scope(env.scope);
+  Env e = env;
+  e.scope = &scope;
+  scope.declare(var, DataNode::Int(begin));
+  int step = begin <= end ? 1 : -1;
+  for (int i = begin;; i += step) {
+    scope.assign(var, DataNode::Int(i));
+    eval_seq(k, 4, e);
+    if (i == end) break;
   }
   return DataNode();
 }
@@ -321,17 +500,22 @@ DataNode Interp::bi_set(const Node& c, Env& env) {
   const NodeList& k = gh::dtb::children(c);
   if (k.size() < 3) return DataNode();
   DataNode value = eval(*k[2], env);
-  const Node& target = *k[1];
-  if (is_prop_ref(target)) {
-    const NodeList& pr = gh::dtb::children(target);
-    if (!pr.empty() && env.self) env.self->set_property(node_sym(*pr[0]), value);
-  } else if (is_variable(target)) {
-    Symbol name = node_sym(target);
-    if (!(env.scope && env.scope->assign(name, value))) {
-      if (env.host) env.host->set_global(name, value);
-    }
-  }
+  assign_target(*k[1], value, env);
   return value;
+}
+
+DataNode Interp::bi_mutate_number(const Node& c, Env& env, int op) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 2) return DataNode();
+  int value = read_target(*k[1], env).as_int().value_or(0);
+  if (op == BI_INC) {
+    ++value;
+  } else {
+    value += k.size() > 2 ? eval(*k[2], env).as_int().value_or(0) : 0;
+  }
+  DataNode out = DataNode::Int(value);
+  assign_target(*k[1], out, env);
+  return out;
 }
 
 DataNode Interp::bi_compare(const Node& c, Env& env, int op) {
@@ -391,6 +575,114 @@ DataNode Interp::bi_arith(const Node& c, Env& env, int op) {
   return DataNode::Int(acc);
 }
 
+DataNode Interp::bi_math_func(const Node& c, Env& env, int op) {
+  const NodeList& k = gh::dtb::children(c);
+  if (op == BI_TO_INT) {
+    if (k.size() < 2) return DataNode::Int(0);
+    return DataNode::Int(static_cast<int32_t>(eval(*k[1], env).as_float().value_or(0.0f)));
+  }
+  if (op == BI_MAX) {
+    int best = k.size() > 1 ? eval(*k[1], env).as_int().value_or(0) : 0;
+    for (std::size_t i = 2; i < k.size(); ++i)
+      best = std::max(best, eval(*k[i], env).as_int().value_or(0));
+    return DataNode::Int(best);
+  }
+  if (op == BI_MOD) {
+    if (k.size() < 3) return DataNode::Int(0);
+    int a = eval(*k[1], env).as_int().value_or(0);
+    int b = eval(*k[2], env).as_int().value_or(1);
+    return DataNode::Int(b == 0 ? 0 : a % b);
+  }
+  return DataNode();
+}
+
+DataNode Interp::bi_elem(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 3) return DataNode();
+  auto arr = array_value(eval(*k[1], env), env);
+  int index = eval(*k[2], env).as_int().value_or(0);
+  if (!arr || arr->empty()) return DataNode();
+  if (index < 0) index = 0;
+  if (index >= static_cast<int>(arr->size())) index = static_cast<int>(arr->size() - 1);
+  return arr->at(static_cast<std::size_t>(index));
+}
+
+DataNode Interp::bi_random_elem(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 2) return DataNode();
+  auto arr = array_value(eval(*k[1], env), env);
+  return (arr && !arr->empty()) ? arr->at(0) : DataNode();
+}
+
+DataNode Interp::bi_remove_elem(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 3) return DataNode();
+  DataNode target = read_target(*k[1], env);
+  auto arr = array_value(target, env);
+  DataNode needle = eval(*k[2], env);
+  if (arr) {
+    for (std::size_t i = 0; i < arr->size(); ++i) {
+      if (node_equal(arr->at(i), needle)) {
+        arr->erase(i);
+        break;
+      }
+    }
+    assign_target(*k[1], DataNode::Array(arr), env);
+  }
+  return DataNode();
+}
+
+DataNode Interp::bi_push_back(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 3) return DataNode();
+  DataNode target = read_target(*k[1], env);
+  auto arr = array_value(target, env);
+  if (!arr) arr = std::make_shared<DataArray>();
+  arr->push(eval(*k[2], env));
+  DataNode out = DataNode::Array(arr);
+  assign_target(*k[1], out, env);
+  return out;
+}
+
+DataNode Interp::bi_resize(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 3) return DataNode();
+  DataNode target = read_target(*k[1], env);
+  auto arr = array_value(target, env);
+  if (!arr) arr = std::make_shared<DataArray>();
+  int n = eval(*k[2], env).as_int().value_or(0);
+  arr->resize(static_cast<std::size_t>(std::max(0, n)));
+  DataNode out = DataNode::Array(arr);
+  assign_target(*k[1], out, env);
+  return out;
+}
+
+DataNode Interp::bi_find_elem(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 3) return DataNode::Int(-1);
+  auto arr = array_value(eval(*k[1], env), env);
+  DataNode needle = eval(*k[2], env);
+  int found = -1;
+  if (arr) {
+    for (std::size_t i = 0; i < arr->size(); ++i) {
+      if (node_equal(arr->at(i), needle)) {
+        found = static_cast<int>(i);
+        break;
+      }
+    }
+  }
+  DataNode out = DataNode::Int(found);
+  if (k.size() > 3) assign_target(*k[3], out, env);
+  return out;
+}
+
+DataNode Interp::bi_size(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  if (k.size() < 2) return DataNode::Int(0);
+  auto arr = array_value(eval(*k[1], env), env);
+  return DataNode::Int(arr ? static_cast<int32_t>(arr->size()) : 0);
+}
+
 DataNode Interp::bi_sprintf(const Node& c, Env& env) {
   const NodeList& k = gh::dtb::children(c);
   if (k.size() < 2) return DataNode::Str("");
@@ -401,13 +693,26 @@ DataNode Interp::bi_sprintf(const Node& c, Env& env) {
     if (fmt[i] == '%' && i + 1 < fmt.size()) {
       char sp = fmt[++i];
       DataNode a = argi < k.size() ? eval(*k[argi++], env) : DataNode();
-      if (sp == 's') out += std::string(a.as_string().value_or(""));
-      else if (sp == 'd' || sp == 'i') out += std::to_string(a.as_int().value_or(0));
+      if (sp == 's' || sp == 'S') out += std::string(a.as_string().value_or(""));
+      else if (sp == 'd' || sp == 'D' || sp == 'i' || sp == 'I')
+        out += std::to_string(a.as_int().value_or(0));
       else if (sp == '%') out += '%';
       else { out += '%'; out += sp; }
     } else {
       out += fmt[i];
     }
+  }
+  return DataNode::Str(out);
+}
+
+DataNode Interp::bi_sprint(const Node& c, Env& env) {
+  const NodeList& k = gh::dtb::children(c);
+  std::string out;
+  for (std::size_t i = 1; i < k.size(); ++i) {
+    DataNode v = eval(*k[i], env);
+    if (auto s = v.as_string()) out += std::string(*s);
+    else if (auto n = v.as_int()) out += std::to_string(*n);
+    else if (auto f = v.as_float()) out += std::to_string(*f);
   }
   return DataNode::Str(out);
 }

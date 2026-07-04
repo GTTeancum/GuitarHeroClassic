@@ -2517,7 +2517,8 @@ int main() {
                  "env.range=read_f32_at(body,base+0x2f);",
                  "Environ decoder uses dynamic range offset");
   ok &= contains(milo_scene_cpp_c,
-                 "group.children=group_child_refs(b,&group.environment_ref);",
+                 "group.children=group_child_refs(body,group.parent,"
+                 "&group.environment_ref);",
                  "Group decoder preserves authored Environ refs");
   ok &= contains(milo_scene_cpp_c,
                  "m.use_environ=body[flag_pos]!=0;",
@@ -2645,7 +2646,11 @@ int main() {
                  "scene_.find_light(ref)",
                  "renderer resolves Environ-authored Light refs before applying dynamic lighting");
   ok &= contains(renderer_c,
-                 "constboolapply_environment_dynamic_lights=apply_environment_lighting&&env_enabled(\"GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS\")&&!env_enabled(\"GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS\");",
+                 "constboolapply_environment_dynamic_lights="
+                 "apply_environment_lighting&&"
+                 "(force_environment_dynamic_lights_||"
+                 "env_enabled(\"GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS\"))&&"
+                 "!env_enabled(\"GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS\");",
                  "authored Environ dynamic lights require an explicit opt-in gate");
   ok &= contains(renderer_c,
                  "if(!apply_environment_dynamic_lights||!env||env->lights.empty()){disable_authored_lights();return;}",

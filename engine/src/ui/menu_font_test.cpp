@@ -50,6 +50,19 @@ int main(int argc, char** argv) {
   bool ok = font.load(hdr, ark0, "ui/gen/impact.milo_ps2");
   CHECK(ok);
   CHECK(font.valid());
+  ghogx::ui::MenuFont cutout_font;
+  CHECK(cutout_font.load(hdr, ark0, "ui/gen/cutout.milo_ps2"));
+  CHECK(cutout_font.valid());
+  CHECK(cutout_font.glyph('G') != nullptr);
+  CHECK(cutout_font.layout("GUITAR").size() == 6);
+  ghogx::ui::MenuFont gunsho_font;
+  CHECK(gunsho_font.load(hdr, ark0, "ui/gen/gunsho.milo_ps2"));
+  CHECK(gunsho_font.valid());
+  CHECK(gunsho_font.layout("CONTINUE").size() == 8);
+  ghogx::ui::MenuFont receipt_font;
+  CHECK(receipt_font.load(hdr, ark0, "ui/gen/receipt.milo_ps2"));
+  CHECK(receipt_font.valid());
+  CHECK(receipt_font.layout("459/512").size() == 7);
 
   // Header metrics (byte-exact from impact.font).
   CHECK(font.cap_height() == 34.0f);
@@ -69,7 +82,7 @@ int main(int argc, char** argv) {
     CHECK(a->pw > 8 && a->pw < 40);
     CHECK(a->ph > 20 && a->ph < 50);
     CHECK(a->v0 < 0.25f);          // top row
-    CHECK(a->advance >= a->pw);
+    CHECK(a->advance > 0.0f);
   }
   // 'W' is wider than 'I' (variable width sanity).
   const ghogx::ui::Glyph* w = font.glyph('W');

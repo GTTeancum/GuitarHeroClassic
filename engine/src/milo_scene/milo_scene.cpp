@@ -154,7 +154,20 @@ std::string read_string_at(const std::vector<uint8_t>& body, size_t& offset) {
   return s;
 }
 
+bool is_group_child_ref(std::string_view name) {
+  static constexpr std::string_view kSuffixes[] = {
+      ".mesh", ".grp", ".view", ".lbl", ".btn", ".pic", ".lst"};
+  for (std::string_view suffix : kSuffixes) {
+    if (name.size() >= suffix.size() &&
+        name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 std::vector<std::string> group_child_refs(const std::vector<uint8_t>& body,
+                                          std::string_view parent_ref,
                                           std::string* environ_ref) {
   std::vector<std::string> out;
   for (size_t o = 0; o + 4 <= body.size(); ++o) {
@@ -169,10 +182,10 @@ std::vector<std::string> group_child_refs(const std::vector<uint8_t>& body,
     }
     if (!printable) continue;
     std::string name(s, len);
-    if (name.size() >= 5 && name.compare(name.size() - 5, 5, ".mesh") == 0) {
-      out.push_back(std::move(name));
-    } else if (name.size() >= 4 &&
-               name.compare(name.size() - 4, 4, ".grp") == 0) {
+    if (name == parent_ref) {
+      // The Trans parent is serialized as a normal string next to the child
+      // refs. Keep it as hierarchy, not as a child of itself/its parent.
+    } else if (is_group_child_ref(name)) {
       out.push_back(std::move(name));
     } else if (name.size() >= 4 &&
                name.compare(name.size() - 4, 4, ".env") == 0 &&
@@ -257,6 +270,151 @@ bool is_spotlight_target_mesh(std::string_view name) {
 
 bool f32_in_unit_range(float v) {
   return std::isfinite(v) && v >= 0.0f && v <= 1.01f;
+}
+
+bool is_plausible_matrix_at(const std::vector<uint8_t>& body, size_t offset) {
+  if (offset + 48 > body.size()) return false;
+  float m[12];
+  for (int i = 0; i < 12; ++i) {
+    m[i] = read_f32_at(body, offset + static_cast<size_t>(i) * 4);
+    if (!std::isfinite(m[i]) || std::fabs(m[i]) > 100000.0f) return false;
+  }
+  for (int r = 0; r < 3; ++r) {
+    const float x = m[r * 3 + 0];
+    const float y = m[r * 3 + 1];
+    const float z = m[r * 3 + 2];
+    const float mag = std::sqrt(x * x + y * y + z * z);
+    if (mag < 0.01f || mag > 100.0f) return false;
+  }
+  return std::fabs(m[9]) < 50000.0f && std::fabs(m[10]) < 50000.0f &&
+         std::fabs(m[11]) < 50000.0f;
+}
+
+bool is_plausible_group_parent(std::string_view ref) {
+  if (ref.empty() || ref.size() > 96) return false;
+  bool has_alpha = false;
+  for (char c : ref) {
+    const unsigned char uc = static_cast<unsigned char>(c);
+    if (uc < 0x20 || uc >= 0x7f) return false;
+    if (std::isalpha(uc)) has_alpha = true;
+  }
+  if (!has_alpha) return false;
+  const std::string lower = lower_ascii(ref);
+  static constexpr std::string_view kKnownSuffixes[] = {
+      ".view", ".grp", ".mesh", ".trans", ".cam", ".lit", ".env", ".lst"};
+  for (std::string_view suffix : kKnownSuffixes) {
+    if (lower.size() >= suffix.size() &&
+        lower.compare(lower.size() - suffix.size(), suffix.size(), suffix) ==
+            0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool decode_group_transform(const std::vector<uint8_t>& body, GroupObj& group) {
+  int best_score = -1;
+  size_t best_offset = body.size();
+  std::string best_parent;
+
+  for (size_t m = 4; m + 96 + kObjMeta + 4 <= body.size(); ++m) {
+    if (!is_plausible_matrix_at(body, m) ||
+        !is_plausible_matrix_at(body, m + 48)) {
+      continue;
+    }
+    size_t parent_offset = m + 96 + kObjMeta;
+    std::string parent;
+    try {
+      parent = read_string_at(body, parent_offset);
+    } catch (const std::exception&) {
+      continue;
+    }
+    const bool root_parent =
+        parent.empty() && (m == 0x1d || m == 4 + kObjMeta);
+    if (!root_parent && !is_plausible_group_parent(parent)) continue;
+
+    int score = root_parent ? 1 : 0;
+    if (parent.find(".view") != std::string::npos) score += 20;
+    if (parent.find(".grp") != std::string::npos) score += 12;
+    if (m == 0x1d) score += 8;
+    if (m == 4 + kObjMeta) score += 4;
+    if (m < 0x40) score += 2;
+    if (score > best_score) {
+      best_score = score;
+      best_offset = m;
+      best_parent = std::move(parent);
+    }
+  }
+
+  if (best_score < 0) return false;
+  group.local = read_matrix_at(body, best_offset);
+  group.world_stored = read_matrix_at(body, best_offset + 48);
+  group.parent = std::move(best_parent);
+  group.has_transform = true;
+  return true;
+}
+
+bool name_has_suffix(std::string_view name, std::string_view suffix) {
+  return name.size() >= suffix.size() &&
+         name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+const GroupObj* find_group_obj(const Scene& scene, const std::string& name) {
+  for (const GroupObj& group : scene.groups) {
+    if (group.name == name) return &group;
+  }
+  return nullptr;
+}
+
+bool scene_has_mesh(const Scene& scene, const std::string& name) {
+  for (const MeshObj& mesh : scene.meshes) {
+    if (mesh.name == name) return true;
+  }
+  return false;
+}
+
+void append_group_draw_order(const Scene& scene, const GroupObj& group,
+                             std::unordered_set<std::string>& visiting_groups,
+                             std::unordered_set<std::string>& emitted_meshes,
+                             std::vector<std::string>& order) {
+  if (!visiting_groups.insert(group.name).second) return;
+  for (const std::string& child : group.children) {
+    if (name_has_suffix(child, ".mesh") && scene_has_mesh(scene, child)) {
+      if (emitted_meshes.insert(child).second) order.push_back(child);
+    } else if (const GroupObj* child_group = find_group_obj(scene, child)) {
+      append_group_draw_order(scene, *child_group, visiting_groups,
+                              emitted_meshes, order);
+    }
+  }
+  visiting_groups.erase(group.name);
+}
+
+void rebuild_group_authored_draw_order(Scene& scene) {
+  scene.draw_order.clear();
+  if (scene.groups.empty()) return;
+
+  std::unordered_set<std::string> referenced_groups;
+  for (const GroupObj& group : scene.groups) {
+    for (const std::string& child : group.children) {
+      if (find_group_obj(scene, child)) referenced_groups.insert(child);
+    }
+  }
+
+  std::unordered_set<std::string> emitted_meshes;
+  std::unordered_set<std::string> visited_roots;
+  for (const GroupObj& group : scene.groups) {
+    if (referenced_groups.find(group.name) != referenced_groups.end()) continue;
+    std::unordered_set<std::string> visiting;
+    append_group_draw_order(scene, group, visiting, emitted_meshes,
+                            scene.draw_order);
+    visited_roots.insert(group.name);
+  }
+  for (const GroupObj& group : scene.groups) {
+    if (visited_roots.find(group.name) != visited_roots.end()) continue;
+    std::unordered_set<std::string> visiting;
+    append_group_draw_order(scene, group, visiting, emitted_meshes,
+                            scene.draw_order);
+  }
 }
 
 bool read_spotlight_default_state(const std::vector<uint8_t>& body,
@@ -563,22 +721,31 @@ MatObj decode_mat(const std::string& entry_name,
     m.use_environ = body[flag_pos] != 0;
     m.prelit = body[flag_pos + 1] != 0;
   }
-  // Diffuse texcoord transform: 16 bytes of flags, then a 3x3 matrix (UV tiling on
-  // the diagonal, UV offset in row 2, homogeneous [2][2]=1). Confirmed from the raw
-  // bytes: mm_brick03.mat has scale (4,3) -> the 256px brick tile repeats across the
-  // 1600-unit wall (small bricks); mainmenu.mat is identity. Applied by the renderer.
+  // Diffuse texcoord transform: 16 bytes of flags, then a 3x3 matrix applied as
+  // [u v 1] * matrix. Preserve the whole matrix: UI panels use negative scale
+  // and cross terms to mirror/rotate shared card-border textures.
   {
     const size_t txf = r.pos + 16;
     auto rf = [&](size_t o) { float f; std::memcpy(&f, body.data() + o, 4); return f; };
     if (txf + 36 <= body.size()) {
-      const float m22 = rf(txf + 32);     // [2][2]
-      const float su = rf(txf + 0);       // [0][0]
-      const float sv = rf(txf + 16);      // [1][1]
-      if (m22 > 0.9f && m22 < 1.1f && su > 0.01f && su < 64.0f && sv > 0.01f && sv < 64.0f) {
-        m.tex_scale[0] = su;
-        m.tex_scale[1] = sv;
-        m.tex_offset[0] = rf(txf + 24);   // [2][0]
-        m.tex_offset[1] = rf(txf + 28);   // [2][1]
+      float xfm[3][3] = {};
+      bool sane = true;
+      for (int row = 0; row < 3; ++row) {
+        for (int col = 0; col < 3; ++col) {
+          const float value =
+              rf(txf + static_cast<size_t>(row * 3 + col) * 4);
+          xfm[row][col] = value;
+          if (!std::isfinite(value) || std::fabs(value) > 128.0f) sane = false;
+        }
+      }
+      if (sane && std::fabs(std::fabs(xfm[2][2]) - 1.0f) < 0.1f) {
+        for (int row = 0; row < 3; ++row)
+          for (int col = 0; col < 3; ++col)
+            m.tex_xfm[row][col] = xfm[row][col];
+        m.tex_scale[0] = xfm[0][0];
+        m.tex_scale[1] = xfm[1][1];
+        m.tex_offset[0] = xfm[2][0];
+        m.tex_offset[1] = xfm[2][1];
       }
     }
   }
@@ -607,6 +774,80 @@ MatObj decode_mat(const std::string& entry_name,
   }
   m.decoded = true;
   return m;
+}
+
+GroupObj decode_group(const std::string& entry_name,
+                      const std::vector<uint8_t>& body) {
+  GroupObj group;
+  group.name = entry_name;
+  decode_group_transform(body, group);
+  group.children = group_child_refs(body, group.parent, &group.environment_ref);
+  return group;
+}
+
+BandPlacerObj decode_band_placer(const std::string& entry_name,
+                                 const std::vector<uint8_t>& body) {
+  BandPlacerObj placer;
+  placer.name = entry_name;
+  try {
+    if (body.size() > 0x10) {
+      for (size_t kind_offset : {size_t(0x08), size_t(0x0c)}) {
+        try {
+          size_t probe = kind_offset;
+          std::string kind = read_string_at(body, probe);
+          if (!kind.empty()) {
+            placer.kind = std::move(kind);
+            break;
+          }
+        } catch (const std::exception&) {
+        }
+      }
+    }
+
+    int best_score = -1;
+    size_t best_matrix = body.size();
+    std::string best_parent;
+    for (size_t version_offset = 4;
+         version_offset + 4 + 96 + kObjMeta + 4 <= body.size();
+         ++version_offset) {
+      if (read_u32_at(body, version_offset) != 9) continue;
+      const size_t matrix_offset = version_offset + 4;
+      if (!is_plausible_matrix_at(body, matrix_offset) ||
+          !is_plausible_matrix_at(body, matrix_offset + 48)) {
+        continue;
+      }
+      size_t parent_offset = matrix_offset + 96 + kObjMeta;
+      std::string parent;
+      try {
+        parent = read_string_at(body, parent_offset);
+      } catch (const std::exception&) {
+        continue;
+      }
+      if (!is_plausible_group_parent(parent)) continue;
+
+      int score = 1;
+      if (parent.find(".view") != std::string::npos) score += 20;
+      if (parent.find(".grp") != std::string::npos) score += 12;
+      if (parent.find(".mesh") != std::string::npos) score += 4;
+      if (version_offset == 0x2a) score += 8;
+      if (score > best_score) {
+        best_score = score;
+        best_matrix = matrix_offset;
+        best_parent = std::move(parent);
+      }
+    }
+
+    if (best_score < 0) {
+      throw std::runtime_error("milo_scene: no BandPlacer transform pair");
+    }
+    placer.local = read_matrix_at(body, best_matrix);
+    placer.world_stored = read_matrix_at(body, best_matrix + 48);
+    placer.parent = std::move(best_parent);
+    placer.decoded = true;
+  } catch (const std::exception& ex) {
+    placer.error = ex.what();
+  }
+  return placer;
 }
 
 MeshObj decode_mesh(const std::string& entry_name,
@@ -912,10 +1153,17 @@ const EnvironObj* Scene::find_environ(const std::string& name) const {
   return nullptr;
 }
 
+const BandPlacerObj* Scene::find_band_placer(const std::string& name) const {
+  for (const BandPlacerObj& placer : band_placers)
+    if (placer.name == name && placer.decoded) return &placer;
+  return nullptr;
+}
+
 std::array<float, 16> Scene::world_matrix(const MeshObj& mesh) const {
   // Compose local * parent.local * parent.parent.local * ... up the chain.
-  // Parents may be Trans or Group (we only have Trans/Mesh xfms here; Group
-  // parents resolve to identity, which is fine since groups carry no xfm).
+  // Parents may be Trans, Mesh, or Group. Trust an authored stored-world matrix
+  // when it differs from local, because those bytes already include hierarchy
+  // state in many GH2 UI MILOs.
   std::array<float, 16> acc = xfm_to_mat4(mesh.local);
   std::string parent = mesh.parent;
   bool resolved_parent = false;
@@ -928,7 +1176,16 @@ std::array<float, 16> Scene::world_matrix(const MeshObj& mesh) const {
       for (const MeshObj& mm : meshes)
         if (mm.name == parent) { px = &mm.local; parent = mm.parent; break; }
     }
-    if (!px) break;  // parent is a Group/Cam/View with no Trans xfm — stop.
+    if (!px) {
+      for (const GroupObj& group : groups) {
+        if (group.name == parent && group.has_transform) {
+          px = &group.local;
+          parent = group.parent;
+          break;
+        }
+      }
+    }
+    if (!px) break;
     resolved_parent = true;
     acc = mat4_mul(acc, xfm_to_mat4(*px));
   }
@@ -954,12 +1211,21 @@ std::array<float, 16> Scene::world_matrix(const ParticleSysObj& particle) const 
       for (const MeshObj& mm : meshes)
         if (mm.name == parent) { px = &mm.local; parent = mm.parent; break; }
     }
+    if (!px) {
+      for (const GroupObj& group : groups) {
+        if (group.name == parent && group.has_transform) {
+          px = &group.local;
+          parent = group.parent;
+          break;
+        }
+      }
+    }
     if (!px) break;
     resolved_parent = true;
     acc = mat4_mul(acc, xfm_to_mat4(*px));
   }
-  if (!resolved_parent && !xfm_nearly_equal(particle.world_stored,
-                                            particle.local)) {
+  if (!resolved_parent ||
+      !xfm_nearly_equal(particle.world_stored, particle.local)) {
     return xfm_to_mat4(particle.world_stored);
   }
   return acc;
@@ -982,7 +1248,6 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
     out.dir_name = dir.dir_name;
     out.dir_type = dir.dir_type;
 
-    std::unordered_set<std::string> ordered_meshes;
     int mesh_ok = 0, mesh_fail = 0;
     int particle_ok = 0, particle_fail = 0;
     int world_crowd_ok = 0, world_crowd_fail = 0;
@@ -1009,14 +1274,10 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         } else if (de.type == "Environ") {
           out.environs.push_back(decode_environ(de.name, b));
         } else if (de.type == "Group") {
-          GroupObj group;
-          group.name = de.name;
-          group.children = group_child_refs(b, &group.environment_ref);
-          for (auto& child : group.children) {
-            if (ordered_meshes.insert(child).second)
-              out.draw_order.push_back(child);
-          }
+          GroupObj group = decode_group(de.name, b);
           out.groups.push_back(std::move(group));
+        } else if (de.type == "BandPlacer") {
+          out.band_placers.push_back(decode_band_placer(de.name, b));
         } else if (de.type == "ParticleSys") {
           ParticleSysObj p = decode_particle_sys(de.name, b);
           if (p.decoded) ++particle_ok; else ++particle_fail;
@@ -1046,12 +1307,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         break;
       }
     }
-    auto top_it = std::find(out.draw_order.begin(), out.draw_order.end(), "setlist_top.mesh");
-    if (top_it != out.draw_order.end()) {
-      std::string top = std::move(*top_it);
-      out.draw_order.erase(top_it);
-      out.draw_order.push_back(std::move(top));
-    }
+    rebuild_group_authored_draw_order(out);
     std::fprintf(stderr,
                  "[milo_scene] %s: %zu meshes (%d ok / %d fail), %zu particles (%d ok / %d fail), %zu trans, %zu mat, %zu cam, %zu waypoint, %zu group, %zu world_crowd (%d ok / %d fail)\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,

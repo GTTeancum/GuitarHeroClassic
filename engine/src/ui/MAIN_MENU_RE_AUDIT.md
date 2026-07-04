@@ -109,6 +109,23 @@ The port menu now uses those resolver outputs for normal/focused BandButtons
 instead of the earlier pure red/pure white placeholder. Disabled-state color is
 still provisional until that state is traced.
 
+## Visibility / Support Mesh Evidence
+
+`main.dtb` hides `main_msg.view` on enter:
+`{main_msg.view set_showing FALSE}`. The renderer should therefore hide
+`mm_msg_box.mesh` through authored group visibility, not by hard-coding the mesh
+name. `menu_app.cpp` now imports the authored Draw `showing` byte from MILO
+Group entries when installing runtime widget objects, so stock DTB/runtime
+visibility drives this case.
+
+`mm_stickers2.mesh` is not hidden by stock data. The PS2 MILO lists it under
+`main.view`, includes it in authored draw order, and assigns `mm_stickers.mat`
+with alpha `0.700`. The old explicit `mm_stickers2.mesh` skip was removed.
+Hidden captures with and without that skip hashed identically
+(`EA06346CCB21DB843976692D9E5279B4076B7E97AA370CD72D6C0F925078F582`), so the
+menu no longer needs the fabrication and the earlier center artifact is not
+reproduced by drawing the source mesh in the current renderer.
+
 ## Immediate RE Tasks
 
 1. Finish semantic mapping for the unknown `BandButton` tail fields against the

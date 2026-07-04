@@ -31,6 +31,8 @@
 //                                      (same --hud-* flags force gameplay HUD
 //                                       state for diagnostic screenshots)
 //   ghogx_app --hud-tune <file>       load saved HUD layout in gameplay/capture
+//   ghogx_app --menu --menu-tune <file>
+//                                      live-edit menu-only camera/text layout
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
 //   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
 //                                      capture numbered BMPs in gameplay mode
@@ -1508,6 +1510,7 @@ int main(int argc, char** argv) {
   HudTestOptions hud_test_options;
   bool hud_options_requested = false;
   bool menu_mode = false;  // --menu: the windowed menu system
+  std::string menu_tune_file;
   std::string song_name = "shoutatthedevil";
   int difficulty = 0;  // Easy
   bool auto_start = false;  // skip splash/title, load song immediately
@@ -1562,6 +1565,9 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--hud-ref-highway") == 0) {
       hud_test_options.ref_highway = true;
     } else if (std::strcmp(argv[i], "--menu") == 0) {
+      menu_mode = true;
+    } else if (std::strcmp(argv[i], "--menu-tune") == 0 && i + 1 < argc) {
+      menu_tune_file = argv[++i];
       menu_mode = true;
     } else if (std::strcmp(argv[i], "--song") == 0 && i + 1 < argc) {
       song_name = argv[++i];
@@ -1677,7 +1683,12 @@ int main(int argc, char** argv) {
       std::fprintf(stderr, "[ghogx] --menu requires --ark-dir\n");
       return 2;
     }
-    return ghogx::ui::run_menu_mode(hdr, ark, screenshot_path, screenshot_frame, max_frames);
+    ghogx::ui::MenuModeOptions menu_options;
+    menu_options.screenshot_path = screenshot_path;
+    menu_options.screenshot_frame = screenshot_frame;
+    menu_options.max_frames = max_frames;
+    menu_options.tune_file = menu_tune_file;
+    return ghogx::ui::run_menu_mode(hdr, ark, menu_options);
   }
 
   // --scene: dedicated 3-D MILO scene viewer (venue/stage/track geometry).

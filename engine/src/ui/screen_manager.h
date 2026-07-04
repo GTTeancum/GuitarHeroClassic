@@ -16,7 +16,9 @@
 
 #include "dtb.h"  // gh::dtb::Node
 
+#include <functional>
 #include <memory>
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -32,6 +34,8 @@ class ScreenManager : public Object, public script::Host {
   void add_object(std::unique_ptr<Object> obj);  // keyed by obj->name()
   Object* find_object(Symbol name);
   ObjectDir& registry() { return registry_; }
+  using RuntimeCreator = std::function<std::unique_ptr<Object>(Symbol name)>;
+  void register_runtime_class(Symbol cls, RuntimeCreator creator);
 
   // --- singletons (ui/taskmgr/game/...) ----------------------------------
   void add_singleton(Symbol name, std::unique_ptr<Object> obj);
@@ -58,6 +62,8 @@ class ScreenManager : public Object, public script::Host {
   // {foreach ...}{meta set_defaults}{set $first_screen ...}{ui goto_screen ...}).
   DataNode run_script(const gh::dtb::NodeList& roots);
 
+  void set_locale(const std::map<std::string, std::string>& locale);
+
   // --- Object ------------------------------------------------------------
   DataNode handle_property(Symbol msg, const DataArray& args) override;
 
@@ -65,7 +71,11 @@ class ScreenManager : public Object, public script::Host {
   Object* resolve_object(Symbol name) override;
   DataNode get_global(Symbol name) override;
   void set_global(Symbol name, DataNode value) override;
+  std::shared_ptr<gh::dtb::Node> resolve_function(Symbol name) override;
+  Object* create_object(Symbol cls, Symbol name) override;
+  std::string localize(Symbol token) override;
   void on_unhandled(const std::string& what) override;
+  void add_function(Symbol name, std::shared_ptr<gh::dtb::Node> block);
 
   // Distinct unhandled builtins/messages seen so far -- the fan-out worklist.
   const std::vector<std::string>& unhandled() const { return unhandled_; }
@@ -86,6 +96,9 @@ class ScreenManager : public Object, public script::Host {
   std::vector<std::unique_ptr<Object>> singletons_owned_;
   std::unordered_map<const void*, Object*> singletons_;
   std::unordered_map<const void*, DataNode> globals_;
+  std::unordered_map<const void*, std::shared_ptr<gh::dtb::Node>> functions_;
+  std::unordered_map<const void*, RuntimeCreator> runtime_creators_;
+  std::unordered_map<std::string, std::string> locale_;
   Object* current_ = nullptr;
   std::vector<Object*> stack_;
   int scene_state_ = 11;  // scene-state ID (harmonix_symbols.h:904); 11=SPLASH at boot
@@ -95,8 +108,8 @@ class ScreenManager : public Object, public script::Host {
 };
 
 // Install the standard singleton stubs (taskmgr/game/gamecfg/campaign/synth/
-// profilemgr/meta/song_provider/content_mgr/helpbar). They answer the handful
-// of queries the menu scripts need and log everything else to the worklist.
+// profilemgr/song_provider/content_mgr/options/leaderboards). Real DTB-authored
+// panels such as `meta` and `helpbar` stay in the UI object registry.
 void install_default_singletons(ScreenManager& mgr);
 
 }  // namespace ghogx::ui

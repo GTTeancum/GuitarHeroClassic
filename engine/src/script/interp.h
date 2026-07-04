@@ -92,6 +92,15 @@ class Host {
   // global when no local scope declares g.
   virtual DataNode get_global(Symbol name) = 0;
   virtual void set_global(Symbol name, DataNode value) = 0;
+  virtual std::shared_ptr<gh::dtb::Node> resolve_function(Symbol name) {
+    (void)name;
+    return nullptr;
+  }
+  virtual Object* create_object(Symbol cls, Symbol name) {
+    (void)cls;
+    (void)name;
+    return nullptr;
+  }
 
   // {localize token} -> display string. Default returns the token text so a
   // missing locale entry renders visibly rather than crashing.
@@ -132,16 +141,30 @@ class Interp {
   Object* eval_object(const Node& head, Env& env);
   // Evaluate children[arg_start..] of `cmd` into a positional DataArray.
   DataArray eval_args(const Node& cmd, std::size_t arg_start, Env& env);
+  DataNode read_target(const Node& target, Env& env);
+  void assign_target(const Node& target, DataNode value, Env& env);
 
   // Builtins (each controls evaluation of its own operands).
   DataNode bi_if(const Node& c, Env&, bool has_else);
+  DataNode bi_cond(const Node& c, Env&);
   DataNode bi_do(const Node& c, Env&);
   DataNode bi_switch(const Node& c, Env&);
   DataNode bi_foreach(const Node& c, Env&);
+  DataNode bi_foreach_int(const Node& c, Env&);
   DataNode bi_set(const Node& c, Env&);
+  DataNode bi_mutate_number(const Node& c, Env&, int op);
   DataNode bi_compare(const Node& c, Env&, int op);   // == != < > <= >=
   DataNode bi_logic(const Node& c, Env&, int op);     // ! && ||
   DataNode bi_arith(const Node& c, Env&, int op);     // + - * /
+  DataNode bi_math_func(const Node& c, Env&, int op);
+  DataNode bi_elem(const Node& c, Env&);
+  DataNode bi_random_elem(const Node& c, Env&);
+  DataNode bi_remove_elem(const Node& c, Env&);
+  DataNode bi_push_back(const Node& c, Env&);
+  DataNode bi_resize(const Node& c, Env&);
+  DataNode bi_find_elem(const Node& c, Env&);
+  DataNode bi_size(const Node& c, Env&);
+  DataNode bi_sprint(const Node& c, Env&);
   DataNode bi_sprintf(const Node& c, Env&);
   DataNode bi_localize(const Node& c, Env&);
   DataNode bi_print(const Node& c, Env&);

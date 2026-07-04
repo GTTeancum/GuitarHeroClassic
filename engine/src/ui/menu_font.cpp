@@ -21,10 +21,19 @@ constexpr int kInkAlpha = 40;
 // A content band shorter than this (px) is a diacritic strip, not a glyph row;
 // it gets merged into the glyph row directly below it.
 constexpr int kMinRowHeight = 18;
-// Inter-glyph tracking added to each glyph's ink width to get its pen advance.
-// This is the ONE metric impact.font doesn't expose decodably (see FIDELITY 2c);
-// seeded small and meant to be pinned against a GH2 screenshot.
+// Inter-glyph tracking used only when the source font table is missing an
+// advance. The normal path keeps tight atlas ink boxes but uses source advances.
 constexpr float kDefaultTrackingPx = 2.0f;
+
+bool source_font_metrics_enabled() {
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_USE_SOURCE_FONT_METRICS") == 0 && value &&
+      value[0];
+  std::free(value);
+  return enabled;
+}
 
 // Little-endian readers over a byte body, with bounds checks.
 struct Reader {
@@ -106,9 +115,10 @@ bool MenuFont::load(const std::string& hdr_path, const std::string& ark_path,
   }
   segment_glyphs();
   std::fprintf(stderr,
-               "[font] %s: charset=%zu kern=%zu atlas=%dx%d glyphs=%d cap=%.0f line=%.0f\n",
+               "[font] %s: charset=%zu kern=%zu atlas=%dx%d glyphs=%d cap=%.0f line=%.0f source=%d\n",
                milo_path.c_str(), charset_.size(), kern_.size(), atlas_.width,
-               atlas_.height, glyph_count_, cap_height_, line_height_);
+               atlas_.height, glyph_count_, cap_height_, line_height_,
+               source_metrics_valid_ ? 1 : 0);
   return valid();
 }
 
@@ -146,6 +156,55 @@ bool MenuFont::parse_font(const std::vector<uint8_t>& body) {
     // The kern is an em-fraction (±1/34 ⇒ ±1px at cap height 34). Store native px.
     kern_[static_cast<uint16_t>((left << 8) | right)] = frac * cap_height_;
   }
+
+  source_metrics_.fill(SourceGlyphMetric{});
+  source_tex_width_ = 0;
+  source_tex_height_ = 0;
+  source_metrics_valid_ = false;
+  const size_t self_name_pos = r.pos;
+  if (r.ok && self_name_pos + 4 <= body.size()) {
+    int32_t self_len = 0;
+    std::memcpy(&self_len, body.data() + self_name_pos, 4);
+    const size_t self_end =
+        self_name_pos + 4 + static_cast<size_t>(std::max(self_len, 0));
+    const size_t dims_pos = self_end + 2;
+    const size_t scale_pos = dims_pos + 8;
+    const size_t table_pos = scale_pos + 8;
+    if (self_len >= 0 && self_len < 128 &&
+        table_pos + source_metrics_.size() * 16 <= body.size()) {
+      int32_t tex_w = 0;
+      int32_t tex_h = 0;
+      std::memcpy(&tex_w, body.data() + dims_pos, 4);
+      std::memcpy(&tex_h, body.data() + dims_pos + 4, 4);
+      float u_scale = 0.0f;
+      float v_scale = 0.0f;
+      std::memcpy(&u_scale, body.data() + scale_pos, 4);
+      std::memcpy(&v_scale, body.data() + scale_pos + 4, 4);
+      const bool plausible =
+          tex_w > 0 && tex_w <= 8192 && tex_h > 0 && tex_h <= 8192 &&
+          std::isfinite(u_scale) && std::isfinite(v_scale) &&
+          std::fabs(u_scale - cap_height_ / static_cast<float>(tex_w)) < 0.0001f &&
+          std::fabs(v_scale - line_height_ / static_cast<float>(tex_h)) < 0.0001f;
+      if (plausible) {
+        source_tex_width_ = tex_w;
+        source_tex_height_ = tex_h;
+        source_metrics_valid_ = true;
+        for (size_t code = 0; code < source_metrics_.size(); ++code) {
+          const size_t off = table_pos + code * 16;
+          SourceGlyphMetric m;
+          std::memcpy(&m.u0, body.data() + off, 4);
+          std::memcpy(&m.v0, body.data() + off + 4, 4);
+          std::memcpy(&m.width, body.data() + off + 8, 4);
+          std::memcpy(&m.advance, body.data() + off + 12, 4);
+          m.valid = std::isfinite(m.u0) && std::isfinite(m.v0) &&
+                    std::isfinite(m.width) && std::isfinite(m.advance) &&
+                    m.u0 >= 0.0f && m.v0 >= 0.0f && m.u0 <= 1.0f &&
+                    m.v0 <= 1.0f && m.width >= 0.0f && m.advance >= 0.0f;
+          source_metrics_[code] = m;
+        }
+      }
+    }
+  }
   return !charset_.empty();
 }
 
@@ -153,6 +212,44 @@ void MenuFont::segment_glyphs() {
   const int W = atlas_.width, H = atlas_.height;
   const uint8_t* px = atlas_.rgba.data();
   auto alpha = [&](int x, int y) -> int { return px[(y * W + x) * 4 + 3]; };
+
+  if (source_font_metrics_enabled() && source_metrics_valid_ &&
+      source_tex_width_ == W && source_tex_height_ == H) {
+    glyphs_.fill(Glyph{});
+    glyph_count_ = 0;
+    for (char cc : charset_) {
+      const uint8_t ch = static_cast<uint8_t>(cc);
+      const SourceGlyphMetric& m = source_metrics_[ch];
+      if (!m.valid) continue;
+
+      Glyph& g = glyphs_[ch];
+      if (ch == ' ') {
+        g.present = true;
+        const float space = m.advance > 0.0f ? m.advance
+                            : (m.width > 0.0f ? m.width : 0.30f);
+        g.advance = space * cap_height_;
+        continue;
+      }
+
+      const float width_px = m.width * cap_height_;
+      const float advance_px =
+          (m.advance > 0.0f ? m.advance : m.width) * cap_height_;
+      if (width_px <= 0.0f || advance_px <= 0.0f) continue;
+
+      g.px = static_cast<int>(std::lround(m.u0 * W));
+      g.py = static_cast<int>(std::lround(m.v0 * H));
+      g.pw = std::max(1, static_cast<int>(std::lround(width_px)));
+      g.ph = std::max(1, static_cast<int>(std::lround(line_height_)));
+      g.u0 = m.u0;
+      g.v0 = m.v0;
+      g.u1 = std::min(1.0f, m.u0 + width_px / static_cast<float>(W));
+      g.v1 = std::min(1.0f, m.v0 + line_height_ / static_cast<float>(H));
+      g.advance = advance_px;
+      g.present = true;
+      ++glyph_count_;
+    }
+    return;
+  }
 
   // 1. Content bands: maximal y-runs with any ink.
   std::vector<std::pair<int, int>> bands;  // [y0, y1)
@@ -226,7 +323,10 @@ void MenuFont::segment_glyphs() {
     if (ch == ' ') {
       Glyph& g = glyphs_[ch];
       g.present = true;
-      g.advance = cap_height_ * 0.30f;   // synthetic space advance
+      const SourceGlyphMetric& m = source_metrics_[ch];
+      g.advance = (source_metrics_valid_ && m.valid && m.advance > 0.0f)
+                      ? m.advance * cap_height_
+                      : cap_height_ * 0.30f;
       continue;
     }
     if (bi >= boxes.size()) break;
@@ -237,7 +337,10 @@ void MenuFont::segment_glyphs() {
     g.u1 = static_cast<float>(b.x1) / W;
     g.v0 = static_cast<float>(b.y0) / H;
     g.v1 = static_cast<float>(b.y1) / H;
-    g.advance = g.pw + kDefaultTrackingPx;
+    const SourceGlyphMetric& m = source_metrics_[ch];
+    g.advance = (source_metrics_valid_ && m.valid && m.advance > 0.0f)
+                    ? m.advance * cap_height_
+                    : g.pw + kDefaultTrackingPx;
     g.present = true;
     ++glyph_count_;
   }

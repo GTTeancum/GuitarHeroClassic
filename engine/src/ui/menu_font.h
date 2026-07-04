@@ -15,16 +15,14 @@
 //        u8 flag=1 | i32 kerncount=480 | kern[480] each = [u8 L][u8 R][i16][f32]
 //        ... self-name + sparse per-glyph region (NOT a plain rect table)
 //
-// impact.font does NOT store a decodable per-glyph atlas-rect table (its width/x
-// sequences appear in no int/float encoding; the rect data is sparse+segmented
-// and only the recomp RndFont::Load would yield it byte-for-byte). It doesn't
-// need to: the glyph rectangles ARE the literal pixel locations in impact.tex.
-// So MenuFont derives each glyph's atlas rect from the decoded atlas alpha
-// (rows by horizontal projection — diacritic bands merged into the glyph row
-// below — glyphs by vertical projection) and assigns them to the charset in
-// order, which the atlas matches 1:1 (verified: row0 A-W=23, row1 X-Z0-9+punct
-// =28, row2 punct+accents=25). The charset order and the 480-pair kerning table
-// are taken byte-exact from impact.font.
+// impact.font stores a post-self-name source metric table: 256 entries of
+// u0/v0/width/advance, with width/advance normalized by cap height. MenuFont
+// parses that table and uses its per-character advances. The default renderer
+// still derives tight glyph rectangles from the decoded atlas alpha because
+// direct full source-cell quads scored worse against clean PCSX2 menu captures;
+// replacing that fallback needs a draw-path trace, not another guess.
+// The charset order and the 480-pair kerning table are taken byte-exact from
+// impact.font.
 //
 // See engine/src/ui/FIDELITY.md (2c) for the full source audit.
 
@@ -49,6 +47,14 @@ struct Glyph {
   // Pen advance in native (atlas) pixels after drawing this glyph.
   float advance = 0;
   bool present = false;
+};
+
+struct SourceGlyphMetric {
+  float u0 = 0.0f;
+  float v0 = 0.0f;
+  float width = 0.0f;    // normalized by cap height
+  float advance = 0.0f;  // normalized by cap height
+  bool valid = false;
 };
 
 class MenuFont {
@@ -102,9 +108,13 @@ class MenuFont {
   asset::Image atlas_;
   std::string charset_;                 // 104 chars, exact order from the file
   std::array<Glyph, 256> glyphs_{};     // indexed by Latin-1 code
+  std::array<SourceGlyphMetric, 256> source_metrics_{};
   std::unordered_map<uint16_t, float> kern_;  // (L<<8|R) -> native px
   float cap_height_ = 34.0f;
   float line_height_ = 50.0f;
+  int source_tex_width_ = 0;
+  int source_tex_height_ = 0;
+  bool source_metrics_valid_ = false;
   int glyph_count_ = 0;
 };
 

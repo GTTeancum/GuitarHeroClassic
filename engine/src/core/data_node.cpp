@@ -2,6 +2,8 @@
 
 #include "core/data_node.h"
 
+#include <cstddef>
+
 namespace ghogx {
 
 DataNode DataNode::Int(int32_t v) {
@@ -79,6 +81,10 @@ std::shared_ptr<DataArray> DataNode::as_array() const {
 Object* DataNode::as_object() const {
   if (type_ == DataType::kObject) return obj_;
   return nullptr;
+}
+
+void DataArray::erase(std::size_t i) {
+  if (i < nodes_.size()) nodes_.erase(nodes_.begin() + static_cast<std::ptrdiff_t>(i));
 }
 
 std::shared_ptr<DataArray> DataArray::find_keyed(Symbol key) const {

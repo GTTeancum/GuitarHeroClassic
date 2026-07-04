@@ -61,8 +61,14 @@
 //     u8 animate_color_from_preset at raw offset 0x96
 //     u8 animate_position_from_preset at raw offset 0x97
 //
-//   Group (version 15 in venue geometry):
-//     ...   Draw/Anim/Trans fields and child object refs
+//   Group (version 15 in venue geometry; version 12 observed in UI views):
+//     ...   Draw/Anim fields
+//     48    local matrix (UI groups store this without the standalone Trans
+//           object's 9-byte metadata immediately before it)
+//     48    world matrix
+//     9     bytes
+//     str   parent/target name
+//     ...   child object refs
 //     str   environ ref at the tail when the group draws under an Environ
 //
 //   Environ (version 5):
@@ -172,8 +178,22 @@ struct EnvironObj {
 
 struct GroupObj {
   std::string name;
+  std::string parent;
+  Xfm local;
+  Xfm world_stored;
+  bool has_transform = false;
   std::vector<std::string> children;
   std::string environment_ref;
+};
+
+struct BandPlacerObj {
+  std::string name;
+  std::string kind;
+  std::string parent;
+  Xfm local;
+  Xfm world_stored;
+  bool decoded = false;
+  std::string error;
 };
 
 struct MatObj {
@@ -181,11 +201,13 @@ struct MatObj {
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)
   float color[4] = {1, 1, 1, 1};  // diffuse RGBA
   uint8_t blend = 0;         // BLEND_ENUM from macros.dta: Src/Add/SrcAlpha/...
-  // Diffuse texcoord transform (3x3 in the Mat; diagonal = UV scale/tiling, row 2
-  // = UV offset). u' = u*tex_scale[0] + tex_offset[0]; v' = v*tex_scale[1] + ...
-  // E.g. mm_brick03.mat tiles 4x3 so the brick tile repeats across the wall;
-  // mainmenu.mat is identity. The renderer must apply this or tiled walls show one
-  // stretched copy.
+  // Diffuse texcoord transform (3x3 in the Mat), applied as [u v 1] * tex_xfm.
+  // Row 2 carries offset; off-diagonal and negative scale are used by mirrored
+  // UI tiles such as the pause-card border corners.
+  float tex_xfm[3][3] = {{1.0f, 0.0f, 0.0f},
+                         {0.0f, 1.0f, 0.0f},
+                         {0.0f, 0.0f, 1.0f}};
+  // Compatibility fields for older render paths and diagnostics.
   float tex_scale[2] = {1.0f, 1.0f};
   float tex_offset[2] = {0.0f, 0.0f};
   bool use_environ = false;
@@ -275,6 +297,10 @@ EnvironObj decode_environ(const std::string& entry_name,
                           const std::vector<uint8_t>& body);
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body);
+GroupObj decode_group(const std::string& entry_name,
+                      const std::vector<uint8_t>& body);
+BandPlacerObj decode_band_placer(const std::string& entry_name,
+                                 const std::vector<uint8_t>& body);
 // Mesh decode never throws — on failure it returns a MeshObj with decoded=false
 // and a populated .error, so the `mesh` subcommand can report it.
 MeshObj decode_mesh(const std::string& entry_name,
@@ -296,6 +322,7 @@ struct Scene {
   std::vector<LightObj> lights;
   std::vector<EnvironObj> environs;
   std::vector<GroupObj> groups;
+  std::vector<BandPlacerObj> band_placers;
   std::vector<ParticleSysObj> particles;
   std::vector<WorldCrowdObj> world_crowds;
   std::vector<std::string> draw_order;  // Group-authored Mesh child order.
@@ -315,6 +342,8 @@ struct Scene {
   const LightObj* find_light(const std::string& name) const;
   // Find an environment by name (nullptr if absent or decode failed).
   const EnvironObj* find_environ(const std::string& name) const;
+  // Find an authored menu display placer by name (nullptr if absent or failed).
+  const BandPlacerObj* find_band_placer(const std::string& name) const;
 };
 
 // Load + decode a MILO straight from a PS2 ARK (hdr/ark). Runtime-native: reads

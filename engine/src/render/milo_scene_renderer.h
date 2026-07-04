@@ -118,6 +118,12 @@ class MiloSceneRenderer {
   // between the window's frame boundaries (it does its own Begin/EndScene).
   void draw();
   void draw_over_scene(const OrbitCamera& cam);
+  void draw_scene_only();
+  void draw_text_over_scene();
+  void set_viewport(int x, int y, int width, int height);
+  void set_clear_color(uint8_t r, uint8_t g, uint8_t b);
+  void set_clear_depth_on_overlay(bool enabled);
+  void set_environment_dynamic_lights(bool enabled);
   void set_world_transform(const std::array<float, 16>& m);
   void set_additive_blend(bool additive);
   void set_active_spotlights(std::vector<SpotlightState> spots);
@@ -125,6 +131,10 @@ class MiloSceneRenderer {
   void set_particle_intensities(std::map<std::string, float> intensities);
   void set_particle_sizes(std::map<std::string, float> sizes);
   void set_hidden_meshes(std::unordered_set<std::string> mesh_names);
+  void set_post_text_meshes(std::unordered_set<std::string> mesh_names);
+  void set_post_text_mesh_world_offsets(
+      std::map<std::string, std::array<float, 3>> offsets);
+  void set_post_text_mesh_text_split(size_t batch_index);
   void set_material_alpha_multipliers(std::map<std::string, float> material_alpha);
   void set_material_color_overrides(
       std::map<std::string, std::array<float, 4>> material_colors);
@@ -192,13 +202,14 @@ class MiloSceneRenderer {
                                      float frames_per_second);
   void trigger_mesh_transform_anim(const std::string& mesh_name,
                                    MeshTransformAnim anim,
-                                   float frames_per_second);
+                                   float frames_per_second,
+                                   bool loop = false);
   void update(float dt_seconds);
 
  private:
   IDirect3DTexture9* upload(const ghogx::asset::Image& img);
   void frame_camera_on_bounds();
-  void draw_impl(bool clear_target);
+  void draw_impl(bool clear_target, bool draw_scene, bool draw_text);
 
   Window* win_ = nullptr;
   IDirect3DDevice9* dev_ = nullptr;
@@ -215,11 +226,24 @@ class MiloSceneRenderer {
   std::map<std::string, float> particle_sizes_;
   float particle_time_ = 0.0f;
   std::unordered_set<std::string> hidden_meshes_;
+  std::unordered_set<std::string> post_text_meshes_;
+  std::map<std::string, std::array<float, 3>> post_text_mesh_world_offsets_;
+  size_t post_text_mesh_text_split_ = 0;
   std::map<std::string, float> material_alpha_;
   std::map<std::string, std::array<float, 4>> material_colors_;
   std::map<std::string, std::string> material_textures_;
   std::map<std::string, MaterialTexTransformSample> material_tex_transforms_;
   bool environment_lighting_enabled_ = true;
+  bool custom_viewport_ = false;
+  int viewport_x_ = 0;
+  int viewport_y_ = 0;
+  int viewport_w_ = 0;
+  int viewport_h_ = 0;
+  bool clear_depth_on_overlay_ = false;
+  bool force_environment_dynamic_lights_ = false;
+  uint8_t clear_r_ = 20;
+  uint8_t clear_g_ = 22;
+  uint8_t clear_b_ = 34;
   std::map<std::string, std::string> mesh_environments_;
   std::map<std::string, std::array<float, 4>> environment_color_overrides_;
   std::map<std::string, std::array<float, 4>> light_color_overrides_;
@@ -235,6 +259,7 @@ class MiloSceneRenderer {
     MeshTransformAnim anim;
     float frames_per_second = 30.0f;
     float elapsed = 0.0f;
+    bool loop = false;
   };
   std::map<std::string, ActiveMeshAnim> active_mesh_anims_;
 

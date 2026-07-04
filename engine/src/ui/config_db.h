@@ -39,12 +39,22 @@ class ConfigDb {
   const DataArray* song(std::size_t index) const;      // the Nth (key (...)...)
   Symbol song_key(std::size_t index) const;            // the Nth song's symbol key
   DataNode song_field(std::size_t index, Symbol field) const;  // name/artist/...
+  int song_duration_sec(Symbol song) const;
+  const std::vector<Symbol>& practice_sections() const { return practice_sections_; }
 
   // Generic keyed-record field: record's `find_keyed(field)` value (at(1)).
   static DataNode field(const DataArray* record, Symbol key);
 
  private:
+  void load_practice_sections(const gh::ark::ArkV3Reader& ark,
+                              const std::vector<std::string>& ark_paths);
+
   std::map<const void*, std::shared_ptr<DataArray>> tables_;
+  std::vector<Symbol> practice_sections_;
+  gh::ark::ArkV3Reader ark_;
+  std::vector<std::string> ark_paths_;
+  bool has_ark_ = false;
+  mutable std::map<const void*, int> song_duration_sec_;
 };
 
 }  // namespace ghogx::ui

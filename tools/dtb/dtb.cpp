@@ -125,37 +125,52 @@ std::shared_ptr<Node> read_node(Cursor& c) {
 Tree parse(const std::vector<uint8_t>& src) {
     if (src.empty()) throw std::runtime_error("DTB: empty input");
 
-    std::vector<uint8_t> work;
-    bool encrypted = (src[0] != 0x01);
-    if (encrypted) {
+    auto parse_payload = [](const std::vector<uint8_t>& work) {
+        if (work.empty() || work[0] != 0x01) {
+            std::ostringstream oss;
+            oss << "DTB: first plaintext byte = 0x"
+                << std::hex << (work.empty() ? 0 : work[0]) << " (expected 0x01)";
+            throw std::runtime_error(oss.str());
+        }
+        Cursor c(work.data(), work.size());
+        (void)c.u8();  // consume the 0x01 marker
+        uint16_t root_count = c.u16();
+        uint32_t version = c.u32();
+
+        Tree tree;
+        tree.embedded = (version == 0);
+        tree.root_line = 0;
+        tree.root = read_children(c, root_count);
+        return tree;
+    };
+
+    auto decrypt_payload = [&src]() {
         if (src.size() < 4) throw std::runtime_error("DTB: too short for cipher seed");
         uint32_t seed;
         std::memcpy(&seed, src.data(), 4);
         // The bytes after the seed are the encrypted payload; once decrypted
         // they should begin with the 0x01 plaintext marker.
-        work.assign(src.begin() + 4, src.end());
+        std::vector<uint8_t> work(src.begin() + 4, src.end());
         Ps2Crypt cipher(seed);
         cipher.apply(work.data(), work.size());
-        if (work.empty() || work[0] != 0x01) {
-            std::ostringstream oss;
-            oss << "DTB: decryption failed; first plaintext byte = 0x"
-                << std::hex << (work.empty() ? 0 : work[0]) << " (expected 0x01)";
-            throw std::runtime_error(oss.str());
+        return work;
+    };
+
+    if (src[0] == 0x01) {
+        try {
+            return parse_payload(src);
+        } catch (const std::exception& plain_ex) {
+            try {
+                return parse_payload(decrypt_payload());
+            } catch (const std::exception& decrypt_ex) {
+                std::ostringstream oss;
+                oss << plain_ex.what() << "; encrypted fallback: "
+                    << decrypt_ex.what();
+                throw std::runtime_error(oss.str());
+            }
         }
-    } else {
-        work = src;
     }
-
-    Cursor c(work.data(), work.size());
-    (void)c.u8();  // consume the 0x01 marker
-    uint16_t root_count = c.u16();
-    uint32_t version = c.u32();
-
-    Tree tree;
-    tree.embedded = (version == 0);
-    tree.root_line = 0;
-    tree.root = read_children(c, root_count);
-    return tree;
+    return parse_payload(decrypt_payload());
 }
 
 // ---------------------------------------------------------------------------
