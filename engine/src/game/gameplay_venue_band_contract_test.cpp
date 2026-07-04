@@ -1097,6 +1097,24 @@ int main() {
   ok &= absent(hud_renderer_c,
                "argb(155,145,220,255)",
                "star-power native tube-meter glow must not keep the hand-tinted cyan overlay");
+  ok &= absent(hud_renderer_c,
+               "argb(230,220,235,255)",
+               "star-power back layer must not keep a hand-tinted tube fallback");
+  ok &= absent(hud_renderer_c,
+               "argb(90,185,210,220)",
+               "star-power back layer must not keep a hand-tinted empty-fill fallback");
+  ok &= absent(hud_renderer_c,
+               "argb(230,120,205,255)",
+               "star-power fill must not keep a hand-tinted blue fill fallback");
+  ok &= absent(hud_renderer_c,
+               "argb(220,75,165,255)",
+               "star-power fill must not keep a hand-tinted no-texture fallback");
+  ok &= absent(hud_renderer_c,
+               "argb(150,135,210,255)",
+               "star-power fill glow must not keep a hand-tinted bar-glow fallback");
+  ok &= absent(hud_renderer_c,
+               "argb(125,115,205,255)",
+               "star-power ready glow must not keep a hand-tinted tube fallback");
   ok &= contains(hud_renderer_c,
                  "dev->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD);",
                  "HUD overlay resets authored subtractive blend state before drawing");

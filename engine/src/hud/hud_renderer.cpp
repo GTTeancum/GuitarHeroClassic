@@ -3052,35 +3052,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
                                   bool star_power_active) const {
   if (!sp_bar_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
-  const Slot& sl = sp_bar_;
 
   if (!native_star_back_.empty()) {
     out.insert(out.end(), native_star_back_.begin(), native_star_back_.end());
-  } else {
-    if (IDirect3DTexture9* base = tex("amp_chrome_base.tex")) {
-      push_rect(out, sl.cx - sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
-                sl.hh * 0.95f, base, 0xFFFFFFFF, false,
-                right_hud_depth_at(sl.cx - sl.hw * 0.70f),
-                right_hud_depth_at(sl.cx - sl.hw * 1.26f), kHudGroupRight,
-                kElemSpCaps);
-      push_rect(out, sl.cx + sl.hw * 0.98f, sl.cz, sl.hw * 0.28f,
-                sl.hh * 0.95f, base, 0xFFFFFFFF, false,
-                right_hud_depth_at(sl.cx + sl.hw * 1.26f),
-                right_hud_depth_at(sl.cx + sl.hw * 0.70f), kHudGroupRight,
-                kElemSpCaps);
-    }
-    if (IDirect3DTexture9* tube = tex("cleartube.tex") ? tex("cleartube.tex") : tex("chrome.tex"))
-      push_rect(out, sl.cx, sl.cz, sl.hw, sl.hh, tube, argb(230, 220, 235, 255),
-                false, right_hud_depth_at(sl.cx + sl.hw),
-                right_hud_depth_at(sl.cx - sl.hw), kHudGroupRight, kElemSpBack);
-
-    if (IDirect3DTexture9* empty = tex("amp_inside_bar.tex")) {
-      push_rect(out, sl.cx, sl.cz, sl.hw * 0.86f, sl.hh * 0.30f, empty,
-                argb(90, 185, 210, 220), false,
-                right_hud_depth_at(sl.cx + sl.hw * 0.86f),
-                right_hud_depth_at(sl.cx - sl.hw * 0.86f), kHudGroupRight,
-                kElemSpBack);
-    }
   }
 
   const bool ready = fill >= 0.5f;
@@ -3289,29 +3263,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       drew_native_particles |= append_star_particle(particle);
     }
   }
-  bool drew_fallback_fill = false;
-
-  if (!drew_native_fill) {
-    float fill_hw = sl.hw * fill;
-    float fill_cx = sl.cx - sl.hw + fill_hw;
-    IDirect3DTexture9* fillt = tex("amp_inside_bar.tex");
-    if (fill_hw > 0.5f) {
-      drew_fallback_fill = true;
-      push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.52f, fillt,
-                fillt ? argb(230, 120, 205, 255) : argb(220, 75, 165, 255),
-                false, right_hud_depth_at(fill_cx + fill_hw),
-                right_hud_depth_at(fill_cx - fill_hw), kHudGroupRight,
-                kElemSpFill);
-      if (IDirect3DTexture9* glow = tex("amp_bar_glow.tex")) {
-        push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.72f, glow,
-                  argb(150, 135, 210, 255), true,
-                  right_hud_depth_at(fill_cx + fill_hw),
-                  right_hud_depth_at(fill_cx - fill_hw), kHudGroupRight,
-                  kElemSpFill);
-      }
-    }
-  }
-
   static int star_power_debug_budget = 0;
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER") &&
       star_power_debug_budget < 90) {
@@ -3337,7 +3288,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         native_star_glass_.size(), native_star_base_.size(),
         native_star_top_.size(), native_star_caps_.size(),
         drew_native_fill ? 1 : 0, drew_native_particles ? 1 : 0,
-        drew_fallback_fill ? 1 : 0);
+        0);
     ++star_power_debug_budget;
   }
 
@@ -3348,12 +3299,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         q.color = scale_argb_alpha(q.color, tube_ready_alpha);
         out.push_back(std::move(q));
       }
-    } else if (IDirect3DTexture9* ready = tex("amp_tube_glow.tex")) {
-      push_rect(out, sl.cx, sl.cz, sl.hw * 1.04f, sl.hh * 0.92f, ready,
-                argb(125, 115, 205, 255), true,
-                right_hud_depth_at(sl.cx + sl.hw * 1.04f),
-                right_hud_depth_at(sl.cx - sl.hw * 1.04f), kHudGroupRight,
-                kElemSpReady);
     }
   }
 
