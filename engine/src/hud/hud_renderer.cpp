@@ -3440,14 +3440,6 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
               rock_light_front_lamp_color_keys_[active_light_index],
               active_light_frame);
     out.push_back(std::move(q));
-  } else if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
-    const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
-                         : fill < 0.55f ? argb(125, 255, 225, 65)
-                         : argb(105, 80, 255, 90);
-    push_rect(out, f.cx, f.cz - f.hh * 0.12f, f.hw * 0.88f, f.hh * 0.58f,
-              light, color, true, right_hud_depth_at(f.cx + f.hw * 0.88f),
-              right_hud_depth_at(f.cx - f.hw * 0.88f), kHudGroupRight,
-              kElemRockLights);
   }
 
   if (native_rock_frame_ok_) {

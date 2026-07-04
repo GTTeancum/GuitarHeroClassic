@@ -972,6 +972,15 @@ int main() {
                "dim_green_color",
                "ROCK meter must not hand-light inactive green lamp");
   ok &= absent(hud_renderer_c,
+               "argb(150,255,45,35)",
+               "ROCK meter must not keep a hand-tinted red lamp fallback");
+  ok &= absent(hud_renderer_c,
+               "argb(125,255,225,65)",
+               "ROCK meter must not keep a hand-tinted yellow lamp fallback");
+  ok &= absent(hud_renderer_c,
+               "argb(105,80,255,90)",
+               "ROCK meter must not keep a hand-tinted green lamp fallback");
+  ok &= absent(hud_renderer_c,
                "out.push_back(active_light);",
                "ROCK meter must not draw a second hand-tinted active lamp over the source MatAnim lamps");
   ok &= contains(hud_renderer_c,
