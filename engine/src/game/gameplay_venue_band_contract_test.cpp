@@ -1074,6 +1074,11 @@ int main() {
                  "native_star_path_glow_",
                  "star-power path glow is separate from the tube-meter alpha layer");
   ok &= contains(hud_renderer_c,
+                 "append_star_mesh(\"amp_inside_bar_path.mesh\","
+                 "native_star_path_glow_,0,false,false,true,"
+                 "nullptr,true,kElemSpFill,0.0f);",
+                 "star-power path glow preserves amp_inside_star_path.mat blend=3 instead of forcing additive");
+  ok &= contains(hud_renderer_c,
                  "\"amp_glass.mesh\",\"amp_base_bar.mesh\"",
                  "star-power source bounds include the authored amp_base_bar child");
   ok &= absent(hud_renderer_c,

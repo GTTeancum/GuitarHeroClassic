@@ -2498,7 +2498,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                      0, false, false, true,
                      nullptr, true, kElemSpFill, 0.0f);
     append_star_mesh("amp_inside_bar_path.mesh", native_star_path_glow_,
-                     0, true, false, true,
+                     0, false, false, true,
                      nullptr, true, kElemSpFill, 0.0f);
     append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
                      0, true, false, true,
