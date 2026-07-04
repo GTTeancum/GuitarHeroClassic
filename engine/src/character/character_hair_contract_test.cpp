@@ -121,6 +121,10 @@ int main() {
                  "hair_override);",
                  "hair skinning consumes runtime CharHair rows by palette bone");
   ok &= contains(char_renderer_c,
+                 "is_hair_render_mesh(mesh)&&"
+                 "runtime_hair_world_override(character,mesh.bone_palette[i],",
+                 "material-named hair meshes consume runtime CharHair rows");
+  ok &= contains(char_renderer_c,
                  "if(has_hair_override)curr_world=hair_override;",
                  "runtime CharHair rows replace the palette current row");
 

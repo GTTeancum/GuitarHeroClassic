@@ -2725,7 +2725,7 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
     const std::array<float, 16> raw_curr_world = curr_world;
     std::array<float, 16> hair_override{};
     const bool has_hair_override =
-        is_hair_mesh_name(mesh.name) &&
+        is_hair_render_mesh(mesh) &&
         runtime_hair_world_override(character, mesh.bone_palette[i],
                                     hair_override);
     if (has_hair_override) curr_world = hair_override;
