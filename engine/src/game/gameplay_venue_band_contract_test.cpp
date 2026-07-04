@@ -1221,6 +1221,12 @@ int main() {
                  "native_star_fill_glow_,std::nullopt,tube_meter_alpha);",
                  "star-power tube-meter glow draw remains source-backed");
   ok &= contains(hud_renderer_c,
+                 "\"fallback_fill=%dready_view=star_meter_ready.view\"",
+                 "star-power diagnostics name the traced ready view");
+  ok &= contains(hud_renderer_c,
+                 "\"fill_glow_gate=%d\"",
+                 "star-power diagnostics expose the ready-view glow gate");
+  ok &= contains(hud_renderer_c,
                  "source_filter_frame(star_tube_glow_filter_,fill,"
                  "star_tube_glow_anim_duration_);",
                  "star-power tube ready alpha no longer pins the source MatAnim at frame zero");

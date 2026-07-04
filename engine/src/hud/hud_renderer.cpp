@@ -3676,7 +3676,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "front=%zu glass=%zu base=%zu "
         "top=%zu caps=%zu native_fill=%d native_particles=%d "
         "ready_mesh_drawn=%d ready_glow_drawn=%d fill_glow_drawn=%d "
-        "fallback_fill=%d "
+        "fallback_fill=%d ready_view=star_meter_ready.view "
+        "fill_glow_gate=%d "
         "source_layers=amp_inside_bar.mesh,amp_inside_bar_path.mesh,"
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
@@ -3704,7 +3705,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         native_star_top_.size(), native_star_caps_.size(),
         drew_native_fill ? 1 : 0, drew_native_particles ? 1 : 0,
         drew_native_ready_mesh ? 1 : 0, drew_native_ready_glow ? 1 : 0,
-        drew_native_fill_glow ? 1 : 0, 0,
+        drew_native_fill_glow ? 1 : 0, 0, tube_glow ? 1 : 0,
         first_quad_blend(native_star_fill_),
         first_quad_blend(native_star_path_glow_),
         first_quad_blend(native_star_fill_glow_),
