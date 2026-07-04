@@ -1076,9 +1076,56 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"amp_glass.mesh\",\"amp_base_bar.mesh\"",
                  "star-power source bounds include the authored amp_base_bar child");
+  ok &= absent(hud_renderer_c,
+               "append_star_mesh(\"amp_inside_bar.mesh\",native_star_back_",
+               "star-power must not draw a duplicate full amp_inside_bar back layer");
+  ok &= contains(hud_renderer_c,
+                 "append_star_mesh(\"amp_glass_black.mesh\",native_star_back_",
+                 "star-power back layer keeps only the source black glass child");
   ok &= contains(hud_renderer_c,
                  "append_star_mesh(\"amp_base_bar.mesh\",native_star_top_",
                  "star-power renders the authored amp_base_bar child after chrome top");
+  ok &= appears_before(
+      hud_renderer_c,
+      "if(!native_star_front_.empty())"
+      "out.insert(out.end(),native_star_front_.begin(),native_star_front_.end());",
+      "if(!native_star_back_.empty())"
+      "out.insert(out.end(),native_star_back_.begin(),native_star_back_.end());",
+      "star-power emits amp_inside_disk before amp_glass_black like star_meter.view");
+  ok &= appears_before(
+      hud_renderer_c,
+      "if(!native_star_back_.empty())"
+      "out.insert(out.end(),native_star_back_.begin(),native_star_back_.end());",
+      "if(!native_star_base_.empty())"
+      "out.insert(out.end(),native_star_base_.begin(),native_star_base_.end());",
+      "star-power emits amp_glass_black before chrome base like star_meter.view");
+  ok &= appears_before(
+      hud_renderer_c,
+      "if(!native_star_base_.empty())"
+      "out.insert(out.end(),native_star_base_.begin(),native_star_base_.end());",
+      "if(!native_star_glass_.empty())"
+      "out.insert(out.end(),native_star_glass_.begin(),native_star_glass_.end());",
+      "star-power emits chrome base before amp_glass like star_meter.view");
+  ok &= appears_before(
+      hud_renderer_c,
+      "if(!native_star_glass_.empty())"
+      "out.insert(out.end(),native_star_glass_.begin(),native_star_glass_.end());",
+      "drew_native_fill|=append_clipped_fill(native_star_fill_,"
+      "star_fill_color,1.0f);",
+      "star-power emits amp_glass before the clipped amp_inside_bar fill");
+  ok &= appears_before(
+      hud_renderer_c,
+      "drew_native_fill|=append_clipped_fill(native_star_path_glow_,"
+      "std::nullopt,1.0f);",
+      "if(!native_star_top_.empty())"
+      "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
+      "star-power emits amp_inside_bar_path before chrome top/base bar");
+  ok &= appears_before(
+      hud_renderer_c,
+      "if(!native_star_top_.empty())"
+      "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
+      "if(tube_glow){",
+      "star-power completes star_meter.view shell before star_meter_ready.view glow");
   ok &= contains(hud_renderer_h_c,
                  "structStarParticleLayer{",
                  "star-power HUD keeps a source-backed particle layer type");

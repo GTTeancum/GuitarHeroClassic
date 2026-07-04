@@ -2491,9 +2491,6 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       layer.half_h = point_size_px * ((kZBot - kZTop) / 720.0f) * 0.5f;
       native_star_particles_.push_back(std::move(layer));
     };
-    append_star_mesh("amp_inside_bar.mesh", native_star_back_,
-                     0, false, false, true,
-                     nullptr, true, kElemSpBack, 0.0f);
     append_star_mesh("amp_glass_black.mesh", native_star_back_,
                      0, false, false, true,
                      nullptr, true, kElemSpBack, 0.0f);
@@ -3336,10 +3333,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
                           start, end);
       };
 
-  if (!native_star_back_.empty()) {
-    out.insert(out.end(), native_star_back_.begin(), native_star_back_.end());
-  }
-
   const bool ready = fill >= 0.5f;
   const bool tube_glow = ready || star_power_active;
   const float fill_anim_frame = source_filter_frame(
@@ -3362,6 +3355,15 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       star_tube_meter_alpha_keys_, tube_meter_anim_frame);
   const float tube_ready_alpha = sample_hud_mat_anim_alpha_frame(
       star_tube_glow_alpha_keys_, tube_glow_anim_frame);
+
+  if (!native_star_front_.empty())
+    out.insert(out.end(), native_star_front_.begin(), native_star_front_.end());
+  if (!native_star_back_.empty())
+    out.insert(out.end(), native_star_back_.begin(), native_star_back_.end());
+  if (!native_star_base_.empty())
+    out.insert(out.end(), native_star_base_.begin(), native_star_base_.end());
+  if (!native_star_glass_.empty())
+    out.insert(out.end(), native_star_glass_.begin(), native_star_glass_.end());
 
   // GH2's tube fills from the right cap toward the left. Projection flips X,
   // so screen-right is the lower world-X side of the decoded meter mesh.
@@ -3590,6 +3592,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       drew_native_particles |= append_star_particle(particle);
     }
   }
+  if (!native_star_top_.empty())
+    out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
+
   static int star_power_debug_budget = 0;
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER") &&
       star_power_debug_budget < 90) {
@@ -3651,14 +3656,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
                                             std::nullopt, tube_meter_alpha);
   }
 
-  if (!native_star_front_.empty())
-    out.insert(out.end(), native_star_front_.begin(), native_star_front_.end());
-  if (!native_star_glass_.empty())
-    out.insert(out.end(), native_star_glass_.begin(), native_star_glass_.end());
-  if (!native_star_base_.empty())
-    out.insert(out.end(), native_star_base_.begin(), native_star_base_.end());
-  if (!native_star_top_.empty())
-    out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
   if (!native_star_caps_.empty())
     out.insert(out.end(), native_star_caps_.begin(), native_star_caps_.end());
 }
