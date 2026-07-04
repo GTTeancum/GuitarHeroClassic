@@ -3367,14 +3367,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   const uint32_t authored_rock_label_front_color =
       sample_hud_mat_anim_color_frame(rock_label_front_color_keys_,
                                       active_light_frame);
-  const uint32_t authored_active_light_base_color =
-      rock_light_base_color_keys_[active_light_index].empty()
-          ? authored_rock_label_front_color
-          : sample_hud_mat_anim_color_frame(
-                rock_light_base_color_keys_[active_light_index],
-                active_light_frame);
   const uint32_t rock_label_color = authored_rock_label_color;
-  const uint32_t rock_label_front_color = authored_active_light_base_color;
+  const uint32_t rock_label_front_color = authored_rock_label_front_color;
   if (have_native_lights) {
     const Quad* active_front =
         active_light_index == 0 ? &native_rock_light_red_
