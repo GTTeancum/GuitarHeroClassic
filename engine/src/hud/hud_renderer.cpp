@@ -197,6 +197,25 @@ int color_byte(float value) {
   return static_cast<int>(clamp_hud_mat_color(value) * 255.0f + 0.5f);
 }
 
+uint32_t rock_lamp_override_color(int lamp_index, bool lit) {
+  struct Rgb {
+    float r, g, b;
+  };
+  constexpr Rgb kDimmed[3] = {
+      {0.650f, 0.000f, 0.000f},
+      {0.350f, 0.350f, 0.000f},
+      {0.000f, 0.500f, 0.000f},
+  };
+  constexpr Rgb kLit[3] = {
+      {0.900f, 0.000f, 0.000f},
+      {0.950f, 0.875f, 0.000f},
+      {0.000f, 0.900f, 0.000f},
+  };
+  const int clamped_index = std::clamp(lamp_index, 0, 2);
+  const Rgb& rgb = lit ? kLit[clamped_index] : kDimmed[clamped_index];
+  return argb(255, color_byte(rgb.r), color_byte(rgb.g), color_byte(rgb.b));
+}
+
 struct HudMatAnimColorKey {
   float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   float frame = 0.0f;
@@ -3738,17 +3757,15 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   const float active_light_frame =
       active_light_index == 0 ? 0.0f : active_light_index == 1 ? 33.0f : 66.0f;
   if (have_native_light_bases) {
-    const Quad* active_base =
-        active_light_index == 0 ? &native_rock_light_red_base_
-        : active_light_index == 1 ? &native_rock_light_yellow_base_
-                                  : &native_rock_light_green_base_;
-    Quad q = *active_base;
-    q.color = rock_light_base_color_keys_[active_light_index].empty()
-        ? q.color
-        : sample_hud_mat_anim_color_frame(
-              rock_light_base_color_keys_[active_light_index],
-              active_light_frame);
-    out.push_back(std::move(q));
+    const Quad* base_lamps[3] = {&native_rock_light_red_base_,
+                                 &native_rock_light_yellow_base_,
+                                 &native_rock_light_green_base_};
+    for (int lamp_index = 0; lamp_index < 3; ++lamp_index) {
+      Quad q = *base_lamps[lamp_index];
+      q.color =
+          rock_lamp_override_color(lamp_index, lamp_index == active_light_index);
+      out.push_back(std::move(q));
+    }
   }
 
   if (native_rock_face_ok_) {
@@ -3770,19 +3787,16 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   const uint32_t authored_rock_label_front_color =
       sample_hud_mat_anim_color_frame(rock_label_front_color_keys_,
                                       active_light_frame);
-  const uint32_t rock_label_color = authored_rock_label_color;
-  const uint32_t rock_label_front_color = authored_rock_label_front_color;
+  const uint32_t rock_label_color =
+      rock_lamp_override_color(active_light_index, true);
+  const uint32_t rock_label_front_color = rock_label_color;
   if (have_native_lights) {
     const Quad* active_front =
         active_light_index == 0 ? &native_rock_light_red_
         : active_light_index == 1 ? &native_rock_light_yellow_
                                   : &native_rock_light_green_;
     Quad q = *active_front;
-    q.color = rock_light_front_lamp_color_keys_[active_light_index].empty()
-        ? q.color
-        : sample_hud_mat_anim_color_frame(
-              rock_light_front_lamp_color_keys_[active_light_index],
-              active_light_frame);
+    q.color = rock_lamp_override_color(active_light_index, true);
     out.push_back(std::move(q));
   }
 
@@ -3867,7 +3881,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
           rock_light_front_lamp_color_keys_[0].size(),
           rock_light_front_lamp_color_keys_[1].size(),
           rock_light_front_lamp_color_keys_[2].size(),
-          active_light_name, active_light_name,
+          have_native_light_bases ? "all" : "none",
+          have_native_lights ? active_light_name : "none",
           native_rock_label_ok_ ? 1 : 0, native_rock_needle_ok_ ? 1 : 0,
           native_rock_needle_led_ok_ ? 1 : 0, native_needle_angle,
           needle_scale_x, needle_scale_z, px, pz, rock_light_frame,
