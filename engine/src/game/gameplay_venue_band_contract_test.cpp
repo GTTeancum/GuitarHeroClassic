@@ -1684,6 +1684,29 @@ int main() {
                  "nativegemsparklemeshes:star=%dbonus1=%dbonus2=%d",
                  "highway logs native sparkle mesh availability");
   ok &= contains(highway_renderer_c,
+                 "\"[highway-tail]source=%sactive=%dstar_tail=%dwhammy=%d\"",
+                 "highway tail diagnostics label active FoFiX sustains and whammy state");
+  ok &= contains(highway_renderer_c,
+                 "if(active_sustains){for(constauto&sustain:*active_sustains){",
+                 "highway iterates live FoFiX active sustain exports");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
+                 "\"held_lane\",lane_held_tail,held_tail,tail_glow_width_,",
+                 "held FoFiX sustains draw the native per-lane held-tail mesh");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
+                 "\"held_tight\",&held_tight_tail_mesh_,held_tail,"
+                 "tail_glow_tight_width_,",
+                 "held FoFiX sustains layer the native tight-tail highlight");
+  ok &= contains(highway_renderer_c,
+                 "draw_authored_runtime_mesh(burn_castlight_mesh_,lane_x(lane),"
+                 "kStrikeY,D3DCOLOR_ARGB(255,255,255,255),1.0f,true);",
+                 "held FoFiX sustains draw the native burn castlight at the strikeline");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
+                 "\"held_star\",&star_tail_mesh_,held_tail,tail_glow_width_,",
+                 "held FoFiX star sustains layer the native star held-tail mesh");
+  ok &= contains(highway_renderer_c,
                  "smasher_normal_texture_name_=material_texture("
                  "\"gem_smasher.mat\");",
                  "fret targets resolve the authored idle smasher material from track.milo");
