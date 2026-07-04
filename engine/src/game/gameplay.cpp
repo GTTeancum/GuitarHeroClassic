@@ -152,6 +152,10 @@ bool debug_drum_sync_enabled() {
     return env_value("GHOGX_DEBUG_DRUM_SYNC") != nullptr;
 }
 
+bool drum_sync_fallback_pulse_enabled() {
+    return env_value("GHOGX_ENABLE_DRUM_SYNC_FALLBACK_PULSE") != nullptr;
+}
+
 bool debug_worldcrowd_enabled() {
     return env_value("GHOGX_DEBUG_WORLDCROWD") != nullptr;
 }
@@ -19289,6 +19293,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         bool drum_sync_authored = false;
         bool drum_sync_fallback = false;
         if (drum_kit_) {
+            const bool allow_fallback_pulse =
+                drum_sync_fallback_pulse_enabled();
             auto trigger_drum_anim = [&](const char* mesh_name) {
                 auto it = drum_mesh_transform_anims_.find(mesh_name);
                 if (it == drum_mesh_transform_anims_.end()) return false;
@@ -19300,10 +19306,15 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
             };
             auto trigger_drum_pulse = [&](const char* mesh_name,
                                           float amplitude) {
+                if (!allow_fallback_pulse) {
+                    drum_sync_route = "source-missing";
+                    return false;
+                }
                 drum_kit_->trigger_mesh_pulse(mesh_name, amplitude);
                 drum_sync_targets.emplace_back(mesh_name);
                 drum_sync_fallback = true;
                 drum_sync_route = "fallback-pulse";
+                return true;
             };
             bool handled = false;
             if (auto routed = drum_event_mesh_targets_.find(cue.event);

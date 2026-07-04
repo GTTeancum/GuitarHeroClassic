@@ -414,6 +414,11 @@ int main() {
                  "returnenv_value(\"GHOGX_DEBUG_DRUM_SYNC\")!=nullptr;}",
                  "drum kit sync proof has an opt-in diagnostic gate");
   ok &= contains(gameplay_c,
+                 "booldrum_sync_fallback_pulse_enabled(){"
+                 "returnenv_value(\"GHOGX_ENABLE_DRUM_SYNC_FALLBACK_PULSE\")"
+                 "!=nullptr;}",
+                 "drum kit fallback pulses require an explicit validation gate");
+  ok &= contains(gameplay_c,
                  "\"[drum-sync]kit=loadedmilo=%s\"",
                  "drum sync diagnostic records loaded kit coverage");
   ok &= contains(gameplay_c,
@@ -426,8 +431,16 @@ int main() {
                  "drum_sync_route=\"event-trigger\";",
                  "drum sync cue rows distinguish source-authored EventTrigger routes");
   ok &= contains(gameplay_c,
+                 "drum_sync_route=\"source-missing\";",
+                 "drum sync cue rows identify missing authored routes without inventing motion");
+  ok &= contains(gameplay_c,
                  "drum_sync_route=\"fallback-pulse\";",
-                 "drum sync cue rows identify temporary fallback pulses");
+                 "drum sync cue rows identify explicitly enabled fallback pulses");
+  ok &= appears_before(gameplay_c,
+                       "if(!allow_fallback_pulse){"
+                       "drum_sync_route=\"source-missing\";returnfalse;}",
+                       "drum_kit_->trigger_mesh_pulse(mesh_name,amplitude);",
+                       "drum fallback pulses stay disabled unless explicitly enabled");
   ok &= appears_before(gameplay_c,
                        "drum_event_mesh_targets_.find(cue.event)",
                        "cue.event==\"kick_drum\"",
