@@ -3615,6 +3615,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
 
   bool drew_native_ready_mesh = false;
   bool drew_native_ready_glow = false;
+  bool drew_native_fill_glow = false;
   if (tube_glow) {
     if (!native_star_ready_mesh_glow_.empty()) {
       for (const StarMeshAnimatedQuad& src : native_star_ready_mesh_glow_) {
@@ -3633,12 +3634,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         drew_native_ready_glow = true;
       }
     }
-  }
-  bool drew_native_fill_glow = false;
-  if (fill > 0.005f) {
-    drew_native_fill_glow = append_clipped_fill(native_star_fill_glow_,
-                                                std::nullopt, tube_meter_alpha);
-    drew_native_fill |= drew_native_fill_glow;
+    if (fill > 0.005f) {
+      drew_native_fill_glow =
+          append_clipped_fill(native_star_fill_glow_, std::nullopt,
+                              tube_meter_alpha);
+      drew_native_fill |= drew_native_fill_glow;
+    }
   }
 
   auto first_quad_blend = [](const std::vector<Quad>& layers) {

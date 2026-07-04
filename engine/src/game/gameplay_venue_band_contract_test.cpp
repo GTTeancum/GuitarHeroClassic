@@ -1214,6 +1214,13 @@ int main() {
                  "&star_tube_meter_anim_duration_);",
                  "star-power tube-meter fill glow samples the source AnimFilter window");
   ok &= contains(hud_renderer_c,
+                 "if(tube_glow){if(!native_star_ready_mesh_glow_.empty()){",
+                 "star-power ready view owns the source tube glow draw path");
+  ok &= contains(hud_renderer_c,
+                 "drew_native_fill_glow=append_clipped_fill("
+                 "native_star_fill_glow_,std::nullopt,tube_meter_alpha);",
+                 "star-power tube-meter glow draw remains source-backed");
+  ok &= contains(hud_renderer_c,
                  "source_filter_frame(star_tube_glow_filter_,fill,"
                  "star_tube_glow_anim_duration_);",
                  "star-power tube ready alpha no longer pins the source MatAnim at frame zero");
