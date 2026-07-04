@@ -820,6 +820,16 @@ int main() {
                  "make_slot_mesh(crowd,*mesh,bounds,rock_face_,color,"
                  "additive,flip_v,flip_z,true,-1.0f,flip_x);",
                  "ROCK meter placement can unmirror source child X on the right HUD");
+  ok &= contains(hud_renderer_h_c,
+                 "Slotnative_rock_lights_slot_;",
+                 "ROCK meter preserves the full authored alpha-glow group bounds");
+  ok &= contains(hud_renderer_c,
+                 "native_rock_lights_slot_=union_slot_for_quads(lights);",
+                 "ROCK meter captures the full authored alpha-glow group source slot");
+  ok &= contains(hud_renderer_c,
+                 "apply_element_slot_tuning(kElemRockLights,rock_face_,"
+                 "&native_rock_lights_slot_);",
+                 "ROCK meter scales the selected alpha glow against the full group bounds");
   ok &= contains(hud_renderer_c,
                  "assign_meter_mesh(\"rock_light_red.mesh\",rock_bounds,"
                  "native_rock_light_red_base_,native_rock_light_red_base_ok_,"
@@ -829,27 +839,35 @@ int main() {
                  "assign_meter_mesh(\"rock_light_green_front.mesh\",rock_bounds,"
                  "native_rock_light_green_,native_rock_light_green_ok_,0,true,"
                  "true,true,kElemRockLights,true);",
-                 "ROCK green source front lamp is unmirrored into the right meter pane");
+                 "ROCK green source front glow is unmirrored into the right meter pane");
   ok &= contains(hud_renderer_c,
                  "constintactive_light_index=rock_light_frame<33.0f?0:"
                  "rock_light_frame<66.0f?1:2;",
                  "ROCK meter selects exactly one active lamp band from the source frame");
   ok &= contains(hud_renderer_c,
+                 "constfloatactive_light_frame="
+                 "active_light_index==0?0.0f:active_light_index==1?33.0f:66.0f;",
+                 "ROCK meter samples source MatAnims at the authored state-on frames");
+  ok &= contains(hud_renderer_c,
+                 "while(key_index+1<keys.size()&&"
+                 "frame+kFrameEpsilon>=keys[key_index+1].frame)",
+                 "HUD MatAnim sampler handles duplicate instant-step source frames");
+  ok &= contains(hud_renderer_c,
                  "active_light_index==0?&native_rock_light_red_base_:"
                  "active_light_index==1?&native_rock_light_yellow_base_:"
                  "&native_rock_light_green_base_;",
-                 "ROCK meter emits only the selected source base pane");
+                 "ROCK meter emits only the selected source base pane by authored identity");
   ok &= contains(hud_renderer_c,
                  "q.color=rock_light_base_color_keys_[active_light_index].empty()"
-                 "?q.color:sample_hud_mat_anim_color("
+                 "?q.color:sample_hud_mat_anim_color_frame("
                  "rock_light_base_color_keys_[active_light_index],"
-                 "rock_light_base_anim_duration_[active_light_index],fill);",
-                 "ROCK meter selected base pane uses its authored MatAnim color");
+                 "active_light_frame);",
+                 "ROCK meter selected base pane uses its authored absolute-frame MatAnim color");
   ok &= contains(hud_renderer_c,
                  "active_light_index==0?&native_rock_light_red_:"
                  "active_light_index==1?&native_rock_light_yellow_:"
                  "&native_rock_light_green_;",
-                 "ROCK meter maps the selected source front lamp by authored red/yellow/green identity");
+                 "ROCK meter emits only the selected source front alpha glow by authored identity");
   ok &= absent(hud_renderer_c,
                "out.push_back(yellow);out.push_back(red);"
                "out.push_back(green);",
@@ -917,13 +935,13 @@ int main() {
                  "rock_light_front_lamp_anim_duration_[2]);",
                  "ROCK green front lamp samples its authored source MatAnim");
   ok &= contains(hud_renderer_c,
-                 "sample_hud_mat_anim_color(rock_label_color_keys_,"
-                 "rock_label_anim_duration_,fill);",
-                 "ROCK word still decodes the native MatAnim color curve for diagnostics");
+                 "sample_hud_mat_anim_color_frame(rock_label_color_keys_,"
+                 "active_light_frame);",
+                 "ROCK word samples the native MatAnim at the active absolute frame");
   ok &= contains(hud_renderer_c,
-                 "sample_hud_mat_anim_color(rock_label_front_color_keys_,"
-                 "rock_label_front_anim_duration_,fill);",
-                 "ROCK front light still decodes the native MatAnim color curve for diagnostics");
+                 "sample_hud_mat_anim_color_frame(rock_label_front_color_keys_,"
+                 "active_light_frame);",
+                 "ROCK front light samples the native MatAnim at the active absolute frame");
   ok &= contains(hud_renderer_c,
                  "constuint32_trock_label_color=authored_rock_label_color;",
                  "visible ROCK word uses the authored rock_light MatAnim color");

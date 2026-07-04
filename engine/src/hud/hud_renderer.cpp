@@ -275,20 +275,20 @@ std::optional<HudMatAnimColorCurve> decode_mat_anim_color_curve(
 }
 
 template <typename ColorKey>
-uint32_t sample_hud_mat_anim_color(const std::vector<ColorKey>& keys,
-                                   float duration_frames, float fill) {
+uint32_t sample_hud_mat_anim_color_frame(const std::vector<ColorKey>& keys,
+                                         float frame) {
   if (keys.empty()) return 0xFFFFFFFF;
-  const float frame =
-      std::clamp(fill, 0.0f, 1.0f) * std::max(1.0f, duration_frames);
+  if (!std::isfinite(frame)) frame = keys.front().frame;
+  constexpr float kFrameEpsilon = 0.0001f;
   const auto* a = &keys.front();
-  const auto* b = &keys.back();
-  for (size_t i = 1; i < keys.size(); ++i) {
-    if (frame <= keys[i].frame) {
-      a = &keys[i - 1];
-      b = &keys[i];
-      break;
-    }
+  const auto* b = &keys.front();
+  size_t key_index = 0;
+  while (key_index + 1 < keys.size() &&
+         frame + kFrameEpsilon >= keys[key_index + 1].frame) {
+    ++key_index;
   }
+  a = &keys[key_index];
+  b = key_index + 1 < keys.size() ? &keys[key_index + 1] : a;
   const float span = b->frame - a->frame;
   const float t =
       span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
@@ -297,6 +297,14 @@ uint32_t sample_hud_mat_anim_color(const std::vector<ColorKey>& keys,
     c[i] = clamp_hud_mat_color(a->color[i] + (b->color[i] - a->color[i]) * t);
   return argb(color_byte(c[3]), color_byte(c[0]), color_byte(c[1]),
               color_byte(c[2]));
+}
+
+template <typename ColorKey>
+uint32_t sample_hud_mat_anim_color(const std::vector<ColorKey>& keys,
+                                   float duration_frames, float fill) {
+  const float frame =
+      std::clamp(fill, 0.0f, 1.0f) * std::max(1.0f, duration_frames);
+  return sample_hud_mat_anim_color_frame(keys, frame);
 }
 
 std::string first_ref_with_suffix(const std::vector<uint8_t>& body,
@@ -1810,8 +1818,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     if (native_rock_light_red_ok_) lights.push_back(&native_rock_light_red_);
     if (native_rock_light_yellow_ok_) lights.push_back(&native_rock_light_yellow_);
     if (native_rock_light_green_ok_) lights.push_back(&native_rock_light_green_);
+    native_rock_lights_slot_ = union_slot_for_quads(lights);
     init_child_rect_from_slot(kElemRockLights, rock_face_,
-                              union_slot_for_quads(lights));
+                              native_rock_lights_slot_);
   }
   {
     std::vector<const Quad*> label;
@@ -1873,7 +1882,8 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   emit_streak(quads, state.streak, star_power_visual);
   emit_score_digits(quads, state.score);
 
-  auto apply_element_slot_tuning = [&](uint8_t element, const Slot& parent) {
+  auto apply_element_slot_tuning = [&](uint8_t element, const Slot& parent,
+                                       const Slot* source_slot = nullptr) {
     if (!parent.ok || element >= kLayoutTuningCount) return;
     const LayoutRect* r = layout_rect_by_index(
         const_cast<LayoutTuning&>(layout_tuning_), element);
@@ -1897,11 +1907,24 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
         any = true;
       }
     }
-    if (!any || !(max_x > min_x) || !(max_z > min_z)) return;
-    const float src_cx = (min_x + max_x) * 0.5f;
-    const float src_cz = (min_z + max_z) * 0.5f;
-    const float src_hw = (max_x - min_x) * 0.5f;
-    const float src_hh = (max_z - min_z) * 0.5f;
+    if (!any) return;
+    Slot src;
+    if (source_slot && source_slot->ok &&
+        std::abs(source_slot->hw) > 0.001f &&
+        std::abs(source_slot->hh) > 0.001f) {
+      src = *source_slot;
+    } else {
+      if (!(max_x > min_x) || !(max_z > min_z)) return;
+      src.cx = (min_x + max_x) * 0.5f;
+      src.cz = (min_z + max_z) * 0.5f;
+      src.hw = (max_x - min_x) * 0.5f;
+      src.hh = (max_z - min_z) * 0.5f;
+      src.ok = true;
+    }
+    const float src_cx = src.cx;
+    const float src_cz = src.cz;
+    const float src_hw = src.hw;
+    const float src_hh = src.hh;
     const float src_depth = (min_y + max_y) * 0.5f;
     const float dst_cx = parent.cx - parent.hw + r->cx * parent.hw * 2.0f;
     const float dst_cz = parent.cz - parent.hh + r->cy * parent.hh * 2.0f;
@@ -1933,7 +1956,8 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   apply_element_slot_tuning(kElemSpTop, sp_bar_);
   apply_element_slot_tuning(kElemSpCaps, sp_bar_);
   apply_element_slot_tuning(kElemRockFrame, rock_face_);
-  apply_element_slot_tuning(kElemRockLights, rock_face_);
+  apply_element_slot_tuning(kElemRockLights, rock_face_,
+                            &native_rock_lights_slot_);
   apply_element_slot_tuning(kElemRockLabel, rock_face_);
 
   auto group_parent_for_quad = [&](const Quad& q, const Slot*& parent,
@@ -2684,6 +2708,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   const char* active_light_name =
       active_light_index == 0 ? "red"
                               : active_light_index == 1 ? "yellow" : "green";
+  const float active_light_frame =
+      active_light_index == 0 ? 0.0f : active_light_index == 1 ? 33.0f : 66.0f;
   if (have_native_light_bases) {
     const Quad* active_base =
         active_light_index == 0 ? &native_rock_light_red_base_
@@ -2692,9 +2718,9 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     Quad q = *active_base;
     q.color = rock_light_base_color_keys_[active_light_index].empty()
         ? q.color
-        : sample_hud_mat_anim_color(
+        : sample_hud_mat_anim_color_frame(
               rock_light_base_color_keys_[active_light_index],
-              rock_light_base_anim_duration_[active_light_index], fill);
+              active_light_frame);
     out.push_back(std::move(q));
   }
 
@@ -2712,11 +2738,11 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
       native_rock_light_red_ok_ && native_rock_light_yellow_ok_ &&
       native_rock_light_green_ok_;
   const uint32_t authored_rock_label_color =
-      sample_hud_mat_anim_color(rock_label_color_keys_,
-                                rock_label_anim_duration_, fill);
+      sample_hud_mat_anim_color_frame(rock_label_color_keys_,
+                                      active_light_frame);
   const uint32_t authored_rock_label_front_color =
-      sample_hud_mat_anim_color(rock_label_front_color_keys_,
-                                rock_label_front_anim_duration_, fill);
+      sample_hud_mat_anim_color_frame(rock_label_front_color_keys_,
+                                      active_light_frame);
   const uint32_t rock_label_color = authored_rock_label_color;
   const uint32_t rock_label_front_color = authored_rock_label_front_color;
   if (have_native_lights) {
@@ -2727,9 +2753,9 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     Quad q = *active_front;
     q.color = rock_light_front_lamp_color_keys_[active_light_index].empty()
         ? q.color
-        : sample_hud_mat_anim_color(
+        : sample_hud_mat_anim_color_frame(
               rock_light_front_lamp_color_keys_[active_light_index],
-              rock_light_front_lamp_anim_duration_[active_light_index], fill);
+              active_light_frame);
     out.push_back(std::move(q));
   } else if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
     const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
@@ -2798,7 +2824,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
           "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zu emitted_lamps=%s "
           "label=%d needle=%d led=%d "
           "angle=%.3f scale=%.3f,%.3f "
-          "pivot=%.3f,%.3f rock_anim_frame=%.3f label=%08x front=%08x "
+          "pivot=%.3f,%.3f rock_anim_frame=%.3f sample_frame=%.3f "
+          "label=%08x front=%08x "
           "authored_label=%08x authored_front=%08x\n",
           fill, active_light_name, have_native_lights ? 1 : 0,
           have_native_light_bases ? 1 : 0,
@@ -2817,6 +2844,7 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
           native_rock_label_ok_ ? 1 : 0, native_rock_needle_ok_ ? 1 : 0,
           native_rock_needle_led_ok_ ? 1 : 0, native_needle_angle,
           needle_scale_x, needle_scale_z, px, pz, rock_light_frame,
+          active_light_frame,
           rock_label_color, rock_label_front_color, authored_rock_label_color,
           authored_rock_label_front_color);
       ++rock_debug_budget;
