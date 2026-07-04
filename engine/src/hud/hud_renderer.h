@@ -187,8 +187,12 @@ class HudRenderer {
   float rock_needle_len_ = 0;
   std::vector<ColorAnimKey> rock_label_color_keys_;
   std::vector<ColorAnimKey> rock_label_front_color_keys_;
+  std::vector<ColorAnimKey> rock_light_base_color_keys_[3];
+  std::vector<ColorAnimKey> rock_light_front_lamp_color_keys_[3];
   float rock_label_anim_duration_ = 100.0f;
   float rock_label_front_anim_duration_ = 100.0f;
+  float rock_light_base_anim_duration_[3] = {100.0f, 100.0f, 100.0f};
+  float rock_light_front_lamp_anim_duration_[3] = {100.0f, 100.0f, 100.0f};
 
   Quad native_rock_face_;
   Quad native_rock_frame_;

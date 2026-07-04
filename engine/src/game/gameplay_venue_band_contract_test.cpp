@@ -817,12 +817,20 @@ int main() {
                  "assign_meter_mesh(\"rock_light_green.mesh\"",
                  "ROCK meter uses the authored green base-light mesh");
   ok &= contains(hud_renderer_c,
-                 "out.push_back(native_rock_light_yellow_base_);"
-                 "out.push_back(native_rock_light_red_base_);"
-                 "out.push_back(native_rock_light_green_base_);",
-                 "ROCK meter draws the base-light children in MILO order");
+                 "Quadyellow=native_rock_light_yellow_base_;",
+                 "ROCK meter samples the authored yellow base-light child");
+  ok &= contains(hud_renderer_c,
+                 "Quadred=native_rock_light_green_base_;",
+                 "ROCK meter maps the authored red base-light curve onto the mirrored right-HUD red lamp");
+  ok &= contains(hud_renderer_c,
+                 "Quadgreen=native_rock_light_red_base_;",
+                 "ROCK meter maps the authored green base-light curve onto the mirrored right-HUD green lamp");
+  ok &= contains(hud_renderer_c,
+                 "out.push_back(yellow);out.push_back(red);"
+                 "out.push_back(green);",
+                 "ROCK meter draws the sampled base-light children in MILO order");
   ok &= appears_before(hud_renderer_c,
-                       "out.push_back(native_rock_light_green_base_);",
+                       "out.push_back(green);",
                        "if(native_rock_face_ok_){out.push_back(native_rock_face_);}",
                        "ROCK meter draws source base lights behind rock_face_2d");
   ok &= appears_before(hud_renderer_c,
@@ -853,6 +861,33 @@ int main() {
                  "rock_label_front_color_keys_,rock_label_front_anim_duration_);",
                  "ROCK front light samples the authored rock_light_front MatAnim");
   ok &= contains(hud_renderer_c,
+                 "copy_color_keys(\"rock_light_red.manim\","
+                 "rock_light_base_color_keys_[0],rock_light_base_anim_duration_[0]);",
+                 "ROCK red base lamp samples its authored source MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "copy_color_keys(\"rock_light_yellow.manim\","
+                 "rock_light_base_color_keys_[1],rock_light_base_anim_duration_[1]);",
+                 "ROCK yellow base lamp samples its authored source MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "copy_color_keys(\"rock_light_green.manim\","
+                 "rock_light_base_color_keys_[2],rock_light_base_anim_duration_[2]);",
+                 "ROCK green base lamp samples its authored source MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "copy_color_keys(\"rock_light_red_front.manim\","
+                 "rock_light_front_lamp_color_keys_[0],"
+                 "rock_light_front_lamp_anim_duration_[0]);",
+                 "ROCK red front lamp samples its authored source MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "copy_color_keys(\"rock_light_yellow_front.manim\","
+                 "rock_light_front_lamp_color_keys_[1],"
+                 "rock_light_front_lamp_anim_duration_[1]);",
+                 "ROCK yellow front lamp samples its authored source MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "copy_color_keys(\"rock_light_green_front.manim\","
+                 "rock_light_front_lamp_color_keys_[2],"
+                 "rock_light_front_lamp_anim_duration_[2]);",
+                 "ROCK green front lamp samples its authored source MatAnim");
+  ok &= contains(hud_renderer_c,
                  "sample_hud_mat_anim_color(rock_label_color_keys_,"
                  "rock_label_anim_duration_,fill);",
                  "ROCK word still decodes the native MatAnim color curve for diagnostics");
@@ -870,6 +905,21 @@ int main() {
                  "active_red_color:fill<0.55f?active_yellow_color:"
                  "active_green_color;",
                  "visible ROCK glow uses the exact active meter light color");
+  ok &= absent(hud_renderer_c,
+               "dim_red_color",
+               "ROCK meter must not hand-light inactive red lamp");
+  ok &= absent(hud_renderer_c,
+               "dim_yellow_color",
+               "ROCK meter must not hand-light inactive yellow lamp");
+  ok &= absent(hud_renderer_c,
+               "dim_green_color",
+               "ROCK meter must not hand-light inactive green lamp");
+  ok &= absent(hud_renderer_c,
+               "out.push_back(active_light);",
+               "ROCK meter must not draw a second hand-tinted active lamp over the source MatAnim lamps");
+  ok &= contains(hud_renderer_c,
+                 "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zu",
+                 "ROCK meter diagnostics report the individual source lamp curves");
   ok &= contains(hud_renderer_c,
                  "q.element==kElemRockNeedle?1:0;",
                  "ROCK needle is layered in front of the always-lit ROCK word");

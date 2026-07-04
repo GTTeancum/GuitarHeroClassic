@@ -1110,13 +1110,35 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                   rock_label_anim_duration_);
   copy_color_keys("rock_light_front.manim", rock_label_front_color_keys_,
                   rock_label_front_anim_duration_);
+  copy_color_keys("rock_light_red.manim", rock_light_base_color_keys_[0],
+                  rock_light_base_anim_duration_[0]);
+  copy_color_keys("rock_light_yellow.manim", rock_light_base_color_keys_[1],
+                  rock_light_base_anim_duration_[1]);
+  copy_color_keys("rock_light_green.manim", rock_light_base_color_keys_[2],
+                  rock_light_base_anim_duration_[2]);
+  copy_color_keys("rock_light_red_front.manim",
+                  rock_light_front_lamp_color_keys_[0],
+                  rock_light_front_lamp_anim_duration_[0]);
+  copy_color_keys("rock_light_yellow_front.manim",
+                  rock_light_front_lamp_color_keys_[1],
+                  rock_light_front_lamp_anim_duration_[1]);
+  copy_color_keys("rock_light_green_front.manim",
+                  rock_light_front_lamp_color_keys_[2],
+                  rock_light_front_lamp_anim_duration_[2]);
   if (env_enabled("GHOGX_DEBUG_HUD_ROCK_METER")) {
     std::fprintf(stderr,
                  "[hud-rock] MatAnim curves: rock_light=%zu/%0.1f "
-                 "rock_light_front=%zu/%0.1f\n",
+                 "rock_light_front=%zu/%0.1f "
+                 "base=%zu,%zu,%zu front_lamps=%zu,%zu,%zu\n",
                  rock_label_color_keys_.size(), rock_label_anim_duration_,
                  rock_label_front_color_keys_.size(),
-                 rock_label_front_anim_duration_);
+                 rock_label_front_anim_duration_,
+                 rock_light_base_color_keys_[0].size(),
+                 rock_light_base_color_keys_[1].size(),
+                 rock_light_base_color_keys_[2].size(),
+                 rock_light_front_lamp_color_keys_[0].size(),
+                 rock_light_front_lamp_color_keys_[1].size(),
+                 rock_light_front_lamp_color_keys_[2].size());
   }
 
   // 3) The in-song overlay must be screen anchored. Drawing meter-local art
@@ -2654,9 +2676,24 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
       native_rock_light_yellow_base_ok_ && native_rock_light_red_base_ok_ &&
       native_rock_light_green_base_ok_;
   if (have_native_light_bases) {
-    out.push_back(native_rock_light_yellow_base_);
-    out.push_back(native_rock_light_red_base_);
-    out.push_back(native_rock_light_green_base_);
+    Quad yellow = native_rock_light_yellow_base_;
+    yellow.color = rock_light_base_color_keys_[1].empty()
+        ? yellow.color
+        : sample_hud_mat_anim_color(rock_light_base_color_keys_[1],
+                                    rock_light_base_anim_duration_[1], fill);
+    Quad red = native_rock_light_green_base_;
+    red.color = rock_light_base_color_keys_[0].empty()
+        ? red.color
+        : sample_hud_mat_anim_color(rock_light_base_color_keys_[0],
+                                    rock_light_base_anim_duration_[0], fill);
+    Quad green = native_rock_light_red_base_;
+    green.color = rock_light_base_color_keys_[2].empty()
+        ? green.color
+        : sample_hud_mat_anim_color(rock_light_base_color_keys_[2],
+                                    rock_light_base_anim_duration_[2], fill);
+    out.push_back(yellow);
+    out.push_back(red);
+    out.push_back(green);
   }
 
   if (native_rock_face_ok_) {
@@ -2684,9 +2721,6 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   const uint32_t authored_rock_label_front_color =
       sample_hud_mat_anim_color(rock_label_front_color_keys_,
                                 rock_label_front_anim_duration_, fill);
-  const uint32_t dim_red_color = argb(115, 255, 50, 38);
-  const uint32_t dim_yellow_color = argb(110, 255, 225, 62);
-  const uint32_t dim_green_color = argb(105, 75, 255, 92);
   const uint32_t active_red_color = argb(215, 255, 60, 48);
   const uint32_t active_yellow_color = argb(205, 255, 238, 74);
   const uint32_t active_green_color = argb(190, 90, 255, 100);
@@ -2700,21 +2734,26 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
                    : active_green_color;
   if (have_native_lights) {
     Quad red = native_rock_light_green_;
-    red.color = dim_red_color;
-    Quad yellow = native_rock_light_yellow_;
-    yellow.color = dim_yellow_color;
+    red.color = rock_light_front_lamp_color_keys_[0].empty()
+        ? red.color
+        : sample_hud_mat_anim_color(rock_light_front_lamp_color_keys_[0],
+                                    rock_light_front_lamp_anim_duration_[0],
+                                    fill);
     Quad green = native_rock_light_red_;
-    green.color = dim_green_color;
+    green.color = rock_light_front_lamp_color_keys_[2].empty()
+        ? green.color
+        : sample_hud_mat_anim_color(rock_light_front_lamp_color_keys_[2],
+                                    rock_light_front_lamp_anim_duration_[2],
+                                    fill);
+    Quad yellow = native_rock_light_yellow_;
+    yellow.color = rock_light_front_lamp_color_keys_[1].empty()
+        ? yellow.color
+        : sample_hud_mat_anim_color(rock_light_front_lamp_color_keys_[1],
+                                    rock_light_front_lamp_anim_duration_[1],
+                                    fill);
     out.push_back(red);
-    out.push_back(yellow);
     out.push_back(green);
-    Quad active_light = fill < 0.25f ? native_rock_light_green_
-                      : fill < 0.55f ? native_rock_light_yellow_
-                                     : native_rock_light_red_;
-    active_light.color = fill < 0.25f ? active_red_color
-                       : fill < 0.55f ? active_yellow_color
-                                      : active_green_color;
-    out.push_back(active_light);
+    out.push_back(yellow);
   } else if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
     const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
                          : fill < 0.55f ? argb(125, 255, 225, 65)
@@ -2779,6 +2818,7 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
           stderr,
           "[hud-rock] fill=%.3f light=%s native_lights=%d base_lights=%d "
           "face=%d frame=%d face_blend=%u base_blends=%u,%u,%u "
+          "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zu "
           "label=%d needle=%d led=%d "
           "angle=%.3f scale=%.3f,%.3f "
           "pivot=%.3f,%.3f rock_anim_frame=%.3f label=%08x front=%08x "
@@ -2790,6 +2830,12 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
           static_cast<unsigned>(native_rock_light_yellow_base_.blend),
           static_cast<unsigned>(native_rock_light_red_base_.blend),
           static_cast<unsigned>(native_rock_light_green_base_.blend),
+          rock_light_base_color_keys_[0].size(),
+          rock_light_base_color_keys_[1].size(),
+          rock_light_base_color_keys_[2].size(),
+          rock_light_front_lamp_color_keys_[0].size(),
+          rock_light_front_lamp_color_keys_[1].size(),
+          rock_light_front_lamp_color_keys_[2].size(),
           native_rock_label_ok_ ? 1 : 0, native_rock_needle_ok_ ? 1 : 0,
           native_rock_needle_led_ok_ ? 1 : 0, native_needle_angle,
           needle_scale_x, needle_scale_z, px, pz, rock_light_frame,

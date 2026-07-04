@@ -9445,3 +9445,26 @@ Rejected native probe:
   `engine/out/codex_goal_visuals/20260703_rock_meter_milo_order_alpha_verify/`
   contains the live gameplay screenshot, debug log with `native_lights=1
   base_lights=1 face=1`, and `rock_meter_milo_order_alpha_proof.png`.
+
+2026-07-04 ROCK meter source lamp MatAnim correction:
+- The approved native target is the earlier three-state ROCK sheet where red,
+  yellow, and green meter states switch the active lamp while inactive lenses
+  remain dark source lenses. The later runtime was wrong because it hand-tinted
+  all three front lamps with `dim_*_color` values and then drew a second active
+  lamp overlay on top, so every lamp looked lit and hotter than the PCSX2/target
+  reference.
+- Source inspection of `hud/gen/crowd_meter.milo_ps2` shows individual MatAnim
+  curves for `rock_light_red.manim`, `rock_light_yellow.manim`,
+  `rock_light_green.manim`, and the matching `_front.manim` lamp materials.
+  Runtime now samples those per-lamp curves for both the base lamps and the
+  translucent front lamps. The red/green source curves are mapped onto the
+  mirrored right-HUD source lamp quads so the visible red/yellow/green order
+  matches the approved target.
+- The fix still uses only the original MILO meshes/textures: no generated black
+  plate, no non-group `hud_rock_light.mesh` backing, and `rock_face_2d.mesh` /
+  `rock_meter_2d.tex` remains the venue blocker.
+- Validation artifact:
+  `engine/out/codex_goal_visuals/20260704_rock_meter_source_lamp_matanim_fix/`
+  contains red/yellow/green live gameplay captures, logs with
+  `source_lamp_curves=3,5,4/3,5,4`, and
+  `rock_meter_source_lamp_matanim_proof.png`.
