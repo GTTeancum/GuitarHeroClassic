@@ -2072,7 +2072,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       "amp_tube_glow.mesh", "amp_inside_disk.mesh",
       "amp_inside_bar_path.mesh", "amp_chrome_base.mesh",
       "amp_tube_glow_meter.mesh", "amp_inside_bar.mesh",
-      "amp_glass.mesh"};
+      "amp_glass.mesh", "amp_base_bar.mesh"};
   for (const char* name : star_bound_meshes) {
     if (const LoadedMesh* mesh = find_mesh(star, name)) {
       include_bounds(star_bounds, bounds_for(*mesh));
@@ -2286,6 +2286,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     append_star_mesh("amp_chrome_base.mesh", native_star_base_, 0, false,
                      false, true, nullptr, true, kElemSpBase, -1.0f);
     append_star_mesh("amp_chrome_top.mesh", native_star_top_, 0, false,
+                     false, true, nullptr, true, kElemSpTop, -1.0f);
+    append_star_mesh("amp_base_bar.mesh", native_star_top_, 0, false,
                      false, true, nullptr, true, kElemSpTop, -1.0f);
   }
 

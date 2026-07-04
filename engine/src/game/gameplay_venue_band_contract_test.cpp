@@ -1055,6 +1055,12 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "native_star_path_glow_",
                  "star-power path glow is separate from the tube-meter alpha layer");
+  ok &= contains(hud_renderer_c,
+                 "\"amp_glass.mesh\",\"amp_base_bar.mesh\"",
+                 "star-power source bounds include the authored amp_base_bar child");
+  ok &= contains(hud_renderer_c,
+                 "append_star_mesh(\"amp_base_bar.mesh\",native_star_top_",
+                 "star-power renders the authored amp_base_bar child after chrome top");
   ok &= contains(hud_renderer_h_c,
                  "structStarParticleLayer{",
                  "star-power HUD keeps a source-backed particle layer type");
