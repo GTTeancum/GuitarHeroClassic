@@ -21564,25 +21564,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
         const bool authored_gameplay_cameras_active =
             !diagnostic_camera_shot_.empty() ||
             env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr;
-        if (authored_gameplay_cameras_active && !in_intro_camera_window &&
-            !regular_camera_keys_.empty()) {
-            const uint32_t bar = camera_bar_at(chart_, song_time_);
-            if (last_camera_bar_ == UINT32_MAX) {
-                last_camera_bar_ = bar;
-                camera_bars_left_ = 0;
-            } else if (bar != last_camera_bar_) {
-                const uint32_t bars_elapsed = bar - last_camera_bar_;
-                last_camera_bar_ = bar;
-                if (camera_bars_left_ > 0) {
-                    camera_bars_left_ =
-                        std::max(0, camera_bars_left_ -
-                                        static_cast<int>(bars_elapsed));
-                }
-            }
-
-            bool force_camera = false;
-            std::optional<CameraShotMode> forced_camera_mode;
-            std::optional<int> forced_camera_bars;
+        bool force_camera = false;
+        std::optional<CameraShotMode> forced_camera_mode;
+        std::optional<int> forced_camera_bars;
+        if (!in_intro_camera_window) {
             const double forced_camera_event_window =
                 std::max(0.001, dt * 1.5);
             while (next_forced_camera_event_idx_ < chart_.text_events.size()) {
@@ -21607,7 +21592,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const uint32_t excitement =
                     venue_excitement_level(active_venue_event_);
                 if (ev.text == "[band_jump]") {
-                    cue_forced_camera = excitement > 1;
+                    cue_forced_camera =
+                        authored_gameplay_cameras_active && excitement > 1;
                     if (cue_forced_camera) {
                         force_camera = true;
                         forced_camera_mode = CameraShotMode::Jump;
@@ -21620,9 +21606,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     active_worldcrowd_lighter_group_ =
                         ev.text == "[crowd_lighters_slow]" ? "lighter_slow"
                                                             : "lighter_fast";
-                    if (!did_lighter_cam_ && was_off) {
+                    cue_forced_camera = authored_gameplay_cameras_active &&
+                                        !did_lighter_cam_ && was_off;
+                    if (cue_forced_camera) {
                         did_lighter_cam_ = true;
-                        cue_forced_camera = true;
                         force_camera = true;
                         forced_camera_mode = CameraShotMode::Lighter;
                         forced_camera_bars = 5;
@@ -21630,12 +21617,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 } else if (ev.text == "[crowd_lighters_off]") {
                     crowd_lighter_on_ = false;
                     active_worldcrowd_lighter_group_.clear();
-                    cue_forced_camera = true;
-                    force_camera = true;
-                    forced_camera_mode.reset();
-                    forced_camera_bars.reset();
+                    cue_forced_camera = authored_gameplay_cameras_active;
+                    if (cue_forced_camera) {
+                        force_camera = true;
+                        forced_camera_mode.reset();
+                        forced_camera_bars.reset();
+                    }
                 } else {
-                    cue_forced_camera = excitement > 2;
+                    cue_forced_camera =
+                        authored_gameplay_cameras_active && excitement > 2;
                     if (cue_forced_camera) {
                         force_camera = true;
                         forced_camera_mode.reset();
@@ -21657,6 +21647,22 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     active_worldcrowd_lighter_group_.empty()
                         ? "-"
                         : active_worldcrowd_lighter_group_.c_str());
+            }
+        }
+        if (authored_gameplay_cameras_active && !in_intro_camera_window &&
+            !regular_camera_keys_.empty()) {
+            const uint32_t bar = camera_bar_at(chart_, song_time_);
+            if (last_camera_bar_ == UINT32_MAX) {
+                last_camera_bar_ = bar;
+                camera_bars_left_ = 0;
+            } else if (bar != last_camera_bar_) {
+                const uint32_t bars_elapsed = bar - last_camera_bar_;
+                last_camera_bar_ = bar;
+                if (camera_bars_left_ > 0) {
+                    camera_bars_left_ =
+                        std::max(0, camera_bars_left_ -
+                                        static_cast<int>(bars_elapsed));
+                }
             }
 
             if (force_camera || camera_bars_left_ <= 0 ||

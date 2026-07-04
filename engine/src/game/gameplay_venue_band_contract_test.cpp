@@ -5060,7 +5060,7 @@ int main() {
                        "WorldCrowd actor update consumes authored lighter-on cue before drawing");
   ok &= appears_before(gameplay_c,
                        "active_worldcrowd_lighter_group_.clear();"
-                       "cue_forced_camera=true;",
+                       "cue_forced_camera=authored_gameplay_cameras_active;",
                        "update_worldcrowd_actor_runtime(static_cast<float>(dt));",
                        "WorldCrowd actor update consumes authored lighter-off cue before drawing");
   ok &= contains(rebuild_worldcrowd_runtime_c,
@@ -6495,10 +6495,12 @@ int main() {
                  "\"[camera-solver]frame=%.2fpose_span_shape=%s\"",
                  "debug camera logs expose targetless no-target pose-span source shape");
   ok &= contains(gameplay_c,
-                 "if(ev.text==\"[band_jump]\"){cue_forced_camera=excitement>1;"
+                 "if(ev.text==\"[band_jump]\"){"
+                 "cue_forced_camera=authored_gameplay_cameras_active&&"
+                 "excitement>1;"
                  "if(cue_forced_camera){force_camera=true;"
                  "forced_camera_mode=CameraShotMode::Jump;",
-                 "band_jump camera forces only above bad excitement");
+                 "band_jump camera forces only above bad excitement when authored cameras are active");
   ok &= contains(gameplay_h_c,
                  "ghogx::character::CharClipband_jump_clip;",
                  "performers carry the traced sync_jump/band_jump clip");
@@ -6574,6 +6576,15 @@ int main() {
                  "ev.text==\"[crowd_lighters_slow]\"||",
                  "camera director listens for authored crowd lighter on messages");
   ok &= contains(gameplay_c,
+                 "if(!in_intro_camera_window){"
+                 "constdoubleforced_camera_event_window=std::max(0.001,dt*1.5);"
+                 "while(next_forced_camera_event_idx_<chart_.text_events.size())",
+                 "crowd lighter text scanner runs in the default playable 3D path");
+  ok &= contains(gameplay_c,
+                 "if(authored_gameplay_cameras_active&&!in_intro_camera_window&&"
+                 "!regular_camera_keys_.empty())",
+                 "authored gameplay camera cuts remain opt-in after cue scanning");
+  ok &= contains(gameplay_c,
                  "forced_camera_mode=CameraShotMode::Lighter;",
                  "crowd lighter messages force the LIGHTER camera category");
   ok &= contains(gameplay_c,
@@ -6585,6 +6596,10 @@ int main() {
                  "\"lighter_fast\";",
                  "crowd lighter messages select the authored WorldCrowd lighter play_group");
   ok &= contains(gameplay_c,
+                 "cue_forced_camera=authored_gameplay_cameras_active&&"
+                 "!did_lighter_cam_&&was_off;",
+                 "crowd lighter group changes are not gated by authored cameras");
+  ok &= contains(gameplay_c,
                  "\"crowd_group=%s\\n\"",
                  "camera script cue diagnostics expose the active WorldCrowd crowd group");
   ok &= contains(gameplay_c,
@@ -6593,14 +6608,16 @@ int main() {
   ok &= contains(gameplay_c,
                  "crowd_lighter_on_=false;"
                  "active_worldcrowd_lighter_group_.clear();"
-                 "cue_forced_camera=true;force_camera=true;",
-                 "crowd_lighters_off mirrors force_pick_shot");
+                 "cue_forced_camera=authored_gameplay_cameras_active;"
+                 "if(cue_forced_camera){force_camera=true;",
+                 "crowd_lighters_off clears WorldCrowd state while keeping camera force opt-in");
   ok &= contains(gameplay_c,
                  "crowd_lighter_on_=false;"
                  "active_worldcrowd_lighter_group_.clear();",
                  "crowd_lighters_off clears the authored WorldCrowd lighter play_group");
   ok &= contains(gameplay_c,
-                 "}else{cue_forced_camera=excitement>2;"
+                 "}else{cue_forced_camera=authored_gameplay_cameras_active&&"
+                 "excitement>2;"
                  "if(cue_forced_camera){force_camera=true;"
                  "forced_camera_mode.reset();forced_camera_bars=4;}}",
                  "sync_wag/head_bang camera forces only above okay excitement");

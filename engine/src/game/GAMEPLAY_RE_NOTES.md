@@ -9306,3 +9306,32 @@ Rejected native probe:
   `STD 22 STAR 3 HOPO 0` to `STD 43 STAR 10 HOPO 4`, and the projected
   `NEXT STANDARD`, `NEXT STAR`, and `NEXT HOPO` labels over the moving native
   highway, HUD, band, venue, props, lighting, and camera stack.
+
+2026-07-03 default-camera WorldCrowd lighter cue proof:
+- Chart-authored `[crowd_lighters_slow]` / `[crowd_lighters_fast]` /
+  `[crowd_lighters_off]` cues are now consumed before the authored gameplay
+  camera opt-in branch. The cues still only force LIGHTER/regular camera cuts
+  when authored gameplay cameras are active, but the skinned WorldCrowd
+  `active_worldcrowd_lighter_group_` state now updates in the normal playable
+  backing-camera presentation path too.
+- Contract coverage pins the split: the text scanner runs outside the authored
+  camera branch, the authored camera branch remains opt-in, lighter-on changes
+  assign `lighter_slow` / `lighter_fast` before the WorldCrowd actor update,
+  and lighter-off clears the override before drawing.
+- Validation: rebuilt `ghogx_app` and
+  `ghogx_gameplay_venue_band_contract_test`; the focused venue/band contract
+  passes.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_worldcrowd_lighter_default_backing_camera_stock_venue/`
+  runs stock PS2 Expert `shoutatthedevil` from `156.0s` with the stock venue,
+  default playable backing camera, diagnostic autoplay, forced
+  `excitement_great`, and compact WorldCrowd/backing-camera diagnostics. The
+  run logs zero `regular camera sweep` rows, a backing-camera row with four
+  performers, `WorldCrowd runtime ready: actors=5 placements=450`, and
+  `[crowd_lighters_fast]` with `force=0 mode=regular` plus
+  `crowd_group=lighter_fast`. Five crowd actor rows switch to
+  `group=lighter_fast`, the draw row reports `groups=lighter_fast:5`, and
+  `[crowd_lighters_off]` returns the actors to `group=great`.
+- `worldcrowd_lighter_default_backing_camera_3d_proof_sheet.png` embeds the
+  before-cue, lighter-cue, lighter-active, and off-return gameplay frames with
+  the decoded log evidence stamped below the captures.
