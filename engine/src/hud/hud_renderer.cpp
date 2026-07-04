@@ -2675,25 +2675,26 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   const bool have_native_light_bases =
       native_rock_light_yellow_base_ok_ && native_rock_light_red_base_ok_ &&
       native_rock_light_green_base_ok_;
+  const float rock_light_frame =
+      std::clamp(fill, 0.0f, 1.0f) *
+      std::max(1.0f, rock_label_anim_duration_);
+  const int active_light_index =
+      rock_light_frame < 33.0f ? 0 : rock_light_frame < 66.0f ? 1 : 2;
+  const char* active_light_name =
+      active_light_index == 0 ? "red"
+                              : active_light_index == 1 ? "yellow" : "green";
   if (have_native_light_bases) {
-    Quad yellow = native_rock_light_yellow_base_;
-    yellow.color = rock_light_base_color_keys_[1].empty()
-        ? yellow.color
-        : sample_hud_mat_anim_color(rock_light_base_color_keys_[1],
-                                    rock_light_base_anim_duration_[1], fill);
-    Quad red = native_rock_light_green_base_;
-    red.color = rock_light_base_color_keys_[0].empty()
-        ? red.color
-        : sample_hud_mat_anim_color(rock_light_base_color_keys_[0],
-                                    rock_light_base_anim_duration_[0], fill);
-    Quad green = native_rock_light_red_base_;
-    green.color = rock_light_base_color_keys_[2].empty()
-        ? green.color
-        : sample_hud_mat_anim_color(rock_light_base_color_keys_[2],
-                                    rock_light_base_anim_duration_[2], fill);
-    out.push_back(yellow);
-    out.push_back(red);
-    out.push_back(green);
+    const Quad* active_base =
+        active_light_index == 0 ? &native_rock_light_green_base_
+        : active_light_index == 1 ? &native_rock_light_yellow_base_
+                                  : &native_rock_light_red_base_;
+    Quad q = *active_base;
+    q.color = rock_light_base_color_keys_[active_light_index].empty()
+        ? q.color
+        : sample_hud_mat_anim_color(rock_light_base_color_keys_[active_light_index],
+                                    rock_light_base_anim_duration_[active_light_index],
+                                    fill);
+    out.push_back(q);
   }
 
   if (native_rock_face_ok_) {
@@ -2709,12 +2710,6 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   const bool have_native_lights =
       native_rock_light_red_ok_ && native_rock_light_yellow_ok_ &&
       native_rock_light_green_ok_;
-  const float rock_light_frame =
-      std::clamp(fill, 0.0f, 1.0f) *
-      std::max(1.0f, rock_label_anim_duration_);
-  const char* active_light_name =
-      rock_light_frame < 33.0f ? "red"
-                               : rock_light_frame < 66.0f ? "yellow" : "green";
   const uint32_t authored_rock_label_color =
       sample_hud_mat_anim_color(rock_label_color_keys_,
                                 rock_label_anim_duration_, fill);
@@ -2733,27 +2728,17 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     : fill < 0.55f ? active_yellow_color
                    : active_green_color;
   if (have_native_lights) {
-    Quad red = native_rock_light_green_;
-    red.color = rock_light_front_lamp_color_keys_[0].empty()
-        ? red.color
-        : sample_hud_mat_anim_color(rock_light_front_lamp_color_keys_[0],
-                                    rock_light_front_lamp_anim_duration_[0],
-                                    fill);
-    Quad green = native_rock_light_red_;
-    green.color = rock_light_front_lamp_color_keys_[2].empty()
-        ? green.color
-        : sample_hud_mat_anim_color(rock_light_front_lamp_color_keys_[2],
-                                    rock_light_front_lamp_anim_duration_[2],
-                                    fill);
-    Quad yellow = native_rock_light_yellow_;
-    yellow.color = rock_light_front_lamp_color_keys_[1].empty()
-        ? yellow.color
-        : sample_hud_mat_anim_color(rock_light_front_lamp_color_keys_[1],
-                                    rock_light_front_lamp_anim_duration_[1],
-                                    fill);
-    out.push_back(red);
-    out.push_back(green);
-    out.push_back(yellow);
+    const Quad* active_front =
+        active_light_index == 0 ? &native_rock_light_green_
+        : active_light_index == 1 ? &native_rock_light_yellow_
+                                  : &native_rock_light_red_;
+    Quad q = *active_front;
+    q.color = rock_light_front_lamp_color_keys_[active_light_index].empty()
+        ? q.color
+        : sample_hud_mat_anim_color(
+              rock_light_front_lamp_color_keys_[active_light_index],
+              rock_light_front_lamp_anim_duration_[active_light_index], fill);
+    out.push_back(q);
   } else if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
     const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
                          : fill < 0.55f ? argb(125, 255, 225, 65)
@@ -2818,7 +2803,7 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
           stderr,
           "[hud-rock] fill=%.3f light=%s native_lights=%d base_lights=%d "
           "face=%d frame=%d face_blend=%u base_blends=%u,%u,%u "
-          "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zu "
+          "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zu emitted_lamps=%s "
           "label=%d needle=%d led=%d "
           "angle=%.3f scale=%.3f,%.3f "
           "pivot=%.3f,%.3f rock_anim_frame=%.3f label=%08x front=%08x "
@@ -2836,6 +2821,7 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
           rock_light_front_lamp_color_keys_[0].size(),
           rock_light_front_lamp_color_keys_[1].size(),
           rock_light_front_lamp_color_keys_[2].size(),
+          active_light_name,
           native_rock_label_ok_ ? 1 : 0, native_rock_needle_ok_ ? 1 : 0,
           native_rock_needle_led_ok_ ? 1 : 0, native_needle_angle,
           needle_scale_x, needle_scale_z, px, pz, rock_light_frame,

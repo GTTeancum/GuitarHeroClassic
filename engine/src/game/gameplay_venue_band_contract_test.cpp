@@ -817,26 +817,35 @@ int main() {
                  "assign_meter_mesh(\"rock_light_green.mesh\"",
                  "ROCK meter uses the authored green base-light mesh");
   ok &= contains(hud_renderer_c,
-                 "Quadyellow=native_rock_light_yellow_base_;",
-                 "ROCK meter samples the authored yellow base-light child");
+                 "constintactive_light_index=rock_light_frame<33.0f?0:"
+                 "rock_light_frame<66.0f?1:2;",
+                 "ROCK meter selects exactly one active lamp band from the source frame");
   ok &= contains(hud_renderer_c,
-                 "Quadred=native_rock_light_green_base_;",
-                 "ROCK meter maps the authored red base-light curve onto the mirrored right-HUD red lamp");
+                 "active_light_index==0?&native_rock_light_green_base_:"
+                 "active_light_index==1?&native_rock_light_yellow_base_:"
+                 "&native_rock_light_red_base_;",
+                 "ROCK meter maps the selected source base lamp onto the mirrored right-HUD geometry");
   ok &= contains(hud_renderer_c,
-                 "Quadgreen=native_rock_light_red_base_;",
-                 "ROCK meter maps the authored green base-light curve onto the mirrored right-HUD green lamp");
-  ok &= contains(hud_renderer_c,
-                 "out.push_back(yellow);out.push_back(red);"
-                 "out.push_back(green);",
-                 "ROCK meter draws the sampled base-light children in MILO order");
-  ok &= appears_before(hud_renderer_c,
-                       "out.push_back(green);",
-                       "if(native_rock_face_ok_){out.push_back(native_rock_face_);}",
-                       "ROCK meter draws source base lights behind rock_face_2d");
+                 "active_light_index==0?&native_rock_light_green_:"
+                 "active_light_index==1?&native_rock_light_yellow_:"
+                 "&native_rock_light_red_;",
+                 "ROCK meter maps the selected source front lamp onto the mirrored right-HUD geometry");
+  ok &= absent(hud_renderer_c,
+               "out.push_back(yellow);out.push_back(red);"
+               "out.push_back(green);",
+               "ROCK meter must not draw all three base lamps as active panes");
+  ok &= absent(hud_renderer_c,
+               "out.push_back(red);out.push_back(green);"
+               "out.push_back(yellow);",
+               "ROCK meter must not draw all three front lamps as active panes");
   ok &= appears_before(hud_renderer_c,
                        "if(native_rock_face_ok_){out.push_back(native_rock_face_);}",
                        "if(have_native_lights){",
                        "ROCK meter draws translucent lamp fronts over rock_face_2d");
+  ok &= appears_before(hud_renderer_c,
+                       "if(have_native_light_bases){constQuad*active_base=",
+                       "if(native_rock_face_ok_){out.push_back(native_rock_face_);}",
+                       "ROCK meter draws source base lights behind rock_face_2d");
   ok &= absent(hud_renderer_h_c,
                "native_rock_light_backing_",
                "ROCK meter must not keep the non-group hud_rock_light.mesh path");
@@ -918,8 +927,8 @@ int main() {
                "out.push_back(active_light);",
                "ROCK meter must not draw a second hand-tinted active lamp over the source MatAnim lamps");
   ok &= contains(hud_renderer_c,
-                 "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zu",
-                 "ROCK meter diagnostics report the individual source lamp curves");
+                 "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zuemitted_lamps=%s",
+                 "ROCK meter diagnostics report the individual source curves and emitted lamp");
   ok &= contains(hud_renderer_c,
                  "q.element==kElemRockNeedle?1:0;",
                  "ROCK needle is layered in front of the always-lit ROCK word");
