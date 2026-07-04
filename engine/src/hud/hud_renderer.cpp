@@ -3700,6 +3700,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         Quad q = sample_star_mesh_anim(src, frame);
         if (q.verts.size() < 3 || q.idx.size() < 3) continue;
         q.color = scale_argb_alpha(q.color, tube_ready_alpha);
+        q.sort_bias = std::min(q.sort_bias, -1);
         out.push_back(std::move(q));
         drew_native_ready_mesh = true;
       }
