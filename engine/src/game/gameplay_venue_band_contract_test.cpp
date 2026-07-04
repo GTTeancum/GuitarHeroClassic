@@ -941,14 +941,18 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "sample_hud_mat_anim_color_frame(rock_label_front_color_keys_,"
                  "active_light_frame);",
-                 "ROCK front light samples the native MatAnim at the active absolute frame");
+                 "ROCK front light keeps the native MatAnim decoded for diagnostics");
+  ok &= contains(hud_renderer_c,
+                 "constuint32_tauthored_active_light_base_color="
+                 "rock_light_base_color_keys_[active_light_index].empty()",
+                 "ROCK glow derives from the selected authored lamp color");
   ok &= contains(hud_renderer_c,
                  "constuint32_trock_label_color=authored_rock_label_color;",
                  "visible ROCK word uses the authored rock_light MatAnim color");
   ok &= contains(hud_renderer_c,
                  "constuint32_trock_label_front_color="
-                 "authored_rock_label_front_color;",
-                 "visible ROCK glow uses the authored rock_light_front MatAnim color");
+                 "authored_active_light_base_color;",
+                 "visible ROCK glow follows the selected lamp color");
   ok &= absent(hud_renderer_c,
                "active_red_color",
                "ROCK meter must not keep synthetic active red lamp tint");
