@@ -132,6 +132,10 @@ bool debug_performer_sync_enabled() {
     return env_value("GHOGX_DEBUG_PERFORMER_SYNC") != nullptr;
 }
 
+bool debug_performer_prop_enabled() {
+    return env_value("GHOGX_DEBUG_PERFORMER_PROP") != nullptr;
+}
+
 bool performer_scene_lighting_enabled() {
     return env_value("GHOGX_DISABLE_PERFORMER_SCENE_LIGHTING") == nullptr;
 }
@@ -20331,6 +20335,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 perf.event_track = performer_event_track_for_role(perf.role);
                 perf.track_surface_ref =
                     std::move(performer_highway_surface_ref);
+                perf.prop_milo_ref = prop_milo;
+                perf.prop_attach_bone =
+                    prop_milo.empty() ? std::string{} : prop_attach_bone;
                 if (perf.role == "guitarist0" &&
                     !perf.track_surface_ref.empty()) {
                     highway_surface_ref_ = perf.track_surface_ref;
@@ -21537,6 +21544,44 @@ void Gameplay::draw(ghogx::render::Window& win) {
             };
             add_prop_camera_targets(camera_keys_);
             add_prop_camera_targets(regular_camera_keys_);
+            if (debug_performer_prop_enabled() &&
+                !perf.prop_milo_ref.empty()) {
+                const float stride = std::max(
+                    0.0f,
+                    env_float("GHOGX_DEBUG_PERFORMER_PROP_STRIDE", 0.50f));
+                if (song_time_ + 1e-5 >= perf.next_performer_prop_log_time) {
+                    perf.next_performer_prop_log_time =
+                        song_time_ + static_cast<double>(stride);
+                    const auto guitar_world =
+                        perf.renderer->attached_prop_world("guitar.mesh");
+                    const auto strings_world =
+                        perf.renderer->attached_prop_world("guitar_strings.mesh");
+                    const auto fret_world =
+                        perf.renderer->attached_prop_world("bone_fret.mesh");
+                    auto coord = [](const std::optional<std::array<float, 16>>& m,
+                                    int axis) {
+                        return m ? (*m)[12 + axis] : 0.0f;
+                    };
+                    std::fprintf(
+                        stderr,
+                        "[performer-prop] role=%s char=%s prop=%s attach=%s "
+                        "t=%.3f guitar=%d world=(%.3f %.3f %.3f) "
+                        "strings=%d world=(%.3f %.3f %.3f) "
+                        "fret=%d world=(%.3f %.3f %.3f)\n",
+                        perf.role.c_str(), perf.character_name.c_str(),
+                        perf.prop_milo_ref.c_str(),
+                        perf.prop_attach_bone.empty()
+                            ? "-"
+                            : perf.prop_attach_bone.c_str(),
+                        song_time_, guitar_world ? 1 : 0,
+                        coord(guitar_world, 0), coord(guitar_world, 1),
+                        coord(guitar_world, 2), strings_world ? 1 : 0,
+                        coord(strings_world, 0), coord(strings_world, 1),
+                        coord(strings_world, 2), fret_world ? 1 : 0,
+                        coord(fret_world, 0), coord(fret_world, 1),
+                        coord(fret_world, 2));
+                }
+            }
             auto spine = camera_targets.find(
                 camera_target_id(perf.role, "bone_spine1.mesh"));
             if (spine == camera_targets.end()) {

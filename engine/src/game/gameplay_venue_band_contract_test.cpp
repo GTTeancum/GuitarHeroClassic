@@ -365,6 +365,15 @@ int main() {
                  "\"bassist_active_fast_01\",\"bassist_active_fast_02\"},"
                  "bass_prop,\"bone_pos_gutbass.mesh\");",
                  "bassist uses bass graph, tempo candidates, and gut-bass prop attachment");
+  ok &= contains(gameplay_h_c,
+                 "std::stringprop_milo_ref;"
+                 "std::stringprop_attach_bone;",
+                 "performers remember attached prop source and anchor for validation");
+  ok &= contains(gameplay_c,
+                 "perf.prop_milo_ref=prop_milo;"
+                 "perf.prop_attach_bone=prop_milo.empty()?std::string{}:"
+                 "prop_attach_bone;",
+                 "performer prop diagnostics retain the decoded prop route");
   ok &= contains(gameplay_c,
                  "\"char/og/drums/gen/dw_\"+quickplay_rig_->venue+"
                  "\"_drums.milo_ps2\"",
@@ -4569,6 +4578,28 @@ int main() {
   ok &= contains(gameplay_c,
                  "autoprop_world=perf.renderer->attached_prop_world(subpart);",
                  "camera target refs can resolve attached prop objects");
+  ok &= contains(gameplay_c,
+                 "booldebug_performer_prop_enabled(){"
+                 "returnenv_value(\"GHOGX_DEBUG_PERFORMER_PROP\")!=nullptr;}",
+                 "performer prop proof has a compact opt-in diagnostic gate");
+  ok &= contains(gameplay_h_c,
+                 "doublenext_performer_prop_log_time=0.0;",
+                 "performer prop diagnostics are rate-limited per performer");
+  ok &= contains(gameplay_c,
+                 "env_float(\"GHOGX_DEBUG_PERFORMER_PROP_STRIDE\",0.50f)",
+                 "performer prop diagnostic exposes a capture stride");
+  ok &= contains(gameplay_c,
+                 "perf.renderer->attached_prop_world(\"guitar.mesh\")",
+                 "performer prop diagnostic samples the visible prop mesh target");
+  ok &= contains(gameplay_c,
+                 "perf.renderer->attached_prop_world(\"guitar_strings.mesh\")",
+                 "performer prop diagnostic samples the string reference target");
+  ok &= contains(gameplay_c,
+                 "perf.renderer->attached_prop_world(\"bone_fret.mesh\")",
+                 "performer prop diagnostic samples the fret-board target");
+  ok &= contains(gameplay_c,
+                 "\"[performer-prop]role=%schar=%sprop=%sattach=%s\"",
+                 "performer prop diagnostics stamp role, source prop, and anchor");
   ok &= contains(gameplay_c,
                  "add_prop_camera_targets(camera_keys_);",
                  "intro camera target refs include attached prop objects");

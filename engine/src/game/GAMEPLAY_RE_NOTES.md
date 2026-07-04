@@ -9335,3 +9335,32 @@ Rejected native probe:
 - `worldcrowd_lighter_default_backing_camera_3d_proof_sheet.png` embeds the
   before-cue, lighter-cue, lighter-active, and off-return gameplay frames with
   the decoded log evidence stamped below the captures.
+
+2026-07-03 compact performer-prop target proof:
+- Added `GHOGX_DEBUG_PERFORMER_PROP=1` as a compact role-labelled diagnostic
+  for attached performer props in the normal playable 3D path. The row records
+  the performer role/character, source prop MILO, source attachment bone, and
+  renderer-resolved world targets for `guitar.mesh`, `guitar_strings.mesh`, and
+  `bone_fret.mesh`.
+- This keeps the noisy low-level `GHOGX_DEBUG_PROP` rows available for deep
+  renderer work, while giving gameplay captures a small proof that guitarist
+  and bassist props are attached to the source-backed moving anchors and can be
+  used by camera target refs.
+- Contract coverage pins the performer prop source/anchor fields, the opt-in
+  diagnostic gate, per-performer rate limiter, stride, sampled prop targets,
+  and role/source/anchor row shape.
+- Validation: rebuilt `ghogx_app` and
+  `ghogx_gameplay_venue_band_contract_test`; the focused venue/band contract
+  passes, and `ghogx_gameplay_session_test` still passes.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_performer_prop_targets_verify/`
+  reruns Expert `trogdor` from `16.0s` on the normal playable backing camera
+  with diagnostic autoplay and compact prop/backing-camera diagnostics. The
+  run logs `lespaull` attached to `bone_pos_guitar.mesh`,
+  `bass_music_black` attached to `bone_pos_gutbass.mesh`, `8`
+  `[performer-prop]` rows across `guitarist0` and `bassist`, `4` backing-camera
+  rows, and a clean final summary:
+  `state=playing`, `score=2300`, `streak=16`, `hits=16`, `misses=0`,
+  `failed=0`.
+- `performer_prop_targets_3d_proof_sheet.png` embeds the live small2 gameplay
+  frames with the role-labelled prop evidence stamped below the captures.

@@ -632,6 +632,8 @@ class Gameplay {
     std::string character_name;
     std::string event_track;
     std::string track_surface_ref;
+    std::string prop_milo_ref;
+    std::string prop_attach_bone;
     std::unique_ptr<ghogx::character::CharRenderer> renderer;
     ghogx::character::CharClip idle_clip;
     ghogx::character::CharClip intro_clip;
@@ -679,6 +681,7 @@ class Gameplay {
     size_t strum_hand_scheduler_child_index = 0;
     size_t fret_hand_scheduler_child_index = 0;
     double next_performer_sync_log_time = 0.0;
+    double next_performer_prop_log_time = 0.0;
     std::vector<std::string> active_strum_clip_names;
     std::vector<std::string> active_fret_clip_names;
     std::array<float, 16> world_transform = {1.0f, 0.0f, 0.0f, 0.0f,
