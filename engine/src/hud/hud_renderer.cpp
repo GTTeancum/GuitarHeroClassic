@@ -1955,7 +1955,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         blend != layout.mat_blend.end()) {
       q.blend = blend->second;
     }
-    if (!bounds.ok || !q.tex) return q;
+    if (!bounds.ok) return q;
     const MeshBounds mesh_bounds = bounds_for(mesh);
     if (!mesh_bounds.ok) return q;
     const float x_scale = (slot.hw * 2.0f) / (bounds.max_x - bounds.min_x);
@@ -1968,11 +1968,15 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           : 0.0f;
     }
     q.preserve_depth = std::abs(depth_scale) > 0.0001f;
-    const MatUvXfm uv_xfm =
+    MatUvXfm uv_xfm =
         [&]() {
           auto uv = layout.mat_uv.find(mesh.material);
           return uv == layout.mat_uv.end() ? MatUvXfm{} : uv->second;
         }();
+    if (std::fabs(uv_xfm.scale[0]) < 0.0001f &&
+        std::fabs(uv_xfm.scale[1]) < 0.0001f) {
+      uv_xfm = MatUvXfm{};
+    }
     const float source_center_z = (mesh_bounds.min_z + mesh_bounds.max_z) * 0.5f;
     const float source_center_y = q.preserve_depth
         ? (mesh_bounds.min_y + mesh_bounds.max_y) * 0.5f
@@ -1994,11 +1998,13 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       const float wz = mapped_center_z + (flip_z ? -z_delta : z_delta);
       const float u = v.u * uv_xfm.scale[0] + uv_xfm.offset[0];
       const float vv = v.vv * uv_xfm.scale[1] + uv_xfm.offset[1];
+      const float final_v = flip_v ? 1.0f - vv : vv;
+      q.wrap_uv = q.wrap_uv || u < -0.001f || u > 1.001f ||
+                  final_v < -0.001f || final_v > 1.001f;
       const float base_depth =
           right_side ? right_hud_depth_at(wx) : left_hud_depth_at(wx);
       q.verts.push_back({wx, base_depth + (y - source_center_y) * depth_scale,
-                         wz, u,
-                         flip_v ? 1.0f - vv : vv});
+                         wz, u, final_v});
     }
     q.idx = mesh.idx;
     return q;
@@ -2369,7 +2375,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
         }
-        if ((q.tex || color != 0) && q.verts.size() >= 3 && q.idx.size() >= 3)
+        const bool source_has_texture =
+            star.mat_tex.find(mesh->material) != star.mat_tex.end();
+        if ((q.tex || color != 0 || !source_has_texture) &&
+            q.verts.size() >= 3 && q.idx.size() >= 3)
           target.push_back(std::move(q));
         if (tex_override) return;
         const auto layer_ref = star.mat_layer_ref.find(mesh->material);
@@ -2973,6 +2982,9 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     dev->SetRenderState(D3DRS_BLENDOP, blend_state.op);
     dev->SetRenderState(D3DRS_SRCBLEND, blend_state.src);
     dev->SetRenderState(D3DRS_DESTBLEND, blend_state.dest);
+    const DWORD address_mode = q.wrap_uv ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP;
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSU, address_mode);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSV, address_mode);
     if (q.tex) {
       dev->SetTexture(0, q.tex);
       dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -3480,6 +3492,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         clipped.additive = src.additive;
         clipped.blend = src.blend;
         clipped.preserve_depth = src.preserve_depth;
+        clipped.wrap_uv = src.wrap_uv;
         clipped.group = src.group;
         clipped.element = src.element;
         clipped.sort_bias = src.sort_bias;
