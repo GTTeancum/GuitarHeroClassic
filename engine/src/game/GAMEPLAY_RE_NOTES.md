@@ -9364,3 +9364,30 @@ Rejected native probe:
   `failed=0`.
 - `performer_prop_targets_3d_proof_sheet.png` embeds the live small2 gameplay
   frames with the role-labelled prop evidence stamped below the captures.
+
+2026-07-03 singer-only song FaceFX VOC routing proof:
+- The gameplay band draw path now scopes song `.voc` FaceFX animation curves to
+  the `singer` performer only. Non-singer performers with FaceFX graphs still
+  receive the live eye-servo register bridge, but no longer consume the singer's
+  song mouth-curve registers.
+- The focused `GHOGX_DEBUG_FACE=1` row now reports `voc=0/1` beside graph
+  application state and register count, so captures can prove whether a role
+  consumed song VOC curves while keeping eye-controller evidence visible.
+- Contract coverage pins the singer-only VOC gate, the continued eye-servo
+  register merge, the graph application call, and the expanded FaceFX
+  diagnostic row.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass, and `git diff
+  --check` passes.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_singer_facefx_voc_scope_verify/`
+  reruns Expert `shoutatthedevil` from `30.0s` with diagnostic autoplay,
+  a singer-head debug gameplay camera, and `GHOGX_DEBUG_FACE=1`.
+  The run loads `songs/shoutatthedevil/shoutatthedevil.voc`, applies the singer
+  graph with `voc=1 regs=23`, keeps guitarist graph rows at `voc=0 regs=4`,
+  and exits cleanly in `state=playing` with `hits=15`, `misses=0`, and
+  `failed=0`.
+- `singer_facefx_voc_scope_3d_proof_sheet.png` embeds the native gameplay
+  frames with the singer/guitarist FaceFX routing evidence stamped below the
+  captures.

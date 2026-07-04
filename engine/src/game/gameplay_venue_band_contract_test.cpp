@@ -252,6 +252,23 @@ int main() {
                  "\"singer_active_fast\"",
                  "generic singer active candidates keep trace-backed fast clip");
   ok &= contains(gameplay_c,
+                 "constbooluse_song_voc_facefx=perf.role==\"singer\";",
+                 "song VOC FaceFX curves are scoped to the singer performer");
+  ok &= contains(gameplay_c,
+                 "(use_song_voc_facefx&&facefx_animation_)?"
+                 "ghogx::character::sample_facefx_animation(",
+                 "non-singer FaceFX graphs do not consume singer VOC curves");
+  ok &= contains(gameplay_c,
+                 "facefx_registers_from_eye_servo(character,eye_props)",
+                 "FaceFX graph evaluation still receives live eye servo registers");
+  ok &= contains(gameplay_c,
+                 "apply_facefx_animation_frame(*perf.facefx_graph,registers,"
+                 "character)",
+                 "FaceFX graph output is applied to live performers");
+  ok &= contains(gameplay_c,
+                 "\"graph=%svoc=%dregs=%zu\\n\"",
+                 "FaceFX diagnostics expose whether a role consumed song VOC curves");
+  ok &= contains(gameplay_c,
                  "\"drummer_active_fast_normal\",\"drummer_active_fast_allbeat\"",
                  "drummer active candidates include trace-backed fast clips");
   ok &= contains(gameplay_c,

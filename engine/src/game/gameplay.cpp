@@ -21467,8 +21467,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     guitar_strings_world ? &*guitar_strings_world : nullptr);
             }
             if (perf.facefx_graph) {
+                const bool use_song_voc_facefx = perf.role == "singer";
                 auto registers =
-                    facefx_animation_
+                    (use_song_voc_facefx && facefx_animation_)
                         ? ghogx::character::sample_facefx_animation(
                               *facefx_animation_,
                               static_cast<float>(song_time_))
@@ -21488,8 +21489,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         std::fprintf(
                             stderr,
                             "[facefx] role=%s EyeZCombiner=%.4f "
-                            "graph=%s regs=%zu\n",
+                            "graph=%s voc=%d regs=%zu\n",
                             perf.role.c_str(), eyez, applied ? "applied" : "idle",
+                            use_song_voc_facefx && facefx_animation_ ? 1 : 0,
                             registers.size());
                     }
                 }
