@@ -740,6 +740,9 @@ int main() {
                  "argb(255,2,2,2)",
                  "ROCK meter light backing is opaque black so venue pixels cannot bleed through");
   ok &= contains(hud_renderer_c,
+                 "kElemRockLights,0);",
+                 "ROCK meter light backing is layered directly under the translucent lamp fronts");
+  ok &= contains(hud_renderer_c,
                  "copy_color_keys(\"rock_light.manim\","
                  "rock_label_color_keys_,rock_label_anim_duration_);",
                  "ROCK word color samples the authored rock_light MatAnim");

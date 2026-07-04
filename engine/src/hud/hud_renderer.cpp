@@ -2574,17 +2574,9 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
       f.cx - f.hw + rock_lights_rect.cx * f.hw * 2.0f;
   const float backing_cz =
       f.cz - f.hh + rock_lights_rect.cy * f.hh * 2.0f;
-  const float backing_hw = f.hw * std::abs(rock_lights_rect.w) * 0.94f;
-  const float backing_hh = f.hh * std::abs(rock_lights_rect.h) * 0.72f;
+  const float backing_hw = f.hw * std::abs(rock_lights_rect.w) * 0.98f;
+  const float backing_hh = f.hh * std::abs(rock_lights_rect.h) * 0.82f;
   const bool rock_backing_ok = backing_hw > 0.001f && backing_hh > 0.001f;
-
-  if (rock_backing_ok) {
-    push_rect(out, backing_cx, backing_cz, backing_hw, backing_hh, nullptr,
-              argb(255, 2, 2, 2), false,
-              right_hud_depth_at(backing_cx + backing_hw),
-              right_hud_depth_at(backing_cx - backing_hw), kHudGroupRight,
-              kElemRockFace, -4);
-  }
 
   if (native_rock_face_ok_) {
     out.push_back(native_rock_face_);
@@ -2594,6 +2586,17 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
               face ? 0xFFFFFFFF : argb(200, 210, 170, 65), false,
               right_hud_depth_at(f.cx + f.hw),
               right_hud_depth_at(f.cx - f.hw), kHudGroupRight, kElemRockFace);
+  }
+
+  if (rock_backing_ok) {
+    // The lamp fronts are translucent; this plate must be in the light layer,
+    // after the face art and before the colored lens meshes, so venue pixels
+    // cannot bleed through the red/yellow/green sockets.
+    push_rect(out, backing_cx, backing_cz, backing_hw, backing_hh, nullptr,
+              argb(255, 2, 2, 2), false,
+              right_hud_depth_at(backing_cx + backing_hw),
+              right_hud_depth_at(backing_cx - backing_hw), kHudGroupRight,
+              kElemRockLights, 0);
   }
 
   const bool have_native_lights =
