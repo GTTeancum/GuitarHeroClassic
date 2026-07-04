@@ -124,6 +124,21 @@ class HudRenderer {
     float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     float frame = 0.0f;
   };
+  struct AlphaAnimKey {
+    float alpha = 1.0f;
+    float frame = 0.0f;
+  };
+  struct TextureAnimKey {
+    std::string texture;
+    float frame = 0.0f;
+  };
+  struct StarAnimatedQuad {
+    Quad quad;
+    std::vector<ColorAnimKey> color_keys;
+    std::vector<AlphaAnimKey> alpha_keys;
+    std::vector<TextureAnimKey> texture_keys;
+    float duration_frames = 0.0f;
+  };
 
   // Helper: append an axis-aligned quad (in world X-Z) to a draw list.
   static void push_rect(std::vector<Quad>& out, float cx, float cz, float hw,
@@ -190,10 +205,16 @@ class HudRenderer {
   std::vector<ColorAnimKey> rock_label_front_color_keys_;
   std::vector<ColorAnimKey> rock_light_base_color_keys_[3];
   std::vector<ColorAnimKey> rock_light_front_lamp_color_keys_[3];
+  std::vector<ColorAnimKey> star_fill_color_keys_;
+  std::vector<AlphaAnimKey> star_tube_glow_alpha_keys_;
+  std::vector<AlphaAnimKey> star_tube_meter_alpha_keys_;
   float rock_label_anim_duration_ = 100.0f;
   float rock_label_front_anim_duration_ = 100.0f;
   float rock_light_base_anim_duration_[3] = {100.0f, 100.0f, 100.0f};
   float rock_light_front_lamp_anim_duration_[3] = {100.0f, 100.0f, 100.0f};
+  float star_fill_anim_duration_ = 3.25f;
+  float star_tube_glow_anim_duration_ = 15.0f;
+  float star_tube_meter_anim_duration_ = 30.0f;
 
   Quad native_rock_face_;
   Quad native_rock_frame_;
@@ -213,6 +234,7 @@ class HudRenderer {
   Quad native_rock_light_green_;
   std::vector<Quad> native_star_back_;
   std::vector<Quad> native_star_fill_;
+  std::vector<Quad> native_star_path_glow_;
   std::vector<Quad> native_star_fill_glow_;
   std::vector<Quad> native_star_front_;
   std::vector<Quad> native_star_glass_;
@@ -220,6 +242,7 @@ class HudRenderer {
   std::vector<Quad> native_star_top_;
   std::vector<Quad> native_star_caps_;
   std::vector<Quad> native_star_ready_glow_;
+  std::vector<StarAnimatedQuad> native_star_lightning_;
   bool native_rock_face_ok_ = false;
   bool native_rock_frame_ok_ = false;
   bool native_rock_label_ok_ = false;

@@ -1024,6 +1024,32 @@ int main() {
                  "\"[hud-star-power]fill=%.3fready=%dactive=%dtube_glow=%d\"",
                  "star-power diagnostics report fill readiness, active state, and tube glow");
   ok &= contains(hud_renderer_c,
+                 "copy_star_color_keys(\"amp_inside_bar_glow.mnm\","
+                 "star_fill_color_keys_,star_fill_anim_duration_);",
+                 "star-power fill color comes from the source amp_inside_bar_glow MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "copy_alpha_keys(\"amp_tube_glow_meter.mnm\","
+                 "star_tube_meter_alpha_keys_,star_tube_meter_anim_duration_);",
+                 "star-power fill glow uses the source tube meter alpha MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "copy_alpha_keys(\"amp_tube_glow.mnm\","
+                 "star_tube_glow_alpha_keys_,star_tube_glow_anim_duration_);",
+                 "star-power ready glow uses the source tube glow alpha MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "append_star_animated_mesh(\"lightning_bot_01_0.mesh\","
+                 "native_star_lightning_);",
+                 "star-power fill keeps the source lightning mesh layer");
+  ok &= contains(hud_renderer_c,
+                 "sample_hud_mat_anim_texture_frame(animated.texture_keys,"
+                 "anim_frame)",
+                 "star-power lightning samples the source MatAnim texture keys");
+  ok &= contains(hud_renderer_c,
+                 "native_star_path_glow_",
+                 "star-power path glow is separate from the tube-meter alpha layer");
+  ok &= absent(hud_renderer_c,
+               "argb(155,145,220,255)",
+               "star-power native tube-meter glow must not keep the hand-tinted cyan overlay");
+  ok &= contains(hud_renderer_c,
                  "dev->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD);",
                  "HUD overlay resets authored subtractive blend state before drawing");
   ok &= contains(hud_renderer_c,

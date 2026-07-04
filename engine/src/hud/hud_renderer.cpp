@@ -202,9 +202,21 @@ struct HudMatAnimColorKey {
   float frame = 0.0f;
 };
 
+struct HudMatAnimAlphaKey {
+  float alpha = 1.0f;
+  float frame = 0.0f;
+};
+
+struct HudMatAnimTextureKey {
+  std::string texture;
+  float frame = 0.0f;
+};
+
 struct HudMatAnimColorCurve {
   std::string material;
   std::vector<HudMatAnimColorKey> keys;
+  std::vector<HudMatAnimAlphaKey> alpha_keys;
+  std::vector<HudMatAnimTextureKey> texture_keys;
   float duration_frames = 0.0f;
 };
 
@@ -270,7 +282,57 @@ std::optional<HudMatAnimColorCurve> decode_mat_anim_color_curve(
     curve.duration_frames = std::max(curve.duration_frames, key.frame);
     curve.keys.push_back(key);
   }
-  if (curve.keys.empty()) return std::nullopt;
+  uint32_t alpha_count = 0;
+  if (!read_u32_advance(body, size, pos, alpha_count) || alpha_count > 256) {
+    return std::nullopt;
+  }
+  curve.alpha_keys.reserve(alpha_count);
+  for (uint32_t i = 0; i < alpha_count; ++i) {
+    HudMatAnimAlphaKey key;
+    if (!read_f32_advance(body, size, pos, key.alpha) ||
+        !read_f32_advance(body, size, pos, key.frame)) {
+      return std::nullopt;
+    }
+    key.alpha = clamp_hud_mat_color(key.alpha);
+    if (!std::isfinite(key.frame)) key.frame = 0.0f;
+    curve.duration_frames = std::max(curve.duration_frames, key.frame);
+    curve.alpha_keys.push_back(key);
+  }
+  // GH2 MatAnim v7 stores two unused channel-count blocks before texture keys
+  // for these HUD entries, then a length-prefixed texture name + frame list.
+  uint32_t unused_count = 0;
+  if (read_u32_advance(body, size, pos, unused_count) && unused_count <= 256) {
+    pos += std::min<size_t>(size - pos, static_cast<size_t>(unused_count) * 8);
+  }
+  unused_count = 0;
+  if (read_u32_advance(body, size, pos, unused_count) && unused_count <= 256) {
+    pos += std::min<size_t>(size - pos, static_cast<size_t>(unused_count) * 8);
+  }
+  uint32_t texture_count = 0;
+  if (pos + 4 <= size) {
+    const size_t texture_count_pos = pos;
+    if (read_u32_advance(body, size, pos, texture_count) &&
+        texture_count <= 256) {
+      curve.texture_keys.reserve(texture_count);
+      for (uint32_t i = 0; i < texture_count; ++i) {
+        auto texture = read_milo_string_advance(body, size, pos);
+        HudMatAnimTextureKey key;
+        if (!texture || !read_f32_advance(body, size, pos, key.frame)) {
+          curve.texture_keys.clear();
+          pos = size;
+          break;
+        }
+        key.texture = *texture;
+        if (!std::isfinite(key.frame)) key.frame = 0.0f;
+        curve.duration_frames = std::max(curve.duration_frames, key.frame);
+        curve.texture_keys.push_back(std::move(key));
+      }
+    } else {
+      pos = texture_count_pos;
+    }
+  }
+  if (curve.keys.empty() && curve.alpha_keys.empty() &&
+      curve.texture_keys.empty()) return std::nullopt;
   return curve;
 }
 
@@ -305,6 +367,45 @@ uint32_t sample_hud_mat_anim_color(const std::vector<ColorKey>& keys,
   const float frame =
       std::clamp(fill, 0.0f, 1.0f) * std::max(1.0f, duration_frames);
   return sample_hud_mat_anim_color_frame(keys, frame);
+}
+
+template <typename AlphaKey>
+float sample_hud_mat_anim_alpha_frame(const std::vector<AlphaKey>& keys,
+                                      float frame) {
+  if (keys.empty()) return 1.0f;
+  if (!std::isfinite(frame)) frame = keys.front().frame;
+  constexpr float kFrameEpsilon = 0.0001f;
+  size_t key_index = 0;
+  while (key_index + 1 < keys.size() &&
+         frame + kFrameEpsilon >= keys[key_index + 1].frame) {
+    ++key_index;
+  }
+  const AlphaKey& a = keys[key_index];
+  const AlphaKey& b = key_index + 1 < keys.size() ? keys[key_index + 1] : a;
+  const float span = b.frame - a.frame;
+  const float t =
+      span <= 0.0001f ? 0.0f : std::clamp((frame - a.frame) / span, 0.0f, 1.0f);
+  return clamp_hud_mat_color(a.alpha + (b.alpha - a.alpha) * t);
+}
+
+template <typename TextureKey>
+const std::string* sample_hud_mat_anim_texture_frame(
+    const std::vector<TextureKey>& keys, float frame) {
+  if (keys.empty()) return nullptr;
+  if (!std::isfinite(frame)) frame = keys.front().frame;
+  size_t key_index = 0;
+  constexpr float kFrameEpsilon = 0.0001f;
+  while (key_index + 1 < keys.size() &&
+         frame + kFrameEpsilon >= keys[key_index + 1].frame) {
+    ++key_index;
+  }
+  return &keys[key_index].texture;
+}
+
+uint32_t scale_argb_alpha(uint32_t color, float alpha_scale) {
+  const int a = static_cast<int>(((color >> 24) & 0xff) *
+                                clamp_hud_mat_color(alpha_scale) + 0.5f);
+  return (color & 0x00ffffffu) | (uint32_t(std::clamp(a, 0, 255)) << 24);
 }
 
 std::string first_ref_with_suffix(const std::vector<uint8_t>& body,
@@ -565,6 +666,7 @@ bool interesting_hud_mesh(const std::string& name) {
   return name.find("score") != std::string::npos ||
          name.find("multi_hud") != std::string::npos ||
          name.find("amp_") != std::string::npos ||
+         name.find("lightning_") != std::string::npos ||
          name.find("rock") != std::string::npos ||
          name.find("needle") != std::string::npos ||
          name.find("vu_") != std::string::npos;
@@ -637,6 +739,7 @@ void HudRenderer::clear_loaded_resources() {
   static_quads_.clear();
   native_star_back_.clear();
   native_star_fill_.clear();
+  native_star_path_glow_.clear();
   native_star_fill_glow_.clear();
   native_star_front_.clear();
   native_star_glass_.clear();
@@ -644,6 +747,7 @@ void HudRenderer::clear_loaded_resources() {
   native_star_top_.clear();
   native_star_caps_.clear();
   native_star_ready_glow_.clear();
+  native_star_lightning_.clear();
 }
 
 namespace {
@@ -1051,6 +1155,12 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       if (!kv.second.empty() && seen.insert(kv.second).second)
         names.push_back(kv.second);
     }
+    for (const auto& kv : layout.mat_anim_color) {
+      for (const HudMatAnimTextureKey& key : kv.second.texture_keys) {
+        if (!key.texture.empty() && seen.insert(key.texture).second)
+          names.push_back(key.texture);
+      }
+    }
     load_set(milo, names);
   };
   load_layout_textures(kHudMilo, hud);
@@ -1114,6 +1224,38 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       dst.push_back(key);
     }
   };
+  auto copy_alpha_keys = [&](const char* anim_name,
+                             std::vector<AlphaAnimKey>& dst,
+                             float& duration_frames) {
+    dst.clear();
+    duration_frames = 100.0f;
+    const auto it = star.mat_anim_color.find(anim_name);
+    if (it == star.mat_anim_color.end()) return;
+    duration_frames = std::max(1.0f, it->second.duration_frames);
+    dst.reserve(it->second.alpha_keys.size());
+    for (const HudMatAnimAlphaKey& src : it->second.alpha_keys) {
+      AlphaAnimKey key;
+      key.alpha = src.alpha;
+      key.frame = src.frame;
+      dst.push_back(key);
+    }
+  };
+  auto copy_star_color_keys = [&](const char* anim_name,
+                                  std::vector<ColorAnimKey>& dst,
+                                  float& duration_frames) {
+    dst.clear();
+    duration_frames = 100.0f;
+    const auto it = star.mat_anim_color.find(anim_name);
+    if (it == star.mat_anim_color.end()) return;
+    duration_frames = std::max(1.0f, it->second.duration_frames);
+    dst.reserve(it->second.keys.size());
+    for (const HudMatAnimColorKey& src : it->second.keys) {
+      ColorAnimKey key;
+      for (int i = 0; i < 4; ++i) key.color[i] = src.color[i];
+      key.frame = src.frame;
+      dst.push_back(key);
+    }
+  };
   copy_color_keys("rock_light.manim", rock_label_color_keys_,
                   rock_label_anim_duration_);
   copy_color_keys("rock_light_front.manim", rock_label_front_color_keys_,
@@ -1133,6 +1275,12 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   copy_color_keys("rock_light_green_front.manim",
                   rock_light_front_lamp_color_keys_[2],
                   rock_light_front_lamp_anim_duration_[2]);
+  copy_star_color_keys("amp_inside_bar_glow.mnm", star_fill_color_keys_,
+                       star_fill_anim_duration_);
+  copy_alpha_keys("amp_tube_glow.mnm", star_tube_glow_alpha_keys_,
+                  star_tube_glow_anim_duration_);
+  copy_alpha_keys("amp_tube_glow_meter.mnm", star_tube_meter_alpha_keys_,
+                  star_tube_meter_anim_duration_);
   if (env_enabled("GHOGX_DEBUG_HUD_ROCK_METER")) {
     std::fprintf(stderr,
                  "[hud-rock] MatAnim curves: rock_light=%zu/%0.1f "
@@ -1672,6 +1820,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   native_star_back_.clear();
   native_star_fill_.clear();
+  native_star_path_glow_.clear();
   native_star_fill_glow_.clear();
   native_star_front_.clear();
   native_star_glass_.clear();
@@ -1679,6 +1828,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   native_star_top_.clear();
   native_star_caps_.clear();
   native_star_ready_glow_.clear();
+  native_star_lightning_.clear();
   MeshBounds star_bounds;
   const char* star_bound_meshes[] = {
       "amp_glass_black.mesh", "amp_chrome_top.mesh",
@@ -1720,23 +1870,87 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           target.push_back(std::move(q));
       }
     };
+    auto append_star_animated_mesh = [&](const char* name,
+                                         std::vector<StarAnimatedQuad>& target,
+                                         bool flip_v = false,
+                                         bool flip_z = true,
+                                         bool flip_u = true) {
+      const LoadedMesh* mesh = find_mesh(star, name);
+      if (!mesh) return;
+      Quad q = make_slot_mesh(star, *mesh, star_bounds, sp_bar_, 0, true,
+                              flip_v, flip_z, true, 0.0f, true);
+      q.group = kHudGroupRight;
+      q.element = kElemSpFill;
+      q.sort_bias = 1;
+      if (flip_u) {
+        for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
+      }
+      if (!q.tex || q.verts.size() < 3 || q.idx.size() < 3) return;
+
+      StarAnimatedQuad animated;
+      animated.quad = std::move(q);
+      for (const auto& kv : star.mat_anim_color) {
+        if (kv.second.material != mesh->material) continue;
+        animated.duration_frames =
+            std::max(1.0f, kv.second.duration_frames);
+        animated.color_keys.reserve(kv.second.keys.size());
+        for (const HudMatAnimColorKey& src : kv.second.keys) {
+          ColorAnimKey key;
+          for (int i = 0; i < 4; ++i) key.color[i] = src.color[i];
+          key.frame = src.frame;
+          animated.color_keys.push_back(key);
+        }
+        animated.alpha_keys.reserve(kv.second.alpha_keys.size());
+        for (const HudMatAnimAlphaKey& src : kv.second.alpha_keys) {
+          AlphaAnimKey key;
+          key.alpha = src.alpha;
+          key.frame = src.frame;
+          animated.alpha_keys.push_back(key);
+        }
+        animated.texture_keys.reserve(kv.second.texture_keys.size());
+        for (const HudMatAnimTextureKey& src : kv.second.texture_keys) {
+          TextureAnimKey key;
+          key.texture = src.texture;
+          key.frame = src.frame;
+          animated.texture_keys.push_back(std::move(key));
+        }
+        break;
+      }
+      target.push_back(std::move(animated));
+    };
     append_star_mesh("amp_inside_bar.mesh", native_star_back_,
-                     argb(175, 210, 230, 238), false, false, true,
+                     0, false, false, true,
                      nullptr, true, kElemSpBack, 0.0f);
     append_star_mesh("amp_glass_black.mesh", native_star_back_,
-                     argb(92, 40, 52, 62), false, false, true,
+                     0, false, false, true,
                      nullptr, true, kElemSpBack, 0.0f);
     append_star_mesh("amp_inside_bar.mesh", native_star_fill_,
-                     argb(255, 100, 230, 255), false, false, true,
+                     0, false, false, true,
                      nullptr, true, kElemSpFill, 0.0f);
-    append_star_mesh("amp_inside_bar_path.mesh", native_star_fill_glow_,
-                     argb(205, 125, 225, 255), true, false, true,
+    append_star_mesh("amp_inside_bar_path.mesh", native_star_path_glow_,
+                     0, true, false, true,
                      nullptr, true, kElemSpFill, 0.0f);
     append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
-                     argb(155, 145, 220, 255), true, false, true,
+                     0, true, false, true,
                      nullptr, true, kElemSpFill, 0.0f);
+    append_star_animated_mesh("lightning_bot_01_0.mesh",
+                              native_star_lightning_);
+    append_star_animated_mesh("lightning_bot_02_0.mesh",
+                              native_star_lightning_);
+    append_star_animated_mesh("lightning_bot_03_0.mesh",
+                              native_star_lightning_);
+    append_star_animated_mesh("lightning_bot_04_0.mesh",
+                              native_star_lightning_);
+    append_star_animated_mesh("lightning_top_01_0.mesh",
+                              native_star_lightning_);
+    append_star_animated_mesh("lightning_top_02_0.mesh",
+                              native_star_lightning_);
+    append_star_animated_mesh("lightning_top_03_0.mesh",
+                              native_star_lightning_);
+    append_star_animated_mesh("lightning_top_04_0.mesh",
+                              native_star_lightning_);
     append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
-                     argb(120, 150, 220, 255), true, false, true,
+                     0, true, false, true,
                      nullptr, true, kElemSpReady, 0.0f);
     append_star_mesh("amp_inside_disk.mesh", native_star_front_, 0, false,
                      false, true, nullptr, true, kElemSpFront, -1.0f);
@@ -2542,86 +2756,142 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     }
   }
 
+  const bool ready = fill >= 0.5f;
+  const bool tube_glow = ready || star_power_active;
+  const float fill_anim_frame =
+      fill * std::max(1.0f, star_fill_anim_duration_);
+  const float tube_meter_anim_frame =
+      fill * std::max(1.0f, star_tube_meter_anim_duration_);
+  const float tube_glow_anim_frame = 0.0f;
+  const std::optional<uint32_t> star_fill_color =
+      star_fill_color_keys_.empty()
+          ? std::optional<uint32_t>{}
+          : std::optional<uint32_t>{sample_hud_mat_anim_color_frame(
+                star_fill_color_keys_, fill_anim_frame)};
+  const float tube_meter_alpha = sample_hud_mat_anim_alpha_frame(
+      star_tube_meter_alpha_keys_, tube_meter_anim_frame);
+  const float tube_ready_alpha = sample_hud_mat_anim_alpha_frame(
+      star_tube_glow_alpha_keys_, tube_glow_anim_frame);
+
   // GH2's tube fills from the right cap toward the left. Projection flips X,
   // so screen-right is the lower world-X side of the decoded meter mesh.
-  auto append_clipped_fill = [&](const std::vector<Quad>& source) {
-    bool drew = false;
-    for (const Quad& src : source) {
-      if (src.verts.size() < 3 || src.idx.size() < 3) continue;
-      float min_x = std::numeric_limits<float>::max();
-      float max_x = std::numeric_limits<float>::lowest();
-      for (const Quad::V& v : src.verts) {
-        min_x = std::min(min_x, v.wx);
-        max_x = std::max(max_x, v.wx);
-      }
-      if (!(max_x > min_x)) continue;
-      const float clip_x = min_x + (max_x - min_x) * fill;
-      auto inside = [&](const Quad::V& v) { return v.wx <= clip_x; };
-      auto intersect = [&](const Quad::V& a, const Quad::V& b) {
-        const float denom = b.wx - a.wx;
-        const float t = std::abs(denom) < 0.00001f ? 0.0f : (clip_x - a.wx) / denom;
-        Quad::V out_v;
-        out_v.wx = clip_x;
-        out_v.wy = a.wy + (b.wy - a.wy) * t;
-        out_v.wz = a.wz + (b.wz - a.wz) * t;
-        out_v.u = a.u + (b.u - a.u) * t;
-        out_v.v = a.v + (b.v - a.v) * t;
-        return out_v;
-      };
-
-      Quad clipped;
-      clipped.tex = src.tex;
-      clipped.color = src.color;
-      clipped.additive = src.additive;
-      clipped.group = src.group;
-      clipped.element = src.element;
-      for (size_t i = 0; i + 2 < src.idx.size(); i += 3) {
-        if (src.idx[i] >= src.verts.size() ||
-            src.idx[i + 1] >= src.verts.size() ||
-            src.idx[i + 2] >= src.verts.size()) {
-          continue;
+  auto append_clipped_quad =
+      [&](const Quad& src, const std::optional<uint32_t>& color_override,
+          IDirect3DTexture9* texture_override, float alpha_scale) {
+        if (src.verts.size() < 3 || src.idx.size() < 3) return false;
+        float min_x = std::numeric_limits<float>::max();
+        float max_x = std::numeric_limits<float>::lowest();
+        for (const Quad::V& v : src.verts) {
+          min_x = std::min(min_x, v.wx);
+          max_x = std::max(max_x, v.wx);
         }
-        std::vector<Quad::V> poly = {
-            src.verts[src.idx[i]],
-            src.verts[src.idx[i + 1]],
-            src.verts[src.idx[i + 2]],
+        if (!(max_x > min_x)) return false;
+        const float clip_x = min_x + (max_x - min_x) * fill;
+        auto inside = [&](const Quad::V& v) { return v.wx <= clip_x; };
+        auto intersect = [&](const Quad::V& a, const Quad::V& b) {
+          const float denom = b.wx - a.wx;
+          const float t =
+              std::abs(denom) < 0.00001f ? 0.0f : (clip_x - a.wx) / denom;
+          Quad::V out_v;
+          out_v.wx = clip_x;
+          out_v.wy = a.wy + (b.wy - a.wy) * t;
+          out_v.wz = a.wz + (b.wz - a.wz) * t;
+          out_v.u = a.u + (b.u - a.u) * t;
+          out_v.v = a.v + (b.v - a.v) * t;
+          return out_v;
         };
-        std::vector<Quad::V> out_poly;
-        for (size_t j = 0; j < poly.size(); ++j) {
-          const Quad::V& a = poly[j];
-          const Quad::V& b = poly[(j + 1) % poly.size()];
-          const bool a_in = inside(a);
-          const bool b_in = inside(b);
-          if (a_in && b_in) {
-            out_poly.push_back(b);
-          } else if (a_in && !b_in) {
-            out_poly.push_back(intersect(a, b));
-          } else if (!a_in && b_in) {
-            out_poly.push_back(intersect(a, b));
-            out_poly.push_back(b);
+
+        Quad clipped;
+        clipped.tex = texture_override ? texture_override : src.tex;
+        clipped.color = scale_argb_alpha(
+            color_override ? *color_override : src.color, alpha_scale);
+        clipped.additive = src.additive;
+        clipped.blend = src.blend;
+        clipped.preserve_depth = src.preserve_depth;
+        clipped.group = src.group;
+        clipped.element = src.element;
+        clipped.sort_bias = src.sort_bias;
+        for (size_t i = 0; i + 2 < src.idx.size(); i += 3) {
+          if (src.idx[i] >= src.verts.size() ||
+              src.idx[i + 1] >= src.verts.size() ||
+              src.idx[i + 2] >= src.verts.size()) {
+            continue;
+          }
+          std::vector<Quad::V> poly = {
+              src.verts[src.idx[i]],
+              src.verts[src.idx[i + 1]],
+              src.verts[src.idx[i + 2]],
+          };
+          std::vector<Quad::V> out_poly;
+          for (size_t j = 0; j < poly.size(); ++j) {
+            const Quad::V& a = poly[j];
+            const Quad::V& b = poly[(j + 1) % poly.size()];
+            const bool a_in = inside(a);
+            const bool b_in = inside(b);
+            if (a_in && b_in) {
+              out_poly.push_back(b);
+            } else if (a_in && !b_in) {
+              out_poly.push_back(intersect(a, b));
+            } else if (!a_in && b_in) {
+              out_poly.push_back(intersect(a, b));
+              out_poly.push_back(b);
+            }
+          }
+          if (out_poly.size() < 3) continue;
+          const uint16_t base = static_cast<uint16_t>(clipped.verts.size());
+          clipped.verts.insert(clipped.verts.end(), out_poly.begin(),
+                               out_poly.end());
+          for (size_t j = 1; j + 1 < out_poly.size(); ++j) {
+            clipped.idx.push_back(base);
+            clipped.idx.push_back(static_cast<uint16_t>(base + j));
+            clipped.idx.push_back(static_cast<uint16_t>(base + j + 1));
           }
         }
-        if (out_poly.size() < 3) continue;
-        const uint16_t base = static_cast<uint16_t>(clipped.verts.size());
-        clipped.verts.insert(clipped.verts.end(), out_poly.begin(), out_poly.end());
-        for (size_t j = 1; j + 1 < out_poly.size(); ++j) {
-          clipped.idx.push_back(base);
-          clipped.idx.push_back(static_cast<uint16_t>(base + j));
-          clipped.idx.push_back(static_cast<uint16_t>(base + j + 1));
-        }
-      }
-      if (clipped.verts.size() >= 3 && clipped.idx.size() >= 3) {
+        if (clipped.verts.size() < 3 || clipped.idx.size() < 3) return false;
         out.push_back(std::move(clipped));
-        drew = true;
-      }
+        return true;
+      };
+  auto append_clipped_fill =
+      [&](const std::vector<Quad>& source,
+          const std::optional<uint32_t>& color_override, float alpha_scale) {
+        bool drew = false;
+        for (const Quad& src : source) {
+          drew |= append_clipped_quad(src, color_override, nullptr,
+                                     alpha_scale);
+        }
+        return drew;
+      };
+  auto append_clipped_animated = [&](const StarAnimatedQuad& animated) {
+    Quad q = animated.quad;
+    const float anim_frame =
+        fill * std::max(1.0f, animated.duration_frames);
+    if (!animated.color_keys.empty()) {
+      q.color = sample_hud_mat_anim_color_frame(animated.color_keys,
+                                                anim_frame);
     }
-    return drew;
+    q.color = scale_argb_alpha(
+        q.color, sample_hud_mat_anim_alpha_frame(animated.alpha_keys,
+                                                 anim_frame));
+    IDirect3DTexture9* texture_override = nullptr;
+    if (const std::string* texture =
+            sample_hud_mat_anim_texture_frame(animated.texture_keys,
+                                             anim_frame)) {
+      texture_override = tex(*texture);
+    }
+    return append_clipped_quad(q, std::nullopt, texture_override, 1.0f);
   };
 
   bool drew_native_fill = false;
   if (fill > 0.005f) {
-    drew_native_fill |= append_clipped_fill(native_star_fill_);
-    drew_native_fill |= append_clipped_fill(native_star_fill_glow_);
+    drew_native_fill |= append_clipped_fill(native_star_fill_,
+                                            star_fill_color, 1.0f);
+    drew_native_fill |= append_clipped_fill(native_star_path_glow_,
+                                            std::nullopt, 1.0f);
+    drew_native_fill |= append_clipped_fill(native_star_fill_glow_,
+                                            std::nullopt, tube_meter_alpha);
+    for (const StarAnimatedQuad& lightning : native_star_lightning_) {
+      drew_native_fill |= append_clipped_animated(lightning);
+    }
   }
   bool drew_fallback_fill = false;
 
@@ -2646,20 +2916,24 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     }
   }
 
-  const bool ready = fill >= 0.5f;
-  const bool tube_glow = ready || star_power_active;
   static int star_power_debug_budget = 0;
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER") &&
       star_power_debug_budget < 90) {
     std::fprintf(
         stderr,
         "[hud-star-power] fill=%.3f ready=%d active=%d tube_glow=%d "
-        "back=%zu fill_layers=%zu "
-        "glow_layers=%zu ready_glow=%zu front=%zu glass=%zu base=%zu "
+        "frames=%.2f,%.2f,%.2f curves=%zu/%zu/%zu "
+        "back=%zu fill_layers=%zu path_glow=%zu "
+        "glow_layers=%zu lightning_layers=%zu ready_glow=%zu "
+        "front=%zu glass=%zu base=%zu "
         "top=%zu caps=%zu native_fill=%d fallback_fill=%d\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
+        fill_anim_frame, tube_meter_anim_frame, tube_glow_anim_frame,
+        star_fill_color_keys_.size(), star_tube_meter_alpha_keys_.size(),
+        star_tube_glow_alpha_keys_.size(),
         native_star_back_.size(),
-        native_star_fill_.size(), native_star_fill_glow_.size(),
+        native_star_fill_.size(), native_star_path_glow_.size(),
+        native_star_fill_glow_.size(), native_star_lightning_.size(),
         native_star_ready_glow_.size(), native_star_front_.size(),
         native_star_glass_.size(), native_star_base_.size(),
         native_star_top_.size(), native_star_caps_.size(),
@@ -2669,8 +2943,11 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
 
   if (tube_glow) {
     if (!native_star_ready_glow_.empty()) {
-      out.insert(out.end(), native_star_ready_glow_.begin(),
-                 native_star_ready_glow_.end());
+      for (const Quad& src : native_star_ready_glow_) {
+        Quad q = src;
+        q.color = scale_argb_alpha(q.color, tube_ready_alpha);
+        out.push_back(std::move(q));
+      }
     } else if (IDirect3DTexture9* ready = tex("amp_tube_glow.tex")) {
       push_rect(out, sl.cx, sl.cz, sl.hw * 1.04f, sl.hh * 0.92f, ready,
                 argb(125, 115, 205, 255), true,
