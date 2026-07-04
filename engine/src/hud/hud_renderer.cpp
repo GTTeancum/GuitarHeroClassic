@@ -3595,6 +3595,34 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (!native_star_top_.empty())
     out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
 
+  bool drew_native_ready_mesh = false;
+  bool drew_native_ready_glow = false;
+  if (tube_glow) {
+    if (!native_star_ready_mesh_glow_.empty()) {
+      for (const StarMeshAnimatedQuad& src : native_star_ready_mesh_glow_) {
+        const float frame = fill * std::max(1.0f, src.duration_frames);
+        Quad q = sample_star_mesh_anim(src, frame);
+        if (q.verts.size() < 3 || q.idx.size() < 3) continue;
+        q.color = scale_argb_alpha(q.color, tube_ready_alpha);
+        out.push_back(std::move(q));
+        drew_native_ready_mesh = true;
+      }
+    } else if (!native_star_ready_glow_.empty()) {
+      for (const Quad& src : native_star_ready_glow_) {
+        Quad q = src;
+        q.color = scale_argb_alpha(q.color, tube_ready_alpha);
+        out.push_back(std::move(q));
+        drew_native_ready_glow = true;
+      }
+    }
+  }
+  bool drew_native_fill_glow = false;
+  if (fill > 0.005f) {
+    drew_native_fill_glow = append_clipped_fill(native_star_fill_glow_,
+                                                std::nullopt, tube_meter_alpha);
+    drew_native_fill |= drew_native_fill_glow;
+  }
+
   static int star_power_debug_budget = 0;
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER") &&
       star_power_debug_budget < 90) {
@@ -3608,6 +3636,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "ready_mesh=%zu ready_glow=%zu "
         "front=%zu glass=%zu base=%zu "
         "top=%zu caps=%zu native_fill=%d native_particles=%d "
+        "ready_mesh_drawn=%d ready_glow_drawn=%d fill_glow_drawn=%d "
         "fallback_fill=%d\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
         fill_anim_frame, tube_meter_anim_frame, tube_glow_anim_frame,
@@ -3630,30 +3659,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         native_star_front_.size(), native_star_glass_.size(), native_star_base_.size(),
         native_star_top_.size(), native_star_caps_.size(),
         drew_native_fill ? 1 : 0, drew_native_particles ? 1 : 0,
-        0);
+        drew_native_ready_mesh ? 1 : 0, drew_native_ready_glow ? 1 : 0,
+        drew_native_fill_glow ? 1 : 0, 0);
     ++star_power_debug_budget;
-  }
-
-  if (tube_glow) {
-    if (!native_star_ready_mesh_glow_.empty()) {
-      for (const StarMeshAnimatedQuad& src : native_star_ready_mesh_glow_) {
-        const float frame = fill * std::max(1.0f, src.duration_frames);
-        Quad q = sample_star_mesh_anim(src, frame);
-        if (q.verts.size() < 3 || q.idx.size() < 3) continue;
-        q.color = scale_argb_alpha(q.color, tube_ready_alpha);
-        out.push_back(std::move(q));
-      }
-    } else if (!native_star_ready_glow_.empty()) {
-      for (const Quad& src : native_star_ready_glow_) {
-        Quad q = src;
-        q.color = scale_argb_alpha(q.color, tube_ready_alpha);
-        out.push_back(std::move(q));
-      }
-    }
-  }
-  if (fill > 0.005f) {
-    drew_native_fill |= append_clipped_fill(native_star_fill_glow_,
-                                            std::nullopt, tube_meter_alpha);
   }
 
   if (!native_star_caps_.empty())

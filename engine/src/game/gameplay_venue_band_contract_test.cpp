@@ -1126,6 +1126,20 @@ int main() {
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
       "if(tube_glow){",
       "star-power completes star_meter.view shell before star_meter_ready.view glow");
+  ok &= contains(hud_renderer_c,
+                 "ready_mesh_drawn=%dready_glow_drawn=%dfill_glow_drawn=%d",
+                 "star-power diagnostics report source glow layers after live draw");
+  ok &= appears_before(
+      hud_renderer_c,
+      "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
+      "std::nullopt,tube_meter_alpha);",
+      "\"[hud-star-power]fill=%.3fready=%dactive=%dtube_glow=%d",
+      "star-power diagnostics run after the source tube-meter glow append");
+  ok &= appears_before(
+      hud_renderer_c,
+      "drew_native_ready_mesh=true;",
+      "\"[hud-star-power]fill=%.3fready=%dactive=%dtube_glow=%d",
+      "star-power diagnostics run after the source ready MeshAnim glow append");
   ok &= contains(hud_renderer_h_c,
                  "structStarParticleLayer{",
                  "star-power HUD keeps a source-backed particle layer type");
@@ -1191,7 +1205,7 @@ int main() {
   ok &= appears_before(
       hud_renderer_c,
       "if(tube_glow){",
-      "drew_native_fill|=append_clipped_fill(native_star_fill_glow_,"
+      "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
       "std::nullopt,tube_meter_alpha);",
       "star-power ready tube glow emits before tube-meter glow like star_meter_ready.view");
   ok &= contains(hud_renderer_c,
