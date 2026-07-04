@@ -7291,8 +7291,11 @@ Rejected native probe:
 2026-07-03 ROCK meter layer correction:
 - Source check with `ghogx groups --ark-dir "..\Guitar Hero II PS2 (USA)\GEN"
   --milo-path "hud/gen/crowd_meter.milo_ps2" --name rock_meter.view` shows the
-  active meter group contains `hud_rock_2d.mesh` followed by
-  `hud_rock_light_front.mesh`; `hud1_rock_needle.view` is parented to
+  active meter group order is `rock_light_yellow.mesh`,
+  `rock_light_red.mesh`, `rock_light_green.mesh`, `rock_face_2d.mesh`,
+  `rock_light_red_front.mesh`, `rock_light_green_front.mesh`,
+  `rock_light_yellow_front.mesh`, `rock_frame.mesh`, `hud_rock_2d.mesh`,
+  and `hud_rock_light_front.mesh`; `hud1_rock_needle.view` is parented to
   `rock_meter.view`, with `rock_needle.mesh` and `vu_needle_led.mesh` as its
   authored children.
 - Runtime now keeps the ROCK label/front-light pair always present. It still
@@ -9420,22 +9423,25 @@ Rejected native probe:
 - `venue_proxy_lighting_3d_proof_sheet.png` embeds four native gameplay frames
   with the flashpot proxy route and draw evidence stamped below the captures.
 
-2026-07-03 ROCK meter MILO backing restoration:
-- Direct MILO inspection confirms the ROCK light backing already exists in
-  `hud/gen/crowd_meter.milo_ps2`: `hud_rock_light.mesh` is parented to
-  `rock_meter.view`, uses `hud_rock_light.mat`, and that material resolves to
-  `rock_light.tex` with blend `3`, color `[0.650 0.650 0.000 0.773]`, and
-  UV scale `[0.9000 0.6200]`.
-- This restores the source-backed path that existed before the synthetic black
-  rectangle regression. The gameplay HUD now assigns `hud_rock_light.mesh` as
-  the ROCK meter backing and draws it after `rock_face_2d.mesh` but before the
-  translucent red/yellow/green lamp-front meshes. Do not replace this with a
-  generated `argb(255,2,2,2)` quad; the MILO mesh/material/texture are the
-  source of truth.
-- Validation: rebuilt `ghogx_app` and
-  `ghogx_gameplay_venue_band_contract_test`; the focused contract passes. The
-  direct MILO proof and fresh captures live in
-  `engine/out/codex_goal_visuals/20260703_rock_meter_milo_source_backing_verify/`.
-  Both HUD-test and live gameplay logs report `backing=1
-  backing_mesh=hud_rock_light.mesh`, and the live gameplay screenshot shows the
-  venue no longer bleeding through the ROCK meter lamp band.
+2026-07-03 ROCK meter MILO backing correction:
+- The earlier `hud_rock_light.mesh` backing note was wrong: the authoritative
+  `rock_meter.view` child list does not use that mesh for the active lamp
+  blocker. The source group order is `rock_light_yellow.mesh`,
+  `rock_light_red.mesh`, `rock_light_green.mesh`, `rock_face_2d.mesh`,
+  `rock_light_red_front.mesh`, `rock_light_green_front.mesh`,
+  `rock_light_yellow_front.mesh`, `rock_frame.mesh`, `hud_rock_2d.mesh`, then
+  `hud_rock_light_front.mesh`.
+- Direct texture inspection shows the opaque lamp blocker is authored in
+  `rock_meter_2d.tex` on `rock_face_2d.mesh`; the decoded BMP has real alpha on
+  black edge/top pixels. The renderer must not run the edge-black matte eraser
+  on `rock_meter_2d.tex`, because that removes the authored black pixels and
+  lets the venue show through the translucent lamp sockets.
+- Runtime now loads the three base light child meshes from the MILO, emits them
+  before `rock_face_2d.mesh` in the decoded parent order, preserves
+  `rock_meter_2d.tex` source alpha, and then draws the translucent front light
+  overlays. The synthetic `argb(255,2,2,2)` rectangle and the non-group
+  `hud_rock_light.mesh` path are both forbidden by the contract test.
+- Validation artifact:
+  `engine/out/codex_goal_visuals/20260703_rock_meter_milo_order_alpha_verify/`
+  contains the live gameplay screenshot, debug log with `native_lights=1
+  base_lights=1 face=1`, and `rock_meter_milo_order_alpha_proof.png`.
