@@ -132,12 +132,34 @@ class HudRenderer {
     std::string texture;
     float frame = 0.0f;
   };
+  struct Vec3AnimKey {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float frame = 0.0f;
+  };
+  struct ScalarAnimKey {
+    float min_value = 0.0f;
+    float max_value = 0.0f;
+    float frame = 0.0f;
+  };
   struct StarAnimatedQuad {
     Quad quad;
     std::vector<ColorAnimKey> color_keys;
     std::vector<AlphaAnimKey> alpha_keys;
     std::vector<TextureAnimKey> texture_keys;
     float duration_frames = 0.0f;
+  };
+  struct StarParticleLayer {
+    std::string texture;
+    uint32_t color = 0xFFFFFFFF;
+    uint8_t blend = 3;
+    float half_w = 1.0f;
+    float half_h = 1.0f;
+    float duration_frames = 100.0f;
+    float emission_duration_frames = 1.0f;
+    std::vector<Vec3AnimKey> path_keys;
+    std::vector<ScalarAnimKey> emission_keys;
   };
 
   // Helper: append an axis-aligned quad (in world X-Z) to a draw list.
@@ -243,6 +265,7 @@ class HudRenderer {
   std::vector<Quad> native_star_caps_;
   std::vector<Quad> native_star_ready_glow_;
   std::vector<StarAnimatedQuad> native_star_lightning_;
+  std::vector<StarParticleLayer> native_star_particles_;
   bool native_rock_face_ok_ = false;
   bool native_rock_frame_ok_ = false;
   bool native_rock_label_ok_ = false;

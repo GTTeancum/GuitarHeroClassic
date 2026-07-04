@@ -1046,6 +1046,45 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "native_star_path_glow_",
                  "star-power path glow is separate from the tube-meter alpha layer");
+  ok &= contains(hud_renderer_h_c,
+                 "structStarParticleLayer{",
+                 "star-power HUD keeps a source-backed particle layer type");
+  ok &= contains(hud_renderer_h_c,
+                 "std::vector<StarParticleLayer>native_star_particles_;",
+                 "star-power HUD stores decoded source particle layers");
+  ok &= contains(hud_renderer_c,
+                 "ghogx::milo_scene::decode_particle_sys(de.name,body)",
+                 "star-power HUD loads ParticleSys entries from the MILO");
+  ok &= contains(hud_renderer_c,
+                 "elseif(de.type==\"ParticleSysAnim\"){",
+                 "star-power HUD loads ParticleSysAnim entries from the MILO");
+  ok &= contains(hud_renderer_c,
+                 "elseif(de.type==\"TransAnim\"){",
+                 "star-power HUD loads TransAnim entries from the MILO");
+  ok &= contains(hud_renderer_c,
+                 "append_star_particle(\"amp_inside_bar_path.part\","
+                 "\"amp_inside_bar_path.tnm\","
+                 "\"amp_inside_bar_path.panm\");",
+                 "star-power fill renders the source amp_inside_bar_path particle");
+  ok &= contains(hud_renderer_c,
+                 "layer.texture=tex_it->second;",
+                 "star-power particle texture comes from its authored material");
+  ok &= contains(hud_renderer_c,
+                 "layer.blend=blend_it->second;",
+                 "star-power particle blend mode comes from its authored material");
+  ok &= contains(hud_renderer_c,
+                 "sample_particle_path(particle.path_keys,path_frame)",
+                 "star-power particle follows the decoded TransAnim path");
+  ok &= contains(hud_renderer_c,
+                 "sample_particle_emission(particle.emission_keys,"
+                 "emission_frame)",
+                 "star-power particle alpha follows the decoded ParticleSysAnim");
+  ok &= contains(hud_renderer_c,
+                 "\"glow_layers=%zulightning_layers=%zuparticle_layers=%zu\"",
+                 "star-power diagnostics report decoded particle layer count");
+  ok &= contains(hud_renderer_c,
+                 "\"top=%zucaps=%zunative_fill=%dnative_particles=%d\"",
+                 "star-power diagnostics report native particle emission");
   ok &= absent(hud_renderer_c,
                "argb(155,145,220,255)",
                "star-power native tube-meter glow must not keep the hand-tinted cyan overlay");

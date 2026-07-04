@@ -527,6 +527,20 @@ struct LoadedMesh {
   bool quad = false;      // true if the mesh has drawable decoded triangles
 };
 
+struct LoadedParticle {
+  std::string name;
+  std::string parent;
+  std::string material;
+  ghogx::milo_scene::Xfm world;
+  bool showing = true;
+  float max_particles = 0.0f;
+  float velocity_min[3] = {0.0f, 0.0f, 0.0f};
+  float velocity_max[3] = {0.0f, 0.0f, 0.0f};
+  float size_start = 1.0f;
+  float size_end = 1.0f;
+  bool decoded = false;
+};
+
 struct GroupX { ghogx::milo_scene::Xfm local; std::string parent; };
 
 struct MatUvXfm {
@@ -534,8 +548,34 @@ struct MatUvXfm {
   float offset[2] = {0.0f, 0.0f};
 };
 
+struct HudParticleScalarKey {
+  float min_value = 0.0f;
+  float max_value = 0.0f;
+  float frame = 0.0f;
+};
+
+struct HudTransPathKey {
+  float x = 0.0f;
+  float y = 0.0f;
+  float z = 0.0f;
+  float frame = 0.0f;
+};
+
+struct HudParticleAnim {
+  std::string particle;
+  std::vector<HudParticleScalarKey> emission_keys;
+  float duration_frames = 0.0f;
+};
+
+struct HudTransPathAnim {
+  std::string target;
+  std::vector<HudTransPathKey> position_keys;
+  float duration_frames = 0.0f;
+};
+
 struct MiloLayout {
   std::vector<LoadedMesh> meshes;
+  std::vector<LoadedParticle> particles;
   std::unordered_map<std::string, GroupX> groups;       // name -> xfm
   std::unordered_map<std::string, std::string> mat_tex; // material -> diffuse tex
   std::unordered_map<std::string, uint32_t> mat_color;   // material -> ARGB tint
@@ -543,6 +583,8 @@ struct MiloLayout {
   std::unordered_map<std::string, MatUvXfm> mat_uv;      // material -> diffuse UV xform
   std::unordered_map<std::string, std::string> mat_ref;  // material -> referenced material
   std::unordered_map<std::string, HudMatAnimColorCurve> mat_anim_color;
+  std::unordered_map<std::string, HudParticleAnim> particle_anims;
+  std::unordered_map<std::string, HudTransPathAnim> trans_path_anims;
   bool ok = false;
 };
 
@@ -560,6 +602,173 @@ void extract_quad(const ghogx::milo_scene::MeshObj& m, LoadedMesh& lm) {
     lm.verts.push_back({vtx.px, vtx.py, vtx.pz, vtx.u, vtx.v});
   lm.idx = m.indices;
   lm.quad = true;
+}
+
+struct HudPackedString {
+  size_t offset = 0;
+  size_t end = 0;
+  std::string value;
+};
+
+uint32_t read_u32_at(const uint8_t* body, size_t off) {
+  uint32_t value = 0;
+  std::memcpy(&value, body + off, sizeof(value));
+  return value;
+}
+
+float read_f32_at(const uint8_t* body, size_t off) {
+  float value = 0.0f;
+  std::memcpy(&value, body + off, sizeof(value));
+  return value;
+}
+
+std::vector<HudPackedString> packed_hud_strings(const uint8_t* body,
+                                                size_t size) {
+  std::vector<HudPackedString> out;
+  for (size_t off = 0; off + 4 <= size; ++off) {
+    const uint32_t len = read_u32_at(body, off);
+    if (len == 0 || len > 96 || off + 4 + len > size) continue;
+    const char* s = reinterpret_cast<const char*>(body + off + 4);
+    bool printable = true;
+    for (uint32_t i = 0; i < len; ++i) {
+      const unsigned char c = static_cast<unsigned char>(s[i]);
+      if (c < 32 || c > 126) {
+        printable = false;
+        break;
+      }
+    }
+    if (printable) out.push_back({off, off + 4 + len, std::string(s, s + len)});
+  }
+  return out;
+}
+
+std::optional<std::vector<HudParticleScalarKey>> decode_scalar_key_block(
+    const uint8_t* body, size_t size, size_t count_off, size_t limit) {
+  if (count_off + 4 > size || count_off + 4 > limit) return std::nullopt;
+  const uint32_t count = read_u32_at(body, count_off);
+  if (count == 0 || count > 16) return std::nullopt;
+  const size_t keys_off = count_off + 4;
+  if (keys_off + static_cast<size_t>(count) * 12 > size ||
+      keys_off + static_cast<size_t>(count) * 12 > limit) {
+    return std::nullopt;
+  }
+  std::vector<HudParticleScalarKey> keys;
+  keys.reserve(count);
+  float last_frame = -1.0f;
+  for (uint32_t i = 0; i < count; ++i) {
+    const size_t off = keys_off + static_cast<size_t>(i) * 12;
+    HudParticleScalarKey key;
+    key.min_value = read_f32_at(body, off);
+    key.max_value = read_f32_at(body, off + 4);
+    key.frame = read_f32_at(body, off + 8);
+    if (!std::isfinite(key.min_value) || !std::isfinite(key.max_value) ||
+        !std::isfinite(key.frame) || key.frame < 0.0f ||
+        key.frame < last_frame || key.frame > 10000.0f) {
+      return std::nullopt;
+    }
+    last_frame = key.frame;
+    keys.push_back(key);
+  }
+  return keys;
+}
+
+std::optional<std::vector<HudTransPathKey>> decode_trans_path_key_block(
+    const uint8_t* body, size_t size, size_t count_off, size_t limit) {
+  if (count_off + 4 > size || count_off + 4 > limit) return std::nullopt;
+  const uint32_t count = read_u32_at(body, count_off);
+  if (count == 0 || count > 16) return std::nullopt;
+  const size_t keys_off = count_off + 4;
+  if (keys_off + static_cast<size_t>(count) * 16 > size ||
+      keys_off + static_cast<size_t>(count) * 16 > limit) {
+    return std::nullopt;
+  }
+  std::vector<HudTransPathKey> keys;
+  keys.reserve(count);
+  float last_frame = -1.0f;
+  bool has_motion = false;
+  for (uint32_t i = 0; i < count; ++i) {
+    const size_t off = keys_off + static_cast<size_t>(i) * 16;
+    HudTransPathKey key;
+    key.x = read_f32_at(body, off);
+    key.y = read_f32_at(body, off + 4);
+    key.z = read_f32_at(body, off + 8);
+    key.frame = read_f32_at(body, off + 12);
+    if (!std::isfinite(key.x) || !std::isfinite(key.y) ||
+        !std::isfinite(key.z) || !std::isfinite(key.frame) ||
+        key.frame < 0.0f || key.frame < last_frame ||
+        key.frame > 10000.0f || std::fabs(key.x) > 10000.0f ||
+        std::fabs(key.y) > 10000.0f || std::fabs(key.z) > 10000.0f) {
+      return std::nullopt;
+    }
+    if (!keys.empty() &&
+        (std::fabs(keys.front().x - key.x) > 0.001f ||
+         std::fabs(keys.front().y - key.y) > 0.001f ||
+         std::fabs(keys.front().z - key.z) > 0.001f)) {
+      has_motion = true;
+    }
+    last_frame = key.frame;
+    keys.push_back(key);
+  }
+  if (keys.size() > 1 && !has_motion) return std::nullopt;
+  return keys;
+}
+
+std::optional<HudParticleAnim> decode_hud_particle_anim(
+    const std::string& entry_name, const uint8_t* body, size_t size) {
+  if (size < 32 || read_u32_at(body, 0) != 3) return std::nullopt;
+  const auto strings = packed_hud_strings(body, size);
+  const HudPackedString* particle = nullptr;
+  const HudPackedString* self = nullptr;
+  for (const HudPackedString& hit : strings) {
+    if (!particle && hit.value.size() > 5 &&
+        hit.value.rfind(".part") == hit.value.size() - 5) {
+      particle = &hit;
+    }
+    if (hit.value == entry_name) self = &hit;
+  }
+  if (!particle) return std::nullopt;
+  const size_t limit = self ? self->offset : size;
+  for (size_t off = particle->end; off + 4 <= limit; ++off) {
+    auto keys = decode_scalar_key_block(body, size, off, limit);
+    if (!keys || keys->empty()) continue;
+    HudParticleAnim anim;
+    anim.particle = particle->value;
+    anim.emission_keys = std::move(*keys);
+    for (const HudParticleScalarKey& key : anim.emission_keys) {
+      anim.duration_frames = std::max(anim.duration_frames, key.frame);
+    }
+    return anim;
+  }
+  return std::nullopt;
+}
+
+std::optional<HudTransPathAnim> decode_hud_trans_path_anim(
+    const std::string& entry_name, const uint8_t* body, size_t size) {
+  if (size < 48 || read_u32_at(body, 0) != 6) return std::nullopt;
+  const auto strings = packed_hud_strings(body, size);
+  const HudPackedString* target = nullptr;
+  const HudPackedString* self = nullptr;
+  for (const HudPackedString& hit : strings) {
+    if (!target && hit.value.size() > 5 &&
+        hit.value.rfind(".part") == hit.value.size() - 5) {
+      target = &hit;
+    }
+    if (hit.value == entry_name) self = &hit;
+  }
+  if (!target) return std::nullopt;
+  const size_t limit = self ? self->offset : size;
+  for (size_t off = target->end; off + 4 <= limit; ++off) {
+    auto keys = decode_trans_path_key_block(body, size, off, limit);
+    if (!keys || keys->empty()) continue;
+    HudTransPathAnim anim;
+    anim.target = target->value;
+    anim.position_keys = std::move(*keys);
+    for (const HudTransPathKey& key : anim.position_keys) {
+      anim.duration_frames = std::max(anim.duration_frames, key.frame);
+    }
+    return anim;
+  }
+  return std::nullopt;
 }
 
 MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
@@ -589,6 +798,24 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         lm.world = mo.world_stored;
         extract_quad(mo, lm);
         out.meshes.push_back(std::move(lm));
+      } else if (de.type == "ParticleSys") {
+        std::vector<uint8_t> body(b, b + n);
+        auto po = ghogx::milo_scene::decode_particle_sys(de.name, body);
+        LoadedParticle lp;
+        lp.name = po.name;
+        lp.parent = po.parent;
+        lp.material = po.material;
+        lp.world = po.world_stored;
+        lp.showing = po.showing;
+        lp.max_particles = po.max_particles;
+        std::copy(std::begin(po.velocity_min), std::end(po.velocity_min),
+                  std::begin(lp.velocity_min));
+        std::copy(std::begin(po.velocity_max), std::end(po.velocity_max),
+                  std::begin(lp.velocity_max));
+        lp.size_start = po.size_start;
+        lp.size_end = po.size_end;
+        lp.decoded = po.decoded;
+        out.particles.push_back(std::move(lp));
       } else if (de.type == "Group") {
         GroupX g;
         if (decode_group_xfm(b, n, g.local, g.parent))
@@ -613,6 +840,14 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
       } else if (de.type == "MatAnim") {
         if (auto curve = decode_mat_anim_color_curve(de.name, b, n)) {
           out.mat_anim_color[de.name] = std::move(*curve);
+        }
+      } else if (de.type == "ParticleSysAnim") {
+        if (auto anim = decode_hud_particle_anim(de.name, b, n)) {
+          out.particle_anims[de.name] = std::move(*anim);
+        }
+      } else if (de.type == "TransAnim") {
+        if (auto anim = decode_hud_trans_path_anim(de.name, b, n)) {
+          out.trans_path_anims[de.name] = std::move(*anim);
         }
       }
     }
@@ -748,6 +983,7 @@ void HudRenderer::clear_loaded_resources() {
   native_star_caps_.clear();
   native_star_ready_glow_.clear();
   native_star_lightning_.clear();
+  native_star_particles_.clear();
 }
 
 namespace {
@@ -1829,6 +2065,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   native_star_caps_.clear();
   native_star_ready_glow_.clear();
   native_star_lightning_.clear();
+  native_star_particles_.clear();
   MeshBounds star_bounds;
   const char* star_bound_meshes[] = {
       "amp_glass_black.mesh", "amp_chrome_top.mesh",
@@ -1918,6 +2155,93 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       }
       target.push_back(std::move(animated));
     };
+    auto map_star_source_point = [&](float x, float y, float z) {
+      Vec3AnimKey mapped;
+      const float tx = std::clamp((x - star_bounds.min_x) /
+                                      (star_bounds.max_x - star_bounds.min_x),
+                                  0.0f, 1.0f);
+      const float tz = std::clamp((z - star_bounds.min_z) /
+                                      (star_bounds.max_z - star_bounds.min_z),
+                                  0.0f, 1.0f);
+      mapped.x = sp_bar_.cx - sp_bar_.hw + (1.0f - tx) * sp_bar_.hw * 2.0f;
+      mapped.y = right_hud_depth_at(mapped.x);
+      mapped.z = sp_bar_.cz + sp_bar_.hh - tz * sp_bar_.hh * 2.0f;
+      mapped.frame = 0.0f;
+      (void)y;
+      return mapped;
+    };
+    auto append_star_particle = [&](const char* particle_name,
+                                    const char* trans_anim_name,
+                                    const char* particle_anim_name) {
+      const auto particle_it =
+          std::find_if(star.particles.begin(), star.particles.end(),
+                       [&](const LoadedParticle& p) {
+                         return p.name == particle_name && p.decoded &&
+                                p.showing && !p.material.empty();
+                       });
+      if (particle_it == star.particles.end()) return;
+      const auto trans_it = star.trans_path_anims.find(trans_anim_name);
+      const auto anim_it = star.particle_anims.find(particle_anim_name);
+      if (trans_it == star.trans_path_anims.end() ||
+          trans_it->second.target != particle_name ||
+          trans_it->second.position_keys.empty()) {
+        return;
+      }
+
+      StarParticleLayer layer;
+      if (const auto tex_it = star.mat_tex.find(particle_it->material);
+          tex_it != star.mat_tex.end()) {
+        layer.texture = tex_it->second;
+      }
+      if (layer.texture.empty() || !tex(layer.texture)) return;
+      if (const auto color_it = star.mat_color.find(particle_it->material);
+          color_it != star.mat_color.end()) {
+        layer.color = color_it->second;
+      }
+      if (const auto blend_it = star.mat_blend.find(particle_it->material);
+          blend_it != star.mat_blend.end()) {
+        layer.blend = blend_it->second;
+      } else {
+        layer.blend = kHudBlendSrcAlphaAdd;
+      }
+      layer.duration_frames =
+          std::max(1.0f, trans_it->second.duration_frames);
+      layer.path_keys.reserve(trans_it->second.position_keys.size());
+      for (const HudTransPathKey& src : trans_it->second.position_keys) {
+        Vec3AnimKey key = map_star_source_point(src.x, src.y, src.z);
+        key.frame = src.frame;
+        layer.path_keys.push_back(key);
+      }
+      if (anim_it != star.particle_anims.end() &&
+          anim_it->second.particle == particle_name) {
+        layer.emission_duration_frames =
+            std::max(1.0f, anim_it->second.duration_frames);
+        layer.emission_keys.reserve(anim_it->second.emission_keys.size());
+        for (const HudParticleScalarKey& src : anim_it->second.emission_keys) {
+          ScalarAnimKey key;
+          key.min_value = src.min_value;
+          key.max_value = src.max_value;
+          key.frame = src.frame;
+          layer.emission_keys.push_back(key);
+        }
+      }
+
+      const float max_velocity = std::max({
+          std::fabs(particle_it->velocity_min[0]),
+          std::fabs(particle_it->velocity_min[1]),
+          std::fabs(particle_it->velocity_min[2]),
+          std::fabs(particle_it->velocity_max[0]),
+          std::fabs(particle_it->velocity_max[1]),
+          std::fabs(particle_it->velocity_max[2])});
+      const float authored_size =
+          std::max(particle_it->size_start, particle_it->size_end);
+      const float point_size_px =
+          std::clamp(authored_size * 12.0f + max_velocity * 0.02f,
+                     3.0f, 80.0f);
+      layer.half_w = point_size_px * (kWorldPerScreenX / 1280.0f) * 0.5f;
+      layer.half_h = point_size_px * ((kZBot - kZTop) / 720.0f) * 0.5f;
+      native_star_particles_.push_back(std::move(layer));
+    };
     append_star_mesh("amp_inside_bar.mesh", native_star_back_,
                      0, false, false, true,
                      nullptr, true, kElemSpBack, 0.0f);
@@ -1949,6 +2273,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                               native_star_lightning_);
     append_star_animated_mesh("lightning_top_04_0.mesh",
                               native_star_lightning_);
+    append_star_particle("amp_inside_bar_path.part",
+                         "amp_inside_bar_path.tnm",
+                         "amp_inside_bar_path.panm");
     append_star_mesh("amp_tube_glow.mesh", native_star_ready_glow_,
                      0, true, false, true,
                      nullptr, true, kElemSpReady, 0.0f);
@@ -2880,8 +3207,74 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     }
     return append_clipped_quad(q, std::nullopt, texture_override, 1.0f);
   };
+  auto sample_particle_path = [](const std::vector<Vec3AnimKey>& keys,
+                                 float frame) {
+    Vec3AnimKey out;
+    if (keys.empty()) return out;
+    if (!std::isfinite(frame)) frame = keys.front().frame;
+    size_t key_index = 0;
+    constexpr float kFrameEpsilon = 0.0001f;
+    while (key_index + 1 < keys.size() &&
+           frame + kFrameEpsilon >= keys[key_index + 1].frame) {
+      ++key_index;
+    }
+    const Vec3AnimKey& a = keys[key_index];
+    const Vec3AnimKey& b = key_index + 1 < keys.size() ? keys[key_index + 1] : a;
+    const float span = b.frame - a.frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a.frame) / span, 0.0f, 1.0f);
+    out.x = a.x + (b.x - a.x) * t;
+    out.y = a.y + (b.y - a.y) * t;
+    out.z = a.z + (b.z - a.z) * t;
+    out.frame = frame;
+    return out;
+  };
+  auto sample_particle_emission =
+      [](const std::vector<ScalarAnimKey>& keys, float frame) {
+        if (keys.empty()) return 1.0f;
+        if (!std::isfinite(frame)) frame = keys.front().frame;
+        size_t key_index = 0;
+        constexpr float kFrameEpsilon = 0.0001f;
+        while (key_index + 1 < keys.size() &&
+               frame + kFrameEpsilon >= keys[key_index + 1].frame) {
+          ++key_index;
+        }
+        const ScalarAnimKey& a = keys[key_index];
+        const ScalarAnimKey& b =
+            key_index + 1 < keys.size() ? keys[key_index + 1] : a;
+        const float span = b.frame - a.frame;
+        const float t = span <= 0.0001f
+            ? 0.0f
+            : std::clamp((frame - a.frame) / span, 0.0f, 1.0f);
+        const float va = std::max(0.0f, (a.min_value + a.max_value) * 0.5f);
+        const float vb = std::max(0.0f, (b.min_value + b.max_value) * 0.5f);
+        return std::clamp(va + (vb - va) * t, 0.0f, 8.0f);
+      };
+  auto append_star_particle = [&](const StarParticleLayer& particle) {
+    if (particle.path_keys.empty() || particle.texture.empty()) return false;
+    IDirect3DTexture9* particle_tex = tex(particle.texture);
+    if (!particle_tex) return false;
+    const float path_frame =
+        fill * std::max(1.0f, particle.duration_frames);
+    const float emission_frame =
+        fill * std::max(1.0f, particle.emission_duration_frames);
+    const float emission =
+        sample_particle_emission(particle.emission_keys, emission_frame);
+    if (emission <= 0.001f) return false;
+    const Vec3AnimKey pos = sample_particle_path(particle.path_keys, path_frame);
+    const float alpha_scale = std::clamp(emission, 0.0f, 1.0f);
+    push_rect(out, pos.x, pos.z, particle.half_w, particle.half_h,
+              particle_tex, scale_argb_alpha(particle.color, alpha_scale),
+              true, pos.y, pos.y, kHudGroupRight, kElemSpFill, 2);
+    if (!out.empty()) {
+      out.back().blend = particle.blend;
+      out.back().additive = true;
+    }
+    return true;
+  };
 
   bool drew_native_fill = false;
+  bool drew_native_particles = false;
   if (fill > 0.005f) {
     drew_native_fill |= append_clipped_fill(native_star_fill_,
                                             star_fill_color, 1.0f);
@@ -2891,6 +3284,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
                                             std::nullopt, tube_meter_alpha);
     for (const StarAnimatedQuad& lightning : native_star_lightning_) {
       drew_native_fill |= append_clipped_animated(lightning);
+    }
+    for (const StarParticleLayer& particle : native_star_particles_) {
+      drew_native_particles |= append_star_particle(particle);
     }
   }
   bool drew_fallback_fill = false;
@@ -2924,9 +3320,11 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "[hud-star-power] fill=%.3f ready=%d active=%d tube_glow=%d "
         "frames=%.2f,%.2f,%.2f curves=%zu/%zu/%zu "
         "back=%zu fill_layers=%zu path_glow=%zu "
-        "glow_layers=%zu lightning_layers=%zu ready_glow=%zu "
+        "glow_layers=%zu lightning_layers=%zu particle_layers=%zu "
+        "ready_glow=%zu "
         "front=%zu glass=%zu base=%zu "
-        "top=%zu caps=%zu native_fill=%d fallback_fill=%d\n",
+        "top=%zu caps=%zu native_fill=%d native_particles=%d "
+        "fallback_fill=%d\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
         fill_anim_frame, tube_meter_anim_frame, tube_glow_anim_frame,
         star_fill_color_keys_.size(), star_tube_meter_alpha_keys_.size(),
@@ -2934,10 +3332,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         native_star_back_.size(),
         native_star_fill_.size(), native_star_path_glow_.size(),
         native_star_fill_glow_.size(), native_star_lightning_.size(),
+        native_star_particles_.size(),
         native_star_ready_glow_.size(), native_star_front_.size(),
         native_star_glass_.size(), native_star_base_.size(),
         native_star_top_.size(), native_star_caps_.size(),
-        drew_native_fill ? 1 : 0, drew_fallback_fill ? 1 : 0);
+        drew_native_fill ? 1 : 0, drew_native_particles ? 1 : 0,
+        drew_fallback_fill ? 1 : 0);
     ++star_power_debug_budget;
   }
 
