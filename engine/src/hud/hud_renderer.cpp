@@ -1161,6 +1161,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   native_mult_frame_ok_ = false;
   native_mult_glow_ok_ = false;
   native_rock_frame_ok_ = false;
+  native_rock_light_backing_ok_ = false;
   native_rock_light_red_ok_ = native_rock_light_yellow_ok_ = false;
   native_rock_light_green_ok_ = false;
 
@@ -1526,6 +1527,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                       native_rock_label_front_glow_,
                       native_rock_label_front_glow_ok_, 0, true, false, true,
                       kElemRockLabel);
+    assign_meter_mesh("hud_rock_light.mesh", rock_bounds,
+                      native_rock_light_backing_,
+                      native_rock_light_backing_ok_, 0, false, false, true,
+                      kElemRockLights);
     assign_meter_mesh("rock_needle.mesh", rock_bounds, native_rock_needle_,
                       native_rock_needle_ok_, 0, false, false, true,
                       kElemRockNeedle);
@@ -1713,6 +1718,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   init_child_rect_from_slot(kElemRockFrame, rock_face_, quad_slot(native_rock_frame_));
   {
     std::vector<const Quad*> lights;
+    if (native_rock_light_backing_ok_)
+      lights.push_back(&native_rock_light_backing_);
     if (native_rock_light_red_ok_) lights.push_back(&native_rock_light_red_);
     if (native_rock_light_yellow_ok_) lights.push_back(&native_rock_light_yellow_);
     if (native_rock_light_green_ok_) lights.push_back(&native_rock_light_green_);
@@ -2569,14 +2576,6 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   if (!rock_face_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& f = rock_face_;
-  const LayoutRect& rock_lights_rect = layout_tuning_.rock_lights;
-  const float backing_cx =
-      f.cx - f.hw + rock_lights_rect.cx * f.hw * 2.0f;
-  const float backing_cz =
-      f.cz - f.hh + rock_lights_rect.cy * f.hh * 2.0f;
-  const float backing_hw = f.hw * std::abs(rock_lights_rect.w) * 0.98f;
-  const float backing_hh = f.hh * std::abs(rock_lights_rect.h) * 0.82f;
-  const bool rock_backing_ok = backing_hw > 0.001f && backing_hh > 0.001f;
 
   if (native_rock_face_ok_) {
     out.push_back(native_rock_face_);
@@ -2588,15 +2587,8 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
               right_hud_depth_at(f.cx - f.hw), kHudGroupRight, kElemRockFace);
   }
 
-  if (rock_backing_ok) {
-    // The lamp fronts are translucent; this plate must be in the light layer,
-    // after the face art and before the colored lens meshes, so venue pixels
-    // cannot bleed through the red/yellow/green sockets.
-    push_rect(out, backing_cx, backing_cz, backing_hw, backing_hh, nullptr,
-              argb(255, 2, 2, 2), false,
-              right_hud_depth_at(backing_cx + backing_hw),
-              right_hud_depth_at(backing_cx - backing_hw), kHudGroupRight,
-              kElemRockLights, 0);
+  if (native_rock_light_backing_ok_) {
+    out.push_back(native_rock_light_backing_);
   }
 
   const bool have_native_lights =
@@ -2708,14 +2700,15 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
       std::fprintf(
           stderr,
           "[hud-rock] fill=%.3f light=%s native_lights=%d face=%d frame=%d "
-          "backing=%d label=%d needle=%d led=%d angle=%.3f scale=%.3f,%.3f "
+          "backing=%d backing_mesh=hud_rock_light.mesh label=%d needle=%d led=%d "
+          "angle=%.3f scale=%.3f,%.3f "
           "pivot=%.3f,%.3f rock_anim_frame=%.3f label=%08x front=%08x "
           "authored_label=%08x authored_front=%08x\n",
           fill, active_light_name, have_native_lights ? 1 : 0,
           native_rock_face_ok_ ? 1 : 0, native_rock_frame_ok_ ? 1 : 0,
-          rock_backing_ok ? 1 : 0, native_rock_label_ok_ ? 1 : 0,
-          native_rock_needle_ok_ ? 1 : 0, native_rock_needle_led_ok_ ? 1 : 0,
-          native_needle_angle,
+          native_rock_light_backing_ok_ ? 1 : 0,
+          native_rock_label_ok_ ? 1 : 0, native_rock_needle_ok_ ? 1 : 0,
+          native_rock_needle_led_ok_ ? 1 : 0, native_needle_angle,
           needle_scale_x, needle_scale_z, px, pz, rock_light_frame,
           rock_label_color, rock_label_front_color, authored_rock_label_color,
           authored_rock_label_front_color);

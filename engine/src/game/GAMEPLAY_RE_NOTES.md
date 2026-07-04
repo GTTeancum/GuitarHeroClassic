@@ -9419,3 +9419,23 @@ Rejected native probe:
   `env=0 lights=0` while exercising the bridge path.
 - `venue_proxy_lighting_3d_proof_sheet.png` embeds four native gameplay frames
   with the flashpot proxy route and draw evidence stamped below the captures.
+
+2026-07-03 ROCK meter MILO backing restoration:
+- Direct MILO inspection confirms the ROCK light backing already exists in
+  `hud/gen/crowd_meter.milo_ps2`: `hud_rock_light.mesh` is parented to
+  `rock_meter.view`, uses `hud_rock_light.mat`, and that material resolves to
+  `rock_light.tex` with blend `3`, color `[0.650 0.650 0.000 0.773]`, and
+  UV scale `[0.9000 0.6200]`.
+- This restores the source-backed path that existed before the synthetic black
+  rectangle regression. The gameplay HUD now assigns `hud_rock_light.mesh` as
+  the ROCK meter backing and draws it after `rock_face_2d.mesh` but before the
+  translucent red/yellow/green lamp-front meshes. Do not replace this with a
+  generated `argb(255,2,2,2)` quad; the MILO mesh/material/texture are the
+  source of truth.
+- Validation: rebuilt `ghogx_app` and
+  `ghogx_gameplay_venue_band_contract_test`; the focused contract passes. The
+  direct MILO proof and fresh captures live in
+  `engine/out/codex_goal_visuals/20260703_rock_meter_milo_source_backing_verify/`.
+  Both HUD-test and live gameplay logs report `backing=1
+  backing_mesh=hud_rock_light.mesh`, and the live gameplay screenshot shows the
+  venue no longer bleeding through the ROCK meter lamp band.

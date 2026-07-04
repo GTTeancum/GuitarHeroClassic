@@ -199,6 +199,7 @@ class HudRenderer {
   Quad native_streak_pip_;
   Quad native_mult_frame_;
   Quad native_mult_glow_;
+  Quad native_rock_light_backing_;
   Quad native_rock_light_red_;
   Quad native_rock_light_yellow_;
   Quad native_rock_light_green_;
@@ -221,6 +222,7 @@ class HudRenderer {
   bool native_streak_pip_ok_ = false;
   bool native_mult_frame_ok_ = false;
   bool native_mult_glow_ok_ = false;
+  bool native_rock_light_backing_ok_ = false;
   bool native_rock_light_red_ok_ = false;
   bool native_rock_light_yellow_ok_ = false;
   bool native_rock_light_green_ok_ = false;

@@ -752,17 +752,20 @@ int main() {
                  "\"[hud-rock]fill=%.3flight=%snative_lights=%dface=%dframe=%d\"",
                  "ROCK meter diagnostics report fill band and native frame state");
   ok &= contains(hud_renderer_c,
-                 "\"backing=%dlabel=%dneedle=%dled=%dangle=%.3fscale=%.3f,%.3f\"",
-                 "ROCK meter diagnostics report native backing, needle state, and scaled angle");
+                 "\"backing=%dbacking_mesh=hud_rock_light.meshlabel=%dneedle=%dled=%d\"",
+                 "ROCK meter diagnostics name the source MILO backing mesh");
+  ok &= contains(hud_renderer_h_c,
+                 "Quadnative_rock_light_backing_;",
+                 "ROCK meter keeps the decoded source backing mesh");
   ok &= contains(hud_renderer_c,
-                 "constLayoutRect&rock_lights_rect=layout_tuning_.rock_lights;",
-                 "ROCK meter black backing follows the tuned native light band");
+                 "assign_meter_mesh(\"hud_rock_light.mesh\"",
+                 "ROCK meter light backing is sourced from the crowd-meter MILO");
   ok &= contains(hud_renderer_c,
-                 "argb(255,2,2,2)",
-                 "ROCK meter light backing is opaque black so venue pixels cannot bleed through");
-  ok &= contains(hud_renderer_c,
-                 "kElemRockLights,0);",
-                 "ROCK meter light backing is layered directly under the translucent lamp fronts");
+                 "if(native_rock_light_backing_ok_){out.push_back(native_rock_light_backing_);}",
+                 "ROCK meter source backing is drawn directly under the translucent lamp fronts");
+  ok &= absent(hud_renderer_c,
+               "argb(255,2,2,2)",
+               "ROCK meter backing must not be a synthetic black rectangle");
   ok &= contains(hud_renderer_c,
                  "copy_color_keys(\"rock_light.manim\","
                  "rock_label_color_keys_,rock_label_anim_duration_);",
@@ -795,9 +798,6 @@ int main() {
   ok &= absent(hud_renderer_c,
                "q.element==kElemRockLabel?3:0",
                "ROCK label must not sort in front of the needle or chrome bezel");
-  ok &= absent(hud_renderer_c,
-               "assign_meter_mesh(\"hud_rock_light.mesh\"",
-               "non-group hud_rock_light mesh must not be drawn in rock_meter.view");
   ok &= contains(hud_renderer_c,
                  "authored_label=%08xauthored_front=%08x",
                  "ROCK meter diagnostics report both visible and authored ROCK word colors");
