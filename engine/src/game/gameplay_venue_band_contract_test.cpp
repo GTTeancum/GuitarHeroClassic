@@ -1141,6 +1141,12 @@ int main() {
                  "source_filter_frame(star_tube_glow_filter_,fill,"
                  "star_tube_glow_anim_duration_);",
                  "star-power tube ready alpha no longer pins the source MatAnim at frame zero");
+  ok &= appears_before(
+      hud_renderer_c,
+      "if(tube_glow){",
+      "drew_native_fill|=append_clipped_fill(native_star_fill_glow_,"
+      "std::nullopt,tube_meter_alpha);",
+      "star-power ready tube glow emits before tube-meter glow like star_meter_ready.view");
   ok &= contains(hud_renderer_c,
                  "append_star_particle(\"amp_inside_bar_path.part\","
                  "\"amp_inside_bar_path.tnm\","

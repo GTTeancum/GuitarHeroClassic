@@ -3583,8 +3583,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
                                             star_fill_color, 1.0f);
     drew_native_fill |= append_clipped_fill(native_star_path_glow_,
                                             std::nullopt, 1.0f);
-    drew_native_fill |= append_clipped_fill(native_star_fill_glow_,
-                                            std::nullopt, tube_meter_alpha);
     for (const StarAnimatedQuad& lightning : native_star_lightning_) {
       drew_native_fill |= append_clipped_animated(lightning);
     }
@@ -3647,6 +3645,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         out.push_back(std::move(q));
       }
     }
+  }
+  if (fill > 0.005f) {
+    drew_native_fill |= append_clipped_fill(native_star_fill_glow_,
+                                            std::nullopt, tube_meter_alpha);
   }
 
   if (!native_star_front_.empty())
