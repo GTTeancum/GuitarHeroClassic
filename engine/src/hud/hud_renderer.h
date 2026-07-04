@@ -61,8 +61,8 @@ class HudRenderer {
     LayoutRect sp_ready = {0.511480f, 0.471305f, 0.975406f, 0.942611f, 0.000000f, 0};
     LayoutRect sp_front = {0.521013f, 0.473242f, 0.034849f, 0.516810f, 0.000000f, 0};
     LayoutRect sp_glass = {0.528254f, 0.474064f, 0.831885f, 0.540018f, 0.000000f, 0};
-    LayoutRect sp_base = {0.973194f, 0.471120f, 0.053612f, 0.484176f, 0.000000f, 0};
-    LayoutRect sp_top = {0.058717f, 0.474064f, 0.117433f, 0.554580f, 0.000000f, 0};
+    LayoutRect sp_base = {0.058717f, 0.474064f, 0.117433f, 0.554580f, 0.000000f, 0};
+    LayoutRect sp_top = {0.973194f, 0.471120f, 0.053612f, 0.484176f, 0.000000f, 0};
     LayoutRect sp_caps = {0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0};
     LayoutRect rock_frame = {0.500000f, 0.500000f, 1.000000f, 1.000000f, 0.000000f, 0};
     LayoutRect rock_lights = {0.504246f, 0.299074f, 0.853360f, 0.309868f, 0.000000f, 0};

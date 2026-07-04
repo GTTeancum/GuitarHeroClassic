@@ -623,6 +623,7 @@ struct MiloLayout {
   std::unordered_map<std::string, uint8_t> mat_blend;    // material -> BLEND_ENUM
   std::unordered_map<std::string, MatUvXfm> mat_uv;      // material -> diffuse UV xform
   std::unordered_map<std::string, std::string> mat_ref;  // material -> referenced material
+  std::unordered_map<std::string, std::string> mat_layer_ref;  // material -> extra pass
   std::unordered_map<std::string, HudMatAnimColorCurve> mat_anim_color;
   std::unordered_map<std::string, HudParticleAnim> particle_anims;
   std::unordered_map<std::string, HudTransPathAnim> trans_path_anims;
@@ -999,9 +1000,15 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         std::vector<uint8_t> body(b, b + n);
         auto mat = ghogx::milo_scene::decode_mat(de.name, body);
         if (!mat.diffuse_tex.empty()) out.mat_tex[de.name] = mat.diffuse_tex;
-        if (mat.diffuse_tex.empty()) {
+        {
           std::string ref = first_material_ref(body);
-          if (!ref.empty()) out.mat_ref[de.name] = std::move(ref);
+          if (!ref.empty()) {
+            if (mat.diffuse_tex.empty()) {
+              out.mat_ref[de.name] = std::move(ref);
+            } else {
+              out.mat_layer_ref[de.name] = std::move(ref);
+            }
+          }
         }
         out.mat_uv[de.name] =
             MatUvXfm{{mat.tex_scale[0], mat.tex_scale[1]},
@@ -1067,6 +1074,22 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
               uv->second.offset[0] != ref_uv->second.offset[0] ||
               uv->second.offset[1] != ref_uv->second.offset[1]) {
             out.mat_uv[name] = ref_uv->second;
+            changed = true;
+          }
+        }
+        auto ref_color = out.mat_color.find(ref);
+        if (ref_color != out.mat_color.end()) {
+          auto color = out.mat_color.find(name);
+          if (color == out.mat_color.end() || color->second != ref_color->second) {
+            out.mat_color[name] = ref_color->second;
+            changed = true;
+          }
+        }
+        auto ref_blend = out.mat_blend.find(ref);
+        if (ref_blend != out.mat_blend.end()) {
+          auto blend = out.mat_blend.find(name);
+          if (blend == out.mat_blend.end() || blend->second != ref_blend->second) {
+            out.mat_blend[name] = ref_blend->second;
             changed = true;
           }
         }
@@ -2348,6 +2371,23 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         }
         if ((q.tex || color != 0) && q.verts.size() >= 3 && q.idx.size() >= 3)
           target.push_back(std::move(q));
+        if (tex_override) return;
+        const auto layer_ref = star.mat_layer_ref.find(mesh->material);
+        if (layer_ref == star.mat_layer_ref.end()) return;
+        LoadedMesh layer_mesh = *mesh;
+        layer_mesh.material = layer_ref->second;
+        Quad layer_q = make_slot_mesh(star, layer_mesh, star_bounds, sp_bar_,
+                                      0, false, flip_v, flip_z, true,
+                                      depth_scale, true);
+        layer_q.group = kHudGroupRight;
+        layer_q.element = element;
+        if (flip_u) {
+          for (Quad::V& v : layer_q.verts) v.u = 1.0f - v.u;
+        }
+        if (layer_q.tex && layer_q.verts.size() >= 3 &&
+            layer_q.idx.size() >= 3) {
+          target.push_back(std::move(layer_q));
+        }
       }
     };
     auto append_star_animated_mesh = [&](const char* name,
