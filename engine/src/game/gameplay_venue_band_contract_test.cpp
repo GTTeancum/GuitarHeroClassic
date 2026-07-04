@@ -5138,13 +5138,21 @@ int main() {
                  "WorldCrowd runtime maps native excitement to DTA set_fullness fractions");
   ok &= contains(gameplay_c,
                  "worldcrowd_placement_visible_by_fullness(",
-                 "WorldCrowd runtime applies DTA set_fullness through camera-near placement selection");
+                 "WorldCrowd runtime applies DTA set_fullness to decoded placements");
   ok &= contains(gameplay_c,
-                 "std::stable_sort(ranked.begin(),ranked.end()",
-                 "WorldCrowd fullness selection preserves nearest silhouettes deterministically");
+                 "constsize_tprevious_bucket=(i*keep)/"
+                 "placement_worlds.size();",
+                 "WorldCrowd fullness selection walks the authored placement order");
+  ok &= contains(gameplay_c,
+                 "constsize_tcurrent_bucket=((i+1)*keep)/"
+                 "placement_worlds.size();",
+                 "WorldCrowd fullness selection distributes density through the source placement list");
+  ok &= absent(gameplay_c,
+               "std::stable_sort(ranked.begin(),ranked.end()",
+               "WorldCrowd fullness must not prefer camera-nearest placements");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "runtime.placement_worlds,eye,runtime.fullness_fraction",
-                 "WorldCrowd draw evaluates DTA fullness against the active camera eye");
+                 "WorldCrowd draw still shares the active camera eye with culling diagnostics");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "if(venue_camera_hide_crowd_){",
                  "3D WorldCrowd actors honor authored CamShot hide_crowd visibility");
@@ -5194,6 +5202,19 @@ int main() {
   ok &= contains(draw_worldcrowd_runtime_c,
                  "culled_fullness",
                  "WorldCrowd draw skips placements above the active DTA fullness fraction");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "constboolforeground_cull_enabled="
+                 "camera_cull_enabled&&!cam.authored&&"
+                 "diagnostic_camera_shot_.empty()&&"
+                 "env_value(\"GHOGX_DISABLE_WORLDCROWD_FOREGROUND_CULL\")"
+                 "==nullptr;",
+                 "WorldCrowd foreground culling is scoped to the native playable camera");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "constfloatforeground_clear_depth=",
+                 "WorldCrowd foreground culling derives its clear depth from the active camera target");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "++culled_foreground;",
+                 "WorldCrowd draw tracks playable foreground crowd culling separately");
   ok &= contains(update_worldcrowd_runtime_c,
                  "runtime.fullness_fraction=worldcrowd_fullness_for_event("
                  "active_venue_event_);",
@@ -6574,8 +6595,14 @@ int main() {
                  "culled_camera=%zu",
                  "WorldCrowd draw diagnostics report broad camera-cone culling");
   ok &= contains(gameplay_c,
+                 "culled_foreground=%zu",
+                 "WorldCrowd draw diagnostics report playable foreground culling");
+  ok &= contains(gameplay_c,
                  "GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL",
                  "WorldCrowd camera-cone cull keeps an explicit A/B disable");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DISABLE_WORLDCROWD_FOREGROUND_CULL",
+                 "WorldCrowd foreground cull keeps an explicit A/B disable");
   ok &= contains(gameplay_c,
                  "!(cam.result_frame.valid&&"
                  "cam.result_frame.has_custom_projection)",

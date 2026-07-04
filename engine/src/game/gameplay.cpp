@@ -6061,6 +6061,7 @@ PerformerCrowdLightingMod performer_crowd_lighting_mod_for(
 std::vector<uint8_t> worldcrowd_placement_visible_by_fullness(
     const std::vector<std::array<float, 16>>& placement_worlds,
     const float eye[3], float fullness) {
+    (void)eye;
     std::vector<uint8_t> visible(placement_worlds.size(), 0);
     if (placement_worlds.empty() || fullness <= 0.0f) return visible;
     if (fullness >= 0.999f) {
@@ -6072,26 +6073,15 @@ std::vector<uint8_t> worldcrowd_placement_visible_by_fullness(
         static_cast<size_t>(std::ceil(static_cast<float>(placement_worlds.size()) *
                                       fullness)),
         size_t{1}, placement_worlds.size());
-    std::vector<std::pair<float, size_t>> ranked;
-    ranked.reserve(placement_worlds.size());
+
+    // crowd_update set_fullness is an authored density control. Keep a stable
+    // spread through the decoded placement order instead of re-ranking toward
+    // the active camera, which can pull foreground audience bodies into the
+    // playable camera view.
     for (size_t i = 0; i < placement_worlds.size(); ++i) {
-        const auto& world = placement_worlds[i];
-        const float dx = world[12] - eye[0];
-        const float dy = world[13] - eye[1];
-        const float dz = world[14] - eye[2];
-        float dist_sq = dx * dx + dy * dy + dz * dz;
-        if (!std::isfinite(dist_sq)) {
-            dist_sq = std::numeric_limits<float>::infinity();
-        }
-        ranked.push_back({dist_sq, i});
-    }
-    std::stable_sort(ranked.begin(), ranked.end(),
-                     [](const auto& lhs, const auto& rhs) {
-                         if (lhs.first != rhs.first) return lhs.first < rhs.first;
-                         return lhs.second < rhs.second;
-                     });
-    for (size_t i = 0; i < keep; ++i) {
-        visible[ranked[i].second] = 1;
+        const size_t previous_bucket = (i * keep) / placement_worlds.size();
+        const size_t current_bucket = ((i + 1) * keep) / placement_worlds.size();
+        if (current_bucket > previous_bucket) visible[i] = 1;
     }
     return visible;
 }
@@ -18484,7 +18474,8 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                 stderr,
                 "[world] WorldCrowd draw: enabled=0 actors=%zu placements=%zu "
                 "drawn=0 culled_fullness=0 culled_near_source=0 "
-                "culled_camera=0 hidden_camera=0 basis=%s face_camera=%d "
+                "culled_camera=0 culled_foreground=0 hidden_camera=0 "
+                "basis=%s face_camera=%d "
                 "event=%s groups=%s eye=(0.000 0.000 0.000) t=%.3f\n",
                 worldcrowd_actor_runtime_.size(),
                 worldcrowd_actor_runtime_placements_,
@@ -18505,7 +18496,8 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                 stderr,
                 "[world] WorldCrowd draw: enabled=1 actors=%zu placements=%zu "
                 "drawn=0 culled_fullness=0 culled_near_source=0 "
-                "culled_camera=0 hidden_camera=1 basis=%s face_camera=%d "
+                "culled_camera=0 culled_foreground=0 hidden_camera=1 "
+                "basis=%s face_camera=%d "
                 "event=%s groups=%s eye=(%.3f %.3f %.3f) t=%.3f\n",
                 worldcrowd_actor_runtime_.size(),
                 worldcrowd_actor_runtime_placements_,
@@ -18551,12 +18543,24 @@ void Gameplay::draw_worldcrowd_actor_runtime(
     const bool camera_cull_enabled =
         !env_value("GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL") &&
         !(cam.result_frame.valid && cam.result_frame.has_custom_projection);
+    const bool foreground_cull_enabled =
+        camera_cull_enabled && !cam.authored && diagnostic_camera_shot_.empty() &&
+        env_value("GHOGX_DISABLE_WORLDCROWD_FOREGROUND_CULL") == nullptr;
     const float tan_y = std::tan(cam.fov * 0.5f) * 1.35f;
     const float tan_x = tan_y * kNativeValidationAspect;
+    const std::array<float, 3> target_delta = {
+        cam.target[0] - eye[0], cam.target[1] - eye[1],
+        cam.target[2] - eye[2]};
+    const float target_depth = camera_dot_axis(target_delta, camera_forward);
+    const float foreground_clear_depth =
+        std::isfinite(target_depth) && target_depth > 1.0f
+            ? std::max(40.0f, target_depth * 0.82f)
+            : 0.0f;
     size_t drawn = 0;
     size_t culled_near_source = 0;
     size_t culled_fullness = 0;
     size_t culled_camera = 0;
+    size_t culled_foreground = 0;
     for (auto& [actor_path, runtime] : worldcrowd_actor_runtime_) {
         (void)actor_path;
         if (!runtime.renderer) continue;
@@ -18609,6 +18613,12 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                     ++placement_index;
                     continue;
                 }
+                if (foreground_cull_enabled && foreground_clear_depth > 0.0f &&
+                    depth > -radius && depth - radius < foreground_clear_depth) {
+                    ++culled_foreground;
+                    ++placement_index;
+                    continue;
+                }
             }
             const auto draw_world =
                 venue_camera_crowd_face_camera_
@@ -18629,16 +18639,19 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                      "[world] WorldCrowd draw: enabled=1 actors=%zu "
                      "placements=%zu drawn=%zu culled_fullness=%zu "
                      "culled_near_source=%zu culled_camera=%zu "
-                     "hidden_camera=0 basis=%s face_camera=%d event=%s "
-                     "groups=%s eye=(%.3f %.3f %.3f) t=%.3f\n",
+                     "culled_foreground=%zu hidden_camera=0 basis=%s "
+                     "face_camera=%d event=%s groups=%s "
+                     "eye=(%.3f %.3f %.3f) foreground_depth=%.2f t=%.3f\n",
                      worldcrowd_actor_runtime_.size(),
                      worldcrowd_actor_runtime_placements_, drawn,
                      culled_fullness, culled_near_source, culled_camera,
+                     culled_foreground,
                      worldcrowd_render_area_local_basis() ? "area_local"
                                                           : "placement",
                      venue_camera_crowd_face_camera_ ? 1 : 0,
                      active_venue_event_.c_str(), active_group_summary().c_str(),
                      eye[0], eye[1], eye[2],
+                     foreground_clear_depth,
                      song_time_);
     }
 }
