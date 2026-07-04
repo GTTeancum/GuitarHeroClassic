@@ -755,8 +755,33 @@ int main() {
                  "\"face=%dframe=%dbacking=%dbacking_mesh=hud_rock_light.mesh\"",
                  "ROCK meter diagnostics report the source base-light child stack and backing mesh");
   ok &= contains(hud_renderer_c,
+                 "\"base_blends=%u,%u,%ubacking_blend=%u\"",
+                 "ROCK meter diagnostics report the authored MILO blend modes for lamp blockers");
+  ok &= contains(hud_renderer_c,
                  "\"label=%dneedle=%dled=%d\"",
                  "ROCK meter diagnostics report label needle and LED state");
+  ok &= contains(hud_renderer_h_c,
+                 "uint8_tblend=3;",
+                 "HUD quads carry decoded MILO material blend state");
+  ok &= contains(hud_renderer_c,
+                 "std::unordered_map<std::string,uint8_t>mat_blend;",
+                 "HUD MILO loader keeps the material blend enum table");
+  ok &= contains(hud_renderer_c,
+                 "out.mat_blend[de.name]=mat.blend;",
+                 "HUD MILO loader records each decoded Mat blend enum");
+  ok &= contains(hud_renderer_c,
+                 "q.blend=blend->second;",
+                 "HUD native mesh quads inherit authored Mat blend enums");
+  ok &= contains(hud_renderer_c,
+                 "constHudBlendStateblend_state="
+                 "hud_blend_state_for(effective_blend);",
+                 "HUD draw path resolves per-quad authored blend state");
+  ok &= contains(hud_renderer_c,
+                 "dev->SetRenderState(D3DRS_SRCBLEND,blend_state.src);",
+                 "HUD draw path applies authored source blend per quad");
+  ok &= contains(hud_renderer_c,
+                 "dev->SetRenderState(D3DRS_DESTBLEND,blend_state.dest);",
+                 "HUD draw path applies authored destination blend per quad");
   ok &= contains(hud_renderer_h_c,
                  "Quadnative_rock_light_backing_;",
                  "ROCK meter keeps the decoded parented source backing mesh");

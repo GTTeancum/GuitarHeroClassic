@@ -108,6 +108,43 @@ constexpr uint8_t kElemRockFrame = 16;
 constexpr uint8_t kElemRockLights = 17;
 constexpr uint8_t kElemRockLabel = 18;
 
+enum HudMiloBlend : uint8_t {
+  kHudBlendDest = 0,
+  kHudBlendSrc = 1,
+  kHudBlendAdd = 2,
+  kHudBlendSrcAlpha = 3,
+  kHudBlendSrcAlphaAdd = 4,
+  kHudBlendSubtract = 5,
+  kHudBlendMultiply = 6,
+};
+
+struct HudBlendState {
+  DWORD src = D3DBLEND_SRCALPHA;
+  DWORD dest = D3DBLEND_INVSRCALPHA;
+  DWORD op = D3DBLENDOP_ADD;
+};
+
+HudBlendState hud_blend_state_for(uint8_t blend) {
+  switch (blend) {
+    case kHudBlendDest:
+      return {D3DBLEND_ZERO, D3DBLEND_ONE, D3DBLENDOP_ADD};
+    case kHudBlendSrc:
+      return {D3DBLEND_ONE, D3DBLEND_ZERO, D3DBLENDOP_ADD};
+    case kHudBlendAdd:
+      return {D3DBLEND_ONE, D3DBLEND_ONE, D3DBLENDOP_ADD};
+    case kHudBlendSrcAlpha:
+      return {D3DBLEND_SRCALPHA, D3DBLEND_INVSRCALPHA, D3DBLENDOP_ADD};
+    case kHudBlendSrcAlphaAdd:
+      return {D3DBLEND_SRCALPHA, D3DBLEND_ONE, D3DBLENDOP_ADD};
+    case kHudBlendSubtract:
+      return {D3DBLEND_SRCALPHA, D3DBLEND_ONE, D3DBLENDOP_REVSUBTRACT};
+    case kHudBlendMultiply:
+      return {D3DBLEND_DESTCOLOR, D3DBLEND_ZERO, D3DBLENDOP_ADD};
+    default:
+      return {};
+  }
+}
+
 bool env_enabled(const char* name) {
 #ifdef _WIN32
   char* value = nullptr;
@@ -393,6 +430,7 @@ struct MiloLayout {
   std::unordered_map<std::string, GroupX> groups;       // name -> xfm
   std::unordered_map<std::string, std::string> mat_tex; // material -> diffuse tex
   std::unordered_map<std::string, uint32_t> mat_color;   // material -> ARGB tint
+  std::unordered_map<std::string, uint8_t> mat_blend;    // material -> BLEND_ENUM
   std::unordered_map<std::string, MatUvXfm> mat_uv;      // material -> diffuse UV xform
   std::unordered_map<std::string, std::string> mat_ref;  // material -> referenced material
   std::unordered_map<std::string, HudMatAnimColorCurve> mat_anim_color;
@@ -462,6 +500,7 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         };
         out.mat_color[de.name] =
             argb(c(mat.color[3]), c(mat.color[0]), c(mat.color[1]), c(mat.color[2]));
+        out.mat_blend[de.name] = mat.blend;
       } else if (de.type == "MatAnim") {
         if (auto curve = decode_mat_anim_color_curve(de.name, b, n)) {
           out.mat_anim_color[de.name] = std::move(*curve);
@@ -553,16 +592,23 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
       u1 = std::max(u1, v.u); v1 = std::max(v1, v.vv);
     }
     auto tex = layout.mat_tex.find(m.material);
+    auto blend = layout.mat_blend.find(m.material);
+    auto color = layout.mat_color.find(m.material);
     auto uv = layout.mat_uv.find(m.material);
     const MatUvXfm uv_xfm = uv == layout.mat_uv.end() ? MatUvXfm{} : uv->second;
     std::fprintf(stderr,
                  "[hud-dump] %-27s mat=%-28s tex=%-24s parent=%-24s "
+                 "blend=%u color=%08x "
                  "x=%.3f..%.3f y=%.3f..%.3f z=%.3f..%.3f "
                  "uv=%.3f..%.3f/%.3f..%.3f uvxfm=(%.3f %.3f)+(%.3f %.3f) "
                  "verts=%zu idx=%zu\n",
                  m.name.c_str(), m.material.c_str(),
                  tex == layout.mat_tex.end() ? "" : tex->second.c_str(),
-                 m.parent.c_str(), mn[0], mx[0], mn[1], mx[1], mn[2], mx[2],
+                 m.parent.c_str(),
+                 blend == layout.mat_blend.end() ? unsigned(kHudBlendSrcAlpha)
+                                                  : unsigned(blend->second),
+                 color == layout.mat_color.end() ? 0xFFFFFFFFu : color->second,
+                 mn[0], mx[0], mn[1], mx[1], mn[2], mx[2],
                  u0, u1, v0, v1, uv_xfm.scale[0], uv_xfm.scale[1],
                  uv_xfm.offset[0], uv_xfm.offset[1], m.verts.size(), m.idx.size());
   }
@@ -1225,6 +1271,11 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       q.color = 0xFFFFFFFF;
     }
     q.additive = additive;
+    q.blend = additive ? kHudBlendSrcAlphaAdd : kHudBlendSrcAlpha;
+    if (auto blend = layout.mat_blend.find(mesh.material);
+        blend != layout.mat_blend.end()) {
+      q.blend = blend->second;
+    }
     if (!bounds.ok || !q.tex) return q;
     const MeshBounds mesh_bounds = bounds_for(mesh);
     if (!mesh_bounds.ok) return q;
@@ -1989,7 +2040,14 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   for (size_t draw_index : draw_order) {
     const Quad& q = quads[draw_index];
     if (q.verts.size() < 3 || q.idx.size() < 3) continue;
-    dev->SetRenderState(D3DRS_DESTBLEND, q.additive ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA);
+    const uint8_t effective_blend =
+        (q.additive && q.blend == kHudBlendSrcAlpha)
+            ? kHudBlendSrcAlphaAdd
+            : q.blend;
+    const HudBlendState blend_state = hud_blend_state_for(effective_blend);
+    dev->SetRenderState(D3DRS_BLENDOP, blend_state.op);
+    dev->SetRenderState(D3DRS_SRCBLEND, blend_state.src);
+    dev->SetRenderState(D3DRS_DESTBLEND, blend_state.dest);
     if (q.tex) {
       dev->SetTexture(0, q.tex);
       dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -2034,8 +2092,9 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
       }
       std::fprintf(stderr,
                    "[hud-mult-box] sort=%d tex=%d color=%08x "
-                   "tris=%zu screen=%.1f,%.1f..%.1f,%.1f\n",
+                   "blend=%u tris=%zu screen=%.1f,%.1f..%.1f,%.1f\n",
                    q.sort_bias, q.tex ? 1 : 0, q.color,
+                   static_cast<unsigned>(effective_blend),
                    sv.size() / 3, min_x, min_y, max_x, max_y);
       ++mult_box_debug_budget;
     }
@@ -2061,6 +2120,7 @@ void HudRenderer::push_rect(std::vector<Quad>& out, float cx, float cz, float hw
   };
   q.idx = { 0, 1, 2,  1, 3, 2 };
   q.tex = t; q.color = color; q.additive = additive; q.group = group;
+  q.blend = additive ? kHudBlendSrcAlphaAdd : kHudBlendSrcAlpha;
   q.element = element;
   q.sort_bias = sort_bias;
   out.push_back(std::move(q));
@@ -2730,6 +2790,7 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
           stderr,
           "[hud-rock] fill=%.3f light=%s native_lights=%d base_lights=%d "
           "face=%d frame=%d backing=%d backing_mesh=hud_rock_light.mesh "
+          "base_blends=%u,%u,%u backing_blend=%u "
           "label=%d needle=%d led=%d "
           "angle=%.3f scale=%.3f,%.3f "
           "pivot=%.3f,%.3f rock_anim_frame=%.3f label=%08x front=%08x "
@@ -2738,6 +2799,10 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
           have_native_light_bases ? 1 : 0,
           native_rock_face_ok_ ? 1 : 0, native_rock_frame_ok_ ? 1 : 0,
           native_rock_light_backing_ok_ ? 1 : 0,
+          static_cast<unsigned>(native_rock_light_yellow_base_.blend),
+          static_cast<unsigned>(native_rock_light_red_base_.blend),
+          static_cast<unsigned>(native_rock_light_green_base_.blend),
+          static_cast<unsigned>(native_rock_light_backing_.blend),
           native_rock_label_ok_ ? 1 : 0, native_rock_needle_ok_ ? 1 : 0,
           native_rock_needle_led_ok_ ? 1 : 0, native_needle_angle,
           needle_scale_x, needle_scale_z, px, pz, rock_light_frame,

@@ -113,6 +113,7 @@ class HudRenderer {
     IDirect3DTexture9* tex = nullptr;
     uint32_t color = 0xFFFFFFFF;  // ARGB modulate
     bool additive = false;
+    uint8_t blend = 3;            // MILO BLEND_ENUM; 3 = SrcAlpha fallback
     bool preserve_depth = false;
     uint8_t group = 0;
     uint8_t element = 255;
