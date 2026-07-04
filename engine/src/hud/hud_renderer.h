@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -150,6 +151,10 @@ class HudRenderer {
     std::vector<TextureAnimKey> texture_keys;
     float duration_frames = 0.0f;
   };
+  struct StarMeshAnimatedQuad {
+    std::vector<Quad> frames;
+    float duration_frames = 0.0f;
+  };
   struct StarParticleLayer {
     std::string texture;
     uint32_t color = 0xFFFFFFFF;
@@ -264,6 +269,7 @@ class HudRenderer {
   std::vector<Quad> native_star_top_;
   std::vector<Quad> native_star_caps_;
   std::vector<Quad> native_star_ready_glow_;
+  std::vector<StarMeshAnimatedQuad> native_star_ready_mesh_glow_;
   std::vector<StarAnimatedQuad> native_star_lightning_;
   std::vector<StarParticleLayer> native_star_particles_;
   bool native_rock_face_ok_ = false;

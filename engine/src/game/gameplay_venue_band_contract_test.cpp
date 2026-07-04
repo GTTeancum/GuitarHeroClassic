@@ -1087,6 +1087,25 @@ int main() {
                  "elseif(de.type==\"TransAnim\"){",
                  "star-power HUD loads TransAnim entries from the MILO");
   ok &= contains(hud_renderer_c,
+                 "structHudMeshAnim{",
+                 "star-power HUD keeps a source-backed MeshAnim layer type");
+  ok &= contains(hud_renderer_c,
+                 "std::unordered_map<std::string,HudMeshAnim>mesh_anims;",
+                 "star-power HUD stores decoded MeshAnim entries");
+  ok &= contains(hud_renderer_c,
+                 "elseif(de.type==\"MeshAnim\"){",
+                 "star-power HUD loads MeshAnim entries from the MILO");
+  ok &= contains(hud_renderer_c,
+                 "decode_hud_mesh_anim(de.name,b,n)",
+                 "star-power HUD decodes source MeshAnim bodies");
+  ok &= contains(hud_renderer_h_c,
+                 "std::vector<StarMeshAnimatedQuad>native_star_ready_mesh_glow_;",
+                 "star-power HUD stores ready tube MeshAnim quads");
+  ok &= contains(hud_renderer_c,
+                 "append_star_mesh_anim(\"amp_tube_glow.mesh\","
+                 "\"amp_tube_glow.msnm\",native_star_ready_mesh_glow_);",
+                 "star-power ready tube glow uses the traced amp_tube_glow MeshAnim");
+  ok &= contains(hud_renderer_c,
                  "append_star_particle(\"amp_inside_bar_path.part\","
                  "\"amp_inside_bar_path.tnm\","
                  "\"amp_inside_bar_path.panm\");",
@@ -1107,6 +1126,9 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"glow_layers=%zulightning_layers=%zuparticle_layers=%zu\"",
                  "star-power diagnostics report decoded particle layer count");
+  ok &= contains(hud_renderer_c,
+                 "\"ready_mesh=%zuready_glow=%zu\"",
+                 "star-power diagnostics report MeshAnim ready tube usage");
   ok &= contains(hud_renderer_c,
                  "\"top=%zucaps=%zunative_fill=%dnative_particles=%d\"",
                  "star-power diagnostics report native particle emission");
