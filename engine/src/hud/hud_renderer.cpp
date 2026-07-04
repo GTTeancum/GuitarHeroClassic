@@ -2257,21 +2257,21 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
                      0, true, false, true,
                      nullptr, true, kElemSpFill, 0.0f);
-    append_star_animated_mesh("lightning_bot_01_0.mesh",
+    append_star_animated_mesh("lightning_bot_04_0.mesh",
                               native_star_lightning_);
     append_star_animated_mesh("lightning_bot_02_0.mesh",
                               native_star_lightning_);
-    append_star_animated_mesh("lightning_bot_03_0.mesh",
-                              native_star_lightning_);
-    append_star_animated_mesh("lightning_bot_04_0.mesh",
-                              native_star_lightning_);
-    append_star_animated_mesh("lightning_top_01_0.mesh",
+    append_star_animated_mesh("lightning_top_04_0.mesh",
                               native_star_lightning_);
     append_star_animated_mesh("lightning_top_02_0.mesh",
                               native_star_lightning_);
+    append_star_animated_mesh("lightning_bot_01_0.mesh",
+                              native_star_lightning_);
     append_star_animated_mesh("lightning_top_03_0.mesh",
                               native_star_lightning_);
-    append_star_animated_mesh("lightning_top_04_0.mesh",
+    append_star_animated_mesh("lightning_top_01_0.mesh",
+                              native_star_lightning_);
+    append_star_animated_mesh("lightning_bot_03_0.mesh",
                               native_star_lightning_);
     append_star_particle("amp_inside_bar_path.part",
                          "amp_inside_bar_path.tnm",

@@ -1045,9 +1045,23 @@ int main() {
                  "star_tube_glow_alpha_keys_,star_tube_glow_anim_duration_);",
                  "star-power ready glow uses the source tube glow alpha MatAnim");
   ok &= contains(hud_renderer_c,
+                 "append_star_animated_mesh(\"lightning_bot_04_0.mesh\","
+                 "native_star_lightning_);"
+                 "append_star_animated_mesh(\"lightning_bot_02_0.mesh\","
+                 "native_star_lightning_);"
+                 "append_star_animated_mesh(\"lightning_top_04_0.mesh\","
+                 "native_star_lightning_);"
+                 "append_star_animated_mesh(\"lightning_top_02_0.mesh\","
+                 "native_star_lightning_);"
                  "append_star_animated_mesh(\"lightning_bot_01_0.mesh\","
+                 "native_star_lightning_);"
+                 "append_star_animated_mesh(\"lightning_top_03_0.mesh\","
+                 "native_star_lightning_);"
+                 "append_star_animated_mesh(\"lightning_top_01_0.mesh\","
+                 "native_star_lightning_);"
+                 "append_star_animated_mesh(\"lightning_bot_03_0.mesh\","
                  "native_star_lightning_);",
-                 "star-power fill keeps the source lightning mesh layer");
+                 "star-power lightning append order matches the source lightning.view children");
   ok &= contains(hud_renderer_c,
                  "sample_hud_mat_anim_texture_frame(animated.texture_keys,"
                  "anim_frame)",
