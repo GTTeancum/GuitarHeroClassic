@@ -2294,9 +2294,11 @@ void CharRenderer::draw_impl(bool clear_target) {
       std::memcpy(&wm, world.data(), 64);
       dev->SetTransform(D3DTS_WORLD, &wm);
 
+      const milo_scene::MatObj* prop_material =
+          impl.prop_scene.find_mat(m.material);
       IDirect3DTexture9* texture = nullptr;
-      if (const auto* mat = impl.prop_scene.find_mat(m.material)) {
-        auto it = impl.prop_tex.find(mat->diffuse_tex);
+      if (prop_material) {
+        auto it = impl.prop_tex.find(prop_material->diffuse_tex);
         if (it != impl.prop_tex.end()) texture = it->second;
       }
       if (texture) {
@@ -2313,14 +2315,20 @@ void CharRenderer::draw_impl(bool clear_target) {
 
       vb.clear();
       vb.reserve(m.verts.size());
+      const float mat_alpha =
+          prop_material ? prop_material->color[3] : 1.0f;
+      const float mat_r = prop_material ? prop_material->color[0] : 1.0f;
+      const float mat_g = prop_material ? prop_material->color[1] : 1.0f;
+      const float mat_b = prop_material ? prop_material->color[2] : 1.0f;
       for (const auto& v : m.verts) {
         SVtx s;
         s.x = v.px; s.y = v.py; s.z = v.pz;
         s.nx = v.nx; s.ny = v.ny; s.nz = v.nz;
         s.color = D3DCOLOR_ARGB(
-            color_byte(impl.color_mod[3]), color_byte(v.r * impl.color_mod[0]),
-            color_byte(v.g * impl.color_mod[1]),
-            color_byte(v.b * impl.color_mod[2]));
+            color_byte(mat_alpha * impl.color_mod[3]),
+            color_byte(mat_r * v.r * impl.color_mod[0]),
+            color_byte(mat_g * v.g * impl.color_mod[1]),
+            color_byte(mat_b * v.b * impl.color_mod[2]));
         s.u = v.u; s.v = v.v;
         vb.push_back(s);
       }

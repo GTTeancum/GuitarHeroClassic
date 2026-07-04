@@ -5215,8 +5215,11 @@ int main() {
                  "material->color[0]*impl.color_mod[0]",
                  "character renderer applies color modulation to material diffuse colors");
   ok &= contains(char_renderer_c,
-                 "color_byte(v.r*impl.color_mod[0])",
-                 "attached performer props inherit the active venue-light modulation");
+                 "constfloatmat_r=prop_material?prop_material->color[0]:1.0f;",
+                 "attached performer props retain original MILO material diffuse color");
+  ok &= contains(char_renderer_c,
+                 "color_byte(mat_r*v.r*impl.color_mod[0])",
+                 "attached performer props combine MILO material color with active venue-light modulation");
   ok &= contains(char_renderer_c,
                  "D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_COLOR1",
                  "character renderer routes vertex diffuse modulation through fixed-function lighting");
