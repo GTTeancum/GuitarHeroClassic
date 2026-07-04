@@ -1098,8 +1098,8 @@ int main() {
                  "append_star_mesh(\"amp_glass_black.mesh\",native_star_back_",
                  "star-power back layer keeps only the source black glass child");
   ok &= contains(hud_renderer_c,
-                 "append_star_mesh(\"amp_base_bar.mesh\",native_star_top_",
-                 "star-power renders the authored amp_base_bar child after chrome top");
+                 "append_star_mesh(\"amp_base_bar.mesh\",native_star_caps_",
+                 "star-power keeps the authored amp_base_bar child in its own cap bucket");
   ok &= appears_before(
       hud_renderer_c,
       "if(!native_star_front_.empty())"
@@ -1107,6 +1107,20 @@ int main() {
       "if(!native_star_back_.empty())"
       "out.insert(out.end(),native_star_back_.begin(),native_star_back_.end());",
       "star-power emits amp_inside_disk before amp_glass_black like star_meter.view");
+  ok &= appears_before(
+      hud_renderer_c,
+      "if(!native_star_back_.empty())"
+      "out.insert(out.end(),native_star_back_.begin(),native_star_back_.end());",
+      "if(!native_star_caps_.empty())"
+      "out.insert(out.end(),native_star_caps_.begin(),native_star_caps_.end());",
+      "star-power emits amp_base_bar cap support behind the chrome base");
+  ok &= appears_before(
+      hud_renderer_c,
+      "if(!native_star_caps_.empty())"
+      "out.insert(out.end(),native_star_caps_.begin(),native_star_caps_.end());",
+      "if(!native_star_base_.empty())"
+      "out.insert(out.end(),native_star_base_.begin(),native_star_base_.end());",
+      "star-power hides the blue amp_base_bar support behind the chrome cap");
   ok &= appears_before(
       hud_renderer_c,
       "if(!native_star_back_.empty())"
@@ -1140,7 +1154,7 @@ int main() {
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
       "if(tube_glow){",
-      "star-power completes star_meter.view shell before star_meter_ready.view glow");
+      "star-power completes star_meter.view chrome top before star_meter_ready.view glow");
   ok &= contains(hud_renderer_c,
                  "ready_mesh_drawn=%dready_glow_drawn=%dfill_glow_drawn=%d",
                  "star-power diagnostics report source glow layers after live draw");
@@ -1230,6 +1244,10 @@ int main() {
                  "source_filter_frame(star_tube_glow_filter_,fill,"
                  "star_tube_glow_anim_duration_);",
                  "star-power tube ready alpha no longer pins the source MatAnim at frame zero");
+  ok &= contains(hud_renderer_c,
+                 "source_filter_frame(star_tube_glow_filter_,fill,"
+                 "src.duration_frames);",
+                 "star-power ready tube MeshAnim samples the same source AnimFilter window");
   ok &= appears_before(
       hud_renderer_c,
       "if(tube_glow){",

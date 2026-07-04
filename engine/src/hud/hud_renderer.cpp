@@ -2614,8 +2614,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                      false, true, nullptr, true, kElemSpBase, -1.0f);
     append_star_mesh("amp_chrome_top.mesh", native_star_top_, 0, false,
                      false, true, nullptr, true, kElemSpTop, -1.0f);
-    append_star_mesh("amp_base_bar.mesh", native_star_top_, 0, false,
-                     false, true, nullptr, true, kElemSpTop, -1.0f);
+    append_star_mesh("amp_base_bar.mesh", native_star_caps_, 0, false,
+                     false, true, nullptr, true, kElemSpCaps, -1.0f);
   }
 
   auto union_slot_for_quads = [&](const std::vector<const Quad*>& quads) {
@@ -3421,8 +3421,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   const float tube_glow_mesh_frame =
       native_star_ready_mesh_glow_.empty()
           ? 0.0f
-          : fill * std::max(1.0f,
-                            native_star_ready_mesh_glow_.front().duration_frames);
+          : source_filter_frame(
+                star_tube_glow_filter_, fill,
+                native_star_ready_mesh_glow_.front().duration_frames);
   const std::optional<uint32_t> star_fill_color =
       star_fill_color_keys_.empty()
           ? std::optional<uint32_t>{}
@@ -3437,6 +3438,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     out.insert(out.end(), native_star_front_.begin(), native_star_front_.end());
   if (!native_star_back_.empty())
     out.insert(out.end(), native_star_back_.begin(), native_star_back_.end());
+  if (!native_star_caps_.empty())
+    out.insert(out.end(), native_star_caps_.begin(), native_star_caps_.end());
   if (!native_star_base_.empty())
     out.insert(out.end(), native_star_base_.begin(), native_star_base_.end());
   if (!native_star_glass_.empty())
@@ -3678,7 +3681,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (tube_glow) {
     if (!native_star_ready_mesh_glow_.empty()) {
       for (const StarMeshAnimatedQuad& src : native_star_ready_mesh_glow_) {
-        const float frame = fill * std::max(1.0f, src.duration_frames);
+        const float frame =
+            source_filter_frame(star_tube_glow_filter_, fill,
+                                src.duration_frames);
         Quad q = sample_star_mesh_anim(src, frame);
         if (q.verts.size() < 3 || q.idx.size() < 3) continue;
         q.color = scale_argb_alpha(q.color, tube_ready_alpha);
@@ -3774,8 +3779,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     ++star_power_debug_budget;
   }
 
-  if (!native_star_caps_.empty())
-    out.insert(out.end(), native_star_caps_.begin(), native_star_caps_.end());
 }
 
 void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
