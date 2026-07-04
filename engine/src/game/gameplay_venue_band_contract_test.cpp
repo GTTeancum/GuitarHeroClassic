@@ -752,8 +752,14 @@ int main() {
                  "\"[hud-rock]fill=%.3flight=%snative_lights=%dbase_lights=%d\"",
                  "ROCK meter diagnostics report fill band and native frame state");
   ok &= contains(hud_renderer_c,
-                 "\"face=%dframe=%dlabel=%dneedle=%dled=%d\"",
-                 "ROCK meter diagnostics report the source base-light child stack");
+                 "\"face=%dframe=%dbacking=%dbacking_mesh=hud_rock_light.mesh\"",
+                 "ROCK meter diagnostics report the source base-light child stack and backing mesh");
+  ok &= contains(hud_renderer_c,
+                 "\"label=%dneedle=%dled=%d\"",
+                 "ROCK meter diagnostics report label needle and LED state");
+  ok &= contains(hud_renderer_h_c,
+                 "Quadnative_rock_light_backing_;",
+                 "ROCK meter keeps the decoded parented source backing mesh");
   ok &= contains(hud_renderer_h_c,
                  "Quadnative_rock_light_yellow_base_;",
                  "ROCK meter keeps the decoded yellow base-light child");
@@ -763,6 +769,9 @@ int main() {
   ok &= contains(hud_renderer_h_c,
                  "Quadnative_rock_light_green_base_;",
                  "ROCK meter keeps the decoded green base-light child");
+  ok &= contains(hud_renderer_c,
+                 "assign_meter_mesh(\"hud_rock_light.mesh\"",
+                 "ROCK meter light backing is sourced from the crowd-meter MILO");
   ok &= contains(hud_renderer_c,
                  "assign_meter_mesh(\"rock_light_yellow.mesh\"",
                  "ROCK meter uses the authored yellow base-light mesh");
@@ -781,12 +790,17 @@ int main() {
                        "out.push_back(native_rock_light_green_base_);",
                        "if(native_rock_face_ok_){out.push_back(native_rock_face_);}",
                        "ROCK meter draws source base lights behind rock_face_2d");
+  ok &= appears_before(hud_renderer_c,
+                       "if(native_rock_face_ok_){out.push_back(native_rock_face_);}",
+                       "if(native_rock_light_backing_ok_){out.push_back(native_rock_light_backing_);}",
+                       "ROCK meter draws the parented source backing after rock_face_2d");
+  ok &= appears_before(hud_renderer_c,
+                       "if(native_rock_light_backing_ok_){out.push_back(native_rock_light_backing_);}",
+                       "if(have_native_lights){",
+                       "ROCK meter source backing is directly under the translucent lamp fronts");
   ok &= absent(hud_renderer_c,
                "name==\"rock_meter_2d.tex\"||",
                "ROCK face texture must preserve authored black alpha");
-  ok &= absent(hud_renderer_c,
-               "assign_meter_mesh(\"hud_rock_light.mesh\"",
-               "non-group hud_rock_light mesh must not be drawn in rock_meter.view");
   ok &= absent(hud_renderer_c,
                "argb(255,2,2,2)",
                "ROCK meter backing must not be a synthetic black rectangle");
