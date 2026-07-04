@@ -1225,6 +1225,13 @@ int main() {
                  "layer.blend=blend_it->second;",
                  "star-power particle blend mode comes from its authored material");
   ok &= contains(hud_renderer_c,
+                 "\"[hud-dump]particle%-20smat=%-24stex=%-20s\"",
+                 "star-power HUD dump exposes source particle material/blend rows");
+  ok &= contains(hud_renderer_c,
+                 "out.back().blend=particle.blend;"
+                 "out.back().additive=false;",
+                 "star-power particle emission preserves authored blend without forcing additive");
+  ok &= contains(hud_renderer_c,
                  "sample_particle_path(particle.path_keys,path_frame)",
                  "star-power particle follows the decoded TransAnim path");
   ok &= contains(hud_renderer_c,

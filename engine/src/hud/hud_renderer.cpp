@@ -1121,6 +1121,24 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
                  u0, u1, v0, v1, uv_xfm.scale[0], uv_xfm.scale[1],
                  uv_xfm.offset[0], uv_xfm.offset[1], m.verts.size(), m.idx.size());
   }
+  for (const LoadedParticle& p : layout.particles) {
+    if (p.name.find("amp_inside_bar_path") == std::string::npos) continue;
+    auto tex = layout.mat_tex.find(p.material);
+    auto blend = layout.mat_blend.find(p.material);
+    auto color = layout.mat_color.find(p.material);
+    std::fprintf(stderr,
+                 "[hud-dump] particle %-20s mat=%-24s tex=%-20s "
+                 "parent=%-20s blend=%u color=%08x showing=%d "
+                 "max=%.1f size=%.2f..%.2f\n",
+                 p.name.c_str(), p.material.c_str(),
+                 tex == layout.mat_tex.end() ? "" : tex->second.c_str(),
+                 p.parent.c_str(),
+                 blend == layout.mat_blend.end() ? unsigned(kHudBlendSrcAlpha)
+                                                  : unsigned(blend->second),
+                 color == layout.mat_color.end() ? 0xFFFFFFFFu : color->second,
+                 p.showing ? 1 : 0, p.max_particles, p.size_start,
+                 p.size_end);
+  }
 }
 
 }  // namespace
@@ -3573,7 +3591,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
               true, pos.y, pos.y, kHudGroupRight, kElemSpFill, 2);
     if (!out.empty()) {
       out.back().blend = particle.blend;
-      out.back().additive = true;
+      out.back().additive = false;
     }
     return true;
   };
