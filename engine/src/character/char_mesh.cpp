@@ -658,9 +658,11 @@ bool find_runtime_world_override(const Character& c, const std::string& name,
 
 std::array<float, 16> local_chain_world_for(const Character& c,
                                             const std::string& name,
-                                            bool bind_pose) {
+                                            bool bind_pose,
+                                            bool include_runtime_overrides = true) {
   std::array<float, 16> override_world{};
-  if (!bind_pose && find_runtime_world_override(c, name, override_world)) {
+  if (!bind_pose && include_runtime_overrides &&
+      find_runtime_world_override(c, name, override_world)) {
     return override_world;
   }
 
@@ -675,7 +677,7 @@ std::array<float, 16> local_chain_world_for(const Character& c,
   std::array<float, 16> world = xfm_to_mat4(bind_pose ? *bind : *current);
   int guard = 0;
   while (!parent.empty() && guard++ < 128) {
-    if (!bind_pose &&
+    if (!bind_pose && include_runtime_overrides &&
         find_runtime_world_override(c, parent, override_world)) {
       world = mat4_mul(world, override_world);
       break;
@@ -779,6 +781,10 @@ std::array<float, 16> Character::bone_world_bind(const std::string& bone_name) c
 
 std::array<float, 16> Character::bone_world_local_chain(const std::string& bone_name) const {
   return local_chain_world_for(*this, bone_name, false);
+}
+
+std::array<float, 16> Character::bone_world_local_chain_authored(const std::string& bone_name) const {
+  return local_chain_world_for(*this, bone_name, false, false);
 }
 
 std::array<float, 16> Character::bone_world_bind_local_chain(const std::string& bone_name) const {

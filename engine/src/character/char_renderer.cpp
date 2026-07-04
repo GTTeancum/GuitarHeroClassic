@@ -2720,12 +2720,17 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                                                 : local_hair_matrix_mode.c_str());
   }
   for (size_t i = 0; i < nb; ++i) {
-    std::array<float, 16> curr_world =
-        character.bone_world_local_chain(mesh.bone_palette[i]);
-    const std::array<float, 16> raw_curr_world = curr_world;
     std::array<float, 16> hair_override{};
+    const bool allow_hair_override = is_hair_mesh_name(mesh.name);
+    const bool material_only_hair =
+        is_hair_render_mesh(mesh) && !allow_hair_override;
+    std::array<float, 16> curr_world =
+        material_only_hair
+            ? character.bone_world_local_chain_authored(mesh.bone_palette[i])
+            : character.bone_world_local_chain(mesh.bone_palette[i]);
+    const std::array<float, 16> raw_curr_world = curr_world;
     const bool has_hair_override =
-        is_hair_render_mesh(mesh) &&
+        allow_hair_override &&
         runtime_hair_world_override(character, mesh.bone_palette[i],
                                     hair_override);
     if (has_hair_override) curr_world = hair_override;

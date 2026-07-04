@@ -58,10 +58,12 @@ std::string function_body(const std::string& source,
 int main() {
   const std::filesystem::path source_dir = GHOGX_CHARACTER_SOURCE_DIR;
   const std::string char_mesh_h = read_file(source_dir / "char_mesh.h");
+  const std::string char_mesh_cpp = read_file(source_dir / "char_mesh.cpp");
   const std::string char_clip = read_file(source_dir / "char_clip.cpp");
   const std::string char_renderer = read_file(source_dir / "char_renderer.cpp");
 
   const std::string char_mesh_h_c = compact(char_mesh_h);
+  const std::string char_mesh_cpp_c = compact(char_mesh_cpp);
   const std::string char_clip_c = compact(char_clip);
   const std::string char_renderer_c = compact(char_renderer);
   const std::string apply_hair_c =
@@ -81,6 +83,13 @@ int main() {
   ok &= contains(char_mesh_h_c,
                  "boolhas_orientation_world=false;floatorientation_world[3]",
                  "runtime hair point keeps cached orientation row state");
+  ok &= contains(char_mesh_h_c,
+                 "bone_world_local_chain_authored(conststd::string&bone_name)"
+                 "const;",
+                 "characters expose authored local-chain rows");
+  ok &= contains(char_mesh_cpp_c,
+                 "returnlocal_chain_world_for(*this,bone_name,false,false);",
+                 "authored local-chain rows ignore runtime controller overrides");
 
   ok &= contains(char_clip_c,
                  "\"GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE\"",
@@ -117,13 +126,25 @@ int main() {
                  "follow hair updates the cached orientation row");
 
   ok &= contains(char_renderer_c,
-                 "runtime_hair_world_override(character,mesh.bone_palette[i],"
-                 "hair_override);",
-                 "hair skinning consumes runtime CharHair rows by palette bone");
+                 "constboolallow_hair_override=is_hair_mesh_name(mesh.name);",
+                 "CharHair skin overrides stay on hair-named meshes");
   ok &= contains(char_renderer_c,
-                 "is_hair_render_mesh(mesh)&&"
+                 "constboolmaterial_only_hair=is_hair_render_mesh(mesh)&&!"
+                 "allow_hair_override;",
+                 "material-only hair render meshes are distinguished from "
+                 "hair controllers");
+  ok &= contains(char_renderer_c,
+                 "material_only_hair?character.bone_world_local_chain_authored"
+                 "(mesh.bone_palette[i]):character.bone_world_local_chain"
+                 "(mesh.bone_palette[i]);",
+                 "material-only hair uses authored palette rows");
+  ok &= contains(char_renderer_c,
+                 "allow_hair_override&&"
                  "runtime_hair_world_override(character,mesh.bone_palette[i],",
-                 "material-named hair meshes consume runtime CharHair rows");
+                 "material-only hair render meshes do not consume CharHair rows");
+  ok &= contains(char_renderer_c,
+                 "material&&material->blend!=0&&is_hair_render_mesh(m)",
+                 "material-named hair meshes still use hair render state");
   ok &= contains(char_renderer_c,
                  "if(has_hair_override)curr_world=hair_override;",
                  "runtime CharHair rows replace the palette current row");

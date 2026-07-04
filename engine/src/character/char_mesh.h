@@ -303,6 +303,7 @@ struct Character {
   // Character mesh vertices are authored in this basis, so LBS uses these as
   // matching current/bind matrices instead of mixing with stored Trans worlds.
   std::array<float, 16> bone_world_local_chain(const std::string& bone_name) const;
+  std::array<float, 16> bone_world_local_chain_authored(const std::string& bone_name) const;
   std::array<float, 16> bone_world_bind_local_chain(const std::string& bone_name) const;
 
   // Compose a mesh's own model-to-world matrix up its Trans parent chain. For a
