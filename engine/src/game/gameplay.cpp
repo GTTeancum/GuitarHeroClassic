@@ -81,6 +81,13 @@ bool debug_camera_enabled() {
 #endif
 }
 
+struct DiagnosticMaskTransition {
+    double time = 0.0;
+    int order = 0;
+    uint32_t set_mask = 0;
+    uint32_t clear_mask = 0;
+};
+
 const char* env_value(const char* name) {
 #ifdef _MSC_VER
     static thread_local std::string value;
@@ -100,6 +107,10 @@ bool debug_gameplay_camera_enabled() {
     return env_value("GHOGX_DEBUG_GAMEPLAY_CAMERA") != nullptr;
 }
 
+bool debug_backing_camera_enabled() {
+    return env_value("GHOGX_DEBUG_BACKING_CAMERA") != nullptr;
+}
+
 bool debug_gameplay_session_enabled() {
     return env_value("GHOGX_DEBUG_GAMEPLAY_SESSION") != nullptr;
 }
@@ -117,8 +128,38 @@ bool debug_venue_filters_enabled() {
     return env_value("GHOGX_DEBUG_VENUE_FILTERS") != nullptr;
 }
 
+bool debug_performer_sync_enabled() {
+    return env_value("GHOGX_DEBUG_PERFORMER_SYNC") != nullptr;
+}
+
+bool performer_scene_lighting_enabled() {
+    return env_value("GHOGX_DISABLE_PERFORMER_SCENE_LIGHTING") == nullptr;
+}
+
+bool late_lighting_overlay_enabled() {
+    return env_value("GHOGX_DISABLE_LATE_LIGHTING_OVERLAY") == nullptr;
+}
+
+bool debug_drum_sync_enabled() {
+    return env_value("GHOGX_DEBUG_DRUM_SYNC") != nullptr;
+}
+
+bool debug_worldcrowd_enabled() {
+    return env_value("GHOGX_DEBUG_WORLDCROWD") != nullptr;
+}
+
 bool debug_performer_start_enabled() {
     return env_value("GHOGX_DEBUG_PERFORMER_START") != nullptr;
+}
+
+std::string join_log_names(const std::vector<std::string>& names) {
+    if (names.empty()) return "-";
+    std::ostringstream out;
+    for (size_t i = 0; i < names.size(); ++i) {
+        if (i != 0) out << ",";
+        out << names[i];
+    }
+    return out.str();
 }
 
 bool worldcrowd_render_area_local_basis() {
@@ -5895,6 +5936,15 @@ std::string worldcrowd_clip_group_for_event(std::string_view venue_event) {
     }
 }
 
+std::string worldcrowd_clip_group_for_event(
+    std::string_view venue_event, std::string_view lighter_group) {
+    if ((lighter_group == "lighter_slow" || lighter_group == "lighter_fast") &&
+        venue_excitement_level(venue_event) >= 3) {
+        return std::string(lighter_group);
+    }
+    return worldcrowd_clip_group_for_event(venue_event);
+}
+
 float worldcrowd_fullness_for_event(std::string_view venue_event) {
     // Source: world/crowd.dta crowd_update set_fullness rows.
     switch (venue_excitement_level(venue_event)) {
@@ -5907,6 +5957,97 @@ float worldcrowd_fullness_for_event(std::string_view venue_event) {
         default:
             return 1.0f;
     }
+}
+
+struct PerformerCrowdLightingMod {
+    bool symbolic = false;
+    bool low = false;
+    float intensity = 1.0f;
+    float r = 1.0f;
+    float g = 1.0f;
+    float b = 1.0f;
+};
+
+PerformerCrowdLightingMod performer_crowd_lighting_mod_for(
+    const Gameplay::LightingPreset* preset,
+    const Gameplay::LightingPreset::Keyframe* keyframe,
+    std::string_view venue_event) {
+    PerformerCrowdLightingMod mod;
+    std::string symbolic_tone_text;
+    auto append_tone_text = [&](std::string_view text) {
+        if (text.empty()) return;
+        if (!symbolic_tone_text.empty()) symbolic_tone_text.push_back(' ');
+        symbolic_tone_text += lower_ascii(text);
+    };
+    auto scan_ref = [&](const std::string& ref) {
+        if (is_performer_or_crowd_lit_ref(ref) ||
+            is_performer_or_crowd_env_ref(ref)) {
+            mod.symbolic = true;
+            const std::string lower = lower_ascii(ref);
+            append_tone_text(lower);
+            if (lower.find("low") != std::string::npos ||
+                lower.find("blackout") != std::string::npos) {
+                mod.low = true;
+            }
+        }
+    };
+    if (preset) {
+        append_tone_text(preset->name);
+        append_tone_text(preset->adjective);
+        for (const auto& ref : preset->lit_refs) scan_ref(ref);
+        for (const auto& ref : preset->env_refs) scan_ref(ref);
+    }
+    if (keyframe) {
+        append_tone_text(keyframe->name);
+        for (const auto& ref : keyframe->lit_refs) scan_ref(ref);
+        for (const auto& ref : keyframe->env_refs) scan_ref(ref);
+    }
+
+    if (!mod.symbolic) return mod;
+
+    switch (venue_excitement_level(venue_event)) {
+        case 0:
+            mod.intensity = 0.08f;
+            break;
+        case 1:
+            mod.intensity = 0.16f;
+            break;
+        case 2:
+            mod.intensity = 0.30f;
+            break;
+        case 3:
+            mod.intensity = 0.48f;
+            break;
+        default:
+            mod.intensity = 0.65f;
+            break;
+    }
+    if (mod.low) mod.intensity = std::min(mod.intensity, 0.18f);
+    if (preset && preset->adjective == "blackout") mod.intensity = 0.04f;
+    mod.r = mod.g = mod.b = mod.intensity;
+
+    const auto has_tone = [&](std::string_view token) {
+        return symbolic_tone_text.find(token) != std::string::npos;
+    };
+    if (has_tone("teal")) {
+        mod.r *= 0.45f;
+        mod.g *= 0.85f;
+        mod.b *= 1.10f;
+    } else if (has_tone("yellow") || has_tone("orange")) {
+        mod.r *= 1.18f;
+        mod.g *= 0.82f;
+        mod.b *= 0.30f;
+    } else if (has_tone("bad") || has_tone("grim") || mod.low) {
+        mod.r *= 1.20f;
+        mod.g *= 0.55f;
+        mod.b *= 0.22f;
+    } else if (has_tone("white")) {
+        mod.r = mod.g = mod.b = mod.intensity;
+    }
+    if (preset && preset->adjective == "blackout") {
+        mod.r = mod.g = mod.b = mod.intensity;
+    }
+    return mod;
 }
 
 std::vector<uint8_t> worldcrowd_placement_visible_by_fullness(
@@ -12789,7 +12930,7 @@ void apply_camera_keys(
         [&](const Gameplay::CameraKey& key,
             const std::optional<CameraResultRows>& ps2_trace_result)
         -> CameraResultRows {
-        if (env_value("GHOGX_CAMERA_USE_TRACE_COMPLETE_WRITER_BRIDGE")) {
+        if (!env_value("GHOGX_CAMERA_DISABLE_TRACE_COMPLETE_WRITER_BRIDGE")) {
             if (auto writer_rows =
                     camera_trace_complete_writer_bridge_rows(key, targets)) {
                 return *writer_rows;
@@ -14607,6 +14748,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
                           const std::string& shortname, int difficulty) {
     chart_loaded_ = false;
     song_time_    = 0.0;
+    song_started_ = false;
     next_note_idx_= 0;
     score_        = 0;
     streak_       = 0;
@@ -14619,6 +14761,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     gameplay_session_mirror_.reset();
     active_session_sustains_.clear();
     gameplay_session_mirror_last_log_time_ = -1.0;
+    gameplay_session_sustain_log_signature_.clear();
     failed_       = false;
     star_phrase_active_ = false;
     star_phrase_missed_ = false;
@@ -14630,6 +14773,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     for (float& flash : lane_flash_) flash = 0.0f;
     for (float& flash : star_collect_flash_) flash = 0.0f;
     for (float& flash : miss_flash_) flash = 0.0f;
+    for (float& flash : star_miss_flash_) flash = 0.0f;
     bad_highway_flash_ = 0.0f;
     multiplier_surface_flash_ = 0.0f;
     for (auto& consumed : note_consumed_) consumed.clear();
@@ -14674,6 +14818,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_force_char_lod_ = -1;
     did_lighter_cam_ = false;
     crowd_lighter_on_ = false;
+    active_worldcrowd_lighter_group_.clear();
     intro_end_dispatched_ = false;
     should_resend_excitement_ = false;
     lighting_presets_.clear();
@@ -14795,9 +14940,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     worldcrowd_actor_runtime_.clear();
     worldcrowd_actor_runtime_placements_ = 0;
     last_worldcrowd_actor_lighting_key_.clear();
+    last_performer_lighting_key_.clear();
     last_worldcrowd_actor_source_sample_time_ = -1.0;
     last_worldcrowd_actor_source_probe_log_time_ = -1.0;
     venue_camera_hidden_meshes_.clear();
+    venue_camera_hide_crowd_ = false;
     venue_camera_crowd_face_camera_ = false;
     active_venue_event_.clear();
     diagnostic_venue_event_applied_ = false;
@@ -14837,6 +14984,21 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     }
     gameplay_session_mirror_ =
         FoFiXGameplaySession::FromChart(chart_, difficulty_);
+    if (diagnostic_rock_fill_) {
+        gameplay_session_mirror_->set_rock_fill_for_diagnostic(
+            *diagnostic_rock_fill_);
+        rock_ = gameplay_session_mirror_->rock_state();
+        failed_ = gameplay_session_mirror_->failed();
+    }
+    if (diagnostic_star_power_fill_) {
+        gameplay_session_mirror_->set_star_power_fill_for_diagnostic(
+            *diagnostic_star_power_fill_);
+        star_power_ = gameplay_session_mirror_->star_power_state();
+    }
+    if (diagnostic_star_power_active_) {
+        gameplay_session_mirror_->set_star_power_active_for_diagnostic(true);
+        star_power_ = gameplay_session_mirror_->star_power_state();
+    }
     chart_loaded_ = true;
 
     std::fprintf(stderr, "[gameplay] chart loaded: diff=%d notes=%zu dur=%.1fs\n",
@@ -14863,6 +15025,13 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
 
     quickplay_rig_ = resolve_quickplay_rig(hdr_path, ark_path, shortname);
     if (quickplay_rig_) {
+        if (!diagnostic_character_override_.empty()) {
+            std::fprintf(stderr,
+                         "[world] diagnostic character override: %s -> %s\n",
+                         quickplay_rig_->character_outfit.c_str(),
+                         diagnostic_character_override_.c_str());
+            quickplay_rig_->character_outfit = diagnostic_character_override_;
+        }
         const std::string char_milo =
             "char/" + quickplay_rig_->character_outfit + "/og/gen/" +
             quickplay_rig_->character_outfit + ".milo_ps2";
@@ -14961,10 +15130,12 @@ std::map<std::string, float> Gameplay::composed_venue_material_alpha() const {
 void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
     if (!world_) return;
     std::unordered_set<std::string> next_hidden;
+    bool next_hide_crowd = key.hide_crowd;
     if (key.hide_crowd) next_hidden = venue_crowd_meshes_;
     for (const auto& raw_ref : key.hide_list_refs) {
         const std::string ref = canonical_milo_ref(raw_ref);
         if (crowd_ref_name(ref)) {
+            next_hide_crowd = true;
             next_hidden.insert(venue_crowd_meshes_.begin(),
                                venue_crowd_meshes_.end());
             continue;
@@ -14980,20 +15151,24 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
             next_hidden.insert(ref);
         }
     }
-    const bool next_face_camera =
-        key.crowd_face_camera && !venue_crowd_meshes_.empty();
+    const bool next_face_camera = key.crowd_face_camera;
     if (next_hidden == venue_camera_hidden_meshes_ &&
+        next_hide_crowd == venue_camera_hide_crowd_ &&
         next_face_camera == venue_camera_crowd_face_camera_) {
         return;
     }
     venue_camera_hidden_meshes_ = std::move(next_hidden);
+    venue_camera_hide_crowd_ = next_hide_crowd;
     venue_camera_crowd_face_camera_ = next_face_camera;
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr,
-                     "[world] camera crowd visibility: shot=%s hide=%d hide_list=%zu meshes=%zu face_camera=%d face_meshes=%zu\n",
+                     "[world] camera crowd visibility: shot=%s hide=%d "
+                     "hide_list=%zu meshes=%zu actor_hide=%d face_camera=%d "
+                     "face_meshes=%zu\n",
                      key.name.c_str(), key.hide_crowd ? 1 : 0,
                      key.hide_list_refs.size(),
                      venue_camera_hidden_meshes_.size(),
+                     venue_camera_hide_crowd_ ? 1 : 0,
                      venue_camera_crowd_face_camera_ ? 1 : 0,
                      venue_camera_crowd_face_camera_
                          ? venue_crowd_meshes_.size()
@@ -16176,6 +16351,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     pending_transient_venue_events_.clear();
     active_venue_event_.clear();
     venue_camera_hidden_meshes_.clear();
+    venue_camera_hide_crowd_ = false;
     venue_camera_crowd_face_camera_ = false;
     venue_script_state_ = venue_script_initial_state_;
     venue_script_object_state_.clear();
@@ -17586,6 +17762,11 @@ bool Gameplay::is_finished() const {
     return song_time_ >= chart_.duration_sec() + 2.0;  // 2s grace after last note
 }
 
+void Gameplay::stop_audio() {
+    audio_.stop();
+    std::fprintf(stderr, "[gameplay] audio stopped\n");
+}
+
 float Gameplay::star_power_fill() const {
     return static_cast<float>(fofix_star_power_fill(star_power_));
 }
@@ -17594,13 +17775,66 @@ float Gameplay::rock_fill() const {
     return static_cast<float>(fofix_rock_fill(rock_));
 }
 
+void Gameplay::set_diagnostic_rock_fill(double fill) {
+    const double clamped =
+        std::clamp(std::isfinite(fill) ? fill : 0.0, 0.0, 1.0);
+    diagnostic_rock_fill_ = clamped;
+    fofix_set_rock_fill(rock_, clamped);
+    if (gameplay_session_mirror_) {
+        gameplay_session_mirror_->set_rock_fill_for_diagnostic(clamped);
+        rock_ = gameplay_session_mirror_->rock_state();
+    }
+    failed_ = fofix_rock_failed(rock_);
+}
+
+void Gameplay::set_diagnostic_star_power_fill(double fill) {
+    const double clamped =
+        std::clamp(std::isfinite(fill) ? fill : 0.0, 0.0, 1.0);
+    diagnostic_star_power_fill_ = clamped;
+    fofix_set_star_power_fill(star_power_, clamped);
+    if (gameplay_session_mirror_) {
+        gameplay_session_mirror_->set_star_power_fill_for_diagnostic(clamped);
+        star_power_ = gameplay_session_mirror_->star_power_state();
+    }
+}
+
+void Gameplay::set_diagnostic_star_power_active(bool active) {
+    diagnostic_star_power_active_ = active;
+    if (active) {
+        if (fofix_star_power_fill(star_power_) < 0.5) {
+            fofix_set_star_power_fill(star_power_, 0.5);
+        }
+        star_power_.active = true;
+    } else {
+        star_power_.active = false;
+    }
+    if (gameplay_session_mirror_) {
+        gameplay_session_mirror_->set_star_power_active_for_diagnostic(active);
+        star_power_ = gameplay_session_mirror_->star_power_state();
+    }
+}
+
 void Gameplay::seek_for_diagnostic_capture(double seconds) {
     if (!chart_loaded_) return;
     song_time_ = std::clamp(seconds, 0.0, std::max(0.0, chart_.duration_sec()));
     last_anim_time_ = song_time_;
+    if (!deterministic_clock_ && audio_.seek(song_time_)) {
+        std::fprintf(stderr, "[gameplay] diagnostic audio seek: %.3f s\n",
+                     song_time_);
+    }
     diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
     active_sustains_.clear();
     active_session_sustains_.clear();
+    hit_flash_mask_ = 0;
+    miss_flash_mask_ = 0;
+    for (float& flash : lane_flash_) flash = 0.0f;
+    for (float& flash : star_collect_flash_) flash = 0.0f;
+    for (float& flash : miss_flash_) flash = 0.0f;
+    for (float& flash : star_miss_flash_) flash = 0.0f;
+    bad_highway_flash_ = 0.0f;
+    star_power_highway_flash_ = 0.0f;
+    multiplier_surface_flash_ = 0.0f;
+    std::memset(lane_hit_, 0, sizeof(lane_hit_));
     for (int d = 0; d < 4; ++d) {
         note_consumed_[d].assign(chart_.notes[d].size(), 0);
     }
@@ -17655,6 +17889,7 @@ void Gameplay::seek_for_diagnostic_capture(double seconds) {
     active_force_char_lod_ = -1;
     did_lighter_cam_ = false;
     crowd_lighter_on_ = false;
+    active_worldcrowd_lighter_group_.clear();
     intro_end_dispatched_ = false;
     should_resend_excitement_ = false;
     active_lighting_preset_.clear();
@@ -17794,7 +18029,8 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         }
         ghogx::character::CharClip clip;
         std::string active_group =
-            worldcrowd_clip_group_for_event(active_venue_event_);
+            worldcrowd_clip_group_for_event(
+                active_venue_event_, active_worldcrowd_lighter_group_);
         if (auto it = clips_by_group.find(active_group);
             it != clips_by_group.end()) {
             clip = it->second;
@@ -17892,7 +18128,8 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
 bool Gameplay::worldcrowd_actor_runtime_enabled() const {
     return !diagnostic_camera_shot_.empty() ||
            env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr ||
-           env_value("GHOGX_ENABLE_WORLDCROWD_ACTORS") != nullptr;
+           env_value("GHOGX_ENABLE_WORLDCROWD_ACTORS") != nullptr ||
+           env_value("GHOGX_DISABLE_NORMAL_WORLDCROWD_ACTORS") == nullptr;
 }
 
 void Gameplay::update_worldcrowd_actor_runtime(float dt) {
@@ -17901,7 +18138,8 @@ void Gameplay::update_worldcrowd_actor_runtime(float dt) {
         (void)actor_path;
         if (!runtime.renderer) continue;
         const std::string desired_group =
-            worldcrowd_clip_group_for_event(active_venue_event_);
+            worldcrowd_clip_group_for_event(
+                active_venue_event_, active_worldcrowd_lighter_group_);
         runtime.fullness_fraction =
             worldcrowd_fullness_for_event(active_venue_event_);
         auto desired_clip = runtime.clips_by_group.find(desired_group);
@@ -17973,104 +18211,20 @@ void Gameplay::update_worldcrowd_actor_lighting(
         keyframe = &preset->keyframes[active_lighting_keyframe_index_];
     }
 
-    bool has_symbolic_crowd_rig = false;
-    bool has_low_symbolic_rig = false;
-    std::string symbolic_tone_text;
-    auto append_tone_text = [&](std::string_view text) {
-        if (text.empty()) return;
-        if (!symbolic_tone_text.empty()) symbolic_tone_text.push_back(' ');
-        symbolic_tone_text += lower_ascii(text);
-    };
-    auto scan_ref = [&](const std::string& ref) {
-        if (is_performer_or_crowd_lit_ref(ref) ||
-            is_performer_or_crowd_env_ref(ref)) {
-            has_symbolic_crowd_rig = true;
-            const std::string lower = lower_ascii(ref);
-            append_tone_text(lower);
-            if (lower.find("low") != std::string::npos ||
-                lower.find("blackout") != std::string::npos) {
-                has_low_symbolic_rig = true;
-            }
-        }
-    };
-    if (preset) {
-        append_tone_text(preset->name);
-        append_tone_text(preset->adjective);
-    }
-    if (keyframe) append_tone_text(keyframe->name);
-    if (preset) {
-        for (const auto& ref : preset->lit_refs) scan_ref(ref);
-        for (const auto& ref : preset->env_refs) scan_ref(ref);
-    }
-    if (keyframe) {
-        for (const auto& ref : keyframe->lit_refs) scan_ref(ref);
-        for (const auto& ref : keyframe->env_refs) scan_ref(ref);
-    }
-
-    float intensity = 1.0f;
-    float mod_r = 1.0f;
-    float mod_g = 1.0f;
-    float mod_b = 1.0f;
-    if (has_symbolic_crowd_rig) {
-        switch (venue_excitement_level(active_venue_event_)) {
-            case 0:
-                intensity = 0.08f;
-                break;
-            case 1:
-                intensity = 0.16f;
-                break;
-            case 2:
-                intensity = 0.30f;
-                break;
-            case 3:
-                intensity = 0.48f;
-                break;
-            default:
-                intensity = 0.65f;
-                break;
-        }
-        if (has_low_symbolic_rig) intensity = std::min(intensity, 0.18f);
-        if (preset && preset->adjective == "blackout") intensity = 0.04f;
-        mod_r = intensity;
-        mod_g = intensity;
-        mod_b = intensity;
-
-        const auto has_tone = [&](std::string_view token) {
-            return symbolic_tone_text.find(token) != std::string::npos;
-        };
-        if (has_tone("teal")) {
-            mod_r *= 0.45f;
-            mod_g *= 0.85f;
-            mod_b *= 1.10f;
-        } else if (has_tone("yellow") || has_tone("orange")) {
-            mod_r *= 1.18f;
-            mod_g *= 0.82f;
-            mod_b *= 0.30f;
-        } else if (has_tone("bad") || has_tone("grim") ||
-                   has_low_symbolic_rig) {
-            mod_r *= 1.20f;
-            mod_g *= 0.55f;
-            mod_b *= 0.22f;
-        } else if (has_tone("white")) {
-            mod_r = mod_g = mod_b = intensity;
-        }
-        if (preset && preset->adjective == "blackout") {
-            mod_r = mod_g = mod_b = intensity;
-        }
-    }
+    const PerformerCrowdLightingMod mod =
+        performer_crowd_lighting_mod_for(preset, keyframe, active_venue_event_);
 
     for (auto& [actor_path, runtime] : worldcrowd_actor_runtime_) {
         (void)actor_path;
         if (!runtime.renderer) continue;
-        runtime.renderer->set_color_modulation(mod_r, mod_g, mod_b, 1.0f);
+        runtime.renderer->set_color_modulation(mod.r, mod.g, mod.b, 1.0f);
     }
 
     std::ostringstream key;
     key << (preset ? preset->name : std::string{"<none>"}) << "|"
         << (keyframe ? keyframe->name : std::string{"<none>"}) << "|"
-        << active_venue_event_ << "|" << intensity << "|" << mod_r << "|"
-        << mod_g << "|" << mod_b << "|"
-        << (has_symbolic_crowd_rig ? 1 : 0);
+        << active_venue_event_ << "|" << mod.intensity << "|" << mod.r << "|"
+        << mod.g << "|" << mod.b << "|" << (mod.symbolic ? 1 : 0);
     const std::string key_text = key.str();
     if (key_text != last_worldcrowd_actor_lighting_key_) {
         last_worldcrowd_actor_lighting_key_ = key_text;
@@ -18080,22 +18234,164 @@ void Gameplay::update_worldcrowd_actor_lighting(
                      "rgb=(%.3f %.3f %.3f)\n",
                      preset ? preset->name.c_str() : "<none>",
                      keyframe ? keyframe->name.c_str() : "<none>",
-                     active_venue_event_.c_str(),
-                     has_symbolic_crowd_rig ? 1 : 0,
-                     has_low_symbolic_rig ? 1 : 0, intensity, mod_r, mod_g,
-                     mod_b);
+                     active_venue_event_.c_str(), mod.symbolic ? 1 : 0,
+                     mod.low ? 1 : 0, mod.intensity, mod.r, mod.g, mod.b);
+    }
+}
+
+void Gameplay::update_performer_lighting(
+    const LightingPreset* preset,
+    const LightingPreset::Keyframe* keyframe) {
+    if (performers_.empty()) return;
+    if (!preset && !active_lighting_preset_.empty()) {
+        for (const auto& candidate : lighting_presets_) {
+            if (candidate.name != active_lighting_preset_) continue;
+            preset = &candidate;
+            break;
+        }
+    }
+    if (preset && !keyframe && active_lighting_keyframe_index_ != SIZE_MAX &&
+        active_lighting_keyframe_index_ < preset->keyframes.size()) {
+        keyframe = &preset->keyframes[active_lighting_keyframe_index_];
+    }
+
+    const PerformerCrowdLightingMod mod =
+        performer_crowd_lighting_mod_for(preset, keyframe, active_venue_event_);
+    size_t applied = 0;
+    for (auto& perf : performers_) {
+        if (!perf.renderer) continue;
+        perf.renderer->set_color_modulation(mod.r, mod.g, mod.b, 1.0f);
+        ++applied;
+    }
+
+    std::ostringstream key;
+    key << (preset ? preset->name : std::string{"<none>"}) << "|"
+        << (keyframe ? keyframe->name : std::string{"<none>"}) << "|"
+        << active_venue_event_ << "|" << mod.intensity << "|" << mod.r << "|"
+        << mod.g << "|" << mod.b << "|" << (mod.symbolic ? 1 : 0) << "|"
+        << applied;
+    const std::string key_text = key.str();
+    if (key_text != last_performer_lighting_key_) {
+        last_performer_lighting_key_ = key_text;
+        std::fprintf(stderr,
+                     "[world] performer lighting: preset=%s keyframe=%s "
+                     "event=%s performers=%zu symbolic=%d low=%d "
+                     "intensity=%.3f rgb=(%.3f %.3f %.3f)\n",
+                     preset ? preset->name.c_str() : "<none>",
+                     keyframe ? keyframe->name.c_str() : "<none>",
+                     active_venue_event_.c_str(), applied,
+                     mod.symbolic ? 1 : 0, mod.low ? 1 : 0, mod.intensity,
+                     mod.r, mod.g, mod.b);
     }
 }
 
 void Gameplay::draw_worldcrowd_actor_runtime(
     const ghogx::render::OrbitCamera& cam) {
-    if (!worldcrowd_actor_runtime_enabled()) return;
+    const bool debug_worldcrowd = debug_worldcrowd_enabled();
+    const float debug_stride =
+        std::max(0.0f, env_float("GHOGX_DEBUG_WORLDCROWD_STRIDE", 0.50f));
+    auto active_group_summary = [&]() {
+        std::map<std::string, size_t> counts;
+        for (const auto& [actor_path, runtime] : worldcrowd_actor_runtime_) {
+            (void)actor_path;
+            counts[runtime.active_group.empty() ? std::string{"<none>"}
+                                                : runtime.active_group]++;
+        }
+        if (counts.empty()) return std::string{"-"};
+        std::string out;
+        for (const auto& [group, count] : counts) {
+            if (!out.empty()) out.push_back(',');
+            out += group + ":" + std::to_string(count);
+        }
+        return out;
+    };
+    auto should_log_worldcrowd = [&]() {
+        if (!debug_worldcrowd) return false;
+        if (song_time_ + 1e-5 < next_worldcrowd_actor_draw_log_time_)
+            return false;
+        next_worldcrowd_actor_draw_log_time_ =
+            song_time_ + static_cast<double>(debug_stride);
+        return true;
+    };
+    if (!worldcrowd_actor_runtime_enabled()) {
+        if (should_log_worldcrowd()) {
+            std::fprintf(
+                stderr,
+                "[world] WorldCrowd draw: enabled=0 actors=%zu placements=%zu "
+                "drawn=0 culled_fullness=0 culled_near_source=0 "
+                "culled_camera=0 hidden_camera=0 basis=%s face_camera=%d "
+                "event=%s groups=%s eye=(0.000 0.000 0.000) t=%.3f\n",
+                worldcrowd_actor_runtime_.size(),
+                worldcrowd_actor_runtime_placements_,
+                worldcrowd_render_area_local_basis() ? "area_local"
+                                                     : "placement",
+                venue_camera_crowd_face_camera_ ? 1 : 0,
+                active_venue_event_.c_str(), active_group_summary().c_str(),
+                song_time_);
+        }
+        return;
+    }
     float eye[3] = {0.0f, 0.0f, 0.0f};
     cam.eye(eye);
     const std::array<float, 3> camera_ref = {eye[0], eye[1], eye[2]};
+    if (venue_camera_hide_crowd_) {
+        if (should_log_worldcrowd()) {
+            std::fprintf(
+                stderr,
+                "[world] WorldCrowd draw: enabled=1 actors=%zu placements=%zu "
+                "drawn=0 culled_fullness=0 culled_near_source=0 "
+                "culled_camera=0 hidden_camera=1 basis=%s face_camera=%d "
+                "event=%s groups=%s eye=(%.3f %.3f %.3f) t=%.3f\n",
+                worldcrowd_actor_runtime_.size(),
+                worldcrowd_actor_runtime_placements_,
+                worldcrowd_render_area_local_basis() ? "area_local"
+                                                     : "placement",
+                venue_camera_crowd_face_camera_ ? 1 : 0,
+                active_venue_event_.c_str(), active_group_summary().c_str(),
+                eye[0], eye[1], eye[2], song_time_);
+        }
+        return;
+    }
+    auto camera_forward =
+        cam.result_frame.valid
+            ? std::array<float, 3>{cam.result_frame.forward[0],
+                                   cam.result_frame.forward[1],
+                                   cam.result_frame.forward[2]}
+            : std::array<float, 3>{(cam.authored ? cam.authored_at[0]
+                                                 : cam.target[0]) -
+                                       eye[0],
+                                   (cam.authored ? cam.authored_at[1]
+                                                 : cam.target[1]) -
+                                       eye[1],
+                                   (cam.authored ? cam.authored_at[2]
+                                                 : cam.target[2]) -
+                                       eye[2]};
+    auto camera_up =
+        cam.result_frame.valid
+            ? std::array<float, 3>{cam.result_frame.up[0],
+                                   cam.result_frame.up[1],
+                                   cam.result_frame.up[2]}
+            : (cam.authored
+                   ? std::array<float, 3>{cam.authored_up[0],
+                                          cam.authored_up[1],
+                                          cam.authored_up[2]}
+                   : std::array<float, 3>{0.0f, 0.0f, 1.0f});
+    camera_forward =
+        camera_normalized_axis(camera_forward, {0.0f, 1.0f, 0.0f});
+    camera_up = camera_normalized_axis(camera_up, {0.0f, 0.0f, 1.0f});
+    auto camera_right = camera_normalized_axis(
+        camera_cross_axis(camera_up, camera_forward), {1.0f, 0.0f, 0.0f});
+    camera_up = camera_normalized_axis(
+        camera_cross_axis(camera_forward, camera_right), camera_up);
+    const bool camera_cull_enabled =
+        !env_value("GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL") &&
+        !(cam.result_frame.valid && cam.result_frame.has_custom_projection);
+    const float tan_y = std::tan(cam.fov * 0.5f) * 1.35f;
+    const float tan_x = tan_y * kNativeValidationAspect;
     size_t drawn = 0;
     size_t culled_near_source = 0;
     size_t culled_fullness = 0;
+    size_t culled_camera = 0;
     for (auto& [actor_path, runtime] : worldcrowd_actor_runtime_) {
         (void)actor_path;
         if (!runtime.renderer) continue;
@@ -18126,6 +18422,29 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                     continue;
                 }
             }
+            if (camera_cull_enabled && std::isfinite(tan_x) &&
+                std::isfinite(tan_y) && tan_x > 0.0f && tan_y > 0.0f) {
+                const float radius =
+                    std::max(10.0f, runtime.visible_bounds_radius + 3.0f);
+                const std::array<float, 3> delta = {
+                    placement_world[12] - eye[0], placement_world[13] - eye[1],
+                    placement_world[14] - eye[2]};
+                const float depth = camera_dot_axis(delta, camera_forward);
+                const float side = std::abs(camera_dot_axis(delta, camera_right));
+                const float vertical = std::abs(camera_dot_axis(delta, camera_up));
+                const bool behind = depth + radius < 0.0f;
+                const bool beyond_far = cam.far_z > 0.0f &&
+                                        depth - radius > cam.far_z * 1.10f;
+                const bool outside_x =
+                    depth > radius && side - radius > depth * tan_x;
+                const bool outside_y =
+                    depth > radius && vertical - radius > depth * tan_y;
+                if (behind || beyond_far || outside_x || outside_y) {
+                    ++culled_camera;
+                    ++placement_index;
+                    continue;
+                }
+            }
             const auto draw_world =
                 venue_camera_crowd_face_camera_
                     ? worldcrowd_face_camera_source_world(placement_world,
@@ -18137,13 +18456,25 @@ void Gameplay::draw_worldcrowd_actor_runtime(
             ++placement_index;
         }
     }
-    if (debug_camera_enabled() &&
-        (culled_near_source > 0 || culled_fullness > 0)) {
+    const bool log_worldcrowd = should_log_worldcrowd();
+    if (log_worldcrowd ||
+        (debug_camera_enabled() &&
+         (culled_near_source > 0 || culled_fullness > 0))) {
         std::fprintf(stderr,
-                     "[world] WorldCrowd draw: drawn=%zu culled_fullness=%zu "
-                     "culled_near_source=%zu event=%s eye=(%.3f %.3f %.3f)\n",
-                     drawn, culled_fullness, culled_near_source,
-                     active_venue_event_.c_str(), eye[0], eye[1], eye[2]);
+                     "[world] WorldCrowd draw: enabled=1 actors=%zu "
+                     "placements=%zu drawn=%zu culled_fullness=%zu "
+                     "culled_near_source=%zu culled_camera=%zu "
+                     "hidden_camera=0 basis=%s face_camera=%d event=%s "
+                     "groups=%s eye=(%.3f %.3f %.3f) t=%.3f\n",
+                     worldcrowd_actor_runtime_.size(),
+                     worldcrowd_actor_runtime_placements_, drawn,
+                     culled_fullness, culled_near_source, culled_camera,
+                     worldcrowd_render_area_local_basis() ? "area_local"
+                                                          : "placement",
+                     venue_camera_crowd_face_camera_ ? 1 : 0,
+                     active_venue_event_.c_str(), active_group_summary().c_str(),
+                     eye[0], eye[1], eye[2],
+                     song_time_);
     }
 }
 
@@ -18152,6 +18483,7 @@ namespace {
 void apply_gameplay_backing_camera(
     ghogx::render::MiloSceneRenderer* world,
     const std::unordered_map<std::string, CameraTarget>& targets,
+    double song_time,
     bool diagnostic_camera_shot_active) {
     if (!world || debug_gameplay_camera_enabled() ||
         diagnostic_camera_shot_active ||
@@ -18160,10 +18492,15 @@ void apply_gameplay_backing_camera(
     }
 
     std::vector<std::array<float, 3>> points;
-    auto add_target_point = [&](const std::string& id) {
+    std::optional<std::array<float, 3>> primary_focus;
+    auto target_point = [&](const std::string& id)
+        -> std::optional<std::array<float, 3>> {
         const auto it = targets.find(id);
-        if (it == targets.end()) return;
-        points.push_back(mat4_position_game(it->second.world));
+        if (it == targets.end()) return std::nullopt;
+        return mat4_position_game(it->second.world);
+    };
+    auto add_target_point = [&](const std::string& id) {
+        if (auto p = target_point(id)) points.push_back(*p);
     };
     for (const char* role : {"guitarist0", "singer", "bassist", "drummer",
                              "keyboard"}) {
@@ -18176,6 +18513,10 @@ void apply_gameplay_backing_camera(
         }
     }
     if (points.empty()) return;
+    primary_focus = target_point(camera_target_id("guitarist0", "bone_spine1.mesh"));
+    if (!primary_focus) {
+        primary_focus = target_point(camera_target_id("guitarist0", "bone_spine1"));
+    }
 
     std::array<float, 3> mn = points.front();
     std::array<float, 3> mx = points.front();
@@ -18195,28 +18536,42 @@ void apply_gameplay_backing_camera(
     const float span_z = mx[2] - mn[2];
     const float span =
         std::sqrt(span_x * span_x + span_y * span_y + span_z * span_z);
+    const auto focus = primary_focus.value_or(center);
+    const std::array<float, 3> framed_focus = {
+        focus[0] * 0.70f + center[0] * 0.30f,
+        focus[1] * 0.70f + center[1] * 0.30f,
+        focus[2] * 0.70f + center[2] * 0.30f};
 
     auto& cam = world->camera();
     cam.authored = false;
     cam.result_frame.valid = false;
     cam.screen_offset[0] = 0.0f;
     cam.screen_offset[1] = 0.0f;
-    cam.target[0] = center[0] + std::max(125.0f, span_x * 0.30f);
-    cam.target[1] = center[1] + std::max(28.0f, span_y * 0.14f);
-    cam.target[2] = center[2] - std::max(116.0f, span_z * 0.64f);
-    cam.yaw = 0.30f;
-    cam.pitch = 0.175f;
-    cam.distance = std::clamp(span * 1.80f, 540.0f, 840.0f);
-    cam.fov = 0.70f;
+    cam.target[0] = framed_focus[0];
+    cam.target[1] = framed_focus[1];
+    cam.target[2] = framed_focus[2] + std::max(18.0f, span_z * 0.12f);
+    cam.yaw = 0.20f;
+    cam.pitch = 0.08f;
+    cam.distance = std::clamp(span * 0.65f, 175.0f, 320.0f);
+    cam.fov = 0.62f;
     cam.near_z = 10.0f;
     cam.far_z = 12000.0f;
-    if (debug_gameplay_camera_enabled()) {
+    if (debug_backing_camera_enabled()) {
+        static double next_log_time = 0.0;
+        const float stride = std::max(
+            0.0f, env_float("GHOGX_DEBUG_BACKING_CAMERA_STRIDE", 0.50f));
+        if (song_time + 1e-5 < next_log_time) return;
+        next_log_time = song_time + static_cast<double>(stride);
         std::fprintf(
             stderr,
             "[world] gameplay backing camera: performers=%zu "
-            "target=(%.2f %.2f %.2f) dist=%.2f span=%.2f\n",
-            points.size(), cam.target[0], cam.target[1], cam.target[2],
-            cam.distance, span);
+            "center=(%.2f %.2f %.2f) focus=(%.2f %.2f %.2f) "
+            "framed=(%.2f %.2f %.2f) target=(%.2f %.2f %.2f) "
+            "yaw=%.3f pitch=%.3f dist=%.2f fov=%.3f span=%.2f t=%.3f\n",
+            points.size(), center[0], center[1], center[2], focus[0],
+            focus[1], focus[2], framed_focus[0], framed_focus[1],
+            framed_focus[2], cam.target[0], cam.target[1], cam.target[2],
+            cam.yaw, cam.pitch, cam.distance, cam.fov, span, song_time);
     }
 }
 
@@ -18226,7 +18581,8 @@ uint32_t Gameplay::diagnostic_autoplay_fret_mask(
     const std::vector<ghogx::chart::Note>& notes) {
     if (gameplay_session_mirror_) {
         const uint32_t mask =
-            gameplay_session_mirror_->diagnostic_autoplay_mask(song_time_);
+            gameplay_session_mirror_->diagnostic_autoplay_mask(
+                song_time_, true);
         if ((mask & (1u << 5)) != 0 && debug_venue_filters_enabled()) {
             std::fprintf(
                 stderr,
@@ -18277,10 +18633,186 @@ uint32_t Gameplay::diagnostic_autoplay_fret_mask(
     return mask | sustain_mask;
 }
 
+std::vector<Gameplay::DiagnosticInputEvent>
+Gameplay::build_diagnostic_guitar_script_from_chart(
+    double start_sec,
+    double end_sec,
+    bool activate_star_power,
+    double hit_offset_sec,
+    bool whammy_star_sustains,
+    std::optional<double> star_power_at_sec) const {
+    std::vector<DiagnosticInputEvent> events;
+    if (!chart_loaded_) return events;
+
+    const int diff = std::clamp(difficulty_, 0, 3);
+    const auto& notes = chart_.notes[diff];
+    if (notes.empty()) return events;
+
+    const double chart_end = std::max(0.0, chart_.duration_sec());
+    const double start = std::clamp(start_sec, 0.0, chart_end);
+    double end = end_sec > start ? end_sec : chart_end;
+    end = std::clamp(end, start, chart_end);
+
+    struct Group {
+        double time = 0.0;
+        uint32_t mask = 0;
+        uint32_t sustain_mask = 0;
+        double sustain_end = 0.0;
+        double beat_seconds = 0.5;
+        bool star_power_sustain = false;
+    };
+    std::vector<Group> groups;
+
+    uint32_t initial_sustain_mask = 0;
+    for (size_t i = 0; i < notes.size();) {
+        const uint32_t tick = notes[i].tick_on;
+        size_t j = i + 1;
+        while (j < notes.size() && notes[j].tick_on == tick) ++j;
+
+        const double note_time = chart_.tick_to_sec(tick);
+        Group group;
+        group.time = note_time;
+        group.sustain_end = note_time;
+        group.beat_seconds = beat_seconds_at_tick(chart_, tick);
+        for (size_t n = i; n < j; ++n) {
+            const uint32_t lane_bit =
+                1u << static_cast<uint32_t>(std::clamp(notes[n].lane, 0, 4));
+            group.mask |= lane_bit;
+            if (note_has_sustain_tail(chart_, notes[n])) {
+                const double tail_end = chart_.tick_to_sec(notes[n].tick_off);
+                group.sustain_mask |= lane_bit;
+                group.sustain_end = std::max(group.sustain_end, tail_end);
+                group.star_power_sustain =
+                    group.star_power_sustain || notes[n].star_power;
+                if (note_time < start && tail_end > start) {
+                    initial_sustain_mask |= lane_bit;
+                }
+            }
+        }
+        if (note_time >= start && note_time <= end && group.mask != 0) {
+            groups.push_back(group);
+        }
+        if (note_time > end) break;
+        i = j;
+    }
+
+    std::vector<DiagnosticMaskTransition> transitions;
+    transitions.reserve(groups.size() * 3 + 2);
+    if (!std::isfinite(hit_offset_sec)) hit_offset_sec = -(1.0 / 120.0);
+    constexpr double kStrumHoldSeconds = 1.0 / 30.0;
+    constexpr double kBoundaryReleaseLeadSeconds = 1.0 / 180.0;
+    bool star_power_activated = false;
+    for (size_t i = 0; i < groups.size(); ++i) {
+        const Group& group = groups[i];
+        const Group* next_group =
+            i + 1 < groups.size() ? &groups[i + 1] : nullptr;
+        const double next_time =
+            next_group ? next_group->time : std::numeric_limits<double>::infinity();
+        const double hit_time = std::max(0.0, group.time + hit_offset_sec);
+        double post_time = group.time + kStrumHoldSeconds;
+        if (std::isfinite(next_time)) {
+            post_time = std::min(post_time, next_time - 0.004);
+        }
+        post_time = std::max(group.time + 0.001, post_time);
+
+        uint32_t hit_set = group.mask | (1u << 5);
+        if (activate_star_power && !star_power_activated &&
+            diagnostic_star_power_fill_ && *diagnostic_star_power_fill_ >= 0.5) {
+            hit_set |= 1u << 6;
+            star_power_activated = true;
+        }
+        transitions.push_back(DiagnosticMaskTransition{hit_time, 1, hit_set, 0});
+
+        const uint32_t release_after_hit =
+            (1u << 5) | (1u << 6) | (group.mask & ~group.sustain_mask);
+        transitions.push_back(
+            DiagnosticMaskTransition{post_time, 2, 0, release_after_hit});
+
+        if (group.sustain_mask != 0) {
+            if (whammy_star_sustains && group.star_power_sustain) {
+                transitions.push_back(DiagnosticMaskTransition{
+                    std::min(group.sustain_end,
+                             group.time + group.beat_seconds / 8.0 + 0.020),
+                    3, 1u << 7, 0});
+            }
+            uint32_t sustain_clear_mask = group.sustain_mask;
+            double sustain_clear_time = std::min(group.sustain_end, end + 0.25);
+            if (next_group && next_group->time <= group.sustain_end + 0.001) {
+                sustain_clear_mask &= ~next_group->mask;
+                if (sustain_clear_mask != 0) {
+                    const double next_hit_time =
+                        std::max(0.0, next_group->time + hit_offset_sec);
+                    sustain_clear_time = std::min(
+                        sustain_clear_time,
+                        std::max(group.time + kStrumHoldSeconds,
+                                 next_hit_time - kBoundaryReleaseLeadSeconds));
+                }
+            }
+            transitions.push_back(DiagnosticMaskTransition{
+                sustain_clear_time, 0, 0, sustain_clear_mask | (1u << 7)});
+        }
+    }
+    if (activate_star_power && star_power_at_sec) {
+        const double edge_time = std::clamp(*star_power_at_sec, start, end);
+        constexpr double kStarPowerHoldSeconds = 1.0 / 20.0;
+        transitions.push_back(
+            DiagnosticMaskTransition{edge_time, 4, 1u << 6, 0});
+        transitions.push_back(DiagnosticMaskTransition{
+            std::min(end, edge_time + kStarPowerHoldSeconds), 5, 0, 1u << 6});
+    }
+
+    std::stable_sort(
+        transitions.begin(), transitions.end(),
+        [](const DiagnosticMaskTransition& a,
+           const DiagnosticMaskTransition& b) {
+            if (a.time != b.time) return a.time < b.time;
+            return a.order < b.order;
+        });
+
+    auto append_event = [&](double time, uint32_t mask) {
+        time = std::max(0.0, time);
+        mask &= 0xffu;
+        if (!events.empty() &&
+            std::fabs(events.back().song_time - time) < 1.0e-7) {
+            events.back().mask = mask;
+            return;
+        }
+        if (!events.empty() && events.back().mask == mask) return;
+        events.push_back(DiagnosticInputEvent{time, mask});
+    };
+
+    uint32_t current_mask = initial_sustain_mask & 0x1fu;
+    if (current_mask != 0) append_event(start, current_mask);
+    for (const DiagnosticMaskTransition& transition : transitions) {
+        current_mask &= ~transition.clear_mask;
+        current_mask |= transition.set_mask;
+        append_event(transition.time, current_mask);
+    }
+    if (current_mask != 0) {
+        const double clear_time =
+            events.empty() ? end : std::min(chart_end, events.back().song_time + 0.05);
+        append_event(clear_time, 0);
+    }
+
+    std::fprintf(
+        stderr,
+        "[gameplay] diagnostic chart guitar script: window=%.3f..%.3f diff=%d "
+        "groups=%zu events=%zu initial=0x%02x hit_offset=%.4f "
+        "whammy_star_sustains=%d star_power_at=%.3f\n",
+        start, end, diff, groups.size(), events.size(),
+        initial_sustain_mask & 0x1fu, hit_offset_sec,
+        whammy_star_sustains ? 1 : 0,
+        star_power_at_sec ? *star_power_at_sec : -1.0);
+    return events;
+}
+
 bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
-                                              bool emit_presentation) {
+                                              bool emit_presentation,
+                                              bool session_already_ticked) {
     if (!gameplay_session_mirror_) return false;
-    gameplay_session_mirror_->tick(song_time_, fret_mask);
+    if (!session_already_ticked) {
+        gameplay_session_mirror_->tick(song_time_, fret_mask);
+    }
 
     bool bad_gameplay_feedback = false;
     auto mark_source_group_consumed = [&](const FoFiXSessionEvent& event) {
@@ -18312,6 +18844,20 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
         }
         return false;
     };
+    auto source_group_mask = [&](const FoFiXSessionEvent& event) {
+        const uint32_t fallback_mask = event.mask & 0x1fu;
+        if (event.source_index == static_cast<size_t>(-1) ||
+            event.source_tick == UINT32_MAX) {
+            return fallback_mask;
+        }
+        const auto& notes = chart_.notes[std::clamp(difficulty_, 0, 3)];
+        uint32_t mask = 0;
+        for (size_t i = event.source_index;
+             i < notes.size() && notes[i].tick_on == event.source_tick; ++i) {
+            mask |= 1u << std::clamp(notes[i].lane, 0, 4);
+        }
+        return mask != 0 ? mask : fallback_mask;
+    };
 
     for (const auto& event : gameplay_session_mirror_->last_events()) {
         const char* type = "hit";
@@ -18319,6 +18865,9 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
         case FoFiXSessionEventType::Hit: type = "hit"; break;
         case FoFiXSessionEventType::Miss: type = "miss"; break;
         case FoFiXSessionEventType::Overstrum: type = "overstrum"; break;
+        case FoFiXSessionEventType::HopoStrumIgnored:
+            type = "hopo_strum_ignored";
+            break;
         case FoFiXSessionEventType::Sustain: type = "sustain"; break;
         case FoFiXSessionEventType::StarPhraseComplete:
             type = "star_phrase_complete";
@@ -18328,6 +18877,9 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
             break;
         case FoFiXSessionEventType::StarPowerActivate:
             type = "star_power_activate";
+            break;
+        case FoFiXSessionEventType::StarPowerDeactivate:
+            type = "star_power_deactivate";
             break;
         case FoFiXSessionEventType::StarPowerWhammy:
             type = "star_power_whammy";
@@ -18371,17 +18923,34 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
         }
         case FoFiXSessionEventType::Miss:
             mark_source_group_consumed(event);
-            miss_flash_mask_ |= (event.mask & 0x1fu);
-            for (int lane = 0; lane < 5; ++lane) {
-                if ((event.mask & (1u << lane)) != 0) miss_flash_[lane] = 1.0f;
+            if (diagnostic_autoplay_) {
+                std::fprintf(stderr,
+                             "[gameplay] diagnostic autoplay suppressed miss presentation tick=%u mask=0x%02x\n",
+                             event.source_tick, event.mask & 0x1fu);
+                break;
             }
-            bad_gameplay_feedback = true;
-            std::fprintf(stderr,
-                         "[gameplay] miss tick=%u mask=0x%02x streak reset rock=%.2f\n",
-                         event.source_tick, event.mask & 0x1fu,
-                         event.rock_fill);
+            {
+                const bool star_miss = source_group_has_star_power(event);
+                miss_flash_mask_ |= (event.mask & 0x1fu);
+                for (int lane = 0; lane < 5; ++lane) {
+                    if ((event.mask & (1u << lane)) == 0) continue;
+                    miss_flash_[lane] = 1.0f;
+                    if (star_miss) star_miss_flash_[lane] = 1.0f;
+                }
+                bad_gameplay_feedback = true;
+                std::fprintf(stderr,
+                             "[gameplay] miss tick=%u mask=0x%02x star=%d streak reset rock=%.2f\n",
+                             event.source_tick, event.mask & 0x1fu,
+                             star_miss ? 1 : 0, event.rock_fill);
+            }
             break;
         case FoFiXSessionEventType::Overstrum:
+            if (diagnostic_autoplay_) {
+                std::fprintf(stderr,
+                             "[gameplay] diagnostic autoplay suppressed overstrum mask=0x%02x\n",
+                             event.mask & 0x1fu);
+                break;
+            }
             miss_flash_mask_ |= (event.mask & 0x1fu);
             for (int lane = 0; lane < 5; ++lane) {
                 if ((event.mask & (1u << lane)) != 0) miss_flash_[lane] = 1.0f;
@@ -18391,6 +18960,12 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                          "[gameplay] overstrum mask=0x%02x streak reset rock=%.2f\n",
                          event.mask & 0x1fu, event.rock_fill);
             break;
+        case FoFiXSessionEventType::HopoStrumIgnored:
+            std::fprintf(stderr,
+                         "[gameplay] HOPO strum ignored mask=0x%02x streak=%d rock=%.2f\n",
+                         event.mask & 0x1fu, event.streak,
+                         event.rock_fill);
+            break;
         case FoFiXSessionEventType::Sustain:
             std::fprintf(stderr,
                          "[gameplay] sustain end mask=0x%02x gems=%d pts=%d score=%d\n",
@@ -18398,19 +18973,40 @@ bool Gameplay::update_gameplay_session_mirror(uint32_t fret_mask,
                          event.score_delta, event.score);
             break;
         case FoFiXSessionEventType::StarPhraseComplete:
+            star_power_highway_flash_ = std::max(star_power_highway_flash_, 0.75f);
             std::fprintf(stderr,
                          "[gameplay] star phrase complete sp=%.2f\n",
                          event.star_power_fill);
             break;
-        case FoFiXSessionEventType::StarPhraseMiss:
-            std::fprintf(stderr, "[gameplay] star phrase missed\n");
+        case FoFiXSessionEventType::StarPhraseMiss: {
+            const uint32_t phrase_mask = source_group_mask(event);
+            if (!diagnostic_autoplay_ && phrase_mask != 0) {
+                miss_flash_mask_ |= phrase_mask;
+                for (int lane = 0; lane < 5; ++lane) {
+                    if ((phrase_mask & (1u << lane)) == 0) continue;
+                    miss_flash_[lane] = std::max(miss_flash_[lane], 0.75f);
+                    star_miss_flash_[lane] = 1.0f;
+                }
+                bad_gameplay_feedback = true;
+            }
+            std::fprintf(stderr,
+                         "[gameplay] star phrase missed tick=%u mask=0x%02x\n",
+                         event.source_tick, phrase_mask);
             break;
+        }
         case FoFiXSessionEventType::StarPowerActivate:
+            star_power_highway_flash_ = 1.0f;
             std::fprintf(stderr,
                          "[gameplay] star power activated sp=%.2f\n",
                          event.star_power_fill);
             break;
+        case FoFiXSessionEventType::StarPowerDeactivate:
+            std::fprintf(stderr,
+                         "[gameplay] star power ended sp=%.2f\n",
+                         event.star_power_fill);
+            break;
         case FoFiXSessionEventType::StarPowerWhammy:
+            star_power_highway_flash_ = std::max(star_power_highway_flash_, 0.35f);
             std::fprintf(stderr,
                          "[gameplay] star power whammy mask=0x%02x sp=%.2f\n",
                          event.mask & 0x1fu, event.star_power_fill);
@@ -18441,6 +19037,30 @@ void Gameplay::sync_consumed_notes_from_gameplay_session() {
     if (consumed.size() != notes.size()) consumed.assign(notes.size(), 0);
     gameplay_session_mirror_->copy_source_consumed(consumed);
     gameplay_session_mirror_->copy_active_sustains(active_session_sustains_);
+    if (debug_gameplay_session_enabled()) {
+        std::ostringstream signature;
+        for (const auto& sustain : active_session_sustains_) {
+            signature << (sustain.mask & 0x1fu) << '@' << sustain.source_tick
+                      << ':' << sustain.start_time << '-' << sustain.end_time
+                      << ':' << (sustain.star_power_tail ? 1 : 0) << ';';
+        }
+        const std::string current_signature = signature.str();
+        if (current_signature != gameplay_session_sustain_log_signature_) {
+            gameplay_session_sustain_log_signature_ = current_signature;
+            if (active_session_sustains_.empty()) {
+                std::fprintf(stderr, "[gameplay] active session sustains: none\n");
+            } else {
+                for (const auto& sustain : active_session_sustains_) {
+                    std::fprintf(stderr,
+                                 "[gameplay] active session sustain mask=0x%02x start=%.3f end=%.3f star=%d source=%zu tick=%u\n",
+                                 sustain.mask & 0x1fu, sustain.start_time,
+                                 sustain.end_time,
+                                 sustain.star_power_tail ? 1 : 0,
+                                 sustain.source_index, sustain.source_tick);
+                }
+            }
+        }
+    }
     next_note_idx_ = 0;
     while (next_note_idx_ < notes.size() &&
            next_note_idx_ < consumed.size() &&
@@ -18452,10 +19072,12 @@ void Gameplay::sync_consumed_notes_from_gameplay_session() {
 void Gameplay::tick(float dt, uint32_t fret_mask) {
     if (!chart_loaded_) return;
 
-    // On the first tick, start the audio.
-    const bool first_tick = (song_time_ == 0.0 && dt > 0.0f);
+    // On the first tick, start the audio. Diagnostic song-start can begin at a
+    // nonzero clock, so this must be explicit instead of keyed to song_time_.
+    const bool first_tick = (!song_started_ && dt > 0.0f);
     if (first_tick) {
         if (!deterministic_clock_) audio_.play();
+        song_started_ = true;
         std::fprintf(stderr, "[gameplay] song started\n");
     }
 
@@ -18484,17 +19106,31 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                      "[world] drummer cue: %s pitch=%d tick=%u t=%.3f\n",
                      cue.event.c_str(), cue.pitch, cue.tick, song_time_);
         apply_venue_event(cue.event, false);
+        std::vector<std::string> drum_sync_targets;
+        const char* drum_sync_route = drum_kit_ ? "no-target" : "no-kit";
+        bool drum_sync_authored = false;
+        bool drum_sync_fallback = false;
         if (drum_kit_) {
             auto trigger_drum_anim = [&](const char* mesh_name) {
                 auto it = drum_mesh_transform_anims_.find(mesh_name);
                 if (it == drum_mesh_transform_anims_.end()) return false;
                 drum_kit_->trigger_mesh_transform_anim(mesh_name, it->second,
                                                        30.0f);
+                drum_sync_targets.emplace_back(mesh_name);
+                drum_sync_authored = true;
                 return true;
+            };
+            auto trigger_drum_pulse = [&](const char* mesh_name,
+                                          float amplitude) {
+                drum_kit_->trigger_mesh_pulse(mesh_name, amplitude);
+                drum_sync_targets.emplace_back(mesh_name);
+                drum_sync_fallback = true;
+                drum_sync_route = "fallback-pulse";
             };
             bool handled = false;
             if (auto routed = drum_event_mesh_targets_.find(cue.event);
                 routed != drum_event_mesh_targets_.end()) {
+                drum_sync_route = "event-trigger";
                 for (const auto& mesh_name : routed->second) {
                     handled = trigger_drum_anim(mesh_name.c_str()) || handled;
                 }
@@ -18503,17 +19139,30 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                 // Routed through EventTrigger -> AnimFilter -> TransAnim.
             } else if (cue.event == "kick_drum") {
                 if (!trigger_drum_anim("kick.mesh"))
-                    drum_kit_->trigger_mesh_pulse("kick.mesh", 6.0f);
+                    trigger_drum_pulse("kick.mesh", 6.0f);
             } else if (cue.event == "hit_snare") {
                 if (!trigger_drum_anim("snare.mesh"))
-                    drum_kit_->trigger_mesh_pulse("snare.mesh", 5.0f);
+                    trigger_drum_pulse("snare.mesh", 5.0f);
             } else if (cue.event == "hit_hihat") {
                 if (!trigger_drum_anim("hat.mesh"))
-                    drum_kit_->trigger_mesh_pulse("hat.mesh", 4.0f);
+                    trigger_drum_pulse("hat.mesh", 4.0f);
             } else if (cue.event == "crash_symbal") {
                 if (!trigger_drum_anim("crash.mesh"))
-                    drum_kit_->trigger_mesh_pulse("crash.mesh", 5.0f);
+                    trigger_drum_pulse("crash.mesh", 5.0f);
             }
+        }
+        if (debug_drum_sync_enabled()) {
+            const std::string targets = join_log_names(drum_sync_targets);
+            std::fprintf(
+                stderr,
+                "[drum-sync] cue event=%s pitch=%d tick=%u t=%.3f kit=%d "
+                "route=%s authored=%d fallback=%d targets=%s "
+                "transforms=%zu routed_events=%zu\n",
+                cue.event.c_str(), cue.pitch, cue.tick, song_time_,
+                drum_kit_ ? 1 : 0, drum_sync_route,
+                drum_sync_authored ? 1 : 0, drum_sync_fallback ? 1 : 0,
+                targets.c_str(), drum_mesh_transform_anims_.size(),
+                drum_event_mesh_targets_.size());
         }
         ++next_drum_cue_idx_;
     }
@@ -18561,10 +19210,14 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         star_collect_flash_[i] =
             std::max(0.0f, star_collect_flash_[i] - dt * 4.5f);
         miss_flash_[i] = std::max(0.0f, miss_flash_[i] - dt * 3.4f);
+        star_miss_flash_[i] =
+            std::max(0.0f, star_miss_flash_[i] - dt * 3.4f);
     }
     bad_highway_flash_ = std::max(0.0f, bad_highway_flash_ - dt * 2.8f);
+    star_power_highway_flash_ =
+        std::max(0.0f, star_power_highway_flash_ - dt * 2.6f);
     multiplier_surface_flash_ =
-        std::max(0.0f, multiplier_surface_flash_ - dt * 4.0f);
+        std::max(0.0f, multiplier_surface_flash_ - dt * 2.0f);
 
     // Clear per-frame feedback.
     hit_flash_mask_  = 0;
@@ -18573,7 +19226,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     bool bad_gameplay_feedback_this_frame = false;
 
     auto update_presentation_after_gameplay = [&]() {
-        if (bad_gameplay_feedback_this_frame || miss_flash_mask_ != 0) {
+        if (!diagnostic_autoplay_ &&
+            (bad_gameplay_feedback_this_frame || miss_flash_mask_ != 0)) {
             bad_highway_flash_ = 1.0f;
             apply_venue_event("excitement_bad");
         } else if (streak_ >= 10) {
@@ -18617,12 +19271,20 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     const auto& notes = chart_.notes[difficulty_];
     auto& consumed = note_consumed_[difficulty_];
     if (consumed.size() != notes.size()) consumed.assign(notes.size(), 0);
+    bool gameplay_session_already_ticked = false;
     if (diagnostic_autoplay_) {
-        fret_mask = diagnostic_autoplay_fret_mask(notes);
+        if (gameplay_session_mirror_) {
+            fret_mask = gameplay_session_mirror_->tick_diagnostic_autoplay(
+                song_time_, true);
+            gameplay_session_already_ticked = true;
+        } else {
+            fret_mask = diagnostic_autoplay_fret_mask(notes);
+        }
     }
     if (gameplay_session_mirror_) {
         bad_gameplay_feedback_this_frame =
-            update_gameplay_session_mirror(fret_mask, true);
+            update_gameplay_session_mirror(
+                fret_mask, true, gameplay_session_already_ticked);
         update_presentation_after_gameplay();
         prev_fret_mask_ = fret_mask;
         print_score_summary();
@@ -18632,6 +19294,10 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     const bool strummed =
         ((fret_mask & (1u << 5)) != 0) &&
         ((prev_fret_mask_ & (1u << 5)) == 0);  // rising edge on strum bit
+    const uint32_t previous_held_frets = prev_fret_mask_ & 0x1fu;
+    const uint32_t held_frets = fret_mask & 0x1fu;
+    const uint32_t pressed_frets = held_frets & ~previous_held_frets;
+    const uint32_t released_frets = previous_held_frets & ~held_frets;
     bool note_hit_this_frame = false;
 
     auto note_group_end = [&](size_t start) {
@@ -18658,6 +19324,14 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         for (size_t j = start; j < end; ++j) {
             if (j < consumed.size() && consumed[j]) continue;
             if (notes[j].star_power) return true;
+        }
+        return false;
+    };
+
+    auto group_has_final_star = [&](size_t start, size_t end) {
+        for (size_t j = start; j < end; ++j) {
+            if (j < consumed.size() && consumed[j]) continue;
+            if (notes[j].final_star) return true;
         }
         return false;
     };
@@ -18772,6 +19446,9 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         if (gem_count <= 0) return;
         active_sustains_.clear();
         observe_star_phrase_group(start, end, true);
+        const bool completes_clean_star_phrase =
+            group_has_final_star(start, end) && star_phrase_active_ &&
+            !star_phrase_missed_;
 
         FoFiXScoreState state =
             gameplay_score_state(score_, streak_, multiplier_);
@@ -18804,6 +19481,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                      required_mask & 0x1fu, gem_count, award.points, streak_,
                      multiplier_, score_, fofix_rock_fill(rock_),
                      fofix_star_power_fill(star_power_));
+        if (completes_clean_star_phrase) finish_star_phrase();
     };
 
     auto skip_groups_before = [&](size_t target) {
@@ -18822,6 +19500,7 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
     };
 
     auto apply_overstrum = [&]() {
+        if (star_phrase_active_) star_phrase_missed_ = true;
         FoFiXScoreState state =
             gameplay_score_state(score_, streak_, multiplier_);
         fofix_apply_miss(state);
@@ -18858,6 +19537,8 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         const double note_sec = chart_.tick_to_sec(n.tick_on);
         const FoFiXHitWindow window = hit_window_at_tick(chart_, n.tick_on);
         if (fofix_note_missed(song_time_, note_sec, window)) {
+            const bool missed_star_group =
+                group_has_star_power(next_note_idx_, end);
             observe_star_phrase_group(next_note_idx_, end, false);
             bool missed = false;
             for (size_t j = next_note_idx_; j < end; ++j) {
@@ -18866,6 +19547,9 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                 if (!lane_hit_[note.lane]) {
                     miss_flash_mask_ |= (1u << note.lane);
                     miss_flash_[note.lane] = 1.0f;
+                    if (missed_star_group) {
+                        star_miss_flash_[note.lane] = 1.0f;
+                    }
                     bad_gameplay_feedback_this_frame = true;
                     missed = true;
                 }
@@ -18883,8 +19567,9 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
                 commit_rock_meter();
                 ++miss_count_;
                 std::fprintf(stderr,
-                             "[gameplay] miss tick=%u mask=0x%02x streak reset rock=%.2f\n",
+                             "[gameplay] miss tick=%u mask=0x%02x star=%d streak reset rock=%.2f\n",
                              n.tick_on, miss_flash_mask_ & 0x1fu,
+                             missed_star_group ? 1 : 0,
                              fofix_rock_fill(rock_));
             }
             next_note_idx_ = end;
@@ -18940,13 +19625,15 @@ void Gameplay::tick(float dt, uint32_t fret_mask) {
         const bool lane_pressed = (fret_mask >> n.lane) & 1;
         const bool is_hopo_candidate = (gem_count == 1) && n.is_hopo &&
                                        (streak_ > 0);
-        const uint32_t held_frets = fret_mask & 0x1fu;
 
         bool can_hit = false;
         if (is_hopo_candidate && lane_pressed) {
-            const bool was_pressed = (prev_fret_mask_ >> n.lane) & 1;
-            can_hit = lane_pressed && !was_pressed &&
-                      fofix_match_frets(held_frets, required_mask);
+            const uint32_t lane_bit = 1u << n.lane;
+            const bool fret_pressed = (pressed_frets & lane_bit) != 0;
+            const bool pull_off = released_frets != 0 && held_frets != 0;
+            if (fret_pressed || pull_off) {
+                can_hit = fofix_match_frets(held_frets, required_mask);
+            }
         }
         if (!can_hit && strummed &&
             fofix_match_frets(held_frets, required_mask)) {
@@ -19024,6 +19711,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_camera_target_worlds_ =
                     build_venue_camera_target_worlds(venue_scene);
                 venue_camera_hidden_meshes_.clear();
+                venue_camera_hide_crowd_ = false;
                 venue_camera_crowd_face_camera_ = false;
                 if (!venue_crowd_meshes_.empty()) {
                     std::fprintf(stderr,
@@ -19563,15 +20251,18 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                  char_milo.c_str());
                     return;
                 }
-                if (role == "guitarist0") {
-                    highway_surface_ref_ =
+                const bool performer_is_guitarist =
+                    starts_with(role, "guitarist");
+                std::string performer_highway_surface_ref;
+                if (performer_is_guitarist) {
+                    performer_highway_surface_ref =
                         ghogx::asset::resolve_track_surface_bitmap_path(
                             hdr_path_, ark_path_, char_milo, model_name);
                     std::fprintf(stderr,
-                                 "[highway] guitarist surface: character=%s "
+                                 "[highway] guitarist surface: role=%s character=%s "
                                  "surface=%s\n",
-                                 model_name.c_str(),
-                                 highway_surface_ref_.c_str());
+                                 role.c_str(), model_name.c_str(),
+                                 performer_highway_surface_ref.c_str());
                 }
                 const auto character_drivers = character.drivers;
                 const auto facefx_servos = character.lip_sync_servos;
@@ -19638,9 +20329,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 perf.role = std::move(role);
                 perf.character_name = std::move(character_name);
                 perf.event_track = performer_event_track_for_role(perf.role);
+                perf.track_surface_ref =
+                    std::move(performer_highway_surface_ref);
+                if (perf.role == "guitarist0" &&
+                    !perf.track_surface_ref.empty()) {
+                    highway_surface_ref_ = perf.track_surface_ref;
+                }
                 perf.renderer =
                     std::make_unique<ghogx::character::CharRenderer>(win);
                 perf.renderer->set_character(std::move(character), textures);
+                const bool scene_lighting =
+                    performer_scene_lighting_enabled();
+                perf.renderer->set_use_scene_lighting(scene_lighting);
+                std::fprintf(stderr,
+                             "[world] performer scene lighting: role=%s "
+                             "character=%s scene_lighting=%d\n",
+                             perf.role.c_str(), model_name.c_str(),
+                             scene_lighting ? 1 : 0);
                 perf.facefx_graph = std::move(facefx_graph);
 
                 const auto start =
@@ -20133,6 +20838,27 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                      "[world] drums loaded: %s pos=(%.1f %.1f %.1f)\n",
                                      drums_milo.c_str(), start->pos[0],
                                      start->pos[1], start->pos[2]);
+                        if (debug_drum_sync_enabled()) {
+                            std::fprintf(
+                                stderr,
+                                "[drum-sync] kit=loaded milo=%s "
+                                "transforms=%zu routed_events=%zu "
+                                "start=(%.1f %.1f %.1f)\n",
+                                drums_milo.c_str(),
+                                drum_mesh_transform_anims_.size(),
+                                drum_event_mesh_targets_.size(), start->pos[0],
+                                start->pos[1], start->pos[2]);
+                            for (const auto& [event, targets] :
+                                 drum_event_mesh_targets_) {
+                                const std::string target_list =
+                                    join_log_names(targets);
+                                std::fprintf(stderr,
+                                             "[drum-sync] route event=%s "
+                                             "targets=%s\n",
+                                             event.c_str(),
+                                             target_list.c_str());
+                            }
+                        }
                     }
                 }
             }
@@ -20145,6 +20871,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
         }
     }
 
+    const bool highway_whammy_active = (prev_fret_mask_ & (1u << 7)) != 0;
     if (world_) {
         const double dt = (last_anim_time_ < 0.0)
                               ? 0.0
@@ -20164,7 +20891,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
         if (drum_kit_) {
             drum_kit_->update(static_cast<float>(dt));
         }
-        update_worldcrowd_actor_runtime(static_cast<float>(dt));
         for (auto& perf : performers_) {
             if (!perf.renderer) continue;
             PerformerMidiState midi_state =
@@ -20611,6 +21337,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     guitar_strings_world ? &*guitar_strings_world : nullptr);
             }
             ghogx::character::clear_runtime_ik_weights(character);
+            float debug_left_ik_weight = 0.0f;
+            float debug_right_ik_weight = 0.0f;
             if (hand_driver_active) {
                 // Accepted GH2DXu/GHDX autoplay sampling keeps
                 // left.weight/right.weight at ~1.0 while the hand-driver
@@ -20633,6 +21361,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         env_float("GHOGX_RIGHT_WEIGHT", right_weight), 0.0f,
                         1.0f);
                 }
+                debug_left_ik_weight = left_weight;
+                debug_right_ik_weight = right_weight;
                 ghogx::character::set_runtime_ik_weight(
                     character, "left.weight", left_weight);
                 ghogx::character::set_runtime_ik_weight(
@@ -20649,6 +21379,62 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 ghogx::character::apply_ik_midi_fret_target(
                     character, perf_fret_pos.spot_name,
                     static_cast<float>(song_time_));
+            }
+            if (debug_performer_sync_enabled()) {
+                const float stride = std::max(
+                    0.0f, env_float("GHOGX_DEBUG_PERFORMER_SYNC_STRIDE", 0.25f));
+                if (song_time_ + 1e-5 >= perf.next_performer_sync_log_time) {
+                    perf.next_performer_sync_log_time =
+                        song_time_ + static_cast<double>(stride);
+                    auto print_names =
+                        [](const std::vector<std::string>& names) {
+                            if (names.empty()) {
+                                std::fprintf(stderr, "-");
+                                return;
+                            }
+                            for (size_t i = 0; i < names.size(); ++i) {
+                                std::fprintf(stderr, "%s%s", i == 0 ? "" : ",",
+                                             names[i].c_str());
+                            }
+                        };
+                    const auto* active_clip = perf.active_player.current_clip();
+                    const auto* strum_clip = perf.strum_player.current_clip();
+                    const auto* fret_clip = perf.fret_player.current_clip();
+                    std::fprintf(
+                        stderr,
+                        "[performer-sync] role=%s char=%s t=%.3f playing=%d "
+                        "intro=%d hand_driver=%d active_mode=%s active=%s "
+                        "strum_active=%d strum_clip=%s strum_names=",
+                        perf.role.c_str(), perf.character_name.c_str(),
+                        song_time_, performer_playing ? 1 : 0,
+                        intro_active ? 1 : 0, hand_driver_active ? 1 : 0,
+                        perf.active_clip_mode.empty()
+                            ? "-"
+                            : perf.active_clip_mode.c_str(),
+                        active_clip ? active_clip->name.c_str() : "-",
+                        perf.strum_player.active() ? 1 : 0,
+                        strum_clip ? strum_clip->name.c_str() : "-");
+                    print_names(perf.active_strum_clip_names);
+                    std::fprintf(stderr,
+                                 " fret_active=%d fret_clip=%s fret_names=",
+                                 perf.fret_player.active() ? 1 : 0,
+                                 fret_clip ? fret_clip->name.c_str() : "-");
+                    print_names(perf.active_fret_clip_names);
+                    std::fprintf(
+                        stderr,
+                        " fret_tick=%u fret_mask=0x%02x fretpos=%s "
+                        "left_ik=%.2f right_ik=%.2f band_jump=%d camera_lod=%d\n",
+                        perf_anim_note_cue.active ? perf_anim_note_cue.tick
+                                                  : UINT32_MAX,
+                        perf_anim_note_cue.active
+                            ? (perf_anim_note_cue.mask & 0x1fu)
+                            : 0u,
+                        perf_fret_pos.active ? perf_fret_pos.spot_name.c_str()
+                                             : "-",
+                        debug_left_ik_weight, debug_right_ik_weight,
+                        perf.band_jump_player.active() ? 1 : 0,
+                        active_force_char_lod_);
+                }
             }
             ghogx::character::FaceFxEyeProperties eye_props;
             ghogx::character::apply_character_controllers(
@@ -20831,6 +21617,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                            ev.text == "[crowd_lighters_fast]") {
                     const bool was_off = !crowd_lighter_on_;
                     crowd_lighter_on_ = true;
+                    active_worldcrowd_lighter_group_ =
+                        ev.text == "[crowd_lighters_slow]" ? "lighter_slow"
+                                                            : "lighter_fast";
                     if (!did_lighter_cam_ && was_off) {
                         did_lighter_cam_ = true;
                         cue_forced_camera = true;
@@ -20840,6 +21629,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 } else if (ev.text == "[crowd_lighters_off]") {
                     crowd_lighter_on_ = false;
+                    active_worldcrowd_lighter_group_.clear();
                     cue_forced_camera = true;
                     force_camera = true;
                     forced_camera_mode.reset();
@@ -20855,13 +21645,18 @@ void Gameplay::draw(ghogx::render::Window& win) {
 
                 std::fprintf(
                     stderr,
-                    "[world] camera script cue: text=%s tick=%u t=%.3f force=%d mode=%s bars=%d excitement=%u\n",
+                    "[world] camera script cue: text=%s tick=%u t=%.3f "
+                    "force=%d mode=%s bars=%d excitement=%u "
+                    "crowd_group=%s\n",
                     ev.text.c_str(), ev.tick, song_time_,
                     cue_forced_camera ? 1 : 0,
                     forced_camera_mode
                         ? camera_shot_mode_label(*forced_camera_mode)
                         : "regular",
-                    forced_camera_bars.value_or(0), excitement);
+                    forced_camera_bars.value_or(0), excitement,
+                    active_worldcrowd_lighter_group_.empty()
+                        ? "-"
+                        : active_worldcrowd_lighter_group_.c_str());
             }
 
             if (force_camera || camera_bars_left_ <= 0 ||
@@ -21077,8 +21872,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 cam.fov = env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_FOV", 0.55f);
             }
         }
-        apply_gameplay_backing_camera(world_.get(), camera_targets,
+        apply_gameplay_backing_camera(world_.get(), camera_targets, song_time_,
                                       !diagnostic_camera_shot_.empty());
+        update_worldcrowd_actor_runtime(static_cast<float>(dt));
         update_venue_proxy_objects();
         world_->draw();
         draw_venue_proxy_objects(world_->camera());
@@ -21339,16 +22135,27 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     }
                 }
             }
+            const bool late_lighting_overlay = late_lighting_overlay_enabled();
             update_lighting_spotlight_renderer();
             update_worldcrowd_actor_lighting();
             draw_worldcrowd_actor_runtime(world_->camera());
             worldcrowd_drawn = true;
-            lighting_->draw_over_scene(world_->camera());
+            if (!late_lighting_overlay) {
+                lighting_->draw_over_scene(world_->camera());
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] lighting overlay composite: order=before_band "
+                        "t=%.3f\n",
+                        song_time_);
+                }
+            }
         }
         if (!worldcrowd_drawn) {
             update_worldcrowd_actor_lighting();
             draw_worldcrowd_actor_runtime(world_->camera());
         }
+        update_performer_lighting();
         if (drum_kit_) {
             drum_kit_->draw_over_scene(world_->camera());
         }
@@ -21358,6 +22165,15 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (!perf.renderer) continue;
             perf.renderer->set_min_lod(active_force_char_lod_);
             perf.renderer->draw_over_scene(world_->camera());
+        }
+        if (lighting_ && late_lighting_overlay_enabled()) {
+            lighting_->draw_over_scene(world_->camera());
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(stderr,
+                             "[world] lighting overlay composite: order=after_band "
+                             "t=%.3f\n",
+                             song_time_);
+            }
         }
         if (!highway_) {
             highway_ = std::make_unique<HighwayRenderer>(win);
@@ -21370,10 +22186,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &note_consumed_[std::clamp(difficulty_, 0, 3)],
                                   &active_session_sustains_,
                                   star_power_.active,
+                                  highway_whammy_active,
                                   star_collect_flash_,
                                   miss_flash_,
+                                  star_miss_flash_,
                                   multiplier_,
-                                  failed_ ? 1.0f : bad_highway_flash_,
+                                  bad_highway_flash_,
+                                  fofix_rock_fill(rock_),
+                                  star_power_highway_flash_,
                                   multiplier_surface_flash_);
         return;
     }
@@ -21390,10 +22210,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                    &note_consumed_[std::clamp(difficulty_, 0, 3)],
                    &active_session_sustains_,
                    star_power_.active,
+                   highway_whammy_active,
                    star_collect_flash_,
                    miss_flash_,
+                   star_miss_flash_,
                    multiplier_,
-                   failed_ ? 1.0f : bad_highway_flash_,
+                   bad_highway_flash_,
+                   fofix_rock_fill(rock_),
+                   star_power_highway_flash_,
                    multiplier_surface_flash_);
 }
 

@@ -54,7 +54,7 @@ class HudRenderer {
     LayoutRect right_panel = {0.841000f, 0.775000f, 0.221000f, 0.416000f, -23.000000f, 0};
     LayoutRect rock_face = {0.514000f, 0.580000f, 0.900000f, 0.620000f, 0.000000f, -2};
     LayoutRect sp_bar = {0.506667f, -0.196677f, 1.046667f, 0.552323f, 0.000000f, 0};
-    LayoutRect rock_needle = {0.500000f, 0.883933f, 0.060444f, 0.072000f, 0.000000f, 0};
+    LayoutRect rock_needle = {0.500000f, 0.883933f, 0.055000f, 0.060000f, 0.000000f, 0};
     LayoutRect sp_back = {0.528259f, 0.474064f, 0.833603f, 0.537315f, 0.000000f, 0};
     LayoutRect sp_fill = {0.527681f, 0.474661f, 0.832446f, 0.093702f, 0.000000f, 0};
     LayoutRect sp_ready = {0.511480f, 0.471305f, 0.975406f, 0.942611f, 0.000000f, 0};
@@ -116,15 +116,20 @@ class HudRenderer {
     bool preserve_depth = false;
     uint8_t group = 0;
     uint8_t element = 255;
+    int sort_bias = 0;
   };
   struct Slot { float cx = 0, cz = 0, hw = 0, hh = 0; bool ok = false; };
+  struct ColorAnimKey {
+    float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float frame = 0.0f;
+  };
 
   // Helper: append an axis-aligned quad (in world X-Z) to a draw list.
   static void push_rect(std::vector<Quad>& out, float cx, float cz, float hw,
                         float hh, IDirect3DTexture9* tex, uint32_t color,
                         bool additive = false, float screen_left_depth = 0.0f,
                         float screen_right_depth = 0.0f, uint8_t group = 0,
-                        uint8_t element = 255);
+                        uint8_t element = 255, int sort_bias = 0);
 
   IDirect3DTexture9* tex(const std::string& name) const;
   void clear_loaded_resources();
@@ -141,7 +146,8 @@ class HudRenderer {
                    bool star_power_visual) const;
   void emit_multiplier(std::vector<Quad>& out, int multiplier,
                        bool star_power_visual) const;
-  void emit_star_power(std::vector<Quad>& out, float fill) const;
+  void emit_star_power(std::vector<Quad>& out, float fill,
+                       bool star_power_active) const;
   void emit_rock_meter(std::vector<Quad>& out, float fill) const;
 
   // Map a HUD-space (worldX, worldZ) point to back-buffer pixels.
@@ -169,7 +175,7 @@ class HudRenderer {
   Quad native_streak_pips_[10];
   bool native_streak_pips_ok_[10] = {};
   Slot mult_slot_;        // multiplier indicator fallback center/extent
-  Slot mult_digit_slot_[2];// native score_mult_2/3 slots: [0]=X, [1]=digit
+  Slot mult_digit_slot_[2];  // native multiplier slots: [0]=X, [1]=digit
   Quad native_mult_digit_[2];
   bool native_mult_digit_ok_[2] = {};
   Slot sp_bar_;           // star-power fill bar extent (vertical)
@@ -178,6 +184,10 @@ class HudRenderer {
   Slot left_parent_slot_;
   Slot right_parent_slot_;
   float rock_needle_len_ = 0;
+  std::vector<ColorAnimKey> rock_label_color_keys_;
+  std::vector<ColorAnimKey> rock_label_front_color_keys_;
+  float rock_label_anim_duration_ = 100.0f;
+  float rock_label_front_anim_duration_ = 100.0f;
 
   Quad native_rock_face_;
   Quad native_rock_frame_;

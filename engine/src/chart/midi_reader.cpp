@@ -205,8 +205,8 @@ void parse_track(const uint8_t* data, size_t start, size_t end,
                     {abs_tick, pitch, static_cast<int>(p2)});
             }
 
-            // Star power: MIDI note 116.
-            if (pitch == 116) {
+            // GH2 PS2 star power phrases are authored as guitar-track note 103.
+            if (pitch == 103) {
                 if (is_on) {
                     active_sp_tick = abs_tick;
                     active_sp = true;
@@ -633,10 +633,89 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                   });
 
         const uint32_t hopo_thresh = kFoFiXGh2HopoCutoffTicks;
+        auto assign_hopo_tappable_classes = [&](std::vector<Note>& notes) {
+            struct Group {
+                size_t start = 0;
+                size_t end = 0;
+                uint32_t tick = 0;
+                int lane = -1;
+                int top_lane = -1;
+                bool single = false;
+            };
+
+            auto mark_group = [&](const Group& group, int tappable_class) {
+                for (size_t i = group.start; i < group.end; ++i) {
+                    notes[i].hopo_tappable = tappable_class;
+                }
+            };
+
+            auto finalize_run = [&](std::vector<Group>& run) {
+                if (run.size() < 2) {
+                    run.clear();
+                    return;
+                }
+                mark_group(run.front(), 1);
+                for (size_t i = 1; i + 1 < run.size(); ++i) {
+                    mark_group(run[i], 2);
+                }
+                mark_group(run.back(), 3);
+                run.clear();
+            };
+
+            for (Note& note : notes) {
+                note.hopo_tappable = 0;
+                note.is_hopo = false;
+            }
+
+            std::vector<Group> run;
+            Group previous;
+            bool have_previous = false;
+            for (size_t group_start = 0; group_start < notes.size();) {
+                size_t group_end = group_start + 1;
+                while (group_end < notes.size() &&
+                       notes[group_end].tick_on == notes[group_start].tick_on) {
+                    ++group_end;
+                }
+                Group current;
+                current.start = group_start;
+                current.end = group_end;
+                current.tick = notes[group_start].tick_on;
+                current.single = (group_end - group_start) == 1;
+                current.lane = current.single ? notes[group_start].lane : -1;
+                current.top_lane = notes[group_end - 1].lane;
+
+                bool extends_run = false;
+                if (have_previous && current.single &&
+                    current.tick > previous.tick) {
+                    const uint32_t gap = current.tick - previous.tick;
+                    if (gap <= hopo_thresh) {
+                        if (previous.single) {
+                            extends_run = current.lane != previous.lane;
+                        } else {
+                            extends_run = current.lane != previous.top_lane;
+                        }
+                    }
+                }
+
+                if (extends_run) {
+                    if (run.empty()) run.push_back(previous);
+                    run.push_back(current);
+                } else {
+                    finalize_run(run);
+                }
+
+                previous = current;
+                have_previous = true;
+                group_start = group_end;
+            }
+            finalize_run(run);
+
+            for (Note& note : notes) {
+                note.is_hopo = note.hopo_tappable >= 2;
+            }
+        };
+
         for (int d = 0; d < 4; ++d) {
-            uint32_t prev_tick_on = 0;
-            int prev_lane = -1;
-            bool first = true;
             for (const auto& rn : sorted_notes) {
                 if (rn.diff != d) continue;
                 Note n;
@@ -645,13 +724,8 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                 n.lane = rn.lane;
                 n.is_hopo = false;
                 n.star_power = false;
-
-                if (!first && rn.lane != prev_lane) {
-                    const uint32_t gap = (rn.tick_on >= prev_tick_on)
-                                             ? (rn.tick_on - prev_tick_on)
-                                             : 0;
-                    n.is_hopo = (gap <= hopo_thresh && gap > 0);
-                }
+                n.hopo_tappable = 0;
+                n.final_star = false;
 
                 for (const auto& sp : sorted_sp) {
                     if (sp.tick_off <= rn.tick_on) continue;
@@ -661,9 +735,29 @@ Chart parse_midi(const std::vector<uint8_t>& bytes) {
                 }
 
                 dst[d].push_back(n);
-                prev_tick_on = rn.tick_on;
-                prev_lane = rn.lane;
-                first = false;
+            }
+            assign_hopo_tappable_classes(dst[d]);
+            for (const auto& sp : sorted_sp) {
+                uint32_t final_tick = 0;
+                bool have_final_tick = false;
+                for (const auto& note : dst[d]) {
+                    if (note.tick_on >= sp.tick_off) break;
+                    if (sp.tick_on >= note.tick_off) continue;
+                    if (!have_final_tick || note.tick_on > final_tick) {
+                        final_tick = note.tick_on;
+                        have_final_tick = true;
+                    }
+                }
+                if (!have_final_tick) continue;
+                for (auto& note : dst[d]) {
+                    if (note.tick_on > final_tick) break;
+                    if (note.tick_on != final_tick) continue;
+                    if (sp.tick_off <= note.tick_on ||
+                        sp.tick_on >= note.tick_off) {
+                        continue;
+                    }
+                    note.final_star = true;
+                }
             }
         }
     };

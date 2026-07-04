@@ -315,6 +315,40 @@ TransObj decode_trans(const std::string& entry_name,
   return t;
 }
 
+GroupObj decode_group(const std::string& entry_name,
+                      const std::vector<uint8_t>& body) {
+  GroupObj group;
+  group.name = entry_name;
+  group.children = group_child_refs(body, &group.environment_ref);
+
+  // GH2 PS2 Group/View entries embed a Trans block after the Draw header:
+  //   0x19: Trans version (=9)
+  //   0x1d: local matrix
+  //   0x4d: stored world matrix
+  //   0x7d: 9 bytes of Trans metadata
+  //   0x86: parent string
+  // The children list follows later and is still found by group_child_refs().
+  try {
+    constexpr size_t kTransVersionAt = 0x19;
+    constexpr size_t kLocalAt = kTransVersionAt + 4;
+    constexpr size_t kWorldAt = kLocalAt + 48;
+    constexpr size_t kParentAt = kWorldAt + 48 + kObjMeta;
+    if (body.size() >= kParentAt + 4 &&
+        read_u32_at(body, kTransVersionAt) == 9) {
+      group.local = read_matrix_at(body, kLocalAt);
+      group.world_stored = read_matrix_at(body, kWorldAt);
+      size_t parent_at = kParentAt;
+      group.parent = read_string_at(body, parent_at);
+      group.has_transform = true;
+    }
+  } catch (const std::exception&) {
+    group.has_transform = false;
+    group.parent.clear();
+  }
+
+  return group;
+}
+
 CamObj decode_cam(const std::string& entry_name,
                   const std::vector<uint8_t>& body) {
   CamObj c;
@@ -1009,9 +1043,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         } else if (de.type == "Environ") {
           out.environs.push_back(decode_environ(de.name, b));
         } else if (de.type == "Group") {
-          GroupObj group;
-          group.name = de.name;
-          group.children = group_child_refs(b, &group.environment_ref);
+          GroupObj group = decode_group(de.name, b);
           for (auto& child : group.children) {
             if (ordered_meshes.insert(child).second)
               out.draw_order.push_back(child);

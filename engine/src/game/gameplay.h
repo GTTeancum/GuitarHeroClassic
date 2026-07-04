@@ -121,6 +121,10 @@ class Gameplay {
     std::string anim_tempo;
     std::vector<std::string> band;
   };
+  struct DiagnosticInputEvent {
+    double song_time = 0.0;
+    uint32_t mask = 0;
+  };
   struct CameraKey {
     struct TargetRef {
       std::string entity;
@@ -467,6 +471,7 @@ class Gameplay {
 
   // Draw the highway for this frame. Creates the HighwayRenderer on first call.
   void draw(ghogx::render::Window& win);
+  void stop_audio();
 
   bool is_loaded()   const { return chart_loaded_; }
   // Song is finished when the audio clock passes the chart duration.
@@ -478,6 +483,9 @@ class Gameplay {
   void set_diagnostic_autoplay(bool enabled) {
     diagnostic_autoplay_ = enabled;
     diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
+  }
+  void set_diagnostic_character_override(const std::string& character) {
+    diagnostic_character_override_ = character;
   }
   // Diagnostic venue breadth helper: keeps song/band data from songs.dtb, but
   // routes world/lighting/characters/drums through another authored venue.
@@ -494,12 +502,25 @@ class Gameplay {
   void set_diagnostic_camera_path_offset_frames(double frames) {
     diagnostic_camera_path_offset_frames_ = frames;
   }
+  void set_diagnostic_rock_fill(double fill);
+  void set_diagnostic_star_power_fill(double fill);
+  void set_diagnostic_star_power_active(bool active);
   // Diagnostic capture helper: jump the deterministic song clock to a known
   // authored window without replaying all earlier note/cue events.
   void seek_for_diagnostic_capture(double seconds);
+  std::vector<DiagnosticInputEvent> build_diagnostic_guitar_script_from_chart(
+      double start_sec,
+      double end_sec,
+      bool activate_star_power = true,
+      double hit_offset_sec = -(1.0 / 120.0),
+      bool whammy_star_sustains = false,
+      std::optional<double> star_power_at_sec = std::nullopt) const;
   int    score()     const { return score_; }
   int    streak()    const { return streak_; }
   int    multiplier()const { return multiplier_; }
+  int    hit_count() const { return hit_count_; }
+  int    miss_count() const { return miss_count_; }
+  int    overstrum_count() const { return overstrum_count_; }
   bool   star_power_active() const { return star_power_.active; }
   float  star_power_fill() const;
   float  rock_fill() const;
@@ -526,7 +547,8 @@ class Gameplay {
   bool apply_lighting_event_visibility(const std::string& event_name,
                                        bool log);
   bool update_gameplay_session_mirror(uint32_t fret_mask,
-                                      bool emit_presentation);
+                                      bool emit_presentation,
+                                      bool session_already_ticked = false);
   void sync_consumed_notes_from_gameplay_session();
   std::unordered_set<std::string> composed_lighting_hidden_meshes() const;
   std::map<std::string, float> composed_lighting_material_alpha() const;
@@ -583,6 +605,9 @@ class Gameplay {
   void update_worldcrowd_actor_lighting(
       const LightingPreset* preset = nullptr,
       const LightingPreset::Keyframe* keyframe = nullptr);
+  void update_performer_lighting(
+      const LightingPreset* preset = nullptr,
+      const LightingPreset::Keyframe* keyframe = nullptr);
   void draw_worldcrowd_actor_runtime(
       const ghogx::render::OrbitCamera& cam);
 
@@ -596,6 +621,7 @@ class Gameplay {
 
   AudioPlayer audio_;
   bool deterministic_clock_ = false;
+  bool song_started_ = false;
   std::unique_ptr<HighwayRenderer> highway_;
   std::unique_ptr<ghogx::render::MiloSceneRenderer> world_;
   std::unique_ptr<ghogx::render::MiloSceneRenderer> lighting_;
@@ -605,6 +631,7 @@ class Gameplay {
     std::string role;
     std::string character_name;
     std::string event_track;
+    std::string track_surface_ref;
     std::unique_ptr<ghogx::character::CharRenderer> renderer;
     ghogx::character::CharClip idle_clip;
     ghogx::character::CharClip intro_clip;
@@ -651,6 +678,7 @@ class Gameplay {
     uint32_t last_anim_note_tick = UINT32_MAX;
     size_t strum_hand_scheduler_child_index = 0;
     size_t fret_hand_scheduler_child_index = 0;
+    double next_performer_sync_log_time = 0.0;
     std::vector<std::string> active_strum_clip_names;
     std::vector<std::string> active_fret_clip_names;
     std::array<float, 16> world_transform = {1.0f, 0.0f, 0.0f, 0.0f,
@@ -659,6 +687,7 @@ class Gameplay {
                                              0.0f, 0.0f, 0.0f, 1.0f};
   };
   std::vector<Performer> performers_;
+  std::string last_performer_lighting_key_;
 
   std::optional<QuickplayRig> quickplay_rig_;
   std::string highway_surface_ref_;
@@ -684,6 +713,7 @@ class Gameplay {
   int active_force_char_lod_ = -1;
   bool did_lighter_cam_ = false;
   bool crowd_lighter_on_ = false;
+  std::string active_worldcrowd_lighter_group_;
   bool intro_end_dispatched_ = false;
   bool should_resend_excitement_ = false;
   std::vector<LightingPreset> lighting_presets_;
@@ -839,9 +869,11 @@ class Gameplay {
   std::map<std::string, WorldCrowdActorRuntime> worldcrowd_actor_runtime_;
   size_t worldcrowd_actor_runtime_placements_ = 0;
   std::string last_worldcrowd_actor_lighting_key_;
+  double next_worldcrowd_actor_draw_log_time_ = 0.0;
   double last_worldcrowd_actor_source_sample_time_ = -1.0;
   double last_worldcrowd_actor_source_probe_log_time_ = -1.0;
   std::unordered_set<std::string> venue_camera_hidden_meshes_;
+  bool venue_camera_hide_crowd_ = false;
   bool venue_camera_crowd_face_camera_ = false;
   std::string active_venue_event_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformAnim>
@@ -883,6 +915,7 @@ class Gameplay {
   std::optional<FoFiXGameplaySession> gameplay_session_mirror_;
   std::vector<FoFiXSessionSustain> active_session_sustains_;
   double gameplay_session_mirror_last_log_time_ = -1.0;
+  std::string gameplay_session_sustain_log_signature_;
   bool     failed_         = false;
   bool     star_phrase_active_ = false;
   bool     star_phrase_missed_ = false;
@@ -896,17 +929,23 @@ class Gameplay {
   float lane_flash_[5] = {};
   float star_collect_flash_[5] = {};
   float miss_flash_[5] = {};
+  float star_miss_flash_[5] = {};
   float bad_highway_flash_ = 0.0f;
+  float star_power_highway_flash_ = 0.0f;
   float multiplier_surface_flash_ = 0.0f;
 
   // Previous-frame fret mask for edge detection.
   uint32_t prev_fret_mask_  = 0;
   bool diagnostic_autoplay_ = false;
   uint32_t diagnostic_autoplay_last_note_tick_ = UINT32_MAX;
+  std::string diagnostic_character_override_;
   std::string diagnostic_venue_override_;
   std::string diagnostic_venue_event_;
   std::string diagnostic_camera_shot_;
   double diagnostic_camera_path_offset_frames_ = 0.0;
+  std::optional<double> diagnostic_rock_fill_;
+  std::optional<double> diagnostic_star_power_fill_;
+  bool diagnostic_star_power_active_ = false;
   bool diagnostic_venue_event_applied_ = false;
 
   // Per-lane: has this lane's gem been hit this pass (so we don't double-hit)?

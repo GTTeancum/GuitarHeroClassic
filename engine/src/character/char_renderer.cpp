@@ -1463,19 +1463,50 @@ std::optional<std::array<float, 16>> CharRenderer::attached_prop_world(
     return false;
   };
 
+  std::optional<std::string> matched_object;
+  const char* matched_kind = nullptr;
   for (const auto& mesh : impl.prop_scene.meshes) {
     if (!mesh.decoded || !matches(mesh.name)) continue;
-    const auto attach_world =
-        prop_attach_world(impl.character, impl.prop_attach_bone);
-    const auto prop_anchor_world =
-        scene_object_world(impl.prop_scene, impl.prop_attach_bone);
-    const auto prop_to_attach =
-        mul16(affine_inverse(prop_anchor_world), attach_world);
-    auto world = mul16(impl.prop_scene.world_matrix(mesh), prop_to_attach);
-    world = mul16(world, impl.world_transform);
-    return world;
+    matched_object = mesh.name;
+    matched_kind = "mesh";
+    break;
   }
-  return std::nullopt;
+  if (!matched_object) {
+    for (const auto& trans : impl.prop_scene.transes) {
+      if (!matches(trans.name)) continue;
+      matched_object = trans.name;
+      matched_kind = "trans";
+      break;
+    }
+  }
+  if (!matched_object) return std::nullopt;
+
+  if (debug_prop_enabled()) {
+    static std::set<std::string> logged_prop_targets;
+    const std::string requested(object_name);
+    const std::string log_key = impl.prop_scene.dir_name + "|" + requested +
+                                "|" + *matched_object;
+    if (logged_prop_targets.size() < 128 &&
+        logged_prop_targets.insert(log_key).second) {
+      std::fprintf(stderr,
+                   "[char3d] prop camera target '%s' resolved as %s '%s' "
+                   "attach=%s prop=%s\n",
+                   requested.c_str(), matched_kind ? matched_kind : "object",
+                   matched_object->c_str(), impl.prop_attach_bone.c_str(),
+                   impl.prop_scene.dir_name.c_str());
+    }
+  }
+
+  const auto attach_world =
+      prop_attach_world(impl.character, impl.prop_attach_bone);
+  const auto prop_anchor_world =
+      scene_object_world(impl.prop_scene, impl.prop_attach_bone);
+  const auto prop_to_attach =
+      mul16(affine_inverse(prop_anchor_world), attach_world);
+  auto world = mul16(scene_object_world(impl.prop_scene, *matched_object),
+                     prop_to_attach);
+  world = mul16(world, impl.world_transform);
+  return world;
 }
 
 IDirect3DTexture9* CharRenderer::upload(const ghogx::asset::Image& img) {
@@ -2239,6 +2270,10 @@ void CharRenderer::draw_impl(bool clear_target) {
       }
     }
     D3DMATRIX wm;
+    auto color_byte = [](float f) -> int {
+      int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
+      return i < 0 ? 0 : (i > 255 ? 255 : i);
+    };
     for (const auto& m : impl.prop_scene.meshes) {
       if (!m.decoded || m.vertex_count == 0 || m.face_count == 0) continue;
       if (is_shadow(m.name)) continue;
@@ -2282,11 +2317,10 @@ void CharRenderer::draw_impl(bool clear_target) {
         SVtx s;
         s.x = v.px; s.y = v.py; s.z = v.pz;
         s.nx = v.nx; s.ny = v.ny; s.nz = v.nz;
-        const auto cc = [](float f) -> int {
-          int i = static_cast<int>(f * 255.0f + 0.5f);
-          return i < 0 ? 0 : (i > 255 ? 255 : i);
-        };
-        s.color = D3DCOLOR_ARGB(255, cc(v.r), cc(v.g), cc(v.b));
+        s.color = D3DCOLOR_ARGB(
+            color_byte(impl.color_mod[3]), color_byte(v.r * impl.color_mod[0]),
+            color_byte(v.g * impl.color_mod[1]),
+            color_byte(v.b * impl.color_mod[2]));
         s.u = v.u; s.v = v.v;
         vb.push_back(s);
       }

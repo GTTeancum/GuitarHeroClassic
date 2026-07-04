@@ -60,11 +60,15 @@ void fofix_apply_rock_miss(FoFiXRockState& state,
 void fofix_apply_rock_overstrum(FoFiXRockState& state,
                                 double power_multiplier = 1.0);
 
+void fofix_set_rock_fill(FoFiXRockState& state, double fill);
+
 double fofix_rock_fill(const FoFiXRockState& state);
 
 bool fofix_rock_failed(const FoFiXRockState& state);
 
 void fofix_award_star_phrase(FoFiXStarPowerState& state);
+
+void fofix_set_star_power_fill(FoFiXStarPowerState& state, double fill);
 
 bool fofix_activate_star_power(FoFiXStarPowerState& state);
 

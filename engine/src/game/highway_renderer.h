@@ -40,7 +40,47 @@ class HighwayRenderer {
     float r = 1.0f;
     float g = 1.0f;
     float b = 1.0f;
+    float a = 1.0f;
     bool ok = false;
+  };
+  struct ColorAnimKey {
+    float r = 1.0f;
+    float g = 1.0f;
+    float b = 1.0f;
+    float a = 1.0f;
+    float frame = 0.0f;
+  };
+  struct ColorAnimState {
+    std::vector<ColorAnimKey> keys;
+    bool has_rgb = false;
+    bool has_alpha = false;
+    bool ok = false;
+  };
+  struct QuatAnimKey {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float w = 1.0f;
+    float frame = 0.0f;
+  };
+  struct Vec3AnimKey {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float frame = 0.0f;
+  };
+  struct MeshTransformAnim {
+    std::vector<Vec3AnimKey> translation_keys;
+    std::vector<QuatAnimKey> rotation_keys;
+    std::vector<Vec3AnimKey> scale_keys;
+  };
+  struct MeshTransformSample {
+    bool has_translation = false;
+    std::array<float, 3> translation = {0.0f, 0.0f, 0.0f};
+    bool has_rotation = false;
+    std::array<float, 4> rotation_xyzw = {0.0f, 0.0f, 0.0f, 1.0f};
+    bool has_scale = false;
+    std::array<float, 3> scale = {1.0f, 1.0f, 1.0f};
   };
 
   // Load the GH2 track texture set natively from track/gen/track.milo_ps2.
@@ -66,22 +106,30 @@ class HighwayRenderer {
             const std::vector<uint8_t>* consumed_notes = nullptr,
             const std::vector<FoFiXSessionSustain>* active_sustains = nullptr,
             bool star_power_active = false,
+            bool whammy_active = false,
             const float star_collect_flash[5] = nullptr,
-            const float miss_flash[5] = nullptr,
-            int combo_multiplier = 1,
-            float bad_feedback_flash = 0.0f,
-            float surface_flash = 0.0f);
+             const float miss_flash[5] = nullptr,
+             const float star_miss_flash[5] = nullptr,
+             int combo_multiplier = 1,
+             float bad_feedback_flash = 0.0f,
+             float rock_fill = 1.0f,
+             float star_power_flash = 0.0f,
+             float surface_flash = 0.0f);
   void draw_over_scene(double song_time, const ghogx::chart::Chart& chart,
                        int difficulty, uint32_t fret_held_mask,
                        const float hit_flash[5], float lookahead_sec = 1.5f,
                        const std::vector<uint8_t>* consumed_notes = nullptr,
                        const std::vector<FoFiXSessionSustain>* active_sustains = nullptr,
                        bool star_power_active = false,
+                       bool whammy_active = false,
                        const float star_collect_flash[5] = nullptr,
-                       const float miss_flash[5] = nullptr,
-                       int combo_multiplier = 1,
-                       float bad_feedback_flash = 0.0f,
-                       float surface_flash = 0.0f);
+                        const float miss_flash[5] = nullptr,
+                        const float star_miss_flash[5] = nullptr,
+                        int combo_multiplier = 1,
+                        float bad_feedback_flash = 0.0f,
+                        float rock_fill = 1.0f,
+                        float star_power_flash = 0.0f,
+                        float surface_flash = 0.0f);
 
  private:
   struct MeshVertex {
@@ -97,8 +145,15 @@ class HighwayRenderer {
     float max_x = 0.0f;
     float min_y = 0.0f;
     float max_y = 0.0f;
+    float min_z = 0.0f;
+    float max_z = 0.0f;
+    float min_u = 0.0f;
+    float max_u = 0.0f;
+    float min_v = 0.0f;
+    float max_v = 0.0f;
     float center_x = 0.0f;
     float center_y = 0.0f;
+    uint8_t blend = 0;
     bool ok = false;
   };
 
@@ -109,61 +164,157 @@ class HighwayRenderer {
                  const std::vector<uint8_t>* consumed_notes,
                  const std::vector<FoFiXSessionSustain>* active_sustains,
                   bool star_power_active,
+                  bool whammy_active,
                   const float star_collect_flash[5],
-                  const float miss_flash[5],
-                  int combo_multiplier,
-                  float bad_feedback_flash,
-                  float surface_flash);
+                   const float miss_flash[5],
+                   const float star_miss_flash[5],
+                   int combo_multiplier,
+                   float bad_feedback_flash,
+                   float rock_fill,
+                   float star_power_flash,
+                   float surface_flash);
+  void draw_debug_note_counter_overlay(double song_time,
+                                       const ghogx::chart::Chart& chart,
+                                       int difficulty) const;
   void release_textures();
   IDirect3DTexture9* tex(const std::string& name) const;
   void draw_runtime_mesh(const RuntimeMesh& mesh, float cx, float cy,
                          uint32_t tint, float scale = 1.0f,
-                         bool use_texture_alpha = true) const;
+                         bool use_texture_alpha = true,
+                         float z_offset = 0.0f,
+                         bool clip_to_z_min = false,
+                         float z_min = 0.0f) const;
   void draw_runtime_mesh_with_texture(const RuntimeMesh& mesh,
                                       const std::string& texture_name,
                                       float cx, float cy, uint32_t tint,
                                       float scale = 1.0f,
-                                      bool use_texture_alpha = true) const;
+                                      bool use_texture_alpha = true,
+                                      float z_offset = 0.0f,
+                                      bool clip_to_z_min = false,
+                                      float z_min = 0.0f) const;
   void draw_runtime_mesh_scaled_with_texture(
       const RuntimeMesh& mesh, const std::string& texture_name, float cx,
       float cy, uint32_t tint, float scale_x, float scale_y, float scale_z,
-      bool use_texture_alpha = true) const;
+      bool use_texture_alpha = true, float uv_u_offset = 0.0f,
+      float uv_v_offset = 0.0f, bool use_vertex_color = true,
+      float z_offset = 0.0f, bool clip_to_z_min = false,
+      float z_min = 0.0f) const;
   void draw_centered_runtime_mesh(const RuntimeMesh& mesh, float cx, float cy,
                                   uint32_t tint, float scale = 1.0f,
-                                  bool use_texture_alpha = true) const;
+                                  bool use_texture_alpha = true,
+                                  float z_offset = 0.0f,
+                                  bool clip_to_z_min = false,
+                                  float z_min = 0.0f) const;
+  void draw_authored_runtime_mesh(const RuntimeMesh& mesh, float origin_x,
+                                  float origin_y, uint32_t tint,
+                                  float scale = 1.0f,
+                                  bool use_texture_alpha = true,
+                                  float z_offset = 0.0f,
+                                  bool clip_to_z_min = false,
+                                  float z_min = 0.0f,
+                                  bool use_vertex_color = true) const;
+  void draw_authored_runtime_mesh_scaled(
+      const RuntimeMesh& mesh, float origin_x, float origin_y, uint32_t tint,
+      float scale_x, float scale_y, float scale_z = 1.0f,
+      bool use_texture_alpha = true, float z_offset = 0.0f,
+      bool clip_to_z_min = false, float z_min = 0.0f,
+      bool use_vertex_color = true) const;
   void draw_centered_runtime_mesh_scaled(const RuntimeMesh& mesh, float cx,
                                          float cy, uint32_t tint,
                                          float scale_x, float scale_y,
                                          float scale_z = 1.0f,
-                                         bool use_texture_alpha = true) const;
+                                         bool use_texture_alpha = true,
+                                         float z_offset = 0.0f,
+                                         bool clip_to_z_min = false,
+                                         float z_min = 0.0f) const;
+  void draw_centered_runtime_mesh_rotated(
+      const RuntimeMesh& mesh, float cx, float cy, uint32_t tint,
+      const std::array<float, 4>& quat_xyzw, float scale = 1.0f,
+      bool use_texture_alpha = true, float z_offset = 0.0f) const;
+  void draw_authored_runtime_mesh_rotated(
+      const RuntimeMesh& mesh, float origin_x, float origin_y, uint32_t tint,
+      const std::array<float, 4>& quat_xyzw, float scale = 1.0f,
+      bool use_texture_alpha = true, float z_offset = 0.0f) const;
+  void draw_authored_runtime_mesh_transformed(
+      const RuntimeMesh& mesh, float origin_x, float origin_y, uint32_t tint,
+      const MeshTransformSample& transform,
+      bool use_texture_alpha = true, float z_offset = 0.0f,
+      bool use_vertex_color = true) const;
+  void draw_centered_runtime_mesh_transformed(
+      const RuntimeMesh& mesh, float cx, float cy, uint32_t tint,
+      const MeshTransformSample& transform,
+      bool use_texture_alpha = true, float z_offset = 0.0f,
+      bool use_vertex_color = true) const;
   void draw_centered_runtime_mesh_with_texture(
       const RuntimeMesh& mesh, const std::string& texture_name, float cx,
       float cy, uint32_t tint, float scale = 1.0f,
-      bool use_texture_alpha = true) const;
+      bool use_texture_alpha = true, float z_offset = 0.0f,
+      bool clip_to_z_min = false, float z_min = 0.0f) const;
+  void load_track_graphics_config(const std::string& hdr_path,
+                                  const std::string& ark_path);
 
   ghogx::render::Window* win_;
   IDirect3DDevice9* dev_ = nullptr;
   std::map<std::string, IDirect3DTexture9*> textures_;
+  float lane_spacing_ = 4.0f;
+  float board_half_x_ = 10.0f;
+  float top_y_ = 110.0f;
+  float remove_y_ = -15.0f;
+  float alpha_dist_ = 40.0f;
+  float y_per_second_ = 80.0f;
+  float tail_glow_width_ = 1.5f;
+  float tail_glow_tight_width_ = 0.7f;
+  float horizon_tail_clip_ = 7.0f;
+  float nowbar_tail_clip_ = 1.5f;
+  float cam_near_ = 50.0f;
+  float cam_far_ = 200.0f;
+  std::array<std::string, 5> slot_color_names_ = {
+      "green", "red", "yellow", "blue", "orange"};
+  std::array<uint32_t, 5> slot_lane_colors_ = {
+      0xe13ce646u, 0xe1eb3c32u, 0xe1f0d228u, 0xe13c96ebu, 0xe1f58c1eu};
+  std::array<float, 4> track_speed_ = {1.0f, 1.0f, 1.4f, 1.4f};
   std::array<RuntimeMesh, 5> gem_mesh_;
+  std::array<RuntimeMesh, 5> gem_specular_mesh_;
   std::array<RuntimeMesh, 5> hopo_mesh_;
   std::array<RuntimeMesh, 5> star_mesh_;
   std::array<RuntimeMesh, 5> star_top_mesh_;
   std::array<RuntimeMesh, 5> tail_mesh_;
+  std::array<RuntimeMesh, 5> held_tail_mesh_;
+  RuntimeMesh held_tight_tail_mesh_;
+  RuntimeMesh burn_castlight_mesh_;
   RuntimeMesh star_base_mesh_;
+  RuntimeMesh star_overlay_mesh_;
+  RuntimeMesh star_black_top_mesh_;
+  MeshTransformAnim star_note_anim_;
+  float star_note_anim_duration_frames_ = 0.0f;
+  std::vector<QuatAnimKey> star_note_rotation_keys_;
+  float star_note_rotation_duration_frames_ = 0.0f;
+  std::vector<QuatAnimKey> star_base_rotation_keys_;
+  float star_base_rotation_duration_frames_ = 0.0f;
+  RuntimeMesh gem_top_mesh_;
   RuntimeMesh gem_glow_mesh_;
-  RuntimeMesh held_tail_mesh_;
+  RuntimeMesh star_phrase_tail_mesh_;
   RuntimeMesh star_tail_mesh_;
   RuntimeMesh bonus_tail_mesh_;
   RuntimeMesh bonus_gem_mesh_;
   RuntimeMesh bonus_gem_overlay_mesh_;
   RuntimeMesh gem_sparkle_mesh_;
+  bool moving_note_standard_has_top_ = true;
+  bool moving_note_standard_has_glow_ = false;
+  bool moving_note_star_has_base_ = true;
+  bool moving_note_star_has_lane_ = true;
+  bool moving_note_star_has_overlay_ = true;
+  bool moving_note_star_has_top_ = true;
+  bool moving_note_star_prefers_black_top_ = true;
+  MeshTransformAnim gem_sparkle_anim_;
+  float gem_sparkle_anim_duration_frames_ = 0.0f;
   RuntimeMesh bonus_spark1_mesh_;
   RuntimeMesh bonus_spark2_mesh_;
   RuntimeMesh track_surface_mesh_;
   RuntimeMesh track_mask_mesh_;
-  SideRailColorState surface_flash_2x_;
-  SideRailColorState surface_flash_3x_;
-  SideRailColorState surface_flash_4x_;
+  ColorAnimState surface_flash_2x_;
+  ColorAnimState surface_flash_3x_;
+  ColorAnimState surface_flash_4x_;
   RuntimeMesh track_side_rails_mesh_;
   SideRailColorState side_rails_none_;
   SideRailColorState side_rails_warning_;
@@ -177,18 +328,37 @@ class HighwayRenderer {
   RuntimeMesh quarter_beat_line_mesh_;
   RuntimeMesh gem_smasher_mesh_;
   RuntimeMesh smasher_rim_mesh_;
+  std::array<RuntimeMesh, 5> smasher_rim_meshes_;
+  RuntimeMesh bonus_smasher_rim_mesh_;
   RuntimeMesh smasher_shadow_mesh_;
   RuntimeMesh hit_flame_mesh_;
   RuntimeMesh star_collect_flame_mesh_;
   RuntimeMesh bonus_hit_flame_mesh_;
+  MeshTransformAnim hit_flame_anim_;
+  MeshTransformAnim star_collect_flame_anim_;
+  MeshTransformAnim bonus_hit_flame_anim_;
+  float hit_flame_anim_duration_frames_ = 0.0f;
+  float star_collect_flame_anim_duration_frames_ = 0.0f;
+  float bonus_hit_flame_anim_duration_frames_ = 0.0f;
+  ColorAnimState hit_flame_color_anim_;
+  ColorAnimState star_collect_flame_color_anim_;
+  ColorAnimState bonus_hit_flame_color_anim_;
   RuntimeMesh miss_mesh_;
   RuntimeMesh miss_top_mesh_;
+  RuntimeMesh star_miss_mesh_;
+  RuntimeMesh star_miss_top_mesh_;
   std::array<RuntimeMesh, 3> combo_lightning_mesh_;
+  std::array<MeshTransformAnim, 3> combo_lightning_anim_;
+  std::array<float, 3> combo_lightning_anim_duration_frames_ = {};
+  std::array<ColorAnimState, 3> combo_lightning_color_anim_;
   std::vector<RuntimeMesh> track_explode_meshes_;
+  std::string smasher_normal_texture_name_;
   std::array<std::string, 5> smasher_texture_names_;
   std::array<std::string, 5> smasher_add_texture_names_;
+  std::array<std::string, 5> smasher_ring_texture_names_;
   std::string bonus_smasher_texture_name_;
   std::string bonus_smasher_add_texture_name_;
+  std::string bonus_smasher_ring_texture_name_;
   std::string loaded_surface_ref_;
   bool selected_surface_loaded_ = false;
   bool loaded_ = false;

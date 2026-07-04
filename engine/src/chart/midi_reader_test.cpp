@@ -136,6 +136,14 @@ static void push_chunk(std::vector<uint8_t>& out, const char* tag,
 //   tick 641: Green (72)  on/off at 802  — gap=161 from start (no prev note) → not HOPO
 //   tick 811: Red   (73)  on/off at 963  — gap=170 → within FoFiX/GH2 cutoff → HOPO
 //
+// Hard (pitch 84-88):
+//   tick 1200: Green+Yellow chord starts a FoFiX after-chord tappable run.
+//   tick 1320: Red is valid after the chord because it is not the chord top note.
+//   tick 1440: Blue ends that tappable run.
+//   tick 1800: Green+Yellow chord followed by Yellow repeats the top note, so no HOPO.
+//   tick 2100: Red followed by a chord verifies chords are not accidentally playable HOPOs.
+//   tick 2500: Red followed by Red verifies same-fret repeats stay strummed.
+//
 // Track 2 "TRIGGERS":
 //   lighting_parser cue notes for next/prev/first keyframe.
 //   effect_parser pitch 52 for world venue_effect.
@@ -159,9 +167,9 @@ static std::vector<uint8_t> build_test_smf() {
     t1.meta_name("PART GUITAR");
 
     // Events in ascending tick order:
-    // tick 0: SP on (116), Expert Green on (96), Easy Green on (60),
+    // tick 0: SP on (103), Expert Green on (96), Easy Green on (60),
     // and a player*_fret_pos cue (40 -> spot_neck_fret01).
-    t1.note_on(0,   116);  // star power on
+    t1.note_on(0,   103);  // star power on
     t1.note_on(0,   96);   // Expert Green on
     t1.note_on(0,   60);   // Easy Green on
     t1.note_on(0,   40);   // fret-position animation spot 1
@@ -183,13 +191,41 @@ static std::vector<uint8_t> build_test_smf() {
     // tick 480: Expert Orange off.
     t1.note_off(480, 100);
     // tick 481: SP off (so Orange at 360 is inside [0,481)).
-    t1.note_off(481, 116); // star power off
+    t1.note_off(481, 103); // star power off
     // Medium notes (second note is exactly on the FoFiX/GH2 cutoff):
     t1.note_on (641, 72);  // Medium Green on
     t1.note_off(802, 72);  // Medium Green off
     t1.note_on (811, 73);  // Medium Red on
     t1.note_on (900, 59);  // fret-position animation spot 20
     t1.note_off(963, 73);  // Medium Red off
+    // Hard after-chord valid run: G+Y chord -> R -> B.
+    t1.note_on (1200, 84);  // Hard Green chord gem on
+    t1.note_on (1200, 86);  // Hard Yellow chord gem on
+    t1.note_off(1280, 84);
+    t1.note_off(1280, 86);
+    t1.note_on (1320, 85);  // Hard Red valid after-chord HOPO
+    t1.note_off(1400, 85);
+    t1.note_on (1440, 87);  // Hard Blue tappable run end
+    t1.note_off(1520, 87);
+    // Hard after-chord top-note repeat is not a HOPO.
+    t1.note_on (1800, 84);
+    t1.note_on (1800, 86);
+    t1.note_off(1860, 84);
+    t1.note_off(1860, 86);
+    t1.note_on (1920, 86);  // Repeats chord top lane Yellow.
+    t1.note_off(2000, 86);
+    // Hard single -> chord should not mark the chord playable as a HOPO.
+    t1.note_on (2100, 85);
+    t1.note_off(2160, 85);
+    t1.note_on (2220, 84);
+    t1.note_on (2220, 87);
+    t1.note_off(2300, 84);
+    t1.note_off(2300, 87);
+    // Hard same-fret repeat stays strummed.
+    t1.note_on (2500, 85);
+    t1.note_off(2560, 85);
+    t1.note_on (2620, 85);
+    t1.note_off(2680, 85);
     t1.meta_eot();
 
     // Track 2: lighting trigger notes.
@@ -276,22 +312,80 @@ int main() {
         CHECK(n.tick_on  == 0,   "Easy[0]: tick_on = 0");
         CHECK(n.tick_off == 121, "Easy[0]: tick_off = 121");
         CHECK(!n.is_hopo,        "Easy[0]: first note not HOPO");
+        CHECK(n.hopo_tappable == 0, "Easy[0]: no FoFiX tappable class");
         CHECK(n.star_power,      "Easy[0]: inside SP region [0,481)");
+        CHECK(n.final_star,      "Easy[0]: single-note phrase is final star");
     }
 
     // --- Medium: 2 notes, second is HOPO (gap=170 <= FoFiX/GH2 cutoff 170) ---
     CHECK(chart.notes[1].size() == 2, "Medium: 2 notes");
     if (chart.notes[1].size() >= 2) {
         CHECK(!chart.notes[1][0].is_hopo, "Medium[0]: not HOPO (first note)");
+        CHECK(chart.notes[1][0].hopo_tappable == 1,
+              "Medium[0]: FoFiX tappable starter class");
         CHECK(chart.notes[1][1].tick_on == 811, "Medium[1]: tick_on = 811");
         CHECK(chart.notes[1][1].is_hopo, "Medium[1]: HOPO (gap 170 <= 170)");
+        CHECK(chart.notes[1][1].hopo_tappable == 3,
+              "Medium[1]: FoFiX tappable end class");
         // Tick 641 is after SP end (481) -> not star power.
         CHECK(!chart.notes[1][0].star_power, "Medium[0]: not SP");
         CHECK(!chart.notes[1][1].star_power, "Medium[1]: not SP");
+        CHECK(!chart.notes[1][0].final_star &&
+              !chart.notes[1][1].final_star,
+              "Medium notes outside SP are not final stars");
     }
 
-    // --- Hard: 0 notes ---
-    CHECK(chart.notes[2].empty(), "Hard: 0 notes");
+    // --- Hard: FoFiX grouped HOPO edge cases ---
+    CHECK(chart.notes[2].size() == 12, "Hard: 12 notes");
+    if (chart.notes[2].size() == 12) {
+        const auto& h = chart.notes[2];
+
+        CHECK(h[0].lane == 0 && h[0].tick_on == 1200,
+              "Hard[0]: Green chord gem @1200");
+        CHECK(!h[0].is_hopo && h[0].hopo_tappable == 1,
+              "Hard[0]: after-chord starter class, not playable HOPO");
+        CHECK(h[1].lane == 2 && h[1].tick_on == 1200,
+              "Hard[1]: Yellow chord top gem @1200");
+        CHECK(!h[1].is_hopo && h[1].hopo_tappable == 1,
+              "Hard[1]: all chord gems get FoFiX after-chord starter class");
+        CHECK(h[2].lane == 1 && h[2].tick_on == 1320,
+              "Hard[2]: Red valid after-chord single");
+        CHECK(h[2].is_hopo && h[2].hopo_tappable == 2,
+              "Hard[2]: after-chord single is tappable run middle");
+        CHECK(h[3].lane == 3 && h[3].tick_on == 1440,
+              "Hard[3]: Blue closes after-chord run");
+        CHECK(h[3].is_hopo && h[3].hopo_tappable == 3,
+              "Hard[3]: after-chord run terminal class");
+
+        CHECK(h[4].lane == 0 && h[4].tick_on == 1800,
+              "Hard[4]: invalid-repeat chord green");
+        CHECK(h[5].lane == 2 && h[5].tick_on == 1800,
+              "Hard[5]: invalid-repeat chord yellow");
+        CHECK(!h[4].is_hopo && h[4].hopo_tappable == 0 &&
+              !h[5].is_hopo && h[5].hopo_tappable == 0,
+              "Hard[4-5]: chord without a valid following single stays strummed");
+        CHECK(h[6].lane == 2 && h[6].tick_on == 1920,
+              "Hard[6]: Yellow repeats prior chord top lane");
+        CHECK(!h[6].is_hopo && h[6].hopo_tappable == 0,
+              "Hard[6]: top-lane repeat after chord is not tappable");
+
+        CHECK(h[7].lane == 1 && h[7].tick_on == 2100,
+              "Hard[7]: Red before chord");
+        CHECK(h[8].lane == 0 && h[8].tick_on == 2220 &&
+              h[9].lane == 3 && h[9].tick_on == 2220,
+              "Hard[8-9]: Green+Blue chord after a single");
+        CHECK(!h[7].is_hopo && h[7].hopo_tappable == 0 &&
+              !h[8].is_hopo && h[8].hopo_tappable == 0 &&
+              !h[9].is_hopo && h[9].hopo_tappable == 0,
+              "Hard[7-9]: single-to-chord does not create playable chord HOPOs");
+
+        CHECK(h[10].lane == 1 && h[10].tick_on == 2500 &&
+              h[11].lane == 1 && h[11].tick_on == 2620,
+              "Hard[10-11]: same-fret Red repeat pair");
+        CHECK(!h[10].is_hopo && h[10].hopo_tappable == 0 &&
+              !h[11].is_hopo && h[11].hopo_tappable == 0,
+              "Hard[10-11]: same-fret repeats stay strummed");
+    }
 
     // --- Expert: 5 notes ---
     CHECK(chart.notes[3].size() == 5, "Expert: 5 notes");
@@ -300,28 +394,38 @@ int main() {
 
         CHECK(e[0].lane == 0 && e[0].tick_on == 0,   "Expert[0]: Green@0");
         CHECK(!e[0].is_hopo,                          "Expert[0]: not HOPO (first)");
+        CHECK(e[0].hopo_tappable == 1,                "Expert[0]: tappable run starter");
         CHECK(e[0].star_power,                        "Expert[0]: SP");
+        CHECK(!e[0].final_star,                       "Expert[0]: not final SP note");
 
         CHECK(e[1].lane == 1 && e[1].tick_on == 120,  "Expert[1]: Red@120");
         CHECK(e[1].is_hopo,                            "Expert[1]: HOPO (gap 120<=170)");
+        CHECK(e[1].hopo_tappable == 2,                 "Expert[1]: tappable run middle");
         CHECK(e[1].star_power,                         "Expert[1]: SP");
+        CHECK(!e[1].final_star,                        "Expert[1]: not final SP note");
 
         CHECK(e[2].lane == 2 && e[2].tick_on == 240,  "Expert[2]: Yellow@240");
         CHECK(e[2].is_hopo,                            "Expert[2]: HOPO (gap 120<=170)");
+        CHECK(e[2].hopo_tappable == 2,                 "Expert[2]: tappable run middle");
         CHECK(e[2].star_power,                         "Expert[2]: SP");
+        CHECK(!e[2].final_star,                        "Expert[2]: not final SP note");
 
         CHECK(e[3].lane == 3 && e[3].tick_on == 244,  "Expert[3]: Blue@244");
         CHECK(e[3].is_hopo,                            "Expert[3]: HOPO (gap 4<=170)");
+        CHECK(e[3].hopo_tappable == 2,                 "Expert[3]: tappable run middle");
         CHECK(e[3].star_power,                         "Expert[3]: SP");
+        CHECK(!e[3].final_star,                        "Expert[3]: not final SP note");
 
         CHECK(e[4].lane == 4 && e[4].tick_on == 360,  "Expert[4]: Orange@360");
         CHECK(e[4].is_hopo,                            "Expert[4]: HOPO (gap 116<=170)");
+        CHECK(e[4].hopo_tappable == 3,                 "Expert[4]: tappable run end");
         CHECK(e[4].star_power,                         "Expert[4]: SP (tick 360 < 481)");
+        CHECK(e[4].final_star,                         "Expert[4]: final SP note");
     }
 
-    // --- Duration: last note off at tick 963 ---
-    // 963 ticks @ 120 BPM, 480 tpb -> 963/480 * 0.5 s = 1.003125 s
-    const double expected_dur = 963.0 / 480.0 * 0.5;
+    // --- Duration: last note off at tick 2680 ---
+    // 2680 ticks @ 120 BPM, 480 tpb -> 2680/480 * 0.5 s
+    const double expected_dur = 2680.0 / 480.0 * 0.5;
     const double dur = chart.duration_sec();
     CHECK(std::abs(dur - expected_dur) < 1e-4, "duration = last note-off time");
 

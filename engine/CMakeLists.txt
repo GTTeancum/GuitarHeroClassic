@@ -74,7 +74,7 @@ add_executable(ghogx
 )
 # milo_tex now lives in ghogx_asset (shared with the app); link it for the
 # tex-from-milo subcommand.
-target_link_libraries(ghogx PRIVATE ghogx_asset ghogx_milo_bridge ghogx_milo_scene ark_v3 dtb ps2_texture vgs milo)
+target_link_libraries(ghogx PRIVATE ghogx_asset ghogx_milo_bridge ghogx_milo_scene ghogx_chart ark_v3 dtb ps2_texture vgs milo)
 target_include_directories(ghogx PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 if(MSVC)
     target_compile_options(ghogx PRIVATE /W4)

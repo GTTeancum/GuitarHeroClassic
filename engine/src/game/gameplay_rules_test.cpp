@@ -93,6 +93,10 @@ int main() {
   }
   CHECK(fofix_star_power_fill(star) == 1.0,
         "star power is capped at a full meter");
+  fofix_set_star_power_fill(star, 0.5);
+  CHECK(!star.active && fofix_star_power_fill(star) == 0.5,
+        "diagnostic star power fill seeds meter without forcing activation");
+  fofix_set_star_power_fill(star, 1.0);
   CHECK(fofix_activate_star_power(star), "can activate at or above half meter");
   CHECK(fofix_star_power_score_multiplier(star) == 2,
         "active star power doubles scoring");

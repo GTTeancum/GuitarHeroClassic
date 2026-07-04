@@ -21,12 +21,14 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -106,6 +108,29 @@ constexpr uint8_t kElemRockFrame = 16;
 constexpr uint8_t kElemRockLights = 17;
 constexpr uint8_t kElemRockLabel = 18;
 
+bool env_enabled(const char* name) {
+#ifdef _WIN32
+  char* value = nullptr;
+  size_t value_len = 0;
+  if (_dupenv_s(&value, &value_len, name) != 0 || !value) return false;
+  const bool enabled =
+      value[0] != '\0' && std::strcmp(value, "0") != 0 &&
+      std::strcmp(value, "false") != 0 &&
+      std::strcmp(value, "FALSE") != 0 &&
+      std::strcmp(value, "off") != 0 &&
+      std::strcmp(value, "OFF") != 0;
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv(name);
+  return value && value[0] != '\0' && std::strcmp(value, "0") != 0 &&
+         std::strcmp(value, "false") != 0 &&
+         std::strcmp(value, "FALSE") != 0 &&
+         std::strcmp(value, "off") != 0 &&
+         std::strcmp(value, "OFF") != 0;
+#endif
+}
+
 float left_hud_depth_at(float wx) {
   if (kFlatHudAlignmentPass) return 0.0f;
   const float t = std::clamp((wx - kLeftHudWorldMin) /
@@ -124,6 +149,117 @@ float right_hud_depth_at(float wx) {
 
 uint32_t argb(int a, int r, int g, int b) {
   return (uint32_t(a) << 24) | (uint32_t(r) << 16) | (uint32_t(g) << 8) | uint32_t(b);
+}
+
+float clamp_hud_mat_color(float value) {
+  if (!std::isfinite(value)) return 1.0f;
+  return std::clamp(value, 0.0f, 1.0f);
+}
+
+int color_byte(float value) {
+  return static_cast<int>(clamp_hud_mat_color(value) * 255.0f + 0.5f);
+}
+
+struct HudMatAnimColorKey {
+  float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  float frame = 0.0f;
+};
+
+struct HudMatAnimColorCurve {
+  std::string material;
+  std::vector<HudMatAnimColorKey> keys;
+  float duration_frames = 0.0f;
+};
+
+bool read_u32_advance(const uint8_t* body, size_t size, size_t& pos,
+                      uint32_t& out) {
+  if (pos + 4 > size) return false;
+  std::memcpy(&out, body + pos, sizeof(out));
+  pos += 4;
+  return true;
+}
+
+bool read_f32_advance(const uint8_t* body, size_t size, size_t& pos,
+                      float& out) {
+  if (pos + 4 > size) return false;
+  std::memcpy(&out, body + pos, sizeof(out));
+  pos += 4;
+  return std::isfinite(out);
+}
+
+std::optional<std::string> read_milo_string_advance(const uint8_t* body,
+                                                    size_t size,
+                                                    size_t& pos) {
+  uint32_t len = 0;
+  if (!read_u32_advance(body, size, pos, len) || len == 0 || len > 128 ||
+      pos + len > size) {
+    return std::nullopt;
+  }
+  std::string out(reinterpret_cast<const char*>(body + pos), len);
+  pos += len;
+  return out;
+}
+
+std::optional<HudMatAnimColorCurve> decode_mat_anim_color_curve(
+    const std::string& entry_name, const uint8_t* body, size_t size) {
+  if (size < 48) return std::nullopt;
+  uint32_t version = 0;
+  std::memcpy(&version, body, sizeof(version));
+  if (version != 7) return std::nullopt;
+
+  size_t pos = 25;
+  auto material = read_milo_string_advance(body, size, pos);
+  auto anim_name = read_milo_string_advance(body, size, pos);
+  if (!material || !anim_name || *anim_name != entry_name) return std::nullopt;
+
+  uint32_t color_count = 0;
+  if (!read_u32_advance(body, size, pos, color_count) || color_count > 256) {
+    return std::nullopt;
+  }
+  HudMatAnimColorCurve curve;
+  curve.material = *material;
+  curve.keys.reserve(color_count);
+  for (uint32_t i = 0; i < color_count; ++i) {
+    HudMatAnimColorKey key;
+    if (!read_f32_advance(body, size, pos, key.color[0]) ||
+        !read_f32_advance(body, size, pos, key.color[1]) ||
+        !read_f32_advance(body, size, pos, key.color[2]) ||
+        !read_f32_advance(body, size, pos, key.color[3]) ||
+        !read_f32_advance(body, size, pos, key.frame)) {
+      return std::nullopt;
+    }
+    for (float& c : key.color) c = clamp_hud_mat_color(c);
+    if (!std::isfinite(key.frame)) key.frame = 0.0f;
+    curve.duration_frames = std::max(curve.duration_frames, key.frame);
+    curve.keys.push_back(key);
+  }
+  if (curve.keys.empty()) return std::nullopt;
+  return curve;
+}
+
+template <typename ColorKey>
+uint32_t sample_hud_mat_anim_color(const std::vector<ColorKey>& keys,
+                                   float duration_frames, float fill) {
+  if (keys.empty()) return 0xFFFFFFFF;
+  const float frame =
+      std::clamp(fill, 0.0f, 1.0f) * std::max(1.0f, duration_frames);
+  const auto* a = &keys.front();
+  const auto* b = &keys.back();
+  for (size_t i = 1; i < keys.size(); ++i) {
+    if (frame <= keys[i].frame) {
+      a = &keys[i - 1];
+      b = &keys[i];
+      break;
+    }
+  }
+  const float span = b->frame - a->frame;
+  const float t =
+      span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+  float c[4] = {};
+  for (int i = 0; i < 4; ++i)
+    c[i] = clamp_hud_mat_color(a->color[i] + (b->color[i] - a->color[i]) * t);
+  return argb(color_byte(c[3]), color_byte(c[0]), color_byte(c[1]),
+              color_byte(c[2]));
 }
 
 std::string first_ref_with_suffix(const std::vector<uint8_t>& body,
@@ -259,6 +395,7 @@ struct MiloLayout {
   std::unordered_map<std::string, uint32_t> mat_color;   // material -> ARGB tint
   std::unordered_map<std::string, MatUvXfm> mat_uv;      // material -> diffuse UV xform
   std::unordered_map<std::string, std::string> mat_ref;  // material -> referenced material
+  std::unordered_map<std::string, HudMatAnimColorCurve> mat_anim_color;
   bool ok = false;
 };
 
@@ -325,6 +462,10 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         };
         out.mat_color[de.name] =
             argb(c(mat.color[3]), c(mat.color[0]), c(mat.color[1]), c(mat.color[2]));
+      } else if (de.type == "MatAnim") {
+        if (auto curve = decode_mat_anim_color_curve(de.name, b, n)) {
+          out.mat_anim_color[de.name] = std::move(*curve);
+        }
       }
     }
     for (LoadedMesh& mesh : out.meshes) {
@@ -717,6 +858,13 @@ bool uses_edge_black_matte(const std::string& name) {
          name == "amp_chrome_base.tex";
 }
 
+bool uses_luminance_alpha(const std::string& name) {
+  return name == "hud_2x.tex" ||
+         name == "hud_4x.tex" ||
+         name == "hud_2x_star.tex" ||
+         name == "hud_4x_star.tex";
+}
+
 bool matte_pixel(const uint8_t* p) {
   return p[3] > 0 && p[0] <= 10 && p[1] <= 10 && p[2] <= 10;
 }
@@ -760,8 +908,30 @@ std::vector<uint8_t> edge_matte_alpha(const ghogx::asset::Image& img) {
 IDirect3DTexture9* upload(IDirect3DDevice9* dev, const std::string& name,
                           const ghogx::asset::Image& img) {
   if (!img.valid()) return nullptr;
+  const bool luminance_alpha = uses_luminance_alpha(name);
+  if (luminance_alpha && env_enabled("GHOGX_DEBUG_HUD_MULTIPLIER")) {
+    int nonblack = 0;
+    int nonzero_alpha = 0;
+    int max_rgb = 0;
+    for (int y = 0; y < img.height; ++y) {
+      const uint8_t* src = img.rgba.data() + size_t(y) * img.width * 4;
+      for (int x = 0; x < img.width; ++x) {
+        const int rgb = std::max({src[x*4+0], src[x*4+1], src[x*4+2]});
+        max_rgb = std::max(max_rgb, rgb);
+        if (rgb > 10) ++nonblack;
+        if (src[x*4+3] > 10) ++nonzero_alpha;
+      }
+    }
+    std::fprintf(stderr,
+                 "[hud-multiplier] upload %s %dx%d nonblack=%d alpha=%d "
+                 "max_rgb=%d\n",
+                 name.c_str(), img.width, img.height, nonblack,
+                 nonzero_alpha, max_rgb);
+  }
   const std::vector<uint8_t> matte_alpha =
-      uses_edge_black_matte(name) ? edge_matte_alpha(img) : std::vector<uint8_t>{};
+      !luminance_alpha && uses_edge_black_matte(name)
+          ? edge_matte_alpha(img)
+          : std::vector<uint8_t>{};
   IDirect3DTexture9* t = nullptr;
   if (FAILED(dev->CreateTexture((UINT)img.width, (UINT)img.height, 1, 0,
                                 D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &t, nullptr)))
@@ -772,12 +942,18 @@ IDirect3DTexture9* upload(IDirect3DDevice9* dev, const std::string& name,
       auto* dst = static_cast<uint8_t*>(lr.pBits) + y * lr.Pitch;
       const uint8_t* src = img.rgba.data() + size_t(y) * img.width * 4;
       for (int x = 0; x < img.width; ++x) {
-        dst[x*4+0] = src[x*4+2]; dst[x*4+1] = src[x*4+1];
-        dst[x*4+2] = src[x*4+0];
+        const uint8_t mask =
+            luminance_alpha
+                ? static_cast<uint8_t>(std::max({src[x*4+0], src[x*4+1],
+                                                 src[x*4+2]}))
+                : src[x*4+3];
+        dst[x*4+0] = luminance_alpha ? 255 : src[x*4+2];
+        dst[x*4+1] = luminance_alpha ? 255 : src[x*4+1];
+        dst[x*4+2] = luminance_alpha ? 255 : src[x*4+0];
         const size_t idx = static_cast<size_t>(y) * img.width + x;
         dst[x*4+3] = matte_alpha.empty()
-            ? src[x*4+3]
-            : static_cast<uint8_t>((static_cast<int>(src[x*4+3]) *
+            ? mask
+            : static_cast<uint8_t>((static_cast<int>(mask) *
                                     static_cast<int>(matte_alpha[idx])) / 255);
       }
     }
@@ -868,6 +1044,34 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       layout_tuning_file_ = default_tuning;
       load_layout_tuning_file(layout_tuning_file_);
     }
+  }
+  auto copy_color_keys = [&](const char* anim_name,
+                             std::vector<ColorAnimKey>& dst,
+                             float& duration_frames) {
+    dst.clear();
+    duration_frames = 100.0f;
+    const auto it = crowd.mat_anim_color.find(anim_name);
+    if (it == crowd.mat_anim_color.end()) return;
+    duration_frames = std::max(1.0f, it->second.duration_frames);
+    dst.reserve(it->second.keys.size());
+    for (const HudMatAnimColorKey& src : it->second.keys) {
+      ColorAnimKey key;
+      for (int i = 0; i < 4; ++i) key.color[i] = src.color[i];
+      key.frame = src.frame;
+      dst.push_back(key);
+    }
+  };
+  copy_color_keys("rock_light.manim", rock_label_color_keys_,
+                  rock_label_anim_duration_);
+  copy_color_keys("rock_light_front.manim", rock_label_front_color_keys_,
+                  rock_label_front_anim_duration_);
+  if (env_enabled("GHOGX_DEBUG_HUD_ROCK_METER")) {
+    std::fprintf(stderr,
+                 "[hud-rock] MatAnim curves: rock_light=%zu/%0.1f "
+                 "rock_light_front=%zu/%0.1f\n",
+                 rock_label_color_keys_.size(), rock_label_anim_duration_,
+                 rock_label_front_color_keys_.size(),
+                 rock_label_front_anim_duration_);
   }
 
   // 3) The in-song overlay must be screen anchored. Drawing meter-local art
@@ -1229,6 +1433,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                                      mult_bounds, mult_panel, false, true,
                                      kElemMultPanel);
       if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
+        const Slot native_mult_slot = quad_slot(q);
+        if (native_mult_slot.ok) mult_slot_ = native_mult_slot;
         native_static_quads.push_back(q);
         native_mult_frame_ = std::move(q);
         native_mult_frame_ok_ = true;
@@ -1244,10 +1450,14 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       native_mult_glow_.additive = true;
       native_mult_glow_ok_ = true;
     }
+    // Source material pairing: score_mult_3.mesh is the X glyph, while
+    // score_mult_2.mesh is the multiplier-number slot.
+    const char* mult_digit_meshes[2] = {
+        "score_mult_3.mesh",
+        "score_mult_2.mesh",
+    };
     for (int i = 0; i < 2; ++i) {
-      const std::string name =
-          "score_mult_" + std::to_string(i + 2) + ".mesh";
-      Quad q = make_left_layout_mesh(left_mult_layout, name.c_str(),
+      Quad q = make_left_layout_mesh(left_mult_layout, mult_digit_meshes[i],
                                      mult_bounds, mult_panel, false, true,
                                      kElemMultPanel);
       mult_digit_slot_[i] = quad_slot(q);
@@ -1311,9 +1521,6 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     // label textures already read upright in authored V.
     assign_meter_mesh("hud_rock_2d.mesh", rock_bounds, native_rock_label_,
                       native_rock_label_ok_, 0, false, false, true,
-                      kElemRockLabel);
-    assign_meter_mesh("hud_rock_light.mesh", rock_bounds, native_rock_label_glow_,
-                      native_rock_label_glow_ok_, 0, true, false, true,
                       kElemRockLabel);
     assign_meter_mesh("hud_rock_light_front.mesh", rock_bounds,
                       native_rock_label_front_glow_,
@@ -1566,7 +1773,7 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   // Assemble the full quad list: static frame, then dynamic content.
   std::vector<Quad> quads = static_quads_;
   const bool star_power_visual = state.sp_active;
-  emit_star_power(quads, state.sp_fill);
+  emit_star_power(quads, state.sp_fill, state.sp_active);
   emit_rock_meter(quads, state.rock_fill);
   emit_multiplier(quads, state.multiplier, star_power_visual);
   emit_streak(quads, state.streak, star_power_visual);
@@ -1711,7 +1918,11 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     if (q.element >= kLayoutTuningCount) return z;
     const LayoutRect* r = layout_rect_by_index(
         const_cast<LayoutTuning&>(layout_tuning_), q.element);
-    return z + (r ? r->z : 0);
+    // ROCK meter source layering: the label/glow is always lit, the moving
+    // needle crosses in front of it, and the chrome bezel remains the top mask.
+    const int source_order_bias =
+        q.element == kElemRockNeedle ? 1 : 0;
+    return z + source_order_bias + q.sort_bias + (r ? r->z : 0);
   };
   std::vector<size_t> draw_order(quads.size());
   for (size_t i = 0; i < draw_order.size(); ++i) draw_order[i] = i;
@@ -1724,8 +1935,18 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   dev->BeginScene();
   dev->SetRenderState(D3DRS_LIGHTING, FALSE);
   dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+  dev->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
   dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
   dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+  dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+  dev->SetRenderState(D3DRS_STENCILENABLE, FALSE);
+  dev->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+  dev->SetRenderState(D3DRS_COLORWRITEENABLE,
+                      D3DCOLORWRITEENABLE_RED |
+                      D3DCOLORWRITEENABLE_GREEN |
+                      D3DCOLORWRITEENABLE_BLUE |
+                      D3DCOLORWRITEENABLE_ALPHA);
+  dev->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
   dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
   dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
   dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
@@ -1745,11 +1966,17 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     if (q.tex) {
       dev->SetTexture(0, q.tex);
       dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+      dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+      dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
       dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+      dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+      dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
     } else {
       dev->SetTexture(0, nullptr);
-      dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
-      dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+      dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+      dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+      dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+      dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
     }
     // Project every vertex (world X->screen X, world Z->screen Y) and expand the
     // index list into a flat triangle vertex array for DrawPrimitiveUP.
@@ -1764,6 +1991,27 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
                      1.0f - vv.u, vv.v });
     }
     if (sv.size() < 3) continue;
+    static int mult_box_debug_budget = 0;
+    if (env_enabled("GHOGX_DEBUG_HUD_MULTIPLIER_BOX") &&
+        q.element == kElemMultPanel &&
+        (q.sort_bias != 0 || mult_box_debug_budget < 40)) {
+      float min_x = std::numeric_limits<float>::max();
+      float min_y = std::numeric_limits<float>::max();
+      float max_x = std::numeric_limits<float>::lowest();
+      float max_y = std::numeric_limits<float>::lowest();
+      for (const ScreenVtx& v : sv) {
+        min_x = std::min(min_x, v.x);
+        max_x = std::max(max_x, v.x);
+        min_y = std::min(min_y, v.y);
+        max_y = std::max(max_y, v.y);
+      }
+      std::fprintf(stderr,
+                   "[hud-mult-box] sort=%d tex=%d color=%08x "
+                   "tris=%zu screen=%.1f,%.1f..%.1f,%.1f\n",
+                   q.sort_bias, q.tex ? 1 : 0, q.color,
+                   sv.size() / 3, min_x, min_y, max_x, max_y);
+      ++mult_box_debug_budget;
+    }
     dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, static_cast<UINT>(sv.size() / 3),
                          sv.data(), sizeof(ScreenVtx));
   }
@@ -1776,7 +2024,7 @@ void HudRenderer::push_rect(std::vector<Quad>& out, float cx, float cz, float hw
                             float hh, IDirect3DTexture9* t, uint32_t color,
                             bool additive, float screen_left_depth,
                             float screen_right_depth, uint8_t group,
-                            uint8_t element) {
+                            uint8_t element, int sort_bias) {
   Quad q;
   q.verts = {
       { cx - hw, screen_right_depth, cz - hh, 0.0f, 0.0f },  // 0 TL
@@ -1787,6 +2035,7 @@ void HudRenderer::push_rect(std::vector<Quad>& out, float cx, float cz, float hw
   q.idx = { 0, 1, 2,  1, 3, 2 };
   q.tex = t; q.color = color; q.additive = additive; q.group = group;
   q.element = element;
+  q.sort_bias = sort_bias;
   out.push_back(std::move(q));
 }
 
@@ -1981,6 +2230,18 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier,
     IDirect3DTexture9* x = tex("score_x.tex");
     IDirect3DTexture9* digit =
         tex(std::string("score_") + char('0' + clamped) + ".tex");
+    static int mult_debug_budget = 0;
+    if (env_enabled("GHOGX_DEBUG_HUD_MULTIPLIER") &&
+        mult_debug_budget < 90) {
+      std::fprintf(
+          stderr,
+          "[hud-multiplier] mult=%d clamped=%d star=%d x_tex=%d digit_tex=%d "
+          "native_slots=%d slot0=%d slot1=%d rect_path=1\n",
+          multiplier, clamped, star_power_visual ? 1 : 0, x ? 1 : 0,
+          digit ? 1 : 0, have_native_mult_digits ? 1 : 0,
+          mult_digit_slot_[0].ok ? 1 : 0, mult_digit_slot_[1].ok ? 1 : 0);
+      ++mult_debug_budget;
+    }
     if (!x || !digit) return;
     if (star_power_visual && native_mult_glow_ok_) out.push_back(native_mult_glow_);
     if (star_power_visual && native_mult_frame_ok_) {
@@ -1989,20 +2250,54 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier,
       out.push_back(std::move(active_frame));
     }
     const uint32_t digit_color =
-        star_power_visual ? argb(255, 205, 245, 255) : 0xFFFFFFFF;
+        star_power_visual ? argb(255, 205, 245, 255) : argb(255, 0, 0, 0);
     if (have_native_mult_digits) {
-      Quad x_quad = native_mult_digit_[0];
-      x_quad.tex = x;
-      x_quad.color = digit_color;
-      x_quad.additive = false;
-      out.push_back(std::move(x_quad));
+      if (env_enabled("GHOGX_DEBUG_HUD_MULTIPLIER")) {
+        std::fprintf(stderr,
+                     "[hud-multiplier] native_digits=1 clamped=%d star=%d\n",
+                     clamped, star_power_visual ? 1 : 0);
+      }
+      Quad xq = native_mult_digit_[0];
+      xq.tex = x;
+      xq.color = digit_color;
+      xq.additive = false;
+      xq.sort_bias = std::max(xq.sort_bias, 1);
+      out.push_back(std::move(xq));
 
-      Quad digit_quad = native_mult_digit_[1];
-      digit_quad.tex = digit;
-      digit_quad.color = digit_color;
-      digit_quad.additive = false;
-      out.push_back(std::move(digit_quad));
+      Quad dq = native_mult_digit_[1];
+      dq.tex = digit;
+      dq.color = digit_color;
+      dq.additive = false;
+      dq.sort_bias = std::max(dq.sort_bias, 1);
+      out.push_back(std::move(dq));
       return;
+    }
+    if (clamped == 2 || clamped == 4) {
+      IDirect3DTexture9* plate = tex(
+          clamped == 2
+              ? (star_power_visual ? "hud_2x_star.tex" : "hud_2x.tex")
+              : (star_power_visual ? "hud_4x_star.tex" : "hud_4x.tex"));
+      if (!plate) {
+        plate = tex(clamped == 2 ? "hud_2x.tex" : "hud_4x.tex");
+      }
+      if (plate) {
+        const bool solid_probe =
+            env_enabled("GHOGX_DEBUG_HUD_MULTIPLIER_SOLID");
+        if (env_enabled("GHOGX_DEBUG_HUD_MULTIPLIER")) {
+          std::fprintf(stderr,
+                       "[hud-multiplier] native_plate=%dx star=%d solid=%d\n",
+                       clamped, star_power_visual ? 1 : 0,
+                       solid_probe ? 1 : 0);
+        }
+        const Slot& sl = mult_slot_;
+        push_rect(out, sl.cx, sl.cz, sl.hw * 0.72f, sl.hh * 0.80f,
+                  solid_probe ? nullptr : plate,
+                  solid_probe ? argb(230, 0, 0, 0) : digit_color, false,
+                  left_hud_depth_at(sl.cx + sl.hw * 0.72f),
+                  left_hud_depth_at(sl.cx - sl.hw * 0.72f), kHudGroupLeft,
+                  kElemMultPanel, 6);
+        return;
+      }
     }
     const Slot& x_slot = mult_digit_slot_[0];
     const Slot& digit_slot = mult_digit_slot_[1];
@@ -2014,12 +2309,24 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier,
     push_rect(out, x_slot.cx, x_slot.cz, x_hw, x_hh, x, digit_color,
               false, left_hud_depth_at(x_slot.cx + x_hw),
               left_hud_depth_at(x_slot.cx - x_hw), kHudGroupLeft,
-              kElemMultPanel);
+              kElemMultPanel, 1);
     push_rect(out, digit_slot.cx, digit_slot.cz, digit_hw, digit_hh,
               digit, digit_color, false,
               left_hud_depth_at(digit_slot.cx + digit_hw),
               left_hud_depth_at(digit_slot.cx - digit_hw), kHudGroupLeft,
-              kElemMultPanel);
+              kElemMultPanel, 1);
+    if (env_enabled("GHOGX_DEBUG_HUD_MULTIPLIER_SOLID")) {
+      push_rect(out, x_slot.cx, x_slot.cz, x_hw, x_hh, nullptr,
+                argb(220, 0, 0, 0), false,
+                left_hud_depth_at(x_slot.cx + x_hw),
+                left_hud_depth_at(x_slot.cx - x_hw), kHudGroupLeft,
+                kElemMultPanel, 3);
+      push_rect(out, digit_slot.cx, digit_slot.cz, digit_hw, digit_hh,
+                nullptr, argb(220, 255, 0, 0), false,
+                left_hud_depth_at(digit_slot.cx + digit_hw),
+                left_hud_depth_at(digit_slot.cx - digit_hw), kHudGroupLeft,
+                kElemMultPanel, 3);
+    }
     return;
   }
   const Slot& sl = mult_slot_;
@@ -2041,7 +2348,7 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier,
                 0xFFFFFFFF, false,
                 left_hud_depth_at(sl.cx + sl.hw * 0.72f),
                 left_hud_depth_at(sl.cx - sl.hw * 0.72f), kHudGroupLeft,
-                kElemMultPanel);
+                kElemMultPanel, 1);
       return;
     }
   }
@@ -2065,15 +2372,16 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier,
             sl.hh * 0.66f, x, x ? digit_color : argb(255, 0, 0, 0), false,
             left_hud_depth_at(sl.cx + sl.hw * 0.54f),
             left_hud_depth_at(sl.cx - sl.hw * 0.06f), kHudGroupLeft,
-            kElemMultPanel);
+            kElemMultPanel, 1);
   push_rect(out, sl.cx - sl.hw * 0.24f, sl.cz, sl.hw * 0.30f,
             sl.hh * 0.66f, digit, digit ? digit_color : argb(255, 0, 0, 0),
             false, left_hud_depth_at(sl.cx + sl.hw * 0.06f),
             left_hud_depth_at(sl.cx - sl.hw * 0.54f), kHudGroupLeft,
-            kElemMultPanel);
+            kElemMultPanel, 1);
 }
 
-void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
+void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
+                                  bool star_power_active) const {
   if (!sp_bar_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& sl = sp_bar_;
@@ -2188,12 +2496,14 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
     drew_native_fill |= append_clipped_fill(native_star_fill_);
     drew_native_fill |= append_clipped_fill(native_star_fill_glow_);
   }
+  bool drew_fallback_fill = false;
 
   if (!drew_native_fill) {
     float fill_hw = sl.hw * fill;
     float fill_cx = sl.cx - sl.hw + fill_hw;
     IDirect3DTexture9* fillt = tex("amp_inside_bar.tex");
     if (fill_hw > 0.5f) {
+      drew_fallback_fill = true;
       push_rect(out, fill_cx, sl.cz, fill_hw, sl.hh * 0.52f, fillt,
                 fillt ? argb(230, 120, 205, 255) : argb(220, 75, 165, 255),
                 false, right_hud_depth_at(fill_cx + fill_hw),
@@ -2209,7 +2519,28 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill) const {
     }
   }
 
-  if (fill >= 0.5f) {
+  const bool ready = fill >= 0.5f;
+  const bool tube_glow = ready || star_power_active;
+  static int star_power_debug_budget = 0;
+  if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER") &&
+      star_power_debug_budget < 90) {
+    std::fprintf(
+        stderr,
+        "[hud-star-power] fill=%.3f ready=%d active=%d tube_glow=%d "
+        "back=%zu fill_layers=%zu "
+        "glow_layers=%zu ready_glow=%zu front=%zu glass=%zu base=%zu "
+        "top=%zu caps=%zu native_fill=%d fallback_fill=%d\n",
+        fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
+        native_star_back_.size(),
+        native_star_fill_.size(), native_star_fill_glow_.size(),
+        native_star_ready_glow_.size(), native_star_front_.size(),
+        native_star_glass_.size(), native_star_base_.size(),
+        native_star_top_.size(), native_star_caps_.size(),
+        drew_native_fill ? 1 : 0, drew_fallback_fill ? 1 : 0);
+    ++star_power_debug_budget;
+  }
+
+  if (tube_glow) {
     if (!native_star_ready_glow_.empty()) {
       out.insert(out.end(), native_star_ready_glow_.begin(),
                  native_star_ready_glow_.end());
@@ -2238,6 +2569,22 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   if (!rock_face_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
   const Slot& f = rock_face_;
+  const LayoutRect& rock_lights_rect = layout_tuning_.rock_lights;
+  const float backing_cx =
+      f.cx - f.hw + rock_lights_rect.cx * f.hw * 2.0f;
+  const float backing_cz =
+      f.cz - f.hh + rock_lights_rect.cy * f.hh * 2.0f;
+  const float backing_hw = f.hw * std::abs(rock_lights_rect.w) * 0.94f;
+  const float backing_hh = f.hh * std::abs(rock_lights_rect.h) * 0.72f;
+  const bool rock_backing_ok = backing_hw > 0.001f && backing_hh > 0.001f;
+
+  if (rock_backing_ok) {
+    push_rect(out, backing_cx, backing_cz, backing_hw, backing_hh, nullptr,
+              argb(255, 2, 2, 2), false,
+              right_hud_depth_at(backing_cx + backing_hw),
+              right_hud_depth_at(backing_cx - backing_hw), kHudGroupRight,
+              kElemRockFace, -4);
+  }
 
   if (native_rock_face_ok_) {
     out.push_back(native_rock_face_);
@@ -2252,22 +2599,48 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   const bool have_native_lights =
       native_rock_light_red_ok_ && native_rock_light_yellow_ok_ &&
       native_rock_light_green_ok_;
+  const float rock_light_frame =
+      std::clamp(fill, 0.0f, 1.0f) *
+      std::max(1.0f, rock_label_anim_duration_);
+  const char* active_light_name =
+      rock_light_frame < 33.0f ? "red"
+                               : rock_light_frame < 66.0f ? "yellow" : "green";
+  const uint32_t authored_rock_label_color =
+      sample_hud_mat_anim_color(rock_label_color_keys_,
+                                rock_label_anim_duration_, fill);
+  const uint32_t authored_rock_label_front_color =
+      sample_hud_mat_anim_color(rock_label_front_color_keys_,
+                                rock_label_front_anim_duration_, fill);
+  const uint32_t dim_red_color = argb(115, 255, 50, 38);
+  const uint32_t dim_yellow_color = argb(110, 255, 225, 62);
+  const uint32_t dim_green_color = argb(105, 75, 255, 92);
+  const uint32_t active_red_color = argb(215, 255, 60, 48);
+  const uint32_t active_yellow_color = argb(205, 255, 238, 74);
+  const uint32_t active_green_color = argb(190, 90, 255, 100);
+  const uint32_t rock_label_color =
+      fill < 0.25f ? argb(255, 255, 60, 48)
+    : fill < 0.55f ? argb(255, 255, 238, 74)
+                   : argb(255, 90, 255, 100);
+  const uint32_t rock_label_front_color =
+      fill < 0.25f ? active_red_color
+    : fill < 0.55f ? active_yellow_color
+                   : active_green_color;
   if (have_native_lights) {
     Quad red = native_rock_light_green_;
-    red.color = argb(115, 255, 50, 38);
+    red.color = dim_red_color;
     Quad yellow = native_rock_light_yellow_;
-    yellow.color = argb(110, 255, 225, 62);
+    yellow.color = dim_yellow_color;
     Quad green = native_rock_light_red_;
-    green.color = argb(105, 75, 255, 92);
+    green.color = dim_green_color;
     out.push_back(red);
     out.push_back(yellow);
     out.push_back(green);
     Quad active_light = fill < 0.25f ? native_rock_light_green_
                       : fill < 0.55f ? native_rock_light_yellow_
                                      : native_rock_light_red_;
-    active_light.color = fill < 0.25f ? argb(215, 255, 60, 48)
-                       : fill < 0.55f ? argb(205, 255, 238, 74)
-                                      : argb(190, 90, 255, 100);
+    active_light.color = fill < 0.25f ? active_red_color
+                       : fill < 0.55f ? active_yellow_color
+                                      : active_green_color;
     out.push_back(active_light);
   } else if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
     const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
@@ -2279,13 +2652,18 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
               kElemRockLights);
   }
 
+  if (native_rock_frame_ok_) {
+    out.push_back(native_rock_frame_);
+  }
+
   if (native_rock_label_ok_) {
-    out.push_back(native_rock_label_);
-    if (native_rock_label_glow_ok_) {
-      out.push_back(native_rock_label_glow_);
-    }
+    Quad label = native_rock_label_;
+    label.color = rock_label_color;
+    out.push_back(std::move(label));
     if (native_rock_label_front_glow_ok_) {
-      out.push_back(native_rock_label_front_glow_);
+      Quad label_front_glow = native_rock_label_front_glow_;
+      label_front_glow.color = rock_label_front_color;
+      out.push_back(std::move(label_front_glow));
     }
   } else if (IDirect3DTexture9* label = tex("rock_meter_2d_rock.tex")) {
     Quad q;
@@ -2305,14 +2683,10 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
     };
     q.idx = {0, 1, 2, 1, 3, 2};
     q.tex = label;
-    q.color = 0xFFFFFFFF;
+    q.color = rock_label_color;
     q.group = kHudGroupRight;
     q.element = kElemRockLabel;
     out.push_back(std::move(q));
-  }
-
-  if (native_rock_frame_ok_) {
-    out.push_back(native_rock_frame_);
   }
 
   // needle: swings from left (fill 0, danger) to right (fill 1, max). Prefer
@@ -2320,18 +2694,41 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   // missing-asset fallback.
   if (rock_needle_pivot_.ok) {
     const float px = rock_needle_pivot_.cx, pz = rock_needle_pivot_.cz;
+    const float needle_scale_x = layout_tuning_.rock_needle.w / 0.060444f;
+    const float needle_scale_z = layout_tuning_.rock_needle.h / 0.072000f;
+    const float meter_t = std::clamp((fill - 0.10f) / 0.55f, 0.0f, 1.0f);
+    const float native_needle_angle = 0.25f - meter_t * 1.80f;
+    constexpr int kHudRockDebugBudget = 700;
+    static int rock_debug_budget = 0;
+    if (env_enabled("GHOGX_DEBUG_HUD_ROCK_METER") &&
+        rock_debug_budget < kHudRockDebugBudget) {
+      std::fprintf(
+          stderr,
+          "[hud-rock] fill=%.3f light=%s native_lights=%d face=%d frame=%d "
+          "backing=%d label=%d needle=%d led=%d angle=%.3f scale=%.3f,%.3f "
+          "pivot=%.3f,%.3f rock_anim_frame=%.3f label=%08x front=%08x "
+          "authored_label=%08x authored_front=%08x\n",
+          fill, active_light_name, have_native_lights ? 1 : 0,
+          native_rock_face_ok_ ? 1 : 0, native_rock_frame_ok_ ? 1 : 0,
+          rock_backing_ok ? 1 : 0, native_rock_label_ok_ ? 1 : 0,
+          native_rock_needle_ok_ ? 1 : 0, native_rock_needle_led_ok_ ? 1 : 0,
+          native_needle_angle,
+          needle_scale_x, needle_scale_z, px, pz, rock_light_frame,
+          rock_label_color, rock_label_front_color, authored_rock_label_color,
+          authored_rock_label_front_color);
+      ++rock_debug_budget;
+    }
     auto append_rotated = [&](const Quad& src) {
       Quad q = src;
       // Map the gameplay rock value into GH2's visible red-to-green needle
       // sweep. Values solidly in the green band should reach the right side,
       // not linger around the meter center.
-      const float meter_t = std::clamp((fill - 0.10f) / 0.55f, 0.0f, 1.0f);
-      const float a = 0.25f - meter_t * 1.80f;
+      const float a = native_needle_angle;
       const float ca = std::cos(a), sa = std::sin(a);
       for (Quad::V& v : q.verts) {
         const float depth_delta = v.wy - right_hud_depth_at(v.wx);
-        const float dx = v.wx - px;
-        const float dz = v.wz - pz;
+        const float dx = (v.wx - px) * needle_scale_x;
+        const float dz = (v.wz - pz) * needle_scale_z;
         v.wx = px + dx * ca - dz * sa;
         v.wz = pz + dx * sa + dz * ca;
         v.wy = right_hud_depth_at(v.wx) + depth_delta;

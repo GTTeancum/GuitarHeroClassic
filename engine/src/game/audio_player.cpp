@@ -29,6 +29,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <cmath>
 #include <cstdio>
 #include <memory>
 #include <mutex>
@@ -58,6 +59,8 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
   int sample_rate = 44100;
   int channels = 0;
   uint32_t total_frames = 0;
+  std::vector<uint8_t> raw_vgs;
+  double base_position_sec = 0.0;
 
   // --- streaming ring ---
   std::vector<std::vector<int16_t>> ring;  // kRingBuffers stereo chunks
@@ -162,6 +165,61 @@ struct AudioPlayer::Impl : public IXAudio2VoiceCallback {
     if (source) { source->Stop(0); source->FlushSourceBuffers(); source->DestroyVoice(); source = nullptr; }
     if (master) { master->DestroyVoice(); master = nullptr; }
     if (xaudio2) { xaudio2->Release(); xaudio2 = nullptr; }
+    started.store(false, std::memory_order_relaxed);
+    eos.store(false, std::memory_order_relaxed);
+  }
+
+  bool setup_streaming_voice(uint32_t start_frame, const char* vgs_path) {
+    teardown();
+    stream = gh::vgs::Stream{};
+    if (raw_vgs.empty()) {
+      std::fprintf(stderr, "[audio] VGS empty\n");
+      return false;
+    }
+
+    std::vector<uint8_t> source_bytes = raw_vgs;
+    if (!stream.open(std::make_unique<gh::vgs::MemByteSource>(std::move(source_bytes)))) {
+      std::fprintf(stderr, "[audio] VGS decode-open failed: %s\n", vgs_path);
+      return false;
+    }
+    sample_rate = stream.sample_rate();
+    channels = stream.channels();
+    total_frames = stream.total_frames();
+    const uint32_t clamped_frame = std::min(start_frame, total_frames);
+    stream.seek(clamped_frame);
+    base_position_sec =
+        sample_rate > 0 ? clamped_frame / static_cast<double>(sample_rate) : 0.0;
+
+    if (!init_xaudio2()) {
+      std::fprintf(stderr, "[audio] XAudio2 unavailable; continuing silent\n");
+      return false;
+    }
+
+    // Stereo output voice at the source rate, with our streaming callback.
+    WAVEFORMATEX wfx = {};
+    wfx.wFormatTag = WAVE_FORMAT_PCM;
+    wfx.nChannels = 2;
+    wfx.nSamplesPerSec = static_cast<DWORD>(sample_rate);
+    wfx.wBitsPerSample = 16;
+    wfx.nBlockAlign = wfx.nChannels * (wfx.wBitsPerSample / 8);
+    wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
+    if (FAILED(xaudio2->CreateSourceVoice(&source, &wfx, 0,
+                                          XAUDIO2_DEFAULT_FREQ_RATIO, this))) {
+      std::fprintf(stderr, "[audio] CreateSourceVoice failed\n");
+      return false;
+    }
+
+    // Allocate the streaming ring + decode scratch.
+    ring.assign(kRingBuffers,
+                std::vector<int16_t>(static_cast<size_t>(kChunkFrames) * 2));
+    scratch.assign(static_cast<size_t>(kChunkFrames) * channels, 0);
+    free_list.clear();
+    for (int i = 0; i < kRingBuffers; ++i) free_list.push_back(i);
+
+    // Start the decode thread; it pre-fills the queue (the voice plays on play()).
+    running.store(true, std::memory_order_relaxed);
+    decoder = std::thread([p = this] { p->decode_loop(); });
+    return true;
   }
 };
 
@@ -172,6 +230,7 @@ AudioPlayer::~AudioPlayer() = default;
 
 bool AudioPlayer::load_vgs(const std::string& hdr_path, const std::string& ark_path,
                            const std::string& vgs_path) {
+  impl_ = std::make_unique<Impl>();
   if (hdr_path.empty() || ark_path.empty()) {
     std::fprintf(stderr, "[audio] no ARK paths; skipping audio\n");
     return false;
@@ -190,49 +249,11 @@ bool AudioPlayer::load_vgs(const std::string& hdr_path, const std::string& ark_p
     return false;
   }
   if (raw.empty()) { std::fprintf(stderr, "[audio] VGS empty\n"); return false; }
-
-  if (!impl_->stream.open(std::make_unique<gh::vgs::MemByteSource>(std::move(raw)))) {
-    std::fprintf(stderr, "[audio] VGS decode-open failed: %s\n", vgs_path.c_str());
-    return false;
-  }
-  impl_->sample_rate  = impl_->stream.sample_rate();
-  impl_->channels     = impl_->stream.channels();
-  impl_->total_frames = impl_->stream.total_frames();
+  impl_->raw_vgs = std::move(raw);
+  if (!impl_->setup_streaming_voice(0, vgs_path.c_str())) return false;
   std::fprintf(stderr, "[audio] streaming VGS: %d ch @ %d Hz, %.1f s\n",
                impl_->channels, impl_->sample_rate,
                impl_->total_frames / static_cast<double>(impl_->sample_rate));
-
-  if (!impl_->init_xaudio2()) {
-    std::fprintf(stderr, "[audio] XAudio2 unavailable; continuing silent\n");
-    return false;
-  }
-
-  // Stereo output voice at the source rate, with our streaming callback.
-  WAVEFORMATEX wfx = {};
-  wfx.wFormatTag = WAVE_FORMAT_PCM;
-  wfx.nChannels = 2;
-  wfx.nSamplesPerSec = static_cast<DWORD>(impl_->sample_rate);
-  wfx.wBitsPerSample = 16;
-  wfx.nBlockAlign = wfx.nChannels * (wfx.wBitsPerSample / 8);
-  wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
-  if (FAILED(impl_->xaudio2->CreateSourceVoice(&impl_->source, &wfx, 0,
-                                               XAUDIO2_DEFAULT_FREQ_RATIO,
-                                               impl_.get()))) {
-    std::fprintf(stderr, "[audio] CreateSourceVoice failed\n");
-    return false;
-  }
-
-  // Allocate the streaming ring + decode scratch.
-  impl_->ring.assign(kRingBuffers,
-                     std::vector<int16_t>(static_cast<size_t>(kChunkFrames) * 2));
-  impl_->scratch.assign(static_cast<size_t>(kChunkFrames) * impl_->channels, 0);
-  impl_->free_list.clear();
-  for (int i = 0; i < kRingBuffers; ++i) impl_->free_list.push_back(i);
-
-  // Start the decode thread; it pre-fills the queue (the voice plays on play()).
-  impl_->running.store(true, std::memory_order_relaxed);
-  impl_->decoder = std::thread([p = impl_.get()] { p->decode_loop(); });
-
   std::fprintf(stderr, "[audio] ready (streaming)\n");
   return true;
 }
@@ -248,12 +269,30 @@ void AudioPlayer::stop() {
   impl_->source->Stop(0);
 }
 
+bool AudioPlayer::seek(double seconds) {
+  if (!impl_ || impl_->raw_vgs.empty() || impl_->sample_rate <= 0) return false;
+  const double duration =
+      impl_->total_frames / static_cast<double>(impl_->sample_rate);
+  const double finite_seconds = std::isfinite(seconds) ? seconds : 0.0;
+  const double target = std::clamp(finite_seconds, 0.0, duration);
+  const auto target_frame = static_cast<uint32_t>(
+      std::min<double>(impl_->total_frames,
+                       std::llround(target * impl_->sample_rate)));
+  const bool resume = is_playing();
+  if (!impl_->setup_streaming_voice(target_frame, "<seek>")) return false;
+  std::fprintf(stderr, "[audio] seek: %.3f s (frame %u)\n",
+               impl_->base_position_sec, target_frame);
+  if (resume) play();
+  return true;
+}
+
 double AudioPlayer::position_sec() const {
-  if (!impl_->source || !impl_->started.load(std::memory_order_relaxed)) return 0.0;
+  if (!impl_->source || !impl_->started.load(std::memory_order_relaxed))
+    return impl_->base_position_sec;
   XAUDIO2_VOICE_STATE st = {};
   impl_->source->GetState(&st);
   // SamplesPlayed counts sample-frames at the source rate — exact song time.
-  return static_cast<double>(st.SamplesPlayed) /
+  return impl_->base_position_sec + static_cast<double>(st.SamplesPlayed) /
          static_cast<double>(impl_->sample_rate);
 }
 

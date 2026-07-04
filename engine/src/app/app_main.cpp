@@ -16,6 +16,21 @@
 //   ghogx_app --diagnostic-song-start <sec>
 //                                      seek deterministic capture to a song time
 //   ghogx_app --diagnostic-autoplay    chart-driven native validation input
+//   ghogx_app --diagnostic-fret-mask <mask>
+//                                      force held fret lanes for capture
+//   ghogx_app --diagnostic-guitar-mask <mask>
+//                                      force raw guitar bits for capture
+//   ghogx_app --diagnostic-guitar-script <sec:mask,...>
+//                                      song-time raw guitar mask script
+//   ghogx_app --diagnostic-guitar-script-from-chart <start:end[:hit_offset_sec]>
+//                                      generate raw script from loaded chart
+//   ghogx_app --diagnostic-guitar-script-star-power-at <sec>
+//                                      add a real star-power button edge
+//   ghogx_app --diagnostic-guitar-script-whammy
+//                                      hold whammy on generated star sustains
+//   ghogx_app --debug-note-counter     show note count + next STANDARD/STAR/HOPO
+//   ghogx_app --diagnostic-character <c>
+//                                      route guitarist/highway art through character c
 //   ghogx_app --diagnostic-venue <v>   route capture through another GH2 venue
 //   ghogx_app --diagnostic-venue-event <event>
 //                                      force one persistent venue event after load
@@ -23,6 +38,10 @@
 //                                      pin a decoded regular CamShot for capture
 //   ghogx_app --diagnostic-camera-path-offset <frames>
 //                                      start a forced CamShot at a local path frame
+//   ghogx_app --diagnostic-rock <0..1>
+//                                      force initial rock meter fill for capture
+//   ghogx_app --diagnostic-star-power <0..1>
+//                                      force initial star meter fill for capture
 //   ghogx_app --hud-test [--hud-score N] [--hud-streak N]
 //                         [--hud-multiplier N] [--hud-sp 0..1] [--hud-rock 0..1]
 //                         [--hud-star-active]
@@ -34,6 +53,8 @@
 //   ghogx_app --show-window           keep screenshot runs visible/interactive
 //   ghogx_app --screenshot-dir <dir> --screenshot-frames <csv>
 //                                      capture numbered BMPs in gameplay mode
+//   ghogx_app --sparse-screenshots    long-run validation: tick every frame but
+//                                      draw/present only requested screenshots
 
 #include "asset/milo_image.h"
 #include "character/char_clip.h"
@@ -55,6 +76,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <d3d9.h>
 
 #include <algorithm>
 #include <array>
@@ -77,6 +99,13 @@
 namespace {
 
 using ScreenshotSequence = std::map<uint64_t, std::string>;
+
+bool env_flag(const char* name) {
+  char value[16] = {};
+  const DWORD len = GetEnvironmentVariableA(name, value,
+                                            static_cast<DWORD>(sizeof(value)));
+  return len > 0 && (len >= sizeof(value) || std::strcmp(value, "0") != 0);
+}
 
 // A timed fade-through-black sequence of splash images (boot logos -> title).
 // Each non-final slide fades in, holds, fades out; the final slide fades in and
@@ -108,6 +137,142 @@ struct SplashSequence {
   }
 };
 
+struct DiagnosticGuitarScriptEvent {
+  double song_time = 0.0;
+  uint32_t mask = 0;
+};
+
+struct DiagnosticChartScriptWindow {
+  double start_sec = 0.0;
+  double end_sec = 0.0;
+  double hit_offset_sec = -(1.0 / 120.0);
+  bool whammy_star_sustains = false;
+  std::optional<double> star_power_at_sec;
+};
+
+struct OverlayVertex {
+  float x, y, z, rhw;
+  D3DCOLOR color;
+  float u, v;
+};
+
+constexpr DWORD kOverlayFVF =
+    D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1;
+
+IDirect3DTexture9* upload_overlay_texture(IDirect3DDevice9* dev,
+                                          const ghogx::asset::Image& img,
+                                          bool key_black_alpha) {
+  if (!dev || !img.valid()) return nullptr;
+  IDirect3DTexture9* texture = nullptr;
+  if (FAILED(dev->CreateTexture(static_cast<UINT>(img.width),
+                                static_cast<UINT>(img.height), 1, 0,
+                                D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &texture,
+                                nullptr))) {
+    return nullptr;
+  }
+  D3DLOCKED_RECT locked;
+  if (FAILED(texture->LockRect(0, &locked, nullptr, 0))) {
+    texture->Release();
+    return nullptr;
+  }
+  for (int y = 0; y < img.height; ++y) {
+    auto* dst = static_cast<uint8_t*>(locked.pBits) + y * locked.Pitch;
+    const uint8_t* src =
+        img.rgba.data() + static_cast<size_t>(y) * img.width * 4;
+    for (int x = 0; x < img.width; ++x) {
+      const uint8_t r = src[x * 4 + 0];
+      const uint8_t g = src[x * 4 + 1];
+      const uint8_t b = src[x * 4 + 2];
+      uint8_t a = src[x * 4 + 3];
+      if (key_black_alpha && r < 8 && g < 8 && b < 8) a = 0;
+      dst[x * 4 + 0] = b;
+      dst[x * 4 + 1] = g;
+      dst[x * 4 + 2] = r;
+      dst[x * 4 + 3] = a;
+    }
+  }
+  texture->UnlockRect(0);
+  return texture;
+}
+
+void draw_overlay_quad(IDirect3DDevice9* dev, IDirect3DTexture9* texture,
+                       float x0, float y0, float x1, float y1,
+                       D3DCOLOR color) {
+  if (!dev) return;
+  const OverlayVertex quad[4] = {
+      {x0 - 0.5f, y0 - 0.5f, 0.0f, 1.0f, color, 0.0f, 0.0f},
+      {x1 - 0.5f, y0 - 0.5f, 0.0f, 1.0f, color, 1.0f, 0.0f},
+      {x0 - 0.5f, y1 - 0.5f, 0.0f, 1.0f, color, 0.0f, 1.0f},
+      {x1 - 0.5f, y1 - 0.5f, 0.0f, 1.0f, color, 1.0f, 1.0f},
+  };
+  dev->SetTexture(0, texture);
+  if (texture) {
+    dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+    dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+  } else {
+    dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+    dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+  }
+  dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(OverlayVertex));
+}
+
+std::vector<DiagnosticGuitarScriptEvent> parse_diagnostic_guitar_script(
+    const std::string& spec) {
+  std::vector<DiagnosticGuitarScriptEvent> events;
+  size_t start = 0;
+  while (start < spec.size()) {
+    const size_t end = spec.find(',', start);
+    const std::string token =
+        spec.substr(start, end == std::string::npos ? std::string::npos
+                                                    : end - start);
+    const size_t colon = token.find(':');
+    if (colon != std::string::npos) {
+      const double song_time =
+          std::max(0.0, std::strtod(token.substr(0, colon).c_str(), nullptr));
+      const uint32_t mask = static_cast<uint32_t>(
+          std::strtoul(token.substr(colon + 1).c_str(), nullptr, 0)) & 0xffu;
+      events.push_back(DiagnosticGuitarScriptEvent{song_time, mask});
+    }
+    if (end == std::string::npos) break;
+    start = end + 1;
+  }
+  std::sort(events.begin(), events.end(),
+            [](const DiagnosticGuitarScriptEvent& a,
+               const DiagnosticGuitarScriptEvent& b) {
+              return a.song_time < b.song_time;
+            });
+  return events;
+}
+
+std::optional<DiagnosticChartScriptWindow> parse_diagnostic_chart_script_window(
+    const std::string& spec) {
+  const size_t colon = spec.find(':');
+  if (colon == std::string::npos) return std::nullopt;
+  const size_t offset_colon = spec.find(':', colon + 1);
+  const double start_sec =
+      std::max(0.0, std::strtod(spec.substr(0, colon).c_str(), nullptr));
+  const double end_sec =
+      std::max(start_sec,
+               std::strtod(spec.substr(colon + 1,
+                                        offset_colon == std::string::npos
+                                            ? std::string::npos
+                                            : offset_colon - colon - 1)
+                                .c_str(),
+                            nullptr));
+  const double hit_offset_sec =
+      offset_colon == std::string::npos
+          ? -(1.0 / 120.0)
+          : std::strtod(spec.substr(offset_colon + 1).c_str(), nullptr);
+  return DiagnosticChartScriptWindow{start_sec, end_sec, hit_offset_sec, false,
+                                     std::nullopt};
+}
+
 // Engine whose render/present phases drive the window. Plays the splash
 // sequence if set; else shows a single loaded image; else an animated
 // procedural checkerboard (exercises the texture-upload + sampled-draw path).
@@ -115,6 +280,10 @@ class AppEngine : public ghogx::Engine {
  public:
   explicit AppEngine(ghogx::render::Window* win)
       : win_(win), scene_(*win), pixels_(static_cast<std::size_t>(kTexW) * kTexH * 4) {}
+  ~AppEngine() override {
+    if (fail_overlay_tex_) fail_overlay_tex_->Release();
+    if (finish_overlay_tex_) finish_overlay_tex_->Release();
+  }
 
   // A single static image (shown if no sequence is set).
   void set_image(ghogx::asset::Image img) { image_ = std::move(img); }
@@ -159,6 +328,7 @@ class AppEngine : public ghogx::Engine {
                      song_name_.c_str(), song_diff_);
         if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
           reset_hud_load();
+          rebuild_diagnostic_chart_guitar_script();
           if (diagnostic_song_start_ > 0.0) {
             gameplay_.seek_for_diagnostic_capture(diagnostic_song_start_);
           }
@@ -171,18 +341,47 @@ class AppEngine : public ghogx::Engine {
       }
     } else if (state_ == AppState::Playing) {
       // Guitar input: held frets plus edge-only strum/star-power actions.
-      const uint32_t fret_mask =
-          win_->guitar_input_held() |
-          (win_->guitar_input_edge() & ((1u << 5) | (1u << 6)));
+      uint32_t fret_mask = 0;
+      if (!diagnostic_guitar_script_.empty()) {
+        fret_mask = diagnostic_guitar_script_mask(gameplay_.song_time());
+      } else {
+        fret_mask =
+            win_->guitar_input_held() |
+            (win_->guitar_input_edge() & ((1u << 5) | (1u << 6)));
+        if (diagnostic_fret_mask_) {
+          fret_mask |= *diagnostic_fret_mask_ & 0x1fu;
+        }
+        if (diagnostic_guitar_mask_) {
+          fret_mask |= *diagnostic_guitar_mask_ & 0xffu;
+        }
+      }
       gameplay_.tick(dt, fret_mask);
       if (gameplay_.failed()) {
         std::fprintf(stderr, "[ghogx] song failed; final score %d\n",
                      gameplay_.score());
+        gameplay_.stop_audio();
+        state_ = AppState::Failed;
+        fail_hold_sec_ = kFailHoldSeconds;
+      }
+      else if (gameplay_.is_finished()) {
+        std::fprintf(stderr, "[ghogx] song finished — final score %d\n", gameplay_.score());
+        gameplay_.stop_audio();
+        state_ = AppState::Finished;
+        finish_hold_sec_ = kFinishHoldSeconds;
+      }
+    } else if (state_ == AppState::Failed) {
+      fail_hold_sec_ = std::max(0.0f, fail_hold_sec_ - dt);
+      if (fail_hold_sec_ <= 0.0f ||
+          win_->action_pressed(Action::Confirm) ||
+          win_->action_pressed(Action::Start)) {
         state_ = AppState::Title;
         started_ = false;
       }
-      if (gameplay_.is_finished()) {
-        std::fprintf(stderr, "[ghogx] song finished — final score %d\n", gameplay_.score());
+    } else if (state_ == AppState::Finished) {
+      finish_hold_sec_ = std::max(0.0f, finish_hold_sec_ - dt);
+      if (finish_hold_sec_ <= 0.0f ||
+          win_->action_pressed(Action::Confirm) ||
+          win_->action_pressed(Action::Start)) {
         state_ = AppState::Title;
         started_ = false;
       }
@@ -190,9 +389,21 @@ class AppEngine : public ghogx::Engine {
   }
 
   void on_render(float /*dt*/) override {
-    if (state_ == AppState::Playing) {
+    rendered_this_frame_ = true;
+    if (sparse_screenshots_ && !should_render_this_frame()) {
+      rendered_this_frame_ = false;
+      return;
+    }
+
+    if (state_ == AppState::Playing || state_ == AppState::Failed ||
+        state_ == AppState::Finished) {
       gameplay_.draw(*win_);
       draw_gameplay_hud();
+      if (state_ == AppState::Failed) {
+        draw_fail_overlay();
+      } else if (state_ == AppState::Finished) {
+        draw_finish_overlay();
+      }
       return;
     }
 
@@ -243,6 +454,8 @@ class AppEngine : public ghogx::Engine {
   }
 
   void on_present() override {
+    if (!rendered_this_frame_) return;
+
     // Dev self-verification: capture the rendered frame before presenting.
     const uint64_t frame = frame_count();
     if (!screenshot_path_.empty() &&
@@ -261,7 +474,18 @@ class AppEngine : public ghogx::Engine {
 
  private:
   using Action = ghogx::render::Window::Action;
-  enum class AppState { Splash, Title, Playing };
+  enum class AppState { Splash, Title, Playing, Failed, Finished };
+
+  static const char* app_state_name(AppState state) {
+    switch (state) {
+    case AppState::Splash: return "splash";
+    case AppState::Title: return "title";
+    case AppState::Playing: return "playing";
+    case AppState::Failed: return "failed";
+    case AppState::Finished: return "finished";
+    }
+    return "unknown";
+  }
 
   // Render a procedural 3-D representation of the GH2 title screen.
   void render_title_3d() {
@@ -352,12 +576,26 @@ class AppEngine : public ghogx::Engine {
   ghogx::asset::Image poster_;
   AppState state_ = AppState::Splash;
   bool started_ = false;
+  static constexpr float kFailHoldSeconds = 3.0f;
+  static constexpr float kFinishHoldSeconds = 4.0f;
+  float fail_hold_sec_ = 0.0f;
+  float finish_hold_sec_ = 0.0f;
 
   // Song gameplay.
   ghogx::game::Gameplay gameplay_;
   ghogx::hud::HudRenderer hud_;
   bool hud_load_attempted_ = false;
   bool hud_ready_ = false;
+  bool fail_overlay_load_attempted_ = false;
+  bool fail_overlay_ready_ = false;
+  IDirect3DTexture9* fail_overlay_tex_ = nullptr;
+  int fail_overlay_width_ = 0;
+  int fail_overlay_height_ = 0;
+  bool finish_overlay_load_attempted_ = false;
+  bool finish_overlay_ready_ = false;
+  IDirect3DTexture9* finish_overlay_tex_ = nullptr;
+  int finish_overlay_width_ = 0;
+  int finish_overlay_height_ = 0;
   std::string hdr_path_;
   std::string ark_path_;
   std::string song_name_ = "shoutatthedevil";
@@ -368,8 +606,61 @@ class AppEngine : public ghogx::Engine {
   std::string screenshot_path_;
   int         screenshot_frame_ = 0;
   ScreenshotSequence screenshot_sequence_;
+  bool sparse_screenshots_ = false;
+  bool rendered_this_frame_ = true;
   double diagnostic_song_start_ = 0.0;
+  std::optional<uint32_t> diagnostic_fret_mask_;
+  std::optional<uint32_t> diagnostic_guitar_mask_;
+  std::vector<DiagnosticGuitarScriptEvent> diagnostic_guitar_script_;
+  std::optional<DiagnosticChartScriptWindow> diagnostic_chart_script_window_;
   std::optional<ghogx::hud::HudState> diagnostic_hud_override_;
+
+  bool should_render_this_frame() const {
+    const uint64_t frame = frame_count();
+    if (!screenshot_path_.empty() &&
+        frame == static_cast<uint64_t>(screenshot_frame_)) {
+      return true;
+    }
+    return screenshot_sequence_.find(frame) != screenshot_sequence_.end();
+  }
+
+  uint32_t diagnostic_guitar_script_mask(double song_time) const {
+    uint32_t mask = 0;
+    for (const auto& event : diagnostic_guitar_script_) {
+      if (event.song_time > song_time + 1.0e-6) break;
+      mask = event.mask & 0xffu;
+    }
+    return mask;
+  }
+
+  void rebuild_diagnostic_chart_guitar_script() {
+    if (!diagnostic_chart_script_window_) return;
+    const auto generated = gameplay_.build_diagnostic_guitar_script_from_chart(
+        diagnostic_chart_script_window_->start_sec,
+        diagnostic_chart_script_window_->end_sec,
+        true,
+        diagnostic_chart_script_window_->hit_offset_sec,
+        diagnostic_chart_script_window_->whammy_star_sustains,
+        diagnostic_chart_script_window_->star_power_at_sec);
+    diagnostic_guitar_script_.clear();
+    diagnostic_guitar_script_.reserve(generated.size());
+    for (const auto& event : generated) {
+      diagnostic_guitar_script_.push_back(
+          DiagnosticGuitarScriptEvent{event.song_time, event.mask});
+    }
+    std::fprintf(
+        stderr,
+        "[ghogx] diagnostic chart guitar script events: %zu window=%.3f..%.3f "
+        "hit_offset=%.4f whammy_star_sustains=%d star_power_at=%.3f\n",
+        diagnostic_guitar_script_.size(),
+        diagnostic_chart_script_window_->start_sec,
+        diagnostic_chart_script_window_->end_sec,
+        diagnostic_chart_script_window_->hit_offset_sec,
+        diagnostic_chart_script_window_->whammy_star_sustains ? 1 : 0,
+        diagnostic_chart_script_window_->star_power_at_sec
+            ? *diagnostic_chart_script_window_->star_power_at_sec
+            : -1.0);
+  }
 
  public:
   // Capture frame `frame` to a BMP for dev self-verification.
@@ -382,12 +673,44 @@ class AppEngine : public ghogx::Engine {
     screenshot_sequence_ = std::move(sequence);
   }
 
+  void set_sparse_screenshots(bool enabled) { sparse_screenshots_ = enabled; }
+
   void set_deterministic_gameplay_clock(bool deterministic) {
     gameplay_.set_deterministic_clock(deterministic);
   }
 
   void set_diagnostic_autoplay(bool enabled) {
     gameplay_.set_diagnostic_autoplay(enabled);
+  }
+
+  void set_diagnostic_star_power_fill(double fill) {
+    gameplay_.set_diagnostic_star_power_fill(fill);
+  }
+
+  void set_diagnostic_star_power_active(bool active) {
+    gameplay_.set_diagnostic_star_power_active(active);
+  }
+
+  void set_diagnostic_fret_mask(uint32_t mask) {
+    diagnostic_fret_mask_ = mask & 0x1fu;
+  }
+
+  void set_diagnostic_guitar_mask(uint32_t mask) {
+    diagnostic_guitar_mask_ = mask & 0xffu;
+  }
+
+  void set_diagnostic_guitar_script(
+      std::vector<DiagnosticGuitarScriptEvent> events) {
+    diagnostic_guitar_script_ = std::move(events);
+  }
+
+  void set_diagnostic_chart_guitar_script(
+      DiagnosticChartScriptWindow window) {
+    diagnostic_chart_script_window_ = window;
+  }
+
+  void set_diagnostic_character_override(const std::string& character) {
+    gameplay_.set_diagnostic_character_override(character);
   }
 
   void set_diagnostic_venue_override(const std::string& venue) {
@@ -405,6 +728,10 @@ class AppEngine : public ghogx::Engine {
     gameplay_.set_diagnostic_camera_path_offset_frames(frames);
   }
 
+  void set_diagnostic_rock_fill(double fill) {
+    gameplay_.set_diagnostic_rock_fill(fill);
+  }
+
   void set_diagnostic_song_start(double seconds) {
     diagnostic_song_start_ = std::max(0.0, seconds);
   }
@@ -419,10 +746,25 @@ class AppEngine : public ghogx::Engine {
     reset_hud_load();
   }
 
+  void log_final_gameplay_summary() const {
+    std::fprintf(
+        stderr,
+        "[ghogx] final gameplay summary: state=%s song=%s diff=%d "
+        "t=%.3f score=%d streak=%d mult=%d hits=%d misses=%d "
+        "overstrums=%d rock=%.3f sp=%.3f active=%d failed=%d finished=%d\n",
+        app_state_name(state_), song_name_.c_str(), song_diff_,
+        gameplay_.song_time(), gameplay_.score(), gameplay_.streak(),
+        gameplay_.multiplier(), gameplay_.hit_count(), gameplay_.miss_count(),
+        gameplay_.overstrum_count(), gameplay_.rock_fill(),
+        gameplay_.star_power_fill(), gameplay_.star_power_active() ? 1 : 0,
+        gameplay_.failed() ? 1 : 0, gameplay_.is_finished() ? 1 : 0);
+  }
+
   // Force-load the song and skip directly to Playing state (for --auto-start).
   void force_start_song() {
     if (gameplay_.load_song(hdr_path_, ark_path_, song_name_, song_diff_)) {
       reset_hud_load();
+      rebuild_diagnostic_chart_guitar_script();
       if (diagnostic_song_start_ > 0.0) {
         gameplay_.seek_for_diagnostic_capture(diagnostic_song_start_);
       }
@@ -458,9 +800,151 @@ class AppEngine : public ghogx::Engine {
     state.sp_active = gameplay_.star_power_active();
     state.rock_fill = gameplay_.rock_fill();
     if (diagnostic_hud_override_) state = *diagnostic_hud_override_;
+    static int hud_state_debug_budget = 0;
+    if (env_flag("GHOGX_DEBUG_GAMEPLAY_HUD_STATE") &&
+        hud_state_debug_budget < 240) {
+      std::fprintf(
+          stderr,
+          "[hud-state] t=%.3f score=%d streak=%d gameplay_mult=%d "
+          "hud_mult=%d sp=%.3f active=%d rock=%.3f override=%d\n",
+          gameplay_.song_time(), state.score, state.streak,
+          gameplay_.multiplier(), state.multiplier, state.sp_fill,
+          state.sp_active ? 1 : 0, state.rock_fill,
+          diagnostic_hud_override_ ? 1 : 0);
+      ++hud_state_debug_budget;
+    }
 
     auto* dev = static_cast<IDirect3DDevice9*>(win_->device_ptr());
     hud_.draw(dev, state);
+  }
+
+  void ensure_fail_overlay_loaded() {
+    if (fail_overlay_load_attempted_) return;
+    fail_overlay_load_attempted_ = true;
+    if (hdr_path_.empty() || ark_path_.empty()) return;
+    auto* dev = static_cast<IDirect3DDevice9*>(win_->device_ptr());
+    const ghogx::asset::Image tile = ghogx::asset::load_milo_texture_named(
+        hdr_path_, ark_path_, "ui/gen/pause_lose_tex.milo_ps2", "pl_tile.tex");
+    fail_overlay_width_ = tile.width;
+    fail_overlay_height_ = tile.height;
+    fail_overlay_tex_ = upload_overlay_texture(dev, tile, true);
+    fail_overlay_ready_ = fail_overlay_tex_ != nullptr;
+    std::fprintf(stderr,
+                 "[ghogx] fail overlay texture %s (%dx%d) from %s/%s\n",
+                 fail_overlay_ready_ ? "ready" : "failed",
+                 fail_overlay_width_, fail_overlay_height_,
+                 "ui/gen/pause_lose_tex.milo_ps2", "pl_tile.tex");
+  }
+
+  void draw_fail_overlay() {
+    ensure_fail_overlay_loaded();
+    auto* dev = static_cast<IDirect3DDevice9*>(win_->device_ptr());
+    if (!dev) return;
+    D3DVIEWPORT9 vp;
+    if (FAILED(dev->GetViewport(&vp))) return;
+    const float w = static_cast<float>(vp.Width);
+    const float h = static_cast<float>(vp.Height);
+
+    dev->BeginScene();
+    dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+    dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+    dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+    dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    dev->SetFVF(kOverlayFVF);
+
+    draw_overlay_quad(dev, nullptr, 0.0f, 0.0f, w, h,
+                      D3DCOLOR_ARGB(150, 0, 0, 0));
+    if (fail_overlay_ready_ && fail_overlay_tex_) {
+      const float target = std::min(w, h) * 0.44f;
+      const float scale = std::min(
+          target / std::max(1, fail_overlay_width_),
+          target / std::max(1, fail_overlay_height_));
+      const float tw = fail_overlay_width_ * scale;
+      const float th = fail_overlay_height_ * scale;
+      const float x0 = (w - tw) * 0.5f;
+      const float y0 = (h - th) * 0.35f;
+      draw_overlay_quad(dev, fail_overlay_tex_, x0, y0, x0 + tw, y0 + th,
+                        D3DCOLOR_ARGB(215, 255, 255, 255));
+    }
+    dev->SetTexture(0, nullptr);
+    dev->EndScene();
+  }
+
+  std::string finish_overlay_milo_path() const {
+    static constexpr std::array<const char*, 4> kWinPanels = {
+        "ui/gen/win_easy.milo_ps2",
+        "ui/gen/win_medium.milo_ps2",
+        "ui/gen/win_hard.milo_ps2",
+        "ui/gen/win_expert.milo_ps2",
+    };
+    const int diff = std::clamp(song_diff_, 0, 3);
+    return kWinPanels[static_cast<size_t>(diff)];
+  }
+
+  void ensure_finish_overlay_loaded() {
+    if (finish_overlay_load_attempted_) return;
+    finish_overlay_load_attempted_ = true;
+    if (hdr_path_.empty() || ark_path_.empty()) return;
+    auto* dev = static_cast<IDirect3DDevice9*>(win_->device_ptr());
+    const std::string milo_path = finish_overlay_milo_path();
+    const ghogx::asset::Image tile = ghogx::asset::load_milo_texture_named(
+        hdr_path_, ark_path_, milo_path, "newspaper.tex");
+    finish_overlay_width_ = tile.width;
+    finish_overlay_height_ = tile.height;
+    finish_overlay_tex_ = upload_overlay_texture(dev, tile, true);
+    finish_overlay_ready_ = finish_overlay_tex_ != nullptr;
+    std::fprintf(stderr,
+                 "[ghogx] finish overlay texture %s (%dx%d) from %s/%s\n",
+                 finish_overlay_ready_ ? "ready" : "failed",
+                 finish_overlay_width_, finish_overlay_height_,
+                 milo_path.c_str(), "newspaper.tex");
+  }
+
+  void draw_finish_overlay() {
+    ensure_finish_overlay_loaded();
+    auto* dev = static_cast<IDirect3DDevice9*>(win_->device_ptr());
+    if (!dev) return;
+    D3DVIEWPORT9 vp;
+    if (FAILED(dev->GetViewport(&vp))) return;
+    const float w = static_cast<float>(vp.Width);
+    const float h = static_cast<float>(vp.Height);
+
+    dev->BeginScene();
+    dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+    dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+    dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+    dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    dev->SetFVF(kOverlayFVF);
+
+    draw_overlay_quad(dev, nullptr, 0.0f, 0.0f, w, h,
+                      D3DCOLOR_ARGB(130, 0, 0, 0));
+    if (finish_overlay_ready_ && finish_overlay_tex_) {
+      const float target_w = w * 0.62f;
+      const float target_h = h * 0.68f;
+      const float scale = std::min(
+          target_w / std::max(1, finish_overlay_width_),
+          target_h / std::max(1, finish_overlay_height_));
+      const float tw = finish_overlay_width_ * scale;
+      const float th = finish_overlay_height_ * scale;
+      const float x0 = (w - tw) * 0.5f;
+      const float y0 = (h - th) * 0.46f;
+      draw_overlay_quad(dev, finish_overlay_tex_, x0, y0, x0 + tw, y0 + th,
+                        D3DCOLOR_ARGB(230, 255, 255, 255));
+    }
+    dev->SetTexture(0, nullptr);
+    dev->EndScene();
   }
 };
 
@@ -1515,13 +1999,23 @@ int main(int argc, char** argv) {
   int screenshot_frame = 30;
   std::string screenshot_sequence_dir;
   std::string screenshot_sequence_frames_arg;
+  bool sparse_screenshots = false;
   float fixed_dt = 0.0f;
   double diagnostic_song_start = 0.0;
   bool diagnostic_autoplay = false;
+  std::optional<uint32_t> diagnostic_fret_mask;
+  std::optional<uint32_t> diagnostic_guitar_mask;
+  std::vector<DiagnosticGuitarScriptEvent> diagnostic_guitar_script;
+  std::optional<DiagnosticChartScriptWindow> diagnostic_chart_script_window;
+  bool debug_note_counter = false;
+  std::string diagnostic_character;
   std::string diagnostic_venue;
   std::string diagnostic_venue_event;
   std::string diagnostic_camera_shot;
   double diagnostic_camera_path_offset_frames = 0.0;
+  std::optional<double> diagnostic_rock_fill;
+  std::optional<double> diagnostic_star_power_fill;
+  bool diagnostic_star_power_active = false;
   bool show_window = false;
   CamOverride cam_ovr;  // optional --cam-* overrides for the scene viewer
 
@@ -1575,6 +2069,51 @@ int main(int argc, char** argv) {
       hud_test_options.ref_song_time = diagnostic_song_start;
     } else if (std::strcmp(argv[i], "--diagnostic-autoplay") == 0) {
       diagnostic_autoplay = true;
+    } else if (std::strcmp(argv[i], "--diagnostic-fret-mask") == 0 &&
+               i + 1 < argc) {
+      diagnostic_fret_mask =
+          static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 0)) & 0x1fu;
+    } else if (std::strcmp(argv[i], "--diagnostic-guitar-mask") == 0 &&
+               i + 1 < argc) {
+      diagnostic_guitar_mask =
+          static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 0)) & 0xffu;
+    } else if (std::strcmp(argv[i], "--diagnostic-guitar-script") == 0 &&
+               i + 1 < argc) {
+      diagnostic_guitar_script =
+          parse_diagnostic_guitar_script(argv[++i]);
+    } else if (std::strcmp(argv[i], "--diagnostic-guitar-script-from-chart") == 0 &&
+               i + 1 < argc) {
+      const bool whammy_star_sustains =
+          diagnostic_chart_script_window &&
+          diagnostic_chart_script_window->whammy_star_sustains;
+      const std::optional<double> star_power_at_sec =
+          diagnostic_chart_script_window
+              ? diagnostic_chart_script_window->star_power_at_sec
+              : std::nullopt;
+      diagnostic_chart_script_window =
+          parse_diagnostic_chart_script_window(argv[++i]);
+      if (diagnostic_chart_script_window) {
+        diagnostic_chart_script_window->whammy_star_sustains =
+            whammy_star_sustains;
+        diagnostic_chart_script_window->star_power_at_sec = star_power_at_sec;
+      }
+    } else if (std::strcmp(argv[i], "--diagnostic-guitar-script-star-power-at") == 0 &&
+               i + 1 < argc) {
+      if (!diagnostic_chart_script_window) {
+        diagnostic_chart_script_window = DiagnosticChartScriptWindow{};
+      }
+      diagnostic_chart_script_window->star_power_at_sec =
+          std::max(0.0, std::strtod(argv[++i], nullptr));
+    } else if (std::strcmp(argv[i], "--diagnostic-guitar-script-whammy") == 0) {
+      if (!diagnostic_chart_script_window) {
+        diagnostic_chart_script_window = DiagnosticChartScriptWindow{};
+      }
+      diagnostic_chart_script_window->whammy_star_sustains = true;
+    } else if (std::strcmp(argv[i], "--debug-note-counter") == 0) {
+      debug_note_counter = true;
+    } else if (std::strcmp(argv[i], "--diagnostic-character") == 0 &&
+               i + 1 < argc) {
+      diagnostic_character = argv[++i];
     } else if (std::strcmp(argv[i], "--diagnostic-venue") == 0 && i + 1 < argc) {
       diagnostic_venue = argv[++i];
     } else if (std::strcmp(argv[i], "--diagnostic-venue-event") == 0 &&
@@ -1586,6 +2125,14 @@ int main(int argc, char** argv) {
     } else if (std::strcmp(argv[i], "--diagnostic-camera-path-offset") == 0 &&
                i + 1 < argc) {
       diagnostic_camera_path_offset_frames = std::atof(argv[++i]);
+    } else if (std::strcmp(argv[i], "--diagnostic-rock") == 0 &&
+               i + 1 < argc) {
+      diagnostic_rock_fill = std::atof(argv[++i]);
+    } else if (std::strcmp(argv[i], "--diagnostic-star-power") == 0 &&
+               i + 1 < argc) {
+      diagnostic_star_power_fill = std::atof(argv[++i]);
+    } else if (std::strcmp(argv[i], "--diagnostic-star-power-active") == 0) {
+      diagnostic_star_power_active = true;
     } else if (std::strcmp(argv[i], "--auto-start") == 0) {
       auto_start = true;
     } else if (std::strcmp(argv[i], "--show-window") == 0) {
@@ -1620,6 +2167,8 @@ int main(int argc, char** argv) {
       screenshot_sequence_dir = argv[++i];
     } else if (std::strcmp(argv[i], "--screenshot-frames") == 0 && i + 1 < argc) {
       screenshot_sequence_frames_arg = argv[++i];
+    } else if (std::strcmp(argv[i], "--sparse-screenshots") == 0) {
+      sparse_screenshots = true;
     } else if (std::strcmp(argv[i], "--fixed-dt") == 0 && i + 1 < argc) {
       fixed_dt = static_cast<float>(std::atof(argv[++i]));
     } else if (std::strcmp(argv[i], "--cam-yaw") == 0 && i + 1 < argc) {
@@ -1650,6 +2199,12 @@ int main(int argc, char** argv) {
     return 2;
   }
   const bool capture_enabled = !screenshot_path.empty() || !screenshot_sequence.empty();
+  if (sparse_screenshots && !capture_enabled) {
+    std::fprintf(stderr,
+                 "[ghogx] --sparse-screenshots requires --screenshot or "
+                 "--screenshot-dir/--screenshot-frames\n");
+    return 2;
+  }
 
   if (capture_enabled && !show_window) {
     _putenv_s("GHOGX_HIDE_WINDOW", "1");
@@ -1668,7 +2223,13 @@ int main(int argc, char** argv) {
     }
     if (hdr.empty() || ark.empty()) {
       std::fprintf(stderr, "[ghogx] --ark-dir lacks main.hdr/main_0.ark: %s\n", ark_dir.c_str());
+      return 2;
     }
+  }
+
+  if (debug_note_counter) {
+    _putenv_s("GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER", "1");
+    std::fprintf(stderr, "[ghogx] debug note counter enabled\n");
   }
 
   // --menu: the windowed menu system (boots the menu engine + renders screens).
@@ -1745,6 +2306,11 @@ int main(int argc, char** argv) {
   AppEngine engine(win.get());
   engine.set_ark(hdr, ark);
   engine.set_song(song_name, difficulty);
+  if (!diagnostic_character.empty()) {
+    engine.set_diagnostic_character_override(diagnostic_character);
+    std::fprintf(stderr, "[ghogx] diagnostic character override: %s\n",
+                 diagnostic_character.c_str());
+  }
   if (!diagnostic_venue.empty()) {
     engine.set_diagnostic_venue_override(diagnostic_venue);
     std::fprintf(stderr, "[ghogx] diagnostic venue override: %s\n",
@@ -1770,6 +2336,49 @@ int main(int argc, char** argv) {
   if (diagnostic_autoplay) {
     engine.set_diagnostic_autoplay(true);
     std::fprintf(stderr, "[ghogx] diagnostic autoplay enabled\n");
+  }
+  if (diagnostic_fret_mask) {
+    engine.set_diagnostic_fret_mask(*diagnostic_fret_mask);
+    std::fprintf(stderr, "[ghogx] diagnostic fret mask: 0x%02x\n",
+                 *diagnostic_fret_mask);
+  }
+  if (diagnostic_guitar_mask) {
+    engine.set_diagnostic_guitar_mask(*diagnostic_guitar_mask);
+    std::fprintf(stderr, "[ghogx] diagnostic guitar mask: 0x%02x\n",
+                 *diagnostic_guitar_mask);
+  }
+  if (!diagnostic_guitar_script.empty()) {
+    engine.set_diagnostic_guitar_script(diagnostic_guitar_script);
+    std::fprintf(stderr, "[ghogx] diagnostic guitar script events: %zu\n",
+                 diagnostic_guitar_script.size());
+  }
+  if (diagnostic_chart_script_window) {
+    engine.set_diagnostic_chart_guitar_script(*diagnostic_chart_script_window);
+    std::fprintf(
+        stderr,
+        "[ghogx] diagnostic chart guitar script requested: %.3f..%.3f "
+        "hit_offset=%.4f whammy_star_sustains=%d star_power_at=%.3f\n",
+        diagnostic_chart_script_window->start_sec,
+        diagnostic_chart_script_window->end_sec,
+        diagnostic_chart_script_window->hit_offset_sec,
+        diagnostic_chart_script_window->whammy_star_sustains ? 1 : 0,
+        diagnostic_chart_script_window->star_power_at_sec
+            ? *diagnostic_chart_script_window->star_power_at_sec
+            : -1.0);
+  }
+  if (diagnostic_rock_fill) {
+    engine.set_diagnostic_rock_fill(*diagnostic_rock_fill);
+    std::fprintf(stderr, "[ghogx] diagnostic rock fill: %.2f\n",
+                 std::clamp(*diagnostic_rock_fill, 0.0, 1.0));
+  }
+  if (diagnostic_star_power_fill) {
+    engine.set_diagnostic_star_power_fill(*diagnostic_star_power_fill);
+    std::fprintf(stderr, "[ghogx] diagnostic star power fill: %.2f\n",
+                 std::clamp(*diagnostic_star_power_fill, 0.0, 1.0));
+  }
+  if (diagnostic_star_power_active) {
+    engine.set_diagnostic_star_power_active(true);
+    std::fprintf(stderr, "[ghogx] diagnostic star power active\n");
   }
   if (diagnostic_song_start > 0.0) {
     engine.set_diagnostic_song_start(diagnostic_song_start);
@@ -1810,6 +2419,7 @@ int main(int argc, char** argv) {
       max_frames = static_cast<int>(screenshot_sequence.rbegin()->first + 3);
     }
   }
+  engine.set_sparse_screenshots(sparse_screenshots);
   if (auto_start && !hdr.empty()) {
     // Skip splash + title, load song immediately for diagnostic/dev runs.
     engine.force_start_song();
@@ -1859,5 +2469,6 @@ int main(int argc, char** argv) {
 
   std::fprintf(stderr, "[ghogx] exited after %llu frames, %.2fs engine time\n",
                static_cast<unsigned long long>(engine.frame_count()), engine.time());
+  engine.log_final_gameplay_summary();
   return 0;
 }

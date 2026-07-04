@@ -1,6 +1,7 @@
 #include "game/gameplay_rules.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace ghogx::game {
 
@@ -142,6 +143,13 @@ void fofix_apply_rock_overstrum(FoFiXRockState& state,
   state.plus_amount = std::max(state.plus_amount, kPlusBase);
 }
 
+void fofix_set_rock_fill(FoFiXRockState& state, double fill) {
+  const double sane_fill = std::isfinite(fill) ? fill : 0.0;
+  state.value = std::clamp(sane_fill, 0.0, 1.0) * kRockMax;
+  state.minus_amount = kMinBase;
+  state.plus_amount = kPlusBase;
+}
+
 double fofix_rock_fill(const FoFiXRockState& state) {
   return std::clamp(state.value / kRockMax, 0.0, 1.0);
 }
@@ -152,6 +160,12 @@ bool fofix_rock_failed(const FoFiXRockState& state) {
 
 void fofix_award_star_phrase(FoFiXStarPowerState& state) {
   state.value = std::clamp(state.value + kStarPhraseAward, 0.0, 100.0);
+}
+
+void fofix_set_star_power_fill(FoFiXStarPowerState& state, double fill) {
+  const double sane_fill = std::isfinite(fill) ? fill : 0.0;
+  state.value = std::clamp(sane_fill, 0.0, 1.0) * 100.0;
+  if (state.value <= 0.0) state.active = false;
 }
 
 bool fofix_activate_star_power(FoFiXStarPowerState& state) {

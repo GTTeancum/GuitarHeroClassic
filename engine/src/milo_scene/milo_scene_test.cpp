@@ -282,6 +282,34 @@ void test_mesh() {
   CHECK(!h.showing);
 }
 
+void test_group() {
+  std::vector<uint8_t> b;
+  put_u32(b, 12);                // Group version
+  put_zeros(b, 9);               // base metadata
+  put_u32(b, 4);                 // Draw version
+  put_zeros(b, 8);               // Draw flags before embedded Trans
+  put_u32(b, 9);                 // embedded Trans version
+  put_matrix(b, 7.85f, 6.527f, -0.0572f);
+  put_matrix(b, 7.85f, 6.527f, -0.0572f);
+  put_zeros(b, 9);
+  put_str(b, "track.view");
+  put_u32(b, 1);                 // draw/child section marker
+  put_str(b, "red_gem.mesh");
+  put_str(b, "track.env");
+
+  GroupObj g = decode_group("gem_template.view", b);
+  CHECK(g.name == "gem_template.view");
+  CHECK(g.has_transform);
+  CHECK(g.parent == "track.view");
+  CHECK(approx(g.local.pos[0], 7.85f));
+  CHECK(approx(g.local.pos[2], -0.0572f));
+  CHECK(g.children.size() == 1 && g.children[0] == "red_gem.mesh");
+  CHECK(g.environment_ref == "track.env");
+  std::printf("  [ok] Group: parent=%s pos=(%.2f,%.3f,%.4f) child=%s\n",
+              g.parent.c_str(), g.local.pos[0], g.local.pos[1],
+              g.local.pos[2], g.children[0].c_str());
+}
+
 }  // namespace
 
 int main() {
@@ -293,6 +321,7 @@ int main() {
   test_environ_with_extensionless_light();
   test_environ_with_fog();
   test_mesh();
+  test_group();
   std::printf("ALL PASS\n");
   return 0;
 }

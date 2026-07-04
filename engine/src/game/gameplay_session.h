@@ -23,16 +23,20 @@ struct FoFiXSessionNote {
   double hit_late_sec = 0.0;
   size_t source_index = static_cast<size_t>(-1);
   uint32_t source_tick = UINT32_MAX;
+  int hopo_tappable = 0;
+  bool final_star = false;
 };
 
 enum class FoFiXSessionEventType {
   Hit,
   Miss,
   Overstrum,
+  HopoStrumIgnored,
   Sustain,
   StarPhraseComplete,
   StarPhraseMiss,
   StarPowerActivate,
+  StarPowerDeactivate,
   StarPowerWhammy,
 };
 
@@ -70,7 +74,13 @@ class FoFiXGameplaySession {
 
   void tick(double song_time, uint32_t fret_mask);
   void seek_without_scoring(double song_time);
-  uint32_t diagnostic_autoplay_mask(double song_time) const;
+  uint32_t diagnostic_autoplay_mask(double song_time,
+                                    bool activate_star_power = false);
+  uint32_t tick_diagnostic_autoplay(double song_time,
+                                    bool activate_star_power = false);
+  void set_rock_fill_for_diagnostic(double fill);
+  void set_star_power_fill_for_diagnostic(double fill);
+  void set_star_power_active_for_diagnostic(bool active);
   void copy_source_consumed(std::vector<uint8_t>& out) const;
   void copy_active_sustains(std::vector<FoFiXSessionSustain>& out) const;
 
@@ -107,6 +117,7 @@ class FoFiXGameplaySession {
   uint32_t group_mask(size_t start, size_t end) const;
   int group_gem_count(size_t start, size_t end) const;
   bool group_star_power(size_t start, size_t end) const;
+  bool group_final_star(size_t start, size_t end) const;
   FoFiXSessionEvent make_event(FoFiXSessionEventType type,
                                double time,
                                uint32_t mask,
@@ -122,7 +133,12 @@ class FoFiXGameplaySession {
                        uint32_t held_frets,
                        bool whammy);
   void start_sustain(size_t start, size_t end, double song_time);
-  void apply_hit(size_t start, size_t end, double song_time);
+  void clear_hopo_strict_state();
+  void update_hopo_strict_state(size_t start, size_t end, bool hopo_input);
+  bool should_ignore_hopo_strum(double song_time, uint32_t held_frets);
+  void apply_hopo_strum_ignored(uint32_t held_frets);
+  void apply_hit(size_t start, size_t end, double song_time,
+                 bool hopo_input = false);
   void apply_miss(size_t start, size_t end);
   void apply_skip(size_t start, size_t end);
   void apply_overstrum(uint32_t held_frets);
@@ -135,6 +151,7 @@ class FoFiXGameplaySession {
   double beat_seconds_ = 0.5;
   double last_time_ = 0.0;
   uint32_t prev_fret_mask_ = 0;
+  uint32_t diagnostic_autoplay_last_strum_tick_ = UINT32_MAX;
   size_t next_note_ = 0;
   FoFiXScoreState score_;
   FoFiXRockState rock_;
@@ -143,6 +160,13 @@ class FoFiXGameplaySession {
   bool star_phrase_missed_ = false;
   size_t star_phrase_source_index_ = static_cast<size_t>(-1);
   uint32_t star_phrase_source_tick_ = UINT32_MAX;
+  bool was_last_note_hopod_ = false;
+  bool last_strum_was_chord_ = false;
+  bool same_note_hopo_string_ = false;
+  int hopo_last_lane_ = -1;
+  int hopo_problem_lane_ = -1;
+  double hopo_active_time_ = 0.0;
+  double hopo_strict_late_margin_sec_ = 0.0;
   int hits_ = 0;
   int misses_ = 0;
   int overstrums_ = 0;

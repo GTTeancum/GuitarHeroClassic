@@ -29,6 +29,12 @@ int first_lane(uint32_t mask) {
   return 0;
 }
 
+bool sustain_frets_held(uint32_t held_frets, uint32_t sustain_mask) {
+  held_frets &= 0x1fu;
+  sustain_mask &= 0x1fu;
+  return sustain_mask != 0 && (held_frets & sustain_mask) == sustain_mask;
+}
+
 double tempo_bpm_at_tick(const ghogx::chart::Chart& chart, uint32_t tick) {
   uint32_t us_per_beat = 500000;
   for (const auto& tempo : chart.tempo_map) {
@@ -56,6 +62,9 @@ FoFiXGameplaySession::FoFiXGameplaySession(std::vector<FoFiXSessionNote> notes,
             });
   for (FoFiXSessionNote& note : notes_) {
     if (note.end_time < note.time) note.end_time = note.time;
+    note.hopo_tappable = std::clamp(note.hopo_tappable, 0, 3);
+    if (note.hopo && note.hopo_tappable == 0) note.hopo_tappable = 2;
+    if (note.hopo_tappable >= 2) note.hopo = true;
     if (note.beat_seconds <= 0.0 || !std::isfinite(note.beat_seconds)) {
       note.beat_seconds = beat_seconds_;
     }
@@ -77,7 +86,7 @@ FoFiXGameplaySession FoFiXGameplaySession::FromChart(
   for (const auto& note : chart.notes[diff]) {
     const double bpm = tempo_bpm_at_tick(chart, note.tick_on);
     const FoFiXHitWindow window = fofix_hit_window_for_bpm(bpm);
-    notes.push_back(FoFiXSessionNote{
+    FoFiXSessionNote session_note{
         chart.tick_to_sec(note.tick_on),
         std::max(chart.tick_to_sec(note.tick_on),
                  chart.tick_to_sec(note.tick_off)),
@@ -89,7 +98,10 @@ FoFiXGameplaySession FoFiXGameplaySession::FromChart(
         window.late_sec,
         notes.size(),
         note.tick_on,
-    });
+    };
+    session_note.hopo_tappable = note.hopo_tappable;
+    session_note.final_star = note.final_star;
+    notes.push_back(session_note);
   }
   return FoFiXGameplaySession(std::move(notes));
 }
@@ -129,6 +141,14 @@ bool FoFiXGameplaySession::group_star_power(size_t start, size_t end) const {
   for (size_t i = start; i < end; ++i) {
     if (i < consumed_.size() && consumed_[i]) continue;
     if (notes_[i].star_power) return true;
+  }
+  return false;
+}
+
+bool FoFiXGameplaySession::group_final_star(size_t start, size_t end) const {
+  for (size_t i = start; i < end; ++i) {
+    if (i < consumed_.size() && consumed_[i]) continue;
+    if (notes_[i].final_star) return true;
   }
   return false;
 }
@@ -225,7 +245,7 @@ void FoFiXGameplaySession::update_sustains(double song_time,
       award_sustain(sustain, sustain.end_time);
       continue;
     }
-    if (!fofix_match_frets(held_frets, sustain.mask)) {
+    if (!sustain_frets_held(held_frets, sustain.mask)) {
       award_sustain(sustain, song_time);
       continue;
     }
@@ -274,28 +294,112 @@ void FoFiXGameplaySession::start_sustain(size_t start,
                     notes_[start].source_tick});
 }
 
+void FoFiXGameplaySession::clear_hopo_strict_state() {
+  was_last_note_hopod_ = false;
+  last_strum_was_chord_ = false;
+  same_note_hopo_string_ = false;
+  hopo_last_lane_ = -1;
+  hopo_problem_lane_ = -1;
+  hopo_active_time_ = 0.0;
+  hopo_strict_late_margin_sec_ = 0.0;
+}
+
+void FoFiXGameplaySession::update_hopo_strict_state(size_t start,
+                                                    size_t end,
+                                                    bool hopo_input) {
+  const int gem_count = group_gem_count(start, end);
+  const uint32_t mask = group_mask(start, end);
+  if (gem_count != 1 || mask == 0 || start >= notes_.size()) {
+    clear_hopo_strict_state();
+    last_strum_was_chord_ = gem_count > 1;
+    return;
+  }
+
+  const int tappable = notes_[start].hopo_tappable;
+  if (tappable <= 0) {
+    clear_hopo_strict_state();
+    return;
+  }
+
+  hopo_last_lane_ = first_lane(mask);
+  hopo_active_time_ =
+      tappable == 3 ? -notes_[start].time : notes_[start].time;
+  hopo_strict_late_margin_sec_ = window_for_note(start).late_sec;
+  was_last_note_hopod_ = true;
+  last_strum_was_chord_ = false;
+  same_note_hopo_string_ = hopo_input && tappable == 3;
+  hopo_problem_lane_ = same_note_hopo_string_ ? hopo_last_lane_ : -1;
+}
+
+bool FoFiXGameplaySession::should_ignore_hopo_strum(double song_time,
+                                                    uint32_t held_frets) {
+  if (!was_last_note_hopod_ || last_strum_was_chord_ ||
+      hopo_last_lane_ < 0 || hopo_last_lane_ >= 5) {
+    return false;
+  }
+
+  held_frets &= 0x1fu;
+  const uint32_t last_bit = 1u << hopo_last_lane_;
+  const bool last_hopo_fret_still_held = (held_frets & last_bit) != 0;
+  const uint32_t higher_frets =
+      0x1fu & ~((1u << (hopo_last_lane_ + 1)) - 1u);
+  const bool higher_frets_held = (held_frets & higher_frets) != 0;
+
+  if (same_note_hopo_string_) {
+    const bool problem_note_still_held =
+        hopo_problem_lane_ >= 0 && hopo_problem_lane_ < 5 &&
+        (held_frets & (1u << hopo_problem_lane_)) != 0;
+    if (!problem_note_still_held || higher_frets_held) {
+      same_note_hopo_string_ = false;
+      hopo_problem_lane_ = -1;
+      return false;
+    }
+    return last_hopo_fret_still_held;
+  }
+
+  if (!last_hopo_fret_still_held || higher_frets_held) return false;
+  const double active_time = std::abs(hopo_active_time_);
+  if (active_time <= 0.0 || hopo_strict_late_margin_sec_ <= 0.0)
+    return false;
+  const double hopo_fudge = std::abs(active_time - song_time);
+  return hopo_fudge >= 0.0 && hopo_fudge < hopo_strict_late_margin_sec_;
+}
+
+void FoFiXGameplaySession::apply_hopo_strum_ignored(uint32_t held_frets) {
+  last_events_.push_back(make_event(FoFiXSessionEventType::HopoStrumIgnored,
+                                    last_time_, held_frets & 0x1fu, 0, 0,
+                                    static_cast<size_t>(-1), UINT32_MAX));
+  clear_hopo_strict_state();
+}
+
 void FoFiXGameplaySession::apply_hit(size_t start,
                                      size_t end,
-                                     double song_time) {
+                                     double song_time,
+                                     bool hopo_input) {
   const int gem_count = group_gem_count(start, end);
   if (gem_count <= 0) return;
   const uint32_t mask = group_mask(start, end);
   active_sustains_.clear();
   observe_star_phrase(start, end, true);
+  const bool completes_clean_star_phrase =
+      group_final_star(start, end) && star_phrase_active_ &&
+      !star_phrase_missed_;
   const FoFiXScoreAward award = fofix_apply_hit(
       score_, gem_count, fofix_star_power_score_multiplier(star_power_));
   fofix_apply_rock_hit(
       rock_,
       static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
+  start_sustain(start, end, song_time);
+  update_hopo_strict_state(start, end, hopo_input);
   for (size_t i = start; i < end; ++i) {
     if (i < consumed_.size()) consumed_[i] = 1;
   }
-  start_sustain(start, end, song_time);
   ++hits_;
   last_events_.push_back(make_event(FoFiXSessionEventType::Hit, song_time,
                                     mask, gem_count, award.points,
                                     notes_[start].source_index,
                                     notes_[start].source_tick));
+  if (completes_clean_star_phrase) finish_star_phrase();
 }
 
 void FoFiXGameplaySession::apply_miss(size_t start, size_t end) {
@@ -306,6 +410,7 @@ void FoFiXGameplaySession::apply_miss(size_t start, size_t end) {
   fofix_apply_rock_miss(
       rock_,
       static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
+  clear_hopo_strict_state();
   for (size_t i = start; i < end; ++i) {
     if (i < consumed_.size()) consumed_[i] = 1;
   }
@@ -324,10 +429,12 @@ void FoFiXGameplaySession::apply_skip(size_t start, size_t end) {
 }
 
 void FoFiXGameplaySession::apply_overstrum(uint32_t held_frets) {
+  if (star_phrase_active_) star_phrase_missed_ = true;
   fofix_apply_miss(score_);
   fofix_apply_rock_overstrum(
       rock_,
       static_cast<double>(fofix_star_power_score_multiplier(star_power_)));
+  clear_hopo_strict_state();
   ++overstrums_;
   last_events_.push_back(make_event(FoFiXSessionEventType::Overstrum,
                                     last_time_, held_frets & 0x1fu, 0, 0,
@@ -338,36 +445,73 @@ void FoFiXGameplaySession::seek_without_scoring(double song_time) {
   last_events_.clear();
   last_time_ = std::max(0.0, song_time);
   prev_fret_mask_ = 0;
+  diagnostic_autoplay_last_strum_tick_ = UINT32_MAX;
   active_sustains_.clear();
+  clear_hopo_strict_state();
   star_phrase_active_ = false;
   star_phrase_missed_ = false;
   star_phrase_source_index_ = static_cast<size_t>(-1);
   star_phrase_source_tick_ = UINT32_MAX;
+  bool skipped_star_phrase_active = false;
+  size_t skipped_star_phrase_source_index = static_cast<size_t>(-1);
+  uint32_t skipped_star_phrase_source_tick = UINT32_MAX;
   while (next_note_ < notes_.size()) {
     if (next_note_ < consumed_.size() && consumed_[next_note_]) {
       ++next_note_;
       continue;
     }
-    if (!fofix_note_missed(last_time_, notes_[next_note_].time,
-                           window_for_note(next_note_))) {
+    const bool pre_seek_note = notes_[next_note_].time < last_time_ - 1e-6;
+    const bool late_missed =
+        fofix_note_missed(last_time_, notes_[next_note_].time,
+                          window_for_note(next_note_));
+    if (!pre_seek_note && !late_missed) {
       break;
     }
     const size_t end = group_end(next_note_);
+    const bool skipped_star_group = group_star_power(next_note_, end);
+    const bool skipped_final_star_group = group_final_star(next_note_, end);
+    if (!skipped_star_group) {
+      skipped_star_phrase_active = false;
+      skipped_star_phrase_source_index = static_cast<size_t>(-1);
+      skipped_star_phrase_source_tick = UINT32_MAX;
+    } else if (!skipped_star_phrase_active) {
+      skipped_star_phrase_active = true;
+      skipped_star_phrase_source_index = notes_[next_note_].source_index;
+      skipped_star_phrase_source_tick = notes_[next_note_].source_tick;
+    }
     for (size_t i = next_note_; i < end; ++i) {
       if (i < consumed_.size()) consumed_[i] = 1;
     }
+    if (skipped_final_star_group) {
+      skipped_star_phrase_active = false;
+      skipped_star_phrase_source_index = static_cast<size_t>(-1);
+      skipped_star_phrase_source_tick = UINT32_MAX;
+    }
     next_note_ = end;
+  }
+  if (skipped_star_phrase_active) {
+    star_phrase_active_ = true;
+    star_phrase_missed_ = true;
+    star_phrase_source_index_ = skipped_star_phrase_source_index;
+    star_phrase_source_tick_ = skipped_star_phrase_source_tick;
   }
 }
 
 uint32_t FoFiXGameplaySession::diagnostic_autoplay_mask(
-    double song_time) const {
+    double song_time,
+    bool activate_star_power) {
   uint32_t sustain_mask = 0;
   for (const ActiveSustain& sustain : active_sustains_) {
-    if (song_time >= sustain.start_time && song_time <= sustain.end_time) {
+    if (song_time <= sustain.end_time) {
       sustain_mask |= sustain.mask;
     }
   }
+  const uint32_t star_power_mask =
+      activate_star_power && !star_power_.active &&
+              fofix_star_power_fill(star_power_) >= 0.5 &&
+              (prev_fret_mask_ & (1u << 6)) == 0
+          ? (1u << 6)
+          : 0;
 
   size_t target = notes_.size();
   for (size_t i = next_note_; i < notes_.size(); ++i) {
@@ -379,11 +523,121 @@ uint32_t FoFiXGameplaySession::diagnostic_autoplay_mask(
     target = i;
     break;
   }
-  if (target >= notes_.size()) return sustain_mask;
+  if (target >= notes_.size()) return sustain_mask | star_power_mask;
 
   const size_t end = group_end(target);
   const uint32_t mask = group_mask(target, end);
-  return sustain_mask | mask | (1u << 5);
+  const uint32_t source_tick =
+      notes_[target].source_tick != UINT32_MAX
+          ? notes_[target].source_tick
+          : static_cast<uint32_t>(
+                std::min<size_t>(target, UINT32_MAX - 1u));
+  uint32_t strum_mask = 0;
+  if (source_tick != diagnostic_autoplay_last_strum_tick_) {
+    strum_mask = 1u << 5;
+    diagnostic_autoplay_last_strum_tick_ = source_tick;
+    prev_fret_mask_ &= ~(1u << 5);
+  }
+  if (strum_mask != 0) return mask | strum_mask | star_power_mask;
+  return sustain_mask | mask | star_power_mask;
+}
+
+uint32_t FoFiXGameplaySession::tick_diagnostic_autoplay(
+    double song_time,
+    bool activate_star_power) {
+  const double target_time = std::max(0.0, song_time);
+  std::vector<FoFiXSessionEvent> emitted;
+
+  auto collect_tick = [&](double tick_time, uint32_t mask) {
+    tick(tick_time, mask);
+    emitted.insert(emitted.end(), last_events_.begin(), last_events_.end());
+  };
+  auto sustain_mask_at = [&](double time) {
+    uint32_t mask = 0;
+    for (const ActiveSustain& sustain : active_sustains_) {
+      if (time <= sustain.end_time) mask |= sustain.mask;
+    }
+    return mask;
+  };
+  auto star_power_mask = [&]() {
+    return activate_star_power && !star_power_.active &&
+                   fofix_star_power_fill(star_power_) >= 0.5 &&
+                   (prev_fret_mask_ & (1u << 6)) == 0
+               ? (1u << 6)
+               : 0;
+  };
+  auto release_to_sustains = [&](double tick_time, uint32_t mask) {
+    const uint32_t released = sustain_mask_at(tick_time);
+    if ((mask & ~((1u << 5) | (1u << 6))) != released ||
+        (mask & ((1u << 5) | (1u << 6))) != 0) {
+      collect_tick(tick_time, released);
+    }
+    return released;
+  };
+
+  uint32_t final_mask = sustain_mask_at(target_time);
+  for (size_t guard = 0; guard < notes_.size() + 16; ++guard) {
+    size_t target = notes_.size();
+    for (size_t i = next_note_; i < notes_.size(); ++i) {
+      if (i < consumed_.size() && consumed_[i]) continue;
+      const FoFiXHitWindow window = window_for_note(i);
+      if (notes_[i].time > target_time + window.early_sec) break;
+      target = i;
+      break;
+    }
+    if (target >= notes_.size()) break;
+
+    const size_t end = group_end(target);
+    const uint32_t required = group_mask(target, end);
+    if (required == 0) {
+      for (size_t i = target; i < end; ++i) {
+        if (i < consumed_.size()) consumed_[i] = 1;
+      }
+      next_note_ = end;
+      continue;
+    }
+
+    const double note_time = notes_[target].time;
+    const double hit_time =
+        note_time <= target_time
+            ? std::max(last_time_, note_time)
+            : target_time;
+    const uint32_t source_tick =
+        notes_[target].source_tick != UINT32_MAX
+            ? notes_[target].source_tick
+            : static_cast<uint32_t>(
+                  std::min<size_t>(target, UINT32_MAX - 1u));
+    diagnostic_autoplay_last_strum_tick_ = source_tick;
+
+    uint32_t hit_mask = required | (1u << 5) | star_power_mask();
+    collect_tick(hit_time, hit_mask);
+    final_mask = release_to_sustains(hit_time, hit_mask);
+    if (fofix_rock_failed(rock_)) break;
+  }
+
+  final_mask = sustain_mask_at(target_time) | star_power_mask();
+  collect_tick(target_time, final_mask);
+  last_events_ = std::move(emitted);
+  return final_mask & ~((1u << 5) | (1u << 6));
+}
+
+void FoFiXGameplaySession::set_rock_fill_for_diagnostic(double fill) {
+  fofix_set_rock_fill(rock_, fill);
+}
+
+void FoFiXGameplaySession::set_star_power_fill_for_diagnostic(double fill) {
+  fofix_set_star_power_fill(star_power_, fill);
+}
+
+void FoFiXGameplaySession::set_star_power_active_for_diagnostic(bool active) {
+  if (!active) {
+    star_power_.active = false;
+    return;
+  }
+  if (star_power_.value < 50.0) {
+    fofix_set_star_power_fill(star_power_, 0.5);
+  }
+  star_power_.active = true;
 }
 
 void FoFiXGameplaySession::copy_source_consumed(
@@ -425,7 +679,14 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
                                         static_cast<size_t>(-1), UINT32_MAX));
     }
   }
+  const bool star_power_was_active = star_power_.active;
   fofix_update_star_power(star_power_, dt);
+  if (star_power_was_active && !star_power_.active) {
+    last_events_.push_back(
+        make_event(FoFiXSessionEventType::StarPowerDeactivate,
+                   song_time, 0, 0, 0,
+                   static_cast<size_t>(-1), UINT32_MAX));
+  }
   if (fofix_rock_failed(rock_)) {
     active_sustains_.clear();
     prev_fret_mask_ = fret_mask;
@@ -434,7 +695,10 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
 
   const bool strummed =
       (fret_mask & (1u << 5)) != 0 && (prev_fret_mask_ & (1u << 5)) == 0;
+  const uint32_t previous_held_frets = prev_fret_mask_ & 0x1fu;
   const uint32_t held_frets = fret_mask & 0x1fu;
+  const uint32_t pressed_frets = held_frets & ~previous_held_frets;
+  const uint32_t released_frets = previous_held_frets & ~held_frets;
   const bool whammy = (fret_mask & (1u << 7)) != 0;
   if (strummed)
     active_sustains_.clear();
@@ -481,12 +745,19 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
       overstrum_candidate_end = end;
     }
 
-    const bool is_hopo = gem_count == 1 && notes_[i].hopo && score_.streak > 0;
+    const bool is_hopo =
+        gem_count == 1 &&
+        (notes_[i].hopo || notes_[i].hopo_tappable >= 2) &&
+        score_.streak > 0;
     const int lane = first_lane(required);
     bool can_hit = false;
-    if (is_hopo && (held_frets & (1u << lane)) != 0 &&
-        (prev_fret_mask_ & (1u << lane)) == 0) {
-      can_hit = fofix_match_frets(held_frets, required);
+    if (is_hopo && (held_frets & (1u << lane)) != 0) {
+      const uint32_t lane_bit = 1u << lane;
+      const bool fret_pressed = (pressed_frets & lane_bit) != 0;
+      const bool pull_off = released_frets != 0 && held_frets != 0;
+      if (fret_pressed || pull_off) {
+        can_hit = fofix_match_frets(held_frets, required);
+      }
     }
     if (!can_hit && strummed) {
       can_hit = fofix_match_frets(held_frets, required);
@@ -506,7 +777,7 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
           skipped = skipped_end;
         }
       }
-      apply_hit(i, end, song_time);
+      apply_hit(i, end, song_time, is_hopo && !strummed);
       hit_this_frame = true;
       break;
     }
@@ -520,6 +791,11 @@ void FoFiXGameplaySession::tick(double song_time, uint32_t fret_mask) {
   if (next_note_ >= notes_.size()) finish_star_phrase();
 
   if (strummed && !hit_this_frame) {
+    if (should_ignore_hopo_strum(song_time, held_frets)) {
+      apply_hopo_strum_ignored(held_frets);
+      prev_fret_mask_ = fret_mask;
+      return;
+    }
     if (overstrum_candidate_seen &&
         group_star_power(overstrum_candidate_start, overstrum_candidate_end)) {
       observe_star_phrase(overstrum_candidate_start, overstrum_candidate_end,

@@ -9,7 +9,7 @@
 //   Hard   84-88
 //   Expert 96-100
 //   Fret-position animation: 40-59 (spot_neck_fret01..20)
-//   Star power phrase: note 116 on/off on any track
+//   Star power phrase: note 103 on/off on the guitar track
 //
 // HOPO threshold: FoFiX/GH2 default cutoff is 170 ticks at 480 PPQ.
 //
@@ -34,8 +34,10 @@ struct Note {
     uint32_t tick_on;
     uint32_t tick_off;
     int      lane;           // 0=Green 1=Red 2=Yellow 3=Blue 4=Orange
-    bool     is_hopo;        // true if gap from previous note is within GH2 cutoff
+    bool     is_hopo;        // true if rendered/playable as a tappable HOPO
     bool     star_power;     // true if this note falls inside a star power phrase
+    int      hopo_tappable = 0; // FoFiX class: 0=strum, 1=start, 2=middle, 3=end
+    bool     final_star = false; // final note/chord in a star power phrase
 };
 
 struct TextEvent {

@@ -40,6 +40,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -452,6 +453,36 @@ bool debug_lane_mixer_enabled() {
   const char* value = std::getenv("GHOGX_DEBUG_LANE_MIXER");
   return value && value[0];
 #endif
+}
+
+std::unordered_set<std::string>& missing_clip_milo_cache() {
+  static std::unordered_set<std::string> cache;
+  return cache;
+}
+
+std::mutex& missing_clip_milo_cache_mutex() {
+  static std::mutex mutex;
+  return mutex;
+}
+
+std::string missing_clip_milo_cache_key(const std::string& hdr_path,
+                                        const std::string& milo_path) {
+  return hdr_path + "\n" + milo_path;
+}
+
+bool clip_milo_missing_cached(const std::string& hdr_path,
+                              const std::string& milo_path) {
+  const std::string key = missing_clip_milo_cache_key(hdr_path, milo_path);
+  std::lock_guard<std::mutex> lock(missing_clip_milo_cache_mutex());
+  return missing_clip_milo_cache().find(key) !=
+         missing_clip_milo_cache().end();
+}
+
+void remember_missing_clip_milo(const std::string& hdr_path,
+                                const std::string& milo_path) {
+  const std::string key = missing_clip_milo_cache_key(hdr_path, milo_path);
+  std::lock_guard<std::mutex> lock(missing_clip_milo_cache_mutex());
+  missing_clip_milo_cache().insert(key);
 }
 
 bool debug_ik_enabled() {
@@ -1288,11 +1319,23 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
                    const std::string& milo_path, const std::string& clip_name) {
   CharClip result;
   result.name = clip_name;
+  if (clip_milo_missing_cached(hdr_path, milo_path)) {
+    if (debug_clip_enabled()) {
+      std::fprintf(stderr, "[clip] milo not in ARK (cached): %s\n",
+                   milo_path.c_str());
+    }
+    return result;
+  }
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
     auto entry = ark.find(milo_path);
     if (!entry) entry = ark.find("../../system/run/" + milo_path);
-    if (!entry) { std::fprintf(stderr, "[clip] milo not in ARK: %s\n", milo_path.c_str()); return result; }
+    if (!entry) {
+      remember_missing_clip_milo(hdr_path, milo_path);
+      std::fprintf(stderr, "[clip] milo not in ARK: %s\n",
+                   milo_path.c_str());
+      return result;
+    }
     auto bytes = ark.read_entry(*entry, {ark_path});
     auto hdr = gh::milo::parse_header(bytes);
     auto payload = gh::milo::inflate_payload(bytes, hdr);

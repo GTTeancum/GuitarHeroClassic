@@ -35,6 +35,7 @@ class AudioPlayer {
 
   void play();   // start (or resume) streaming playback from the current position
   void stop();   // pause the voice; position is retained
+  bool seek(double seconds);  // seek the compressed VGS stream to a song time
 
   // Elapsed song time in seconds, sample-accurate (derived from the number of
   // samples the mixer has actually played). This is the song clock.

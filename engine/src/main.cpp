@@ -20,6 +20,7 @@
 #include "catalog.h"
 #include "venue_catalog.h"
 #include "character_catalog.h"
+#include "chart/midi_reader.h"
 #include "milo_tex.h"
 #include "milo_bridge/milo_bridge.h"
 #include "milo_scene/milo_scene.h"
@@ -28,8 +29,10 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -58,6 +61,13 @@ void usage() {
         "                                     print the runtime ObjectDir tree\n"
         "  mesh --milo-path <p> [--name <m>]  decode Mesh/Trans/Mat render objects;\n"
         "                                     report vtx/face counts + bbox + material\n"
+        "  mats --milo-path <p> [--filter <s>]\n"
+        "                                     print decoded material texture/blend/UV state\n"
+        "  groups --milo-path <p> [--name <g>]\n"
+        "                                     print decoded Group children/order\n"
+        "  notes --song <shortname> [--difficulty <0-3>]\n"
+        "        [--filter hopo|star|final|sustain] [--from S] [--to S] [--limit N]\n"
+        "                                     print parsed chart note flags/timing\n"
         "  list [--filter <substr>]           enumerate ARK entry paths\n"
         "\n"
         "Common options:\n"
@@ -77,6 +87,11 @@ struct Args {
     std::string out_dir;
     std::string filter;  // substring filter for the `list` subcommand
     std::string name;    // exact entry-name match for `dump` / `mesh`
+    std::string song;
+    int difficulty = 3;
+    int limit = 80;
+    double from_sec = -1.0;
+    double to_sec = -1.0;
     bool json = false;
 };
 
@@ -100,6 +115,11 @@ Args parse_args(int argc, char** argv) {
         else if (k == "--out-dir")   a.out_dir = need("--out-dir");
         else if (k == "--filter")    a.filter = need("--filter");
         else if (k == "--name")      a.name = need("--name");
+        else if (k == "--song")      a.song = need("--song");
+        else if (k == "--difficulty") a.difficulty = std::atoi(need("--difficulty"));
+        else if (k == "--limit")     a.limit = std::atoi(need("--limit"));
+        else if (k == "--from")      a.from_sec = std::atof(need("--from"));
+        else if (k == "--to")        a.to_sec = std::atof(need("--to"));
         else if (k == "--json")      a.json = true;
         else if (k == "-h" || k == "--help") usage();
         else { std::fprintf(stderr, "unknown arg: %s\n", argv[i]); usage(); }
@@ -371,6 +391,67 @@ int run_dtb(const Args& a, const gh::ark::ArkV3Reader& ark) {
     return 0;
 }
 
+// ----- notes ---------------------------------------------------------------
+// Print the parsed GH2 chart note stream from the real song MIDI in the ARK.
+// This is intentionally renderer-free so diagnostic captures can seek straight
+// to authored star/HOPO notes without spending minutes scanning frames.
+int run_notes(const Args& a, const gh::ark::ArkV3Reader& ark) {
+    if (a.song.empty()) {
+        std::fprintf(stderr, "notes needs --song <shortname>\n");
+        return 2;
+    }
+    const std::string mid_path =
+        "songs/" + a.song + "/" + a.song + ".mid";
+    auto e = find_in_ark(ark, mid_path);
+    if (!e) {
+        std::fprintf(stderr, "MIDI not found in ARK: %s\n", mid_path.c_str());
+        return 1;
+    }
+
+    const auto bytes = ark.read_entry(*e, {a.ark});
+    const auto chart = ghogx::chart::parse_midi(bytes);
+    const int diff = std::clamp(a.difficulty, 0, 3);
+    const auto& notes = chart.notes[diff];
+    const int limit = a.limit <= 0 ? static_cast<int>(notes.size()) : a.limit;
+    const double from_sec = a.from_sec >= 0.0 ? a.from_sec : 0.0;
+    const double to_sec =
+        a.to_sec >= 0.0 ? a.to_sec : std::max(chart.duration_sec(), from_sec);
+    const uint32_t sustain_min = chart.ticks_per_beat / 4;
+
+    std::string filter = a.filter;
+    std::transform(filter.begin(), filter.end(), filter.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    std::printf("\nnotes song=%s difficulty=%d count=%zu tpb=%u duration=%.3fs window=%.3f..%.3f\n",
+                a.song.c_str(), diff, notes.size(), chart.ticks_per_beat,
+                chart.duration_sec(), from_sec, to_sec);
+    std::printf("  %-6s %-8s %-9s %-4s %-8s %-5s %-5s %-5s\n",
+                "idx", "tick", "sec", "lane", "length", "hopo", "star",
+                "final");
+
+    int shown = 0;
+    for (std::size_t i = 0; i < notes.size(); ++i) {
+        const auto& n = notes[i];
+        const double on = chart.tick_to_sec(n.tick_on);
+        const double off = chart.tick_to_sec(n.tick_off);
+        if (off < from_sec || on > to_sec) continue;
+        if (filter == "hopo" && !n.is_hopo) continue;
+        if (filter == "star" && !n.star_power) continue;
+        if (filter == "final" && !n.final_star) continue;
+        if (filter == "sustain" && n.tick_off <= n.tick_on + sustain_min)
+            continue;
+        if (filter == "standard" && (n.is_hopo || n.star_power)) continue;
+        std::printf("  %-6zu %-8u %-9.3f %-4d %-8.3f %-5d %-5d %-5d\n",
+                    i, n.tick_on, on, n.lane, std::max(0.0, off - on),
+                    n.is_hopo ? 1 : 0, n.star_power ? 1 : 0,
+                    n.final_star ? 1 : 0);
+        if (++shown >= limit) break;
+    }
+    std::printf("\n%d note%s shown%s\n", shown, shown == 1 ? "" : "s",
+                filter.empty() ? "" : " (filtered)");
+    return 0;
+}
+
 // ----- objdir --------------------------------------------------------------
 // Load a MILO's object directory into the runtime ObjectDir tree and print it
 // (the structural MILO load: dir metadata + each child's class + name). Real
@@ -449,6 +530,40 @@ int run_mesh(const Args& a) {
                 std::printf("      world row2=[%.4f %.4f %.4f]\n",
                             m.world_stored.rot[2][0], m.world_stored.rot[2][1],
                             m.world_stored.rot[2][2]);
+                const auto* mat = scene.find_mat(m.material);
+                if (mat) {
+                    std::printf(
+                        "      mat diffuse=%s blend=%u color=[%.3f %.3f %.3f %.3f] "
+                        "uv_scale=[%.4f %.4f] uv_offset=[%.4f %.4f]\n",
+                        mat->diffuse_tex.empty() ? "(none)" : mat->diffuse_tex.c_str(),
+                        static_cast<unsigned>(mat->blend),
+                        mat->color[0], mat->color[1], mat->color[2], mat->color[3],
+                        mat->tex_scale[0], mat->tex_scale[1],
+                        mat->tex_offset[0], mat->tex_offset[1]);
+                }
+                if (!m.verts.empty()) {
+                    float min_u = std::numeric_limits<float>::max();
+                    float max_u = std::numeric_limits<float>::lowest();
+                    float min_v = std::numeric_limits<float>::max();
+                    float max_v = std::numeric_limits<float>::lowest();
+                    for (const auto& v : m.verts) {
+                        min_u = std::min(min_u, v.u);
+                        max_u = std::max(max_u, v.u);
+                        min_v = std::min(min_v, v.v);
+                        max_v = std::max(max_v, v.v);
+                    }
+                    std::printf("      raw uv range u=[%.4f %.4f] v=[%.4f %.4f]\n",
+                                min_u, max_u, min_v, max_v);
+                    const std::size_t rows = std::min<std::size_t>(m.verts.size(), 16);
+                    for (std::size_t vi = 0; vi < rows; ++vi) {
+                        const auto& v = m.verts[vi];
+                        std::printf(
+                            "      v%-2zu pos=[%8.4f %8.4f %8.4f] "
+                            "uv=[%7.4f %7.4f] rgba=[%.3f %.3f %.3f %.3f]\n",
+                            vi, v.px, v.py, v.pz, v.u, v.v,
+                            v.r, v.g, v.b, v.a);
+                    }
+                }
             }
         } else {
             std::printf("  %-26s   FAIL: %s\n", m.name.substr(0, 26).c_str(),
@@ -494,6 +609,84 @@ int run_mesh(const Args& a) {
     return fail > 0 && shown == fail ? 1 : 0;
 }
 
+int run_mats(const Args& a) {
+    if (a.milo_path.empty()) {
+        std::fprintf(stderr, "mats needs --milo-path\n");
+        return 2;
+    }
+    ghogx::milo_scene::Scene scene;
+    if (!ghogx::milo_scene::load_scene(a.hdr, a.ark, a.milo_path, scene)) return 1;
+
+    std::string filter = a.filter;
+    std::transform(filter.begin(), filter.end(), filter.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    std::printf("\nScene  name=%s  dir_type=%s  mat=%zu\n",
+                scene.dir_name.c_str(), scene.dir_type.c_str(), scene.mats.size());
+    std::printf("%s\n", std::string(112, '-').c_str());
+    std::printf("  %-28s %-24s %-5s %-25s %-22s %s\n",
+                "material", "diffuse", "blend", "color rgba",
+                "uv scale", "uv offset");
+
+    int shown = 0;
+    for (const auto& m : scene.mats) {
+        if (!filter.empty()) {
+            std::string hay = m.name + " " + m.diffuse_tex;
+            std::transform(hay.begin(), hay.end(), hay.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+            if (hay.find(filter) == std::string::npos) continue;
+        }
+        ++shown;
+        std::printf("  %-28s %-24s %-5u [%.3f %.3f %.3f %.3f] [%.4f %.4f] [%.4f %.4f]\n",
+                    m.name.substr(0, 28).c_str(),
+                    (m.diffuse_tex.empty() ? "(none)" : m.diffuse_tex).substr(0, 24).c_str(),
+                    static_cast<unsigned>(m.blend),
+                    m.color[0], m.color[1], m.color[2], m.color[3],
+                    m.tex_scale[0], m.tex_scale[1],
+                    m.tex_offset[0], m.tex_offset[1]);
+    }
+    std::printf("\n%d material%s shown\n", shown, shown == 1 ? "" : "s");
+    return shown == 0 ? 1 : 0;
+}
+
+// ----- groups --------------------------------------------------------------
+// Decode MILO Groups and print their child refs. This is intentionally tiny:
+// the renderer uses the same milo_scene decode path, so this command is a
+// source-backed way to inspect authored draw/group membership.
+int run_groups(const Args& a) {
+    if (a.milo_path.empty()) {
+        std::fprintf(stderr, "groups needs --milo-path\n");
+        return 2;
+    }
+    ghogx::milo_scene::Scene scene;
+    if (!ghogx::milo_scene::load_scene(a.hdr, a.ark, a.milo_path, scene)) return 1;
+
+    int shown = 0;
+    std::printf("\nScene  name=%s  dir_type=%s  groups=%zu\n",
+                scene.dir_name.c_str(), scene.dir_type.c_str(),
+                scene.groups.size());
+    std::printf("%s\n", std::string(96, '-').c_str());
+    for (const auto& g : scene.groups) {
+        if (!a.name.empty() && g.name != a.name) continue;
+        ++shown;
+        std::printf("  %-26s children=%zu parent=%s env=%s\n",
+                    g.name.substr(0, 26).c_str(), g.children.size(),
+                    g.parent.c_str(), g.environment_ref.c_str());
+        if (g.has_transform) {
+            std::printf("      local pos=[%.4f %.4f %.4f]\n",
+                        g.local.pos[0], g.local.pos[1], g.local.pos[2]);
+            std::printf("      world pos=[%.4f %.4f %.4f]\n",
+                        g.world_stored.pos[0], g.world_stored.pos[1],
+                        g.world_stored.pos[2]);
+        }
+        for (std::size_t i = 0; i < g.children.size(); ++i) {
+            std::printf("      %3zu  %s\n", i, g.children[i].c_str());
+        }
+    }
+    std::printf("\n%d group%s shown\n", shown, shown == 1 ? "" : "s");
+    return shown == 0 ? 1 : 0;
+}
+
 }  // anonymous namespace
 
 int main(int argc, char** argv) {
@@ -510,8 +703,11 @@ int main(int argc, char** argv) {
         if (a.sub == "tex-from-milo") return run_tex_from_milo(a, ark);
         if (a.sub == "dump") return run_dump(a, ark);
         if (a.sub == "dtb") return run_dtb(a, ark);
+        if (a.sub == "notes") return run_notes(a, ark);
         if (a.sub == "objdir") return run_objdir(a);
         if (a.sub == "mesh") return run_mesh(a);
+        if (a.sub == "mats") return run_mats(a);
+        if (a.sub == "groups") return run_groups(a);
 
         if (a.sub == "list") {
             std::string f = a.filter;

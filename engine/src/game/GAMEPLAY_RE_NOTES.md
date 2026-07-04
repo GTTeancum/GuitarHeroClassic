@@ -6378,7 +6378,2931 @@ Rejected native probe:
   `gh2dxu_arena_writer_handoff_statefile_20260629_025058`. Their sampled
   builder-to-writer distances are `5.891969`, `5.936979`, and `6.227738`.
 - The opt-in trace-complete bridge now refuses entries without a positive
-  payload-delta support count or a valid measured distance range. Runtime
-  provenance logs `payload_delta_support=3` and
-  `payload_delta_dist_range=5.891969..6.227738`, making the current promoted
+ payload-delta support count or a valid measured distance range. Runtime
+ provenance logs `payload_delta_support=3` and
+ `payload_delta_dist_range=5.891969..6.227738`, making the current promoted
   camera route corpus-backed rather than a single-sample promotion.
+
+2026-07-03 trace-complete writer bridge default promotion:
+- The runtime camera submit path now tries
+  `camera_trace_complete_writer_bridge_rows()` by default and only accepts a
+  result when the retained PS2 evidence passes the shared promotion gate:
+  `complete_writer_builder_pair`, zero incomplete pairs, sampled writer payload
+  delta, positive payload-delta support, and a valid measured delta range. This
+  promotes the source-backed PS2 builder-to-writer handoff for trace-complete
+  routes without accepting loose `a1`/`a2`/writer diagnostics or a shot-name
+  camera substitution.
+- `GHOGX_CAMERA_DISABLE_TRACE_COMPLETE_WRITER_BRIDGE=1` remains as the explicit
+  A/B validation escape hatch. The diagnostic
+  `GHOGX_DEBUG_CAMERA_SUBMIT_CANDIDATE=writer_bridge` selector still renders
+  the bridge path directly for comparison, but default gameplay no longer needs
+  the former opt-in when the trace evidence is already promotable.
+
+2026-07-02 open HUD tuning follow-up:
+- Reopen the HUD editor and scale down the ROCK meter needle properly. It is
+  currently sticking out above the top of the ROCK bezel; use the editor rather
+  than another hard-coded visual tweak so the saved layout remains the source of
+  truth.
+
+2026-07-02 star-note layer evidence:
+- `track/gen/track.milo_ps2` decodes `gem_star.view` as
+  `star_base.tnm`, `star_base.mesh`, `red_star.mesh`, `star2.mesh`, and
+  `top_star_black.mesh`. The per-lane `*_star.mesh` and `*_top_star.mesh`
+  variants are also real meshes parented to `gem_star.view` and listed under
+  `gem_hide.grp`, so the large cyan `star_base.mesh` layer is authored source
+  geometry rather than a stray overlay.
+- Runtime mesh diagnostics show `star_base.mesh` uses `gem_glow.tex`,
+  `star2.mesh` uses `gem_specular.tex`, and the per-lane star meshes use
+  `star.mat -> stargem.tex`. Although `track_graphics.dta` has the generic
+  `(star gem_starpower_%s)` material-format row, GH2 `track.milo_ps2` does not
+  contain `gem_starpower_*` Mat objects; keep the decoded `star.mat` binding
+  unless a real source material override is found.
+- Comparison captures in
+  `engine/out/codex_goal_visuals/20260702_star_layer_variants/` isolate the
+  star layers. Removing `star_base` makes the native note visually cleaner but
+  less source-complete; do not disable it without a targeted PCSX2 incoming-star
+  reference that contradicts the source group.
+
+2026-07-02 sustain-tail evidence:
+- A live diagnostic-autoplay capture for Expert `shoutatthedevil` at
+  `5.70..9.87s` is in
+  `engine/out/codex_goal_visuals/20260702_sustain_active_proof/`. The FoFiX
+  session exported the first long sustain as `mask=0x0a start=5.929 end=9.451
+  star=1 source=3 tick=4440`, then logged `sustain end mask=0x0a gems=2 pts=704
+  score=854` and cleared active sustains.
+- `track/gen/track.milo_ps2` material dumps explain the tail textures currently
+  seen in runtime logs. Lane tail materials such as `tail_red.mat` and
+  `tail_blue.mat` point at `gem_star.tex`; held lane glow materials such as
+  `tail_glow_red.mat` and `tail_glow_blue.mat`, plus `tail_glow_star.mat`, point
+  at `line01.tex`; `tail_glow_tight.mat` is a separate native material that
+  points at `tail_tight.tex`.
+- Therefore runtime tail logs showing pre-hit tails with `gem_star.tex` and
+  active held/star tails with `line01.tex` are source-authored material bindings,
+  not a failed texture lookup. Do not swap in `tail_glow_tight.mat` or another
+  texture unless source grouping or PCSX2 reference proves it belongs in the live
+  held-tail stack.
+
+2026-07-02 sustain-tail width follow-up:
+- `track/gen/track.milo_ps2` reports `red_gem.mesh` and `green_gem.mesh` bounds
+  of about `x=-1.65..1.65`, while `track_graphics.dtb` carries
+  `tail_glow_width 1.5` and `tail_glow_tight_width 0.7`. Treat those tail
+  values as authored half-widths in track space; multiplying them by `0.5`
+  made active held tails under-width and difficult to read.
+- Active and pre-hit native sustain-tail draws now pass `tail_glow_width_` and
+  `tail_glow_tight_width_` directly to the segment renderer. Runtime proof is in
+  `engine/out/codex_goal_visuals/20260702_nonstar_sustain_width_after/` and
+  `engine/out/codex_goal_visuals/20260702_star_sustain_width_after/`; the logs
+  show active held tail draws with `half=1.500` and tight-core draws with
+  `half=0.700`.
+- `burn_castlight.mesh` is loaded from the source `burn_tail.view` stack and
+  drawn only for active FoFiX sustain lanes. It adds the authored nowbar/base
+  flare without replacing the existing lane glow, tight core, or star-tail
+  materials. The comparison sheet is
+  `engine/out/codex_goal_visuals/20260702_sustain_width_after_visual_sheet.png`.
+- 2026-07-02 star-phrase sustain-tail split: incoming star-power phrase sustains
+  now use a separate `tail02.mesh` copy bound to `tail_star.mat`, while active
+  held star sustains keep the existing `tail_glow_star.mat` overlay. This avoids
+  using the held glow material as the only star-tail source before the note is
+  actually hit. The labeled capture in
+  `engine/out/codex_goal_visuals/20260702_star_phrase_tail_split_labeled/`
+  starts Expert `shoutatthedevil` at `5.20s` with diagnostic autoplay. Its log
+  reports `star_phrase=46`, `held_lane=17`, `held_tight=17`, `held_star=16`,
+  and `flat_held=0`, proving the pre-hit phrase tail and post-hit held glow
+  stack both use native meshes without falling back to flat held tails.
+
+2026-07-02 star-power bonus highway evidence:
+- `--diagnostic-star-power <0..1>` seeds the FoFiX star meter for deterministic
+  capture without forcing active star power. With `--diagnostic-autoplay`, the
+  normal FoFiX star-power edge activates the meter when the seed is at least
+  half full, which keeps bonus-highway captures gameplay-driven rather than
+  renderer-forced.
+- The paired capture in
+  `engine/out/codex_goal_visuals/20260702_star_power_bonus_capture/` compares
+  normal autoplay against seeded/activated star power at the same Expert
+  `shoutatthedevil` window. The active log contains
+  `type=star_power_activate`, then hit scoring doubles (`pts=100` for the same
+  single gem that scores `pts=50` in the normal run), and the renderer reports
+  native bonus meshes loaded for gem/overlay/tail/smasher/flame.
+
+2026-07-03 tail mesh/material decode evidence:
+- `ghogx mesh --milo-path track/gen/track.milo_ps2 --name tail02.mesh` now
+  prints the named mesh's decoded material, UV transform, raw UV bounds, and
+  first vertices. The source `tail02.mesh` has 12 vertices / 10 faces, bounds
+  `x=-0.430..0.430 y=0.000..30.000 z=0.000..0.319`, and raw UVs
+  `u=0.000..0.000 v=0.000..0.600`. The constant-U runtime log for sustain
+  tails is therefore source data, not an importer losing one texture axis.
+- `ghogx mats --milo-path track/gen/track.milo_ps2 --filter tail` decodes the
+  relevant material bindings: lane pre-hit tails use `tail_%s.mat` ->
+  `gem_star.tex` with blend 3 and `uv_scale=[0.5,1]`; star phrase tails use
+  `tail_star.mat` -> `gem_star.tex`, color `[0.082,0.812,1.000,1.000]`, blend
+  3; active held star tails use `tail_glow_star.mat` -> `line01.tex`, blend 4.
+  Do not chase the cyan star-phrase tail as UV corruption. If a later PCSX2
+  comparison proves it is visually wrong, investigate draw timing, scaling, or
+  layer membership against source groups before changing the shared mesh decode.
+- The visual sheet shows active star power driving the native cyan bonus highway
+  state for rails, smashers, incoming gems, and track glow.
+
+2026-07-02 miss-feedback evidence:
+- FoFiX miss/overstrum events already reach the native presentation path. The
+  isolated capture in
+  `engine/out/codex_goal_visuals/20260702_miss_feedback_after/` logs misses at
+  `t=5.768 mask=0x01` and `t=5.929 mask=0x0a`, while the overstrum probe in
+  `engine/out/codex_goal_visuals/20260702_miss_feedback_overstrum_after/` logs a
+  gameplay-session `overstrum` with `mask=0x01`.
+- Runtime diagnostics now include the native miss meshes: `miss.mesh` resolves
+  to `gem.tex` with blend `3` and bounds `x=-1.649..1.649`,
+  `y=-1.625..0.958`, `z=0.318..0.723`; `top_miss.mesh` resolves to
+  `specular.tex` with blend `2` and bounds `x=-1.967..1.959`,
+  `y=-3.273..0.898`, `z=0.065..1.011`.
+- Miss feedback now draws those source meshes from the authored strikeline
+  origin instead of bbox-centering them above the targets. The forced probe in
+  `engine/out/codex_goal_visuals/20260702_miss_feedback_forced_after/` shows
+  the native grey miss shape at the target; it remains intentionally subtle
+  because that is the decoded source material/alpha stack, not a missing lane
+  color.
+
+2026-07-02 native strike-feedback evidence:
+- `GHOGX_DEBUG_HIGHWAY_HIT_FEEDBACK=1` now labels the live strike-feedback
+  renderer path with lane, hit alpha, combo tier, native combo layer count,
+  selected base-flame source, star-collect overlay state, and flat fallback use.
+- The autoplay capture in
+  `engine/out/codex_goal_visuals/20260702_hit_feedback_combo_labeled/` starts
+  Expert `shoutatthedevil` at `5.20s` and runs long enough to reach
+  `streak=10 mult=2` naturally. Its log reports `hit_lines=160`,
+  `base_hit_flame=160`, `star_collect=56`, `combo_layers=15`, and
+  `flat_fallback=0`, proving the visible hit feedback is coming from decoded
+  native strike meshes instead of the flat texture fallback.
+- `hit_feedback_combo_labeled_tight_sheet.png` shows the early native
+  base/star-collect hit glow and the later live multiplier-2 combo lightning
+  over the strikeline.
+
+2026-07-03 current native strike-feedback refresh:
+- Fresh hit-feedback validation uses two clean normal-input captures:
+  `engine/out/codex_goal_visuals/20260703_hit_feedback_star_collect_current_clean/`
+  for regular hit plus star-collect overlay, and
+  `engine/out/codex_goal_visuals/20260703_hit_feedback_bonus_combo_current_clean/`
+  for active bonus-highway hit feedback plus combo lightning.
+- The star-collect run records `5` FoFiX-session hits, zero miss/overstrum
+  rows, `81` `[highway-hit]` rows, `81` base `hit_flame` rows, `53`
+  `star_collect=1` rows, and `fallback_tex=0`.
+- The bonus/combo run records `19` FoFiX-session hits, zero miss/overstrum
+  rows, `160` `[highway-hit]` rows, `160` `bonus_flame` rows, `6`
+  `combo_layers>0` rows, and `fallback_tex=0`.
+- Fresh miss-feedback validation in
+  `engine/out/codex_goal_visuals/20260703_miss_feedback_current_debug/`
+  uses the timed raw script `0.20:0x21,0.24:0x01,0.45:0x00` and does not enable
+  `GHOGX_FORCE_HIGHWAY_MISS_FLASH`. The log records a FoFiX-session overstrum
+  at `t=0.217 mask=0x01`, `18` `[highway-miss]` draw rows, `miss_mesh=1`,
+  `top_mesh=1`, and `forced=0`.
+- `engine/out/codex_goal_visuals/20260703_strike_feedback_current_sheet.png`
+  combines the current hit, star-collect, bonus/combo, and live overstrum-miss
+  frames. Use this as the current strike-feedback artifact instead of the older
+  forced-miss-only proof.
+
+2026-07-02 timed diagnostic guitar input evidence:
+- `--diagnostic-guitar-script <sec:mask,...>` feeds song-time raw guitar masks
+  into the same gameplay tick path as live guitar input, overriding the older
+  static diagnostic masks only when the script is present. This lets validation
+  captures use one-frame strum edges plus exact fret holds/releases rather than
+  permanently holding bit 5.
+- The proof capture in
+  `engine/out/codex_goal_visuals/20260702_diagnostic_guitar_script_overstrum/`
+  uses `0.20:0x21,0.24:0x01,0.45:0x00`. Its log records
+  `diagnostic guitar script events: 3`, then a FoFiX-session `overstrum` at
+  `t=0.217 mask=0x01`; the visual sheet shows the green fret/button state
+  during the scripted edge, continued held fret, and final release.
+
+2026-07-02 star-sustain whammy evidence:
+- FoFiX-session whammy events now feed the existing native star-power highway
+  pulse path at a lower intensity than phrase completion or activation. This
+  keeps star sustain whammy visually connected to the native track glow without
+  inventing a separate renderer effect.
+- The scripted capture in
+  `engine/out/codex_goal_visuals/20260702_whammy_star_power_pulse/` uses
+  `5.735:0x21,5.785:0x00,5.900:0x2A,5.950:0x8A,6.450:0x8A,6.700:0x00`.
+  Its log proves the live FoFiX path hit the green note at `t=5.767`, hit the
+  red+blue star sustain at `t=5.917`, exported active sustain
+  `mask=0x0a start=5.929 end=9.451 star=1`, emitted repeated
+  `star_power_whammy` events while whammy was held, and scored the partial
+  sustain on release (`sustain end mask=0x0a gems=2 pts=157 score=307`).
+- `whammy_star_power_pulse_visual_sheet.png` shows the native held red+blue
+  buttons, source highway art, HUD score/streak updates, and the whammy-driven
+  star-power pulse over the held sustain.
+
+2026-07-02 non-star HOPO chain evidence:
+- The parser-backed note dump found an isolated Expert `shoutatthedevil`
+  non-star HOPO chain at `34.493..35.115s`: Red is strummed at tick `25920`,
+  followed by Yellow, Blue, Yellow, and Orange single-note HOPOs at ticks
+  `26040`, `26160`, `26280`, and `26400`.
+- The scripted capture in
+  `engine/out/codex_goal_visuals/20260702_nonstar_hopo_chain_scripted/` uses
+  `34.475:0x22,34.515:0x02,34.630:0x04,34.785:0x08,34.940:0x04,35.095:0x10,35.180:0x00`.
+  Its log records the strummed Red hit at `t=34.500`, then fret-edge HOPO hits
+  at `t=34.650`, `34.817`, `34.967`, and `35.117` with no extra strum edges.
+- That first sheet only proved the parser/runtime HOPO flags; visually it still
+  reused the standard top and made HOPOs look like ordinary black-rim notes.
+- The corrected source stack keeps the native lane `*_gem.mesh` body and draws
+  the lane `*_hopo.mesh` as the top piece. `GHOGX_DEBUG_HIGHWAY_NOTE_MESHES=1`
+  in `engine/out/codex_goal_visuals/20260702_hopo_mesh_debug/` confirms all
+  five HOPO top meshes load from `track/gen/track.milo_ps2` with distinct
+  `gem.tex` UV regions.
+- The tighter Expert `trogdor` reference at `55.744..56.930s` has eleven
+  non-star HOPOs at 120-tick / roughly `0.119s` spacing after setup notes at
+  `55.388` and `55.626`. The corrected capture in
+  `engine/out/codex_goal_visuals/20260702_hopo_trogdor_tight_after/` uses that
+  run and the visible-note log marks the clustered notes as `hopo=1`.
+- 2026-07-02 HOPO top-card depth follow-up: source inspection confirms the
+  regular live template is `red_gem.mesh` plus `top.mesh`, while `*_hopo.mesh`
+  objects decode as lane-specific full top-card meshes. Native now still draws
+  the lane `*_gem.mesh` rounded body first, then depth-tests the lane
+  `*_hopo.mesh` over that body so its front card faces do not flatten over the
+  3D body geometry. The current proof capture in
+  `engine/out/codex_goal_visuals/20260702_hopo_depth_body_current/` reruns the
+  tight Expert `trogdor` non-star HOPO cluster; `run.log` records the native
+  note mesh stack plus `hopo=1` visible-note rows, and
+  `hopo_depth_body_current_tight_sheet.png` shows the current rendered HOPO
+  cluster with the native highway left unchanged.
+
+2026-07-02 star-note top source-order follow-up:
+- `ghogx groups --milo-path track/gen/track.milo_ps2 --name gem_star.view`
+  shows the live star-note group order as `star_base.mesh`, `red_star.mesh`,
+  `star2.mesh`, and `top_star_black.mesh`. The lane-specific `*_top_star.mesh`
+  objects decode successfully, but they are hidden-group assets; they should be
+  fallback tops, not the first choice for live `gem_star.view` rendering.
+- The moving star-note branch now honors that source order by preferring
+  `top_star_black.mesh` when `gem_star.view` contains it, then falling back to a
+  lane-specific top if the shared black top is unavailable.
+- The capture in
+  `engine/out/codex_goal_visuals/20260702_star_note_blacktop_after/` reruns the
+  first Expert `shoutatthedevil` star window at `5.45s`. The log still loads
+  `star_base.mesh`, lane star meshes, `star2.mesh`, and `top_star_black.mesh`;
+  `star_note_blacktop_visual_sheet.png` shows the shared black star caps over
+  the source star stack.
+- 2026-07-02 star-note animation target follow-up: `gem_star.view` decodes as
+  `star_base.mesh`, lane `*_star.mesh`, `star2.mesh`, and
+  `top_star_black.mesh`. The lane/overlay star meshes carry their authored
+  local rotation in the mesh rows, while both `star.filt` and `star_base.filt`
+  reference TransAnims that target `star_base.mesh`. Native therefore animates
+  only the cyan `star_base.mesh` child and leaves the lane body, `star2`, and
+  top cap on their baked child transforms. The fresh proof capture in
+  `engine/out/codex_goal_visuals/20260702_star_note_source_target_current/`
+  shows that split: rotating cyan star bases under static red/blue note
+  bodies/caps, with the signed-off highway texture unchanged.
+
+2026-07-02 source-backed fail overlay:
+- `ui/gen/pause_lose_tex.milo_ps2` decodes the single native `pl_tile.tex`
+  skull/flame tile. `AppState::Failed` now keeps the failed gameplay frame and
+  HUD visible, darkens the frame, and draws that source tile as a translucent
+  overlay instead of holding an unadorned gameplay view.
+- The diagnostic fail capture in
+  `engine/out/codex_goal_visuals/20260702_fail_overlay_source_after/` starts
+  Expert `shoutatthedevil` with `--diagnostic-rock 0.0`. The log records
+  `song failed; final score 0`, then
+ `fail overlay texture ready (256x256) from ui/gen/pause_lose_tex.milo_ps2/pl_tile.tex`.
+  `fail_overlay_source_after.png` shows the native tile over the held gameplay,
+  highway, and HUD frame.
+
+2026-07-02 diagnostic autoplay sustain-release follow-up:
+- The first broad Expert `shoutatthedevil` `5.0..41.0s` autoplay capture exposed
+  real FoFiX-session overstrums during dense sustain-to-note transitions:
+  `t=26.633 mask=0x0b`, `t=27.933 mask=0x15`, `t=29.233 mask=0x0a`, and the
+  same pattern later in the section. These were not just suppressed bad-pick
+  overlays; the session score snapshot reset streak/multiplier before the
+  intended hit.
+- The session-layer fix releases active sustain frets on a new diagnostic
+  autoplay strum instead of OR-ing the old sustain mask into the new target
+  note. `gameplay_session_test` now covers both legacy mask generation and
+  frame-skip catch-up for an overlapping sustain followed by a different
+  strummed note.
+- The clean capture in
+  `engine/out/codex_goal_visuals/20260702_autoplay_sustain_release_after/`
+  starts Expert `shoutatthedevil` at `25.0s` and covers the previous failure
+  cluster through `33.8s`. The log records zero `overstrum` /
+  `diagnostic autoplay suppressed overstrum` lines, while hit events climb from
+  streak `5` at `t=26.150` through streak `31` at `t=33.883`.
+- `autoplay_sustain_release_after_sheet.png` shows the corresponding native
+  venue, highway, HUD, and moving-note frames for that cleaned run.
+
+2026-07-02 integrated highway/autoplay validation:
+- After the sustain-release fix, the broader Expert `shoutatthedevil`
+  `5.0..41.0s` diagnostic-autoplay capture completed cleanly in
+  `engine/out/codex_goal_visuals/20260702_integrated_autoplay_shout_5_41_after/`
+  with `2220` frames and exit code `0`.
+- The log contains zero `overstrum`, zero diagnostic-autoplay suppressed
+  overstrum, zero miss/fail lines, and includes the same previously contaminated
+  dense section now climbing through `t=26.150` streak `24`, `t=33.883` streak
+  `50`, and `t=41.867` streak `67`.
+- The same run proves sustain scoring and star-power behavior stayed live:
+  sustain deltas include the early red+blue star sustain at `t=9.451`, the
+  later chord sustains at `36.818`, `38.068`, and `39.328`, and FoFiX star power
+  activates at `t=30.517` before the HUD reaches the visible `x8` state.
+- `integrated_autoplay_shout_5_41_after_sheet.png` shows early star sustain,
+  normal/HOPO note motion, active star-power highway state, HUD score/streak
+  growth, and venue rendering across the validated window.
+
+2026-07-02 manual/scripted input highway validation:
+- To validate the live input route rather than diagnostic autoplay, a raw
+  `--diagnostic-guitar-script` was generated from the same Expert
+  `shoutatthedevil` chart window. The script uses one-frame strum pulses for
+  picked groups, fret-edge-only transitions for HOPOs, and held frets through
+  long sustain tails.
+- The clean capture in
+  `engine/out/codex_goal_visuals/20260702_manual_script_shout_203_427/` starts
+  at `20.3s` so the long chord feeding the `24.855s` note is actually played
+  instead of being late-strummed after a diagnostic seek. It then runs through
+  the dense `25..42.7s` highway section with `138` script events.
+- The log records zero miss, overstrum, fail, or diagnostic-autoplay-suppression
+  lines on the normal input path. It starts with hits at `20.400`, `20.717`,
+  `21.033`, and the long chord at `21.200`; the non-star HOPO chain hits from
+  `34.500` through `35.117`; later chord sustain scoring reaches `39.328`; and
+  the final chord at `42.017` lands at streak `52`.
+- `manual_script_shout_203_427_sheet.png` shows the corresponding native venue,
+  source highway art, static fret buttons, moving standard/star/HOPO notes,
+  sustain tails, HUD score/streak/multiplier, and ROCK meter during that
+  non-autoplay validation run.
+
+2026-07-02 manual star-power activation validation:
+- The normal-input `--diagnostic-guitar-script` route now has a source-chart
+  proof for earning and activating star power without diagnostic autoplay or a
+  seeded meter. The capture in
+  `engine/out/codex_goal_visuals/20260702_manual_star_power_activation_after/`
+  starts at `4.8s`, plays the first star phrase, plays the second phrase around
+  `29..30s`, then sends a real raw guitar star-power edge at `30.750s`.
+- A first probe sent the edge at `30.500s`; that did not activate because the
+  second phrase was not awarded until the next post-phrase gameplay tick. The
+  clean run records `star_phrase_complete t=30.667 sp=0.5000`, then
+  `star_power_activate t=30.767`, matching the FoFiX-session edge path rather
+  than a renderer-only toggle.
+- The same run records zero miss, overstrum, fail, or diagnostic-autoplay
+  suppression lines. Post-activation scoring doubles on the normal input path:
+  `t=30.983` single gem scores `400`, `t=31.317` scores `400`, and the
+  red+blue chord at `t=31.483` scores `800`.
+- `manual_star_power_activation_after_sheet.png` shows the first phrase, the
+  meter-ready second phrase handoff, active x8 star-power highway/HUD state, and
+  continued native venue/highway rendering after activation.
+
+2026-07-02 normal miss-to-fail validation:
+- The capture in
+  `engine/out/codex_goal_visuals/20260702_low_rock_miss_fail_path/` validates
+  the fail path through ordinary missed notes rather than a forced failed state.
+  It starts Expert `shoutatthedevil` at `5.0s` with a low diagnostic rock seed
+  of `0.08`, no autoplay, no guitar script, and no held fret mask.
+- The log records FoFiX-session miss events for the first phrase and sustain:
+  `t=5.123`, `5.445`, `5.768`, `5.929`, `9.618`, then `t=10.257`, where rock
+  reaches `0.00`. The app then logs `song failed; final score 0`.
+- The same run loads the source-backed fail overlay tile from
+  `ui/gen/pause_lose_tex.milo_ps2/pl_tile.tex` and exits normally after `420`
+  frames. This proves the native fail overlay is reached from gameplay misses,
+  not only from a diagnostic forced-rock capture.
+- `low_rock_miss_fail_path_sheet.png` shows the low-rock HUD, red highway rails,
+  no-input miss progression, and the source skull/flame overlay on top of the
+  retained gameplay frame.
+
+2026-07-02 ROCK needle tuning follow-up:
+- The HUD editor's `rock_needle` width/height previously controlled only the
+  rotation pivot slot; the decoded native `rock_needle.mesh` and
+  `vu_needle_led.mesh` were still mapped at full ROCK-face scale before
+  rotation. That made user/editor attempts to scale the needle down ineffective.
+- The native needle rotation now applies signed `layout_tuning_.rock_needle`
+  scale factors around the pivot before the swing transform, so the HUD editor
+  can shrink, stretch, or negatively scale/flip the needle instead of only
+  moving its pivot.
+- The baked default and current `engine/out/hud_tuning/hud_layout.txt` shorten
+  `rock_needle` from `0.060444 x 0.072000` to `0.055000 x 0.060000`, keeping
+  the high-rock tip inside the ROCK bezel in the tuned default.
+- The proof capture in
+  `engine/out/codex_goal_visuals/20260702_rock_needle_scale_after/` includes a
+ `--hud-test` high-rock frame and a gameplay-context high-rock frame using the
+ same `hud_layout.txt`; `rock_needle_scale_after_sheet.png` shows the full
+ frames plus ROCK-meter crops.
+
+2026-07-02 consolidated normal-input highway validation:
+- A full raw `--diagnostic-guitar-script` was generated from the Expert
+  `shoutatthedevil` chart for `4.8s..42.7s`, producing `185` raw input events.
+  The script uses strum pulses for picked groups, fret-only edges for HOPOs,
+  held frets across sustains, and a raw star-power edge at `30.750s`.
+- The run in
+  `engine/out/codex_goal_visuals/20260702_full_manual_highway_slice_after/`
+  records zero miss, overstrum, fail, or diagnostic-autoplay-suppression lines.
+  It completes the first star phrase at `t=10.267`, the second phrase at
+  `t=30.667`, and activates star power through the normal input path at
+  `t=30.767`.
+- Post-activation gameplay stays clean through native moving-note sections:
+  `t=30.983` scores a star-power single for `400`, the non-star HOPO chain hits
+  from `t=34.500` through `t=35.117`, chord sustain scoring reaches
+  `t=39.328`, and the final chord at `t=42.017` lands at streak `67` and score
+  `35684`.
+- `full_manual_highway_slice_after_sheet.png` captures the first phrase,
+  phrase-award handoff, second phrase, x8 star-power state, HOPO chain, chord
+  sustain, and final chord with the source highway graphic and current HUD
+  tuning loaded.
+
+2026-07-02 character-driven highway surface matrix:
+- The same Expert `shoutatthedevil` gameplay window was captured with four
+  diagnostic character overrides to prove highway art selection is driven by
+  the chosen guitarist outfit rather than a single baked surface.
+- The matrix capture in
+  `engine/out/codex_goal_visuals/20260702_character_surface_matrix/` exits
+  cleanly for `glam1`, `punk1`, `metal1`, and `funk1`. Each log resolves and
+  loads a different native bitmap: `track/surfaces/gen/glam1_keep.bmp_ps2`,
+  `punk1_keep.bmp_ps2`, `metal1_keep.bmp_ps2`, and `funk1_keep.bmp_ps2`.
+- `character_surface_matrix_sheet.png` shows those four source highway
+  graphics in the same venue/time window with the current native notes, static
+  buttons, HUD edges, and venue framing intact.
+
+2026-07-02 current fast-song theatre highway validation:
+- The current native highway/HUD/note stack was rerun on stock Expert `yyz`
+  instead of the usual `shoutatthedevil` window to prove the playable slice is
+  still working through a different quickplay route. The capture in
+  `engine/out/codex_goal_visuals/20260702_current_yyz_fast_theatre_slice/`
+  starts at `16.0s` with diagnostic autoplay.
+- The log resolves `character=funk1`, `guitar=lespaul`, `venue=theatre`,
+  `tempo=kTempoFast`, and `track/surfaces/gen/funk1_keep.bmp_ps2`. It also
+  activates fast-domain band clips, including `bassist_active_fast_01`,
+  `keyboard_active_fast`, `drummer_active_fast_allbeat`,
+  `drummer_active_fast_nosnare`, and `drummer_active_fast_double`.
+- Gameplay stays clean through the sampled section: `36` hit events, max
+  streak `36`, multiplier reaching `x4`, and no real miss, overstrum, fail,
+  fatal, or bitmap-missing rows. The only `miss=1` text is the native asset
+  coverage row confirming the miss mesh loaded.
+- `yyz_fast_theatre_current_sheet.png` shows the theatre venue, current native
+  HUD tuning, `funk1` highway graphic, moving notes, strike feedback, and
+  multiplier progression through `x4`.
+
+2026-07-02 source-backed song-finish overlay:
+- The app no longer drops a successful song finish straight back to title. A
+  new `Finished` presentation state holds the final gameplay frame/HUD for a
+  short window, mirroring the explicit failed-song state.
+- The finish overlay resolves the native GH2 difficulty panel by chart
+  difficulty (`ui/gen/win_easy.milo_ps2`, `win_medium`, `win_hard`,
+  `win_expert`) and uploads `newspaper.tex` from that panel. This keeps the
+  success cue source-backed instead of using a procedural or placeholder card.
+- The diagnostic finish capture in
+  `engine/out/codex_goal_visuals/20260702_finish_overlay_source_after/` seeks
+  Expert `shoutatthedevil` to `205.8s` of a `206.043s` chart, lets the normal
+  `is_finished()` grace trip, and exits cleanly. The log records zero miss,
+  overstrum, fail, or song-failed lines, then loads
+  `ui/gen/win_expert.milo_ps2/newspaper.tex -> 512x512`.
+- `finish_overlay_source_after_sheet.png` shows the retained gameplay frame,
+  the finish-grace frame, and the held native win newspaper overlay on top of
+  gameplay/HUD.
+
+2026-07-02 played near-ending finish validation:
+- The stronger finish proof in
+  `engine/out/codex_goal_visuals/20260702_played_finish_overlay_after/` starts
+  Expert `shoutatthedevil` at `195.75s`, before the final playable phrase,
+  and feeds a chart-derived raw `--diagnostic-guitar-script` instead of using
+  autoplay or seeking past all remaining notes.
+- The parsed window covers `19` chart notes in `14` same-tick groups: sustained
+  chords at `195.992`, `197.174`, and `198.357`, a picked note at `199.557`,
+  the HOPO chain from `199.707` through `200.307`, the long `200.757` chord
+  sustain, and the final `205.047`, `205.190`, and `205.333` groups.
+- The log records zero miss, overstrum, fail, song-failed, or
+  diagnostic-autoplay-suppression lines. It hits the final window cleanly,
+  including sustain scoring at `197.014`, `198.197`, `199.394`, `204.894`, and
+  `205.893`; the last chord at `t=205.333` reaches streak `13`, and the run
+  finishes with score `3716`.
+- After normal `is_finished()` grace, the same run loads
+  `ui/gen/win_expert.milo_ps2/newspaper.tex -> 512x512` and holds it over the
+  retained gameplay/HUD frame. `played_finish_overlay_after_sheet.png` shows
+  the final playable notes, HOPO chain, long sustain, last chord, and native
+  win overlay in one sheet.
+
+2026-07-02 chart-derived normal-input diagnostic script:
+- Added `--diagnostic-guitar-script-from-chart <start:end>` so bounded proof
+  runs can derive raw fret/strum masks from the loaded chart instead of
+  hand-maintaining comma-separated masks. The app builds the script after
+  `load_song()` succeeds, before any diagnostic seek, and still feeds playback
+  through the existing normal `diagnostic_guitar_script` input path rather than
+  `--diagnostic-autoplay`.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260702_yyz_chart_script_normal_input_v2/`
+  runs Expert `yyz` from `16.0s` to `25.4s` with `funk1`, `lespaul`,
+  `theatre`, and `kTempoFast`. The route resolves
+  `track/surfaces/gen/funk1_keep.bmp_ps2` and the theatre venue stack.
+- The generated chart script covered `38` same-tick note groups and `76` raw
+  input events. The log records `38` FoFiX-session hits, max streak `38`,
+  multiplier `x4`, and zero miss, overstrum, fail, fatal, or diagnostic
+  autoplay-enabled rows.
+- `yyz_chart_script_normal_input_sheet.png` shows the current native HUD
+  tuning, source highway graphic, moving notes, hit feedback, and score/streak
+  progression through the clean normal-input window.
+
+2026-07-02 HOPO moving-note visual group rule:
+- A focused Expert `shoutatthedevil` window at `33.8..36.2s` exposed that the
+  renderer was reading per-gem `is_hopo` directly. The gameplay path already
+  gates HOPO eligibility by group (`gem_count == 1 && note.is_hopo`), but the
+  visual path could draw one gem in a same-tick chord as a HOPO top-card while
+  the other gem stayed standard.
+- The highway renderer now computes HOPO visual state at same-tick group level:
+  only single-gem groups can render as HOPO. Debug visible-note rows now include
+  `gems=N` so future captures can prove whether a row is a single note or a
+  chord before judging its visual variant.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260702_hopo_group_rule_after/` uses
+  `--diagnostic-guitar-script-from-chart 33.8:36.2`, `punk1`, and the arena
+  route. It loads all native note layers (`gems=5`, `hopos=5`, `stars=5`,
+  standard top, star base/lane/overlay/top) and exits cleanly with `9` hits,
+  zero miss, zero overstrum, and zero diagnostic-autoplay rows.
+- The after-log records `single_hopo_rows=140` and `chord_hopo_rows=0`; same
+  tick chords such as `34.027s` and `35.270s` now log `gems=2 ... hopo=0`,
+  while nearby single-note HOPOs such as `34.649s`, `34.804s`, `34.960s`, and
+  `35.115s` remain `gems=1 ... hopo=1`.
+- `hopo_group_rule_after_sheet.png` shows the current moving-note stack in the
+  authored HOPO chain with chart-derived normal input and the current HUD.
+
+2026-07-02 star-note tick/group diagnostic refresh:
+- Visible moving-note diagnostics now include the source chart `tick` alongside
+  lane, same-tick group size, y position, star flag, and HOPO flag. This makes
+  star-note captures auditable by chart group instead of relying on nearby
+  screenshots or row order.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260702_star_note_tick_diagnostic_clean2/`
+  runs Expert `shoutatthedevil` from `4.8s` with
+  `--diagnostic-guitar-script-from-chart 4.8:11.4`, `punk1`, and normal input
+  rather than diagnostic autoplay.
+- The refreshed log records `visible_star_rows=140`,
+  `chord_star_rows=70`, `chord_hopo_rows=0`, `hits=9`, zero miss rows, zero
+  overstrum rows, zero diagnostic-autoplay rows, and one
+  `star_phrase_complete` event.
+- The key source-backed rows are the single green star note at `tick=4320`,
+  the red+blue star chord at `tick=4440` with `gems=2 ... star=1 ... hopo=0`,
+  and the orange star note at `tick=7200`. The runtime still reports the
+  authored moving stack as standard top, star base, lane star, overlay, shared
+  black top, and the `star_base.tnm` rotation target.
+- `star_note_tick_diagnostic_clean2_sheet.png` shows the same clean normal-input
+  window with the signed-off highway art, native HUD, the incoming star chord,
+  phrase completion, and the next normal notes.
+
+2026-07-02 ROCK needle containment validation:
+- The HUD follow-up about the ROCK needle sticking out of the bezel was checked
+  against the current baked/tuned defaults rather than moving the needle again.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260702_rock_needle_containment_current/`
+  runs `--hud-test --hud-ref-highway` with Expert `shoutatthedevil` at `8.0s`,
+  the saved `engine/out/hud_tuning/hud_layout.txt`, score/streak/multiplier HUD
+  state, and rock fills `0.0`, `0.5`, and `1.0`.
+- Each run loaded the tuned HUD file, resolved the highway reference, saved a
+  frame-3 screenshot, and exited normally after six frames.
+- `rock_needle_containment_current_sheet.png` crops the right meter across low,
+  mid, and high rock values. The native needle strip and LED tip remain inside
+  the ROCK meter bezel in the checked sweep, so no additional layout change is
+  warranted from this pass.
+
+2026-07-02 chart-derived seeded star-power activation validation:
+- The chart-derived normal-input script route can also drive a real FoFiX
+  star-power activation edge without a hand-authored full mask script. This is
+  a proof of the input/session path, not a renderer-forced star-power toggle.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260702_chart_script_seeded_star_activation_clean3/`
+  starts Expert `shoutatthedevil` at `30.85s`, seeds the FoFiX star meter to
+  `0.50`, generates raw input from chart groups for `30.85..36.35s`, loads
+  `punk1` highway art and the tuned HUD layout, and does not enable diagnostic
+  autoplay.
+- The log records one `star_power_activate` at `t=31.000`, `18` FoFiX-session
+  hits, zero miss rows, zero overstrum rows, zero diagnostic-autoplay rows,
+  `22` powered-score rows, `140` visible HOPO rows, and `70` visible star-note
+  rows.
+- Post-activation scoring is doubled on the normal input path: singles score
+  `100`, two-note chords score `200`, and after the normal streak reaches x2,
+  singles score `200` and chords score `400`. This confirms the HUD/highway x2
+  and x4 powered states are driven by the FoFiX session state.
+- `chart_script_seeded_star_activation_clean3_sheet.png` shows the seeded
+  activation handoff, cyan bonus highway, native HUD multiplier states, source
+  highway art, moving star notes, HOPOs, and chord sustains in the same clean
+  normal-input window.
+
+2026-07-02 chart-script hit-offset timing validation:
+- `--diagnostic-guitar-script-from-chart` now accepts an optional
+  `start:end:hit_offset_sec` form. Omitting the third field preserves the prior
+  `-1/120s` early-hit default, while explicit negative or positive offsets let
+  captures prove early/late FoFiX timing behavior without hand-written mask
+  scripts.
+- The generator logs the applied `hit_offset` in both the app request row and
+  gameplay script summary row, so timing captures are self-describing from
+  their logs.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260702_chart_script_hit_offset_probe/`
+  runs the Expert `shoutatthedevil` HOPO/chord window at `33.8..36.35s` through
+  the normal raw-input script route with `punk1`, the signed-off highway art,
+  and the tuned HUD layout.
+- The `early` run uses `hit_offset=-0.0400`; the `late_inwindow` run uses
+  `hit_offset=0.0150`. Both log `9` FoFiX-session hits, zero miss rows, zero
+  overstrum rows, zero diagnostic-autoplay rows, and visible HOPO rows in the
+  same moving-note section.
+- A deliberately larger `+0.040s` late probe crossed the effective late window
+  once 60 Hz frame quantization was included, producing misses/overstrum rows.
+  Keep that as boundary evidence, not as a clean validation run.
+- `chart_script_hit_offset_probe_sheet.png` compares early and late in-window
+  hits over the source highway/HUD so future timing changes can be checked
+  against a visible artifact instead of inferred from score rows alone.
+
+2026-07-02 chart-derived star-sustain whammy validation:
+- `--diagnostic-guitar-script-whammy` extends the chart-derived raw-input
+  script path so authored star-power sustain tails hold the whammy bit after
+  the FoFiX-valid sustain threshold (`beat/8 + 0.020s`). The generated clear
+  transition releases the sustain frets and whammy together.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260702_chart_script_whammy_star_sustain_clean/`
+  starts Expert `shoutatthedevil` at `4.8s`, generates raw guitar input from
+  chart groups for `4.8..12.0s`, loads `punk1` highway art and the tuned HUD
+  layout, and does not enable diagnostic autoplay.
+- The clean log records `9` FoFiX-session hits, zero miss rows, zero overstrum
+  rows, zero diagnostic-autoplay rows, `226` `star_power_whammy` rows, `2`
+  sustain rows, `140` visible star-note rows, and one `star_phrase_complete`
+  event.
+- First whammy rows begin on the red+blue authored star sustain around
+  `t=6.050` with `mask=0x0a`; later rows continue on the orange star sustain
+  through `t=10.083` with `mask=0x10`, proving the whammy signal is tied to
+  chart-authored star sustains instead of a global forced state.
+- `chart_script_whammy_star_sustain_clean_sheet.png` shows the same clean
+  normal-input window with the signed-off highway art, moving native notes,
+  source highway art, and HUD state loaded from the saved layout.
+
+2026-07-03 source-backed non-star HOPO chain validation:
+- The current source-backed HOPO proof uses Expert `trogdor` around
+  `55.5..58.2s`, where the chart/log shows a dense single-gem HOPO chain rather
+  than wide-spaced standard notes.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260703_hopo_chain_current_clean2/`
+  starts at `55.55s`, drives normal raw guitar input with
+  `--diagnostic-guitar-script-from-chart 55.50:58.20`, loads `glam1`/the tuned
+  HUD, and does not enable diagnostic autoplay.
+- The log records all five native lane HOPO meshes source-loaded from
+  `track.milo` (`hopos=5`, each `*_hopo` mesh has `66` verts and `64` tris),
+  `335` visible `hopo=1` rows, `13` FoFiX-session hits, zero miss rows, zero
+  overstrum rows, and zero diagnostic-autoplay rows.
+- The early visible rows prove the notes are actual HOPOs from chart state:
+  ticks `57840`, `57960`, `58080`, `58200`, and `58320` are single-gem rows
+  logged with `star=0 hopo=1`.
+- `hopo_chain_current_clean2_sheet.png` and
+  `hopo_chain_current_clean2_detail.png` are cropped visual artifacts of the
+  same run, so HOPO shape review can be tied directly to source chart rows and
+  the native `*_hopo.mesh` path.
+
+2026-07-03 source-backed sustain-tail validation:
+- The current sustain-tail path is driven by the FoFiX session mirror, not by a
+  separate renderer-only guess: hits export `active_session_sustains_`, and the
+  highway receives those active tails alongside the consumed chart mask.
+- Star sustain validation:
+  `engine/out/codex_goal_visuals/20260703_sustain_tail_current_clean/` starts
+  Expert `shoutatthedevil` at `4.8s`, uses
+  `--diagnostic-guitar-script-from-chart 4.80:14.50`, enables generated whammy
+  for star sustains, and does not enable diagnostic autoplay. The log records
+  `9` hits, zero miss rows, zero overstrum rows, `2` sustain events, `226`
+  whammy events, and zero flat-tail fallback rows.
+- In the star run the native sustain-tail inventory is complete
+  (`lanes=5 held=5 tight=1 burn=1 star_phrase=1 star_held=1`). The red+blue
+  star sustain exports `active session sustain mask=0x0a start=5.950
+  end=9.451 star=1`, draws source-backed `star_phrase`, `held_lane`,
+  `held_tight`, and `held_star` tail rows, and awards a FoFiX sustain event at
+  `t=9.451` for `700` points.
+- Regular sustain validation:
+  `engine/out/codex_goal_visuals/20260703_regular_sustain_tail_current_clean/`
+  starts at `10.8s` and uses `--diagnostic-guitar-script-from-chart
+  10.80:15.20`. The log records `3` hits, zero miss rows, zero overstrum rows,
+  `2` sustain events, and zero diagnostic-autoplay rows.
+- The regular run exports the yellow+orange non-star sustain as
+  `active session sustain mask=0x14 start=11.067 end=14.512 star=0`, draws
+  source-backed `lane`, `held_lane`, and `held_tight` rows with no flat fallback
+  rows, and awards a FoFiX sustain event at `t=14.512` for `689` points. The
+  decoded `tail_yellow`, `tail_blue`, and `tail_orange` material records point
+  at `gem_star.tex`, while held glow tail materials point at `line01.tex`, so
+  those texture names are source-derived rather than runtime substitutions.
+- `20260703_sustain_tail_star_regular_sheet.png` combines the star and regular
+  sustain captures so tail review can be checked visually against the same
+  source-backed log rows.
+
+2026-07-03 labelled HOPO draw-path trace:
+- `GHOGX_DEBUG_HIGHWAY_NOTE_DRAW=1` now emits a bounded
+  `[highway-note-draw]` row for the moving-note render branch. Each row labels
+  `kind=standard`, `kind=hopo`, `kind=star`, or `kind=bonus`, plus source tick,
+  lane, same-tick group size, chart `hopo`/`star` flags, and whether the native
+  gem/top/HOPO/star meshes were available.
+- Fresh validation capture:
+  `engine/out/codex_goal_visuals/20260703_hopo_chain_draw_trace_current2/`
+  reruns the same Expert `trogdor` `55.50..58.20s` chart-script window with
+  `glam1`, the tuned HUD layout, visible-note diagnostics, note mesh
+  diagnostics, and the new draw-path trace enabled.
+- The log records `13` FoFiX-session hits, zero miss/overstrum rows, `335`
+  visible `hopo=1` rows, `235` `kind=hopo` draw rows, `5` `kind=standard`
+  draw rows, and the native note mesh inventory
+  `gems=5 speculars=3 top=1 hopos=5 stars=5 glow=1`.
+- Early draw rows prove the capture contains real HOPO notes, not assumed
+  spacing: ticks `57840`, `57960`, `58080`, and `58200` are logged as
+  `kind=hopo`, `gems=1`, `star=0`, `hopo=1`, with both `gem=1` and
+  `hopo_mesh=1`, while the nearby tick `57720` is logged as
+  `kind=standard`.
+- `hopo_chain_draw_trace_current2_sheet.png` is the current visual artifact for
+  this proof. It should be used instead of the older unlabelled sheet when
+  checking whether a capture actually contains HOPO notes.
+
+2026-07-03 labelled star-note layer trace:
+- Moving-note diagnostics now emit a compact `[highway-star-layer]` row for
+  visible star notes when `GHOGX_DEBUG_HIGHWAY_NOTE_DRAW=1`. The row labels the
+  source-backed live star sublayers: `base`, lane-specific `lane_mesh`,
+  `overlay`, shared/top mesh, and authored star animation availability.
+- Fresh validation capture:
+  `engine/out/codex_goal_visuals/20260703_star_note_layer_trace_current2/`
+  reruns the first Expert `shoutatthedevil` star phrase with chart-derived
+  normal input (`4.80..11.40s`), `punk1`, the tuned HUD layout, visible-note
+  diagnostics, note mesh diagnostics, and the new star-layer trace enabled.
+- The log records `9` FoFiX-session hits, zero miss/overstrum rows, `140`
+  visible `star=1` rows, `70` chord-star rows, `140` `kind=star` draw rows,
+  and `140` `[highway-star-layer]` rows where `base=1`, `lane_mesh=1`,
+  `overlay=1`, `top=1`, and `anim=1`.
+- Source inventory rows in the same run report
+  `native star-note group layers: base=1 overlay=1 top=1` and
+  `star_base.tnm transform pos=0 rot=5 scale=0 duration=100.0`, proving the
+  visible moving star notes use the decoded `gem_star.view` stack plus the
+  authored star-base rotation target.
+- `star_note_layer_trace_current2_sheet.png` is the current visual artifact for
+  moving star-note review.
+
+2026-07-03 star-power drain/deactivation validation:
+- The FoFiX session mirror now emits a `StarPowerDeactivate` event when active
+  star power drains to zero. Gameplay labels it as `star_power_deactivate` in
+  the same debug event stream used for activation, hits, whammy, and phrase
+  completion, so the native highway shutoff is observable instead of inferred.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260703_star_power_drain_current2/` starts
+  Expert `shoutatthedevil` at `10.8s`, seeds star power at `0.50`, drives
+  normal chart-derived input through `24.2s`, and keeps rock at `1.00` so the
+  run reaches drain-out without a fail-state shortcut.
+- The log records `12` FoFiX-session hits, zero miss rows, zero overstrum rows,
+  zero diagnostic-autoplay rows, `type=star_power_activate` at `t=10.900`, and
+  `type=star_power_deactivate` at `t=20.883` with `sp=0.0000` and `fail=0`.
+- The same run confirms the source-backed bonus highway inventory is loaded:
+  `native bonus meshes: gem=1 overlay=1 tail=1 smasher=1 flame=1`.
+  `star_power_drain_current2_sheet.png` shows the cyan bonus rails/highway while
+  the FoFiX meter is active and the normal highway after the deactivation event.
+
+2026-07-03 track-explode bad-feedback gate check:
+- `track/gen/track.milo_ps2` includes decoded `track_explode*` meshes and the
+  highway renderer can draw them through the diagnostic
+  `GHOGX_FORCE_HIGHWAY_TRACK_EXPLODE` path, but the visual result is a large
+  shard overlay that reads like the earlier broken-highway artifact when forced
+  over ordinary play.
+- Probe capture:
+  `engine/out/codex_goal_visuals/20260703_track_explode_forced_probe/` starts
+  Expert `shoutatthedevil` at `10.8s`, keeps the signed-off highway texture,
+  and forces only the track-explode draw gate. The frame proves the mesh family
+  is source-decodable, but not that it should be active for normal miss or bad
+  feedback.
+- Decision: keep `GHOGX_ENABLE_HIGHWAY_TRACK_EXPLODE`/forced track-explode
+  debug-only until a targeted PCSX2 reference proves this shard overlay belongs
+  in live gameplay. Normal bad feedback should continue to use the validated
+  side-rail warning, miss mesh, and fail overlay paths.
+
+2026-07-03 multiplier surface-flash validation:
+- The highway renderer now has a bounded `GHOGX_DEBUG_HIGHWAY_SURFACE_FLASH`
+  proof row for authored multiplier track-surface flashes. It logs the live
+  multiplier, flash strength, forced/live state, curve availability, key count,
+  sampled animation frame, and sampled RGB so captures can tie the visible
+  pulse back to the decoded `surface_flash_2x/3x/4x.mnm` curves.
+- Fresh validation capture:
+  `engine/out/codex_goal_visuals/20260703_surface_flash_current2/` runs Expert
+  `yyz` from `16.0s`, drives normal chart-derived input through the x2/x3/x4
+  ramp, uses `funk1`/`theatre`, and loads the saved HUD layout.
+- The log records `38` FoFiX-session hits, zero miss rows, zero overstrum rows,
+  zero diagnostic-autoplay rows, and `90` `[highway-surface-flash]` rows. The
+  first surface-flash row appears exactly when the streak reaches x2 at
+  `t=18.350`, and later rows show x4 sampling the authored dark peak around
+  frames `5.0..6.0`.
+- `surface_flash_current2_sheet.png` is the visual proof sheet for this run; it
+  keeps the signed-off highway art and tuned HUD visible while the multiplier
+  surface pulse is driven by real FoFiX-session hit events.
+
+2026-07-03 native smasher/button validation:
+- The highway renderer now has a bounded `GHOGX_DEBUG_HIGHWAY_SMASHERS` proof
+  row for the native fret-target buttons. Idle and active rows are budgeted
+  separately so captures keep both the buried/inactive state and the pressed
+  raised state instead of spending the budget before the first chart hit.
+- Fresh validation capture:
+  `engine/out/codex_goal_visuals/20260703_native_smasher_current2/` runs Expert
+  `yyz` from `16.0s`, drives normal chart-derived input through `20.2s`, uses
+  `funk1`/`theatre`, and loads the saved HUD layout.
+- The log records `17` FoFiX-session hits, zero miss rows, zero overstrum rows,
+  zero diagnostic-autoplay rows, `150` `[highway-smasher]` rows, and `120`
+  pressed smasher rows. Source inventory confirms native smasher coverage:
+  `native smasher lane materials: base=5 add=5 ring=5`.
+- The proof rows show the intended 3D relationship: inactive button body top is
+  `0.200`, pressed body top rises to `1.050`, and ring top remains fixed at
+  `0.220`, with `body_mesh=1`, `ring_mesh=1`, and `shadow=1`.
+- `native_smasher_current2_detail.png` is the close visual artifact for this
+  run; it keeps the signed-off highway surface visible while showing inactive
+  rings, raised colored press states, and the fixed ring outlines.
+
+2026-07-03 current ROCK meter sweep validation:
+- The HUD renderer now has a bounded `GHOGX_DEBUG_HUD_ROCK_METER` proof row
+  emitted from the native ROCK meter draw path. It logs fill, active light band,
+  native light/face/frame/label/needle/LED availability, the rendered needle
+  angle, tuned needle scale, and pivot.
+- Fresh validation captures:
+  `engine/out/codex_goal_visuals/20260703_hud_rock_meter_current/` renders
+  three short diagnostic-rock states (`0.15`, `0.40`, `0.90`) with the current
+  saved HUD layout, `funk1`, and `theatre`.
+- Each run records `12` `[hud-rock]` rows and zero fail/miss/overstrum rows.
+  The rows prove the current native meter state: low fill uses `light=red` and
+  `angle=0.086`, mid fill uses `light=yellow` and `angle=-0.732`, high fill
+  uses `light=green` and `angle=-1.550`, with `native_lights=1`, `face=1`,
+  `frame=1`, `label=1`, `needle=1`, and `led=1`.
+- `hud_rock_meter_current_detail.png` is the close visual artifact for the
+  current tuned ROCK meter sweep.
+
+2026-07-03 source ROCK word MatAnim correction:
+- PCSX2 reference shows the ROCK word itself changes with the crowd meter state.
+  Source inspection confirms this is not a guessed overlay tint:
+  `hud/gen/crowd_meter.milo_ps2` has `rock_light.manim` targeting
+  `rock_sign_2d.mat` and `rock_light_front.manim` targeting
+  `rock_light_front.mat`, each with six color keys over a 100-frame curve.
+- `rock_meter.view` authored child order contains `hud_rock_2d.mesh` followed
+  by `hud_rock_light_front.mesh`; it does not contain `hud_rock_light.mesh`.
+  Runtime now samples the two MatAnim curves by the live rock fill and no longer
+  draws the non-group `hud_rock_light.mesh` in the gameplay meter.
+- Fresh validation captures:
+  `engine/out/codex_goal_visuals/20260703_rock_word_matanim_source/` renders
+  diagnostic low/mid/high rock states with the saved HUD layout. The log records
+  `MatAnim curves: rock_light=6/100.0 rock_light_front=6/100.0`, then samples
+  `rock_anim_frame`, base label color, and front-light color in each
+  `[hud-rock]` row.
+- `rock_word_matanim_source_sheet.png` is the close visual artifact: red fill
+  samples the authored red word state, mid fill samples the yellow word state,
+  and high fill samples the green word state.
+
+2026-07-03 PCSX2 note-shape reference update:
+- New PCSX2 reference distinguishes the moving note states: a standard note uses
+  the black-rim top, a HOPO note is the same colored body with the no-black-ring
+  lane HOPO top, and a just-hit note uses a separate hit flame/flash state.
+- Source inspection matches that model: `gem_template.view` is
+  `red_gem.mesh` plus `top.mesh` for standard notes, while lane HOPO meshes such
+  as `blue_hopo.mesh` and `orange_hopo.mesh` are full `top.mat` top-card
+  variants with the same bounds family as `top.mesh`. Future note captures
+  should verify HOPOs against the no-black-ring top-card shape rather than using
+  the black rim as a HOPO cue.
+
+2026-07-03 HOPO top-card template placement correction:
+- `top.mesh` is an authored child of `gem_template.view`, whose live local/world
+  placement includes `z=-0.0572`. The lane HOPO top-card variants such as
+  `blue_hopo.mesh` and `orange_hopo.mesh` live in `gem_hide.grp` with no parent,
+  so loading them directly leaves them in hidden-storage coordinates.
+- Runtime now instantiates the native per-lane HOPO top cards in the
+  `gem_template.view` frame. This keeps the no-black-ring lane UVs from the HOPO
+  meshes while matching the 3D placement of the standard `top.mesh`.
+- Fresh validation capture:
+  `engine/out/codex_goal_visuals/20260703_hopo_template_transform_after/` runs
+  Expert `trogdor` from `55.30s`, where the chart has a tight single-note HOPO
+  chain. The log records `kind=hopo` draw rows and shows every lane HOPO top
+  now shares `top.mesh` bounds `z=-0.049..0.897`.
+- `hopo_template_transform_after_sheet.png` is the visual proof sheet for this
+  run; it keeps the signed-off highway art visible and shows HOPO notes using
+  the no-black-ring top over the same native 3D gem body.
+
+2026-07-03 hit-flame authored-origin correction:
+- Source mesh inspection shows `smash_flamelight.mesh` under
+  `smash_normal.view` and `smash_flamelight_starcollect.mesh` under
+  `smash_star.view` both carry authored local offsets relative to their parent
+  strike-feedback views. Drawing them by bounding-box center discards that
+  source placement and can recreate the same leading-plane/offset class of bug
+  seen earlier on moving notes.
+- Runtime now draws the native base, star-collect, and bonus hit flame meshes
+  with `draw_authored_runtime_mesh_scaled(...)` at the lane strikeline origin,
+  preserving their decoded local offsets. The flat `flame_part.tex` path is
+  still only a missing-mesh fallback.
+- Fresh validation capture:
+  `engine/out/codex_goal_visuals/20260703_hit_flame_authored_origin_after/`
+  runs Expert `shoutatthedevil` from `4.80s` with chart-derived input and the
+  saved HUD layout. The log records `70` `[highway-hit]` rows, `70`
+  `authored_origin=1` rows, `42` `star_collect=1` rows, and `0`
+  `fallback_tex=1` rows.
+- `hit_flame_authored_origin_after_sheet.png` is the visual proof sheet for the
+  authored-origin hit-flame stack.
+
+2026-07-03 star-note top evidence:
+- Source group inspection shows `gem_star.view` contains `star_base.mesh`,
+  `red_star.mesh`, `star2.mesh`, and `top_star_black.mesh` in that active child
+  order. Hidden lane variants such as `orange_top_star.mesh` exist in
+  `gem_hide.grp` but are not listed as `gem_star.view` children.
+- Current runtime therefore keeps `top_star_black.mesh` as the preferred active
+  star-note top. Do not switch star HOPOs to hidden lane top-star variants
+  without PCSX2 or trace evidence that the game conditionally selects those
+  hidden meshes for star HOPOs.
+
+2026-07-03 ROCK meter layer correction:
+- Source check with `ghogx groups --ark-dir "..\Guitar Hero II PS2 (USA)\GEN"
+  --milo-path "hud/gen/crowd_meter.milo_ps2" --name rock_meter.view` shows the
+  active meter group contains `hud_rock_2d.mesh` followed by
+  `hud_rock_light_front.mesh`; `hud1_rock_needle.view` is parented to
+  `rock_meter.view`, with `rock_needle.mesh` and `vu_needle_led.mesh` as its
+  authored children.
+- Runtime now keeps the ROCK label/front-light pair always present. It still
+  decodes the native `rock_light.manim` / `rock_light_front.manim` curves for
+  diagnostics, but the visible word/glow is tied to the exact active
+  red/yellow/green light color so the ROCK glyph matches the meter light. The
+  draw sorter puts the needle one layer above the always-lit word while leaving
+  the tuned `rock_frame` bezel layer above both, matching the PCSX2 reference
+  where the needle crosses the word but is masked by the chrome.
+- Fresh validation capture:
+  `engine/out/codex_goal_visuals/20260703_rock_layer_glow_after/` renders
+  diagnostic red/yellow/green rock states with the saved HUD layout and the
+  signed-off highway reference visible.
+- The log records the native MatAnim curves in each run and `[hud-rock]` rows
+  with `native_lights=1`, `frame=1`, `label=1`, `needle=1`, `led=1`, plus the
+  visible and authored ROCK colors. `rock_layer_glow_match_lights_after_sheet.png`
+  is the close visual artifact for the new layer stack and light-matched word
+  color.
+
+2026-07-03 star-note and star-phrase tail refresh:
+- Fresh current-worktree star-note capture:
+  `engine/out/codex_goal_visuals/20260703_star_note_current_refresh3/` reruns
+  Expert `shoutatthedevil` from `4.80s` through the first star phrase with
+  chart-derived input, `punk1`, `theatre`, the saved HUD layout, and
+  `GHOGX_DEBUG_HIGHWAY_NOTE_DRAW=1`.
+- The log records `105` `kind=star` draw rows, `105`
+  `[highway-star-layer]` rows, `54` standard rows, zero HOPO rows, and zero
+  miss/overstrum rows. Each star-layer row reports the active source stack:
+  `base=1`, `lane_mesh=1`, `overlay=1`, `top=1`, `black_top=1`, `anim=1`,
+  with blend values `3,3,4,3`.
+- The same pass confirms `star_base.tnm` is the authored animation target:
+  `transform pos=0 rot=5 scale=0 duration=100.0`, matching the MILO dump where
+  `star.tnm` and `star_base.tnm` both target `star_base.mesh` rather than the
+  whole `gem_star.view`.
+- A tail-focused rerun in
+  `engine/out/codex_goal_visuals/20260703_star_tail_debug_current/` enables
+  `GHOGX_DEBUG_HIGHWAY_TAILS=1`; the long cyan phrase tails are logged as
+  `source=star_phrase` using the authored `tail_star.mat` / `gem_star.tex`
+  path, not a flat fallback, stale overlay, or swapped highway texture.
+- Note-mesh diagnostics now log the native tail mesh/material bounds for lane,
+  held, tight, star phrase, star held, and bonus tails under
+  `GHOGX_DEBUG_HIGHWAY_NOTE_MESHES=1`, so future visual reviews can inspect tail
+  UV/material state from the run log instead of repeating manual texture
+  extraction.
+
+2026-07-03 on-screen note counter diagnostic:
+- The highway renderer now has an opt-in `GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER`
+  overlay for autoplay/diagnostic visual review. It counts same-tick chart
+  groups as they cross the strikeline and labels the next group as `STANDARD`,
+  `STAR`, or `HOPO` from chart state instead of inferred mesh appearance.
+- The counter is screen-space and debug-only, so normal gameplay and native HUD
+  tuning are unchanged. The detail row also shows the next source tick, group
+  size, and ETA to the hit line.
+- Validation artifact:
+ `engine/out/codex_goal_visuals/20260703_note_counter_overlay/` captures
+  `shoutatthedevil` standard/star moments and a real Expert `trogdor` HOPO
+  window. `note_counter_overlay_sheet.png` shows distinct `NEXT STANDARD`,
+  `NEXT STAR`, and `NEXT HOPO` states on top of the current native highway/HUD.
+- Follow-up implementation: the same debug flag now also draws a projected tag
+  above the next visible note group on the highway. It uses the decoded chart
+  classification (`standard`, `star`, `hopo`) and the renderer's GH2 track
+  camera projection, so autoplay review can be done by watching the note itself
+  instead of cross-referencing a corner overlay.
+- Validation artifact:
+  `engine/out/codex_goal_visuals/20260703_note_counter_projected_tags/note_counter_projected_tag_sheet.png`
+  shows the new in-highway `NEXT STANDARD`, `NEXT STAR`, and `NEXT HOPO` tags
+  in bounded captures for Expert `shoutatthedevil` and `trogdor`.
+
+2026-07-03 labelled note-type visual audit:
+- `engine/out/codex_goal_visuals/20260703_note_type_visual_audit/` uses the
+  on-screen counter to capture comparable incoming-note positions for
+  `STANDARD`, `STAR`, and `HOPO` states. The first attempted Trogdor crop was
+  intentionally rejected because the counter still read `NEXT STANDARD` before
+  the preceding note crossed; the retained `hopo_next_mid.bmp` starts later and
+  shows `NEXT HOPO` at tick `57840`.
+- `note_type_midway_counter_sheet.png` is the current visual baseline for note
+  type review. The standard frame shows the black-rim `top.mesh` treatment, the
+  HOPO frame shows the no-black-ring lane HOPO top treatment, and the star frame
+  shows the source-backed star note stack plus authored star sustain tails.
+ This keeps future visual arguments tied to chart-labelled frames instead of
+ relying on memory or tiny full-frame captures.
+- User review follow-up: the sheet still did not make the difference readable
+  enough; for the next note-art pass, use the live on-screen note counter during
+  autoplay instead of depending on still-frame comparison. The overlay should
+  remain enabled by `GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER`, increment when a
+  same-tick note group crosses the hit threshold, and label the next group as
+  `STANDARD`, `STAR`, or `HOPO` so note-type differences can be visually checked
+  in motion.
+- Live-counter validation refresh:
+  `engine/out/codex_goal_visuals/20260703_hopo_counter_focused_clean/` reruns a
+  short Expert `shoutatthedevil` chart-derived-input window around the dense
+  HOPO chain with `GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER=1` and
+  `GHOGX_DEBUG_HIGHWAY_NOTE_DRAW=1`. The clean log records `9` gameplay hits,
+  `133` `kind=hopo` draw rows, `107` `kind=standard` draw rows, zero gameplay
+  misses, zero overstrums, and zero diagnostic-autoplay rows. The combined
+  review sheet at
+  `engine/out/codex_goal_visuals/20260703_note_counter_live_review/note_counter_live_review_sheet.png`
+  keeps `NEXT STANDARD`, `NEXT STAR`, and `NEXT HOPO` visible directly on the
+  highway for the next visual review.
+
+2026-07-03 sustain-tail material audit:
+- A source-backed material check of `track/gen/track.milo_ps2` confirms the
+  regular pre-hit lane sustain path is not accidentally borrowing the star
+  texture. The authored lane materials `tail_green.mat`, `tail_red.mat`,
+  `tail_yellow.mat`, `tail_blue.mat`, and `tail_orange.mat` all point at
+  `gem_star.tex` with blend `3` and UV scale `[0.5000, 1.0000]`.
+- The same audit shows `tail_star.mat` also uses `gem_star.tex`, while
+  `tail_bonus.mat` uses `gem_bonus.tex`; held/glow tails use
+  `tail_glow_<lane>.mat` / `tail_glow_star.mat` with `line01.tex`, and the
+  tight held centerline uses `tail_glow_tight.mat` with `tail_tight.tex`.
+- Mesh decode for `tail02.mesh` reports the native 3-D ribbon as `12` verts /
+  `10` faces with bounds `[-0.43, 0.00, 0.00]..[0.43, 30.00, 0.32]`, matching
+  the renderer's runtime mesh path instead of a flat fallback.
+- Visual artifact:
+ `engine/out/codex_goal_visuals/20260703_tail_material_audit/sustain_tail_material_audit_sheet.png`
+  pairs a regular pre-hit lane-sustain capture with a star-phrase capture and
+  the decoded material rows. This locks the tail texture/material split as
+  authored GH2 data unless future PCSX2 evidence shows a separate conditional
+  material selection.
+
+2026-07-03 same-lane HOPO visual review:
+- The projected note-type counter was used to compare Trogdor Expert orange
+  notes on the same lane instead of mixing colors/perspective: standard
+  `tick=57720 lane=4` against HOPO `tick=57960 lane=4` from the tight
+  `55.3..56.0s` chain.
+- Source audit confirms `gem_template.view` contains `red_gem.mesh` plus
+  `top.mesh`, while lane HOPO meshes such as `orange_hopo.mesh` are hidden
+  top-card variants with the same `66` verts / `64` faces / `top.mat` family as
+  `top.mesh`. The `dot_top_hopo2_<lane>.mat` / `spade_<lane>.tex` materials
+  exist in `track.milo_ps2`, but no decoded Mesh or Group child currently
+  references them, so they are not promoted into the live note stack.
+- Runtime now draws lane `*_hopo.mesh` top cards with the same no-depth top-card
+  overlay rule used for standard `top.mesh`. This keeps the source no-black-rim
+  HOPO UVs visible over the native gem body instead of letting the body depth
+  buffer restore the standard top treatment.
+- The note-draw diagnostic row was tightened so `star_base=1` / star-top flags
+  only report drawn star layers for actual star notes. Standard and HOPO rows in
+  the new logs now correctly report `star_base=0`.
+- Visual artifact:
+  `engine/out/codex_goal_visuals/20260703_hopo_same_lane_review/orange_standard_vs_hopo_overlay_after_sheet.png`
+  shows the same-lane standard/HOPO comparison with the projected tags and
+  corrected draw-log sanity rows.
+
+2026-07-03 note-type zoom and diagnostic-budget refresh:
+- Source inspection reconfirmed the current note-head split: standard notes use
+  `gem_template.view` (`red_gem.mesh` plus `top.mesh`), lane HOPO notes use the
+  hidden `*_hopo.mesh` top-card variants in the `gem_template.view` frame, and
+  star notes use the active `gem_star.view` stack (`star_base.mesh`,
+  lane `*_star.mesh`, `star2.mesh`, and `top_star_black.mesh`). The standard and
+  HOPO top cards have the same `66` verts / `64` faces / `top.mat` geometry
+  family; their visible difference comes from `gem.tex` UV regions, not a large
+  silhouette change.
+- The moving-note draw diagnostic now budgets rows per rendered note kind
+  (`standard`, `star`, `hopo`, `bonus`) instead of using one shared static
+  counter. This avoids a broad star-to-HOPO capture spending all diagnostic rows
+  on early star notes and falsely looking like the later HOPO chain was absent.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260703_note_type_zoom_clean_broad/` runs a
+  broad Expert `shoutatthedevil` chart-derived-input window across standard,
+  star, and HOPO note types with the live note counter enabled. The log now
+  keeps all three classes visible: `180` `kind=standard`, `180` `kind=star`,
+  `140` `kind=hopo`, zero overstrums, zero diagnostic-autoplay rows, and the
+  expected `180` star-layer rows. This broad run has one early seek-boundary
+  gameplay miss at tick `19440`, before the review frames; keep using
+  `engine/out/codex_goal_visuals/20260703_hopo_counter_focused_clean/` as the
+  zero-miss focused HOPO gameplay proof.
+- Visual artifact:
+  `engine/out/codex_goal_visuals/20260703_note_type_zoom_clean_broad/note_type_zoom_broad_sheet.png`
+  crops and magnifies the current gameplay-camera standard/star/HOPO note
+  heads with the live `NEXT STANDARD`, `NEXT STAR`, and `NEXT HOPO` labels
+  visible for review.
+
+2026-07-03 diagnostic seek-boundary cleanup:
+- Broad mid-song captures were still picking up one fake gameplay miss before
+  the review frames because `FoFiXGameplaySession::seek_without_scoring`
+  consumed only notes whose late window had fully expired. A note that started
+  before the diagnostic start time but was still inside its late window stayed
+  live and then missed on the first capture tick.
+- Diagnostic seek now silently consumes any pre-start note group without scoring
+  or penalties, while leaving notes at or after the requested seek time playable.
+  `gameplay_session_test` covers seeking into an already-started note's late
+  window, ticking forward without a miss, and then hitting the next note.
+- Clean validation capture:
+  `engine/out/codex_goal_visuals/20260703_note_type_zoom_seekfix_broad/` reruns
+  the same broad Expert `shoutatthedevil` standard/star/HOPO window that used
+  to report a seek-boundary miss. The new log records `34` gameplay hits, zero
+  gameplay misses, zero overstrums, zero diagnostic-autoplay rows, `180`
+  standard draw rows, `180` star draw rows, `140` HOPO draw rows, and `180`
+  star-layer rows.
+- Visual artifact:
+  `engine/out/codex_goal_visuals/20260703_note_type_zoom_seekfix_broad/note_type_zoom_seekfix_broad_sheet.png`
+  is the current clean broad standard/star/HOPO review sheet with the live
+  note-type overlay visible.
+
+2026-07-03 note-counter CLI validation:
+- The on-screen note counter can now be enabled directly with
+  `--debug-note-counter`, which sets the existing
+  `GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER` renderer path for that launch. This avoids
+  requiring a manually prepared environment variable when watching diagnostic
+  autoplay.
+- Validation capture:
+  `engine/out/codex_goal_visuals/20260703_debug_note_counter_cli_autoplay/`
+  runs Expert `shoutatthedevil` from `25.90s` with `--diagnostic-autoplay` and
+  `--debug-note-counter`. The log records the flag enabled, diagnostic autoplay
+  enabled, `35` gameplay hits, zero gameplay misses, zero overstrums, zero
+  diagnostic-autoplay suppressions, and a clean bounded exit after `585` frames.
+- Visual artifact:
+  `engine/out/codex_goal_visuals/20260703_debug_note_counter_cli_autoplay/debug_note_counter_cli_autoplay_sheet.png`
+  shows the autoplay monitor flow with the screen-space count plus projected
+  `NEXT STAR`, `NEXT STANDARD`, and `NEXT HOPO` tags visible on the highway.
+
+2026-07-03 terminal-state audio stop:
+- Playable terminal states now stop the VGS stream before holding the gameplay
+  frame and native overlay. `AppEngine` calls `Gameplay::stop_audio()` when
+  entering both `Failed` and `Finished`, and `AudioPlayer::load_vgs` creates a
+  fresh streaming backend before loading a song so repeated playthroughs cannot
+  leave an old source voice/thread alive.
+- Fail validation:
+  `engine/out/codex_goal_visuals/20260703_terminal_audio_stop_fail/` starts
+  Expert `shoutatthedevil` with diagnostic rock fill `0.0`. The log records one
+  `song failed`, one `[gameplay] audio stopped`, one native
+  `pause_lose_tex.milo_ps2/pl_tile.tex` overlay load, zero finish rows, and a
+  clean bounded exit. `terminal_audio_stop_fail_sheet.png` shows the held fail
+  overlay over the current gameplay/HUD frame.
+- Finish validation:
+  `engine/out/codex_goal_visuals/20260703_terminal_audio_stop_finish/` seeks to
+  the end grace of Expert `shoutatthedevil`. The log records one
+  `song finished`, one `[gameplay] audio stopped`, one native
+  `win_expert.milo_ps2/newspaper.tex` overlay load, zero fail rows, and a clean
+  bounded exit. `terminal_audio_stop_finish_sheet.png` shows the held win
+  overlay over the current gameplay/HUD frame.
+
+2026-07-03 diagnostic song-start audio seek:
+- Diagnostic song-start now seeks the audible VGS stream, not only the visual
+  gameplay clock. `AudioPlayer` keeps the compressed VGS bytes, reopens the
+  streaming decoder through the existing exact `gh::vgs::Stream::seek()` sample
+  frame path, and reports `base_position_sec + SamplesPlayed` as the song clock.
+- `Gameplay::tick()` now starts playback from an explicit per-song
+  `song_started_` flag instead of checking `song_time_ == 0.0`, so a windowed
+  diagnostic run that begins at a note-review timestamp starts audio from that
+  timestamp instead of staying silent or snapping back to zero.
+- Validation artifact:
+  `engine/out/codex_goal_visuals/20260703_diagnostic_audio_seek/` contains a
+  real-clock, no-fixed-dt run from `--diagnostic-song-start 25.90` plus a visual
+  screenshot sheet from the same timestamp. The real-clock log records one
+  `[audio] seek: 25.900`, one `[gameplay] diagnostic audio seek: 25.900`, one
+  `[gameplay] song started`, one `[gameplay] t=25.9`, zero `fixed dt enabled`
+  rows, and a clean bounded exit. `diagnostic_audio_seek_sheet.png` shows the
+  live note counter progressing across the same review window.
+
+2026-07-03 live note-counter clarity refresh:
+- The debug note counter now labels both the last same-tick note group that
+  crossed the hit threshold and the next incoming group. `LAST` and `NEXT` are
+  classified from the decoded chart state as `STANDARD`, `STAR`, or `HOPO`,
+  rather than inferred from the rendered note silhouette. The overlay also keeps
+  crossed totals split as `STD`, `STAR`, and `HOPO`, so long autoplay review can
+  watch both the live increment and the accumulated mix of note types.
+- Validation artifact:
+  `engine/out/codex_goal_visuals/20260703_note_counter_last_next/` captures the
+  Expert `trogdor` HOPO chain from `55.30s` with the chart-derived input script
+  and `--debug-note-counter`. The log records `9` gameplay hits, zero misses,
+  zero overstrums, five screenshots, and a clean bounded exit.
+  `note_counter_last_next_sheet.png` shows `LAST STANDARD / NEXT HOPO` followed
+  by `LAST HOPO / NEXT HOPO` as the live count increments.
+- Type-total validation artifact:
+ `engine/out/codex_goal_visuals/20260703_note_counter_type_totals/` reruns the
+  same clean Expert `trogdor` chart-script window after adding split crossed
+  totals. The log again records `9` gameplay hits, zero misses, zero overstrums,
+  five screenshots, and a clean bounded exit. `note_counter_type_totals_sheet.png`
+  shows the overlay carrying `STD`, `STAR`, and `HOPO` totals while `LAST` and
+  `NEXT` advance through the HOPO chain.
+
+2026-07-03 all-three note-type visual proof:
+- `engine/out/codex_goal_visuals/20260703_note_type_all_three_current_ps2/`
+  reruns the Expert `shoutatthedevil` chart-derived input window from
+  `25.90s..35.45s` against the PS2 `GEN` ARK. This is the current broad
+  standard/star/HOPO visual review run with the on-screen note counter enabled.
+- The draw log records all three native moving-note paths in the same run:
+  `standard=180`, `star=180`, and `hopo=140`, with `34` gameplay hits, zero
+  misses, zero overstrums, and zero diagnostic-autoplay rows.
+- Visual artifact:
+ `note_type_all_three_zoom_sheet.png` crops the captured highway frames large
+  enough to see the difference between `NEXT STAR`, `NEXT STANDARD`, and
+  `NEXT HOPO` labels while the corresponding native note meshes are on screen.
+
+2026-07-03 note-type UV and strike-line counter audit:
+- Native mesh inspection shows standard and HOPO note tops are intentionally the
+  same top-card geometry size: `top.mesh` and each lane `*_hopo.mesh` both
+  decode as `66` verts / `64` tris with the same authored bounds. Their visible
+  difference is the source `gem.tex` UV region, not a separate silhouette.
+- `gem_template.view` is source-authored as `red_gem.mesh` then `top.mesh`.
+  `gem_star.view` is source-authored as `star_base.mesh`, the lane
+  `*_star.mesh`, `star2.mesh`, then `top_star_black.mesh`. Current note drawing
+  follows that group order.
+- The debug note counter now computes the rendered highway `group_y` for each
+  same-tick group and increments crossed totals when `group_y <= kStrikeY`,
+  making the on-screen count explicitly tied to the strike-line crossing.
+- Source UV artifact:
+  `engine/out/codex_goal_visuals/20260703_note_uv_audit/native_note_uv_audit_trimmed_sheet.png`
+  shows the black-keyed `gem.tex`, `stargem.tex`, and `gem_glow.tex` source
+  regions used by standard top, HOPO top, star top, star lane, and star base.
+- Current-code gameplay artifact:
+  `engine/out/codex_goal_visuals/20260703_note_counter_strikeline_current/`
+  reruns the Expert `shoutatthedevil` chart-derived input window with the
+  strike-line counter change. The log records `standard=180`, `star=180`,
+  `hopo=140`, `34` gameplay hits, zero misses, zero overstrums, and zero
+  diagnostic-autoplay rows. `note_counter_strikeline_current_sheet.png` shows
+  `NEXT STAR`, `NEXT STANDARD`, and `NEXT HOPO` labels in the current renderer.
+
+2026-07-03 source-backed hit-flame animation refresh:
+- Source audit artifact:
+  `engine/out/codex_goal_visuals/20260703_hit_feedback_source_audit/` captures
+  the decoded `track/gen/track.milo_ps2` groups, meshes, materials, TransAnims,
+  and MatAnims for the strike-line smash effects. `smash_normal.view`,
+  `smash_star.view`, and `smash_bonus.view` each own one
+  `smash_flamelight*.mesh`; the normal/star groups sit at authored z `1.1561`
+  and the bonus group at `1.1500`.
+- The source also contains `smash_flamelight_normal.tnm`,
+  `smash_flamelight_starcollect.tnm`, and `smash_flamelight_bonus.tnm`.
+  Starcollect and bonus TransAnims are tiny alias objects, so the renderer now
+  falls back to the normal flame transform timeline when those specific objects
+  do not decode dynamic transform keys.
+- `smash_flamelight_starcollect.mat` starts black in the bind material and has
+  an authored `smash_flamelight_starcollect.mnm` color curve. The renderer now
+  loads all decoded track MatAnim color curves, samples the flame color curve,
+  and bypasses baked vertex color for flame draws only when that source color
+  curve supplies the live RGB. This makes the star-collect flame visible from
+  source data instead of from a guessed tint.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_hit_feedback_source_anim/` runs Expert
+  `shoutatthedevil` with chart-derived autoplay and hit-feedback diagnostics.
+ The log records live hits with `base_anim=1`, `base_color_anim=1`,
+ `star_anim=1`, and `star_color_anim=1`; `hit_feedback_source_anim_sheet.png`
+ shows the current source-backed hit glows at the native fret targets.
+
+2026-07-03 combo-lightning MatAnim alpha refresh:
+- Source inspection shows the combo lightning MatAnims are alpha-channel
+  material animations: `smash_combo_lightning01.mnm`,
+  `smash_combo_lightning02.mnm`, and `smash_combo_lightning03.mnm` carry
+  separate alpha keys rather than RGB color keys, while later bind materials
+  can start fully transparent.
+- The renderer now parses the separate alpha-key channel, carries alpha through
+  `ColorAnimState`, and applies those curves to the source
+  `smash_combo_lightning0*.mesh` / `smash_combo_lightning0*.tnm` layers. For
+  alpha-only curves it preserves the decoded mesh/material RGB and only
+  bypasses bind vertex alpha for the source-animated combo-lightning draw.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_combo_lightning_matanim/` forces a
+  tier-3 combo-lightning hit-feedback run over the signed-off native highway.
+  The log records `combo_tier=3`, `combo_layers=3`, and
+  `combo_color_anim=1/1/1`; `combo_lightning_matanim_sheet.png` shows the
+  source-backed additive lightning layer at the strikeline.
+
+2026-07-03 star-power HUD active tube-glow refresh:
+- `HudState::sp_active` was already fed from gameplay and used for multiplier
+  and streak visuals, but the source star-power tube draw only received fill.
+  That meant an active-draining state below the ready threshold could lose the
+  native tube glow even though star power was still engaged.
+- `emit_star_power` now receives the live active flag and keeps the decoded
+  `amp_tube_glow.mesh` path active when either the meter is ready
+  (`fill >= 0.5`) or star power is currently active. The debug row now reports
+  `ready`, `active`, and `tube_glow` so captures prove whether the glow came
+  from charge readiness or live activation.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_star_power_active_tube_glow/` renders
+  low inactive (`fill=0.35 active=0 tube_glow=0`), charged ready
+  (`fill=0.65 active=0 tube_glow=1`), and active draining
+  (`fill=0.35 active=1 tube_glow=1`) HUD states with the saved layout. The logs
+  also report `native_fill=1` and `fallback_fill=0`, and
+  `star_power_active_tube_glow_sheet.png` shows the same-fill inactive/active
+  visual difference on the source tube.
+
+2026-07-03 live star-power highway state probe:
+- The highway renderer now has a bounded `GHOGX_DEBUG_HIGHWAY_STAR_POWER`
+  proof row that reports live `star_power_active`, event flash strength,
+  track-glow gate, bonus-highway gate, and native bonus mesh availability in
+  the same draw path that renders the highway.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_star_power_highway_state_probe/`
+  reruns the existing Expert `shoutatthedevil` drain window from `10.80s`,
+  seeds star power at `0.50`, drives chart-derived normal input through
+  `24.20s`, and uses the saved HUD layout. The log records star power
+  activation at `sp=0.50`, star power ending at `sp=0.00`, `12` gameplay hits,
+  zero misses, and zero overstrums.
+- The new highway rows prove the renderer follows the FoFiX state rather than
+  a forced visual: before activation rows show `active=0 glow=0 bonus=0`,
+  active-drain rows show `active=1 glow=1 bonus=1`, and post-drain rows return
+  to `active=0 glow=0 bonus=0`. The same log reports native bonus mesh
+  coverage as `gem=1 overlay=1 tail=1 smasher=1 flame=1`.
+- `star_power_highway_state_probe_sheet.png` shows the matching visual sequence:
+  normal highway before activation, cyan bonus highway while star power drains,
+ and the normal highway again after deactivation.
+
+2026-07-03 same-lane note-type high-res proof:
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_note_type_hi_res_same_lane_current/`
+  recaptures the Trogdor Expert orange lane from the current executable with
+  `--debug-note-counter` and `GHOGX_DEBUG_HIGHWAY_NOTE_DRAW=1`.
+- `orange_standard_current.log` records the standard orange draw row as
+  `kind=standard tick=57720 lane=4 gems=1 star=0 hopo=0`, while
+  `orange_hopo_current.log` records the same-lane HOPO row as
+  `kind=hopo tick=57960 lane=4 gems=1 star=0 hopo=1`.
+- `orange_standard_vs_hopo_current_hi_res_sheet.png` places the current full
+ frames above enlarged same-lane crops, so review can compare the standard
+ top-card path against the lane HOPO top-card path without lane/color changes
+ muddying the read.
+
+2026-07-03 current goal HOPO highway verification:
+- Fresh current-worktree verification artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_hopo_highway_verify_clean/`
+  reruns the Trogdor Expert dense HOPO window from `55.30s` with the chart
+  guitar script, fixed dt, `--debug-note-counter`, and
+  `GHOGX_DEBUG_HIGHWAY_NOTE_DRAW=1`.
+- The log records the native moving-note and highway coverage in the same pass:
+  `native note meshes: gems=5 speculars=3 top=1 hopos=5 stars=5 glow=1` and
+  `native track meshes: surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1
+  hitflame=1 starcollect=1 miss=1`.
+- Gameplay proof stayed clean inside the scripted window: `14` hits, zero
+  misses, zero overstrums, zero diagnostic-autoplay rows, with `76`
+  `kind=standard` draw rows and `180` `kind=hopo` draw rows. The first frame
+  shows the live `LAST HOPO / NEXT HOPO` overlay on the native GH2 highway with
+  visible lane HOPO notes, keeping the current priority baseline tied to this
+  build rather than the older handoff.
+
+2026-07-03 bounded gameplay summary and star-power integration proof:
+- `Gameplay` now exposes read-only hit, miss, and overstrum counters so bounded
+  native runs can report a single app-level end-state row. `ghogx_app` prints
+  `[ghogx] final gameplay summary` after the main loop exits, including app
+  state, song, difficulty, song time, score, streak, multiplier, hit/miss/
+  overstrum counts, rock fill, star-power fill/active state, and terminal
+  failed/finished flags.
+- The source contract locks this summary path so future diagnostic captures keep
+  the app-level proof hook rather than requiring ad-hoc log parsing of every
+  gameplay event.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_star_power_summary_verify/`
+  runs Expert `shoutatthedevil` from `10.80s` with diagnostic autoplay, seeded
+  star power `0.50`, fixed dt, the live note counter, HUD-state logging, and
+  highway star-power logging.
+- The log records native coverage for the active slice:
+  `native note meshes: gems=5 speculars=3 top=1 hopos=5 stars=5 glow=1`,
+  `native track meshes: surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1
+  hitflame=1 starcollect=1 miss=1`, and
+  `native bonus meshes: gem=1 overlay=1 tail=1 smasher=1 flame=1`.
+- Star power activates through the FoFiX session at `sp=0.50`, drives
+  `active=1 glow=1 bonus=1` highway rows and HUD `hud_mult=2`, then drains to
+  `active=0 glow=0 bonus=0`. The final summary reports `score=4560`,
+  `streak=12`, `mult=2`, `hits=12`, `misses=0`, `overstrums=0`, `rock=0.572`,
+  `sp=0.000`, `active=0`, `failed=0`, and `finished=0`.
+- `frame_00090.bmp` shows the active cyan bonus highway, bonus smashers/gems,
+  HUD, venue, and band in the same native frame; `frame_00780.bmp` shows the
+  post-drain return to the normal signed-off highway with regular native notes.
+
+2026-07-03 native HUD multiplier digit proof:
+- Active HUD multiplier rendering now prefers the decoded native `score_mult_3`
+  and `score_mult_2` mesh slots for the X glyph and number slot when those
+  source slots are present. The combined `hud_2x`/`hud_4x` plate path remains a
+  fallback for missing native slots, avoiding the previous pale blank active
+  multiplier while preserving the source-authored HUD layout.
+- The source contract locks the native digit path before the combined-plate
+  fallback and verifies the focused `[hud-multiplier] native_digits=1` proof
+  row.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_multiplier_native_digits_verify/`
+  reruns Expert `shoutatthedevil` from `10.80s` with diagnostic autoplay,
+  seeded star power `0.50`, fixed dt, the note counter, HUD multiplier logging,
+  HUD-state logging, and highway star-power logging.
+- The log records `805` native digit rows, active-star rows such as
+  `native_digits=1 clamped=2 star=1`, zero `native_plate` rows, and the same
+  clean final summary as the prior star-power proof: `score=4560`, `streak=12`,
+  `mult=2`, `hits=12`, `misses=0`, `overstrums=0`, `sp=0.000`, `active=0`,
+  `failed=0`, and `finished=0`.
+- `frame_00090.bmp` shows the readable native `2X` multiplier during the cyan
+  active bonus-highway window; `frame_00780.bmp` shows the same readable native
+  `2X` after the return to the normal signed-off highway.
+
+2026-07-03 intermediate native bad-feedback highway proof (superseded gate):
+- This intermediate probe briefly drove the source-authored `track_explode*`
+  mesh family by default through `bad_highway_flash_`. The current source-backed
+  path below supersedes that default because the earlier track-explode audit kept
+  these meshes behind explicit proof gates until stronger reference evidence
+  confirms they belong in live gameplay.
+- The highway renderer exposes a bounded `[highway-bad-feedback]` row that
+  reports the live bad-feedback flash, side-rail warning strength, track-explode
+  active/forced/disabled gates, native mesh count, alpha, and native miss mesh
+  availability.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_bad_feedback_track_explode_verify/`
+  runs Expert `shoutatthedevil` from `10.80s` with a non-autoplay diagnostic
+  guitar script that performs a wrong green strum and then releases it, keeping
+  the path tied to normal FoFiX bad-pick handling rather than autoplay.
+- The log records one overstrum and two misses from the FoFiX session, then
+  `31` bad-feedback rows with `explode=1 forced=0 disabled=0 meshes=45`,
+  `58` native miss rows with `miss_mesh=1 top_mesh=1`, and a final summary of
+  `score=0`, `streak=0`, `mult=1`, `hits=0`, `misses=2`, `overstrums=1`,
+  `rock=0.470`, `failed=0`, and `finished=0`.
+- `frame_00018.bmp` shows the native lane miss flash plus authored
+  track-explode streaks over the signed-off highway art; `frame_00024.bmp`
+  shows the same source-backed bad-feedback layer decaying in the native venue
+  and band frame.
+
+2026-07-03 native star-miss mesh and bad-feedback gate proof:
+- Real FoFiX miss events now route source-chart star-note groups into a separate
+  `star_miss_flash_` lane array. The highway renderer loads `star_miss.mesh` and
+  `top_star_miss.mesh`, chooses them only for non-forced star misses, and keeps
+  regular misses on `miss.mesh` / `top_miss.mesh`.
+- The source contract locks the new draw parameter, stored gameplay flash state,
+  FoFiX source-group star derivation, star-miss lane flash assignment, native
+  star-miss mesh fields, and the miss diagnostic row that reports
+  `star`, `star_mesh`, and `star_top`.
+- `track_explode*` bad-feedback drawing is back behind
+  `GHOGX_ENABLE_HIGHWAY_TRACK_EXPLODE` or the existing force flag, with
+  `GHOGX_DISABLE_HIGHWAY_TRACK_EXPLODE` still overriding both. Normal miss proof
+  rows now show `explode=0 enabled=0 forced=0 disabled=0 meshes=45 alpha=0`,
+  matching the earlier source-backed decision to keep the decoded track-explode
+  family diagnostic-only.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_star_miss_mesh_verify2/`
+  starts Expert `shoutatthedevil` at `5.20s` without autoplay, fixed dt, the live
+  note counter, and focused miss/bad-feedback diagnostics.
+- The log records `native miss meshes: regular=1 regular_top=1 star=1
+  star_top=1`, then real FoFiX star misses at `tick=4320 mask=0x01 star=1` and
+  `tick=4440 mask=0x0a star=1`. Highway rows for those same events report
+  `star=1 star_mesh=1 star_top=1`, proving the authored star-miss meshes are
+  selected by gameplay state rather than a forced visual.
+- `frame_00042.bmp` shows the first star-note miss flash over the signed-off
+  native highway, HUD, venue, and band. `frame_00060.bmp` shows the same slice
+  shortly after the red+blue star chord miss, with the track-explode family still
+  absent from normal bad feedback.
+
+2026-07-03 live rock-driven highway warning rails:
+- The highway renderer now receives live FoFiX rock fill from `Gameplay::draw`
+  and blends the decoded `side_rails_warning.mnm` state into
+  `track_side_rails5.mesh` when rock drops into the danger range. This is
+  separate from transient miss flashes: bad feedback and low-rock warning are
+  combined by max strength, and `GHOGX_DISABLE_HIGHWAY_ROCK_WARNING` can still
+  disable the rock-driven path for clean captures.
+- The source contract pins the new renderer parameter, the `fofix_rock_fill`
+  draw call, the low-rock mapping, the opt-out flag, and the
+  `[highway-rock-warning]` diagnostic row.
+- Low-rock runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_rock_warning_rails_verify/`
+  starts Expert `shoutatthedevil` at `5.20s` with diagnostic autoplay and
+  diagnostic rock `0.15`. The log records native track coverage
+  `rails=1`, decoded side-rail states `none=1 warning=1 star=1
+  warning_star=1`, repeated `[highway-rock-warning]` rows with
+  `rock=0.150 warning=1.000 side=1.000 bad=0.000 forced=0 disabled=0`, and a
+  clean final summary with `misses=0`, `overstrums=0`, `rock=0.153`, and
+  `failed=0`.
+- High-rock comparison artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_rock_warning_rails_high_compare/`
+  uses the same window with diagnostic rock `0.90`; it records the same decoded
+  side-rail states, no `[highway-rock-warning]` rows, and a clean final summary
+  with `rock=0.901`, `misses=0`, `overstrums=0`, and `failed=0`.
+- `frame_00018.bmp` from the low-rock run shows the native warning-red highway
+  rails while the HUD ROCK meter is red. `frame_00018.bmp` from the high-rock
+  comparison shows the same signed-off highway and note art with normal white
+  rails and a green ROCK meter.
+
+2026-07-03 live held-fret smasher proof:
+- The native fret-target smasher diagnostic now separates raw held input from
+  transient hit-flash feedback: `[highway-smasher]` reports `held`, `flash`,
+  combined `press`, moving `body_top`, fixed `ring_top`, and native body/ring/
+  shadow mesh availability. This lets visual captures prove live fret input
+  without confusing it with a note-hit sparkle.
+- The source contract pins the split diagnostic shape while preserving the
+  existing native smasher mesh, idle material, lane-colored pressed/additive
+  materials, lane ring, fixed ring height, and bonus-material coverage.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_smasher_held_input_verify/`
+  starts Expert `shoutatthedevil` at `5.20s` with fixed dt, no autoplay, and a
+  static diagnostic fret mask `0x11` so only green and orange are held.
+- The log records native smasher coverage `smasher=1`, then repeated proof rows
+  for lanes `0` and `4` with `held=1 flash=0.000 press=1.000 body_top=1.050
+  ring_top=0.220 body_mesh=1 ring_mesh=1 shadow=1`; lanes `1`, `2`, and `3`
+  stay idle with `held=0 flash=0.000 press=0.000 body_top=0.200
+  ring_top=0.220 body_mesh=1 ring_mesh=1 shadow=1`.
+- `frame_00018.bmp` shows the native highway with green and orange smashers
+  raised/lit from live held input while red, yellow, and blue remain idle, with
+  the venue, band, HUD, notes, props, lighting, and camera still rendering in
+  the integrated gameplay frame.
+
+2026-07-03 manual FoFiX-scored hit feedback proof:
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_manual_hit_feedback_verify/`
+  starts Expert `shoutatthedevil` at `5.20s` with fixed dt and a chart-derived
+  diagnostic guitar script for `5.200:5.900:-0.0083333`; it does not use
+  autoplay, so hits travel through the same live FoFiX strum/fret path as manual
+  input.
+- The final summary records `score=100`, `streak=2`, `mult=1`, `hits=2`,
+  `misses=0`, `overstrums=0`, `rock=0.502`, `failed=0`, and `finished=0`.
+  Focused highway rows show lane `0` hit feedback beginning at
+  `held=1 flash=1.000 press=1.000`, then decaying through `held=0 flash=0.850
+  press=0.850` while `[highway-hit]` reports `base=hit_flame base_mesh=1`; the
+  later star phrase hit also reports `star_collect=1`.
+- `frame_00018.bmp` shows the first FoFiX-scored hit at `50` points with the
+  native green hit flame and raised smasher. `frame_00036.bmp` shows the second
+  scored hit at `100` points with source-authored sustain lanes still drawn over
+  the signed-off native highway, venue, band, props, lighting, HUD, and camera.
+
+2026-07-03 live FoFiX multiplier combo-feedback proof:
+- The native hit-feedback diagnostic now reports whether combo lightning was
+  forced or came from the live FoFiX multiplier, plus source availability for
+  the decoded combo-lightning meshes, TransAnims, and MatAnim color/alpha
+  curves. The diagnostic budget is split per combo tier, so long live captures
+  no longer spend every row on early `1x` hit-flash decay before reaching
+  `2x`, `3x`, and `4x`.
+- The source contract pins the live `combo_tier` rule, the forced/live flag,
+  the source combo mesh/animation fields, and the per-tier diagnostic budget.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_live_combo_multiplier_feedback_verify_per_tier/`
+  starts Expert `shoutatthedevil` at `25.90s` with fixed dt, the live
+  note-counter overlay, and a chart-derived guitar script for
+  `25.900:35.450:-0.0083333`. It does not use diagnostic autoplay or forced
+  combo lightning.
+- The log records real FoFiX hits driving multiplier changes at streak `10`
+  (`mult=2`), streak `20` (`mult=3`), and streak `30` (`mult=4`). Highway hit
+  diagnostics include `80` `combo_tier=1` rows, `80` `combo_tier=2` rows, and
+  `72` `combo_tier=3` rows, all with `combo_forced=0`,
+  `combo_mesh=1/1/1`, `combo_anim=1/1/1`, and
+  `combo_color_anim=1/1/1`.
+- The same run records `90` `[highway-surface-flash]` rows, with source curves
+  triggered at `mult=2`, `mult=3`, and `mult=4`, each starting at
+  `strength=1.000 forced=0 curve=1 keys=3`. The final summary is clean:
+  `score=5969`, `streak=34`, `mult=4`, `hits=34`, `misses=0`,
+  `overstrums=0`, `rock=0.656`, `sp=0.250`, `failed=0`, and `finished=0`.
+- `frame_00180.bmp`, `frame_00335.bmp`, and `frame_00526.bmp` show the earned
+  `2X`, `3X`, and `4X` HUD states with the source combo-lightning/surface-flash
+  presentation active over the signed-off native highway, venue, band, props,
+  lighting, HUD, notes, and camera.
+
+2026-07-03 FoFiX whammy star-sustain highway proof:
+- The highway renderer now receives the live whammy input bit separately from
+  the five held fret lanes, so active FoFiX sustains can report whether their
+  visible held tail is also a whammy-earning star sustain window. The tail
+  diagnostic now includes `active`, `star_tail`, and `whammy` fields, and the
+  star-power highway diagnostic includes `whammy`.
+- The source contract pins the whammy bridge from `Gameplay::draw` into both
+  highway render paths, the star-power diagnostic shape, and active held
+  `held_lane`/`held_star` tail diagnostics that preserve the authored native
+  tail meshes while exposing FoFiX whammy timing.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_star_sustain_whammy_highway_verify_tight/`
+  starts Expert `shoutatthedevil` at `5.833s` with fixed dt, the live
+  note-counter overlay, and a chart-derived diagnostic guitar script for
+  `5.833:7.200:-0.0083333` with `--diagnostic-guitar-script-whammy`.
+- The log records the live FoFiX active star sustain
+  `active session sustain mask=0x0a start=5.950 end=9.451 star=1`, then
+  repeated `star power whammy mask=0x0a` rows while
+  `[highway-star-power]` reports `whammy=1 flash=0.350 glow=1`.
+  Matching tail rows prove the visible held lanes are the whammy-earning star
+  sustain: `source=held_star active=1 star_tail=1 whammy=1` for lanes `1` and
+  `3`. The final summary is clean for the proof window: `score=100`,
+  `streak=1`, `hits=1`, `misses=0`, `overstrums=0`, `rock=0.501`,
+  `sp=0.036`, `failed=0`, and `finished=0`.
+- `frame_00018.bmp`, `frame_00030.bmp`, and `frame_00060.bmp` show the native
+  venue, band, props, lighting, camera, HUD, rock meter, star meter, authored
+  highway surface, and held red/blue lanes during the whammy star-sustain
+  window proven by the matching source-backed log rows.
+
+2026-07-03 current integrated raw-input highway slice:
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_integrated_raw_highway_slice_verify_clean/`
+  starts Expert `shoutatthedevil` at `25.900s` with fixed dt, the live
+  note-counter overlay, and chart-derived raw guitar input
+  `25.900:36.050:-0.0083333`. It does not use diagnostic autoplay.
+- The run records `35` FoFiX hit events, `0` misses, `0` overstrums, and `0`
+  diagnostic-autoplay rows. Highway diagnostics include `180` standard-note
+  draw rows, `180` star-note draw rows, `140` HOPO draw rows, `90` surface-flash
+  rows, `320` hit-feedback rows, `96` tail rows, `17` active session sustain
+  rows, `240` HUD-state rows, and `600` star-power highway rows.
+- Multiplier proof remains live-scored: streak `10` earns `2X` at `t=28.900`,
+  streak `20` earns `3X` by `t=31.900`, and streak `30` earns `4X` at
+  `t=34.667`. The clean final summary is `score=6661`, `streak=35`, `mult=4`,
+  `hits=35`, `misses=0`, `overstrums=0`, `rock=0.664`, `sp=0.250`,
+  `failed=0`, and `finished=0`.
+- `frame_00180.bmp`, `frame_00335.bmp`, and `frame_00526.bmp` show the current
+  integrated native venue, band, props, lighting, camera, HUD, rock meter, star
+  meter, stylized highway, standard/star/HOPO note presentation, and earned
+  `2X`/`3X`/`4X` gameplay states in the same raw-input capture.
+
+2026-07-03 clean player-facing highway slice:
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_clean_player_highway_slice/`
+  repeats the same Expert `shoutatthedevil` raw-input window as the integrated
+  debug proof, but leaves the on-screen note-counter overlay disabled so the
+  screenshots represent the current player-facing highway/HUD presentation.
+- The log records `0` `GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER` rows and no
+  `debug note counter enabled` line, while preserving the FoFiX/gameplay proof:
+  `35` hit events, `0` misses, `0` overstrums, and `0` diagnostic-autoplay rows.
+  Highway diagnostics still include `180` standard-note draw rows, `180`
+  star-note draw rows, `140` HOPO draw rows, `90` surface-flash rows, `320`
+  hit-feedback rows, `96` tail rows, `17` active session sustain rows, `240`
+  HUD-state rows, and `600` star-power highway rows.
+- Native asset coverage in the same run reports `gems=5`, `hopos=5`,
+  `stars=5`, `surface=1`, `mask=1`, `rails=1`, `lines=1`, `spglow=1`,
+  `smasher=1`, `hitflame=1`, `starcollect=1`, `miss=1`, and bonus-highway
+  coverage `gem=1`, `overlay=1`, `tail=1`, `smasher=1`, `flame=1`.
+- The final summary remains clean: `score=6661`, `streak=35`, `mult=4`,
+  `hits=35`, `misses=0`, `overstrums=0`, `rock=0.664`, `sp=0.250`,
+  `active=0`, `failed=0`, and `finished=0`.
+- `frame_00180.bmp`, `frame_00335.bmp`, and `frame_00526.bmp` show the same
+  earned `2X`, `3X`, and `4X` states over the integrated native venue, band,
+  props, lighting, camera, HUD, stylized highway, and standard/star/HOPO note
+  presentation without visual-review text covering the playfield.
+
+2026-07-03 FoFiX GH2 pull-off HOPO slice:
+- FoFiX source check: the GH2 input path treats a fret release with another
+  fret still active as a pull-off candidate by re-entering the pick path with
+  `pullOff=True`; bad pull-offs are ignored instead of applying a strum
+  penalty. The native FoFiX session mirror now recognizes the same release
+  shape for HOPO candidates when the remaining held frets match the target
+  note, while retaining normal strum and press-edge HOPO handling.
+- Deterministic coverage: `ghogx_gameplay_session_test` now pins a red-to-green
+  pull-off where the first red note is strummed while green is held underneath,
+  then the higher red fret is released and the green HOPO scores as a normal
+  hit event with no overstrum. `ghogx_gameplay_rules_test` and
+  `ghogx_gameplay_venue_band_contract_test` still pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_hopo_pulloff_highway_verify/`
+  starts Expert `shoutatthedevil` at `29.300s` with fixed dt and a manual raw
+  guitar script. It strums the real star-HOPO phrase up to orange, then hits
+  tick `22560` blue by releasing orange while blue remains held, and hits tick
+  `22680` red by releasing blue while red remains held. The run does not use
+  diagnostic autoplay.
+- The log records `6` FoFiX hit events, `0` misses, `0` overstrums, `0`
+  diagnostic-autoplay rows, `143` HOPO note-draw rows, `80` hit-feedback rows,
+  and `90` HUD-state rows. The pull-off proof hits are
+  `FoFiX session event type=hit t=30.033 mask=0x08 ... source=43 tick=22560`
+  and `FoFiX session event type=hit t=30.200 mask=0x02 ... source=44
+  tick=22680`; the final summary is clean with `score=300`, `streak=6`,
+  `hits=6`, `misses=0`, `overstrums=0`, `rock=0.508`, and `failed=0`.
+- `frame_00043.bmp` shows the integrated native venue, band, props, lighting,
+  camera, HUD, and stylized highway immediately after the blue pull-off hit at
+  `250` points. `frame_00053.bmp` shows the red pull-off hit at `300` points
+  with the same native highway and stage presentation intact.
+
+2026-07-03 FoFiX tappable-class highway bridge:
+- FoFiX source check: `song.py::markHopo` assigns `Note.tappable` classes
+  where `1` is the strummed starter for a HOPO run, `2` is a middle HOPO, and
+  `3` is the final HOPO. FoFiX rendering treats only classes `2` and `3` as
+  visibly tappable, while `Guitar.py::startPick3` keeps class `3` as a special
+  end/problem-note state for GH2 strict handling.
+- The native chart parser now carries `hopo_tappable` alongside the legacy
+  visible `is_hopo` flag. Simple single-gem GH2/FoFiX runs are marked
+  `1/2/3`, while legacy unknown HOPO cases remain compatible as class `2`.
+  The FoFiX session mirror now preserves that class and treats class `2/3` as
+  playable HOPO notes without requiring the old boolean to be set.
+- Deterministic coverage: `ghogx_chart_test` pins starter/middle/end classes
+  in the synthetic MIDI chart, `ghogx_gameplay_session_test` proves a class-3
+  note can be hit as a HOPO without the legacy bool, and
+  `ghogx_gameplay_venue_band_contract_test` pins the class-aware highway draw
+  diagnostics.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_hopo_tappable_class_highway_verify_ps2ark/`
+  starts Expert `shoutatthedevil` at `25.900s` with fixed dt, raw
+  chart-derived guitar input for `25.900:31.000:-0.0083333`, no diagnostic
+  autoplay, and native `glam1` highway/stage presentation.
+- The log records `360` `[highway-note-draw]` rows with the new
+  `hopo_tappable` field, including `70` class-1 starter rows, `269` class-2
+  middle rows, and `52` class-3 end rows. Key rows include tick `22080`
+  `hopo=0 hopo_tappable=1`, tick `22200` `hopo=1 hopo_tappable=2`, and tick
+  `22680` `hopo=1 hopo_tappable=3`. The final gameplay summary is clean:
+  `score=1866`, `streak=17`, `mult=2`, `hits=17`, `misses=0`,
+  `overstrums=0`, `rock=0.544`, `sp=0.250`, `failed=0`.
+- `frame_00180.bmp` shows the earned `2X` live-play state over the integrated
+  native venue, band, props, lighting, camera, HUD, and stylized highway.
+  `frame_00240.bmp` shows the star/HOPO run traveling down the same native
+  highway while the matching log rows prove the visible notes are carrying
+  FoFiX tappable classes.
+
+2026-07-03 FoFiX GH2-strict ignored HOPO strum:
+- FoFiX source check: `GuitarScene.py::doPick3GH2` suppresses a nearby bad
+  strum after a just-played HOPO when the last HOPO fret is still held and no
+  higher fret is held; `Guitar.py::startPick3` arms that state from tappable
+  notes and gives class-3 HOPOs a signed `hopoActive`/problem-note path.
+- The native FoFiX session mirror now tracks the last tappable HOPO lane,
+  signed active time, class-3 problem-note state, and late margin. A matching
+  extra strum emits neutral `HopoStrumIgnored` session evidence instead of
+  calling the overstrum path, so score, streak, rock, miss flashes, and bad
+  highway feedback remain unchanged.
+- Deterministic coverage: `ghogx_gameplay_session_test` now proves the ignored
+  strum after a held HOPO, proves a higher held fret still becomes an overstrum,
+  and proves a class-3 HOPO end note accepts the same neutral extra strum.
+  `ghogx_gameplay_venue_band_contract_test` pins the neutral event label and
+  gameplay log surface.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_hopo_strict_ignored_strum_verify/`
+  starts Expert `shoutatthedevil` at `29.300s` with fixed dt, no diagnostic
+  autoplay, native `glam1` highway/stage presentation, and a manual raw guitar
+  script that strums the red class-1 starter, taps the yellow HOPO, then
+  strums again while red+yellow remain held.
+- The log records two FoFiX hit events (`tick=22080` red, `tick=22200` yellow),
+  then `FoFiX session event type=hopo_strum_ignored t=29.600 mask=0x06
+  score=100 streak=2 mult=1 rock=0.5017`, with `0` miss rows and `0`
+  overstrum rows. The final gameplay summary is clean: `score=100`,
+  `streak=2`, `hits=2`, `misses=0`, `overstrums=0`, `rock=0.502`,
+  `failed=0`.
+- `frame_00016.bmp` shows the ignored-strum moment over the integrated native
+  venue, band, props, lighting, camera, HUD, and stylized highway: score stays
+  `100`, the two-note streak remains lit, and there is no miss/overstrum
+  highway feedback. `frame_00025.bmp` shows the same clean state after the
+  neutral strum window.
+
+2026-07-03 FoFiX star-power edge + native bonus highway proof:
+- The deterministic FoFiX session coverage already pins the important behavior
+  shape: star power activates only from a fresh star-power edge at half meter or
+  higher, held star-power input does not auto-fire after phrase fill, active
+  star power doubles subsequent note score, and diagnostic seeding still routes
+  through the real activation edge instead of forcing the active state.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_star_power_bonus_highway_verify/`
+  starts Expert `shoutatthedevil` at `29.300s` with fixed dt, native `glam1`
+  highway/stage presentation, diagnostic star meter seeded to `0.50`, and a
+  raw guitar script that presses star power, strums the red starter, then taps
+  the yellow HOPO while star power is active.
+- The log records one `star_power_activate` session event at `t=29.333`, then
+  `[highway-star-power] t=29.333 active=1 flash=1.000 glow=1 bonus=1` with
+  native bonus meshes available (`track_glow=1 bonus_gem=1 bonus_tail=1
+  bonus_smasher=1 bonus_flame=1`). The note renderer emits `107`
+  `kind=bonus` draw rows, including tick `22080` class-1 starter notes and
+  tick `22680` class-3 HOPO end notes using the bonus note treatment.
+- The two live hits under active star power both score `100` points:
+  `tick=22080` red reaches `score=100`, then `tick=22200` yellow reaches
+  `score=200`. The run has `0` miss rows and `0` overstrum rows. Final summary:
+  `state=playing`, `t=29.800`, `score=200`, `streak=2`, `hits=2`,
+  `misses=0`, `overstrums=0`, `rock=0.505`, `sp=0.476`, `active=1`,
+  `failed=0`.
+- `frame_00008.bmp` shows the first powered hit at `100` points with the blue
+  star-power highway glow active. `frame_00014.bmp` shows the second powered
+  hit at `200` points with the same native bonus highway/note treatment.
+  `frame_00027.bmp` shows the clean continuation: score/streak remain intact,
+  star power remains active, and no miss/overstrum feedback appears.
+
+2026-07-03 long player-facing native highway slice:
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_long_player_highway_slice/`
+  runs Expert `shoutatthedevil` from `25.900s` to `50.000s` through the
+  chart-derived raw guitar input path, not diagnostic autoplay. The capture
+  uses fixed dt, native `glam1` highway/stage presentation, diagnostic star
+  meter seeded to `0.50`, and `--diagnostic-guitar-script-whammy` so authored
+  star sustains drive the whammy bit through the normal FoFiX session path.
+- The generated script logs `150` raw input events for
+  `25.900..50.000` with `hit_offset=-0.0083` and
+  `whammy_star_sustains=1`. The run records `63` FoFiX hit events,
+  `20` sustain-score events, `195` star-power whammy events, `2`
+  `star_phrase_complete` events, one real `star_power_activate`, one real
+  `star_power_deactivate`, `0` miss rows, `0` overstrum rows, `0`
+  diagnostic-autoplay rows, and `0` debug note-counter overlay rows.
+- Star power activates at `t=26.150` from the seeded edge, awards the first
+  phrase completion at `t=30.683`, continues through the long powered sustain
+  window, awards the second phrase completion at `t=40.150`, then drains out
+  at `t=48.083`. The final post-drain chord at `t=49.600` reaches
+  `score=42038`, `streak=63`, and `mult=4`.
+- The app exits cleanly after `1449` frames with
+  `state=playing`, `t=50.050`, `score=42038`, `streak=63`, `mult=4`,
+  `hits=63`, `misses=0`, `overstrums=0`, `rock=1.000`, `sp=0.000`,
+  `active=0`, `failed=0`, and `finished=0`.
+- `frame_00180.bmp` shows active star power, native bonus highway rails,
+  authored hit lightning, held lanes, native HUD, venue, and band together with
+  no debug overlay. `frame_00526.bmp` and `frame_00900.bmp` show the long
+  powered sustain/whammy section with the HUD in the readable `8X` powered
+  state. `frame_01446.bmp` shows the clean post-drain return to the normal
+  GH2-native highway rails while the live `4X` combo remains intact.
+
+2026-07-03 FoFiX after-chord HOPO class bridge:
+- FoFiX source check: `song.py::markHopo` has an after-chord path that marks
+  every gem in the previous chord as tappable starter class and promotes the
+  following valid single note, while top-lane repeats after the chord are
+  outlawed. Native parsing now groups notes by MIDI tick before assigning
+  classes so chords stay strummed, valid after-chord singles become playable
+  class `2/3` HOPOs, same-fret repeats remain strummed, and single-to-chord
+  transitions no longer leak playable HOPO state onto a chord gem.
+- Deterministic coverage: `ghogx_chart_test` pins the synthetic Hard chart
+  cases for valid chord-to-single runs, invalid top-lane repeats,
+  single-to-chord false positives, and same-fret repeats. The same test still
+  pins Easy/Medium/Expert starter/middle/end behavior.
+  `ghogx_gameplay_session_test` proves the resulting class path is playable by
+  strumming the chord, releasing, and hammering on the following single without
+  a strum.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_after_chord_hopo_highway_verify/`
+  starts Expert `misirlou` at `3.880s` with fixed dt, native venue/stage
+  presentation, and a manual raw guitar script for the real authored window
+  `tick=3760` Yellow+Blue chord -> `tick=3840` Green HOPO.
+- The renderer log records the following single as
+  `[highway-note-draw] kind=hopo tick=3840 lane=0 ... hopo_tappable=3
+  hopo_mesh=1`, while the chord rows at tick `3760` remain
+  `kind=standard ... gems=2 ... hopo_tappable=0`. Gameplay records
+  `HIT tick=3760 mask=0x0c gems=2 pts=100 streak=1 score=100`, then
+  `HIT tick=3840 mask=0x01 gems=1 pts=50 streak=2 score=150`, with
+  `overstrums=0`, `failed=0`.
+- `frame_00004.bmp` shows the strummed chord result over the native stylized
+  highway, HUD, venue props, lighting, and camera. `frame_00009.bmp` and
+  `frame_00014.bmp` show the clean post-HOPO `150` score state, active native
+  highway, and integrated venue presentation without debug overlay.
+
+2026-07-03 FoFiX active star phrase overstrum miss:
+- FoFiX source check: `GuitarScene.py` treats `notesMissed` and `lessMissed`
+  together in miss/rock handling, and marks `starNotesMissed[num] = True` when
+  the matching note is `star` or `finalStar`. Native active phrase state now
+  mirrors that shape by marking the in-flight phrase missed on any real
+  overstrum while `star_phrase_active_` is true, even when the bad pick lands
+  between authored phrase notes.
+- Deterministic coverage: `ghogx_gameplay_session_test` now covers a hit first
+  star note, an inter-phrase overstrum, a hit second star note, and the next
+  non-star boundary. The expected event order is `StarPhraseMiss` followed by
+  the boundary `Hit`, with one overstrum, three hits, and `star_power_fill()`
+  still `0.0`.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_star_phrase_overstrum_between_notes_verify/`
+  starts Expert `shoutatthedevil` at `29.300s` with fixed dt, native
+  venue/stage presentation, and a manual raw guitar script over the real
+  authored star phrase `tick=22080..22680`, followed by the non-star boundary
+  note at `tick=23040`.
+- The log records `HIT tick=22080` at `score=50`, then one
+  `FoFiX session event type=overstrum t=29.467` with `streak=0` and
+  `sp=0.0000`. The remaining phrase notes at ticks `22200`, `22320`, `22440`,
+  `22560`, and `22680` are all hit. At the non-star boundary the session emits
+  `FoFiX session event type=star_phrase_miss t=30.683 ... source=39
+  tick=22080 ... sp=0.0000`, then `HIT tick=23040`, proving the bad pick
+  breaks the active phrase without awarding star power.
+- Final summary: `state=playing`, `t=31.133`, `score=394`, `hits=7`,
+  `misses=1`, `overstrums=1`, `rock=0.493`, `sp=0.000`, `active=0`,
+  `failed=0`. `frame_00010.bmp` shows the first hit and incoming phrase notes,
+  `frame_00052.bmp` shows the continued phrase hits after the bad pick, and
+  `frame_00084.bmp` / `frame_00100.bmp` show the boundary and post-boundary
+  native highway state with star power still empty.
+
+2026-07-03 debug note-counter same-tick group tag refresh:
+- The live `--debug-note-counter` highway review overlay now formats the
+  previous and next same-tick note groups with note type, source MIDI tick, gem
+  count, and lane span. The in-highway `NEXT` tag uses the same formatter, so a
+  moving group can be identified directly on the rendered native highway
+  instead of only from the top-left totals panel.
+- Contract coverage: `ghogx_gameplay_venue_band_contract_test` pins the
+  group-based counter, the standard/star/HOPO split totals, the `LAST` group
+  formatter, and the projected in-highway `NEXT` group formatter.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_debug_note_counter_group_tag_verify/`
+  starts Expert `shoutatthedevil` at `25.900s` with fixed dt,
+  `--diagnostic-autoplay`, `--debug-note-counter`, native venue/stage
+  presentation, and the normal FoFiX session path.
+- The log records `debug note counter enabled`, `diagnostic autoplay enabled`,
+  native note mesh coverage `gems=5 ... hopos=5 stars=5 glow=1`, native track
+  coverage `surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1 hitflame=1
+  starcollect=1 miss=1`, and a clean final summary:
+  `state=playing`, `t=30.233`, `score=1350`, `streak=16`, `mult=2`,
+  `hits=16`, `misses=0`, `overstrums=0`, `rock=0.540`, `sp=0.000`,
+  `failed=0`.
+- `frame_00030.bmp` shows `LAST STANDARD T19800 G2 L1-3` and
+  `NEXT STANDARD T20160 G1 L0` over the moving highway. `frame_00180.bmp`
+  shows a star phrase group as `NEXT STAR T22080 G1 L1`, and
+  `frame_00240.bmp` shows the later star phrase as `LAST STAR T22440 G1 L4`
+ / `NEXT STAR T22560 G1 L3`, all while the integrated venue, band, HUD, and
+ stylized native highway remain visible.
+
+2026-07-03 star phrase miss highway-art bridge:
+- FoFiX emits `StarPhraseMiss` separately from the bad pick that broke the
+  phrase. The playable native bridge now recovers the source same-tick chart
+  group from the session event and pulses the existing GH2-native
+  `star_miss.mesh` / `top_star_miss.mesh` lane art when that phrase miss is
+  presented, instead of leaving the broken phrase as log-only feedback.
+- Contract coverage: `ghogx_gameplay_venue_band_contract_test` pins the
+  `source_group_mask` bridge and the phrase-miss path that raises both the
+  native miss flash and star-miss flash on the source lanes.
+- This keeps the behavior source-backed: scoring, phrase state, and star power
+  award denial still come from `FoFiXGameplaySession`; the renderer only gets a
+  stronger GH2-native visual cue for the already-emitted FoFiX event.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_star_phrase_miss_highway_art_verify/`
+  starts Expert `shoutatthedevil` at `29.300s` with fixed dt, native
+  venue/stage presentation, and a manual raw guitar script that hits the real
+  `tick=22080..22680` star phrase while injecting one empty overstrum between
+  the first and second phrase notes.
+- The log records six phrase hits, the boundary hit at `tick=23040`, one
+  `FoFiX session event type=star_phrase_miss t=30.667`, and the new presentation
+  bridge row `star phrase missed tick=22080 mask=0x02`. The highway then emits
+  `[highway-miss] lane=1 ... star=1 star_mesh=1 star_top=1`, proving the
+  phrase-miss event drew the authored native star-miss lane art.
+- Final summary: `state=playing`, `t=31.100`, `score=350`, `streak=6`,
+  `hits=7`, `misses=0`, `overstrums=1`, `rock=0.507`, `sp=0.000`,
+  `active=0`, `failed=0`. `frame_00082.png` shows the clean boundary state,
+  `frame_00084.png` / `frame_00086.png` show the star-miss highway flash, and
+  `frame_00100.png` shows the highway returned to normal play.
+
+2026-07-03 current FoFiX low-rock fail-state proof:
+- Fresh current-build validation in
+  `engine/out/codex_goal_visuals/20260703_current_goal_low_rock_fail_highway_verify/`
+  starts Expert `shoutatthedevil` at `29.300s` with fixed dt, no autoplay/input,
+  and `--diagnostic-rock 0.02`. The run lets the live FoFiX session miss the
+  incoming star phrase instead of forcing the failed state directly.
+- The log records warning-red highway rails before any miss:
+  `[highway-rock-warning] ... rock=0.020 warning=1.000 side=1.000`. The first
+  missed star note at `tick=22080` drops rock to `0.01`; the second at
+  `tick=22200` drops rock to `0.00`, after which the app logs `song failed;
+  final score 0` and `[gameplay] audio stopped`.
+- The failed frame keeps the native gameplay/HUD/highway presentation visible,
+  then loads `ui/gen/pause_lose_tex.milo_ps2/pl_tile.tex` as the source-backed
+  fail overlay. The same frame still reports native warning rails and star-miss
+  meshes through `[highway-miss] ... star=1 star_mesh=1 star_top=1`.
+- Final summary: `state=failed`, `score=0`, `misses=2`, `overstrums=0`,
+  `rock=0.000`, `sp=0.000`, `failed=1`. `frame_00008.png` and
+  `frame_00018.png` show low-rock red-rail gameplay before failure;
+  `frame_00028.png` and later frames show the native failed overlay on the held
+  gameplay frame.
+
+2026-07-03 FoFiX catch-up miss before matched hit guard:
+- Source distinction: `GuitarScene.py::doPick3GH2` calls
+  `getMissedNotes(..., catchup=True)` before `startPick3`, punishing already-late
+  notes, while `Guitar.py::controlsMatchNotes3` silently marks only earlier
+  still-in-window nonmatching chord groups as skipped when a later group matches.
+- Native already carried both paths. The existing in-window skip test stays
+  no-miss; the new expired-earlier-note guard proves the session emits `Miss`
+  for the crossed note before the same-tick matched `Hit`, with source index and
+  MIDI tick preserved for highway presentation.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_catchup_miss_before_hit_verify/`
+  starts Expert `shoutatthedevil` at `29.300s` with fixed dt, native
+  venue/stage presentation, and a manual raw guitar script that deliberately
+  strums the later yellow phrase note after the earlier red phrase note has
+  crossed the late edge.
+- The log records `FoFiX session event type=miss t=29.366 ... source=39
+  tick=22080`, native star-miss highway art on lane 1, then
+  `FoFiX session event type=hit t=29.567 ... source=40 tick=22200` and a
+  yellow lane hit flame. Final summary: `state=playing`, `score=50`,
+  `streak=1`, `hits=1`, `misses=1`, `overstrums=0`, `rock=0.487`,
+  `failed=0`. `frame_00008.png` shows the missed red phrase note feedback;
+ `frame_00016.png` / `frame_00018.png` show the later yellow hit over the
+  same GH2-native highway, HUD, venue, lighting, and camera stack.
+
+2026-07-03 FoFiX sustain extra-fret guard:
+- Source distinction: `GuitarScene.py::keyReleased` ends a held pick when a
+  released control belongs to a note in `playedNotes`, and
+  `Guitar.py::run` otherwise ends the pick only after `pos > time + length`.
+  Pressing an extra fret while the played sustain fret remains held does not
+  remove the played note from FoFiX's sustain state.
+- Native sustain maintenance now uses required-fret containment for active
+  tails instead of the stricter note-hit matcher. This keeps note-hit matching
+  exact for strums/chords, while preserving held sustain tails, star-sustain
+  whammy, and highway tail presentation when harmless extra frets are pressed.
+- Deterministic coverage proves three edges: an extra held fret does not cut the
+  sustain or emit a sustain-score event early; releasing the played fret still
+  ends and scores the partial tail immediately; and a star sustain continues to
+  earn whammy meter while an extra fret is held.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_sustain_extra_fret_whammy_verify/`
+  starts Expert `shoutatthedevil` at `5.833s` with fixed dt, native
+  venue/stage presentation, and a manual raw guitar script that hits the real
+  red+blue star sustain at `tick=4440`, then holds red+blue+orange plus whammy.
+- The log records `HIT tick=4440 mask=0x0a` for the two-gem sustain, then
+  repeated `star power whammy mask=0x0a` rows while `[highway-tail]` reports
+  `source=held_star active=1 star_tail=1 whammy=1` for both held lanes. Final
+  summary stays clean before the sustain end: `score=100`, `streak=1`,
+  `hits=1`, `misses=0`, `overstrums=0`, `sp=0.031`, `failed=0`.
+ `frame_00016.png` shows the extra-fret/whammy hold immediately after the hit;
+  `frame_00072.png` shows the same held star sustain still alive over the
+  GH2-native highway, HUD, venue, lighting, and camera stack.
+
+2026-07-03 FoFiX final-star phrase award:
+- Source distinction: FoFiX marks the last note/chord in a star phrase as
+  `finalStar`, and the instrument awards the phrase meter when that final star
+  note is `played` or `hopod`. Native chart parsing now preserves that marker
+  as `final_star`, including every gem in a same-tick final chord.
+- Native FoFiX session scoring now completes a clean active phrase immediately
+  after the final-star `Hit` event, not at the following non-star boundary. A
+  missed active phrase still reports its `StarPhraseMiss` at the boundary/end
+  path so the existing native phrase-miss art bridge remains stable.
+- Deterministic coverage: `ghogx_chart_test` proves parser-level final-star
+  tagging for single-note and multi-note phrases; `ghogx_gameplay_session_test`
+  proves immediate final-star award ordering, no duplicate boundary award, and
+  one completion for a final-star chord.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_final_star_phrase_award_verify/`
+  starts Expert `shoutatthedevil` at `29.300s` with fixed dt, native
+  venue/stage presentation, and chart-generated raw guitar input for the real
+  star phrase `tick=22080..22680`, stopping before the next non-star boundary
+  hit at `tick=23040`.
+- The log records the final red star note as
+  `FoFiX session event type=hit t=30.200 ... source=44 tick=22680 ... sp=0.0000`,
+  followed immediately by
+  `FoFiX session event type=star_phrase_complete t=30.200 ... source=39
+  tick=22080 ... sp=0.2500`. Final summary stays clean before the boundary:
+  `score=336`, `streak=6`, `hits=6`, `misses=0`, `overstrums=0`, `sp=0.250`,
+  `failed=0`. `frame_00052.png` shows the final-star hit approach;
+  `frame_00060.png` and `frame_00076.png` show the post-award quarter star
+  meter over the GH2-native highway, HUD, venue, lighting, and camera stack.
+
+2026-07-03 final-star highway overlay bridge:
+- The live `--debug-note-counter` highway review overlay now preserves the
+  parsed FoFiX `final_star` marker for same-tick groups. It keeps the type as
+  `STAR` for the existing standard/star/HOPO counters, but adds an `END` marker
+  to `LAST`, `NEXT`, and projected highway tags when the group is the phrase
+  closer. This makes the final-star award point reviewable in motion on the
+  native highway instead of only through logs.
+- The `ghogx notes` CLI now prints a `final` column and supports
+  `--filter final`, which isolates the real Expert `shoutatthedevil` phrase
+  closer as `idx=44 tick=22680 sec=30.175 lane=1 hopo=1 star=1 final=1`.
+- Contract coverage: `ghogx_gameplay_venue_band_contract_test` pins the
+  `group_final_star` propagation and the `END` marker in the on-screen note
+  counter path.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_final_star_overlay_end_verify/`
+  starts Expert `shoutatthedevil` at `29.820s` with fixed dt, debug note
+  counter, native venue/stage presentation, and chart-generated input over the
+  real phrase tail.
+- `frame_00012.png` / `frame_00020.png` show `NEXT STAR END T22680 G1 L1`
+  attached to the final red star note while it approaches the strike line.
+  `frame_00028.png` shows `LAST STAR END T22680 G1 L1` after the final-star hit
+  and `NEXT STANDARD T23040 G1 L0` before the boundary note, with the quarter
+  star meter already visible on the native HUD/highway presentation.
+
+2026-07-03 diagnostic seek mid-phrase star guard:
+- `seek_without_scoring` now carries a quiet missed-phrase state when it
+  consumes earlier notes from an unfinished star phrase. If the seek consumed
+  the phrase's final star, the carry is cleared so a later boundary does not
+  emit a stale miss.
+- Deterministic coverage: `ghogx_gameplay_session_test` proves seek-into-phrase
+  final star does not award meter, boundary emits `StarPhraseMiss` before the
+  post-phrase `Hit`, and seek-past-whole-phrase leaves no stale miss.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_seek_mid_phrase_no_award_verify/`
+  starts Expert `shoutatthedevil` at `29.820s` inside the real first star phrase
+  with debug note counter, fixed dt, native venue/stage presentation, and
+  chart-generated input over the final-star tail.
+- The log records the final-star hit as
+  `FoFiX session event type=hit t=30.187 mask=0x02 ... source=44 tick=22680 ...
+  sp=0.0000`, with no following `star_phrase_complete`; repeated star-power
+  rows stay `flash=0.000 glow=0`. Final summary remains clean but unawarded:
+  `score=188`, `streak=3`, `hits=3`, `misses=0`, `overstrums=0`, `sp=0.000`,
+  `failed=0`.
+- `frame_00012.png` / `frame_00020.png` show `NEXT STAR END T22680` over the
+  incoming phrase closer; `frame_00028.png` / `frame_00044.png` show the
+  post-hit native highway and HUD with no partial-phrase quarter-meter award.
+
+2026-07-03 current end-of-song playable highway proof:
+- Fresh current-build validation in
+  `engine/out/codex_goal_visuals/20260703_current_goal_song_finish_highway_verify/`
+  starts Expert `shoutatthedevil` at `200.000s` and uses chart-generated raw
+  guitar input through the final authored note window `200.000..205.950s`.
+- The run hits the final seven same-tick gameplay groups, records three sustain
+  payouts, and logs zero misses and zero overstrums. The last chord at
+  `tick=157440` hits as `mask=0x14`, then pays its sustain tail before the app
+  stops audio and transitions to the finished state.
+- The source-backed win overlay resolves from
+  `ui/gen/win_expert.milo_ps2/newspaper.tex` at `512x512`, proving the finish
+  screen is still using native GH2 assets rather than a placeholder.
+- Final summary: `state=finished`, `t=208.050`, `score=1418`, `streak=7`,
+  `mult=1`, `hits=7`, `misses=0`, `overstrums=0`, `rock=0.510`, `sp=0.000`,
+  `active=0`, `failed=0`, `finished=1`.
+- `frame_00330.png` shows the final yellow+orange chord hit over the current
+  native highway, HUD, venue, band, props, lighting, and camera stack.
+  `frame_00390.png` shows the retained clean gameplay frame after the final
+  sustain payout, and `frame_00500.png` shows the native Expert win newspaper
+  overlay on that held gameplay frame.
+
+2026-07-03 no-seed star-power activation input proof:
+- `--diagnostic-guitar-script-star-power-at <sec>` adds a real raw guitar
+  star-power button edge to chart-generated input. The FoFiX session still owns
+  the activation decision: if the meter is below half full, the edge is only an
+  input event; no renderer or meter state is forced.
+- Contract coverage: `ghogx_gameplay_venue_band_contract_test` now pins the app
+  flag, the generated-script helper signature, the scheduled bit-6 press/release
+  transitions, and the self-describing `star_power_at` diagnostic logs.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_no_seed_star_power_activation_verify/`
+  starts Expert `shoutatthedevil` at `29.300s` with no diagnostic star-power
+  seed, chart-generated raw input through `48.500s`, whammy on authored star
+  sustains, and a scheduled star-power edge at `40.050s`.
+- The log records two earned phrase completions, not a seeded meter:
+  first phrase `sp=0.2500`, second phrase plus whammy `sp=0.5975`, then one
+  `FoFiX session event type=star_power_activate t=40.067`. The next hits are
+  powered by the live FoFiX score multiplier: `HIT tick=30240 ... pts=400`
+  followed by `HIT tick=30360 ... pts=800`.
+- Runtime stays clean: `star_phrase_complete_count=2`,
+  `star_power_activate_count=1`, `miss_event_count=0`,
+  `overstrum_event_count=0`, and `315` active bonus-highway rows.
+- `frame_00620.png` shows the meter earned but still inactive over the native
+  highway/HUD. `frame_00646.png` and `frame_00668.png` show the immediate
+  activated cyan highway, powered `8X` HUD, bonus notes/tails, venue, band,
+  props, lighting, and camera stack. `frame_00840.png` shows the powered state
+  continuing through later chords.
+
+2026-07-03 no-seed star-power deactivation lifecycle proof:
+- Fresh current-build validation in
+  `engine/out/codex_goal_visuals/20260703_current_goal_no_seed_star_power_deactivation_verify/`
+  reuses the no-seed earned-meter route, but extends chart-generated raw input
+  to `56.000s` so the active star-power meter can drain out through normal
+  FoFiX update timing.
+- The run records two earned phrase completions, one `star_power_activate` at
+  `t=40.067`, and one `star_power_deactivate` at `t=52.000`. There are zero
+  miss and zero overstrum events. The highway logs `315` active bonus rows,
+  then `645` normal rows after deactivation.
+- Powered scoring is still doubled before drain-out: `HIT tick=38400 ...
+  pts=800` and `HIT tick=38880 ... pts=800`. After the deactivation, the same
+  4x streak without star power returns to normal GH2/FoFiX scoring:
+  `HIT tick=39360 ... pts=400`, `HIT tick=39840 ... pts=200`, and later
+  two-gem groups continue at `pts=400`.
+- Final summary stays clean: `state=playing`, `t=56.017`, `score=36750`,
+  `streak=65`, `mult=4`, `misses=0`, `overstrums=0`, `rock=1.000`,
+  `sp=0.000`, `active=0`, `failed=0`.
+- `frame_01260.png` shows the late active cyan highway and powered `8X` HUD.
+  `frame_01365.png` shows the immediate post-deactivation native highway/HUD
+  back in normal `4X` state. `frame_01500.png` shows continued post-drain
+  normal-note play over the integrated venue, band, props, lighting, and camera
+  stack.
+
+2026-07-03 fresh current-build player-facing highway baseline:
+- Revalidation rebuilt the current gameplay/app targets and reran the focused
+  deterministic checks: `ghogx_chart_test`, `ghogx_gameplay_session_test`, and
+  `ghogx_gameplay_venue_band_contract_test` all exit cleanly.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_fresh_player_highway_baseline/`
+  reruns Expert `shoutatthedevil` from `25.900s` with fixed dt, native `glam1`
+  stage/highway presentation, chart-derived raw guitar input
+  `25.900:36.050:-0.0083333`, and no diagnostic autoplay or visible
+  note-counter overlay.
+- Native asset coverage is intact in the run log:
+  `native note meshes: gems=5 speculars=3 top=1 hopos=5 stars=5 glow=1`,
+  `native track meshes: surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1
+  hitflame=1 starcollect=1 miss=1`, and
+  `native bonus meshes: gem=1 overlay=1 tail=1 smasher=1 flame=1`.
+- Highway proof rows include `180` standard-note draw rows, `180` star-note draw
+  rows, `140` HOPO draw rows, `90` multiplier surface-flash rows, `320`
+  hit-feedback rows, `96` tail rows, and `610` star-power highway state rows.
+  The exact gameplay rows record `35` hits, zero misses, zero overstrums, zero
+  autoplay rows, and zero visible note-counter rows.
+- Multiplier progression is live-scored by the FoFiX session mirror:
+  streak `10` reaches `2X`, streak `20` reaches `3X`, and streak `30` reaches
+  `4X`. The final app summary stays clean:
+  `state=playing`, `t=36.067`, `score=6661`, `streak=35`, `mult=4`,
+  `hits=35`, `misses=0`, `overstrums=0`, `rock=0.664`, `sp=0.250`,
+  `active=0`, `failed=0`, and `finished=0`.
+- `fresh_player_highway_baseline_sheet.png` combines the fresh visual proof
+  frames for the earned `2X`, `3X`, `4X`, and final clean baseline states over
+  the current native venue, band, props, lighting, camera, HUD, stylized
+  highway, and standard/star/HOPO moving-note presentation.
+
+2026-07-03 FoFiX sustain re-strum cancel highway proof:
+- The existing deterministic FoFiX session rule was rerun and still passes:
+  `ghogx_gameplay_session_test` covers that a manual strum during an active
+  sustain clears the FoFiX tail bonus instead of awarding a sustain payout.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_sustain_restrum_cancel_verify/`
+  starts Expert `shoutatthedevil` at `5.800s` with fixed dt, native `glam1`
+  stage/highway presentation, and a manual raw guitar script that hits the real
+  red+blue star sustain at `tick=4440`, holds it, then strums again while the
+  same frets remain held.
+- The FoFiX mirror log records the hit and active sustain export first:
+  `FoFiX session event type=hit t=5.950 mask=0x0a ... score=100 streak=1`
+  followed by
+  `active session sustain mask=0x0a start=5.950 end=9.451 star=1 source=3
+  tick=4440`.
+- The re-strum then emits one bad-pick event and clears the visible active-tail
+  export without a sustain score event:
+  `FoFiX session event type=overstrum t=6.567 mask=0x0a ... score=100
+  streak=0`, `[gameplay] active session sustains: none`, `0`
+  `FoFiX session event type=sustain` rows, and `0` `[gameplay] sustain end`
+  rows.
+- Highway diagnostics prove the visible path followed the session state:
+  before the re-strum the log includes `27` `held_lane`, `27` `held_tight`, and
+  `26` `held_star` active-tail rows; after the bad pick it reports `36`
+  native miss rows and `47` bad-feedback rows. Final summary:
+  `state=playing`, `t=7.333`, `score=100`, `streak=0`, `mult=1`,
+  `hits=1`, `misses=0`, `overstrums=1`, `rock=0.498`, `sp=0.000`,
+  `active=0`, `failed=0`, and `finished=0`.
+- `sustain_restrum_cancel_sheet.png` shows the active held star sustain, the
+  pre-restrum held-tail state, the bad re-strum highway feedback, and the
+  post-cancel normal highway frame with no tail-bonus payout.
+
+2026-07-03 FoFiX sustain required-fret release proof:
+- The paired positive sustain rule was rerun through the current build:
+  `ghogx_gameplay_session_test` still passes and covers that releasing the
+  played sustain fret ends the FoFiX tail immediately with a partial sustain
+  score instead of treating the release as a miss or overstrum.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_sustain_release_partial_verify/`
+  starts Expert `shoutatthedevil` at `5.800s` with fixed dt, native `glam1`
+  stage/highway presentation, and a manual raw guitar script that hits the real
+  red+blue star sustain at `tick=4440`, holds it briefly, then releases one
+  required fret while keeping the other held.
+- The FoFiX mirror log records the active tail export after the hit:
+  `FoFiX session event type=hit t=5.950 mask=0x0a ... score=100 streak=1`
+  and
+  `active session sustain mask=0x0a start=5.950 end=9.451 star=1 source=3
+  tick=4440`.
+- At the release, the mirror emits a partial sustain payout and clears the
+  visible active-tail export:
+  `FoFiX session event type=sustain t=6.567 mask=0x0a gems=2 pts=123
+  score=223 streak=1`, `[gameplay] sustain end mask=0x0a gems=2 pts=123
+  score=223`, and `[gameplay] active session sustains: none`.
+- There are zero overstrum rows and zero miss rows. Highway diagnostics show the
+  pre-release active-tail stack with `27` `held_lane`, `27` `held_tight`, and
+  `26` `held_star` rows, proving the same native tail path disappears only
+  after the FoFiX session clears the active sustain.
+- Final summary: `state=playing`, `t=7.333`, `score=223`, `streak=1`,
+  `mult=1`, `hits=1`, `misses=0`, `overstrums=0`, `rock=0.501`,
+  `sp=0.000`, `active=0`, `failed=0`, and `finished=0`.
+- `sustain_release_partial_sheet.png` shows the active held star sustain, the
+  pre-release tail, the required-fret release, and the post-release score
+  increase with no bad highway feedback.
+
+2026-07-03 FoFiX empty-overstrum highway proof:
+- Focused deterministic checks still pass:
+  `ghogx_gameplay_session_test` and
+  `ghogx_gameplay_venue_band_contract_test`.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_empty_overstrum_no_lane_miss_verify/`
+  starts Expert `shoutatthedevil` at `4.600s` with fixed dt, native `glam1`
+  stage/highway presentation, and a manual raw guitar script that sends one
+  strum edge with no frets held before the first playable note can age into a
+  miss.
+- The FoFiX mirror emits exactly one empty bad-pick event:
+  `FoFiX session event type=overstrum t=4.767 mask=0x00 gems=0 pts=0
+  score=0 streak=0 mult=1`, followed by
+  `[gameplay] overstrum mask=0x00 streak reset rock=0.50`.
+- The run records zero hit rows, zero miss rows, zero `FoFiX ... miss` rows,
+  zero lane-specific `[highway-miss]` rows, and zero diagnostic-autoplay rows.
+  It does record `26` `[highway-bad-feedback]` rows with `explode=0
+  enabled=0 forced=0`, proving the empty strum drives native bad rail feedback
+  without inventing a held-lane miss.
+- Final summary: `state=playing`, `t=5.183`, `score=0`, `streak=0`,
+  `mult=1`, `hits=0`, `misses=0`, `overstrums=1`, `rock=0.497`,
+  `sp=0.000`, `active=0`, `failed=0`, and `finished=0`.
+- `empty_overstrum_no_lane_miss_sheet.png` shows the pre-strum highway, the
+  empty-overstrum red rail feedback, the decay, and continued play with no lane
+  miss splash over the current native venue, HUD, highway, and camera stack.
+
+2026-07-03 native HOPO/star note-art diagnostics proof:
+- The moving-note diagnostic row now reports explicit top-card ownership for
+  standard, HOPO, fallback, star, and black-star top layers. A compact
+  `[highway-note-layer]` row was added so redirected runtime logs can prove the
+  actual note-art branch without relying on a wrapped long line.
+- Focused checks after the change pass:
+  `ghogx_gameplay_venue_band_contract_test` and
+  `ghogx_gameplay_session_test`.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_hopo_star_note_art_diagnostics_verify/`
+  reruns Expert `shoutatthedevil` from `25.900s` with fixed dt, native `glam1`
+  stage/highway presentation, chart-derived raw guitar input
+  `25.900:36.050:-0.0083333`, note-draw diagnostics enabled, no diagnostic
+  autoplay, and no visible note-counter overlay.
+- Native asset coverage remains intact: `native note meshes: gems=5
+  speculars=3 top=1 hopos=5 stars=5 glow=1` and `native track meshes:
+  surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1 hitflame=1
+  starcollect=1 miss=1`.
+- Note-art diagnostics prove the current layer routing: `180`
+  `[highway-note-layer] kind=standard` rows report `std=1 hopo=0 hopo_fb=0`,
+  `140` `[highway-note-layer] kind=hopo` rows report
+  `std=0 hopo=1 hopo_fb=0 star=0`, and `180`
+  `[highway-note-layer] kind=star` rows report `star=1 black=1`. The paired
+  star-layer rows also report `base=1 lane_mesh=1 overlay=1 top=1 black_top=1`.
+- Gameplay stayed clean through the same live FoFiX session mirror: `35`
+  `FoFiX session event type=hit` rows, zero miss rows, zero overstrum rows,
+  zero diagnostic-autoplay rows, and final summary `state=playing`,
+  `t=36.150`, `score=6661`, `streak=35`, `mult=4`, `hits=35`,
+  `misses=0`, `overstrums=0`, `rock=0.664`, `sp=0.250`, `active=0`,
+  `failed=0`, `finished=0`.
+- `hopo_star_note_art_diagnostics_sheet.png` shows the star phrase with the
+  native star stack and black top, then the later dense HOPO run with native
+  HOPO top cards, live scoring, HUD, venue, band, props, lighting, camera, and
+  stylized highway all in the same player-facing slice.
+
+2026-07-03 live FoFiX rock recovery warning-fade proof:
+- The low-rock warning diagnostic budget was raised from the old short cap to
+  `kRockWarningDebugBudget=900` so a single recovery run can prove both the
+  initial warning rail state and the fade-out after live hits raise the FoFiX
+  rock meter.
+- Focused checks after the diagnostic change pass:
+  `ghogx_gameplay_venue_band_contract_test` and
+  `ghogx_gameplay_session_test`.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_rock_recovery_warning_fade_verify/`
+  reruns Expert `shoutatthedevil` from `25.900s` with fixed dt, native `glam1`
+  stage/highway presentation, chart-derived raw guitar input
+  `25.900:36.050:-0.0083333`, diagnostic rock `0.35`, warning-rail
+  diagnostics enabled, no diagnostic autoplay, and no visible note-counter
+  overlay.
+- The same clean live session raises rock through normal FoFiX hit handling:
+  first hit `tick=19680` logs `rock=0.35`, streak `10` logs `rock=0.37`, and
+  hit `tick=26880` logs `rock=0.51`. The final summary is `state=playing`,
+  `t=36.150`, `score=6661`, `streak=35`, `mult=4`, `hits=35`,
+  `misses=0`, `overstrums=0`, `rock=0.515`, `sp=0.250`, `active=0`,
+  `failed=0`, `finished=0`.
+- Highway diagnostics prove the native side-rail warning faded from the same
+  session state: `590` `[highway-rock-warning]` rows, including early rows
+  `rock=0.350 warning=0.500 side=0.500 bad=0.000 forced=0 disabled=0 rails=1`
+  and late rows `rock=0.506 warning=0.000 side=0.000 bad=0.000 forced=0
+  disabled=0 rails=1`. There are `35` FoFiX hit events, zero miss events, zero
+  overstrum events, and zero diagnostic-autoplay rows.
+- `rock_recovery_warning_fade_sheet.png` shows the red warning rails at the
+  low-rock start, the warning color weakening through the live hit streak, and
+  the recovered normal rails/HUD after `35` clean hits over the current native
+  venue, band, props, lighting, camera, HUD, stylized highway, and moving-note
+  presentation.
+
+2026-07-03 live ROCK HUD recovery proof:
+- The native ROCK HUD diagnostic budget is now `kHudRockDebugBudget=700`, so a
+  single live recovery run can prove that the HUD meter keeps tracking FoFiX
+  rock after the opening low-rock rows instead of stopping at the first short
+  debug window.
+- Focused checks after the HUD diagnostic change pass:
+  `ghogx_gameplay_venue_band_contract_test` and
+  `ghogx_gameplay_session_test`.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_current_goal_live_rock_hud_recovery_verify/`
+  reruns Expert `shoutatthedevil` from `25.900s` with fixed dt, native `glam1`
+  stage/highway presentation, chart-derived raw guitar input
+  `25.900:36.050:-0.0083333`, diagnostic rock `0.35`, HUD rock diagnostics,
+  highway warning diagnostics, no diagnostic autoplay, and no visible
+  note-counter overlay.
+- The log records decoded HUD ROCK MatAnim curves
+  `rock_light=6/100.0 rock_light_front=6/100.0`, then `615` `[hud-rock]`
+  rows. Every row reports `native_lights=1`, `frame=1`, `label=1`, `needle=1`,
+  and `led=1`, proving the source-backed face/lights/ROCK word/needle/LED stack
+  stayed active throughout the live recovery. The HUD rows span opening
+  `fill=0.350 angle=-0.568` through late `fill=0.515 angle=-1.107`.
+- The same run also keeps the highway warning proof intact: `590`
+  `[highway-rock-warning]` rows with `28` late `warning=0.000` rows, `35`
+  FoFiX hit events, zero miss events, zero overstrum events, and zero
+  diagnostic-autoplay rows. Final summary: `state=playing`, `t=36.150`,
+  `score=6661`, `streak=35`, `mult=4`, `hits=35`, `misses=0`,
+  `overstrums=0`, `rock=0.515`, `sp=0.250`, `active=0`, `failed=0`,
+  `finished=0`.
+- `live_rock_hud_recovery_sheet.png` shows the current native highway and HUD
+  through the low-rock recovery. `live_rock_hud_recovery_rock_meter_detail.png`
+  crops the ROCK meter proof: the ROCK word stays lit, the glow/light color
+  follows the active meter band, the needle crosses in front of the word, and
+  the chrome bezel remains the top mask while FoFiX hits move the needle.
+
+2026-07-03 broad no-seed player-facing highway slice:
+- Fresh current-build validation in
+  `engine/out/codex_goal_visuals/20260703_current_goal_broad_no_seed_player_highway_slice_verify/`
+  reruns Expert `shoutatthedevil` from `29.300s` to `56.134s` through the
+  chart-derived raw guitar input path, not diagnostic autoplay. The capture uses
+  fixed dt, native `glam1` highway/stage presentation, whammy on authored star
+  sustains, and a scheduled raw star-power edge at `40.050s` without seeding the
+  star meter.
+- Focused deterministic checks still pass after the capture:
+  `ghogx_gameplay_session_test` and
+  `ghogx_gameplay_venue_band_contract_test`.
+- Native asset coverage remains intact in the run log: `native note meshes:
+  gems=5 speculars=3 top=1 hopos=5 stars=5 glow=1`, `native track meshes:
+  surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1 hitflame=1
+  starcollect=1 miss=1`, and `native bonus meshes: gem=1 overlay=1 tail=1
+  smasher=1 flame=1`.
+- The no-seed lifecycle is fully gameplay-driven: two
+  `star_phrase_complete` events, `206` star-sustain whammy events, one
+  `star_power_activate` at `t=40.067`, and one `star_power_deactivate` at
+  `t=52.000`. There are `65` FoFiX hit events, `21` sustain score events, zero
+  miss events, zero overstrum events, and zero diagnostic-autoplay rows.
+- Powered scoring and HUD presentation line up with the FoFiX mirror. After
+  activation, `HIT tick=30240` scores `pts=400` and `HIT tick=30360` scores
+  `pts=800`; late powered chord hits at `tick=38400` and `tick=38880` also
+  score `pts=800`. After deactivation, `HIT tick=39360` returns to normal
+  4x scoring with `pts=400`. The HUD logs `716`
+  `[hud-multiplier] native_digits=1 clamped=8 star=1` rows during active star
+  power and `263` `[hud-multiplier] native_digits=1 clamped=4 star=0` rows in
+  normal post-drain play.
+- Highway presentation also follows the session state: `[highway-star-power]`
+  rows show `active=0 bonus=0` immediately before activation, then
+  `active=1 bonus=1 track_glow=1 bonus_gem=1 bonus_tail=1` from `t=40.067`
+  onward. Final summary stays clean: `state=playing`, `t=56.134`,
+  `score=36750`, `streak=65`, `mult=4`, `hits=65`, `misses=0`,
+  `overstrums=0`, `rock=1.000`, `sp=0.006`, `active=0`, `failed=0`,
+  `finished=0`.
+- `broad_no_seed_player_highway_slice_sheet.png` shows the current native
+  venue, band, props, lighting, camera, HUD, stylized highway, standard/star/
+  HOPO notes, earned star meter, activation edge, cyan bonus highway, powered
+  `8X` HUD, deactivation, and normal post-drain `4X` play in one player-facing
+  slice.
+
+2026-07-03 full-song Trogdor clean finish proof:
+- Added `--sparse-screenshots` to the gameplay app so long validation runs can
+  tick every deterministic gameplay frame while drawing/presenting only the
+  requested proof frames. Normal gameplay rendering is unchanged; the switch is
+  rejected unless screenshots are requested.
+- Fixed the chart-derived raw guitar script at sustain boundaries. When a
+  sustain ends on the next note's timestamp, conflicting sustain frets now
+  release just before the next hit edge, while overlapping frets are preserved
+  for same-mask boundary hits. The focused Trogdor boundary probe in
+  `engine/out/codex_goal_visuals/20260703_trogdor_boundary_input_fix_probe/`
+  proves the formerly bad `tick=15360` transition now hits cleanly with
+  `misses=0` and `overstrums=0`.
+- Fresh current-build full-song validation in
+  `engine/out/codex_goal_visuals/20260703_current_goal_trogdor_full_song_sparse_clean_verify/`
+  runs Expert `trogdor` from the first frame to finished state with fixed dt,
+  native `glam1` stage/highway presentation, and chart-derived raw guitar input
+  `0:0:-0.0083333`. The run uses no diagnostic autoplay and no diagnostic seek.
+- The log records `432` FoFiX hit groups, `35` sustain payout events, `0` miss
+  events, `0` overstrum events, `5` completed star phrases, `song finished`,
+  `[gameplay] audio stopped`, and the native Expert win overlay
+  `ui/gen/win_expert.milo_ps2/newspaper.tex`.
+- Native asset coverage remains intact during the full-song proof:
+  `native note meshes: gems=5 speculars=3 top=1 hopos=5 stars=5 glow=1`,
+  `native track meshes: surface=1 mask=1 rails=1 lines=1 spglow=1 smasher=1
+  hitflame=1 starcollect=1 miss=1 combo=3 explode=45`, and
+  `native bonus meshes: gem=1 overlay=1 tail=1 smasher=1 flame=1`.
+- Final summary: `state=finished song=trogdor diff=3 t=97.735 score=155465
+  streak=432 mult=4 hits=432 misses=0 overstrums=0 rock=1.000 sp=1.000
+  active=0 failed=0 finished=1`.
+- `trogdor_full_song_clean_sheet.png` shows the native highway from the opening
+  through 20s/40s/60s/80s clean play and the held Expert win newspaper overlay
+  on the finished gameplay frame.
+
+2026-07-03 source-backed gameplay backing camera composition:
+- User priority shifted back to the 3D presentation stack: venue, characters,
+  camera, lighting, and stage readability around the playable native highway.
+- The old default composite backing camera averaged every performer target and
+  offset that cluster, which kept gameplay visible but placed the camera behind
+  dark foreground stage/crowd clutter. The comparison probe in
+  `engine/out/codex_goal_visuals/20260703_3d_camera_composition_probe/`
+  proves the default frame hid most readable band/venue context while a
+  guitarist-spine debug camera showed the band and venue clearly behind the
+  same highway/HUD.
+- The default backing camera now anchors to the source-backed
+  `guitarist0:bone_spine1(.mesh)` target, blends 70/30 toward the band center,
+  raises the aim above the performer spine, and uses a closer stage-facing orbit
+  (`yaw=0.20`, `pitch=0.08`, `fov=0.62`, distance clamped from the performer
+  span). Authored PS2 gameplay cameras, diagnostic camera shots, and manual
+  debug camera overrides still bypass this fallback.
+- Contract coverage in `ghogx_gameplay_venue_band_contract_test` pins the
+  guitarist anchor, the band-center blend, and the closer distance clamp so the
+  player-facing 3D composition cannot silently regress to the old cluttered
+  averaged shot.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_backing_camera_fix_verify/`
+  reruns Expert `trogdor` through the chart-generated raw guitar input path
+  with fixed dt, native `glam1` highway/stage presentation, no diagnostic
+  autoplay, and screenshots at matching start/15s/24s frames.
+- `backing_camera_before_after_sheet.png` shows the old default camera beside
+  the new default. The post-fix frames keep the highway/HUD intact while making
+  the guitarist, singer, drummer, amp stack, stage wall, props, and lighting
+  readable in the same native gameplay view.
+
+2026-07-03 compact 3D performer-sync proof:
+- Added `GHOGX_DEBUG_PERFORMER_SYNC=1` as a compact validation row for the
+  native 3D band layer. Each sampled performer row reports role/character,
+  intro-vs-gameplay state, whether the hand driver is active, active body clip
+  mode/name, strum/fret overlay state, authored fret cue tick/mask, active
+  fret-position target, IK weights, band-jump state, and camera LOD.
+- The diagnostic is rate-limited per performer through
+  `next_performer_sync_log_time` and `GHOGX_DEBUG_PERFORMER_SYNC_STRIDE`, so it
+  can be left on during bounded visual captures without flooding every frame.
+- Contract coverage pins the debug gate, per-performer rate limiter, live
+  playback row, authored fret-hand cue tick, and active source-backed fret
+  position target.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_performer_sync_verify/` reruns
+  Expert `trogdor` through chart-generated raw guitar input with the new
+  readable backing camera, `GHOGX_DEBUG_PERFORMER_SYNC=1`,
+  `GHOGX_DEBUG_HAND_MAP=1`, and `GHOGX_DEBUG_VENUE_FILTERS=1`.
+- The log records `20` `[performer-sync]` rows across `guitarist0`, `singer`,
+  `bassist`, and `drummer`; `3` guitarist hand-map changes; `1` guitarist
+  strum-map edge; `3` source-backed guitarist fret-position targets; `393`
+  venue event reactions; `95` FoFiX hit events; and zero FoFiX miss or
+  overstrum events. Final summary remains clean:
+  `state=playing`, `score=34801`, `streak=95`, `hits=95`, `rock=1.000`,
+  `sp=0.250`, `failed=0`.
+- `performer_sync_3d_proof_sheet.png` shows the readable native venue, stage
+  wall, amp stack, guitarist, singer, bassist/drummer region, lighting, HUD,
+  and highway at 1s/8s/15s/20s/24s, plus the compact sync evidence panel.
+
+2026-07-03 backing-camera diagnostic proof:
+- Added `GHOGX_DEBUG_BACKING_CAMERA=1` as a non-invasive diagnostic for the
+  default playable backing camera. This is separate from
+  `GHOGX_DEBUG_GAMEPLAY_CAMERA`, which remains a manual camera override and
+  intentionally bypasses the backing camera. The new diagnostic logs the actual
+  fallback camera used by normal playable captures.
+- Each backing-camera row reports performer count, performer center, guitarist
+  focus point, blended frame point, final target, yaw, pitch, distance, FOV,
+  performer span, and song time. Rows are rate-limited by
+  `GHOGX_DEBUG_BACKING_CAMERA_STRIDE`.
+- Contract coverage pins the non-invasive debug gate, the updated
+  `apply_gameplay_backing_camera(..., song_time_, ...)` call, the diagnostic
+  row, and the stride setting.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_backing_camera_diagnostic_verify/`
+  reruns Expert `trogdor` through chart-generated raw guitar input with the
+  normal default camera path, `GHOGX_DEBUG_BACKING_CAMERA=1`,
+  `GHOGX_DEBUG_PERFORMER_SYNC=1`, and venue-filter logging.
+- The log records `4` gameplay backing-camera rows, `16` performer-sync rows,
+  `393` venue event reactions, `95` FoFiX hit events, zero FoFiX misses, and
+  zero FoFiX overstrums. Final summary remains clean:
+  `state=playing`, `score=34801`, `streak=95`, `hits=95`, `rock=1.000`,
+  `sp=0.250`, `failed=0`.
+- `backing_camera_diagnostic_3d_proof_sheet.png` shows the same readable native
+  venue, band, lighting, HUD, and highway frames while the evidence panel proves
+  the default backing camera was used without the manual gameplay-camera
+  override.
+
+2026-07-03 3D drum-kit sync proof:
+- Added `GHOGX_DEBUG_DRUM_SYNC=1` as an opt-in diagnostic for the native 3D
+  drummer/kit path. The diagnostic does not change gameplay or rendering; it
+  records the loaded venue-specific `dw_<venue>_drums` kit, decoded
+  EventTrigger routes, and each live MIDI drum cue's kit dispatch.
+- Runtime rows report whether a cue reached the kit, whether it used the
+  source-authored EventTrigger/AnimFilter/TransAnim route, whether it fell back
+  to a temporary mesh pulse, the affected mesh target names, transform count,
+  and routed event count.
+- Contract coverage pins the debug gate, kit-load row, route rows, live cue
+  rows, EventTrigger/fallback route labels, and the rule that drum cues still
+  dispatch transient venue EventTriggers before kit animation.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_drum_sync_verify/` reruns Expert
+  `trogdor` through chart-generated raw guitar input with the normal default
+  camera path, `GHOGX_DEBUG_BACKING_CAMERA=1`,
+  `GHOGX_DEBUG_PERFORMER_SYNC=1`, `GHOGX_DEBUG_DRUM_SYNC=1`, and venue-filter
+  logging.
+- The log records `64` drum-sync rows, `59` live drum cue rows, all `59` cue
+  rows routed through authored EventTrigger targets, zero fallback pulses,
+  `16` performer-sync rows, `4` backing-camera rows, `393` venue event
+  reactions, `95` FoFiX hit events, zero FoFiX misses, zero FoFiX overstrums,
+  and zero ARK errors. Final summary remains clean:
+  `state=playing`, `score=34801`, `streak=95`, `hits=95`, `rock=1.000`,
+  `sp=0.250`, `failed=0`.
+- `drum_sync_3d_proof_sheet.png` shows the readable small2 stage, guitarist,
+  singer, drummer/drum kit, lighting, HUD, and highway at 1s/8s/15s/20s/24s,
+  plus the compact sync evidence panel proving `kick_drum` cue dispatch to the
+  authored `kick.mesh` EventTrigger route.
+
+2026-07-03 compact WorldCrowd draw proof:
+- Added `GHOGX_DEBUG_WORLDCROWD=1` as a compact validation row for the native
+  3D WorldCrowd actor draw path. The diagnostic is independent of
+  `GHOGX_DEBUG_CAMERA`, so crowd runtime proof no longer requires the verbose
+  camera-solver log stream. At the time of this proof, WorldCrowd actor
+  rendering was still limited to diagnostic/authored camera routes or explicit
+  `GHOGX_ENABLE_WORLDCROWD_ACTORS` validation; the later normal-gameplay
+  promotion below supersedes that gate for playable backing-camera views.
+- Each draw row reports enabled state, actor count, decoded placement count,
+  drawn placement count, DTA fullness culls, near-source camera culls, render
+  basis, face-camera mode, active venue event, camera eye, and song time. Rows
+  are rate-limited with `GHOGX_DEBUG_WORLDCROWD_STRIDE`.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_worldcrowd_draw_diagnostic/`
+  reruns stock PS2 Expert `shoutatthedevil` on arena `balcony_lft04` with the
+  trace-complete writer bridge default path and no `GHOGX_DEBUG_CAMERA`. The
+  log records `WorldCrowd runtime ready: actors=5 placements=450
+  basis=area_local`, `3` compact WorldCrowd draw rows, each with `drawn=115`,
+  `culled_fullness=335`, `culled_near_source=0`, one WorldCrowd lighting row,
+  zero ARK errors, zero nonzero fail rows, and a clean 12-frame bounded exit.
+- `worldcrowd_draw_3d_proof_sheet.png` shows the active native arena
+  balcony/crowd camera frame, highway, HUD, and dark crowd silhouettes across
+  frames 1/5/11 with the compact draw evidence panel.
+
+2026-07-03 WorldCrowd camera-cone cull proof:
+- Added a broad native camera-cone cull inside the diagnostic WorldCrowd actor
+  draw path. The cull derives a camera-space forward/right/up basis from the
+  active authored/result camera, keeps a generous actor-radius margin, skips
+  custom-projection camera frames, and leaves the source DTA fullness filter
+  intact. `GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL=1` is the explicit A/B escape
+  hatch for validation.
+- The compact WorldCrowd draw row now reports `culled_camera` for both enabled
+  and disabled runtime rows, alongside placement count, drawn count, DTA
+  fullness culls, near-source culls, basis, face-camera state, active event,
+  camera eye, and song time.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime A/B validation artifacts:
+  `engine/out/codex_goal_visuals/20260703_3d_worldcrowd_camera_cull_default/`
+  and
+  `engine/out/codex_goal_visuals/20260703_3d_worldcrowd_camera_cull_disabled/`
+  rerun stock PS2 Expert `shoutatthedevil` on arena `balcony_lft04` with
+  `glam1`, `GHOGX_DEBUG_WORLDCROWD=1`, WorldCrowd actors explicitly enabled,
+  and the same 12-frame bounded capture.
+- With the cull enabled, each compact draw row records `actors=5`,
+  `placements=450`, `drawn=41`, `culled_fullness=335`,
+  `culled_near_source=0`, and `culled_camera=74`. With
+  `GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL=1`, the same shot records
+  `drawn=115` and `culled_camera=0`. Both runs have one WorldCrowd lighting
+  row, zero ARK error rows, zero nonzero `failed=` rows, and final state
+  `playing` / `failed=0`.
+- `worldcrowd_camera_cull_3d_proof_sheet.png` compares the cull-on and
+  cull-off arena balcony frames at screenshots 1/5/11 with the draw/cull counts
+  stamped into the image.
+
+2026-07-03 character/crowd clip-miss cache proof:
+- The shared `ghogx::character::load_clip` path now caches missing animation
+  MILO paths per source HDR for the current process. The first missing MILO
+  still logs once, so absent source assets stay visible, but repeated candidate
+  retries skip the ARK index reload and log spam unless `GHOGX_DEBUG_CLIP=1`
+  is explicitly enabled.
+- This keeps the driver-authored animation search intact for performers and
+  WorldCrowd actors. The change does not remove any candidate family or hide a
+  real source-backed fallback; it only remembers source paths that the stock
+  ARK has already proven absent during the same run.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_clip_miss_cache_verify/` reruns
+  the same stock PS2 Expert `shoutatthedevil` arena `balcony_lft04` capture
+  with `glam1`, `GHOGX_DEBUG_WORLDCROWD=1`, and WorldCrowd actors explicitly
+  enabled. Compared with the prior default camera-cull proof log, repeated
+  `[clip] milo not in ARK` rows drop from `1010` to `35`, exactly one row per
+  unique absent animation MILO path. WorldCrowd draw/cull behavior is unchanged:
+  `actors=5`, `placements=450`, `drawn=41`, `culled_fullness=335`,
+  `culled_near_source=0`, and `culled_camera=74`. The run records zero ARK
+  error rows, zero nonzero `failed=` rows, and final state `playing` /
+  `failed=0`.
+- `clip_miss_cache_3d_proof_sheet.png` compares before/after arena frames at
+  screenshots 1/5/11 with the clip-miss and WorldCrowd draw/cull counts stamped
+  into the image.
+
+2026-07-03 normal gameplay WorldCrowd default-on proof:
+- Normal playable backing-camera views now build and draw the native skinned
+  WorldCrowd actor runtime by default. The old explicit validation env
+  `GHOGX_ENABLE_WORLDCROWD_ACTORS=1` still forces the path on for diagnostics,
+  and `GHOGX_DISABLE_NORMAL_WORLDCROWD_ACTORS=1` restores the previous
+  normal-play disabled behavior for A/B captures.
+- This promotion relies on the preceding camera-cone cull and clip-miss cache:
+  the normal backing camera sees a smaller actor set than the earlier authored
+  balcony diagnostic shot, and repeated missing animation MILO probes no longer
+  dominate startup logs.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifacts:
+  `engine/out/codex_goal_visuals/20260703_3d_normal_worldcrowd_default_on_verify/`
+  and
+  `engine/out/codex_goal_visuals/20260703_3d_normal_worldcrowd_default_disabled_ab/`
+  rerun stock PS2 Expert `shoutatthedevil` from `16.0s` with the normal
+  gameplay backing camera, no diagnostic authored camera shot, `glam1`, and
+  compact WorldCrowd/backing-camera diagnostics.
+- Default normal play records `WorldCrowd runtime ready: actors=5
+  placements=450 basis=area_local` and three compact draw rows:
+  `drawn=32`, `drawn=33`, and `drawn=32`, each with
+  `culled_fullness=335`, `culled_near_source=0`, and
+  `culled_camera=83/82/83`. The disabled A/B run records three
+  `enabled=0 actors=0 placements=0 drawn=0` rows under the same backing camera.
+  Both runs record three backing-camera proof rows, zero ARK error rows, zero
+  nonzero `failed=` rows, and final state `playing` / `failed=0`.
+- `normal_worldcrowd_default_on_3d_proof_sheet.png` compares default-on versus
+  disabled normal gameplay frames at screenshots 1/5/11 with actor/draw/cull
+  counts stamped into the image.
+
+2026-07-03 WorldCrowd authored hide-crowd camera proof:
+- Source `CamShot` visibility now applies to both the static venue crowd mesh
+  set and the skinned native WorldCrowd actor runtime. `hide_crowd=1` and
+  crowd refs in a shot hide the decoded venue crowd meshes as before, and also
+  set the actor-crowd camera-hidden state before the WorldCrowd draw pass.
+- The compact WorldCrowd diagnostic row now reports `hidden_camera`. Hidden
+  authored camera shots log `hidden_camera=1` and return before drawing skinned
+  WorldCrowd actors; visible shots continue through fullness and camera-cone
+  culling and log `hidden_camera=0`.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_worldcrowd_hide_camera_verify/`
+  compares two source-authored PS2 arena shots from Expert `shoutatthedevil`
+  with `glam1`, compact WorldCrowd diagnostics, and venue filter diagnostics.
+  The visible `flr_near_rt02` shot records `actors=5`, `placements=450`,
+  `drawn=27`, `culled_camera=88`, and `hidden_camera=0`. The authored
+  hide-crowd `flr_near_rt01x23w` shot records camera visibility
+  `hide=1 actor_hide=1 static_meshes=15`, then three WorldCrowd draw rows with
+  `drawn=0`, `culled_camera=0`, and `hidden_camera=1`.
+- `worldcrowd_hide_camera_3d_proof_sheet.png` embeds the visible and hidden
+  authored-camera frames with their source shot names and draw/hide counts
+  stamped into the image.
+
+2026-07-03 WorldCrowd authored face-camera proof:
+- `crowd_face_camera` camera state now follows the authored CamShot flag
+  directly instead of being gated by the presence of decoded static crowd
+  meshes. Static crowd mesh names are still sent to the venue renderer only
+  when present, but the skinned WorldCrowd actor pass now keeps the camera-facing
+  state for actor placements even if a venue has no static crowd mesh set.
+- This preserves the source meaning of the `lighter`/crowd-facing shots across
+  both presentation layers: static crowd meshes receive the renderer
+  face-camera set, and skinned WorldCrowd placements use
+  `worldcrowd_face_camera_source_world(...)` before drawing.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_worldcrowd_face_camera_verify/`
+  compares a face-camera-off `flr_near_rt02` shot against the authored
+  `lighter` shot under `excitement_okay`, with `glam1`, venue filter
+  diagnostics, and compact WorldCrowd diagnostics. The control records
+  `actors=5`, `placements=450`, `drawn=43`, `culled_camera=182`, and
+  `face_camera=0`. The `lighter` shot records camera visibility
+  `face_camera=1 face_meshes=15`, then WorldCrowd draw rows with
+  `actors=5`, `placements=450`, `drawn=25`, `culled_camera=200`, and
+  `face_camera=1`.
+- `worldcrowd_face_camera_3d_proof_sheet.png` embeds the source-camera frames
+  and stamps the actor draw counts plus the static/actor face-camera state into
+  the image.
+
+2026-07-03 WorldCrowd authored lighter play_group proof:
+- The chart-authored `[crowd_lighters_slow]` / `[crowd_lighters_fast]` camera
+  cues now also select the skinned WorldCrowd actor DTA play group
+  `lighter_slow` / `lighter_fast`. `[crowd_lighters_off]` clears that override
+  so the crowd returns to the normal excitement-derived `bad` / `ok` / `great`
+  play group selection.
+- Refined by the lighter-fraction gate proof below: decoded `crowd.dta`
+  routes the active lighter cue through the Great/Peak crowd fraction, so Okay
+  crowd updates retain their normal `ok` actor group even while a lighter cue is
+  active.
+- This uses the already decoded `main.drv play_group` clip inventory for crowd
+  actors rather than inventing new animation names. The existing crowd-lighter
+  camera behavior is unchanged: the first on-cue can still force the authored
+  `LIGHTER` camera category, and the off-cue still forces the regular camera
+  route.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_worldcrowd_lighter_group_verify/`
+  runs stock PS2 Expert `shoutatthedevil` from `156.0s` with authored gameplay
+  cameras, `glam1`, compact WorldCrowd diagnostics, and venue/camera
+  diagnostics. At tick `119040` / `t=157.500`, the log records
+  `[crowd_lighters_fast]` with `mode=lighter`, `bars=5`, and
+  `crowd_group=lighter_fast`, followed by five WorldCrowd actor rows switching
+  to `group=lighter_fast` with source clips `female01_lighter_fast`,
+  `male01_lighter_fast`, and `male02_lighter_fast`. At tick `122880` /
+  `t=162.000`, `[crowd_lighters_off]` records `crowd_group=-` before returning
+  through the regular camera route.
+- `worldcrowd_lighter_group_3d_proof_sheet.png` embeds the before-cue,
+  lighter-fast, and lighter-off frames with the source cue/group/draw counts
+  stamped into the image.
+
+2026-07-03 WorldCrowd lighter cue same-frame update proof:
+- The presentation update order now consumes authored camera-script crowd cues
+  before sampling the skinned WorldCrowd actor runtime. This removes the
+  previous one-update delay where `[crowd_lighters_fast]` could force the
+  `LIGHTER` camera on the current frame while the crowd actor clip group did not
+  switch until the next presentation update.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass. The venue/band
+  contract pins that the authored lighter-on/off cue state is assigned before
+  the `update_worldcrowd_actor_runtime(...)` call.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_worldcrowd_lighter_group_same_frame_verify/`
+  reruns the same stock PS2 Expert `shoutatthedevil` window from `156.0s` with
+  authored gameplay cameras. At `t=157.750`, the log now records
+  `[crowd_lighters_fast]` with `crowd_group=lighter_fast`, immediately followed
+  by five WorldCrowd actor rows switching to `group=lighter_fast`, and then the
+  WorldCrowd draw row with `drawn=25` / `face_camera=1`. At `t=162.250`,
+  `[crowd_lighters_off]` records `crowd_group=-`, immediately followed by five
+  actor rows returning to `group=bad`, before the hidden regular camera draw.
+- `worldcrowd_lighter_group_same_frame_3d_proof_sheet.png` embeds the before,
+  same-frame lighter-fast, and off-return frames with the cue/group/draw rows
+  stamped into the image.
+
+2026-07-03 WorldCrowd lighter fraction gate proof:
+- Decoded `world_gen_crowd.dtb.dta` shows `crowd_update` passing zero lighter
+  fraction for `kExcitementOkay` (`animate 0 0.8 0.2 0 0`) and a full
+  lighter-eligible great fraction for `kExcitementGreat` / `Peak`
+  (`animate 0 0 1 0 1`). The `animate` helper then multiplies the active
+  lighter group by the great fraction before applying the crowd clips.
+- Native now tracks `[crowd_lighters_slow]` / `[crowd_lighters_fast]` as the
+  active lighter cue state, but resolves skinned WorldCrowd actor clips to
+  `lighter_slow` / `lighter_fast` only when `venue_excitement_level(...) >= 3`.
+  Okay keeps the normal `ok` group even while the authored lighter cue and
+  lighter camera state are active.
+- Compact WorldCrowd draw diagnostics now include `groups=...` so runtime
+  captures can prove the active actor clip-group counts on hidden and visible
+  camera frames.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_worldcrowd_lighter_fraction_gate_verify/`
+  runs the stock PS2 Expert `shoutatthedevil` lighter-cue window from `156.0s`
+  with authored gameplay cameras and compact WorldCrowd diagnostics. The normal
+  Okay run records `[crowd_lighters_fast]` with `crowd_group=lighter_fast`, but
+  the following draw rows stay at `event=excitement_okay groups=ok:5`. The
+  diagnostic Great run records the same lighter cue, then five actor rows switch
+  to `group=lighter_fast`, followed by the draw row
+  `event=excitement_great groups=lighter_fast:5`.
+- `worldcrowd_lighter_fraction_gate_3d_proof_sheet.png` embeds the Okay and
+  Great source-gated frames with the cue/group/draw rows stamped into the image.
+
+2026-07-03 3D performer lighting modulation proof:
+- Decoded lighting presets already classify symbolic performer/crowd `.lit` and
+  `.env` refs separately from venue Light/Environ objects. Native now routes
+  that same source-backed performer/crowd lighting modulation through both the
+  skinned WorldCrowd actors and the live band performer renderers, so the
+  playable guitarist, singer, bassist, drummer, and attached guitar/bass props
+  no longer stay on a separate standalone-bright renderer state while the stage
+  lighting changes.
+- The shared `performer_crowd_lighting_mod_for(...)` helper owns the source
+  preset/keyframe scan, excitement-level intensity, low/blackout clamp, and
+  tone tint. WorldCrowd and performer draw paths both call it, and attached
+  props multiply their vertex color by the active renderer modulation.
+- Contract coverage pins the shared helper, `update_performer_lighting(...)`,
+  the draw-order rule that performer lighting refreshes before the band draw,
+  the compact `[world] performer lighting` proof row, and attached-prop color
+  modulation.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_performer_lighting_mod_verify/`
+  captures matched Expert `trogdor` frame-1 views from `16.0s` with the same
+  backing camera and forced diagnostic excitement events. The boot run logs
+  `preset=bad.pset`, `event=excitement_boot`, `performers=4`, `symbolic=1`,
+  `low=1`, and `rgb=(0.096 0.044 0.018)`. The peak run logs
+  `preset=verse_great.pset`, `keyframe=green and white`,
+  `event=excitement_peak`, `performers=4`, `symbolic=1`, `low=1`, and
+  `rgb=(0.216 0.099 0.040)`. Both bounded runs exit in `state=playing` with
+  `failed=0`.
+- `performer_lighting_mod_3d_proof_sheet.png` embeds the unmodified boot and
+  peak native gameplay frames plus the measured band/prop crop and amplified
+  pixel-delta crop.
+
+2026-07-03 3D performer scene-lighting integration proof:
+- The live band performer renderers now opt into the gameplay scene-lighting
+  composite path by default, matching the promoted WorldCrowd actor path instead
+  of installing the standalone character-viewer directional lights during
+  gameplay. `GHOGX_DISABLE_PERFORMER_SCENE_LIGHTING=1` remains as a validation
+  A/B switch only.
+- Performer setup logs `[world] performer scene lighting` rows for guitarist,
+  singer, bassist, and drummer, and the existing performer/crowd lighting
+  modulation still applies before the band draw. This keeps the source-backed
+  lighting preset/keyframe modulation from being mixed with an unrelated
+  viewer-light rig.
+- Contract coverage pins `performer_scene_lighting_enabled()`, the explicit
+  `GHOGX_DISABLE_PERFORMER_SCENE_LIGHTING` A/B gate, the
+  `set_use_scene_lighting(scene_lighting)` call, and the setup proof row.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_performer_scene_lighting_verify/`
+  captures matched Expert `trogdor` frame-1 views from `16.0s` with the same
+  backing camera, forced `excitement_peak`, and
+  `verse_great.pset` / `green and white` keyframe. The default run logs all
+  four live roles with `scene_lighting=1`; the A/B run logs the same roles with
+  `scene_lighting=0` under `GHOGX_DISABLE_PERFORMER_SCENE_LIGHTING=1`. Both
+  runs log `rgb=(0.216 0.099 0.040)` and exit in `state=playing` with
+  `failed=0`.
+- `performer_scene_lighting_3d_proof_sheet.png` embeds the unmodified default
+  and A/B native gameplay frames plus the measured live band/prop crop and an
+  amplified pixel-delta crop.
+
+2026-07-03 3D late lighting-overlay composition proof:
+- The lighting overlay now composites after the venue, WorldCrowd actors, drum
+  kit, and live performers, but still before the highway/HUD. This extends the
+  earlier WorldCrowd-before-overlay rule to the rest of the live 3D stage stack
+  so authored lighting overlay geometry can visually sit over the band/drum
+  presentation rather than only over the static venue layer.
+- `GHOGX_DISABLE_LATE_LIGHTING_OVERLAY=1` is retained as a validation-only A/B
+  switch for the previous before-band overlay order. With
+  `GHOGX_DEBUG_VENUE_FILTERS=1`, captures log
+  `[world] lighting overlay composite: order=after_band` or `before_band`.
+- Contract coverage pins `late_lighting_overlay_enabled()`, the explicit
+  `GHOGX_DISABLE_LATE_LIGHTING_OVERLAY` gate, WorldCrowd-before-overlay
+  selection, and the draw-order rule that both the drum kit and live performers
+  render before the default late lighting overlay.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_late_lighting_overlay_verify/`
+  captures matched Expert `trogdor` frame-1 views from `16.0s` with the same
+  backing camera, forced `excitement_peak`, scene-lit performers, and
+  `verse_great.pset` / `green and white` keyframe. The default run logs
+  `order=after_band`; the A/B run logs `order=before_band` under
+  `GHOGX_DISABLE_LATE_LIGHTING_OVERLAY=1`. Both bounded runs exit in
+  `state=playing` with `failed=0`.
+- `late_lighting_overlay_3d_proof_sheet.png` embeds the unmodified default and
+  A/B native gameplay frames plus the measured live band/drum/prop crop and an
+  amplified pixel-delta crop.
+
+2026-07-03 live highway note-counter overlay proof:
+- `--debug-note-counter` now keeps the moving-note review overlay paired with a
+  compact `[highway-note-counter]` log row. The visible overlay still shows
+  total crossed same-tick groups, crossed `STD` / `STAR` / `HOPO` splits,
+  `LAST` and `NEXT` group type/tick/gem/lane labels, ETA/Y, and a projected
+  `NEXT` tag on the moving highway; the log row records the same count/type
+  state for deterministic proof captures.
+- Contract coverage pins the app flag, renderer env gate, same-tick group
+  crossing rule, type split, final-star marker, projected next-note tag, and
+  the machine-readable counter row fields for crossed totals plus LAST/NEXT
+  identities.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_highway_note_counter_overlay_verify/`
+  reruns Expert `shoutatthedevil` from `25.900s` with fixed dt, native
+  `glam1` stage/highway presentation, chart-derived raw guitar input
+  `25.900:36.050:-0.0083333`, note-counter overlay, note-layer diagnostics,
+  and no diagnostic autoplay.
+- The log records `5` `[highway-note-counter]` rows, `15` visible-note rows,
+  `15` note-layer rows split as `8` standard, `5` star, and `2` HOPO rows,
+  `35` FoFiX hit events, zero FoFiX misses, zero FoFiX overstrums, and zero
+  ARK errors. Final summary remains clean:
+  `state=playing`, `score=7113`, `streak=35`, `hits=35`, `rock=0.664`,
+  `sp=0.250`, `failed=0`.
+- `note_counter_overlay_proof_sheet.png` shows the overlay incrementing from
+  `COUNT 25` to `COUNT 57`, the type split growing from
+  `STD 22 STAR 3 HOPO 0` to `STD 43 STAR 10 HOPO 4`, and the projected
+  `NEXT STANDARD`, `NEXT STAR`, and `NEXT HOPO` labels over the moving native
+  highway, HUD, band, venue, props, lighting, and camera stack.

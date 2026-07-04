@@ -22,6 +22,10 @@
 #define GHOGX_CHARACTER_SOURCE_DIR "."
 #endif
 
+#ifndef GHOGX_HUD_SOURCE_DIR
+#define GHOGX_HUD_SOURCE_DIR "."
+#endif
+
 #ifndef GHOGX_MILO_SCENE_SOURCE_DIR
 #define GHOGX_MILO_SCENE_SOURCE_DIR "."
 #endif
@@ -99,10 +103,13 @@ int main() {
   const std::filesystem::path asset_dir = GHOGX_ASSET_SOURCE_DIR;
   const std::filesystem::path chart_dir = GHOGX_CHART_SOURCE_DIR;
   const std::filesystem::path character_dir = GHOGX_CHARACTER_SOURCE_DIR;
+  const std::filesystem::path hud_dir = GHOGX_HUD_SOURCE_DIR;
   const std::filesystem::path milo_scene_dir = GHOGX_MILO_SCENE_SOURCE_DIR;
   const std::filesystem::path render_dir = GHOGX_RENDER_SOURCE_DIR;
   const std::string gameplay = read_file(game_dir / "gameplay.cpp");
   const std::string gameplay_h = read_file(game_dir / "gameplay.h");
+  const std::string audio_player =
+      read_file(game_dir / "audio_player.cpp");
   const std::string gameplay_session =
       read_file(game_dir / "gameplay_session.cpp");
   const std::string gameplay_session_h =
@@ -116,10 +123,13 @@ int main() {
   const std::string milo_image = read_file(asset_dir / "milo_image.cpp");
   const std::string milo_image_h = read_file(asset_dir / "milo_image.h");
   const std::string midi_reader = read_file(chart_dir / "midi_reader.cpp");
+  const std::string char_clip = read_file(character_dir / "char_clip.cpp");
   const std::string char_renderer =
       read_file(character_dir / "char_renderer.cpp");
   const std::string char_renderer_h =
       read_file(character_dir / "char_renderer.h");
+  const std::string hud_renderer = read_file(hud_dir / "hud_renderer.cpp");
+  const std::string hud_renderer_h = read_file(hud_dir / "hud_renderer.h");
   const std::string milo_scene_cpp =
       read_file(milo_scene_dir / "milo_scene.cpp");
   const std::string milo_scene_h =
@@ -133,6 +143,7 @@ int main() {
       read_file(render_dir / "window_d3d9.cpp");
   const std::string gameplay_c = compact(gameplay);
   const std::string gameplay_h_c = compact(gameplay_h);
+  const std::string audio_player_c = compact(audio_player);
   const std::string gameplay_session_c = compact(gameplay_session);
   const std::string gameplay_session_h_c = compact(gameplay_session_h);
   const std::string highway_renderer_c = compact(highway_renderer);
@@ -142,8 +153,11 @@ int main() {
   const std::string milo_image_c = compact(milo_image);
   const std::string milo_image_h_c = compact(milo_image_h);
   const std::string midi_c = compact(midi_reader);
+  const std::string char_clip_c = compact(char_clip);
   const std::string char_renderer_c = compact(char_renderer);
   const std::string char_renderer_h_c = compact(char_renderer_h);
+  const std::string hud_renderer_c = compact(hud_renderer);
+  const std::string hud_renderer_h_c = compact(hud_renderer_h);
   const std::string milo_scene_cpp_c = compact(milo_scene_cpp);
   const std::string milo_scene_h_c = compact(milo_scene_h);
   const std::string renderer_c = compact(milo_scene_renderer);
@@ -174,8 +188,12 @@ int main() {
       gameplay, "Gameplay::update_worldcrowd_actor_runtime"));
   const std::string update_worldcrowd_lighting_c = compact(function_body(
       gameplay, "Gameplay::update_worldcrowd_actor_lighting"));
+  const std::string update_performer_lighting_c = compact(function_body(
+      gameplay, "Gameplay::update_performer_lighting"));
   const std::string draw_worldcrowd_runtime_c = compact(function_body(
       gameplay, "Gameplay::draw_worldcrowd_actor_runtime"));
+  const std::string attached_prop_world_c = compact(function_body(
+      char_renderer, "CharRenderer::attached_prop_world"));
 
   bool ok = true;
 
@@ -272,6 +290,18 @@ int main() {
                            "char_clip.h"),
                  "void set_speed(float speed);",
                  "CharClipPlayer exposes a shared beat-scale speed hook");
+  ok &= contains(char_clip_c,
+                 "missing_clip_milo_cache_key(conststd::string&hdr_path,"
+                 "conststd::string&milo_path)",
+                 "character clip loader caches missing animation MILOs per source HDR");
+  ok &= contains(char_clip_c,
+                 "if(clip_milo_missing_cached(hdr_path,milo_path)){"
+                 "if(debug_clip_enabled()){std::fprintf(stderr,"
+                 "\"[clip]milonotinARK(cached):%s\\n\"",
+                 "character clip loader skips repeated missing-MILO ARK probes outside explicit debug");
+  ok &= contains(char_clip_c,
+                 "remember_missing_clip_milo(hdr_path,milo_path);",
+                 "character clip loader records first missing animation MILO");
   ok &= contains(gameplay_c,
                  "add_performer(\"keyboard\",keyboard,keyboard,\"keyboard\","
                  "\"start_singer.way\",4u,{\"keyboard_idle\"},"
@@ -290,14 +320,29 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::stringhighway_surface_ref_;",
                  "gameplay keeps the selected guitarist highway surface reference");
+  ok &= contains(gameplay_h_c,
+                 "std::stringtrack_surface_ref;",
+                 "each loaded performer can carry its own resolved track surface");
   ok &= contains(gameplay_c,
                  "highway_surface_ref_=ghogx::asset::"
                  "resolve_track_surface_bitmap_path(",
                  "quickplay character outfit resolves the highway surface selection");
   ok &= contains(gameplay_c,
-                 "if(role==\"guitarist0\"){highway_surface_ref_="
-                 "ghogx::asset::resolve_track_surface_bitmap_path(",
-                 "loaded guitarist0 performer refreshes the highway surface reference");
+                 "constboolperformer_is_guitarist=starts_with(role,"
+                 "\"guitarist\");",
+                 "guitarist performer loads are detected generically");
+  ok &= contains(gameplay_c,
+                 "performer_highway_surface_ref=ghogx::asset::"
+                 "resolve_track_surface_bitmap_path(",
+                 "loaded guitarist performers resolve their highway surface during performer load");
+  ok &= contains(gameplay_c,
+                 "perf.track_surface_ref=std::move("
+                 "performer_highway_surface_ref);",
+                 "resolved guitarist surface is stored on the performer for future roles");
+  ok &= contains(gameplay_c,
+                 "if(perf.role==\"guitarist0\"&&!perf.track_surface_ref.empty())"
+                 "{highway_surface_ref_=perf.track_surface_ref;}",
+                 "current single-player highway follows the loaded guitarist0 surface");
   ok &= contains(gameplay_c,
                  "highway_->load_textures(hdr_path_,ark_path_,"
                  "highway_surface_ref_);",
@@ -334,13 +379,33 @@ int main() {
                  "drum_kit_->trigger_mesh_transform_anim(mesh_name,it->second,"
                  "30.0f);",
                  "drum kit cues use full TransAnim transforms, not pos-only playback");
+  ok &= contains(gameplay_c,
+                 "booldebug_drum_sync_enabled(){"
+                 "returnenv_value(\"GHOGX_DEBUG_DRUM_SYNC\")!=nullptr;}",
+                 "drum kit sync proof has an opt-in diagnostic gate");
+  ok &= contains(gameplay_c,
+                 "\"[drum-sync]kit=loadedmilo=%s\"",
+                 "drum sync diagnostic records loaded kit coverage");
+  ok &= contains(gameplay_c,
+                 "\"[drum-sync]routeevent=%s\"",
+                 "drum sync diagnostic records EventTrigger mesh routes");
+  ok &= contains(gameplay_c,
+                 "\"[drum-sync]cueevent=%spitch=%dtick=%ut=%.3fkit=%d\"",
+                 "drum sync diagnostic records live cue-to-kit dispatch");
+  ok &= contains(gameplay_c,
+                 "drum_sync_route=\"event-trigger\";",
+                 "drum sync cue rows distinguish source-authored EventTrigger routes");
+  ok &= contains(gameplay_c,
+                 "drum_sync_route=\"fallback-pulse\";",
+                 "drum sync cue rows identify temporary fallback pulses");
   ok &= appears_before(gameplay_c,
                        "drum_event_mesh_targets_.find(cue.event)",
                        "cue.event==\"kick_drum\"",
                        "drum EventTrigger routes are tried before fallbacks");
-  ok &= contains(gameplay_c,
-                 "apply_venue_event(cue.event,false);if(drum_kit_){",
-                 "drum cues also dispatch transient venue EventTriggers");
+  ok &= appears_before(gameplay_c,
+                       "apply_venue_event(cue.event,false);",
+                       "if(drum_kit_){",
+                       "drum cues also dispatch transient venue EventTriggers before kit animation");
   ok &= contains(gameplay_c,
                  "cue.event==\"kick_drum\"",
                  "drum fallback keeps kick_drum");
@@ -399,12 +464,13 @@ int main() {
                  "player fret hit events keep traced 1-indexed p0 names");
   ok &= contains(gameplay_c,
                  "uint32_tGameplay::diagnostic_autoplay_fret_mask(",
-                 "diagnostic autoplay is owned by gameplay hit-mask generation");
-  ok &= appears_before(gameplay_c,
-                       "if(diagnostic_autoplay_){fret_mask="
-                       "diagnostic_autoplay_fret_mask(notes);}",
-                       "constboolstrummed=",
-                       "diagnostic autoplay feeds the normal strum edge path");
+                 "legacy diagnostic autoplay hit-mask generation remains available as fallback");
+  ok &= contains(gameplay_c,
+                 "if(diagnostic_autoplay_){if(gameplay_session_mirror_){"
+                 "fret_mask=gameplay_session_mirror_->tick_diagnostic_autoplay("
+                 "song_time_,true);gameplay_session_already_ticked=true;}"
+                 "else{fret_mask=diagnostic_autoplay_fret_mask(notes);}}",
+                 "live diagnostic autoplay advances the FoFiX session directly and keeps the mask fallback");
   ok &= absent(gameplay_c,
                "if(diagnostic_autoplay_){for(size_ti=next_note_idx_;"
                "i<notes.size();++i){",
@@ -419,19 +485,25 @@ int main() {
                  "score=%ddiagnostic_autoplay",
                  "diagnostic autoplay catch-up rows remain log-verifiable");
   ok &= contains(gameplay_c,
-                 "gameplay_session_mirror_->diagnostic_autoplay_mask(song_time_)",
-                 "diagnostic autoplay uses FoFiX session note/sustain state");
+                 "diagnosticautoplaysuppressedoverstrum",
+                 "diagnostic autoplay cannot trigger bad-pick presentation overlays");
+  ok &= contains(gameplay_session_h_c,
+                 "uint32_ttick_diagnostic_autoplay(doublesong_time,"
+                 "boolactivate_star_power=false);",
+                 "FoFiX session exposes frame-skip-safe diagnostic autoplay");
   ok &= contains(gameplay_c,
                  "if(gameplay_session_mirror_){"
                  "bad_gameplay_feedback_this_frame="
-                 "update_gameplay_session_mirror(fret_mask,true);"
+                 "update_gameplay_session_mirror("
+                 "fret_mask,true,gameplay_session_already_ticked);"
                  "update_presentation_after_gameplay();"
                  "prev_fret_mask_=fret_mask;print_score_summary();return;}",
                  "playable runtime uses FoFiX session as the live gameplay path");
   ok &= appears_before(gameplay_c,
                        "if(gameplay_session_mirror_){"
                        "bad_gameplay_feedback_this_frame="
-                       "update_gameplay_session_mirror(fret_mask,true);",
+                       "update_gameplay_session_mirror("
+                       "fret_mask,true,gameplay_session_already_ticked);",
                        "constboolstrummed=",
                        "FoFiX session path bypasses the legacy local hit scanner");
   ok &= contains(app_main_c,
@@ -442,6 +514,350 @@ int main() {
                  "Keyboard:A/S/D/F/G=frets;Space=strum;"
                  "Shift/H=starpower;K=whammy;Enter=Start/confirm",
                  "startup help advertises the real keyboard guitar mapping");
+  ok &= contains(app_main_c,
+                 "\"[ghogx]--ark-dirlacksmain.hdr/main_0.ark:%s\\n\","
+                 "ark_dir.c_str());return2;",
+                 "explicit bad --ark-dir stops before placeholder visual captures");
+  ok &= contains(app_main_c,
+                 "elseif(std::strcmp(argv[i],\"--diagnostic-character\")==0&&"
+                 "i+1<argc){diagnostic_character=argv[++i];}",
+                 "app exposes a scoped diagnostic character override for highway validation");
+  ok &= contains(app_main_c,
+                 "engine.set_diagnostic_character_override("
+                 "diagnostic_character);",
+                 "diagnostic character override is passed into gameplay before loading");
+  ok &= contains(app_main_c,
+                 "enumclassAppState{Splash,Title,Playing,Failed,Finished};",
+                 "app has explicit failed and finished song presentation states");
+  ok &= contains(app_main_c,
+                 "gameplay_.stop_audio();"
+                 "state_=AppState::Failed;fail_hold_sec_=kFailHoldSeconds;",
+                 "failed gameplay stops the VGS stream before holding the overlay");
+  ok &= contains(app_main_c,
+                 "state_=AppState::Failed;fail_hold_sec_=kFailHoldSeconds;",
+                 "failed gameplay stays visible before returning to title");
+  ok &= contains(app_main_c,
+                 "state_==AppState::Playing||state_==AppState::Failed||"
+                 "state_==AppState::Finished",
+                 "terminal song states continue rendering gameplay and HUD");
+  ok &= contains(app_main_c,
+                 "if(state_==AppState::Failed){draw_fail_overlay();}",
+                 "failed-song state draws the source-backed fail overlay after HUD");
+  ok &= contains(app_main_c,
+                 "load_milo_texture_named(hdr_path_,ark_path_,"
+                 "\"ui/gen/pause_lose_tex.milo_ps2\",\"pl_tile.tex\")",
+                 "failed-song overlay uses the native GH2 pause/lose tile texture");
+  ok &= contains(app_main_c,
+                 "gameplay_.stop_audio();"
+                 "state_=AppState::Finished;finish_hold_sec_=kFinishHoldSeconds;",
+                 "finished gameplay stops the VGS stream before holding the overlay");
+  ok &= contains(app_main_c,
+                 "state_=AppState::Finished;"
+                 "finish_hold_sec_=kFinishHoldSeconds;",
+                 "finished gameplay stays visible before returning to title");
+  ok &= contains(app_main_c,
+                 "elseif(state_==AppState::Finished){draw_finish_overlay();}",
+                 "finished-song state draws the source-backed win overlay after HUD");
+  ok &= contains(app_main_c,
+                 "\"ui/gen/win_easy.milo_ps2\",\"ui/gen/win_medium.milo_ps2\","
+                 "\"ui/gen/win_hard.milo_ps2\",\"ui/gen/win_expert.milo_ps2\"",
+                 "finished-song overlay resolves the GH2 difficulty-specific win panel");
+  ok &= contains(app_main_c,
+                 "load_milo_texture_named(hdr_path_,ark_path_,milo_path,"
+                 "\"newspaper.tex\")",
+                 "finished-song overlay uses the native GH2 win newspaper texture");
+  ok &= contains(app_main_c,
+                 "elseif(std::strcmp(argv[i],\"--diagnostic-rock\")==0&&"
+                 "i+1<argc){diagnostic_rock_fill=std::atof(argv[++i]);}",
+                 "app exposes a scoped diagnostic rock-fill override");
+  ok &= contains(app_main_c,
+                 "elseif(std::strcmp(argv[i],\"--diagnostic-star-power\")==0&&"
+                 "i+1<argc){diagnostic_star_power_fill=std::atof(argv[++i]);}",
+                 "app exposes a scoped diagnostic star-power fill override");
+  ok &= contains(app_main_c,
+                 "elseif(std::strcmp(argv[i],"
+                 "\"--diagnostic-star-power-active\")==0){"
+                 "diagnostic_star_power_active=true;}",
+                 "app exposes a scoped diagnostic active-star-power override");
+  ok &= contains(app_main_c,
+                 "elseif(std::strcmp(argv[i],\"--diagnostic-guitar-script\")==0&&"
+                 "i+1<argc){diagnostic_guitar_script="
+                 "parse_diagnostic_guitar_script(argv[++i]);}",
+                 "app exposes a timed raw diagnostic guitar script");
+  ok &= contains(app_main_c,
+                 "if(!diagnostic_guitar_script_.empty()){"
+                 "fret_mask=diagnostic_guitar_script_mask(gameplay_.song_time());}"
+                 "else{",
+                 "timed diagnostic guitar script overrides static masks with song-time raw input");
+  ok &= contains(app_main_c,
+                 "engine.set_diagnostic_guitar_script("
+                 "diagnostic_guitar_script);",
+                 "diagnostic guitar script is passed into the gameplay app");
+  ok &= contains(app_main_c,
+                 "--diagnostic-guitar-script-from-chart<start:end[:hit_offset_sec]>",
+                 "chart-derived diagnostic guitar script advertises optional hit offset");
+  ok &= contains(app_main_c,
+                 "doublehit_offset_sec=-(1.0/120.0);",
+                 "chart-derived diagnostic guitar script preserves the legacy early-hit default");
+  ok &= contains(app_main_c,
+                 "constsize_toffset_colon=spec.find(':',colon+1);",
+                 "chart-derived diagnostic guitar script parses an optional hit-offset field");
+  ok &= contains(app_main_c,
+                 "diagnostic_chart_script_window_->hit_offset_sec",
+                 "chart-derived diagnostic guitar script passes hit offset into gameplay");
+  ok &= contains(app_main_c,
+                 "--diagnostic-guitar-script-whammy",
+                 "chart-derived diagnostic guitar script exposes star-sustain whammy generation");
+  ok &= contains(app_main_c,
+                 "--debug-note-counter",
+                 "app exposes the on-screen note counter as a launch flag");
+  ok &= contains(app_main_c,
+                 "elseif(std::strcmp(argv[i],\"--debug-note-counter\")==0){"
+                 "debug_note_counter=true;}",
+                 "debug note counter flag parses without an environment variable");
+  ok &= contains(app_main_c,
+                 "_putenv_s(\"GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER\",\"1\");",
+                 "debug note counter flag enables the existing renderer counter path");
+  ok &= contains(app_main_c,
+                 "env_flag(\"GHOGX_DEBUG_GAMEPLAY_HUD_STATE\")",
+                 "gameplay HUD exposes an opt-in state diagnostic");
+  ok &= contains(app_main_c,
+                 "\"[hud-state]t=%.3fscore=%dstreak=%dgameplay_mult=%d\"",
+                 "gameplay HUD state diagnostic labels gameplay score and multiplier");
+  ok &= contains(app_main_c,
+                 "\"hud_mult=%dsp=%.3factive=%drock=%.3foverride=%d\\n\"",
+                 "gameplay HUD state diagnostic logs the exact values passed to the renderer");
+  ok &= contains(gameplay_h_c,
+                 "inthit_count()const{returnhit_count_;}",
+                 "live gameplay exposes hit count for app-level validation logs");
+  ok &= contains(gameplay_h_c,
+                 "intmiss_count()const{returnmiss_count_;}",
+                 "live gameplay exposes miss count for app-level validation logs");
+  ok &= contains(gameplay_h_c,
+                 "intoverstrum_count()const{returnoverstrum_count_;}",
+                 "live gameplay exposes overstrum count for app-level validation logs");
+  ok &= contains(app_main_c,
+                 "voidlog_final_gameplay_summary()const{",
+                 "bounded app runs emit a final gameplay validation summary");
+  ok &= contains(app_main_c,
+                 "\"[ghogx]finalgameplaysummary:state=%ssong=%sdiff=%d\"",
+                 "final gameplay summary labels song difficulty and app state");
+  ok &= contains(app_main_c,
+                 "\"t=%.3fscore=%dstreak=%dmult=%dhits=%dmisses=%d\"",
+                 "final gameplay summary reports FoFiX score streak multiplier hits and misses");
+  ok &= contains(app_main_c,
+                 "\"overstrums=%drock=%.3fsp=%.3factive=%dfailed=%dfinished=%d\\n\"",
+                 "final gameplay summary reports overstrums gauges star-power active and terminal state");
+  ok &= contains(app_main_c,
+                 "engine.log_final_gameplay_summary();",
+                 "main loop prints the final gameplay summary before process exit");
+  ok &= contains(app_main_c,
+                 "diagnostic_chart_script_window_->whammy_star_sustains",
+                 "chart-derived diagnostic guitar script passes whammy generation into gameplay");
+  ok &= contains(app_main_c,
+                 "\"--diagnostic-guitar-script-star-power-at\"",
+                 "chart-derived diagnostic guitar script exposes a scheduled star-power edge");
+  ok &= contains(app_main_c,
+                 "diagnostic_chart_script_window_->star_power_at_sec",
+                 "chart-derived diagnostic guitar script passes scheduled star power into gameplay");
+  ok &= contains(gameplay_h_c,
+                 "boolactivate_star_power=true,"
+                 "doublehit_offset_sec=-(1.0/120.0),"
+                 "boolwhammy_star_sustains=false,"
+                 "std::optional<double>star_power_at_sec=std::nullopt)const;",
+                 "gameplay chart-script helper accepts optional hit offset and star-power edge");
+  ok &= contains(gameplay_c,
+                 "constdoublehit_time=std::max(0.0,group.time+hit_offset_sec);",
+                 "chart-derived diagnostic guitar script applies the requested hit offset");
+  ok &= contains(gameplay_c,
+                 "group.star_power_sustain=group.star_power_sustain||"
+                 "notes[n].star_power;",
+                 "chart-derived diagnostic guitar script detects star-power sustain tails");
+  ok &= contains(gameplay_c,
+                 "group.time+group.beat_seconds/8.0+0.020",
+                 "chart-derived diagnostic guitar script delays whammy until FoFiX sustain threshold");
+  ok &= contains(gameplay_c,
+                 "kBoundaryReleaseLeadSeconds=1.0/180.0",
+                 "chart-derived diagnostic guitar script releases conflicting sustain frets before boundary hits");
+  ok &= contains(gameplay_c,
+                 "sustain_clear_mask|(1u<<7)",
+                 "chart-derived diagnostic guitar script clears whammy with generated sustain holds");
+  ok &= contains(gameplay_c,
+                 "DiagnosticMaskTransition{edge_time,4,1u<<6,0}",
+                 "chart-derived diagnostic guitar script can emit a real star-power button edge");
+  ok &= contains(gameplay_c,
+                 "DiagnosticMaskTransition{std::min(end,edge_time+kStarPowerHoldSeconds),5,0,1u<<6}",
+                 "chart-derived diagnostic guitar script releases scheduled star power after a short hold");
+  ok &= contains(gameplay_c,
+                 "\"groups=%zuevents=%zuinitial=0x%02xhit_offset=%.4f\"",
+                 "chart-derived diagnostic guitar script logs the applied hit offset");
+  ok &= contains(gameplay_c,
+                 "\"whammy_star_sustains=%dstar_power_at=%.3f\\n\"",
+                 "chart-derived diagnostic guitar script logs generated whammy and star-power state");
+  ok &= contains(hud_renderer_h_c,
+                 "LayoutRectrock_needle={0.500000f,0.883933f,"
+                 "0.055000f,0.060000f,0.000000f,0};",
+                 "baked ROCK needle layout is shortened below the old over-tall tuning");
+  ok &= contains(hud_renderer_c,
+                 "constfloatneedle_scale_x=layout_tuning_.rock_needle.w/"
+                 "0.060444f;",
+                 "native ROCK needle horizontal scale follows HUD layout tuning");
+  ok &= contains(hud_renderer_c,
+                 "constfloatneedle_scale_z=layout_tuning_.rock_needle.h/"
+                 "0.072000f;",
+                 "native ROCK needle length follows HUD layout tuning");
+  ok &= contains(hud_renderer_c,
+                 "constfloatdx=(v.wx-px)*needle_scale_x;",
+                 "ROCK needle applies signed layout X scale before rotation");
+  ok &= contains(hud_renderer_c,
+                 "constfloatdz=(v.wz-pz)*needle_scale_z;",
+                 "ROCK needle applies signed layout length scale before rotation");
+  ok &= contains(hud_renderer_c,
+                 "env_enabled(\"GHOGX_DEBUG_HUD_ROCK_METER\")",
+                 "native ROCK meter exposes focused proof rows for visual captures");
+  ok &= contains(hud_renderer_c,
+                 "constexprintkHudRockDebugBudget=700;",
+                 "native ROCK meter diagnostics keep enough rows to prove live recovery tracking");
+  ok &= contains(hud_renderer_c,
+                 "\"[hud-rock]fill=%.3flight=%snative_lights=%dface=%dframe=%d\"",
+                 "ROCK meter diagnostics report fill band and native frame state");
+  ok &= contains(hud_renderer_c,
+                 "\"backing=%dlabel=%dneedle=%dled=%dangle=%.3fscale=%.3f,%.3f\"",
+                 "ROCK meter diagnostics report native backing, needle state, and scaled angle");
+  ok &= contains(hud_renderer_c,
+                 "constLayoutRect&rock_lights_rect=layout_tuning_.rock_lights;",
+                 "ROCK meter black backing follows the tuned native light band");
+  ok &= contains(hud_renderer_c,
+                 "argb(255,2,2,2)",
+                 "ROCK meter light backing is opaque black so venue pixels cannot bleed through");
+  ok &= contains(hud_renderer_c,
+                 "copy_color_keys(\"rock_light.manim\","
+                 "rock_label_color_keys_,rock_label_anim_duration_);",
+                 "ROCK word color samples the authored rock_light MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "copy_color_keys(\"rock_light_front.manim\","
+                 "rock_label_front_color_keys_,rock_label_front_anim_duration_);",
+                 "ROCK front light samples the authored rock_light_front MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "sample_hud_mat_anim_color(rock_label_color_keys_,"
+                 "rock_label_anim_duration_,fill);",
+                 "ROCK word still decodes the native MatAnim color curve for diagnostics");
+  ok &= contains(hud_renderer_c,
+                 "sample_hud_mat_anim_color(rock_label_front_color_keys_,"
+                 "rock_label_front_anim_duration_,fill);",
+                 "ROCK front light still decodes the native MatAnim color curve for diagnostics");
+  ok &= contains(hud_renderer_c,
+                 "constuint32_trock_label_color=fill<0.25f?"
+                 "argb(255,255,60,48):fill<0.55f?"
+                 "argb(255,255,238,74):argb(255,90,255,100);",
+                 "visible ROCK word uses the same red/yellow/green RGB as the active light");
+  ok &= contains(hud_renderer_c,
+                 "constuint32_trock_label_front_color=fill<0.25f?"
+                 "active_red_color:fill<0.55f?active_yellow_color:"
+                 "active_green_color;",
+                 "visible ROCK glow uses the exact active meter light color");
+  ok &= contains(hud_renderer_c,
+                 "q.element==kElemRockNeedle?1:0;",
+                 "ROCK needle is layered in front of the always-lit ROCK word");
+  ok &= absent(hud_renderer_c,
+               "q.element==kElemRockLabel?3:0",
+               "ROCK label must not sort in front of the needle or chrome bezel");
+  ok &= absent(hud_renderer_c,
+               "assign_meter_mesh(\"hud_rock_light.mesh\"",
+               "non-group hud_rock_light mesh must not be drawn in rock_meter.view");
+  ok &= contains(hud_renderer_c,
+                 "authored_label=%08xauthored_front=%08x",
+                 "ROCK meter diagnostics report both visible and authored ROCK word colors");
+  ok &= contains(hud_renderer_c,
+                 "env_enabled(\"GHOGX_DEBUG_HUD_STAR_POWER\")",
+                 "native star-power tube exposes focused proof rows for visual captures");
+  ok &= contains(hud_renderer_c,
+                 "constchar*mult_digit_meshes[2]={\"score_mult_3.mesh\","
+                 "\"score_mult_2.mesh\",};",
+                 "native multiplier digit slots preserve source X/digit mesh order");
+  ok &= contains(hud_renderer_c,
+                 "if(have_native_mult_digits){"
+                 "if(env_enabled(\"GHOGX_DEBUG_HUD_MULTIPLIER\")){"
+                 "std::fprintf(stderr,"
+                 "\"[hud-multiplier]native_digits=1clamped=%dstar=%d\\n\","
+                 "clamped,star_power_visual?1:0);}"
+                 "Quadxq=native_mult_digit_[0];"
+                 "xq.tex=x;",
+                 "active multiplier logs and draws the decoded native X mesh slot");
+  ok &= contains(hud_renderer_c,
+                 "Quaddq=native_mult_digit_[1];"
+                 "dq.tex=digit;",
+                 "active multiplier draws the decoded native number mesh slot");
+  ok &= appears_before(hud_renderer_c,
+                       "if(have_native_mult_digits){",
+                       "if(clamped==2||clamped==4){",
+                       "native multiplier mesh slots are preferred over the combined 2x/4x plate fallback");
+  ok &= contains(hud_renderer_c,
+                 "emit_star_power(quads,state.sp_fill,state.sp_active);",
+                 "star-power tube receives the live active state, not only fill");
+  ok &= contains(hud_renderer_h_c,
+                 "voidemit_star_power(std::vector<Quad>&out,floatfill,"
+                 "boolstar_power_active)const;",
+                 "star-power HUD draw signature keeps active state explicit");
+  ok &= contains(hud_renderer_c,
+                 "constbooltube_glow=ready||star_power_active;",
+                 "active star power keeps the native tube glow path alive while draining");
+  ok &= contains(hud_renderer_c,
+                 "\"[hud-star-power]fill=%.3fready=%dactive=%dtube_glow=%d\"",
+                 "star-power diagnostics report fill readiness, active state, and tube glow");
+  ok &= contains(hud_renderer_c,
+                 "dev->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD);",
+                 "HUD overlay resets authored subtractive blend state before drawing");
+  ok &= contains(hud_renderer_c,
+                 "dev->SetRenderState(D3DRS_COLORWRITEENABLE,"
+                 "D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|"
+                 "D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_ALPHA);",
+                 "HUD overlay forces full color writes for final screen-space quads");
+  ok &= contains(hud_renderer_c,
+                 "dev->SetRenderState(D3DRS_STENCILENABLE,FALSE);",
+                 "HUD overlay disables stale stencil state from prior passes");
+  ok &= contains(hud_renderer_c,
+                 "dev->SetRenderState(D3DRS_SCISSORTESTENABLE,FALSE);",
+                 "HUD overlay disables stale scissor state from prior passes");
+  ok &= contains(app_main_c,
+                 "engine.set_diagnostic_rock_fill(*diagnostic_rock_fill);",
+                 "diagnostic rock fill is passed into gameplay before loading");
+  ok &= contains(app_main_c,
+                 "engine.set_diagnostic_star_power_fill("
+                 "*diagnostic_star_power_fill);",
+                 "diagnostic star-power fill is passed into gameplay before loading");
+  ok &= contains(app_main_c,
+                 "engine.set_diagnostic_star_power_active(true);",
+                 "diagnostic active star power is passed into gameplay before loading");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_rock_fill(doublefill);",
+                 "gameplay exposes a diagnostic rock-fill hook");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_star_power_fill(doublefill);",
+                 "gameplay exposes a diagnostic star-power fill hook");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_star_power_active(boolactive);",
+                 "gameplay exposes a diagnostic active-star-power hook");
+  ok &= contains(gameplay_c,
+                 "gameplay_session_mirror_->set_rock_fill_for_diagnostic("
+                 "*diagnostic_rock_fill_);",
+                 "gameplay applies diagnostic rock fill to the FoFiX session");
+  ok &= contains(gameplay_c,
+                 "gameplay_session_mirror_->set_star_power_fill_for_diagnostic("
+                 "*diagnostic_star_power_fill_);",
+                 "gameplay applies diagnostic star-power fill to the FoFiX session");
+  ok &= contains(gameplay_c,
+                 "gameplay_session_mirror_->set_star_power_active_for_diagnostic(true);",
+                 "gameplay applies diagnostic active star power to the FoFiX session");
+  ok &= contains(gameplay_session_h_c,
+                 "voidset_rock_fill_for_diagnostic(doublefill);",
+                 "FoFiX session exposes a diagnostic rock-fill hook");
+  ok &= contains(gameplay_session_h_c,
+                 "voidset_star_power_fill_for_diagnostic(doublefill);",
+                 "FoFiX session exposes a diagnostic star-power fill hook");
+  ok &= contains(gameplay_session_h_c,
+                 "voidset_star_power_active_for_diagnostic(boolactive);",
+                 "FoFiX session exposes a diagnostic active-star-power hook");
   ok &= contains(window_d3d9_c,
                  "if(impl_->key_now['A'])gh|=(1u<<0);",
                  "keyboard A maps to green fret as raw held guitar input");
@@ -512,6 +928,12 @@ int main() {
                  "intcombo_multiplier=1",
                  "highway renderer accepts live combo multiplier state");
   ok &= contains(highway_renderer_h_c,
+                 "floatrock_fill=1.0f",
+                 "highway renderer accepts live FoFiX rock state");
+  ok &= contains(highway_renderer_h_c,
+                 "floatstar_power_flash=0.0f",
+                 "highway renderer accepts live FoFiX star-power event pulse state");
+  ok &= contains(highway_renderer_h_c,
                  "floatsurface_flash=0.0f",
                  "highway renderer accepts live multiplier surface-flash state");
   ok &= contains(highway_renderer_h_c,
@@ -538,29 +960,288 @@ int main() {
                  "draw_quad(dev_,board,q,false);",
                  "playable highway board ignores texture alpha over the 3D venue");
   ok &= contains(highway_renderer_c,
-                 "name==\"gem_green.tex\"||name==\"gem_red.tex\"||"
-                 "name==\"gem_yellow.tex\"||name==\"gem_blue.tex\"||"
-                 "name==\"gem_orange.tex\"",
-                 "lane gem textures are the only color-keyed highway textures");
+                 "if(name==lane_texture_name(\"gem_\",slot_color,\".tex\"))"
+                 "returntrue;",
+                 "lane gem color-keying follows the authored slot color list");
+  ok &= contains(highway_renderer_c,
+                 "boolis_note_black_card_tex_name(conststd::string&name,",
+                 "highway identifies source note-card textures that carry black transparent padding");
+  ok &= contains(highway_renderer_c,
+                 "name==\"gem.tex\"||name==\"gem_bonus.tex\"||"
+                 "name==\"gem_star.tex\"||name==\"gem_specular.tex\"",
+                 "regular/star/bonus note card atlases are alpha-keyed like native assets");
+  ok &= contains(highway_renderer_c,
+                 "name.rfind(\"spade_\",0)==0",
+                 "HOPO spade card textures are alpha-keyed like native assets");
   ok &= contains(highway_renderer_c,
                  "if(r<=8&&g<=8&&b<=8)return0;",
                  "lane gem black-card backgrounds are made transparent at upload");
   ok &= contains(highway_renderer_c,
-                 "constboolcolor_key_lane_gem=is_lane_gem_tex_name(kv.first);",
-                 "highway texture upload gates color-keying by texture name");
+                 "is_note_black_card_tex_name(kv.first,slot_color_names_);",
+                 "highway texture upload alpha-keys all source note card backgrounds");
+  ok &= contains(highway_renderer_c,
+                 "constexprDWORDkNoteCardAlphaRef=8;",
+                 "highway has a stable alpha-test cutoff for keyed note-card texels");
+  ok &= contains(highway_renderer_c,
+                 "constboolalpha_test_note_card="
+                 "is_note_black_card_tex_name(mesh.texture_name,"
+                 "slot_color_names_);",
+                 "moving note layers detect keyed note-card textures before drawing");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_ALPHATESTENABLE,TRUE);",
+                 "keyed note-card pixels are discarded instead of only alpha-blended");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_ALPHAFUNC,D3DCMP_GREATER);",
+                 "moving note alpha test rejects transparent source-card padding");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_ALPHAREF,kNoteCardAlphaRef);",
+                 "moving note alpha test uses the shared keyed-card cutoff");
   ok &= contains(highway_renderer_c,
                  "ghogx::milo_scene::load_scene(hdr_path,ark_path,"
                  "\"track/gen/track.milo_ps2\",track_scene)",
                  "highway decodes native track.milo_ps2 mesh objects");
   ok &= contains(highway_renderer_c,
-                 "gem_mesh_[lane]=convert_mesh(name+\"_gem.mesh\");",
-                 "highway loads native per-lane gem meshes");
+                 "#include\"dtb.h\"",
+                 "highway renderer can parse source track_graphics.dtb");
   ok &= contains(highway_renderer_c,
-                 "hopo_mesh_[lane]=convert_mesh(name+\"_hopo.mesh\");",
-                 "highway loads native per-lane HOPO meshes");
+                 "ark.find(\"config/gen/track_graphics.dtb\")",
+                 "highway loads authored track_graphics.dtb from the PS2 ARK");
+  ok &= contains(highway_renderer_c,
+                 "constautotree=gh::dtb::parse(bytes);",
+                 "highway parses the authored track graphics DTB at runtime");
+  ok &= contains(highway_renderer_c,
+                 "slot_color_names_=keyed_slot_color_names(tree,"
+                 "slot_color_names_);",
+                 "highway lane asset order comes from authored slot_colors");
+  ok &= contains(highway_renderer_c,
+                 "slot_lane_colors_=kDefaultSlotLaneColors;",
+                 "highway resets fallback lane colors before loading source textures");
+  ok &= contains(highway_renderer_c,
+                 "sample_lane_color_from_gem(it->second,slot_lane_colors_[lane])",
+                 "highway derives lane fallback colors from native gem textures");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway]sampledlanecolors:",
+                 "highway logs the sampled native lane fallback colors");
+  ok &= contains(highway_renderer_c,
+                 "lane_spacing_=track_width/5.0f;",
+                 "highway lane spacing is derived from authored track_width");
+  ok &= contains(highway_renderer_c,
+                 "top_y_=keyed_float(tree,\"horizon_y\",top_y_);",
+                 "highway horizon comes from authored track_graphics.dtb");
+  ok &= contains(highway_renderer_c,
+                 "remove_y_=keyed_float(tree,\"remove_y\",remove_y_);",
+                 "highway removal point comes from authored track_graphics.dtb");
+  ok &= contains(highway_renderer_c,
+                 "alpha_dist_=keyed_float(tree,\"alpha_dist\",alpha_dist_);",
+                 "highway fade distance comes from authored track_graphics.dtb");
+  ok &= contains(highway_renderer_c,
+                 "tail_glow_width_=keyed_float(tree,\"tail_glow_width\","
+                 "tail_glow_width_);",
+                 "highway sustain tail width comes from authored track_graphics.dtb");
+  ok &= contains(highway_renderer_c,
+                 "tail_glow_tight_width_=keyed_float(tree,"
+                 "\"tail_glow_tight_width\",tail_glow_tight_width_);",
+                 "highway held sustain tail width comes from authored track_graphics.dtb");
+  ok &= contains(highway_renderer_c,
+                 "horizon_tail_clip_=keyed_float(tree,\"horizon_tail_clip\","
+                 "horizon_tail_clip_);",
+                 "highway sustain horizon clip comes from authored track_graphics.dtb");
+  ok &= contains(highway_renderer_c,
+                 "nowbar_tail_clip_=keyed_float(tree,\"nowbar_tail_clip\","
+                 "nowbar_tail_clip_);",
+                 "highway sustain nowbar clip comes from authored track_graphics.dtb");
+  ok &= contains(highway_renderer_c,
+                 "cam_near_=keyed_child_float(*cam_node,\"near_plane\","
+                 "cam_near_);",
+                 "highway projection near plane comes from authored track_graphics.dtb cam block");
+  ok &= contains(highway_renderer_c,
+                 "cam_far_=keyed_child_float(*cam_node,\"far_plane\","
+                 "cam_far_);",
+                 "highway projection far plane comes from authored track_graphics.dtb cam block");
+  ok &= contains(highway_renderer_c,
+                 "keyed_child_float(*speed_node,\"kDifficultyExpert\","
+                 "track_speed_[3])",
+                 "highway Expert scroll multiplier comes from authored track_speed");
+  ok &= contains(highway_renderer_c,
+                 "std::optional<float>track_panel_y_per_second_from_body("
+                 "constuint8_t*body,size_tsize)",
+                 "highway can decode the authored track PanelDir y_per_second body");
+  ok &= contains(highway_renderer_c,
+                 "body_contains_milo_string(body,size,\"track.cam\")",
+                 "highway validates the track PanelDir body before reading y_per_second");
+  ok &= contains(highway_renderer_c,
+                 "ark.find(\"track/gen/track.milo_ps2\")",
+                 "highway loads the source track MILO for authored y_per_second");
+  ok &= contains(highway_renderer_c,
+                 "dir.dir_entry_offset+dir.dir_entry_size>payload.size()",
+                 "highway bounds-checks the track PanelDir body before scalar reads");
+  ok &= contains(highway_renderer_c,
+                 "if(autoyps=load_track_panel_y_per_second(ark,ark_path)){",
+                 "highway attempts to read y_per_second from track.milo_ps2 at runtime");
+  ok &= contains(highway_renderer_c,
+                 "y_per_second_=*yps;",
+                 "highway uses the authored PanelDir y_per_second when present");
+  ok &= contains(highway_renderer_c,
+                 "yps=%.3f(%s)",
+                 "highway logs whether y_per_second came from source data or fallback");
+  ok &= contains(highway_renderer_h_c,
+                 "floatlane_spacing_=4.0f;",
+                 "highway stores runtime-loaded lane spacing");
+  ok &= contains(highway_renderer_h_c,
+                 "floaty_per_second_=80.0f;",
+                 "highway stores runtime-loaded base scroll speed");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<float,4>track_speed_={1.0f,1.0f,1.4f,1.4f};",
+                 "highway stores runtime-loaded difficulty speed multipliers");
+  ok &= contains(highway_renderer_h_c,
+                 "floattail_glow_width_=1.5f;",
+                 "highway stores runtime-loaded normal sustain tail width");
+  ok &= contains(highway_renderer_h_c,
+                 "floattail_glow_tight_width_=0.7f;",
+                 "highway stores runtime-loaded held sustain tail width");
+  ok &= contains(highway_renderer_h_c,
+                 "floathorizon_tail_clip_=7.0f;",
+                 "highway stores runtime-loaded sustain horizon clip");
+  ok &= contains(highway_renderer_h_c,
+                 "floatnowbar_tail_clip_=1.5f;",
+                 "highway stores runtime-loaded sustain nowbar clip");
+  ok &= contains(highway_renderer_h_c,
+                 "floatcam_near_=50.0f;",
+                 "highway stores runtime-loaded projection near plane");
+  ok &= contains(highway_renderer_h_c,
+                 "floatcam_far_=200.0f;",
+                 "highway stores runtime-loaded projection far plane");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<uint32_t,5>slot_lane_colors_=",
+                 "highway stores runtime-sampled native lane fallback colors");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<std::string,5>slot_color_names_="
+                 "{\"green\",\"red\",\"yellow\",\"blue\",\"orange\"};",
+                 "highway stores runtime-loaded slot color names");
+  ok &= contains(highway_renderer_h_c,
+                 "uint8_tblend=0;",
+                 "highway runtime meshes carry decoded material blend state");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<RuntimeMesh,5>held_tail_mesh_;",
+                 "highway stores per-lane authored held sustain glow meshes");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<RuntimeMesh,5>gem_specular_mesh_;",
+                 "highway stores per-lane authored gem specular overlay meshes");
+  ok &= contains(highway_renderer_h_c,
+                 "boolmoving_note_standard_has_glow_=false;",
+                 "moving-note glow is disabled unless the source group asks for it");
+  ok &= contains(highway_renderer_h_c,
+                 "boolmoving_note_star_prefers_black_top_=true;",
+                 "star-note stack can follow the authored gem_star group top");
+  ok &= contains(highway_renderer_c,
+                 "convert_mesh_with_material_fallback",
+                 "highway falls back to mesh-authored materials when optional track_graphics material formats are absent");
+  ok &= contains(highway_renderer_c,
+                 "gem_mesh_[lane]=convert_mesh(name+\"_gem.mesh\");",
+                 "highway loads standard moving-note gem bodies with their mesh-authored atlas material");
+  ok &= contains(highway_renderer_c,
+                 "gem_specular_mesh_[lane]=convert_mesh("
+                 "name+\"_gem.mesh\",\"gem_\"+name+\"_1.mat\");",
+                 "highway loads only explicitly authored per-lane gem specular overlay materials");
+  ok &= absent(highway_renderer_c,
+               "gem_specular_mesh_[lane]=convert_mesh_with_material_fallback",
+               "optional gem specular overlays must not fake missing source materials");
+  ok &= contains(highway_renderer_c,
+                 "conststd::string&name=slot_color_names_[lane];",
+                 "highway lane mesh/material names are driven by runtime slot colors");
+  ok &= contains(highway_renderer_c,
+                 "texture_names.insert(lane_texture_name(\"gem_\",slot_color,"
+                 "\".tex\"));",
+                 "highway fallback gem textures are requested from runtime slot colors");
+  ok &= contains(highway_renderer_c,
+                 "texture_names.insert(lane_texture_name(\"now_\",slot_color,"
+                 "\"_add.tex\"));",
+                 "highway fallback nowbar ring textures are requested from runtime slot colors");
+  ok &= contains(highway_renderer_c,
+                 "out.blend=mat->blend;",
+                 "highway runtime meshes copy authored MILO material blend");
+  ok &= contains(highway_renderer_c,
+                 "conststd::string&parent_name="
+                 "parent_override.empty()?mesh->parent:parent_override;",
+                 "highway runtime meshes can instantiate hidden variants in a live source group frame");
+  ok &= contains(highway_renderer_c,
+                 "dst.u=src.u*mat->tex_scale[0]+mat->tex_offset[0];",
+                 "highway runtime meshes apply authored MILO material U transforms");
+  ok &= contains(highway_renderer_c,
+                 "dst.v=src.v*mat->tex_scale[1]+mat->tex_offset[1];",
+                 "highway runtime meshes apply authored MILO material V transforms");
+  ok &= contains(highway_renderer_c,
+                 "hopo_mesh_[lane]=convert_mesh(name+\"_hopo.mesh\","
+                 "std::string{},\"gem_template.view\");",
+                 "highway instantiates native per-lane HOPO top-card variants in the standard note template frame");
+  ok &= contains(highway_renderer_c,
+                 "name.rfind(\"spade_\",0)==0",
+                 "HOPO spade card textures are alpha-keyed like native assets");
   ok &= contains(highway_renderer_c,
                  "star_mesh_[lane]=convert_mesh(name+\"_star.mesh\");",
-                 "highway loads native per-lane star-note meshes");
+                 "highway loads native per-lane star-note overlay meshes with their authored source materials");
+  ok &= absent(highway_renderer_c,
+               "name+\"_star.mesh\",\"gem_starpower_\"+name+\".mat\"",
+               "star-note meshes must not borrow per-lane material overrides instead of star.mat");
+  ok &= contains(highway_renderer_c,
+                 "star_top_mesh_[lane]=convert_mesh(name+\"_top_star.mesh\");",
+                 "highway loads native per-lane star tops with their authored source materials");
+  ok &= absent(highway_renderer_c,
+               "name+\"_top_star.mesh\",\"dot_top_hopo2_\"+name+\".mat\"",
+               "star-top meshes must not borrow the HOPO dot material override");
+  ok &= contains(highway_renderer_c,
+                 "star_overlay_mesh_=convert_mesh(\"star2.mesh\");",
+                 "highway loads the authored star-note additive overlay mesh");
+  ok &= contains(highway_renderer_c,
+                 "star_black_top_mesh_=convert_mesh("
+                 "\"top_star_black.mesh\");",
+                 "highway loads the authored star-note black top mesh");
+  ok &= contains(highway_renderer_c,
+                 "constexprconstchar*kStarBlackTopTextureAlias="
+                 "\"gem.tex#star_top_black_raw\";",
+                 "star-note black top keeps an unkeyed copy of gem.tex");
+  ok &= contains(highway_renderer_c,
+                 "star_black_top_mesh_.texture_name="
+                 "kStarBlackTopTextureAlias;",
+                 "top_star_black mesh preserves black texture detail instead of using the keyed note-card copy");
+  ok &= contains(highway_renderer_c,
+                 "textures_[kStarBlackTopTextureAlias]=t;",
+                 "highway uploads a raw gem texture alias for the star black top mesh");
+  ok &= absent(highway_renderer_c,
+               "kGemTopTextureAlias",
+               "regular note top uses the source top.mat gem.tex texture rather than a raw alias");
+  ok &= contains(highway_renderer_c,
+                 "moving_note_standard_has_glow_="
+                 "group_has_child(\"gem_template.view\",\"glow.mesh\");",
+                 "regular moving-note glow follows gem_template.view membership");
+  ok &= contains(highway_renderer_c,
+                 "moving_note_star_prefers_black_top_="
+                 "group_has_child(\"gem_star.view\",\"top_star_black.mesh\");",
+                 "star-note fallback records gem_star.view top membership");
+  ok &= contains(highway_renderer_c,
+                 "gem_top_mesh_=convert_mesh(\"top.mesh\");",
+                 "highway loads the authored regular note top mesh from track.milo");
+  ok &= absent(highway_renderer_c,
+               "gem_top_mesh_.texture_name=",
+               "regular note top keeps its authored top.mat texture binding");
+  ok &= contains(highway_renderer_c,
+                 "load_track_transanim_transform_anim(hdr_path,ark_path,"
+                 "\"star_base.tnm\");",
+                 "highway loads the authored star-base transform animation for star_base.mesh");
+  ok &= contains(highway_renderer_c,
+                 "load_track_transanim_transform_anim(hdr_path,ark_path,"
+                 "\"star.tnm\");",
+                 "highway keeps star.tnm as a fallback star-base transform source");
+  ok &= contains(highway_renderer_c,
+                 "key.frame<0.0f||key.frame<prev_frame",
+                 "TransAnim Vec3 scanner rejects quaternion blocks misread as negative-frame translation keys");
+  ok &= contains(highway_renderer_c,
+                 "star_note_rotation_keys_=star_note_anim_.rotation_keys;",
+                 "star-base diagnostics use the same active transform animation that is drawn");
+  ok &= contains(highway_renderer_c,
+                 "load_track_transanim_rotation_keys(hdr_path,ark_path,"
+                 "\"star_base.tnm\");",
+                 "highway keeps the authored star-base rotation animation as fallback");
   ok &= contains(highway_renderer_c,
                  "gem_glow_mesh_=convert_mesh(\"glow.mesh\");",
                  "highway loads the native regular gem glow overlay mesh");
@@ -569,13 +1250,39 @@ int main() {
                  "\"tail_\"+name+\".mat\");",
                  "highway loads native lane-colored sustain-tail meshes");
   ok &= contains(highway_renderer_c,
-                 "held_tail_mesh_=convert_mesh(\"tail02.mesh\","
-                 "\"tail_white.mat\");",
-                 "highway loads the native held sustain-tail mesh");
+                 "held_tail_mesh_[lane]=convert_mesh(\"tail02.mesh\","
+                 "\"tail_glow_\"+name+\".mat\");",
+                 "highway loads the native per-lane held sustain glow materials");
+  ok &= contains(highway_renderer_c,
+                 "held_tight_tail_mesh_=convert_mesh(\"tail02.mesh\","
+                 "\"tail_glow_tight.mat\");",
+                 "highway loads the authored tight held sustain core material");
+  ok &= contains(highway_renderer_c,
+                 "burn_castlight_mesh_=convert_mesh(\"burn_castlight.mesh\");",
+                 "highway loads the native burn-tail castlight mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshheld_tight_tail_mesh_;",
+                 "highway stores the authored tight held sustain core mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshburn_castlight_mesh_;",
+                 "highway stores the native burn-tail castlight mesh");
   ok &= contains(highway_renderer_c,
                  "star_tail_mesh_=convert_mesh(\"tail02.mesh\","
-                 "\"tail_glow_tight.mat\");",
-                 "highway loads the native star-power sustain-tail mesh");
+                 "\"tail_glow_star.mat\");",
+                 "highway loads the native star-power sustain-tail glow material");
+  ok &= contains(highway_renderer_c,
+                 "star_phrase_tail_mesh_=convert_mesh(\"tail02.mesh\","
+                 "\"tail_star.mat\");",
+                 "highway loads the authored incoming star-phrase sustain tail material");
+  ok &= contains(highway_renderer_c,
+                 "log_runtime_mesh(\"star_phrase_tail\",star_phrase_tail_mesh_);",
+                 "highway asset diagnostics expose incoming star-phrase sustain tail UV/material bounds");
+  ok &= contains(highway_renderer_c,
+                 "log_runtime_mesh(\"star_held_tail\",star_tail_mesh_);",
+                 "highway asset diagnostics expose held star sustain tail UV/material bounds");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshstar_phrase_tail_mesh_;",
+                 "highway stores incoming star-phrase sustain tails separately from held star glow tails");
   ok &= contains(highway_renderer_c,
                  "bonus_tail_mesh_=convert_mesh(\"tail02.mesh\","
                  "\"tail_bonus.mat\");",
@@ -626,7 +1333,10 @@ int main() {
                  "highway renderer stores the loaded guitarist surface reference");
   ok &= contains(highway_renderer_c,
                  "textures_[\"track_surface.tex\"]=t;",
-                 "selected character surface replaces the track surface material texture");
+                 "selected character surface replaces the native track surface texture");
+  ok &= absent(highway_renderer_c,
+               "track_surface_selected.tex",
+               "selected guitarist surface should replace the authored track_surface texture slot directly");
   ok &= contains(highway_renderer_h_c,
                  "boolselected_surface_loaded_=false;",
                  "highway tracks whether a guitarist-specific surface was uploaded");
@@ -640,9 +1350,23 @@ int main() {
                  "load_track_mat_anim_colors(hdr_path,ark_path)",
                  "highway loads authored track side-rail MatAnim colors");
   ok &= contains(highway_renderer_c,
-                 "*material!=\"track_side_rails.mat\"&&"
-                 "*material!=\"track_surface.mat\"",
-                 "highway MatAnim color loader covers side rails and track surface material");
+                 "if(!material||!anim_name)continue;",
+                 "highway MatAnim color loader exposes all decoded material color curves");
+  ok &= contains(highway_renderer_c,
+                 "read_f32(body,size,pos,key.alpha)",
+                 "highway MatAnim color loader keeps authored alpha keys");
+  ok &= contains(highway_renderer_c,
+                 "uint32_talpha_count=0;",
+                 "highway MatAnim color loader reads separate alpha-key channels");
+  ok &= contains(highway_renderer_c,
+                 "anim.alpha_keys.push_back(key);",
+                 "highway MatAnim color loader stores authored alpha keys");
+  ok &= contains(highway_renderer_c,
+                 "key.alpha=clamp_color(key.alpha);",
+                 "highway MatAnim color loader clamps authored alpha keys");
+  ok &= contains(highway_renderer_c,
+                 "out.a=prev.a+(next.a-prev.a)*t;",
+                 "highway MatAnim sampler interpolates authored alpha");
   ok &= contains(highway_renderer_c,
                  "side_rails_none_=side_rail_color_from_anim("
                  "side_rail_anims,\"side_rails_none.mnm\",false);",
@@ -673,34 +1397,103 @@ int main() {
                  "env_enabled(\"GHOGX_FORCE_HIGHWAY_SIDE_RAIL_WARNING_STAR\");",
                  "highway has a diagnostic gate for star side-rail captures");
   ok &= contains(highway_renderer_c,
+                 "constfloatsane_rock_fill=std::isfinite(rock_fill)?"
+                 "std::clamp(rock_fill,0.0f,1.0f):1.0f;",
+                 "highway receives live FoFiX rock fill for danger-state rail color");
+  ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_DISABLE_HIGHWAY_ROCK_WARNING\")",
+                 "highway has an opt-out for rock-driven warning rail captures");
+  ok &= contains(highway_renderer_c,
+                 "std::clamp((0.50f-sane_rock_fill)/0.30f,0.0f,1.0f)",
+                 "highway maps low FoFiX rock fill to the authored warning rail state");
+  ok &= contains(highway_renderer_c,
+                 "std::max(std::clamp(bad_feedback_flash,0.0f,1.0f),"
+                 "rock_side_rail_warning)",
+                 "highway combines miss flashes and persistent low-rock warning rails");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-rock-warning]t=%.3frock=%.3fwarning=%.3f\""
+                 "\"side=%.3fbad=%.3fforced=%ddisabled=%drails=%d\""
+                 "\"warning_anim=%d\\n\"",
+                 "highway exposes focused low-rock rail proof rows");
+  ok &= contains(highway_renderer_c,
+                 "constexprintkRockWarningDebugBudget=900;",
+                 "low-rock warning diagnostics keep enough rows to prove recovery fade-out");
+  ok &= contains(highway_renderer_c,
                  "side_rail_d3d_color(side_rail_color)",
                  "highway draws side rails with the authored live MatAnim state");
   ok &= contains(highway_renderer_c,
-                 "surface_flash_2x_=mat_anim_color_key("
-                 "side_rail_anims,\"surface_flash_2x.mnm\",1);",
-                 "highway resolves the authored 2x track-surface flash color");
+                 "surface_flash_2x_=mat_anim_color_curve("
+                 "side_rail_anims,\"surface_flash_2x.mnm\");",
+                 "highway resolves the authored 2x track-surface flash curve");
   ok &= contains(highway_renderer_c,
-                 "surface_flash_3x_=mat_anim_color_key("
-                 "side_rail_anims,\"surface_flash_3x.mnm\",1);",
-                 "highway resolves the authored 3x track-surface flash color");
+                 "surface_flash_3x_=mat_anim_color_curve("
+                 "side_rail_anims,\"surface_flash_3x.mnm\");",
+                 "highway resolves the authored 3x track-surface flash curve");
   ok &= contains(highway_renderer_c,
-                 "surface_flash_4x_=mat_anim_color_key("
-                 "side_rail_anims,\"surface_flash_4x.mnm\",1);",
-                 "highway resolves the authored 4x track-surface flash color");
+                 "surface_flash_4x_=mat_anim_color_curve("
+                 "side_rail_anims,\"surface_flash_4x.mnm\");",
+                 "highway resolves the authored 4x track-surface flash curve");
+  ok &= contains(highway_renderer_c,
+                 "hit_flame_color_anim_=mat_anim_color_curve("
+                 "side_rail_anims,\"smash_flamelight_normal.mnm\");",
+                 "highway resolves the authored normal hit-flame color curve");
+  ok &= contains(highway_renderer_c,
+                 "star_collect_flame_color_anim_=mat_anim_color_curve("
+                 "side_rail_anims,\"smash_flamelight_starcollect.mnm\");",
+                 "highway resolves the authored star-collect hit-flame color curve");
+  ok &= contains(highway_renderer_h_c,
+                 "ColorAnimStatestar_collect_flame_color_anim_;",
+                 "highway stores the star-collect hit-flame MatAnim color curve");
+  ok &= contains(highway_renderer_c,
+                 "sample_color_anim(*surface_flash_curve,surface_flash_frame)",
+                 "highway samples the authored track-surface flash keyframes");
   ok &= contains(highway_renderer_c,
                  "surfaceflashMatAnimstates:2x=%d3x=%d4x=%d",
                  "highway logs authored track-surface flash MatAnim coverage");
   ok &= contains(highway_renderer_c,
-                 "constfloatsurface_flash_strength=("
+                 "constboolsurface_flash_forced="
                  "env_enabled(\"GHOGX_FORCE_HIGHWAY_SURFACE_FLASH_2X\")||"
                  "env_enabled(\"GHOGX_FORCE_HIGHWAY_SURFACE_FLASH_3X\")||"
-                 "env_enabled(\"GHOGX_FORCE_HIGHWAY_SURFACE_FLASH_4X\"))"
-                 "?1.0f:std::clamp(surface_flash,0.0f,1.0f);",
+                 "env_enabled(\"GHOGX_FORCE_HIGHWAY_SURFACE_FLASH_4X\");",
+                 "highway tracks live versus diagnostic surface-flash sampling");
+  ok &= contains(highway_renderer_c,
+                 "(1.0f-surface_flash_strength)*"
+                 "color_anim_last_frame(*surface_flash_curve)",
+                 "highway maps live surface-flash lifetime onto the authored 15-frame key range");
+  ok &= contains(highway_renderer_c,
+                 "color_anim_peak_dark_frame(*surface_flash_curve)",
+                 "diagnostic surface-flash captures show the authored dark peak frame");
+  ok &= contains(highway_renderer_h_c,
+                 "ColorAnimStatesurface_flash_4x_;",
+                 "highway stores full authored surface-flash color curves");
+  ok &= contains(highway_renderer_c,
+                 "constfloatsurface_flash_strength="
+                 "surface_flash_forced?1.0f:std::clamp(surface_flash,0.0f,1.0f);",
                  "highway applies live or diagnostic authored surface-flash strength");
   ok &= contains(highway_renderer_c,
-                 "multiply_rgb(D3DCOLOR_ARGB(255,120,120,130),"
-                 "surface_flash_color,surface_flash_strength)",
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_SURFACE_FLASH\")",
+                 "highway can emit bounded surface-flash proof rows for captures");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-surface-flash]t=%.3fmult=%dstrength=%.3fforced=%d\"",
+                 "surface-flash diagnostics label multiplier strength and forced state");
+  ok &= contains(highway_renderer_c,
+                 "constfloattile=selected_surface_loaded_?"
+                 "std::max(1.0f,top_y_-remove_y_):18.0f;",
+                 "selected guitarist highway art spans the playable road instead of tight-tiling");
+  ok &= contains(highway_renderer_c,
+                 "constD3DCOLORnear_base=selected_surface_loaded_?"
+                 "D3DCOLOR_ARGB(255,255,255,255):"
+                 "D3DCOLOR_ARGB(255,120,120,130);",
+                 "selected guitarist highway surfaces keep full texture brightness");
+  ok &= contains(highway_renderer_c,
+                 "constD3DCOLORnear_c=multiply_rgb(near_base,"
+                 "surface_flash_color,1.0f);",
                  "highway tints the scrolling surface through authored surface-flash colors");
+  ok &= contains(highway_renderer_c,
+                 "constD3DCOLORtrack_surface_tint=multiply_rgb("
+                 "D3DCOLOR_ARGB(255,255,255,255),surface_flash_color,"
+                 "1.0f);",
+                 "selected guitarist highway surfaces receive the authored surface-flash tint");
   ok &= contains(highway_renderer_c,
                  "track_lane_lines_mesh_=convert_mesh(\"track_lane_lines5.mesh\");",
                  "highway loads native track lane-line geometry");
@@ -725,13 +1518,18 @@ int main() {
                  "highway logs native star-power track glow availability");
   ok &= contains(highway_renderer_c,
                  "constboolstar_power_glow_active=("
-                 "star_power_active||env_enabled("
+                 "star_power_active||star_power_flash>0.01f||env_enabled("
                  "\"GHOGX_FORCE_HIGHWAY_STARPOWER_GLOW\"))&&"
                  "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_STARPOWER_GLOW\");",
-                 "highway gates the native track glow on live star power or diagnostic capture");
+                 "highway gates the native track glow on live star power, FoFiX star events, or diagnostic capture");
+  ok &= contains(highway_renderer_c,
+                 "constintglow_alpha=star_power_active?180:"
+                 "std::clamp(static_cast<int>(80.0f+"
+                 "star_power_flash*175.0f),0,255);",
+                 "highway scales native star-power track-glow alpha from FoFiX event pulse state");
   ok &= contains(highway_renderer_c,
                  "draw_runtime_mesh(star_power_track_glow_mesh_,0.0f,0.0f,"
-                 "D3DCOLOR_ARGB(180,255,255,255),1.0f,true);",
+                 "D3DCOLOR_ARGB(glow_alpha,255,255,255),1.0f,true);",
                  "highway draws the authored star-power track glow mesh additively");
   ok &= contains(highway_renderer_c,
                  "bar_line_mesh_=convert_mesh(\"bar_line5.mesh\");",
@@ -767,6 +1565,14 @@ int main() {
                  "\"gem_miss_1.mat\");",
                  "highway loads native miss feedback overlay geometry");
   ok &= contains(highway_renderer_c,
+                 "star_miss_mesh_=convert_mesh(\"star_miss.mesh\","
+                 "\"gem_miss.mat\");",
+                 "highway loads native star-miss feedback geometry");
+  ok &= contains(highway_renderer_c,
+                 "star_miss_top_mesh_=convert_mesh(\"top_star_miss.mesh\","
+                 "\"gem_miss_1.mat\");",
+                 "highway loads native star-miss overlay geometry");
+  ok &= contains(highway_renderer_c,
                  "bonus_smasher_texture_name_=material_texture("
                  "\"gem_smasher_bonus.mat\");",
                  "highway resolves the native active-star-power bonus smasher material");
@@ -779,6 +1585,21 @@ int main() {
   ok &= contains(highway_renderer_h_c,
                  "RuntimeMeshgem_sparkle_mesh_;",
                  "highway keeps the native star-note sparkle mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshstar_overlay_mesh_;",
+                 "highway keeps the authored star-note additive overlay mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshstar_black_top_mesh_;",
+                 "highway keeps the authored star-note black top mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "MeshTransformAnimstar_note_anim_;",
+                 "highway keeps the filter-backed authored star-note transform animation");
+  ok &= contains(highway_renderer_h_c,
+                 "std::vector<QuatAnimKey>star_note_rotation_keys_;",
+                 "highway keeps the filter-backed authored star-note rotation keys");
+  ok &= contains(highway_renderer_h_c,
+                 "std::vector<QuatAnimKey>star_base_rotation_keys_;",
+                 "highway keeps the authored star-base fallback rotation keys");
   ok &= contains(highway_renderer_h_c,
                  "RuntimeMeshgem_glow_mesh_;",
                  "highway keeps the native regular gem glow overlay mesh");
@@ -800,13 +1621,28 @@ int main() {
   ok &= contains(highway_renderer_h_c,
                  "RuntimeMeshmiss_top_mesh_;",
                  "highway keeps the native miss feedback overlay mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshstar_miss_mesh_;",
+                 "highway keeps the native star-miss feedback mesh");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshstar_miss_top_mesh_;",
+                 "highway keeps the native star-miss feedback overlay mesh");
   ok &= contains(highway_renderer_c,
-                 "combo_lightning_mesh_[i]=convert_mesh("
-                 "\"smash_combo_lightning0\"+std::to_string(i+1)+\".mesh\");",
+                 "combo_lightning_mesh_[i]=convert_mesh(stem+\".mesh\");",
                  "highway loads native combo-lightning hit feedback meshes");
+  ok &= contains(highway_renderer_c,
+                 "combo_lightning_anim_[i]=load_track_transanim_transform_anim("
+                 "hdr_path,ark_path,(stem+\".tnm\").c_str());",
+                 "highway loads authored combo-lightning hit feedback TransAnims");
   ok &= contains(highway_renderer_h_c,
                  "std::array<RuntimeMesh,3>combo_lightning_mesh_;",
                  "highway keeps the native combo-lightning mesh tier set");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<MeshTransformAnim,3>combo_lightning_anim_;",
+                 "highway keeps the authored combo-lightning transform animations");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<ColorAnimState,3>combo_lightning_color_anim_;",
+                 "highway keeps the authored combo-lightning material color animations");
   ok &= contains(highway_renderer_c,
                  "mesh.name.rfind(\"track_explode\",0)!=0",
                  "highway discovers native track-explode meshes by authored name prefix");
@@ -820,9 +1656,21 @@ int main() {
                  "GHOGX_FORCE_HIGHWAY_TRACK_EXPLODE",
                  "highway has a diagnostic gate for visual track-explode captures");
   ok &= contains(highway_renderer_c,
+                 "GHOGX_ENABLE_HIGHWAY_TRACK_EXPLODE",
+                 "highway keeps authored track-explode bad feedback behind an explicit validation gate");
+  ok &= contains(highway_renderer_c,
+                 "GHOGX_DISABLE_HIGHWAY_TRACK_EXPLODE",
+                 "highway keeps an explicit opt-out for native track-explode captures");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-bad-feedback]t=%.3fflash=%.3fside=%.3f\""
+                 "\"explode=%denabled=%dforced=%ddisabled=%dmeshes=%zu\""
+                 "\"alpha=%dmiss_mesh=%d\\n\"",
+                 "highway exposes focused bad-feedback proof rows");
+  ok &= contains(highway_renderer_c,
                  "draw_runtime_mesh(mesh,0.0f,0.0f,"
-                 "D3DCOLOR_ARGB(alpha,255,255,255),1.0f,true);",
-                 "highway draws the native track-explode meshes during bad feedback");
+                 "D3DCOLOR_ARGB(track_explode_alpha,255,255,255),"
+                 "1.0f,true);",
+                 "highway draws native track-explode meshes only through the explicit proof gate");
   ok &= contains(highway_renderer_c,
                  "starcollect=%d",
                  "highway logs native star-collect hit-flame availability");
@@ -836,15 +1684,45 @@ int main() {
                  "nativegemsparklemeshes:star=%dbonus1=%dbonus2=%d",
                  "highway logs native sparkle mesh availability");
   ok &= contains(highway_renderer_c,
+                 "smasher_normal_texture_name_=material_texture("
+                 "\"gem_smasher.mat\");",
+                 "fret targets resolve the authored idle smasher material from track.milo");
+  ok &= contains(highway_renderer_h_c,
+                 "std::stringsmasher_normal_texture_name_;",
+                 "highway stores the authored idle smasher material");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<std::string,5>smasher_ring_texture_names_;",
+                 "highway stores lane-authored native smasher ring materials");
+  ok &= contains(highway_renderer_h_c,
+                 "std::array<RuntimeMesh,5>smasher_rim_meshes_;",
+                 "highway stores lane-authored native smasher ring meshes with material colors");
+  ok &= contains(highway_renderer_h_c,
+                 "RuntimeMeshbonus_smasher_rim_mesh_;",
+                 "highway stores the active-star-power bonus smasher ring mesh");
+  ok &= contains(highway_renderer_c,
                  "material_texture(\"gem_smasher_\"+name+\".mat\")",
-                 "fret targets resolve lane-colored smasher materials from track.milo");
+                 "fret targets resolve lane-colored pressed smasher materials from track.milo");
   ok &= contains(highway_renderer_c,
                  "material_texture(\"gem_smasher_\"+name+\"_1.mat\")",
                  "fret targets resolve lane-colored additive smasher materials from track.milo");
   ok &= contains(highway_renderer_c,
+                 "material_texture(\"now_ring_\"+name+\".mat\")",
+                 "fret targets resolve lane-colored native ring materials from track.milo");
+  ok &= contains(highway_renderer_c,
+                 "smasher_rim_meshes_[lane]=convert_mesh_with_material_fallback("
+                 "\"smasher_rim.mesh\",\"now_ring_\"+name+\".mat\");",
+                 "fret targets decode lane-colored ring materials into native 3D rim meshes");
+  ok &= contains(highway_renderer_c,
+                 "bonus_smasher_rim_mesh_=convert_mesh_with_material_fallback("
+                 "\"smasher_rim.mesh\",\"now_ring_bonus.mat\");",
+                 "active star power decodes the native bonus smasher ring material into the rim mesh");
+  ok &= contains(highway_renderer_c,
+                 "if(selected_surface_loaded_){draw_track_surface_quad();}",
+                 "selected guitarist surface uses the known-good projected highway surface path");
+  ok &= contains(highway_renderer_c,
                  "draw_runtime_mesh(track_surface_mesh_,0.0f,0.0f,"
-                 "D3DCOLOR_ARGB(255,255,255,255),1.0f,false);",
-                 "highway draws the native track surface opaquely before gameplay notes");
+                 "track_surface_tint,1.0f,false);",
+                 "default track surface draws through the native track_surface5 mesh UVs");
   ok &= contains(highway_renderer_c,
                  "draw_runtime_mesh(track_mask_mesh_,0.0f,0.0f,"
                  "D3DCOLOR_ARGB(255,255,255,255),1.0f,false);",
@@ -852,9 +1730,13 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "GHOGX_DISABLE_HIGHWAY_TRACK_MASK",
                  "highway exposes a diagnostic switch to compare native track mask captures");
-  ok &= contains(highway_renderer_c,
-                 "if(selected_surface_loaded_){draw_track_surface_quad();}",
-                 "selected guitarist surfaces draw through the visible scrolling board mapping");
+  ok &= contains(highway_renderer_h_c,
+                 "floatmin_v=0.0f;floatmax_v=0.0f;",
+                 "runtime highway meshes preserve authored UV bounds");
+  ok &= absent(highway_renderer_c,
+              "draw_runtime_mesh_scaled_with_texture("
+              "track_surface_mesh_,\"track_surface_selected.tex\"",
+              "selected guitarist surfaces should not need a parallel texture slot");
   ok &= contains(highway_renderer_c,
                  "if(!out.texture_name.empty())texture_names.insert(out.texture_name);",
                  "highway renderer keeps textureless native track materials drawable");
@@ -875,29 +1757,86 @@ int main() {
                  "elseif(quarter_beat_line_mesh_.ok){",
                  "quarter-beat subdivisions use the native quarter-beat line mesh");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh(gem_smasher_mesh_,x,kStrikeY,base);",
-                 "fret targets draw through centered native smasher mesh geometry");
+                 "constfloatsmasher_z_offset="
+                 "smasher_top_z-gem_smasher_mesh_.max_z;",
+                 "fret targets are vertically positioned from native smasher mesh bounds");
   ok &= contains(highway_renderer_c,
                  "draw_centered_runtime_mesh_with_texture(gem_smasher_mesh_,"
-                 "smasher_texture,x,kStrikeY,base);",
-                 "native fret targets draw with lane-colored smasher textures");
+                 "smasher_texture,x,kStrikeY,base,1.0f,true,"
+                 "smasher_z_offset,true,kSmasherClipZ);",
+                 "native fret targets draw clipped authored smasher textures");
+  ok &= contains(highway_renderer_c,
+                 "conststd::string&idle_smasher_texture="
+                 "!smasher_normal_texture_name_.empty()?"
+                 "smasher_normal_texture_name_:smasher_texture_names_[lane];",
+                 "inactive fret targets use the authored dark normal smasher material");
+  ok &= contains(highway_renderer_c,
+                 "smasher_pressed?pressed_smasher_texture:"
+                 "idle_smasher_texture;",
+                 "fret targets switch from idle to pressed source material by button state");
+  ok &= contains(highway_renderer_c,
+                 "constRuntimeMesh*ring_mesh=&smasher_rim_meshes_[lane];",
+                 "native fret-target rings select the lane-authored rim mesh");
+  ok &= contains(highway_renderer_c,
+                 "if(bonus_highway_active&&bonus_smasher_rim_mesh_.ok){"
+                 "ring_mesh=&bonus_smasher_rim_mesh_;}",
+                 "active star power swaps target rings to the native bonus rim material");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh(*ring_mesh,x,kStrikeY,",
+                 "native fret-target rings draw through decoded 3D rim meshes with material color intact");
+  ok &= contains(highway_renderer_c,
+                 "if(smasher_pressed){draw_smasher_ring();"
+                 "draw_smasher_body();}else{draw_smasher_body();"
+                 "draw_smasher_ring();}",
+                 "active smasher caps render over the ring while inactive rings remain visible");
   ok &= contains(highway_renderer_c,
                  "draw_centered_runtime_mesh_with_texture(gem_smasher_mesh_,"
                  "smasher_add_texture,x,kStrikeY,",
                  "held fret targets layer lane-colored additive smasher textures");
+  ok &= contains(highway_renderer_c,
+                 "kSmasherIdleTopZ+(kSmasherHeldTopZ-kSmasherIdleTopZ)*press",
+                 "native fret targets rise from buried idle height when pressed");
+  ok &= contains(highway_renderer_c,
+                 "constexprfloatkSmasherIdleTopZ=kBoardZ+0.20f;",
+                 "inactive native fret targets keep their dark tops visible above the highway");
+  ok &= contains(highway_renderer_c,
+                 "kSmasherFixedRingTopZ-smasher_rim_mesh_.max_z;",
+                 "native fret-target rings stay fixed while the colored button moves");
+  ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_SMASHERS\")",
+                 "native fret-target smashers expose focused proof rows for visual captures");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-smasher]lane=%dheld=%dflash=%.3fpress=%.3f\"",
+                 "smasher diagnostics split held input from hit-flash feedback");
+  ok &= contains(highway_renderer_c,
+                 "\"ring_top=%.3fbody_mesh=%dring_mesh=%dshadow=%d\"",
+                 "smasher diagnostics prove the ring stays fixed from native mesh state");
   ok &= contains(highway_renderer_c,
                  "constboolbonus_highway_active=("
                  "star_power_active||env_enabled(\"GHOGX_FORCE_HIGHWAY_BONUS\"))&&"
                  "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_BONUS\");",
                  "active star power gates native bonus highway presentation");
   ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_STAR_POWER\")",
+                 "native star-power highway exposes focused proof rows for visual captures");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-star-power]t=%.3factive=%dwhammy=%dflash=%.3fglow=%dbonus=%d\"",
+                 "star-power highway diagnostics report live active/whammy/glow/bonus state");
+  ok &= contains(highway_renderer_c,
+                 "\"track_glow=%dbonus_gem=%dbonus_tail=%dbonus_smasher=%d\"",
+                 "star-power highway diagnostics report source mesh availability");
+  ok &= contains(highway_renderer_c,
                  "bonus_highway_active&&!bonus_smasher_texture_name_.empty()"
                  "?bonus_smasher_texture_name_:smasher_texture_names_[lane];",
                  "active star power swaps fret targets to the native bonus smasher material");
   ok &= contains(highway_renderer_c,
-                 "draw_runtime_mesh(mesh,cx-mesh.center_x*scale,"
-                 "cy-mesh.center_y*scale,tint,scale,use_texture_alpha);",
-                 "native gameplay meshes are centered before runtime lane placement");
+                 "draw_authored_runtime_mesh(constRuntimeMesh&mesh,"
+                 "floatorigin_x,floatorigin_y,uint32_ttint,",
+                 "moving note meshes have an authored-origin placement path");
+  ok &= contains(highway_renderer_c,
+                 "draw_runtime_mesh_scaled_with_texture(mesh,mesh.texture_name,"
+                 "origin_x,origin_y,tint,scale,scale,scale,",
+                 "moving notes preserve authored mesh pivots instead of bbox-centering each child");
   ok &= contains(highway_renderer_h_c,
                  "draw_centered_runtime_mesh_scaled",
                  "highway renderer can scale native sustain-tail meshes by segment length");
@@ -906,23 +1845,159 @@ int main() {
                  "color,half_width/mesh_hx,hy/mesh_hy,1.0f);",
                  "sustain tails stretch native tail geometry instead of only flat quads");
   ok &= contains(highway_renderer_c,
+                 "constHighwayBlendStatetail_blend_state="
+                 "highway_blend_state_for(mesh->blend);",
+                 "native sustain tails use their authored material blend state");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_BLENDOP,tail_blend_state.op);",
+                 "native sustain tails apply authored material blend operation");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_SRCBLEND,tail_blend_state.src);",
+                 "native sustain tails apply authored material source blend");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_DESTBLEND,tail_blend_state.dest);",
+                 "native sustain tails apply authored material destination blend");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_BLENDOP,prev_tail_blend_op);",
+                 "native sustain tails restore the previous blend operation");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_segment(lane,on,off,source_label,mesh,raw_tail,"
+                 "tail_glow_width_,"
+                 "mesh?D3DCOLOR_ARGB(225,255,255,255):"
+                 "slot_lane_colors_[lane],false,n.star_power,false);",
+                 "visible sustain tails carry authored width and star-phrase tags into diagnostics");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-tail]source=%sactive=%dstar_tail=%dwhammy=%d",
+                 "tail diagnostics identify active star sustain whammy windows");
+  ok &= contains(highway_renderer_c,
+                 "\"star_phrase\"",
+                 "tail diagnostics label incoming star-phrase sustain tails");
+  ok &= contains(highway_renderer_c,
+                 "elseif(n.star_power&&star_phrase_tail_mesh_.ok){"
+                 "mesh=&star_phrase_tail_mesh_;source_label=\"star_phrase\";}",
+                 "incoming star-power sustains use the authored star phrase tail before ordinary lane tails");
+  ok &= contains(highway_renderer_c,
+                 "\"flat_held\",nullptr,held_tail,tail_glow_tight_width_,",
+                 "flat held sustain fallback uses authored tail_glow_tight_width as a half-width");
+  ok &= contains(highway_renderer_c,
+                 "casekHighwayBlendSrcAlphaAdd:",
+                 "highway treats GH2 SrcAlphaAdd materials as additive glows");
+  ok &= contains(highway_renderer_c,
+                 "constRuntimeMesh*lane_held_tail="
+                 "held_tail_mesh_[lane].ok?&held_tail_mesh_[lane]:nullptr;",
+                 "active held sustains pick the authored lane-specific glow tail before overlays");
+  ok &= contains(highway_renderer_c,
+                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
+                 "\"held_lane\",lane_held_tail,held_tail,tail_glow_width_,"
+                 "D3DCOLOR_ARGB(245,255,255,255),"
+                 "true,sustain_star_tail,sustain_whammy_tail);",
+                 "active held sustains draw the authored wide lane glow mesh and report whammy-tagged star tails");
+  ok &= contains(highway_renderer_c,
+                 "if(held_tight_tail_mesh_.ok){draw_tail_segment("
+                 "lane,sustain.start_time,sustain.end_time,"
+                 "\"held_tight\",&held_tight_tail_mesh_,held_tail,"
+                 "tail_glow_tight_width_,"
+                 "D3DCOLOR_ARGB(255,255,255,255),"
+                 "true,sustain_star_tail,sustain_whammy_tail);}",
+                 "active held sustains layer the authored tight core over the lane glow at source width");
+  ok &= contains(highway_renderer_c,
+                 "constHighwayBlendStateburn_blend_state="
+                 "highway_blend_state_for(burn_castlight_mesh_.blend);",
+                 "active held sustains use the authored burn-tail castlight blend");
+  ok &= contains(highway_renderer_c,
+                 "draw_authored_runtime_mesh(burn_castlight_mesh_,lane_x(lane),"
+                 "kStrikeY,D3DCOLOR_ARGB(255,255,255,255),1.0f,true);",
+                 "active held sustains draw the native burn-tail castlight at the nowbar");
+  ok &= contains(highway_renderer_c,
+                 "if(!lane_held_tail){draw_flat_tail_fallback("
+                 "slot_lane_colors_[lane]);}",
+                 "active held sustains only use the flat color fallback when native lane tails are absent");
+  ok &= contains(highway_renderer_c,
+                 "if(sustain.star_power_tail&&star_tail_mesh_.ok){"
+                 "draw_tail_segment(lane,sustain.start_time,sustain.end_time,"
+                 "\"held_star\",&star_tail_mesh_,held_tail,tail_glow_width_,"
+                 "D3DCOLOR_ARGB(245,150,225,255),true,true,"
+                 "sustain_whammy_tail);}",
+                 "active star sustains layer the authored star tail over the lane mesh and expose whammy timing");
+  ok &= contains(highway_renderer_c,
+                 "constfloattail_near_y=kStrikeY+nowbar_tail_clip_;",
+                 "sustain tails use the authored nowbar clip as their near clamp");
+  ok &= contains(highway_renderer_c,
+                 "constfloattail_far_y=top_y_-horizon_tail_clip_;",
+                 "sustain tails use the authored horizon clip as their far clamp");
+  ok &= contains(highway_renderer_c,
+                 "floaty0=std::max(note_y(on),tail_near_y);",
+                 "sustain tail start clamps to the authored nowbar tail clip");
+  ok &= contains(highway_renderer_c,
+                 "floaty1=std::min(note_y(off),tail_far_y);",
+                 "sustain tail end clamps to the authored horizon tail clip");
+  ok &= contains(highway_renderer_c,
                  "bonus_highway_active&&bonus_tail_mesh_.ok",
                  "active star power swaps sustain tails to the native bonus tail mesh");
   ok &= contains(highway_renderer_c,
-                 "constRuntimeMesh*flame_mesh=bonus_highway_active&&"
-                 "bonus_hit_flame_mesh_.ok?&bonus_hit_flame_mesh_:"
-                 "star_f>0.01f&&star_collect_flame_mesh_.ok?"
-                 "&star_collect_flame_mesh_:hit_flame_mesh_.ok?"
-                 "&hit_flame_mesh_:nullptr;",
-                 "hit flashes choose native starcollect geometry for star-note hits");
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_HIT_FEEDBACK\")",
+                 "hit feedback exposes a focused diagnostic switch for visual proof captures");
   ok &= contains(highway_renderer_c,
-                 "bonus_highway_active&&bonus_hit_flame_mesh_.ok?"
-                 "&bonus_hit_flame_mesh_:",
+                 "\"[highway-hit]lane=%df=%.3falpha=%dcombo_tier=%d\"",
+                 "hit feedback diagnostics identify the live hit lane and combo tier");
+  ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_MISS_FEEDBACK\")",
+                 "miss feedback exposes a focused diagnostic switch for visual proof captures");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-miss]lane=%df=%.3falpha=%dmiss_mesh=%d\"",
+                 "miss feedback diagnostics identify the live miss lane and native mesh state");
+  ok &= contains(highway_renderer_c,
+                 "\"top_mesh=%dstar=%dstar_mesh=%dstar_top=%d\"",
+                 "miss feedback diagnostics report regular versus star miss mesh selection");
+  ok &= contains(highway_renderer_c,
+                 "\"scale=%.3fforced=%d\\n\"",
+                 "miss feedback diagnostics report draw scale and forced state");
+  ok &= contains(highway_renderer_c,
+                 "intcombo_layers=0;",
+                 "hit feedback diagnostics count native combo lightning layers");
+  ok &= contains(highway_renderer_c,
+                 "constchar*base_flame_label=",
+                 "hit feedback diagnostics name the selected native base flame source");
+  ok &= contains(highway_renderer_c,
+                 "\"star_alpha=%dfallback_tex=%dauthored_origin=1\"",
+                 "hit feedback diagnostics report star-collect alpha and flat fallback use");
+  ok &= contains(highway_renderer_c,
+                 "\"base_anim=%dbase_color_anim=%dstar_anim=%d\"",
+                 "hit feedback diagnostics report source-backed flame animation state");
+  ok &= contains(highway_renderer_c,
+                 "base_flame_anim=&hit_flame_anim_",
+                 "hit flashes keep the native base hit-flame mesh for star-note hits");
+  ok &= contains(highway_renderer_c,
+                 "base_flame_anim=&bonus_hit_flame_anim_",
                  "active star power swaps hit flashes to the native bonus hit-flame mesh");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh_scaled(*flame_mesh,"
-                 "lane_x(lane),kStrikeY,",
-                 "native hit-flame mesh is placed per hit lane at the strikeline");
+                 "hit_flame_anim_=load_track_transanim_transform_anim("
+                 "hdr_path,ark_path,\"smash_flamelight_normal.tnm\");",
+                 "hit flames load the authored normal flame TransAnim");
+  ok &= contains(highway_renderer_c,
+                 "star_collect_flame_anim_=load_track_transanim_transform_anim("
+                 "hdr_path,ark_path,\"smash_flamelight_starcollect.tnm\");",
+                 "star-collect flames load the authored starcollect TransAnim");
+  ok &= contains(highway_renderer_h_c,
+                 "MeshTransformAnimstar_collect_flame_anim_;",
+                 "highway stores the star-collect hit-flame TransAnim");
+  ok &= contains(highway_renderer_c,
+                 "if(base_flame_mesh){draw_flame_mesh(*base_flame_mesh,a,",
+                 "native base hit-flame geometry is drawn before star-collect overlays");
+  ok &= contains(highway_renderer_c,
+                 "if(star_f>0.01f&&star_collect_flame_mesh_.ok){",
+                 "star-note hits layer the native star-collect flame over the base hit flame");
+  ok &= contains(highway_renderer_c,
+                 "draw_flame_mesh(star_collect_flame_mesh_,star_a,",
+                 "star-collect flame overlay uses the native starcollect geometry");
+  ok &= contains(highway_renderer_c,
+                 "sample_transform_anim_delta(anim,anim_duration,frame);",
+                 "native hit-flame meshes sample authored TransAnim deltas");
+  ok &= contains(highway_renderer_c,
+                 "draw_authored_runtime_mesh_transformed("
+                 "mesh,lane_x(lane),kStrikeY,tint.color,transform,true,0.0f,"
+                 "!tint.color_anim_used);",
+                 "native hit-flame mesh keeps authored placement and MatAnim color at the strikeline");
   ok &= contains(highway_renderer_c,
                  "constintcombo_tier=force_combo_lightning?3:"
                  "std::clamp(combo_multiplier-1,0,3);",
@@ -930,7 +2005,49 @@ int main() {
   ok &= contains(highway_renderer_c,
                  "draw_centered_runtime_mesh_scaled(combo_lightning_mesh_[i],"
                  "lane_x(lane),kStrikeY,",
-                 "native combo lightning is placed per hit lane at the strikeline");
+                 "native combo lightning has a fallback per-lane strikeline placement");
+  ok &= contains(highway_renderer_c,
+                 "constMeshTransformSamplecombo_transform="
+                 "sample_transform_anim_delta(combo_lightning_anim_[i],"
+                 "duration,combo_frame);",
+                 "native combo lightning samples authored TransAnim deltas");
+  ok &= contains(highway_renderer_c,
+                 "combo_lightning_color_anim_[i]="
+                 "mat_anim_color_curve(side_rail_anims,stem+\".mnm\");",
+                 "native combo lightning loads authored MatAnim color/alpha curves");
+  ok &= contains(highway_renderer_c,
+                 "constSourceTintcombo_tint="
+                 "source_tint(layer_alpha,combo_lightning_color_anim_[i],f,"
+                 "&combo_lightning_mesh_[i]);",
+                 "native combo lightning samples authored MatAnim tint per hit");
+  ok &= contains(highway_renderer_c,
+                 "!color_anim.has_rgb&&mesh_rgb_source&&"
+                 "!mesh_rgb_source->verts.empty()",
+                 "alpha-only combo lightning keeps decoded source material RGB");
+  ok &= contains(highway_renderer_c,
+                 "out.rotation_xyzw=quat_mul(quat_conjugate(base),sampled);",
+                 "combo TransAnim playback applies relative rotation instead of double-applying bind orientation");
+  ok &= contains(highway_renderer_c,
+                 "draw_centered_runtime_mesh_transformed("
+                 "combo_lightning_mesh_[i],lane_x(lane),kStrikeY,"
+                 "combo_tint.color,combo_transform,true,0.0f,"
+                 "!combo_tint.color_anim_used);",
+                 "native combo lightning uses transformed MatAnim-colored mesh playback at the strikeline");
+  ok &= contains(highway_renderer_c,
+                 "combo_color_anim=%d/%d/%d",
+                 "hit feedback diagnostics report combo-lightning MatAnim availability");
+  ok &= contains(highway_renderer_c,
+                 "combo_forced=%dcombo_layers=%d",
+                 "hit feedback diagnostics distinguish forced combo-lightning from live multiplier tiers");
+  ok &= contains(highway_renderer_c,
+                 "combo_mesh=%d/%d/%d",
+                 "hit feedback diagnostics report source combo-lightning mesh availability");
+  ok &= contains(highway_renderer_c,
+                 "combo_anim=%d/%d/%d",
+                 "hit feedback diagnostics report source combo-lightning mesh and TransAnim availability");
+  ok &= contains(highway_renderer_c,
+                 "std::array<int,4>hit_debug_budget_by_combo_tier",
+                 "hit feedback diagnostics budget rows per live combo tier");
   ok &= contains(highway_renderer_c,
                  "constbooldrew_native_smashers="
                  "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_NATIVE_SMASHERS\")&&"
@@ -941,37 +2058,398 @@ int main() {
                  "D3DRS_DESTBLEND,D3DBLEND_ONE);",
                  "flat target ring quads are fallback-only when native smashers are unavailable");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh(star_mesh_[g.lane],x,g.y,tint);",
-                 "star notes draw through native track mesh geometry");
+                 "tex(lane_texture_name(\"now_\",slot_color_names_[lane],"
+                 "\"_add.tex\"));",
+                 "fallback target rings use runtime slot color textures");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh(gem_sparkle_mesh_,x,g.y,tint);",
-                 "star notes layer the native sparkle mesh");
+                 "draw_note_layer(star_mesh_[g.lane],false,true,false,0.0f,"
+                 "false);",
+                 "star lane mesh draws atlas color directly instead of red-tinting all lanes with vertex color");
+  ok &= contains(highway_renderer_h_c,
+                 "booluse_vertex_color=true)const;",
+                 "authored mesh helpers can explicitly bypass baked vertex color when source animation supplies color");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh(hopo_mesh_[g.lane],x,g.y,tint);",
-                 "HOPO notes draw through native track mesh geometry");
+                 "constHighwayBlendStateblend_state="
+                 "highway_blend_state_for(mesh.blend);",
+                 "moving note layers map each decoded MILO material blend");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh(gem_mesh_[g.lane],x,g.y,tint);",
-                 "regular notes draw through native track mesh geometry");
+                 "depth_test?D3DCMP_LESSEQUAL:D3DCMP_ALWAYS",
+                 "moving note top/cap overlays draw over their own note body instead of self-clipping");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh(gem_glow_mesh_,x,g.y,tint);",
-                 "regular and HOPO notes layer the native glow mesh");
+                 "draw_note_layer(hopo_mesh_[g.lane],false,false);",
+                 "HOPO full top-card meshes draw as top-card overlays like top.mesh");
+  ok &= contains(highway_renderer_c,
+                 "constbooldisable_zwrite=blend_state.additive||"
+                 "mesh.blend==kHighwayBlendSrcAlpha||"
+                 "mesh.blend==kHighwayBlendSubtract||"
+                 "mesh.blend==kHighwayBlendMultiply;",
+                 "moving note layers suppress z-writes for authored transparent/effect blends");
+  ok &= contains(highway_renderer_c,
+                 "(write_depth&&!disable_zwrite)?TRUE:FALSE",
+                 "moving note opaque base layers still write depth when the material allows it");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_BLENDOP,blend_state.op);",
+                 "moving note layer drawing applies authored material blend operation");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_SRCBLEND,blend_state.src);",
+                 "moving note layer drawing applies authored material source blend");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_DESTBLEND,blend_state.dest);",
+                 "moving note layer drawing applies authored material destination blend");
+  ok &= contains(highway_renderer_c,
+                 "draw_note_layer_with_state(",
+                 "moving note draw paths share the authored blend/depth wrapper");
+  ok &= contains(highway_renderer_c,
+                 "constbooldraw_star_effect_layers="
+                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_STAR_EFFECT_LAYERS\");",
+                 "authored star effect meshes share a diagnostic layer gate");
+  ok &= contains(highway_renderer_c,
+                 "constbooldraw_star_base_layer="
+                 "draw_star_effect_layers&&"
+                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_STAR_BASE\");",
+                 "star notes draw star_base.mesh by default as child 0 of gem_star.view");
+  ok &= absent(highway_renderer_c,
+               "GHOGX_ENABLE_HIGHWAY_STAR_BASE_EFFECT",
+               "star_base.mesh is source group geometry, not an opt-in diagnostic effect");
+  ok &= contains(highway_renderer_c,
+                 "constbooldraw_star_overlay_layer="
+                 "draw_star_effect_layers&&"
+                 "!env_enabled(\"GHOGX_DISABLE_HIGHWAY_STAR_OVERLAY\");",
+                 "star2 overlay remains individually disableable for diagnostics");
+  ok &= contains(highway_renderer_c,
+                 "draw_star_overlay_layer&&star_overlay_mesh_.ok",
+                 "star notes can still disable the authored star2 overlay for diagnostics");
+  ok &= contains(highway_renderer_c,
+                 "draw_note_layer(star_overlay_mesh_,false,true);",
+                 "star notes depth-test the authored star2 overlay without writing depth");
+  ok &= contains(highway_renderer_c,
+                 "constfloatstar_frame=static_cast<float>("
+                 "std::max(0.0,song_time)*30.0);",
+                 "star-note rotation samples the authored animation at 30fps");
+  ok &= contains(highway_renderer_c,
+                 "sample_transform_anim(star_note_anim_,"
+                 "star_note_anim_duration_frames_,star_frame);",
+                 "star-note base samples the cached source TransAnim transform");
+  ok &= contains(highway_renderer_c,
+                 "draw_transformed_note_layer(star_base_mesh_,false,true,"
+                 "star_transform);",
+                 "animated star-note base depth-tests as a 3D child of gem_star.view without writing depth");
+  ok &= absent(highway_renderer_c,
+               "draw_transformed_note_layer(star_mesh_[g.lane]",
+               "star-note lane bodies must not borrow the star_base.mesh TransAnim");
+  ok &= absent(highway_renderer_c,
+               "draw_transformed_note_layer(star_overlay_mesh_",
+               "star-note star2 overlay must not borrow the star_base.mesh TransAnim");
+  ok &= absent(highway_renderer_c,
+               "draw_transformed_note_layer(*star_top",
+               "star-note top cap must not borrow the star_base.mesh TransAnim");
+  ok &= contains(highway_renderer_c,
+                 "draw_authored_runtime_mesh_transformed("
+                 "mesh,x,g.y,tint,transform);",
+                 "star-note base still draws through the authored-origin full transform path");
+  ok &= contains(highway_renderer_c,
+                 "if(moving_note_star_prefers_black_top_&&"
+                 "star_black_top_mesh_.ok){star_top=&star_black_top_mesh_;}",
+                 "star notes prefer the live gem_star.view black top mesh");
+  ok &= contains(highway_renderer_c,
+                 "elseif(star_top_mesh_[g.lane].ok){"
+                 "star_top=&star_top_mesh_[g.lane];}",
+                 "star notes keep lane-specific top meshes as hidden-group fallback");
+  ok &= absent(highway_renderer_c,
+               "(g.hopo&&hopo_mesh_[g.lane].ok)?&hopo_mesh_[g.lane]",
+               "star HOPO notes must not draw the oversized HOPO plate as their top cap");
+  ok &= absent(highway_renderer_c,
+               "constautocap_clip_z=[](constRuntimeMesh&base)",
+               "moving note cap overlays must not slice native 3D meshes");
+  ok &= absent(highway_renderer_c,
+               "base.max_z-0.01f",
+               "moving note cap overlays keep their authored 3D thickness");
+  ok &= contains(highway_renderer_c,
+                 "draw_note_layer(*star_top,false,true);",
+                 "star notes depth-test the selected native top mesh as full 3D geometry");
+  ok &= absent(highway_renderer_c,
+               "draw_centered_runtime_mesh(gem_sparkle_mesh_,x,g.y,tint);",
+               "moving star notes should not layer the gem-template sparkle mesh");
+  ok &= contains(highway_renderer_c,
+                 "load_track_transanim_transform_anim("
+                 "hdr_path,ark_path,\"gem_sparkle.tnm\");",
+                 "star notes load the authored sparkle transform animation");
+  ok &= absent(highway_renderer_c,
+               "draw_centered_runtime_mesh_transformed("
+               "gem_sparkle_mesh_,x,g.y,tint,",
+               "moving star notes should not transform the gem-template sparkle mesh");
+  ok &= contains(highway_renderer_c,
+                 "if(gem_mesh_[g.lane].ok){"
+                 "draw_note_layer(gem_mesh_[g.lane],true);"
+                 "draw_hopo_top_over_body();",
+                 "HOPO notes keep the standard 3D gem body before the native HOPO top");
+  ok &= contains(highway_renderer_c,
+                 "draw_note_layer(hopo_mesh_[g.lane],false,false);",
+                 "HOPO notes draw the lane-specific full top-card mesh over the rounded body");
+  ok &= contains(highway_renderer_c,
+                 "DWORDhighway_note_cull_mode(){",
+                 "moving 3D note meshes use a dedicated source-backed cull state");
+  ok &= contains(highway_renderer_c,
+                 "if(env_enabled(\"GHOGX_HIGHWAY_NOTE_CULL_NONE\"))"
+                 "returnD3DCULL_NONE;",
+                 "note mesh culling can be disabled for visual diagnostics");
+  ok &= contains(highway_renderer_c,
+                 "if(env_enabled(\"GHOGX_HIGHWAY_NOTE_CULL_CW\"))"
+                 "returnD3DCULL_CW;",
+                 "note mesh culling can force clockwise winding for diagnostics");
+  ok &= contains(highway_renderer_c,
+                 "returnD3DCULL_NONE;",
+                 "moving note meshes default to two-sided rendering so rotated native geometry stays whole");
+  ok &= contains(highway_renderer_c,
+                 "dev_->GetRenderState(D3DRS_CULLMODE,&prev_cull_mode);",
+                 "moving note mesh pass saves the surrounding highway cull state");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_CULLMODE,"
+                 "highway_note_cull_mode());",
+                 "moving note mesh pass applies the note cull state");
+  ok &= contains(highway_renderer_c,
+                 "dev_->SetRenderState(D3DRS_CULLMODE,prev_cull_mode);",
+                 "moving note mesh pass restores the surrounding highway cull state");
+  ok &= contains(highway_renderer_c,
+                 "constuint32_tgroup_tick=notes[note_index].tick_on;",
+                 "moving-note renderer scans MIDI notes by same-tick groups");
+  ok &= contains(highway_renderer_c,
+                 "constintgroup_hopo_tappable="
+                 "group_gems==1?notes[note_index].hopo_tappable:0;",
+                 "HOPO note art receives the FoFiX tappable class for single-gem groups");
+  ok &= contains(highway_renderer_c,
+                 "(notes[note_index].is_hopo||group_hopo_tappable>=2)",
+                 "HOPO note art follows FoFiX playable tappable classes with legacy fallback");
+  ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_NOTE_DRAW\")",
+                 "moving-note renderer exposes an opt-in draw-path diagnostic");
+  ok &= contains(highway_renderer_c,
+                 "env_enabled(\"GHOGX_DEBUG_HIGHWAY_NOTE_COUNTER\")",
+                 "highway renderer exposes an opt-in on-screen note counter");
+  ok &= contains(highway_renderer_c,
+                 "++crossed_groups;",
+                 "on-screen note counter increments by same-tick chart groups");
+  ok &= contains(highway_renderer_c,
+                 "constfloatgroup_y=kStrikeY+static_cast<float>("
+                 "on-song_time)*speed;",
+                 "on-screen note counter projects note groups onto the rendered highway");
+  ok &= contains(highway_renderer_c,
+                 "if(group_y<=kStrikeY){",
+                 "on-screen note counter increments when a group crosses the strike line");
+  ok &= contains(highway_renderer_c,
+                 "uint32_tcrossed_standard=0;"
+                 "uint32_tcrossed_star=0;"
+                 "uint32_tcrossed_hopo=0;",
+                 "on-screen note counter tracks crossed counts by note type");
+  ok &= contains(highway_renderer_c,
+                 "\"STD%uSTAR%uHOPO%u\"",
+                 "on-screen note counter renders crossed standard star and HOPO totals");
+  ok &= contains(highway_renderer_c,
+                 "format_group_line(last_line,sizeof(last_line),\"LAST\",last);",
+                 "on-screen note counter labels the group that just crossed");
+  ok &= contains(highway_renderer_c,
+                 "\"%s%s%sT%uG%dL%d-%d\"",
+                 "on-screen note counter labels type tick gem count and lane span");
+  ok &= contains(highway_renderer_c,
+                 "group_final_star=group_final_star||notes[i].final_star;",
+                 "on-screen note counter preserves FoFiX final-star phrase markers");
+  ok &= contains(highway_renderer_c,
+                 "group.final_star?\"END\":\"\"",
+                 "on-screen note counter labels final-star phrase closers");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-note-counter]t=%.3fcount=%ustandard=%ustar=%u\"",
+                 "on-screen note counter logs machine-readable crossed totals");
+  ok &= contains(highway_renderer_c,
+                 "last_kind=%slast_tick=%ulast_gems=%dlast_lanes=%d-%d",
+                 "on-screen note counter logs the crossed group identity");
+  ok &= contains(highway_renderer_c,
+                 "next_kind=%snext_tick=%u",
+                 "on-screen note counter logs the next moving group kind and tick");
+  ok &= contains(highway_renderer_c,
+                 "next_gems=%dnext_lanes=%d-%d",
+                 "on-screen note counter logs the next moving group gem count and lane span");
+  ok &= contains(highway_renderer_c,
+                 "next_tag=%d\\n\"",
+                 "on-screen note counter logs whether the projected next-note tag is visible");
+  ok &= contains(highway_renderer_c,
+                 "classify_group(note_index,group_end,last);",
+                 "on-screen note counter classifies crossed groups from chart state");
+  ok &= contains(highway_renderer_c,
+                 "target.kind=\"STANDARD\";",
+                 "on-screen note counter labels standard note-group state");
+  ok &= contains(highway_renderer_c,
+                 "target.kind=\"STAR\";",
+                 "on-screen note counter labels star note-group state");
+  ok &= contains(highway_renderer_c,
+                 "target.kind=\"HOPO\";",
+                 "on-screen note counter labels HOPO note-group state");
+  ok &= contains(highway_renderer_c,
+                 "autoproject_track_point=[&]",
+                 "on-screen note counter can project the next visible note group");
+  ok &= contains(highway_renderer_c,
+                 "next.tag_visible=project_track_point",
+                 "on-screen note counter draws a tag at the next visible note group");
+  ok &= contains(highway_renderer_c,
+                 "format_group_line(tag_line,sizeof(tag_line),\"NEXT\",next);",
+                 "on-screen note counter tag text matches the next note group");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-note-draw]kind=%stick=%ulane=%dy=%.3f\"",
+                 "moving-note draw diagnostics label the rendered note kind and source tick");
+  ok &= contains(highway_renderer_c,
+                 "hopo_tappable=%d",
+                 "moving-note draw diagnostics expose the FoFiX tappable class");
+  ok &= contains(highway_renderer_c,
+                 "std_top=%dhopo_top=%d",
+                 "moving-note draw diagnostics distinguish standard black top cards from HOPO top cards");
+  ok &= contains(highway_renderer_c,
+                 "hopo_fallback_top=%d",
+                 "moving-note draw diagnostics expose when HOPO art has fallen back to the standard top card");
+  ok &= contains(highway_renderer_c,
+                 "star_top=%dstar_black_top=%d",
+                 "moving-note draw diagnostics expose star top-card selection on the note row");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-note-layer]kind=%stick=%ulane=%d\"",
+                 "moving-note layer diagnostics give note-art top-card selection a compact row");
+  ok &= contains(highway_renderer_c,
+                 "\"std=%dhopo=%dhopo_fb=%dstar=%dblack=%d\\n\"",
+                 "moving-note layer diagnostics fit standard HOPO fallback and star top-card flags on one line");
+  ok &= contains(highway_renderer_c,
+                 "constboolstandard_top_draw=!g.star&&!g.hopo&&",
+                 "standard top-card diagnostics stay off for HOPO and star notes");
+  ok &= contains(highway_renderer_c,
+                 "constboolhopo_top_draw=!g.star&&g.hopo&&"
+                 "hopo_mesh_[g.lane].ok;",
+                 "HOPO top-card diagnostics require the lane-specific native HOPO mesh");
+  ok &= contains(highway_renderer_c,
+                 "constboolhopo_fallback_top_draw=!g.star&&g.hopo&&"
+                 "!hopo_mesh_[g.lane].ok&&",
+                 "HOPO fallback diagnostics identify the standard-top fallback path");
+  ok &= contains(highway_renderer_c,
+                 "note_draw_debug_budget_by_kind",
+                 "moving-note draw diagnostics budget rows per rendered kind");
+  ok &= contains(highway_renderer_c,
+                 "kNoteDrawDebugBudgetPerKind",
+                 "moving-note draw diagnostics avoid starving later note kinds in broad captures");
+  ok &= contains(highway_renderer_c,
+                 "constboolstar_base_draw=g.star&&moving_note_star_has_base_",
+                 "moving-note draw diagnostics only report star base as drawn on star notes");
+  ok &= contains(highway_renderer_c,
+                 "constboolstar_top_draw=g.star&&moving_note_star_has_top_",
+                 "moving-note draw diagnostics only report star top as drawn on star notes");
+  ok &= contains(highway_renderer_c,
+                 "\"[highway-star-layer]tick=%ulane=%dbase=%d\"",
+                 "moving-note draw diagnostics expose a compact star-layer row");
+  ok &= contains(highway_renderer_c,
+                 "\"lane_mesh=%doverlay=%dtop=%dblack_top=%d\"",
+                 "moving-note draw diagnostics label all source-backed star sublayers and whether the authored black top is selected");
+  ok &= contains(highway_renderer_c,
+                 "\"anim=%dblend=%u,%u,%u,%utex=%s,%s,%s,%s\\n\"",
+                 "star-layer diagnostics report the native material blend and texture stack");
+  ok &= contains(highway_renderer_c,
+                 "constboolstar_top_is_black=star_top==&star_black_top_mesh_&&"
+                 "star_black_top_mesh_.ok;",
+                 "star-layer diagnostics compare the selected top against the authored black top mesh");
+  ok &= contains(highway_renderer_c,
+                 "gems=%d",
+                 "visible-note diagnostics report same-tick group gem counts");
+  ok &= contains(highway_renderer_c,
+                 "tick=%u",
+                 "visible-note diagnostics report the source chart tick");
+  ok &= contains(highway_renderer_c,
+                 "group_star_power=group_star_power||notes[i].star_power;",
+                 "star-note art is promoted across the visible note group");
+  ok &= absent(highway_renderer_c,
+               "n.star_power,n.is_hopo",
+               "moving-note renderer keeps star promotion separate from per-gem HOPO art");
+  ok &= contains(highway_renderer_c,
+                 "draw_note_layer(gem_mesh_[g.lane],true);",
+                 "regular notes and HOPO fallback draw the native gem body from the note origin");
+  ok &= contains(highway_renderer_c,
+                 "draw_note_layer(gem_top_mesh_,false,false);",
+                 "regular notes draw the whole authored top.mesh child after the gem body");
+  ok &= absent(highway_renderer_c,
+               "draw_note_layer(gem_specular_mesh_[g.lane],false,false);",
+               "regular and HOPO moving notes do not invent a non-group specular layer");
+  ok &= contains(highway_renderer_c,
+                 "if(moving_note_standard_has_glow_&&gem_glow_mesh_.ok){",
+                 "regular and HOPO note glow is not automatic moving-note geometry");
+  ok &= contains(highway_renderer_c,
+                 "constautomesh_half_x=[](constRuntimeMesh&mesh,"
+                 "floatfallback){returnmesh.ok?std::max(0.001f,"
+                 "(mesh.max_x-mesh.min_x)*0.5f):fallback;};",
+                 "highway fallback note overlays derive width from native mesh bounds");
+  ok &= contains(highway_renderer_c,
+                 "constautomesh_half_y=[](constRuntimeMesh&mesh,"
+                 "floatfallback){returnmesh.ok?std::max(0.001f,"
+                 "(mesh.max_y-mesh.min_y)*0.5f):fallback;};",
+                 "highway fallback note overlays derive depth from native mesh bounds");
+  ok &= absent(highway_renderer_c,
+               "gem_shadow.tex",
+               "moving notes no longer draw the old flat shadow sprite");
+  ok &= absent(highway_renderer_c,
+               "GHOGX_DISABLE_HIGHWAY_GEM_SHADOWS",
+               "moving notes do not keep a sprite-shadow diagnostic path");
+  ok &= absent(highway_renderer_c,
+               "if(!drew_native){IDirect3DTexture9*gt=",
+               "moving notes are mesh-only and do not fall back to flat texture sprites");
+  ok &= absent(highway_renderer_c,
+               "stargem.tex",
+               "moving star notes do not request the old flat fallback texture");
+  ok &= absent(highway_renderer_c,
+               "flat_quad(q,x,g.y,kGemZ,lane_gem_half_x(g.lane),"
+               "lane_gem_half_y(g.lane),tint);",
+               "moving notes must not render fallback sprite quads");
+  ok &= contains(highway_renderer_h_c,
+                 "draw_authored_runtime_mesh_scaled(",
+                 "highway renderer can scale source-origin feedback meshes");
+  ok &= contains(highway_renderer_c,
+                 "draw_authored_runtime_mesh_scaled("
+                 "mesh,lane_x(lane),kStrikeY,",
+                 "miss feedback uses authored mesh origin at the strikeline");
+  ok &= absent(highway_renderer_c,
+               "constfloatmiss_half_y=mesh_half_y(miss_mesh_,",
+               "miss feedback must not bbox-center the authored source mesh above the strikeline");
+  ok &= contains(highway_renderer_c,
+                 "constfloatsz_x=lane_gem_half_x(lane)*(1.5f+0.9f*f);",
+                 "flat hit-flame fallback width follows native gem bounds");
+  ok &= contains(highway_renderer_c,
+                 "constfloatsz_y=lane_gem_half_y(lane)*(1.5f+0.9f*f);",
+                 "flat hit-flame fallback depth follows native gem bounds");
+  ok &= contains(highway_renderer_c,
+                 "authored_origin=1",
+                 "hit feedback diagnostics prove native flame meshes keep authored source placement");
+  ok &= contains(highway_renderer_c,
+                 "draw_authored_runtime_mesh_transformed(mesh,lane_x(lane),"
+                 "kStrikeY,tint.color,transform,true,0.0f,"
+                 "!tint.color_anim_used);",
+                 "native hit flames draw from their authored smash view origin with source animation");
+  ok &= absent(highway_renderer_c,
+               "draw_centered_runtime_mesh_scaled(mesh,lane_x(lane),"
+               "kStrikeY,D3DCOLOR_ARGB(alpha,255,255,255),",
+               "native hit flames must not discard their authored local offset by bbox-centering");
   ok &= contains(highway_renderer_c,
                  "if(bonus_highway_active&&bonus_gem_mesh_.ok){",
                  "active star power swaps visible notes to the native bonus gem mesh");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh(bonus_spark1_mesh_,x,g.y,tint);",
-                 "active star power layers the first native bonus sparkle mesh");
+                 "draw_note_layer(bonus_spark1_mesh_,false,false);",
+                 "active star power layers the first native bonus sparkle mesh from its authored origin");
   ok &= contains(highway_renderer_c,
-                 "draw_centered_runtime_mesh(bonus_spark2_mesh_,x,g.y,tint);",
-                 "active star power layers the second native bonus sparkle mesh");
+                 "draw_note_layer(bonus_spark2_mesh_,false,false);",
+                 "active star power layers the second native bonus sparkle mesh from its authored origin");
   ok &= contains(highway_renderer_c,
                  "draw_impl(song_time,chart,difficulty,fret_held_mask,hit_flash,"
                  "lookahead_sec,false,consumed_notes,active_sustains,"
-                 "star_power_active,star_collect_flash,miss_flash,"
-                 "combo_multiplier,bad_feedback_flash,surface_flash);",
+                 "star_power_active,whammy_active,star_collect_flash,miss_flash,"
+                 "star_miss_flash,"
+                 "combo_multiplier,bad_feedback_flash,rock_fill,star_power_flash,"
+                 "surface_flash);",
                  "highway draw_over_scene preserves the already-rendered 3D venue");
   ok &= contains(highway_renderer_c,
-                 "constfloatauthored_lead=(kTopY-kStrikeY)/speed;",
+                 "Mat4proj=Mat4::perspective_lh(kCamFov,aspect,cam_near_,"
+                 "cam_far_);",
+                 "highway projection uses the authored runtime near/far planes");
+  ok &= contains(highway_renderer_c,
+                 "constfloatauthored_lead=(top_y_-kStrikeY)/speed;",
                  "highway preserves the authored board-depth lead window");
   ok &= contains(highway_renderer_c,
                  "constfloatlead=std::min(authored_lead,"
@@ -992,10 +2470,12 @@ int main() {
                  "playable highway rendering is driven by live FoFiX sustain tails");
   ok &= contains(gameplay_c,
                  "&active_session_sustains_,star_power_.active,"
-                 "star_collect_flash_,miss_flash_,multiplier_,"
-                 "failed_?1.0f:bad_highway_flash_,"
-                 "multiplier_surface_flash_);",
-                 "playable highway rendering is driven by live FoFiX star-power miss multiplier bad-feedback and surface-flash state");
+                 "highway_whammy_active,"
+                 "star_collect_flash_,miss_flash_,star_miss_flash_,multiplier_,"
+                 "bad_highway_flash_,"
+                 "fofix_rock_fill(rock_),"
+                 "star_power_highway_flash_,multiplier_surface_flash_);",
+                 "playable highway rendering is driven by live FoFiX star-power whammy miss multiplier bad-feedback rock star-event and surface-flash state");
   ok &= contains(gameplay_h_c,
                  "floatstar_collect_flash_[5]={};",
                  "live gameplay stores native star-collect hit-flame intensity");
@@ -1003,19 +2483,36 @@ int main() {
                  "floatmiss_flash_[5]={};",
                  "live gameplay stores native miss feedback intensity");
   ok &= contains(gameplay_h_c,
+                 "floatstar_miss_flash_[5]={};",
+                 "live gameplay stores native star-miss feedback intensity");
+  ok &= contains(gameplay_h_c,
                  "floatbad_highway_flash_=0.0f;",
                  "live gameplay stores native whole-track bad feedback intensity");
   ok &= contains(gameplay_h_c,
+                 "floatstar_power_highway_flash_=0.0f;",
+                 "live gameplay stores native whole-track star-power event pulse intensity");
+  ok &= contains(gameplay_h_c,
                  "floatmultiplier_surface_flash_=0.0f;",
                  "live gameplay stores native multiplier track-surface flash intensity");
+  ok &= contains(gameplay_c,
+                 "star_power_highway_flash_=std::max("
+                 "star_power_highway_flash_,0.75f);",
+                 "FoFiX star phrase completion triggers native highway star-power pulse");
+  ok &= contains(gameplay_c,
+                 "star_power_highway_flash_=1.0f;",
+                 "FoFiX star-power activation triggers full native highway star-power pulse");
   ok &= contains(gameplay_c,
                  "if(event.multiplier>multiplier_){"
                  "multiplier_surface_flash_=1.0f;}",
                  "FoFiX session multiplier increases trigger native surface flash");
   ok &= contains(gameplay_c,
+                 "star_power_highway_flash_=std::max(0.0f,"
+                 "star_power_highway_flash_-dt*2.6f);",
+                 "native star-power event pulse decays over gameplay frames");
+  ok &= contains(gameplay_c,
                  "multiplier_surface_flash_=std::max(0.0f,"
-                 "multiplier_surface_flash_-dt*4.0f);",
-                 "native multiplier surface flash decays frame-to-frame");
+                 "multiplier_surface_flash_-dt*2.0f);",
+                 "native multiplier surface flash follows the authored 15-frame MatAnim window");
   ok &= contains(gameplay_h_c,
                  "inthit_count_=0;"
                  "intmiss_count_=0;"
@@ -1024,6 +2521,37 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::vector<FoFiXSessionSustain>active_session_sustains_;",
                  "live gameplay stores FoFiX active sustain tails for rendering");
+  ok &= contains(gameplay_h_c,
+                 "std::stringgameplay_session_sustain_log_signature_;",
+                 "live gameplay tracks active-sustain diagnostic state changes");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::stop_audio(){audio_.stop();std::fprintf",
+                 "gameplay exposes a terminal-state audio stop hook");
+  ok &= contains(gameplay_h_c,
+                 "voidstop_audio();",
+                 "gameplay terminal states can stop the song stream");
+  ok &= contains(gameplay_h_c,
+                 "boolsong_started_=false;",
+                 "gameplay tracks song playback start independently from song time");
+  ok &= contains(gameplay_c,
+                 "constboolfirst_tick=(!song_started_&&dt>0.0f);",
+                 "diagnostic song starts can begin audio from a nonzero clock");
+  ok &= contains(gameplay_c,
+                 "if(!deterministic_clock_&&audio_.seek(song_time_))",
+                 "diagnostic song seek also seeks the audible VGS stream");
+  ok &= contains(audio_player_c,
+                 "boolAudioPlayer::seek(doubleseconds)",
+                 "audio player exposes source-backed VGS seeking");
+  ok &= contains(audio_player_c,
+                 "stream.seek(clamped_frame);",
+                 "audio seek uses the VGS stream sample-frame seek");
+  ok &= contains(audio_player_c,
+                 "returnimpl_->base_position_sec+static_cast<double>(st.SamplesPlayed)",
+                 "audio clock reports the seek base plus mixer sample count");
+  ok &= contains(audio_player_c,
+                 "impl_=std::make_unique<Impl>();"
+                 "if(hdr_path.empty()||ark_path.empty())",
+                 "loading a VGS tears down any previous streaming voice first");
   ok &= contains(gameplay_c,
                  "score_=gameplay_session_mirror_->score();",
                  "live gameplay score is adopted from the FoFiX session");
@@ -1046,15 +2574,40 @@ int main() {
                  "gameplay_session_mirror_->copy_active_sustains("
                  "active_session_sustains_);",
                  "live gameplay syncs FoFiX active sustain tails each tick");
+  ok &= contains(gameplay_c,
+                 "current_signature!=gameplay_session_sustain_log_signature_",
+                 "active sustain diagnostics log only when exported sustain state changes");
   ok &= contains(gameplay_session_c,
                  "kFoFiXDigitalWhammyStarPowerPerSecond=0.05*60.0;",
                  "FoFiX whammy star-power gain uses the source digital chunk at a deterministic 60 Hz rate");
   ok &= contains(gameplay_session_c,
                  "FoFiXSessionEventType::StarPowerWhammy",
                  "FoFiX whammy star-power gain emits a native session event");
+  ok &= contains(gameplay_session_c,
+                 "FoFiXSessionEventType::StarPowerDeactivate",
+                 "FoFiX star-power drain emits a native session event when the meter runs out");
+  ok &= contains(gameplay_session_c,
+                 "FoFiXSessionEventType::HopoStrumIgnored",
+                 "FoFiX GH2-strict ignored HOPO strums emit a neutral session event");
+  ok &= contains(gameplay_c,
+                 "caseFoFiXSessionEventType::StarPowerDeactivate:",
+                 "FoFiX star-power drain end is surfaced to native validation logs");
+  ok &= contains(gameplay_c,
+                 "\"star_power_deactivate\"",
+                 "FoFiX star-power deactivate events are labelled in debug logs");
   ok &= contains(gameplay_c,
                  "caseFoFiXSessionEventType::StarPowerWhammy:",
                  "FoFiX whammy star-power events are surfaced to native validation logs");
+  ok &= contains(gameplay_c,
+                 "caseFoFiXSessionEventType::HopoStrumIgnored:",
+                 "FoFiX GH2-strict ignored HOPO strums are surfaced to native validation logs");
+  ok &= contains(gameplay_c,
+                 "\"hopo_strum_ignored\"",
+                 "FoFiX GH2-strict ignored HOPO strums are labelled in debug logs");
+  ok &= contains(gameplay_c,
+                 "star_power_highway_flash_=std::max("
+                 "star_power_highway_flash_,0.35f);",
+                 "FoFiX whammy star-power gain triggers a native highway star-power pulse");
   ok &= contains(gameplay_c,
                  "failed_=gameplay_session_mirror_->failed();",
                  "live fail state is adopted from the FoFiX session");
@@ -1068,6 +2621,9 @@ int main() {
                  "autosource_group_has_star_power=",
                  "FoFiX hit events derive star-collect presentation from source chart groups");
   ok &= contains(gameplay_c,
+                 "autosource_group_mask=",
+                 "FoFiX phrase-miss presentation recovers source lanes from chart groups");
+  ok &= contains(gameplay_c,
                  "constboolstar_collect=source_group_has_star_power(event);",
                  "FoFiX hit events mark star-note source groups for native presentation");
   ok &= contains(gameplay_c,
@@ -1077,19 +2633,67 @@ int main() {
                  "if(star_collect)star_collect_flash_[lane]=1.0f;",
                  "FoFiX star-note hit events drive native star-collect flames");
   ok &= contains(gameplay_c,
+                 "constboolstar_miss=source_group_has_star_power(event);",
+                 "FoFiX miss events derive star-miss presentation from source chart groups");
+  ok &= contains(gameplay_c,
                  "miss_flash_[lane]=1.0f;",
                  "FoFiX miss and overstrum events drive native miss feedback");
   ok &= contains(gameplay_c,
+                 "if(star_miss)star_miss_flash_[lane]=1.0f;",
+                 "FoFiX star-note miss events drive native star-miss feedback");
+  ok &= contains(gameplay_c,
+                 "caseFoFiXSessionEventType::StarPhraseMiss:{"
+                 "constuint32_tphrase_mask=source_group_mask(event);",
+                 "FoFiX star phrase miss events recover their source lane mask");
+  ok &= contains(gameplay_c,
+                 "miss_flash_[lane]=std::max(miss_flash_[lane],0.75f);"
+                 "star_miss_flash_[lane]=1.0f;",
+                 "FoFiX star phrase miss events pulse native star-miss highway art");
+  ok &= contains(gameplay_c,
                  "caseFoFiXSessionEventType::Overstrum:"
+                 "if(diagnostic_autoplay_){"
+                 "std::fprintf(stderr,"
+                 "\"[gameplay]diagnosticautoplaysuppressedoverstrum"
+                 "mask=0x%02x\\n\",event.mask&0x1fu);break;}"
                  "miss_flash_mask_|=(event.mask&0x1fu);"
                  "for(intlane=0;lane<5;++lane){",
-                 "FoFiX overstrum events drive native miss-lane feedback");
+                 "FoFiX overstrum events drive native miss-lane feedback outside diagnostic autoplay");
   ok &= contains(gameplay_c,
                  "caseFoFiXSessionEventType::Miss:"
                  "mark_source_group_consumed(event);"
+                 "if(diagnostic_autoplay_){"
+                 "std::fprintf(stderr,"
+                 "\"[gameplay]diagnosticautoplaysuppressedmisspresentation"
+                 "tick=%umask=0x%02x\\n\",event.source_tick,event.mask&0x1fu);"
+                 "break;}"
+                 "{constboolstar_miss=source_group_has_star_power(event);"
                  "miss_flash_mask_|=(event.mask&0x1fu);"
                  "for(intlane=0;lane<5;++lane){",
-                 "FoFiX miss events drive bad native feedback and note consumption");
+                 "FoFiX miss events drive bad native feedback outside diagnostic autoplay");
+  ok &= contains(gameplay_c,
+                 "if(!diagnostic_autoplay_&&"
+                 "(bad_gameplay_feedback_this_frame||miss_flash_mask_!=0)){"
+                 "bad_highway_flash_=1.0f;",
+                 "diagnostic autoplay does not contaminate highway reference frames with bad feedback");
+  ok &= contains(gameplay_h_c,
+                 "voidset_diagnostic_character_override("
+                 "conststd::string&character)",
+                 "diagnostic character override stays an explicit gameplay test hook");
+  ok &= contains(gameplay_h_c,
+                 "std::stringdiagnostic_character_override_;",
+                 "diagnostic character override is scoped to gameplay validation");
+  ok &= contains(gameplay_c,
+                 "if(!diagnostic_character_override_.empty()){",
+                 "diagnostic character override is applied only after a songs.dtb rig is resolved");
+  ok &= contains(gameplay_c,
+                 "quickplay_rig_->character_outfit="
+                 "diagnostic_character_override_;",
+                 "diagnostic character override feeds character and highway-surface loading");
+  ok &= appears_before(gameplay_c,
+                       "if(!diagnostic_character_override_.empty()){",
+                       "highway_surface_ref_=ghogx::asset::"
+                       "resolve_track_surface_bitmap_path(",
+                       "diagnostic character override runs before highway surface resolution");
   ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_venue_override(conststd::string&venue)",
                  "diagnostic venue override stays an explicit gameplay test hook");
@@ -1316,10 +2920,11 @@ int main() {
                  "boolbad_gameplay_feedback_this_frame=false;",
                  "runtime tracks bad gameplay feedback separately from lane miss mask");
   ok &= contains(gameplay_c,
-                 "if(bad_gameplay_feedback_this_frame||miss_flash_mask_!=0){"
+                 "if(!diagnostic_autoplay_&&"
+                 "(bad_gameplay_feedback_this_frame||miss_flash_mask_!=0)){"
                  "bad_highway_flash_=1.0f;"
                  "apply_venue_event(\"excitement_bad\");}",
-                 "empty overstrums can drive bad venue and highway feedback without fake lane bits");
+                 "empty overstrums can drive bad venue and highway feedback outside diagnostic autoplay");
   ok &= contains(gameplay_c,
                  "++overstrum_count_;"
                  "miss_flash_mask_|=(fret_mask&0x1fu);",
@@ -2386,12 +3991,17 @@ int main() {
                  "\"[world]lightingtransitiontarget:",
                  "lighting transition log exposes stateful fade validation");
   ok &= contains(gameplay_c,
+                 "constboollate_lighting_overlay=late_lighting_overlay_enabled();"
                  "update_lighting_spotlight_renderer();"
                  "update_worldcrowd_actor_lighting();"
                  "draw_worldcrowd_actor_runtime(world_->camera());"
-                 "worldcrowd_drawn=true;"
-                 "lighting_->draw_over_scene(world_->camera());",
-                 "lighting renderer samples transition before the crowd and lighting overlay draw");
+                 "worldcrowd_drawn=true;",
+                 "lighting renderer samples transition before the crowd and late overlay draw");
+  ok &= contains(gameplay_c,
+                 "boollate_lighting_overlay_enabled(){"
+                 "returnenv_value(\"GHOGX_DISABLE_LATE_LIGHTING_OVERLAY\")"
+                 "==nullptr;}",
+                 "lighting overlay defaults to after-band composition with an explicit A/B disable");
   ok &= contains(gameplay_c,
                  "fade_seconds=%.3f",
                  "lighting keyframe log includes transition timing evidence");
@@ -2517,8 +4127,11 @@ int main() {
                  "env.range=read_f32_at(body,base+0x2f);",
                  "Environ decoder uses dynamic range offset");
   ok &= contains(milo_scene_cpp_c,
-                 "group.children=group_child_refs(b,&group.environment_ref);",
+                 "group.children=group_child_refs(body,&group.environment_ref);",
                  "Group decoder preserves authored Environ refs");
+  ok &= contains(milo_scene_cpp_c,
+                 "group.has_transform=true;",
+                 "Group decoder preserves authored view transforms");
   ok &= contains(milo_scene_cpp_c,
                  "m.use_environ=body[flag_pos]!=0;",
                  "Mat decoder preserves use_environ flag");
@@ -2931,6 +4544,35 @@ int main() {
                  "std::unordered_map<std::string,CameraTarget>camera_targets;",
                  "camera target map stores transforms instead of points");
   ok &= contains(gameplay_c,
+                 "autoprop_world=perf.renderer->attached_prop_world(subpart);",
+                 "camera target refs can resolve attached prop objects");
+  ok &= contains(gameplay_c,
+                 "add_prop_camera_targets(camera_keys_);",
+                 "intro camera target refs include attached prop objects");
+  ok &= contains(gameplay_c,
+                 "add_prop_camera_targets(regular_camera_keys_);",
+                 "regular camera target refs include attached prop objects");
+  ok &= contains(attached_prop_world_c,
+                 "for(constauto&mesh:impl.prop_scene.meshes){"
+                 "if(!mesh.decoded||!matches(mesh.name))continue;"
+                 "matched_object=mesh.name;matched_kind=\"mesh\";break;}",
+                 "attached prop camera targets prefer decoded mesh objects");
+  ok &= contains(attached_prop_world_c,
+                 "for(constauto&trans:impl.prop_scene.transes){"
+                 "if(!matches(trans.name))continue;"
+                 "matched_object=trans.name;matched_kind=\"trans\";break;}",
+                 "attached prop camera targets can resolve authored Trans anchors");
+  ok &= contains(attached_prop_world_c,
+                 "if(!matched_object)returnstd::nullopt;",
+                 "missing attached prop targets remain opt-in and non-fatal");
+  ok &= contains(attached_prop_world_c,
+                 "constautoprop_to_attach=mul16("
+                 "affine_inverse(prop_anchor_world),attach_world);",
+                 "attached prop targets use the decoded prop-to-character basis");
+  ok &= contains(attached_prop_world_c,
+                 "scene_object_world(impl.prop_scene,*matched_object)",
+                 "attached prop targets resolve through shared Scene object world chains");
+  ok &= contains(gameplay_c,
                  "std::optional<CameraTarget>camera_parent_for_key(",
                  "camera runtime resolves source from CamShot parent refs");
   ok &= contains(gameplay_c,
@@ -3298,6 +4940,9 @@ int main() {
                  "std::stringactive_group;",
                  "WorldCrowd actor runtime tracks the active DTA play_group");
   ok &= contains(gameplay_h_c,
+                 "std::stringactive_worldcrowd_lighter_group_;",
+                 "WorldCrowd lighter cue state tracks authored crowd play_group override");
+  ok &= contains(gameplay_h_c,
                  "floatfullness_fraction=1.0f;",
                  "WorldCrowd actor runtime tracks DTA set_fullness density");
   ok &= contains(gameplay_c,
@@ -3306,6 +4951,13 @@ int main() {
   ok &= contains(gameplay_c,
                  "worldcrowd_clip_group_for_event(",
                  "WorldCrowd runtime maps native excitement to DTA crowd play_group names");
+  ok &= contains(gameplay_c,
+                 "lighter_group==\"lighter_slow\"||"
+                 "lighter_group==\"lighter_fast\"",
+                 "WorldCrowd runtime maps authored lighter cues to DTA crowd play_group names");
+  ok &= contains(gameplay_c,
+                 "venue_excitement_level(venue_event)>=3",
+                 "WorldCrowd lighter play_group follows crowd_update Great/Peak lighter fraction gate");
   ok &= contains(gameplay_c,
                  "worldcrowd_fullness_for_event(",
                  "WorldCrowd runtime maps native excitement to DTA set_fullness fractions");
@@ -3318,6 +4970,21 @@ int main() {
   ok &= contains(draw_worldcrowd_runtime_c,
                  "runtime.placement_worlds,eye,runtime.fullness_fraction",
                  "WorldCrowd draw evaluates DTA fullness against the active camera eye");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "if(venue_camera_hide_crowd_){",
+                 "3D WorldCrowd actors honor authored CamShot hide_crowd visibility");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "hidden_camera=1",
+                 "WorldCrowd draw diagnostics expose camera-hidden actor crowds");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "hidden_camera=0",
+                 "WorldCrowd draw diagnostics expose visible actor crowds");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "active_group_summary",
+                 "WorldCrowd draw diagnostics summarize active actor play_groups");
+  ok &= contains(draw_worldcrowd_runtime_c,
+                 "groups=%s",
+                 "WorldCrowd draw diagnostics stamp active actor play_group counts");
   ok &= contains(gameplay_c,
                  "venue_camera_crowd_face_camera_?worldcrowd_face_camera_source_world("
                  "placement_world,camera_ref):placement_world",
@@ -3332,6 +4999,9 @@ int main() {
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "runtime.clips_by_group=std::move(clips_by_group);",
                  "WorldCrowd runtime stores decoded play_group clips after load");
+  ok &= contains(rebuild_worldcrowd_runtime_c,
+                 "active_venue_event_,active_worldcrowd_lighter_group_",
+                 "WorldCrowd runtime rebuild honors an active authored lighter play_group override");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "runtime.fullness_fraction=worldcrowd_fullness_for_event("
                  "active_venue_event_);",
@@ -3356,6 +5026,20 @@ int main() {
   ok &= contains(update_worldcrowd_runtime_c,
                  "runtime.clips_by_group.find(desired_group)",
                  "WorldCrowd runtime switches authored play_group clips when excitement changes");
+  ok &= contains(update_worldcrowd_runtime_c,
+                 "active_venue_event_,active_worldcrowd_lighter_group_",
+                 "WorldCrowd runtime switches authored play_group clips when lighter cues change");
+  ok &= appears_before(gameplay_c,
+                       "active_worldcrowd_lighter_group_=ev.text=="
+                       "\"[crowd_lighters_slow]\"?\"lighter_slow\":"
+                       "\"lighter_fast\";",
+                       "update_worldcrowd_actor_runtime(static_cast<float>(dt));",
+                       "WorldCrowd actor update consumes authored lighter-on cue before drawing");
+  ok &= appears_before(gameplay_c,
+                       "active_worldcrowd_lighter_group_.clear();"
+                       "cue_forced_camera=true;",
+                       "update_worldcrowd_actor_runtime(static_cast<float>(dt));",
+                       "WorldCrowd actor update consumes authored lighter-off cue before drawing");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "use_area_local_basis?area_local_world:placement_world",
                  "WorldCrowd runtime can fall back to raw placements as an explicit diagnostic basis");
@@ -3380,6 +5064,9 @@ int main() {
   ok &= contains(char_renderer_c,
                  "material->color[0]*impl.color_mod[0]",
                  "character renderer applies color modulation to material diffuse colors");
+  ok &= contains(char_renderer_c,
+                 "color_byte(v.r*impl.color_mod[0])",
+                 "attached performer props inherit the active venue-light modulation");
   ok &= contains(char_renderer_c,
                  "D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_COLOR1",
                  "character renderer routes vertex diffuse modulation through fixed-function lighting");
@@ -3410,21 +5097,57 @@ int main() {
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "runtime.renderer->set_use_scene_lighting(true);",
                  "WorldCrowd actors inherit venue lighting instead of standalone viewer lighting");
+  ok &= contains(gameplay_h_c,
+                 "voidupdate_performer_lighting("
+                 "constLightingPreset*preset=nullptr,"
+                 "constLightingPreset::Keyframe*keyframe=nullptr);",
+                 "performer lighting can be refreshed from an active source keyframe");
+  ok &= contains(gameplay_h_c,
+                 "std::stringlast_performer_lighting_key_;",
+                 "performer lighting diagnostics suppress duplicate source states");
+  ok &= contains(gameplay_c,
+                 "performer_crowd_lighting_mod_for(",
+                 "performer and crowd lighting share one source-backed modulation helper");
+  ok &= contains(gameplay_c,
+                 "boolperformer_scene_lighting_enabled(){"
+                 "returnenv_value(\"GHOGX_DISABLE_PERFORMER_SCENE_LIGHTING\")"
+                 "==nullptr;}",
+                 "performer gameplay composites default to scene-lighting mode with an explicit A/B disable");
+  ok &= contains(gameplay_c,
+                 "perf.renderer->set_use_scene_lighting(scene_lighting);",
+                 "performers inherit gameplay scene lighting instead of standalone viewer lights");
+  ok &= contains(gameplay_c,
+                 "\"[world]performerscenelighting:role=%s\"",
+                 "performer scene-lighting setup emits a compact proof row");
   ok &= contains(update_worldcrowd_lighting_c,
-                 "is_performer_or_crowd_lit_ref(ref)||"
-                 "is_performer_or_crowd_env_ref(ref)",
-                 "WorldCrowd lighting reads active symbolic performer/crowd rig refs");
+                 "performer_crowd_lighting_mod_for("
+                 "preset,keyframe,active_venue_event_",
+                 "WorldCrowd lighting uses the shared performer/crowd source modulation");
   ok &= contains(update_worldcrowd_lighting_c,
-                 "venue_excitement_level(active_venue_event_)",
-                 "WorldCrowd lighting follows the authored excitement state");
-  ok &= contains(update_worldcrowd_lighting_c,
-                 "runtime.renderer->set_color_modulation(mod_r,mod_g,mod_b,"
+                 "runtime.renderer->set_color_modulation(mod.r,mod.g,mod.b,"
                  "1.0f);",
                  "WorldCrowd actors receive the active symbolic lighting color");
   ok &= contains(update_worldcrowd_lighting_c,
-                 "has_tone(\"bad\")||has_tone(\"grim\")||"
-                 "has_low_symbolic_rig",
-                 "WorldCrowd lighting tints decoded low/bad symbolic rigs from PS2 labels");
+                 "\"[world]WorldCrowdlighting:preset=%skeyframe=%s\"",
+                 "WorldCrowd actor lighting emits compact source-backed proof rows");
+  ok &= contains(update_performer_lighting_c,
+                 "performer_crowd_lighting_mod_for("
+                 "preset,keyframe,active_venue_event_",
+                 "performer lighting uses the shared performer/crowd source modulation");
+  ok &= contains(update_performer_lighting_c,
+                 "perf.renderer->set_color_modulation(mod.r,mod.g,mod.b,"
+                 "1.0f);",
+                 "performer lighting modulates decoded character materials");
+  ok &= contains(update_performer_lighting_c,
+                 "\"[world]performerlighting:preset=%skeyframe=%s\"",
+                 "performer lighting emits compact source-backed proof rows");
+  ok &= appears_before(gameplay_c,
+                       "update_performer_lighting();",
+                       "perf.renderer->draw_over_scene(world_->camera());",
+                       "performer lighting is refreshed before the band is drawn");
+  ok &= contains(update_worldcrowd_lighting_c,
+                 "mod.low?1:0",
+                 "WorldCrowd lighting reports decoded low/bad symbolic rig state");
   ok &= contains(gameplay_c,
                  "lighting_spot_exposure_for_event(active_venue_event_);",
                  "lighting spot overlays are exposure-scaled by the authored venue excitement state");
@@ -3468,6 +5191,19 @@ int main() {
                  "update_worldcrowd_actor_lighting();"
                  "draw_worldcrowd_actor_runtime(world_->camera());",
                  "WorldCrowd actors draw after active lighting preset/keyframe selection and before the lighting overlay");
+  ok &= appears_before(gameplay_c,
+                       "if(drum_kit_){drum_kit_->draw_over_scene("
+                       "world_->camera());}",
+                       "lighting_->draw_over_scene(world_->camera());"
+                       "if(debug_venue_filters_enabled()){std::fprintf(stderr,"
+                       "\"[world]lightingoverlaycomposite:order=after_band",
+                       "drum kit draws before the late lighting overlay");
+  ok &= appears_before(gameplay_c,
+                       "perf.renderer->draw_over_scene(world_->camera());",
+                       "lighting_->draw_over_scene(world_->camera());"
+                       "if(debug_venue_filters_enabled()){std::fprintf(stderr,"
+                       "\"[world]lightingoverlaycomposite:order=after_band",
+                       "performers draw before the late lighting overlay");
   ok &= contains(draw_worldcrowd_runtime_c,
                  "runtime.renderer->draw_over_scene(cam);",
                  "WorldCrowd runtime composites decoded actor geometry into the venue");
@@ -3844,8 +5580,8 @@ int main() {
                  "evaluation.incomplete_writer_builder_pair_count==0",
                  "shared trace-complete writer bridge gate refuses mixed or incomplete writer-builder pair evidence");
   ok &= contains(gameplay_c,
-                 "GHOGX_CAMERA_USE_TRACE_COMPLETE_WRITER_BRIDGE",
-                 "trace-complete writer bridge submission requires an explicit native validation opt-in");
+                 "GHOGX_CAMERA_DISABLE_TRACE_COMPLETE_WRITER_BRIDGE",
+                 "trace-complete writer bridge submission is default-on only behind the shared evidence gate and keeps an explicit A/B disable");
   ok &= contains(gameplay_c,
                  "ps2_writer_bridge_builder_projection(",
                  "accepted PS2 result-builder projection rows can feed the generic writer bridge");
@@ -4509,11 +6245,24 @@ int main() {
                  "&venue_camera_target_worlds_",
                  "regular and intro cameras pass diagnostic venue source-parent targets");
   ok &= contains(gameplay_h_c,
+                 "boolvenue_camera_hide_crowd_=false;",
+                 "camera hide_crowd state is tracked for skinned actor crowds");
+  ok &= contains(gameplay_h_c,
                  "boolvenue_camera_crowd_face_camera_=false;",
                  "camera-facing crowd state is tracked separately from hidden meshes");
   ok &= contains(gameplay_c,
-                 "key.crowd_face_camera&&!venue_crowd_meshes_.empty()",
-                 "crowd_face_camera is gated by decoded crowd meshes");
+                 "boolnext_hide_crowd=key.hide_crowd;",
+                 "camera visibility tracks authored hide_crowd for skinned WorldCrowd actors");
+  ok &= contains(gameplay_c,
+                 "next_hide_crowd=true;"
+                 "next_hidden.insert(venue_crowd_meshes_.begin(),",
+                 "CamShot hide_list crowd refs also hide skinned WorldCrowd actors");
+  ok &= contains(gameplay_c,
+                 "venue_camera_hide_crowd_=next_hide_crowd;",
+                 "camera hide_crowd state is committed beside hidden mesh state");
+  ok &= contains(gameplay_c,
+                 "constboolnext_face_camera=key.crowd_face_camera;",
+                 "crowd_face_camera state follows the authored CamShot for skinned actors");
   ok &= contains(gameplay_c,
                  "world_->set_face_camera_meshes(venue_camera_crowd_face_camera_",
                  "camera-facing crowd meshes are sent to the venue renderer");
@@ -4571,18 +6320,80 @@ int main() {
                  "debug_gameplay_camera_enabled()",
                  "manual gameplay camera diagnostics bypass the backing camera");
   ok &= contains(gameplay_c,
+                 "booldebug_backing_camera_enabled(){"
+                 "returnenv_value(\"GHOGX_DEBUG_BACKING_CAMERA\")!=nullptr;}",
+                 "backing camera has a non-invasive validation diagnostic gate");
+  ok &= contains(gameplay_c,
                  "apply_gameplay_backing_camera(world_.get(),camera_targets,"
-                 "!diagnostic_camera_shot_.empty());",
+                 "song_time_,!diagnostic_camera_shot_.empty());",
                  "playable composite view is applied after authored camera metadata updates");
   ok &= contains(gameplay_c,
                  "camera_target_id(prefix,\"bone_spine1.mesh\")",
                  "gameplay backing camera frames performer spine targets");
+  ok &= contains(gameplay_c,
+                 "primary_focus=target_point(camera_target_id(\"guitarist0\","
+                 "\"bone_spine1.mesh\"));",
+                 "gameplay backing camera anchors on the visible guitarist rig");
+  ok &= contains(gameplay_c,
+                 "focus[0]*0.70f+center[0]*0.30f",
+                 "gameplay backing camera blends guitarist focus with the band center");
+  ok &= contains(gameplay_c,
+                 "cam.distance=std::clamp(span*0.65f,175.0f,320.0f);",
+                 "gameplay backing camera keeps the 3D band readable behind the highway");
+  ok &= contains(gameplay_c,
+                 "\"[world]gameplaybackingcamera:performers=%zu\"",
+                 "backing camera diagnostics expose the live camera frame");
+  ok &= contains(gameplay_c,
+                 "env_float(\"GHOGX_DEBUG_BACKING_CAMERA_STRIDE\",0.50f)",
+                 "backing camera diagnostics are rate-limited during captures");
   ok &= contains(gameplay_h_c,
                  "boolworldcrowd_actor_runtime_enabled()const;",
                  "WorldCrowd actor runtime has one opt-in policy gate");
   ok &= contains(gameplay_c,
+                 "booldebug_worldcrowd_enabled(){"
+                 "returnenv_value(\"GHOGX_DEBUG_WORLDCROWD\")!=nullptr;}",
+                 "WorldCrowd draw proof has a compact non-camera debug gate");
+  ok &= contains(gameplay_h_c,
+                 "doublenext_worldcrowd_actor_draw_log_time_=0.0;",
+                 "WorldCrowd draw diagnostics are rate-limited on gameplay time");
+  ok &= contains(gameplay_c,
+                 "env_float(\"GHOGX_DEBUG_WORLDCROWD_STRIDE\",0.50f)",
+                 "WorldCrowd draw diagnostics expose a capture stride");
+  ok &= contains(gameplay_c,
+                 "\"[world]WorldCrowddraw:enabled=1actors=%zu\"",
+                 "WorldCrowd draw diagnostics report live actor count");
+  ok &= contains(gameplay_c,
+                 "placements=%zudrawn=%zu",
+                 "WorldCrowd draw diagnostics report placement and draw counts");
+  ok &= contains(gameplay_c,
+                 "culled_fullness=%zu",
+                 "WorldCrowd draw diagnostics report DTA fullness culling");
+  ok &= contains(gameplay_c,
+                 "culled_near_source=%zu",
+                 "WorldCrowd draw diagnostics report near-camera source culling");
+  ok &= contains(gameplay_c,
+                 "culled_camera=%zu",
+                 "WorldCrowd draw diagnostics report broad camera-cone culling");
+  ok &= contains(gameplay_c,
+                 "GHOGX_DISABLE_WORLDCROWD_CAMERA_CULL",
+                 "WorldCrowd camera-cone cull keeps an explicit A/B disable");
+  ok &= contains(gameplay_c,
+                 "!(cam.result_frame.valid&&"
+                 "cam.result_frame.has_custom_projection)",
+                 "WorldCrowd camera-cone cull avoids custom projection shots");
+  ok &= contains(gameplay_c,
+                 "std::max(10.0f,runtime.visible_bounds_radius+3.0f)",
+                 "WorldCrowd camera-cone cull keeps a broad actor-radius margin");
+  ok &= contains(gameplay_c,
+                 "camera_cross_axis(camera_up,camera_forward)",
+                 "WorldCrowd camera-cone cull derives a camera-space basis");
+  ok &= contains(gameplay_c,
                  "env_value(\"GHOGX_ENABLE_WORLDCROWD_ACTORS\")!=nullptr",
-                 "unfinished WorldCrowd actor rendering remains validation opt-in");
+                 "WorldCrowd actor rendering keeps an explicit validation enable");
+  ok &= contains(gameplay_c,
+                 "env_value(\"GHOGX_DISABLE_NORMAL_WORLDCROWD_ACTORS\")"
+                 "==nullptr",
+                 "normal playable WorldCrowd actors are default-on with an A/B disable");
   ok &= contains(gameplay_c,
                  "if(!worldcrowd_actor_runtime_enabled())return;",
                  "WorldCrowd actor rebuild/update/draw share the same runtime gate");
@@ -4721,6 +6532,22 @@ int main() {
       "elseif(!intro_active&&performer_playing&&perf.active_player.active())",
       "band_jump temporarily supplies the base pose before active/idle fallback");
   ok &= contains(gameplay_c,
+                 "booldebug_performer_sync_enabled(){"
+                 "returnenv_value(\"GHOGX_DEBUG_PERFORMER_SYNC\")!=nullptr;}",
+                 "performer sync has a compact validation diagnostic gate");
+  ok &= contains(gameplay_h_c,
+                 "doublenext_performer_sync_log_time=0.0;",
+                 "performer sync diagnostics are rate-limited per performer");
+  ok &= contains(gameplay_c,
+                 "\"[performer-sync]role=%schar=%st=%.3fplaying=%d\"",
+                 "performer sync rows expose live character playback state");
+  ok &= contains(gameplay_c,
+                 "perf_anim_note_cue.active?perf_anim_note_cue.tick:UINT32_MAX",
+                 "performer sync rows carry the authored fret-hand cue tick");
+  ok &= contains(gameplay_c,
+                 "perf_fret_pos.active?perf_fret_pos.spot_name.c_str():\"-\"",
+                 "performer sync rows expose the active source-backed fret position target");
+  ok &= contains(gameplay_c,
                  "ev.text==\"[crowd_lighters_slow]\"||",
                  "camera director listens for authored crowd lighter on messages");
   ok &= contains(gameplay_c,
@@ -4730,12 +6557,25 @@ int main() {
                  "forced_camera_bars=5;",
                  "crowd lighter camera uses LIGHTER_SHOT_DURATION");
   ok &= contains(gameplay_c,
+                 "active_worldcrowd_lighter_group_=ev.text=="
+                 "\"[crowd_lighters_slow]\"?\"lighter_slow\":"
+                 "\"lighter_fast\";",
+                 "crowd lighter messages select the authored WorldCrowd lighter play_group");
+  ok &= contains(gameplay_c,
+                 "\"crowd_group=%s\\n\"",
+                 "camera script cue diagnostics expose the active WorldCrowd crowd group");
+  ok &= contains(gameplay_c,
                  "ev.text==\"[crowd_lighters_off]\"",
                  "camera director listens for authored crowd lighter off messages");
   ok &= contains(gameplay_c,
-                 "crowd_lighter_on_=false;cue_forced_camera=true;"
-                 "force_camera=true;",
+                 "crowd_lighter_on_=false;"
+                 "active_worldcrowd_lighter_group_.clear();"
+                 "cue_forced_camera=true;force_camera=true;",
                  "crowd_lighters_off mirrors force_pick_shot");
+  ok &= contains(gameplay_c,
+                 "crowd_lighter_on_=false;"
+                 "active_worldcrowd_lighter_group_.clear();",
+                 "crowd_lighters_off clears the authored WorldCrowd lighter play_group");
   ok &= contains(gameplay_c,
                  "}else{cue_forced_camera=excitement>2;"
                  "if(cue_forced_camera){force_camera=true;"
