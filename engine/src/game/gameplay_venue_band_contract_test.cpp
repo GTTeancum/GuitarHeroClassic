@@ -1257,6 +1257,34 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"top=%zucaps=%zunative_fill=%dnative_particles=%d\"",
                  "star-power diagnostics report native particle emission");
+  ok &= contains(hud_renderer_c,
+                 "\"source_layers=amp_inside_bar.mesh,"
+                 "amp_inside_bar_path.mesh,\"",
+                 "star-power diagnostics name the traced source fill and path meshes");
+  ok &= contains(hud_renderer_c,
+                 "\"amp_tube_glow_meter.mesh,amp_tube_glow.mesh,\"",
+                 "star-power diagnostics name the traced source tube glow meshes");
+  ok &= contains(hud_renderer_c,
+                 "\"amp_inside_bar_path.part\"",
+                 "star-power diagnostics name the traced source particle");
+  ok &= contains(hud_renderer_c,
+                 "\"fill_blends=%u,%u,%ulightning_blend=%u"
+                 "particle_blend=%u\"",
+                 "star-power diagnostics report the source material blend stack");
+  ok &= contains(hud_renderer_c,
+                 "\"ready_mesh_blend=%uclip=world_min_to_clip"
+                 "screen=right_to_left\\n\"",
+                 "star-power diagnostics report source ready blend and fill direction");
+  ok &= contains(hud_renderer_c,
+                 "first_quad_blend(native_star_fill_),"
+                 "first_quad_blend(native_star_path_glow_),"
+                 "first_quad_blend(native_star_fill_glow_)",
+                 "star-power diagnostics sample the native fill/path/tube blend modes");
+  ok &= contains(hud_renderer_c,
+                 "first_anim_blend(native_star_lightning_),"
+                 "first_particle_blend(native_star_particles_),"
+                 "first_mesh_anim_blend(native_star_ready_mesh_glow_)",
+                 "star-power diagnostics sample lightning particle and ready mesh blends");
   ok &= absent(hud_renderer_c,
                "argb(155,145,220,255)",
                "star-power native tube-meter glow must not keep the hand-tinted cyan overlay");

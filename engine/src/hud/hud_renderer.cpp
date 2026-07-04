@@ -3641,6 +3641,26 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     drew_native_fill |= drew_native_fill_glow;
   }
 
+  auto first_quad_blend = [](const std::vector<Quad>& layers) {
+    return layers.empty() ? 255u
+                          : static_cast<unsigned>(layers.front().blend);
+  };
+  auto first_anim_blend = [](const std::vector<StarAnimatedQuad>& layers) {
+    return layers.empty()
+        ? 255u
+        : static_cast<unsigned>(layers.front().quad.blend);
+  };
+  auto first_mesh_anim_blend =
+      [](const std::vector<StarMeshAnimatedQuad>& layers) {
+        if (layers.empty() || layers.front().frames.empty()) return 255u;
+        return static_cast<unsigned>(layers.front().frames.front().blend);
+      };
+  auto first_particle_blend =
+      [](const std::vector<StarParticleLayer>& layers) {
+        return layers.empty() ? 255u
+                              : static_cast<unsigned>(layers.front().blend);
+      };
+
   static int star_power_debug_budget = 0;
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER") &&
       star_power_debug_budget < 90) {
@@ -3655,7 +3675,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "front=%zu glass=%zu base=%zu "
         "top=%zu caps=%zu native_fill=%d native_particles=%d "
         "ready_mesh_drawn=%d ready_glow_drawn=%d fill_glow_drawn=%d "
-        "fallback_fill=%d\n",
+        "fallback_fill=%d "
+        "source_layers=amp_inside_bar.mesh,amp_inside_bar_path.mesh,"
+        "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
+        "amp_inside_bar_path.part "
+        "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
+        "ready_mesh_blend=%u clip=world_min_to_clip screen=right_to_left\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
         fill_anim_frame, tube_meter_anim_frame, tube_glow_anim_frame,
         tube_glow_mesh_frame,
@@ -3678,7 +3703,13 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         native_star_top_.size(), native_star_caps_.size(),
         drew_native_fill ? 1 : 0, drew_native_particles ? 1 : 0,
         drew_native_ready_mesh ? 1 : 0, drew_native_ready_glow ? 1 : 0,
-        drew_native_fill_glow ? 1 : 0, 0);
+        drew_native_fill_glow ? 1 : 0, 0,
+        first_quad_blend(native_star_fill_),
+        first_quad_blend(native_star_path_glow_),
+        first_quad_blend(native_star_fill_glow_),
+        first_anim_blend(native_star_lightning_),
+        first_particle_blend(native_star_particles_),
+        first_mesh_anim_blend(native_star_ready_mesh_glow_));
     ++star_power_debug_budget;
   }
 
