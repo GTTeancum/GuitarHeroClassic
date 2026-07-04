@@ -64,7 +64,7 @@ class HudRenderer {
     LayoutRect sp_base = {0.973194f, 0.471120f, 0.053612f, 0.484176f, 0.000000f, 0};
     LayoutRect sp_top = {0.058717f, 0.474064f, 0.117433f, 0.554580f, 0.000000f, 0};
     LayoutRect sp_caps = {0.000000f, 0.000000f, 0.000000f, 0.000000f, 0.000000f, 0};
-    LayoutRect rock_frame = {0.500000f, 0.500000f, 1.000000f, 1.000000f, 0.000000f, 2};
+    LayoutRect rock_frame = {0.500000f, 0.500000f, 1.000000f, 1.000000f, 0.000000f, 0};
     LayoutRect rock_lights = {0.504246f, 0.299074f, 0.853360f, 0.309868f, 0.000000f, 0};
     LayoutRect rock_label = {0.575686f, 0.634160f, 0.750733f, 0.481095f, 0.000000f, 0};
   };

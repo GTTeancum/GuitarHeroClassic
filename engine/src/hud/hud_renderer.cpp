@@ -2847,8 +2847,8 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     if (q.element >= kLayoutTuningCount) return z;
     const LayoutRect* r = layout_rect_by_index(
         const_cast<LayoutTuning&>(layout_tuning_), q.element);
-    // ROCK meter source layering: the label/glow is always lit, the moving
-    // needle crosses in front of it, and the chrome bezel remains the top mask.
+    // ROCK meter source layering follows rock_meter.view's child order for the
+    // meter body; the separate needle view still crosses in front of the word.
     const int source_order_bias =
         q.element == kElemRockNeedle ? 1 : 0;
     return z + source_order_bias + q.sort_bias + (r ? r->z : 0);

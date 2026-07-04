@@ -982,12 +982,20 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zuemitted_lamps=%s",
                  "ROCK meter diagnostics report the individual source curves and emitted lamp");
+  ok &= contains(hud_renderer_h_c,
+                 "LayoutRectrock_frame={0.500000f,0.500000f,"
+                 "1.000000f,1.000000f,0.000000f,0};",
+                 "ROCK frame keeps the traced rock_meter.view order before the ROCK word/front glow");
+  ok &= appears_before(hud_renderer_c,
+                       "if(native_rock_frame_ok_){out.push_back(native_rock_frame_);}",
+                       "if(native_rock_label_ok_){",
+                       "ROCK meter emits frame before hud_rock_2d and hud_rock_light_front like rock_meter.view");
   ok &= contains(hud_renderer_c,
                  "q.element==kElemRockNeedle?1:0;",
                  "ROCK needle is layered in front of the always-lit ROCK word");
   ok &= absent(hud_renderer_c,
                "q.element==kElemRockLabel?3:0",
-               "ROCK label must not sort in front of the needle or chrome bezel");
+               "ROCK label must not use a synthetic sort boost beyond traced group order");
   ok &= contains(hud_renderer_c,
                  "authored_label=%08xauthored_front=%08x",
                  "ROCK meter diagnostics report both visible and authored ROCK word colors");
