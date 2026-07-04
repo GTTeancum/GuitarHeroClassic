@@ -128,6 +128,10 @@ bool debug_venue_filters_enabled() {
     return env_value("GHOGX_DEBUG_VENUE_FILTERS") != nullptr;
 }
 
+bool debug_venue_proxy_enabled() {
+    return env_value("GHOGX_DEBUG_VENUE_PROXY") != nullptr;
+}
+
 bool debug_performer_sync_enabled() {
     return env_value("GHOGX_DEBUG_PERFORMER_SYNC") != nullptr;
 }
@@ -14926,6 +14930,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_environment_colors_.clear();
     venue_environment_frames_.clear();
     active_venue_environment_anims_.clear();
+    next_venue_proxy_draw_log_time_ = 0.0;
     venue_mesh_translation_offsets_.clear();
     venue_mesh_transform_offsets_.clear();
     venue_mesh_position_overrides_.clear();
@@ -16339,6 +16344,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     active_venue_environment_anims_.clear();
     venue_light_colors_.clear();
     active_venue_light_anims_.clear();
+    next_venue_proxy_draw_log_time_ = 0.0;
     last_venue_env_anim_debug_time_ = -1.0;
     last_venue_light_anim_debug_time_ = -1.0;
     venue_active_particle_systems_.clear();
@@ -16736,6 +16742,9 @@ void Gameplay::update_active_venue_anim_filters() {
 void Gameplay::update_venue_proxy_objects() {
     for (auto& [object_name, proxy] : venue_proxy_objects_) {
         if (!proxy.renderer) continue;
+        proxy.renderer->set_environment_color_overrides(
+            venue_environment_colors_);
+        proxy.renderer->set_light_color_overrides(venue_light_colors_);
         if (!proxy.showing) {
             proxy.renderer->set_hidden_meshes(std::unordered_set<std::string>(
                 proxy.all_meshes.begin(), proxy.all_meshes.end()));
@@ -16880,10 +16889,43 @@ void Gameplay::update_venue_proxy_objects() {
 
 void Gameplay::draw_venue_proxy_objects(
     const ghogx::render::OrbitCamera& cam) {
+    const bool debug_proxy = debug_venue_proxy_enabled();
+    bool log_proxy = false;
+    if (debug_proxy) {
+        const float stride =
+            std::max(0.0f, env_float("GHOGX_DEBUG_VENUE_PROXY_STRIDE", 0.50f));
+        if (song_time_ + 1e-5 >= next_venue_proxy_draw_log_time_) {
+            next_venue_proxy_draw_log_time_ =
+                song_time_ + static_cast<double>(stride);
+            log_proxy = true;
+        }
+    }
+
+    size_t drawn = 0;
     for (auto& [object_name, proxy] : venue_proxy_objects_) {
-        (void)object_name;
         if (!proxy.renderer || !proxy.showing) continue;
+        ++drawn;
+        if (log_proxy) {
+            std::fprintf(
+                stderr,
+                "[world] venue proxy draw: name=%s path=%s animating=%d "
+                "meshes=%zu mat_anims=%zu particles=%zu env=%zu lights=%zu "
+                "t=%.3f\n",
+                object_name.c_str(), proxy.milo_path.c_str(),
+                proxy.animating ? 1 : 0, proxy.all_meshes.size(),
+                proxy.mat_anims.size(), proxy.particle_routes.size(),
+                venue_environment_colors_.size(), venue_light_colors_.size(),
+                song_time_);
+        }
         proxy.renderer->draw_over_scene(cam);
+    }
+    if (log_proxy) {
+        std::fprintf(stderr,
+                     "[world] venue proxy draw summary: drawn=%zu proxies=%zu "
+                     "env=%zu lights=%zu t=%.3f\n",
+                     drawn, venue_proxy_objects_.size(),
+                     venue_environment_colors_.size(),
+                     venue_light_colors_.size(), song_time_);
     }
 }
 

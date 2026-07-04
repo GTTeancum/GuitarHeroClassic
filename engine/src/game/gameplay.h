@@ -792,6 +792,7 @@ class Gameplay {
   std::map<std::string, std::vector<std::string>> venue_event_filters_;
   std::map<std::string, std::vector<std::string>> venue_filter_mesh_targets_;
   std::map<std::string, VenueProxyObject> venue_proxy_objects_;
+  double next_venue_proxy_draw_log_time_ = 0.0;
   std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
   std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
   std::map<std::string, VenueScriptHandler> venue_script_handlers_;

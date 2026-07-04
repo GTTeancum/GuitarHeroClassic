@@ -9391,3 +9391,31 @@ Rejected native probe:
 - `singer_facefx_voc_scope_3d_proof_sheet.png` embeds the native gameplay
   frames with the singer/guitarist FaceFX routing evidence stamped below the
   captures.
+
+2026-07-03 RndDir proxy lighting bridge proof:
+- RndDir venue proxy renderers now inherit the active venue EnvAnim and
+  LightAnim color override maps before their visibility/animation draw pass.
+  The main venue renderer already received those maps; this keeps separately
+  rendered proxy effects, such as Big's flashpots, in the same authored venue
+  lighting state instead of leaving them detached from runtime color changes.
+- Added opt-in `GHOGX_DEBUG_VENUE_PROXY=1` rows for live proxy draws. The rows
+  report the proxy object, source MILO, animation state, mesh/material/particle
+  coverage, current EnvAnim/LightAnim override counts, and song time.
+- Contract coverage pins the proxy lighting inheritance calls, opt-in debug
+  gate, diagnostic row shape, and per-gameplay throttle state.
+- Validation: rebuilt `ghogx_app`,
+  `ghogx_gameplay_venue_band_contract_test`, and
+  `ghogx_gameplay_session_test`; both focused tests pass, and `git diff
+  --check` passes.
+- Runtime validation artifact:
+  `engine/out/codex_goal_visuals/20260703_3d_venue_proxy_lighting_verify/`
+  reruns stock PS2 Expert `hangar18` through diagnostic venue `big` with
+  diagnostic `venue_effect`, autoplay, fixed step, and compact venue/proxy
+  diagnostics. The run loads both authored `big_geom_flashpot_PROXY` RndDir
+  objects, starts both overlays from `venue_effect`, logs two live proxy draw
+  rows plus a `drawn=2 proxies=2` summary, and exits cleanly after 90 frames.
+  This stock flashpot route has no active EnvAnim/LightAnim color override maps
+  in the sampled window, so the runtime summary honestly reports
+  `env=0 lights=0` while exercising the bridge path.
+- `venue_proxy_lighting_3d_proof_sheet.png` embeds four native gameplay frames
+  with the flashpot proxy route and draw evidence stamped below the captures.

@@ -190,6 +190,10 @@ int main() {
       gameplay, "Gameplay::update_worldcrowd_actor_lighting"));
   const std::string update_performer_lighting_c = compact(function_body(
       gameplay, "Gameplay::update_performer_lighting"));
+  const std::string update_venue_proxy_objects_c = compact(function_body(
+      gameplay, "Gameplay::update_venue_proxy_objects"));
+  const std::string draw_venue_proxy_objects_c = compact(function_body(
+      gameplay, "Gameplay::draw_venue_proxy_objects"));
   const std::string draw_worldcrowd_runtime_c = compact(function_body(
       gameplay, "Gameplay::draw_worldcrowd_actor_runtime"));
   const std::string attached_prop_world_c = compact(function_body(
@@ -2837,6 +2841,24 @@ int main() {
   ok &= contains(gameplay_c,
                  "load_venue_proxy_objects(hdr_path_,ark_path_,venue_geom,win)",
                  "venue load discovers RndDir proxy objects from the authored MILO");
+  ok &= contains(gameplay_c,
+                 "booldebug_venue_proxy_enabled(){returnenv_value("
+                 "\"GHOGX_DEBUG_VENUE_PROXY\")!=nullptr;}",
+                 "venue proxy draw diagnostics are opt-in");
+  ok &= contains(update_venue_proxy_objects_c,
+                 "proxy.renderer->set_environment_color_overrides("
+                 "venue_environment_colors_);",
+                 "separate RndDir proxy renderers inherit active venue EnvAnim color state");
+  ok &= contains(update_venue_proxy_objects_c,
+                 "proxy.renderer->set_light_color_overrides("
+                 "venue_light_colors_);",
+                 "separate RndDir proxy renderers inherit active venue LightAnim color state");
+  ok &= contains(draw_venue_proxy_objects_c,
+                 "\"[world]venueproxydraw:name=%spath=%sanimating=%d",
+                 "venue proxy draw rows expose per-proxy lighting inheritance proof");
+  ok &= contains(gameplay_h_c,
+                 "doublenext_venue_proxy_draw_log_time_=0.0;",
+                 "venue proxy draw diagnostics are throttled in gameplay state");
   ok &= contains(gameplay_c,
                  "VenueScriptObjectMessage{name,\"start\"}",
                  "RndDir proxy event aliases route to object start messages");
