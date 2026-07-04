@@ -563,6 +563,15 @@ int run_mesh(const Args& a) {
                             vi, v.px, v.py, v.pz, v.u, v.v,
                             v.r, v.g, v.b, v.a);
                     }
+                    const std::size_t face_rows =
+                        std::min<std::size_t>(m.indices.size() / 3, 32);
+                    for (std::size_t fi = 0; fi < face_rows; ++fi) {
+                        const std::size_t ii = fi * 3;
+                        std::printf("      f%-2zu idx=[%u %u %u]\n", fi,
+                                    static_cast<unsigned>(m.indices[ii + 0]),
+                                    static_cast<unsigned>(m.indices[ii + 1]),
+                                    static_cast<unsigned>(m.indices[ii + 2]));
+                    }
                 }
             }
         } else {
