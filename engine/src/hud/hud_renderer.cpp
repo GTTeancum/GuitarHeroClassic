@@ -1348,11 +1348,12 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   auto assign_meter_mesh = [&](const char* name, const MeshBounds& bounds, Quad& out,
                                bool& ok, uint32_t color, bool additive,
                                bool flip_v = false, bool flip_z = false,
-                               uint8_t element = kElemRockFace) {
+                               uint8_t element = kElemRockFace,
+                               bool flip_x = false) {
     ok = false;
     if (const LoadedMesh* mesh = find_mesh(crowd, name)) {
       Quad q = make_slot_mesh(crowd, *mesh, bounds, rock_face_, color, additive,
-                              flip_v, flip_z);
+                              flip_v, flip_z, true, -1.0f, flip_x);
       q.group = kHudGroupRight;
       q.element = element;
       if (q.tex && q.verts.size() >= 3 && q.idx.size() >= 3) {
@@ -1604,15 +1605,15 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     assign_meter_mesh("rock_light_yellow.mesh", rock_bounds,
                       native_rock_light_yellow_base_,
                       native_rock_light_yellow_base_ok_, 0, false, true, true,
-                      kElemRockLights);
+                      kElemRockLights, true);
     assign_meter_mesh("rock_light_red.mesh", rock_bounds,
                       native_rock_light_red_base_,
                       native_rock_light_red_base_ok_, 0, false, true, true,
-                      kElemRockLights);
+                      kElemRockLights, true);
     assign_meter_mesh("rock_light_green.mesh", rock_bounds,
                       native_rock_light_green_base_,
                       native_rock_light_green_base_ok_, 0, false, true, true,
-                      kElemRockLights);
+                      kElemRockLights, true);
     assign_meter_mesh("rock_needle.mesh", rock_bounds, native_rock_needle_,
                       native_rock_needle_ok_, 0, false, false, true,
                       kElemRockNeedle);
@@ -1620,16 +1621,16 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                       native_rock_needle_led_ok_, argb(220, 255, 90, 45),
                       true, false, true, kElemRockNeedle);
     assign_meter_mesh("rock_light_red_front.mesh", rock_bounds, native_rock_light_red_,
-                      native_rock_light_red_ok_, argb(170, 255, 55, 45), true,
-                      true, true, kElemRockLights);
+                      native_rock_light_red_ok_, 0, true,
+                      true, true, kElemRockLights, true);
     assign_meter_mesh("rock_light_yellow_front.mesh", rock_bounds,
                       native_rock_light_yellow_, native_rock_light_yellow_ok_,
-                      argb(160, 255, 230, 65), true, true, true,
-                      kElemRockLights);
+                      0, true, true, true,
+                      kElemRockLights, true);
     assign_meter_mesh("rock_light_green_front.mesh", rock_bounds,
                       native_rock_light_green_, native_rock_light_green_ok_,
-                      argb(150, 85, 255, 90), true, true, true,
-                      kElemRockLights);
+                      0, true, true, true,
+                      kElemRockLights, true);
   }
   auto place_rock_label = [&](Quad& q) {
     for (Quad::V& v : q.verts) {
@@ -2685,16 +2686,16 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
                               : active_light_index == 1 ? "yellow" : "green";
   if (have_native_light_bases) {
     const Quad* active_base =
-        active_light_index == 0 ? &native_rock_light_green_base_
+        active_light_index == 0 ? &native_rock_light_red_base_
         : active_light_index == 1 ? &native_rock_light_yellow_base_
-                                  : &native_rock_light_red_base_;
+                                  : &native_rock_light_green_base_;
     Quad q = *active_base;
     q.color = rock_light_base_color_keys_[active_light_index].empty()
         ? q.color
-        : sample_hud_mat_anim_color(rock_light_base_color_keys_[active_light_index],
-                                    rock_light_base_anim_duration_[active_light_index],
-                                    fill);
-    out.push_back(q);
+        : sample_hud_mat_anim_color(
+              rock_light_base_color_keys_[active_light_index],
+              rock_light_base_anim_duration_[active_light_index], fill);
+    out.push_back(std::move(q));
   }
 
   if (native_rock_face_ok_) {
@@ -2716,29 +2717,20 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
   const uint32_t authored_rock_label_front_color =
       sample_hud_mat_anim_color(rock_label_front_color_keys_,
                                 rock_label_front_anim_duration_, fill);
-  const uint32_t active_red_color = argb(215, 255, 60, 48);
-  const uint32_t active_yellow_color = argb(205, 255, 238, 74);
-  const uint32_t active_green_color = argb(190, 90, 255, 100);
-  const uint32_t rock_label_color =
-      fill < 0.25f ? argb(255, 255, 60, 48)
-    : fill < 0.55f ? argb(255, 255, 238, 74)
-                   : argb(255, 90, 255, 100);
-  const uint32_t rock_label_front_color =
-      fill < 0.25f ? active_red_color
-    : fill < 0.55f ? active_yellow_color
-                   : active_green_color;
+  const uint32_t rock_label_color = authored_rock_label_color;
+  const uint32_t rock_label_front_color = authored_rock_label_front_color;
   if (have_native_lights) {
     const Quad* active_front =
-        active_light_index == 0 ? &native_rock_light_green_
+        active_light_index == 0 ? &native_rock_light_red_
         : active_light_index == 1 ? &native_rock_light_yellow_
-                                  : &native_rock_light_red_;
+                                  : &native_rock_light_green_;
     Quad q = *active_front;
     q.color = rock_light_front_lamp_color_keys_[active_light_index].empty()
         ? q.color
         : sample_hud_mat_anim_color(
               rock_light_front_lamp_color_keys_[active_light_index],
               rock_light_front_lamp_anim_duration_[active_light_index], fill);
-    out.push_back(q);
+    out.push_back(std::move(q));
   } else if (IDirect3DTexture9* light = tex("hud_meter_top_glow.tex")) {
     const uint32_t color = fill < 0.25f ? argb(150, 255, 45, 35)
                          : fill < 0.55f ? argb(125, 255, 225, 65)

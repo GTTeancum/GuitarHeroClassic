@@ -817,19 +817,39 @@ int main() {
                  "assign_meter_mesh(\"rock_light_green.mesh\"",
                  "ROCK meter uses the authored green base-light mesh");
   ok &= contains(hud_renderer_c,
+                 "make_slot_mesh(crowd,*mesh,bounds,rock_face_,color,"
+                 "additive,flip_v,flip_z,true,-1.0f,flip_x);",
+                 "ROCK meter placement can unmirror source child X on the right HUD");
+  ok &= contains(hud_renderer_c,
+                 "assign_meter_mesh(\"rock_light_red.mesh\",rock_bounds,"
+                 "native_rock_light_red_base_,native_rock_light_red_base_ok_,"
+                 "0,false,true,true,kElemRockLights,true);",
+                 "ROCK red source glass is unmirrored into the left meter pane");
+  ok &= contains(hud_renderer_c,
+                 "assign_meter_mesh(\"rock_light_green_front.mesh\",rock_bounds,"
+                 "native_rock_light_green_,native_rock_light_green_ok_,0,true,"
+                 "true,true,kElemRockLights,true);",
+                 "ROCK green source front lamp is unmirrored into the right meter pane");
+  ok &= contains(hud_renderer_c,
                  "constintactive_light_index=rock_light_frame<33.0f?0:"
                  "rock_light_frame<66.0f?1:2;",
                  "ROCK meter selects exactly one active lamp band from the source frame");
   ok &= contains(hud_renderer_c,
-                 "active_light_index==0?&native_rock_light_green_base_:"
+                 "active_light_index==0?&native_rock_light_red_base_:"
                  "active_light_index==1?&native_rock_light_yellow_base_:"
-                 "&native_rock_light_red_base_;",
-                 "ROCK meter maps the selected source base lamp onto the mirrored right-HUD geometry");
+                 "&native_rock_light_green_base_;",
+                 "ROCK meter emits only the selected source base pane");
   ok &= contains(hud_renderer_c,
-                 "active_light_index==0?&native_rock_light_green_:"
+                 "q.color=rock_light_base_color_keys_[active_light_index].empty()"
+                 "?q.color:sample_hud_mat_anim_color("
+                 "rock_light_base_color_keys_[active_light_index],"
+                 "rock_light_base_anim_duration_[active_light_index],fill);",
+                 "ROCK meter selected base pane uses its authored MatAnim color");
+  ok &= contains(hud_renderer_c,
+                 "active_light_index==0?&native_rock_light_red_:"
                  "active_light_index==1?&native_rock_light_yellow_:"
-                 "&native_rock_light_red_;",
-                 "ROCK meter maps the selected source front lamp onto the mirrored right-HUD geometry");
+                 "&native_rock_light_green_;",
+                 "ROCK meter maps the selected source front lamp by authored red/yellow/green identity");
   ok &= absent(hud_renderer_c,
                "out.push_back(yellow);out.push_back(red);"
                "out.push_back(green);",
@@ -905,15 +925,21 @@ int main() {
                  "rock_label_front_anim_duration_,fill);",
                  "ROCK front light still decodes the native MatAnim color curve for diagnostics");
   ok &= contains(hud_renderer_c,
-                 "constuint32_trock_label_color=fill<0.25f?"
-                 "argb(255,255,60,48):fill<0.55f?"
-                 "argb(255,255,238,74):argb(255,90,255,100);",
-                 "visible ROCK word uses the same red/yellow/green RGB as the active light");
+                 "constuint32_trock_label_color=authored_rock_label_color;",
+                 "visible ROCK word uses the authored rock_light MatAnim color");
   ok &= contains(hud_renderer_c,
-                 "constuint32_trock_label_front_color=fill<0.25f?"
-                 "active_red_color:fill<0.55f?active_yellow_color:"
-                 "active_green_color;",
-                 "visible ROCK glow uses the exact active meter light color");
+                 "constuint32_trock_label_front_color="
+                 "authored_rock_label_front_color;",
+                 "visible ROCK glow uses the authored rock_light_front MatAnim color");
+  ok &= absent(hud_renderer_c,
+               "active_red_color",
+               "ROCK meter must not keep synthetic active red lamp tint");
+  ok &= absent(hud_renderer_c,
+               "active_yellow_color",
+               "ROCK meter must not keep synthetic active yellow lamp tint");
+  ok &= absent(hud_renderer_c,
+               "active_green_color",
+               "ROCK meter must not keep synthetic active green lamp tint");
   ok &= absent(hud_renderer_c,
                "dim_red_color",
                "ROCK meter must not hand-light inactive red lamp");
@@ -2184,8 +2210,8 @@ int main() {
                  "draw_flame_mesh(star_collect_flame_mesh_,star_a,",
                  "star-collect flame overlay uses the native starcollect geometry");
   ok &= contains(highway_renderer_c,
-                 "sample_transform_anim_delta(anim,anim_duration,frame);",
-                 "native hit-flame meshes sample authored TransAnim deltas");
+                 "sample_transform_anim(anim,anim_duration,frame);",
+                 "native hit-flame meshes preserve authored absolute TransAnim scale");
   ok &= contains(highway_renderer_c,
                  "draw_authored_runtime_mesh_transformed("
                  "mesh,lane_x(lane),kStrikeY,tint.color,transform,true,0.0f,"

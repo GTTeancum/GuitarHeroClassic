@@ -4299,7 +4299,7 @@ void HighwayRenderer::draw_impl(double song_time,
         if (has_source_anim) {
           const float frame = anim_frame(anim_duration, intensity);
           const MeshTransformSample transform =
-              sample_transform_anim_delta(anim, anim_duration, frame);
+              sample_transform_anim(anim, anim_duration, frame);
           draw_authored_runtime_mesh_transformed(
               mesh, lane_x(lane), kStrikeY, tint.color, transform, true, 0.0f,
               !tint.color_anim_used);
