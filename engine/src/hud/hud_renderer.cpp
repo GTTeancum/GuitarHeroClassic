@@ -3806,8 +3806,11 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
       std::fprintf(
           stderr,
           "[hud-rock] fill=%.3f light=%s native_lights=%d base_lights=%d "
-          "face=%d frame=%d face_blend=%u base_blends=%u,%u,%u "
-          "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zu emitted_lamps=%s "
+          "face=%d frame=%d face_blend=%u "
+          "base_blends_rgb=%u,%u,%u front_blends_rgb=%u,%u,%u "
+          "label_blends=%u,%u "
+          "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zu "
+          "emitted_base=%s emitted_front=%s "
           "label=%d needle=%d led=%d "
           "angle=%.3f scale=%.3f,%.3f "
           "pivot=%.3f,%.3f rock_anim_frame=%.3f sample_frame=%.3f "
@@ -3817,16 +3820,21 @@ void HudRenderer::emit_rock_meter(std::vector<Quad>& out, float fill) const {
           have_native_light_bases ? 1 : 0,
           native_rock_face_ok_ ? 1 : 0, native_rock_frame_ok_ ? 1 : 0,
           static_cast<unsigned>(native_rock_face_.blend),
-          static_cast<unsigned>(native_rock_light_yellow_base_.blend),
           static_cast<unsigned>(native_rock_light_red_base_.blend),
+          static_cast<unsigned>(native_rock_light_yellow_base_.blend),
           static_cast<unsigned>(native_rock_light_green_base_.blend),
+          static_cast<unsigned>(native_rock_light_red_.blend),
+          static_cast<unsigned>(native_rock_light_yellow_.blend),
+          static_cast<unsigned>(native_rock_light_green_.blend),
+          static_cast<unsigned>(native_rock_label_.blend),
+          static_cast<unsigned>(native_rock_label_front_glow_.blend),
           rock_light_base_color_keys_[0].size(),
           rock_light_base_color_keys_[1].size(),
           rock_light_base_color_keys_[2].size(),
           rock_light_front_lamp_color_keys_[0].size(),
           rock_light_front_lamp_color_keys_[1].size(),
           rock_light_front_lamp_color_keys_[2].size(),
-          active_light_name,
+          active_light_name, active_light_name,
           native_rock_label_ok_ ? 1 : 0, native_rock_needle_ok_ ? 1 : 0,
           native_rock_needle_led_ok_ ? 1 : 0, native_needle_angle,
           needle_scale_x, needle_scale_z, px, pz, rock_light_frame,

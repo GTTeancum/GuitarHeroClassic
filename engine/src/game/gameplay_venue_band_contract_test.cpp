@@ -765,8 +765,15 @@ int main() {
                  "\"[hud-rock]fill=%.3flight=%snative_lights=%dbase_lights=%d\"",
                  "ROCK meter diagnostics report fill band and native frame state");
   ok &= contains(hud_renderer_c,
-                 "\"face=%dframe=%dface_blend=%ubase_blends=%u,%u,%u\"",
-                 "ROCK meter diagnostics report the source face and base-light blend stack");
+                 "\"face=%dframe=%dface_blend=%u\""
+                 "\"base_blends_rgb=%u,%u,%ufront_blends_rgb=%u,%u,%u\"",
+                 "ROCK meter diagnostics report source base/front light blend stacks in RGB order");
+  ok &= contains(hud_renderer_c,
+                 "\"label_blends=%u,%u\"",
+                 "ROCK meter diagnostics report source ROCK label/front-glow blend modes");
+  ok &= contains(hud_renderer_c,
+                 "\"emitted_base=%semitted_front=%s\"",
+                 "ROCK meter diagnostics prove the selected source base and front lamps match");
   ok &= contains(hud_renderer_c,
                  "static_cast<unsigned>(native_rock_face_.blend),",
                  "ROCK meter diagnostics include the authored rock_face_2d blend mode");
@@ -980,8 +987,11 @@ int main() {
                "out.push_back(active_light);",
                "ROCK meter must not draw a second hand-tinted active lamp over the source MatAnim lamps");
   ok &= contains(hud_renderer_c,
-                 "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zuemitted_lamps=%s",
-                 "ROCK meter diagnostics report the individual source curves and emitted lamp");
+                 "source_lamp_curves=%zu,%zu,%zu/%zu,%zu,%zu",
+                 "ROCK meter diagnostics report the individual source lamp curves");
+  ok &= contains(hud_renderer_c,
+                 "emitted_base=%semitted_front=%s",
+                 "ROCK meter diagnostics report emitted source base/front lamps");
   ok &= contains(hud_renderer_h_c,
                  "LayoutRectrock_frame={0.500000f,0.500000f,"
                  "1.000000f,1.000000f,0.000000f,0};",
