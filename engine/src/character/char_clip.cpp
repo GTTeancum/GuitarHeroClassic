@@ -459,6 +459,34 @@ bool debug_clip_enabled() {
 #endif
 }
 
+bool debug_clip_hair_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_CLIP_HAIR") == 0 && value &&
+      value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_CLIP_HAIR");
+  return value && value[0];
+#endif
+}
+
+bool clip_hair_debug_name(const std::string& name) {
+  std::string lower = name;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return lower.find("hair") != std::string::npos ||
+         lower.find("bang") != std::string::npos ||
+         lower.find("pony") != std::string::npos ||
+         lower.find("coat") != std::string::npos ||
+         lower.find("chain") != std::string::npos ||
+         lower.find("wing") != std::string::npos ||
+         lower.find("lantern") != std::string::npos;
+}
+
 bool debug_lane_mixer_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -1436,6 +1464,52 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
             } else {
               std::fprintf(stderr, "[clip]   %03zu %-5s %-28s %.5f\n",
                            i, type, ch.bone_name.c_str(), ch.angle);
+            }
+          }
+        }
+        if (debug_clip_hair_enabled()) {
+          for (size_t i = 0; i < result.output_bones.size(); ++i) {
+            const auto& out = result.output_bones[i];
+            if (!clip_hair_debug_name(out.name) &&
+                !clip_hair_debug_name(out.parent)) {
+              continue;
+            }
+            std::fprintf(stderr,
+                         "[clip-hair-output] clip=%s index=%zu name=%s parent=%s "
+                         "local=(%.4f %.4f %.4f)\n",
+                         clip_name.c_str(), i, out.name.c_str(),
+                         out.parent.c_str(), out.local.pos[0],
+                         out.local.pos[1], out.local.pos[2]);
+          }
+          if (!result.frames.empty()) {
+            const auto& frame0 = result.frames[0];
+            for (size_t i = 0; i < frame0.size(); ++i) {
+              const auto& ch = frame0[i];
+              if (!clip_hair_debug_name(ch.bone_name)) continue;
+              const char* type = ch.type == ClipChannel::kPos ? "pos" :
+                                 ch.type == ClipChannel::kScale ? "scale" :
+                                 ch.type == ClipChannel::kQuat ? "quat" :
+                                 ch.type == ClipChannel::kRotX ? "rotx" :
+                                 ch.type == ClipChannel::kRotY ? "roty" : "rotz";
+              if (ch.type == ClipChannel::kQuat) {
+                std::fprintf(stderr,
+                             "[clip-hair-channel] clip=%s index=%zu type=%s "
+                             "name=%s value=(%.5f %.5f %.5f %.5f)\n",
+                             clip_name.c_str(), i, type, ch.bone_name.c_str(),
+                             ch.quat[0], ch.quat[1], ch.quat[2], ch.quat[3]);
+              } else if (ch.type == ClipChannel::kPos) {
+                std::fprintf(stderr,
+                             "[clip-hair-channel] clip=%s index=%zu type=%s "
+                             "name=%s value=(%.5f %.5f %.5f)\n",
+                             clip_name.c_str(), i, type, ch.bone_name.c_str(),
+                             ch.pos[0], ch.pos[1], ch.pos[2]);
+              } else {
+                std::fprintf(stderr,
+                             "[clip-hair-channel] clip=%s index=%zu type=%s "
+                             "name=%s value=%.5f\n",
+                             clip_name.c_str(), i, type, ch.bone_name.c_str(),
+                             ch.angle);
+              }
             }
           }
         }
@@ -4110,18 +4184,21 @@ static void apply_char_hair(Character& character, float time_seconds) {
             chain_target.parent->empty()) {
           return;
         }
-        auto desired_world =
-            ps2_follow_hair_world(chain_state, base_world, axis_target);
+        auto desired_world = base_world;
         // Accepted PS2 traces show CharHair submitting live Trans world rows
         // through the shared writer. Keep those rows transient, like IK hands,
         // so draw/skinning consumes the submitted row without rewriting the
         // authored local row that later controllers may still inspect.
+        // Object-row traces for head-local hair cards show the submitted chain
+        // row carrying the solved position while preserving the decoded
+        // bind-relative card orientation. Strand roll remains for follow rows.
+        set_runtime_point_orientation(chain_state, mat_row(desired_world, 2));
         set_runtime_point_world(chain_state, desired_world);
         character.runtime_world_overrides[*chain_target.name] = desired_world;
         if (debug_char_hair_enabled()) {
           std::fprintf(stderr,
                        "[charhair-ps2chain] %s point=%s root=%s coll=%s "
-                       "reason=%s solved=(%.3f %.3f %.3f) "
+                       "reason=%s orientation=%s solved=(%.3f %.3f %.3f) "
                        "axisTarget=(%.3f %.3f %.3f) "
                        "r0=(%.4f %.4f %.4f) r1=(%.4f %.4f %.4f) "
                        "r2=(%.4f %.4f %.4f)\n",
@@ -4129,7 +4206,8 @@ static void apply_char_hair(Character& character, float time_seconds) {
                        chain_target.name ? chain_target.name->c_str() : "",
                        group.root_mesh.c_str(),
                        chain_target.parent ? chain_target.parent->c_str() : "",
-                       reason, solved_point.x, solved_point.y, solved_point.z,
+                       reason, "base",
+                       solved_point.x, solved_point.y, solved_point.z,
                        axis_target.x, axis_target.y, axis_target.z,
                        desired_world[0], desired_world[1], desired_world[2],
                        desired_world[4], desired_world[5], desired_world[6],

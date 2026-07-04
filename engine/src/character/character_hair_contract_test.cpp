@@ -102,6 +102,12 @@ int main() {
                  "[charhair-source]",
                  "hair debug log inventories decoded CharHair data");
   ok &= contains(char_clip_c,
+                 "\"GHOGX_DEBUG_CLIP_HAIR\"",
+                 "clip hair diagnostics stay explicitly gated");
+  ok &= contains(char_clip_c,
+                 "[clip-hair-output]",
+                 "clip hair diagnostics expose decoded output targets");
+  ok &= contains(char_clip_c,
                  "source=decoded-CharHair",
                  "hair source log names decoded CharHair as the evidence path");
   ok &= contains(char_clip_c,
@@ -117,6 +123,19 @@ int main() {
                  "character.runtime_world_overrides[*target.name]="
                  "desired_world;",
                  "CharHair submits runtime Trans rows for renderer/skinning");
+  ok &= contains(apply_hair_c,
+                 "autodesired_world=base_world;",
+                 "chain hair keeps decoded/base orientation by default");
+  ok &= contains(apply_hair_c,
+                 "set_runtime_point_orientation(chain_state,mat_row("
+                 "desired_world,2));",
+                 "chain hair caches the submitted base orientation row");
+  ok &= contains(apply_hair_c,
+                 "reason,\"base\",",
+                 "chain hair debug logs the base-orientation path");
+  ok &= contains(apply_hair_c,
+                 "ps2_follow_hair_world(state,descriptor_world,follow_rest);",
+                 "follow-only hair still uses traced PS2 follow-row basis");
   ok &= contains(apply_hair_c,
                  "set_runtime_point_velocity(state,vsub(follow_rest,old_curr),"
                  "old_velocity);",
