@@ -1093,11 +1093,20 @@ int main() {
                  "std::unordered_map<std::string,HudMeshAnim>mesh_anims;",
                  "star-power HUD stores decoded MeshAnim entries");
   ok &= contains(hud_renderer_c,
+                 "std::unordered_map<std::string,HudAnimFilter>anim_filters;",
+                 "star-power HUD stores decoded AnimFilter entries");
+  ok &= contains(hud_renderer_c,
                  "elseif(de.type==\"MeshAnim\"){",
                  "star-power HUD loads MeshAnim entries from the MILO");
   ok &= contains(hud_renderer_c,
+                 "elseif(de.type==\"AnimFilter\"){",
+                 "star-power HUD loads AnimFilter entries from the MILO");
+  ok &= contains(hud_renderer_c,
                  "decode_hud_mesh_anim(de.name,b,n)",
                  "star-power HUD decodes source MeshAnim bodies");
+  ok &= contains(hud_renderer_c,
+                 "decode_hud_anim_filter(b,n)",
+                 "star-power HUD decodes source AnimFilter bodies");
   ok &= contains(hud_renderer_h_c,
                  "std::vector<StarMeshAnimatedQuad>native_star_ready_mesh_glow_;",
                  "star-power HUD stores ready tube MeshAnim quads");
@@ -1105,6 +1114,25 @@ int main() {
                  "append_star_mesh_anim(\"amp_tube_glow.mesh\","
                  "\"amp_tube_glow.msnm\",native_star_ready_mesh_glow_);",
                  "star-power ready tube glow uses the traced amp_tube_glow MeshAnim");
+  ok &= contains(hud_renderer_c,
+                 "copy_filter_window(\"amp_inside_bar_glow.filt\","
+                 "\"amp_inside_bar_glow.mnm\",star_fill_filter_,"
+                 "&star_fill_anim_duration_);",
+                 "star-power fill samples the source inside-bar AnimFilter window");
+  ok &= contains(hud_renderer_c,
+                 "copy_filter_window(\"amp_tube_glow.filt\","
+                 "\"amp_tube_glow.mnm\",star_tube_glow_filter_,"
+                 "&star_tube_glow_anim_duration_);",
+                 "star-power ready glow samples the source tube AnimFilter window");
+  ok &= contains(hud_renderer_c,
+                 "copy_filter_window(\"amp_tube_glow_meter.filt\","
+                 "\"amp_tube_glow_meter.mnm\",star_tube_meter_filter_,"
+                 "&star_tube_meter_anim_duration_);",
+                 "star-power tube-meter fill glow samples the source AnimFilter window");
+  ok &= contains(hud_renderer_c,
+                 "source_filter_frame(star_tube_glow_filter_,fill,"
+                 "star_tube_glow_anim_duration_);",
+                 "star-power tube ready alpha no longer pins the source MatAnim at frame zero");
   ok &= contains(hud_renderer_c,
                  "append_star_particle(\"amp_inside_bar_path.part\","
                  "\"amp_inside_bar_path.tnm\","

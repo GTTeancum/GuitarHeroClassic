@@ -133,6 +133,12 @@ class HudRenderer {
     std::string texture;
     float frame = 0.0f;
   };
+  struct AnimFilterWindow {
+    float start_frame = 0.0f;
+    float end_frame = 0.0f;
+    float offset_frame = 0.0f;
+    bool ok = false;
+  };
   struct Vec3AnimKey {
     float x = 0.0f;
     float y = 0.0f;
@@ -235,6 +241,10 @@ class HudRenderer {
   std::vector<ColorAnimKey> star_fill_color_keys_;
   std::vector<AlphaAnimKey> star_tube_glow_alpha_keys_;
   std::vector<AlphaAnimKey> star_tube_meter_alpha_keys_;
+  AnimFilterWindow star_fill_filter_;
+  AnimFilterWindow star_tube_glow_filter_;
+  AnimFilterWindow star_tube_meter_filter_;
+  AnimFilterWindow star_particle_emission_filter_;
   float rock_label_anim_duration_ = 100.0f;
   float rock_label_front_anim_duration_ = 100.0f;
   float rock_light_base_anim_duration_[3] = {100.0f, 100.0f, 100.0f};

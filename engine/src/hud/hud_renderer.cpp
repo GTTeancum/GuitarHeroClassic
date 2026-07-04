@@ -573,6 +573,16 @@ struct HudMeshAnim {
   std::vector<HudMeshAnimFrame> frames;
 };
 
+struct HudAnimFilter {
+  std::string target;
+  float scale = 1.0f;
+  float period = 0.0f;
+  float start_frame = 0.0f;
+  float end_frame = 0.0f;
+  int type = 0;
+  float offset_frame = 0.0f;
+};
+
 struct HudParticleAnim {
   std::string particle;
   std::vector<HudParticleScalarKey> emission_keys;
@@ -598,6 +608,7 @@ struct MiloLayout {
   std::unordered_map<std::string, HudParticleAnim> particle_anims;
   std::unordered_map<std::string, HudTransPathAnim> trans_path_anims;
   std::unordered_map<std::string, HudMeshAnim> mesh_anims;
+  std::unordered_map<std::string, HudAnimFilter> anim_filters;
   bool ok = false;
 };
 
@@ -864,6 +875,58 @@ std::optional<HudMeshAnim> decode_hud_mesh_anim(
   return anim;
 }
 
+std::optional<HudAnimFilter> decode_hud_anim_filter(
+    const uint8_t* body, size_t size) {
+  if (size < 52 || read_u32_at(body, 0) != 1) return std::nullopt;
+  const auto strings = packed_hud_strings(body, size);
+  const HudPackedString* target = nullptr;
+  for (const HudPackedString& hit : strings) {
+    const bool anim_target =
+        (hit.value.size() > 4 &&
+         (hit.value.rfind(".mnm") == hit.value.size() - 4 ||
+          hit.value.rfind(".tnm") == hit.value.size() - 4)) ||
+        (hit.value.size() > 5 &&
+         (hit.value.rfind(".panm") == hit.value.size() - 5 ||
+          hit.value.rfind(".msnm") == hit.value.size() - 5 ||
+          hit.value.rfind(".mesh") == hit.value.size() - 5));
+    if (anim_target) {
+      target = &hit;
+      break;
+    }
+  }
+  if (!target || target->end + 24 > size) return std::nullopt;
+
+  HudAnimFilter filter;
+  filter.target = target->value;
+  const size_t timing = target->end;
+  filter.scale = read_f32_at(body, timing);
+  filter.period = read_f32_at(body, timing + 4);
+  filter.start_frame = read_f32_at(body, timing + 8);
+  filter.end_frame = read_f32_at(body, timing + 12);
+  filter.type = static_cast<int>(read_u32_at(body, timing + 16));
+  filter.offset_frame = read_f32_at(body, timing + 20);
+  if (!std::isfinite(filter.scale) || std::fabs(filter.scale) > 100000.0f) {
+    filter.scale = 1.0f;
+  }
+  if (!std::isfinite(filter.period) || std::fabs(filter.period) > 100000.0f) {
+    filter.period = 0.0f;
+  }
+  if (!std::isfinite(filter.start_frame) || filter.start_frame < 0.0f ||
+      filter.start_frame > 100000.0f) {
+    filter.start_frame = 0.0f;
+  }
+  if (!std::isfinite(filter.end_frame) || filter.end_frame < filter.start_frame ||
+      filter.end_frame > 100000.0f) {
+    filter.end_frame = filter.start_frame;
+  }
+  if (filter.type < 0 || filter.type > 2) filter.type = 0;
+  if (!std::isfinite(filter.offset_frame) ||
+      std::fabs(filter.offset_frame) > 100000.0f) {
+    filter.offset_frame = 0.0f;
+  }
+  return filter;
+}
+
 MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
                             const std::string& milo_path) {
   MiloLayout out;
@@ -945,6 +1008,10 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
       } else if (de.type == "MeshAnim") {
         if (auto anim = decode_hud_mesh_anim(de.name, b, n)) {
           out.mesh_anims[de.name] = std::move(*anim);
+        }
+      } else if (de.type == "AnimFilter") {
+        if (auto filter = decode_hud_anim_filter(b, n)) {
+          out.anim_filters[de.name] = std::move(*filter);
         }
       }
     }
@@ -1590,6 +1657,23 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       dst.push_back(key);
     }
   };
+  auto copy_filter_window = [&](const char* filter_name, const char* target_name,
+                                AnimFilterWindow& dst,
+                                float* duration_frames = nullptr) {
+    dst = {};
+    const auto it = star.anim_filters.find(filter_name);
+    if (it == star.anim_filters.end() || it->second.target != target_name) {
+      return;
+    }
+    const HudAnimFilter& src = it->second;
+    dst.start_frame = src.start_frame;
+    dst.end_frame = src.end_frame;
+    dst.offset_frame = src.offset_frame;
+    dst.ok = src.end_frame > src.start_frame;
+    if (dst.ok && duration_frames) {
+      *duration_frames = std::max(1.0f, dst.end_frame - dst.start_frame);
+    }
+  };
   copy_color_keys("rock_light.manim", rock_label_color_keys_,
                   rock_label_anim_duration_);
   copy_color_keys("rock_light_front.manim", rock_label_front_color_keys_,
@@ -1615,6 +1699,16 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                   star_tube_glow_anim_duration_);
   copy_alpha_keys("amp_tube_glow_meter.mnm", star_tube_meter_alpha_keys_,
                   star_tube_meter_anim_duration_);
+  copy_filter_window("amp_inside_bar_glow.filt", "amp_inside_bar_glow.mnm",
+                     star_fill_filter_, &star_fill_anim_duration_);
+  copy_filter_window("amp_tube_glow.filt", "amp_tube_glow.mnm",
+                     star_tube_glow_filter_, &star_tube_glow_anim_duration_);
+  copy_filter_window("amp_tube_glow_meter.filt", "amp_tube_glow_meter.mnm",
+                     star_tube_meter_filter_,
+                     &star_tube_meter_anim_duration_);
+  copy_filter_window("amp_inside_bar_path_0.filt",
+                     "amp_inside_bar_path.panm",
+                     star_particle_emission_filter_);
   if (env_enabled("GHOGX_DEBUG_HUD_ROCK_METER")) {
     std::fprintf(stderr,
                  "[hud-rock] MatAnim curves: rock_light=%zu/%0.1f "
@@ -1629,6 +1723,20 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                  rock_light_front_lamp_color_keys_[0].size(),
                  rock_light_front_lamp_color_keys_[1].size(),
                  rock_light_front_lamp_color_keys_[2].size());
+  }
+  if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER")) {
+    std::fprintf(stderr,
+                 "[hud-star-power] AnimFilter windows: fill=%d %.2f..%.2f "
+                 "tube=%.2f..%.2f meter=%.2f..%.2f particle=%d %.2f..%.2f\n",
+                 star_fill_filter_.ok ? 1 : 0,
+                 star_fill_filter_.start_frame, star_fill_filter_.end_frame,
+                 star_tube_glow_filter_.start_frame,
+                 star_tube_glow_filter_.end_frame,
+                 star_tube_meter_filter_.start_frame,
+                 star_tube_meter_filter_.end_frame,
+                 star_particle_emission_filter_.ok ? 1 : 0,
+                 star_particle_emission_filter_.start_frame,
+                 star_particle_emission_filter_.end_frame);
   }
 
   // 3) The in-song overlay must be screen anchored. Drawing meter-local art
@@ -2360,6 +2468,11 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           key.frame = src.frame;
           layer.emission_keys.push_back(key);
         }
+      }
+      if (star_particle_emission_filter_.ok) {
+        layer.emission_duration_frames = std::max(
+            1.0f, star_particle_emission_filter_.end_frame -
+                       star_particle_emission_filter_.start_frame);
       }
 
       const float max_velocity = std::max({
@@ -3209,6 +3322,19 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
                                   bool star_power_active) const {
   if (!sp_bar_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
+  auto source_filter_frame =
+      [](const AnimFilterWindow& filter, float progress,
+         float fallback_duration) {
+        progress = std::clamp(progress, 0.0f, 1.0f);
+        if (!filter.ok) {
+          return progress * std::max(1.0f, fallback_duration);
+        }
+        const float start = filter.start_frame;
+        const float end = std::max(filter.end_frame, start);
+        const float span = std::max(0.0f, end - start);
+        return std::clamp(start + filter.offset_frame + span * progress,
+                          start, end);
+      };
 
   if (!native_star_back_.empty()) {
     out.insert(out.end(), native_star_back_.begin(), native_star_back_.end());
@@ -3216,11 +3342,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
 
   const bool ready = fill >= 0.5f;
   const bool tube_glow = ready || star_power_active;
-  const float fill_anim_frame =
-      fill * std::max(1.0f, star_fill_anim_duration_);
-  const float tube_meter_anim_frame =
-      fill * std::max(1.0f, star_tube_meter_anim_duration_);
-  const float tube_glow_anim_frame = 0.0f;
+  const float fill_anim_frame = source_filter_frame(
+      star_fill_filter_, fill, star_fill_anim_duration_);
+  const float tube_meter_anim_frame = source_filter_frame(
+      star_tube_meter_filter_, fill, star_tube_meter_anim_duration_);
+  const float tube_glow_anim_frame = source_filter_frame(
+      star_tube_glow_filter_, fill, star_tube_glow_anim_duration_);
   const float tube_glow_mesh_frame =
       native_star_ready_mesh_glow_.empty()
           ? 0.0f
@@ -3472,6 +3599,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         stderr,
         "[hud-star-power] fill=%.3f ready=%d active=%d tube_glow=%d "
         "frames=%.2f,%.2f,%.2f mesh_frame=%.2f curves=%zu/%zu/%zu "
+        "filters=%d:%.2f-%.2f/%d:%.2f-%.2f/%d:%.2f-%.2f "
         "back=%zu fill_layers=%zu path_glow=%zu "
         "glow_layers=%zu lightning_layers=%zu particle_layers=%zu "
         "ready_mesh=%zu ready_glow=%zu "
@@ -3483,6 +3611,14 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         tube_glow_mesh_frame,
         star_fill_color_keys_.size(), star_tube_meter_alpha_keys_.size(),
         star_tube_glow_alpha_keys_.size(),
+        star_fill_filter_.ok ? 1 : 0, star_fill_filter_.start_frame,
+        star_fill_filter_.end_frame,
+        star_tube_meter_filter_.ok ? 1 : 0,
+        star_tube_meter_filter_.start_frame,
+        star_tube_meter_filter_.end_frame,
+        star_tube_glow_filter_.ok ? 1 : 0,
+        star_tube_glow_filter_.start_frame,
+        star_tube_glow_filter_.end_frame,
         native_star_back_.size(),
         native_star_fill_.size(), native_star_path_glow_.size(),
         native_star_fill_glow_.size(), native_star_lightning_.size(),
