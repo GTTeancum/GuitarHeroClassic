@@ -416,6 +416,7 @@ class Gameplay {
     std::map<std::string, VenueMaterialAnim> mat_anims;
     std::vector<VenueParticleRoute> particle_routes;
     std::vector<std::string> all_meshes;
+    std::map<std::string, std::vector<std::string>> group_meshes;
     std::vector<std::string> event_aliases;
     bool showing = false;
     bool animating = false;
@@ -586,6 +587,9 @@ class Gameplay {
   void stop_venue_proxy_object_animation(const std::string& object_name);
   void update_venue_proxy_objects();
   void draw_venue_proxy_objects(const ghogx::render::OrbitCamera& cam);
+  bool venue_proxy_camera_fully_hidden(
+      const std::string& object_name,
+      const VenueProxyObject& proxy) const;
   void update_venue_script_tasks();
   uint32_t schedule_venue_script_task(const VenueScriptStep& step);
   void cancel_venue_script_task_by_id(uint32_t id);
@@ -877,6 +881,8 @@ class Gameplay {
   double last_worldcrowd_actor_source_sample_time_ = -1.0;
   double last_worldcrowd_actor_source_probe_log_time_ = -1.0;
   std::unordered_set<std::string> venue_camera_hidden_meshes_;
+  std::map<std::string, std::unordered_set<std::string>>
+      venue_camera_hidden_proxy_meshes_;
   bool venue_camera_hide_crowd_ = false;
   bool venue_camera_crowd_face_camera_ = false;
   std::string active_venue_event_;

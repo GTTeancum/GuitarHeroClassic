@@ -9169,6 +9169,7 @@ std::map<std::string, Gameplay::VenueProxyObject> load_venue_proxy_objects(
             proxy.event_aliases = std::move(event_aliases);
             for (const auto& mesh : proxy_scene.meshes)
                 proxy.all_meshes.push_back(mesh.name);
+            proxy.group_meshes = mesh_names_by_group(proxy_scene);
             proxy.directory_anim =
                 load_rnddir_directory_anim(hdr_path, ark_path, proxy_path);
             proxy.mat_anims = load_venue_mat_anims(hdr_path, ark_path, proxy_path);
@@ -9189,9 +9190,10 @@ std::map<std::string, Gameplay::VenueProxyObject> load_venue_proxy_objects(
             proxy.renderer->set_particle_sizes({});
             std::fprintf(
                 stderr,
-                "[world] RndDir proxy %s type=%s path=%s meshes=%zu trans=%zu mesh_anims=%zu mat_anims=%zu particles=%zu aliases=%zu\n",
+                "[world] RndDir proxy %s type=%s path=%s meshes=%zu groups=%zu trans=%zu mesh_anims=%zu mat_anims=%zu particles=%zu aliases=%zu\n",
                 proxy.name.c_str(), proxy.type.c_str(), proxy.milo_path.c_str(),
-                proxy.all_meshes.size(), proxy.directory_anim.targets.size(),
+                proxy.all_meshes.size(), proxy.group_meshes.size(),
+                proxy.directory_anim.targets.size(),
                 proxy.directory_anim.mesh_anim_targets.size(),
                 proxy.mat_anims.size(), proxy.particle_routes.size(),
                 proxy.event_aliases.size());
@@ -14953,6 +14955,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     last_worldcrowd_actor_source_sample_time_ = -1.0;
     last_worldcrowd_actor_source_probe_log_time_ = -1.0;
     venue_camera_hidden_meshes_.clear();
+    venue_camera_hidden_proxy_meshes_.clear();
     venue_camera_hide_crowd_ = false;
     venue_camera_crowd_face_camera_ = false;
     active_venue_event_.clear();
@@ -15139,6 +15142,47 @@ std::map<std::string, float> Gameplay::composed_venue_material_alpha() const {
 void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
     if (!world_) return;
     std::unordered_set<std::string> next_hidden;
+    std::map<std::string, std::unordered_set<std::string>>
+        next_hidden_proxy_meshes;
+    auto push_proxy_meshes = [&](const std::string& object_name,
+                                 const std::vector<std::string>& meshes) {
+        if (meshes.empty()) return;
+        auto& hidden = next_hidden_proxy_meshes[object_name];
+        hidden.insert(meshes.begin(), meshes.end());
+    };
+    auto proxy_ref_variants = [](const std::string& object_name,
+                                 const VenueProxyObject& proxy) {
+        std::vector<std::string> refs;
+        auto add = [&](std::string ref) {
+            if (ref.empty()) return;
+            std::replace(ref.begin(), ref.end(), '\\', '/');
+            refs.push_back(ref);
+            refs.push_back(canonical_milo_ref(ref));
+            const size_t slash = ref.find_last_of('/');
+            if (slash != std::string::npos) {
+                const std::string base = ref.substr(slash + 1);
+                refs.push_back(base);
+                refs.push_back(canonical_milo_ref(base));
+            }
+            if (ref.size() > 4 &&
+                ref.compare(ref.size() - 4, 4, "_ps2") == 0) {
+                ref.resize(ref.size() - 4);
+                refs.push_back(ref);
+                refs.push_back(canonical_milo_ref(ref));
+                const size_t no_ps2_slash = ref.find_last_of('/');
+                if (no_ps2_slash != std::string::npos) {
+                    const std::string base = ref.substr(no_ps2_slash + 1);
+                    refs.push_back(base);
+                    refs.push_back(canonical_milo_ref(base));
+                }
+            }
+        };
+        add(object_name);
+        add(proxy.milo_path);
+        std::sort(refs.begin(), refs.end());
+        refs.erase(std::unique(refs.begin(), refs.end()), refs.end());
+        return refs;
+    };
     bool next_hide_crowd = key.hide_crowd;
     if (key.hide_crowd) next_hidden = venue_crowd_meshes_;
     for (const auto& raw_ref : key.hide_list_refs) {
@@ -15147,36 +15191,65 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
             next_hide_crowd = true;
             next_hidden.insert(venue_crowd_meshes_.begin(),
                                venue_crowd_meshes_.end());
-            continue;
         }
         const auto group_it = venue_group_meshes_.find(ref);
         if (group_it != venue_group_meshes_.end()) {
             next_hidden.insert(group_it->second.begin(), group_it->second.end());
-            continue;
         }
         if (ref.rfind(".mesh") != std::string::npos &&
             (venue_mesh_names_.empty() ||
              venue_mesh_names_.find(ref) != venue_mesh_names_.end())) {
             next_hidden.insert(ref);
         }
+        for (const auto& [object_name, proxy] : venue_proxy_objects_) {
+            const auto ref_variants = proxy_ref_variants(object_name, proxy);
+            if (std::find(ref_variants.begin(), ref_variants.end(), ref) !=
+                ref_variants.end()) {
+                push_proxy_meshes(object_name, proxy.all_meshes);
+                continue;
+            }
+            const auto group_it = proxy.group_meshes.find(ref);
+            if (group_it != proxy.group_meshes.end()) {
+                push_proxy_meshes(object_name, group_it->second);
+                continue;
+            }
+            if (ref.rfind(".mesh") == std::string::npos) continue;
+            for (const auto& mesh : proxy.all_meshes) {
+                if (ref == mesh || ref == canonical_milo_ref(mesh)) {
+                    next_hidden_proxy_meshes[object_name].insert(mesh);
+                    break;
+                }
+            }
+        }
     }
     const bool next_face_camera = key.crowd_face_camera;
     if (next_hidden == venue_camera_hidden_meshes_ &&
+        next_hidden_proxy_meshes == venue_camera_hidden_proxy_meshes_ &&
         next_hide_crowd == venue_camera_hide_crowd_ &&
         next_face_camera == venue_camera_crowd_face_camera_) {
         return;
     }
     venue_camera_hidden_meshes_ = std::move(next_hidden);
+    venue_camera_hidden_proxy_meshes_ = std::move(next_hidden_proxy_meshes);
     venue_camera_hide_crowd_ = next_hide_crowd;
     venue_camera_crowd_face_camera_ = next_face_camera;
     if (debug_venue_filters_enabled()) {
+        size_t proxy_mesh_count = 0;
+        for (const auto& [object_name, meshes] :
+             venue_camera_hidden_proxy_meshes_) {
+            (void)object_name;
+            proxy_mesh_count += meshes.size();
+        }
         std::fprintf(stderr,
                      "[world] camera crowd visibility: shot=%s hide=%d "
-                     "hide_list=%zu meshes=%zu actor_hide=%d face_camera=%d "
+                     "hide_list=%zu meshes=%zu proxy_objects=%zu "
+                     "proxy_meshes=%zu actor_hide=%d face_camera=%d "
                      "face_meshes=%zu\n",
                      key.name.c_str(), key.hide_crowd ? 1 : 0,
                      key.hide_list_refs.size(),
                      venue_camera_hidden_meshes_.size(),
+                     venue_camera_hidden_proxy_meshes_.size(),
+                     proxy_mesh_count,
                      venue_camera_hide_crowd_ ? 1 : 0,
                      venue_camera_crowd_face_camera_ ? 1 : 0,
                      venue_camera_crowd_face_camera_
@@ -15315,6 +15388,23 @@ bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
     return false;
 }
 
+bool Gameplay::venue_proxy_camera_fully_hidden(
+    const std::string& object_name,
+    const VenueProxyObject& proxy) const {
+    const auto hidden_it =
+        venue_camera_hidden_proxy_meshes_.find(object_name);
+    if (hidden_it == venue_camera_hidden_proxy_meshes_.end() ||
+        proxy.all_meshes.empty()) {
+        return false;
+    }
+    for (const auto& mesh : proxy.all_meshes) {
+        if (hidden_it->second.find(mesh) == hidden_it->second.end()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void Gameplay::set_venue_proxy_object_showing(const std::string& object_name,
                                               bool showing) {
     auto proxy_it = venue_proxy_objects_.find(object_name);
@@ -15323,7 +15413,12 @@ void Gameplay::set_venue_proxy_object_showing(const std::string& object_name,
     proxy.showing = showing;
     if (!proxy.renderer) return;
     if (showing) {
-        proxy.renderer->set_hidden_meshes({});
+        const auto hidden_it =
+            venue_camera_hidden_proxy_meshes_.find(object_name);
+        proxy.renderer->set_hidden_meshes(
+            hidden_it == venue_camera_hidden_proxy_meshes_.end()
+                ? std::unordered_set<std::string>{}
+                : hidden_it->second);
     } else {
         proxy.renderer->set_hidden_meshes(std::unordered_set<std::string>(
             proxy.all_meshes.begin(), proxy.all_meshes.end()));
@@ -16361,6 +16456,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     pending_transient_venue_events_.clear();
     active_venue_event_.clear();
     venue_camera_hidden_meshes_.clear();
+    venue_camera_hidden_proxy_meshes_.clear();
     venue_camera_hide_crowd_ = false;
     venue_camera_crowd_face_camera_ = false;
     venue_script_state_ = venue_script_initial_state_;
@@ -16745,12 +16841,23 @@ void Gameplay::update_venue_proxy_objects() {
         proxy.renderer->set_environment_color_overrides(
             venue_environment_colors_);
         proxy.renderer->set_light_color_overrides(venue_light_colors_);
-        if (!proxy.showing) {
+        std::unordered_set<std::string> hidden_proxy_meshes;
+        const auto hidden_it =
+            venue_camera_hidden_proxy_meshes_.find(object_name);
+        if (hidden_it != venue_camera_hidden_proxy_meshes_.end()) {
+            hidden_proxy_meshes = hidden_it->second;
+        }
+        const bool camera_fully_hidden =
+            venue_proxy_camera_fully_hidden(object_name, proxy);
+        if (!proxy.showing || camera_fully_hidden) {
             proxy.renderer->set_hidden_meshes(std::unordered_set<std::string>(
                 proxy.all_meshes.begin(), proxy.all_meshes.end()));
+            proxy.renderer->set_active_particle_systems({});
+            proxy.renderer->set_particle_intensities({});
+            proxy.renderer->set_particle_sizes({});
             continue;
         }
-        proxy.renderer->set_hidden_meshes({});
+        proxy.renderer->set_hidden_meshes(std::move(hidden_proxy_meshes));
         if (!proxy.animating) continue;
 
         Gameplay::VenueAnimFilter filter = proxy.directory_anim;
@@ -16902,17 +17009,29 @@ void Gameplay::draw_venue_proxy_objects(
     }
 
     size_t drawn = 0;
+    size_t hidden_by_camera = 0;
     for (auto& [object_name, proxy] : venue_proxy_objects_) {
-        if (!proxy.renderer || !proxy.showing) continue;
+        const bool camera_hidden =
+            venue_proxy_camera_fully_hidden(object_name, proxy);
+        if (camera_hidden) ++hidden_by_camera;
+        if (!proxy.renderer || !proxy.showing || camera_hidden) continue;
         ++drawn;
+        const auto hidden_it =
+            venue_camera_hidden_proxy_meshes_.find(object_name);
+        const size_t camera_hidden_meshes =
+            hidden_it == venue_camera_hidden_proxy_meshes_.end()
+                ? 0u
+                : hidden_it->second.size();
         if (log_proxy) {
             std::fprintf(
                 stderr,
                 "[world] venue proxy draw: name=%s path=%s animating=%d "
-                "meshes=%zu mat_anims=%zu particles=%zu env=%zu lights=%zu "
+                "meshes=%zu camera_hidden=%d camera_meshes=%zu "
+                "mat_anims=%zu particles=%zu env=%zu lights=%zu "
                 "t=%.3f\n",
                 object_name.c_str(), proxy.milo_path.c_str(),
                 proxy.animating ? 1 : 0, proxy.all_meshes.size(),
+                camera_hidden ? 1 : 0, camera_hidden_meshes,
                 proxy.mat_anims.size(), proxy.particle_routes.size(),
                 venue_environment_colors_.size(), venue_light_colors_.size(),
                 song_time_);
@@ -16922,8 +17041,8 @@ void Gameplay::draw_venue_proxy_objects(
     if (log_proxy) {
         std::fprintf(stderr,
                      "[world] venue proxy draw summary: drawn=%zu proxies=%zu "
-                     "env=%zu lights=%zu t=%.3f\n",
-                     drawn, venue_proxy_objects_.size(),
+                     "hidden_camera=%zu env=%zu lights=%zu t=%.3f\n",
+                     drawn, venue_proxy_objects_.size(), hidden_by_camera,
                      venue_environment_colors_.size(),
                      venue_light_colors_.size(), song_time_);
     }
@@ -19757,6 +19876,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_camera_target_worlds_ =
                     build_venue_camera_target_worlds(venue_scene);
                 venue_camera_hidden_meshes_.clear();
+                venue_camera_hidden_proxy_meshes_.clear();
                 venue_camera_hide_crowd_ = false;
                 venue_camera_crowd_face_camera_ = false;
                 if (!venue_crowd_meshes_.empty()) {

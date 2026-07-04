@@ -2880,6 +2880,9 @@ int main() {
                  "load_venue_proxy_objects(hdr_path_,ark_path_,venue_geom,win)",
                  "venue load discovers RndDir proxy objects from the authored MILO");
   ok &= contains(gameplay_c,
+                 "proxy.group_meshes=mesh_names_by_group(proxy_scene);",
+                 "RndDir proxy objects keep authored group membership for camera visibility");
+  ok &= contains(gameplay_c,
                  "booldebug_venue_proxy_enabled(){returnenv_value("
                  "\"GHOGX_DEBUG_VENUE_PROXY\")!=nullptr;}",
                  "venue proxy draw diagnostics are opt-in");
@@ -2891,9 +2894,22 @@ int main() {
                  "proxy.renderer->set_light_color_overrides("
                  "venue_light_colors_);",
                  "separate RndDir proxy renderers inherit active venue LightAnim color state");
+  ok &= contains(update_venue_proxy_objects_c,
+                 "venue_camera_hidden_proxy_meshes_.find(object_name)",
+                 "separate RndDir proxy renderers receive camera-hidden mesh sets");
+  ok &= contains(update_venue_proxy_objects_c,
+                 "constboolcamera_fully_hidden="
+                 "venue_proxy_camera_fully_hidden(object_name,proxy);",
+                 "camera-hidden proxy objects are skipped before animation sampling");
   ok &= contains(draw_venue_proxy_objects_c,
                  "\"[world]venueproxydraw:name=%spath=%sanimating=%d",
                  "venue proxy draw rows expose per-proxy lighting inheritance proof");
+  ok &= contains(draw_venue_proxy_objects_c,
+                 "\"meshes=%zucamera_hidden=%dcamera_meshes=%zu\"",
+                 "venue proxy draw rows expose camera hidden mesh counts");
+  ok &= contains(draw_venue_proxy_objects_c,
+                 "\"hidden_camera=%zuenv=%zulights=%zut=%.3f\\n\"",
+                 "venue proxy draw summary reports camera-hidden proxy objects");
   ok &= contains(gameplay_h_c,
                  "doublenext_venue_proxy_draw_log_time_=0.0;",
                  "venue proxy draw diagnostics are throttled in gameplay state");
@@ -6384,13 +6400,34 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "boolvenue_camera_crowd_face_camera_=false;",
                  "camera-facing crowd state is tracked separately from hidden meshes");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::unordered_set<std::string>>"
+                 "venue_camera_hidden_proxy_meshes_;",
+                 "camera visibility also tracks hidden meshes for separate RndDir proxy renderers");
   ok &= contains(gameplay_c,
                  "boolnext_hide_crowd=key.hide_crowd;",
                  "camera visibility tracks authored hide_crowd for skinned WorldCrowd actors");
   ok &= contains(gameplay_c,
+                 "std::map<std::string,std::unordered_set<std::string>>"
+                 "next_hidden_proxy_meshes;",
+                 "camera visibility builds per-proxy hidden mesh sets");
+  ok &= contains(gameplay_c,
                  "next_hide_crowd=true;"
                  "next_hidden.insert(venue_crowd_meshes_.begin(),",
                  "CamShot hide_list crowd refs also hide skinned WorldCrowd actors");
+  ok &= contains(gameplay_c,
+                 "constautogroup_it=proxy.group_meshes.find(ref);",
+                 "CamShot hide_list group refs also resolve inside RndDir proxy MILOs");
+  ok &= contains(gameplay_c,
+                 "venue_camera_hidden_proxy_meshes_=std::move("
+                 "next_hidden_proxy_meshes);",
+                 "camera proxy hide state is committed beside main venue hide state");
+  ok &= contains(gameplay_c,
+                 "proxy_objects=%zu",
+                 "camera visibility diagnostics report proxy hide coverage");
+  ok &= contains(gameplay_c,
+                 "proxy_meshes=%zu",
+                 "camera visibility diagnostics report proxy hidden mesh coverage");
   ok &= contains(gameplay_c,
                  "venue_camera_hide_crowd_=next_hide_crowd;",
                  "camera hide_crowd state is committed beside hidden mesh state");
