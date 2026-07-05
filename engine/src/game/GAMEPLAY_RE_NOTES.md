@@ -9484,3 +9484,17 @@ Rejected native probe:
   empty/near-empty star-power tube. The next PCSX2 pass must reach or construct
   a filled/star-active meter route before it can prove fill width, active/stored
   draw gates, or material alpha against the original game.
+
+2026-07-05 star-meter prelit core-glow correction:
+- Source inspection of `hud/gen/star_meter.milo_ps2` shows
+  `amp_inside_star_path.mat` is the material carrying `amp_bar_glow.tex`, uses
+  source blend `3`, and has its authored prelit byte set. Its
+  `amp_inside_bar_path.mesh` vertices are all white RGBA, so the white-blue
+  strip is a source prelit/emissive contribution, not a dim ordinary diffuse
+  tint.
+- Native HUD layout loading now preserves the decoded Mat prelit flag. The star
+  path glow keeps the original MILO texture and blend, but uses the source
+  prelit white contribution for `amp_bar_glow.tex` and boosts that source
+  texture alpha through the same prelit/emissive path instead of multiplying the
+  core down with the grey material color. The debug row reports
+  `path_prelit=1 path_alpha2x=1` when the source-backed path is active.

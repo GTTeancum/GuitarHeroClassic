@@ -621,6 +621,7 @@ struct MiloLayout {
   std::unordered_map<std::string, std::string> mat_tex; // material -> diffuse tex
   std::unordered_map<std::string, uint32_t> mat_color;   // material -> ARGB tint
   std::unordered_map<std::string, uint8_t> mat_blend;    // material -> BLEND_ENUM
+  std::unordered_map<std::string, bool> mat_prelit;       // material -> source prelit flag
   std::unordered_map<std::string, MatUvXfm> mat_uv;      // material -> diffuse UV xform
   std::unordered_map<std::string, std::string> mat_ref;  // material -> referenced material
   std::unordered_map<std::string, std::string> mat_layer_ref;  // material -> extra pass
@@ -1019,6 +1020,7 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         out.mat_color[de.name] =
             argb(c(mat.color[3]), c(mat.color[0]), c(mat.color[1]), c(mat.color[2]));
         out.mat_blend[de.name] = mat.blend;
+        out.mat_prelit[de.name] = mat.prelit;
       } else if (de.type == "MatAnim") {
         if (auto curve = decode_mat_anim_color_curve(de.name, b, n)) {
           out.mat_anim_color[de.name] = std::move(*curve);
@@ -1199,6 +1201,7 @@ void HudRenderer::clear_loaded_resources() {
   native_star_back_.clear();
   native_star_fill_.clear();
   native_star_path_glow_.clear();
+  native_star_path_glow_prelit_ = false;
   native_star_fill_glow_.clear();
   native_star_front_.clear();
   native_star_glass_.clear();
@@ -2391,6 +2394,14 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         if (star_core_mesh || star_path_glow_mesh || star_additive_glow_mesh) {
           q.emissive_texture_2x = true;
         }
+        const auto prelit_it = star.mat_prelit.find(mesh->material);
+        const bool source_prelit =
+            prelit_it != star.mat_prelit.end() && prelit_it->second;
+        if (star_path_glow_mesh && source_prelit) {
+          native_star_path_glow_prelit_ = true;
+          q.color = 0xFFFFFFFF;
+          q.emissive_alpha_2x = true;
+        }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
         }
@@ -3033,7 +3044,10 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
                                            : D3DTOP_MODULATE));
       dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
       dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-      dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+      dev->SetTextureStageState(0, D3DTSS_ALPHAOP,
+                                q.emissive_alpha_2x
+                                    ? D3DTOP_MODULATE2X
+                                    : D3DTOP_MODULATE);
       dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
       dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
     } else {
@@ -3586,6 +3600,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         clipped.wrap_uv = src.wrap_uv;
         clipped.fullbright_texture = src.fullbright_texture;
         clipped.emissive_texture_2x = src.emissive_texture_2x;
+        clipped.emissive_alpha_2x = src.emissive_alpha_2x;
         clipped.group = src.group;
         clipped.element = src.element;
         clipped.sort_bias = src.sort_bias;
@@ -3852,7 +3867,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "source_layers=amp_inside_bar.mesh,amp_inside_bar_path.mesh,"
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
-        "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
+        "path_prelit=%d path_alpha2x=%d fill_blends=%u,%u,%u "
+        "lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=shared_source_range screen=left_to_right\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
         fill_anim_frame, tube_meter_anim_frame, tube_glow_anim_frame,
@@ -3877,6 +3893,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         drew_native_fill ? 1 : 0, drew_native_particles ? 1 : 0,
         drew_native_ready_mesh ? 1 : 0, drew_native_ready_glow ? 1 : 0,
         drew_native_fill_glow ? 1 : 0, 0, tube_glow ? 1 : 0,
+        native_star_path_glow_prelit_ ? 1 : 0,
+        native_star_path_glow_prelit_ ? 1 : 0,
         first_quad_blend(native_star_fill_),
         first_quad_blend(native_star_path_glow_),
         first_quad_blend(native_star_fill_glow_),

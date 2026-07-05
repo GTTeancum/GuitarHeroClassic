@@ -119,6 +119,7 @@ class HudRenderer {
     bool wrap_uv = false;
     bool fullbright_texture = false;
     bool emissive_texture_2x = false;
+    bool emissive_alpha_2x = false;
     uint8_t group = 0;
     uint8_t element = 255;
     int sort_bias = 0;
@@ -287,6 +288,7 @@ class HudRenderer {
   std::vector<StarMeshAnimatedQuad> native_star_ready_mesh_glow_;
   std::vector<StarAnimatedQuad> native_star_lightning_;
   std::vector<StarParticleLayer> native_star_particles_;
+  bool native_star_path_glow_prelit_ = false;
   bool native_rock_face_ok_ = false;
   bool native_rock_frame_ok_ = false;
   bool native_rock_label_ok_ = false;
