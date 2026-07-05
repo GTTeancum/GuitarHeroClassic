@@ -2919,7 +2919,7 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   // Assemble the full quad list: static frame, then dynamic content.
   std::vector<Quad> quads = static_quads_;
   const bool star_power_visual = state.sp_active;
-  emit_star_power(quads, state.sp_fill, state.sp_active, state.anim_seconds);
+  emit_star_power(quads, state.sp_fill, state.sp_active);
   emit_rock_meter(quads, state.rock_fill);
   emit_multiplier(quads, state.multiplier, star_power_visual);
   emit_streak(quads, state.streak, star_power_visual);
@@ -3571,8 +3571,7 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier,
 }
 
 void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
-                                  bool star_power_active,
-                                  float anim_seconds) const {
+                                  bool star_power_active) const {
   if (!sp_bar_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
   auto source_filter_frame =
@@ -3653,8 +3652,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (!star_path_tex_translation_keys_.empty()) {
     const float duration = std::max(1.0f,
                                     star_path_tex_translation_anim_duration_);
-    path_tex_frame =
-        std::fmod(std::max(0.0f, anim_seconds) * 30.0f, duration);
+    path_tex_frame = std::clamp(fill, 0.0f, 1.0f) * duration;
   }
   const Vec3AnimKey path_tex_translation =
       sample_vec3_key(star_path_tex_translation_keys_, path_tex_frame);

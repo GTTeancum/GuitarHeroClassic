@@ -9847,3 +9847,18 @@ Rejected native probe:
   `native_star_path_alpha_emission_current_proof.png`. The refreshed log rows
   report `core_emit4x=0 core_add_emit=0 path_emit4x=1 path_prelit=1
   path_alpha2x=1 path_alpha_emission=1 path_dual_emit=1`.
+
+2026-07-05 star-meter fill-driven path UV checkpoint:
+- Decoded `amp_inside_star.mnm` targets `amp_inside_star_path.mat` and carries
+  two texture-translation keys: U `-0.400` at frame `0` and U `0.500` at frame
+  `100`. No decoded `AnimFilter` routes that MatAnim as an independent HUD
+  time loop in `star_meter.milo_ps2`.
+- Native now samples that path texture translation from the stored meter fill
+  over the decoded `0..100` frame range. This keeps the original
+  `amp_inside_bar_path.mesh` / `amp_bar_glow.tex` contribution tied to the
+  PCSX2 forced-fill oracle's value instead of to screenshot/capture time.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_fill_driven_path_uv_current/`
+  contains stored `0.25`, `0.50`, `0.75`, and `1.00` native captures/logs plus
+  `native_star_fill_driven_path_uv_current_proof.png`. The refreshed log rows
+  report `path_uv_frame=25.00/50.00/75.00/100.00` for the four stored values.

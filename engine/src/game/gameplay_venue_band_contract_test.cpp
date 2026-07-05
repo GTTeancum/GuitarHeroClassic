@@ -1034,13 +1034,12 @@ int main() {
                        "if(clamped==2||clamped==4){",
                        "native multiplier mesh slots are preferred over the combined 2x/4x plate fallback");
   ok &= contains(hud_renderer_c,
-                 "emit_star_power(quads,state.sp_fill,state.sp_active,"
-                 "state.anim_seconds);",
+                 "emit_star_power(quads,state.sp_fill,state.sp_active);",
                  "star-power tube receives the live active state, not only fill");
   ok &= contains(hud_renderer_h_c,
                  "voidemit_star_power(std::vector<Quad>&out,floatfill,"
-                 "boolstar_power_active,floatanim_seconds)const;",
-                 "star-power HUD draw signature keeps active state and MatAnim time explicit");
+                 "boolstar_power_active)const;",
+                 "star-power HUD draw signature keeps active state explicit");
   ok &= contains(hud_renderer_c,
                  "constbooltube_glow=ready||star_power_active;",
                  "active star power keeps the native tube glow path alive while draining");
@@ -1056,6 +1055,9 @@ int main() {
                  "star_path_tex_translation_keys_,"
                  "star_path_tex_translation_anim_duration_);",
                  "star-power path glow uses the source amp_inside_star MatAnim texture translation");
+  ok &= contains(hud_renderer_c,
+                 "path_tex_frame=std::clamp(fill,0.0f,1.0f)*duration;",
+                 "star-power path texture frame follows the stored meter fill over the decoded amp_inside_star.mnm frame range");
   ok &= contains(hud_renderer_c,
                  "copy_alpha_keys(\"amp_tube_glow_meter.mnm\","
                  "star_tube_meter_alpha_keys_,star_tube_meter_anim_duration_);",

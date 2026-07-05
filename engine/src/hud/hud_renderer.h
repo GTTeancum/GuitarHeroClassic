@@ -204,7 +204,7 @@ class HudRenderer {
   void emit_multiplier(std::vector<Quad>& out, int multiplier,
                        bool star_power_visual) const;
   void emit_star_power(std::vector<Quad>& out, float fill,
-                       bool star_power_active, float anim_seconds) const;
+                       bool star_power_active) const;
   void emit_rock_meter(std::vector<Quad>& out, float fill) const;
 
   // Map a HUD-space (worldX, worldZ) point to back-buffer pixels.
