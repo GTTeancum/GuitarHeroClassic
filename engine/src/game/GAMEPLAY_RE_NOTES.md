@@ -9689,3 +9689,25 @@ Rejected native probe:
 - Caveat: this is a native source-renderer brightness correction. The stock
   filled/active PCSX2 route is still needed before final signoff on exact fill
   brightness and active/stored timing.
+
+2026-07-05 star-meter core emission ordering pass:
+- The bright stored center still uses only the original
+  `amp_inside_bar.mesh` / `amp_inside_star.mat` / `amp_inside_bar.tex` core
+  layer. The previous native pass created a matching additive/emissive core
+  contribution, but kept it inside `native_star_fill_`, so it was drawn before
+  the decoded `amp_inside_bar_path.mesh` path-glow stack.
+- Native now keeps the normal source core draw in source order and stores the
+  matching additive core contribution in a separate `native_star_core_emission_`
+  layer. `emit_star_power` draws that layer after the source path glow and
+  before active lightning/particles and the chrome/top/cap meshes. No
+  replacement art, new fill mesh, hand-authored rectangle, or non-MILO texture
+  is introduced.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_core_emission_order/`
+  contains stored 0.25, stored 0.75, and active 1.00 native HUD captures/logs
+  plus `native_star_core_emission_order_proof.png`. The HUD debug row reports
+  `fill_layers=1 core_emit_layers=1 path_glow=2 core_emit4x=1
+  core_add_emit=1 path_emit4x=1 path_prelit=1 fill_blends=1,3,4`.
+- Caveat: this is still a native MILO-renderer ordering/brightness correction.
+  A real filled/active stock PCSX2 visual route is still required before final
+  star-power meter parity signoff.
