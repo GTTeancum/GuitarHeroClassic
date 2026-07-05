@@ -9468,3 +9468,19 @@ Rejected native probe:
   contains red/yellow/green live gameplay captures, logs with
   `source_lamp_curves=3,5,4/3,5,4`, and
   `rock_meter_source_lamp_matanim_proof.png`.
+
+2026-07-05 PCSX2 star-meter route refresh:
+- Re-ran the stock GH2 `SLUS_214.47` PCSX2 indexed state-1 route with the
+  object-word sampler's `--background-input` path, `--require-screenshot`, and
+  no foreground/focus request. The tool captured both HWND screenshots through
+  the PCSX2 window path and terminated PCSX2 afterward.
+- Artifact:
+  `engine/out/star_power_trace_evidence_20260705/pcsx2_stock_star_rows_refresh_no_focus/`
+  contains `stock_star_rows_refresh.json`, the PCSX2 log, before/after window
+  screenshots, and `pcsx2_stock_star_rows_refresh_proof.png`.
+- Evidence status: the screenshots are valid active in-song HUD route evidence,
+  and the sampled star-meter rows stayed stable over 32 samples. They are not
+  sufficient filled-meter fidelity proof because this stock state has an
+  empty/near-empty star-power tube. The next PCSX2 pass must reach or construct
+  a filled/star-active meter route before it can prove fill width, active/stored
+  draw gates, or material alpha against the original game.
