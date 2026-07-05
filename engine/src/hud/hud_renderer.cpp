@@ -2401,7 +2401,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           native_star_path_glow_prelit_ = true;
           q.color = 0xFFFFFFFF;
           q.emissive_texture_4x = true;
-          q.emissive_alpha_2x = true;
+          q.emissive_alpha_4x = true;
         }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
@@ -3048,9 +3048,11 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
       dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
       dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
       dev->SetTextureStageState(0, D3DTSS_ALPHAOP,
-                                q.emissive_alpha_2x
-                                    ? D3DTOP_MODULATE2X
-                                    : D3DTOP_MODULATE);
+                                q.emissive_alpha_4x
+                                    ? D3DTOP_MODULATE4X
+                                    : (q.emissive_alpha_2x
+                                     ? D3DTOP_MODULATE2X
+                                     : D3DTOP_MODULATE));
       dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
       dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
     } else {
@@ -3605,6 +3607,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         clipped.emissive_texture_2x = src.emissive_texture_2x;
         clipped.emissive_texture_4x = src.emissive_texture_4x;
         clipped.emissive_alpha_2x = src.emissive_alpha_2x;
+        clipped.emissive_alpha_4x = src.emissive_alpha_4x;
         clipped.group = src.group;
         clipped.element = src.element;
         clipped.sort_bias = src.sort_bias;
@@ -3871,7 +3874,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "source_layers=amp_inside_bar.mesh,amp_inside_bar_path.mesh,"
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
-        "path_emit4x=%d path_prelit=%d path_alpha2x=%d "
+        "path_emit4x=%d path_prelit=%d path_alpha4x=%d "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=shared_source_range screen=left_to_right\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,

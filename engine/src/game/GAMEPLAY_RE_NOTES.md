@@ -9513,3 +9513,13 @@ Rejected native probe:
   `engine/out/star_power_trace_evidence_20260705/native_star_core_emit4x/`
   contains stored 0.25, stored 0.75, and active 1.00 HUD captures/logs plus
   `native_star_core_emit4x_proof.png`.
+
+2026-07-05 star-meter prelit core alpha emission:
+- The source-backed bright core still uses only `amp_inside_bar_path.mesh` with
+  `amp_inside_star_path.mat` and `amp_bar_glow.tex`. To make the white-blue
+  center read as an emitted path instead of a dim translucent strip, native now
+  applies the same 4x fixed-function combine to that prelit path's texture alpha
+  as it already used for texture color. The MILO mesh, texture, UVs, source
+  blend enum, clipping range, and glass/chrome layering are unchanged.
+- The HUD diagnostic row now reports `path_emit4x=1 path_prelit=1
+  path_alpha4x=1` when the decoded prelit path is active.
