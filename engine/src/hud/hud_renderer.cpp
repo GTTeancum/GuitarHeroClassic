@@ -2428,6 +2428,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           }
           if (star_core_mesh) {
             Quad core_emission = q;
+            core_emission.color = 0xFFFFFFFF;
             core_emission.additive = true;
             core_emission.blend = kHudBlendSrcAlphaAdd;
             target.push_back(q);
@@ -3855,7 +3856,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
                                             std::nullopt, 1.0f,
                                             path_glow_range);
     drew_native_fill |= append_clipped_fill(native_star_core_emission_,
-                                            fill_core_color, 1.0f,
+                                            std::nullopt, 1.0f,
                                             core_fill_range);
     if (star_power_active) {
       for (const StarAnimatedQuad& lightning : native_star_lightning_) {

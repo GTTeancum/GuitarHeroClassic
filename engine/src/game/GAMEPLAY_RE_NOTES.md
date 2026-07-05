@@ -9711,3 +9711,24 @@ Rejected native probe:
 - Caveat: this is still a native MILO-renderer ordering/brightness correction.
   A real filled/active stock PCSX2 visual route is still required before final
   star-power meter parity signoff.
+
+2026-07-05 stock filled-meter oracle and fullbright core emission:
+- A no-foreground PCSX2 route now reaches active stock GH2 gameplay from the
+  indexed retry state by posting the Retry/Cross input to the PCSX2 window in
+  the background, then writing the traced player star-gauge floats at
+  `player+0x70` from `0.0` to `1.0`. The after capture shows the stock meter
+  filled with a bright white-blue center core whose width tracks the full tube.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/pcsx2_stock_star_force_full_after_retry_no_focus/`
+  contains the PCSX2 before/after captures, trace JSON, and
+  `pcsx2_stock_star_force_full_after_retry_proof.png`.
+- Native still uses the original `amp_inside_bar.mesh` /
+  `amp_inside_star.mat` / `amp_inside_bar.tex` core. The ordinary clipped core
+  pass remains source-material tinted; only the separate additive/emissive copy
+  now uses white diffuse so the original texture and alpha drive a fullbright
+  core contribution instead of being re-tinted by the fill MatAnim color.
+  No replacement art, generated fill shape, or non-MILO texture was introduced.
+- Native evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_core_fullbright_diffuse/`
+  contains stored 0.25, stored 0.75, and active 1.00 native gameplay captures
+  plus `native_star_core_fullbright_diffuse_proof.png`.
