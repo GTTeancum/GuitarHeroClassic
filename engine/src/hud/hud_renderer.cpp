@@ -2374,6 +2374,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         q.group = kHudGroupRight;
         q.element = element;
         if (tex_override) q.tex = tex(tex_override);
+        if (std::strcmp(name, "amp_inside_bar.mesh") == 0 &&
+            mesh->material == "amp_inside_star.mat") {
+          q.fullbright_texture = true;
+        }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
         }
@@ -3002,7 +3006,9 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     dev->SetSamplerState(0, D3DSAMP_ADDRESSV, address_mode);
     if (q.tex) {
       dev->SetTexture(0, q.tex);
-      dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+      dev->SetTextureStageState(0, D3DTSS_COLOROP,
+                                q.fullbright_texture ? D3DTOP_SELECTARG1
+                                                     : D3DTOP_MODULATE);
       dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
       dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
       dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
@@ -3534,6 +3540,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         clipped.blend = src.blend;
         clipped.preserve_depth = src.preserve_depth;
         clipped.wrap_uv = src.wrap_uv;
+        clipped.fullbright_texture = src.fullbright_texture;
         clipped.group = src.group;
         clipped.element = src.element;
         clipped.sort_bias = src.sort_bias;
