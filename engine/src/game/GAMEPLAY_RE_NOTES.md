@@ -9801,3 +9801,20 @@ Rejected native probe:
   PCSX2 GS texture-stage/blend state for `amp_inside_bar_path.mesh` remains
   the source of truth for final tube brightness, bloom width, and glass
   contrast.
+
+2026-07-05 star-meter duplicate inside-bar emission removal:
+- The settled PCSX2 partial-fill oracle rejected the broad
+  `amp_inside_bar.mesh` additive slab, and `star_meter.view` contains only one
+  `amp_inside_bar.mesh` child before `amp_inside_bar_path.mesh`. Native now
+  removes the extra `native_star_core_emission_` draw that cloned
+  `amp_inside_bar.mesh` as a second additive pass after the path glow.
+- The source stack is now one clipped `amp_inside_bar.mesh` base fill followed
+  by the original clipped `amp_inside_bar_path.mesh` color/additive path glow.
+  The HUD debug rows for the refreshed captures report `core_emit_layers=0`
+  with `path_emit4x=1 path_alpha2x=1 path_dual_emit=1`.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_no_inside_bar_additive/`
+  contains stored `0.25`, `0.50`, `0.75`, and `1.00` native captures/logs plus
+  active `1.00`. This does not finish final parity; the next source-backed
+  step is still PCSX2 GS-stage/blend tracing for the remaining tube-body
+  brightness and glass-contrast mismatch.

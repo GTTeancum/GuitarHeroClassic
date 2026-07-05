@@ -1203,24 +1203,17 @@ int main() {
                  "sample_hud_mat_anim_color_frame("
                  "star_fill_color_keys_,fill_anim_frame)",
                  "star-power core color samples the source amp_inside_bar_glow MatAnim frame");
-  ok &= contains(hud_renderer_c,
-                 "core_emission.blend=kHudBlendSrcAlphaAdd;",
-                 "star-power core emission pass uses the HUD additive blend path");
-  ok &= contains(hud_renderer_c,
-                 "core_emission.additive=true;",
-                 "star-power core emission pass keeps the source mesh and texture as an additive contribution");
+  ok &= absent(hud_renderer_c,
+               "native_star_core_emission_.push_back",
+               "star-power must not add a duplicate amp_inside_bar additive core pass");
+  ok &= absent(hud_renderer_c,
+               "append_clipped_fill(native_star_core_emission_",
+               "star-power must not draw a duplicate amp_inside_bar additive core pass");
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_fill|=append_clipped_fill_uv(native_star_path_glow_,"
       "std::nullopt,1.0f,path_glow_range,"
       "path_tex_translation.x,path_tex_translation.y);",
-      "drew_native_fill|=append_clipped_fill(native_star_core_emission_,"
-      "fill_core_color,1.0f,core_fill_range);",
-      "star-power applies source MatAnim path UV before the source core emission pass");
-  ok &= appears_before(
-      hud_renderer_c,
-      "drew_native_fill|=append_clipped_fill(native_star_core_emission_,"
-      "fill_core_color,1.0f,core_fill_range);",
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
       "star-power emits amp_inside_bar_path before chrome top/base bar");

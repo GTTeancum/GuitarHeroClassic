@@ -2515,19 +2515,6 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
             target.push_back(std::move(color_pass));
           }
           target.push_back(std::move(q));
-          if (star_core_fill_mesh) {
-            Quad core_emission = target.back();
-            core_emission.additive = true;
-            core_emission.blend = kHudBlendSrcAlphaAdd;
-            core_emission.fullbright_texture = false;
-            core_emission.emissive_texture_4x = false;
-            core_emission.emissive_texture_2x = true;
-            core_emission.emissive_alpha_4x = false;
-            core_emission.emissive_alpha_2x = false;
-            core_emission.prelit_alpha_emission = false;
-            core_emission.sort_bias = 1;
-            native_star_core_emission_.push_back(std::move(core_emission));
-          }
         }
         if (tex_override) return;
         const auto layer_ref = star.mat_layer_ref.find(mesh->material);
@@ -3995,9 +3982,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     drew_native_fill |= append_clipped_fill_uv(
         native_star_path_glow_, std::nullopt, 1.0f, path_glow_range,
         path_tex_translation.x, path_tex_translation.y);
-    drew_native_fill |= append_clipped_fill(native_star_core_emission_,
-                                            fill_core_color, 1.0f,
-                                            core_fill_range);
     if (star_power_active) {
       for (const StarAnimatedQuad& lightning : native_star_lightning_) {
         drew_native_fill |= append_clipped_animated(lightning);
