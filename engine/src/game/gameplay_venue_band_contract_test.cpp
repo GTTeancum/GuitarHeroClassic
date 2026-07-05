@@ -1285,9 +1285,11 @@ int main() {
                  "\"fill_glow_gate=%d\"",
                  "star-power diagnostics expose the ready-view glow gate");
   ok &= contains(hud_renderer_c,
-                 "source_filter_frame(star_tube_glow_filter_,fill,"
-                 "star_tube_glow_anim_duration_);",
-                 "star-power tube ready alpha no longer pins the source MatAnim at frame zero");
+                 "constfloattube_meter_alpha_frame=tube_meter_anim_frame;",
+                 "star-power tube-meter alpha samples the live source MatAnim frame");
+  ok &= contains(hud_renderer_c,
+                 "constfloattube_glow_alpha_frame=tube_glow_anim_frame;",
+                 "star-power ready tube alpha samples the live source MatAnim frame");
   ok &= contains(hud_renderer_c,
                  "source_filter_progress(star_tube_glow_filter_,fill)*"
                  "std::max(1.0f,src.duration_frames);",

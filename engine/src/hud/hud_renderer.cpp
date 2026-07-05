@@ -3483,10 +3483,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       star_tube_meter_filter_, fill, star_tube_meter_anim_duration_);
   const float tube_glow_anim_frame = source_filter_frame(
       star_tube_glow_filter_, fill, star_tube_glow_anim_duration_);
-  const float tube_meter_alpha_frame = source_filter_frame(
-      star_tube_meter_filter_, 0.0f, star_tube_meter_anim_duration_);
-  const float tube_glow_alpha_frame = source_filter_frame(
-      star_tube_glow_filter_, 0.0f, star_tube_glow_anim_duration_);
+  const float tube_meter_alpha_frame = tube_meter_anim_frame;
+  const float tube_glow_alpha_frame = tube_glow_anim_frame;
   const float tube_glow_mesh_frame =
       native_star_ready_mesh_glow_.empty()
           ? 0.0f
