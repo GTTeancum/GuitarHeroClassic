@@ -1099,9 +1099,9 @@ int main() {
                  "native_star_fill_,0,false,false,true,"
                  "nullptr,true,kElemSpFill,-1.0f);",
                  "star-power inside-bar fill preserves authored mesh depth before right-panel projection");
-  ok &= contains(hud_renderer_c,
-                 "if(star_core_fill_mesh){q.emissive_texture_2x=true;}",
-                 "star-power inside-bar core uses the source texture as bright emission");
+  ok &= absent(hud_renderer_c,
+               "if(star_core_fill_mesh){q.emissive_texture_2x=true;}",
+               "star-power inside-bar base fill must not be promoted to an emissive core");
   ok &= contains(hud_renderer_c,
                  "if(star_path_glow_mesh||star_additive_glow_mesh){"
                  "q.emissive_texture_2x=true;}",

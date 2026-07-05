@@ -9818,3 +9818,17 @@ Rejected native probe:
   active `1.00`. This does not finish final parity; the next source-backed
   step is still PCSX2 GS-stage/blend tracing for the remaining tube-body
   brightness and glass-contrast mismatch.
+
+2026-07-05 star-meter inside-bar material-combine correction:
+- Decoded `amp_inside_star.mat` for `amp_inside_bar.mesh` is not the prelit
+  source path material; it is the broad base fill with blend `1` and color
+  `[0.663 0.933 0.996 1.000]`. Native no longer promotes that base fill to
+  `emissive_texture_2x`. The prelit/emissive handling remains limited to the
+  original `amp_inside_bar_path.mesh` / `amp_inside_star_path.mat` /
+  `amp_bar_glow.tex` path layer.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_base_source_material/`
+  contains stored `0.25`, `0.50`, `0.75`, and `1.00` native captures/logs plus
+  active `1.00`. The refreshed logs still show `core_emit_layers=0` and
+  `path_emit4x=1 path_alpha2x=1`, proving the bright core remains on the source
+  path layer while the broad base fill follows its decoded material combine.

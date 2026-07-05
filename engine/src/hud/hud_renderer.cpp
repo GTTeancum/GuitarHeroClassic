@@ -2463,17 +2463,11 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         const bool star_path_glow_mesh =
             std::strcmp(name, "amp_inside_bar_path.mesh") == 0 &&
             mesh->material == "amp_inside_star_path.mat";
-        const bool star_core_fill_mesh =
-            std::strcmp(name, "amp_inside_bar.mesh") == 0 &&
-            mesh->material == "amp_inside_star.mat";
         const bool star_additive_glow_mesh =
             (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0 &&
              mesh->material == "amp_tube_glow_meter.mat") ||
             (std::strcmp(name, "amp_tube_glow.mesh") == 0 &&
              mesh->material == "amp_tube_glow.mat");
-        if (star_core_fill_mesh) {
-          q.emissive_texture_2x = true;
-        }
         if (star_path_glow_mesh || star_additive_glow_mesh) {
           q.fullbright_texture = true;
         }
