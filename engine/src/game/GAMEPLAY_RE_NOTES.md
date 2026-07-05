@@ -9523,3 +9523,24 @@ Rejected native probe:
   blend enum, clipping range, and glass/chrome layering are unchanged.
 - The HUD diagnostic row now reports `path_emit4x=1 path_prelit=1
   path_alpha4x=1` when the decoded prelit path is active.
+
+2026-07-05 rejected stock star-meter fill-cheat route:
+- Decoded stock `config/cheats.dtb` maps uppercase `S` to `{fill_star_meter}`,
+  and `config/cheats_funcs.dtb` maps that solo route to
+  `{player0 fill_star_power}`. A no-focus PCSX2 rerun used the stock GH2 ISO,
+  indexed state slot 1, background `PostMessage` input, and PCSX2 `PrintWindow`
+  captures to post plain `S` after load.
+- The run stayed in active gameplay, but the visible star-power tube remained
+  empty/near-empty and all seven sampled source star-meter rows had
+  `changed_count=0`: `amp_inside_bar.mesh`, `amp_tube_glow_meter.mesh`,
+  `amp_tube_glow.mesh`, `amp_inside_star.mat`, `amp_tube_glow_meter.mat`,
+  `star_meter.view`, and `star_meter_ready.view`.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/pcsx2_stock_star_plain_s_rows_no_focus/`
+  contains the JSON/log, before/after PCSX2 window captures, and
+  `pcsx2_stock_star_plain_s_rows_proof.png`.
+- Interpretation: the keyboard cheat path is rejected as a fill oracle for this
+  state. The next source-backed route must resolve/trace the actual
+  `player0 fill_star_power` method dispatch or capture an in-song earned-fill /
+  activation path; native renderer changes should not be justified by this cheat
+  key route alone.
