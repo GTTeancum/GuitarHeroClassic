@@ -1107,6 +1107,17 @@ int main() {
                  "q.emissive_texture_2x=true;}",
                  "star-power path glow uses the source emissive texture combine");
   ok &= contains(hud_renderer_c,
+                 "if(star_path_glow_mesh&&source_prelit){"
+                 "native_star_path_glow_prelit_=true;"
+                 "native_star_path_glow_dual_emit_=true;"
+                 "q.additive=true;"
+                 "q.blend=kHudBlendSrcAlphaAdd;"
+                 "q.emissive_texture_4x=true;"
+                 "q.emissive_texture_2x=false;"
+                 "q.emissive_alpha_4x=false;"
+                 "q.emissive_alpha_2x=true;",
+                 "star-power source path core uses the brighter prelit emission combine");
+  ok &= contains(hud_renderer_c,
                  "q.blend=kHudBlendSrcAlphaAdd;",
                  "star-power prelit amp_bar_glow is routed through the HUD additive emission path");
   ok &= contains(hud_renderer_c,

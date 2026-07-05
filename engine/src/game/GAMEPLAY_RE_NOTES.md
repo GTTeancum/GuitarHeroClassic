@@ -9782,3 +9782,22 @@ Rejected native probe:
   strip remains narrower and the tube/glass contrast differs, so the next pass
   should trace the exact PCSX2 texture-stage/blend state for
   `amp_inside_bar.mesh` and `amp_inside_bar_path.mesh` before further tuning.
+
+2026-07-05 star-meter path-core emission pass:
+- The bright center core is still the original `amp_inside_bar_path.mesh` /
+  `amp_inside_star_path.mat` / `amp_bar_glow.tex` source layer. Native now
+  promotes only that prelit additive pass to a stronger HUD combine:
+  texture color `4x` and texture alpha `2x`. The ordinary source color pass,
+  decoded UV translation, left-to-right source-mesh clipping, broad
+  `amp_inside_bar.mesh` fill, tube glass, chrome, and caps are unchanged.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_path_core_emit4x_alpha2x/`
+  contains stored `0.25`, `0.50`, `0.75`, and `1.00` native captures/logs,
+  active `1.00` capture/logs, and
+  `native_star_path_core_emit4x_alpha2x_proof.png` compared against the
+  settled PCSX2 forced-fill trace.
+- Remaining mismatch: the core now reads bright, but this is still a native
+  source-renderer interpretation of the MILO prelit/additive path. The exact
+  PCSX2 GS texture-stage/blend state for `amp_inside_bar_path.mesh` remains
+  the source of truth for final tube brightness, bloom width, and glass
+  contrast.

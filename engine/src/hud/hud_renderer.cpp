@@ -2489,10 +2489,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           native_star_path_glow_dual_emit_ = true;
           q.additive = true;
           q.blend = kHudBlendSrcAlphaAdd;
-          q.emissive_texture_4x = false;
-          q.emissive_texture_2x = true;
+          q.emissive_texture_4x = true;
+          q.emissive_texture_2x = false;
           q.emissive_alpha_4x = false;
-          q.emissive_alpha_2x = false;
+          q.emissive_alpha_2x = true;
           q.prelit_alpha_emission = false;
           q.sort_bias = 1;
         }
@@ -4044,6 +4044,24 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     }
     return false;
   };
+  auto any_quad_texture_emit4x = [](const std::vector<Quad>& layers) {
+    for (const Quad& q : layers) {
+      if (q.emissive_texture_4x) return true;
+    }
+    return false;
+  };
+  auto any_quad_alpha2x = [](const std::vector<Quad>& layers) {
+    for (const Quad& q : layers) {
+      if (q.emissive_alpha_2x) return true;
+    }
+    return false;
+  };
+  auto any_quad_alpha_emission = [](const std::vector<Quad>& layers) {
+    for (const Quad& q : layers) {
+      if (q.prelit_alpha_emission) return true;
+    }
+    return false;
+  };
 
   static int star_power_debug_budget = 0;
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER") &&
@@ -4066,7 +4084,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
         "core_emit4x=%d core_add_emit=%d "
-        "path_emit4x=%d path_prelit=%d path_alpha4x=%d "
+        "path_emit4x=%d path_prelit=%d path_alpha2x=%d "
         "path_alpha_emission=%d path_dual_emit=%d "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=source_mesh_ranges screen=left_to_right "
@@ -4098,10 +4116,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         drew_native_fill_glow ? 1 : 0, 0, tube_glow ? 1 : 0,
         first_quad_core_emit4x(native_star_fill_) ? 1 : 0,
         any_quad_core_add_emit(native_star_core_emission_) ? 1 : 0,
+        any_quad_texture_emit4x(native_star_path_glow_) ? 1 : 0,
         native_star_path_glow_prelit_ ? 1 : 0,
-        native_star_path_glow_prelit_ ? 1 : 0,
-        native_star_path_glow_prelit_ ? 1 : 0,
-        native_star_path_glow_prelit_ ? 1 : 0,
+        any_quad_alpha2x(native_star_path_glow_) ? 1 : 0,
+        any_quad_alpha_emission(native_star_path_glow_) ? 1 : 0,
         native_star_path_glow_dual_emit_ ? 1 : 0,
         first_quad_blend(native_star_fill_),
         first_quad_blend(native_star_path_glow_),
