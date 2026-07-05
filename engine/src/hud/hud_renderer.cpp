@@ -1870,6 +1870,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                           lt.rock_face.w, lt.rock_face.h);
   sp_bar_ = child_slot(rock_face_, lt.sp_bar.cx, lt.sp_bar.cy,
                        lt.sp_bar.w, lt.sp_bar.h);
+  native_star_fill_slot_ = {};
+  native_star_ready_slot_ = {};
   rock_needle_pivot_ = child_slot(rock_face_, lt.rock_needle.cx,
                                   lt.rock_needle.cy, lt.rock_needle.w,
                                   lt.rock_needle.h);
@@ -2582,13 +2584,13 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                      nullptr, true, kElemSpBack, 0.0f);
     append_star_mesh("amp_inside_bar.mesh", native_star_fill_,
                      0, false, false, true,
-                     nullptr, true, kElemSpFill, 0.0f);
+                     nullptr, true, kElemSpFill, -1.0f);
     append_star_mesh("amp_inside_bar_path.mesh", native_star_path_glow_,
                      0, false, false, true,
                      nullptr, true, kElemSpFill, 0.0f);
     append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
                      0, true, false, true,
-                     nullptr, true, kElemSpFill, 0.0f);
+                     nullptr, true, kElemSpFill, -1.0f);
     append_star_animated_mesh("lightning_bot_04_0.mesh",
                               native_star_lightning_);
     append_star_animated_mesh("lightning_bot_02_0.mesh",
@@ -2684,6 +2686,19 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         }
         init_child_rect_from_slot(element, parent, union_slot_for_quads(refs));
       };
+  {
+    std::vector<const Quad*> fill_refs;
+    for (const Quad& q : native_star_fill_) fill_refs.push_back(&q);
+    native_star_fill_slot_ = union_slot_for_quads(fill_refs);
+  }
+  {
+    std::vector<const Quad*> ready_refs;
+    for (const Quad& q : native_star_ready_glow_) ready_refs.push_back(&q);
+    for (const StarMeshAnimatedQuad& anim : native_star_ready_mesh_glow_) {
+      for (const Quad& q : anim.frames) ready_refs.push_back(&q);
+    }
+    native_star_ready_slot_ = union_slot_for_quads(ready_refs);
+  }
   init_child_rect_from_vector(kElemSpBack, sp_bar_, native_star_back_);
   init_child_rect_from_vector(kElemSpFill, sp_bar_, native_star_fill_);
   if (native_star_fill_.empty()) {
@@ -2842,8 +2857,8 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     }
   };
   apply_element_slot_tuning(kElemSpBack, sp_bar_);
-  apply_element_slot_tuning(kElemSpFill, sp_bar_);
-  apply_element_slot_tuning(kElemSpReady, sp_bar_);
+  apply_element_slot_tuning(kElemSpFill, sp_bar_, &native_star_fill_slot_);
+  apply_element_slot_tuning(kElemSpReady, sp_bar_, &native_star_ready_slot_);
   apply_element_slot_tuning(kElemSpFront, sp_bar_);
   apply_element_slot_tuning(kElemSpGlass, sp_bar_);
   apply_element_slot_tuning(kElemSpBase, sp_bar_);
@@ -3436,11 +3451,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
           : source_filter_frame(
                 star_tube_glow_filter_, fill,
                 native_star_ready_mesh_glow_.front().duration_frames);
-  const std::optional<uint32_t> star_fill_color =
-      star_fill_color_keys_.empty()
-          ? std::optional<uint32_t>{}
-          : std::optional<uint32_t>{sample_hud_mat_anim_color_frame(
-                star_fill_color_keys_, fill_anim_frame)};
   const float tube_meter_alpha = sample_hud_mat_anim_alpha_frame(
       star_tube_meter_alpha_keys_, tube_meter_anim_frame);
   const float tube_ready_alpha = sample_hud_mat_anim_alpha_frame(
@@ -3457,21 +3467,48 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (!native_star_glass_.empty())
     out.insert(out.end(), native_star_glass_.begin(), native_star_glass_.end());
 
-  // GH2's tube fills from the right cap toward the left. Projection flips X,
-  // so screen-right is the lower world-X side of the decoded meter mesh.
+  auto source_x_range = [](const std::vector<Quad>& layers,
+                           float& min_x, float& max_x) {
+    bool any = false;
+    for (const Quad& q : layers) {
+      for (const Quad::V& v : q.verts) {
+        min_x = std::min(min_x, v.wx);
+        max_x = std::max(max_x, v.wx);
+        any = true;
+      }
+    }
+    return any;
+  };
+  float fill_min_x = std::numeric_limits<float>::max();
+  float fill_max_x = std::numeric_limits<float>::lowest();
+  bool fill_has_range = false;
+  fill_has_range |= source_x_range(native_star_fill_, fill_min_x, fill_max_x);
+  fill_has_range |= source_x_range(native_star_path_glow_, fill_min_x, fill_max_x);
+  fill_has_range |= source_x_range(native_star_fill_glow_, fill_min_x, fill_max_x);
+  if (!fill_has_range || !(fill_max_x > fill_min_x)) {
+    fill_min_x = std::numeric_limits<float>::max();
+    fill_max_x = std::numeric_limits<float>::lowest();
+  }
+
+  // GH2's tube fills from the left cap toward the right. Projection flips X,
+  // so screen-left is the higher world-X side of the decoded meter mesh.
   auto append_clipped_quad =
       [&](const Quad& src, const std::optional<uint32_t>& color_override,
           IDirect3DTexture9* texture_override, float alpha_scale) {
         if (src.verts.size() < 3 || src.idx.size() < 3) return false;
-        float min_x = std::numeric_limits<float>::max();
-        float max_x = std::numeric_limits<float>::lowest();
-        for (const Quad::V& v : src.verts) {
-          min_x = std::min(min_x, v.wx);
-          max_x = std::max(max_x, v.wx);
+        float min_x = fill_min_x;
+        float max_x = fill_max_x;
+        if (!(max_x > min_x)) {
+          min_x = std::numeric_limits<float>::max();
+          max_x = std::numeric_limits<float>::lowest();
+          for (const Quad::V& v : src.verts) {
+            min_x = std::min(min_x, v.wx);
+            max_x = std::max(max_x, v.wx);
+          }
         }
         if (!(max_x > min_x)) return false;
-        const float clip_x = min_x + (max_x - min_x) * fill;
-        auto inside = [&](const Quad::V& v) { return v.wx <= clip_x; };
+        const float clip_x = max_x - (max_x - min_x) * fill;
+        auto inside = [&](const Quad::V& v) { return v.wx >= clip_x; };
         auto intersect = [&](const Quad::V& a, const Quad::V& b) {
           const float denom = b.wx - a.wx;
           const float t =
@@ -3676,14 +3713,16 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   bool drew_native_fill_glow = false;
   if (fill > 0.005f) {
     drew_native_fill |= append_clipped_fill(native_star_fill_,
-                                            star_fill_color, 1.0f);
+                                            std::nullopt, 1.0f);
     drew_native_fill |= append_clipped_fill(native_star_path_glow_,
                                             std::nullopt, 1.0f);
-    for (const StarAnimatedQuad& lightning : native_star_lightning_) {
-      drew_native_fill |= append_clipped_animated(lightning);
-    }
-    for (const StarParticleLayer& particle : native_star_particles_) {
-      drew_native_particles |= append_star_particle(particle);
+    if (star_power_active) {
+      for (const StarAnimatedQuad& lightning : native_star_lightning_) {
+        drew_native_fill |= append_clipped_animated(lightning);
+      }
+      for (const StarParticleLayer& particle : native_star_particles_) {
+        drew_native_particles |= append_star_particle(particle);
+      }
     }
   }
   if (!native_star_top_.empty())
@@ -3760,7 +3799,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
-        "ready_mesh_blend=%u clip=world_min_to_clip screen=right_to_left\n",
+        "ready_mesh_blend=%u clip=shared_source_range screen=left_to_right\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
         fill_anim_frame, tube_meter_anim_frame, tube_glow_anim_frame,
         tube_glow_mesh_frame,

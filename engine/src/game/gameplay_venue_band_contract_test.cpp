@@ -1089,6 +1089,11 @@ int main() {
                  "nullptr,true,kElemSpFill,0.0f);",
                  "star-power path glow preserves amp_inside_star_path.mat blend=3 instead of forcing additive");
   ok &= contains(hud_renderer_c,
+                 "append_star_mesh(\"amp_inside_bar.mesh\","
+                 "native_star_fill_,0,false,false,true,"
+                 "nullptr,true,kElemSpFill,-1.0f);",
+                 "star-power inside-bar fill preserves authored mesh depth before right-panel projection");
+  ok &= contains(hud_renderer_c,
                  "\"amp_glass.mesh\",\"amp_base_bar.mesh\"",
                  "star-power source bounds include the authored amp_base_bar child");
   ok &= absent(hud_renderer_c,
@@ -1100,6 +1105,33 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "append_star_mesh(\"amp_base_bar.mesh\",native_star_caps_",
                  "star-power keeps the authored amp_base_bar child in its own cap bucket");
+  ok &= contains(hud_renderer_c,
+                 "append_star_mesh(\"amp_tube_glow_meter.mesh\","
+                 "native_star_fill_glow_,0,true,false,true,"
+                 "nullptr,true,kElemSpFill,-1.0f);",
+                 "star-power tube-meter glow uses the fixed fill slot before clipping");
+  ok &= contains(hud_renderer_h_c,
+                 "Slotnative_star_fill_slot_;Slotnative_star_ready_slot_;",
+                 "star-power stores fixed source slots for clipped fill placement");
+  ok &= contains(hud_renderer_c,
+                 "native_star_fill_slot_=union_slot_for_quads(fill_refs);",
+                 "star-power captures the unclipped fill source slot before live clipping");
+  ok &= contains(hud_renderer_c,
+                 "for(constQuad&q:native_star_fill_)"
+                 "fill_refs.push_back(&q);"
+                 "native_star_fill_slot_=union_slot_for_quads(fill_refs);",
+                 "star-power fill source slot is based on amp_inside_bar core, not outer glow bounds");
+  ok &= contains(hud_renderer_c,
+                 "native_star_ready_slot_=union_slot_for_quads(ready_refs);",
+                 "star-power captures the unclipped ready source slot before live clipping");
+  ok &= contains(hud_renderer_c,
+                 "apply_element_slot_tuning(kElemSpFill,sp_bar_,"
+                 "&native_star_fill_slot_);",
+                 "star-power fill tuning uses the fixed source slot, not clipped bounds");
+  ok &= contains(hud_renderer_c,
+                 "apply_element_slot_tuning(kElemSpReady,sp_bar_,"
+                 "&native_star_ready_slot_);",
+                 "star-power ready tuning uses the fixed source slot, not clipped bounds");
   ok &= appears_before(
       hud_renderer_c,
       "if(!native_star_front_.empty())"
@@ -1140,8 +1172,12 @@ int main() {
       "if(!native_star_glass_.empty())"
       "out.insert(out.end(),native_star_glass_.begin(),native_star_glass_.end());",
       "drew_native_fill|=append_clipped_fill(native_star_fill_,"
-      "star_fill_color,1.0f);",
+      "std::nullopt,1.0f);",
       "star-power emits amp_glass before the clipped amp_inside_bar fill");
+  ok &= contains(hud_renderer_c,
+                 "append_clipped_fill(native_star_fill_,"
+                 "std::nullopt,1.0f);",
+                 "star-power steady core keeps amp_inside_star.mat fullbright material color");
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_fill|=append_clipped_fill(native_star_path_glow_,"
@@ -1258,7 +1294,15 @@ int main() {
                  "append_star_particle(\"amp_inside_bar_path.part\","
                  "\"amp_inside_bar_path.tnm\","
                  "\"amp_inside_bar_path.panm\");",
-                 "star-power fill renders the source amp_inside_bar_path particle");
+                 "star-power decodes the source amp_inside_bar_path particle");
+  ok &= contains(hud_renderer_c,
+                 "if(star_power_active){"
+                 "for(constStarAnimatedQuad&lightning:native_star_lightning_){",
+                 "steady stored star-power fill does not render fill-event lightning");
+  ok &= contains(hud_renderer_c,
+                 "for(constStarParticleLayer&particle:native_star_particles_){"
+                 "drew_native_particles|=append_star_particle(particle);",
+                 "star-power particles remain gated to active/event rendering");
   ok &= contains(hud_renderer_c,
                  "layer.texture=tex_it->second;",
                  "star-power particle texture comes from its authored material");
@@ -1303,9 +1347,9 @@ int main() {
                  "particle_blend=%u\"",
                  "star-power diagnostics report the source material blend stack");
   ok &= contains(hud_renderer_c,
-                 "\"ready_mesh_blend=%uclip=world_min_to_clip"
-                 "screen=right_to_left\\n\"",
-                 "star-power diagnostics report source ready blend and fill direction");
+                 "\"ready_mesh_blend=%uclip=shared_source_range"
+                 "screen=left_to_right\\n\"",
+                 "star-power diagnostics report source ready blend and shared fill direction");
   ok &= contains(hud_renderer_c,
                  "first_quad_blend(native_star_fill_),"
                  "first_quad_blend(native_star_path_glow_),"

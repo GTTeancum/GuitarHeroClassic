@@ -229,6 +229,8 @@ class HudRenderer {
   Quad native_mult_digit_[2];
   bool native_mult_digit_ok_[2] = {};
   Slot sp_bar_;           // star-power fill bar extent (vertical)
+  Slot native_star_fill_slot_;
+  Slot native_star_ready_slot_;
   Slot rock_face_;        // rock meter dial face center/extent
   Slot native_rock_lights_slot_;
   Slot rock_needle_pivot_;// needle pivot + length
