@@ -1087,7 +1087,7 @@ int main() {
                  "append_star_mesh(\"amp_inside_bar_path.mesh\","
                  "native_star_path_glow_,0,false,false,true,"
                  "nullptr,true,kElemSpFill,0.0f);",
-                 "star-power path glow preserves amp_inside_star_path.mat blend=3 instead of forcing additive");
+                 "star-power path glow keeps the source amp_inside_star_path.mat layer");
   ok &= contains(hud_renderer_c,
                  "append_star_mesh(\"amp_inside_bar.mesh\","
                  "native_star_fill_,0,false,false,true,"
@@ -1098,6 +1098,17 @@ int main() {
                  "star_additive_glow_mesh){"
                  "q.emissive_texture_2x=true;}",
                  "star-power inside-bar core and path glow use the source emissive texture combine");
+  ok &= contains(hud_renderer_c,
+                 "q.prelit_alpha_emission=true;",
+                 "star-power prelit amp_bar_glow alpha is routed as HUD emission");
+  ok &= contains(hud_renderer_c,
+                 "q.prelit_alpha_emission||(q.additive&&"
+                 "q.blend==kHudBlendSrcAlpha)",
+                 "star-power source prelit alpha uses emission blend without rewriting the material blend");
+  ok &= contains(hud_renderer_c,
+                 "q.prelit_alpha_emission?"
+                 "(D3DTA_TEXTURE|D3DTA_ALPHAREPLICATE):D3DTA_TEXTURE",
+                 "star-power prelit amp_bar_glow alpha is replicated into color");
   ok &= contains(hud_renderer_c,
                  "\"amp_glass.mesh\",\"amp_base_bar.mesh\"",
                  "star-power source bounds include the authored amp_base_bar child");

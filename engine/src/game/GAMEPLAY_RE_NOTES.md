@@ -9524,6 +9524,16 @@ Rejected native probe:
 - The HUD diagnostic row now reports `path_emit4x=1 path_prelit=1
   path_alpha4x=1` when the decoded prelit path is active.
 
+2026-07-05 star-meter prelit alpha emission blend:
+- The decoded `amp_inside_star_path.mat` source blend remains `3`; native does
+  not rewrite the material or add a replacement texture. The extra brightness is
+  now applied only when that original material is also marked prelit by the MILO
+  decoder, routing `amp_bar_glow.tex` alpha into both color intensity and the
+  HUD emission blend after clipping.
+- The diagnostic row reports `path_alpha_emission=1` alongside
+  `path_emit4x=1 path_prelit=1 path_alpha4x=1`, which distinguishes the source
+  material blend from the runtime prelit-alpha emission path.
+
 2026-07-05 rejected stock star-meter fill-cheat route:
 - Decoded stock `config/cheats.dtb` maps uppercase `S` to `{fill_star_meter}`,
   and `config/cheats_funcs.dtb` maps that solo route to

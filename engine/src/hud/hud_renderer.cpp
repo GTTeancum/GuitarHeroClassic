@@ -2402,6 +2402,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           q.color = 0xFFFFFFFF;
           q.emissive_texture_4x = true;
           q.emissive_alpha_4x = true;
+          q.prelit_alpha_emission = true;
         }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
@@ -3025,7 +3026,8 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     const Quad& q = quads[draw_index];
     if (q.verts.size() < 3 || q.idx.size() < 3) continue;
     const uint8_t effective_blend =
-        (q.additive && q.blend == kHudBlendSrcAlpha)
+        (q.prelit_alpha_emission ||
+         (q.additive && q.blend == kHudBlendSrcAlpha))
             ? kHudBlendSrcAlphaAdd
             : q.blend;
     const HudBlendState blend_state = hud_blend_state_for(effective_blend);
@@ -3045,7 +3047,10 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
                                     : (q.fullbright_texture
                                            ? D3DTOP_SELECTARG1
                                            : D3DTOP_MODULATE)));
-      dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+      dev->SetTextureStageState(
+          0, D3DTSS_COLORARG1,
+          q.prelit_alpha_emission ? (D3DTA_TEXTURE | D3DTA_ALPHAREPLICATE)
+                                  : D3DTA_TEXTURE);
       dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
       dev->SetTextureStageState(0, D3DTSS_ALPHAOP,
                                 q.emissive_alpha_4x
@@ -3608,6 +3613,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         clipped.emissive_texture_4x = src.emissive_texture_4x;
         clipped.emissive_alpha_2x = src.emissive_alpha_2x;
         clipped.emissive_alpha_4x = src.emissive_alpha_4x;
+        clipped.prelit_alpha_emission = src.prelit_alpha_emission;
         clipped.group = src.group;
         clipped.element = src.element;
         clipped.sort_bias = src.sort_bias;
@@ -3875,6 +3881,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
         "path_emit4x=%d path_prelit=%d path_alpha4x=%d "
+        "path_alpha_emission=%d "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=shared_source_range screen=left_to_right\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
@@ -3900,6 +3907,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         drew_native_fill ? 1 : 0, drew_native_particles ? 1 : 0,
         drew_native_ready_mesh ? 1 : 0, drew_native_ready_glow ? 1 : 0,
         drew_native_fill_glow ? 1 : 0, 0, tube_glow ? 1 : 0,
+        native_star_path_glow_prelit_ ? 1 : 0,
         native_star_path_glow_prelit_ ? 1 : 0,
         native_star_path_glow_prelit_ ? 1 : 0,
         native_star_path_glow_prelit_ ? 1 : 0,
