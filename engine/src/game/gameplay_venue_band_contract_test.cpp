@@ -1162,20 +1162,6 @@ int main() {
       hud_renderer_c,
       "if(!native_star_back_.empty())"
       "out.insert(out.end(),native_star_back_.begin(),native_star_back_.end());",
-      "if(!native_star_caps_.empty())"
-      "out.insert(out.end(),native_star_caps_.begin(),native_star_caps_.end());",
-      "star-power emits amp_base_bar cap support behind the chrome base");
-  ok &= appears_before(
-      hud_renderer_c,
-      "if(!native_star_caps_.empty())"
-      "out.insert(out.end(),native_star_caps_.begin(),native_star_caps_.end());",
-      "if(!native_star_base_.empty())"
-      "out.insert(out.end(),native_star_base_.begin(),native_star_base_.end());",
-      "star-power hides the blue amp_base_bar support behind the chrome cap");
-  ok &= appears_before(
-      hud_renderer_c,
-      "if(!native_star_back_.empty())"
-      "out.insert(out.end(),native_star_back_.begin(),native_star_back_.end());",
       "if(!native_star_base_.empty())"
       "out.insert(out.end(),native_star_base_.begin(),native_star_base_.end());",
       "star-power emits amp_glass_black before chrome base like star_meter.view");
@@ -1205,6 +1191,12 @@ int main() {
                  "sample_hud_mat_anim_color_frame("
                  "star_fill_color_keys_,fill_core_lit_frame)",
                  "star-power core color uses the source amp_inside_bar_glow lit MatAnim frame");
+  ok &= contains(hud_renderer_c,
+                 "core_emission.blend=kHudBlendSrcAlphaAdd;",
+                 "star-power core emission pass uses the HUD additive blend path");
+  ok &= contains(hud_renderer_c,
+                 "core_emission.additive=true;",
+                 "star-power core emission pass keeps the source mesh and texture as an additive contribution");
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_fill|=append_clipped_fill(native_star_path_glow_,"
@@ -1212,6 +1204,13 @@ int main() {
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
       "star-power emits amp_inside_bar_path before chrome top/base bar");
+  ok &= appears_before(
+      hud_renderer_c,
+      "if(!native_star_top_.empty())"
+      "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
+      "if(!native_star_caps_.empty())"
+      "out.insert(out.end(),native_star_caps_.begin(),native_star_caps_.end());",
+      "star-power emits amp_base_bar after chrome top like star_meter.view");
   ok &= appears_before(
       hud_renderer_c,
       "if(tube_glow){",
@@ -1235,6 +1234,9 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "ready_mesh_drawn=%dready_glow_drawn=%dfill_glow_drawn=%d",
                  "star-power diagnostics report source glow layers after live draw");
+  ok &= contains(hud_renderer_c,
+                 "core_emit4x=%dcore_add_emit=%d",
+                 "star-power diagnostics report the source core additive emission pass");
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"

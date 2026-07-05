@@ -9662,3 +9662,30 @@ Rejected native probe:
   the attempted stock key route did not enter the fill branch, but it must not
   be used to justify filled-meter brightness, clipping, or active/stored draw
   behavior.
+
+2026-07-05 star-meter source-order and core additive emission:
+- Stock `hud/gen/star_meter.milo_ps2::star_meter.view` orders the visible stored
+  meter as `amp_inside_disk.mesh`, `amp_glass_black.mesh`,
+  `amp_chrome_base.mesh`, `amp_glass.mesh`, `amp_inside_bar.mesh`,
+  `amp_inside_bar_path.mesh`, `amp_chrome_top.mesh`, `amp_base_bar.mesh`.
+  Native now draws `amp_base_bar.mesh` after `amp_chrome_top.mesh` to match
+  that group order.
+- The bright stored center still uses only the original core material:
+  `amp_inside_bar.mesh` / `amp_inside_star.mat` / `amp_inside_bar.tex`. Source
+  material inspection reports blend `1`, color `[0.663, 0.933, 0.996, 1.000]`,
+  and white mesh vertices. Native now keeps the normal clipped core draw and
+  adds a second clipped additive/emissive pass of the same source mesh and
+  texture so the core reads as emitted instead of merely opaque.
+- No replacement art, hand-authored fill shape, new texture, or non-MILO source
+  is introduced. The paired source path glow remains
+  `amp_inside_bar_path.mesh` / `amp_inside_star_path.mat` /
+  `amp_bar_glow.tex`.
+- Evidence artifacts:
+  `engine/out/star_power_trace_evidence_20260705/stock_star_meter_milo_dump/`
+  and
+  `engine/out/star_power_trace_evidence_20260705/native_star_core_add_emit/`.
+  The HUD debug rows report `core_emit4x=1 core_add_emit=1` with the same
+  source layer names.
+- Caveat: this is a native source-renderer brightness correction. The stock
+  filled/active PCSX2 route is still needed before final signoff on exact fill
+  brightness and active/stored timing.
