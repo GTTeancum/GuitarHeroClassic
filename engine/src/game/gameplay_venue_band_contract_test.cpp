@@ -1094,9 +1094,10 @@ int main() {
                  "nullptr,true,kElemSpFill,-1.0f);",
                  "star-power inside-bar fill preserves authored mesh depth before right-panel projection");
   ok &= contains(hud_renderer_c,
-                 "if(star_core_mesh||star_additive_glow_mesh){"
+                 "if(star_core_mesh||star_path_glow_mesh||"
+                 "star_additive_glow_mesh){"
                  "q.emissive_texture_2x=true;}",
-                 "star-power inside-bar core uses the same emissive texture combine as the source glow meshes");
+                 "star-power inside-bar core and path glow use the source emissive texture combine");
   ok &= contains(hud_renderer_c,
                  "\"amp_glass.mesh\",\"amp_base_bar.mesh\"",
                  "star-power source bounds include the authored amp_base_bar child");
@@ -1183,9 +1184,13 @@ int main() {
                  "fill_core_color,1.0f);",
                  "star-power steady core uses the source amp_inside_bar_glow material color");
   ok &= contains(hud_renderer_c,
+                 "constfloatfill_core_lit_frame=star_fill_color_keys_.empty()"
+                 "?0.0f:star_fill_color_keys_.back().frame;",
+                 "star-power steady core samples the source final lit MatAnim key");
+  ok &= contains(hud_renderer_c,
                  "sample_hud_mat_anim_color_frame("
-                 "star_fill_color_keys_,fill_anim_frame)",
-                 "star-power core color samples the source amp_inside_bar_glow MatAnim frame");
+                 "star_fill_color_keys_,fill_core_lit_frame)",
+                 "star-power core color uses the source amp_inside_bar_glow lit MatAnim frame");
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_fill|=append_clipped_fill(native_star_path_glow_,"
@@ -1195,10 +1200,24 @@ int main() {
       "star-power emits amp_inside_bar_path before chrome top/base bar");
   ok &= appears_before(
       hud_renderer_c,
+      "if(tube_glow){",
+      "drew_native_fill|=append_clipped_fill(native_star_fill_,"
+      "fill_core_color,1.0f);",
+      "star-power emits star_meter_ready.view glow under the clipped amp_inside_bar core");
+  ok &= appears_before(
+      hud_renderer_c,
+      "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
+      "std::nullopt,tube_meter_alpha);",
+      "drew_native_fill|=append_clipped_fill(native_star_fill_,"
+      "fill_core_color,1.0f);",
+      "star-power tube-meter glow sits under the bright source core");
+  ok &= appears_before(
+      hud_renderer_c,
+      "drew_native_fill|=append_clipped_fill(native_star_path_glow_,"
+      "std::nullopt,1.0f);",
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
-      "if(tube_glow){",
-      "star-power completes star_meter.view chrome top before star_meter_ready.view glow");
+      "star-power completes clipped fill/path before chrome top");
   ok &= contains(hud_renderer_c,
                  "ready_mesh_drawn=%dready_glow_drawn=%dfill_glow_drawn=%d",
                  "star-power diagnostics report source glow layers after live draw");

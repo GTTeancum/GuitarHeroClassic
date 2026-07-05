@@ -2377,15 +2377,18 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         const bool star_core_mesh =
             std::strcmp(name, "amp_inside_bar.mesh") == 0 &&
             mesh->material == "amp_inside_star.mat";
+        const bool star_path_glow_mesh =
+            std::strcmp(name, "amp_inside_bar_path.mesh") == 0 &&
+            mesh->material == "amp_inside_star_path.mat";
         const bool star_additive_glow_mesh =
             (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0 &&
              mesh->material == "amp_tube_glow_meter.mat") ||
             (std::strcmp(name, "amp_tube_glow.mesh") == 0 &&
              mesh->material == "amp_tube_glow.mat");
-        if (star_core_mesh || star_additive_glow_mesh) {
+        if (star_core_mesh || star_path_glow_mesh || star_additive_glow_mesh) {
           q.fullbright_texture = true;
         }
-        if (star_core_mesh || star_additive_glow_mesh) {
+        if (star_core_mesh || star_path_glow_mesh || star_additive_glow_mesh) {
           q.emissive_texture_2x = true;
         }
         if (flip_u) {
@@ -3496,11 +3499,16 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       star_tube_meter_alpha_keys_, tube_meter_alpha_frame);
   const float tube_ready_alpha = sample_hud_mat_anim_alpha_frame(
       star_tube_glow_alpha_keys_, tube_glow_alpha_frame);
+  // The source MatAnim is a short glow ramp; stored fill changes width, not
+  // steady-state core brightness.
+  const float fill_core_lit_frame = star_fill_color_keys_.empty()
+                                        ? 0.0f
+                                        : star_fill_color_keys_.back().frame;
   const std::optional<uint32_t> fill_core_color =
       star_fill_color_keys_.empty()
           ? std::nullopt
           : std::optional<uint32_t>(sample_hud_mat_anim_color_frame(
-                star_fill_color_keys_, fill_anim_frame));
+                star_fill_color_keys_, fill_core_lit_frame));
 
   if (!native_star_front_.empty())
     out.insert(out.end(), native_star_front_.begin(), native_star_front_.end());
@@ -3759,23 +3767,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   bool drew_native_fill = false;
   bool drew_native_particles = false;
   bool drew_native_fill_glow = false;
-  if (fill > 0.005f) {
-    drew_native_fill |= append_clipped_fill(native_star_fill_,
-                                            fill_core_color, 1.0f);
-    drew_native_fill |= append_clipped_fill(native_star_path_glow_,
-                                            std::nullopt, 1.0f);
-    if (star_power_active) {
-      for (const StarAnimatedQuad& lightning : native_star_lightning_) {
-        drew_native_fill |= append_clipped_animated(lightning);
-      }
-      for (const StarParticleLayer& particle : native_star_particles_) {
-        drew_native_particles |= append_star_particle(particle);
-      }
-    }
-  }
-  if (!native_star_top_.empty())
-    out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
-
   bool drew_native_ready_mesh = false;
   bool drew_native_ready_glow = false;
   if (tube_glow) {
@@ -3805,7 +3796,21 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         append_clipped_fill(native_star_fill_glow_, std::nullopt,
                             tube_meter_alpha);
     drew_native_fill |= drew_native_fill_glow;
+    drew_native_fill |= append_clipped_fill(native_star_fill_,
+                                            fill_core_color, 1.0f);
+    drew_native_fill |= append_clipped_fill(native_star_path_glow_,
+                                            std::nullopt, 1.0f);
+    if (star_power_active) {
+      for (const StarAnimatedQuad& lightning : native_star_lightning_) {
+        drew_native_fill |= append_clipped_animated(lightning);
+      }
+      for (const StarParticleLayer& particle : native_star_particles_) {
+        drew_native_particles |= append_star_particle(particle);
+      }
+    }
   }
+  if (!native_star_top_.empty())
+    out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
 
   auto first_quad_blend = [](const std::vector<Quad>& layers) {
     return layers.empty() ? 255u
