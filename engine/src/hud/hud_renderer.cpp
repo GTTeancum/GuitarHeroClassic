@@ -2487,7 +2487,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           q.emissive_texture_2x = false;
           q.emissive_alpha_4x = false;
           q.emissive_alpha_2x = true;
-          q.prelit_alpha_emission = false;
+          q.prelit_alpha_emission = true;
           q.sort_bias = 1;
         }
         if (flip_u) {

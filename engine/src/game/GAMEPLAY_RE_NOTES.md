@@ -9832,3 +9832,18 @@ Rejected native probe:
   active `1.00`. The refreshed logs still show `core_emit_layers=0` and
   `path_emit4x=1 path_alpha2x=1`, proving the bright core remains on the source
   path layer while the broad base fill follows its decoded material combine.
+
+2026-07-05 star-meter path alpha-emission checkpoint:
+- The stored-meter bright core remains exclusively on the original
+  `amp_inside_bar_path.mesh` / `amp_inside_star_path.mat` /
+  `amp_bar_glow.tex` MILO layer. Native now restores the prelit alpha-emission
+  combine on that source path so the decoded alpha channel contributes to the
+  bright white-blue center instead of only masking the additive pass.
+- The broad `amp_inside_bar.mesh` base fill still uses its decoded material
+  combine and is not duplicated or promoted to an emissive slab.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_path_alpha_emission_current/`
+  contains stored `0.25`, `0.50`, `0.75`, and `1.00` native captures/logs plus
+  `native_star_path_alpha_emission_current_proof.png`. The refreshed log rows
+  report `core_emit4x=0 core_add_emit=0 path_emit4x=1 path_prelit=1
+  path_alpha2x=1 path_alpha_emission=1 path_dual_emit=1`.
