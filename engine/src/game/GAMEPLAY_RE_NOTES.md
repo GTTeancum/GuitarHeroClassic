@@ -9498,3 +9498,18 @@ Rejected native probe:
   texture alpha through the same prelit/emissive path instead of multiplying the
   core down with the grey material color. The debug row reports
   `path_prelit=1 path_alpha2x=1` when the source-backed path is active.
+
+2026-07-05 star-meter prelit path emission follow-up:
+- The bright stored-meter core comes from the original
+  `amp_inside_bar_path.mesh` layer and `amp_bar_glow.tex`, which
+  `star_meter.view` orders after `amp_inside_bar.mesh` and before the chrome top.
+  The prior native pass decoded the source material but still composited that
+  prelit path too flat against the tube.
+- Native now treats only the decoded prelit `amp_inside_star_path.mat` path as a
+  stronger fullbright emission pass in the fixed-function HUD renderer. It keeps
+  the original mesh, texture, UVs, source blend enum, and glass/top draw layers;
+  the debug row reports `path_prelit=1`, `path_alpha2x=1`, and `path_emit4x=1`.
+- Validation artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_core_emit4x/`
+  contains stored 0.25, stored 0.75, and active 1.00 HUD captures/logs plus
+  `native_star_core_emit4x_proof.png`.

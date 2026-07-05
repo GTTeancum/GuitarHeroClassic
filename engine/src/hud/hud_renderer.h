@@ -119,6 +119,7 @@ class HudRenderer {
     bool wrap_uv = false;
     bool fullbright_texture = false;
     bool emissive_texture_2x = false;
+    bool emissive_texture_4x = false;
     bool emissive_alpha_2x = false;
     uint8_t group = 0;
     uint8_t element = 255;
