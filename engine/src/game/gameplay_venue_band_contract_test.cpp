@@ -1105,6 +1105,12 @@ int main() {
                "if(star_core_fill_mesh){q.emissive_texture_2x=true;}",
                "star-power inside-bar base fill must not be promoted to an emissive core");
   ok &= contains(hud_renderer_c,
+                 "if(star_core_fill_mesh&&!star_fill_color_keys_.empty()){"
+                 "q.fullbright_texture=true;"
+                 "q.emissive_texture_4x=true;"
+                 "q.emissive_alpha_4x=true;}",
+                 "star-power inside-bar source MatAnim core is rendered as fullbright emission");
+  ok &= contains(hud_renderer_c,
                  "if(star_path_glow_mesh||star_additive_glow_mesh){"
                  "q.emissive_texture_2x=true;}",
                  "star-power path glow uses the source emissive texture combine");
@@ -1122,6 +1128,9 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "q.prelit_alpha_emission=true;",
                  "star-power prelit path glow routes alpha into the bright core emission");
+  ok &= contains(hud_renderer_c,
+                 "color_pass.prelit_alpha_emission=false;",
+                 "star-power source path color pass keeps texture RGB separate from alpha emission");
   ok &= contains(hud_renderer_c,
                  "q.blend=kHudBlendSrcAlphaAdd;",
                  "star-power prelit amp_bar_glow is routed through the HUD additive emission path");

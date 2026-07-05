@@ -9862,3 +9862,25 @@ Rejected native probe:
   contains stored `0.25`, `0.50`, `0.75`, and `1.00` native captures/logs plus
   `native_star_fill_driven_path_uv_current_proof.png`. The refreshed log rows
   report `path_uv_frame=25.00/50.00/75.00/100.00` for the four stored values.
+
+2026-07-05 star-meter source-core fullbright checkpoint:
+- The remaining native dullness was not addressed with a replacement fill mesh
+  or generated overlay. Native now treats the original `amp_inside_bar.mesh` /
+  `amp_inside_star.mat` / `amp_inside_bar.tex` broad core as the source
+  MatAnim-driven emitted core when `amp_inside_bar_glow.mnm` is decoded. The
+  same clipped source mesh is rendered fullbright with the fixed-function 4x
+  texture/alpha combine, while the original `amp_inside_bar_path.mesh` /
+  `amp_inside_star_path.mat` / `amp_bar_glow.tex` layer remains the separate
+  prelit alpha-emission strip.
+- The path color-preserving pass no longer inherits the alpha-emission flag,
+  so source texture RGB and alpha-replicated emission stay distinct render
+  passes instead of collapsing into alpha-only color.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_core_fullbright4x_current/`
+  contains stored `0.25`, `0.50`, `0.75`, and `1.00` native captures/logs plus
+  active `1.00` and `native_star_core_fullbright4x_current_proof.png`. The
+  refreshed log rows report `core_emit4x=1 core_add_emit=0 path_emit4x=1
+  path_alpha_emission=1`.
+- Caveat: this is a source-backed brightness checkpoint, not final parity. The
+  stock PCSX2 partial-fill oracle still remains the comparison target for exact
+  center-core width, path texture placement, and glass contrast.
