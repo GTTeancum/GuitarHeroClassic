@@ -3545,38 +3545,38 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (!native_star_glass_.empty())
     out.insert(out.end(), native_star_glass_.begin(), native_star_glass_.end());
 
-  auto source_x_range = [](const std::vector<Quad>& layers,
-                           float& min_x, float& max_x) {
+  struct StarClipRange {
+    float min_x = std::numeric_limits<float>::max();
+    float max_x = std::numeric_limits<float>::lowest();
+    bool ok = false;
+  };
+  auto source_x_range = [](const std::vector<Quad>& layers) {
+    StarClipRange range;
     bool any = false;
     for (const Quad& q : layers) {
       for (const Quad::V& v : q.verts) {
-        min_x = std::min(min_x, v.wx);
-        max_x = std::max(max_x, v.wx);
+        range.min_x = std::min(range.min_x, v.wx);
+        range.max_x = std::max(range.max_x, v.wx);
         any = true;
       }
     }
-    return any;
+    range.ok = any && range.max_x > range.min_x;
+    return range;
   };
-  float fill_min_x = std::numeric_limits<float>::max();
-  float fill_max_x = std::numeric_limits<float>::lowest();
-  bool fill_has_range = false;
-  fill_has_range |= source_x_range(native_star_fill_, fill_min_x, fill_max_x);
-  fill_has_range |= source_x_range(native_star_path_glow_, fill_min_x, fill_max_x);
-  fill_has_range |= source_x_range(native_star_fill_glow_, fill_min_x, fill_max_x);
-  if (!fill_has_range || !(fill_max_x > fill_min_x)) {
-    fill_min_x = std::numeric_limits<float>::max();
-    fill_max_x = std::numeric_limits<float>::lowest();
-  }
+  const StarClipRange core_fill_range = source_x_range(native_star_fill_);
+  const StarClipRange path_glow_range = source_x_range(native_star_path_glow_);
+  const StarClipRange tube_meter_range = source_x_range(native_star_fill_glow_);
 
   // GH2's tube fills from the left cap toward the right. Projection flips X,
   // so screen-left is the higher world-X side of the decoded meter mesh.
   auto append_clipped_quad =
       [&](const Quad& src, const std::optional<uint32_t>& color_override,
-          IDirect3DTexture9* texture_override, float alpha_scale) {
+          IDirect3DTexture9* texture_override, float alpha_scale,
+          const StarClipRange& clip_range) {
         if (src.verts.size() < 3 || src.idx.size() < 3) return false;
-        float min_x = fill_min_x;
-        float max_x = fill_max_x;
-        if (!(max_x > min_x)) {
+        float min_x = clip_range.min_x;
+        float max_x = clip_range.max_x;
+        if (!clip_range.ok || !(max_x > min_x)) {
           min_x = std::numeric_limits<float>::max();
           max_x = std::numeric_limits<float>::lowest();
           for (const Quad::V& v : src.verts) {
@@ -3659,11 +3659,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       };
   auto append_clipped_fill =
       [&](const std::vector<Quad>& source,
-          const std::optional<uint32_t>& color_override, float alpha_scale) {
+          const std::optional<uint32_t>& color_override, float alpha_scale,
+          const StarClipRange& clip_range) {
         bool drew = false;
         for (const Quad& src : source) {
           drew |= append_clipped_quad(src, color_override, nullptr,
-                                     alpha_scale);
+                                     alpha_scale, clip_range);
         }
         return drew;
       };
@@ -3684,7 +3685,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
                                              anim_frame)) {
       texture_override = tex(*texture);
     }
-    return append_clipped_quad(q, std::nullopt, texture_override, 1.0f);
+    return append_clipped_quad(q, std::nullopt, texture_override, 1.0f,
+                               core_fill_range);
   };
   auto sample_star_mesh_anim =
       [](const StarMeshAnimatedQuad& animated, float frame) {
@@ -3822,12 +3824,14 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (fill > 0.005f) {
     drew_native_fill_glow =
         append_clipped_fill(native_star_fill_glow_, std::nullopt,
-                            tube_meter_alpha);
+                            tube_meter_alpha, tube_meter_range);
     drew_native_fill |= drew_native_fill_glow;
     drew_native_fill |= append_clipped_fill(native_star_fill_,
-                                            fill_core_color, 1.0f);
+                                            fill_core_color, 1.0f,
+                                            core_fill_range);
     drew_native_fill |= append_clipped_fill(native_star_path_glow_,
-                                            std::nullopt, 1.0f);
+                                            std::nullopt, 1.0f,
+                                            path_glow_range);
     if (star_power_active) {
       for (const StarAnimatedQuad& lightning : native_star_lightning_) {
         drew_native_fill |= append_clipped_animated(lightning);
@@ -3883,7 +3887,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "path_emit4x=%d path_prelit=%d path_alpha4x=%d "
         "path_alpha_emission=%d "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
-        "ready_mesh_blend=%u clip=shared_source_range screen=left_to_right\n",
+        "ready_mesh_blend=%u clip=source_mesh_ranges screen=left_to_right "
+        "range_ok=%d,%d,%d\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
         fill_anim_frame, tube_meter_anim_frame, tube_glow_anim_frame,
         tube_meter_alpha_frame, tube_glow_alpha_frame, tube_glow_mesh_frame,
@@ -3916,7 +3921,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         first_quad_blend(native_star_fill_glow_),
         first_anim_blend(native_star_lightning_),
         first_particle_blend(native_star_particles_),
-        first_mesh_anim_blend(native_star_ready_mesh_glow_));
+        first_mesh_anim_blend(native_star_ready_mesh_glow_),
+        core_fill_range.ok ? 1 : 0, path_glow_range.ok ? 1 : 0,
+        tube_meter_range.ok ? 1 : 0);
     ++star_power_debug_budget;
   }
 

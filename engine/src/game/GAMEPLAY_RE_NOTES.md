@@ -9581,3 +9581,23 @@ Rejected native probe:
   receives the contiguous star-power method symbols, or capture an earned
   star-power phrase path that mutates the same player gauge fields. Do not use
   the plain keyboard cheat as a visual fill oracle.
+
+2026-07-05 star-meter source mesh clip range correction:
+- Native no longer computes one shared fill clip range from the union of
+  `amp_inside_bar.mesh`, `amp_inside_bar_path.mesh`, and
+  `amp_tube_glow_meter.mesh`. That widened the mask used by the bright
+  prelit path and could make the white-blue core read as a narrow/static
+  overlay against the glow.
+- The renderer now clips each source-backed fill layer against its own decoded
+  MILO mesh range: the steady core uses `amp_inside_bar.mesh`, the prelit path
+  uses `amp_inside_bar_path.mesh`, and the tube-meter glow uses
+  `amp_tube_glow_meter.mesh`. No art, texture, material, blend enum, or color
+  override was introduced.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_source_mesh_clip_ranges/`
+  contains stored 0.25, stored 0.75, and active 1.00 captures/logs plus
+  `native_star_source_mesh_clip_ranges_proof.png`. The HUD debug rows report
+  `clip=source_mesh_ranges range_ok=1,1,1`.
+- Caveat: this is a source-backed clipping correction, not final filled-meter
+  parity. The next PCSX2 trace still needs a real filled/active stock-game
+  oracle before the remaining fill brightness/shape can be called matched.

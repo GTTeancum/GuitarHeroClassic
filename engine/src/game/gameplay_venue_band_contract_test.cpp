@@ -1188,11 +1188,11 @@ int main() {
       "if(!native_star_glass_.empty())"
       "out.insert(out.end(),native_star_glass_.begin(),native_star_glass_.end());",
       "drew_native_fill|=append_clipped_fill(native_star_fill_,"
-      "fill_core_color,1.0f);",
+      "fill_core_color,1.0f,core_fill_range);",
       "star-power emits amp_glass before the clipped amp_inside_bar fill");
   ok &= contains(hud_renderer_c,
                  "append_clipped_fill(native_star_fill_,"
-                 "fill_core_color,1.0f);",
+                 "fill_core_color,1.0f,core_fill_range);",
                  "star-power steady core uses the source amp_inside_bar_glow material color");
   ok &= contains(hud_renderer_c,
                  "constfloatfill_core_lit_frame=star_fill_color_keys_.empty()"
@@ -1205,7 +1205,7 @@ int main() {
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_fill|=append_clipped_fill(native_star_path_glow_,"
-      "std::nullopt,1.0f);",
+      "std::nullopt,1.0f,path_glow_range);",
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
       "star-power emits amp_inside_bar_path before chrome top/base bar");
@@ -1213,19 +1213,19 @@ int main() {
       hud_renderer_c,
       "if(tube_glow){",
       "drew_native_fill|=append_clipped_fill(native_star_fill_,"
-      "fill_core_color,1.0f);",
+      "fill_core_color,1.0f,core_fill_range);",
       "star-power emits star_meter_ready.view glow under the clipped amp_inside_bar core");
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
-      "std::nullopt,tube_meter_alpha);",
+      "std::nullopt,tube_meter_alpha,tube_meter_range);",
       "drew_native_fill|=append_clipped_fill(native_star_fill_,"
-      "fill_core_color,1.0f);",
+      "fill_core_color,1.0f,core_fill_range);",
       "star-power tube-meter glow sits under the bright source core");
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_fill|=append_clipped_fill(native_star_path_glow_,"
-      "std::nullopt,1.0f);",
+      "std::nullopt,1.0f,path_glow_range);",
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
       "star-power completes clipped fill/path before chrome top");
@@ -1235,7 +1235,7 @@ int main() {
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
-      "std::nullopt,tube_meter_alpha);",
+      "std::nullopt,tube_meter_alpha,tube_meter_range);",
       "\"[hud-star-power]fill=%.3fready=%dactive=%dtube_glow=%d",
       "star-power diagnostics run after the source tube-meter glow append");
   ok &= appears_before(
@@ -1306,7 +1306,8 @@ int main() {
                  "star-power ready view owns the source tube glow draw path");
   ok &= contains(hud_renderer_c,
                  "drew_native_fill_glow=append_clipped_fill("
-                 "native_star_fill_glow_,std::nullopt,tube_meter_alpha);",
+                 "native_star_fill_glow_,std::nullopt,tube_meter_alpha,"
+                 "tube_meter_range);",
                  "star-power tube-meter glow draw remains source-backed");
   ok &= contains(hud_renderer_c,
                  "\"fallback_fill=%dready_view=star_meter_ready.view\"",
@@ -1328,7 +1329,7 @@ int main() {
       hud_renderer_c,
       "if(tube_glow){",
       "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
-      "std::nullopt,tube_meter_alpha);",
+      "std::nullopt,tube_meter_alpha,tube_meter_range);",
       "star-power ready tube glow emits before tube-meter glow like star_meter_ready.view");
   ok &= contains(hud_renderer_c,
                  "append_star_particle(\"amp_inside_bar_path.part\","
@@ -1387,9 +1388,9 @@ int main() {
                  "particle_blend=%u\"",
                  "star-power diagnostics report the source material blend stack");
   ok &= contains(hud_renderer_c,
-                 "\"ready_mesh_blend=%uclip=shared_source_range"
-                 "screen=left_to_right\\n\"",
-                 "star-power diagnostics report source ready blend and shared fill direction");
+                 "\"ready_mesh_blend=%uclip=source_mesh_ranges"
+                 "screen=left_to_right\"\"range_ok=%d,%d,%d\\n\"",
+                 "star-power diagnostics report source ready blend and per-layer fill direction");
   ok &= contains(hud_renderer_c,
                  "first_quad_blend(native_star_fill_),"
                  "first_quad_blend(native_star_path_glow_),"
