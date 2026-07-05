@@ -3445,6 +3445,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       star_tube_meter_filter_, fill, star_tube_meter_anim_duration_);
   const float tube_glow_anim_frame = source_filter_frame(
       star_tube_glow_filter_, fill, star_tube_glow_anim_duration_);
+  const float tube_meter_alpha_frame = source_filter_frame(
+      star_tube_meter_filter_, 0.0f, star_tube_meter_anim_duration_);
+  const float tube_glow_alpha_frame = source_filter_frame(
+      star_tube_glow_filter_, 0.0f, star_tube_glow_anim_duration_);
   const float tube_glow_mesh_frame =
       native_star_ready_mesh_glow_.empty()
           ? 0.0f
@@ -3452,9 +3456,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
                 star_tube_glow_filter_, fill,
                 native_star_ready_mesh_glow_.front().duration_frames);
   const float tube_meter_alpha = sample_hud_mat_anim_alpha_frame(
-      star_tube_meter_alpha_keys_, tube_meter_anim_frame);
+      star_tube_meter_alpha_keys_, tube_meter_alpha_frame);
   const float tube_ready_alpha = sample_hud_mat_anim_alpha_frame(
-      star_tube_glow_alpha_keys_, tube_glow_anim_frame);
+      star_tube_glow_alpha_keys_, tube_glow_alpha_frame);
 
   if (!native_star_front_.empty())
     out.insert(out.end(), native_star_front_.begin(), native_star_front_.end());
@@ -3785,7 +3789,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     std::fprintf(
         stderr,
         "[hud-star-power] fill=%.3f ready=%d active=%d tube_glow=%d "
-        "frames=%.2f,%.2f,%.2f mesh_frame=%.2f curves=%zu/%zu/%zu "
+        "frames=%.2f,%.2f,%.2f alpha_frames=%.2f,%.2f "
+        "mesh_frame=%.2f curves=%zu/%zu/%zu "
         "filters=%d:%.2f-%.2f/%d:%.2f-%.2f/%d:%.2f-%.2f "
         "back=%zu fill_layers=%zu path_glow=%zu "
         "glow_layers=%zu lightning_layers=%zu particle_layers=%zu "
@@ -3802,7 +3807,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "ready_mesh_blend=%u clip=shared_source_range screen=left_to_right\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
         fill_anim_frame, tube_meter_anim_frame, tube_glow_anim_frame,
-        tube_glow_mesh_frame,
+        tube_meter_alpha_frame, tube_glow_alpha_frame, tube_glow_mesh_frame,
         star_fill_color_keys_.size(), star_tube_meter_alpha_keys_.size(),
         star_tube_glow_alpha_keys_.size(),
         star_fill_filter_.ok ? 1 : 0, star_fill_filter_.start_frame,
