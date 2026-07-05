@@ -9601,3 +9601,24 @@ Rejected native probe:
 - Caveat: this is a source-backed clipping correction, not final filled-meter
   parity. The next PCSX2 trace still needs a real filled/active stock-game
   oracle before the remaining fill brightness/shape can be called matched.
+
+2026-07-05 star-meter prelit core dual-emission pass:
+- The steady fill still uses only decoded stock GH2 star-meter assets. The
+  white-blue core is `amp_inside_bar.mesh` / `amp_inside_star.mat` /
+  `amp_inside_bar.tex`; the source prelit glow path is
+  `amp_inside_bar_path.mesh` / `amp_inside_star_path.mat` /
+  `amp_bar_glow.tex`.
+- Native now draws that original prelit `amp_bar_glow.tex` path in two clipped
+  source-backed passes: one pass preserves the texture color as fullbright, and
+  the second keeps the existing alpha-emission mask. No replacement texture,
+  rectangle, hand-authored lamp, or new art is introduced. The red
+  `amp_inside_bar_path.part` / `amp_end_star.mat` spark remains separate and is
+  not used to fake the stored core.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_core_dual_emit/`
+  contains stored 0.25, stored 0.75, and active 1.00 HUD captures/logs plus
+  `native_star_core_dual_emit_proof.png`. The HUD debug rows report
+  `path_dual_emit=1` with the same source blend IDs `fill_blends=1,3,4`.
+- Caveat: this is a MILO-source renderer correction for the visible core
+  brightness. The remaining final parity call still needs a PCSX2 filled-meter
+  trace/oracle for exact brightness and active/stored timing.

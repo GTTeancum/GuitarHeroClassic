@@ -292,6 +292,7 @@ class HudRenderer {
   std::vector<StarAnimatedQuad> native_star_lightning_;
   std::vector<StarParticleLayer> native_star_particles_;
   bool native_star_path_glow_prelit_ = false;
+  bool native_star_path_glow_dual_emit_ = false;
   bool native_rock_face_ok_ = false;
   bool native_rock_frame_ok_ = false;
   bool native_rock_label_ok_ = false;
