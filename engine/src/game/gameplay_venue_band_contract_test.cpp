@@ -1108,8 +1108,8 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "append_star_mesh(\"amp_tube_glow_meter.mesh\","
                  "native_star_fill_glow_,0,true,false,true,"
-                 "nullptr,true,kElemSpFill,-1.0f);",
-                 "star-power tube-meter glow uses the fixed fill slot before clipping");
+                 "nullptr,true,kElemSpReady,-1.0f);",
+                 "star-power tube-meter glow stays in the authored ready-view slot before clipping");
   ok &= contains(hud_renderer_h_c,
                  "Slotnative_star_fill_slot_;Slotnative_star_ready_slot_;",
                  "star-power stores fixed source slots for clipped fill placement");
@@ -1281,9 +1281,9 @@ int main() {
                  "star_tube_glow_anim_duration_);",
                  "star-power tube ready alpha no longer pins the source MatAnim at frame zero");
   ok &= contains(hud_renderer_c,
-                 "source_filter_frame(star_tube_glow_filter_,fill,"
-                 "src.duration_frames);",
-                 "star-power ready tube MeshAnim samples the same source AnimFilter window");
+                 "source_filter_progress(star_tube_glow_filter_,fill)*"
+                 "std::max(1.0f,src.duration_frames);",
+                 "star-power ready tube MeshAnim expands across the source AnimFilter window");
   ok &= appears_before(
       hud_renderer_c,
       "if(tube_glow){",

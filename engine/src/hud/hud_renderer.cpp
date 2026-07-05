@@ -2353,10 +2353,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     }
   }
   if (!star_bounds.ok) {
-    if (const LoadedMesh* mesh = find_mesh(star, "amp_tube_glow.mesh")) {
-      star_bounds = bounds_for(*mesh);
-    } else if (const LoadedMesh* mesh = find_mesh(star, "amp_glass.mesh")) {
-      star_bounds = bounds_for(*mesh);
+    if (const LoadedMesh* glow_mesh = find_mesh(star, "amp_tube_glow.mesh")) {
+      star_bounds = bounds_for(*glow_mesh);
+    } else if (const LoadedMesh* glass_mesh = find_mesh(star, "amp_glass.mesh")) {
+      star_bounds = bounds_for(*glass_mesh);
     }
   }
   if (star_bounds.ok) {
@@ -2374,9 +2374,19 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         q.group = kHudGroupRight;
         q.element = element;
         if (tex_override) q.tex = tex(tex_override);
-        if (std::strcmp(name, "amp_inside_bar.mesh") == 0 &&
-            mesh->material == "amp_inside_star.mat") {
+        const bool star_core_mesh =
+            std::strcmp(name, "amp_inside_bar.mesh") == 0 &&
+            mesh->material == "amp_inside_star.mat";
+        const bool star_additive_glow_mesh =
+            (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0 &&
+             mesh->material == "amp_tube_glow_meter.mat") ||
+            (std::strcmp(name, "amp_tube_glow.mesh") == 0 &&
+             mesh->material == "amp_tube_glow.mat");
+        if (star_core_mesh || star_additive_glow_mesh) {
           q.fullbright_texture = true;
+        }
+        if (star_additive_glow_mesh) {
+          q.emissive_texture_2x = true;
         }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
@@ -2483,6 +2493,11 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                                 true, flip_v, flip_z, true, 0.0f, true);
         q.group = kHudGroupRight;
         q.element = kElemSpReady;
+        if (std::strcmp(mesh_name, "amp_tube_glow.mesh") == 0 &&
+            mesh->material == "amp_tube_glow.mat") {
+          q.fullbright_texture = true;
+          q.emissive_texture_2x = true;
+        }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
         }
@@ -2594,7 +2609,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                      nullptr, true, kElemSpFill, 0.0f);
     append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
                      0, true, false, true,
-                     nullptr, true, kElemSpFill, -1.0f);
+                     nullptr, true, kElemSpReady, -1.0f);
     append_star_animated_mesh("lightning_bot_04_0.mesh",
                               native_star_lightning_);
     append_star_animated_mesh("lightning_bot_02_0.mesh",
@@ -2697,6 +2712,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   }
   {
     std::vector<const Quad*> ready_refs;
+    for (const Quad& q : native_star_fill_glow_) ready_refs.push_back(&q);
     for (const Quad& q : native_star_ready_glow_) ready_refs.push_back(&q);
     for (const StarMeshAnimatedQuad& anim : native_star_ready_mesh_glow_) {
       for (const Quad& q : anim.frames) ready_refs.push_back(&q);
@@ -3007,8 +3023,11 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
     if (q.tex) {
       dev->SetTexture(0, q.tex);
       dev->SetTextureStageState(0, D3DTSS_COLOROP,
-                                q.fullbright_texture ? D3DTOP_SELECTARG1
-                                                     : D3DTOP_MODULATE);
+                                q.emissive_texture_2x
+                                    ? D3DTOP_MODULATE2X
+                                    : (q.fullbright_texture
+                                           ? D3DTOP_SELECTARG1
+                                           : D3DTOP_MODULATE));
       dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
       dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
       dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
@@ -3030,7 +3049,10 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
       const Quad::V& vv = q.verts[id];
       float px, py, rhw; project_render_vertex(q, vv, px, py, rhw);
       // The X-flip in project() mirrors textures; invert U to compensate.
-      sv.push_back({ px - 0.5f, py - 0.5f, 0.0f, rhw, q.color,
+      const D3DCOLOR diffuse = q.emissive_texture_2x
+          ? ((q.color & 0xff000000u) | 0x00ffffffu)
+          : q.color;
+      sv.push_back({ px - 0.5f, py - 0.5f, 0.0f, rhw, diffuse,
                      1.0f - vv.u, vv.v });
     }
     if (sv.size() < 3) continue;
@@ -3442,6 +3464,18 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         return std::clamp(start + filter.offset_frame + span * progress,
                           start, end);
       };
+  auto source_filter_progress =
+      [](const AnimFilterWindow& filter, float progress) {
+        progress = std::clamp(progress, 0.0f, 1.0f);
+        if (!filter.ok) return progress;
+        const float start = filter.start_frame;
+        const float end = std::max(filter.end_frame, start);
+        const float span = std::max(0.0f, end - start);
+        if (span <= 0.0001f) return 0.0f;
+        const float frame = std::clamp(
+            start + filter.offset_frame + span * progress, start, end);
+        return std::clamp((frame - start) / span, 0.0f, 1.0f);
+      };
 
   const bool ready = fill >= 0.5f;
   const bool tube_glow = ready || star_power_active;
@@ -3458,9 +3492,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   const float tube_glow_mesh_frame =
       native_star_ready_mesh_glow_.empty()
           ? 0.0f
-          : source_filter_frame(
-                star_tube_glow_filter_, fill,
-                native_star_ready_mesh_glow_.front().duration_frames);
+          : source_filter_progress(star_tube_glow_filter_, fill) *
+                std::max(
+                    1.0f,
+                    native_star_ready_mesh_glow_.front().duration_frames);
   const float tube_meter_alpha = sample_hud_mat_anim_alpha_frame(
       star_tube_meter_alpha_keys_, tube_meter_alpha_frame);
   const float tube_ready_alpha = sample_hud_mat_anim_alpha_frame(
@@ -3541,6 +3576,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         clipped.preserve_depth = src.preserve_depth;
         clipped.wrap_uv = src.wrap_uv;
         clipped.fullbright_texture = src.fullbright_texture;
+        clipped.emissive_texture_2x = src.emissive_texture_2x;
         clipped.group = src.group;
         clipped.element = src.element;
         clipped.sort_bias = src.sort_bias;
@@ -3745,8 +3781,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     if (!native_star_ready_mesh_glow_.empty()) {
       for (const StarMeshAnimatedQuad& src : native_star_ready_mesh_glow_) {
         const float frame =
-            source_filter_frame(star_tube_glow_filter_, fill,
-                                src.duration_frames);
+            source_filter_progress(star_tube_glow_filter_, fill) *
+            std::max(1.0f, src.duration_frames);
         Quad q = sample_star_mesh_anim(src, frame);
         if (q.verts.size() < 3 || q.idx.size() < 3) continue;
         q.color = scale_argb_alpha(q.color, tube_ready_alpha);
