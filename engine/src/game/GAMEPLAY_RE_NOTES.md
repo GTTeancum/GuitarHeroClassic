@@ -9622,3 +9622,24 @@ Rejected native probe:
 - Caveat: this is a MILO-source renderer correction for the visible core
   brightness. The remaining final parity call still needs a PCSX2 filled-meter
   trace/oracle for exact brightness and active/stored timing.
+
+2026-07-05 star-meter steady core emission pass:
+- The stored-meter bright center is still restricted to original decoded
+  `hud/gen/star_meter.milo_ps2` assets. The steady core is
+  `amp_inside_bar.mesh` / `amp_inside_star.mat` / `amp_inside_bar.tex`; the
+  blue prelit path remains `amp_inside_bar_path.mesh` /
+  `amp_inside_star_path.mat` / `amp_bar_glow.tex`.
+- Native now treats the steady `amp_inside_bar.mesh` core as a fullbright 4x
+  texture/alpha emission contribution before the existing prelit path is drawn.
+  No replacement art, new rectangle, hand-authored texture, or non-MILO fill is
+  introduced. This makes the filled core read as a bright white-blue center
+  strip while preserving the source mesh clipping and the original path glow.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_core_4x_emit/`
+  contains stored 0.25, stored 0.75, and active 1.00 native HUD captures/logs
+  plus `native_star_core_4x_emit_proof.png`. The HUD debug rows report
+  `core_emit4x=1 path_emit4x=1 path_alpha_emission=1 path_dual_emit=1`.
+- Caveat: this is still a native MILO-renderer correction, not a final PCSX2
+  filled-meter parity signoff. Exact active/stored timing and brightness should
+  still be traced against a stock filled/active PCSX2 route before calling the
+  star-power meter done.

@@ -2394,7 +2394,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         if (star_core_mesh || star_path_glow_mesh || star_additive_glow_mesh) {
           q.fullbright_texture = true;
         }
-        if (star_core_mesh || star_path_glow_mesh || star_additive_glow_mesh) {
+        if (star_core_mesh) {
+          q.emissive_texture_4x = true;
+          q.emissive_alpha_4x = true;
+        } else if (star_path_glow_mesh || star_additive_glow_mesh) {
           q.emissive_texture_2x = true;
         }
         const auto prelit_it = star.mat_prelit.find(mesh->material);
@@ -3874,6 +3877,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         return layers.empty() ? 255u
                               : static_cast<unsigned>(layers.front().blend);
       };
+  auto first_quad_core_emit4x = [](const std::vector<Quad>& layers) {
+    return !layers.empty() && layers.front().emissive_texture_4x &&
+           layers.front().emissive_alpha_4x;
+  };
 
   static int star_power_debug_budget = 0;
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER") &&
@@ -3895,7 +3902,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "source_layers=amp_inside_bar.mesh,amp_inside_bar_path.mesh,"
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
-        "path_emit4x=%d path_prelit=%d path_alpha4x=%d "
+        "core_emit4x=%d path_emit4x=%d path_prelit=%d path_alpha4x=%d "
         "path_alpha_emission=%d path_dual_emit=%d "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=source_mesh_ranges screen=left_to_right "
@@ -3923,6 +3930,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         drew_native_fill ? 1 : 0, drew_native_particles ? 1 : 0,
         drew_native_ready_mesh ? 1 : 0, drew_native_ready_glow ? 1 : 0,
         drew_native_fill_glow ? 1 : 0, 0, tube_glow ? 1 : 0,
+        first_quad_core_emit4x(native_star_fill_) ? 1 : 0,
         native_star_path_glow_prelit_ ? 1 : 0,
         native_star_path_glow_prelit_ ? 1 : 0,
         native_star_path_glow_prelit_ ? 1 : 0,

@@ -1094,10 +1094,13 @@ int main() {
                  "nullptr,true,kElemSpFill,-1.0f);",
                  "star-power inside-bar fill preserves authored mesh depth before right-panel projection");
   ok &= contains(hud_renderer_c,
-                 "if(star_core_mesh||star_path_glow_mesh||"
-                 "star_additive_glow_mesh){"
+                 "if(star_core_mesh){q.emissive_texture_4x=true;"
+                 "q.emissive_alpha_4x=true;}",
+                 "star-power inside-bar core uses the source texture as bright emission");
+  ok &= contains(hud_renderer_c,
+                 "elseif(star_path_glow_mesh||star_additive_glow_mesh){"
                  "q.emissive_texture_2x=true;}",
-                 "star-power inside-bar core and path glow use the source emissive texture combine");
+                 "star-power path glow uses the source emissive texture combine");
   ok &= contains(hud_renderer_c,
                  "q.prelit_alpha_emission=true;",
                  "star-power prelit amp_bar_glow alpha is routed as HUD emission");
