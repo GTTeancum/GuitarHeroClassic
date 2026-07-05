@@ -9554,3 +9554,30 @@ Rejected native probe:
   `player0 fill_star_power` method dispatch or capture an in-song earned-fill /
   activation path; native renderer changes should not be justified by this cheat
   key route alone.
+
+2026-07-05 stock star-power live dispatch table trace:
+- A no-focus PCSX2 live EE sample of the stock GH2 ISO/state 1 mapped the
+  runtime `config/cheats_funcs.dtb` node tree instead of relying on screenshots
+  or guessed HUD state. The trace landed on the song-failed retry screen, so it
+  is dispatch evidence only, not a filled-meter visual oracle.
+- Live `fill_star_meter` node rows at `0x0058aba0` show the source symbol
+  `fill_star_meter`, an `if` child, and DTB child pointers into
+  `config/cheats_funcs.dtb`. The expanded child rows include the multiplayer
+  guard and player-specific method nodes.
+- Live `fill_star_power` child rows at `0x0058af80` show
+  `player0 fill_star_power`; `0x0058af40` shows `player1 fill_star_power`; and
+  `0x0058af00` shows `player2 fill_star_power`. This confirms the rejected
+  keyboard route still resolves to the real player method symbol table.
+- The player method symbol table around `0x00467d58` is contiguous:
+  `star_power_ready`, `in_star_mode`, `score`, `percent_hit`, `doing_badly`,
+  `fill_star_power`, `empty_star_power`, `set_star_power`,
+  `set_star_power_deploy_rate`, and `set_star_power_phrase_boost`.
+- Evidence artifacts:
+  `engine/out/star_power_trace_evidence_20260705/pcsx2_stock_star_live_table_rows_no_focus/`
+  and
+  `engine/out/star_power_trace_evidence_20260705/pcsx2_stock_star_live_dtb_nodes_no_focus/`
+  contain the no-focus PCSX2 logs, live row JSON, and window captures.
+- Next executable trace target: hook the player method-dispatch path that
+  receives the contiguous star-power method symbols, or capture an earned
+  star-power phrase path that mutates the same player gauge fields. Do not use
+  the plain keyboard cheat as a visual fill oracle.
