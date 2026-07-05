@@ -9643,3 +9643,22 @@ Rejected native probe:
   filled-meter parity signoff. Exact active/stored timing and brightness should
   still be traced against a stock filled/active PCSX2 route before calling the
   star-power meter done.
+
+2026-07-05 rejected stock star-meter fill-call trace:
+- A no-focus PCSX2 trace of the stock GH2 ISO/state 1 hooked the source
+  `fill_star_power` setter setup at `0x00113410`, the empty setup at
+  `0x00113458`, and the concrete star-power setter at `0x0011ef18`. The run
+  posted plain `S` and `Shift+S` only after trace capture was enabled.
+- Result: `fill_call_f12_1=0`, `empty_call_f12_0=0`, and `star_setter=1`. The
+  one setter hit carried `f12=0.000`, `a0=0x00ac6620`, and `ra=0x0011ef0c`,
+  matching the adjacent adjustment path rather than the player
+  `fill_star_power` method branch.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/pcsx2_stock_star_fill_call_trace_no_focus/`
+  contains the trace JSON, PCSX2 before/after captures, tool stdout, and
+  `pcsx2_stock_star_fill_call_trace_proof.png`.
+- Interpretation: this state/input path is rejected as a filled-meter oracle.
+  It is useful PCSX2 evidence for the live setter receiver and for the fact that
+  the attempted stock key route did not enter the fill branch, but it must not
+  be used to justify filled-meter brightness, clipping, or active/stored draw
+  behavior.
