@@ -9732,3 +9732,53 @@ Rejected native probe:
   `engine/out/star_power_trace_evidence_20260705/native_star_core_fullbright_diffuse/`
   contains stored 0.25, stored 0.75, and active 1.00 native gameplay captures
   plus `native_star_core_fullbright_diffuse_proof.png`.
+
+2026-07-05 stock partial-fill oracle rejects inside-bar additive slab:
+- Re-ran PCSX2 with the same no-foreground route, but waited for the right HUD
+  to settle before forcing traced `player+0x70` gauge floats to `0.25`, `0.50`,
+  `0.75`, and `1.00`. The source captures show the bright growing center is
+  the thin white-blue strip inside the tube, matching `amp_inside_bar_path.mesh`
+  / `amp_inside_star_path.mat` / `amp_bar_glow.tex`, not a solid
+  `amp_inside_bar.mesh` slab.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/pcsx2_stock_star_force_partial_values_settled_no_focus/`
+  contains the settled PCSX2 captures, trace JSON with the forced readbacks,
+  and `pcsx2_stock_star_force_partial_values_settled_proof.png`.
+- Native comparison artifact:
+  `engine/out/star_power_trace_evidence_20260705/star_partial_pcsx2_vs_native_fullbright_diffuse/`
+  shows the previous fullbright-diffuse copy of `amp_inside_bar.mesh` created
+  an opaque rectangular block that does not match the stock partial-fill trace.
+  The same trace also rejects treating the base `amp_inside_bar.mesh` layer as
+  a 4x/fullbright core. Native now removes that extra inside-bar additive pass
+  and returns the base inside-bar layer to ordinary source material modulation.
+  The source `amp_inside_bar.mesh` fill remains in `star_meter.view` order,
+  while the emitted strip remains on the decoded path-glow layer and original
+  texture.
+- The same native debug rows previously showed `fill_glow_gate=0` while still
+  drawing `amp_tube_glow_meter.mesh` at 0.25. Because that mesh belongs to the
+  decoded `star_meter_ready.view` source group, native now gates it with the
+  same ready/active condition as the rest of the ready-meter glow instead of
+  drawing it for every nonzero stored fill.
+
+2026-07-05 star-meter source-tinted emission checkpoint:
+- Native now decodes the `amp_inside_star.mnm` MatAnim texture-translation
+  channel and applies it to the original `amp_inside_bar_path.mesh` /
+  `amp_inside_star_path.mat` / `amp_bar_glow.tex` layer. The earlier skipped
+  channel is two Vec3 keys: U `-0.400` at frame `0` to U `0.500` at frame
+  `100`.
+- The visible fill path keeps `star_meter.view` ordering: source
+  `amp_inside_bar.mesh` base fill, source `amp_inside_bar_path.mesh` glow, a
+  source-tinted additive core contribution from the same `amp_inside_bar.mesh`,
+  then the chrome/top/cap layers. No replacement texture, hand-authored shape,
+  or non-MILO geometry is used.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260705/native_star_path_uvanim_core_bright/`
+  contains stored `0.25`, `0.50`, `0.75`, and active `1.00` native captures,
+  `native_star_path_uvanim_core_bright_proof.png`, and
+  `native_star_tube_zoom_current.png` compared against the settled PCSX2
+  partial-fill trace.
+- Remaining mismatch: the source-backed native core is brighter than the prior
+  dull pass, but it still does not perfectly match PCSX2. The native bright
+  strip remains narrower and the tube/glass contrast differs, so the next pass
+  should trace the exact PCSX2 texture-stage/blend state for
+  `amp_inside_bar.mesh` and `amp_inside_bar_path.mesh` before further tuning.

@@ -800,6 +800,7 @@ class AppEngine : public ghogx::Engine {
     state.sp_active = gameplay_.star_power_active();
     state.rock_fill = gameplay_.rock_fill();
     if (diagnostic_hud_override_) state = *diagnostic_hud_override_;
+    state.anim_seconds = static_cast<float>(gameplay_.song_time());
     static int hud_state_debug_budget = 0;
     if (env_flag("GHOGX_DEBUG_GAMEPLAY_HUD_STATE") &&
         hud_state_debug_budget < 240) {
@@ -1503,9 +1504,11 @@ int run_hud_test_mode(const std::string& hdr, const std::string& ark,
 
     if (ref_highway_ready) {
       ref_gameplay.draw(*win);
+      st.anim_seconds = static_cast<float>(std::max(0.0, ref_gameplay.song_time()));
     } else {
       // Dark stage-ish background so the HUD art reads clearly.
       win->clear(0.06f, 0.06f, 0.09f);
+      st.anim_seconds = static_cast<float>(frame) / 60.0f;
     }
     hud.draw(dev, st);
 

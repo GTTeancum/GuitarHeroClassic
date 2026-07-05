@@ -1034,12 +1034,13 @@ int main() {
                        "if(clamped==2||clamped==4){",
                        "native multiplier mesh slots are preferred over the combined 2x/4x plate fallback");
   ok &= contains(hud_renderer_c,
-                 "emit_star_power(quads,state.sp_fill,state.sp_active);",
+                 "emit_star_power(quads,state.sp_fill,state.sp_active,"
+                 "state.anim_seconds);",
                  "star-power tube receives the live active state, not only fill");
   ok &= contains(hud_renderer_h_c,
                  "voidemit_star_power(std::vector<Quad>&out,floatfill,"
-                 "boolstar_power_active)const;",
-                 "star-power HUD draw signature keeps active state explicit");
+                 "boolstar_power_active,floatanim_seconds)const;",
+                 "star-power HUD draw signature keeps active state and MatAnim time explicit");
   ok &= contains(hud_renderer_c,
                  "constbooltube_glow=ready||star_power_active;",
                  "active star power keeps the native tube glow path alive while draining");
@@ -1050,6 +1051,11 @@ int main() {
                  "copy_star_color_keys(\"amp_inside_bar_glow.mnm\","
                  "star_fill_color_keys_,star_fill_anim_duration_);",
                  "star-power fill color comes from the source amp_inside_bar_glow MatAnim");
+  ok &= contains(hud_renderer_c,
+                 "copy_star_tex_translation_keys(\"amp_inside_star.mnm\","
+                 "star_path_tex_translation_keys_,"
+                 "star_path_tex_translation_anim_duration_);",
+                 "star-power path glow uses the source amp_inside_star MatAnim texture translation");
   ok &= contains(hud_renderer_c,
                  "copy_alpha_keys(\"amp_tube_glow_meter.mnm\","
                  "star_tube_meter_alpha_keys_,star_tube_meter_anim_duration_);",
@@ -1094,16 +1100,15 @@ int main() {
                  "nullptr,true,kElemSpFill,-1.0f);",
                  "star-power inside-bar fill preserves authored mesh depth before right-panel projection");
   ok &= contains(hud_renderer_c,
-                 "if(star_core_mesh){q.emissive_texture_4x=true;"
-                 "q.emissive_alpha_4x=true;}",
+                 "if(star_core_fill_mesh){q.emissive_texture_2x=true;}",
                  "star-power inside-bar core uses the source texture as bright emission");
   ok &= contains(hud_renderer_c,
-                 "elseif(star_path_glow_mesh||star_additive_glow_mesh){"
+                 "if(star_path_glow_mesh||star_additive_glow_mesh){"
                  "q.emissive_texture_2x=true;}",
                  "star-power path glow uses the source emissive texture combine");
   ok &= contains(hud_renderer_c,
-                 "q.prelit_alpha_emission=true;",
-                 "star-power prelit amp_bar_glow alpha is routed as HUD emission");
+                 "q.blend=kHudBlendSrcAlphaAdd;",
+                 "star-power prelit amp_bar_glow is routed through the HUD additive emission path");
   ok &= contains(hud_renderer_c,
                  "q.prelit_alpha_emission||(q.additive&&"
                  "q.blend==kHudBlendSrcAlpha)",
@@ -1184,13 +1189,9 @@ int main() {
                  "fill_core_color,1.0f,core_fill_range);",
                  "star-power steady core uses the source amp_inside_bar_glow material color");
   ok &= contains(hud_renderer_c,
-                 "constfloatfill_core_lit_frame=star_fill_color_keys_.empty()"
-                 "?0.0f:star_fill_color_keys_.back().frame;",
-                 "star-power steady core samples the source final lit MatAnim key");
-  ok &= contains(hud_renderer_c,
                  "sample_hud_mat_anim_color_frame("
-                 "star_fill_color_keys_,fill_core_lit_frame)",
-                 "star-power core color uses the source amp_inside_bar_glow lit MatAnim frame");
+                 "star_fill_color_keys_,fill_anim_frame)",
+                 "star-power core color samples the source amp_inside_bar_glow MatAnim frame");
   ok &= contains(hud_renderer_c,
                  "core_emission.blend=kHudBlendSrcAlphaAdd;",
                  "star-power core emission pass uses the HUD additive blend path");
@@ -1199,8 +1200,16 @@ int main() {
                  "star-power core emission pass keeps the source mesh and texture as an additive contribution");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_fill|=append_clipped_fill(native_star_path_glow_,"
-      "std::nullopt,1.0f,path_glow_range);",
+      "drew_native_fill|=append_clipped_fill_uv(native_star_path_glow_,"
+      "std::nullopt,1.0f,path_glow_range,"
+      "path_tex_translation.x,path_tex_translation.y);",
+      "drew_native_fill|=append_clipped_fill(native_star_core_emission_,"
+      "fill_core_color,1.0f,core_fill_range);",
+      "star-power applies source MatAnim path UV before the source core emission pass");
+  ok &= appears_before(
+      hud_renderer_c,
+      "drew_native_fill|=append_clipped_fill(native_star_core_emission_,"
+      "fill_core_color,1.0f,core_fill_range);",
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
       "star-power emits amp_inside_bar_path before chrome top/base bar");
@@ -1226,8 +1235,9 @@ int main() {
       "star-power tube-meter glow sits under the bright source core");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_fill|=append_clipped_fill(native_star_path_glow_,"
-      "std::nullopt,1.0f,path_glow_range);",
+      "drew_native_fill|=append_clipped_fill_uv(native_star_path_glow_,"
+      "std::nullopt,1.0f,path_glow_range,"
+      "path_tex_translation.x,path_tex_translation.y);",
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
       "star-power completes clipped fill/path before chrome top");
@@ -1394,8 +1404,10 @@ int main() {
                  "star-power diagnostics report the source material blend stack");
   ok &= contains(hud_renderer_c,
                  "\"ready_mesh_blend=%uclip=source_mesh_ranges"
-                 "screen=left_to_right\"\"range_ok=%d,%d,%d\\n\"",
-                 "star-power diagnostics report source ready blend and per-layer fill direction");
+                 "screen=left_to_right\"\"range_ok=%d,%d,%d"
+                 "path_uv_keys=%zupath_uv_frame=%.2f"
+                 "\"\"path_uv=(%.3f,%.3f)\\n\"",
+                 "star-power diagnostics report source ready blend, fill direction, and path UV animation");
   ok &= contains(hud_renderer_c,
                  "first_quad_blend(native_star_fill_),"
                  "first_quad_blend(native_star_path_glow_),"

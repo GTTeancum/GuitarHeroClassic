@@ -231,10 +231,23 @@ struct HudMatAnimTextureKey {
   float frame = 0.0f;
 };
 
+struct HudMatAnimVec3Key {
+  float value[3] = {0.0f, 0.0f, 0.0f};
+  float frame = 0.0f;
+};
+
+struct HudMatAnimFloatKey {
+  float value = 0.0f;
+  float frame = 0.0f;
+};
+
 struct HudMatAnimColorCurve {
   std::string material;
   std::vector<HudMatAnimColorKey> keys;
   std::vector<HudMatAnimAlphaKey> alpha_keys;
+  std::vector<HudMatAnimVec3Key> tex_translation_keys;
+  std::vector<HudMatAnimVec3Key> tex_scale_keys;
+  std::vector<HudMatAnimFloatKey> tex_rotation_keys;
   std::vector<HudMatAnimTextureKey> texture_keys;
   float duration_frames = 0.0f;
 };
@@ -317,15 +330,55 @@ std::optional<HudMatAnimColorCurve> decode_mat_anim_color_curve(
     curve.duration_frames = std::max(curve.duration_frames, key.frame);
     curve.alpha_keys.push_back(key);
   }
-  // GH2 MatAnim v7 stores two unused channel-count blocks before texture keys
-  // for these HUD entries, then a length-prefixed texture name + frame list.
-  uint32_t unused_count = 0;
-  if (read_u32_advance(body, size, pos, unused_count) && unused_count <= 256) {
-    pos += std::min<size_t>(size - pos, static_cast<size_t>(unused_count) * 8);
+  uint32_t trans_count = 0;
+  if (!read_u32_advance(body, size, pos, trans_count) || trans_count > 256) {
+    return std::nullopt;
   }
-  unused_count = 0;
-  if (read_u32_advance(body, size, pos, unused_count) && unused_count <= 256) {
-    pos += std::min<size_t>(size - pos, static_cast<size_t>(unused_count) * 8);
+  curve.tex_translation_keys.reserve(trans_count);
+  for (uint32_t i = 0; i < trans_count; ++i) {
+    HudMatAnimVec3Key key;
+    if (!read_f32_advance(body, size, pos, key.value[0]) ||
+        !read_f32_advance(body, size, pos, key.value[1]) ||
+        !read_f32_advance(body, size, pos, key.value[2]) ||
+        !read_f32_advance(body, size, pos, key.frame)) {
+      return std::nullopt;
+    }
+    if (!std::isfinite(key.frame)) key.frame = 0.0f;
+    curve.duration_frames = std::max(curve.duration_frames, key.frame);
+    curve.tex_translation_keys.push_back(key);
+  }
+  uint32_t scale_count = 0;
+  if (!read_u32_advance(body, size, pos, scale_count) || scale_count > 256) {
+    return std::nullopt;
+  }
+  curve.tex_scale_keys.reserve(scale_count);
+  for (uint32_t i = 0; i < scale_count; ++i) {
+    HudMatAnimVec3Key key;
+    if (!read_f32_advance(body, size, pos, key.value[0]) ||
+        !read_f32_advance(body, size, pos, key.value[1]) ||
+        !read_f32_advance(body, size, pos, key.value[2]) ||
+        !read_f32_advance(body, size, pos, key.frame)) {
+      return std::nullopt;
+    }
+    if (!std::isfinite(key.frame)) key.frame = 0.0f;
+    curve.duration_frames = std::max(curve.duration_frames, key.frame);
+    curve.tex_scale_keys.push_back(key);
+  }
+  uint32_t rotation_count = 0;
+  if (!read_u32_advance(body, size, pos, rotation_count) ||
+      rotation_count > 256) {
+    return std::nullopt;
+  }
+  curve.tex_rotation_keys.reserve(rotation_count);
+  for (uint32_t i = 0; i < rotation_count; ++i) {
+    HudMatAnimFloatKey key;
+    if (!read_f32_advance(body, size, pos, key.value) ||
+        !read_f32_advance(body, size, pos, key.frame)) {
+      return std::nullopt;
+    }
+    if (!std::isfinite(key.frame)) key.frame = 0.0f;
+    curve.duration_frames = std::max(curve.duration_frames, key.frame);
+    curve.tex_rotation_keys.push_back(key);
   }
   uint32_t texture_count = 0;
   if (pos + 4 <= size) {
@@ -351,7 +404,10 @@ std::optional<HudMatAnimColorCurve> decode_mat_anim_color_curve(
     }
   }
   if (curve.keys.empty() && curve.alpha_keys.empty() &&
-      curve.texture_keys.empty()) return std::nullopt;
+      curve.tex_translation_keys.empty() && curve.tex_scale_keys.empty() &&
+      curve.tex_rotation_keys.empty() && curve.texture_keys.empty()) {
+    return std::nullopt;
+  }
   return curve;
 }
 
@@ -1202,6 +1258,7 @@ void HudRenderer::clear_loaded_resources() {
   native_star_fill_.clear();
   native_star_core_emission_.clear();
   native_star_path_glow_.clear();
+  star_path_tex_translation_keys_.clear();
   native_star_path_glow_prelit_ = false;
   native_star_path_glow_dual_emit_ = false;
   native_star_fill_glow_.clear();
@@ -1722,6 +1779,24 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       dst.push_back(key);
     }
   };
+  auto copy_star_tex_translation_keys =
+      [&](const char* anim_name, std::vector<Vec3AnimKey>& dst,
+          float& duration_frames) {
+        dst.clear();
+        duration_frames = 100.0f;
+        const auto it = star.mat_anim_color.find(anim_name);
+        if (it == star.mat_anim_color.end()) return;
+        duration_frames = std::max(1.0f, it->second.duration_frames);
+        dst.reserve(it->second.tex_translation_keys.size());
+        for (const HudMatAnimVec3Key& src : it->second.tex_translation_keys) {
+          Vec3AnimKey key;
+          key.x = src.value[0];
+          key.y = src.value[1];
+          key.z = src.value[2];
+          key.frame = src.frame;
+          dst.push_back(key);
+        }
+      };
   auto copy_filter_window = [&](const char* filter_name, const char* target_name,
                                 AnimFilterWindow& dst,
                                 float* duration_frames = nullptr) {
@@ -1760,6 +1835,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                   rock_light_front_lamp_anim_duration_[2]);
   copy_star_color_keys("amp_inside_bar_glow.mnm", star_fill_color_keys_,
                        star_fill_anim_duration_);
+  copy_star_tex_translation_keys("amp_inside_star.mnm",
+                                star_path_tex_translation_keys_,
+                                star_path_tex_translation_anim_duration_);
   copy_alpha_keys("amp_tube_glow.mnm", star_tube_glow_alpha_keys_,
                   star_tube_glow_anim_duration_);
   copy_alpha_keys("amp_tube_glow_meter.mnm", star_tube_meter_alpha_keys_,
@@ -2382,36 +2460,41 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         q.group = kHudGroupRight;
         q.element = element;
         if (tex_override) q.tex = tex(tex_override);
-        const bool star_core_mesh =
-            std::strcmp(name, "amp_inside_bar.mesh") == 0 &&
-            mesh->material == "amp_inside_star.mat";
         const bool star_path_glow_mesh =
             std::strcmp(name, "amp_inside_bar_path.mesh") == 0 &&
             mesh->material == "amp_inside_star_path.mat";
+        const bool star_core_fill_mesh =
+            std::strcmp(name, "amp_inside_bar.mesh") == 0 &&
+            mesh->material == "amp_inside_star.mat";
         const bool star_additive_glow_mesh =
             (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0 &&
              mesh->material == "amp_tube_glow_meter.mat") ||
             (std::strcmp(name, "amp_tube_glow.mesh") == 0 &&
              mesh->material == "amp_tube_glow.mat");
-        if (star_core_mesh || star_path_glow_mesh || star_additive_glow_mesh) {
+        if (star_core_fill_mesh) {
+          q.emissive_texture_2x = true;
+        }
+        if (star_path_glow_mesh || star_additive_glow_mesh) {
           q.fullbright_texture = true;
         }
-        if (star_core_mesh) {
-          q.emissive_texture_4x = true;
-          q.emissive_alpha_4x = true;
-        } else if (star_path_glow_mesh || star_additive_glow_mesh) {
+        if (star_path_glow_mesh || star_additive_glow_mesh) {
           q.emissive_texture_2x = true;
         }
         const auto prelit_it = star.mat_prelit.find(mesh->material);
         const bool source_prelit =
             prelit_it != star.mat_prelit.end() && prelit_it->second;
+        const uint8_t source_blend = q.blend;
         if (star_path_glow_mesh && source_prelit) {
           native_star_path_glow_prelit_ = true;
           native_star_path_glow_dual_emit_ = true;
-          q.color = 0xFFFFFFFF;
-          q.emissive_texture_4x = true;
-          q.emissive_alpha_4x = true;
-          q.prelit_alpha_emission = true;
+          q.additive = true;
+          q.blend = kHudBlendSrcAlphaAdd;
+          q.emissive_texture_4x = false;
+          q.emissive_texture_2x = true;
+          q.emissive_alpha_4x = false;
+          q.emissive_alpha_2x = false;
+          q.prelit_alpha_emission = false;
+          q.sort_bias = 1;
         }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
@@ -2422,19 +2505,28 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
             q.verts.size() >= 3 && q.idx.size() >= 3) {
           if (star_path_glow_mesh && source_prelit) {
             Quad color_pass = q;
-            color_pass.prelit_alpha_emission = false;
+            color_pass.additive = false;
+            color_pass.blend = source_blend;
+            color_pass.emissive_texture_4x = false;
+            color_pass.emissive_texture_2x = false;
             color_pass.emissive_alpha_4x = false;
+            color_pass.emissive_alpha_2x = false;
+            color_pass.sort_bias = 0;
             target.push_back(std::move(color_pass));
           }
-          if (star_core_mesh) {
-            Quad core_emission = q;
-            core_emission.color = 0xFFFFFFFF;
+          target.push_back(std::move(q));
+          if (star_core_fill_mesh) {
+            Quad core_emission = target.back();
             core_emission.additive = true;
             core_emission.blend = kHudBlendSrcAlphaAdd;
-            target.push_back(q);
+            core_emission.fullbright_texture = false;
+            core_emission.emissive_texture_4x = false;
+            core_emission.emissive_texture_2x = true;
+            core_emission.emissive_alpha_4x = false;
+            core_emission.emissive_alpha_2x = false;
+            core_emission.prelit_alpha_emission = false;
+            core_emission.sort_bias = 1;
             native_star_core_emission_.push_back(std::move(core_emission));
-          } else {
-            target.push_back(std::move(q));
           }
         }
         if (tex_override) return;
@@ -2846,7 +2938,7 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   // Assemble the full quad list: static frame, then dynamic content.
   std::vector<Quad> quads = static_quads_;
   const bool star_power_visual = state.sp_active;
-  emit_star_power(quads, state.sp_fill, state.sp_active);
+  emit_star_power(quads, state.sp_fill, state.sp_active, state.anim_seconds);
   emit_rock_meter(quads, state.rock_fill);
   emit_multiplier(quads, state.multiplier, star_power_visual);
   emit_streak(quads, state.streak, star_power_visual);
@@ -3498,7 +3590,8 @@ void HudRenderer::emit_multiplier(std::vector<Quad>& out, int multiplier,
 }
 
 void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
-                                  bool star_power_active) const {
+                                  bool star_power_active,
+                                  float anim_seconds) const {
   if (!sp_bar_.ok) return;
   fill = std::clamp(fill, 0.0f, 1.0f);
   auto source_filter_frame =
@@ -3548,16 +3641,42 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       star_tube_meter_alpha_keys_, tube_meter_alpha_frame);
   const float tube_ready_alpha = sample_hud_mat_anim_alpha_frame(
       star_tube_glow_alpha_keys_, tube_glow_alpha_frame);
-  // The source MatAnim is a short glow ramp; stored fill changes width, not
-  // steady-state core brightness.
-  const float fill_core_lit_frame = star_fill_color_keys_.empty()
-                                        ? 0.0f
-                                        : star_fill_color_keys_.back().frame;
   const std::optional<uint32_t> fill_core_color =
       star_fill_color_keys_.empty()
           ? std::nullopt
           : std::optional<uint32_t>(sample_hud_mat_anim_color_frame(
-                star_fill_color_keys_, fill_core_lit_frame));
+                star_fill_color_keys_, fill_anim_frame));
+  auto sample_vec3_key = [](const std::vector<Vec3AnimKey>& keys,
+                            float frame) {
+    Vec3AnimKey out;
+    if (keys.empty()) return out;
+    if (!std::isfinite(frame)) frame = keys.front().frame;
+    size_t key_index = 0;
+    constexpr float kFrameEpsilon = 0.0001f;
+    while (key_index + 1 < keys.size() &&
+           frame + kFrameEpsilon >= keys[key_index + 1].frame) {
+      ++key_index;
+    }
+    const Vec3AnimKey& a = keys[key_index];
+    const Vec3AnimKey& b = key_index + 1 < keys.size() ? keys[key_index + 1] : a;
+    const float span = b.frame - a.frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a.frame) / span, 0.0f, 1.0f);
+    out.x = a.x + (b.x - a.x) * t;
+    out.y = a.y + (b.y - a.y) * t;
+    out.z = a.z + (b.z - a.z) * t;
+    out.frame = frame;
+    return out;
+  };
+  float path_tex_frame = 0.0f;
+  if (!star_path_tex_translation_keys_.empty()) {
+    const float duration = std::max(1.0f,
+                                    star_path_tex_translation_anim_duration_);
+    path_tex_frame =
+        std::fmod(std::max(0.0f, anim_seconds) * 30.0f, duration);
+  }
+  const Vec3AnimKey path_tex_translation =
+      sample_vec3_key(star_path_tex_translation_keys_, path_tex_frame);
 
   if (!native_star_front_.empty())
     out.insert(out.end(), native_star_front_.begin(), native_star_front_.end());
@@ -3688,6 +3807,26 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         for (const Quad& src : source) {
           drew |= append_clipped_quad(src, color_override, nullptr,
                                      alpha_scale, clip_range);
+        }
+        return drew;
+      };
+  auto append_clipped_fill_uv =
+      [&](const std::vector<Quad>& source,
+          const std::optional<uint32_t>& color_override, float alpha_scale,
+          const StarClipRange& clip_range, float u_offset, float v_offset) {
+        bool drew = false;
+        for (const Quad& src : source) {
+          Quad q = src;
+          if (std::fabs(u_offset) > 0.00001f ||
+              std::fabs(v_offset) > 0.00001f) {
+            for (Quad::V& v : q.verts) {
+              v.u += u_offset;
+              v.v += v_offset;
+            }
+            q.wrap_uv = true;
+          }
+          drew |= append_clipped_quad(q, color_override, nullptr, alpha_scale,
+                                      clip_range);
         }
         return drew;
       };
@@ -3845,18 +3984,19 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     }
   }
   if (fill > 0.005f) {
-    drew_native_fill_glow =
-        append_clipped_fill(native_star_fill_glow_, std::nullopt,
-                            tube_meter_alpha, tube_meter_range);
-    drew_native_fill |= drew_native_fill_glow;
-    drew_native_fill |= append_clipped_fill(native_star_fill_,
-                                            fill_core_color, 1.0f,
-                                            core_fill_range);
-    drew_native_fill |= append_clipped_fill(native_star_path_glow_,
-                                            std::nullopt, 1.0f,
-                                            path_glow_range);
+    if (tube_glow) {
+      drew_native_fill_glow =
+          append_clipped_fill(native_star_fill_glow_, std::nullopt,
+                              tube_meter_alpha, tube_meter_range);
+      drew_native_fill |= drew_native_fill_glow;
+    }
+    drew_native_fill |= append_clipped_fill(native_star_fill_, fill_core_color,
+                                            1.0f, core_fill_range);
+    drew_native_fill |= append_clipped_fill_uv(
+        native_star_path_glow_, std::nullopt, 1.0f, path_glow_range,
+        path_tex_translation.x, path_tex_translation.y);
     drew_native_fill |= append_clipped_fill(native_star_core_emission_,
-                                            std::nullopt, 1.0f,
+                                            fill_core_color, 1.0f,
                                             core_fill_range);
     if (star_power_active) {
       for (const StarAnimatedQuad& lightning : native_star_lightning_) {
@@ -3930,7 +4070,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "path_alpha_emission=%d path_dual_emit=%d "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=source_mesh_ranges screen=left_to_right "
-        "range_ok=%d,%d,%d\n",
+        "range_ok=%d,%d,%d path_uv_keys=%zu path_uv_frame=%.2f "
+        "path_uv=(%.3f,%.3f)\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
         fill_anim_frame, tube_meter_anim_frame, tube_glow_anim_frame,
         tube_meter_alpha_frame, tube_glow_alpha_frame, tube_glow_mesh_frame,
@@ -3969,7 +4110,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         first_particle_blend(native_star_particles_),
         first_mesh_anim_blend(native_star_ready_mesh_glow_),
         core_fill_range.ok ? 1 : 0, path_glow_range.ok ? 1 : 0,
-        tube_meter_range.ok ? 1 : 0);
+        tube_meter_range.ok ? 1 : 0,
+        star_path_tex_translation_keys_.size(), path_tex_frame,
+        path_tex_translation.x, path_tex_translation.y);
     ++star_power_debug_budget;
   }
 

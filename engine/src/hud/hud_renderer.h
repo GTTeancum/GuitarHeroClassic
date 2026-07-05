@@ -42,6 +42,7 @@ struct HudState {
   float sp_fill    = 0.0f;   // star-power gauge fill, 0..1
   bool  sp_active  = false;  // true while star power is currently engaged
   float rock_fill  = 0.0f;   // rock/crowd meter, 0..1 (0 = danger/red, 1 = green)
+  float anim_seconds = 0.0f;  // HUD material-animation clock, seconds
 };
 
 class HudRenderer {
@@ -203,7 +204,7 @@ class HudRenderer {
   void emit_multiplier(std::vector<Quad>& out, int multiplier,
                        bool star_power_visual) const;
   void emit_star_power(std::vector<Quad>& out, float fill,
-                       bool star_power_active) const;
+                       bool star_power_active, float anim_seconds) const;
   void emit_rock_meter(std::vector<Quad>& out, float fill) const;
 
   // Map a HUD-space (worldX, worldZ) point to back-buffer pixels.
@@ -250,6 +251,7 @@ class HudRenderer {
   std::vector<ColorAnimKey> star_fill_color_keys_;
   std::vector<AlphaAnimKey> star_tube_glow_alpha_keys_;
   std::vector<AlphaAnimKey> star_tube_meter_alpha_keys_;
+  std::vector<Vec3AnimKey> star_path_tex_translation_keys_;
   AnimFilterWindow star_fill_filter_;
   AnimFilterWindow star_tube_glow_filter_;
   AnimFilterWindow star_tube_meter_filter_;
@@ -261,6 +263,7 @@ class HudRenderer {
   float star_fill_anim_duration_ = 3.25f;
   float star_tube_glow_anim_duration_ = 15.0f;
   float star_tube_meter_anim_duration_ = 30.0f;
+  float star_path_tex_translation_anim_duration_ = 100.0f;
 
   Quad native_rock_face_;
   Quad native_rock_frame_;
