@@ -423,6 +423,7 @@ class Gameplay {
     std::string milo_path;
     std::unique_ptr<ghogx::render::MiloSceneRenderer> renderer;
     VenueAnimFilter directory_anim;
+    std::map<std::string, std::array<float, 3>> source_local_positions;
     std::map<std::string, VenueMaterialAnim> mat_anims;
     std::vector<VenueParticleRoute> particle_routes;
     std::vector<std::string> all_meshes;
@@ -796,6 +797,8 @@ class Gameplay {
   std::map<std::string, float> lighting_particle_sizes_;
   std::vector<ActiveVenueParticleSystem> active_lighting_particles_;
   double last_lighting_particle_debug_time_ = -1.0;
+  std::map<std::string, std::array<float, 3>>
+      lighting_mesh_source_local_positions_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
       lighting_mesh_transform_offsets_;
   std::map<std::string, std::vector<std::array<float, 3>>>
@@ -863,6 +866,8 @@ class Gameplay {
   std::map<std::string, float> venue_particle_sizes_;
   std::vector<ActiveVenueParticleSystem> active_venue_particles_;
   double last_venue_particle_debug_time_ = -1.0;
+  std::map<std::string, std::array<float, 3>>
+      venue_mesh_source_local_positions_;
   std::map<std::string, std::array<float, 3>> venue_mesh_translation_offsets_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
       venue_mesh_transform_offsets_;

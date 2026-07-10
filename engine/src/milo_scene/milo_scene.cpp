@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <unordered_set>
@@ -154,49 +155,6 @@ std::string read_string_at(const std::vector<uint8_t>& body, size_t& offset) {
   return s;
 }
 
-bool is_group_child_ref(std::string_view name) {
-  static constexpr std::string_view kSuffixes[] = {
-      ".mesh", ".grp", ".view", ".lbl", ".btn", ".pic", ".lst"};
-  for (std::string_view suffix : kSuffixes) {
-    if (name.size() >= suffix.size() &&
-        name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-std::vector<std::string> group_child_refs(const std::vector<uint8_t>& body,
-                                          std::string_view parent_ref,
-                                          std::string* environ_ref) {
-  std::vector<std::string> out;
-  for (size_t o = 0; o + 4 <= body.size(); ++o) {
-    uint32_t len;
-    std::memcpy(&len, body.data() + o, 4);
-    if (len < 6 || len > 96 || o + 4 + len > body.size()) continue;
-    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
-    bool printable = true;
-    for (uint32_t k = 0; k < len; ++k) {
-      char c = s[k];
-      if (c < 0x20 || c >= 0x7f) { printable = false; break; }
-    }
-    if (!printable) continue;
-    std::string name(s, len);
-    if (name == parent_ref) {
-      // The Trans parent is serialized as a normal string next to the child
-      // refs. Keep it as hierarchy, not as a child of itself/its parent.
-    } else if (is_group_child_ref(name)) {
-      out.push_back(std::move(name));
-    } else if (name.size() >= 4 &&
-               name.compare(name.size() - 4, 4, ".env") == 0 &&
-               environ_ref && environ_ref->empty()) {
-      *environ_ref = std::move(name);
-    }
-    o += 3 + len;
-  }
-  return out;
-}
-
 std::vector<std::string> scan_strings(const std::vector<uint8_t>& body) {
   std::vector<std::string> out;
   for (size_t o = 0; o + 4 <= body.size(); ++o) {
@@ -312,9 +270,17 @@ bool is_plausible_group_parent(std::string_view ref) {
   return false;
 }
 
-bool decode_group_transform(const std::vector<uint8_t>& body, GroupObj& group) {
+struct GroupTransformDecode {
+  size_t matrix_offset = 0;
+  size_t after_trans_offset = 0;
+  std::string parent;
+};
+
+std::optional<GroupTransformDecode> find_group_transform_layout(
+    const std::vector<uint8_t>& body) {
   int best_score = -1;
   size_t best_offset = body.size();
+  size_t best_after_trans = body.size();
   std::string best_parent;
 
   for (size_t m = 4; m + 96 + kObjMeta + 4 <= body.size(); ++m) {
@@ -329,6 +295,7 @@ bool decode_group_transform(const std::vector<uint8_t>& body, GroupObj& group) {
     } catch (const std::exception&) {
       continue;
     }
+    const size_t after_trans = parent_offset;
     const bool root_parent =
         parent.empty() && (m == 0x1d || m == 4 + kObjMeta);
     if (!root_parent && !is_plausible_group_parent(parent)) continue;
@@ -342,16 +309,98 @@ bool decode_group_transform(const std::vector<uint8_t>& body, GroupObj& group) {
     if (score > best_score) {
       best_score = score;
       best_offset = m;
+      best_after_trans = after_trans;
       best_parent = std::move(parent);
     }
   }
 
-  if (best_score < 0) return false;
-  group.local = read_matrix_at(body, best_offset);
-  group.world_stored = read_matrix_at(body, best_offset + 48);
-  group.parent = std::move(best_parent);
+  if (best_score < 0) return std::nullopt;
+  return GroupTransformDecode{best_offset, best_after_trans,
+                              std::move(best_parent)};
+}
+
+bool decode_group_transform(const std::vector<uint8_t>& body, GroupObj& group,
+                            size_t* after_trans_offset = nullptr) {
+  const auto layout = find_group_transform_layout(body);
+  if (!layout) return false;
+  group.local = read_matrix_at(body, layout->matrix_offset);
+  group.world_stored = read_matrix_at(body, layout->matrix_offset + 48);
+  group.parent = layout->parent;
   group.has_transform = true;
+  if (after_trans_offset) *after_trans_offset = layout->after_trans_offset;
   return true;
+}
+
+uint16_t low_revision(uint32_t combined_revision) {
+  return static_cast<uint16_t>(combined_revision & 0xffffu);
+}
+
+bool parse_group_source_layout(const std::vector<uint8_t>& body,
+                               uint16_t group_revision,
+                               size_t after_trans_offset,
+                               GroupObj& group) {
+  try {
+    Reader r(body.data(), body.size());
+    r.pos = after_trans_offset;
+
+    const uint16_t draw_revision = low_revision(r.u32());
+    group.showing = r.u8() != 0;
+    if (draw_revision < 2) {
+      const uint32_t drawable_count = r.u32();
+      if (drawable_count > 1024) return false;
+      for (uint32_t i = 0; i < drawable_count; ++i) (void)r.str();
+    }
+    if (draw_revision > 0) r.skip(16);
+    if (draw_revision > 2) group.draw_order = r.f32();
+    if (draw_revision >= 4) {
+      const uint32_t clip_plane_count = r.u32();
+      if (clip_plane_count > 6) return false;
+      for (uint32_t i = 0; i < clip_plane_count; ++i) (void)r.str();
+    }
+
+    std::vector<std::string> objects;
+    if (group_revision > 10) {
+      const uint32_t object_count = r.u32();
+      if (object_count > 2048) return false;
+      objects.reserve(object_count);
+      for (uint32_t i = 0; i < object_count; ++i) {
+        objects.push_back(r.str());
+      }
+
+      if (group_revision < 16) group.environment_ref = r.str();
+      if (group_revision > 12) group.draw_only = r.str();
+    } else if (group_revision == 4) {
+      (void)r.u32();
+      const uint32_t object_count = r.u32();
+      if (object_count > 2048) return false;
+      objects.reserve(object_count);
+      for (uint32_t i = 0; i < object_count; ++i) {
+        objects.push_back(r.str());
+      }
+      (void)r.str();
+      (void)r.u32();
+      (void)r.u32();
+    }
+
+    if (group_revision > 11 && group_revision < 16) {
+      group.lod = r.str();
+      group.lod_screen_size = r.f32();
+    } else if (group_revision == 7) {
+      (void)r.str();
+      (void)r.f32();
+      (void)r.f32();
+    }
+    if (group_revision > 13) group.sort_in_world = r.u8() != 0;
+
+    group.children.clear();
+    for (auto& object : objects) {
+      if (!object.empty()) group.children.push_back(std::move(object));
+    }
+    group.decoded = true;
+    return true;
+  } catch (const std::exception&) {
+    return false;
+  }
 }
 
 bool name_has_suffix(std::string_view name, std::string_view suffix) {
@@ -799,8 +848,13 @@ GroupObj decode_group(const std::string& entry_name,
                       const std::vector<uint8_t>& body) {
   GroupObj group;
   group.name = entry_name;
-  decode_group_transform(body, group);
-  group.children = group_child_refs(body, group.parent, &group.environment_ref);
+  size_t after_trans_offset = body.size();
+  decode_group_transform(body, group, &after_trans_offset);
+  const uint16_t group_revision =
+      body.size() >= 4 ? low_revision(read_u32_at(body, 0)) : 0;
+  if (group.has_transform) {
+    parse_group_source_layout(body, group_revision, after_trans_offset, group);
+  }
   return group;
 }
 

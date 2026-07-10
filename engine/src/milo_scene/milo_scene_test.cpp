@@ -281,16 +281,25 @@ void test_group_transform() {
   put_matrix(b, 25.0f, 0.0f, 940.0f);
   put_zeros(b, 9);
   put_str(b, "ss_setlist.view");
-  put_str(b, "ss_setlist.view");  // parent ref should not be echoed as a child.
+  put_u32(b, 3);                  // RndDrawable revision.
+  b.push_back(1);                 // showing.
+  put_zeros(b, 16);               // sphere.
+  put_f32(b, 2.0f);               // draw order.
+  put_u32(b, 3);                  // RndGroup objects.
   put_str(b, "paper.mesh");
   put_str(b, "title.lbl");
   put_str(b, "child.view");
-  put_str(b, "lighting.env");     // environment refs are tracked separately.
+  put_str(b, "lighting.env");
+  put_str(b, "");                 // LOD.
+  put_f32(b, 0.0f);               // LOD screen size.
 
   GroupObj group = decode_group("ss_songlist.view", b);
   CHECK(group.name == "ss_songlist.view");
+  CHECK(group.decoded);
   CHECK(group.has_transform);
   CHECK(group.parent == "ss_setlist.view");
+  CHECK(group.showing);
+  CHECK(approx(group.draw_order, 2.0f));
   CHECK(approx(group.local.pos[0], 25.0f));
   CHECK(approx(group.local.pos[2], -40.0f));
   CHECK(approx(group.world_stored.pos[2], 940.0f));

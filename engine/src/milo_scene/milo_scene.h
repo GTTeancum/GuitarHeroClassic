@@ -207,8 +207,15 @@ struct GroupObj {
   Xfm local;
   Xfm world_stored;
   bool has_transform = false;
+  bool decoded = false;
+  bool showing = true;
+  float draw_order = 0.0f;
   std::vector<std::string> children;
   std::string environment_ref;
+  std::string draw_only;
+  std::string lod;
+  float lod_screen_size = 0.0f;
+  bool sort_in_world = false;
 };
 
 struct BandPlacerObj {

@@ -2378,11 +2378,9 @@ size_t merge_missing_materials_from(
     return added;
 }
 
-std::unordered_set<std::string> mesh_names_in_groups(
+std::unordered_set<std::string> mesh_names_in_group_set(
     const ghogx::milo_scene::Scene& scene,
-    std::initializer_list<const char*> group_names) {
-    std::unordered_set<std::string> wanted_groups(group_names.begin(),
-                                                  group_names.end());
+    std::unordered_set<std::string> wanted_groups) {
     std::unordered_set<std::string> hidden;
     bool changed = true;
     while (changed) {
@@ -2404,6 +2402,23 @@ std::unordered_set<std::string> mesh_names_in_groups(
         }
     }
     return hidden;
+}
+
+std::unordered_set<std::string> mesh_names_in_groups(
+    const ghogx::milo_scene::Scene& scene,
+    std::initializer_list<const char*> group_names) {
+    return mesh_names_in_group_set(
+        scene, std::unordered_set<std::string>(group_names.begin(),
+                                               group_names.end()));
+}
+
+std::unordered_set<std::string> mesh_names_in_source_hidden_groups(
+    const ghogx::milo_scene::Scene& scene) {
+    std::unordered_set<std::string> wanted_groups;
+    for (const auto& group : scene.groups) {
+        if (!group.showing) wanted_groups.insert(group.name);
+    }
+    return mesh_names_in_group_set(scene, std::move(wanted_groups));
 }
 
 std::map<std::string, std::vector<std::string>> mesh_names_by_group(
@@ -5611,6 +5626,23 @@ std::array<float, 16> xfm_to_mat4(const ghogx::milo_scene::Xfm& x) {
             x.pos[0], x.pos[1], x.pos[2], 1.0f};
 }
 
+std::map<std::string, std::array<float, 3>> build_scene_mesh_local_positions(
+    const ghogx::milo_scene::Scene& scene) {
+    std::map<std::string, std::array<float, 3>> out;
+    auto add = [&](std::string name, const std::array<float, 3>& pos) {
+        name = canonical_milo_ref(std::move(name));
+        if (name.empty()) return;
+        out[name] = pos;
+    };
+    for (const auto& mesh : scene.meshes) {
+        if (!mesh.decoded) continue;
+        const std::array<float, 3> pos = {
+            mesh.local.pos[0], mesh.local.pos[1], mesh.local.pos[2]};
+        add(mesh.name, pos);
+    }
+    return out;
+}
+
 std::optional<ghogx::milo_scene::Xfm> find_start_xfm(
     const ghogx::milo_scene::Scene& chars, std::string_view name,
     std::initializer_list<uint32_t> flags) {
@@ -7818,6 +7850,27 @@ std::array<float, 3> sample_translation_offset(
     return out;
 }
 
+std::array<float, 3> sample_translation_position(
+    const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
+    float frame) {
+    std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
+    if (keys.empty()) return out;
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = std::max(b->frame - a->frame, 0.001f);
+    const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    for (int i = 0; i < 3; ++i)
+        out[i] = a->pos[i] + (b->pos[i] - a->pos[i]) * t;
+    return out;
+}
+
 std::array<float, 3> sample_scale_ratio(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
     float frame) {
@@ -7941,6 +7994,39 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
         sample.has_scale = true;
         sample.scale = sample_scale_ratio(anim.scale_keys, frame);
     }
+    return sample;
+}
+
+std::optional<std::array<float, 3>> source_local_position_for_mesh(
+    const std::map<std::string, std::array<float, 3>>& source_positions,
+    const std::string& mesh_name) {
+    auto it = source_positions.find(mesh_name);
+    if (it == source_positions.end())
+        it = source_positions.find(canonical_milo_ref(mesh_name));
+    if (it == source_positions.end()) return std::nullopt;
+    return it->second;
+}
+
+ghogx::render::MiloSceneRenderer::MeshTransformSample
+sample_mesh_transform_from_source_local_position(
+    const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim,
+    float frame,
+    const std::map<std::string, std::array<float, 3>>& source_positions,
+    const std::string& mesh_name,
+    bool* used_source_position = nullptr,
+    std::array<float, 3>* source_position = nullptr) {
+    auto sample = sample_mesh_transform(anim, frame);
+    if (used_source_position) *used_source_position = false;
+    if (anim.translation_keys.size() < 2) return sample;
+    const auto source = source_local_position_for_mesh(source_positions, mesh_name);
+    if (!source) return sample;
+    const auto position =
+        sample_translation_position(anim.translation_keys, frame);
+    sample.has_translation = true;
+    for (int axis = 0; axis < 3; ++axis)
+        sample.translation[axis] = position[axis] - (*source)[axis];
+    if (used_source_position) *used_source_position = true;
+    if (source_position) *source_position = *source;
     return sample;
 }
 
@@ -8326,25 +8412,6 @@ load_venue_group_visibility(const std::string& hdr_path,
         auto hdr = gh::milo::parse_header(bytes);
         auto payload = gh::milo::inflate_payload(bytes, hdr);
         auto dir = gh::milo::parse_directory(payload);
-
-        for (const auto& de : dir.entries) {
-            if (de.type == "Group" && de.offset + de.size <= payload.size()) {
-                const uint8_t* body = payload.data() + de.offset;
-                const size_t size = static_cast<size_t>(de.size);
-                auto& children = group_children[de.name];
-                for (const auto& s : ascii_strings_in_object(body, size)) {
-                    const auto ref = canonical_milo_ref(s);
-                    if (ref.rfind(".mesh") == std::string::npos &&
-                        ref.rfind(".grp") == std::string::npos) {
-                        continue;
-                    }
-                    if (std::find(children.begin(), children.end(), ref) ==
-                        children.end()) {
-                        children.push_back(ref);
-                    }
-                }
-            }
-        }
 
         for (const auto& de : dir.entries) {
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
@@ -9110,6 +9177,8 @@ std::map<std::string, Gameplay::VenueProxyObject> load_venue_proxy_objects(
             proxy.type = proxy_type;
             proxy.milo_path = proxy_path;
             proxy.event_aliases = std::move(event_aliases);
+            proxy.source_local_positions =
+                build_scene_mesh_local_positions(proxy_scene);
             for (const auto& mesh : proxy_scene.meshes)
                 proxy.all_meshes.push_back(mesh.name);
             proxy.group_meshes = mesh_names_by_group(proxy_scene);
@@ -14709,6 +14778,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_particle_sizes_.clear();
     active_lighting_particles_.clear();
     last_lighting_particle_debug_time_ = -1.0;
+    lighting_mesh_source_local_positions_.clear();
     lighting_mesh_transform_offsets_.clear();
     lighting_mesh_position_overrides_.clear();
     lighting_mesh_texcoord_overrides_.clear();
@@ -14732,6 +14802,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_particle_sizes_.clear();
     active_venue_particles_.clear();
     last_venue_particle_debug_time_ = -1.0;
+    venue_mesh_source_local_positions_.clear();
     venue_event_filters_.clear();
     venue_filter_mesh_targets_.clear();
     venue_event_anim_filters_.clear();
@@ -14769,6 +14840,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_venue_environment_anims_.clear();
     next_venue_proxy_draw_log_time_ = 0.0;
     venue_mesh_translation_offsets_.clear();
+    venue_mesh_source_local_positions_.clear();
     venue_mesh_transform_offsets_.clear();
     venue_mesh_position_overrides_.clear();
     venue_mesh_texcoord_overrides_.clear();
@@ -16897,7 +16969,12 @@ void Gameplay::update_active_venue_anim_filters() {
             const float frame =
                 venue_filter_frame_at(filter, elapsed, it->persistent);
             for (const auto& target : filter.targets) {
-                const auto sample = sample_mesh_transform(target.anim, frame);
+                bool source_translation = false;
+                std::array<float, 3> source_pos = {0.0f, 0.0f, 0.0f};
+                const auto sample =
+                    sample_mesh_transform_from_source_local_position(
+                        target.anim, frame, venue_mesh_source_local_positions_,
+                        target.mesh, &source_translation, &source_pos);
                 venue_mesh_transform_offsets_[target.mesh] = sample;
                 if (sample.has_translation)
                     venue_mesh_translation_offsets_[target.mesh] =
@@ -16905,13 +16982,15 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f) persistent=%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) persistent=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
                         sample.has_rotation ? 1 : 0,
                         sample.has_scale ? 1 : 0, sample.translation[0],
                         sample.translation[1], sample.translation[2],
+                        source_translation ? 1 : 0, source_pos[0],
+                        source_pos[1], source_pos[2],
                         it->persistent ? 1 : 0);
                 }
             }
@@ -16999,7 +17078,9 @@ void Gameplay::update_venue_proxy_objects() {
             texcoord_overrides;
         for (const auto& target : filter.targets) {
             transform_offsets[target.mesh] =
-                sample_mesh_transform(target.anim, frame);
+                sample_mesh_transform_from_source_local_position(
+                    target.anim, frame, proxy.source_local_positions,
+                    target.mesh);
         }
         for (const auto& target : filter.mesh_anim_targets) {
             auto positions = sample_mesh_anim_positions(target.anim, frame);
@@ -17890,18 +17971,25 @@ void Gameplay::update_active_lighting_anim_filters() {
             const float frame =
                 venue_filter_frame_at(filter, elapsed, it->persistent);
             for (const auto& target : filter.targets) {
-                const auto sample = sample_mesh_transform(target.anim, frame);
+                bool source_translation = false;
+                std::array<float, 3> source_pos = {0.0f, 0.0f, 0.0f};
+                const auto sample =
+                    sample_mesh_transform_from_source_local_position(
+                        target.anim, frame, lighting_mesh_source_local_positions_,
+                        target.mesh, &source_translation, &source_pos);
                 lighting_mesh_transform_offsets_[target.mesh] = sample;
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f)\n",
+                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f)\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
                         sample.has_rotation ? 1 : 0,
                         sample.has_scale ? 1 : 0, sample.translation[0],
-                        sample.translation[1], sample.translation[2]);
+                        sample.translation[1], sample.translation[2],
+                        source_translation ? 1 : 0, source_pos[0],
+                        source_pos[1], source_pos[2]);
                 }
             }
             for (const auto& target : filter.mesh_anim_targets) {
@@ -20093,8 +20181,19 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 auto hidden_venue_meshes = mesh_names_in_groups(
                     venue_scene, {"coplight_red.grp",
                                   "coplight_blue.grp"});
+                const auto source_hidden_venue_meshes =
+                    mesh_names_in_source_hidden_groups(venue_scene);
+                hidden_venue_meshes.insert(source_hidden_venue_meshes.begin(),
+                                           source_hidden_venue_meshes.end());
                 for (const auto& mesh : venue_scene.meshes) {
                     if (!mesh.showing) hidden_venue_meshes.insert(mesh.name);
+                }
+                if (debug_venue_filters_enabled() &&
+                    !source_hidden_venue_meshes.empty()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue source-hidden Group meshes: %zu\n",
+                        source_hidden_venue_meshes.size());
                 }
                 venue_crowd_meshes_ = mesh_names_for_crowd(venue_scene);
                 venue_mesh_names_.clear();
@@ -20103,6 +20202,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     venue_mesh_names_.insert(mesh.name);
                 }
                 venue_group_meshes_ = mesh_names_by_group(venue_scene);
+                venue_mesh_source_local_positions_ =
+                    build_scene_mesh_local_positions(venue_scene);
                 venue_camera_target_worlds_ =
                     build_venue_camera_target_worlds(venue_scene);
                 venue_camera_hidden_meshes_.clear();
@@ -20443,12 +20544,26 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     std::make_unique<ghogx::render::MiloSceneRenderer>(win);
                 lighting_base_hidden_meshes_.clear();
                 lighting_material_meshes_.clear();
+                lighting_mesh_source_local_positions_ =
+                    build_scene_mesh_local_positions(lighting_scene);
                 for (const auto& mesh : lighting_scene.meshes) {
                     if (!mesh.showing)
                         lighting_base_hidden_meshes_.insert(mesh.name);
                     if (!mesh.material.empty())
                         lighting_material_meshes_[mesh.material].push_back(
                             mesh.name);
+                }
+                const auto source_hidden_lighting_meshes =
+                    mesh_names_in_source_hidden_groups(lighting_scene);
+                lighting_base_hidden_meshes_.insert(
+                    source_hidden_lighting_meshes.begin(),
+                    source_hidden_lighting_meshes.end());
+                if (debug_venue_filters_enabled() &&
+                    !source_hidden_lighting_meshes.empty()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] lighting source-hidden Group meshes: %zu\n",
+                        source_hidden_lighting_meshes.size());
                 }
                 lighting_->set_scene(std::move(lighting_scene),
                                      lighting_textures);

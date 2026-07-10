@@ -678,8 +678,9 @@ int run_groups(const Args& a) {
     for (const auto& g : scene.groups) {
         if (!a.name.empty() && g.name != a.name) continue;
         ++shown;
-        std::printf("  %-26s children=%zu parent=%s env=%s\n",
-                    g.name.substr(0, 26).c_str(), g.children.size(),
+        std::printf("  %-26s decoded=%d showing=%d draw=%.3f children=%zu parent=%s env=%s\n",
+                    g.name.substr(0, 26).c_str(), g.decoded ? 1 : 0,
+                    g.showing ? 1 : 0, g.draw_order, g.children.size(),
                     g.parent.c_str(), g.environment_ref.c_str());
         if (g.has_transform) {
             std::printf("      local pos=[%.4f %.4f %.4f]\n",

@@ -5245,8 +5245,17 @@ int main() {
                  "env.range=read_f32_at(body,base+0x2f);",
                  "Environ decoder uses dynamic range offset");
   ok &= contains(milo_scene_cpp_c,
-                 "group.children=group_child_refs(body,group.parent,"
-                 "&group.environment_ref);",
+                 "parse_group_source_layout(body,group_revision,"
+                 "after_trans_offset,group)",
+                 "Group decoder uses the authored RndGroup field order");
+  ok &= contains(milo_scene_cpp_c,
+                 "constuint16_tdraw_revision=low_revision(r.u32());",
+                 "Group decoder reads the embedded RndDrawable revision");
+  ok &= contains(milo_scene_cpp_c,
+                 "constuint32_tobject_count=r.u32();",
+                 "Group decoder reads the source RndGroup objects array");
+  ok &= contains(milo_scene_cpp_c,
+                 "if(group_revision<16)group.environment_ref=r.str();",
                  "Group decoder preserves authored Environ refs");
   ok &= contains(milo_scene_cpp_c,
                  "group.has_transform=true;",
