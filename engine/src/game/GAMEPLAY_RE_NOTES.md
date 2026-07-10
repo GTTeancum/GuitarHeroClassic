@@ -10361,3 +10361,23 @@ Rejected native probe:
   `amp_inside_bar_path.mesh`, and `amp_inside_bar_path.part`. The paired PCSX2
   forced-fill trace remains
   `engine/out/star_power_trace_evidence_20260705/pcsx2_stock_star_force_partial_values_settled_no_focus/pcsx2_stock_star_force_partial_values_settled_trace.json`.
+
+2026-07-10 star-meter left-anchored thick fill correction:
+- User review clarified the visible split in the forced-fill reference: the
+  thin blue strip is the always-present `amp_inside_bar_path.mesh`, while the
+  thicker stored star-power body must keep the filled left side and grow toward
+  the right cap. Native already clipped the broad body by source mesh width, but
+  it was still remapping `amp_tube_glow_meter.mesh` UVs across the moving
+  visible span. That made the broad glow read like it was re-centered in each
+  partial fill rather than anchored in the original tube space.
+- Native now clips `amp_tube_glow_meter.mesh` with its original MILO UVs. The
+  source `amp_inside_bar.mesh` core still clips by stored width, and
+  `amp_inside_bar_path.mesh` remains the full-width thin path line. No
+  replacement art, hand-authored color, fake geometry, or non-MILO overlay was
+  introduced.
+- Fresh hidden HUD proof:
+  `engine/out/star_power_trace_evidence_20260710/native_star_left_anchor_sourceuv_current/native_star_left_anchor_sourceuv_current_proof.png`
+  pairs the existing PCSX2 forced-fill oracle with native `--hud-sp`
+  25/50/75/100 plus active-100 captures. The diagnostic row reports
+  `tube_meter_mode=clipped_left_to_right_source_uv_reveal`; core/glow widths
+  scale with the stored value while `path_width` stays constant.
