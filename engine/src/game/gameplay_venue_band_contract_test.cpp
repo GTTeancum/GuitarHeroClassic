@@ -239,7 +239,7 @@ int main() {
   ok &= contains(gameplay_c,
                  "if(singer.find(\"female_singer\")!="
                  "std::string::npos){add_performer(\"singer\",singer,"
-                 "singer,\"singer\",\"singer_start.way\",4u,"
+                 "singer,\"singer\",\"start_singer.way\",4u,"
                  "{\"singer_idle\"},{},"
                  "{\"singer_active_medium_01\","
                  "\"singer_active_medium_02\",\"singer_active_fast\"",
@@ -323,14 +323,14 @@ int main() {
                  "{\"keyboard_active_medium\",\"keyboard_active_fast\"});",
                  "keyboard performer graph shape stays traced and shared");
   ok &= appears_before(find_start_xfm_c,
-                       "for(uint32_tflag:flags){",
                        "if(!name.empty()){",
-                       "performer start lookup honors decoded start_flags before waypoint-name fallback");
+                       "for(uint32_tflag:flags){",
+                       "performer start lookup honors authored waypoint names before decoded flag fallback");
   ok &= contains(gameplay_c,
                  "add_performer(\"guitarist0\",quickplay_rig_->character_outfit,"
                  "quickplay_rig_->character_outfit,"
-                 "quickplay_rig_->character_outfit,\"start_guitarist0mp.way\",512u,",
-                 "single-guitarist quickplay uses decoded arena guitarist0 start route");
+                 "quickplay_rig_->character_outfit,\"start_guitarist0.way\",65u,",
+                 "single-guitarist quickplay uses the authored single-player guitarist start route");
   ok &= contains(gameplay_h_c,
                  "std::stringhighway_surface_ref_;",
                  "gameplay keeps the selected guitarist highway surface reference");
@@ -373,7 +373,7 @@ int main() {
 
   ok &= contains(gameplay_c,
                  "add_performer(\"bassist\",bass,bass,\"bass\","
-                 "\"bassist_start.way\",16u,{\"bassist_idle_medium_01\","
+                 "\"start_bassist.way\",16u,{\"bassist_idle_medium_01\","
                  "\"bassist_idle_medium_02\"},{\"bassist_intro\"},"
                  "{\"bassist_active_medium_01\",\"bassist_active_medium_02\","
                  "\"bassist_active_fast_01\",\"bassist_active_fast_02\"},"

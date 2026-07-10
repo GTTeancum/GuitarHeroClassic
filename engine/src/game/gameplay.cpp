@@ -5646,15 +5646,15 @@ std::map<std::string, std::array<float, 3>> build_scene_mesh_local_positions(
 std::optional<ghogx::milo_scene::Xfm> find_start_xfm(
     const ghogx::milo_scene::Scene& chars, std::string_view name,
     std::initializer_list<uint32_t> flags) {
+    if (!name.empty()) {
+        for (const auto& w : chars.waypoints) {
+            if (w.decoded && w.name == name) return w.local;
+        }
+    }
     for (uint32_t flag : flags) {
         if (flag == 0) continue;
         for (const auto& w : chars.waypoints) {
             if (w.decoded && (w.flags & flag)) return w.local;
-        }
-    }
-    if (!name.empty()) {
-        for (const auto& w : chars.waypoints) {
-            if (w.decoded && w.name == name) return w.local;
         }
     }
     return std::nullopt;
@@ -21526,7 +21526,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             add_performer("guitarist0", quickplay_rig_->character_outfit,
                           quickplay_rig_->character_outfit,
                           quickplay_rig_->character_outfit,
-                          "start_guitarist0mp.way", 512u,
+                          "start_guitarist0.way", 65u,
                           {"idle_medium_01", "stand_medium_01"},
                           {"intro_01", "intro_03", "intro_04"},
                           {"stand_medium_01", "stand_medium_02",
@@ -21544,14 +21544,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (!singer.empty()) {
                 if (singer.find("female_singer") != std::string::npos) {
                     add_performer("singer", singer, singer, "singer",
-                                  "singer_start.way", 4u,
+                                  "start_singer.way", 4u,
                                   {"singer_idle"}, {},
                                   {"singer_active_medium_01",
                                    "singer_active_medium_02",
                                    "singer_active_fast"});
                 } else {
                     add_performer(
-                        "singer", singer, singer, "singer", "singer_start.way",
+                        "singer", singer, singer, "singer", "start_singer.way",
                         4u, {"singer_idle_medium_01", "singer_idle_medium_02"},
                         {"singer_intro"},
                         {"singer_active_medium_01", "singer_active_medium_02",
@@ -21562,7 +21562,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const std::string bass_prop =
                     first_bass_guitar_milo(hdr_path_, ark_path_).value_or("");
                 add_performer("bassist", bass, bass, "bass",
-                              "bassist_start.way", 16u,
+                              "start_bassist.way", 16u,
                               {"bassist_idle_medium_01",
                                "bassist_idle_medium_02"},
                               {"bassist_intro"},
@@ -21574,14 +21574,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
             if (!drummer.empty()) {
                 add_performer("drummer", drummer, drummer, "drummer",
-                              "drummer_start.way", 32u, {"drummer_idle"},
+                              "start_drummer.way", 32u, {"drummer_idle"},
                               {},
                               {"drummer_active_medium_normal",
                                "drummer_active_medium_allbeat",
                                "drummer_active_fast_normal",
                                "drummer_active_fast_allbeat"});
                 if (auto start = find_start_xfm(venue_chars_scene_,
-                                                "drummer_start.way", {32u})) {
+                                                "start_drummer.way", {32u})) {
                     const std::string drums_milo =
                         "char/og/drums/gen/dw_" + quickplay_rig_->venue +
                         "_drums.milo_ps2";
