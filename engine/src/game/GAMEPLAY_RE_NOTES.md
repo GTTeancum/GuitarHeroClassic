@@ -10260,3 +10260,37 @@ Rejected native probe:
   `backing_alpha_mode=ps2_modulate2x`, and expose `back_alpha2x` plus
   `back_color` in the HUD row so future star-meter passes can verify the
   source backing is present instead of reintroducing fabricated dark quads.
+
+2026-07-10 star-meter tube glass material-layer split:
+- Rechecked the decoded `hud/gen/star_meter.milo_ps2` material rows and the
+  native HUD dump after the backing alpha pass. The source glass mesh
+  `amp_glass.mesh` uses `amp_glass_tube.mat`, which has no diffuse texture,
+  blend `4`, and color `[0.984 0.984 0.984 0.250]`; the same source material
+  references `amp_glass_tube_1.mat`, whose diffuse texture is `cleartube.tex`
+  with blend `2` and white color.
+- Native was treating the no-diffuse material reference as inheritance, so the
+  HUD dump showed `amp_glass.mesh` as only `cleartube.tex` / blend `2` /
+  white. That dropped the source no-texture translucent tube pass instead of
+  drawing the authored material pair.
+- The HUD MILO loader now keeps `amp_glass_tube.mat` as the base material and
+  routes its referenced `amp_glass_tube_1.mat` through the existing extra-pass
+  path. Diagnostics report
+  `glass_material_mode=base_plus_cleartube_layer`. This remains bound to the
+  original `amp_glass.mesh` and source materials; no replacement glass overlay
+  or tuned opacity was added.
+
+2026-07-10 star-meter thin-line versus wide-fill correction:
+- User review clarified the visual read on the latest native captures: the thin
+  blue line visible across the tube is the stock always-present
+  `amp_inside_bar_path.mesh` line. The stored star-power value is the thicker
+  body, composed from the source `amp_inside_bar.mesh` core plus the source
+  `amp_tube_glow_meter.mesh` glow, and that body must keep the already-filled
+  left side while exposing more of the tube toward the right.
+- Native had been clipping `amp_tube_glow_meter.mesh` by fill width but then
+  remapping `hud_meter_top_glow.tex` over the visible span. That preserved
+  source art, but it made the bright glow tile re-center inside each partial
+  width instead of behaving like an anchored source layer reveal.
+- The tube-meter glow now keeps its authored MILO UVs while it is clipped
+  left-to-right. The thin `amp_inside_bar_path.mesh` line remains full-width,
+  the broad `amp_inside_bar.mesh` core remains clipped by stored fill, and no
+  replacement strip, hand-authored color, or non-MILO geometry is introduced.

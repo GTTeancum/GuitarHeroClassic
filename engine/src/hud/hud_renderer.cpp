@@ -1061,7 +1061,9 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         {
           std::string ref = first_material_ref(body);
           if (!ref.empty()) {
-            if (mat.diffuse_tex.empty()) {
+            if (de.name == "amp_glass_tube.mat") {
+              out.mat_layer_ref[de.name] = std::move(ref);
+            } else if (mat.diffuse_tex.empty()) {
               out.mat_ref[de.name] = std::move(ref);
             } else {
               out.mat_layer_ref[de.name] = std::move(ref);
@@ -4142,7 +4144,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (fill > 0.005f && meter_fill_glow) {
     drew_native_fill_glow =
         append_clipped_fill(native_star_fill_glow_, std::nullopt,
-                            tube_meter_alpha, tube_meter_range, true);
+                            tube_meter_alpha, tube_meter_range, false);
     drew_native_fill |= drew_native_fill_glow;
   }
 
@@ -4233,9 +4235,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "core_fill_mode=clipped_left_to_right "
         "lightning_mode=active_full_source_mesh "
         "backing_alpha_mode=ps2_modulate2x "
+        "glass_material_mode=base_plus_cleartube_layer "
         "core_color_mode=settled_lit_key_width_driven "
         "tube_meter_alpha_mode=source_peak_width_driven "
-        "tube_meter_mode=clipped_left_to_right_fill_uv_remap "
+        "tube_meter_mode=clipped_left_to_right_source_uv_reveal "
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core "
         "sort_order=star_meter_view_child_order_then_ready_view "
