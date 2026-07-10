@@ -10527,3 +10527,18 @@ Rejected native probe:
   pass should target PCSX2 GS/blend/alpha/mask evidence for
   `amp_tube_glow_meter.mesh` and the thick body composition rather than adding
   another native UV animation guess.
+
+2026-07-10 star-meter thin-rail lock:
+- User observation locked the interpretation that the thin blue tube line is
+  the stock always-present `amp_inside_bar_path.mesh`, not the stored star-power
+  value. The stored value is the thicker body from source
+  `amp_inside_bar.mesh` plus source `amp_tube_glow_meter.mesh`.
+- Removed the stale moving-span UV remap path from the clipped thick-fill
+  helper. The native renderer now has only one route for the wide stored-fill
+  glow: clip the original `amp_tube_glow_meter.mesh` from left to right while
+  preserving the source MILO UVs. No substitute texture, duplicate quad, or
+  hand-authored color was added.
+- Fresh hidden proof:
+  `engine/out/star_power_trace_evidence_20260710/native_star_thin_line_lock_current/native_star_thin_line_lock_current_proof.png`
+  compares the existing no-focus PCSX2 forced-fill oracle against refreshed
+  native `--hud-sp` 25/75/100 captures.

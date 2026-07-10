@@ -1485,6 +1485,9 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"tube_meter_u_mode=source_uv_anchored_thick_body\"",
                  "star-power tube-meter glow keeps the original source texture anchored as the thick body grows");
+  ok &= absent(hud_renderer_c,
+               "remap_u_to_visible_span",
+               "star-power thick fill must not remap source UVs across the visible span");
   ok &= contains(hud_renderer_c,
                  "native_star_fill_glow_,std::nullopt,tube_meter_alpha,"
                  "tube_meter_range);",
