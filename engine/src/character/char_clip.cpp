@@ -822,6 +822,21 @@ bool debug_char_hair_enabled() {
 #endif
 }
 
+bool legacy_char_hair_bridge_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_ENABLE_LEGACY_CHAR_HAIR_BRIDGE") == 0 &&
+      value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_ENABLE_LEGACY_CHAR_HAIR_BRIDGE");
+  return value && value[0];
+#endif
+}
+
 void log_char_hair_source_once(const Character& character,
                                const CharHair& hair) {
   if (!debug_char_hair_enabled()) return;
@@ -4008,6 +4023,16 @@ static void apply_char_hair(Character& character, float time_seconds) {
         }
       }
     }
+  }
+
+  if (!legacy_char_hair_bridge_enabled()) {
+    if (debug_char_hair_enabled()) {
+      std::fprintf(stderr,
+                   "[charhair-source-sim] character=%s legacyBridge=0 "
+                   "noDecodedCollideListNoWriteback=1\n",
+                   character.dir_name.c_str());
+    }
+    return;
   }
 
   auto simulate_or_publish =

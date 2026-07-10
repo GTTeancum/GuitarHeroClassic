@@ -4995,3 +4995,39 @@ Viewer hand-overlay validation:
   fix. Rock1 and Rock2 remain visibly wrong from the crown angle, so the next
   source-backed target should be visible mesh consumer/group/draw membership or
   a direct PS2 submitted-row comparison, not another physics parameter tweak.
+
+2026-07-10 legacy CharHair bridge default rollback and full-body proof standard:
+
+- Rechecked ihatecompvir/Harmonix source after the writeback-gate pass.
+  `rb3/src/system/char/CharHair.cpp` reads GH2-era revision-2 point legacy
+  `int + symbol` fields but then clears `pt.collides`; runtime writeback in
+  `SimulateInternal` is gated on `thisPoint.collides.size() != 0`.
+  `Hookup()` gathers real `CharCollide` objects, but the public source does
+  not include a complete legacy GH2 `Hookup(ObjPtrList<CharCollide>&)` body,
+  and the local MiloLib/glTFMilo source samples did not find separate
+  `CharCollide` rows in the sampled GH2 PS2 Rock1/Rock2/Rockabill2/Funk1/Grim
+  character MILOs.
+- Native therefore no longer treats the GH2 revision-2 legacy fields as a
+  proven live collision list by default. The inferred bridge remains available
+  only for diagnostics via `GHOGX_ENABLE_LEGACY_CHAR_HAIR_BRIDGE=1`; default
+  debug output logs `legacyBridge=0 noDecodedCollideListNoWriteback=1` after
+  decoded CharHair rows are inventoried. This is a source-evidence rollback of
+  unsupported native glue, not a final hair-placement signoff.
+- Focused build/tests passed after the gate:
+  `ghogx_character_hair_contract_test`,
+  `ghogx_character_eye_bridge_contract_test`, and `ghogx_milo_scene_test`.
+- User feedback on the top-oblique crown shots established the proof framing
+  rule for this slice: diagnostic screenshots should keep the whole body
+  visible unless a closeup is explicitly supplemental. New direct-app full-body
+  captures are in
+  `analysis/ihatecompvir_milo_samples/native_fullbody_visibility_20260710/`.
+  The pair `rock1_fullbody_back_threequarter.png` /
+  `rock1_fullbody_profile.png` and the pair
+  `rock2_fullbody_back_threequarter.png` / `rock2_fullbody_profile.png` keep
+  the head, hair, neck, shoulders, guitar, limbs, and stance in frame.
+- The old bridge can still be compared from the same full-body cameras in
+  `analysis/ihatecompvir_milo_samples/native_fullbody_legacy_bridge_compare_20260710/`.
+  These A/B captures are evidence for the default rollback, but they do not
+  close Rock1/Rock2 hair fidelity. The remaining work is still to prove the
+  actual GH2 runtime consumer path from source or traces rather than reusing
+  inferred collision behavior.

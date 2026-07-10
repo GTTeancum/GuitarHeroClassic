@@ -380,6 +380,18 @@ int main() {
   ok &= contains(char_clip_c,
                  "[charhair-source-sim]",
                  "CharHair debug logs prove which simulation path ran");
+  ok &= contains(char_clip_c,
+                 "GHOGX_ENABLE_LEGACY_CHAR_HAIR_BRIDGE",
+                 "legacy GH2 CharHair collision bridge stays explicitly gated");
+  ok &= contains(apply_hair_c,
+                 "if(!legacy_char_hair_bridge_enabled()){",
+                 "CharHair does not publish inferred legacy collision rows by default");
+  ok &= contains(apply_hair_c,
+                 "legacyBridge=0",
+                 "default CharHair log proves the legacy bridge is disabled");
+  ok &= contains(apply_hair_c,
+                 "noDecodedCollideListNoWriteback=1",
+                 "default CharHair path does not invent decoded collision lists");
   ok &= lacks(char_clip_c,
               "source_ps2_single_point_chain_group",
               "source hair no longer classifies rows by guessed one-point shape");
