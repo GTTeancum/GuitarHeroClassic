@@ -21119,7 +21119,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             add_performer("guitarist0", quickplay_rig_->character_outfit,
                           quickplay_rig_->character_outfit,
                           quickplay_rig_->character_outfit,
-                          "start_guitarist0mp.way", 512u,
+                          "start_guitarist0.way", 1u,
                           {"idle_medium_01", "stand_medium_01"},
                           {"intro_01", "intro_03", "intro_04"},
                           {"stand_medium_01", "stand_medium_02",
@@ -22104,14 +22104,19 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 constexpr bool kGuitaristWalking = false;
                 const bool guitarist_starpower = star_power_.active;
                 const CameraKey* key = nullptr;
+                bool diagnostic_camera_shot_matched = false;
+                bool diagnostic_camera_shot_missing = false;
                 if (!diagnostic_camera_shot_.empty()) {
                     key = find_camera_key_by_name(regular_camera_keys_,
                                                   diagnostic_camera_shot_);
                     if (!key) {
+                        diagnostic_camera_shot_missing = true;
                         std::fprintf(
                             stderr,
                             "[world] diagnostic camera shot missing: %s\n",
                             diagnostic_camera_shot_.c_str());
+                    } else {
+                        diagnostic_camera_shot_matched = true;
                     }
                 }
                 if (!key) {
@@ -22142,17 +22147,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             duration.first.c_str(), duration.second.first,
                             duration.second.second,
                             camera_shot_mode_label(camera_mode),
-                            (force_camera || !diagnostic_camera_shot_.empty())
+                            (force_camera || diagnostic_camera_shot_matched)
                                 ? 1
                                 : 0,
                             key->force_char_lod, bar, song_time_);
-                        if (!diagnostic_camera_shot_.empty()) {
+                        if (diagnostic_camera_shot_matched) {
                             std::fprintf(
                                 stderr,
-                                "[world] diagnostic camera shot selected: %s "
+                                "[world] diagnostic camera shot selected: requested=%s actual=%s "
                                 "path_offset_frames=%.3f\n",
                                 diagnostic_camera_shot_.c_str(),
+                                key->name.c_str(),
                                 diagnostic_camera_path_offset_frames_);
+                        } else if (diagnostic_camera_shot_missing) {
+                            std::fprintf(
+                                stderr,
+                                "[world] diagnostic camera shot fallback: requested=%s actual=%s category=%s\n",
+                                diagnostic_camera_shot_.c_str(),
+                                key->name.c_str(), key->category.c_str());
                         }
                     }
                     if (should_resend_excitement_) {
