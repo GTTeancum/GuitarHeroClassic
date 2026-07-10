@@ -4814,6 +4814,34 @@ int main() {
                  "should_resend_excitement_=false;"
                  "resend_active_venue_event();}",
                  "resend-excitement latch is not gated by camera-name changes");
+  ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_runtime_shot_;",
+                 "camera runtime tracks the active CamShot lifecycle");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::end_camera_shot_runtime(){"
+                 "if(active_camera_runtime_shot_.empty())return;",
+                 "camera EndAnim path is explicit");
+  ok &= contains(gameplay_c,
+                 "clear.name=active_camera_runtime_shot_;"
+                 "apply_camera_crowd_visibility(clear);",
+                 "camera EndAnim clears only camera-owned visibility state");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::start_camera_shot_runtime(constCameraKey&key)",
+                 "camera StartAnim path is explicit");
+  ok &= contains(gameplay_c,
+                 "end_camera_shot_runtime();"
+                 "active_camera_runtime_shot_=runtime_name;"
+                 "apply_camera_crowd_visibility(key);",
+                 "camera StartAnim applies the authored CamShot visibility payload once per shot");
+  ok &= contains(gameplay_c,
+                 "start_camera_shot_runtime(*key);",
+                 "regular gameplay cameras enter the source-shaped StartAnim path");
+  ok &= contains(gameplay_c,
+                 "start_camera_shot_runtime(camera_keys_.front());",
+                 "intro cameras enter the same source-shaped StartAnim path");
+  ok &= absent(gameplay_c,
+               "apply_camera_crowd_visibility(visibility_key);",
+               "camera visibility must not be driven from the interpolated per-frame pose");
 
   ok &= contains(gameplay_c,
                  "while(next_lighting_cue_idx_<chart_.lighting_cues.size())",
@@ -7476,11 +7504,11 @@ int main() {
                  "is_authored_invisible_material(material)",
                  "renderer suppresses authored invisible material clip masks");
   ok &= contains(gameplay_c,
-                 "apply_camera_crowd_visibility(visibility_key);",
-                 "regular camera path applies evaluated source-frame crowd visibility flags");
+                 "start_camera_shot_runtime(*key);",
+                 "regular camera path applies CamShot visibility through StartAnim lifetime");
   ok &= contains(gameplay_c,
-                 "apply_camera_crowd_visibility(camera_keys_.front());",
-                 "intro camera path applies direct CamShot crowd visibility flags");
+                 "start_camera_shot_runtime(camera_keys_.front());",
+                 "intro camera path applies CamShot visibility through StartAnim lifetime");
   ok &= contains(gameplay_c,
                  "enumclassCameraShotMode{Regular,Solo,Jump,Lighter};",
                  "camera director has distinct regular/solo/jump/lighter modes");

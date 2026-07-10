@@ -14427,6 +14427,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     regular_camera_keys_.clear();
     active_regular_camera_.clear();
     previous_regular_camera_.clear();
+    active_camera_runtime_shot_.clear();
     active_regular_camera_start_ = 0.0;
     active_camera_position_start_ = 0.0;
     active_camera_position_index_ = 0;
@@ -14931,6 +14932,46 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
                                        ? venue_crowd_meshes_
                                        : std::unordered_set<std::string>{});
     world_->set_hidden_meshes(composed_venue_hidden_meshes());
+}
+
+std::string camera_runtime_name_for_key(const Gameplay::CameraKey& key) {
+    if (!key.name.empty()) return key.name;
+    if (!key.source_ref.empty()) return key.source_ref;
+    return "CamShot";
+}
+
+void Gameplay::end_camera_shot_runtime() {
+    if (active_camera_runtime_shot_.empty()) return;
+    CameraKey clear;
+    clear.name = active_camera_runtime_shot_;
+    apply_camera_crowd_visibility(clear);
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(stderr,
+                     "[world] camera EndAnim: shot=%s restore_visibility=1\n",
+                     active_camera_runtime_shot_.c_str());
+    }
+    active_camera_runtime_shot_.clear();
+}
+
+void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
+    const std::string runtime_name = camera_runtime_name_for_key(key);
+    if (active_camera_runtime_shot_ == runtime_name) return;
+    end_camera_shot_runtime();
+    active_camera_runtime_shot_ = runtime_name;
+    apply_camera_crowd_visibility(key);
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera StartAnim: shot=%s hide_crowd=%d face_camera=%d "
+            "force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu "
+            "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
+            active_camera_runtime_shot_.c_str(), key.hide_crowd ? 1 : 0,
+            key.crowd_face_camera ? 1 : 0, key.force_char_lod,
+            key.hide_list_refs.size(), key.show_list_refs.size(),
+            key.gen_hide_list_refs.size(), key.draw_override_refs.size(),
+            key.postproc_override_refs.size(), key.camera_anim_refs.size(),
+            key.glow_spot_ref.c_str());
+    }
 }
 
 std::string Gameplay::venue_script_context_state_key(
@@ -19605,6 +19646,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_camera_shown_meshes_.clear();
                 venue_camera_hidden_proxy_meshes_.clear();
                 venue_camera_shown_proxy_meshes_.clear();
+                active_camera_runtime_shot_.clear();
                 venue_camera_hide_crowd_ = false;
                 venue_camera_crowd_face_camera_ = false;
                 if (!venue_crowd_meshes_.empty()) {
@@ -21745,7 +21787,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                   &venue_camera_target_worlds_,
                                   &source_record_member_table,
                                   &regular_camera_keys_);
-                apply_camera_crowd_visibility(visibility_key);
+                start_camera_shot_runtime(*key);
             }
         } else if (authored_gameplay_cameras_active &&
                    in_intro_camera_window && !camera_keys_.empty()) {
@@ -21756,7 +21798,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                               &venue_camera_target_worlds_,
                               &source_record_member_table,
                               &regular_camera_keys_);
-            apply_camera_crowd_visibility(camera_keys_.front());
+            start_camera_shot_runtime(camera_keys_.front());
+        } else {
+            end_camera_shot_runtime();
         }
         if (debug_gameplay_camera_enabled()) {
             const char* target_env =

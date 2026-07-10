@@ -542,6 +542,8 @@ class Gameplay {
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;
   std::map<std::string, float> composed_venue_material_alpha() const;
   void apply_camera_crowd_visibility(const CameraKey& key);
+  void start_camera_shot_runtime(const CameraKey& key);
+  void end_camera_shot_runtime();
   void refresh_worldcrowd_actor_source_targets_for_camera();
   void resend_active_venue_event();
   void clear_runtime_venue_animation_state();
@@ -893,6 +895,7 @@ class Gameplay {
       venue_camera_shown_proxy_meshes_;
   bool venue_camera_hide_crowd_ = false;
   bool venue_camera_crowd_face_camera_ = false;
+  std::string active_camera_runtime_shot_;
   std::string active_venue_event_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformAnim>
       drum_mesh_transform_anims_;
