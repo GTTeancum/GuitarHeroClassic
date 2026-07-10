@@ -4160,7 +4160,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (fill > 0.005f && meter_fill_glow) {
     drew_native_fill_glow =
         append_clipped_fill(native_star_fill_glow_, std::nullopt,
-                            tube_meter_alpha, tube_meter_range);
+                            tube_meter_alpha, tube_meter_range, true);
     drew_native_fill |= drew_native_fill_glow;
   }
 
@@ -4300,8 +4300,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "glass_material_mode=base_plus_cleartube_layer "
         "core_color_mode=settled_lit_key_width_driven "
         "tube_meter_alpha_mode=source_peak_width_driven "
-        "tube_meter_mode=clipped_left_to_right_source_uv_reveal "
-        "tube_meter_u_mode=source_unflipped "
+        "tube_meter_mode=clipped_left_to_right_fill_uv_remap "
+        "tube_meter_u_mode=filled_span_source_texture "
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core "
         "sort_order=star_meter_view_child_order_then_ready_view "

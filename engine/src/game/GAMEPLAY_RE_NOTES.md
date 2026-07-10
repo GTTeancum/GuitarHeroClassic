@@ -10401,3 +10401,25 @@ Rejected native probe:
   the UV edge rows. The 25% native fill still needs a stronger PCSX2 GS/UV-stage
   trace for exact bright-core intensity/width; this checkpoint only corrects
   the source tube glow's U side and preserves source art.
+
+2026-07-10 star-meter thick-body remap checkpoint:
+- User review clarified the visual interpretation again: the skinny blue strip
+  in native and PCSX2 is the always-present `amp_inside_bar_path.mesh` line,
+  while the wider stored star-power body must grow left-to-right. The latest
+  source-U reveal kept that line correct but left the first-quarter thick body
+  reading as mostly grey because the bright `hud_meter_top_glow.tex` source
+  contribution was no longer spread through the currently filled body.
+- Native now restores filled-span UV remap only for the original
+  `amp_tube_glow_meter.mesh` / `amp_tube_glow_meter.mat` /
+  `hud_meter_top_glow.tex` layer. The source `amp_inside_bar.mesh` core remains
+  clipped by stored width, and the `amp_inside_bar_path.mesh` line remains
+  full-width. No replacement strip, hand-authored color, fake geometry, or
+  duplicate `amp_inside_bar.mesh` emission pass was added.
+- Fresh hidden HUD proof:
+  `engine/out/star_power_trace_evidence_20260710/native_star_thick_fill_remap_current/`
+  captures 25/50/75/100 stored plus active 100. Logs report
+  `tube_meter_mode=clipped_left_to_right_fill_uv_remap`,
+  `tube_meter_u_mode=filled_span_source_texture`, growing core/glow widths, and
+  constant `path_width`. The 25% body is now source-layer filled instead of
+  waiting on the full-tube U position, but its brightness still remains below
+  the PCSX2 oracle and needs a separate blend/intensity trace pass.
