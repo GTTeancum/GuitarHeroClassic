@@ -185,11 +185,14 @@ struct MatObj {
   std::string diffuse_tex;   // diffuse .tex reference ("" if none)
   float color[4] = {1, 1, 1, 1};  // diffuse RGBA
   uint8_t blend = 0;         // BLEND_ENUM from macros.dta: Src/Add/SrcAlpha/...
-  // Diffuse texcoord transform (3x3 in the Mat; diagonal = UV scale/tiling, row 2
-  // = UV offset). u' = u*tex_scale[0] + tex_offset[0]; v' = v*tex_scale[1] + ...
-  // E.g. mm_brick03.mat tiles 4x3 so the brick tile repeats across the wall;
-  // mainmenu.mat is identity. The renderer must apply this or tiled walls show one
-  // stretched copy.
+  // Diffuse texcoord transform, mapped from the Mat's 12-float source texture
+  // matrix and applied as [u v 1] * tex_xfm by 2-D UV renderers.
+  // Row 2 carries offset; off-diagonal and negative scale are used by mirrored
+  // UI tiles such as the pause-card border corners.
+  float tex_xfm[3][3] = {{1.0f, 0.0f, 0.0f},
+                         {0.0f, 1.0f, 0.0f},
+                         {0.0f, 0.0f, 1.0f}};
+  // Compatibility fields for older render paths and diagnostics.
   float tex_scale[2] = {1.0f, 1.0f};
   float tex_offset[2] = {0.0f, 0.0f};
   bool use_environ = false;

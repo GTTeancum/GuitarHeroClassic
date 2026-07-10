@@ -83,7 +83,18 @@ void test_mat() {
   put_f32(b, 1); put_f32(b, 1); put_f32(b, 1); put_f32(b, 1);  // colour RGBA
   b.push_back(1);                // use_environ
   b.push_back(0);                // prelit
-  put_zeros(b, 30);              // rest of blend/flag block (scanned past)
+  put_zeros(b, 14);              // rest of texcoord flag block
+  const float tex_xfm[3][3] = {
+      {1.06f, 0.0f, 0.0f},
+      {0.0f, 1.22f, 0.0f},
+      {0.0f, 0.0f, 1.84f},
+  };
+  for (const auto& row : tex_xfm)
+    for (float value : row)
+      put_f32(b, value);
+  put_f32(b, 0.0f);
+  put_f32(b, -0.14f);
+  put_f32(b, 0.0f);
   put_str(b, "gem.tex");         // diffuse texture
   put_zeros(b, 16);
 
@@ -94,6 +105,11 @@ void test_mat() {
   CHECK(m.blend == 4);
   CHECK(m.use_environ);
   CHECK(!m.prelit);
+  CHECK(approx(m.tex_xfm[0][0], 1.06f));
+  CHECK(approx(m.tex_xfm[1][1], 1.22f));
+  CHECK(approx(m.tex_xfm[2][0], 0.0f));
+  CHECK(approx(m.tex_xfm[2][1], 0.0f));
+  CHECK(approx(m.tex_xfm[2][2], 1.0f));
   std::printf("  [ok] Mat: tex=%s blend=%u color=(%.0f,%.0f,%.0f,%.0f)\n",
               m.diffuse_tex.c_str(), static_cast<unsigned>(m.blend),
               m.color[0], m.color[1], m.color[2], m.color[3]);

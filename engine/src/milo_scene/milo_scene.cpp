@@ -597,22 +597,38 @@ MatObj decode_mat(const std::string& entry_name,
     m.use_environ = body[flag_pos] != 0;
     m.prelit = body[flag_pos + 1] != 0;
   }
-  // Diffuse texcoord transform: 16 bytes of flags, then a 3x3 matrix (UV tiling on
-  // the diagonal, UV offset in row 2, homogeneous [2][2]=1). Confirmed from the raw
-  // bytes: mm_brick03.mat has scale (4,3) -> the 256px brick tile repeats across the
-  // 1600-unit wall (small bricks); mainmenu.mat is identity. Applied by the renderer.
+  // Diffuse texcoord transform: 16 bytes of flags, then a 12-float source
+  // matrix block. Renderers consume the 2-D UV rows as [u v 1] * a 3x3 matrix;
+  // the source third-axis slot can carry non-UV scale, so force homogeneous
+  // [2][2] to one instead of rejecting the authored UV transform.
   {
     const size_t txf = r.pos + 16;
     auto rf = [&](size_t o) { float f; std::memcpy(&f, body.data() + o, 4); return f; };
-    if (txf + 36 <= body.size()) {
-      const float m22 = rf(txf + 32);     // [2][2]
-      const float su = rf(txf + 0);       // [0][0]
-      const float sv = rf(txf + 16);      // [1][1]
-      if (m22 > 0.9f && m22 < 1.1f && su > 0.01f && su < 64.0f && sv > 0.01f && sv < 64.0f) {
-        m.tex_scale[0] = su;
-        m.tex_scale[1] = sv;
-        m.tex_offset[0] = rf(txf + 24);   // [2][0]
-        m.tex_offset[1] = rf(txf + 28);   // [2][1]
+    if (txf + 48 <= body.size()) {
+      float xfm[3][3] = {};
+      bool sane = true;
+      for (int row = 0; row < 3; ++row) {
+        for (int col = 0; col < 3; ++col) {
+          const float value =
+              rf(txf + static_cast<size_t>(row * 3 + col) * 4);
+          xfm[row][col] = value;
+          if (!std::isfinite(value) || std::fabs(value) > 128.0f) sane = false;
+        }
+      }
+      if (sane) {
+        m.tex_xfm[0][0] = xfm[0][0];
+        m.tex_xfm[0][1] = xfm[0][1];
+        m.tex_xfm[0][2] = 0.0f;
+        m.tex_xfm[1][0] = xfm[1][0];
+        m.tex_xfm[1][1] = xfm[1][1];
+        m.tex_xfm[1][2] = 0.0f;
+        m.tex_xfm[2][0] = xfm[2][0];
+        m.tex_xfm[2][1] = xfm[2][1];
+        m.tex_xfm[2][2] = 1.0f;
+        m.tex_scale[0] = m.tex_xfm[0][0];
+        m.tex_scale[1] = m.tex_xfm[1][1];
+        m.tex_offset[0] = m.tex_xfm[2][0];
+        m.tex_offset[1] = m.tex_xfm[2][1];
       }
     }
   }

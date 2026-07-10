@@ -2571,11 +2571,14 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         const bool star_black_backing_mesh =
             std::strcmp(name, "amp_glass_black.mesh") == 0 &&
             mesh->material == "amp_glass_black.mat";
+        const bool star_tube_meter_glow_mesh =
+            std::strcmp(name, "amp_tube_glow_meter.mesh") == 0 &&
+            mesh->material == "amp_tube_glow_meter.mat";
+        const bool star_ready_tube_glow_mesh =
+            std::strcmp(name, "amp_tube_glow.mesh") == 0 &&
+            mesh->material == "amp_tube_glow.mat";
         const bool star_additive_glow_mesh =
-            (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0 &&
-             mesh->material == "amp_tube_glow_meter.mat") ||
-            (std::strcmp(name, "amp_tube_glow.mesh") == 0 &&
-             mesh->material == "amp_tube_glow.mat");
+            star_tube_meter_glow_mesh || star_ready_tube_glow_mesh;
         if (star_core_fill_mesh && !star_fill_color_keys_.empty()) {
           q.fullbright_texture = false;
           q.emissive_texture_2x = true;
@@ -2588,6 +2591,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         if (star_additive_glow_mesh) {
           q.fullbright_texture = true;
           q.emissive_texture_2x = true;
+        }
+        if (star_tube_meter_glow_mesh) {
+          q.emissive_alpha_2x = true;
         }
         const auto prelit_it = star.mat_prelit.find(mesh->material);
         const bool source_prelit =
@@ -4313,6 +4319,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "back_alpha2x=%d back_color=%08x "
         "path_emit4x=%d path_tex2x=%d path_prelit=%d path_alpha2x=%d "
         "path_alpha_emission=%d path_dual_emit=%d "
+        "tube_meter_alpha2x=%d "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=source_mesh_ranges screen=left_to_right "
         "range_ok=%d,%d,%d "
@@ -4361,6 +4368,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         any_quad_alpha2x(native_star_path_glow_) ? 1 : 0,
         any_quad_alpha_emission(native_star_path_glow_) ? 1 : 0,
         native_star_path_glow_dual_emit_ ? 1 : 0,
+        any_quad_alpha2x(native_star_fill_glow_) ? 1 : 0,
         first_quad_blend(native_star_fill_),
         first_quad_blend(native_star_path_glow_),
         first_quad_blend(native_star_fill_glow_),

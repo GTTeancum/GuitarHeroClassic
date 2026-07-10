@@ -10439,3 +10439,22 @@ Rejected native probe:
   and rejected. It changed only a tiny leading-edge region and did not make the
   broad filled body match PCSX2, so no renderer behavior from that probe is
   retained.
+
+2026-07-10 star-meter source Mat texture-matrix decode:
+- The raw `Mat__amp_tube_glow_meter.mat` entry stores 16 flag bytes followed by
+  a 12-float source texture matrix. Its UV rows include the authored
+  `1.06` / `1.22` scale, while the third-axis slot carries `1.84`; treating
+  that slot as the renderer's 2-D homogeneous `[2][2]` value made native reject
+  the matrix and fall back to identity UVs.
+- Native now maps the source UV rows into the renderer's 3x3 `tex_xfm` and
+  forces the 2-D homogeneous slot to `1.0`. This keeps the original
+  `amp_tube_glow_meter.mesh`, `amp_tube_glow_meter.mat`, and
+  `hud_meter_top_glow.tex` in use; no replacement art, fake fill texture, or
+  synthetic meter geometry is introduced.
+- Fresh hidden HUD proof:
+  `engine/out/star_power_trace_evidence_20260710/native_star_mat12_uv_current/`
+  captures 25/50/75/100 stored plus active 100. The dump row for
+  `amp_tube_glow_meter.mesh` reports `uvxfm=(1.060 0.000;-0.000 1.220)`,
+  while the star-power diagnostics keep `amp_inside_bar_path.mesh` as the
+  always-present thin full-width line and show the thicker core/glow widths
+  growing left-to-right.

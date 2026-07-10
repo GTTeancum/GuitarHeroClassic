@@ -1133,6 +1133,10 @@ int main() {
                  "q.emissive_texture_2x=true;}",
                  "star-power tube glow uses the source emissive texture combine");
   ok &= contains(hud_renderer_c,
+                 "if(star_tube_meter_glow_mesh){"
+                 "q.emissive_alpha_2x=true;}",
+                 "star-power tube-meter glow applies the PS2-style source alpha scale");
+  ok &= contains(hud_renderer_c,
                  "out_uv.m[row][col]=mat.tex_xfm[row][col];",
                  "HUD source material UV matrices keep authored rotation terms");
   ok &= contains(hud_renderer_c,
@@ -1166,6 +1170,9 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"path_material_combine=prelit_ps2_modulate2x\"",
                  "star-power diagnostics report the source prelit path combine");
+  ok &= contains(hud_renderer_c,
+                 "\"tube_meter_alpha2x=%d\"",
+                 "star-power diagnostics report the tube-meter source alpha scale");
   ok &= absent(hud_renderer_c,
                "star_path_glow_mesh||star_additive_glow_mesh",
                "star-power path line keeps authored material tint instead of bypassing it as fullbright");
@@ -4946,6 +4953,9 @@ int main() {
                  "booluse_environ=false;boolprelit=false;",
                  "decoded materials retain environment/prelit flags");
   ok &= contains(milo_scene_h_c,
+                 "12-floatsourcetexture",
+                 "decoded materials document that source texture transforms are stored as 12-float matrices");
+  ok &= contains(milo_scene_h_c,
                  "std::vector<EnvironObj>environs;",
                  "decoded scenes retain Environ entries alongside Light entries");
   ok &= contains(milo_scene_h_c,
@@ -4967,6 +4977,14 @@ int main() {
                  "WorldCrowdObjdecode_world_crowd("
                  "conststd::string&entry_name,conststd::vector<uint8_t>&body)",
                  "raw WorldCrowd object decoder exists");
+  ok &= contains(milo_scene_cpp_c,
+                 "rf(txf+static_cast<size_t>(row*3+col)*4)",
+                 "Mat decoder reads the source texture transform UV rows");
+  ok &= contains(milo_scene_cpp_c,
+                 "m.tex_xfm[2][0]=xfm[2][0];"
+                 "m.tex_xfm[2][1]=xfm[2][1];"
+                 "m.tex_xfm[2][2]=1.0f;",
+                 "Mat decoder preserves UV offset while forcing 2-D homogeneous texture scale");
   ok &= contains(milo_scene_cpp_c,
                  "crowd.total_placements=read_u32_at(body,after_area);",
                  "WorldCrowd decoder preserves the authored placement total");
