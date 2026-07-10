@@ -10221,3 +10221,24 @@ Rejected native probe:
 - This remains bound to the original MILO mesh/material/texture/alpha key and
   PCSX2 forced-fill oracle behavior: no replacement art, generated strip,
   invented color, or path-line promotion.
+
+2026-07-10 star-meter active lightning source-view gate:
+- Rechecked the no-focus PCSX2 object samples and decoded
+  `hud/gen/star_meter.milo_ps2` groups before changing the active effect path.
+  The PCSX2 object samples show the source star-meter meshes/materials stay
+  stable while the gauge value is forced, so fill/active presentation is driven
+  by runtime draw state rather than mutated MILO objects.
+- The decoded group order has `star_meter_fill.view` owning
+  `lightning.view`, and `lightning.view` owns the eight authored
+  `lightning_*_0.mesh` quads. Those meshes are separate from
+  `amp_inside_bar.mesh` and `amp_tube_glow_meter.mesh`, so native no longer
+  clips them by the stored tube-fill range.
+- The active path still gates these meshes on `star_power_active` and samples
+  their decoded MatAnim texture/color/alpha data. It now draws the original
+  lightning view as full source meshes; the stored tube body remains clipped
+  separately.
+- The always-present thin blue line is `amp_inside_bar_path.mesh`; it is not
+  the stored star-power body. Native keeps that source mesh full-width and
+  applies the decoded path texture animation to it, while the thicker
+  `amp_inside_bar.mesh` core and `amp_tube_glow_meter.mesh` glow are the
+  left-to-right value fill.

@@ -3958,7 +3958,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         }
         return drew;
       };
-  auto append_clipped_animated = [&](const StarAnimatedQuad& animated) {
+  auto append_full_animated = [&](const StarAnimatedQuad& animated) {
     Quad q = animated.quad;
     const float anim_frame =
         fill * std::max(1.0f, animated.duration_frames);
@@ -3969,14 +3969,16 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     q.color = scale_argb_alpha(
         q.color, sample_hud_mat_anim_alpha_frame(animated.alpha_keys,
                                                  anim_frame));
-    IDirect3DTexture9* texture_override = nullptr;
     if (const std::string* texture =
             sample_hud_mat_anim_texture_frame(animated.texture_keys,
                                              anim_frame)) {
-      texture_override = tex(*texture);
+      if (IDirect3DTexture9* texture_override = tex(*texture)) {
+        q.tex = texture_override;
+      }
     }
-    return append_clipped_quad(q, std::nullopt, texture_override, 1.0f,
-                               core_fill_range);
+    if (q.verts.size() < 3 || q.idx.size() < 3) return false;
+    out.push_back(std::move(q));
+    return true;
   };
   auto sample_star_mesh_anim =
       [](const StarMeshAnimatedQuad& animated, float frame) {
@@ -4095,7 +4097,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
                                             1.0f, core_fill_range);
     if (star_power_active) {
       for (const StarAnimatedQuad& lightning : native_star_lightning_) {
-        drew_native_fill |= append_clipped_animated(lightning);
+        drew_native_fill |= append_full_animated(lightning);
       }
       for (const StarParticleLayer& particle : native_star_particles_) {
         drew_native_particles |= append_star_particle(particle);
@@ -4219,6 +4221,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "path_line_mode=persistent_full_width "
         "body_fill_mode=inside_bar_core_plus_tube_meter_glow "
         "core_fill_mode=clipped_left_to_right "
+        "lightning_mode=active_full_source_mesh "
         "core_color_mode=settled_lit_key_width_driven "
         "tube_meter_alpha_mode=source_peak_width_driven "
         "tube_meter_mode=clipped_left_to_right_fill_uv_remap "

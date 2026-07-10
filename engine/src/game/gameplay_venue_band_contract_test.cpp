@@ -1089,6 +1089,12 @@ int main() {
                  "anim_frame)",
                  "star-power lightning samples the source MatAnim texture keys");
   ok &= contains(hud_renderer_c,
+                 "drew_native_fill|=append_full_animated(lightning);",
+                 "star-power lightning draws the source lightning.view meshes without stored-fill clipping");
+  ok &= absent(hud_renderer_c,
+               "append_clipped_animated(lightning)",
+               "star-power lightning must not be clipped by the stored tube fill range");
+  ok &= contains(hud_renderer_c,
                  "native_star_path_glow_",
                  "star-power path glow is separate from the tube-meter alpha layer");
   ok &= contains(hud_renderer_c,
@@ -1429,6 +1435,9 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"core_fill_mode=clipped_left_to_right\"",
                  "star-power source core remains the left-to-right clipped fill");
+  ok &= contains(hud_renderer_c,
+                 "\"lightning_mode=active_full_source_mesh\"",
+                 "star-power diagnostics report the active lightning source-view draw mode");
   ok &= contains(hud_renderer_c,
                  "\"core_color_mode=settled_lit_key_width_driven\"",
                  "star-power diagnostics distinguish settled core color from fill-driven width");
