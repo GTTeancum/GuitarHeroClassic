@@ -10294,3 +10294,21 @@ Rejected native probe:
   left-to-right. The thin `amp_inside_bar_path.mesh` line remains full-width,
   the broad `amp_inside_bar.mesh` core remains clipped by stored fill, and no
   replacement strip, hand-authored color, or non-MILO geometry is introduced.
+
+2026-07-10 star-meter tube-meter filled-span UV correction:
+- Rechecked the settled PCSX2 forced-fill oracle, decoded material rows, and the
+  native core-remap probe. `amp_inside_bar.mesh` / `amp_inside_star.mat` remains
+  the source clipped core, but its `amp_inside_bar.tex` brightness is not the
+  left-to-right glow ramp: the texture samples showed brightness varying by the
+  cross-section row rather than across the tube length.
+- The source pass that carries the broad stored-fill glow is
+  `amp_tube_glow_meter.mesh` / `amp_tube_glow_meter.mat` /
+  `hud_meter_top_glow.tex`. PCSX2's settled `0.25` capture already shows that
+  bright source glow inside the first filled quarter; pure source-UV reveal
+  delayed that glow until the full-tube center was visible and left the first
+  quarter too dim.
+- Native therefore keeps `amp_inside_bar.mesh` as the ordinary clipped source
+  core, restores filled-span UV remap only for `amp_tube_glow_meter.mesh`, and
+  leaves `amp_inside_bar_path.mesh` as the full-width thin line. This uses the
+  original MILO mesh/material/texture/alpha data and does not add replacement
+  art, hand-authored colors, or fabricated geometry.
