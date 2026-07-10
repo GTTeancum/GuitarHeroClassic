@@ -1167,6 +1167,33 @@ int main() {
                  "append_star_mesh(\"amp_glass_black.mesh\",native_star_back_",
                  "star-power back layer keeps only the source black glass child");
   ok &= contains(hud_renderer_c,
+                 "autostar_meter_source_sort_bias=[](constchar*name){",
+                 "star-power HUD has an explicit source child-order sort for the native meter stack");
+  ok &= appears_before(
+      hud_renderer_c,
+      "std::strcmp(name,\"amp_glass_black.mesh\")==0)return-7;",
+      "std::strcmp(name,\"amp_inside_bar.mesh\")==0)return-4;",
+      "star-power black glass sorts before the broad inside-bar fill like star_meter.view");
+  ok &= appears_before(
+      hud_renderer_c,
+      "std::strcmp(name,\"amp_inside_bar.mesh\")==0)return-4;",
+      "std::strcmp(name,\"amp_inside_bar_path.mesh\")==0)return-3;",
+      "star-power broad fill sorts before the persistent path line like star_meter.view");
+  ok &= appears_before(
+      hud_renderer_c,
+      "std::strcmp(name,\"amp_base_bar.mesh\")==0)return-1;",
+      "std::strcmp(name,\"amp_tube_glow.mesh\")==0)return0;",
+      "star-power ready view sorts after the base star_meter.view children");
+  ok &= contains(hud_renderer_c,
+                 "q.sort_bias=star_meter_source_sort_bias(name);",
+                 "star-power decoded star meshes use source-order sort bias");
+  ok &= contains(hud_renderer_c,
+                 "q.sort_bias=star_meter_source_sort_bias(mesh_name);",
+                 "star-power animated ready tube mesh uses source-order sort bias");
+  ok &= absent(hud_renderer_c,
+               "q.sort_bias=std::min(q.sort_bias,-1);",
+               "star-power ready MeshAnim must not be clamped back under the source meter stack");
+  ok &= contains(hud_renderer_c,
                  "append_star_mesh(\"amp_base_bar.mesh\",native_star_caps_",
                  "star-power keeps the authored amp_base_bar child in its own cap bucket");
   ok &= contains(hud_renderer_c,
@@ -1390,6 +1417,9 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"tube_meter_overlay=after_core\"",
                  "star-power diagnostics report tube-meter glow overlays the broad core");
+  ok &= contains(hud_renderer_c,
+                 "\"sort_order=star_meter_view_child_order_then_ready_view\"",
+                 "star-power diagnostics report the source-order sort path");
   ok &= contains(hud_renderer_c,
                  "constfloattube_meter_alpha_frame=tube_meter_anim_frame;",
                  "star-power tube-meter alpha samples the live source MatAnim frame");

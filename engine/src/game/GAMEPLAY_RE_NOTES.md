@@ -10082,3 +10082,24 @@ Rejected native probe:
   and the sampled source MatAnim color/alpha values so the next proof can be
   judged against PCSX2 without conflating the old native 4x approximation with
   the MILO-authored broad core.
+
+2026-07-10 star-meter source child-order sort:
+- Rechecked the decoded `star_meter.view` child order after the native
+  PS2-modulate proof still showed a dull/grey stored fill: `amp_inside_disk`,
+  `amp_glass_black`, `amp_chrome_base`, `amp_glass`, `amp_inside_bar`,
+  `amp_inside_bar_path`, `amp_chrome_top`, `amp_base_bar`, followed by
+  ObjectDir child `star_meter_ready.view` (`amp_tube_glow`,
+  `amp_tube_glow_meter`). The previous native stack appended those in source
+  order, but the later HUD `z_for_quad` sort could still draw
+  `amp_glass_black.mesh` after `amp_inside_bar.mesh`, putting the black
+  glass/backing over the broad stored-SP core.
+- Native now assigns a star-meter-only sort bias from the decoded child order
+  before the generic HUD sort runs. This keeps the black glass and chrome/glass
+  body layers behind the stored fill, keeps the always-present
+  `amp_inside_bar_path.mesh` above the broad fill, and leaves
+  `star_meter_ready.view` after the base meter view. The animated ready tube no
+  longer clamps its sort bias back under the meter stack.
+- This is a source-order correction only: no new art, no invented glow layer,
+  and no brightness multiplier was added. The next proof should be judged on
+  whether removing the sorted black-glass-over-core regression brings the broad
+  PCSX2 fill closer before deeper GS blend/filter work.

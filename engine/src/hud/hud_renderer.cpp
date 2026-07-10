@@ -2478,6 +2478,19 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
     }
   }
   if (star_bounds.ok) {
+    auto star_meter_source_sort_bias = [](const char* name) {
+      if (std::strcmp(name, "amp_inside_disk.mesh") == 0) return -8;
+      if (std::strcmp(name, "amp_glass_black.mesh") == 0) return -7;
+      if (std::strcmp(name, "amp_chrome_base.mesh") == 0) return -6;
+      if (std::strcmp(name, "amp_glass.mesh") == 0) return -5;
+      if (std::strcmp(name, "amp_inside_bar.mesh") == 0) return -4;
+      if (std::strcmp(name, "amp_inside_bar_path.mesh") == 0) return -3;
+      if (std::strcmp(name, "amp_chrome_top.mesh") == 0) return -2;
+      if (std::strcmp(name, "amp_base_bar.mesh") == 0) return -1;
+      if (std::strcmp(name, "amp_tube_glow.mesh") == 0) return 0;
+      if (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0) return 1;
+      return 0;
+    };
     auto append_star_mesh = [&](const char* name, std::vector<Quad>& target,
                                 uint32_t color, bool additive,
                                 bool flip_v = false, bool flip_z = true,
@@ -2491,6 +2504,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                                 true);
         q.group = kHudGroupRight;
         q.element = element;
+        q.sort_bias = star_meter_source_sort_bias(name);
         if (tex_override) q.tex = tex(tex_override);
         const bool star_path_glow_mesh =
             std::strcmp(name, "amp_inside_bar_path.mesh") == 0 &&
@@ -2539,6 +2553,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                                       depth_scale, true);
         layer_q.group = kHudGroupRight;
         layer_q.element = element;
+        layer_q.sort_bias = star_meter_source_sort_bias(name);
         if (flip_u) {
           for (Quad::V& v : layer_q.verts) v.u = 1.0f - v.u;
         }
@@ -2626,6 +2641,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                                 true, flip_v, flip_z, true, 0.0f, true);
         q.group = kHudGroupRight;
         q.element = kElemSpReady;
+        q.sort_bias = star_meter_source_sort_bias(mesh_name);
         if (std::strcmp(mesh_name, "amp_tube_glow.mesh") == 0 &&
             mesh->material == "amp_tube_glow.mat") {
           q.fullbright_texture = true;
@@ -3993,7 +4009,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         Quad q = sample_star_mesh_anim(src, frame);
         if (q.verts.size() < 3 || q.idx.size() < 3) continue;
         q.color = scale_argb_alpha(q.color, tube_ready_alpha);
-        q.sort_bias = std::min(q.sort_bias, -1);
         out.push_back(std::move(q));
         drew_native_ready_mesh = true;
       }
@@ -4088,6 +4103,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "core_fill_mode=clipped_left_to_right "
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core "
+        "sort_order=star_meter_view_child_order_then_ready_view "
         "source_layers=amp_inside_bar.mesh,amp_inside_bar_path.mesh,"
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
