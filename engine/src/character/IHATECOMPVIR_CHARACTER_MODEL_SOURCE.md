@@ -56,6 +56,13 @@ Treat ihatecompvir's repos as the authority; do not use the older
     mBones[i].mOffset)`.
   - GH2-era `RndMesh::PostLoad` reads the same four source bone slots and four
     offsets that the native decoder preserves.
+- `rb3/src/system/rndobj/Mat.cpp`
+  - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
+    `kRepeat`, and z mode `kNormal`.
+  - Native render state must come from decoded `RndMat`/`RndDrawable` rows, not
+    from mesh or material names such as `hair`.
+- `rb3/src/system/rndobj/Mat.h`
+  - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
 
 ## Skinning Authority
 
@@ -154,5 +161,8 @@ confirms GH2 PS2 mesh group-section tails decode through the same
 - Renderer geometry selection must come from decoded source membership such as
   `RndGroup.objects`; name/palette suppressions like numbered-hair or terminal
   leg-overlay hiding are not source evidence.
+- Renderer state such as blend, z write, alpha test, cull, wrap, and draw order
+  must come from source material/drawable rows. Hair-name render branches are
+  not source evidence.
 - If a behavior is not proven by ihatecompvir source or stock asset data, leave
   it decoded/logged and unwritten until the source-backed runtime path is known.

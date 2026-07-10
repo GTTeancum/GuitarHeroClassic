@@ -100,8 +100,7 @@ bool source_group_draw_order_enabled() {
   return !char_env_enabled("GHOGX_DISABLE_SOURCE_GROUP_DRAW_ORDER");
 }
 
-bool material_depth_write_enabled(const milo_scene::MatObj* material,
-                                  bool legacy_blended_hair) {
+bool material_depth_write_enabled(const milo_scene::MatObj* material) {
   if (material && material->has_render_state &&
       source_material_zmode_depth_enabled()) {
     switch (material->z_mode) {
@@ -115,7 +114,10 @@ bool material_depth_write_enabled(const milo_scene::MatObj* material,
         return false;
     }
   }
-  return !legacy_blended_hair;
+  // RB3 RndMat defaults to kNormal z mode. If an older/partial material row
+  // does not expose zMode, keep that source default instead of deriving render
+  // state from mesh or material names.
+  return true;
 }
 
 DWORD texture_address_for_wrap(uint8_t tex_wrap) {
@@ -390,24 +392,6 @@ bool is_hidden_by_character_lod_selection(const Character& character,
   }
   if (is_lod1(mesh.name)) return true;
   return is_hidden_by_character_lod_group(character, mesh);
-}
-
-bool is_hair_mesh_name(const std::string& n) {
-  std::string lower = n;
-  std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return (char)std::tolower(c); });
-  return lower.find("hair") != std::string::npos;
-}
-
-bool is_hair_material_name(const std::string& n) {
-  std::string lower = n;
-  std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return (char)std::tolower(c); });
-  return lower.find("hair") != std::string::npos;
-}
-
-bool is_hair_render_mesh(const SkinnedMesh& m) {
-  return is_hair_mesh_name(m.name) || is_hair_material_name(m.material);
 }
 
 bool is_guitar_strings_prop_mesh(const std::string& name) {
@@ -1533,11 +1517,7 @@ void CharRenderer::draw_impl(bool clear_target) {
                        if (ar >= 0 && br >= 0 && ar != br) return ar < br;
                        if ((ar >= 0) != (br >= 0)) return ar >= 0;
                      }
-                     const bool a_hair = is_hair_render_mesh(*a);
-                     const bool b_hair = is_hair_render_mesh(*b);
-                     if (a_hair != b_hair) return !a_hair;
-                     if (a_hair && b_hair &&
-                         std::fabs(a->draw_order - b->draw_order) >
+                     if (std::fabs(a->draw_order - b->draw_order) >
                              1.0e-5f) {
                        return a->draw_order < b->draw_order;
                      }
@@ -1856,8 +1836,6 @@ void CharRenderer::draw_impl(bool clear_target) {
         material ? material->blend : static_cast<uint8_t>(kBlendSrcAlpha);
     if (highlight_mesh) material_blend = kBlendSrc;
     const BlendState blend_state = character_blend_state_for(material_blend);
-    const bool blended_hair =
-        material && material->blend != 0 && is_hair_render_mesh(m);
     const bool use_source_alpha =
         material && material->has_render_state &&
         source_material_alpha_state_enabled();
@@ -1867,8 +1845,7 @@ void CharRenderer::draw_impl(bool clear_target) {
             ? static_cast<DWORD>(
                   std::clamp(material->alpha_threshold, 0, 255))
             : 96u;
-    const bool depth_write =
-        material_depth_write_enabled(material, blended_hair);
+    const bool depth_write = material_depth_write_enabled(material);
     dev->SetRenderState(D3DRS_BLENDOP, blend_state.op);
     dev->SetRenderState(D3DRS_SRCBLEND, blend_state.src);
     dev->SetRenderState(D3DRS_DESTBLEND, blend_state.dest);
@@ -1886,12 +1863,11 @@ void CharRenderer::draw_impl(bool clear_target) {
       const int group_rank = character_active_lod_group_rank(
           impl.character, m.name, impl.min_lod);
       std::fprintf(stderr,
-                   "[mesh-render] %-24s mat=%-18s hairRender=%d blend=%d "
+                   "[mesh-render] %-24s mat=%-18s blend=%d "
                    "zwrite=%d ngCull=%d cullMode=%lu src=%lu dst=%lu "
                    "op=%lu drawOrder=%.3f groupRank=%d alphaTest=%d alphaCut=%d "
                    "alphaRef=%lu zMode=%u texWrap=%u\n",
                    m.name.c_str(), m.material.c_str(),
-                   is_hair_render_mesh(m) ? 1 : 0,
                     static_cast<int>(material_blend),
                     depth_write ? 1 : 0,
                    material && material->has_cull ? (material->cull ? 1 : 0)

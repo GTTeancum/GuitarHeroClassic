@@ -86,6 +86,10 @@ int run_contract() {
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs"));
   const std::string rb3_mesh_cpp = compact(read_file(
       source_dir / "rb3/src/system/rndobj/Mesh.cpp"));
+  const std::string rb3_mat_cpp = compact(read_file(
+      source_dir / "rb3/src/system/rndobj/Mat.cpp"));
+  const std::string rb3_mat_h = compact(read_file(
+      source_dir / "rb3/src/system/rndobj/Mat.h"));
   const std::string gltf_program_cs = compact(read_file(
       source_dir / "glTFMilo/Source/glTFMilo/Program.cs"));
   const std::string gltf_node_processor_cs = compact(read_file(
@@ -111,6 +115,10 @@ int run_contract() {
                  "document cites glTFMilo skinning source");
   ok &= contains(doc, "rb3/src/system/rndobj/Mesh.cpp",
                  "document cites RB3 RndMesh runtime source");
+  ok &= contains(doc, "rb3/src/system/rndobj/Mat.cpp",
+                 "document cites RB3 RndMat runtime source");
+  ok &= contains(doc, "rb3/src/system/rndobj/Mat.h",
+                 "document cites RB3 RndMat runtime header source");
   ok &= contains(doc, "rb3/src/system/char/CharHair.cpp",
                  "document cites CharHair runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharLookAt.cpp",
@@ -174,6 +182,19 @@ int run_contract() {
                  "useEnviron=reader.ReadBoolean();preLit=reader.ReadBoolean();"
                  "zMode=(ZMode)reader.ReadInt32();alphaCut=reader.ReadBoolean();",
                  "RndMat source useEnviron/preLit/render-state order");
+  ok &= contains(rb3_mat_cpp,
+                 "mBlend(kSrc),mTexGen(kTexGenNone),mTexWrap(kRepeat),"
+                 "mZMode(kNormal)",
+                 "RB3 RndMat runtime defaults source blend/z/wrap state");
+  ok &= contains(rb3_mat_cpp,
+                 "LOAD_BITFIELD_ENUM(int,mBlend,Blend)bs>>mColor;"
+                 "LOAD_BITFIELD(bool,mUseEnviron)LOAD_BITFIELD(bool,mPreLit)"
+                 "LOAD_BITFIELD_ENUM(int,mZMode,ZMode)",
+                 "RB3 RndMat runtime load order matches decoded render state");
+  ok &= contains(rb3_mat_h,
+                 "BlendGetBlend()const{returnmBlend;}ZModeGetZMode()const{"
+                 "returnmZMode;}",
+                 "RB3 RndMat exposes source blend and z mode getters");
   ok &= contains(scene,
                  "m.use_environ=r.u8()!=0;m.prelit=r.u8()!=0;"
                  "constint32_tz_mode=r.i32();",
@@ -256,6 +277,23 @@ int run_contract() {
                 "renderer must not hide meshes through invented leg duplicate rule");
   ok &= missing(renderer, "is_hidden_numbered_hair_variant",
                 "renderer must not hide hair through numbered-name fallback");
+  ok &= missing(renderer, "is_hair_render_mesh",
+                "renderer must not derive render state from hair names");
+  ok &= missing(renderer, "is_hair_mesh_name",
+                "renderer must not derive render state from hair mesh names");
+  ok &= missing(renderer, "is_hair_material_name",
+                "renderer must not derive render state from hair material names");
+  ok &= missing(renderer, "legacy_blended_hair",
+                "renderer must not keep legacy hair depth fallback");
+  ok &= missing(renderer, "hairRender",
+                "renderer debug output must not expose removed hair-name branch");
+  ok &= contains(renderer,
+                 "constbooldepth_write=material_depth_write_enabled(material);",
+                 "native depth write is driven by source material state");
+  ok &= contains(renderer,
+                 "if(std::fabs(a->draw_order-b->draw_order)>1.0e-5f){"
+                 "returna->draw_order<b->draw_order;}",
+                 "native draw sort uses source RndDrawable draw order without hair names");
 
   ok &= contains(gltf_program_cs,
                  "boneName.StartsWith(\"bone_hair_\",StringComparison.OrdinalIgnoreCase)",
