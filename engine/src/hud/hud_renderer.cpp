@@ -2572,6 +2572,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         if (star_path_glow_mesh && source_prelit) {
           native_star_path_glow_prelit_ = true;
           native_star_path_glow_dual_emit_ = false;
+          q.emissive_texture_2x = true;
+          q.emissive_alpha_2x = true;
         }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
@@ -4139,6 +4141,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     }
     return false;
   };
+  auto any_quad_texture_emit2x = [](const std::vector<Quad>& layers) {
+    for (const Quad& q : layers) {
+      if (q.emissive_texture_2x) return true;
+    }
+    return false;
+  };
   auto any_quad_alpha2x = [](const std::vector<Quad>& layers) {
     for (const Quad& q : layers) {
       if (q.emissive_alpha_2x) return true;
@@ -4186,8 +4194,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
         "core_material_combine=ps2_modulate2x "
+        "path_material_combine=prelit_ps2_modulate2x "
         "core_emit4x=%d core_add_emit=%d "
-        "path_emit4x=%d path_prelit=%d path_alpha2x=%d "
+        "path_emit4x=%d path_tex2x=%d path_prelit=%d path_alpha2x=%d "
         "path_alpha_emission=%d path_dual_emit=%d "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=source_mesh_ranges screen=left_to_right "
@@ -4230,6 +4239,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         first_quad_core_emit4x(native_star_fill_) ? 1 : 0,
         any_quad_core_add_emit(native_star_core_emission_) ? 1 : 0,
         any_quad_texture_emit4x(native_star_path_glow_) ? 1 : 0,
+        any_quad_texture_emit2x(native_star_path_glow_) ? 1 : 0,
         native_star_path_glow_prelit_ ? 1 : 0,
         any_quad_alpha2x(native_star_path_glow_) ? 1 : 0,
         any_quad_alpha_emission(native_star_path_glow_) ? 1 : 0,

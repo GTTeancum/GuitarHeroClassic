@@ -1149,8 +1149,13 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "if(star_path_glow_mesh&&source_prelit){"
                  "native_star_path_glow_prelit_=true;"
-                 "native_star_path_glow_dual_emit_=false;}",
-                 "star-power source path stays the persistent thin line rather than the thick fill core");
+                 "native_star_path_glow_dual_emit_=false;"
+                 "q.emissive_texture_2x=true;"
+                 "q.emissive_alpha_2x=true;}",
+                 "star-power source prelit path uses one PS2-style 2x material pass");
+  ok &= contains(hud_renderer_c,
+                 "\"path_material_combine=prelit_ps2_modulate2x\"",
+                 "star-power diagnostics report the source prelit path combine");
   ok &= absent(hud_renderer_c,
                "star_path_glow_mesh||star_additive_glow_mesh",
                "star-power path line keeps authored material tint instead of bypassing it as fullbright");
@@ -1534,6 +1539,12 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"amp_inside_bar_path.part\"",
                  "star-power diagnostics name the traced source particle");
+  ok &= contains(hud_renderer_c,
+                 "\"path_emit4x=%dpath_tex2x=%dpath_prelit=%dpath_alpha2x=%d\"",
+                 "star-power diagnostics distinguish path 2x combine from rejected 4x emission");
+  ok &= contains(hud_renderer_c,
+                 "any_quad_texture_emit2x(native_star_path_glow_)?1:0",
+                 "star-power diagnostics sample the source prelit path texture 2x combine");
   ok &= contains(hud_renderer_c,
                  "\"fill_blends=%u,%u,%ulightning_blend=%u"
                  "particle_blend=%u\"",

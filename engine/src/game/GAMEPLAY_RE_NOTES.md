@@ -10192,3 +10192,18 @@ Rejected native probe:
 - This supersedes the earlier "scaled full UV" experiment. It removes that
   renderer-only scaling path and keeps the fix bound to the original MILO mesh,
   material, texture, alpha key, and clip range.
+
+2026-07-10 star-meter prelit path 2x source combine:
+- Rechecked the decoded `hud/gen/star_meter.milo_ps2` material rows with the
+  native source inspector. The bright center strip remains the original
+  `amp_inside_bar_path.mesh` using `amp_inside_star_path.mat` and
+  `amp_bar_glow.tex`; that material is decoded as prelit, source blend `3`, and
+  grey source tint `[0.616 0.608 0.608 1.000]`.
+- Native had preserved the prelit flag in diagnostics but no longer applied any
+  PS2-style 2x combine to that single path pass, leaving
+  `path_prelit=1` with `path_alpha2x=0`. The renderer now keeps the same source
+  mesh/material/tint/blend and applies `MODULATE2X` to texture color and alpha
+  only when the decoded source path material is prelit.
+- This does not restore the older rejected duplicate alpha-emission or
+  fullbright path-line approximation. It is one source pass, with no replacement
+  art, no extra fill geometry, and no hand-authored color.
