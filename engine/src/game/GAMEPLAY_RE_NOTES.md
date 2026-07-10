@@ -10381,3 +10381,23 @@ Rejected native probe:
   25/50/75/100 plus active-100 captures. The diagnostic row reports
   `tube_meter_mode=clipped_left_to_right_source_uv_reveal`; core/glow widths
   scale with the stored value while `path_width` stays constant.
+
+2026-07-10 star-meter tube-meter source-U correction:
+- The fresh UV-edge diagnostic exposed the remaining dull-left-fill issue:
+  after the left-anchored source-UV pass, native 25% fill was revealing
+  `amp_tube_glow_meter.mesh` over roughly U `0.724..0.950`, which samples the
+  dim high-U side of `hud_meter_top_glow.tex`. The decoded source texture and
+  PCSX2 forced-fill oracle both show the early stored fill should be driven by
+  the brighter low/mid-U band instead.
+- Native now keeps the source `amp_tube_glow_meter.mesh` U direction unflipped
+  while preserving the same original mesh, material, texture, alpha keys, and
+  left-to-right clipping. The diagnostic row reports
+  `tube_meter_u_mode=source_unflipped`; at 25/50/75/100 the tube clip U samples
+  `0.276`, `0.501`, `0.727`, and `0.952` while the persistent
+  `amp_inside_bar_path.mesh` line remains full-width.
+- Fresh hidden HUD proof:
+  `engine/out/star_power_trace_evidence_20260710/native_star_tube_u_source_current/native_star_tube_u_source_current_proof.png`
+  pairs the existing PCSX2 forced-fill oracle with native captures and embeds
+  the UV edge rows. The 25% native fill still needs a stronger PCSX2 GS/UV-stage
+  trace for exact bright-core intensity/width; this checkpoint only corrects
+  the source tube glow's U side and preserves source art.

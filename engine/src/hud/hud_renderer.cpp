@@ -2822,7 +2822,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                      nullptr, true, kElemSpFill, 0.0f);
     append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
                      0, true, false, true,
-                     nullptr, true, kElemSpReady, -1.0f);
+                     nullptr, false, kElemSpReady, -1.0f);
     append_star_animated_mesh("lightning_bot_04_0.mesh",
                               native_star_lightning_);
     append_star_animated_mesh("lightning_bot_02_0.mesh",
@@ -4210,6 +4210,64 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   auto first_quad_color = [](const std::vector<Quad>& layers) {
     return layers.empty() ? 0u : layers.front().color;
   };
+  auto average_u_at_world_x = [](const std::vector<Quad>& layers,
+                                 float target_x) {
+    float sum = 0.0f;
+    int count = 0;
+    float epsilon = 0.0001f;
+    for (const Quad& q : layers) {
+      for (const Quad::V& v : q.verts) {
+        epsilon = std::max(epsilon, std::fabs(v.wx - target_x) * 0.0025f);
+      }
+    }
+    for (const Quad& q : layers) {
+      for (const Quad::V& v : q.verts) {
+        if (std::fabs(v.wx - target_x) <= epsilon) {
+          sum += v.u;
+          ++count;
+        }
+      }
+    }
+    return count > 0 ? sum / static_cast<float>(count)
+                     : std::numeric_limits<float>::quiet_NaN();
+  };
+  auto lerp_u_at_world_x = [](float u_min_x, float u_max_x,
+                              const StarClipRange& range, float x) {
+    if (!range.ok || !(range.max_x > range.min_x) ||
+        !std::isfinite(u_min_x) || !std::isfinite(u_max_x)) {
+      return std::numeric_limits<float>::quiet_NaN();
+    }
+    const float t =
+        std::clamp((x - range.min_x) / (range.max_x - range.min_x), 0.0f, 1.0f);
+    return u_min_x + (u_max_x - u_min_x) * t;
+  };
+  const float core_screen_left_u =
+      core_fill_range.ok
+          ? average_u_at_world_x(native_star_fill_, core_fill_range.max_x)
+          : std::numeric_limits<float>::quiet_NaN();
+  const float core_screen_right_u =
+      core_fill_range.ok
+          ? average_u_at_world_x(native_star_fill_, core_fill_range.min_x)
+          : std::numeric_limits<float>::quiet_NaN();
+  const float tube_screen_left_u =
+      tube_meter_range.ok
+          ? average_u_at_world_x(native_star_fill_glow_, tube_meter_range.max_x)
+          : std::numeric_limits<float>::quiet_NaN();
+  const float tube_screen_right_u =
+      tube_meter_range.ok
+          ? average_u_at_world_x(native_star_fill_glow_, tube_meter_range.min_x)
+          : std::numeric_limits<float>::quiet_NaN();
+  const float tube_clip_u =
+      lerp_u_at_world_x(tube_screen_right_u, tube_screen_left_u,
+                        tube_meter_range, tube_meter_clip_x);
+  const float path_screen_left_u =
+      path_glow_range.ok
+          ? average_u_at_world_x(native_star_path_glow_, path_glow_range.max_x)
+          : std::numeric_limits<float>::quiet_NaN();
+  const float path_screen_right_u =
+      path_glow_range.ok
+          ? average_u_at_world_x(native_star_path_glow_, path_glow_range.min_x)
+          : std::numeric_limits<float>::quiet_NaN();
 
   static int star_power_debug_budget = 0;
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER") &&
@@ -4243,6 +4301,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "core_color_mode=settled_lit_key_width_driven "
         "tube_meter_alpha_mode=source_peak_width_driven "
         "tube_meter_mode=clipped_left_to_right_source_uv_reveal "
+        "tube_meter_u_mode=source_unflipped "
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core "
         "sort_order=star_meter_view_child_order_then_ready_view "
@@ -4265,6 +4324,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "core_color_frame=%.2f "
         "path_uv_keys=%zu path_uv_frame=%.2f "
         "path_uv=(%.3f,%.3f) "
+        "source_uv_edges core_lr=(%.3f,%.3f) "
+        "tube_lr=(%.3f,%.3f) tube_clip_u=%.3f "
+        "path_lr=(%.3f,%.3f) "
         "sampled_fill_color=%08x tube_meter_alpha=%.3f "
         "tube_ready_alpha=%.3f\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
@@ -4312,6 +4374,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         fill_core_color_frame,
         star_path_tex_translation_keys_.size(), path_tex_frame,
         path_tex_translation.x, path_tex_translation.y,
+        core_screen_left_u, core_screen_right_u,
+        tube_screen_left_u, tube_screen_right_u, tube_clip_u,
+        path_screen_left_u, path_screen_right_u,
         sampled_fill_core_color, tube_meter_alpha, tube_ready_alpha);
     ++star_power_debug_budget;
   }

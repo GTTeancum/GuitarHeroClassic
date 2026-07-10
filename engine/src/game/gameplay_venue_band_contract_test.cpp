@@ -1222,8 +1222,8 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "append_star_mesh(\"amp_tube_glow_meter.mesh\","
                  "native_star_fill_glow_,0,true,false,true,"
-                 "nullptr,true,kElemSpReady,-1.0f);",
-                 "star-power tube-meter glow stays in the authored ready-view slot before clipping");
+                 "nullptr,false,kElemSpReady,-1.0f);",
+                 "star-power tube-meter glow stays in the authored ready-view slot with source U direction before clipping");
   ok &= contains(hud_renderer_h_c,
                  "Slotnative_star_fill_slot_;Slotnative_star_ready_slot_;",
                  "star-power stores fixed source slots for clipped fill placement");
@@ -1471,6 +1471,9 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"tube_meter_mode=clipped_left_to_right_source_uv_reveal\"",
                  "star-power tube-meter glow clips the source UV layer without recentering the filled span");
+  ok &= contains(hud_renderer_c,
+                 "\"tube_meter_u_mode=source_unflipped\"",
+                 "star-power tube-meter glow keeps the authored U direction instead of mirroring the bright source band");
   ok &= absent(hud_renderer_c,
                "tube_meter_range,true",
                "star-power tube-meter glow must not remap the moving filled span and make the fill appear to shift");
@@ -1617,6 +1620,15 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"path_uv=(%.3f,%.3f)\"",
                  "star-power diagnostics report path UV animation sample");
+  ok &= contains(hud_renderer_c,
+                 "\"source_uv_edgescore_lr=(%.3f,%.3f)\"",
+                 "star-power diagnostics report source UV edges for the broad core");
+  ok &= contains(hud_renderer_c,
+                 "\"tube_lr=(%.3f,%.3f)tube_clip_u=%.3f\"",
+                 "star-power diagnostics report tube-meter source UV edge and clip samples");
+  ok &= contains(hud_renderer_c,
+                 "\"path_lr=(%.3f,%.3f)\"",
+                 "star-power diagnostics report persistent path-line source UV edges");
   ok &= contains(hud_renderer_c,
                  "\"sampled_fill_color=%08xtube_meter_alpha=%.3f\""
                  "\"tube_ready_alpha=%.3f\\n\"",
