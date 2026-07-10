@@ -168,6 +168,20 @@ bool env_enabled(const char* name) {
 #endif
 }
 
+std::string env_string(const char* name) {
+#ifdef _WIN32
+  char* value = nullptr;
+  size_t value_len = 0;
+  if (_dupenv_s(&value, &value_len, name) != 0 || !value) return {};
+  std::string out(value);
+  std::free(value);
+  return out;
+#else
+  const char* value = std::getenv(name);
+  return value ? std::string(value) : std::string();
+#endif
+}
+
 float left_hud_depth_at(float wx) {
   if (kFlatHudAlignmentPass) return 0.0f;
   const float t = std::clamp((wx - kLeftHudWorldMin) /
@@ -3047,13 +3061,18 @@ void HudRenderer::draw(IDirect3DDevice9* dev, const HudState& state) {
   const int bbw = static_cast<int>(vp.Width), bbh = static_cast<int>(vp.Height);
 
   // Assemble the full quad list: static frame, then dynamic content.
-  std::vector<Quad> quads = static_quads_;
+  const bool star_layer_isolation =
+      env_enabled("GHOGX_DEBUG_HUD_STAR_LAYER");
+  std::vector<Quad> quads =
+      star_layer_isolation ? std::vector<Quad>{} : static_quads_;
   const bool star_power_visual = state.sp_active;
   emit_star_power(quads, state.sp_fill, state.sp_active);
-  emit_rock_meter(quads, state.rock_fill);
-  emit_multiplier(quads, state.multiplier, star_power_visual);
-  emit_streak(quads, state.streak, star_power_visual);
-  emit_score_digits(quads, state.score);
+  if (!star_layer_isolation) {
+    emit_rock_meter(quads, state.rock_fill);
+    emit_multiplier(quads, state.multiplier, star_power_visual);
+    emit_streak(quads, state.streak, star_power_visual);
+    emit_score_digits(quads, state.score);
+  }
 
   auto apply_element_slot_tuning = [&](uint8_t element, const Slot& parent,
                                        const Slot* source_slot = nullptr) {
@@ -3813,14 +3832,34 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   }
   const Vec3AnimKey path_tex_translation =
       sample_vec3_key(star_path_tex_translation_keys_, path_tex_frame);
+  const bool debug_star_layer_enabled =
+      env_enabled("GHOGX_DEBUG_HUD_STAR_LAYER");
+  const std::string debug_star_layer =
+      debug_star_layer_enabled
+          ? env_string("GHOGX_DEBUG_HUD_STAR_LAYER")
+          : std::string();
+  auto debug_star_layer_matches =
+      [&](const char* a, const char* b = nullptr, const char* c = nullptr,
+          const char* d = nullptr) {
+        if (!debug_star_layer_enabled) return true;
+        if (debug_star_layer == "all" || debug_star_layer == "full") {
+          return true;
+        }
+        return debug_star_layer == a || (b && debug_star_layer == b) ||
+               (c && debug_star_layer == c) || (d && debug_star_layer == d);
+      };
 
-  if (!native_star_front_.empty())
+  if (!native_star_front_.empty() &&
+      debug_star_layer_matches("inside_disk", "front"))
     out.insert(out.end(), native_star_front_.begin(), native_star_front_.end());
-  if (!native_star_back_.empty())
+  if (!native_star_back_.empty() &&
+      debug_star_layer_matches("glass_black", "backing"))
     out.insert(out.end(), native_star_back_.begin(), native_star_back_.end());
-  if (!native_star_base_.empty())
+  if (!native_star_base_.empty() &&
+      debug_star_layer_matches("chrome_base", "base"))
     out.insert(out.end(), native_star_base_.begin(), native_star_base_.end());
-  if (!native_star_glass_.empty())
+  if (!native_star_glass_.empty() &&
+      debug_star_layer_matches("glass", "tube_glass"))
     out.insert(out.end(), native_star_glass_.begin(), native_star_glass_.end());
 
   struct StarClipRange {
@@ -4174,36 +4213,49 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   };
 
   bool drew_native_fill = false;
+  bool drew_native_core = false;
   bool drew_native_particles = false;
   bool drew_native_fill_glow = false;
   bool drew_native_path_line = false;
   bool drew_native_ready_mesh = false;
   bool drew_native_ready_glow = false;
-  if (fill > 0.005f) {
-    drew_native_fill |= append_clipped_fill(native_star_fill_, fill_core_color,
+  if (fill > 0.005f &&
+      debug_star_layer_matches("core", "inside_bar", "stored")) {
+    drew_native_core |= append_clipped_fill(native_star_fill_, fill_core_color,
                                             1.0f, stored_fill_range,
                                             &core_fill_range);
+    drew_native_fill |= drew_native_core;
+  }
+  if (fill > 0.005f &&
+      debug_star_layer_matches("active", "particle", "lightning")) {
     // star_meter_fill.view lists amp_inside_bar_path.part before lightning.view.
     if (star_power_active) {
-      for (const StarParticleLayer& particle : native_star_particles_) {
-        drew_native_particles |= append_star_particle(particle);
+      if (debug_star_layer_matches("active", "particle")) {
+        for (const StarParticleLayer& particle : native_star_particles_) {
+          drew_native_particles |= append_star_particle(particle);
+        }
       }
-      for (const StarAnimatedQuad& lightning : native_star_lightning_) {
-        drew_native_fill |= append_full_animated(lightning);
+      if (debug_star_layer_matches("active", "lightning")) {
+        for (const StarAnimatedQuad& lightning : native_star_lightning_) {
+          drew_native_fill |= append_full_animated(lightning);
+        }
       }
     }
   }
   // This is the stock always-present thin path line, not the stored-fill body.
-  drew_native_path_line = append_full_fill_uv(
-      native_star_path_glow_, std::nullopt, 1.0f, 0.0f, 0.0f);
-  if (fill > 0.005f && meter_fill_glow) {
+  if (debug_star_layer_matches("path", "inside_bar_path", "thin")) {
+    drew_native_path_line = append_full_fill_uv(
+        native_star_path_glow_, std::nullopt, 1.0f, 0.0f, 0.0f);
+  }
+  if (fill > 0.005f && meter_fill_glow &&
+      debug_star_layer_matches("tube_meter", "wide_glow", "stored")) {
     drew_native_fill_glow =
         append_clipped_fill(native_star_fill_glow_, std::nullopt,
                             tube_meter_alpha, tube_meter_range,
-                            &core_fill_range);
+                            &tube_meter_range);
     drew_native_fill |= drew_native_fill_glow;
   }
-  if (tube_glow) {
+  if (tube_glow && debug_star_layer_matches("ready", "tube_glow")) {
     if (!native_star_ready_mesh_glow_.empty()) {
       for (const StarMeshAnimatedQuad& src : native_star_ready_mesh_glow_) {
         const float frame =
@@ -4224,9 +4276,11 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       }
     }
   }
-  if (!native_star_top_.empty())
+  if (!native_star_top_.empty() &&
+      debug_star_layer_matches("chrome_top", "top"))
     out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
-  if (!native_star_caps_.empty())
+  if (!native_star_caps_.empty() &&
+      debug_star_layer_matches("base_bar", "caps", "cap"))
     out.insert(out.end(), native_star_caps_.begin(), native_star_caps_.end());
   auto first_quad_blend = [](const std::vector<Quad>& layers) {
     return layers.empty() ? 255u
@@ -4367,7 +4421,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "tube_meter_alpha_mode=source_peak_key_frame "
         "tube_meter_mode=clipped_left_to_right_source_uv_reveal "
         "tube_meter_u_mode=source_uv_anchored_thick_body "
-        "tube_meter_containment=amp_inside_bar_source_z "
+        "tube_meter_containment=amp_tube_glow_meter_source_z "
         "ready_glow_cap_occlusion=chrome_after_ready_glow "
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core_before_chrome_mask "
@@ -4386,7 +4440,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "range_ok=%d,%d,%d "
         "core_clip_world_x=%.3f core_width=%.3f/%.3f "
         "tube_meter_width=%.3f/%.3f path_width=%.3f "
-        "core_z_range=%.3f..%.3f "
+        "core_z_range=%.3f..%.3f tube_meter_z_range=%.3f..%.3f "
         "core_fill_layer=amp_inside_bar.mesh clipped "
         "wide_fill_layer=amp_tube_glow_meter.mesh clipped "
         "thin_path_layer=amp_inside_bar_path.mesh full_width "
@@ -4443,6 +4497,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         core_clip_x, core_visible_width, core_total_width,
         tube_meter_visible_width, tube_meter_total_width, path_total_width,
         core_fill_range.min_z, core_fill_range.max_z,
+        tube_meter_range.min_z, tube_meter_range.max_z,
         fill_core_color_frame,
         star_path_tex_translation_keys_.size(), path_tex_frame,
         path_tex_translation.x, path_tex_translation.y,
@@ -4464,6 +4519,21 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         tube_meter_alpha_frame, tube_meter_alpha,
         sampled_fill_core_color, tube_meter_alpha);
     ++star_power_debug_budget;
+  }
+  static int star_power_layer_debug_budget = 0;
+  if (debug_star_layer_enabled && star_power_layer_debug_budget < 45) {
+    std::fprintf(
+        stderr,
+        "[hud-star-layer] layer=%s fill=%.3f active=%d "
+        "drawn core=%d path=%d tube_meter=%d ready_mesh=%d ready_glow=%d "
+        "particles=%d source_only=1 normal_hud_hidden=1 "
+        "source_layers=inside_disk,glass_black,chrome_base,glass,core,path,"
+        "tube_meter,ready,chrome_top,base_bar\n",
+        debug_star_layer.c_str(), fill, star_power_active ? 1 : 0,
+        drew_native_core ? 1 : 0, drew_native_path_line ? 1 : 0,
+        drew_native_fill_glow ? 1 : 0, drew_native_ready_mesh ? 1 : 0,
+        drew_native_ready_glow ? 1 : 0, drew_native_particles ? 1 : 0);
+    ++star_power_layer_debug_budget;
   }
 
 }

@@ -10564,31 +10564,46 @@ Rejected native probe:
 - The wide stored-fill glow remains the original `amp_tube_glow_meter.mesh` /
   `amp_tube_glow_meter.mat` / `hud_meter_top_glow.tex` layer, clipped
   left-to-right by stored fill. Its additive triangles are now additionally
-  contained to the decoded `amp_inside_bar.mesh` source Z range, matching the
-  authored tube body instead of letting glow pixels spill below it.
+  contained to the decoded `amp_tube_glow_meter.mesh` source Z range, keeping
+  the authored glow inside its own MILO shape without deleting the layer.
 - Fresh hidden HUD proof:
   `engine/out/star_power_trace_evidence_20260710/native_star_contained_glow_current/native_star_contained_glow_current_proof.png`
   compares the existing no-focus PCSX2 forced-fill oracle against refreshed
   native `--hud-sp` 25/75/100 captures. Native log rows report
   `path_uv_applied=(0.000,0.000)` and
-  `tube_meter_containment=amp_inside_bar_source_z`.
+  `tube_meter_containment=amp_tube_glow_meter_source_z`.
 
 2026-07-10 star-meter bottle-interior checkpoint:
 - The stored fill now uses the decoded `amp_tube_glow_meter.mesh` X span as the
   bottle-interior reveal range for the broad `amp_inside_bar.mesh` core, while
-  retaining the `amp_inside_bar.mesh` source Z range as containment. This keeps
-  the source core/glow body from being revealed through the cap-facing outer
-  span while leaving the always-present `amp_inside_bar_path.mesh` line full
-  length.
+  using the decoded `amp_tube_glow_meter.mesh` Z range to contain that same
+  wide source glow. This keeps the source core/glow body from being revealed
+  through the cap-facing outer span while leaving the
+  always-present `amp_inside_bar_path.mesh` line full length.
 - Fresh hidden HUD proof:
   `engine/out/star_power_trace_evidence_20260710/native_star_current_containment_work/native_star_current_containment_work_proof.png`
   captures native `--hud-sp` 25/75/100 with rows for
   `stored_fill_range=amp_tube_glow_meter_interior_x`,
   `path_uv_applied=(0.000,0.000)`, and
-  `tube_meter_containment=amp_inside_bar_source_z`.
+  `tube_meter_containment=amp_tube_glow_meter_source_z`.
 - The same checkpoint includes a labeled diagnostic proof sheet:
   `engine/out/star_power_trace_evidence_20260710/native_star_current_containment_work/native_star_source_layer_labels_current.png`.
   It identifies `amp_inside_bar_path.mesh` as the always-full thin line,
   separate from the stored-fill `amp_inside_bar.mesh` core and
   `amp_tube_glow_meter.mesh` glow, so review can point at exact source layers
   without changing gameplay output.
+
+2026-07-10 star-meter source-layer isolation proof path:
+- Added a debug-only `GHOGX_DEBUG_HUD_STAR_LAYER` switch for HUD-test captures.
+  Normal rendering is unchanged; when the switch is set, unrelated HUD/static
+  quads are hidden and only the selected original star-meter source bucket is
+  emitted. Useful values are `all`, `core`, `path`, `tube_meter`, `ready`,
+  `glass_black`, `glass`, `chrome_base`, `chrome_top`, and `base_bar`.
+- This is not a replacement-art path. `path` still draws the original
+  `amp_inside_bar_path.mesh` full-width, while `core` and `tube_meter` remain
+  clipped by stored fill; `tube_meter` is vertically contained by its own
+  decoded `amp_tube_glow_meter.mesh` source range. They use their original
+  decoded MILO materials, colors/alpha, UVs, and containment. The per-capture
+  log row is
+  `[hud-star-layer]` and reports the selected source layer plus which decoded
+  draw buckets actually emitted.
