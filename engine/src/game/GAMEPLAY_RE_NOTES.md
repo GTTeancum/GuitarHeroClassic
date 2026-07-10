@@ -10242,3 +10242,21 @@ Rejected native probe:
   applies the decoded path texture animation to it, while the thicker
   `amp_inside_bar.mesh` core and `amp_tube_glow_meter.mesh` glow are the
   left-to-right value fill.
+
+2026-07-10 star-meter black backing alpha interpretation:
+- Rechecked the PCSX2 forced-fill proof against the decoded
+  `hud/gen/star_meter.milo_ps2` material rows. The original star tube has a
+  real backing child, `amp_glass_black.mesh`, in `star_meter.view` child slot
+  `1`, before chrome/glass/fill. Its material is `amp_glass_black.mat`, diffuse
+  `hud_meter_top_glow.tex`, blend `3`, and source color
+  `[0.000 0.000 0.000 0.450]`.
+- Native was preserving the mesh, texture, color, and source order, but it was
+  using the decoded `0.450` alpha as ordinary D3D alpha. The PS2 HUD material
+  combine already requires 128-scale interpretation for source colors; applying
+  the same `MODULATE2X` alpha combine to this single authored black backing
+  pass makes the tube backing read closer to PCSX2 without adding opaque
+  geometry, replacement art, or a tuned non-MILO opacity.
+- Diagnostics now name `backing_layer=amp_glass_black.mesh`, report
+  `backing_alpha_mode=ps2_modulate2x`, and expose `back_alpha2x` plus
+  `back_color` in the HUD row so future star-meter passes can verify the
+  source backing is present instead of reintroducing fabricated dark quads.

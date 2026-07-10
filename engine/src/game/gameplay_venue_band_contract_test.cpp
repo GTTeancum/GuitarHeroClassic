@@ -1178,6 +1178,14 @@ int main() {
                  "append_star_mesh(\"amp_glass_black.mesh\",native_star_back_",
                  "star-power back layer keeps only the source black glass child");
   ok &= contains(hud_renderer_c,
+                 "constboolstar_black_backing_mesh="
+                 "std::strcmp(name,\"amp_glass_black.mesh\")==0&&"
+                 "mesh->material==\"amp_glass_black.mat\";",
+                 "star-power black backing correction is scoped to the authored amp_glass_black mesh");
+  ok &= contains(hud_renderer_c,
+                 "if(star_black_backing_mesh){q.emissive_alpha_2x=true;}",
+                 "star-power black backing uses PS2-style alpha combine without replacement art");
+  ok &= contains(hud_renderer_c,
                  "autostar_meter_source_sort_bias=[](constchar*name){",
                  "star-power HUD has an explicit source child-order sort for the native meter stack");
   ok &= appears_before(
@@ -1427,6 +1435,9 @@ int main() {
                  "\"path_line_layer=amp_inside_bar_path.mesh\"",
                  "star-power diagnostics name amp_inside_bar_path as the thin persistent line");
   ok &= contains(hud_renderer_c,
+                 "\"backing_layer=amp_glass_black.mesh\"",
+                 "star-power diagnostics name the source black backing layer");
+  ok &= contains(hud_renderer_c,
                  "\"path_line_mode=persistent_full_width\"",
                  "star-power path line remains full-width instead of fill-clipped");
   ok &= contains(hud_renderer_c,
@@ -1438,6 +1449,9 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"lightning_mode=active_full_source_mesh\"",
                  "star-power diagnostics report the active lightning source-view draw mode");
+  ok &= contains(hud_renderer_c,
+                 "\"backing_alpha_mode=ps2_modulate2x\"",
+                 "star-power diagnostics report PS2 alpha combine for the source black backing");
   ok &= contains(hud_renderer_c,
                  "\"core_color_mode=settled_lit_key_width_driven\"",
                  "star-power diagnostics distinguish settled core color from fill-driven width");

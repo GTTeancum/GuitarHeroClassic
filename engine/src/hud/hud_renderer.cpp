@@ -2551,6 +2551,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         const bool star_core_fill_mesh =
             std::strcmp(name, "amp_inside_bar.mesh") == 0 &&
             mesh->material == "amp_inside_star.mat";
+        const bool star_black_backing_mesh =
+            std::strcmp(name, "amp_glass_black.mesh") == 0 &&
+            mesh->material == "amp_glass_black.mat";
         const bool star_additive_glow_mesh =
             (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0 &&
              mesh->material == "amp_tube_glow_meter.mat") ||
@@ -2561,6 +2564,9 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           q.emissive_texture_2x = true;
           q.emissive_texture_4x = false;
           q.emissive_alpha_4x = false;
+        }
+        if (star_black_backing_mesh) {
+          q.emissive_alpha_2x = true;
         }
         if (star_additive_glow_mesh) {
           q.fullbright_texture = true;
@@ -4196,6 +4202,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     }
     return false;
   };
+  auto first_quad_color = [](const std::vector<Quad>& layers) {
+    return layers.empty() ? 0u : layers.front().color;
+  };
 
   static int star_power_debug_budget = 0;
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER") &&
@@ -4218,10 +4227,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "fill_core_layer=amp_inside_bar.mesh "
         "wide_fill_glow_layer=amp_tube_glow_meter.mesh "
         "path_line_layer=amp_inside_bar_path.mesh "
+        "backing_layer=amp_glass_black.mesh "
         "path_line_mode=persistent_full_width "
         "body_fill_mode=inside_bar_core_plus_tube_meter_glow "
         "core_fill_mode=clipped_left_to_right "
         "lightning_mode=active_full_source_mesh "
+        "backing_alpha_mode=ps2_modulate2x "
         "core_color_mode=settled_lit_key_width_driven "
         "tube_meter_alpha_mode=source_peak_width_driven "
         "tube_meter_mode=clipped_left_to_right_fill_uv_remap "
@@ -4234,6 +4245,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "core_material_combine=ps2_modulate2x "
         "path_material_combine=prelit_ps2_modulate2x "
         "core_emit4x=%d core_add_emit=%d "
+        "back_alpha2x=%d back_color=%08x "
         "path_emit4x=%d path_tex2x=%d path_prelit=%d path_alpha2x=%d "
         "path_alpha_emission=%d path_dual_emit=%d "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
@@ -4276,6 +4288,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         0, meter_fill_glow ? 1 : 0,
         first_quad_core_emit4x(native_star_fill_) ? 1 : 0,
         any_quad_core_add_emit(native_star_core_emission_) ? 1 : 0,
+        any_quad_alpha2x(native_star_back_) ? 1 : 0,
+        first_quad_color(native_star_back_),
         any_quad_texture_emit4x(native_star_path_glow_) ? 1 : 0,
         any_quad_texture_emit2x(native_star_path_glow_) ? 1 : 0,
         native_star_path_glow_prelit_ ? 1 : 0,
