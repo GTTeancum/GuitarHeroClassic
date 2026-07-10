@@ -149,6 +149,9 @@ class Gameplay {
     float blend_frames = 0.0f;
     float blend_ease = 0.0f;
     bool has_timing = false;
+    bool camshot_looping = false;
+    int camshot_loop_keyframe = 0;
+    bool has_camshot_looping = false;
     float screen_offset[2] = {0.0f, 0.0f};
     bool has_screen_offset = false;
     std::string category;

@@ -1176,6 +1176,9 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.has_selection_weight = shot.has_selection_weight;
             key.path_ease = shot.path_ease;
             key.has_path_ease = true;
+            key.camshot_looping = shot.looping;
+            key.camshot_loop_keyframe = shot.loop_keyframe;
+            key.has_camshot_looping = true;
             key.source_ref = shot.old_crowd_sym;
             key.camshot_shot_fields_decoded = true;
             key.camshot_pose_body_offset = off;
@@ -1315,6 +1318,9 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.has_selection_weight = from.has_selection_weight;
     to.path_ease = from.path_ease;
     to.has_path_ease = from.has_path_ease;
+    to.camshot_looping = from.camshot_looping;
+    to.camshot_loop_keyframe = from.camshot_loop_keyframe;
+    to.has_camshot_looping = from.has_camshot_looping;
     to.source_ref = from.source_ref;
     to.camshot_shot_fields_decoded = from.camshot_shot_fields_decoded;
     to.camshot_shot_tail_offset = from.camshot_shot_tail_offset;
@@ -9680,17 +9686,99 @@ double authored_camshot_blend_seconds(const Gameplay::CameraKey& from,
     return static_cast<double>(from.blend_frames) / 30.0;
 }
 
-double authored_camshot_position_seconds(const Gameplay::CameraKey& from,
-                                          double fallback_seconds) {
-    if (!from.has_timing || !std::isfinite(from.duration_frames) ||
-        !std::isfinite(from.blend_frames) || from.duration_frames < 0.0f ||
-        from.blend_frames < 0.0f || from.duration_frames > 600.0f ||
-        from.blend_frames > 600.0f) {
-        return fallback_seconds;
+float source_camshot_frame_span(const Gameplay::CameraKey& key) {
+    if (!key.has_timing || !std::isfinite(key.duration_frames) ||
+        !std::isfinite(key.blend_frames) || key.duration_frames < 0.0f ||
+        key.blend_frames < 0.0f || key.duration_frames > 600.0f ||
+        key.blend_frames > 600.0f) {
+        return 0.0f;
     }
-    const double seconds =
-        static_cast<double>(from.duration_frames + from.blend_frames) / 30.0;
-    return seconds > 0.001 ? seconds : fallback_seconds;
+    return key.duration_frames + key.blend_frames;
+}
+
+float source_camshot_frame_total(
+    const std::vector<Gameplay::CameraKey>& frames,
+    size_t begin = 0) {
+    float total = 0.0f;
+    for (size_t i = begin; i < frames.size(); ++i) {
+        total += source_camshot_frame_span(frames[i]);
+    }
+    return total;
+}
+
+std::vector<Gameplay::CameraKey> regular_camera_source_frame_keys(
+    const Gameplay::CameraKey& shot,
+    double song_time,
+    double start_time) {
+    const auto& frames = shot.positions;
+    if (frames.empty()) return {shot};
+    if (frames.size() == 1) return {frames.front()};
+
+    const float total = source_camshot_frame_total(frames);
+    if (!std::isfinite(total) || total <= 0.001f) return {frames.front()};
+
+    float local_frame =
+        static_cast<float>(std::max(0.0, song_time - start_time) * 30.0);
+    if (shot.has_camshot_looping && shot.camshot_looping) {
+        const int loop_keyframe = std::clamp(
+            shot.camshot_loop_keyframe, 0,
+            static_cast<int>(frames.size() - 1));
+        const float pre_loop =
+            source_camshot_frame_total(frames, 0) -
+            source_camshot_frame_total(frames, static_cast<size_t>(loop_keyframe));
+        const float loop_total =
+            source_camshot_frame_total(frames, static_cast<size_t>(loop_keyframe));
+        if (loop_total > 0.001f && local_frame >= pre_loop) {
+            local_frame =
+                pre_loop + std::fmod(local_frame - pre_loop, loop_total);
+        }
+    } else if (local_frame >= total) {
+        return {frames.back()};
+    }
+
+    float cursor = 0.0f;
+    const float now_frame = static_cast<float>(song_time * 30.0);
+    for (size_t i = 0; i < frames.size(); ++i) {
+        const auto& cur = frames[i];
+        const float duration =
+            cur.has_timing && std::isfinite(cur.duration_frames)
+                ? std::max(0.0f, cur.duration_frames)
+                : 0.0f;
+        const float blend =
+            cur.has_timing && std::isfinite(cur.blend_frames)
+                ? std::max(0.0f, cur.blend_frames)
+                : 0.0f;
+        const float span = duration + blend;
+        if (span <= 0.001f) continue;
+        if (local_frame <= cursor + span || i + 1 == frames.size()) {
+            const float in_key = std::max(0.0f, local_frame - cursor);
+            if (in_key < duration || blend <= 0.001f) {
+                Gameplay::CameraKey hold = cur;
+                hold.frame = now_frame;
+                return {hold};
+            }
+            const bool can_wrap =
+                shot.has_camshot_looping && shot.camshot_looping;
+            const size_t next_index =
+                (i + 1 < frames.size()) ? i + 1 : (can_wrap ? 0 : i);
+            if (next_index == i) {
+                Gameplay::CameraKey hold = cur;
+                hold.frame = now_frame;
+                return {hold};
+            }
+            const float t =
+                std::clamp((in_key - duration) / blend, 0.0f, 1.0f);
+            Gameplay::CameraKey a = cur;
+            Gameplay::CameraKey b = frames[next_index];
+            a.frame = now_frame - t;
+            b.frame = now_frame + (1.0f - t);
+            return {a, b};
+        }
+        cursor += span;
+    }
+    Gameplay::CameraKey hold = frames.back();
+    hold.frame = now_frame;
+    return {hold};
 }
 
 std::array<float, 2> camshot_result_screen_norm_for_offset(float x, float y) {
@@ -21582,43 +21670,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
             if (const auto* key =
                     find_camera_key_by_name(regular_camera_keys_,
                                             active_regular_camera_)) {
-                constexpr double kPostSwitchSeconds = 2.06;
-                const CameraKey active_position_for_timing =
-                    camera_position_for(*key, active_camera_position_index_);
-                const double post_switch_seconds =
-                    authored_camshot_position_seconds(
-                        active_position_for_timing, kPostSwitchSeconds);
-                if (!key->has_path_anim && key->positions.size() > 1 &&
-                    song_time_ >=
-                        active_camera_position_start_ + post_switch_seconds) {
-                    const CameraKey previous_position_for_timing =
-                        active_position_for_timing;
-                    const double blend_seconds =
-                        authored_camshot_blend_seconds(
-                            previous_position_for_timing, 1.25);
-                    previous_regular_camera_ = active_regular_camera_;
-                    previous_camera_position_index_ =
-                        active_camera_position_index_;
-                    active_camera_position_index_ =
-                        (active_camera_position_index_ + 1) %
-                        key->positions.size();
-                    active_camera_position_start_ = song_time_;
-                    std::fprintf(stderr,
-                                 "[world] post_switch_cam: %s pos=%zu/%zu interval=%.3f blend=%.3f timing=%s(%.3f %.3f %.3f) t=%.3f\n",
-                                 key->name.c_str(),
-                                 active_camera_position_index_,
-                                 key->positions.size(), post_switch_seconds,
-                                 blend_seconds,
-                                 previous_position_for_timing.has_timing ? ""
-                                                                        : "none/",
-                                 previous_position_for_timing.duration_frames,
-                                 previous_position_for_timing.blend_frames,
-                                 previous_position_for_timing.blend_ease,
-                                 song_time_);
-                }
                 const CameraKey current_position =
                     camera_position_for(*key, active_camera_position_index_);
-                active_force_char_lod_ = current_position.force_char_lod;
                 const CameraKey* previous_shot =
                     find_camera_key_by_name(regular_camera_keys_,
                                             previous_regular_camera_);
@@ -21635,18 +21688,26 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                                  active_regular_camera_start_,
                                                  camera_targets);
                 } else {
-                    selected_camera = regular_camera_sweep_keys(
-                        current_position,
-                        previous_position ? &*previous_position : nullptr,
-                        song_time_, active_camera_position_start_);
+                    selected_camera = regular_camera_source_frame_keys(
+                        *key, song_time_, active_regular_camera_start_);
+                    if (selected_camera.empty()) {
+                        selected_camera = regular_camera_sweep_keys(
+                            current_position,
+                            previous_position ? &*previous_position : nullptr,
+                            song_time_, active_camera_position_start_);
+                    }
                 }
+                const CameraKey& visibility_key =
+                    selected_camera.empty() ? current_position
+                                            : selected_camera.front();
+                active_force_char_lod_ = visibility_key.force_char_lod;
                 apply_camera_keys(world_->camera(), selected_camera, song_time_,
                                   camera_targets,
                                   &camera_result_builder_state_,
                                   &venue_camera_target_worlds_,
                                   &source_record_member_table,
                                   &regular_camera_keys_);
-                apply_camera_crowd_visibility(current_position);
+                apply_camera_crowd_visibility(visibility_key);
             }
         } else if (authored_gameplay_cameras_active &&
                    in_intro_camera_window && !camera_keys_.empty()) {

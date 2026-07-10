@@ -7113,14 +7113,21 @@ int main() {
                  "doubleauthored_camshot_blend_seconds(",
                  "same-shot camera transitions can use authored CamShot blend timing");
   ok &= contains(gameplay_c,
-                 "doubleauthored_camshot_position_seconds(",
-                 "post_switch_cam scheduling can use authored CamShot duration/blend timing");
+                 "key.camshot_looping=shot.looping;"
+                 "key.camshot_loop_keyframe=shot.loop_keyframe;",
+                 "CamShot source loop fields are preserved on decoded camera keys");
   ok &= contains(gameplay_c,
                  "same_shot?authored_camshot_blend_seconds(*previous,kSweepSeconds)",
                  "authored CamShot blend timing is limited to same-shot position transitions");
   ok &= contains(gameplay_c,
-                 "authored_camshot_position_seconds(active_position_for_timing,kPostSwitchSeconds)",
-                 "authored CamShot timing controls same-shot post_switch interval only when sane");
+                 "floatsource_camshot_frame_span(constGameplay::CameraKey&key)",
+                 "runtime evaluates source CamShot duration plus blend spans");
+  ok &= contains(gameplay_c,
+                 "std::vector<Gameplay::CameraKey>regular_camera_source_frame_keys(",
+                 "runtime mirrors CamShot::GetKey by submitting the active source frame pair");
+  ok &= contains(gameplay_c,
+                 "local_frame=pre_loop+std::fmod(local_frame-pre_loop,loop_total);",
+                 "source CamShot looping and loop_keyframe drive repeated regular shots");
   ok &= contains(gameplay_c,
                  "std::vector<Gameplay::CameraKey>regular_camera_path_keys(",
                  "path-backed regular CamShots keep the authored TransAnim sequence");
@@ -7128,14 +7135,15 @@ int main() {
                  "key.frame=start_frame+(key.frame-first_frame);",
                  "path-backed regular CamShot frames are sampled relative to shot start");
   ok &= contains(gameplay_c,
-                 "!key->has_path_anim&&key->positions.size()>1",
-                 "path-backed regular CamShots skip discrete post_switch stepping");
+                 "selected_camera=regular_camera_source_frame_keys("
+                 "*key,song_time_,active_regular_camera_start_);",
+                 "non-path regular CamShots use source frame-pair timing");
   ok &= contains(gameplay_c,
                  "regular_camera_path_keys(*key,active_regular_camera_start_,camera_targets)",
                  "runtime samples path-backed regular cameras with shot-local frames and target context");
-  ok &= contains(gameplay_c,
-                 "\"[world]post_switch_cam:%spos=%zu/%zuinterval=%.3fblend=%.3ftiming=%s",
-                 "post_switch_cam validation rows include authored interval and blend timing");
+  ok &= absent(gameplay_c,
+               "\"[world]post_switch_cam:",
+               "old discrete post_switch camera stepping is removed");
   ok &= contains(gameplay_c,
                  "constboolsame_shot=previous&&previous->name==current.name;",
                  "regular camera sweeps only blend same-shot position changes");
@@ -7251,8 +7259,8 @@ int main() {
                  "intactive_force_char_lod_=-1;",
                  "runtime tracks the selected CamShot character LOD");
   ok &= contains(gameplay_c,
-                 "active_force_char_lod_=current_position.force_char_lod;",
-                 "regular camera path selects authored character LOD");
+                 "active_force_char_lod_=visibility_key.force_char_lod;",
+                 "regular camera path selects evaluated source-frame character LOD");
   ok &= contains(gameplay_c,
                  "active_force_char_lod_=camera_keys_.front().force_char_lod;",
                  "intro camera path selects authored character LOD");
@@ -7369,8 +7377,8 @@ int main() {
                  "is_authored_invisible_material(material)",
                  "renderer suppresses authored invisible material clip masks");
   ok &= contains(gameplay_c,
-                 "apply_camera_crowd_visibility(current_position);",
-                 "regular camera path applies crowd visibility flags");
+                 "apply_camera_crowd_visibility(visibility_key);",
+                 "regular camera path applies evaluated source-frame crowd visibility flags");
   ok &= contains(gameplay_c,
                  "apply_camera_crowd_visibility(camera_keys_.front());",
                  "intro camera path applies direct CamShot crowd visibility flags");
@@ -7704,16 +7712,15 @@ int main() {
                        "deterministic_camera_duration_bars(",
                        "\"[world]regularcamerasweep:",
                        "camera duration is selected before logging sweep");
-  ok &= appears_before(gameplay_c,
-                       "\"[world]regularcamerasweep:",
-                       "\"[world]post_switch_cam:",
-                       "regular shot duration and post_switch_cam stay separate");
+  ok &= absent(gameplay_c,
+               "authored_camshot_position_seconds(",
+               "old external position timer helper is removed from regular CamShot playback");
   ok &= contains(gameplay_c,
                  "!same_shot",
                  "start_shot camera changes cut between authored shot families");
-  ok &= contains(gameplay_c,
-                 "constexprdoublekPostSwitchSeconds=2.06;",
-                 "post_switch_cam keeps traced roughly two-second cadence");
+  ok &= absent(gameplay_c,
+               "constexprdoublekPostSwitchSeconds=2.06;",
+               "regular CamShot frame cadence is no longer a fixed native constant");
 
   if (!ok) {
     std::cerr
