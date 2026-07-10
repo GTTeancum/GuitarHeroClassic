@@ -17,6 +17,7 @@
 #include <cassert>
 #include <cctype>
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -947,8 +948,6 @@ struct DecodedCamShot {
     std::string path;
     float path_ease = 0.0f;
     std::string category;
-    float selection_weight = 0.0f;
-    bool has_selection_weight = false;
     std::vector<std::string> hide_list;
     std::vector<std::string> show_list;
     std::vector<std::string> gen_hide_list;
@@ -1234,10 +1233,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         shot.path = r.symbol();
         if (shot.revision >= 2 && shot.revision <= 44) shot.path_ease = r.f32();
         if (shot.revision > 2) shot.category = r.symbol();
-        if (shot.revision > 2 && shot.revision < 0x26) {
-            shot.selection_weight = r.f32();
-            shot.has_selection_weight = true;
-        }
+        if (shot.revision > 2 && shot.revision < 0x26) (void)r.f32();
         if (shot.revision > 0x22) {
             (void)r.i32();
         } else if (shot.revision > 0x21) {
@@ -1341,8 +1337,6 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.has_clip_planes = true;
             key.use_depth_of_field = shot.use_depth_of_field;
             key.has_use_depth_of_field = true;
-            key.selection_weight = shot.selection_weight;
-            key.has_selection_weight = shot.has_selection_weight;
             key.path_ease = shot.path_ease;
             key.has_path_ease = true;
             key.camshot_looping = shot.looping;
@@ -1489,8 +1483,6 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.has_clip_planes = from.has_clip_planes;
     to.use_depth_of_field = from.use_depth_of_field;
     to.has_use_depth_of_field = from.has_use_depth_of_field;
-    to.selection_weight = from.selection_weight;
-    to.has_selection_weight = from.has_selection_weight;
     to.path_ease = from.path_ease;
     to.has_path_ease = from.has_path_ease;
     to.camshot_looping = from.camshot_looping;
@@ -2097,8 +2089,6 @@ std::array<float, 3> transform_vector_game(const std::array<float, 16>& m,
 }
 
 struct VenueCameraPolicy {
-    std::string intro_distance;
-    std::string intro_facing;
     std::map<std::string, std::pair<int, int>> duration_bars = {
         {"kExcitementOkay", {2, 4}},
     };
@@ -2135,18 +2125,6 @@ VenueCameraPolicy load_venue_camera_policy(const std::string& hdr_path,
                     }
                 }
                 if (!venue_node) venue_node = types.get();
-                if (auto d = gh::dtb::find_keyed(*venue_node, "intro_camera_distance")) {
-                    const auto& kids = gh::dtb::children(*d);
-                    if (kids.size() > 1)
-                        p.intro_distance =
-                            gh::dtb::as_string(*kids[1]).value_or("");
-                }
-                if (auto f = gh::dtb::find_keyed(*venue_node, "intro_camera_facing")) {
-                    const auto& kids = gh::dtb::children(*f);
-                    if (kids.size() > 1)
-                        p.intro_facing =
-                            gh::dtb::as_string(*kids[1]).value_or("");
-                }
                 if (auto durs = gh::dtb::find_keyed(*venue_node, "camera_durations")) {
                     const auto& kids = gh::dtb::children(*durs);
                     if (kids.size() > 1 && kids[1] &&
@@ -2191,8 +2169,6 @@ struct IntroCameraSelection {
 IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
                                               const std::string& ark_path,
                                               const std::string& venue) {
-    const VenueCameraPolicy policy =
-        load_venue_camera_policy(hdr_path, ark_path, venue);
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
         const std::string milo_path =
@@ -2207,7 +2183,6 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
         struct Candidate {
             std::string shot;
             std::string anim;
-            int score = 0;
             bool direct_camshot_pose = false;
             bool hide_crowd = false;
             bool crowd_face_camera = false;
@@ -2259,17 +2234,6 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
                 c.direct_camshot_pose = true;
             }
             if (c.anim.empty()) continue;
-            const std::string distance =
-                prop_symbol(decoded_shot->props, "distance");
-            const std::string facing = prop_symbol(decoded_shot->props, "facing");
-            if (!policy.intro_distance.empty() &&
-                distance == policy.intro_distance) {
-                c.score += 2;
-            }
-            if (!policy.intro_facing.empty() && facing == policy.intro_facing) {
-                c.score += 2;
-            }
-            if (shot_lower.rfind("intro", 0) == 0) c.score += 1;
             candidates.push_back(std::move(c));
         }
         if (!candidates.empty()) {
@@ -2284,16 +2248,10 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
                                    }),
                     candidates.end());
             }
-            std::stable_sort(candidates.begin(), candidates.end(),
-                             [](const Candidate& a, const Candidate& b) {
-                                 return a.score > b.score;
-                             });
             std::fprintf(stderr,
-                         "[world] intro CamShot %s -> %s (score=%d, policy distance=%s facing=%s hide_crowd=%d crowd_face_camera=%d force_char_lod=%d)\n",
+                         "[world] intro CamShot %s -> %s (hide_crowd=%d crowd_face_camera=%d force_char_lod=%d)\n",
                          candidates.front().shot.c_str(),
-                         candidates.front().anim.c_str(), candidates.front().score,
-                         policy.intro_distance.c_str(),
-                         policy.intro_facing.c_str(),
+                         candidates.front().anim.c_str(),
                          candidates.front().hide_crowd ? 1 : 0,
                          candidates.front().crowd_face_camera ? 1 : 0,
                          candidates.front().force_char_lod);
@@ -9254,7 +9212,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                     if (key.camshot_shot_fields_decoded) {
                         std::fprintf(
                             stderr,
-                            "[camera-candidate] shot=%s off=0x%zX category=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d selection=%s%.3f path_ease=%s%.3f\n",
+                            "[camera-candidate] shot=%s off=0x%zX category=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
                             de.name.c_str(), pose.second,
                             key.category.c_str(),
                             key.has_shot_filter ? "" : "none/",
@@ -9267,9 +9225,6 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                                     key.use_depth_of_field
                                 ? 1
                                 : 0,
-                            key.has_selection_weight ? "" : "none/",
-                            key.has_selection_weight ? key.selection_weight
-                                                     : 0.0f,
                             key.has_path_ease ? "" : "none/",
                             key.has_path_ease ? key.path_ease : 0.0f);
                     }
@@ -9400,7 +9355,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d selection=%s%.3f path_ease=%s%.3f\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d path_ease=%s%.3f\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -9433,9 +9388,6 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                                  key.use_depth_of_field
                              ? 1
                              : 0,
-                         key.has_selection_weight ? "" : "none/",
-                         key.has_selection_weight ? key.selection_weight
-                                                  : 0.0f,
                          key.has_path_ease ? "" : "none/",
                          key.has_path_ease ? key.path_ease : 0.0f);
         }
@@ -9563,69 +9515,57 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
     return true;
 }
 
-float regular_camera_selection_weight(const Gameplay::CameraKey& key) {
-    if (!key.has_selection_weight || !std::isfinite(key.selection_weight) ||
-        key.selection_weight <= 0.0f || key.selection_weight > 1000.0f) {
-        return 1.0f;
-    }
-    return key.selection_weight;
-}
-
-const Gameplay::CameraKey* choose_weighted_regular_camera_key(
-    const std::vector<const Gameplay::CameraKey*>& filtered,
-    size_t counter) {
-    if (filtered.empty()) return nullptr;
-    float total = 0.0f;
-    for (const auto* key : filtered) total += regular_camera_selection_weight(*key);
-    if (!std::isfinite(total) || total <= 0.0f) {
-        return filtered[counter % filtered.size()];
-    }
-    float pick = std::fmod(static_cast<float>(counter), total);
-    if (!std::isfinite(pick) || pick < 0.0f) pick = 0.0f;
-    for (const auto* key : filtered) {
-        const float weight = regular_camera_selection_weight(*key);
-        if (pick < weight) return key;
-        pick -= weight;
-    }
-    return filtered.back();
-}
-
 const Gameplay::CameraKey* choose_regular_camera_key_scripted(
-    const std::vector<Gameplay::CameraKey>& keys,
-    const Gameplay::CameraKey* previous,
-    size_t counter,
+    std::vector<Gameplay::CameraKey>& keys,
+    std::string_view previous_name,
     bool low_excitement,
     bool walking,
     bool starpower,
     CameraShotMode mode) {
     if (keys.empty()) return nullptr;
-    std::vector<const Gameplay::CameraKey*> filtered;
+    const Gameplay::CameraKey* previous = nullptr;
     for (const auto& key : keys) {
-        if (&key == previous) continue;
+        if (key.name == previous_name) {
+            previous = &key;
+            break;
+        }
+    }
+    std::vector<size_t> filtered;
+    for (size_t i = 0; i < keys.size(); ++i) {
+        const auto& key = keys[i];
+        if (previous && key.name == previous->name) continue;
         if (regular_camera_filter_ok(key, previous, low_excitement, walking,
                                      starpower, mode)) {
-            filtered.push_back(&key);
+            filtered.push_back(i);
         }
     }
     if (filtered.empty()) {
-        for (const auto& key : keys) {
-            if (&key == previous) continue;
+        for (size_t i = 0; i < keys.size(); ++i) {
+            const auto& key = keys[i];
+            if (previous && key.name == previous->name) continue;
             if (!camera_mode_filter_ok(key, mode)) continue;
             if (!camera_state_filter_ok(key, low_excitement, walking,
                                         starpower)) {
                 continue;
             }
-            filtered.push_back(&key);
+            filtered.push_back(i);
         }
     }
     if (filtered.empty()) {
-        for (const auto& key : keys) {
-            if (&key == previous) continue;
-            if (camera_mode_filter_ok(key, mode)) filtered.push_back(&key);
+        for (size_t i = 0; i < keys.size(); ++i) {
+            const auto& key = keys[i];
+            if (previous && key.name == previous->name) continue;
+            if (camera_mode_filter_ok(key, mode)) filtered.push_back(i);
         }
     }
     if (filtered.empty()) return nullptr;
-    return choose_weighted_regular_camera_key(filtered, counter);
+    const size_t selected = filtered.front();
+    if (selected + 1u != keys.size()) {
+        Gameplay::CameraKey chosen = std::move(keys[selected]);
+        keys.erase(keys.begin() + static_cast<std::ptrdiff_t>(selected));
+        keys.push_back(std::move(chosen));
+    }
+    return &keys.back();
 }
 
 bool camera_section_is_solo_at(const ghogx::chart::Chart& chart,
@@ -13729,17 +13669,13 @@ void apply_camera_keys(
             "[camera-solver] frame=%.2f ps2_result_builder=0x00267008 "
             "screen_norm=(%.6f %.6f) a_screen_norm=(%.6f %.6f) "
             "b_screen_norm=(%.6f %.6f) raw_screen_offset=(%.6f %.6f) "
-            "clip=(%.3f %.3f) selection=a:%s%.3f b:%s%.3f "
-            "path_ease=a:%s%.3f b:%s%.3f category=a:%s b:%s "
+            "clip=(%.3f %.3f) path_ease=a:%s%.3f b:%s%.3f "
+            "category=a:%s b:%s "
             "shot_fields=a:%d b:%d\n",
             frame, screen_norm[0], screen_norm[1], a_screen_norm[0],
             a_screen_norm[1], b_screen_norm[0], b_screen_norm[1],
             cam.screen_offset[0], cam.screen_offset[1], cam.near_z,
-            cam.far_z, a->has_selection_weight ? "" : "none/",
-            a->has_selection_weight ? a->selection_weight : 0.0f,
-            b->has_selection_weight ? "" : "none/",
-            b->has_selection_weight ? b->selection_weight : 0.0f,
-            a->has_path_ease ? "" : "none/",
+            cam.far_z, a->has_path_ease ? "" : "none/",
             a->has_path_ease ? a->path_ease : 0.0f,
             b->has_path_ease ? "" : "none/",
             b->has_path_ease ? b->path_ease : 0.0f,
@@ -14496,8 +14432,6 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_camera_position_index_ = 0;
     previous_camera_position_index_ = 0;
     intro_camera_seconds_ = 0.0;
-    camera_intro_distance_.clear();
-    camera_intro_facing_.clear();
     camera_duration_bars_.clear();
     camera_duration_bars_["kExcitementOkay"] = {2, 4};
     camera_bars_left_ = 0;
@@ -19826,8 +19760,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 const VenueCameraPolicy camera_policy =
                     load_venue_camera_policy(hdr_path_, ark_path_,
                                              quickplay_rig_->venue);
-                camera_intro_distance_ = camera_policy.intro_distance;
-                camera_intro_facing_ = camera_policy.intro_facing;
                 camera_duration_bars_ = camera_policy.duration_bars;
                 camera_bars_left_ = 6;
                 last_camera_bar_ = UINT32_MAX;
@@ -21704,19 +21636,6 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         camera_shot_counter_);
                 }
                 ++camera_shot_counter_;
-                const CameraKey* current_key =
-                    find_camera_key_by_name(regular_camera_keys_,
-                                            active_regular_camera_);
-                std::optional<CameraKey> intro_filter_key;
-                if (!current_key &&
-                    (!camera_intro_distance_.empty() ||
-                     !camera_intro_facing_.empty())) {
-                    intro_filter_key.emplace();
-                    intro_filter_key->name = "intro_camera_policy";
-                    intro_filter_key->distance = camera_intro_distance_;
-                    intro_filter_key->facing = camera_intro_facing_;
-                    current_key = &*intro_filter_key;
-                }
                 const bool low_excitement =
                     active_venue_event_.find("bad") != std::string::npos ||
                     active_venue_event_.find("boot") != std::string::npos;
@@ -21742,9 +21661,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 if (!key) {
                     key = choose_regular_camera_key_scripted(
-                        regular_camera_keys_, current_key, camera_shot_counter_,
-                        low_excitement, kGuitaristWalking, guitarist_starpower,
-                        camera_mode);
+                        regular_camera_keys_, active_regular_camera_,
+                        low_excitement, kGuitaristWalking,
+                        guitarist_starpower, camera_mode);
                 }
                 if (key) {
                     const bool shot_changed =

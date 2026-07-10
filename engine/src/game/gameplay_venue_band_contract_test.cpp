@@ -5454,22 +5454,14 @@ int main() {
   ok &= absent(regular_camera_loader_c,
                "std::stable_sort(candidates.begin(),candidates.end()",
                "regular camera loader must not reorder source CamShot candidates");
-  ok &= contains(gameplay_h_c,
-                 "std::stringcamera_intro_distance_;"
-                 "std::stringcamera_intro_facing_;",
-                 "runtime keeps intro policy only for first regular-shot filters");
-  ok &= contains(gameplay_c,
-                 "camera_intro_distance_=camera_policy.intro_distance;"
-                 "camera_intro_facing_=camera_policy.intro_facing;",
-                 "venue load stores intro camera policy separately from regular camera order");
-  ok &= contains(gameplay_c,
-                 "if(!current_key&&(!camera_intro_distance_.empty()||"
-                 "!camera_intro_facing_.empty()))",
-                 "first regular camera shot uses the source intro-policy fallback filter");
-  ok &= contains(gameplay_c,
-                 "intro_filter_key->distance=camera_intro_distance_;"
-                 "intro_filter_key->facing=camera_intro_facing_;",
-                 "first regular camera fallback supplies previous distance and facing");
+  ok &= absent(gameplay_h_c, "camera_intro_distance_",
+               "runtime must not keep a native-only intro distance policy");
+  ok &= absent(gameplay_h_c, "camera_intro_facing_",
+               "runtime must not keep a native-only intro facing policy");
+  ok &= absent(gameplay_c, "intro_filter_key",
+               "regular camera selection must not fabricate an intro-policy previous shot");
+  ok &= absent(gameplay_c, "intro_camera_policy",
+               "regular camera selection must not fabricate an intro-policy CamShot");
   ok &= contains(gameplay_c,
                  "constexprconstchar*kDirectIntroCamShotPrefix=\"CamShot:\";",
                  "intro camera fallback uses an explicit direct CamShot route");
@@ -5734,8 +5726,6 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "booluse_depth_of_field=false;"
                  "boolhas_use_depth_of_field=false;"
-                 "floatselection_weight=0.0f;"
-                 "boolhas_selection_weight=false;"
                  "floatpath_ease=0.0f;boolhas_path_ease=false;"
                  "std::stringsource_ref;"
                  "boolcamshot_shot_fields_decoded=false;",
@@ -7115,7 +7105,7 @@ int main() {
                  "target_eye=a:(%.3f%.3f%.3f)",
                  "camera debug logs expose source-target eye candidates");
   ok &= contains(gameplay_c,
-                 "\"clip=(%.3f%.3f)selection=a:%s%.3fb:%s%.3f\"",
+                 "\"clip=(%.3f%.3f)path_ease=a:%s%.3fb:%s%.3f\"",
                  "camera debug logs carry shot-level solver inputs");
   ok &= contains(gameplay_c,
                  "key.duration_frames=r.f32();key.blend_frames=r.f32();"
@@ -7629,24 +7619,31 @@ int main() {
                  "camera fallback can relax transition filters without crossing modes");
   ok &= contains(gameplay_c,
                  "if(camera_mode_filter_ok(key,mode))"
-                 "filtered.push_back(&key);",
+                 "filtered.push_back(i);",
                  "last camera fallback still refuses wrong authored camera modes");
   ok &= contains(gameplay_c,
                  "if(filtered.empty())returnnullptr;",
                  "camera selection does not invent a wrong-category fallback shot");
   ok &= contains(gameplay_c,
-                 "floatregular_camera_selection_weight("
-                 "constGameplay::CameraKey&key)",
-                 "regular camera selector consumes decoded CamShot selection_weight");
+                 "constsize_tselected=filtered.front();",
+                 "regular camera selector takes the first eligible CamShot like CameraManager::FindCameraShot");
   ok &= contains(gameplay_c,
-                 "returnkey.selection_weight;",
-                 "positive authored CamShot selection_weight is preserved as a relative weight");
+                 "keys.erase(keys.begin()+static_cast<std::ptrdiff_t>(selected));"
+                 "keys.push_back(std::move(chosen));",
+                 "regular camera selector rotates the chosen CamShot to the back of the list");
   ok &= contains(gameplay_c,
-                 "floatpick=std::fmod(static_cast<float>(counter),total);",
-                 "weighted regular camera selection remains deterministic");
+                 "return&keys.back();",
+                 "regular camera selector returns the rotated CamShot");
   ok &= contains(gameplay_c,
-                 "returnchoose_weighted_regular_camera_key(filtered,counter);",
-                 "regular camera fallback chooses through authored selection weights");
+                 "choose_regular_camera_key_scripted(regular_camera_keys_,"
+                 "active_regular_camera_,",
+                 "regular camera selector excludes the active shot by authored name");
+  ok &= absent(gameplay_c, "regular_camera_selection_weight(",
+               "regular camera selection must not consume the legacy CamShot category float as a weight");
+  ok &= absent(gameplay_c, "choose_weighted_regular_camera_key(",
+               "regular camera fallback must not use invented weighted shot selection");
+  ok &= absent(gameplay_c, "selection_weight",
+               "camera runtime keeps ihatecompvir's legacy CamShot float discarded");
   ok &= contains(gameplay_c,
                  "CameraResultRowscamera_source_seed_result_rows_for_key(",
                  "camera diagnostics expose the compact PS2 source seed rows");

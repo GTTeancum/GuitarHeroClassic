@@ -164,8 +164,6 @@ class Gameplay {
     bool has_clip_planes = false;
     bool use_depth_of_field = false;
     bool has_use_depth_of_field = false;
-    float selection_weight = 0.0f;
-    bool has_selection_weight = false;
     float path_ease = 0.0f;
     bool has_path_ease = false;
     std::string source_ref;
@@ -718,8 +716,6 @@ class Gameplay {
   size_t active_camera_position_index_ = 0;
   size_t previous_camera_position_index_ = 0;
   double intro_camera_seconds_ = 0.0;
-  std::string camera_intro_distance_;
-  std::string camera_intro_facing_;
   std::map<std::string, std::pair<int, int>> camera_duration_bars_;
   int camera_bars_left_ = 0;
   uint32_t last_camera_bar_ = UINT32_MAX;
