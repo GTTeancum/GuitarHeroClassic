@@ -54,6 +54,36 @@ float matrix_error(const std::array<float, 16>& a,
   return err;
 }
 
+float mat3_error(const float* a, const float* b) {
+  float err = 0.0f;
+  for (int i = 0; i < 9; ++i) err = std::max(err, std::fabs(a[i] - b[i]));
+  return err;
+}
+
+std::array<float, 9> source_set_angle_root_mat(float angle_degrees,
+                                               const float* base) {
+  constexpr float kPi = 3.14159265358979323846f;
+  const float angle = angle_degrees * (kPi / 180.0f);
+  const float c = std::cos(angle);
+  const float s = std::sin(angle);
+  std::array<float, 9> out{};
+  out[0] = base[0];
+  out[1] = base[1];
+  out[2] = base[2];
+  for (int col = 0; col < 3; ++col) {
+    out[3 + col] = c * base[3 + col] + s * base[6 + col];
+    out[6 + col] = -s * base[3 + col] + c * base[6 + col];
+  }
+  return out;
+}
+
+float dist3(float ax, float ay, float az, float bx, float by, float bz) {
+  const float dx = ax - bx;
+  const float dy = ay - by;
+  const float dz = az - bz;
+  return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 struct ErrorSummary {
   float sum = 0.0f;
   float max = 0.0f;
@@ -179,49 +209,76 @@ void audit_hair(const Character& c) {
   for (const auto& hair : c.hairs) {
     std::printf(
         "[hair-detail] char=%s hair=%s source=decoded-CharHair version=%d "
-        "enabled=%d stiffness=%.4f torsion=%.4f inertia=%.4f "
-        "gravity=%.4f weight=%.4f friction=%.4f groups=%zu\n",
+        "simulate=%d stiffness=%.4f torsion=%.4f inertia=%.4f "
+        "gravity=%.4f weight=%.4f friction=%.4f minSlack=%.4f "
+        "maxSlack=%.4f strands=%zu\n",
         c.dir_name.c_str(), hair.name.c_str(), hair.version,
-        hair.enabled ? 1 : 0, hair.globals[0], hair.globals[1],
-        hair.globals[2], hair.globals[3], hair.globals[4],
-        hair.globals[5], hair.groups.size());
-    for (size_t gi = 0; gi < hair.groups.size(); ++gi) {
-      const auto& group = hair.groups[gi];
+        hair.simulate ? 1 : 0, hair.stiffness, hair.torsion, hair.inertia,
+        hair.gravity, hair.weight, hair.friction, hair.min_slack,
+        hair.max_slack, hair.strands.size());
+    for (size_t si = 0; si < hair.strands.size(); ++si) {
+      const auto& strand = hair.strands[si];
+      const auto set_angle_root =
+          source_set_angle_root_mat(strand.angle, strand.base_mat);
+      const float set_angle_err =
+          mat3_error(set_angle_root.data(), strand.root_mat);
       std::printf(
-          "[hair-detail]   group=%zu root=%s rootExists=%d angle=%.4f "
+          "[hair-detail]   strand=%zu root=%s rootExists=%d angle=%.4f "
+          "setAngleRootErr=%.6f "
           "points=%zu basisR0=(%.4f %.4f %.4f) "
           "basisR1=(%.4f %.4f %.4f) basisR2=(%.4f %.4f %.4f) "
           "baseMatR0=(%.4f %.4f %.4f) baseMatR1=(%.4f %.4f %.4f) "
           "baseMatR2=(%.4f %.4f %.4f) rootMatR0=(%.4f %.4f %.4f) "
           "rootMatR1=(%.4f %.4f %.4f) rootMatR2=(%.4f %.4f %.4f)\n",
-          gi, group.root_mesh.c_str(),
-          has_trans_or_mesh(c, group.root_mesh) ? 1 : 0, group.root_offset,
-          group.points.size(), group.limits_or_mats[0],
-          group.limits_or_mats[1], group.limits_or_mats[2],
-          group.limits_or_mats[3], group.limits_or_mats[4],
-          group.limits_or_mats[5], group.limits_or_mats[6],
-          group.limits_or_mats[7], group.limits_or_mats[8],
-          group.limits_or_mats[0], group.limits_or_mats[1],
-          group.limits_or_mats[2], group.limits_or_mats[3],
-          group.limits_or_mats[4], group.limits_or_mats[5],
-          group.limits_or_mats[6], group.limits_or_mats[7],
-          group.limits_or_mats[8], group.limits_or_mats[9],
-          group.limits_or_mats[10], group.limits_or_mats[11],
-          group.limits_or_mats[12], group.limits_or_mats[13],
-          group.limits_or_mats[14], group.limits_or_mats[15],
-          group.limits_or_mats[16], group.limits_or_mats[17]);
-      for (size_t pi = 0; pi < group.points.size(); ++pi) {
-        const auto& point = group.points[pi];
+          si, strand.root.c_str(),
+          has_trans_or_mesh(c, strand.root) ? 1 : 0, strand.angle,
+          set_angle_err, strand.points.size(), strand.base_mat[0],
+          strand.base_mat[1], strand.base_mat[2],
+          strand.base_mat[3], strand.base_mat[4],
+          strand.base_mat[5], strand.base_mat[6],
+          strand.base_mat[7], strand.base_mat[8],
+          strand.base_mat[0], strand.base_mat[1],
+          strand.base_mat[2], strand.base_mat[3],
+          strand.base_mat[4], strand.base_mat[5],
+          strand.base_mat[6], strand.base_mat[7],
+          strand.base_mat[8], strand.root_mat[0],
+          strand.root_mat[1], strand.root_mat[2],
+          strand.root_mat[3], strand.root_mat[4],
+          strand.root_mat[5], strand.root_mat[6],
+          strand.root_mat[7], strand.root_mat[8]);
+      for (size_t pi = 0; pi < strand.points.size(); ++pi) {
+        const auto& point = strand.points[pi];
+        const bool collision_exists = has_trans_or_mesh(c, point.collision);
         std::printf(
             "[hair-detail]     point=%zu bone=%s boneExists=%d "
             "length=%.4f collision=%s collisionExists=%d "
-            "collide_type=%u distance=%.4f align_dist=%.4f "
-            "authored=(%.4f %.4f %.4f)\n",
-            pi, point.mesh.c_str(), has_trans_or_mesh(c, point.mesh) ? 1 : 0,
-            point.length, point.parent.c_str(),
-            has_trans_or_mesh(c, point.parent) ? 1 : 0,
-            static_cast<unsigned>(point.flags_or_mode), point.radius,
-            point.extra, point.pos[0], point.pos[1], point.pos[2]);
+            "collide_type=%u radius=%.4f outer=%.4f side=%.4f "
+            "authored=(%.4f %.4f %.4f) unk5c=(%.4f %.4f %.4f)\n",
+            pi, point.bone.c_str(), has_trans_or_mesh(c, point.bone) ? 1 : 0,
+            point.length, point.collision.c_str(),
+            collision_exists ? 1 : 0,
+            static_cast<unsigned>(point.collide_type), point.radius,
+            point.outer_radius, point.side_length,
+            point.pos[0], point.pos[1], point.pos[2], point.unk5c[0],
+            point.unk5c[1], point.unk5c[2]);
+        if (collision_exists) {
+          const auto collision_world = c.bone_world_local_chain(point.collision);
+          const float point_to_collision =
+              dist3(point.pos[0], point.pos[1], point.pos[2],
+                    collision_world[12], collision_world[13],
+                    collision_world[14]);
+          std::printf(
+              "[hair-collision-detail] char=%s hair=%s strand=%zu point=%zu "
+              "type=%u target=%s worldPos=(%.4f %.4f %.4f) "
+              "axisX=(%.4f %.4f %.4f) pointDist=%.4f radius=%.4f "
+              "alignDist=%.4f\n",
+              c.dir_name.c_str(), hair.name.c_str(), si, pi,
+              static_cast<unsigned>(point.collide_type),
+              point.collision.c_str(), collision_world[12],
+              collision_world[13], collision_world[14], collision_world[0],
+              collision_world[1], collision_world[2], point_to_collision,
+              point.radius, point.outer_radius);
+        }
       }
     }
   }
@@ -278,7 +335,7 @@ void audit_mesh_detail(const Character& c, const SkinnedMesh& m,
   print_matrix("bindLocalChain", c.bone_world_bind_local_chain(m.name));
   print_matrix("meshWorld", c.mesh_world(m));
   if (!m.parent.empty()) {
-    print_matrix("attachmentWorld", c.mesh_attachment_world(m, false));
+    print_matrix("parentWorld", c.bone_world_local_chain(m.parent));
   }
 
   std::vector<float> weight_sum(nb, 0.0f);

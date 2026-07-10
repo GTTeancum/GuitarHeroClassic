@@ -92,16 +92,33 @@ bool is_environ_light_ref(std::string_view ref) {
   return true;
 }
 
-// Read the Trans portion that every Trans/Mesh starts with, leaving the cursor
-// just past the Trans parent string. Returns local matrix, world matrix, parent.
-void read_trans_block(Reader& r, Xfm& local, Xfm& world, std::string& parent) {
+struct TransFields {
+  Xfm local;
+  Xfm world;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  std::string parent;
+};
+
+// MiloLib RndTrans.Read order:
+// revision, optional Hmx::Object fields, local/world matrices, constraint,
+// target, preserve-scale, parent. Standalone Trans entries carry Object fields;
+// embedded Trans bases (Mesh/Group/etc.) do not.
+TransFields read_trans_block(Reader& r, bool standalone) {
+  TransFields out;
   int32_t ver = r.i32();
   (void)ver;                 // = 9 for GH2; kept for documentation
-  r.skip(kObjMeta);          // Hmx::Object base metadata (zeros)
-  local = r.matrix();        // matrix 1 (local)
-  world = r.matrix();        // matrix 2 (world as stored)
-  r.skip(kObjMeta);          // constraint / flags (zeros)
-  parent = r.str();          // parent / target name
+  if (standalone) {
+    r.skip(kObjMeta);        // Hmx::Object fields: rev/type/root.
+  }
+  out.local = r.matrix();    // matrix 1 (local)
+  out.world = r.matrix();    // matrix 2 (world as stored)
+  if (ver > 6) out.constraint = r.u32();
+  if (ver > 5) out.target = r.str();
+  if (ver > 6) out.preserve_scale = r.u8() != 0;
+  out.parent = r.str();
+  return out;
 }
 
 void read_spotlight_trans_block(Reader& r, Xfm& local, Xfm& world,
@@ -312,7 +329,13 @@ TransObj decode_trans(const std::string& entry_name,
   Reader r(body.data(), body.size());
   TransObj t;
   t.name = entry_name;
-  read_trans_block(r, t.local, t.world_stored, t.parent);
+  const TransFields trans = read_trans_block(r, true);
+  t.local = trans.local;
+  t.world_stored = trans.world;
+  t.constraint = trans.constraint;
+  t.target = trans.target;
+  t.preserve_scale = trans.preserve_scale;
+  t.parent = trans.parent;
   return t;
 }
 
@@ -670,10 +693,11 @@ MeshObj decode_mesh(const std::string& entry_name,
       // Not fatal — some mesh variants exist — but record it.
       mesh.error = "unexpected mesh version " + std::to_string(ver);
     }
-    // Trans base.
-    std::string trans_parent;
-    read_trans_block(r, mesh.local, mesh.world_stored, trans_parent);
-    mesh.parent = trans_parent;
+    r.skip(kObjMeta);  // Hmx::Object fields for the Mesh object.
+    const TransFields trans = read_trans_block(r, false);
+    mesh.local = trans.local;
+    mesh.world_stored = trans.world;
+    mesh.parent = trans.parent;
 
     // Draw base: version (= 3), showing flag, then sphere + draw-order. The
     // same byte is already used by skinned character meshes and ParticleSys.
@@ -684,8 +708,40 @@ MeshObj decode_mesh(const std::string& entry_name,
 
     // Mesh fields.
     mesh.material = r.str();           // material name
+    if (ver == 27) r.str();            // legacy secondary material name
     mesh.geometry_owner = r.str();     // geometry-owner name (usually self)
-    r.skip(kObjMeta);                  // 9 bytes
+    if (ver < 13) r.str();             // alt geom owner
+    if (ver < 15) r.str();             // trans parent reference
+    if (ver < 14) {
+      r.str();
+      r.str();
+    }
+    if (ver < 3) {
+      (void)r.f32();
+      (void)r.f32();
+      (void)r.f32();
+    }
+    if (ver < 15) r.skip(16);
+    if (ver < 8) (void)r.u8();
+    if (ver < 15) {
+      r.str();
+      (void)r.f32();
+    }
+    if (ver < 16) {
+      if (ver > 11) (void)r.u8();
+    } else {
+      (void)r.u32();  // mutable flags
+    }
+    if (ver > 17) (void)r.u32();  // volume
+    if (ver > 18) {
+      const bool bsp_has_value = r.u8() != 0;
+      if (bsp_has_value) {
+        mesh.error = "unsupported non-empty BSP tree";
+        return mesh;
+      }
+    }
+    if (ver == 7) (void)r.u8();
+    if (ver < 11) (void)r.u32();
     uint32_t vcount = r.u32();
 
     // Sanity-gate the vertex count against the remaining bytes: we need at least

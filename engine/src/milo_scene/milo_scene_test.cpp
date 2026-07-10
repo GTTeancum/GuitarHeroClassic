@@ -239,9 +239,9 @@ void test_environ_with_fog() {
 void test_mesh() {
   std::vector<uint8_t> b;
   put_u32(b, 28);                // mesh version 0x1c
-  // Trans base.
+  put_zeros(b, 9);               // Mesh object metadata
+  // Embedded Trans base. MiloLib reads no object metadata here.
   put_u32(b, 9);                 // trans version
-  put_zeros(b, 9);
   put_matrix(b, 1.0f, 2.0f, 3.0f);  // local (translation 1,2,3)
   put_matrix(b, 1.0f, 2.0f, 3.0f);  // world
   put_zeros(b, 9);

@@ -85,72 +85,66 @@ int main() {
   const std::string milo_preview_batch_c = compact(milo_preview_batch);
   const std::string apply_hair_c =
       compact(function_body(char_clip, "apply_char_hair"));
-  const std::string authored_hair_point_world_c =
-      compact(function_body(char_clip, "authored_hair_point_world"));
-  const std::string follow_world_c =
-      compact(function_body(char_clip, "ps2_follow_hair_world"));
 
   bool ok = true;
 
   ok &= contains(char_mesh_h_c,
-                 "floatvelocity_world[3]={0,0,0};floatprev_velocity_world[3]"
-                 "={0,0,0};",
-                 "runtime hair point keeps PS2 current and previous velocity");
+                 "floatpos_world[3]={0,0,0};",
+                 "runtime hair point keeps source CharHair point position");
   ok &= contains(char_mesh_h_c,
                  "floatforce_world[3]={0,0,0};floatlast_friction_world[3]",
                  "runtime hair point keeps source CharHair force/friction state");
   ok &= contains(char_mesh_h_c,
-                 "floatrest_world[3]={0,0,0};floatanchor_world[3]={0,0,0};",
-                 "runtime hair point keeps traced rest/anchor state");
-  ok &= contains(char_mesh_h_c,
-                 "boolhas_orientation_world=false;floatorientation_world[3]",
-                 "runtime hair point keeps cached orientation row state");
+                 "floatlast_z_world[3]={0,0,1};",
+                 "runtime hair point keeps source CharHair lastZ row state");
   ok &= contains(char_mesh_h_c,
                  "bone_world_local_chain_authored(conststd::string&bone_name)"
                  "const;",
                  "characters expose authored local-chain rows");
   ok &= contains(char_mesh_cpp_c,
-                 "returnlocal_chain_world_for(*this,bone_name,false,false);",
-                 "authored local-chain rows ignore runtime controller overrides");
+                 "returnsource_world_for(*this,bone_name,false,false);",
+                 "authored source transform rows ignore runtime controller overrides");
 
+  ok &= lacks(char_clip_c,
+              "GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE",
+              "source hair path no longer keeps PS2 single-point trial switch");
+  ok &= lacks(char_clip_c,
+              "GHOGX_ENABLE_SOURCE_CHAR_HAIR_SIM",
+              "source hair simulation is no longer hidden behind an env switch");
+  ok &= lacks(char_clip_c,
+              "GHOGX_SOURCE_CHAR_HAIR_AUTHORED_INIT",
+              "source authored point init is no longer hidden behind an env switch");
+  ok &= lacks(char_clip_c,
+              "GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_BASIS",
+              "source rootMat basis is no longer hidden behind an env switch");
+  ok &= lacks(char_clip_c,
+              "GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_LIVE_POS",
+              "source rootMat live-position trial switch is removed");
+  ok &= lacks(char_clip_c,
+              "GHOGX_ENABLE_SOURCE_SINGLE_POINT_CHAIN",
+              "source hair path no longer has a guessed one-point chain switch");
   ok &= contains(char_clip_c,
-                 "\"GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE\"",
-                 "rejected PS2 single-point solver remains explicitly gated");
-  ok &= contains(char_clip_c,
-                 "\"GHOGX_ENABLE_SOURCE_CHAR_HAIR_SIM\"",
-                 "source-lineage CharHair simulation trial remains explicitly gated");
-  ok &= contains(char_clip_c,
-                 "\"GHOGX_SOURCE_CHAR_HAIR_AUTHORED_INIT\"",
-                 "source-lineage CharHair authored reset trial remains explicitly gated");
-  ok &= contains(char_clip_c,
-                 "\"GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_BASIS\"",
-                 "source-lineage CharHair rootMat basis trial remains explicitly gated");
-  ok &= contains(char_clip_c,
-                 "\"GHOGX_SOURCE_CHAR_HAIR_ROOTMAT_LIVE_POS\"",
-                 "source-lineage CharHair rootMat live-position trial remains explicitly gated");
-  ok &= contains(char_clip_c,
-                 "\"GHOGX_ENABLE_SOURCE_SINGLE_POINT_CHAIN\"",
-                 "source single-point chain trial remains explicitly gated");
-  ok &= contains(char_clip_c,
-                 "source_hair_sim&&source_hair_authored_init&&"
-                 "authored_hair_point_world(character,point,initial_source_point)",
-                 "source-lineage CharHair authored reset uses decoded point data");
-  ok &= contains(authored_hair_point_world_c,
-                 "out={point.pos[0],point.pos[1],point.pos[2]};returntrue;",
+                 "autosource_root_transform=",
+                 "source-lineage CharHair simulation is the default path");
+  ok &= contains(apply_hair_c,
+                 "return{point.pos[0],point.pos[1],point.pos[2]};",
                  "source-lineage CharHair authored point position is used directly");
-  ok &= lacks(authored_hair_point_world_c,
-              "transform_local_chain_world",
+  ok &= contains(apply_hair_c,
+                 "set_runtime_point_pos(state,authored_point(point));",
+                 "source-lineage CharHair reset uses decoded point data");
+  ok &= lacks(apply_hair_c,
+              "transform_local_chain_world(character,point.collision",
               "CharHair collision object must not be used as authored point parent");
-  ok &= contains(char_clip_c,
-                 "local.rot[r][c]=group.limits_or_mats[9+r*3+c]",
+  ok &= contains(apply_hair_c,
+                 "strand.root_mat[r*3+k]*parent_world[k*4+c]",
                  "source-lineage CharHair rootMat basis uses decoded rootMat rows");
-  ok &= contains(char_clip_c,
-                 "has_previous_segment_world?previous_segment_world"
-                 ":rootmat_source_world",
-                 "source-lineage CharHair rootMat trial inherits submitted segment rows");
-  ok &= contains(char_clip_c,
-                 "source_hair_rootmat_live_pos?\"source-rootmat-livepos\"",
-                 "source-lineage CharHair live-position rootMat trial is log-labeled");
+  ok &= contains(apply_hair_c,
+                 "simulate_or_publish(hair,strand_starts,true,0.0f,0.0f,"
+                 "\"DoReset\")",
+                 "source-lineage CharHair performs a source DoReset pass");
+  ok &= lacks(char_clip_c,
+              "source-rootmat-livepos",
+              "source-lineage CharHair no longer advertises the live-position rootMat trial");
   ok &= contains(character_notes_c,
                  "source_preview_gltfmilo_tool_samples_20260710f/`",
                  "fresh glTFMilo/MiloLib source-tool samples are recorded");
@@ -381,117 +375,62 @@ int main() {
                  "runtime_point_last_friction(constRuntimeHairPoint&p)",
                  "source-lineage CharHair simulation keeps lastFriction state");
   ok &= contains(char_clip_c,
-                 "predicted.z+=hair.globals[3]*(1.0f/60.0f)*-3.858268f",
+                 "constVec3gravity_vec{0.0f,0.0f,hair.gravity*f19*-3.858268f};",
                  "source-lineage CharHair simulation uses Harmonix gravity step");
   ok &= contains(char_clip_c,
-                 "sim=%s\"\"force=(%.4f%.4f%.4f)\"\"lastFriction=",
+                 "[charhair-source-sim]",
                  "CharHair debug logs prove which simulation path ran");
-  ok &= contains(char_clip_c,
-                 "source_ps2_single_point_chain_group(constCharHairGroup&group)",
-                 "source-qualified one-point hair has an explicit data predicate");
-  ok &= contains(char_clip_c,
-                 "source_ps2_root_controller_group(constCharHairGroup&group)",
-                 "one-point root-controller hair has an explicit data predicate");
-  ok &= contains(char_clip_c,
-                 "group.points.size()!=1",
-                 "source-qualified one-point hair requires exactly one point");
-  ok &= contains(char_clip_c,
-                 "group.root_mesh==point.mesh",
-                 "source-qualified one-point hair requires the root controller row");
-  ok &= contains(char_clip_c,
-                 "point.parent.empty()&&point.flags_or_mode==0",
-                 "source-qualified one-point hair rejects collision-backed rows");
-  ok &= contains(char_clip_c,
-                 "point.radius==0.0f&&point.extra==0.0f",
-                 "source-qualified one-point hair rejects collision radii/align");
-  ok &= contains(char_clip_c,
-                 "if(source_ps2_single_point_chain_group(group))returnfalse;",
-                 "collisionless one-point hair is tested before root-controller promotion");
-  ok &= contains(char_clip_c,
-                 "return!point.mesh.empty()&&group.root_mesh==point.mesh&&"
-                 "point.length>0.0f;",
-                 "source root-controller rows are keyed by decoded root ownership");
+  ok &= lacks(char_clip_c,
+              "source_ps2_single_point_chain_group",
+              "source hair no longer classifies rows by guessed one-point shape");
+  ok &= lacks(char_clip_c,
+              "source_ps2_root_controller_group",
+              "source hair no longer promotes one-point root-controller guesses");
+  ok &= lacks(apply_hair_c,
+              "source_ps2_root_controller",
+              "root-controller special-case path is removed");
+  ok &= lacks(apply_hair_c,
+              "source_single_point_chain_solver",
+              "single-point solver special-case path is removed");
+  ok &= lacks(apply_hair_c,
+              "source_collisionless_single_point",
+              "collisionless one-point special-case path is removed");
+  ok &= lacks(apply_hair_c,
+              "source_root_controller_descriptor",
+              "descriptor/root-controller special-case path is removed");
+  ok &= lacks(char_clip_c,
+              "charhair_source_controller_world(constCharacter&character,",
+              "guessed source-controller row helper is removed");
   ok &= contains(apply_hair_c,
-                 "constboolsource_ps2_single_point_chain="
-                 "source_ps2_single_point_chain_group(group);",
-                 "single-point source classification is evaluated per group");
+                 "transform_local_chain_world(character,*root_target.name,root_world)",
+                 "source root transform uses the live local-chain root position");
   ok &= contains(apply_hair_c,
-                 "constboolsource_ps2_root_controller="
-                 "source_ps2_root_controller_group(group);",
-                 "root-controller source classification is evaluated per group");
+                 "character.bone_world_local_chain(*root_target.parent)",
+                 "source root transform uses the parent local-chain world row");
   ok &= contains(apply_hair_c,
-                 "constboolsource_single_point_chain_solver="
-                 "source_single_point_chain_enabled()&&"
-                 "source_ps2_single_point_chain;",
-                 "collisionless source single-point chain solver is gated per group");
+                 "v+=strand.root_mat[r*3+k]*parent_world[k*4+c];",
+                 "source root transform multiplies decoded rootMat rows by the parent row");
+  ok &= lacks(apply_hair_c,
+              "follow_only_group",
+              "follow-only one-point classification is removed from active hair path");
+  ok &= lacks(apply_hair_c,
+              "[charhair-static-source]",
+              "static one-point source log path is removed");
   ok &= contains(apply_hair_c,
-                 "constboolsource_collisionless_single_point="
-                 "source_ps2_single_point_chain&&!"
-                 "source_single_point_chain_solver;",
-                 "collisionless source single-point rows are identified separately");
+                 "source_root_transform(strand,root_target,segment_world)",
+                 "segment roots resolve through source rootMat rows");
   ok &= contains(apply_hair_c,
-                 "constboolsource_root_controller_descriptor="
-                 "source_ps2_root_controller&&has_descriptor_world;",
-                 "root-controller rows can consume the decoded descriptor row");
-  ok &= contains(char_clip_c,
-                 "charhair_source_controller_world(constCharacter&character,"
-                 "constTransformTarget&target,",
-                 "segmented hair has an explicit source-controller row helper");
-  ok &= contains(char_clip_c,
-                 "character.bone_world_local_chain_authored(*target.name)",
-                 "source-controller rows start from authored current local-chain rows");
-  ok &= contains(char_clip_c,
-                 "character.bone_world_bind_local_chain(*target.name)",
-                 "source-controller rows compare against decoded bind local-chain rows");
-  ok &= contains(char_clip_c,
-                 "character.bone_world_bind(*target.name)",
-                 "source-controller rows preserve stored Trans bind correction");
-  ok &= contains(char_clip_c,
-                 "mat4_mul(affine_inverse(bind_world_from_locals),"
-                 "stored_bind_world)",
-                 "source-controller rows use the existing stored-world correction formula");
+                 "constauto&point=points[point_index];",
+                 "each source point row is consumed by the CharHair loop");
   ok &= contains(apply_hair_c,
-                 "constboolfollow_only_group=group.points.size()==1&&!"
-                 "single_point_hair_solver_enabled()&&!source_ps2_root_"
-                 "controller&&!source_single_point_chain_solver&&!"
-                 "source_collisionless_single_point;",
-                 "source root-controller and source single-point rows leave follow-only mode");
-  ok &= contains(apply_hair_c,
-                 "if(!follow_only_group&&!source_collisionless_single_point){",
-                 "collisionless source single-point rows do not precompute chain source rows");
-  ok &= contains(apply_hair_c,
-                 "[charhair-static-source]",
-                 "collisionless source single-point rows log their static source path");
-  ok &= contains(apply_hair_c,
-                 "reason=source-collisionless-one-pointnoOverride=1",
-                 "collisionless source single-point rows do not submit runtime overrides");
-  ok &= contains(apply_hair_c,
-                 "state.has_world=false;",
-                 "collisionless source single-point rows do not publish renderer hair overrides");
-  ok &= contains(apply_hair_c,
-                 "has_root_source_world=charhair_source_controller_world("
-                 "character,root_target,root_source_world);",
-                 "segment roots resolve through source-controller rows");
-  ok &= contains(apply_hair_c,
-                 "has_group_source_world[i]=charhair_source_controller_world("
-                 "character,source_target,group_source_worlds[i]);",
-                 "each segment point resolves a source-controller row");
-  ok &= contains(apply_hair_c,
-                 "first_point&&has_root_source_world",
-                 "first segment anchor uses the source root Trans row");
-  ok &= contains(apply_hair_c,
-                 "if(first_point&&source_root_controller_descriptor){"
-                 "anchor=mat_pos(descriptor_world);}",
-                 "one-point root-controller rows preserve descriptor anchor space");
-  ok &= contains(apply_hair_c,
-                 "if(source_root_controller_descriptor){constfloatlength="
-                 "std::max(0.001f,point.length>0.0f?point.length:0.001f);"
-                 "endpoint_target=vadd(mat_pos(descriptor_world),"
-                 "vscale(mat_row(descriptor_world,1),length));}",
-                 "one-point root-controller endpoints come from descriptor row1");
-  ok &= contains(apply_hair_c,
-                 "has_group_source_world[point_index+1]",
-                 "segment endpoints prefer the next source controller row");
+                 "set_runtime_point_pos(state,authored_point(point));",
+                 "first reset anchor comes from decoded CharHair point rows");
+  ok &= lacks(apply_hair_c,
+              "descriptor_world",
+              "descriptor/follow one-point path is removed from active hair path");
+  ok &= lacks(apply_hair_c,
+              "has_group_source_world[point_index+1]",
+              "next-controller endpoint guessing is removed");
   ok &= contains(char_clip_c,
                  "[charhair-source]",
                  "hair debug log inventories decoded CharHair data");
@@ -502,99 +441,97 @@ int main() {
                  "[clip-hair-output]",
                  "clip hair diagnostics expose decoded output targets");
   ok &= contains(char_clip_c,
-                 "source=decoded-CharHair",
-                 "hair source log names decoded CharHair as the evidence path");
+                 "source=ihatecompvir-CharHair",
+                 "hair source log names ihatecompvir CharHair as the evidence path");
   ok &= contains(char_clip_c,
-                 "followOnlyGroups=%zu",
-                 "hair source log distinguishes one-point follow groups");
-  ok &= contains(char_clip_c,
-                 "sourceSingleChainGroups=%zu",
-                 "hair source log distinguishes traced one-point controller rows");
-  ok &= contains(char_clip_c,
-                 "sourceRootControllerGroups=%zu",
-                 "hair source log distinguishes all root-owned controller rows");
-  ok &= contains(char_clip_c,
-                 "ps2SingleState=%s",
-                 "hair source log exposes rejected single-point probe state");
+                 "strands=%zupoints=%zu",
+                 "hair source log inventories decoded strands and points");
+  ok &= lacks(char_clip_c,
+              "followOnlyGroups",
+              "hair source log no longer categorizes guessed follow-only groups");
+  ok &= lacks(char_clip_c,
+              "sourceSingleChainGroups",
+              "hair source log no longer categorizes guessed one-point chains");
+  ok &= lacks(char_clip_c,
+              "sourceRootControllerGroups",
+              "hair source log no longer categorizes guessed root controllers");
   ok &= contains(apply_hair_c,
                  "log_char_hair_source_once(character,hair);",
                  "CharHair source inventory runs from the native hair poller");
   ok &= contains(apply_hair_c,
-                 "character.runtime_world_overrides[*target.name]="
-                 "desired_world;",
+                 "character.runtime_world_overrides[*target.name]=segment_world;",
                  "CharHair submits runtime Trans rows for renderer/skinning");
   ok &= contains(apply_hair_c,
-                 "constVec3aim_vec=vsub(axis_target,submitted);",
-                 "chain hair computes the PS2 segment aim vector");
+                 "Vec3axis=vsub(pos,mat_pos(segment_world));",
+                 "source loop computes each segment axis from the current anchor");
   ok &= contains(apply_hair_c,
-                 "desired_world=aim_preserve_xfm(submitted,mat_row("
-                 "base_world,1),aim_vec,base_world);",
-                 "chain hair aims submitted row1 toward the segment endpoint");
+                 "pos=vadd(pos,vscale(axis,length_scale));",
+                 "source loop applies the Harmonix length constraint");
   ok &= contains(apply_hair_c,
-                 "Vec3strand_roll_target{};",
-                 "chain hair carries the current strand roll row between segments");
+                 "Vec3roll=blend_vec(runtime_point_last_z(state),"
+                 "mat_row(segment_world,2),torsion);",
+                 "source loop blends persistent lastZ toward the segment roll by torsion");
   ok &= contains(apply_hair_c,
-                 "blend_vec(cached_orientation,roll_target,torsion)",
-                 "chain hair blends persistent lastZ toward the current segment roll by torsion");
+                 "Vec3row1=vnorm(axis,mat_row(segment_world,1));",
+                 "source loop normalizes row1 from the point axis");
   ok &= contains(apply_hair_c,
-                 "Vec3row0=vnorm(vcross(axis,torsion_row),"
-                 "mat_row(base_world,0));",
-                 "chain hair builds normalized row0 from row1 x torsion-blended lastZ");
+                 "Vec3row0=vnorm(vcross(row1,roll),mat_row(segment_world,0));",
+                 "source loop builds row0 from row1 x torsion-blended lastZ");
   ok &= contains(apply_hair_c,
-                 "constVec3row2=vnorm(vcross(row0,axis),roll_target);",
-                 "chain hair rebuilds normalized row2 from row0 x row1");
+                 "Vec3row2=vnorm(vcross(row0,row1),roll);",
+                 "source loop rebuilds row2 from row0 x row1");
   ok &= contains(apply_hair_c,
-                 "set_runtime_point_orientation(chain_state,mat_row("
-                 "desired_world,2));",
-                 "chain hair stores the submitted row2 as the persistent lastZ row");
+                 "set_runtime_point_last_z(state,mat_row(segment_world,2));",
+                 "source loop stores the submitted row2 as persistent lastZ");
   ok &= contains(apply_hair_c,
-                 "strand_roll_target=write_ps2_chain_basis(",
-                 "chain hair carries each submitted row2 as the next segment roll target");
+                 "set_runtime_point_world(state,segment_world);",
+                 "source loop captures the submitted source segment transform");
   ok &= contains(apply_hair_c,
-                 "rollTarget=%storsion=%.4f",
-                 "chain hair debug logs the source-shaped roll target and torsion path");
+                 "segment_world[12]=pos.x;segment_world[13]=pos.y;"
+                 "segment_world[14]=pos.z;",
+                 "source loop carries each solved point position to the next segment");
   ok &= contains(apply_hair_c,
-                 "rnorm=(%.4f%.4f%.4f)",
-                 "chain hair debug logs compact row magnitudes");
+                 "constVec3source_target=vadd(mat_pos(segment_world),"
+                 "vscale(mat_row(segment_world,1),length));",
+                 "source loop computes the original source target for force update");
   ok &= contains(apply_hair_c,
-                 "reason,basis_source,aimed?\"aim-row1\":\"base\",",
-                 "chain hair debug logs the PS2 row1 aiming path");
+                 "force=(%.4f%.4f%.4f)",
+                 "source loop debug logs force state");
   ok &= contains(apply_hair_c,
-                 "basis=%s",
-                 "chain hair debug logs the source-controller basis decision");
+                 "lastFriction=(%.4f%.4f%.4f)",
+                 "source loop debug logs lastFriction state");
   ok &= contains(apply_hair_c,
-                 "has_source_basis?\"source-controller\":\"local-chain\"",
-                 "chain hair uses source-controller rows before fallback rows");
+                 "lastZ=(%.4f%.4f%.4f)",
+                 "source loop debug logs lastZ state");
   ok &= contains(apply_hair_c,
-                 "source_root_controller_descriptor?descriptor_world",
-                 "root-controller descriptor rows bypass displaced source rows");
+                 "pass=%sadvance=%d",
+                 "source loop debug logs the exact source pass");
   ok &= contains(apply_hair_c,
-                 "\"root-controller-descriptor\"",
-                 "root-controller descriptor rows log their source-backed basis");
+                 "simulate_or_publish(hair,strand_starts,true,0.0f,0.0f,\"DoReset\")",
+                 "source loop performs a zero-inertia DoReset simulation pass");
   ok &= contains(apply_hair_c,
-                 "source_single_point_chain_solver?\"source-single-point\":"
-                 "(source_ps2_root_controller?\"source-root-controller\"",
-                 "gated source-qualified one-point rows log the traced segment path");
+                 "simulate_or_publish(hair,strand_starts,true,hair.inertia,"
+                 "hair.friction,\"SimulateInternal\")",
+                 "source loop performs a source SimulateInternal pass");
+  ok &= lacks(apply_hair_c,
+              "root-controller-descriptor",
+              "root-controller descriptor label is removed");
+  ok &= lacks(apply_hair_c,
+              "source-single-point",
+              "single-point debug label is removed");
+  ok &= lacks(apply_hair_c,
+              "source-root-controller",
+              "root-controller debug label is removed");
   ok &= contains(apply_hair_c,
-                 "source_ps2_root_controller?\"source-root-controller\"",
-                 "collision-bearing root controller rows log their source path");
-  ok &= contains(apply_hair_c,
-                 "xformParent=%s",
-                 "chain hair debug separates source collision object from Trans parent");
-  ok &= contains(apply_hair_c,
-                 "submitted=(%.3f%.3f%.3f)",
-                 "chain hair debug distinguishes the submitted Trans row from "
-                 "the solved endpoint");
-  ok &= contains(apply_hair_c,
-                 "ps2_follow_hair_world(state,descriptor_world,follow_rest);",
-                 "follow-only hair still uses traced PS2 follow-row basis");
-  ok &= contains(apply_hair_c,
-                 "set_runtime_point_velocity(state,vsub(follow_rest,old_curr),"
-                 "old_velocity);",
-                 "follow-only hair updates current and previous velocity state");
-  ok &= contains(follow_world_c,
-                 "set_runtime_point_orientation(state,row2);",
-                 "follow hair updates the cached orientation row");
+                 "simulate_or_publish(hair,strand_starts,false,hair.inertia,"
+                 "hair.friction,\"SimulateZeroTime\")",
+                 "source loop publishes the source SimulateZeroTime path");
+  ok &= lacks(apply_hair_c,
+              "ps2_follow_hair_world",
+              "follow-only hair helper is removed from active path");
+  ok &= lacks(char_clip_c,
+              "ps2_follow_hair_world",
+              "follow-only hair helper implementation is removed");
 
   ok &= contains(char_renderer_c,
                  "runtime_hair_world_override(character,mesh.bone_palette[i],",
@@ -624,14 +561,12 @@ int main() {
                  "constboolhas_source_bone_transforms=mesh.bind.size()>=nb;",
                  "renderer detects decoded RndMesh BoneTransform row coverage");
   ok &= contains(char_renderer_c,
-                 "constboolsource_offset_skin=nb>0&&has_source_bone_transforms&&"
-                 "(mesh.mesh_local_bind_space||uses_local_attachment_skin(mesh));",
-                 "renderer only consumes source offsets directly for proven mesh-local attachment space");
+                 "constchar*skin_mode=has_source_bone_transforms?"
+                 "\"source-offset\":\"missing-source-offset-fallback\";",
+                 "renderer consumes decoded source offsets directly whenever RndMesh bone transforms exist");
   ok &= contains(char_renderer_c,
-                 "constchar*skin_mode=source_offset_skin?"
-                 "\"source-mesh-offset\":(has_source_bone_transforms?"
-                 "\"lbs-local-chain\":\"lbs-local-chain-fallback\");",
-                 "source-offset and local-chain skinning are visible in skin-mode logs");
+                 "skin[i]=mul16(xfm16(mesh.bind[i]),curr_world);",
+                 "source-offset skinning multiplies slot transform by current world");
   ok &= contains(char_renderer_c,
                  "std::array<float,16>curr_world=character.bone_world_local_chain"
                  "(mesh.bone_palette[i]);",
@@ -640,7 +575,7 @@ int main() {
                  "skin[i]=mul16(xfm16(mesh.bind[i]),curr_world);",
                  "source offset path multiplies slot transform by current world");
   ok &= contains(char_renderer_c,
-                 "world_mode=\"identity-skinned\";",
+                 "world_mode=\"identity-source-skinned\";",
                  "skinned RndMesh output draws in world space");
   ok &= contains(char_renderer_c,
                  "\"[mesh-world-verts]mesh=%sv0=(",
@@ -737,22 +672,60 @@ int main() {
                  "rootMatR0=(%.4f%.4f%.4f)",
                  "bind audit exposes the decoded CharHair rootMat rows");
   ok &= contains(char_bind_audit_c,
-                 "collide_type=%u",
-                 "bind audit reports CharHair point collision type by schema name");
+                 "source_set_angle_root_mat(strand.angle,strand.base_mat)",
+                 "bind audit verifies rootMat against source SetAngle rows");
   ok &= contains(char_bind_audit_c,
-                 "align_dist=%.4f",
-                 "bind audit reports CharHair point align distance by schema name");
+                 "setAngleRootErr=%.6f",
+                 "bind audit logs source SetAngle/rootMat agreement");
+  ok &= contains(char_bind_audit_c,
+                 "[hair-collision-detail]",
+                 "bind audit exposes legacy CharHair collision target rows");
+  ok &= contains(char_bind_audit_c,
+                 "pointDist=%.4f",
+                 "bind audit logs legacy CharHair collision distance");
+  ok &= contains(char_bind_audit_c,
+                 "alignDist=%.4f",
+                 "bind audit logs legacy CharHair collision align distance");
+  ok &= contains(char_bind_audit_c,
+                 "outer=%.4f",
+                 "bind audit reports CharHair point outer radius by schema name");
+  ok &= contains(char_bind_audit_c,
+                 "side=%.4f",
+                 "bind audit reports CharHair point side length by schema name");
   ok &= contains(char_mesh_h_c,
-                 "Sourceschemaname:collide_type.",
-                 "CharHair point collide mode is documented by source schema name");
+                 "floatouter_radius=0.0f;",
+                 "CharHair point outer radius is decoded from source schema");
   ok &= contains(char_mesh_h_c,
-                 "Sourceschemaname:collisionobject.Thisisnotatransformparent.",
-                 "CharHair collision object is not treated as a Trans parent");
+                 "uint32_tcollide_type=0;std::stringcollision;floatradius=0.0f;"
+                 "floatouter_radius=0.0f;",
+                 "CharHair point keeps GH2 v2 legacy collision schema fields");
+  ok &= contains(char_clip_c,
+                 "point.collision.empty()||point.radius<=0.0f",
+                 "legacy CharHair collision only runs for decoded target/radius rows");
+  ok &= contains(char_clip_c,
+                 "transform_local_chain_world(character,point.collision,"
+                 "collision_world)",
+                 "legacy CharHair collision resolves the decoded collision target row");
+  ok &= contains(char_clip_c,
+                 "switch(point.collide_type)",
+                 "legacy CharHair collision dispatches on decoded collide_type");
+  ok &= contains(char_clip_c,
+                 "case3:{//kCollideCylinder",
+                 "legacy CharHair collision preserves the documented cylinder shape id");
+  ok &= contains(char_clip_c,
+                 "[charhair-legacy-collision]",
+                 "legacy CharHair collision logs point corrections");
+  ok &= lacks(char_mesh_h_c,
+              "flags_or_mode",
+              "invented CharHair collide mode field is removed");
+  ok &= lacks(char_mesh_h_c,
+              "collisionobject",
+              "invented CharHair collision object field is removed");
   ok &= contains(milo_preview_batch_c,
                  "[source-charcollide]",
                  "glTFMilo source sample logger emits CharCollide rows");
   ok &= contains(char_mesh_h_c,
-                 "Sourceschema:baseMat[9]thenrootMat[9].",
+                 "floatbase_mat[9]={};floatroot_mat[9]={};",
                  "CharHair strand matrix tail is documented as baseMat/rootMat");
   ok &= contains(character_notes_c,
                  "2026-07-06ihatecompvirin-repopublic-sourcecross-check",
@@ -1402,9 +1375,9 @@ int main() {
   ok &= contains(character_notes_c,
                  "DonotpromoteaRock1transformoroffsetpatch",
                  "Rock1 remains open pending draw-consumer evidence");
-  ok &= contains(char_renderer_c,
-                 "constboolreverse_slots=reverse_skin_weight_slots_enabled();",
-                 "renderer no longer reverses slot order for named mesh classes");
+  ok &= lacks(char_renderer_c,
+              "reverse_skin_weight_slots_enabled",
+              "renderer no longer reverses slot order for named mesh classes");
   ok &= contains(character_notes_c,
                  "Rock1PSMeshrecord-beforerenderpackettrace",
                  "Rock1 PSMesh record-before evidence is documented");

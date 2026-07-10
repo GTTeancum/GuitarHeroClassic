@@ -4941,3 +4941,30 @@ Viewer hand-overlay validation:
   needs the real mesh/controller/placement consumer explained from source
   rows or traces. Rockabill2 remains signed off in this slice; use it only as
   a regression guard for shared renderer changes.
+
+2026-07-10 source SetAngle/rootMat and legacy collision audit:
+
+- Fresh native bind-audit output is in
+  `analysis/ihatecompvir_milo_samples/native_source_loop_20260710_rootmat_audit/hair_rows_with_collision.txt`.
+  It compares decoded GH2 `rootMat` rows with the RB3 source
+  `Strand::SetAngle` formula (`RotateAboutX(angle) * baseMat`). The sampled
+  Rock1/Rock2/Rockabill2 rows match within trace noise (`setAngleRootErr`
+  max about `0.000074`), so current evidence does not point at broad
+  root/base matrix decode failure.
+- The same audit shows GH2 v2 legacy collision rows are populated and resolve
+  to real Trans rows. Rock1/Rock2 use `spot_hairsphere.trans`, `bone_head.mesh`,
+  and upper-twist targets with source schema fields `collide_type`,
+  `collision`, `radius`/`distance`, and `outer_radius`/`align_dist`.
+  Rockabill2's visible `hair.hair` remains collisionless, while its chain
+  rows use thigh cylinder targets.
+- `grim/core/grim/src/scene/char_hair/io.rs`,
+  `re-notes/templates/milo/char_hair.bt`, and MiloLib `CharHair.cs` agree that
+  GH2 revision-2 points store those inline legacy collision rows. Native can
+  consume them only through the decoded schema fields and must keep logging
+  `[hair-collision-detail]`/`[charhair-legacy-collision]`; do not revive the
+  older collision-as-authored-parent mistake or replace it with character
+  offsets.
+- This is not visual signoff. The next proof has to show full-size direct-app
+  top/profile shots with the collision path active, plus logs proving which
+  rows moved. If the visuals get worse, the collision consumer remains a
+  rejected source-backed trial rather than a promoted fix.

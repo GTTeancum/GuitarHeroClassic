@@ -53,107 +53,28 @@ struct Reader {
 
 constexpr size_t kObjMeta = 9;
 
-// Is `len` bytes at `off` a plausible bone-palette name? Bone names are like
-// "bone_L-hand.mesh" / "spot_neck_fret01.mesh": ASCII, >= 6 chars, end ".mesh"
-// or ".trans". Used to locate the bone palette after the face list.
-bool looks_like_bone_name(const uint8_t* d, size_t total, size_t off) {
-  if (off + 4 > total) return false;
-  uint32_t len;
-  std::memcpy(&len, d + off, 4);
-  if (len < 6 || len > 64 || off + 4 + len > total) return false;
-  const char* s = reinterpret_cast<const char*>(d + off + 4);
-  for (uint32_t k = 0; k < len; ++k)
-    if (s[k] < 0x20 || s[k] >= 0x7f) return false;
-  // Bone/locator names in a BandCharacter mesh palette all end in a milo entry
-  // suffix; require it so a stray printable run can't be mistaken for a name.
-  std::string cand(s, len);
-  auto ends = [&](const char* suf) {
-    size_t sl = std::strlen(suf);
-    return cand.size() >= sl && cand.compare(cand.size() - sl, sl, suf) == 0;
-  };
-  return ends(".mesh") || ends(".trans");
-}
+struct TransFields {
+  Xfm local;
+  Xfm world;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  std::string parent;
+};
 
-float read_f32_at(const uint8_t* d, size_t off) {
-  float v = 0.0f;
-  std::memcpy(&v, d + off, sizeof(v));
-  return v;
-}
-
-bool bind_matrix_score(const uint8_t* d, size_t total, size_t off,
-                       float& score) {
-  if (off + 48 > total) return false;
-  float r[3][3]{};
-  for (int row = 0; row < 3; ++row) {
-    for (int col = 0; col < 3; ++col) {
-      const float v = read_f32_at(d, off + static_cast<size_t>(row * 3 + col) * 4);
-      if (!std::isfinite(v)) return false;
-      r[row][col] = v;
-    }
+TransFields read_rnd_trans(Reader& r, bool standalone) {
+  TransFields out;
+  const int32_t ver = r.i32();
+  if (standalone) {
+    r.skip(kObjMeta);
   }
-  for (int col = 0; col < 3; ++col) {
-    const float v = read_f32_at(d, off + static_cast<size_t>(9 + col) * 4);
-    if (!std::isfinite(v)) return false;
-  }
-
-  auto row_len = [&](int row) {
-    return std::sqrt(r[row][0] * r[row][0] + r[row][1] * r[row][1] +
-                     r[row][2] * r[row][2]);
-  };
-  const float l0 = row_len(0);
-  const float l1 = row_len(1);
-  const float l2 = row_len(2);
-  if (l0 < 0.25f || l1 < 0.25f || l2 < 0.25f ||
-      l0 > 4.0f || l1 > 4.0f || l2 > 4.0f) {
-    return false;
-  }
-  const float d01 = r[0][0] * r[1][0] + r[0][1] * r[1][1] + r[0][2] * r[1][2];
-  const float d02 = r[0][0] * r[2][0] + r[0][1] * r[2][1] + r[0][2] * r[2][2];
-  const float d12 = r[1][0] * r[2][0] + r[1][1] * r[2][1] + r[1][2] * r[2][2];
-  const float det =
-      r[0][0] * (r[1][1] * r[2][2] - r[1][2] * r[2][1]) -
-      r[0][1] * (r[1][0] * r[2][2] - r[1][2] * r[2][0]) +
-      r[0][2] * (r[1][0] * r[2][1] - r[1][1] * r[2][0]);
-  if (std::fabs(det) < 0.05f || !std::isfinite(det)) return false;
-  score = std::fabs(l0 - 1.0f) + std::fabs(l1 - 1.0f) +
-          std::fabs(l2 - 1.0f) + std::fabs(d01) + std::fabs(d02) +
-          std::fabs(d12) + std::fabs(std::fabs(det) - 1.0f);
-  return std::isfinite(score);
-}
-
-size_t select_bind_matrix_offset(const uint8_t* d, size_t total,
-                                 size_t start, size_t matrix_count) {
-  if (matrix_count == 0 || start >= total) return start;
-  const uint64_t bytes_needed = static_cast<uint64_t>(matrix_count) * 48;
-  if (bytes_needed > total - start) return start;
-
-  const size_t max_padding = 16;
-  const size_t last =
-      std::min(start + max_padding, total - static_cast<size_t>(bytes_needed));
-  float best_score = 1.0e30f;
-  size_t best = start;
-  bool found = false;
-  for (size_t cand = start; cand <= last; ++cand) {
-    float total_score = 0.0f;
-    bool ok = true;
-    for (size_t i = 0; i < matrix_count; ++i) {
-      float score = 0.0f;
-      if (!bind_matrix_score(d, total, cand + i * 48, score)) {
-        ok = false;
-        break;
-      }
-      total_score += score;
-    }
-    if (ok && total_score < best_score) {
-      best_score = total_score;
-      best = cand;
-      found = true;
-    }
-  }
-
-  // Bind rows are exported as rigid inverse-bind matrices. If no plausible
-  // rigid matrix group is found, fall back to the original stream position.
-  return found ? best : start;
+  out.local = r.matrix();
+  out.world = r.matrix();
+  if (ver > 6) out.constraint = r.u32();
+  if (ver > 5) out.target = r.str();
+  if (ver > 6) out.preserve_scale = r.u8() != 0;
+  out.parent = r.str();
+  return out;
 }
 
 std::vector<std::string> group_child_refs(const std::vector<uint8_t>& body) {
@@ -196,13 +117,14 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
     int32_t ver = r.i32();  // mesh version = 28 (0x1c)
     if (ver != 28) mesh.error = "unexpected mesh version " + std::to_string(ver);
 
-    // Trans base.
-    r.i32();                 // trans version (= 9)
-    r.skip(kObjMeta);        // Hmx::Object base metadata
-    mesh.local = r.matrix();        // local matrix
-    mesh.world_stored = r.matrix(); // world matrix
-    r.skip(kObjMeta);        // constraint / flags
-    mesh.parent = r.str();   // Trans parent
+    r.skip(kObjMeta);        // Hmx::Object fields for the Mesh object.
+    const TransFields trans = read_rnd_trans(r, false);
+    mesh.local = trans.local;
+    mesh.world_stored = trans.world;
+    mesh.constraint = trans.constraint;
+    mesh.target = trans.target;
+    mesh.preserve_scale = trans.preserve_scale;
+    mesh.parent = trans.parent;
 
     // Draw base.
     r.i32();                 // draw version (= 3)
@@ -212,8 +134,40 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
 
     // Mesh fields.
     mesh.material = r.str();
+    if (ver == 27) r.str();  // legacy secondary mat name.
     r.str();                 // geometry-owner name (usually self)
-    r.skip(kObjMeta);        // 9 bytes
+    if (ver < 13) r.str();   // alt geom owner.
+    if (ver < 15) r.str();   // trans parent reference.
+    if (ver < 14) {
+      r.str();
+      r.str();
+    }
+    if (ver < 3) {
+      (void)r.f32();
+      (void)r.f32();
+      (void)r.f32();
+    }
+    if (ver < 15) r.skip(16);
+    if (ver < 8) (void)r.u8();
+    if (ver < 15) {
+      r.str();
+      (void)r.f32();
+    }
+    if (ver < 16) {
+      if (ver > 11) (void)r.u8();
+    } else {
+      mesh.mutable_flags = r.u32();
+    }
+    if (ver > 17) mesh.volume = r.u32();
+    if (ver > 18) {
+      const bool bsp_has_value = r.u8() != 0;
+      if (bsp_has_value) {
+        mesh.error = "unsupported non-empty BSP tree";
+        return mesh;
+      }
+    }
+    if (ver == 7) (void)r.u8();
+    if (ver < 11) (void)r.u32();
     uint32_t vcount = r.u32();
 
     // Gate vertex count against remaining bytes (vcount*48 + 4 for face count).
@@ -246,51 +200,65 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
     }
 
     // --- skinning tail ---------------------------------------------------
-    // PS2 character meshes carry a face-group table before the bone palette:
-    // u32 group_count followed by one byte per group. The group bytes sum to
-    // the face count; the palette strings begin immediately after them.
-    size_t found = SIZE_MAX;
-    const size_t tail_start = r.pos;
-    if (tail_start + 4 <= body.size()) {
-      uint32_t group_count = 0;
-      std::memcpy(&group_count, body.data() + tail_start, 4);
-      if (group_count > 0 && group_count <= 64 &&
-          tail_start + 4 + group_count <= body.size()) {
-        uint32_t grouped_faces = 0;
-        for (uint32_t gi = 0; gi < group_count; ++gi) {
-          grouped_faces += body[tail_start + 4 + gi];
-        }
-        const size_t palette_off = tail_start + 4 + group_count;
-        if (grouped_faces == fcount &&
-            looks_like_bone_name(body.data(), body.size(), palette_off)) {
-          found = palette_off;
-        }
+    // MiloLib/RB3 source order for Mesh rev 28:
+    //   mPatches/groupSizes: u32 count, then count bytes
+    //   if first bone ref is present: four old-style bone refs, then four
+    //   RndBone::mOffset transforms.
+    if (ver > 0x17) {
+      const uint32_t group_count = r.u32();
+      if (group_count > 4096 || group_count > body.size() - r.pos) {
+        mesh.error = "groupSizes count exceeds entry";
+        return mesh;
+      }
+      mesh.group_sizes.resize(group_count);
+      for (uint32_t gi = 0; gi < group_count; ++gi) {
+        mesh.group_sizes[gi] = r.u8();
+      }
+    } else if (ver > 0x10) {
+      const uint32_t group_count = r.u32();
+      if (group_count > 4096 || group_count > body.size() - r.pos) {
+        mesh.error = "legacy groupSizes count exceeds entry";
+        return mesh;
+      }
+      mesh.group_sizes.resize(group_count);
+      for (uint32_t gi = 0; gi < group_count; ++gi) {
+        mesh.group_sizes[gi] = r.u8();
       }
     }
 
-    if (found == SIZE_MAX) {
-      size_t scan = r.pos;
-      // The header is tiny; cap the search so a malformed entry can't run away.
-      const size_t scan_end = std::min(body.size(), r.pos + 64);
-      for (size_t o = scan; o + 4 <= scan_end; ++o) {
-        if (looks_like_bone_name(body.data(), body.size(), o)) { found = o; break; }
+    if (r.pos + 4 <= body.size()) {
+      const size_t bone_probe = r.pos;
+      const int32_t first_bone_len = r.i32();
+      if (first_bone_len > 0) {
+        r.pos = bone_probe;
+        if (ver >= 33) {
+          const uint32_t bone_count = r.u32();
+          if (bone_count > 256) {
+            mesh.error = "bone count exceeds supported range";
+            return mesh;
+          }
+          mesh.bone_palette.reserve(bone_count);
+          mesh.bind.reserve(bone_count);
+          for (uint32_t bi = 0; bi < bone_count; ++bi) {
+            mesh.bone_palette.push_back(r.str());
+            mesh.bind.push_back(r.matrix());
+          }
+        } else {
+          mesh.bone_palette.reserve(4);
+          mesh.bind.reserve(4);
+          for (int bi = 0; bi < 4; ++bi) {
+            mesh.bone_palette.push_back(r.str());
+          }
+          for (int bi = 0; bi < 4; ++bi) {
+            mesh.bind.push_back(r.matrix());
+          }
+          while (!mesh.bone_palette.empty() && mesh.bone_palette.back().empty()) {
+            mesh.bone_palette.pop_back();
+            mesh.bind.pop_back();
+          }
+        }
       }
     }
-    if (found != SIZE_MAX) {
-      r.pos = found;
-      while (looks_like_bone_name(body.data(), body.size(), r.pos)) {
-        mesh.bone_palette.push_back(r.str());
-      }
-      // One bind matrix per palette bone (only if they fit).
-      r.pos = select_bind_matrix_offset(body.data(), body.size(), r.pos,
-                                        mesh.bone_palette.size());
-      if (static_cast<uint64_t>(mesh.bone_palette.size()) * 48 <= body.size() - r.pos) {
-        for (size_t i = 0; i < mesh.bone_palette.size(); ++i)
-          mesh.bind.push_back(r.matrix());
-      }
-    }
-    // A mesh with no palette (e.g. a rigid prop sub-mesh) is still valid; the
-    // weights then act on its single implicit bone via the parent transform.
 
     // Bounding box (bind-pose model space).
     if (vcount > 0) {
@@ -396,33 +364,73 @@ CharHair decode_hair(const std::string& entry_name,
   hair.name = entry_name;
   hair.version = r.i32();
   r.skip(kObjMeta);
-  for (float& v : hair.globals) v = r.f32();
-  const uint32_t group_count = r.u32();
-  hair.groups.reserve(group_count);
-  for (uint32_t gi = 0; gi < group_count; ++gi) {
-    CharHairGroup group;
-    group.root_mesh = r.str();    // source schema: root
-    group.root_offset = r.f32();  // source schema: angle
+  hair.stiffness = r.f32();
+  hair.torsion = r.f32();
+  hair.inertia = r.f32();
+  hair.gravity = r.f32();
+  hair.weight = r.f32();
+  hair.friction = r.f32();
+  if (hair.version > 8) {
+    hair.min_slack = r.f32();
+    hair.max_slack = r.f32();
+  }
+  const uint32_t strand_count = r.u32();
+  hair.strands.reserve(strand_count);
+  for (uint32_t si = 0; si < strand_count; ++si) {
+    CharHairStrand strand;
+    strand.root = r.str();
+    strand.angle = r.f32();
     const uint32_t point_count = r.u32();
-    group.points.reserve(point_count);
+    strand.points.reserve(point_count);
     for (uint32_t pi = 0; pi < point_count; ++pi) {
       CharHairPoint point;
       point.pos[0] = r.f32();
       point.pos[1] = r.f32();
       point.pos[2] = r.f32();
-      point.mesh = r.str();  // source schema: bone
+      point.bone = r.str();
       point.length = r.f32();
-      point.flags_or_mode = r.u32();  // source schema: collide_type
-      point.parent = r.str();         // source schema: collision object
-      point.radius = r.f32();         // source schema: radius/distance
-      if (hair.version > 1) point.extra = r.f32();  // outer_radius/align_dist
-      group.points.push_back(std::move(point));
+      if (hair.version < 3) {
+        point.collide_type = r.u32();
+        point.collision = r.str();
+      } else if (hair.version == 3) {
+        point.collide_type = r.u32();
+      }
+      point.radius = r.f32();
+      if (hair.version > 1) point.outer_radius = r.f32();
+      if (hair.version == 6 || hair.version == 7 || hair.version == 8) {
+        const float add_to_radius = r.f32();
+        point.radius += add_to_radius;
+        point.outer_radius += add_to_radius;
+      }
+      if (hair.version == 6) {
+        (void)r.str();
+      }
+      if (hair.version < 8) {
+        point.side_length = -1.0f;
+        if (hair.version > 5) {
+          (void)r.i32();
+          (void)r.i32();
+        }
+      } else {
+        bool side_enabled = true;
+        if (hair.version < 9) side_enabled = r.u8() != 0;
+        point.side_length = r.f32();
+        if (hair.version < 9 && !side_enabled) point.side_length = -1.0f;
+      }
+      if (hair.version > 9) {
+        point.unk5c[0] = r.f32();
+        point.unk5c[1] = r.f32();
+        point.unk5c[2] = r.f32();
+      }
+      strand.points.push_back(std::move(point));
     }
-    // Source schema: two Matrix3 rows, baseMat followed by rootMat.
-    for (float& v : group.limits_or_mats) v = r.f32();
-    hair.groups.push_back(std::move(group));
+    for (float& v : strand.base_mat) v = r.f32();
+    for (float& v : strand.root_mat) v = r.f32();
+    if (hair.version > 2) strand.hookup_flags = r.i32();
+    hair.strands.push_back(std::move(strand));
   }
-  if (r.pos < body.size()) hair.enabled = r.u8() != 0;
+  if (r.pos < body.size()) hair.simulate = r.u8() != 0;
+  if (hair.version > 10 && r.pos < body.size()) hair.wind = r.str();
   return hair;
 }
 
@@ -600,51 +608,43 @@ std::array<float, 16> xfm_to_mat4(const Xfm& x) {
   return m;
 }
 
-std::array<float, 16> affine_inverse(const std::array<float, 16>& m) {
-  const float a = m[0], b = m[1], c = m[2];
-  const float d = m[4], e = m[5], f = m[6];
-  const float g = m[8], h = m[9], i = m[10];
-  const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
-  const float id = (std::fabs(det) > 1e-12f) ? 1.0f / det : 0.0f;
-  std::array<float, 16> r{};
-  r[0] = (e * i - f * h) * id; r[1] = (c * h - b * i) * id; r[2] = (b * f - c * e) * id;
-  r[4] = (f * g - d * i) * id; r[5] = (a * i - c * g) * id; r[6] = (c * d - a * f) * id;
-  r[8] = (d * h - e * g) * id; r[9] = (b * g - a * h) * id; r[10] = (a * e - b * d) * id;
-  const float tx = m[12], ty = m[13], tz = m[14];
-  r[12] = -(tx * r[0] + ty * r[4] + tz * r[8]);
-  r[13] = -(tx * r[1] + ty * r[5] + tz * r[9]);
-  r[14] = -(tx * r[2] + ty * r[6] + tz * r[10]);
-  r[15] = 1.0f;
-  return r;
+std::array<float, 16> identity_mat4() {
+  return {1, 0, 0, 0, 0, 1, 0, 0,
+          0, 0, 1, 0, 0, 0, 0, 1};
 }
 
-float matrix_max_delta(const std::array<float, 16>& a,
-                       const std::array<float, 16>& b) {
-  float err = 0.0f;
-  for (int i = 0; i < 16; ++i) {
-    err = std::max(err, std::fabs(a[i] - b[i]));
-  }
-  return err;
-}
+struct SourceXfm {
+  const Xfm* current = nullptr;
+  const Xfm* bind = nullptr;
+  const Xfm* stored_world = nullptr;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  std::string parent;
+};
 
-bool find_current_bind_xfm(const Character& c, const std::string& name,
-                           const Xfm*& current, const Xfm*& bind,
-                           const Xfm*& stored_world,
-                           std::string& parent) {
+bool find_source_xfm(const Character& c, const std::string& name,
+                     SourceXfm& out) {
   for (size_t i = 0; i < c.bones.size(); ++i) {
     if (c.bones[i].name != name) continue;
-    current = &c.bones[i].local;
-    bind = i < c.bind_bone_local.size() ? &c.bind_bone_local[i] : &c.bones[i].local;
-    stored_world = &c.bones[i].world_stored;
-    parent = c.bones[i].parent;
+    out.current = &c.bones[i].local;
+    out.bind = i < c.bind_bone_local.size() ? &c.bind_bone_local[i] : &c.bones[i].local;
+    out.stored_world = &c.bones[i].world_stored;
+    out.constraint = c.bones[i].constraint;
+    out.target = c.bones[i].target;
+    out.preserve_scale = c.bones[i].preserve_scale;
+    out.parent = c.bones[i].parent;
     return true;
   }
   for (size_t i = 0; i < c.meshes.size(); ++i) {
     if (c.meshes[i].name != name) continue;
-    current = &c.meshes[i].local;
-    bind = i < c.bind_mesh_local.size() ? &c.bind_mesh_local[i] : &c.meshes[i].local;
-    stored_world = &c.meshes[i].world_stored;
-    parent = c.meshes[i].parent;
+    out.current = &c.meshes[i].local;
+    out.bind = i < c.bind_mesh_local.size() ? &c.bind_mesh_local[i] : &c.meshes[i].local;
+    out.stored_world = &c.meshes[i].world_stored;
+    out.constraint = c.meshes[i].constraint;
+    out.target = c.meshes[i].target;
+    out.preserve_scale = c.meshes[i].preserve_scale;
+    out.parent = c.meshes[i].parent;
     return true;
   }
   return false;
@@ -658,97 +658,61 @@ bool find_runtime_world_override(const Character& c, const std::string& name,
   return true;
 }
 
-std::array<float, 16> local_chain_world_for(const Character& c,
-                                            const std::string& name,
-                                            bool bind_pose,
-                                            bool include_runtime_overrides = true) {
+std::array<float, 3> transform_pos(const Xfm& local,
+                                   const std::array<float, 16>& parent_world) {
+  const float x = local.pos[0];
+  const float y = local.pos[1];
+  const float z = local.pos[2];
+  return {x * parent_world[0] + y * parent_world[4] +
+              z * parent_world[8] + parent_world[12],
+          x * parent_world[1] + y * parent_world[5] +
+              z * parent_world[9] + parent_world[13],
+          x * parent_world[2] + y * parent_world[6] +
+              z * parent_world[10] + parent_world[14]};
+}
+
+std::array<float, 16> source_world_for(const Character& c,
+                                       const std::string& name,
+                                       bool bind_pose,
+                                       bool include_runtime_overrides = true,
+                                       int depth = 0) {
+  if (depth > 128) return identity_mat4();
+
   std::array<float, 16> override_world{};
   if (!bind_pose && include_runtime_overrides &&
       find_runtime_world_override(c, name, override_world)) {
     return override_world;
   }
 
-  const Xfm* current = nullptr;
-  const Xfm* bind = nullptr;
-  const Xfm* stored_world = nullptr;
-  std::string parent;
-  if (!find_current_bind_xfm(c, name, current, bind, stored_world, parent)) {
-    return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+  SourceXfm xfm;
+  if (!find_source_xfm(c, name, xfm)) return identity_mat4();
+
+  const Xfm& local = bind_pose ? *xfm.bind : *xfm.current;
+  std::array<float, 16> local_mat = xfm_to_mat4(local);
+  if (xfm.parent.empty()) {
+    return local_mat;
   }
 
-  std::array<float, 16> world = xfm_to_mat4(bind_pose ? *bind : *current);
-  int guard = 0;
-  while (!parent.empty() && guard++ < 128) {
-    if (!bind_pose && include_runtime_overrides &&
-        find_runtime_world_override(c, parent, override_world)) {
-      world = mat4_mul(world, override_world);
-      break;
-    }
-
-    const Xfm* parent_current = nullptr;
-    const Xfm* parent_bind = nullptr;
-    const Xfm* ignored_world = nullptr;
-    std::string next_parent;
-    if (!find_current_bind_xfm(c, parent, parent_current, parent_bind,
-                               ignored_world, next_parent)) {
-      break;
-    }
-    world = mat4_mul(
-        world, xfm_to_mat4(bind_pose ? *parent_bind : *parent_current));
-    parent = next_parent;
+  const auto parent_world =
+      source_world_for(c, xfm.parent, bind_pose, include_runtime_overrides,
+                       depth + 1);
+  if (xfm.constraint == 2) {  // kParentWorld
+    return parent_world;
+  }
+  if (xfm.constraint == 1) {  // kLocalRotate
+    auto world = local_mat;
+    const auto pos = transform_pos(local, parent_world);
+    world[12] = pos[0];
+    world[13] = pos[1];
+    world[14] = pos[2];
+    return world;
+  }
+  auto world = mat4_mul(local_mat, parent_world);
+  if (xfm.constraint == 9 && !xfm.target.empty()) {  // kTargetWorld
+    world = source_world_for(c, xfm.target, bind_pose, include_runtime_overrides,
+                             depth + 1);
   }
   return world;
-}
-
-std::array<float, 16> corrected_world_for(const Character& c,
-                                          const std::string& name) {
-  std::array<float, 16> override_world{};
-  if (find_runtime_world_override(c, name, override_world)) {
-    return override_world;
-  }
-
-  const Xfm* current = nullptr;
-  const Xfm* bind = nullptr;
-  const Xfm* stored_world = nullptr;
-  std::string parent;
-  if (!find_current_bind_xfm(c, name, current, bind, stored_world, parent)) {
-    return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-  }
-
-  const auto current_world = local_chain_world_for(c, name, false);
-  const auto bind_world_from_locals = local_chain_world_for(c, name, true);
-
-  const auto stored_bind_world = xfm_to_mat4(*stored_world);
-  const auto bind_correction =
-      mat4_mul(affine_inverse(bind_world_from_locals), stored_bind_world);
-  return mat4_mul(current_world, bind_correction);
-}
-
-bool has_mesh_local_bind_space(const Character& c, const SkinnedMesh& m) {
-  if (!m.decoded || m.bone_palette.empty() ||
-      m.bind.size() < m.bone_palette.size()) {
-    return false;
-  }
-
-  const std::array<float, 16> identity =
-      {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-  const auto mesh_bind = local_chain_world_for(c, m.name, true);
-  float model_error = 0.0f;
-  float mesh_error = 0.0f;
-  for (size_t i = 0; i < m.bone_palette.size(); ++i) {
-    const auto bind_inv = xfm_to_mat4(m.bind[i]);
-    const auto product =
-        mat4_mul(bind_inv, local_chain_world_for(c, m.bone_palette[i], true));
-    model_error = std::max(model_error, matrix_max_delta(product, identity));
-    mesh_error = std::max(mesh_error, matrix_max_delta(product, mesh_bind));
-  }
-
-  constexpr float kMeshClose = 0.05f;
-  constexpr float kNontrivialModelOffset = 1.0f;
-  constexpr float kErrorRatio = 8.0f;
-  return mesh_error <= kMeshClose &&
-         model_error > kNontrivialModelOffset &&
-         model_error > mesh_error * kErrorRatio;
 }
 
 }  // namespace
@@ -767,60 +731,27 @@ const milo_scene::MatObj* Character::find_mat(const std::string& name) const {
 }
 
 std::array<float, 16> Character::bone_world(const std::string& bone_name) const {
-  return corrected_world_for(*this, bone_name);
+  return source_world_for(*this, bone_name, false);
 }
 
 std::array<float, 16> Character::bone_world_bind(const std::string& bone_name) const {
-  // Return the BIND POSE world matrix directly from the stored Trans world matrix.
-  // This was computed at export time and includes all scene-level transforms.
-  for (const milo_scene::TransObj& t : bones)
-    if (t.name == bone_name) return xfm_to_mat4(t.world_stored);
-  for (const SkinnedMesh& m : meshes)
-    if (m.name == bone_name) return xfm_to_mat4(m.world_stored);
-  std::array<float, 16> id{1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
-  return id;
+  return source_world_for(*this, bone_name, true, false);
 }
 
 std::array<float, 16> Character::bone_world_local_chain(const std::string& bone_name) const {
-  return local_chain_world_for(*this, bone_name, false);
+  return source_world_for(*this, bone_name, false);
 }
 
 std::array<float, 16> Character::bone_world_local_chain_authored(const std::string& bone_name) const {
-  return local_chain_world_for(*this, bone_name, false, false);
+  return source_world_for(*this, bone_name, false, false);
 }
 
 std::array<float, 16> Character::bone_world_bind_local_chain(const std::string& bone_name) const {
-  return local_chain_world_for(*this, bone_name, true);
+  return source_world_for(*this, bone_name, true, false);
 }
 
 std::array<float, 16> Character::mesh_world(const SkinnedMesh& m) const {
-  return corrected_world_for(*this, m.name);
-}
-
-std::array<float, 16> Character::model_space_parent_delta(
-    const std::string& parent) const {
-  const auto bind = bone_world_bind_local_chain(parent);
-  const auto current = bone_world_local_chain(parent);
-  return mat4_mul(affine_inverse(bind), current);
-}
-
-std::array<float, 16> Character::attachment_parent_world(
-    const std::string& parent) const {
-  return mat4_mul(bone_world_bind(parent), model_space_parent_delta(parent));
-}
-
-std::array<float, 16> Character::mesh_attachment_world(
-    const SkinnedMesh& m, bool bind_local) const {
-  const Xfm* local = &m.local;
-  if (bind_local) {
-    for (size_t i = 0; i < meshes.size(); ++i) {
-      if (meshes[i].name == m.name && i < bind_mesh_local.size()) {
-        local = &bind_mesh_local[i];
-        break;
-      }
-    }
-  }
-  return mat4_mul(xfm_to_mat4(*local), attachment_parent_world(m.parent));
+  return source_world_for(*this, m.name, false);
 }
 
 bool load_character(const std::string& hdr_path, const std::string& ark_path,
@@ -906,9 +837,6 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
     out.bind_bone_local.clear();
     out.bind_bone_local.reserve(out.bones.size());
     for (const auto& b : out.bones) out.bind_bone_local.push_back(b.local);
-    for (auto& m : out.meshes) {
-      m.mesh_local_bind_space = has_mesh_local_bind_space(out, m);
-    }
     return true;
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[char] load_character(%s): %s\n", milo_path.c_str(),

@@ -77,8 +77,14 @@ struct SkinnedMesh {
   std::string material;   // Mat entry this mesh draws with
   milo_scene::Xfm local;  // the mesh's own Trans local matrix (usually identity)
   milo_scene::Xfm world_stored;
+  uint32_t constraint = 0;   // RndTransformable::Constraint
+  std::string target;        // dynamic constraint target, "" if absent
+  bool preserve_scale = false;
   bool showing = true;
   float draw_order = 0.0f;
+  uint32_t mutable_flags = 0;
+  uint32_t volume = 1;  // RndMesh::kVolumeTriangles
+  std::vector<uint8_t> group_sizes;
 
   std::vector<SkinVertex> verts;
   std::vector<uint16_t> indices;  // face_count*3
@@ -89,11 +95,6 @@ struct SkinnedMesh {
   // pose, pre-inverted as stored in the Mesh skinning tail — DCC standard form).
   // LBS formula: skinned = v * bind_inv * bone_world.
   std::vector<milo_scene::Xfm> bind;
-  // True when stored bind rows reconstruct this mesh's own local-chain bind
-  // row, with a nontrivial offset from model-space bind. This records a PS2
-  // format shape for mesh-local body pieces and is not keyed to outfits.
-  bool mesh_local_bind_space = false;
-
   float bb_min[3] = {0, 0, 0};
   float bb_max[3] = {0, 0, 0};
   bool decoded = false;
@@ -169,49 +170,52 @@ struct CharEyes {
 struct CharHairPoint {
   float pos[3] = {0, 0, 0};
   // Source schema name: bone. This is the Trans row CharHair drives.
-  std::string mesh;
+  std::string bone;
   float length = 0.0f;
-  // Source schema name: collide_type.
-  // 0 plane, 1 sphere, 2 inside sphere, 3 cylinder, 4 inside cylinder.
-  uint32_t flags_or_mode = 0;
-  // Source schema name: collision object. This is not a transform parent.
-  std::string parent;
-  // Source names vary across tools: radius/distance and outer_radius/align_dist.
+  // GH2 v2 field names from ihatecompvir/grim and re-notes. These are legacy
+  // inline collision rows: collide_type, collision target, distance/radius, and
+  // align distance. They are not transform parents for authored point pos.
+  uint32_t collide_type = 0;
+  std::string collision;
   float radius = 0.0f;
-  float extra = 0.0f;
+  float outer_radius = 0.0f;
+  float side_length = -1.0f;
+  float unk5c[3] = {0, 0, 0};
 };
 
-struct CharHairGroup {
-  std::string root_mesh;  // Source schema name: root.
-  float root_offset = 0.0f;  // Source schema name: angle, in degrees.
+struct CharHairStrand {
+  std::string root;
+  float angle = 0.0f;  // degrees
   std::vector<CharHairPoint> points;
-  // Source schema: baseMat[9] then rootMat[9].
-  float limits_or_mats[18] = {};
+  float base_mat[9] = {};
+  float root_mat[9] = {};
+  int32_t hookup_flags = 0;
 };
 
 struct CharHair {
   std::string name;
   int32_t version = 0;
-  float globals[6] = {};
-  std::vector<CharHairGroup> groups;
-  bool enabled = true;
+  float stiffness = 0.04f;
+  float torsion = 0.1f;
+  float inertia = 0.7f;
+  float gravity = 1.0f;
+  float weight = 0.5f;
+  float friction = 0.3f;
+  float min_slack = 0.0f;
+  float max_slack = 0.0f;
+  std::vector<CharHairStrand> strands;
+  bool simulate = true;
+  std::string wind;
 };
 
 struct RuntimeHairPoint {
   bool initialized = false;
   bool has_world = false;
-  std::string mesh;
-  uint32_t ps2_flags_or_mode = 0;
-  float curr_world[3] = {0, 0, 0};
-  float prev_world[3] = {0, 0, 0};
-  float velocity_world[3] = {0, 0, 0};
-  float prev_velocity_world[3] = {0, 0, 0};
+  std::string bone;
+  float pos_world[3] = {0, 0, 0};
   float force_world[3] = {0, 0, 0};
   float last_friction_world[3] = {0, 0, 0};
-  float rest_world[3] = {0, 0, 0};
-  float anchor_world[3] = {0, 0, 0};
-  bool has_orientation_world = false;
-  float orientation_world[3] = {0, 0, 1};
+  float last_z_world[3] = {0, 0, 1};
   std::array<float, 16> world =
       {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 };
@@ -300,32 +304,22 @@ struct Character {
   // Resolve a material by name (nullptr if absent).
   const milo_scene::MatObj* find_mat(const std::string& name) const;
 
-  // Compute a bone's CURRENT POSE world matrix with the authored stored-world
-  // correction applied. Useful for constraints/attachments in scene space.
+  // Compute a transform's CURRENT POSE world matrix with source
+  // RndTransformable constraint rules.
   std::array<float, 16> bone_world(const std::string& bone_name) const;
 
-  // Return the BIND POSE world matrix directly from the stored Trans world
-  // matrix (authored at export time, includes scene-level orientation).
+  // Compute a transform's BIND POSE world matrix from source local rows and
+  // constraints.
   std::array<float, 16> bone_world_bind(const std::string& bone_name) const;
 
-  // Compose the raw local-transform parent chain in current and bind pose.
-  // Character mesh vertices are authored in this basis, so LBS uses these as
-  // matching current/bind matrices instead of mixing with stored Trans worlds.
+  // Compatibility names for existing animation/controller code; these now use
+  // the same source transform evaluator as bone_world().
   std::array<float, 16> bone_world_local_chain(const std::string& bone_name) const;
   std::array<float, 16> bone_world_local_chain_authored(const std::string& bone_name) const;
   std::array<float, 16> bone_world_bind_local_chain(const std::string& bone_name) const;
 
-  // Compose a mesh's own model-to-world matrix up its Trans parent chain. For a
-  // character this is normally ~identity (vertices are already in model space).
+  // Compose a mesh's own source transform world matrix.
   std::array<float, 16> mesh_world(const SkinnedMesh& m) const;
-
-  // Compose the PS2 attachment basis used by rigid face children whose mesh
-  // vertices are already authored in character model space, but whose local
-  // Trans rows live under an animated parent such as bone_head.mesh.
-  std::array<float, 16> model_space_parent_delta(const std::string& parent) const;
-  std::array<float, 16> attachment_parent_world(const std::string& parent) const;
-  std::array<float, 16> mesh_attachment_world(const SkinnedMesh& m,
-                                              bool bind_local) const;
 };
 
 // Decode one skinned-mesh entry body. Never throws: on failure returns a

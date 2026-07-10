@@ -105,6 +105,9 @@ struct TransObj {
   std::string name;          // the entry name
   Xfm local;                 // local matrix (matrix 1)
   Xfm world_stored;          // world matrix as stored (matrix 2)
+  uint32_t constraint = 0;   // RndTransformable::Constraint
+  std::string target;        // dynamic constraint target, "" if absent
+  bool preserve_scale = false;
   std::string parent;        // parent/target name ("" if none)
 };
 

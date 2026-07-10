@@ -122,10 +122,10 @@ int main() {
   ok &= missing(renderer_c, "GHOGX_EYE_INSET",
                 "manual eye inset must not exist in the default renderer");
   ok &= contains(renderer_c,
-                 "m.bone_palette.empty()||draw_hair_as_attachment",
+                 "if(m.bone_palette.empty()){",
                  "no-palette eyes and mouth details consume their current Trans WorldXfm path");
   ok &= contains(renderer_c,
-                 "world_mode=\"trans-world\";mw=impl.character.bone_world_local_chain(m.name);",
+                 "world_mode=\"source-trans-world\";mw=impl.character.mesh_world(m);",
                  "plain child face meshes draw from the current transform local chain");
   ok &= missing(renderer_c, "constfloatinset=eye_surface_inset(m);",
                 "manual eye inset must not affect default rendering");
