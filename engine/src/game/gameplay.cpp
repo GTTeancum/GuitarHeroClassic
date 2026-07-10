@@ -7827,6 +7827,197 @@ bool read_packed_string_cursor(const uint8_t* body, size_t size,
     return true;
 }
 
+bool read_u16_cursor(const uint8_t* body, size_t size, size_t& cursor,
+                     uint16_t& out) {
+    if (cursor + 2 > size) return false;
+    std::memcpy(&out, body + cursor, sizeof(out));
+    cursor += 2;
+    return true;
+}
+
+bool read_u8_cursor(const uint8_t* body, size_t size, size_t& cursor,
+                    uint8_t& out) {
+    if (cursor + 1 > size) return false;
+    out = body[cursor++];
+    return true;
+}
+
+struct MiloObjectFieldNode {
+    uint32_t type = 0;
+    std::string symbol;
+    std::vector<MiloObjectFieldNode> children;
+};
+
+bool read_milo_object_field_node(const uint8_t* body, size_t size,
+                                 size_t& cursor, MiloObjectFieldNode& node);
+
+bool read_milo_object_field_parent(const uint8_t* body, size_t size,
+                                   size_t& cursor,
+                                   std::vector<MiloObjectFieldNode>& children) {
+    uint16_t child_count = 0;
+    uint32_t id = 0;
+    if (!read_u16_cursor(body, size, cursor, child_count)) return false;
+    if (child_count > 512) return false;
+    if (!read_u32_cursor(body, size, cursor, id)) return false;
+    (void)id;
+    children.clear();
+    children.reserve(child_count);
+    for (uint16_t i = 0; i < child_count; ++i) {
+        MiloObjectFieldNode child;
+        if (!read_milo_object_field_node(body, size, cursor, child))
+            return false;
+        children.push_back(std::move(child));
+    }
+    return true;
+}
+
+bool read_milo_object_field_node(const uint8_t* body, size_t size,
+                                 size_t& cursor, MiloObjectFieldNode& node) {
+    if (!read_u32_cursor(body, size, cursor, node.type)) return false;
+    switch (node.type) {
+        case 0x00:  // Int
+        case 0x01:  // Float
+            cursor += 4;
+            return cursor <= size;
+        case 0x02:  // Variable
+        case 0x03:  // Func
+        case 0x04:  // Object
+        case 0x05:  // Symbol
+        case 0x06:  // Unhandled
+        case 0x07:  // IfDef
+        case 0x08:  // Else
+        case 0x09:  // EndIf
+        case 0x12:  // String
+        case 0x20:  // Define
+        case 0x21:  // Include
+        case 0x22:  // Merge
+        case 0x23:  // IfNDef
+        case 0x24:  // Autorun
+        case 0x25:  // Undef
+            return read_packed_string_cursor(body, size, cursor, node.symbol);
+        case 0x10:  // Array
+        case 0x11:  // Command
+        case 0x13:  // Property
+            return read_milo_object_field_parent(body, size, cursor,
+                                                 node.children);
+        default:
+            return false;
+    }
+}
+
+bool read_milo_object_fields_root(const uint8_t* body, size_t size,
+                                  size_t& cursor,
+                                  std::vector<MiloObjectFieldNode>& root) {
+    uint32_t combined_revision = 0;
+    if (!read_u32_cursor(body, size, cursor, combined_revision)) return false;
+    const uint16_t revision =
+        static_cast<uint16_t>(combined_revision & 0xffffu);
+    std::string object_type;
+    if (!read_packed_string_cursor(body, size, cursor, object_type))
+        return false;
+    uint8_t has_tree = 0;
+    if (!read_u8_cursor(body, size, cursor, has_tree)) return false;
+    if (!has_tree) return true;
+    if (!read_milo_object_field_parent(body, size, cursor, root))
+        return false;
+    if (revision > 0) {
+        std::string note;
+        if (!read_packed_string_cursor(body, size, cursor, note))
+            return false;
+    }
+    return true;
+}
+
+bool milo_object_field_name_node(const MiloObjectFieldNode& node) {
+    return (node.type == 0x05 || node.type == 0x12) && !node.symbol.empty();
+}
+
+void collect_milo_object_field_refs(const MiloObjectFieldNode& node,
+                                    std::vector<std::string>& refs) {
+    if ((node.type == 0x04 || node.type == 0x05 || node.type == 0x12) &&
+        !node.symbol.empty()) {
+        push_unique_ref(refs, canonical_milo_ref(node.symbol));
+    }
+    for (const auto& child : node.children)
+        collect_milo_object_field_refs(child, refs);
+}
+
+std::map<std::string, std::vector<std::string>>
+load_rnddir_root_object_lists(const std::string& hdr_path,
+                              const std::string& ark_path,
+                              const std::string& milo_path) {
+    std::map<std::string, std::vector<std::string>> out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        if (dir.dir_entry_offset + dir.dir_entry_size > payload.size())
+            return out;
+        const uint8_t* body = payload.data() + dir.dir_entry_offset;
+        const size_t size = static_cast<size_t>(dir.dir_entry_size);
+        size_t cursor = 0;
+        uint32_t rnddir_revision = 0;
+        uint32_t objectdir_revision = 0;
+        if (!read_u32_cursor(body, size, cursor, rnddir_revision))
+            return out;
+        if (!read_u32_cursor(body, size, cursor, objectdir_revision))
+            return out;
+        const uint16_t objectdir_rev =
+            static_cast<uint16_t>(objectdir_revision & 0xffffu);
+        if (!(objectdir_rev >= 2 && objectdir_rev < 17)) return out;
+
+        std::vector<MiloObjectFieldNode> root;
+        if (!read_milo_object_fields_root(body, size, cursor, root))
+            return out;
+        for (size_t i = 0; i + 1 < root.size(); ++i) {
+            if (!milo_object_field_name_node(root[i])) continue;
+            std::vector<std::string> refs;
+            collect_milo_object_field_refs(root[i + 1], refs);
+            if (refs.empty()) continue;
+            out[canonical_milo_ref(root[i].symbol)] = std::move(refs);
+            ++i;
+        }
+        if (debug_venue_filters_enabled() && !out.empty()) {
+            std::fprintf(stderr,
+                         "[world] RndDir root object lists %s: %zu lists\n",
+                         milo_path.c_str(), out.size());
+            for (const auto& [name, refs] : out) {
+                std::fprintf(stderr, "[world]   object list %s refs=%zu",
+                             name.c_str(), refs.size());
+                for (const auto& ref : refs)
+                    std::fprintf(stderr, " %s", ref.c_str());
+                std::fprintf(stderr, "\n");
+            }
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] RndDir object lists load %s: %s\n",
+                     milo_path.c_str(), ex.what());
+    }
+    return out;
+}
+
+std::unordered_set<std::string> mesh_names_for_object_refs(
+    const ghogx::milo_scene::Scene& scene,
+    const std::vector<std::string>& refs) {
+    std::unordered_set<std::string> out;
+    const auto group_meshes = mesh_names_by_group(scene);
+    for (const auto& raw_ref : refs) {
+        const std::string ref = canonical_milo_ref(raw_ref);
+        if (ref.rfind(".mesh") != std::string::npos) {
+            out.insert(ref);
+            continue;
+        }
+        const auto group_it = group_meshes.find(ref);
+        if (group_it == group_meshes.end()) continue;
+        out.insert(group_it->second.begin(), group_it->second.end());
+    }
+    return out;
+}
+
 std::array<float, 3> sample_translation_offset(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
     float frame) {
@@ -20187,6 +20378,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                            source_hidden_venue_meshes.end());
                 for (const auto& mesh : venue_scene.meshes) {
                     if (!mesh.showing) hidden_venue_meshes.insert(mesh.name);
+                }
+                const auto root_object_lists = load_rnddir_root_object_lists(
+                    hdr_path_, ark_path_, venue_geom);
+                if (const auto show_it =
+                        root_object_lists.find("player1_guitaramp_objects");
+                    show_it != root_object_lists.end()) {
+                    const auto source_shown_meshes =
+                        mesh_names_for_object_refs(venue_scene,
+                                                   show_it->second);
+                    for (const auto& mesh : source_shown_meshes)
+                        hidden_venue_meshes.erase(mesh);
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] venue source object list show %s: refs=%zu meshes=%zu\n",
+                            show_it->first.c_str(), show_it->second.size(),
+                            source_shown_meshes.size());
+                    }
                 }
                 if (debug_venue_filters_enabled() &&
                     !source_hidden_venue_meshes.empty()) {
