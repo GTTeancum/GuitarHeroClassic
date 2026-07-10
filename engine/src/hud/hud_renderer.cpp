@@ -2574,16 +2574,19 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
   }
   if (star_bounds.ok) {
     auto star_meter_source_sort_bias = [](const char* name) {
-      if (std::strcmp(name, "amp_inside_disk.mesh") == 0) return -8;
-      if (std::strcmp(name, "amp_glass_black.mesh") == 0) return -7;
-      if (std::strcmp(name, "amp_chrome_base.mesh") == 0) return -6;
-      if (std::strcmp(name, "amp_glass.mesh") == 0) return -5;
+      // Source review order is closest-to-furthest:
+      // chrome_top, inside_disk, glass, tube_meter, core, path, ready,
+      // base_bar, chrome_base, glass_back. The HUD sorter draws low bias first.
+      if (std::strcmp(name, "amp_glass_black.mesh") == 0) return -9;
+      if (std::strcmp(name, "amp_chrome_base.mesh") == 0) return -8;
+      if (std::strcmp(name, "amp_base_bar.mesh") == 0) return -7;
+      if (std::strcmp(name, "amp_tube_glow.mesh") == 0) return -6;
+      if (std::strcmp(name, "amp_inside_bar_path.mesh") == 0) return -5;
       if (std::strcmp(name, "amp_inside_bar.mesh") == 0) return -4;
-      if (std::strcmp(name, "amp_inside_bar_path.mesh") == 0) return -3;
-      if (std::strcmp(name, "amp_chrome_top.mesh") == 0) return -2;
-      if (std::strcmp(name, "amp_base_bar.mesh") == 0) return -1;
-      if (std::strcmp(name, "amp_tube_glow.mesh") == 0) return 0;
-      if (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0) return -2;
+      if (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0) return -3;
+      if (std::strcmp(name, "amp_glass.mesh") == 0) return -2;
+      if (std::strcmp(name, "amp_inside_disk.mesh") == 0) return -1;
+      if (std::strcmp(name, "amp_chrome_top.mesh") == 0) return 0;
       return 0;
     };
     auto append_star_mesh = [&](const char* name, std::vector<Quad>& target,
@@ -3853,7 +3856,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       debug_star_layer_matches("inside_disk", "front"))
     out.insert(out.end(), native_star_front_.begin(), native_star_front_.end());
   if (!native_star_back_.empty() &&
-      debug_star_layer_matches("glass_black", "backing"))
+      debug_star_layer_matches("glass_black", "glass_back", "backing"))
     out.insert(out.end(), native_star_back_.begin(), native_star_back_.end());
   if (!native_star_base_.empty() &&
       debug_star_layer_matches("chrome_base", "base"))
@@ -3900,13 +3903,16 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     if (!range.ok) return 0.0f;
     return range.max_x - (range.max_x - range.min_x) * fill;
   };
-  const float core_total_width = range_width(stored_fill_range);
+  const float core_total_width = range_width(core_fill_range);
+  const float stored_total_width = range_width(stored_fill_range);
   const float path_total_width = range_width(path_glow_range);
   const float tube_meter_total_width = range_width(tube_meter_range);
-  const float core_clip_x = clip_x_for_range(stored_fill_range);
-  const float core_visible_width =
-      stored_fill_range.ok ? std::max(0.0f, stored_fill_range.max_x - core_clip_x)
-                          : 0.0f;
+  const float stored_clip_x = clip_x_for_range(stored_fill_range);
+  const float core_visible_width = core_total_width;
+  const float stored_visible_width =
+      stored_fill_range.ok
+          ? std::max(0.0f, stored_fill_range.max_x - stored_clip_x)
+          : 0.0f;
   const float tube_meter_clip_x = clip_x_for_range(tube_meter_range);
   const float tube_meter_visible_width =
       tube_meter_range.ok
@@ -4219,11 +4225,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   bool drew_native_path_line = false;
   bool drew_native_ready_mesh = false;
   bool drew_native_ready_glow = false;
-  if (fill > 0.005f &&
-      debug_star_layer_matches("core", "inside_bar", "stored")) {
-    drew_native_core |= append_clipped_fill(native_star_fill_, fill_core_color,
-                                            1.0f, stored_fill_range,
-                                            &core_fill_range);
+  if (debug_star_layer_matches("core", "inside_bar", "stored")) {
+    drew_native_core |= append_full_fill_uv(native_star_fill_, fill_core_color,
+                                            1.0f, 0.0f, 0.0f);
     drew_native_fill |= drew_native_core;
   }
   if (fill > 0.005f &&
@@ -4410,8 +4414,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "path_line_layer=amp_inside_bar_path.mesh "
         "backing_layer=amp_glass_black.mesh "
         "path_line_mode=persistent_full_width "
-        "body_fill_mode=inside_bar_core_plus_tube_meter_glow "
-        "core_fill_mode=clipped_left_to_right "
+        "body_fill_mode=inside_bar_core_full_plus_tube_meter_glow_fill "
+        "core_fill_mode=full_inside_glass_length "
         "stored_fill_range=amp_tube_glow_meter_interior_x "
         "lightning_mode=active_full_source_mesh "
         "active_fill_order=particle_before_lightning "
@@ -4426,6 +4430,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core_before_chrome_mask "
         "sort_order=star_meter_view_child_order_with_chrome_containment "
+        "draw_order_closest_to_furthest=chrome_top,inside_disk,glass,"
+        "tube_meter,core,path,ready,base_bar,chrome_base,glass_back "
         "source_layers=amp_inside_bar.mesh,amp_inside_bar_path.mesh,"
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
@@ -4438,10 +4444,11 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=source_mesh_ranges screen=left_to_right "
         "range_ok=%d,%d,%d "
-        "core_clip_world_x=%.3f core_width=%.3f/%.3f "
+        "stored_clip_world_x=%.3f core_width=%.3f/%.3f "
+        "stored_width=%.3f/%.3f "
         "tube_meter_width=%.3f/%.3f path_width=%.3f "
         "core_z_range=%.3f..%.3f tube_meter_z_range=%.3f..%.3f "
-        "core_fill_layer=amp_inside_bar.mesh clipped "
+        "core_fill_layer=amp_inside_bar.mesh full_inside_glass_length "
         "wide_fill_layer=amp_tube_glow_meter.mesh clipped "
         "thin_path_layer=amp_inside_bar_path.mesh full_width "
         "core_color_frame=%.2f "
@@ -4494,7 +4501,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         first_mesh_anim_blend(native_star_ready_mesh_glow_),
         core_fill_range.ok ? 1 : 0, path_glow_range.ok ? 1 : 0,
         tube_meter_range.ok ? 1 : 0,
-        core_clip_x, core_visible_width, core_total_width,
+        stored_clip_x, core_visible_width, core_total_width,
+        stored_visible_width, stored_total_width,
         tube_meter_visible_width, tube_meter_total_width, path_total_width,
         core_fill_range.min_z, core_fill_range.max_z,
         tube_meter_range.min_z, tube_meter_range.max_z,
@@ -4527,8 +4535,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "[hud-star-layer] layer=%s fill=%.3f active=%d "
         "drawn core=%d path=%d tube_meter=%d ready_mesh=%d ready_glow=%d "
         "particles=%d source_only=1 normal_hud_hidden=1 "
-        "source_layers=inside_disk,glass_black,chrome_base,glass,core,path,"
-        "tube_meter,ready,chrome_top,base_bar\n",
+        "source_layers_closest_to_furthest=chrome_top,inside_disk,glass,"
+        "tube_meter,core,path,ready,base_bar,chrome_base,glass_back\n",
         debug_star_layer.c_str(), fill, star_power_active ? 1 : 0,
         drew_native_core ? 1 : 0, drew_native_path_line ? 1 : 0,
         drew_native_fill_glow ? 1 : 0, drew_native_ready_mesh ? 1 : 0,

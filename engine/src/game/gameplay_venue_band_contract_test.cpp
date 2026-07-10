@@ -1041,8 +1041,16 @@ int main() {
                  "\"stored\")",
                  "star-power layer isolation can show the clipped source tube-meter glow by itself");
   ok &= contains(hud_renderer_c,
+                 "debug_star_layer_matches(\"glass_black\",\"glass_back\","
+                 "\"backing\")",
+                 "star-power layer isolation accepts the reviewed glass_back name for the source backing mesh");
+  ok &= contains(hud_renderer_c,
                  "\"[hud-star-layer]layer=%sfill=%.3factive=%d\"",
                  "star-power source-layer captures log the selected original MILO layer");
+  ok &= contains(hud_renderer_c,
+                 "\"source_layers_closest_to_furthest=chrome_top,"
+                 "inside_disk,glass,\"",
+                 "star-power source-layer diagnostics publish the reviewed closest-to-furthest order");
   ok &= contains(hud_renderer_c,
                  "constchar*mult_digit_meshes[2]={\"score_mult_3.mesh\","
                  "\"score_mult_2.mesh\",};",
@@ -1233,21 +1241,57 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "autostar_meter_source_sort_bias=[](constchar*name){",
                  "star-power HUD has an explicit source child-order sort for the native meter stack");
+  ok &= contains(hud_renderer_c,
+                 "chrome_top,inside_disk,glass,tube_meter,core,path,ready,",
+                 "star-power source-order comment preserves the user-reviewed closest-to-furthest stack");
   ok &= appears_before(
       hud_renderer_c,
-      "std::strcmp(name,\"amp_glass_black.mesh\")==0)return-7;",
+      "std::strcmp(name,\"amp_glass_black.mesh\")==0)return-9;",
+      "std::strcmp(name,\"amp_chrome_base.mesh\")==0)return-8;",
+      "star-power furthest glass_back sorts behind chrome_base");
+  ok &= appears_before(
+      hud_renderer_c,
+      "std::strcmp(name,\"amp_chrome_base.mesh\")==0)return-8;",
+      "std::strcmp(name,\"amp_base_bar.mesh\")==0)return-7;",
+      "star-power chrome_base sorts behind base_bar");
+  ok &= appears_before(
+      hud_renderer_c,
+      "std::strcmp(name,\"amp_base_bar.mesh\")==0)return-7;",
+      "std::strcmp(name,\"amp_tube_glow.mesh\")==0)return-6;",
+      "star-power base_bar sorts behind ready tube glow");
+  ok &= appears_before(
+      hud_renderer_c,
+      "std::strcmp(name,\"amp_tube_glow.mesh\")==0)return-6;",
+      "std::strcmp(name,\"amp_inside_bar_path.mesh\")==0)return-5;",
+      "star-power ready tube glow sorts behind path");
+  ok &= appears_before(
+      hud_renderer_c,
+      "std::strcmp(name,\"amp_inside_bar_path.mesh\")==0)return-5;",
       "std::strcmp(name,\"amp_inside_bar.mesh\")==0)return-4;",
-      "star-power black glass sorts before the broad inside-bar fill like star_meter.view");
+      "star-power path sorts behind core");
   ok &= appears_before(
       hud_renderer_c,
       "std::strcmp(name,\"amp_inside_bar.mesh\")==0)return-4;",
-      "std::strcmp(name,\"amp_inside_bar_path.mesh\")==0)return-3;",
-      "star-power broad fill sorts before the persistent path line like star_meter.view");
+      "std::strcmp(name,\"amp_tube_glow_meter.mesh\")==0)return-3;",
+      "star-power core sorts behind tube_meter");
   ok &= appears_before(
       hud_renderer_c,
-      "std::strcmp(name,\"amp_base_bar.mesh\")==0)return-1;",
-      "std::strcmp(name,\"amp_tube_glow.mesh\")==0)return0;",
-      "star-power ready view sorts after the base star_meter.view children");
+      "std::strcmp(name,\"amp_tube_glow_meter.mesh\")==0)return-3;",
+      "std::strcmp(name,\"amp_glass.mesh\")==0)return-2;",
+      "star-power tube_meter sorts behind glass");
+  ok &= appears_before(
+      hud_renderer_c,
+      "std::strcmp(name,\"amp_glass.mesh\")==0)return-2;",
+      "std::strcmp(name,\"amp_inside_disk.mesh\")==0)return-1;",
+      "star-power glass sorts behind inside_disk");
+  ok &= appears_before(
+      hud_renderer_c,
+      "std::strcmp(name,\"amp_inside_disk.mesh\")==0)return-1;",
+      "std::strcmp(name,\"amp_chrome_top.mesh\")==0)return0;",
+      "star-power inside_disk sorts before the closest chrome_top entry");
+  ok &= contains(hud_renderer_c,
+                 "std::strcmp(name,\"amp_chrome_top.mesh\")==0)return0;",
+                 "star-power chrome_top remains closest in the reviewed order");
   ok &= contains(hud_renderer_c,
                  "q.sort_bias=star_meter_source_sort_bias(name);",
                  "star-power decoded star meshes use source-order sort bias");
@@ -1293,13 +1337,13 @@ int main() {
       "debug_star_layer_matches(\"inside_disk\",\"front\"))"
       "out.insert(out.end(),native_star_front_.begin(),native_star_front_.end());",
       "if(!native_star_back_.empty()&&"
-      "debug_star_layer_matches(\"glass_black\",\"backing\"))"
+      "debug_star_layer_matches(\"glass_black\",\"glass_back\",\"backing\"))"
       "out.insert(out.end(),native_star_back_.begin(),native_star_back_.end());",
       "star-power emits amp_inside_disk before amp_glass_black like star_meter.view");
   ok &= appears_before(
       hud_renderer_c,
       "if(!native_star_back_.empty()&&"
-      "debug_star_layer_matches(\"glass_black\",\"backing\"))"
+      "debug_star_layer_matches(\"glass_black\",\"glass_back\",\"backing\"))"
       "out.insert(out.end(),native_star_back_.begin(),native_star_back_.end());",
       "if(!native_star_base_.empty()&&"
       "debug_star_layer_matches(\"chrome_base\",\"base\"))"
@@ -1319,14 +1363,20 @@ int main() {
       "if(!native_star_glass_.empty()&&"
       "debug_star_layer_matches(\"glass\",\"tube_glass\"))"
       "out.insert(out.end(),native_star_glass_.begin(),native_star_glass_.end());",
-      "drew_native_core|=append_clipped_fill(native_star_fill_,"
-      "fill_core_color,1.0f,stored_fill_range,&core_fill_range);",
-      "star-power emits amp_glass before the clipped amp_inside_bar fill");
+      "drew_native_core|=append_full_fill_uv(native_star_fill_,"
+      "fill_core_color,1.0f,0.0f,0.0f);",
+      "star-power emits amp_glass before the full-length amp_inside_bar core");
   ok &= contains(hud_renderer_c,
-                 "append_clipped_fill(native_star_fill_,"
-                 "fill_core_color,1.0f,stored_fill_range,"
-                 "&core_fill_range);",
-                 "star-power steady core uses the source amp_inside_bar_glow material color");
+                 "append_full_fill_uv(native_star_fill_,"
+                 "fill_core_color,1.0f,0.0f,0.0f);",
+                 "star-power steady core spans the glass interior with the source amp_inside_bar material color");
+  ok &= contains(hud_renderer_c,
+                 "if(debug_star_layer_matches(\"core\",\"inside_bar\","
+                 "\"stored\")){drew_native_core|=append_full_fill_uv(",
+                 "star-power core is not gated by stored fill amount");
+  ok &= absent(hud_renderer_c,
+               "if(fill>0.005f&&debug_star_layer_matches(\"core\",",
+               "star-power core must not be clipped or hidden at low fill");
   ok &= contains(hud_renderer_c,
                  "sample_hud_mat_anim_color_frame("
                  "star_fill_color_keys_,fill_core_color_frame)",
@@ -1360,17 +1410,17 @@ int main() {
       "star-power emits amp_base_bar after chrome top like star_meter.view");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_core|=append_clipped_fill(native_star_fill_,"
-      "fill_core_color,1.0f,stored_fill_range,&core_fill_range);",
+      "drew_native_core|=append_full_fill_uv(native_star_fill_,"
+      "fill_core_color,1.0f,0.0f,0.0f);",
       "if(tube_glow&&debug_star_layer_matches(\"ready\",\"tube_glow\")){",
       "star-power emits star_meter.view core before the later star_meter_ready.view glow");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_core|=append_clipped_fill(native_star_fill_,"
-      "fill_core_color,1.0f,stored_fill_range,&core_fill_range);",
+      "drew_native_core|=append_full_fill_uv(native_star_fill_,"
+      "fill_core_color,1.0f,0.0f,0.0f);",
       "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
       "std::nullopt,tube_meter_alpha,tube_meter_range,&tube_meter_range);",
-      "star-power tube-meter ready-view glow overlays the broad source core inside the source tube body");
+      "star-power tube-meter ready-view glow overlays the full-length source core inside the source tube body");
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_path_line=append_full_fill_uv(native_star_path_glow_,"
@@ -1501,11 +1551,11 @@ int main() {
                  "\"path_line_mode=persistent_full_width\"",
                  "star-power path line remains full-width instead of fill-clipped");
   ok &= contains(hud_renderer_c,
-                 "\"body_fill_mode=inside_bar_core_plus_tube_meter_glow\"",
-                 "star-power diagnostics keep the stored body tied to the source core plus tube-meter glow");
+                 "\"body_fill_mode=inside_bar_core_full_plus_tube_meter_glow_fill\"",
+                 "star-power diagnostics keep the full source core separate from the tube-meter stored fill");
   ok &= contains(hud_renderer_c,
-                 "\"core_fill_mode=clipped_left_to_right\"",
-                 "star-power source core remains the left-to-right clipped fill");
+                 "\"core_fill_mode=full_inside_glass_length\"",
+                 "star-power source core spans the inside length of the glass");
   ok &= contains(hud_renderer_c,
                  "\"stored_fill_range=amp_tube_glow_meter_interior_x\"",
                  "star-power stored fill uses the decoded tube interior X range");
@@ -1556,8 +1606,11 @@ int main() {
                  "\"fill_color_keys=%zufirst=(%.3f,%.3f,%.3f,%.3f@%.2f)\"",
                  "star-power diagnostics expose the decoded source broad-fill color keys");
   ok &= contains(hud_renderer_c,
-                 "\"core_clip_world_x=%.3fcore_width=%.3f/%.3f\"",
-                 "star-power diagnostics expose the clipped broad-core width");
+                 "\"stored_clip_world_x=%.3fcore_width=%.3f/%.3f\"",
+                 "star-power diagnostics expose stored fill clipping separately from full core width");
+  ok &= contains(hud_renderer_c,
+                 "\"stored_width=%.3f/%.3f\"",
+                 "star-power diagnostics expose stored fill width separately from the full core");
   ok &= contains(hud_renderer_c,
                  "\"tube_meter_width=%.3f/%.3fpath_width=%.3f\"",
                  "star-power diagnostics expose tube-meter and persistent path widths separately");
@@ -1565,8 +1618,8 @@ int main() {
                  "\"core_z_range=%.3f..%.3ftube_meter_z_range=%.3f..%.3f\"",
                  "star-power diagnostics expose the inside-bar and tube-meter source ranges");
   ok &= contains(hud_renderer_c,
-                 "\"core_fill_layer=amp_inside_bar.meshclipped\"",
-                 "star-power diagnostics keep the source core bound to amp_inside_bar clipping");
+                 "\"core_fill_layer=amp_inside_bar.meshfull_inside_glass_length\"",
+                 "star-power diagnostics keep the source core full-length inside the glass");
   ok &= contains(hud_renderer_c,
                  "\"wide_fill_layer=amp_tube_glow_meter.meshclipped\"",
                  "star-power diagnostics keep the wide fill bound to amp_tube_glow_meter clipping");
@@ -1582,6 +1635,10 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"sort_order=star_meter_view_child_order_with_chrome_containment\"",
                  "star-power diagnostics report the source-order path with meter containment");
+  ok &= contains(hud_renderer_c,
+                 "\"draw_order_closest_to_furthest=chrome_top,inside_disk,"
+                 "glass,\"",
+                 "star-power diagnostics report the reviewed closest-to-furthest source draw order");
   ok &= contains(hud_renderer_c,
                  "constfloattube_meter_alpha_frame=source_peak_alpha_key_frame("
                  "star_tube_meter_alpha_keys_,tube_meter_anim_frame);",

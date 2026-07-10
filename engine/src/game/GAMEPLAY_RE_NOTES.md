@@ -10607,3 +10607,18 @@ Rejected native probe:
   log row is
   `[hud-star-layer]` and reports the selected source layer plus which decoded
   draw buckets actually emitted.
+
+2026-07-10 star-meter reviewed source order:
+- User review locked the source stack order, closest to furthest, as:
+  `chrome_top`, `inside_disk`, `glass`, `tube_meter`, `core`, `path`, `ready`,
+  `base_bar`, `chrome_base`, `glass_back`.
+- The native renderer encodes the inverse as the back-to-front sort bias:
+  `glass_back` = `amp_glass_black.mesh`, `chrome_base` =
+  `amp_chrome_base.mesh`, `base_bar` = `amp_base_bar.mesh`, `ready` =
+  `amp_tube_glow.mesh`, `path` = `amp_inside_bar_path.mesh`, `core` =
+  `amp_inside_bar.mesh`, `tube_meter` = `amp_tube_glow_meter.mesh`, `glass` =
+  `amp_glass.mesh`, `inside_disk` = `amp_inside_disk.mesh`, and
+  `chrome_top` = `amp_chrome_top.mesh`.
+- Same review locked `core` as a full inside-glass layer: `amp_inside_bar.mesh`
+  is emitted at full source width at all stored-fill amounts. Stored fill
+  growth remains on the clipped `amp_tube_glow_meter.mesh` tube-meter layer.
