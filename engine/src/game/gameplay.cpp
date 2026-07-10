@@ -21526,7 +21526,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             add_performer("guitarist0", quickplay_rig_->character_outfit,
                           quickplay_rig_->character_outfit,
                           quickplay_rig_->character_outfit,
-                          "start_guitarist0.way", 1u,
+                          "start_guitarist0mp.way", 512u,
                           {"idle_medium_01", "stand_medium_01"},
                           {"intro_01", "intro_03", "intro_04"},
                           {"stand_medium_01", "stand_medium_02",
