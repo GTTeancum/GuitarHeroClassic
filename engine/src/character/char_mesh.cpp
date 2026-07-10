@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -1520,6 +1521,17 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
     auto dir = gh::milo::parse_directory(payload);
     out.dir_name = dir.dir_name;
     out.dir_type = dir.dir_type;
+    out.dir_version = dir.dir_version;
+    out.dir_entry_offset = dir.dir_entry_offset;
+    out.dir_entry_size = dir.dir_entry_size;
+    out.dir_entry_bytes.clear();
+    if (dir.dir_entry_offset <= payload.size() &&
+        dir.dir_entry_size <= payload.size() - dir.dir_entry_offset) {
+      const auto begin =
+          payload.begin() + static_cast<std::ptrdiff_t>(dir.dir_entry_offset);
+      out.dir_entry_bytes.assign(
+          begin, begin + static_cast<std::ptrdiff_t>(dir.dir_entry_size));
+    }
 
     int mesh_ok = 0, mesh_fail = 0;
     for (const auto& de : dir.entries) {

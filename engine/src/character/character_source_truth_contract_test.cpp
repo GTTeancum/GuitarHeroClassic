@@ -152,6 +152,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharDriverMidi.cpp"));
   const std::string rb3_latest_char_driver_midi_h = compact(read_file(
       rb3_latest_char_dir / "CharDriverMidi.h"));
+  const std::string rb3_latest_character_cpp = compact(read_file(
+      rb3_latest_char_dir / "Character.cpp"));
   const std::string rb3_latest_anim_filter_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "AnimFilter.cpp"));
   const std::string rb3_latest_anim_filter_h = compact(read_file(
@@ -168,6 +170,8 @@ int run_contract() {
       rb3_latest_obj_dir / "ObjPtr_p.h"));
   const std::string rb3_latest_object_h = compact(read_file(
       rb3_latest_obj_dir / "Object.h"));
+  const std::string rb3_latest_obj_dir_cpp = compact(read_file(
+      rb3_latest_obj_dir / "Dir.cpp"));
   const std::string rb3_latest_bin_stream_h = compact(read_file(
       rb3_latest_utl_dir / "BinStream.h"));
   const std::string rb3_latest_bin_stream_cpp = compact(read_file(
@@ -178,6 +182,8 @@ int run_contract() {
       rb3_latest_rndobj_dir / "Tex.h"));
   const std::string rb3_latest_bitmap_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "Bitmap.cpp"));
+  const std::string rb3_latest_rnd_dir_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Dir.cpp"));
   const std::string rb3_latest_chunk_stream_cpp = compact(read_file(
       rb3_latest_utl_dir / "ChunkStream.cpp"));
   const std::string rb3_latest_chunk_stream_h = compact(read_file(
@@ -267,6 +273,12 @@ int run_contract() {
                  "document cites latest CharServoBone runtime source");
   ok &= contains(doc, "rb3-latest/src/system/char/CharWeightSetter.cpp",
                  "document cites latest CharWeightSetter runtime source");
+  ok &= contains(doc, "rb3-latest/src/system/char/Character.cpp",
+                 "document cites latest Character root loader source");
+  ok &= contains(doc, "rb3-latest/src/system/rndobj/Dir.cpp",
+                 "document cites latest RndDir root loader source");
+  ok &= contains(doc, "rb3-latest/src/system/obj/Dir.cpp",
+                 "document cites latest ObjectDir root loader source");
   ok &= contains(doc, "rb3/src/system/char/CharLookAt.cpp",
                  "document cites CharLookAt runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharEyes.cpp",
@@ -281,6 +293,79 @@ int run_contract() {
                  "document cites extra band3_recomp source");
   ok &= contains(band3_readme, "Early recompilation of Rock Band 3",
                  "band3_recomp README is available to source-truth contract");
+
+  ok &= contains(doc,
+                 "| Character/BandCharacter/RndDir/ObjectDir root body | "
+                 "`rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp` |",
+                 "coverage matrix records root dir body source evidence");
+  ok &= contains(doc, "## Character Root Body Boundary",
+                 "document records root body boundary section");
+  ok &= contains(doc,
+                 "Do not decode or apply root `Character`, `RndDir`, or "
+                 "`ObjectDir` runtime fields",
+                 "document fences root dir body from guessed runtime decode");
+  ok &= contains(doc,
+                 "stock_character_dir_entry_inventory.log",
+                 "document cites root dir entry inventory proof");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::PreLoad(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(0x11,0);if(gRev>1){RndDir::PreLoad(bs);",
+                 "latest Character PreLoad delegates through RndDir");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::PostLoad(BinStream&bs){intrevs=PopRev(this);",
+                 "latest Character PostLoad starts from pushed revision");
+  ok &= contains(rb3_latest_character_cpp,
+                 "RndDir::PostLoad(bs);",
+                 "latest Character PostLoad delegates through RndDir");
+  ok &= contains(rb3_latest_character_cpp,
+                 "bs>>mLods;bs>>mShadow;",
+                 "latest Character PostLoad reads lod/shadow rows");
+  ok &= contains(rb3_latest_rnd_dir_cpp,
+                 "voidRndDir::PreLoad(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(0xA,0);PushRev(packRevs(gAltRev,gRev),this);"
+                 "ObjectDir::PreLoad(bs);}",
+                 "latest RndDir PreLoad delegates through ObjectDir");
+  ok &= contains(rb3_latest_rnd_dir_cpp,
+                 "voidRndDir::PostLoad(BinStream&bs){ObjectDir::PostLoad(bs);",
+                 "latest RndDir PostLoad starts with ObjectDir");
+  ok &= contains(rb3_latest_rnd_dir_cpp,
+                 "LOAD_SUPERCLASS(RndAnimatable)LOAD_SUPERCLASS(RndDrawable)",
+                 "latest RndDir PostLoad reads animatable/drawable superclasses");
+  ok &= contains(rb3_latest_obj_dir_cpp,
+                 "voidObjectDir::PreLoad(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(0x1B,0);",
+                 "latest ObjectDir PreLoad source revision gate");
+  ok &= contains(rb3_latest_obj_dir_cpp,
+                 "if(gRev>0x15)Hmx::Object::LoadType(bs);",
+                 "latest ObjectDir PreLoad reads revision-gated object type");
+  ok &= contains(rb3_latest_obj_dir_cpp,
+                 "PushRev(packRevs(gAltRev,gRev),this);",
+                 "latest ObjectDir PreLoad pushes packed revision");
+  ok &= contains(rb3_latest_obj_dir_cpp,
+                 "voidObjectDir::PostLoad(BinStream&bs){intrevs=PopRev(this);",
+                 "latest ObjectDir PostLoad pops packed revision");
+  ok &= contains(char_mesh_h, "int32_tdir_version=0;",
+                 "native Character stores root directory version");
+  ok &= contains(char_mesh_h, "uint64_tdir_entry_offset=0;",
+                 "native Character stores root body offset");
+  ok &= contains(char_mesh_h, "uint64_tdir_entry_size=0;",
+                 "native Character stores root body size");
+  ok &= contains(char_mesh_h, "std::vector<uint8_t>dir_entry_bytes;",
+                 "native Character stores bounded root body bytes");
+  ok &= contains(char_mesh,
+                 "out.dir_version=dir.dir_version;",
+                 "native load_character copies root directory version");
+  ok &= contains(char_mesh,
+                 "out.dir_entry_offset=dir.dir_entry_offset;",
+                 "native load_character copies root body offset");
+  ok &= contains(char_mesh,
+                 "out.dir_entry_bytes.assign(",
+                 "native load_character copies bounded root body bytes");
+  ok &= contains(bind_audit,
+                 "\"[dir-entry]path=%schar=%sdirType=%sdirVersion=%d",
+                 "bind audit logs root dir entry inventory");
+  ok &= contains(bind_audit, "source-prepost-body-fenced",
+                 "bind audit marks root body as fenced source inventory");
 
   ok &= contains(object_cs, "publicenumNodeType:int{Int=0x00,Float=0x01",
                  "ObjectFields exposes DTB node enum");

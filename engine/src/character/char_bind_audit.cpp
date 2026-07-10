@@ -527,6 +527,16 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
 void audit_types(const Character& c, const std::string& milo_path) {
   int total = 0;
   for (const auto& [type, count] : c.object_type_counts) total += count;
+  std::printf(
+      "[dir-entry] path=%s char=%s dirType=%s dirVersion=%d bodyOffset=%llu "
+      "bodyBytes=%llu copiedBytes=%zu headHex=%s tailHex=%s "
+      "note=source-prepost-body-fenced\n",
+      milo_path.c_str(), c.dir_name.c_str(), none_if_empty(c.dir_type),
+      c.dir_version, static_cast<unsigned long long>(c.dir_entry_offset),
+      static_cast<unsigned long long>(c.dir_entry_size),
+      c.dir_entry_bytes.size(),
+      hex_bytes_range(c.dir_entry_bytes, 0, 32).c_str(),
+      hex_bytes_tail(c.dir_entry_bytes, 32).c_str());
   std::printf("[type-summary] path=%s char=%s total=%d classes=%zu\n",
               milo_path.c_str(), c.dir_name.c_str(), total,
               c.object_type_counts.size());

@@ -455,6 +455,13 @@ struct CharWeightSetter {
 struct Character {
   std::string dir_name;
   std::string dir_type;   // "BandCharacter"
+  int32_t dir_version = 0;
+  uint64_t dir_entry_offset = 0;
+  uint64_t dir_entry_size = 0;
+  // Root Character/BandCharacter/RndDir/ObjectDir object body bytes. Keep this
+  // as a bounded inventory until the exact GH2 Character/RndDir/ObjectDir body
+  // revision relation is source-backed.
+  std::vector<uint8_t> dir_entry_bytes;
 
   std::vector<SkinnedMesh> meshes;
   std::vector<milo_scene::TransObj> bones;  // skeleton (Trans "bone_*"/"spot_*")

@@ -26,6 +26,7 @@ records the upstream commits for the copied files:
 | Area | ihatecompvir evidence | Native status |
 | --- | --- | --- |
 | Object and property-tree skip/read shape | `Object.cs`, `DTBNode.Read` | Parser authority; native skips must mirror source enum and logs standalone generic `Object` rows. |
+| Character/BandCharacter/RndDir/ObjectDir root body | `rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp` | Native records the root directory revision/name/type and opaque root object body boundary; no root runtime fields are decoded until the exact GH2 revision/body relation is pinned. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
 | Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
@@ -56,6 +57,43 @@ records the upstream commits for the copied files:
     only skip these trees, but the skip table must mirror this enum exactly.
   - Native generic `Object` rows decode the same `ObjectFields` prefix and log
     unread tails instead of promoting any runtime behavior.
+- `rb3-latest/src/system/char/Character.cpp`
+  - `Character::PreLoad` reads packed revisions, asserts source revision
+    `0x11`, and for revisions greater than 1 delegates to `RndDir::PreLoad`.
+  - `Character::PostLoad` delegates to `RndDir::PostLoad`, then reads
+    character-owned LOD, shadow, self-shadow, sphere base, bounding, frozen,
+    min LOD, trans group, and test rows behind source revision gates.
+- `rb3-latest/src/system/rndobj/Dir.cpp`
+  - `RndDir::PreLoad` reads packed revisions, asserts source revision `0xA`,
+    pushes that revision, and delegates to `ObjectDir::PreLoad`.
+  - `RndDir::PostLoad` delegates to `ObjectDir::PostLoad`, then loads the
+    source superclasses `RndAnimatable`, `RndDrawable`, and revision-gated
+    `RndTransformable` before environment/test/postproc rows.
+- `rb3-latest/src/system/obj/Dir.cpp`
+  - `ObjectDir::PreLoad` reads packed revisions, asserts source revision
+    `0x1B`, then consumes revision-gated object/type prefix, reserve/hash,
+    inline/proxy, viewport, and subdir state before pushing the revision.
+  - `ObjectDir::PostLoad` pops the revision and resolves inlined dirs,
+    subdirs, and proxy state.
+
+## Character Root Body Boundary
+
+The native MILO parser already identifies the root directory's own object body:
+the bytes after the entry name list and before the first `0xADDEADDE`
+terminator. For `Character`/`BandCharacter` roots this body belongs to the
+source loader chain above (`Character::PreLoad` -> `RndDir::PreLoad` ->
+`ObjectDir::PreLoad`, and the matching `PostLoad` chain). Native now carries
+this bounded byte span on `Character` and logs it as `[dir-entry]` under
+`ghogx_character_bind_audit --types`.
+
+Do not decode or apply root `Character`, `RndDir`, or `ObjectDir` runtime fields
+from this byte span until the GH2-era root revision/body relationship is proven
+from ihatecompvir source or equivalent trace evidence. The current source-backed
+deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
+`bodyBytes`, copied byte count, and head/tail hex proof.
+
+2026-07-10 proof log:
+`engine/out/source_truth_dir_entry_20260710/stock_character_dir_entry_inventory.log`.
 - `MiloEditor/MiloLib/Assets/Rnd/RndTrans.cs`
   - `RndTrans.Read` reads combined revision, optional object fields for
     standalone objects, local matrix, world matrix, old child references for
