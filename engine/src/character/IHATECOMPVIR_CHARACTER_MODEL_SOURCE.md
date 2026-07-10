@@ -63,6 +63,19 @@ Treat ihatecompvir's repos as the authority; do not use the older
     from mesh or material names such as `hair`.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
+- `rb3/src/system/rndobj/Trans.h`
+  - `RndTransformable::Constraint` is the runtime enum authority:
+    `kNone`, `kLocalRotate`, `kParentWorld`, `kLookAtTarget`,
+    `kShadowTarget`, billboard variants, and `kTargetWorld`.
+- `rb3/src/system/rndobj/Trans.cpp`
+  - `RndTransformable::WorldXfm_Force` is the runtime transform-composition
+    authority. With no parent, world equals local. `kParentWorld` copies the
+    parent world row. `kLocalRotate` transforms only the local translation by
+    parent world and keeps the local rotation rows. Otherwise local is
+    multiplied by parent world, then dynamic constraints are applied.
+  - `ApplyDynamicConstraint` replaces world with the target world for
+    `kTargetWorld`; billboard/look-at/shadow constraints require the source
+    camera/target path and must not be approximated from mesh names.
 
 ## Skinning Authority
 
@@ -153,6 +166,14 @@ The local stock mesh detail audit log at
 `analysis/ihatecompvir_source_truth_20260710/source_rndmesh_group_sections.log`
 confirms GH2 PS2 mesh group-section tails decode through the same
 `RndMesh.GroupSection` rows for inspected stock character meshes.
+
+The local stock transform constraint audit log at
+`analysis/ihatecompvir_source_truth_20260710/trans_constraint_audit/stock_character_constraints.log`
+records only source constraint ids `0` (`kNone`) and `2` (`kParentWorld`) for
+the sampled stock playable characters in that pass. Native transform
+composition is still contracted to the full `RndTransformable` source enum; any
+future stock row using dynamic constraints needs the matching source runtime
+path, not a visual approximation.
 
 ## Native Rules
 

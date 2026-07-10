@@ -90,6 +90,10 @@ int run_contract() {
       source_dir / "rb3/src/system/rndobj/Mat.cpp"));
   const std::string rb3_mat_h = compact(read_file(
       source_dir / "rb3/src/system/rndobj/Mat.h"));
+  const std::string rb3_trans_cpp = compact(read_file(
+      source_dir / "rb3/src/system/rndobj/Trans.cpp"));
+  const std::string rb3_trans_h = compact(read_file(
+      source_dir / "rb3/src/system/rndobj/Trans.h"));
   const std::string gltf_program_cs = compact(read_file(
       source_dir / "glTFMilo/Source/glTFMilo/Program.cs"));
   const std::string gltf_node_processor_cs = compact(read_file(
@@ -119,6 +123,10 @@ int run_contract() {
                  "document cites RB3 RndMat runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Mat.h",
                  "document cites RB3 RndMat runtime header source");
+  ok &= contains(doc, "rb3/src/system/rndobj/Trans.cpp",
+                 "document cites RB3 RndTransformable runtime source");
+  ok &= contains(doc, "rb3/src/system/rndobj/Trans.h",
+                 "document cites RB3 RndTransformable runtime header source");
   ok &= contains(doc, "rb3/src/system/char/CharHair.cpp",
                  "document cites CharHair runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharLookAt.cpp",
@@ -170,6 +178,43 @@ int run_contract() {
                  "scene RndTrans reads world matrix");
   ok &= contains(scene, "if(ver<9)",
                  "scene RndTrans reads legacy child refs after matrices");
+  ok &= contains(rb3_trans_h,
+                 "enumConstraint{kNone=0,kLocalRotate=1,kParentWorld=2,"
+                 "kLookAtTarget=3,kShadowTarget=4,kBillboardZ=5,"
+                 "kBillboardXZ=6,kBillboardXYZ=7,kFastBillboardXYZ=8,"
+                 "kTargetWorld=9};",
+                 "RB3 RndTransformable runtime constraint enum");
+  ok &= contains(rb3_trans_h,
+                 "boolHasDynamicConstraint(){boolret=true;if(mConstraint<"
+                 "kBillboardZ){boolret2=false;if(mConstraint>=kLookAtTarget&&"
+                 "mTarget)ret2=true;if(!ret2)ret=false;}returnret;}",
+                 "RB3 RndTransformable dynamic-constraint gate");
+  ok &= contains(rb3_trans_cpp,
+                 "if(!mParent){mWorldXfm=mLocalXfm;}elseif(mConstraint=="
+                 "kParentWorld){mWorldXfm=mParent->WorldXfm();}elseif("
+                 "mConstraint==kLocalRotate){Multiply(mLocalXfm.v,mParent->"
+                 "WorldXfm(),mWorldXfm.v);mWorldXfm.m=mLocalXfm.m;}else{"
+                 "Multiply(mLocalXfm,mParent->WorldXfm(),mWorldXfm);}if("
+                 "HasDynamicConstraint())ApplyDynamicConstraint();else"
+                 "UpdatedWorldXfm();",
+                 "RB3 RndTransformable WorldXfm_Force composition");
+  ok &= contains(rb3_trans_cpp,
+                 "if(mConstraint==kTargetWorld){mWorldXfm=mTarget->WorldXfm();}",
+                 "RB3 RndTransformable target-world dynamic constraint");
+  ok &= contains(char_mesh,
+                 "if(xfm.constraint==2){//kParentWorldreturnparent_world;}",
+                 "native transform evaluator mirrors kParentWorld");
+  ok &= contains(char_mesh,
+                 "if(xfm.constraint==1){//kLocalRotateautoworld=local_mat;"
+                 "constautopos="
+                 "transform_pos(local,parent_world);world[12]=pos[0];"
+                 "world[13]=pos[1];world[14]=pos[2];returnworld;}",
+                 "native transform evaluator mirrors kLocalRotate");
+  ok &= contains(char_mesh,
+                 "autoworld=mat4_mul(local_mat,parent_world);if(xfm.constraint"
+                 "==9&&!xfm.target.empty()){//kTargetWorldworld=source_world_for"
+                 "(c,xfm.target,",
+                 "native transform evaluator mirrors kTargetWorld replacement");
 
   ok &= contains(drawable_cs,
                  "showing=reader.ReadBoolean();if(revision<2)",
