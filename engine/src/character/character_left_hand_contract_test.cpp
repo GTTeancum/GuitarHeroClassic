@@ -45,6 +45,13 @@ bool contains(const std::string& haystack, const std::string& needle,
   return false;
 }
 
+bool lacks(const std::string& haystack, const std::string& needle,
+           const char* label) {
+  if (haystack.find(needle) == std::string::npos) return true;
+  std::cerr << "Forbidden left-hand contract: " << label << "\n";
+  return false;
+}
+
 bool nonempty(const std::string& value, const char* label) {
   if (!value.empty()) return true;
   std::cerr << "Missing left-hand contract scope: " << label << "\n";
@@ -175,16 +182,14 @@ int main() {
                  "ghogx::character::clear_runtime_ik_weights("
                  "renderer.character());if(viewer_hand_ik_weights_active)",
                  "character viewer clears stale IK weights every frame");
-  ok &= contains(app_main_c,
-                 "else{for(constauto&ik:renderer.character().ik_hands){"
-                 "ghogx::character::set_runtime_ik_weight("
-                 "renderer.character(),ik.weight_prop,0.0f);}}",
-                 "character viewer disables hand IK without active overlays");
+  ok &= lacks(app_main_c,
+              "set_runtime_ik_weight(renderer.character(),ik.weight_prop,0.0f)",
+              "character viewer must not force decoded hand IK rows to zero");
   ok &= appears_before(app_main_c,
                        "ghogx::character::clear_runtime_ik_weights("
                        "renderer.character());",
                        "apply_character_controllers(",
-                       "character viewer IK weights are explicit before controller solve");
+                       "character viewer stale live weights are cleared before controller solve");
   ok &= contains(gameplay_c,
                  "use_fret_hand_parser?current_fret_hand_cue(",
                  "player*_fret hand cues drive the fretting fingers");

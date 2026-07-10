@@ -1478,11 +1478,6 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                                                 "left.weight",
                                                 left_hand_weight);
       }
-    } else {
-      for (const auto& ik : renderer.character().ik_hands) {
-        ghogx::character::set_runtime_ik_weight(renderer.character(),
-                                                ik.weight_prop, 0.0f);
-      }
     }
     ghogx::character::FaceFxEyeProperties eye_props;
     ghogx::character::apply_character_controllers(
