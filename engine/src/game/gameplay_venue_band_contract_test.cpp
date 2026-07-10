@@ -1257,8 +1257,15 @@ int main() {
                  "star-power steady core uses the source amp_inside_bar_glow material color");
   ok &= contains(hud_renderer_c,
                  "sample_hud_mat_anim_color_frame("
-                 "star_fill_color_keys_,fill_anim_frame)",
-                 "star-power core color samples the source amp_inside_bar_glow MatAnim frame");
+                 "star_fill_color_keys_,fill_core_color_frame)",
+                 "star-power core color samples the settled source amp_inside_bar_glow MatAnim frame");
+  ok &= contains(hud_renderer_c,
+                 "constfloatfill_core_color_frame="
+                 "star_fill_filter_.ok?"
+                 "std::max(star_fill_filter_.end_frame,"
+                 "star_fill_filter_.start_frame):"
+                 "std::max(1.0f,star_fill_anim_duration_);",
+                 "star-power stored core brightness is settled-source-frame driven while width remains fill-driven");
   ok &= absent(hud_renderer_c,
                "native_star_core_emission_.push_back",
                "star-power must not add a duplicate amp_inside_bar additive core pass");
@@ -1411,6 +1418,9 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"core_fill_mode=clipped_left_to_right\"",
                  "star-power broad core remains the left-to-right clipped fill");
+  ok &= contains(hud_renderer_c,
+                 "\"core_color_mode=settled_lit_key_width_driven\"",
+                 "star-power diagnostics distinguish settled core color from fill-driven width");
   ok &= contains(hud_renderer_c,
                  "\"tube_meter_mode=scaled_left_to_right_full_uv\"",
                  "star-power tube-meter glow preserves full source UVs while scaling left-to-right");

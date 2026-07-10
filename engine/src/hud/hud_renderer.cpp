@@ -3679,6 +3679,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   const bool meter_fill_glow = fill > 0.005f;
   const float fill_anim_frame = source_filter_frame(
       star_fill_filter_, fill, star_fill_anim_duration_);
+  const float fill_core_color_frame =
+      star_fill_filter_.ok
+          ? std::max(star_fill_filter_.end_frame, star_fill_filter_.start_frame)
+          : std::max(1.0f, star_fill_anim_duration_);
   const float tube_meter_anim_frame = source_filter_frame(
       star_tube_meter_filter_, fill, star_tube_meter_anim_duration_);
   const float tube_glow_anim_frame = source_filter_frame(
@@ -3700,7 +3704,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       star_fill_color_keys_.empty()
           ? std::nullopt
           : std::optional<uint32_t>(sample_hud_mat_anim_color_frame(
-                star_fill_color_keys_, fill_anim_frame));
+                star_fill_color_keys_, fill_core_color_frame));
   const uint32_t sampled_fill_core_color =
       fill_core_color.value_or(!native_star_fill_.empty()
                                    ? native_star_fill_.front().color
@@ -4185,6 +4189,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "path_line_layer=amp_inside_bar_path.mesh "
         "path_line_mode=persistent_full_width "
         "core_fill_mode=clipped_left_to_right "
+        "core_color_mode=settled_lit_key_width_driven "
         "tube_meter_mode=scaled_left_to_right_full_uv "
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core "
@@ -4203,6 +4208,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "tube_meter_width=%.3f/%.3f path_width=%.3f "
         "thick_fill_layer=amp_inside_bar.mesh clipped "
         "thin_path_layer=amp_inside_bar_path.mesh full_width "
+        "core_color_frame=%.2f "
         "path_uv_keys=%zu path_uv_frame=%.2f "
         "path_uv=(%.3f,%.3f) "
         "sampled_fill_color=%08x tube_meter_alpha=%.3f "
@@ -4249,6 +4255,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         tube_meter_range.ok ? 1 : 0,
         core_clip_x, core_visible_width, core_total_width,
         tube_meter_visible_width, tube_meter_total_width, path_total_width,
+        fill_core_color_frame,
         star_path_tex_translation_keys_.size(), path_tex_frame,
         path_tex_translation.x, path_tex_translation.y,
         sampled_fill_core_color, tube_meter_alpha, tube_ready_alpha);

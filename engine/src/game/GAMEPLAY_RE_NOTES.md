@@ -10136,3 +10136,20 @@ Rejected native probe:
   `amp_inside_bar_path.mesh` line stays full-width, the thick
   `amp_inside_bar.mesh` body remains clipped left-to-right, and no replacement
   art, fabricated overlay, or tuned non-MILO color was added.
+
+2026-07-10 star-meter stored body color/frame split:
+- User review clarified the proof interpretation again: the thin blue bar in
+  native is the always-present source `amp_inside_bar_path.mesh` line. The judged
+  stored star-power body is the thicker source pair,
+  `amp_inside_bar.mesh` plus `amp_tube_glow_meter.mesh`, and that body should
+  retain the already-filled left side while expanding toward the right cap.
+- The native renderer was still using the meter fill percentage as the
+  `amp_inside_bar_glow.mnm` color clock. That made the broad core visibly dim at
+  partial values (`0.25` sampled `9363adc8`) even though the settled PCSX2
+  forced-fill oracle already shows the filled body lit while only its width
+  changes.
+- Native now uses the settled/lit source MatAnim frame for the
+  `amp_inside_bar.mesh` core color and keeps fill percentage only for the
+  left-to-right clipped width. The persistent `amp_inside_bar_path.mesh` line
+  remains full-width, and the tube-meter glow remains an original MILO
+  `amp_tube_glow_meter.mesh` layer over the broad core.
