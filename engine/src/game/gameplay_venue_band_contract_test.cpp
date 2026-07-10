@@ -3796,6 +3796,15 @@ int main() {
                  "load_venue_proxy_objects(hdr_path_,ark_path_,venue_geom,win)",
                  "venue load discovers RndDir proxy objects from the authored MILO");
   ok &= contains(gameplay_c,
+                 "staticvisibilityfollowsauthoredGroupshowingflags",
+                 "venue baseline visibility follows authored MILO Group showing flags");
+  ok &= absent(gameplay_c,
+               "source_amp_show_lists",
+               "venue loader must not force a guessed player amp object list");
+  ok &= absent(gameplay_c,
+               "player1_guitaramp_objects",
+               "single-player RedOctane amp visibility must not override source Group state");
+  ok &= contains(gameplay_c,
                  "proxy.group_meshes=mesh_names_by_group(proxy_scene);",
                  "RndDir proxy objects keep authored group membership for camera visibility");
   ok &= contains(gameplay_c,

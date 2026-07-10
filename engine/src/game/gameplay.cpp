@@ -8000,30 +8000,6 @@ load_rnddir_root_object_lists(const std::string& hdr_path,
     return out;
 }
 
-std::unordered_set<std::string> mesh_names_for_object_refs(
-    const ghogx::milo_scene::Scene& scene,
-    const std::vector<std::string>& refs) {
-    std::unordered_set<std::string> out;
-    const auto group_meshes = mesh_names_by_group(scene);
-    for (const auto& raw_ref : refs) {
-        const std::string ref = canonical_milo_ref(raw_ref);
-        if (ref.rfind(".mesh") != std::string::npos) {
-            out.insert(ref);
-            continue;
-        }
-        const auto group_it = group_meshes.find(ref);
-        if (group_it == group_meshes.end()) continue;
-        out.insert(group_it->second.begin(), group_it->second.end());
-    }
-    return out;
-}
-
-bool is_player_amp_object_list(std::string_view name) {
-    return name.size() > std::string_view("player1_amp_objects").size() &&
-           name.rfind("player", 0) == 0 &&
-           name.find("amp_objects") != std::string_view::npos;
-}
-
 std::array<float, 3> sample_translation_offset(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
     float frame) {
@@ -20387,44 +20363,13 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 const auto root_object_lists = load_rnddir_root_object_lists(
                     hdr_path_, ark_path_, venue_geom);
-                size_t source_amp_hidden_meshes = 0;
-                size_t source_amp_hidden_lists = 0;
-                for (const auto& [name, refs] : root_object_lists) {
-                    if (!is_player_amp_object_list(name)) continue;
-                    const auto source_amp_meshes =
-                        mesh_names_for_object_refs(venue_scene, refs);
-                    for (const auto& mesh : source_amp_meshes) {
-                        hidden_venue_meshes.insert(mesh);
-                    }
-                    source_amp_hidden_meshes += source_amp_meshes.size();
-                    ++source_amp_hidden_lists;
-                }
-                const std::array<std::string_view, 1> source_amp_show_lists = {
-                    std::string_view{"player1_guitaramp_objects"}};
-                for (const auto show_name : source_amp_show_lists) {
-                    if (const auto show_it =
-                            root_object_lists.find(std::string(show_name));
-                        show_it != root_object_lists.end()) {
-                        const auto source_shown_meshes =
-                            mesh_names_for_object_refs(venue_scene,
-                                                       show_it->second);
-                        for (const auto& mesh : source_shown_meshes)
-                            hidden_venue_meshes.erase(mesh);
-                        if (debug_venue_filters_enabled()) {
-                            std::fprintf(
-                                stderr,
-                                "[world] venue source object list show %s: refs=%zu meshes=%zu\n",
-                                show_it->first.c_str(), show_it->second.size(),
-                                source_shown_meshes.size());
-                        }
-                    }
-                }
                 if (debug_venue_filters_enabled() &&
-                    source_amp_hidden_lists > 0) {
+                    !root_object_lists.empty()) {
                     std::fprintf(
                         stderr,
-                        "[world] venue source amp object lists hidden: lists=%zu meshes=%zu\n",
-                        source_amp_hidden_lists, source_amp_hidden_meshes);
+                        "[world] venue root object lists decoded: lists=%zu; "
+                        "static visibility follows authored Group showing flags\n",
+                        root_object_lists.size());
                 }
                 if (debug_venue_filters_enabled() &&
                     !source_hidden_venue_meshes.empty()) {
