@@ -1354,6 +1354,9 @@ int main() {
                  "tube_meter_range);",
                  "star-power tube-meter glow draw remains source-backed");
   ok &= contains(hud_renderer_c,
+                 "constboolmeter_fill_glow=fill>0.005f;",
+                 "star-power tube-meter glow follows stored fill rather than only ready state");
+  ok &= contains(hud_renderer_c,
                  "\"fallback_fill=%dready_view=star_meter_ready.view\"",
                  "star-power diagnostics name the traced ready view");
   ok &= contains(hud_renderer_c,

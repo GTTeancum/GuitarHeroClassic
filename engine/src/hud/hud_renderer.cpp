@@ -3620,6 +3620,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
 
   const bool ready = fill >= 0.5f;
   const bool tube_glow = ready || star_power_active;
+  const bool meter_fill_glow = fill > 0.005f;
   const float fill_anim_frame = source_filter_frame(
       star_fill_filter_, fill, star_fill_anim_duration_);
   const float tube_meter_anim_frame = source_filter_frame(
@@ -3984,7 +3985,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     }
   }
   if (fill > 0.005f) {
-    if (tube_glow) {
+    if (meter_fill_glow) {
       drew_native_fill_glow =
           append_clipped_fill(native_star_fill_glow_, std::nullopt,
                               tube_meter_alpha, tube_meter_range);
@@ -4112,7 +4113,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         native_star_top_.size(), native_star_caps_.size(),
         drew_native_fill ? 1 : 0, drew_native_particles ? 1 : 0,
         drew_native_ready_mesh ? 1 : 0, drew_native_ready_glow ? 1 : 0,
-        drew_native_fill_glow ? 1 : 0, 0, tube_glow ? 1 : 0,
+        drew_native_fill_glow ? 1 : 0, 0, meter_fill_glow ? 1 : 0,
         first_quad_core_emit4x(native_star_fill_) ? 1 : 0,
         any_quad_core_add_emit(native_star_core_emission_) ? 1 : 0,
         any_quad_texture_emit4x(native_star_path_glow_) ? 1 : 0,

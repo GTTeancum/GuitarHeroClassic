@@ -10024,3 +10024,20 @@ Rejected native probe:
   `native_star_material_samples_current_compare_proof.png`. The logs expose
   `sampled_fill_color`, `tube_meter_alpha`, and `tube_ready_alpha` alongside
   source layer names, blend IDs, clip ranges, and the persistent path UV key.
+
+2026-07-10 star-meter stored meter-glow gate:
+- Rechecked the PCSX2 forced `0.25` oracle against the decoded
+  `hud/gen/star_meter.milo_ps2` source stack. The stock meter already shows a
+  blue-white filled body before the gameplay ready threshold, while native was
+  only drawing `amp_tube_glow_meter.mesh` when `ready || active` was true.
+- Native now keeps the outer `amp_tube_glow.mesh` gate on ready/active state,
+  but lets the source `amp_tube_glow_meter.mesh` / `amp_tube_glow_meter.mat` /
+  `hud_meter_top_glow.tex` fill-glow layer draw whenever stored fill is
+  non-zero. It remains clipped to the decoded tube-meter mesh range and still
+  samples `amp_tube_glow_meter.mnm` through `amp_tube_glow_meter.filt`.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260710/native_star_meter_fill_glow_gate_current/`
+  contains refreshed native stored `0.25`, `0.50`, `0.75`, `1.00`, and active
+  `1.00` captures/logs plus
+  `native_star_meter_fill_glow_gate_current_compare_proof.png`, paired against
+  the settled PCSX2 partial-fill oracle.
