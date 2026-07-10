@@ -1435,8 +1435,12 @@ int main() {
                  "\"ready_mesh_blend=%uclip=source_mesh_ranges"
                  "screen=left_to_right\"\"range_ok=%d,%d,%d"
                  "path_uv_keys=%zupath_uv_frame=%.2f"
-                 "\"\"path_uv=(%.3f,%.3f)\\n\"",
+                 "\"\"path_uv=(%.3f,%.3f)\"",
                  "star-power diagnostics report source ready blend, fill direction, and path UV animation");
+  ok &= contains(hud_renderer_c,
+                 "\"sampled_fill_color=%08xtube_meter_alpha=%.3f\""
+                 "\"tube_ready_alpha=%.3f\\n\"",
+                 "star-power diagnostics report sampled source MatAnim color and alpha values");
   ok &= contains(hud_renderer_c,
                  "first_quad_blend(native_star_fill_),"
                  "first_quad_blend(native_star_path_glow_),"

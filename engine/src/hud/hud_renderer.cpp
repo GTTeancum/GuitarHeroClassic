@@ -3644,6 +3644,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
           ? std::nullopt
           : std::optional<uint32_t>(sample_hud_mat_anim_color_frame(
                 star_fill_color_keys_, fill_anim_frame));
+  const uint32_t sampled_fill_core_color =
+      fill_core_color.value_or(!native_star_fill_.empty()
+                                   ? native_star_fill_.front().color
+                                   : 0x00000000u);
   auto sample_vec3_key = [](const std::vector<Vec3AnimKey>& keys,
                             float frame) {
     Vec3AnimKey out;
@@ -4082,7 +4086,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=source_mesh_ranges screen=left_to_right "
         "range_ok=%d,%d,%d path_uv_keys=%zu path_uv_frame=%.2f "
-        "path_uv=(%.3f,%.3f)\n",
+        "path_uv=(%.3f,%.3f) "
+        "sampled_fill_color=%08x tube_meter_alpha=%.3f "
+        "tube_ready_alpha=%.3f\n",
         fill, ready ? 1 : 0, star_power_active ? 1 : 0, tube_glow ? 1 : 0,
         fill_anim_frame, tube_meter_anim_frame, tube_glow_anim_frame,
         tube_meter_alpha_frame, tube_glow_alpha_frame, tube_glow_mesh_frame,
@@ -4123,7 +4129,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         core_fill_range.ok ? 1 : 0, path_glow_range.ok ? 1 : 0,
         tube_meter_range.ok ? 1 : 0,
         star_path_tex_translation_keys_.size(), path_tex_frame,
-        path_tex_translation.x, path_tex_translation.y);
+        path_tex_translation.x, path_tex_translation.y,
+        sampled_fill_core_color, tube_meter_alpha, tube_ready_alpha);
     ++star_power_debug_budget;
   }
 

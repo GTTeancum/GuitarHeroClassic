@@ -10006,3 +10006,21 @@ Rejected native probe:
 - Caveat: this checkpoint is for source-backed fill anchoring and sampler-wrap
   inference. Brightness, tube glass contrast, and exact PCSX2 bloom/core width
   still require the GS-stage blend trace.
+
+2026-07-10 star-meter material sample diagnostics:
+- The next unresolved fidelity gap is material treatment rather than fill
+  direction: PCSX2 shows a bright blue-white stored core under the tube glass,
+  while native still needs exact source color/alpha interpretation for the
+  broad fill, path line, and ready glow layers.
+- Native HUD diagnostics now print the sampled `amp_inside_bar_glow.mnm` fill
+  color, the sampled `amp_tube_glow_meter.mnm` alpha, and the sampled
+  `amp_tube_glow.mnm` ready alpha in every `GHOGX_DEBUG_HUD_STAR_POWER` row.
+  This keeps the next renderer pass tied to decoded MILO MatAnim values instead
+  of screenshot-only tuning.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260710/native_star_material_samples_current/`
+  contains refreshed native stored `0.25`, `0.50`, `0.75`, `1.00`, and active
+  `1.00` captures/logs plus
+  `native_star_material_samples_current_compare_proof.png`. The logs expose
+  `sampled_fill_color`, `tube_meter_alpha`, and `tube_ready_alpha` alongside
+  source layer names, blend IDs, clip ranges, and the persistent path UV key.
