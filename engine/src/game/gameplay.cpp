@@ -956,6 +956,7 @@ struct DecodedCamShot {
     std::vector<std::string> anims;
     std::string old_crowd_sym;
     int old_crowd_rotate = 0;
+    std::vector<std::pair<int, int>> old_crowd_pairs;
     std::string glow_spot;
 };
 
@@ -1243,8 +1244,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             const uint32_t count = r.u32();
             if (count > 64) throw std::runtime_error("CamShot crowd pair count invalid");
             for (uint32_t i = 0; i < count; ++i) {
-                (void)r.i32();
-                (void)r.i32();
+                shot.old_crowd_pairs.emplace_back(r.i32(), r.i32());
             }
         }
         if (shot.revision >= 8 && shot.revision <= 41) (void)r.i32();
@@ -1343,6 +1343,9 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.camshot_loop_keyframe = shot.loop_keyframe;
             key.has_camshot_looping = true;
             key.source_ref = shot.old_crowd_sym;
+            key.has_crowd_selection = !shot.old_crowd_sym.empty();
+            key.crowd_selection_ref = shot.old_crowd_sym;
+            key.crowd_selection_pairs = shot.old_crowd_pairs;
             key.camshot_shot_fields_decoded = true;
             key.camshot_pose_body_offset = off;
             key.has_camshot_pose_body_offset = true;
@@ -1489,6 +1492,9 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.camshot_loop_keyframe = from.camshot_loop_keyframe;
     to.has_camshot_looping = from.has_camshot_looping;
     to.source_ref = from.source_ref;
+    to.has_crowd_selection = from.has_crowd_selection;
+    to.crowd_selection_ref = from.crowd_selection_ref;
+    to.crowd_selection_pairs = from.crowd_selection_pairs;
     to.gen_hide_list_refs = from.gen_hide_list_refs;
     to.draw_override_refs = from.draw_override_refs;
     to.postproc_override_refs = from.postproc_override_refs;
@@ -1536,6 +1542,9 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.hide_crowd = from.hide_crowd;
     to.crowd_face_camera = from.crowd_face_camera;
     to.force_char_lod = from.force_char_lod;
+    to.has_crowd_selection = from.has_crowd_selection;
+    to.crowd_selection_ref = from.crowd_selection_ref;
+    to.crowd_selection_pairs = from.crowd_selection_pairs;
     to.hide_list_refs = from.hide_list_refs;
     to.show_list_refs = from.show_list_refs;
     to.gen_hide_list_refs = from.gen_hide_list_refs;
@@ -14677,6 +14686,9 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_camera_shown_proxy_meshes_.clear();
     venue_camera_hide_crowd_ = false;
     venue_camera_crowd_face_camera_ = false;
+    venue_camera_has_crowd_selection_ = false;
+    venue_camera_crowd_selection_ref_.clear();
+    venue_camera_crowd_selection_pairs_.clear();
     active_venue_event_.clear();
     diagnostic_venue_event_applied_ = false;
     last_anim_time_ = -1.0;
@@ -14909,6 +14921,13 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
     };
     bool next_hide_crowd = key.hide_crowd;
     if (key.hide_crowd) next_hidden = venue_crowd_meshes_;
+    const bool next_has_crowd_selection = key.has_crowd_selection;
+    const std::string next_crowd_selection_ref =
+        canonical_milo_ref(key.crowd_selection_ref.empty()
+                               ? key.source_ref
+                               : key.crowd_selection_ref);
+    const std::vector<std::pair<int, int>>& next_crowd_selection_pairs =
+        key.crowd_selection_pairs;
     auto collect_camera_visibility_ref =
         [&](const std::string& raw_ref, bool hide_ref) {
         const std::string ref = canonical_milo_ref(raw_ref);
@@ -14983,7 +15002,10 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
         next_hidden_proxy_meshes == venue_camera_hidden_proxy_meshes_ &&
         next_shown_proxy_meshes == venue_camera_shown_proxy_meshes_ &&
         next_hide_crowd == venue_camera_hide_crowd_ &&
-        next_face_camera == venue_camera_crowd_face_camera_) {
+        next_face_camera == venue_camera_crowd_face_camera_ &&
+        next_has_crowd_selection == venue_camera_has_crowd_selection_ &&
+        next_crowd_selection_ref == venue_camera_crowd_selection_ref_ &&
+        next_crowd_selection_pairs == venue_camera_crowd_selection_pairs_) {
         return;
     }
     venue_camera_hidden_meshes_ = std::move(next_hidden);
@@ -14992,6 +15014,9 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
     venue_camera_shown_proxy_meshes_ = std::move(next_shown_proxy_meshes);
     venue_camera_hide_crowd_ = next_hide_crowd;
     venue_camera_crowd_face_camera_ = next_face_camera;
+    venue_camera_has_crowd_selection_ = next_has_crowd_selection;
+    venue_camera_crowd_selection_ref_ = next_crowd_selection_ref;
+    venue_camera_crowd_selection_pairs_ = next_crowd_selection_pairs;
     if (debug_venue_filters_enabled()) {
         size_t proxy_mesh_count = 0;
         for (const auto& [object_name, meshes] :
@@ -15011,6 +15036,7 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
                      "shown_meshes=%zu proxy_objects=%zu proxy_meshes=%zu "
                      "shown_proxy_objects=%zu shown_proxy_meshes=%zu "
                      "actor_hide=%d face_camera=%d face_meshes=%zu "
+                     "crowd_select=%d crowd_ref=%s crowd_pairs=%zu "
                      "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
                      key.name.c_str(), key.hide_crowd ? 1 : 0,
                      key.hide_list_refs.size(), key.gen_hide_list_refs.size(),
@@ -15023,10 +15049,13 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
                      shown_proxy_mesh_count,
                      venue_camera_hide_crowd_ ? 1 : 0,
                      venue_camera_crowd_face_camera_ ? 1 : 0,
-                     venue_camera_crowd_face_camera_
-                         ? venue_crowd_meshes_.size()
-                         : 0u,
-                     key.draw_override_refs.size(),
+                      venue_camera_crowd_face_camera_
+                          ? venue_crowd_meshes_.size()
+                          : 0u,
+                      venue_camera_has_crowd_selection_ ? 1 : 0,
+                      venue_camera_crowd_selection_ref_.c_str(),
+                      venue_camera_crowd_selection_pairs_.size(),
+                      key.draw_override_refs.size(),
                      key.postproc_override_refs.size(),
                      key.camera_anim_refs.size(), key.glow_spot_ref.c_str());
     }
@@ -16370,6 +16399,9 @@ void Gameplay::clear_runtime_venue_animation_state() {
     venue_camera_shown_proxy_meshes_.clear();
     venue_camera_hide_crowd_ = false;
     venue_camera_crowd_face_camera_ = false;
+    venue_camera_has_crowd_selection_ = false;
+    venue_camera_crowd_selection_ref_.clear();
+    venue_camera_crowd_selection_pairs_.clear();
     venue_script_state_ = venue_script_initial_state_;
     venue_script_object_state_.clear();
     venue_script_tasks_.clear();
@@ -18185,22 +18217,34 @@ void Gameplay::rebuild_worldcrowd_actor_runtime(ghogx::render::Window& win) {
         if (area_it == mesh_worlds.end()) continue;
         const auto area_world_inv = mat4_affine_inverse_game(area_it->second);
         const bool use_area_local_basis = worldcrowd_render_area_local_basis();
+        size_t crowd_actor_index = 0;
         for (const auto& set : crowd.placement_sets) {
             WorldCrowdActorRuntime* runtime = runtime_for_set(set);
-            if (!runtime || !runtime->renderer) continue;
+            if (!runtime || !runtime->renderer) {
+                ++crowd_actor_index;
+                continue;
+            }
             runtime->near_source_cull_radius =
                 worldcrowd_actor_near_source_cull_radius(crowd,
                                                          set.actor_name);
             runtime->placement_worlds.reserve(
                 runtime->placement_worlds.size() + set.placements.size());
+            runtime->placement_refs.reserve(runtime->placement_refs.size() +
+                                            set.placements.size());
+            size_t crowd_placement_index = 0;
             for (const auto& placement : set.placements) {
                 const auto placement_world = xfm_to_mat4(placement);
                 const auto area_local_world =
                     mat4_mul_game(placement_world, area_world_inv);
                 runtime->placement_worlds.push_back(
                     use_area_local_basis ? area_local_world : placement_world);
+                runtime->placement_refs.push_back(
+                    {canonical_milo_ref(crowd.name), crowd_actor_index,
+                     crowd_placement_index});
+                ++crowd_placement_index;
             }
             worldcrowd_actor_runtime_placements_ += set.placements.size();
+            ++crowd_actor_index;
         }
     }
 
@@ -18491,7 +18535,28 @@ void Gameplay::draw_worldcrowd_actor_runtime(
         std::isfinite(target_depth) && target_depth > 1.0f
             ? std::max(40.0f, target_depth * 0.82f)
             : 0.0f;
+    auto crowd_selection_allows =
+        [&](const WorldCrowdActorRuntime& runtime,
+            size_t placement_index) -> bool {
+        if (!venue_camera_has_crowd_selection_) return true;
+        if (placement_index >= runtime.placement_refs.size()) return false;
+        const auto& ref = runtime.placement_refs[placement_index];
+        if (!venue_camera_crowd_selection_ref_.empty() &&
+            canonical_milo_ref(ref.crowd_name) !=
+                venue_camera_crowd_selection_ref_) {
+            return false;
+        }
+        for (const auto& pair : venue_camera_crowd_selection_pairs_) {
+            if (pair.first < 0 || pair.second < 0) continue;
+            if (static_cast<size_t>(pair.first) == ref.actor_index &&
+                static_cast<size_t>(pair.second) == ref.placement_index) {
+                return true;
+            }
+        }
+        return false;
+    };
     size_t drawn = 0;
+    size_t culled_camshot_selection = 0;
     size_t culled_near_source = 0;
     size_t culled_fullness = 0;
     size_t culled_camera = 0;
@@ -18505,8 +18570,14 @@ void Gameplay::draw_worldcrowd_actor_runtime(
                 runtime.placement_worlds, eye, runtime.fullness_fraction);
         size_t placement_index = 0;
         for (const auto& placement_world : runtime.placement_worlds) {
-            if (placement_index >= visible_by_fullness.size() ||
-                !visible_by_fullness[placement_index]) {
+            if (!crowd_selection_allows(runtime, placement_index)) {
+                ++culled_camshot_selection;
+                ++placement_index;
+                continue;
+            }
+            if (!venue_camera_has_crowd_selection_ &&
+                (placement_index >= visible_by_fullness.size() ||
+                 !visible_by_fullness[placement_index])) {
                 ++culled_fullness;
                 ++placement_index;
                 continue;
@@ -18569,17 +18640,23 @@ void Gameplay::draw_worldcrowd_actor_runtime(
     const bool log_worldcrowd = should_log_worldcrowd();
     if (log_worldcrowd ||
         (debug_camera_enabled() &&
-         (culled_near_source > 0 || culled_fullness > 0))) {
+         (culled_camshot_selection > 0 || culled_near_source > 0 ||
+          culled_fullness > 0))) {
         std::fprintf(stderr,
                      "[world] WorldCrowd draw: enabled=1 actors=%zu "
-                     "placements=%zu drawn=%zu culled_fullness=%zu "
+                     "placements=%zu drawn=%zu culled_selection=%zu "
+                     "selection=%d:%s:%zu culled_fullness=%zu "
                      "culled_near_source=%zu culled_camera=%zu "
                      "culled_foreground=%zu hidden_camera=0 basis=%s "
                      "face_camera=%d event=%s groups=%s "
                      "eye=(%.3f %.3f %.3f) foreground_depth=%.2f t=%.3f\n",
-                     worldcrowd_actor_runtime_.size(),
-                     worldcrowd_actor_runtime_placements_, drawn,
-                     culled_fullness, culled_near_source, culled_camera,
+                      worldcrowd_actor_runtime_.size(),
+                      worldcrowd_actor_runtime_placements_, drawn,
+                      culled_camshot_selection,
+                      venue_camera_has_crowd_selection_ ? 1 : 0,
+                      venue_camera_crowd_selection_ref_.c_str(),
+                      venue_camera_crowd_selection_pairs_.size(),
+                      culled_fullness, culled_near_source, culled_camera,
                      culled_foreground,
                      worldcrowd_render_area_local_basis() ? "area_local"
                                                           : "placement",
@@ -19837,6 +19914,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 active_camera_runtime_shot_.clear();
                 venue_camera_hide_crowd_ = false;
                 venue_camera_crowd_face_camera_ = false;
+                venue_camera_has_crowd_selection_ = false;
+                venue_camera_crowd_selection_ref_.clear();
+                venue_camera_crowd_selection_pairs_.clear();
                 if (!venue_crowd_meshes_.empty()) {
                     std::fprintf(stderr,
                                  "[world] venue crowd meshes: %zu\n",

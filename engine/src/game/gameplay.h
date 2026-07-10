@@ -207,6 +207,9 @@ class Gameplay {
     bool hide_crowd = false;
     bool crowd_face_camera = false;
     int force_char_lod = -1;
+    bool has_crowd_selection = false;
+    std::string crowd_selection_ref;
+    std::vector<std::pair<int, int>> crowd_selection_pairs;
     std::vector<std::string> hide_list_refs;
     std::vector<std::string> show_list_refs;
     std::vector<std::string> gen_hide_list_refs;
@@ -874,6 +877,11 @@ class Gameplay {
   std::map<std::string, ghogx::character::Character> worldcrowd_actor_characters_;
   std::map<std::string, ghogx::character::CharClip> worldcrowd_actor_clips_;
   struct WorldCrowdActorRuntime {
+    struct PlacementRef {
+      std::string crowd_name;
+      size_t actor_index = 0;
+      size_t placement_index = 0;
+    };
     std::string actor_name;
     std::string actor_milo;
     std::unique_ptr<ghogx::character::CharRenderer> renderer;
@@ -882,6 +890,7 @@ class Gameplay {
     ghogx::character::CharClipPlayer player;
     std::string active_group;
     std::vector<std::array<float, 16>> placement_worlds;
+    std::vector<PlacementRef> placement_refs;
     float near_source_cull_radius = 0.0f;
     float visible_bounds_radius = 0.0f;
     float fullness_fraction = 1.0f;
@@ -900,6 +909,9 @@ class Gameplay {
       venue_camera_shown_proxy_meshes_;
   bool venue_camera_hide_crowd_ = false;
   bool venue_camera_crowd_face_camera_ = false;
+  bool venue_camera_has_crowd_selection_ = false;
+  std::string venue_camera_crowd_selection_ref_;
+  std::vector<std::pair<int, int>> venue_camera_crowd_selection_pairs_;
   std::string active_camera_runtime_shot_;
   std::string active_camera_anim_event_;
   std::string active_venue_event_;
