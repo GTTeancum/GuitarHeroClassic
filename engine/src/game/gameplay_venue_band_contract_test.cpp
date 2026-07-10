@@ -4817,10 +4817,27 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::stringactive_camera_runtime_shot_;",
                  "camera runtime tracks the active CamShot lifecycle");
+  ok &= contains(gameplay_h_c,
+                 "std::stringactive_camera_anim_event_;",
+                 "camera runtime tracks linked CamShot mAnims separately");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::vector<VenueAnimFilter>>"
+                 "venue_direct_anim_filters_;",
+                 "venue MILO direct anim refs are available for CamShot mAnims");
+  ok &= contains(gameplay_h_c,
+                 "boolshot_scoped=false;",
+                 "camera-linked anim filters can live until CamShot EndAnim");
   ok &= contains(gameplay_c,
                  "voidGameplay::end_camera_shot_runtime(){"
                  "if(active_camera_runtime_shot_.empty())return;",
                  "camera EndAnim path is explicit");
+  ok &= contains(gameplay_c,
+                 "voidGameplay::end_camera_shot_anims(){"
+                 "if(active_camera_anim_event_.empty())return;",
+                 "camera EndAnim has an explicit linked-mAnims shutdown path");
+  ok &= contains(gameplay_c,
+                 "returnactive.event_name==event_name;",
+                 "camera EndAnim removes only the active shot-scoped anim event");
   ok &= contains(gameplay_c,
                  "clear.name=active_camera_runtime_shot_;"
                  "apply_camera_crowd_visibility(clear);",
@@ -4829,10 +4846,28 @@ int main() {
                  "voidGameplay::start_camera_shot_runtime(constCameraKey&key)",
                  "camera StartAnim path is explicit");
   ok &= contains(gameplay_c,
+                 "voidGameplay::start_camera_shot_anims"
+                 "(constCameraKey&key,conststd::string&runtime_name)",
+                 "camera StartAnim has an explicit linked-mAnims start path");
+  ok &= contains(gameplay_c,
+                 "constautodirect_it=venue_direct_anim_filters_.find(ref);",
+                 "camera StartAnim resolves linked mAnims through the venue MILO direct-ref map");
+  ok &= contains(gameplay_c,
+                 "active_filter.event_name=active_camera_anim_event_;"
+                 "active_filter.filters=std::move(filters);"
+                 "active_filter.start_time=song_time_;"
+                 "active_filter.persistent=false;"
+                 "active_filter.shot_scoped=true;",
+                 "camera StartAnim starts decoded linked mAnims as shot-scoped filters");
+  ok &= contains(gameplay_c,
                  "end_camera_shot_runtime();"
                  "active_camera_runtime_shot_=runtime_name;"
                  "apply_camera_crowd_visibility(key);",
                  "camera StartAnim applies the authored CamShot visibility payload once per shot");
+  ok &= contains(gameplay_c,
+                 "apply_camera_crowd_visibility(key);"
+                 "start_camera_shot_anims(key,active_camera_runtime_shot_);",
+                 "camera StartAnim starts linked mAnims after applying shot visibility");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key);",
                  "regular gameplay cameras enter the source-shaped StartAnim path");

@@ -456,6 +456,7 @@ class Gameplay {
     std::vector<VenueAnimFilter> filters;
     double start_time = 0.0;
     bool persistent = true;
+    bool shot_scoped = false;
   };
 
   Gameplay() = default;
@@ -542,6 +543,9 @@ class Gameplay {
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;
   std::map<std::string, float> composed_venue_material_alpha() const;
   void apply_camera_crowd_visibility(const CameraKey& key);
+  void start_camera_shot_anims(const CameraKey& key,
+                               const std::string& runtime_name);
+  void end_camera_shot_anims();
   void start_camera_shot_runtime(const CameraKey& key);
   void end_camera_shot_runtime();
   void refresh_worldcrowd_actor_source_targets_for_camera();
@@ -805,6 +809,7 @@ class Gameplay {
   std::map<std::string, VenueProxyObject> venue_proxy_objects_;
   double next_venue_proxy_draw_log_time_ = 0.0;
   std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
+  std::map<std::string, std::vector<VenueAnimFilter>> venue_direct_anim_filters_;
   std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
   std::map<std::string, VenueScriptHandler> venue_script_handlers_;
   std::map<std::string, std::map<std::string, VenueScriptHandler>>
@@ -896,6 +901,7 @@ class Gameplay {
   bool venue_camera_hide_crowd_ = false;
   bool venue_camera_crowd_face_camera_ = false;
   std::string active_camera_runtime_shot_;
+  std::string active_camera_anim_event_;
   std::string active_venue_event_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformAnim>
       drum_mesh_transform_anims_;

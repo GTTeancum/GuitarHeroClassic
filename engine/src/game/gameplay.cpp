@@ -8394,10 +8394,16 @@ std::map<std::string, std::vector<Gameplay::VenueAnimFilter>>
 load_venue_anim_filters(const std::string& hdr_path,
                         const std::string& ark_path,
                         const std::string& milo_path,
-                        const ghogx::milo_scene::Scene& scene) {
+                        const ghogx::milo_scene::Scene& scene,
+                        std::map<std::string,
+                                 std::vector<Gameplay::VenueAnimFilter>>*
+                            direct_anim_filters = nullptr) {
     std::map<std::string, std::vector<Gameplay::VenueAnimFilter>> out;
     std::map<std::string, std::vector<std::string>> group_children;
-    for (const auto& group : scene.groups) group_children[group.name] = group.children;
+    if (direct_anim_filters) direct_anim_filters->clear();
+    for (const auto& group : scene.groups) {
+        group_children[canonical_milo_ref(group.name)] = group.children;
+    }
 
     try {
         auto ark = gh::ark::ArkV3Reader::load(hdr_path);
@@ -8632,6 +8638,100 @@ load_venue_anim_filters(const std::string& hdr_path,
 
         size_t routed = 0;
         size_t direct_routed = 0;
+        if (direct_anim_filters) {
+            auto make_direct_filter =
+                [&](const std::string& raw_ref)
+                -> std::optional<Gameplay::VenueAnimFilter> {
+                const auto ref = canonical_milo_ref(raw_ref);
+                Gameplay::VenueAnimFilter filter;
+                filter.name = "direct_" + ref;
+                filter.start_frame = 0.0f;
+                filter.end_frame = 0.0f;
+                filter.scale = 1.0f;
+                filter.period = 0.0f;
+                filter.offset_frame = 0.0f;
+                filter.type = 0;
+                std::unordered_set<std::string> seen;
+                const float duration = collect_filter_targets(
+                    collect_filter_targets, filter, ref, seen);
+                if (filter.targets.empty() && filter.mesh_anim_targets.empty())
+                    return std::nullopt;
+                filter.end_frame = std::isfinite(duration) &&
+                                           duration > 0.001f
+                                       ? duration
+                                       : 1.0f;
+                return filter;
+            };
+            auto resolve_direct_ref =
+                [&](auto&& self, const std::string& raw_ref,
+                    std::unordered_set<std::string>& seen)
+                -> std::vector<Gameplay::VenueAnimFilter> {
+                const auto ref = canonical_milo_ref(raw_ref);
+                if (!seen.insert(ref).second) return {};
+                if (is_venue_anim_filter_ref(ref)) {
+                    const auto filter_it = filters_by_name.find(ref);
+                    if (filter_it != filters_by_name.end())
+                        return {filter_it->second};
+                    return {};
+                }
+                if (is_venue_group_ref(ref)) {
+                    std::vector<Gameplay::VenueAnimFilter> filters;
+                    const auto group_it = group_children.find(ref);
+                    if (group_it != group_children.end()) {
+                        for (const auto& child : group_it->second) {
+                            auto child_filters = self(self, child, seen);
+                            filters.insert(filters.end(), child_filters.begin(),
+                                           child_filters.end());
+                        }
+                    }
+                    if (!filters.empty()) return filters;
+                }
+                if (is_direct_venue_anim_ref(ref)) {
+                    if (auto filter = make_direct_filter(ref))
+                        return {*filter};
+                }
+                return {};
+            };
+            auto add_direct_ref = [&](const std::string& raw_ref) {
+                const auto ref = canonical_milo_ref(raw_ref);
+                std::unordered_set<std::string> seen;
+                auto filters = resolve_direct_ref(resolve_direct_ref, ref, seen);
+                if (filters.empty()) return;
+                (*direct_anim_filters)[ref] = std::move(filters);
+            };
+            for (const auto& [filter_name, filter] : filters_by_name) {
+                const auto ref = canonical_milo_ref(filter_name);
+                (*direct_anim_filters)[ref] = {filter};
+            }
+            for (const auto& [name, anim] : transanim_anims) {
+                (void)anim;
+                add_direct_ref(name);
+            }
+            for (const auto& [name, anim] : meshanim_anims) {
+                (void)anim;
+                add_direct_ref(name);
+            }
+            for (const auto& [name, children] : group_children) {
+                (void)children;
+                add_direct_ref(name);
+            }
+            if (debug_venue_filters_enabled() &&
+                !direct_anim_filters->empty()) {
+                for (const auto& [ref, filters] : *direct_anim_filters) {
+                    size_t transform_targets = 0;
+                    size_t mesh_anim_targets = 0;
+                    for (const auto& filter : filters) {
+                        transform_targets += filter.targets.size();
+                        mesh_anim_targets += filter.mesh_anim_targets.size();
+                    }
+                    std::fprintf(
+                        stderr,
+                        "[world] venue direct anim ref: %s filters=%zu transforms=%zu mesh_anims=%zu\n",
+                        ref.c_str(), filters.size(), transform_targets,
+                        mesh_anim_targets);
+                }
+            }
+        }
         for (const auto& [filter_name, filter] : filters_by_name) {
             out[venue_filter_route_key(filter_name)].push_back(filter);
             ++routed;
@@ -14428,6 +14528,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_regular_camera_.clear();
     previous_regular_camera_.clear();
     active_camera_runtime_shot_.clear();
+    active_camera_anim_event_.clear();
     active_regular_camera_start_ = 0.0;
     active_camera_position_start_ = 0.0;
     active_camera_position_index_ = 0;
@@ -14516,6 +14617,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_event_filters_.clear();
     venue_filter_mesh_targets_.clear();
     venue_event_anim_filters_.clear();
+    venue_direct_anim_filters_.clear();
     venue_light_names_.clear();
     venue_environ_names_.clear();
     venue_lights_.clear();
@@ -14940,8 +15042,92 @@ std::string camera_runtime_name_for_key(const Gameplay::CameraKey& key) {
     return "CamShot";
 }
 
+std::string camera_anim_event_name(const std::string& runtime_name) {
+    return "@camera:" + runtime_name;
+}
+
+void Gameplay::end_camera_shot_anims() {
+    if (active_camera_anim_event_.empty()) return;
+    const std::string event_name = active_camera_anim_event_;
+    const size_t before = active_venue_anim_filters_.size();
+    active_venue_anim_filters_.erase(
+        std::remove_if(active_venue_anim_filters_.begin(),
+                       active_venue_anim_filters_.end(),
+                       [&](const ActiveVenueAnimFilter& active) {
+                           return active.event_name == event_name;
+                       }),
+        active_venue_anim_filters_.end());
+    const size_t removed = before - active_venue_anim_filters_.size();
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(stderr,
+                     "[world] camera EndAnim: anim_event=%s filters_ended=%zu\n",
+                     event_name.c_str(), removed);
+    }
+    active_camera_anim_event_.clear();
+    update_active_venue_anim_filters();
+}
+
+void Gameplay::start_camera_shot_anims(const CameraKey& key,
+                                       const std::string& runtime_name) {
+    end_camera_shot_anims();
+    if (key.camera_anim_refs.empty()) return;
+
+    std::vector<VenueAnimFilter> filters;
+    std::vector<std::string> unsupported;
+    for (const auto& raw_ref : key.camera_anim_refs) {
+        const auto ref = canonical_milo_ref(raw_ref);
+        const auto direct_it = venue_direct_anim_filters_.find(ref);
+        if (direct_it == venue_direct_anim_filters_.end()) {
+            unsupported.push_back(ref);
+            continue;
+        }
+        filters.insert(filters.end(), direct_it->second.begin(),
+                       direct_it->second.end());
+    }
+
+    if (filters.empty()) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] camera StartAnim: shot=%s anim_refs=%zu resolved=0 unsupported=%zu\n",
+                runtime_name.c_str(), key.camera_anim_refs.size(),
+                unsupported.size());
+            for (const auto& ref : unsupported) {
+                std::fprintf(stderr,
+                             "[world] camera StartAnim unsupported anim ref: %s\n",
+                             ref.c_str());
+            }
+        }
+        return;
+    }
+
+    active_camera_anim_event_ = camera_anim_event_name(runtime_name);
+    ActiveVenueAnimFilter active_filter;
+    active_filter.event_name = active_camera_anim_event_;
+    active_filter.filters = std::move(filters);
+    active_filter.start_time = song_time_;
+    active_filter.persistent = false;
+    active_filter.shot_scoped = true;
+    const size_t resolved = active_filter.filters.size();
+    active_venue_anim_filters_.push_back(std::move(active_filter));
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] camera StartAnim: shot=%s anim_event=%s anim_refs=%zu filters_started=%zu unsupported=%zu\n",
+            runtime_name.c_str(), active_camera_anim_event_.c_str(),
+            key.camera_anim_refs.size(), resolved, unsupported.size());
+        for (const auto& ref : unsupported) {
+            std::fprintf(stderr,
+                         "[world] camera StartAnim unsupported anim ref: %s\n",
+                         ref.c_str());
+        }
+    }
+    update_active_venue_anim_filters();
+}
+
 void Gameplay::end_camera_shot_runtime() {
     if (active_camera_runtime_shot_.empty()) return;
+    end_camera_shot_anims();
     CameraKey clear;
     clear.name = active_camera_runtime_shot_;
     apply_camera_crowd_visibility(clear);
@@ -14959,6 +15145,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
     end_camera_shot_runtime();
     active_camera_runtime_shot_ = runtime_name;
     apply_camera_crowd_visibility(key);
+    start_camera_shot_anims(key, active_camera_runtime_shot_);
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
@@ -16504,7 +16691,8 @@ void Gameplay::update_active_venue_anim_filters() {
             duration =
                 std::max(duration, venue_filter_duration_seconds(filter));
         }
-        if (!it->persistent && duration > 0.0 && elapsed > duration) {
+        if (!it->persistent && !it->shot_scoped && duration > 0.0 &&
+            elapsed > duration) {
             it = active_venue_anim_filters_.erase(it);
             continue;
         }
@@ -19704,7 +19892,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                                    venue_geom, venue_scene);
                 venue_event_anim_filters_ =
                     load_venue_anim_filters(hdr_path_, ark_path_, venue_geom,
-                                            venue_scene);
+                                            venue_scene,
+                                            &venue_direct_anim_filters_);
                 venue_event_group_visibility_ =
                     load_venue_group_visibility(hdr_path_, ark_path_,
                                                 venue_geom, venue_scene);
