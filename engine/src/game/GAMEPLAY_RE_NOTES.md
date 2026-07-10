@@ -10423,3 +10423,19 @@ Rejected native probe:
   constant `path_width`. The 25% body is now source-layer filled instead of
   waiting on the full-tube U position, but its brightness still remains below
   the PCSX2 oracle and needs a separate blend/intensity trace pass.
+
+2026-07-10 star-meter thin-line observation lock:
+- User observation: the skinny blue bar in the tube is the stock always-present
+  `amp_inside_bar_path.mesh` line. It must not be treated as the stored star
+  power fill. The stored fill is the wider body from `amp_inside_bar.mesh` plus
+  `amp_tube_glow_meter.mesh`, and that body is the piece that fills
+  left-to-right.
+- Current checkpoint `475d825` already preserves that split: the path-line
+  width stays constant while the decoded core/glow widths grow at 25/50/75/100.
+  The remaining mismatch is brightness/material interpretation, not fill
+  direction or layer identity.
+- A fullbright-precedence probe was captured in
+  `engine/out/star_power_trace_evidence_20260710/native_star_fullbright_precedence_current/`
+  and rejected. It changed only a tiny leading-edge region and did not make the
+  broad filled body match PCSX2, so no renderer behavior from that probe is
+  retained.
