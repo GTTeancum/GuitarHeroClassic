@@ -76,10 +76,66 @@ struct Reader {
   }
 };
 
-// The 9-byte block that follows every object version int (Hmx::Object base
-// metadata) and the 9-byte block between the Trans matrices and its parent
-// string. Constant across all GH2 PS2 render objects we have inspected.
+// Legacy spotlight parsing below still uses the observed empty ObjectFields byte
+// count because that entry stores its Trans metadata in a nonstandard position.
 constexpr size_t kObjMeta = 9;
+
+void read_dtb_node(Reader& r);
+
+void read_dtb_array_parent(Reader& r) {
+  const uint16_t child_count = r.u16();
+  (void)r.u32();  // id
+  for (uint16_t i = 0; i < child_count; ++i) read_dtb_node(r);
+}
+
+void read_dtb_parent(Reader& r) {
+  const bool has_tree = r.u8() != 0;
+  if (!has_tree) return;
+  read_dtb_array_parent(r);
+}
+
+void read_dtb_node(Reader& r) {
+  const uint32_t type = r.u32();
+  switch (type) {
+    case 0x00:
+      (void)r.u32();
+      break;
+    case 0x01:
+      (void)r.f32();
+      break;
+    case 0x02:
+    case 0x04:
+    case 0x05:
+    case 0x06:
+    case 0x07:
+    case 0x08:
+    case 0x09:
+    case 0x12:
+    case 0x20:
+    case 0x21:
+    case 0x22:
+    case 0x23:
+    case 0x24:
+    case 0x25:
+      (void)r.str();
+      break;
+    case 0x10:
+    case 0x11:
+    case 0x13:
+      read_dtb_array_parent(r);
+      break;
+    default:
+      break;
+  }
+}
+
+void read_object_fields(Reader& r) {
+  const uint32_t combined_revision = r.u32();
+  const uint16_t revision = static_cast<uint16_t>(combined_revision & 0xffffu);
+  (void)r.str();
+  read_dtb_parent(r);
+  if (revision > 0) (void)r.str();
+}
 
 bool is_environ_light_ref(std::string_view ref) {
   if (ref.empty()) return false;
@@ -102,18 +158,25 @@ struct TransFields {
 };
 
 // MiloLib RndTrans.Read order:
-// revision, optional Hmx::Object fields, local/world matrices, constraint,
-// target, preserve-scale, parent. Standalone Trans entries carry Object fields;
-// embedded Trans bases (Mesh/Group/etc.) do not.
+// combined revision, optional Hmx::Object fields, local/world matrices, legacy
+// child list for rev < 9, constraint, target, preserve-scale, parent.
+// Standalone Trans entries carry Object fields; embedded Trans bases
+// (Mesh/Group/etc.) do not.
 TransFields read_trans_block(Reader& r, bool standalone) {
   TransFields out;
-  int32_t ver = r.i32();
-  (void)ver;                 // = 9 for GH2; kept for documentation
+  const uint32_t combined_revision = r.u32();
+  const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
   if (standalone) {
-    r.skip(kObjMeta);        // Hmx::Object fields: rev/type/root.
+    read_object_fields(r);
   }
   out.local = r.matrix();    // matrix 1 (local)
   out.world = r.matrix();    // matrix 2 (world as stored)
+  if (ver < 9) {
+    const uint32_t trans_count = r.u32();
+    for (uint32_t i = 0; i < trans_count; ++i) {
+      r.str();
+    }
+  }
   if (ver > 6) out.constraint = r.u32();
   if (ver > 5) out.target = r.str();
   if (ver > 6) out.preserve_scale = r.u8() != 0;
@@ -358,7 +421,7 @@ CamObj decode_cam(const std::string& entry_name,
     // locate the real vertical fov (radians) in the tail.
     Reader r(body.data(), body.size());
     int32_t version = r.i32();
-    r.skip(kObjMeta);                       // 9 Object-meta bytes
+    read_object_fields(r);
     if (version >= 10) r.i32();             // embedded Trans version (= 9)
     c.local = r.matrix();                   // local matrix -> eye in .pos
     if (r.pos + 48 <= body.size()) r.matrix();  // world matrix (consume)
@@ -514,7 +577,7 @@ EnvironObj decode_environ(const std::string& entry_name,
     if (version != 5) {
       throw std::runtime_error("milo_scene: unsupported Environ version");
     }
-    r.skip(kObjMeta);
+    read_object_fields(r);
     const uint32_t light_count = r.u32();
     if (light_count > 64) {
       throw std::runtime_error("milo_scene: implausible Environ light count");
@@ -571,7 +634,7 @@ MatObj decode_mat(const std::string& entry_name,
   m.name = entry_name;
   int32_t ver = r.i32();     // = 27
   (void)ver;
-  r.skip(kObjMeta);          // base metadata
+  read_object_fields(r);     // base metadata
   const uint32_t blend = r.u32();
   if (blend <= 6) {
     // macros.dta BLEND_ENUM. This precedes colour in real GH2 PS2 Mat entries:
@@ -693,7 +756,7 @@ MeshObj decode_mesh(const std::string& entry_name,
       // Not fatal — some mesh variants exist — but record it.
       mesh.error = "unexpected mesh version " + std::to_string(ver);
     }
-    r.skip(kObjMeta);  // Hmx::Object fields for the Mesh object.
+    read_object_fields(r);  // Hmx::Object fields for the Mesh object.
     const TransFields trans = read_trans_block(r, false);
     mesh.local = trans.local;
     mesh.world_stored = trans.world;

@@ -787,21 +787,6 @@ bool debug_surface_contact_enabled() {
 #endif
 }
 
-std::string skin_matrix_mode() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool has =
-      _dupenv_s(&value, &len, "GHOGX_SKIN_MATRIX_MODE") == 0 && value && value[0];
-  std::string mode = has ? value : "";
-  std::free(value);
-  return mode;
-#else
-  const char* raw = std::getenv("GHOGX_SKIN_MATRIX_MODE");
-  return raw ? raw : "";
-#endif
-}
-
 bool is_eye_mesh(const std::string& n) {
   std::string lower = n;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -812,18 +797,6 @@ bool is_eye_mesh(const std::string& n) {
          lower.find("_eye") != std::string::npos ||
          lower.find("eyel.") != std::string::npos ||
          lower.find("eyer.") != std::string::npos;
-}
-
-bool runtime_hair_world_override(const Character& character,
-                                 const std::string& bone_name,
-                                 std::array<float, 16>& out) {
-  for (const auto& point : character.runtime_hair.points) {
-    if (!point.initialized || !point.has_world) continue;
-    if (point.bone != bone_name) continue;
-    out = point.world;
-    return true;
-  }
-  return false;
 }
 
 int character_bone_index(const Character& character, const std::string& name) {
@@ -2385,39 +2358,42 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
                  nonzero_counts[3], nonzero_counts[4]);
   }
   std::vector<std::array<float, 16>> skin(nb);
-  const std::string matrix_mode = skin_matrix_mode();
   const bool has_source_bone_transforms = mesh.bind.size() >= nb;
-  const char* skin_mode =
-      has_source_bone_transforms
-          ? "source-offset"
-          : "missing-source-offset-fallback";
+  if (!has_source_bone_transforms) {
+    if (debug_mesh_mode_enabled(mesh.name)) {
+      std::fprintf(stderr,
+                   "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu "
+                   "mode=missing-source-offset-unsupported\n",
+                   mesh.name.c_str(), mesh.material.c_str(), nb,
+                   mesh.bind.size());
+    }
+    for (size_t vi = 0; vi < mesh.verts.size(); ++vi) {
+      const SkinVertex& v = mesh.verts[vi];
+      out_pos[vi] = {v.px, v.py, v.pz};
+      out_nrm[vi] = {v.nx, v.ny, v.nz};
+    }
+    return;
+  }
+  const char* skin_mode = "source-offset";
   if (debug_mesh_mode_enabled(mesh.name)) {
     std::fprintf(stderr,
-                 "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu mode=%s "
-                 "matrixEnv=%s\n",
+                 "[skin-mode] %-24s mat=%-18s palette=%zu bind=%zu mode=%s\n",
                  mesh.name.c_str(), mesh.material.c_str(), nb,
-                 mesh.bind.size(), skin_mode,
-                 matrix_mode.c_str());
+                 mesh.bind.size(), skin_mode);
   }
   for (size_t i = 0; i < nb; ++i) {
-    std::array<float, 16> hair_override{};
-    std::array<float, 16> curr_world =
-        character.bone_world_local_chain(mesh.bone_palette[i]);
-    // CharHair runtime rows are authored controller outputs keyed by palette
-    // bone name. Numbered/body-named meshes such as funk1.37.mesh and coat
-    // cards still consume those rows when their palette references them.
-    const bool has_hair_override =
-        runtime_hair_world_override(character, mesh.bone_palette[i],
-                                    hair_override);
-    if (has_hair_override) curr_world = hair_override;
-    if (has_source_bone_transforms && i < mesh.bind.size()) {
-      skin[i] = mul16(xfm16(mesh.bind[i]), curr_world);
-    } else {
-      std::array<float, 16> bind_world =
-          character.bone_world_bind_local_chain(mesh.bone_palette[i]);
-      const std::array<float, 16> inv_bind = affine_inverse(bind_world);
-      skin[i] = mul16(inv_bind, curr_world);
+    const std::string& bone_name = mesh.bone_palette[i];
+    if (bone_name.empty() || !character.has_transform(bone_name)) {
+      if (debug_skin_matrix_enabled() && debug_mesh_mode_enabled(mesh.name)) {
+        std::fprintf(stderr,
+                     "[skin-slot-skip] %-24s slot=%zu bone=%s reason=unresolved\n",
+                     mesh.name.c_str(), i, bone_name.c_str());
+      }
+      continue;
     }
+    const std::array<float, 16> curr_world =
+        character.bone_world_local_chain(bone_name);
+    skin[i] = mul16(xfm16(mesh.bind[i]), curr_world);
     const bool debug_this_skin =
         debug_skin_matrix_enabled() &&
         (debug_skin_matrix_all_enabled() || debug_mesh_mode_enabled(mesh.name));
@@ -2425,39 +2401,34 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
       const auto& s = skin[i];
       std::fprintf(stderr,
                    "[skin-matrix] %-24s bone=%-24s mode=%s "
-                   "hairOverride=%d diag=(%.3f %.3f %.3f) "
-                   "pos=(%.3f %.3f %.3f)\n",
-                   mesh.name.c_str(), mesh.bone_palette[i].c_str(),
-                   skin_mode, has_hair_override ? 1 : 0, s[0],
-                   s[5], s[10], s[12], s[13], s[14]);
+                   "diag=(%.3f %.3f %.3f) pos=(%.3f %.3f %.3f)\n",
+                   mesh.name.c_str(), bone_name.c_str(), skin_mode,
+                   s[0], s[5], s[10], s[12], s[13], s[14]);
       if (debug_mesh_mode_enabled(mesh.name)) {
         const auto bind_lc =
-            character.bone_world_bind_local_chain(mesh.bone_palette[i]);
+            character.bone_world_bind_local_chain(bone_name);
         const auto curr_lc =
-            character.bone_world_local_chain(mesh.bone_palette[i]);
-        const auto bind_stored = character.bone_world_bind(mesh.bone_palette[i]);
-        const auto curr_stored = character.bone_world(mesh.bone_palette[i]);
+            character.bone_world_local_chain(bone_name);
+        const auto bind_stored = character.bone_world_bind(bone_name);
+        const auto curr_stored = character.bone_world(bone_name);
         const auto mesh_lc = character.bone_world_local_chain(mesh.name);
-        log_compact_matrix_rows("bind-lc", mesh.name, mesh.bone_palette[i],
-                                bind_lc);
-        log_compact_matrix_rows("curr-lc", mesh.name, mesh.bone_palette[i],
-                                curr_lc);
-        log_compact_matrix_rows("bind-stored", mesh.name, mesh.bone_palette[i],
+        log_compact_matrix_rows("bind-lc", mesh.name, bone_name, bind_lc);
+        log_compact_matrix_rows("curr-lc", mesh.name, bone_name, curr_lc);
+        log_compact_matrix_rows("bind-stored", mesh.name, bone_name,
                                 bind_stored);
-        log_compact_matrix_rows("curr-stored", mesh.name, mesh.bone_palette[i],
+        log_compact_matrix_rows("curr-stored", mesh.name, bone_name,
                                 curr_stored);
-        log_compact_matrix_rows("mesh-lc", mesh.name, mesh.bone_palette[i],
-                                mesh_lc);
+        log_compact_matrix_rows("mesh-lc", mesh.name, bone_name, mesh_lc);
         std::fprintf(stderr,
                      "[skin-matrix-row] %-24s bone=%-24s "
                      "r0=(%.4f %.4f %.4f %.4f) "
                      "r1=(%.4f %.4f %.4f %.4f) "
                      "r2=(%.4f %.4f %.4f %.4f) "
                      "pos=(%.4f %.4f %.4f %.4f)\n",
-                     mesh.name.c_str(), mesh.bone_palette[i].c_str(),
+                     mesh.name.c_str(), bone_name.c_str(),
                      s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
                      s[8], s[9], s[10], s[11], s[12], s[13], s[14], s[15]);
-        log_compact_matrix_rows("skin", mesh.name, mesh.bone_palette[i], s);
+        log_compact_matrix_rows("skin", mesh.name, bone_name, s);
       }
     }
   }
@@ -2469,6 +2440,10 @@ void skin_to_pose(const SkinnedMesh& mesh, const Character& character,
     for (size_t i = 0; i < nb && i < 4; ++i) {
       const float wgt = v.w[i];
       if (wgt == 0.0f) continue;
+      if (i >= skin.size() || mesh.bone_palette[i].empty() ||
+          !character.has_transform(mesh.bone_palette[i])) {
+        continue;
+      }
       const auto& s = skin[i];
       p[0] += wgt * (v.px * s[0] + v.py * s[4] + v.pz * s[8] + s[12]);
       p[1] += wgt * (v.px * s[1] + v.py * s[5] + v.pz * s[9] + s[13]);

@@ -794,20 +794,6 @@ bool disable_lookat_enabled() {
 #endif
 }
 
-bool disable_char_hair_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_CHAR_HAIR") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_CHAR_HAIR");
-  return value && value[0];
-#endif
-}
-
 bool debug_char_hair_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -818,21 +804,6 @@ bool debug_char_hair_enabled() {
   return enabled;
 #else
   const char* value = std::getenv("GHOGX_DEBUG_CHAR_HAIR");
-  return value && value[0];
-#endif
-}
-
-bool legacy_char_hair_bridge_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_ENABLE_LEGACY_CHAR_HAIR_BRIDGE") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_ENABLE_LEGACY_CHAR_HAIR_BRIDGE");
   return value && value[0];
 #endif
 }
@@ -909,10 +880,10 @@ void log_character_controller_graph_once(const Character& character) {
                character.meshes.size(), character.drivers.size(),
                character.weight_setters.size(), character.ik_hands.size(),
                character.ik_midis.size(), character.fore_twists.size(),
-               character.upper_twists.size(), character.hairs.size(), character.lookats.size(),
-               character.eyes.size(), arm_ik_enabled() ? "on" : "off",
-               ik_hand_rotation_enabled() ? "on" : "guarded",
-               disable_char_hair_enabled() ? "off" : "on",
+               character.upper_twists.size(), character.hairs.size(),
+               character.lookats.size(), character.eyes.size(),
+               arm_ik_enabled() ? "on" : "off",
+               ik_hand_rotation_enabled() ? "on" : "guarded", "decode-only",
                disable_lookat_enabled() ? "off" : "on");
   for (const auto& ik : character.ik_hands) {
     std::fprintf(stderr,
@@ -1565,7 +1536,7 @@ static int find_mesh_index(const Character& character, const std::string& name) 
   return -1;
 }
 
-static bool is_eye_mesh_name(const std::string& name) {
+[[maybe_unused]] static bool is_eye_mesh_name(const std::string& name) {
   std::string lower = name;
   std::transform(lower.begin(), lower.end(), lower.begin(),
                  [](unsigned char c) { return (char)std::tolower(c); });
@@ -1578,27 +1549,6 @@ static bool is_eye_mesh_name(const std::string& name) {
          lower.find("eye_r") != std::string::npos ||
          lower.find("eyel.") != std::string::npos ||
          lower.find("eyer.") != std::string::npos;
-}
-
-struct TransformTarget {
-  milo_scene::Xfm* local = nullptr;
-  const std::string* name = nullptr;
-  const std::string* parent = nullptr;
-};
-
-static TransformTarget find_transform_target(Character& character,
-                                             const std::string& name) {
-  for (auto& b : character.bones) {
-    if (b.name == name || channel_matches_bone(b.name, name)) {
-      return {&b.local, &b.name, &b.parent};
-    }
-  }
-  for (auto& m : character.meshes) {
-    if (m.name == name || channel_matches_bone(m.name, name)) {
-      return {&m.local, &m.name, &m.parent};
-    }
-  }
-  return {};
 }
 
 static std::array<float, 16> mat4_mul(const std::array<float, 16>& a,
@@ -3640,69 +3590,6 @@ static void apply_hand_driver_output_layers(
   apply_group(HandDriverOutputGroup::Fret);
 }
 
-static size_t char_hair_point_count(const Character& character) {
-  size_t count = 0;
-  for (const auto& hair : character.hairs) {
-    for (const auto& group : hair.strands) count += group.points.size();
-  }
-  return count;
-}
-
-static Vec3 runtime_point_pos(const RuntimeHairPoint& p) {
-  return {p.pos_world[0], p.pos_world[1], p.pos_world[2]};
-}
-
-static Vec3 runtime_point_force(const RuntimeHairPoint& p) {
-  return {p.force_world[0], p.force_world[1], p.force_world[2]};
-}
-
-static Vec3 runtime_point_last_friction(const RuntimeHairPoint& p) {
-  return {p.last_friction_world[0], p.last_friction_world[1],
-          p.last_friction_world[2]};
-}
-
-static void set_runtime_point_source_motion(RuntimeHairPoint& p, Vec3 force,
-                                            Vec3 last_friction) {
-  p.force_world[0] = force.x;
-  p.force_world[1] = force.y;
-  p.force_world[2] = force.z;
-  p.last_friction_world[0] = last_friction.x;
-  p.last_friction_world[1] = last_friction.y;
-  p.last_friction_world[2] = last_friction.z;
-}
-
-static void reset_runtime_point_source_motion(RuntimeHairPoint& p) {
-  set_runtime_point_source_motion(p, {0.0f, 0.0f, 0.0f},
-                                  {0.0f, 0.0f, 0.0f});
-}
-
-static void set_runtime_point_pos(RuntimeHairPoint& p, Vec3 pos) {
-  p.pos_world[0] = pos.x;
-  p.pos_world[1] = pos.y;
-  p.pos_world[2] = pos.z;
-}
-
-static void set_runtime_point_world(RuntimeHairPoint& p,
-                                    const std::array<float, 16>& world) {
-  p.has_world = true;
-  p.world = world;
-}
-
-static void set_runtime_point_last_z(RuntimeHairPoint& p, Vec3 row) {
-  row = vnorm(row, {0.0f, 0.0f, 1.0f});
-  p.last_z_world[0] = row.x;
-  p.last_z_world[1] = row.y;
-  p.last_z_world[2] = row.z;
-}
-
-static Vec3 runtime_point_last_z(const RuntimeHairPoint& p) {
-  return {p.last_z_world[0], p.last_z_world[1], p.last_z_world[2]};
-}
-
-static Vec3 blend_vec(Vec3 a, Vec3 b, float t) {
-  return vadd(vscale(a, 1.0f - t), vscale(b, t));
-}
-
 enum class EyeSide {
   kUnknown,
   kLeft,
@@ -3840,362 +3727,17 @@ static void submit_char_eyes_runtime_rows(Character& character) {
   }
 }
 
-static bool enforce_hair_collision(const Character& character,
-                                   const CharHairPoint& point,
-                                   Vec3& solved,
-                                   Vec3& roll) {
-  if (point.collision.empty()) return false;
-  std::array<float, 16> collision_world{};
-  if (!transform_local_chain_world(character, point.collision, collision_world)) {
-    return false;
-  }
-
-  const Vec3 center = mat_pos(collision_world);
-  Vec3 from_center = vsub(solved, center);
-  float dist = vlen(from_center);
-  if (dist <= 1e-5f) {
-    from_center = {1.0f, 0.0f, 0.0f};
-    dist = 1.0f;
-  }
-  const float radius = std::max(0.0f, point.radius);
-  const float outer_radius = std::max(0.0f, point.outer_radius);
-  const float max_radius = std::max(radius, outer_radius);
-  const float diff_radius = outer_radius - radius;
-  const Vec3 before = solved;
-
-  auto source_outside_push = [&](Vec3 delta) {
-    float len_sq = vdot(delta, delta);
-    const float max_sq = max_radius * max_radius;
-    if (len_sq >= max_sq || max_radius <= 0.0f) return;
-    if (len_sq <= 1e-8f) {
-      delta = {1.0f, 0.0f, 0.0f};
-      len_sq = 1.0f;
-    }
-    const float inv_len = 1.0f / std::sqrt(len_sq);
-    const float len = len_sq * inv_len;
-    if (diff_radius > 0.0f) {
-      const Vec3 normal = vscale(delta, -inv_len);
-      if (len < radius) {
-        roll = normal;
-        solved = vadd(solved, vscale(normal, len - radius));
-      } else {
-        roll = blend_vec(roll, normal, (max_radius - len) / diff_radius);
-      }
-    } else {
-      solved = vadd(solved, vscale(delta, max_radius * inv_len - 1.0f));
-    }
-  };
-
-  switch (point.collide_type) {
-    case 0: {  // kCollidePlane
-      const Vec3 axis = vnorm(mat_row(collision_world, 0), {0.0f, 0.0f, 1.0f});
-      const float dot = vdot(from_center, axis);
-      if (dot < max_radius) solved = vadd(solved, vscale(axis, max_radius - dot));
-      break;
-    }
-    case 1: {  // kCollideSphere
-      source_outside_push(from_center);
-      break;
-    }
-    case 2: {  // kCollideInsideSphere
-      if (dist > max_radius && max_radius > 0.0f) {
-        solved = vadd(center, vscale(from_center, max_radius / dist));
-      }
-      break;
-    }
-    case 3: {  // kCollideCylinder
-      const Vec3 axis = vnorm(mat_row(collision_world, 0), {0.0f, 0.0f, 1.0f});
-      const float along = vdot(from_center, axis);
-      const Vec3 on_axis = vadd(center, vscale(axis, along));
-      source_outside_push(vsub(solved, on_axis));
-      break;
-    }
-    case 4: {  // kCollideInsideCylinder
-      const Vec3 axis = vnorm(mat_row(collision_world, 0), {0.0f, 0.0f, 1.0f});
-      const float along = vdot(from_center, axis);
-      const Vec3 on_axis = vadd(center, vscale(axis, along));
-      Vec3 radial = vsub(solved, on_axis);
-      float radial_len = vlen(radial);
-      if (radial_len <= 1e-5f) {
-        radial = vnorm(vcross(axis, {0.0f, 1.0f, 0.0f}), {1.0f, 0.0f, 0.0f});
-        radial_len = 1.0f;
-      }
-      if (radial_len > max_radius && max_radius > 0.0f) {
-        solved = vadd(on_axis, vscale(radial, max_radius / radial_len));
-      }
-      break;
-    }
-    default:
-      break;
-  }
-
-  if (debug_char_hair_enabled() && vlen(vsub(solved, before)) > 1e-5f) {
-    std::fprintf(stderr,
-                 "[charhair-legacy-collision] target=%s type=%u "
-                 "radius=%.4f outer=%.4f before=(%.3f %.3f %.3f) "
-                 "after=(%.3f %.3f %.3f)\n",
-                 point.collision.c_str(),
-                 static_cast<unsigned>(point.collide_type), radius, outer_radius,
-                 before.x, before.y, before.z, solved.x, solved.y, solved.z);
-  }
-  return true;
-}
-
 static void apply_char_hair(Character& character, float time_seconds) {
-  if (disable_char_hair_enabled()) return;
-  const size_t total_points = char_hair_point_count(character);
-  if (total_points == 0) return;
-  const bool reset_runtime =
-      character.runtime_hair.points.size() != total_points ||
-      character.runtime_hair.last_time_seconds < 0.0f;
-  if (character.runtime_hair.points.size() != total_points) {
-    character.runtime_hair.points.assign(total_points, RuntimeHairPoint{});
-    character.runtime_hair.last_time_seconds = -1.0f;
-  }
-
-  float dt = 0.0f;
-  if (character.runtime_hair.last_time_seconds >= 0.0f &&
-      time_seconds >= character.runtime_hair.last_time_seconds) {
-    dt = std::clamp(time_seconds - character.runtime_hair.last_time_seconds,
-                    0.0f, 1.0f / 60.0f);
-  }
-  character.runtime_hair.last_time_seconds = time_seconds;
-
-  auto authored_point = [](const CharHairPoint& point) -> Vec3 {
-    return {point.pos[0], point.pos[1], point.pos[2]};
-  };
-
-  auto source_root_transform =
-      [&](const CharHairStrand& strand, const TransformTarget& root_target,
-          std::array<float, 16>& out) -> bool {
-    if (!root_target.name || !root_target.parent || root_target.parent->empty()) {
-      return false;
-    }
-    std::array<float, 16> root_world{};
-    if (!transform_local_chain_world(character, *root_target.name, root_world)) {
-      return false;
-    }
-    const auto parent_world =
-        character.bone_world_local_chain(*root_target.parent);
-    out = parent_world;
-    for (int r = 0; r < 3; ++r) {
-      for (int c = 0; c < 3; ++c) {
-        float v = 0.0f;
-        for (int k = 0; k < 3; ++k) {
-          v += strand.root_mat[r * 3 + k] * parent_world[k * 4 + c];
-        }
-        out[r * 4 + c] = v;
-      }
-    }
-    out[12] = root_world[12];
-    out[13] = root_world[13];
-    out[14] = root_world[14];
-    out[15] = 1.0f;
-    normalize_mat3_rows(out);
-    return true;
-  };
-
-  size_t init_index = 0;
+  (void)time_seconds;
+  if (character.hairs.empty()) return;
   for (const auto& hair : character.hairs) {
     log_char_hair_source_once(character, hair);
-    for (const auto& strand : hair.strands) {
-      TransformTarget root_target = find_transform_target(character, strand.root);
-      std::array<float, 16> root_world{};
-      const bool have_root =
-          root_target.name && transform_local_chain_world(character, *root_target.name,
-                                                          root_world);
-      Vec3 previous_pos = have_root ? mat_pos(root_world) : Vec3{};
-      Vec3 previous_x = have_root ? mat_row(root_world, 0) : Vec3{1, 0, 0};
-      for (const auto& point : strand.points) {
-        RuntimeHairPoint& state = character.runtime_hair.points[init_index++];
-        if (!state.initialized || state.bone != point.bone || reset_runtime) {
-          state.initialized = true;
-          state.bone = point.bone;
-          set_runtime_point_pos(state, authored_point(point));
-          reset_runtime_point_source_motion(state);
-        }
-        if (reset_runtime && have_root) {
-          const Vec3 delta = vsub(runtime_point_pos(state), previous_pos);
-          Vec3 last_z = vnorm(vcross(previous_x, delta), mat_row(root_world, 2));
-          set_runtime_point_last_z(state, last_z);
-          previous_x = vcross(delta, last_z);
-          previous_pos = runtime_point_pos(state);
-        }
-      }
-    }
   }
-
-  if (!legacy_char_hair_bridge_enabled()) {
-    if (debug_char_hair_enabled()) {
-      std::fprintf(stderr,
-                   "[charhair-source-sim] character=%s legacyBridge=0 "
-                   "noDecodedCollideListNoWriteback=1\n",
-                   character.dir_name.c_str());
-    }
-    return;
-  }
-
-  auto simulate_or_publish =
-      [&](const CharHair& hair,
-          const std::vector<size_t>& strand_starts,
-          bool advance,
-          float inertia_value,
-          float friction_value,
-          const char* pass_name) {
-    const float stiffness = std::clamp(hair.stiffness, 0.0f, 1.0f);
-    const float torsion = std::clamp(hair.torsion, 0.0f, 1.0f);
-    const float inertia = std::clamp(inertia_value, 0.0f, 1.0f);
-    const float friction = std::clamp(friction_value, 0.0f, 1.0f);
-    constexpr float fps = 60.0f;
-    constexpr float sixty_over = 60.0f / fps;
-    constexpr float f19 = (1.0f / fps) * sixty_over;
-    const float powed =
-        std::pow(std::clamp(1.0f - stiffness, 0.0f, 1.0f),
-                 sixty_over * sixty_over);
-    const Vec3 gravity_vec{0.0f, 0.0f, hair.gravity * f19 * -3.858268f};
-    for (size_t strand_index = 0; strand_index < hair.strands.size();
-         ++strand_index) {
-      const auto& strand = hair.strands[strand_index];
-      TransformTarget root_target = find_transform_target(character, strand.root);
-      std::array<float, 16> segment_world{};
-      if (!source_root_transform(strand, root_target, segment_world)) {
-        continue;
-      }
-      const auto& points = strand.points;
-      for (size_t point_index = 0; point_index < points.size(); ++point_index) {
-        const size_t runtime_index = strand_starts[strand_index] + point_index;
-        const auto& point = points[point_index];
-        RuntimeHairPoint& state =
-            character.runtime_hair.points[runtime_index];
-        TransformTarget target = find_transform_target(character, point.bone);
-        if (!target.name) continue;
-
-        Vec3 old_pos = runtime_point_pos(state);
-        Vec3 pos = old_pos;
-        if (advance) {
-          pos = vadd(pos, runtime_point_force(state));
-          pos = vadd(pos, gravity_vec);
-        }
-
-        Vec3 axis = vsub(pos, mat_pos(segment_world));
-        float axis_len = vlen(axis);
-        if (axis_len <= 1e-6f) {
-          axis = mat_row(segment_world, 1);
-          axis_len = std::max(vlen(axis), 1e-6f);
-        }
-        const float inv_axis_len = 1.0f / axis_len;
-        const float length =
-            std::max(0.001f, point.length > 0.0f ? point.length : axis_len);
-        const float length_scale = length * inv_axis_len - 1.0f;
-        if (advance && point_index > 0) {
-          RuntimeHairPoint& previous_state =
-              character.runtime_hair.points[runtime_index - 1];
-          const Vec3 previous_force = runtime_point_force(previous_state);
-          set_runtime_point_source_motion(
-              previous_state,
-              vadd(previous_force,
-                   vscale(axis, -sixty_over * 0.5f * length_scale)),
-              runtime_point_last_friction(previous_state));
-        }
-        if (advance) pos = vadd(pos, vscale(axis, length_scale));
-        const Vec3 source_target =
-            vadd(mat_pos(segment_world), vscale(mat_row(segment_world, 1), length));
-        Vec3 roll = blend_vec(runtime_point_last_z(state),
-                              mat_row(segment_world, 2), torsion);
-        if (vlen(roll) <= 1e-6f) roll = mat_row(segment_world, 2);
-        const bool has_collision =
-            enforce_hair_collision(character, point, pos, roll);
-        if (!has_collision) {
-          if (debug_char_hair_enabled()) {
-            std::fprintf(stderr,
-                         "[charhair-source-sim] hair=%s strand=%zu point=%zu "
-                         "bone=%s root=%s pass=%s advance=%d "
-                         "noCollidesNoWriteback=1\n",
-                         hair.name.c_str(), strand_index, point_index,
-                         point.bone.c_str(), strand.root.c_str(), pass_name,
-                         advance ? 1 : 0);
-          }
-          continue;
-        }
-        Vec3 row1 = vnorm(axis, mat_row(segment_world, 1));
-        Vec3 row0 = vnorm(vcross(row1, roll), mat_row(segment_world, 0));
-        Vec3 row2 = vnorm(vcross(row0, row1), roll);
-        segment_world[0] = row0.x;
-        segment_world[1] = row0.y;
-        segment_world[2] = row0.z;
-        segment_world[4] = row1.x;
-        segment_world[5] = row1.y;
-        segment_world[6] = row1.z;
-        segment_world[8] = row2.x;
-        segment_world[9] = row2.y;
-        segment_world[10] = row2.z;
-        normalize_mat3_rows(segment_world);
-        set_runtime_point_last_z(state, mat_row(segment_world, 2));
-        set_runtime_point_world(state, segment_world);
-        character.runtime_world_overrides[*target.name] = segment_world;
-
-        if (advance) {
-          Vec3 next_force = vsub(source_target, pos);
-          const Vec3 last_friction = runtime_point_last_friction(state);
-          const Vec3 friction_delta = vsub(last_friction, next_force);
-          const Vec3 next_last_friction = next_force;
-          next_force = vscale(next_force, 1.0f - powed);
-          next_force = vadd(next_force, vscale(friction_delta, -friction));
-          next_force = vadd(next_force, vscale(vsub(pos, old_pos), inertia));
-          set_runtime_point_source_motion(state, next_force, next_last_friction);
-          set_runtime_point_pos(state, pos);
-        }
-
-        if (debug_char_hair_enabled()) {
-          const Vec3 force = runtime_point_force(state);
-          const Vec3 last_friction = runtime_point_last_friction(state);
-          const Vec3 last_z = runtime_point_last_z(state);
-          const Vec3 submitted = mat_pos(segment_world);
-          std::fprintf(stderr,
-                       "[charhair-source-sim] hair=%s strand=%zu point=%zu "
-                       "bone=%s root=%s pass=%s advance=%d "
-                       "anchor=(%.3f %.3f %.3f) pos=(%.3f %.3f %.3f) "
-                       "target=(%.3f %.3f %.3f) len=%.3f "
-                       "force=(%.4f %.4f %.4f) "
-                       "lastFriction=(%.4f %.4f %.4f) "
-                       "lastZ=(%.4f %.4f %.4f)\n",
-                       hair.name.c_str(), strand_index, point_index,
-                       point.bone.c_str(), strand.root.c_str(), pass_name,
-                       advance ? 1 : 0, submitted.x, submitted.y, submitted.z,
-                       pos.x, pos.y, pos.z, source_target.x, source_target.y,
-                       source_target.z, length, force.x, force.y, force.z,
-                       last_friction.x, last_friction.y, last_friction.z,
-                       last_z.x, last_z.y, last_z.z);
-        }
-
-        segment_world[12] = pos.x;
-        segment_world[13] = pos.y;
-        segment_world[14] = pos.z;
-      }
-    }
-  };
-
-  size_t hair_base = 0;
-  for (const auto& hair : character.hairs) {
-    std::vector<size_t> strand_starts;
-    strand_starts.reserve(hair.strands.size());
-    size_t point_cursor = hair_base;
-    for (const auto& strand : hair.strands) {
-      strand_starts.push_back(point_cursor);
-      point_cursor += strand.points.size();
-    }
-    if (hair.simulate && reset_runtime) {
-      simulate_or_publish(hair, strand_starts, true, 0.0f, 0.0f,
-                          "DoReset");
-    }
-    if (hair.simulate && dt > 0.0f) {
-      simulate_or_publish(hair, strand_starts, true, hair.inertia,
-                          hair.friction, "SimulateInternal");
-    } else {
-      simulate_or_publish(hair, strand_starts, false, hair.inertia,
-                          hair.friction, "SimulateZeroTime");
-    }
-    hair_base = point_cursor;
+  if (debug_char_hair_enabled()) {
+    std::fprintf(stderr,
+                 "[charhair-source-sim] character=%s runtimeWriteback=0 "
+                 "reason=awaiting-faithful-ihatecompvir-CharHair-port\n",
+                 character.dir_name.c_str());
   }
 }
 

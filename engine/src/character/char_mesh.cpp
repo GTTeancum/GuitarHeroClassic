@@ -51,7 +51,64 @@ struct Reader {
   }
 };
 
-constexpr size_t kObjMeta = 9;
+void read_dtb_node(Reader& r);
+
+void read_dtb_array_parent(Reader& r) {
+  const uint16_t child_count = r.u16();
+  (void)r.u32();  // id
+  for (uint16_t i = 0; i < child_count; ++i) read_dtb_node(r);
+}
+
+void read_dtb_parent(Reader& r) {
+  const bool has_tree = r.u8() != 0;
+  if (!has_tree) return;
+  read_dtb_array_parent(r);
+}
+
+void read_dtb_node(Reader& r) {
+  const uint32_t type = r.u32();
+  switch (type) {
+    case 0x00:  // Int
+      (void)r.u32();
+      break;
+    case 0x01:  // Float
+      (void)r.f32();
+      break;
+    case 0x02:  // Variable
+    case 0x04:  // Object
+    case 0x05:  // Symbol
+    case 0x06:  // Unhandled
+    case 0x07:  // IfDef
+    case 0x08:  // Else
+    case 0x09:  // EndIf
+    case 0x12:  // String
+    case 0x20:  // Define
+    case 0x21:  // Include
+    case 0x22:  // Merge
+    case 0x23:  // IfNDef
+    case 0x24:  // Autorun
+    case 0x25:  // Undef
+      (void)r.str();
+      break;
+    case 0x10:  // Array
+    case 0x11:  // Command
+    case 0x13:  // Property
+      read_dtb_array_parent(r);
+      break;
+    default:
+      break;
+  }
+}
+
+void read_object_fields(Reader& r) {
+  // MiloLib ObjectFields.Read for GH2+ directories: combined object revision,
+  // subtype Symbol, root DTB parent, and optional note Symbol for revision > 0.
+  const uint32_t combined_revision = r.u32();
+  const uint16_t revision = static_cast<uint16_t>(combined_revision & 0xffffu);
+  (void)r.str();
+  read_dtb_parent(r);
+  if (revision > 0) (void)r.str();
+}
 
 struct TransFields {
   Xfm local;
@@ -64,12 +121,19 @@ struct TransFields {
 
 TransFields read_rnd_trans(Reader& r, bool standalone) {
   TransFields out;
-  const int32_t ver = r.i32();
+  const uint32_t combined_revision = r.u32();
+  const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
   if (standalone) {
-    r.skip(kObjMeta);
+    read_object_fields(r);
   }
   out.local = r.matrix();
   out.world = r.matrix();
+  if (ver < 9) {
+    const uint32_t trans_count = r.u32();
+    for (uint32_t i = 0; i < trans_count; ++i) {
+      r.str();
+    }
+  }
   if (ver > 6) out.constraint = r.u32();
   if (ver > 5) out.target = r.str();
   if (ver > 6) out.preserve_scale = r.u8() != 0;
@@ -117,7 +181,7 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
     int32_t ver = r.i32();  // mesh version = 28 (0x1c)
     if (ver != 28) mesh.error = "unexpected mesh version " + std::to_string(ver);
 
-    r.skip(kObjMeta);        // Hmx::Object fields for the Mesh object.
+    read_object_fields(r);   // Hmx::Object fields for the Mesh object.
     const TransFields trans = read_rnd_trans(r, false);
     mesh.local = trans.local;
     mesh.world_stored = trans.world;
@@ -252,10 +316,6 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
           for (int bi = 0; bi < 4; ++bi) {
             mesh.bind.push_back(r.matrix());
           }
-          while (!mesh.bone_palette.empty() && mesh.bone_palette.back().empty()) {
-            mesh.bone_palette.pop_back();
-            mesh.bind.pop_back();
-          }
         }
       }
     }
@@ -289,7 +349,7 @@ CharUpperTwist decode_upper_twist(const std::string& entry_name,
   CharUpperTwist t;
   t.name = entry_name;
   (void)r.i32();      // version 1
-  r.skip(kObjMeta);   // Hmx::Object metadata
+  read_object_fields(r);  // Hmx::Object metadata
   t.upper_arm = r.str();
   t.twist1 = r.str();
   t.twist2 = r.str();
@@ -302,7 +362,7 @@ CharForeTwist decode_fore_twist(const std::string& entry_name,
   CharForeTwist t;
   t.name = entry_name;
   (void)r.i32();      // version 1
-  r.skip(kObjMeta);   // Hmx::Object metadata
+  read_object_fields(r);  // Hmx::Object metadata
   t.offset_degrees = r.f32();
   t.hand = r.str();
   t.twist2 = r.str();
@@ -315,7 +375,7 @@ CharIKRod decode_ik_rod(const std::string& entry_name,
   CharIKRod rod;
   rod.name = entry_name;
   (void)r.i32();      // version 2
-  r.skip(kObjMeta);   // Hmx::Object metadata
+  read_object_fields(r);  // Hmx::Object metadata
   rod.left_end = r.str();
   rod.right_end = r.str();
   rod.dest_pos = r.f32();
@@ -334,7 +394,7 @@ CharIKHand decode_ik_hand(const std::string& entry_name,
   CharIKHand hand;
   hand.name = entry_name;
   (void)r.i32();      // version 1/2 in GH2
-  r.skip(kObjMeta);   // Hmx::Object metadata
+  read_object_fields(r);  // Hmx::Object metadata
   hand.unknown = r.i32();
   hand.weight = r.f32();
   hand.weight_prop = r.str();
@@ -352,7 +412,7 @@ CharIKMidi decode_ik_midi(const std::string& entry_name,
   CharIKMidi midi;
   midi.name = entry_name;
   (void)r.i32();      // version 4 in GH2 PS2.
-  r.skip(kObjMeta);   // Hmx::Object metadata.
+  read_object_fields(r);  // Hmx::Object metadata.
   midi.bone = r.str();
   return midi;
 }
@@ -363,7 +423,7 @@ CharHair decode_hair(const std::string& entry_name,
   CharHair hair;
   hair.name = entry_name;
   hair.version = r.i32();
-  r.skip(kObjMeta);
+  read_object_fields(r);
   hair.stiffness = r.f32();
   hair.torsion = r.f32();
   hair.inertia = r.f32();
@@ -440,7 +500,7 @@ CharLookAt decode_lookat(const std::string& entry_name,
   CharLookAt la;
   la.name = entry_name;
   (void)r.i32();      // version 2 in GH2
-  r.skip(kObjMeta);   // Hmx::Object metadata
+  read_object_fields(r);  // Hmx::Object metadata
   la.flags = r.i32();
   la.weight = r.f32();
   la.source = r.str();
@@ -464,7 +524,7 @@ CharEyes decode_eyes(const std::string& entry_name,
   CharEyes eyes;
   eyes.name = entry_name;
   (void)r.i32();      // version 3 in GH2
-  r.skip(kObjMeta);   // Hmx::Object metadata
+  read_object_fields(r);  // Hmx::Object metadata
   uint32_t count = r.u32();
   for (uint32_t i = 0; i < count && r.pos < r.n; ++i)
     eyes.lookats.push_back(r.str());
@@ -538,7 +598,7 @@ CharDriver decode_driver_body(const std::string& entry_name, Reader& r,
   CharDriver driver;
   driver.name = entry_name;
   (void)r.i32();      // CharDriver version, observed 3 in GH2.
-  r.skip(kObjMeta);   // Hmx::Object metadata
+  read_object_fields(r);  // Hmx::Object metadata
   (void)r.i32();      // weightable version, observed 2.
   driver.weight = r.f32();
   driver.weight_prop = r.str();
@@ -569,7 +629,7 @@ CharWeightSetter decode_weight_setter(const std::string& entry_name,
   CharWeightSetter setter;
   setter.name = entry_name;
   (void)r.i32();      // version 2
-  r.skip(kObjMeta);   // Hmx::Object metadata
+  read_object_fields(r);  // Hmx::Object metadata
   (void)r.i32();      // weightable version, observed 2.
   setter.weight = r.f32();
   setter.weight_prop = r.str();
@@ -752,6 +812,11 @@ std::array<float, 16> Character::bone_world_bind_local_chain(const std::string& 
 
 std::array<float, 16> Character::mesh_world(const SkinnedMesh& m) const {
   return source_world_for(*this, m.name, false);
+}
+
+bool Character::has_transform(const std::string& name) const {
+  SourceXfm xfm;
+  return find_source_xfm(*this, name, xfm);
 }
 
 bool load_character(const std::string& hdr_path, const std::string& ark_path,

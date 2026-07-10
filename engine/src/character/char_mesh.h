@@ -12,13 +12,18 @@
 //   Treating the weights as colour tints the character with garbage, so the
 //   character path must decode them as weights and a BONE PALETTE.
 //
-// All byte layouts below were decoded from the ACTUAL GH2 PS2 bytes of
-// char/metal1/og/gen/metal1.milo_ps2 (BandCharacter dir, milo dir version 24),
-// cross-checked against the entry size. See the .cpp for the verified equation.
+// The mesh decoder follows ihatecompvir's MiloLib/RB3 source names for
+// ObjectFields, RndTrans, RndDrawable, and RndMesh. GH2 PS2 character dirs are
+// version 24, so object superclasses carry ObjectFields; most stock rows happen
+// to have an empty subtype/root, but the parser consumes the fields rather than
+// treating them as anonymous padding.
 //
 //   Skinned Mesh (version 0x1c = 28) — identical header to a static Mesh:
-//     Trans base : i32 ver(9) + 9 meta + 48 local-mat + 48 world-mat + 9 meta
-//                  + parent-string
+//     Object     : ObjectFields (combined object revision, subtype Symbol,
+//                  root DTB parent, optional note)
+//     Trans base : combined RndTrans revision, local matrix, world matrix,
+//                  optional rev<9 child list, constraint, target,
+//                  preserve-scale, parent Symbol
 //     Draw  base : i32 ver(3) + 21 bytes (showing flag + bounding sphere +
 //                  draw-order)
 //     str   material name
@@ -31,22 +36,21 @@
 //     i32   face_count
 //     faces : face_count × (3 × u16)
 //     --- skinning tail (this is what static meshes lack) ---
-//     ...   a small variable-length bone-group header
-//     bones : a length-prefixed list of BONE PALETTE names (Trans entry names);
-//             weight slot i of every vertex refers to palette bone i. Every
-//             character mesh we have seen uses a palette of <= 4 bones.
-//     bind  : one 3x4 bind matrix per palette bone (9 rot + 3 translation),
-//             same layout as a Trans matrix.
+//     ...   groupSizes / patch data
+//     bones : for rev < 33, exactly four old-style RndMesh::BoneTransform
+//             Symbol rows followed by four transform rows; empty Symbol rows
+//             remain real source slots, but unresolved slots do not contribute
+//             to skinning.
+//     bind  : one 3x4 RndBone offset row per source palette slot.
 //     ...   trailing per-LOD face-group descriptor (ignored)
 //
 //   Bones are the BandCharacter dir's Trans entries named "bone_*"/"spot_*".
 //   Their composed parent chain gives each bone's bind-pose WORLD matrix.
 //
-// IMPORTANT (bind pose): GH2 stores skinned vertex positions already in
-// BIND-POSE MODEL SPACE. So at the bind pose the linear-blend result equals the
-// stored position, and a recognizable character renders from the raw vertices
-// with no bone math. The bone palette + bind matrices are only needed to
-// re-pose the mesh for animation (see skin_to_pose() in char_renderer).
+// IMPORTANT (bind pose): ihatecompvir's RB3 RndMesh::SetBone computes each
+// offset row as mesh WorldXfm * inverse(bone WorldXfm). The render path
+// consumes it as vertex * offset * current bone WorldXfm, preserving unresolved
+// source slots instead of reshaping the palette.
 
 #pragma once
 
@@ -91,9 +95,9 @@ struct SkinnedMesh {
 
   // Bone palette: weight slot i of every vertex refers to bone_palette[i].
   std::vector<std::string> bone_palette;
-  // One INVERSE bind matrix per palette bone (B^{-1}: world→bone-local at bind
-  // pose, pre-inverted as stored in the Mesh skinning tail — DCC standard form).
-  // LBS formula: skinned = v * bind_inv * bone_world.
+  // One RndBone offset row per palette bone. ihatecompvir's RB3 RndMesh source
+  // computes this as mesh WorldXfm * inverse(bone WorldXfm), and skinning
+  // consumes it as v * offset * current bone WorldXfm.
   std::vector<milo_scene::Xfm> bind;
   float bb_min[3] = {0, 0, 0};
   float bb_max[3] = {0, 0, 0};
@@ -172,9 +176,9 @@ struct CharHairPoint {
   // Source schema name: bone. This is the Trans row CharHair drives.
   std::string bone;
   float length = 0.0f;
-  // GH2 v2 field names from ihatecompvir/grim and re-notes. These are legacy
-  // inline collision rows: collide_type, collision target, distance/radius, and
-  // align distance. They are not transform parents for authored point pos.
+  // GH2 v2 field names from ihatecompvir's CharHair source. Older revisions
+  // carry legacy inline collision rows; the native runtime does not currently
+  // publish guessed hair physics rows from them.
   uint32_t collide_type = 0;
   std::string collision;
   float radius = 0.0f;
@@ -206,23 +210,6 @@ struct CharHair {
   std::vector<CharHairStrand> strands;
   bool simulate = true;
   std::string wind;
-};
-
-struct RuntimeHairPoint {
-  bool initialized = false;
-  bool has_world = false;
-  std::string bone;
-  float pos_world[3] = {0, 0, 0};
-  float force_world[3] = {0, 0, 0};
-  float last_friction_world[3] = {0, 0, 0};
-  float last_z_world[3] = {0, 0, 1};
-  std::array<float, 16> world =
-      {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-};
-
-struct RuntimeHairState {
-  float last_time_seconds = -1.0f;
-  std::vector<RuntimeHairPoint> points;
 };
 
 struct RuntimeIKMidiState {
@@ -296,7 +283,6 @@ struct Character {
   // writer without replacing the authored local rows that later controllers
   // still read. These are cleared per sampled frame.
   std::map<std::string, std::array<float, 16>> runtime_world_overrides;
-  RuntimeHairState runtime_hair;
 
   // Distinct diffuse-texture names referenced by the character's materials.
   std::vector<std::string> texture_names() const;
@@ -320,6 +306,7 @@ struct Character {
 
   // Compose a mesh's own source transform world matrix.
   std::array<float, 16> mesh_world(const SkinnedMesh& m) const;
+  bool has_transform(const std::string& name) const;
 };
 
 // Decode one skinned-mesh entry body. Never throws: on failure returns a
