@@ -2479,24 +2479,15 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         if (star_path_glow_mesh || star_additive_glow_mesh) {
           q.fullbright_texture = true;
         }
-        if (star_path_glow_mesh || star_additive_glow_mesh) {
+        if (star_additive_glow_mesh) {
           q.emissive_texture_2x = true;
         }
         const auto prelit_it = star.mat_prelit.find(mesh->material);
         const bool source_prelit =
             prelit_it != star.mat_prelit.end() && prelit_it->second;
-        const uint8_t source_blend = q.blend;
         if (star_path_glow_mesh && source_prelit) {
           native_star_path_glow_prelit_ = true;
-          native_star_path_glow_dual_emit_ = true;
-          q.additive = true;
-          q.blend = kHudBlendSrcAlphaAdd;
-          q.emissive_texture_4x = true;
-          q.emissive_texture_2x = false;
-          q.emissive_alpha_4x = false;
-          q.emissive_alpha_2x = true;
-          q.prelit_alpha_emission = true;
-          q.sort_bias = 1;
+          native_star_path_glow_dual_emit_ = false;
         }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
@@ -2505,18 +2496,6 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
             star.mat_tex.find(mesh->material) != star.mat_tex.end();
         if ((q.tex || color != 0 || !source_has_texture) &&
             q.verts.size() >= 3 && q.idx.size() >= 3) {
-          if (star_path_glow_mesh && source_prelit) {
-            Quad color_pass = q;
-            color_pass.additive = false;
-            color_pass.blend = source_blend;
-            color_pass.emissive_texture_4x = false;
-            color_pass.emissive_texture_2x = false;
-            color_pass.emissive_alpha_4x = false;
-            color_pass.emissive_alpha_2x = false;
-            color_pass.prelit_alpha_emission = false;
-            color_pass.sort_bias = 0;
-            target.push_back(std::move(color_pass));
-          }
           target.push_back(std::move(q));
         }
         if (tex_override) return;
@@ -3796,10 +3775,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         }
         return drew;
       };
-  auto append_clipped_fill_uv =
+  auto append_full_fill_uv =
       [&](const std::vector<Quad>& source,
           const std::optional<uint32_t>& color_override, float alpha_scale,
-          const StarClipRange& clip_range, float u_offset, float v_offset) {
+          float u_offset, float v_offset) {
         bool drew = false;
         for (const Quad& src : source) {
           Quad q = src;
@@ -3811,8 +3790,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
             }
             q.wrap_uv = true;
           }
-          drew |= append_clipped_quad(q, color_override, nullptr, alpha_scale,
-                                      clip_range);
+          q.color = scale_argb_alpha(
+              color_override ? *color_override : q.color, alpha_scale);
+          out.push_back(std::move(q));
+          drew = true;
         }
         return drew;
       };
@@ -3978,9 +3959,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     }
     drew_native_fill |= append_clipped_fill(native_star_fill_, fill_core_color,
                                             1.0f, core_fill_range);
-    drew_native_fill |= append_clipped_fill_uv(
-        native_star_path_glow_, std::nullopt, 1.0f, path_glow_range,
-        path_tex_translation.x, path_tex_translation.y);
     if (star_power_active) {
       for (const StarAnimatedQuad& lightning : native_star_lightning_) {
         drew_native_fill |= append_clipped_animated(lightning);
@@ -3990,6 +3968,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       }
     }
   }
+  drew_native_fill |= append_full_fill_uv(
+      native_star_path_glow_, std::nullopt, 1.0f,
+      path_tex_translation.x, path_tex_translation.y);
   if (!native_star_top_.empty())
     out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
   if (!native_star_caps_.empty())

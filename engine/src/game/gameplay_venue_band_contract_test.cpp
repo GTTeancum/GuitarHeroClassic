@@ -1111,37 +1111,17 @@ int main() {
                  "q.emissive_alpha_4x=true;}",
                  "star-power inside-bar source MatAnim core is rendered as fullbright emission");
   ok &= contains(hud_renderer_c,
-                 "if(star_path_glow_mesh||star_additive_glow_mesh){"
+                 "if(star_additive_glow_mesh){"
                  "q.emissive_texture_2x=true;}",
-                 "star-power path glow uses the source emissive texture combine");
+                 "star-power tube glow uses the source emissive texture combine");
   ok &= contains(hud_renderer_c,
                  "if(star_path_glow_mesh&&source_prelit){"
                  "native_star_path_glow_prelit_=true;"
-                 "native_star_path_glow_dual_emit_=true;"
-                 "q.additive=true;"
-                 "q.blend=kHudBlendSrcAlphaAdd;"
-                 "q.emissive_texture_4x=true;"
-                 "q.emissive_texture_2x=false;"
-                 "q.emissive_alpha_4x=false;"
-                 "q.emissive_alpha_2x=true;",
-                 "star-power source path core uses the brighter prelit emission combine");
-  ok &= contains(hud_renderer_c,
-                 "q.prelit_alpha_emission=true;",
-                 "star-power prelit path glow routes alpha into the bright core emission");
-  ok &= contains(hud_renderer_c,
-                 "color_pass.prelit_alpha_emission=false;",
-                 "star-power source path color pass keeps texture RGB separate from alpha emission");
-  ok &= contains(hud_renderer_c,
-                 "q.blend=kHudBlendSrcAlphaAdd;",
-                 "star-power prelit amp_bar_glow is routed through the HUD additive emission path");
-  ok &= contains(hud_renderer_c,
-                 "q.prelit_alpha_emission||(q.additive&&"
-                 "q.blend==kHudBlendSrcAlpha)",
-                 "star-power source prelit alpha uses emission blend without rewriting the material blend");
-  ok &= contains(hud_renderer_c,
-                 "q.prelit_alpha_emission?"
-                 "(D3DTA_TEXTURE|D3DTA_ALPHAREPLICATE):D3DTA_TEXTURE",
-                 "star-power prelit amp_bar_glow alpha is replicated into color");
+                 "native_star_path_glow_dual_emit_=false;}",
+                 "star-power source path stays the persistent thin line rather than the thick fill core");
+  ok &= absent(hud_renderer_c,
+               "color_pass.prelit_alpha_emission=false;",
+               "star-power path line must not be duplicated as a separate alpha-emission fill pass");
   ok &= contains(hud_renderer_c,
                  "\"amp_glass.mesh\",\"amp_base_bar.mesh\"",
                  "star-power source bounds include the authored amp_base_bar child");
@@ -1225,12 +1205,12 @@ int main() {
                "star-power must not draw a duplicate amp_inside_bar additive core pass");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_fill|=append_clipped_fill_uv(native_star_path_glow_,"
-      "std::nullopt,1.0f,path_glow_range,"
+      "drew_native_fill|=append_full_fill_uv(native_star_path_glow_,"
+      "std::nullopt,1.0f,"
       "path_tex_translation.x,path_tex_translation.y);",
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
-      "star-power emits amp_inside_bar_path before chrome top/base bar");
+      "star-power emits the persistent amp_inside_bar_path before chrome top/base bar");
   ok &= appears_before(
       hud_renderer_c,
       "if(!native_star_top_.empty())"
@@ -1253,12 +1233,12 @@ int main() {
       "star-power tube-meter glow sits under the bright source core");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_fill|=append_clipped_fill_uv(native_star_path_glow_,"
-      "std::nullopt,1.0f,path_glow_range,"
+      "drew_native_fill|=append_full_fill_uv(native_star_path_glow_,"
+      "std::nullopt,1.0f,"
       "path_tex_translation.x,path_tex_translation.y);",
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
-      "star-power completes clipped fill/path before chrome top");
+      "star-power completes clipped fill plus persistent path before chrome top");
   ok &= contains(hud_renderer_c,
                  "ready_mesh_drawn=%dready_glow_drawn=%dfill_glow_drawn=%d",
                  "star-power diagnostics report source glow layers after live draw");

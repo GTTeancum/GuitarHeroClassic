@@ -9908,3 +9908,25 @@ Rejected native probe:
 - Caveat: this fixes the fill direction/anchoring regression. Exact tube core
   thickness, hot path placement, and glass contrast still need the PCSX2
   GS-stage/blend trace before final signoff.
+
+2026-07-09 star-meter persistent path-line split:
+- User review identified the thin bar visible in the native captures as the
+  always-present thin blue line in the stock game, while the thicker white-blue
+  bar is the fill body that should grow left-to-right. Native was still using
+  the original `amp_inside_bar_path.mesh` / `amp_inside_star_path.mat` /
+  `amp_bar_glow.tex` layer as a promoted alpha-emission fill contributor.
+- Native now keeps `amp_inside_bar_path.mesh` as a single persistent source
+  line: no 4x path promotion, no alpha-replicated emission pass, and no
+  duplicate color/alpha path split. The clipped source fill remains on
+  `amp_inside_bar.mesh` / `amp_inside_star.mat` / `amp_inside_bar.tex`, with
+  the already-decoded `amp_inside_bar_glow.mnm` color curve driving the thick
+  fill body.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260709/native_star_path_as_thin_line_current/`
+  contains native `0.25`, `0.50`, `0.75`, `1.00`, and active `1.00` captures
+  plus `native_star_path_as_thin_line_compare_proof.png`, paired against the
+  settled PCSX2 partial-fill oracle. The refreshed log rows report
+  `path_glow=1 path_emit4x=0 path_alpha_emission=0 path_dual_emit=0` and
+  `core_emit4x=1`.
+- Caveat: this corrects the layer role split. Exact thin-line thickness, core
+  width, and glass/material contrast still need source GS-stage/blend tracing.
