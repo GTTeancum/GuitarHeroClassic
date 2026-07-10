@@ -184,6 +184,44 @@ TransFields read_trans_block(Reader& r, bool standalone) {
   return out;
 }
 
+void read_animatable_block(Reader& r) {
+  const uint32_t combined_revision = r.u32();
+  const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
+  if (ver > 1) (void)r.f32();
+  if (ver < 4) {
+    if (ver > 2) (void)r.u8();
+  } else {
+    (void)r.u32();
+    return;
+  }
+  if (ver < 1) {
+    const uint32_t anim_entry_count = r.u32();
+    for (uint32_t i = 0; i < anim_entry_count; ++i) {
+      (void)r.str();
+      (void)r.f32();
+      (void)r.f32();
+    }
+    const uint32_t anim_count = r.u32();
+    for (uint32_t i = 0; i < anim_count; ++i) (void)r.str();
+  }
+}
+
+void read_drawable_block(Reader& r) {
+  const uint32_t combined_revision = r.u32();
+  const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
+  (void)r.u8();  // showing
+  if (ver < 2) {
+    const uint32_t drawable_count = r.u32();
+    for (uint32_t i = 0; i < drawable_count; ++i) r.str();
+  }
+  if (ver > 0) r.skip(16);  // sphere
+  if (ver > 2) (void)r.f32();
+  if (ver >= 4) {
+    const uint32_t clip_plane_count = r.u32();
+    for (uint32_t i = 0; i < clip_plane_count; ++i) r.str();
+  }
+}
+
 void read_spotlight_trans_block(Reader& r, Xfm& local, Xfm& world,
                                 std::string& parent) {
   int32_t ver = r.i32();
@@ -233,36 +271,6 @@ std::string read_string_at(const std::vector<uint8_t>& body, size_t& offset) {
   std::string s(reinterpret_cast<const char*>(body.data() + offset), len);
   offset += len;
   return s;
-}
-
-std::vector<std::string> group_child_refs(const std::vector<uint8_t>& body,
-                                          std::string* environ_ref) {
-  std::vector<std::string> out;
-  for (size_t o = 0; o + 4 <= body.size(); ++o) {
-    uint32_t len;
-    std::memcpy(&len, body.data() + o, 4);
-    if (len < 6 || len > 96 || o + 4 + len > body.size()) continue;
-    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
-    bool printable = true;
-    for (uint32_t k = 0; k < len; ++k) {
-      char c = s[k];
-      if (c < 0x20 || c >= 0x7f) { printable = false; break; }
-    }
-    if (!printable) continue;
-    std::string name(s, len);
-    if (name.size() >= 5 && name.compare(name.size() - 5, 5, ".mesh") == 0) {
-      out.push_back(std::move(name));
-    } else if (name.size() >= 4 &&
-               name.compare(name.size() - 4, 4, ".grp") == 0) {
-      out.push_back(std::move(name));
-    } else if (name.size() >= 4 &&
-               name.compare(name.size() - 4, 4, ".env") == 0 &&
-               environ_ref && environ_ref->empty()) {
-      *environ_ref = std::move(name);
-    }
-    o += 3 + len;
-  }
-  return out;
 }
 
 std::vector<std::string> scan_strings(const std::vector<uint8_t>& body) {
@@ -625,6 +633,63 @@ EnvironObj decode_environ(const std::string& entry_name,
     env.error = ex.what();
   }
   return env;
+}
+
+GroupObj decode_group(const std::string& entry_name,
+                      const std::vector<uint8_t>& body) {
+  GroupObj group;
+  group.name = entry_name;
+  try {
+    Reader r(body.data(), body.size());
+    const uint32_t combined_revision = r.u32();
+    const uint16_t ver = static_cast<uint16_t>(combined_revision & 0xffffu);
+    if (ver > 7) read_object_fields(r);
+    read_animatable_block(r);
+    (void)read_trans_block(r, false);
+    read_drawable_block(r);
+
+    if (ver > 10) {
+      const uint32_t object_count = r.u32();
+      if (object_count > 4096) {
+        throw std::runtime_error("milo_scene: implausible RndGroup object count");
+      }
+      group.children.reserve(object_count);
+      for (uint32_t i = 0; i < object_count; ++i) {
+        group.children.push_back(r.str());
+      }
+      if (ver < 16) group.environment_ref = r.str();
+      if (ver > 12) group.draw_only = r.str();
+    }
+
+    if (ver > 11 && ver < 16) {
+      (void)r.str();  // legacy lod group
+      (void)r.f32();  // legacy lod screen size
+    } else if (ver == 4) {
+      (void)r.u32();
+      const uint32_t object_count = r.u32();
+      if (object_count > 4096) {
+        throw std::runtime_error("milo_scene: implausible RndGroup v4 object count");
+      }
+      group.children.reserve(object_count);
+      for (uint32_t i = 0; i < object_count; ++i) {
+        group.children.push_back(r.str());
+      }
+      (void)r.str();
+      (void)r.u32();
+      (void)r.u32();
+    }
+
+    if (ver == 7) {
+      (void)r.str();
+      (void)r.f32();
+      (void)r.f32();
+    }
+    if (ver > 13) group.sort_in_world = r.u8() != 0;
+    group.decoded = true;
+  } catch (const std::exception& ex) {
+    group.error = ex.what();
+  }
+  return group;
 }
 
 MatObj decode_mat(const std::string& entry_name,
@@ -1178,10 +1243,12 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
         } else if (de.type == "Environ") {
           out.environs.push_back(decode_environ(de.name, b));
         } else if (de.type == "Group") {
-          GroupObj group;
-          group.name = de.name;
-          group.children = group_child_refs(b, &group.environment_ref);
-          for (auto& child : group.children) {
+          GroupObj group = decode_group(de.name, b);
+          if (!group.decoded) {
+            std::fprintf(stderr, "[milo_scene]   Group '%s' decode: %s\n",
+                         de.name.c_str(), group.error.c_str());
+          }
+          for (const auto& child : group.children) {
             if (ordered_meshes.insert(child).second)
               out.draw_order.push_back(child);
           }

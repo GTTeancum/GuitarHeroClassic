@@ -32,6 +32,11 @@ Treat ihatecompvir's repos as the authority; do not use the older
     `preLit`, `zMode`, `alphaCut`, optional `alphaThreshold`, `alphaWrite`,
     `texGen`, `texWrap`, texture transform, diffuse texture, next pass,
     intensify, cull, and emissive multiplier in that order.
+- `MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs`
+  - `RndGroup.Read` reads Object fields for revisions above 7, then
+    `RndAnimatable`, embedded `RndTrans`, embedded `RndDrawable`, then the
+    explicit object `Symbol` list for revisions above 10. Native LOD and draw
+    membership must come from this source object list, not broad string scans.
 - `MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs`
   - `RndMesh.Read` calls `base.Read`, embedded `trans.Read`, embedded
     `draw.Read`, material, geom owner, vertices, faces, group sizes, then bone
@@ -89,6 +94,12 @@ confirms native material rows now decode with the `RndMat.cs` source order:
 `useEnviron` before `preLit`. This flips the older local note interpretation
 for common flag bytes like `01 00`; those rows now decode as
 `use_env=1 prelit=0`, not `prelit=1 use_env=0`.
+
+The local stock group audit log at
+`analysis/ihatecompvir_source_truth_20260710/source_rndgroup_character_audit.log`
+confirms character `lod0.grp` and `lod1.grp` membership is decoded from
+`RndGroup.objects` rows, including Rock1/Rock2 hair cards, Rockabill2 hair and
+teeth meshes, Funk1 LOD groups, and Grim accessory/body segments.
 
 ## Native Rules
 

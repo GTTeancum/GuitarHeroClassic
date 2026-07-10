@@ -125,6 +125,46 @@ void test_mat() {
               m.color[0], m.color[1], m.color[2], m.color[3]);
 }
 
+void test_group() {
+  std::vector<uint8_t> b;
+  put_u32(b, 15);                // RndGroup revision
+  put_zeros(b, 9);               // Hmx::Object fields
+  put_u32(b, 4);                 // RndAnimatable revision
+  put_f32(b, 0.0f);              // frame
+  put_u32(b, 0);                 // rate
+  put_u32(b, 9);                 // RndTrans revision
+  put_matrix(b, 0, 0, 0);
+  put_matrix(b, 0, 0, 0);
+  put_u32(b, 0);                 // constraint
+  put_str(b, "");                // target
+  b.push_back(0);                // preserve_scale
+  put_str(b, "");                // parent
+  put_u32(b, 3);                 // RndDrawable revision
+  b.push_back(1);                // showing
+  put_zeros(b, 16);              // sphere
+  put_f32(b, 0.25f);             // draw_order
+  put_u32(b, 2);                 // objects
+  put_str(b, "hair-front1.mesh");
+  put_str(b, "hair-front2.mesh");
+  put_str(b, "stage.env");       // environ for rev < 16
+  put_str(b, "hair-front1.mesh"); // drawOnly for rev > 12
+  put_str(b, "lod1.grp");        // legacy lod group
+  put_f32(b, 0.5f);              // lod screen size
+  b.push_back(1);                // sortInWorld
+
+  GroupObj g = decode_group("lod0.grp", b);
+  CHECK(g.decoded);
+  CHECK(g.children.size() == 2);
+  CHECK(g.children[0] == "hair-front1.mesh");
+  CHECK(g.children[1] == "hair-front2.mesh");
+  CHECK(g.environment_ref == "stage.env");
+  CHECK(g.draw_only == "hair-front1.mesh");
+  CHECK(g.sort_in_world);
+  std::printf("  [ok] Group: children=%zu env=%s drawOnly=%s sort=%d\n",
+              g.children.size(), g.environment_ref.c_str(),
+              g.draw_only.c_str(), g.sort_in_world ? 1 : 0);
+}
+
 void test_light() {
   std::vector<uint8_t> b;
   put_u32(b, 6);                 // Light version
@@ -314,6 +354,7 @@ int main() {
   std::printf("milo_scene_test\n");
   test_trans();
   test_mat();
+  test_group();
   test_light();
   test_environ_with_lights();
   test_environ_with_extensionless_light();

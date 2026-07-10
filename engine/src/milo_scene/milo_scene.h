@@ -183,6 +183,10 @@ struct GroupObj {
   std::string name;
   std::vector<std::string> children;
   std::string environment_ref;
+  std::string draw_only;
+  bool sort_in_world = false;
+  bool decoded = false;
+  std::string error;
 };
 
 struct MatObj {
@@ -305,6 +309,8 @@ EnvironObj decode_environ(const std::string& entry_name,
                           const std::vector<uint8_t>& body);
 MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body);
+GroupObj decode_group(const std::string& entry_name,
+                      const std::vector<uint8_t>& body);
 // Mesh decode never throws — on failure it returns a MeshObj with decoded=false
 // and a populated .error, so the `mesh` subcommand can report it.
 MeshObj decode_mesh(const std::string& entry_name,

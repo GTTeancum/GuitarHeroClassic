@@ -2461,6 +2461,9 @@ int main() {
                  "std::stringenvironment_ref;",
                  "decoded Groups retain their authored Environ ref");
   ok &= contains(milo_scene_h_c,
+                 "std::stringdraw_only;boolsort_in_world=false;",
+                 "decoded Groups retain source draw-only and sort flags");
+  ok &= contains(milo_scene_h_c,
                  "booluse_environ=false;boolprelit=false;",
                  "decoded materials retain environment/prelit flags");
   ok &= contains(milo_scene_h_c,
@@ -2561,8 +2564,15 @@ int main() {
                  "env.range=read_f32_at(body,base+0x2f);",
                  "Environ decoder uses dynamic range offset");
   ok &= contains(milo_scene_cpp_c,
-                 "group.children=group_child_refs(b,&group.environment_ref);",
-                 "Group decoder preserves authored Environ refs");
+                 "GroupObjdecode_group(conststd::string&entry_name,"
+                 "conststd::vector<uint8_t>&body)",
+                 "Group decoder uses source-backed RndGroup layout");
+  ok &= contains(milo_scene_cpp_c,
+                 "group.children.push_back(r.str());",
+                 "Group decoder preserves authored object list order");
+  ok &= contains(milo_scene_cpp_c,
+                 "if(ver<16)group.environment_ref=r.str();",
+                 "Group decoder preserves source-gated Environ refs");
   ok &= contains(milo_scene_cpp_c,
                  "m.use_environ=r.u8()!=0;",
                  "Mat decoder preserves source-backed use_environ flag order");

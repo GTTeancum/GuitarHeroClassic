@@ -192,6 +192,13 @@ bool should_dump_hair(int argc, char** argv) {
   return false;
 }
 
+bool should_dump_groups(int argc, char** argv) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--groups") == 0) return true;
+  }
+  return false;
+}
+
 bool has_trans_or_mesh(const Character& c, const std::string& name) {
   if (name.empty()) return false;
   for (const auto& bone : c.bones) {
@@ -473,7 +480,7 @@ void usage() {
   std::fprintf(stderr,
                "usage: ghogx_character_bind_audit --ark-dir <GEN> [--all] "
                "[--mesh-detail <mesh>] [--dump-verts] [--materials] [--hair] "
-               "[char/...milo_ps2 ...]\n");
+               "[--groups] [char/...milo_ps2 ...]\n");
 }
 
 }  // namespace
@@ -495,6 +502,8 @@ int main(int argc, char** argv) {
       // handled after character load
     } else if (arg == "--hair") {
       // handled after character load
+    } else if (arg == "--groups") {
+      // handled after character load
     } else if (!arg.empty() && arg[0] != '-') {
       milos.push_back(arg);
     } else {
@@ -510,6 +519,7 @@ int main(int argc, char** argv) {
   const std::string detail_mesh = mesh_detail_name(argc, argv);
   const bool dump_materials = should_dump_materials(argc, argv);
   const bool dump_hair = should_dump_hair(argc, argv);
+  const bool dump_groups = should_dump_groups(argc, argv);
 
   const std::filesystem::path dir(ark_dir);
   const std::string hdr = (dir / "main.hdr").string();
@@ -554,6 +564,25 @@ int main(int argc, char** argv) {
       }
     }
     if (dump_hair) audit_hair(c);
+    if (dump_groups) {
+      const std::string char_name =
+          std::filesystem::path(milo).stem().string();
+      for (const auto& group : c.groups) {
+        std::fprintf(stderr,
+                     "[group-detail] char=%s group=%s source=RndGroup "
+                     "decoded=%d children=%zu env=%s drawOnly=%s sort=%d\n",
+                     char_name.c_str(), group.name.c_str(),
+                     group.decoded ? 1 : 0, group.children.size(),
+                     group.environment_ref.c_str(), group.draw_only.c_str(),
+                     group.sort_in_world ? 1 : 0);
+        for (size_t i = 0; i < group.children.size(); ++i) {
+          std::fprintf(stderr,
+                       "[group-child] char=%s group=%s index=%zu object=%s\n",
+                       char_name.c_str(), group.name.c_str(), i,
+                       group.children[i].c_str());
+        }
+      }
+    }
     for (const SkinnedMesh& m : c.meshes) {
       audit_mesh(c, m, all);
       if (!detail_mesh.empty() && m.name == detail_mesh) {

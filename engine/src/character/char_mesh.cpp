@@ -141,35 +141,6 @@ TransFields read_rnd_trans(Reader& r, bool standalone) {
   return out;
 }
 
-std::vector<std::string> group_child_refs(const std::vector<uint8_t>& body) {
-  std::vector<std::string> out;
-  for (size_t o = 0; o + 4 <= body.size(); ++o) {
-    uint32_t len = 0;
-    std::memcpy(&len, body.data() + o, 4);
-    if (len < 5 || len > 96 || o + 4 + len > body.size()) continue;
-    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
-    bool printable = true;
-    for (uint32_t k = 0; k < len; ++k) {
-      const unsigned char c = static_cast<unsigned char>(s[k]);
-      if (c < 0x20 || c >= 0x7f) {
-        printable = false;
-        break;
-      }
-    }
-    if (!printable) continue;
-    std::string name(s, len);
-    const bool object_ref =
-        (name.size() >= 5 && name.compare(name.size() - 5, 5, ".mesh") == 0) ||
-        (name.size() >= 4 && name.compare(name.size() - 4, 4, ".grp") == 0);
-    if (object_ref &&
-        std::find(out.begin(), out.end(), name) == out.end()) {
-      out.push_back(std::move(name));
-    }
-    o += 3 + len;
-  }
-  return out;
-}
-
 }  // namespace
 
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
@@ -850,9 +821,11 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
         } else if (de.type == "Mat") {
           out.mats.push_back(milo_scene::decode_mat(de.name, b));
         } else if (de.type == "Group") {
-          milo_scene::GroupObj group;
-          group.name = de.name;
-          group.children = group_child_refs(b);
+          milo_scene::GroupObj group = milo_scene::decode_group(de.name, b);
+          if (!group.decoded) {
+            std::fprintf(stderr, "[char]   Group '%s' decode: %s\n",
+                         de.name.c_str(), group.error.c_str());
+          }
           out.groups.push_back(std::move(group));
         } else if (de.type == "CharUpperTwist") {
           out.upper_twists.push_back(decode_upper_twist(de.name, b));

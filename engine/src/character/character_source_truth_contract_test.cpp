@@ -78,6 +78,8 @@ int main() {
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndDrawable.cs"));
   const std::string mat_cs = compact(read_file(
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs"));
+  const std::string group_cs = compact(read_file(
+      source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs"));
   const std::string mesh_cs = compact(read_file(
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs"));
   const std::string gltf_program_cs = compact(read_file(
@@ -93,6 +95,8 @@ int main() {
                  "document cites RndMesh source");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs",
                  "document cites RndMat source");
+  ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs",
+                 "document cites RndGroup source");
   ok &= contains(doc, "glTFMilo/Source/glTFMilo/Program.cs",
                  "document cites glTFMilo skinning source");
   ok &= contains(doc, "rb3/src/system/char/CharHair.cpp",
@@ -156,6 +160,28 @@ int main() {
                  "m.use_environ=r.u8()!=0;m.prelit=r.u8()!=0;"
                  "constint32_tz_mode=r.i32();",
                  "native Mat decode follows source useEnviron/preLit order");
+
+  ok &= contains(group_cs,
+                 "anim=newRndAnimatable().Read(reader,parent,entry);"
+                 "trans=newRndTrans().Read(reader,false,parent,entry);"
+                 "draw=newRndDrawable().Read(reader,false,parent,entry);",
+                 "RndGroup source reads anim/trans/draw bases before objects");
+  ok &= contains(group_cs,
+                 "objectsCount=reader.ReadUInt32();for(inti=0;i<objectsCount;i++){"
+                 "objects.Add(Symbol.Read(reader));}",
+                 "RndGroup source reads explicit object Symbol list");
+  ok &= contains(scene,
+                 "GroupObjdecode_group(conststd::string&entry_name,"
+                 "conststd::vector<uint8_t>&body)",
+                 "native exposes source-backed Group decoder");
+  ok &= contains(scene,
+                 "group.children.push_back(r.str());",
+                 "native Group decoder reads explicit object Symbol list");
+  ok &= contains(char_mesh,
+                 "milo_scene::GroupObjgroup=milo_scene::decode_group(de.name,b);",
+                 "character load uses source-backed Group decoder");
+  ok &= missing(char_mesh, "group_child_refs",
+                "character load must not scan Group strings for membership");
 
   ok &= contains(mesh_cs,
                  "base.Read(reader,false,parent,entry);trans=trans.Read(reader,false,parent,entry);"
