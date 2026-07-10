@@ -10103,3 +10103,19 @@ Rejected native probe:
   and no brightness multiplier was added. The next proof should be judged on
   whether removing the sorted black-glass-over-core regression brings the broad
   PCSX2 fill closer before deeper GS blend/filter work.
+
+2026-07-10 star-meter thick-fill/path-line instrumentation:
+- User review clarified the composite again: the skinny blue line visible in
+  native is the always-present source `amp_inside_bar_path.mesh` line, and the
+  broad stored star-power body is the clipped source `amp_inside_bar.mesh`
+  fill. Native already keeps those as separate MILO layers, but the screenshot
+  alone can make the full-width path line look like the fill body.
+- HUD diagnostics now print the decoded `amp_inside_bar_glow.mnm` first/last
+  color keys and separate measured widths for the clipped broad core,
+  `amp_tube_glow_meter.mesh`, and the full-width path line:
+  `thick_fill_layer=amp_inside_bar.mesh clipped` and
+  `thin_path_layer=amp_inside_bar_path.mesh full_width`.
+- This checkpoint does not change color, glow, or art. It adds traceability so
+  the next source-backed visual pass can focus on the remaining PCSX2
+  material/blend/filter mismatch instead of re-litigating which layer is the
+  stored meter body.

@@ -1412,6 +1412,21 @@ int main() {
                  "\"core_fill_mode=clipped_left_to_right\"",
                  "star-power broad core remains the left-to-right clipped fill");
   ok &= contains(hud_renderer_c,
+                 "\"fill_color_keys=%zufirst=(%.3f,%.3f,%.3f,%.3f@%.2f)\"",
+                 "star-power diagnostics expose the decoded source broad-fill color keys");
+  ok &= contains(hud_renderer_c,
+                 "\"core_clip_world_x=%.3fcore_width=%.3f/%.3f\"",
+                 "star-power diagnostics expose the clipped broad-core width");
+  ok &= contains(hud_renderer_c,
+                 "\"tube_meter_width=%.3f/%.3fpath_width=%.3f\"",
+                 "star-power diagnostics expose tube-meter and persistent path widths separately");
+  ok &= contains(hud_renderer_c,
+                 "\"thick_fill_layer=amp_inside_bar.meshclipped\"",
+                 "star-power diagnostics keep the thick fill bound to amp_inside_bar clipping");
+  ok &= contains(hud_renderer_c,
+                 "\"thin_path_layer=amp_inside_bar_path.meshfull_width\"",
+                 "star-power diagnostics keep the thin blue path line full-width");
+  ok &= contains(hud_renderer_c,
                  "\"ready_view_order=after_star_meter_view\"",
                  "star-power diagnostics report source group order for ready view");
   ok &= contains(hud_renderer_c,
@@ -1494,10 +1509,17 @@ int main() {
                  "star-power diagnostics report the source material blend stack");
   ok &= contains(hud_renderer_c,
                  "\"ready_mesh_blend=%uclip=source_mesh_ranges"
-                 "screen=left_to_right\"\"range_ok=%d,%d,%d"
-                 "path_uv_keys=%zupath_uv_frame=%.2f"
-                 "\"\"path_uv=(%.3f,%.3f)\"",
-                 "star-power diagnostics report source ready blend, fill direction, and path UV animation");
+                 "screen=left_to_right\"",
+                 "star-power diagnostics report source ready blend and fill direction");
+  ok &= contains(hud_renderer_c,
+                 "\"range_ok=%d,%d,%d\"",
+                 "star-power diagnostics report source clip range availability");
+  ok &= contains(hud_renderer_c,
+                 "\"path_uv_keys=%zupath_uv_frame=%.2f\"",
+                 "star-power diagnostics report path UV animation key count");
+  ok &= contains(hud_renderer_c,
+                 "\"path_uv=(%.3f,%.3f)\"",
+                 "star-power diagnostics report path UV animation sample");
   ok &= contains(hud_renderer_c,
                  "\"sampled_fill_color=%08xtube_meter_alpha=%.3f\""
                  "\"tube_ready_alpha=%.3f\\n\"",

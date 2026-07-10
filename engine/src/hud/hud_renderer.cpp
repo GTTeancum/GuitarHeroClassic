@@ -1885,6 +1885,29 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                  rock_light_front_lamp_color_keys_[2].size());
   }
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER")) {
+    auto color_key = [](const std::vector<ColorAnimKey>& keys,
+                        size_t index) -> ColorAnimKey {
+      if (keys.empty()) return {};
+      return keys[std::min(index, keys.size() - 1)];
+    };
+    auto alpha_key = [](const std::vector<AlphaAnimKey>& keys,
+                        size_t index) -> AlphaAnimKey {
+      if (keys.empty()) return {};
+      return keys[std::min(index, keys.size() - 1)];
+    };
+    const ColorAnimKey fill_first = color_key(star_fill_color_keys_, 0);
+    const ColorAnimKey fill_last =
+        color_key(star_fill_color_keys_,
+                  star_fill_color_keys_.empty()
+                      ? 0
+                      : star_fill_color_keys_.size() - 1);
+    const AlphaAnimKey tube_meter_first =
+        alpha_key(star_tube_meter_alpha_keys_, 0);
+    const AlphaAnimKey tube_meter_last =
+        alpha_key(star_tube_meter_alpha_keys_,
+                  star_tube_meter_alpha_keys_.empty()
+                      ? 0
+                      : star_tube_meter_alpha_keys_.size() - 1);
     std::fprintf(stderr,
                  "[hud-star-power] AnimFilter windows: fill=%d %.2f..%.2f "
                  "tube=%.2f..%.2f meter=%.2f..%.2f particle=%d %.2f..%.2f\n",
@@ -1897,6 +1920,22 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                  star_particle_emission_filter_.ok ? 1 : 0,
                  star_particle_emission_filter_.start_frame,
                  star_particle_emission_filter_.end_frame);
+    std::fprintf(stderr,
+                 "[hud-star-power] source curves: "
+                 "fill_color_keys=%zu first=(%.3f,%.3f,%.3f,%.3f@%.2f) "
+                 "last=(%.3f,%.3f,%.3f,%.3f@%.2f) "
+                 "tube_meter_alpha_keys=%zu first=(%.3f@%.2f) "
+                 "last=(%.3f@%.2f)\n",
+                 star_fill_color_keys_.size(),
+                 fill_first.color[0], fill_first.color[1],
+                 fill_first.color[2], fill_first.color[3],
+                 fill_first.frame,
+                 fill_last.color[0], fill_last.color[1],
+                 fill_last.color[2], fill_last.color[3],
+                 fill_last.frame,
+                 star_tube_meter_alpha_keys_.size(),
+                 tube_meter_first.alpha, tube_meter_first.frame,
+                 tube_meter_last.alpha, tube_meter_last.frame);
   }
 
   // 3) The in-song overlay must be screen anchored. Drawing meter-local art
@@ -3725,6 +3764,25 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   const StarClipRange core_fill_range = source_x_range(native_star_fill_);
   const StarClipRange path_glow_range = source_x_range(native_star_path_glow_);
   const StarClipRange tube_meter_range = source_x_range(native_star_fill_glow_);
+  auto range_width = [](const StarClipRange& range) {
+    return range.ok ? std::max(0.0f, range.max_x - range.min_x) : 0.0f;
+  };
+  auto clip_x_for_range = [&](const StarClipRange& range) {
+    if (!range.ok) return 0.0f;
+    return range.max_x - (range.max_x - range.min_x) * fill;
+  };
+  const float core_total_width = range_width(core_fill_range);
+  const float path_total_width = range_width(path_glow_range);
+  const float tube_meter_total_width = range_width(tube_meter_range);
+  const float core_clip_x = clip_x_for_range(core_fill_range);
+  const float core_visible_width =
+      core_fill_range.ok ? std::max(0.0f, core_fill_range.max_x - core_clip_x)
+                         : 0.0f;
+  const float tube_meter_clip_x = clip_x_for_range(tube_meter_range);
+  const float tube_meter_visible_width =
+      tube_meter_range.ok
+          ? std::max(0.0f, tube_meter_range.max_x - tube_meter_clip_x)
+          : 0.0f;
 
   // GH2's tube fills from the left cap toward the right. Projection flips X,
   // so screen-left is the higher world-X side of the decoded meter mesh.
@@ -4113,7 +4171,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "path_alpha_emission=%d path_dual_emit=%d "
         "fill_blends=%u,%u,%u lightning_blend=%u particle_blend=%u "
         "ready_mesh_blend=%u clip=source_mesh_ranges screen=left_to_right "
-        "range_ok=%d,%d,%d path_uv_keys=%zu path_uv_frame=%.2f "
+        "range_ok=%d,%d,%d "
+        "core_clip_world_x=%.3f core_width=%.3f/%.3f "
+        "tube_meter_width=%.3f/%.3f path_width=%.3f "
+        "thick_fill_layer=amp_inside_bar.mesh clipped "
+        "thin_path_layer=amp_inside_bar_path.mesh full_width "
+        "path_uv_keys=%zu path_uv_frame=%.2f "
         "path_uv=(%.3f,%.3f) "
         "sampled_fill_color=%08x tube_meter_alpha=%.3f "
         "tube_ready_alpha=%.3f\n",
@@ -4157,6 +4220,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         first_mesh_anim_blend(native_star_ready_mesh_glow_),
         core_fill_range.ok ? 1 : 0, path_glow_range.ok ? 1 : 0,
         tube_meter_range.ok ? 1 : 0,
+        core_clip_x, core_visible_width, core_total_width,
+        tube_meter_visible_width, tube_meter_total_width, path_total_width,
         star_path_tex_translation_keys_.size(), path_tex_frame,
         path_tex_translation.x, path_tex_translation.y,
         sampled_fill_core_color, tube_meter_alpha, tube_ready_alpha);
