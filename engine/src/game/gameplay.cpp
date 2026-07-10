@@ -741,6 +741,8 @@ float read_f32_at_unchecked(const uint8_t* body, size_t off) {
 
 void sync_primary_camshot_target(Gameplay::CameraKey& key);
 void sync_camshot_source_record_hint(Gameplay::CameraKey& key);
+std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
+                                     std::array<float, 4> b, float t);
 
 struct MiloValue {
     enum class Kind { None, Int, Float, Symbol };
@@ -879,7 +881,7 @@ void read_object_fields_like_miloeditor(
     if (revision > 0) (void)r.symbol();
 }
 
-void read_rnd_animatable_like_miloeditor(MiloCursor& r) {
+uint16_t read_rnd_animatable_like_miloeditor(MiloCursor& r) {
     const uint32_t combined_revision = r.u32();
     const uint16_t revision = static_cast<uint16_t>(combined_revision & 0xffff);
     if (revision > 1) (void)r.f32();
@@ -898,6 +900,7 @@ void read_rnd_animatable_like_miloeditor(MiloCursor& r) {
     } else {
         (void)r.u32();
     }
+    return revision;
 }
 
 std::string prop_symbol(
@@ -951,6 +954,162 @@ struct DecodedCamShot {
     int old_crowd_rotate = 0;
     std::string glow_spot;
 };
+
+struct DecodedRndTransAnim {
+    uint16_t revision = 0;
+    uint16_t alt_revision = 0;
+    uint16_t anim_revision = 0;
+    std::string trans;
+    std::string keys_owner;
+    bool trans_spline = false;
+    bool repeat_trans = false;
+    bool scale_spline = false;
+    bool follow_path = false;
+    bool rot_slerp = false;
+    bool rot_spline = false;
+    std::vector<Gameplay::CameraKey> rot_keys;
+    std::vector<Gameplay::CameraKey> trans_keys;
+    std::vector<Gameplay::CameraKey> scale_keys;
+    size_t end_offset = 0;
+};
+
+Gameplay::CameraKey read_rnd_transanim_quat_key_like_miloeditor(MiloCursor& r) {
+    Gameplay::CameraKey key;
+    for (float& v : key.quat) v = r.f32();
+    key.frame = r.f32();
+    key.has_quat = true;
+    return key;
+}
+
+Gameplay::CameraKey read_rnd_transanim_vec3_key_like_miloeditor(MiloCursor& r) {
+    Gameplay::CameraKey key;
+    key.eye[0] = r.f32();
+    key.eye[1] = r.f32();
+    key.eye[2] = r.f32();
+    key.frame = r.f32();
+    return key;
+}
+
+std::optional<DecodedRndTransAnim> read_rnd_transanim_like_miloeditor(
+    const uint8_t* body, size_t size) {
+    try {
+        MiloCursor r{body, size, 0};
+        DecodedRndTransAnim anim;
+        const uint32_t combined_revision = r.u32();
+        anim.revision =
+            static_cast<uint16_t>(combined_revision & 0xffff);
+        anim.alt_revision =
+            static_cast<uint16_t>((combined_revision >> 16) & 0xffff);
+        if (anim.revision <= 2) {
+            throw std::runtime_error(
+                "RndTransAnim legacy revision <= 2 is not used by GH2 camera paths");
+        }
+        if (anim.revision > 4) {
+            std::unordered_map<std::string, MiloValue> props;
+            read_object_fields_like_miloeditor(r, props);
+        }
+        anim.anim_revision = read_rnd_animatable_like_miloeditor(r);
+        if (anim.revision < 6) {
+            throw std::runtime_error(
+                "RndTransAnim embedded RndDrawable branch is not ported for camera paths");
+        }
+        anim.trans = r.symbol();
+        if (anim.revision > 2) {
+            const uint32_t rot_count = r.u32();
+            if (rot_count > 512)
+                throw std::runtime_error("RndTransAnim rot key count invalid");
+            anim.rot_keys.reserve(rot_count);
+            for (uint32_t i = 0; i < rot_count; ++i) {
+                anim.rot_keys.push_back(
+                    read_rnd_transanim_quat_key_like_miloeditor(r));
+            }
+            const uint32_t trans_count = r.u32();
+            if (trans_count == 0 || trans_count > 2048) {
+                throw std::runtime_error(
+                    "RndTransAnim trans key count invalid");
+            }
+            anim.trans_keys.reserve(trans_count);
+            for (uint32_t i = 0; i < trans_count; ++i) {
+                anim.trans_keys.push_back(
+                    read_rnd_transanim_vec3_key_like_miloeditor(r));
+            }
+        }
+        anim.keys_owner = r.symbol();
+        anim.trans_spline =
+            anim.revision > 3 ? r.boolean() : r.i32() != 0;
+        anim.repeat_trans = r.boolean();
+        if (anim.revision > 3) {
+            const uint32_t scale_count = r.u32();
+            if (scale_count > 512) {
+                throw std::runtime_error(
+                    "RndTransAnim scale key count invalid");
+            }
+            anim.scale_keys.reserve(scale_count);
+            for (uint32_t i = 0; i < scale_count; ++i) {
+                anim.scale_keys.push_back(
+                    read_rnd_transanim_vec3_key_like_miloeditor(r));
+            }
+            anim.scale_spline = r.boolean();
+        } else if (anim.revision > 0) {
+            if (anim.revision != 2) {
+                const uint32_t scale_count = r.u32();
+                if (scale_count > 512) {
+                    throw std::runtime_error(
+                        "RndTransAnim legacy scale key count invalid");
+                }
+                for (uint32_t i = 0; i < scale_count; ++i) {
+                    anim.scale_keys.push_back(
+                        read_rnd_transanim_vec3_key_like_miloeditor(r));
+                }
+            }
+            anim.scale_spline = r.i32() != 0;
+        }
+        anim.follow_path =
+            anim.revision > 1 ? r.boolean()
+                              : (anim.rot_keys.empty() &&
+                                 anim.trans_keys.size() > 1);
+        if (anim.revision > 3) anim.rot_slerp = r.boolean();
+        if (anim.revision > 6) anim.rot_spline = r.boolean();
+        anim.end_offset = r.pos;
+        if (r.pos != r.size) {
+            throw std::runtime_error(
+                "RndTransAnim source-shaped reader did not consume EOF");
+        }
+        return anim;
+    } catch (const std::exception& ex) {
+        if (debug_camera_enabled()) {
+            std::fprintf(stderr,
+                         "[camera-miloeditor] RndTransAnim decode failed: %s\n",
+                         ex.what());
+        }
+        return std::nullopt;
+    }
+}
+
+std::array<float, 4> sample_rnd_transanim_rot_keys(
+    const std::vector<Gameplay::CameraKey>& rot_keys, float frame) {
+    if (rot_keys.empty()) return {0.0f, 0.0f, 0.0f, 1.0f};
+    if (rot_keys.size() == 1) {
+        return {rot_keys.front().quat[0], rot_keys.front().quat[1],
+                rot_keys.front().quat[2], rot_keys.front().quat[3]};
+    }
+    const Gameplay::CameraKey* a = &rot_keys.front();
+    const Gameplay::CameraKey* b = &rot_keys.back();
+    for (size_t i = 1; i < rot_keys.size(); ++i) {
+        if (frame <= rot_keys[i].frame) {
+            a = &rot_keys[i - 1];
+            b = &rot_keys[i];
+            break;
+        }
+    }
+    const float span = std::max(b->frame - a->frame, 0.001f);
+    const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const std::array<float, 4> qa = {a->quat[0], a->quat[1], a->quat[2],
+                                     a->quat[3]};
+    const std::array<float, 4> qb = {b->quat[0], b->quat[1], b->quat[2],
+                                     b->quat[3]};
+    return slerp_quat_xyzw(qa, qb, t);
+}
 
 Gameplay::CameraKey::TargetRef read_camshot_subpart_like_miloeditor(
     MiloCursor& r, uint16_t camshot_revision) {
@@ -7010,221 +7169,19 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
         if (!anim || anim->offset + anim->size > payload.size()) return out;
         const uint8_t* body = payload.data() + anim->offset;
         const size_t size = static_cast<size_t>(anim->size);
-        auto f32_at = [&](size_t off) {
-            float v = 0.0f;
-            std::memcpy(&v, body + off, sizeof(v));
-            return v;
-        };
-        auto plausible = [](float v) {
-            return std::isfinite(v) && std::abs(v) < 2500.0f;
-        };
-
-        struct Vec3Run {
-            size_t count_off = SIZE_MAX;
-            size_t data_off = SIZE_MAX;
-            int len = 0;
-            float delta = 0.0f;
-            bool scale_like = false;
-            std::array<float, 3> first = {};
-            std::array<float, 3> last = {};
-        };
-        std::vector<Vec3Run> counted_runs;
-        auto consider_counted_vec3_run = [&](size_t off) {
-            if (off + 4 > size) return;
-            const uint32_t count = read_u32_at_unchecked(body, off);
-            if (count < 2 || count > 128) return;
-            const size_t start = off + 4;
-            if (start + static_cast<size_t>(count) * 16 > size) return;
-            float prev_frame = -1.0f;
-            bool ok = true;
-            bool scale_like = true;
-            std::array<float, 3> first = {};
-            std::array<float, 3> last = {};
-            for (uint32_t i = 0; i < count; ++i) {
-                const size_t p = start + static_cast<size_t>(i) * 16;
-                const std::array<float, 3> pos = {
-                    f32_at(p + 0), f32_at(p + 4), f32_at(p + 8)};
-                const float frame = f32_at(p + 12);
-                if (!plausible(pos[0]) || !plausible(pos[1]) ||
-                    !plausible(pos[2]) || !std::isfinite(frame) ||
-                    frame < prev_frame || frame > 2000.0f) {
-                    ok = false;
-                    break;
-                }
-                if (std::abs(pos[0]) < 10.0f && std::abs(pos[1]) < 10.0f &&
-                    std::abs(pos[2]) < 10.0f) {
-                    ok = false;
-                    break;
-                }
-                for (float v : pos) {
-                    if (v <= 0.001f || v > 20.0f) scale_like = false;
-                }
-                if (i == 0) first = pos;
-                last = pos;
-                prev_frame = frame;
-            }
-            if (!ok) return;
-            float delta = 0.0f;
-            for (uint32_t i = 0; i < count; ++i) {
-                const size_t p = start + static_cast<size_t>(i) * 16;
-                const float dx = f32_at(p + 0) - first[0];
-                const float dy = f32_at(p + 4) - first[1];
-                const float dz = f32_at(p + 8) - first[2];
-                delta = std::max(delta, std::sqrt(dx * dx + dy * dy + dz * dz));
-            }
-            counted_runs.push_back({off, start, static_cast<int>(count), delta,
-                                    scale_like, first, last});
-        };
-        for (size_t off = 0; off + 4 <= size; ++off)
-            consider_counted_vec3_run(off);
-
-        struct StructuredTransAnimRun {
-            size_t rot_count_off = SIZE_MAX;
-            size_t pos_count_off = SIZE_MAX;
-            size_t data_off = SIZE_MAX;
-            int len = 0;
-        };
-        auto structured_transanim_position_run =
-            [&]() -> std::optional<StructuredTransAnimRun> {
-            for (size_t rot_count_off = 0; rot_count_off + 4 <= size &&
-                                            rot_count_off < 0x40;
-                 ++rot_count_off) {
-                const uint32_t rot_count =
-                    read_u32_at_unchecked(body, rot_count_off);
-                if (rot_count < 1 || rot_count > 128) continue;
-                const size_t rot_data_off = rot_count_off + 4;
-                const size_t pos_count_off =
-                    rot_data_off + static_cast<size_t>(rot_count) * 20;
-                if (pos_count_off + 4 > size) continue;
-                const uint32_t pos_count =
-                    read_u32_at_unchecked(body, pos_count_off);
-                if (pos_count < 2 || pos_count > 256) continue;
-                const size_t pos_data_off = pos_count_off + 4;
-                if (pos_data_off + static_cast<size_t>(pos_count) * 16 > size)
-                    continue;
-                float prev_frame = -1.0f;
-                bool ok = true;
-                for (uint32_t i = 0; i < pos_count; ++i) {
-                    const size_t p = pos_data_off + static_cast<size_t>(i) * 16;
-                    const std::array<float, 3> pos = {
-                        f32_at(p + 0), f32_at(p + 4), f32_at(p + 8)};
-                    const float frame = f32_at(p + 12);
-                    if (!plausible(pos[0]) || !plausible(pos[1]) ||
-                        !plausible(pos[2]) || !std::isfinite(frame) ||
-                        frame < prev_frame || frame > 2000.0f) {
-                        ok = false;
-                        break;
-                    }
-                    prev_frame = frame;
-                }
-                if (!ok) continue;
-                return StructuredTransAnimRun{
-                    rot_count_off, pos_count_off, pos_data_off,
-                    static_cast<int>(pos_count)};
-            }
-            return std::nullopt;
-        };
-        const auto structured_run = structured_transanim_position_run();
-
-        size_t best_off = SIZE_MAX;
-        int best_len = 0;
-        for (size_t off = 0; off + 16 <= size; ++off) {
-            float prev_frame = -1.0f;
-            int len = 0;
-            for (size_t p = off; p + 16 <= size; p += 16) {
-                const float x = f32_at(p + 0);
-                const float y = f32_at(p + 4);
-                const float z = f32_at(p + 8);
-                const float frame = f32_at(p + 12);
-                if (!plausible(x) || !plausible(y) || !plausible(z) ||
-                    !std::isfinite(frame) || frame < prev_frame ||
-                    frame > 2000.0f) {
-                    break;
-                }
-                if (std::abs(x) < 10.0f && std::abs(y) < 10.0f &&
-                    std::abs(z) < 10.0f) {
-                    break;
-                }
-                prev_frame = frame;
-                ++len;
-            }
-            if (len > best_len) {
-                best_len = len;
-                best_off = off;
-            }
-        }
-        if (structured_run) {
-            best_off = structured_run->data_off;
-            best_len = structured_run->len;
-        }
-        if (best_len < 4 || best_off == SIZE_MAX) return out;
-        out.reserve(static_cast<size_t>(best_len));
-        for (int i = 0; i < best_len; ++i) {
-            const size_t p = best_off + static_cast<size_t>(i) * 16;
-            Gameplay::CameraKey k;
-            k.eye[0] = f32_at(p + 0);
-            k.eye[1] = f32_at(p + 4);
-            k.eye[2] = f32_at(p + 8);
-            k.frame = f32_at(p + 12);
-            out.push_back(k);
-        }
-        std::vector<Gameplay::CameraKey> rot_keys;
-        for (size_t off = 0; off + 20 <= size; ++off) {
-            float prev_frame = -1.0f;
-            std::vector<Gameplay::CameraKey> cand;
-            for (size_t p = off; p + 20 <= size; p += 20) {
-                const float x = f32_at(p + 0);
-                const float y = f32_at(p + 4);
-                const float z = f32_at(p + 8);
-                const float w = f32_at(p + 12);
-                const float frame = f32_at(p + 16);
-                const float n = std::sqrt(x * x + y * y + z * z + w * w);
-                if (!std::isfinite(n) || n < 0.95f || n > 1.05f ||
-                    frame < prev_frame || frame > 2000.0f) {
-                    break;
-                }
-                Gameplay::CameraKey k;
-                k.frame = frame;
-                k.quat[0] = x;
-                k.quat[1] = y;
-                k.quat[2] = z;
-                k.quat[3] = w;
-                k.has_quat = true;
-                cand.push_back(k);
-                prev_frame = frame;
-            }
-            if (cand.size() > rot_keys.size()) rot_keys = std::move(cand);
-        }
-        if (!rot_keys.empty()) {
-            auto sample_rot = [&](float frame) -> std::array<float, 4> {
-                if (rot_keys.size() == 1) {
-                    return {rot_keys.front().quat[0], rot_keys.front().quat[1],
-                            rot_keys.front().quat[2], rot_keys.front().quat[3]};
-                }
-                const Gameplay::CameraKey* a = &rot_keys.front();
-                const Gameplay::CameraKey* b = &rot_keys.back();
-                for (size_t i = 1; i < rot_keys.size(); ++i) {
-                    if (frame <= rot_keys[i].frame) {
-                        a = &rot_keys[i - 1];
-                        b = &rot_keys[i];
-                        break;
-                    }
-                }
-                const float span = std::max(b->frame - a->frame, 0.001f);
-                const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
-                const std::array<float, 4> qa = {a->quat[0], a->quat[1],
-                                                 a->quat[2], a->quat[3]};
-                const std::array<float, 4> qb = {b->quat[0], b->quat[1],
-                                                 b->quat[2], b->quat[3]};
-                return slerp_quat_xyzw(qa, qb, t);
-            };
+        auto decoded = read_rnd_transanim_like_miloeditor(body, size);
+        if (!decoded) return out;
+        out = decoded->trans_keys;
+        if (!decoded->rot_keys.empty()) {
             for (auto& pos : out) {
-                const auto q = sample_rot(pos.frame);
+                const auto q =
+                    sample_rnd_transanim_rot_keys(decoded->rot_keys, pos.frame);
                 pos.has_quat = true;
                 for (int i = 0; i < 4; ++i) pos.quat[i] = q[i];
             }
-            std::fprintf(stderr, "[world] camera anim %s: %zu rot keys\n",
-                         anim_name.c_str(), rot_keys.size());
+            std::fprintf(stderr,
+                         "[world] camera anim %s: %zu source rot keys\n",
+                         anim_name.c_str(), decoded->rot_keys.size());
         }
         if (debug_camera_enabled()) {
             const Gameplay::CameraKey& first = out.front();
@@ -7232,47 +7189,31 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
             const Gameplay::CameraKey& last = out.back();
             std::fprintf(
                 stderr,
-                "[camera-path] anim=%s selected body+0x%zX keys=%zu "
+                "[camera-path] anim=%s source-shaped rev=%u anim_rev=%u "
+                "trans=%s owner=%s end=0x%zX/%zu keys=%zu rot_keys=%zu "
+                "scale_keys=%zu flags=trans_spline:%d repeat:%d "
+                "scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d "
                 "first=f%.3f:(%.3f %.3f %.3f) "
                 "mid=f%.3f:(%.3f %.3f %.3f) "
-                "last=f%.3f:(%.3f %.3f %.3f) rot_keys=%zu\n",
-                anim_name.c_str(), best_off, out.size(), first.frame,
+                "last=f%.3f:(%.3f %.3f %.3f)\n",
+                anim_name.c_str(), decoded->revision, decoded->anim_revision,
+                decoded->trans.c_str(), decoded->keys_owner.c_str(),
+                decoded->end_offset, size, out.size(),
+                decoded->rot_keys.size(), decoded->scale_keys.size(),
+                decoded->trans_spline ? 1 : 0,
+                decoded->repeat_trans ? 1 : 0,
+                decoded->scale_spline ? 1 : 0,
+                decoded->follow_path ? 1 : 0,
+                decoded->rot_slerp ? 1 : 0,
+                decoded->rot_spline ? 1 : 0, first.frame,
                 first.eye[0], first.eye[1], first.eye[2], mid.frame,
                 mid.eye[0], mid.eye[1], mid.eye[2], last.frame, last.eye[0],
-                last.eye[1], last.eye[2], rot_keys.size());
-            if (structured_run) {
-                std::fprintf(
-                    stderr,
-                    "[camera-path] anim=%s structured rot_count_off=0x%zX "
-                    "pos_count_off=0x%zX data_off=0x%zX keys=%d selected=%d\n",
-                    anim_name.c_str(), structured_run->rot_count_off,
-                    structured_run->pos_count_off, structured_run->data_off,
-                    structured_run->len,
-                    structured_run->data_off == best_off ? 1 : 0);
-            }
-            std::stable_sort(counted_runs.begin(), counted_runs.end(),
-                             [](const Vec3Run& a, const Vec3Run& b) {
-                                 if (a.len != b.len) return a.len > b.len;
-                                 return a.delta > b.delta;
-                             });
-            const size_t log_count = std::min<size_t>(counted_runs.size(), 6);
-            for (size_t i = 0; i < log_count; ++i) {
-                const auto& run = counted_runs[i];
-                std::fprintf(
-                    stderr,
-                    "[camera-path] anim=%s counted[%zu] count_off=0x%zX "
-                    "data_off=0x%zX keys=%d delta=%.3f scale_like=%d "
-                    "selected=%d first=(%.3f %.3f %.3f) "
-                    "last=(%.3f %.3f %.3f)\n",
-                    anim_name.c_str(), i, run.count_off, run.data_off,
-                    run.len, run.delta, run.scale_like ? 1 : 0,
-                    run.data_off == best_off ? 1 : 0, run.first[0],
-                    run.first[1], run.first[2], run.last[0], run.last[1],
-                    run.last[2]);
-            }
+                last.eye[1], last.eye[2]);
         }
-        std::fprintf(stderr, "[world] camera anim %s: %zu keys at body+0x%zX\n",
-                     anim_name.c_str(), out.size(), best_off);
+        std::fprintf(stderr,
+                     "[world] camera anim %s: %zu source keys rev=%u owner=%s\n",
+                     anim_name.c_str(), out.size(), decoded->revision,
+                     decoded->keys_owner.c_str());
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] camera anim %s: %s\n", anim_name.c_str(),
                      ex.what());

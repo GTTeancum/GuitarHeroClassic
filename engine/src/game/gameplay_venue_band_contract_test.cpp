@@ -5796,11 +5796,23 @@ int main() {
                  "returnslerp_quat_xyzw(qa,qb,t);",
                  "path-backed TransAnim camera rotations are sampled by quaternion interpolation");
   ok &= contains(gameplay_c,
-                 "structured_transanim_position_run",
-                 "path-backed TransAnim camera positions prefer the structured PS2 track layout");
+                 "std::optional<DecodedRndTransAnim>read_rnd_transanim_like_miloeditor(",
+                 "path-backed TransAnim camera positions use the source-shaped RndTransAnim reader");
   ok &= contains(gameplay_c,
-                 "\"[camera-path]anim=%sstructuredrot_count_off=0x%zX\"",
-                 "camera path diagnostics expose structured TransAnim track offsets");
+                 "anim.end_offset=r.pos;if(r.pos!=r.size)",
+                 "source-shaped RndTransAnim reader must consume the whole asset");
+  ok &= contains(gameplay_c,
+                 "out=decoded->trans_keys;",
+                 "path-backed camera positions come from decoded source trans keys");
+  ok &= contains(gameplay_c,
+                 "\"[camera-path]anim=%ssource-shapedrev=%uanim_rev=%u\"",
+                 "camera path diagnostics expose source-shaped RndTransAnim metadata");
+  ok &= absent(gameplay_c,
+               "structured_transanim_position_run",
+               "old structured TransAnim scanner is removed from path cameras");
+  ok &= absent(gameplay_c,
+               "counted_runs",
+               "old counted-run TransAnim scanner is removed from path cameras");
   ok &= contains(gameplay_c,
                  "voidpopulate_camera_generated_source_rows"
                  "(Gameplay::CameraKey&key)",
