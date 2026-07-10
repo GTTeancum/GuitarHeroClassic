@@ -10622,3 +10622,20 @@ Rejected native probe:
 - Same review locked `core` as a full inside-glass layer: `amp_inside_bar.mesh`
   is emitted at full source width at all stored-fill amounts. Stored fill
   growth remains on the clipped `amp_tube_glow_meter.mesh` tube-meter layer.
+
+2026-07-10 post-core-span PCSX2/native comparison:
+- Refreshed native `--hud-sp` 0.25/0.50/0.75/1.00 captures after the reviewed
+  full-core source-order checkpoint and compared them against the retained
+  no-focus PCSX2 forced-fill oracle:
+  `engine/out/star_power_trace_evidence_20260705/pcsx2_stock_star_force_partial_values_settled_no_focus/`.
+- Fresh comparison proof:
+  `engine/out/star_power_trace_evidence_20260710/native_star_current_vs_pcsx2_after_core_span/native_star_current_vs_pcsx2_after_core_span_proof.png`.
+  Native logs now prove `core_width=123.753/123.753` for every stored fill,
+  while the stored body grows through `amp_tube_glow_meter.mesh` widths
+  `29.223/116.890`, `58.445/116.890`, `87.668/116.890`, and
+  `116.890/116.890`.
+- Remaining visible mismatch is not layer identity or fill direction. The
+  native tube body reads cleaner/whiter and the shell contrast differs from the
+  PCSX2 oracle. The next source-backed code pass should target the exact source
+  material/combine interpretation for `amp_inside_bar.mesh`,
+  `amp_tube_glow_meter.mesh`, and `amp_glass.mesh`.
