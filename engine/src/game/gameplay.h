@@ -551,6 +551,9 @@ class Gameplay {
   void end_camera_shot_anims();
   void start_camera_shot_runtime(const CameraKey& key);
   void end_camera_shot_runtime();
+  std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
+      camera_glow_spot_state_for_ref(const std::string& raw_ref) const;
+  void set_camera_glow_spot_ref(const std::string& raw_ref);
   void refresh_worldcrowd_actor_source_targets_for_camera();
   void resend_active_venue_event();
   void clear_runtime_venue_animation_state();
@@ -579,6 +582,10 @@ class Gameplay {
       double fade_seconds);
   std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
       interpolated_lighting_spots() const;
+  std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
+      composed_lighting_spots_for_renderer(
+          std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
+              spots) const;
   void update_lighting_spotlight_renderer();
   void execute_venue_script_event(const std::string& event_name);
   bool execute_venue_script_object_messages(
@@ -914,6 +921,9 @@ class Gameplay {
   std::vector<std::pair<int, int>> venue_camera_crowd_selection_pairs_;
   std::string active_camera_runtime_shot_;
   std::string active_camera_anim_event_;
+  std::string active_camera_glow_spot_ref_;
+  std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
+      active_camera_glow_spot_;
   std::string active_venue_event_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformAnim>
       drum_mesh_transform_anims_;

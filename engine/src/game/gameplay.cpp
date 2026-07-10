@@ -14614,6 +14614,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     previous_regular_camera_.clear();
     active_camera_runtime_shot_.clear();
     active_camera_anim_event_.clear();
+    active_camera_glow_spot_ref_.clear();
+    active_camera_glow_spot_.reset();
     active_regular_camera_start_ = 0.0;
     active_camera_position_start_ = 0.0;
     active_camera_position_index_ = 0;
@@ -15233,6 +15235,7 @@ void Gameplay::start_camera_shot_anims(const CameraKey& key,
 void Gameplay::end_camera_shot_runtime() {
     if (active_camera_runtime_shot_.empty()) return;
     end_camera_shot_anims();
+    set_camera_glow_spot_ref({});
     CameraKey clear;
     clear.name = active_camera_runtime_shot_;
     apply_camera_crowd_visibility(clear);
@@ -15251,6 +15254,7 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
     active_camera_runtime_shot_ = runtime_name;
     apply_camera_crowd_visibility(key);
     start_camera_shot_anims(key, active_camera_runtime_shot_);
+    set_camera_glow_spot_ref(key.glow_spot_ref);
     if (debug_venue_filters_enabled()) {
         std::fprintf(
             stderr,
@@ -15264,6 +15268,57 @@ void Gameplay::start_camera_shot_runtime(const CameraKey& key) {
             key.postproc_override_refs.size(), key.camera_anim_refs.size(),
             key.glow_spot_ref.c_str());
     }
+}
+
+std::optional<ghogx::render::MiloSceneRenderer::SpotlightState>
+Gameplay::camera_glow_spot_state_for_ref(const std::string& raw_ref) const {
+    const std::string ref = canonical_milo_ref(raw_ref);
+    if (ref.empty()) return std::nullopt;
+
+    for (const auto& spot : lighting_spotlights_) {
+        if (canonical_milo_ref(spot.name) != ref) continue;
+        ghogx::render::MiloSceneRenderer::SpotlightState out;
+        out.name = spot.name;
+        out.target_mesh = spot.target;
+        if (spot.has_default_state) {
+            out.r = spot.default_color[0];
+            out.g = spot.default_color[1];
+            out.b = spot.default_color[2];
+            out.intensity = spot.default_intensity;
+        }
+        return out;
+    }
+    return std::nullopt;
+}
+
+void Gameplay::set_camera_glow_spot_ref(const std::string& raw_ref) {
+    const std::string ref = canonical_milo_ref(raw_ref);
+    if (active_camera_glow_spot_ref_ == ref) return;
+
+    active_camera_glow_spot_ref_ = ref;
+    active_camera_glow_spot_.reset();
+    if (!ref.empty()) {
+        active_camera_glow_spot_ = camera_glow_spot_state_for_ref(ref);
+    }
+
+    if (debug_venue_filters_enabled()) {
+        if (active_camera_glow_spot_) {
+            const auto& spot = *active_camera_glow_spot_;
+            std::fprintf(
+                stderr,
+                "[world] camera glow spot active: ref=%s target=%s color=(%.3f %.3f %.3f) intensity=%.3f\n",
+                spot.name.c_str(), spot.target_mesh.c_str(), spot.r, spot.g,
+                spot.b, spot.intensity);
+        } else if (!ref.empty()) {
+            std::fprintf(stderr,
+                         "[world] camera glow spot unresolved: ref=%s\n",
+                         ref.c_str());
+        } else {
+            std::fprintf(stderr, "[world] camera glow spot cleared\n");
+        }
+    }
+
+    update_lighting_spotlight_renderer();
 }
 
 std::string Gameplay::venue_script_context_state_key(
@@ -16417,6 +16472,8 @@ void Gameplay::clear_runtime_venue_animation_state() {
     lighting_transition_start_ = song_time_;
     lighting_transition_duration_ = 0.0;
     lighting_transition_active_ = false;
+    active_camera_glow_spot_ref_.clear();
+    active_camera_glow_spot_.reset();
     lighting_material_alpha_.clear();
     lighting_material_colors_.clear();
     lighting_material_textures_.clear();
@@ -17938,6 +17995,15 @@ Gameplay::interpolated_lighting_spots() const {
     return sorted_unique_spotlight_states(std::move(out));
 }
 
+std::vector<ghogx::render::MiloSceneRenderer::SpotlightState>
+Gameplay::composed_lighting_spots_for_renderer(
+    std::vector<ghogx::render::MiloSceneRenderer::SpotlightState> spots) const {
+    if (active_camera_glow_spot_) {
+        spots.push_back(*active_camera_glow_spot_);
+    }
+    return sorted_unique_spotlight_states(std::move(spots));
+}
+
 void Gameplay::update_lighting_spotlight_renderer() {
     if (!lighting_) return;
     if (lighting_transition_active_ &&
@@ -17945,10 +18011,12 @@ void Gameplay::update_lighting_spotlight_renderer() {
         lighting_transition_active_ = false;
         lighting_transition_from_.clear();
         lighting_transition_to_.clear();
-        lighting_->set_active_spotlights(active_lighting_spot_targets_);
+        lighting_->set_active_spotlights(
+            composed_lighting_spots_for_renderer(active_lighting_spot_targets_));
         return;
     }
-    lighting_->set_active_spotlights(interpolated_lighting_spots());
+    lighting_->set_active_spotlights(
+        composed_lighting_spots_for_renderer(interpolated_lighting_spots()));
 }
 
 // ---------------------------------------------------------------------------
