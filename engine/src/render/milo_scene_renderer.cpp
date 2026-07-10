@@ -665,8 +665,39 @@ void MiloSceneRenderer::set_text_batches(std::vector<TextBatch> batches) {
   }
 }
 
+void MiloSceneRenderer::set_viewport(int x, int y, int width, int height) {
+  if (width <= 0 || height <= 0) {
+    custom_viewport_ = false;
+    return;
+  }
+  custom_viewport_ = true;
+  viewport_x_ = x;
+  viewport_y_ = y;
+  viewport_w_ = width;
+  viewport_h_ = height;
+}
+
+void MiloSceneRenderer::set_clear_color(uint8_t r, uint8_t g, uint8_t b) {
+  clear_r_ = r;
+  clear_g_ = g;
+  clear_b_ = b;
+}
+
+void MiloSceneRenderer::set_clear_depth_on_overlay(bool enabled) {
+  clear_depth_on_overlay_ = enabled;
+}
+
+void MiloSceneRenderer::set_environment_dynamic_lights(bool enabled) {
+  force_environment_dynamic_lights_ = enabled;
+}
+
 void MiloSceneRenderer::set_world_transform(const std::array<float, 16>& m) {
   world_transform_ = m;
+}
+
+void MiloSceneRenderer::set_global_tint(float brightness, float alpha) {
+  global_brightness_ = std::clamp(brightness, 0.0f, 1.0f);
+  global_alpha_ = std::clamp(alpha, 0.0f, 1.0f);
 }
 
 void MiloSceneRenderer::set_additive_blend(bool additive) {
@@ -696,6 +727,20 @@ void MiloSceneRenderer::set_particle_sizes(std::map<std::string, float> sizes) {
 
 void MiloSceneRenderer::set_hidden_meshes(std::unordered_set<std::string> mesh_names) {
   hidden_meshes_ = std::move(mesh_names);
+}
+
+void MiloSceneRenderer::set_post_text_meshes(
+    std::unordered_set<std::string> mesh_names) {
+  post_text_meshes_ = std::move(mesh_names);
+}
+
+void MiloSceneRenderer::set_post_text_mesh_world_offsets(
+    std::map<std::string, std::array<float, 3>> offsets) {
+  post_text_mesh_world_offsets_ = std::move(offsets);
+}
+
+void MiloSceneRenderer::set_post_text_mesh_text_split(size_t batch_index) {
+  post_text_mesh_text_split_ = batch_index;
 }
 
 void MiloSceneRenderer::set_material_alpha_multipliers(
@@ -783,7 +828,7 @@ void MiloSceneRenderer::trigger_mesh_translation_anim(
 
 void MiloSceneRenderer::trigger_mesh_transform_anim(
     const std::string& mesh_name, MeshTransformAnim transform_anim,
-    float frames_per_second) {
+    float frames_per_second, bool loop) {
   if (frames_per_second <= 0.0f) return;
   auto empty = [](const MeshTransformAnim& a) {
     return a.translation_keys.size() < 2 && a.rotation_keys.size() < 2 &&
@@ -808,7 +853,13 @@ void MiloSceneRenderer::trigger_mesh_transform_anim(
   active.anim = std::move(transform_anim);
   active.frames_per_second = frames_per_second;
   active.elapsed = 0.0f;
+  active.loop = loop;
   active_mesh_anims_[mesh_name] = std::move(active);
+  if (env_enabled("GHOGX_LOG_MESH_ANIM")) {
+    std::fprintf(stderr, "[milo_scene] anim %s target=%s fps=%.1f loop=%d\n",
+                 loop ? "loop" : "one-shot", mesh_name.c_str(),
+                 frames_per_second, loop ? 1 : 0);
+  }
 }
 
 void MiloSceneRenderer::update(float dt_seconds) {
@@ -841,7 +892,13 @@ void MiloSceneRenderer::update(float dt_seconds) {
         last_frame = std::max(last_frame, it->second.anim.scale_keys.back().frame);
       }
       if (last_frame > 0.0f && frame > last_frame) {
-        it = active_mesh_anims_.erase(it);
+        if (it->second.loop) {
+          const float wrapped = std::fmod(frame, last_frame);
+          it->second.elapsed = wrapped / it->second.frames_per_second;
+          ++it;
+        } else {
+          it = active_mesh_anims_.erase(it);
+        }
       } else {
         ++it;
       }
@@ -976,12 +1033,20 @@ void MiloSceneRenderer::set_scene(
     cam_.far_z = authored->far_plane;
     std::fprintf(stderr,
                  "[scene3d] authored camera %s eye=(%.1f %.1f %.1f) "
-                 "forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) fov=%.3f\n",
+                 "forward=(%.3f %.3f %.3f) up=(%.3f %.3f %.3f) "
+                 "fov=%.3f near=%.1f far=%.1f rect=(%.3f %.3f %.3f %.3f) "
+                 "zrange=(%.3f %.3f) parent=%s target=%s\n",
                  authored->name.c_str(), cam_.authored_eye[0],
                  cam_.authored_eye[1], cam_.authored_eye[2],
                  authored->local.rot[1][0], authored->local.rot[1][1],
                  authored->local.rot[1][2], cam_.authored_up[0],
-                 cam_.authored_up[1], cam_.authored_up[2], cam_.fov);
+                 cam_.authored_up[1], cam_.authored_up[2], cam_.fov,
+                 cam_.near_z, cam_.far_z, authored->screen_rect[0],
+                 authored->screen_rect[1], authored->screen_rect[2],
+                 authored->screen_rect[3], authored->z_range[0],
+                 authored->z_range[1],
+                 authored->parent.empty() ? "<none>" : authored->parent.c_str(),
+                 authored->target.empty() ? "<none>" : authored->target.c_str());
   }
 }
 
@@ -1048,15 +1113,28 @@ void MiloSceneRenderer::frame_camera_on_bounds() {
 }
 
 void MiloSceneRenderer::draw() {
-  draw_impl(true);
+  draw_impl(true, true, true);
 }
 
 void MiloSceneRenderer::draw_over_scene(const OrbitCamera& cam) {
   cam_ = cam;
-  draw_impl(false);
+  draw_impl(false, true, true);
 }
 
-void MiloSceneRenderer::draw_impl(bool clear_target) {
+void MiloSceneRenderer::draw_scene_only() {
+  draw_impl(true, true, false);
+}
+
+void MiloSceneRenderer::draw_scene_only_over_scene() {
+  draw_impl(false, true, false);
+}
+
+void MiloSceneRenderer::draw_text_over_scene() {
+  draw_impl(false, false, true);
+}
+
+void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
+                                  bool draw_text) {
   if (!dev_) return;
 
   const float backbuffer_aspect =
@@ -1111,11 +1189,37 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
                            view, proj);
   }
 
-  // A sky-ish dark blue clear so geometry silhouettes read even before textures.
+  D3DVIEWPORT9 full_viewport = {};
+  full_viewport.X = 0;
+  full_viewport.Y = 0;
+  full_viewport.Width = static_cast<DWORD>(std::max(1, win_->bb_width()));
+  full_viewport.Height = static_cast<DWORD>(std::max(1, win_->bb_height()));
+  full_viewport.MinZ = 0.0f;
+  full_viewport.MaxZ = 1.0f;
+  dev_->SetViewport(&full_viewport);
+
   if (clear_target) {
     dev_->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-                D3DCOLOR_XRGB(20, 22, 34), 1.0f, 0);
+                D3DCOLOR_XRGB(clear_r_, clear_g_, clear_b_), 1.0f, 0);
+  } else if (clear_depth_on_overlay_) {
+    dev_->Clear(0, nullptr, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
   }
+
+  if (custom_viewport_) {
+    D3DVIEWPORT9 active = full_viewport;
+    const int max_w = std::max(1, win_->bb_width());
+    const int max_h = std::max(1, win_->bb_height());
+    const int x = std::clamp(viewport_x_, 0, max_w - 1);
+    const int y = std::clamp(viewport_y_, 0, max_h - 1);
+    active.X = static_cast<DWORD>(x);
+    active.Y = static_cast<DWORD>(y);
+    active.Width = static_cast<DWORD>(
+        std::clamp(viewport_w_, 1, std::max(1, max_w - x)));
+    active.Height = static_cast<DWORD>(
+        std::clamp(viewport_h_, 1, std::max(1, max_h - y)));
+    dev_->SetViewport(&active);
+  }
+
   dev_->BeginScene();
 
   D3DMATRIX dv, dp;
@@ -1177,6 +1281,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
   mtrl.Diffuse.r = mtrl.Diffuse.g = mtrl.Diffuse.b = mtrl.Diffuse.a = 1.0f;
   mtrl.Ambient.r = mtrl.Ambient.g = mtrl.Ambient.b = mtrl.Ambient.a = 1.0f;
   dev_->SetMaterial(&mtrl);
+  dev_->SetRenderState(D3DRS_COLORVERTEX, TRUE);
+  dev_->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
+  dev_->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_COLOR1);
 
   dev_->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
   dev_->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
@@ -1198,7 +1305,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       !env_enabled("GHOGX_DISABLE_ENVIRON_LIGHTING");
   const bool apply_environment_dynamic_lights =
       apply_environment_lighting &&
-      env_enabled("GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS") &&
+      (force_environment_dynamic_lights_ ||
+       env_enabled("GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS")) &&
       !env_enabled("GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS");
   const bool apply_environment_fog =
       apply_environment_lighting && !env_enabled("GHOGX_DISABLE_ENVIRON_FOG");
@@ -1297,13 +1405,16 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
                                   const std::array<float, 16>& w,
                                   const std::string* material_override = nullptr,
                                   const SpotlightState* spotlight_state = nullptr) {
-    if (!m.decoded || m.vertex_count == 0 || m.face_count == 0) return;
+    if (!m.decoded || !m.showing || m.vertex_count == 0 || m.face_count == 0) return;
     if (mesh_matches_env_spec("GHOGX_SKIP_VENUE_MESH", m.name)) return;
     std::memcpy(&wm, w.data(), 64);
     dev_->SetTransform(D3DTS_WORLD, &wm);
 
     IDirect3DTexture9* texture = nullptr;
     float su = 1.0f, sv = 1.0f, tu = 0.0f, tv = 0.0f;
+    float uv_m00 = 1.0f, uv_m01 = 0.0f;
+    float uv_m10 = 0.0f, uv_m11 = 1.0f;
+    float uv_m20 = 0.0f, uv_m21 = 0.0f;
     float mr = 1.0f, mg = 1.0f, mb = 1.0f, ma = 1.0f;
     uint8_t material_blend = kBlendSrcAlpha;
     const std::string& material =
@@ -1319,6 +1430,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       diffuse_tex = mat->diffuse_tex;
       su = mat->tex_scale[0]; sv = mat->tex_scale[1];
       tu = mat->tex_offset[0]; tv = mat->tex_offset[1];
+      uv_m00 = mat->tex_xfm[0][0];
+      uv_m01 = mat->tex_xfm[0][1];
+      uv_m10 = mat->tex_xfm[1][0];
+      uv_m11 = mat->tex_xfm[1][1];
+      uv_m20 = mat->tex_xfm[2][0];
+      uv_m21 = mat->tex_xfm[2][1];
       mr = mat->color[0]; mg = mat->color[1]; mb = mat->color[2]; ma = mat->color[3];
       material_blend = mat->blend;
     }
@@ -1391,13 +1508,17 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         tex_it != material_tex_transforms_.end()) {
       const auto& transform = tex_it->second;
       if (transform.has_translation) {
-        tu = transform.translation[0];
-        tv = transform.translation[1];
+        tu = uv_m20 = transform.translation[0];
+        tv = uv_m21 = transform.translation[1];
         material_tex_anim = true;
       }
       if (transform.has_scale) {
         su = transform.scale[0];
         sv = transform.scale[1];
+        uv_m00 = su;
+        uv_m01 = 0.0f;
+        uv_m10 = 0.0f;
+        uv_m11 = sv;
         material_tex_anim = true;
       }
       if (transform.has_rotation) {
@@ -1411,6 +1532,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       mb *= spotlight_state->b;
       ma *= spotlight_state->intensity;
     }
+    mr *= global_brightness_;
+    mg *= global_brightness_;
+    mb *= global_brightness_;
+    ma *= global_alpha_;
     if (const auto alpha_it = material_alpha_.find(material);
         alpha_it != material_alpha_.end()) {
       ma *= alpha_it->second;
@@ -1444,6 +1569,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     }
     if (ma <= 0.001f) return;
     const bool disable_zwrite =
+        material_blend == kBlendSrcAlpha ||
         blend_state.additive || material_blend == kBlendSubtract ||
         material_blend == kBlendMultiply || ma < 0.999f;
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, disable_zwrite ? FALSE : TRUE);
@@ -1493,8 +1619,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         base_min_v = std::min(base_min_v, base_v);
         base_max_u = std::max(base_max_u, base_u);
         base_max_v = std::max(base_max_v, base_v);
-        float u = base_u * su;
-        float vv = base_v * sv;
+        float u = base_u * uv_m00 + base_v * uv_m10;
+        float vv = base_u * uv_m01 + base_v * uv_m11;
         if (material_tex_anim && std::fabs(rot) > 0.000001f) {
           const float c = std::cos(rot);
           const float sn = std::sin(rot);
@@ -1503,8 +1629,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
           u = ru;
           vv = rv;
         }
-        u += tu;
-        vv += tv;
+        u += uv_m20;
+        vv += uv_m21;
         final_min_u = std::min(final_min_u, u);
         final_min_v = std::min(final_min_v, vv);
         final_max_u = std::max(final_max_u, u);
@@ -1527,12 +1653,14 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
             stderr,
             "[milo_scene] material_uv mesh=%s material=%s tex=%s verts=%zu "
             "base=[%.3f..%.3f %.3f..%.3f] final=[%.3f..%.3f %.3f..%.3f] "
-            "scale=(%.3f %.3f) offset=(%.3f %.3f) rot=%.3f anim=%d "
+            "scale=(%.3f %.3f) offset=(%.3f %.3f) "
+            "uvm=[%.3f %.3f %.3f %.3f %.3f %.3f] rot=%.3f anim=%d "
             "uv_override=%d uv_repeat=%d sampler=%s blend=%u prelit=%d\n",
             m.name.c_str(), material.c_str(), diffuse_tex.c_str(),
             m.verts.size(), base_min_u, base_max_u, base_min_v, base_max_v,
             final_min_u, final_max_u, final_min_v, final_max_v, su, sv, tu,
-            tv, rot, material_tex_anim ? 1 : 0, texcoord_override ? 1 : 0,
+            tv, uv_m00, uv_m01, uv_m10, uv_m11, uv_m20, uv_m21, rot,
+            material_tex_anim ? 1 : 0, texcoord_override ? 1 : 0,
             uv_repeats ? 1 : 0, tiled ? "wrap" : "clamp",
             static_cast<unsigned>(material_blend),
             prelit_material ? 1 : 0);
@@ -1598,8 +1726,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       s.color = D3DCOLOR_ARGB(cc(v.a * ma), cc(v.r * mr), cc(v.g * mg), cc(v.b * mb));
       const float base_u = texcoord_override ? (*texcoord_override)[vi][0] : v.u;
       const float base_v = texcoord_override ? (*texcoord_override)[vi][1] : v.v;
-      float u = base_u * su;
-      float vv = base_v * sv;
+      float u = base_u * uv_m00 + base_v * uv_m10;
+      float vv = base_u * uv_m01 + base_v * uv_m11;
       if (material_tex_anim && std::fabs(rot) > 0.000001f) {
         const float c = std::cos(rot);
         const float sn = std::sin(rot);
@@ -1608,8 +1736,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         u = ru;
         vv = rv;
       }
-      s.u = u + tu;
-      s.v = vv + tv;
+      s.u = u + uv_m20;
+      s.v = vv + uv_m21;
       vb.push_back(s);
     }
 
@@ -1738,26 +1866,33 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     dev_->SetFVF(kFVF);
   };
 
-  std::vector<const milo_scene::MeshObj*> draw_meshes;
-  draw_meshes.reserve(scene_.meshes.size());
-  std::unordered_set<const milo_scene::MeshObj*> queued;
-  for (const auto& name : scene_.draw_order) {
-    for (const auto& m : scene_.meshes) {
-      if (queued.find(&m) == queued.end() && m.name == name) {
-        draw_meshes.push_back(&m);
-        queued.insert(&m);
-        break;
+  struct PostTextMesh {
+    const milo_scene::MeshObj* mesh = nullptr;
+    std::array<float, 16> world{};
+  };
+  std::vector<PostTextMesh> post_text_draw_meshes;
+
+  if (draw_scene) {
+    std::vector<const milo_scene::MeshObj*> draw_meshes;
+    draw_meshes.reserve(scene_.meshes.size());
+    std::unordered_set<const milo_scene::MeshObj*> queued;
+    for (const auto& name : scene_.draw_order) {
+      for (const auto& m : scene_.meshes) {
+        if (queued.find(&m) == queued.end() && m.name == name) {
+          draw_meshes.push_back(&m);
+          queued.insert(&m);
+          break;
+        }
       }
     }
-  }
-  for (const auto& m : scene_.meshes) {
-    if (queued.insert(&m).second) draw_meshes.push_back(&m);
-  }
+    for (const auto& m : scene_.meshes) {
+      if (queued.insert(&m).second) draw_meshes.push_back(&m);
+    }
 
-  const bool draw_spotlight_instances =
-      !env_enabled("GHOGX_DISABLE_SPOTLIGHT_INSTANCES");
-  const bool debug_camera_meshes =
-      clear_target && env_enabled("GHOGX_DEBUG_CAMERA_MESHES");
+    const bool draw_spotlight_instances =
+        !env_enabled("GHOGX_DISABLE_SPOTLIGHT_INSTANCES");
+    const bool debug_camera_meshes =
+        env_enabled("GHOGX_DEBUG_CAMERA_MESHES");
   struct CameraMeshHit {
     std::string name;
     std::string material;
@@ -1779,44 +1914,74 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     size_t verts = 0;
     float distance = 0.0f;
   };
-  std::vector<ProjectedCameraMeshHit> projected_camera_mesh_hits;
-  std::unordered_set<std::string> spotlight_template_meshes;
-  auto add_spotlight_group_meshes = [&](const std::string& group_name) {
-    std::vector<std::string> pending{group_name};
-    std::unordered_set<std::string> seen_groups;
-    while (!pending.empty()) {
-      const std::string current = pending.back();
-      pending.pop_back();
-      if (!seen_groups.insert(current).second) continue;
-      for (const auto& group : scene_.groups) {
-        if (group.name != current) continue;
-        for (const auto& child : group.children) {
-          if (child.rfind(".mesh") != std::string::npos) {
-            spotlight_template_meshes.insert(child);
-          } else if (child.rfind(".grp") != std::string::npos) {
-            pending.push_back(child);
+    std::vector<ProjectedCameraMeshHit> projected_camera_mesh_hits;
+    std::unordered_set<std::string> spotlight_template_meshes;
+    auto add_spotlight_group_meshes = [&](const std::string& group_name) {
+      std::vector<std::string> pending{group_name};
+      std::unordered_set<std::string> seen_groups;
+      while (!pending.empty()) {
+        const std::string current = pending.back();
+        pending.pop_back();
+        if (!seen_groups.insert(current).second) continue;
+        for (const auto& group : scene_.groups) {
+          if (group.name != current) continue;
+          for (const auto& child : group.children) {
+            if (child.rfind(".mesh") != std::string::npos) {
+              spotlight_template_meshes.insert(child);
+            } else if (child.rfind(".grp") != std::string::npos) {
+              pending.push_back(child);
+            }
           }
+          break;
         }
-        break;
+      }
+    };
+    for (const auto& spot : scene_.spotlights) {
+      add_spotlight_group_meshes(spot.group);
+      if (!spot.target.empty()) spotlight_template_meshes.insert(spot.target);
+      if (!spot.circle_mesh.empty())
+        spotlight_template_meshes.insert(spot.circle_mesh);
+      for (const auto& mesh : spot.instance_meshes) {
+        if (!mesh.empty()) spotlight_template_meshes.insert(mesh);
       }
     }
-  };
-  for (const auto& spot : scene_.spotlights) {
-    add_spotlight_group_meshes(spot.group);
-    if (!spot.target.empty()) spotlight_template_meshes.insert(spot.target);
-    if (!spot.circle_mesh.empty())
-      spotlight_template_meshes.insert(spot.circle_mesh);
-    for (const auto& mesh : spot.instance_meshes) {
-      if (!mesh.empty()) spotlight_template_meshes.insert(mesh);
-    }
-  }
 
   for (const auto* mp : draw_meshes) {
     const auto& m = *mp;
     if (hidden_meshes_.find(m.name) != hidden_meshes_.end()) continue;
+    if (!m.showing) continue;
     if (spotlight_template_meshes.find(m.name) != spotlight_template_meshes.end())
       continue;
     auto world = scene_.world_matrix(m);
+    auto parent_for = [&](const std::string& name) -> std::string {
+      for (const auto& group : scene_.groups) {
+        if (group.name == name) return group.parent;
+      }
+      for (const auto& mesh : scene_.meshes) {
+        if (mesh.name == name) return mesh.parent;
+      }
+      for (const auto& trans : scene_.transes) {
+        if (trans.name == name) return trans.parent;
+      }
+      return {};
+    };
+    std::vector<std::string> animated_ancestors;
+    for (std::string parent = m.parent; !parent.empty();) {
+      animated_ancestors.push_back(parent);
+      const std::string next = parent_for(parent);
+      if (next.empty() || next == parent) break;
+      parent = next;
+      if (animated_ancestors.size() >= 64) break;
+    }
+    std::reverse(animated_ancestors.begin(), animated_ancestors.end());
+    for (const std::string& target : animated_ancestors) {
+      const auto anim_it = active_mesh_anims_.find(target);
+      if (anim_it == active_mesh_anims_.end()) continue;
+      const auto& active = anim_it->second;
+      const float anim_frame = active.elapsed * active.frames_per_second;
+      apply_mesh_transform_sample(
+          world, sample_transform_anim(active.anim, anim_frame));
+    }
     if (const auto offset_it = mesh_transform_offsets_.find(m.name);
         offset_it != mesh_transform_offsets_.end()) {
       apply_mesh_transform_sample(world, offset_it->second);
@@ -1835,7 +2000,17 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     if (face_camera_meshes_.find(m.name) != face_camera_meshes_.end()) {
       apply_face_camera_yaw(world, m, eye);
     }
-    const auto draw_world = mul16(world, world_transform_);
+    auto draw_world = mul16(world, world_transform_);
+    if (post_text_meshes_.find(m.name) != post_text_meshes_.end()) {
+      if (const auto overlay_it = post_text_mesh_world_offsets_.find(m.name);
+          overlay_it != post_text_mesh_world_offsets_.end()) {
+        draw_world[12] += overlay_it->second[0];
+        draw_world[13] += overlay_it->second[1];
+        draw_world[14] += overlay_it->second[2];
+      }
+      post_text_draw_meshes.push_back({&m, draw_world});
+      continue;
+    }
     if (debug_camera_meshes && m.decoded && !m.verts.empty()) {
       float mn[3] = {0, 0, 0};
       float mx[3] = {0, 0, 0};
@@ -1910,7 +2085,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         const float clipped_h =
             std::max(0.0f, clipped_max_y - clipped_min_y);
         const float clipped_area = clipped_w * clipped_h;
-        if (clipped_area > 0.0001f || on_screen > 0) {
+        if (debug_camera_meshes || clipped_area > 0.0001f || on_screen > 0) {
           ProjectedCameraMeshHit hit;
           hit.name = m.name;
           hit.material = m.material;
@@ -2176,30 +2351,33 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
       }
     }
   }
-  disable_authored_fog();
-  disable_authored_lights();
+    disable_authored_fog();
+    disable_authored_lights();
+  }
 
   dev_->SetTexture(0, nullptr);
 
-  // ---- Menu text overlay: world-space glyph quads from the font atlas. -------
-  // Drawn after the 3-D scene, alpha-blended, no depth write, unlit (the glyph
-  // colour comes straight from the per-vertex tint modulated by the atlas alpha).
-  if (!text_.empty()) {
-    Mat4 ident = Mat4::identity();
+  const auto draw_text_batches = [&](size_t begin, size_t end) {
+    if (begin >= end || begin >= text_.size()) return;
+    end = std::min(end, text_.size());
     D3DMATRIX wi;
-    std::memcpy(&wi, &ident, 64);
+    std::memcpy(&wi, world_transform_.data(), 64);
     dev_->SetTransform(D3DTS_WORLD, &wi);
 
     dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
-    dev_->SetRenderState(D3DRS_ZENABLE, FALSE);          // overlay on top
+    dev_->SetRenderState(D3DRS_ZENABLE, FALSE);
     dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
     dev_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
     dev_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-    dev_->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);  // text faces either way
+    dev_->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+    const DWORD text_filter =
+        env_enabled("GHOGX_MENU_TEXT_POINT") ? D3DTEXF_POINT : D3DTEXF_LINEAR;
+    dev_->SetSamplerState(0, D3DSAMP_MINFILTER, text_filter);
+    dev_->SetSamplerState(0, D3DSAMP_MAGFILTER, text_filter);
+    dev_->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
     dev_->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
     dev_->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-    // Glyph RGB is white; tint = diffuse. Coverage = atlas alpha * diffuse alpha.
     dev_->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
     dev_->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
     dev_->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
@@ -2207,7 +2385,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
     dev_->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
     dev_->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
-    for (size_t bi = 0; bi < text_.size(); ++bi) {
+    for (size_t bi = begin; bi < end; ++bi) {
       if (bi >= text_tex_.size() || !text_tex_[bi] || text_[bi].size() < 3) continue;
       dev_->SetTexture(0, text_tex_[bi]);
       std::vector<SVtx> tv;
@@ -2216,7 +2394,19 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
         SVtx s;
         s.x = t.x; s.y = t.y; s.z = t.z;
         s.nx = 0; s.ny = 1; s.nz = 0;
-        s.color = static_cast<D3DCOLOR>(t.argb);
+        const uint32_t a = (t.argb >> 24) & 0xffu;
+        const uint32_t r = (t.argb >> 16) & 0xffu;
+        const uint32_t g = (t.argb >> 8) & 0xffu;
+        const uint32_t b = t.argb & 0xffu;
+        const auto scale_channel = [](uint32_t v, float scale) {
+          return static_cast<uint32_t>(
+              std::clamp(static_cast<float>(v) * scale, 0.0f, 255.0f) + 0.5f);
+        };
+        s.color =
+            (scale_channel(a, global_alpha_) << 24) |
+            (scale_channel(r, global_brightness_) << 16) |
+            (scale_channel(g, global_brightness_) << 8) |
+            scale_channel(b, global_brightness_);
         s.u = t.u; s.v = t.v;
         tv.push_back(s);
       }
@@ -2225,6 +2415,30 @@ void MiloSceneRenderer::draw_impl(bool clear_target) {
                             sizeof(SVtx));
     }
     dev_->SetTexture(0, nullptr);
+  };
+
+  const size_t text_split =
+      std::min(post_text_mesh_text_split_, text_.size());
+  if (draw_text) draw_text_batches(0, text_split);
+
+  if (draw_text && !post_text_draw_meshes.empty()) {
+    dev_->SetFVF(kFVF);
+    dev_->SetRenderState(D3DRS_ZENABLE, FALSE);
+    dev_->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+    for (const auto& item : post_text_draw_meshes) {
+      if (!item.mesh) continue;
+      draw_mesh_with_world(*item.mesh, item.world);
+    }
+    disable_authored_fog();
+    disable_authored_lights();
+    dev_->SetTexture(0, nullptr);
+  }
+
+  // ---- Menu text overlay: world-space glyph quads from the font atlas. -------
+  // Drawn after the 3-D scene, alpha-blended, no depth write, unlit (the glyph
+  // colour comes straight from the per-vertex tint modulated by the atlas alpha).
+  if (draw_text && !text_.empty()) {
+    draw_text_batches(text_split, text_.size());
   }
 
   dev_->EndScene();

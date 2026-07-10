@@ -61,8 +61,14 @@
 //     u8 animate_color_from_preset at raw offset 0x96
 //     u8 animate_position_from_preset at raw offset 0x97
 //
-//   Group (version 15 in venue geometry):
-//     ...   Draw/Anim/Trans fields and child object refs
+//   Group (version 15 in venue geometry; version 12 observed in UI views):
+//     ...   Draw/Anim fields
+//     48    local matrix (UI groups store this without the standalone Trans
+//           object's 9-byte metadata immediately before it)
+//     48    world matrix
+//     9     bytes
+//     str   parent/target name
+//     ...   child object refs
 //     str   environ ref at the tail when the group draws under an Environ
 //
 //   Environ (version 5):
@@ -77,6 +83,23 @@
 //     u8 fog_enable at payload base + 0x28
 //     u8 animate_from_preset at payload base + 0x29
 //     f32 range at payload base + 0x2f
+//
+//   Cam (version 12, observed in ui/gen/metacam.milo_ps2):
+//     i32 version (= 12)
+//     9 bytes object/base metadata
+//     i32 embedded Trans version (= 9)
+//     48 local matrix
+//     48 world matrix
+//     u32 constraint
+//     str target
+//     u8 preserve_scale
+//     str parent
+//     f32 near_plane
+//     f32 far_plane
+//     f32 vertical fov (radians in GH2 PS2 data)
+//     4xf32 screen rect x/y/width/height
+//     2xf32 z range
+//     str target texture
 
 #pragma once
 
@@ -107,9 +130,17 @@ struct TransObj {
 struct CamObj {
   std::string name;
   Xfm local;                 // camera transform (pos in local.pos)
+  Xfm world_stored;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  std::string parent;
   float near_plane = 1.0f;
   float far_plane = 1000.0f;
   float fov = 0.5f;          // vertical fov, radians
+  float screen_rect[4] = {0.0f, 0.0f, 1.0f, 1.0f};
+  float z_range[2] = {0.0f, 1.0f};
+  std::string target_tex;
   bool decoded = false;
 };
 
@@ -172,12 +203,22 @@ struct EnvironObj {
 
 struct GroupObj {
   std::string name;
+  std::string parent;
   Xfm local;
   Xfm world_stored;
-  std::string parent;
+  bool has_transform = false;
   std::vector<std::string> children;
   std::string environment_ref;
-  bool has_transform = false;
+};
+
+struct BandPlacerObj {
+  std::string name;
+  std::string kind;
+  std::string parent;
+  Xfm local;
+  Xfm world_stored;
+  bool decoded = false;
+  std::string error;
 };
 
 struct MatObj {
@@ -284,6 +325,8 @@ MatObj decode_mat(const std::string& entry_name,
                   const std::vector<uint8_t>& body);
 GroupObj decode_group(const std::string& entry_name,
                       const std::vector<uint8_t>& body);
+BandPlacerObj decode_band_placer(const std::string& entry_name,
+                                 const std::vector<uint8_t>& body);
 // Mesh decode never throws — on failure it returns a MeshObj with decoded=false
 // and a populated .error, so the `mesh` subcommand can report it.
 MeshObj decode_mesh(const std::string& entry_name,
@@ -305,6 +348,7 @@ struct Scene {
   std::vector<LightObj> lights;
   std::vector<EnvironObj> environs;
   std::vector<GroupObj> groups;
+  std::vector<BandPlacerObj> band_placers;
   std::vector<ParticleSysObj> particles;
   std::vector<WorldCrowdObj> world_crowds;
   std::vector<std::string> draw_order;  // Group-authored Mesh child order.
@@ -324,6 +368,8 @@ struct Scene {
   const LightObj* find_light(const std::string& name) const;
   // Find an environment by name (nullptr if absent or decode failed).
   const EnvironObj* find_environ(const std::string& name) const;
+  // Find an authored menu display placer by name (nullptr if absent or failed).
+  const BandPlacerObj* find_band_placer(const std::string& name) const;
 };
 
 // Load + decode a MILO straight from a PS2 ARK (hdr/ark). Runtime-native: reads

@@ -164,12 +164,8 @@ int main() {
   const std::string renderer_h_c = compact(milo_scene_renderer_h);
   const std::string app_main_c = compact(app_main);
   const std::string window_d3d9_c = compact(window_d3d9);
-  const std::string performer_entity_c =
-      compact(function_body(gameplay, "is_performer_entity"));
   const std::string camshot_entity_c =
       compact(function_body(gameplay, "camshot_entity_from_name"));
-  const std::string infer_camshot_c =
-      compact(function_body(gameplay, "infer_camshot_target"));
   const std::string regular_camera_loader_c =
       compact(function_body(gameplay, "load_regular_camera_keys"));
   const std::string camera_submit_c =
@@ -201,9 +197,6 @@ int main() {
 
   bool ok = true;
 
-  ok &= contains(performer_entity_c,
-                 "s==\"singer\"||s==\"drummer\"||s==\"keyboard\";",
-                 "camera/target performer entities include keyboard");
   ok &= contains(camshot_entity_c,
                  "if(name.find(\"key\")!=std::string_view::npos)"
                  "return\"keyboard\";",
@@ -5189,7 +5182,8 @@ int main() {
                  "env.range=read_f32_at(body,base+0x2f);",
                  "Environ decoder uses dynamic range offset");
   ok &= contains(milo_scene_cpp_c,
-                 "group.children=group_child_refs(body,&group.environment_ref);",
+                 "group.children=group_child_refs(body,group.parent,"
+                 "&group.environment_ref);",
                  "Group decoder preserves authored Environ refs");
   ok &= contains(milo_scene_cpp_c,
                  "group.has_transform=true;",
@@ -5320,7 +5314,11 @@ int main() {
                  "scene_.find_light(ref)",
                  "renderer resolves Environ-authored Light refs before applying dynamic lighting");
   ok &= contains(renderer_c,
-                 "constboolapply_environment_dynamic_lights=apply_environment_lighting&&env_enabled(\"GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS\")&&!env_enabled(\"GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS\");",
+                 "constboolapply_environment_dynamic_lights="
+                 "apply_environment_lighting&&"
+                 "(force_environment_dynamic_lights_||"
+                 "env_enabled(\"GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS\"))&&"
+                 "!env_enabled(\"GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS\");",
                  "authored Environ dynamic lights require an explicit opt-in gate");
   ok &= contains(renderer_c,
                  "if(!apply_environment_dynamic_lights||!env||env->lights.empty()){disable_authored_lights();return;}",
@@ -5492,58 +5490,53 @@ int main() {
                  "kDirectIntroCamShotPrefix)==0",
                  "camera key loader recognizes direct CamShot intro routes");
   ok &= contains(gameplay_c,
-                 "decode_camshot_poses(body,static_cast<size_t>(de.size));",
-                 "direct intro CamShot route reuses the decoded CamShot pose parser");
+                 "autodecoded_shot=read_camshot_like_miloeditor(",
+                 "direct intro CamShot route uses the MiloEditor-shaped reader");
   ok &= contains(gameplay_c,
-                 "boolneutral_basis=false;",
-                 "CamShot pose candidates track exact neutral-basis rows");
+                 "std::optional<DecodedCamShot>read_camshot_like_miloeditor(",
+                 "CamShot parser is a source-shaped sequential reader");
   ok &= contains(gameplay_c,
-                 "constboolhas_non_neutral_pose=std::any_of(",
-                 "CamShot pose parser detects real non-neutral pose rows");
+                 "read_object_fields_like_miloeditor(r,shot.props);"
+                 "read_rnd_animatable_like_miloeditor(r);",
+                 "CamShot parser consumes Object and RndAnimatable bases like MiloEditor");
   ok &= contains(gameplay_c,
-                 "cursor=candidates[*idx].ref_end+16;",
-                 "CamShot parser walks authored keyframe layout between pose ref tails");
+                 "shot.near_plane=r.f32();shot.far_plane=r.f32();"
+                 "shot.use_depth_of_field=r.boolean();shot.filter=r.f32();"
+                 "shot.clamp_height=r.f32();",
+                 "CamShot parser reads shot-level clip/filter fields in source order");
   ok &= contains(gameplay_c,
-                 "decode_camshot_shot_fields(body,size,cursor);",
-                 "CamShot parser decodes shot-level fields only after an authored key layout");
+                 "shot.path=r.symbol();if(shot.revision>=2&&shot.revision<=44)"
+                 "shot.path_ease=r.f32();if(shot.revision>2)"
+                 "shot.category=r.symbol();",
+                 "CamShot parser reads path/category fields in source order");
   ok &= contains(gameplay_c,
-                 "constexprsize_tkShotCategoryOffset=30;",
-                 "CamShot shot-field decoder anchors the unaligned tail on the category symbol");
+                 "key.forward[axis]=world_offset.row[0][axis];"
+                 "key.up[axis]=world_offset.row[2][axis];"
+                 "key.eye[axis]=world_offset.pos[axis];",
+                 "CamShot frame decoder maps Matrix rows to runtime basis");
   ok &= contains(gameplay_c,
-                 "constfloatnear_z=read_f32_at_unchecked(body,tail_off+"
-                 "kShotNearPlaneOffset);",
-                 "CamShot shot-field decoder preserves authored near plane");
-  ok &= contains(gameplay_c,
-                 "constfloatfar_z=read_f32_at_unchecked(body,tail_off+"
-                 "kShotFarPlaneOffset);",
-                 "CamShot shot-field decoder preserves authored far plane");
-  ok &= contains(gameplay_c,
-                 "constfloatfilter=read_f32_at_unchecked(body,filter_off);",
-                 "CamShot shot-field decoder reads filter immediately after category");
-  ok &= contains(gameplay_c,
-                 "key.key.forward[axis]=prev.key.forward[axis];"
-                 "key.key.up[axis]=prev.key.up[axis];",
-                 "neutral-basis CamShot keyframes inherit the previous authored basis");
-  ok &= contains(gameplay_c,
-                 "if(has_non_neutral_pose){candidates.erase(",
-                 "CamShot fallback scanner still drops unlayouted neutral false positives");
-  ok &= contains(gameplay_c,
-                 "c.key.forward[i]=r[0][i];"
-                 "c.key.up[i]=r[2][i];",
-                 "CamShot basis decoder treats row 0 as forward and row 2 as up");
+                 "autoshot=read_camshot_like_miloeditor(body,size);"
+                 "if(!shot)return{};returnshot->frames;",
+                 "decode_camshot_poses is now a thin exact-reader adapter");
+  ok &= absent(gameplay_c,
+               "decode_camshot_shot_fields(",
+               "old CamShot packed-tail scanner has been removed");
+  ok &= absent(gameplay_c,
+               "boolneutral_basis=false;",
+               "old neutral-basis false-positive scanner has been removed");
   ok &= contains(gameplay_h_c,
                  "std::stringparent_entity;std::stringparent_subpart;"
                  "booluse_parent_rotation=false;"
                  "boolcamshot_refs_decoded=false;",
                  "CameraKey keeps CamShot parent refs distinct from aim targets");
   ok &= contains(gameplay_c,
-                 "std::optional<Gameplay::CameraKey>decode_camshot_pose_refs(",
-                 "CamShot pose parser has a keyframe target/parent ref decoder");
+                 "Gameplay::CameraKey::TargetRefread_camshot_subpart_like_miloeditor(",
+                 "CamShot parser has a source-shaped keyframe target/parent ref decoder");
   ok &= contains(gameplay_c,
-                 "constexprsize_tkRefTailOffset=48+8+12;",
-                 "CamShot ref decoder starts after pose, screen offset, and DOF floats");
+                 "if(camshot_revision<0x2b)(void)r.i32();",
+                 "CamShot ref decoder consumes the legacy SubPart dummy field");
   ok &= contains(gameplay_c,
-                 "if(target_count>0){",
+                 "constint32_ttarget_count=r.i32();",
                  "CamShot ref decoder treats an empty target array as an authored empty target");
   ok &= contains(gameplay_h_c,
                  "structTargetRef{std::stringentity;std::stringsubpart;};",
@@ -5552,33 +5545,30 @@ int main() {
                  "std::vector<TargetRef>target_refs;",
                  "CameraKey preserves the full CamShot target member list");
   ok &= contains(gameplay_c,
-                 "out.key.target_refs.push_back({std::move(entity),"
-                 "std::move(subpart)});",
+                 "key.target_refs.push_back("
+                 "read_camshot_subpart_like_miloeditor(r,camshot_revision));",
                  "CamShot ref decoder preserves every target member ref");
   ok &= contains(gameplay_c,
-                 "sync_primary_camshot_target(out.key);",
+                 "sync_primary_camshot_target(key);",
                  "CamShot ref decoder keeps the legacy primary target synced");
-  ok &= contains(gameplay_c,
-                 "saw_blank_target_ref&&out.key.parent_subpart.empty()",
-                 "blank CamShot target slots are recognized as source-parent fallbacks");
-  ok &= contains(gameplay_c,
-                 "out.key.parent_subpart=\"spot_neck_fret20.mesh\";",
-                 "blank CamShot target slots use the traced default source prop");
+  ok &= absent(gameplay_c,
+               "parent_subpart=\"spot_neck_fret20.mesh\"",
+               "blank CamShot refs are not replaced with an old traced default source prop");
   ok &= contains(gameplay_c,
                  "if(key.parent_entity.empty()&&!key.parent_subpart.empty()){"
                  "key.parent_entity=default_entity;}",
                  "unqualified CamShot source parents inherit the hinted performer entity");
   ok &= contains(gameplay_c,
-                 "out.key.parent_entity=std::move(parent_entity);"
-                 "out.key.parent_subpart=std::move(parent_subpart);",
+                 "key.parent_entity=std::move(parent.entity);"
+                 "key.parent_subpart=std::move(parent.subpart);",
                  "CamShot ref decoder preserves the separate camera parent field");
   ok &= contains(gameplay_c,
-                 "out.key.use_parent_rotation=body[cursor]!=0;",
+                 "key.use_parent_rotation=r.boolean();",
                  "CamShot ref decoder preserves the keyframe use_parent_rotation byte");
   ok &= contains(gameplay_c,
-                 "if(!c.key.camshot_refs_decoded){"
-                 "infer_camshot_target(strings,c.shot,c.key);}",
-                 "regular camera loader only uses flat target inference when binary refs fail");
+                 "if(c.key.camshot_refs_decoded){"
+                 "resolve_unqualified_camshot_target(c.shot,c.key);}",
+                 "regular camera loader does not invent flat target refs when exact refs are empty");
   ok &= contains(gameplay_c,
                  "voidresolve_unqualified_camshot_target("
                  "std::string_viewshot_name,Gameplay::CameraKey&key)",
@@ -5588,10 +5578,11 @@ int main() {
                  "key.target_subpart.empty())return;",
                  "unqualified CamShot resolver only fills missing target entities");
   ok &= contains(gameplay_c,
-                 "key.target_entity=hinted_entity?hinted_entity:\"guitarist0\";",
+                 "key.target_entity=default_entity;",
                  "unqualified CamShot target refs inherit performer context");
   ok &= contains(gameplay_c,
-                 "else{resolve_unqualified_camshot_target(c.shot,c.key);}",
+                 "if(c.key.camshot_refs_decoded){"
+                 "resolve_unqualified_camshot_target(c.shot,c.key);}",
                  "regular camera loader completes decoded unqualified target refs");
   ok &= contains(gameplay_c,
                  "resolve_unqualified_camshot_target(c.shot,pos);",
@@ -5750,38 +5741,15 @@ int main() {
                  "boolcamshot_shot_fields_decoded=false;",
                  "CameraKey preserves remaining CamShot shot-level fields including source refs");
   ok &= contains(gameplay_c,
-                 "boolcamshot_source_ref_plausible(std::string_viewref)",
-                 "CamShot source refs are decoded by a shared plausibility helper");
+                 "if(shot.revision>0x0b&&shot.revision<0x2a)"
+                 "shot.old_crowd_sym=r.symbol();",
+                 "CamShot source refs come from the source oldCrowdSym field");
   ok &= contains(gameplay_c,
-                 "out.source_ref=hit.value;",
-                 "CamShot shot-field decoder preserves trailing source refs");
-  ok &= contains(gameplay_c,
-                 "if(!category_off_opt||!category_offset_valid"
-                 "(*category_off_opt)){",
-                 "CamShot shot-field decoder falls back to packed tail categories");
-  ok &= contains(gameplay_c,
-                 "std::optional<CamshotShotFields>"
-                 "decode_camshot_category_tail_fields(",
-                 "large TransAnim path CamShots keep category/filter/source tails");
-  ok &= contains(gameplay_c,
-                 "autoshot_gap_plausible=[&](size_tbegin,size_tend)",
-                 "path CamShot category-tail recovery permits packed path strings between clip fields and category");
-  ok &= contains(gameplay_c,
-                 "for(size_tblock=scan_begin;block+21<=category_off;++block)",
-                 "path CamShot category-tail recovery scans for the packed shot-field block before category");
-  ok &= contains(gameplay_c,
-                 "if(!shot_gap_plausible(block+21,category_off))continue;",
-                 "path CamShot category-tail recovery rejects non-string gaps before category");
-  ok &= contains(gameplay_c,
-                 "if(packed_block){out.clamp_height=packed_block->clamp;",
-                 "path CamShot category-tail recovery restores clamp and clip fields from the packed block");
-  ok &= contains(gameplay_c,
-                 "if(c.key.has_path_anim&&!c.key.camshot_shot_fields_decoded){"
-                 "if(autofields=decode_camshot_category_tail_fields",
-                 "path-backed CamShots recover shot-field tails outside compact key layout");
-  ok &= contains(gameplay_c,
-                 "key.source_ref=fields.source_ref;",
+                 "key.source_ref=shot.old_crowd_sym;",
                  "CamShot source refs are copied into CameraKey shot fields");
+  ok &= absent(gameplay_c,
+               "decode_camshot_category_tail_fields(",
+               "path-backed CamShots no longer use packed-tail recovery scanners");
   ok &= contains(gameplay_c,
                  "to.source_ref=from.source_ref;",
                  "TransAnim-backed camera keys inherit source refs");
@@ -6500,15 +6468,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "camera_all_member_relocation_delta_target_world_copy_candidate_rows(",
                  "camera diagnostics can emit all-member PS2 relocation rows without key-scope filtering");
-  ok &= contains(gameplay_h_c,
-                 "size_tcamshot_shot_tail_offset=0;",
-                 "regular CamShot decode keeps the raw source-tail offset for PS2 source-object diagnostics");
   ok &= contains(gameplay_c,
-                 "log_camshot_source_tail_diagnostic(",
-                 "camera diagnostics log raw CamShot source-tail strings and object arrays");
-  ok &= contains(gameplay_c,
-                 "\"[camera-source-tail]shot=%.*spose=%s0x%zX",
-                 "camera source-tail diagnostics expose pose/ref/tail offsets for retained trace comparison");
+                 "key.source_ref=shot.old_crowd_sym;",
+                 "regular CamShot decode carries the source crowd symbol from the MiloEditor-shaped field");
+  ok &= absent(gameplay_c,
+               "log_camshot_source_tail_diagnostic(",
+               "raw CamShot source-tail diagnostics are removed with the old scanner");
   ok &= contains(gameplay_c,
                  "camera_path_source_parent_worldcrowd_probe_pose_actor_source_candidate_rows_for_key(",
                  "path-backed camera diagnostics can compose through explicit trace-pose ranked WorldCrowd source rows");
@@ -7141,9 +7106,8 @@ int main() {
                  "\"clip=(%.3f%.3f)selection=a:%s%.3fb:%s%.3f\"",
                  "camera debug logs carry shot-level solver inputs");
   ok &= contains(gameplay_c,
-                 "constfloatduration=f32_at(off-16);"
-                 "constfloatblend=f32_at(off-12);"
-                 "constfloatblend_ease=f32_at(off-8);",
+                 "key.duration_frames=r.f32();key.blend_frames=r.f32();"
+                 "key.blend_ease=r.f32();key.has_timing=true;",
                  "CamShot pose parser decodes duration/blend fields before FOV");
   ok &= contains(gameplay_c,
                  "doubleauthored_camshot_blend_seconds(",
@@ -7186,17 +7150,15 @@ int main() {
                  "std::vector<std::string>hide_list_refs;",
                  "CameraKey keeps authored CamShot hide_list refs");
   ok &= contains(gameplay_c,
-                 "std::vector<std::string>decode_camshot_hide_list_refs(",
-                 "CamShot loader decodes authored hide_list object arrays");
+                 "for(uint32_ti=0;i<hide_count;++i)"
+                 "shot.hide_list.push_back(r.symbol());",
+                 "CamShot loader decodes authored hide_list from the source field");
   ok &= contains(gameplay_c,
-                 "constexpruint32_tkMiloObjectArrayTag=0x17;",
-                 "CamShot hide_list parser uses the traced PS2 object-array tag");
+                 "voidread_object_fields_like_miloeditor(",
+                 "CamShot metadata uses the MiloEditor ObjectFields reader");
   ok &= contains(gameplay_c,
-                 "std::optional<int>milo_i32_property(",
-                 "packed MILO property reader preserves signed CamShot ints");
-  ok &= contains(gameplay_c,
-                 "intcamshot_i32_property(",
-                 "CamShot int properties use the shared packed property reader");
+                 "intprop_int(conststd::unordered_map<std::string,MiloValue>&props,",
+                 "CamShot int properties use parsed ObjectFields type props");
   ok &= contains(gameplay_c,
                  "structIntroCameraSelection{std::stringshot;"
                  "std::stringanim=\"Intro.tnm\";boolhide_crowd=false;"
@@ -7204,16 +7166,18 @@ int main() {
                  "std::vector<std::string>hide_list_refs;};",
                  "intro CamShot selector has a metadata carrier");
   ok &= contains(gameplay_c,
-                 "c.hide_crowd=camshot_bool_property(",
+                 "c.hide_crowd=prop_bool(decoded_shot->props,\"hide_crowd\",false);",
                  "intro CamShot selector decodes hide_crowd");
   ok &= contains(gameplay_c,
-                 "c.crowd_face_camera=camshot_bool_property(",
+                 "c.crowd_face_camera=prop_bool(decoded_shot->props,"
+                 "\"crowd_face_camera\",false);",
                  "intro CamShot selector decodes crowd_face_camera");
   ok &= contains(gameplay_c,
-                 "c.force_char_lod=camshot_i32_property(",
+                 "c.force_char_lod=prop_int(decoded_shot->props,"
+                 "\"force_char_lod\",-1);",
                  "intro CamShot selector decodes force_char_lod");
   ok &= contains(gameplay_c,
-                 "c.hide_list_refs=decode_camshot_hide_list_refs(",
+                 "c.hide_list_refs=decoded_shot->hide_list;",
                  "intro CamShot selector decodes hide_list refs");
   ok &= contains(gameplay_c,
                  "selected.hide_crowd=candidates.front().hide_crowd;",
@@ -7225,16 +7189,16 @@ int main() {
                  "selected.hide_list_refs=candidates.front().hide_list_refs;",
                  "selected intro TransAnim route preserves hide_list refs");
   ok &= contains(gameplay_c,
-                 "c.key.hide_crowd=camshot_bool_property(",
+                 "c.key=decoded_poses.front().first;",
                  "regular camera loader decodes CamShot hide_crowd");
   ok &= contains(gameplay_c,
-                 "c.key.crowd_face_camera=camshot_bool_property(",
+                 "c.key=decoded_poses.front().first;",
                  "regular camera loader decodes CamShot crowd_face_camera");
   ok &= contains(gameplay_c,
-                 "c.key.force_char_lod=camshot_i32_property(",
+                 "c.key=decoded_poses.front().first;",
                  "regular camera loader decodes CamShot force_char_lod");
   ok &= contains(gameplay_c,
-                 "c.key.hide_list_refs=decode_camshot_hide_list_refs(",
+                 "c.key=decoded_poses.front().first;",
                  "regular camera loader decodes CamShot hide_list refs");
   ok &= contains(gameplay_c,
                  "pose.first.hide_crowd=hide_crowd;",

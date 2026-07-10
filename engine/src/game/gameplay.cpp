@@ -25,6 +25,7 @@
 #include <map>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -738,6 +739,481 @@ float read_f32_at_unchecked(const uint8_t* body, size_t off) {
     return v;
 }
 
+void sync_primary_camshot_target(Gameplay::CameraKey& key);
+void sync_camshot_source_record_hint(Gameplay::CameraKey& key);
+
+struct MiloValue {
+    enum class Kind { None, Int, Float, Symbol };
+    Kind kind = Kind::None;
+    int32_t i = 0;
+    float f = 0.0f;
+    std::string s;
+};
+
+struct MiloCursor {
+    const uint8_t* body = nullptr;
+    size_t size = 0;
+    size_t pos = 0;
+
+    void need(size_t n) const {
+        if (pos + n > size) throw std::runtime_error("MILO camera read past end");
+    }
+    uint8_t u8() {
+        need(1);
+        return body[pos++];
+    }
+    bool boolean() { return u8() != 0; }
+    uint16_t u16() {
+        need(2);
+        uint16_t v = 0;
+        std::memcpy(&v, body + pos, sizeof(v));
+        pos += 2;
+        return v;
+    }
+    uint32_t u32() {
+        need(4);
+        uint32_t v = 0;
+        std::memcpy(&v, body + pos, sizeof(v));
+        pos += 4;
+        return v;
+    }
+    int32_t i32() { return static_cast<int32_t>(u32()); }
+    float f32() {
+        need(4);
+        float v = 0.0f;
+        std::memcpy(&v, body + pos, sizeof(v));
+        pos += 4;
+        return v;
+    }
+    std::string symbol() {
+        const uint32_t len = u32();
+        if (len > 512 || pos + len > size) {
+            throw std::runtime_error("MILO camera symbol length invalid");
+        }
+        std::string s(reinterpret_cast<const char*>(body + pos), len);
+        pos += len;
+        return s;
+    }
+};
+
+struct HmxMatrix3x4 {
+    float row[3][3] = {};
+    float pos[3] = {};
+};
+
+HmxMatrix3x4 read_hmx_matrix(MiloCursor& r) {
+    HmxMatrix3x4 m;
+    for (int row = 0; row < 3; ++row)
+        for (int col = 0; col < 3; ++col) m.row[row][col] = r.f32();
+    for (float& v : m.pos) v = r.f32();
+    return m;
+}
+
+MiloValue read_dtb_node(MiloCursor& r,
+                        std::unordered_map<std::string, MiloValue>* props);
+
+std::vector<MiloValue> read_dtb_parent(MiloCursor& r,
+                                       std::unordered_map<std::string, MiloValue>* props) {
+    const uint16_t child_count = r.u16();
+    (void)r.u32();  // node id
+    std::vector<MiloValue> children;
+    children.reserve(child_count);
+    for (uint16_t i = 0; i < child_count; ++i)
+        children.push_back(read_dtb_node(r, props));
+    return children;
+}
+
+MiloValue read_dtb_node(MiloCursor& r,
+                        std::unordered_map<std::string, MiloValue>* props) {
+    const int32_t type = r.i32();
+    MiloValue v;
+    switch (type) {
+        case 0x00:
+            v.kind = MiloValue::Kind::Int;
+            v.i = r.i32();
+            return v;
+        case 0x01:
+            v.kind = MiloValue::Kind::Float;
+            v.f = r.f32();
+            return v;
+        case 0x02:
+        case 0x04:
+        case 0x05:
+        case 0x06:
+        case 0x07:
+        case 0x08:
+        case 0x09:
+        case 0x12:
+        case 0x20:
+        case 0x21:
+        case 0x22:
+        case 0x23:
+        case 0x24:
+        case 0x25:
+            v.kind = MiloValue::Kind::Symbol;
+            v.s = r.symbol();
+            return v;
+        case 0x10:
+        case 0x11:
+        case 0x13: {
+            std::vector<MiloValue> children = read_dtb_parent(r, props);
+            if (type == 0x13 && props && children.size() >= 2 &&
+                children[0].kind == MiloValue::Kind::Symbol &&
+                !children[0].s.empty()) {
+                (*props)[children[0].s] = children[1];
+            }
+            return v;
+        }
+        default:
+            return v;
+    }
+}
+
+void read_object_fields_like_miloeditor(
+    MiloCursor& r, std::unordered_map<std::string, MiloValue>& props) {
+    const uint32_t combined_revision = r.u32();
+    const uint16_t revision = static_cast<uint16_t>(combined_revision & 0xffff);
+    (void)r.symbol();  // ObjectFields.type
+    const bool has_tree = r.boolean();
+    if (has_tree) (void)read_dtb_parent(r, &props);
+    if (revision > 0) (void)r.symbol();
+}
+
+void read_rnd_animatable_like_miloeditor(MiloCursor& r) {
+    const uint32_t combined_revision = r.u32();
+    const uint16_t revision = static_cast<uint16_t>(combined_revision & 0xffff);
+    if (revision > 1) (void)r.f32();
+    if (revision < 4) {
+        if (revision > 2) (void)r.u8();
+        if (revision < 1) {
+            const uint32_t anim_entry_count = r.u32();
+            for (uint32_t i = 0; i < anim_entry_count; ++i) {
+                (void)r.symbol();
+                (void)r.f32();
+                (void)r.f32();
+            }
+            const uint32_t anim_count = r.u32();
+            for (uint32_t i = 0; i < anim_count; ++i) (void)r.symbol();
+        }
+    } else {
+        (void)r.u32();
+    }
+}
+
+std::string prop_symbol(
+    const std::unordered_map<std::string, MiloValue>& props,
+    std::string_view key, std::string fallback = {}) {
+    auto it = props.find(std::string(key));
+    if (it == props.end()) return fallback;
+    if (it->second.kind == MiloValue::Kind::Symbol) return it->second.s;
+    if (it->second.kind == MiloValue::Kind::Int) return it->second.i ? "TRUE" : "FALSE";
+    return fallback;
+}
+
+bool prop_bool(const std::unordered_map<std::string, MiloValue>& props,
+               std::string_view key, bool fallback) {
+    auto it = props.find(std::string(key));
+    if (it == props.end()) return fallback;
+    if (it->second.kind == MiloValue::Kind::Int) return it->second.i != 0;
+    if (it->second.kind == MiloValue::Kind::Symbol) {
+        if (it->second.s == "TRUE") return true;
+        if (it->second.s == "FALSE") return false;
+    }
+    return fallback;
+}
+
+int prop_int(const std::unordered_map<std::string, MiloValue>& props,
+             std::string_view key, int fallback) {
+    auto it = props.find(std::string(key));
+    if (it == props.end()) return fallback;
+    if (it->second.kind == MiloValue::Kind::Int) return it->second.i;
+    return fallback;
+}
+
+struct DecodedCamShot {
+    uint16_t revision = 0;
+    std::unordered_map<std::string, MiloValue> props;
+    std::vector<std::pair<Gameplay::CameraKey, size_t>> frames;
+    bool looping = false;
+    int loop_keyframe = 0;
+    float near_plane = 1.0f;
+    float far_plane = 1000.0f;
+    bool use_depth_of_field = true;
+    float filter = 0.9f;
+    float clamp_height = -1.0f;
+    std::string path;
+    float path_ease = 0.0f;
+    std::string category;
+    float selection_weight = 0.0f;
+    bool has_selection_weight = false;
+    std::vector<std::string> hide_list;
+    std::string old_crowd_sym;
+    int old_crowd_rotate = 0;
+    std::string glow_spot;
+};
+
+Gameplay::CameraKey::TargetRef read_camshot_subpart_like_miloeditor(
+    MiloCursor& r, uint16_t camshot_revision) {
+    if (camshot_revision < 0x2b) (void)r.i32();
+    Gameplay::CameraKey::TargetRef ref;
+    ref.entity = r.symbol();
+    ref.subpart = r.symbol();
+    return ref;
+}
+
+Gameplay::CameraKey read_camshot_frame_like_miloeditor(
+    MiloCursor& r, uint16_t camshot_revision) {
+    Gameplay::CameraKey key;
+    key.duration_frames = r.f32();
+    key.blend_frames = r.f32();
+    key.blend_ease = r.f32();
+    key.has_timing = true;
+    if (camshot_revision > 0x2d) (void)r.i32();
+    key.fov = r.f32();
+    key.has_fov = true;
+    const HmxMatrix3x4 world_offset = read_hmx_matrix(r);
+    for (int axis = 0; axis < 3; ++axis) {
+        key.forward[axis] = world_offset.row[0][axis];
+        key.up[axis] = world_offset.row[2][axis];
+        key.eye[axis] = world_offset.pos[axis];
+    }
+    key.has_basis = true;
+    key.screen_offset[0] = r.f32();
+    key.screen_offset[1] = r.f32();
+    key.has_screen_offset = std::abs(key.screen_offset[0]) > 0.0001f ||
+                            std::abs(key.screen_offset[1]) > 0.0001f;
+    (void)r.f32();  // blurDepth
+    if (camshot_revision < 0x17) (void)r.i32();
+    if (camshot_revision > 0x17) (void)r.f32();
+    if (camshot_revision > 0x1c) (void)r.f32();
+    if (camshot_revision > 0x14) (void)r.f32();
+    if (camshot_revision < 0x17) (void)r.i32();
+    key.camshot_refs_decoded = true;
+    if (camshot_revision > 0x2b) {
+        const uint32_t target_count = r.u32();
+        for (uint32_t i = 0; i < target_count; ++i) {
+            key.target_refs.push_back({"", r.symbol()});
+        }
+    } else {
+        const int32_t target_count = r.i32();
+        if (target_count < 0 || target_count > 32) {
+            throw std::runtime_error("CamShot target count invalid");
+        }
+        for (int32_t i = 0; i < target_count; ++i) {
+            key.target_refs.push_back(
+                read_camshot_subpart_like_miloeditor(r, camshot_revision));
+        }
+    }
+    sync_primary_camshot_target(key);
+    if (camshot_revision > 0x1a) {
+        if (camshot_revision > 0x2b) {
+            (void)r.symbol();
+        } else {
+            (void)read_camshot_subpart_like_miloeditor(r, camshot_revision);
+        }
+    }
+    if (camshot_revision > 0x2b) {
+        key.parent_subpart = r.symbol();
+    } else {
+        Gameplay::CameraKey::TargetRef parent =
+            read_camshot_subpart_like_miloeditor(r, camshot_revision);
+        key.parent_entity = std::move(parent.entity);
+        key.parent_subpart = std::move(parent.subpart);
+    }
+    key.use_parent_rotation = r.boolean();
+    if (camshot_revision > 0x11) {
+        (void)r.f32();
+        (void)r.f32();
+        (void)r.f32();
+        (void)r.f32();
+    }
+    if (camshot_revision > 0x15) (void)r.f32();
+    if (camshot_revision > 0x28) (void)r.boolean();
+    return key;
+}
+
+std::optional<DecodedCamShot> read_camshot_like_miloeditor(
+    const uint8_t* body, size_t size) {
+    try {
+        MiloCursor r{body, size, 0};
+        DecodedCamShot shot;
+        const uint32_t combined_revision = r.u32();
+        shot.revision = static_cast<uint16_t>(combined_revision & 0xffff);
+        if (shot.revision == 0) {
+            throw std::runtime_error("CamShot revision 0 is not used by GH2 PS2 venues");
+        }
+        read_object_fields_like_miloeditor(r, shot.props);
+        read_rnd_animatable_like_miloeditor(r);
+        if (shot.revision <= 0x0c) {
+            throw std::runtime_error("CamShot legacy revision <= 12 is not ported");
+        }
+
+        const uint32_t keyframe_count = r.u32();
+        if (keyframe_count == 0 || keyframe_count > 64) {
+            throw std::runtime_error("CamShot keyframe count invalid");
+        }
+        shot.frames.reserve(keyframe_count);
+        for (uint32_t i = 0; i < keyframe_count; ++i) {
+            const size_t frame_off = r.pos;
+            shot.frames.push_back(
+                {read_camshot_frame_like_miloeditor(r, shot.revision),
+                 frame_off});
+        }
+        shot.looping = r.boolean();
+        if (shot.revision > 0x1e) shot.loop_keyframe = r.i32();
+        if (shot.revision < 0x28) (void)r.f32();
+        shot.near_plane = r.f32();
+        shot.far_plane = r.f32();
+        shot.use_depth_of_field = r.boolean();
+        shot.filter = r.f32();
+        shot.clamp_height = r.f32();
+        shot.path = r.symbol();
+        if (shot.revision >= 2 && shot.revision <= 44) shot.path_ease = r.f32();
+        if (shot.revision > 2) shot.category = r.symbol();
+        if (shot.revision > 2 && shot.revision < 0x26) {
+            shot.selection_weight = r.f32();
+            shot.has_selection_weight = true;
+        }
+        if (shot.revision > 0x22) {
+            (void)r.i32();
+        } else if (shot.revision > 0x21) {
+            (void)r.i32();
+        }
+        if (shot.revision >= 5 && shot.revision <= 41) {
+            const uint32_t count = r.u32();
+            if (count > 64) throw std::runtime_error("CamShot crowd pair count invalid");
+            for (uint32_t i = 0; i < count; ++i) {
+                (void)r.i32();
+                (void)r.i32();
+            }
+        }
+        if (shot.revision >= 8 && shot.revision <= 41) (void)r.i32();
+        if (shot.revision > 5) {
+            const uint32_t hide_count = r.u32();
+            if (hide_count > 128) throw std::runtime_error("CamShot hide count invalid");
+            for (uint32_t i = 0; i < hide_count; ++i)
+                shot.hide_list.push_back(r.symbol());
+            if (shot.revision > 0x2f) {
+                const uint32_t show_count = r.u32();
+                if (show_count > 128) throw std::runtime_error("CamShot show count invalid");
+                for (uint32_t i = 0; i < show_count; ++i) (void)r.symbol();
+            }
+        }
+        if (shot.revision > 0x1b) {
+            const uint32_t count = r.u32();
+            if (count > 128) throw std::runtime_error("CamShot gen hide count invalid");
+            for (uint32_t i = 0; i < count; ++i) (void)r.symbol();
+        }
+        if (shot.revision > 0x0b && shot.revision < 0x2a)
+            shot.old_crowd_sym = r.symbol();
+        if (shot.revision >= 33 && shot.revision <= 41)
+            shot.old_crowd_rotate = r.i32();
+        if (shot.revision == 0x0e) {
+            (void)r.f32();
+            (void)r.f32();
+            (void)r.f32();
+        }
+        if (shot.revision == 16 || shot.revision == 17) {
+            (void)r.f32();
+            (void)r.f32();
+        }
+        if (shot.revision > 0x10 && shot.revision < 0x12) {
+            (void)r.f32();
+            (void)r.f32();
+        }
+        if (shot.revision > 0x13) shot.glow_spot = r.symbol();
+        if (shot.revision > 0x1d) {
+            const uint32_t count = r.u32();
+            if (count > 128) throw std::runtime_error("CamShot draw override count invalid");
+            for (uint32_t i = 0; i < count; ++i) (void)r.symbol();
+        }
+        if (shot.revision > 0x1f) {
+            const uint32_t count = r.u32();
+            if (count > 128) throw std::runtime_error("CamShot postproc override count invalid");
+            for (uint32_t i = 0; i < count; ++i) (void)r.symbol();
+        }
+        if (shot.revision > 0x23 && !(shot.revision >= 47 && shot.revision <= 48))
+            (void)r.boolean();
+        if (shot.revision > 0x24) (void)r.i32();
+        if (shot.revision >= 40 && shot.revision <= 42) (void)r.symbol();
+        if (shot.revision >= 0x2a) {
+            const uint32_t crowd_count = r.u32();
+            if (crowd_count > 64) throw std::runtime_error("CamShot crowd count invalid");
+            for (uint32_t i = 0; i < crowd_count; ++i) {
+                (void)r.symbol();
+                (void)r.i32();
+                const uint32_t pair_count = r.u32();
+                for (uint32_t j = 0; j < pair_count; ++j) {
+                    (void)r.i32();
+                    (void)r.i32();
+                }
+                (void)r.i32();
+            }
+        }
+        if (shot.revision > 0x2a) {
+            const uint32_t count = r.u32();
+            if (count > 128) throw std::runtime_error("CamShot anim count invalid");
+            for (uint32_t i = 0; i < count; ++i) (void)r.symbol();
+        }
+        if ((combined_revision >> 16) != 0) {
+            const uint32_t count = r.u32();
+            if (count > 128) throw std::runtime_error("CamShot alt symbol count invalid");
+            for (uint32_t i = 0; i < count; ++i) (void)r.symbol();
+        }
+
+        for (auto& [key, off] : shot.frames) {
+            key.category = shot.category;
+            key.shot_filter = shot.filter;
+            key.has_shot_filter = true;
+            key.clamp_height = shot.clamp_height;
+            key.has_clamp_height = true;
+            key.near_plane = shot.near_plane;
+            key.far_plane = shot.far_plane;
+            key.has_clip_planes = true;
+            key.use_depth_of_field = shot.use_depth_of_field;
+            key.has_use_depth_of_field = true;
+            key.selection_weight = shot.selection_weight;
+            key.has_selection_weight = shot.has_selection_weight;
+            key.path_ease = shot.path_ease;
+            key.has_path_ease = true;
+            key.source_ref = shot.old_crowd_sym;
+            key.camshot_shot_fields_decoded = true;
+            key.camshot_pose_body_offset = off;
+            key.has_camshot_pose_body_offset = true;
+            key.camshot_ref_tail_end = off;
+            key.has_camshot_ref_tail_end = true;
+            key.camshot_shot_tail_offset = off;
+            key.has_camshot_shot_tail_offset = true;
+            key.path_anim = shot.path;
+            key.has_path_anim = !shot.path.empty();
+            key.distance = prop_symbol(shot.props, "distance");
+            key.facing = prop_symbol(shot.props, "facing");
+            key.solo = prop_symbol(shot.props, "solo", "ok");
+            key.special = prop_bool(shot.props, "special", false);
+            key.walk_ok = prop_bool(shot.props, "walk_ok", true);
+            key.starpower_ok = prop_bool(shot.props, "starpower_ok", false);
+            key.low_excitement_ok =
+                prop_bool(shot.props, "low_excitement_ok", true);
+            key.jump_ok = prop_bool(shot.props, "jump_ok", true);
+            key.lighter = shot.category == "LIGHTER";
+            key.hide_crowd = prop_bool(shot.props, "hide_crowd", false);
+            key.crowd_face_camera =
+                prop_bool(shot.props, "crowd_face_camera", false);
+            key.force_char_lod = prop_int(shot.props, "force_char_lod", -1);
+            key.hide_list_refs = shot.hide_list;
+            sync_primary_camshot_target(key);
+            sync_camshot_source_record_hint(key);
+        }
+        return shot;
+    } catch (const std::exception& ex) {
+        if (debug_camera_enabled()) {
+            std::fprintf(stderr, "[camera-miloeditor] CamShot decode failed: %s\n",
+                         ex.what());
+        }
+        return std::nullopt;
+    }
+}
+
 std::string canonical_milo_ref(std::string s) {
     static constexpr std::string_view suffixes[] = {
         ".mesh", ".filt", ".grp", ".tnm", ".mnm", ".enm", ".lnm",
@@ -750,81 +1226,6 @@ std::string canonical_milo_ref(std::string s) {
         }
     }
     return s;
-}
-
-std::string next_string_after(const std::vector<std::string>& strings,
-                              std::string_view key) {
-    for (size_t i = 0; i + 1 < strings.size(); ++i) {
-        if (strings[i] == key) return strings[i + 1];
-    }
-    return {};
-}
-
-bool bool_string_after(const std::vector<std::string>& strings,
-                       std::string_view key, bool fallback) {
-    const std::string value = next_string_after(strings, key);
-    if (value == "TRUE") return true;
-    if (value == "FALSE") return false;
-    return fallback;
-}
-
-std::optional<bool> milo_bool_property(const uint8_t* body, size_t size,
-                                       std::string_view key) {
-    if (key.empty() || key.size() > 64) return std::nullopt;
-    for (size_t i = 0; i + 4 + key.size() + 8 <= size; ++i) {
-        uint32_t len = 0;
-        std::memcpy(&len, body + i, sizeof(len));
-        if (len != key.size()) continue;
-        if (std::memcmp(body + i + 4, key.data(), key.size()) != 0) continue;
-        const size_t value_off = i + 4 + key.size();
-        uint32_t tag = 0;
-        uint32_t value = 0;
-        std::memcpy(&tag, body + value_off, sizeof(tag));
-        std::memcpy(&value, body + value_off + 4, sizeof(value));
-        if (tag == 0 && value <= 1) return value != 0;
-    }
-    return std::nullopt;
-}
-
-std::optional<int> milo_i32_property(const uint8_t* body, size_t size,
-                                     std::string_view key) {
-    if (key.empty() || key.size() > 64) return std::nullopt;
-    for (size_t i = 0; i + 4 + key.size() + 8 <= size; ++i) {
-        uint32_t len = 0;
-        std::memcpy(&len, body + i, sizeof(len));
-        if (len != key.size()) continue;
-        if (std::memcmp(body + i + 4, key.data(), key.size()) != 0) continue;
-        const size_t value_off = i + 4 + key.size();
-        uint32_t tag = 0;
-        int32_t value = 0;
-        std::memcpy(&tag, body + value_off, sizeof(tag));
-        std::memcpy(&value, body + value_off + 4, sizeof(value));
-        if (tag == 0) return static_cast<int>(value);
-    }
-    return std::nullopt;
-}
-
-bool camshot_bool_property(const uint8_t* body, size_t size,
-                           const std::vector<std::string>& strings,
-                           std::string_view key, bool fallback) {
-    if (auto value = milo_bool_property(body, size, key)) return *value;
-    return bool_string_after(strings, key, fallback);
-}
-
-int camshot_i32_property(const uint8_t* body, size_t size, std::string_view key,
-                         int fallback) {
-    if (auto value = milo_i32_property(body, size, key)) return *value;
-    return fallback;
-}
-
-bool is_performer_entity(std::string_view s) {
-    return s == "guitarist0" || s == "guitarist1" || s == "bassist" ||
-           s == "singer" || s == "drummer" || s == "keyboard";
-}
-
-bool is_target_subpart(std::string_view s) {
-    return s.rfind("bone_", 0) == 0 || s.rfind("spot_", 0) == 0 ||
-           s.find(".mesh") != std::string_view::npos;
 }
 
 const char* camshot_entity_from_name(std::string_view name) {
@@ -870,559 +1271,6 @@ void resolve_unqualified_camshot_target(std::string_view shot_name,
     }
     if (!key.target_entity.empty() || key.target_subpart.empty()) return;
     key.target_entity = default_entity;
-}
-
-void infer_camshot_target(const std::vector<std::string>& strings,
-                          std::string_view shot_name,
-                          Gameplay::CameraKey& key) {
-    const char* hinted_entity = camshot_entity_from_name(shot_name);
-    for (size_t i = 0; i < strings.size(); ++i) {
-        if (!is_performer_entity(strings[i])) continue;
-        key.target_entity = hinted_entity ? hinted_entity : strings[i];
-        if (i + 1 < strings.size() && is_target_subpart(strings[i + 1])) {
-            key.target_subpart = strings[i + 1];
-        }
-        key.target_refs.clear();
-        key.target_refs.push_back({key.target_entity, key.target_subpart});
-        return;
-    }
-    for (const auto& s : strings) {
-        if (!is_target_subpart(s)) continue;
-        key.target_subpart = s;
-        break;
-    }
-    if (!key.target_subpart.empty()) {
-        key.target_entity = hinted_entity ? hinted_entity : "guitarist0";
-        key.target_refs.clear();
-        key.target_refs.push_back({key.target_entity, key.target_subpart});
-    }
-}
-
-bool read_camshot_ref_string_at(const uint8_t* body, size_t size,
-                                size_t& cursor, std::string& out) {
-    if (cursor + 4 > size) return false;
-    const uint32_t len = read_u32_at_unchecked(body, cursor);
-    cursor += 4;
-    if (len > 128 || cursor + len > size) return false;
-    for (uint32_t i = 0; i < len; ++i) {
-        const uint8_t c = body[cursor + i];
-        if (c < 0x20 || c > 0x7e) return false;
-    }
-    out.assign(reinterpret_cast<const char*>(body + cursor),
-               reinterpret_cast<const char*>(body + cursor + len));
-    cursor += len;
-    return true;
-}
-
-bool is_camshot_category_name(std::string_view s) {
-    static constexpr std::string_view kCategories[] = {
-        "flr_near_lft", "flr_near_rt", "flr_far_lft", "flr_far_rt",
-        "band_POV",     "balcony_lft", "balcony_rt", "SOLO_NEAR",
-        "SOLO_FAR",     "LIGHTER"};
-    for (const auto category : kCategories) {
-        if (s == category) return true;
-    }
-    return false;
-}
-
-std::optional<size_t> last_camshot_category_end(const uint8_t* body,
-                                                size_t size) {
-    std::optional<size_t> best;
-    for (size_t off = 0; off + 4 <= size; ++off) {
-        const uint32_t len = read_u32_at_unchecked(body, off);
-        if (len == 0 || len > 32 || off + 4 + len > size) continue;
-        std::string_view s(reinterpret_cast<const char*>(body + off + 4), len);
-        bool ascii = true;
-        for (char c : s) {
-            const unsigned char ch = static_cast<unsigned char>(c);
-            if (ch < 0x20 || ch > 0x7e) {
-                ascii = false;
-                break;
-            }
-        }
-        if (!ascii || !is_camshot_category_name(s)) continue;
-        best = off + 4 + len;
-    }
-    return best;
-}
-
-bool camshot_hide_list_ref_plausible(std::string_view ref) {
-    if (ref.empty() || ref.size() > 96) return false;
-    if (ref.find(".mesh") != std::string_view::npos) return true;
-    if (ref.find(".grp") != std::string_view::npos) return true;
-    if (ref == "crowd" || ref == "drummer" || ref == "singer" ||
-        ref == "guitarist0" || ref == "guitarist1" || ref == "bassist" ||
-        ref == "keyboard") {
-        return true;
-    }
-    return false;
-}
-
-std::vector<std::string> decode_camshot_hide_list_refs(const uint8_t* body,
-                                                       size_t size) {
-    constexpr uint32_t kMiloObjectArrayTag = 0x17;
-    auto category_end = last_camshot_category_end(body, size);
-    if (!category_end) return {};
-    const size_t search_end = std::min(size, *category_end + 96);
-    for (size_t off = *category_end; off + 8 <= search_end; ++off) {
-        if (read_u32_at_unchecked(body, off) != kMiloObjectArrayTag) continue;
-        const uint32_t count = read_u32_at_unchecked(body, off + 4);
-        if (count == 0 || count > 32) continue;
-        size_t cursor = off + 8;
-        std::vector<std::string> refs;
-        refs.reserve(count);
-        bool ok = true;
-        bool plausible = false;
-        for (uint32_t i = 0; i < count; ++i) {
-            std::string ref;
-            if (!read_camshot_ref_string_at(body, size, cursor, ref)) {
-                ok = false;
-                break;
-            }
-            plausible = plausible || camshot_hide_list_ref_plausible(ref);
-            refs.push_back(std::move(ref));
-        }
-        if (ok && plausible) return refs;
-    }
-    return {};
-}
-
-struct CamshotPoseRefs {
-    Gameplay::CameraKey key;
-    size_t end_cursor = 0;
-};
-
-std::optional<CamshotPoseRefs> decode_camshot_pose_refs_with_end(
-    const uint8_t* body, size_t size, size_t pose_off) {
-    // The PS2 CamShot keyframe tail stores three DOF floats after
-    // screen_offset, then keyframe targets, then the camera parent.
-    constexpr size_t kRefTailOffset = 48 + 8 + 12;
-    if (pose_off + kRefTailOffset + 4 > size) return std::nullopt;
-    size_t cursor = pose_off + kRefTailOffset;
-    const uint32_t target_count = read_u32_at_unchecked(body, cursor);
-    cursor += 4;
-    if (target_count > 8) return std::nullopt;
-
-    CamshotPoseRefs out;
-    out.key.camshot_refs_decoded = true;
-    bool saw_blank_target_ref = false;
-    if (target_count > 0) {
-        if (cursor + 4 > size) return std::nullopt;
-        const uint32_t target_struct = read_u32_at_unchecked(body, cursor);
-        cursor += 4;
-        if (target_struct != 0x14) return std::nullopt;
-        for (uint32_t i = 0; i < target_count; ++i) {
-            std::string entity;
-            std::string subpart;
-            if (!read_camshot_ref_string_at(body, size, cursor, entity) ||
-                !read_camshot_ref_string_at(body, size, cursor, subpart)) {
-                return std::nullopt;
-            }
-            saw_blank_target_ref =
-                saw_blank_target_ref || (entity.empty() && subpart.empty());
-            out.key.target_refs.push_back(
-                {std::move(entity), std::move(subpart)});
-        }
-        sync_primary_camshot_target(out.key);
-    }
-
-    if (cursor + 4 > size) {
-        if (saw_blank_target_ref && out.key.parent_subpart.empty()) {
-            out.key.parent_subpart = "spot_neck_fret20.mesh";
-        }
-        out.end_cursor = cursor;
-        return out;
-    }
-    const uint32_t parent_struct = read_u32_at_unchecked(body, cursor);
-    if (parent_struct != 0x14) {
-        out.end_cursor = cursor;
-        return out;
-    }
-    cursor += 4;
-    std::string parent_entity;
-    std::string parent_subpart;
-    if (!read_camshot_ref_string_at(body, size, cursor, parent_entity) ||
-        !read_camshot_ref_string_at(body, size, cursor, parent_subpart)) {
-        return std::nullopt;
-    }
-    out.key.parent_entity = std::move(parent_entity);
-    out.key.parent_subpart = std::move(parent_subpart);
-    if (saw_blank_target_ref && out.key.parent_subpart.empty()) {
-        // Accepted 0x00267008 snapshots show blank CamShot target slots still
-        // materialize the source object at the live guitarist neck/fret prop.
-        // Native validation keeps this fallback translation-only until the
-        // authored rotation source is mapped to the matching PS2 rows.
-        out.key.parent_subpart = "spot_neck_fret20.mesh";
-    }
-    if (cursor < size && body[cursor] <= 1) {
-        out.key.use_parent_rotation = body[cursor] != 0;
-        ++cursor;
-    }
-    out.end_cursor = cursor;
-    return out;
-}
-
-std::optional<Gameplay::CameraKey> decode_camshot_pose_refs(
-    const uint8_t* body, size_t size, size_t pose_off) {
-    auto refs = decode_camshot_pose_refs_with_end(body, size, pose_off);
-    if (!refs) return std::nullopt;
-    return refs->key;
-}
-
-struct CamshotShotFields {
-    std::string category;
-    float shot_filter = 0.0f;
-    bool has_shot_filter = false;
-    float clamp_height = 0.0f;
-    bool has_clamp_height = false;
-    float near_plane = 0.0f;
-    float far_plane = 0.0f;
-    bool has_clip_planes = false;
-    bool use_depth_of_field = false;
-    bool has_use_depth_of_field = false;
-    float selection_weight = 0.0f;
-    bool has_selection_weight = false;
-    float path_ease = 0.0f;
-    bool has_path_ease = false;
-    std::string source_ref;
-};
-
-bool camshot_source_ref_plausible(std::string_view ref) {
-    if (ref.empty() || ref.size() > 64) return false;
-    if (ref == "crowd" || ref == "drummer" || ref == "singer" ||
-        ref == "guitarist0" || ref == "guitarist1" || ref == "bassist" ||
-        ref == "keyboard") {
-        return true;
-    }
-    return ref.find(".grp") != std::string_view::npos ||
-           ref.find(".mesh") != std::string_view::npos;
-}
-
-std::optional<CamshotShotFields> decode_camshot_shot_fields(
-    const uint8_t* body, size_t size, size_t tail_off) {
-    // After the last keyframe's target/parent refs, stock PS2 CamShot bodies
-    // carry four shake floats, then this packed shot-level block. The category
-    // symbol is the first unambiguous anchor, and accepted raw-body probes put
-    // it 30 bytes after the key-list tail cursor.
-    constexpr size_t kShotClampHeightOffset = 1;
-    constexpr size_t kShotNearPlaneOffset = 5;
-    constexpr size_t kShotFarPlaneOffset = 9;
-    constexpr size_t kShotUseDepthOfFieldOffset = 13;
-    constexpr size_t kShotSelectionWeightOffset = 14;
-    constexpr size_t kShotPathEaseOffset = 18;
-    constexpr size_t kShotCategoryOffset = 30;
-    const auto strings = packed_strings_with_offsets(body, size);
-    std::optional<size_t> category_off_opt;
-    if (tail_off + kShotCategoryOffset + 4 <= size) {
-        category_off_opt = tail_off + kShotCategoryOffset;
-    }
-    auto category_offset_valid = [&](size_t off) {
-        if (off + 4 > size) return false;
-        const uint32_t len = read_u32_at_unchecked(body, off);
-        if (len == 0 || len > 32 || off + 4 + len > size) return false;
-        std::string_view s(reinterpret_cast<const char*>(body + off + 4), len);
-        for (char c : s) {
-            const unsigned char ch = static_cast<unsigned char>(c);
-            if (ch < 0x20 || ch > 0x7e) return false;
-        }
-        return is_camshot_category_name(s);
-    };
-    if (!category_off_opt || !category_offset_valid(*category_off_opt)) {
-        category_off_opt.reset();
-        for (const auto& hit : strings) {
-            if (hit.offset < tail_off || hit.value.size() > 32) continue;
-            if (!is_camshot_category_name(hit.value)) continue;
-            category_off_opt = hit.offset;
-        }
-    }
-    if (!category_off_opt) return std::nullopt;
-    const size_t category_off = *category_off_opt;
-    const uint32_t category_len = read_u32_at_unchecked(body, category_off);
-    std::string_view category(
-        reinterpret_cast<const char*>(body + category_off + 4), category_len);
-
-    auto sane_float = [](float v, float limit) {
-        return std::isfinite(v) && std::abs(v) < limit;
-    };
-
-    CamshotShotFields out;
-    out.category.assign(category);
-    const float clamp =
-        read_f32_at_unchecked(body, tail_off + kShotClampHeightOffset);
-    if (sane_float(clamp, 10000.0f)) {
-        out.clamp_height = clamp;
-        out.has_clamp_height = true;
-    }
-    const float near_z =
-        read_f32_at_unchecked(body, tail_off + kShotNearPlaneOffset);
-    const float far_z =
-        read_f32_at_unchecked(body, tail_off + kShotFarPlaneOffset);
-    if (std::isfinite(near_z) && std::isfinite(far_z) && near_z > 0.0f &&
-        far_z > near_z && far_z < 100000.0f) {
-        out.near_plane = near_z;
-        out.far_plane = far_z;
-        out.has_clip_planes = true;
-    }
-    const uint8_t dof = body[tail_off + kShotUseDepthOfFieldOffset];
-    if (dof <= 1) {
-        out.use_depth_of_field = dof != 0;
-        out.has_use_depth_of_field = true;
-    }
-    const float selection =
-        read_f32_at_unchecked(body, tail_off + kShotSelectionWeightOffset);
-    if (sane_float(selection, 1000.0f) && selection >= 0.0f) {
-        out.selection_weight = selection;
-        out.has_selection_weight = true;
-    }
-    const float path_ease =
-        read_f32_at_unchecked(body, tail_off + kShotPathEaseOffset);
-    if (sane_float(path_ease, 100.0f)) {
-        out.path_ease = path_ease;
-        out.has_path_ease = true;
-    }
-    const size_t filter_off = category_off + 4 + category_len;
-    if (filter_off + 4 <= size) {
-        const float filter = read_f32_at_unchecked(body, filter_off);
-        if (sane_float(filter, 100.0f)) {
-            out.shot_filter = filter;
-            out.has_shot_filter = true;
-        }
-    }
-    const size_t source_search_start =
-        filter_off + (out.has_shot_filter ? 4 : 0);
-    const size_t source_search_end = std::min(size, source_search_start + 96);
-    for (const auto& hit : strings) {
-        if (hit.offset < source_search_start || hit.end > source_search_end)
-            continue;
-        if (hit.value == out.category) continue;
-        if (!camshot_source_ref_plausible(hit.value)) continue;
-        out.source_ref = hit.value;
-        break;
-    }
-    return out;
-}
-
-std::optional<CamshotShotFields> decode_camshot_category_tail_fields(
-    const uint8_t* body, size_t size) {
-    const auto strings = packed_strings_with_offsets(body, size);
-    const PackedStringHit* category_hit = nullptr;
-    for (const auto& hit : strings) {
-        if (!is_camshot_category_name(hit.value)) continue;
-        category_hit = &hit;
-    }
-    if (!category_hit) return std::nullopt;
-
-    CamshotShotFields out;
-    out.category = category_hit->value;
-    auto sane_float = [](float v, float limit) {
-        return std::isfinite(v) && std::abs(v) < limit;
-    };
-    auto f32_at = [&](size_t off) { return read_f32_at_unchecked(body, off); };
-    auto ascii_string_at = [&](size_t off, size_t limit_end,
-                               size_t& string_end) {
-        if (off + 4 > limit_end) return false;
-        const uint32_t len = read_u32_at_unchecked(body, off);
-        if (len == 0 || len > 96 || off + 4 + len > limit_end) return false;
-        std::string_view s(reinterpret_cast<const char*>(body + off + 4), len);
-        for (const char c : s) {
-            const unsigned char ch = static_cast<unsigned char>(c);
-            if (ch < 0x20 || ch > 0x7e) return false;
-        }
-        string_end = off + 4 + len;
-        return true;
-    };
-    auto shot_gap_plausible = [&](size_t begin, size_t end) {
-        size_t cursor = begin;
-        while (cursor < end) {
-            while (cursor < end && body[cursor] == 0) ++cursor;
-            if (cursor == end) return true;
-            size_t string_end = cursor;
-            if (!ascii_string_at(cursor, end, string_end)) return false;
-            cursor = string_end;
-        }
-        return true;
-    };
-    struct PackedShotBlock {
-        size_t off = 0;
-        float clamp = 0.0f;
-        float near_plane = 0.0f;
-        float far_plane = 0.0f;
-        bool use_depth_of_field = false;
-        float selection = 0.0f;
-        float path_ease = 0.0f;
-        int score = 0;
-    };
-    std::optional<PackedShotBlock> packed_block;
-    const size_t category_off = category_hit->offset;
-    const size_t scan_begin = category_off > 96 ? category_off - 96 : 0;
-    for (size_t block = scan_begin; block + 21 <= category_off; ++block) {
-        const float clamp = f32_at(block);
-        const float near_z = f32_at(block + 4);
-        const float far_z = f32_at(block + 8);
-        const uint8_t dof = body[block + 12];
-        const float selection = f32_at(block + 13);
-        const float path_ease = f32_at(block + 17);
-        if (!sane_float(clamp, 10000.0f) || !std::isfinite(near_z) ||
-            !std::isfinite(far_z) || near_z <= 0.0f || far_z <= near_z ||
-            far_z >= 100000.0f || dof > 1 ||
-            !sane_float(selection, 1000.0f) || selection < 0.0f ||
-            !sane_float(path_ease, 100.0f)) {
-            continue;
-        }
-        if (!shot_gap_plausible(block + 21, category_off)) continue;
-        PackedShotBlock candidate;
-        candidate.off = block;
-        candidate.clamp = clamp;
-        candidate.near_plane = near_z;
-        candidate.far_plane = far_z;
-        candidate.use_depth_of_field = dof != 0;
-        candidate.selection = selection;
-        candidate.path_ease = path_ease;
-        if (std::abs(clamp) <= 1.0f) candidate.score += 2;
-        if (near_z == 10.0f || near_z == 50.0f) candidate.score += 3;
-        if (far_z == 3000.0f || far_z == 10000.0f) candidate.score += 3;
-        if (selection >= 0.0f && selection <= 1.0f) candidate.score += 2;
-        if (std::abs(path_ease) <= 1.0f) candidate.score += 2;
-        if (category_off > block + 21) candidate.score += 1;
-        if (!packed_block || candidate.score > packed_block->score ||
-            (candidate.score == packed_block->score &&
-             candidate.off > packed_block->off)) {
-            packed_block = candidate;
-        }
-    }
-    if (packed_block) {
-        out.clamp_height = packed_block->clamp;
-        out.has_clamp_height = true;
-        out.near_plane = packed_block->near_plane;
-        out.far_plane = packed_block->far_plane;
-        out.has_clip_planes = true;
-        out.use_depth_of_field = packed_block->use_depth_of_field;
-        out.has_use_depth_of_field = true;
-        out.selection_weight = packed_block->selection;
-        out.has_selection_weight = true;
-        out.path_ease = packed_block->path_ease;
-        out.has_path_ease = true;
-    }
-    const size_t filter_off = category_hit->end;
-    if (filter_off + 4 <= size) {
-        const float filter = read_f32_at_unchecked(body, filter_off);
-        if (sane_float(filter, 100.0f)) {
-            out.shot_filter = filter;
-            out.has_shot_filter = true;
-        }
-    }
-    const size_t source_search_start =
-        filter_off + (out.has_shot_filter ? 4 : 0);
-    const size_t source_search_end = std::min(size, source_search_start + 96);
-    for (const auto& hit : strings) {
-        if (hit.offset < source_search_start || hit.end > source_search_end)
-            continue;
-        if (hit.value == out.category) continue;
-        if (!camshot_source_ref_plausible(hit.value)) continue;
-        out.source_ref = hit.value;
-        break;
-    }
-    return out;
-}
-
-std::string compact_camshot_ref_list(const std::vector<std::string>& refs) {
-    std::string out;
-    for (const auto& ref : refs) {
-        if (!out.empty()) out += ",";
-        out += ref.empty() ? "<empty>" : ref;
-    }
-    return out;
-}
-
-std::string camshot_hex(size_t value) {
-    std::ostringstream ss;
-    ss << std::hex << std::uppercase << value;
-    return ss.str();
-}
-
-std::string camshot_source_tail_object_array_summary(const uint8_t* body,
-                                                     size_t size,
-                                                     size_t start,
-                                                     size_t end) {
-    constexpr uint32_t kMiloObjectArrayTag = 0x17;
-    std::string out;
-    const size_t search_end = std::min(size, end);
-    for (size_t off = start; off + 8 <= search_end; ++off) {
-        if (read_u32_at_unchecked(body, off) != kMiloObjectArrayTag) continue;
-        const uint32_t count = read_u32_at_unchecked(body, off + 4);
-        if (count == 0 || count > 32) continue;
-        size_t cursor = off + 8;
-        std::vector<std::string> refs;
-        refs.reserve(count);
-        bool ok = true;
-        for (uint32_t i = 0; i < count; ++i) {
-            std::string ref;
-            if (!read_camshot_ref_string_at(body, size, cursor, ref)) {
-                ok = false;
-                break;
-            }
-            refs.push_back(std::move(ref));
-        }
-        if (!ok) continue;
-        if (!out.empty()) out += " ";
-        out += "0x" + camshot_hex(off) + "[";
-        out += compact_camshot_ref_list(refs);
-        out += "]";
-    }
-    return out;
-}
-
-void log_camshot_source_tail_diagnostic(std::string_view shot_name,
-                                        const uint8_t* body, size_t size,
-                                        const Gameplay::CameraKey& key) {
-    if (!debug_camera_enabled() || !key.has_camshot_shot_tail_offset) return;
-    const size_t tail = key.camshot_shot_tail_offset;
-    const size_t search_start =
-        key.has_camshot_ref_tail_end ? key.camshot_ref_tail_end : tail;
-    const size_t search_end = std::min(size, tail + 160);
-    const auto strings = packed_strings_with_offsets(body, size);
-    std::string tail_strings;
-    for (const auto& hit : strings) {
-        if (hit.offset < search_start || hit.offset > search_end) continue;
-        if (!tail_strings.empty()) tail_strings += " ";
-        tail_strings += "0x" + camshot_hex(hit.offset) + ":";
-        tail_strings += hit.value.empty() ? "<empty>" : hit.value;
-    }
-    const std::string arrays =
-        camshot_source_tail_object_array_summary(body, size, search_start,
-                                                 search_end);
-    std::fprintf(
-        stderr,
-        "[camera-source-tail] shot=%.*s pose=%s0x%zX ref_end=%s0x%zX tail=0x%zX category=%s source_ref=%s strings=%s arrays=%s\n",
-        static_cast<int>(shot_name.size()), shot_name.data(),
-        key.has_camshot_pose_body_offset ? "" : "none/",
-        key.camshot_pose_body_offset,
-        key.has_camshot_ref_tail_end ? "" : "none/",
-        key.camshot_ref_tail_end, key.camshot_shot_tail_offset,
-        key.category.empty() ? "<empty>" : key.category.c_str(),
-        key.source_ref.empty() ? "<empty>" : key.source_ref.c_str(),
-        tail_strings.empty() ? "<none>" : tail_strings.c_str(),
-        arrays.empty() ? "<none>" : arrays.c_str());
-}
-
-void apply_camshot_shot_fields(Gameplay::CameraKey& key,
-                               const CamshotShotFields& fields) {
-    key.category = fields.category;
-    key.shot_filter = fields.shot_filter;
-    key.has_shot_filter = fields.has_shot_filter;
-    key.clamp_height = fields.clamp_height;
-    key.has_clamp_height = fields.has_clamp_height;
-    key.near_plane = fields.near_plane;
-    key.far_plane = fields.far_plane;
-    key.has_clip_planes = fields.has_clip_planes;
-    key.use_depth_of_field = fields.use_depth_of_field;
-    key.has_use_depth_of_field = fields.has_use_depth_of_field;
-    key.selection_weight = fields.selection_weight;
-    key.has_selection_weight = fields.has_selection_weight;
-    key.path_ease = fields.path_ease;
-    key.has_path_ease = fields.has_path_ease;
-    key.source_ref = fields.source_ref;
-    key.camshot_shot_fields_decoded = true;
 }
 
 void sync_camshot_source_record_hint(Gameplay::CameraKey& key) {
@@ -2173,11 +2021,12 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             if (de.type != "CamShot" || de.offset + de.size > payload.size())
                 continue;
             const uint8_t* body = payload.data() + de.offset;
-            auto strings = scan_milo_strings(body, static_cast<size_t>(de.size));
-            bool is_intro = false;
-            for (const auto& s : strings) {
-                if (s == "INTRO") is_intro = true;
-            }
+            auto decoded_shot =
+                read_camshot_like_miloeditor(body, static_cast<size_t>(de.size));
+            if (!decoded_shot) continue;
+            bool is_intro = decoded_shot->category == "INTRO" ||
+                            decoded_shot->category == "INTRO_FAST" ||
+                            decoded_shot->category == "INTRO_ENCORE";
             std::string shot_lower(de.name);
             std::transform(shot_lower.begin(), shot_lower.end(),
                            shot_lower.begin(), [](unsigned char c) {
@@ -2188,31 +2037,21 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             Candidate c;
             c.shot = de.name;
             c.anim = {};
-            c.hide_list_refs =
-                decode_camshot_hide_list_refs(body, static_cast<size_t>(de.size));
-            c.hide_crowd =
-                camshot_bool_property(body, static_cast<size_t>(de.size),
-                                      strings, "hide_crowd", false);
+            c.hide_list_refs = decoded_shot->hide_list;
+            c.hide_crowd = prop_bool(decoded_shot->props, "hide_crowd", false);
             c.crowd_face_camera =
-                camshot_bool_property(body, static_cast<size_t>(de.size),
-                                      strings, "crowd_face_camera", false);
-            c.force_char_lod = camshot_i32_property(
-                body, static_cast<size_t>(de.size), "force_char_lod", -1);
-            for (const auto& s : strings) {
-                if (s.size() > 4 && s.rfind(".tnm") == s.size() - 4) {
-                    c.anim = s;
-                    break;
-                }
-            }
-            if (c.anim.empty() &&
-                !decode_camshot_poses(body, static_cast<size_t>(de.size))
-                     .empty()) {
+                prop_bool(decoded_shot->props, "crowd_face_camera", false);
+            c.force_char_lod =
+                prop_int(decoded_shot->props, "force_char_lod", -1);
+            c.anim = decoded_shot->path;
+            if (c.anim.empty() && !decoded_shot->frames.empty()) {
                 c.anim = std::string(kDirectIntroCamShotPrefix) + de.name;
                 c.direct_camshot_pose = true;
             }
             if (c.anim.empty()) continue;
-            const std::string distance = next_string_after(strings, "distance");
-            const std::string facing = next_string_after(strings, "facing");
+            const std::string distance =
+                prop_symbol(decoded_shot->props, "distance");
+            const std::string facing = prop_symbol(decoded_shot->props, "facing");
             if (!policy.intro_distance.empty() &&
                 distance == policy.intro_distance) {
                 c.score += 2;
@@ -7121,22 +6960,17 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                     continue;
                 }
                 const uint8_t* body = payload.data() + de.offset;
-                auto strings = scan_milo_strings(
+                auto decoded_shot = read_camshot_like_miloeditor(
                     body, static_cast<size_t>(de.size));
+                if (!decoded_shot) return out;
                 const bool hide_crowd =
-                    camshot_bool_property(body, static_cast<size_t>(de.size),
-                                          strings, "hide_crowd", false);
+                    prop_bool(decoded_shot->props, "hide_crowd", false);
                 const bool crowd_face_camera =
-                    camshot_bool_property(body, static_cast<size_t>(de.size),
-                                          strings, "crowd_face_camera", false);
+                    prop_bool(decoded_shot->props, "crowd_face_camera", false);
                 const int force_char_lod =
-                    camshot_i32_property(body, static_cast<size_t>(de.size),
-                                         "force_char_lod", -1);
-                const auto hide_list_refs =
-                    decode_camshot_hide_list_refs(body,
-                                                  static_cast<size_t>(de.size));
-                auto decoded_poses =
-                    decode_camshot_poses(body, static_cast<size_t>(de.size));
+                    prop_int(decoded_shot->props, "force_char_lod", -1);
+                const auto hide_list_refs = decoded_shot->hide_list;
+                auto decoded_poses = decoded_shot->frames;
                 for (auto& pose : decoded_poses) {
                     pose.first.name = de.name;
                     resolve_unqualified_camshot_target(de.name, pose.first);
@@ -9315,220 +9149,9 @@ DrumAnimData load_drum_anim_data(const std::string& hdr_path,
 
 std::vector<std::pair<Gameplay::CameraKey, size_t>> decode_camshot_poses(
     const uint8_t* body, size_t size) {
-    auto f32_at = [&](size_t off) {
-        float v = 0.0f;
-        std::memcpy(&v, body + off, sizeof(v));
-        return v;
-    };
-    auto finite = [](float v) {
-        return std::isfinite(v) && std::abs(v) < 4000.0f;
-    };
-    auto row_norm = [](const float* r) {
-        return std::sqrt(r[0] * r[0] + r[1] * r[1] + r[2] * r[2]);
-    };
-    auto dot = [](const float* a, const float* b) {
-        return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-    };
-
-    struct Candidate {
-        Gameplay::CameraKey key;
-        size_t off = 0;
-        size_t ref_end = 0;
-        float score = 0.0f;
-        bool neutral_basis = false;
-        bool has_ref_end = false;
-    };
-    std::vector<Candidate> candidates;
-    for (size_t off = 0; off + 48 <= size; ++off) {
-        float r[3][3] = {};
-        for (int row = 0; row < 3; ++row) {
-            for (int col = 0; col < 3; ++col) {
-                r[row][col] = f32_at(off + static_cast<size_t>(row * 12 + col * 4));
-                if (!finite(r[row][col])) goto next_offset;
-            }
-        }
-        float pos[3] = {f32_at(off + 36), f32_at(off + 40), f32_at(off + 44)};
-        for (float v : pos)
-            if (!finite(v)) goto next_offset;
-
-        {
-            const float n0 = row_norm(r[0]);
-            const float n1 = row_norm(r[1]);
-            const float n2 = row_norm(r[2]);
-            if (n0 < 0.80f || n0 > 1.20f || n1 < 0.80f || n1 > 1.20f ||
-                n2 < 0.80f || n2 > 1.20f) {
-                goto next_offset;
-            }
-            if (std::abs(dot(r[0], r[1])) > 0.35f ||
-                std::abs(dot(r[0], r[2])) > 0.35f ||
-                std::abs(dot(r[1], r[2])) > 0.35f) {
-                goto next_offset;
-            }
-            const float pos_mag =
-                std::sqrt(pos[0] * pos[0] + pos[1] * pos[1] + pos[2] * pos[2]);
-            if (pos_mag < 30.0f || pos_mag > 2500.0f) goto next_offset;
-
-            const float identity =
-                std::abs(r[0][0] - 1.0f) + std::abs(r[1][1] - 1.0f) +
-                std::abs(r[2][2] - 1.0f) + std::abs(r[0][1]) +
-                std::abs(r[0][2]) + std::abs(r[1][0]) +
-                std::abs(r[1][2]) + std::abs(r[2][0]) +
-                std::abs(r[2][1]);
-            Candidate c;
-            c.off = off;
-            c.score = 10.0f - std::abs(n0 - 1.0f) - std::abs(n1 - 1.0f) -
-                      std::abs(n2 - 1.0f);
-            c.neutral_basis = identity < 0.001f;
-            if (identity < 0.25f) c.score -= 4.0f;
-            c.key.frame = 0.0f;
-            c.key.has_quat = false;
-            c.key.eye[0] = pos[0];
-            c.key.eye[1] = pos[1];
-            c.key.eye[2] = pos[2];
-            for (int i = 0; i < 3; ++i) {
-                // Accepted PS2 render-camera rows store the complete camera
-                // basis as forward, position, right, up. The packed CamShot
-                // pose uses the same axis order before the eye translation.
-                c.key.forward[i] = r[0][i];
-                c.key.up[i] = r[2][i];
-            }
-            c.key.has_basis = true;
-            if (off >= 4) {
-                const float fov = f32_at(off - 4);
-                if (std::isfinite(fov) && fov > 0.05f && fov < 2.5f) {
-                    c.key.fov = fov;
-                    c.key.has_fov = true;
-                }
-            }
-            if (off >= 16) {
-                // world_objects_ps2.dta::CamShot keyframes store duration,
-                // blend, and blend_ease immediately before field_of_view.
-                const float duration = f32_at(off - 16);
-                const float blend = f32_at(off - 12);
-                const float blend_ease = f32_at(off - 8);
-                if (std::isfinite(duration) && std::isfinite(blend) &&
-                    std::isfinite(blend_ease) && duration >= 0.0f &&
-                    blend >= 0.0f && duration < 20000.0f &&
-                    blend < 20000.0f && std::abs(blend_ease) < 100.0f) {
-                    c.key.duration_frames = duration;
-                    c.key.blend_frames = blend;
-                    c.key.blend_ease = blend_ease;
-                    c.key.has_timing = true;
-                }
-            }
-            if (off + 56 <= size) {
-                const float sx = f32_at(off + 48);
-                const float sy = f32_at(off + 52);
-                if (std::isfinite(sx) && std::isfinite(sy) &&
-                    std::abs(sx) < 4.0f && std::abs(sy) < 4.0f) {
-                    c.key.screen_offset[0] = sx;
-                    c.key.screen_offset[1] = sy;
-                    c.key.has_screen_offset =
-                        std::abs(sx) > 0.0001f || std::abs(sy) > 0.0001f;
-                }
-            }
-            if (auto refs = decode_camshot_pose_refs_with_end(body, size, off)) {
-                copy_camshot_ref_fields(refs->key, c.key);
-                c.key.camshot_pose_body_offset = off;
-                c.key.has_camshot_pose_body_offset = true;
-                c.key.camshot_ref_tail_end = refs->end_cursor;
-                c.key.has_camshot_ref_tail_end = true;
-                c.ref_end = refs->end_cursor;
-                c.has_ref_end = true;
-            }
-            candidates.push_back(c);
-        }
-    next_offset:
-        continue;
-    }
-    if (candidates.empty()) return {};
-    std::stable_sort(candidates.begin(), candidates.end(),
-                     [](const Candidate& a, const Candidate& b) {
-                         return a.off < b.off;
-                     });
-    auto candidate_index_by_off = [&](size_t off) -> std::optional<size_t> {
-        for (size_t i = 0; i < candidates.size(); ++i) {
-            if (candidates[i].off == off) return i;
-        }
-        return std::nullopt;
-    };
-    for (size_t start = 0; start < candidates.size(); ++start) {
-        const size_t off = candidates[start].off;
-        if (off < 20) continue;
-        const uint32_t key_count = read_u32_at_unchecked(body, off - 20);
-        if (key_count == 0 || key_count > 16) continue;
-        size_t cursor = off - 16;
-        std::vector<size_t> layout_indices;
-        layout_indices.reserve(key_count);
-        bool layout_ok = true;
-        for (uint32_t i = 0; i < key_count; ++i) {
-            const size_t pose_off = cursor + 16;
-            auto idx = candidate_index_by_off(pose_off);
-            if (!idx || !candidates[*idx].has_ref_end) {
-                layout_ok = false;
-                break;
-            }
-            layout_indices.push_back(*idx);
-            // A real CamShot keyframe can be followed by a 16-byte key header
-            // after its target/parent refs. Walking that layout lets native
-            // keep authored position-only keys without accepting arbitrary
-            // neutral-basis rows found by the sliding scanner.
-            cursor = candidates[*idx].ref_end + 16;
-        }
-        if (!layout_ok || layout_indices.size() != key_count) continue;
-        const auto shot_fields =
-            decode_camshot_shot_fields(body, size, cursor);
-        if (shot_fields) {
-            for (const size_t idx : layout_indices) {
-                candidates[idx].key.camshot_shot_tail_offset = cursor;
-                candidates[idx].key.has_camshot_shot_tail_offset = true;
-                apply_camshot_shot_fields(candidates[idx].key, *shot_fields);
-                sync_camshot_source_record_hint(candidates[idx].key);
-            }
-        }
-        for (size_t i = 1; i < layout_indices.size(); ++i) {
-            Candidate& key = candidates[layout_indices[i]];
-            if (!key.neutral_basis) continue;
-            const Candidate& prev = candidates[layout_indices[i - 1]];
-            for (int axis = 0; axis < 3; ++axis) {
-                key.key.forward[axis] = prev.key.forward[axis];
-                key.key.up[axis] = prev.key.up[axis];
-            }
-            key.key.has_basis = prev.key.has_basis;
-            key.neutral_basis = false;
-        }
-    }
-    const bool has_non_neutral_pose =
-        std::any_of(candidates.begin(), candidates.end(),
-                    [](const Candidate& c) { return !c.neutral_basis; });
-    if (has_non_neutral_pose) {
-        candidates.erase(
-            std::remove_if(candidates.begin(), candidates.end(),
-                           [](const Candidate& c) {
-                               return c.neutral_basis;
-                           }),
-            candidates.end());
-    }
-    std::vector<std::pair<Gameplay::CameraKey, size_t>> out;
-    for (const auto& c : candidates) {
-        bool duplicate = false;
-        for (const auto& prev : out) {
-            const auto& key = prev.first;
-            const float dx = key.eye[0] - c.key.eye[0];
-            const float dy = key.eye[1] - c.key.eye[1];
-            const float dz = key.eye[2] - c.key.eye[2];
-            const size_t off_delta =
-                prev.second > c.off ? prev.second - c.off
-                                    : c.off - prev.second;
-            if (std::sqrt(dx * dx + dy * dy + dz * dz) < 1.0f &&
-                off_delta < 0x40) {
-                duplicate = true;
-                break;
-            }
-        }
-        if (!duplicate) out.push_back({c.key, c.off});
-    }
-    return out;
+    auto shot = read_camshot_like_miloeditor(body, size);
+    if (!shot) return {};
+    return shot->frames;
 }
 
 std::optional<Gameplay::CameraKey> decode_static_camshot_pose(
@@ -9567,37 +9190,30 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             if (de.type != "CamShot" || de.offset + de.size > payload.size())
                 continue;
             const uint8_t* body = payload.data() + de.offset;
-            auto strings = scan_milo_strings(body, static_cast<size_t>(de.size));
-            bool normal_category = false;
-            bool lighter_category = false;
-            bool intro_category = false;
-            for (const auto& s : strings) {
-                if (s == "flr_near_lft" || s == "flr_near_rt" ||
-                    s == "flr_far_lft" || s == "flr_far_rt" ||
-                    s == "band_POV" || s == "balcony_lft" ||
-                    s == "balcony_rt" || s == "SOLO_NEAR" ||
-                    s == "SOLO_FAR") {
-                    normal_category = true;
-                }
-                if (s == "LIGHTER") {
-                    lighter_category = true;
-                }
-                if (s == "INTRO" || s == "INTRO_FAST" ||
-                    s == "INTRO_ENCORE") {
-                    intro_category = true;
-                }
-            }
+            auto decoded_shot =
+                read_camshot_like_miloeditor(body, static_cast<size_t>(de.size));
+            if (!decoded_shot) continue;
+            const std::string& category = decoded_shot->category;
+            const bool normal_category =
+                category == "flr_near_lft" || category == "flr_near_rt" ||
+                category == "flr_far_lft" || category == "flr_far_rt" ||
+                category == "band_POV" || category == "balcony_lft" ||
+                category == "balcony_rt" || category == "SOLO_NEAR" ||
+                category == "SOLO_FAR";
+            const bool lighter_category = category == "LIGHTER";
+            const bool intro_category =
+                category == "INTRO" || category == "INTRO_FAST" ||
+                category == "INTRO_ENCORE";
             if (intro_category || (!normal_category && !lighter_category)) continue;
 
-            const std::string special = next_string_after(strings, "special");
-            if (special == "TRUE") continue;
-            const std::string solo = next_string_after(strings, "solo");
+            const bool special = prop_bool(decoded_shot->props, "special", false);
+            if (special) continue;
+            const std::string solo = prop_symbol(decoded_shot->props, "solo");
             if (!solo.empty() && solo != "ok" && solo != "never" &&
                 solo != "only")
                 continue;
-            const std::string path_anim = camshot_path_anim_ref(strings);
-            auto decoded_poses =
-                decode_camshot_poses(body, static_cast<size_t>(de.size));
+            const std::string path_anim = decoded_shot->path;
+            auto decoded_poses = decoded_shot->frames;
             if (decoded_poses.empty()) continue;
             if (debug_camera_enabled()) {
                 for (const auto& pose : decoded_poses) {
@@ -9659,57 +9275,17 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
 
             Candidate c;
             c.shot = de.name;
-            c.distance = next_string_after(strings, "distance");
-            c.facing = next_string_after(strings, "facing");
+            c.distance = prop_symbol(decoded_shot->props, "distance");
+            c.facing = prop_symbol(decoded_shot->props, "facing");
             c.key = decoded_poses.front().first;
             c.key.distance = c.distance;
             c.key.facing = c.facing;
-            c.key.solo = next_string_after(strings, "solo");
-            c.key.special = camshot_bool_property(
-                body, static_cast<size_t>(de.size), strings, "special", false);
-            c.key.walk_ok = camshot_bool_property(
-                body, static_cast<size_t>(de.size), strings, "walk_ok", true);
-            c.key.starpower_ok =
-                camshot_bool_property(body, static_cast<size_t>(de.size),
-                                      strings, "starpower_ok", false);
-            c.key.low_excitement_ok =
-                camshot_bool_property(body, static_cast<size_t>(de.size),
-                                      strings, "low_excitement_ok", true);
-            c.key.jump_ok = camshot_bool_property(
-                body, static_cast<size_t>(de.size), strings, "jump_ok", true);
+            c.key.solo = solo;
+            c.key.special = special;
             c.key.lighter = lighter_category;
-            c.key.hide_crowd =
-                camshot_bool_property(body, static_cast<size_t>(de.size),
-                                      strings, "hide_crowd", false);
-            c.key.crowd_face_camera =
-                camshot_bool_property(body, static_cast<size_t>(de.size),
-                                      strings, "crowd_face_camera", false);
-            c.key.force_char_lod =
-                camshot_i32_property(body, static_cast<size_t>(de.size),
-                                     "force_char_lod", -1);
-            c.key.hide_list_refs =
-                decode_camshot_hide_list_refs(body, static_cast<size_t>(de.size));
             c.key.path_anim = path_anim;
             c.key.has_path_anim = !path_anim.empty();
-            if (c.key.has_path_anim && !c.key.camshot_shot_fields_decoded) {
-                if (auto fields = decode_camshot_category_tail_fields(
-                        body, static_cast<size_t>(de.size))) {
-                    apply_camshot_shot_fields(c.key, *fields);
-                    sync_camshot_source_record_hint(c.key);
-                    if (!c.key.has_camshot_shot_tail_offset) {
-                        c.key.camshot_shot_tail_offset =
-                            c.key.has_camshot_ref_tail_end
-                                ? c.key.camshot_ref_tail_end
-                                : pose_off;
-                        c.key.has_camshot_shot_tail_offset = true;
-                    }
-                }
-            }
-            log_camshot_source_tail_diagnostic(
-                c.shot, body, static_cast<size_t>(de.size), c.key);
-            if (!c.key.camshot_refs_decoded) {
-                infer_camshot_target(strings, c.shot, c.key);
-            } else {
+            if (c.key.camshot_refs_decoded) {
                 resolve_unqualified_camshot_target(c.shot, c.key);
             }
             sync_camshot_source_record_hint(c.key);

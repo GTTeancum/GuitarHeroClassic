@@ -12,12 +12,14 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <vector>
 
 namespace {
 
 using namespace ghogx::milo_scene;
+namespace fs = std::filesystem;
 
 // Assert that works regardless of NDEBUG (unit tests must check unconditionally).
 #define CHECK(cond)                                                          \
@@ -56,6 +58,15 @@ void put_matrix(std::vector<uint8_t>& b, float tx, float ty, float tz) {
 }
 
 bool approx(float a, float b) { return std::fabs(a - b) < 1e-4f; }
+
+std::string first_existing(const std::string& dir,
+                           std::initializer_list<const char*> names) {
+  for (const char* n : names) {
+    fs::path p = fs::path(dir) / n;
+    if (fs::exists(p)) return p.string();
+  }
+  return {};
+}
 
 void test_trans() {
   std::vector<uint8_t> b;
@@ -226,6 +237,135 @@ void test_environ_with_fog() {
               env.name.c_str(), env.fog_start, env.fog_end);
 }
 
+void test_cam_projection_fields() {
+  std::vector<uint8_t> b;
+  put_u32(b, 12);                // Cam revision from GH2 PS2 metacam.
+  put_zeros(b, 9);               // object/base metadata.
+  put_u32(b, 9);                 // embedded Trans revision.
+  put_matrix(b, 0.0f, -768.0f, 0.0f);
+  put_matrix(b, 0.0f, -768.0f, 0.0f);
+  put_u32(b, 0);                 // constraint.
+  put_str(b, "");                // target.
+  b.push_back(0);                // preserve_scale.
+  put_str(b, "meta.cam");        // parent, as in meta_proxy.cam.
+  put_f32(b, 50.0f);             // near.
+  put_f32(b, 1000.0f);           // far.
+  put_f32(b, 0.6024157f);        // vertical fov, stored as radians.
+  put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 1.0f); put_f32(b, 1.0f);
+  put_f32(b, 0.0f); put_f32(b, 1.0f);
+  put_str(b, "");
+
+  CamObj cam = decode_cam("meta_proxy.cam", b);
+  CHECK(cam.decoded);
+  CHECK(cam.parent == "meta.cam");
+  CHECK(approx(cam.local.pos[1], -768.0f));
+  CHECK(approx(cam.world_stored.pos[1], -768.0f));
+  CHECK(approx(cam.near_plane, 50.0f));
+  CHECK(approx(cam.far_plane, 1000.0f));
+  CHECK(approx(cam.fov, 0.6024157f));
+  CHECK(approx(cam.screen_rect[2], 1.0f));
+  CHECK(approx(cam.screen_rect[3], 1.0f));
+  CHECK(approx(cam.z_range[0], 0.0f));
+  CHECK(approx(cam.z_range[1], 1.0f));
+  std::printf(
+      "  [ok] Cam: parent=%s near=%.0f far=%.0f fov=%.6f z=(%.0f,%.0f)\n",
+      cam.parent.c_str(), cam.near_plane, cam.far_plane, cam.fov,
+      cam.z_range[0], cam.z_range[1]);
+}
+
+void test_group_transform() {
+  std::vector<uint8_t> b;
+  put_u32(b, 12);                // UI Group/View version observed in menus.
+  put_zeros(b, 0x1d - b.size()); // UI group matrix start.
+  put_matrix(b, 25.0f, 0.0f, -40.0f);
+  put_matrix(b, 25.0f, 0.0f, 940.0f);
+  put_zeros(b, 9);
+  put_str(b, "ss_setlist.view");
+  put_str(b, "ss_setlist.view");  // parent ref should not be echoed as a child.
+  put_str(b, "paper.mesh");
+  put_str(b, "title.lbl");
+  put_str(b, "child.view");
+  put_str(b, "lighting.env");     // environment refs are tracked separately.
+
+  GroupObj group = decode_group("ss_songlist.view", b);
+  CHECK(group.name == "ss_songlist.view");
+  CHECK(group.has_transform);
+  CHECK(group.parent == "ss_setlist.view");
+  CHECK(approx(group.local.pos[0], 25.0f));
+  CHECK(approx(group.local.pos[2], -40.0f));
+  CHECK(approx(group.world_stored.pos[2], 940.0f));
+  CHECK(group.children.size() == 3);
+  CHECK(group.children[0] == "paper.mesh");
+  CHECK(group.children[1] == "title.lbl");
+  CHECK(group.children[2] == "child.view");
+  CHECK(group.environment_ref == "lighting.env");
+  std::printf("  [ok] Group: parent=%s local.z=%.0f world.z=%.0f\n",
+              group.parent.c_str(), group.local.pos[2],
+              group.world_stored.pos[2]);
+}
+
+void test_band_placer() {
+  std::vector<uint8_t> b;
+  put_u32(b, 2);                 // BandPlacer version.
+  put_zeros(b, 8);               // object/base header before the kind string.
+  put_str(b, "char");
+  b.push_back(0);                // PS2 BandPlacer kind strings are nul-padded.
+  put_u32(b, 3);
+  put_u32(b, 1);
+  put_zeros(b, 0x2a - b.size());
+  put_u32(b, 9);                 // embedded transform marker.
+  put_matrix(b, -35.0f, -30.0f, -47.5f);
+  put_matrix(b, -35.0f, -636.5f, -47.5f);
+  put_zeros(b, 9);
+  put_str(b, "mgs_camerafix.grp");
+  put_str(b, "spot_ui.mesh");
+
+  BandPlacerObj placer = decode_band_placer("char_multi0.placer", b);
+  CHECK(placer.decoded);
+  CHECK(placer.kind == "char");
+  CHECK(placer.parent == "mgs_camerafix.grp");
+  CHECK(approx(placer.local.pos[0], -35.0f));
+  CHECK(approx(placer.world_stored.pos[1], -636.5f));
+  CHECK(approx(placer.world_stored.pos[2], -47.5f));
+
+  Scene sc;
+  sc.band_placers.push_back(placer);
+  CHECK(sc.find_band_placer("char_multi0.placer") != nullptr);
+  CHECK(sc.find_band_placer("missing.placer") == nullptr);
+  std::printf("  [ok] BandPlacer: kind=%s parent=%s world=(%.1f %.1f %.1f)\n",
+              placer.kind.c_str(), placer.parent.c_str(),
+              placer.world_stored.pos[0], placer.world_stored.pos[1],
+              placer.world_stored.pos[2]);
+}
+
+void test_real_menu_band_placers() {
+  const std::string ark_dir =
+      "C:/Programming/GitHub/Guitar Hero II/gh2_ps2_hybrid_assets/gen";
+  const std::string hdr = first_existing(ark_dir, {"main.hdr", "MAIN.HDR"});
+  const std::string ark = first_existing(ark_dir, {"main_0.ark", "MAIN_0.ARK"});
+  if (hdr.empty() || ark.empty()) {
+    std::printf("  [skip] real menu BandPlacers (no PS2 archive)\n");
+    return;
+  }
+
+  Scene single;
+  CHECK(load_scene(hdr, ark, "ui/gen/sel_character.milo_ps2", single));
+  const BandPlacerObj* single_placer =
+      single.find_band_placer("char_single.placer");
+  CHECK(single_placer != nullptr);
+  CHECK(single_placer && single_placer->parent == "sel_character.view");
+
+  Scene multi;
+  CHECK(load_scene(hdr, ark, "ui/gen/multi_sel_character.milo_ps2", multi));
+  CHECK(multi.find_band_placer("char_multi0.placer") != nullptr);
+  CHECK(multi.find_band_placer("char_multi1.placer") != nullptr);
+
+  Scene store;
+  CHECK(load_scene(hdr, ark, "ui/gen/store.milo_ps2", store));
+  CHECK(store.find_band_placer("char_store.placer") != nullptr);
+  std::printf("  [ok] real menu BandPlacers: char_single, char_multi0/1, char_store\n");
+}
+
 void test_mesh() {
   std::vector<uint8_t> b;
   put_u32(b, 28);                // mesh version 0x1c
@@ -291,39 +431,40 @@ void test_mesh() {
   std::printf("  [ok] world compose: translation=(%.0f,%.0f,%.0f)\n", w[12],
               w[13], w[14]);
 
+  Scene group_sc;
+  GroupObj group;
+  group.name = "track.view";
+  group.has_transform = true;
+  group.local.pos[0] = 10.0f;
+  group.world_stored = group.local;
+  group_sc.groups.push_back(group);
+  group_sc.meshes.push_back(m);
+  auto gw = group_sc.world_matrix(group_sc.meshes[0]);
+  CHECK(approx(gw[12], 11.0f));
+  CHECK(approx(gw[13], 2.0f));
+  CHECK(approx(gw[14], 3.0f));
+  std::printf("  [ok] group world compose: translation=(%.0f,%.0f,%.0f)\n",
+              gw[12], gw[13], gw[14]);
+
+  MeshObj authored = m;
+  authored.world_stored.pos[0] = 100.0f;
+  authored.world_stored.pos[1] = 200.0f;
+  authored.world_stored.pos[2] = 300.0f;
+  Scene authored_sc;
+  authored_sc.groups.push_back(group);
+  authored_sc.meshes.push_back(authored);
+  auto aw = authored_sc.world_matrix(authored_sc.meshes[0]);
+  CHECK(approx(aw[12], 100.0f));
+  CHECK(approx(aw[13], 200.0f));
+  CHECK(approx(aw[14], 300.0f));
+  std::printf("  [ok] authored world wins: translation=(%.0f,%.0f,%.0f)\n",
+              aw[12], aw[13], aw[14]);
+
   std::vector<uint8_t> hidden = b;
   hidden[draw_showing_offset] = 0;
   MeshObj h = decode_mesh("hidden.mesh", hidden);
   CHECK(h.decoded);
   CHECK(!h.showing);
-}
-
-void test_group() {
-  std::vector<uint8_t> b;
-  put_u32(b, 12);                // Group version
-  put_zeros(b, 9);               // base metadata
-  put_u32(b, 4);                 // Draw version
-  put_zeros(b, 8);               // Draw flags before embedded Trans
-  put_u32(b, 9);                 // embedded Trans version
-  put_matrix(b, 7.85f, 6.527f, -0.0572f);
-  put_matrix(b, 7.85f, 6.527f, -0.0572f);
-  put_zeros(b, 9);
-  put_str(b, "track.view");
-  put_u32(b, 1);                 // draw/child section marker
-  put_str(b, "red_gem.mesh");
-  put_str(b, "track.env");
-
-  GroupObj g = decode_group("gem_template.view", b);
-  CHECK(g.name == "gem_template.view");
-  CHECK(g.has_transform);
-  CHECK(g.parent == "track.view");
-  CHECK(approx(g.local.pos[0], 7.85f));
-  CHECK(approx(g.local.pos[2], -0.0572f));
-  CHECK(g.children.size() == 1 && g.children[0] == "red_gem.mesh");
-  CHECK(g.environment_ref == "track.env");
-  std::printf("  [ok] Group: parent=%s pos=(%.2f,%.3f,%.4f) child=%s\n",
-              g.parent.c_str(), g.local.pos[0], g.local.pos[1],
-              g.local.pos[2], g.children[0].c_str());
 }
 
 }  // namespace
@@ -336,8 +477,11 @@ int main() {
   test_environ_with_lights();
   test_environ_with_extensionless_light();
   test_environ_with_fog();
+  test_cam_projection_fields();
+  test_group_transform();
+  test_band_placer();
+  test_real_menu_band_placers();
   test_mesh();
-  test_group();
   std::printf("ALL PASS\n");
   return 0;
 }
