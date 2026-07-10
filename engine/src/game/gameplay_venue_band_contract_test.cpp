@@ -1556,6 +1556,12 @@ int main() {
                  "\"[hud-dump]particle%-20smat=%-24stex=%-20s\"",
                  "star-power HUD dump exposes source particle material/blend rows");
   ok &= contains(hud_renderer_c,
+                 "\"blend=%ucolor=%08xprelit=%dref=%-24slayer=%-24s\"",
+                 "star-power HUD dump exposes source mesh prelit/ref/layer material rows");
+  ok &= contains(hud_renderer_c,
+                 "\"parent=%-20sblend=%ucolor=%08xprelit=%d\"",
+                 "star-power HUD dump exposes source particle prelit/ref/layer material rows");
+  ok &= contains(hud_renderer_c,
                  "out.back().blend=particle.blend;"
                  "out.back().additive=false;",
                  "star-power particle emission preserves authored blend without forcing additive");

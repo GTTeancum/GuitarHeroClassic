@@ -1218,36 +1218,48 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
     auto tex = layout.mat_tex.find(m.material);
     auto blend = layout.mat_blend.find(m.material);
     auto color = layout.mat_color.find(m.material);
+    auto prelit = layout.mat_prelit.find(m.material);
+    auto ref = layout.mat_ref.find(m.material);
+    auto layer_ref = layout.mat_layer_ref.find(m.material);
     auto uv = layout.mat_uv.find(m.material);
     const MatUvXfm uv_xfm = uv == layout.mat_uv.end() ? MatUvXfm{} : uv->second;
     std::fprintf(stderr,
                  "[hud-dump] %-27s mat=%-28s tex=%-24s parent=%-24s "
-                 "blend=%u color=%08x "
+                 "blend=%u color=%08x prelit=%d ref=%-24s layer=%-24s "
                  "x=%.3f..%.3f y=%.3f..%.3f z=%.3f..%.3f "
-                  "uv=%.3f..%.3f/%.3f..%.3f "
-                  "uvxfm=(%.3f %.3f;%.3f %.3f)+(%.3f %.3f) "
-                  "verts=%zu idx=%zu\n",
+                 "uv=%.3f..%.3f/%.3f..%.3f "
+                 "uvxfm=(%.3f %.3f;%.3f %.3f)+(%.3f %.3f) "
+                 "verts=%zu idx=%zu\n",
                  m.name.c_str(), m.material.c_str(),
                  tex == layout.mat_tex.end() ? "" : tex->second.c_str(),
                  m.parent.c_str(),
                  blend == layout.mat_blend.end() ? unsigned(kHudBlendSrcAlpha)
                                                   : unsigned(blend->second),
                  color == layout.mat_color.end() ? 0xFFFFFFFFu : color->second,
+                 prelit != layout.mat_prelit.end() && prelit->second ? 1 : 0,
+                 ref == layout.mat_ref.end() ? "" : ref->second.c_str(),
+                 layer_ref == layout.mat_layer_ref.end()
+                     ? ""
+                     : layer_ref->second.c_str(),
                  mn[0], mx[0], mn[1], mx[1], mn[2], mx[2],
-                  u0, u1, v0, v1,
-                  uv_xfm.m[0][0], uv_xfm.m[0][1],
-                  uv_xfm.m[1][0], uv_xfm.m[1][1],
-                  uv_xfm.m[2][0], uv_xfm.m[2][1],
-                  m.verts.size(), m.idx.size());
+                 u0, u1, v0, v1,
+                 uv_xfm.m[0][0], uv_xfm.m[0][1],
+                 uv_xfm.m[1][0], uv_xfm.m[1][1],
+                 uv_xfm.m[2][0], uv_xfm.m[2][1],
+                 m.verts.size(), m.idx.size());
   }
   for (const LoadedParticle& p : layout.particles) {
     if (p.name.find("amp_inside_bar_path") == std::string::npos) continue;
     auto tex = layout.mat_tex.find(p.material);
     auto blend = layout.mat_blend.find(p.material);
     auto color = layout.mat_color.find(p.material);
+    auto prelit = layout.mat_prelit.find(p.material);
+    auto ref = layout.mat_ref.find(p.material);
+    auto layer_ref = layout.mat_layer_ref.find(p.material);
     std::fprintf(stderr,
                  "[hud-dump] particle %-20s mat=%-24s tex=%-20s "
-                 "parent=%-20s blend=%u color=%08x showing=%d "
+                 "parent=%-20s blend=%u color=%08x prelit=%d "
+                 "ref=%-20s layer=%-20s showing=%d "
                  "max=%.1f size=%.2f..%.2f\n",
                  p.name.c_str(), p.material.c_str(),
                  tex == layout.mat_tex.end() ? "" : tex->second.c_str(),
@@ -1255,6 +1267,11 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
                  blend == layout.mat_blend.end() ? unsigned(kHudBlendSrcAlpha)
                                                   : unsigned(blend->second),
                  color == layout.mat_color.end() ? 0xFFFFFFFFu : color->second,
+                 prelit != layout.mat_prelit.end() && prelit->second ? 1 : 0,
+                 ref == layout.mat_ref.end() ? "" : ref->second.c_str(),
+                 layer_ref == layout.mat_layer_ref.end()
+                     ? ""
+                     : layer_ref->second.c_str(),
                  p.showing ? 1 : 0, p.max_particles, p.size_start,
                  p.size_end);
   }

@@ -10347,3 +10347,17 @@ Rejected native probe:
   `amp_inside_bar.mesh` plus `amp_tube_glow_meter.mesh` growing left-to-right
   at 25%, 75%, and 100% while the separate `amp_inside_bar_path.mesh` remains
   the always-present full-width thin blue line.
+
+2026-07-10 star-meter source material dump expansion:
+- Expanded the native HUD material dump so the star meter mesh/particle rows now
+  expose decoded source `prelit`, same-material `ref`, and extra material
+  `layer` fields in addition to mesh, material, diffuse texture, blend, color,
+  parent, UV range, and UV matrix. This is diagnostic/source-trace work only:
+  no render behavior, geometry, texture, color, or blend mode changed.
+- Fresh dump/capture:
+  `engine/out/star_power_trace_evidence_20260710/native_star_material_dump_current/`
+  pairs the native `--hud-sp 0.75` capture with rows for
+  `amp_inside_bar.mesh`, `amp_tube_glow_meter.mesh`,
+  `amp_inside_bar_path.mesh`, and `amp_inside_bar_path.part`. The paired PCSX2
+  forced-fill trace remains
+  `engine/out/star_power_trace_evidence_20260705/pcsx2_stock_star_force_partial_values_settled_no_focus/pcsx2_stock_star_force_partial_values_settled_trace.json`.
