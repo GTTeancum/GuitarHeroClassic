@@ -3885,6 +3885,32 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         }
         return drew;
       };
+  auto append_scaled_fill =
+      [&](const std::vector<Quad>& source,
+          const std::optional<uint32_t>& color_override, float alpha_scale,
+          const StarClipRange& scale_range) {
+        if (!scale_range.ok || !(scale_range.max_x > scale_range.min_x)) {
+          return false;
+        }
+        bool drew = false;
+        const float source_width = scale_range.max_x - scale_range.min_x;
+        const float filled_min_x = scale_range.max_x - source_width * fill;
+        for (const Quad& src : source) {
+          if (src.verts.size() < 3 || src.idx.size() < 3) continue;
+          Quad q = src;
+          q.color = scale_argb_alpha(
+              color_override ? *color_override : q.color, alpha_scale);
+          for (Quad::V& v : q.verts) {
+            const float t =
+                std::clamp((v.wx - scale_range.min_x) / source_width,
+                           0.0f, 1.0f);
+            v.wx = filled_min_x + t * (scale_range.max_x - filled_min_x);
+          }
+          out.push_back(std::move(q));
+          drew = true;
+        }
+        return drew;
+      };
   auto append_full_fill_uv =
       [&](const std::vector<Quad>& source,
           const std::optional<uint32_t>& color_override, float alpha_scale,
@@ -4081,8 +4107,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   }
   if (fill > 0.005f && meter_fill_glow) {
     drew_native_fill_glow =
-        append_clipped_fill(native_star_fill_glow_, std::nullopt,
-                            tube_meter_alpha, tube_meter_range);
+        append_scaled_fill(native_star_fill_glow_, std::nullopt,
+                           tube_meter_alpha, tube_meter_range);
     drew_native_fill |= drew_native_fill_glow;
   }
 
@@ -4159,6 +4185,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "path_line_layer=amp_inside_bar_path.mesh "
         "path_line_mode=persistent_full_width "
         "core_fill_mode=clipped_left_to_right "
+        "tube_meter_mode=scaled_left_to_right_full_uv "
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core "
         "sort_order=star_meter_view_child_order_then_ready_view "

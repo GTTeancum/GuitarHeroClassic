@@ -10119,3 +10119,20 @@ Rejected native probe:
   the next source-backed visual pass can focus on the remaining PCSX2
   material/blend/filter mismatch instead of re-litigating which layer is the
   stored meter body.
+
+2026-07-10 star-meter tube-meter glow fill preservation:
+- Rechecked the settled no-foreground PCSX2 partial-fill oracle against the
+  decoded `star_meter.milo_ps2` rows. The source `amp_inside_bar_path.mesh` line
+  is the always-present thin blue strip, while the broader fill/glow body grows
+  left-to-right through original meter layers. The PCSX2 `0.25` capture already
+  shows the bright `hud_meter_top_glow.tex` core inside the short filled region.
+- Native had been triangle-clipping `amp_tube_glow_meter.mesh`, which
+  interpolated UVs over the full original tube and clipped away the texture's
+  bright center at low fills. The renderer now scales the original
+  `amp_tube_glow_meter.mesh` span left-to-right while preserving its full source
+  UVs, so the original `amp_tube_glow_meter.mat` / `hud_meter_top_glow.tex`
+  contribution remains visible in partial fills.
+- This changes only the source-backed tube-meter glow fill mode. The thin
+  `amp_inside_bar_path.mesh` line stays full-width, the thick
+  `amp_inside_bar.mesh` body remains clipped left-to-right, and no replacement
+  art, fabricated overlay, or tuned non-MILO color was added.
