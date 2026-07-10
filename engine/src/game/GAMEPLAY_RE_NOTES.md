@@ -10475,3 +10475,15 @@ Rejected native probe:
   same, with `amp_inside_bar_path.mesh` remaining the always-present thin line
   and `amp_inside_bar.mesh` plus `amp_tube_glow_meter.mesh` forming the thicker
   stored fill body.
+
+2026-07-10 star-meter anchored thick-fill lock:
+- User observation clarified the proof read: the thin cyan/blue strip is the
+  always-present `amp_inside_bar_path.mesh` line in the stock game. The stored
+  value is the wider body, and that body must keep the filled left side while
+  growing toward the right.
+- Native now keeps the source-frame color/alpha sampling from the decoded MILO
+  filters, but removes the moving-span UV remap from the wide
+  `amp_tube_glow_meter.mesh` body. The layer is still clipped by source mesh
+  width and still uses the original `amp_tube_glow_meter.mat` /
+  `hud_meter_top_glow.tex`; this change only anchors the source UVs as the
+  thick body grows.
