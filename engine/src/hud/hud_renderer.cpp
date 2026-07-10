@@ -3855,6 +3855,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   }
   const Vec3AnimKey path_tex_translation =
       sample_vec3_key(star_path_tex_translation_keys_, path_tex_frame);
+  const float path_tex_post_flip_u_offset = -path_tex_translation.x;
+  const float path_tex_post_flip_v_offset = path_tex_translation.y;
   const bool debug_star_layer_enabled =
       env_enabled("GHOGX_DEBUG_HUD_STAR_LAYER");
   const std::string debug_star_layer =
@@ -4101,6 +4103,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
             for (Quad::V& v : q.verts) {
               v.u += u_offset;
               v.v += v_offset;
+              if (v.u < -0.001f || v.u > 1.001f ||
+                  v.v < -0.001f || v.v > 1.001f) {
+                q.wrap_uv = true;
+              }
             }
           }
           q.color = scale_argb_alpha(
@@ -4269,7 +4275,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   // This is the stock always-present thin path line, not the stored-fill body.
   if (debug_star_layer_matches("path", "inside_bar_path", "thin")) {
     drew_native_path_line = append_full_fill_uv(
-        native_star_path_glow_, std::nullopt, 1.0f, 0.0f, 0.0f);
+        native_star_path_glow_, std::nullopt, 1.0f,
+        path_tex_post_flip_u_offset, path_tex_post_flip_v_offset);
   }
   if (fill > 0.005f && meter_fill_glow &&
       debug_star_layer_matches("tube_meter", "wide_glow", "stored")) {
@@ -4472,7 +4479,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "core_color_frame=%.2f "
         "path_uv_keys=%zu path_uv_frame=%.2f "
         "path_uv_source=(%.3f,%.3f) "
-        "path_uv_applied=(0.000,0.000) "
+        "path_uv_applied=(%.3f,%.3f) "
         "source_uv_edges core_lr=(%.3f,%.3f) "
         "tube_lr=(%.3f,%.3f) tube_clip_u=%.3f "
         "path_lr=(%.3f,%.3f) "
@@ -4527,6 +4534,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         fill_core_color_frame,
         star_path_tex_translation_keys_.size(), path_tex_frame,
         path_tex_translation.x, path_tex_translation.y,
+        path_tex_post_flip_u_offset, path_tex_post_flip_v_offset,
         core_screen_left_u, core_screen_right_u,
         tube_screen_left_u, tube_screen_right_u, tube_clip_u,
         path_screen_left_u, path_screen_right_u,
