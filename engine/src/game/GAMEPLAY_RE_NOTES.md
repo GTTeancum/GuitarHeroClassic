@@ -10041,3 +10041,20 @@ Rejected native probe:
   `1.00` captures/logs plus
   `native_star_meter_fill_glow_gate_current_compare_proof.png`, paired against
   the settled PCSX2 partial-fill oracle.
+
+2026-07-10 star-meter fill/path diagnostic split:
+- User review clarified the proof interpretation: the thin blue bar visible in
+  native is the always-present stock `amp_inside_bar_path.mesh` line, while the
+  thicker white-blue stored-meter body is the clipped `amp_inside_bar.mesh`
+  fill. The path line should stay full-width; the broad core should retain the
+  already-filled left side and grow toward the right.
+- Native already renders those as separate original MILO layers, but the debug
+  row still folded the persistent path line into `native_fill`. Diagnostics now
+  report `path_line_drawn` separately and name
+  `fill_core_layer=amp_inside_bar.mesh`,
+  `path_line_layer=amp_inside_bar_path.mesh`,
+  `path_line_mode=persistent_full_width`, and
+  `core_fill_mode=clipped_left_to_right`.
+- This is a guardrail/traceability checkpoint, not a replacement-art fix. The
+  remaining fidelity work is still exact PCSX2 material/blend interpretation
+  for the broad core, tube fill glow, glass, and active-state effects.

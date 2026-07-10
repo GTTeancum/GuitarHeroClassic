@@ -1233,7 +1233,7 @@ int main() {
                "star-power must not draw a duplicate amp_inside_bar additive core pass");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_fill|=append_full_fill_uv(native_star_path_glow_,"
+      "drew_native_path_line=append_full_fill_uv(native_star_path_glow_,"
       "std::nullopt,1.0f,"
       "path_tex_translation.x,path_tex_translation.y);",
       "if(!native_star_top_.empty())"
@@ -1261,7 +1261,7 @@ int main() {
       "star-power tube-meter glow sits under the bright source core");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_fill|=append_full_fill_uv(native_star_path_glow_,"
+      "drew_native_path_line=append_full_fill_uv(native_star_path_glow_,"
       "std::nullopt,1.0f,"
       "path_tex_translation.x,path_tex_translation.y);",
       "if(!native_star_top_.empty())"
@@ -1362,6 +1362,21 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"fill_glow_gate=%d\"",
                  "star-power diagnostics expose the ready-view glow gate");
+  ok &= contains(hud_renderer_c,
+                 "\"path_line_drawn=%d\"",
+                 "star-power diagnostics keep the persistent path line separate from stored fill");
+  ok &= contains(hud_renderer_c,
+                 "\"fill_core_layer=amp_inside_bar.mesh\"",
+                 "star-power diagnostics name amp_inside_bar as the broad fill body");
+  ok &= contains(hud_renderer_c,
+                 "\"path_line_layer=amp_inside_bar_path.mesh\"",
+                 "star-power diagnostics name amp_inside_bar_path as the thin persistent line");
+  ok &= contains(hud_renderer_c,
+                 "\"path_line_mode=persistent_full_width\"",
+                 "star-power path line remains full-width instead of fill-clipped");
+  ok &= contains(hud_renderer_c,
+                 "\"core_fill_mode=clipped_left_to_right\"",
+                 "star-power broad core remains the left-to-right clipped fill");
   ok &= contains(hud_renderer_c,
                  "constfloattube_meter_alpha_frame=tube_meter_anim_frame;",
                  "star-power tube-meter alpha samples the live source MatAnim frame");

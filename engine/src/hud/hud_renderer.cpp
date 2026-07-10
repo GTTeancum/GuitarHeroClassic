@@ -3960,6 +3960,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   bool drew_native_fill = false;
   bool drew_native_particles = false;
   bool drew_native_fill_glow = false;
+  bool drew_native_path_line = false;
   bool drew_native_ready_mesh = false;
   bool drew_native_ready_glow = false;
   if (tube_glow) {
@@ -4002,7 +4003,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       }
     }
   }
-  drew_native_fill |= append_full_fill_uv(
+  // This is the stock always-present thin path line, not the stored-fill body.
+  drew_native_path_line = append_full_fill_uv(
       native_star_path_glow_, std::nullopt, 1.0f,
       path_tex_translation.x, path_tex_translation.y);
   if (!native_star_top_.empty())
@@ -4076,8 +4078,13 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "front=%zu glass=%zu base=%zu "
         "top=%zu caps=%zu native_fill=%d native_particles=%d "
         "ready_mesh_drawn=%d ready_glow_drawn=%d fill_glow_drawn=%d "
+        "path_line_drawn=%d "
         "fallback_fill=%d ready_view=star_meter_ready.view "
         "fill_glow_gate=%d "
+        "fill_core_layer=amp_inside_bar.mesh "
+        "path_line_layer=amp_inside_bar_path.mesh "
+        "path_line_mode=persistent_full_width "
+        "core_fill_mode=clipped_left_to_right "
         "source_layers=amp_inside_bar.mesh,amp_inside_bar_path.mesh,"
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
@@ -4113,7 +4120,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         native_star_top_.size(), native_star_caps_.size(),
         drew_native_fill ? 1 : 0, drew_native_particles ? 1 : 0,
         drew_native_ready_mesh ? 1 : 0, drew_native_ready_glow ? 1 : 0,
-        drew_native_fill_glow ? 1 : 0, 0, meter_fill_glow ? 1 : 0,
+        drew_native_fill_glow ? 1 : 0, drew_native_path_line ? 1 : 0,
+        0, meter_fill_glow ? 1 : 0,
         first_quad_core_emit4x(native_star_fill_) ? 1 : 0,
         any_quad_core_add_emit(native_star_core_emission_) ? 1 : 0,
         any_quad_texture_emit4x(native_star_path_glow_) ? 1 : 0,
