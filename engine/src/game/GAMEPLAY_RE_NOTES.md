@@ -9884,3 +9884,27 @@ Rejected native probe:
 - Caveat: this is a source-backed brightness checkpoint, not final parity. The
   stock PCSX2 partial-fill oracle still remains the comparison target for exact
   center-core width, path texture placement, and glass contrast.
+
+2026-07-09 star-meter left-anchored fill correction:
+- The PCSX2 settled partial-fill oracle shows the star-power fill accumulating
+  from the left cap toward the right cap; the already-filled left side remains
+  visible at `0.75`, `1.00`, and active `1.00`. The prior native checkpoint
+  incorrectly sampled `amp_inside_star.mnm` texture translation from the stored
+  fill value, which made the hot path/core texture slide right as the meter
+  filled.
+- Native now keeps the decoded `amp_inside_star.mnm` texture translation
+  anchored at its first source key and lets the existing source mesh clipping
+  drive fill width. This keeps the original `amp_inside_bar.mesh` /
+  `amp_inside_star.mat` emitted core and `amp_inside_bar_path.mesh` /
+  `amp_inside_star_path.mat` alpha-emission strip, but stops treating a texture
+  animation as the gauge mask.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260709/native_star_left_anchored_core_current/`
+  contains native `0.25`, `0.50`, `0.75`, `1.00`, and active `1.00` captures
+  plus `native_star_left_anchored_core_compare_proof.png`, paired against the
+  existing settled PCSX2 partial-fill captures. The refreshed log rows report
+  `core_emit4x=1 path_alpha_emission=1 path_uv_frame=0.00
+  path_uv=(-0.400,0.000)`.
+- Caveat: this fixes the fill direction/anchoring regression. Exact tube core
+  thickness, hot path placement, and glass contrast still need the PCSX2
+  GS-stage/blend trace before final signoff.

@@ -1056,8 +1056,8 @@ int main() {
                  "star_path_tex_translation_anim_duration_);",
                  "star-power path glow uses the source amp_inside_star MatAnim texture translation");
   ok &= contains(hud_renderer_c,
-                 "path_tex_frame=std::clamp(fill,0.0f,1.0f)*duration;",
-                 "star-power path texture frame follows the stored meter fill over the decoded amp_inside_star.mnm frame range");
+                 "path_tex_frame=star_path_tex_translation_keys_.front().frame;",
+                 "star-power path texture stays anchored while the source mesh clip grows the stored meter");
   ok &= contains(hud_renderer_c,
                  "copy_alpha_keys(\"amp_tube_glow_meter.mnm\","
                  "star_tube_meter_alpha_keys_,star_tube_meter_anim_duration_);",

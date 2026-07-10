@@ -3659,9 +3659,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   };
   float path_tex_frame = 0.0f;
   if (!star_path_tex_translation_keys_.empty()) {
-    const float duration = std::max(1.0f,
-                                    star_path_tex_translation_anim_duration_);
-    path_tex_frame = std::clamp(fill, 0.0f, 1.0f) * duration;
+    path_tex_frame = star_path_tex_translation_keys_.front().frame;
   }
   const Vec3AnimKey path_tex_translation =
       sample_vec3_key(star_path_tex_translation_keys_, path_tex_frame);
