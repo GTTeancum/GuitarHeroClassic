@@ -221,6 +221,35 @@ void source_insert_tex_suffix(std::string& path, const char* suffix) {
   path.insert(dot, suffix);
 }
 
+size_t source_bitmap_palette_bytes(int32_t bpp, uint32_t order) {
+  if (bpp <= 0 || bpp > 30) return 0;
+  if (bpp <= 8 && (order & 0x38u) == 0 && (order & 0x80u) == 0) {
+    return static_cast<size_t>(1u << bpp) * 4u;
+  }
+  return 0;
+}
+
+size_t source_bitmap_row_bytes_for_width(int32_t width, int32_t bpp) {
+  if (width <= 0 || bpp <= 0) return 0;
+  return static_cast<size_t>(bpp) * static_cast<size_t>(width) / 8u;
+}
+
+size_t source_bitmap_mip_pixel_bytes(int32_t width, int32_t height,
+                                     int32_t bpp, int32_t mip_count) {
+  if (width <= 0 || height <= 0 || bpp <= 0 || mip_count <= 0) return 0;
+  size_t bytes = 0;
+  int32_t mip_width = width;
+  int32_t mip_height = height;
+  for (int32_t i = 0; i < mip_count; ++i) {
+    mip_width >>= 1;
+    mip_height >>= 1;
+    if (mip_width <= 0 || mip_height <= 0) break;
+    bytes += source_bitmap_row_bytes_for_width(mip_width, bpp) *
+             static_cast<size_t>(mip_height);
+  }
+  return bytes;
+}
+
 }  // namespace
 
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
@@ -1047,6 +1076,21 @@ RndTex decode_rnd_tex(const std::string& entry_name,
       bitmap.skip(tex.bitmap_version != 0 ? 0x13 : 6);
       tex.bitmap_header_decoded = true;
       tex.cached_bitmap_payload_bytes = bitmap.n - bitmap.pos;
+      tex.bitmap_palette_bytes =
+          source_bitmap_palette_bytes(tex.bitmap_bpp, tex.bitmap_order);
+      if (tex.bitmap_height >= 0 && tex.bitmap_row_bytes >= 0) {
+        tex.bitmap_base_pixel_bytes =
+            static_cast<size_t>(tex.bitmap_row_bytes) *
+            static_cast<size_t>(tex.bitmap_height);
+      }
+      tex.bitmap_mip_pixel_bytes = source_bitmap_mip_pixel_bytes(
+          tex.bitmap_width, tex.bitmap_height, tex.bitmap_bpp,
+          tex.bitmap_mip_count);
+      tex.bitmap_expected_payload_bytes =
+          tex.bitmap_palette_bytes + tex.bitmap_base_pixel_bytes +
+          tex.bitmap_mip_pixel_bytes;
+      tex.bitmap_payload_size_matches =
+          tex.bitmap_expected_payload_bytes == tex.cached_bitmap_payload_bytes;
       if (tex.cached_bitmap_payload_bytes > 0) {
         tex.cached_bitmap_payload_prefix_hex =
             hex_bytes(bitmap.p + bitmap.pos,

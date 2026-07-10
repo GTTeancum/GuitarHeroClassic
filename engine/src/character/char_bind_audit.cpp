@@ -542,7 +542,10 @@ void audit_types(const Character& c, const std::string& milo_path) {
         "hasPostFlag=%d postFlag=%d optimizeForPS3=%d cachedBitmapBytes=%zu "
         "bitmapHeader=%d bitmapVer=%d bitmapBpp=%d bitmapOrder=0x%x "
         "bitmapMips=%d bitmapWidth=%d bitmapHeight=%d bitmapRowBytes=%d "
-        "cachedBitmapPayloadBytes=%zu payloadHexPrefix=%s bitmapHeaderError=%s\n",
+        "bitmapPaletteBytes=%zu bitmapBasePixelBytes=%zu "
+        "bitmapMipPixelBytes=%zu bitmapExpectedPayloadBytes=%zu "
+        "cachedBitmapPayloadBytes=%zu payloadSizeMatch=%d "
+        "payloadHexPrefix=%s bitmapHeaderError=%s\n",
         c.dir_name.c_str(), tex.name.c_str(), tex.version, tex.alt_version,
         tex.width, tex.height, tex.bpp, none_if_empty(tex.filepath),
         tex.power_of_two ? 1 : 0, tex.mip_map_k,
@@ -554,7 +557,11 @@ void audit_types(const Character& c, const std::string& milo_path) {
         tex.bitmap_header_decoded ? 1 : 0, tex.bitmap_version, tex.bitmap_bpp,
         static_cast<unsigned>(tex.bitmap_order), tex.bitmap_mip_count,
         tex.bitmap_width, tex.bitmap_height, tex.bitmap_row_bytes,
+        tex.bitmap_palette_bytes, tex.bitmap_base_pixel_bytes,
+        tex.bitmap_mip_pixel_bytes,
+        tex.bitmap_expected_payload_bytes,
         tex.cached_bitmap_payload_bytes,
+        tex.bitmap_payload_size_matches ? 1 : 0,
         none_if_empty(tex.cached_bitmap_payload_prefix_hex),
         none_if_empty(tex.bitmap_header_error));
   }

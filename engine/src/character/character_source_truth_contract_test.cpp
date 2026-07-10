@@ -178,6 +178,10 @@ int run_contract() {
       rb3_latest_rndobj_dir / "Tex.h"));
   const std::string rb3_latest_bitmap_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "Bitmap.cpp"));
+  const std::string rb3_latest_chunk_stream_cpp = compact(read_file(
+      rb3_latest_utl_dir / "ChunkStream.cpp"));
+  const std::string rb3_latest_chunk_stream_h = compact(read_file(
+      rb3_latest_utl_dir / "ChunkStream.h"));
   const std::string rb3_latest_file_path_h = compact(read_file(
       rb3_latest_utl_dir / "FilePath.h"));
   const std::string rb3_latest_char_weight_setter_cpp = compact(read_file(
@@ -1040,6 +1044,35 @@ int run_contract() {
   ok &= contains(rb3_latest_bitmap_cpp,
                  "bs>>test;bs>>mWidth;bs>>mHeight;bs>>mRowBytes;",
                  "latest RndBitmap source backs dimensions and row bytes");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "intRndBitmap::PaletteBytes()const{if(mBpp<=8){"
+                 "if((mOrder&0x38)==0&&(mOrder&0x80)==0){"
+                 "return(1<<mBpp)*4;}}return0;}",
+                 "latest RndBitmap source backs palette-byte size");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "if(mPalette)bs.Read(mPalette,PaletteBytes());"
+                 "ReadChunks(bs,mPixels,mRowBytes*mHeight,0x8000);",
+                 "latest RndBitmap source backs base payload read length");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "working_w=working_w>>1;working_h=working_h>>1;"
+                 "newMip->Create(working_w,working_h,0,mBpp,mOrder,mPalette,0,0);"
+                 "ReadChunks(bs,newMip->mPixels,newMip->mRowBytes*"
+                 "newMip->mHeight,0x8000);",
+                 "latest RndBitmap source backs mip payload loop");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "elseif(mBpp*mWidth/8!=mRowBytes)",
+                 "latest RndBitmap source backs row-byte relation");
+  ok &= contains(rb3_latest_chunk_stream_h,
+                 "BinStream&ReadChunks(BinStream&,void*,int,int);",
+                 "latest ChunkStream header exposes ReadChunks");
+  ok &= contains(rb3_latest_chunk_stream_cpp,
+                 "while(curr_size!=total_len){intlen_left=Min(total_len-"
+                 "curr_size,max_chunk_size);",
+                 "latest ChunkStream source reads chunks until total length");
+  ok &= contains(rb3_latest_chunk_stream_cpp,
+                 "bs.Read(&dataAsChars[curr_size],len_left);curr_size+="
+                 "len_left;",
+                 "latest ChunkStream source backs exact chunk byte reads");
   ok &= contains(rb2_dolmatch_filt,
                  "FixClassName__9DirLoaderF6Symbol@WorldFx@3",
                  "RB2 dump exposes only WorldFx DirLoader fixup evidence");
@@ -1074,8 +1107,8 @@ int run_contract() {
                  "prefix using `EventTrigger::Load`",
                  "document promotes EventTrigger to passive source inventory");
   ok &= contains(doc,
-                 "native texture payloads are already handled by\n"
-                 "  the PS2 texture asset path",
+                 "native texture\n  payloads are already handled by the PS2 "
+                 "texture asset path",
                  "document keeps Tex rows in asset texture path");
   ok &= contains(doc, "## Rnd Texture Row Authority",
                  "document records RndTex source authority section");
@@ -1083,6 +1116,12 @@ int run_contract() {
                  "records 160 stock `Tex` rows with source "
                  "`RndBitmap::LoadHeader` fields",
                  "document records focused RndTex stock proof");
+  ok &= contains(doc, "all 160 stock\nrows report `payloadSizeMatch=1`",
+                 "document records focused RndBitmap payload proof");
+  ok &= contains(doc,
+                 "The inventory includes two stock mip textures\n"
+                 "(`metal_keyboard_mip.tex` and `metal_singer_belt_mip.tex`)",
+                 "document records focused RndBitmap mip proof");
   ok &= contains(doc,
                  "there is no\n  checked `WorldFx::Load` source body",
                  "document fences WorldFx load body absence");
@@ -1176,6 +1215,42 @@ int run_contract() {
                  "bitmap.skip(tex.bitmap_version!=0?0x13:6);",
                  "RndTex decoder skips source bitmap header padding");
   ok &= contains(char_mesh,
+                 "size_tsource_bitmap_palette_bytes(int32_tbpp,uint32_torder)",
+                 "RndTex decoder has source palette byte helper");
+  ok &= contains(char_mesh,
+                 "returnstatic_cast<size_t>(1u<<bpp)*4u;",
+                 "RndTex decoder mirrors source palette byte size");
+  ok &= contains(char_mesh,
+                 "tex.bitmap_base_pixel_bytes=static_cast<size_t>"
+                 "(tex.bitmap_row_bytes)*static_cast<size_t>"
+                 "(tex.bitmap_height);",
+                 "RndTex decoder mirrors base bitmap pixel byte size");
+  ok &= contains(char_mesh,
+                 "size_tsource_bitmap_row_bytes_for_width(int32_twidth,"
+                 "int32_tbpp)",
+                 "RndTex decoder has source mip row-byte helper");
+  ok &= contains(char_mesh,
+                 "returnstatic_cast<size_t>(bpp)*static_cast<size_t>(width)/8u;",
+                 "RndTex decoder mirrors source row-byte relation");
+  ok &= contains(char_mesh,
+                 "size_tsource_bitmap_mip_pixel_bytes(int32_twidth,"
+                 "int32_theight,int32_tbpp,int32_tmip_count)",
+                 "RndTex decoder has source mip payload helper");
+  ok &= contains(char_mesh,
+                 "mip_width>>=1;mip_height>>=1;",
+                 "RndTex decoder mirrors source mip dimension loop");
+  ok &= contains(char_mesh,
+                 "tex.bitmap_mip_pixel_bytes=source_bitmap_mip_pixel_bytes(",
+                 "RndTex decoder records source mip payload bytes");
+  ok &= contains(char_mesh,
+                 "tex.bitmap_expected_payload_bytes=tex.bitmap_palette_bytes+"
+                 "tex.bitmap_base_pixel_bytes+tex.bitmap_mip_pixel_bytes;",
+                 "RndTex decoder computes source payload byte count");
+  ok &= contains(char_mesh,
+                 "tex.bitmap_payload_size_matches=tex.bitmap_expected_payload_bytes=="
+                 "tex.cached_bitmap_payload_bytes;",
+                 "RndTex decoder verifies cached bitmap payload size");
+  ok &= contains(char_mesh,
                  "out.tex_rows.push_back(decode_rnd_tex(de.name,b));",
                  "native character graph stores passive RndTex inventory");
   ok &= contains(bind_audit,
@@ -1185,6 +1260,15 @@ int run_contract() {
                  "bind audit logs cached bitmap payload boundary");
   ok &= contains(bind_audit, "bitmapHeader=%dbitmapVer=%dbitmapBpp=%d",
                  "bind audit logs RndBitmap header fields");
+  ok &= contains(bind_audit,
+                 "bitmapPaletteBytes=%zubitmapBasePixelBytes=%zu",
+                 "bind audit logs RndBitmap payload source sizes");
+  ok &= contains(bind_audit,
+                 "bitmapMipPixelBytes=%zubitmapExpectedPayloadBytes=%zu",
+                 "bind audit logs RndBitmap mip payload source sizes");
+  ok &= contains(bind_audit,
+                 "cachedBitmapPayloadBytes=%zupayloadSizeMatch=%d",
+                 "bind audit logs RndBitmap payload size validation");
   ok &= contains(bind_audit, "payloadHexPrefix=%sbitmapHeaderError=%s",
                  "bind audit logs cached bitmap payload prefix");
   ok &= missing(char_mesh, "OutfitLoader",

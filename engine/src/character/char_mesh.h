@@ -389,7 +389,12 @@ struct RndTex {
   int32_t bitmap_width = 0;
   int32_t bitmap_height = 0;
   int32_t bitmap_row_bytes = 0;
+  size_t bitmap_palette_bytes = 0;
+  size_t bitmap_base_pixel_bytes = 0;
+  size_t bitmap_mip_pixel_bytes = 0;
+  size_t bitmap_expected_payload_bytes = 0;
   size_t cached_bitmap_payload_bytes = 0;
+  bool bitmap_payload_size_matches = false;
   std::string cached_bitmap_payload_prefix_hex;
   std::string bitmap_header_error;
 };
