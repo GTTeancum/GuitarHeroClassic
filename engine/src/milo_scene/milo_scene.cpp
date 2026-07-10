@@ -9,6 +9,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <optional>
 #include <stdexcept>
@@ -80,6 +81,21 @@ struct Reader {
 // metadata) and the 9-byte block between the Trans matrices and its parent
 // string. Constant across all GH2 PS2 render objects we have inspected.
 constexpr size_t kObjMeta = 9;
+
+bool debug_worldcrowd_decode_enabled() {
+#if defined(_WIN32)
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, "GHOGX_DEBUG_WORLDCROWD") != 0) return false;
+  const bool enabled =
+      value != nullptr && value[0] != '\0' && std::strcmp(value, "0") != 0;
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_WORLDCROWD");
+  return value != nullptr && value[0] != '\0' && std::strcmp(value, "0") != 0;
+#endif
+}
 
 bool is_environ_light_ref(std::string_view ref) {
   if (ref.empty()) return false;
@@ -837,6 +853,15 @@ MatObj decode_mat(const std::string& entry_name,
     std::string cand(s, len);
     if (cand.size() >= 4 && cand.compare(cand.size() - 4, 4, ".tex") == 0) {
       m.diffuse_tex = cand;
+      size_t cursor = o + 4 + len;
+      try {
+        (void)read_string_at(body, cursor);
+        if (cursor + 2 <= body.size()) {
+          ++cursor;  // intensify
+          m.cull = body[cursor] != 0;
+        }
+      } catch (const std::exception&) {
+      }
       break;
     }
   }
@@ -1090,65 +1115,108 @@ WorldCrowdObj decode_world_crowd(const std::string& entry_name,
   WorldCrowdObj crowd;
   crowd.name = entry_name;
   try {
-    const auto strings = scan_strings_with_offsets(body);
-    const auto area_it = std::find_if(
-        strings.begin(), strings.end(), [](const ScannedString& s) {
-          return s.value.size() >= 5 &&
-                 s.value.compare(s.value.size() - 5, 5, ".mesh") == 0;
-        });
-    if (area_it == strings.end()) {
+    Reader r(body.data(), body.size());
+    const uint32_t combined = r.u32();
+    const uint16_t revision = static_cast<uint16_t>(combined & 0xffffu);
+
+    const uint32_t draw_combined = r.u32();
+    const uint16_t draw_revision =
+        static_cast<uint16_t>(draw_combined & 0xffffu);
+    (void)r.u8();  // RndDrawable.showing
+    if (draw_revision < 2) {
+      const uint32_t drawable_count = r.u32();
+      for (uint32_t i = 0; i < drawable_count; ++i) (void)r.str();
+    }
+    if (draw_revision > 0) r.skip(16);  // bounding sphere
+    if (draw_revision > 2) r.skip(4);   // draw order
+    if (draw_revision >= 4) {
+      const uint32_t clip_plane_count = r.u32();
+      for (uint32_t i = 0; i < clip_plane_count; ++i) (void)r.str();
+    }
+
+    crowd.area_mesh = r.str();
+    if (crowd.area_mesh.empty()) {
       throw std::runtime_error("milo_scene: WorldCrowd has no area mesh ref");
     }
 
-    crowd.area_mesh = area_it->value;
-    const size_t after_area = area_it->offset + 4 + area_it->value.size();
-    crowd.total_placements = read_u32_at(body, after_area);
+    if (revision < 3) r.skip(4);
+    crowd.total_placements = r.u32();
+    if (revision < 8) (void)r.u8();
 
-    // GH2 PS2 arena_chars.milo_ps2 stores one pad/flag byte after the total
-    // placement count, then a u32 actor count and actor records:
-    //   str actor, f32 param0, f32 param1, f32 param2.
-    const size_t actor_count_offset = after_area + 5;
-    const uint32_t actor_count = read_u32_at(body, actor_count_offset);
+    const uint32_t actor_count = r.u32();
     if (actor_count == 0 || actor_count > 128) {
       throw std::runtime_error("milo_scene: implausible WorldCrowd actor count");
     }
 
-    size_t cursor = actor_count_offset + 4;
     crowd.actors.reserve(actor_count);
     for (uint32_t i = 0; i < actor_count; ++i) {
       WorldCrowdActor actor;
-      actor.name = read_string_at(body, cursor);
+      actor.name = r.str();
       if (actor.name.empty()) {
         throw std::runtime_error("milo_scene: empty WorldCrowd actor name");
       }
-      for (float& value : actor.params) {
-        value = read_f32_at(body, cursor);
-        cursor += 4;
-      }
+      actor.params[0] = r.f32();  // height
+      actor.params[1] = r.f32();  // density
+      if (revision > 1) actor.params[2] = r.f32();  // radius
+      if (revision > 8) (void)r.u8();               // useRandomColor
       crowd.actors.push_back(std::move(actor));
     }
 
+    if (revision > 6) (void)r.str();  // environ
+    if (revision > 9) (void)r.str();  // environ3D
+
     uint32_t decoded_placements = 0;
     crowd.placement_sets.reserve(crowd.actors.size());
-    for (const auto& actor : crowd.actors) {
-      const uint32_t count = read_u32_at(body, cursor);
-      cursor += 4;
-      if (count > 4096 ||
-          static_cast<uint64_t>(count) * 48u > body.size() - cursor) {
-        throw std::runtime_error(
-            "milo_scene: implausible WorldCrowd placement count");
+    const bool debug_decode = debug_worldcrowd_decode_enabled();
+    if (revision > 1) {
+      for (size_t actor_index = 0; actor_index < crowd.actors.size();
+           ++actor_index) {
+        const auto& actor = crowd.actors[actor_index];
+        const uint32_t count = r.u32();
+        // GH2 PS2 revision 6 stores matrix-only placement rows in the source
+        // MILOs. Later pre-0x0e rows match ihatecompvir's OldMultiMeshInstance
+        // class shape with a trailing color.
+        const bool old_instance_has_color = revision > 6 && revision < 0x0e;
+        const size_t bytes_per_instance = old_instance_has_color ? 64u : 48u;
+        if (debug_decode) {
+          std::fprintf(stderr,
+                       "[milo_scene]   WorldCrowd '%s' actor[%zu]=%s "
+                       "count=%u cursor=%zu stride=%zu\n",
+                       entry_name.c_str(), actor_index, actor.name.c_str(),
+                       count, r.pos, bytes_per_instance);
+        }
+        if (count > 4096 ||
+            static_cast<uint64_t>(count) * bytes_per_instance >
+                body.size() - r.pos) {
+          throw std::runtime_error(
+              "milo_scene: implausible WorldCrowd placement count actor=" +
+              std::to_string(actor_index) + " name=" + actor.name +
+              " count=" + std::to_string(count) +
+              " cursor=" + std::to_string(r.pos));
+        }
+        WorldCrowdPlacementSet set;
+        set.actor_name = actor.name;
+        set.placements.reserve(count);
+        for (uint32_t i = 0; i < count; ++i) {
+          set.placements.push_back(r.matrix());
+          if (old_instance_has_color) r.skip(16);
+        }
+        decoded_placements += count;
+        crowd.placement_sets.push_back(std::move(set));
       }
-      WorldCrowdPlacementSet set;
-      set.actor_name = actor.name;
-      set.placements.reserve(count);
-      for (uint32_t i = 0; i < count; ++i) {
-        Reader r(body.data() + cursor, body.size() - cursor);
-        set.placements.push_back(r.matrix());
-        cursor += 48;
+    } else {
+      for (const auto& actor : crowd.actors) {
+        WorldCrowdPlacementSet set;
+        set.actor_name = actor.name;
+        crowd.placement_sets.push_back(std::move(set));
       }
-      decoded_placements += count;
-      crowd.placement_sets.push_back(std::move(set));
     }
+
+    if (revision > 4) r.skip(4);       // modifyStamp
+    if (revision > 0x0c) (void)r.u8(); // force3DCrowd
+    if (revision > 5) (void)r.u8();    // show3DOnly
+    if (revision > 0x0b) (void)r.str();
+
     if (crowd.total_placements != 0 &&
         decoded_placements != crowd.total_placements) {
       throw std::runtime_error(
@@ -1357,7 +1425,16 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
           out.particles.push_back(std::move(p));
         } else if (de.type == "WorldCrowd") {
           WorldCrowdObj c = decode_world_crowd(de.name, b);
-          if (c.decoded) ++world_crowd_ok; else ++world_crowd_fail;
+          if (c.decoded) {
+            ++world_crowd_ok;
+          } else {
+            ++world_crowd_fail;
+            if (debug_worldcrowd_decode_enabled()) {
+              std::fprintf(stderr,
+                           "[milo_scene]   WorldCrowd '%s' decode: %s\n",
+                           de.name.c_str(), c.error.c_str());
+            }
+          }
           out.world_crowds.push_back(std::move(c));
         }
       } catch (const std::exception& ex) {

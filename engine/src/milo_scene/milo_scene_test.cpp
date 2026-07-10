@@ -476,6 +476,44 @@ void test_mesh() {
   CHECK(!h.showing);
 }
 
+void test_world_crowd_gh2_matrix_stride() {
+  std::vector<uint8_t> b;
+  put_u32(b, 6);                 // WorldCrowd revision used by GH2 PS2 chars.
+  put_u32(b, 3);                 // RndDrawable revision.
+  b.push_back(1);                // showing
+  put_f32(b, 0); put_f32(b, 0); put_f32(b, 0); put_f32(b, 0);
+  put_f32(b, 0);                 // draw order
+  put_str(b, "Crowd_area.mesh"); // placement mesh
+  put_u32(b, 2);                 // total placements
+  b.push_back(0);                // pre-rev8 flag
+  put_u32(b, 1);                 // actor count
+  put_str(b, "crowd_male01");
+  put_f32(b, 95.0f);             // height
+  put_f32(b, 1.0f);              // density
+  put_f32(b, 10.0f);             // radius
+  put_u32(b, 2);                 // GH2 matrix-only placement count
+  put_matrix(b, 10.0f, 20.0f, 30.0f);
+  put_matrix(b, 40.0f, 50.0f, 60.0f);
+  put_u32(b, 1234);              // modifyStamp
+  b.push_back(0);                // show3DOnly
+
+  WorldCrowdObj crowd = decode_world_crowd("crowd", b);
+  CHECK(crowd.decoded);
+  CHECK(crowd.area_mesh == "Crowd_area.mesh");
+  CHECK(crowd.total_placements == 2);
+  CHECK(crowd.actors.size() == 1);
+  CHECK(crowd.placement_sets.size() == 1);
+  CHECK(crowd.placement_sets[0].placements.size() == 2);
+  CHECK(approx(crowd.placement_sets[0].placements[0].pos[0], 10.0f));
+  CHECK(approx(crowd.placement_sets[0].placements[0].pos[1], 20.0f));
+  CHECK(approx(crowd.placement_sets[0].placements[0].pos[2], 30.0f));
+  CHECK(approx(crowd.placement_sets[0].placements[1].pos[0], 40.0f));
+  CHECK(approx(crowd.placement_sets[0].placements[1].pos[1], 50.0f));
+  CHECK(approx(crowd.placement_sets[0].placements[1].pos[2], 60.0f));
+  std::printf("  [ok] WorldCrowd rev6: placements=%u matrix stride\n",
+              crowd.total_placements);
+}
+
 }  // namespace
 
 int main() {
@@ -491,6 +529,7 @@ int main() {
   test_band_placer();
   test_real_menu_band_placers();
   test_mesh();
+  test_world_crowd_gh2_matrix_stride();
   std::printf("ALL PASS\n");
   return 0;
 }

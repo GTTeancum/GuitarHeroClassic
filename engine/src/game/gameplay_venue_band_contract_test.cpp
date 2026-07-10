@@ -5170,8 +5170,11 @@ int main() {
                  "m.tex_xfm[2][2]=1.0f;",
                  "Mat decoder preserves UV offset while forcing 2-D homogeneous texture scale");
   ok &= contains(milo_scene_cpp_c,
-                 "crowd.total_placements=read_u32_at(body,after_area);",
+                 "crowd.total_placements=r.u32();",
                  "WorldCrowd decoder preserves the authored placement total");
+  ok &= contains(milo_scene_cpp_c,
+                 "constboolold_instance_has_color=revision>6&&revision<0x0e;",
+                 "WorldCrowd decoder keeps GH2 revision 6 matrix-only placement rows");
   ok &= contains(milo_scene_cpp_c,
                  "out.world_crowds.push_back(std::move(c));",
                  "scene assembly retains decoded WorldCrowd objects");

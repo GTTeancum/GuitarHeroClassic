@@ -245,6 +245,7 @@ struct MatObj {
   float tex_offset[2] = {0.0f, 0.0f};
   bool use_environ = false;
   bool prelit = false;
+  bool cull = true;
   bool decoded = false;
 };
 

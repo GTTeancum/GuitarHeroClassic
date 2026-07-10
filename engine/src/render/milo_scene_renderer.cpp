@@ -1244,10 +1244,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
   // Mirroring clip-X flips winding for the D3D bridge. Keep the broadly
   // validated CW default; debug overrides let individual venue winding issues
   // be inspected without changing asset data.
-  DWORD cull_mode = D3DCULL_CW;
-  if (env_enabled("GHOGX_CULL_CCW")) cull_mode = D3DCULL_CCW;
-  if (env_enabled("GHOGX_CULL_NONE")) cull_mode = D3DCULL_NONE;
-  dev_->SetRenderState(D3DRS_CULLMODE, cull_mode);
+  DWORD authored_cull_mode = D3DCULL_CW;
+  if (env_enabled("GHOGX_CULL_CCW")) authored_cull_mode = D3DCULL_CCW;
+  if (env_enabled("GHOGX_CULL_NONE")) authored_cull_mode = D3DCULL_NONE;
+  dev_->SetRenderState(D3DRS_CULLMODE, authored_cull_mode);
   dev_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
   dev_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
   dev_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
@@ -1560,6 +1560,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       material_blend = kBlendSrc;
     }
     const BlendState blend_state = blend_state_for(material_blend);
+    const DWORD mesh_cull_mode =
+        (mat_obj && !mat_obj->cull) ? D3DCULL_NONE : authored_cull_mode;
+    dev_->SetRenderState(D3DRS_CULLMODE, mesh_cull_mode);
     if (material_blend == kBlendAdd && ma < 0.999f) {
       // ONE/ONE additive blending ignores vertex alpha, so treat Mat alpha as
       // authored emissive intensity for fading glows/beams.
