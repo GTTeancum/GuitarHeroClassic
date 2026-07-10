@@ -3927,9 +3927,18 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     if (!range.ok) return 0.0f;
     return range.max_x - (range.max_x - range.min_x) * fill;
   };
+  constexpr float kStarPathLengthScale = 2.0f;
+  StarClipRange path_render_range = path_glow_range;
+  if (path_render_range.ok) {
+    path_render_range.min_x =
+        path_render_range.max_x -
+        (path_glow_range.max_x - path_glow_range.min_x) *
+            kStarPathLengthScale;
+  }
   const float core_total_width = range_width(core_fill_range);
   const float stored_total_width = range_width(stored_fill_range);
-  const float path_total_width = range_width(path_glow_range);
+  const float path_source_total_width = range_width(path_glow_range);
+  const float path_total_width = range_width(path_render_range);
   const float tube_meter_total_width = range_width(tube_meter_range);
   const float stored_clip_x = clip_x_for_range(stored_fill_range);
   const float core_visible_width = core_total_width;
@@ -3942,10 +3951,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       tube_meter_range.ok
           ? std::max(0.0f, tube_meter_range.max_x - tube_meter_clip_x)
           : 0.0f;
-  const float path_clip_x = clip_x_for_range(path_glow_range);
+  const float path_clip_x = clip_x_for_range(path_render_range);
   const float path_visible_width =
-      path_glow_range.ok
-          ? std::max(0.0f, path_glow_range.max_x - path_clip_x)
+      path_render_range.ok
+          ? std::max(0.0f, path_render_range.max_x - path_clip_x)
           : 0.0f;
   constexpr float kStarCoreThicknessScale = 0.65f;
   constexpr bool kDrawStarBaseBarLayer = false;
@@ -4132,6 +4141,26 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
           drew |= append_clipped_quad(src, color_override, nullptr,
                                       alpha_scale, clip_range,
                                       containment_range,
+                                      remap_u_to_visible_span);
+        }
+        return drew;
+      };
+  auto append_scaled_x_clipped_fill =
+      [&](const std::vector<Quad>& source,
+          const std::optional<uint32_t>& color_override, float alpha_scale,
+          const StarClipRange& source_range, const StarClipRange& clip_range,
+          float x_scale, bool remap_u_to_visible_span = false) {
+        bool drew = false;
+        const float anchor_x = source_range.ok ? source_range.max_x : 0.0f;
+        for (const Quad& src : source) {
+          Quad q = src;
+          if (source_range.ok && std::fabs(x_scale - 1.0f) > 0.0001f) {
+            for (Quad::V& v : q.verts) {
+              v.wx = anchor_x + (v.wx - anchor_x) * x_scale;
+            }
+          }
+          drew |= append_clipped_quad(q, color_override, nullptr, alpha_scale,
+                                      clip_range, nullptr,
                                       remap_u_to_visible_span);
         }
         return drew;
@@ -4332,8 +4361,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (fill > 0.005f &&
       debug_star_layer_matches("path", "inside_bar_path", "thin")) {
     drew_native_path_line =
-        append_clipped_fill(native_star_path_glow_, std::nullopt, 1.0f,
-                            path_glow_range, nullptr, true);
+        append_scaled_x_clipped_fill(native_star_path_glow_, std::nullopt,
+                                     1.0f, path_glow_range,
+                                     path_render_range,
+                                     kStarPathLengthScale, true);
     drew_native_fill |= drew_native_path_line;
   }
   if (fill > 0.005f && meter_fill_glow &&
@@ -4495,7 +4526,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "wide_fill_glow_layer=amp_tube_glow_meter.mesh "
         "path_line_layer=amp_inside_bar_path.mesh "
         "backing_layer=amp_glass_black.mesh "
-        "path_line_mode=left_anchored_scale_to_fill "
+        "path_line_mode=left_anchored_scale_to_fill_2x_length "
         "body_fill_mode=inside_bar_core_thin_plus_path_and_tube_fill "
         "core_fill_mode=full_inside_glass_length_thin "
         "stored_fill_range=amp_tube_glow_meter_interior_x "
@@ -4531,11 +4562,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "stored_clip_world_x=%.3f core_width=%.3f/%.3f "
         "stored_width=%.3f/%.3f "
         "tube_meter_width=%.3f/%.3f path_width=%.3f/%.3f "
-        "path_clip_world_x=%.3f core_thickness_scale=%.3f "
+        "path_clip_world_x=%.3f path_source_width=%.3f "
+        "path_length_scale=%.3f core_thickness_scale=%.3f "
         "core_z_range=%.3f..%.3f tube_meter_z_range=%.3f..%.3f "
         "core_fill_layer=amp_inside_bar.mesh full_inside_glass_length_thin "
         "wide_fill_layer=amp_tube_glow_meter.mesh clipped "
-        "thin_path_layer=amp_inside_bar_path.mesh left_anchored_scale_to_fill "
+        "thin_path_layer=amp_inside_bar_path.mesh left_anchored_scale_to_fill_2x_length "
         "core_color_frame=%.2f "
         "path_uv_keys=%zu path_uv_frame=%.2f "
         "path_uv_source=(%.3f,%.3f) "
@@ -4589,7 +4621,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         stored_clip_x, core_visible_width, core_total_width,
         stored_visible_width, stored_total_width,
         tube_meter_visible_width, tube_meter_total_width, path_visible_width,
-        path_total_width, path_clip_x, kStarCoreThicknessScale,
+        path_total_width, path_clip_x, path_source_total_width,
+        kStarPathLengthScale, kStarCoreThicknessScale,
         core_fill_range.min_z, core_fill_range.max_z,
         tube_meter_range.min_z, tube_meter_range.max_z,
         fill_core_color_frame,
