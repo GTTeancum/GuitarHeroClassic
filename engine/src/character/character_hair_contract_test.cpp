@@ -700,8 +700,8 @@ int main() {
                  "floatouter_radius=0.0f;",
                  "CharHair point keeps GH2 v2 legacy collision schema fields");
   ok &= contains(char_clip_c,
-                 "point.collision.empty()||point.radius<=0.0f",
-                 "legacy CharHair collision only runs for decoded target/radius rows");
+                 "if(point.collision.empty())returnfalse;",
+                 "legacy CharHair collision only resolves decoded target rows");
   ok &= contains(char_clip_c,
                  "transform_local_chain_world(character,point.collision,"
                  "collision_world)",
@@ -715,6 +715,12 @@ int main() {
   ok &= contains(char_clip_c,
                  "[charhair-legacy-collision]",
                  "legacy CharHair collision logs point corrections");
+  ok &= contains(char_clip_c,
+                 "outer=%.4fbefore=",
+                 "legacy CharHair collision logs source outerRadius separately");
+  ok &= contains(apply_hair_c,
+                 "noCollidesNoWriteback=1",
+                 "source CharHair loop does not publish collisionless point rows");
   ok &= lacks(char_mesh_h_c,
               "flags_or_mode",
               "invented CharHair collide mode field is removed");

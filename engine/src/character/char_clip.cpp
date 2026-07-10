@@ -3825,13 +3825,14 @@ static void submit_char_eyes_runtime_rows(Character& character) {
   }
 }
 
-static Vec3 enforce_hair_collision(const Character& character,
+static bool enforce_hair_collision(const Character& character,
                                    const CharHairPoint& point,
-                                   Vec3 solved) {
-  if (point.collision.empty() || point.radius <= 0.0f) return solved;
+                                   Vec3& solved,
+                                   Vec3& roll) {
+  if (point.collision.empty()) return false;
   std::array<float, 16> collision_world{};
   if (!transform_local_chain_world(character, point.collision, collision_world)) {
-    return solved;
+    return false;
   }
 
   const Vec3 center = mat_pos(collision_world);
@@ -3841,15 +3842,32 @@ static Vec3 enforce_hair_collision(const Character& character,
     from_center = {1.0f, 0.0f, 0.0f};
     dist = 1.0f;
   }
-  const Vec3 dir = vscale(from_center, 1.0f / dist);
   const float radius = std::max(0.0f, point.radius);
-  const float align = std::max(0.0f, point.outer_radius);
+  const float outer_radius = std::max(0.0f, point.outer_radius);
+  const float max_radius = std::max(radius, outer_radius);
+  const float diff_radius = outer_radius - radius;
   const Vec3 before = solved;
 
-  auto apply_soft_shell = [&](Vec3 projected, float value) {
-    if (align > 0.0f && value < radius + align) {
-      const float t = 1.0f - ((value - radius) / align);
-      solved = blend_vec(solved, projected, std::clamp(t, 0.0f, 1.0f));
+  auto source_outside_push = [&](Vec3 delta) {
+    float len_sq = vdot(delta, delta);
+    const float max_sq = max_radius * max_radius;
+    if (len_sq >= max_sq || max_radius <= 0.0f) return;
+    if (len_sq <= 1e-8f) {
+      delta = {1.0f, 0.0f, 0.0f};
+      len_sq = 1.0f;
+    }
+    const float inv_len = 1.0f / std::sqrt(len_sq);
+    const float len = len_sq * inv_len;
+    if (diff_radius > 0.0f) {
+      const Vec3 normal = vscale(delta, -inv_len);
+      if (len < radius) {
+        roll = normal;
+        solved = vadd(solved, vscale(normal, len - radius));
+      } else {
+        roll = blend_vec(roll, normal, (max_radius - len) / diff_radius);
+      }
+    } else {
+      solved = vadd(solved, vscale(delta, max_radius * inv_len - 1.0f));
     }
   };
 
@@ -3857,39 +3875,24 @@ static Vec3 enforce_hair_collision(const Character& character,
     case 0: {  // kCollidePlane
       const Vec3 axis = vnorm(mat_row(collision_world, 0), {0.0f, 0.0f, 1.0f});
       const float dot = vdot(from_center, axis);
-      if (dot < radius) solved = vadd(solved, vscale(axis, radius - dot));
+      if (dot < max_radius) solved = vadd(solved, vscale(axis, max_radius - dot));
       break;
     }
     case 1: {  // kCollideSphere
-      const Vec3 surface = vadd(center, vscale(dir, radius));
-      if (dist < radius) {
-        solved = surface;
-      } else {
-        apply_soft_shell(surface, dist);
-      }
+      source_outside_push(from_center);
       break;
     }
     case 2: {  // kCollideInsideSphere
-      if (dist > radius) solved = vadd(center, vscale(dir, radius));
+      if (dist > max_radius && max_radius > 0.0f) {
+        solved = vadd(center, vscale(from_center, max_radius / dist));
+      }
       break;
     }
     case 3: {  // kCollideCylinder
       const Vec3 axis = vnorm(mat_row(collision_world, 0), {0.0f, 0.0f, 1.0f});
       const float along = vdot(from_center, axis);
       const Vec3 on_axis = vadd(center, vscale(axis, along));
-      Vec3 radial = vsub(solved, on_axis);
-      float radial_len = vlen(radial);
-      if (radial_len <= 1e-5f) {
-        radial = vnorm(vcross(axis, {0.0f, 1.0f, 0.0f}), {1.0f, 0.0f, 0.0f});
-        radial_len = 1.0f;
-      }
-      const Vec3 radial_dir = vscale(radial, 1.0f / radial_len);
-      const Vec3 surface = vadd(on_axis, vscale(radial_dir, radius));
-      if (radial_len < radius) {
-        solved = surface;
-      } else {
-        apply_soft_shell(surface, radial_len);
-      }
+      source_outside_push(vsub(solved, on_axis));
       break;
     }
     case 4: {  // kCollideInsideCylinder
@@ -3902,8 +3905,8 @@ static Vec3 enforce_hair_collision(const Character& character,
         radial = vnorm(vcross(axis, {0.0f, 1.0f, 0.0f}), {1.0f, 0.0f, 0.0f});
         radial_len = 1.0f;
       }
-      if (radial_len > radius) {
-        solved = vadd(on_axis, vscale(vscale(radial, 1.0f / radial_len), radius));
+      if (radial_len > max_radius && max_radius > 0.0f) {
+        solved = vadd(on_axis, vscale(radial, max_radius / radial_len));
       }
       break;
     }
@@ -3914,13 +3917,13 @@ static Vec3 enforce_hair_collision(const Character& character,
   if (debug_char_hair_enabled() && vlen(vsub(solved, before)) > 1e-5f) {
     std::fprintf(stderr,
                  "[charhair-legacy-collision] target=%s type=%u "
-                 "radius=%.4f align=%.4f before=(%.3f %.3f %.3f) "
+                 "radius=%.4f outer=%.4f before=(%.3f %.3f %.3f) "
                  "after=(%.3f %.3f %.3f)\n",
                  point.collision.c_str(),
-                 static_cast<unsigned>(point.collide_type), radius, align,
+                 static_cast<unsigned>(point.collide_type), radius, outer_radius,
                  before.x, before.y, before.z, solved.x, solved.y, solved.z);
   }
-  return solved;
+  return true;
 }
 
 static void apply_char_hair(Character& character, float time_seconds) {
@@ -4070,13 +4073,25 @@ static void apply_char_hair(Character& character, float time_seconds) {
               runtime_point_last_friction(previous_state));
         }
         if (advance) pos = vadd(pos, vscale(axis, length_scale));
-        pos = enforce_hair_collision(character, point, pos);
-
         const Vec3 source_target =
             vadd(mat_pos(segment_world), vscale(mat_row(segment_world, 1), length));
         Vec3 roll = blend_vec(runtime_point_last_z(state),
                               mat_row(segment_world, 2), torsion);
         if (vlen(roll) <= 1e-6f) roll = mat_row(segment_world, 2);
+        const bool has_collision =
+            enforce_hair_collision(character, point, pos, roll);
+        if (!has_collision) {
+          if (debug_char_hair_enabled()) {
+            std::fprintf(stderr,
+                         "[charhair-source-sim] hair=%s strand=%zu point=%zu "
+                         "bone=%s root=%s pass=%s advance=%d "
+                         "noCollidesNoWriteback=1\n",
+                         hair.name.c_str(), strand_index, point_index,
+                         point.bone.c_str(), strand.root.c_str(), pass_name,
+                         advance ? 1 : 0);
+          }
+          continue;
+        }
         Vec3 row1 = vnorm(axis, mat_row(segment_world, 1));
         Vec3 row0 = vnorm(vcross(row1, roll), mat_row(segment_world, 0));
         Vec3 row2 = vnorm(vcross(row0, row1), roll);

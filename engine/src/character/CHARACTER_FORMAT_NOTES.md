@@ -4968,3 +4968,30 @@ Viewer hand-overlay validation:
   top/profile shots with the collision path active, plus logs proving which
   rows moved. If the visuals get worse, the collision consumer remains a
   rejected source-backed trial rather than a promoted fix.
+
+2026-07-10 source writeback-gate adoption:
+
+- After checkpoint `2c961aa`, native CharHair was tightened toward the visible
+  ihatecompvir `CharHair::SimulateInternal` loop: the runtime writeback/force
+  update now requires a resolved collision row. Collisionless GH2 v2 rows log
+  `noCollidesNoWriteback=1` instead of publishing a guessed runtime transform.
+  This removes the old native assumption that every decoded point should drive
+  its target bone.
+- The collision helper now uses source names `radius` and `outerRadius` in the
+  log (`[charhair-legacy-collision] ... radius=... outer=...`) and uses
+  `max(radius, outerRadius)`/`outerRadius - radius` for the source-style
+  outside push/roll behavior. GH2 v2 still supplies the inline target from
+  Grim/re-notes/MiloLib schema rows; RB3 source does not provide a complete
+  GH2 legacy `Hookup` body, so this is a source-aligned bridge, not a claimed
+  byte-for-byte Hookup port.
+- Focused build/tests passed after the change:
+  `ghogx_character_hair_contract_test`, `ghogx_character_eye_bridge_contract_test`,
+  and `ghogx_milo_scene_test`. Full-size direct-app top proof is in
+  `analysis/ihatecompvir_milo_samples/native_source_loop_20260710_writeback_gate/`.
+  The individual PNGs `rock1_top_oblique_visible_crown_writeback_gate.png`,
+  `rock2_top_oblique_visible_crown_writeback_gate.png`, and
+  `rockabill2_top_oblique_visible_crown_writeback_gate.png` show the crowns.
+- Visual result: this is a correctness cleanup, not the Rock1/Rock2 placement
+  fix. Rock1 and Rock2 remain visibly wrong from the crown angle, so the next
+  source-backed target should be visible mesh consumer/group/draw membership or
+  a direct PS2 submitted-row comparison, not another physics parameter tweak.
