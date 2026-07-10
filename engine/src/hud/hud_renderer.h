@@ -283,7 +283,6 @@ class HudRenderer {
   Quad native_rock_light_green_;
   std::vector<Quad> native_star_back_;
   std::vector<Quad> native_star_fill_;
-  std::vector<Quad> native_star_core_emission_;
   std::vector<Quad> native_star_path_glow_;
   std::vector<Quad> native_star_fill_glow_;
   std::vector<Quad> native_star_front_;

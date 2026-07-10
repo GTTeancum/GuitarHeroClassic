@@ -1275,7 +1275,6 @@ void HudRenderer::clear_loaded_resources() {
   static_quads_.clear();
   native_star_back_.clear();
   native_star_fill_.clear();
-  native_star_core_emission_.clear();
   native_star_path_glow_.clear();
   star_path_tex_translation_keys_.clear();
   native_star_path_glow_prelit_ = false;
@@ -2486,7 +2485,6 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
 
   native_star_back_.clear();
   native_star_fill_.clear();
-  native_star_core_emission_.clear();
   native_star_path_glow_.clear();
   native_star_path_glow_prelit_ = false;
   native_star_path_glow_dual_emit_ = false;
@@ -4167,19 +4165,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         return layers.empty() ? 255u
                               : static_cast<unsigned>(layers.front().blend);
       };
-  auto first_quad_core_emit4x = [](const std::vector<Quad>& layers) {
-    return !layers.empty() && layers.front().emissive_texture_4x &&
-           layers.front().emissive_alpha_4x;
-  };
-  auto any_quad_core_add_emit = [](const std::vector<Quad>& layers) {
-    for (const Quad& q : layers) {
-      if (q.additive && q.blend == kHudBlendSrcAlphaAdd &&
-          q.emissive_texture_4x && q.emissive_alpha_4x) {
-        return true;
-      }
-    }
-    return false;
-  };
   auto any_quad_texture_emit4x = [](const std::vector<Quad>& layers) {
     for (const Quad& q : layers) {
       if (q.emissive_texture_4x) return true;
@@ -4217,7 +4202,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "frames=%.2f,%.2f,%.2f alpha_frames=%.2f,%.2f "
         "mesh_frame=%.2f curves=%zu/%zu/%zu "
         "filters=%d:%.2f-%.2f/%d:%.2f-%.2f/%d:%.2f-%.2f "
-        "back=%zu fill_layers=%zu core_emit_layers=%zu path_glow=%zu "
+        "back=%zu fill_layers=%zu path_glow=%zu "
         "glow_layers=%zu lightning_layers=%zu particle_layers=%zu "
         "ready_mesh=%zu ready_glow=%zu "
         "front=%zu glass=%zu base=%zu "
@@ -4247,7 +4232,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "amp_inside_bar_path.part "
         "core_material_combine=ps2_modulate2x "
         "path_material_combine=prelit_ps2_modulate2x "
-        "core_emit4x=%d core_add_emit=%d "
         "back_alpha2x=%d back_color=%08x "
         "path_emit4x=%d path_tex2x=%d path_prelit=%d path_alpha2x=%d "
         "path_alpha_emission=%d path_dual_emit=%d "
@@ -4278,8 +4262,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         star_tube_glow_filter_.start_frame,
         star_tube_glow_filter_.end_frame,
         native_star_back_.size(),
-        native_star_fill_.size(), native_star_core_emission_.size(),
-        native_star_path_glow_.size(),
+        native_star_fill_.size(), native_star_path_glow_.size(),
         native_star_fill_glow_.size(), native_star_lightning_.size(),
         native_star_particles_.size(),
         native_star_ready_mesh_glow_.size(), native_star_ready_glow_.size(),
@@ -4289,8 +4272,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         drew_native_ready_mesh ? 1 : 0, drew_native_ready_glow ? 1 : 0,
         drew_native_fill_glow ? 1 : 0, drew_native_path_line ? 1 : 0,
         0, meter_fill_glow ? 1 : 0,
-        first_quad_core_emit4x(native_star_fill_) ? 1 : 0,
-        any_quad_core_add_emit(native_star_core_emission_) ? 1 : 0,
         any_quad_alpha2x(native_star_back_) ? 1 : 0,
         first_quad_color(native_star_back_),
         any_quad_texture_emit4x(native_star_path_glow_) ? 1 : 0,

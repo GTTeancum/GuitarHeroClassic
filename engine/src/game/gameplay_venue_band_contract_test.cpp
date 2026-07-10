@@ -1337,9 +1337,12 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "ready_mesh_drawn=%dready_glow_drawn=%dfill_glow_drawn=%d",
                  "star-power diagnostics report source glow layers after live draw");
-  ok &= contains(hud_renderer_c,
-                 "core_emit4x=%dcore_add_emit=%d",
-                 "star-power diagnostics report the source core additive emission pass");
+  ok &= absent(hud_renderer_c,
+               "core_add_emit",
+               "star-power diagnostics must not report the rejected duplicate core emission pass");
+  ok &= absent(hud_renderer_c,
+               "native_star_core_emission_",
+               "star-power HUD must not keep the rejected duplicate core emission layer");
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"

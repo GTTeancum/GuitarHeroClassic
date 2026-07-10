@@ -10312,3 +10312,15 @@ Rejected native probe:
   leaves `amp_inside_bar_path.mesh` as the full-width thin line. This uses the
   original MILO mesh/material/texture/alpha data and does not add replacement
   art, hand-authored colors, or fabricated geometry.
+
+2026-07-10 star-meter rejected core-emission cleanup:
+- Removed the unused `native_star_core_emission_` debug/plumbing that remained
+  from the rejected duplicate `amp_inside_bar.mesh` additive-core experiments.
+  The renderer was no longer populating or drawing that layer, but the
+  diagnostic row still named `core_add_emit`, which made the current evidence
+  stream look like it still contained a non-source draw contribution.
+- The current source-backed stored body is now named only as the decoded
+  `amp_inside_bar.mesh` clipped core plus `amp_tube_glow_meter.mesh` wide glow,
+  with `amp_inside_bar_path.mesh` kept as the full-width thin line. This is a
+  traceability cleanup only: no visual tuning, replacement art, geometry, or
+  material/color override was introduced.
