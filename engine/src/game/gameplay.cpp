@@ -8000,6 +8000,298 @@ load_rnddir_root_object_lists(const std::string& hdr_path,
     return out;
 }
 
+struct MiloDirectoryRefs {
+    std::string dir_type;
+    std::string dir_name;
+    std::string proxy_path;
+    std::vector<std::string> subdirs;
+    bool decoded = false;
+};
+
+bool skip_hmx_matrix_cursor(size_t& cursor, size_t size) {
+    if (cursor + 48 > size) return false;
+    cursor += 48;
+    return true;
+}
+
+bool objectdir_base_cursor_for_directory(const gh::milo::Directory& dir,
+                                         const uint8_t* body, size_t size,
+                                         size_t& cursor) {
+    cursor = 0;
+    if (dir.dir_type == "ObjectDir") return true;
+    if (dir.dir_type == "RndDir") {
+        uint32_t rnddir_revision = 0;
+        return read_u32_cursor(body, size, cursor, rnddir_revision);
+    }
+    if (dir.dir_type == "PanelDir" || dir.dir_type == "WorldDir") {
+        if (dir.dir_type == "WorldDir") {
+            uint32_t combined_world_revision = 0;
+            if (!read_u32_cursor(body, size, cursor,
+                                 combined_world_revision)) {
+                return false;
+            }
+            const uint16_t world_revision =
+                static_cast<uint16_t>(combined_world_revision & 0xffffu);
+            if (world_revision != 0 && world_revision < 5) {
+                std::string ignored_cam;
+                if (!read_packed_string_cursor(body, size, cursor,
+                                               ignored_cam)) {
+                    return false;
+                }
+            }
+            if (world_revision >= 2 && world_revision <= 20) {
+                if (cursor + 8 > size) return false;
+                cursor += 8;
+            }
+            if (world_revision > 9) {
+                std::string ignored_hud;
+                if (!read_packed_string_cursor(body, size, cursor,
+                                               ignored_hud)) {
+                    return false;
+                }
+            }
+            if (world_revision < 9) return false;
+        }
+        uint32_t paneldir_revision = 0;
+        if (!read_u32_cursor(body, size, cursor, paneldir_revision))
+            return false;
+        uint32_t rnddir_revision = 0;
+        return read_u32_cursor(body, size, cursor, rnddir_revision);
+    }
+    return false;
+}
+
+MiloDirectoryRefs load_milo_directory_refs(const std::string& hdr_path,
+                                           const std::string& ark_path,
+                                           const std::string& milo_path) {
+    MiloDirectoryRefs out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        out.dir_type = dir.dir_type;
+        out.dir_name = dir.dir_name;
+        if (dir.dir_entry_offset + dir.dir_entry_size > payload.size())
+            return out;
+        const uint8_t* body = payload.data() + dir.dir_entry_offset;
+        const size_t size = static_cast<size_t>(dir.dir_entry_size);
+        size_t cursor = 0;
+        if (!objectdir_base_cursor_for_directory(dir, body, size, cursor))
+            return out;
+
+        uint32_t combined_objectdir_revision = 0;
+        if (!read_u32_cursor(body, size, cursor,
+                             combined_objectdir_revision)) {
+            return out;
+        }
+        const uint16_t objectdir_revision =
+            static_cast<uint16_t>(combined_objectdir_revision & 0xffffu);
+
+        if (objectdir_revision < 22) {
+            if (objectdir_revision >= 2 && objectdir_revision < 17) {
+                std::vector<MiloObjectFieldNode> ignored_root;
+                if (!read_milo_object_fields_root(body, size, cursor,
+                                                  ignored_root)) {
+                    return out;
+                }
+            }
+        } else if (objectdir_revision != 26) {
+            if (cursor + 4 > size) return out;
+            cursor += 4;
+            std::string ignored_type;
+            if (!read_packed_string_cursor(body, size, cursor, ignored_type))
+                return out;
+        } else {
+            std::vector<MiloObjectFieldNode> ignored_root;
+            if (!read_milo_object_fields_root(body, size, cursor,
+                                              ignored_root)) {
+                return out;
+            }
+        }
+
+        if (objectdir_revision > 1) {
+            if (objectdir_revision >= 27) {
+                if (cursor + 8 > size) return out;
+                cursor += 8;
+            }
+            uint32_t viewport_count = 0;
+            if (!read_u32_cursor(body, size, cursor, viewport_count) ||
+                viewport_count > 7) {
+                return out;
+            }
+            for (uint32_t i = 0; i < viewport_count; ++i) {
+                if (!skip_hmx_matrix_cursor(cursor, size)) return out;
+                if (objectdir_revision <= 17) {
+                    uint32_t ignored = 0;
+                    if (!read_u32_cursor(body, size, cursor, ignored))
+                        return out;
+                }
+            }
+            uint32_t current_viewport = 0;
+            if (!read_u32_cursor(body, size, cursor, current_viewport))
+                return out;
+        }
+
+        if (objectdir_revision > 12) {
+            if (objectdir_revision > 19) {
+                uint8_t inline_proxy = 0;
+                if (!read_u8_cursor(body, size, cursor, inline_proxy))
+                    return out;
+            }
+            if (!read_packed_string_cursor(body, size, cursor,
+                                           out.proxy_path)) {
+                return out;
+            }
+        }
+        if (objectdir_revision >= 2 && objectdir_revision < 11) {
+            std::string ignored;
+            if (!read_packed_string_cursor(body, size, cursor, ignored))
+                return out;
+        }
+        if (objectdir_revision >= 4 && objectdir_revision < 11) {
+            std::string ignored;
+            if (!read_packed_string_cursor(body, size, cursor, ignored))
+                return out;
+        }
+        if (objectdir_revision == 5) {
+            std::string ignored;
+            if (!read_packed_string_cursor(body, size, cursor, ignored))
+                return out;
+        }
+        if (objectdir_revision > 2) {
+            uint32_t subdir_count = 0;
+            if (!read_u32_cursor(body, size, cursor, subdir_count) ||
+                subdir_count > 100) {
+                return out;
+            }
+            out.subdirs.reserve(subdir_count);
+            for (uint32_t i = 0; i < subdir_count; ++i) {
+                std::string subdir;
+                if (!read_packed_string_cursor(body, size, cursor, subdir))
+                    return out;
+                out.subdirs.push_back(std::move(subdir));
+            }
+        }
+        out.decoded = true;
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] ObjectDir refs load %s: %s\n",
+                     milo_path.c_str(), ex.what());
+    }
+    return out;
+}
+
+std::vector<std::string> milo_ref_candidates_game(
+    const std::string& owner_milo_path, const std::string& raw_ref) {
+    std::vector<std::string> out;
+    auto add = [&](std::string path) {
+        if (path.empty()) return;
+        std::replace(path.begin(), path.end(), '\\', '/');
+        path = normalize_milo_path_game(std::move(path));
+        if (std::find(out.begin(), out.end(), path) == out.end())
+            out.push_back(std::move(path));
+    };
+
+    std::string ref = raw_ref;
+    std::replace(ref.begin(), ref.end(), '\\', '/');
+    const std::string owner = normalize_milo_path_game(owner_milo_path);
+    const size_t slash = owner.find_last_of('/');
+    const std::string owner_dir =
+        slash == std::string::npos ? std::string() : owner.substr(0, slash);
+    const std::string resolved =
+        (!owner_dir.empty() && ref.rfind("/", 0) != 0 &&
+         ref.find(':') == std::string::npos)
+            ? owner_dir + "/" + ref
+            : ref;
+    const std::string ps2 = replace_suffix_game(resolved, ".milo",
+                                                ".milo_ps2");
+    add(resolved);
+    add(ps2);
+    add(insert_gen_dir_for_anim_game(resolved));
+    add(insert_gen_dir_for_anim_game(ps2));
+    return out;
+}
+
+std::string resolve_milo_ref_from_ark(const gh::ark::ArkV3Reader& ark,
+                                      const std::string& owner_milo_path,
+                                      const std::string& raw_ref) {
+    for (const auto& candidate :
+         milo_ref_candidates_game(owner_milo_path, raw_ref)) {
+        if (ark.find(candidate)) return candidate;
+        if (ark.find("../../system/run/" + candidate)) return candidate;
+    }
+    return std::string();
+}
+
+struct VenueMiloAssembly {
+    std::string world_milo;
+    std::string chars_milo;
+    std::string geom_milo;
+    std::string lighting_milo;
+    std::string geom_source_ref;
+    std::string lighting_source_ref;
+};
+
+VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
+                                           const std::string& ark_path,
+                                           const std::string& venue) {
+    VenueMiloAssembly out;
+    out.world_milo = "world/" + venue + "/gen/" + venue + ".milo_ps2";
+    out.chars_milo = "world/" + venue + "/gen/" + venue + "_chars.milo_ps2";
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        const auto world_refs =
+            load_milo_directory_refs(hdr_path, ark_path, out.world_milo);
+        for (const auto& ref : world_refs.subdirs) {
+            const std::string lower = lower_ascii(ref);
+            if (lower.find("_lighting.milo") == std::string::npos)
+                continue;
+            const std::string resolved =
+                resolve_milo_ref_from_ark(ark, out.world_milo, ref);
+            if (!resolved.empty()) {
+                out.lighting_milo = resolved;
+                out.lighting_source_ref = ref;
+                break;
+            }
+        }
+        const auto chars_refs =
+            load_milo_directory_refs(hdr_path, ark_path, out.chars_milo);
+        for (const auto& ref : chars_refs.subdirs) {
+            const std::string lower = lower_ascii(ref);
+            if (lower.find("_geom.milo") == std::string::npos) continue;
+            const std::string resolved =
+                resolve_milo_ref_from_ark(ark, out.chars_milo, ref);
+            if (!resolved.empty()) {
+                out.geom_milo = resolved;
+                out.geom_source_ref = ref;
+                break;
+            }
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] venue source assembly %s: %s\n",
+                     venue.c_str(), ex.what());
+    }
+    if (out.geom_milo.empty() || out.lighting_milo.empty()) {
+        std::fprintf(
+            stderr,
+            "[world] venue source assembly unresolved: venue=%s geom=%s lighting=%s\n",
+            venue.c_str(), out.geom_milo.c_str(),
+            out.lighting_milo.c_str());
+    }
+    if (debug_venue_filters_enabled()) {
+        std::fprintf(
+            stderr,
+            "[world] venue source assembly: world=%s chars=%s geom=%s geom_ref=%s lighting=%s lighting_ref=%s\n",
+            out.world_milo.c_str(), out.chars_milo.c_str(),
+            out.geom_milo.c_str(), out.geom_source_ref.c_str(),
+            out.lighting_milo.c_str(), out.lighting_source_ref.c_str());
+    }
+    return out;
+}
+
 std::array<float, 3> sample_translation_offset(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
     float frame) {
@@ -20344,9 +20636,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
     if (!world_init_attempted_) {
         world_init_attempted_ = true;
         if (quickplay_rig_) {
-            const std::string venue_geom =
-                "world/" + quickplay_rig_->venue + "/og/gen/" +
-                quickplay_rig_->venue + "_geom.milo_ps2";
+            const VenueMiloAssembly venue_assembly =
+                load_venue_milo_assembly(hdr_path_, ark_path_,
+                                         quickplay_rig_->venue);
+            const std::string venue_geom = venue_assembly.geom_milo;
             std::vector<ghogx::milo_scene::MatObj> venue_geom_materials;
             ghogx::milo_scene::Scene venue_scene;
             if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_, venue_geom,
@@ -20598,9 +20891,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                              "[world] intro camera window: %.3fs (6 bars)\n",
                              intro_camera_seconds_);
             }
-            const std::string lighting_milo =
-                "world/" + quickplay_rig_->venue + "/og/gen/" +
-                quickplay_rig_->venue + "_lighting.milo_ps2";
+            const std::string lighting_milo = venue_assembly.lighting_milo;
             ghogx::milo_scene::Scene lighting_scene;
             if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_,
                                               lighting_milo, lighting_scene)) {
@@ -20775,9 +21066,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
             }
 
             ghogx::milo_scene::Scene chars_scene;
-            const std::string chars_milo =
-                "world/" + quickplay_rig_->venue + "/gen/" +
-                quickplay_rig_->venue + "_chars.milo_ps2";
+            const std::string chars_milo = venue_assembly.chars_milo;
             const bool chars_scene_loaded = ghogx::milo_scene::load_scene(
                 hdr_path_, ark_path_, chars_milo, chars_scene);
             if (chars_scene_loaded) {

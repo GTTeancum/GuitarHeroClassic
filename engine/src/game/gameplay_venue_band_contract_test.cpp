@@ -3796,6 +3796,22 @@ int main() {
                  "load_venue_proxy_objects(hdr_path_,ark_path_,venue_geom,win)",
                  "venue load discovers RndDir proxy objects from the authored MILO");
   ok &= contains(gameplay_c,
+                 "load_venue_milo_assembly(hdr_path_,ark_path_,"
+                 "quickplay_rig_->venue)",
+                 "venue load begins from decoded source WorldDir/RndDir assembly refs");
+  ok &= contains(gameplay_c,
+                 "conststd::stringvenue_geom=venue_assembly.geom_milo;",
+                 "venue geometry MILO comes from the decoded source assembly");
+  ok &= contains(gameplay_c,
+                 "conststd::stringlighting_milo=venue_assembly.lighting_milo;",
+                 "venue lighting MILO comes from the decoded source assembly");
+  ok &= contains(gameplay_c,
+                 "resolve_milo_ref_from_ark(ark,out.chars_milo,ref)",
+                 "venue char RndDir subdirs resolve the authored geometry MILO");
+  ok &= contains(gameplay_c,
+                 "resolve_milo_ref_from_ark(ark,out.world_milo,ref)",
+                 "venue WorldDir subdirs resolve the authored lighting MILO");
+  ok &= contains(gameplay_c,
                  "staticvisibilityfollowsauthoredGroupshowingflags",
                  "venue baseline visibility follows authored MILO Group showing flags");
   ok &= absent(gameplay_c,
