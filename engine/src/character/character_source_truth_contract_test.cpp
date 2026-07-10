@@ -174,6 +174,12 @@ int run_contract() {
       rb3_latest_utl_dir / "BinStream.cpp"));
   const std::string rb3_latest_tex_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "Tex.cpp"));
+  const std::string rb3_latest_tex_h = compact(read_file(
+      rb3_latest_rndobj_dir / "Tex.h"));
+  const std::string rb3_latest_bitmap_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Bitmap.cpp"));
+  const std::string rb3_latest_file_path_h = compact(read_file(
+      rb3_latest_utl_dir / "FilePath.h"));
   const std::string rb3_latest_char_weight_setter_cpp = compact(read_file(
       rb3_latest_char_dir / "CharWeightSetter.cpp"));
   const std::string rb3_latest_char_weight_setter_h = compact(read_file(
@@ -998,6 +1004,42 @@ int run_contract() {
   ok &= contains(rb3_latest_tex_cpp,
                  "bs>>mWidth>>mHeight;SetPowerOf2();bs>>mBpp;bs>>mFilepath;",
                  "latest RndTex source reads texture metadata");
+  ok &= contains(rb3_latest_tex_h,
+                 "enumType{Regular=1,Rendered=2,Movie=4,BackBuffer=8,"
+                 "FrontBuffer=0x18,RenderedNoZ=0x22",
+                 "latest RndTex source backs texture type flags");
+  ok &= contains(rb3_latest_file_path_h,
+                 "inlineBinStream&operator>>(BinStream&bs,FilePath&fp){"
+                 "charbuf[0x100];bs.ReadString(buf,0x100);fp.SetRoot(buf);"
+                 "returnbs;}",
+                 "FilePath source backs bounded texture filepath string rows");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(gRev<5){intcubemapmask;bs>>cubemapmask;",
+                 "latest RndTex source backs legacy cubemap mask row");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(gRev>7)bs>>mMipMapK;elseif(gRev>3){inti;bs>>i;"
+                 "mMipMapK=i/16.0f;}",
+                 "latest RndTex source backs mip-map field gates");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(gRev>6){bs>>(int&)mType;}elseif(gRev>5){"
+                 "Typetypes[5]={Regular,Rendered,Movie,BackBuffer,FrontBuffer};",
+                 "latest RndTex source backs texture type gates");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(gRev>10){boolb;bs>>b;mOptimizeForPS3=b;}",
+                 "latest RndTex source backs optimize flag gate");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(bs.Cached()){void*buffer=0;intsize=0;",
+                 "latest RndTex source backs cached bitmap payload branch");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "elsemBitmap.Load(bs);",
+                 "latest RndTex source delegates cached payload to RndBitmap");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "BinStream&RndBitmap::LoadHeader(BinStream&bs,u8&test){"
+                 "u8ver,h;u8pad[0x13];bs>>ver;bs>>mBpp;",
+                 "latest RndBitmap source backs cached bitmap header rows");
+  ok &= contains(rb3_latest_bitmap_cpp,
+                 "bs>>test;bs>>mWidth;bs>>mHeight;bs>>mRowBytes;",
+                 "latest RndBitmap source backs dimensions and row bytes");
   ok &= contains(rb2_dolmatch_filt,
                  "FixClassName__9DirLoaderF6Symbol@WorldFx@3",
                  "RB2 dump exposes only WorldFx DirLoader fixup evidence");
@@ -1032,9 +1074,15 @@ int run_contract() {
                  "prefix using `EventTrigger::Load`",
                  "document promotes EventTrigger to passive source inventory");
   ok &= contains(doc,
-                 "native texture payloads are already handled\n"
-                 "  by the PS2 texture asset path",
+                 "native texture payloads are already handled by\n"
+                 "  the PS2 texture asset path",
                  "document keeps Tex rows in asset texture path");
+  ok &= contains(doc, "## Rnd Texture Row Authority",
+                 "document records RndTex source authority section");
+  ok &= contains(doc,
+                 "records 160 stock `Tex` rows with source "
+                 "`RndBitmap::LoadHeader` fields",
+                 "document records focused RndTex stock proof");
   ok &= contains(doc,
                  "there is no\n  checked `WorldFx::Load` source body",
                  "document fences WorldFx load body absence");
@@ -1079,8 +1127,66 @@ int run_contract() {
                 "native must not guess OutfitLoader decoder");
   ok &= missing(char_mesh, "decode_world_fx",
                 "native must not guess WorldFx decoder");
-  ok &= missing(char_mesh, "decode_rnd_tex",
-                "native character graph must not duplicate texture decoder");
+  ok &= contains(char_mesh_h, "structRndTex{",
+                 "native header exposes passive RndTex inventory row");
+  ok &= contains(char_mesh_h, "std::vector<RndTex>tex_rows;",
+                 "native header stores passive RndTex inventory");
+  ok &= contains(char_mesh, "RndTexdecode_rnd_tex(",
+                 "native decodes RndTex only through named source slice");
+  ok &= contains(char_mesh,
+                 "tex.version=source_hmx_rev(packed_rev);",
+                 "RndTex decoder uses source low-half revision");
+  ok &= contains(char_mesh,
+                 "tex.alt_version=source_alt_rev(packed_rev);",
+                 "RndTex decoder uses source high-half revision");
+  ok &= contains(char_mesh,
+                 "if(tex.version>8)read_object_fields(r);",
+                 "RndTex decoder gates object fields like source");
+  ok &= contains(char_mesh,
+                 "tex.power_of_two=source_power_of_two(tex.width,tex.height);",
+                 "RndTex decoder mirrors SetPowerOf2 state");
+  ok &= contains(char_mesh, "tex.filepath=r.str();",
+                 "RndTex decoder reads FilePath as source string payload");
+  ok &= contains(char_mesh,
+                 "if(tex.version<5){tex.cubemap_mask=r.i32();",
+                 "RndTex decoder reads legacy cubemap mask");
+  ok &= contains(char_mesh,
+                 "if(tex.version>7){tex.mip_map_k=r.f32();}",
+                 "RndTex decoder reads source mipMapK gate");
+  ok &= contains(char_mesh,
+                 "if(tex.version>6){tex.type=r.i32();}",
+                 "RndTex decoder reads source type gate");
+  ok &= contains(char_mesh,
+                 "tex.optimize_for_ps3=r.u8()!=0;",
+                 "RndTex decoder reads source PS3 optimize flag");
+  ok &= contains(char_mesh,
+                 "tex.cached_bitmap_bytes=r.n-r.pos;",
+                 "RndTex decoder records cached bitmap boundary");
+  ok &= contains(char_mesh,
+                 "tex.bitmap_version=bitmap.u8();"
+                 "tex.bitmap_bpp=bitmap.u8();",
+                 "RndTex decoder reads source bitmap header prefix");
+  ok &= contains(char_mesh,
+                 "tex.bitmap_mip_count=bitmap.u8();"
+                 "tex.bitmap_width=bitmap.u16();"
+                 "tex.bitmap_height=bitmap.u16();"
+                 "tex.bitmap_row_bytes=bitmap.u16();",
+                 "RndTex decoder reads source bitmap header dimensions");
+  ok &= contains(char_mesh,
+                 "bitmap.skip(tex.bitmap_version!=0?0x13:6);",
+                 "RndTex decoder skips source bitmap header padding");
+  ok &= contains(char_mesh,
+                 "out.tex_rows.push_back(decode_rnd_tex(de.name,b));",
+                 "native character graph stores passive RndTex inventory");
+  ok &= contains(bind_audit,
+                 "[tex-row]char=%sname=%sversion=%daltVersion=%d",
+                 "bind audit logs RndTex source rows");
+  ok &= contains(bind_audit, "cachedBitmapBytes=%zu",
+                 "bind audit logs cached bitmap payload boundary");
+  ok &= contains(bind_audit, "bitmapHeader=%dbitmapVer=%dbitmapBpp=%d",
+                 "bind audit logs RndBitmap header fields");
+  ok &= contains(bind_audit, "payloadHexPrefix=%sbitmapHeaderError=%s",
+                 "bind audit logs cached bitmap payload prefix");
   ok &= missing(char_mesh, "OutfitLoader",
                 "native character graph must not promote OutfitLoader yet");
   ok &= missing(char_mesh, "WorldFx",

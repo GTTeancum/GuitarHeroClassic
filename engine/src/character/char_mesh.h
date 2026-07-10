@@ -363,6 +363,37 @@ struct EventTrigger {
   std::string unread_tail_hex;
 };
 
+struct RndTex {
+  std::string name;
+  int32_t version = 0;
+  int32_t alt_version = 0;
+  int32_t width = 0;
+  int32_t height = 0;
+  int32_t bpp = 32;
+  std::string filepath;
+  bool power_of_two = true;
+  int32_t cubemap_mask = 0;
+  bool has_legacy_flag = false;
+  bool legacy_flag = false;
+  float mip_map_k = -8.0f;
+  int32_t type = 1;  // RndTex::Regular
+  bool has_post_flag = false;
+  bool post_flag = false;
+  bool optimize_for_ps3 = false;
+  size_t cached_bitmap_bytes = 0;
+  bool bitmap_header_decoded = false;
+  int32_t bitmap_version = 0;
+  int32_t bitmap_bpp = 0;
+  uint32_t bitmap_order = 0;
+  int32_t bitmap_mip_count = 0;
+  int32_t bitmap_width = 0;
+  int32_t bitmap_height = 0;
+  int32_t bitmap_row_bytes = 0;
+  size_t cached_bitmap_payload_bytes = 0;
+  std::string cached_bitmap_payload_prefix_hex;
+  std::string bitmap_header_error;
+};
+
 struct CharDriver {
   std::string name;
   int32_t version = 0;
@@ -427,6 +458,7 @@ struct Character {
   std::vector<FaceFxLipSyncServo> lip_sync_servos;
   std::vector<RndAnimFilter> anim_filters;
   std::vector<EventTrigger> event_triggers;
+  std::vector<RndTex> tex_rows;
   std::vector<CharDriver> drivers;
   std::vector<CharWeightSetter> weight_setters;
   std::map<std::string, int> object_type_counts;

@@ -30,9 +30,10 @@ records the upstream commits for the copied files:
 | Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
 | Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
+| Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows and cached bitmap headers; texture upload stays on the existing PS2 image asset path. |
 | Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows; no trigger or animation runtime hookup. |
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
-| Remaining stock object rows | `rb3-latest` `Tex.*`, RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
+| Remaining stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows; no runtime writeback until `Hookup(ObjPtrList<CharCollide>&)` and simulation are faithfully ported. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log old GH2 rows; no synthetic eye runtime bridge. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; runtime `Poll` remains fenced until source transform writeback is ported. |
@@ -97,6 +98,29 @@ records the upstream commits for the copied files:
     hair two-sided cull rule below.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
+- `rb3/src/system/rndobj/Tex.cpp`
+  - `RndTex::Load` is `PreLoad` followed by `PostLoad`.
+  - `PreLoad` reads packed revisions, `Hmx::Object` fields for revisions above
+    8, width/height, `SetPowerOf2`, bits-per-pixel, and `FilePath`.
+  - `PostLoad` reads the legacy cubemap mask for revisions below 5, one-byte
+    legacy bools for revisions 1 and 2, `mipMapK` as either float or fixed
+    integer/16, type flags, the post flag for revisions above 7, and
+    `optimize_for_ps3` for revisions above 10.
+  - When the stream is cached, `PostLoad` delegates the remaining stream to
+    `RndBitmap::Load`; native records that boundary instead of treating the
+    remaining bytes as anonymous padding.
+- `rb3/src/system/rndobj/Bitmap.cpp`
+  - `RndBitmap::LoadHeader` reads bitmap revision, bpp, order, mip count,
+    width, height, row bytes, and the fixed padding row before pixel chunks.
+    Native logs that header for cached character texture rows but does not
+    decode pixel chunks in the character model decoder.
+- `rb3/src/system/rndobj/Tex.h`
+  - `RndTex::Type` flag values are source state: `Regular=1`, `Rendered=2`,
+    `Movie=4`, `BackBuffer=8`, `FrontBuffer=0x18`, and the later render target
+    flags. Do not remap `Regular` to zero.
+- `rb3/src/system/utl/FilePath.h` and `BinStream.cpp`
+  - `FilePath` rows are read through `ReadString(buf, 0x100)` and then
+    `SetRoot`, so the native row inventory reads the same bounded string shape.
 - `rb3/src/system/rndobj/Trans.h`
   - `RndTransformable::Constraint` is the runtime enum authority:
     `kNone`, `kLocalRotate`, `kParentWorld`, `kLookAtTarget`,
@@ -114,6 +138,26 @@ records the upstream commits for the copied files:
     a target row is present. Other dynamic constraints log
     `[source-xfm-unsupported]` with `runtimeWriteback=0` and keep the decoded
     base transform until the matching source runtime path is ported.
+
+## Rnd Texture Row Authority
+
+Native now decodes `Tex` object rows as passive source inventory using
+`RndTex::Load`/`PreLoad`/`PostLoad`, `RndTex::Type`, `RndBitmap::LoadHeader`,
+`FilePath`, and `BinStream` evidence from ihatecompvir's `rb3-latest` source
+snapshot. The decoded row records packed low/high revisions, object metadata
+for `gRev > 8`, width/height/bpp, source `SetPowerOf2` state, filepath, legacy
+cubemap mask, mip-map coefficient, source type flags, post bool, PS3 optimize
+bool, and cached bitmap payload/header evidence.
+
+This does not replace the native PS2 texture-image path. Texture payloads are
+still handled by `asset/milo_image.*` and selected from material diffuse texture
+names. The `Tex` rows are format evidence and audit coverage so character
+texture metadata is no longer an anonymous stock row class.
+
+The focused inventory at
+`engine/out/source_truth_tex_inventory_20260710/stock_character_tex_inventory.log`
+records 160 stock `Tex` rows with source `RndBitmap::LoadHeader` fields for
+the cached bitmap payloads.
 
 ## Skinning Authority
 
@@ -552,11 +596,13 @@ bounded as follows:
 - `Object`: 19 stock generic object rows. ihatecompvir `Object.cs` already
   backs the shared object/property-tree skip path; the remaining rows have no
   character-model runtime behavior to promote.
-- `Tex`: 160 stock texture rows. `rb3-latest` `RndTex::Load`/`PreLoad`/
-  `PostLoad` is source-backed, but native texture payloads are already handled
-  by the PS2 texture asset path (`asset/milo_image.*`) keyed from material
-  diffuse texture names. These rows are not promoted into the character
-  controller graph.
+- `Tex`: 160 stock texture rows. Native now decodes and logs the
+  source-backed metadata rows using `RndTex::Load`/`PreLoad`/`PostLoad`,
+  `RndTex::Type`, `RndBitmap::LoadHeader`, `FilePath`, and `BinStream`
+  evidence. It records the cached bitmap header but does not change texture
+  upload or material binding; native texture payloads are already handled by
+  the PS2 texture asset path (`asset/milo_image.*`) keyed from material diffuse
+  texture names.
 - `WorldFx`: 99 stock rows. The available ihatecompvir evidence is only
   `DirLoader::FixClassName`/symbol references for `WorldFx`; there is no
   checked `WorldFx::Load` source body. Native keeps these rows as inventory

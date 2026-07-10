@@ -534,6 +534,30 @@ void audit_types(const Character& c, const std::string& milo_path) {
     std::printf("[type] char=%s type=%s count=%d\n", c.dir_name.c_str(),
                 type.c_str(), count);
   }
+  for (const auto& tex : c.tex_rows) {
+    std::printf(
+        "[tex-row] char=%s name=%s version=%d altVersion=%d width=%d "
+        "height=%d bpp=%d file=%s powerOfTwo=%d mipMapK=%.4f "
+        "type=0x%x cubemapMask=0x%x hasLegacyFlag=%d legacyFlag=%d "
+        "hasPostFlag=%d postFlag=%d optimizeForPS3=%d cachedBitmapBytes=%zu "
+        "bitmapHeader=%d bitmapVer=%d bitmapBpp=%d bitmapOrder=0x%x "
+        "bitmapMips=%d bitmapWidth=%d bitmapHeight=%d bitmapRowBytes=%d "
+        "cachedBitmapPayloadBytes=%zu payloadHexPrefix=%s bitmapHeaderError=%s\n",
+        c.dir_name.c_str(), tex.name.c_str(), tex.version, tex.alt_version,
+        tex.width, tex.height, tex.bpp, none_if_empty(tex.filepath),
+        tex.power_of_two ? 1 : 0, tex.mip_map_k,
+        static_cast<unsigned>(tex.type),
+        static_cast<unsigned>(tex.cubemap_mask),
+        tex.has_legacy_flag ? 1 : 0, tex.legacy_flag ? 1 : 0,
+        tex.has_post_flag ? 1 : 0, tex.post_flag ? 1 : 0,
+        tex.optimize_for_ps3 ? 1 : 0, tex.cached_bitmap_bytes,
+        tex.bitmap_header_decoded ? 1 : 0, tex.bitmap_version, tex.bitmap_bpp,
+        static_cast<unsigned>(tex.bitmap_order), tex.bitmap_mip_count,
+        tex.bitmap_width, tex.bitmap_height, tex.bitmap_row_bytes,
+        tex.cached_bitmap_payload_bytes,
+        none_if_empty(tex.cached_bitmap_payload_prefix_hex),
+        none_if_empty(tex.bitmap_header_error));
+  }
 }
 
 void audit_hair(const Character& c, const std::string& milo_path) {

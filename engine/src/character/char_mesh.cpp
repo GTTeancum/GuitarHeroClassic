@@ -205,6 +205,22 @@ uint16_t source_alt_rev(uint32_t packed) {
   return static_cast<uint16_t>(packed >> 16);
 }
 
+bool source_power_of_two_dim(int32_t dim) {
+  if (dim < 0) return false;
+  if (dim == 0) return true;
+  return (dim & (dim - 1)) == 0;
+}
+
+bool source_power_of_two(int32_t width, int32_t height) {
+  return source_power_of_two_dim(width) && source_power_of_two_dim(height);
+}
+
+void source_insert_tex_suffix(std::string& path, const char* suffix) {
+  const size_t dot = path.find('.');
+  if (dot == std::string::npos) return;
+  path.insert(dot, suffix);
+}
+
 }  // namespace
 
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
@@ -938,6 +954,113 @@ EventTrigger decode_event_trigger(const std::string& entry_name,
   return trigger;
 }
 
+RndTex decode_rnd_tex(const std::string& entry_name,
+                      const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  RndTex tex;
+  tex.name = entry_name;
+  const uint32_t packed_rev = r.u32();
+  tex.version = source_hmx_rev(packed_rev);
+  tex.alt_version = source_alt_rev(packed_rev);
+  if (tex.version < 1 || tex.version > 11) {
+    throw std::runtime_error("char_mesh: RndTex revision outside source range");
+  }
+  if (tex.version > 8) read_object_fields(r);
+  if (tex.version == 1) {
+    tex.width = static_cast<int16_t>(r.u16());
+    tex.height = static_cast<int16_t>(r.u16());
+  } else {
+    tex.width = r.i32();
+    tex.height = r.i32();
+  }
+  tex.power_of_two = source_power_of_two(tex.width, tex.height);
+  tex.bpp = r.i32();
+  tex.filepath = r.str();
+
+  if (tex.version < 5) {
+    tex.cubemap_mask = r.i32();
+    if (tex.cubemap_mask != 0 && !tex.filepath.empty()) {
+      if (tex.cubemap_mask & 2) {
+        source_insert_tex_suffix(tex.filepath, "_tb");
+      } else if (tex.cubemap_mask & 0x10) {
+        source_insert_tex_suffix(tex.filepath, "_ga");
+      } else if (tex.cubemap_mask & 0x20) {
+        source_insert_tex_suffix(tex.filepath, "_gw");
+      }
+    }
+  }
+  if (tex.version != 0 && tex.version < 3) {
+    tex.has_legacy_flag = true;
+    tex.legacy_flag = r.u8() != 0;
+  }
+  if (tex.version > 7) {
+    tex.mip_map_k = r.f32();
+  } else if (tex.version > 3) {
+    const int32_t mip = r.i32();
+    tex.mip_map_k = mip / 16.0f;
+  }
+
+  if (tex.version > 6) {
+    tex.type = r.i32();
+  } else if (tex.version > 5) {
+    static constexpr int32_t kLegacyTypes[] = {1, 2, 4, 8, 0x18};
+    const int32_t type_index = r.i32();
+    if (type_index < 0 ||
+        type_index >= static_cast<int32_t>(sizeof(kLegacyTypes) /
+                                           sizeof(kLegacyTypes[0]))) {
+      throw std::runtime_error("char_mesh: RndTex legacy type index out of range");
+    }
+    tex.type = kLegacyTypes[type_index];
+  } else if (tex.version > 4) {
+    const bool rendered = r.u8() != 0;
+    tex.type = rendered ? 2 : 1;
+  }
+
+  if (tex.filepath.empty() && tex.name != "movie.tex" &&
+      tex.name != "movie_splash.tex" && (tex.type & 2)) {
+    while (tex.width > 0x100) tex.width /= 2;
+    while (tex.height > 0x100) tex.height /= 2;
+    tex.power_of_two = source_power_of_two(tex.width, tex.height);
+  }
+  if (tex.version > 7) {
+    tex.has_post_flag = true;
+    tex.post_flag = r.u8() != 0;
+  }
+  if (tex.version > 10) {
+    tex.optimize_for_ps3 = r.u8() != 0;
+  }
+  tex.cached_bitmap_bytes = r.n - r.pos;
+  if (tex.cached_bitmap_bytes > 0) {
+    try {
+      Reader bitmap(r.p + r.pos, tex.cached_bitmap_bytes);
+      tex.bitmap_version = bitmap.u8();
+      tex.bitmap_bpp = bitmap.u8();
+      if (tex.bitmap_version != 0) {
+        tex.bitmap_order = bitmap.u32();
+      } else {
+        tex.bitmap_order = bitmap.u8();
+      }
+      tex.bitmap_mip_count = bitmap.u8();
+      tex.bitmap_width = bitmap.u16();
+      tex.bitmap_height = bitmap.u16();
+      tex.bitmap_row_bytes = bitmap.u16();
+      bitmap.skip(tex.bitmap_version != 0 ? 0x13 : 6);
+      tex.bitmap_header_decoded = true;
+      tex.cached_bitmap_payload_bytes = bitmap.n - bitmap.pos;
+      if (tex.cached_bitmap_payload_bytes > 0) {
+        tex.cached_bitmap_payload_prefix_hex =
+            hex_bytes(bitmap.p + bitmap.pos,
+                      std::min<size_t>(tex.cached_bitmap_payload_bytes, 32));
+      }
+    } catch (const std::exception& ex) {
+      tex.bitmap_header_error = ex.what();
+      tex.cached_bitmap_payload_prefix_hex =
+          hex_bytes(r.p + r.pos, std::min<size_t>(tex.cached_bitmap_bytes, 32));
+    }
+  }
+  return tex;
+}
+
 CharDriver decode_driver_body(const std::string& entry_name, Reader& r,
                               bool midi) {
   CharDriver driver;
@@ -1300,6 +1423,8 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           out.anim_filters.push_back(decode_anim_filter(de.name, b));
         } else if (de.type == "EventTrigger") {
           out.event_triggers.push_back(decode_event_trigger(de.name, b));
+        } else if (de.type == "Tex") {
+          out.tex_rows.push_back(decode_rnd_tex(de.name, b));
         } else if (de.type == "CharDriver") {
           out.drivers.push_back(decode_driver(de.name, b));
         } else if (de.type == "CharDriverMidi") {
@@ -1317,7 +1442,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  "%zu group, %zu upperTwist, %zu foreTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
                  "%zu servoBone, %zu lookAt, %zu eyes, %zu hair, %zu collide, "
                  "%zu posConstraint, %zu lipServo, %zu animFilter, "
-                 "%zu eventTrigger, %zu driver, %zu weightSetter\n",
+                 "%zu eventTrigger, %zu tex, %zu driver, %zu weightSetter\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
                  out.bones.size(), out.mats.size(), out.groups.size(),
                  out.upper_twists.size(), out.fore_twists.size(), out.ik_rods.size(),
@@ -1327,6 +1452,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  out.pos_constraints.size(),
                  out.lip_sync_servos.size(), out.anim_filters.size(),
                  out.event_triggers.size(),
+                 out.tex_rows.size(),
                  out.drivers.size(),
                  out.weight_setters.size());
     out.bind_mesh_local.clear();
