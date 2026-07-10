@@ -5565,7 +5565,7 @@ int main() {
                  "shot.category=r.symbol();",
                  "CamShot parser reads path/category fields in source order");
   ok &= contains(gameplay_c,
-                 "key.forward[axis]=world_offset.row[0][axis];"
+                 "key.forward[axis]=world_offset.row[1][axis];"
                  "key.up[axis]=world_offset.row[2][axis];"
                  "key.eye[axis]=world_offset.pos[axis];",
                  "CamShot frame decoder maps Matrix rows to runtime basis");
@@ -7426,7 +7426,8 @@ int main() {
                  "\"[char3d]min_lodactive:%d\\n\"",
                  "character LOD changes are debug-verifiable");
   ok &= contains(gameplay_c,
-                 "\"[world]regularcamerasweep:%s->%sbars_left=%d"
+                 "\"[world]regularcamerasweep:%s->%scategory=%s"
+                 "bars_left=%d"
                  "duration=%s[%d,%d]mode=%sforced=%dforce_char_lod=%d",
                  "regular camera sweep logs selected character LOD");
   ok &= contains(gameplay_c,
@@ -7674,29 +7675,53 @@ int main() {
                  "CameraShotModemode)",
                  "camera fallback keeps mode/category predicates separate");
   ok &= contains(gameplay_c,
+                 "constexprstd::array<std::string_view,9>"
+                 "kNormalCamShotCategoryOrder",
+                 "regular camera selection preserves the authored normal CamShot category order");
+  ok &= contains(gameplay_c,
+                 "boolcamera_category_filter_ok(constGameplay::CameraKey&key,"
+                 "CameraShotModemode)",
+                 "camera selection validates category before mode-specific shot filters");
+  ok &= contains(gameplay_c,
+                 "if(!camera_category_filter_ok(key,mode))returnfalse;",
+                 "camera mode filters reject shots outside the authored category set");
+  ok &= contains(gameplay_c,
+                 "voidrandomize_camera_category_order("
+                 "std::vector<Gameplay::CameraKey>&keys)",
+                 "regular camera loader mirrors CameraManager category-local randomization");
+  ok &= contains(gameplay_c,
+                 "for(constautocategory:kNormalCamShotCategoryOrder){"
+                 "shuffle_category(category);}",
+                 "regular camera category randomization keeps the authored normal category buckets");
+  ok &= contains(gameplay_c,
+                 "randomize_camera_category_order(out);",
+                 "regular camera CamShots are category-randomized after MILO decode");
+  ok &= contains(gameplay_c,
                  "if(!camera_mode_filter_ok(key,mode))returnfalse;",
                  "strict camera filter starts from authored mode/category predicates");
   ok &= contains(gameplay_c,
-                 "if(!camera_mode_filter_ok(key,mode))continue;"
-                 "if(!camera_state_filter_ok(key,low_excitement,walking,",
+                 "if(!camera_mode_filter_ok(key,mode))returnfalse;"
+                 "returncamera_state_filter_ok(key,low_excitement,walking,",
                  "camera fallback can relax transition filters without crossing modes");
   ok &= contains(gameplay_c,
-                 "if(camera_mode_filter_ok(key,mode))"
-                 "filtered.push_back(i);",
+                 "returncamera_mode_filter_ok(key,mode);",
                  "last camera fallback still refuses wrong authored camera modes");
   ok &= contains(gameplay_c,
-                 "if(filtered.empty())returnnullptr;",
+                 "if(!selected)returnnullptr;",
                  "camera selection does not invent a wrong-category fallback shot");
   ok &= contains(gameplay_c,
-                 "constsize_tselected=filtered.front();",
-                 "regular camera selector takes the first eligible CamShot like CameraManager::FindCameraShot");
+                 "choose_regular_camera_key_index_by_category(",
+                 "regular camera selector scans authored category buckets like CameraManager::FindCameraShot");
   ok &= contains(gameplay_c,
-                 "keys.erase(keys.begin()+static_cast<std::ptrdiff_t>(selected));"
-                 "keys.push_back(std::move(chosen));",
-                 "regular camera selector rotates the chosen CamShot to the back of the list");
+                 "constsize_tselected_index=*selected;",
+                 "regular camera selector takes the first eligible CamShot in the active category bucket");
   ok &= contains(gameplay_c,
-                 "return&keys.back();",
-                 "regular camera selector returns the rotated CamShot");
+                 "keys.erase(keys.begin()+static_cast<std::ptrdiff_t>"
+                 "(selected_index));",
+                 "regular camera selector removes the chosen CamShot before category-local rotation");
+  ok &= contains(gameplay_c,
+                 "return&*keys.insert(insert_pos,std::move(chosen));",
+                 "regular camera selector returns the category-rotated CamShot");
   ok &= contains(gameplay_c,
                  "choose_regular_camera_key_scripted(regular_camera_keys_,"
                  "active_regular_camera_,",

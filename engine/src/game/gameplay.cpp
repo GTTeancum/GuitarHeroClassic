@@ -1137,7 +1137,8 @@ Gameplay::CameraKey read_camshot_frame_like_miloeditor(
     key.has_fov = true;
     const HmxMatrix3x4 world_offset = read_hmx_matrix(r);
     for (int axis = 0; axis < 3; ++axis) {
-        key.forward[axis] = world_offset.row[0][axis];
+        // Hmx Transform camera frames use m.y as the look axis and m.z as up.
+        key.forward[axis] = world_offset.row[1][axis];
         key.up[axis] = world_offset.row[2][axis];
         key.eye[axis] = world_offset.pos[axis];
     }
@@ -9245,6 +9246,8 @@ std::optional<Gameplay::CameraKey> decode_static_camshot_pose(
     return poses.front().first;
 }
 
+void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys);
+
 std::vector<Gameplay::CameraKey> load_regular_camera_keys(
     const std::string& hdr_path, const std::string& ark_path,
     const std::string& venue) {
@@ -9500,6 +9503,13 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.has_path_ease ? "" : "none/",
                          key.has_path_ease ? key.path_ease : 0.0f);
         }
+        randomize_camera_category_order(out);
+        if (debug_camera_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] regular CamShot categories randomized category-local count=%zu\n",
+                out.size());
+        }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] regular camera select: %s\n", ex.what());
     }
@@ -9551,6 +9561,11 @@ bool string_in(std::string_view value,
 
 enum class CameraShotMode { Regular, Solo, Jump, Lighter };
 
+constexpr std::array<std::string_view, 9> kNormalCamShotCategoryOrder = {
+    "flr_near_lft", "flr_near_rt", "flr_far_lft",
+    "flr_far_rt",  "band_POV",    "balcony_lft",
+    "balcony_rt",  "SOLO_NEAR",   "SOLO_FAR"};
+
 const char* camera_shot_mode_label(CameraShotMode mode) {
     switch (mode) {
         case CameraShotMode::Regular:
@@ -9565,8 +9580,49 @@ const char* camera_shot_mode_label(CameraShotMode mode) {
     return "regular";
 }
 
+bool camera_category_filter_ok(const Gameplay::CameraKey& key,
+                               CameraShotMode mode) {
+    if (mode == CameraShotMode::Lighter) {
+        return key.category == "LIGHTER";
+    }
+    for (const auto category : kNormalCamShotCategoryOrder) {
+        if (key.category == category) return true;
+    }
+    return false;
+}
+
+uint32_t camera_manager_shuffle_next(uint32_t& state) {
+    state = state * 1664525u + 1013904223u;
+    return state;
+}
+
+void randomize_camera_category_order(std::vector<Gameplay::CameraKey>& keys) {
+    // ihatecompvir CameraManager::SyncObjects seeds sRand and randomizes every
+    // category list before FindCameraShot begins moving accepted shots to the
+    // back of that category. Keep the same category-local shape while using a
+    // deterministic native generator for reproducible validation captures.
+    uint32_t state = 0;
+    auto shuffle_category = [&](std::string_view category) {
+        std::vector<size_t> indices;
+        for (size_t i = 0; i < keys.size(); ++i) {
+            if (keys[i].category == category) indices.push_back(i);
+        }
+        for (size_t i = indices.size(); i > 1; --i) {
+            const size_t j =
+                static_cast<size_t>(camera_manager_shuffle_next(state) % i);
+            std::swap(keys[indices[i - 1]], keys[indices[j]]);
+        }
+    };
+
+    for (const auto category : kNormalCamShotCategoryOrder) {
+        shuffle_category(category);
+    }
+    shuffle_category("LIGHTER");
+}
+
 bool camera_mode_filter_ok(const Gameplay::CameraKey& key,
                            CameraShotMode mode) {
+    if (!camera_category_filter_ok(key, mode)) return false;
     if (mode == CameraShotMode::Lighter) {
         return key.lighter;
     }
@@ -9624,6 +9680,32 @@ bool regular_camera_filter_ok(const Gameplay::CameraKey& key,
     return true;
 }
 
+template <typename Predicate>
+std::optional<size_t> choose_regular_camera_key_index_by_category(
+    const std::vector<Gameplay::CameraKey>& keys,
+    const Gameplay::CameraKey* previous,
+    CameraShotMode mode,
+    Predicate&& predicate) {
+    auto scan_category = [&](std::string_view category)
+        -> std::optional<size_t> {
+        for (size_t i = 0; i < keys.size(); ++i) {
+            const auto& key = keys[i];
+            if (key.category != category) continue;
+            if (previous && key.name == previous->name) continue;
+            if (predicate(key)) return i;
+        }
+        return std::nullopt;
+    };
+
+    if (mode == CameraShotMode::Lighter) {
+        return scan_category("LIGHTER");
+    }
+    for (const auto category : kNormalCamShotCategoryOrder) {
+        if (auto selected = scan_category(category)) return selected;
+    }
+    return std::nullopt;
+}
+
 const Gameplay::CameraKey* choose_regular_camera_key_scripted(
     std::vector<Gameplay::CameraKey>& keys,
     std::string_view previous_name,
@@ -9639,42 +9721,36 @@ const Gameplay::CameraKey* choose_regular_camera_key_scripted(
             break;
         }
     }
-    std::vector<size_t> filtered;
-    for (size_t i = 0; i < keys.size(); ++i) {
-        const auto& key = keys[i];
-        if (previous && key.name == previous->name) continue;
-        if (regular_camera_filter_ok(key, previous, low_excitement, walking,
-                                     starpower, mode)) {
-            filtered.push_back(i);
-        }
+    std::optional<size_t> selected =
+        choose_regular_camera_key_index_by_category(
+            keys, previous, mode, [&](const Gameplay::CameraKey& key) {
+                return regular_camera_filter_ok(key, previous, low_excitement,
+                                                walking, starpower, mode);
+            });
+    if (!selected) {
+        selected = choose_regular_camera_key_index_by_category(
+            keys, previous, mode, [&](const Gameplay::CameraKey& key) {
+                if (!camera_mode_filter_ok(key, mode)) return false;
+                return camera_state_filter_ok(key, low_excitement, walking,
+                                              starpower);
+            });
     }
-    if (filtered.empty()) {
-        for (size_t i = 0; i < keys.size(); ++i) {
-            const auto& key = keys[i];
-            if (previous && key.name == previous->name) continue;
-            if (!camera_mode_filter_ok(key, mode)) continue;
-            if (!camera_state_filter_ok(key, low_excitement, walking,
-                                        starpower)) {
-                continue;
-            }
-            filtered.push_back(i);
-        }
+    if (!selected) {
+        selected = choose_regular_camera_key_index_by_category(
+            keys, previous, mode, [&](const Gameplay::CameraKey& key) {
+                return camera_mode_filter_ok(key, mode);
+            });
     }
-    if (filtered.empty()) {
-        for (size_t i = 0; i < keys.size(); ++i) {
-            const auto& key = keys[i];
-            if (previous && key.name == previous->name) continue;
-            if (camera_mode_filter_ok(key, mode)) filtered.push_back(i);
-        }
+    if (!selected) return nullptr;
+    const size_t selected_index = *selected;
+    const std::string selected_category = keys[selected_index].category;
+    Gameplay::CameraKey chosen = std::move(keys[selected_index]);
+    keys.erase(keys.begin() + static_cast<std::ptrdiff_t>(selected_index));
+    auto insert_pos = keys.end();
+    for (auto it = keys.begin(); it != keys.end(); ++it) {
+        if (it->category == selected_category) insert_pos = std::next(it);
     }
-    if (filtered.empty()) return nullptr;
-    const size_t selected = filtered.front();
-    if (selected + 1u != keys.size()) {
-        Gameplay::CameraKey chosen = std::move(keys[selected]);
-        keys.erase(keys.begin() + static_cast<std::ptrdiff_t>(selected));
-        keys.push_back(std::move(chosen));
-    }
-    return &keys.back();
+    return &*keys.insert(insert_pos, std::move(chosen));
 }
 
 bool camera_section_is_solo_at(const ghogx::chart::Chart& chart,
@@ -21991,9 +22067,10 @@ void Gameplay::draw(ghogx::render::Window& win) {
                         active_camera_position_index_ = 0;
                         std::fprintf(
                             stderr,
-                            "[world] regular camera sweep: %s -> %s bars_left=%d duration=%s[%d,%d] mode=%s forced=%d force_char_lod=%d bar=%u t=%.3f\n",
+                            "[world] regular camera sweep: %s -> %s category=%s bars_left=%d duration=%s[%d,%d] mode=%s forced=%d force_char_lod=%d bar=%u t=%.3f\n",
                             previous_regular_camera_.c_str(),
-                            key->name.c_str(), camera_bars_left_,
+                            key->name.c_str(), key->category.c_str(),
+                            camera_bars_left_,
                             duration.first.c_str(), duration.second.first,
                             duration.second.second,
                             camera_shot_mode_label(camera_mode),
