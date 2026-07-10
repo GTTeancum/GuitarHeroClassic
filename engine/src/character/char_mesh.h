@@ -376,6 +376,8 @@ struct CharDriver {
   bool midi = false;
   int32_t midi_version = 0;
   size_t midi_unread_bytes = 0;
+  std::string midi_default_clip;
+  std::string midi_legacy_string;
   std::string midi_parser;
   std::string midi_flag_parser;
   float midi_blend_override_pct = 1.0f;

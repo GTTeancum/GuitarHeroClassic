@@ -37,7 +37,7 @@ records the upstream commits for the copied files:
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log old GH2 rows; no synthetic eye runtime bridge. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; runtime `Poll` remains fenced until source transform writeback is ported. |
 | Hand IK | `CharIKHand.cpp` | Native hand IK follows source dataflow. |
-| MIDI clip drivers | `rb3-latest` `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp` | Decode/log source revision, inherited weight owner, parser rows, and blend override gates; default-clip pointer decode remains fenced until `ObjPtr` load source is present. |
+| MIDI clip drivers | `rb3-latest` `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h` | Decode/log source revision, inherited weight owner, default clip pointer, parser rows, and blend override gates. Runtime clip selection remains source-fenced. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
 | Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
@@ -323,11 +323,13 @@ records the upstream commits for the copied files:
     `mFlagParser`. `OnMidiParser`, `OnMidiParserFlags`, and
     `OnMidiParserGroup` are the source-backed runtime route for MIDI/note-driven
     clip selection and blend width scaling.
-  - The local ihatecompvir source copy does not include `obj/ObjPtr_p.h`, so
-    native GHOGX does not step over `mDefaultClip.Load(bs, false, mClips)` as a
-    guessed string pointer. It logs `midiUnreadBytes` for revision-below-7 rows
-    and decodes parser/flag/blend fields only on revisions where the source load
-    has no preceding default-clip pointer.
+  - `rb3-latest/src/system/obj/ObjPtr_p.h` proves `mDefaultClip.Load` reads one
+    `0x80`-bounded source string. Native GHOGX therefore decodes/logs that slot
+    as `midiDefaultClip` for revision-below-7 rows before applying the
+    parser/flag/blend gates.
+  - Native GHOGX still does not run `Enter`, attach parser message sinks, choose
+    clips from MIDI parser messages, or play `mDefaultClip`. The row is passive
+    inventory until the connected clip driver and CharBones runtime are ported.
   - Native GHOGX decodes/logs the inherited `CharWeightable` revision, weight,
     and owner rows for drivers. It keeps `weight_prop` as a compatibility alias
     but source-facing logs name the row `weightOwner`.
@@ -504,12 +506,11 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
 - The focused refreshed controller inventory at
   `engine/out/source_truth_controller_inventory_20260710/expanded_stock_characters_controller_driver_midi_inventory.log`
   shows 38 `CharDriverMidi` rows across the stock guitarist set. Every row is
-  `midiVersion=3` with `midiUnreadBytes=4`, `midiParser=<none>`,
-  `midiFlagParser=<none>`, and `midiBlendOverridePct=1.0000`. Under the
-  ihatecompvir `CharDriverMidi::Load` gates, GH2 stock rows are therefore before
-  the parser/flag/blend fields and still contain the revision-below-7 default
-  clip slot. Native keeps those four bytes fenced until the `ObjPtr` load
-  implementation is source-backed.
+  `midiVersion=3` with `midiDefaultClip=<none>`, `midiUnreadBytes=0`,
+  `midiParser=<none>`, `midiFlagParser=<none>`, and
+  `midiBlendOverridePct=1.0000`. Under the ihatecompvir `CharDriverMidi::Load`
+  gates, GH2 stock rows are before the parser/flag/blend fields and their
+  revision-below-7 default clip slot is the source-backed empty `ObjPtr` string.
 - The refreshed type inventory at
   `engine/out/source_truth_controller_inventory_20260710/stock_character_type_inventory_latest.log`
   shows one stock `AnimFilter` row, on `metal_drummer`. Native now decodes/logs

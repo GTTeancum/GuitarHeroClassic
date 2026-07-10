@@ -791,8 +791,9 @@ int run_contract() {
                  "native CharDriver keeps source owner plus compatibility alias");
   ok &= contains(char_mesh_h,
                  "int32_tmidi_version=0;size_tmidi_unread_bytes=0;"
-                 "std::stringmidi_parser;",
-                 "native CharDriver stores MIDI source revision and parser");
+                 "std::stringmidi_default_clip;"
+                 "std::stringmidi_legacy_string;std::stringmidi_parser;",
+                 "native CharDriver stores MIDI source revision and default clip");
   ok &= contains(char_mesh,
                  "driver.version=r.i32();",
                  "native CharDriver decoder reads driver revision");
@@ -806,11 +807,20 @@ int run_contract() {
                  "if(driver.weightable_version>1)driver.weight_owner=r.str();",
                  "native CharDriver decoder mirrors CharWeightable owner gate");
   ok &= contains(char_mesh,
-                 "if(driver.midi_version>=7){if(driver.midi_version>3",
-                 "native CharDriverMidi parser decode is fenced past default clip");
+                 "if(driver.midi_version<7&&r.pos<r.n)"
+                 "driver.midi_default_clip=r.str();",
+                 "native CharDriverMidi decodes source default clip pointer");
+  ok &= contains(char_mesh,
+                 "if(driver.midi_version==2&&r.pos<r.n)"
+                 "driver.midi_legacy_string=r.str();",
+                 "native CharDriverMidi decodes source rev-2 legacy string");
+  ok &= contains(char_mesh,
+                 "if(driver.midi_version>3&&r.pos<r.n)"
+                 "driver.midi_parser=r.str();",
+                 "native CharDriverMidi parser decode follows source gate");
   ok &= contains(char_mesh,
                  "driver.midi_unread_bytes=r.n-r.pos;",
-                 "native CharDriverMidi records fenced unread bytes");
+                 "native CharDriverMidi records remaining unread bytes");
   ok &= contains(bind_audit,
                  "\"[controller-driver]char=%sname=%sversion=%d",
                  "controller audit logs CharDriver source revision");
@@ -818,20 +828,21 @@ int run_contract() {
                  "\"weightOwner=%sweightProp=%senabled=%dmidi=%d",
                  "controller audit logs CharDriver source weight owner");
   ok &= contains(bind_audit,
-                 "\"midiVersion=%dmidiUnreadBytes=%zumidiParser=%s",
+                 "\"midiVersion=%dmidiUnreadBytes=%zumidiDefaultClip=%s",
                  "controller audit logs CharDriverMidi source fields");
   ok &= contains(doc,
                  "`CharDriverMidi::Load` reads the subclass revision",
                  "document records CharDriverMidi source load");
   ok &= contains(doc,
-                 "native GHOGX does not step over `mDefaultClip.Load(bs, false, mClips)`",
-                 "document fences CharDriverMidi default clip pointer");
+                 "Native GHOGX therefore decodes/logs that slot\n"
+                 "    as `midiDefaultClip`",
+                 "document promotes CharDriverMidi default clip pointer");
   ok &= contains(doc,
                  "shows 38 `CharDriverMidi` rows",
                  "document records refreshed CharDriverMidi stock inventory");
   ok &= contains(doc,
-                 "`midiVersion=3` with `midiUnreadBytes=4`",
-                 "document records GH2 CharDriverMidi rev/tail proof");
+                 "`midiVersion=3` with `midiDefaultClip=<none>`, `midiUnreadBytes=0`",
+                 "document records GH2 CharDriverMidi default-clip proof");
   ok &= contains(rb3_latest_anim_filter_h,
                  "ObjPtr<RndAnimatable,classObjectDir>mAnim;",
                  "latest RndAnimFilter header exposes anim pointer");

@@ -967,12 +967,12 @@ CharDriver decode_driver_midi(const std::string& entry_name,
   const int32_t midi_version = r.i32();  // CharDriverMidi version.
   CharDriver driver = decode_driver_body(entry_name, r, true);
   driver.midi_version = midi_version;
-  if (driver.midi_version >= 7) {
-    if (driver.midi_version > 3 && r.pos < r.n) driver.midi_parser = r.str();
-    if (driver.midi_version > 4 && r.pos < r.n) driver.midi_flag_parser = r.str();
-    if (driver.midi_version > 5 && r.pos + 4 <= r.n)
-      driver.midi_blend_override_pct = r.f32();
-  }
+  if (driver.midi_version < 7 && r.pos < r.n) driver.midi_default_clip = r.str();
+  if (driver.midi_version == 2 && r.pos < r.n) driver.midi_legacy_string = r.str();
+  if (driver.midi_version > 3 && r.pos < r.n) driver.midi_parser = r.str();
+  if (driver.midi_version > 4 && r.pos < r.n) driver.midi_flag_parser = r.str();
+  if (driver.midi_version > 5 && r.pos + 4 <= r.n)
+    driver.midi_blend_override_pct = r.f32();
   driver.midi_unread_bytes = r.n - r.pos;
   return driver;
 }
