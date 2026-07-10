@@ -780,20 +780,6 @@ bool local_hand_fore_twist_enabled() {
 #endif
 }
 
-bool disable_lookat_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_LOOKAT") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_LOOKAT");
-  return value && value[0];
-#endif
-}
-
 bool debug_char_hair_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -884,7 +870,7 @@ void log_character_controller_graph_once(const Character& character) {
                character.lookats.size(), character.eyes.size(),
                arm_ik_enabled() ? "on" : "off",
                ik_hand_rotation_enabled() ? "on" : "guarded", "decode-only",
-               disable_lookat_enabled() ? "off" : "on");
+               "decode-only");
   for (const auto& ik : character.ik_hands) {
     std::fprintf(stderr,
                  "[chargraph]   ik %s hand=%s target=%s weight=%.3f "
@@ -1528,14 +1514,6 @@ static int find_bone_index(const Character& character, const std::string& name) 
   return -1;
 }
 
-static int find_mesh_index(const Character& character, const std::string& name) {
-  for (size_t i = 0; i < character.meshes.size(); ++i)
-    if (character.meshes[i].name == name ||
-        channel_matches_bone(character.meshes[i].name, name))
-      return (int)i;
-  return -1;
-}
-
 [[maybe_unused]] static bool is_eye_mesh_name(const std::string& name) {
   std::string lower = name;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -1582,28 +1560,6 @@ static void dump_leg_pose(const Character& character) {
   dump("bone_R-knee");
   dump("bone_R-foot");
   dump("bone_R-toe");
-}
-
-static bool transform_world(const Character& character, const std::string& name,
-                            std::array<float, 16>& out) {
-  const auto runtime_it = character.runtime_world_overrides.find(name);
-  if (runtime_it != character.runtime_world_overrides.end()) {
-    out = runtime_it->second;
-    return true;
-  }
-  for (const auto& b : character.bones) {
-    if (b.name == name || channel_matches_bone(b.name, name)) {
-      out = character.bone_world(b.name);
-      return true;
-    }
-  }
-  for (const auto& m : character.meshes) {
-    if (m.name == name || channel_matches_bone(m.name, name)) {
-      out = character.mesh_world(m);
-      return true;
-    }
-  }
-  return false;
 }
 
 static bool transform_local_chain_world(const Character& character,
@@ -3590,143 +3546,6 @@ static void apply_hand_driver_output_layers(
   apply_group(HandDriverOutputGroup::Fret);
 }
 
-enum class EyeSide {
-  kUnknown,
-  kLeft,
-  kRight,
-};
-
-static std::string lower_ascii(std::string s) {
-  std::transform(s.begin(), s.end(), s.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-  return s;
-}
-
-static EyeSide eye_side_from_name(const std::string& name) {
-  const std::string lower = lower_ascii(name);
-  if (lower.find("l-eye") != std::string::npos ||
-      lower.find("eye-l") != std::string::npos ||
-      lower.find("l_eye") != std::string::npos ||
-      lower.find("eye_l") != std::string::npos ||
-      lower.find("_eyel") != std::string::npos ||
-      lower.find("eyel.") != std::string::npos) {
-    return EyeSide::kLeft;
-  }
-  if (lower.find("r-eye") != std::string::npos ||
-      lower.find("eye-r") != std::string::npos ||
-      lower.find("r_eye") != std::string::npos ||
-      lower.find("eye_r") != std::string::npos ||
-      lower.find("_eyer") != std::string::npos ||
-      lower.find("eyer.") != std::string::npos) {
-    return EyeSide::kRight;
-  }
-  return EyeSide::kUnknown;
-}
-
-static EyeSide eye_side_for_lookat(const CharLookAt& look) {
-  for (const auto* name : {&look.name, &look.source, &look.target,
-                           &look.driven}) {
-    const EyeSide side = eye_side_from_name(*name);
-    if (side != EyeSide::kUnknown) return side;
-  }
-  return EyeSide::kUnknown;
-}
-
-static const char* eye_side_name(EyeSide side) {
-  switch (side) {
-    case EyeSide::kLeft:
-      return "left";
-    case EyeSide::kRight:
-      return "right";
-    case EyeSide::kUnknown:
-      return "unknown";
-  }
-  return "unknown";
-}
-
-static void set_facefx_eye_props(FaceFxEyeProperties& props, EyeSide side,
-                                 float x, float z) {
-  switch (side) {
-    case EyeSide::kLeft:
-      props.l_eye_x = x;
-      props.l_eye_z = z;
-      props.has_l_eye_x = true;
-      props.has_l_eye_z = true;
-      break;
-    case EyeSide::kRight:
-      props.r_eye_x = x;
-      props.r_eye_z = z;
-      props.has_r_eye_x = true;
-      props.has_r_eye_z = true;
-      break;
-    case EyeSide::kUnknown:
-      break;
-  }
-}
-
-static const CharLookAt* find_lookat_controller(const Character& character,
-                                                const std::string& name) {
-  for (const auto& look : character.lookats) {
-    if (look.name == name) return &look;
-  }
-  return nullptr;
-}
-
-static const SkinnedMesh* find_mesh_by_name(const Character& character,
-                                            const std::string& name) {
-  for (const auto& mesh : character.meshes) {
-    if (mesh.name == name || channel_matches_bone(mesh.name, name)) {
-      return &mesh;
-    }
-  }
-  return nullptr;
-}
-
-static void submit_char_eyes_runtime_rows(Character& character) {
-  if (character.eyes.empty()) return;
-  for (const auto& eyes : character.eyes) {
-    std::array<float, 16> pivot_world =
-        {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-    Vec3 pivot_pos{};
-    size_t pivot_count = 0;
-    bool have_pivot = false;
-    for (const auto& lookat_name : eyes.lookats) {
-      const CharLookAt* look = find_lookat_controller(character, lookat_name);
-      if (!look) continue;
-      const std::string& source_mesh =
-          !look->driven.empty() ? look->driven : look->target;
-      if (source_mesh.empty()) continue;
-      std::array<float, 16> source_world{};
-      if (!transform_local_chain_world(character, source_mesh, source_world)) {
-        continue;
-      }
-      // Accepted PS2 rows show the self-sourced CharLookAt controller resolving
-      // through the source eye Trans row owned by CharEyes. Submit that row by
-      // controller name so the shared transform resolver can consume it without
-      // moving the authored eye mesh.
-      character.runtime_world_overrides[look->name] = source_world;
-      if (!look->source.empty()) {
-        character.runtime_world_overrides[look->source] = source_world;
-      }
-
-      const SkinnedMesh* mesh = find_mesh_by_name(character, source_mesh);
-      if (mesh && !mesh->parent.empty()) {
-        pivot_world = character.bone_world_local_chain(mesh->parent);
-        have_pivot = true;
-      }
-      pivot_pos = vadd(pivot_pos, mat_pos(source_world));
-      ++pivot_count;
-    }
-    if (!eyes.name.empty() && have_pivot && pivot_count > 0) {
-      const Vec3 avg = vscale(pivot_pos, 1.0f / static_cast<float>(pivot_count));
-      pivot_world[12] = avg.x;
-      pivot_world[13] = avg.y;
-      pivot_world[14] = avg.z;
-      character.runtime_world_overrides[eyes.name] = pivot_world;
-    }
-  }
-}
-
 static void apply_char_hair(Character& character, float time_seconds) {
   (void)time_seconds;
   if (character.hairs.empty()) return;
@@ -3835,7 +3654,6 @@ void apply_character_controllers(Character& character, float time_seconds,
   if (arm_ik_enabled()) apply_legacy_ik_hands(character);
   apply_driven_twists(character, bind_bones, fore_twists_applied);
   apply_char_hair(character, time_seconds);
-  submit_char_eyes_runtime_rows(character);
 
   if (debug_face_enabled()) {
     for (const auto& b : character.bones) {
@@ -3868,108 +3686,6 @@ void apply_character_controllers(Character& character, float time_seconds,
                    m.local.rot[0][1], m.local.rot[0][2], m.local.rot[1][0],
                    m.local.rot[1][1], m.local.rot[1][2], m.local.rot[2][0],
                    m.local.rot[2][1], m.local.rot[2][2]);
-    }
-  }
-
-  if (!disable_lookat_enabled()) {
-    for (const auto& look : character.lookats) {
-      if (look.weight <= 0.0f || look.driven.empty()) continue;
-      const int driven_i = find_mesh_index(character, look.driven);
-      if (driven_i < 0 ||
-          static_cast<size_t>(driven_i) >= character.meshes.size())
-        continue;
-      auto& eye = character.meshes[static_cast<size_t>(driven_i)];
-      if (eye.parent.empty()) continue;
-
-      const auto parent_world = character.bone_world_local_chain(eye.parent);
-      const auto eye_world = character.mesh_world(eye);
-      const Vec3 eye_pos = mat_pos(eye_world);
-
-      std::array<float, 16> target_world{};
-      if (!transform_world(character, look.target, target_world)) {
-        continue;
-      }
-
-      const Vec3 target_pos = mat_pos(target_world);
-      const Vec3 head_front = vnorm(mat_row(parent_world, 1), {0, 1, 0});
-      const Vec3 head_right = vnorm(mat_row(parent_world, 2), {1, 0, 0});
-      const Vec3 head_up = vnorm(mat_row(parent_world, 0), {0, 0, 1});
-
-      std::array<float, 16> source_world{};
-      Vec3 source_pos{};
-      if (transform_world(character, look.source, source_world)) {
-        source_pos = mat_pos(source_world);
-      } else if (look.source == look.name) {
-        // PS2 traces for self-sourced CharLookAt objects update source eye rows
-        // through the shared CharEyes pivot/head graph; they do not carry a
-        // large authored downward source offset. Keep the synthetic native
-        // fallback forward-facing and let the decoded look-at offsets/limits
-        // provide the small per-character eye bias.
-        const float dist = 100.0f;
-        source_pos = vadd(target_pos, vscale(head_front, dist));
-      } else {
-        continue;
-      }
-
-      Vec3 raw_dir = vsub(source_pos, target_pos);
-      if (vlen(raw_dir) <= 1e-5f) raw_dir = vsub(source_pos, eye_pos);
-      if (vdot(raw_dir, head_front) < 0.0f) raw_dir = vscale(raw_dir, -1.0f);
-      raw_dir = vnorm(raw_dir, head_front);
-
-      const float deg = 3.14159265358979323846f / 180.0f;
-      const float hz_min = look.min_x * deg;
-      const float hz_max = look.max_x * deg;
-      const float vt_min = look.min_z * deg;
-      const float vt_max = look.max_z * deg;
-      const float hz_offset = look.offset_x * deg;
-      const float vt_offset = look.offset_z * deg;
-      const float f = std::max(1e-5f, vdot(raw_dir, head_front));
-      const float yaw = std::clamp(std::atan2(vdot(raw_dir, head_right), f) +
-                                       hz_offset,
-                                   hz_min, hz_max);
-      const float pitch = std::clamp(std::atan2(vdot(raw_dir, head_up), f) +
-                                         vt_offset,
-                                     vt_min, vt_max);
-      if (eye_props) {
-        auto norm_axis = [](float v, float neg, float pos) {
-          if (v >= 0.0f)
-            return pos > 1e-5f ? std::clamp(v / pos, 0.0f, 1.0f) : 0.0f;
-          return neg < -1e-5f ? -std::clamp(v / neg, 0.0f, 1.0f) : 0.0f;
-        };
-        const float x = norm_axis(yaw, hz_min, hz_max);
-        const float z = norm_axis(pitch, vt_min, vt_max);
-        const EyeSide side = eye_side_for_lookat(look);
-        set_facefx_eye_props(*eye_props, side, x, z);
-        if (debug_face_enabled()) {
-          std::fprintf(stderr,
-                       "[lookat-props] %s side=%s target=%s driven=%s "
-                       "x=%.4f z=%.4f\n",
-                       look.name.c_str(), eye_side_name(side),
-                       look.target.c_str(), look.driven.c_str(), x, z);
-        }
-      }
-
-      Vec3 target_dir = vadd(head_front,
-                             vadd(vscale(head_right, std::tan(yaw)),
-                                  vscale(head_up, std::tan(pitch))));
-      target_dir = vnorm(target_dir, head_front);
-
-      const auto desired_world = aim_preserve_xfm(
-          eye_pos, mat_row(eye_world, 1), target_dir, eye_world);
-      set_local_from_world(eye.local, desired_world, parent_world);
-      if (debug_face_enabled()) {
-        std::fprintf(
-            stderr,
-            "[lookat] %s driven=%s source=%s target=%s eye=(%.3f %.3f %.3f) "
-            "source_pos=(%.3f %.3f %.3f) target_pos=(%.3f %.3f %.3f) "
-            "raw_dir=(%.4f %.4f %.4f) target_dir=(%.4f %.4f %.4f) "
-            "yaw=%.4f pitch=%.4f\n",
-            look.name.c_str(), look.driven.c_str(), look.source.c_str(),
-            look.target.c_str(), eye_pos.x, eye_pos.y, eye_pos.z,
-            source_pos.x, source_pos.y, source_pos.z, target_pos.x,
-            target_pos.y, target_pos.z, raw_dir.x, raw_dir.y, raw_dir.z,
-            target_dir.x, target_dir.y, target_dir.z, yaw, pitch);
-      }
     }
   }
 

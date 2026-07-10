@@ -89,6 +89,21 @@ Treat ihatecompvir's repos as the authority; do not use the older
     runtime collision/hookup path. Native GHOGX must not invent a partial hair
     physics bridge from decoded point rows alone.
 
+## Face Controller Authorities
+
+- `rb3/src/system/char/CharLookAt.cpp`
+  - `CharLookAt::Poll` is the available Harmonix source for eye/look-at runtime
+    motion. It reads source/pivot/destination transformables and writes the
+    pivot through `SetWorldXfm`; it does not synthesize a head-forward source
+    row when a GH2 row names the `CharLookAt` object itself.
+- `rb3/src/system/char/CharEyes.cpp`
+  - `CharEyes` owns `EyeDesc` rows and delegates poll children to the referenced
+    `CharLookAt` controllers. It is not evidence for a native bridge that copies
+    eye mesh world rows into ad-hoc controller overrides.
+- Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
+  does not publish synthetic eye runtime rows until a direct source-backed poll
+  port is implemented.
+
 ## Stock GH2 Evidence
 
 The local stock-asset audit log at

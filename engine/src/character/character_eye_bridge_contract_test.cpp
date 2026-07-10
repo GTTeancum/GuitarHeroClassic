@@ -31,14 +31,14 @@ std::string compact(std::string s) {
 bool contains(const std::string& haystack, const std::string& needle,
               const char* label) {
   if (haystack.find(needle) != std::string::npos) return true;
-  std::cerr << "Missing eye bridge contract: " << label << "\n";
+  std::cerr << "Missing face source contract: " << label << "\n";
   return false;
 }
 
 bool missing(const std::string& haystack, const std::string& needle,
              const char* label) {
   if (haystack.find(needle) == std::string::npos) return true;
-  std::cerr << "Unexpected eye bridge contract match: " << label << "\n";
+  std::cerr << "Unexpected face source contract match: " << label << "\n";
   return false;
 }
 
@@ -87,34 +87,24 @@ int main() {
                  "if(r.pos<r.n)eyes.upperlid_or_blink_bone=r.str();",
                  "CharEyes trailing field remains the blink/upperlid string");
 
-  ok &= contains(apply_controllers,
-                 "source_pos=vadd(target_pos,vscale(head_front,dist));",
-                 "self-source look-at fallback stays on the traced head-forward basis");
-  ok &= contains(apply_controllers,
-                 "constEyeSideside=eye_side_for_lookat(look);",
-                 "FaceFX eye registers derive side from decoded look-at records");
-  ok &= contains(apply_controllers,
-                 "set_facefx_eye_props(*eye_props,side,x,z);",
-                 "look-at properties continue to feed the FaceFX eye bridge");
-  ok &= contains(apply_controllers,
-                 "submit_char_eyes_runtime_rows(character);",
-                 "CharEyes submits its traced resident/source rows before look-at");
-  ok &= contains(compact(char_clip),
-                 "conststd::string&source_mesh="
-                 "!look->driven.empty()?look->driven:look->target;",
-                 "CharEyes source rows come from the driven eye mesh when present");
-  ok &= contains(compact(char_clip),
-                 "character.runtime_world_overrides[look->name]=source_world;",
-                 "self-sourced CharLookAt resolves through the CharEyes source row");
-  ok &= contains(compact(char_clip),
-                 "character.runtime_world_overrides[eyes.name]=pivot_world;",
-                 "resident CharEyes.eyes pivot row is submitted with the source-eye chain");
-  ok &= contains(compact(char_clip),
-                 "constautoruntime_it=character.runtime_world_overrides.find(name);",
-                 "transform resolution consumes submitted controller Trans rows");
+  ok &= contains(apply_controllers, "if(eye_props)*eye_props={};",
+                 "FaceFX eye props are cleared when no source-backed eye poll is active");
+  ok &= missing(compact(char_clip), "submit_char_eyes_runtime_rows",
+                "unsupported CharEyes runtime-row bridge must stay removed");
+  ok &= missing(compact(char_clip),
+                "source_pos=vadd(target_pos,vscale(head_front,dist));",
+                "self-source look-at fallback must not synthesize head-forward rows");
+  ok &= missing(compact(char_clip), "set_facefx_eye_props",
+                "unsupported FaceFX eye bridge must stay removed");
+  ok &= missing(compact(char_clip), "eye_side_for_lookat",
+                "eye side inference must not drive runtime behavior");
+  ok &= missing(compact(char_clip), "find_mesh_index",
+                "look-at mesh lookup helper should not remain as dead bridge code");
+  ok &= missing(compact(char_clip), "[lookat]",
+                "unsupported look-at runtime log path must stay removed");
   ok &= contains(compact(function_body(char_clip, "is_eye_mesh_name")),
                  "lower.find(\"_eyel\")!=std::string::npos",
-                 "alternate PS2 eye mesh spellings use the traced eye basis");
+                 "alternate PS2 eye mesh spellings remain available for diagnostics");
   ok &= contains(parse_animation,
                  "if(version!=1200&&version!=1500)",
                  "song FaceFX animations accept traced v1200 and v1500 FACE archives");
@@ -133,19 +123,16 @@ int main() {
                 "mouth detail meshes must not use the old attachment band-aid");
   ok &= missing(renderer_c, "elseif(is_rigid_mouth_detail_mesh(m))",
                 "mouth detail meshes must not use a name-based rigid row branch");
-  ok &= contains(compact(function_body(char_clip, "transform_world")),
-                 "out=character.mesh_world(m);returntrue;",
-                 "clip-space mesh transforms use decoded mesh object rows");
   ok &= contains(compact(function_body(char_clip, "transform_local_chain_world")),
                  "out=character.mesh_world(m);returntrue;",
                  "local-chain lookup no longer special-cases eye meshes to attachment rows");
 
   if (!ok) {
     std::cerr
-        << "The eye path must stay on decoded CharEyes/CharLookAt evidence. "
-           "Do not replace it with per-character offsets, stock exact-name "
-           "assumptions, attachment-row face detail band-aids, or default "
-           "synthetic eye insets.\n";
+        << "The face path must stay on decoded source data only. Do not "
+           "replace it with per-character offsets, stock exact-name "
+           "assumptions, attachment-row face detail band-aids, default "
+           "synthetic eye insets, or synthetic CharEyes/CharLookAt rows.\n";
     return 1;
   }
   return 0;

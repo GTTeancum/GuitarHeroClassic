@@ -90,6 +90,10 @@ int main() {
       source_dir / "glTFMilo/Source/glTFMilo/Core/NodeProcessor.cs"));
   const std::string rb3_char_hair_cpp = compact(read_file(
       source_dir / "rb3/src/system/char/CharHair.cpp"));
+  const std::string rb3_char_lookat_cpp = compact(read_file(
+      source_dir / "rb3/src/system/char/CharLookAt.cpp"));
+  const std::string rb3_char_eyes_cpp = compact(read_file(
+      source_dir / "rb3/src/system/char/CharEyes.cpp"));
 
   bool ok = true;
 
@@ -105,6 +109,10 @@ int main() {
                  "document cites RB3 RndMesh runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharHair.cpp",
                  "document cites CharHair runtime source");
+  ok &= contains(doc, "rb3/src/system/char/CharLookAt.cpp",
+                 "document cites CharLookAt runtime source");
+  ok &= contains(doc, "rb3/src/system/char/CharEyes.cpp",
+                 "document cites CharEyes runtime source");
 
   ok &= contains(object_cs, "publicenumNodeType:int{Int=0x00,Float=0x01",
                  "ObjectFields exposes DTB node enum");
@@ -293,6 +301,12 @@ int main() {
                  "if(hair.version<8){point.side_length=-1.0f;if(hair.version>5){"
                  "(void)r.i32();(void)r.i32();}}",
                  "native CharHair decode consumes two ints for old revs above 5");
+  ok &= contains(rb3_char_lookat_cpp, "mPivot->SetWorldXfm(tf90);",
+                 "RB3 CharLookAt poll writes the pivot transform");
+  ok &= contains(rb3_char_lookat_cpp, "RndTransformable*srcTrans=GetSource();",
+                 "RB3 CharLookAt poll resolves source through GetSource");
+  ok &= contains(rb3_char_eyes_cpp, "plist.push_back((*it).mEye);",
+                 "RB3 CharEyes delegates poll children to CharLookAt rows");
 
   ok &= missing(char_mesh_h, "RuntimeHair", "legacy runtime hair state removed");
   ok &= missing(renderer, "runtime_hair_world_override",
@@ -304,6 +318,12 @@ int main() {
                 "legacy CharHair env gate removed");
   ok &= missing(char_clip, "GHOGX_DISABLE_CHAR_HAIR",
                 "disable-hair env gate removed");
+  ok &= missing(char_clip, "submit_char_eyes_runtime_rows",
+                "unsupported CharEyes runtime-row bridge removed");
+  ok &= missing(char_clip, "source_pos=vadd(target_pos",
+                "self-source look-at fallback removed");
+  ok &= missing(char_clip, "set_facefx_eye_props",
+                "unsupported FaceFX eye property bridge removed");
 
   if (!ok) {
     std::cerr
