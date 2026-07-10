@@ -228,13 +228,13 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
       "[controller-summary] path=%s char=%s drivers=%zu weightSetters=%zu "
       "servoBone=%zu ik=%zu ikMidi=%zu ikRod=%zu foreTwist=%zu upperTwist=%zu "
       "lookAt=%zu eyes=%zu hair=%zu collide=%zu posConstraint=%zu "
-      "animFilter=%zu\n",
+      "animFilter=%zu eventTrigger=%zu\n",
       milo_path.c_str(), c.dir_name.c_str(), c.drivers.size(),
       c.weight_setters.size(), c.servo_bones.size(), c.ik_hands.size(),
       c.ik_midis.size(), c.ik_rods.size(), c.fore_twists.size(),
       c.upper_twists.size(), c.lookats.size(), c.eyes.size(),
       c.hairs.size(), c.collides.size(), c.pos_constraints.size(),
-      c.anim_filters.size());
+      c.anim_filters.size(), c.event_triggers.size());
   for (const auto& driver : c.drivers) {
     std::printf(
         "[controller-driver] char=%s name=%s version=%d "
@@ -278,6 +278,110 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
         filter.rate, filter.scale, filter.offset, filter.start, filter.end,
         filter.type, filter.period, filter.snap, filter.jitter,
         filter.unread_bytes);
+  }
+  for (const auto& trigger : c.event_triggers) {
+    std::printf(
+        "[controller-event-trigger] char=%s name=%s version=%d altVersion=%d "
+        "animatableVersion=%d frame=%.4f animRate=%d triggerEvents=%zu "
+        "anims=%zu sounds=%zu shows=%zu hideDelays=%zu enableEvents=%zu "
+        "disableEvents=%zu waitForEvents=%zu nextLink=%s proxyCalls=%zu "
+        "triggerOrder=%d resetTriggers=%zu resetSelf=%d animTrigger=%d "
+        "animFrame=%.4f partLaunchers=%zu unreadBytes=%zu tailHex=%s\n",
+        c.dir_name.c_str(), trigger.name.c_str(), trigger.version,
+        trigger.alt_version, trigger.animatable_version, trigger.frame,
+        trigger.anim_rate, trigger.trigger_events.size(), trigger.anims.size(),
+        trigger.sounds.size(), trigger.shows.size(),
+        trigger.hide_delays.size(), trigger.enable_events.size(),
+        trigger.disable_events.size(), trigger.wait_for_events.size(),
+        none_if_empty(trigger.next_link), trigger.proxy_calls.size(),
+        trigger.trigger_order, trigger.reset_triggers.size(),
+        trigger.reset_self ? 1 : 0, trigger.anim_trigger,
+        trigger.anim_frame, trigger.part_launchers.size(),
+        trigger.unread_bytes, none_if_empty(trigger.unread_tail_hex));
+    for (size_t i = 0; i < trigger.trigger_events.size(); ++i) {
+      std::printf(
+          "[controller-event-trigger-event] char=%s trigger=%s kind=trigger "
+          "index=%zu event=%s\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(trigger.trigger_events[i]));
+    }
+    for (size_t i = 0; i < trigger.enable_events.size(); ++i) {
+      std::printf(
+          "[controller-event-trigger-event] char=%s trigger=%s kind=enable "
+          "index=%zu event=%s\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(trigger.enable_events[i]));
+    }
+    for (size_t i = 0; i < trigger.disable_events.size(); ++i) {
+      std::printf(
+          "[controller-event-trigger-event] char=%s trigger=%s kind=disable "
+          "index=%zu event=%s\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(trigger.disable_events[i]));
+    }
+    for (size_t i = 0; i < trigger.wait_for_events.size(); ++i) {
+      std::printf(
+          "[controller-event-trigger-event] char=%s trigger=%s kind=waitFor "
+          "index=%zu event=%s\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(trigger.wait_for_events[i]));
+    }
+    for (size_t i = 0; i < trigger.anims.size(); ++i) {
+      const auto& anim = trigger.anims[i];
+      std::printf(
+          "[controller-event-trigger-anim] char=%s trigger=%s index=%zu "
+          "anim=%s blend=%.4f wait=%d delay=%.4f enable=%d rate=%d "
+          "start=%.4f end=%.4f period=%.4f type=%s scale=%.4f\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(anim.anim), anim.blend, anim.wait ? 1 : 0,
+          anim.delay, anim.enable ? 1 : 0, anim.rate, anim.start,
+          anim.end, anim.period, none_if_empty(anim.type), anim.scale);
+    }
+    for (size_t i = 0; i < trigger.sounds.size(); ++i) {
+      std::printf(
+          "[controller-event-trigger-object] char=%s trigger=%s kind=sound "
+          "index=%zu object=%s\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(trigger.sounds[i]));
+    }
+    for (size_t i = 0; i < trigger.shows.size(); ++i) {
+      std::printf(
+          "[controller-event-trigger-object] char=%s trigger=%s kind=show "
+          "index=%zu object=%s\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(trigger.shows[i]));
+    }
+    for (size_t i = 0; i < trigger.hide_delays.size(); ++i) {
+      const auto& delay = trigger.hide_delays[i];
+      std::printf(
+          "[controller-event-trigger-hide-delay] char=%s trigger=%s "
+          "index=%zu hide=%s delay=%.4f rate=%d\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(delay.hide), delay.delay, delay.rate);
+    }
+    for (size_t i = 0; i < trigger.proxy_calls.size(); ++i) {
+      const auto& call = trigger.proxy_calls[i];
+      std::printf(
+          "[controller-event-trigger-proxy] char=%s trigger=%s index=%zu "
+          "proxy=%s call=%s event=%s\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(call.proxy), none_if_empty(call.call),
+          none_if_empty(call.event));
+    }
+    for (size_t i = 0; i < trigger.reset_triggers.size(); ++i) {
+      std::printf(
+          "[controller-event-trigger-object] char=%s trigger=%s kind=reset "
+          "index=%zu object=%s\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(trigger.reset_triggers[i]));
+    }
+    for (size_t i = 0; i < trigger.part_launchers.size(); ++i) {
+      std::printf(
+          "[controller-event-trigger-object] char=%s trigger=%s "
+          "kind=partLauncher index=%zu object=%s\n",
+          c.dir_name.c_str(), trigger.name.c_str(), i,
+          none_if_empty(trigger.part_launchers[i]));
+    }
   }
   for (const auto& ik : c.ik_hands) {
     std::printf(

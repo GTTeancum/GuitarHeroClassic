@@ -174,6 +174,37 @@ std::vector<std::string> read_obj_ptr_list(Reader& r) {
   return out;
 }
 
+std::vector<std::string> read_symbol_vector(Reader& r) {
+  std::vector<std::string> out;
+  const uint32_t count = r.u32();
+  if (count > 1024) {
+    throw std::runtime_error("char_mesh: implausible symbol vector");
+  }
+  out.reserve(count);
+  for (uint32_t i = 0; i < count; ++i) out.push_back(r.str());
+  return out;
+}
+
+std::string hex_bytes(const uint8_t* data, size_t len) {
+  static constexpr char kHex[] = "0123456789abcdef";
+  std::string out;
+  out.reserve(len * 3);
+  for (size_t i = 0; i < len; ++i) {
+    if (i != 0) out.push_back(':');
+    out.push_back(kHex[(data[i] >> 4) & 0x0f]);
+    out.push_back(kHex[data[i] & 0x0f]);
+  }
+  return out;
+}
+
+uint16_t source_hmx_rev(uint32_t packed) {
+  return static_cast<uint16_t>(packed & 0xffffu);
+}
+
+uint16_t source_alt_rev(uint32_t packed) {
+  return static_cast<uint16_t>(packed >> 16);
+}
+
 }  // namespace
 
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
@@ -776,6 +807,137 @@ RndAnimFilter decode_anim_filter(const std::string& entry_name,
   return filter;
 }
 
+EventTriggerAnim read_event_trigger_anim(Reader& r, int32_t version) {
+  EventTriggerAnim anim;
+  anim.anim = r.str();
+  anim.blend = r.f32();
+  anim.wait = r.u8() != 0;
+  anim.delay = r.f32();
+  if (version > 9) {
+    anim.enable = r.u8() != 0;
+    anim.rate = r.i32();
+    anim.start = r.f32();
+    anim.end = r.f32();
+    anim.period = r.f32();
+    anim.type = r.str();
+    anim.scale = r.f32();
+  }
+  return anim;
+}
+
+std::vector<EventTriggerAnim> read_event_trigger_anims(Reader& r,
+                                                       int32_t version) {
+  std::vector<EventTriggerAnim> out;
+  const uint32_t count = r.u32();
+  if (count > 256) {
+    throw std::runtime_error("char_mesh: implausible EventTrigger anim vector");
+  }
+  out.reserve(count);
+  for (uint32_t i = 0; i < count; ++i) {
+    out.push_back(read_event_trigger_anim(r, version));
+  }
+  return out;
+}
+
+EventTriggerProxyCall read_event_trigger_proxy_call(Reader& r,
+                                                    int32_t version) {
+  EventTriggerProxyCall call;
+  call.proxy = r.str();
+  call.call = r.str();
+  if (version > 10) call.event = r.str();
+  return call;
+}
+
+std::vector<EventTriggerProxyCall> read_event_trigger_proxy_calls(
+    Reader& r, int32_t version) {
+  std::vector<EventTriggerProxyCall> out;
+  const uint32_t count = r.u32();
+  if (count > 256) {
+    throw std::runtime_error(
+        "char_mesh: implausible EventTrigger proxy vector");
+  }
+  out.reserve(count);
+  for (uint32_t i = 0; i < count; ++i) {
+    out.push_back(read_event_trigger_proxy_call(r, version));
+  }
+  return out;
+}
+
+EventTriggerHideDelay read_event_trigger_hide_delay(Reader& r) {
+  EventTriggerHideDelay delay;
+  delay.hide = r.str();
+  delay.delay = r.f32();
+  delay.rate = r.i32();
+  return delay;
+}
+
+std::vector<EventTriggerHideDelay> read_event_trigger_hide_delays(Reader& r) {
+  std::vector<EventTriggerHideDelay> out;
+  const uint32_t count = r.u32();
+  if (count > 256) {
+    throw std::runtime_error(
+        "char_mesh: implausible EventTrigger hide-delay vector");
+  }
+  out.reserve(count);
+  for (uint32_t i = 0; i < count; ++i) {
+    out.push_back(read_event_trigger_hide_delay(r));
+  }
+  return out;
+}
+
+EventTrigger decode_event_trigger(const std::string& entry_name,
+                                  const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  EventTrigger trigger;
+  trigger.name = entry_name;
+  const uint32_t packed_rev = r.u32();
+  trigger.version = source_hmx_rev(packed_rev);
+  trigger.alt_version = source_alt_rev(packed_rev);
+  read_object_fields(r);
+  if (trigger.version > 0x0f) {
+    const RndAnimatableFields animatable = read_rnd_animatable(r);
+    trigger.animatable_version = animatable.version;
+    trigger.frame = animatable.frame;
+    trigger.anim_rate = animatable.rate;
+  }
+  if (trigger.version > 9) {
+    trigger.trigger_events = read_symbol_vector(r);
+  } else if (trigger.version > 6) {
+    const std::string event = r.str();
+    if (!event.empty()) trigger.trigger_events.push_back(event);
+  }
+  if (trigger.version > 6) {
+    trigger.anims = read_event_trigger_anims(r, trigger.version);
+    trigger.sounds = read_obj_ptr_list(r);
+    trigger.shows = read_obj_ptr_list(r);
+  }
+  if (trigger.version > 0x0c) {
+    trigger.hide_delays = read_event_trigger_hide_delays(r);
+  }
+  if (trigger.version > 2) {
+    trigger.enable_events = read_symbol_vector(r);
+    trigger.disable_events = read_symbol_vector(r);
+  }
+  if (trigger.version > 5) trigger.wait_for_events = read_symbol_vector(r);
+  if (trigger.version > 6) trigger.next_link = r.str();
+  if (trigger.version > 7) {
+    trigger.proxy_calls = read_event_trigger_proxy_calls(r, trigger.version);
+  }
+  if (trigger.version > 0x0b) trigger.trigger_order = r.i32();
+  if (trigger.version > 0x0d) trigger.reset_triggers = read_obj_ptr_list(r);
+  if (trigger.version > 0x0e) trigger.reset_self = r.u8() != 0;
+  if (trigger.version > 0x0f) {
+    trigger.anim_trigger = r.i32();
+    trigger.anim_frame = r.f32();
+  }
+  if (trigger.version > 0x10) trigger.part_launchers = read_obj_ptr_list(r);
+  trigger.unread_bytes = r.n - r.pos;
+  if (trigger.unread_bytes > 0) {
+    trigger.unread_tail_hex = hex_bytes(r.p + r.pos, trigger.unread_bytes);
+  }
+  return trigger;
+}
+
 CharDriver decode_driver_body(const std::string& entry_name, Reader& r,
                               bool midi) {
   CharDriver driver;
@@ -1136,6 +1298,8 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           out.lip_sync_servos.push_back(decode_lip_sync_servo(de.name, b));
         } else if (de.type == "AnimFilter") {
           out.anim_filters.push_back(decode_anim_filter(de.name, b));
+        } else if (de.type == "EventTrigger") {
+          out.event_triggers.push_back(decode_event_trigger(de.name, b));
         } else if (de.type == "CharDriver") {
           out.drivers.push_back(decode_driver(de.name, b));
         } else if (de.type == "CharDriverMidi") {
@@ -1153,7 +1317,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  "%zu group, %zu upperTwist, %zu foreTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
                  "%zu servoBone, %zu lookAt, %zu eyes, %zu hair, %zu collide, "
                  "%zu posConstraint, %zu lipServo, %zu animFilter, "
-                 "%zu driver, %zu weightSetter\n",
+                 "%zu eventTrigger, %zu driver, %zu weightSetter\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
                  out.bones.size(), out.mats.size(), out.groups.size(),
                  out.upper_twists.size(), out.fore_twists.size(), out.ik_rods.size(),
@@ -1162,6 +1326,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  out.hairs.size(), out.collides.size(),
                  out.pos_constraints.size(),
                  out.lip_sync_servos.size(), out.anim_filters.size(),
+                 out.event_triggers.size(),
                  out.drivers.size(),
                  out.weight_setters.size());
     out.bind_mesh_local.clear();

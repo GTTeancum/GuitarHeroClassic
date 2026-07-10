@@ -31,7 +31,8 @@ records the upstream commits for the copied files:
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
 | Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
 | Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows; no trigger or animation runtime hookup. |
-| Remaining stock object rows | `rb3-latest` `EventTrigger.*` / `Tex.*`, RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present and local object-list/vector serialization is decoded. |
+| Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
+| Remaining stock object rows | `rb3-latest` `Tex.*`, RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows; no runtime writeback until `Hookup(ObjPtrList<CharCollide>&)` and simulation are faithfully ported. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log old GH2 rows; no synthetic eye runtime bridge. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; runtime `Poll` remains fenced until source transform writeback is ported. |
@@ -225,6 +226,45 @@ records the upstream commits for the copied files:
   - Native GHOGX decodes and logs this row for stock-model evidence only. It
     does not schedule `RndAnimFilter`, attach it to `EventTrigger`, or mutate
     `RndAnimatable` playback.
+
+## Event Trigger Row Authority
+
+- `rb3-latest/src/system/rndobj/EventTrigger.cpp` and
+  `rb3-latest/src/system/rndobj/EventTrigger.h`
+  - `EventTrigger::Load` uses `LOAD_REVS`, `Hmx::Object`, optional
+    `RndAnimatable` for revisions above `0x0f`, then revision-gated rows:
+    trigger events, anims, sounds, shows, hide delays, enable/disable/wait
+    events, next link, proxy calls, trigger order, reset triggers, reset-self
+    bitfield, animation trigger, animation frame, and part launchers.
+  - `EventTrigger::Anim` reads `mAnim`, `mBlend`, `mWait`, and `mDelay`.
+    Revisions above 9 also read `mEnable`, `mRate`, start/end/period/type, and
+    scale. Older revisions reset those later fields to source defaults.
+  - `EventTrigger::ProxyCall` reads proxy and call rows; revisions above 10
+    then load the optional event through the source object pointer path.
+  - `EventTrigger::HideDelay` reads hide object, delay, and rate.
+- `rb3-latest/src/system/obj/ObjVector.h`
+  - `ObjVector` serialization is count-prefixed, then each row is loaded with
+    its `operator>>`. Native uses this shape for EventTrigger anim, proxy-call,
+    and hide-delay row vectors.
+- `rb3-latest/src/system/obj/ObjPtr_p.h`
+  - `ObjPtr::Load` and `ObjOwnerPtr::Load` read one `0x80`-bounded source
+    string. `ObjPtrList::Load` reads a count and then one `0x80`-bounded source
+    string per row. Native logs those names and does not require object
+    resolution for passive inventory.
+- `rb3-latest/src/system/utl/BinStream.h` and
+  `rb3-latest/src/system/utl/BinStream.cpp`
+  - `std::vector` rows are count-prefixed. `Symbol` rows are serialized through
+    `ReadString`, and `bool` rows are one byte.
+- Native GHOGX currently decodes EventTrigger rows as passive source inventory
+  only. It does not register events, trigger animations, play sounds, hide/show
+  drawables, or schedule tasks.
+- Focused stock proof at
+  `engine/out/source_truth_eventtrigger_20260710/metal_drummer_eventtrigger_inventory.stdout.log`
+  records the only stock row as `char=metal_drummer name=game_over.trig
+  version=8`, with `triggerEvents=1 event=game_over`, `anims=1
+  anim=crash_static.filt`, `unreadBytes=4`, and `tailHex=00:00:00:00`.
+  That four-byte zero tail is logged and left unread until an ihatecompvir
+  source path identifies it.
 
 ## Position Constraint Authorities
 
@@ -481,6 +521,12 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
   class members and runtime names while `CharWalk::Load` itself has no
   decompiled body; native therefore keeps `CharWalk` decode fenced rather than
   guessing its serialized layout.
+- The focused EventTrigger inventory at
+  `engine/out/source_truth_eventtrigger_20260710/metal_drummer_eventtrigger_inventory.stdout.log`
+  shows the single stock `EventTrigger` row on `metal_drummer` as
+  `name=game_over.trig version=8`, source trigger event `game_over`, one anim
+  row pointing at `crash_static.filt`, and a still-unexplained zero tail
+  `tailHex=00:00:00:00`.
 
 ## Remaining Stock Type Boundary
 
@@ -497,12 +543,11 @@ bounded as follows:
   runtime surface, while `OutfitLoader::Load` is an empty/bodyless dump row and
   `PreLoad` belongs to broader loader state. Native does not treat these rows
   as character mesh or controller data.
-- `EventTrigger`: one stock row, on `metal_drummer`. `rb3-latest`
-  `EventTrigger::Load` is source-backed, but it reads `std::vector<Symbol>`,
-  `ObjVector<Anim>`, `ObjPtrList` rows, `ProxyCall`, `HideDelay`, reset
-  trigger lists, bitfields, animation trigger rows, and optional part launcher
-  rows. Native does not decode this row until local `ObjVector`/`ObjPtrList`
-  serialization is source-backed for this object.
+- `EventTrigger`: one stock row, on `metal_drummer`. Native now decodes and
+  logs the source-backed field prefix using `EventTrigger::Load`,
+  `ObjVector`, `ObjPtrList`, and `BinStream` evidence. It still does not run
+  trigger scheduling, and the GH2 revision-8 four-byte zero tail remains logged
+  as unresolved source evidence rather than consumed by guesswork.
 - `Object`: 19 stock generic object rows. ihatecompvir `Object.cs` already
   backs the shared object/property-tree skip path; the remaining rows have no
   character-model runtime behavior to promote.

@@ -122,6 +122,10 @@ int run_contract() {
       extra_dir / "rb3-latest/src/system/char";
   const std::filesystem::path rb3_latest_rndobj_dir =
       extra_dir / "rb3-latest/src/system/rndobj";
+  const std::filesystem::path rb3_latest_obj_dir =
+      extra_dir / "rb3-latest/src/system/obj";
+  const std::filesystem::path rb3_latest_utl_dir =
+      extra_dir / "rb3-latest/src/system/utl";
   const std::filesystem::path rb2_dump_char_dir =
       extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/char";
   const std::string rb3_latest_char_hair_cpp = compact(read_file(
@@ -158,6 +162,16 @@ int run_contract() {
       rb3_latest_rndobj_dir / "EventTrigger.cpp"));
   const std::string rb3_latest_event_trigger_h = compact(read_file(
       rb3_latest_rndobj_dir / "EventTrigger.h"));
+  const std::string rb3_latest_obj_vector_h = compact(read_file(
+      rb3_latest_obj_dir / "ObjVector.h"));
+  const std::string rb3_latest_obj_ptr_p_h = compact(read_file(
+      rb3_latest_obj_dir / "ObjPtr_p.h"));
+  const std::string rb3_latest_object_h = compact(read_file(
+      rb3_latest_obj_dir / "Object.h"));
+  const std::string rb3_latest_bin_stream_h = compact(read_file(
+      rb3_latest_utl_dir / "BinStream.h"));
+  const std::string rb3_latest_bin_stream_cpp = compact(read_file(
+      rb3_latest_utl_dir / "BinStream.cpp"));
   const std::string rb3_latest_tex_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "Tex.cpp"));
   const std::string rb3_latest_char_weight_setter_cpp = compact(read_file(
@@ -907,6 +921,15 @@ int run_contract() {
                  "if(gRev>6)bs>>mAnims>>mSounds>>mShows;",
                  "EventTrigger source load reads object lists/vectors");
   ok &= contains(rb3_latest_event_trigger_cpp,
+                 "bs>>anim.mAnim>>anim.mBlend>>anim.mWait>>anim.mDelay;",
+                 "EventTrigger Anim source reads first four fields");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "if(EventTrigger::gRev>9){bs>>anim.mEnable;",
+                 "EventTrigger Anim source gates extended fields");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "bs>>pcall.mProxy;bs>>pcall.mCall;",
+                 "EventTrigger ProxyCall source reads proxy and call");
+  ok &= contains(rb3_latest_event_trigger_cpp,
                  "if(gRev>7)bs>>mProxyCalls;",
                  "EventTrigger source load reads proxy call vector");
   ok &= contains(rb3_latest_event_trigger_cpp,
@@ -922,6 +945,39 @@ int run_contract() {
                  "inlineBinStream&operator>>(BinStream&bs,"
                  "EventTrigger::HideDelay&hd)",
                  "EventTrigger header exposes custom HideDelay serialization");
+  ok &= contains(rb3_latest_obj_vector_h,
+                 "unsignedintlength;bs>>length;vec.resize(length);",
+                 "ObjVector source reads count before element rows");
+  ok &= contains(rb3_latest_obj_vector_h,
+                 "for(std::vector<T1,T2>::iteratorit=vec.begin();"
+                 "it!=vec.end();it++){bs>>*it;}",
+                 "ObjVector source reads each element through operator");
+  ok &= contains(rb3_latest_obj_ptr_p_h,
+                 "bs.ReadString(buf,0x80);",
+                 "ObjPtr source reads object names as bounded strings");
+  ok &= contains(rb3_latest_obj_ptr_p_h,
+                 "intcount;bs>>count;",
+                 "ObjPtrList source reads count before row strings");
+  ok &= contains(rb3_latest_bin_stream_h,
+                 "template<classT1,classT2>BinStream&operator>>"
+                 "(BinStream&bs,std::vector<T1,T2>&vec){"
+                 "unsignedintlength;bs>>length;vec.resize(length);",
+                 "BinStream source backs std::vector read shape");
+  ok &= contains(rb3_latest_bin_stream_h,
+                 "BinStream&operator>>(bool&b){unsignedcharuc;*this>>uc;"
+                 "b=(uc!=0);",
+                 "BinStream source backs one-byte bool reads");
+  ok &= contains(rb3_latest_bin_stream_cpp,
+                 "BinStream&BinStream::operator>>(Symbol&s){charwhy[0x200];"
+                 "ReadString(why,0x200);s=Symbol(why);",
+                 "BinStream source backs Symbol string rows");
+  ok &= contains(rb3_latest_object_h,
+                 "inlineunsignedshortgetHmxRev(intpacked){returnpacked;}",
+                 "Object source backs low-half HMX revision");
+  ok &= contains(rb3_latest_object_h,
+                 "inlineunsignedshortgetAltRev(intpacked){return(unsignedint)"
+                 "packed>>0x10;}",
+                 "Object source backs high-half alt revision");
   ok &= contains(rb3_latest_tex_cpp,
                  "voidRndTex::Load(BinStream&bs){PreLoad(bs);PostLoad(bs);}",
                  "latest RndTex source exposes preload/postload split");
@@ -942,6 +998,18 @@ int run_contract() {
                  "document records stock OutfitLoader row count");
   ok &= contains(doc, "`EventTrigger`: one stock row, on `metal_drummer`",
                  "document records stock EventTrigger row count");
+  ok &= contains(doc, "## Event Trigger Row Authority",
+                 "document records EventTrigger source authority section");
+  ok &= contains(doc,
+                 "records the only stock row as `char=metal_drummer "
+                 "name=game_over.trig\n  version=8`",
+                 "document records focused EventTrigger stock proof");
+  ok &= contains(doc, "`tailHex=00:00:00:00`",
+                 "document records unresolved EventTrigger tail");
+  ok &= contains(doc,
+                 "It does not register events, trigger animations, play "
+                 "sounds, hide/show\n  drawables, or schedule tasks.",
+                 "document fences EventTrigger runtime scheduling");
   ok &= contains(doc, "`Object`: 19 stock generic object rows",
                  "document records generic Object boundary");
   ok &= contains(doc, "`Tex`: 160 stock texture rows",
@@ -949,8 +1017,9 @@ int run_contract() {
   ok &= contains(doc, "`WorldFx`: 99 stock rows",
                  "document records stock WorldFx row count");
   ok &= contains(doc,
-                 "Native does not decode this row until local `ObjVector`/`ObjPtrList`",
-                 "document fences EventTrigger object-list serialization");
+                 "Native now decodes and\n  logs the source-backed field "
+                 "prefix using `EventTrigger::Load`",
+                 "document promotes EventTrigger to passive source inventory");
   ok &= contains(doc,
                  "native texture payloads are already handled\n"
                  "  by the PS2 texture asset path",
@@ -960,16 +1029,47 @@ int run_contract() {
                  "document fences WorldFx load body absence");
   ok &= missing(char_mesh, "decode_char_walk",
                 "native must not guess CharWalk decoder");
-  ok &= missing(char_mesh, "decode_event_trigger",
-                "native must not guess EventTrigger decoder");
+  ok &= contains(char_mesh, "EventTriggerdecode_event_trigger(",
+                 "native decodes EventTrigger only through named source slice");
+  ok &= contains(char_mesh,
+                 "trigger.version=source_hmx_rev(packed_rev);",
+                 "EventTrigger decoder uses source low-half revision");
+  ok &= contains(char_mesh,
+                 "trigger.alt_version=source_alt_rev(packed_rev);",
+                 "EventTrigger decoder uses source high-half revision");
+  ok &= contains(char_mesh,
+                 "trigger.trigger_events=read_symbol_vector(r);",
+                 "EventTrigger decoder reads source trigger event vector");
+  ok &= contains(char_mesh,
+                 "trigger.anims=read_event_trigger_anims(r,trigger.version);",
+                 "EventTrigger decoder reads source Anim ObjVector shape");
+  ok &= contains(char_mesh,
+                 "trigger.sounds=read_obj_ptr_list(r);"
+                 "trigger.shows=read_obj_ptr_list(r);",
+                 "EventTrigger decoder reads source ObjPtrList names");
+  ok &= contains(char_mesh,
+                 "trigger.unread_tail_hex=hex_bytes(",
+                 "EventTrigger decoder logs unexplained tail bytes");
+  ok &= contains(char_mesh,
+                 "elseif(de.type==\"EventTrigger\"){"
+                 "out.event_triggers.push_back(decode_event_trigger(de.name,b));"
+                 "}",
+                 "native character graph stores passive EventTrigger inventory");
+  ok &= contains(char_mesh_h, "std::vector<EventTrigger>event_triggers;",
+                 "native header exposes passive EventTrigger inventory");
+  ok &= contains(bind_audit, "eventTrigger=%zu",
+                 "bind audit summary reports EventTrigger row count");
+  ok &= contains(bind_audit,
+                 "[controller-event-trigger]char=%sname=%sversion=%d",
+                 "bind audit logs EventTrigger source rows");
+  ok &= contains(bind_audit, "tailHex=%s",
+                 "bind audit logs EventTrigger unresolved tail");
   ok &= missing(char_mesh, "decode_outfit_loader",
                 "native must not guess OutfitLoader decoder");
   ok &= missing(char_mesh, "decode_world_fx",
                 "native must not guess WorldFx decoder");
   ok &= missing(char_mesh, "decode_rnd_tex",
                 "native character graph must not duplicate texture decoder");
-  ok &= missing(char_mesh, "EventTrigger",
-                "native character graph must not promote EventTrigger yet");
   ok &= missing(char_mesh, "OutfitLoader",
                 "native character graph must not promote OutfitLoader yet");
   ok &= missing(char_mesh, "WorldFx",

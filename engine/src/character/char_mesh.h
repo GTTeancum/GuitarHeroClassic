@@ -310,6 +310,59 @@ struct RndAnimFilter {
   size_t unread_bytes = 0;
 };
 
+struct EventTriggerAnim {
+  std::string anim;
+  float blend = 0.0f;
+  bool wait = false;
+  float delay = 0.0f;
+  bool enable = false;
+  int32_t rate = 0;
+  float start = 0.0f;
+  float end = 0.0f;
+  float period = 0.0f;
+  std::string type;
+  float scale = 1.0f;
+};
+
+struct EventTriggerProxyCall {
+  std::string proxy;
+  std::string call;
+  std::string event;
+};
+
+struct EventTriggerHideDelay {
+  std::string hide;
+  float delay = 0.0f;
+  int32_t rate = 0;
+};
+
+struct EventTrigger {
+  std::string name;
+  int32_t version = 0;
+  int32_t alt_version = 0;
+  int32_t animatable_version = 0;
+  float frame = 0.0f;
+  int32_t anim_rate = 0;
+  std::vector<std::string> trigger_events;
+  std::vector<EventTriggerAnim> anims;
+  std::vector<std::string> sounds;
+  std::vector<std::string> shows;
+  std::vector<EventTriggerHideDelay> hide_delays;
+  std::vector<std::string> enable_events;
+  std::vector<std::string> disable_events;
+  std::vector<std::string> wait_for_events;
+  std::string next_link;
+  std::vector<EventTriggerProxyCall> proxy_calls;
+  int32_t trigger_order = 0;
+  std::vector<std::string> reset_triggers;
+  bool reset_self = false;
+  int32_t anim_trigger = 0;
+  float anim_frame = 0.0f;
+  std::vector<std::string> part_launchers;
+  size_t unread_bytes = 0;
+  std::string unread_tail_hex;
+};
+
 struct CharDriver {
   std::string name;
   int32_t version = 0;
@@ -371,6 +424,7 @@ struct Character {
   std::vector<CharPosConstraint> pos_constraints;
   std::vector<FaceFxLipSyncServo> lip_sync_servos;
   std::vector<RndAnimFilter> anim_filters;
+  std::vector<EventTrigger> event_triggers;
   std::vector<CharDriver> drivers;
   std::vector<CharWeightSetter> weight_setters;
   std::map<std::string, int> object_type_counts;
