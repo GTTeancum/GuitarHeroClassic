@@ -2504,9 +2504,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
             (std::strcmp(name, "amp_tube_glow.mesh") == 0 &&
              mesh->material == "amp_tube_glow.mat");
         if (star_core_fill_mesh && !star_fill_color_keys_.empty()) {
-          q.fullbright_texture = true;
-          q.emissive_texture_4x = true;
-          q.emissive_alpha_4x = true;
+          q.fullbright_texture = false;
+          q.emissive_texture_2x = true;
+          q.emissive_texture_4x = false;
+          q.emissive_alpha_4x = false;
         }
         if (star_additive_glow_mesh) {
           q.fullbright_texture = true;
@@ -3963,6 +3964,26 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   bool drew_native_path_line = false;
   bool drew_native_ready_mesh = false;
   bool drew_native_ready_glow = false;
+  if (fill > 0.005f) {
+    drew_native_fill |= append_clipped_fill(native_star_fill_, fill_core_color,
+                                            1.0f, core_fill_range);
+    if (star_power_active) {
+      for (const StarAnimatedQuad& lightning : native_star_lightning_) {
+        drew_native_fill |= append_clipped_animated(lightning);
+      }
+      for (const StarParticleLayer& particle : native_star_particles_) {
+        drew_native_particles |= append_star_particle(particle);
+      }
+    }
+  }
+  // This is the stock always-present thin path line, not the stored-fill body.
+  drew_native_path_line = append_full_fill_uv(
+      native_star_path_glow_, std::nullopt, 1.0f,
+      path_tex_translation.x, path_tex_translation.y);
+  if (!native_star_top_.empty())
+    out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
+  if (!native_star_caps_.empty())
+    out.insert(out.end(), native_star_caps_.begin(), native_star_caps_.end());
   if (tube_glow) {
     if (!native_star_ready_mesh_glow_.empty()) {
       for (const StarMeshAnimatedQuad& src : native_star_ready_mesh_glow_) {
@@ -3985,32 +4006,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       }
     }
   }
-  if (fill > 0.005f) {
-    if (meter_fill_glow) {
-      drew_native_fill_glow =
-          append_clipped_fill(native_star_fill_glow_, std::nullopt,
-                              tube_meter_alpha, tube_meter_range);
-      drew_native_fill |= drew_native_fill_glow;
-    }
-    drew_native_fill |= append_clipped_fill(native_star_fill_, fill_core_color,
-                                            1.0f, core_fill_range);
-    if (star_power_active) {
-      for (const StarAnimatedQuad& lightning : native_star_lightning_) {
-        drew_native_fill |= append_clipped_animated(lightning);
-      }
-      for (const StarParticleLayer& particle : native_star_particles_) {
-        drew_native_particles |= append_star_particle(particle);
-      }
-    }
+  if (fill > 0.005f && meter_fill_glow) {
+    drew_native_fill_glow =
+        append_clipped_fill(native_star_fill_glow_, std::nullopt,
+                            tube_meter_alpha, tube_meter_range);
+    drew_native_fill |= drew_native_fill_glow;
   }
-  // This is the stock always-present thin path line, not the stored-fill body.
-  drew_native_path_line = append_full_fill_uv(
-      native_star_path_glow_, std::nullopt, 1.0f,
-      path_tex_translation.x, path_tex_translation.y);
-  if (!native_star_top_.empty())
-    out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
-  if (!native_star_caps_.empty())
-    out.insert(out.end(), native_star_caps_.begin(), native_star_caps_.end());
 
   auto first_quad_blend = [](const std::vector<Quad>& layers) {
     return layers.empty() ? 255u
@@ -4085,9 +4086,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "path_line_layer=amp_inside_bar_path.mesh "
         "path_line_mode=persistent_full_width "
         "core_fill_mode=clipped_left_to_right "
+        "ready_view_order=after_star_meter_view "
+        "tube_meter_overlay=after_core "
         "source_layers=amp_inside_bar.mesh,amp_inside_bar_path.mesh,"
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
+        "core_material_combine=ps2_modulate2x "
         "core_emit4x=%d core_add_emit=%d "
         "path_emit4x=%d path_prelit=%d path_alpha2x=%d "
         "path_alpha_emission=%d path_dual_emit=%d "

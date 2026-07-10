@@ -1106,10 +1106,17 @@ int main() {
                "star-power inside-bar base fill must not be promoted to an emissive core");
   ok &= contains(hud_renderer_c,
                  "if(star_core_fill_mesh&&!star_fill_color_keys_.empty()){"
-                 "q.fullbright_texture=true;"
-                 "q.emissive_texture_4x=true;"
-                 "q.emissive_alpha_4x=true;}",
-                 "star-power inside-bar source MatAnim core is rendered as fullbright emission");
+                 "q.fullbright_texture=false;"
+                 "q.emissive_texture_2x=true;"
+                 "q.emissive_texture_4x=false;"
+                 "q.emissive_alpha_4x=false;}",
+                 "star-power inside-bar source MatAnim core uses PS2-style 2x material modulation");
+  ok &= contains(hud_renderer_c,
+                 "\"core_material_combine=ps2_modulate2x\"",
+                 "star-power diagnostics report the PS2 broad-core material combine");
+  ok &= absent(hud_renderer_c,
+               "core_material_combine=fullbright4x",
+               "star-power broad core must not silently return to the native 4x approximation");
   ok &= contains(hud_renderer_c,
                  "if(star_additive_glow_mesh){"
                  "q.fullbright_texture=true;"
@@ -1248,17 +1255,17 @@ int main() {
       "star-power emits amp_base_bar after chrome top like star_meter.view");
   ok &= appears_before(
       hud_renderer_c,
-      "if(tube_glow){",
       "drew_native_fill|=append_clipped_fill(native_star_fill_,"
       "fill_core_color,1.0f,core_fill_range);",
-      "star-power emits star_meter_ready.view glow under the clipped amp_inside_bar core");
+      "if(tube_glow){",
+      "star-power emits star_meter.view core before the later star_meter_ready.view glow");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
-      "std::nullopt,tube_meter_alpha,tube_meter_range);",
       "drew_native_fill|=append_clipped_fill(native_star_fill_,"
       "fill_core_color,1.0f,core_fill_range);",
-      "star-power tube-meter glow sits under the bright source core");
+      "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
+      "std::nullopt,tube_meter_alpha,tube_meter_range);",
+      "star-power tube-meter ready-view glow overlays the broad source core");
   ok &= appears_before(
       hud_renderer_c,
       "drew_native_path_line=append_full_fill_uv(native_star_path_glow_,"
@@ -1377,6 +1384,12 @@ int main() {
   ok &= contains(hud_renderer_c,
                  "\"core_fill_mode=clipped_left_to_right\"",
                  "star-power broad core remains the left-to-right clipped fill");
+  ok &= contains(hud_renderer_c,
+                 "\"ready_view_order=after_star_meter_view\"",
+                 "star-power diagnostics report source group order for ready view");
+  ok &= contains(hud_renderer_c,
+                 "\"tube_meter_overlay=after_core\"",
+                 "star-power diagnostics report tube-meter glow overlays the broad core");
   ok &= contains(hud_renderer_c,
                  "constfloattube_meter_alpha_frame=tube_meter_anim_frame;",
                  "star-power tube-meter alpha samples the live source MatAnim frame");

@@ -10058,3 +10058,27 @@ Rejected native probe:
 - This is a guardrail/traceability checkpoint, not a replacement-art fix. The
   remaining fidelity work is still exact PCSX2 material/blend interpretation
   for the broad core, tube fill glow, glass, and active-state effects.
+
+2026-07-10 star-meter source core material combine:
+- Rechecked the decoded `hud/gen/star_meter.milo_ps2` material rows before
+  changing the renderer. `amp_inside_bar.mesh` uses `amp_inside_star.mat`,
+  diffuse `amp_inside_bar.tex`, blend enum `1`, color
+  `[0.663 0.933 0.996 1.000]`, and the `amp_inside_bar_glow.mnm` MatAnim color
+  curve. The decoded source material does not expose a separate native 4x core
+  emission flag; that was a previous renderer-side brightness approximation.
+- Native now stops forcing `amp_inside_bar.mesh` through fullbright/4x
+  texture-alpha combine. The broad core uses the decoded source material with
+  PS2-style texture/color modulation: the GS color combine effectively scales
+  by `128`, so the D3D fixed-function equivalent is `MODULATE2X`, not plain
+  D3D `/255` modulation and not the old native 4x approximation. The decoded
+  object directory lists `star_meter.view` before `star_meter_ready.view`, so
+  native now draws the ready-view glow stack after the base meter view; the
+  stored-meter brightness is carried by the separate source
+  `amp_tube_glow_meter.mesh` layer over the broad core, clipped to its own
+  decoded mesh range and sampled from `amp_tube_glow_meter.mnm`.
+- Diagnostics report `core_material_combine=ps2_modulate2x` alongside
+  `fill_core_layer=amp_inside_bar.mesh`, `path_line_layer=amp_inside_bar_path.mesh`,
+  `ready_view_order=after_star_meter_view`, `tube_meter_overlay=after_core`,
+  and the sampled source MatAnim color/alpha values so the next proof can be
+  judged against PCSX2 without conflating the old native 4x approximation with
+  the MILO-authored broad core.
