@@ -10542,3 +10542,53 @@ Rejected native probe:
   `engine/out/star_power_trace_evidence_20260710/native_star_thin_line_lock_current/native_star_thin_line_lock_current_proof.png`
   compares the existing no-focus PCSX2 forced-fill oracle against refreshed
   native `--hud-sp` 25/75/100 captures.
+
+2026-07-10 star-meter material-clock audit:
+- Added a second focused `GHOGX_DEBUG_HUD_STAR_POWER` row,
+  `[hud-star-power-clock]`, that reports the decoded source-filter samples next
+  to the current render samples for the broad core and tube-meter glow. This is
+  diagnostic only and does not change draw order, texture, geometry, color, or
+  alpha output.
+- The row is meant to resolve the remaining PCSX2/native mismatch without
+  guessing: if the original game holds the filled body bright, the current
+  `source_lit_key_frame` / `source_peak_key_frame` render samples should match
+  the trace; if PCSX2 follows the `.filt` clock, the same capture log now shows
+  the exact source-filter color and alpha values to use.
+
+2026-07-10 star-meter contained source-glow pass:
+- User review clarified that the persistent thin `amp_inside_bar_path.mesh` line
+  must remain full-width and that fill glow must not escape the authored tube.
+  Native now still decodes/logs `amp_inside_star.mnm` texture translation keys,
+  but applies `(0,0)` to the visible always-present line so the source
+  `amp_inside_bar_path.mesh` / `amp_inside_star_path.mat` UVs stay anchored.
+- The wide stored-fill glow remains the original `amp_tube_glow_meter.mesh` /
+  `amp_tube_glow_meter.mat` / `hud_meter_top_glow.tex` layer, clipped
+  left-to-right by stored fill. Its additive triangles are now additionally
+  contained to the decoded `amp_inside_bar.mesh` source Z range, matching the
+  authored tube body instead of letting glow pixels spill below it.
+- Fresh hidden HUD proof:
+  `engine/out/star_power_trace_evidence_20260710/native_star_contained_glow_current/native_star_contained_glow_current_proof.png`
+  compares the existing no-focus PCSX2 forced-fill oracle against refreshed
+  native `--hud-sp` 25/75/100 captures. Native log rows report
+  `path_uv_applied=(0.000,0.000)` and
+  `tube_meter_containment=amp_inside_bar_source_z`.
+
+2026-07-10 star-meter bottle-interior checkpoint:
+- The stored fill now uses the decoded `amp_tube_glow_meter.mesh` X span as the
+  bottle-interior reveal range for the broad `amp_inside_bar.mesh` core, while
+  retaining the `amp_inside_bar.mesh` source Z range as containment. This keeps
+  the source core/glow body from being revealed through the cap-facing outer
+  span while leaving the always-present `amp_inside_bar_path.mesh` line full
+  length.
+- Fresh hidden HUD proof:
+  `engine/out/star_power_trace_evidence_20260710/native_star_current_containment_work/native_star_current_containment_work_proof.png`
+  captures native `--hud-sp` 25/75/100 with rows for
+  `stored_fill_range=amp_tube_glow_meter_interior_x`,
+  `path_uv_applied=(0.000,0.000)`, and
+  `tube_meter_containment=amp_inside_bar_source_z`.
+- The same checkpoint includes a labeled diagnostic proof sheet:
+  `engine/out/star_power_trace_evidence_20260710/native_star_current_containment_work/native_star_source_layer_labels_current.png`.
+  It identifies `amp_inside_bar_path.mesh` as the always-full thin line,
+  separate from the stored-fill `amp_inside_bar.mesh` core and
+  `amp_tube_glow_meter.mesh` glow, so review can point at exact source layers
+  without changing gameplay output.

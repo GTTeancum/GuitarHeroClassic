@@ -2569,7 +2569,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       if (std::strcmp(name, "amp_chrome_top.mesh") == 0) return -2;
       if (std::strcmp(name, "amp_base_bar.mesh") == 0) return -1;
       if (std::strcmp(name, "amp_tube_glow.mesh") == 0) return 0;
-      if (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0) return 1;
+      if (std::strcmp(name, "amp_tube_glow_meter.mesh") == 0) return -2;
       return 0;
     };
     auto append_star_mesh = [&](const char* name, std::vector<Quad>& target,
@@ -2853,7 +2853,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                      nullptr, true, kElemSpFill, 0.0f);
     append_star_mesh("amp_tube_glow_meter.mesh", native_star_fill_glow_,
                      0, true, false, true,
-                     nullptr, false, kElemSpReady, -1.0f);
+                     nullptr, false, kElemSpFill, -1.0f);
     append_star_animated_mesh("lightning_bot_04_0.mesh",
                               native_star_lightning_);
     append_star_animated_mesh("lightning_bot_02_0.mesh",
@@ -3778,6 +3778,13 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       fill_core_color.value_or(!native_star_fill_.empty()
                                    ? native_star_fill_.front().color
                                    : 0x00000000u);
+  const uint32_t filter_fill_core_color =
+      star_fill_color_keys_.empty()
+          ? sampled_fill_core_color
+          : sample_hud_mat_anim_color_frame(star_fill_color_keys_,
+                                            fill_anim_frame);
+  const float filter_tube_meter_alpha = sample_hud_mat_anim_alpha_frame(
+      star_tube_meter_alpha_keys_, tube_meter_anim_frame);
   auto sample_vec3_key = [](const std::vector<Vec3AnimKey>& keys,
                             float frame) {
     Vec3AnimKey out;
@@ -3819,6 +3826,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   struct StarClipRange {
     float min_x = std::numeric_limits<float>::max();
     float max_x = std::numeric_limits<float>::lowest();
+    float min_z = std::numeric_limits<float>::max();
+    float max_z = std::numeric_limits<float>::lowest();
     bool ok = false;
   };
   auto source_x_range = [](const std::vector<Quad>& layers) {
@@ -3828,6 +3837,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       for (const Quad::V& v : q.verts) {
         range.min_x = std::min(range.min_x, v.wx);
         range.max_x = std::max(range.max_x, v.wx);
+        range.min_z = std::min(range.min_z, v.wz);
+        range.max_z = std::max(range.max_z, v.wz);
         any = true;
       }
     }
@@ -3837,6 +3848,12 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   const StarClipRange core_fill_range = source_x_range(native_star_fill_);
   const StarClipRange path_glow_range = source_x_range(native_star_path_glow_);
   const StarClipRange tube_meter_range = source_x_range(native_star_fill_glow_);
+  StarClipRange stored_fill_range = core_fill_range;
+  if (tube_meter_range.ok) {
+    stored_fill_range.min_x = tube_meter_range.min_x;
+    stored_fill_range.max_x = tube_meter_range.max_x;
+    stored_fill_range.ok = true;
+  }
   auto range_width = [](const StarClipRange& range) {
     return range.ok ? std::max(0.0f, range.max_x - range.min_x) : 0.0f;
   };
@@ -3844,13 +3861,13 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     if (!range.ok) return 0.0f;
     return range.max_x - (range.max_x - range.min_x) * fill;
   };
-  const float core_total_width = range_width(core_fill_range);
+  const float core_total_width = range_width(stored_fill_range);
   const float path_total_width = range_width(path_glow_range);
   const float tube_meter_total_width = range_width(tube_meter_range);
-  const float core_clip_x = clip_x_for_range(core_fill_range);
+  const float core_clip_x = clip_x_for_range(stored_fill_range);
   const float core_visible_width =
-      core_fill_range.ok ? std::max(0.0f, core_fill_range.max_x - core_clip_x)
-                         : 0.0f;
+      stored_fill_range.ok ? std::max(0.0f, stored_fill_range.max_x - core_clip_x)
+                          : 0.0f;
   const float tube_meter_clip_x = clip_x_for_range(tube_meter_range);
   const float tube_meter_visible_width =
       tube_meter_range.ok
@@ -3861,8 +3878,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   // so screen-left is the higher world-X side of the decoded meter mesh.
   auto append_clipped_quad =
       [&](const Quad& src, const std::optional<uint32_t>& color_override,
-          IDirect3DTexture9* texture_override, float alpha_scale,
-          const StarClipRange& clip_range) {
+           IDirect3DTexture9* texture_override, float alpha_scale,
+           const StarClipRange& clip_range,
+           const StarClipRange* containment_range = nullptr) {
         if (src.verts.size() < 3 || src.idx.size() < 3) return false;
         float min_x = clip_range.min_x;
         float max_x = clip_range.max_x;
@@ -3876,15 +3894,51 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         }
         if (!(max_x > min_x)) return false;
         const float clip_x = max_x - (max_x - min_x) * fill;
-        auto inside = [&](const Quad::V& v) { return v.wx >= clip_x; };
-        auto intersect = [&](const Quad::V& a, const Quad::V& b) {
+        auto inside_x = [&](const Quad::V& v) { return v.wx >= clip_x; };
+        auto intersect_x_at = [](const Quad::V& a, const Quad::V& b,
+                                 float target_x) {
           const float denom = b.wx - a.wx;
           const float t =
-              std::abs(denom) < 0.00001f ? 0.0f : (clip_x - a.wx) / denom;
+              std::abs(denom) < 0.00001f ? 0.0f : (target_x - a.wx) / denom;
           Quad::V out_v;
-          out_v.wx = clip_x;
+          out_v.wx = target_x;
           out_v.wy = a.wy + (b.wy - a.wy) * t;
           out_v.wz = a.wz + (b.wz - a.wz) * t;
+          out_v.u = a.u + (b.u - a.u) * t;
+          out_v.v = a.v + (b.v - a.v) * t;
+          return out_v;
+        };
+        auto clip_polygon =
+            [](const std::vector<Quad::V>& in_poly, const auto& inside_fn,
+               const auto& intersect_fn) {
+              std::vector<Quad::V> out_poly;
+              if (in_poly.empty()) return out_poly;
+              out_poly.reserve(in_poly.size() + 2);
+              for (size_t j = 0; j < in_poly.size(); ++j) {
+                const Quad::V& a = in_poly[j];
+                const Quad::V& b = in_poly[(j + 1) % in_poly.size()];
+                const bool a_in = inside_fn(a);
+                const bool b_in = inside_fn(b);
+                if (a_in && b_in) {
+                  out_poly.push_back(b);
+                } else if (a_in && !b_in) {
+                  out_poly.push_back(intersect_fn(a, b));
+                } else if (!a_in && b_in) {
+                  out_poly.push_back(intersect_fn(a, b));
+                  out_poly.push_back(b);
+                }
+              }
+              return out_poly;
+            };
+        auto intersect_z = [](const Quad::V& a, const Quad::V& b,
+                              float clip_z) {
+          const float denom = b.wz - a.wz;
+          const float t =
+              std::abs(denom) < 0.00001f ? 0.0f : (clip_z - a.wz) / denom;
+          Quad::V out_v;
+          out_v.wx = a.wx + (b.wx - a.wx) * t;
+          out_v.wy = a.wy + (b.wy - a.wy) * t;
+          out_v.wz = clip_z;
           out_v.u = a.u + (b.u - a.u) * t;
           out_v.v = a.v + (b.v - a.v) * t;
           return out_v;
@@ -3918,20 +3972,30 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
               src.verts[src.idx[i + 1]],
               src.verts[src.idx[i + 2]],
           };
-          std::vector<Quad::V> out_poly;
-          for (size_t j = 0; j < poly.size(); ++j) {
-            const Quad::V& a = poly[j];
-            const Quad::V& b = poly[(j + 1) % poly.size()];
-            const bool a_in = inside(a);
-            const bool b_in = inside(b);
-            if (a_in && b_in) {
-              out_poly.push_back(b);
-            } else if (a_in && !b_in) {
-              out_poly.push_back(intersect(a, b));
-            } else if (!a_in && b_in) {
-              out_poly.push_back(intersect(a, b));
-              out_poly.push_back(b);
-            }
+          std::vector<Quad::V> out_poly =
+              clip_polygon(poly, inside_x,
+                           [&](const Quad::V& a, const Quad::V& b) {
+                             return intersect_x_at(a, b, clip_x);
+                           });
+          out_poly = clip_polygon(
+              out_poly, [&](const Quad::V& v) { return v.wx <= max_x; },
+              [&](const Quad::V& a, const Quad::V& b) {
+                return intersect_x_at(a, b, max_x);
+              });
+          if (containment_range && containment_range->ok &&
+              containment_range->max_z > containment_range->min_z) {
+            const float min_z = containment_range->min_z;
+            const float max_z = containment_range->max_z;
+            out_poly = clip_polygon(
+                out_poly, [&](const Quad::V& v) { return v.wz >= min_z; },
+                [&](const Quad::V& a, const Quad::V& b) {
+                  return intersect_z(a, b, min_z);
+                });
+            out_poly = clip_polygon(
+                out_poly, [&](const Quad::V& v) { return v.wz <= max_z; },
+                [&](const Quad::V& a, const Quad::V& b) {
+                  return intersect_z(a, b, max_z);
+                });
           }
           if (out_poly.size() < 3) continue;
           const uint16_t base = static_cast<uint16_t>(clipped.verts.size());
@@ -3949,12 +4013,14 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       };
   auto append_clipped_fill =
       [&](const std::vector<Quad>& source,
-          const std::optional<uint32_t>& color_override, float alpha_scale,
-          const StarClipRange& clip_range) {
+           const std::optional<uint32_t>& color_override, float alpha_scale,
+           const StarClipRange& clip_range,
+           const StarClipRange* containment_range = nullptr) {
         bool drew = false;
         for (const Quad& src : source) {
           drew |= append_clipped_quad(src, color_override, nullptr,
-                                      alpha_scale, clip_range);
+                                      alpha_scale, clip_range,
+                                      containment_range);
         }
         return drew;
       };
@@ -4115,7 +4181,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   bool drew_native_ready_glow = false;
   if (fill > 0.005f) {
     drew_native_fill |= append_clipped_fill(native_star_fill_, fill_core_color,
-                                            1.0f, core_fill_range);
+                                            1.0f, stored_fill_range,
+                                            &core_fill_range);
     // star_meter_fill.view lists amp_inside_bar_path.part before lightning.view.
     if (star_power_active) {
       for (const StarParticleLayer& particle : native_star_particles_) {
@@ -4128,12 +4195,14 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   }
   // This is the stock always-present thin path line, not the stored-fill body.
   drew_native_path_line = append_full_fill_uv(
-      native_star_path_glow_, std::nullopt, 1.0f,
-      path_tex_translation.x, path_tex_translation.y);
-  if (!native_star_top_.empty())
-    out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
-  if (!native_star_caps_.empty())
-    out.insert(out.end(), native_star_caps_.begin(), native_star_caps_.end());
+      native_star_path_glow_, std::nullopt, 1.0f, 0.0f, 0.0f);
+  if (fill > 0.005f && meter_fill_glow) {
+    drew_native_fill_glow =
+        append_clipped_fill(native_star_fill_glow_, std::nullopt,
+                            tube_meter_alpha, tube_meter_range,
+                            &core_fill_range);
+    drew_native_fill |= drew_native_fill_glow;
+  }
   if (tube_glow) {
     if (!native_star_ready_mesh_glow_.empty()) {
       for (const StarMeshAnimatedQuad& src : native_star_ready_mesh_glow_) {
@@ -4155,13 +4224,10 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       }
     }
   }
-  if (fill > 0.005f && meter_fill_glow) {
-    drew_native_fill_glow =
-        append_clipped_fill(native_star_fill_glow_, std::nullopt,
-                            tube_meter_alpha, tube_meter_range);
-    drew_native_fill |= drew_native_fill_glow;
-  }
-
+  if (!native_star_top_.empty())
+    out.insert(out.end(), native_star_top_.begin(), native_star_top_.end());
+  if (!native_star_caps_.empty())
+    out.insert(out.end(), native_star_caps_.begin(), native_star_caps_.end());
   auto first_quad_blend = [](const std::vector<Quad>& layers) {
     return layers.empty() ? 255u
                           : static_cast<unsigned>(layers.front().blend);
@@ -4292,6 +4358,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "path_line_mode=persistent_full_width "
         "body_fill_mode=inside_bar_core_plus_tube_meter_glow "
         "core_fill_mode=clipped_left_to_right "
+        "stored_fill_range=amp_tube_glow_meter_interior_x "
         "lightning_mode=active_full_source_mesh "
         "active_fill_order=particle_before_lightning "
         "backing_alpha_mode=ps2_modulate2x "
@@ -4300,9 +4367,11 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "tube_meter_alpha_mode=source_peak_key_frame "
         "tube_meter_mode=clipped_left_to_right_source_uv_reveal "
         "tube_meter_u_mode=source_uv_anchored_thick_body "
+        "tube_meter_containment=amp_inside_bar_source_z "
+        "ready_glow_cap_occlusion=chrome_after_ready_glow "
         "ready_view_order=after_star_meter_view "
-        "tube_meter_overlay=after_core "
-        "sort_order=star_meter_view_child_order_then_ready_view "
+        "tube_meter_overlay=after_core_before_chrome_mask "
+        "sort_order=star_meter_view_child_order_with_chrome_containment "
         "source_layers=amp_inside_bar.mesh,amp_inside_bar_path.mesh,"
         "amp_tube_glow_meter.mesh,amp_tube_glow.mesh,"
         "amp_inside_bar_path.part "
@@ -4317,12 +4386,14 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "range_ok=%d,%d,%d "
         "core_clip_world_x=%.3f core_width=%.3f/%.3f "
         "tube_meter_width=%.3f/%.3f path_width=%.3f "
+        "core_z_range=%.3f..%.3f "
         "core_fill_layer=amp_inside_bar.mesh clipped "
         "wide_fill_layer=amp_tube_glow_meter.mesh clipped "
         "thin_path_layer=amp_inside_bar_path.mesh full_width "
         "core_color_frame=%.2f "
         "path_uv_keys=%zu path_uv_frame=%.2f "
-        "path_uv=(%.3f,%.3f) "
+        "path_uv_source=(%.3f,%.3f) "
+        "path_uv_applied=(0.000,0.000) "
         "source_uv_edges core_lr=(%.3f,%.3f) "
         "tube_lr=(%.3f,%.3f) tube_clip_u=%.3f "
         "path_lr=(%.3f,%.3f) "
@@ -4371,6 +4442,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         tube_meter_range.ok ? 1 : 0,
         core_clip_x, core_visible_width, core_total_width,
         tube_meter_visible_width, tube_meter_total_width, path_total_width,
+        core_fill_range.min_z, core_fill_range.max_z,
         fill_core_color_frame,
         star_path_tex_translation_keys_.size(), path_tex_frame,
         path_tex_translation.x, path_tex_translation.y,
@@ -4378,6 +4450,19 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         tube_screen_left_u, tube_screen_right_u, tube_clip_u,
         path_screen_left_u, path_screen_right_u,
         sampled_fill_core_color, tube_meter_alpha, tube_ready_alpha);
+    std::fprintf(
+        stderr,
+        "[hud-star-power-clock] fill=%.3f "
+        "core_filter_frame=%.2f core_filter_color=%08x "
+        "core_lit_frame=%.2f core_lit_color=%08x "
+        "tube_filter_frame=%.2f tube_filter_alpha=%.3f "
+        "tube_peak_frame=%.2f tube_peak_alpha=%.3f "
+        "render_core_color=%08x render_tube_alpha=%.3f\n",
+        fill, fill_anim_frame, filter_fill_core_color,
+        fill_core_color_frame, sampled_fill_core_color,
+        tube_meter_anim_frame, filter_tube_meter_alpha,
+        tube_meter_alpha_frame, tube_meter_alpha,
+        sampled_fill_core_color, tube_meter_alpha);
     ++star_power_debug_budget;
   }
 
