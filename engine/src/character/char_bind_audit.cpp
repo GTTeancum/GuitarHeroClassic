@@ -115,11 +115,6 @@ std::string hex_bytes_range(const std::vector<uint8_t>& bytes, size_t start,
   return out;
 }
 
-std::string hex_bytes(const std::vector<uint8_t>& bytes) {
-  if (bytes.empty()) return "-";
-  return hex_bytes_range(bytes, 0, bytes.size());
-}
-
 std::string hex_bytes_tail(const std::vector<uint8_t>& bytes, size_t count) {
   if (bytes.empty() || count == 0) return "-";
   const size_t start = bytes.size() > count ? bytes.size() - count : 0;
@@ -192,9 +187,23 @@ bool should_dump_hair(int argc, char** argv) {
   return false;
 }
 
+bool should_dump_controllers(int argc, char** argv) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--controllers") == 0) return true;
+  }
+  return false;
+}
+
 bool should_dump_groups(int argc, char** argv) {
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "--groups") == 0) return true;
+  }
+  return false;
+}
+
+bool should_dump_types(int argc, char** argv) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--types") == 0) return true;
   }
   return false;
 }
@@ -210,16 +219,228 @@ bool has_trans_or_mesh(const Character& c, const std::string& name) {
   return false;
 }
 
-void audit_hair(const Character& c) {
-  std::printf("[hair-detail] char=%s hairs=%zu\n", c.dir_name.c_str(),
-              c.hairs.size());
+const char* none_if_empty(const std::string& s) {
+  return s.empty() ? "<none>" : s.c_str();
+}
+
+void audit_controllers(const Character& c, const std::string& milo_path) {
+  std::printf(
+      "[controller-summary] path=%s char=%s drivers=%zu weightSetters=%zu "
+      "servoBone=%zu ik=%zu ikMidi=%zu ikRod=%zu foreTwist=%zu upperTwist=%zu "
+      "lookAt=%zu eyes=%zu hair=%zu collide=%zu posConstraint=%zu "
+      "animFilter=%zu\n",
+      milo_path.c_str(), c.dir_name.c_str(), c.drivers.size(),
+      c.weight_setters.size(), c.servo_bones.size(), c.ik_hands.size(),
+      c.ik_midis.size(), c.ik_rods.size(), c.fore_twists.size(),
+      c.upper_twists.size(), c.lookats.size(), c.eyes.size(),
+      c.hairs.size(), c.collides.size(), c.pos_constraints.size(),
+      c.anim_filters.size());
+  for (const auto& driver : c.drivers) {
+    std::printf(
+        "[controller-driver] char=%s name=%s version=%d "
+        "weightableVersion=%d target=%s clip=%s weight=%.4f "
+        "weightOwner=%s weightProp=%s enabled=%d midi=%d "
+        "midiVersion=%d midiUnreadBytes=%zu midiParser=%s "
+        "midiFlagParser=%s midiBlendOverridePct=%.4f\n",
+        c.dir_name.c_str(), driver.name.c_str(), driver.version,
+        driver.weightable_version, none_if_empty(driver.target),
+        none_if_empty(driver.clip_milo), driver.weight,
+        none_if_empty(driver.weight_owner),
+        none_if_empty(driver.weight_prop), driver.enabled ? 1 : 0,
+        driver.midi ? 1 : 0, driver.midi_version,
+        driver.midi_unread_bytes, none_if_empty(driver.midi_parser),
+        none_if_empty(driver.midi_flag_parser),
+        driver.midi_blend_override_pct);
+  }
+  for (const auto& setter : c.weight_setters) {
+    std::printf(
+        "[controller-weight-setter] char=%s name=%s version=%d "
+        "weightableVersion=%d driver=%s weight=%.4f "
+        "weightOwner=%s flags=0x%08x offset=%.4f scale=%.4f "
+        "baseWeight=%.4f beatsPerWeight=%.4f base=%s "
+        "minWeights=%zu maxWeights=%zu\n",
+        c.dir_name.c_str(), setter.name.c_str(), setter.version,
+        setter.weightable_version, none_if_empty(setter.driver),
+        setter.weight, none_if_empty(setter.weight_owner),
+        static_cast<unsigned>(setter.flags), setter.offset, setter.scale,
+        setter.base_weight, setter.beats_per_weight,
+        none_if_empty(setter.base), setter.min_weights.size(),
+        setter.max_weights.size());
+  }
+  for (const auto& filter : c.anim_filters) {
+    std::printf(
+        "[controller-anim-filter] char=%s name=%s version=%d "
+        "animatableVersion=%d anim=%s frame=%.4f rate=%d scale=%.4f "
+        "offset=%.4f start=%.4f end=%.4f type=%d period=%.4f "
+        "snap=%.4f jitter=%.4f unreadBytes=%zu\n",
+        c.dir_name.c_str(), filter.name.c_str(), filter.version,
+        filter.animatable_version, none_if_empty(filter.anim), filter.frame,
+        filter.rate, filter.scale, filter.offset, filter.start, filter.end,
+        filter.type, filter.period, filter.snap, filter.jitter,
+        filter.unread_bytes);
+  }
+  for (const auto& ik : c.ik_hands) {
+    std::printf(
+        "[controller-ik-hand] char=%s name=%s version=%d unknown=%d "
+        "hand=%s finger=%s target=%s targets=%zu weight=%.4f "
+        "weightProp=%s orientation=%d stretch=%d scalable=%d moveElbow=%d "
+        "elbowSwing=%.4f alwaysElbow=%d constrainWrist=%d "
+        "wristRadians=%.4f elbowCollide=%s clockwise=%d\n",
+        c.dir_name.c_str(), ik.name.c_str(), ik.version, ik.unknown,
+        none_if_empty(ik.hand), none_if_empty(ik.finger),
+        none_if_empty(ik.target), ik.targets.size(), ik.weight,
+        none_if_empty(ik.weight_prop), ik.orientation ? 1 : 0,
+        ik.stretch ? 1 : 0, ik.scalable ? 1 : 0,
+        ik.move_elbow ? 1 : 0, ik.elbow_swing,
+        ik.always_ik_elbow ? 1 : 0, ik.constrain_wrist ? 1 : 0,
+        ik.wrist_radians, none_if_empty(ik.elbow_collide),
+        ik.clockwise ? 1 : 0);
+    for (size_t i = 0; i < ik.targets.size(); ++i) {
+      std::printf(
+          "[controller-ik-target] char=%s ik=%s index=%zu target=%s "
+          "extent=%.4f targetExists=%d\n",
+          c.dir_name.c_str(), ik.name.c_str(), i,
+          none_if_empty(ik.targets[i].target), ik.targets[i].extent,
+          has_trans_or_mesh(c, ik.targets[i].target) ? 1 : 0);
+    }
+  }
+  for (const auto& midi : c.ik_midis) {
+    std::printf("[controller-ik-midi] char=%s name=%s bone=%s boneExists=%d\n",
+                c.dir_name.c_str(), midi.name.c_str(),
+                none_if_empty(midi.bone),
+                has_trans_or_mesh(c, midi.bone) ? 1 : 0);
+  }
+  for (const auto& servo : c.servo_bones) {
+    std::printf(
+        "[controller-servo-bone] char=%s name=%s version=%d clipType=%s\n",
+        c.dir_name.c_str(), servo.name.c_str(), servo.version,
+        none_if_empty(servo.clip_type));
+  }
+  for (const auto& rod : c.ik_rods) {
+    std::printf(
+        "[controller-ik-rod] char=%s name=%s version=%d left=%s "
+        "leftExists=%d right=%s rightExists=%d dest=%s destExists=%d "
+        "destPos=%.4f sideAxis=%s sideAxisExists=%d vertical=%d "
+        "xfmX=(%.4f,%.4f,%.4f) xfmY=(%.4f,%.4f,%.4f) "
+        "xfmZ=(%.4f,%.4f,%.4f) xfmV=(%.4f,%.4f,%.4f)\n",
+        c.dir_name.c_str(), rod.name.c_str(), rod.version,
+        none_if_empty(rod.left_end),
+        has_trans_or_mesh(c, rod.left_end) ? 1 : 0,
+        none_if_empty(rod.right_end),
+        has_trans_or_mesh(c, rod.right_end) ? 1 : 0,
+        none_if_empty(rod.dest), has_trans_or_mesh(c, rod.dest) ? 1 : 0,
+        rod.dest_pos, none_if_empty(rod.side_axis),
+        has_trans_or_mesh(c, rod.side_axis) ? 1 : 0, rod.vertical ? 1 : 0,
+        rod.xfm[0][0], rod.xfm[0][1], rod.xfm[0][2],
+        rod.xfm[1][0], rod.xfm[1][1], rod.xfm[1][2],
+        rod.xfm[2][0], rod.xfm[2][1], rod.xfm[2][2],
+        rod.xfm[3][0], rod.xfm[3][1], rod.xfm[3][2]);
+  }
+  for (const auto& ft : c.fore_twists) {
+    std::printf(
+        "[controller-fore-twist] char=%s name=%s version=%d hand=%s "
+        "twist2=%s offset=%.4f bias=%.4f handExists=%d twist2Exists=%d\n",
+        c.dir_name.c_str(), ft.name.c_str(), ft.version,
+        none_if_empty(ft.hand), none_if_empty(ft.twist2),
+        ft.offset_degrees, ft.bias_degrees,
+        has_trans_or_mesh(c, ft.hand) ? 1 : 0,
+        has_trans_or_mesh(c, ft.twist2) ? 1 : 0);
+  }
+  for (const auto& ut : c.upper_twists) {
+    std::printf(
+        "[controller-upper-twist] char=%s name=%s sourceUpperArm=%s "
+        "drivenTwist1=%s drivenTwist2=%s sourceExists=%d "
+        "twist1Exists=%d twist2Exists=%d\n",
+        c.dir_name.c_str(), ut.name.c_str(), none_if_empty(ut.upper_arm),
+        none_if_empty(ut.twist1), none_if_empty(ut.twist2),
+        has_trans_or_mesh(c, ut.upper_arm) ? 1 : 0,
+        has_trans_or_mesh(c, ut.twist1) ? 1 : 0,
+        has_trans_or_mesh(c, ut.twist2) ? 1 : 0);
+  }
+  for (const auto& look : c.lookats) {
+    std::printf(
+        "[controller-lookat] char=%s name=%s flags=%d source=%s target=%s "
+        "driven=%s weight=%.4f rate=%.4f rangeX=(%.4f %.4f) "
+        "rangeZ=(%.4f %.4f) offset=(%.4f %.4f) maxRadius=%.4f\n",
+        c.dir_name.c_str(), look.name.c_str(), look.flags,
+        none_if_empty(look.source), none_if_empty(look.target),
+        none_if_empty(look.driven), look.weight, look.rate,
+        look.min_x, look.max_x, look.min_z, look.max_z,
+        look.offset_x, look.offset_z, look.max_radius);
+  }
+  for (const auto& eyes : c.eyes) {
+    std::printf(
+        "[controller-eyes] char=%s name=%s lookats=%zu trailing=%s\n",
+        c.dir_name.c_str(), eyes.name.c_str(), eyes.lookats.size(),
+        none_if_empty(eyes.upperlid_or_blink_bone));
+    for (size_t i = 0; i < eyes.lookats.size(); ++i) {
+      std::printf(
+          "[controller-eyes-lookat] char=%s eyes=%s index=%zu lookat=%s\n",
+          c.dir_name.c_str(), eyes.name.c_str(), i,
+          none_if_empty(eyes.lookats[i]));
+    }
+  }
+  for (const auto& collide : c.collides) {
+    std::printf(
+        "[controller-collide] char=%s name=%s version=%d shape=%d "
+        "flags=0x%08x parent=%s target=%s mesh=%s radius=(%.4f %.4f) "
+        "length=(%.4f %.4f) curRadius=(%.4f %.4f) "
+        "curLength=(%.4f %.4f) meshYBias=%d\n",
+        c.dir_name.c_str(), collide.name.c_str(), collide.version,
+        collide.shape, static_cast<unsigned>(collide.flags),
+        none_if_empty(collide.parent), none_if_empty(collide.target),
+        none_if_empty(collide.mesh), collide.orig_radius[0],
+        collide.orig_radius[1], collide.orig_length[0],
+        collide.orig_length[1], collide.cur_radius[0],
+        collide.cur_radius[1], collide.cur_length[0],
+        collide.cur_length[1], collide.mesh_y_bias ? 1 : 0);
+  }
+  for (const auto& constraint : c.pos_constraints) {
+    std::printf(
+        "[controller-pos-constraint] char=%s name=%s version=%d "
+        "source=%s sourceExists=%d targets=%zu boxMin=(%.4f %.4f %.4f) "
+        "boxMax=(%.4f %.4f %.4f)\n",
+        c.dir_name.c_str(), constraint.name.c_str(), constraint.version,
+        none_if_empty(constraint.source),
+        has_trans_or_mesh(c, constraint.source) ? 1 : 0,
+        constraint.targets.size(), constraint.box_min[0],
+        constraint.box_min[1], constraint.box_min[2],
+        constraint.box_max[0], constraint.box_max[1],
+        constraint.box_max[2]);
+    for (size_t i = 0; i < constraint.targets.size(); ++i) {
+      std::printf(
+          "[controller-pos-target] char=%s constraint=%s index=%zu "
+          "target=%s targetExists=%d\n",
+          c.dir_name.c_str(), constraint.name.c_str(), i,
+          none_if_empty(constraint.targets[i]),
+          has_trans_or_mesh(c, constraint.targets[i]) ? 1 : 0);
+    }
+  }
+}
+
+void audit_types(const Character& c, const std::string& milo_path) {
+  int total = 0;
+  for (const auto& [type, count] : c.object_type_counts) total += count;
+  std::printf("[type-summary] path=%s char=%s total=%d classes=%zu\n",
+              milo_path.c_str(), c.dir_name.c_str(), total,
+              c.object_type_counts.size());
+  for (const auto& [type, count] : c.object_type_counts) {
+    std::printf("[type] char=%s type=%s count=%d\n", c.dir_name.c_str(),
+                type.c_str(), count);
+  }
+}
+
+void audit_hair(const Character& c, const std::string& milo_path) {
+  std::printf("[hair-detail] path=%s char=%s hairs=%zu\n",
+              milo_path.c_str(), c.dir_name.c_str(), c.hairs.size());
   for (const auto& hair : c.hairs) {
     std::printf(
-        "[hair-detail] char=%s hair=%s source=decoded-CharHair version=%d "
+        "[hair-detail] path=%s char=%s hair=%s "
+        "source=decoded-CharHair version=%d "
         "simulate=%d stiffness=%.4f torsion=%.4f inertia=%.4f "
         "gravity=%.4f weight=%.4f friction=%.4f minSlack=%.4f "
         "maxSlack=%.4f strands=%zu\n",
-        c.dir_name.c_str(), hair.name.c_str(), hair.version,
+        milo_path.c_str(), c.dir_name.c_str(), hair.name.c_str(), hair.version,
         hair.simulate ? 1 : 0, hair.stiffness, hair.torsion, hair.inertia,
         hair.gravity, hair.weight, hair.friction, hair.min_slack,
         hair.max_slack, hair.strands.size());
@@ -477,20 +698,29 @@ void audit_mesh(const Character& c, const SkinnedMesh& m, bool all) {
 std::vector<std::string> default_character_paths() {
   return {
       "char/alterna1/og/gen/alterna1.milo_ps2",
+      "char/alterna2/og/gen/alterna2.milo_ps2",
       "char/classic/og/gen/classic.milo_ps2",
       "char/deathmetal1/og/gen/deathmetal1.milo_ps2",
+      "char/deathmetal2/og/gen/deathmetal2.milo_ps2",
       "char/female_singer/og/gen/female_singer.milo_ps2",
       "char/funk1/og/gen/funk1.milo_ps2",
       "char/glam1/og/gen/glam1.milo_ps2",
+      "char/glam2/og/gen/glam2.milo_ps2",
+      "char/goth1/og/gen/goth1.milo_ps2",
       "char/goth2/og/gen/goth2.milo_ps2",
+      "char/grim/og/gen/grim.milo_ps2",
       "char/metal1/og/gen/metal1.milo_ps2",
+      "char/metal2/og/gen/metal2.milo_ps2",
       "char/metal_bass/og/gen/metal_bass.milo_ps2",
       "char/metal_drummer/og/gen/metal_drummer.milo_ps2",
       "char/metal_keyboard/og/gen/metal_keyboard.milo_ps2",
       "char/metal_singer/og/gen/metal_singer.milo_ps2",
       "char/punk1/og/gen/punk1.milo_ps2",
+      "char/punk2/og/gen/punk2.milo_ps2",
+      "char/rock1/og/gen/rock1.milo_ps2",
       "char/rock2/og/gen/rock2.milo_ps2",
       "char/rockabill1/og/gen/rockabill1.milo_ps2",
+      "char/rockabill2/og/gen/rockabill2.milo_ps2",
   };
 }
 
@@ -498,7 +728,7 @@ void usage() {
   std::fprintf(stderr,
                "usage: ghogx_character_bind_audit --ark-dir <GEN> [--all] "
                "[--mesh-detail <mesh>] [--dump-verts] [--materials] [--hair] "
-               "[--groups] [char/...milo_ps2 ...]\n");
+               "[--controllers] [--groups] [--types] [char/...milo_ps2 ...]\n");
 }
 
 }  // namespace
@@ -520,7 +750,11 @@ int main(int argc, char** argv) {
       // handled after character load
     } else if (arg == "--hair") {
       // handled after character load
+    } else if (arg == "--controllers") {
+      // handled after character load
     } else if (arg == "--groups") {
+      // handled after character load
+    } else if (arg == "--types") {
       // handled after character load
     } else if (!arg.empty() && arg[0] != '-') {
       milos.push_back(arg);
@@ -537,7 +771,9 @@ int main(int argc, char** argv) {
   const std::string detail_mesh = mesh_detail_name(argc, argv);
   const bool dump_materials = should_dump_materials(argc, argv);
   const bool dump_hair = should_dump_hair(argc, argv);
+  const bool dump_controllers = should_dump_controllers(argc, argv);
   const bool dump_groups = should_dump_groups(argc, argv);
+  const bool dump_types = should_dump_types(argc, argv);
 
   const std::filesystem::path dir(ark_dir);
   const std::string hdr = (dir / "main.hdr").string();
@@ -581,7 +817,9 @@ int main(int argc, char** argv) {
                      hex_bytes_tail(mat.post_diffuse_tex_bytes, 2).c_str());
       }
     }
-    if (dump_hair) audit_hair(c);
+    if (dump_controllers) audit_controllers(c, milo);
+    if (dump_types) audit_types(c, milo);
+    if (dump_hair) audit_hair(c, milo);
     if (dump_groups) {
       const std::string char_name =
           std::filesystem::path(milo).stem().string();

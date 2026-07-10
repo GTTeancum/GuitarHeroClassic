@@ -21,6 +21,10 @@
 #define GHOGX_IHATECOMPVIR_SOURCE_DIR "."
 #endif
 
+#ifndef GHOGX_IHATECOMPVIR_EXTRA_DIR
+#define GHOGX_IHATECOMPVIR_EXTRA_DIR "."
+#endif
+
 namespace {
 
 std::string read_file(const std::filesystem::path& path) {
@@ -63,14 +67,18 @@ int run_contract() {
   const std::filesystem::path char_dir = GHOGX_CHARACTER_SOURCE_DIR;
   const std::filesystem::path scene_dir = GHOGX_MILO_SCENE_SOURCE_DIR;
   const std::filesystem::path source_dir = GHOGX_IHATECOMPVIR_SOURCE_DIR;
+  const std::filesystem::path extra_dir = GHOGX_IHATECOMPVIR_EXTRA_DIR;
 
   const std::string char_mesh = compact(read_file(char_dir / "char_mesh.cpp"));
   const std::string char_mesh_h = compact(read_file(char_dir / "char_mesh.h"));
   const std::string char_clip = compact(read_file(char_dir / "char_clip.cpp"));
+  const std::string bind_audit =
+      compact(read_file(char_dir / "char_bind_audit.cpp"));
   const std::string renderer = compact(read_file(char_dir / "char_renderer.cpp"));
   const std::string scene = compact(read_file(scene_dir / "milo_scene.cpp"));
   const std::string doc =
       read_file(char_dir / "IHATECOMPVIR_CHARACTER_MODEL_SOURCE.md");
+  const std::string source_readme = read_file(source_dir / "README.md");
 
   const std::string object_cs = compact(read_file(
       source_dir / "MiloEditor/MiloLib/Assets/Object.cs"));
@@ -106,11 +114,111 @@ int run_contract() {
       source_dir / "rb3/src/system/char/CharEyes.cpp"));
   const std::string rb3_char_ik_hand_cpp = compact(read_file(
       source_dir / "rb3/src/system/char/CharIKHand.cpp"));
+  const std::string rb3_char_upper_twist_cpp = compact(read_file(
+      source_dir / "rb3/src/system/char/CharUpperTwist.cpp"));
+  const std::string rb3_char_fore_twist_cpp = compact(read_file(
+      source_dir / "rb3/src/system/char/CharForeTwist.cpp"));
+  const std::filesystem::path rb3_latest_char_dir =
+      extra_dir / "rb3-latest/src/system/char";
+  const std::filesystem::path rb3_latest_rndobj_dir =
+      extra_dir / "rb3-latest/src/system/rndobj";
+  const std::filesystem::path rb2_dump_char_dir =
+      extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/char";
+  const std::string rb3_latest_char_hair_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharHair.cpp"));
+  const std::string rb3_latest_char_hair_h = compact(read_file(
+      rb3_latest_char_dir / "CharHair.h"));
+  const std::string rb3_latest_char_collide_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharCollide.cpp"));
+  const std::string rb3_latest_char_collide_h = compact(read_file(
+      rb3_latest_char_dir / "CharCollide.h"));
+  const std::string rb3_latest_char_ik_rod_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharIKRod.cpp"));
+  const std::string rb3_latest_char_ik_rod_h = compact(read_file(
+      rb3_latest_char_dir / "CharIKRod.h"));
+  const std::string rb3_latest_char_servo_bone_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharServoBone.cpp"));
+  const std::string rb3_latest_char_servo_bone_h = compact(read_file(
+      rb3_latest_char_dir / "CharServoBone.h"));
+  const std::string rb3_latest_char_weightable_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharWeightable.cpp"));
+  const std::string rb3_latest_char_weightable_h = compact(read_file(
+      rb3_latest_char_dir / "CharWeightable.h"));
+  const std::string rb3_latest_char_driver_midi_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharDriverMidi.cpp"));
+  const std::string rb3_latest_char_driver_midi_h = compact(read_file(
+      rb3_latest_char_dir / "CharDriverMidi.h"));
+  const std::string rb3_latest_anim_filter_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "AnimFilter.cpp"));
+  const std::string rb3_latest_anim_filter_h = compact(read_file(
+      rb3_latest_rndobj_dir / "AnimFilter.h"));
+  const std::string rb3_latest_anim_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Anim.cpp"));
+  const std::string rb3_latest_event_trigger_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "EventTrigger.cpp"));
+  const std::string rb3_latest_event_trigger_h = compact(read_file(
+      rb3_latest_rndobj_dir / "EventTrigger.h"));
+  const std::string rb3_latest_tex_cpp = compact(read_file(
+      rb3_latest_rndobj_dir / "Tex.cpp"));
+  const std::string rb3_latest_char_weight_setter_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharWeightSetter.cpp"));
+  const std::string rb3_latest_char_weight_setter_h = compact(read_file(
+      rb3_latest_char_dir / "CharWeightSetter.h"));
+  const std::string rb3_latest_char_pos_constraint_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharPosConstraint.cpp"));
+  const std::string rb3_latest_char_pos_constraint_h = compact(read_file(
+      rb3_latest_char_dir / "CharPosConstraint.h"));
+  const std::string rb3_latest_char_clip_h = compact(read_file(
+      rb3_latest_char_dir / "CharClip.h"));
+  const std::string rb3_latest_char_bones_samples_h = compact(read_file(
+      rb3_latest_char_dir / "CharBonesSamples.h"));
+  const std::string rb3_latest_char_clip_driver_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharClipDriver.cpp"));
+  const std::string rb2_char_clip_samples_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharClipSamples.cpp"));
+  const std::string rb2_char_bones_samples_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharBonesSamples.cpp"));
+  const std::string rb2_char_clip_driver_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharClipDriver.cpp"));
+  const std::string rb2_char_driver_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharDriver.cpp"));
+  const std::string rb2_char_walk_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharWalk.cpp"));
+  const std::string rb2_outfit_loader_cpp = compact(read_file(
+      rb2_dump_char_dir / "OutfitLoader.cpp"));
+  const std::string rb2_dolmatch_filt = compact(read_file(
+      extra_dir / "rb3-retail-old/doc/dolmatchoutput_filt.txt"));
+  const std::string band3_config = compact(read_file(
+      extra_dir / "band3_recomp/band3_config.toml"));
+  const std::string band3_readme = read_file(
+      extra_dir / "band3_recomp/README.md");
 
   bool ok = true;
 
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs",
                  "document cites RndMesh source");
+  ok &= contains(source_readme,
+                 "This directory is a deliberately small, in-worktree "
+                 "reference snapshot",
+                 "snapshot README documents copied-source scope");
+  ok &= contains(doc, "not a full mirror",
+                 "document states copied source snapshot boundary");
+  ok &= missing(doc, "re-notes",
+                "document must not cite absent re-notes snapshot");
+  ok &= contains(doc, "## Source Coverage Matrix",
+                 "document includes source coverage matrix");
+  ok &= contains(doc,
+                 "| Clip sample/output publishing | `rb3-latest` `CharClip` / "
+                 "`CharBones` / `CharBonesSamples`, `rb3-retail-old` RB2 dump, "
+                 "`band3_recomp` symbols |",
+                 "coverage matrix cites current CharClip source evidence");
+  ok &= contains(doc,
+                 "Layout and call-flow evidence exists; native math/application "
+                 "is still fenced",
+                 "coverage matrix keeps incomplete clip math fenced");
+  ok &= contains(doc,
+                 "| Hair two-sided rendering | User/project visual override |",
+                 "coverage matrix marks hair two-sided as project override");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs",
                  "document cites RndMat source");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs",
@@ -127,14 +235,28 @@ int run_contract() {
                  "document cites RB3 RndTransformable runtime source");
   ok &= contains(doc, "rb3/src/system/rndobj/Trans.h",
                  "document cites RB3 RndTransformable runtime header source");
-  ok &= contains(doc, "rb3/src/system/char/CharHair.cpp",
-                 "document cites CharHair runtime source");
+  ok &= contains(doc, "rb3-latest/src/system/char/CharHair.cpp",
+                 "document cites latest CharHair runtime source");
+  ok &= contains(doc, "rb3-latest/src/system/char/CharIKRod.cpp",
+                 "document cites latest CharIKRod runtime source");
+  ok &= contains(doc, "rb3-latest/src/system/char/CharServoBone.cpp",
+                 "document cites latest CharServoBone runtime source");
+  ok &= contains(doc, "rb3-latest/src/system/char/CharWeightSetter.cpp",
+                 "document cites latest CharWeightSetter runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharLookAt.cpp",
                  "document cites CharLookAt runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharEyes.cpp",
                  "document cites CharEyes runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharIKHand.cpp",
                  "document cites CharIKHand runtime source");
+  ok &= contains(doc, "rb3/src/system/char/CharUpperTwist.cpp",
+                 "document cites CharUpperTwist runtime source");
+  ok &= contains(doc, "rb3/src/system/char/CharForeTwist.cpp",
+                 "document cites CharForeTwist runtime source");
+  ok &= contains(doc, "ihatecompvir-extra/band3_recomp",
+                 "document cites extra band3_recomp source");
+  ok &= contains(band3_readme, "Early recompilation of Rock Band 3",
+                 "band3_recomp README is available to source-truth contract");
 
   ok &= contains(object_cs, "publicenumNodeType:int{Int=0x00,Float=0x01",
                  "ObjectFields exposes DTB node enum");
@@ -215,6 +337,26 @@ int run_contract() {
                  "==9&&!xfm.target.empty()){//kTargetWorldworld=source_world_for"
                  "(c,xfm.target,",
                  "native transform evaluator mirrors kTargetWorld replacement");
+  ok &= contains(char_mesh,
+                 "boolsource_dynamic_constraint_needs_runtime(uint32_tconstraint,"
+                 "conststd::string&target)",
+                 "native detects unsupported dynamic constraints");
+  ok &= contains(char_mesh,
+                 "if(constraint==9)returntarget.empty();",
+                 "native treats target-world without target as unsupported");
+  ok &= contains(char_mesh,
+                 "returnconstraint>=3&&constraint<=8;",
+                 "native treats non-target dynamic constraints as unsupported");
+  ok &= contains(char_mesh,
+                 "\"[source-xfm-unsupported]name=%sconstraint=%utarget=%s\"",
+                 "native logs unsupported dynamic constraints");
+  ok &= contains(char_mesh,
+                 "runtimeWriteback=0reason=awaiting-source-dynamic-constraint-port",
+                 "unsupported dynamic constraint log is source-boundary diagnostic");
+  ok &= contains(doc,
+                 "Other dynamic constraints log\n    `[source-xfm-unsupported]` "
+                 "with `runtimeWriteback=0`",
+                 "document records unsupported dynamic constraint boundary");
 
   ok &= contains(drawable_cs,
                  "showing=reader.ReadBoolean();if(revision<2)",
@@ -324,16 +466,37 @@ int run_contract() {
                 "renderer must not hide hair through numbered-name fallback");
   ok &= missing(renderer, "is_lod1",
                 "renderer must not hide LOD meshes through name fallback");
-  ok &= missing(renderer, "is_hair_render_mesh",
-                "renderer must not derive render state from hair names");
-  ok &= missing(renderer, "is_hair_mesh_name",
-                "renderer must not derive render state from hair mesh names");
-  ok &= missing(renderer, "is_hair_material_name",
-                "renderer must not derive render state from hair material names");
   ok &= missing(renderer, "legacy_blended_hair",
                 "renderer must not keep legacy hair depth fallback");
   ok &= missing(renderer, "hairRender",
                 "renderer debug output must not expose removed hair-name branch");
+  ok &= contains(renderer,
+                 "boolis_hair_two_sided_surface(constSkinnedMesh*mesh,"
+                 "constghogx::milo_scene::MatObj*material=nullptr)",
+                 "renderer has the explicit project hair two-sided rule");
+  ok &= contains(renderer,
+                 "has_hair_token(mesh->name)||has_hair_token(mesh->material)",
+                 "hair two-sided rule catches mesh and mesh-material tokens");
+  ok &= contains(renderer,
+                 "has_hair_token(material->name)||"
+                 "has_hair_token(material->diffuse_tex)",
+                 "hair two-sided rule catches material and texture tokens");
+  ok &= contains(renderer,
+                 "constDWORDmesh_cull_mode=hair_two_sided?D3DCULL_NONE:"
+                 "character_cull_mode(material);",
+                 "hair surfaces are marked two-sided only at cull selection");
+  ok &= missing(renderer,
+                "is_hair_two_sided_surface(mesh,material)){returnD3DCULL_NONE;}",
+                "generic cull helper must not keep a hidden hair override");
+  ok &= contains(renderer,
+                 "if(hair_two_sided){dev->SetRenderState(D3DRS_CULLMODE,"
+                 "D3DCULL_CCW);draw_current_mesh();dev->SetRenderState("
+                 "D3DRS_CULLMODE,D3DCULL_CW);draw_current_mesh();"
+                 "dev->SetRenderState(D3DRS_CULLMODE,mesh_cull_mode);}"
+                 "else{draw_current_mesh();}",
+                 "hair two-sided rule draws both cull sides without material-state overrides");
+  ok &= contains(renderer, "hairTwoSided=%d",
+                 "mesh render logs expose the hair two-sided rule");
   ok &= contains(renderer,
                  "constbooldepth_write=material_depth_write_enabled(material);",
                  "native depth write is driven by source material state");
@@ -381,13 +544,29 @@ int run_contract() {
                  "point.bone=chainNode.Name;point.pos=ToMiloVector3(pointPosition);"
                  "point.unk5c=ToMiloVector3(resetPosition);point.sideLength=-1.0f;",
                  "glTFMilo CharHair point fields");
+  ok &= contains(gltf_node_processor_cs,
+                 "createaCharCollideforthehaireventhoughitisempty,"
+                 "fromlookingatthedecompitseemedthattheremustbeoneorhairwon'tbesim,"
+                 "couldbewrong",
+                 "glTFMilo marks generated CharCollide rows as inferred");
+  ok &= contains(doc,
+                 "Treat those rows as exporter/format hints, not proof of GH2 runtime",
+                 "document keeps glTFMilo CharCollide rows out of runtime proof");
+  ok &= contains(band3_config, "CharHair__GetFPS",
+                 "band3_recomp exposes CharHair GetFPS symbol");
+  ok &= contains(band3_config, "CharHair__Simulate",
+                 "band3_recomp exposes CharHair Simulate symbol");
+  ok &= missing(band3_config, "CharHair__Hookup",
+                "band3_recomp has no CharHair Hookup symbol body");
+  ok &= missing(band3_config, "CharCollide__",
+                "band3_recomp has no CharCollide implementation symbols");
 
-  ok &= contains(rb3_char_hair_cpp, "pt.radius+=f;pt.outerRadius+=f;",
+  ok &= contains(rb3_latest_char_hair_cpp, "pt.radius+=f;pt.outerRadius+=f;",
                  "RB3 CharHair source adds rev 6/7/8 float to both radii");
   ok &= contains(char_mesh,
                  "point.radius+=add_to_radius;point.outer_radius+=add_to_radius;",
                  "native CharHair decode follows rev 6/7/8 radius addition");
-  ok &= contains(rb3_char_hair_cpp,
+  ok &= contains(rb3_latest_char_hair_cpp,
                  "if(CharHair::gRev<8){pt.sideLength=-1.0f;if(CharHair::gRev>5){"
                  "inti;bs>>i>>i;}}",
                  "RB3 CharHair source consumes two ints for old revs above 5");
@@ -395,12 +574,583 @@ int run_contract() {
                  "if(hair.version<8){point.side_length=-1.0f;if(hair.version>5){"
                  "(void)r.i32();(void)r.i32();}}",
                  "native CharHair decode consumes two ints for old revs above 5");
+  ok &= contains(rb3_latest_char_hair_cpp, "pt.collides.clear();",
+                 "RB3 CharHair point reader clears decoded collision list");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::Poll(){if(mMe){if(mMe->GetPollState()=="
+                 "Character::kCharSyncObject)Hookup();",
+                 "RB3 CharHair poll re-hooks during character sync");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(mReset>0)DoReset(mReset);if(TheTaskMgr.DeltaSeconds()!="
+                 "0.0f){SimulateLoops(1,GetFPS());}elseSimulateZeroTime();",
+                 "RB3 CharHair poll reset/simulate flow");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "Multiply(pt.unk5c,tf70,pt.pos);",
+                 "RB3 CharHair reset seeds point position from unk5c");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "SimulateLoops(reset,GetFPS());",
+                 "RB3 CharHair reset runs source simulate loops");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::Hookup(){if(mManagedHookup)return;"
+                 "ObjPtrList<CharCollide,ObjectDir>colList(this,kObjListNoNull);"
+                 "for(ObjDirItr<CharCollide>it(Dir(),true);it!=0;++it){"
+                 "colList.push_back(it);}Hookup(colList);}",
+                 "RB3 CharHair default hookup gathers CharCollide rows");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(thisPoint.collides.size()!=0){",
+                 "RB3 CharHair runtime writes only through resolved collides");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(thisPoint.bone)thisPoint.bone->SetWorldXfm(t100);",
+                 "RB3 CharHair writes driven Trans rows only from source simulate");
+  ok &= contains(rb3_latest_char_hair_h,
+                 "voidHookup(ObjPtrList<CharCollide,ObjectDir>&);",
+                 "latest CharHair header declares collision-list hookup");
+  ok &= missing(rb3_latest_char_hair_cpp,
+                "voidCharHair::Hookup(ObjPtrList<CharCollide,ObjectDir>&",
+                "latest CharHair source still lacks overloaded hookup body");
+  ok &= contains(rb3_latest_char_collide_h,
+                 "enumShape{kPlane=0,kSphere=1,kInsideSphere=2,kCigar=3,"
+                 "kInsideCigar=4,};",
+                 "latest CharCollide header exposes source shape enum");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "bs>>(int&)mShape;bs>>mOrigRadius[0];if(gRev>4)bs>>"
+                 "mOrigLength[0];",
+                 "latest CharCollide source exposes load path");
+  ok &= contains(char_mesh_h,
+                 "structCharCollide{std::stringname;int32_tversion=0;",
+                 "native exposes decoded CharCollide rows");
+  ok &= contains(char_mesh,
+                 "CharCollidedecode_collide(conststd::string&entry_name,"
+                 "conststd::vector<uint8_t>&body)",
+                 "native CharCollide decoder exists");
+  ok &= contains(char_mesh,
+                 "read_object_fields(r);constTransFieldstrans=read_rnd_trans(r,false);",
+                 "native CharCollide decoder follows object then transform source order");
+  ok &= contains(char_mesh,
+                 "collide.shape=r.i32();collide.orig_radius[0]=r.f32();"
+                 "if(collide.version>4)collide.orig_length[0]=r.f32();",
+                 "native CharCollide decoder follows source radius/length gates");
+  ok &= contains(char_mesh,
+                 "r.skip(20);//CSHA1::Digestcollide.mesh_y_bias=r.u8()!=0;",
+                 "native CharCollide decoder consumes digest and mesh-y-bias");
+  ok &= contains(char_mesh,
+                 "out.collides.push_back(decode_collide(de.name,b));",
+                 "character load stores decoded CharCollide rows");
+  ok &= contains(char_clip,
+                 "\"[chargraph]collide%s",
+                 "character graph log exposes decoded CharCollide rows");
+  ok &= contains(doc, "`CharCollide::Load` reads",
+                 "document records CharCollide source decode order");
+  ok &= contains(doc, "keeps decoded hair rows logged and unwritten",
+                 "document states bounded native CharHair writeback rule");
+  ok &= contains(doc, "latest source includes `CharHair.h`, `CharCollide.h`",
+                 "document records stronger latest hair source boundary");
+  ok &= contains(doc,
+                 "overloaded `Hookup(ObjPtrList<CharCollide>&)` body is still\n"
+                 "    declared but not implemented",
+                 "document records missing CharHair hookup body boundary");
+  ok &= contains(doc,
+                 "The current config exposes `CharHair::GetFPS` and `CharHair::Simulate`",
+                 "document records band3 CharHair symbol-only evidence");
+  ok &= contains(char_clip, "runtimeWriteback=0",
+                 "native CharHair path logs zero runtime writeback");
+  ok &= contains(char_clip, "awaiting-faithful-ihatecompvir-CharHair-port",
+                 "native CharHair path remains decode/log only without hookup");
+  ok &= contains(rb3_latest_char_ik_rod_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mLeftEnd;",
+                 "latest CharIKRod source header exposes left endpoint");
+  ok &= contains(rb3_latest_char_ik_rod_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mDest;",
+                 "latest CharIKRod source header exposes destination");
+  ok &= contains(rb3_latest_char_ik_rod_h, "TransformmXfm;",
+                 "latest CharIKRod source header exposes stored transform");
+  ok &= contains(rb3_latest_char_ik_rod_cpp,
+                 "if(mDest==0||mLeftEnd==0||mRightEnd==0)returnfalse;",
+                 "CharIKRod source ComputeRod refuses incomplete refs");
+  ok &= contains(rb3_latest_char_ik_rod_cpp,
+                 "bs>>mLeftEnd;bs>>mRightEnd;bs>>mDestPos;bs>>mSideAxis;"
+                 "bs>>mVertical;bs>>mDest;bs>>mXfm;",
+                 "CharIKRod source load order is mirrored");
+  ok &= contains(char_mesh_h, "structCharIKRod{std::stringname;int32_tversion=0;",
+                 "native CharIKRod stores source revision");
+  ok &= contains(char_mesh_h, "floatxfm[4][3]={};",
+                 "native CharIKRod names stored source mXfm");
+  ok &= contains(char_mesh, "rod.version=r.i32();",
+                 "native CharIKRod decoder stores source revision");
+  ok &= contains(char_mesh,
+                 "rod.left_end=r.str();rod.right_end=r.str();"
+                 "rod.dest_pos=r.f32();rod.side_axis=r.str();"
+                 "rod.vertical=r.u8()!=0;rod.dest=r.str();",
+                 "native CharIKRod decode mirrors source load fields");
+  ok &= contains(char_mesh, "rod.xfm[v][c]=r.f32();",
+                 "native CharIKRod decode stores source mXfm");
+  ok &= contains(bind_audit, "version=%dleft=%s",
+                 "controller audit logs CharIKRod source revision");
+  ok &= contains(bind_audit, "leftExists=%dright=%srightExists=%ddest=%s",
+                 "controller audit logs CharIKRod ref existence");
+  ok &= contains(bind_audit, "rod.xfm[3][0],rod.xfm[3][1],rod.xfm[3][2]",
+                 "controller audit logs CharIKRod stored transform");
+  ok &= contains(doc, "`CharIKRod::Load` reads revision 2 rows",
+                 "document records CharIKRod source load order");
+  ok &= contains(doc, "ComputeRod` returns\n    false unless `dest`, `left_end`, and `right_end` all resolve",
+                 "document records CharIKRod incomplete-ref boundary");
+  ok &= contains(rb3_latest_char_servo_bone_h,
+                 "classCharServoBone:publicRndHighlightable,publicCharPollable,"
+                 "publicCharBonesMeshes",
+                 "latest CharServoBone source header exposes inheritance");
+  ok &= contains(rb3_latest_char_servo_bone_h, "SymbolmClipType;",
+                 "latest CharServoBone source header exposes clip type");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "if(gRev>1)bs>>s;SetClipType(s);",
+                 "CharServoBone source load gates clip type");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "ClearBones();CharBoneDir::StuffBones(*this,mClipType);",
+                 "CharServoBone source SetClipType refills source bones");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "mFacingPosDelta=(Vector3*)FindPtr(\"bone_facing_delta.pos\");",
+                 "CharServoBone source realloc finds facing delta rows");
+  ok &= contains(char_mesh_h,
+                 "structCharServoBone{std::stringname;int32_tversion=0;"
+                 "std::stringclip_type;};",
+                 "native CharServoBone stores source load fields");
+  ok &= contains(char_mesh, "CharServoBonedecode_servo_bone(",
+                 "native CharServoBone decoder exists");
+  ok &= contains(char_mesh,
+                 "servo.version=r.i32();read_object_fields(r);",
+                 "native CharServoBone decoder reads revision and object fields");
+  ok &= contains(char_mesh,
+                 "if(servo.version>1)servo.clip_type=r.str();",
+                 "native CharServoBone decoder mirrors source clip_type gate");
+  ok &= contains(char_mesh,
+                 "out.servo_bones.push_back(decode_servo_bone(de.name,b));",
+                 "character load stores decoded CharServoBone rows");
+  ok &= contains(bind_audit, "object_type_counts",
+                 "bind audit has stock object-type inventory support");
+  ok &= contains(bind_audit, "--types",
+                 "bind audit exposes stock object-type inventory switch");
+  ok &= contains(bind_audit,
+                 "\"[controller-servo-bone]char=%sname=%sversion=%dclipType=%s",
+                 "controller audit logs CharServoBone source fields");
+  ok &= contains(doc, "`CharServoBone::Load` accepts source revisions through 2",
+                 "document records CharServoBone source load");
+  ok &= contains(doc, "revision is greater than 1",
+                 "document records CharServoBone clip_type revision gate");
+  ok &= contains(doc, "does not port `MoveToFacing`, `MoveToDeltaFacing`",
+                 "document fences CharServoBone movement behavior");
+  ok &= contains(rb3_latest_char_weightable_h,
+                 "floatWeight(){returnmWeightOwner->mWeight;}",
+                 "latest CharWeightable source exposes owner-weight lookup");
+  ok &= contains(rb3_latest_char_weightable_cpp,
+                 "bs>>mWeight;if(gRev>1)bs>>mWeightOwner;",
+                 "CharWeightable source load gates weight owner");
+  ok &= contains(rb3_latest_char_driver_midi_h,
+                 "SymbolmParser;",
+                 "latest CharDriverMidi header exposes parser symbol");
+  ok &= contains(rb3_latest_char_driver_midi_h,
+                 "SymbolmFlagParser;",
+                 "latest CharDriverMidi header exposes flag parser symbol");
+  ok &= contains(rb3_latest_char_driver_midi_h,
+                 "floatmBlendOverridePct;",
+                 "latest CharDriverMidi header exposes blend override");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(7,0)LOAD_SUPERCLASS(CharDriver)",
+                 "CharDriverMidi source load begins with source superclass");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "if(gRev<7){mDefaultClip.Load(bs,false,mClips);}",
+                 "CharDriverMidi source load gates default clip pointer");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "elseif(gRev>3)bs>>mParser;if(gRev>4)bs>>mFlagParser;"
+                 "if(gRev>5)bs>>mBlendOverridePct;",
+                 "CharDriverMidi source load gates parser fields");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "HANDLE(midi_parser,OnMidiParser)",
+                 "CharDriverMidi source handles midi_parser messages");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "HANDLE(midi_parser_group,OnMidiParserGroup)",
+                 "CharDriverMidi source handles midi_parser_group messages");
+  ok &= contains(char_mesh_h,
+                 "structCharDriver{std::stringname;int32_tversion=0;"
+                 "int32_tweightable_version=0;",
+                 "native CharDriver stores source revisions");
+  ok &= contains(char_mesh_h,
+                 "std::stringweight_owner;std::stringweight_prop;",
+                 "native CharDriver keeps source owner plus compatibility alias");
+  ok &= contains(char_mesh_h,
+                 "int32_tmidi_version=0;size_tmidi_unread_bytes=0;"
+                 "std::stringmidi_parser;",
+                 "native CharDriver stores MIDI source revision and parser");
+  ok &= contains(char_mesh,
+                 "driver.version=r.i32();",
+                 "native CharDriver decoder reads driver revision");
+  ok &= contains(char_mesh,
+                 "read_object_fields(r);",
+                 "native CharDriver decoder reads object fields");
+  ok &= contains(char_mesh,
+                 "driver.weightable_version=r.i32();",
+                 "native CharDriver decoder reads CharWeightable revision");
+  ok &= contains(char_mesh,
+                 "if(driver.weightable_version>1)driver.weight_owner=r.str();",
+                 "native CharDriver decoder mirrors CharWeightable owner gate");
+  ok &= contains(char_mesh,
+                 "if(driver.midi_version>=7){if(driver.midi_version>3",
+                 "native CharDriverMidi parser decode is fenced past default clip");
+  ok &= contains(char_mesh,
+                 "driver.midi_unread_bytes=r.n-r.pos;",
+                 "native CharDriverMidi records fenced unread bytes");
+  ok &= contains(bind_audit,
+                 "\"[controller-driver]char=%sname=%sversion=%d",
+                 "controller audit logs CharDriver source revision");
+  ok &= contains(bind_audit,
+                 "\"weightOwner=%sweightProp=%senabled=%dmidi=%d",
+                 "controller audit logs CharDriver source weight owner");
+  ok &= contains(bind_audit,
+                 "\"midiVersion=%dmidiUnreadBytes=%zumidiParser=%s",
+                 "controller audit logs CharDriverMidi source fields");
+  ok &= contains(doc,
+                 "`CharDriverMidi::Load` reads the subclass revision",
+                 "document records CharDriverMidi source load");
+  ok &= contains(doc,
+                 "native GHOGX does not step over `mDefaultClip.Load(bs, false, mClips)`",
+                 "document fences CharDriverMidi default clip pointer");
+  ok &= contains(doc,
+                 "shows 38 `CharDriverMidi` rows",
+                 "document records refreshed CharDriverMidi stock inventory");
+  ok &= contains(doc,
+                 "`midiVersion=3` with `midiUnreadBytes=4`",
+                 "document records GH2 CharDriverMidi rev/tail proof");
+  ok &= contains(rb3_latest_anim_filter_h,
+                 "ObjPtr<RndAnimatable,classObjectDir>mAnim;",
+                 "latest RndAnimFilter header exposes anim pointer");
+  ok &= contains(rb3_latest_anim_filter_h,
+                 "floatmPeriod;",
+                 "latest RndAnimFilter header exposes period");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "Hmx::Object::Load(bs);RndAnimatable::Load(bs);"
+                 "bs>>mAnim>>mScale>>mOffset>>mStart>>mEnd;",
+                 "RndAnimFilter source load reads object, animatable, and range rows");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "if(gRev!=0){bs>>(int&)mType;bs>>mPeriod;}",
+                 "RndAnimFilter source load gates type and period");
+  ok &= contains(rb3_latest_anim_filter_cpp,
+                 "if(gRev>1){bs>>mSnap>>mJitter;}",
+                 "RndAnimFilter source load gates snap and jitter");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "BEGIN_LOADS(RndAnimatable)LOAD_REVS(bs);ASSERT_REVS(4,0);"
+                 "if(gRev>1)bs>>mFrame;",
+                 "RndAnimatable source load reads frame gate");
+  ok &= contains(rb3_latest_anim_cpp,
+                 "if(gRev>3){bs>>(int&)mRate;}elseif(gRev>2){"
+                 "unsignedcharuc;bs>>uc;mRate=(Rate)(uc==0);}",
+                 "RndAnimatable source load reads rate gates");
+  ok &= contains(char_mesh_h,
+                 "structRndAnimFilter{std::stringname;int32_tversion=0;",
+                 "native stores RndAnimFilter source fields");
+  ok &= contains(char_mesh_h,
+                 "int32_tanimatable_version=0;floatframe=0.0f;int32_trate=0;",
+                 "native stores RndAnimatable source fields");
+  ok &= contains(char_mesh,
+                 "RndAnimatableFieldsread_rnd_animatable(Reader&r)",
+                 "native has source-named RndAnimatable reader");
+  ok &= contains(char_mesh,
+                 "throwstd::runtime_error(\"char_mesh:RndAnimatablerev0object-listbranchnotdecoded\");",
+                 "native fences RndAnimatable old object-list branch");
+  ok &= contains(char_mesh,
+                 "RndAnimFilterdecode_anim_filter(conststd::string&entry_name",
+                 "native decodes RndAnimFilter rows");
+  ok &= contains(char_mesh,
+                 "filter.anim=r.str();filter.scale=r.f32();filter.offset=r.f32();"
+                 "filter.start=r.f32();filter.end=r.f32();",
+                 "native RndAnimFilter decoder mirrors source range rows");
+  ok &= contains(char_mesh,
+                 "elseif(de.type==\"AnimFilter\"){out.anim_filters.push_back",
+                 "character load stores decoded AnimFilter rows");
+  ok &= contains(bind_audit,
+                 "\"[controller-anim-filter]char=%sname=%sversion=%d",
+                 "controller audit logs AnimFilter source revision");
+  ok &= contains(bind_audit,
+                 "\"animatableVersion=%danim=%sframe=%.4frate=%dscale=%.4f",
+                 "controller audit logs AnimFilter source fields");
+  ok &= contains(doc,
+                 "`RndAnimFilter::Load` accepts source revisions through 2",
+                 "document records RndAnimFilter source load");
+  ok &= contains(doc,
+                 "shows one stock `AnimFilter` row, on `metal_drummer`",
+                 "document records stock AnimFilter inventory");
+  ok &= contains(doc,
+                 "stock_character_animfilter_inventory.log",
+                 "document cites refreshed AnimFilter proof log");
+  ok &= contains(doc,
+                 "name=crash_static.filt version=1",
+                 "document records stock AnimFilter row identity");
+  ok &= contains(doc,
+                 "unreadBytes=0",
+                 "document records stock AnimFilter fully consumed proof");
+  ok &= contains(doc,
+                 "`CharWalk::Load` itself has no\n  decompiled body",
+                 "document fences CharWalk layout");
+  ok &= contains(rb2_char_walk_cpp,
+                 "voidCharWalk::Load(classCharWalk*constthis/*r29*/,"
+                 "classBinStream&d/*r30*/){",
+                 "RB2 dump exposes CharWalk Load symbol");
+  ok &= contains(rb2_char_walk_cpp,
+                 "classDebugTheDebug;//->staticintgRev;",
+                 "RB2 dump CharWalk Load has no field-read body");
+  ok &= contains(rb2_outfit_loader_cpp,
+                 "voidOutfitLoader::Load(classOutfitLoader*constthis/*r30*/,"
+                 "classBinStream&d/*r31*/){}",
+                 "RB2 dump OutfitLoader Load has no serialized field body");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "BEGIN_LOADS(EventTrigger)LOAD_REVS(bs)ASSERT_REVS(0x11,0)"
+                 "LOAD_SUPERCLASS(Hmx::Object)",
+                 "latest EventTrigger source exposes load entry");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "if(gRev>6)bs>>mAnims>>mSounds>>mShows;",
+                 "EventTrigger source load reads object lists/vectors");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "if(gRev>7)bs>>mProxyCalls;",
+                 "EventTrigger source load reads proxy call vector");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "if(gRev>0x10)bs>>mPartLaunchers;",
+                 "EventTrigger source load reads part launcher list");
+  ok &= contains(rb3_latest_event_trigger_h,
+                 "ObjVector<ProxyCall>mProxyCalls;",
+                 "EventTrigger header exposes ObjVector boundary");
+  ok &= contains(rb3_latest_event_trigger_h,
+                 "ObjPtrList<Sequence,classObjectDir>mSounds;",
+                 "EventTrigger header exposes ObjPtrList boundary");
+  ok &= contains(rb3_latest_event_trigger_h,
+                 "inlineBinStream&operator>>(BinStream&bs,"
+                 "EventTrigger::HideDelay&hd)",
+                 "EventTrigger header exposes custom HideDelay serialization");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "voidRndTex::Load(BinStream&bs){PreLoad(bs);PostLoad(bs);}",
+                 "latest RndTex source exposes preload/postload split");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "if(gRev>8)LOAD_SUPERCLASS(Hmx::Object)",
+                 "latest RndTex source gates object fields");
+  ok &= contains(rb3_latest_tex_cpp,
+                 "bs>>mWidth>>mHeight;SetPowerOf2();bs>>mBpp;bs>>mFilepath;",
+                 "latest RndTex source reads texture metadata");
+  ok &= contains(rb2_dolmatch_filt,
+                 "FixClassName__9DirLoaderF6Symbol@WorldFx@3",
+                 "RB2 dump exposes only WorldFx DirLoader fixup evidence");
+  ok &= contains(doc, "## Remaining Stock Type Boundary",
+                 "document records remaining stock type boundary");
+  ok &= contains(doc, "`CharWalk`: 19 stock rows",
+                 "document records stock CharWalk row count");
+  ok &= contains(doc, "`OutfitLoader`: 20 stock rows",
+                 "document records stock OutfitLoader row count");
+  ok &= contains(doc, "`EventTrigger`: one stock row, on `metal_drummer`",
+                 "document records stock EventTrigger row count");
+  ok &= contains(doc, "`Object`: 19 stock generic object rows",
+                 "document records generic Object boundary");
+  ok &= contains(doc, "`Tex`: 160 stock texture rows",
+                 "document records stock Tex row count");
+  ok &= contains(doc, "`WorldFx`: 99 stock rows",
+                 "document records stock WorldFx row count");
+  ok &= contains(doc,
+                 "Native does not decode this row until local `ObjVector`/`ObjPtrList`",
+                 "document fences EventTrigger object-list serialization");
+  ok &= contains(doc,
+                 "native texture payloads are already handled\n"
+                 "  by the PS2 texture asset path",
+                 "document keeps Tex rows in asset texture path");
+  ok &= contains(doc,
+                 "there is no\n  checked `WorldFx::Load` source body",
+                 "document fences WorldFx load body absence");
+  ok &= missing(char_mesh, "decode_char_walk",
+                "native must not guess CharWalk decoder");
+  ok &= missing(char_mesh, "decode_event_trigger",
+                "native must not guess EventTrigger decoder");
+  ok &= missing(char_mesh, "decode_outfit_loader",
+                "native must not guess OutfitLoader decoder");
+  ok &= missing(char_mesh, "decode_world_fx",
+                "native must not guess WorldFx decoder");
+  ok &= missing(char_mesh, "decode_rnd_tex",
+                "native character graph must not duplicate texture decoder");
+  ok &= missing(char_mesh, "EventTrigger",
+                "native character graph must not promote EventTrigger yet");
+  ok &= missing(char_mesh, "OutfitLoader",
+                "native character graph must not promote OutfitLoader yet");
+  ok &= missing(char_mesh, "WorldFx",
+                "native character graph must not promote WorldFx yet");
+  ok &= contains(rb3_latest_char_weight_setter_h,
+                 "ObjPtr<CharDriver,ObjectDir>mDriver;",
+                 "latest CharWeightSetter source header exposes driver");
+  ok &= contains(rb3_latest_char_weight_setter_h,
+                 "intmFlags;",
+                 "latest CharWeightSetter source header exposes flags");
+  ok &= contains(rb3_latest_char_weight_setter_h,
+                 "floatmOffset;",
+                 "latest CharWeightSetter source header exposes offset");
+  ok &= contains(rb3_latest_char_weight_setter_h,
+                 "floatmScale;",
+                 "latest CharWeightSetter source header exposes scale");
+  ok &= contains(rb3_latest_char_weight_setter_h,
+                 "floatmBaseWeight;",
+                 "latest CharWeightSetter source header exposes base weight");
+  ok &= contains(rb3_latest_char_weight_setter_h,
+                 "floatmBeatsPerWeight;",
+                 "latest CharWeightSetter source header exposes beat smoothing");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "if(gRev>1)LOAD_SUPERCLASS(CharWeightable)bs>>mDriver;"
+                 "bs>>mFlags;",
+                 "CharWeightSetter source load reads weightable, driver, flags");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "if(gRev<3){mScale=1.0f;mOffset=0.0f;}",
+                 "CharWeightSetter source load gates default scale and offset");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "if(gRev>4){bs>>mBaseWeight;bs>>mBeatsPerWeight;}",
+                 "CharWeightSetter source load gates base weight and smoothing");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "if(gRev>5)bs>>mBase;",
+                 "CharWeightSetter source load gates base pointer");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "if(gRev>8){bs>>mMinWeights;bs>>mMaxWeights;}",
+                 "CharWeightSetter source load gates min/max lists");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "mBaseWeight=mScale*mDriver->EvaluateFlags(mFlags)+mOffset;",
+                 "CharWeightSetter source poll evaluates driver flags");
+  ok &= contains(char_mesh_h,
+                 "structCharWeightSetter{std::stringname;int32_tversion=0;"
+                 "int32_tweightable_version=0;",
+                 "native CharWeightSetter stores source revisions");
+  ok &= contains(char_mesh_h,
+                 "std::stringweight_owner;std::stringweight_prop;",
+                 "native CharWeightSetter keeps source owner plus compatibility alias");
+  ok &= contains(char_mesh_h,
+                 "uint32_tflags=0;uint32_tmask=0;floatoffset=0.0f;"
+                 "floatscale=1.0f;",
+                 "native CharWeightSetter stores source flags and scalar fields");
+  ok &= contains(char_mesh,
+                 "setter.version=r.i32();read_object_fields(r);",
+                 "native CharWeightSetter decoder reads revision and object fields");
+  ok &= contains(char_mesh,
+                 "if(setter.version>1){setter.weightable_version=r.i32();",
+                 "native CharWeightSetter decoder mirrors source weightable gate");
+  ok &= contains(char_mesh,
+                 "if(setter.weightable_version>1)setter.weight_owner=r.str();",
+                 "native CharWeightSetter decoder mirrors source weight_owner gate");
+  ok &= contains(char_mesh,
+                 "setter.flags=r.u32();setter.mask=setter.flags;",
+                 "native CharWeightSetter decoder stores source flags and alias");
+  ok &= contains(char_mesh,
+                 "if(setter.version<3){setter.scale=1.0f;setter.offset=0.0f;}",
+                 "native CharWeightSetter decoder mirrors default scale/offset gate");
+  ok &= contains(char_mesh,
+                 "if(setter.version>4){setter.base_weight=r.f32();"
+                 "setter.beats_per_weight=r.f32();}",
+                 "native CharWeightSetter decoder mirrors base weight gate");
+  ok &= contains(char_mesh,
+                 "if(setter.version>8){setter.min_weights=read_obj_ptr_list(r);"
+                 "setter.max_weights=read_obj_ptr_list(r);}",
+                 "native CharWeightSetter decoder mirrors min/max list gate");
+  ok &= contains(bind_audit,
+                 "\"[controller-weight-setter]char=%sname=%sversion=%d",
+                 "controller audit logs CharWeightSetter source revision");
+  ok &= contains(bind_audit,
+                 "\"weightOwner=%sflags=0x%08xoffset=%.4fscale=%.4f",
+                 "controller audit logs CharWeightSetter source fields");
+  ok &= contains(doc,
+                 "`CharWeightSetter::Load` reads `Hmx::Object`, then `CharWeightable`",
+                 "document records CharWeightSetter source load");
+  ok &= contains(doc,
+                 "Full `Poll` behavior is not",
+                 "document fences full CharWeightSetter poll behavior");
+  ok &= contains(doc,
+                 "reimplemented as a visual shortcut",
+                 "document rejects visual shortcut for CharWeightSetter poll");
+  ok &= contains(rb3_latest_char_pos_constraint_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mSrc;",
+                 "latest CharPosConstraint header exposes source pointer");
+  ok &= contains(rb3_latest_char_pos_constraint_h,
+                 "ObjPtrList<RndTransformable,ObjectDir>mTargets;",
+                 "latest CharPosConstraint header exposes targets list");
+  ok &= contains(rb3_latest_char_pos_constraint_h, "BoxmBox;",
+                 "latest CharPosConstraint header exposes Box row");
+  ok &= contains(rb3_latest_char_pos_constraint_cpp,
+                 "bs>>mTargets;bs>>mSrc;if(gRev>1){bs>>mBox;}",
+                 "CharPosConstraint source load reads targets, source, box");
+  ok &= contains(rb3_latest_char_pos_constraint_cpp,
+                 "mBox.Set(Vector3(1.0f,1.0f,0.0f),"
+                 "Vector3(-1.0f,-1.0f,1000.0f));",
+                 "CharPosConstraint source load has old-revision box default");
+  ok &= contains(rb3_latest_char_pos_constraint_cpp,
+                 "floattmp=Clamp(mBox.mMin.x,mBox.mMax.x,"
+                 "tf48.v.x-srcTrans.v.x);",
+                 "CharPosConstraint source poll clamps target/source delta");
+  ok &= contains(char_mesh_h,
+                 "structCharPosConstraint{std::stringname;int32_tversion=0;",
+                 "native CharPosConstraint stores source revision");
+  ok &= contains(char_mesh_h,
+                 "std::vector<std::string>targets;std::stringsource;",
+                 "native CharPosConstraint stores source and targets");
+  ok &= contains(char_mesh_h,
+                 "floatbox_min[3]={1.0f,1.0f,0.0f};"
+                 "floatbox_max[3]={-1.0f,-1.0f,1000.0f};",
+                 "native CharPosConstraint stores source old-revision box default");
+  ok &= contains(char_mesh,
+                 "CharPosConstraintdecode_pos_constraint("
+                 "conststd::string&entry_name,conststd::vector<uint8_t>&body)",
+                 "native CharPosConstraint decoder exists");
+  ok &= contains(char_mesh,
+                 "constraint.targets=read_obj_ptr_list(r);"
+                 "constraint.source=r.str();",
+                 "native CharPosConstraint decoder follows source target/source order");
+  ok &= contains(char_mesh,
+                 "for(float&v:constraint.box_min)v=r.f32();"
+                 "for(float&v:constraint.box_max)v=r.f32();",
+                 "native CharPosConstraint decoder reads Box min then max");
+  ok &= contains(char_mesh,
+                 "out.pos_constraints.push_back(decode_pos_constraint(de.name,b));",
+                 "character load stores decoded CharPosConstraint rows");
+  ok &= contains(bind_audit,
+                 "\"[controller-pos-constraint]char=%sname=%sversion=%d",
+                 "controller audit logs CharPosConstraint source revision");
+  ok &= contains(bind_audit,
+                 "\"source=%ssourceExists=%dtargets=%zuboxMin=(%.4f%.4f%.4f)",
+                 "controller audit logs CharPosConstraint source and box");
+  ok &= contains(char_clip,
+                 "\"[chargraph]posConstraint%sversion=%dsource=%s\"",
+                 "character graph logs CharPosConstraint rows");
+  ok &= contains(doc,
+                 "`CharPosConstraint::Load` accepts source revisions through 2",
+                 "document records CharPosConstraint source load");
+  ok &= contains(doc,
+                 "Native GHOGX currently decodes and logs these rows only",
+                 "document fences CharPosConstraint runtime writeback");
+  ok &= contains(doc,
+                 "expanded_stock_characters_controller_posconstraint_inventory.log",
+                 "document cites focused stock CharPosConstraint inventory");
+  ok &= contains(doc,
+                 "shows five `CharPosConstraint` rows total",
+                 "document records stock CharPosConstraint coverage");
+  ok &= contains(doc,
+                 "Grim's `hems.pcon` names `source=grim`",
+                 "document records stock Grim CharPosConstraint boundary");
   ok &= contains(rb3_char_lookat_cpp, "mPivot->SetWorldXfm(tf90);",
                  "RB3 CharLookAt poll writes the pivot transform");
   ok &= contains(rb3_char_lookat_cpp, "RndTransformable*srcTrans=GetSource();",
                  "RB3 CharLookAt poll resolves source through GetSource");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "else{ObjPtrList<CharLookAt,ObjectDir>pList(this,"
+                 "kObjListNoNull);bs>>pList;mEyes.resize(pList.size());",
+                 "RB3 CharEyes old revisions read a CharLookAt list");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "if(gRev-3<=1U){ObjPtr<RndTransformable,ObjectDir>tPtr(this,"
+                 "0);bs>>tPtr;}",
+                 "RB3 CharEyes rev 3/4 consumes a trailing transformable");
   ok &= contains(rb3_char_eyes_cpp, "plist.push_back((*it).mEye);",
                  "RB3 CharEyes delegates poll children to CharLookAt rows");
+  ok &= contains(char_mesh,
+                 "uint32_tcount=r.u32();for(uint32_ti=0;i<count&&r.pos<r.n;"
+                 "++i)eyes.lookats.push_back(r.str());",
+                 "native GH2 CharEyes decoder keeps old look-at list layout");
+  ok &= contains(char_mesh,
+                 "if(r.pos<r.n)eyes.upperlid_or_blink_bone=r.str();",
+                 "native GH2 CharEyes decoder consumes trailing old transformable");
+  ok &= contains(doc, "Rockabill2 face/attachment proof",
+                 "document records current Rockabill2 eye and teeth evidence");
   ok &= contains(rb3_char_ik_hand_cpp, "voidCharIKHand::Poll(){",
                  "RB3 CharIKHand source exposes Poll");
   ok &= contains(rb3_char_ik_hand_cpp,
@@ -413,6 +1163,337 @@ int run_contract() {
                  "RB3 CharIKHand source drives elbow solve");
   ok &= contains(rb3_char_ik_hand_cpp, "mHand->SetWorldXfm(tf);",
                  "RB3 CharIKHand source writes hand world transform");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(gRev>4)bs>>mFinger;elsemFinger=0;",
+                 "RB3 CharIKHand source gates finger by revision");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(gRev<3){ObjPtr<RndTransformable,ObjectDir>tPtr(this,0);"
+                 "bs>>tPtr;",
+                 "RB3 CharIKHand source exposes old single-target layout");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(gRev>3)bs>>mMoveElbow;elsemMoveElbow=true;",
+                 "RB3 CharIKHand source gates move_elbow");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(gRev>5)bs>>mElbowSwing;elsemElbowSwing=0.0f;",
+                 "RB3 CharIKHand source gates elbow_swing");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "if(gRev>0xB){bs>>mElbowCollide;bs>>mClockwise;}",
+                 "RB3 CharIKHand source gates elbow collision branch");
+  ok &= contains(char_mesh,
+                 "hand.version=r.i32();",
+                 "native CharIKHand decoder stores source revision");
+  ok &= contains(char_mesh,
+                 "if(hand.version>4)hand.finger=r.str();",
+                 "native CharIKHand decoder follows source finger gate");
+  ok &= contains(char_mesh,
+                 "hand.targets.push_back({hand.target,0.0f});",
+                 "native CharIKHand decoder records old single target");
+  ok &= contains(char_mesh,
+                 "if(hand.version>3&&r.pos<r.n)hand.move_elbow=r.u8()!=0;",
+                 "native CharIKHand decoder follows source move_elbow gate");
+  ok &= contains(char_mesh,
+                 "if(hand.version>5&&r.pos+4<=r.n)hand.elbow_swing=r.f32();",
+                 "native CharIKHand decoder follows source elbow_swing gate");
+  ok &= contains(char_mesh,
+                 "if(hand.version>0xB&&r.pos<r.n){hand.elbow_collide=r.str();",
+                 "native CharIKHand decoder follows source elbow collision gate");
+  ok &= contains(char_clip,
+                 "\"[chargraph]ik%sversion=%dhand=%sfinger=%s\"",
+                 "character graph logs source CharIKHand revision and finger");
+  ok &= contains(char_clip,
+                 "\"elbowSwing=%.3falwaysElbow=%dconstrainWrist=%d\"",
+                 "character graph logs bounded CharIKHand optional fields");
+  ok &= contains(bind_audit, "boolshould_dump_controllers(intargc,char**argv)",
+                 "bind audit exposes controller inventory switch");
+  ok &= contains(bind_audit,
+                 "\"[controller-summary]path=%schar=%sdrivers=%zu",
+                 "bind audit controller summary is path-backed");
+  ok &= contains(bind_audit,
+                 "\"[controller-ik-hand]char=%sname=%sversion=%dunknown=%d\"",
+                 "bind audit logs source CharIKHand revision fields");
+  ok &= contains(bind_audit,
+                 "\"elbowSwing=%.4falwaysElbow=%dconstrainWrist=%d\"",
+                 "bind audit logs optional CharIKHand branch fields");
+  ok &= contains(bind_audit,
+                 "\"char/rock1/og/gen/rock1.milo_ps2\"",
+                 "bind audit default stock list includes Rock1");
+  ok &= contains(bind_audit,
+                 "\"char/rockabill2/og/gen/rockabill2.milo_ps2\"",
+                 "bind audit default stock list includes Rockabill2");
+  ok &= contains(bind_audit,
+                 "\"char/grim/og/gen/grim.milo_ps2\"",
+                 "bind audit default stock list includes Grim");
+  ok &= contains(bind_audit,
+                 "\"char/alterna2/og/gen/alterna2.milo_ps2\"",
+                 "bind audit default stock list includes Alterna2");
+  ok &= contains(bind_audit,
+                 "\"char/glam2/og/gen/glam2.milo_ps2\"",
+                 "bind audit default stock list includes Glam2");
+  ok &= contains(bind_audit,
+                 "\"char/punk2/og/gen/punk2.milo_ps2\"",
+                 "bind audit default stock list includes Punk2");
+  ok &= contains(doc,
+                 "The current runtime solver is the bounded GH2 single-target slice",
+                 "document fences partial CharIKHand runtime solver");
+  ok &= contains(doc,
+                 "expanded_stock_characters_controller_hair_inventory.log",
+                 "document cites expanded stock controller inventory");
+  ok &= contains(doc, "loads 24 base character MILOs",
+                 "document records expanded stock character sample count");
+  ok &= contains(doc, "All 38 decoded `CharIKHand` rows are source revision 2",
+                 "document records stock CharIKHand revision evidence");
+  ok &= contains(doc,
+                 "expanded_stock_characters_controller_inventory_weightsetter.log",
+                 "document cites focused stock CharWeightSetter inventory");
+  ok &= contains(doc,
+                 "all 38 stock `CharWeightSetter` rows are source revision 2",
+                 "document records stock CharWeightSetter revision evidence");
+  ok &= contains(doc,
+                 "`CharWeightable` revision 2, `offset=0`, `scale=1`, `base=<none>`",
+                 "document records stock CharWeightSetter source branch evidence");
+  ok &= contains(doc,
+                 "Nineteen rows carry\n  `flags=0x00400000`",
+                 "document records stock left-weight flags");
+  ok &= contains(doc,
+                 "nineteen carry `flags=0x00800000`",
+                 "document records stock right-weight flags");
+  ok &= contains(doc, "finds zero separate `CharCollide` objects",
+                 "document records stock CharCollide absence evidence");
+  ok &= contains(doc,
+                 "`metal_drummer` contains one revision-1 foretwist row with a missing\n"
+                 "  `twist2` pointer",
+                 "document records incomplete metal_drummer foretwist evidence");
+  ok &= contains(doc,
+                 "Only Grim exposes decoded `CharIKRod` rows in this 24-character base set",
+                 "document records stock Grim CharIKRod scope");
+  ok &= contains(doc,
+                 "`rknee.rod` and `lknee.rod`. Both are source revision 2",
+                 "document records stock Grim CharIKRod revisions");
+  ok &= contains(doc,
+                 "both\n  have `dest=<none>`",
+                 "document records stock Grim CharIKRod missing destination");
+  ok &= contains(doc,
+                 "stock_character_type_inventory.log",
+                 "document cites stock character type inventory");
+  ok &= contains(doc,
+                 "all 24 base character MILOs contain one `CharServoBone` row",
+                 "document records stock CharServoBone coverage");
+  ok &= contains(doc,
+                 "`CharDriver target=bone.servo` is explicit source\n"
+                 "  data rather than an implied name",
+                 "document records driver-to-servo source data boundary");
+  ok &= contains(doc,
+                 "grim_charikrod_servo_inventory_after.log",
+                 "document cites refreshed Grim CharServoBone proof");
+  ok &= contains(doc, "version=1 clipType=<none>",
+                 "document records Grim CharServoBone stock revision proof");
+  ok &= contains(rb3_char_upper_twist_cpp,
+                 "MakeRotQuat(twist2parentworld.m.x,twist2world.m.x,q);",
+                 "RB3 CharUpperTwist source builds source-parent rotation");
+  ok &= contains(rb3_char_upper_twist_cpp,
+                 "Interp(v68,twist2world.m.y,0.333f,tf48.m.y);"
+                 "LookAt(tf48.m);mUpperArm->SetWorldXfm(tf48);",
+                 "RB3 CharUpperTwist source writes first driven twist");
+  ok &= contains(rb3_char_upper_twist_cpp,
+                 "Interp(v68,twist2world.m.y,0.666f,tf48.m.y);"
+                 "LookAt(tf48.m);mTwist1->SetWorldXfm(tf48);",
+                 "RB3 CharUpperTwist source writes second driven twist");
+  ok &= contains(rb3_char_upper_twist_cpp,
+                 "SYNC_PROP(upper_arm,mTwist2)SYNC_PROP(twist1,mUpperArm)"
+                 "SYNC_PROP(twist2,mTwist1)",
+                 "RB3 CharUpperTwist property/member crosswalk");
+  ok &= contains(rb3_char_fore_twist_cpp,
+                 "bs>>mOffset;bs>>mHand;bs>>mTwist2;if(gRev==2){"
+                 "intdummy;bs>>dummy;}if(gRev>3)bs>>mBias;",
+                 "RB3 CharForeTwist source load order");
+  ok &= contains(rb3_char_fore_twist_cpp,
+                 "floatangle=LimitAng(mOffset*DEG2RAD+tan2res+newbias);"
+                 "floatfinalfloat=angle-newbias;",
+                 "RB3 CharForeTwist source offset and bias angle path");
+  ok &= contains(rb3_char_fore_twist_cpp,
+                 "Interp(tf88.v,handxfm.v,twist2->mLocalXfm.v.x/"
+                 "hand->mLocalXfm.v.x,tf88.v);",
+                 "RB3 CharForeTwist source twist2 position interpolation");
+  ok &= contains(char_mesh,
+                 "if(t.version==2&&r.pos+4<=r.n)(void)r.i32();"
+                 "if(t.version>3&&r.pos+4<=r.n)t.bias_degrees=r.f32();",
+                 "native CharForeTwist decoder follows source revision fields");
+  ok &= contains(char_clip, "apply_source_upper_twists(",
+                 "native standalone upper twist path is source-named");
+  ok &= contains(char_clip, "apply_source_fore_twist(",
+                 "native standalone fore twist path is source-named");
+  ok &= contains(char_clip,
+                 "quat_from_vec_to_vec(mat_row(upper_parent_world,0),"
+                 "mat_row(upper_world,0),q);",
+                 "native CharUpperTwist port follows source MakeRotQuat rows");
+  ok &= contains(char_clip,
+                 "write_output(twist1,0.333f);write_output(twist2,0.666f);",
+                 "native CharUpperTwist port keeps source interpolation weights");
+  ok &= contains(char_clip,
+                 "std::atan2(clamped2,clamped)+bias",
+                 "native CharForeTwist port keeps source angle basis and bias");
+  ok &= contains(char_clip,
+                 "apply_source_ik_hands(character,bind_bones);"
+                 "apply_source_fore_twists(character);",
+                 "native runs source CharForeTwist as a separate poll pass");
+  ok &= contains(char_clip,
+                 "for(constCharIKHand&ik:character.ik_hands)",
+                 "native CharIKHand polling uses decoded source order");
+  ok &= contains(doc, "## Clip Runtime Boundary",
+                 "document records CharClip runtime source boundary");
+  ok &= contains(rb3_latest_char_clip_h,
+                 "CharBonesSamplesmFull;//0x64CharBonesSamplesmOne;",
+                 "latest CharClip source exposes full/one sample members");
+  ok &= contains(rb3_latest_char_bones_samples_h,
+                 "voidLoadHeader(BinStream&);voidLoadData(BinStream&);"
+                 "voidSetPreview(int);voidReadCounts(BinStream&,int);"
+                 "voidRelativize(CharClip*);voidEvaluateChannel(void*,int,int,float);"
+                 "intFracToSample(float*)const;",
+                 "latest CharBonesSamples header exposes sample runtime boundary");
+  ok &= contains(rb3_latest_char_clip_driver_cpp,
+                 "CharClipDriver::CharClipDriver(Hmx::Object*owner,CharClip*clip,"
+                 "intmask,floatblendwidth,CharClipDriver*next,floatf2,floatf3,"
+                 "boolmultclips)",
+                 "latest CharClipDriver source exposes play-node construction");
+  ok &= contains(rb2_char_clip_samples_cpp,
+                 "voidCharClipSamples::ScaleAdd(",
+                 "RB2 dump exposes CharClipSamples ScaleAdd runtime map");
+  ok &= contains(rb2_char_clip_samples_cpp,
+                 "voidCharClipSamples::Load(",
+                 "RB2 dump exposes CharClipSamples Load runtime map");
+  ok &= contains(rb2_char_bones_samples_cpp,
+                 "voidCharBonesSamples::LoadHeader(",
+                 "RB2 dump exposes CharBonesSamples LoadHeader runtime map");
+  ok &= contains(rb2_char_bones_samples_cpp,
+                 "voidCharBonesSamples::EvaluateChannel(",
+                 "RB2 dump exposes CharBonesSamples EvaluateChannel runtime map");
+  ok &= contains(rb2_char_clip_driver_cpp,
+                 "floatCharClipDriver::Evaluate(",
+                 "RB2 dump exposes CharClipDriver Evaluate runtime map");
+  ok &= contains(rb2_char_driver_cpp,
+                 "classCharClipDriver*CharDriver::Play(",
+                 "RB2 dump exposes CharDriver Play runtime map");
+  ok &= contains(doc,
+                 "`band3_recomp` currently contributes symbol-table names",
+                 "document distinguishes symbol names from runtime implementation");
+  ok &= contains(band3_config,
+                 "CharClip__FacingSet__Set",
+                 "band3_recomp exposes CharClip FacingSet symbol only");
+  ok &= contains(band3_config,
+                 "CharClip__SyncProperty",
+                 "band3_recomp exposes CharClip SyncProperty symbol only");
+  ok &= contains(band3_config,
+                 "CharBones__ScaleAddIdentity",
+                 "band3_recomp exposes CharBones symbol only");
+  ok &= missing(band3_config,
+                "CharClipSamples",
+                "band3_recomp has no CharClipSamples runtime symbol");
+  ok &= missing(band3_config,
+                "CharBonesSamples",
+                "band3_recomp has no CharBonesSamples runtime symbol");
+  ok &= contains(doc,
+                 "Broad body, face, lower-body,\n  or full CharBone output publishing "
+                 "remains opt-in diagnostic behavior",
+                 "document keeps broad CharBone output publishing out of runtime truth");
+  ok &= contains(char_clip,
+                 "Decoderevidenceisboundedbyihatecompvirsource.rb3-latestexposes",
+                 "clip decoder comment names current ihatecompvir source boundary");
+  ok &= contains(char_clip,
+                 "samplemathbodiesarestillabsentfromthecheckedpublicC++source",
+                 "clip decoder comment states incomplete sample math boundary");
+  ok &= contains(compact(read_file(char_dir / "char_clip.h")),
+                 "broadoutputpublishingremainsdiagnostic",
+                 "clip header states output publishing boundary");
+  ok &= contains(char_clip,
+                 "staticboolcharbone_lower_body_output_enabled()",
+                 "lower-body CharBone output bridge is diagnostic opt-in");
+  ok &= contains(char_clip,
+                 "\"GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT\"",
+                 "lower-body CharBone output bridge uses explicit enable");
+  ok &= contains(char_clip,
+                 "if(!force_selected_output&&!full_output_layer&&"
+                 "!lower_body_only&&!face_output_layer){returnfalse;}",
+                 "selected hand output is separate from broad output diagnostics");
+  ok &= missing(char_clip, "fore_twists_applied",
+                "CharIKHand path must not mark CharForeTwist rows consumed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT",
+                "lower-body CharBone output bridge must not be default-on");
+  ok &= missing(char_clip, "NOTguessed",
+                "clip decoder must not overstate trace notes as source truth");
+  ok &= missing(char_clip, "FORMAT(pertherecomp)",
+                "clip decoder must not cite non-source recomp as authority");
+  ok &= missing(char_clip, "apply_ps2_ik_hand_targets",
+                "old PS2-named CharIKHand runner removed");
+  ok &= missing(char_clip, "ps2_ordered_ik_hands",
+                "old name-based CharIKHand role ordering removed");
+  ok &= missing(char_clip, "classify_ps2_ik_poll_role",
+                "old name-based CharIKHand role classifier removed");
+  ok &= missing(char_clip, "Ps2IkPollRole",
+                "old CharIKHand role enum removed");
+  ok &= missing(char_clip, "ps2_ik_hand_position_enabled",
+                "old hand-position arm IK gate removed");
+  ok &= missing(char_clip, "ps2_ik_hand_final_disabled",
+                "old hand-final arm IK gate removed");
+  ok &= missing(char_clip, "ps2_ik_hand_final_orientation_disabled",
+                "old hand-final orientation gate removed");
+  ok &= missing(char_clip, "ps2_ik_hand_final_position_disabled",
+                "old hand-final position gate removed");
+  ok &= missing(char_clip, "ps2_ik_hands_enabled",
+                "old arm IK disable gate removed");
+  ok &= missing(char_clip, "ps2_ik_swing_postmultiply_enabled",
+                "old arm swing A/B gate removed");
+  ok &= missing(char_clip, "ps2_ik_swing_transpose_enabled",
+                "old arm swing transpose gate removed");
+  ok &= missing(char_clip, "ps2_ik_aimed_swing_enabled",
+                "old aimed arm swing gate removed");
+  ok &= missing(char_clip, "GHOGX_ENABLE_PS2_IK_HAND_POS",
+                "old PS2 hand-position env gate removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_PS2_IK_HAND_FINAL",
+                "old PS2 hand-final env gate removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_PS2_IK_HAND_FINAL_ORIENTATION",
+                "old PS2 hand-final orientation env gate removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_PS2_IK_HAND_FINAL_POSITION",
+                "old PS2 hand-final position env gate removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_PS2_IK_HANDS",
+                "old PS2 hand IK disable env gate removed");
+  ok &= missing(char_clip, "GHOGX_PS2_IK_POSTMULTIPLY_SWING",
+                "old PS2 hand IK swing env gate removed");
+  ok &= missing(char_clip, "GHOGX_PS2_IK_TRANSPOSE_SWING",
+                "old PS2 hand IK transpose env gate removed");
+  ok &= missing(char_clip, "GHOGX_PS2_IK_AIMED_SWING",
+                "old PS2 hand IK aimed env gate removed");
+  ok &= missing(char_clip, "GHOGX_APPLY_HAND_POS",
+                "old hand local-position env gate removed");
+  ok &= missing(char_clip, "apply_ps2_fore_twist",
+                "old traced foretwist helper must stay removed");
+  ok &= missing(char_clip, "apply_ps2_upper_twists",
+                "old traced upper-twist helper must stay removed");
+  ok &= missing(char_clip, "apply_driven_twists",
+                "old approximate/PS2 driven twist dispatcher must stay removed");
+  ok &= missing(char_clip, "apply_source_driven_twists",
+                "source foretwist runner must not carry old dispatcher name");
+  ok &= missing(char_clip, "disable_driven_twists_enabled",
+                "source twist controllers must not be runtime-disabled");
+  ok &= missing(char_clip, "GHOGX_DISABLE_DRIVEN_TWISTS",
+                "old driven twist disable env gate removed");
+  ok &= missing(char_clip, "GHOGX_ENABLE_APPROX_DRIVEN_TWISTS",
+                "old approximate driven twist env gate removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_APPROX_UPPER_TWIST",
+                "old approximate upper twist env gate removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_APPROX_FORE_TWIST",
+                "old approximate fore twist env gate removed");
+  ok &= missing(char_clip, "GHOGX_IGNORE_APPROX_FORE_TWIST_OFFSET",
+                "old approximate fore twist offset env gate removed");
+  ok &= missing(char_clip, "GHOGX_APPROX_FORE_TWIST_LOCAL_HAND",
+                "old approximate local-hand fore twist env gate removed");
+  ok &= missing(char_clip, "ps2_twist_angle_from_local_rows",
+                "old PS2 local-row twist extractor removed");
+  ok &= missing(char_clip, "write_ps2_x_twist",
+                "old PS2 X-twist writer removed");
+  ok &= missing(char_clip, "set_rot_x_preserve_pos",
+                "old local X-twist helper removed");
+  ok &= missing(char_clip, "local_x_roll_delta",
+                "old local roll delta helper removed");
 
   ok &= missing(char_mesh_h, "RuntimeHair", "legacy runtime hair state removed");
   ok &= missing(renderer, "runtime_hair_world_override",
@@ -424,6 +1505,12 @@ int run_contract() {
                 "legacy CharHair env gate removed");
   ok &= missing(char_clip, "GHOGX_DISABLE_CHAR_HAIR",
                 "disable-hair env gate removed");
+  ok &= missing(char_clip, "charhair-ps2chain",
+                "old native CharHair chain predictor removed");
+  ok &= missing(char_clip, "hairOverride",
+                "old native CharHair skin override removed");
+  ok &= missing(char_clip, "GHOGX_SOURCE_CHAR_HAIR_ROOTMAT",
+                "old CharHair root-matrix trial env gate removed");
   ok &= missing(char_clip, "submit_char_eyes_runtime_rows",
                 "unsupported CharEyes runtime-row bridge removed");
   ok &= missing(char_clip, "source_pos=vadd(target_pos",

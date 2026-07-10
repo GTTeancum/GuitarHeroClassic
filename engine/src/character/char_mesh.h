@@ -121,37 +121,61 @@ struct CharUpperTwist {
 
 struct CharForeTwist {
   std::string name;
+  int32_t version = 0;
   float offset_degrees = 0.0f;
   std::string hand;
   std::string twist2;
+  float bias_degrees = 0.0f;
 };
 
 struct CharIKRod {
   std::string name;
+  int32_t version = 0;
   std::string left_end;
   std::string right_end;
   float dest_pos = 0.0f;
   std::string side_axis;
   bool vertical = false;
   std::string dest;
-  float nums[4][3] = {};
+  float xfm[4][3] = {};
+};
+
+struct CharIKTarget {
+  std::string target;
+  float extent = 0.0f;
 };
 
 struct CharIKHand {
   std::string name;
+  int32_t version = 0;
   int32_t unknown = 0;
   float weight = 1.0f;
   std::string weight_prop;
   std::string hand;
+  std::string finger;
   std::string target;
+  std::vector<CharIKTarget> targets;
   bool orientation = true;
   bool stretch = true;
   bool scalable = false;
+  bool move_elbow = true;
+  float elbow_swing = 0.0f;
+  bool always_ik_elbow = false;
+  bool constrain_wrist = false;
+  float wrist_radians = 0.0f;
+  std::string elbow_collide;
+  bool clockwise = false;
 };
 
 struct CharIKMidi {
   std::string name;
   std::string bone;
+};
+
+struct CharServoBone {
+  std::string name;
+  int32_t version = 0;
+  std::string clip_type;
 };
 
 struct CharLookAt {
@@ -219,6 +243,34 @@ struct CharHair {
   std::string wind;
 };
 
+struct CharCollide {
+  std::string name;
+  int32_t version = 0;
+  milo_scene::Xfm local;
+  milo_scene::Xfm world_stored;
+  uint32_t constraint = 0;
+  std::string target;
+  bool preserve_scale = false;
+  std::string parent;
+  int32_t shape = 1;  // CharCollide::kSphere
+  int32_t flags = 0;
+  std::string mesh;
+  bool mesh_y_bias = false;
+  float orig_radius[2] = {0.0f, 0.0f};
+  float orig_length[2] = {0.0f, 0.0f};
+  float cur_radius[2] = {0.0f, 0.0f};
+  float cur_length[2] = {0.0f, 0.0f};
+};
+
+struct CharPosConstraint {
+  std::string name;
+  int32_t version = 0;
+  std::vector<std::string> targets;
+  std::string source;
+  float box_min[3] = {1.0f, 1.0f, 0.0f};
+  float box_max[3] = {-1.0f, -1.0f, 1000.0f};
+};
+
 struct RuntimeIKMidiState {
   bool initialized = false;
   std::string active_spot;
@@ -240,22 +292,59 @@ struct FaceFxLipSyncServo {
   std::vector<FaceFxServoTarget> targets;
 };
 
+struct RndAnimFilter {
+  std::string name;
+  int32_t version = 0;
+  int32_t animatable_version = 0;
+  float frame = 0.0f;
+  int32_t rate = 0;
+  std::string anim;
+  float scale = 1.0f;
+  float offset = 0.0f;
+  float start = 0.0f;
+  float end = 0.0f;
+  int32_t type = 0;
+  float period = 0.0f;
+  float snap = 0.0f;
+  float jitter = 0.0f;
+  size_t unread_bytes = 0;
+};
+
 struct CharDriver {
   std::string name;
+  int32_t version = 0;
+  int32_t weightable_version = 0;
   float weight = 1.0f;
+  std::string weight_owner;
   std::string weight_prop;
   std::string target;
   std::string clip_milo;
   bool enabled = false;
   bool midi = false;
+  int32_t midi_version = 0;
+  size_t midi_unread_bytes = 0;
+  std::string midi_parser;
+  std::string midi_flag_parser;
+  float midi_blend_override_pct = 1.0f;
 };
 
 struct CharWeightSetter {
   std::string name;
+  int32_t version = 0;
+  int32_t weightable_version = 0;
   float weight = 0.0f;
+  std::string weight_owner;
   std::string weight_prop;
   std::string driver;
+  uint32_t flags = 0;
   uint32_t mask = 0;
+  float offset = 0.0f;
+  float scale = 1.0f;
+  float base_weight = 0.0f;
+  float beats_per_weight = 0.0f;
+  std::string base;
+  std::vector<std::string> min_weights;
+  std::vector<std::string> max_weights;
 };
 
 // A whole decoded band character.
@@ -274,12 +363,17 @@ struct Character {
   std::vector<CharIKRod> ik_rods;
   std::vector<CharIKHand> ik_hands;
   std::vector<CharIKMidi> ik_midis;
+  std::vector<CharServoBone> servo_bones;
   std::vector<CharLookAt> lookats;
   std::vector<CharEyes> eyes;
   std::vector<CharHair> hairs;
+  std::vector<CharCollide> collides;
+  std::vector<CharPosConstraint> pos_constraints;
   std::vector<FaceFxLipSyncServo> lip_sync_servos;
+  std::vector<RndAnimFilter> anim_filters;
   std::vector<CharDriver> drivers;
   std::vector<CharWeightSetter> weight_setters;
+  std::map<std::string, int> object_type_counts;
   std::map<std::string, float> runtime_weight_props;
   std::map<std::string, RuntimeIKMidiState> runtime_ik_midi_states;
   // Persistent CharIKHand controller +0x50 vectors. PS2 blends the destination

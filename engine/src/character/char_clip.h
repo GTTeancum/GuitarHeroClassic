@@ -33,8 +33,8 @@ struct CharClip {
     milo_scene::Xfm world_stored;
   };
   // Animation MILOs carry CharBone output records beside CharClipSamples.
-  // PS2 traces show clip lanes write these records first, then Trans dirty/world
-  // propagation updates the visible *.mesh body rows.
+  // The public ihatecompvir snapshot used by this worktree does not include
+  // the runtime pose publisher, so broad output publishing remains diagnostic.
   std::vector<OutputBone> output_bones;
   int fps = 30;        // authored clip playback rate
   float start_frame = 0.0f;

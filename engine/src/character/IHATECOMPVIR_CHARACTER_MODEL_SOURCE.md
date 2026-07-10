@@ -6,11 +6,43 @@ Treat ihatecompvir's repos as the authority; do not use the older
 
 ## Source Snapshot
 
+The small `third_party/ihatecompvir-public-milo-sources` tree is an
+in-worktree reference snapshot, not a full mirror. Its local `README.md`
+records the upstream commits for the copied files:
+
 - `ihatecompvir-public-milo-sources/MiloEditor` at `3ebffb1c4391dd83c5765cb428eef433dffaff51`
 - `ihatecompvir-public-milo-sources/glTFMilo` at `3c02a5497ede1a5d61023fb066cc8bfbe2e8a8e4`
 - `ihatecompvir-public-milo-sources/rb3` at `41719f248995f677ffa39bd394706b5d18ef70c6`
-- `ihatecompvir-public-milo-sources/re-notes` at `5c486fd6e5e5186c0797df9c84182b056672b3f0`
-- `ihatecompvir-public-milo-sources/re-gh2` at `2aa28d67f7da4d41ae4e3f18129b49b51ffee2fd`
+- `ihatecompvir-extra/re-gh2` at `2aa28d67f7da4d41ae4e3f18129b49b51ffee2fd`
+- `ihatecompvir-extra/band3_recomp` at `c51944bd13dfd4cb6df918159fb7136c20f74fb0`
+- `ihatecompvir-extra/rb3-latest` is a shallow sparse source copy of
+  `ihatecompvir/rb3` master at `41719f248995f677ffa39bd394706b5d18ef70c6`.
+- `ihatecompvir-extra/rb3-retail-old` is a shallow sparse source copy of
+  `ihatecompvir/rb3` tag `retail-old` at
+  `ae71945afad4d3b12bb34f4d71aecc4750334105`.
+
+## Source Coverage Matrix
+
+| Area | ihatecompvir evidence | Native status |
+| --- | --- | --- |
+| Object and property-tree skip/read shape | `Object.cs`, `DTBNode.Read` | Parser authority; native skips must mirror source enum. |
+| Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
+| Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
+| Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
+| Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
+| Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows; no trigger or animation runtime hookup. |
+| Remaining stock object rows | `rb3-latest` `EventTrigger.*` / `Tex.*`, RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present and local object-list/vector serialization is decoded. |
+| Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows; no runtime writeback until `Hookup(ObjPtrList<CharCollide>&)` and simulation are faithfully ported. |
+| Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log old GH2 rows; no synthetic eye runtime bridge. |
+| Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; runtime `Poll` remains fenced until source transform writeback is ported. |
+| Hand IK | `CharIKHand.cpp` | Native hand IK follows source dataflow. |
+| MIDI clip drivers | `rb3-latest` `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp` | Decode/log source revision, inherited weight owner, parser rows, and blend override gates; default-clip pointer decode remains fenced until `ObjPtr` load source is present. |
+| Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
+| Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
+| Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
+| Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
+| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Layout and call-flow evidence exists; native math/application is still fenced where source bodies are incomplete. |
+| Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
 
 ## Binary Layout Authorities
 
@@ -60,7 +92,8 @@ Treat ihatecompvir's repos as the authority; do not use the older
   - `RndMat` runtime defaults are source state: blend `kSrc`, texture wrap
     `kRepeat`, and z mode `kNormal`.
   - Native render state must come from decoded `RndMat`/`RndDrawable` rows, not
-    from mesh or material names such as `hair`.
+    from mesh or material names such as `hair`, except for the project-level
+    hair two-sided cull rule below.
 - `rb3/src/system/rndobj/Mat.h`
   - `RndMat` exposes source `GetBlend`, `GetZMode`, and `GetTexWrap` accessors.
 - `rb3/src/system/rndobj/Trans.h`
@@ -76,6 +109,10 @@ Treat ihatecompvir's repos as the authority; do not use the older
   - `ApplyDynamicConstraint` replaces world with the target world for
     `kTargetWorld`; billboard/look-at/shadow constraints require the source
     camera/target path and must not be approximated from mesh names.
+  - Native GHOGX implements the non-dynamic source cases plus target-world when
+    a target row is present. Other dynamic constraints log
+    `[source-xfm-unsupported]` with `runtimeWriteback=0` and keep the decoded
+    base transform until the matching source runtime path is ported.
 
 ## Skinning Authority
 
@@ -100,14 +137,52 @@ Treat ihatecompvir's repos as the authority; do not use the older
   - `ProcessCharHair` builds `CharHair` strands from weighted hair-bone chains.
     The newer source splits strands at branches, matching how the decompiled
     runtime expects hair to be structured.
-- `rb3/src/system/char/CharHair.cpp`
+  - `ProcessHairCollides` can emit empty `CharCollide` objects for hair meshes,
+    but its own source comment says this is inferred from decomp and "could be
+    wrong". Treat those rows as exporter/format hints, not proof of GH2 runtime
+    collision hookup.
+- `rb3-latest/src/system/char/CharHair.cpp` and
+  `rb3-latest/src/system/char/CharHair.h`
   - `operator>>(BinStream&, CharHair::Point&)` is the runtime read authority for
     point fields. For revisions 6, 7, and 8 the extra float is added to both
     `radius` and `outerRadius`. For revisions below 8, `sideLength` is forced to
     `-1.0f`; revisions above 5 consume two ints.
-  - `CharHair::SimulateInternal` only writes driven point transforms through the
-    runtime collision/hookup path. Native GHOGX must not invent a partial hair
-    physics bridge from decoded point rows alone.
+  - `CharHair::Poll` re-runs `Hookup()` while the owning `Character` is syncing,
+    resets after teleports, skips simulation for higher LODs, then calls
+    `DoReset`, `SimulateLoops`, or `SimulateZeroTime` depending on runtime state.
+  - `CharHair::DoReset` seeds each point from `unk5c` transformed by the root
+    parent world row, then calls `SimulateLoops(reset, GetFPS())` with inertia
+    and friction temporarily forced to zero.
+  - `CharHair::Strand::SetRoot` builds the strand from the root transform's
+    first-child chain, caches the root base matrix, assigns each point's bone,
+    copies child `LocalXfm().v.y` into point length, and seeds point positions
+    from source world rows.
+  - `CharHair::SetCloth` assigns `sideLength` from the matching point in the
+    next strand when cloth mode is enabled and otherwise forces `sideLength` to
+    `-1.0f`.
+  - `CharHair::SimulateInternal` only calls `SetWorldXfm` for a point inside the
+    `thisPoint.collides.size() != 0` branch. Native GHOGX must not invent a
+    partial hair physics bridge from decoded point rows alone.
+  - The latest source includes `CharHair.h`, `CharCollide.h`, default
+    `CharHair::Hookup()` gathering all `CharCollide` objects from the object
+    directory, and the `CharCollide` shape/radius header plus load path.
+    However, the overloaded `Hookup(ObjPtrList<CharCollide>&)` body is still
+    declared but not implemented in the checked source. Native GHOGX therefore
+    keeps decoded hair rows logged and unwritten until that hookup filter and
+    the simulation path are ported from source, not guessed.
+- `rb3-latest/src/system/char/CharCollide.cpp` and
+  `rb3-latest/src/system/char/CharCollide.h`
+  - `CharCollide::Load` reads `Hmx::Object`, `RndTransformable`, shape,
+    radius/length/flags rows, optional current radius, optional second
+    radius/length rows, an internal transform, mesh pointer, eight mesh sphere
+    rows, SHA1 digest, and mesh-y-bias.
+  - Native GHOGX decodes and logs `CharCollide` rows using this source order so
+    hair hookup/collision work can be audited from stock data. It does not yet
+    apply collision or write hair world rows from these decoded objects.
+- `ihatecompvir-extra/band3_recomp`
+  - The current config exposes `CharHair::GetFPS` and `CharHair::Simulate`
+    symbols only. It does not provide a decompiled `CharHair` body or
+    `CharCollide` hookup implementation for native runtime writeback.
 
 ## Face Controller Authorities
 
@@ -117,25 +192,329 @@ Treat ihatecompvir's repos as the authority; do not use the older
     pivot through `SetWorldXfm`; it does not synthesize a head-forward source
     row when a GH2 row names the `CharLookAt` object itself.
 - `rb3/src/system/char/CharEyes.cpp`
-  - `CharEyes` owns `EyeDesc` rows and delegates poll children to the referenced
+  - Modern revisions read `EyeDesc` rows, but GH2-era revision 3 uses the older
+    branch: `CharEyes::Load` reads an `ObjPtrList<CharLookAt>` and converts each
+    reference into an eye entry. For revisions 3 and 4 it then consumes one old
+    `RndTransformable` pointer. Native GHOGX decodes the GH2 row as that
+    look-at reference list plus trailing old transformable, not as hidden eye
+    offsets.
+  - `CharEyes::ListPollChildren` delegates poll children to the referenced
     `CharLookAt` controllers. It is not evidence for a native bridge that copies
     eye mesh world rows into ad-hoc controller overrides.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port is implemented.
 
+## Rnd Utility Row Authorities
+
+- `rb3-latest/src/system/rndobj/Anim.cpp` and
+  `rb3-latest/src/system/rndobj/Anim.h`
+  - `RndAnimatable::Load` reads a source revision, optional `mFrame`, then
+    `mRate` for revisions above 3 or a legacy byte rate for revision 3. Revision
+    0 branches into an old anim-filter/object-list conversion path.
+  - Native GHOGX decodes the revisioned frame/rate fields and fences the
+    revision-0 object-list branch until the relevant object-list serialization
+    path is source-backed in this decoder.
+- `rb3-latest/src/system/rndobj/AnimFilter.cpp` and
+  `rb3-latest/src/system/rndobj/AnimFilter.h`
+  - `RndAnimFilter::Load` accepts source revisions through 2. It loads
+    `Hmx::Object`, then `RndAnimatable`, then reads `mAnim`, `mScale`,
+    `mOffset`, `mStart`, and `mEnd`. Nonzero revisions read `mType` and
+    `mPeriod`; revision 0 reads a legacy loop byte. Revisions above 1 read
+    `mSnap` and `mJitter`.
+  - Native GHOGX decodes and logs this row for stock-model evidence only. It
+    does not schedule `RndAnimFilter`, attach it to `EventTrigger`, or mutate
+    `RndAnimatable` playback.
+
+## Position Constraint Authorities
+
+- `rb3-latest/src/system/char/CharPosConstraint.cpp` and
+  `rb3-latest/src/system/char/CharPosConstraint.h`
+  - `CharPosConstraint::Load` accepts source revisions through 2. It reads
+    `Hmx::Object`, then the `targets` object list, then the `source`
+    transformable pointer. For revisions greater than 1 it reads `mBox`;
+    older rows default to min `(1, 1, 0)` and max `(-1, -1, 1000)`.
+  - The source header defines `mBox` as a `Box` with `mMin` and `mMax` vector
+    members; native therefore decodes the revision-2 box row as min vector
+    followed by max vector. The exact `Geo.h` serialization body is not present
+    in the checked sparse source snapshot, so this is backed by the source
+    member layout and `Poll` field usage rather than an operator body.
+  - `CharPosConstraint::Poll` copies each target's current world transform,
+    clamps target-source position deltas independently for any axis whose
+    `mMin` is less than or equal to `mMax`, then writes the target through
+    `SetWorldXfm`.
+  - Native GHOGX currently decodes and logs these rows only. It does not publish
+    constraint world writes from this class until that source transform
+    writeback path is integrated without disturbing unrelated character pose
+    controllers.
+
 ## IK Controller Authorities
 
+- `rb3-latest/src/system/char/CharWeightable.cpp` and
+  `rb3-latest/src/system/char/CharWeightable.h`
+  - `CharWeightable::Load` reads a source revision, `mWeight`, and
+    `mWeightOwner` when the revision is greater than 1.
+  - `CharWeightable::Weight()` returns the owner row's weight, not merely the
+    object's local serialized value. Native therefore keeps `weight_owner` as a
+    named source row instead of treating it as a generic UI property.
+- `rb3-latest/src/system/char/CharWeightSetter.cpp` and
+  `rb3-latest/src/system/char/CharWeightSetter.h`
+  - `CharWeightSetter::Load` reads `Hmx::Object`, then `CharWeightable` for
+    revisions above 1, followed by `driver`, `flags`, revision-gated
+    `offset`/`scale`, old owner lists for revisions below 2, `base_weight` and
+    `beats_per_weight` above revision 4, optional `base` above revision 5, and
+    min/max setter refs through the revision 7/8 single-pointer rows or the
+    revision 9 lists.
+  - `CharWeightSetter::Poll` derives `base_weight` from either
+    `mDriver->EvaluateFlags(mFlags)` or `mBase->Weight()`, applies
+    `scale`/`offset`, clamps through min/max setter rows, and then either snaps
+    or beat-smooths `mWeight`.
+  - Native GHOGX decodes/logs these source fields. Full `Poll` behavior is not
+  reimplemented as a visual shortcut; the active performer path may consume
+  explicit live song/MIDI weights and use decoded setter weights only as the
+  bounded fallback the current hand path already had.
+- `rb3-latest/src/system/char/CharDriverMidi.cpp` and
+  `rb3-latest/src/system/char/CharDriverMidi.h`
+  - `CharDriverMidi::Load` reads the subclass revision, accepts revisions
+    through 7, loads `CharDriver`, then loads `mDefaultClip` for revisions below
+    7. Revision 2 carries a legacy string; revisions above 3 read `mParser`,
+    above 4 read `mFlagParser`, and above 5 read `mBlendOverridePct`.
+  - `CharDriverMidi::Enter` attaches the object as a sink to `mParser` and
+    `mFlagParser`. `OnMidiParser`, `OnMidiParserFlags`, and
+    `OnMidiParserGroup` are the source-backed runtime route for MIDI/note-driven
+    clip selection and blend width scaling.
+  - The local ihatecompvir source copy does not include `obj/ObjPtr_p.h`, so
+    native GHOGX does not step over `mDefaultClip.Load(bs, false, mClips)` as a
+    guessed string pointer. It logs `midiUnreadBytes` for revision-below-7 rows
+    and decodes parser/flag/blend fields only on revisions where the source load
+    has no preceding default-clip pointer.
+  - Native GHOGX decodes/logs the inherited `CharWeightable` revision, weight,
+    and owner rows for drivers. It keeps `weight_prop` as a compatibility alias
+    but source-facing logs name the row `weightOwner`.
 - `rb3/src/system/char/CharIKHand.cpp`
   - `CharIKHand::Poll` is the available Harmonix source for hand IK runtime
     motion. It resolves `mHand`, optional `mFinger`, and the target list,
     blends the world destination into `mWorldDst`, calls `IKElbow` when an
     elbow chain is present, and writes the hand through `SetWorldXfm`.
+  - `CharIKHand::Load` gates the serialized fields by revision: `mHand`,
+    optional `mFinger`, legacy single target or target list, `orientation`,
+    `stretch`, `scalable`, `move_elbow`, `elbow_swing`, `always_ik_elbow`,
+    `constrain_wrist`, `wrist_radians`, optional revision-9 padding, then
+    revision-12 `elbow_collide` and `clockwise`. Native GHOGX decodes and logs
+    those source-declared fields so the active asset data can prove which
+    branches are actually present.
   - Native GHOGX must not retain the older opt-in free two-bone arm solver or
     its `GHOGX_ENABLE_ARM_IK`/stretch/rotation gates. Any hand or elbow solve
     must be translated from the source-backed `CharIKHand` dataflow above.
+  - The native CharIKHand pass now runs from the decoded controller order and is
+    not wrapped in the older hand-IK A/B switches, name-based fret/strum
+    reordering, or the hand-local `.pos` escape hatch. Hand `.pos` rows stay out
+    of local FK for real hand bones; the live hand reaches its target through
+    the CharIKHand world-row write after clip sampling.
+  - The current runtime solver is the bounded GH2 single-target slice. Source
+    branches for multi-target weighting, `mFinger`, `PullShoulder`,
+    `mElbowSwing`, wrist constraint, and elbow-collision correction remain
+    fenced unless an asset log proves they are present and the matching
+    ihatecompvir source branch is ported.
+- `rb3-latest/src/system/char/CharIKRod.cpp` and
+  `rb3-latest/src/system/char/CharIKRod.h`
+  - `CharIKRod::Load` reads revision 2 rows as `left_end`, `right_end`,
+    `dest_pos`, `side_axis`, `vertical`, `dest`, then the stored source
+    transform `mXfm`.
+  - `CharIKRod::Poll` first calls `ComputeRod`. The source `ComputeRod` returns
+    false unless `dest`, `left_end`, and `right_end` all resolve, so native code
+    must not fabricate a destination transform for an incomplete stock row.
+  - `ComputeRod` interpolates the left/right endpoint world positions into the
+    destination position, uses either a fixed vertical X row or an interpolated
+    endpoint X row, takes the optional side-axis Z row or the left-right vector,
+    rebuilds an orthonormal matrix, then `Poll` multiplies that result by
+    `mXfm` before writing `dest`.
+
+## Twist Controller Authorities
+
+- `rb3/src/system/char/CharUpperTwist.cpp`
+  - `CharUpperTwist::Load` reads three object pointers and its property sync
+    maps them as `upper_arm`, `twist1`, and `twist2`. ihatecompvir's member
+    names are intentionally odd: `upper_arm` syncs to the member used as the
+    source transform in `Poll`, while `twist1` and `twist2` are the driven
+    output transforms.
+  - `CharUpperTwist::Poll` reads the source transform's parent world row and
+    current world row, builds a rotation from parent X to source X, rotates the
+    parent Y row through that quaternion, interpolates toward the source Y row
+    at `0.333` and `0.666`, runs `LookAt` on the matrix rows, and writes the two
+    driven transforms through `SetWorldXfm`.
+- `rb3/src/system/char/CharForeTwist.cpp`
+  - `CharForeTwist::Load` reads `offset`, `hand`, `twist2`, an old revision-2
+    dummy int, and `bias` for revisions above 3.
+  - `CharForeTwist::Poll` derives the twist angle from the hand world Z row and
+    the hand parent world X/Y rows, applies authored `offset` and `bias`, writes
+    the `twist2` parent transform, then interpolates toward the hand position
+    using `twist2.local.x / hand.local.x` and writes `twist2` itself.
+  - `CharIKHand::Poll` does not inline or consume `CharForeTwist` rows. Native
+    GHOGX therefore runs decoded `CharForeTwist` controllers as their own source
+    poll pass after hand IK instead of marking them handled inside the hand IK
+    bridge.
+  - Native GHOGX does not keep approximate or PS2-row twist writers in the
+    runtime path. The standalone twist controller path follows these
+    ihatecompvir source `Poll` routines.
+
+## Clip Runtime Boundary
+
+- `rb3-latest/src/system/char/CharServoBone.cpp` and
+  `rb3-latest/src/system/char/CharServoBone.h`
+  - `CharServoBone::Load` accepts source revisions through 2. It reads
+    `Hmx::Object` fields, then a `clip_type` `Symbol` only when the row
+    revision is greater than 1.
+  - `SetClipType` clears existing bones and calls `CharBoneDir::StuffBones`.
+    `ReallocateInternal` then looks up `bone_facing_delta.pos`,
+    `bone_facing.pos`, `bone_pelvis`, `bone_facing.rotz`, and
+    `bone_facing_delta.rotz` from the source bone data.
+  - Native GHOGX decodes and logs the source `CharServoBone` row and
+    `clip_type`. It does not port `MoveToFacing`, `MoveToDeltaFacing`, or
+    broad `CharBonesMeshes` movement until the connected clip/bone source path
+    is implemented as a whole.
+- `rb3-latest/src/system/char` exposes source files for `CharClip`,
+  `CharClipDriver`, `CharDriver`, `CharBones`, `CharBonesSamples`,
+  `CharBonesMeshes`, and related clip runtime classes. The previous local note
+  that public ihatecompvir source had no clip/sample layer is obsolete.
+- `rb3-retail-old/doc/rb2_dump/rockband2/system/src/char` exposes RB2-era dump
+  entries for `CharClipSamples`, `CharBonesSamples`, `CharClip`,
+  `CharClipDriver`, and `CharDriver`. These files are useful source-backed
+  function maps: they identify `FrameToSample`, `ScaleAdd`, `RotateBy`,
+  `RotateTo`, `FacingSet`, `CharClipDriver::Evaluate`, and the driver-to-bone
+  application flow.
+- The checked source is still incomplete for the exact math bodies needed to
+  blindly replace native clip playback: `CharBonesSamples::LoadHeader`,
+  `LoadData`, `EvaluateChannel`, `CharClip::ScaleAdd`, and
+  `CharClipDriver::Evaluate` are declared or function-mapped, but not fully
+  implemented as reviewable C++ bodies in the current public source.
+- `band3_recomp` currently contributes symbol-table names such as
+  `CharClip::SyncProperty` and `CharBones::ScaleAddIdentity`, not a decompiled
+  runtime implementation for applying output bones to the live character pose.
+- Native GHOGX may decode and log `CharClipSamples`, `CharBonesSamples`, and
+  `CharBone` rows. It may use explicitly selected hand-driver output rows
+  needed by the authored fret/strum overlay path only when that path stays
+  bounded to source-named hand-driver semantics. Broad body, face, lower-body,
+  or full CharBone output publishing remains opt-in diagnostic behavior until a
+  source-backed implementation or direct original-game trace proves it.
+- Current Rock2 evidence is bounded: static/bind rendering does not show the
+  long-neck read, while `idle_medium_01` applies active `bone_head`,
+  `bone_neck`, and spine clip rows. That points to clip/controller application,
+  but it is not evidence for a native neck offset or named-character posture
+  correction.
 
 ## Stock GH2 Evidence
+
+The expanded stock controller/hair inventory at
+`engine/out/source_truth_controller_inventory_20260710/expanded_stock_characters_controller_hair_inventory.log`
+loads 24 base character MILOs from the stock GH2 PS2 ARK:
+`alterna1`, `alterna2`, `classic`, `deathmetal1`, `deathmetal2`,
+`female_singer`, `funk1`, `glam1`, `glam2`, `goth1`, `goth2`, `grim`,
+`metal1`, `metal2`, `metal_bass`, `metal_drummer`, `metal_keyboard`,
+`metal_singer`, `punk1`, `punk2`, `rock1`, `rock2`, `rockabill1`, and
+`rockabill2`. Its controller rows prove:
+
+- All 38 decoded `CharIKHand` rows are source revision 2, legacy
+  single-target rows. They have `finger=<none>`, `targets=1`,
+  `elbowSwing=0`, `alwaysElbow=0`, `constrainWrist=0`,
+  `elbowCollide=<none>`, and `clockwise=0`.
+- The focused weight-setter inventory at
+  `engine/out/source_truth_controller_inventory_20260710/expanded_stock_characters_controller_inventory_weightsetter.log`
+  proves all 38 stock `CharWeightSetter` rows are source revision 2 with
+  `CharWeightable` revision 2, `offset=0`, `scale=1`, `base=<none>`,
+  `minWeights=0`, and `maxWeights=0`. Nineteen rows carry
+  `flags=0x00400000` for `left.weight`; nineteen carry `flags=0x00800000` for
+  `right.weight`.
+- Those stock rows therefore support the bounded GH2 single-target
+  `CharIKHand` runtime slice; they do not justify porting or approximating
+  source branches for multi-target weighting, finger offsets, elbow swing,
+  wrist constraint, or elbow-collision correction unless another asset or
+  trace proves those fields are present.
+- The same inventory finds zero separate `CharCollide` objects in these 24
+  base character MILOs. GH2 hair rows still carry authored inline collision
+  targets such as `bone_head.mesh`, `bone_neck.mesh`, `bone_pelvis.mesh`,
+  thigh bones, `hair.trans`, and `spot_hairsphere*.trans`.
+- `metal_drummer` contains one revision-1 foretwist row with a missing
+  `twist2` pointer. Native source-poll code must continue to skip incomplete
+  controller refs instead of inventing a target.
+- Only Grim exposes decoded `CharIKRod` rows in this 24-character base set:
+  `rknee.rod` and `lknee.rod`. Both are source revision 2 with valid
+  left/right knee endpoints and `bone_pelvis.mesh` as the side axis, but both
+  have `dest=<none>`. Under ihatecompvir `CharIKRod::ComputeRod`, those rows
+  are inert unless another asset or source path supplies a real `dest`.
+- The stock type inventory at
+  `engine/out/source_truth_controller_inventory_20260710/stock_character_type_inventory.log`
+  proves all 24 base character MILOs contain one `CharServoBone` row. Native
+  decodes/logs those rows so `CharDriver target=bone.servo` is explicit source
+  data rather than an implied name.
+  `engine/out/source_truth_controller_inventory_20260710/grim_charikrod_servo_inventory_after.log`
+  records Grim's decoded row as `version=1 clipType=<none>`, matching the
+  source `clip_type` gate.
+- Four base characters have no decoded `CharHair` rows in this stock set:
+  `metal_bass`, `metal_drummer`, `metal_keyboard`, and `metal_singer`. The
+  other 20 base character MILOs expose 31 decoded `CharHair` rows total.
+- The focused refreshed controller inventory at
+  `engine/out/source_truth_controller_inventory_20260710/expanded_stock_characters_controller_posconstraint_inventory.log`
+  shows five `CharPosConstraint` rows total: one each in `female_singer`,
+  `grim`, `metal_bass`, `metal_keyboard`, and `metal_singer`. All are revision
+  2. `female_singer` and `metal_singer` target `shadow.mesh`; `metal_bass` and
+  `metal_keyboard` have zero targets; Grim's `hems.pcon` names `source=grim`
+  and has zero targets. Native logs those rows as source data and keeps runtime
+  `Poll` writeback fenced.
+- The focused refreshed controller inventory at
+  `engine/out/source_truth_controller_inventory_20260710/expanded_stock_characters_controller_driver_midi_inventory.log`
+  shows 38 `CharDriverMidi` rows across the stock guitarist set. Every row is
+  `midiVersion=3` with `midiUnreadBytes=4`, `midiParser=<none>`,
+  `midiFlagParser=<none>`, and `midiBlendOverridePct=1.0000`. Under the
+  ihatecompvir `CharDriverMidi::Load` gates, GH2 stock rows are therefore before
+  the parser/flag/blend fields and still contain the revision-below-7 default
+  clip slot. Native keeps those four bytes fenced until the `ObjPtr` load
+  implementation is source-backed.
+- The refreshed type inventory at
+  `engine/out/source_truth_controller_inventory_20260710/stock_character_type_inventory_latest.log`
+  shows one stock `AnimFilter` row, on `metal_drummer`. Native now decodes/logs
+  that row using the ihatecompvir `RndAnimFilter::Load` order.
+  `engine/out/source_truth_controller_inventory_20260710/stock_character_animfilter_inventory.log`
+  records it as `char=metal_drummer name=crash_static.filt version=1
+  animatableVersion=4 anim=<none> ... unreadBytes=0`. The same type inventory
+  shows 19 `CharWalk` rows, but the available ihatecompvir RB2 dump exposes
+  class members and runtime names while `CharWalk::Load` itself has no
+  decompiled body; native therefore keeps `CharWalk` decode fenced rather than
+  guessing its serialized layout.
+
+## Remaining Stock Type Boundary
+
+The refreshed stock type inventory at
+`engine/out/source_truth_controller_inventory_20260710/stock_character_type_inventory_latest.log`
+still reports undecoded non-mesh rows in stock character MILOs. These are
+bounded as follows:
+
+- `CharWalk`: 19 stock rows. The RB2 dump includes `CharWalk.cpp` and runtime
+  function names, but `CharWalk::Load` only exposes `Debug TheDebug` and
+  `gRev` references, not a field read order. Native does not decode or run
+  these rows.
+- `OutfitLoader`: 20 stock rows. The RB2 dump exposes the loader/change-outfit
+  runtime surface, while `OutfitLoader::Load` is an empty/bodyless dump row and
+  `PreLoad` belongs to broader loader state. Native does not treat these rows
+  as character mesh or controller data.
+- `EventTrigger`: one stock row, on `metal_drummer`. `rb3-latest`
+  `EventTrigger::Load` is source-backed, but it reads `std::vector<Symbol>`,
+  `ObjVector<Anim>`, `ObjPtrList` rows, `ProxyCall`, `HideDelay`, reset
+  trigger lists, bitfields, animation trigger rows, and optional part launcher
+  rows. Native does not decode this row until local `ObjVector`/`ObjPtrList`
+  serialization is source-backed for this object.
+- `Object`: 19 stock generic object rows. ihatecompvir `Object.cs` already
+  backs the shared object/property-tree skip path; the remaining rows have no
+  character-model runtime behavior to promote.
+- `Tex`: 160 stock texture rows. `rb3-latest` `RndTex::Load`/`PreLoad`/
+  `PostLoad` is source-backed, but native texture payloads are already handled
+  by the PS2 texture asset path (`asset/milo_image.*`) keyed from material
+  diffuse texture names. These rows are not promoted into the character
+  controller graph.
+- `WorldFx`: 99 stock rows. The available ihatecompvir evidence is only
+  `DirLoader::FixClassName`/symbol references for `WorldFx`; there is no
+  checked `WorldFx::Load` source body. Native keeps these rows as inventory
+  evidence only.
 
 The local stock-asset audit log at
 `analysis/ihatecompvir_source_truth_20260710/stock_hair_bone_inventory.log`
@@ -175,6 +554,16 @@ composition is still contracted to the full `RndTransformable` source enum; any
 future stock row using dynamic constraints needs the matching source runtime
 path, not a visual approximation.
 
+The current Rockabill2 face/attachment proof at
+`engine/out/rockabill2_face_current_20260710/` records the native path for the
+previous eye/teeth concern. The screenshot keeps `top-teeth.mesh`,
+`lower-teeth.mesh`, and both eye meshes on the head/mouth instead of down near
+the collar. The logs show teeth/tongue meshes have no bone palette and draw
+through the generic `source-trans-world` path, while `l-eye.mesh` and
+`r-eye.mesh` are no-palette children of `bone_head.mesh` using source world
+rows. This is evidence for the shared source transform path, not for a
+Rockabill2-specific face attachment override.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.
@@ -184,8 +573,13 @@ path, not a visual approximation.
   leg-overlay hiding are not source evidence.
 - LOD visibility must come from source group membership (`lod0.grp` /
   `lod1.grp`), not `_lod1` or `lod_` name prefixes.
-- Renderer state such as blend, z write, alpha test, cull, wrap, and draw order
-  must come from source material/drawable rows. Hair-name render branches are
-  not source evidence.
+- Renderer state such as blend, z write, alpha test, wrap, and draw order must
+  come from source material/drawable rows.
+- Project override: hair polygons/textures render two-sided. Native therefore
+  forces no backface culling for shared hair-token mesh/material/texture
+  surfaces. This is a visual policy override, not inferred source evidence, and
+  is implemented as back-side then front-side cull passes. It must not affect
+  source blend, depth write, alpha test, texture wrap, material color, or draw
+  sort, and it must not be used to invent hair blend/depth/alpha/sort behavior.
 - If a behavior is not proven by ihatecompvir source or stock asset data, leave
   it decoded/logged and unwritten until the source-backed runtime path is known.

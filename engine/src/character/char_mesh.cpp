@@ -12,6 +12,7 @@
 #include <cstring>
 #include <set>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace ghogx::character {
 
@@ -110,6 +111,29 @@ void read_object_fields(Reader& r) {
   if (revision > 0) (void)r.str();
 }
 
+struct RndAnimatableFields {
+  int32_t version = 0;
+  float frame = 0.0f;
+  int32_t rate = 0;
+};
+
+RndAnimatableFields read_rnd_animatable(Reader& r) {
+  RndAnimatableFields out;
+  out.version = r.i32();
+  if (out.version > 1) out.frame = r.f32();
+  if (out.version > 3) {
+    out.rate = r.i32();
+  } else if (out.version > 2) {
+    const uint8_t legacy_rate = r.u8();
+    out.rate = legacy_rate == 0 ? 1 : 0;
+  }
+  if (out.version < 1) {
+    throw std::runtime_error(
+        "char_mesh: RndAnimatable rev0 object-list branch not decoded");
+  }
+  return out;
+}
+
 struct TransFields {
   Xfm local;
   Xfm world;
@@ -138,6 +162,15 @@ TransFields read_rnd_trans(Reader& r, bool standalone) {
   if (ver > 5) out.target = r.str();
   if (ver > 6) out.preserve_scale = r.u8() != 0;
   out.parent = r.str();
+  return out;
+}
+
+std::vector<std::string> read_obj_ptr_list(Reader& r) {
+  std::vector<std::string> out;
+  const uint32_t count = r.u32();
+  if (count > 256) throw std::runtime_error("char_mesh: implausible object list");
+  out.reserve(count);
+  for (uint32_t i = 0; i < count; ++i) out.push_back(r.str());
   return out;
 }
 
@@ -352,6 +385,9 @@ CharUpperTwist decode_upper_twist(const std::string& entry_name,
   t.name = entry_name;
   (void)r.i32();      // version 1
   read_object_fields(r);  // Hmx::Object metadata
+  // ihatecompvir's CharUpperTwist source has misleading member names:
+  // binary/properties are upper_arm, twist1, twist2, while Load stores them
+  // into mTwist2, mUpperArm, mTwist1 respectively for Poll().
   t.upper_arm = r.str();
   t.twist1 = r.str();
   t.twist2 = r.str();
@@ -363,11 +399,13 @@ CharForeTwist decode_fore_twist(const std::string& entry_name,
   Reader r(body.data(), body.size());
   CharForeTwist t;
   t.name = entry_name;
-  (void)r.i32();      // version 1
+  t.version = r.i32();
   read_object_fields(r);  // Hmx::Object metadata
   t.offset_degrees = r.f32();
   t.hand = r.str();
   t.twist2 = r.str();
+  if (t.version == 2 && r.pos + 4 <= r.n) (void)r.i32();
+  if (t.version > 3 && r.pos + 4 <= r.n) t.bias_degrees = r.f32();
   return t;
 }
 
@@ -376,7 +414,7 @@ CharIKRod decode_ik_rod(const std::string& entry_name,
   Reader r(body.data(), body.size());
   CharIKRod rod;
   rod.name = entry_name;
-  (void)r.i32();      // version 2
+  rod.version = r.i32();
   read_object_fields(r);  // Hmx::Object metadata
   rod.left_end = r.str();
   rod.right_end = r.str();
@@ -386,7 +424,7 @@ CharIKRod decode_ik_rod(const std::string& entry_name,
   rod.dest = r.str();
   for (int v = 0; v < 4; ++v)
     for (int c = 0; c < 3; ++c)
-      rod.nums[v][c] = r.f32();
+      rod.xfm[v][c] = r.f32();
   return rod;
 }
 
@@ -395,16 +433,45 @@ CharIKHand decode_ik_hand(const std::string& entry_name,
   Reader r(body.data(), body.size());
   CharIKHand hand;
   hand.name = entry_name;
-  (void)r.i32();      // version 1/2 in GH2
+  hand.version = r.i32();
   read_object_fields(r);  // Hmx::Object metadata
   hand.unknown = r.i32();
   hand.weight = r.f32();
   hand.weight_prop = r.str();
   hand.hand = r.str();
-  hand.target = r.str();
+  if (hand.version > 4) hand.finger = r.str();
+  if (hand.version < 3) {
+    hand.target = r.str();
+    hand.targets.push_back({hand.target, 0.0f});
+  } else if (hand.version < 0xB && r.pos + 4 <= r.n) {
+    const uint32_t count = r.u32();
+    if (count <= 64) {
+      hand.targets.reserve(count);
+      for (uint32_t i = 0; i < count && r.pos < r.n; ++i) {
+        const std::string target = r.str();
+        hand.targets.push_back({target, 0.0f});
+        if (hand.target.empty()) hand.target = target;
+      }
+    }
+  }
   hand.orientation = r.u8() != 0;
   hand.stretch = r.u8() != 0;
-  if (r.pos < r.n) hand.scalable = r.u8() != 0;
+  if (hand.version > 1 && r.pos < r.n) hand.scalable = r.u8() != 0;
+  if (hand.version > 3 && r.pos < r.n) hand.move_elbow = r.u8() != 0;
+  if (hand.version > 5 && r.pos + 4 <= r.n) hand.elbow_swing = r.f32();
+  if (hand.version > 6 && r.pos < r.n) hand.always_ik_elbow = r.u8() != 0;
+  if (hand.version > 7 && r.pos + 5 <= r.n) {
+    hand.constrain_wrist = r.u8() != 0;
+    hand.wrist_radians = r.f32();
+  }
+  if (hand.version == 9 && r.pos < r.n) {
+    (void)r.str();
+    if (r.pos < r.n) (void)r.u8();
+  }
+  if (hand.version > 0xB && r.pos < r.n) {
+    hand.elbow_collide = r.str();
+    if (r.pos < r.n) hand.clockwise = r.u8() != 0;
+  }
   return hand;
 }
 
@@ -417,6 +484,17 @@ CharIKMidi decode_ik_midi(const std::string& entry_name,
   read_object_fields(r);  // Hmx::Object metadata.
   midi.bone = r.str();
   return midi;
+}
+
+CharServoBone decode_servo_bone(const std::string& entry_name,
+                                const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  CharServoBone servo;
+  servo.name = entry_name;
+  servo.version = r.i32();
+  read_object_fields(r);  // Hmx::Object metadata.
+  if (servo.version > 1) servo.clip_type = r.str();
+  return servo;
 }
 
 CharHair decode_hair(const std::string& entry_name,
@@ -494,6 +572,78 @@ CharHair decode_hair(const std::string& entry_name,
   if (r.pos < body.size()) hair.simulate = r.u8() != 0;
   if (hair.version > 10 && r.pos < body.size()) hair.wind = r.str();
   return hair;
+}
+
+CharCollide decode_collide(const std::string& entry_name,
+                           const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  CharCollide collide;
+  collide.name = entry_name;
+  collide.version = r.i32();
+  read_object_fields(r);
+  const TransFields trans = read_rnd_trans(r, false);
+  collide.local = trans.local;
+  collide.world_stored = trans.world;
+  collide.constraint = trans.constraint;
+  collide.target = trans.target;
+  collide.preserve_scale = trans.preserve_scale;
+  collide.parent = trans.parent;
+
+  auto copy_original_to_current = [&]() {
+    collide.cur_radius[0] = collide.orig_radius[0];
+    collide.cur_radius[1] = collide.orig_radius[1];
+    collide.cur_length[0] = collide.orig_length[0];
+    collide.cur_length[1] = collide.orig_length[1];
+  };
+
+  collide.shape = r.i32();
+  collide.orig_radius[0] = r.f32();
+  if (collide.version > 4) collide.orig_length[0] = r.f32();
+  if (collide.version > 2) collide.orig_length[1] = r.f32();
+  if (collide.version > 1) collide.flags = r.i32();
+  if (collide.version > 3) {
+    collide.cur_radius[0] = r.f32();
+  } else {
+    collide.cur_radius[0] = collide.orig_radius[0];
+  }
+
+  if (collide.version > 5) {
+    collide.orig_radius[1] = r.f32();
+    collide.cur_radius[1] = r.f32();
+    collide.cur_length[0] = r.f32();
+    collide.cur_length[1] = r.f32();
+    (void)r.matrix();  // cached source Transform row, not consumed natively yet.
+    collide.mesh = r.str();
+    for (int i = 0; i < 8; ++i) {
+      (void)r.i32();
+      (void)r.f32();
+      (void)r.f32();
+      (void)r.f32();
+    }
+    r.skip(20);  // CSHA1::Digest
+    collide.mesh_y_bias = r.u8() != 0;
+    if (collide.version < 7) copy_original_to_current();
+  } else {
+    collide.orig_radius[1] = collide.orig_radius[0];
+    copy_original_to_current();
+  }
+  return collide;
+}
+
+CharPosConstraint decode_pos_constraint(const std::string& entry_name,
+                                        const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  CharPosConstraint constraint;
+  constraint.name = entry_name;
+  constraint.version = r.i32();
+  read_object_fields(r);
+  constraint.targets = read_obj_ptr_list(r);
+  constraint.source = r.str();
+  if (constraint.version > 1) {
+    for (float& v : constraint.box_min) v = r.f32();
+    for (float& v : constraint.box_max) v = r.f32();
+  }
+  return constraint;
 }
 
 CharLookAt decode_lookat(const std::string& entry_name,
@@ -595,15 +745,47 @@ FaceFxLipSyncServo decode_lip_sync_servo(const std::string& entry_name,
   return servo;
 }
 
+RndAnimFilter decode_anim_filter(const std::string& entry_name,
+                                 const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  RndAnimFilter filter;
+  filter.name = entry_name;
+  filter.version = r.i32();
+  read_object_fields(r);  // Hmx::Object metadata.
+  const RndAnimatableFields animatable = read_rnd_animatable(r);
+  filter.animatable_version = animatable.version;
+  filter.frame = animatable.frame;
+  filter.rate = animatable.rate;
+  filter.anim = r.str();
+  filter.scale = r.f32();
+  filter.offset = r.f32();
+  filter.start = r.f32();
+  filter.end = r.f32();
+  if (filter.version != 0) {
+    filter.type = r.i32();
+    filter.period = r.f32();
+  } else {
+    const uint8_t legacy_loop = r.u8();
+    filter.type = legacy_loop != 0 ? 1 : 0;
+  }
+  if (filter.version > 1) {
+    filter.snap = r.f32();
+    filter.jitter = r.f32();
+  }
+  filter.unread_bytes = r.n - r.pos;
+  return filter;
+}
+
 CharDriver decode_driver_body(const std::string& entry_name, Reader& r,
                               bool midi) {
   CharDriver driver;
   driver.name = entry_name;
-  (void)r.i32();      // CharDriver version, observed 3 in GH2.
+  driver.version = r.i32();  // CharDriver version, observed 3 in GH2.
   read_object_fields(r);  // Hmx::Object metadata
-  (void)r.i32();      // weightable version, observed 2.
+  driver.weightable_version = r.i32();  // CharWeightable version.
   driver.weight = r.f32();
-  driver.weight_prop = r.str();
+  if (driver.weightable_version > 1) driver.weight_owner = r.str();
+  driver.weight_prop = driver.weight_owner;
   driver.target = r.str();
   driver.clip_milo = r.str();
   if (r.pos < r.n) driver.enabled = r.u8() != 0;
@@ -620,8 +802,16 @@ CharDriver decode_driver(const std::string& entry_name,
 CharDriver decode_driver_midi(const std::string& entry_name,
                               const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
-  (void)r.i32();      // CharDriverMidi version, observed 3.
+  const int32_t midi_version = r.i32();  // CharDriverMidi version.
   CharDriver driver = decode_driver_body(entry_name, r, true);
+  driver.midi_version = midi_version;
+  if (driver.midi_version >= 7) {
+    if (driver.midi_version > 3 && r.pos < r.n) driver.midi_parser = r.str();
+    if (driver.midi_version > 4 && r.pos < r.n) driver.midi_flag_parser = r.str();
+    if (driver.midi_version > 5 && r.pos + 4 <= r.n)
+      driver.midi_blend_override_pct = r.f32();
+  }
+  driver.midi_unread_bytes = r.n - r.pos;
   return driver;
 }
 
@@ -630,13 +820,52 @@ CharWeightSetter decode_weight_setter(const std::string& entry_name,
   Reader r(body.data(), body.size());
   CharWeightSetter setter;
   setter.name = entry_name;
-  (void)r.i32();      // version 2
+  setter.version = r.i32();
   read_object_fields(r);  // Hmx::Object metadata
-  (void)r.i32();      // weightable version, observed 2.
-  setter.weight = r.f32();
-  setter.weight_prop = r.str();
+  if (setter.version > 1) {
+    setter.weightable_version = r.i32();
+    setter.weight = r.f32();
+    if (setter.weightable_version > 1) setter.weight_owner = r.str();
+  }
+  setter.weight_prop = setter.weight_owner;
   setter.driver = r.str();
-  if (r.pos + 4 <= r.n) setter.mask = r.u32();
+  setter.flags = r.u32();
+  setter.mask = setter.flags;
+  if (setter.version < 3) {
+    setter.scale = 1.0f;
+    setter.offset = 0.0f;
+  } else if (setter.version < 4) {
+    const bool invert = r.u8() != 0;
+    setter.scale = invert ? -1.0f : 1.0f;
+    setter.offset = invert ? 1.0f : 0.0f;
+  } else {
+    setter.offset = r.f32();
+    setter.scale = r.f32();
+  }
+  if (setter.version < 2 && r.pos + 4 <= r.n) {
+    (void)read_obj_ptr_list(r);
+  }
+  if (setter.version > 4) {
+    setter.base_weight = r.f32();
+    setter.beats_per_weight = r.f32();
+  } else {
+    setter.base_weight = setter.weight;
+    setter.beats_per_weight = 0.0f;
+  }
+  if (setter.version > 5) setter.base = r.str();
+  if (setter.version > 8) {
+    setter.min_weights = read_obj_ptr_list(r);
+    setter.max_weights = read_obj_ptr_list(r);
+  } else {
+    if (setter.version > 6) {
+      const std::string min_weight = r.str();
+      if (!min_weight.empty()) setter.min_weights.push_back(min_weight);
+    }
+    if (setter.version > 7) {
+      const std::string max_weight = r.str();
+      if (!max_weight.empty()) setter.max_weights.push_back(max_weight);
+    }
+  }
   return setter;
 }
 
@@ -733,6 +962,25 @@ std::array<float, 3> transform_pos(const Xfm& local,
               z * parent_world[10] + parent_world[14]};
 }
 
+bool source_dynamic_constraint_needs_runtime(uint32_t constraint,
+                                             const std::string& target) {
+  if (constraint == 9) return target.empty();  // kTargetWorld without target.
+  return constraint >= 3 && constraint <= 8;
+}
+
+void warn_source_dynamic_constraint_once(const std::string& name,
+                                         uint32_t constraint,
+                                         const std::string& target) {
+  static std::unordered_set<std::string> warned;
+  const std::string key = name + "#" + std::to_string(constraint) + "#" + target;
+  if (!warned.insert(key).second) return;
+  std::fprintf(stderr,
+               "[source-xfm-unsupported] name=%s constraint=%u target=%s "
+               "runtimeWriteback=0 reason=awaiting-source-dynamic-constraint-port\n",
+               name.c_str(), constraint,
+               target.empty() ? "<none>" : target.c_str());
+}
+
 std::array<float, 16> source_world_for(const Character& c,
                                        const std::string& name,
                                        bool bind_pose,
@@ -773,6 +1021,9 @@ std::array<float, 16> source_world_for(const Character& c,
   if (xfm.constraint == 9 && !xfm.target.empty()) {  // kTargetWorld
     world = source_world_for(c, xfm.target, bind_pose, include_runtime_overrides,
                              depth + 1);
+  } else if (source_dynamic_constraint_needs_runtime(xfm.constraint,
+                                                    xfm.target)) {
+    warn_source_dynamic_constraint_once(name, xfm.constraint, xfm.target);
   }
   return world;
 }
@@ -840,6 +1091,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
 
     int mesh_ok = 0, mesh_fail = 0;
     for (const auto& de : dir.entries) {
+      ++out.object_type_counts[de.type];
       std::vector<uint8_t> b(payload.data() + de.offset,
                              payload.data() + de.offset + de.size);
       try {
@@ -868,14 +1120,22 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           out.ik_hands.push_back(decode_ik_hand(de.name, b));
         } else if (de.type == "CharIKMidi") {
           out.ik_midis.push_back(decode_ik_midi(de.name, b));
+        } else if (de.type == "CharServoBone") {
+          out.servo_bones.push_back(decode_servo_bone(de.name, b));
         } else if (de.type == "CharLookAt") {
           out.lookats.push_back(decode_lookat(de.name, b));
         } else if (de.type == "CharEyes") {
           out.eyes.push_back(decode_eyes(de.name, b));
         } else if (de.type == "CharHair") {
           out.hairs.push_back(decode_hair(de.name, b));
+        } else if (de.type == "CharCollide") {
+          out.collides.push_back(decode_collide(de.name, b));
+        } else if (de.type == "CharPosConstraint") {
+          out.pos_constraints.push_back(decode_pos_constraint(de.name, b));
         } else if (de.type == "FaceFxLipSyncServo") {
           out.lip_sync_servos.push_back(decode_lip_sync_servo(de.name, b));
+        } else if (de.type == "AnimFilter") {
+          out.anim_filters.push_back(decode_anim_filter(de.name, b));
         } else if (de.type == "CharDriver") {
           out.drivers.push_back(decode_driver(de.name, b));
         } else if (de.type == "CharDriverMidi") {
@@ -891,14 +1151,18 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
     std::fprintf(stderr,
                  "[char] %s: %zu meshes (%d ok / %d fail), %zu bones, %zu mat, "
                  "%zu group, %zu upperTwist, %zu foreTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
-                 "%zu lookAt, %zu eyes, %zu hair, %zu lipServo, %zu driver, "
-                 "%zu weightSetter\n",
+                 "%zu servoBone, %zu lookAt, %zu eyes, %zu hair, %zu collide, "
+                 "%zu posConstraint, %zu lipServo, %zu animFilter, "
+                 "%zu driver, %zu weightSetter\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
                  out.bones.size(), out.mats.size(), out.groups.size(),
                  out.upper_twists.size(), out.fore_twists.size(), out.ik_rods.size(),
-                 out.ik_hands.size(), out.ik_midis.size(), out.lookats.size(),
-                 out.eyes.size(),
-                 out.hairs.size(), out.lip_sync_servos.size(), out.drivers.size(),
+                 out.ik_hands.size(), out.ik_midis.size(),
+                 out.servo_bones.size(), out.lookats.size(), out.eyes.size(),
+                 out.hairs.size(), out.collides.size(),
+                 out.pos_constraints.size(),
+                 out.lip_sync_servos.size(), out.anim_filters.size(),
+                 out.drivers.size(),
                  out.weight_setters.size());
     out.bind_mesh_local.clear();
     out.bind_mesh_local.reserve(out.meshes.size());

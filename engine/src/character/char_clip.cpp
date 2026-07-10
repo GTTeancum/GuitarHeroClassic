@@ -2,29 +2,32 @@
 //
 // CharClipSamples / CharBonesSamples decoder.
 //
-// Reverse-engineered from the actual GH2 game code (NOT guessed):
-//   sub_82162C68 = CharClipSamples::Read
-//   sub_821A3030 = CharBones::Read         (bone names + weights + cumulative counts)
-//   sub_821A1500 = CharBonesSamples::ReadSamples (the per-frame data)  ⭐
-//   sub_8215D520 = bone-name → category classifier
+// Decoder evidence is bounded by ihatecompvir source. rb3-latest exposes
+// CharClip/CharBones/CharBonesSamples layouts and call flow, while the
+// rb3-retail-old RB2 dump maps CharClipSamples runtime functions. Some exact
+// sample math bodies are still absent from the checked public C++ source. Keep
+// broad output writes diagnostic until the corresponding runtime path is ported
+// from source or proved by direct trace.
 //
-// FORMAT (per the recomp):
+// Observed format:
 //  A clip contains the CharClip base (a neighbor/transition list of CLIP names)
 //  followed by 1..3 CharBonesSamples "bone lists". Each bone list is:
 //      uint32 bone_count
-//      bone_count × { length-prefixed name (ends .pos/.scale/.quat/.rotx/.roty/.rotz),
+//      bone_count x { length-prefixed name (ends .pos/.scale/.quat/.rotx/.roty/.rotz),
 //                     float32 weight }     (weight present for gRev>10)
-//      uint32 cum_counts[10]   — cumulative bone count per category (0..9)
-//      uint32 compression      — 0 = float32, non-0 = int16 (quantized)
-//      uint32 numSamples       — number of frames
+//      uint32 cum_counts[10]   cumulative bone count per category (0..9)
+//      uint32 compression      0 = float32, non-0 = int16 (quantized)
+//      uint32 numSamples       number of frames
 //  Then, AFTER every bone-list header, the sample data blocks follow in list
 //  order (two-pass: all defs, then all data). Each list's block is:
-//      numSamples × frame, where each frame is (bones grouped BY CATEGORY):
-//         vectors (.pos + .scale):  3 × float32              = 12 bytes
-//         quats   (.quat):          compressed 4×int16 (8B)  | uncompressed 4×float32 (16B)
-//         angles  (.rotx/.roty/.rotz): compressed 1×int16 (2B) | uncompressed 1×float32 (4B)
+//      numSamples x frame, where each frame is (bones grouped BY CATEGORY):
+//         vectors (.pos + .scale):  3 x float32 = 12 bytes
+//         quats   (.quat):          compressed 4 x int16 (8B) or
+//                                   uncompressed 4 x float32 (16B)
+//         angles  (.rotx/.roty/.rotz): compressed 1 x int16 (2B) or
+//                                      uncompressed 1 x float32 (4B)
 //
-// Bone classification (sub_8215D520): .pos=0 .scale=1 .quat=2 .rotx=3 .roty=4 .rotz=5
+// Observed bone classification: .pos=0 .scale=1 .quat=2 .rotx=3 .roty=4 .rotz=5
 //   .d?x/.d?y/.d?z = 6/7/8, no dot = 10.
 
 #include "character/char_clip.h"
@@ -48,7 +51,7 @@
 
 namespace ghogx::character {
 
-// Strip ".pos"/".quat"/etc → bone base name. Defined below; forward-declared
+// Strip ".pos"/".quat"/etc to bone base name. Defined below; forward-declared
 // so the anonymous-namespace parser can use it.
 std::string strip_suffix(const std::string& channel);
 
@@ -72,7 +75,7 @@ struct Cur {
   }
 };
 
-// Bone category from name suffix (mirrors sub_8215D520).
+// Bone category from name suffix.
 int bone_category(const std::string& name) {
   auto dot = name.rfind('.');
   if (dot == std::string::npos) return 10;
@@ -530,129 +533,6 @@ bool debug_leg_pose_enabled() {
 #endif
 }
 
-bool ps2_ik_hand_position_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_ENABLE_PS2_IK_HAND_POS") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_ENABLE_PS2_IK_HAND_POS");
-  return value && value[0];
-#endif
-}
-
-bool ps2_ik_hand_final_disabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool disabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_PS2_IK_HAND_FINAL") == 0 &&
-      value && value[0];
-  std::free(value);
-  return disabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_PS2_IK_HAND_FINAL");
-  return value && value[0];
-#endif
-}
-
-bool ps2_ik_hand_final_orientation_disabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool disabled =
-      _dupenv_s(&value, &len,
-                "GHOGX_DISABLE_PS2_IK_HAND_FINAL_ORIENTATION") == 0 &&
-      value && value[0];
-  std::free(value);
-  return disabled;
-#else
-  const char* value =
-      std::getenv("GHOGX_DISABLE_PS2_IK_HAND_FINAL_ORIENTATION");
-  return value && value[0];
-#endif
-}
-
-bool ps2_ik_hand_final_position_disabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool disabled =
-      _dupenv_s(&value, &len,
-                "GHOGX_DISABLE_PS2_IK_HAND_FINAL_POSITION") == 0 &&
-      value && value[0];
-  std::free(value);
-  return disabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_PS2_IK_HAND_FINAL_POSITION");
-  return value && value[0];
-#endif
-}
-
-bool ps2_ik_hands_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool disabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_PS2_IK_HANDS") == 0 &&
-      value && value[0];
-  std::free(value);
-  return !disabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_PS2_IK_HANDS");
-  return !value || !value[0];
-#endif
-}
-
-bool ps2_ik_swing_postmultiply_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_PS2_IK_POSTMULTIPLY_SWING") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_PS2_IK_POSTMULTIPLY_SWING");
-  return value && value[0];
-#endif
-}
-
-bool ps2_ik_swing_transpose_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_PS2_IK_TRANSPOSE_SWING") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_PS2_IK_TRANSPOSE_SWING");
-  return value && value[0];
-#endif
-}
-
-bool ps2_ik_aimed_swing_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_PS2_IK_AIMED_SWING") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_PS2_IK_AIMED_SWING");
-  return value && value[0];
-#endif
-}
-
 bool controller_audit_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -664,66 +544,6 @@ bool controller_audit_enabled() {
   return enabled;
 #else
   const char* value = std::getenv("GHOGX_AUDIT_CHARACTER_GRAPH");
-  return value && value[0];
-#endif
-}
-
-bool disable_approx_upper_twist_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_APPROX_UPPER_TWIST") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_APPROX_UPPER_TWIST");
-  return value && value[0];
-#endif
-}
-
-bool disable_approx_fore_twist_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_APPROX_FORE_TWIST") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_APPROX_FORE_TWIST");
-  return value && value[0];
-#endif
-}
-
-bool ignore_approx_fore_twist_offset_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_IGNORE_APPROX_FORE_TWIST_OFFSET") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_IGNORE_APPROX_FORE_TWIST_OFFSET");
-  return value && value[0];
-#endif
-}
-
-bool local_hand_fore_twist_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_APPROX_FORE_TWIST_LOCAL_HAND") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_APPROX_FORE_TWIST_LOCAL_HAND");
   return value && value[0];
 #endif
 }
@@ -808,33 +628,57 @@ void log_character_controller_graph_once(const Character& character) {
   std::fprintf(stderr,
                "[chargraph] %s bones=%zu meshes=%zu drivers=%zu "
                "weightSetters=%zu ik=%zu ikMidi=%zu foreTwist=%zu upperTwist=%zu "
-               "hair=%zu lookAt=%zu eyes=%zu ps2IK=%s hairPoll=%s "
+               "hair=%zu collide=%zu posConstraint=%zu animFilter=%zu "
+               "lookAt=%zu eyes=%zu sourceIK=%s hairPoll=%s "
                "lookAt=%s\n",
                character.dir_name.c_str(), character.bones.size(),
                character.meshes.size(), character.drivers.size(),
                character.weight_setters.size(), character.ik_hands.size(),
                character.ik_midis.size(), character.fore_twists.size(),
                character.upper_twists.size(), character.hairs.size(),
-               character.lookats.size(), character.eyes.size(),
-               ps2_ik_hands_enabled() ? "on" : "off", "decode-only",
-               "decode-only");
+               character.collides.size(), character.pos_constraints.size(),
+               character.anim_filters.size(), character.lookats.size(),
+               character.eyes.size(),
+               "CharIKHand", "decode-only", "decode-only");
   for (const auto& ik : character.ik_hands) {
     std::fprintf(stderr,
-                 "[chargraph]   ik %s hand=%s target=%s weight=%.3f "
-                 "weightProp=%s orientation=%d stretch=%d scalable=%d\n",
-                 ik.name.c_str(), ik.hand.c_str(), ik.target.c_str(),
-                 ik.weight, ik.weight_prop.c_str(),
+                 "[chargraph]   ik %s version=%d hand=%s finger=%s "
+                 "target=%s targets=%zu weight=%.3f weightProp=%s "
+                 "orientation=%d stretch=%d scalable=%d moveElbow=%d "
+                 "elbowSwing=%.3f alwaysElbow=%d constrainWrist=%d "
+                 "wristRadians=%.3f elbowCollide=%s clockwise=%d\n",
+                 ik.name.c_str(), ik.version, ik.hand.c_str(),
+                 ik.finger.empty() ? "<none>" : ik.finger.c_str(),
+                 ik.target.c_str(), ik.targets.size(), ik.weight,
+                 ik.weight_prop.c_str(),
                  ik.orientation ? 1 : 0, ik.stretch ? 1 : 0,
-                 ik.scalable ? 1 : 0);
+                 ik.scalable ? 1 : 0, ik.move_elbow ? 1 : 0,
+                 ik.elbow_swing, ik.always_ik_elbow ? 1 : 0,
+                 ik.constrain_wrist ? 1 : 0, ik.wrist_radians,
+                 ik.elbow_collide.empty() ? "<none>"
+                                           : ik.elbow_collide.c_str(),
+                 ik.clockwise ? 1 : 0);
   }
   for (const auto& driver : character.drivers) {
     std::fprintf(stderr,
-                 "[chargraph]   driver %s target=%s clipMilo=%s "
-                 "weight=%.3f weightProp=%s enabled=%d midi=%d\n",
-                 driver.name.c_str(), driver.target.c_str(),
+                 "[chargraph]   driver %s version=%d "
+                 "weightableVersion=%d target=%s clipMilo=%s "
+                 "weight=%.3f weightOwner=%s weightProp=%s enabled=%d "
+                 "midi=%d midiVersion=%d midiUnreadBytes=%zu "
+                 "midiParser=%s midiFlagParser=%s "
+                 "midiBlendOverridePct=%.3f\n",
+                 driver.name.c_str(), driver.version,
+                 driver.weightable_version, driver.target.c_str(),
                  driver.clip_milo.c_str(), driver.weight,
-                 driver.weight_prop.c_str(), driver.enabled ? 1 : 0,
-                 driver.midi ? 1 : 0);
+                 driver.weight_owner.c_str(), driver.weight_prop.c_str(),
+                 driver.enabled ? 1 : 0, driver.midi ? 1 : 0,
+                 driver.midi_version, driver.midi_unread_bytes,
+                 driver.midi_parser.empty() ? "<none>"
+                                            : driver.midi_parser.c_str(),
+                 driver.midi_flag_parser.empty()
+                     ? "<none>"
+                     : driver.midi_flag_parser.c_str(),
+                 driver.midi_blend_override_pct);
   }
   for (const auto& ik : character.ik_midis) {
     std::fprintf(stderr, "[chargraph]   ikMidi %s bone=%s\n",
@@ -842,11 +686,29 @@ void log_character_controller_graph_once(const Character& character) {
   }
   for (const auto& setter : character.weight_setters) {
     std::fprintf(stderr,
-                 "[chargraph]   weightSetter %s weight=%.3f weightProp=%s "
-                 "driver=%s mask=0x%08x\n",
-                 setter.name.c_str(), setter.weight,
-                 setter.weight_prop.c_str(), setter.driver.c_str(),
-                 setter.mask);
+                 "[chargraph]   weightSetter %s version=%d "
+                 "weightableVersion=%d weight=%.3f weightOwner=%s "
+                 "driver=%s flags=0x%08x offset=%.3f scale=%.3f "
+                 "baseWeight=%.3f beatsPerWeight=%.3f\n",
+                 setter.name.c_str(), setter.version,
+                 setter.weightable_version, setter.weight,
+                 setter.weight_owner.c_str(), setter.driver.c_str(),
+                 setter.flags, setter.offset, setter.scale,
+                 setter.base_weight, setter.beats_per_weight);
+  }
+  for (const auto& filter : character.anim_filters) {
+    std::fprintf(stderr,
+                 "[chargraph]   animFilter %s version=%d "
+                 "animatableVersion=%d anim=%s frame=%.3f rate=%d "
+                 "scale=%.3f offset=%.3f start=%.3f end=%.3f "
+                 "type=%d period=%.3f snap=%.3f jitter=%.3f "
+                 "unreadBytes=%zu\n",
+                 filter.name.c_str(), filter.version,
+                 filter.animatable_version,
+                 filter.anim.empty() ? "<none>" : filter.anim.c_str(),
+                 filter.frame, filter.rate, filter.scale, filter.offset,
+                 filter.start, filter.end, filter.type, filter.period,
+                 filter.snap, filter.jitter, filter.unread_bytes);
   }
   for (const auto& bone : character.bones) {
     if (bone.name.rfind("spot_", 0) == 0 ||
@@ -864,7 +726,7 @@ void log_character_controller_graph_once(const Character& character) {
                  ft.name.c_str(), ft.hand.c_str(), ft.twist2.c_str(),
                  ft.offset_degrees);
   }
-  if (!disable_approx_upper_twist_enabled()) for (const auto& ut : character.upper_twists) {
+  for (const auto& ut : character.upper_twists) {
     std::fprintf(stderr,
                  "[chargraph]   upperTwist %s upper=%s twist1=%s twist2=%s\n",
                  ut.name.c_str(), ut.upper_arm.c_str(), ut.twist1.c_str(),
@@ -913,6 +775,37 @@ void log_character_controller_graph_once(const Character& character) {
                      point.outer_radius, point.side_length, point.unk5c[0],
                      point.unk5c[1], point.unk5c[2]);
       }
+    }
+  }
+  for (const auto& collide : character.collides) {
+    std::fprintf(stderr,
+                 "[chargraph]   collide %s version=%d shape=%d flags=0x%08x "
+                 "mesh=%s parent=%s radius=(%.3f %.3f) "
+                 "length=(%.3f %.3f) curRadius=(%.3f %.3f) "
+                 "curLength=(%.3f %.3f) meshYBias=%d\n",
+                 collide.name.c_str(), collide.version, collide.shape,
+                 static_cast<unsigned>(collide.flags), collide.mesh.c_str(),
+                 collide.parent.c_str(), collide.orig_radius[0],
+                 collide.orig_radius[1], collide.orig_length[0],
+                 collide.orig_length[1], collide.cur_radius[0],
+                 collide.cur_radius[1], collide.cur_length[0],
+                 collide.cur_length[1], collide.mesh_y_bias ? 1 : 0);
+  }
+  for (const auto& constraint : character.pos_constraints) {
+    std::fprintf(stderr,
+                 "[chargraph]   posConstraint %s version=%d source=%s "
+                 "targets=%zu boxMin=[%.3f %.3f %.3f] "
+                 "boxMax=[%.3f %.3f %.3f]\n",
+                 constraint.name.c_str(), constraint.version,
+                 constraint.source.empty() ? "<none>"
+                                           : constraint.source.c_str(),
+                 constraint.targets.size(), constraint.box_min[0],
+                 constraint.box_min[1], constraint.box_min[2],
+                 constraint.box_max[0], constraint.box_max[1],
+                 constraint.box_max[2]);
+    for (const auto& target : constraint.targets) {
+      std::fprintf(stderr, "[chargraph]     posTarget %s\n",
+                   target.empty() ? "<none>" : target.c_str());
     }
   }
   for (const auto& look : character.lookats) {
@@ -972,49 +865,6 @@ bool disable_finger_clip_channels_enabled() {
   return enabled;
 #else
   const char* value = std::getenv("GHOGX_DISABLE_FINGER_CLIPS");
-  return value && value[0];
-#endif
-}
-
-bool disable_driven_twists_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_DRIVEN_TWISTS") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_DRIVEN_TWISTS");
-  return value && value[0];
-#endif
-}
-
-bool apply_hand_pos_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_APPLY_HAND_POS") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_APPLY_HAND_POS");
-  return value && value[0];
-#endif
-}
-
-bool approximate_driven_twists_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_ENABLE_APPROX_DRIVEN_TWISTS") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_ENABLE_APPROX_DRIVEN_TWISTS");
   return value && value[0];
 #endif
 }
@@ -1596,43 +1446,17 @@ static Vec3 mat_row(const std::array<float, 16>& m, int r) {
   return {m[r * 4 + 0], m[r * 4 + 1], m[r * 4 + 2]};
 }
 
+static void set_mat_row(std::array<float, 16>& m, int r, Vec3 v) {
+  m[r * 4 + 0] = v.x;
+  m[r * 4 + 1] = v.y;
+  m[r * 4 + 2] = v.z;
+}
+
 static Vec3 local_vec_from_world_rows(const std::array<float, 16>& basis_world,
                                       Vec3 world_vec) {
   return {vdot(mat_row(basis_world, 0), world_vec),
           vdot(mat_row(basis_world, 1), world_vec),
           vdot(mat_row(basis_world, 2), world_vec)};
-}
-
-static std::array<float, 16> aim_preserve_xfm(
-    Vec3 pos, Vec3 from_dir, Vec3 to_dir, const std::array<float, 16>& source) {
-  Vec3 a = vnorm(from_dir);
-  Vec3 b = vnorm(to_dir, a);
-  Vec3 axis = vcross(a, b);
-  const float s = vlen(axis);
-  const float c = std::clamp(vdot(a, b), -1.0f, 1.0f);
-  std::array<float, 16> r = source;
-  if (s > 1e-5f) {
-    axis = vscale(axis, 1.0f / s);
-    const float x = axis.x, y = axis.y, z = axis.z;
-    const float t = 1.0f - c;
-    // Row-vector rotation matrix: transpose of the usual column-vector form.
-    const float m[3][3] = {
-        {t*x*x + c,     t*x*y + s*z,   t*x*z - s*y},
-        {t*x*y - s*z,   t*y*y + c,     t*y*z + s*x},
-        {t*x*z + s*y,   t*y*z - s*x,   t*z*z + c},
-    };
-    for (int row = 0; row < 3; ++row) {
-      const Vec3 src = mat_row(source, row);
-      r[row * 4 + 0] = src.x * m[0][0] + src.y * m[1][0] + src.z * m[2][0];
-      r[row * 4 + 1] = src.x * m[0][1] + src.y * m[1][1] + src.z * m[2][1];
-      r[row * 4 + 2] = src.x * m[0][2] + src.y * m[1][2] + src.z * m[2][2];
-    }
-  }
-  r[12] = pos.x;
-  r[13] = pos.y;
-  r[14] = pos.z;
-  r[15] = 1.0f;
-  return r;
 }
 
 static void quat_from_vec_to_vec(Vec3 from, Vec3 to, float q[4]) {
@@ -1664,26 +1488,25 @@ static void quat_from_vec_to_vec(Vec3 from, Vec3 to, float q[4]) {
   q[3] = 0.5f * s;
 }
 
-static void normalize_xfm_rows(milo_scene::Xfm& xfm);
-
-static void post_multiply_local_rot(milo_scene::Xfm& dst,
-                                    const milo_scene::Xfm& source,
-                                    const float rot[3][3], float weight) {
-  weight = std::clamp(weight, 0.0f, 1.0f);
-  for (int r = 0; r < 3; ++r) {
-    float solved[3] = {};
-    for (int c = 0; c < 3; ++c) {
-      solved[c] = source.rot[r][0] * rot[0][c] +
-                  source.rot[r][1] * rot[1][c] +
-                  source.rot[r][2] * rot[2][c];
-    }
-    for (int c = 0; c < 3; ++c) {
-      dst.rot[r][c] = source.rot[r][c] * (1.0f - weight) +
-                      solved[c] * weight;
-    }
-  }
-  normalize_xfm_rows(dst);
+static Vec3 rotate_vec_by_quat(Vec3 v, const float q_in[4]) {
+  float rot[3][3] = {};
+  quat_to_rot(q_in, rot);
+  return {
+      v.x * rot[0][0] + v.y * rot[1][0] + v.z * rot[2][0],
+      v.x * rot[0][1] + v.y * rot[1][1] + v.z * rot[2][1],
+      v.x * rot[0][2] + v.y * rot[1][2] + v.z * rot[2][2],
+  };
 }
+
+static void source_look_at_rows(std::array<float, 16>& m) {
+  const Vec3 x = mat_row(m, 0);
+  const Vec3 z = vnorm(vcross(x, mat_row(m, 1)), {0.0f, 0.0f, 1.0f});
+  const Vec3 y = vcross(z, x);
+  set_mat_row(m, 1, y);
+  set_mat_row(m, 2, z);
+}
+
+static void normalize_xfm_rows(milo_scene::Xfm& xfm);
 
 static void pre_multiply_local_rot(milo_scene::Xfm& dst,
                                    const milo_scene::Xfm& source,
@@ -1701,42 +1524,27 @@ static void pre_multiply_local_rot(milo_scene::Xfm& dst,
   normalize_xfm_rows(dst);
 }
 
-static void transpose_rot3(float rot[3][3]) {
-  for (int r = 0; r < 3; ++r) {
-    for (int c = r + 1; c < 3; ++c) {
-      std::swap(rot[r][c], rot[c][r]);
-    }
-  }
-}
-
 static void set_local_from_world(milo_scene::Xfm& local,
                                  const std::array<float, 16>& desired_world,
                                  const std::array<float, 16>& parent_world) {
   mat4_to_xfm(mat4_mul(desired_world, affine_inverse(parent_world)), local);
 }
 
-static void normalized_rot(const milo_scene::Xfm& x, float r[3][3]) {
-  for (int row = 0; row < 3; ++row) {
-    float len = std::sqrt(x.rot[row][0] * x.rot[row][0] +
-                          x.rot[row][1] * x.rot[row][1] +
-                          x.rot[row][2] * x.rot[row][2]);
-    if (len <= 1e-8f) len = 1.0f;
-    for (int c = 0; c < 3; ++c) r[row][c] = x.rot[row][c] / len;
-  }
+static std::array<float, 16> rotation_about_x_world(float angle) {
+  const float ca = std::cos(angle);
+  const float sa = std::sin(angle);
+  return {1, 0, 0, 0, 0, ca, -sa, 0, 0, sa, ca, 0, 0, 0, 0, 1};
 }
 
-static float local_x_roll_delta(const milo_scene::Xfm& bind,
-                                const milo_scene::Xfm& current) {
-  float b[3][3], c[3][3], d[3][3] = {};
-  normalized_rot(bind, b);
-  normalized_rot(current, c);
-  // Delta for row-vector local matrices: current = bind * delta.
-  // For an orthonormal rotation, inverse(bind) is transpose(bind).
-  for (int row = 0; row < 3; ++row)
-    for (int col = 0; col < 3; ++col)
-      for (int k = 0; k < 3; ++k)
-        d[row][col] += b[k][row] * c[k][col];
-  return std::atan2(d[1][2], d[1][1]);
+static std::array<float, 16> source_matrix_multiply_rotation(
+    const std::array<float, 16>& rot,
+    const std::array<float, 16>& world) {
+  std::array<float, 16> out = mat4_mul(rot, world);
+  out[12] = world[12];
+  out[13] = world[13];
+  out[14] = world[14];
+  out[15] = 1.0f;
+  return out;
 }
 
 static void post_rotate_axis(milo_scene::Xfm& xfm, ClipChannel::Type axis,
@@ -1766,74 +1574,6 @@ static void post_rotate_axis(milo_scene::Xfm& xfm, ClipChannel::Type axis,
   }
 }
 
-static void set_rot_x_preserve_pos(milo_scene::Xfm& xfm, float angle) {
-  const float ca = std::cos(angle);
-  const float sa = std::sin(angle);
-  // PS2 CharForeTwist/CharUpperTwist writes a pure row-vector X rotation into
-  // the driven Trans local rows before marking descendants dirty. Accepted
-  // Trans-row samples show row1.z = -sin and row2.y = +sin.
-  xfm.rot[0][0] = 1.0f;
-  xfm.rot[0][1] = 0.0f;
-  xfm.rot[0][2] = 0.0f;
-  xfm.rot[1][0] = 0.0f;
-  xfm.rot[1][1] = ca;
-  xfm.rot[1][2] = -sa;
-  xfm.rot[2][0] = 0.0f;
-  xfm.rot[2][1] = sa;
-  xfm.rot[2][2] = ca;
-}
-
-static float ps2_twist_angle_from_local_rows(const milo_scene::Xfm& source) {
-  float r0[3] = {source.rot[0][0], source.rot[0][1], source.rot[0][2]};
-  float r1[3] = {source.rot[1][0], source.rot[1][1], source.rot[1][2]};
-  const float r0_len = std::sqrt(r0[0] * r0[0] + r0[1] * r0[1] +
-                                 r0[2] * r0[2]);
-  const float r1_len = std::sqrt(r1[0] * r1[0] + r1[1] * r1[1] +
-                                 r1[2] * r1[2]);
-  if (r0_len > 1e-6f) {
-    r0[0] /= r0_len;
-    r0[1] /= r0_len;
-    r0[2] /= r0_len;
-  }
-  if (r1_len > 1e-6f) {
-    r1[0] /= r1_len;
-    r1[1] /= r1_len;
-    r1[2] /= r1_len;
-  }
-
-  // Mirrors SLUS 0x002dadf8 + 0x002dae80 + atan2 in the accepted traces:
-  // build the swing-removal quaternion from local row 0, rotate local row 1
-  // through it, then read the residual twist about local X from z/y.
-  const float half = 0.5f;
-  float w = std::sqrt(std::max((r0[0] + 1.0f) * half, 0.0f));
-  float qx = 0.0f;
-  float qy = 0.0f;
-  float qz = 0.0f;
-  if (w > 1e-6f) {
-    const float inv = half / w;
-    qy = r0[2] * inv;
-    qz = -r0[1] * inv;
-  } else {
-    // 180 degree swing fallback: choose a stable axis perpendicular to X.
-    qy = 1.0f;
-    w = 0.0f;
-  }
-
-  const float q_len = std::sqrt(qx * qx + qy * qy + qz * qz + w * w);
-  if (q_len > 1e-6f) {
-    qx /= q_len;
-    qy /= q_len;
-    qz /= q_len;
-    w /= q_len;
-  }
-
-  const Vec3 v{r1[0], r1[1], r1[2]};
-  const Vec3 qv{qx, qy, qz};
-  const Vec3 t = vscale(vcross(qv, v), 2.0f);
-  const Vec3 rotated = vadd(vadd(v, vscale(t, w)), vcross(qv, t));
-  return std::atan2(rotated.z, rotated.y);
-}
-
 static float wrap_ps2_angle(float radians) {
   constexpr float kPi = 3.1415927410125732f;
   constexpr float kTwoPi = 6.2831854820251465f;
@@ -1843,31 +1583,22 @@ static float wrap_ps2_angle(float radians) {
   return wrapped;
 }
 
-static void write_ps2_x_twist(milo_scene::Xfm& dst,
-                              const milo_scene::Xfm& bind,
-                              float angle) {
-  dst = bind;
-  const float ca = std::cos(angle);
-  const float sa = std::sin(angle);
-  // Accepted Trans-row samples show the helper pre-applies the X twist to the
-  // authored local basis: rows whose bind row0 is not identity keep that row.
-  for (int c = 0; c < 3; ++c) {
-    dst.rot[0][c] = bind.rot[0][c];
-    dst.rot[1][c] = ca * bind.rot[1][c] - sa * bind.rot[2][c];
-    dst.rot[2][c] = sa * bind.rot[1][c] + ca * bind.rot[2][c];
-  }
+static float source_limit_ang(float radians) {
+  constexpr float kPi = 3.14159265358979323846f;
+  constexpr float kTwoPi = 6.28318530717958647692f;
+  while (radians > kPi) radians -= kTwoPi;
+  while (radians < -kPi) radians += kTwoPi;
+  return radians;
 }
 
-static void write_ps2_z_bend(milo_scene::Xfm& dst,
-                             const milo_scene::Xfm& base,
-                             float cos_angle,
-                             float sin_angle) {
+static void write_source_elbow_z_bend(milo_scene::Xfm& dst,
+                                      const milo_scene::Xfm& base,
+                                      float cos_angle,
+                                      float sin_angle) {
   dst = base;
-  // SLUS 0x0017a080 writes the elbow bend as pure helper rows on the bend
-  // parent while preserving the authored local position. Accepted PS2 Trans-row
-  // samples for the dirty bend parent show row0=[cos,-sin,0],
-  // row1=[sin,cos,0], row2=[0,0,1] rather than a composition with the incoming
-  // clip basis.
+  // CharIKHand::IKElbow writes the bend on the hand parent while preserving the
+  // authored local position. Native expresses the source loc210/sqrted branch
+  // as a row-vector Z bend.
   dst.rot[0][0] = cos_angle;
   dst.rot[0][1] = -sin_angle;
   dst.rot[0][2] = 0.0f;
@@ -1899,14 +1630,6 @@ static void normalize_mat3_rows(std::array<float, 16>& m) {
     m[r * 4 + 1] /= len;
     m[r * 4 + 2] /= len;
   }
-}
-
-static std::array<float, 16> local_chain_world_for_bone(
-    const Character& character, int bone_index) {
-  if (bone_index < 0 || static_cast<size_t>(bone_index) >= character.bones.size()) {
-    return {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
-  }
-  return character.bone_world_local_chain(character.bones[(size_t)bone_index].name);
 }
 
 static void log_debug_xfm_row(const char* tag, const char* name,
@@ -1950,212 +1673,128 @@ static void log_debug_world_row(const char* tag, const char* name,
                world[4], world[5], world[6], world[8], world[9], world[10]);
 }
 
-static float local_x_roll_delta_between_worlds(
-    const std::array<float, 16>& bind_world,
-    const std::array<float, 16>& current_world) {
-  milo_scene::Xfm bind;
-  milo_scene::Xfm current;
-  mat4_to_xfm(bind_world, bind);
-  mat4_to_xfm(current_world, current);
-  return local_x_roll_delta(bind, current);
-}
-
-static milo_scene::Xfm live_local_for_twist_source(const Character& character,
-                                                   int bone_index) {
-  const auto& bone = character.bones[(size_t)bone_index];
-  // CharIKHand's final Trans-world bridge is a post-solve world row. PS2 traces
-  // show CharForeTwist extracting roll from the live hand local row left by IK,
-  // not from that final world row converted back through the parent chain.
-  return bone.local;
-}
-
-static bool apply_ps2_fore_twist(Character& character,
-                                 const std::vector<milo_scene::Xfm>& bind_bones,
-                                 const CharForeTwist& ft) {
-  if (disable_driven_twists_enabled()) return false;
+static bool apply_source_fore_twist(Character& character,
+                                    const CharForeTwist& ft) {
   const int hand_i = find_bone_index(character, ft.hand);
   const int twist2_i = find_bone_index(character, ft.twist2);
   if (hand_i < 0 || twist2_i < 0) return false;
-  const int fore_i = find_bone_index(
-      character, character.bones[(size_t)hand_i].parent);
-  const int twist1_i =
-      find_bone_index(character, character.bones[(size_t)twist2_i].parent);
-  if (fore_i < 0 || twist1_i < 0) return false;
-  if ((size_t)hand_i >= bind_bones.size() ||
-      (size_t)fore_i >= bind_bones.size() ||
-      (size_t)twist1_i >= bind_bones.size() ||
-      (size_t)twist2_i >= bind_bones.size())
-    return false;
+  auto& hand = character.bones[static_cast<size_t>(hand_i)];
+  auto& twist2 = character.bones[static_cast<size_t>(twist2_i)];
+  if (hand.parent.empty() || twist2.parent.empty()) return false;
+  const int parent_i = find_bone_index(character, hand.parent);
+  const int twist1_i = find_bone_index(character, twist2.parent);
+  if (parent_i < 0 || twist1_i < 0) return false;
+  auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
 
-  const milo_scene::Xfm hand_source =
-      live_local_for_twist_source(character, hand_i);
-  float roll = ps2_twist_angle_from_local_rows(hand_source);
-  roll = -wrap_ps2_angle(roll + ft.offset_degrees * 0.01745329238474369f) *
-         0.3333333134651184f;
+  const auto parent_world = character.bone_world_local_chain(
+      character.bones[static_cast<size_t>(parent_i)].name);
+  const auto hand_world = character.bone_world_local_chain(hand.name);
+  const float clamped =
+      std::clamp(vdot(mat_row(hand_world, 2), mat_row(parent_world, 1)),
+                 -1.0f, 1.0f);
+  const Vec3 cross = vcross(mat_row(parent_world, 1), mat_row(hand_world, 2));
+  const float clamped2 =
+      std::clamp(vdot(mat_row(parent_world, 0), cross), -1.0f, 1.0f);
+  constexpr float kDegToRad = 0.01745329238474369049f;
+  const float bias = ft.bias_degrees * kDegToRad;
+  const float angle = source_limit_ang(
+      ft.offset_degrees * kDegToRad + std::atan2(clamped2, clamped) + bias);
+  const auto rot = rotation_about_x_world((angle - bias) * 0.33333f);
 
-  // SLUS 0x00175678 wraps the helper angle plus side offset, scales it by
-  // 0x3eaaaa9f, and writes the negated row-vector X twist into both forearm
-  // output branches. Twist2 gets a pure helper row and then copies half of
-  // the live source hand local X position into its Trans +0x50 field.
-  write_ps2_x_twist(character.bones[(size_t)twist2_i].local,
-                    bind_bones[(size_t)twist2_i], roll);
-  character.bones[(size_t)twist2_i].local.pos[0] =
-      hand_source.pos[0] * 0.5f;
-  write_ps2_x_twist(character.bones[(size_t)twist1_i].local,
-                    character.bones[(size_t)fore_i].local, roll);
+  std::array<float, 16> twist1_world =
+      source_matrix_multiply_rotation(rot, parent_world);
+  if (!twist1.parent.empty()) {
+    set_local_from_world(twist1.local, twist1_world,
+                         character.bone_world_local_chain(twist1.parent));
+  } else {
+    mat4_to_xfm(twist1_world, twist1.local);
+  }
+
+  const float ratio =
+      std::fabs(hand.local.pos[0]) > 1.0e-6f
+          ? twist2.local.pos[0] / hand.local.pos[0]
+          : 0.0f;
+  std::array<float, 16> twist2_world =
+      source_matrix_multiply_rotation(rot, twist1_world);
+  const Vec3 twist1_pos = mat_pos(twist1_world);
+  const Vec3 hand_pos = mat_pos(hand_world);
+  const Vec3 interp_pos =
+      vadd(vscale(twist1_pos, 1.0f - ratio), vscale(hand_pos, ratio));
+  twist2_world[12] = interp_pos.x;
+  twist2_world[13] = interp_pos.y;
+  twist2_world[14] = interp_pos.z;
+  set_local_from_world(twist2.local, twist2_world, twist1_world);
+
   if (debug_ik_enabled()) {
     std::fprintf(stderr,
-                 "[twist-fore] %s source=%s out1=%s out2=%s offset=%.3f roll=%.4f factors=[%.4f %.4f]\n",
-                 ft.name.c_str(), ft.hand.c_str(),
-                 character.bones[(size_t)twist1_i].name.c_str(),
-                 ft.twist2.c_str(), ft.offset_degrees, roll,
-                 1.0f, 1.0f);
-    log_debug_xfm_row("twist-fore-src", ft.hand.c_str(),
-                      hand_source,
-                      character.bone_world_local_chain(ft.hand));
-    log_debug_xfm_row_short("twist-fore-src", ft.hand.c_str(),
-                            hand_source);
-    log_debug_xfm_row("twist-fore-out",
-                      character.bones[(size_t)twist1_i].name.c_str(),
-                      character.bones[(size_t)twist1_i].local,
-                      character.bone_world_local_chain(
-                          character.bones[(size_t)twist1_i].name));
-    log_debug_xfm_row_short("twist-fore-out",
-                            character.bones[(size_t)twist1_i].name.c_str(),
-                            character.bones[(size_t)twist1_i].local);
-    log_debug_xfm_row("twist-fore-out", ft.twist2.c_str(),
-                      character.bones[(size_t)twist2_i].local,
-                      character.bone_world_local_chain(ft.twist2));
-    log_debug_xfm_row_short("twist-fore-out", ft.twist2.c_str(),
-                            character.bones[(size_t)twist2_i].local);
+                 "[twist-fore-source] %s hand=%s twist1=%s twist2=%s "
+                 "offset=%.3f bias=%.3f angle=%.5f ratio=%.5f\n",
+                 ft.name.c_str(), ft.hand.c_str(), twist1.name.c_str(),
+                 ft.twist2.c_str(), ft.offset_degrees, ft.bias_degrees,
+                 angle, ratio);
   }
   return true;
 }
 
-static void apply_driven_twists(
-    Character& character, const std::vector<milo_scene::Xfm>& bind_bones,
-    const std::unordered_set<std::string>& fore_twists_already_applied) {
-  if (disable_driven_twists_enabled()) return;
-  if (approximate_driven_twists_enabled()) {
-    // The previous direct-roll path is retained only as a diagnostic switch.
-    // Native captures showed it can create visible forearm ribboning, so the
-    // normal path below follows the traced PS2 helper-row writes instead.
-    for (const auto& ut : character.upper_twists) {
-      const int upper_i = find_bone_index(character, ut.upper_arm);
-      const int twist1_i = find_bone_index(character, ut.twist1);
-      const int twist2_i = find_bone_index(character, ut.twist2);
-      if (upper_i < 0 || twist1_i < 0 || twist2_i < 0) continue;
-      if ((size_t)upper_i >= bind_bones.size() ||
-          (size_t)twist1_i >= bind_bones.size() ||
-          (size_t)twist2_i >= bind_bones.size()) continue;
-
-      const auto bind_world = character.bone_world_bind_local_chain(ut.twist2);
-      const auto current_world = local_chain_world_for_bone(character, twist2_i);
-      const float roll = local_x_roll_delta_between_worlds(bind_world, current_world);
-      const bool twist1_parent_is_upper =
-          character.bones[(size_t)twist1_i].parent == ut.upper_arm;
-      const float first_factor = twist1_parent_is_upper ? -0.6660000086f : -0.5f;
-      const float second_factor = twist1_parent_is_upper ? 0.3330000043f
-                                                         : 0.3333329856f;
-
-      character.bones[(size_t)twist1_i].local = bind_bones[(size_t)twist1_i];
-      character.bones[(size_t)twist2_i].local = bind_bones[(size_t)twist2_i];
-      set_rot_x_preserve_pos(character.bones[(size_t)twist1_i].local,
-                             roll * first_factor);
-      set_rot_x_preserve_pos(character.bones[(size_t)twist2_i].local,
-                             roll * second_factor);
-    }
-
-    if (!disable_approx_fore_twist_enabled()) for (const auto& ft : character.fore_twists) {
-      if (fore_twists_already_applied.count(ft.name)) continue;
-      const int hand_i = find_bone_index(character, ft.hand);
-      const int twist2_i = find_bone_index(character, ft.twist2);
-      if (hand_i < 0 || twist2_i < 0) continue;
-      const int fore_i = find_bone_index(character, character.bones[(size_t)hand_i].parent);
-      const int twist1_i = find_bone_index(character, character.bones[(size_t)twist2_i].parent);
-      if (fore_i < 0 || twist1_i < 0) continue;
-      if ((size_t)hand_i >= bind_bones.size() ||
-          (size_t)twist1_i >= bind_bones.size() ||
-          (size_t)twist2_i >= bind_bones.size()) continue;
-
-      float roll = 0.0f;
-      if (local_hand_fore_twist_enabled()) {
-        roll = local_x_roll_delta(bind_bones[(size_t)hand_i],
-                                  character.bones[(size_t)hand_i].local);
-      } else {
-        const auto bind_world = character.bone_world_bind_local_chain(ft.hand);
-        const auto current_world = local_chain_world_for_bone(character, hand_i);
-        roll = local_x_roll_delta_between_worlds(bind_world, current_world);
-      }
-      if (!ignore_approx_fore_twist_offset_enabled())
-        roll += ft.offset_degrees * 0.01745329238474369f;
-      roll = std::remainder(roll, 6.2831854820251465f);
-
-      character.bones[(size_t)twist1_i].local = bind_bones[(size_t)twist1_i];
-      character.bones[(size_t)twist2_i].local = bind_bones[(size_t)twist2_i];
-      set_rot_x_preserve_pos(character.bones[(size_t)twist1_i].local,
-                             roll * 0.3333329856f);
-      set_rot_x_preserve_pos(character.bones[(size_t)twist2_i].local,
-                             roll * 0.5f);
-    }
-    return;
-  }
-
-  // SLUS 0x00175678: source is controller +0x0c (hand), output is +0x18
-  // (twist2). The traced function applies the authored side offset in degrees,
-  // wraps around +/- pi, then writes X-rotation helper rows.
+static void apply_source_fore_twists(Character& character) {
   for (const auto& ft : character.fore_twists) {
-    if (fore_twists_already_applied.count(ft.name)) continue;
-    apply_ps2_fore_twist(character, bind_bones, ft);
+    apply_source_fore_twist(character, ft);
   }
-
 }
 
-static void apply_ps2_upper_twists(
+static void apply_source_upper_twists(
     Character& character, const std::vector<milo_scene::Xfm>& bind_bones) {
-  if (disable_driven_twists_enabled() || approximate_driven_twists_enabled())
-    return;
-  // SLUS cadence resolves upper twist pairs later in the poll sequence, after
-  // hand IK, foretwist, hair, and look-at have had their controller ticks.
+  (void)bind_bones;
   for (const auto& ut : character.upper_twists) {
     const int upper_i = find_bone_index(character, ut.upper_arm);
     const int twist1_i = find_bone_index(character, ut.twist1);
     const int twist2_i = find_bone_index(character, ut.twist2);
     if (upper_i < 0 || twist1_i < 0 || twist2_i < 0) continue;
-    if ((size_t)upper_i >= bind_bones.size() ||
-        (size_t)twist1_i >= bind_bones.size() ||
-        (size_t)twist2_i >= bind_bones.size()) continue;
+    auto& upper = character.bones[static_cast<size_t>(upper_i)];
+    auto& twist1 = character.bones[static_cast<size_t>(twist1_i)];
+    auto& twist2 = character.bones[static_cast<size_t>(twist2_i)];
+    if (upper.parent.empty()) continue;
 
-    const milo_scene::Xfm source_local =
-        character.bones[(size_t)upper_i].local;
-    float roll = ps2_twist_angle_from_local_rows(source_local);
-    const float first_factor = 0.6660000086f;
-    const float second_factor = -0.3330000043f;
+    const auto upper_parent_world = character.bone_world_local_chain(upper.parent);
+    const auto upper_world = character.bone_world_local_chain(upper.name);
+    float q[4] = {};
+    quat_from_vec_to_vec(mat_row(upper_parent_world, 0),
+                         mat_row(upper_world, 0), q);
+    const Vec3 v68 = rotate_vec_by_quat(mat_row(upper_parent_world, 1), q);
 
-    // Accepted PCSX2 upper-twist row traces show twist1 preserving the live
-    // upper-arm X row/translation while twist2 remains its authored child
-    // helper. Both angles are derived from the same upper-arm local twist.
-    write_ps2_x_twist(character.bones[(size_t)twist1_i].local,
-                      character.bones[(size_t)upper_i].local,
-                      roll * first_factor);
-    write_ps2_x_twist(character.bones[(size_t)twist2_i].local,
-                      bind_bones[(size_t)twist2_i], roll * second_factor);
+    auto write_output = [&](milo_scene::TransObj& bone, float weight) {
+      std::array<float, 16> out_world = upper_world;
+      set_mat_row(out_world, 0, mat_row(upper_world, 0));
+      set_mat_row(out_world, 1,
+                  vadd(vscale(v68, 1.0f - weight),
+                       vscale(mat_row(upper_world, 1), weight)));
+      out_world[12] = character.bone_world_local_chain(bone.name)[12];
+      out_world[13] = character.bone_world_local_chain(bone.name)[13];
+      out_world[14] = character.bone_world_local_chain(bone.name)[14];
+      source_look_at_rows(out_world);
+      if (!bone.parent.empty()) {
+        set_local_from_world(bone.local, out_world,
+                             character.bone_world_local_chain(bone.parent));
+      } else {
+        mat4_to_xfm(out_world, bone.local);
+      }
+    };
+
+    write_output(twist1, 0.333f);
+    write_output(twist2, 0.666f);
     if (debug_ik_enabled()) {
       std::fprintf(stderr,
-                   "[twist-upper] %s source=%s upper=%s out1=%s out2=%s roll=%.4f factors=[%.4f %.4f]\n",
-                   ut.name.c_str(), ut.upper_arm.c_str(), ut.upper_arm.c_str(), ut.twist1.c_str(),
-                   ut.twist2.c_str(), roll, first_factor, second_factor);
+                   "[twist-upper-source] %s upper=%s twist1=%s twist2=%s\n",
+                   ut.name.c_str(), ut.upper_arm.c_str(), ut.twist1.c_str(),
+                   ut.twist2.c_str());
       log_debug_xfm_row("twist-upper-upper", ut.upper_arm.c_str(),
-                        character.bones[(size_t)upper_i].local,
-                        character.bone_world_local_chain(ut.upper_arm));
-      log_debug_xfm_row("twist-upper-src", ut.upper_arm.c_str(),
-                        source_local,
+                        upper.local,
                         character.bone_world_local_chain(ut.upper_arm));
       log_debug_xfm_row("twist-upper-out", ut.twist1.c_str(),
-                        character.bones[(size_t)twist1_i].local,
+                        twist1.local,
                         character.bone_world_local_chain(ut.twist1));
       log_debug_xfm_row("twist-upper-out", ut.twist2.c_str(),
-                        character.bones[(size_t)twist2_i].local,
+                        twist2.local,
                         character.bone_world_local_chain(ut.twist2));
     }
   }
@@ -2202,95 +1841,20 @@ static float effective_ik_hand_target_blend_weight(const Character& character,
   if (!ik.weight_prop.empty()) {
     const auto runtime = character.runtime_weight_props.find(ik.weight_prop);
     if (runtime != character.runtime_weight_props.end()) {
-      // PS2 CharIKHand reaches the live scalar row through base+0x10 and uses
-      // it while updating the persistent controller +0x50 target vector. The
-      // arm solve still runs against that live row at the graph's IK strength.
+      // CharIKHand::Poll blends the hand world position toward the target using
+      // the live CharWeightable scalar before the elbow and final hand writes.
       return std::clamp(runtime->second, 0.0f, 1.0f);
     }
   }
   return effective_ik_hand_solver_weight(character, ik);
 }
 
-enum class Ps2IkPollRole {
-  Fret,
-  Strum,
-  Other,
-};
-
-static bool contains_ci(const std::string& text, const char* needle) {
-  if (!needle || !*needle) return true;
-  const size_t needle_len = std::strlen(needle);
-  if (needle_len > text.size()) return false;
-  for (size_t i = 0; i + needle_len <= text.size(); ++i) {
-    size_t n = 0;
-    for (; n < needle_len; ++n) {
-      const unsigned char lhs = static_cast<unsigned char>(text[i + n]);
-      const unsigned char rhs = static_cast<unsigned char>(needle[n]);
-      if (std::tolower(lhs) != std::tolower(rhs)) break;
-    }
-    if (n == needle_len) return true;
-  }
-  return false;
-}
-
-static Ps2IkPollRole classify_ps2_ik_poll_role(const CharIKHand& ik) {
-  if (contains_ci(ik.name, "left") ||
-      contains_ci(ik.hand, "bone_l-hand") ||
-      contains_ci(ik.target, "fret") ||
-      contains_ci(ik.weight_prop, "left")) {
-    return Ps2IkPollRole::Fret;
-  }
-  if (contains_ci(ik.name, "right") ||
-      contains_ci(ik.hand, "bone_r-hand") ||
-      contains_ci(ik.target, "strum") ||
-      contains_ci(ik.weight_prop, "right")) {
-    return Ps2IkPollRole::Strum;
-  }
-  return Ps2IkPollRole::Other;
-}
-
-static std::vector<const CharIKHand*> ps2_ordered_ik_hands(
-    const Character& character) {
-  std::vector<const CharIKHand*> ordered;
-  ordered.reserve(character.ik_hands.size());
-  bool has_fret = false;
-  bool has_strum = false;
-  for (const auto& ik : character.ik_hands) {
-    ordered.push_back(&ik);
-    const Ps2IkPollRole role = classify_ps2_ik_poll_role(ik);
-    has_fret = has_fret || role == Ps2IkPollRole::Fret;
-    has_strum = has_strum || role == Ps2IkPollRole::Strum;
-  }
-  if (!has_fret || !has_strum) return ordered;
-
-  auto rank = [](const CharIKHand* ik) {
-    switch (classify_ps2_ik_poll_role(*ik)) {
-      case Ps2IkPollRole::Fret:
-        return 0;
-      case Ps2IkPollRole::Strum:
-        return 1;
-      case Ps2IkPollRole::Other:
-      default:
-        return 2;
-    }
-  };
-  std::stable_sort(ordered.begin(), ordered.end(),
-                   [&](const CharIKHand* lhs, const CharIKHand* rhs) {
-                     return rank(lhs) < rank(rhs);
-                   });
-  return ordered;
-}
-
-static void apply_ps2_ik_hand_targets(
-    Character& character, const std::vector<milo_scene::Xfm>& bind_bones,
-    std::unordered_set<std::string>& fore_twists_applied) {
-  // SLUS 0x0017a080 resolves the controller +0x20/+0x2c Trans refs, blends the
-  // target world row into controller +0x50, writes a cosine-law Z bend into the
-  // hand parent, then uses 0x002dad00/0x002daa30 vector-to-vector quaternion
-  // rows to swing the upper arm before dirtying the Trans chain.
-  const auto ik_hands = ps2_ordered_ik_hands(character);
-  for (const CharIKHand* ik_ptr : ik_hands) {
-    const CharIKHand& ik = *ik_ptr;
+static void apply_source_ik_hands(
+    Character& character, const std::vector<milo_scene::Xfm>& bind_bones) {
+  // Port of ihatecompvir's CharIKHand::Poll/IKElbow dataflow: resolve the
+  // authored hand/target Trans rows, blend mWorldDst, solve the elbow chain,
+  // then publish the final hand world row when orientation or stretch is set.
+  for (const CharIKHand& ik : character.ik_hands) {
     const int hand_i = find_bone_index(character, ik.hand);
     const float solver_weight =
         effective_ik_hand_solver_weight(character, ik);
@@ -2299,7 +1863,7 @@ static void apply_ps2_ik_hand_targets(
     if (hand_i < 0 || solver_weight <= 0.0f) {
       if (debug_ik_enabled()) {
         std::fprintf(stderr,
-                     "[ik-ps2] %s skipped hand=%s solveWeight=%.3f "
+                     "[ik-source] %s skipped hand=%s solveWeight=%.3f "
                      "targetBlend=%.5f hand_found=%d\n",
                      ik.name.c_str(), ik.hand.c_str(), solver_weight,
                      target_blend_weight, hand_i >= 0 ? 1 : 0);
@@ -2361,17 +1925,15 @@ static void apply_ps2_ik_hand_targets(
     float fore_len = authored_fore_len;
     const Vec3 to_target = vsub(target, shoulder);
     const float raw_dist = vlen(to_target);
-    // `stretch` is a final Trans branch in SLUS 0x0017a080: controller
-    // +0x3c replaces the final hand matrix translation with the live target
-    // vector at controller +0x50. It does not rewrite the hand child local
-    // length used by the elbow bend or later foretwist source rows.
+    // `stretch` is the final CharIKHand hand-world write. It does not rewrite
+    // the hand child local length used by IKElbow or later foretwist rows.
     const float max_reach = upper_len + fore_len - 0.001f;
     const float min_reach = std::fabs(upper_len - fore_len) + 0.001f;
     const float dist = std::clamp(raw_dist, min_reach, max_reach);
     const float dist2 = dist * dist;
-    // SLUS 0x0017a558 precomputes (upper^2 + fore^2) and 1/(2*upper*fore);
-    // 0x0017a080 then writes cos = (dist^2 - sum) * inv into the forearm
-    // Z-bend rows. The sampled PS2 rows are [cos, -sin; sin, cos].
+    // CharIKHand::MeasureLengths computes len^2 + parentlen^2 and
+    // 1/(2*len*parentlen); IKElbow derives the cosine/sine bend from the
+    // current shoulder-to-destination distance.
     const float cos_elbow = std::clamp(
         (dist2 - upper_len * upper_len - fore_len * fore_len) /
             (2.0f * upper_len * fore_len),
@@ -2380,7 +1942,7 @@ static void apply_ps2_ik_hand_targets(
         std::sqrt(std::max(0.0f, 1.0f - cos_elbow * cos_elbow));
 
     milo_scene::Xfm solved_fore = fore.local;
-    write_ps2_z_bend(solved_fore, fore_local0, cos_elbow, sin_elbow);
+    write_source_elbow_z_bend(solved_fore, fore_local0, cos_elbow, sin_elbow);
     for (int r = 0; r < 3; ++r)
       for (int c = 0; c < 3; ++c)
         fore.local.rot[r][c] =
@@ -2402,51 +1964,20 @@ static void apply_ps2_ik_hand_targets(
     quat_from_vec_to_vec(current_local, target_local, swing_quat);
     float swing_rot[3][3] = {};
     quat_to_rot(swing_quat, swing_rot);
-    const bool transpose_swing = ps2_ik_swing_transpose_enabled();
-    const bool postmultiply_swing = ps2_ik_swing_postmultiply_enabled();
-    const bool aimed_swing = ps2_ik_aimed_swing_enabled();
-    if (aimed_swing) {
-      const auto upper_parent_world =
-          character.bone_world_local_chain(upper.parent);
-      const auto upper_desired_world = aim_preserve_xfm(
-          shoulder, vsub(mat_pos(hand_world_after_bend), shoulder),
-          vsub(target, shoulder), upper_world_after_bend);
-      milo_scene::Xfm solved_upper = upper.local;
-      set_local_from_world(solved_upper, upper_desired_world,
-                           upper_parent_world);
-      for (int r = 0; r < 3; ++r) {
-        for (int c = 0; c < 3; ++c) {
-          upper.local.rot[r][c] =
-              upper.local.rot[r][c] * (1.0f - solver_weight) +
-              solved_upper.rot[r][c] * solver_weight;
-        }
-      }
-      normalize_xfm_rows(upper.local);
-    } else if (postmultiply_swing) {
-      if (transpose_swing) transpose_rot3(swing_rot);
-      post_multiply_local_rot(upper.local, upper_local0, swing_rot,
-                              solver_weight);
-    } else {
-      if (transpose_swing) transpose_rot3(swing_rot);
-      // The accepted PS2 traces call vector-to-quat/quat-to-matrix and then
-      // dirty the driven Trans row. In the native row-vector skeleton this
-      // corresponds to applying the helper matrix before the authored local
-      // row; postmultiply is retained only for A/B diagnostics.
-      pre_multiply_local_rot(upper.local, upper_local0, swing_rot,
-                             solver_weight);
-    }
+    // CharIKHand::IKElbow calls MakeRotQuat/MakeRotMatrix and writes
+    // Multiply(ma0, trans2->LocalXfm().m, trans2->DirtyLocalXfm().m).
+    pre_multiply_local_rot(upper.local, upper_local0, swing_rot,
+                           solver_weight);
 
     const auto hand_world_before_final =
         character.bone_world_local_chain(hand.name);
     const float pre_final_error =
         vlen(vsub(mat_pos(hand_world_before_final), target));
 
-    const bool write_final =
-        !ps2_ik_hand_final_disabled() &&
-        (ik.stretch || ik.orientation || ps2_ik_hand_position_enabled());
+    const bool write_final = ik.stretch || ik.orientation;
     if (write_final) {
       std::array<float, 16> solved_world = character.bone_world_local_chain(hand.name);
-      if (ik.orientation && !ps2_ik_hand_final_orientation_disabled()) {
+      if (ik.orientation) {
         std::array<float, 16> desired_orientation = target_world;
         for (int r = 0; r < 3; ++r) {
           for (int c = 0; c < 3; ++c) {
@@ -2456,8 +1987,7 @@ static void apply_ps2_ik_hand_targets(
           }
         }
       }
-      if ((ik.stretch || ps2_ik_hand_position_enabled()) &&
-          !ps2_ik_hand_final_position_disabled()) {
+      if (ik.stretch) {
         solved_world[12] = solved_world[12] * (1.0f - solver_weight) +
                            target_world[12] * solver_weight;
         solved_world[13] = solved_world[13] * (1.0f - solver_weight) +
@@ -2466,11 +1996,9 @@ static void apply_ps2_ik_hand_targets(
                            target_world[14] * solver_weight;
       }
       normalize_mat3_rows(solved_world);
-      // SLUS final hand closure calls the shared Trans writer with a resolved
-      // matrix. Accepted row traces show hand world rows matching the
-      // destination while hand local rows remain distinct, so native keeps the
-      // authored local row for the following CharForeTwist and exposes only the
-      // live world row through the transient Trans bridge.
+      // CharIKHand::Poll closes with SetWorldXfm(tf). Native keeps the
+      // authored local row available to later source controllers and exposes
+      // the live hand world row through the transient Trans bridge.
       character.runtime_world_overrides[hand.name] = solved_world;
     }
 
@@ -2481,7 +2009,7 @@ static void apply_ps2_ik_hand_targets(
       const auto fore_world_post = character.bone_world_local_chain(fore.name);
       const auto hand_world_post = character.bone_world_local_chain(hand.name);
       std::fprintf(stderr,
-                   "[ik-ps2-swing] %s hand=%s target=%s currentLocal=[%.5f %.5f %.5f] targetLocal=[%.5f %.5f %.5f] quat=[%.5f %.5f %.5f %.5f]\n",
+                   "[ik-source-swing] %s hand=%s target=%s currentLocal=[%.5f %.5f %.5f] targetLocal=[%.5f %.5f %.5f] quat=[%.5f %.5f %.5f %.5f]\n",
                    ik.name.c_str(), ik.hand.c_str(), ik.target.c_str(),
                    current_local.x, current_local.y, current_local.z,
                    target_local.x, target_local.y, target_local.z,
@@ -2516,49 +2044,39 @@ static void apply_ps2_ik_hand_targets(
                    raw_target.z, target.x, target.y, target.z,
                    previous_live.x, previous_live.y, previous_live.z,
                    target_blend_weight);
-      log_debug_world_row("ik-ps2-preswing-upper", upper.name.c_str(),
+      log_debug_world_row("ik-source-preswing-upper", upper.name.c_str(),
                           upper_world_after_bend);
-      log_debug_world_row("ik-ps2-preswing-hand", hand.name.c_str(),
+      log_debug_world_row("ik-source-preswing-hand", hand.name.c_str(),
                           hand_world_after_bend);
       std::fprintf(stderr,
-                   "[ik-ps2] %s hand=%s target=%s solveWeight=%.3f targetBlend=%.5f hand=[%.2f %.2f %.2f] target=[%.2f %.2f %.2f] len=(%.2f %.2f) dist=%.2f cos=%.3f swing=%s%s final=%d orient=%d stretch=%d bendParent=%s upper=%s\n",
+                   "[ik-source] %s hand=%s target=%s solveWeight=%.3f targetBlend=%.5f hand=[%.2f %.2f %.2f] target=[%.2f %.2f %.2f] len=(%.2f %.2f) dist=%.2f cos=%.3f swing=source-pre final=%d orient=%d stretch=%d bendParent=%s upper=%s\n",
                    ik.name.c_str(), ik.hand.c_str(), ik.target.c_str(),
                    solver_weight, target_blend_weight, hp.x, hp.y, hp.z,
                    tp.x, tp.y, tp.z, upper_len, fore_len, raw_dist, cos_elbow,
-                   aimed_swing ? "aim" : (postmultiply_swing ? "post" : "pre"),
-                   transpose_swing ? "+T" : "",
                    write_final ? 1 : 0, ik.orientation ? 1 : 0,
                    ik.stretch ? 1 : 0,
                    fore.name.c_str(), upper.name.c_str());
       std::fprintf(stderr,
-                   "[ik-ps2-error] %s preFinalError=%.4f "
+                   "[ik-source-error] %s preFinalError=%.4f "
                    "preFinal=[%.2f %.2f %.2f]\n",
                    ik.name.c_str(), pre_final_error,
                    hand_world_before_final[12], hand_world_before_final[13],
                    hand_world_before_final[14]);
-      log_debug_xfm_row("ik-ps2-row", upper.name.c_str(), upper.local,
+      log_debug_xfm_row("ik-source-row", upper.name.c_str(), upper.local,
                         upper_world_post);
-      log_debug_xfm_row_short("ik-ps2-row", upper.name.c_str(),
+      log_debug_xfm_row_short("ik-source-row", upper.name.c_str(),
                               upper.local);
-      log_debug_xfm_row("ik-ps2-row", fore.name.c_str(), fore.local,
+      log_debug_xfm_row("ik-source-row", fore.name.c_str(), fore.local,
                         fore_world_post);
-      log_debug_xfm_row_short("ik-ps2-row", fore.name.c_str(),
+      log_debug_xfm_row_short("ik-source-row", fore.name.c_str(),
                               fore.local);
-      log_debug_xfm_row("ik-ps2-row", hand.name.c_str(), hand.local,
+      log_debug_xfm_row("ik-source-row", hand.name.c_str(), hand.local,
                         hand_world_post);
-      log_debug_xfm_row_short("ik-ps2-row", hand.name.c_str(),
+      log_debug_xfm_row_short("ik-source-row", hand.name.c_str(),
                               hand.local);
-      log_debug_world_row("ik-ps2-target", ik.target.c_str(), target_world);
+      log_debug_world_row("ik-source-target", ik.target.c_str(), target_world);
     }
 
-    // Accepted active-song traces poll guitarist hand IK as fret/left followed
-    // by strum/right, with each hand immediately followed by its matching
-    // foretwist. Unknown/non-instrument roles keep their decoded order.
-    for (const auto& ft : character.fore_twists) {
-      if (!channel_matches_bone(ft.hand, ik.hand)) continue;
-      if (apply_ps2_fore_twist(character, bind_bones, ft))
-        fore_twists_applied.insert(ft.name);
-    }
   }
 }
 
@@ -2637,10 +2155,10 @@ static void apply_pending_pose(const PendingPose& pose, milo_scene::Xfm& local,
     }
   }
   // Hand .pos channels are authored as IK targets; applying them as local FK
-  // offsets tears the forearm/hand chain. Until the arm IK solver is present,
-  // keep the bind translation and apply the keyed hand rotation only.
+  // offsets tears the forearm/hand chain. CharIKHand publishes the live hand
+  // world row after the clip pass.
   if (pose.pos &&
-      (apply_hand_pos_enabled() || !is_hand_bone(pose.pos->bone_name) ||
+      (!is_hand_bone(pose.pos->bone_name) ||
        is_ik_hand_target_bone(pose.pos->bone_name))) {
     if (relative) {
       local.pos[0] += pose.pos->pos[0];
@@ -2734,7 +2252,7 @@ static void apply_pending_pose_weighted(const PendingPose& pose,
     }
   }
   if (pose.pos &&
-      (apply_hand_pos_enabled() || !is_hand_bone(pose.pos->bone_name) ||
+      (!is_hand_bone(pose.pos->bone_name) ||
        is_ik_hand_target_bone(pose.pos->bone_name))) {
     if (relative) {
       local.pos[0] += pose.pos->pos[0] * weight;
@@ -2917,18 +2435,18 @@ static bool charbone_output_layer_enabled() {
 #endif
 }
 
-static bool charbone_lower_body_output_disabled() {
+static bool charbone_lower_body_output_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
   size_t len = 0;
-  const bool disabled =
+  const bool enabled =
       _dupenv_s(&value, &len,
-                "GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT") == 0 &&
+                "GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT") == 0 &&
       value && value[0];
   std::free(value);
-  return disabled;
+  return enabled;
 #else
-  const char* value = std::getenv("GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT");
+  const char* value = std::getenv("GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT");
   return value && value[0];
 #endif
 }
@@ -3138,7 +2656,7 @@ static bool apply_clip_pose_output_layer(
   const bool face_output_layer = charbone_face_output_enabled();
   const bool lower_body_only =
       charbone_output_lower_body_only_enabled() ||
-      (!full_output_layer && !charbone_lower_body_output_disabled());
+      charbone_lower_body_output_enabled();
   for (const auto& ch : channels) {
     const auto it = by_key.find(strip_transform_suffix(ch.bone_name));
     if (it == by_key.end()) {
@@ -3182,7 +2700,8 @@ static bool apply_clip_pose_output_layer(
 
   dump_charbone_output_map(character, nodes, by_key, node_driven);
 
-  if (!full_output_layer && !lower_body_only && !face_output_layer) {
+  if (!force_selected_output && !full_output_layer && !lower_body_only &&
+      !face_output_layer) {
     return false;
   }
 
@@ -3237,8 +2756,8 @@ static bool apply_clip_pose_output_layer(
             });
   for (const auto& update : updates) {
     auto& target = character.bones[static_cast<size_t>(update.target_index)];
-    // Accepted GH2/GH1 bridge traces show the clip/work-block output reaches
-    // live Trans rows as local-row writes followed by dirty/world propagation.
+    // Only explicitly selected hand output and opt-in diagnostics write this
+    // reconstructed CharBone output graph until the source runtime is known.
     target.local = update.desired_local;
   }
 
@@ -3280,10 +2799,10 @@ static void apply_hand_driver_output_layer(
 
   // Hand-driver clips carry their own CharBone output graph. The first-level
   // fingers are authored under bone_strum_hand/bone_fret_hand, while the live
-  // mesh skeleton keeps them under bone_R-hand/bone_L-hand. PS2 CharIKHand
-  // mounts the live hand onto that target after this clip pass, so the child
-  // rows must stay in hand-local space here; bridging through the pre-IK parent
-  // applies the offset a second time once the hand reaches the target.
+  // mesh skeleton keeps them under bone_R-hand/bone_L-hand. CharIKHand mounts
+  // the live hand onto that target after this clip pass, so the child rows must
+  // stay in hand-local space here; bridging through the pre-IK parent applies
+  // the offset a second time once the hand reaches the target.
   apply_clip_pose_output_layer(hand_channels, 1.0f, character, relative,
                                hand_output_bones, true);
 }
@@ -3472,10 +2991,8 @@ void apply_character_controllers(Character& character, float time_seconds,
     bind_bones.reserve(character.bones.size());
     for (const auto& b : character.bones) bind_bones.push_back(b.local);
   }
-  std::unordered_set<std::string> fore_twists_applied;
-  if (ps2_ik_hands_enabled())
-    apply_ps2_ik_hand_targets(character, bind_bones, fore_twists_applied);
-  apply_driven_twists(character, bind_bones, fore_twists_applied);
+  apply_source_ik_hands(character, bind_bones);
+  apply_source_fore_twists(character);
   apply_char_hair(character, time_seconds);
 
   if (debug_face_enabled()) {
@@ -3512,7 +3029,7 @@ void apply_character_controllers(Character& character, float time_seconds,
     }
   }
 
-  apply_ps2_upper_twists(character, bind_bones);
+  apply_source_upper_twists(character, bind_bones);
 }
 
 void apply_clip_pose(const std::vector<ClipChannel>& channels, Character& character) {

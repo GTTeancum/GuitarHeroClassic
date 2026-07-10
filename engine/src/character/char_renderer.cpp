@@ -390,6 +390,27 @@ bool is_guitar_strings_prop_mesh(const std::string& name) {
   return name == "guitar_strings.mesh";
 }
 
+std::string lower_copy(std::string text) {
+  std::transform(text.begin(), text.end(), text.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return text;
+}
+
+bool has_hair_token(const std::string& text) {
+  return lower_copy(text).find("hair") != std::string::npos;
+}
+
+bool is_hair_two_sided_surface(
+    const SkinnedMesh* mesh,
+    const ghogx::milo_scene::MatObj* material = nullptr) {
+  if (mesh && (has_hair_token(mesh->name) ||
+               has_hair_token(mesh->material))) {
+    return true;
+  }
+  return material && (has_hair_token(material->name) ||
+                      has_hair_token(material->diffuse_tex));
+}
+
 bool debug_meshes_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -420,9 +441,7 @@ bool debug_texture_alpha_enabled() {
 }
 
 DWORD character_cull_mode(
-    const SkinnedMesh* mesh = nullptr,
     const ghogx::milo_scene::MatObj* material = nullptr) {
-  (void)mesh;
 #ifdef _MSC_VER
   char* value = nullptr;
   size_t len = 0;
@@ -1533,7 +1552,9 @@ void CharRenderer::draw_impl(bool clear_target) {
                                              impl.min_lod)) continue;
     const bool eye_mesh = is_eye_mesh(m.name);
     const milo_scene::MatObj* material = impl.character.find_mat(m.material);
-    const DWORD mesh_cull_mode = character_cull_mode(&m, material);
+    const bool hair_two_sided = is_hair_two_sided_surface(&m, material);
+    const DWORD mesh_cull_mode =
+        hair_two_sided ? D3DCULL_NONE : character_cull_mode(material);
     dev->SetRenderState(D3DRS_CULLMODE, mesh_cull_mode);
     dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
     dev->SetRenderState(
@@ -1858,7 +1879,7 @@ void CharRenderer::draw_impl(bool clear_target) {
                    "[mesh-render] %-24s mat=%-18s blend=%d "
                    "zwrite=%d ngCull=%d cullMode=%lu src=%lu dst=%lu "
                    "op=%lu drawOrder=%.3f groupRank=%d alphaTest=%d alphaCut=%d "
-                   "alphaRef=%lu zMode=%u texWrap=%u\n",
+                   "alphaRef=%lu zMode=%u texWrap=%u hairTwoSided=%d\n",
                    m.name.c_str(), m.material.c_str(),
                     static_cast<int>(material_blend),
                     depth_write ? 1 : 0,
@@ -1879,7 +1900,8 @@ void CharRenderer::draw_impl(bool clear_target) {
                        : 0,
                    material && material->has_render_state
                        ? static_cast<unsigned>(material->tex_wrap)
-                       : 1);
+                       : 1,
+                   hair_two_sided ? 1 : 0);
     }
     float mesh_alpha =
         material ? material->color[3] * impl.color_mod[3] : impl.color_mod[3];
@@ -1944,10 +1966,21 @@ void CharRenderer::draw_impl(bool clear_target) {
       s.v = m.verts[vi].v;
       vb.push_back(s);
     }
-    dev->DrawIndexedPrimitiveUP(
-        D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m.verts.size()),
-        static_cast<UINT>(m.indices.size() / 3), m.indices.data(),
-        D3DFMT_INDEX16, vb.data(), sizeof(SVtx));
+    auto draw_current_mesh = [&]() {
+      dev->DrawIndexedPrimitiveUP(
+          D3DPT_TRIANGLELIST, 0, static_cast<UINT>(m.verts.size()),
+          static_cast<UINT>(m.indices.size() / 3), m.indices.data(),
+          D3DFMT_INDEX16, vb.data(), sizeof(SVtx));
+    };
+    if (hair_two_sided) {
+      dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
+      draw_current_mesh();
+      dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+      draw_current_mesh();
+      dev->SetRenderState(D3DRS_CULLMODE, mesh_cull_mode);
+    } else {
+      draw_current_mesh();
+    }
   }
   dev->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
   dev->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);

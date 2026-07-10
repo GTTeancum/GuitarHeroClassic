@@ -121,14 +121,16 @@ int main() {
                  "node_driven[i]=true;}}}",
                  "hand output applies authored constant bone_fret_hand rows");
   ok &= contains(char_clip_c,
-                 "constautoik_hands=ps2_ordered_ik_hands(character);",
-                 "PS2 IK hand polling order is used");
+                 "staticvoidapply_source_ik_hands(Character&character,"
+                 "conststd::vector<milo_scene::Xfm>&bind_bones)",
+                 "source CharIKHand polling path is used");
   ok &= contains(char_clip_c,
-                 "casePs2IkPollRole::Fret:return0;",
-                 "fret IK solves before strum IK");
+                 "for(constCharIKHand&ik:character.ik_hands)",
+                 "source CharIKHand polling uses decoded controller order");
   ok &= contains(char_clip_c,
-                 "casePs2IkPollRole::Strum:return1;",
-                 "strum IK solves after fret IK");
+                 "apply_source_ik_hands(character,bind_bones);"
+                 "apply_source_fore_twists(character);",
+                 "source CharIKHand solve precedes source foretwist polling");
   ok &= appears_before(
       solver_weight_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",
@@ -245,11 +247,16 @@ int main() {
                  "key.find(\"-ankle\")!=std::string::npos",
                  "lower-body output bridge keeps traced ankle rows");
   ok &= contains(char_clip_c,
-                 "(!full_output_layer&&!charbone_lower_body_output_disabled())",
-                 "lower-body CharBone output bridge is enabled by default");
+                 "charbone_output_lower_body_only_enabled()||"
+                 "charbone_lower_body_output_enabled()",
+                 "lower-body CharBone output bridge is opt-in only");
   ok &= contains(char_clip_c,
-                 "\"GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT\"",
-                 "lower-body CharBone bridge has an explicit A/B disable switch");
+                 "\"GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT\"",
+                 "lower-body CharBone bridge has an explicit diagnostic enable switch");
+  ok &= contains(char_clip_c,
+                 "if(!force_selected_output&&!full_output_layer&&"
+                 "!lower_body_only&&!face_output_layer){returnfalse;}",
+                 "selected hand output does not depend on lower-body bridge");
 
   if (!ok) {
     std::cerr
