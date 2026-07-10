@@ -3673,6 +3673,15 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
             start + filter.offset_frame + span * progress, start, end);
         return std::clamp((frame - start) / span, 0.0f, 1.0f);
       };
+  auto source_peak_alpha_frame =
+      [](const std::vector<AlphaAnimKey>& keys, float fallback_frame) {
+        if (keys.empty()) return fallback_frame;
+        const AlphaAnimKey* best = &keys.front();
+        for (const AlphaAnimKey& key : keys) {
+          if (key.alpha > best->alpha) best = &key;
+        }
+        return best->frame;
+      };
 
   const bool ready = fill >= 0.5f;
   const bool tube_glow = ready || star_power_active;
@@ -3687,7 +3696,9 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
       star_tube_meter_filter_, fill, star_tube_meter_anim_duration_);
   const float tube_glow_anim_frame = source_filter_frame(
       star_tube_glow_filter_, fill, star_tube_glow_anim_duration_);
-  const float tube_meter_alpha_frame = tube_meter_anim_frame;
+  const float tube_meter_alpha_frame =
+      source_peak_alpha_frame(star_tube_meter_alpha_keys_,
+                              tube_meter_anim_frame);
   const float tube_glow_alpha_frame = tube_glow_anim_frame;
   const float tube_glow_mesh_frame =
       native_star_ready_mesh_glow_.empty()
@@ -4192,6 +4203,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "body_fill_mode=inside_bar_core_plus_tube_meter_glow "
         "core_fill_mode=clipped_left_to_right "
         "core_color_mode=settled_lit_key_width_driven "
+        "tube_meter_alpha_mode=source_peak_width_driven "
         "tube_meter_mode=scaled_left_to_right_full_uv "
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core "

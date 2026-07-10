@@ -10164,3 +10164,16 @@ Rejected native probe:
   keeping `amp_inside_bar_path.mesh` explicitly labeled as the persistent thin
   path line. This is a guardrail only: no replacement art, generated fill, or
   non-MILO overlay was introduced.
+
+2026-07-10 star-meter tube-meter alpha clock split:
+- Rechecked the current native proof against the settled no-focus PCSX2 forced
+  fill oracle. The PCSX2 value writes change the visible filled width, but the
+  stored body stays lit; treating the stored fill percentage as the
+  `amp_tube_glow_meter.mnm` alpha frame dims the original wide glow as the
+  meter grows.
+- Native now uses the brightest decoded source alpha key from
+  `amp_tube_glow_meter.mnm` for the steady wide fill-glow opacity and keeps
+  fill percentage only for left-to-right width. This uses the original
+  `amp_tube_glow_meter.mesh` / `amp_tube_glow_meter.mat` /
+  `hud_meter_top_glow.tex` layer and source alpha key; no replacement fill,
+  tuned opacity, or generated overlay was added.

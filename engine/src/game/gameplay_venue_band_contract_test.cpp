@@ -1458,8 +1458,17 @@ int main() {
                  "\"sort_order=star_meter_view_child_order_then_ready_view\"",
                  "star-power diagnostics report the source-order sort path");
   ok &= contains(hud_renderer_c,
-                 "constfloattube_meter_alpha_frame=tube_meter_anim_frame;",
-                 "star-power tube-meter alpha samples the live source MatAnim frame");
+                 "constfloattube_meter_alpha_frame="
+                 "source_peak_alpha_frame(star_tube_meter_alpha_keys_,"
+                 "tube_meter_anim_frame);",
+                 "star-power tube-meter alpha uses source-authored brightness instead of fill as an alpha clock");
+  ok &= contains(hud_renderer_c,
+                 "source_peak_alpha_frame(star_tube_meter_alpha_keys_,"
+                 "tube_meter_anim_frame)",
+                 "star-power tube-meter alpha uses the source peak key while width remains fill-driven");
+  ok &= contains(hud_renderer_c,
+                 "\"tube_meter_alpha_mode=source_peak_width_driven\"",
+                 "star-power diagnostics report source peak alpha for the wide fill glow");
   ok &= contains(hud_renderer_c,
                  "constfloattube_glow_alpha_frame=tube_glow_anim_frame;",
                  "star-power ready tube alpha samples the live source MatAnim frame");
