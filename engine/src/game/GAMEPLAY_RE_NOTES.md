@@ -9930,3 +9930,28 @@ Rejected native probe:
   `core_emit4x=1`.
 - Caveat: this corrects the layer role split. Exact thin-line thickness, core
   width, and glass/material contrast still need source GS-stage/blend tracing.
+
+2026-07-09 star-meter fill-vs-path rejection checkpoint:
+- Rechecked the user's observation against the PCSX2 forced-fill oracle: the
+  thin blue `amp_inside_bar_path.mesh` / `amp_inside_star_path.mat` /
+  `amp_bar_glow.tex` layer is present across the tube, but it is not the
+  stored star-power fill body. The broad fill is still the clipped
+  `amp_inside_bar.mesh` / `amp_inside_star.mat` / `amp_inside_bar.tex` source
+  core.
+- Tested a source-only variant that kept the path layer demoted to a single
+  non-promoted line but drove its decoded `amp_inside_star.mnm` U translation
+  from fill again. That was rejected: it creates moving blue blocks at
+  `0.25`, `0.50`, `0.75`, and `1.00`, while PCSX2 keeps the filled mass
+  anchored left and growing right. Native is therefore back on the anchored
+  first-key path UV (`path_uv_frame=0.00 path_uv=(-0.400,0.000)`).
+- Evidence artifacts:
+  `engine/out/star_power_trace_evidence_20260709/native_star_thick_fill_recheck_current/`
+  contains the current anchored-path captures/logs plus
+  `native_star_thick_fill_recheck_compare_proof.png`.
+  `engine/out/star_power_trace_evidence_20260709/native_star_path_filluv_line_variant/`
+  contains the rejected fill-driven-path-UV captures/logs plus
+  `native_star_path_filluv_line_compare_proof.png`.
+- Remaining source-backed work: trace the original GS/material stage for
+  `amp_inside_bar.mesh` and `amp_inside_bar_path.mesh` in PCSX2, because the
+  native layer roles are now correct but the path-line footprint/contrast and
+  broad core brightness still do not visually match the stock tube.
