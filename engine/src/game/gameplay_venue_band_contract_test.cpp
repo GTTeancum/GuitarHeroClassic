@@ -1297,7 +1297,7 @@ int main() {
       hud_renderer_c,
       "drew_native_fill|=append_clipped_fill(native_star_fill_,"
       "fill_core_color,1.0f,core_fill_range);",
-      "drew_native_fill_glow=append_scaled_fill(native_star_fill_glow_,"
+      "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
       "std::nullopt,tube_meter_alpha,tube_meter_range);",
       "star-power tube-meter ready-view glow overlays the broad source core");
   ok &= appears_before(
@@ -1319,7 +1319,7 @@ int main() {
                  "star-power diagnostics report the source core additive emission pass");
   ok &= appears_before(
       hud_renderer_c,
-      "drew_native_fill_glow=append_scaled_fill(native_star_fill_glow_,"
+      "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
       "std::nullopt,tube_meter_alpha,tube_meter_range);",
       "\"[hud-star-power]fill=%.3fready=%dactive=%dtube_glow=%d",
       "star-power diagnostics run after the source tube-meter glow append");
@@ -1390,10 +1390,10 @@ int main() {
                  "if(tube_glow){if(!native_star_ready_mesh_glow_.empty()){",
                  "star-power ready view owns the source tube glow draw path");
   ok &= contains(hud_renderer_c,
-                 "drew_native_fill_glow=append_scaled_fill("
+                 "drew_native_fill_glow=append_clipped_fill("
                  "native_star_fill_glow_,std::nullopt,tube_meter_alpha,"
                  "tube_meter_range);",
-                 "star-power tube-meter glow draw scales the source glow mesh");
+                 "star-power tube-meter glow draw clips the source glow mesh without sliding source UVs");
   ok &= contains(hud_renderer_c,
                  "constboolmeter_fill_glow=fill>0.005f;",
                  "star-power tube-meter glow follows stored fill rather than only ready state");
@@ -1428,8 +1428,8 @@ int main() {
                  "\"core_color_mode=settled_lit_key_width_driven\"",
                  "star-power diagnostics distinguish settled core color from fill-driven width");
   ok &= contains(hud_renderer_c,
-                 "\"tube_meter_mode=scaled_left_to_right_full_uv\"",
-                 "star-power tube-meter glow preserves full source UVs while scaling left-to-right");
+                 "\"tube_meter_mode=clipped_left_to_right_source_uv\"",
+                 "star-power tube-meter glow preserves source UV placement while revealing left-to-right");
   ok &= contains(hud_renderer_c,
                  "\"fill_color_keys=%zufirst=(%.3f,%.3f,%.3f,%.3f@%.2f)\"",
                  "star-power diagnostics expose the decoded source broad-fill color keys");
@@ -1443,8 +1443,8 @@ int main() {
                  "\"core_fill_layer=amp_inside_bar.meshclipped\"",
                  "star-power diagnostics keep the source core bound to amp_inside_bar clipping");
   ok &= contains(hud_renderer_c,
-                 "\"wide_fill_layer=amp_tube_glow_meter.meshscaled\"",
-                 "star-power diagnostics keep the wide fill bound to amp_tube_glow_meter scaling");
+                 "\"wide_fill_layer=amp_tube_glow_meter.meshclipped\"",
+                 "star-power diagnostics keep the wide fill bound to amp_tube_glow_meter clipping");
   ok &= contains(hud_renderer_c,
                  "\"thin_path_layer=amp_inside_bar_path.meshfull_width\"",
                  "star-power diagnostics keep the thin blue path line full-width");
@@ -1479,7 +1479,7 @@ int main() {
   ok &= appears_before(
       hud_renderer_c,
       "if(tube_glow){",
-      "drew_native_fill_glow=append_scaled_fill(native_star_fill_glow_,"
+      "drew_native_fill_glow=append_clipped_fill(native_star_fill_glow_,"
       "std::nullopt,tube_meter_alpha,tube_meter_range);",
       "star-power ready tube glow emits before tube-meter glow like star_meter_ready.view");
   ok &= contains(hud_renderer_c,

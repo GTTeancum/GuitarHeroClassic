@@ -10177,3 +10177,18 @@ Rejected native probe:
   `amp_tube_glow_meter.mesh` / `amp_tube_glow_meter.mat` /
   `hud_meter_top_glow.tex` layer and source alpha key; no replacement fill,
   tuned opacity, or generated overlay was added.
+
+2026-07-10 star-meter tube-meter source-UV clipped reveal:
+- User review caught that the previous `amp_tube_glow_meter.mesh` scaling pass
+  made the thicker fill content slide instead of staying anchored at the
+  already-filled left side. The always-present thin blue line remains
+  `amp_inside_bar_path.mesh`; the thicker stored body is the source
+  `amp_inside_bar.mesh` core plus the source `amp_tube_glow_meter.mesh` glow.
+- Native now reveals `amp_tube_glow_meter.mesh` with the same left-to-right
+  source-UV clip path used by the core instead of rescaling the mesh into the
+  filled span. That preserves the original texture placement: the left side
+  remains filled, and higher stored-star-power values expose more of the
+  decoded source layer toward the right cap.
+- This supersedes the earlier "scaled full UV" experiment. It removes that
+  renderer-only scaling path and keeps the fix bound to the original MILO mesh,
+  material, texture, alpha key, and clip range.
