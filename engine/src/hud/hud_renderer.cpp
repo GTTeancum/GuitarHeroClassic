@@ -3806,7 +3806,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   auto append_clipped_quad =
       [&](const Quad& src, const std::optional<uint32_t>& color_override,
           IDirect3DTexture9* texture_override, float alpha_scale,
-          const StarClipRange& clip_range) {
+          const StarClipRange& clip_range,
+          bool remap_u_to_visible_span = false) {
         if (src.verts.size() < 3 || src.idx.size() < 3) return false;
         float min_x = clip_range.min_x;
         float max_x = clip_range.max_x;
@@ -3888,17 +3889,51 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
           }
         }
         if (clipped.verts.size() < 3 || clipped.idx.size() < 3) return false;
+        if (remap_u_to_visible_span && max_x > clip_x + 0.0001f) {
+          auto endpoint_u = [&](float endpoint_x) {
+            float sum = 0.0f;
+            int count = 0;
+            const float epsilon = std::max((max_x - min_x) * 0.0025f, 0.0001f);
+            for (const Quad::V& v : src.verts) {
+              if (std::fabs(v.wx - endpoint_x) <= epsilon) {
+                sum += v.u;
+                ++count;
+              }
+            }
+            if (count > 0) return sum / static_cast<float>(count);
+            const Quad::V* best = &src.verts.front();
+            float best_dist = std::fabs(best->wx - endpoint_x);
+            for (const Quad::V& v : src.verts) {
+              const float dist = std::fabs(v.wx - endpoint_x);
+              if (dist < best_dist) {
+                best = &v;
+                best_dist = dist;
+              }
+            }
+            return best->u;
+          };
+          const float u_at_right_edge = endpoint_u(min_x);
+          const float u_at_left_edge = endpoint_u(max_x);
+          const float visible_width = max_x - clip_x;
+          for (Quad::V& v : clipped.verts) {
+            const float t =
+                std::clamp((v.wx - clip_x) / visible_width, 0.0f, 1.0f);
+            v.u = u_at_right_edge + (u_at_left_edge - u_at_right_edge) * t;
+          }
+        }
         out.push_back(std::move(clipped));
         return true;
       };
   auto append_clipped_fill =
       [&](const std::vector<Quad>& source,
           const std::optional<uint32_t>& color_override, float alpha_scale,
-          const StarClipRange& clip_range) {
+          const StarClipRange& clip_range,
+          bool remap_u_to_visible_span = false) {
         bool drew = false;
         for (const Quad& src : source) {
           drew |= append_clipped_quad(src, color_override, nullptr,
-                                     alpha_scale, clip_range);
+                                      alpha_scale, clip_range,
+                                      remap_u_to_visible_span);
         }
         return drew;
       };
@@ -4099,7 +4134,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (fill > 0.005f && meter_fill_glow) {
     drew_native_fill_glow =
         append_clipped_fill(native_star_fill_glow_, std::nullopt,
-                            tube_meter_alpha, tube_meter_range);
+                            tube_meter_alpha, tube_meter_range, true);
     drew_native_fill |= drew_native_fill_glow;
   }
 
@@ -4186,7 +4221,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "core_fill_mode=clipped_left_to_right "
         "core_color_mode=settled_lit_key_width_driven "
         "tube_meter_alpha_mode=source_peak_width_driven "
-        "tube_meter_mode=clipped_left_to_right_source_uv "
+        "tube_meter_mode=clipped_left_to_right_fill_uv_remap "
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core "
         "sort_order=star_meter_view_child_order_then_ready_view "

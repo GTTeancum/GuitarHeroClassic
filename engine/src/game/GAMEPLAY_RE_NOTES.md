@@ -10207,3 +10207,17 @@ Rejected native probe:
 - This does not restore the older rejected duplicate alpha-emission or
   fullbright path-line approximation. It is one source pass, with no replacement
   art, no extra fill geometry, and no hand-authored color.
+
+2026-07-10 star-meter wide-fill UV remap:
+- User observation clarified that the thin blue bar is an always-present source
+  line in the stock meter; the judged stored-star-power fill is the thicker
+  body that grows left-to-right.
+- Native keeps `amp_inside_bar_path.mesh` full-width and leaves
+  `amp_inside_bar.mesh` clipped by stored width. The source
+  `amp_tube_glow_meter.mesh` wide glow now still clips left-to-right, but its
+  authored `hud_meter_top_glow.tex` U span is remapped over the visible filled
+  span. That lets the original bright core widen with the stored fill instead
+  of only appearing when the source full-tube center is inside the clip.
+- This remains bound to the original MILO mesh/material/texture/alpha key and
+  PCSX2 forced-fill oracle behavior: no replacement art, generated strip,
+  invented color, or path-line promotion.
