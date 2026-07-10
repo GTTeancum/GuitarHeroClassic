@@ -113,6 +113,15 @@ bool debug_backing_camera_enabled() {
     return env_value("GHOGX_DEBUG_BACKING_CAMERA") != nullptr;
 }
 
+bool authored_gameplay_cameras_disabled() {
+    return env_value("GHOGX_DISABLE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr;
+}
+
+bool fallback_gameplay_backing_camera_enabled() {
+    return env_value("GHOGX_USE_FALLBACK_GAMEPLAY_BACKING_CAMERA") != nullptr ||
+           authored_gameplay_cameras_disabled();
+}
+
 bool debug_gameplay_session_enabled() {
     return env_value("GHOGX_DEBUG_GAMEPLAY_SESSION") != nullptr;
 }
@@ -160,6 +169,10 @@ bool drum_sync_fallback_pulse_enabled() {
 
 bool debug_worldcrowd_enabled() {
     return env_value("GHOGX_DEBUG_WORLDCROWD") != nullptr;
+}
+
+bool unselected_worldcrowd_actor_draw_enabled() {
+    return env_value("GHOGX_ENABLE_UNSELECTED_WORLDCROWD_ACTORS") != nullptr;
 }
 
 bool debug_performer_start_enabled() {
@@ -957,6 +970,13 @@ struct DecodedCamShot {
     std::string old_crowd_sym;
     int old_crowd_rotate = 0;
     std::vector<std::pair<int, int>> old_crowd_pairs;
+    struct Crowd {
+        std::string ref;
+        int rotate = 0;
+        std::vector<std::pair<int, int>> pairs;
+        int modify_stamp = 0;
+    };
+    std::vector<Crowd> crowds;
     std::string glow_spot;
 };
 
@@ -1305,14 +1325,15 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             const uint32_t crowd_count = r.u32();
             if (crowd_count > 64) throw std::runtime_error("CamShot crowd count invalid");
             for (uint32_t i = 0; i < crowd_count; ++i) {
-                (void)r.symbol();
-                (void)r.i32();
+                DecodedCamShot::Crowd crowd;
+                crowd.ref = r.symbol();
+                crowd.rotate = r.i32();
                 const uint32_t pair_count = r.u32();
                 for (uint32_t j = 0; j < pair_count; ++j) {
-                    (void)r.i32();
-                    (void)r.i32();
+                    crowd.pairs.emplace_back(r.i32(), r.i32());
                 }
-                (void)r.i32();
+                crowd.modify_stamp = r.i32();
+                shot.crowds.push_back(std::move(crowd));
             }
         }
         if (shot.revision > 0x2a) {
@@ -1347,6 +1368,15 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.has_crowd_selection = !shot.old_crowd_sym.empty();
             key.crowd_selection_ref = shot.old_crowd_sym;
             key.crowd_selection_pairs = shot.old_crowd_pairs;
+            for (const auto& crowd : shot.crowds) {
+                if (crowd.ref.empty()) continue;
+                key.source_ref = crowd.ref;
+                key.has_crowd_selection = !crowd.pairs.empty();
+                key.crowd_selection_ref = crowd.ref;
+                key.crowd_selection_pairs = crowd.pairs;
+                if (crowd.rotate != 0) key.crowd_face_camera = true;
+                break;
+            }
             key.camshot_shot_fields_decoded = true;
             key.camshot_pose_body_offset = off;
             key.has_camshot_pose_body_offset = true;
@@ -1368,6 +1398,7 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             key.lighter = shot.category == "LIGHTER";
             key.hide_crowd = prop_bool(shot.props, "hide_crowd", false);
             key.crowd_face_camera =
+                key.crowd_face_camera ||
                 prop_bool(shot.props, "crowd_face_camera", false);
             key.force_char_lod = prop_int(shot.props, "force_char_lod", -1);
             key.hide_list_refs = shot.hide_list;
@@ -18632,6 +18663,28 @@ void Gameplay::draw_worldcrowd_actor_runtime(
         }
         return;
     }
+    if (!venue_camera_has_crowd_selection_ &&
+        !unselected_worldcrowd_actor_draw_enabled()) {
+        if (should_log_worldcrowd()) {
+            std::fprintf(
+                stderr,
+                "[world] WorldCrowd draw: enabled=1 actors=%zu placements=%zu "
+                "drawn=0 culled_fullness=0 culled_near_source=0 "
+                "culled_camera=0 culled_foreground=0 hidden_camera=0 "
+                "source_selected=0 culled_selection=%zu basis=%s "
+                "face_camera=%d event=%s groups=%s "
+                "eye=(%.3f %.3f %.3f) t=%.3f\n",
+                worldcrowd_actor_runtime_.size(),
+                worldcrowd_actor_runtime_placements_,
+                worldcrowd_actor_runtime_placements_,
+                worldcrowd_render_area_local_basis() ? "area_local"
+                                                     : "placement",
+                venue_camera_crowd_face_camera_ ? 1 : 0,
+                active_venue_event_.c_str(), active_group_summary().c_str(),
+                eye[0], eye[1], eye[2], song_time_);
+        }
+        return;
+    }
     auto camera_forward =
         cam.result_frame.valid
             ? std::array<float, 3>{cam.result_frame.forward[0],
@@ -18821,7 +18874,8 @@ void apply_gameplay_backing_camera(
     bool diagnostic_camera_shot_active) {
     if (!world || debug_gameplay_camera_enabled() ||
         diagnostic_camera_shot_active ||
-        env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr) {
+        env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr ||
+        !fallback_gameplay_backing_camera_enabled()) {
         return;
     }
 
@@ -21966,7 +22020,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
         refresh_worldcrowd_actor_source_targets_for_camera();
         const bool authored_gameplay_cameras_active =
             !diagnostic_camera_shot_.empty() ||
-            env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr;
+            env_value("GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS") != nullptr ||
+            !authored_gameplay_cameras_disabled();
         bool force_camera = false;
         std::optional<CameraShotMode> forced_camera_mode;
         std::optional<int> forced_camera_bars;

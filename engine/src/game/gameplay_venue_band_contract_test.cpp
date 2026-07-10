@@ -7576,13 +7576,20 @@ int main() {
                  "camera selection switches to solo mode for solo sections");
   ok &= contains(gameplay_c,
                  "voidapply_gameplay_backing_camera(",
-                 "gameplay owns a stable composite backing camera policy");
+                 "gameplay keeps the legacy backing camera as an explicit fallback");
   ok &= contains(gameplay_c,
-                 "env_value(\"GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS\")!=nullptr",
-                 "authored PS2 gameplay cameras remain opt-in for validation");
+                 "boolauthored_gameplay_cameras_disabled(){"
+                 "returnenv_value(\"GHOGX_DISABLE_AUTHORED_GAMEPLAY_CAMERAS\")!=nullptr;}",
+                 "authored PS2 gameplay cameras are the default gameplay path");
+  ok &= contains(gameplay_c,
+                 "boolfallback_gameplay_backing_camera_enabled(){",
+                 "legacy gameplay backing camera is behind an explicit fallback gate");
+  ok &= contains(gameplay_c,
+                 "!fallback_gameplay_backing_camera_enabled()",
+                 "fallback backing camera does not override authored source cameras by default");
   ok &= contains(gameplay_c,
                  "debug_gameplay_camera_enabled()",
-                 "manual gameplay camera diagnostics bypass the backing camera");
+                 "manual gameplay camera diagnostics bypass the fallback backing camera");
   ok &= contains(gameplay_c,
                  "booldebug_backing_camera_enabled(){"
                  "returnenv_value(\"GHOGX_DEBUG_BACKING_CAMERA\")!=nullptr;}",
@@ -7590,7 +7597,7 @@ int main() {
   ok &= contains(gameplay_c,
                  "apply_gameplay_backing_camera(world_.get(),camera_targets,"
                  "song_time_,!diagnostic_camera_shot_.empty());",
-                 "playable composite view is applied after authored camera metadata updates");
+                 "fallback composite view is evaluated after authored camera metadata updates");
   ok &= contains(gameplay_c,
                  "camera_target_id(prefix,\"bone_spine1.mesh\")",
                  "gameplay backing camera frames performer spine targets");
@@ -7664,6 +7671,15 @@ int main() {
                  "env_value(\"GHOGX_DISABLE_NORMAL_WORLDCROWD_ACTORS\")"
                  "==nullptr",
                  "normal playable WorldCrowd actors are default-on with an A/B disable");
+  ok &= contains(gameplay_c,
+                 "boolunselected_worldcrowd_actor_draw_enabled(){"
+                 "returnenv_value(\"GHOGX_ENABLE_UNSELECTED_WORLDCROWD_ACTORS\")"
+                 "!=nullptr;}",
+                 "unselected WorldCrowd actors are behind an explicit diagnostic gate");
+  ok &= contains(gameplay_c,
+                 "if(!venue_camera_has_crowd_selection_&&"
+                 "!unselected_worldcrowd_actor_draw_enabled()){",
+                 "normal WorldCrowd draw requires a source-selected CamShot 3D crowd");
   ok &= contains(gameplay_c,
                  "if(!worldcrowd_actor_runtime_enabled())return;",
                  "WorldCrowd actor rebuild/update/draw share the same runtime gate");
