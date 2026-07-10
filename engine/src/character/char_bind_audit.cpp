@@ -70,6 +70,32 @@ float avg_error(const ErrorSummary& s) {
   return s.count > 0 ? s.sum / static_cast<float>(s.count) : 0.0f;
 }
 
+std::string hex_bytes_range(const std::vector<uint8_t>& bytes, size_t start,
+                            size_t count) {
+  if (bytes.empty() || start >= bytes.size() || count == 0) return "-";
+  static constexpr char kHex[] = "0123456789abcdef";
+  std::string out;
+  const size_t end = std::min(bytes.size(), start + count);
+  out.reserve((end - start) * 3);
+  for (size_t i = start; i < end; ++i) {
+    if (i != start) out.push_back(':');
+    out.push_back(kHex[(bytes[i] >> 4) & 0x0f]);
+    out.push_back(kHex[bytes[i] & 0x0f]);
+  }
+  return out;
+}
+
+std::string hex_bytes(const std::vector<uint8_t>& bytes) {
+  if (bytes.empty()) return "-";
+  return hex_bytes_range(bytes, 0, bytes.size());
+}
+
+std::string hex_bytes_tail(const std::vector<uint8_t>& bytes, size_t count) {
+  if (bytes.empty() || count == 0) return "-";
+  const size_t start = bytes.size() > count ? bytes.size() - count : 0;
+  return hex_bytes_range(bytes, start, count);
+}
+
 const char* classify(float stored_max, float local_max) {
   constexpr float kClose = 0.04f;
   constexpr float kRatio = 4.0f;
@@ -122,6 +148,85 @@ bool should_dump_verts(int argc, char** argv) {
   return false;
 }
 
+bool should_dump_materials(int argc, char** argv) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--materials") == 0) return true;
+  }
+  return false;
+}
+
+bool should_dump_hair(int argc, char** argv) {
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--hair") == 0) return true;
+  }
+  return false;
+}
+
+bool has_trans_or_mesh(const Character& c, const std::string& name) {
+  if (name.empty()) return false;
+  for (const auto& bone : c.bones) {
+    if (bone.name == name) return true;
+  }
+  for (const auto& mesh : c.meshes) {
+    if (mesh.name == name) return true;
+  }
+  return false;
+}
+
+void audit_hair(const Character& c) {
+  std::printf("[hair-detail] char=%s hairs=%zu\n", c.dir_name.c_str(),
+              c.hairs.size());
+  for (const auto& hair : c.hairs) {
+    std::printf(
+        "[hair-detail] char=%s hair=%s source=decoded-CharHair version=%d "
+        "enabled=%d stiffness=%.4f torsion=%.4f inertia=%.4f "
+        "gravity=%.4f weight=%.4f friction=%.4f groups=%zu\n",
+        c.dir_name.c_str(), hair.name.c_str(), hair.version,
+        hair.enabled ? 1 : 0, hair.globals[0], hair.globals[1],
+        hair.globals[2], hair.globals[3], hair.globals[4],
+        hair.globals[5], hair.groups.size());
+    for (size_t gi = 0; gi < hair.groups.size(); ++gi) {
+      const auto& group = hair.groups[gi];
+      std::printf(
+          "[hair-detail]   group=%zu root=%s rootExists=%d angle=%.4f "
+          "points=%zu basisR0=(%.4f %.4f %.4f) "
+          "basisR1=(%.4f %.4f %.4f) basisR2=(%.4f %.4f %.4f) "
+          "baseMatR0=(%.4f %.4f %.4f) baseMatR1=(%.4f %.4f %.4f) "
+          "baseMatR2=(%.4f %.4f %.4f) rootMatR0=(%.4f %.4f %.4f) "
+          "rootMatR1=(%.4f %.4f %.4f) rootMatR2=(%.4f %.4f %.4f)\n",
+          gi, group.root_mesh.c_str(),
+          has_trans_or_mesh(c, group.root_mesh) ? 1 : 0, group.root_offset,
+          group.points.size(), group.limits_or_mats[0],
+          group.limits_or_mats[1], group.limits_or_mats[2],
+          group.limits_or_mats[3], group.limits_or_mats[4],
+          group.limits_or_mats[5], group.limits_or_mats[6],
+          group.limits_or_mats[7], group.limits_or_mats[8],
+          group.limits_or_mats[0], group.limits_or_mats[1],
+          group.limits_or_mats[2], group.limits_or_mats[3],
+          group.limits_or_mats[4], group.limits_or_mats[5],
+          group.limits_or_mats[6], group.limits_or_mats[7],
+          group.limits_or_mats[8], group.limits_or_mats[9],
+          group.limits_or_mats[10], group.limits_or_mats[11],
+          group.limits_or_mats[12], group.limits_or_mats[13],
+          group.limits_or_mats[14], group.limits_or_mats[15],
+          group.limits_or_mats[16], group.limits_or_mats[17]);
+      for (size_t pi = 0; pi < group.points.size(); ++pi) {
+        const auto& point = group.points[pi];
+        std::printf(
+            "[hair-detail]     point=%zu bone=%s boneExists=%d "
+            "length=%.4f collision=%s collisionExists=%d "
+            "collide_type=%u distance=%.4f align_dist=%.4f "
+            "authored=(%.4f %.4f %.4f)\n",
+            pi, point.mesh.c_str(), has_trans_or_mesh(c, point.mesh) ? 1 : 0,
+            point.length, point.parent.c_str(),
+            has_trans_or_mesh(c, point.parent) ? 1 : 0,
+            static_cast<unsigned>(point.flags_or_mode), point.radius,
+            point.extra, point.pos[0], point.pos[1], point.pos[2]);
+      }
+    }
+  }
+}
+
 struct Bounds {
   float min[3] = {999999.0f, 999999.0f, 999999.0f};
   float max[3] = {-999999.0f, -999999.0f, -999999.0f};
@@ -148,16 +253,33 @@ void print_bounds(const char* label, const Bounds& b) {
       b.max[2]);
 }
 
+void print_matrix(const char* label, const std::array<float, 16>& m) {
+  std::printf(
+      "[mesh-detail]   %s row0=(%.4f %.4f %.4f) "
+      "row1=(%.4f %.4f %.4f) row2=(%.4f %.4f %.4f) "
+      "pos=(%.4f %.4f %.4f)\n",
+      label, m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10], m[12],
+      m[13], m[14]);
+}
+
 void audit_mesh_detail(const Character& c, const SkinnedMesh& m,
                        bool dump_verts) {
   const size_t nb = m.bone_palette.size();
   std::printf(
       "[mesh-detail] char=%s mesh=%s parent=%s mat=%s verts=%zu faces=%zu "
-      "palette=%zu bbox=(%.3f %.3f %.3f)..(%.3f %.3f %.3f)\n",
+      "palette=%zu drawOrder=%.3f "
+      "bbox=(%.3f %.3f %.3f)..(%.3f %.3f %.3f)\n",
       c.dir_name.c_str(), m.name.c_str(), m.parent.c_str(),
       m.material.c_str(), m.verts.size(), m.indices.size() / 3, nb,
-      m.bb_min[0], m.bb_min[1], m.bb_min[2], m.bb_max[0], m.bb_max[1],
-      m.bb_max[2]);
+      m.draw_order, m.bb_min[0], m.bb_min[1], m.bb_min[2], m.bb_max[0],
+      m.bb_max[1], m.bb_max[2]);
+  print_matrix("local", xfm_to_mat4(m.local));
+  print_matrix("storedWorld", xfm_to_mat4(m.world_stored));
+  print_matrix("bindLocalChain", c.bone_world_bind_local_chain(m.name));
+  print_matrix("meshWorld", c.mesh_world(m));
+  if (!m.parent.empty()) {
+    print_matrix("attachmentWorld", c.mesh_attachment_world(m, false));
+  }
 
   std::vector<float> weight_sum(nb, 0.0f);
   std::vector<float> weight_max(nb, 0.0f);
@@ -256,13 +378,14 @@ void audit_mesh(const Character& c, const SkinnedMesh& m, bool all) {
 
   std::printf(
       "[bind-space] char=%s mesh=%-28s parent=%-24s mat=%-22s palette=%zu "
+      "drawOrder=%.3f "
       "modelLC(avg/max)=%.5f/%.5f meshLC(avg/max)=%.5f/%.5f "
       "modelStored(avg/max)=%.5f/%.5f meshStored(avg/max)=%.5f/%.5f "
       "basis=%s legacy=%s "
       "bbox=(%.3f %.3f %.3f)..(%.3f %.3f %.3f)\n",
       c.dir_name.c_str(), m.name.c_str(), m.parent.c_str(),
-      m.material.c_str(), nb, avg_error(model_local), model_local.max,
-      avg_error(mesh_local_summary), mesh_local_summary.max,
+      m.material.c_str(), nb, m.draw_order, avg_error(model_local),
+      model_local.max, avg_error(mesh_local_summary), mesh_local_summary.max,
       avg_error(model_stored), model_stored.max,
       avg_error(mesh_stored_summary), mesh_stored_summary.max, best_basis,
       old_basis, m.bb_min[0], m.bb_min[1], m.bb_min[2], m.bb_max[0],
@@ -292,7 +415,7 @@ std::vector<std::string> default_character_paths() {
 void usage() {
   std::fprintf(stderr,
                "usage: ghogx_character_bind_audit --ark-dir <GEN> [--all] "
-               "[--mesh-detail <mesh>] [--dump-verts] "
+               "[--mesh-detail <mesh>] [--dump-verts] [--materials] [--hair] "
                "[char/...milo_ps2 ...]\n");
 }
 
@@ -311,6 +434,10 @@ int main(int argc, char** argv) {
       ++i;
     } else if (arg == "--dump-verts") {
       // handled with --mesh-detail
+    } else if (arg == "--materials") {
+      // handled after character load
+    } else if (arg == "--hair") {
+      // handled after character load
     } else if (!arg.empty() && arg[0] != '-') {
       milos.push_back(arg);
     } else {
@@ -324,6 +451,8 @@ int main(int argc, char** argv) {
   }
   if (milos.empty()) milos = default_character_paths();
   const std::string detail_mesh = mesh_detail_name(argc, argv);
+  const bool dump_materials = should_dump_materials(argc, argv);
+  const bool dump_hair = should_dump_hair(argc, argv);
 
   const std::filesystem::path dir(ark_dir);
   const std::string hdr = (dir / "main.hdr").string();
@@ -339,6 +468,35 @@ int main(int argc, char** argv) {
       ++failed;
       continue;
     }
+    if (dump_materials) {
+      const std::string char_name =
+          std::filesystem::path(milo).stem().string();
+      for (const auto& mat : c.mats) {
+        std::fprintf(stderr,
+                     "[mat-detail] char=%s mat=%s tex=%s blend=%u "
+                     "color=(%.4f %.4f %.4f %.4f) "
+                     "use_env=%d prelit=%d uv_scale=(%.4f %.4f) "
+                     "uv_offset=(%.4f %.4f) ng_cull=%d has_ng_cull=%d "
+                     "tex_off=0x%04x pre_len=%zu "
+                     "pre_state16=%s pre_tail12=%s post_len=%zu "
+                     "post0_16=%s post_tail2=%s\n",
+                     char_name.c_str(), mat.name.c_str(),
+                     mat.diffuse_tex.c_str(), static_cast<unsigned>(mat.blend),
+                     mat.color[0], mat.color[1], mat.color[2], mat.color[3],
+                     mat.use_environ ? 1 : 0, mat.prelit ? 1 : 0,
+                     mat.tex_scale[0], mat.tex_scale[1], mat.tex_offset[0],
+                     mat.tex_offset[1], mat.cull ? 1 : 0,
+                     mat.has_cull ? 1 : 0,
+                     static_cast<unsigned>(mat.diffuse_tex_offset),
+                     mat.pre_diffuse_tex_bytes.size(),
+                     hex_bytes_range(mat.pre_diffuse_tex_bytes, 0, 16).c_str(),
+                     hex_bytes_tail(mat.pre_diffuse_tex_bytes, 12).c_str(),
+                     mat.post_diffuse_tex_bytes.size(),
+                     hex_bytes_range(mat.post_diffuse_tex_bytes, 0, 16).c_str(),
+                     hex_bytes_tail(mat.post_diffuse_tex_bytes, 2).c_str());
+      }
+    }
+    if (dump_hair) audit_hair(c);
     for (const SkinnedMesh& m : c.meshes) {
       audit_mesh(c, m, all);
       if (!detail_mesh.empty() && m.name == detail_mesh) {

@@ -81,21 +81,47 @@ void test_mat() {
   put_zeros(b, 9);               // base metadata
   put_u32(b, 4);                 // kBlendSrcAlphaAdd
   put_f32(b, 1); put_f32(b, 1); put_f32(b, 1); put_f32(b, 1);  // colour RGBA
-  b.push_back(1);                // use_environ
-  b.push_back(0);                // prelit
-  put_zeros(b, 30);              // rest of blend/flag block (scanned past)
+  b.push_back(1);                // prelit
+  b.push_back(0);                // use_environ
+  put_u32(b, 2);                 // z_mode = kZModeTransparent
+  b.push_back(1);                // alpha_cut
+  b.push_back(0);                // alpha_write (GH2 v27 has no threshold field)
+  put_u32(b, 0);                 // tex_gen = kTexGenNone
+  put_u32(b, 4);                 // tex_wrap = kTexWrapMirror
+  put_f32(b, 2.0f); put_f32(b, 0.0f); put_f32(b, 0.0f);
+  put_f32(b, 0.0f); put_f32(b, 3.0f); put_f32(b, 0.0f);
+  put_f32(b, 0.25f); put_f32(b, 0.5f); put_f32(b, 1.0f);
   put_str(b, "gem.tex");         // diffuse texture
-  put_zeros(b, 16);
+  put_u32(b, 0);                 // empty next_pass ref
+  b.push_back(0);                // trailing state byte before ng.cull
+  b.push_back(0);                // Mat.ng.cull = false / two-sided
+  put_f32(b, 1.0f);              // emissive_multiplier at observed +6
+  put_zeros(b, 38);
 
   MatObj m = decode_mat("gem.mat", b);
   CHECK(m.decoded);
   CHECK(m.diffuse_tex == "gem.tex");
   CHECK(approx(m.color[0], 1.0f));
   CHECK(m.blend == 4);
-  CHECK(m.use_environ);
-  CHECK(!m.prelit);
-  std::printf("  [ok] Mat: tex=%s blend=%u color=(%.0f,%.0f,%.0f,%.0f)\n",
+  CHECK(!m.use_environ);
+  CHECK(m.prelit);
+  CHECK(m.has_render_state);
+  CHECK(m.z_mode == 2);
+  CHECK(m.alpha_cut);
+  CHECK(m.alpha_threshold == 0);
+  CHECK(!m.alpha_write);
+  CHECK(m.tex_gen == 0);
+  CHECK(m.tex_wrap == 4);
+  CHECK(approx(m.tex_scale[0], 2.0f));
+  CHECK(approx(m.tex_scale[1], 3.0f));
+  CHECK(approx(m.tex_offset[0], 0.25f));
+  CHECK(approx(m.tex_offset[1], 0.5f));
+  CHECK(m.has_cull);
+  CHECK(!m.cull);
+  std::printf("  [ok] Mat: tex=%s blend=%u alphaCut=%d zMode=%u texWrap=%u cull=%d color=(%.0f,%.0f,%.0f,%.0f)\n",
               m.diffuse_tex.c_str(), static_cast<unsigned>(m.blend),
+              m.alpha_cut ? 1 : 0, static_cast<unsigned>(m.z_mode),
+              static_cast<unsigned>(m.tex_wrap), m.cull ? 1 : 0,
               m.color[0], m.color[1], m.color[2], m.color[3]);
 }
 

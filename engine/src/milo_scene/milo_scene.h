@@ -26,10 +26,16 @@
 //     9     bytes
 //     i32   blend (BLEND_ENUM from macros.dta)
 //     4×f32 diffuse colour RGBA
-//     u8    use_environ (schema: modulate with environment ambient/lights)
 //     u8    prelit      (schema: vertex color/alpha feeds base or ambient)
-//     ...   flag / texture-state bytes
-//     str   diffuse texture name (".tex"); other strings may follow
+//     u8    use_environ (schema: modulate with environment ambient/lights)
+//     i32   z_mode
+//     u8    alpha_cut
+//     u8    alpha_write      (GH2 v27; later revs insert alpha_threshold first)
+//     i32   tex_gen
+//     i32   tex_wrap
+//     9xf32 tex_xfm transform
+//     str   diffuse texture name (".tex")
+//     ...   trailing source-schema render-state / next-pass bytes
 //
 //   Mesh  (version 0x1c = 28):
 //     Trans base   (version 9 + 9 + 48 + 48 + 9 + parent string, as above)
@@ -190,6 +196,27 @@ struct MatObj {
   float tex_offset[2] = {0.0f, 0.0f};
   bool use_environ = false;
   bool prelit = false;
+  // Source schema render state immediately after color. GH2 PS2 v27 does not
+  // serialize alpha_threshold; later revisions do. The default threshold is 0,
+  // matching MiloLib's default RndMat field when the serialized value is absent.
+  bool has_render_state = false;
+  uint8_t z_mode = 1;
+  bool alpha_cut = false;
+  int32_t alpha_threshold = 0;
+  bool alpha_write = false;
+  uint8_t tex_gen = 0;
+  uint8_t tex_wrap = 1;
+  // Source schema: Mat.ng.cull. GH2 PS2 v27 stores this in the
+  // post-diffuse render-state block; absent/undecoded means keep renderer
+  // default culling.
+  bool has_cull = false;
+  bool cull = true;
+  // Raw bytes preserved around the diffuse texture object ref so Mat.ng.cull
+  // and neighboring render-state bytes can be audited against the in-repo
+  // MiloEditor RndMat source order and observed GH2 PS2 material bodies.
+  uint32_t diffuse_tex_offset = 0;
+  std::vector<uint8_t> pre_diffuse_tex_bytes;
+  std::vector<uint8_t> post_diffuse_tex_bytes;
   bool decoded = false;
 };
 

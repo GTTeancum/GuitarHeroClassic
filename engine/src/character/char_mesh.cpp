@@ -207,7 +207,8 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
     // Draw base.
     r.i32();                 // draw version (= 3)
     mesh.showing = r.u8() != 0;
-    r.skip(20);              // bounding sphere + draw-order
+    r.skip(16);              // bounding sphere
+    mesh.draw_order = r.f32();
 
     // Mesh fields.
     mesh.material = r.str();
@@ -400,8 +401,8 @@ CharHair decode_hair(const std::string& entry_name,
   hair.groups.reserve(group_count);
   for (uint32_t gi = 0; gi < group_count; ++gi) {
     CharHairGroup group;
-    group.root_mesh = r.str();
-    group.root_offset = r.f32();
+    group.root_mesh = r.str();    // source schema: root
+    group.root_offset = r.f32();  // source schema: angle
     const uint32_t point_count = r.u32();
     group.points.reserve(point_count);
     for (uint32_t pi = 0; pi < point_count; ++pi) {
@@ -409,14 +410,15 @@ CharHair decode_hair(const std::string& entry_name,
       point.pos[0] = r.f32();
       point.pos[1] = r.f32();
       point.pos[2] = r.f32();
-      point.mesh = r.str();
+      point.mesh = r.str();  // source schema: bone
       point.length = r.f32();
-      point.flags_or_mode = r.u32();
-      point.parent = r.str();
-      point.radius = r.f32();
-      if (hair.version > 1) point.extra = r.f32();
+      point.flags_or_mode = r.u32();  // source schema: collide_type
+      point.parent = r.str();         // source schema: collision object
+      point.radius = r.f32();         // source schema: radius/distance
+      if (hair.version > 1) point.extra = r.f32();  // outer_radius/align_dist
       group.points.push_back(std::move(point));
     }
+    // Source schema: two Matrix3 rows, baseMat followed by rootMat.
     for (float& v : group.limits_or_mats) v = r.f32();
     hair.groups.push_back(std::move(group));
   }

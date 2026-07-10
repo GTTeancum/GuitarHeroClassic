@@ -78,6 +78,7 @@ struct SkinnedMesh {
   milo_scene::Xfm local;  // the mesh's own Trans local matrix (usually identity)
   milo_scene::Xfm world_stored;
   bool showing = true;
+  float draw_order = 0.0f;
 
   std::vector<SkinVertex> verts;
   std::vector<uint16_t> indices;  // face_count*3
@@ -167,18 +168,24 @@ struct CharEyes {
 
 struct CharHairPoint {
   float pos[3] = {0, 0, 0};
+  // Source schema name: bone. This is the Trans row CharHair drives.
   std::string mesh;
   float length = 0.0f;
+  // Source schema name: collide_type.
+  // 0 plane, 1 sphere, 2 inside sphere, 3 cylinder, 4 inside cylinder.
   uint32_t flags_or_mode = 0;
+  // Source schema name: collision object. This is not a transform parent.
   std::string parent;
+  // Source names vary across tools: radius/distance and outer_radius/align_dist.
   float radius = 0.0f;
   float extra = 0.0f;
 };
 
 struct CharHairGroup {
-  std::string root_mesh;
-  float root_offset = 0.0f;
+  std::string root_mesh;  // Source schema name: root.
+  float root_offset = 0.0f;  // Source schema name: angle, in degrees.
   std::vector<CharHairPoint> points;
+  // Source schema: baseMat[9] then rootMat[9].
   float limits_or_mats[18] = {};
 };
 
@@ -199,6 +206,8 @@ struct RuntimeHairPoint {
   float prev_world[3] = {0, 0, 0};
   float velocity_world[3] = {0, 0, 0};
   float prev_velocity_world[3] = {0, 0, 0};
+  float force_world[3] = {0, 0, 0};
+  float last_friction_world[3] = {0, 0, 0};
   float rest_world[3] = {0, 0, 0};
   float anchor_world[3] = {0, 0, 0};
   bool has_orientation_world = false;

@@ -35,6 +35,13 @@ bool contains(const std::string& haystack, const std::string& needle,
   return false;
 }
 
+bool missing(const std::string& haystack, const std::string& needle,
+             const char* label) {
+  if (haystack.find(needle) == std::string::npos) return true;
+  std::cerr << "Unexpected eye bridge contract match: " << label << "\n";
+  return false;
+}
+
 std::string function_body(const std::string& source,
                           const std::string& function_name) {
   const size_t name_pos = source.find(function_name);
@@ -66,8 +73,6 @@ int main() {
       compact(function_body(char_mesh, "decode_eyes"));
   const std::string apply_controllers =
       compact(function_body(char_clip, "apply_character_controllers"));
-  const std::string eye_inset =
-      compact(function_body(char_renderer, "eye_surface_inset"));
   const std::string parse_animation =
       compact(function_body(char_facefx, "parse_animation"));
   const std::string renderer_c = compact(char_renderer);
@@ -109,25 +114,38 @@ int main() {
                  "transform resolution consumes submitted controller Trans rows");
   ok &= contains(compact(function_body(char_clip, "is_eye_mesh_name")),
                  "lower.find(\"_eyel\")!=std::string::npos",
-                 "alternate PS2 eye mesh spellings use the eye attachment basis");
+                 "alternate PS2 eye mesh spellings use the traced eye basis");
   ok &= contains(parse_animation,
                  "if(version!=1200&&version!=1500)",
                  "song FaceFX animations accept traced v1200 and v1500 FACE archives");
 
-  ok &= contains(eye_inset,
-                 "if(env_eye_inset(override_inset))returnoverride_inset;"
-                 "return0.0f;",
-                 "manual eye inset remains diagnostic-only");
+  ok &= missing(renderer_c, "GHOGX_EYE_INSET",
+                "manual eye inset must not exist in the default renderer");
   ok &= contains(renderer_c,
-                 "elseif(eye_mesh){world_mode=\"mesh-attachment\";"
-                 "mw=impl.character.mesh_attachment_world(m,false);}",
-                 "eye meshes draw through the shared attachment basis");
+                 "m.bone_palette.empty()||draw_hair_as_attachment",
+                 "no-palette eyes and mouth details consume their current Trans WorldXfm path");
+  ok &= contains(renderer_c,
+                 "world_mode=\"trans-world\";mw=impl.character.bone_world_local_chain(m.name);",
+                 "plain child face meshes draw from the current transform local chain");
+  ok &= missing(renderer_c, "constfloatinset=eye_surface_inset(m);",
+                "manual eye inset must not affect default rendering");
+  ok &= missing(renderer_c, "is_mouth_attachment_mesh",
+                "mouth detail meshes must not use the old attachment band-aid");
+  ok &= missing(renderer_c, "elseif(is_rigid_mouth_detail_mesh(m))",
+                "mouth detail meshes must not use a name-based rigid row branch");
+  ok &= contains(compact(function_body(char_clip, "transform_world")),
+                 "out=character.mesh_world(m);returntrue;",
+                 "clip-space mesh transforms use decoded mesh object rows");
+  ok &= contains(compact(function_body(char_clip, "transform_local_chain_world")),
+                 "out=character.mesh_world(m);returntrue;",
+                 "local-chain lookup no longer special-cases eye meshes to attachment rows");
 
   if (!ok) {
     std::cerr
         << "The eye path must stay on decoded CharEyes/CharLookAt evidence. "
            "Do not replace it with per-character offsets, stock exact-name "
-           "assumptions, or default synthetic eye insets.\n";
+           "assumptions, attachment-row face detail band-aids, or default "
+           "synthetic eye insets.\n";
     return 1;
   }
   return 0;
