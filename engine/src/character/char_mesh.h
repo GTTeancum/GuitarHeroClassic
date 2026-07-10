@@ -363,6 +363,19 @@ struct EventTrigger {
   std::string unread_tail_hex;
 };
 
+struct ObjectRow {
+  std::string name;
+  int32_t version = 0;
+  int32_t alt_version = 0;
+  std::string subtype;
+  bool root_has_tree = false;
+  uint32_t root_id = 0;
+  uint16_t root_child_count = 0;
+  std::string note;
+  size_t unread_bytes = 0;
+  std::string unread_tail_hex;
+};
+
 struct RndTex {
   std::string name;
   int32_t version = 0;
@@ -463,6 +476,7 @@ struct Character {
   std::vector<FaceFxLipSyncServo> lip_sync_servos;
   std::vector<RndAnimFilter> anim_filters;
   std::vector<EventTrigger> event_triggers;
+  std::vector<ObjectRow> object_rows;
   std::vector<RndTex> tex_rows;
   std::vector<CharDriver> drivers;
   std::vector<CharWeightSetter> weight_setters;

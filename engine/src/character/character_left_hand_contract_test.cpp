@@ -14,6 +14,10 @@
 #define GHOGX_GAME_SOURCE_DIR "."
 #endif
 
+#ifndef GHOGX_APP_SOURCE_DIR
+#define GHOGX_APP_SOURCE_DIR "."
+#endif
+
 namespace {
 
 std::string read_file(const std::filesystem::path& path) {
@@ -79,17 +83,23 @@ std::string function_body(const std::string& source,
 int main() {
   const std::filesystem::path character_dir = GHOGX_CHARACTER_SOURCE_DIR;
   const std::filesystem::path game_dir = GHOGX_GAME_SOURCE_DIR;
+  const std::filesystem::path app_dir = GHOGX_APP_SOURCE_DIR;
   const std::string char_clip =
       read_file(character_dir / "char_clip.cpp");
   const std::string char_renderer =
       read_file(character_dir / "char_renderer.cpp");
   const std::string gameplay =
       read_file(game_dir / "gameplay.cpp");
+  const std::string app_main =
+      read_file(app_dir / "app_main.cpp");
   const std::string char_clip_c = compact(char_clip);
   const std::string char_renderer_c = compact(char_renderer);
   const std::string gameplay_c = compact(gameplay);
+  const std::string app_main_c = compact(app_main);
   const std::string gameplay_draw_c =
       compact(function_body(gameplay, "void Gameplay::draw("));
+  const std::string viewer_run_c =
+      compact(function_body(app_main, "int run_char_mode("));
   const std::string solver_weight_c =
       compact(function_body(char_clip, "effective_ik_hand_solver_weight"));
   const std::string target_blend_c =
@@ -98,6 +108,7 @@ int main() {
   bool ok = true;
 
   ok &= nonempty(gameplay_draw_c, "Gameplay::draw performer presentation path");
+  ok &= nonempty(viewer_run_c, "run_char_mode diagnostic viewer path");
 
   ok &= contains(char_clip_c,
                  "returnkey==\"bone_fret\"||key==\"bone_fret_hand\"||"
@@ -160,6 +171,20 @@ int main() {
                        "apply_ik_midi_fret_target(",
                        "apply_character_controllers(",
                        "MIDI fret target is applied before CharIKHand solve");
+  ok &= contains(app_main_c,
+                 "ghogx::character::clear_runtime_ik_weights("
+                 "renderer.character());if(viewer_hand_ik_weights_active)",
+                 "character viewer clears stale IK weights every frame");
+  ok &= contains(app_main_c,
+                 "else{for(constauto&ik:renderer.character().ik_hands){"
+                 "ghogx::character::set_runtime_ik_weight("
+                 "renderer.character(),ik.weight_prop,0.0f);}}",
+                 "character viewer disables hand IK without active overlays");
+  ok &= appears_before(app_main_c,
+                       "ghogx::character::clear_runtime_ik_weights("
+                       "renderer.character());",
+                       "apply_character_controllers(",
+                       "character viewer IK weights are explicit before controller solve");
   ok &= contains(gameplay_c,
                  "use_fret_hand_parser?current_fret_hand_cue(",
                  "player*_fret hand cues drive the fretting fingers");

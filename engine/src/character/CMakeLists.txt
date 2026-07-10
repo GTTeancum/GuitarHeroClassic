@@ -50,7 +50,8 @@ add_executable(ghogx_character_left_hand_contract_test
     character_left_hand_contract_test.cpp)
 target_compile_definitions(ghogx_character_left_hand_contract_test PRIVATE
     GHOGX_CHARACTER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-    GHOGX_GAME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../game")
+    GHOGX_GAME_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../game"
+    GHOGX_APP_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../app")
 add_test(NAME ghogx_character_left_hand_contract_test
          COMMAND ghogx_character_left_hand_contract_test)
 

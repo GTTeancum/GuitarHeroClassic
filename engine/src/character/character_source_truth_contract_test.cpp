@@ -284,8 +284,14 @@ int run_contract() {
 
   ok &= contains(object_cs, "publicenumNodeType:int{Int=0x00,Float=0x01",
                  "ObjectFields exposes DTB node enum");
+  ok &= contains(object_cs, "uintcombinedRevision=reader.ReadUInt32();",
+                 "ObjectFields reads combined low/high revision");
   ok &= contains(object_cs, "type=Symbol.Read(reader);root.Read(reader);",
                  "ObjectFields reads subtype Symbol and root DTB parent");
+  ok &= contains(object_cs,
+                 "hasTree=reader.ReadBoolean();if(!hasTree)return;"
+                 "childCount=reader.ReadUInt16();id=reader.ReadUInt32();",
+                 "ObjectFields reads root tree presence and child metadata");
   ok &= contains(object_cs, "if(revision>0){note=Symbol.Read(reader);}",
                  "ObjectFields reads revision-gated note Symbol");
 
@@ -1098,6 +1104,12 @@ int run_contract() {
                  "document fences EventTrigger runtime scheduling");
   ok &= contains(doc, "`Object`: 19 stock generic object rows",
                  "document records generic Object boundary");
+  ok &= contains(doc, "## Generic Object Row Authority",
+                 "document records generic Object source authority section");
+  ok &= contains(doc, "records 19 stock `Object` rows",
+                 "document records focused generic Object stock proof");
+  ok &= contains(doc, "all report `unreadBytes=0`",
+                 "document records generic Object rows decode cleanly");
   ok &= contains(doc, "`Tex`: 160 stock texture rows",
                  "document records stock Tex row count");
   ok &= contains(doc, "`WorldFx`: 99 stock rows",
@@ -1162,6 +1174,23 @@ int run_contract() {
                  "bind audit logs EventTrigger source rows");
   ok &= contains(bind_audit, "tailHex=%s",
                  "bind audit logs EventTrigger unresolved tail");
+  ok &= contains(char_mesh_h, "structObjectRow{",
+                 "native header exposes passive generic Object inventory row");
+  ok &= contains(char_mesh_h, "std::vector<ObjectRow>object_rows;",
+                 "native header stores passive generic Object inventory");
+  ok &= contains(char_mesh, "ObjectRowdecode_object_row(",
+                 "native decodes generic Object rows through named source slice");
+  ok &= contains(char_mesh,
+                 "constObjectFieldRowsfields=read_object_row_fields(r);",
+                 "generic Object decoder uses isolated ObjectFields row reader");
+  ok &= contains(char_mesh,
+                 "out.object_rows.push_back(decode_object_row(de.name,b));",
+                 "native character graph stores passive generic Object inventory");
+  ok &= contains(bind_audit,
+                 "[object-row]char=%sname=%sversion=%daltVersion=%d",
+                 "bind audit logs generic Object source rows");
+  ok &= contains(bind_audit, "unreadBytes=%zu",
+                 "bind audit logs generic Object unread byte count");
   ok &= missing(char_mesh, "decode_outfit_loader",
                 "native must not guess OutfitLoader decoder");
   ok &= missing(char_mesh, "decode_world_fx",

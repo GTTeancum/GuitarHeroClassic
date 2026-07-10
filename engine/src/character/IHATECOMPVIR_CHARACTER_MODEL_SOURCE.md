@@ -25,7 +25,7 @@ records the upstream commits for the copied files:
 
 | Area | ihatecompvir evidence | Native status |
 | --- | --- | --- |
-| Object and property-tree skip/read shape | `Object.cs`, `DTBNode.Read` | Parser authority; native skips must mirror source enum. |
+| Object and property-tree skip/read shape | `Object.cs`, `DTBNode.Read` | Parser authority; native skips must mirror source enum and logs standalone generic `Object` rows. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
 | Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
@@ -33,7 +33,7 @@ records the upstream commits for the copied files:
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
 | Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows; no trigger or animation runtime hookup. |
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
-| Remaining stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
+| Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows; no runtime writeback until `Hookup(ObjPtrList<CharCollide>&)` and simulation are faithfully ported. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log old GH2 rows; no synthetic eye runtime bridge. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; runtime `Poll` remains fenced until source transform writeback is ported. |
@@ -54,6 +54,8 @@ records the upstream commits for the copied files:
     greater than zero.
   - `DTBNode.Read` defines the property-tree node payloads. The native readers
     only skip these trees, but the skip table must mirror this enum exactly.
+  - Native generic `Object` rows decode the same `ObjectFields` prefix and log
+    unread tails instead of promoting any runtime behavior.
 - `MiloEditor/MiloLib/Assets/Rnd/RndTrans.cs`
   - `RndTrans.Read` reads combined revision, optional object fields for
     standalone objects, local matrix, world matrix, old child references for
@@ -172,6 +174,20 @@ records 160 stock `Tex` rows with source `RndBitmap::LoadHeader` fields for
 the cached bitmap payloads. The inventory includes two stock mip textures
 (`metal_keyboard_mip.tex` and `metal_singer_belt_mip.tex`), and all 160 stock
 rows report `payloadSizeMatch=1`.
+
+## Generic Object Row Authority
+
+Native now decodes generic `Object` rows as passive source inventory using the
+same ihatecompvir `ObjectFields.Read` row already used by embedded superclass
+metadata: combined low/high object revisions, subtype `Symbol`, root DTB parent
+presence/id/child count, and revision-gated note `Symbol`. It does not attach
+runtime behavior to these rows.
+
+The focused inventory at
+`engine/out/source_truth_object_inventory_20260710/stock_character_object_inventory.log`
+records 19 stock `Object` rows. All 19 rows are `expression_task`, all are
+version `0` / alt version `0`, all have no subtype, no root property tree, no
+note, and all report `unreadBytes=0`.
 
 ## Skinning Authority
 
@@ -607,9 +623,11 @@ bounded as follows:
   `ObjVector`, `ObjPtrList`, and `BinStream` evidence. It still does not run
   trigger scheduling, and the GH2 revision-8 four-byte zero tail remains logged
   as unresolved source evidence rather than consumed by guesswork.
-- `Object`: 19 stock generic object rows. ihatecompvir `Object.cs` already
-  backs the shared object/property-tree skip path; the remaining rows have no
-  character-model runtime behavior to promote.
+- `Object`: 19 stock generic object rows. Native now decodes and logs the
+  source-backed standalone `ObjectFields` row using ihatecompvir `Object.cs`.
+  The focused object inventory records all 19 as `expression_task` rows with
+  version `0`, no root tree, and `unreadBytes=0`; no character-model runtime
+  behavior is promoted.
 - `Tex`: 160 stock texture rows. Native now decodes and logs the
   source-backed metadata rows using `RndTex::Load`/`PreLoad`/`PostLoad`,
   `RndTex::Type`, `RndBitmap::LoadHeader`, `RndBitmap::PaletteBytes`,

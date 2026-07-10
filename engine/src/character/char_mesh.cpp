@@ -454,6 +454,109 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
 
 namespace {
 
+void read_object_row_dtb_node(Reader& r);
+
+struct DtbParentInfo {
+  bool has_tree = false;
+  uint32_t id = 0;
+  uint16_t child_count = 0;
+};
+
+struct ObjectFieldRows {
+  int32_t version = 0;
+  int32_t alt_version = 0;
+  std::string subtype;
+  DtbParentInfo root;
+  std::string note;
+};
+
+DtbParentInfo read_object_row_dtb_array_parent_info(Reader& r) {
+  DtbParentInfo info;
+  info.has_tree = true;
+  info.child_count = r.u16();
+  info.id = r.u32();
+  for (uint16_t i = 0; i < info.child_count; ++i) {
+    read_object_row_dtb_node(r);
+  }
+  return info;
+}
+
+DtbParentInfo read_object_row_dtb_parent_info(Reader& r) {
+  DtbParentInfo info;
+  info.has_tree = r.u8() != 0;
+  if (!info.has_tree) return info;
+  info = read_object_row_dtb_array_parent_info(r);
+  info.has_tree = true;
+  return info;
+}
+
+void read_object_row_dtb_node(Reader& r) {
+  const uint32_t type = r.u32();
+  switch (type) {
+    case 0x00:  // Int
+      (void)r.u32();
+      break;
+    case 0x01:  // Float
+      (void)r.f32();
+      break;
+    case 0x02:  // Variable
+    case 0x04:  // Object
+    case 0x05:  // Symbol
+    case 0x06:  // Unhandled
+    case 0x07:  // IfDef
+    case 0x08:  // Else
+    case 0x09:  // EndIf
+    case 0x12:  // String
+    case 0x20:  // Define
+    case 0x21:  // Include
+    case 0x22:  // Merge
+    case 0x23:  // IfNDef
+    case 0x24:  // Autorun
+    case 0x25:  // Undef
+      (void)r.str();
+      break;
+    case 0x10:  // Array
+    case 0x11:  // Command
+    case 0x13:  // Property
+      (void)read_object_row_dtb_array_parent_info(r);
+      break;
+    default:
+      break;
+  }
+}
+
+ObjectFieldRows read_object_row_fields(Reader& r) {
+  ObjectFieldRows out;
+  const uint32_t combined_revision = r.u32();
+  out.version = static_cast<uint16_t>(combined_revision & 0xffffu);
+  out.alt_version = static_cast<uint16_t>(combined_revision >> 16);
+  out.subtype = r.str();
+  out.root = read_object_row_dtb_parent_info(r);
+  if (out.version > 0) out.note = r.str();
+  return out;
+}
+
+ObjectRow decode_object_row(const std::string& entry_name,
+                            const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  ObjectRow row;
+  row.name = entry_name;
+  const ObjectFieldRows fields = read_object_row_fields(r);
+  row.version = fields.version;
+  row.alt_version = fields.alt_version;
+  row.subtype = fields.subtype;
+  row.root_has_tree = fields.root.has_tree;
+  row.root_id = fields.root.id;
+  row.root_child_count = fields.root.child_count;
+  row.note = fields.note;
+  row.unread_bytes = r.n - r.pos;
+  if (row.unread_bytes > 0) {
+    row.unread_tail_hex =
+        hex_bytes(r.p + r.pos, std::min<size_t>(row.unread_bytes, 32));
+  }
+  return row;
+}
+
 CharUpperTwist decode_upper_twist(const std::string& entry_name,
                                   const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
@@ -1467,6 +1570,8 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           out.anim_filters.push_back(decode_anim_filter(de.name, b));
         } else if (de.type == "EventTrigger") {
           out.event_triggers.push_back(decode_event_trigger(de.name, b));
+        } else if (de.type == "Object") {
+          out.object_rows.push_back(decode_object_row(de.name, b));
         } else if (de.type == "Tex") {
           out.tex_rows.push_back(decode_rnd_tex(de.name, b));
         } else if (de.type == "CharDriver") {
@@ -1486,7 +1591,8 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  "%zu group, %zu upperTwist, %zu foreTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
                  "%zu servoBone, %zu lookAt, %zu eyes, %zu hair, %zu collide, "
                  "%zu posConstraint, %zu lipServo, %zu animFilter, "
-                 "%zu eventTrigger, %zu tex, %zu driver, %zu weightSetter\n",
+                 "%zu eventTrigger, %zu object, %zu tex, %zu driver, "
+                 "%zu weightSetter\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
                  out.bones.size(), out.mats.size(), out.groups.size(),
                  out.upper_twists.size(), out.fore_twists.size(), out.ik_rods.size(),
@@ -1496,6 +1602,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  out.pos_constraints.size(),
                  out.lip_sync_servos.size(), out.anim_filters.size(),
                  out.event_triggers.size(),
+                 out.object_rows.size(),
                  out.tex_rows.size(),
                  out.drivers.size(),
                  out.weight_setters.size());

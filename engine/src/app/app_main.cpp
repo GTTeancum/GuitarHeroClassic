@@ -1466,8 +1466,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     // FaceFX graph names as pose-bank frame indices: RE shows Good*/Bad*,
     // EyesClosed, Blink, and EyeZCombiner are graph scalar channels, not
     // standalone transform poses.
+    ghogx::character::clear_runtime_ik_weights(renderer.character());
     if (viewer_hand_ik_weights_active) {
-      ghogx::character::clear_runtime_ik_weights(renderer.character());
       if (right_hand_weight_override || strum_clip.loaded) {
         ghogx::character::set_runtime_ik_weight(renderer.character(),
                                                 "right.weight",
@@ -1477,6 +1477,11 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
         ghogx::character::set_runtime_ik_weight(renderer.character(),
                                                 "left.weight",
                                                 left_hand_weight);
+      }
+    } else {
+      for (const auto& ik : renderer.character().ik_hands) {
+        ghogx::character::set_runtime_ik_weight(renderer.character(),
+                                                ik.weight_prop, 0.0f);
       }
     }
     ghogx::character::FaceFxEyeProperties eye_props;

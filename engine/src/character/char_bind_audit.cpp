@@ -534,6 +534,19 @@ void audit_types(const Character& c, const std::string& milo_path) {
     std::printf("[type] char=%s type=%s count=%d\n", c.dir_name.c_str(),
                 type.c_str(), count);
   }
+  for (const auto& object : c.object_rows) {
+    std::printf(
+        "[object-row] char=%s name=%s version=%d altVersion=%d subtype=%s "
+        "rootHasTree=%d rootId=%u rootChildren=%u note=%s unreadBytes=%zu "
+        "tailHexPrefix=%s\n",
+        c.dir_name.c_str(), object.name.c_str(), object.version,
+        object.alt_version, none_if_empty(object.subtype),
+        object.root_has_tree ? 1 : 0,
+        static_cast<unsigned>(object.root_id),
+        static_cast<unsigned>(object.root_child_count),
+        none_if_empty(object.note), object.unread_bytes,
+        none_if_empty(object.unread_tail_hex));
+  }
   for (const auto& tex : c.tex_rows) {
     std::printf(
         "[tex-row] char=%s name=%s version=%d altVersion=%d width=%d "
