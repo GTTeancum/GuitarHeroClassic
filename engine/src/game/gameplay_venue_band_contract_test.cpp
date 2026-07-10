@@ -1071,6 +1071,13 @@ int main() {
                  "star_tube_glow_alpha_keys_,star_tube_glow_anim_duration_);",
                  "star-power ready glow uses the source tube glow alpha MatAnim");
   ok &= contains(hud_renderer_c,
+                 "\"[hud-star-power]sourcecurvechannels:%scolor=%zualpha=%zu"
+                 "\"",
+                 "star-power diagnostics expose decoded MatAnim channel counts");
+  ok &= contains(hud_renderer_c,
+                 "\"tex_trans=%zutex_scale=%zutex_rot=%zutex=%zuduration=%.2f\\n\"",
+                 "star-power diagnostics expose decoded MatAnim transform channels");
+  ok &= contains(hud_renderer_c,
                  "append_star_animated_mesh(\"lightning_bot_04_0.mesh\","
                  "native_star_lightning_);"
                  "append_star_animated_mesh(\"lightning_bot_02_0.mesh\","

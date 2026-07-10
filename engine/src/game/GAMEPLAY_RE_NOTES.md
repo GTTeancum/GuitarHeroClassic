@@ -10509,3 +10509,21 @@ Rejected native probe:
   `core_color_frame=3.25`, `sampled_fill_color=ffa9eefe`,
   `tube_meter_alpha=1.000`, while keeping the clipped thick-body widths at
   `30.938/123.753` core and `29.223/116.890` wide glow.
+
+2026-07-10 star-meter MatAnim channel audit:
+- Added focused `GHOGX_DEBUG_HUD_STAR_POWER` rows that print all decoded
+  MatAnim channel counts for the star-meter source objects relevant to the fill
+  pass. This is trace scaffolding only; it does not add art, substitute
+  geometry, or change the current draw result.
+- Fresh hidden capture:
+  `engine/out/star_power_trace_evidence_20260710/native_star_matanim_channel_audit_current/stored_025.bmp`
+  plus its stderr log proves `amp_tube_glow_meter.mnm` contains only
+  `alpha=2` and no `tex_trans`, `tex_scale`, `tex_rot`, color, or texture
+  keys. `amp_inside_star.mnm` is the only one of the audited star-meter curves
+  with texture translation keys (`tex_trans=2`), matching the persistent path
+  line route.
+- Interpretation: the remaining stored-fill mismatch is not an ignored
+  `amp_tube_glow_meter.mnm` texture-transform channel. The next source-backed
+  pass should target PCSX2 GS/blend/alpha/mask evidence for
+  `amp_tube_glow_meter.mesh` and the thick body composition rather than adding
+  another native UV animation guess.

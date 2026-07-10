@@ -1903,6 +1903,27 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                  rock_light_front_lamp_color_keys_[2].size());
   }
   if (env_enabled("GHOGX_DEBUG_HUD_STAR_POWER")) {
+    auto star_curve = [&](const char* name) -> const HudMatAnimColorCurve* {
+      const auto it = star.mat_anim_color.find(name);
+      return it == star.mat_anim_color.end() ? nullptr : &it->second;
+    };
+    auto print_star_curve_channels = [&](const char* name) {
+      const HudMatAnimColorCurve* curve = star_curve(name);
+      if (!curve) {
+        std::fprintf(stderr,
+                     "[hud-star-power] source curve channels: %s missing\n",
+                     name);
+        return;
+      }
+      std::fprintf(
+          stderr,
+          "[hud-star-power] source curve channels: %s color=%zu alpha=%zu "
+          "tex_trans=%zu tex_scale=%zu tex_rot=%zu tex=%zu duration=%.2f\n",
+          name, curve->keys.size(), curve->alpha_keys.size(),
+          curve->tex_translation_keys.size(), curve->tex_scale_keys.size(),
+          curve->tex_rotation_keys.size(), curve->texture_keys.size(),
+          curve->duration_frames);
+    };
     auto color_key = [](const std::vector<ColorAnimKey>& keys,
                         size_t index) -> ColorAnimKey {
       if (keys.empty()) return {};
@@ -1954,6 +1975,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                  star_tube_meter_alpha_keys_.size(),
                  tube_meter_first.alpha, tube_meter_first.frame,
                  tube_meter_last.alpha, tube_meter_last.frame);
+    print_star_curve_channels("amp_inside_bar_glow.mnm");
+    print_star_curve_channels("amp_inside_star.mnm");
+    print_star_curve_channels("amp_tube_glow_meter.mnm");
+    print_star_curve_channels("amp_tube_glow.mnm");
   }
 
   // 3) The in-song overlay must be screen anchored. Drawing meter-local art
