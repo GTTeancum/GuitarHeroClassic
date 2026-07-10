@@ -9955,3 +9955,30 @@ Rejected native probe:
   `amp_inside_bar.mesh` and `amp_inside_bar_path.mesh` in PCSX2, because the
   native layer roles are now correct but the path-line footprint/contrast and
   broad core brightness still do not visually match the stock tube.
+
+2026-07-10 star-meter source UV matrix checkpoint:
+- Root cause for the thick-core banding was in the HUD MILO UV decode, not in a
+  missing texture. `amp_inside_bar.mesh` uses `amp_inside_star.mat`, whose source
+  diffuse UV matrix is a 90-degree rotation (`[[0,-1],[1,0]]`). The native HUD
+  renderer had reduced every Mat UV transform to diagonal scale plus offset,
+  dropping the cross terms and mapping `amp_inside_bar.tex` down the tube length.
+- Native now copies and applies the full 3x3 source Mat UV matrix in
+  `make_slot_mesh`. This keeps the original `amp_inside_bar.mesh` /
+  `amp_inside_star.mat` / `amp_inside_bar.tex` core source-backed while letting
+  the clipped fill reveal the correctly oriented texture. The path mesh remains
+  the separate `amp_inside_bar_path.mesh` / `amp_inside_star_path.mat` /
+  `amp_bar_glow.tex` persistent line, with no fullbright promotion.
+- A wrap variant for the translated path texture was rejected. With the same
+  source MatAnim first key (`path_uv=(-0.400,0.000)`), forcing wrap created a
+  non-stock thick blue block on the unfilled/right side of the tube. The kept
+  path translation preserves sampler clamp instead.
+- Evidence artifacts:
+  `engine/out/star_power_trace_evidence_20260710/native_star_full_uv_current/`
+  contains kept native `0.25`, `0.50`, `0.75`, `1.00`, and active `1.00`
+  captures/logs plus `native_star_full_uv_current_compare_proof.png`.
+  `engine/out/star_power_trace_evidence_20260710/native_star_full_uv_wrap_current/`
+  contains the rejected wrap variant and
+  `native_star_full_uv_wrap_current_compare_proof.png`.
+- Caveat: this is a source-decoder/material correction and improves the fill
+  orientation. Exact brightness, glass contrast, and the broad PCSX2 bloom/core
+  width still need a GS-stage blend trace before final parity signoff.

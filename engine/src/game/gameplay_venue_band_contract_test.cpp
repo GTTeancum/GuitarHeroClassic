@@ -1112,13 +1112,28 @@ int main() {
                  "star-power inside-bar source MatAnim core is rendered as fullbright emission");
   ok &= contains(hud_renderer_c,
                  "if(star_additive_glow_mesh){"
+                 "q.fullbright_texture=true;"
                  "q.emissive_texture_2x=true;}",
                  "star-power tube glow uses the source emissive texture combine");
+  ok &= contains(hud_renderer_c,
+                 "out_uv.m[row][col]=mat.tex_xfm[row][col];",
+                 "HUD source material UV matrices keep authored rotation terms");
+  ok &= contains(hud_renderer_c,
+                 "v.u*uv_xfm.m[0][0]+v.vv*uv_xfm.m[1][0]+"
+                 "uv_xfm.m[2][0]",
+                 "HUD mesh UV mapping applies the full MILO matrix U row");
+  ok &= contains(hud_renderer_c,
+                 "v.u*uv_xfm.m[0][1]+v.vv*uv_xfm.m[1][1]+"
+                 "uv_xfm.m[2][1]",
+                 "HUD mesh UV mapping applies the full MILO matrix V row");
   ok &= contains(hud_renderer_c,
                  "if(star_path_glow_mesh&&source_prelit){"
                  "native_star_path_glow_prelit_=true;"
                  "native_star_path_glow_dual_emit_=false;}",
                  "star-power source path stays the persistent thin line rather than the thick fill core");
+  ok &= absent(hud_renderer_c,
+               "star_path_glow_mesh||star_additive_glow_mesh",
+               "star-power path line keeps authored material tint instead of bypassing it as fullbright");
   ok &= absent(hud_renderer_c,
                "color_pass.prelit_alpha_emission=false;",
                "star-power path line must not be duplicated as a separate alpha-emission fill pass");
@@ -1239,6 +1254,9 @@ int main() {
       "if(!native_star_top_.empty())"
       "out.insert(out.end(),native_star_top_.begin(),native_star_top_.end());",
       "star-power completes clipped fill plus persistent path before chrome top");
+  ok &= absent(hud_renderer_c,
+               "q.wrap_uv=true;",
+               "star-power path texture translation must not force a non-stock wrapped blue block");
   ok &= contains(hud_renderer_c,
                  "ready_mesh_drawn=%dready_glow_drawn=%dfill_glow_drawn=%d",
                  "star-power diagnostics report source glow layers after live draw");

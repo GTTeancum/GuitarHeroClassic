@@ -619,8 +619,9 @@ struct LoadedParticle {
 struct GroupX { ghogx::milo_scene::Xfm local; std::string parent; };
 
 struct MatUvXfm {
-  float scale[2] = {1.0f, 1.0f};
-  float offset[2] = {0.0f, 0.0f};
+  float m[3][3] = {{1.0f, 0.0f, 0.0f},
+                   {0.0f, 1.0f, 0.0f},
+                   {0.0f, 0.0f, 1.0f}};
 };
 
 struct HudParticleScalarKey {
@@ -1068,8 +1069,15 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
           }
         }
         out.mat_uv[de.name] =
-            MatUvXfm{{mat.tex_scale[0], mat.tex_scale[1]},
-                     {mat.tex_offset[0], mat.tex_offset[1]}};
+            [&]() {
+              MatUvXfm out_uv;
+              for (int row = 0; row < 3; ++row) {
+                for (int col = 0; col < 3; ++col) {
+                  out_uv.m[row][col] = mat.tex_xfm[row][col];
+                }
+              }
+              return out_uv;
+            }();
         auto c = [](float v) {
           return static_cast<int>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f);
         };
@@ -1126,11 +1134,16 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
         auto ref_uv = out.mat_uv.find(ref);
         if (ref_uv != out.mat_uv.end()) {
           auto uv = out.mat_uv.find(name);
-          if (uv == out.mat_uv.end() ||
-              uv->second.scale[0] != ref_uv->second.scale[0] ||
-              uv->second.scale[1] != ref_uv->second.scale[1] ||
-              uv->second.offset[0] != ref_uv->second.offset[0] ||
-              uv->second.offset[1] != ref_uv->second.offset[1]) {
+          bool same_uv = uv != out.mat_uv.end();
+          if (same_uv) {
+            for (int row = 0; row < 3; ++row) {
+              for (int col = 0; col < 3; ++col) {
+                same_uv = same_uv &&
+                          uv->second.m[row][col] == ref_uv->second.m[row][col];
+              }
+            }
+          }
+          if (!same_uv) {
             out.mat_uv[name] = ref_uv->second;
             changed = true;
           }
@@ -1209,8 +1222,9 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
                  "[hud-dump] %-27s mat=%-28s tex=%-24s parent=%-24s "
                  "blend=%u color=%08x "
                  "x=%.3f..%.3f y=%.3f..%.3f z=%.3f..%.3f "
-                 "uv=%.3f..%.3f/%.3f..%.3f uvxfm=(%.3f %.3f)+(%.3f %.3f) "
-                 "verts=%zu idx=%zu\n",
+                  "uv=%.3f..%.3f/%.3f..%.3f "
+                  "uvxfm=(%.3f %.3f;%.3f %.3f)+(%.3f %.3f) "
+                  "verts=%zu idx=%zu\n",
                  m.name.c_str(), m.material.c_str(),
                  tex == layout.mat_tex.end() ? "" : tex->second.c_str(),
                  m.parent.c_str(),
@@ -1218,8 +1232,11 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
                                                   : unsigned(blend->second),
                  color == layout.mat_color.end() ? 0xFFFFFFFFu : color->second,
                  mn[0], mx[0], mn[1], mx[1], mn[2], mx[2],
-                 u0, u1, v0, v1, uv_xfm.scale[0], uv_xfm.scale[1],
-                 uv_xfm.offset[0], uv_xfm.offset[1], m.verts.size(), m.idx.size());
+                  u0, u1, v0, v1,
+                  uv_xfm.m[0][0], uv_xfm.m[0][1],
+                  uv_xfm.m[1][0], uv_xfm.m[1][1],
+                  uv_xfm.m[2][0], uv_xfm.m[2][1],
+                  m.verts.size(), m.idx.size());
   }
   for (const LoadedParticle& p : layout.particles) {
     if (p.name.find("amp_inside_bar_path") == std::string::npos) continue;
@@ -2058,8 +2075,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           auto uv = layout.mat_uv.find(mesh.material);
           return uv == layout.mat_uv.end() ? MatUvXfm{} : uv->second;
         }();
-    if (std::fabs(uv_xfm.scale[0]) < 0.0001f &&
-        std::fabs(uv_xfm.scale[1]) < 0.0001f) {
+    if (std::fabs(uv_xfm.m[0][0]) < 0.0001f &&
+        std::fabs(uv_xfm.m[0][1]) < 0.0001f &&
+        std::fabs(uv_xfm.m[1][0]) < 0.0001f &&
+        std::fabs(uv_xfm.m[1][1]) < 0.0001f) {
       uv_xfm = MatUvXfm{};
     }
     const float source_center_z = (mesh_bounds.min_z + mesh_bounds.max_z) * 0.5f;
@@ -2081,8 +2100,10 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       const float wx = slot.cx - slot.hw + mapped_tx * slot.hw * 2.0f;
       const float z_delta = (z - source_center_z) * z_scale;
       const float wz = mapped_center_z + (flip_z ? -z_delta : z_delta);
-      const float u = v.u * uv_xfm.scale[0] + uv_xfm.offset[0];
-      const float vv = v.vv * uv_xfm.scale[1] + uv_xfm.offset[1];
+      const float u =
+          v.u * uv_xfm.m[0][0] + v.vv * uv_xfm.m[1][0] + uv_xfm.m[2][0];
+      const float vv =
+          v.u * uv_xfm.m[0][1] + v.vv * uv_xfm.m[1][1] + uv_xfm.m[2][1];
       const float final_v = flip_v ? 1.0f - vv : vv;
       q.wrap_uv = q.wrap_uv || u < -0.001f || u > 1.001f ||
                   final_v < -0.001f || final_v > 1.001f;
@@ -2476,10 +2497,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
           q.emissive_texture_4x = true;
           q.emissive_alpha_4x = true;
         }
-        if (star_path_glow_mesh || star_additive_glow_mesh) {
-          q.fullbright_texture = true;
-        }
         if (star_additive_glow_mesh) {
+          q.fullbright_texture = true;
           q.emissive_texture_2x = true;
         }
         const auto prelit_it = star.mat_prelit.find(mesh->material);
@@ -3788,7 +3807,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
               v.u += u_offset;
               v.v += v_offset;
             }
-            q.wrap_uv = true;
           }
           q.color = scale_argb_alpha(
               color_override ? *color_override : q.color, alpha_scale);
