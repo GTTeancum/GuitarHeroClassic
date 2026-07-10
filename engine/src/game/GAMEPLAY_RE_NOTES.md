@@ -10487,3 +10487,25 @@ Rejected native probe:
   width and still uses the original `amp_tube_glow_meter.mat` /
   `hud_meter_top_glow.tex`; this change only anchors the source UVs as the
   thick body grows.
+
+2026-07-10 star-meter thick-body material clock split:
+- User observation clarified the remaining mismatch: the thin blue bar visible
+  in native captures is the stock always-present line, while the thicker
+  white-blue body is the value fill and should grow left-to-right.
+- The PCSX2 forced-gauge captures change stored fill width without implying a
+  dimmer material state for the already-filled body. Native therefore keeps
+  `sp_fill` as the clip width only, while sampling the thick core color from
+  the decoded `amp_inside_bar_glow.mnm` lit key and the wide
+  `amp_tube_glow_meter.mnm` opacity from its decoded peak alpha key.
+- No replacement art, synthetic fill texture, duplicate emission pass, or
+  non-MILO color constant is introduced. The source layer split remains
+  `amp_inside_bar_path.mesh` full-width for the thin line, plus clipped
+  `amp_inside_bar.mesh` and clipped `amp_tube_glow_meter.mesh` for the thick
+  stored body.
+- Fresh hidden HUD proof:
+  `engine/out/star_power_trace_evidence_20260710/native_star_lit_key_material_current/native_star_lit_key_material_current_proof.png`
+  compares the existing no-focus PCSX2 forced-fill oracle against native
+  `--hud-sp` 25/50/75/100 captures. The 25% diagnostic row reports
+  `core_color_frame=3.25`, `sampled_fill_color=ffa9eefe`,
+  `tube_meter_alpha=1.000`, while keeping the clipped thick-body widths at
+  `30.938/123.753` core and `29.223/116.890` wide glow.

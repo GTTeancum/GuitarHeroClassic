@@ -1290,8 +1290,9 @@ int main() {
                  "star_fill_color_keys_,fill_core_color_frame)",
                  "star-power core color samples the source amp_inside_bar_glow MatAnim frame");
   ok &= contains(hud_renderer_c,
-                 "constfloatfill_core_color_frame=fill_anim_frame;",
-                 "star-power stored core brightness follows the decoded source filter frame");
+                 "constfloatfill_core_color_frame=source_lit_color_key_frame("
+                 "star_fill_color_keys_,fill_anim_frame);",
+                 "star-power stored core brightness uses the decoded source lit key frame");
   ok &= absent(hud_renderer_c,
                "native_star_core_emission_.push_back",
                "star-power must not add a duplicate amp_inside_bar additive core pass");
@@ -1469,8 +1470,8 @@ int main() {
                  "\"glass_material_mode=base_plus_cleartube_layer\"",
                  "star-power diagnostics report the decoded amp_glass_tube material-layer split");
   ok &= contains(hud_renderer_c,
-                 "\"core_color_mode=source_filter_frame\"",
-                 "star-power diagnostics report source-filter core color sampling");
+                 "\"core_color_mode=source_lit_key_frame\"",
+                 "star-power diagnostics report source-lit core color sampling");
   ok &= contains(hud_renderer_c,
                  "\"tube_meter_mode=clipped_left_to_right_source_uv_reveal\"",
                  "star-power tube-meter glow clips the source mesh while filling the thick body from the left");
@@ -1509,14 +1510,12 @@ int main() {
                  "\"sort_order=star_meter_view_child_order_then_ready_view\"",
                  "star-power diagnostics report the source-order sort path");
   ok &= contains(hud_renderer_c,
-                 "constfloattube_meter_alpha_frame=tube_meter_anim_frame;",
-                 "star-power tube-meter alpha samples the decoded source filter frame");
-  ok &= absent(hud_renderer_c,
-               "source_peak_alpha_frame",
-               "star-power tube-meter alpha must not bypass the authored fade by pinning to the peak key");
+                 "constfloattube_meter_alpha_frame=source_peak_alpha_key_frame("
+                 "star_tube_meter_alpha_keys_,tube_meter_anim_frame);",
+                 "star-power tube-meter alpha uses the decoded source peak key frame");
   ok &= contains(hud_renderer_c,
-                 "\"tube_meter_alpha_mode=source_filter_frame\"",
-                 "star-power diagnostics report source-filter alpha for the wide fill glow");
+                 "\"tube_meter_alpha_mode=source_peak_key_frame\"",
+                 "star-power diagnostics report source peak alpha for the wide fill glow");
   ok &= contains(hud_renderer_c,
                  "constfloattube_glow_alpha_frame=tube_glow_anim_frame;",
                  "star-power ready tube alpha samples the live source MatAnim frame");
