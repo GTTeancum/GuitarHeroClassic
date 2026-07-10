@@ -530,28 +530,6 @@ bool debug_leg_pose_enabled() {
 #endif
 }
 
-bool arm_ik_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_ENABLE_ARM_IK") == 0 && value && value[0];
-  std::free(value);
-  if (!enabled) return false;
-  value = nullptr;
-  len = 0;
-  const bool disabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_ARM_IK") == 0 && value && value[0];
-  std::free(value);
-  return !disabled;
-#else
-  const char* enable = std::getenv("GHOGX_ENABLE_ARM_IK");
-  if (!enable || !enable[0]) return false;
-  const char* value = std::getenv("GHOGX_DISABLE_ARM_IK");
-  return !value || !value[0];
-#endif
-}
-
 bool ps2_ik_hand_position_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -686,36 +664,6 @@ bool controller_audit_enabled() {
   return enabled;
 #else
   const char* value = std::getenv("GHOGX_AUDIT_CHARACTER_GRAPH");
-  return value && value[0];
-#endif
-}
-
-bool ik_hand_rotation_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_ENABLE_IK_HAND_ROT") == 0 && value &&
-      value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_ENABLE_IK_HAND_ROT");
-  return value && value[0];
-#endif
-}
-
-bool ik_visible_stretch_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_ENABLE_IK_VISIBLE_STRETCH") == 0 &&
-      value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_ENABLE_IK_VISIBLE_STRETCH");
   return value && value[0];
 #endif
 }
@@ -860,7 +808,7 @@ void log_character_controller_graph_once(const Character& character) {
   std::fprintf(stderr,
                "[chargraph] %s bones=%zu meshes=%zu drivers=%zu "
                "weightSetters=%zu ik=%zu ikMidi=%zu foreTwist=%zu upperTwist=%zu "
-               "hair=%zu lookAt=%zu eyes=%zu armIK=%s ikRot=%s hairPoll=%s "
+               "hair=%zu lookAt=%zu eyes=%zu ps2IK=%s hairPoll=%s "
                "lookAt=%s\n",
                character.dir_name.c_str(), character.bones.size(),
                character.meshes.size(), character.drivers.size(),
@@ -868,8 +816,7 @@ void log_character_controller_graph_once(const Character& character) {
                character.ik_midis.size(), character.fore_twists.size(),
                character.upper_twists.size(), character.hairs.size(),
                character.lookats.size(), character.eyes.size(),
-               arm_ik_enabled() ? "on" : "off",
-               ik_hand_rotation_enabled() ? "on" : "guarded", "decode-only",
+               ps2_ik_hands_enabled() ? "on" : "off", "decode-only",
                "decode-only");
   for (const auto& ik : character.ik_hands) {
     std::fprintf(stderr,
@@ -2615,129 +2562,6 @@ static void apply_ps2_ik_hand_targets(
   }
 }
 
-static void apply_legacy_ik_hands(Character& character) {
-  for (const auto& ik : character.ik_hands) {
-    const int hand_i = find_bone_index(character, ik.hand);
-    const float ik_weight = effective_ik_hand_solver_weight(character, ik);
-    if (hand_i < 0 || ik_weight <= 0.0f) continue;
-    auto& hand = character.bones[(size_t)hand_i];
-    const int fore_i = find_bone_index(character, hand.parent);
-    if (fore_i < 0) continue;
-    auto& fore = character.bones[(size_t)fore_i];
-    const int upper_i = find_bone_index(character, fore.parent);
-    if (upper_i < 0) continue;
-    auto& upper = character.bones[(size_t)upper_i];
-    if (upper.parent.empty()) continue;
-
-    std::array<float, 16> target_world{};
-    if (!transform_local_chain_world(character, ik.target, target_world))
-      continue;
-    const auto upper_parent_world =
-        character.bone_world_local_chain(upper.parent);
-    const auto upper_world0 = character.bone_world_local_chain(upper.name);
-    const auto fore_world0 = character.bone_world_local_chain(fore.name);
-    const auto hand_world0 = character.bone_world_local_chain(hand.name);
-    if (debug_ik_enabled()) {
-      const Vec3 hp = mat_pos(hand_world0);
-      const Vec3 tp = mat_pos(target_world);
-      std::fprintf(stderr,
-                   "[ik] %s hand=%s target=%s hand0=[%.2f %.2f %.2f] target=[%.2f %.2f %.2f]\n",
-                   ik.name.c_str(), ik.hand.c_str(), ik.target.c_str(),
-                   hp.x, hp.y, hp.z, tp.x, tp.y, tp.z);
-    }
-
-    const Vec3 shoulder = mat_pos(upper_world0);
-    const Vec3 target = mat_pos(target_world);
-    const float upper_len = std::max(0.001f, vlen({fore.local.pos[0], fore.local.pos[1], fore.local.pos[2]}));
-    const float authored_fore_len = std::max(0.001f, vlen({hand.local.pos[0], hand.local.pos[1], hand.local.pos[2]}));
-    Vec3 to_target = vsub(target, shoulder);
-    const float raw_dist = vlen(to_target);
-    float fore_len = authored_fore_len;
-    if (ik.stretch && ik_visible_stretch_enabled() &&
-        raw_dist > upper_len + authored_fore_len) {
-      fore_len = std::max(authored_fore_len, raw_dist - upper_len);
-    }
-    float dist = raw_dist;
-    const float max_reach = upper_len + fore_len - 0.001f;
-    const float min_reach = std::fabs(upper_len - fore_len) + 0.001f;
-    dist = std::clamp(dist, min_reach, max_reach);
-    const Vec3 target_dir = vnorm(to_target, mat_row(upper_world0, 0));
-
-    Vec3 bend = vsub(mat_pos(fore_world0), shoulder);
-    bend = vsub(bend, vscale(target_dir, vdot(bend, target_dir)));
-    bend = vnorm(bend, mat_row(upper_world0, 1));
-    if (debug_ik_enabled()) {
-      const Vec3 elbow0 = mat_pos(fore_world0);
-      const Vec3 hand0 = mat_pos(hand_world0);
-      std::fprintf(stderr,
-                   "[ik-solve] %s shoulder=[%.2f %.2f %.2f] elbow0=[%.2f %.2f %.2f] hand0=[%.2f %.2f %.2f] target=[%.2f %.2f %.2f] len=(%.2f %.2f) dist=%.2f clamp=%.2f bend=[%.3f %.3f %.3f]\n",
-                   ik.name.c_str(), shoulder.x, shoulder.y, shoulder.z,
-                   elbow0.x, elbow0.y, elbow0.z, hand0.x, hand0.y, hand0.z,
-                   target.x, target.y, target.z, upper_len, fore_len,
-                   raw_dist, dist, bend.x, bend.y, bend.z);
-    }
-
-    const float a = (upper_len*upper_len - fore_len*fore_len + dist*dist) /
-                    (2.0f * dist);
-    const float h2 = std::max(0.0f, upper_len*upper_len - a*a);
-    const Vec3 elbow = vadd(shoulder,
-                            vadd(vscale(target_dir, a),
-                                 vscale(bend, std::sqrt(h2))));
-
-    const auto upper_desired_world =
-        aim_preserve_xfm(shoulder, vsub(mat_pos(fore_world0), shoulder),
-                         vsub(elbow, shoulder), upper_world0);
-    milo_scene::Xfm solved_upper = upper.local;
-    set_local_from_world(solved_upper, upper_desired_world, upper_parent_world);
-    for (int r = 0; r < 3; ++r)
-      for (int c = 0; c < 3; ++c)
-        upper.local.rot[r][c] =
-            upper.local.rot[r][c] * (1.0f - ik_weight) +
-            solved_upper.rot[r][c] * ik_weight;
-    normalize_xfm_rows(upper.local);
-
-    const auto upper_world1 = character.bone_world_local_chain(upper.name);
-    const Vec3 elbow1 =
-        mat_pos(character.bone_world_local_chain(fore.name));
-    const auto fore_desired_world =
-        aim_preserve_xfm(elbow1, vsub(mat_pos(hand_world0), mat_pos(fore_world0)),
-                         vsub(target, elbow1), fore_world0);
-    milo_scene::Xfm solved_fore = fore.local;
-    set_local_from_world(solved_fore, fore_desired_world, upper_world1);
-    for (int r = 0; r < 3; ++r)
-      for (int c = 0; c < 3; ++c)
-        fore.local.rot[r][c] =
-            fore.local.rot[r][c] * (1.0f - ik_weight) +
-            solved_fore.rot[r][c] * ik_weight;
-    normalize_xfm_rows(fore.local);
-
-    if (ik.stretch && ik_visible_stretch_enabled() &&
-        fore_len > authored_fore_len + 0.0005f) {
-      const Vec3 local_hand_dir =
-          vnorm({hand.local.pos[0], hand.local.pos[1], hand.local.pos[2]},
-                {1.0f, 0.0f, 0.0f});
-      const Vec3 stretched =
-          vscale(local_hand_dir,
-                 authored_fore_len * (1.0f - ik_weight) + fore_len * ik_weight);
-      hand.local.pos[0] = stretched.x;
-      hand.local.pos[1] = stretched.y;
-      hand.local.pos[2] = stretched.z;
-    }
-
-    if (ik.orientation && ik_hand_rotation_enabled()) {
-      const auto fore_world1 = character.bone_world_local_chain(fore.name);
-      milo_scene::Xfm solved_hand = hand.local;
-      set_local_from_world(solved_hand, target_world, fore_world1);
-      for (int r = 0; r < 3; ++r)
-        for (int c = 0; c < 3; ++c)
-          hand.local.rot[r][c] =
-              hand.local.rot[r][c] * (1.0f - ik_weight) +
-              solved_hand.rot[r][c] * ik_weight;
-      normalize_xfm_rows(hand.local);
-    }
-  }
-}
-
 struct PendingPose {
   const ClipChannel* pos = nullptr;
   const ClipChannel* scale = nullptr;
@@ -3651,7 +3475,6 @@ void apply_character_controllers(Character& character, float time_seconds,
   std::unordered_set<std::string> fore_twists_applied;
   if (ps2_ik_hands_enabled())
     apply_ps2_ik_hand_targets(character, bind_bones, fore_twists_applied);
-  if (arm_ik_enabled()) apply_legacy_ik_hands(character);
   apply_driven_twists(character, bind_bones, fore_twists_applied);
   apply_char_hair(character, time_seconds);
 

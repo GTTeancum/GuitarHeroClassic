@@ -2258,9 +2258,9 @@ Community metadata Rosetta:
   or finger overlays. `engine/out/ps2_twist_20260614/rockabill_f60_no_twist.bmp`
   still showed the ribbon, while
   `engine/out/ps2_twist_20260614/rockabill_f60_no_ik.bmp` and the guarded
-  default `rockabill_f60_default_guarded.bmp` did not. The generic solver is now
-  opt-in via `GHOGX_ENABLE_ARM_IK=1`; do not re-enable it by default. The next
-  correct implementation is the traced `CharIKHand` path from SLUS
+  default `rockabill_f60_default_guarded.bmp` did not. The generic solver was
+  removed; do not reintroduce it. The next correct implementation is the traced
+  `CharIKHand` path from SLUS
   `0x0017a080`: resolve the two target refs, blend/write the live target vector
   at controller `+0x50..+0x58`, construct the limited local matrix rows, copy
   them through the linked `Trans` rows, and dirty the output row. This is not a
@@ -2429,11 +2429,9 @@ Useful environment flags:
 - `GHOGX_DEBUG_CHAR_HAIR=1`: logs each native `CharHair` point solve, including
   hair object name, point bone, root, collision ref, mode, anchor, live row,
   solved row, length, and dt.
-- `GHOGX_DISABLE_CHAR_HAIR=1`: disables the default native `CharHair` poller
-  for A/B validation.
-- `GHOGX_ENABLE_ARM_IK=1`: enables the old native free two-bone arm solver.
-  Leave unset for normal rendering; validation showed it causes visible arm
-  ribboning/spaghetti.
+- `GHOGX_DISABLE_CHAR_HAIR=1`: historical only; the unsupported native
+  `CharHair` poller gate was removed when ihatecompvir's `CharHair.cpp`
+  became the active source authority.
 - `GHOGX_DISABLE_PS2_IK_HANDS=1`: disables the traced-shape `CharIKHand`
   default path for A/B validation against the old detached-hand baseline. The
   normal path follows the SLUS `0x0017a080` hand/fore/upper dataflow.
@@ -2453,8 +2451,8 @@ Useful environment flags:
   vector/quaternion helpers `0x002dad00` and `0x002daa30`, writes a local
   bend-like row into the hand parent, and dirties Trans rows through
   `0x001dd7b8`/`0x001dd748`.
-- Native validation proved the legacy generic reach solver is unsafe:
-  `GHOGX_ENABLE_ARM_IK=1` recreated the severe arm ribbons.
+- Native validation proved the legacy generic reach solver is unsafe and it has
+  been removed; reintroducing it is not source-backed.
 - Directly copying the target Trans to `bone_R-hand.mesh` /
   `bone_L-hand.mesh` also failed in-song, because the PS2 path solves the
   intermediate forearm/upper-arm rows before the final dirty write.

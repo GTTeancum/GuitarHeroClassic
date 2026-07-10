@@ -62,7 +62,7 @@ add_test(NAME ghogx_character_eye_bridge_contract_test
          COMMAND ghogx_character_eye_bridge_contract_test)
 
 set(GHOGX_IHATECOMPVIR_SOURCE_DIR
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../ihatecompvir-public-milo-sources")
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../../third_party/ihatecompvir-public-milo-sources")
 add_executable(ghogx_character_source_truth_contract_test
     character_source_truth_contract_test.cpp)
 target_compile_definitions(ghogx_character_source_truth_contract_test PRIVATE

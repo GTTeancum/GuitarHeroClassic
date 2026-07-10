@@ -1,9 +1,11 @@
 #include <algorithm>
 #include <cctype>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -57,7 +59,7 @@ bool missing(const std::string& haystack, const std::string& needle,
 
 }  // namespace
 
-int main() {
+int run_contract() {
   const std::filesystem::path char_dir = GHOGX_CHARACTER_SOURCE_DIR;
   const std::filesystem::path scene_dir = GHOGX_MILO_SCENE_SOURCE_DIR;
   const std::filesystem::path source_dir = GHOGX_IHATECOMPVIR_SOURCE_DIR;
@@ -94,6 +96,8 @@ int main() {
       source_dir / "rb3/src/system/char/CharLookAt.cpp"));
   const std::string rb3_char_eyes_cpp = compact(read_file(
       source_dir / "rb3/src/system/char/CharEyes.cpp"));
+  const std::string rb3_char_ik_hand_cpp = compact(read_file(
+      source_dir / "rb3/src/system/char/CharIKHand.cpp"));
 
   bool ok = true;
 
@@ -113,6 +117,8 @@ int main() {
                  "document cites CharLookAt runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharEyes.cpp",
                  "document cites CharEyes runtime source");
+  ok &= contains(doc, "rb3/src/system/char/CharIKHand.cpp",
+                 "document cites CharIKHand runtime source");
 
   ok &= contains(object_cs, "publicenumNodeType:int{Int=0x00,Float=0x01",
                  "ObjectFields exposes DTB node enum");
@@ -307,6 +313,18 @@ int main() {
                  "RB3 CharLookAt poll resolves source through GetSource");
   ok &= contains(rb3_char_eyes_cpp, "plist.push_back((*it).mEye);",
                  "RB3 CharEyes delegates poll children to CharLookAt rows");
+  ok &= contains(rb3_char_ik_hand_cpp, "voidCharIKHand::Poll(){",
+                 "RB3 CharIKHand source exposes Poll");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "RndTransformable*frontTrans=mTargets.front().mTarget;",
+                 "RB3 CharIKHand source resolves target transform");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "Interp(mHand->WorldXfm().v,vec,charWeight,mWorldDst);",
+                 "RB3 CharIKHand source blends world destination");
+  ok &= contains(rb3_char_ik_hand_cpp, "IKElbow(parent1,parent2);",
+                 "RB3 CharIKHand source drives elbow solve");
+  ok &= contains(rb3_char_ik_hand_cpp, "mHand->SetWorldXfm(tf);",
+                 "RB3 CharIKHand source writes hand world transform");
 
   ok &= missing(char_mesh_h, "RuntimeHair", "legacy runtime hair state removed");
   ok &= missing(renderer, "runtime_hair_world_override",
@@ -324,6 +342,16 @@ int main() {
                 "self-source look-at fallback removed");
   ok &= missing(char_clip, "set_facefx_eye_props",
                 "unsupported FaceFX eye property bridge removed");
+  ok &= missing(char_clip, "apply_legacy_ik_hands",
+                "unsupported native two-bone arm IK bridge removed");
+  ok &= missing(char_clip, "GHOGX_ENABLE_ARM_IK",
+                "unsupported native arm IK env gate removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_ARM_IK",
+                "unsupported native arm IK disable gate removed");
+  ok &= missing(char_clip, "GHOGX_ENABLE_IK_VISIBLE_STRETCH",
+                "unsupported native IK stretch gate removed");
+  ok &= missing(char_clip, "GHOGX_ENABLE_IK_HAND_ROT",
+                "unsupported native IK rotation gate removed");
 
   if (!ok) {
     std::cerr
@@ -332,4 +360,14 @@ int main() {
     return 1;
   }
   return 0;
+}
+
+int main() {
+  try {
+    return run_contract();
+  } catch (const std::exception& ex) {
+    std::cerr << "Character source-truth contract setup failed: "
+              << ex.what() << "\n";
+    return 2;
+  }
 }

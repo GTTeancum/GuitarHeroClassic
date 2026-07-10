@@ -104,6 +104,17 @@ Treat ihatecompvir's repos as the authority; do not use the older
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port is implemented.
 
+## IK Controller Authorities
+
+- `rb3/src/system/char/CharIKHand.cpp`
+  - `CharIKHand::Poll` is the available Harmonix source for hand IK runtime
+    motion. It resolves `mHand`, optional `mFinger`, and the target list,
+    blends the world destination into `mWorldDst`, calls `IKElbow` when an
+    elbow chain is present, and writes the hand through `SetWorldXfm`.
+  - Native GHOGX must not retain the older opt-in free two-bone arm solver or
+    its `GHOGX_ENABLE_ARM_IK`/stretch/rotation gates. Any hand or elbow solve
+    must be translated from the source-backed `CharIKHand` dataflow above.
+
 ## Stock GH2 Evidence
 
 The local stock-asset audit log at
