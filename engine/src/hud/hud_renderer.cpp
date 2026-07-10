@@ -693,6 +693,7 @@ struct MiloLayout {
   std::unordered_map<std::string, uint32_t> mat_color;   // material -> ARGB tint
   std::unordered_map<std::string, uint8_t> mat_blend;    // material -> BLEND_ENUM
   std::unordered_map<std::string, bool> mat_prelit;       // material -> source prelit flag
+  std::unordered_map<std::string, std::array<uint8_t, 16>> mat_state;  // post-color MILO state bytes
   std::unordered_map<std::string, MatUvXfm> mat_uv;      // material -> diffuse UV xform
   std::unordered_map<std::string, std::string> mat_ref;  // material -> referenced material
   std::unordered_map<std::string, std::string> mat_layer_ref;  // material -> extra pass
@@ -1071,6 +1072,11 @@ MiloLayout load_milo_layout(const std::string& hdr, const std::string& ark,
       } else if (de.type == "Mat") {
         std::vector<uint8_t> body(b, b + n);
         auto mat = ghogx::milo_scene::decode_mat(de.name, body);
+        if (body.size() >= 49) {
+          std::array<uint8_t, 16> state{};
+          std::copy_n(body.begin() + 33, state.size(), state.begin());
+          out.mat_state[de.name] = state;
+        }
         if (!mat.diffuse_tex.empty()) out.mat_tex[de.name] = mat.diffuse_tex;
         {
           std::string ref = first_material_ref(body);
@@ -1236,10 +1242,15 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
     auto ref = layout.mat_ref.find(m.material);
     auto layer_ref = layout.mat_layer_ref.find(m.material);
     auto uv = layout.mat_uv.find(m.material);
+    auto state = layout.mat_state.find(m.material);
     const MatUvXfm uv_xfm = uv == layout.mat_uv.end() ? MatUvXfm{} : uv->second;
+    const std::array<uint8_t, 16> empty_state{};
+    const std::array<uint8_t, 16>& mat_state =
+        state == layout.mat_state.end() ? empty_state : state->second;
     std::fprintf(stderr,
                  "[hud-dump] %-27s mat=%-28s tex=%-24s parent=%-24s "
                  "blend=%u color=%08x prelit=%d ref=%-24s layer=%-24s "
+                 "state=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x "
                  "x=%.3f..%.3f y=%.3f..%.3f z=%.3f..%.3f "
                  "uv=%.3f..%.3f/%.3f..%.3f "
                  "uvxfm=(%.3f %.3f;%.3f %.3f)+(%.3f %.3f) "
@@ -1255,6 +1266,10 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
                  layer_ref == layout.mat_layer_ref.end()
                      ? ""
                      : layer_ref->second.c_str(),
+                 mat_state[0], mat_state[1], mat_state[2], mat_state[3],
+                 mat_state[4], mat_state[5], mat_state[6], mat_state[7],
+                 mat_state[8], mat_state[9], mat_state[10], mat_state[11],
+                 mat_state[12], mat_state[13], mat_state[14], mat_state[15],
                  mn[0], mx[0], mn[1], mx[1], mn[2], mx[2],
                  u0, u1, v0, v1,
                  uv_xfm.m[0][0], uv_xfm.m[0][1],
@@ -1270,10 +1285,16 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
     auto prelit = layout.mat_prelit.find(p.material);
     auto ref = layout.mat_ref.find(p.material);
     auto layer_ref = layout.mat_layer_ref.find(p.material);
+    auto state = layout.mat_state.find(p.material);
+    const std::array<uint8_t, 16> empty_state{};
+    const std::array<uint8_t, 16>& mat_state =
+        state == layout.mat_state.end() ? empty_state : state->second;
     std::fprintf(stderr,
                  "[hud-dump] particle %-20s mat=%-24s tex=%-20s "
                  "parent=%-20s blend=%u color=%08x prelit=%d "
-                 "ref=%-20s layer=%-20s showing=%d "
+                 "ref=%-20s layer=%-20s "
+                 "state=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x "
+                 "showing=%d "
                  "max=%.1f size=%.2f..%.2f\n",
                  p.name.c_str(), p.material.c_str(),
                  tex == layout.mat_tex.end() ? "" : tex->second.c_str(),
@@ -1286,6 +1307,10 @@ void dump_hud_layout(const char* tag, const MiloLayout& layout) {
                  layer_ref == layout.mat_layer_ref.end()
                      ? ""
                      : layer_ref->second.c_str(),
+                 mat_state[0], mat_state[1], mat_state[2], mat_state[3],
+                 mat_state[4], mat_state[5], mat_state[6], mat_state[7],
+                 mat_state[8], mat_state[9], mat_state[10], mat_state[11],
+                 mat_state[12], mat_state[13], mat_state[14], mat_state[15],
                  p.showing ? 1 : 0, p.max_particles, p.size_start,
                  p.size_end);
   }
@@ -2621,21 +2646,25 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
             mesh->material == "amp_tube_glow.mat";
         const bool star_additive_glow_mesh =
             star_tube_meter_glow_mesh || star_ready_tube_glow_mesh;
+        const auto state_it = star.mat_state.find(mesh->material);
+        const std::array<uint8_t, 16> empty_state{};
+        const std::array<uint8_t, 16>& mat_state =
+            state_it == star.mat_state.end() ? empty_state : state_it->second;
+        const bool material_texture_2x = mat_state[2] == 1;
+        const bool material_alpha_2x = mat_state[2] == 2;
         if (star_core_fill_mesh && !star_fill_color_keys_.empty()) {
           q.fullbright_texture = false;
-          q.emissive_texture_2x = true;
+          q.emissive_texture_2x = material_texture_2x;
           q.emissive_texture_4x = false;
           q.emissive_alpha_4x = false;
         }
-        if (star_black_backing_mesh) {
+        if (star_black_backing_mesh && material_alpha_2x) {
           q.emissive_alpha_2x = true;
         }
         if (star_additive_glow_mesh) {
-          q.fullbright_texture = true;
-          q.emissive_texture_2x = true;
-        }
-        if (star_tube_meter_glow_mesh) {
-          q.emissive_alpha_2x = true;
+          q.fullbright_texture = false;
+          q.emissive_texture_2x = material_texture_2x;
+          q.emissive_alpha_2x = false;
         }
         const auto prelit_it = star.mat_prelit.find(mesh->material);
         const bool source_prelit =
@@ -2643,8 +2672,8 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         if (star_path_glow_mesh && source_prelit) {
           native_star_path_glow_prelit_ = true;
           native_star_path_glow_dual_emit_ = false;
-          q.emissive_texture_2x = true;
-          q.emissive_alpha_2x = true;
+          q.emissive_texture_2x = material_texture_2x;
+          q.emissive_alpha_2x = material_texture_2x;
         }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
@@ -2756,8 +2785,13 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         q.sort_bias = star_meter_source_sort_bias(mesh_name);
         if (std::strcmp(mesh_name, "amp_tube_glow.mesh") == 0 &&
             mesh->material == "amp_tube_glow.mat") {
-          q.fullbright_texture = true;
-          q.emissive_texture_2x = true;
+          const auto state_it = star.mat_state.find(mesh->material);
+          const std::array<uint8_t, 16> empty_state{};
+          const std::array<uint8_t, 16>& mat_state =
+              state_it == star.mat_state.end() ? empty_state : state_it->second;
+          q.fullbright_texture = false;
+          q.emissive_texture_2x = mat_state[2] == 1;
+          q.emissive_alpha_2x = false;
         }
         if (flip_u) {
           for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
