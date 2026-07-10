@@ -322,13 +322,6 @@ MeshSurfaceClosest closest_mesh_surface(const milo_scene::MeshObj& mesh,
 // with "shadow". Skipping it keeps the character clean against the backdrop.
 bool is_shadow(const std::string& n) { return n.rfind("shadow", 0) == 0; }
 
-// "_lod1" meshes are lower-quality duplicate body parts drawn alongside the full
-// quality mesh. Drawing both causes z-fighting / garbling. Skip LOD1 entirely —
-// the bind-pose viewer always uses the highest-quality geometry.
-bool is_lod1(const std::string& n) {
-  return n.find("_lod1") != std::string::npos || n.rfind("lod_", 0) == 0;
-}
-
 const milo_scene::GroupObj* find_character_group(const Character& character,
                                                  const std::string& name) {
   for (const auto& group : character.groups) {
@@ -390,7 +383,6 @@ bool is_hidden_by_character_lod_selection(const Character& character,
   if (min_lod >= 1 && has_lod1) {
     return !character_group_contains_mesh(character, "lod1.grp", mesh.name);
   }
-  if (is_lod1(mesh.name)) return true;
   return is_hidden_by_character_lod_group(character, mesh);
 }
 

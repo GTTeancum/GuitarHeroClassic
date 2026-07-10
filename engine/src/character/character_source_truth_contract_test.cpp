@@ -277,6 +277,8 @@ int run_contract() {
                 "renderer must not hide meshes through invented leg duplicate rule");
   ok &= missing(renderer, "is_hidden_numbered_hair_variant",
                 "renderer must not hide hair through numbered-name fallback");
+  ok &= missing(renderer, "is_lod1",
+                "renderer must not hide LOD meshes through name fallback");
   ok &= missing(renderer, "is_hair_render_mesh",
                 "renderer must not derive render state from hair names");
   ok &= missing(renderer, "is_hair_mesh_name",
@@ -294,6 +296,9 @@ int run_contract() {
                  "if(std::fabs(a->draw_order-b->draw_order)>1.0e-5f){"
                  "returna->draw_order<b->draw_order;}",
                  "native draw sort uses source RndDrawable draw order without hair names");
+  ok &= contains(renderer,
+                 "returnis_hidden_by_character_lod_group(character,mesh);",
+                 "native LOD visibility falls back only to source group membership");
 
   ok &= contains(gltf_program_cs,
                  "boneName.StartsWith(\"bone_hair_\",StringComparison.OrdinalIgnoreCase)",

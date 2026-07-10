@@ -161,6 +161,8 @@ confirms GH2 PS2 mesh group-section tails decode through the same
 - Renderer geometry selection must come from decoded source membership such as
   `RndGroup.objects`; name/palette suppressions like numbered-hair or terminal
   leg-overlay hiding are not source evidence.
+- LOD visibility must come from source group membership (`lod0.grp` /
+  `lod1.grp`), not `_lod1` or `lod_` name prefixes.
 - Renderer state such as blend, z write, alpha test, cull, wrap, and draw order
   must come from source material/drawable rows. Hair-name render branches are
   not source evidence.
