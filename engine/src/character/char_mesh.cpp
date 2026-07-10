@@ -144,7 +144,8 @@ TransFields read_rnd_trans(Reader& r, bool standalone) {
 }  // namespace
 
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
-                                const std::vector<uint8_t>& body) {
+                                const std::vector<uint8_t>& body,
+                                int32_t parent_dir_revision) {
   SkinnedMesh mesh;
   mesh.name = entry_name;
   try {
@@ -288,6 +289,36 @@ SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
             mesh.bind.push_back(r.matrix());
           }
         }
+      }
+    }
+
+    // ihatecompvir MiloLib RndMesh.Read keeps this last-gen tail for parent
+    // dirs before revision 25 when groupSizes[0] is non-zero.
+    if (!mesh.group_sizes.empty() && mesh.group_sizes[0] > 0 &&
+        parent_dir_revision < 25) {
+      mesh.group_sections.reserve(mesh.group_sizes.size());
+      for (size_t gi = 0; gi < mesh.group_sizes.size(); ++gi) {
+        const uint32_t section_count = r.u32();
+        const uint32_t vert_count = r.u32();
+        const uint64_t payload_bytes =
+            static_cast<uint64_t>(section_count) * 4u +
+            static_cast<uint64_t>(vert_count) * 2u;
+        if (section_count > 65536 || vert_count > 65536 ||
+            payload_bytes > body.size() - r.pos) {
+          mesh.error = "group section " + std::to_string(gi) +
+                       " exceeds entry";
+          return mesh;
+        }
+        RndMeshGroupSection group_section;
+        group_section.sections.reserve(section_count);
+        for (uint32_t si = 0; si < section_count; ++si) {
+          group_section.sections.push_back(r.i32());
+        }
+        group_section.vert_offsets.reserve(vert_count);
+        for (uint32_t vi = 0; vi < vert_count; ++vi) {
+          group_section.vert_offsets.push_back(r.u16());
+        }
+        mesh.group_sections.push_back(std::move(group_section));
       }
     }
 
@@ -813,7 +844,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                              payload.data() + de.offset + de.size);
       try {
         if (de.type == "Mesh") {
-          SkinnedMesh m = decode_skinned_mesh(de.name, b);
+          SkinnedMesh m = decode_skinned_mesh(de.name, b, dir.dir_version);
           if (m.decoded) ++mesh_ok; else ++mesh_fail;
           out.meshes.push_back(std::move(m));
         } else if (de.type == "Trans") {

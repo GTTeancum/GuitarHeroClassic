@@ -45,6 +45,17 @@ Treat ihatecompvir's repos as the authority; do not use the older
     bone-transform block, it is exactly four bone-name symbols followed by
     exactly four transform matrices. Empty names remain source slots; they are
     not evidence to reshape or renumber the palette.
+  - For last-gen parent directories before revision 25, `RndMesh.Read` then
+    reads one `GroupSection` per `groupSizes` row when `groupSizes[0] > 0`.
+    Each `GroupSection` is `sectionCount`, `vertCount`, signed section indices,
+    then unsigned vertex offsets. Native keeps these rows decoded/loggable
+    instead of treating them as anonymous trailing bytes.
+- `rb3/src/system/rndobj/Mesh.cpp`
+  - `RndMesh::SetBone` is the runtime source for how a bone offset is authored:
+    it inverts `t->WorldXfm()` and calls `Multiply(WorldXfm(), inverseBone,
+    mBones[i].mOffset)`.
+  - GH2-era `RndMesh::PostLoad` reads the same four source bone slots and four
+    offsets that the native decoder preserves.
 
 ## Skinning Authority
 
@@ -52,9 +63,13 @@ Treat ihatecompvir's repos as the authority; do not use the older
   - Mesh bone transforms are generated per chunk joint, in vertex palette order.
   - The transform written for a palette bone is:
     `inverse(jointNode.WorldMatrix) * node.WorldMatrix`.
-  - The native render path therefore consumes the stored transform as a source
-    offset row, then composes it with the current source transform for the named
-    bone. It must not replace this with a guessed inverse-bind fallback.
+- `rb3/src/system/rndobj/Mesh.cpp`
+  - Runtime-authored offsets are `meshWorld * inverse(boneWorld)`. Native GHOGX
+    therefore consumes GH2 stock offsets as `vertex * storedOffset *
+    currentBoneWorld`.
+  - Do not use the glTFMilo writer formula by itself to reverse runtime skinning
+    order; a local visual check on stock Rock1/Rock2/Rockabill2 proved that
+    order explodes the character mesh.
 
 ## Hair Authorities
 
@@ -101,9 +116,17 @@ confirms character `lod0.grp` and `lod1.grp` membership is decoded from
 `RndGroup.objects` rows, including Rock1/Rock2 hair cards, Rockabill2 hair and
 teeth meshes, Funk1 LOD groups, and Grim accessory/body segments.
 
+The local stock mesh detail audit log at
+`analysis/ihatecompvir_source_truth_20260710/source_rndmesh_group_sections.log`
+confirms GH2 PS2 mesh group-section tails decode through the same
+`RndMesh.GroupSection` rows for inspected stock character meshes.
+
 ## Native Rules
 
 - Shared parser fixes are allowed when they follow the source files above.
 - Character-name fixes are not source evidence.
+- Renderer geometry selection must come from decoded source membership such as
+  `RndGroup.objects`; name/palette suppressions like numbered-hair or terminal
+  leg-overlay hiding are not source evidence.
 - If a behavior is not proven by ihatecompvir source or stock asset data, leave
   it decoded/logged and unwritten until the source-backed runtime path is known.

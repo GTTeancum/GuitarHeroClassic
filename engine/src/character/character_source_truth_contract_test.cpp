@@ -82,6 +82,8 @@ int main() {
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs"));
   const std::string mesh_cs = compact(read_file(
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs"));
+  const std::string rb3_mesh_cpp = compact(read_file(
+      source_dir / "rb3/src/system/rndobj/Mesh.cpp"));
   const std::string gltf_program_cs = compact(read_file(
       source_dir / "glTFMilo/Source/glTFMilo/Program.cs"));
   const std::string gltf_node_processor_cs = compact(read_file(
@@ -99,6 +101,8 @@ int main() {
                  "document cites RndGroup source");
   ok &= contains(doc, "glTFMilo/Source/glTFMilo/Program.cs",
                  "document cites glTFMilo skinning source");
+  ok &= contains(doc, "rb3/src/system/rndobj/Mesh.cpp",
+                 "document cites RB3 RndMesh runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharHair.cpp",
                  "document cites CharHair runtime source");
 
@@ -195,6 +199,18 @@ int main() {
                  "boneTransforms[i].name=Symbol.Read(reader);}for(inti=0;i<4;i++){"
                  "boneTransforms[i].transform=boneTransforms[i].transform.Read(reader);}",
                  "RndMesh rev<33 old-style four names then four transforms");
+  ok &= contains(mesh_cs,
+                 "publicclassGroupSection{publicList<int>sections=new();"
+                 "publicList<ushort>vertOffsets=new();publicGroupSectionRead("
+                 "EndianReaderreader,uintmeshRevision){uintsectionCount="
+                 "reader.ReadUInt32();uintvertCount=reader.ReadUInt32();",
+                 "RndMesh source group-section row schema");
+  ok &= contains(mesh_cs,
+                 "if(groupSizesCount>0&&groupSizes[0]>0&&parent.revision<25)"
+                 "{for(inti=0;i<groupSizesCount;i++){GroupSectionsection="
+                 "newGroupSection();groupSections.Add(section.Read(reader,"
+                 "revision));}}",
+                 "RndMesh source last-gen group-section gate");
   ok &= contains(char_mesh,
                  "constint32_tfirst_bone_len=r.i32();if(first_bone_len>0){"
                  "r.pos=bone_probe;",
@@ -203,8 +219,29 @@ int main() {
                  "for(intbi=0;bi<4;++bi){mesh.bone_palette.push_back(r.str());}"
                  "for(intbi=0;bi<4;++bi){mesh.bind.push_back(r.matrix());}",
                  "native keeps GH2 four source palette slots and four offsets");
+  ok &= contains(char_mesh_h,
+                 "structRndMeshGroupSection{std::vector<int32_t>sections;"
+                 "std::vector<uint16_t>vert_offsets;};",
+                 "native exposes RndMesh GroupSection rows");
+  ok &= contains(char_mesh,
+                 "if(!mesh.group_sizes.empty()&&mesh.group_sizes[0]>0&&"
+                 "parent_dir_revision<25){",
+                 "native follows source last-gen group-section gate");
+  ok &= contains(char_mesh,
+                 "group_section.sections.push_back(r.i32());",
+                 "native reads signed group-section section indices");
+  ok &= contains(char_mesh,
+                 "group_section.vert_offsets.push_back(r.u16());",
+                 "native reads group-section vertex offsets");
+  ok &= contains(char_mesh,
+                 "decode_skinned_mesh(de.name,b,dir.dir_version);",
+                 "native passes source parent dir revision into Mesh decoder");
   ok &= missing(char_mesh, "erase(std::remove",
                 "native must not trim empty source palette rows");
+  ok &= missing(renderer, "is_terminal_leg_overlay_duplicate",
+                "renderer must not hide meshes through invented leg duplicate rule");
+  ok &= missing(renderer, "is_hidden_numbered_hair_variant",
+                "renderer must not hide hair through numbered-name fallback");
 
   ok &= contains(gltf_program_cs,
                  "boneName.StartsWith(\"bone_hair_\",StringComparison.OrdinalIgnoreCase)",
@@ -214,6 +251,16 @@ int main() {
                  "MatrixHelpers.CopyMatrix(relativeTransform,miloBoneTransform.transform,"
                  "convertCoordinates);",
                  "glTFMilo writes inverse bone world times mesh world");
+  ok &= contains(rb3_mesh_cpp,
+                 "Invert(t->WorldXfm(),tf48);Multiply(WorldXfm(),tf48,"
+                 "mBones[i].mOffset);",
+                 "RB3 runtime SetBone stores mesh world times inverse bone world");
+  ok &= contains(rb3_mesh_cpp,
+                 "bs>>mBones[0].mOffset>>mBones[1].mOffset>>"
+                 "mBones[2].mOffset>>mBones[3].mOffset;",
+                 "RB3 runtime reads GH2-era four source offsets");
+  ok &= contains(doc, "vertex * storedOffset *\n    currentBoneWorld",
+                 "document states native source-offset consumption order");
   ok &= contains(renderer,
                  "skin[i]=mul16(xfm16(mesh.bind[i]),curr_world);",
                  "native renderer consumes source offset then current transform");

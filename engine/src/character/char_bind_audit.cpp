@@ -331,12 +331,12 @@ void audit_mesh_detail(const Character& c, const SkinnedMesh& m,
   const size_t nb = m.bone_palette.size();
   std::printf(
       "[mesh-detail] char=%s mesh=%s parent=%s mat=%s verts=%zu faces=%zu "
-      "palette=%zu drawOrder=%.3f "
+      "palette=%zu groupSizes=%zu groupSections=%zu drawOrder=%.3f "
       "bbox=(%.3f %.3f %.3f)..(%.3f %.3f %.3f)\n",
       c.dir_name.c_str(), m.name.c_str(), m.parent.c_str(),
       m.material.c_str(), m.verts.size(), m.indices.size() / 3, nb,
-      m.draw_order, m.bb_min[0], m.bb_min[1], m.bb_min[2], m.bb_max[0],
-      m.bb_max[1], m.bb_max[2]);
+      m.group_sizes.size(), m.group_sections.size(), m.draw_order, m.bb_min[0],
+      m.bb_min[1], m.bb_min[2], m.bb_max[0], m.bb_max[1], m.bb_max[2]);
   print_matrix("local", xfm_to_mat4(m.local));
   print_matrix("storedWorld", xfm_to_mat4(m.world_stored));
   print_matrix("bindLocalChain", c.bone_world_bind_local_chain(m.name));
@@ -393,6 +393,24 @@ void audit_mesh_detail(const Character& c, const SkinnedMesh& m,
           bind[0], bind[1], bind[2], bind[4], bind[5], bind[6], bind[8],
           bind[9], bind[10], bind[12], bind[13], bind[14]);
     }
+  }
+  for (size_t gi = 0; gi < m.group_sections.size(); ++gi) {
+    const auto& section = m.group_sections[gi];
+    const int32_t first_section =
+        section.sections.empty() ? 0 : section.sections.front();
+    const int32_t last_section =
+        section.sections.empty() ? 0 : section.sections.back();
+    const uint16_t first_vert =
+        section.vert_offsets.empty() ? 0 : section.vert_offsets.front();
+    const uint16_t last_vert =
+        section.vert_offsets.empty() ? 0 : section.vert_offsets.back();
+    std::printf(
+        "[mesh-group-section] char=%s mesh=%s index=%zu sections=%zu "
+        "vertOffsets=%zu firstSection=%d lastSection=%d firstVert=%u "
+        "lastVert=%u\n",
+        c.dir_name.c_str(), m.name.c_str(), gi, section.sections.size(),
+        section.vert_offsets.size(), first_section, last_section, first_vert,
+        last_vert);
   }
   if (dump_verts) {
     for (size_t vi = 0; vi < m.verts.size(); ++vi) {

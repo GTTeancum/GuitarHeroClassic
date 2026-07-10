@@ -42,7 +42,8 @@
 //             remain real source slots, but unresolved slots do not contribute
 //             to skinning.
 //     bind  : one 3x4 RndBone offset row per source palette slot.
-//     ...   trailing per-LOD face-group descriptor (ignored)
+//     groups: for last-gen parent dirs before revision 25, source GroupSection
+//             rows follow when groupSizes is non-empty and starts above zero.
 //
 //   Bones are the BandCharacter dir's Trans entries named "bone_*"/"spot_*".
 //   Their composed parent chain gives each bone's bind-pose WORLD matrix.
@@ -75,6 +76,11 @@ struct SkinVertex {
 static_assert(sizeof(SkinVertex) == 48,
               "GH2 PS2 skinned vertex stride must be 48 bytes");
 
+struct RndMeshGroupSection {
+  std::vector<int32_t> sections;
+  std::vector<uint16_t> vert_offsets;
+};
+
 struct SkinnedMesh {
   std::string name;
   std::string parent;     // Trans parent (links into the skeleton/group tree)
@@ -89,6 +95,7 @@ struct SkinnedMesh {
   uint32_t mutable_flags = 0;
   uint32_t volume = 1;  // RndMesh::kVolumeTriangles
   std::vector<uint8_t> group_sizes;
+  std::vector<RndMeshGroupSection> group_sections;
 
   std::vector<SkinVertex> verts;
   std::vector<uint16_t> indices;  // face_count*3
@@ -312,7 +319,8 @@ struct Character {
 // Decode one skinned-mesh entry body. Never throws: on failure returns a
 // SkinnedMesh with decoded=false and a populated .error.
 SkinnedMesh decode_skinned_mesh(const std::string& entry_name,
-                                const std::vector<uint8_t>& body);
+                                const std::vector<uint8_t>& body,
+                                int32_t parent_dir_revision = 24);
 
 // Load + decode a whole BandCharacter MILO from a PS2 ARK (runtime-native: read
 // the .milo_ps2 from the ARK, decode in memory — no intermediate extraction).

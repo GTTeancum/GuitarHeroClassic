@@ -1,0 +1,152 @@
+#include "character/char_mesh.h"
+
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <vector>
+
+namespace {
+
+#define CHECK(cond)                                                          \
+  do {                                                                       \
+    if (!(cond)) {                                                           \
+      std::printf("  [FAIL] %s:%d  %s\n", __FILE__, __LINE__, #cond);        \
+      std::exit(1);                                                          \
+    }                                                                        \
+  } while (0)
+
+void put_u32(std::vector<uint8_t>& b, uint32_t v) {
+  for (int i = 0; i < 4; ++i) b.push_back(static_cast<uint8_t>(v >> (i * 8)));
+}
+
+void put_u16(std::vector<uint8_t>& b, uint16_t v) {
+  b.push_back(static_cast<uint8_t>(v & 0xff));
+  b.push_back(static_cast<uint8_t>(v >> 8));
+}
+
+void put_f32(std::vector<uint8_t>& b, float f) {
+  uint32_t v = 0;
+  std::memcpy(&v, &f, sizeof(v));
+  put_u32(b, v);
+}
+
+void put_str(std::vector<uint8_t>& b, const std::string& s) {
+  put_u32(b, static_cast<uint32_t>(s.size()));
+  for (char c : s) b.push_back(static_cast<uint8_t>(c));
+}
+
+void put_zeros(std::vector<uint8_t>& b, size_t n) {
+  for (size_t i = 0; i < n; ++i) b.push_back(0);
+}
+
+void put_matrix(std::vector<uint8_t>& b, float tx, float ty, float tz) {
+  put_f32(b, 1.0f); put_f32(b, 0.0f); put_f32(b, 0.0f);
+  put_f32(b, 0.0f); put_f32(b, 1.0f); put_f32(b, 0.0f);
+  put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 1.0f);
+  put_f32(b, tx); put_f32(b, ty); put_f32(b, tz);
+}
+
+bool approx(float a, float b) { return std::fabs(a - b) < 1.0e-4f; }
+
+std::vector<uint8_t> make_rev28_mesh_with_group_section() {
+  std::vector<uint8_t> b;
+  put_u32(b, 28);                 // RndMesh revision
+  put_zeros(b, 9);                // ObjectFields revision 0, empty type/root
+
+  put_u32(b, 9);                  // embedded RndTrans revision
+  put_matrix(b, 1.0f, 2.0f, 3.0f);
+  put_matrix(b, 1.0f, 2.0f, 3.0f);
+  put_u32(b, 0);                  // constraint
+  put_str(b, "");                 // target
+  b.push_back(0);                 // preserve scale
+  put_str(b, "bone_head.mesh");   // parent
+
+  put_u32(b, 3);                  // embedded RndDrawable revision
+  b.push_back(1);                 // showing
+  put_zeros(b, 16);               // sphere
+  put_f32(b, 0.5f);               // draw order
+
+  put_str(b, "hair.mat");         // material
+  put_str(b, "hair.mesh");        // geom owner
+  put_u32(b, 0);                  // mutable flags
+  put_u32(b, 1);                  // volume
+  b.push_back(0);                 // empty BSP node
+
+  put_u32(b, 3);                  // vertices
+  const float p[3][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
+  for (int i = 0; i < 3; ++i) {
+    put_f32(b, p[i][0]); put_f32(b, p[i][1]); put_f32(b, p[i][2]);
+    put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 1.0f);
+    put_f32(b, 1.0f); put_f32(b, 0.0f); put_f32(b, 0.0f); put_f32(b, 0.0f);
+    put_f32(b, p[i][0]); put_f32(b, p[i][1]);
+  }
+
+  put_u32(b, 1);                  // one face
+  put_u16(b, 0); put_u16(b, 1); put_u16(b, 2);
+
+  put_u32(b, 1);                  // groupSizes count
+  b.push_back(1);                 // groupSizes[0] > 0 drives GroupSection tail
+
+  put_str(b, "bone_head.mesh");   // old-style four source palette names
+  put_str(b, "");
+  put_str(b, "");
+  put_str(b, "");
+  put_matrix(b, 10.0f, 20.0f, 30.0f);
+  put_matrix(b, 0.0f, 0.0f, 0.0f);
+  put_matrix(b, 0.0f, 0.0f, 0.0f);
+  put_matrix(b, 0.0f, 0.0f, 0.0f);
+
+  put_u32(b, 2);                  // GroupSection.sectionCount
+  put_u32(b, 3);                  // GroupSection.vertCount
+  put_u32(b, 1);                  // sections[0]
+  put_u32(b, 3);                  // sections[1]
+  put_u16(b, 0);                  // vertOffsets[0]
+  put_u16(b, 1);                  // vertOffsets[1]
+  put_u16(b, 2);                  // vertOffsets[2]
+
+  return b;
+}
+
+}  // namespace
+
+int main() {
+  std::printf("character_mesh_decode_test\n");
+  const auto bytes = make_rev28_mesh_with_group_section();
+  const ghogx::character::SkinnedMesh mesh =
+      ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 24);
+
+  if (!mesh.decoded) {
+    std::printf("  [FAIL] decode error: %s\n", mesh.error.c_str());
+  }
+  CHECK(mesh.decoded);
+  CHECK(mesh.name == "hair.mesh");
+  CHECK(mesh.material == "hair.mat");
+  CHECK(mesh.parent == "bone_head.mesh");
+  CHECK(mesh.verts.size() == 3);
+  CHECK(mesh.indices.size() == 3);
+  CHECK(mesh.group_sizes.size() == 1);
+  CHECK(mesh.group_sizes[0] == 1);
+  CHECK(mesh.bone_palette.size() == 4);
+  CHECK(mesh.bone_palette[0] == "bone_head.mesh");
+  CHECK(mesh.bone_palette[1].empty());
+  CHECK(mesh.bind.size() == 4);
+  CHECK(approx(mesh.bind[0].pos[0], 10.0f));
+  CHECK(mesh.group_sections.size() == 1);
+  CHECK(mesh.group_sections[0].sections.size() == 2);
+  CHECK(mesh.group_sections[0].sections[0] == 1);
+  CHECK(mesh.group_sections[0].sections[1] == 3);
+  CHECK(mesh.group_sections[0].vert_offsets.size() == 3);
+  CHECK(mesh.group_sections[0].vert_offsets[2] == 2);
+
+  const ghogx::character::SkinnedMesh rb1_style =
+      ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 25);
+  CHECK(rb1_style.decoded);
+  CHECK(rb1_style.group_sections.empty());
+
+  std::printf("  [ok] RndMesh rev28 groupSections=%zu palette=%zu\n",
+              mesh.group_sections.size(), mesh.bone_palette.size());
+  return 0;
+}

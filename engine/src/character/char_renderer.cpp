@@ -392,32 +392,6 @@ bool is_hidden_by_character_lod_selection(const Character& character,
   return is_hidden_by_character_lod_group(character, mesh);
 }
 
-// Numbered dot-variant hair meshes can be real draw members. Rock2's decoded
-// PS2 lod0.grp includes hair-back.1.mesh through hair-back.6.mesh, so a global
-// "numbered hair is hidden" rule drops authored visible hair. Keep the name
-// detector only as a fallback for meshes not explicitly selected by lod0.grp.
-bool is_hair_numbered_variant(const std::string& n) {
-  if (n.find("hair") == std::string::npos &&
-      n.find("Hair") == std::string::npos) {
-    return false;
-  }
-  // Look for ".<digit>." in the name (not at position 0).
-  for (size_t i = 1; i + 3 <= n.size(); ++i) {
-    if (n[i] == '.' && std::isdigit(static_cast<unsigned char>(n[i+1])) && n[i+2] == '.') {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool is_hidden_numbered_hair_variant(const Character& character,
-                                     const SkinnedMesh& mesh) {
-  if (!is_hair_numbered_variant(mesh.name)) return false;
-  const bool has_lod0 = find_character_group(character, "lod0.grp") != nullptr;
-  if (!has_lod0) return true;
-  return !character_group_contains_mesh(character, "lod0.grp", mesh.name);
-}
-
 bool is_hair_mesh_name(const std::string& n) {
   std::string lower = n;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -669,11 +643,6 @@ bool debug_mesh_mode_enabled(const std::string& mesh) {
   return false;
 }
 
-bool has_suffix(const std::string& n, const char* suffix) {
-  const size_t len = std::strlen(suffix);
-  return n.size() >= len && n.compare(n.size() - len, len, suffix) == 0;
-}
-
 bool contains_case_insensitive(const std::string& n, const char* needle) {
   std::string lower = n;
   std::transform(lower.begin(), lower.end(), lower.begin(),
@@ -684,25 +653,6 @@ bool contains_case_insensitive(const std::string& n, const char* needle) {
                  [](unsigned char c) { return (char)std::tolower(c); });
   return !lower_needle.empty() &&
          lower.find(lower_needle) != std::string::npos;
-}
-
-bool is_ankle_toe_palette(const SkinnedMesh& m) {
-  if (m.bone_palette.size() != 2) return false;
-  const bool left = m.bone_palette[0] == "bone_L-ankle.mesh" &&
-                    m.bone_palette[1] == "bone_L-toe.mesh";
-  const bool right = m.bone_palette[0] == "bone_R-ankle.mesh" &&
-                     m.bone_palette[1] == "bone_R-toe.mesh";
-  return left || right;
-}
-
-bool is_terminal_leg_overlay_duplicate(const SkinnedMesh& m) {
-  if (m.bone_palette.empty() || m.bind.empty()) return false;
-  if (is_shadow(m.name) || is_hair_mesh_name(m.name)) return false;
-  if (!is_ankle_toe_palette(m)) return false;
-  if (!has_suffix(m.parent, ".mesh")) return false;
-  return contains_case_insensitive(m.name, "leg") &&
-         contains_case_insensitive(m.parent, "leg") &&
-         contains_case_insensitive(m.material, "leg");
 }
 
 bool debug_skin_bounds_enabled() {
@@ -1413,10 +1363,7 @@ void CharRenderer::frame_camera() {
   for (const auto& m : impl_->character.meshes) {
     if (!m.decoded || !m.showing || m.verts.empty() || is_shadow(m.name) ||
         is_hidden_by_character_lod_selection(impl_->character, m,
-                                             impl_->min_lod) ||
-        (impl_->min_lod < 1 &&
-         is_hidden_numbered_hair_variant(impl_->character, m)) ||
-        is_terminal_leg_overlay_duplicate(m)) continue;
+                                             impl_->min_lod)) continue;
     for (const auto& v : m.verts) {
       const float p[3] = {v.px, v.py, v.pz};
       if (!impl_->have_bounds) {
@@ -1611,10 +1558,7 @@ void CharRenderer::draw_impl(bool clear_target) {
     }
     if (is_shadow(m.name) ||
         is_hidden_by_character_lod_selection(impl.character, m,
-                                             impl.min_lod) ||
-        (impl.min_lod < 1 &&
-         is_hidden_numbered_hair_variant(impl.character, m)) ||
-        is_terminal_leg_overlay_duplicate(m)) continue;
+                                             impl.min_lod)) continue;
     const bool eye_mesh = is_eye_mesh(m.name);
     const milo_scene::MatObj* material = impl.character.find_mat(m.material);
     const DWORD mesh_cull_mode = character_cull_mode(&m, material);

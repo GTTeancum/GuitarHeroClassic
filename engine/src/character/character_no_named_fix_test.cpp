@@ -104,6 +104,10 @@ int main() {
   const std::vector<std::string> forbidden = {
       "glam1",       "rock2",     "metal_bass", "deathmetal1",
       "deathmetal",  "rockabill1", "rockabill",  "goth3",
+      "terminal_leg_overlay_duplicate",
+      "ankle_toe_palette",
+      "hidden_numbered_hair_variant",
+      "hair_numbered_variant",
   };
 
   bool ok = true;
