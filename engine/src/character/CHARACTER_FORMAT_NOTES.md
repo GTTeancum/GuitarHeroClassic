@@ -1057,7 +1057,7 @@ Glam1 hair:
   only reads explicit per-vertex `boneIndices` in newer revs.
   `glTFMilo/external/MiloEditor`
   `RndMat` reads GH2-era material state in this source order after color:
-  `preLit`, `useEnviron`, `zMode`, `alphaCut`, `alphaWrite`, `texGen`,
+  `useEnviron`, `preLit`, `zMode`, `alphaCut`, `alphaWrite`, `texGen`,
   `texWrap`, `texXfm`, `diffuseTex`, `nextPass`, `intensify`, `cull`,
   `emissiveMultiplier`. That supports the native blend/cull render-state path
   and gives the string-scanning Mat decoder a concrete schema target. Public
@@ -4596,15 +4596,15 @@ Every outfit audit should capture:
 - 2026-07-10 `o` glTFMilo material-state build/test pass:
   the local helper is built against
   `../ihatecompvir-public-milo-sources/glTFMilo/external/MiloEditor/MiloLib`,
-  whose `RndMat` reader consumes GH2-era material flags as `preLit` then
-  `useEnviron`. `MiloPreviewBatch` logs these rows as `[source-mat]` in
+  whose `RndMat` reader consumes GH2-era material flags as `useEnviron` then
+  `preLit`. `MiloPreviewBatch` logs these rows as `[source-mat]` in
   `analysis/ihatecompvir_milo_samples/source_preview_gltfmilo_materials_20260710o/`,
   and the raw extracted PS2 material bodies in
   `analysis/ihatecompvir_milo_samples/mat_raw_20260710o/` confirm the byte
   order: Rock1 `rocker1_hair.mat`, Rock1 `rock1_hair2.mat`, Rock2
   `rock2_hair.mat`, Grim `grim_wings.mat`, and Funk1 `funk1_hair.mat` all have
   flag bytes `01 00` followed by z-mode `01 00 00 00`, matching
-  `preLit=1/useEnviron=0`; Rock2 `rock2_hair2.mat` has `01 01` and therefore
+  `useEnviron=1/preLit=0`; Rock2 `rock2_hair2.mat` has `01 01` and therefore
   both flags set. Native now decodes the two bytes in that source-backed order.
   This is a material/render-state decode fix, not proof that Rock1/Rock2
   controller/card placement is solved. The same helper images and native
@@ -4874,7 +4874,7 @@ Viewer hand-overlay validation:
   `ghogx_character_hair_contract_test` all build. Focused tests
   `ghogx_milo_scene_test` and `ghogx_character_hair_contract_test` pass.
 - MiloLib's GH2-rev `RndMat` reader is source-backed field order for this
-  slice: `blend`, color, `preLit`, `useEnviron`, `zMode`, `alphaCut`,
+  slice: `blend`, color, `useEnviron`, `preLit`, `zMode`, `alphaCut`,
   optional later-rev `alphaThreshold`, `alphaWrite`, `texGen`, `texWrap`,
   `texXfm`, diffuse texture, next pass, `intensify`, and `cull`. Native
   `milo_scene::MatObj` now decodes those render-state fields instead of only

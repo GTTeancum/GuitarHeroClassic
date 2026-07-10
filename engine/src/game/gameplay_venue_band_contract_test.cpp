@@ -2564,11 +2564,11 @@ int main() {
                  "group.children=group_child_refs(b,&group.environment_ref);",
                  "Group decoder preserves authored Environ refs");
   ok &= contains(milo_scene_cpp_c,
-                 "m.prelit=body[flag_pos]!=0;",
-                 "Mat decoder preserves source-backed prelit flag order");
-  ok &= contains(milo_scene_cpp_c,
-                 "m.use_environ=body[flag_pos+1]!=0;",
+                 "m.use_environ=r.u8()!=0;",
                  "Mat decoder preserves source-backed use_environ flag order");
+  ok &= contains(milo_scene_cpp_c,
+                 "m.prelit=r.u8()!=0;",
+                 "Mat decoder preserves source-backed prelit flag order");
   ok &= contains(milo_scene_cpp_c,
                  "constuint32_tblend=r.u32();",
                  "Mat decoder reads BLEND_ENUM before material color");

@@ -81,8 +81,8 @@ void test_mat() {
   put_zeros(b, 9);               // base metadata
   put_u32(b, 4);                 // kBlendSrcAlphaAdd
   put_f32(b, 1); put_f32(b, 1); put_f32(b, 1); put_f32(b, 1);  // colour RGBA
-  b.push_back(1);                // prelit
-  b.push_back(0);                // use_environ
+  b.push_back(1);                // use_environ
+  b.push_back(0);                // prelit
   put_u32(b, 2);                 // z_mode = kZModeTransparent
   b.push_back(1);                // alpha_cut
   b.push_back(0);                // alpha_write (GH2 v27 has no threshold field)
@@ -103,8 +103,8 @@ void test_mat() {
   CHECK(m.diffuse_tex == "gem.tex");
   CHECK(approx(m.color[0], 1.0f));
   CHECK(m.blend == 4);
-  CHECK(!m.use_environ);
-  CHECK(m.prelit);
+  CHECK(m.use_environ);
+  CHECK(!m.prelit);
   CHECK(m.has_render_state);
   CHECK(m.z_mode == 2);
   CHECK(m.alpha_cut);

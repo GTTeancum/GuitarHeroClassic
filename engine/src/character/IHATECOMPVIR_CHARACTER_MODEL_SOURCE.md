@@ -27,14 +27,19 @@ Treat ihatecompvir's repos as the authority; do not use the older
 - `MiloEditor/MiloLib/Assets/Rnd/RndDrawable.cs`
   - `RndDrawable.Read` reads combined revision, showing, optional sphere, and
     draw order for revisions greater than 2.
+- `MiloEditor/MiloLib/Assets/Rnd/RndMat.cs`
+  - For material revisions above 21, `RndMat.Read` reads `useEnviron`,
+    `preLit`, `zMode`, `alphaCut`, optional `alphaThreshold`, `alphaWrite`,
+    `texGen`, `texWrap`, texture transform, diffuse texture, next pass,
+    intensify, cull, and emissive multiplier in that order.
 - `MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs`
   - `RndMesh.Read` calls `base.Read`, embedded `trans.Read`, embedded
     `draw.Read`, material, geom owner, vertices, faces, group sizes, then bone
     transforms.
-  - GH2-era meshes are below revision 33, so the bone-transform block is exactly
-    four bone-name symbols followed by exactly four transform matrices. Empty
-    names remain source slots; they are not evidence to reshape or renumber the
-    palette.
+  - GH2-era meshes are below revision 33. When the source presence check sees a
+    bone-transform block, it is exactly four bone-name symbols followed by
+    exactly four transform matrices. Empty names remain source slots; they are
+    not evidence to reshape or renumber the palette.
 
 ## Skinning Authority
 
@@ -77,6 +82,13 @@ targets:
   `bone_hair*` / side hair bones and collision targets.
 - `rockabill2`: `chain.hair` drives chain bones with thigh collision; `hair.hair`
   drives `bone_hair.mesh` and has no collision target.
+
+The local stock material audit log at
+`analysis/ihatecompvir_source_truth_20260710/source_rndmat_order_material_audit.log`
+confirms native material rows now decode with the `RndMat.cs` source order:
+`useEnviron` before `preLit`. This flips the older local note interpretation
+for common flag bytes like `01 00`; those rows now decode as
+`use_env=1 prelit=0`, not `prelit=1 use_env=0`.
 
 ## Native Rules
 

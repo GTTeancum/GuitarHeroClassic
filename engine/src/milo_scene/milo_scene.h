@@ -26,8 +26,8 @@
 //     9     bytes
 //     i32   blend (BLEND_ENUM from macros.dta)
 //     4×f32 diffuse colour RGBA
-//     u8    prelit      (schema: vertex color/alpha feeds base or ambient)
 //     u8    use_environ (schema: modulate with environment ambient/lights)
+//     u8    prelit      (schema: vertex color/alpha feeds base or ambient)
 //     i32   z_mode
 //     u8    alpha_cut
 //     u8    alpha_write      (GH2 v27; later revs insert alpha_threshold first)

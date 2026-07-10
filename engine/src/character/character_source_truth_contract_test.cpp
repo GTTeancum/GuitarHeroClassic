@@ -76,6 +76,8 @@ int main() {
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndTrans.cs"));
   const std::string drawable_cs = compact(read_file(
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndDrawable.cs"));
+  const std::string mat_cs = compact(read_file(
+      source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs"));
   const std::string mesh_cs = compact(read_file(
       source_dir / "MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs"));
   const std::string gltf_program_cs = compact(read_file(
@@ -89,6 +91,8 @@ int main() {
 
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMesh.cs",
                  "document cites RndMesh source");
+  ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs",
+                 "document cites RndMat source");
   ok &= contains(doc, "glTFMilo/Source/glTFMilo/Program.cs",
                  "document cites glTFMilo skinning source");
   ok &= contains(doc, "rb3/src/system/char/CharHair.cpp",
@@ -144,15 +148,31 @@ int main() {
                  "if(revision>2){drawOrder=reader.ReadFloat();}",
                  "RndDrawable source draw-order gate");
 
+  ok &= contains(mat_cs,
+                 "useEnviron=reader.ReadBoolean();preLit=reader.ReadBoolean();"
+                 "zMode=(ZMode)reader.ReadInt32();alphaCut=reader.ReadBoolean();",
+                 "RndMat source useEnviron/preLit/render-state order");
+  ok &= contains(scene,
+                 "m.use_environ=r.u8()!=0;m.prelit=r.u8()!=0;"
+                 "constint32_tz_mode=r.i32();",
+                 "native Mat decode follows source useEnviron/preLit order");
+
   ok &= contains(mesh_cs,
                  "base.Read(reader,false,parent,entry);trans=trans.Read(reader,false,parent,entry);"
                  "draw=draw.Read(reader,false,parent,entry);mat=Symbol.Read(reader);",
                  "RndMesh source superclass/read order");
   ok &= contains(mesh_cs,
+                 "if(reader.ReadInt32()>0){reader.BaseStream.Position-=4;",
+                 "RndMesh source bone-transform presence gate");
+  ok &= contains(mesh_cs,
                  "for(inti=0;i<4;i++){boneTransforms.Add(newBoneTransform());"
                  "boneTransforms[i].name=Symbol.Read(reader);}for(inti=0;i<4;i++){"
                  "boneTransforms[i].transform=boneTransforms[i].transform.Read(reader);}",
                  "RndMesh rev<33 old-style four names then four transforms");
+  ok &= contains(char_mesh,
+                 "constint32_tfirst_bone_len=r.i32();if(first_bone_len>0){"
+                 "r.pos=bone_probe;",
+                 "native RndMesh keeps source bone-transform presence gate");
   ok &= contains(char_mesh,
                  "for(intbi=0;bi<4;++bi){mesh.bone_palette.push_back(r.str());}"
                  "for(intbi=0;bi<4;++bi){mesh.bind.push_back(r.matrix());}",

@@ -649,8 +649,8 @@ MatObj decode_mat(const std::string& entry_name,
   size_t tex_xfm_pos = r.pos + 16;
   if (ver > 21) {
     try {
-      m.prelit = r.u8() != 0;
       m.use_environ = r.u8() != 0;
+      m.prelit = r.u8() != 0;
       const int32_t z_mode = r.i32();
       m.z_mode = static_cast<uint8_t>(
           (z_mode >= 0 && z_mode <= 4) ? z_mode : 1);
