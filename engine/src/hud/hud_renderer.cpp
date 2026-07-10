@@ -3773,18 +3773,6 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         return std::clamp(start + filter.offset_frame + span * progress,
                           start, end);
       };
-  auto source_filter_progress =
-      [](const AnimFilterWindow& filter, float progress) {
-        progress = std::clamp(progress, 0.0f, 1.0f);
-        if (!filter.ok) return progress;
-        const float start = filter.start_frame;
-        const float end = std::max(filter.end_frame, start);
-        const float span = std::max(0.0f, end - start);
-        if (span <= 0.0001f) return 0.0f;
-        const float frame = std::clamp(
-            start + filter.offset_frame + span * progress, start, end);
-        return std::clamp((frame - start) / span, 0.0f, 1.0f);
-      };
   auto source_lit_color_key_frame =
       [](const std::vector<ColorAnimKey>& keys, float fallback) {
         if (keys.empty()) return fallback;
@@ -3817,10 +3805,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   const float tube_glow_mesh_frame =
       native_star_ready_mesh_glow_.empty()
           ? 0.0f
-          : source_filter_progress(star_tube_glow_filter_, fill) *
-                std::max(
-                    1.0f,
-                    native_star_ready_mesh_glow_.front().duration_frames);
+          : std::max(1.0f,
+                     native_star_ready_mesh_glow_.front().duration_frames);
   const float tube_meter_alpha = sample_hud_mat_anim_alpha_frame(
       star_tube_meter_alpha_keys_, tube_meter_alpha_frame);
   const float tube_ready_alpha = sample_hud_mat_anim_alpha_frame(
@@ -4296,10 +4282,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (tube_glow && debug_star_layer_matches("ready", "tube_glow")) {
     if (!native_star_ready_mesh_glow_.empty()) {
       for (const StarMeshAnimatedQuad& src : native_star_ready_mesh_glow_) {
-        const float frame =
-            source_filter_progress(star_tube_glow_filter_, fill) *
-            std::max(1.0f, src.duration_frames);
-        Quad q = sample_star_mesh_anim(src, frame);
+        Quad q = sample_star_mesh_anim(src, tube_glow_mesh_frame);
         if (q.verts.size() < 3 || q.idx.size() < 3) continue;
         q.color = scale_argb_alpha(q.color, tube_ready_alpha);
         out.push_back(std::move(q));
@@ -4460,6 +4443,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "tube_meter_mode=clipped_left_to_right_source_uv_reveal "
         "tube_meter_u_mode=source_uv_anchored_thick_body "
         "tube_meter_containment=amp_tube_glow_meter_source_z "
+        "ready_mesh_frame_mode=source_msnm_ready_pose_not_fill "
         "ready_glow_cap_occlusion=chrome_after_ready_glow "
         "ready_view_order=after_star_meter_view "
         "tube_meter_overlay=after_core_before_chrome_mask "
