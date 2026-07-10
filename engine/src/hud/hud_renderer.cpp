@@ -2621,7 +2621,7 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
                               flip_v, flip_z, true, 0.0f, true);
       q.group = kHudGroupRight;
       q.element = kElemSpFill;
-      q.sort_bias = 1;
+      q.sort_bias = 2;
       if (flip_u) {
         for (Quad::V& v : q.verts) v.u = 1.0f - v.u;
       }
@@ -4101,12 +4101,13 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
   if (fill > 0.005f) {
     drew_native_fill |= append_clipped_fill(native_star_fill_, fill_core_color,
                                             1.0f, core_fill_range);
+    // star_meter_fill.view lists amp_inside_bar_path.part before lightning.view.
     if (star_power_active) {
-      for (const StarAnimatedQuad& lightning : native_star_lightning_) {
-        drew_native_fill |= append_full_animated(lightning);
-      }
       for (const StarParticleLayer& particle : native_star_particles_) {
         drew_native_particles |= append_star_particle(particle);
+      }
+      for (const StarAnimatedQuad& lightning : native_star_lightning_) {
+        drew_native_fill |= append_full_animated(lightning);
       }
     }
   }
@@ -4219,6 +4220,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "body_fill_mode=inside_bar_core_plus_tube_meter_glow "
         "core_fill_mode=clipped_left_to_right "
         "lightning_mode=active_full_source_mesh "
+        "active_fill_order=particle_before_lightning "
         "backing_alpha_mode=ps2_modulate2x "
         "glass_material_mode=base_plus_cleartube_layer "
         "core_color_mode=settled_lit_key_width_driven "

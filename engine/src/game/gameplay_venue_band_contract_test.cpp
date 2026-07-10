@@ -1457,6 +1457,9 @@ int main() {
                  "\"lightning_mode=active_full_source_mesh\"",
                  "star-power diagnostics report the active lightning source-view draw mode");
   ok &= contains(hud_renderer_c,
+                 "\"active_fill_order=particle_before_lightning\"",
+                 "star-power diagnostics report the decoded star_meter_fill.view active child order");
+  ok &= contains(hud_renderer_c,
                  "\"backing_alpha_mode=ps2_modulate2x\"",
                  "star-power diagnostics report PS2 alpha combine for the source black backing");
   ok &= contains(hud_renderer_c,
@@ -1527,8 +1530,18 @@ int main() {
                  "star-power decodes the source amp_inside_bar_path particle");
   ok &= contains(hud_renderer_c,
                  "if(star_power_active){"
-                 "for(constStarAnimatedQuad&lightning:native_star_lightning_){",
+                 "for(constStarParticleLayer&particle:native_star_particles_){",
                  "steady stored star-power fill does not render fill-event lightning");
+  ok &= appears_before(
+      hud_renderer_c,
+      "for(constStarParticleLayer&particle:native_star_particles_){"
+      "drew_native_particles|=append_star_particle(particle);",
+      "for(constStarAnimatedQuad&lightning:native_star_lightning_){"
+      "drew_native_fill|=append_full_animated(lightning);",
+      "star-power active fill follows star_meter_fill.view particle-before-lightning order");
+  ok &= contains(hud_renderer_c,
+                 "q.sort_bias=2;",
+                 "star-power lightning shares the active fill overlay bucket with the source particle");
   ok &= contains(hud_renderer_c,
                  "for(constStarParticleLayer&particle:native_star_particles_){"
                  "drew_native_particles|=append_star_particle(particle);",

@@ -10324,3 +10324,26 @@ Rejected native probe:
   with `amp_inside_bar_path.mesh` kept as the full-width thin line. This is a
   traceability cleanup only: no visual tuning, replacement art, geometry, or
   material/color override was introduced.
+
+2026-07-10 star-meter active fill child-order correction:
+- Rechecked the decoded `hud/gen/star_meter.milo_ps2` active group rows in the
+  stock MILO dump. `star_meter_fill.view` lists
+  `amp_inside_bar_glow.mnm`, `amp_inside_bar_path.panm`,
+  `amp_inside_bar_path.part`, `lightning.view`, and
+  `amp_inside_bar_glow.filt`; `lightning.view` then owns the eight authored
+  `lightning_*_0.mesh` children.
+- Native was gating both active particle and lightning on `star_power_active`,
+  but the particle had a higher sort bucket than the lightning meshes, so the
+  final draw order inverted the source active group. Native now emits the
+  decoded `amp_inside_bar_path.part` particle before `lightning.view` and puts
+  the lightning meshes in the same active overlay bucket so stable draw order
+  follows the source child list. No particle texture, lightning texture,
+  material blend, color, or geometry was changed.
+
+2026-07-10 star-meter fill proof clarification:
+- The hidden HUD proof runner must use `--hud-sp` for isolated HUD captures;
+  `--diagnostic-star-power` is the gameplay-session capture knob and leaves
+  `--hud-test` at its default `sp=0.60`. The corrected native captures show
+  `amp_inside_bar.mesh` plus `amp_tube_glow_meter.mesh` growing left-to-right
+  at 25%, 75%, and 100% while the separate `amp_inside_bar_path.mesh` remains
+  the always-present full-width thin blue line.
