@@ -1408,7 +1408,10 @@ int main() {
                  "star-power diagnostics keep the persistent path line separate from stored fill");
   ok &= contains(hud_renderer_c,
                  "\"fill_core_layer=amp_inside_bar.mesh\"",
-                 "star-power diagnostics name amp_inside_bar as the broad fill body");
+                 "star-power diagnostics name amp_inside_bar as the source core layer");
+  ok &= contains(hud_renderer_c,
+                 "\"wide_fill_glow_layer=amp_tube_glow_meter.mesh\"",
+                 "star-power diagnostics name amp_tube_glow_meter as the wide fill glow");
   ok &= contains(hud_renderer_c,
                  "\"path_line_layer=amp_inside_bar_path.mesh\"",
                  "star-power diagnostics name amp_inside_bar_path as the thin persistent line");
@@ -1416,8 +1419,11 @@ int main() {
                  "\"path_line_mode=persistent_full_width\"",
                  "star-power path line remains full-width instead of fill-clipped");
   ok &= contains(hud_renderer_c,
+                 "\"body_fill_mode=inside_bar_core_plus_tube_meter_glow\"",
+                 "star-power diagnostics keep the stored body tied to the source core plus tube-meter glow");
+  ok &= contains(hud_renderer_c,
                  "\"core_fill_mode=clipped_left_to_right\"",
-                 "star-power broad core remains the left-to-right clipped fill");
+                 "star-power source core remains the left-to-right clipped fill");
   ok &= contains(hud_renderer_c,
                  "\"core_color_mode=settled_lit_key_width_driven\"",
                  "star-power diagnostics distinguish settled core color from fill-driven width");
@@ -1434,8 +1440,11 @@ int main() {
                  "\"tube_meter_width=%.3f/%.3fpath_width=%.3f\"",
                  "star-power diagnostics expose tube-meter and persistent path widths separately");
   ok &= contains(hud_renderer_c,
-                 "\"thick_fill_layer=amp_inside_bar.meshclipped\"",
-                 "star-power diagnostics keep the thick fill bound to amp_inside_bar clipping");
+                 "\"core_fill_layer=amp_inside_bar.meshclipped\"",
+                 "star-power diagnostics keep the source core bound to amp_inside_bar clipping");
+  ok &= contains(hud_renderer_c,
+                 "\"wide_fill_layer=amp_tube_glow_meter.meshscaled\"",
+                 "star-power diagnostics keep the wide fill bound to amp_tube_glow_meter scaling");
   ok &= contains(hud_renderer_c,
                  "\"thin_path_layer=amp_inside_bar_path.meshfull_width\"",
                  "star-power diagnostics keep the thin blue path line full-width");

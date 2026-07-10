@@ -10153,3 +10153,14 @@ Rejected native probe:
   left-to-right clipped width. The persistent `amp_inside_bar_path.mesh` line
   remains full-width, and the tube-meter glow remains an original MILO
   `amp_tube_glow_meter.mesh` layer over the broad core.
+
+2026-07-10 star-meter fill-body guardrail wording:
+- User review clarified the same source split in plainer visual terms: the thin
+  blue bar visible in native is the always-present stock path line, not the
+  stored star-power fill. The fill target is the thicker body that should retain
+  the filled left side and expand to the right as stored star power rises.
+- Native diagnostics now name that body as the original source pair
+  `amp_inside_bar.mesh` core plus `amp_tube_glow_meter.mesh` wide glow, while
+  keeping `amp_inside_bar_path.mesh` explicitly labeled as the persistent thin
+  path line. This is a guardrail only: no replacement art, generated fill, or
+  non-MILO overlay was introduced.
