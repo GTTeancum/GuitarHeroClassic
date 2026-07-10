@@ -10458,3 +10458,20 @@ Rejected native probe:
   while the star-power diagnostics keep `amp_inside_bar_path.mesh` as the
   always-present thin full-width line and show the thicker core/glow widths
   growing left-to-right.
+
+2026-07-10 star-meter source-frame material sampling:
+- The decoded source rows show `amp_inside_bar_glow.filt` driving
+  `amp_inside_bar_glow.mnm` from frame `0.0..7.5`, and
+  `amp_tube_glow_meter.filt` driving `amp_tube_glow_meter.mnm` from
+  `0.0..30.0`. The latter alpha curve is authored as `1.0 @ 0.0` to
+  `0.5 @ 30.0`.
+- Native had kept the correct left-to-right geometry but pinned the stored tube
+  glow alpha to the brightest key and forced the broad core color to the final
+  key. That was a probe shortcut, not the direct source animation.
+- Native now samples both the broad core color and stored tube alpha from the
+  decoded filter frame. The diagnostic row reports
+  `core_color_mode=source_filter_frame` and
+  `tube_meter_alpha_mode=source_filter_frame`; the geometry split stays the
+  same, with `amp_inside_bar_path.mesh` remaining the always-present thin line
+  and `amp_inside_bar.mesh` plus `amp_tube_glow_meter.mesh` forming the thicker
+  stored fill body.

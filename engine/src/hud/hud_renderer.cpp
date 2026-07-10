@@ -3704,32 +3704,17 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
             start + filter.offset_frame + span * progress, start, end);
         return std::clamp((frame - start) / span, 0.0f, 1.0f);
       };
-  auto source_peak_alpha_frame =
-      [](const std::vector<AlphaAnimKey>& keys, float fallback_frame) {
-        if (keys.empty()) return fallback_frame;
-        const AlphaAnimKey* best = &keys.front();
-        for (const AlphaAnimKey& key : keys) {
-          if (key.alpha > best->alpha) best = &key;
-        }
-        return best->frame;
-      };
-
   const bool ready = fill >= 0.5f;
   const bool tube_glow = ready || star_power_active;
   const bool meter_fill_glow = fill > 0.005f;
   const float fill_anim_frame = source_filter_frame(
       star_fill_filter_, fill, star_fill_anim_duration_);
-  const float fill_core_color_frame =
-      star_fill_filter_.ok
-          ? std::max(star_fill_filter_.end_frame, star_fill_filter_.start_frame)
-          : std::max(1.0f, star_fill_anim_duration_);
+  const float fill_core_color_frame = fill_anim_frame;
   const float tube_meter_anim_frame = source_filter_frame(
       star_tube_meter_filter_, fill, star_tube_meter_anim_duration_);
   const float tube_glow_anim_frame = source_filter_frame(
       star_tube_glow_filter_, fill, star_tube_glow_anim_duration_);
-  const float tube_meter_alpha_frame =
-      source_peak_alpha_frame(star_tube_meter_alpha_keys_,
-                              tube_meter_anim_frame);
+  const float tube_meter_alpha_frame = tube_meter_anim_frame;
   const float tube_glow_alpha_frame = tube_glow_anim_frame;
   const float tube_glow_mesh_frame =
       native_star_ready_mesh_glow_.empty()
@@ -4304,8 +4289,8 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
         "active_fill_order=particle_before_lightning "
         "backing_alpha_mode=ps2_modulate2x "
         "glass_material_mode=base_plus_cleartube_layer "
-        "core_color_mode=settled_lit_key_width_driven "
-        "tube_meter_alpha_mode=source_peak_width_driven "
+        "core_color_mode=source_filter_frame "
+        "tube_meter_alpha_mode=source_filter_frame "
         "tube_meter_mode=clipped_left_to_right_fill_uv_remap "
         "tube_meter_u_mode=filled_span_source_texture "
         "ready_view_order=after_star_meter_view "
