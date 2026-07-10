@@ -1127,6 +1127,19 @@ int main() {
                  "uv_xfm.m[2][1]",
                  "HUD mesh UV mapping applies the full MILO matrix V row");
   ok &= contains(hud_renderer_c,
+                 "constbooluv_xfm_identity="
+                 "std::fabs(uv_xfm.m[0][0]-1.0f)<0.0001f&&"
+                 "std::fabs(uv_xfm.m[0][1])<0.0001f&&"
+                 "std::fabs(uv_xfm.m[1][0])<0.0001f&&"
+                 "std::fabs(uv_xfm.m[1][1]-1.0f)<0.0001f&&"
+                 "std::fabs(uv_xfm.m[2][0])<0.0001f&&"
+                 "std::fabs(uv_xfm.m[2][1])<0.0001f;",
+                 "HUD source material UV transforms are detected before sampler wrap inference");
+  ok &= contains(hud_renderer_c,
+                 "constfloatwrap_test_u=uv_xfm_identity?u:v.u;"
+                 "constfloatwrap_test_v=uv_xfm_identity?final_v:raw_final_v;",
+                 "HUD sampler wrap inference uses raw mesh UVs when a source material transform is authored");
+  ok &= contains(hud_renderer_c,
                  "if(star_path_glow_mesh&&source_prelit){"
                  "native_star_path_glow_prelit_=true;"
                  "native_star_path_glow_dual_emit_=false;}",

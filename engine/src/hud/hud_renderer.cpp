@@ -2081,6 +2081,13 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
         std::fabs(uv_xfm.m[1][1]) < 0.0001f) {
       uv_xfm = MatUvXfm{};
     }
+    const bool uv_xfm_identity =
+        std::fabs(uv_xfm.m[0][0] - 1.0f) < 0.0001f &&
+        std::fabs(uv_xfm.m[0][1]) < 0.0001f &&
+        std::fabs(uv_xfm.m[1][0]) < 0.0001f &&
+        std::fabs(uv_xfm.m[1][1] - 1.0f) < 0.0001f &&
+        std::fabs(uv_xfm.m[2][0]) < 0.0001f &&
+        std::fabs(uv_xfm.m[2][1]) < 0.0001f;
     const float source_center_z = (mesh_bounds.min_z + mesh_bounds.max_z) * 0.5f;
     const float source_center_y = q.preserve_depth
         ? (mesh_bounds.min_y + mesh_bounds.max_y) * 0.5f
@@ -2105,8 +2112,12 @@ bool HudRenderer::load(IDirect3DDevice9* dev, const std::string& hdr_path,
       const float vv =
           v.u * uv_xfm.m[0][1] + v.vv * uv_xfm.m[1][1] + uv_xfm.m[2][1];
       const float final_v = flip_v ? 1.0f - vv : vv;
-      q.wrap_uv = q.wrap_uv || u < -0.001f || u > 1.001f ||
-                  final_v < -0.001f || final_v > 1.001f;
+      const float raw_final_v = flip_v ? 1.0f - v.vv : v.vv;
+      const float wrap_test_u = uv_xfm_identity ? u : v.u;
+      const float wrap_test_v = uv_xfm_identity ? final_v : raw_final_v;
+      q.wrap_uv = q.wrap_uv || wrap_test_u < -0.001f ||
+                  wrap_test_u > 1.001f || wrap_test_v < -0.001f ||
+                  wrap_test_v > 1.001f;
       const float base_depth =
           right_side ? right_hud_depth_at(wx) : left_hud_depth_at(wx);
       q.verts.push_back({wx, base_depth + (y - source_center_y) * depth_scale,

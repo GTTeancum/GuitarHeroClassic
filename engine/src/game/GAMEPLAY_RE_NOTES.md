@@ -9982,3 +9982,27 @@ Rejected native probe:
 - Caveat: this is a source-decoder/material correction and improves the fill
   orientation. Exact brightness, glass contrast, and the broad PCSX2 bloom/core
   width still need a GS-stage blend trace before final parity signoff.
+
+2026-07-10 star-meter raw-UV wrap checkpoint:
+- User review clarified the thin blue strip in the native tube as the
+  always-present stock path line; the judged stored-meter body is the thicker
+  `amp_inside_bar.mesh` fill, which should keep the already-filled left side
+  visible while growing toward the right cap.
+- The previous full-MILO-UV pass still let `make_slot_mesh` infer sampler wrap
+  from post-transform UV coordinates. That was wrong for
+  `amp_inside_star.mat`: its decoded source matrix intentionally rotates the
+  `amp_inside_bar.tex` coordinates, so the transformed V row leaves the
+  `0..1` range even though the authored mesh UVs are still in range. Native now
+  keeps the full source matrix but bases automatic wrap inference on raw mesh
+  UVs whenever a material has an authored UV transform. This removes the
+  renderer-invented wrap without adding any non-MILO fill layers.
+- Evidence artifact:
+  `engine/out/star_power_trace_evidence_20260710/native_star_rawuv_wrap_current/`
+  contains native `0.25`, `0.50`, `0.75`, `1.00`, and active `1.00` captures
+  plus `native_star_rawuv_wrap_current_compare_proof.png`, paired against the
+  settled PCSX2 forced-fill oracle. The proof shows the persistent thin line
+  remaining visible while the thicker stored fill retains the left side and
+  expands right.
+- Caveat: this checkpoint is for source-backed fill anchoring and sampler-wrap
+  inference. Brightness, tube glass contrast, and exact PCSX2 bloom/core width
+  still require the GS-stage blend trace.
