@@ -3927,7 +3927,7 @@ void HudRenderer::emit_star_power(std::vector<Quad>& out, float fill,
     if (!range.ok) return 0.0f;
     return range.max_x - (range.max_x - range.min_x) * fill;
   };
-  constexpr float kStarPathLengthScale = 2.0f;
+  constexpr float kStarPathLengthScale = 2.1f;
   StarClipRange path_render_range = path_glow_range;
   if (path_render_range.ok) {
     path_render_range.min_x =
