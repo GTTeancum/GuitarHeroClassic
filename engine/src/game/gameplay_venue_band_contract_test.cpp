@@ -3815,7 +3815,7 @@ int main() {
                  "separate RndDir proxy renderers receive camera-hidden mesh sets");
   ok &= contains(update_venue_proxy_objects_c,
                  "constboolcamera_fully_hidden="
-                 "venue_proxy_camera_fully_hidden(object_name,proxy);",
+                 "!camera_showing&&venue_proxy_camera_fully_hidden(object_name,proxy);",
                  "camera-hidden proxy objects are skipped before animation sampling");
   ok &= contains(draw_venue_proxy_objects_c,
                  "\"[world]venueproxydraw:name=%spath=%sanimating=%d",
@@ -7169,10 +7169,42 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::vector<std::string>hide_list_refs;",
                  "CameraKey keeps authored CamShot hide_list refs");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<std::string>show_list_refs;",
+                 "CameraKey keeps authored CamShot show_list refs");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<std::string>gen_hide_list_refs;",
+                 "CameraKey keeps authored generated CamShot hide refs");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<std::string>draw_override_refs;",
+                 "CameraKey keeps authored CamShot draw override refs");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<std::string>postproc_override_refs;",
+                 "CameraKey keeps authored CamShot postproc override refs");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<std::string>camera_anim_refs;"
+                 "std::stringglow_spot_ref;",
+                 "CameraKey keeps authored CamShot anim and glow refs");
   ok &= contains(gameplay_c,
                  "for(uint32_ti=0;i<hide_count;++i)"
                  "shot.hide_list.push_back(r.symbol());",
                  "CamShot loader decodes authored hide_list from the source field");
+  ok &= contains(gameplay_c,
+                 "for(uint32_ti=0;i<show_count;++i)"
+                 "shot.show_list.push_back(r.symbol());",
+                 "CamShot loader decodes authored show_list from the source field");
+  ok &= contains(gameplay_c,
+                 "shot.gen_hide_list.push_back(r.symbol());",
+                 "CamShot loader decodes authored generated hide refs");
+  ok &= contains(gameplay_c,
+                 "shot.draw_overrides.push_back(r.symbol());",
+                 "CamShot loader decodes authored draw overrides");
+  ok &= contains(gameplay_c,
+                 "shot.postproc_overrides.push_back(r.symbol());",
+                 "CamShot loader decodes authored postproc overrides");
+  ok &= contains(gameplay_c,
+                 "shot.anims.push_back(r.symbol());",
+                 "CamShot loader decodes authored linked anim refs");
   ok &= contains(gameplay_c,
                  "voidread_object_fields_like_miloeditor(",
                  "CamShot metadata uses the MiloEditor ObjectFields reader");
@@ -7183,7 +7215,8 @@ int main() {
                  "structIntroCameraSelection{std::stringshot;"
                  "std::stringanim=\"Intro.tnm\";boolhide_crowd=false;"
                  "boolcrowd_face_camera=false;intforce_char_lod=-1;"
-                 "std::vector<std::string>hide_list_refs;};",
+                 "std::vector<std::string>hide_list_refs;"
+                 "std::vector<std::string>show_list_refs;",
                  "intro CamShot selector has a metadata carrier");
   ok &= contains(gameplay_c,
                  "c.hide_crowd=prop_bool(decoded_shot->props,\"hide_crowd\",false);",
@@ -7200,6 +7233,21 @@ int main() {
                  "c.hide_list_refs=decoded_shot->hide_list;",
                  "intro CamShot selector decodes hide_list refs");
   ok &= contains(gameplay_c,
+                 "c.show_list_refs=decoded_shot->show_list;",
+                 "intro CamShot selector decodes show_list refs");
+  ok &= contains(gameplay_c,
+                 "c.gen_hide_list_refs=decoded_shot->gen_hide_list;",
+                 "intro CamShot selector decodes generated hide refs");
+  ok &= contains(gameplay_c,
+                 "c.draw_override_refs=decoded_shot->draw_overrides;",
+                 "intro CamShot selector decodes draw override refs");
+  ok &= contains(gameplay_c,
+                 "c.postproc_override_refs=decoded_shot->postproc_overrides;",
+                 "intro CamShot selector decodes postproc override refs");
+  ok &= contains(gameplay_c,
+                 "c.camera_anim_refs=decoded_shot->anims;",
+                 "intro CamShot selector decodes linked anim refs");
+  ok &= contains(gameplay_c,
                  "selected.hide_crowd=candidates.front().hide_crowd;",
                  "selected intro TransAnim route preserves hide_crowd");
   ok &= contains(gameplay_c,
@@ -7208,6 +7256,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "selected.hide_list_refs=candidates.front().hide_list_refs;",
                  "selected intro TransAnim route preserves hide_list refs");
+  ok &= contains(gameplay_c,
+                 "selected.show_list_refs=candidates.front().show_list_refs;",
+                 "selected intro TransAnim route preserves show_list refs");
+  ok &= contains(gameplay_c,
+                 "selected.gen_hide_list_refs=candidates.front().gen_hide_list_refs;",
+                 "selected intro TransAnim route preserves generated hide refs");
   ok &= contains(gameplay_c,
                  "c.key=decoded_poses.front().first;",
                  "regular camera loader decodes CamShot hide_crowd");
@@ -7230,6 +7284,12 @@ int main() {
                  "pose.first.hide_list_refs=hide_list_refs;",
                  "direct intro CamShot path preserves hide_list refs");
   ok &= contains(gameplay_c,
+                 "pose.first.show_list_refs=show_list_refs;",
+                 "direct intro CamShot path preserves show_list refs");
+  ok &= contains(gameplay_c,
+                 "pose.first.gen_hide_list_refs=gen_hide_list_refs;",
+                 "direct intro CamShot path preserves generated hide refs");
+  ok &= contains(gameplay_c,
                  "pos.hide_crowd=c.key.hide_crowd;",
                  "regular camera pose variants inherit crowd visibility flags");
   ok &= contains(gameplay_c,
@@ -7238,6 +7298,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "pos.hide_list_refs=c.key.hide_list_refs;",
                  "regular camera pose variants inherit hide_list refs");
+  ok &= contains(gameplay_c,
+                 "pos.show_list_refs=c.key.show_list_refs;",
+                 "regular camera pose variants inherit show_list refs");
+  ok &= contains(gameplay_c,
+                 "pos.gen_hide_list_refs=c.key.gen_hide_list_refs;",
+                 "regular camera pose variants inherit generated hide refs");
   ok &= contains(gameplay_c,
                  "copy_camshot_shot_fields(c.key,pos);",
                  "regular camera pose variants inherit decoded shot-level fields");
@@ -7253,7 +7319,8 @@ int main() {
                  "timing=%s(%.3f%.3f%.3f)order=%zuspecial=%dwalk_ok=%d"
                  "low_excitement_ok=%dstarpower_ok=%djump_ok=%dlighter=%d"
                  "hide_crowd=%dcrowd_face_camera=%dforce_char_lod=%d"
-                 "hide_list=%zushot_fields=%dcategory=%s",
+                 "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
+                 "postproc=%zuanims=%zuglow=%sshot_fields=%dcategory=%s",
                  "regular camera validation logs decoded shot-level fields");
   ok &= contains(gameplay_c,
                  "key.hide_crowd=intro_camera.hide_crowd;",
@@ -7267,6 +7334,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "key.hide_list_refs=intro_camera.hide_list_refs;",
                  "intro TransAnim camera keys inherit selected hide_list refs");
+  ok &= contains(gameplay_c,
+                 "key.show_list_refs=intro_camera.show_list_refs;",
+                 "intro TransAnim camera keys inherit selected show_list refs");
+  ok &= contains(gameplay_c,
+                 "key.gen_hide_list_refs=intro_camera.gen_hide_list_refs;",
+                 "intro TransAnim camera keys inherit selected generated hide refs");
   ok &= contains(gameplay_h_c,
                  "intactive_force_char_lod_=-1;",
                  "runtime tracks the selected CamShot character LOD");
@@ -7306,7 +7379,8 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]introcameraflags:shot=%sanim=%skeys=%zu"
                  "hide_crowd=%dcrowd_face_camera=%dforce_char_lod=%d"
-                 "hide_list=%zu\\n\"",
+                 "hide_list=%zushow_list=%zugen_hide=%zudraw_overrides=%zu"
+                 "postproc=%zuanims=%zuglow=%s\\n\"",
                  "intro TransAnim camera flag/LOD stamping is runtime-verifiable");
   ok &= contains(gameplay_c,
                  "venue_crowd_meshes_=mesh_names_for_crowd(venue_scene);",
@@ -7323,6 +7397,15 @@ int main() {
   ok &= contains(gameplay_c,
                  "for(constauto&raw_ref:key.hide_list_refs){",
                  "camera visibility applies authored CamShot hide_list refs");
+  ok &= contains(gameplay_c,
+                 "for(constauto&raw_ref:key.gen_hide_list_refs){",
+                 "camera visibility applies authored generated hide refs");
+  ok &= contains(gameplay_c,
+                 "for(constauto&raw_ref:key.show_list_refs){",
+                 "camera visibility applies authored CamShot show_list refs");
+  ok &= contains(gameplay_c,
+                 "for(constauto&mesh:next_shown)next_hidden.erase(mesh);",
+                 "camera show_list subtracts from camera-hidden venue meshes");
   ok &= contains(gameplay_c,
                  "venue_group_meshes_=mesh_names_by_group(venue_scene);",
                  "venue load builds a group mesh map for CamShot hide_list refs");
@@ -7346,6 +7429,13 @@ int main() {
                  "std::map<std::string,std::unordered_set<std::string>>"
                  "venue_camera_hidden_proxy_meshes_;",
                  "camera visibility also tracks hidden meshes for separate RndDir proxy renderers");
+  ok &= contains(gameplay_h_c,
+                 "std::unordered_set<std::string>venue_camera_shown_meshes_;",
+                 "camera visibility tracks source show_list meshes separately");
+  ok &= contains(gameplay_h_c,
+                 "std::map<std::string,std::unordered_set<std::string>>"
+                 "venue_camera_shown_proxy_meshes_;",
+                 "camera visibility also tracks source show_list proxy meshes");
   ok &= contains(gameplay_c,
                  "boolnext_hide_crowd=key.hide_crowd;",
                  "camera visibility tracks authored hide_crowd for skinned WorldCrowd actors");
@@ -7365,11 +7455,18 @@ int main() {
                  "next_hidden_proxy_meshes);",
                  "camera proxy hide state is committed beside main venue hide state");
   ok &= contains(gameplay_c,
+                 "venue_camera_shown_proxy_meshes_=std::move("
+                 "next_shown_proxy_meshes);",
+                 "camera proxy show state is committed beside main venue show state");
+  ok &= contains(gameplay_c,
                  "proxy_objects=%zu",
                  "camera visibility diagnostics report proxy hide coverage");
   ok &= contains(gameplay_c,
                  "proxy_meshes=%zu",
                  "camera visibility diagnostics report proxy hidden mesh coverage");
+  ok &= contains(gameplay_c,
+                 "shown_proxy_meshes=%zu",
+                 "camera visibility diagnostics report source show-list proxy coverage");
   ok &= contains(gameplay_c,
                  "venue_camera_hide_crowd_=next_hide_crowd;",
                  "camera hide_crowd state is committed beside hidden mesh state");

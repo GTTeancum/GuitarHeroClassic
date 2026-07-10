@@ -950,6 +950,11 @@ struct DecodedCamShot {
     float selection_weight = 0.0f;
     bool has_selection_weight = false;
     std::vector<std::string> hide_list;
+    std::vector<std::string> show_list;
+    std::vector<std::string> gen_hide_list;
+    std::vector<std::string> draw_overrides;
+    std::vector<std::string> postproc_overrides;
+    std::vector<std::string> anims;
     std::string old_crowd_sym;
     int old_crowd_rotate = 0;
     std::string glow_spot;
@@ -1255,13 +1260,15 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
             if (shot.revision > 0x2f) {
                 const uint32_t show_count = r.u32();
                 if (show_count > 128) throw std::runtime_error("CamShot show count invalid");
-                for (uint32_t i = 0; i < show_count; ++i) (void)r.symbol();
+                for (uint32_t i = 0; i < show_count; ++i)
+                    shot.show_list.push_back(r.symbol());
             }
         }
         if (shot.revision > 0x1b) {
             const uint32_t count = r.u32();
             if (count > 128) throw std::runtime_error("CamShot gen hide count invalid");
-            for (uint32_t i = 0; i < count; ++i) (void)r.symbol();
+            for (uint32_t i = 0; i < count; ++i)
+                shot.gen_hide_list.push_back(r.symbol());
         }
         if (shot.revision > 0x0b && shot.revision < 0x2a)
             shot.old_crowd_sym = r.symbol();
@@ -1284,12 +1291,14 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         if (shot.revision > 0x1d) {
             const uint32_t count = r.u32();
             if (count > 128) throw std::runtime_error("CamShot draw override count invalid");
-            for (uint32_t i = 0; i < count; ++i) (void)r.symbol();
+            for (uint32_t i = 0; i < count; ++i)
+                shot.draw_overrides.push_back(r.symbol());
         }
         if (shot.revision > 0x1f) {
             const uint32_t count = r.u32();
             if (count > 128) throw std::runtime_error("CamShot postproc override count invalid");
-            for (uint32_t i = 0; i < count; ++i) (void)r.symbol();
+            for (uint32_t i = 0; i < count; ++i)
+                shot.postproc_overrides.push_back(r.symbol());
         }
         if (shot.revision > 0x23 && !(shot.revision >= 47 && shot.revision <= 48))
             (void)r.boolean();
@@ -1312,7 +1321,8 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
         if (shot.revision > 0x2a) {
             const uint32_t count = r.u32();
             if (count > 128) throw std::runtime_error("CamShot anim count invalid");
-            for (uint32_t i = 0; i < count; ++i) (void)r.symbol();
+            for (uint32_t i = 0; i < count; ++i)
+                shot.anims.push_back(r.symbol());
         }
         if ((combined_revision >> 16) != 0) {
             const uint32_t count = r.u32();
@@ -1363,6 +1373,12 @@ std::optional<DecodedCamShot> read_camshot_like_miloeditor(
                 prop_bool(shot.props, "crowd_face_camera", false);
             key.force_char_lod = prop_int(shot.props, "force_char_lod", -1);
             key.hide_list_refs = shot.hide_list;
+            key.show_list_refs = shot.show_list;
+            key.gen_hide_list_refs = shot.gen_hide_list;
+            key.draw_override_refs = shot.draw_overrides;
+            key.postproc_override_refs = shot.postproc_overrides;
+            key.camera_anim_refs = shot.anims;
+            key.glow_spot_ref = shot.glow_spot;
             sync_primary_camshot_target(key);
             sync_camshot_source_record_hint(key);
         }
@@ -1481,6 +1497,11 @@ void copy_camshot_shot_fields(const Gameplay::CameraKey& from,
     to.camshot_loop_keyframe = from.camshot_loop_keyframe;
     to.has_camshot_looping = from.has_camshot_looping;
     to.source_ref = from.source_ref;
+    to.gen_hide_list_refs = from.gen_hide_list_refs;
+    to.draw_override_refs = from.draw_override_refs;
+    to.postproc_override_refs = from.postproc_override_refs;
+    to.camera_anim_refs = from.camera_anim_refs;
+    to.glow_spot_ref = from.glow_spot_ref;
     to.camshot_shot_fields_decoded = from.camshot_shot_fields_decoded;
     to.camshot_shot_tail_offset = from.camshot_shot_tail_offset;
     to.has_camshot_shot_tail_offset = from.has_camshot_shot_tail_offset;
@@ -1524,6 +1545,12 @@ void copy_camshot_runtime_fields(const Gameplay::CameraKey& from,
     to.crowd_face_camera = from.crowd_face_camera;
     to.force_char_lod = from.force_char_lod;
     to.hide_list_refs = from.hide_list_refs;
+    to.show_list_refs = from.show_list_refs;
+    to.gen_hide_list_refs = from.gen_hide_list_refs;
+    to.draw_override_refs = from.draw_override_refs;
+    to.postproc_override_refs = from.postproc_override_refs;
+    to.camera_anim_refs = from.camera_anim_refs;
+    to.glow_spot_ref = from.glow_spot_ref;
     to.path_anim = from.path_anim;
     to.has_path_anim = from.has_path_anim;
     if (!to.has_path_base_pose && from.has_path_base_pose) {
@@ -2153,6 +2180,12 @@ struct IntroCameraSelection {
     bool crowd_face_camera = false;
     int force_char_lod = -1;
     std::vector<std::string> hide_list_refs;
+    std::vector<std::string> show_list_refs;
+    std::vector<std::string> gen_hide_list_refs;
+    std::vector<std::string> draw_override_refs;
+    std::vector<std::string> postproc_override_refs;
+    std::vector<std::string> camera_anim_refs;
+    std::string glow_spot_ref;
 };
 
 IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
@@ -2180,6 +2213,12 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             bool crowd_face_camera = false;
             int force_char_lod = -1;
             std::vector<std::string> hide_list_refs;
+            std::vector<std::string> show_list_refs;
+            std::vector<std::string> gen_hide_list_refs;
+            std::vector<std::string> draw_override_refs;
+            std::vector<std::string> postproc_override_refs;
+            std::vector<std::string> camera_anim_refs;
+            std::string glow_spot_ref;
         };
         std::vector<Candidate> candidates;
         for (const auto& de : dir.entries) {
@@ -2203,6 +2242,12 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             c.shot = de.name;
             c.anim = {};
             c.hide_list_refs = decoded_shot->hide_list;
+            c.show_list_refs = decoded_shot->show_list;
+            c.gen_hide_list_refs = decoded_shot->gen_hide_list;
+            c.draw_override_refs = decoded_shot->draw_overrides;
+            c.postproc_override_refs = decoded_shot->postproc_overrides;
+            c.camera_anim_refs = decoded_shot->anims;
+            c.glow_spot_ref = decoded_shot->glow_spot;
             c.hide_crowd = prop_bool(decoded_shot->props, "hide_crowd", false);
             c.crowd_face_camera =
                 prop_bool(decoded_shot->props, "crowd_face_camera", false);
@@ -2259,6 +2304,14 @@ IntroCameraSelection select_intro_camera_anim(const std::string& hdr_path,
             selected.crowd_face_camera = candidates.front().crowd_face_camera;
             selected.force_char_lod = candidates.front().force_char_lod;
             selected.hide_list_refs = candidates.front().hide_list_refs;
+            selected.show_list_refs = candidates.front().show_list_refs;
+            selected.gen_hide_list_refs = candidates.front().gen_hide_list_refs;
+            selected.draw_override_refs =
+                candidates.front().draw_override_refs;
+            selected.postproc_override_refs =
+                candidates.front().postproc_override_refs;
+            selected.camera_anim_refs = candidates.front().camera_anim_refs;
+            selected.glow_spot_ref = candidates.front().glow_spot_ref;
             return selected;
         }
     } catch (const std::exception& ex) {
@@ -7135,6 +7188,13 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                 const int force_char_lod =
                     prop_int(decoded_shot->props, "force_char_lod", -1);
                 const auto hide_list_refs = decoded_shot->hide_list;
+                const auto show_list_refs = decoded_shot->show_list;
+                const auto gen_hide_list_refs = decoded_shot->gen_hide_list;
+                const auto draw_override_refs = decoded_shot->draw_overrides;
+                const auto postproc_override_refs =
+                    decoded_shot->postproc_overrides;
+                const auto camera_anim_refs = decoded_shot->anims;
+                const std::string glow_spot_ref = decoded_shot->glow_spot;
                 auto decoded_poses = decoded_shot->frames;
                 for (auto& pose : decoded_poses) {
                     pose.first.name = de.name;
@@ -7144,16 +7204,25 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
                     pose.first.crowd_face_camera = crowd_face_camera;
                     pose.first.force_char_lod = force_char_lod;
                     pose.first.hide_list_refs = hide_list_refs;
+                    pose.first.show_list_refs = show_list_refs;
+                    pose.first.gen_hide_list_refs = gen_hide_list_refs;
+                    pose.first.draw_override_refs = draw_override_refs;
+                    pose.first.postproc_override_refs = postproc_override_refs;
+                    pose.first.camera_anim_refs = camera_anim_refs;
+                    pose.first.glow_spot_ref = glow_spot_ref;
                     out.push_back(pose.first);
                 }
                 if (!out.empty()) {
                     std::fprintf(
                         stderr,
-                        "[world] intro CamShot %s: %zu direct poses first body+0x%zX hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu\n",
+                        "[world] intro CamShot %s: %zu direct poses first body+0x%zX hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
                         de.name.c_str(), out.size(),
                         decoded_poses.front().second, hide_crowd ? 1 : 0,
                         crowd_face_camera ? 1 : 0, force_char_lod,
-                        hide_list_refs.size());
+                        hide_list_refs.size(), show_list_refs.size(),
+                        gen_hide_list_refs.size(), draw_override_refs.size(),
+                        postproc_override_refs.size(),
+                        camera_anim_refs.size(), glow_spot_ref.c_str());
                 }
                 return out;
             }
@@ -9253,6 +9322,12 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                 pos.crowd_face_camera = c.key.crowd_face_camera;
                 pos.force_char_lod = c.key.force_char_lod;
                 pos.hide_list_refs = c.key.hide_list_refs;
+                pos.show_list_refs = c.key.show_list_refs;
+                pos.gen_hide_list_refs = c.key.gen_hide_list_refs;
+                pos.draw_override_refs = c.key.draw_override_refs;
+                pos.postproc_override_refs = c.key.postproc_override_refs;
+                pos.camera_anim_refs = c.key.camera_anim_refs;
+                pos.glow_spot_ref = c.key.glow_spot_ref;
                 pos.path_anim = c.key.path_anim;
                 pos.has_path_anim = c.key.has_path_anim;
                 if (!pos.camshot_shot_fields_decoded &&
@@ -9325,7 +9400,7 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
             key.frame = 0.0f;
             out.push_back(key);
             std::fprintf(stderr,
-                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d selection=%s%.3f path_ease=%s%.3f\n",
+                         "[world] regular CamShot %s distance=%s facing=%s target=%s:%s parent=%s:%s parent_rot=%d refs=%d poses=%zu pose body+0x%zX timing=%s(%.3f %.3f %.3f) order=%zu special=%d walk_ok=%d low_excitement_ok=%d starpower_ok=%d jump_ok=%d lighter=%d hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s shot_fields=%d category=%s source_ref=%s filter=%s%.3f clamp=%s%.3f near_far=%s(%.3f %.3f) dof=%d selection=%s%.3f path_ease=%s%.3f\n",
                          c.shot.c_str(), c.distance.c_str(), c.facing.c_str(),
                          key.target_entity.c_str(), key.target_subpart.c_str(),
                          key.parent_entity.c_str(), key.parent_subpart.c_str(),
@@ -9340,6 +9415,12 @@ std::vector<Gameplay::CameraKey> load_regular_camera_keys(
                          key.lighter ? 1 : 0, key.hide_crowd ? 1 : 0,
                          key.crowd_face_camera ? 1 : 0, key.force_char_lod,
                          key.hide_list_refs.size(),
+                         key.show_list_refs.size(),
+                         key.gen_hide_list_refs.size(),
+                         key.draw_override_refs.size(),
+                         key.postproc_override_refs.size(),
+                         key.camera_anim_refs.size(),
+                         key.glow_spot_ref.c_str(),
                          key.camshot_shot_fields_decoded ? 1 : 0,
                          key.category.c_str(), key.source_ref.c_str(),
                          key.has_shot_filter ? "" : "none/",
@@ -14554,7 +14635,9 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     last_worldcrowd_actor_source_sample_time_ = -1.0;
     last_worldcrowd_actor_source_probe_log_time_ = -1.0;
     venue_camera_hidden_meshes_.clear();
+    venue_camera_shown_meshes_.clear();
     venue_camera_hidden_proxy_meshes_.clear();
+    venue_camera_shown_proxy_meshes_.clear();
     venue_camera_hide_crowd_ = false;
     venue_camera_crowd_face_camera_ = false;
     active_venue_event_.clear();
@@ -14694,6 +14777,7 @@ std::unordered_set<std::string> Gameplay::composed_venue_hidden_meshes() const {
     std::unordered_set<std::string> hidden = venue_runtime_hidden_meshes_;
     hidden.insert(venue_camera_hidden_meshes_.begin(),
                   venue_camera_hidden_meshes_.end());
+    for (const auto& mesh : venue_camera_shown_meshes_) hidden.erase(mesh);
     for (const auto& [material, alpha] : venue_material_alpha_) {
         if (alpha > 0.001f) continue;
         const auto mesh_it = venue_material_meshes_.find(material);
@@ -14741,13 +14825,17 @@ std::map<std::string, float> Gameplay::composed_venue_material_alpha() const {
 void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
     if (!world_) return;
     std::unordered_set<std::string> next_hidden;
+    std::unordered_set<std::string> next_shown;
     std::map<std::string, std::unordered_set<std::string>>
         next_hidden_proxy_meshes;
+    std::map<std::string, std::unordered_set<std::string>>
+        next_shown_proxy_meshes;
     auto push_proxy_meshes = [&](const std::string& object_name,
-                                 const std::vector<std::string>& meshes) {
+                                 const std::vector<std::string>& meshes,
+                                 auto& proxy_map) {
         if (meshes.empty()) return;
-        auto& hidden = next_hidden_proxy_meshes[object_name];
-        hidden.insert(meshes.begin(), meshes.end());
+        auto& mesh_set = proxy_map[object_name];
+        mesh_set.insert(meshes.begin(), meshes.end());
     };
     auto proxy_ref_variants = [](const std::string& object_name,
                                  const VenueProxyObject& proxy) {
@@ -14784,52 +14872,87 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
     };
     bool next_hide_crowd = key.hide_crowd;
     if (key.hide_crowd) next_hidden = venue_crowd_meshes_;
-    for (const auto& raw_ref : key.hide_list_refs) {
+    auto collect_camera_visibility_ref =
+        [&](const std::string& raw_ref, bool hide_ref) {
         const std::string ref = canonical_milo_ref(raw_ref);
         if (crowd_ref_name(ref)) {
-            next_hide_crowd = true;
-            next_hidden.insert(venue_crowd_meshes_.begin(),
-                               venue_crowd_meshes_.end());
+            if (hide_ref) {
+                next_hide_crowd = true;
+                next_hidden.insert(venue_crowd_meshes_.begin(),
+                                   venue_crowd_meshes_.end());
+            } else {
+                next_hide_crowd = false;
+                next_shown.insert(venue_crowd_meshes_.begin(),
+                                  venue_crowd_meshes_.end());
+            }
         }
         const auto group_it = venue_group_meshes_.find(ref);
         if (group_it != venue_group_meshes_.end()) {
-            next_hidden.insert(group_it->second.begin(), group_it->second.end());
+            auto& mesh_set = hide_ref ? next_hidden : next_shown;
+            mesh_set.insert(group_it->second.begin(), group_it->second.end());
         }
         if (ref.rfind(".mesh") != std::string::npos &&
             (venue_mesh_names_.empty() ||
              venue_mesh_names_.find(ref) != venue_mesh_names_.end())) {
-            next_hidden.insert(ref);
+            auto& mesh_set = hide_ref ? next_hidden : next_shown;
+            mesh_set.insert(ref);
         }
         for (const auto& [object_name, proxy] : venue_proxy_objects_) {
             const auto ref_variants = proxy_ref_variants(object_name, proxy);
             if (std::find(ref_variants.begin(), ref_variants.end(), ref) !=
                 ref_variants.end()) {
-                push_proxy_meshes(object_name, proxy.all_meshes);
+                push_proxy_meshes(object_name, proxy.all_meshes,
+                                  hide_ref ? next_hidden_proxy_meshes
+                                           : next_shown_proxy_meshes);
                 continue;
             }
             const auto group_it = proxy.group_meshes.find(ref);
             if (group_it != proxy.group_meshes.end()) {
-                push_proxy_meshes(object_name, group_it->second);
+                push_proxy_meshes(object_name, group_it->second,
+                                  hide_ref ? next_hidden_proxy_meshes
+                                           : next_shown_proxy_meshes);
                 continue;
             }
             if (ref.rfind(".mesh") == std::string::npos) continue;
             for (const auto& mesh : proxy.all_meshes) {
                 if (ref == mesh || ref == canonical_milo_ref(mesh)) {
-                    next_hidden_proxy_meshes[object_name].insert(mesh);
+                    auto& proxy_map = hide_ref ? next_hidden_proxy_meshes
+                                               : next_shown_proxy_meshes;
+                    proxy_map[object_name].insert(mesh);
                     break;
                 }
             }
         }
+    };
+    for (const auto& raw_ref : key.hide_list_refs) {
+        collect_camera_visibility_ref(raw_ref, true);
+    }
+    for (const auto& raw_ref : key.gen_hide_list_refs) {
+        collect_camera_visibility_ref(raw_ref, true);
+    }
+    for (const auto& raw_ref : key.show_list_refs) {
+        collect_camera_visibility_ref(raw_ref, false);
+    }
+    for (const auto& mesh : next_shown) next_hidden.erase(mesh);
+    for (const auto& [object_name, shown_meshes] : next_shown_proxy_meshes) {
+        auto hidden_it = next_hidden_proxy_meshes.find(object_name);
+        if (hidden_it == next_hidden_proxy_meshes.end()) continue;
+        for (const auto& mesh : shown_meshes) hidden_it->second.erase(mesh);
+        if (hidden_it->second.empty()) next_hidden_proxy_meshes.erase(hidden_it);
     }
     const bool next_face_camera = key.crowd_face_camera;
     if (next_hidden == venue_camera_hidden_meshes_ &&
+        next_shown == venue_camera_shown_meshes_ &&
         next_hidden_proxy_meshes == venue_camera_hidden_proxy_meshes_ &&
+        next_shown_proxy_meshes == venue_camera_shown_proxy_meshes_ &&
         next_hide_crowd == venue_camera_hide_crowd_ &&
         next_face_camera == venue_camera_crowd_face_camera_) {
         return;
     }
     venue_camera_hidden_meshes_ = std::move(next_hidden);
+    venue_camera_shown_meshes_ = std::move(next_shown);
     venue_camera_hidden_proxy_meshes_ = std::move(next_hidden_proxy_meshes);
+    venue_camera_shown_proxy_meshes_ = std::move(next_shown_proxy_meshes);
     venue_camera_hide_crowd_ = next_hide_crowd;
     venue_camera_crowd_face_camera_ = next_face_camera;
     if (debug_venue_filters_enabled()) {
@@ -14839,21 +14962,36 @@ void Gameplay::apply_camera_crowd_visibility(const CameraKey& key) {
             (void)object_name;
             proxy_mesh_count += meshes.size();
         }
+        size_t shown_proxy_mesh_count = 0;
+        for (const auto& [object_name, meshes] :
+             venue_camera_shown_proxy_meshes_) {
+            (void)object_name;
+            shown_proxy_mesh_count += meshes.size();
+        }
         std::fprintf(stderr,
                      "[world] camera crowd visibility: shot=%s hide=%d "
-                     "hide_list=%zu meshes=%zu proxy_objects=%zu "
-                     "proxy_meshes=%zu actor_hide=%d face_camera=%d "
-                     "face_meshes=%zu\n",
+                     "hide_list=%zu gen_hide=%zu show_list=%zu meshes=%zu "
+                     "shown_meshes=%zu proxy_objects=%zu proxy_meshes=%zu "
+                     "shown_proxy_objects=%zu shown_proxy_meshes=%zu "
+                     "actor_hide=%d face_camera=%d face_meshes=%zu "
+                     "draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
                      key.name.c_str(), key.hide_crowd ? 1 : 0,
-                     key.hide_list_refs.size(),
+                     key.hide_list_refs.size(), key.gen_hide_list_refs.size(),
+                     key.show_list_refs.size(),
                      venue_camera_hidden_meshes_.size(),
+                     venue_camera_shown_meshes_.size(),
                      venue_camera_hidden_proxy_meshes_.size(),
                      proxy_mesh_count,
+                     venue_camera_shown_proxy_meshes_.size(),
+                     shown_proxy_mesh_count,
                      venue_camera_hide_crowd_ ? 1 : 0,
                      venue_camera_crowd_face_camera_ ? 1 : 0,
                      venue_camera_crowd_face_camera_
                          ? venue_crowd_meshes_.size()
-                         : 0u);
+                         : 0u,
+                     key.draw_override_refs.size(),
+                     key.postproc_override_refs.size(),
+                     key.camera_anim_refs.size(), key.glow_spot_ref.c_str());
     }
     world_->set_face_camera_meshes(venue_camera_crowd_face_camera_
                                        ? venue_crowd_meshes_
@@ -14996,7 +15134,12 @@ bool Gameplay::venue_proxy_camera_fully_hidden(
         proxy.all_meshes.empty()) {
         return false;
     }
+    const auto shown_it = venue_camera_shown_proxy_meshes_.find(object_name);
     for (const auto& mesh : proxy.all_meshes) {
+        if (shown_it != venue_camera_shown_proxy_meshes_.end() &&
+            shown_it->second.find(mesh) != shown_it->second.end()) {
+            return false;
+        }
         if (hidden_it->second.find(mesh) == hidden_it->second.end()) {
             return false;
         }
@@ -15011,16 +15154,21 @@ void Gameplay::set_venue_proxy_object_showing(const std::string& object_name,
     auto& proxy = proxy_it->second;
     proxy.showing = showing;
     if (!proxy.renderer) return;
-    if (showing) {
-        const auto hidden_it =
-            venue_camera_hidden_proxy_meshes_.find(object_name);
-        proxy.renderer->set_hidden_meshes(
-            hidden_it == venue_camera_hidden_proxy_meshes_.end()
-                ? std::unordered_set<std::string>{}
-                : hidden_it->second);
-    } else {
-        proxy.renderer->set_hidden_meshes(std::unordered_set<std::string>(
-            proxy.all_meshes.begin(), proxy.all_meshes.end()));
+    std::unordered_set<std::string> hidden_meshes;
+    if (!showing) {
+        hidden_meshes.insert(proxy.all_meshes.begin(), proxy.all_meshes.end());
+    } else if (const auto hidden_it =
+                   venue_camera_hidden_proxy_meshes_.find(object_name);
+               hidden_it != venue_camera_hidden_proxy_meshes_.end()) {
+        hidden_meshes = hidden_it->second;
+    }
+    if (const auto shown_it =
+            venue_camera_shown_proxy_meshes_.find(object_name);
+        shown_it != venue_camera_shown_proxy_meshes_.end()) {
+        for (const auto& mesh : shown_it->second) hidden_meshes.erase(mesh);
+    }
+    proxy.renderer->set_hidden_meshes(std::move(hidden_meshes));
+    if (!showing) {
         proxy.renderer->set_active_particle_systems({});
         proxy.renderer->set_particle_intensities({});
         proxy.renderer->set_particle_sizes({});
@@ -16055,7 +16203,9 @@ void Gameplay::clear_runtime_venue_animation_state() {
     pending_transient_venue_events_.clear();
     active_venue_event_.clear();
     venue_camera_hidden_meshes_.clear();
+    venue_camera_shown_meshes_.clear();
     venue_camera_hidden_proxy_meshes_.clear();
+    venue_camera_shown_proxy_meshes_.clear();
     venue_camera_hide_crowd_ = false;
     venue_camera_crowd_face_camera_ = false;
     venue_script_state_ = venue_script_initial_state_;
@@ -16446,9 +16596,22 @@ void Gameplay::update_venue_proxy_objects() {
         if (hidden_it != venue_camera_hidden_proxy_meshes_.end()) {
             hidden_proxy_meshes = hidden_it->second;
         }
+        const auto shown_it =
+            venue_camera_shown_proxy_meshes_.find(object_name);
+        const bool camera_showing =
+            shown_it != venue_camera_shown_proxy_meshes_.end() &&
+            !shown_it->second.empty();
+        if (!proxy.showing && camera_showing) {
+            hidden_proxy_meshes.insert(proxy.all_meshes.begin(),
+                                       proxy.all_meshes.end());
+        }
+        if (camera_showing) {
+            for (const auto& mesh : shown_it->second)
+                hidden_proxy_meshes.erase(mesh);
+        }
         const bool camera_fully_hidden =
-            venue_proxy_camera_fully_hidden(object_name, proxy);
-        if (!proxy.showing || camera_fully_hidden) {
+            !camera_showing && venue_proxy_camera_fully_hidden(object_name, proxy);
+        if ((!proxy.showing && !camera_showing) || camera_fully_hidden) {
             proxy.renderer->set_hidden_meshes(std::unordered_set<std::string>(
                 proxy.all_meshes.begin(), proxy.all_meshes.end()));
             proxy.renderer->set_active_particle_systems({});
@@ -19505,7 +19668,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_camera_target_worlds_ =
                     build_venue_camera_target_worlds(venue_scene);
                 venue_camera_hidden_meshes_.clear();
+                venue_camera_shown_meshes_.clear();
                 venue_camera_hidden_proxy_meshes_.clear();
+                venue_camera_shown_proxy_meshes_.clear();
                 venue_camera_hide_crowd_ = false;
                 venue_camera_crowd_face_camera_ = false;
                 if (!venue_crowd_meshes_.empty()) {
@@ -19677,16 +19842,29 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     key.crowd_face_camera = intro_camera.crowd_face_camera;
                     key.force_char_lod = intro_camera.force_char_lod;
                     key.hide_list_refs = intro_camera.hide_list_refs;
+                    key.show_list_refs = intro_camera.show_list_refs;
+                    key.gen_hide_list_refs = intro_camera.gen_hide_list_refs;
+                    key.draw_override_refs = intro_camera.draw_override_refs;
+                    key.postproc_override_refs =
+                        intro_camera.postproc_override_refs;
+                    key.camera_anim_refs = intro_camera.camera_anim_refs;
+                    key.glow_spot_ref = intro_camera.glow_spot_ref;
                 }
                 if (debug_venue_filters_enabled()) {
                     std::fprintf(stderr,
-                                 "[world] intro camera flags: shot=%s anim=%s keys=%zu hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu\n",
+                                 "[world] intro camera flags: shot=%s anim=%s keys=%zu hide_crowd=%d crowd_face_camera=%d force_char_lod=%d hide_list=%zu show_list=%zu gen_hide=%zu draw_overrides=%zu postproc=%zu anims=%zu glow=%s\n",
                                  intro_camera.shot.c_str(),
                                  intro_camera.anim.c_str(), camera_keys_.size(),
                                  intro_camera.hide_crowd ? 1 : 0,
                                  intro_camera.crowd_face_camera ? 1 : 0,
                                  intro_camera.force_char_lod,
-                                 intro_camera.hide_list_refs.size());
+                                 intro_camera.hide_list_refs.size(),
+                                 intro_camera.show_list_refs.size(),
+                                 intro_camera.gen_hide_list_refs.size(),
+                                 intro_camera.draw_override_refs.size(),
+                                 intro_camera.postproc_override_refs.size(),
+                                 intro_camera.camera_anim_refs.size(),
+                                 intro_camera.glow_spot_ref.c_str());
                 }
                 regular_camera_keys_ = load_regular_camera_keys(
                     hdr_path_, ark_path_, quickplay_rig_->venue);

@@ -210,6 +210,12 @@ class Gameplay {
     bool crowd_face_camera = false;
     int force_char_lod = -1;
     std::vector<std::string> hide_list_refs;
+    std::vector<std::string> show_list_refs;
+    std::vector<std::string> gen_hide_list_refs;
+    std::vector<std::string> draw_override_refs;
+    std::vector<std::string> postproc_override_refs;
+    std::vector<std::string> camera_anim_refs;
+    std::string glow_spot_ref;
     std::vector<CameraKey> positions;
   };
   struct LightingPreset {
@@ -884,8 +890,11 @@ class Gameplay {
   double last_worldcrowd_actor_source_sample_time_ = -1.0;
   double last_worldcrowd_actor_source_probe_log_time_ = -1.0;
   std::unordered_set<std::string> venue_camera_hidden_meshes_;
+  std::unordered_set<std::string> venue_camera_shown_meshes_;
   std::map<std::string, std::unordered_set<std::string>>
       venue_camera_hidden_proxy_meshes_;
+  std::map<std::string, std::unordered_set<std::string>>
+      venue_camera_shown_proxy_meshes_;
   bool venue_camera_hide_crowd_ = false;
   bool venue_camera_crowd_face_camera_ = false;
   std::string active_venue_event_;
