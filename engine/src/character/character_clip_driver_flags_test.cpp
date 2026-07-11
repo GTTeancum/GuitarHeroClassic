@@ -39,6 +39,16 @@ bool expect_group_duplicates(const std::vector<uint32_t>& clip_flags,
   return false;
 }
 
+bool expect_group_sort(const std::vector<std::string>& input,
+                       const std::vector<std::string>& want,
+                       const char* label) {
+  const std::vector<std::string> got =
+      ghogx::character::source_char_clip_group_sorted_names(input);
+  if (got == want) return true;
+  std::cerr << "group sort mismatch for " << label << "\n";
+  return false;
+}
+
 bool expect_starved(bool has_first, bool first_has_next,
                     uint32_t first_play_flags, bool want,
                     const char* label) {
@@ -187,6 +197,8 @@ int main() {
                                 "high flag unique");
   ok &= expect_group_duplicates({0x11u, 0x12u, 0x21u, 0x31u}, 9, 0x0fu, 0,
                                 "invalid source index");
+  ok &= expect_group_sort({"z_idle", "A_intro", "mid"}, {"A_intro", "mid", "z_idle"},
+                          "alphabetical source order");
   ok &= expect_starved(false, false, 0, true, "empty stack");
   ok &= expect_starved(true, true, ghogx::character::kCharPlayLoop, false,
                        "stack has next");

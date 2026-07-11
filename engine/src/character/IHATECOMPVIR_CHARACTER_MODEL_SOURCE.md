@@ -736,6 +736,9 @@ note, and all report `unreadBytes=0`.
     `CharClipGroup::NumFlagDuplicates` masked comparison body: compare the
     selected clip's flags with every other clip and count rows whose masked
     flags match.
+  - Native `source_char_clip_group_sorted_names` ports the complete
+    `CharClipGroup::Sort` ordering rule: clip names are sorted by the source
+    `strcmp(i->Name(), j->Name()) < 0` comparator.
   - Gameplay routes authored `CharClipGroup` resolution through the shared
     character helper so the same source-backed reader feeds both WorldCrowd and
     performer sync group lookup.

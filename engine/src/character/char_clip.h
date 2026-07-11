@@ -216,6 +216,8 @@ int source_char_clip_group_num_flag_duplicates(
     const std::vector<uint32_t>& clip_flags,
     size_t clip_index,
     uint32_t mask);
+std::vector<std::string> source_char_clip_group_sorted_names(
+    std::vector<std::string> clip_names);
 
 // Source-backed CharClipDriver constructor play-flag masking.
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,

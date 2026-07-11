@@ -3502,6 +3502,14 @@ int run_contract() {
                  "i++){if(clip!=mClips[i]){if((x&flags)==(x&mClips[i]->mFlags))"
                  "count++;}}returncount;}",
                  "latest CharClipGroup source exposes masked duplicate count");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "structAlphabetically{booloperator()(Hmx::Object*i,"
+                 "Hmx::Object*j)const{returnstrcmp(i->Name(),j->Name())<0;}};",
+                 "latest CharClipGroup source exposes alphabetical comparator");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "voidCharClipGroup::Sort(){std::sort(mClips.begin(),"
+                 "mClips.end(),Alphabetically());}",
+                 "latest CharClipGroup source exposes Sort helper");
   ok &= contains(char_clip_h,
                  "structCharClipGroup{std::stringname;std::stringmilo_path;"
                  "std::vector<std::string>clips;uint32_tversion=0;"
@@ -3522,6 +3530,10 @@ int run_contract() {
                  "conststd::vector<uint32_t>&clip_flags,size_tclip_index,"
                  "uint32_tmask);",
                  "native character API exposes source-backed NumFlagDuplicates helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>source_char_clip_group_sorted_names("
+                 "std::vector<std::string>clip_names);",
+                 "native character API exposes source-backed CharClipGroup sort helper");
   ok &= contains(char_clip,
                  "CharClipGroupload_clip_group(",
                  "native clip decoder implements shared clip group reader");
@@ -3555,6 +3567,11 @@ int run_contract() {
                  "(mask&flags)==(mask&clip_flags[i])){++count;}}returncount;}",
                  "native clip group duplicate helper mirrors source masked count");
   ok &= contains(char_clip,
+                 "std::vector<std::string>source_char_clip_group_sorted_names("
+                 "std::vector<std::string>clip_names){std::sort("
+                 "clip_names.begin(),clip_names.end());returnclip_names;}",
+                 "native clip group sort helper mirrors source name ordering");
+  ok &= contains(char_clip,
                  "\"[clip-group-source]group=%smilo=%sversion=%u\"",
                  "native clip group reader logs source row proof");
   ok &= contains(char_clip,
@@ -3563,9 +3580,15 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_group_num_flag_duplicates(",
                  "focused flag-mask test covers CharClipGroup duplicate helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_group_sorted_names(input)",
+                 "focused flag-mask test covers CharClipGroup sort helper");
   ok &= contains(doc,
                  "Native `source_char_clip_group_num_flag_duplicates` ports",
                  "document records native CharClipGroup duplicate helper");
+  ok &= contains(doc,
+                 "Native `source_char_clip_group_sorted_names` ports",
+                 "document records native CharClipGroup sort helper");
   ok &= contains(doc,
                  "selected clip's flags with every other clip",
                  "document records source CharClipGroup duplicate behavior");

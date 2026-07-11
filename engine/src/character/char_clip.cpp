@@ -1544,6 +1544,12 @@ int source_char_clip_group_num_flag_duplicates(
   return count;
 }
 
+std::vector<std::string> source_char_clip_group_sorted_names(
+    std::vector<std::string> clip_names) {
+  std::sort(clip_names.begin(), clip_names.end());
+  return clip_names;
+}
+
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask) {
   uint32_t play_flags = clip.default_play_flags;
