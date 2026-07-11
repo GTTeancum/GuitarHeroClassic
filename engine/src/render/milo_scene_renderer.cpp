@@ -724,6 +724,15 @@ void MiloSceneRenderer::set_particle_sizes(std::map<std::string, float> sizes) {
   particle_sizes_ = std::move(sizes);
 }
 
+void MiloSceneRenderer::set_particle_speeds(std::map<std::string, float> speeds) {
+  particle_speeds_ = std::move(speeds);
+}
+
+void MiloSceneRenderer::set_particle_lifetimes(
+    std::map<std::string, float> lifetimes) {
+  particle_lifetimes_ = std::move(lifetimes);
+}
+
 void MiloSceneRenderer::set_hidden_meshes(std::unordered_set<std::string> mesh_names) {
   hidden_meshes_ = std::move(mesh_names);
 }
@@ -1838,12 +1847,25 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         (p.max_particles > 0.0f ? std::round(p.max_particles) : 16.0f) *
             std::max(intensity, 0.0f),
         1.0f, 96.0f));
-    const float lifetime =
+    float lifetime =
         std::clamp((p.lifetime_min + p.lifetime_max) * 0.5f, 0.05f, 20.0f);
-    const float max_velocity =
+    if (const auto life_it = particle_lifetimes_.find(p.name);
+        life_it != particle_lifetimes_.end()) {
+      lifetime = std::clamp(life_it->second, 0.05f, 20.0f);
+    }
+    const float base_max_velocity =
         std::max({std::fabs(p.velocity_min[0]), std::fabs(p.velocity_min[1]),
                   std::fabs(p.velocity_min[2]), std::fabs(p.velocity_max[0]),
                   std::fabs(p.velocity_max[1]), std::fabs(p.velocity_max[2])});
+    float max_velocity = base_max_velocity;
+    float velocity_scale = 1.0f;
+    if (const auto speed_it = particle_speeds_.find(p.name);
+        speed_it != particle_speeds_.end()) {
+      max_velocity = std::clamp(speed_it->second, 0.0f, 10000.0f);
+      if (base_max_velocity > 0.001f) {
+        velocity_scale = max_velocity / base_max_velocity;
+      }
+    }
     float authored_size = std::max(p.size_start, p.size_end);
     if (const auto size_it = particle_sizes_.find(p.name);
         size_it != particle_sizes_.end()) {
@@ -1875,7 +1897,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         const float vel = p.velocity_min[c] +
                           (p.velocity_max[c] - p.velocity_min[c]) *
                               hash01(seed + 10u + static_cast<uint32_t>(c));
-        local[c] += vel * phase * lifetime * 0.05f;
+        local[c] += vel * velocity_scale * phase * lifetime * 0.05f;
       }
       PVtx v;
       v.x = world[12] + local[0] * world[0] + local[1] * world[4] +

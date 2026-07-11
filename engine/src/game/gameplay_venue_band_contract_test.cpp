@@ -3977,8 +3977,10 @@ int main() {
                  "venue_active_particle_systems_.clear();"
                  "venue_particle_intensities_.clear();"
                  "venue_particle_sizes_.clear();"
+                 "venue_particle_speeds_.clear();"
+                 "venue_particle_lifetimes_.clear();"
                  "active_venue_particles_.clear();",
-                 "venue reset clears active particle systems, intensities, and sizes");
+                 "venue reset clears active particle systems, intensities, sizes, speeds, and lifetimes");
   ok &= contains(gameplay_c,
                  "venue_mesh_translation_offsets_.clear();"
                  "venue_mesh_transform_offsets_.clear();"
@@ -4678,6 +4680,12 @@ int main() {
                  "sample_particle_size(it->size_keys,frame)",
                  "venue particles sample authored ParticleSysAnim start size");
   ok &= contains(gameplay_c,
+                 "sample_particle_size(it->speed_keys,frame)",
+                 "venue particles sample authored ParticleSysAnim speed");
+  ok &= contains(gameplay_c,
+                 "sample_particle_size(it->life_keys,frame)",
+                 "venue particles sample authored ParticleSysAnim lifetime");
+  ok &= contains(gameplay_c,
                  "it->speed_keys.size()",
                  "venue particle sample logs include decoded source speed keys");
   ok &= contains(gameplay_c,
@@ -4686,18 +4694,36 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->set_particle_sizes(venue_particle_sizes_);",
                  "venue particle size samples feed renderer overrides");
+  ok &= contains(gameplay_c,
+                 "world_->set_particle_speeds(venue_particle_speeds_);",
+                 "venue particle speed samples feed renderer overrides");
+  ok &= contains(gameplay_c,
+                 "world_->set_particle_lifetimes(venue_particle_lifetimes_);",
+                 "venue particle lifetime samples feed renderer overrides");
   ok &= contains(renderer_h_c,
                  "set_particle_intensities",
                  "renderer accepts particle intensity samples");
   ok &= contains(renderer_h_c,
                  "set_particle_sizes",
                  "renderer accepts particle size samples");
+  ok &= contains(renderer_h_c,
+                 "set_particle_speeds",
+                 "renderer accepts particle speed samples");
+  ok &= contains(renderer_h_c,
+                 "set_particle_lifetimes",
+                 "renderer accepts particle lifetime samples");
   ok &= contains(renderer_c,
                  "particle_intensities_.find(p.name)",
                  "renderer applies particle intensity by authored particle name");
   ok &= contains(renderer_c,
                  "particle_sizes_.find(p.name)",
                  "renderer applies particle start size by authored particle name");
+  ok &= contains(renderer_c,
+                 "particle_speeds_.find(p.name)",
+                 "renderer applies particle speed by authored particle name");
+  ok &= contains(renderer_c,
+                 "particle_lifetimes_.find(p.name)",
+                 "renderer applies particle lifetime by authored particle name");
   ok &= contains(renderer_c,
                  "std::round(p.max_particles):16.0f)*std::max(intensity,0.0f)",
                  "renderer scales ParticleSys count by sampled intensity");
