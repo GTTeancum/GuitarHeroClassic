@@ -5877,6 +5877,22 @@ int main() {
                  "sample_transform_anim(active.anim,anim_frame)",
                  "one-shot mesh TransAnim playback samples translation, rotation, and scale");
   ok &= contains(renderer_c,
+                 "std::array<float,4>sample_rotation_value(",
+                 "one-shot renderer TransAnim rotations sample authored quaternion values");
+  ok &= contains(renderer_c,
+                 "sample.rotation_xyzw=sample_rotation_value(anim.rotation_keys,frame);",
+                 "one-shot renderer TransAnim rotations use source-shaped local delta quaternions");
+  ok &= contains(renderer_c,
+                 "a.translation_keys.size()<2&&a.rotation_keys.empty()&&"
+                 "a.scale_keys.size()<2",
+                 "one-shot renderer TransAnim keeps single-key rotation channels");
+  ok &= absent(renderer_c,
+               "sample_quat_delta(",
+               "one-shot renderer TransAnim must not subtract the first quaternion");
+  ok &= absent(renderer_c,
+               "quat_mul_xyzw(quat_conjugate_xyzw",
+               "one-shot renderer TransAnim must not derive first-key-relative rotations");
+  ok &= contains(renderer_c,
                  "chain_has_transform_sample",
                  "animated venue parent transforms rebuild a live local chain");
   ok &= contains(renderer_c,

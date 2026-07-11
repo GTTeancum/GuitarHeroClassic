@@ -283,25 +283,6 @@ std::array<float, 4> normalize_quat_xyzw(std::array<float, 4> q) {
   return q;
 }
 
-std::array<float, 4> quat_conjugate_xyzw(std::array<float, 4> q) {
-  q[0] = -q[0];
-  q[1] = -q[1];
-  q[2] = -q[2];
-  return q;
-}
-
-std::array<float, 4> quat_mul_xyzw(const std::array<float, 4>& a,
-                                   const std::array<float, 4>& b) {
-  const float ax = a[0], ay = a[1], az = a[2], aw = a[3];
-  const float bx = b[0], by = b[1], bz = b[2], bw = b[3];
-  return normalize_quat_xyzw({
-      aw * bx + ax * bw + ay * bz - az * by,
-      aw * by - ax * bz + ay * bw + az * bx,
-      aw * bz + ax * by - ay * bx + az * bw,
-      aw * bw - ax * bx - ay * by - az * bz,
-  });
-}
-
 void quat_xyzw_to_row_rot(const std::array<float, 4>& q_in,
                           float rot[3][3]) {
   const auto q = normalize_quat_xyzw(q_in);
@@ -552,7 +533,7 @@ std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
                               a[3] * s0 + b[3] * s1});
 }
 
-std::array<float, 4> sample_quat_delta(
+std::array<float, 4> sample_rotation_value(
     const std::vector<MiloSceneRenderer::MeshQuatAnimKey>& keys, float frame) {
   if (keys.empty()) return {0.0f, 0.0f, 0.0f, 1.0f};
   const auto* a = &keys.front();
@@ -570,11 +551,7 @@ std::array<float, 4> sample_quat_delta(
                                    a->quat_xyzw[2], a->quat_xyzw[3]};
   const std::array<float, 4> qb = {b->quat_xyzw[0], b->quat_xyzw[1],
                                    b->quat_xyzw[2], b->quat_xyzw[3]};
-  const auto cur = slerp_quat_xyzw(qa, qb, t);
-  const std::array<float, 4> base = {
-      keys.front().quat_xyzw[0], keys.front().quat_xyzw[1],
-      keys.front().quat_xyzw[2], keys.front().quat_xyzw[3]};
-  return quat_mul_xyzw(quat_conjugate_xyzw(normalize_quat_xyzw(base)), cur);
+  return slerp_quat_xyzw(qa, qb, t);
 }
 
 MiloSceneRenderer::MeshTransformSample sample_transform_anim(
@@ -584,9 +561,9 @@ MiloSceneRenderer::MeshTransformSample sample_transform_anim(
     sample.has_translation = true;
     sample.translation = sample_vec_delta(anim.translation_keys, frame);
   }
-  if (anim.rotation_keys.size() >= 2) {
+  if (!anim.rotation_keys.empty()) {
     sample.has_rotation = true;
-    sample.rotation_xyzw = sample_quat_delta(anim.rotation_keys, frame);
+    sample.rotation_xyzw = sample_rotation_value(anim.rotation_keys, frame);
   }
   if (anim.scale_keys.size() >= 2) {
     sample.has_scale = true;
@@ -1022,7 +999,7 @@ void MiloSceneRenderer::trigger_mesh_transform_anim(
     float frames_per_second, bool loop) {
   if (frames_per_second <= 0.0f) return;
   auto empty = [](const MeshTransformAnim& a) {
-    return a.translation_keys.size() < 2 && a.rotation_keys.size() < 2 &&
+    return a.translation_keys.size() < 2 && a.rotation_keys.empty() &&
            a.scale_keys.size() < 2;
   };
   if (empty(transform_anim)) return;
