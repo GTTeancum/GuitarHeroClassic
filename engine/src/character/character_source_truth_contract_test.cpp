@@ -2885,6 +2885,26 @@ int run_contract() {
   ok &= contains(rb3_latest_char_weight_setter_cpp,
                  "floatsecs=TheTaskMgr.DeltaBeat()/mBeatsPerWeight;",
                  "latest CharWeightSetter source poll beat-smooths");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "voidCharWeightSetter::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){changedBy."
+                 "push_back(mDriver);changedBy.push_back(mBase);",
+                 "latest CharWeightSetter source PollDeps publishes driver and base");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "for(ObjPtrList<CharWeightSetter,ObjectDir>::iteratorit="
+                 "mMinWeights.begin();it!=mMinWeights.end();++it){changedBy."
+                 "push_back(*it);}",
+                 "latest CharWeightSetter source PollDeps publishes min weights");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "for(ObjPtrList<CharWeightSetter,ObjectDir>::iteratorit="
+                 "mMaxWeights.begin();it!=mMaxWeights.end();++it){changedBy."
+                 "push_back(*it);}",
+                 "latest CharWeightSetter source PollDeps publishes max weights");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "CharWeightable*weightowner=dynamic_cast<CharWeightable*>("
+                 "(*it)->RefOwner());if(weightowner&&weightowner->"
+                 "mWeightOwner==this)change.push_back(weightowner);",
+                 "latest CharWeightSetter source PollDeps publishes owned ref owners");
   ok &= contains(char_clip_h,
                  "floatsource_char_weightable_weight(constCharWeightSetter&"
                  "setter,conststd::unordered_map<std::string,float>&"
@@ -2895,6 +2915,20 @@ int run_contract() {
                  "setter,conststd::unordered_map<std::string,float>&"
                  "weights_by_name,floatdelta_beats,float&out_weight);",
                  "native exposes source CharWeightSetter poll helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharWeightSetterRefOwner{std::stringname;"
+                 "boolweight_owner_is_setter=false;};",
+                 "native exposes source CharWeightSetter ref-owner row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharWeightSetterPollDeps{std::vector<std::string>"
+                 "changed_by;std::vector<std::string>change;};",
+                 "native exposes source CharWeightSetter PollDeps state");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_weight_setter_poll_deps("
+                 "SourceCharWeightSetterPollDeps&deps,constCharWeightSetter&"
+                 "setter,conststd::vector<SourceCharWeightSetterRefOwner>&"
+                 "ref_owners);",
+                 "native exposes source CharWeightSetter PollDeps helper");
   ok &= contains(char_clip, "returnsetter.weight;",
                  "native CharWeightable helper falls back to row weight");
   ok &= contains(char_clip, "if(!setter.driver.empty()){returnfalse;}",
@@ -2911,6 +2945,22 @@ int run_contract() {
   ok &= contains(char_clip,
                  "constfloatstep=delta_beats/setter.beats_per_weight;",
                  "native CharWeightSetter helper ports beat smoothing");
+  ok &= contains(char_clip,
+                 "voidsource_char_weight_setter_poll_deps("
+                 "SourceCharWeightSetterPollDeps&deps,constCharWeightSetter&"
+                 "setter,conststd::vector<SourceCharWeightSetterRefOwner>&"
+                 "ref_owners){deps.changed_by.push_back(setter.driver);"
+                 "deps.changed_by.push_back(setter.base);",
+                 "native CharWeightSetter PollDeps helper starts with driver/base");
+  ok &= contains(char_clip,
+                 "for(constauto&min_name:setter.min_weights){deps.changed_by."
+                 "push_back(min_name);}for(constauto&max_name:"
+                 "setter.max_weights){deps.changed_by.push_back(max_name);}",
+                 "native CharWeightSetter PollDeps helper publishes min/max rows");
+  ok &= contains(char_clip,
+                 "for(autoit=ref_owners.rbegin();it!=ref_owners.rend();++it){"
+                 "if(it->weight_owner_is_setter)deps.change.push_back(it->name);}",
+                 "native CharWeightSetter PollDeps helper scans ref owners in reverse");
   ok &= contains(char_clip, "\"[weightsetter-source-skip]",
                  "native CharWeightSetter logs missing driver evaluator tag");
   ok &= contains(char_clip,
@@ -2928,6 +2978,19 @@ int run_contract() {
   ok &= contains(weight_setter_source_test,
                  "apply_character_controllers(character,0.0f,nullptr);",
                  "focused CharWeightSetter test covers controller writeback");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_poll_deps(",
+                 "focused CharWeightSetter test covers PollDeps helper");
+  ok &= contains(weight_setter_source_test,
+                 "conststd::vector<std::string>want_change={\"last.change\","
+                 "\"first.change\"};",
+                 "focused CharWeightSetter test covers reverse ref order");
+  ok &= contains(doc,
+                 "Native `source_char_weight_setter_poll_deps` ports",
+                 "document records native CharWeightSetter PollDeps helper");
+  ok &= contains(doc,
+                 "`CharWeightSetter::PollDeps` dependency publication",
+                 "document records CharWeightSetter PollDeps source behavior");
   ok &= contains(rb3_latest_char_driver_h,
                  "ObjPtr<CharBonesObject,ObjectDir>mBones;",
                  "latest CharDriver header exposes driven bones pointer");

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace {
 
@@ -27,8 +28,11 @@ bool near(float got, float want, const char* label) {
 int main() {
   using ghogx::character::Character;
   using ghogx::character::CharWeightSetter;
+  using ghogx::character::SourceCharWeightSetterPollDeps;
+  using ghogx::character::SourceCharWeightSetterRefOwner;
   using ghogx::character::apply_character_controllers;
   using ghogx::character::source_char_weight_setter_poll;
+  using ghogx::character::source_char_weight_setter_poll_deps;
   using ghogx::character::source_char_weightable_weight;
 
   bool ok = true;
@@ -80,6 +84,29 @@ int main() {
   ok &= runtime != character.runtime_weight_props.end();
   if (runtime != character.runtime_weight_props.end()) {
     ok &= near(runtime->second, 0.75f, "controller writeback");
+  }
+
+  CharWeightSetter deps_setter = make_setter("deps.weight");
+  deps_setter.driver = "main.driver";
+  deps_setter.base = "base.weight";
+  deps_setter.min_weights = {"min.a", "min.b"};
+  deps_setter.max_weights = {"max.a"};
+  SourceCharWeightSetterPollDeps deps;
+  source_char_weight_setter_poll_deps(
+      deps, deps_setter,
+      {SourceCharWeightSetterRefOwner{"ignored.owner", false},
+       SourceCharWeightSetterRefOwner{"first.change", true},
+       SourceCharWeightSetterRefOwner{"last.change", true}});
+  const std::vector<std::string> want_changed_by = {
+      "main.driver", "base.weight", "min.a", "min.b", "max.a"};
+  const std::vector<std::string> want_change = {"last.change", "first.change"};
+  if (deps.changed_by != want_changed_by) {
+    std::cerr << "PollDeps changed_by order mismatch\n";
+    ok = false;
+  }
+  if (deps.change != want_change) {
+    std::cerr << "PollDeps change reverse-ref order mismatch\n";
+    ok = false;
   }
 
   return ok ? 0 : 1;

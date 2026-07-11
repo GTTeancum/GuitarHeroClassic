@@ -804,6 +804,11 @@ note, and all report `unreadBytes=0`.
     min/max setter clamps, snap, and `beats_per_weight` smoothing. Rows with
     `driver` set remain logged/skipped until a source-backed
     `CharDriver::EvaluateFlags` body is available.
+  - Native `source_char_weight_setter_poll_deps` ports the concrete
+    `CharWeightSetter::PollDeps` dependency publication: `mDriver`, `mBase`,
+    every `mMinWeights` row, and every `mMaxWeights` row are appended to
+    `changedBy`; reverse `Refs()` owners are appended to `change` only when the
+    ref owner is a `CharWeightable` whose `mWeightOwner` is this setter.
   - `engine/out/source_weightsetter_20260711/stock_weightsetter_controllers.stdout.log`
     refreshes stock proof against the current decoder: all 38 stock
     `CharWeightSetter` rows are `version=2`, use `CharWeightable` revision 2,

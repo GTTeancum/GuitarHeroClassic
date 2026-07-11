@@ -566,6 +566,23 @@ bool source_char_weight_setter_poll(
     float delta_beats,
     float& out_weight);
 
+struct SourceCharWeightSetterRefOwner {
+  std::string name;
+  bool weight_owner_is_setter = false;
+};
+
+struct SourceCharWeightSetterPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
+// Source-backed CharWeightSetter::PollDeps helper. Ref owners are supplied in
+// source Refs() order; the helper scans them in reverse like the source body.
+void source_char_weight_setter_poll_deps(
+    SourceCharWeightSetterPollDeps& deps,
+    const CharWeightSetter& setter,
+    const std::vector<SourceCharWeightSetterRefOwner>& ref_owners);
+
 // Source-backed CharIKRod::ComputeRod/Poll helper. Returns false when any
 // source-required endpoint or destination transform is unresolved.
 bool source_char_ik_rod_compute_world(const CharIKRod& rod,

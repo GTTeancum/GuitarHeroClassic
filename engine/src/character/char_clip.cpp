@@ -3256,6 +3256,23 @@ bool source_char_weight_setter_poll(
   return true;
 }
 
+void source_char_weight_setter_poll_deps(
+    SourceCharWeightSetterPollDeps& deps,
+    const CharWeightSetter& setter,
+    const std::vector<SourceCharWeightSetterRefOwner>& ref_owners) {
+  deps.changed_by.push_back(setter.driver);
+  deps.changed_by.push_back(setter.base);
+  for (const auto& min_name : setter.min_weights) {
+    deps.changed_by.push_back(min_name);
+  }
+  for (const auto& max_name : setter.max_weights) {
+    deps.changed_by.push_back(max_name);
+  }
+  for (auto it = ref_owners.rbegin(); it != ref_owners.rend(); ++it) {
+    if (it->weight_owner_is_setter) deps.change.push_back(it->name);
+  }
+}
+
 static void apply_source_weight_setters(Character& character,
                                         float delta_beats) {
   std::unordered_map<std::string, float> weights_by_name;
