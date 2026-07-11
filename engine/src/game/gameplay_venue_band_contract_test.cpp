@@ -8445,6 +8445,15 @@ int main() {
                  "cam.distance=std::clamp(span*0.65f,175.0f,320.0f);",
                  "gameplay backing camera keeps the 3D band readable behind the highway");
   ok &= contains(gameplay_c,
+                 "choose_venue_floor_focus(\"main_hall.2_bounds_floor_focus\")",
+                 "gameplay backing camera can frame the decoded RedOctane audience-floor slice");
+  ok &= contains(gameplay_c,
+                 "choose_venue_floor_focus(\"main_hall.2_bounds_centroid\")",
+                 "gameplay backing camera uses decoded audience-floor mesh bounds before transform origins");
+  ok &= contains(gameplay_c,
+                 "venue_floor_focus_name.find(\"_bounds_floor_focus\")",
+                 "gameplay backing camera applies the floor-focused full-venue framing path");
+  ok &= contains(gameplay_c,
                  "choose_venue_floor_focus(\"main_hall.2.mesh\")",
                  "gameplay backing camera can frame decoded venue audience-floor mesh targets");
   ok &= contains(gameplay_c,

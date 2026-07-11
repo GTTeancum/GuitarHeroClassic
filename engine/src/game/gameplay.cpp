@@ -6261,6 +6261,33 @@ std::map<std::string, std::array<float, 16>> build_venue_camera_target_worlds(
         if (!mesh.decoded) continue;
         const auto world = scene.world_matrix(mesh);
         add_target(mesh.name, world);
+        const std::array<float, 3> bounds_centroid = {
+            (mesh.bb_min[0] + mesh.bb_max[0]) * 0.5f,
+            (mesh.bb_min[1] + mesh.bb_max[1]) * 0.5f,
+            (mesh.bb_min[2] + mesh.bb_max[2]) * 0.5f};
+        const auto bounds_world =
+            camera_target_world_at_position(
+                mat4_xform_point_game(world, bounds_centroid));
+        add_target(mesh.name + "_bounds_centroid", bounds_world);
+        const std::string mesh_stripped = strip_mesh_suffix(mesh.name);
+        if (mesh_stripped != mesh.name) {
+            add_target(mesh_stripped + "_bounds_centroid", bounds_world);
+        }
+        const float bounds_depth = mesh.bb_max[1] - mesh.bb_min[1];
+        if (bounds_depth > 1.0f) {
+            const std::array<float, 3> floor_focus = {
+                (mesh.bb_min[0] + mesh.bb_max[0]) * 0.5f,
+                mesh.bb_min[1] + bounds_depth * 0.68f,
+                mesh.bb_max[2]};
+            const auto floor_focus_world =
+                camera_target_world_at_position(
+                    mat4_xform_point_game(world, floor_focus));
+            add_target(mesh.name + "_bounds_floor_focus", floor_focus_world);
+            if (mesh_stripped != mesh.name) {
+                add_target(mesh_stripped + "_bounds_floor_focus",
+                           floor_focus_world);
+            }
+        }
         mesh_worlds[canonical_milo_ref(mesh.name)] = world;
     }
 
@@ -21484,6 +21511,8 @@ void apply_gameplay_backing_camera(
         venue_floor_focus = venue_target_point(id);
         if (venue_floor_focus) venue_floor_focus_name = id;
     };
+    choose_venue_floor_focus("main_hall.2_bounds_floor_focus");
+    choose_venue_floor_focus("main_hall.2_bounds_centroid");
     choose_venue_floor_focus("main_hall.2.mesh");
     choose_venue_floor_focus("bottomfloorrug.mesh");
     choose_venue_floor_focus("crowd_group_centroid");
@@ -21493,15 +21522,25 @@ void apply_gameplay_backing_camera(
     cam.result_frame.valid = false;
     cam.screen_offset[0] = 0.0f;
     cam.screen_offset[1] = 0.0f;
+    const bool use_floor_focus_camera =
+        venue_floor_focus_name.find("_bounds_floor_focus") != std::string::npos;
     if (venue_floor_focus) {
         cam.target[0] = (*venue_floor_focus)[0];
         cam.target[1] = (*venue_floor_focus)[1];
-        cam.target[2] = (*venue_floor_focus)[2] +
-                        std::max(36.0f, span_z * 0.18f);
-        cam.yaw = -0.25f;
-        cam.pitch = 0.38f;
-        cam.distance = std::clamp(span * 1.35f, 520.0f, 720.0f);
-        cam.fov = 0.72f;
+        if (use_floor_focus_camera) {
+            cam.target[2] = (*venue_floor_focus)[2] + 15.0f;
+            cam.yaw = 0.0f;
+            cam.pitch = 0.52f;
+            cam.distance = std::clamp(span * 1.15f, 360.0f, 420.0f);
+            cam.fov = 0.76f;
+        } else {
+            cam.target[2] = (*venue_floor_focus)[2] +
+                            std::max(36.0f, span_z * 0.18f);
+            cam.yaw = -0.25f;
+            cam.pitch = 0.38f;
+            cam.distance = std::clamp(span * 1.35f, 520.0f, 720.0f);
+            cam.fov = 0.72f;
+        }
     } else {
         cam.target[0] = framed_focus[0];
         cam.target[1] = framed_focus[1];
