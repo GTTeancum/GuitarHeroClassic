@@ -108,6 +108,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_mirror_source_test.cpp"));
   const std::string char_hair_source_test =
       compact(read_file(char_dir / "character_char_hair_source_test.cpp"));
+  const std::string char_collide_source_test =
+      compact(read_file(char_dir / "character_char_collide_source_test.cpp"));
   const std::string face_servo_source_test =
       compact(read_file(char_dir / "character_face_servo_source_test.cpp"));
   const std::string lip_sync_source_test =
@@ -1921,6 +1923,27 @@ int run_contract() {
                  "LOAD_REVS(bs)ASSERT_REVS(7,0)",
                  "latest CharCollide Load accepts source revisions through 7");
   ok &= contains(rb3_latest_char_collide_cpp,
+                 "CharCollide::CharCollide():mShape(kSphere),mFlags(0),"
+                 "mMesh(this,0),mMeshYBias(0){",
+                 "latest CharCollide constructor exposes source defaults");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "for(inti=0;i<2;i++){mOrigLength[i]=0;mOrigRadius[i]=0;}"
+                 "CopyOriginalToCur();for(inti=0;i<8;i++){"
+                 "unk_structs[i].unk0=0;unk_structs[i].vec.Zero();}"
+                 "unk148.Reset();}",
+                 "latest CharCollide constructor zeroes source rows");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS("
+                 "RndTransformable)CREATE_COPY(CharCollide)",
+                 "latest CharCollide Copy includes source superclasses");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "COPY_MEMBER(mShape)COPY_MEMBER(mFlags)memcpy(mOrigRadius,"
+                 "c->mOrigRadius,8);memcpy(mOrigLength,c->mOrigLength,8);"
+                 "memcpy(mCurRadius,c->mCurRadius,8);memcpy(mCurLength,"
+                 "c->mCurLength,8);COPY_MEMBER(unk148)COPY_MEMBER(mMeshYBias)"
+                 "COPY_MEMBER(mMesh)",
+                 "latest CharCollide Copy exposes copied member list");
+  ok &= contains(rb3_latest_char_collide_cpp,
                  "intCharCollide::NumSpheres(){if(mShape==kCigar||mShape=="
                  "kInsideCigar)return2;elseif(mShape==kSphere||mShape=="
                  "kInsideSphere)return1;elsereturn0;}",
@@ -1979,6 +2002,22 @@ int run_contract() {
                  "conststd::array<float,3>&point,std::array<float,3>&"
                  "out_delta);",
                  "native exposes bounded CharCollide GetRadius helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCollideDefaultState{int32_tshape=1;"
+                 "int32_tflags=0;boolmesh_empty=true;boolmesh_y_bias=false;",
+                 "native exposes CharCollide constructor default contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCollideCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>"
+                 "copied_members;std::vector<std::string>"
+                 "not_in_source_copy_members;};",
+                 "native exposes CharCollide copy-member contract");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCollideDefaultStatesource_char_collide_default_state();",
+                 "native exposes CharCollide default-state helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCollideCopyPlansource_char_collide_copy_plan();",
+                 "native exposes CharCollide copy-plan helper");
   ok &= contains(char_mesh,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
@@ -2030,6 +2069,22 @@ int run_contract() {
                  "out_delta){out_delta={point[0]-cache.origin[0],",
                  "native CharCollide GetRadius helper starts from source delta");
   ok &= contains(char_mesh,
+                 "SourceCharCollideDefaultStatesource_char_collide_default_state(){"
+                 "return{};}",
+                 "native CharCollide default-state helper follows source defaults");
+  ok &= contains(char_mesh,
+                 "plan.copied_superclasses={\"Hmx::Object\","
+                 "\"RndTransformable\"};",
+                 "native CharCollide copy plan records source superclasses");
+  ok &= contains(char_mesh,
+                 "plan.copied_members={\"mShape\",\"mFlags\",\"mOrigRadius\","
+                 "\"mOrigLength\",\"mCurRadius\",\"mCurLength\",\"unk148\","
+                 "\"mMeshYBias\",\"mMesh\"};",
+                 "native CharCollide copy plan records source members");
+  ok &= contains(char_mesh,
+                 "plan.not_in_source_copy_members={\"mDigest\",\"unk_structs\"};",
+                 "native CharCollide copy plan records members absent from source copy list");
+  ok &= contains(char_mesh,
                  "std::clamp(cache.length_scale*dot_axis(),"
                  "collide.cur_length[0],collide.cur_length[1]);",
                  "native CharCollide GetRadius helper clamps cigar length");
@@ -2072,11 +2127,33 @@ int run_contract() {
                  "source_char_collide_get_radius(radius_collide,"
                  "radius_cache,{5.0f,2.0f,0.0f},collide_delta)",
                  "mesh decode test covers CharCollide cigar radius helper");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_default_state()",
+                 "CharCollide source test covers constructor defaults");
+  ok &= contains(char_collide_source_test,
+                 "native_default.mesh_spheres.size()==static_cast<size_t>("
+                 "defaults.mesh_sphere_count)",
+                 "CharCollide source test covers native mesh sphere defaults");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_copy_plan()",
+                 "CharCollide source test covers copy-member plan");
+  ok &= contains(cmake, "ghogx_character_char_collide_source_test",
+                 "CMake registers CharCollide source test");
   ok &= contains(doc,
                  "Native GHOGX retains the internal transform, all eight mesh sphere rows",
                  "document records decoded CharCollide retained source rows");
   ok &= contains(doc, "Native GHOGX ports `CharCollide::CopyOriginalToCur`",
                  "document records CharCollide helper ports");
+  ok &= contains(doc,
+                 "`CharCollide::CharCollide` initializes `mShape` to `kSphere`",
+                 "document records CharCollide constructor source defaults");
+  ok &= contains(doc,
+                 "`CharCollide::Copy` copies `Hmx::Object`, `RndTransformable`, shape, flags",
+                 "document records CharCollide source copy list");
+  ok &= contains(doc,
+                 "The checked source copy-member list does not\n"
+                 "    name `mDigest` or `unk_structs`",
+                 "document fences CharCollide copy-plan omissions");
   ok &= contains(doc, "`CharCollide::SyncShape` / `CharCollide::NumSpheres`",
                  "document records CharCollide SyncShape helper port");
   ok &= contains(doc, "`CharHair::SimulateInternal` calls `CharCollide::GetRadius`",

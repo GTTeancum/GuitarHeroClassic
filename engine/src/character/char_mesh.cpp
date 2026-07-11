@@ -1484,6 +1484,20 @@ void source_char_collide_copy_original_to_cur(CharCollide& collide) {
   collide.cur_length[1] = collide.orig_length[1];
 }
 
+SourceCharCollideDefaultState source_char_collide_default_state() {
+  return {};
+}
+
+SourceCharCollideCopyPlan source_char_collide_copy_plan() {
+  SourceCharCollideCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "RndTransformable"};
+  plan.copied_members = {"mShape",     "mFlags",     "mOrigRadius",
+                         "mOrigLength", "mCurRadius", "mCurLength",
+                         "unk148",     "mMeshYBias", "mMesh"};
+  plan.not_in_source_copy_members = {"mDigest", "unk_structs"};
+  return plan;
+}
+
 void source_char_collide_sync_shape(CharCollide& collide) {
   const float t = collide.cur_length[1];
   if (collide.cur_length[0] > t) {

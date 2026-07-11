@@ -1273,6 +1273,28 @@ struct SourceCharCollideRadiusCache {
   float radius_lerp_scale = 1.0f;
 };
 
+struct SourceCharCollideDefaultState {
+  int32_t shape = 1;
+  int32_t flags = 0;
+  bool mesh_empty = true;
+  bool mesh_y_bias = false;
+  std::array<float, 2> orig_radius = {0.0f, 0.0f};
+  std::array<float, 2> orig_length = {0.0f, 0.0f};
+  std::array<float, 2> cur_radius = {0.0f, 0.0f};
+  std::array<float, 2> cur_length = {0.0f, 0.0f};
+  bool mesh_transform_reset = true;
+  int32_t mesh_sphere_count = 8;
+  bool mesh_spheres_zeroed = true;
+};
+
+struct SourceCharCollideCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+  std::vector<std::string> not_in_source_copy_members;
+};
+
+SourceCharCollideDefaultState source_char_collide_default_state();
+SourceCharCollideCopyPlan source_char_collide_copy_plan();
 void source_char_collide_copy_original_to_cur(CharCollide& collide);
 void source_char_collide_sync_shape(CharCollide& collide);
 int source_char_collide_num_spheres(const CharCollide& collide);

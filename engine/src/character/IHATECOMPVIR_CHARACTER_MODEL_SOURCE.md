@@ -546,6 +546,17 @@ note, and all report `unreadBytes=0`.
     `CharCollide::SyncShape` / `CharCollide::NumSpheres` exactly for decoded
     rows. The decoder now calls the named copy helper at the same revision
     gates as source load.
+  - `CharCollide::CharCollide` initializes `mShape` to `kSphere`, zeroes
+    flags/radius/length state, copies original radius/length into current
+    radius/length, clears all eight mesh collision rows, resets the internal
+    transform, and leaves mesh-y-bias false. Native GHOGX records that source
+    constructor contract as `source_char_collide_default_state` and checks the
+    decoded row defaults against it.
+  - `CharCollide::Copy` copies `Hmx::Object`, `RndTransformable`, shape, flags,
+    original/current radius and length arrays, the internal transform,
+    mesh-y-bias, and mesh pointer. The checked source copy-member list does not
+    name `mDigest` or `unk_structs`; native GHOGX records that as copy-plan
+    evidence only, not as a replacement for a complete runtime copy system.
   - `CharHair::SimulateInternal` calls `CharCollide::GetRadius` and
     `CharCollide::Axis`, but `GetRadius` depends on cached collision fields
     (`unk18c`, `unk190`, `unk194`, and `unk1a0`). The latest source exposes the
