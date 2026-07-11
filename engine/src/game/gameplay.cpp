@@ -9381,6 +9381,17 @@ double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter) {
     return cycle / (30.0 * static_cast<double>(scale));
 }
 
+bool venue_filter_loops(const Gameplay::VenueAnimFilter& filter) {
+    // RndAnimFilter::Loop() returns mType >= kLoop in ihatecompvir's RB3
+    // source; kShuttle also stays task-looped while shuttling internally.
+    return filter.type >= 1;
+}
+
+bool venue_filter_set_loops(
+    const std::vector<Gameplay::VenueAnimFilter>& filters) {
+    return std::any_of(filters.begin(), filters.end(), venue_filter_loops);
+}
+
 std::map<std::string, Gameplay::VenueGroupVisibility>
 load_venue_group_visibility(const std::string& hdr_path,
                             const std::string& ark_path,
@@ -9752,18 +9763,18 @@ load_venue_anim_filters(const std::string& hdr_path,
             Gameplay::VenueAnimFilter filter;
             filter.name = de.name;
             if (auto end = packed_string_end(body, size, target_raw)) {
-                // PS2 AnimFilter records store scale/period before the frame
-                // window, then the ANIM_ENUM type and authored frame offset.
+                // Matches ihatecompvir/MiloEditor RndAnimFilter: anim,
+                // scale, offset, start, end, type, period.
                 const size_t timing_off = *end;
                 filter.scale = read_f32_or(body, size, timing_off, 1.0f);
-                filter.period = read_f32_or(body, size, timing_off + 4, 0.0f);
+                filter.offset_frame =
+                    read_f32_or(body, size, timing_off + 4, 0.0f);
                 filter.start_frame =
                     read_f32_or(body, size, timing_off + 8, 0.0f);
                 filter.end_frame = read_f32_or(body, size, timing_off + 12,
                                                filter.start_frame);
                 filter.type = read_i32_or(body, size, timing_off + 16, 0);
-                filter.offset_frame =
-                    read_f32_or(body, size, timing_off + 20, 0.0f);
+                filter.period = read_f32_or(body, size, timing_off + 20, 0.0f);
                 if (filter.type < 0 || filter.type > 2) filter.type = 0;
                 if (!std::isfinite(filter.offset_frame) ||
                     std::fabs(filter.offset_frame) > 100000.0f) {
@@ -18103,6 +18114,7 @@ void Gameplay::update_active_venue_anim_filters() {
                 std::max(duration, venue_filter_duration_seconds(filter));
         }
         if (!it->persistent && !it->shot_scoped && !it->polled &&
+            !venue_filter_set_loops(it->filters) &&
             duration > 0.0 &&
             elapsed > duration) {
             it = active_venue_anim_filters_.erase(it);
@@ -19106,7 +19118,8 @@ void Gameplay::update_active_lighting_anim_filters() {
             duration =
                 std::max(duration, venue_filter_duration_seconds(filter));
         }
-        if (!it->persistent && duration > 0.0 && elapsed > duration) {
+        if (!it->persistent && !venue_filter_set_loops(it->filters) &&
+            duration > 0.0 && elapsed > duration) {
             it = active_lighting_anim_filters_.erase(it);
             continue;
         }
@@ -21538,6 +21551,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 apply_venue_event("start", false);
                 apply_venue_event("intro_start", false);
+                apply_venue_event("music_start", false);
                 if (active_venue_event_.empty()) {
                     apply_venue_event("excitement_bad");
                 } else {
@@ -21763,6 +21777,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_hidden_meshes(composed_lighting_hidden_meshes());
                 apply_lighting_event("start");
                 apply_lighting_event("intro_start");
+                apply_lighting_event("music_start");
                 std::fprintf(stderr, "[world] lighting overlay loaded: %s\n",
                               lighting_milo.c_str());
             }

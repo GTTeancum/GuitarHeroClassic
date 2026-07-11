@@ -4737,9 +4737,10 @@ int main() {
                  "lighting overlay AnimFilters sample on the song clock");
   ok &= contains(gameplay_c,
                  "duration=std::max(duration,venue_filter_duration_seconds(filter));"
-                 "}if(!it->persistent&&duration>0.0&&elapsed>duration){"
+                 "}if(!it->persistent&&!venue_filter_set_loops(it->filters)&&"
+                 "duration>0.0&&elapsed>duration){"
                  "it=active_lighting_anim_filters_.erase(it);continue;}",
-                 "lighting overlay one-shot AnimFilters expire like venue filters");
+                 "lighting overlay non-loop one-shot AnimFilters expire like venue filters");
   ok &= contains(gameplay_h_c,
                  "boolapply_lighting_event(conststd::string&event_name,"
                  "boolpersistent=true);",
@@ -5521,8 +5522,11 @@ int main() {
                  "filter.type=read_i32_or(body,size,timing_off+16,0);",
                  "venue AnimFilter reads ANIM_ENUM type from the traced int slot");
   ok &= contains(gameplay_c,
-                 "filter.offset_frame=read_f32_or(body,size,timing_off+20,0.0f);",
-                 "venue AnimFilter reads frame offset from the traced float slot");
+                 "filter.offset_frame=read_f32_or(body,size,timing_off+4,0.0f);",
+                 "venue AnimFilter reads frame offset from the ihatecompvir/MiloEditor slot");
+  ok &= contains(gameplay_c,
+                 "filter.period=read_f32_or(body,size,timing_off+20,0.0f);",
+                 "venue AnimFilter reads period after ANIM_ENUM in source order");
   ok &= contains(gameplay_c,
                  "returnstd::max(0.0f,start+static_cast<float>(authored_offset));",
                  "zero-span venue AnimFilters still sample the authored frame offset");
@@ -5535,6 +5539,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "case2:{//kAnimShuttle",
                  "venue AnimFilter honors kAnimShuttle sampling");
+  ok &= contains(gameplay_c,
+                 "returnfilter.type>=1;",
+                 "venue AnimFilter loop and shuttle routes stay task-looped");
+  ok &= contains(gameplay_c,
+                 "!venue_filter_set_loops(it->filters)",
+                 "nonpersistent loop AnimFilters do not expire after one cycle");
   ok &= contains(gameplay_c,
                  "de.type==\"PollAnim\"",
                  "venue loader decodes source MILO PollAnim objects");
