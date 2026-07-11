@@ -738,6 +738,11 @@ note, and all report `unreadBytes=0`.
   - `CharBones::TypeOf` maps suffixes `.pos`, `.scale`, `.quat`, `.rotx`,
     `.roty`, and `.rotz`.
   - `SuffixOf` and `ChannelName` round-trip the source channel suffixes.
+  - Native `source_char_bones_type_of`, `source_char_bones_suffix_of`,
+    `source_char_bones_channel_name`, and `source_char_bones_type_size` now
+    port those source helpers directly. `ghogx_character_char_bones_source_test`
+    covers all six source suffixes, first-dot channel replacement, and every
+    source compression-mode byte size.
   - Native channel classification is constrained to those six source types.
     The old `.d?x` / `.d?y` / `.d?z` category extension, file-order sample
     decode switch, and no-pi axis-rotation switch are not present in

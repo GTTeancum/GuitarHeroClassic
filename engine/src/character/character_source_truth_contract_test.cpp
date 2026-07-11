@@ -77,6 +77,8 @@ int run_contract() {
       compact(read_file(char_dir / "char_clip_audit.cpp"));
   const std::string clip_driver_flags_test =
       compact(read_file(char_dir / "character_clip_driver_flags_test.cpp"));
+  const std::string char_bones_source_test =
+      compact(read_file(char_dir / "character_char_bones_source_test.cpp"));
   const std::string ik_rod_source_test =
       compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
   const std::string weight_setter_source_test =
@@ -2372,6 +2374,14 @@ int run_contract() {
                  "`.quat`, `.rotx`,",
                  "document records concrete CharBones channel suffix source");
   ok &= contains(doc,
+                 "Native `source_char_bones_type_of`, "
+                 "`source_char_bones_suffix_of`,",
+                 "document records native CharBones source helper ports");
+  ok &= contains(doc,
+                 "`ghogx_character_char_bones_source_test`\n    covers all "
+                 "six source suffixes",
+                 "document records focused CharBones source helper test");
+  ok &= contains(doc,
                  "Native channel classification is constrained to those six "
                  "source types.",
                  "document records source-backed native channel type fence");
@@ -2492,12 +2502,40 @@ int run_contract() {
                  "case'p':returnTYPE_POS;case's':returnTYPE_SCALE;"
                  "case'q':returnTYPE_QUAT;case'r':unsignedcharnext=p[3];",
                  "latest CharBones source maps source channel suffixes");
+  ok &= contains(char_clip_h,
+                 "intsource_char_bones_type_of(conststd::string&channel);",
+                 "native API exposes source CharBones type helper");
+  ok &= contains(char_clip_h,
+                 "std::stringsource_char_bones_channel_name("
+                 "conststd::string&name,inttype);",
+                 "native API exposes source CharBones channel-name helper");
   ok &= contains(char_clip,
-                 "matchingihatecompvirCharBones::Type",
-                 "native clip decoder cites the six source CharBones channel types");
+                 "intsource_char_bones_type_of(conststd::string&channel)",
+                 "native clip decoder ports source CharBones type helper");
   ok &= contains(char_clip,
-                 "returnc>=0&&c<=5;",
+                 "constcharaxis=channel[dot+4];if(axis>='x'&&axis<='z'){"
+                 "returnkSourceCharBonesTypeRotX+"
+                 "(axis-'x');}",
+                 "native CharBones type helper maps source rot axes");
+  ok &= contains(char_clip,
+                 "returnc>=0&&c<kSourceCharBonesTypeEnd;",
                  "native clip decoder rejects non-source channel categories");
+  ok &= contains(char_clip,
+                 "std::stringsource_char_bones_channel_name("
+                 "conststd::string&name,inttype)",
+                 "native clip decoder ports source CharBones ChannelName helper");
+  ok &= contains(char_clip,
+                 "SourceCharBones::ChannelNameusesthefirstdot",
+                 "native suffix strip follows source first-dot rule");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_type_of(\"bone_head.rotx\")",
+                 "focused CharBones source test covers rot-x suffix");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_channel_name(\"bone.head.pos\",",
+                 "focused CharBones source test covers first-dot replacement");
+  ok &= contains(char_bones_source_test,
+                 "for(intcompression=0;compression<=4;++compression)",
+                 "focused CharBones source test covers all compression modes");
   ok &= missing(char_clip, "GHOGX_AXIS_ROT_NO_PI",
                 "old no-pi axis-rotation diagnostic removed from decoder");
   ok &= missing(char_clip, "GHOGX_FILE_ORDER_CLIP_SAMPLES",
@@ -2557,7 +2595,8 @@ int run_contract() {
                  "compression<=kSourceCompressAll",
                  "native clip decoder accepts the source compression enum range");
   ok &= contains(char_clip,
-                 "returncompression<kSourceCompressQuats?8u:4u;",
+                 "if(compression>2)return4u;if(compression==0)return16u;"
+                 "return8u;",
                  "native clip decoder keeps source byte-quat size");
   ok &= contains(char_clip,
                  "if(uses_source_byte_quat(out))returnfalse;",
@@ -2578,6 +2617,10 @@ int run_contract() {
                  "add_executable(ghogx_character_clip_driver_flags_test"
                  "character_clip_driver_flags_test.cpp)",
                  "CMake builds focused CharClipDriver flag-mask test");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_char_bones_source_test"
+                 "character_char_bones_source_test.cpp)",
+                 "CMake builds focused CharBones source helper test");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_ik_rod_source_test"
                  "character_ik_rod_source_test.cpp)",

@@ -39,6 +39,13 @@ target_link_libraries(ghogx_character_clip_driver_flags_test PRIVATE
 add_test(NAME ghogx_character_clip_driver_flags_test
          COMMAND ghogx_character_clip_driver_flags_test)
 
+add_executable(ghogx_character_char_bones_source_test
+    character_char_bones_source_test.cpp)
+target_link_libraries(ghogx_character_char_bones_source_test PRIVATE
+    ghogx_character)
+add_test(NAME ghogx_character_char_bones_source_test
+         COMMAND ghogx_character_char_bones_source_test)
+
 add_executable(ghogx_character_ik_rod_source_test
     character_ik_rod_source_test.cpp)
 target_link_libraries(ghogx_character_ik_rod_source_test PRIVATE
@@ -105,6 +112,7 @@ target_compile_options(ghogx_character PRIVATE /W4)
 target_compile_options(ghogx_character_bind_audit PRIVATE /W4)
 target_compile_options(ghogx_character_clip_audit PRIVATE /W4)
 target_compile_options(ghogx_character_clip_driver_flags_test PRIVATE /W4)
+target_compile_options(ghogx_character_char_bones_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_ik_rod_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_weight_setter_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_mesh_decode_test PRIVATE /W4)
@@ -118,6 +126,8 @@ else()
     target_compile_options(ghogx_character_bind_audit PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_character_clip_audit PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_character_clip_driver_flags_test PRIVATE
+        -Wall -Wextra)
+    target_compile_options(ghogx_character_char_bones_source_test PRIVATE
         -Wall -Wextra)
     target_compile_options(ghogx_character_ik_rod_source_test PRIVATE
         -Wall -Wextra)

@@ -56,6 +56,66 @@ namespace ghogx::character {
 // so the anonymous-namespace parser can use it.
 std::string strip_suffix(const std::string& channel);
 
+int source_char_bones_type_of(const std::string& channel) {
+  const size_t dot = channel.find('.');
+  if (dot == std::string::npos || dot + 1 >= channel.size()) {
+    return kSourceCharBonesTypeEnd;
+  }
+  switch (channel[dot + 1]) {
+    case 'p':
+      return kSourceCharBonesTypePos;
+    case 's':
+      return kSourceCharBonesTypeScale;
+    case 'q':
+      return kSourceCharBonesTypeQuat;
+    case 'r':
+      if (dot + 4 < channel.size()) {
+        const char axis = channel[dot + 4];
+        if (axis >= 'x' && axis <= 'z') {
+          return kSourceCharBonesTypeRotX + (axis - 'x');
+        }
+      }
+      break;
+    default:
+      break;
+  }
+  return kSourceCharBonesTypeEnd;
+}
+
+const char* source_char_bones_suffix_of(int type) {
+  static const char* suffixes[kSourceCharBonesTypeEnd] = {
+      "pos", "scale", "quat", "rotx", "roty", "rotz"};
+  if (type < 0 || type >= kSourceCharBonesTypeEnd) return "";
+  return suffixes[type];
+}
+
+std::string source_char_bones_channel_name(const std::string& name, int type) {
+  const char* suffix = source_char_bones_suffix_of(type);
+  if (!suffix[0]) return name;
+  std::string out = name;
+  size_t dot = out.find('.');
+  if (dot == std::string::npos) {
+    out.push_back('.');
+    dot = out.size() - 1;
+  }
+  out.resize(dot + 1);
+  out += suffix;
+  return out;
+}
+
+size_t source_char_bones_type_size(int type, int compression) {
+  if (type < 0 || type >= kSourceCharBonesTypeEnd) return 0u;
+  if (type < kSourceCharBonesTypeQuat) {
+    return compression < 2 ? 12u : 6u;
+  }
+  if (type != kSourceCharBonesTypeQuat) {
+    return compression == 0 ? 4u : 2u;
+  }
+  if (compression > 2) return 4u;
+  if (compression == 0) return 16u;
+  return 8u;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
@@ -75,20 +135,6 @@ struct Cur {
     uint32_t v; std::memcpy(&v, p + at, 4); return v;
   }
 };
-
-// Bone category from name suffix.
-int bone_category(const std::string& name) {
-  auto dot = name.rfind('.');
-  if (dot == std::string::npos) return 10;
-  std::string suf = name.substr(dot + 1);
-  if (suf == "pos")   return 0;
-  if (suf == "scale") return 1;
-  if (suf == "quat")  return 2;
-  if (suf == "rotx")  return 3;
-  if (suf == "roty")  return 4;
-  if (suf == "rotz")  return 5;
-  return 10;
-}
 
 // Is there a valid length-prefixed bone name at byte offset `at`?
 bool is_bone_name_at(const uint8_t* d, size_t n, size_t at) {
@@ -129,8 +175,8 @@ enum SourceCharBonesCompression {
 };
 
 bool is_valid_category_name(const std::string& name) {
-  int c = bone_category(name);
-  return c >= 0 && c <= 5;
+  int c = source_char_bones_type_of(name);
+  return c >= 0 && c < kSourceCharBonesTypeEnd;
 }
 
 float env_float_or(const char* name, float fallback) {
@@ -167,18 +213,6 @@ const char* source_char_bones_compression_name(int compression) {
     case kSourceCompressAll: return "kCompressAll";
     default: return "unknown";
   }
-}
-
-size_t source_char_bones_type_size(int cat, int compression) {
-  if (cat == 0 || cat == 1) return compression < kSourceCompressVects ? 12u : 6u;
-  if (cat == 2) {
-    if (compression == kSourceCompressNone) return 16u;
-    return compression < kSourceCompressQuats ? 8u : 4u;
-  }
-  if (cat >= 3 && cat <= 5) {
-    return compression == kSourceCompressNone ? 4u : 2u;
-  }
-  return 0u;
 }
 
 bool uses_source_byte_quat(const BoneList& list) {
@@ -241,7 +275,7 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at, BoneList& out) {
     c.pos += len;
     if (!is_valid_category_name(name)) return false;
     out.names.push_back(name);
-    out.cats.push_back(bone_category(name));
+    out.cats.push_back(source_char_bones_type_of(name));
     // No per-bone weight in GH2 PS2 (gRev<=10): names are back-to-back.
   }
 
@@ -332,9 +366,9 @@ void read_vec(Cur& c, int cat, int compression, ClipChannel& ch) {
 }
 
 void read_angle(Cur& c, bool comp, int cat, ClipChannel& ch) {
-  ch.type = (cat == 3 || cat == 6) ? ClipChannel::kRotX
-          : (cat == 4 || cat == 7) ? ClipChannel::kRotY
-                                   : ClipChannel::kRotZ;
+  ch.type = cat == kSourceCharBonesTypeRotX ? ClipChannel::kRotX
+          : cat == kSourceCharBonesTypeRotY ? ClipChannel::kRotY
+                                            : ClipChannel::kRotZ;
   // Community tooling decodes compressed single-axis rotations as signed
   // normalized values, then applies them as a pi-scaled axis rotation.
   ch.angle = (comp ? read_snorm16(c) : c.f32()) *
@@ -457,9 +491,10 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
 
 }  // namespace
 
-// strip ".pos"/".quat"/etc. → bone base name, e.g. "bone_R-clavicle".
+// Strip ".pos"/".quat"/etc. Source CharBones::ChannelName uses the first dot
+// as the suffix marker.
 std::string strip_suffix(const std::string& channel) {
-  auto dot = channel.rfind('.');
+  auto dot = channel.find('.');
   return dot == std::string::npos ? channel : channel.substr(0, dot);
 }
 

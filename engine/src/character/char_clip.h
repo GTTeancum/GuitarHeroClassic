@@ -15,6 +15,16 @@
 
 namespace ghogx::character {
 
+enum SourceCharBonesType {
+  kSourceCharBonesTypePos = 0,
+  kSourceCharBonesTypeScale = 1,
+  kSourceCharBonesTypeQuat = 2,
+  kSourceCharBonesTypeRotX = 3,
+  kSourceCharBonesTypeRotY = 4,
+  kSourceCharBonesTypeRotZ = 5,
+  kSourceCharBonesTypeEnd = 6,
+};
+
 // One channel value for one frame.
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
@@ -161,6 +171,12 @@ std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group);
 // Source-backed CharClipDriver constructor play-flag masking.
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask);
+
+// Source-backed CharBones channel helpers.
+int source_char_bones_type_of(const std::string& channel);
+const char* source_char_bones_suffix_of(int type);
+std::string source_char_bones_channel_name(const std::string& name, int type);
+size_t source_char_bones_type_size(int type, int compression);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.
