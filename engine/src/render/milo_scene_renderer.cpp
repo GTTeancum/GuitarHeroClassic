@@ -116,18 +116,17 @@ int color_channel(float value) {
   return std::clamp(out, 0, 255);
 }
 
-D3DCOLOR d3d_color_from_rgba(const float color[4]) {
+D3DCOLOR d3d_color_from_rgba(const std::array<float, 4>& color) {
   return D3DCOLOR_XRGB(color_channel(color[0]), color_channel(color[1]),
                        color_channel(color[2]));
 }
 
-bool environ_fog_sane(const milo_scene::EnvironObj& env) {
-  if (!env.fog_enabled) return false;
-  if (!std::isfinite(env.fog_start) || !std::isfinite(env.fog_end)) {
-    return false;
-  }
-  if (env.fog_end <= env.fog_start + 1.0f) return false;
-  for (float value : env.fog_color) {
+bool fog_values_sane(bool enabled, float start, float end,
+                     const std::array<float, 4>& color) {
+  if (!enabled) return false;
+  if (!std::isfinite(start) || !std::isfinite(end)) return false;
+  if (end <= start + 1.0f) return false;
+  for (float value : color) {
     if (!std::isfinite(value)) return false;
   }
   return true;
@@ -772,6 +771,11 @@ void MiloSceneRenderer::set_environment_color_overrides(
   environment_color_overrides_ = std::move(environment_colors);
 }
 
+void MiloSceneRenderer::set_environment_fog_overrides(
+    std::map<std::string, EnvironmentFogOverride> environment_fog) {
+  environment_fog_overrides_ = std::move(environment_fog);
+}
+
 void MiloSceneRenderer::set_light_color_overrides(
     std::map<std::string, std::array<float, 4>> light_colors) {
   light_color_overrides_ = std::move(light_colors);
@@ -1384,25 +1388,41 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     active_authored_fog_key.clear();
   };
   auto configure_authored_fog = [&](const milo_scene::EnvironObj* env) {
-    if (!apply_environment_fog || !env || !environ_fog_sane(*env)) {
+    if (!apply_environment_fog || !env) {
+      disable_authored_fog();
+      return;
+    }
+    std::array<float, 4> fog_color = {
+        env->fog_color[0], env->fog_color[1], env->fog_color[2],
+        env->fog_color[3]};
+    float fog_start = env->fog_start;
+    float fog_end = env->fog_end;
+    if (const auto fog_it = environment_fog_overrides_.find(env->name);
+        fog_it != environment_fog_overrides_.end()) {
+      if (fog_it->second.has_color) fog_color = fog_it->second.color;
+      if (fog_it->second.has_range) {
+        fog_start = fog_it->second.range[0];
+        fog_end = fog_it->second.range[1];
+      }
+    }
+    if (!fog_values_sane(env->fog_enabled, fog_start, fog_end, fog_color)) {
       disable_authored_fog();
       return;
     }
     if (active_authored_fog_key == env->name) return;
     dev_->SetRenderState(D3DRS_FOGENABLE, TRUE);
-    dev_->SetRenderState(D3DRS_FOGCOLOR, d3d_color_from_rgba(env->fog_color));
+    dev_->SetRenderState(D3DRS_FOGCOLOR, d3d_color_from_rgba(fog_color));
     dev_->SetRenderState(D3DRS_FOGTABLEMODE, D3DFOG_NONE);
     dev_->SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_LINEAR);
-    dev_->SetRenderState(D3DRS_FOGSTART, float_to_dword(env->fog_start));
-    dev_->SetRenderState(D3DRS_FOGEND, float_to_dword(env->fog_end));
+    dev_->SetRenderState(D3DRS_FOGSTART, float_to_dword(fog_start));
+    dev_->SetRenderState(D3DRS_FOGEND, float_to_dword(fog_end));
     if (env_enabled("GHOGX_LOG_ENVIRON_FOG")) {
       static std::unordered_set<std::string> logged_fog_envs;
       if (logged_fog_envs.insert(env->name).second) {
         std::fprintf(stderr,
                      "[milo_scene] Environ fog active: %s start=%.3f end=%.3f color=(%.3f %.3f %.3f %.3f)\n",
-                     env->name.c_str(), env->fog_start, env->fog_end,
-                     env->fog_color[0], env->fog_color[1], env->fog_color[2],
-                     env->fog_color[3]);
+                     env->name.c_str(), fog_start, fog_end, fog_color[0],
+                     fog_color[1], fog_color[2], fog_color[3]);
       }
     }
     active_authored_fog_key = env->name;

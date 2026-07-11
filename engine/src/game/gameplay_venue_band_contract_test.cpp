@@ -4379,13 +4379,18 @@ int main() {
                  "std::stringenvironment;std::stringkeys_owner;",
                  "venue EnvAnim keeps inherited key-owner refs");
   ok &= contains(gameplay_c,
-                 "ref.rfind(\".enm\")==ref.size()-4){"
-                 "anim.keys_owner=ref;",
-                 "venue EnvAnim loader decodes inherited .enm key owners");
+                 "autokeys_owner=read_milo_string_advance(body,size,pos,128);"
+                 "if(!keys_owner)continue;"
+                 "anim.keys_owner=canonical_milo_ref(*keys_owner);",
+                 "venue EnvAnim loader decodes authored key owners from the source field order");
   ok &= contains(gameplay_c,
-                 "if(!anim.color_keys.empty()||anim.keys_owner.empty())continue;"
-                 "constautoowner=out.find(anim.keys_owner);",
+                 "anim.color_keys=owner->second.color_keys;"
+                 "anim.fog_color_keys=owner->second.fog_color_keys;"
+                 "anim.fog_range_keys=owner->second.fog_range_keys;",
                  "venue EnvAnim loader resolves inherited key-owner tracks");
+  ok &= contains(gameplay_c,
+                 "fog_color_keys=%zufog_range_keys=%zu",
+                 "venue EnvAnim logs decoded fog key coverage");
   ok &= contains(gameplay_c,
                  "color_keys=%zu",
                  "venue EnvAnim logs decoded color key coverage");
@@ -4423,7 +4428,7 @@ int main() {
                  "if(version!=2)continue;",
                  "venue LightAnim loader keeps traced PS2 version");
   ok &= contains(gameplay_c,
-                 "anim.keys_owner=ref;",
+                 "anim.keys_owner=canonical_milo_ref(*keys_owner);",
                  "venue LightAnim loader preserves key-owner references");
   ok &= contains(gameplay_c,
                  "std::map<std::string,std::vector<std::string>>"
@@ -5457,7 +5462,8 @@ int main() {
                  "scene_.find_environ(env_it->second)",
                  "renderer resolves authored Environ refs before applying ambient");
   ok &= contains(renderer_c,
-                 "boolenviron_fog_sane(constmilo_scene::EnvironObj&env)",
+                 "boolfog_values_sane(boolenabled,floatstart,floatend,"
+                 "conststd::array<float,4>&color)",
                  "renderer validates authored Environ fog before applying it");
   ok &= contains(renderer_c,
                  "GHOGX_DISABLE_ENVIRON_FOG",
@@ -5466,13 +5472,13 @@ int main() {
                  "dev_->SetRenderState(D3DRS_FOGENABLE,TRUE);",
                  "renderer enables authored Environ fog per mesh");
   ok &= contains(renderer_c,
-                 "dev_->SetRenderState(D3DRS_FOGCOLOR,d3d_color_from_rgba(env->fog_color));",
+                 "dev_->SetRenderState(D3DRS_FOGCOLOR,d3d_color_from_rgba(fog_color));",
                  "renderer applies authored Environ fog color");
   ok &= contains(renderer_c,
-                 "dev_->SetRenderState(D3DRS_FOGSTART,float_to_dword(env->fog_start));",
+                 "dev_->SetRenderState(D3DRS_FOGSTART,float_to_dword(fog_start));",
                  "renderer applies authored Environ fog start distance");
   ok &= contains(renderer_c,
-                 "dev_->SetRenderState(D3DRS_FOGEND,float_to_dword(env->fog_end));",
+                 "dev_->SetRenderState(D3DRS_FOGEND,float_to_dword(fog_end));",
                  "renderer applies authored Environ fog end distance");
   ok &= contains(renderer_c,
                  "disable_authored_fog();",

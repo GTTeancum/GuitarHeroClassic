@@ -154,6 +154,14 @@ class MiloSceneRenderer {
   void set_environment_lighting_enabled(bool enabled);
   void set_environment_color_overrides(
       std::map<std::string, std::array<float, 4>> environment_colors);
+  struct EnvironmentFogOverride {
+    bool has_color = false;
+    std::array<float, 4> color = {1.0f, 1.0f, 1.0f, 1.0f};
+    bool has_range = false;
+    std::array<float, 2> range = {0.0f, 0.0f};
+  };
+  void set_environment_fog_overrides(
+      std::map<std::string, EnvironmentFogOverride> environment_fog);
   void set_light_color_overrides(
       std::map<std::string, std::array<float, 4>> light_colors);
   void set_mesh_translation_offsets(
@@ -222,6 +230,7 @@ class MiloSceneRenderer {
   bool environment_lighting_enabled_ = true;
   std::map<std::string, std::string> mesh_environments_;
   std::map<std::string, std::array<float, 4>> environment_color_overrides_;
+  std::map<std::string, EnvironmentFogOverride> environment_fog_overrides_;
   std::map<std::string, std::array<float, 4>> light_color_overrides_;
   std::map<std::string, std::array<float, 3>> mesh_translation_offsets_;
   std::map<std::string, MeshTransformSample> mesh_transform_offsets_;

@@ -3456,6 +3456,92 @@ bool read_f32_advance(const uint8_t* body, size_t size, size_t& pos,
     return std::isfinite(out);
 }
 
+std::optional<std::string> read_milo_string_advance(const uint8_t* body,
+                                                    size_t size,
+                                                    size_t& pos,
+                                                    size_t max_len = 256) {
+    if (pos + 4 > size) return std::nullopt;
+    uint32_t len = 0;
+    std::memcpy(&len, body + pos, sizeof(len));
+    pos += 4;
+    if (len > max_len || pos + len > size) return std::nullopt;
+    std::string out(reinterpret_cast<const char*>(body + pos), len);
+    pos += len;
+    return out;
+}
+
+bool read_env_color_keys(
+    const uint8_t* body, size_t size, size_t& pos,
+    std::vector<Gameplay::VenueEnvironmentAnim::ColorKey>& keys,
+    float& last_frame) {
+    uint32_t count = 0;
+    if (!read_u32_advance(body, size, pos, count) || count > 4096)
+        return false;
+    keys.clear();
+    keys.reserve(count);
+    last_frame = 0.0f;
+    for (uint32_t i = 0; i < count; ++i) {
+        Gameplay::VenueEnvironmentAnim::ColorKey key;
+        bool ok = true;
+        for (int c = 0; c < 4; ++c) {
+            ok = ok && read_f32_advance(body, size, pos, key.color[c]);
+            key.color[c] = std::clamp(key.color[c], 0.0f, 1.0f);
+        }
+        ok = ok && read_f32_advance(body, size, pos, key.frame);
+        if (!ok || key.frame < 0.0f || key.frame > 100000.0f)
+            return false;
+        last_frame = std::max(last_frame, key.frame);
+        keys.push_back(key);
+    }
+    return true;
+}
+
+bool read_env_fog_range_keys(
+    const uint8_t* body, size_t size, size_t& pos,
+    std::vector<Gameplay::VenueEnvironmentAnim::FogRangeKey>& keys) {
+    uint32_t count = 0;
+    if (!read_u32_advance(body, size, pos, count) || count > 4096)
+        return false;
+    keys.clear();
+    keys.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        Gameplay::VenueEnvironmentAnim::FogRangeKey key;
+        bool ok = read_f32_advance(body, size, pos, key.range[0]) &&
+                  read_f32_advance(body, size, pos, key.range[1]) &&
+                  read_f32_advance(body, size, pos, key.frame);
+        if (!ok || key.frame < 0.0f || key.frame > 100000.0f)
+            return false;
+        keys.push_back(key);
+    }
+    return true;
+}
+
+bool read_light_color_keys(
+    const uint8_t* body, size_t size, size_t& pos,
+    std::vector<Gameplay::VenueLightAnim::ColorKey>& keys,
+    float& last_frame) {
+    uint32_t count = 0;
+    if (!read_u32_advance(body, size, pos, count) || count > 4096)
+        return false;
+    keys.clear();
+    keys.reserve(count);
+    last_frame = 0.0f;
+    for (uint32_t i = 0; i < count; ++i) {
+        Gameplay::VenueLightAnim::ColorKey key;
+        bool ok = true;
+        for (int c = 0; c < 4; ++c) {
+            ok = ok && read_f32_advance(body, size, pos, key.color[c]);
+            key.color[c] = std::clamp(key.color[c], 0.0f, c == 3 ? 1.0f : 4.0f);
+        }
+        ok = ok && read_f32_advance(body, size, pos, key.frame);
+        if (!ok || key.frame < 0.0f || key.frame > 100000.0f)
+            return false;
+        last_frame = std::max(last_frame, key.frame);
+        keys.push_back(key);
+    }
+    return true;
+}
+
 float material_anim_tex_value_to_uv(float value) {
     if (!std::isfinite(value)) return 0.0f;
     return value;
@@ -3665,72 +3751,59 @@ std::map<std::string, Gameplay::VenueEnvironmentAnim> load_venue_env_anims(
             std::memcpy(&version, body, sizeof(version));
             if (version != 4) continue;
             size_t pos = 25;
-            auto read_string = [&]() -> std::optional<std::string> {
-                if (pos + 4 > size) return std::nullopt;
-                uint32_t len = 0;
-                std::memcpy(&len, body + pos, sizeof(len));
-                pos += 4;
-                if (len == 0 || len > 96 || pos + len > size)
-                    return std::nullopt;
-                std::string s(reinterpret_cast<const char*>(body + pos), len);
-                pos += len;
-                return s;
-            };
-            auto environment = read_string();
-            if (!environment || environment->rfind(".env") == std::string::npos)
+            auto environment = read_milo_string_advance(body, size, pos, 128);
+            if (!environment || environment->empty() ||
+                environment->rfind(".env") == std::string::npos)
                 continue;
-            uint32_t color_count = 0;
-            if (!read_u32_advance(body, size, pos, color_count) ||
-                color_count > 4096) {
-                continue;
-            }
             Gameplay::VenueEnvironmentAnim anim;
             anim.name = canonical_milo_ref(de.name);
             anim.environment = canonical_milo_ref(*environment);
-            for (uint32_t i = 0; i < color_count; ++i) {
-                Gameplay::VenueEnvironmentAnim::ColorKey key;
-                bool ok = true;
-                for (int c = 0; c < 4; ++c) {
-                    ok = ok && read_f32_advance(body, size, pos, key.color[c]);
-                    key.color[c] = std::clamp(key.color[c], 0.0f, 1.0f);
-                }
-                ok = ok && read_f32_advance(body, size, pos, key.frame);
-                if (!ok || key.frame < 0.0f || key.frame > 100000.0f) {
-                    anim.color_keys.clear();
-                    break;
-                }
-                anim.color_keys.push_back(key);
-                anim.duration_frames = std::max(anim.duration_frames, key.frame);
-            }
-            if (color_count != anim.color_keys.size()) continue;
-            if (anim.color_keys.empty()) {
-                const auto strings = scan_milo_strings(body, size);
-                for (const auto& s : strings) {
-                    const auto ref = canonical_milo_ref(s);
-                    if (ref != anim.name && ref.size() > 4 &&
-                        ref.rfind(".enm") == ref.size() - 4) {
-                        anim.keys_owner = ref;
-                        break;
-                    }
-                }
-            }
+            float ambient_last_frame = 0.0f;
+            float fog_color_last_frame = 0.0f;
+            if (!read_env_color_keys(body, size, pos, anim.color_keys,
+                                     ambient_last_frame))
+                continue;
+            auto keys_owner = read_milo_string_advance(body, size, pos, 128);
+            if (!keys_owner) continue;
+            anim.keys_owner = canonical_milo_ref(*keys_owner);
+            if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
+            if (!read_env_color_keys(body, size, pos, anim.fog_color_keys,
+                                     fog_color_last_frame))
+                continue;
+            if (!read_env_fog_range_keys(body, size, pos,
+                                         anim.fog_range_keys))
+                continue;
+            anim.duration_frames =
+                std::max(ambient_last_frame, fog_color_last_frame);
             out[anim.name] = anim;
         }
-        for (auto& [name, anim] : out) {
-            if (!anim.color_keys.empty() || anim.keys_owner.empty()) continue;
-            const auto owner = out.find(anim.keys_owner);
-            if (owner == out.end() || owner->second.color_keys.empty()) continue;
-            anim.color_keys = owner->second.color_keys;
-            anim.duration_frames = owner->second.duration_frames;
+        for (size_t pass = 0; pass < out.size(); ++pass) {
+            for (auto& [name, anim] : out) {
+                if (anim.keys_owner.empty() || anim.keys_owner == anim.name)
+                    continue;
+                const auto owner = out.find(anim.keys_owner);
+                if (owner == out.end()) continue;
+                anim.color_keys = owner->second.color_keys;
+                anim.fog_color_keys = owner->second.fog_color_keys;
+                anim.fog_range_keys = owner->second.fog_range_keys;
+                anim.duration_frames = owner->second.duration_frames;
+            }
         }
         for (const auto& [name, anim] : out) {
-            if (anim.color_keys.empty()) continue;
+            if (anim.color_keys.empty() && anim.fog_color_keys.empty() &&
+                anim.fog_range_keys.empty())
+                continue;
             std::fprintf(stderr,
-                         "[world] EnvAnim %s -> %s color_keys=%zu frames=%.1f%s%s\n",
+                         "[world] EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f%s%s\n",
                          anim.name.c_str(), anim.environment.c_str(),
-                         anim.color_keys.size(), anim.duration_frames,
-                         anim.keys_owner.empty() ? "" : " keys_owner=",
-                         anim.keys_owner.c_str());
+                         anim.color_keys.size(), anim.fog_color_keys.size(),
+                         anim.fog_range_keys.size(), anim.duration_frames,
+                         anim.keys_owner.empty() || anim.keys_owner == anim.name
+                             ? ""
+                             : " keys_owner=",
+                         anim.keys_owner.empty() || anim.keys_owner == anim.name
+                             ? ""
+                             : anim.keys_owner.c_str());
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] EnvAnim load %s: %s\n",
@@ -3761,63 +3834,31 @@ std::map<std::string, Gameplay::VenueLightAnim> load_venue_light_anims(
             std::memcpy(&version, body, sizeof(version));
             if (version != 2) continue;
             size_t pos = 25;
-            auto read_string = [&]() -> std::optional<std::string> {
-                if (pos + 4 > size) return std::nullopt;
-                uint32_t len = 0;
-                std::memcpy(&len, body + pos, sizeof(len));
-                pos += 4;
-                if (len == 0 || len > 96 || pos + len > size)
-                    return std::nullopt;
-                std::string s(reinterpret_cast<const char*>(body + pos), len);
-                pos += len;
-                return s;
-            };
-            auto light = read_string();
-            if (!light || light->rfind(".lit") == std::string::npos)
+            auto light = read_milo_string_advance(body, size, pos, 128);
+            if (!light || light->empty() ||
+                light->rfind(".lit") == std::string::npos)
                 continue;
-            uint32_t color_count = 0;
-            if (!read_u32_advance(body, size, pos, color_count) ||
-                color_count > 4096) {
-                continue;
-            }
             Gameplay::VenueLightAnim anim;
             anim.name = canonical_milo_ref(de.name);
             anim.light = canonical_milo_ref(*light);
-            for (uint32_t i = 0; i < color_count; ++i) {
-                Gameplay::VenueLightAnim::ColorKey key;
-                bool ok = true;
-                for (int c = 0; c < 4; ++c) {
-                    ok = ok && read_f32_advance(body, size, pos, key.color[c]);
-                    key.color[c] = std::clamp(key.color[c], 0.0f, 4.0f);
-                }
-                ok = ok && read_f32_advance(body, size, pos, key.frame);
-                if (!ok || key.frame < 0.0f || key.frame > 10000.0f) {
-                    anim.color_keys.clear();
-                    break;
-                }
-                anim.color_keys.push_back(key);
-                anim.duration_frames = std::max(anim.duration_frames, key.frame);
-            }
-            if (color_count != anim.color_keys.size()) continue;
-            if (anim.color_keys.empty()) {
-                const auto strings = scan_milo_strings(body, size);
-                for (const auto& s : strings) {
-                    const auto ref = canonical_milo_ref(s);
-                    if (ref != anim.name && ref.size() > 4 &&
-                        ref.rfind(".lnm") == ref.size() - 4) {
-                        anim.keys_owner = ref;
-                        break;
-                    }
-                }
-            }
+            if (!read_light_color_keys(body, size, pos, anim.color_keys,
+                                       anim.duration_frames))
+                continue;
+            auto keys_owner = read_milo_string_advance(body, size, pos, 128);
+            if (!keys_owner) continue;
+            anim.keys_owner = canonical_milo_ref(*keys_owner);
+            if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
             out[anim.name] = anim;
         }
-        for (auto& [name, anim] : out) {
-            if (!anim.color_keys.empty() || anim.keys_owner.empty()) continue;
-            const auto owner = out.find(anim.keys_owner);
-            if (owner == out.end() || owner->second.color_keys.empty()) continue;
-            anim.color_keys = owner->second.color_keys;
-            anim.duration_frames = owner->second.duration_frames;
+        for (size_t pass = 0; pass < out.size(); ++pass) {
+            for (auto& [name, anim] : out) {
+                if (anim.keys_owner.empty() || anim.keys_owner == anim.name)
+                    continue;
+                const auto owner = out.find(anim.keys_owner);
+                if (owner == out.end()) continue;
+                anim.color_keys = owner->second.color_keys;
+                anim.duration_frames = owner->second.duration_frames;
+            }
         }
         for (const auto& [name, anim] : out) {
             if (anim.color_keys.empty()) continue;
@@ -9065,6 +9106,79 @@ std::array<float, 4> sample_environment_color_key(
                             0.0f, 1.0f);
     }
     return out;
+}
+
+std::array<float, 2> sample_environment_fog_range_key(
+    const std::vector<Gameplay::VenueEnvironmentAnim::FogRangeKey>& keys,
+    float frame) {
+    if (keys.empty()) return {0.0f, 0.0f};
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    return {a->range[0] + (b->range[0] - a->range[0]) * t,
+            a->range[1] + (b->range[1] - a->range[1]) * t};
+}
+
+bool venue_environment_anim_has_keys(
+    const Gameplay::VenueEnvironmentAnim& anim) {
+    return !anim.color_keys.empty() || !anim.fog_color_keys.empty() ||
+           !anim.fog_range_keys.empty();
+}
+
+std::map<std::string, ghogx::render::MiloSceneRenderer::EnvironmentFogOverride>
+compose_environment_fog_overrides(
+    const std::map<std::string, std::array<float, 4>>& fog_colors,
+    const std::map<std::string, std::array<float, 2>>& fog_ranges) {
+    std::map<std::string,
+             ghogx::render::MiloSceneRenderer::EnvironmentFogOverride>
+        out;
+    for (const auto& [env, color] : fog_colors) {
+        auto& sample = out[env];
+        sample.has_color = true;
+        sample.color = color;
+    }
+    for (const auto& [env, range] : fog_ranges) {
+        auto& sample = out[env];
+        sample.has_range = true;
+        sample.range = range;
+    }
+    return out;
+}
+
+void sample_environment_anim_tracks(
+    const std::string& environment,
+    const std::vector<Gameplay::VenueEnvironmentAnim::ColorKey>& color_keys,
+    const std::vector<Gameplay::VenueEnvironmentAnim::ColorKey>& fog_color_keys,
+    const std::vector<Gameplay::VenueEnvironmentAnim::FogRangeKey>& fog_range_keys,
+    float frame,
+    std::map<std::string, std::array<float, 4>>& environment_colors,
+    std::map<std::string, std::array<float, 4>>& environment_fog_colors,
+    std::map<std::string, std::array<float, 2>>& environment_fog_ranges,
+    bool& color_changed, bool& fog_changed) {
+    if (!color_keys.empty()) {
+        environment_colors[environment] =
+            sample_environment_color_key(color_keys, frame);
+        color_changed = true;
+    }
+    if (!fog_color_keys.empty()) {
+        environment_fog_colors[environment] =
+            sample_environment_color_key(fog_color_keys, frame);
+        fog_changed = true;
+    }
+    if (!fog_range_keys.empty()) {
+        environment_fog_ranges[environment] =
+            sample_environment_fog_range_key(fog_range_keys, frame);
+        fog_changed = true;
+    }
 }
 
 std::array<float, 4> sample_light_color_key(
@@ -15761,6 +15875,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_material_meshes_.clear();
     last_lighting_mat_anim_debug_time_ = -1.0;
     lighting_environment_colors_.clear();
+    lighting_environment_fog_colors_.clear();
+    lighting_environment_fog_ranges_.clear();
     lighting_environment_frames_.clear();
     active_lighting_environment_anims_.clear();
     lighting_light_colors_.clear();
@@ -15832,6 +15948,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_venue_material_anims_.clear();
     last_venue_mat_anim_debug_time_ = -1.0;
     venue_environment_colors_.clear();
+    venue_environment_fog_colors_.clear();
+    venue_environment_fog_ranges_.clear();
     venue_environment_frames_.clear();
     active_venue_environment_anims_.clear();
     next_venue_proxy_draw_log_time_ = 0.0;
@@ -16484,7 +16602,7 @@ bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
         const auto anim_it = lighting_env_anims_.find(ref);
         if (anim_it == lighting_env_anims_.end()) return false;
         const auto& anim = anim_it->second;
-        if (anim.color_keys.empty()) return false;
+        if (!venue_environment_anim_has_keys(anim)) return false;
         const float target =
             std::clamp(dest_frame, 0.0f, std::max(0.0f, anim.duration_frames));
         const auto current_it =
@@ -16505,10 +16623,21 @@ bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
         const float initial_frame =
             clamped_period <= 0.0001f ? target : start;
         lighting_environment_frames_[anim.environment] = initial_frame;
-        lighting_environment_colors_[anim.environment] =
-            sample_environment_color_key(anim.color_keys, initial_frame);
-        lighting_->set_environment_color_overrides(
-            lighting_environment_colors_);
+        bool color_changed = false;
+        bool fog_changed = false;
+        sample_environment_anim_tracks(
+            anim.environment, anim.color_keys, anim.fog_color_keys,
+            anim.fog_range_keys, initial_frame, lighting_environment_colors_,
+            lighting_environment_fog_colors_, lighting_environment_fog_ranges_,
+            color_changed, fog_changed);
+        if (color_changed)
+            lighting_->set_environment_color_overrides(
+                lighting_environment_colors_);
+        if (fog_changed)
+            lighting_->set_environment_fog_overrides(
+                compose_environment_fog_overrides(
+                    lighting_environment_fog_colors_,
+                    lighting_environment_fog_ranges_));
         if (clamped_period > 0.0001f &&
             std::fabs(target - start) > 0.0001f) {
             ActiveVenueEnvironmentAnim active;
@@ -16520,6 +16649,8 @@ bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
             active.start_frame = start;
             active.end_frame = target;
             active.color_keys = anim.color_keys;
+            active.fog_color_keys = anim.fog_color_keys;
+            active.fog_range_keys = anim.fog_range_keys;
             active.persistent = false;
             active.target_frame_mode = true;
             active_lighting_environment_anims_.push_back(std::move(active));
@@ -16537,7 +16668,7 @@ bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
         const auto anim_it = venue_env_anims_.find(ref);
         if (anim_it == venue_env_anims_.end()) return false;
         const auto& anim = anim_it->second;
-        if (anim.color_keys.empty()) return false;
+        if (!venue_environment_anim_has_keys(anim)) return false;
         const float target =
             std::clamp(dest_frame, 0.0f, std::max(0.0f, anim.duration_frames));
         const auto current_it = venue_environment_frames_.find(anim.environment);
@@ -16556,9 +16687,20 @@ bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
         const float initial_frame =
             clamped_period <= 0.0001f ? target : start;
         venue_environment_frames_[anim.environment] = initial_frame;
-        venue_environment_colors_[anim.environment] =
-            sample_environment_color_key(anim.color_keys, initial_frame);
-        world_->set_environment_color_overrides(venue_environment_colors_);
+        bool color_changed = false;
+        bool fog_changed = false;
+        sample_environment_anim_tracks(
+            anim.environment, anim.color_keys, anim.fog_color_keys,
+            anim.fog_range_keys, initial_frame, venue_environment_colors_,
+            venue_environment_fog_colors_, venue_environment_fog_ranges_,
+            color_changed, fog_changed);
+        if (color_changed)
+            world_->set_environment_color_overrides(venue_environment_colors_);
+        if (fog_changed)
+            world_->set_environment_fog_overrides(
+                compose_environment_fog_overrides(
+                    venue_environment_fog_colors_,
+                    venue_environment_fog_ranges_));
         if (clamped_period > 0.0001f &&
             std::fabs(target - start) > 0.0001f) {
             ActiveVenueEnvironmentAnim active;
@@ -16570,6 +16712,8 @@ bool Gameplay::apply_venue_script_env_anim(const std::string& anim_name,
             active.start_frame = start;
             active.end_frame = target;
             active.color_keys = anim.color_keys;
+            active.fog_color_keys = anim.fog_color_keys;
+            active.fog_range_keys = anim.fog_range_keys;
             active.persistent = false;
             active.target_frame_mode = true;
             active_venue_environment_anims_.push_back(std::move(active));
@@ -17296,12 +17440,17 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     bool material_texture_changed = false;
     bool material_tex_changed = false;
     bool environment_color_changed = false;
+    bool environment_fog_changed = false;
     bool light_color_changed = false;
     bool venue_route_applied = false;
     if (persistent) {
         venue_mesh_translation_offsets_.clear();
         environment_color_changed = !venue_environment_colors_.empty();
+        environment_fog_changed = !venue_environment_fog_colors_.empty() ||
+                                  !venue_environment_fog_ranges_.empty();
         venue_environment_colors_.clear();
+        venue_environment_fog_colors_.clear();
+        venue_environment_fog_ranges_.clear();
         light_color_changed = !venue_light_colors_.empty();
         venue_light_colors_.clear();
     }
@@ -17448,7 +17597,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             const auto anim_it = venue_env_anims_.find(anim_name);
             if (anim_it == venue_env_anims_.end()) continue;
             const auto& anim = anim_it->second;
-            if (anim.color_keys.empty()) continue;
+            if (!venue_environment_anim_has_keys(anim)) continue;
             active_venue_environment_anims_.erase(
                 std::remove_if(active_venue_environment_anims_.begin(),
                                active_venue_environment_anims_.end(),
@@ -17462,17 +17611,23 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active_anim.start_time = song_time_;
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
+            active_anim.fog_color_keys = anim.fog_color_keys;
+            active_anim.fog_range_keys = anim.fog_range_keys;
             active_anim.persistent = persistent;
             venue_environment_frames_[anim.environment] = 0.0f;
-            venue_environment_colors_[anim.environment] =
-                sample_environment_color_key(active_anim.color_keys, 0.0f);
-            environment_color_changed = true;
+            sample_environment_anim_tracks(
+                anim.environment, active_anim.color_keys,
+                active_anim.fog_color_keys, active_anim.fog_range_keys, 0.0f,
+                venue_environment_colors_, venue_environment_fog_colors_,
+                venue_environment_fog_ranges_, environment_color_changed,
+                environment_fog_changed);
             venue_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] venue event %s: EnvAnim %s -> %s color_keys=%zu frames=%.1f %s\n",
+                "[world] venue event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f %s\n",
                 event_name.c_str(), anim.name.c_str(),
                 anim.environment.c_str(), anim.color_keys.size(),
+                anim.fog_color_keys.size(), anim.fog_range_keys.size(),
                 anim.duration_frames, persistent ? "persistent" : "transient");
             if (anim.duration_frames > 0.001f) {
                 active_venue_environment_anims_.push_back(std::move(active_anim));
@@ -17617,6 +17772,11 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 venue_material_tex_transforms_);
         if (environment_color_changed)
             world_->set_environment_color_overrides(venue_environment_colors_);
+        if (environment_fog_changed)
+            world_->set_environment_fog_overrides(
+                compose_environment_fog_overrides(
+                    venue_environment_fog_colors_,
+                    venue_environment_fog_ranges_));
         if (light_color_changed)
             world_->set_light_color_overrides(venue_light_colors_);
         world_->set_hidden_meshes(composed_venue_hidden_meshes());
@@ -17663,6 +17823,8 @@ void Gameplay::clear_runtime_venue_animation_state() {
     lighting_material_meshes_.clear();
     last_lighting_mat_anim_debug_time_ = -1.0;
     lighting_environment_colors_.clear();
+    lighting_environment_fog_colors_.clear();
+    lighting_environment_fog_ranges_.clear();
     lighting_environment_frames_.clear();
     active_lighting_environment_anims_.clear();
     lighting_light_colors_.clear();
@@ -17687,6 +17849,8 @@ void Gameplay::clear_runtime_venue_animation_state() {
     active_venue_material_anims_.clear();
     last_venue_mat_anim_debug_time_ = -1.0;
     venue_environment_colors_.clear();
+    venue_environment_fog_colors_.clear();
+    venue_environment_fog_ranges_.clear();
     venue_environment_frames_.clear();
     active_venue_environment_anims_.clear();
     venue_light_colors_.clear();
@@ -17736,6 +17900,9 @@ void Gameplay::clear_runtime_venue_animation_state() {
         world_->set_material_tex_transform_overrides(
             venue_material_tex_transforms_);
         world_->set_environment_color_overrides(venue_environment_colors_);
+        world_->set_environment_fog_overrides(
+            compose_environment_fog_overrides(venue_environment_fog_colors_,
+                                              venue_environment_fog_ranges_));
         world_->set_light_color_overrides(venue_light_colors_);
         world_->set_active_particle_systems(venue_active_particle_systems_);
         world_->set_particle_intensities(venue_particle_intensities_);
@@ -17757,6 +17924,9 @@ void Gameplay::clear_runtime_venue_animation_state() {
             lighting_material_tex_transforms_);
         lighting_->set_environment_color_overrides(
             lighting_environment_colors_);
+        lighting_->set_environment_fog_overrides(
+            compose_environment_fog_overrides(lighting_environment_fog_colors_,
+                                              lighting_environment_fog_ranges_));
         lighting_->set_light_color_overrides(lighting_light_colors_);
         lighting_runtime_hidden_meshes_ = lighting_base_hidden_meshes_;
         lighting_->set_active_particle_systems(lighting_active_particle_systems_);
@@ -17867,6 +18037,7 @@ void Gameplay::update_active_venue_environment_anims() {
     if (active_venue_environment_anims_.empty()) return;
 
     bool changed = false;
+    bool fog_changed = false;
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_venue_env_anim_debug_time_ < 0.0 ||
@@ -17890,16 +18061,24 @@ void Gameplay::update_active_venue_environment_anims() {
             frame = material_anim_frame_at(it->duration_frames, elapsed,
                                            it->persistent);
         }
-        const auto color = sample_environment_color_key(it->color_keys, frame);
         venue_environment_frames_[it->environment] = frame;
-        venue_environment_colors_[it->environment] = color;
-        changed = true;
+        sample_environment_anim_tracks(
+            it->environment, it->color_keys, it->fog_color_keys,
+            it->fog_range_keys, frame, venue_environment_colors_,
+            venue_environment_fog_colors_, venue_environment_fog_ranges_,
+            changed, fog_changed);
         if (debug_sample) {
+            const auto color = it->color_keys.empty()
+                                   ? std::array<float, 4>{0.0f, 0.0f, 0.0f,
+                                                          0.0f}
+                                   : sample_environment_color_key(
+                                         it->color_keys, frame);
             std::fprintf(
                 stderr,
-                "[world] venue EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d\n",
+                "[world] venue EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu fog_color_keys=%zu fog_range_keys=%zu persistent=%d\n",
                 it->name.c_str(), it->environment.c_str(), frame, color[0],
                 color[1], color[2], color[3], it->color_keys.size(),
+                it->fog_color_keys.size(), it->fog_range_keys.size(),
                 it->persistent ? 1 : 0);
         }
         if ((it->target_frame_mode && done) ||
@@ -17913,6 +18092,9 @@ void Gameplay::update_active_venue_environment_anims() {
     if (debug_sample) last_venue_env_anim_debug_time_ = song_time_;
     if (changed)
         world_->set_environment_color_overrides(venue_environment_colors_);
+    if (fog_changed)
+        world_->set_environment_fog_overrides(compose_environment_fog_overrides(
+            venue_environment_fog_colors_, venue_environment_fog_ranges_));
 }
 
 void Gameplay::update_active_venue_light_anims() {
@@ -18131,6 +18313,9 @@ void Gameplay::update_venue_proxy_objects() {
         if (!proxy.renderer) continue;
         proxy.renderer->set_environment_color_overrides(
             venue_environment_colors_);
+        proxy.renderer->set_environment_fog_overrides(
+            compose_environment_fog_overrides(venue_environment_fog_colors_,
+                                              venue_environment_fog_ranges_));
         proxy.renderer->set_light_color_overrides(venue_light_colors_);
         std::unordered_set<std::string> hidden_proxy_meshes;
         const auto hidden_it =
@@ -18379,6 +18564,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
     bool texture_changed = false;
     bool tex_changed = false;
     bool environment_color_changed = false;
+    bool environment_fog_changed = false;
     bool light_color_changed = false;
     bool venue_alpha_changed = false;
     bool venue_color_changed = false;
@@ -18596,7 +18782,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             const auto anim_it = lighting_env_anims_.find(anim_name);
             if (anim_it == lighting_env_anims_.end()) continue;
             const auto& anim = anim_it->second;
-            if (anim.color_keys.empty()) continue;
+            if (!venue_environment_anim_has_keys(anim)) continue;
             active_lighting_environment_anims_.erase(
                 std::remove_if(
                     active_lighting_environment_anims_.begin(),
@@ -18611,17 +18797,23 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             active_anim.start_time = song_time_;
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
+            active_anim.fog_color_keys = anim.fog_color_keys;
+            active_anim.fog_range_keys = anim.fog_range_keys;
             active_anim.persistent = persistent;
             lighting_environment_frames_[anim.environment] = 0.0f;
-            lighting_environment_colors_[anim.environment] =
-                sample_environment_color_key(active_anim.color_keys, 0.0f);
-            environment_color_changed = true;
+            sample_environment_anim_tracks(
+                anim.environment, active_anim.color_keys,
+                active_anim.fog_color_keys, active_anim.fog_range_keys, 0.0f,
+                lighting_environment_colors_, lighting_environment_fog_colors_,
+                lighting_environment_fog_ranges_, environment_color_changed,
+                environment_fog_changed);
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: EnvAnim %s -> %s color_keys=%zu frames=%.1f\n",
+                "[world] lighting event %s: EnvAnim %s -> %s color_keys=%zu fog_color_keys=%zu fog_range_keys=%zu frames=%.1f\n",
                 event_name.c_str(), anim.name.c_str(),
                 anim.environment.c_str(), anim.color_keys.size(),
+                anim.fog_color_keys.size(), anim.fog_range_keys.size(),
                 anim.duration_frames);
             if (anim.duration_frames > 0.001f) {
                 active_lighting_environment_anims_.push_back(
@@ -18676,6 +18868,10 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
     if (environment_color_changed)
         lighting_->set_environment_color_overrides(
             lighting_environment_colors_);
+    if (environment_fog_changed)
+        lighting_->set_environment_fog_overrides(
+            compose_environment_fog_overrides(lighting_environment_fog_colors_,
+                                              lighting_environment_fog_ranges_));
     if (light_color_changed)
         lighting_->set_light_color_overrides(lighting_light_colors_);
     if (venue_alpha_changed && world_)
@@ -18893,6 +19089,7 @@ void Gameplay::update_active_lighting_environment_anims() {
     if (active_lighting_environment_anims_.empty()) return;
 
     bool changed = false;
+    bool fog_changed = false;
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_lighting_env_anim_debug_time_ < 0.0 ||
@@ -18916,16 +19113,24 @@ void Gameplay::update_active_lighting_environment_anims() {
             frame = material_anim_frame_at(it->duration_frames, elapsed,
                                            it->persistent);
         }
-        const auto color = sample_environment_color_key(it->color_keys, frame);
         lighting_environment_frames_[it->environment] = frame;
-        lighting_environment_colors_[it->environment] = color;
-        changed = true;
+        sample_environment_anim_tracks(
+            it->environment, it->color_keys, it->fog_color_keys,
+            it->fog_range_keys, frame, lighting_environment_colors_,
+            lighting_environment_fog_colors_, lighting_environment_fog_ranges_,
+            changed, fog_changed);
         if (debug_sample) {
+            const auto color = it->color_keys.empty()
+                                   ? std::array<float, 4>{0.0f, 0.0f, 0.0f,
+                                                          0.0f}
+                                   : sample_environment_color_key(
+                                         it->color_keys, frame);
             std::fprintf(
                 stderr,
-                "[world] lighting EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu persistent=%d\n",
+                "[world] lighting EnvAnim sample %s -> %s frame=%.2f color=(%.3f %.3f %.3f %.3f) keys=%zu fog_color_keys=%zu fog_range_keys=%zu persistent=%d\n",
                 it->name.c_str(), it->environment.c_str(), frame, color[0],
                 color[1], color[2], color[3], it->color_keys.size(),
+                it->fog_color_keys.size(), it->fog_range_keys.size(),
                 it->persistent ? 1 : 0);
         }
         if ((it->target_frame_mode && done) ||
@@ -18940,6 +19145,10 @@ void Gameplay::update_active_lighting_environment_anims() {
     if (changed)
         lighting_->set_environment_color_overrides(
             lighting_environment_colors_);
+    if (fog_changed)
+        lighting_->set_environment_fog_overrides(
+            compose_environment_fog_overrides(lighting_environment_fog_colors_,
+                                              lighting_environment_fog_ranges_));
 }
 
 void Gameplay::update_active_lighting_light_anims() {
@@ -21716,6 +21925,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_additive_blend(true);
                 lighting_runtime_hidden_meshes_ = lighting_base_hidden_meshes_;
                 lighting_->set_environment_color_overrides({});
+                lighting_->set_environment_fog_overrides({});
                 lighting_->set_light_color_overrides({});
                 lighting_->set_active_particle_systems({});
                 lighting_->set_particle_intensities({});

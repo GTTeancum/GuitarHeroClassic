@@ -353,11 +353,17 @@ class Gameplay {
       float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
       float frame = 0.0f;
     };
+    struct FogRangeKey {
+      float range[2] = {0.0f, 0.0f};
+      float frame = 0.0f;
+    };
     std::string name;
     std::string environment;
     std::string keys_owner;
     float duration_frames = 0.0f;
     std::vector<ColorKey> color_keys;
+    std::vector<ColorKey> fog_color_keys;
+    std::vector<FogRangeKey> fog_range_keys;
   };
   struct VenueLightAnim {
     struct ColorKey {
@@ -395,6 +401,8 @@ class Gameplay {
     float start_frame = 0.0f;
     float end_frame = 0.0f;
     std::vector<VenueEnvironmentAnim::ColorKey> color_keys;
+    std::vector<VenueEnvironmentAnim::ColorKey> fog_color_keys;
+    std::vector<VenueEnvironmentAnim::FogRangeKey> fog_range_keys;
     bool persistent = true;
     bool target_frame_mode = false;
   };
@@ -803,6 +811,10 @@ class Gameplay {
   std::map<std::string, std::vector<std::string>> lighting_material_meshes_;
   double last_lighting_mat_anim_debug_time_ = -1.0;
   std::map<std::string, std::array<float, 4>> lighting_environment_colors_;
+  std::map<std::string, std::array<float, 4>>
+      lighting_environment_fog_colors_;
+  std::map<std::string, std::array<float, 2>>
+      lighting_environment_fog_ranges_;
   std::map<std::string, float> lighting_environment_frames_;
   std::vector<ActiveVenueEnvironmentAnim> active_lighting_environment_anims_;
   std::map<std::string, std::array<float, 4>> lighting_light_colors_;
@@ -874,6 +886,8 @@ class Gameplay {
   std::vector<ActiveVenueMaterialAnim> active_venue_material_anims_;
   double last_venue_mat_anim_debug_time_ = -1.0;
   std::map<std::string, std::array<float, 4>> venue_environment_colors_;
+  std::map<std::string, std::array<float, 4>> venue_environment_fog_colors_;
+  std::map<std::string, std::array<float, 2>> venue_environment_fog_ranges_;
   std::map<std::string, float> venue_environment_frames_;
   std::vector<ActiveVenueEnvironmentAnim> active_venue_environment_anims_;
   std::map<std::string, std::array<float, 4>> venue_light_colors_;
