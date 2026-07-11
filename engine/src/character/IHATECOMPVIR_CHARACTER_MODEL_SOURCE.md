@@ -44,6 +44,7 @@ records the upstream commits for the copied files:
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp`, `CharInterest.cpp` / `CharInterest.h`, `CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; native helpers port `CharEyes` poll-child/dependency publication plus `CharInterest` / `CharEyeDartRuleset` data decisions only; no synthetic eye runtime bridge. |
+| Character mesh cache | `rb3-latest` `CharMeshCacheMgr.cpp` / `CharMeshCacheMgr.h` | Native helper ports constructor defaults, disabled-state capture, membership checks, bounded `GetVerts`, visible `SyncMesh` index behavior, and mesh-list stuffing. It is bookkeeping-only and does not alter live renderer/cache ownership. |
 | FaceFX/lip-sync boundary | `rb3-latest` `CharFaceServo.*`, `CharLipSync.*`, `CharLipSyncDriver.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` and `CharLipSync` are source context, not matching `FaceFxLipSyncServo` load bodies; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
@@ -62,6 +63,24 @@ records the upstream commits for the copied files:
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
 | Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, CharBone output row fields, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
 | Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
+
+## Character Mesh Cache Helper
+
+`CharMeshCacheMgr` coverage is intentionally fenced to the source behavior
+visible in `rb3-latest/src/system/char/CharMeshCacheMgr.cpp` and `.h`:
+
+- `MeshCacher` stores the mesh pointer, zeroes `unk4`, and captures the current
+  disabled flag at creation time.
+- `Disable(bool)` is only valid before any cache entries exist.
+- `HasMesh` and `GetVerts` scan the cache in order by mesh identity.
+- `SyncMesh` preserves the visible ihatecompvir index/post-increment scan
+  behavior and appends a new cacher when that scan reaches the current cache
+  size; native records the null-mesh assertion instead of dereferencing it.
+- `StuffMeshes` publishes cached meshes in stored order.
+
+The native helper uses mesh names and integer vertex tokens only so the
+contract can be deterministic. It is not a live renderer cache and does not
+change mesh upload, material state, bone posture, or hair/cloth draw behavior.
 
 ## Remaining Character Import Checklist
 

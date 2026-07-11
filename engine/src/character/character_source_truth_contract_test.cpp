@@ -126,6 +126,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_blend_bone_source_test.cpp"));
   const std::string sleeve_source_test =
       compact(read_file(char_dir / "character_sleeve_source_test.cpp"));
+  const std::string mesh_cache_source_test =
+      compact(read_file(char_dir / "character_mesh_cache_source_test.cpp"));
   const std::string pos_constraint_source_test = compact(
       read_file(char_dir / "character_pos_constraint_source_test.cpp"));
   const std::string guitar_string_source_test = compact(
@@ -278,6 +280,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharMeshHide.cpp"));
   const std::string rb3_latest_char_mesh_hide_h = compact(read_file(
       rb3_latest_char_dir / "CharMeshHide.h"));
+  const std::string rb3_latest_char_mesh_cache_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharMeshCacheMgr.cpp"));
+  const std::string rb3_latest_char_mesh_cache_h = compact(read_file(
+      rb3_latest_char_dir / "CharMeshCacheMgr.h"));
   const std::string rb3_latest_char_trans_copy_cpp = compact(read_file(
       rb3_latest_char_dir / "CharTransCopy.cpp"));
   const std::string rb3_latest_char_trans_copy_h = compact(read_file(
@@ -512,6 +518,10 @@ int run_contract() {
                  "| Sleeve secondary motion | `rb3-latest` `CharSleeve.cpp` / "
                  "`CharSleeve.h` |",
                  "coverage matrix cites CharSleeve source");
+  ok &= contains(doc,
+                 "| Character mesh cache | `rb3-latest` "
+                 "`CharMeshCacheMgr.cpp` / `CharMeshCacheMgr.h` |",
+                 "coverage matrix cites CharMeshCacheMgr source");
   ok &= contains(doc,
                  "| Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / "
                  "`CharTransCopy.h` |",
@@ -3531,6 +3541,75 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_sleeve_*` helpers port",
                  "document records native CharSleeve helpers");
+  ok &= contains(rb3_latest_char_mesh_cache_h, "classMeshCacher{",
+                 "latest CharMeshCacheMgr header exposes MeshCacher");
+  ok &= contains(rb3_latest_char_mesh_cache_h,
+                 "classCharMeshCacheMgr:publicSyncMeshCB",
+                 "latest CharMeshCacheMgr header exposes manager class");
+  ok &= contains(rb3_latest_char_mesh_cache_cpp,
+                 "inlineMeshCacher::MeshCacher(RndMesh*mesh,boolb):"
+                 "mMesh(mesh),unk4(0),mDisabled(b){",
+                 "CharMeshCacheMgr source constructor defaults");
+  ok &= contains(rb3_latest_char_mesh_cache_cpp,
+                 "voidCharMeshCacheMgr::Disable(booldisable){MILO_ASSERT("
+                 "mCache.empty(),0x178);mDisabled=disable;}",
+                 "CharMeshCacheMgr source Disable assert");
+  ok &= contains(rb3_latest_char_mesh_cache_cpp,
+                 "boolCharMeshCacheMgr::HasMesh(RndMesh*mesh){for(inti=0;"
+                 "i<mCache.size();i++){if(mesh==mCache[i]->mMesh)returntrue;}",
+                 "CharMeshCacheMgr source HasMesh scan");
+  ok &= contains(rb3_latest_char_mesh_cache_cpp,
+                 "voidCharMeshCacheMgr::SyncMesh(RndMesh*mesh,intmask){intidx=0;"
+                 "for(inti=0;i<mCache.size();i++){if(mCache[idx++]->mMesh=="
+                 "mesh)break;}if(idx==mCache.size()){mCache.push_back(new"
+                 "MeshCacher(mesh,mDisabled));}",
+                 "CharMeshCacheMgr source SyncMesh scan and add");
+  ok &= contains(rb3_latest_char_mesh_cache_cpp,
+                 "voidCharMeshCacheMgr::StuffMeshes(ObjPtrList<RndMesh,"
+                 "ObjectDir>&meshlist){for(inti=0;i<mCache.size();i++){"
+                 "meshlist.push_back(mCache[i]->mMesh);}}",
+                 "CharMeshCacheMgr source StuffMeshes order");
+  ok &= contains(char_mesh_h, "structSourceCharMeshCacher{",
+                 "native exposes CharMeshCache cacher state");
+  ok &= contains(char_mesh_h, "structSourceCharMeshCacheState{",
+                 "native exposes CharMeshCache state");
+  ok &= contains(char_mesh,
+                 "SourceCharMeshCacheStatesource_char_mesh_cache_default_"
+                 "state(){returnSourceCharMeshCacheState{};}",
+                 "native ports CharMeshCacheMgr defaults");
+  ok &= contains(char_mesh,
+                 "SourceCharMeshCacheDisableResultsource_char_mesh_cache_"
+                 "disable(SourceCharMeshCacheState&state,booldisabled){",
+                 "native exposes CharMeshCacheMgr Disable helper");
+  ok &= contains(char_mesh,
+                 "boolsource_char_mesh_cache_has_mesh(const"
+                 "SourceCharMeshCacheState&state,conststd::string&mesh){",
+                 "native exposes CharMeshCacheMgr HasMesh helper");
+  ok &= contains(char_mesh,
+                 "SourceCharMeshCacheSyncResultsource_char_mesh_cache_sync_"
+                 "mesh(SourceCharMeshCacheState&state,conststd::string&mesh){",
+                 "native exposes CharMeshCacheMgr SyncMesh helper");
+  ok &= contains(char_mesh,
+                 "if(state.cache[idx++].mesh==mesh)break;",
+                 "native preserves CharMeshCacheMgr source scan index");
+  ok &= contains(char_mesh,
+                 "std::vector<std::string>source_char_mesh_cache_stuff_meshes("
+                 "constSourceCharMeshCacheState&state){",
+                 "native exposes CharMeshCacheMgr StuffMeshes helper");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_mesh_cache_source_test",
+                 "CMake builds CharMeshCacheMgr source test");
+  ok &= contains(mesh_cache_source_test,
+                 "source_char_mesh_cache_sync_mesh(state,\"hair_front.mesh\");",
+                 "focused CharMeshCacheMgr test covers SyncMesh");
+  ok &= contains(mesh_cache_source_test,
+                 "\"sourceloopappendswhenmatchislastentry\"",
+                 "focused CharMeshCacheMgr test covers visible source loop");
+  ok &= contains(mesh_cache_source_test,
+                 "source_char_mesh_cache_disable(state,false);",
+                 "focused CharMeshCacheMgr test covers Disable assert");
+  ok &= contains(doc, "Character Mesh Cache Helper",
+                 "document records CharMeshCacheMgr helper boundary");
   ok &= contains(rb3_latest_char_mesh_hide_h,
                  "classCharMeshHide:publicHmx::Object",
                  "latest CharMeshHide header exposes source class");

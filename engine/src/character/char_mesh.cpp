@@ -2142,6 +2142,80 @@ SourceCharSleeveState source_char_sleeve_default_state() {
   return SourceCharSleeveState{};
 }
 
+SourceCharMeshCacheState source_char_mesh_cache_default_state() {
+  return SourceCharMeshCacheState{};
+}
+
+SourceCharMeshCacheDisableResult source_char_mesh_cache_disable(
+    SourceCharMeshCacheState& state,
+    bool disabled) {
+  SourceCharMeshCacheDisableResult result;
+  if (!state.cache.empty()) {
+    result.asserted_non_empty_cache = true;
+    return result;
+  }
+  state.disabled = disabled;
+  result.accepted = true;
+  return result;
+}
+
+bool source_char_mesh_cache_has_mesh(
+    const SourceCharMeshCacheState& state,
+    const std::string& mesh) {
+  for (const SourceCharMeshCacher& cacher : state.cache) {
+    if (mesh == cacher.mesh) return true;
+  }
+  return false;
+}
+
+SourceCharMeshCacheVertsResult source_char_mesh_cache_get_verts(
+    const SourceCharMeshCacheState& state,
+    const std::string& mesh) {
+  SourceCharMeshCacheVertsResult result;
+  for (const SourceCharMeshCacher& cacher : state.cache) {
+    if (mesh == cacher.mesh) {
+      result.found = true;
+      result.verts = cacher.verts;
+      return result;
+    }
+  }
+  return result;
+}
+
+SourceCharMeshCacheSyncResult source_char_mesh_cache_sync_mesh(
+    SourceCharMeshCacheState& state,
+    const std::string& mesh) {
+  SourceCharMeshCacheSyncResult result;
+  size_t idx = 0;
+  for (size_t i = 0; i < state.cache.size(); ++i) {
+    if (state.cache[idx++].mesh == mesh) break;
+  }
+  result.index_after_scan = idx;
+  if (idx == state.cache.size()) {
+    if (mesh.empty()) {
+      result.asserted_null_mesh = true;
+      return result;
+    }
+    SourceCharMeshCacher cacher;
+    cacher.mesh = mesh;
+    cacher.unk4 = 0;
+    cacher.disabled = state.disabled;
+    state.cache.push_back(cacher);
+    result.added = true;
+  }
+  return result;
+}
+
+std::vector<std::string> source_char_mesh_cache_stuff_meshes(
+    const SourceCharMeshCacheState& state) {
+  std::vector<std::string> meshes;
+  meshes.reserve(state.cache.size());
+  for (const SourceCharMeshCacher& cacher : state.cache) {
+    meshes.push_back(cacher.mesh);
+  }
+  return meshes;
+}
+
 SourceCharGuitarStringPollResult source_char_guitar_string_poll(
     bool has_nut,
     bool has_bridge,

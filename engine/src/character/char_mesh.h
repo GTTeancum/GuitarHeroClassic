@@ -112,6 +112,36 @@ struct SkinnedMesh {
   std::string error;      // non-empty if decode failed (mesh still listed)
 };
 
+struct SourceCharMeshCacher {
+  std::string mesh;
+  int32_t unk4 = 0;
+  bool disabled = false;
+  std::vector<int32_t> verts;
+  std::vector<int32_t> unk14;
+  std::vector<int32_t> unk1c;
+};
+
+struct SourceCharMeshCacheState {
+  std::vector<SourceCharMeshCacher> cache;
+  bool disabled = false;
+};
+
+struct SourceCharMeshCacheDisableResult {
+  bool accepted = false;
+  bool asserted_non_empty_cache = false;
+};
+
+struct SourceCharMeshCacheSyncResult {
+  bool added = false;
+  bool asserted_null_mesh = false;
+  size_t index_after_scan = 0;
+};
+
+struct SourceCharMeshCacheVertsResult {
+  bool found = false;
+  std::vector<int32_t> verts;
+};
+
 struct CharUpperTwist {
   std::string name;
   std::string upper_arm;
@@ -804,6 +834,21 @@ void source_char_mesh_hide_draws(SourceCharMeshHideObject& object,
 int32_t source_char_mesh_hide_all(
     std::vector<SourceCharMeshHideObject>& objects,
     int32_t initial_flags);
+SourceCharMeshCacheState source_char_mesh_cache_default_state();
+SourceCharMeshCacheDisableResult source_char_mesh_cache_disable(
+    SourceCharMeshCacheState& state,
+    bool disabled);
+bool source_char_mesh_cache_has_mesh(
+    const SourceCharMeshCacheState& state,
+    const std::string& mesh);
+SourceCharMeshCacheVertsResult source_char_mesh_cache_get_verts(
+    const SourceCharMeshCacheState& state,
+    const std::string& mesh);
+SourceCharMeshCacheSyncResult source_char_mesh_cache_sync_mesh(
+    SourceCharMeshCacheState& state,
+    const std::string& mesh);
+std::vector<std::string> source_char_mesh_cache_stuff_meshes(
+    const SourceCharMeshCacheState& state);
 bool source_char_trans_copy_poll(const milo_scene::Xfm* src,
                                  milo_scene::Xfm* dest);
 void source_char_trans_copy_poll_deps(
