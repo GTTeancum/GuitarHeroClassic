@@ -72,9 +72,12 @@ int run_contract() {
   const std::string char_mesh = compact(read_file(char_dir / "char_mesh.cpp"));
   const std::string char_mesh_h = compact(read_file(char_dir / "char_mesh.h"));
   const std::string char_clip = compact(read_file(char_dir / "char_clip.cpp"));
+  const std::string char_clip_audit =
+      compact(read_file(char_dir / "char_clip_audit.cpp"));
   const std::string bind_audit =
       compact(read_file(char_dir / "char_bind_audit.cpp"));
   const std::string renderer = compact(read_file(char_dir / "char_renderer.cpp"));
+  const std::string cmake = compact(read_file(char_dir / "CMakeLists.txt"));
   const std::string scene = compact(read_file(scene_dir / "milo_scene.cpp"));
   const std::string doc =
       read_file(char_dir / "IHATECOMPVIR_CHARACTER_MODEL_SOURCE.md");
@@ -311,6 +314,10 @@ int run_contract() {
   ok &= contains(doc,
                  "The project hair rule is two-sided culling only.",
                  "remaining import checklist fences hair material behavior");
+  ok &= contains(doc,
+                 "The\n     focused clip audit found its real "
+                 "`keyboard_main` clips under",
+                 "remaining import checklist records metal_keyboard route finding");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs",
                  "document cites RndMat source");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs",
@@ -2060,6 +2067,28 @@ int run_contract() {
                  "`metal_keyboard`\n    rendered and logged its source driver, "
                  "but the default viewer clip names",
                  "document records metal_keyboard clip inventory caveat");
+  ok &= contains(doc, "`ghogx_character_clip_audit` expands exact `.milo_ps2`",
+                 "document records focused clip audit helper");
+  ok &= contains(doc,
+                 "found 14 MILOs, 165 `CharClipSamples` rows, 165 accepted "
+                 "rows, and zero",
+                 "document records focused clip audit row counts");
+  ok &= contains(doc,
+                 "`keyboard_lose`, `keyboard_win`, `keyboard_active_fast`, "
+                 "`keyboard_idle`,",
+                 "document records keyboard-specific accepted clips");
+  ok &= contains(doc,
+                 "`metal_keyboard` default-viewer miss was clip-route "
+                 "selection, not sample",
+                 "document records metal_keyboard route not decode failure");
+  ok &= contains(doc,
+                 "`rock1_fret` (`finger_chord_*` and "
+                 "`finger_powerchord_*`)",
+                 "document records chord-named fret clip inventory");
+  ok &= contains(doc,
+                 "no Rock2-specific animation MILOs under the\n    "
+                 "`char/rock2/` prefix",
+                 "document records Rock2 animation prefix inventory");
   ok &= contains(doc,
                  "the accessible tree does not include a\n"
                  "    matching `ByteQuat` type, header, or conversion "
@@ -2156,6 +2185,25 @@ int run_contract() {
   ok &= contains(char_clip,
                  "\"[clip-source-bones-counts]list=%zuvec=%dquat=%d\"",
                  "native clip decoder logs source CharBonesSamples channel counts");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_clip_auditchar_clip_audit.cpp)",
+                 "CMake builds focused character clip audit helper");
+  ok &= contains(char_clip_audit,
+                 "for(constauto&entry:ark.entries()){if(!ends_with("
+                 "entry.full_path,\".milo_ps2\"))continue;",
+                 "clip audit expands ARK prefixes into MILO entries");
+  ok &= contains(char_clip_audit,
+                 "if(de.type!=\"CharClipSamples\")continue;",
+                 "clip audit restricts row inventory to CharClipSamples");
+  ok &= contains(char_clip_audit,
+                 "ghogx::character::load_clip(hdr_path,ark_path,resolved,de.name)",
+                 "clip audit reuses bounded native clip decoder by exact row name");
+  ok &= contains(char_clip_audit,
+                 "\"[clip-audit-milo]milo=%sresolved=%sdir=%sclips=%d\"",
+                 "clip audit emits MILO-level clip counts");
+  ok &= contains(char_clip_audit,
+                 "\"accepted=%dframes=%zuchannels0=%zuoutputBones=%zu\\n\"",
+                 "clip audit emits accepted frame/channel/output-bone evidence");
   ok &= missing(char_clip, "out.compression>3",
                 "native clip decoder no longer caps source compression at mode 3");
   ok &= contains(rb3_latest_char_bones_cpp,

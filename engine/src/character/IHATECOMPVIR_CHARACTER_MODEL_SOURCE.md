@@ -105,9 +105,11 @@ into final transform rows.
    - Specifically re-check Rock1/Rock2 side profile arm and neck posture,
      Rockabill2 eyes/teeth/mouth pieces, and visible hair/cloth on characters
      with decoded `CharHair` rows.
-   - Keep `metal_keyboard` in the inventory gap list until its real stock clip
-     route is found; the default viewer route did not find
-     `idle_medium_01`/`stand_medium_01` in `keyboard_main`.
+   - Keep `metal_keyboard` out of broad pose signoff until the source driver
+     runtime is ported, but do not treat it as a sample decode failure. The
+     focused clip audit found its real `keyboard_main` clips under
+     keyboard-specific names; the old `idle_medium_01`/`stand_medium_01` miss is
+     a viewer route issue.
 
 ## Binary Layout Authorities
 
@@ -690,6 +692,25 @@ note, and all report `unreadBytes=0`.
     `keyboard_main` clip MILO, so that route produced zero accepted sample
     rows and remains an inventory gap rather than proof of another compression
     mode.
+  - The focused read-only clip inventory helper
+    `ghogx_character_clip_audit` expands exact `.milo_ps2` names or ARK path
+    prefixes, lists each `CharClipSamples` row in a MILO, and loads each named
+    clip through the same bounded native decoder. The 2026-07-11 run at
+    `analysis/source_clip_inventory_20260711/rock_metal_keyboard_clip_inventory.stdout.log`
+    audited `char/metal_keyboard/`, `char/rock1/`, and `char/rock2/` prefixes.
+    It found 14 MILOs, 165 `CharClipSamples` rows, 165 accepted rows, and zero
+    rejected rows. `keyboard_main` contains six accepted keyboard-named clips:
+    `keyboard_lose`, `keyboard_win`, `keyboard_active_fast`, `keyboard_idle`,
+    `keyboard_band_jump`, and `keyboard_active_medium`. This proves the earlier
+    `metal_keyboard` default-viewer miss was clip-route selection, not sample
+    layout or compression. The same pass found source chord-named fret clips in
+    `rock1_fret` (`finger_chord_*` and `finger_powerchord_*`), which is data
+    inventory only; visual chord-shape verification remains separate.
+  - The same audit found no Rock2-specific animation MILOs under the
+    `char/rock2/` prefix in this stock ARK slice; Rock2's own prefix contributed
+    base, horse, and UI character MILOs with no `CharClipSamples`. Do not infer
+    a Rock2 decode failure from absent `char/rock2/anims` rows without tracing
+    the source driver/clip directory route.
   - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish
     the source packed-row offset model.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a

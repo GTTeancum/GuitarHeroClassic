@@ -29,6 +29,9 @@ target_link_libraries(ghogx_character PUBLIC
 add_executable(ghogx_character_bind_audit char_bind_audit.cpp)
 target_link_libraries(ghogx_character_bind_audit PRIVATE ghogx_character)
 
+add_executable(ghogx_character_clip_audit char_clip_audit.cpp)
+target_link_libraries(ghogx_character_clip_audit PRIVATE ghogx_character)
+
 add_executable(ghogx_character_mesh_decode_test character_mesh_decode_test.cpp)
 target_link_libraries(ghogx_character_mesh_decode_test PRIVATE ghogx_character)
 add_test(NAME ghogx_character_mesh_decode_test
@@ -79,6 +82,7 @@ add_test(NAME ghogx_character_source_truth_contract_test
 if(MSVC)
 target_compile_options(ghogx_character PRIVATE /W4)
 target_compile_options(ghogx_character_bind_audit PRIVATE /W4)
+target_compile_options(ghogx_character_clip_audit PRIVATE /W4)
 target_compile_options(ghogx_character_mesh_decode_test PRIVATE /W4)
 target_compile_options(ghogx_character_skin_order_test PRIVATE /W4)
 target_compile_options(ghogx_character_no_named_fix_test PRIVATE /W4)
@@ -88,6 +92,7 @@ target_compile_options(ghogx_character_source_truth_contract_test PRIVATE /W4)
 else()
     target_compile_options(ghogx_character PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_character_bind_audit PRIVATE -Wall -Wextra)
+    target_compile_options(ghogx_character_clip_audit PRIVATE -Wall -Wextra)
     target_compile_options(ghogx_character_mesh_decode_test PRIVATE
         -Wall -Wextra)
     target_compile_options(ghogx_character_skin_order_test PRIVATE
