@@ -64,6 +64,51 @@ std::array<float, 4> average_particle_color_from_key(
   return out;
 }
 
+std::array<float, 4> sample_particle_color_with_mid(
+    const std::array<float, 4>& start,
+    const std::array<float, 4>& mid,
+    const std::array<float, 4>& end,
+    float mid_ratio,
+    float phase) {
+  std::array<float, 4> out{};
+  const float clamped_phase = std::clamp(phase, 0.0f, 1.0f);
+  const float clamped_mid = std::clamp(mid_ratio, 0.0f, 1.0f);
+  if (clamped_mid > 0.0f && clamped_mid < 1.0f) {
+    if (clamped_phase <= clamped_mid) {
+      const float t = clamped_mid > 0.0f ? clamped_phase / clamped_mid : 1.0f;
+      for (size_t i = 0; i < out.size(); ++i) {
+        out[i] = start[i] + (mid[i] - start[i]) * t;
+      }
+    } else {
+      const float span = std::max(0.001f, 1.0f - clamped_mid);
+      const float t = (clamped_phase - clamped_mid) / span;
+      for (size_t i = 0; i < out.size(); ++i) {
+        out[i] = mid[i] + (end[i] - mid[i]) * t;
+      }
+    }
+  } else {
+    for (size_t i = 0; i < out.size(); ++i) {
+      out[i] = start[i] + (end[i] - start[i]) * clamped_phase;
+    }
+  }
+  return out;
+}
+
+float sample_particle_grow_shrink(float grow_ratio, float shrink_ratio,
+                                  float phase) {
+  const float grow = std::clamp(grow_ratio, 0.0f, 1.0f);
+  const float shrink = std::clamp(shrink_ratio, 0.0f, 1.0f);
+  const float clamped_phase = std::clamp(phase, 0.0f, 1.0f);
+  if (shrink <= grow) return 1.0f;
+  if (grow > 0.0f && clamped_phase < grow) {
+    return std::clamp(clamped_phase / grow, 0.0f, 1.0f);
+  }
+  if (shrink < 1.0f && clamped_phase > shrink) {
+    return std::clamp((1.0f - clamped_phase) / (1.0f - shrink), 0.0f, 1.0f);
+  }
+  return 1.0f;
+}
+
 enum MiloBlend : uint8_t {
   kBlendDest = 0,
   kBlendSrc = 1,
@@ -1876,6 +1921,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     if (!texture) return;
     std::array<float, 4> start_color =
         average_particle_color(p.start_color_low, p.start_color_high);
+    std::array<float, 4> mid_color =
+        average_particle_color(p.mid_color_low, p.mid_color_high);
     std::array<float, 4> end_color =
         average_particle_color(p.end_color_low, p.end_color_high);
     if (const auto color_it = particle_start_colors_.find(p.name);
@@ -1890,9 +1937,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
 
     const int count = static_cast<int>(std::clamp(
-        (p.max_particles > 0.0f ? std::round(p.max_particles) : 16.0f) *
+        static_cast<float>(p.max_particles > 0 ? p.max_particles : 16u) *
             std::max(intensity, 0.0f),
-        1.0f, 96.0f));
+        1.0f, 512.0f));
     float lifetime =
         std::clamp((p.lifetime_min + p.lifetime_max) * 0.5f, 0.05f, 20.0f);
     if (const auto life_it = particle_lifetimes_.find(p.name);
@@ -1917,7 +1964,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       has_size_override = true;
     }
     const float delta_size = (p.delta_size_min + p.delta_size_max) * 0.5f;
-    const float preview_size = std::max(0.0f, start_size + delta_size * 0.5f);
+    const float preview_size = std::max(0.0f, start_size + delta_size * 0.5f) *
+                               sample_particle_grow_shrink(
+                                   p.grow_ratio, p.shrink_ratio, 0.5f);
     const float preview_point_size = std::clamp(
         preview_size * 12.0f + authored_speed * 0.02f, 3.0f, 80.0f);
     const float jitter =
@@ -1958,8 +2007,24 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       const float cp = std::cos(pitch);
       const float dir[3] = {std::sin(yaw) * cp, std::cos(yaw) * cp,
                             std::sin(pitch)};
+      const float travel_frames = phase * lifetime * 30.0f;
       for (int c = 0; c < 3; ++c) {
-        local[c] += dir[c] * speed * phase * lifetime * 0.05f;
+        local[c] += dir[c] * speed * travel_frames;
+        local[c] += 0.5f * p.force_dir[c] * travel_frames * travel_frames;
+      }
+      if (p.bubble) {
+        constexpr float kTwoPi = 6.28318530717958647692f;
+        const float bubble_period =
+            std::max(0.001f, p.bubble_period_min +
+                                 (p.bubble_period_max -
+                                  p.bubble_period_min) *
+                                     h7);
+        const float bubble_size =
+            p.bubble_size_min + (p.bubble_size_max - p.bubble_size_min) * h8;
+        const float bubble_frame = particle_time_ * 30.0f + h0 * bubble_period;
+        const float bubble_angle = bubble_frame / bubble_period * kTwoPi;
+        local[0] += std::cos(bubble_angle) * bubble_size;
+        local[2] += std::sin(bubble_angle + h1 * kTwoPi) * bubble_size;
       }
       PVtx v;
       v.x = world[12] + local[0] * world[0] + local[1] * world[4] +
@@ -1974,9 +2039,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
               : p.start_size_min + (p.start_size_max - p.start_size_min) * h7;
       const float particle_delta_size =
           p.delta_size_min + (p.delta_size_max - p.delta_size_min) * h8;
+      const float grow_shrink =
+          sample_particle_grow_shrink(p.grow_ratio, p.shrink_ratio, phase);
       v.size = std::clamp(
           std::max(0.0f, particle_start_size + particle_delta_size * phase) *
-                  12.0f +
+                  grow_shrink * 12.0f +
               speed * 0.02f,
           3.0f, 80.0f);
       const auto cc = [](float f) -> int {
@@ -1986,16 +2053,17 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       const float alpha = std::clamp(mat->color[3] * (0.25f + fade * 0.75f),
                                      0.0f, 1.0f) *
                           std::clamp(intensity, 0.0f, 1.0f) *
-                          std::clamp(start_color[3] +
-                                         (end_color[3] - start_color[3]) *
-                                             phase,
-                                     0.0f, 1.0f);
-      const float red =
-          mat->color[0] * (start_color[0] + (end_color[0] - start_color[0]) * phase);
-      const float green =
-          mat->color[1] * (start_color[1] + (end_color[1] - start_color[1]) * phase);
-      const float blue =
-          mat->color[2] * (start_color[2] + (end_color[2] - start_color[2]) * phase);
+                          std::clamp(
+                              sample_particle_color_with_mid(
+                                  start_color, mid_color, end_color,
+                                  p.mid_color_ratio, phase)[3],
+                              0.0f, 1.0f);
+      const std::array<float, 4> sampled_color =
+          sample_particle_color_with_mid(start_color, mid_color, end_color,
+                                         p.mid_color_ratio, phase);
+      const float red = mat->color[0] * sampled_color[0];
+      const float green = mat->color[1] * sampled_color[1];
+      const float blue = mat->color[2] * sampled_color[2];
       v.color = D3DCOLOR_ARGB(cc(alpha), cc(red), cc(green), cc(blue));
       points.push_back(v);
     }

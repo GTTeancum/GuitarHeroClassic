@@ -186,31 +186,6 @@ std::string read_string_at(const std::vector<uint8_t>& body, size_t& offset) {
   return s;
 }
 
-std::vector<std::string> scan_strings(const std::vector<uint8_t>& body) {
-  std::vector<std::string> out;
-  for (size_t o = 0; o + 4 <= body.size(); ++o) {
-    uint32_t len;
-    std::memcpy(&len, body.data() + o, 4);
-    if (len == 0 || len > 96 || o + 4 + len > body.size()) continue;
-    const char* s = reinterpret_cast<const char*>(body.data() + o + 4);
-    bool printable = true;
-    bool has_alpha = false;
-    for (uint32_t k = 0; k < len; ++k) {
-      char c = s[k];
-      if (c < 0x20 || c >= 0x7f) {
-        printable = false;
-        break;
-      }
-      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) has_alpha = true;
-    }
-    if (!printable || !has_alpha) continue;
-    std::string value(s, len);
-    if (out.empty() || out.back() != value) out.push_back(std::move(value));
-    o += 3 + len;
-  }
-  return out;
-}
-
 struct ScannedString {
   size_t offset = 0;
   std::string value;
@@ -1148,9 +1123,6 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     part.life_min_frames = std::max(1.0f, safe_f(0x00, part.life_min_frames));
     part.life_max_frames =
         std::max(part.life_min_frames, safe_f(0x04, part.life_min_frames));
-    part.max_particles = std::clamp(std::max(part.life_min_frames,
-                                             part.life_max_frames),
-                                    0.0f, 2000.0f);
     for (int i = 0; i < 3; ++i) {
       part.box_extent_min[i] = safe_f(0x08 + static_cast<size_t>(i) * 4, 0.0f);
       part.box_extent_max[i] = safe_f(0x14 + static_cast<size_t>(i) * 4, 0.0f);
@@ -1186,11 +1158,72 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     part.end_color_low = safe_color(0x70, part.end_color_low);
     part.end_color_high = safe_color(0x80, part.end_color_high);
 
-    for (const auto& s : scan_strings(body)) {
-      if (s.size() >= 4 && s.compare(s.size() - 4, 4, ".mat") == 0) {
-        part.material = s;
-        break;
+    size_t particle_pos = prop_base + 0x90;
+    auto read_cursor_f = [&]() {
+      const float value = read_f32_at(body, particle_pos);
+      particle_pos += 4;
+      return std::isfinite(value) ? value : 0.0f;
+    };
+    auto read_cursor_u32 = [&]() {
+      const uint32_t value = read_u32_at(body, particle_pos);
+      particle_pos += 4;
+      return value;
+    };
+    auto read_cursor_bool = [&]() {
+      if (particle_pos >= body.size()) {
+        throw std::runtime_error("milo_scene: ParticleSys bool past end");
       }
+      return body[particle_pos++] != 0;
+    };
+    auto read_cursor_string = [&]() {
+      return read_string_at(body, particle_pos);
+    };
+    auto read_cursor_vec2 = [&]() {
+      std::array<float, 2> v{};
+      v[0] = read_cursor_f();
+      v[1] = read_cursor_f();
+      return v;
+    };
+    auto read_cursor_color = [&]() {
+      std::array<float, 4> color{};
+      for (float& channel : color) channel = read_cursor_f();
+      return color;
+    };
+    part.bounce = read_cursor_string();
+    for (float& force : part.force_dir) force = read_cursor_f();
+    part.material = read_cursor_string();
+    part.particle_flags = read_cursor_u32();
+    part.grow_ratio = std::clamp(read_cursor_f(), 0.0f, 1.0f);
+    part.shrink_ratio = std::clamp(read_cursor_f(), 0.0f, 1.0f);
+    if (part.shrink_ratio < part.grow_ratio) {
+      part.shrink_ratio = part.grow_ratio;
+    }
+    part.mid_color_ratio = std::clamp(read_cursor_f(), 0.0f, 1.0f);
+    part.mid_color_low = read_cursor_color();
+    part.mid_color_high = read_cursor_color();
+    part.max_particles = read_cursor_u32();
+    const std::array<float, 2> bubble_period = read_cursor_vec2();
+    part.bubble_period_min = std::max(0.001f, bubble_period[0]);
+    part.bubble_period_max =
+        std::max(part.bubble_period_min, bubble_period[1]);
+    const std::array<float, 2> bubble_size = read_cursor_vec2();
+    part.bubble_size_min = bubble_size[0];
+    part.bubble_size_max = bubble_size[1];
+    part.bubble = read_cursor_bool();
+    part.relative_motion = read_cursor_f();
+    part.relative_parent = read_cursor_string();
+    part.emitter_mesh = read_cursor_string();
+    part.preserve_particles = read_cursor_bool();
+    if (part.preserve_particles) {
+      part.preserved_particle_count = read_cursor_u32();
+      constexpr size_t kPreservedParticleBytes = 9 * sizeof(float);
+      const size_t preserved_bytes =
+          static_cast<size_t>(part.preserved_particle_count) *
+          kPreservedParticleBytes;
+      if (particle_pos + preserved_bytes > body.size()) {
+        throw std::runtime_error("milo_scene: preserved ParticleSys list past end");
+      }
+      particle_pos += preserved_bytes;
     }
     if (part.material.empty()) {
       throw std::runtime_error("milo_scene: ParticleSys has no material ref");
@@ -1529,8 +1562,9 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
             };
             std::fprintf(
                 stderr,
-                "[milo_scene] ParticleSys %s material=%s life_frames=(%.3f %.3f) speed=(%.3f %.3f) emit_rate=(%.3f %.3f) start_size=(%.3f %.3f) delta_size=(%.3f %.3f) start_low=(%.3f %.3f %.3f %.3f) start_high=(%.3f %.3f %.3f %.3f) start_avg=(%.3f %.3f %.3f %.3f) end_low=(%.3f %.3f %.3f %.3f) end_high=(%.3f %.3f %.3f %.3f) end_avg=(%.3f %.3f %.3f %.3f)\n",
+                "[milo_scene] ParticleSys %s material=%s max_parts=%u life_frames=(%.3f %.3f) speed=(%.3f %.3f) emit_rate=(%.3f %.3f) start_size=(%.3f %.3f) delta_size=(%.3f %.3f) start_low=(%.3f %.3f %.3f %.3f) start_high=(%.3f %.3f %.3f %.3f) start_avg=(%.3f %.3f %.3f %.3f) mid_ratio=%.3f mid_low=(%.3f %.3f %.3f %.3f) mid_high=(%.3f %.3f %.3f %.3f) mid_avg=(%.3f %.3f %.3f %.3f) end_low=(%.3f %.3f %.3f %.3f) end_high=(%.3f %.3f %.3f %.3f) end_avg=(%.3f %.3f %.3f %.3f) force=(%.3f %.3f %.3f) grow=%.3f shrink=%.3f bubble=%d bubble_period=(%.3f %.3f) bubble_size=(%.3f %.3f) bounce=%s rel=(%.3f,%s) mesh=%s preserve=%d preserved=%u\n",
                 p.name.c_str(), p.material.c_str(),
+                p.max_particles,
                 p.life_min_frames, p.life_max_frames, p.speed_min,
                 p.speed_max, p.emit_rate_min, p.emit_rate_max,
                 p.start_size_min, p.start_size_max, p.delta_size_min,
@@ -1543,6 +1577,15 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                 avg(p.start_color_low, p.start_color_high, 1),
                 avg(p.start_color_low, p.start_color_high, 2),
                 avg(p.start_color_low, p.start_color_high, 3),
+                p.mid_color_ratio,
+                p.mid_color_low[0], p.mid_color_low[1],
+                p.mid_color_low[2], p.mid_color_low[3],
+                p.mid_color_high[0], p.mid_color_high[1],
+                p.mid_color_high[2], p.mid_color_high[3],
+                avg(p.mid_color_low, p.mid_color_high, 0),
+                avg(p.mid_color_low, p.mid_color_high, 1),
+                avg(p.mid_color_low, p.mid_color_high, 2),
+                avg(p.mid_color_low, p.mid_color_high, 3),
                 p.end_color_low[0], p.end_color_low[1],
                 p.end_color_low[2], p.end_color_low[3],
                 p.end_color_high[0], p.end_color_high[1],
@@ -1550,7 +1593,16 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                 avg(p.end_color_low, p.end_color_high, 0),
                 avg(p.end_color_low, p.end_color_high, 1),
                 avg(p.end_color_low, p.end_color_high, 2),
-                avg(p.end_color_low, p.end_color_high, 3));
+                avg(p.end_color_low, p.end_color_high, 3),
+                p.force_dir[0], p.force_dir[1], p.force_dir[2],
+                p.grow_ratio, p.shrink_ratio, p.bubble ? 1 : 0,
+                p.bubble_period_min, p.bubble_period_max,
+                p.bubble_size_min, p.bubble_size_max,
+                p.bounce.empty() ? "-" : p.bounce.c_str(),
+                p.relative_motion,
+                p.relative_parent.empty() ? "-" : p.relative_parent.c_str(),
+                p.emitter_mesh.empty() ? "-" : p.emitter_mesh.c_str(),
+                p.preserve_particles ? 1 : 0, p.preserved_particle_count);
           }
           out.particles.push_back(std::move(p));
         } else if (de.type == "WorldCrowd") {

@@ -4601,8 +4601,8 @@ int main() {
                  "constexprsize_tkParticleTransAt=0x19;",
                  "ParticleSys decoder uses the traced embedded Trans offset");
   ok &= contains(milo_scene_cpp_c,
-                 "part.material=s;",
-                 "ParticleSys decoder keeps authored material refs");
+                 "part.material=read_cursor_string();",
+                 "ParticleSys decoder reads authored material refs in source order");
   ok &= contains(milo_scene_h_c,
                  "std::array<float,4>start_color_low",
                  "MILO scene decoder exposes source ParticleSys start color range");
@@ -4615,6 +4615,18 @@ int main() {
   ok &= contains(milo_scene_h_c,
                  "floatdelta_size_min",
                  "MILO scene decoder exposes source ParticleSys delta size");
+  ok &= contains(milo_scene_h_c,
+                 "uint32_tmax_particles",
+                 "MILO scene decoder exposes source ParticleSys max particle count");
+  ok &= contains(milo_scene_h_c,
+                 "floatforce_dir[3]",
+                 "MILO scene decoder exposes source ParticleSys force direction");
+  ok &= contains(milo_scene_h_c,
+                 "floatmid_color_ratio",
+                 "MILO scene decoder exposes source ParticleSys mid-color ratio");
+  ok &= contains(milo_scene_h_c,
+                 "boolbubble",
+                 "MILO scene decoder exposes source ParticleSys bubble flag");
   ok &= contains(milo_scene_cpp_c,
                  "part.start_color_low=safe_color(0x50",
                  "ParticleSys decoder reads source start color low at traced offset");
@@ -4633,6 +4645,21 @@ int main() {
   ok &= contains(milo_scene_cpp_c,
                  "part.delta_size_min=safe_f(0x48",
                  "ParticleSys decoder reads source delta size at traced offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.bounce=read_cursor_string();",
+                 "ParticleSys decoder reads source bounce ref after end colors");
+  ok &= contains(milo_scene_cpp_c,
+                 "for(float&force:part.force_dir)force=read_cursor_f();",
+                 "ParticleSys decoder reads source force vector after bounce");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.mid_color_low=read_cursor_color();",
+                 "ParticleSys decoder reads source mid color range");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.max_particles=read_cursor_u32();",
+                 "ParticleSys decoder reads source max particle count");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.bubble=read_cursor_bool();",
+                 "ParticleSys decoder reads source bubble flag");
   ok &= contains(renderer_h_c,
                  "set_active_particle_systems",
                  "renderer accepts active ParticleSys event state");
@@ -4651,6 +4678,18 @@ int main() {
   ok &= contains(renderer_c,
                  "particle_delta_size*phase",
                  "renderer applies source ParticleSys delta size over lifetime");
+  ok &= contains(renderer_c,
+                 "sample_particle_grow_shrink(p.grow_ratio,p.shrink_ratio,phase)",
+                 "renderer applies source ParticleSys grow/shrink ratios");
+  ok &= contains(renderer_c,
+                 "sample_particle_color_with_mid(start_color,mid_color,end_color",
+                 "renderer applies source ParticleSys mid color ratio");
+  ok &= contains(renderer_c,
+                 "p.force_dir[c]",
+                 "renderer applies source ParticleSys force direction");
+  ok &= contains(renderer_c,
+                 "if(p.bubble)",
+                 "renderer applies source ParticleSys bubble drift");
   ok &= contains(renderer_c,
                  "average_particle_color(p.start_color_low,p.start_color_high)",
                  "renderer starts ParticleSys color from source low/high average");
@@ -4800,8 +4839,9 @@ int main() {
                  "particle_end_colors_.find(p.name)",
                  "renderer applies particle end color by authored particle name");
   ok &= contains(renderer_c,
-                 "std::round(p.max_particles):16.0f)*std::max(intensity,0.0f)",
-                 "renderer scales ParticleSys count by sampled intensity");
+                 "static_cast<float>(p.max_particles>0?p.max_particles:16u)*"
+                 "std::max(intensity,0.0f)",
+                 "renderer scales source ParticleSys max count by sampled intensity");
   ok &= contains(gameplay_c,
                  "std::map<std::string,std::vector<std::string>>"
                  "filter_mat_anims;",
