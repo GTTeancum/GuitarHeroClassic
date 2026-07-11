@@ -116,6 +116,23 @@ size_t source_char_bones_type_size(int type, int compression) {
   return 8u;
 }
 
+SourceCharBonesLayout source_char_bones_recompute_layout(
+    const std::array<int, kSourceCharBonesTypeEnd + 1>& counts,
+    int compression) {
+  SourceCharBonesLayout layout;
+  layout.counts = counts;
+  layout.offsets[0] = 0;
+  for (int type = 0; type < kSourceCharBonesTypeEnd; ++type) {
+    const int diff = counts[type + 1] - counts[type];
+    const int size = static_cast<int>(
+        source_char_bones_type_size(type, compression));
+    layout.offsets[type + 1] = layout.offsets[type] + diff * size;
+  }
+  layout.total_size = (layout.offsets[kSourceCharBonesTypeEnd] + 0xF) &
+                      ~0xF;
+  return layout;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------

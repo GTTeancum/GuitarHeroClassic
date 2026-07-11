@@ -2515,6 +2515,10 @@ int run_contract() {
                  "concrete\n    `CharClip::BeatAlignString` body",
                  "document records concrete CharClip BeatAlignString slice");
   ok &= contains(doc,
+                 "Native `source_char_bones_recompute_layout`\n    now ports "
+                 "the safe data-layout core of `RecomputeSizes`",
+                 "document records concrete CharBones layout slice");
+  ok &= contains(doc,
                  "does not include a\n"
                  "  reviewable `Evaluate` or `Poll` body",
                  "document fences missing CharClipDriver runtime evaluator bodies");
@@ -2529,6 +2533,16 @@ int run_contract() {
                  "std::stringsource_char_bones_channel_name("
                  "conststd::string&name,inttype);",
                  "native API exposes source CharBones channel-name helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesLayout{std::array<int,"
+                 "kSourceCharBonesTypeEnd+1>counts={};std::array<int,"
+                 "kSourceCharBonesTypeEnd+1>offsets={};inttotal_size=0;};",
+                 "native API exposes source CharBones layout row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesLayoutsource_char_bones_recompute_layout("
+                 "conststd::array<int,kSourceCharBonesTypeEnd+1>&counts,"
+                 "intcompression);",
+                 "native API exposes source CharBones recompute helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_type_of(conststd::string&channel)",
                  "native clip decoder ports source CharBones type helper");
@@ -2545,6 +2559,18 @@ int run_contract() {
                  "conststd::string&name,inttype)",
                  "native clip decoder ports source CharBones ChannelName helper");
   ok &= contains(char_clip,
+                 "SourceCharBonesLayoutsource_char_bones_recompute_layout("
+                 "conststd::array<int,kSourceCharBonesTypeEnd+1>&counts,"
+                 "intcompression)",
+                 "native clip decoder ports source CharBones RecomputeSizes helper");
+  ok &= contains(char_clip,
+                 "layout.offsets[type+1]=layout.offsets[type]+diff*size;",
+                 "native CharBones layout helper accumulates source offsets");
+  ok &= contains(char_clip,
+                 "layout.total_size=(layout.offsets[kSourceCharBonesTypeEnd]+"
+                 "0xF)&~0xF;",
+                 "native CharBones layout helper aligns source total size");
+  ok &= contains(char_clip,
                  "SourceCharBones::ChannelNameusesthefirstdot",
                  "native suffix strip follows source first-dot rule");
   ok &= contains(char_bones_source_test,
@@ -2556,6 +2582,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "for(intcompression=0;compression<=4;++compression)",
                  "focused CharBones source test covers all compression modes");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_recompute_layout(counts,0)",
+                 "focused CharBones source test covers uncompressed layout");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_recompute_layout(counts,4)",
+                 "focused CharBones source test covers compressed-all layout");
   ok &= missing(char_clip, "GHOGX_AXIS_ROT_NO_PI",
                 "old no-pi axis-rotation diagnostic removed from decoder");
   ok &= missing(char_clip, "GHOGX_FILE_ORDER_CLIP_SAMPLES",
@@ -2608,6 +2640,12 @@ int run_contract() {
                  "elsereturn2;}if(mCompression>kCompressVects)return4;"
                  "if(mCompression==kCompressNone)return0x10;return8;}",
                  "latest CharBones source defines packed rot/quat channel sizes");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBones::RecomputeSizes(){mPosOffset=0;for(inti=0;"
+                 "i<NUM_TYPES;i++){intdiff=mCounts[i+1]-mCounts[i];"
+                 "mOffsets[i+1]=mOffsets[i]+diff*TypeSize(i);}mTotalSize="
+                 "mEndOffset+0xFU&0xFFFFFFF0;}",
+                 "latest CharBones source defines packed layout offsets");
   ok &= contains(char_clip,
                  "kSourceCompressAll=4",
                  "native clip decoder names source compression mode 4");

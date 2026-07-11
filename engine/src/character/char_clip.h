@@ -6,6 +6,7 @@
 
 #include "character/char_mesh.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -23,6 +24,12 @@ enum SourceCharBonesType {
   kSourceCharBonesTypeRotY = 4,
   kSourceCharBonesTypeRotZ = 5,
   kSourceCharBonesTypeEnd = 6,
+};
+
+struct SourceCharBonesLayout {
+  std::array<int, kSourceCharBonesTypeEnd + 1> counts = {};
+  std::array<int, kSourceCharBonesTypeEnd + 1> offsets = {};
+  int total_size = 0;
 };
 
 // One channel value for one frame.
@@ -202,6 +209,9 @@ int source_char_bones_type_of(const std::string& channel);
 const char* source_char_bones_suffix_of(int type);
 std::string source_char_bones_channel_name(const std::string& name, int type);
 size_t source_char_bones_type_size(int type, int compression);
+SourceCharBonesLayout source_char_bones_recompute_layout(
+    const std::array<int, kSourceCharBonesTypeEnd + 1>& counts,
+    int compression);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

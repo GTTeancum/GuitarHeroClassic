@@ -1,5 +1,6 @@
 #include "character/char_clip.h"
 
+#include <array>
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -16,6 +17,25 @@ bool expect_size(size_t got, size_t want, const char* label) {
   if (got == want) return true;
   std::cerr << label << ": got " << got << " want " << want << "\n";
   return false;
+}
+
+bool expect_layout(const ghogx::character::SourceCharBonesLayout& got,
+                   const std::array<int, 7>& offsets, int total_size,
+                   const char* label) {
+  bool ok = true;
+  for (size_t i = 0; i < offsets.size(); ++i) {
+    if (got.offsets[i] != offsets[i]) {
+      std::cerr << label << " offset[" << i << "]: got " << got.offsets[i]
+                << " want " << offsets[i] << "\n";
+      ok = false;
+    }
+  }
+  if (got.total_size != total_size) {
+    std::cerr << label << " total: got " << got.total_size << " want "
+              << total_size << "\n";
+    ok = false;
+  }
+  return ok;
 }
 
 bool expect_string(const std::string& got, const std::string& want,
@@ -90,6 +110,18 @@ int main() {
 
   ok &= expect_size(source_char_bones_type_size(kSourceCharBonesTypeEnd, 0), 0,
                     "type size invalid");
+
+  const std::array<int, kSourceCharBonesTypeEnd + 1> counts = {
+      0, 2, 3, 5, 7, 8, 9};
+  ok &= expect_layout(source_char_bones_recompute_layout(counts, 0),
+                      {0, 24, 36, 68, 76, 80, 84}, 96,
+                      "layout uncompressed");
+  ok &= expect_layout(source_char_bones_recompute_layout(counts, 2),
+                      {0, 12, 18, 34, 38, 40, 42}, 48,
+                      "layout compressed vectors");
+  ok &= expect_layout(source_char_bones_recompute_layout(counts, 4),
+                      {0, 12, 18, 26, 30, 32, 34}, 48,
+                      "layout compressed all");
 
   return ok ? 0 : 1;
 }

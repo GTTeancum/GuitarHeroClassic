@@ -848,7 +848,11 @@ note, and all report `unreadBytes=0`.
     `rockabill1_main`/`rockabill1_strum` while keeping local
     `rockabill2_fret` for `left_hand.drv`.
   - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish
-    the source packed-row offset model.
+    the source packed-row offset model. Native `source_char_bones_recompute_layout`
+    now ports the safe data-layout core of `RecomputeSizes`: cumulative
+    per-type counts, per-type byte sizes, offsets, and 16-byte aligned total
+    size. It does not port the pointer walk in `FindOffset` until the
+    decompiled `mBones` index expression is verified.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
     call-flow hook, not a standalone pose evaluator.
 - `rb3-latest/src/system/char/CharBonesSamples.cpp` is concrete for sample
