@@ -1163,6 +1163,17 @@ std::vector<std::string> load_clip_group_names(
   return load_clip_group(hdr_path, ark_path, milo_paths, group_name).clips;
 }
 
+uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
+                                            uint32_t mask) {
+  uint32_t play_flags = clip.default_play_flags;
+  if (mask & 0xF0u) play_flags = (play_flags & 0xffffff0fu) | (mask & 0xF0u);
+  if (mask & 0x0Fu) play_flags = (play_flags & 0xfffffff0u) | (mask & 0x0Fu);
+  if (mask & 0xF600u) {
+    play_flags = (play_flags & 0xffff09ffu) | (mask & 0xF600u);
+  }
+  return play_flags;
+}
+
 // ---- pose application ----------------------------------------------------
 
 static void quat_to_rot(const float q[4], float rot[3][3]) {
@@ -3730,15 +3741,16 @@ const CharClip* CharClipPlayer::current_clip() const {
 void CharClipPlayer::play(const CharClip& clip, uint32_t flags,
                           float blend_width, float speed) {
   if (!clip.loaded || clip.frames.empty()) return;
+  const uint32_t play_flags = char_clip_driver_masked_play_flags(clip, flags);
   const float resolved_blend =
       blend_width >= 0.0f ? blend_width : std::max(0.0f, clip.blend_width);
   const bool no_blend =
-      play_mode(clip, flags) == kCharPlayNoBlend ||
+      play_mode(clip, play_flags) == kCharPlayNoBlend ||
       resolved_blend <= 0.0f || layers_.empty();
 
   Layer next;
   next.clip = &clip;
-  next.flags = flags;
+  next.flags = play_flags;
   next.blend_width = no_blend ? 0.0f : resolved_blend;
   next.speed = speed;
 

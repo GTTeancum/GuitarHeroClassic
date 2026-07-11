@@ -135,6 +135,10 @@ CharClipGroup load_clip_group(
 // Source-backed CharClipGroup::GetClip index step. Mutates group.which.
 std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group);
 
+// Source-backed CharClipDriver constructor play-flag masking.
+uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
+                                            uint32_t mask);
+
 // Compatibility helper for callers that only need the stored clip names.
 std::vector<std::string> load_clip_group_names(
     const std::string& hdr_path, const std::string& ark_path,

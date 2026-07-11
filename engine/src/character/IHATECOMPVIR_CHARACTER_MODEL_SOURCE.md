@@ -778,6 +778,11 @@ note, and all report `unreadBytes=0`.
   stack construction, mask application to default blend/loop/beat-align flags,
   clip deletion, exit events, and sync animation cleanup. It does not include a
   reviewable `Evaluate` or `Poll` body.
+  - Native `char_clip_driver_masked_play_flags` ports the constructor mask
+    application exactly: low mode bits, loop bits, and the `0xF600` real-time /
+    beat-align group override the clip's stored play flags only when present in
+    the source mask. `CharClipPlayer::play` uses this masked value when it
+    starts a native layer.
 - `rb3-retail-old/doc/rb2_dump/rockband2/system/src/char` exposes RB2-era dump
   entries for `CharClipSamples`, `CharBonesSamples`, `CharClip`,
   `CharClipDriver`, and `CharDriver`. These files are useful source-backed

@@ -75,6 +75,8 @@ int run_contract() {
   const std::string char_clip_h = compact(read_file(char_dir / "char_clip.h"));
   const std::string char_clip_audit =
       compact(read_file(char_dir / "char_clip_audit.cpp"));
+  const std::string clip_driver_flags_test =
+      compact(read_file(char_dir / "character_clip_driver_flags_test.cpp"));
   const std::string bind_audit =
       compact(read_file(char_dir / "char_bind_audit.cpp"));
   const std::string renderer = compact(read_file(char_dir / "char_renderer.cpp"));
@@ -318,6 +320,10 @@ int run_contract() {
                  "Port `CharClipDriver::Evaluate`/poll timing, blend, loop, "
                  "beat-align,",
                  "remaining import checklist names CharClipDriver runtime gap");
+  ok &= contains(doc,
+                 "Native `char_clip_driver_masked_play_flags` ports the "
+                 "constructor mask\n    application exactly",
+                 "document records concrete CharClipDriver mask slice");
   ok &= contains(doc,
                  "Port `CharDriver::Load`, `CharDriver::Poll`, and "
                  "`EvaluateFlags`",
@@ -2254,6 +2260,10 @@ int run_contract() {
   ok &= contains(cmake,
                  "add_executable(ghogx_character_clip_auditchar_clip_audit.cpp)",
                  "CMake builds focused character clip audit helper");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_clip_driver_flags_test"
+                 "character_clip_driver_flags_test.cpp)",
+                 "CMake builds focused CharClipDriver flag-mask test");
   ok &= contains(char_clip_audit,
                  "for(constauto&entry:ark.entries()){if(!ends_with("
                  "entry.full_path,\".milo_ps2\"))continue;",
@@ -2332,6 +2342,33 @@ int run_contract() {
                  "if(mask&0xFU)mPlayFlags=mPlayFlags&0xfffffff0|mask&0xfU;"
                  "if(mask&0xF600U)mPlayFlags=mPlayFlags&0xffff09ff|mask&0xf600U;",
                  "latest CharClipDriver source masks blend loop and beat-align flags");
+  ok &= contains(char_clip_h,
+                 "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
+                 "uint32_tmask);",
+                 "native character API exposes source CharClipDriver flag mask helper");
+  ok &= contains(char_clip,
+                 "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
+                 "uint32_tmask){uint32_tplay_flags=clip.default_play_flags;",
+                 "native CharClipDriver mask helper starts from stored clip flags");
+  ok &= contains(char_clip,
+                 "if(mask&0xF0u)play_flags=(play_flags&0xffffff0fu)|"
+                 "(mask&0xF0u);if(mask&0x0Fu)play_flags=("
+                 "play_flags&0xfffffff0u)|(mask&0x0Fu);if(mask&0xF600u){"
+                 "play_flags=(play_flags&0xffff09ffu)|(mask&0xF600u);}",
+                 "native CharClipDriver mask helper matches source bit groups");
+  ok &= contains(char_clip,
+                 "constuint32_tplay_flags=char_clip_driver_masked_play_flags("
+                 "clip,flags);",
+                 "native CharClipPlayer applies source CharClipDriver flag mask");
+  ok &= contains(char_clip,
+                 "next.flags=play_flags;",
+                 "native CharClipPlayer stores source-masked play flags");
+  ok &= contains(clip_driver_flags_test,
+                 "if(mask&0xF0u)out=(out&0xffffff0fu)|(mask&0xF0u);",
+                 "focused flag-mask test covers source loop-bit branch");
+  ok &= contains(clip_driver_flags_test,
+                 "if(mask&0xF600u)out=(out&0xffff09ffu)|(mask&0xF600u);",
+                 "focused flag-mask test covers source beat-time branch");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");
