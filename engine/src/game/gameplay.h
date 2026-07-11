@@ -358,7 +358,7 @@ class Gameplay {
     std::vector<FloatKey> alpha_keys;
     std::vector<Vec3Key> tex_translation_keys;
     std::vector<Vec3Key> tex_scale_keys;
-    std::vector<FloatKey> tex_rotation_keys;
+    std::vector<Vec3Key> tex_rotation_keys;
     std::vector<TextureKey> texture_keys;
   };
   struct VenueEnvironmentAnim {
@@ -403,7 +403,7 @@ class Gameplay {
     std::vector<VenueMaterialAnim::TextureKey> texture_keys;
     std::vector<VenueMaterialAnim::Vec3Key> tex_translation_keys;
     std::vector<VenueMaterialAnim::Vec3Key> tex_scale_keys;
-    std::vector<VenueMaterialAnim::FloatKey> tex_rotation_keys;
+    std::vector<VenueMaterialAnim::Vec3Key> tex_rotation_keys;
     bool persistent = true;
   };
   struct ActiveVenueEnvironmentAnim {

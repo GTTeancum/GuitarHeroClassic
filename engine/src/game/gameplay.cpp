@@ -3723,8 +3723,10 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
                 continue;
             }
             for (uint32_t i = 0; i < rot_count; ++i) {
-                Gameplay::VenueMaterialAnim::FloatKey key;
-                if (!read_f32_advance(body, size, pos, key.value) ||
+                Gameplay::VenueMaterialAnim::Vec3Key key;
+                if (!read_f32_advance(body, size, pos, key.value[0]) ||
+                    !read_f32_advance(body, size, pos, key.value[1]) ||
+                    !read_f32_advance(body, size, pos, key.value[2]) ||
                     !read_f32_advance(body, size, pos, key.frame)) {
                     anim.tex_rotation_keys.clear();
                     break;
@@ -9232,6 +9234,25 @@ std::array<float, 2> sample_material_vec2_key(
     return out;
 }
 
+float sample_material_rotation_z_key(
+    const std::vector<Gameplay::VenueMaterialAnim::Vec3Key>& keys,
+    float frame) {
+    if (keys.empty()) return 0.0f;
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    return a->value[2] + (b->value[2] - a->value[2]) * t;
+}
+
 float sample_material_float_key(
     const std::vector<Gameplay::VenueMaterialAnim::FloatKey>& keys,
     float frame) {
@@ -9304,7 +9325,7 @@ sample_material_tex_transform(const Gameplay::ActiveVenueMaterialAnim& anim,
     if (!anim.tex_rotation_keys.empty()) {
         sample.has_rotation = true;
         sample.rotation_radians =
-            sample_material_float_key(anim.tex_rotation_keys, frame);
+            sample_material_rotation_z_key(anim.tex_rotation_keys, frame);
     }
     return sample;
 }

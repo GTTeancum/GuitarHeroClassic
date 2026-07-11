@@ -4230,8 +4230,8 @@ int main() {
                  "std::vector<Vec3Key>tex_scale_keys;",
                  "decoded venue MatAnim keeps texture scale keys");
   ok &= contains(gameplay_h_c,
-                 "std::vector<FloatKey>tex_rotation_keys;",
-                 "decoded venue MatAnim keeps texture rotation keys");
+                 "std::vector<Vec3Key>tex_rotation_keys;",
+                 "decoded venue MatAnim keeps source-shaped texture rotation Vec3 keys");
   ok &= contains(gameplay_c,
                  "uint32_tcolor_count=0;",
                  "MatAnim loader reads material color channel count");
@@ -4253,6 +4253,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "uint32_trot_count=0;",
                  "MatAnim loader reads texture rotation channel count");
+  ok &= contains(gameplay_c,
+                 "read_f32_advance(body,size,pos,key.value[2])",
+                 "MatAnim loader reads texture rotation keys as ihatecompvir Vec3Key rows");
+  ok &= contains(gameplay_c,
+                 "sample_material_rotation_z_key(anim.tex_rotation_keys,frame)",
+                 "MatAnim sampler drives 2-D texture rotation from the source Vec3 Z component");
   ok &= contains(gameplay_c,
                  "sample_material_color_key(anim.color_keys,0.0f);",
                  "MatAnim color channel initializes renderer override");
