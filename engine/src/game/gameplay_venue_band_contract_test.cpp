@@ -5530,6 +5530,24 @@ int main() {
                  "de.type==\"PollAnim\"",
                  "venue loader decodes source MILO PollAnim objects");
   ok &= contains(gameplay_c,
+                 "std::optional<DecodedRndPollAnim>read_rnd_pollanim_like_miloeditor",
+                 "venue PollAnim uses the ihatecompvir/MiloEditor object layout reader");
+  ok &= contains(gameplay_c,
+                 "read_object_fields_like_miloeditor(r,object_props);",
+                 "venue PollAnim reads the Object superclass in source order");
+  ok &= contains(gameplay_c,
+                 "poll_anim.anim_revision=read_rnd_animatable_like_miloeditor(r);",
+                 "venue PollAnim reads the RndAnimatable superclass in source order");
+  ok &= contains(gameplay_c,
+                 "read_object_fields_like_miloeditor(r,poll_props);",
+                 "venue PollAnim reads the RndPollable/Object payload in source order");
+  ok &= contains(gameplay_c,
+                 "constuint32_tanim_count=r.u32();",
+                 "venue PollAnim reads the typed anim count before child symbols");
+  ok &= contains(gameplay_c,
+                 "poll_anim.anims.push_back(canonical_milo_ref(r.symbol()));",
+                 "venue PollAnim child refs come from the typed anim symbol list");
+  ok &= contains(gameplay_c,
                  "poll_anim_filters->clear();",
                  "venue PollAnim output is reset on each venue load");
   ok &= contains(gameplay_c,

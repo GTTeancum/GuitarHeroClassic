@@ -756,6 +756,7 @@ float read_f32_at_unchecked(const uint8_t* body, size_t off) {
 
 void sync_primary_camshot_target(Gameplay::CameraKey& key);
 void sync_camshot_source_record_hint(Gameplay::CameraKey& key);
+std::string canonical_milo_ref(std::string s);
 std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
                                      std::array<float, 4> b, float t);
 
@@ -916,6 +917,55 @@ uint16_t read_rnd_animatable_like_miloeditor(MiloCursor& r) {
         (void)r.u32();
     }
     return revision;
+}
+
+struct DecodedRndPollAnim {
+    uint16_t revision = 0;
+    uint16_t alt_revision = 0;
+    uint16_t anim_revision = 0;
+    std::vector<std::string> anims;
+};
+
+std::optional<DecodedRndPollAnim> read_rnd_pollanim_like_miloeditor(
+    const uint8_t* body, size_t size) {
+    try {
+        MiloCursor r{body, size, 0};
+        DecodedRndPollAnim poll_anim;
+        const uint32_t combined_revision = r.u32();
+        poll_anim.revision =
+            static_cast<uint16_t>(combined_revision & 0xffff);
+        poll_anim.alt_revision =
+            static_cast<uint16_t>((combined_revision >> 16) & 0xffff);
+
+        std::unordered_map<std::string, MiloValue> object_props;
+        read_object_fields_like_miloeditor(r, object_props);
+        poll_anim.anim_revision = read_rnd_animatable_like_miloeditor(r);
+
+        // MiloEditor models the RndPollable payload as an Object superclass;
+        // RB3 then uses that pollable to call each child anim every frame.
+        std::unordered_map<std::string, MiloValue> poll_props;
+        read_object_fields_like_miloeditor(r, poll_props);
+
+        const uint32_t anim_count = r.u32();
+        if (anim_count > 1024)
+            throw std::runtime_error("RndPollAnim anim count invalid");
+        poll_anim.anims.reserve(anim_count);
+        for (uint32_t i = 0; i < anim_count; ++i) {
+            poll_anim.anims.push_back(canonical_milo_ref(r.symbol()));
+        }
+        if (r.pos != r.size) {
+            throw std::runtime_error(
+                "RndPollAnim source-shaped reader did not consume EOF");
+        }
+        return poll_anim;
+    } catch (const std::exception& ex) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] RndPollAnim decode failed: %s\n",
+                         ex.what());
+        }
+        return std::nullopt;
+    }
 }
 
 std::string prop_symbol(
@@ -9237,13 +9287,21 @@ load_venue_anim_filters(const std::string& hdr_path,
                     meshanim_anims[anim.name] = std::move(anim);
                 }
             } else if (de.type == "PollAnim") {
+                auto decoded = read_rnd_pollanim_like_miloeditor(body, size);
+                if (!decoded) continue;
                 auto& refs = poll_anim_refs[canonical_milo_ref(de.name)];
-                for (const auto& s : scan_milo_strings(body, size)) {
-                    const auto ref = canonical_milo_ref(s);
+                for (const auto& ref : decoded->anims) {
                     if (is_venue_anim_filter_ref(ref) ||
                         is_direct_venue_anim_ref(ref)) {
                         push_unique_ref(refs, ref);
                     }
+                }
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue RndPollAnim %s anims=%zu routed_refs=%zu rev=%u anim_rev=%u\n",
+                        de.name.c_str(), decoded->anims.size(), refs.size(),
+                        decoded->revision, decoded->anim_revision);
                 }
             } else if (de.type == "EventTrigger") {
                 const auto strings = scan_milo_strings(body, size);
