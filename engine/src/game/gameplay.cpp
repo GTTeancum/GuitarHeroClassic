@@ -3542,6 +3542,64 @@ bool read_light_color_keys(
     return true;
 }
 
+bool read_particle_color_keys(
+    const uint8_t* body, size_t size, size_t& pos,
+    std::vector<Gameplay::VenueParticleRoute::ColorKey>& keys,
+    float& last_frame) {
+    uint32_t count = 0;
+    if (!read_u32_advance(body, size, pos, count) || count > 4096)
+        return false;
+    keys.clear();
+    keys.reserve(count);
+    last_frame = 0.0f;
+    for (uint32_t i = 0; i < count; ++i) {
+        Gameplay::VenueParticleRoute::ColorKey key;
+        bool ok = true;
+        for (int c = 0; c < 4; ++c) {
+            ok = ok && read_f32_advance(body, size, pos, key.color[c]);
+            key.color[c] =
+                std::clamp(key.color[c], 0.0f, c == 3 ? 1.0f : 4.0f);
+        }
+        ok = ok && read_f32_advance(body, size, pos, key.frame);
+        if (!ok || key.frame < 0.0f || key.frame > 100000.0f)
+            return false;
+        last_frame = std::max(last_frame, key.frame);
+        keys.push_back(key);
+    }
+    std::sort(keys.begin(), keys.end(),
+              [](const auto& a, const auto& b) {
+                  return a.frame < b.frame;
+              });
+    return true;
+}
+
+bool read_particle_vector2_keys(
+    const uint8_t* body, size_t size, size_t& pos,
+    std::vector<Gameplay::VenueParticleRoute::EmissionKey>& keys,
+    float& last_frame) {
+    uint32_t count = 0;
+    if (!read_u32_advance(body, size, pos, count) || count > 4096)
+        return false;
+    keys.clear();
+    keys.reserve(count);
+    last_frame = 0.0f;
+    for (uint32_t i = 0; i < count; ++i) {
+        Gameplay::VenueParticleRoute::EmissionKey key;
+        const bool ok = read_f32_advance(body, size, pos, key.min_value) &&
+                        read_f32_advance(body, size, pos, key.max_value) &&
+                        read_f32_advance(body, size, pos, key.frame);
+        if (!ok || key.frame < 0.0f || key.frame > 100000.0f)
+            return false;
+        last_frame = std::max(last_frame, key.frame);
+        keys.push_back(key);
+    }
+    std::sort(keys.begin(), keys.end(),
+              [](const auto& a, const auto& b) {
+                  return a.frame < b.frame;
+              });
+    return true;
+}
+
 float material_anim_tex_value_to_uv(float value) {
     if (!std::isfinite(value)) return 0.0f;
     return value;
@@ -4153,79 +4211,108 @@ Gameplay::VenueParticleRoute decode_particle_anim_route(
     route.anim = canonical_milo_ref(entry_name);
     if (size < 32 || read_u32_at_unchecked(body, 0) != 3) return route;
 
-    const auto strings = packed_strings_with_offsets(body, size);
-    const PackedStringHit* particle_string = nullptr;
-    const PackedStringHit* self_string = nullptr;
-    const PackedStringHit* owner_string = nullptr;
-    for (const auto& hit : strings) {
-        const auto ref = canonical_milo_ref(hit.value);
-        if (!particle_string && ref.size() > 5 &&
-            ref.rfind(".part") == ref.size() - 5) {
-            particle_string = &hit;
-        }
-        if (ref == route.anim) self_string = &hit;
-    }
-    for (const auto& hit : strings) {
-        const auto ref = canonical_milo_ref(hit.value);
-        if (ref != route.anim && ref.size() > 6 &&
-            ref.rfind(".panim") == ref.size() - 6) {
-            owner_string = &hit;
-            break;
-        }
-    }
-    if (particle_string)
-        route.particle = canonical_milo_ref(particle_string->value);
-    if (owner_string) route.keys_owner = canonical_milo_ref(owner_string->value);
-    if (!particle_string) return route;
+    size_t pos = 25;
+    auto particle = read_milo_string_advance(body, size, pos, 128);
+    if (!particle) return route;
+    route.particle = canonical_milo_ref(*particle);
+    if (route.particle.size() <= 5 ||
+        route.particle.rfind(".part") != route.particle.size() - 5)
+        return route;
 
-    auto decode_scalar_keys =
-        [&](size_t count_off,
-            size_t block_limit,
-            std::vector<Gameplay::VenueParticleRoute::EmissionKey>& keys) {
-            block_limit = std::min(block_limit, size);
-            if (count_off + 4 > block_limit) return false;
-            const uint32_t key_count = read_u32_at_unchecked(body, count_off);
-            if (key_count == 0 || key_count > 512) return false;
-            const uint64_t key_bytes = static_cast<uint64_t>(key_count) * 12ull;
-            if (key_bytes > static_cast<uint64_t>(block_limit - (count_off + 4)))
-                return false;
-            std::vector<Gameplay::VenueParticleRoute::EmissionKey> decoded;
-            decoded.reserve(key_count);
-            size_t pos = count_off + 4;
-            for (uint32_t i = 0; i < key_count; ++i) {
-                Gameplay::VenueParticleRoute::EmissionKey key;
-                key.min_value = read_f32_at_unchecked(body, pos);
-                key.max_value = read_f32_at_unchecked(body, pos + 4);
-                key.frame = read_f32_at_unchecked(body, pos + 8);
-                pos += 12;
-                if (!std::isfinite(key.min_value) ||
-                    !std::isfinite(key.max_value) ||
-                    !std::isfinite(key.frame) || key.frame < 0.0f ||
-                    key.frame > 100000.0f) {
-                    return false;
-                }
-                route.duration_frames =
-                    std::max(route.duration_frames, key.frame);
-                decoded.push_back(key);
-            }
-            std::sort(decoded.begin(), decoded.end(),
-                      [](const auto& a, const auto& b) {
-                          return a.frame < b.frame;
-                      });
-            keys = std::move(decoded);
-            return true;
-        };
+    auto apply_last_frame = [&](float frame) {
+        route.duration_frames = std::max(route.duration_frames, frame);
+    };
 
-    const size_t limit = self_string ? self_string->offset : size;
-    const size_t emission_count_off = particle_string->end + 8;
-    if (emission_count_off + 4 <= limit)
-        decode_scalar_keys(emission_count_off, limit, route.emission_keys);
-    // The local editor schema exposes PartAnim Start Size as a second scalar
-    // page. In GH2 PS2 flame .panim bodies it follows the self animation ref
-    // and extends the authored particle tail beyond the emit-rate stop frame.
-    if (self_string && self_string->end + 4 <= size)
-        decode_scalar_keys(self_string->end, size, route.size_keys);
+    float last_frame = 0.0f;
+    if (!read_particle_color_keys(body, size, pos, route.start_color_keys,
+                                  last_frame))
+        return Gameplay::VenueParticleRoute{};
+    apply_last_frame(last_frame);
+    if (!read_particle_color_keys(body, size, pos, route.end_color_keys,
+                                  last_frame))
+        return Gameplay::VenueParticleRoute{};
+    apply_last_frame(last_frame);
+    if (!read_particle_vector2_keys(body, size, pos, route.emission_keys,
+                                    last_frame))
+        return Gameplay::VenueParticleRoute{};
+    apply_last_frame(last_frame);
+    auto keys_owner = read_milo_string_advance(body, size, pos, 128);
+    if (!keys_owner) return Gameplay::VenueParticleRoute{};
+    route.keys_owner = canonical_milo_ref(*keys_owner);
+    if (route.keys_owner.empty()) route.keys_owner = route.anim;
+    if (!read_particle_vector2_keys(body, size, pos, route.speed_keys,
+                                    last_frame))
+        return Gameplay::VenueParticleRoute{};
+    apply_last_frame(last_frame);
+    if (!read_particle_vector2_keys(body, size, pos, route.life_keys,
+                                    last_frame))
+        return Gameplay::VenueParticleRoute{};
+    apply_last_frame(last_frame);
+    if (!read_particle_vector2_keys(body, size, pos, route.size_keys,
+                                    last_frame))
+        return Gameplay::VenueParticleRoute{};
+    apply_last_frame(last_frame);
     return route;
+}
+
+template <typename T>
+bool copy_particle_channel_if_richer(std::vector<T>& dst,
+                                     const std::vector<T>& src) {
+    if (dst.size() >= src.size()) return false;
+    dst = src;
+    return true;
+}
+
+void copy_particle_route_keys_from_owner(
+    Gameplay::VenueParticleRoute& route,
+    const Gameplay::VenueParticleRoute& owner) {
+    route.start_color_keys = owner.start_color_keys;
+    route.end_color_keys = owner.end_color_keys;
+    route.emission_keys = owner.emission_keys;
+    route.speed_keys = owner.speed_keys;
+    route.life_keys = owner.life_keys;
+    route.size_keys = owner.size_keys;
+    route.duration_frames = owner.duration_frames;
+}
+
+void merge_particle_route_tracks(Gameplay::VenueParticleRoute& existing,
+                                 const Gameplay::VenueParticleRoute& route) {
+    existing.duration_frames =
+        std::max(existing.duration_frames, route.duration_frames);
+    bool adopted = false;
+    adopted |= copy_particle_channel_if_richer(existing.start_color_keys,
+                                               route.start_color_keys);
+    adopted |= copy_particle_channel_if_richer(existing.end_color_keys,
+                                               route.end_color_keys);
+    adopted |= copy_particle_channel_if_richer(existing.emission_keys,
+                                               route.emission_keys);
+    adopted |= copy_particle_channel_if_richer(existing.speed_keys,
+                                               route.speed_keys);
+    adopted |= copy_particle_channel_if_richer(existing.life_keys,
+                                               route.life_keys);
+    adopted |= copy_particle_channel_if_richer(existing.size_keys,
+                                               route.size_keys);
+    if (adopted || existing.anim.empty()) {
+        existing.anim = route.anim;
+        existing.keys_owner = route.keys_owner;
+    }
+}
+
+void log_particle_anim_route(const Gameplay::VenueParticleRoute& route) {
+    if (route.anim.empty() || route.particle.empty()) return;
+    std::fprintf(stderr,
+                 "[world] ParticleSysAnim %s -> %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f%s%s\n",
+                 route.anim.c_str(), route.particle.c_str(),
+                 route.start_color_keys.size(), route.end_color_keys.size(),
+                 route.emission_keys.size(), route.speed_keys.size(),
+                 route.life_keys.size(), route.size_keys.size(),
+                 route.duration_frames,
+                 route.keys_owner.empty() || route.keys_owner == route.anim
+                     ? ""
+                     : " keys_owner=",
+                 route.keys_owner.empty() || route.keys_owner == route.anim
+                     ? ""
+                     : route.keys_owner.c_str());
 }
 
 std::map<std::string, std::vector<Gameplay::VenueParticleRoute>>
@@ -4239,18 +4326,7 @@ load_venue_event_particles(const std::string& hdr_path,
             if (route.particle.empty()) return;
             for (auto& existing : routes) {
                 if (existing.particle != route.particle) continue;
-                existing.duration_frames =
-                    std::max(existing.duration_frames, route.duration_frames);
-                if (existing.emission_keys.size() < route.emission_keys.size()) {
-                    existing.anim = route.anim;
-                    existing.keys_owner = route.keys_owner;
-                    existing.emission_keys = route.emission_keys;
-                }
-                if (existing.size_keys.size() < route.size_keys.size()) {
-                    existing.anim = route.anim;
-                    existing.keys_owner = route.keys_owner;
-                    existing.size_keys = route.size_keys;
-                }
+                merge_particle_route_tracks(existing, route);
                 return;
             }
             routes.push_back(std::move(route));
@@ -4298,21 +4374,18 @@ load_venue_event_particles(const std::string& hdr_path,
                 }
             }
         }
-        for (auto& [name, route] : panim_routes) {
-            if (route.keys_owner.empty()) continue;
-            const auto owner = panim_routes.find(route.keys_owner);
-            if (owner == panim_routes.end())
-                continue;
-            if (route.emission_keys.empty() &&
-                !owner->second.emission_keys.empty()) {
-                route.emission_keys = owner->second.emission_keys;
+        for (size_t pass = 0; pass < panim_routes.size(); ++pass) {
+            for (auto& [name, route] : panim_routes) {
+                if (route.keys_owner.empty() || route.keys_owner == route.anim)
+                    continue;
+                const auto owner = panim_routes.find(route.keys_owner);
+                if (owner == panim_routes.end())
+                    continue;
+                copy_particle_route_keys_from_owner(route, owner->second);
             }
-            if (route.size_keys.empty() && !owner->second.size_keys.empty()) {
-                route.size_keys = owner->second.size_keys;
-            }
-            route.duration_frames =
-                std::max(route.duration_frames, owner->second.duration_frames);
         }
+        for (const auto& [name, route] : panim_routes)
+            log_particle_anim_route(route);
 
         auto collect_ref =
             [&](auto&& self, const std::string& ref,
@@ -4383,10 +4456,15 @@ load_venue_event_particles(const std::string& hdr_path,
                 std::fprintf(stderr, "[world] EventTrigger %s Particles=",
                              de.name.c_str());
                 for (const auto& route : routes) {
-                    std::fprintf(stderr, "%s via %s keys=%zu frames=%.1f ",
+                    std::fprintf(stderr,
+                                 "%s via %s start_color=%zu end_color=%zu emit=%zu speed=%zu life=%zu size=%zu frames=%.1f ",
                                  route.particle.c_str(), route.anim.c_str(),
-                                 route.emission_keys.size() +
-                                     route.size_keys.size(),
+                                 route.start_color_keys.size(),
+                                 route.end_color_keys.size(),
+                                 route.emission_keys.size(),
+                                 route.speed_keys.size(),
+                                 route.life_keys.size(),
+                                 route.size_keys.size(),
                                  route.duration_frames);
                 }
                 std::fprintf(stderr, "\n");
@@ -10042,18 +10120,7 @@ void push_particle_route_unique(
     if (route.particle.empty()) return;
     for (auto& existing : routes) {
         if (existing.particle != route.particle) continue;
-        existing.duration_frames =
-            std::max(existing.duration_frames, route.duration_frames);
-        if (existing.emission_keys.size() < route.emission_keys.size()) {
-            existing.anim = route.anim;
-            existing.keys_owner = route.keys_owner;
-            existing.emission_keys = route.emission_keys;
-        }
-        if (existing.size_keys.size() < route.size_keys.size()) {
-            existing.anim = route.anim;
-            existing.keys_owner = route.keys_owner;
-            existing.size_keys = route.size_keys;
-        }
+        merge_particle_route_tracks(existing, route);
         return;
     }
     routes.push_back(std::move(route));
@@ -10086,20 +10153,17 @@ load_all_venue_particle_routes(const std::string& hdr_path,
                     panim_routes[route.anim] = std::move(route);
             }
         }
-        for (auto& [name, route] : panim_routes) {
-            if (route.keys_owner.empty()) continue;
-            const auto owner = panim_routes.find(route.keys_owner);
-            if (owner == panim_routes.end()) continue;
-            if (route.emission_keys.empty() &&
-                !owner->second.emission_keys.empty()) {
-                route.emission_keys = owner->second.emission_keys;
+        for (size_t pass = 0; pass < panim_routes.size(); ++pass) {
+            for (auto& [name, route] : panim_routes) {
+                if (route.keys_owner.empty() || route.keys_owner == route.anim)
+                    continue;
+                const auto owner = panim_routes.find(route.keys_owner);
+                if (owner == panim_routes.end()) continue;
+                copy_particle_route_keys_from_owner(route, owner->second);
             }
-            if (route.size_keys.empty() && !owner->second.size_keys.empty()) {
-                route.size_keys = owner->second.size_keys;
-            }
-            route.duration_frames =
-                std::max(route.duration_frames, owner->second.duration_frames);
         }
+        for (const auto& [name, route] : panim_routes)
+            log_particle_anim_route(route);
         std::unordered_set<std::string> routed_particles;
         for (const auto& [name, route] : panim_routes) {
             push_particle_route_unique(out, route);
@@ -17689,16 +17753,22 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active.duration_seconds = authored_frames_to_seconds(
                 route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
             active.duration_frames = route.duration_frames;
+            active.start_color_keys = route.start_color_keys;
+            active.end_color_keys = route.end_color_keys;
             active.emission_keys = route.emission_keys;
+            active.speed_keys = route.speed_keys;
+            active.life_keys = route.life_keys;
             active.size_keys = route.size_keys;
             active.persistent = persistent;
             active_venue_particles_.push_back(std::move(active));
             venue_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] venue event %s: ParticleSys %s via %s emit_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f %s\n",
+                "[world] venue event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f %s\n",
                 event_name.c_str(), route.particle.c_str(),
-                route.anim.c_str(), route.emission_keys.size(),
+                route.anim.c_str(), route.start_color_keys.size(),
+                route.end_color_keys.size(), route.emission_keys.size(),
+                route.speed_keys.size(), route.life_keys.size(),
                 route.size_keys.size(), route.duration_frames,
                 active_venue_particles_.back().duration_seconds,
                 persistent ? "persistent" : "transient");
@@ -18165,9 +18235,11 @@ void Gameplay::update_active_venue_particles() {
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f emit_keys=%zu size_keys=%zu persistent=%d\n",
+                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d\n",
                     it->particle.c_str(), frame, intensity, size,
-                    it->emission_keys.size(), it->size_keys.size(),
+                    it->start_color_keys.size(), it->end_color_keys.size(),
+                    it->emission_keys.size(), it->speed_keys.size(),
+                    it->life_keys.size(), it->size_keys.size(),
                     it->persistent ? 1 : 0);
             }
         }
@@ -18902,16 +18974,22 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             active.duration_seconds = authored_frames_to_seconds(
                 route.duration_frames > 0.001f ? route.duration_frames : 30.0f);
             active.duration_frames = route.duration_frames;
+            active.start_color_keys = route.start_color_keys;
+            active.end_color_keys = route.end_color_keys;
             active.emission_keys = route.emission_keys;
+            active.speed_keys = route.speed_keys;
+            active.life_keys = route.life_keys;
             active.size_keys = route.size_keys;
             active.persistent = persistent;
             active_lighting_particles_.push_back(std::move(active));
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: ParticleSys %s via %s emit_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f %s\n",
+                "[world] lighting event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f %s\n",
                 event_name.c_str(), route.particle.c_str(),
-                route.anim.c_str(), route.emission_keys.size(),
+                route.anim.c_str(), route.start_color_keys.size(),
+                route.end_color_keys.size(), route.emission_keys.size(),
+                route.speed_keys.size(), route.life_keys.size(),
                 route.size_keys.size(), route.duration_frames,
                 active_lighting_particles_.back().duration_seconds,
                 persistent ? "persistent" : "transient");
@@ -19220,9 +19298,11 @@ void Gameplay::update_active_lighting_particles() {
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f emit_keys=%zu size_keys=%zu persistent=%d\n",
+                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d\n",
                     it->particle.c_str(), frame, intensity, size,
-                    it->emission_keys.size(), it->size_keys.size(),
+                    it->start_color_keys.size(), it->end_color_keys.size(),
+                    it->emission_keys.size(), it->speed_keys.size(),
+                    it->life_keys.size(), it->size_keys.size(),
                     it->persistent ? 1 : 0);
             }
         }

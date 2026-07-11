@@ -415,6 +415,10 @@ class Gameplay {
     bool persistent = true;
   };
   struct VenueParticleRoute {
+    struct ColorKey {
+      std::array<float, 4> color = {1.0f, 1.0f, 1.0f, 1.0f};
+      float frame = 0.0f;
+    };
     struct EmissionKey {
       float min_value = 0.0f;
       float max_value = 0.0f;
@@ -424,7 +428,11 @@ class Gameplay {
     std::string particle;
     std::string keys_owner;
     float duration_frames = 0.0f;
+    std::vector<ColorKey> start_color_keys;
+    std::vector<ColorKey> end_color_keys;
     std::vector<EmissionKey> emission_keys;
+    std::vector<EmissionKey> speed_keys;
+    std::vector<EmissionKey> life_keys;
     std::vector<EmissionKey> size_keys;
   };
   struct ActiveVenueParticleSystem {
@@ -432,7 +440,11 @@ class Gameplay {
     double start_time = 0.0;
     double duration_seconds = 0.0;
     float duration_frames = 0.0f;
+    std::vector<VenueParticleRoute::ColorKey> start_color_keys;
+    std::vector<VenueParticleRoute::ColorKey> end_color_keys;
     std::vector<VenueParticleRoute::EmissionKey> emission_keys;
+    std::vector<VenueParticleRoute::EmissionKey> speed_keys;
+    std::vector<VenueParticleRoute::EmissionKey> life_keys;
     std::vector<VenueParticleRoute::EmissionKey> size_keys;
     bool persistent = true;
   };

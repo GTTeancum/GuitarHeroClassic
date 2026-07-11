@@ -4543,26 +4543,50 @@ int main() {
                  "read_u32_at_unchecked(body,0)!=3",
                  "ParticleSysAnim loader keeps traced PS2 version");
   ok &= contains(gameplay_c,
-                 "route.keys_owner=canonical_milo_ref(owner_string->value);",
+                 "size_tpos=25;",
+                 "ParticleSysAnim loader enters after Object/RndAnimatable bytes");
+  ok &= contains(gameplay_c,
+                 "route.particle=canonical_milo_ref(*particle);",
+                 "ParticleSysAnim loader reads the authored ParticleSys reference");
+  ok &= contains(gameplay_c,
+                 "read_particle_color_keys(body,size,pos,route.start_color_keys",
+                 "ParticleSysAnim loader reads source start-color keys");
+  ok &= contains(gameplay_c,
+                 "read_particle_color_keys(body,size,pos,route.end_color_keys",
+                 "ParticleSysAnim loader reads source end-color keys");
+  ok &= contains(gameplay_c,
+                 "read_particle_vector2_keys(body,size,pos,route.emission_keys",
+                 "ParticleSysAnim loader reads source emit-rate keys");
+  ok &= contains(gameplay_c,
+                 "route.keys_owner=canonical_milo_ref(*keys_owner);",
                  "ParticleSysAnim loader preserves key-owner references");
   ok &= contains(gameplay_c,
-                 "decode_scalar_keys(emission_count_off,limit,route.emission_keys);",
-                 "ParticleSysAnim loader stores authored emission keys");
+                 "read_particle_vector2_keys(body,size,pos,route.speed_keys",
+                 "ParticleSysAnim loader reads source speed keys");
   ok &= contains(gameplay_c,
-                 "route.duration_frames=std::max(route.duration_frames,key.frame);",
+                 "read_particle_vector2_keys(body,size,pos,route.life_keys",
+                 "ParticleSysAnim loader reads source life keys");
+  ok &= contains(gameplay_c,
+                 "read_particle_vector2_keys(body,size,pos,route.size_keys",
+                 "ParticleSysAnim loader reads source start-size keys");
+  ok &= contains(gameplay_c,
+                 "apply_last_frame(last_frame);",
                  "ParticleSysAnim duration comes from authored key frames");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<ColorKey>start_color_keys;",
+                 "ParticleSysAnim route keeps authored start-color keys");
+  ok &= contains(gameplay_h_c,
+                 "std::vector<ColorKey>end_color_keys;",
+                 "ParticleSysAnim route keeps authored end-color keys");
   ok &= contains(gameplay_h_c,
                  "std::vector<EmissionKey>size_keys;",
                  "ParticleSysAnim route keeps authored start-size keys");
   ok &= contains(gameplay_c,
-                 "decode_scalar_keys(self_string->end,size,route.size_keys);",
-                 "ParticleSysAnim loader decodes the post-self start-size block");
+                 "copy_particle_route_keys_from_owner(route,owner->second);",
+                 "ParticleSysAnim owner rows copy source key-owner data");
   ok &= contains(gameplay_c,
-                 "route.emission_keys=owner->second.emission_keys;",
-                 "ParticleSysAnim owner rows copy emission key data");
-  ok &= contains(gameplay_c,
-                 "route.size_keys=owner->second.size_keys;",
-                 "ParticleSysAnim owner rows copy size key data");
+                 "route.speed_keys=owner.speed_keys;",
+                 "ParticleSysAnim owner rows copy speed key data");
   ok &= contains(gameplay_c,
                  "load_venue_event_particles",
                  "gameplay loads authored ParticleSys event routes");
@@ -4581,6 +4605,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "sample_particle_size(it->size_keys,frame)",
                  "venue particles sample authored ParticleSysAnim start size");
+  ok &= contains(gameplay_c,
+                 "it->speed_keys.size()",
+                 "venue particle sample logs include decoded source speed keys");
   ok &= contains(gameplay_c,
                  "world_->set_particle_intensities(venue_particle_intensities_);",
                  "venue particle intensity samples feed renderer overrides");
@@ -4837,7 +4864,8 @@ int main() {
                  "persistent?\"persistent\":\"transient\");",
                  "lighting ParticleSys diagnostics expose transient ownership");
   ok &= contains(gameplay_c,
-                 "it->emission_keys.size(),it->size_keys.size(),"
+                 "it->emission_keys.size(),it->speed_keys.size(),"
+                 "it->life_keys.size(),it->size_keys.size(),"
                  "it->persistent?1:0);",
                  "lighting ParticleSys samples log persistent state");
   ok &= contains(gameplay_c,
