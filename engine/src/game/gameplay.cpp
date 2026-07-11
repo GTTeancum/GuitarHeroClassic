@@ -8862,7 +8862,7 @@ std::optional<VenueMiloDependencyInfo> inspect_venue_milo_dependency(
 }
 
 void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
-                                   ghogx::milo_scene::Scene&& src) {
+                                    ghogx::milo_scene::Scene&& src) {
     dst.transes.insert(dst.transes.end(),
                        std::make_move_iterator(src.transes.begin()),
                        std::make_move_iterator(src.transes.end()));
@@ -8897,6 +8897,63 @@ void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
     dst.world_crowds.insert(dst.world_crowds.end(),
                             std::make_move_iterator(src.world_crowds.begin()),
                             std::make_move_iterator(src.world_crowds.end()));
+}
+
+size_t append_worldcrowd_area_meshes_for_venue_chars(
+    ghogx::milo_scene::Scene& dst, const ghogx::milo_scene::Scene& chars_scene) {
+    std::unordered_set<std::string> area_mesh_refs;
+    for (const auto& crowd : chars_scene.world_crowds) {
+        if (!crowd.decoded || crowd.area_mesh.empty()) continue;
+        area_mesh_refs.insert(canonical_milo_ref(crowd.area_mesh));
+    }
+    if (area_mesh_refs.empty()) return 0;
+
+    auto dst_has_mesh = [&](const std::string& mesh_name) {
+        const std::string ref = canonical_milo_ref(mesh_name);
+        return std::any_of(dst.meshes.begin(), dst.meshes.end(),
+                           [&](const ghogx::milo_scene::MeshObj& mesh) {
+                               return canonical_milo_ref(mesh.name) == ref;
+                           });
+    };
+    auto dst_has_mat = [&](const std::string& mat_name) {
+        const std::string ref = canonical_milo_ref(mat_name);
+        return std::any_of(dst.mats.begin(), dst.mats.end(),
+                           [&](const ghogx::milo_scene::MatObj& mat) {
+                               return canonical_milo_ref(mat.name) == ref;
+                           });
+    };
+    auto source_mat = [&](const std::string& mat_name)
+        -> const ghogx::milo_scene::MatObj* {
+        const std::string ref = canonical_milo_ref(mat_name);
+        for (const auto& mat : chars_scene.mats) {
+            if (canonical_milo_ref(mat.name) == ref) return &mat;
+        }
+        return nullptr;
+    };
+
+    size_t appended = 0;
+    for (const auto& mesh : chars_scene.meshes) {
+        if (!mesh.decoded) continue;
+        if (area_mesh_refs.find(canonical_milo_ref(mesh.name)) ==
+            area_mesh_refs.end()) {
+            continue;
+        }
+        const std::string material = lower_ascii(mesh.material);
+        if (material == "ray_blocker.mat" || material == "invisible.mat") {
+            continue;
+        }
+        if (dst_has_mesh(mesh.name)) continue;
+        if (!mesh.material.empty() && !dst_has_mat(mesh.material)) {
+            if (const auto* mat = source_mat(mesh.material)) dst.mats.push_back(*mat);
+        }
+        auto draw_mesh = mesh;
+        // WorldCrowd::DrawShowing owns this area mesh even when it is not a
+        // static RndDir mesh.
+        draw_mesh.showing = true;
+        dst.meshes.push_back(std::move(draw_mesh));
+        ++appended;
+    }
+    return appended;
 }
 
 std::vector<std::string> merge_visual_venue_subdirs(
@@ -22404,6 +22461,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
             const std::string venue_geom = venue_assembly.geom_milo;
             std::vector<ghogx::milo_scene::MatObj> venue_geom_materials;
             ghogx::milo_scene::Scene venue_scene;
+            ghogx::milo_scene::Scene venue_chars_scene_for_load;
+            const std::string chars_milo = venue_assembly.chars_milo;
+            bool chars_scene_loaded = false;
             if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_, venue_geom,
                                               venue_scene)) {
                 log_venue_dependencies(hdr_path_, ark_path_,
@@ -22412,9 +22472,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     merge_visual_venue_subdirs(
                         hdr_path_, ark_path_,
                         venue_assembly.geom_subdir_milos, venue_scene);
+                std::vector<std::string> venue_extra_visual_sources =
+                    venue_visual_subdir_sources;
+                chars_scene_loaded = ghogx::milo_scene::load_scene(
+                    hdr_path_, ark_path_, chars_milo, venue_chars_scene_for_load);
+                if (chars_scene_loaded) {
+                    const size_t worldcrowd_area_meshes =
+                        append_worldcrowd_area_meshes_for_venue_chars(
+                            venue_scene, venue_chars_scene_for_load);
+                    if (worldcrowd_area_meshes > 0) {
+                        push_unique_ref(venue_extra_visual_sources, chars_milo);
+                        std::fprintf(
+                            stderr,
+                            "[world] venue WorldCrowd area meshes appended: %zu source=%s\n",
+                            worldcrowd_area_meshes, chars_milo.c_str());
+                    }
+                }
                 auto hidden_venue_meshes = mesh_names_in_groups(
-                    venue_scene, {"coplight_red.grp",
-                                  "coplight_blue.grp"});
+                    venue_scene, {"coplight_red.grp", "coplight_blue.grp"});
                 const auto source_hidden_venue_meshes =
                     mesh_names_in_source_hidden_groups(venue_scene);
                 hidden_venue_meshes.insert(source_hidden_venue_meshes.begin(),
@@ -22488,7 +22563,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 auto venue_mat_anims =
                     load_venue_mat_anims(hdr_path_, ark_path_, venue_geom);
                 std::vector<std::string> venue_texture_sources{venue_geom};
-                for (const auto& source : venue_visual_subdir_sources)
+                for (const auto& source : venue_extra_visual_sources)
                     push_unique_ref(venue_texture_sources, source);
                 auto venue_textures =
                     ghogx::asset::load_milo_textures_from_sources(
@@ -22873,12 +22948,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 apply_venue_event(diagnostic_venue_event_, true);
             }
 
-            ghogx::milo_scene::Scene chars_scene;
-            const std::string chars_milo = venue_assembly.chars_milo;
-            const bool chars_scene_loaded = ghogx::milo_scene::load_scene(
-                hdr_path_, ark_path_, chars_milo, chars_scene);
             if (chars_scene_loaded) {
-                venue_chars_scene_ = std::move(chars_scene);
+                venue_chars_scene_ = std::move(venue_chars_scene_for_load);
                 venue_chars_scene_loaded_ = true;
                 log_performer_start_waypoints(venue_chars_scene_);
                 const size_t before_targets =

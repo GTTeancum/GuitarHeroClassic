@@ -8422,6 +8422,22 @@ int main() {
   ok &= contains(gameplay_c,
                  "env_float(\"GHOGX_DEBUG_BACKING_CAMERA_STRIDE\",0.50f)",
                  "backing camera diagnostics are rate-limited during captures");
+  ok &= contains(gameplay_c,
+                 "area_mesh_refs.insert(canonical_milo_ref(crowd.area_mesh));",
+                 "WorldCrowd area mesh refs are sourced from decoded chars MILO data");
+  ok &= contains(gameplay_c,
+                 "material==\"ray_blocker.mat\"||material==\"invisible.mat\"",
+                 "WorldCrowd helper ray blockers are not drawn as audience floor");
+  ok &= contains(gameplay_c,
+                 "draw_mesh.showing=true;",
+                 "WorldCrowd area mesh draw is owned by WorldCrowd rather than static mesh visibility");
+  ok &= contains(gameplay_c,
+                 "append_worldcrowd_area_meshes_for_venue_chars(venue_scene,"
+                 "venue_chars_scene_for_load);",
+                 "venue renderer receives decoded WorldCrowd area meshes");
+  ok &= contains(gameplay_c,
+                 "push_unique_ref(venue_extra_visual_sources,chars_milo);",
+                 "WorldCrowd area mesh materials load textures from the chars MILO");
   ok &= contains(gameplay_h_c,
                  "boolworldcrowd_actor_runtime_enabled()const;",
                  "WorldCrowd actor runtime has one opt-in policy gate");
