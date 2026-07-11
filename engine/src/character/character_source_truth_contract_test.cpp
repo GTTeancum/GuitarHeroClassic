@@ -947,6 +947,60 @@ int run_contract() {
                  "for(intn=0;n<count;n++){SimulateInternal(f);}}}",
                  "RB3 CharHair SimulateLoops calls source internal simulation");
   ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::Strand::SetRoot(RndTransformable*trans){"
+                 "mRoot=trans;if(!mRoot)mPoints.resize(0);else{floatlen="
+                 "mPoints.size()!=0?mPoints.back().length:0;mBaseMat="
+                 "mRoot->LocalXfm().m;SetAngle(mAngle);",
+                 "RB3 CharHair Strand SetRoot source starts from root and cached length");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "while(true){depth++;if(it->TransChildren().empty())break;"
+                 "it=it->TransChildren().front();}mPoints.resize(depth);",
+                 "RB3 CharHair Strand SetRoot follows first-child chain");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "pt->length=bone->LocalXfm().v.y;pt->pos=bone->WorldXfm().v;",
+                 "RB3 CharHair Strand SetRoot seeds point length and position");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(!len){if(pt)len=pt->length;elselen=5.0f;}backpt->length=len;"
+                 "ScaleAdd(backpt->bone->WorldXfm().v,backpt->bone->WorldXfm().m.y,"
+                 "backpt->length,backpt->pos);",
+                 "RB3 CharHair Strand SetRoot terminal length and ScaleAdd fallback");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairRootNode{std::stringbone;"
+                 "floatlocal_y=0.0f;std::array<float,3>world_pos=",
+                 "native exposes source CharHair SetRoot node rows");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_hair_strand_set_root(CharHairStrand&strand,"
+                 "conststd::vector<SourceCharHairRootNode>&first_child_chain);",
+                 "native exposes source CharHair Strand SetRoot helper");
+  ok &= contains(char_mesh,
+                 "strand.root=first_child_chain.empty()?\"\":first_child_chain.front().bone;"
+                 "if(strand.root.empty()){strand.points.clear();return;}",
+                 "native CharHair SetRoot clears points for empty roots");
+  ok &= contains(char_mesh,
+                 "floatlen=strand.points.empty()?0.0f:strand.points.back().length;",
+                 "native CharHair SetRoot preserves previous terminal length");
+  ok &= contains(char_mesh,
+                 "previous_point->length=bone.local_y;previous_point->pos[0]="
+                 "bone.world_pos[0];",
+                 "native CharHair SetRoot seeds point length and position");
+  ok &= contains(char_mesh,
+                 "len=previous_point!=nullptr?previous_point->length:5.0f;",
+                 "native CharHair SetRoot preserves source fallback length");
+  ok &= contains(char_mesh,
+                 "back_point.pos[0]=back_bone.world_pos[0]+"
+                 "back_bone.world_y_axis[0]*len;",
+                 "native CharHair SetRoot applies source ScaleAdd terminal point");
+  ok &= contains(mesh_decode_test,
+                 "source_char_hair_strand_set_root(root_strand,chain);",
+                 "deterministic test covers CharHair Strand SetRoot chain");
+  ok &= contains(mesh_decode_test,
+                 "source_char_hair_strand_set_root(preserved_len_strand,"
+                 "single_root);",
+                 "deterministic test covers CharHair Strand SetRoot preserved length");
+  ok &= contains(doc,
+                 "Native ports this as\n    `source_char_hair_strand_set_root`",
+                 "document ties native CharHair SetRoot helper to source");
+  ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::Strand::SetAngle(floatangle){mAngle=angle;"
                  "Hmx::Matrix3m38;m38.RotateAboutX(mAngle*DEG2RAD);"
                  "Multiply(m38,mBaseMat,mRootMat);}",

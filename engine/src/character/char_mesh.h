@@ -277,6 +277,16 @@ struct SourceCharHairDefaultState {
   bool managed_hookup = false;
 };
 
+struct SourceCharHairRootNode {
+  std::string bone;
+  float local_y = 0.0f;
+  std::array<float, 3> world_pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> world_y_axis = {0.0f, 1.0f, 0.0f};
+  std::array<float, 9> local_mat = {1.0f, 0.0f, 0.0f,
+                                    0.0f, 1.0f, 0.0f,
+                                    0.0f, 0.0f, 1.0f};
+};
+
 struct SourceCharHairRuntimePoint {
   bool initialized = false;
   std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
@@ -305,6 +315,9 @@ std::array<float, 9> source_char_hair_set_angle_root_mat(
     float angle_degrees, const float base_mat[9]);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
+void source_char_hair_strand_set_root(
+    CharHairStrand& strand,
+    const std::vector<SourceCharHairRootNode>& first_child_chain);
 
 struct CharCollide {
   std::string name;

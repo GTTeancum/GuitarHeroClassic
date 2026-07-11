@@ -222,6 +222,58 @@ int main() {
   CHECK(approx(angle_strand.root_mat[7], -1.0f));
   CHECK(approx(angle_strand.root_mat[8], 0.0f));
 
+  ghogx::character::CharHairStrand empty_root_strand;
+  empty_root_strand.root = "old_root.mesh";
+  empty_root_strand.points.resize(1);
+  ghogx::character::source_char_hair_strand_set_root(empty_root_strand, {});
+  CHECK(empty_root_strand.root.empty());
+  CHECK(empty_root_strand.points.empty());
+
+  ghogx::character::CharHairStrand root_strand;
+  root_strand.angle = 90.0f;
+  std::vector<ghogx::character::SourceCharHairRootNode> chain(3);
+  chain[0].bone = "root.mesh";
+  chain[0].local_mat = {1.0f, 0.0f, 0.0f,
+                        0.0f, 1.0f, 0.0f,
+                        0.0f, 0.0f, 1.0f};
+  chain[1].bone = "mid.mesh";
+  chain[1].local_y = 2.0f;
+  chain[1].world_pos = {10.0f, 20.0f, 30.0f};
+  chain[2].bone = "tip.mesh";
+  chain[2].local_y = 3.0f;
+  chain[2].world_pos = {40.0f, 50.0f, 60.0f};
+  chain[2].world_y_axis = {0.0f, 0.0f, 1.0f};
+  ghogx::character::source_char_hair_strand_set_root(root_strand, chain);
+  CHECK(root_strand.root == "root.mesh");
+  CHECK(root_strand.points.size() == 3);
+  CHECK(root_strand.points[0].bone == "root.mesh");
+  CHECK(root_strand.points[1].bone == "mid.mesh");
+  CHECK(root_strand.points[2].bone == "tip.mesh");
+  CHECK(approx(root_strand.points[0].length, 2.0f));
+  CHECK(approx(root_strand.points[0].pos[0], 10.0f));
+  CHECK(approx(root_strand.points[1].length, 3.0f));
+  CHECK(approx(root_strand.points[1].pos[1], 50.0f));
+  CHECK(approx(root_strand.points[2].length, 3.0f));
+  CHECK(approx(root_strand.points[2].pos[0], 40.0f));
+  CHECK(approx(root_strand.points[2].pos[1], 50.0f));
+  CHECK(approx(root_strand.points[2].pos[2], 63.0f));
+  CHECK(approx(root_strand.root_mat[5], 1.0f));
+  CHECK(approx(root_strand.root_mat[7], -1.0f));
+
+  ghogx::character::CharHairStrand preserved_len_strand;
+  preserved_len_strand.points.resize(1);
+  preserved_len_strand.points.back().length = 7.0f;
+  std::vector<ghogx::character::SourceCharHairRootNode> single_root(1);
+  single_root[0].bone = "solo.mesh";
+  single_root[0].world_pos = {1.0f, 2.0f, 3.0f};
+  single_root[0].world_y_axis = {1.0f, 0.0f, 0.0f};
+  ghogx::character::source_char_hair_strand_set_root(preserved_len_strand,
+                                                     single_root);
+  CHECK(approx(preserved_len_strand.points[0].length, 7.0f));
+  CHECK(approx(preserved_len_strand.points[0].pos[0], 8.0f));
+  CHECK(approx(preserved_len_strand.points[0].pos[1], 2.0f));
+  CHECK(approx(preserved_len_strand.points[0].pos[2], 3.0f));
+
   std::printf("  [ok] RndMesh rev28 groupSections=%zu palette=%zu\n",
               mesh.group_sections.size(), mesh.bone_palette.size());
   return 0;

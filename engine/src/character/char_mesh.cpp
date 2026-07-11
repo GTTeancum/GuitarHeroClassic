@@ -1425,6 +1425,47 @@ void source_char_hair_strand_set_angle(CharHairStrand& strand,
   for (size_t i = 0; i < root.size(); ++i) strand.root_mat[i] = root[i];
 }
 
+void source_char_hair_strand_set_root(
+    CharHairStrand& strand,
+    const std::vector<SourceCharHairRootNode>& first_child_chain) {
+  strand.root = first_child_chain.empty() ? "" : first_child_chain.front().bone;
+  if (strand.root.empty()) {
+    strand.points.clear();
+    return;
+  }
+
+  float len = strand.points.empty() ? 0.0f : strand.points.back().length;
+  for (size_t i = 0; i < first_child_chain.front().local_mat.size(); ++i) {
+    strand.base_mat[i] = first_child_chain.front().local_mat[i];
+  }
+  source_char_hair_strand_set_angle(strand, strand.angle);
+
+  strand.points.resize(first_child_chain.size());
+  for (size_t i = 0; i < first_child_chain.size(); ++i) {
+    strand.points[i].bone = first_child_chain[i].bone;
+  }
+
+  CharHairPoint* previous_point = nullptr;
+  for (size_t i = 1; i < strand.points.size(); ++i) {
+    previous_point = &strand.points[i - 1];
+    const SourceCharHairRootNode& bone = first_child_chain[i];
+    previous_point->length = bone.local_y;
+    previous_point->pos[0] = bone.world_pos[0];
+    previous_point->pos[1] = bone.world_pos[1];
+    previous_point->pos[2] = bone.world_pos[2];
+  }
+
+  CharHairPoint& back_point = strand.points.back();
+  if (len == 0.0f) {
+    len = previous_point != nullptr ? previous_point->length : 5.0f;
+  }
+  const SourceCharHairRootNode& back_bone = first_child_chain.back();
+  back_point.length = len;
+  back_point.pos[0] = back_bone.world_pos[0] + back_bone.world_y_axis[0] * len;
+  back_point.pos[1] = back_bone.world_pos[1] + back_bone.world_y_axis[1] * len;
+  back_point.pos[2] = back_bone.world_pos[2] + back_bone.world_y_axis[2] * len;
+}
+
 // ---------------------------------------------------------------------------
 // 4x4 helpers (row-vector convention, matching render::Mat4).
 // ---------------------------------------------------------------------------
