@@ -390,6 +390,14 @@ struct RuntimeIKMidiState {
       {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 };
 
+struct RuntimeIKHandMeasureState {
+  bool hand_changed = true;
+  bool has_elbow_chain = false;
+  float inv_2ab = 0.0f;
+  float a2_plus_b2 = 0.0f;
+  float aa_plus_bb = 0.0f;
+};
+
 struct FaceFxServoTarget {
   std::string object;
   int32_t prop_type = 0;
@@ -608,6 +616,8 @@ struct Character {
   // Trans world position into this row and uses it for the hand solve/stretch
   // write; it is controller state, not a per-frame authored bone local.
   std::map<std::string, std::array<float, 3>> runtime_ik_hand_targets;
+  std::map<std::string, RuntimeIKHandMeasureState>
+      runtime_ik_hand_measures;
   std::map<std::string, SourceCharHairRuntime> source_char_hair_runtime;
   // PS2 Trans controllers can submit live world rows through the shared
   // writer without replacing the authored local rows that later controllers

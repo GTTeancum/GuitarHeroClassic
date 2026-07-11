@@ -159,14 +159,13 @@ int main() {
                  "node_driven[i]=true;}}}",
                  "hand output applies authored constant bone_fret_hand rows");
   ok &= contains(char_clip_c,
-                 "staticvoidapply_source_ik_hands(Character&character,"
-                 "conststd::vector<milo_scene::Xfm>&bind_bones)",
+                 "staticvoidapply_source_ik_hands(Character&character)",
                  "source CharIKHand polling path is used");
   ok &= contains(char_clip_c,
                  "for(constCharIKHand&ik:character.ik_hands)",
                  "source CharIKHand polling uses decoded controller order");
   ok &= contains(char_clip_c,
-                 "apply_source_ik_hands(character,bind_bones);"
+                 "apply_source_ik_hands(character);"
                  "apply_source_fore_twists(character);"
                  "apply_char_hair(character,time_seconds);"
                  "apply_source_upper_twists(character,bind_bones);",

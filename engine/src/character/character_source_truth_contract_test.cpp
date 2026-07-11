@@ -2875,6 +2875,14 @@ int run_contract() {
                  "mWorldDst)-mInv2ab);ClampEq(loc210,-1.0f,1.0f);",
                  "RB3 CharIKHand source clamps IKElbow cosine");
   ok &= contains(rb3_char_ik_hand_cpp,
+                 "voidCharIKHand::SetHand(RndTransformable*t){mHand=t;"
+                 "mHandChanged=true;}",
+                 "RB3 CharIKHand source marks hand length cache dirty");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "voidCharIKHand::UpdateHand(){if(mScalable||mHandChanged){"
+                 "MeasureLengths();mHandChanged=false;}}",
+                 "RB3 CharIKHand source gates MeasureLengths updates");
+  ok &= contains(rb3_char_ik_hand_cpp,
                  "if(gRev>4)bs>>mFinger;elsemFinger=0;",
                  "RB3 CharIKHand source gates finger by revision");
   ok &= contains(rb3_char_ik_hand_cpp,
@@ -2900,6 +2908,15 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "boolclockwise=false;size_tunread_bytes=0;",
                  "native CharIKHand stores source tail bytes");
+  ok &= contains(char_mesh_h,
+                 "structRuntimeIKHandMeasureState{boolhand_changed=true;"
+                 "boolhas_elbow_chain=false;floatinv_2ab=0.0f;"
+                 "floata2_plus_b2=0.0f;floataa_plus_bb=0.0f;};",
+                 "native stores source CharIKHand length-cache state");
+  ok &= contains(char_mesh_h,
+                 "std::map<std::string,RuntimeIKHandMeasureState>"
+                 "runtime_ik_hand_measures;",
+                 "Character owns persistent source CharIKHand length caches");
   ok &= contains(char_mesh,
                  "if(hand.version>4)hand.finger=r.str();",
                  "native CharIKHand decoder follows source finger gate");
@@ -2938,6 +2955,10 @@ int run_contract() {
                  "floatparent_local_len);",
                  "native API exposes source CharIKHand MeasureLengths helper");
   ok &= contains(char_clip_h,
+                 "boolsource_char_ik_hand_update_measure_lengths("
+                 "boolscalable,bool&hand_changed);",
+                 "native API exposes source CharIKHand UpdateHand gate helper");
+  ok &= contains(char_clip_h,
                  "boolsource_char_ik_hand_elbow_cosine("
                  "constSourceCharIKHandMeasure&measure,floatdistance_squared,"
                  "float&out_cosine);",
@@ -2956,14 +2977,28 @@ int run_contract() {
                  "hand_local_len+parent_local_len;",
                  "native CharIKHand MeasureLengths helper mirrors source fields");
   ok &= contains(char_clip,
+                 "boolsource_char_ik_hand_update_measure_lengths("
+                 "boolscalable,bool&hand_changed){if(scalable||hand_changed){"
+                 "hand_changed=false;returntrue;}returnfalse;}",
+                 "native CharIKHand UpdateHand helper mirrors source gate");
+  ok &= contains(char_clip,
                  "out_cosine=measure.inv_2ab*(distance_squared-"
                  "measure.a2_plus_b2);out_cosine=std::clamp(out_cosine,"
                  "-1.0f,1.0f);",
                  "native CharIKHand IKElbow cosine helper mirrors source clamp");
   ok &= contains(char_clip,
-                 "constSourceCharIKHandMeasuresource_measure="
-                 "source_char_ik_hand_measure_lengths(true,fore_len,upper_len);",
-                 "runtime CharIKHand slice uses source MeasureLengths helper");
+                 "RuntimeIKHandMeasureState&measure_state="
+                 "character.runtime_ik_hand_measures[live_key];",
+                 "runtime CharIKHand slice uses persistent source length cache");
+  ok &= contains(char_clip,
+                 "source_char_ik_hand_update_measure_lengths("
+                 "ik.scalable,measure_state.hand_changed)",
+                 "runtime CharIKHand slice applies source UpdateHand gate");
+  ok &= contains(char_clip,
+                 "constfloatdist2=raw_dist*raw_dist;",
+                 "runtime CharIKHand slice feeds source cosine from raw distance squared");
+  ok &= missing(char_clip, "std::clamp(raw_dist",
+                "runtime CharIKHand slice does not pre-clamp distance before source cosine");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_ik_hand_source_test"
                  "character_ik_hand_source_test.cpp)",
@@ -2974,10 +3009,18 @@ int run_contract() {
   ok &= contains(ik_hand_source_test,
                  "source_char_ik_hand_elbow_cosine(measure,49.0f,cosine)",
                  "focused CharIKHand source test covers IKElbow max-reach scalar");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_update_measure_lengths("
+                 "false,hand_changed)",
+                 "focused CharIKHand source test covers UpdateHand clean gate");
   ok &= contains(doc,
                  "Native `source_char_ik_hand_measure_lengths` and\n"
                  "    `source_char_ik_hand_elbow_cosine` port the source",
                  "document records native CharIKHand MeasureLengths slice");
+  ok &= contains(doc,
+                 "`source_char_ik_hand_update_measure_lengths` mirrors "
+                 "`SetHand` /",
+                 "document records native CharIKHand UpdateHand cache slice");
   ok &= contains(bind_audit, "boolshould_dump_controllers(intargc,char**argv)",
                  "bind audit exposes controller inventory switch");
   ok &= contains(bind_audit,
@@ -3123,7 +3166,7 @@ int run_contract() {
                  "std::atan2(clamped2,clamped)+bias",
                  "native CharForeTwist port keeps source angle basis and bias");
   ok &= contains(char_clip,
-                 "apply_source_ik_hands(character,bind_bones);"
+                 "apply_source_ik_hands(character);"
                  "apply_source_fore_twists(character);"
                  "apply_char_hair(character,time_seconds);"
                  "apply_source_upper_twists(character,bind_bones);",

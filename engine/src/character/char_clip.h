@@ -420,6 +420,8 @@ SourceCharIKHandMeasure source_char_ik_hand_measure_lengths(
     bool has_elbow_chain,
     float hand_local_len,
     float parent_local_len);
+bool source_char_ik_hand_update_measure_lengths(bool scalable,
+                                                bool& hand_changed);
 bool source_char_ik_hand_elbow_cosine(
     const SourceCharIKHandMeasure& measure,
     float distance_squared,

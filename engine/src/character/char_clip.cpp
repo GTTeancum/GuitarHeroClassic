@@ -2171,6 +2171,15 @@ SourceCharIKHandMeasure source_char_ik_hand_measure_lengths(
   return out;
 }
 
+bool source_char_ik_hand_update_measure_lengths(bool scalable,
+                                                bool& hand_changed) {
+  if (scalable || hand_changed) {
+    hand_changed = false;
+    return true;
+  }
+  return false;
+}
+
 bool source_char_ik_hand_elbow_cosine(
     const SourceCharIKHandMeasure& measure,
     float distance_squared,
@@ -3062,8 +3071,7 @@ static float effective_ik_hand_target_blend_weight(const Character& character,
   return effective_ik_hand_solver_weight(character, ik);
 }
 
-static void apply_source_ik_hands(
-    Character& character, const std::vector<milo_scene::Xfm>& bind_bones) {
+static void apply_source_ik_hands(Character& character) {
   // Port of ihatecompvir's CharIKHand::Poll/IKElbow dataflow: resolve the
   // authored hand/target Trans rows, blend mWorldDst, solve the elbow chain,
   // then publish the final hand world row when orientation or stretch is set.
@@ -3121,31 +3129,37 @@ static void apply_source_ik_hands(
     target_world[12] = target.x;
     target_world[13] = target.y;
     target_world[14] = target.z;
-    const milo_scene::Xfm& fore_setup =
-        (static_cast<size_t>(fore_i) < bind_bones.size())
-            ? bind_bones[static_cast<size_t>(fore_i)]
-            : fore.local;
-    const milo_scene::Xfm& hand_setup =
-        (static_cast<size_t>(hand_i) < bind_bones.size())
-            ? bind_bones[static_cast<size_t>(hand_i)]
-            : hand.local;
+    RuntimeIKHandMeasureState& measure_state =
+        character.runtime_ik_hand_measures[live_key];
+    if (source_char_ik_hand_update_measure_lengths(
+            ik.scalable, measure_state.hand_changed)) {
+      const float hand_local_len =
+          vlen({hand.local.pos[0], hand.local.pos[1], hand.local.pos[2]});
+      const float parent_local_len =
+          vlen({fore.local.pos[0], fore.local.pos[1], fore.local.pos[2]});
+      const SourceCharIKHandMeasure measured =
+          source_char_ik_hand_measure_lengths(true, hand_local_len,
+                                              parent_local_len);
+      measure_state.has_elbow_chain = measured.has_elbow_chain;
+      measure_state.inv_2ab = measured.inv_2ab;
+      measure_state.a2_plus_b2 = measured.a2_plus_b2;
+      measure_state.aa_plus_bb = measured.aa_plus_bb;
+    }
+    SourceCharIKHandMeasure source_measure;
+    source_measure.has_elbow_chain = measure_state.has_elbow_chain;
+    source_measure.inv_2ab = measure_state.inv_2ab;
+    source_measure.a2_plus_b2 = measure_state.a2_plus_b2;
+    source_measure.aa_plus_bb = measure_state.aa_plus_bb;
+    const float reach_sum = std::max(0.001f, source_measure.aa_plus_bb);
     const float upper_len = std::max(
-        0.001f, vlen({fore_setup.pos[0], fore_setup.pos[1],
-                      fore_setup.pos[2]}));
-    const float authored_fore_len = std::max(
-        0.001f, vlen({hand_setup.pos[0], hand_setup.pos[1],
-                      hand_setup.pos[2]}));
-    float fore_len = authored_fore_len;
+        0.001f, vlen({fore.local.pos[0], fore.local.pos[1],
+                      fore.local.pos[2]}));
+    const float fore_len = std::max(0.001f, reach_sum - upper_len);
     const Vec3 to_target = vsub(target, shoulder);
     const float raw_dist = vlen(to_target);
     // `stretch` is the final CharIKHand hand-world write. It does not rewrite
     // the hand child local length used by IKElbow or later foretwist rows.
-    const float max_reach = upper_len + fore_len - 0.001f;
-    const float min_reach = std::fabs(upper_len - fore_len) + 0.001f;
-    const float dist = std::clamp(raw_dist, min_reach, max_reach);
-    const float dist2 = dist * dist;
-    const SourceCharIKHandMeasure source_measure =
-        source_char_ik_hand_measure_lengths(true, fore_len, upper_len);
+    const float dist2 = raw_dist * raw_dist;
     float cos_elbow = 0.0f;
     if (!source_char_ik_hand_elbow_cosine(source_measure, dist2,
                                           cos_elbow)) {
@@ -3241,12 +3255,15 @@ static void apply_source_ik_hands(
                    ik.name.c_str(), swing_quat[0], swing_quat[1],
                    swing_quat[2], swing_quat[3]);
       std::fprintf(stderr,
-                   "[ik-solve-len] %s upper=%.5f authoredFore=%.5f "
-                   "fore=%.5f\n",
-                   ik.name.c_str(), upper_len, authored_fore_len, fore_len);
+                   "[ik-solve-len] %s upper=%.5f reachSum=%.5f "
+                   "fore=%.5f scalable=%d handChanged=%d cached=%d\n",
+                   ik.name.c_str(), upper_len, source_measure.aa_plus_bb,
+                   fore_len, ik.scalable ? 1 : 0,
+                   measure_state.hand_changed ? 1 : 0,
+                   source_measure.has_elbow_chain ? 1 : 0);
       std::fprintf(stderr,
-                   "[ik-solve-dist] %s raw=%.5f dist=%.5f cos=%.5f\n",
-                   ik.name.c_str(), raw_dist, dist, cos_elbow);
+                   "[ik-solve-dist] %s raw=%.5f dist2=%.5f cos=%.5f\n",
+                   ik.name.c_str(), raw_dist, dist2, cos_elbow);
       std::fprintf(stderr,
                    "[ik-solve-flags] %s stretch=%d orient=%d final=%d\n",
                    ik.name.c_str(), ik.stretch ? 1 : 0,
@@ -4206,7 +4223,7 @@ void apply_character_controllers(Character& character, float time_seconds,
     for (const auto& b : character.bones) bind_bones.push_back(b.local);
   }
   apply_source_weight_setters(character, 0.0f);
-  apply_source_ik_hands(character, bind_bones);
+  apply_source_ik_hands(character);
   apply_source_fore_twists(character);
   apply_char_hair(character, time_seconds);
   apply_source_upper_twists(character, bind_bones);

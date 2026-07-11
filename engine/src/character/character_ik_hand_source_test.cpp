@@ -28,6 +28,7 @@ int main() {
   using ghogx::character::SourceCharIKHandMeasure;
   using ghogx::character::source_char_ik_hand_elbow_cosine;
   using ghogx::character::source_char_ik_hand_measure_lengths;
+  using ghogx::character::source_char_ik_hand_update_measure_lengths;
 
   bool ok = true;
 
@@ -62,6 +63,20 @@ int main() {
   ok &= expect_bool(source_char_ik_hand_elbow_cosine(measure, -1000.0f, cosine),
                     true, "source low clamp accepted");
   ok &= expect_float(cosine, -1.0f, "source low clamp");
+
+  bool hand_changed = true;
+  ok &= expect_bool(source_char_ik_hand_update_measure_lengths(
+                        false, hand_changed),
+                    true, "initial hand change measures");
+  ok &= expect_bool(hand_changed, false, "initial hand change clears");
+  ok &= expect_bool(source_char_ik_hand_update_measure_lengths(
+                        false, hand_changed),
+                    false, "non-scalable stable skips measure");
+  ok &= expect_bool(hand_changed, false, "stable hand remains clear");
+  ok &= expect_bool(source_char_ik_hand_update_measure_lengths(
+                        true, hand_changed),
+                    true, "scalable hand measures every poll");
+  ok &= expect_bool(hand_changed, false, "scalable measure leaves clear");
 
   std::printf("character_ik_hand_source_test %s\n", ok ? "OK" : "FAIL");
   return ok ? 0 : 1;
