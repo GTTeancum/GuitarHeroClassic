@@ -1545,34 +1545,11 @@ static float effective_ik_hand_solver_weight(const Character& character,
     const auto runtime = character.runtime_weight_props.find(ik.weight_prop);
     if (runtime != character.runtime_weight_props.end()) {
       // MIDI hand-driver code writes the live left/right scalar each tick.
-      // That live row overrides serialized WeightSetter defaults such as the
-      // zeroed rows found on Deathmetal1's graph.
+      // That live row overrides the decoded CharIKHand weight.
       return std::clamp(runtime->second, 0.0f, 1.0f);
     }
   }
-
-  bool has_weight_row = false;
-  float row_weight = 0.0f;
-  for (const auto& setter : character.weight_setters) {
-    if ((!ik.weight_prop.empty() &&
-         (setter.name == ik.weight_prop ||
-          setter.weight_prop == ik.weight_prop)) ||
-        setter.name == ik.name) {
-      has_weight_row = true;
-      row_weight = std::max(row_weight, setter.weight);
-    }
-  }
-  if (has_weight_row) {
-    return std::clamp(row_weight, 0.0f, 1.0f);
-  }
-
-  float weight = ik.weight;
-  for (const auto& driver : character.drivers) {
-    if (ik.weight_prop.empty() || driver.weight_prop != ik.weight_prop)
-      continue;
-    weight = std::max(weight, driver.weight);
-  }
-  return std::clamp(weight, 0.0f, 1.0f);
+  return std::clamp(ik.weight, 0.0f, 1.0f);
 }
 
 static float effective_ik_hand_target_blend_weight(const Character& character,

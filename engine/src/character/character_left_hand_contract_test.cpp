@@ -124,8 +124,18 @@ int main() {
                  "if(fixed_dt>0.0f)dt=fixed_dt;",
                  "character viewer fixed-dt capture cannot drift under debug logging");
   ok &= contains(app_main_c,
-                 "char_offset,fixed_dt);",
+                 "char_offset,fixed_dt,character_controllers);",
                  "parsed fixed dt reaches character viewer proof path");
+  ok &= contains(app_main_c,
+                 "--no-character-controllers",
+                 "character viewer exposes a raw-bind diagnostic controller gate");
+  ok &= contains(app_main_c,
+                 "if(!character_controllers){std::fprintf(stderr,"
+                 "\"[char]charactercontrollersdisabledfordiagnosticcapture\\n\");}",
+                 "raw-bind diagnostic captures log controller suppression");
+  ok &= contains(app_main_c,
+                 "if(character_controllers){",
+                 "character controllers stay opt-in only for the diagnostic gate");
 
   ok &= contains(char_clip_c,
                  "returnkey==\"bone_fret\"||key==\"bone_fret_hand\"||"
@@ -161,11 +171,12 @@ int main() {
                  "apply_char_hair(character,time_seconds);"
                  "apply_source_upper_twists(character,bind_bones);",
                  "upper twists stay after CharHair per accepted PS2 cadence");
-  ok &= appears_before(
+  ok &= contains(
       solver_weight_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",
-      "for(constauto&setter:character.weight_setters)",
-      "live MIDI IK weight overrides serialized WeightSetter rows");
+      "live MIDI IK weight is consulted first");
+  ok &= lacks(solver_weight_c, "character.weight_setters",
+              "unpolled WeightSetter rows must not drive CharIKHand weight");
   ok &= appears_before(
       target_blend_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",
@@ -192,7 +203,9 @@ int main() {
                        "MIDI fret target is applied before CharIKHand solve");
   ok &= contains(app_main_c,
                  "ghogx::character::clear_runtime_ik_weights("
-                 "renderer.character());if(viewer_hand_ik_weights_active)",
+                 "renderer.character());"
+                 "ghogx::character::FaceFxEyePropertieseye_props;"
+                 "if(character_controllers){",
                  "character viewer clears stale IK weights every frame");
   ok &= lacks(app_main_c,
               "set_runtime_ik_weight(renderer.character(),ik.weight_prop,0.0f)",
@@ -227,6 +240,9 @@ int main() {
   ok &= contains(char_clip_c,
                  "blend=%.3f",
                  "MIDI fret-position target logs the resolved blend width");
+  ok &= contains(char_clip_c,
+                 "returnstd::clamp(ik.weight,0.0f,1.0f);",
+                 "hand IK falls back to the decoded CharIKHand weight, not unpolled WeightSetter defaults");
   ok &= contains(gameplay_c,
                  "\"[hand-active-fret-prop]phase=%.*srole=%.*s\"",
                  "left-hand prop diagnostics log the active fret target");

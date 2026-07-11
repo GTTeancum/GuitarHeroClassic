@@ -1093,7 +1093,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& face_clip_arg = "",
                   const std::string& char_scene_milo = "",
                   const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f},
-                  float fixed_dt = 0.0f) {
+                  float fixed_dt = 0.0f,
+                  bool character_controllers = true) {
   ghogx::character::Character character;
   if (!ghogx::character::load_character(hdr, ark, milo_path, character)) {
     std::fprintf(stderr, "[char] failed to load %s\n", milo_path.c_str());
@@ -1401,6 +1402,9 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   if (fixed_dt > 0.0f) {
     std::fprintf(stderr, "[char] fixed dt enabled: %.6f\n", fixed_dt);
   }
+  if (!character_controllers) {
+    std::fprintf(stderr, "[char] character controllers disabled for diagnostic capture\n");
+  }
   if (clip_frame_override >= 0) {
     std::fprintf(stderr, "[char] clip-frame override enabled: %d\n",
                  clip_frame_override);
@@ -1476,21 +1480,23 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     // EyesClosed, Blink, and EyeZCombiner are graph scalar channels, not
     // standalone transform poses.
     ghogx::character::clear_runtime_ik_weights(renderer.character());
-    if (viewer_hand_ik_weights_active) {
-      if (right_hand_weight_override || strum_clip.loaded) {
-        ghogx::character::set_runtime_ik_weight(renderer.character(),
-                                                "right.weight",
-                                                right_hand_weight);
-      }
-      if (left_hand_weight_override || fret_clip.loaded) {
-        ghogx::character::set_runtime_ik_weight(renderer.character(),
-                                                "left.weight",
-                                                left_hand_weight);
-      }
-    }
     ghogx::character::FaceFxEyeProperties eye_props;
-    ghogx::character::apply_character_controllers(
-        renderer.character(), static_cast<float>(pose_time), &eye_props);
+    if (character_controllers) {
+      if (viewer_hand_ik_weights_active) {
+        if (right_hand_weight_override || strum_clip.loaded) {
+          ghogx::character::set_runtime_ik_weight(renderer.character(),
+                                                  "right.weight",
+                                                  right_hand_weight);
+        }
+        if (left_hand_weight_override || fret_clip.loaded) {
+          ghogx::character::set_runtime_ik_weight(renderer.character(),
+                                                  "left.weight",
+                                                  left_hand_weight);
+        }
+      }
+      ghogx::character::apply_character_controllers(
+          renderer.character(), static_cast<float>(pose_time), &eye_props);
+    }
 
     if (const auto viseme_frame = env_int("GHOGX_FACEFX_VISEME_FRAME")) {
       const float viseme_weight =
@@ -1545,6 +1551,7 @@ int main(int argc, char** argv) {
   std::string face_clip_arg;
   std::array<float, 3> char_offset = {0.0f, 0.0f, 0.0f};
   int clip_frame_override = -1;  // --clip-frame N: force anim frame N (no time playback)
+  bool character_controllers = true;
   bool hud_test = false;   // --hud-test: draw the in-song HUD overlay only
   HudTestOptions hud_test_options;
   bool hud_options_requested = false;
@@ -1671,6 +1678,8 @@ int main(int argc, char** argv) {
       screenshot_sequence_frames_arg = argv[++i];
     } else if (std::strcmp(argv[i], "--fixed-dt") == 0 && i + 1 < argc) {
       fixed_dt = static_cast<float>(std::atof(argv[++i]));
+    } else if (std::strcmp(argv[i], "--no-character-controllers") == 0) {
+      character_controllers = false;
     } else if (std::strcmp(argv[i], "--cam-yaw") == 0 && i + 1 < argc) {
       cam_ovr.yaw = static_cast<float>(std::atof(argv[++i])); cam_ovr.has_yaw = true;
     } else if (std::strcmp(argv[i], "--cam-pitch") == 0 && i + 1 < argc) {
@@ -1749,7 +1758,7 @@ int main(int argc, char** argv) {
                          screenshot_frame, max_frames, cam_ovr, char_clip_arg,
                          clip_frame_override, guitar_milo, strum_clip_arg,
                          fret_clip_arg, face_clip_arg, char_scene_milo,
-                         char_offset, fixed_dt);
+                         char_offset, fixed_dt, character_controllers);
   }
 
   // --hud-test: dedicated in-song HUD overlay preview (own window + loop).
