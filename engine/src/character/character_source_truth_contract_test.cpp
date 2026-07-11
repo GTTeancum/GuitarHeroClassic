@@ -3192,6 +3192,10 @@ int run_contract() {
                  "    `mRawData[mTotalSize * sample]` and split weight",
                  "document records concrete CharBonesSamples interpolation source");
   ok &= contains(doc,
+                 "Native `source_char_bones_samples_rotate_to_steps` and\n"
+                 "    `source_char_bones_samples_scale_add_steps` are named wrappers",
+                 "document records named CharBonesSamples split wrappers");
+  ok &= contains(doc,
                  "Native `source_char_clip_beat_align_string` ports the "
                  "concrete\n    `CharClip::BeatAlignString` body",
                  "document records concrete CharClip BeatAlignString slice");
@@ -3307,6 +3311,18 @@ int run_contract() {
                  "floatweight,floatfrac);",
                  "native API exposes source CharBonesSamples split-step helper");
   ok &= contains(char_clip_h,
+                 "std::vector<SourceCharBonesSampleStep>"
+                 "source_char_bones_samples_rotate_to_steps("
+                 "constSourceCharBonesSamplesState&samples,intsample,"
+                 "floatangle,floatfrac);",
+                 "native API exposes source CharBonesSamples RotateTo helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<SourceCharBonesSampleStep>"
+                 "source_char_bones_samples_scale_add_steps("
+                 "constSourceCharBonesSamplesState&samples,intsample,"
+                 "floatweight,floatfrac);",
+                 "native API exposes source CharBonesSamples ScaleAddSample helper");
+  ok &= contains(char_clip_h,
                  "boolsource_char_bones_samples_set_ver_known(intversion);",
                  "native API exposes source CharBonesSamples SetVer helper");
   ok &= contains(char_clip_h,
@@ -3403,6 +3419,22 @@ int run_contract() {
                  "returnsteps;}",
                  "native CharBonesSamples split-step helper mirrors source row offsets");
   ok &= contains(char_clip,
+                 "std::vector<SourceCharBonesSampleStep>"
+                 "source_char_bones_samples_rotate_to_steps("
+                 "constSourceCharBonesSamplesState&samples,intsample,"
+                 "floatangle,floatfrac){return"
+                 "source_char_bones_samples_split_steps(samples,sample,angle,"
+                 "frac);}",
+                 "native CharBonesSamples RotateTo helper delegates source split");
+  ok &= contains(char_clip,
+                 "std::vector<SourceCharBonesSampleStep>"
+                 "source_char_bones_samples_scale_add_steps("
+                 "constSourceCharBonesSamplesState&samples,intsample,"
+                 "floatweight,floatfrac){return"
+                 "source_char_bones_samples_split_steps(samples,sample,weight,"
+                 "frac);}",
+                 "native CharBonesSamples ScaleAddSample helper delegates source split");
+  ok &= contains(char_clip,
                  "boolsource_char_bones_samples_set_ver_known(intversion){"
                  "returnversion<13;}",
                  "native CharBonesSamples SetVer helper mirrors source legacy range");
@@ -3472,6 +3504,14 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_samples_split_steps(samples,1,1.0f,0.25f)",
                  "focused CharBones source test covers CharBonesSamples split steps");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_rotate_to_steps(samples,2,2.0f,"
+                 "0.25f)",
+                 "focused CharBones source test covers CharBonesSamples RotateTo helper");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_scale_add_steps(samples,0,0.5f,"
+                 "0.0f)",
+                 "focused CharBones source test covers CharBonesSamples ScaleAddSample helper");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_samples_load_version_known(12)",
                  "focused CharBones source test covers low sample version reject");

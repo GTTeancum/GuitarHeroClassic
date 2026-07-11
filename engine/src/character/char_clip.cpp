@@ -297,6 +297,23 @@ std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
   return steps;
 }
 
+std::vector<SourceCharBonesSampleStep> source_char_bones_samples_rotate_to_steps(
+    const SourceCharBonesSamplesState& samples,
+    int sample,
+    float angle,
+    float frac) {
+  return source_char_bones_samples_split_steps(samples, sample, angle, frac);
+}
+
+std::vector<SourceCharBonesSampleStep>
+source_char_bones_samples_scale_add_steps(
+    const SourceCharBonesSamplesState& samples,
+    int sample,
+    float weight,
+    float frac) {
+  return source_char_bones_samples_split_steps(samples, sample, weight, frac);
+}
+
 bool source_char_bones_samples_set_ver_known(int version) {
   return version < 13;
 }

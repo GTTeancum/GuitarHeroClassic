@@ -352,6 +352,17 @@ std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
     int sample,
     float weight,
     float frac);
+std::vector<SourceCharBonesSampleStep> source_char_bones_samples_rotate_to_steps(
+    const SourceCharBonesSamplesState& samples,
+    int sample,
+    float angle,
+    float frac);
+std::vector<SourceCharBonesSampleStep>
+source_char_bones_samples_scale_add_steps(
+    const SourceCharBonesSamplesState& samples,
+    int sample,
+    float weight,
+    float frac);
 bool source_char_bones_samples_set_ver_known(int version);
 bool source_char_bones_samples_load_version_known(int version);
 

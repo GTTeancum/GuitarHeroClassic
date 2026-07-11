@@ -1021,7 +1021,11 @@ note, and all report `unreadBytes=0`.
     bodies for valid sample rows: allocation is `totalSize * numSamples`,
     preview stores the clamped sample and selected row offset, and split steps
     report the source `i` / `i + 1` row offsets and `(1 - frac)` / `frac`
-    weights. Empty sample rows remain fenced because the source body assumes an
+    weights. Native `source_char_bones_samples_rotate_to_steps` and
+    `source_char_bones_samples_scale_add_steps` are named wrappers for the
+    source `RotateTo` and `ScaleAddSample` call shapes only; they do not add
+    new pose math beyond the upstream split-step flow.
+    Empty sample rows remain fenced because the source body assumes an
     allocated packed row buffer.
 - `rb3-latest/src/system/char/CharClip.cpp` is concrete for clip resource
   context, `StuffBones`, `PoseMeshes`, play/clip flags, beat-event loading, and

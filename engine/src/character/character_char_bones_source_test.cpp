@@ -361,6 +361,24 @@ int main() {
                    "samples split blended second offset");
   ok &= expect_float(two_steps[1].weight, 0.25f,
                      "samples split blended second weight");
+  const std::vector<SourceCharBonesSampleStep> rotate_steps =
+      source_char_bones_samples_rotate_to_steps(samples, 2, 2.0f, 0.25f);
+  ok &= expect_size(rotate_steps.size(), 2, "samples RotateTo count");
+  ok &= expect_int(rotate_steps[0].start_offset, 64,
+                   "samples RotateTo first offset");
+  ok &= expect_float(rotate_steps[0].weight, 1.5f,
+                     "samples RotateTo first angle");
+  ok &= expect_int(rotate_steps[1].start_offset, 96,
+                   "samples RotateTo second offset");
+  ok &= expect_float(rotate_steps[1].weight, 0.5f,
+                     "samples RotateTo second angle");
+  const std::vector<SourceCharBonesSampleStep> scale_steps =
+      source_char_bones_samples_scale_add_steps(samples, 0, 0.5f, 0.0f);
+  ok &= expect_size(scale_steps.size(), 1, "samples ScaleAddSample count");
+  ok &= expect_int(scale_steps[0].start_offset, 0,
+                   "samples ScaleAddSample first offset");
+  ok &= expect_float(scale_steps[0].weight, 0.5f,
+                     "samples ScaleAddSample first weight");
   ok &= expect_int(source_char_bones_samples_load_version_known(12) ? 1 : 0, 0,
                    "samples load version low rejected");
   ok &= expect_int(source_char_bones_samples_load_version_known(13) ? 1 : 0, 1,
