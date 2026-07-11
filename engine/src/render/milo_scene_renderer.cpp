@@ -565,7 +565,7 @@ MiloSceneRenderer::MeshTransformSample sample_transform_anim(
     sample.has_rotation = true;
     sample.rotation_xyzw = sample_rotation_value(anim.rotation_keys, frame);
   }
-  if (anim.scale_keys.size() >= 2) {
+  if (!anim.scale_keys.empty()) {
     sample.has_scale = true;
     sample.scale = sample_scale_ratio(anim.scale_keys, frame);
   }

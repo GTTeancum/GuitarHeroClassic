@@ -5883,6 +5883,10 @@ int main() {
                  "sample.rotation_xyzw=sample_rotation_value(anim.rotation_keys,frame);",
                  "one-shot renderer TransAnim rotations use source-shaped local delta quaternions");
   ok &= contains(renderer_c,
+                 "if(!anim.scale_keys.empty()){sample.has_scale=true;"
+                 "sample.scale=sample_scale_ratio(anim.scale_keys,frame);}",
+                 "one-shot renderer TransAnim samples authored one-key scale channels");
+  ok &= contains(renderer_c,
                  "a.translation_keys.size()<2&&a.rotation_keys.empty()&&"
                  "a.scale_keys.size()<2",
                  "one-shot renderer TransAnim keeps single-key rotation channels");
@@ -5922,6 +5926,14 @@ int main() {
   ok &= contains(gameplay_c,
                  "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
                  "source-shaped TransAnim decoder keeps authored scale keys");
+  ok &= contains(gameplay_c,
+                 "if(!anim.scale_keys.empty()){sample.has_scale=true;"
+                 "sample.scale=sample_scale_ratio(anim.scale_keys,frame);}",
+                 "venue TransAnim playback samples authored one-key scale channels");
+  ok &= absent(gameplay_c,
+               "if(anim.scale_keys.size()>=2){sample.has_scale=true;"
+               "sample.scale=sample_scale_ratio(anim.scale_keys,frame);}",
+               "venue TransAnim playback must not drop one-key scale channels");
   ok &= contains(gameplay_c,
                  "if(trans_count>2048){",
                  "source-shaped TransAnim decoder allows rotation-only venue anims");
