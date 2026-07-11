@@ -857,6 +857,23 @@ CharPosConstraint decode_pos_constraint(const std::string& entry_name,
   return constraint;
 }
 
+CharBoneOffset decode_bone_offset(const std::string& entry_name,
+                                  const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  CharBoneOffset offset;
+  offset.name = entry_name;
+  offset.version = r.i32();
+  if (offset.version < 0 || offset.version > 1) {
+    throw std::runtime_error(
+        "char_mesh: CharBoneOffset revision outside source range");
+  }
+  read_object_fields(r);
+  offset.dest = r.str();
+  for (float& v : offset.offset) v = r.f32();
+  offset.unread_bytes = r.n - r.pos;
+  return offset;
+}
+
 CharLookAt decode_lookat(const std::string& entry_name,
                          const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
@@ -1770,6 +1787,8 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           out.collides.push_back(decode_collide(de.name, b));
         } else if (de.type == "CharPosConstraint") {
           out.pos_constraints.push_back(decode_pos_constraint(de.name, b));
+        } else if (de.type == "CharBoneOffset") {
+          out.bone_offsets.push_back(decode_bone_offset(de.name, b));
         } else if (de.type == "FaceFxLipSyncServo") {
           out.lip_sync_servos.push_back(decode_lip_sync_servo(de.name, b));
         } else if (de.type == "AnimFilter") {
@@ -1796,7 +1815,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  "[char] %s: %zu meshes (%d ok / %d fail), %zu bones, %zu mat, "
                  "%zu group, %zu upperTwist, %zu foreTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
                  "%zu servoBone, %zu lookAt, %zu eyes, %zu hair, %zu collide, "
-                 "%zu posConstraint, %zu lipServo, %zu animFilter, "
+                 "%zu posConstraint, %zu boneOffset, %zu lipServo, %zu animFilter, "
                  "%zu eventTrigger, %zu object, %zu tex, %zu driver, "
                  "%zu weightSetter\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
@@ -1806,6 +1825,7 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
                  out.servo_bones.size(), out.lookats.size(), out.eyes.size(),
                  out.hairs.size(), out.collides.size(),
                  out.pos_constraints.size(),
+                 out.bone_offsets.size(),
                  out.lip_sync_servos.size(), out.anim_filters.size(),
                  out.event_triggers.size(),
                  out.object_rows.size(),

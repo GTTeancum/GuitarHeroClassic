@@ -83,6 +83,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_char_utl_source_test.cpp"));
   const std::string ik_rod_source_test =
       compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
+  const std::string bone_offset_source_test =
+      compact(read_file(char_dir / "character_bone_offset_source_test.cpp"));
   const std::string weight_setter_source_test =
       compact(read_file(char_dir / "character_weight_setter_source_test.cpp"));
   const std::string char_hair_source_test =
@@ -233,6 +235,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharPosConstraint.cpp"));
   const std::string rb3_latest_char_pos_constraint_h = compact(read_file(
       rb3_latest_char_dir / "CharPosConstraint.h"));
+  const std::string rb3_latest_char_bone_offset_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharBoneOffset.cpp"));
+  const std::string rb3_latest_char_bone_offset_h = compact(read_file(
+      rb3_latest_char_dir / "CharBoneOffset.h"));
   const std::string rb3_latest_char_bones_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBones.cpp"));
   const std::string rb3_latest_char_bones_h = compact(read_file(
@@ -2543,6 +2549,90 @@ int run_contract() {
   ok &= contains(doc,
                  "Grim's `hems.pcon` names `source=grim`",
                  "document records stock Grim CharPosConstraint boundary");
+  ok &= contains(rb3_latest_char_bone_offset_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mDest;",
+                 "latest CharBoneOffset header exposes destination pointer");
+  ok &= contains(rb3_latest_char_bone_offset_h,
+                 "Vector3mOffset;",
+                 "latest CharBoneOffset header exposes offset vector");
+  ok &= contains(rb3_latest_char_bone_offset_cpp,
+                 "ASSERT_REVS(1,0);Hmx::Object::Load(bs);bs>>mDest;bs>>mOffset;",
+                 "CharBoneOffset source load reads object, dest, and offset");
+  ok &= contains(rb3_latest_char_bone_offset_cpp,
+                 "if(!mDest||!mDest->TransParent())return;",
+                 "CharBoneOffset source poll returns when dest or parent is missing");
+  ok &= contains(rb3_latest_char_bone_offset_cpp,
+                 "Transformtf(mDest->LocalXfm());tf.v+=mOffset;TransformtRes;"
+                 "Multiply(tf,mDest->TransParent()->WorldXfm(),tRes);"
+                 "mDest->SetWorldXfm(tRes);",
+                 "CharBoneOffset source poll offsets local then multiplies parent world");
+  ok &= contains(rb3_latest_char_bone_offset_cpp,
+                 "if(mDest)mDest->DirtyLocalXfm().v+=mOffset;",
+                 "CharBoneOffset source ApplyToLocal offsets local row");
+  ok &= contains(char_mesh_h,
+                 "structCharBoneOffset{std::stringname;int32_tversion=0;"
+                 "std::stringdest;floatoffset[3]={0.0f,0.0f,0.0f};",
+                 "native CharBoneOffset stores source fields");
+  ok &= contains(char_mesh_h,
+                 "std::vector<CharBoneOffset>bone_offsets;",
+                 "native Character stores decoded CharBoneOffset rows");
+  ok &= contains(char_mesh,
+                 "CharBoneOffsetdecode_bone_offset("
+                 "conststd::string&entry_name,conststd::vector<uint8_t>&body)",
+                 "native CharBoneOffset decoder exists");
+  ok &= contains(char_mesh,
+                 "offset.version=r.i32();if(offset.version<0||"
+                 "offset.version>1)",
+                 "native CharBoneOffset decoder enforces source revision range");
+  ok &= contains(char_mesh,
+                 "read_object_fields(r);offset.dest=r.str();"
+                 "for(float&v:offset.offset)v=r.f32();",
+                 "native CharBoneOffset decoder follows source field order");
+  ok &= contains(char_mesh,
+                 "out.bone_offsets.push_back(decode_bone_offset(de.name,b));",
+                 "character load stores decoded CharBoneOffset rows");
+  ok &= contains(bind_audit,
+                 "\"[controller-bone-offset]char=%sname=%sversion=%ddest=%s",
+                 "controller audit logs CharBoneOffset rows");
+  ok &= contains(bind_audit,
+                 "boneOffset=%zuanimFilter=%zueventTrigger=%zu\\n",
+                 "controller summary logs CharBoneOffset row count");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_bone_offset_poll_world("
+                 "constCharBoneOffset&offset,boolhas_dest,boolhas_parent,",
+                 "native header exposes CharBoneOffset Poll helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bone_offset_apply_to_local("
+                 "constCharBoneOffset&offset,milo_scene::Xfm&dest_local);",
+                 "native header exposes CharBoneOffset ApplyToLocal helper");
+  ok &= contains(char_clip,
+                 "if(!has_dest||!has_parent)returnfalse;",
+                 "native CharBoneOffset helper mirrors source early return");
+  ok &= contains(char_clip,
+                 "local.pos[0]+=offset.offset[0];local.pos[1]+="
+                 "offset.offset[1];local.pos[2]+=offset.offset[2];",
+                 "native CharBoneOffset helper offsets local translation");
+  ok &= contains(char_clip,
+                 "dest_world=mat4_mul(source_xfm_to_mat4(local),parent_world);",
+                 "native CharBoneOffset helper multiplies adjusted local by parent world");
+  ok &= contains(char_clip,
+                 "\"[chargraph]boneOffset%sversion=%ddest=%s\"",
+                 "character graph logs CharBoneOffset rows");
+  ok &= contains(bone_offset_source_test,
+                 "source_char_bone_offset_poll_world(",
+                 "focused CharBoneOffset source test covers Poll helper");
+  ok &= contains(bone_offset_source_test,
+                 "source_char_bone_offset_apply_to_local(offset,local);",
+                 "focused CharBoneOffset source test covers ApplyToLocal helper");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharBoneOffset.cpp` and",
+                 "document cites latest CharBoneOffset source");
+  ok &= contains(doc,
+                 "`CharBoneOffset::Poll` returns immediately",
+                 "document records CharBoneOffset Poll boundary");
+  ok &= contains(doc,
+                 "`source_char_bone_offset_poll_world`",
+                 "document records native CharBoneOffset helper port");
   ok &= contains(rb3_char_lookat_cpp, "mPivot->SetWorldXfm(tf90);",
                  "RB3 CharLookAt poll writes the pivot transform");
   ok &= contains(rb3_char_lookat_cpp, "RndTransformable*srcTrans=GetSource();",
@@ -3382,6 +3472,10 @@ int run_contract() {
                  "add_executable(ghogx_character_ik_rod_source_test"
                  "character_ik_rod_source_test.cpp)",
                  "CMake builds focused CharIKRod source test");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_bone_offset_source_test"
+                 "character_bone_offset_source_test.cpp)",
+                 "CMake builds focused CharBoneOffset source test");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_weight_setter_source_test"
                  "character_weight_setter_source_test.cpp)",

@@ -363,6 +363,14 @@ struct CharPosConstraint {
   float box_max[3] = {-1.0f, -1.0f, 1000.0f};
 };
 
+struct CharBoneOffset {
+  std::string name;
+  int32_t version = 0;
+  std::string dest;
+  float offset[3] = {0.0f, 0.0f, 0.0f};
+  size_t unread_bytes = 0;
+};
+
 struct RuntimeIKMidiState {
   bool initialized = false;
   std::string active_spot;
@@ -573,6 +581,7 @@ struct Character {
   std::vector<CharHair> hairs;
   std::vector<CharCollide> collides;
   std::vector<CharPosConstraint> pos_constraints;
+  std::vector<CharBoneOffset> bone_offsets;
   std::vector<FaceFxLipSyncServo> lip_sync_servos;
   std::vector<RndAnimFilter> anim_filters;
   std::vector<EventTrigger> event_triggers;

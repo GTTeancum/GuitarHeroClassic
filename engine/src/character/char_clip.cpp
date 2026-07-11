@@ -1152,6 +1152,15 @@ void log_character_controller_graph_once(const Character& character) {
                    target.empty() ? "<none>" : target.c_str());
     }
   }
+  for (const auto& offset : character.bone_offsets) {
+    std::fprintf(stderr,
+                 "[chargraph]   boneOffset %s version=%d dest=%s "
+                 "offset=[%.3f %.3f %.3f] unreadBytes=%zu\n",
+                 offset.name.c_str(), offset.version,
+                 offset.dest.empty() ? "<none>" : offset.dest.c_str(),
+                 offset.offset[0], offset.offset[1], offset.offset[2],
+                 offset.unread_bytes);
+  }
   for (const auto& look : character.lookats) {
     std::fprintf(stderr,
                  "[chargraph]   lookAt %s version=%d "
@@ -2086,6 +2095,37 @@ bool source_char_ik_rod_compute_world(const CharIKRod& rod,
   dest_world = mat4_mul(source_transform_row_mat4(rod.xfm), rod_world);
   normalize_mat3_rows(dest_world);
   return true;
+}
+
+static std::array<float, 16> source_xfm_to_mat4(
+    const milo_scene::Xfm& xfm) {
+  return {xfm.rot[0][0], xfm.rot[0][1], xfm.rot[0][2], 0.0f,
+          xfm.rot[1][0], xfm.rot[1][1], xfm.rot[1][2], 0.0f,
+          xfm.rot[2][0], xfm.rot[2][1], xfm.rot[2][2], 0.0f,
+          xfm.pos[0], xfm.pos[1], xfm.pos[2], 1.0f};
+}
+
+bool source_char_bone_offset_poll_world(
+    const CharBoneOffset& offset,
+    bool has_dest,
+    bool has_parent,
+    const milo_scene::Xfm& dest_local,
+    const std::array<float, 16>& parent_world,
+    std::array<float, 16>& dest_world) {
+  if (!has_dest || !has_parent) return false;
+  milo_scene::Xfm local = dest_local;
+  local.pos[0] += offset.offset[0];
+  local.pos[1] += offset.offset[1];
+  local.pos[2] += offset.offset[2];
+  dest_world = mat4_mul(source_xfm_to_mat4(local), parent_world);
+  return true;
+}
+
+void source_char_bone_offset_apply_to_local(const CharBoneOffset& offset,
+                                            milo_scene::Xfm& dest_local) {
+  dest_local.pos[0] += offset.offset[0];
+  dest_local.pos[1] += offset.offset[1];
+  dest_local.pos[2] += offset.offset[2];
 }
 
 static void normalize_xfm_rows(milo_scene::Xfm& xfm);

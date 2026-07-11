@@ -384,6 +384,18 @@ bool source_char_ik_rod_compute_world(const CharIKRod& rod,
                                       const Character& character,
                                       std::array<float, 16>& dest_world);
 
+// Source-backed CharBoneOffset::Poll helper. Returns false when the source
+// object pointer or its parent transform would be missing.
+bool source_char_bone_offset_poll_world(
+    const CharBoneOffset& offset,
+    bool has_dest,
+    bool has_parent,
+    const milo_scene::Xfm& dest_local,
+    const std::array<float, 16>& parent_world,
+    std::array<float, 16>& dest_world);
+void source_char_bone_offset_apply_to_local(const CharBoneOffset& offset,
+                                            milo_scene::Xfm& dest_local);
+
 // Source-backed CharHair::FreezePoseRaw helper. Writes current runtime point
 // positions back into point.unk5c in the strand root-parent local basis.
 int source_char_hair_freeze_pose_raw(Character& character, CharHair& hair,
