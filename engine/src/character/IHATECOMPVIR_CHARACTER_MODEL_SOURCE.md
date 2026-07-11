@@ -34,6 +34,7 @@ records the upstream commits for the copied files:
 | Translucent character draw controller | `rb3-latest` `CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` draw-mode enum | Native helper ports source draw-mode command order only; it does not change renderer sorting or material state. |
 | Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h` | Native helper ports constructor defaults, source eccentricity math, and revision defaults; deformation and mesh hookup remain unwired without stock rows. |
 | Blend-bone constraints | `rb3-latest` `CharBlendBone.cpp` / `CharBlendBone.h` | Native helper ports constructor/constraint defaults, load field order, and dependency publication; the checked source does not include the blend `Poll` body. |
+| Sleeve secondary motion | `rb3-latest` `CharSleeve.cpp` / `CharSleeve.h` | Native helper ports source defaults, poll math, teleport reset, top-sleeve write, and dependency publication; no live runtime hookup is promoted without decoded rows. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
 | Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
@@ -565,6 +566,23 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_blend_bone_*` helpers port those source-visible data and
     dependency rules only. The checked source marks `Poll` but does not include
     its body, so native must not invent blend output math from the field names.
+- `rb3-latest/src/system/char/CharSleeve.cpp` and `CharSleeve.h`
+  - The constructor defaults `mLastDT = 0`, `mInertia = 0.5`, `mGravity = 1`,
+    `mRange = 0`, `mNegLength = 0`, `mPosLength = 0`, and
+    `mStiffness = 0.02`.
+  - `SetName` records the owning `Character` when the object directory is a
+    character.
+  - `Poll` gates on `mSleeve` and its parent. It uses task delta seconds,
+    source stiffness decay, optional teleport reset from the owner character,
+    inertia from `mLastPos`/`mLastDT`, gravity, range clamp, and the checked
+    source length/interp block before writing the sleeve world transform. When
+    `mTopSleeve` exists, it removes the parent X projection and writes a second
+    top-sleeve transform.
+  - `PollDeps` pushes the sleeve parent into `changedBy`, then pushes `mSleeve`
+    and `mTopSleeve` into `change` only when `mSleeve` exists.
+  - Native `source_char_sleeve_*` helpers port this source-visible simulation
+    and dependency behavior for deterministic tests. They do not attach it to
+    live character rendering until stock rows and owner ordering are decoded.
 - `rb3-latest/src/system/char/CharMeshHide.cpp` and
   `CharMeshHide.h`
   - `CharMeshHide::HideAll` first ORs the incoming flag word with every

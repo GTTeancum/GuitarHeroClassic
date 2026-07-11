@@ -112,6 +112,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_cuff_source_test.cpp"));
   const std::string blend_bone_source_test =
       compact(read_file(char_dir / "character_blend_bone_source_test.cpp"));
+  const std::string sleeve_source_test =
+      compact(read_file(char_dir / "character_sleeve_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -182,6 +184,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharBlendBone.cpp"));
   const std::string rb3_latest_char_blend_bone_h = compact(read_file(
       rb3_latest_char_dir / "CharBlendBone.h"));
+  const std::string rb3_latest_char_sleeve_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharSleeve.cpp"));
+  const std::string rb3_latest_char_sleeve_h = compact(read_file(
+      rb3_latest_char_dir / "CharSleeve.h"));
   const std::string rb3_latest_char_collide_cpp = compact(read_file(
       rb3_latest_char_dir / "CharCollide.cpp"));
   const std::string rb3_latest_char_collide_h = compact(read_file(
@@ -416,6 +422,10 @@ int run_contract() {
                  "| Blend-bone constraints | `rb3-latest` "
                  "`CharBlendBone.cpp` / `CharBlendBone.h` |",
                  "coverage matrix cites CharBlendBone source");
+  ok &= contains(doc,
+                 "| Sleeve secondary motion | `rb3-latest` `CharSleeve.cpp` / "
+                 "`CharSleeve.h` |",
+                 "coverage matrix cites CharSleeve source");
   ok &= contains(doc,
                  "| Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / "
                  "`CharTransCopy.h` |",
@@ -2299,6 +2309,112 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_blend_bone_*` helpers port",
                  "document records native CharBlendBone helpers");
+  ok &= contains(rb3_latest_char_sleeve_h,
+                 "classCharSleeve:publicRndHighlightable,publicCharPollable",
+                 "latest CharSleeve header exposes source class");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "CharSleeve::CharSleeve():mSleeve(this,0),mTopSleeve(this,0),"
+                 "mPos(0.0f,0.0f,0.0f),mLastPos(0.0f,0.0f,0.0f),mLastDT(0.0f),"
+                 "mInertia(0.5f),mGravity(1.0f),mRange(0.0f),mNegLength(0.0f),"
+                 "mPosLength(0.0f),mStiffness(0.02f),mMe(this,0)",
+                 "CharSleeve source constructor defaults");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "voidCharSleeve::SetName(constchar*cc,classObjectDir*dir){"
+                 "Hmx::Object::SetName(cc,dir);mMe=dynamic_cast<classCharacter*>"
+                 "(dir);}",
+                 "CharSleeve source owner capture");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "voidCharSleeve::Poll(){if(mSleeve&&mSleeve->TransParent()){"
+                 "floatdeltasecs=TheTaskMgr.DeltaSeconds();floatdvar12="
+                 "deltasecs*60.0f;floatpowed=std::pow(1.0f-mStiffness,"
+                 "dvar12*dvar12);",
+                 "CharSleeve source Poll gate and delta");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "if(mMe&&mMe->Teleported()){mPos=mSleeve->WorldXfm().v;",
+                 "CharSleeve source teleport reset gate");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "if(mLastDT>0.0f&&deltasecs>0.0f){Vector3vc0;Subtract("
+                 "mPos,mLastPos,vc0);ScaleAddEq(vb4,vc0,(mInertia*deltasecs)/"
+                 "mLastDT);}",
+                 "CharSleeve source inertia branch");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "vb4.z+=mGravity*deltasecs*dvar12*-3.858268f;",
+                 "CharSleeve source gravity branch");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "floatlen=Length(vcc);floatinterped=Interp(len,absed,"
+                 "1.0f-powed);ClampEq(interped,absed-mNegLength,"
+                 "absed+mPosLength);ScaleToMagnitude(vcc,len,vcc);",
+                 "CharSleeve source length/interp block");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "if(mTopSleeve){floatdotcc=Dot(vcc,sleeveparent->WorldXfm().m.x);"
+                 "ScaleAddEq(vcc,sleeveparent->WorldXfm().m.x,-dotcc);",
+                 "CharSleeve source top sleeve branch");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "voidCharSleeve::PollDeps(std::list<Hmx::Object*>&changedBy,"
+                 "std::list<Hmx::Object*>&change){if(mSleeve){changedBy."
+                 "push_back(mSleeve->mParent);change.push_back(mSleeve);"
+                 "change.push_back(mTopSleeve);}}",
+                 "CharSleeve source PollDeps order");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharSleeveState{std::array<float,3>pos="
+                 "{0.0f,0.0f,0.0f};std::array<float,3>last_pos=",
+                 "native exposes CharSleeve source state");
+  ok &= contains(char_mesh,
+                 "SourceCharSleeveStatesource_char_sleeve_default_state(){"
+                 "returnSourceCharSleeveState{};}",
+                 "native ports CharSleeve defaults");
+  ok &= contains(char_mesh,
+                 "SourceCharSleevePollResultsource_char_sleeve_poll("
+                 "SourceCharSleeveState&state,boolhas_sleeve,boolhas_parent,",
+                 "native exposes CharSleeve poll helper");
+  ok &= contains(char_mesh,
+                 "constfloatpowed=std::pow(1.0f-state.stiffness,dvar12*dvar12);",
+                 "native CharSleeve helper ports stiffness decay");
+  ok &= contains(char_mesh,
+                 "if(character_teleported){state.pos=source_xfm_pos(sleeve_world);",
+                 "native CharSleeve helper ports teleport reset");
+  ok &= contains(char_mesh,
+                 "vb4[2]+=state.gravity*delta_seconds*dvar12*-3.858268f;",
+                 "native CharSleeve helper ports gravity branch");
+  ok &= contains(char_mesh,
+                 "floatinterped=len+(absed-len)*(1.0f-powed);interped="
+                 "std::clamp(interped,absed-state.neg_length,absed+"
+                 "state.pos_length);(void)interped;vcc="
+                 "source_vec_scale_to_magnitude(vcc,len);",
+                 "native CharSleeve helper keeps source length/interp block");
+  ok &= contains(char_mesh,
+                 "if(has_top_sleeve){constfloatdotcc=source_vec_dot(vcc,"
+                 "parent_x);SourceVec3top_delta=source_vec_add(vcc,"
+                 "source_vec_scale(parent_x,-dotcc));",
+                 "native CharSleeve helper ports top sleeve branch");
+  ok &= contains(char_mesh,
+                 "voidsource_char_sleeve_poll_deps(SourceCharSleevePollDeps&deps,"
+                 "conststd::string&sleeve_parent,conststd::string&sleeve,"
+                 "conststd::string&top_sleeve,boolhas_sleeve){if(!has_sleeve)"
+                 "return;deps.changed_by.push_back(sleeve_parent);deps.change."
+                 "push_back(sleeve);deps.change.push_back(top_sleeve);}",
+                 "native CharSleeve helper ports PollDeps");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_sleeve_source_test",
+                 "CMake builds CharSleeve source test");
+  ok &= contains(sleeve_source_test,
+                 "source_char_sleeve_default_state()",
+                 "focused CharSleeve test covers defaults");
+  ok &= contains(sleeve_source_test,
+                 "source_char_sleeve_poll(state,true,true,true,false,0.0f,"
+                 "-2.0f,sleeve_world,parent)",
+                 "focused CharSleeve test covers sleeve and top write");
+  ok &= contains(sleeve_source_test,
+                 "source_char_sleeve_poll(state,true,true,false,true,0.0f,"
+                 "-2.0f,sleeve_world,parent)",
+                 "focused CharSleeve test covers teleport reset");
+  ok &= contains(sleeve_source_test,
+                 "source_char_sleeve_poll_deps(deps,\"parent.trans\","
+                 "\"sleeve.trans\",\"top.trans\",true)",
+                 "focused CharSleeve test covers PollDeps");
+  ok &= contains(doc,
+                 "Native `source_char_sleeve_*` helpers port",
+                 "document records native CharSleeve helpers");
   ok &= contains(rb3_latest_char_mesh_hide_h,
                  "classCharMeshHide:publicHmx::Object",
                  "latest CharMeshHide header exposes source class");

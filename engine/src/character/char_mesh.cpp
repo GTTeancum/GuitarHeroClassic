@@ -1800,6 +1800,183 @@ void source_char_blend_bone_poll_deps(
   }
 }
 
+namespace {
+
+using SourceVec3 = std::array<float, 3>;
+
+SourceVec3 source_vec_add(SourceVec3 a, SourceVec3 b) {
+  return {a[0] + b[0], a[1] + b[1], a[2] + b[2]};
+}
+
+SourceVec3 source_vec_sub(SourceVec3 a, SourceVec3 b) {
+  return {a[0] - b[0], a[1] - b[1], a[2] - b[2]};
+}
+
+SourceVec3 source_vec_scale(SourceVec3 a, float scale) {
+  return {a[0] * scale, a[1] * scale, a[2] * scale};
+}
+
+float source_vec_dot(SourceVec3 a, SourceVec3 b) {
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+SourceVec3 source_vec_cross(SourceVec3 a, SourceVec3 b) {
+  return {a[1] * b[2] - a[2] * b[1],
+          a[2] * b[0] - a[0] * b[2],
+          a[0] * b[1] - a[1] * b[0]};
+}
+
+float source_vec_length(SourceVec3 a) {
+  return std::sqrt(source_vec_dot(a, a));
+}
+
+SourceVec3 source_vec_normalize(SourceVec3 a) {
+  const float len = source_vec_length(a);
+  if (len == 0.0f) return {0.0f, 0.0f, 0.0f};
+  return source_vec_scale(a, 1.0f / len);
+}
+
+SourceVec3 source_vec_scale_to_magnitude(SourceVec3 a, float magnitude) {
+  const float len = source_vec_length(a);
+  if (len == 0.0f) return {0.0f, 0.0f, 0.0f};
+  return source_vec_scale(a, magnitude / len);
+}
+
+SourceVec3 source_xfm_pos(const milo_scene::Xfm& xfm) {
+  return {xfm.pos[0], xfm.pos[1], xfm.pos[2]};
+}
+
+SourceVec3 source_xfm_row(const milo_scene::Xfm& xfm, int row) {
+  return {xfm.rot[row][0], xfm.rot[row][1], xfm.rot[row][2]};
+}
+
+void source_set_xfm_pos(milo_scene::Xfm& xfm, SourceVec3 v) {
+  xfm.pos[0] = v[0];
+  xfm.pos[1] = v[1];
+  xfm.pos[2] = v[2];
+}
+
+void source_set_xfm_row(milo_scene::Xfm& xfm, int row, SourceVec3 v) {
+  xfm.rot[row][0] = v[0];
+  xfm.rot[row][1] = v[1];
+  xfm.rot[row][2] = v[2];
+}
+
+milo_scene::Xfm source_char_sleeve_make_world(SourceVec3 pos,
+                                              SourceVec3 axis_x,
+                                              SourceVec3 delta) {
+  milo_scene::Xfm out;
+  source_set_xfm_pos(out, pos);
+  SourceVec3 z = source_vec_scale(delta, -1.0f);
+  SourceVec3 y = source_vec_cross(z, axis_x);
+  z = source_vec_normalize(z);
+  y = source_vec_normalize(y);
+  const SourceVec3 x = source_vec_cross(y, z);
+  source_set_xfm_row(out, 0, x);
+  source_set_xfm_row(out, 1, y);
+  source_set_xfm_row(out, 2, z);
+  return out;
+}
+
+}  // namespace
+
+SourceCharSleeveState source_char_sleeve_default_state() {
+  return SourceCharSleeveState{};
+}
+
+SourceCharSleevePollResult source_char_sleeve_poll(
+    SourceCharSleeveState& state,
+    bool has_sleeve,
+    bool has_parent,
+    bool has_top_sleeve,
+    bool character_teleported,
+    float delta_seconds,
+    float sleeve_local_z,
+    const milo_scene::Xfm& sleeve_world,
+    const milo_scene::Xfm& parent_world) {
+  SourceCharSleevePollResult result;
+  if (!has_sleeve || !has_parent) return result;
+
+  const float dvar12 = delta_seconds * 60.0f;
+  const float powed = std::pow(1.0f - state.stiffness, dvar12 * dvar12);
+  const float absed = std::fabs(sleeve_local_z);
+  const SourceVec3 parent_pos = source_xfm_pos(parent_world);
+  const SourceVec3 parent_x = source_xfm_row(parent_world, 0);
+  bool teleported_reset = false;
+
+  if (character_teleported) {
+    state.pos = source_xfm_pos(sleeve_world);
+    SourceVec3 v9c = {0.0f, 0.0f, -(absed + state.pos_length)};
+    float dotted = source_vec_dot(v9c, parent_x);
+    dotted = std::clamp(dotted, -state.range, state.range);
+    v9c = source_vec_add(v9c, source_vec_scale(parent_x, dotted));
+    state.pos = source_vec_add(state.pos, v9c);
+    const SourceVec3 va8 = source_vec_add(parent_pos,
+                                          source_vec_scale(parent_x, dotted));
+    v9c = source_vec_sub(state.pos, va8);
+    v9c = source_vec_scale_to_magnitude(v9c, absed + state.pos_length);
+    state.pos = source_vec_add(va8, v9c);
+    state.last_pos = state.pos;
+    teleported_reset = true;
+    state.last_dt = 0.0f;
+  }
+
+  SourceVec3 vb4 = state.pos;
+  if (state.last_dt > 0.0f && delta_seconds > 0.0f) {
+    const SourceVec3 vc0 = source_vec_sub(state.pos, state.last_pos);
+    vb4 = source_vec_add(
+        vb4, source_vec_scale(vc0, (state.inertia * delta_seconds) /
+                                       state.last_dt));
+  }
+  vb4[2] += state.gravity * delta_seconds * dvar12 * -3.858268f;
+
+  SourceVec3 vcc = source_vec_sub(vb4, parent_pos);
+  const float dotted2 = source_vec_dot(vcc, parent_x);
+  (void)dotted2;
+  float d4 = dvar12 * (1.0f - (1.0f - powed));
+  d4 = std::clamp(d4, -state.range, state.range);
+  vcc = source_vec_add(vcc, source_vec_scale(parent_x, d4 - dvar12));
+  const float len = source_vec_length(vcc);
+  float interped = len + (absed - len) * (1.0f - powed);
+  interped = std::clamp(interped, absed - state.neg_length,
+                        absed + state.pos_length);
+  (void)interped;
+  vcc = source_vec_scale_to_magnitude(vcc, len);
+  vb4 = source_vec_add(parent_pos, vcc);
+
+  result.sleeve_world =
+      source_char_sleeve_make_world(vb4, parent_x, vcc);
+  result.wrote_sleeve = true;
+
+  state.last_pos = state.pos;
+  state.last_dt = delta_seconds;
+  state.pos = vb4;
+  if (teleported_reset) state.last_pos = state.pos;
+
+  if (has_top_sleeve) {
+    const float dotcc = source_vec_dot(vcc, parent_x);
+    SourceVec3 top_delta =
+        source_vec_add(vcc, source_vec_scale(parent_x, -dotcc));
+    const SourceVec3 top_pos = source_vec_add(parent_pos, top_delta);
+    result.top_sleeve_world =
+        source_char_sleeve_make_world(top_pos, parent_x, top_delta);
+    result.wrote_top_sleeve = true;
+  }
+
+  return result;
+}
+
+void source_char_sleeve_poll_deps(SourceCharSleevePollDeps& deps,
+                                  const std::string& sleeve_parent,
+                                  const std::string& sleeve,
+                                  const std::string& top_sleeve,
+                                  bool has_sleeve) {
+  if (!has_sleeve) return;
+  deps.changed_by.push_back(sleeve_parent);
+  deps.change.push_back(sleeve);
+  deps.change.push_back(top_sleeve);
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;

@@ -434,6 +434,30 @@ struct SourceCharBlendBonePollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharSleeveState {
+  std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> last_pos = {0.0f, 0.0f, 0.0f};
+  float last_dt = 0.0f;
+  float inertia = 0.5f;
+  float gravity = 1.0f;
+  float range = 0.0f;
+  float neg_length = 0.0f;
+  float pos_length = 0.0f;
+  float stiffness = 0.02f;
+};
+
+struct SourceCharSleevePollResult {
+  bool wrote_sleeve = false;
+  bool wrote_top_sleeve = false;
+  milo_scene::Xfm sleeve_world;
+  milo_scene::Xfm top_sleeve_world;
+};
+
+struct SourceCharSleevePollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -508,6 +532,22 @@ SourceCharBlendBoneState source_char_blend_bone_default_state();
 void source_char_blend_bone_poll_deps(
     SourceCharBlendBonePollDeps& deps,
     const SourceCharBlendBoneState& blend);
+SourceCharSleeveState source_char_sleeve_default_state();
+SourceCharSleevePollResult source_char_sleeve_poll(
+    SourceCharSleeveState& state,
+    bool has_sleeve,
+    bool has_parent,
+    bool has_top_sleeve,
+    bool character_teleported,
+    float delta_seconds,
+    float sleeve_local_z,
+    const milo_scene::Xfm& sleeve_world,
+    const milo_scene::Xfm& parent_world);
+void source_char_sleeve_poll_deps(SourceCharSleevePollDeps& deps,
+                                  const std::string& sleeve_parent,
+                                  const std::string& sleeve,
+                                  const std::string& top_sleeve,
+                                  bool has_sleeve);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(
