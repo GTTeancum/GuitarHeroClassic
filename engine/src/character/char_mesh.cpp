@@ -661,6 +661,10 @@ CharIKMidi decode_ik_midi(const std::string& entry_name,
   CharIKMidi midi;
   midi.name = entry_name;
   midi.version = r.i32();
+  if (midi.version < 0 || midi.version > 5) {
+    throw std::runtime_error(
+        "char_mesh: CharIKMidi revision outside source range");
+  }
   read_object_fields(r);
   midi.bone = r.str();
   if (midi.version < 3) {

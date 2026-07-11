@@ -548,13 +548,15 @@ note, and all report `unreadBytes=0`.
     revisions 2 and 3 read a legacy string; revisions above 4 read
     `mAnimBlender` and `mMaxAnimBlend`.
   - Native GHOGX decodes/logs the same source-gated fields as passive row
-    inventory. The viewer/gameplay fret-target helper remains diagnostic
-    application glue until `CharIKMidi::NewSpot` / `Poll` bodies are available
-    from source or trace.
+    inventory and enforces the source revision range. The viewer/gameplay fret-target helper remains diagnostic application glue until `CharIKMidi::NewSpot` / `Poll` bodies are available from source or trace.
     `engine/out/source_ikmidi_20260711/ikmidi_source_decode_audit.log`
     rechecks Rock1, Rock2, Glam1, Funk1, and Rockabill2; each sampled row is
     `version=4`, `bone=bone_fret.mesh`, `legacySpots=0`,
     `legacyString=<none>`, `animBlender=<none>`, and `unreadBytes=0`.
+    `engine/out/source_ikmidi_20260711/stock_ikmidi_controllers.stdout.log`
+    refreshes stock proof against the current decoder: all 19 stock
+    `CharIKMidi` rows are `version=4`, target `bone_fret.mesh`, and report
+    `unreadBytes=0`.
 - `rb3-latest/src/system/char/CharDriver.cpp` and `CharDriver.h`
   - The header/source expose the base driver object members and runtime helper
     surface: `mBones`, `mClips`, `mDefaultClip`, `mBlendWidth`, `mClipType`,

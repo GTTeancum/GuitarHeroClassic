@@ -1054,6 +1054,9 @@ int run_contract() {
                  "ObjPtr<CharWeightable,ObjectDir>mAnimBlender;",
                  "latest CharIKMidi source header exposes anim blend owner");
   ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(5,0)",
+                 "CharIKMidi source load enforces revision ceiling");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
                  "LOAD_SUPERCLASS(Hmx::Object)bs>>mBone;",
                  "CharIKMidi source load reads object then bone");
   ok &= contains(rb3_latest_char_ik_midi_cpp,
@@ -1075,7 +1078,13 @@ int run_contract() {
                  "std::stringlegacy_string;std::stringanim_blender;",
                  "native CharIKMidi stores source-gated optional rows");
   ok &= contains(char_mesh,
-                 "midi.version=r.i32();read_object_fields(r);midi.bone=r.str();",
+                 "midi.version=r.i32();",
+                 "native CharIKMidi decoder reads source revision");
+  ok &= contains(char_mesh,
+                 "if(midi.version<0||midi.version>5){throwstd::runtime_error",
+                 "native CharIKMidi decoder enforces source revision range");
+  ok &= contains(char_mesh,
+                 "read_object_fields(r);midi.bone=r.str();",
                  "native CharIKMidi decoder mirrors source object/bone order");
   ok &= contains(char_mesh,
                  "if(midi.version<3){midi.legacy_spots=read_obj_ptr_list(r);}",
@@ -1097,6 +1106,16 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharIKMidi::Load` accepts source revisions through 5",
                  "document records CharIKMidi source load boundary");
+  ok &= contains(doc,
+                 "inventory and enforces the source revision range",
+                 "document records CharIKMidi revision enforcement");
+  ok &= contains(doc,
+                 "source_ikmidi_20260711/stock_ikmidi_controllers.stdout.log",
+                 "document cites refreshed CharIKMidi proof log");
+  ok &= contains(doc,
+                 "all 19 stock\n    `CharIKMidi` rows are `version=4`, "
+                 "target `bone_fret.mesh`, and report\n    `unreadBytes=0`",
+                 "document records refreshed CharIKMidi stock proof");
   ok &= contains(doc,
                  "viewer/gameplay fret-target helper remains diagnostic",
                  "document fences CharIKMidi runtime helper");
