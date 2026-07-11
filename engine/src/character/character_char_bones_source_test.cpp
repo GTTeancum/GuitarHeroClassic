@@ -369,6 +369,10 @@ int main() {
                    "samples load version 16 accepted");
   ok &= expect_int(source_char_bones_samples_load_version_known(17) ? 1 : 0, 0,
                    "samples load version high rejected");
+  ok &= expect_int(source_char_bones_samples_set_ver_known(12) ? 1 : 0, 1,
+                   "samples SetVer legacy 12 accepted");
+  ok &= expect_int(source_char_bones_samples_set_ver_known(13) ? 1 : 0, 0,
+                   "samples SetVer source 13 rejected");
 
   return ok ? 0 : 1;
 }

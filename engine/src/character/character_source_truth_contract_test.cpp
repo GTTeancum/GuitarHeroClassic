@@ -3042,6 +3042,9 @@ int run_contract() {
                  "floatweight,floatfrac);",
                  "native API exposes source CharBonesSamples split-step helper");
   ok &= contains(char_clip_h,
+                 "boolsource_char_bones_samples_set_ver_known(intversion);",
+                 "native API exposes source CharBonesSamples SetVer helper");
+  ok &= contains(char_clip_h,
                  "boolsource_char_bones_samples_load_version_known(intversion);",
                  "native API exposes source CharBonesSamples load-version helper");
   ok &= contains(char_clip,
@@ -3135,6 +3138,10 @@ int run_contract() {
                  "returnsteps;}",
                  "native CharBonesSamples split-step helper mirrors source row offsets");
   ok &= contains(char_clip,
+                 "boolsource_char_bones_samples_set_ver_known(intversion){"
+                 "returnversion<13;}",
+                 "native CharBonesSamples SetVer helper mirrors source legacy range");
+  ok &= contains(char_clip,
                  "boolsource_char_bones_samples_load_version_known(intversion){"
                  "returnversion>12&&version<=16;}",
                  "native CharBonesSamples load-version helper mirrors source range");
@@ -3206,6 +3213,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_samples_load_version_known(16)",
                  "focused CharBones source test covers high accepted sample version");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_set_ver_known(12)",
+                 "focused CharBones source test covers CharBonesSamples SetVer legacy accept");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_set_ver_known(13)",
+                 "focused CharBones source test covers CharBonesSamples SetVer source reject");
   ok &= missing(char_clip, "GHOGX_AXIS_ROT_NO_PI",
                 "old no-pi axis-rotation diagnostic removed from decoder");
   ok &= missing(char_clip, "GHOGX_FILE_ORDER_CLIP_SAMPLES",
@@ -3645,6 +3658,10 @@ int run_contract() {
                  "LoadData(bs);}",
                  "latest CharBonesSamples source exposes Load delegation");
   ok &= contains(rb3_latest_char_bones_samples_cpp,
+                 "voidCharBonesSamples::SetVer(intver){MILO_ASSERT(ver<13,"
+                 "0x22B);gVer=ver;}",
+                 "latest CharBonesSamples source exposes legacy SetVer gate");
+  ok &= contains(rb3_latest_char_bones_samples_cpp,
                  "voidCharBonesSamples::SetPreview(inti){inttmp=Clamp(0,"
                  "mNumSamples-1,i);MILO_ASSERT(mPreviewSample<32767,0x38B);"
                  "mPreviewSample=tmp;mStart=&mRawData[mTotalSize*tmp];}",
@@ -3656,6 +3673,10 @@ int run_contract() {
                  "`source_char_bones_samples_load_version_known` ports that "
                  "exact range",
                  "document records native CharBonesSamples version gate");
+  ok &= contains(doc,
+                 "`SetVer` is the separate legacy source gate and asserts "
+                 "`ver < 13`",
+                 "document records native CharBonesSamples SetVer boundary");
   ok &= contains(doc,
                  "the clip parser rejects out-of-range `CharBonesSamples` "
                  "entries",

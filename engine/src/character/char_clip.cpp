@@ -297,6 +297,10 @@ std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
   return steps;
 }
 
+bool source_char_bones_samples_set_ver_known(int version) {
+  return version < 13;
+}
+
 bool source_char_bones_samples_load_version_known(int version) {
   return version > 12 && version <= 16;
 }

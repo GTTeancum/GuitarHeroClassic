@@ -944,6 +944,9 @@ note, and all report `unreadBytes=0`.
     `source_char_bones_samples_load_version_known` ports that exact range and
     the clip parser rejects out-of-range `CharBonesSamples` entries before
     scanning sample-list headers.
+  - `SetVer` is the separate legacy source gate and asserts `ver < 13`.
+    Native `source_char_bones_samples_set_ver_known` records that older
+    pre-load boundary separately from the serialized `Load` range.
   - `SetPreview` clamps the preview sample and points `mStart` at the selected
     packed row.
   - Native `source_char_bones_samples_allocate_size`,
