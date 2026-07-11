@@ -2027,6 +2027,58 @@ SourceCharInterestState source_char_interest_copy(
   return dst;
 }
 
+SourceCharIKFingersState source_char_ik_fingers_defaults() {
+  return SourceCharIKFingersState{};
+}
+
+bool source_char_ik_fingers_load_revision_known(int revision) {
+  return revision >= 0 && revision <= 5;
+}
+
+SourceCharIKFingersSetupRefs source_char_ik_fingers_set_name_refs(
+    bool is_right_hand) {
+  SourceCharIKFingersSetupRefs refs;
+  refs.is_right_hand = is_right_hand;
+  const std::string side = is_right_hand ? "R" : "L";
+  refs.hand = "bone_" + side + "-hand.mesh";
+  refs.forearm = "bone_" + side + "-foreArm.mesh";
+  refs.upperarm = "bone_" + side + "-upperArm.mesh";
+  const std::array<std::string, 5> fingers = {
+      "thumb", "index", "middlefinger", "ringfinger", "pinky"};
+  for (size_t i = 0; i < fingers.size(); ++i) {
+    refs.fingers[i].finger01 = "bone_" + side + "-" + fingers[i] + "01.mesh";
+    refs.fingers[i].finger02 = "bone_" + side + "-" + fingers[i] + "02.mesh";
+    refs.fingers[i].finger03 = "bone_" + side + "-" + fingers[i] + "03.mesh";
+    refs.fingers[i].fingertip =
+        "spot_" + side + "-" + fingers[i] + "_tip.mesh";
+  }
+  refs.raw_matrix =
+      is_right_hand
+          ? std::array<float, 9>{-0.023f, 0.97899997f, 0.201f,
+                                 -0.228f, 0.191f, -0.95499998f,
+                                 -0.972f, -0.068f, 0.21799999f}
+          : std::array<float, 9>{-0.067f, 0.985f, 0.156f,
+                                 0.224f, 0.167f, -0.95999998f,
+                                 -0.972f, -0.028999999f, -0.23199999f};
+  return refs;
+}
+
+bool source_char_ik_fingers_setup_complete(
+    const SourceCharIKFingersSetupRefs& refs,
+    const std::vector<std::string>& present_transforms) {
+  const auto present = [&](const std::string& name) {
+    return std::find(present_transforms.begin(), present_transforms.end(),
+                     name) != present_transforms.end();
+  };
+  for (const SourceCharIKFingersFingerRefs& finger : refs.fingers) {
+    if (!present(finger.finger01) || !present(finger.finger02) ||
+        !present(finger.finger03) || !present(finger.fingertip)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 SourceCharSleevePollResult source_char_sleeve_poll(
     SourceCharSleeveState& state,
     bool has_sleeve,

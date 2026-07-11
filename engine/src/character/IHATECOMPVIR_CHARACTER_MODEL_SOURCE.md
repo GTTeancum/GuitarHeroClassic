@@ -47,7 +47,7 @@ records the upstream commits for the copied files:
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
 | Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve without adding an unproven frame-cadence write. |
-| Hand IK and IK MIDI target rows | `CharIKHand.cpp`, `rb3-latest` `CharIKMidi.cpp` / `CharIKMidi.h` | Native hand IK follows source dataflow; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields. |
+| Hand IK, IK MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields; IK fingers helpers port source defaults and left/right finger transform names only. |
 | IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
@@ -824,6 +824,25 @@ note, and all report `unreadBytes=0`.
     refreshes stock proof against the current decoder: all 19 stock
     `CharIKMidi` rows are `version=4`, target `bone_fret.mesh`, and report
     `unreadBytes=0`.
+- `rb3-latest/src/system/char/CharIKFingers.cpp` and
+  `rb3-latest/src/system/char/CharIKFingers.h`
+  - Constructor defaults are source data: five fingers, reset-hand flags true,
+    curled length `0.85`, keyboard offset `(0.3, -6.0, 0.4)`, hand move
+    forward `1.0`, pinky rotation `-0.06`, thumb rotation `0.23`, hand
+    destination offset `-0.4`, right-hand default true, move-hand false, and
+    setup false.
+  - `Load` accepts source revisions through 5 and gates `is_right_hand`,
+    `output_trans`, `keyboard_ref_bone`, keyboard offset, thumb/pinky rotation,
+    move-forward, and destination-offset fields by revision.
+  - `SetName` resolves hard-coded left/right hand, forearm, upper-arm, finger
+    joint, and fingertip transform names. The source then marks setup false only
+    if a finger joint/tip is missing; it does not require hand/forearm/upperarm
+    in that final completeness loop. Native `source_char_ik_fingers_*` helpers
+    port these data decisions and raw source matrices before `Normalize`.
+  - `SetFinger`, `ReleaseFinger`, `MeasureLengths`, and the real `Poll` math
+    remain fenced; the checked source includes incomplete transform math and
+    should not be promoted into live fretting-finger behavior from this data
+    slice.
 - `rb3-latest/src/system/char/CharDriver.cpp` and `CharDriver.h`
   - The header/source expose the base driver object members and runtime helper
     surface: `mBones`, `mClips`, `mDefaultClip`, `mBlendWidth`, `mClipType`,

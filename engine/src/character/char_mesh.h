@@ -505,6 +505,41 @@ struct SourceCharInterestState {
   float max_view_angle_cos = 0.0f;
 };
 
+struct SourceCharIKFingersState {
+  int blend_in_frames = 0;
+  int blend_out_frames = 0;
+  bool reset_hand_dest = true;
+  bool reset_cur_hand_trans = true;
+  float finger_curled_length = 0.85f;
+  std::array<float, 3> hand_keyboard_offset = {0.3f, -6.0f, 0.4f};
+  float hand_move_forward = 1.0f;
+  float hand_pinky_rotation = -0.06f;
+  float hand_thumb_rotation = 0.23f;
+  float hand_dest_offset = -0.4f;
+  bool is_right_hand = true;
+  bool move_hand = false;
+  bool is_setup = false;
+  std::string output_trans;
+  std::string keyboard_ref_bone;
+  size_t finger_count = 5;
+};
+
+struct SourceCharIKFingersFingerRefs {
+  std::string finger01;
+  std::string finger02;
+  std::string finger03;
+  std::string fingertip;
+};
+
+struct SourceCharIKFingersSetupRefs {
+  bool is_right_hand = true;
+  std::string hand;
+  std::string forearm;
+  std::string upperarm;
+  std::array<SourceCharIKFingersFingerRefs, 5> fingers;
+  std::array<float, 9> raw_matrix = {};
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -632,6 +667,13 @@ bool source_char_interest_is_matching_filter_flags(int category_flags,
                                                    int mask);
 SourceCharInterestState source_char_interest_copy(
     const SourceCharInterestState& src);
+SourceCharIKFingersState source_char_ik_fingers_defaults();
+bool source_char_ik_fingers_load_revision_known(int revision);
+SourceCharIKFingersSetupRefs source_char_ik_fingers_set_name_refs(
+    bool is_right_hand);
+bool source_char_ik_fingers_setup_complete(
+    const SourceCharIKFingersSetupRefs& refs,
+    const std::vector<std::string>& present_transforms);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

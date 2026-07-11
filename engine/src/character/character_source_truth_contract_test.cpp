@@ -124,6 +124,8 @@ int run_contract() {
       read_file(char_dir / "character_eye_dart_ruleset_source_test.cpp"));
   const std::string interest_source_test =
       compact(read_file(char_dir / "character_interest_source_test.cpp"));
+  const std::string ik_fingers_source_test = compact(
+      read_file(char_dir / "character_ik_fingers_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -214,6 +216,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharIKMidi.cpp"));
   const std::string rb3_latest_char_ik_midi_h = compact(read_file(
       rb3_latest_char_dir / "CharIKMidi.h"));
+  const std::string rb3_latest_char_ik_fingers_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharIKFingers.cpp"));
+  const std::string rb3_latest_char_ik_fingers_h = compact(read_file(
+      rb3_latest_char_dir / "CharIKFingers.h"));
   const std::string rb3_latest_char_ik_scale_cpp = compact(read_file(
       rb3_latest_char_dir / "CharIKScale.cpp"));
   const std::string rb3_latest_char_ik_scale_h = compact(read_file(
@@ -1895,6 +1901,150 @@ int run_contract() {
   ok &= contains(doc,
                  "ikmidi_source_decode_audit.log",
                  "document records focused stock CharIKMidi audit");
+  ok &= contains(rb3_latest_char_ik_fingers_h,
+                 "FingerDesc():unk0(0),unk8(0,0,0),unk14(0,0,0),"
+                 "mFinger01(0),mFinger02(0),mFinger03(0),mFingertip(0),"
+                 "unk60(0),unk64(0),unk68(1)",
+                 "CharIKFingers source header exposes finger defaults");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "CharIKFingers::CharIKFingers():mHand(0,0),"
+                 "mForeArm(0,0),mUpperArm(0,0),mBlendInFrames(0),"
+                 "mBlendOutFrames(0),mResetHandDest(1),"
+                 "mResetCurHandTrans(1),",
+                 "CharIKFingers source constructor exposes hand defaults");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "mFingerCurledLength(0.85f),mHandMoveForward(1.0f),"
+                 "mHandPinkyRotation(-0.06f),mHandThumbRotation(0.23f),"
+                 "mHandDestOffset(-0.4f),",
+                 "CharIKFingers source constructor exposes finger tuning");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "mIsRightHand(1),mMoveHand(0),mIsSetup(0),"
+                 "mOutputTrans(this,0),mKeyboardRefBone(this,0)",
+                 "CharIKFingers source constructor exposes output refs");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "mFingers.resize(5,FingerDesc());",
+                 "CharIKFingers source constructor creates five fingers");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "mHandKeyboardOffset=Vector3(0.3f,-6.0f,0.4f);",
+                 "CharIKFingers source constructor exposes keyboard offset");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "mHand=dir->Find<RndTransformable>(\"bone_L-hand.mesh\",false);",
+                 "CharIKFingers source SetName resolves left hand");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "mFingers[kFingerMiddle].mFinger03=dir->Find"
+                 "<RndTransformable>(\"bone_L-middlefinger03.mesh\",false);",
+                 "CharIKFingers source SetName resolves left middle finger");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "mFingers[kFingerIndex].mFingertip=dir->Find"
+                 "<RndTransformable>(\"spot_R-index_tip.mesh\",false);",
+                 "CharIKFingers source SetName resolves right fingertip");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "mtx=Hmx::Matrix3(-0.023f,0.97899997f,0.201f,-0.228f,"
+                 "0.191f,-0.95499998f,-0.972,-0.068f,0.21799999f);",
+                 "CharIKFingers source SetName exposes right raw matrix");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "mtx=Hmx::Matrix3(-0.067f,0.985f,0.156f,0.224f,0.167f,"
+                 "-0.95999998f,-0.972f,-0.028999999f,-0.23199999f);",
+                 "CharIKFingers source SetName exposes left raw matrix");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "if(!cur.mFinger01||!cur.mFinger02||!cur.mFinger03||"
+                 "!cur.mFingertip){mIsSetup=false;break;}",
+                 "CharIKFingers source setup completeness checks finger refs");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(5,0)LOAD_SUPERCLASS(Hmx::Object)"
+                 "LOAD_SUPERCLASS(CharWeightable)",
+                 "CharIKFingers source load enforces revision ceiling");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "if(gRev>1)bs>>mIsRightHand;if(gRev>2)bs>>mOutputTrans;"
+                 "if(gRev>3)bs>>mKeyboardRefBone;",
+                 "CharIKFingers source load gates hand side and refs");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "if(gRev>4){bs>>mHandKeyboardOffset;bs>>mHandThumbRotation;"
+                 "bs>>mHandPinkyRotation;bs>>mHandMoveForward;"
+                 "bs>>mHandDestOffset;}",
+                 "CharIKFingers source load gates keyboard/finger tuning");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "voidCharIKFingers::Poll(){Hmx::Matrix3m;Vector3v;"
+                 "mCurHandTrans.Set(m,v);}",
+                 "CharIKFingers available Poll body is incomplete");
+  ok &= missing(rb3_latest_char_ik_fingers_cpp,
+                "voidCharIKFingers::MeasureLengths(){",
+                "available CharIKFingers source lacks MeasureLengths body");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKFingersState{intblend_in_frames=0;"
+                 "intblend_out_frames=0;boolreset_hand_dest=true;",
+                 "native exposes CharIKFingers source defaults struct");
+  ok &= contains(char_mesh_h,
+                 "std::array<float,3>hand_keyboard_offset={0.3f,-6.0f,0.4f};",
+                 "native stores CharIKFingers keyboard offset default");
+  ok &= contains(char_mesh_h,
+                 "SourceCharIKFingersStatesource_char_ik_fingers_defaults();",
+                 "native API exposes CharIKFingers defaults helper");
+  ok &= contains(char_mesh_h,
+                 "boolsource_char_ik_fingers_load_revision_known(intrevision);",
+                 "native API exposes CharIKFingers revision helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharIKFingersSetupRefssource_char_ik_fingers_set_name_refs("
+                 "boolis_right_hand);",
+                 "native API exposes CharIKFingers SetName refs helper");
+  ok &= contains(char_mesh_h,
+                 "boolsource_char_ik_fingers_setup_complete("
+                 "constSourceCharIKFingersSetupRefs&refs,"
+                 "conststd::vector<std::string>&present_transforms);",
+                 "native API exposes CharIKFingers setup completeness helper");
+  ok &= contains(char_mesh,
+                 "SourceCharIKFingersStatesource_char_ik_fingers_defaults(){"
+                 "returnSourceCharIKFingersState{};}",
+                 "native CharIKFingers defaults helper mirrors constructor");
+  ok &= contains(char_mesh,
+                 "returnrevision>=0&&revision<=5;",
+                 "native CharIKFingers revision helper mirrors source range");
+  ok &= contains(char_mesh,
+                 "conststd::stringside=is_right_hand?\"R\":\"L\";"
+                 "refs.hand=\"bone_\"+side+\"-hand.mesh\";",
+                 "native CharIKFingers helper mirrors hand ref names");
+  ok &= contains(char_mesh,
+                 "{\"thumb\",\"index\",\"middlefinger\",\"ringfinger\",\"pinky\"}",
+                 "native CharIKFingers helper mirrors finger name order");
+  ok &= contains(char_mesh,
+                 "refs.raw_matrix=is_right_hand?std::array<float,9>{-0.023f,"
+                 "0.97899997f,0.201f,",
+                 "native CharIKFingers helper carries right raw matrix");
+  ok &= contains(char_mesh,
+                 ":std::array<float,9>{-0.067f,0.985f,0.156f,",
+                 "native CharIKFingers helper carries left raw matrix");
+  ok &= contains(char_mesh,
+                 "if(!present(finger.finger01)||!present(finger.finger02)||"
+                 "!present(finger.finger03)||!present(finger.fingertip)){"
+                 "returnfalse;}",
+                 "native CharIKFingers setup helper mirrors finger-only loop");
+  ok &= missing(char_mesh, "present(refs.hand)",
+                "native CharIKFingers setup helper must not require hand ref");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_ik_fingers_source_test"
+                 "character_ik_fingers_source_test.cpp)",
+                 "CMake builds focused CharIKFingers source test");
+  ok &= contains(ik_fingers_source_test,
+                 "source_char_ik_fingers_defaults()",
+                 "focused CharIKFingers test covers source defaults");
+  ok &= contains(ik_fingers_source_test,
+                 "source_char_ik_fingers_set_name_refs(false)",
+                 "focused CharIKFingers test covers left SetName refs");
+  ok &= contains(ik_fingers_source_test,
+                 "completeonlychecksfingerrefs",
+                 "focused CharIKFingers test covers finger-only completeness");
+  ok &= contains(ik_fingers_source_test,
+                 "missingfingertipmakessetupincomplete",
+                 "focused CharIKFingers test covers missing fingertip");
+  ok &= contains(doc, "CharIKFingers.cpp",
+                 "document cites CharIKFingers source");
+  ok &= contains(doc,
+                 "Native `source_char_ik_fingers_*` helpers\n    port these "
+                 "data decisions",
+                 "document records native CharIKFingers helper boundary");
+  ok &= contains(doc,
+                 "should not be promoted into live fretting-finger behavior",
+                 "document fences incomplete CharIKFingers runtime");
   ok &= contains(rb3_latest_char_servo_bone_h,
                  "classCharServoBone:publicRndHighlightable,publicCharPollable,"
                  "publicCharBonesMeshes",
