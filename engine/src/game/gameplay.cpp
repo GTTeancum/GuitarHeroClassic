@@ -758,6 +758,108 @@ float read_f32_at_unchecked(const uint8_t* body, size_t off) {
     return v;
 }
 
+bool read_u32_event_cursor(const uint8_t* body, size_t size, size_t& cursor,
+                           uint32_t& out) {
+    if (cursor + 4 > size) return false;
+    std::memcpy(&out, body + cursor, sizeof(out));
+    cursor += 4;
+    return true;
+}
+
+bool read_packed_symbol_event_cursor(const uint8_t* body, size_t size,
+                                     size_t& cursor, std::string& out) {
+    uint32_t len = 0;
+    if (!read_u32_event_cursor(body, size, cursor, len)) return false;
+    if (len > 256 || cursor + len > size) return false;
+    out.assign(reinterpret_cast<const char*>(body + cursor),
+               reinterpret_cast<const char*>(body + cursor + len));
+    cursor += len;
+    return true;
+}
+
+bool read_event_trigger_symbol_list(const uint8_t* body, size_t size,
+                                    size_t& cursor,
+                                    std::vector<std::string>& out) {
+    uint32_t count = 0;
+    if (!read_u32_event_cursor(body, size, cursor, count) || count > 256)
+        return false;
+    out.clear();
+    out.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        std::string symbol;
+        if (!read_packed_symbol_event_cursor(body, size, cursor, symbol))
+            return false;
+        out.push_back(std::move(symbol));
+    }
+    return true;
+}
+
+bool event_symbol_list_contains(const std::vector<std::string>& values,
+                                std::string_view symbol) {
+    return std::any_of(values.begin(), values.end(),
+                       [&](const std::string& value) {
+                           return value == symbol;
+                       });
+}
+
+bool venue_event_trigger_enabled_for_single_player(const uint8_t* body,
+                                                   size_t size) {
+    if (!body || size < 4) return true;
+    const uint16_t revision =
+        static_cast<uint16_t>(read_u32_at_unchecked(body, 0) & 0xffff);
+    if (revision != 8) return true;
+
+    const auto strings = packed_strings_with_offsets(body, size);
+    if (strings.empty()) return true;
+
+    size_t cursor = strings.front().end;
+    uint32_t anim_count = 0;
+    if (!read_u32_event_cursor(body, size, cursor, anim_count) ||
+        anim_count > 256) {
+        return true;
+    }
+    for (uint32_t i = 0; i < anim_count; ++i) {
+        std::string ignored;
+        if (!read_packed_symbol_event_cursor(body, size, cursor, ignored))
+            return true;
+        // GH2 rev8 stores EventTrigger.Anim as Symbol plus a compact
+        // blend/wait/delay tail here, matching ihatecompvir's field order.
+        if (cursor + 9 > size) return true;
+        cursor += 9;
+    }
+
+    std::vector<std::string> scratch;
+    if (!read_event_trigger_symbol_list(body, size, cursor, scratch))
+        return true;  // sounds
+    if (!read_event_trigger_symbol_list(body, size, cursor, scratch))
+        return true;  // shows
+    if (!read_event_trigger_symbol_list(body, size, cursor, scratch))
+        return true;  // draws for revision <= 8
+
+    std::vector<std::string> enable_events;
+    std::vector<std::string> disable_events;
+    if (!read_event_trigger_symbol_list(body, size, cursor, enable_events))
+        return true;
+    if (!read_event_trigger_symbol_list(body, size, cursor, disable_events))
+        return true;
+
+    const bool enable_single =
+        event_symbol_list_contains(enable_events, "single_player");
+    const bool enable_multi =
+        event_symbol_list_contains(enable_events, "multi_player");
+    const bool disable_single =
+        event_symbol_list_contains(disable_events, "single_player");
+    const bool disable_multi =
+        event_symbol_list_contains(disable_events, "multi_player");
+    const bool mode_gated =
+        enable_single || enable_multi || disable_single || disable_multi;
+    if (!mode_gated) return true;
+    if (disable_single) return false;
+    if (enable_single) return true;
+    if (enable_multi) return false;
+    return true;
+}
+
 void sync_primary_camshot_target(Gameplay::CameraKey& key);
 void sync_camshot_source_record_hint(Gameplay::CameraKey& key);
 std::string canonical_milo_ref(std::string s);
@@ -3193,8 +3295,18 @@ load_venue_event_script_messages(
         for (const auto& de : dir.entries) {
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
                 continue;
-            const auto strings = scan_milo_strings(
-                payload.data() + de.offset, static_cast<size_t>(de.size));
+            const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] EventTrigger %s skipped by single_player gate\n",
+                        de.name.c_str());
+                }
+                continue;
+            }
+            const auto strings = scan_milo_strings(body, size);
             if (strings.empty()) continue;
 
             std::vector<VenueScriptObjectMessage> messages;
@@ -3749,8 +3861,18 @@ std::map<std::string, std::vector<std::string>> load_venue_event_light_anims(
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
                 continue;
             const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] EventTrigger %s skipped by single_player gate\n",
+                        de.name.c_str());
+                }
+                continue;
+            }
             const auto strings =
-                scan_milo_strings(body, static_cast<size_t>(de.size));
+                scan_milo_strings(body, size);
             if (strings.empty()) continue;
             const std::string_view event_label =
                 is_event_payload_label(strings.front()) ? std::string_view(strings.front())
@@ -3899,8 +4021,18 @@ std::map<std::string, std::vector<std::string>> load_venue_event_env_anims(
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
                 continue;
             const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] EventTrigger %s skipped by single_player gate\n",
+                        de.name.c_str());
+                }
+                continue;
+            }
             const auto strings =
-                scan_milo_strings(body, static_cast<size_t>(de.size));
+                scan_milo_strings(body, size);
             if (strings.empty()) continue;
             const std::string_view event_label =
                 is_event_payload_label(strings.front()) ? std::string_view(strings.front())
@@ -4160,8 +4292,18 @@ load_venue_event_particles(const std::string& hdr_path,
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
                 continue;
             const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] EventTrigger %s skipped by single_player gate\n",
+                        de.name.c_str());
+                }
+                continue;
+            }
             const auto strings =
-                scan_milo_strings(body, static_cast<size_t>(de.size));
+                scan_milo_strings(body, size);
             if (strings.empty()) continue;
             const std::string_view event_label =
                 is_event_payload_label(strings.front()) ? std::string_view(strings.front())
@@ -4357,8 +4499,18 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
                 continue;
             const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] EventTrigger %s skipped by single_player gate\n",
+                        de.name.c_str());
+                }
+                continue;
+            }
             const auto strings =
-                scan_milo_strings(body, static_cast<size_t>(de.size));
+                scan_milo_strings(body, size);
             if (strings.empty()) continue;
             const std::string_view event_label =
                 is_event_payload_label(strings.front()) ? std::string_view(strings.front())
@@ -4420,8 +4572,18 @@ std::map<std::string, std::vector<std::string>> load_venue_event_filters(
         for (const auto& de : dir.entries) {
             if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
                 continue;
-            const auto strings = scan_milo_strings(
-                payload.data() + de.offset, static_cast<size_t>(de.size));
+            const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] EventTrigger %s skipped by single_player gate\n",
+                        de.name.c_str());
+                }
+                continue;
+            }
+            const auto strings = scan_milo_strings(body, size);
             if (strings.empty()) continue;
             std::vector<std::string> filters;
             for (size_t i = 1; i < strings.size(); ++i) {
@@ -9152,6 +9314,15 @@ load_venue_group_visibility(const std::string& hdr_path,
                 continue;
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
+            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] EventTrigger %s skipped by single_player gate\n",
+                        de.name.c_str());
+                }
+                continue;
+            }
             auto strings = scan_milo_strings(body, size);
             if (strings.empty()) continue;
             const std::string event_label = strings.front();
@@ -9328,6 +9499,15 @@ load_venue_anim_filters(const std::string& hdr_path,
                         decoded->revision, decoded->anim_revision);
                 }
             } else if (de.type == "EventTrigger") {
+                if (!venue_event_trigger_enabled_for_single_player(body, size)) {
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] EventTrigger %s skipped by single_player gate\n",
+                            de.name.c_str());
+                    }
+                    continue;
+                }
                 const auto strings = scan_milo_strings(body, size);
                 const std::string_view event_label =
                     !strings.empty() && is_event_payload_label(strings.front())
@@ -10058,6 +10238,15 @@ DrumAnimData load_drum_anim_data(const std::string& hdr_path,
             } else if (de.type == "AnimFilter") {
                 filter_children[de.name] = ascii_strings_in_object(body, size);
             } else if (de.type == "EventTrigger") {
+                if (!venue_event_trigger_enabled_for_single_player(body, size)) {
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] EventTrigger %s skipped by single_player gate\n",
+                            de.name.c_str());
+                    }
+                    continue;
+                }
                 trigger_children[de.name] = ascii_strings_in_object(body, size);
             }
         }
