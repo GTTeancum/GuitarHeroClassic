@@ -1824,6 +1824,55 @@ static void apply_source_upper_twists(
   }
 }
 
+static void apply_source_pos_constraints(Character& character) {
+  for (const auto& constraint : character.pos_constraints) {
+    if (constraint.source.empty() || constraint.targets.empty()) continue;
+    std::array<float, 16> source_world{};
+    if (!transform_local_chain_world(character, constraint.source,
+                                     source_world)) {
+      continue;
+    }
+    const Vec3 source_pos = mat_pos(source_world);
+    for (const auto& target : constraint.targets) {
+      if (target.empty()) continue;
+      std::array<float, 16> target_world{};
+      if (!transform_local_chain_world(character, target, target_world)) {
+        continue;
+      }
+      Vec3 delta = vsub(mat_pos(target_world), source_pos);
+      if (constraint.box_min[0] <= constraint.box_max[0]) {
+        delta.x = std::clamp(delta.x, constraint.box_min[0],
+                             constraint.box_max[0]);
+      }
+      if (constraint.box_min[1] <= constraint.box_max[1]) {
+        delta.y = std::clamp(delta.y, constraint.box_min[1],
+                             constraint.box_max[1]);
+      }
+      if (constraint.box_min[2] <= constraint.box_max[2]) {
+        delta.z = std::clamp(delta.z, constraint.box_min[2],
+                             constraint.box_max[2]);
+      }
+      const Vec3 target_pos = vadd(source_pos, delta);
+      target_world[12] = target_pos.x;
+      target_world[13] = target_pos.y;
+      target_world[14] = target_pos.z;
+      character.runtime_world_overrides[target] = target_world;
+      if (controller_audit_enabled()) {
+        std::fprintf(stderr,
+                     "[posconstraint-source] %s source=%s target=%s "
+                     "world=(%.3f %.3f %.3f) delta=(%.3f %.3f %.3f) "
+                     "boxMin=(%.3f %.3f %.3f) boxMax=(%.3f %.3f %.3f)\n",
+                     constraint.name.c_str(), constraint.source.c_str(),
+                     target.c_str(), target_pos.x, target_pos.y, target_pos.z,
+                     delta.x, delta.y, delta.z, constraint.box_min[0],
+                     constraint.box_min[1], constraint.box_min[2],
+                     constraint.box_max[0], constraint.box_max[1],
+                     constraint.box_max[2]);
+      }
+    }
+  }
+}
+
 static float effective_ik_hand_solver_weight(const Character& character,
                                              const CharIKHand& ik) {
   if (!ik.weight_prop.empty()) {
@@ -2996,6 +3045,7 @@ void apply_character_controllers(Character& character, float time_seconds,
   apply_source_fore_twists(character);
   apply_char_hair(character, time_seconds);
   apply_source_upper_twists(character, bind_bones);
+  apply_source_pos_constraints(character);
 
   if (debug_face_enabled()) {
     for (const auto& b : character.bones) {

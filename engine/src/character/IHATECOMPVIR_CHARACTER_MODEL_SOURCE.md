@@ -38,7 +38,7 @@ records the upstream commits for the copied files:
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log old GH2 rows; no synthetic eye runtime bridge. |
 | FaceFX lip-sync servo boundary | `rb3-latest` `CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` is source context, not a matching `FaceFxLipSyncServo` load body; native FAC/viseme lookup stays bounded compatibility. |
-| Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; runtime `Poll` remains fenced until source transform writeback is ported. |
+| Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Hand IK | `CharIKHand.cpp` | Native hand IK follows source dataflow. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
@@ -431,10 +431,9 @@ note, and all report `unreadBytes=0`.
     clamps target-source position deltas independently for any axis whose
     `mMin` is less than or equal to `mMax`, then writes the target through
     `SetWorldXfm`.
-  - Native GHOGX currently decodes and logs these rows only. It does not publish
-    constraint world writes from this class until that source transform
-    writeback path is integrated without disturbing unrelated character pose
-    controllers.
+  - Native GHOGX ports this `Poll` path directly: it resolves the source and
+    target current world rows, clamps target-source deltas on enabled axes, and
+    publishes the target through the runtime world-row writer.
 
 ## IK Controller Authorities
 
@@ -716,8 +715,8 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
   `grim`, `metal_bass`, `metal_keyboard`, and `metal_singer`. All are revision
   2. `female_singer` and `metal_singer` target `shadow.mesh`; `metal_bass` and
   `metal_keyboard` have zero targets; Grim's `hems.pcon` names `source=grim`
-  and has zero targets. Native logs those rows as source data and keeps runtime
-  `Poll` writeback fenced.
+  and has zero targets. Native now polls these rows through the source clamp
+  path; rows with zero decoded targets naturally produce no writes.
 - The focused refreshed controller inventory at
   `engine/out/source_truth_controller_inventory_20260710/expanded_stock_characters_controller_driver_midi_inventory.log`
   shows 38 `CharDriverMidi` rows across the stock guitarist set. Every row is

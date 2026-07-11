@@ -1736,18 +1736,34 @@ int run_contract() {
   ok &= contains(char_clip,
                  "\"[chargraph]posConstraint%sversion=%dsource=%s\"",
                  "character graph logs CharPosConstraint rows");
+  ok &= contains(char_clip,
+                 "staticvoidapply_source_pos_constraints(Character&character)",
+                 "native CharPosConstraint source poll is implemented");
+  ok &= contains(char_clip,
+                 "delta.x=std::clamp(delta.x,constraint.box_min[0],"
+                 "constraint.box_max[0]);",
+                 "native CharPosConstraint poll clamps target/source x delta");
+  ok &= contains(char_clip,
+                 "character.runtime_world_overrides[target]=target_world;",
+                 "native CharPosConstraint poll publishes source target world row");
+  ok &= contains(char_clip,
+                 "apply_source_pos_constraints(character);",
+                 "native controller cadence runs CharPosConstraint poll");
   ok &= contains(doc,
                  "`CharPosConstraint::Load` accepts source revisions through 2",
                  "document records CharPosConstraint source load");
   ok &= contains(doc,
-                 "Native GHOGX currently decodes and logs these rows only",
-                 "document fences CharPosConstraint runtime writeback");
+                 "Native GHOGX ports this `Poll` path directly",
+                 "document records CharPosConstraint runtime writeback");
   ok &= contains(doc,
                  "expanded_stock_characters_controller_posconstraint_inventory.log",
                  "document cites focused stock CharPosConstraint inventory");
   ok &= contains(doc,
                  "shows five `CharPosConstraint` rows total",
                  "document records stock CharPosConstraint coverage");
+  ok &= contains(doc,
+                 "rows with zero decoded targets naturally produce no writes",
+                 "document records zero-target CharPosConstraint boundary");
   ok &= contains(doc,
                  "Grim's `hems.pcon` names `source=grim`",
                  "document records stock Grim CharPosConstraint boundary");
