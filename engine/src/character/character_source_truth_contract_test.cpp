@@ -3152,6 +3152,35 @@ int run_contract() {
                  "bs>>mHandDestOffset;}",
                  "CharIKFingers source load gates keyboard/finger tuning");
   ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "voidCharIKFingers::SetFinger(Vector3v1,Vector3v2,"
+                 "CharIKFingers::FingerNumfingerNum){MILO_ASSERT("
+                 "fingerNum>=0&&fingerNum<kFingerNone,0x37);"
+                 "FingerDesc&finger=mFingers[fingerNum];finger.unk8=v1;"
+                 "finger.unk14=v2;finger.unk0=true;finger.unk84=true;",
+                 "CharIKFingers source SetFinger exposes state writes");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "Multiply(finger.mFinger01->LocalXfm(),mCurHandTrans,tf48);",
+                 "CharIKFingers source SetFinger exposes transform step");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "mBlendInFrames=5;finger.unk60=5;finger.unk64=0;}",
+                 "CharIKFingers source SetFinger exposes blend counters");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "voidCharIKFingers::ReleaseFinger(FingerNumfinger){"
+                 "MILO_ASSERT(finger>=0&&finger<kFingerNone,0x57);"
+                 "mFingers[finger].unk0=false;mFingers[finger].unk84=true;"
+                 "mFingers[finger].unk64=0;mFingers[finger].unk60=5;}",
+                 "CharIKFingers source ReleaseFinger exposes state writes");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS(CharWeightable)"
+                 "CREATE_COPY(CharIKFingers)BEGIN_COPYING_MEMBERS"
+                 "COPY_MEMBER(mIsRightHand)COPY_MEMBER(mOutputTrans)"
+                 "COPY_MEMBER(mKeyboardRefBone)COPY_MEMBER(mHandKeyboardOffset)",
+                 "CharIKFingers source copy starts with expected members");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
+                 "COPY_MEMBER(mHandThumbRotation)COPY_MEMBER(mHandPinkyRotation)"
+                 "COPY_MEMBER(mHandMoveForward)COPY_MEMBER(mHandDestOffset)",
+                 "CharIKFingers source copy records hand tuning members");
+  ok &= contains(rb3_latest_char_ik_fingers_cpp,
                  "voidCharIKFingers::Poll(){Hmx::Matrix3m;Vector3v;"
                  "mCurHandTrans.Set(m,v);}",
                  "CharIKFingers available Poll body is incomplete");
@@ -3180,6 +3209,20 @@ int run_contract() {
                  "constSourceCharIKFingersSetupRefs&refs,"
                  "conststd::vector<std::string>&present_transforms);",
                  "native API exposes CharIKFingers setup completeness helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKFingersSetFingerPlan{boolknown_finger=false;",
+                 "native exposes CharIKFingers SetFinger plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKFingersLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;};",
+                 "native exposes CharIKFingers load plan");
+  ok &= contains(char_mesh_h,
+                 "SourceCharIKFingersSetFingerPlansource_char_ik_fingers_set_finger_plan("
+                 "intfinger);",
+                 "native API exposes CharIKFingers SetFinger helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharIKFingersCopyPlansource_char_ik_fingers_copy_plan();",
+                 "native API exposes CharIKFingers copy helper");
   ok &= contains(char_mesh,
                  "SourceCharIKFingersStatesource_char_ik_fingers_defaults(){"
                  "returnSourceCharIKFingersState{};}",
@@ -3206,6 +3249,34 @@ int run_contract() {
                  "!present(finger.finger03)||!present(finger.fingertip)){"
                  "returnfalse;}",
                  "native CharIKFingers setup helper mirrors finger-only loop");
+  ok &= contains(char_mesh,
+                 "SourceCharIKFingersSetFingerPlansource_char_ik_fingers_set_finger_plan("
+                 "intfinger){SourceCharIKFingersSetFingerPlanplan;",
+                 "native CharIKFingers SetFinger helper exists");
+  ok &= contains(char_mesh,
+                 "plan.assign_primary_vector=true;plan.assign_secondary_vector=true;"
+                 "plan.set_active=true;plan.mark_dirty=true;"
+                 "plan.multiply_finger01_by_current_hand=true;",
+                 "native CharIKFingers SetFinger helper ports visible state writes");
+  ok &= contains(char_mesh,
+                 "SourceCharIKFingersReleaseFingerPlansource_char_ik_fingers_release_finger_plan("
+                 "intfinger){SourceCharIKFingersReleaseFingerPlanplan;",
+                 "native CharIKFingers ReleaseFinger helper exists");
+  ok &= contains(char_mesh,
+                 "plan.clear_active=true;plan.mark_dirty=true;",
+                 "native CharIKFingers ReleaseFinger helper ports visible state writes");
+  ok &= contains(char_mesh,
+                 "SourceCharIKFingersLoadPlansource_char_ik_fingers_load_plan("
+                 "intrevision){SourceCharIKFingersLoadPlanplan;",
+                 "native CharIKFingers load plan helper exists");
+  ok &= contains(char_mesh,
+                 "if(revision>4){plan.read_order.push_back(\"mHandKeyboardOffset\");"
+                 "plan.read_order.push_back(\"mHandThumbRotation\");",
+                 "native CharIKFingers load plan ports revision 5 fields");
+  ok &= contains(char_mesh,
+                 "SourceCharIKFingersCopyPlansource_char_ik_fingers_copy_plan(){"
+                 "SourceCharIKFingersCopyPlanplan;",
+                 "native CharIKFingers copy plan helper exists");
   ok &= missing(char_mesh, "present(refs.hand)",
                 "native CharIKFingers setup helper must not require hand ref");
   ok &= contains(cmake,
@@ -3224,6 +3295,18 @@ int run_contract() {
   ok &= contains(ik_fingers_source_test,
                  "missingfingertipmakessetupincomplete",
                  "focused CharIKFingers test covers missing fingertip");
+  ok &= contains(ik_fingers_source_test,
+                 "source_char_ik_fingers_set_finger_plan(1)",
+                 "focused CharIKFingers test covers SetFinger plan");
+  ok &= contains(ik_fingers_source_test,
+                 "source_char_ik_fingers_release_finger_plan(3)",
+                 "focused CharIKFingers test covers ReleaseFinger plan");
+  ok &= contains(ik_fingers_source_test,
+                 "source_char_ik_fingers_load_plan(5)",
+                 "focused CharIKFingers test covers revision 5 load plan");
+  ok &= contains(ik_fingers_source_test,
+                 "source_char_ik_fingers_copy_plan()",
+                 "focused CharIKFingers test covers copy plan");
   ok &= contains(doc, "CharIKFingers.cpp",
                  "document cites CharIKFingers source");
   ok &= contains(doc,
@@ -3231,7 +3314,10 @@ int run_contract() {
                  "data decisions",
                  "document records native CharIKFingers helper boundary");
   ok &= contains(doc,
-                 "should not be promoted into live fretting-finger behavior",
+                 "source_char_ik_fingers_set_finger_plan",
+                 "document records CharIKFingers SetFinger helper");
+  ok &= contains(doc,
+                 "must\n    not be promoted into live fretting-finger behavior",
                  "document fences incomplete CharIKFingers runtime");
   ok &= contains(rb3_latest_char_servo_bone_h,
                  "classCharServoBone:publicRndHighlightable,publicCharPollable,"

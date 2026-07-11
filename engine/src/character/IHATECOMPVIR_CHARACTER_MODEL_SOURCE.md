@@ -1304,16 +1304,22 @@ note, and all report `unreadBytes=0`.
     setup false.
   - `Load` accepts source revisions through 5 and gates `is_right_hand`,
     `output_trans`, `keyboard_ref_bone`, keyboard offset, thumb/pinky rotation,
-    move-forward, and destination-offset fields by revision.
+    move-forward, and destination-offset fields by revision. Native
+    `source_char_ik_fingers_load_plan` and
+    `source_char_ik_fingers_copy_plan` record that revision-gated row order and
+    the source copy member list.
   - `SetName` resolves hard-coded left/right hand, forearm, upper-arm, finger
     joint, and fingertip transform names. The source then marks setup false only
     if a finger joint/tip is missing; it does not require hand/forearm/upperarm
     in that final completeness loop. Native `source_char_ik_fingers_*` helpers
     port these data decisions and raw source matrices before `Normalize`.
-  - `SetFinger`, `ReleaseFinger`, `MeasureLengths`, and the real `Poll` math
-    remain fenced; the checked source includes incomplete transform math and
-    should not be promoted into live fretting-finger behavior from this data
-    slice.
+  - Native `source_char_ik_fingers_set_finger_plan` and
+    `source_char_ik_fingers_release_finger_plan` port the visible source state
+    flips: valid finger range, vector assignment, active/dirty flags,
+    `mBlendInFrames=5`, per-finger blend counters, and the `finger01` by
+    current-hand transform step marker. `MeasureLengths`, the missing transform
+    math inside `SetFinger`, and the real `Poll` solve remain fenced and must
+    not be promoted into live fretting-finger behavior from this data slice.
 - `rb3-latest/src/system/char/CharDriver.cpp` and `CharDriver.h`
   - The header/source expose the base driver object members and runtime helper
     surface: `mBones`, `mClips`, `mDefaultClip`, `mBlendWidth`, `mClipType`,

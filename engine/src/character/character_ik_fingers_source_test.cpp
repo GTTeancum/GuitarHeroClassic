@@ -19,6 +19,12 @@ bool expect_size(size_t got, size_t want, const char* label) {
   return false;
 }
 
+bool expect_int(int got, int want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
 bool expect_string(const std::string& got, const std::string& want,
                    const char* label) {
   if (got == want) return true;
@@ -48,8 +54,12 @@ std::vector<std::string> finger_transforms(
 
 int main() {
   using ghogx::character::source_char_ik_fingers_defaults;
+  using ghogx::character::source_char_ik_fingers_copy_plan;
+  using ghogx::character::source_char_ik_fingers_load_plan;
   using ghogx::character::source_char_ik_fingers_load_revision_known;
+  using ghogx::character::source_char_ik_fingers_release_finger_plan;
   using ghogx::character::source_char_ik_fingers_set_name_refs;
+  using ghogx::character::source_char_ik_fingers_set_finger_plan;
   using ghogx::character::source_char_ik_fingers_setup_complete;
 
   bool ok = true;
@@ -122,6 +132,64 @@ int main() {
   present.pop_back();
   ok &= expect_bool(source_char_ik_fingers_setup_complete(left, present), false,
                     "missing fingertip makes setup incomplete");
+
+  const auto set_index = source_char_ik_fingers_set_finger_plan(1);
+  ok &= expect_bool(set_index.known_finger, true, "set index known");
+  ok &= expect_int(set_index.finger, 1, "set index finger");
+  ok &= expect_bool(set_index.assign_primary_vector, true,
+                    "set index primary vector");
+  ok &= expect_bool(set_index.assign_secondary_vector, true,
+                    "set index secondary vector");
+  ok &= expect_bool(set_index.set_active, true, "set index active");
+  ok &= expect_bool(set_index.mark_dirty, true, "set index dirty");
+  ok &= expect_bool(set_index.multiply_finger01_by_current_hand, true,
+                    "set index multiply");
+  ok &= expect_int(set_index.blend_in_frames, 5, "set blend in");
+  ok &= expect_int(set_index.finger_blend_in_frames, 5,
+                   "set finger blend in");
+  ok &= expect_int(set_index.finger_blend_out_frames, 0,
+                   "set finger blend out");
+  ok &= expect_bool(source_char_ik_fingers_set_finger_plan(5).known_finger,
+                    false, "set rejects none finger");
+
+  const auto release_ring = source_char_ik_fingers_release_finger_plan(3);
+  ok &= expect_bool(release_ring.known_finger, true, "release ring known");
+  ok &= expect_bool(release_ring.clear_active, true, "release clears active");
+  ok &= expect_bool(release_ring.mark_dirty, true, "release marks dirty");
+  ok &= expect_int(release_ring.finger_blend_out_frames, 0,
+                   "release blend out");
+  ok &= expect_int(release_ring.finger_blend_in_frames, 5,
+                   "release blend in");
+  ok &= expect_bool(source_char_ik_fingers_release_finger_plan(-1).known_finger,
+                    false, "release rejects negative finger");
+
+  const auto load_v1 = source_char_ik_fingers_load_plan(1);
+  ok &= expect_bool(load_v1.known_revision, true, "load v1 known");
+  ok &= expect_size(load_v1.read_order.size(), 2, "load v1 rows");
+  ok &= expect_string(load_v1.read_order[0], "Hmx::Object",
+                      "load v1 object row");
+  ok &= expect_string(load_v1.read_order[1], "CharWeightable",
+                      "load v1 weightable row");
+  const auto load_v5 = source_char_ik_fingers_load_plan(5);
+  ok &= expect_size(load_v5.read_order.size(), 10, "load v5 rows");
+  ok &= expect_string(load_v5.read_order[2], "mIsRightHand",
+                      "load v5 hand side row");
+  ok &= expect_string(load_v5.read_order[4], "mKeyboardRefBone",
+                      "load v5 keyboard ref row");
+  ok &= expect_string(load_v5.read_order.back(), "mHandDestOffset",
+                      "load v5 hand dest row");
+  ok &= expect_bool(source_char_ik_fingers_load_plan(6).known_revision, false,
+                    "load rejects revision 6");
+
+  const auto copy = source_char_ik_fingers_copy_plan();
+  ok &= expect_string(copy.copied_superclasses[0], "Hmx::Object",
+                      "copy object superclass");
+  ok &= expect_string(copy.copied_superclasses[1], "CharWeightable",
+                      "copy weightable superclass");
+  ok &= expect_string(copy.copied_members[0], "mIsRightHand",
+                      "copy hand side first");
+  ok &= expect_string(copy.copied_members.back(), "mHandDestOffset",
+                      "copy hand destination last");
 
   return ok ? 0 : 1;
 }

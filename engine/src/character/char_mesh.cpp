@@ -3081,6 +3081,59 @@ bool source_char_ik_fingers_setup_complete(
   return true;
 }
 
+SourceCharIKFingersSetFingerPlan source_char_ik_fingers_set_finger_plan(
+    int finger) {
+  SourceCharIKFingersSetFingerPlan plan;
+  plan.finger = finger;
+  plan.known_finger = finger >= 0 && finger < 5;
+  if (!plan.known_finger) return plan;
+  plan.assign_primary_vector = true;
+  plan.assign_secondary_vector = true;
+  plan.set_active = true;
+  plan.mark_dirty = true;
+  plan.multiply_finger01_by_current_hand = true;
+  return plan;
+}
+
+SourceCharIKFingersReleaseFingerPlan
+source_char_ik_fingers_release_finger_plan(int finger) {
+  SourceCharIKFingersReleaseFingerPlan plan;
+  plan.finger = finger;
+  plan.known_finger = finger >= 0 && finger < 5;
+  if (!plan.known_finger) return plan;
+  plan.clear_active = true;
+  plan.mark_dirty = true;
+  return plan;
+}
+
+SourceCharIKFingersLoadPlan source_char_ik_fingers_load_plan(int revision) {
+  SourceCharIKFingersLoadPlan plan;
+  plan.known_revision = source_char_ik_fingers_load_revision_known(revision);
+  if (!plan.known_revision) return plan;
+  plan.read_order = {"Hmx::Object", "CharWeightable"};
+  if (revision > 1) plan.read_order.push_back("mIsRightHand");
+  if (revision > 2) plan.read_order.push_back("mOutputTrans");
+  if (revision > 3) plan.read_order.push_back("mKeyboardRefBone");
+  if (revision > 4) {
+    plan.read_order.push_back("mHandKeyboardOffset");
+    plan.read_order.push_back("mHandThumbRotation");
+    plan.read_order.push_back("mHandPinkyRotation");
+    plan.read_order.push_back("mHandMoveForward");
+    plan.read_order.push_back("mHandDestOffset");
+  }
+  return plan;
+}
+
+SourceCharIKFingersCopyPlan source_char_ik_fingers_copy_plan() {
+  SourceCharIKFingersCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "CharWeightable"};
+  plan.copied_members = {"mIsRightHand",        "mOutputTrans",
+                         "mKeyboardRefBone",   "mHandKeyboardOffset",
+                         "mHandThumbRotation", "mHandPinkyRotation",
+                         "mHandMoveForward",   "mHandDestOffset"};
+  return plan;
+}
+
 SourceCharSleevePollResult source_char_sleeve_poll(
     SourceCharSleeveState& state,
     bool has_sleeve,

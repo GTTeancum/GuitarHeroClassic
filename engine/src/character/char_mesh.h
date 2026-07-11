@@ -1001,6 +1001,38 @@ struct SourceCharIKFingersSetupRefs {
   std::array<float, 9> raw_matrix = {};
 };
 
+struct SourceCharIKFingersSetFingerPlan {
+  bool known_finger = false;
+  int finger = -1;
+  bool assign_primary_vector = false;
+  bool assign_secondary_vector = false;
+  bool set_active = false;
+  bool mark_dirty = false;
+  bool multiply_finger01_by_current_hand = false;
+  int blend_in_frames = 5;
+  int finger_blend_in_frames = 5;
+  int finger_blend_out_frames = 0;
+};
+
+struct SourceCharIKFingersReleaseFingerPlan {
+  bool known_finger = false;
+  int finger = -1;
+  bool clear_active = false;
+  bool mark_dirty = false;
+  int finger_blend_out_frames = 0;
+  int finger_blend_in_frames = 5;
+};
+
+struct SourceCharIKFingersLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharIKFingersCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -1336,6 +1368,12 @@ SourceCharIKFingersSetupRefs source_char_ik_fingers_set_name_refs(
 bool source_char_ik_fingers_setup_complete(
     const SourceCharIKFingersSetupRefs& refs,
     const std::vector<std::string>& present_transforms);
+SourceCharIKFingersSetFingerPlan source_char_ik_fingers_set_finger_plan(
+    int finger);
+SourceCharIKFingersReleaseFingerPlan
+source_char_ik_fingers_release_finger_plan(int finger);
+SourceCharIKFingersLoadPlan source_char_ik_fingers_load_plan(int revision);
+SourceCharIKFingersCopyPlan source_char_ik_fingers_copy_plan();
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(
