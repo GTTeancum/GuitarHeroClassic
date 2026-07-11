@@ -6063,6 +6063,12 @@ int main() {
   ok &= contains(renderer_c,
                  "if(has_absolute_rot_scale)apply_absolute_local_rot_scale(world,sample);",
                  "venue TransAnim rotations rebuild local rotation while preserving signed MakeScale rows");
+  ok &= contains(renderer_c,
+                 "constfloatabs_s=std::fabs(s);",
+                 "venue TransAnim signed scale rows are normalized by magnitude");
+  ok &= contains(renderer_c,
+                 "rot[r][c]=local[r*4+c]/s;",
+                 "venue TransAnim signed scale rows keep their authored facing sign");
   ok &= contains(gameplay_c,
                  "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
                  "source-shaped TransAnim decoder keeps authored scale keys");
@@ -8337,6 +8343,9 @@ int main() {
   ok &= contains(renderer_c,
                  "is_authored_invisible_material(material)",
                  "renderer suppresses authored invisible material clip masks");
+  ok &= contains(renderer_c,
+                 "material==\"invisible.mat\"||material==\"ray_blocker.mat\"",
+                 "renderer suppresses authored ray blockers instead of painting venue floor gaps");
   ok &= contains(gameplay_c,
                  "start_camera_shot_runtime(*key);",
                  "regular camera path applies CamShot visibility through StartAnim lifetime");

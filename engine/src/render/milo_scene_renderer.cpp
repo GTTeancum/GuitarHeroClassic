@@ -158,7 +158,7 @@ BlendState blend_state_for(uint8_t blend) {
 }
 
 bool is_authored_invisible_material(const std::string& material) {
-  return material == "invisible.mat";
+  return material == "invisible.mat" || material == "ray_blocker.mat";
 }
 
 bool mesh_matches_env_spec(const char* name, const std::string& mesh) {
@@ -356,7 +356,8 @@ void local_normalized_rows(const std::array<float, 16>& local,
   const auto scale = local_row_scales(local);
   for (int r = 0; r < 3; ++r) {
     const float s = scale[r];
-    if (std::isfinite(s) && s > 0.000001f) {
+    const float abs_s = std::fabs(s);
+    if (std::isfinite(s) && abs_s > 0.000001f) {
       for (int c = 0; c < 3; ++c) rot[r][c] = local[r * 4 + c] / s;
     } else {
       for (int c = 0; c < 3; ++c) rot[r][c] = r == c ? 1.0f : 0.0f;
