@@ -103,6 +103,29 @@ struct SourceCharBonesBlenderReallocateStep {
   bool enter = true;
 };
 
+struct SourceCharBoneDirClipTypeResource {
+  std::string clip_type;
+  bool has_resource = false;
+  std::string resource_name;
+  int context_mask = 0;
+  bool resource_found = false;
+};
+
+struct SourceCharBoneDirResourceLookupResult {
+  bool clip_type_found = false;
+  bool resource_field_found = false;
+  bool resource_found = false;
+  std::string resource_name;
+  int context_mask = 0;
+  std::string warning;
+};
+
+struct SourceCharBoneDirStuffBonesSymbolStep {
+  SourceCharBoneDirResourceLookupResult lookup;
+  bool call_stuff_bones = false;
+  int context_mask = 0;
+};
+
 struct SourceCharBonesSamplesState {
   SourceCharBonesState bones;
   int num_samples = 0;
@@ -679,6 +702,16 @@ void source_char_bone_dir_list_bones(
     int context_mask,
     bool include_delta_facing,
     std::vector<SourceCharBonesBone>& bones);
+std::vector<std::string> source_char_bone_dir_get_clip_types(
+    const std::vector<SourceCharBoneDirClipTypeResource>& clip_types);
+SourceCharBoneDirResourceLookupResult
+source_char_bone_dir_find_resource_from_clip_type(
+    const std::vector<SourceCharBoneDirClipTypeResource>& clip_types,
+    const std::string& clip_type);
+SourceCharBoneDirStuffBonesSymbolStep
+source_char_bone_dir_stuff_bones_symbol_step(
+    const std::vector<SourceCharBoneDirClipTypeResource>& clip_types,
+    const std::string& clip_type);
 
 // Source-backed CharServoBone movement helpers. These port the isolated math
 // bodies only; broad CharBonesMeshes movement stays fenced to the clip stack.

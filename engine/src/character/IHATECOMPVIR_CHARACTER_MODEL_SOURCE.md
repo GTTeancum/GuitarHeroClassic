@@ -1139,6 +1139,15 @@ note, and all report `unreadBytes=0`.
     Native `source_char_bone_dir_list_bones` ports that list-building behavior
     for decoded `CharClip::OutputBone` rows without claiming the still-fenced
     `CharBones::AddBones` packed insertion path.
+  - `FindResourceFromClipType`, `StuffBones(CharBones&, Symbol)`, and
+    `GetClipTypes` are table-driven over `CharClip` type rows. Native
+    `source_char_bone_dir_find_resource_from_clip_type`,
+    `source_char_bone_dir_stuff_bones_symbol_step`, and
+    `source_char_bone_dir_get_clip_types` port the concrete branch flow:
+    missing type, missing `(resource ...)` field, missing loaded resource, and
+    successful resource/context handoff. These helpers do not perform runtime
+    MILO loading; they model the source table/resource decisions after the rows
+    are known.
   - Native GHOGX decodes and logs the source `CharServoBone` row and
     `clip_type`, enforces the source revision range, and records the row tail
     byte count. Native exposes bounded source helpers for `ZeroDeltas`,

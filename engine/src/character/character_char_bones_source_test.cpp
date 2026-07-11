@@ -513,6 +513,65 @@ int main() {
                       "CharBoneDir delegated position with no facing");
   ok &= expect_string(dir_bones[1].name, "bone_hand.rotz",
                       "CharBoneDir delegated rotation with no facing");
+  const std::vector<SourceCharBoneDirClipTypeResource> clip_resources = {
+      {"solo", true, "lead_resource", 0x4, true},
+      {"rhythm", true, "band_resource", 0x2, false},
+      {"broken", false, "", 0x0, false}};
+  const std::vector<std::string> clip_types =
+      source_char_bone_dir_get_clip_types(clip_resources);
+  ok &= expect_size(clip_types.size(), 4, "CharBoneDir clip type count");
+  ok &= expect_string(clip_types[0], "", "CharBoneDir clip type empty symbol");
+  ok &= expect_string(clip_types[1], "broken",
+                      "CharBoneDir clip type first sorted");
+  ok &= expect_string(clip_types[3], "solo",
+                      "CharBoneDir clip type last sorted");
+  const SourceCharBoneDirResourceLookupResult missing_type =
+      source_char_bone_dir_find_resource_from_clip_type(clip_resources,
+                                                       "missing");
+  ok &= expect_int(missing_type.clip_type_found ? 1 : 0, 0,
+                   "CharBoneDir missing type");
+  ok &= expect_string(missing_type.warning, "no_type",
+                      "CharBoneDir missing type warning");
+  const SourceCharBoneDirResourceLookupResult missing_resource_field =
+      source_char_bone_dir_find_resource_from_clip_type(clip_resources,
+                                                       "broken");
+  ok &= expect_int(missing_resource_field.clip_type_found ? 1 : 0, 1,
+                   "CharBoneDir missing resource type found");
+  ok &= expect_int(missing_resource_field.resource_field_found ? 1 : 0, 0,
+                   "CharBoneDir missing resource field");
+  ok &= expect_string(missing_resource_field.warning, "no_resource_field",
+                      "CharBoneDir missing resource field warning");
+  const SourceCharBoneDirResourceLookupResult missing_resource =
+      source_char_bone_dir_find_resource_from_clip_type(clip_resources,
+                                                       "rhythm");
+  ok &= expect_int(missing_resource.resource_field_found ? 1 : 0, 1,
+                   "CharBoneDir missing resource field found");
+  ok &= expect_int(missing_resource.resource_found ? 1 : 0, 0,
+                   "CharBoneDir resource missing");
+  ok &= expect_string(missing_resource.resource_name, "band_resource",
+                      "CharBoneDir missing resource name");
+  ok &= expect_string(missing_resource.warning, "no_resource",
+                      "CharBoneDir missing resource warning");
+  const SourceCharBoneDirResourceLookupResult found_resource =
+      source_char_bone_dir_find_resource_from_clip_type(clip_resources, "solo");
+  ok &= expect_int(found_resource.resource_found ? 1 : 0, 1,
+                   "CharBoneDir resource found");
+  ok &= expect_string(found_resource.resource_name, "lead_resource",
+                      "CharBoneDir resource name");
+  ok &= expect_int(found_resource.context_mask, 0x4,
+                   "CharBoneDir resource context");
+  ok &= expect_string(found_resource.warning, "",
+                      "CharBoneDir resource no warning");
+  const SourceCharBoneDirStuffBonesSymbolStep stuff_missing =
+      source_char_bone_dir_stuff_bones_symbol_step(clip_resources, "rhythm");
+  ok &= expect_int(stuff_missing.call_stuff_bones ? 1 : 0, 0,
+                   "CharBoneDir StuffBones missing resource");
+  const SourceCharBoneDirStuffBonesSymbolStep stuff_found =
+      source_char_bone_dir_stuff_bones_symbol_step(clip_resources, "solo");
+  ok &= expect_int(stuff_found.call_stuff_bones ? 1 : 0, 1,
+                   "CharBoneDir StuffBones resource found");
+  ok &= expect_int(stuff_found.context_mask, 0x4,
+                   "CharBoneDir StuffBones context");
 
   constexpr float kHalfPi = 1.57079632679489661923f;
   std::array<float, 3> facing_pos_delta = {4.0f, 5.0f, 6.0f};

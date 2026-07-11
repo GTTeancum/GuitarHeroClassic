@@ -360,6 +360,61 @@ void source_char_bone_dir_list_bones(
   }
 }
 
+std::vector<std::string> source_char_bone_dir_get_clip_types(
+    const std::vector<SourceCharBoneDirClipTypeResource>& clip_types) {
+  std::vector<std::string> result;
+  result.push_back("");
+  for (const SourceCharBoneDirClipTypeResource& clip_type : clip_types) {
+    result.push_back(clip_type.clip_type);
+  }
+  std::sort(result.begin(), result.end());
+  return result;
+}
+
+SourceCharBoneDirResourceLookupResult
+source_char_bone_dir_find_resource_from_clip_type(
+    const std::vector<SourceCharBoneDirClipTypeResource>& clip_types,
+    const std::string& clip_type) {
+  SourceCharBoneDirResourceLookupResult result;
+  const auto it = std::find_if(
+      clip_types.begin(), clip_types.end(),
+      [&](const SourceCharBoneDirClipTypeResource& row) {
+        return row.clip_type == clip_type;
+      });
+  if (it == clip_types.end()) {
+    result.warning = "no_type";
+    return result;
+  }
+  result.clip_type_found = true;
+  if (!it->has_resource) {
+    result.warning = "no_resource_field";
+    return result;
+  }
+  result.resource_field_found = true;
+  result.resource_name = it->resource_name;
+  result.context_mask = it->context_mask;
+  if (!it->resource_found) {
+    result.warning = "no_resource";
+    return result;
+  }
+  result.resource_found = true;
+  return result;
+}
+
+SourceCharBoneDirStuffBonesSymbolStep
+source_char_bone_dir_stuff_bones_symbol_step(
+    const std::vector<SourceCharBoneDirClipTypeResource>& clip_types,
+    const std::string& clip_type) {
+  SourceCharBoneDirStuffBonesSymbolStep step;
+  step.lookup =
+      source_char_bone_dir_find_resource_from_clip_type(clip_types, clip_type);
+  if (step.lookup.resource_found) {
+    step.call_stuff_bones = true;
+    step.context_mask = step.lookup.context_mask;
+  }
+  return step;
+}
+
 SourceCharBonesSamplesState source_char_bones_samples_empty_state() {
   return SourceCharBonesSamplesState{};
 }

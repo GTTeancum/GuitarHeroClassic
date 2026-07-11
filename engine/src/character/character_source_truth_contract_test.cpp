@@ -6759,6 +6759,33 @@ int run_contract() {
                  "intmove_context,intcontext_mask,boolinclude_delta_facing,"
                  "std::vector<SourceCharBonesBone>&bones);",
                  "native API exposes source CharBoneDir ListBones helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirClipTypeResource{std::stringclip_type;"
+                 "boolhas_resource=false;std::stringresource_name;"
+                 "intcontext_mask=0;boolresource_found=false;};",
+                 "native API exposes source CharBoneDir clip type resource row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirResourceLookupResult{"
+                 "boolclip_type_found=false;boolresource_field_found=false;"
+                 "boolresource_found=false;std::stringresource_name;"
+                 "intcontext_mask=0;std::stringwarning;};",
+                 "native API exposes source CharBoneDir resource lookup row");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>source_char_bone_dir_get_clip_types("
+                 "conststd::vector<SourceCharBoneDirClipTypeResource>&clip_types);",
+                 "native API exposes source CharBoneDir GetClipTypes helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirResourceLookupResult"
+                 "source_char_bone_dir_find_resource_from_clip_type("
+                 "conststd::vector<SourceCharBoneDirClipTypeResource>&"
+                 "clip_types,conststd::string&clip_type);",
+                 "native API exposes source CharBoneDir resource lookup helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirStuffBonesSymbolStep"
+                 "source_char_bone_dir_stuff_bones_symbol_step("
+                 "conststd::vector<SourceCharBoneDirClipTypeResource>&"
+                 "clip_types,conststd::string&clip_type);",
+                 "native API exposes source CharBoneDir Symbol StuffBones helper");
   ok &= contains(char_clip,
                  "out.char_bone_version=read_u32_at(body,size,pos,"
                  "\"CharBoneversion\");skip_bytes_at(body,size,pos,9,"
@@ -6833,6 +6860,33 @@ int run_contract() {
                  "source_char_bone_stuff_bones(output_bone,context_mask,bones);}}",
                  "native CharBoneDir ListBones helper mirrors source delta and delegation");
   ok &= contains(char_clip,
+                 "std::vector<std::string>source_char_bone_dir_get_clip_types("
+                 "conststd::vector<SourceCharBoneDirClipTypeResource>&clip_types){"
+                 "std::vector<std::string>result;result.push_back(\"\");",
+                 "native CharBoneDir GetClipTypes helper starts with empty symbol");
+  ok &= contains(char_clip,
+                 "for(constSourceCharBoneDirClipTypeResource&clip_type:clip_types){"
+                 "result.push_back(clip_type.clip_type);}std::sort("
+                 "result.begin(),result.end());returnresult;}",
+                 "native CharBoneDir GetClipTypes helper sorts source symbols");
+  ok &= contains(char_clip,
+                 "if(it==clip_types.end()){result.warning=\"no_type\";"
+                 "returnresult;}result.clip_type_found=true;",
+                 "native CharBoneDir resource lookup mirrors missing type branch");
+  ok &= contains(char_clip,
+                 "if(!it->has_resource){result.warning=\"no_resource_field\";"
+                 "returnresult;}result.resource_field_found=true;",
+                 "native CharBoneDir resource lookup mirrors missing resource field branch");
+  ok &= contains(char_clip,
+                 "result.resource_name=it->resource_name;result.context_mask="
+                 "it->context_mask;if(!it->resource_found){result.warning="
+                 "\"no_resource\";returnresult;}result.resource_found=true;",
+                 "native CharBoneDir resource lookup mirrors missing resource branch");
+  ok &= contains(char_clip,
+                 "if(step.lookup.resource_found){step.call_stuff_bones=true;"
+                 "step.context_mask=step.lookup.context_mask;}returnstep;}",
+                 "native CharBoneDir Symbol StuffBones helper mirrors context handoff");
+  ok &= contains(char_clip,
                  "\"[clip-output]%-28ssourceCharBoneversion=%u\"",
                  "native clip debug log labels source CharBone rows");
   ok &= contains(doc,
@@ -6862,6 +6916,19 @@ int run_contract() {
                  "Native `source_char_bone_dir_list_bones` ports that "
                  "list-building behavior",
                  "document records native CharBoneDir ListBones helper");
+  ok &= contains(doc,
+                 "`FindResourceFromClipType`, `StuffBones(CharBones&, Symbol)`, and",
+                 "document records source CharBoneDir clip type resource flow");
+  ok &= contains(doc,
+                 "`source_char_bone_dir_find_resource_from_clip_type`,",
+                 "document records native CharBoneDir resource lookup helper");
+  ok &= contains(doc,
+                 "missing type, missing `(resource ...)` field, missing loaded resource",
+                 "document records CharBoneDir resource warning branches");
+  ok &= contains(doc,
+                 "These helpers do not perform runtime\n"
+                 "    MILO loading",
+                 "document fences CharBoneDir runtime resource loading");
   ok &= contains(char_bones_source_test,
                  "source_char_bone_copy_members(output)",
                  "focused CharBones source test covers CharBone copy-member helper");
@@ -6888,6 +6955,25 @@ int run_contract() {
                  "source_char_bone_dir_list_bones(dir_output_bones,0x1,0x4,"
                  "false,",
                  "focused CharBones source test covers CharBoneDir delegation without facing");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_get_clip_types(clip_resources)",
+                 "focused CharBones source test covers CharBoneDir GetClipTypes");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_find_resource_from_clip_type("
+                 "clip_resources,\"missing\")",
+                 "focused CharBones source test covers CharBoneDir missing type");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_find_resource_from_clip_type("
+                 "clip_resources,\"broken\")",
+                 "focused CharBones source test covers CharBoneDir missing resource field");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_find_resource_from_clip_type("
+                 "clip_resources,\"rhythm\")",
+                 "focused CharBones source test covers CharBoneDir missing resource");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_stuff_bones_symbol_step(clip_resources,"
+                 "\"solo\")",
+                 "focused CharBones source test covers CharBoneDir Symbol StuffBones handoff");
   ok &= contains(rb3_latest_char_bone_cpp,
                  "BEGIN_COPYS(CharBone)COPY_SUPERCLASS(Hmx::Object)"
                  "CREATE_COPY(CharBone)BEGIN_COPYING_MEMBERS",
@@ -6939,6 +7025,35 @@ int run_contract() {
                  "for(ObjDirItr<CharBone>it(this,true);it!=0;++it){"
                  "it->StuffBones(bones,mask);}}",
                  "latest CharBoneDir source defines delta rows and CharBone delegation");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "CharBoneDir*CharBoneDir::FindResourceFromClipType("
+                 "Symbolcliptype){DataArray*types=sCharClipTypes->FindArray("
+                 "cliptype,false);if(!types){MILO_WARN(\"CharCliphasnotype%s\","
+                 "cliptype);return0;}",
+                 "latest CharBoneDir source defines missing clip type branch");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "DataArray*resources=types->FindArray(\"resource\",false);"
+                 "if(!resources){MILO_WARN(\"CharClip%shasno(resource...)field\","
+                 "cliptype);return0;}",
+                 "latest CharBoneDir source defines missing resource field branch");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "CharBoneDir*dir=FindResource(resources->Str(1));if(!dir)"
+                 "MILO_WARN(\"CharClip%shasnoresource\",cliptype);returndir;",
+                 "latest CharBoneDir source defines resource lookup branch");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "voidCharBoneDir::StuffBones(CharBones&bones,Symbolsym){"
+                 "DataArray*found=sCharClipTypes->FindArray(sym,false);",
+                 "latest CharBoneDir source defines Symbol StuffBones lookup");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "dir->StuffBones(bones,DataGetMacro(resource->Str(2))->Int(0));",
+                 "latest CharBoneDir source defines Symbol StuffBones context handoff");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "DataNodeCharBoneDir::GetClipTypes(){DataArray*arr=newDataArray("
+                 "sCharClipTypes->Size());arr->Node(0)=DataNode(Symbol());",
+                 "latest CharBoneDir source defines GetClipTypes empty symbol");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "arr->Node(i)=DataNode(currArr->Sym(0));}arr->SortNodes();",
+                 "latest CharBoneDir source defines GetClipTypes sorted symbols");
   ok &= contains(rb3_latest_char_utl_cpp,
                  "CharBone*CharUtlFindBone(constchar*cc,ObjectDir*dir){",
                  "latest CharUtl source exposes FindBone");
