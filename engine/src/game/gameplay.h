@@ -866,6 +866,8 @@ class Gameplay {
       lighting_mesh_transform_offsets_;
   std::map<std::string, std::vector<std::array<float, 3>>>
       lighting_mesh_position_overrides_;
+  std::map<std::string, std::vector<std::array<float, 3>>>
+      lighting_mesh_normal_overrides_;
   std::map<std::string, std::vector<std::array<float, 2>>>
       lighting_mesh_texcoord_overrides_;
   std::map<std::string, std::vector<std::array<float, 4>>>
@@ -946,6 +948,8 @@ class Gameplay {
       venue_mesh_transform_offsets_;
   std::map<std::string, std::vector<std::array<float, 3>>>
       venue_mesh_position_overrides_;
+  std::map<std::string, std::vector<std::array<float, 3>>>
+      venue_mesh_normal_overrides_;
   std::map<std::string, std::vector<std::array<float, 2>>>
       venue_mesh_texcoord_overrides_;
   std::map<std::string, std::vector<std::array<float, 4>>>

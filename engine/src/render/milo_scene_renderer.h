@@ -187,6 +187,8 @@ class MiloSceneRenderer {
       std::map<std::string, MeshTransformSample> offsets);
   void set_mesh_position_overrides(
       std::map<std::string, std::vector<std::array<float, 3>>> positions);
+  void set_mesh_normal_overrides(
+      std::map<std::string, std::vector<std::array<float, 3>>> normals);
   void set_mesh_texcoord_overrides(
       std::map<std::string, std::vector<std::array<float, 2>>> texcoords);
   void set_mesh_color_overrides(
@@ -254,6 +256,8 @@ class MiloSceneRenderer {
   std::map<std::string, MeshTransformSample> mesh_transform_offsets_;
   std::map<std::string, std::vector<std::array<float, 3>>>
       mesh_position_overrides_;
+  std::map<std::string, std::vector<std::array<float, 3>>>
+      mesh_normal_overrides_;
   std::map<std::string, std::vector<std::array<float, 2>>>
       mesh_texcoord_overrides_;
   std::map<std::string, std::vector<std::array<float, 4>>>

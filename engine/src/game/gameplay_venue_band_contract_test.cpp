@@ -3987,6 +3987,7 @@ int main() {
                  "venue_mesh_translation_offsets_.clear();"
                  "venue_mesh_transform_offsets_.clear();"
                  "venue_mesh_position_overrides_.clear();"
+                 "venue_mesh_normal_overrides_.clear();"
                  "venue_mesh_texcoord_overrides_.clear();",
                  "venue reset clears transform and MeshAnim renderer overrides");
   ok &= contains(gameplay_c,
@@ -4499,6 +4500,9 @@ int main() {
                  "std::vector<TexCoordFrame>texcoord_frames;",
                  "gameplay keeps decoded compact MeshAnim UV-frame state");
   ok &= contains(gameplay_h_c,
+                 "std::vector<NormalFrame>normal_frames;",
+                 "gameplay keeps decoded MeshAnim vertex-normal key pages");
+  ok &= contains(gameplay_h_c,
                  "std::vector<ColorFrame>color_frames;",
                  "gameplay keeps decoded MeshAnim vertex-color key pages");
   ok &= contains(gameplay_h_c,
@@ -4508,14 +4512,17 @@ int main() {
                  "Gameplay::VenueMeshAnimdecode_venue_mesh_anim",
                  "venue MeshAnim loader exists");
   ok &= contains(gameplay_c,
-                 "read_u32_at_unchecked(body,0)!=1",
-                 "venue MeshAnim loader keeps traced PS2 version");
+                 "meshanim_revision==0||meshanim_revision>2",
+                 "venue MeshAnim loader follows source revision range");
   ok &= contains(gameplay_c,
                  "size_tpos=25;",
                  "venue MeshAnim loader enters after Object/RndAnimatable bytes");
   ok &= contains(gameplay_c,
                  "read_vec3_key_page(pos,anim.frames)",
                  "venue MeshAnim loader reads source vertex-position key pages");
+  ok &= contains(gameplay_c,
+                 "read_normal_key_page(pos,anim.normal_frames)",
+                 "venue MeshAnim loader reads source revision-2 normal key pages");
   ok &= contains(gameplay_c,
                  "read_vec2_key_page(pos,anim.texcoord_frames)",
                  "venue MeshAnim loader reads source vertex-UV key pages");
@@ -4547,6 +4554,9 @@ int main() {
                  "sample_mesh_anim_positions(target.anim,frame)",
                  "venue MeshAnim has a per-tick sampler");
   ok &= contains(gameplay_c,
+                 "sample_mesh_anim_normals(target.anim,frame)",
+                 "venue MeshAnim has a vertex-normal sampler");
+  ok &= contains(gameplay_c,
                  "sample_mesh_anim_texcoords(target.anim,frame)",
                  "venue MeshAnim has a compact UV-frame sampler");
   ok &= contains(gameplay_c,
@@ -4556,14 +4566,20 @@ int main() {
                  "frame<=anim.frames[i].frame",
                  "venue MeshAnim position sampler uses authored key frames");
   ok &= contains(gameplay_c,
+                 "frame<=anim.normal_frames[i].frame",
+                 "venue MeshAnim normal sampler uses authored key frames");
+  ok &= contains(gameplay_c,
                  "frame<=anim.texcoord_frames[i].frame",
                  "venue MeshAnim UV sampler uses authored key frames");
   ok &= contains(gameplay_c,
-                 "color_keys=%zu",
-                 "venue MeshAnim logs include decoded vertex-color pages");
+                 "norm=%zu",
+                 "venue MeshAnim logs include sampled vertex-normal counts");
   ok &= contains(gameplay_c,
                  "venue_mesh_position_overrides_[target.mesh]=",
                  "venue MeshAnim sampler stores vertex-position overrides");
+  ok &= contains(gameplay_c,
+                 "venue_mesh_normal_overrides_[target.mesh]=",
+                 "venue MeshAnim sampler stores vertex-normal overrides");
   ok &= contains(gameplay_c,
                  "venue_mesh_texcoord_overrides_[target.mesh]=",
                  "venue MeshAnim sampler stores compact UV overrides");
@@ -4574,6 +4590,9 @@ int main() {
                  "world_->set_mesh_position_overrides(venue_mesh_position_overrides_);",
                  "venue MeshAnim samples feed renderer overrides");
   ok &= contains(gameplay_c,
+                 "world_->set_mesh_normal_overrides(venue_mesh_normal_overrides_);",
+                 "venue MeshAnim normal samples feed renderer overrides");
+  ok &= contains(gameplay_c,
                  "world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);",
                  "venue MeshAnim UV samples feed renderer overrides");
   ok &= contains(gameplay_c,
@@ -4582,6 +4601,9 @@ int main() {
   ok &= contains(renderer_h_c,
                  "set_mesh_position_overrides",
                  "renderer accepts MeshAnim vertex-position overrides");
+  ok &= contains(renderer_h_c,
+                 "set_mesh_normal_overrides",
+                 "renderer accepts MeshAnim vertex-normal overrides");
   ok &= contains(renderer_h_c,
                  "set_mesh_texcoord_overrides",
                  "renderer accepts MeshAnim UV overrides");
@@ -4592,6 +4614,9 @@ int main() {
                  "pos_it->second.size()==m.verts.size()",
                  "renderer guards MeshAnim overrides by exact vertex count");
   ok &= contains(renderer_c,
+                 "normal_it->second.size()==m.verts.size()",
+                 "renderer guards MeshAnim normal overrides by exact vertex count");
+  ok &= contains(renderer_c,
                  "uv_it->second.size()==m.verts.size()",
                  "renderer guards MeshAnim UV overrides by exact vertex count");
   ok &= contains(renderer_c,
@@ -4600,6 +4625,9 @@ int main() {
   ok &= contains(renderer_c,
                  "(*position_override)[vi]",
                  "renderer applies MeshAnim override positions per vertex");
+  ok &= contains(renderer_c,
+                 "(*normal_override)[vi]",
+                 "renderer applies MeshAnim override normals per vertex");
   ok &= contains(renderer_c,
                  "(*texcoord_override)[vi]",
                  "renderer applies MeshAnim override UVs per vertex");

@@ -7840,7 +7840,9 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
     const std::string& entry_name, const uint8_t* body, size_t size) {
     Gameplay::VenueMeshAnim anim;
     anim.name = canonical_milo_ref(entry_name);
-    if (size < 32 || read_u32_at_unchecked(body, 0) != 1) return anim;
+    if (size < 32) return anim;
+    const uint32_t meshanim_revision = read_u32_at_unchecked(body, 0);
+    if (meshanim_revision == 0 || meshanim_revision > 2) return anim;
 
     auto sane_frame = [](float frame) {
         return std::isfinite(frame) && frame >= 0.0f && frame <= 100000.0f;
@@ -7856,6 +7858,14 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
     auto sort_position_keys = [](
                                   std::vector<Gameplay::VenueMeshAnim::Frame>&
                                       keys) {
+        std::sort(keys.begin(), keys.end(),
+                  [](const auto& a, const auto& b) {
+                      return a.frame < b.frame;
+                  });
+    };
+    auto sort_normal_keys = [](
+                                std::vector<
+                                    Gameplay::VenueMeshAnim::NormalFrame>& keys) {
         std::sort(keys.begin(), keys.end(),
                   [](const auto& a, const auto& b) {
                       return a.frame < b.frame;
@@ -7913,6 +7923,44 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
             out.push_back(std::move(key));
         }
         sort_position_keys(out);
+        return true;
+    };
+    auto read_normal_key_page =
+        [&](size_t& pos,
+            std::vector<Gameplay::VenueMeshAnim::NormalFrame>& out) -> bool {
+        uint32_t key_count = 0;
+        if (!read_u32_advance(body, size, pos, key_count) || key_count > 4096)
+            return false;
+        out.clear();
+        out.reserve(key_count);
+        uint64_t samples = 0;
+        for (uint32_t key_index = 0; key_index < key_count; ++key_index) {
+            uint32_t vertex_count = 0;
+            if (!read_u32_advance(body, size, pos, vertex_count) ||
+                !note_page_vertex_count(vertex_count)) {
+                return false;
+            }
+            samples += vertex_count;
+            if (samples > 2000000ull) return false;
+            Gameplay::VenueMeshAnim::NormalFrame key;
+            key.normals.resize(vertex_count);
+            for (uint32_t v = 0; v < vertex_count; ++v) {
+                for (int c = 0; c < 3; ++c) {
+                    if (!read_f32_advance(body, size, pos,
+                                          key.normals[v][c]) ||
+                        !sane_component(key.normals[v][c])) {
+                        return false;
+                    }
+                }
+            }
+            if (!read_f32_advance(body, size, pos, key.frame) ||
+                !sane_frame(key.frame)) {
+                return false;
+            }
+            anim.duration_frames = std::max(anim.duration_frames, key.frame);
+            out.push_back(std::move(key));
+        }
+        sort_normal_keys(out);
         return true;
     };
     auto read_vec2_key_page =
@@ -7997,9 +8045,12 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
     anim.mesh = canonical_milo_ref(*mesh);
 
     if (!read_vec3_key_page(pos, anim.frames) ||
+        (meshanim_revision > 1 &&
+         !read_normal_key_page(pos, anim.normal_frames)) ||
         !read_vec2_key_page(pos, anim.texcoord_frames) ||
         !read_color_key_page(pos, anim.color_frames)) {
         anim.frames.clear();
+        anim.normal_frames.clear();
         anim.texcoord_frames.clear();
         anim.color_frames.clear();
         anim.frame_count = 0;
@@ -8008,7 +8059,7 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
         return anim;
     }
     anim.frame_count = static_cast<uint32_t>(std::max(
-        {anim.frames.size(), anim.texcoord_frames.size(),
+        {anim.frames.size(), anim.normal_frames.size(), anim.texcoord_frames.size(),
          anim.color_frames.size()}));
 
     if (pos + 4 <= size) {
@@ -9245,6 +9296,35 @@ std::vector<std::array<float, 3>> sample_mesh_anim_positions(
         span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
     const auto& fa = a->positions;
     const auto& fb = b->positions;
+    if (fa.size() != fb.size()) return {};
+    std::vector<std::array<float, 3>> out;
+    out.resize(fa.size());
+    for (size_t i = 0; i < fa.size(); ++i) {
+        for (int c = 0; c < 3; ++c)
+            out[i][c] = fa[i][c] + (fb[i][c] - fa[i][c]) * t;
+    }
+    return out;
+}
+
+std::vector<std::array<float, 3>> sample_mesh_anim_normals(
+    const Gameplay::VenueMeshAnim& anim, float frame) {
+    if (anim.normal_frames.empty()) return {};
+    if (anim.normal_frames.size() == 1 || anim.duration_frames <= 0.001f)
+        return anim.normal_frames.front().normals;
+    const auto* a = &anim.normal_frames.front();
+    const auto* b = &anim.normal_frames.back();
+    for (size_t i = 1; i < anim.normal_frames.size(); ++i) {
+        if (frame <= anim.normal_frames[i].frame) {
+            a = &anim.normal_frames[i - 1];
+            b = &anim.normal_frames[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const auto& fa = a->normals;
+    const auto& fb = b->normals;
     if (fa.size() != fb.size()) return {};
     std::vector<std::array<float, 3>> out;
     out.resize(fa.size());
@@ -16289,6 +16369,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_mesh_source_local_positions_.clear();
     lighting_mesh_transform_offsets_.clear();
     lighting_mesh_position_overrides_.clear();
+    lighting_mesh_normal_overrides_.clear();
     lighting_mesh_texcoord_overrides_.clear();
     lighting_mesh_color_overrides_.clear();
     active_lighting_anim_filters_.clear();
@@ -16360,6 +16441,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_mesh_source_local_positions_.clear();
     venue_mesh_transform_offsets_.clear();
     venue_mesh_position_overrides_.clear();
+    venue_mesh_normal_overrides_.clear();
     venue_mesh_texcoord_overrides_.clear();
     venue_mesh_color_overrides_.clear();
     venue_base_hidden_meshes_.clear();
@@ -17237,6 +17319,7 @@ void Gameplay::stop_venue_proxy_object_animation(
     if (proxy.renderer) {
         proxy.renderer->set_mesh_transform_offsets({});
         proxy.renderer->set_mesh_position_overrides({});
+        proxy.renderer->set_mesh_normal_overrides({});
         proxy.renderer->set_mesh_texcoord_overrides({});
         proxy.renderer->set_mesh_color_overrides({});
         proxy.renderer->set_material_alpha_multipliers({});
@@ -18271,6 +18354,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     last_lighting_particle_debug_time_ = -1.0;
     lighting_mesh_transform_offsets_.clear();
     lighting_mesh_position_overrides_.clear();
+    lighting_mesh_normal_overrides_.clear();
     lighting_mesh_texcoord_overrides_.clear();
     lighting_mesh_color_overrides_.clear();
     active_lighting_anim_filters_.clear();
@@ -18307,6 +18391,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     venue_mesh_translation_offsets_.clear();
     venue_mesh_transform_offsets_.clear();
     venue_mesh_position_overrides_.clear();
+    venue_mesh_normal_overrides_.clear();
     venue_mesh_texcoord_overrides_.clear();
     venue_mesh_color_overrides_.clear();
     pending_transient_venue_events_.clear();
@@ -18352,6 +18437,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
         world_->set_particle_end_colors(venue_particle_end_colors_);
         world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
         world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
+        world_->set_mesh_normal_overrides(venue_mesh_normal_overrides_);
         world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
         world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
         world_->set_face_camera_meshes({});
@@ -18382,6 +18468,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
         lighting_->set_particle_end_colors(lighting_particle_end_colors_);
         lighting_->set_mesh_transform_offsets(lighting_mesh_transform_offsets_);
         lighting_->set_mesh_position_overrides(lighting_mesh_position_overrides_);
+        lighting_->set_mesh_normal_overrides(lighting_mesh_normal_overrides_);
         lighting_->set_mesh_texcoord_overrides(
             lighting_mesh_texcoord_overrides_);
         lighting_->set_mesh_color_overrides(lighting_mesh_color_overrides_);
@@ -18686,15 +18773,18 @@ void Gameplay::update_active_venue_anim_filters() {
     if (active_venue_anim_filters_.empty()) {
         if (!venue_mesh_transform_offsets_.empty() ||
             !venue_mesh_position_overrides_.empty() ||
+            !venue_mesh_normal_overrides_.empty() ||
             !venue_mesh_texcoord_overrides_.empty() ||
             !venue_mesh_color_overrides_.empty()) {
             venue_mesh_translation_offsets_.clear();
             venue_mesh_transform_offsets_.clear();
             venue_mesh_position_overrides_.clear();
+            venue_mesh_normal_overrides_.clear();
             venue_mesh_texcoord_overrides_.clear();
             venue_mesh_color_overrides_.clear();
             world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
             world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
+            world_->set_mesh_normal_overrides(venue_mesh_normal_overrides_);
             world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
             world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
         }
@@ -18704,6 +18794,7 @@ void Gameplay::update_active_venue_anim_filters() {
     venue_mesh_translation_offsets_.clear();
     venue_mesh_transform_offsets_.clear();
     venue_mesh_position_overrides_.clear();
+    venue_mesh_normal_overrides_.clear();
     venue_mesh_texcoord_overrides_.clear();
     venue_mesh_color_overrides_.clear();
     const bool debug_sample =
@@ -18789,6 +18880,11 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (!positions.empty())
                     venue_mesh_position_overrides_[target.mesh] =
                         std::move(positions);
+                auto normals = sample_mesh_anim_normals(target.anim, frame);
+                const size_t normal_count = normals.size();
+                if (!normals.empty())
+                    venue_mesh_normal_overrides_[target.mesh] =
+                        std::move(normals);
                 auto texcoords = sample_mesh_anim_texcoords(target.anim, frame);
                 const size_t texcoord_count = texcoords.size();
                 if (!texcoords.empty())
@@ -18802,11 +18898,12 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu delay=%.3f blend=%.3f wait=%d persistent=%d\n",
+                        "[world] venue MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu norm=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu delay=%.3f blend=%.3f wait=%d persistent=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), target.anim.name.c_str(), frame,
                         target.anim.vertex_count, position_count,
-                        texcoord_count, color_count, target.anim.frames.size(),
+                        normal_count, texcoord_count, color_count,
+                        target.anim.frames.size(),
                         target.anim.normal_frames.size(),
                         target.anim.texcoord_frames.size(),
                         target.anim.color_frames.size(),
@@ -18821,6 +18918,7 @@ void Gameplay::update_active_venue_anim_filters() {
     }
     world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
     world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
+    world_->set_mesh_normal_overrides(venue_mesh_normal_overrides_);
     world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
     world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
 }
@@ -18884,6 +18982,8 @@ void Gameplay::update_venue_proxy_objects() {
             transform_offsets;
         std::map<std::string, std::vector<std::array<float, 3>>>
             position_overrides;
+        std::map<std::string, std::vector<std::array<float, 3>>>
+            normal_overrides;
         std::map<std::string, std::vector<std::array<float, 2>>>
             texcoord_overrides;
         std::map<std::string, std::vector<std::array<float, 4>>>
@@ -18899,6 +18999,10 @@ void Gameplay::update_venue_proxy_objects() {
             const size_t position_count = positions.size();
             if (!positions.empty())
                 position_overrides[target.mesh] = std::move(positions);
+            auto normals = sample_mesh_anim_normals(target.anim, frame);
+            const size_t normal_count = normals.size();
+            if (!normals.empty())
+                normal_overrides[target.mesh] = std::move(normals);
             auto texcoords = sample_mesh_anim_texcoords(target.anim, frame);
             const size_t texcoord_count = texcoords.size();
             if (!texcoords.empty())
@@ -18910,10 +19014,10 @@ void Gameplay::update_venue_proxy_objects() {
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] proxy MeshAnim sample proxy=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu\n",
+                    "[world] proxy MeshAnim sample proxy=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu norm=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu\n",
                     object_name.c_str(), target.mesh.c_str(),
                     target.anim.name.c_str(), frame, target.anim.vertex_count,
-                    position_count, texcoord_count, color_count,
+                    position_count, normal_count, texcoord_count, color_count,
                     target.anim.frames.size(),
                     target.anim.normal_frames.size(),
                     target.anim.texcoord_frames.size(),
@@ -18922,6 +19026,7 @@ void Gameplay::update_venue_proxy_objects() {
         }
         proxy.renderer->set_mesh_transform_offsets(std::move(transform_offsets));
         proxy.renderer->set_mesh_position_overrides(std::move(position_overrides));
+        proxy.renderer->set_mesh_normal_overrides(std::move(normal_overrides));
         proxy.renderer->set_mesh_texcoord_overrides(
             std::move(texcoord_overrides));
         proxy.renderer->set_mesh_color_overrides(std::move(color_overrides));
@@ -19875,15 +19980,19 @@ void Gameplay::update_active_lighting_anim_filters() {
     if (active_lighting_anim_filters_.empty()) {
         if (!lighting_mesh_transform_offsets_.empty() ||
             !lighting_mesh_position_overrides_.empty() ||
+            !lighting_mesh_normal_overrides_.empty() ||
             !lighting_mesh_texcoord_overrides_.empty() ||
             !lighting_mesh_color_overrides_.empty()) {
             lighting_mesh_transform_offsets_.clear();
             lighting_mesh_position_overrides_.clear();
+            lighting_mesh_normal_overrides_.clear();
             lighting_mesh_texcoord_overrides_.clear();
             lighting_mesh_color_overrides_.clear();
             lighting_->set_mesh_transform_offsets(lighting_mesh_transform_offsets_);
             lighting_->set_mesh_position_overrides(
                 lighting_mesh_position_overrides_);
+            lighting_->set_mesh_normal_overrides(
+                lighting_mesh_normal_overrides_);
             lighting_->set_mesh_texcoord_overrides(
                 lighting_mesh_texcoord_overrides_);
             lighting_->set_mesh_color_overrides(
@@ -19894,6 +20003,7 @@ void Gameplay::update_active_lighting_anim_filters() {
 
     lighting_mesh_transform_offsets_.clear();
     lighting_mesh_position_overrides_.clear();
+    lighting_mesh_normal_overrides_.clear();
     lighting_mesh_texcoord_overrides_.clear();
     lighting_mesh_color_overrides_.clear();
     const bool debug_sample =
@@ -19953,6 +20063,11 @@ void Gameplay::update_active_lighting_anim_filters() {
                 if (!positions.empty())
                     lighting_mesh_position_overrides_[target.mesh] =
                         std::move(positions);
+                auto normals = sample_mesh_anim_normals(target.anim, frame);
+                const size_t normal_count = normals.size();
+                if (!normals.empty())
+                    lighting_mesh_normal_overrides_[target.mesh] =
+                        std::move(normals);
                 auto texcoords = sample_mesh_anim_texcoords(target.anim, frame);
                 const size_t texcoord_count = texcoords.size();
                 if (!texcoords.empty())
@@ -19966,11 +20081,12 @@ void Gameplay::update_active_lighting_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu\n",
+                        "[world] lighting MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu norm=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), target.anim.name.c_str(), frame,
                         target.anim.vertex_count, position_count,
-                        texcoord_count, color_count, target.anim.frames.size(),
+                        normal_count, texcoord_count, color_count,
+                        target.anim.frames.size(),
                         target.anim.normal_frames.size(),
                         target.anim.texcoord_frames.size(),
                         target.anim.color_frames.size());
@@ -19981,6 +20097,7 @@ void Gameplay::update_active_lighting_anim_filters() {
     }
     lighting_->set_mesh_transform_offsets(lighting_mesh_transform_offsets_);
     lighting_->set_mesh_position_overrides(lighting_mesh_position_overrides_);
+    lighting_->set_mesh_normal_overrides(lighting_mesh_normal_overrides_);
     lighting_->set_mesh_texcoord_overrides(lighting_mesh_texcoord_overrides_);
     lighting_->set_mesh_color_overrides(lighting_mesh_color_overrides_);
 }
@@ -22343,6 +22460,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 world_->set_particle_end_colors({});
                 world_->set_mesh_transform_offsets({});
                 world_->set_mesh_position_overrides({});
+                world_->set_mesh_normal_overrides({});
                 world_->set_mesh_texcoord_overrides({});
                 world_->set_mesh_color_overrides({});
                 world_->set_face_camera_meshes({});
@@ -22593,6 +22711,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_particle_end_colors({});
                 lighting_->set_mesh_transform_offsets({});
                 lighting_->set_mesh_position_overrides({});
+                lighting_->set_mesh_normal_overrides({});
                 lighting_->set_mesh_texcoord_overrides({});
                 lighting_->set_mesh_color_overrides({});
                 lighting_->set_hidden_meshes(composed_lighting_hidden_meshes());

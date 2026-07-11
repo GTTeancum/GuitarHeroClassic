@@ -1066,6 +1066,11 @@ void MiloSceneRenderer::set_mesh_position_overrides(
   mesh_position_overrides_ = std::move(positions);
 }
 
+void MiloSceneRenderer::set_mesh_normal_overrides(
+    std::map<std::string, std::vector<std::array<float, 3>>> normals) {
+  mesh_normal_overrides_ = std::move(normals);
+}
+
 void MiloSceneRenderer::set_mesh_texcoord_overrides(
     std::map<std::string, std::vector<std::array<float, 2>>> texcoords) {
   mesh_texcoord_overrides_ = std::move(texcoords);
@@ -2041,6 +2046,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         pos_it->second.size() == m.verts.size()) {
       position_override = &pos_it->second;
     }
+    const std::vector<std::array<float, 3>>* normal_override = nullptr;
+    if (const auto normal_it = mesh_normal_overrides_.find(m.name);
+        normal_it != mesh_normal_overrides_.end() &&
+        normal_it->second.size() == m.verts.size()) {
+      normal_override = &normal_it->second;
+    }
     for (size_t vi = 0; vi < m.verts.size(); ++vi) {
       const auto& v = m.verts[vi];
       SVtx s;
@@ -2054,7 +2065,16 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         s.y = v.py;
         s.z = v.pz;
       }
-      s.nx = v.nx; s.ny = v.ny; s.nz = v.nz;
+      if (normal_override) {
+        const auto& n = (*normal_override)[vi];
+        s.nx = n[0];
+        s.ny = n[1];
+        s.nz = n[2];
+      } else {
+        s.nx = v.nx;
+        s.ny = v.ny;
+        s.nz = v.nz;
+      }
       const auto cc = [](float f) -> int {
         int i = static_cast<int>(f * 255.0f + 0.5f);
         return i < 0 ? 0 : (i > 255 ? 255 : i);
