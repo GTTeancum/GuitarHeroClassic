@@ -4012,15 +4012,74 @@ int run_contract() {
                  "voidCharTransCopy::Load(BinStream&bs){LOAD_REVS(bs);"
                  "ASSERT_REVS(1,0);Hmx::Object::Load(bs);bs>>mSrc;bs>>mDest;}",
                  "CharTransCopy source Load reads src and dest");
+  ok &= contains(rb3_latest_char_trans_copy_cpp,
+                 "BEGIN_COPYS(CharTransCopy)COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(CharTransCopy)BEGIN_COPYING_MEMBERS"
+                 "COPY_MEMBER(mSrc)COPY_MEMBER(mDest)END_COPYING_MEMBERS"
+                 "END_COPYS",
+                 "CharTransCopy source Copy rows duplicate src and dest");
+  ok &= contains(rb3_latest_char_trans_copy_cpp,
+                 "BEGIN_HANDLERS(CharTransCopy)HANDLE_SUPERCLASS(RndPollable)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0x4C)"
+                 "END_HANDLERS",
+                 "CharTransCopy source handler table");
+  ok &= contains(rb3_latest_char_trans_copy_cpp,
+                 "BEGIN_PROPSYNCS(CharTransCopy)SYNC_PROP(src,mSrc)"
+                 "SYNC_PROP(dest,mDest)END_PROPSYNCS",
+                 "CharTransCopy source prop-sync rows");
   ok &= contains(char_mesh_h,
                  "structSourceCharTransCopyPollDeps{std::vector<std::string>"
                  "changed_by;std::vector<std::string>change;};",
                  "native exposes CharTransCopy dependency helper state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharTransCopyLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;};",
+                 "native exposes CharTransCopy load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharTransCopyCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;};",
+                 "native exposes CharTransCopy copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharTransCopyHandlerPlan{"
+                 "std::vector<std::string>superclasses;intcheck=0;};",
+                 "native exposes CharTransCopy handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharTransCopyPropSyncPlan{"
+                 "std::vector<std::string>properties;};",
+                 "native exposes CharTransCopy prop-sync plan");
+  ok &= contains(char_mesh_h,
+                 "SourceCharTransCopyLoadPlansource_char_trans_copy_load_plan("
+                 "intrevision);",
+                 "native exposes CharTransCopy load plan helper");
   ok &= contains(char_mesh,
                  "boolsource_char_trans_copy_poll(constmilo_scene::Xfm*src,"
                  "milo_scene::Xfm*dest){if(src==nullptr||dest==nullptr)"
                  "returnfalse;*dest=*src;returntrue;}",
                  "native ports CharTransCopy Poll null-gated copy");
+  ok &= contains(char_mesh,
+                 "SourceCharTransCopyLoadPlansource_char_trans_copy_load_plan("
+                 "intrevision){SourceCharTransCopyLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=1;",
+                 "native implements CharTransCopy load revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"Hmx::Object\",\"mSrc\",\"mDest\"};"
+                 "returnplan;}",
+                 "native implements CharTransCopy load row order");
+  ok &= contains(char_mesh,
+                 "SourceCharTransCopyCopyPlansource_char_trans_copy_copy_plan(){"
+                 "SourceCharTransCopyCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\"};plan.copied_members={\"mSrc\",\"mDest\"};",
+                 "native implements CharTransCopy copy row plan");
+  ok &= contains(char_mesh,
+                 "SourceCharTransCopyHandlerPlansource_char_trans_copy_handler_plan(){"
+                 "SourceCharTransCopyHandlerPlanplan;plan.superclasses={"
+                 "\"RndPollable\",\"Hmx::Object\"};plan.check=0x4C;",
+                 "native implements CharTransCopy handler plan");
+  ok &= contains(char_mesh,
+                 "SourceCharTransCopyPropSyncPlansource_char_trans_copy_prop_sync_plan(){"
+                 "SourceCharTransCopyPropSyncPlanplan;plan.properties={"
+                 "\"src\",\"dest\"};",
+                 "native implements CharTransCopy prop-sync plan");
   ok &= contains(char_mesh,
                  "voidsource_char_trans_copy_poll_deps("
                  "SourceCharTransCopyPollDeps&deps,conststd::string&src,"
@@ -4034,6 +4093,18 @@ int run_contract() {
                  "source_char_trans_copy_poll(nullptr,&dest)",
                  "focused CharTransCopy test covers missing source");
   ok &= contains(trans_copy_source_test,
+                 "source_char_trans_copy_load_plan(1)",
+                 "focused CharTransCopy test covers load plan");
+  ok &= contains(trans_copy_source_test,
+                 "source_char_trans_copy_copy_plan()",
+                 "focused CharTransCopy test covers copy plan");
+  ok &= contains(trans_copy_source_test,
+                 "source_char_trans_copy_handler_plan()",
+                 "focused CharTransCopy test covers handler plan");
+  ok &= contains(trans_copy_source_test,
+                 "source_char_trans_copy_prop_sync_plan()",
+                 "focused CharTransCopy test covers prop-sync plan");
+  ok &= contains(trans_copy_source_test,
                  "source_char_trans_copy_poll(&src,&dest)",
                  "focused CharTransCopy test covers local transform copy");
   ok &= contains(trans_copy_source_test,
@@ -4041,8 +4112,11 @@ int run_contract() {
                  "\"dest.trans\")",
                  "focused CharTransCopy test covers dependency direction");
   ok &= contains(doc,
-                 "Native `source_char_trans_copy_poll` and",
-                 "document records native CharTransCopy helper");
+                 "Native `source_char_trans_copy_load_plan`,",
+                 "document records native CharTransCopy load plan");
+  ok &= contains(doc,
+                 "`source_char_trans_copy_poll_deps` port those complete source behaviors",
+                 "document records native CharTransCopy helper boundary");
   ok &= contains(rb3_latest_char_poll_group_h,
                  "classCharPollGroup:publicCharPollable,publicCharWeightable",
                  "latest CharPollGroup header exposes source class");

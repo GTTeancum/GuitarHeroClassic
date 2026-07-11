@@ -2164,6 +2164,34 @@ bool source_char_trans_copy_poll(const milo_scene::Xfm* src,
   return true;
 }
 
+SourceCharTransCopyLoadPlan source_char_trans_copy_load_plan(int revision) {
+  SourceCharTransCopyLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 1;
+  if (!plan.known_revision) return plan;
+  plan.read_order = {"Hmx::Object", "mSrc", "mDest"};
+  return plan;
+}
+
+SourceCharTransCopyCopyPlan source_char_trans_copy_copy_plan() {
+  SourceCharTransCopyCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mSrc", "mDest"};
+  return plan;
+}
+
+SourceCharTransCopyHandlerPlan source_char_trans_copy_handler_plan() {
+  SourceCharTransCopyHandlerPlan plan;
+  plan.superclasses = {"RndPollable", "Hmx::Object"};
+  plan.check = 0x4C;
+  return plan;
+}
+
+SourceCharTransCopyPropSyncPlan source_char_trans_copy_prop_sync_plan() {
+  SourceCharTransCopyPropSyncPlan plan;
+  plan.properties = {"src", "dest"};
+  return plan;
+}
+
 void source_char_trans_copy_poll_deps(
     SourceCharTransCopyPollDeps& deps,
     const std::string& src,

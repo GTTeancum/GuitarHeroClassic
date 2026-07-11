@@ -922,11 +922,21 @@ note, and all report `unreadBytes=0`.
     runtime score.
 - `rb3-latest/src/system/char/CharTransCopy.cpp` and
   `CharTransCopy.h`
+  - `CharTransCopy::Load` accepts source revisions `0..1`, loads
+    `Hmx::Object`, then reads `mSrc` and `mDest`.
+  - `CharTransCopy::Copy`, handlers, and prop-sync rows are source-visible:
+    copy duplicates `mSrc` and `mDest`, handlers dispatch through
+    `RndPollable` then `Hmx::Object` with check `0x4C`, and properties expose
+    `src` and `dest`.
   - `CharTransCopy::Poll` returns immediately when either `mSrc` or `mDest` is
     missing. With both refs present, it calls `mDest->SetLocalXfm(mSrc->mLocalXfm)`.
   - `CharTransCopy::PollDeps` appends `mDest` to the `change` list and `mSrc`
     to `changedBy`, matching the source dependency direction.
-  - Native `source_char_trans_copy_poll` and
+  - Native `source_char_trans_copy_load_plan`,
+    `source_char_trans_copy_copy_plan`,
+    `source_char_trans_copy_handler_plan`,
+    `source_char_trans_copy_prop_sync_plan`,
+    `source_char_trans_copy_poll`, and
     `source_char_trans_copy_poll_deps` port those complete source behaviors as
     isolated helpers. This does not imply active character runtime wiring unless
     stock `CharTransCopy` rows are decoded or another source-backed owner path

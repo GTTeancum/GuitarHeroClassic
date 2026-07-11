@@ -18,6 +18,12 @@ bool expect_size(size_t got, size_t want, const char* label) {
   return false;
 }
 
+bool expect_int(int got, int want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
 bool expect_string(const std::string& got, const std::string& want,
                    const char* label) {
   if (got == want) return true;
@@ -72,10 +78,57 @@ ghogx::milo_scene::Xfm make_dest_xfm() {
 
 int main() {
   using ghogx::character::SourceCharTransCopyPollDeps;
+  using ghogx::character::source_char_trans_copy_copy_plan;
+  using ghogx::character::source_char_trans_copy_handler_plan;
+  using ghogx::character::source_char_trans_copy_load_plan;
   using ghogx::character::source_char_trans_copy_poll;
   using ghogx::character::source_char_trans_copy_poll_deps;
+  using ghogx::character::source_char_trans_copy_prop_sync_plan;
 
   bool ok = true;
+
+  const auto load_bad = source_char_trans_copy_load_plan(2);
+  ok &= expect_bool(load_bad.known_revision, false,
+                    "load rejects high revision");
+  ok &= expect_size(load_bad.read_order.size(), 0,
+                    "bad load has no reads");
+  const auto load = source_char_trans_copy_load_plan(1);
+  ok &= expect_bool(load.known_revision, true,
+                    "load accepts source revision");
+  ok &= expect_size(load.read_order.size(), 3, "load read count");
+  ok &= expect_string(load.read_order[0], "Hmx::Object",
+                      "load object first");
+  ok &= expect_string(load.read_order[1], "mSrc", "load source ref");
+  ok &= expect_string(load.read_order[2], "mDest", "load dest ref");
+
+  const auto copy_plan = source_char_trans_copy_copy_plan();
+  ok &= expect_size(copy_plan.copied_superclasses.size(), 1,
+                    "copy superclass count");
+  ok &= expect_string(copy_plan.copied_superclasses[0], "Hmx::Object",
+                      "copy superclass");
+  ok &= expect_size(copy_plan.copied_members.size(), 2,
+                    "copy member count");
+  ok &= expect_string(copy_plan.copied_members[0], "mSrc",
+                      "copy source ref");
+  ok &= expect_string(copy_plan.copied_members[1], "mDest",
+                      "copy dest ref");
+
+  const auto handler_plan = source_char_trans_copy_handler_plan();
+  ok &= expect_size(handler_plan.superclasses.size(), 2,
+                    "handler superclass count");
+  ok &= expect_string(handler_plan.superclasses[0], "RndPollable",
+                      "handler pollable superclass");
+  ok &= expect_string(handler_plan.superclasses[1], "Hmx::Object",
+                      "handler object superclass");
+  ok &= expect_int(handler_plan.check, 0x4C, "handler check");
+
+  const auto prop_sync = source_char_trans_copy_prop_sync_plan();
+  ok &= expect_size(prop_sync.properties.size(), 2,
+                    "prop sync count");
+  ok &= expect_string(prop_sync.properties[0], "src",
+                      "prop sync source");
+  ok &= expect_string(prop_sync.properties[1], "dest",
+                      "prop sync dest");
 
   const auto src = make_source_xfm();
   const auto original_dest = make_dest_xfm();

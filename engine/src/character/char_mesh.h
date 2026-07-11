@@ -539,6 +539,25 @@ struct SourceCharTransCopyPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharTransCopyLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharTransCopyCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
+struct SourceCharTransCopyHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharTransCopyPropSyncPlan {
+  std::vector<std::string> properties;
+};
+
 struct SourceCharPollGroupChildDeps {
   std::string changed_by;
   std::string change;
@@ -1364,6 +1383,10 @@ std::vector<std::string> source_char_mesh_cache_stuff_meshes(
     const SourceCharMeshCacheState& state);
 bool source_char_trans_copy_poll(const milo_scene::Xfm* src,
                                  milo_scene::Xfm* dest);
+SourceCharTransCopyLoadPlan source_char_trans_copy_load_plan(int revision);
+SourceCharTransCopyCopyPlan source_char_trans_copy_copy_plan();
+SourceCharTransCopyHandlerPlan source_char_trans_copy_handler_plan();
+SourceCharTransCopyPropSyncPlan source_char_trans_copy_prop_sync_plan();
 void source_char_trans_copy_poll_deps(
     SourceCharTransCopyPollDeps& deps,
     const std::string& src,
