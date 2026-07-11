@@ -514,9 +514,9 @@ int main() {
   ok &= expect_string(dir_bones[1].name, "bone_hand.rotz",
                       "CharBoneDir delegated rotation with no facing");
   const std::vector<SourceCharBoneDirClipTypeResource> clip_resources = {
-      {"solo", true, "lead_resource", 0x4, true},
-      {"rhythm", true, "band_resource", 0x2, false},
-      {"broken", false, "", 0x0, false}};
+      {"solo", true, "lead_resource", 0x4, true, "solo_ctx"},
+      {"rhythm", true, "band_resource", 0x2, false, "rhythm_ctx"},
+      {"broken", false, "", 0x0, false, ""}};
   const std::vector<std::string> clip_types =
       source_char_bone_dir_get_clip_types(clip_resources);
   ok &= expect_size(clip_types.size(), 4, "CharBoneDir clip type count");
@@ -572,6 +572,67 @@ int main() {
                    "CharBoneDir StuffBones resource found");
   ok &= expect_int(stuff_found.context_mask, 0x4,
                    "CharBoneDir StuffBones context");
+  const std::vector<SourceCharBoneDirClipTypeResource> context_resources = {
+      {"solo", true, "lead_resource", 0x4, true, "zeta_context"},
+      {"rhythm", true, "other_resource", 0x2, true, "ignored_context"},
+      {"harmony", true, "lead_resource", 0x1, true, "alpha_context"},
+      {"dup", true, "lead_resource", 0x8, true, "alpha_context"},
+      {"tail", true, "lead_resource", 0x10, true, "tail_skipped"}};
+  const SourceCharBoneDirContextFlagsStep cached_context =
+      source_char_bone_dir_get_context_flags_step(
+          context_resources, "lead_resource", {"cached_context"}, false);
+  ok &= expect_int(cached_context.rebuilt ? 1 : 0, 0,
+                   "CharBoneDir GetContextFlags cached gate");
+  ok &= expect_size(cached_context.context_flags.size(), 1,
+                    "CharBoneDir GetContextFlags cached count");
+  ok &= expect_string(cached_context.context_flags[0], "cached_context",
+                      "CharBoneDir GetContextFlags cached value");
+  const SourceCharBoneDirContextFlagsStep rebuilt_context =
+      source_char_bone_dir_get_context_flags_step(context_resources,
+                                                  "lead_resource", {}, true);
+  ok &= expect_int(rebuilt_context.rebuilt ? 1 : 0, 1,
+                   "CharBoneDir GetContextFlags rebuilds int cache");
+  ok &= expect_size(rebuilt_context.scanned_rows, 4,
+                    "CharBoneDir GetContextFlags source scan count");
+  ok &= expect_size(rebuilt_context.context_flags.size(), 2,
+                    "CharBoneDir GetContextFlags unique count");
+  ok &= expect_string(rebuilt_context.context_flags[0], "alpha_context",
+                      "CharBoneDir GetContextFlags sorts first");
+  ok &= expect_string(rebuilt_context.context_flags[1], "zeta_context",
+                      "CharBoneDir GetContextFlags sorts last");
+  std::vector<CharClip::OutputBone> filter_inputs;
+  CharClip::OutputBone filter_pos;
+  filter_pos.name = "bone_pos";
+  filter_pos.position_context = 0x2;
+  filter_inputs.push_back(filter_pos);
+  CharClip::OutputBone filter_scale;
+  filter_scale.name = "bone_scale";
+  filter_scale.scale_context = 0x4;
+  filter_inputs.push_back(filter_scale);
+  CharClip::OutputBone filter_rot;
+  filter_rot.name = "bone_rot";
+  filter_rot.rotation_type = kSourceCharBonesTypeRotY;
+  filter_rot.rotation_context = 0x8;
+  filter_inputs.push_back(filter_rot);
+  CharClip::OutputBone filter_rot_end;
+  filter_rot_end.name = "bone_rot_end";
+  filter_rot_end.rotation_type = kSourceCharBonesTypeEnd;
+  filter_rot_end.rotation_context = 0x8;
+  filter_inputs.push_back(filter_rot_end);
+  const std::vector<std::string> filter_context_six =
+      source_char_bone_dir_sync_filter(filter_inputs, 0x6);
+  ok &= expect_size(filter_context_six.size(), 2,
+                    "CharBoneDir SyncFilter pos scale count");
+  ok &= expect_string(filter_context_six[0], "bone_pos",
+                      "CharBoneDir SyncFilter position row");
+  ok &= expect_string(filter_context_six[1], "bone_scale",
+                      "CharBoneDir SyncFilter scale row");
+  const std::vector<std::string> filter_context_eight =
+      source_char_bone_dir_sync_filter(filter_inputs, 0x8);
+  ok &= expect_size(filter_context_eight.size(), 1,
+                    "CharBoneDir SyncFilter rotation count");
+  ok &= expect_string(filter_context_eight[0], "bone_rot",
+                      "CharBoneDir SyncFilter skips TYPE_END rotation");
   const SourceCharBonesMeshesReplaceStep replace_dummy_from =
       source_char_bones_meshes_replace_step({"mesh_a", "mesh_b"}, "dummy_mesh",
                                             "mesh_c", true, "dummy_mesh");

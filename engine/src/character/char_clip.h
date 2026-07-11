@@ -109,6 +109,7 @@ struct SourceCharBoneDirClipTypeResource {
   std::string resource_name;
   int context_mask = 0;
   bool resource_found = false;
+  std::string context_symbol;
 };
 
 struct SourceCharBoneDirResourceLookupResult {
@@ -124,6 +125,12 @@ struct SourceCharBoneDirStuffBonesSymbolStep {
   SourceCharBoneDirResourceLookupResult lookup;
   bool call_stuff_bones = false;
   int context_mask = 0;
+};
+
+struct SourceCharBoneDirContextFlagsStep {
+  bool rebuilt = false;
+  size_t scanned_rows = 0;
+  std::vector<std::string> context_flags;
 };
 
 struct SourceCharBonesMeshesReplaceStep {
@@ -1133,6 +1140,15 @@ SourceCharBoneDirStuffBonesSymbolStep
 source_char_bone_dir_stuff_bones_symbol_step(
     const std::vector<SourceCharBoneDirClipTypeResource>& clip_types,
     const std::string& clip_type);
+SourceCharBoneDirContextFlagsStep
+source_char_bone_dir_get_context_flags_step(
+    const std::vector<SourceCharBoneDirClipTypeResource>& clip_types,
+    const std::string& resource_name,
+    const std::vector<std::string>& cached_context_flags,
+    bool context_flags_is_int);
+std::vector<std::string> source_char_bone_dir_sync_filter(
+    const std::vector<CharClip::OutputBone>& output_bones,
+    int filter_context);
 SourceCharBonesMeshesReplaceStep source_char_bones_meshes_replace_step(
     const std::vector<std::string>& meshes,
     const std::string& from,

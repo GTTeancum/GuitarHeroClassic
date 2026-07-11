@@ -415,6 +415,47 @@ source_char_bone_dir_stuff_bones_symbol_step(
   return step;
 }
 
+SourceCharBoneDirContextFlagsStep
+source_char_bone_dir_get_context_flags_step(
+    const std::vector<SourceCharBoneDirClipTypeResource>& clip_types,
+    const std::string& resource_name,
+    const std::vector<std::string>& cached_context_flags,
+    bool context_flags_is_int) {
+  SourceCharBoneDirContextFlagsStep step;
+  step.context_flags = cached_context_flags;
+  if (!context_flags_is_int) return step;
+
+  step.rebuilt = true;
+  step.context_flags.clear();
+  for (size_t source_index = 0; source_index + 1 < clip_types.size();
+       ++source_index) {
+    ++step.scanned_rows;
+    const SourceCharBoneDirClipTypeResource& row = clip_types[source_index];
+    if (!row.has_resource || row.resource_name != resource_name) continue;
+    if (std::find(step.context_flags.begin(), step.context_flags.end(),
+                  row.context_symbol) == step.context_flags.end()) {
+      step.context_flags.push_back(row.context_symbol);
+    }
+  }
+  std::sort(step.context_flags.begin(), step.context_flags.end());
+  return step;
+}
+
+std::vector<std::string> source_char_bone_dir_sync_filter(
+    const std::vector<CharClip::OutputBone>& output_bones,
+    int filter_context) {
+  std::vector<std::string> filter_bones;
+  for (const CharClip::OutputBone& bone : output_bones) {
+    if ((filter_context & bone.position_context) != 0 ||
+        (filter_context & bone.scale_context) != 0 ||
+        (bone.rotation_type != kSourceCharBonesTypeEnd &&
+         (filter_context & bone.rotation_context) != 0)) {
+      filter_bones.push_back(bone.name);
+    }
+  }
+  return filter_bones;
+}
+
 SourceCharBonesMeshesReplaceStep source_char_bones_meshes_replace_step(
     const std::vector<std::string>& meshes,
     const std::string& from,

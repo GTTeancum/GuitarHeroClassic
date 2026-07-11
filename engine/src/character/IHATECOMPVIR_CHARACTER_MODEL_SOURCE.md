@@ -1531,6 +1531,19 @@ note, and all report `unreadBytes=0`.
     successful resource/context handoff. These helpers do not perform runtime
     MILO loading; they model the source table/resource decisions after the rows
     are known.
+  - `CharBoneDir::GetContextFlags` lazily rebuilds cached context symbols only
+    while `mContextFlags` is still the constructor integer node. The source
+    scans `CharClip` type rows with `(resource ...)` entries matching the
+    directory name, de-duplicates `resource[2]`, sorts the symbols, and returns
+    the cached result on later calls. Native
+    `source_char_bone_dir_get_context_flags_step` preserves that table scan,
+    including the source loop's `cfg->Size() - 1` allocation boundary, as a
+    deterministic helper only.
+  - `CharBoneDir::SyncFilter` clears `mFilterBones` and republishes every
+    `CharBone` whose position, scale, or non-`TYPE_END` rotation context
+    intersects `mFilterContext`. Native `source_char_bone_dir_sync_filter`
+    ports that selection rule for decoded output-bone rows without installing a
+    live editor filter list.
   - Native GHOGX decodes and logs the source `CharServoBone` row and
     `clip_type`, enforces the source revision range, and records the row tail
     byte count. Native exposes bounded source helpers for `ZeroDeltas`,

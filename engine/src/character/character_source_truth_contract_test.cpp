@@ -8939,7 +8939,8 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "structSourceCharBoneDirClipTypeResource{std::stringclip_type;"
                  "boolhas_resource=false;std::stringresource_name;"
-                 "intcontext_mask=0;boolresource_found=false;};",
+                 "intcontext_mask=0;boolresource_found=false;"
+                 "std::stringcontext_symbol;};",
                  "native API exposes source CharBoneDir clip type resource row");
   ok &= contains(char_clip_h,
                  "structSourceCharBoneDirResourceLookupResult{"
@@ -8963,6 +8964,13 @@ int run_contract() {
                  "conststd::vector<SourceCharBoneDirClipTypeResource>&"
                  "clip_types,conststd::string&clip_type);",
                  "native API exposes source CharBoneDir Symbol StuffBones helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirContextFlagsStep"
+                 "source_char_bone_dir_get_context_flags_step(",
+                 "native API exposes source CharBoneDir GetContextFlags helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>source_char_bone_dir_sync_filter(",
+                 "native API exposes source CharBoneDir SyncFilter helper");
   ok &= contains(char_clip_h,
                  "structSourceCharBonesMeshesReplaceStep{boolobject_replace=true;"
                  "boolscan_meshes=false;intreplaced_index=-1;"
@@ -9094,6 +9102,25 @@ int run_contract() {
                  "step.context_mask=step.lookup.context_mask;}returnstep;}",
                  "native CharBoneDir Symbol StuffBones helper mirrors context handoff");
   ok &= contains(char_clip,
+                 "SourceCharBoneDirContextFlagsStep"
+                 "source_char_bone_dir_get_context_flags_step(",
+                 "native CharBoneDir GetContextFlags helper is implemented");
+  ok &= contains(char_clip,
+                 "for(size_tsource_index=0;source_index+1<clip_types.size();"
+                 "++source_index)",
+                 "native CharBoneDir GetContextFlags helper preserves source scan boundary");
+  ok &= contains(char_clip,
+                 "std::sort(step.context_flags.begin(),"
+                 "step.context_flags.end());",
+                 "native CharBoneDir GetContextFlags helper sorts symbols");
+  ok &= contains(char_clip,
+                 "std::vector<std::string>source_char_bone_dir_sync_filter(",
+                 "native CharBoneDir SyncFilter helper is implemented");
+  ok &= contains(char_clip,
+                 "bone.rotation_type!=kSourceCharBonesTypeEnd&&"
+                 "(filter_context&bone.rotation_context)!=0",
+                 "native CharBoneDir SyncFilter helper gates TYPE_END rotation");
+  ok &= contains(char_clip,
                  "SourceCharBonesMeshesReplaceStepsource_char_bones_meshes_replace_step("
                  "conststd::vector<std::string>&meshes,conststd::string&from,"
                  "conststd::string&to,boolto_is_transformable,"
@@ -9179,6 +9206,12 @@ int run_contract() {
                  "missing type, missing `(resource ...)` field, missing loaded resource",
                  "document records CharBoneDir resource warning branches");
   ok &= contains(doc,
+                 "`CharBoneDir::GetContextFlags` lazily rebuilds cached context symbols",
+                 "document records source CharBoneDir GetContextFlags behavior");
+  ok &= contains(doc,
+                 "`CharBoneDir::SyncFilter` clears `mFilterBones`",
+                 "document records source CharBoneDir SyncFilter behavior");
+  ok &= contains(doc,
                  "These helpers do not perform runtime\n"
                  "    MILO loading",
                  "document fences CharBoneDir runtime resource loading");
@@ -9241,6 +9274,12 @@ int run_contract() {
                  "source_char_bone_dir_stuff_bones_symbol_step(clip_resources,"
                  "\"solo\")",
                  "focused CharBones source test covers CharBoneDir Symbol StuffBones handoff");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_get_context_flags_step(",
+                 "focused CharBones source test covers CharBoneDir GetContextFlags");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_sync_filter(filter_inputs,0x8)",
+                 "focused CharBones source test covers CharBoneDir SyncFilter");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_meshes_replace_step({\"mesh_a\",\"mesh_b\"},",
                  "focused CharBones source test covers CharBonesMeshes Replace dummy skip");
@@ -9336,6 +9375,32 @@ int run_contract() {
   ok &= contains(rb3_latest_char_bone_dir_cpp,
                  "arr->Node(i)=DataNode(currArr->Sym(0));}arr->SortNodes();",
                  "latest CharBoneDir source defines GetClipTypes sorted symbols");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "DataNodeCharBoneDir::GetContextFlags(){if("
+                 "mContextFlags.Type()==kDataInt){DataArray*cfg="
+                 "SystemConfig(\"objects\",\"CharClip\",\"types\");DataArray*arr="
+                 "newDataArray(cfg->Size()-1);",
+                 "latest CharBoneDir source defines GetContextFlags cache rebuild");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "for(inti=1;i<arr->Size();i++){DataArray*resourceArr="
+                 "cfg->Array(i)->FindArray(\"resource\",false);",
+                 "latest CharBoneDir source defines GetContextFlags scan boundary");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "arr->Node(count++)=DataNode(resourceArr->Str(2));",
+                 "latest CharBoneDir source defines GetContextFlags context append");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "arr->Resize(count);arr->SortNodes();mContextFlags=DataNode("
+                 "arr,kDataArray);",
+                 "latest CharBoneDir source defines GetContextFlags sort cache");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "voidCharBoneDir::SyncFilter(){mFilterBones.clear();"
+                 "for(ObjDirItr<CharBone>it(this,true);it!=0;++it){",
+                 "latest CharBoneDir source defines SyncFilter loop");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "mFilterContext&it->PositionContext()||mFilterContext&"
+                 "it->ScaleContext()||(it->RotationType()!=CharBones::TYPE_END&&"
+                 "mFilterContext&it->RotationContext())",
+                 "latest CharBoneDir source defines SyncFilter gates");
   ok &= contains(rb3_latest_char_bones_meshes_h,
                  "classCharBonesMeshes:publicCharBonesAlloc",
                  "latest CharBonesMeshes header defines source inheritance");
