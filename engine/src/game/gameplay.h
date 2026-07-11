@@ -307,11 +307,15 @@ class Gameplay {
   struct VenueAnimFilter {
     std::string name;
     std::string source_trigger;
+    uint16_t revision = 0;
+    uint16_t anim_revision = 0;
     float start_frame = 0.0f;
     float end_frame = 0.0f;
     float scale = 1.0f;
     float period = 0.0f;
     float offset_frame = 0.0f;
+    float snap_frame = 0.0f;
+    float jitter_frame = 0.0f;
     int type = 0;
     float event_blend_seconds = 0.0f;
     float event_delay_seconds = 0.0f;

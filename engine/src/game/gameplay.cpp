@@ -1123,6 +1123,65 @@ std::optional<DecodedRndPollAnim> read_rnd_pollanim_like_miloeditor(
     }
 }
 
+struct DecodedRndAnimFilter {
+    uint16_t revision = 0;
+    uint16_t alt_revision = 0;
+    uint16_t anim_revision = 0;
+    std::string anim;
+    float scale = 1.0f;
+    float offset = 0.0f;
+    float start = 0.0f;
+    float end = 0.0f;
+    int type = 0;
+    float period = 0.0f;
+    float snap = 0.0f;
+    float jitter = 0.0f;
+};
+
+std::optional<DecodedRndAnimFilter> read_rnd_animfilter_like_miloeditor(
+    const uint8_t* body, size_t size) {
+    try {
+        MiloCursor r{body, size, 0};
+        DecodedRndAnimFilter filter;
+        const uint32_t combined_revision = r.u32();
+        filter.revision =
+            static_cast<uint16_t>(combined_revision & 0xffff);
+        filter.alt_revision =
+            static_cast<uint16_t>((combined_revision >> 16) & 0xffff);
+
+        std::unordered_map<std::string, MiloValue> object_props;
+        read_object_fields_like_miloeditor(r, object_props);
+        filter.anim_revision = read_rnd_animatable_like_miloeditor(r);
+        filter.anim = canonical_milo_ref(r.symbol());
+        filter.scale = r.f32();
+        filter.offset = r.f32();
+        filter.start = r.f32();
+        filter.end = r.f32();
+        if (filter.revision < 1) {
+            filter.type = static_cast<int>(r.u8());
+        } else {
+            filter.type = r.i32();
+            filter.period = r.f32();
+        }
+        if (filter.revision > 1) {
+            filter.snap = r.f32();
+            filter.jitter = r.f32();
+        }
+        if (r.pos != r.size) {
+            throw std::runtime_error(
+                "RndAnimFilter source-shaped reader did not consume EOF");
+        }
+        return filter;
+    } catch (const std::exception& ex) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] RndAnimFilter decode failed: %s\n",
+                         ex.what());
+        }
+        return std::nullopt;
+    }
+}
+
 std::string prop_symbol(
     const std::unordered_map<std::string, MiloValue>& props,
     std::string_view key, std::string fallback = {}) {
@@ -10070,52 +10129,76 @@ load_venue_anim_filters(const std::string& hdr_path,
                 continue;
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
+            Gameplay::VenueAnimFilter filter;
+            filter.name = de.name;
             std::string target_ref;
-            std::string target_raw;
-            for (const auto& s : scan_milo_strings(body, size)) {
-                const auto ref = canonical_milo_ref(s);
-                if (ref.rfind(".grp") != std::string::npos ||
-                    ref.rfind(".tnm") != std::string::npos ||
-                    ref.rfind(".msnm") != std::string::npos ||
-                    ref.rfind(".meshanim") != std::string::npos ||
-                    ref.rfind(".mesh") != std::string::npos) {
-                    target_ref = ref;
-                    target_raw = s;
-                    break;
+            if (const auto decoded =
+                    read_rnd_animfilter_like_miloeditor(body, size)) {
+                target_ref = decoded->anim;
+                filter.revision = decoded->revision;
+                filter.anim_revision = decoded->anim_revision;
+                filter.scale = decoded->scale;
+                filter.offset_frame = decoded->offset;
+                filter.start_frame = decoded->start;
+                filter.end_frame = decoded->end;
+                filter.type = decoded->type;
+                filter.period = decoded->period;
+                filter.snap_frame = decoded->snap;
+                filter.jitter_frame = decoded->jitter;
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue AnimFilter %s -> %s source-shaped rev=%u anim_rev=%u frame %.2f..%.2f scale=%.3f period=%.3f offset=%.3f type=%d snap=%.3f jitter=%.3f\n",
+                        filter.name.c_str(), target_ref.c_str(),
+                        filter.revision, filter.anim_revision,
+                        filter.start_frame, filter.end_frame, filter.scale,
+                        filter.period, filter.offset_frame, filter.type,
+                        filter.snap_frame, filter.jitter_frame);
+                }
+            } else {
+                std::string target_raw;
+                for (const auto& s : scan_milo_strings(body, size)) {
+                    const auto ref = canonical_milo_ref(s);
+                    if (ref.rfind(".grp") != std::string::npos ||
+                        ref.rfind(".tnm") != std::string::npos ||
+                        ref.rfind(".msnm") != std::string::npos ||
+                        ref.rfind(".meshanim") != std::string::npos ||
+                        ref.rfind(".mesh") != std::string::npos) {
+                        target_ref = ref;
+                        target_raw = s;
+                        break;
+                    }
+                }
+                if (auto end = packed_string_end(body, size, target_raw)) {
+                    const size_t timing_off = *end;
+                    filter.scale = read_f32_or(body, size, timing_off, 1.0f);
+                    filter.offset_frame =
+                        read_f32_or(body, size, timing_off + 4, 0.0f);
+                    filter.start_frame =
+                        read_f32_or(body, size, timing_off + 8, 0.0f);
+                    filter.end_frame =
+                        read_f32_or(body, size, timing_off + 12,
+                                    filter.start_frame);
+                    filter.type = read_i32_or(body, size, timing_off + 16, 0);
+                    filter.period =
+                        read_f32_or(body, size, timing_off + 20, 0.0f);
                 }
             }
             if (target_ref.empty()) continue;
-
-            Gameplay::VenueAnimFilter filter;
-            filter.name = de.name;
-            if (auto end = packed_string_end(body, size, target_raw)) {
-                // Matches ihatecompvir/MiloEditor RndAnimFilter: anim,
-                // scale, offset, start, end, type, period.
-                const size_t timing_off = *end;
-                filter.scale = read_f32_or(body, size, timing_off, 1.0f);
-                filter.offset_frame =
-                    read_f32_or(body, size, timing_off + 4, 0.0f);
-                filter.start_frame =
-                    read_f32_or(body, size, timing_off + 8, 0.0f);
-                filter.end_frame = read_f32_or(body, size, timing_off + 12,
-                                               filter.start_frame);
-                filter.type = read_i32_or(body, size, timing_off + 16, 0);
-                filter.period = read_f32_or(body, size, timing_off + 20, 0.0f);
-                if (filter.type < 0 || filter.type > 2) filter.type = 0;
-                if (!std::isfinite(filter.offset_frame) ||
-                    std::fabs(filter.offset_frame) > 100000.0f) {
-                    filter.offset_frame = 0.0f;
-                }
-                if (!std::isfinite(filter.start_frame) ||
-                    filter.start_frame < 0.0f ||
-                    filter.start_frame > 100000.0f) {
-                    filter.start_frame = 0.0f;
-                }
-                if (!std::isfinite(filter.end_frame) ||
-                    filter.end_frame < 0.0f ||
-                    filter.end_frame > 100000.0f) {
-                    filter.end_frame = filter.start_frame;
-                }
+            if (filter.type < 0 || filter.type > 2) filter.type = 0;
+            if (!std::isfinite(filter.offset_frame) ||
+                std::fabs(filter.offset_frame) > 100000.0f) {
+                filter.offset_frame = 0.0f;
+            }
+            if (!std::isfinite(filter.start_frame) ||
+                filter.start_frame < 0.0f ||
+                filter.start_frame > 100000.0f) {
+                filter.start_frame = 0.0f;
+            }
+            if (!std::isfinite(filter.end_frame) ||
+                filter.end_frame < 0.0f ||
+                filter.end_frame > 100000.0f) {
+                filter.end_frame = filter.start_frame;
             }
 
             std::unordered_set<std::string> seen;

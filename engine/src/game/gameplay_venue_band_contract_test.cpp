@@ -5985,14 +5985,25 @@ int main() {
                  "floatoffset_frame=0.0f;",
                  "venue AnimFilter keeps authored frame offset");
   ok &= contains(gameplay_c,
-                 "filter.type=read_i32_or(body,size,timing_off+16,0);",
-                 "venue AnimFilter reads ANIM_ENUM type from the traced int slot");
+                 "std::optional<DecodedRndAnimFilter>"
+                 "read_rnd_animfilter_like_miloeditor(",
+                 "venue AnimFilter uses the source-shaped ihatecompvir/MiloEditor reader");
   ok &= contains(gameplay_c,
-                 "filter.offset_frame=read_f32_or(body,size,timing_off+4,0.0f);",
-                 "venue AnimFilter reads frame offset from the ihatecompvir/MiloEditor slot");
+                 "filter.anim=canonical_milo_ref(r.symbol());",
+                 "source-shaped AnimFilter reader takes the target from the authored anim symbol");
   ok &= contains(gameplay_c,
-                 "filter.period=read_f32_or(body,size,timing_off+20,0.0f);",
-                 "venue AnimFilter reads period after ANIM_ENUM in source order");
+                 "filter.scale=r.f32();filter.offset=r.f32();"
+                 "filter.start=r.f32();filter.end=r.f32();",
+                 "source-shaped AnimFilter reader reads scale offset start and end in source order");
+  ok &= contains(gameplay_c,
+                 "filter.type=r.i32();filter.period=r.f32();",
+                 "source-shaped AnimFilter reader reads ANIM_ENUM type and period in source order");
+  ok &= contains(gameplay_c,
+                 "filter.snap=r.f32();filter.jitter=r.f32();",
+                 "source-shaped AnimFilter reader preserves rev2 snap and jitter fields");
+  ok &= contains(gameplay_c,
+                 "read_rnd_animfilter_like_miloeditor(body,size)",
+                 "venue AnimFilter loader uses source-shaped decode before any fallback");
   ok &= contains(gameplay_c,
                  "floatvenue_filter_frame_offset(constGameplay::VenueAnimFilter&filter)",
                  "venue AnimFilter keeps ihatecompvir FrameOffset math separate from event task start");
