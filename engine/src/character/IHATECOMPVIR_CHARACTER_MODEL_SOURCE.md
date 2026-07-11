@@ -32,6 +32,7 @@ records the upstream commits for the copied files:
 | Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
 | Translucent character draw controller | `rb3-latest` `CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` draw-mode enum | Native helper ports source draw-mode command order only; it does not change renderer sorting or material state. |
+| Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h` | Native helper ports constructor defaults, source eccentricity math, and revision defaults; deformation and mesh hookup remain unwired without stock rows. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
 | Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
@@ -538,6 +539,19 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_trans_draw_*` helpers port that command order for tests
     and future source-backed wiring only. They do not alter material state,
     depth behavior, sort order, or the project-level hair two-sided rule.
+- `rb3-latest/src/system/char/CharCuff.cpp` and `CharCuff.h`
+  - The constructor seeds three source shape rows:
+    `offset/radius = -2.9/1.9`, `0.0/2.6`, and `2.0/3.5`; `mOuterRadius`
+    defaults to the middle radius plus `0.5`; `mOpenEnd` defaults false;
+    `mEccentricity` defaults `1.0`.
+  - `CharCuff::Eccentricity` computes
+    `sqrt((y*y + x*x) / (y*y * (1 / eccentricity^2) + x*x))`.
+  - `CharCuff::Load` accepts source revisions through 8. Older revisions
+    default `outer_radius`, `open_end`, `bone` from `TransParent`, eccentricity,
+    category, and ignore rows behind the exact source gates.
+  - Native `source_char_cuff_*` helpers port those complete source-visible data
+    rules only. The deformation path, bone mask helper, and mesh callbacks are
+    not promoted without source-backed stock rows or a complete runtime owner.
 - `rb3-latest/src/system/char/CharMeshHide.cpp` and
   `CharMeshHide.h`
   - `CharMeshHide::HideAll` first ORs the incoming flag word with every

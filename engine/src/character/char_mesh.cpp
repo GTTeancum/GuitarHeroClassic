@@ -1756,6 +1756,36 @@ std::vector<SourceCharTransDrawStep> source_char_trans_draw_draw_showing(
   return steps;
 }
 
+SourceCharCuffState source_char_cuff_default_state() {
+  SourceCharCuffState cuff;
+  cuff.shape[0].offset = -2.9f;
+  cuff.shape[0].radius = 1.9f;
+  cuff.shape[1].offset = 0.0f;
+  cuff.shape[1].radius = 2.6f;
+  cuff.shape[2].offset = 2.0f;
+  cuff.shape[2].radius = 3.5f;
+  cuff.outer_radius = cuff.shape[1].radius + 0.5f;
+  return cuff;
+}
+
+float source_char_cuff_eccentricity(float x, float y, float eccentricity) {
+  const float f1 = y * y;
+  const float f2 = x * x;
+  return std::sqrt((f1 + f2) /
+                   (f1 * (1.0f / (eccentricity * eccentricity)) + f2));
+}
+
+void source_char_cuff_apply_revision_defaults(SourceCharCuffState& cuff,
+                                              int32_t revision,
+                                              const std::string& trans_parent) {
+  if (revision <= 1) cuff.outer_radius = cuff.shape[1].radius + 0.5f;
+  if (revision <= 2) cuff.open_end = false;
+  if (revision <= 3) cuff.bone = trans_parent;
+  if (revision <= 4) cuff.eccentricity = 1.0f;
+  if (revision <= 5) cuff.category.clear();
+  if (revision <= 7) cuff.ignore.clear();
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;

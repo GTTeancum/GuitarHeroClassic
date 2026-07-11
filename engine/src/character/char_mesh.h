@@ -399,6 +399,21 @@ struct SourceCharTransDrawStep {
   bool draw = false;
 };
 
+struct SourceCharCuffShape {
+  float offset = 0.0f;
+  float radius = 0.0f;
+};
+
+struct SourceCharCuffState {
+  SourceCharCuffShape shape[3];
+  float outer_radius = 0.0f;
+  bool open_end = false;
+  std::string bone;
+  float eccentricity = 1.0f;
+  std::string category;
+  std::vector<std::string> ignore;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -464,6 +479,11 @@ std::vector<SourceCharTransDrawStep> source_char_trans_draw_destruct_modes(
     const std::vector<std::string>& chars);
 std::vector<SourceCharTransDrawStep> source_char_trans_draw_draw_showing(
     const std::vector<SourceCharTransDrawCharacter>& chars);
+SourceCharCuffState source_char_cuff_default_state();
+float source_char_cuff_eccentricity(float x, float y, float eccentricity);
+void source_char_cuff_apply_revision_defaults(SourceCharCuffState& cuff,
+                                              int32_t revision,
+                                              const std::string& trans_parent);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

@@ -108,6 +108,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_ik_scale_source_test.cpp"));
   const std::string trans_draw_source_test =
       compact(read_file(char_dir / "character_trans_draw_source_test.cpp"));
+  const std::string cuff_source_test =
+      compact(read_file(char_dir / "character_cuff_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -178,6 +180,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharCollide.cpp"));
   const std::string rb3_latest_char_collide_h = compact(read_file(
       rb3_latest_char_dir / "CharCollide.h"));
+  const std::string rb3_latest_char_cuff_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharCuff.cpp"));
+  const std::string rb3_latest_char_cuff_h = compact(read_file(
+      rb3_latest_char_dir / "CharCuff.h"));
   const std::string rb3_latest_char_ik_rod_cpp = compact(read_file(
       rb3_latest_char_dir / "CharIKRod.cpp"));
   const std::string rb3_latest_char_ik_rod_h = compact(read_file(
@@ -396,6 +402,10 @@ int run_contract() {
                  "`CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` "
                  "draw-mode enum |",
                  "coverage matrix cites CharTransDraw source");
+  ok &= contains(doc,
+                 "| Cuff/accessory deformation rows | `rb3-latest` "
+                 "`CharCuff.cpp` / `CharCuff.h` |",
+                 "coverage matrix cites CharCuff source");
   ok &= contains(doc,
                  "| Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / "
                  "`CharTransCopy.h` |",
@@ -2139,6 +2149,82 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_trans_draw_*` helpers port",
                  "document records native CharTransDraw helpers");
+  ok &= contains(rb3_latest_char_cuff_h,
+                 "classCharCuff:publicRndTransformable",
+                 "latest CharCuff header exposes source class");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "CharCuff::CharCuff():mOpenEnd(0),mIgnore(this,"
+                 "kObjListNoNull),mBone(this,0),mEccentricity(1.0f),",
+                 "CharCuff source constructor defaults prefix");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "mShape[0].offset=-2.9f;mShape[0].radius=1.9f;"
+                 "mShape[1].offset=0.0f;mShape[1].radius=2.6f;"
+                 "mShape[2].offset=2.0f;mShape[2].radius=3.5f;"
+                 "mOuterRadius=mShape[1].radius+0.5f;",
+                 "CharCuff source constructor shape defaults");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "floatCharCuff::Eccentricity(constVector2&v)const{"
+                 "floatf1=v.y*v.y;floatf2=v.x*v.x;returnstd::sqrt((f1+f2)/"
+                 "(f1*(1.0f/(mEccentricity*mEccentricity))+f2));}",
+                 "CharCuff source eccentricity formula");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "ASSERT_REVS(8,0)LOAD_SUPERCLASS(Hmx::Object)"
+                 "LOAD_SUPERCLASS(RndTransformable)for(inti=0;i<3;i++){"
+                 "bs>>mShape[i].radius>>mShape[i].offset;}",
+                 "CharCuff source load prefix and shape order");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "if(gRev>1)bs>>mOuterRadius;elsemOuterRadius=mShape[1]."
+                 "radius+0.5f;if(gRev>2)bs>>mOpenEnd;elsemOpenEnd=false;"
+                 "if(gRev>3)bs>>mBone;elsemBone=TransParent();",
+                 "CharCuff source load early revision defaults");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "if(gRev>4)bs>>mEccentricity;elsemEccentricity=1.0f;"
+                 "if(gRev>5)bs>>mCategory;elsemCategory=Symbol(\"\");"
+                 "if(gRev>7)bs>>mIgnore;",
+                 "CharCuff source load late revision gates");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCuffState{SourceCharCuffShapeshape[3];"
+                 "floatouter_radius=0.0f;boolopen_end=false;std::stringbone;",
+                 "native exposes CharCuff source state");
+  ok &= contains(char_mesh,
+                 "SourceCharCuffStatesource_char_cuff_default_state(){",
+                 "native ports CharCuff default helper");
+  ok &= contains(char_mesh,
+                 "cuff.shape[0].offset=-2.9f;cuff.shape[0].radius=1.9f;"
+                 "cuff.shape[1].offset=0.0f;cuff.shape[1].radius=2.6f;"
+                 "cuff.shape[2].offset=2.0f;cuff.shape[2].radius=3.5f;",
+                 "native CharCuff helper sets source shape defaults");
+  ok &= contains(char_mesh,
+                 "returnstd::sqrt((f1+f2)/(f1*(1.0f/(eccentricity*"
+                 "eccentricity))+f2));",
+                 "native CharCuff helper ports eccentricity formula");
+  ok &= contains(char_mesh,
+                 "if(revision<=1)cuff.outer_radius=cuff.shape[1].radius+0.5f;"
+                 "if(revision<=2)cuff.open_end=false;if(revision<=3)"
+                 "cuff.bone=trans_parent;if(revision<=4)cuff.eccentricity=1.0f;"
+                 "if(revision<=5)cuff.category.clear();if(revision<=7)"
+                 "cuff.ignore.clear();",
+                 "native CharCuff helper ports revision defaults");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_cuff_source_test",
+                 "CMake builds CharCuff source test");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_default_state()",
+                 "focused CharCuff test covers defaults");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_eccentricity(3.0f,4.0f,2.0f)",
+                 "focused CharCuff test covers eccentricity formula");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_apply_revision_defaults(cuff,0,"
+                 "\"parent.trans\")",
+                 "focused CharCuff test covers old revision defaults");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_apply_revision_defaults(cuff,8,"
+                 "\"parent.trans\")",
+                 "focused CharCuff test covers rev8 preservation");
+  ok &= contains(doc,
+                 "Native `source_char_cuff_*` helpers port",
+                 "document records native CharCuff helpers");
   ok &= contains(rb3_latest_char_mesh_hide_h,
                  "classCharMeshHide:publicHmx::Object",
                  "latest CharMeshHide header exposes source class");
