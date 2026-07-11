@@ -140,6 +140,10 @@ bool debug_venue_filters_enabled() {
     return env_value("GHOGX_DEBUG_VENUE_FILTERS") != nullptr;
 }
 
+bool debug_venue_only_capture_enabled() {
+    return env_value("GHOGX_DEBUG_VENUE_ONLY_CAPTURE") != nullptr;
+}
+
 bool debug_venue_proxy_enabled() {
     return env_value("GHOGX_DEBUG_VENUE_PROXY") != nullptr;
 }
@@ -23570,6 +23574,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                              "t=%.3f\n",
                              song_time_);
             }
+        }
+        if (debug_venue_only_capture_enabled()) {
+            return;
         }
         if (!highway_) {
             highway_ = std::make_unique<HighwayRenderer>(win);

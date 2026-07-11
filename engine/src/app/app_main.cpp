@@ -788,6 +788,7 @@ class AppEngine : public ghogx::Engine {
   }
 
   void draw_gameplay_hud() {
+    if (env_flag("GHOGX_DEBUG_VENUE_ONLY_CAPTURE")) return;
     ensure_hud_loaded();
     if (!hud_ready_) return;
 
