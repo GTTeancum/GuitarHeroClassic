@@ -687,6 +687,18 @@ bool source_char_bones_samples_load_version_known(int version) {
   return version > 12 && version <= 16;
 }
 
+SourceCharBonesSamplesBodyBoundary
+source_char_bones_samples_body_boundary() {
+  SourceCharBonesSamplesBodyBoundary boundary;
+  boundary.fenced_bodies = {
+      "CharBonesSamples::LoadHeader",
+      "CharBonesSamples::LoadData",
+      "CharBonesSamples::EvaluateChannel",
+      "CharBonesSamples::Relativize",
+  };
+  return boundary;
+}
+
 std::string source_char_utl_name_with_suffix(const std::string& name,
                                              const std::string& suffix) {
   const size_t dot = name.rfind('.');

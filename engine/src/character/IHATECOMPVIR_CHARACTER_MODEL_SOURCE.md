@@ -208,6 +208,9 @@ into final transform rows.
 1. Whole-character clip and pose stack:
    - Port the missing source-backed bodies for `CharBonesSamples::LoadHeader`,
      `LoadData`, `EvaluateChannel`, and `Relativize`.
+     Current evidence is not enough to copy them: `rb3-latest` declares those
+     functions and delegates to `LoadHeader`/`LoadData`, while the RB2 dump maps
+     function names/ranges and locals but does not expose a statement-level body.
    - Port the missing source-backed bodies for `CharBones::ScaleAdd`,
      `RotateBy`, `RotateTo`, `Blend`, and any required identity/mesh
      application helpers.
@@ -1965,6 +1968,13 @@ note, and all report `unreadBytes=0`.
     `source_char_bones_samples_load_version_known` ports that exact range and
     the clip parser rejects out-of-range `CharBonesSamples` entries before
     scanning sample-list headers.
+  - `rb3-latest` declares `LoadHeader`, `LoadData`, `EvaluateChannel`, and
+    `Relativize`, but does not provide reviewable statement bodies for them.
+    The RB2 dump maps the same names and ranges, but only as a function/local
+    inventory. Native `source_char_bones_samples_body_boundary` records this
+    source boundary: decoding/logging rows is allowed, but broad pose publishing
+    and channel evaluation remain fenced until a real body or direct trace is
+    available.
   - `SetVer` is the separate legacy source gate and asserts `ver < 13`.
     Native `source_char_bones_samples_set_ver_known` records that older
     pre-load boundary separately from the serialized `Load` range.

@@ -236,6 +236,24 @@ struct SourceCharBonesSampleStep {
   float weight = 0.0f;
 };
 
+struct SourceCharBonesSamplesBodyBoundary {
+  bool rb3_latest_load_delegates_header = true;
+  bool rb3_latest_load_delegates_data = true;
+  bool rb3_latest_declares_load_header = true;
+  bool rb3_latest_declares_load_data = true;
+  bool rb3_latest_declares_evaluate_channel = true;
+  bool rb3_latest_exposes_load_header_body = false;
+  bool rb3_latest_exposes_load_data_body = false;
+  bool rb3_latest_exposes_evaluate_channel_body = false;
+  bool rb2_dump_maps_load_header = true;
+  bool rb2_dump_maps_load_data = true;
+  bool rb2_dump_maps_evaluate_channel = true;
+  bool rb2_dump_exposes_statement_body = false;
+  bool safe_to_decode_logged_rows = true;
+  bool safe_to_publish_pose = false;
+  std::vector<std::string> fenced_bodies;
+};
+
 enum class SourceCharUtlObjectKind {
   kTransformable,
   kMesh,
@@ -1315,6 +1333,8 @@ source_char_bones_samples_scale_add_steps(
     float frac);
 bool source_char_bones_samples_set_ver_known(int version);
 bool source_char_bones_samples_load_version_known(int version);
+SourceCharBonesSamplesBodyBoundary
+source_char_bones_samples_body_boundary();
 
 // Source-backed CharUtl name/object helpers. CharUtlFindBone rewrites the
 // incoming name to .cb. CharUtlFindBoneTrans checks .cb first and returns that

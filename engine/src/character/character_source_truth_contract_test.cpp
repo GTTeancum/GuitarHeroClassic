@@ -688,6 +688,11 @@ int run_contract() {
                  "`CharBonesSamples::LoadHeader`,",
                  "remaining import checklist names CharBonesSamples body gap");
   ok &= contains(doc,
+                 "Current evidence is not enough to copy them: `rb3-latest` "
+                 "declares those\n     functions and delegates to `LoadHeader`/"
+                 "`LoadData`, while the RB2 dump maps",
+                 "remaining import checklist fences CharBonesSamples body maps");
+  ok &= contains(doc,
                  "Port the missing source-backed bodies for "
                  "`CharBones::ScaleAdd`,",
                  "remaining import checklist names CharBones pose gap");
@@ -9065,6 +9070,20 @@ int run_contract() {
                  "floatweight=0.0f;};",
                  "native API exposes source CharBonesSamples sample step row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBonesSamplesBodyBoundary{"
+                 "boolrb3_latest_load_delegates_header=true;"
+                 "boolrb3_latest_load_delegates_data=true;",
+                 "native API exposes CharBonesSamples body boundary row");
+  ok &= contains(char_clip_h,
+                 "boolrb3_latest_exposes_load_header_body=false;"
+                 "boolrb3_latest_exposes_load_data_body=false;"
+                 "boolrb3_latest_exposes_evaluate_channel_body=false;",
+                 "native API fences missing CharBonesSamples source bodies");
+  ok &= contains(char_clip_h,
+                 "boolsafe_to_decode_logged_rows=true;"
+                 "boolsafe_to_publish_pose=false;",
+                 "native API records CharBonesSamples decode/publish boundary");
+  ok &= contains(char_clip_h,
                  "SourceCharBonesLayoutsource_char_bones_recompute_layout("
                  "conststd::array<int,kSourceCharBonesTypeEnd+1>&counts,"
                  "intcompression);",
@@ -9143,6 +9162,10 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "boolsource_char_bones_samples_load_version_known(intversion);",
                  "native API exposes source CharBonesSamples load-version helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesSamplesBodyBoundary"
+                 "source_char_bones_samples_body_boundary();",
+                 "native API exposes CharBonesSamples body-boundary helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_type_of(conststd::string&channel)",
                  "native clip decoder ports source CharBones type helper");
@@ -9291,6 +9314,17 @@ int run_contract() {
                  "boolsource_char_bones_samples_load_version_known(intversion){"
                  "returnversion>12&&version<=16;}",
                  "native CharBonesSamples load-version helper mirrors source range");
+  ok &= contains(char_clip,
+                 "SourceCharBonesSamplesBodyBoundary"
+                 "source_char_bones_samples_body_boundary(){"
+                 "SourceCharBonesSamplesBodyBoundaryboundary;",
+                 "native CharBonesSamples body-boundary helper exists");
+  ok &= contains(char_clip,
+                 "boundary.fenced_bodies={\"CharBonesSamples::LoadHeader\","
+                 "\"CharBonesSamples::LoadData\","
+                 "\"CharBonesSamples::EvaluateChannel\","
+                 "\"CharBonesSamples::Relativize\",};",
+                 "native CharBonesSamples body-boundary helper names fenced bodies");
   ok &= contains(char_clip,
                  "uint32_tsamples_version=0;std::memcpy(&samples_version,d,4);"
                  "if(!source_char_bones_samples_load_version_known("
@@ -10797,6 +10831,12 @@ int run_contract() {
                  "exact range",
                  "document records native CharBonesSamples version gate");
   ok &= contains(doc,
+                 "Native `source_char_bones_samples_body_boundary` records this",
+                 "document records native CharBonesSamples body boundary");
+  ok &= contains(doc,
+                 "decoding/logging rows is allowed, but broad pose publishing",
+                 "document records CharBonesSamples pose publish fence");
+  ok &= contains(doc,
                  "`SetVer` is the separate legacy source gate and asserts "
                  "`ver < 13`",
                  "document records native CharBonesSamples SetVer boundary");
@@ -10816,9 +10856,21 @@ int run_contract() {
   ok &= missing(rb3_latest_char_bones_samples_cpp,
                 "voidCharBonesSamples::LoadHeader(",
                 "latest CharBonesSamples source does not expose LoadHeader body");
+  ok &= contains(rb2_char_bones_samples_cpp,
+                 "voidCharBonesSamples::LoadHeader(classCharBonesSamples*constthis",
+                 "RB2 dump maps CharBonesSamples LoadHeader");
+  ok &= contains(rb2_char_bones_samples_cpp,
+                 "voidCharBonesSamples::LoadData(classCharBonesSamples*constthis",
+                 "RB2 dump maps CharBonesSamples LoadData");
   ok &= missing(rb3_latest_char_bones_samples_cpp,
                 "voidCharBonesSamples::EvaluateChannel(",
                 "latest CharBonesSamples source does not expose EvaluateChannel body");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_body_boundary()",
+                 "focused CharBones source test covers CharBonesSamples body boundary");
+  ok &= contains(char_bones_source_test,
+                 "samples_boundary.safe_to_publish_pose",
+                 "focused CharBones source test covers CharBonesSamples pose fence");
   ok &= contains(rb3_latest_char_clip_driver_cpp,
                  "CharClipDriver::CharClipDriver(Hmx::Object*owner,CharClip*clip,"
                  "intmask,floatblendwidth,CharClipDriver*next,floatf2,floatf3,"

@@ -1075,5 +1075,31 @@ int main() {
   ok &= expect_int(source_char_bones_samples_set_ver_known(13) ? 1 : 0, 0,
                    "samples SetVer source 13 rejected");
 
+  const SourceCharBonesSamplesBodyBoundary samples_boundary =
+      source_char_bones_samples_body_boundary();
+  ok &= expect_int(samples_boundary.rb3_latest_load_delegates_header ? 1 : 0,
+                   1, "samples rb3 load delegates header");
+  ok &= expect_int(samples_boundary.rb3_latest_declares_load_header ? 1 : 0,
+                   1, "samples rb3 declares LoadHeader");
+  ok &= expect_int(
+      samples_boundary.rb3_latest_exposes_load_header_body ? 1 : 0, 0,
+      "samples rb3 lacks LoadHeader body");
+  ok &= expect_int(samples_boundary.rb2_dump_maps_load_header ? 1 : 0, 1,
+                   "samples rb2 maps LoadHeader");
+  ok &= expect_int(samples_boundary.rb2_dump_exposes_statement_body ? 1 : 0,
+                   0, "samples rb2 dump lacks statement body");
+  ok &= expect_int(samples_boundary.safe_to_decode_logged_rows ? 1 : 0, 1,
+                   "samples boundary allows row decode");
+  ok &= expect_int(samples_boundary.safe_to_publish_pose ? 1 : 0, 0,
+                   "samples boundary fences pose publish");
+  ok &= expect_size(samples_boundary.fenced_bodies.size(), 4,
+                    "samples fenced body count");
+  ok &= expect_string(samples_boundary.fenced_bodies[0],
+                      "CharBonesSamples::LoadHeader",
+                      "samples first fenced body");
+  ok &= expect_string(samples_boundary.fenced_bodies[2],
+                      "CharBonesSamples::EvaluateChannel",
+                      "samples evaluate channel fenced");
+
   return ok ? 0 : 1;
 }
