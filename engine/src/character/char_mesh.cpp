@@ -1786,6 +1786,20 @@ void source_char_cuff_apply_revision_defaults(SourceCharCuffState& cuff,
   if (revision <= 7) cuff.ignore.clear();
 }
 
+SourceCharBlendBoneState source_char_blend_bone_default_state() {
+  return SourceCharBlendBoneState{};
+}
+
+void source_char_blend_bone_poll_deps(
+    SourceCharBlendBonePollDeps& deps,
+    const SourceCharBlendBoneState& blend) {
+  deps.changed_by.push_back(blend.src1);
+  deps.changed_by.push_back(blend.src2);
+  for (const SourceCharBlendBoneConstraint& target : blend.targets) {
+    deps.change.push_back(target.target);
+  }
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;

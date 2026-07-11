@@ -414,6 +414,26 @@ struct SourceCharCuffState {
   std::vector<std::string> ignore;
 };
 
+struct SourceCharBlendBoneConstraint {
+  std::string target;
+  float weight = 0.5f;
+};
+
+struct SourceCharBlendBoneState {
+  std::vector<SourceCharBlendBoneConstraint> targets;
+  std::string src1;
+  std::string src2;
+  bool trans_x = false;
+  bool trans_y = false;
+  bool trans_z = false;
+  bool rotation = false;
+};
+
+struct SourceCharBlendBonePollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -484,6 +504,10 @@ float source_char_cuff_eccentricity(float x, float y, float eccentricity);
 void source_char_cuff_apply_revision_defaults(SourceCharCuffState& cuff,
                                               int32_t revision,
                                               const std::string& trans_parent);
+SourceCharBlendBoneState source_char_blend_bone_default_state();
+void source_char_blend_bone_poll_deps(
+    SourceCharBlendBonePollDeps& deps,
+    const SourceCharBlendBoneState& blend);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

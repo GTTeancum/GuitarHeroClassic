@@ -33,6 +33,7 @@ records the upstream commits for the copied files:
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
 | Translucent character draw controller | `rb3-latest` `CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` draw-mode enum | Native helper ports source draw-mode command order only; it does not change renderer sorting or material state. |
 | Cuff/accessory deformation rows | `rb3-latest` `CharCuff.cpp` / `CharCuff.h` | Native helper ports constructor defaults, source eccentricity math, and revision defaults; deformation and mesh hookup remain unwired without stock rows. |
+| Blend-bone constraints | `rb3-latest` `CharBlendBone.cpp` / `CharBlendBone.h` | Native helper ports constructor/constraint defaults, load field order, and dependency publication; the checked source does not include the blend `Poll` body. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
 | Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
@@ -552,6 +553,18 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_cuff_*` helpers port those complete source-visible data
     rules only. The deformation path, bone mask helper, and mesh callbacks are
     not promoted without source-backed stock rows or a complete runtime owner.
+- `rb3-latest/src/system/char/CharBlendBone.cpp` and
+  `CharBlendBone.h`
+  - The constructor defaults `mTransX`, `mTransY`, `mTransZ`, and `mRotation`
+    to false and leaves source pointers empty.
+  - `ConstraintSystem` defaults `mWeight` to `0.5`.
+  - `Load` reads `mTargets`, `mSrc1`, `mSrc2`, `mTransX`, `mTransY`,
+    `mTransZ`, and `mRotation` after `Hmx::Object`.
+  - `PollDeps` pushes `mSrc1` and `mSrc2` into `changedBy`, then pushes every
+    constraint target into `change`.
+  - Native `source_char_blend_bone_*` helpers port those source-visible data and
+    dependency rules only. The checked source marks `Poll` but does not include
+    its body, so native must not invent blend output math from the field names.
 - `rb3-latest/src/system/char/CharMeshHide.cpp` and
   `CharMeshHide.h`
   - `CharMeshHide::HideAll` first ORs the incoming flag word with every

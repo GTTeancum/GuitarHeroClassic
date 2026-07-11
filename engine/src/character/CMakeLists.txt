@@ -151,6 +151,13 @@ target_link_libraries(ghogx_character_cuff_source_test PRIVATE
 add_test(NAME ghogx_character_cuff_source_test
          COMMAND ghogx_character_cuff_source_test)
 
+add_executable(ghogx_character_blend_bone_source_test
+    character_blend_bone_source_test.cpp)
+target_link_libraries(ghogx_character_blend_bone_source_test PRIVATE
+    ghogx_character)
+add_test(NAME ghogx_character_blend_bone_source_test
+         COMMAND ghogx_character_blend_bone_source_test)
+
 add_executable(ghogx_character_mesh_decode_test character_mesh_decode_test.cpp)
 target_link_libraries(ghogx_character_mesh_decode_test PRIVATE ghogx_character)
 add_test(NAME ghogx_character_mesh_decode_test
@@ -219,6 +226,7 @@ target_compile_options(ghogx_character_poll_group_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_ik_scale_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_trans_draw_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_cuff_source_test PRIVATE /W4)
+target_compile_options(ghogx_character_blend_bone_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_mesh_decode_test PRIVATE /W4)
 target_compile_options(ghogx_character_skin_order_test PRIVATE /W4)
 target_compile_options(ghogx_character_no_named_fix_test PRIVATE /W4)
@@ -262,6 +270,8 @@ else()
     target_compile_options(ghogx_character_trans_draw_source_test PRIVATE
         -Wall -Wextra)
     target_compile_options(ghogx_character_cuff_source_test PRIVATE
+        -Wall -Wextra)
+    target_compile_options(ghogx_character_blend_bone_source_test PRIVATE
         -Wall -Wextra)
     target_compile_options(ghogx_character_mesh_decode_test PRIVATE
         -Wall -Wextra)

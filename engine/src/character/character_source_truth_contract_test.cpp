@@ -110,6 +110,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_trans_draw_source_test.cpp"));
   const std::string cuff_source_test =
       compact(read_file(char_dir / "character_cuff_source_test.cpp"));
+  const std::string blend_bone_source_test =
+      compact(read_file(char_dir / "character_blend_bone_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -176,6 +178,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharHair.cpp"));
   const std::string rb3_latest_char_hair_h = compact(read_file(
       rb3_latest_char_dir / "CharHair.h"));
+  const std::string rb3_latest_char_blend_bone_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharBlendBone.cpp"));
+  const std::string rb3_latest_char_blend_bone_h = compact(read_file(
+      rb3_latest_char_dir / "CharBlendBone.h"));
   const std::string rb3_latest_char_collide_cpp = compact(read_file(
       rb3_latest_char_dir / "CharCollide.cpp"));
   const std::string rb3_latest_char_collide_h = compact(read_file(
@@ -406,6 +412,10 @@ int run_contract() {
                  "| Cuff/accessory deformation rows | `rb3-latest` "
                  "`CharCuff.cpp` / `CharCuff.h` |",
                  "coverage matrix cites CharCuff source");
+  ok &= contains(doc,
+                 "| Blend-bone constraints | `rb3-latest` "
+                 "`CharBlendBone.cpp` / `CharBlendBone.h` |",
+                 "coverage matrix cites CharBlendBone source");
   ok &= contains(doc,
                  "| Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / "
                  "`CharTransCopy.h` |",
@@ -2225,6 +2235,70 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_cuff_*` helpers port",
                  "document records native CharCuff helpers");
+  ok &= contains(rb3_latest_char_blend_bone_h,
+                 "classCharBlendBone:publicCharPollable",
+                 "latest CharBlendBone header exposes source class");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "CharBlendBone::CharBlendBone():mTargets(this),mSrc1(this,0),"
+                 "mSrc2(this,0),mTransX(0),mTransY(0),mTransZ(0),mRotation(0)",
+                 "CharBlendBone source constructor defaults");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "CharBlendBone::ConstraintSystem::ConstraintSystem("
+                 "Hmx::Object*o):mTarget(o,0),mWeight(0.5f){}",
+                 "CharBlendBone source constraint default weight");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "BinStream&operator>>(BinStream&bs,CharBlendBone::"
+                 "ConstraintSystem&cs){bs>>cs.mTarget;bs>>cs.mWeight;"
+                 "returnbs;}",
+                 "CharBlendBone source constraint load order");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "bs>>mTargets;bs>>mSrc1;bs>>mSrc2;bs>>mTransX;bs>>mTransY;"
+                 "bs>>mTransZ;bs>>mRotation;",
+                 "CharBlendBone source Load field order");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "voidCharBlendBone::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){changedBy."
+                 "push_back(mSrc1);changedBy.push_back(mSrc2);for(ObjList<"
+                 "ConstraintSystem>::iteratorit=mTargets.begin();it!="
+                 "mTargets.end();++it){change.push_back((*it).mTarget);}}",
+                 "CharBlendBone source PollDeps direction");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "//fn_804A4D38-poll",
+                 "CharBlendBone source lacks checked Poll body");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharBlendBoneConstraint{std::stringtarget;"
+                 "floatweight=0.5f;};",
+                 "native exposes CharBlendBone constraint row");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharBlendBoneState{std::vector<"
+                 "SourceCharBlendBoneConstraint>targets;std::stringsrc1;"
+                 "std::stringsrc2;booltrans_x=false;booltrans_y=false;"
+                 "booltrans_z=false;boolrotation=false;};",
+                 "native exposes CharBlendBone state defaults");
+  ok &= contains(char_mesh,
+                 "SourceCharBlendBoneStatesource_char_blend_bone_default_state(){"
+                 "returnSourceCharBlendBoneState{};}",
+                 "native ports CharBlendBone defaults");
+  ok &= contains(char_mesh,
+                 "deps.changed_by.push_back(blend.src1);deps.changed_by."
+                 "push_back(blend.src2);for(constSourceCharBlendBoneConstraint&"
+                 "target:blend.targets){deps.change.push_back(target.target);}",
+                 "native ports CharBlendBone PollDeps");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_blend_bone_source_test",
+                 "CMake builds CharBlendBone source test");
+  ok &= contains(blend_bone_source_test,
+                 "source_char_blend_bone_default_state()",
+                 "focused CharBlendBone test covers defaults");
+  ok &= contains(blend_bone_source_test,
+                 "constSourceCharBlendBoneConstraintconstraint;",
+                 "focused CharBlendBone test covers constraint default");
+  ok &= contains(blend_bone_source_test,
+                 "source_char_blend_bone_poll_deps(deps,blend)",
+                 "focused CharBlendBone test covers PollDeps");
+  ok &= contains(doc,
+                 "Native `source_char_blend_bone_*` helpers port",
+                 "document records native CharBlendBone helpers");
   ok &= contains(rb3_latest_char_mesh_hide_h,
                  "classCharMeshHide:publicHmx::Object",
                  "latest CharMeshHide header exposes source class");
