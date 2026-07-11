@@ -462,6 +462,66 @@ struct SourceCharFaceServoScaleAddResult {
   bool matched_right = false;
 };
 
+struct SourceCharFaceServoLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+  bool calls_set_clips = true;
+  bool calls_set_clip_type = true;
+};
+
+struct SourceCharFaceServoCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+  std::vector<std::string> post_copy_calls;
+};
+
+struct SourceCharFaceServoHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharFaceServoPropSyncPlan {
+  std::vector<std::string> set_properties;
+  std::vector<std::string> set_actions;
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
+struct SourceCharFaceServoEnterPlan {
+  std::vector<std::string> calls;
+  bool need_scale_down = true;
+  float procedural_blink_weight = 0.0f;
+};
+
+struct SourceCharFaceServoSetClipsPlan {
+  bool assigns_clips = true;
+  std::vector<std::string> clip_lookups;
+};
+
+struct SourceCharFaceServoSetClipTypePlan {
+  bool only_when_changed = true;
+  std::vector<std::string> changed_calls;
+};
+
+struct SourceCharFaceServoPollPlan {
+  std::vector<std::string> base_clip_calls;
+  bool sets_need_scale_down = true;
+  bool clears_applied_procedural_blink = true;
+};
+
+struct SourceCharFaceServoProceduralWeightsPlan {
+  bool gated_by_positive_weight = true;
+  bool gated_by_not_applied = true;
+  std::vector<std::string> calls;
+  bool skips_right_when_same_as_left = true;
+  bool marks_applied = true;
+};
+
+struct SourceCharFaceServoPollDepsPlan {
+  bool change_list_gets_stuff_meshes = true;
+};
+
 struct SourceCharMeshHideRow {
   int32_t flags = 0;
   bool draw_showing = false;
@@ -1231,6 +1291,20 @@ SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
     const std::string& clip_name,
     bool clip_is_relative,
     float weight);
+SourceCharFaceServoLoadPlan source_char_face_servo_load_plan(int revision);
+SourceCharFaceServoCopyPlan source_char_face_servo_copy_plan();
+SourceCharFaceServoHandlerPlan source_char_face_servo_handler_plan();
+SourceCharFaceServoPropSyncPlan source_char_face_servo_prop_sync_plan();
+SourceCharFaceServoEnterPlan source_char_face_servo_enter_plan();
+SourceCharFaceServoSetClipsPlan source_char_face_servo_set_clips_plan();
+SourceCharFaceServoSetClipTypePlan
+source_char_face_servo_set_clip_type_plan(bool changed);
+SourceCharFaceServoPollPlan source_char_face_servo_poll_plan(bool has_base_clip);
+SourceCharFaceServoProceduralWeightsPlan
+source_char_face_servo_procedural_weights_plan(
+    bool positive_weight,
+    bool already_applied);
+SourceCharFaceServoPollDepsPlan source_char_face_servo_poll_deps_plan();
 int32_t source_char_mesh_hide_combined_flags(
     const std::vector<SourceCharMeshHideObject>& objects,
     int32_t initial_flags);

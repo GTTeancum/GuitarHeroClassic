@@ -5281,6 +5281,50 @@ int run_contract() {
                  "mBlinkWeightRight+=weight;mBlinkWeightRight=Clamp(0.0f,"
                  "1.0f,mBlinkWeightRight);}",
                  "CharFaceServo source exposes right blink accumulation");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "BEGIN_COPYS(CharFaceServo)COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(CharFaceServo)BEGIN_COPYING_MEMBERS"
+                 "COPY_MEMBER(mBlinkWeightLeft)COPY_MEMBER(mBlinkWeightRight)"
+                 "COPY_MEMBER(mBlinkClipLeftName)COPY_MEMBER("
+                 "mBlinkClipRightName)COPY_MEMBER(mBlinkClipLeftName2)"
+                 "COPY_MEMBER(mBlinkClipRightName2)SetClips(c->mClips);"
+                 "SetClipType(c->mClipType);END_COPYING_MEMBERSEND_COPYS",
+                 "CharFaceServo source exposes copy rows and post-copy calls");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "BEGIN_HANDLERS(CharFaceServo)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x119)END_HANDLERS",
+                 "CharFaceServo source exposes handler table");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "BEGIN_PROPSYNCS(CharFaceServo)SYNC_PROP_SET(clips,mClips,"
+                 "SetClips(_val.Obj<ObjectDir>(0)))SYNC_PROP_SET(clip_type,"
+                 "mClipType,SetClipType(_val.Sym(0)))SYNC_PROP("
+                 "blink_clip_left,mBlinkClipLeftName)SYNC_PROP("
+                 "blink_clip_left2,mBlinkClipLeftName2)SYNC_PROP("
+                 "blink_clip_right,mBlinkClipRightName)SYNC_PROP("
+                 "blink_clip_right2,mBlinkClipRightName2)SYNC_SUPERCLASS("
+                 "CharBonesMeshes)END_PROPSYNCS",
+                 "CharFaceServo source exposes prop-sync rows");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "voidCharFaceServo::Enter(){RndPollable::Enter();"
+                 "mNeedScaleDown=true;mProceduralBlinkWeight=0.0f;}",
+                 "CharFaceServo source exposes Enter state reset");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "voidCharFaceServo::SetClips(ObjectDir*dir){mClips=dir;"
+                 "if(mClips){mBaseClip=mClips->Find<CharClip>(\"Base\",false);",
+                 "CharFaceServo source exposes SetClips base lookup");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "voidCharFaceServo::SetClipType(Symbols){if(s!=mClipType){"
+                 "mClipType=s;ClearBones();CharBoneDir::StuffBones(*this,"
+                 "mClipType);mNeedScaleDown=true;}}",
+                 "CharFaceServo source exposes SetClipType rebuild");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "voidCharFaceServo::ApplyProceduralWeights(){if("
+                 "mProceduralBlinkWeight>0.0f&&!mAppliedProceduralBlink){",
+                 "CharFaceServo source exposes procedural blink gate");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "voidCharFaceServo::PollDeps(std::list<Hmx::Object*>&,"
+                 "std::list<Hmx::Object*>&change){StuffMeshes(change);}",
+                 "CharFaceServo source exposes PollDeps mesh publication");
   ok &= contains(char_mesh_h,
                  "structSourceCharFaceServoBlinkClips{std::stringleft;"
                  "std::stringleft2;std::stringright;std::stringright2;};",
@@ -5293,11 +5337,70 @@ int run_contract() {
                  "SourceCharFaceServoScaleAddResult"
                  "source_char_face_servo_scale_add_blink(",
                  "native exposes CharFaceServo ScaleAdd blink helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharFaceServoLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;std::vector<std::string>"
+                 "branches;boolcalls_set_clips=true;boolcalls_set_clip_type=true;};",
+                 "native exposes CharFaceServo load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharFaceServoCopyPlan{"
+                 "std::vector<std::string>copied_superclasses;"
+                 "std::vector<std::string>copied_members;"
+                 "std::vector<std::string>post_copy_calls;};",
+                 "native exposes CharFaceServo copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharFaceServoPropSyncPlan{"
+                 "std::vector<std::string>set_properties;"
+                 "std::vector<std::string>set_actions;"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes CharFaceServo prop-sync plan");
+  ok &= contains(char_mesh_h,
+                 "SourceCharFaceServoLoadPlansource_char_face_servo_load_plan("
+                 "intrevision);",
+                 "native exposes CharFaceServo load plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharFaceServoPollPlansource_char_face_servo_poll_plan("
+                 "boolhas_base_clip);",
+                 "native exposes CharFaceServo poll plan helper");
   ok &= contains(char_mesh,
                  "SourceCharFaceServoScaleAddResult"
                  "source_char_face_servo_scale_add_blink("
                  "SourceCharFaceServoBlinkState&state,",
                  "native implements CharFaceServo ScaleAdd blink helper");
+  ok &= contains(char_mesh,
+                 "SourceCharFaceServoLoadPlansource_char_face_servo_load_plan("
+                 "intrevision){SourceCharFaceServoLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=4;",
+                 "native implements CharFaceServo load revision gate");
+  ok &= contains(char_mesh,
+                 "if(revision>3){plan.read_order.push_back("
+                 "\"clipTypeSymbol\");}else{plan.branches.push_back("
+                 "\"deriveClipTypeFromDirType\");plan.branches.push_back("
+                 "\"fallbackClipTypeFromFirstClip\");}",
+                 "native implements CharFaceServo legacy clip-type branch");
+  ok &= contains(char_mesh,
+                 "SourceCharFaceServoCopyPlansource_char_face_servo_copy_plan(){"
+                 "SourceCharFaceServoCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\"};",
+                 "native implements CharFaceServo copy superclass");
+  ok &= contains(char_mesh,
+                 "SourceCharFaceServoPropSyncPlansource_char_face_servo_prop_sync_plan(){"
+                 "SourceCharFaceServoPropSyncPlanplan;plan.set_properties={"
+                 "\"clips\",\"clip_type\"};plan.set_actions={\"SetClips\","
+                 "\"SetClipType\"};",
+                 "native implements CharFaceServo prop-sync rows");
+  ok &= contains(char_mesh,
+                 "SourceCharFaceServoPollPlansource_char_face_servo_poll_plan("
+                 "boolhas_base_clip){SourceCharFaceServoPollPlanplan;if("
+                 "has_base_clip){plan.base_clip_calls={\"TryScaleDown\","
+                 "\"ScaleAddIdentity\",\"mBaseClip->RotateBy\",\"PoseMeshes\"};}",
+                 "native implements CharFaceServo poll base-clip order");
+  ok &= contains(char_mesh,
+                 "SourceCharFaceServoProceduralWeightsPlan"
+                 "source_char_face_servo_procedural_weights_plan("
+                 "boolpositive_weight,boolalready_applied){",
+                 "native implements CharFaceServo procedural blink plan");
   ok &= contains(char_mesh,
                  "if(!clip_is_relative||weight<0.0f)returnresult;",
                  "native CharFaceServo helper keeps source relative/assert boundary");
@@ -5318,6 +5421,21 @@ int run_contract() {
                  "\"blink_L2\",true,0.25f)",
                  "focused CharFaceServo test covers left2 blink branch");
   ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_load_plan(4)",
+                 "focused CharFaceServo test covers latest load plan");
+  ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_copy_plan()",
+                 "focused CharFaceServo test covers copy plan");
+  ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_prop_sync_plan()",
+                 "focused CharFaceServo test covers prop-sync plan");
+  ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_poll_plan(true)",
+                 "focused CharFaceServo test covers poll plan");
+  ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_procedural_weights_plan(true,false)",
+                 "focused CharFaceServo test covers procedural blink plan");
+  ok &= contains(face_servo_source_test,
                  "source_char_face_servo_scale_add_blink(state,clips,"
                  "\"blink_R2\",true,0.5f)",
                  "focused CharFaceServo test covers right2 clamp branch");
@@ -5328,6 +5446,13 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_face_servo_scale_add_blink` ports the bounded",
                  "document records native CharFaceServo blink helper");
+  ok &= contains(doc,
+                 "Native `source_char_face_servo_load_plan`,",
+                 "document records native CharFaceServo load plan");
+  ok &= contains(doc,
+                 "These plans remain source context and do not promote\n"
+                 "    `FaceFxLipSyncServo` rows into `CharFaceServo` behavior.",
+                 "document preserves FaceFx boundary");
   ok &= contains(rb3_latest_char_lip_sync_cpp,
                  "CharLipSync::Generator::Generator():mLipSync(0),"
                  "mLastCount(0),mWeights()",

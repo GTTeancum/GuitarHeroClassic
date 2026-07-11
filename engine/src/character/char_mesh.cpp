@@ -2029,6 +2029,103 @@ SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
   return result;
 }
 
+SourceCharFaceServoLoadPlan source_char_face_servo_load_plan(int revision) {
+  SourceCharFaceServoLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 4;
+  if (!plan.known_revision) return plan;
+  plan.read_order = {"Hmx::Object", "clipObjectDir"};
+  if (revision > 3) {
+    plan.read_order.push_back("clipTypeSymbol");
+  } else {
+    plan.branches.push_back("deriveClipTypeFromDirType");
+    plan.branches.push_back("fallbackClipTypeFromFirstClip");
+  }
+  if (revision != 0) plan.read_order.push_back("mBlinkClipLeftName");
+  if (revision > 1) plan.read_order.push_back("mBlinkClipRightName");
+  if (revision > 2) {
+    plan.read_order.push_back("mBlinkClipLeftName2");
+    plan.read_order.push_back("mBlinkClipRightName2");
+  }
+  plan.read_order.push_back("SetClips");
+  plan.read_order.push_back("SetClipType");
+  return plan;
+}
+
+SourceCharFaceServoCopyPlan source_char_face_servo_copy_plan() {
+  SourceCharFaceServoCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mBlinkWeightLeft",    "mBlinkWeightRight",
+                         "mBlinkClipLeftName", "mBlinkClipRightName",
+                         "mBlinkClipLeftName2", "mBlinkClipRightName2"};
+  plan.post_copy_calls = {"SetClips(c->mClips)", "SetClipType(c->mClipType)"};
+  return plan;
+}
+
+SourceCharFaceServoHandlerPlan source_char_face_servo_handler_plan() {
+  SourceCharFaceServoHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0x119;
+  return plan;
+}
+
+SourceCharFaceServoPropSyncPlan source_char_face_servo_prop_sync_plan() {
+  SourceCharFaceServoPropSyncPlan plan;
+  plan.set_properties = {"clips", "clip_type"};
+  plan.set_actions = {"SetClips", "SetClipType"};
+  plan.properties = {"blink_clip_left", "blink_clip_left2",
+                     "blink_clip_right", "blink_clip_right2"};
+  plan.superclasses = {"CharBonesMeshes"};
+  return plan;
+}
+
+SourceCharFaceServoEnterPlan source_char_face_servo_enter_plan() {
+  SourceCharFaceServoEnterPlan plan;
+  plan.calls = {"RndPollable::Enter"};
+  return plan;
+}
+
+SourceCharFaceServoSetClipsPlan source_char_face_servo_set_clips_plan() {
+  SourceCharFaceServoSetClipsPlan plan;
+  plan.clip_lookups = {"Base", "mBlinkClipLeftName", "mBlinkClipLeftName2",
+                       "mBlinkClipRightName", "mBlinkClipRightName2"};
+  return plan;
+}
+
+SourceCharFaceServoSetClipTypePlan
+source_char_face_servo_set_clip_type_plan(bool changed) {
+  SourceCharFaceServoSetClipTypePlan plan;
+  if (changed) {
+    plan.changed_calls = {"set mClipType", "ClearBones",
+                          "CharBoneDir::StuffBones", "mNeedScaleDown=true"};
+  }
+  return plan;
+}
+
+SourceCharFaceServoPollPlan source_char_face_servo_poll_plan(
+    bool has_base_clip) {
+  SourceCharFaceServoPollPlan plan;
+  if (has_base_clip) {
+    plan.base_clip_calls = {"TryScaleDown", "ScaleAddIdentity",
+                            "mBaseClip->RotateBy", "PoseMeshes"};
+  }
+  return plan;
+}
+
+SourceCharFaceServoProceduralWeightsPlan
+source_char_face_servo_procedural_weights_plan(bool positive_weight,
+                                               bool already_applied) {
+  SourceCharFaceServoProceduralWeightsPlan plan;
+  if (positive_weight && !already_applied) {
+    plan.calls = {"TryScaleDown", "left blink ScaleAdd",
+                  "right blink ScaleAdd", "mAppliedProceduralBlink=true"};
+  }
+  return plan;
+}
+
+SourceCharFaceServoPollDepsPlan source_char_face_servo_poll_deps_plan() {
+  return SourceCharFaceServoPollDepsPlan{};
+}
+
 int32_t source_char_mesh_hide_combined_flags(
     const std::vector<SourceCharMeshHideObject>& objects,
     int32_t initial_flags) {

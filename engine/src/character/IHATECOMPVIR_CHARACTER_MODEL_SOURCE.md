@@ -1048,6 +1048,21 @@ note, and all report `unreadBytes=0`.
   - `CharFaceServo::Poll` scales down the base clip, applies identity,
     rotates the base clip into the servo, and poses meshes. This is useful
     source context for a future source-backed face-servo port.
+  - Native `source_char_face_servo_load_plan`,
+    `source_char_face_servo_copy_plan`, `source_char_face_servo_handler_plan`,
+    `source_char_face_servo_prop_sync_plan`,
+    `source_char_face_servo_enter_plan`,
+    `source_char_face_servo_set_clips_plan`,
+    `source_char_face_servo_set_clip_type_plan`,
+    `source_char_face_servo_poll_plan`,
+    `source_char_face_servo_procedural_weights_plan`, and
+    `source_char_face_servo_poll_deps_plan` record the visible source
+    row/control-flow contracts for `CharFaceServo`: revisions `0..4`, legacy
+    clip-type derivation from the clip directory, blink clip name revision
+    gates, `SetClips` lookup names, changed clip-type bone rebuild, base-clip
+    poll order, procedural blink gate, property rows, and handler check
+    `0x119`. These plans remain source context and do not promote
+    `FaceFxLipSyncServo` rows into `CharFaceServo` behavior.
   - Native `source_char_face_servo_scale_add_blink` ports the bounded,
     complete blink-weight part of `CharFaceServo::ScaleAdd`: non-relative clips
     do not enter the source update path; accepted relative clips first consume
