@@ -600,6 +600,13 @@ note, and all report `unreadBytes=0`.
     publishes destination as changed-by and pivot as changed. These helpers do
     not claim the full `Poll` transform write because `mBounds.Clamp` and the
     final pivot transform path still need a complete source-backed port.
+  - Native `source_char_lookat_poll_plan` ports the checked `Poll` gate and
+    branch order as a deterministic plan: missing destination/pivot/source,
+    missing pivot parent, or negative delta time keep the row inert; nonzero
+    source weight then controls the source yaw-weight, source-radius, pivot
+    world write, parent-space clamp, smoothing, test/show range, jitter, and
+    roll/no-roll local write branches. This remains a branch contract only; it
+    does not synthesize the missing final pivot transform math.
   - Current stock GH2 `CharLookAt` rows observed in the base characters have
     `mDest=<none>`, so the source poll gate would be inert. Native therefore
     keeps these rows decoded/logged and does not publish look-at world rows or

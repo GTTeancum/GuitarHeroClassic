@@ -230,6 +230,26 @@ struct SourceCharLookAtPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharLookAtPollPlan {
+  bool poll_gate_open = false;
+  bool compute_dest_vector = false;
+  bool apply_weight_yaw = false;
+  bool skip_zero_weight = false;
+  bool update_source_radius_history = false;
+  bool clamp_source_radius_offset = false;
+  bool write_pivot_world_to_source = false;
+  bool normalize_dest_vector = false;
+  bool transform_to_parent_space = false;
+  bool clamp_bounds = false;
+  bool smooth_half_time = false;
+  bool use_test_range = false;
+  bool use_show_range = false;
+  bool apply_jitter = false;
+  bool subtract_source_radius_offset = false;
+  bool write_roll_local_rotation = false;
+  bool write_no_roll_axes = false;
+};
+
 // One channel value for one frame.
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
@@ -1072,6 +1092,24 @@ void source_char_lookat_poll_deps(SourceCharLookAtPollDeps& deps,
                                   const std::string& source,
                                   const std::string& pivot,
                                   const std::string& dest);
+SourceCharLookAtPollPlan source_char_lookat_poll_plan(
+    bool has_resolved_source,
+    bool has_pivot,
+    bool has_dest,
+    bool has_pivot_parent,
+    float delta_seconds,
+    float weight,
+    float min_weight_yaw,
+    float source_radius,
+    bool source_is_pivot,
+    bool has_smoothed_dir,
+    float half_time,
+    bool test_range,
+    bool show_range,
+    bool enable_jitter,
+    bool static_disable_jitter,
+    bool cheat_disable_eye_jitter,
+    bool allow_roll);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

@@ -6127,6 +6127,43 @@ int run_contract() {
                  "mPivot);}",
                  "RB3 CharLookAt PollDeps publishes source dest pivot");
   ok &= contains(rb3_char_lookat_cpp,
+                 "if(mDest&&mPivot){if(mPivot->TransParent()&&srcTrans&&"
+                 "deltasecs>=0.0f){",
+                 "RB3 CharLookAt Poll gates on dest pivot parent source and delta");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(mMinWeightYaw>=0.0f){",
+                 "RB3 CharLookAt Poll gates yaw weighting on min weight yaw");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(charweight!=0.0f){",
+                 "RB3 CharLookAt Poll skips transform branch at zero weight");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(mSourceRadius>0.0f){if(TheTaskMgr.DeltaSeconds()>0.0f){",
+                 "RB3 CharLookAt Poll gates source-radius history on positive delta");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(srcTrans!=mPivot){Transformtf90(mPivot->WorldXfm());",
+                 "RB3 CharLookAt Poll separates source and pivot transform path");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "elseNormalize(ve4,ve4);",
+                 "RB3 CharLookAt Poll normalizes directly when source is pivot");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "unkb1=mBounds.Clamp(ve4);",
+                 "RB3 CharLookAt Poll clamps through bounds");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(unk6c.x!=1e+29f&&mHalfTime!=0.0f){",
+                 "RB3 CharLookAt Poll gates half-time smoothing");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(mTestRange){",
+                 "RB3 CharLookAt Poll gates test range before show range");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "elseif(mShowRange){",
+                 "RB3 CharLookAt Poll gates show range after test range");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(mEnableJitter&&!sDisableJitter&&!disable&&deltasecs>0.0f){",
+                 "RB3 CharLookAt Poll gates jitter");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(mAllowRoll){",
+                 "RB3 CharLookAt Poll gates roll branch");
+  ok &= contains(rb3_char_lookat_cpp,
                  "ClampEq(mMinYaw,-80.0f,80.0f);"
                  "ClampEq(mMaxYaw,-80.0f,80.0f);"
                  "ClampEq(mMinPitch,-80.0f,80.0f);"
@@ -6181,6 +6218,16 @@ int run_contract() {
                  "changed_by;std::vector<std::string>change;};",
                  "native header exposes CharLookAt PollDeps state");
   ok &= contains(char_clip_h,
+                 "structSourceCharLookAtPollPlan{boolpoll_gate_open=false;"
+                 "boolcompute_dest_vector=false;boolapply_weight_yaw=false;",
+                 "native header exposes CharLookAt Poll plan state");
+  ok &= contains(char_clip_h,
+                 "boolwrite_pivot_world_to_source=false;boolnormalize_dest_vector=false;",
+                 "native header exposes CharLookAt source/pivot branch flags");
+  ok &= contains(char_clip_h,
+                 "boolwrite_roll_local_rotation=false;boolwrite_no_roll_axes=false;};",
+                 "native header exposes CharLookAt roll branch flags");
+  ok &= contains(char_clip_h,
                  "SourceCharLookAtBoundssource_char_lookat_sync_limits("
                  "floatmin_yaw,floatmax_yaw,floatmin_pitch,floatmax_pitch);",
                  "native header exposes CharLookAt SyncLimits helper");
@@ -6193,6 +6240,11 @@ int run_contract() {
                  "SourceCharLookAtPollDeps&deps,conststd::string&source,"
                  "conststd::string&pivot,conststd::string&dest);",
                  "native header exposes CharLookAt PollDeps helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtPollPlansource_char_lookat_poll_plan("
+                 "boolhas_resolved_source,boolhas_pivot,boolhas_dest,"
+                 "boolhas_pivot_parent,floatdelta_seconds,floatweight,",
+                 "native header exposes CharLookAt Poll plan helper");
   ok &= contains(char_clip,
                  "min_yaw=std::clamp(min_yaw,-80.0f,80.0f);"
                  "max_yaw=std::clamp(max_yaw,-80.0f,80.0f);"
@@ -6221,6 +6273,37 @@ int run_contract() {
                  "deps.changed_by.push_back(source.empty()?pivot:source);"
                  "deps.changed_by.push_back(dest);deps.change.push_back(pivot);}",
                  "native CharLookAt PollDeps helper ports source publication");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtPollPlansource_char_lookat_poll_plan(",
+                 "native CharLookAt Poll plan helper is implemented");
+  ok &= contains(char_clip,
+                 "plan.poll_gate_open=has_dest&&has_pivot&&has_pivot_parent&&"
+                 "has_resolved_source&&delta_seconds>=0.0f;",
+                 "native CharLookAt Poll plan ports source gate");
+  ok &= contains(char_clip,
+                 "plan.apply_weight_yaw=min_weight_yaw>=0.0f;if(weight==0.0f){"
+                 "plan.skip_zero_weight=true;returnplan;}",
+                 "native CharLookAt Poll plan ports yaw and zero-weight gates");
+  ok &= contains(char_clip,
+                 "plan.update_source_radius_history=has_source_radius&&"
+                 "delta_seconds>0.0f;",
+                 "native CharLookAt Poll plan ports source-radius history gate");
+  ok &= contains(char_clip,
+                 "plan.write_pivot_world_to_source=!source_is_pivot;"
+                 "plan.normalize_dest_vector=source_is_pivot;",
+                 "native CharLookAt Poll plan ports source/pivot branch");
+  ok &= contains(char_clip,
+                 "plan.use_test_range=test_range;plan.use_show_range="
+                 "!test_range&&show_range;",
+                 "native CharLookAt Poll plan ports test/show range order");
+  ok &= contains(char_clip,
+                 "plan.apply_jitter=enable_jitter&&!static_disable_jitter&&"
+                 "!cheat_disable_eye_jitter&&delta_seconds>0.0f;",
+                 "native CharLookAt Poll plan ports jitter gate");
+  ok &= contains(char_clip,
+                 "plan.write_roll_local_rotation=allow_roll;"
+                 "plan.write_no_roll_axes=!allow_roll;",
+                 "native CharLookAt Poll plan ports roll branch gate");
   ok &= contains(lookat_source_test,
                  "source_char_lookat_sync_limits(-80.0f,80.0f,-80.0f,80.0f)",
                  "focused CharLookAt source test covers default source limits");
@@ -6241,6 +6324,15 @@ int run_contract() {
                  "source_char_lookat_poll_deps(fallback_deps,\"\","
                  "\"pivot.lookat\",\"target.lookat\")",
                  "focused CharLookAt source test covers pivot fallback deps");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_poll_plan(true,true,false,true",
+                 "focused CharLookAt source test covers inert missing-dest Poll plan");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_poll_plan(true,true,true,true,1.0f,1.0f",
+                 "focused CharLookAt source test covers roll Poll plan");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_poll_plan(true,true,true,true,0.25f,0.75f",
+                 "focused CharLookAt source test covers no-roll radius Poll plan");
   ok &= contains(mesh_decode_test,
                  "ghogx::character::decode_lookat(\"l-eye.lookat\","
                  "make_lookat(2,2))",
@@ -6267,6 +6359,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_lookat_enter` and",
                  "document records CharLookAt Enter and PollDeps helpers");
+  ok &= contains(doc,
+                 "Native `source_char_lookat_poll_plan` ports the checked `Poll` gate",
+                 "document records CharLookAt Poll plan helper");
+  ok &= contains(doc,
+                 "This remains a branch contract only; it\n    does not synthesize",
+                 "document fences CharLookAt Poll plan from transform write");
   ok &= contains(doc,
                  "do\n    not claim the full `Poll` transform write",
                  "document fences full CharLookAt Poll transform write");

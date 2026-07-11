@@ -684,6 +684,56 @@ void source_char_lookat_poll_deps(SourceCharLookAtPollDeps& deps,
   deps.change.push_back(pivot);
 }
 
+SourceCharLookAtPollPlan source_char_lookat_poll_plan(
+    bool has_resolved_source,
+    bool has_pivot,
+    bool has_dest,
+    bool has_pivot_parent,
+    float delta_seconds,
+    float weight,
+    float min_weight_yaw,
+    float source_radius,
+    bool source_is_pivot,
+    bool has_smoothed_dir,
+    float half_time,
+    bool test_range,
+    bool show_range,
+    bool enable_jitter,
+    bool static_disable_jitter,
+    bool cheat_disable_eye_jitter,
+    bool allow_roll) {
+  SourceCharLookAtPollPlan plan;
+  plan.poll_gate_open =
+      has_dest && has_pivot && has_pivot_parent && has_resolved_source &&
+      delta_seconds >= 0.0f;
+  if (!plan.poll_gate_open) return plan;
+
+  plan.compute_dest_vector = true;
+  plan.apply_weight_yaw = min_weight_yaw >= 0.0f;
+  if (weight == 0.0f) {
+    plan.skip_zero_weight = true;
+    return plan;
+  }
+
+  const bool has_source_radius = source_radius > 0.0f;
+  plan.update_source_radius_history =
+      has_source_radius && delta_seconds > 0.0f;
+  plan.clamp_source_radius_offset = has_source_radius;
+  plan.write_pivot_world_to_source = !source_is_pivot;
+  plan.normalize_dest_vector = source_is_pivot;
+  plan.transform_to_parent_space = true;
+  plan.clamp_bounds = true;
+  plan.smooth_half_time = has_smoothed_dir && half_time != 0.0f;
+  plan.use_test_range = test_range;
+  plan.use_show_range = !test_range && show_range;
+  plan.apply_jitter = enable_jitter && !static_disable_jitter &&
+                      !cheat_disable_eye_jitter && delta_seconds > 0.0f;
+  plan.subtract_source_radius_offset = has_source_radius;
+  plan.write_roll_local_rotation = allow_roll;
+  plan.write_no_roll_axes = !allow_roll;
+  return plan;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
