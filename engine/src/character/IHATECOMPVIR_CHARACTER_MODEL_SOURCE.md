@@ -460,6 +460,14 @@ note, and all report `unreadBytes=0`.
     yaw Z and pitch X bounds with `tan`. Native ports this as
     `source_char_lookat_sync_limits` for deterministic tests and future
     source-backed `Poll` work.
+  - Native `source_char_lookat_enter` and `source_char_lookat_poll_deps` port
+    the concrete `Enter` reset and `PollDeps` dependency bodies: entering resets
+    the smoothed direction row to `(1.0E+29, 0, 0)` and requests a pivot-local
+    identity reset only when a pivot exists; dependency publication uses
+    `GetSource()` semantics, so an empty source falls back to the pivot, then
+    publishes destination as changed-by and pivot as changed. These helpers do
+    not claim the full `Poll` transform write because `mBounds.Clamp` and the
+    final pivot transform path still need a complete source-backed port.
   - Current stock GH2 `CharLookAt` rows observed in the base characters have
     `mDest=<none>`, so the source poll gate would be inert. Native therefore
     keeps these rows decoded/logged and does not publish look-at world rows or

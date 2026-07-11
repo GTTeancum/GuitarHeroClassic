@@ -194,6 +194,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharHair.cpp"));
   const std::string rb3_latest_char_hair_h = compact(read_file(
       rb3_latest_char_dir / "CharHair.h"));
+  const std::string rb3_latest_char_lookat_h = compact(read_file(
+      rb3_latest_char_dir / "CharLookAt.h"));
   const std::string rb3_latest_char_blend_bone_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBlendBone.cpp"));
   const std::string rb3_latest_char_blend_bone_h = compact(read_file(
@@ -4324,6 +4326,22 @@ int run_contract() {
                  "RB3 CharLookAt poll writes the pivot transform");
   ok &= contains(rb3_char_lookat_cpp, "RndTransformable*srcTrans=GetSource();",
                  "RB3 CharLookAt poll resolves source through GetSource");
+  ok &= contains(rb3_latest_char_lookat_h,
+                 "RndTransformable*GetSource()const{constObjPtr<"
+                 "RndTransformable,ObjectDir>&ptr=mSource?mSource:mPivot;"
+                 "returnptr;}",
+                 "latest CharLookAt GetSource falls back to pivot");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "voidCharLookAt::Enter(){unk6c.Set(1e+29f,0.0f,0.0f);"
+                 "if(mPivot){mPivot->DirtyLocalXfm().m.Identity();}"
+                 "RndPollable::Enter();}",
+                 "RB3 CharLookAt Enter resets smoothed row and pivot local");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "voidCharLookAt::PollDeps(std::list<Hmx::Object*>&changedBy,"
+                 "std::list<Hmx::Object*>&change){changedBy.push_back("
+                 "GetSource());changedBy.push_back(mDest);change.push_back("
+                 "mPivot);}",
+                 "RB3 CharLookAt PollDeps publishes source dest pivot");
   ok &= contains(rb3_char_lookat_cpp,
                  "ClampEq(mMinYaw,-80.0f,80.0f);"
                  "ClampEq(mMaxYaw,-80.0f,80.0f);"
@@ -4370,9 +4388,27 @@ int run_contract() {
                  "structSourceCharLookAtBounds{std::array<float,3>min",
                  "native header exposes CharLookAt bounds struct");
   ok &= contains(char_clip_h,
+                 "structSourceCharLookAtEnterState{std::array<float,3>"
+                 "smoothed_dir={1.0e29f,0.0f,0.0f};"
+                 "boolreset_pivot_local=false;};",
+                 "native header exposes CharLookAt Enter state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharLookAtPollDeps{std::vector<std::string>"
+                 "changed_by;std::vector<std::string>change;};",
+                 "native header exposes CharLookAt PollDeps state");
+  ok &= contains(char_clip_h,
                  "SourceCharLookAtBoundssource_char_lookat_sync_limits("
                  "floatmin_yaw,floatmax_yaw,floatmin_pitch,floatmax_pitch);",
                  "native header exposes CharLookAt SyncLimits helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtEnterStatesource_char_lookat_enter("
+                 "boolhas_pivot);",
+                 "native header exposes CharLookAt Enter helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_lookat_poll_deps("
+                 "SourceCharLookAtPollDeps&deps,conststd::string&source,"
+                 "conststd::string&pivot,conststd::string&dest);",
+                 "native header exposes CharLookAt PollDeps helper");
   ok &= contains(char_clip,
                  "min_yaw=std::clamp(min_yaw,-80.0f,80.0f);"
                  "max_yaw=std::clamp(max_yaw,-80.0f,80.0f);"
@@ -4388,6 +4424,19 @@ int run_contract() {
                  "bounds.min[0]=min_y*std::tan(min_pitch*kDegToRad);"
                  "bounds.max[0]=min_y*std::tan(max_pitch*kDegToRad);",
                  "native CharLookAt SyncLimits helper computes source axis bounds");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtEnterStatesource_char_lookat_enter("
+                 "boolhas_pivot){SourceCharLookAtEnterStatestate;"
+                 "state.smoothed_dir={1.0e29f,0.0f,0.0f};"
+                 "state.reset_pivot_local=has_pivot;returnstate;}",
+                 "native CharLookAt Enter helper ports source reset");
+  ok &= contains(char_clip,
+                 "voidsource_char_lookat_poll_deps("
+                 "SourceCharLookAtPollDeps&deps,conststd::string&source,"
+                 "conststd::string&pivot,conststd::string&dest){"
+                 "deps.changed_by.push_back(source.empty()?pivot:source);"
+                 "deps.changed_by.push_back(dest);deps.change.push_back(pivot);}",
+                 "native CharLookAt PollDeps helper ports source publication");
   ok &= contains(lookat_source_test,
                  "source_char_lookat_sync_limits(-80.0f,80.0f,-80.0f,80.0f)",
                  "focused CharLookAt source test covers default source limits");
@@ -4397,6 +4446,17 @@ int run_contract() {
   ok &= contains(lookat_source_test,
                  "source_char_lookat_sync_limits(-30.0f,45.0f,-10.0f,20.0f)",
                  "focused CharLookAt source test covers asymmetric limits");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_enter(true)",
+                 "focused CharLookAt source test covers Enter helper");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_poll_deps(deps,\"explicit.source\","
+                 "\"pivot.lookat\",\"target.lookat\")",
+                 "focused CharLookAt source test covers explicit source deps");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_poll_deps(fallback_deps,\"\","
+                 "\"pivot.lookat\",\"target.lookat\")",
+                 "focused CharLookAt source test covers pivot fallback deps");
   ok &= contains(mesh_decode_test,
                  "ghogx::character::decode_lookat(\"l-eye.lookat\","
                  "make_lookat(2,2))",
@@ -4420,6 +4480,12 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharLookAt::SyncLimits` clamps yaw and pitch limits",
                  "document records CharLookAt SyncLimits helper port");
+  ok &= contains(doc,
+                 "Native `source_char_lookat_enter` and",
+                 "document records CharLookAt Enter and PollDeps helpers");
+  ok &= contains(doc,
+                 "do\n    not claim the full `Poll` transform write",
+                 "document fences full CharLookAt Poll transform write");
   ok &= contains(doc,
                  "Current stock GH2 `CharLookAt` rows observed in the base characters have\n"
                  "    `mDest=<none>`",

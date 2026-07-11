@@ -91,6 +91,16 @@ struct SourceCharLookAtBounds {
   std::array<float, 3> max = {0.0f, 0.0f, 0.0f};
 };
 
+struct SourceCharLookAtEnterState {
+  std::array<float, 3> smoothed_dir = {1.0e29f, 0.0f, 0.0f};
+  bool reset_pivot_local = false;
+};
+
+struct SourceCharLookAtPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 // One channel value for one frame.
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
@@ -609,6 +619,11 @@ bool source_char_utl_is_animatable(const SourceCharUtlObject& object);
 // Source-backed CharLookAt::SyncLimits helper. Angles are serialized in degrees.
 SourceCharLookAtBounds source_char_lookat_sync_limits(
     float min_yaw, float max_yaw, float min_pitch, float max_pitch);
+SourceCharLookAtEnterState source_char_lookat_enter(bool has_pivot);
+void source_char_lookat_poll_deps(SourceCharLookAtPollDeps& deps,
+                                  const std::string& source,
+                                  const std::string& pivot,
+                                  const std::string& dest);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

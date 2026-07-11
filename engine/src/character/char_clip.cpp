@@ -463,6 +463,22 @@ SourceCharLookAtBounds source_char_lookat_sync_limits(
   return bounds;
 }
 
+SourceCharLookAtEnterState source_char_lookat_enter(bool has_pivot) {
+  SourceCharLookAtEnterState state;
+  state.smoothed_dir = {1.0e29f, 0.0f, 0.0f};
+  state.reset_pivot_local = has_pivot;
+  return state;
+}
+
+void source_char_lookat_poll_deps(SourceCharLookAtPollDeps& deps,
+                                  const std::string& source,
+                                  const std::string& pivot,
+                                  const std::string& dest) {
+  deps.changed_by.push_back(source.empty() ? pivot : source);
+  deps.changed_by.push_back(dest);
+  deps.change.push_back(pivot);
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
