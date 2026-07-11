@@ -4069,6 +4069,53 @@ int main() {
                  "event_filters[key].push_back(route);",
                  "AnimFilter EventTrigger refs preserve source row timing by payload label aliases");
   ok &= contains(gameplay_c,
+                 "std::optional<VenueTransAnimDecode>"
+                 "decode_venue_transanim_like_miloeditor(",
+                 "venue TransAnim decode uses a source-shaped MiloEditor reader");
+  ok &= contains(gameplay_c,
+                 "constautodecoded=read_rnd_transanim_like_miloeditor(body,size);",
+                 "venue TransAnim transform decode is fed by the source-shaped RndTransAnim reader");
+  ok &= contains(gameplay_c,
+                 "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
+                 "venue TransAnim scale keys are carried from authored source rows");
+  ok &= contains(gameplay_c,
+                 "transanim_mesh[de.name]=decoded->target;",
+                 "venue TransAnim target mesh comes from the authored trans symbol");
+  ok &= contains(gameplay_c,
+                 "source-shapedrev=%uanim_rev=%uowner=%spos=%zurot=%zuscale=%zu",
+                 "venue TransAnim diagnostics expose source-shaped key counts");
+  ok &= contains(gameplay_c,
+                 "scale_vec=(%.3f%.3f%.3f)",
+                 "venue AnimFilter samples log the actual scale vector for visual proof");
+  ok &= absent(gameplay_c,
+               "decode_transanim_vec3_blocks",
+               "old arbitrary venue TransAnim vec3 scanner is removed");
+  ok &= absent(gameplay_c,
+               "skippedbysingle_playergate",
+               "venue EventTriggers must load and use source enable/disable events instead of load-time mode filtering");
+  ok &= contains(gameplay_c,
+                 "push_unique_ref(gate.enable_events,event);",
+                 "EventTrigger gates preserve source enable events including single_player");
+  ok &= contains(gameplay_c,
+                 "push_unique_ref(gate.disable_events,event);",
+                 "EventTrigger gates preserve source disable events including multi_player");
+  ok &= contains(gameplay_c,
+                 "gate.enabled=gate.enable_events.empty();",
+                 "EventTriggers with source enable_events start disabled until their enable event fires");
+  ok &= appears_before(gameplay_c,
+                       "apply_venue_event(\"single_player\",false);",
+                       "apply_venue_event(\"start\",false);",
+                       "venue startup sends the source single_player event before authored start triggers");
+  ok &= contains(gameplay_h_c,
+                 "std::stringsource_trigger;",
+                 "venue AnimFilter routes retain their source EventTrigger name for gate filtering");
+  ok &= contains(gameplay_c,
+                 "filter.source_trigger=route.source_trigger;",
+                 "EventTrigger AnimFilter runtime routes inherit the source trigger identity");
+  ok &= contains(gameplay_c,
+                 "venue_event_trigger_enabled_by_name(filter.source_trigger)",
+                 "EventTrigger gates filter individual routes instead of whole event-name buckets");
+  ok &= contains(gameplay_c,
                  "route.blend=read_f32_at_unchecked(body,cursor);",
                  "EventTrigger Anim rows decode source blend before wait/delay");
   ok &= contains(gameplay_c,
@@ -5525,17 +5572,14 @@ int main() {
                  "apply_transform_samples(local,target);",
                  "animated venue parent transforms apply samples at the authored node");
   ok &= contains(gameplay_c,
-                 "is_transformable_target_ref(std::string_viewname)",
-                 "source-shaped TransAnim targets are decoded as RndTransformable refs");
+                 "out.target=canonical_milo_ref(decoded->trans);",
+                 "source-shaped TransAnim targets come from the authored trans symbol");
   ok &= contains(gameplay_c,
-                 "name.rfind(\".trans\")==name.size()-6",
-                 "venue TransAnim keeps authored .trans targets such as RedOctane fan.trans");
+                 "out.anim.rotation_keys=mesh_quat_keys_from_camera_keys(decoded->rot_keys);",
+                 "source-shaped TransAnim decoder keeps quaternion rotation keys");
   ok &= contains(gameplay_c,
-                 "decode_transanim_rotation_keys(body,size)",
-                 "PS2 TransAnim decoder keeps quaternion rotation keys");
-  ok &= contains(gameplay_c,
-                 "if(scale)anim.scale_keys=scale->keys;",
-                 "PS2 TransAnim decoder keeps scale key blocks");
+                 "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
+                 "source-shaped TransAnim decoder keeps authored scale keys");
   ok &= contains(gameplay_c,
                  "venue_mesh_transform_offsets_[target.mesh]=sample;",
                  "venue AnimFilter runtime stores full transform samples");

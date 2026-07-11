@@ -294,6 +294,7 @@ class Gameplay {
   };
   struct VenueAnimFilter {
     std::string name;
+    std::string source_trigger;
     float start_frame = 0.0f;
     float end_frame = 0.0f;
     float scale = 1.0f;
@@ -556,6 +557,8 @@ class Gameplay {
                          bool force_persistent = false);
   bool apply_venue_event_visibility(const std::string& event_name, bool log);
   void update_venue_event_trigger_gates(const std::string& event_name);
+  bool venue_event_trigger_enabled_by_name(
+      const std::string& trigger_name) const;
   bool venue_event_route_enabled_by_triggers(
       const std::string& event_name) const;
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;

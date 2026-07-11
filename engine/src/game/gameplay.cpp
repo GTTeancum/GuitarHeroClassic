@@ -802,13 +802,10 @@ bool event_symbol_list_contains(const std::vector<std::string>& values,
                        });
 }
 
-bool is_venue_mode_gate_event(std::string_view event) {
-    return event == "single_player" || event == "multi_player";
-}
-
 struct DecodedVenueEventTrigger {
     struct AnimRoute {
         std::string ref;
+        std::string source_trigger;
         float blend = 0.0f;
         bool wait = false;
         float delay = 0.0f;
@@ -908,28 +905,6 @@ venue_event_trigger_anim_routes(const uint8_t* body, size_t size,
         routes.push_back(std::move(route));
     }
     return routes;
-}
-
-bool venue_event_trigger_enabled_for_single_player(const uint8_t* body,
-                                                   size_t size) {
-    const auto trigger = decode_venue_event_trigger_rev8(body, size);
-    if (!trigger) return true;
-
-    const bool enable_single =
-        event_symbol_list_contains(trigger->enable_events, "single_player");
-    const bool enable_multi =
-        event_symbol_list_contains(trigger->enable_events, "multi_player");
-    const bool disable_single =
-        event_symbol_list_contains(trigger->disable_events, "single_player");
-    const bool disable_multi =
-        event_symbol_list_contains(trigger->disable_events, "multi_player");
-    const bool mode_gated =
-        enable_single || enable_multi || disable_single || disable_multi;
-    if (!mode_gated) return true;
-    if (disable_single) return false;
-    if (enable_single) return true;
-    if (enable_multi) return false;
-    return true;
 }
 
 void sync_primary_camshot_target(Gameplay::CameraKey& key);
@@ -3369,15 +3344,6 @@ load_venue_event_script_messages(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
-                if (debug_venue_filters_enabled()) {
-                    std::fprintf(
-                        stderr,
-                        "[world] EventTrigger %s skipped by single_player gate\n",
-                        de.name.c_str());
-                }
-                continue;
-            }
             const auto strings = scan_milo_strings(body, size);
             if (strings.empty()) continue;
 
@@ -3934,15 +3900,6 @@ std::map<std::string, std::vector<std::string>> load_venue_event_light_anims(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
-                if (debug_venue_filters_enabled()) {
-                    std::fprintf(
-                        stderr,
-                        "[world] EventTrigger %s skipped by single_player gate\n",
-                        de.name.c_str());
-                }
-                continue;
-            }
             std::string event_label_storage;
             const auto refs = venue_event_trigger_anim_route_refs(
                 body, size, event_label_storage);
@@ -4095,15 +4052,6 @@ std::map<std::string, std::vector<std::string>> load_venue_event_env_anims(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
-                if (debug_venue_filters_enabled()) {
-                    std::fprintf(
-                        stderr,
-                        "[world] EventTrigger %s skipped by single_player gate\n",
-                        de.name.c_str());
-                }
-                continue;
-            }
             std::string event_label_storage;
             const auto refs = venue_event_trigger_anim_route_refs(
                 body, size, event_label_storage);
@@ -4367,15 +4315,6 @@ load_venue_event_particles(const std::string& hdr_path,
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
-                if (debug_venue_filters_enabled()) {
-                    std::fprintf(
-                        stderr,
-                        "[world] EventTrigger %s skipped by single_player gate\n",
-                        de.name.c_str());
-                }
-                continue;
-            }
             std::string event_label_storage;
             const auto refs = venue_event_trigger_anim_route_refs(
                 body, size, event_label_storage);
@@ -4575,15 +4514,6 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
-                if (debug_venue_filters_enabled()) {
-                    std::fprintf(
-                        stderr,
-                        "[world] EventTrigger %s skipped by single_player gate\n",
-                        de.name.c_str());
-                }
-                continue;
-            }
             std::string event_label_storage;
             const auto refs = venue_event_trigger_anim_route_refs(
                 body, size, event_label_storage);
@@ -4650,15 +4580,6 @@ std::map<std::string, std::vector<std::string>> load_venue_event_filters(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
-                if (debug_venue_filters_enabled()) {
-                    std::fprintf(
-                        stderr,
-                        "[world] EventTrigger %s skipped by single_player gate\n",
-                        de.name.c_str());
-                }
-                continue;
-            }
             std::string event_label_storage;
             const auto refs = venue_event_trigger_anim_route_refs(
                 body, size, event_label_storage);
@@ -4712,23 +4633,20 @@ std::vector<Gameplay::VenueEventTriggerGate> load_venue_event_trigger_gates(
                 continue;
             const auto* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (!venue_event_trigger_enabled_for_single_player(body, size))
-                continue;
             const auto trigger = decode_venue_event_trigger_rev8(body, size);
             if (!trigger) continue;
 
             Gameplay::VenueEventTriggerGate gate;
             gate.trigger_name = de.name;
             for (const auto& event : trigger->enable_events) {
-                if (!is_venue_mode_gate_event(event))
-                    push_unique_ref(gate.enable_events, event);
+                push_unique_ref(gate.enable_events, event);
             }
             for (const auto& event : trigger->disable_events) {
-                if (!is_venue_mode_gate_event(event))
-                    push_unique_ref(gate.disable_events, event);
+                push_unique_ref(gate.disable_events, event);
             }
             if (gate.enable_events.empty() && gate.disable_events.empty())
                 continue;
+            gate.enabled = gate.enable_events.empty();
 
             for (const auto& key :
                  event_trigger_route_keys(de.name, trigger->event_label)) {
@@ -7697,39 +7615,6 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
     return out;
 }
 
-bool is_transformable_target_ref(std::string_view name) {
-    return (name.size() > 5 &&
-            name.rfind(".mesh") == name.size() - 5) ||
-           (name.size() > 6 &&
-            name.rfind(".trans") == name.size() - 6) ||
-           (name.size() > 4 &&
-            name.rfind(".grp") == name.size() - 4);
-}
-
-std::optional<std::string> first_transformable_target_in_transanim(
-    const uint8_t* body, size_t size) {
-    for (size_t off = 0; off + 9 <= size; ++off) {
-        uint32_t len = 0;
-        std::memcpy(&len, body + off, sizeof(len));
-        if (len == 0 || len > 64 || off + 4 + len > size) continue;
-        const char* s = reinterpret_cast<const char*>(body + off + 4);
-        bool printable = true;
-        for (uint32_t i = 0; i < len; ++i) {
-            const unsigned char c = static_cast<unsigned char>(s[i]);
-            if (c < 32 || c > 126) {
-                printable = false;
-                break;
-            }
-        }
-        if (!printable) continue;
-        std::string name(s, s + len);
-        if (is_transformable_target_ref(name)) {
-            return name;
-        }
-    }
-    return std::nullopt;
-}
-
 std::string camshot_path_anim_ref(const std::vector<std::string>& strings) {
     for (const auto& s : strings) {
         if (s.size() > 4 && s.rfind(".tnm") == s.size() - 4) return s;
@@ -7929,175 +7814,94 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
     return anim;
 }
 
-struct TransAnimVec3Block {
-    size_t offset = 0;
-    std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey> keys;
-    float delta = 0.0f;
-    bool scale_like = false;
-};
-
-std::vector<TransAnimVec3Block> decode_transanim_vec3_blocks(
-    const uint8_t* body, size_t size) {
-    using Key = ghogx::render::MiloSceneRenderer::MeshAnimKey;
-    auto u32_at = [&](size_t off) {
-        uint32_t v = 0;
-        std::memcpy(&v, body + off, sizeof(v));
-        return v;
-    };
-    auto f32_at = [&](size_t off) {
-        float v = 0.0f;
-        std::memcpy(&v, body + off, sizeof(v));
-        return v;
-    };
-    auto plausible_vec = [](float v) {
-        return std::isfinite(v) && std::abs(v) < 2000.0f;
-    };
-
-    std::vector<TransAnimVec3Block> blocks;
-    for (size_t off = 0; off + 4 <= size; ++off) {
-        const uint32_t count = u32_at(off);
-        if (count < 2 || count > 128) continue;
-        const size_t start = off + 4;
-        if (start + static_cast<size_t>(count) * 16 > size) continue;
-        TransAnimVec3Block block;
-        block.offset = off;
-        block.keys.reserve(count);
-        float prev_frame = -1.0f;
-        bool ok = true;
-        bool scale_like = true;
-        for (uint32_t i = 0; i < count; ++i) {
-            const size_t p = start + static_cast<size_t>(i) * 16;
-            Key k;
-            k.pos[0] = f32_at(p + 0);
-            k.pos[1] = f32_at(p + 4);
-            k.pos[2] = f32_at(p + 8);
-            k.frame = f32_at(p + 12);
-            if (!plausible_vec(k.pos[0]) || !plausible_vec(k.pos[1]) ||
-                !plausible_vec(k.pos[2]) || !std::isfinite(k.frame) ||
-                k.frame < prev_frame || k.frame > 1000.0f) {
-                ok = false;
-                break;
-            }
-            for (float v : k.pos) {
-                if (v <= 0.001f || v > 20.0f) scale_like = false;
-            }
-            prev_frame = k.frame;
-            block.keys.push_back(k);
-        }
-        if (!ok) continue;
-        for (float v : block.keys.front().pos) {
-            if (v < 0.05f || v > 5.0f) scale_like = false;
-        }
-        float delta = 0.0f;
-        for (const auto& k : block.keys) {
-            const float dx = k.pos[0] - block.keys.front().pos[0];
-            const float dy = k.pos[1] - block.keys.front().pos[1];
-            const float dz = k.pos[2] - block.keys.front().pos[2];
-            delta = std::max(delta, std::sqrt(dx * dx + dy * dy + dz * dz));
-        }
-        if (delta <= 0.001f) continue;
-        block.delta = delta;
-        block.scale_like = scale_like;
-        blocks.push_back(std::move(block));
+std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>
+mesh_anim_keys_from_camera_keys(const std::vector<Gameplay::CameraKey>& keys) {
+    std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey> out;
+    out.reserve(keys.size());
+    for (const auto& src : keys) {
+        ghogx::render::MiloSceneRenderer::MeshAnimKey key;
+        key.frame = src.frame;
+        for (int axis = 0; axis < 3; ++axis) key.pos[axis] = src.eye[axis];
+        out.push_back(key);
     }
-    return blocks;
+    return out;
 }
 
 std::vector<ghogx::render::MiloSceneRenderer::MeshQuatAnimKey>
-decode_transanim_rotation_keys(const uint8_t* body, size_t size) {
-    using Key = ghogx::render::MiloSceneRenderer::MeshQuatAnimKey;
-    auto u32_at = [&](size_t off) {
-        uint32_t v = 0;
-        std::memcpy(&v, body + off, sizeof(v));
-        return v;
-    };
-    auto f32_at = [&](size_t off) {
-        float v = 0.0f;
-        std::memcpy(&v, body + off, sizeof(v));
-        return v;
-    };
-
-    std::vector<Key> best;
-    float best_delta = 0.0f;
-    for (size_t off = 0; off + 4 <= size; ++off) {
-        const uint32_t count = u32_at(off);
-        if (count < 2 || count > 128) continue;
-        const size_t start = off + 4;
-        if (start + static_cast<size_t>(count) * 20 > size) continue;
-        std::vector<Key> keys;
-        keys.reserve(count);
-        float prev_frame = -1.0f;
-        bool ok = true;
-        for (uint32_t i = 0; i < count; ++i) {
-            const size_t p = start + static_cast<size_t>(i) * 20;
-            Key k;
-            k.quat_xyzw[0] = f32_at(p + 0);
-            k.quat_xyzw[1] = f32_at(p + 4);
-            k.quat_xyzw[2] = f32_at(p + 8);
-            k.quat_xyzw[3] = f32_at(p + 12);
-            k.frame = f32_at(p + 16);
-            const float norm =
-                std::sqrt(k.quat_xyzw[0] * k.quat_xyzw[0] +
-                          k.quat_xyzw[1] * k.quat_xyzw[1] +
-                          k.quat_xyzw[2] * k.quat_xyzw[2] +
-                          k.quat_xyzw[3] * k.quat_xyzw[3]);
-            if (!std::isfinite(norm) || norm < 0.5f || norm > 1.5f ||
-                !std::isfinite(k.frame) || k.frame < prev_frame ||
-                k.frame > 1000.0f) {
-                ok = false;
-                break;
-            }
-            prev_frame = k.frame;
-            keys.push_back(k);
-        }
-        if (!ok) continue;
-        float delta = 0.0f;
-        const auto& first = keys.front();
-        for (const auto& k : keys) {
-            const float dot = std::abs(first.quat_xyzw[0] * k.quat_xyzw[0] +
-                                       first.quat_xyzw[1] * k.quat_xyzw[1] +
-                                       first.quat_xyzw[2] * k.quat_xyzw[2] +
-                                       first.quat_xyzw[3] * k.quat_xyzw[3]);
-            delta = std::max(delta, 1.0f - std::min(dot, 1.0f));
-        }
-        if (delta > best_delta && delta > 0.000001f) {
-            best_delta = delta;
-            best = std::move(keys);
-        }
+mesh_quat_keys_from_camera_keys(const std::vector<Gameplay::CameraKey>& keys) {
+    std::vector<ghogx::render::MiloSceneRenderer::MeshQuatAnimKey> out;
+    out.reserve(keys.size());
+    for (const auto& src : keys) {
+        ghogx::render::MiloSceneRenderer::MeshQuatAnimKey key;
+        key.frame = src.frame;
+        for (int axis = 0; axis < 4; ++axis)
+            key.quat_xyzw[axis] = src.quat[axis];
+        out.push_back(key);
     }
-    return best;
+    return out;
 }
 
-ghogx::render::MiloSceneRenderer::MeshTransformAnim decode_transanim_transform_anim(
-    const uint8_t* body, size_t size) {
+std::string mesh_anim_key_endpoint_summary(
+    const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys) {
+    if (keys.empty()) return "-";
+    auto one = [](const ghogx::render::MiloSceneRenderer::MeshAnimKey& key) {
+        char buf[128];
+        std::snprintf(buf, sizeof(buf), "f%.2f:(%.3f %.3f %.3f)",
+                      key.frame, key.pos[0], key.pos[1], key.pos[2]);
+        return std::string(buf);
+    };
+    if (keys.size() <= 6) {
+        std::string out;
+        for (size_t i = 0; i < keys.size(); ++i) {
+            if (i) out += " -> ";
+            out += one(keys[i]);
+        }
+        return out;
+    }
+    return one(keys.front()) + " -> " + one(keys[keys.size() / 2]) +
+           " -> " + one(keys.back());
+}
+
+struct VenueTransAnimDecode {
+    std::string target;
     ghogx::render::MiloSceneRenderer::MeshTransformAnim anim;
-    const auto blocks = decode_transanim_vec3_blocks(body, size);
-    const TransAnimVec3Block* translation = nullptr;
-    const TransAnimVec3Block* fallback_translation = nullptr;
-    const TransAnimVec3Block* scale = nullptr;
-    for (const auto& block : blocks) {
-        if (!fallback_translation || block.delta > fallback_translation->delta)
-            fallback_translation = &block;
-        if (!block.scale_like &&
-            (!translation || block.delta > translation->delta)) {
-            translation = &block;
-        }
-    }
-    if (!translation) translation = fallback_translation;
-    for (const auto& block : blocks) {
-        if (&block == translation || !block.scale_like) continue;
-        if (!scale || block.delta > scale->delta) scale = &block;
-    }
-    if (translation) anim.translation_keys = translation->keys;
-    if (scale) anim.scale_keys = scale->keys;
-    anim.rotation_keys = decode_transanim_rotation_keys(body, size);
-    return anim;
-}
+    uint16_t revision = 0;
+    uint16_t anim_revision = 0;
+    std::string keys_owner;
+    bool trans_spline = false;
+    bool repeat_trans = false;
+    bool scale_spline = false;
+    bool follow_path = false;
+    bool rot_slerp = false;
+    bool rot_spline = false;
+};
 
-bool mesh_transform_anim_empty(
-    const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim) {
-    return anim.translation_keys.empty() && anim.rotation_keys.empty() &&
-           anim.scale_keys.empty();
+std::optional<VenueTransAnimDecode> decode_venue_transanim_like_miloeditor(
+    const uint8_t* body, size_t size) {
+    const auto decoded = read_rnd_transanim_like_miloeditor(body, size);
+    if (!decoded) return std::nullopt;
+    if (decoded->trans.empty()) return std::nullopt;
+    VenueTransAnimDecode out;
+    out.target = canonical_milo_ref(decoded->trans);
+    out.anim.translation_keys =
+        mesh_anim_keys_from_camera_keys(decoded->trans_keys);
+    out.anim.rotation_keys =
+        mesh_quat_keys_from_camera_keys(decoded->rot_keys);
+    out.anim.scale_keys = mesh_anim_keys_from_camera_keys(decoded->scale_keys);
+    out.revision = decoded->revision;
+    out.anim_revision = decoded->anim_revision;
+    out.keys_owner = decoded->keys_owner;
+    out.trans_spline = decoded->trans_spline;
+    out.repeat_trans = decoded->repeat_trans;
+    out.scale_spline = decoded->scale_spline;
+    out.follow_path = decoded->follow_path;
+    out.rot_slerp = decoded->rot_slerp;
+    out.rot_spline = decoded->rot_spline;
+    if (out.anim.translation_keys.empty() && out.anim.rotation_keys.empty() &&
+        out.anim.scale_keys.empty()) {
+        return std::nullopt;
+    }
+    return out;
 }
 
 bool milo_ref_has_suffix(std::string_view ref, std::string_view suffix) {
@@ -9514,15 +9318,6 @@ load_venue_group_visibility(const std::string& hdr_path,
                 continue;
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
-            if (!venue_event_trigger_enabled_for_single_player(body, size)) {
-                if (debug_venue_filters_enabled()) {
-                    std::fprintf(
-                        stderr,
-                        "[world] EventTrigger %s skipped by single_player gate\n",
-                        de.name.c_str());
-                }
-                continue;
-            }
             auto strings = scan_milo_strings(body, size);
             if (strings.empty()) continue;
             const std::string event_label = strings.front();
@@ -9664,21 +9459,34 @@ load_venue_anim_filters(const std::string& hdr_path,
                     }
                 }
             } else if (de.type == "TransAnim") {
-                auto target =
-                    first_transformable_target_in_transanim(body, size);
-                if (!target) continue;
-                auto anim = decode_transanim_transform_anim(body, size);
-                if (mesh_transform_anim_empty(anim)) continue;
-                transanim_mesh[de.name] = canonical_milo_ref(*target);
+                const auto decoded =
+                    decode_venue_transanim_like_miloeditor(body, size);
+                if (!decoded) continue;
+                transanim_mesh[de.name] = decoded->target;
                 if (debug_venue_filters_enabled()) {
+                    const std::string trans_keys =
+                        mesh_anim_key_endpoint_summary(
+                            decoded->anim.translation_keys);
+                    const std::string scale_keys =
+                        mesh_anim_key_endpoint_summary(decoded->anim.scale_keys);
                     std::fprintf(
                         stderr,
-                        "[world] venue TransAnim %s -> %s pos=%zu rot=%zu scale=%zu\n",
-                        de.name.c_str(), target->c_str(),
-                        anim.translation_keys.size(), anim.rotation_keys.size(),
-                        anim.scale_keys.size());
+                        "[world] venue TransAnim %s -> %s source-shaped rev=%u anim_rev=%u owner=%s pos=%zu rot=%zu scale=%zu trans_keys=%s scale_keys=%s flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
+                        de.name.c_str(), decoded->target.c_str(),
+                        decoded->revision, decoded->anim_revision,
+                        decoded->keys_owner.c_str(),
+                        decoded->anim.translation_keys.size(),
+                        decoded->anim.rotation_keys.size(),
+                        decoded->anim.scale_keys.size(),
+                        trans_keys.c_str(), scale_keys.c_str(),
+                        decoded->trans_spline ? 1 : 0,
+                        decoded->repeat_trans ? 1 : 0,
+                        decoded->scale_spline ? 1 : 0,
+                        decoded->follow_path ? 1 : 0,
+                        decoded->rot_slerp ? 1 : 0,
+                        decoded->rot_spline ? 1 : 0);
                 }
-                transanim_anims[de.name] = std::move(anim);
+                transanim_anims[de.name] = std::move(decoded->anim);
             } else if (de.type == "MeshAnim") {
                 auto anim = decode_venue_mesh_anim(de.name, body, size);
                 if (!anim.name.empty()) {
@@ -9702,15 +9510,6 @@ load_venue_anim_filters(const std::string& hdr_path,
                         decoded->revision, decoded->anim_revision);
                 }
             } else if (de.type == "EventTrigger") {
-                if (!venue_event_trigger_enabled_for_single_player(body, size)) {
-                    if (debug_venue_filters_enabled()) {
-                        std::fprintf(
-                            stderr,
-                            "[world] EventTrigger %s skipped by single_player gate\n",
-                            de.name.c_str());
-                    }
-                    continue;
-                }
                 std::string event_label_storage;
                 const auto routes = venue_event_trigger_anim_routes(
                     body, size, event_label_storage);
@@ -9721,6 +9520,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                 for (auto route : routes) {
                     const auto ref = canonical_milo_ref(route.ref);
                     route.ref = ref;
+                    route.source_trigger = de.name;
                     for (const auto& key :
                          event_trigger_route_keys(de.name, event_label)) {
                         if (is_venue_anim_filter_ref(ref)) {
@@ -9891,6 +9691,7 @@ load_venue_anim_filters(const std::string& hdr_path,
         auto apply_event_anim_timing =
             [](Gameplay::VenueAnimFilter& filter,
                const DecodedVenueEventTrigger::AnimRoute& route) {
+                filter.source_trigger = route.source_trigger;
                 filter.event_blend_seconds = route.blend;
                 filter.event_delay_seconds = route.delay;
                 filter.event_wait = route.wait;
@@ -10226,14 +10027,12 @@ Gameplay::VenueAnimFilter load_rnddir_directory_anim(
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
             if (de.type == "TransAnim") {
-                auto target =
-                    first_transformable_target_in_transanim(body, size);
-                if (!target) continue;
-                auto anim = decode_transanim_transform_anim(body, size);
-                if (mesh_transform_anim_empty(anim)) continue;
+                const auto decoded =
+                    decode_venue_transanim_like_miloeditor(body, size);
+                if (!decoded) continue;
                 Gameplay::VenueAnimFilterTarget out_target;
-                out_target.mesh = canonical_milo_ref(*target);
-                out_target.anim = std::move(anim);
+                out_target.mesh = decoded->target;
+                out_target.anim = std::move(decoded->anim);
                 filter.end_frame =
                     std::max(filter.end_frame,
                              mesh_transform_anim_duration_frames(
@@ -10440,33 +10239,26 @@ DrumAnimData load_drum_anim_data(const std::string& hdr_path,
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
             if (de.type == "TransAnim") {
-                auto target =
-                    first_transformable_target_in_transanim(body, size);
-                if (!target) continue;
-                transanim_mesh[de.name] = *target;
-                auto anim = decode_transanim_transform_anim(body, size);
-                if (mesh_transform_anim_empty(anim)) continue;
+                const auto decoded =
+                    decode_venue_transanim_like_miloeditor(body, size);
+                if (!decoded) continue;
+                transanim_mesh[de.name] = decoded->target;
                 std::fprintf(
                     stderr,
-                    "[world] drum TransAnim %s -> %s pos=%zu rot=%zu scale=%zu\n",
-                    de.name.c_str(), target->c_str(),
-                    anim.translation_keys.size(), anim.rotation_keys.size(),
-                    anim.scale_keys.size());
-                out.mesh_transform_anims[*target] = std::move(anim);
+                    "[world] drum TransAnim %s -> %s source-shaped rev=%u anim_rev=%u owner=%s pos=%zu rot=%zu scale=%zu\n",
+                    de.name.c_str(), decoded->target.c_str(),
+                    decoded->revision, decoded->anim_revision,
+                    decoded->keys_owner.c_str(),
+                    decoded->anim.translation_keys.size(),
+                    decoded->anim.rotation_keys.size(),
+                    decoded->anim.scale_keys.size());
+                out.mesh_transform_anims[decoded->target] =
+                    std::move(decoded->anim);
             } else if (de.type == "Group") {
                 group_children[de.name] = ascii_strings_in_object(body, size);
             } else if (de.type == "AnimFilter") {
                 filter_children[de.name] = ascii_strings_in_object(body, size);
             } else if (de.type == "EventTrigger") {
-                if (!venue_event_trigger_enabled_for_single_player(body, size)) {
-                    if (debug_venue_filters_enabled()) {
-                        std::fprintf(
-                            stderr,
-                            "[world] EventTrigger %s skipped by single_player gate\n",
-                            de.name.c_str());
-                    }
-                    continue;
-                }
                 trigger_children[de.name] = ascii_strings_in_object(body, size);
             }
         }
@@ -16230,6 +16022,15 @@ void Gameplay::update_venue_event_trigger_gates(
     }
 }
 
+bool Gameplay::venue_event_trigger_enabled_by_name(
+    const std::string& trigger_name) const {
+    if (trigger_name.empty()) return true;
+    for (const auto& gate : venue_event_trigger_gates_) {
+        if (gate.trigger_name == trigger_name) return gate.enabled;
+    }
+    return true;
+}
+
 bool Gameplay::venue_event_route_enabled_by_triggers(
     const std::string& event_name) const {
     bool has_gate = false;
@@ -17763,23 +17564,46 @@ void Gameplay::apply_venue_event(const std::string& event_name,
     if (const auto filter_event_it =
             venue_event_anim_filters_.find(event_name);
         filter_event_it != venue_event_anim_filters_.end()) {
-        ActiveVenueAnimFilter active_filter;
-        active_filter.event_name = event_name;
-        active_filter.filters = filter_event_it->second;
-        active_filter.start_time = song_time_;
-        active_filter.persistent = persistent;
-        active_venue_anim_filters_.push_back(std::move(active_filter));
-        if (!filter_event_it->second.empty()) venue_route_applied = true;
+        std::vector<VenueAnimFilter> enabled_filters;
+        enabled_filters.reserve(filter_event_it->second.size());
         for (const auto& filter : filter_event_it->second) {
-            std::fprintf(
-                stderr,
-                "[world] venue event %s: AnimFilter %s frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d blend=%.3f wait=%d delay=%.3f %s\n",
-                event_name.c_str(), filter.name.c_str(), filter.start_frame,
-                filter.end_frame, filter.targets.size(),
-                filter.mesh_anim_targets.size(), filter.scale, filter.period,
-                filter.offset_frame, filter.type, filter.event_blend_seconds,
-                filter.event_wait ? 1 : 0, filter.event_delay_seconds,
-                persistent ? "persistent" : "transient");
+            if (venue_event_trigger_enabled_by_name(filter.source_trigger)) {
+                enabled_filters.push_back(filter);
+            } else if (debug_venue_filters_enabled()) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue event %s: AnimFilter %s skipped by disabled source trigger %s\n",
+                    event_name.c_str(), filter.name.c_str(),
+                    filter.source_trigger.c_str());
+            }
+        }
+        if (enabled_filters.empty()) {
+            if (debug_venue_filters_enabled()) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue event %s: all AnimFilters disabled by source trigger gates\n",
+                    event_name.c_str());
+            }
+        } else {
+            ActiveVenueAnimFilter active_filter;
+            active_filter.event_name = event_name;
+            active_filter.filters = enabled_filters;
+            active_filter.start_time = song_time_;
+            active_filter.persistent = persistent;
+            active_venue_anim_filters_.push_back(std::move(active_filter));
+            venue_route_applied = true;
+            for (const auto& filter : enabled_filters) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue event %s: AnimFilter %s source=%s frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d blend=%.3f wait=%d delay=%.3f %s\n",
+                    event_name.c_str(), filter.name.c_str(),
+                    filter.source_trigger.c_str(), filter.start_frame,
+                    filter.end_frame, filter.targets.size(),
+                    filter.mesh_anim_targets.size(), filter.scale, filter.period,
+                    filter.offset_frame, filter.type, filter.event_blend_seconds,
+                    filter.event_wait ? 1 : 0, filter.event_delay_seconds,
+                    persistent ? "persistent" : "transient");
+            }
         }
     }
     if (world_) {
@@ -18255,13 +18079,14 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f wait=%d persistent=%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f wait=%d persistent=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
                         sample.has_rotation ? 1 : 0,
                         sample.has_scale ? 1 : 0, sample.translation[0],
                         sample.translation[1], sample.translation[2],
+                        sample.scale[0], sample.scale[1], sample.scale[2],
                         source_translation ? 1 : 0, source_pos[0],
                         source_pos[1], source_pos[2],
                         filter.event_delay_seconds,
@@ -21672,6 +21497,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                             filter_count);
                     }
                 }
+                apply_venue_event("single_player", false);
                 apply_venue_event("start", false);
                 apply_venue_event("intro_start", false);
                 apply_venue_event("music_start", false);
