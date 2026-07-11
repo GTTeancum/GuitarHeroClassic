@@ -3628,6 +3628,98 @@ float source_char_weightable_weight(
   return setter.weight;
 }
 
+namespace {
+
+float source_weightable_state_weight(
+    const SourceCharWeightableState& state,
+    const std::unordered_map<std::string, float>& weights_by_name) {
+  if (!state.weight_owner.empty()) {
+    const auto owner = weights_by_name.find(state.weight_owner);
+    if (owner != weights_by_name.end()) return owner->second;
+  }
+  return state.weight;
+}
+
+}  // namespace
+
+SourceCharMirrorState source_char_mirror_default_state(
+    const std::string& name) {
+  SourceCharMirrorState state;
+  state.weightable = source_char_weightable_default_state(name);
+  return state;
+}
+
+SourceCharMirrorPollResult source_char_mirror_poll(
+    const SourceCharMirrorState& state,
+    const std::unordered_map<std::string, float>& weights_by_name) {
+  SourceCharMirrorPollResult result;
+  result.weight = source_weightable_state_weight(state.weightable,
+                                                 weights_by_name);
+  result.weight_zero = result.weight == 0.0f;
+  result.bones_empty = state.bones_total_size == 0;
+  if (!result.weight_zero && !result.bones_empty) {
+    result.scale_down = true;
+    result.scale_down_weight = 1.0f - result.weight;
+    result.servo = state.servo;
+  }
+  return result;
+}
+
+SourceCharMirrorSetServoResult source_char_mirror_set_servo(
+    SourceCharMirrorState& state,
+    const std::string& servo) {
+  SourceCharMirrorSetServoResult result;
+  if (servo != state.servo) {
+    state.servo = servo;
+    result.changed = true;
+    result.synced_bones = true;
+  }
+  return result;
+}
+
+SourceCharMirrorSetServoResult source_char_mirror_set_mirror_servo(
+    SourceCharMirrorState& state,
+    const std::string& mirror_servo) {
+  SourceCharMirrorSetServoResult result;
+  if (mirror_servo != state.mirror_servo) {
+    state.mirror_servo = mirror_servo;
+    result.changed = true;
+    result.synced_bones = true;
+  }
+  return result;
+}
+
+void source_char_mirror_poll_deps(SourceCharMirrorPollDeps& deps,
+                                  const SourceCharMirrorState& state) {
+  deps.change.push_back(state.servo);
+}
+
+SourceCharMirrorLoadSteps source_char_mirror_load_steps() {
+  SourceCharMirrorLoadSteps steps;
+  steps.load_hmx_object = true;
+  steps.load_weightable = true;
+  steps.load_mirror_servo = true;
+  steps.load_servo = true;
+  steps.sync_bones = true;
+  return steps;
+}
+
+SourceCharMirrorCopyResult source_char_mirror_copy(
+    SourceCharMirrorState& dest,
+    const SourceCharMirrorState& source,
+    bool shallow_copy,
+    float source_owner_weight) {
+  SourceCharMirrorCopyResult result;
+  result.copy_hmx_object = true;
+  result.copy_weightable = true;
+  source_char_weightable_copy(dest.weightable, source.weightable, shallow_copy,
+                              source_owner_weight);
+  result.set_mirror_servo =
+      source_char_mirror_set_mirror_servo(dest, source.mirror_servo);
+  result.set_servo = source_char_mirror_set_servo(dest, source.servo);
+  return result;
+}
+
 bool source_char_weight_setter_poll(
     const CharWeightSetter& setter,
     const std::unordered_map<std::string, float>& weights_by_name,

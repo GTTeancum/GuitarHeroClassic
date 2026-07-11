@@ -53,6 +53,7 @@ records the upstream commits for the copied files:
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
+| Mirror servo controller | `rb3-latest` `CharMirror.cpp` / `CharMirror.h` | Native helper ports constructor defaults, nonzero-weight/nonempty-bones `Poll` gate, servo setter `SyncBones` triggers, dependency publication, load order, and copy flow; `SyncBones` bone rebuilding remains fenced because the body is absent from `rb3-latest`. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
 | Guitar string bend controller | `rb3-latest` `CharGuitarString.cpp` / `CharGuitarString.h`; stock guitar sweep | Native helper ports source `Poll` projection/open-string math and `PollDeps`, but the checked GH2 stock guitar MILOs contain no `CharGuitarString` rows; native does not invent one. |
 | Upper/fore/neck twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp`, `rb3-latest` `CharNeckTwist.cpp` / `CharNeckTwist.h` | Native upper/fore passes follow source `Poll` routines; neck twist rows decode/log the source load order and expose helper math, but stock GH2 character inventories currently show zero `CharNeckTwist` rows. |
@@ -894,6 +895,24 @@ note, and all report `unreadBytes=0`.
     owner only when it matches and again falls back to `this` on null, shallow
     copies keep the source owner, and non-shallow copies own themselves while
     copying the source owner's current weight.
+- `rb3-latest/src/system/char/CharMirror.cpp` and
+  `rb3-latest/src/system/char/CharMirror.h`
+  - `CharMirror` inherits `CharWeightable` and `CharPollable`; its constructor
+    initializes null `mServo`/`mMirrorServo`, empty `mBones`, and empty `mOps`.
+  - `Poll` reads `Weight()` and only calls `mBones.ScaleDown(*mServo.Ptr(),
+    1.0f - weight)` when the weight is nonzero and `mBones.TotalSize()` is not
+    zero. Native `source_char_mirror_poll` ports that exact gate and scale
+    weight without inventing a servo null guard.
+  - `SetServo` and `SetMirrorServo` only assign and call `SyncBones` when the
+    pointer value changes. `PollDeps` appends `mServo` to `change`.
+  - `Load` accepts source revision 1, loads `Hmx::Object`, loads
+    `CharWeightable`, reads `mMirrorServo`, reads `mServo`, and calls
+    `SyncBones`. `Copy` copies `Hmx::Object` and `CharWeightable`, then routes
+    both servo pointers through the source setters.
+  - The actual `SyncBones` rebuilding body is not present in `rb3-latest`
+    `CharMirror.cpp`; native records the source call sites but does not claim
+    mirrored bone output until that body is imported from an authoritative
+    source.
 - `rb3-latest/src/system/char/CharWeightSetter.cpp` and
   `rb3-latest/src/system/char/CharWeightSetter.h`
   - Native `source_char_weight_setter_default_state` and

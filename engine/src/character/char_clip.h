@@ -837,6 +837,69 @@ float source_char_weightable_weight(
     const CharWeightSetter& setter,
     const std::unordered_map<std::string, float>& weights_by_name);
 
+struct SourceCharMirrorState {
+  SourceCharWeightableState weightable;
+  std::string servo;
+  std::string mirror_servo;
+  size_t bones_total_size = 0;
+  size_t ops_count = 0;
+};
+
+struct SourceCharMirrorPollResult {
+  float weight = 0.0f;
+  bool weight_zero = false;
+  bool bones_empty = false;
+  bool scale_down = false;
+  float scale_down_weight = 0.0f;
+  std::string servo;
+};
+
+struct SourceCharMirrorSetServoResult {
+  bool changed = false;
+  bool synced_bones = false;
+};
+
+struct SourceCharMirrorPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
+struct SourceCharMirrorLoadSteps {
+  int32_t max_revision = 1;
+  bool load_hmx_object = false;
+  bool load_weightable = false;
+  bool load_mirror_servo = false;
+  bool load_servo = false;
+  bool sync_bones = false;
+};
+
+struct SourceCharMirrorCopyResult {
+  bool copy_hmx_object = false;
+  bool copy_weightable = false;
+  SourceCharMirrorSetServoResult set_mirror_servo;
+  SourceCharMirrorSetServoResult set_servo;
+};
+
+SourceCharMirrorState source_char_mirror_default_state(
+    const std::string& name);
+SourceCharMirrorPollResult source_char_mirror_poll(
+    const SourceCharMirrorState& state,
+    const std::unordered_map<std::string, float>& weights_by_name);
+SourceCharMirrorSetServoResult source_char_mirror_set_servo(
+    SourceCharMirrorState& state,
+    const std::string& servo);
+SourceCharMirrorSetServoResult source_char_mirror_set_mirror_servo(
+    SourceCharMirrorState& state,
+    const std::string& mirror_servo);
+void source_char_mirror_poll_deps(SourceCharMirrorPollDeps& deps,
+                                  const SourceCharMirrorState& state);
+SourceCharMirrorLoadSteps source_char_mirror_load_steps();
+SourceCharMirrorCopyResult source_char_mirror_copy(
+    SourceCharMirrorState& dest,
+    const SourceCharMirrorState& source,
+    bool shallow_copy,
+    float source_owner_weight);
+
 // Source-backed CharWeightSetter::Poll helper for rows that do not require the
 // unavailable CharDriver::EvaluateFlags body. Returns false when the row is
 // driver-backed and no source evaluator is present.

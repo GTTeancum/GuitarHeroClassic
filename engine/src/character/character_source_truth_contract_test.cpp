@@ -94,6 +94,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_lookat_source_test.cpp"));
   const std::string weight_setter_source_test =
       compact(read_file(char_dir / "character_weight_setter_source_test.cpp"));
+  const std::string mirror_source_test =
+      compact(read_file(char_dir / "character_mirror_source_test.cpp"));
   const std::string char_hair_source_test =
       compact(read_file(char_dir / "character_char_hair_source_test.cpp"));
   const std::string face_servo_source_test =
@@ -258,6 +260,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharWeightable.cpp"));
   const std::string rb3_latest_char_weightable_h = compact(read_file(
       rb3_latest_char_dir / "CharWeightable.h"));
+  const std::string rb3_latest_char_mirror_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharMirror.cpp"));
+  const std::string rb3_latest_char_mirror_h = compact(read_file(
+      rb3_latest_char_dir / "CharMirror.h"));
   const std::string rb3_latest_char_driver_cpp = compact(read_file(
       rb3_latest_char_dir / "CharDriver.cpp"));
   const std::string rb3_latest_char_driver_h = compact(read_file(
@@ -3172,6 +3178,54 @@ int run_contract() {
                  "if(ty==kCopyShallow){SetWeightOwner(c->mWeightOwner.Ptr());}"
                  "else{SetWeightOwner(this);mWeight=c->mWeightOwner->mWeight;}",
                  "latest CharWeightable source Copy handles shallow and deep owner");
+  ok &= contains(doc,
+                 "| Mirror servo controller | `rb3-latest` `CharMirror.cpp` / "
+                 "`CharMirror.h` |",
+                 "coverage matrix records CharMirror source");
+  ok &= contains(rb3_latest_char_mirror_h,
+                 "classCharMirror:publicCharWeightable,publicCharPollable",
+                 "latest CharMirror header exposes inheritance");
+  ok &= contains(rb3_latest_char_mirror_h,
+                 "ObjPtr<CharServoBone,classObjectDir>mServo;",
+                 "latest CharMirror header exposes servo pointer");
+  ok &= contains(rb3_latest_char_mirror_h,
+                 "ObjPtr<CharServoBone,classObjectDir>mMirrorServo;",
+                 "latest CharMirror header exposes mirror servo pointer");
+  ok &= contains(rb3_latest_char_mirror_h,
+                 "CharBonesAllocmBones;",
+                 "latest CharMirror header exposes mirror bones");
+  ok &= contains(rb3_latest_char_mirror_cpp,
+                 "CharMirror::CharMirror():mServo(this,0),mMirrorServo(this,0),"
+                 "mBones(),mOps(){}",
+                 "latest CharMirror source constructor defaults");
+  ok &= contains(rb3_latest_char_mirror_cpp,
+                 "voidCharMirror::Poll(){floatweight=Weight();if(weight&&"
+                 "mBones.TotalSize()!=0){mBones.ScaleDown(*mServo.Ptr(),"
+                 "1.0f-weight);}}",
+                 "latest CharMirror source Poll gate");
+  ok &= contains(rb3_latest_char_mirror_cpp,
+                 "voidCharMirror::SetServo(CharServoBone*bone){if(bone!="
+                 "mServo){mServo=bone;SyncBones();}}",
+                 "latest CharMirror source SetServo sync gate");
+  ok &= contains(rb3_latest_char_mirror_cpp,
+                 "voidCharMirror::SetMirrorServo(CharServoBone*bone){"
+                 "if(bone!=mMirrorServo){mMirrorServo=bone;SyncBones();}}",
+                 "latest CharMirror source SetMirrorServo sync gate");
+  ok &= contains(rb3_latest_char_mirror_cpp,
+                 "voidCharMirror::PollDeps(std::list<Hmx::Object*>&changedBy,"
+                 "std::list<Hmx::Object*>&change){change.push_back(mServo);}",
+                 "latest CharMirror source PollDeps");
+  ok &= contains(rb3_latest_char_mirror_cpp,
+                 "voidCharMirror::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(1,0);Hmx::Object::Load(bs);"
+                 "CharWeightable::Load(bs);bs>>mMirrorServo;bs>>mServo;"
+                 "SyncBones();}",
+                 "latest CharMirror source Load order");
+  ok &= contains(rb3_latest_char_mirror_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS(CharWeightable)"
+                 "CREATE_COPY(CharMirror)BEGIN_COPYING_MEMBERS"
+                 "SetMirrorServo(c->mMirrorServo);SetServo(c->mServo);",
+                 "latest CharMirror source Copy order");
   ok &= contains(rb3_latest_char_weight_setter_cpp,
                  "CharWeightSetter::CharWeightSetter():mBase(this,0),"
                  "mDriver(this,0),mMinWeights(this,kObjListNoNull),"
@@ -3312,6 +3366,72 @@ int run_contract() {
                  "source.weight_owner);}else{source_char_weightable_set_weight_owner("
                  "dest,dest.name);dest.weight=source_owner_weight;}",
                  "native CharWeightable Copy helper ports shallow and deep copy");
+  ok &= contains(char_clip_h,
+                 "structSourceCharMirrorState{SourceCharWeightableStateweightable;"
+                 "std::stringservo;std::stringmirror_servo;size_tbones_total_size=0;"
+                 "size_tops_count=0;};",
+                 "native exposes source CharMirror state");
+  ok &= contains(char_clip_h,
+                 "SourceCharMirrorPollResultsource_char_mirror_poll("
+                 "constSourceCharMirrorState&state,conststd::unordered_map<"
+                 "std::string,float>&weights_by_name);",
+                 "native exposes source CharMirror Poll helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharMirrorSetServoResultsource_char_mirror_set_servo("
+                 "SourceCharMirrorState&state,conststd::string&servo);",
+                 "native exposes source CharMirror SetServo helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_mirror_poll_deps("
+                 "SourceCharMirrorPollDeps&deps,constSourceCharMirrorState&state);",
+                 "native exposes source CharMirror PollDeps helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharMirrorLoadStepssource_char_mirror_load_steps();",
+                 "native exposes source CharMirror Load order helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharMirrorCopyResultsource_char_mirror_copy("
+                 "SourceCharMirrorState&dest,constSourceCharMirrorState&source,"
+                 "boolshallow_copy,floatsource_owner_weight);",
+                 "native exposes source CharMirror Copy helper");
+  ok &= contains(char_clip,
+                 "SourceCharMirrorStatesource_char_mirror_default_state("
+                 "conststd::string&name){SourceCharMirrorStatestate;"
+                 "state.weightable=source_char_weightable_default_state(name);"
+                 "returnstate;}",
+                 "native CharMirror constructor helper ports defaults");
+  ok &= contains(char_clip,
+                 "result.weight=source_weightable_state_weight(state.weightable,"
+                 "weights_by_name);result.weight_zero=result.weight==0.0f;"
+                 "result.bones_empty=state.bones_total_size==0;",
+                 "native CharMirror Poll helper computes source gate");
+  ok &= contains(char_clip,
+                 "if(!result.weight_zero&&!result.bones_empty){result."
+                 "scale_down=true;result.scale_down_weight=1.0f-result.weight;"
+                 "result.servo=state.servo;}",
+                 "native CharMirror Poll helper ports ScaleDown request");
+  ok &= contains(char_clip,
+                 "if(servo!=state.servo){state.servo=servo;result.changed=true;"
+                 "result.synced_bones=true;}",
+                 "native CharMirror SetServo helper ports sync gate");
+  ok &= contains(char_clip,
+                 "if(mirror_servo!=state.mirror_servo){state.mirror_servo="
+                 "mirror_servo;result.changed=true;result.synced_bones=true;}",
+                 "native CharMirror SetMirrorServo helper ports sync gate");
+  ok &= contains(char_clip,
+                 "voidsource_char_mirror_poll_deps("
+                 "SourceCharMirrorPollDeps&deps,constSourceCharMirrorState&state){"
+                 "deps.change.push_back(state.servo);}",
+                 "native CharMirror PollDeps helper ports change publication");
+  ok &= contains(char_clip,
+                 "steps.load_hmx_object=true;steps.load_weightable=true;"
+                 "steps.load_mirror_servo=true;steps.load_servo=true;"
+                 "steps.sync_bones=true;",
+                 "native CharMirror Load order helper ports source sequence");
+  ok &= contains(char_clip,
+                 "source_char_weightable_copy(dest.weightable,source.weightable,"
+                 "shallow_copy,source_owner_weight);result.set_mirror_servo="
+                 "source_char_mirror_set_mirror_servo(dest,source.mirror_servo);"
+                 "result.set_servo=source_char_mirror_set_servo(dest,source.servo);",
+                 "native CharMirror Copy helper ports source setters");
   ok &= contains(char_clip,
                  "SourceCharWeightSetterStatesource_char_weight_setter_default_state("
                  "conststd::string&name){SourceCharWeightSetterStatestate;"
@@ -3401,6 +3521,33 @@ int run_contract() {
                  "conststd::vector<std::string>want_change={\"last.change\","
                  "\"first.change\"};",
                  "focused CharWeightSetter test covers reverse ref order");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_mirror_source_test",
+                 "CMake builds CharMirror source test");
+  ok &= contains(mirror_source_test,
+                 "source_char_mirror_default_state(\"mirror.weight\")",
+                 "focused CharMirror test covers constructor defaults");
+  ok &= contains(mirror_source_test,
+                 "source_char_mirror_set_servo(mirror,\"bone.servo\")",
+                 "focused CharMirror test covers SetServo");
+  ok &= contains(mirror_source_test,
+                 "source_char_mirror_poll_deps(deps,mirror)",
+                 "focused CharMirror test covers PollDeps");
+  ok &= contains(mirror_source_test,
+                 "source_char_mirror_poll(mirror,weights)",
+                 "focused CharMirror test covers Poll");
+  ok &= contains(mirror_source_test,
+                 "source_char_mirror_load_steps()",
+                 "focused CharMirror test covers Load order");
+  ok &= contains(mirror_source_test,
+                 "source_char_mirror_copy(dest,mirror,false,0.80f)",
+                 "focused CharMirror test covers Copy");
+  ok &= contains(doc,
+                 "Native `source_char_mirror_poll` ports",
+                 "document records native CharMirror Poll helper");
+  ok &= contains(doc,
+                 "`SyncBones` rebuilding body is not present in `rb3-latest`",
+                 "document fences missing CharMirror SyncBones body");
   ok &= contains(doc,
                  "Native `source_char_weight_setter_poll_deps` ports",
                  "document records native CharWeightSetter PollDeps helper");
