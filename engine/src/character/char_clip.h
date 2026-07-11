@@ -293,6 +293,7 @@ struct SourceCharDriverState {
   bool has_test_clip = false;
   bool has_default_clip = false;
   bool default_play_starved = false;
+  std::string starved_handler;
   bool last_node_valid = false;
   float old_beat = 1.0e30f;
   bool realign = false;
@@ -315,6 +316,30 @@ struct SourceCharDriverSyncDecision {
   bool has_internal_bones = false;
 };
 
+struct SourceCharDriverEnterDecision {
+  bool changed = false;
+  bool clear_stack = false;
+  bool reset_last_node = false;
+  bool reset_old_beat = false;
+  bool reset_beat_scale = false;
+  bool play_default_clip = false;
+  int default_play_flags = 1;
+  float default_requested_blend_width = -1.0f;
+  float default_old_beat = 1.0e30f;
+  float default_start = 0.0f;
+};
+
+struct SourceCharDriverPlayGroupDecision {
+  bool has_clip_dir = false;
+  bool found_group = false;
+  bool request_play = false;
+};
+
+struct SourceCharDriverPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 // Source-backed CharClip constructor state.
 SourceCharClipDefaultState source_char_clip_default_state();
 
@@ -322,12 +347,18 @@ SourceCharClipDefaultState source_char_clip_default_state();
 // SyncInternalBones state helpers.
 SourceCharDriverState source_char_driver_default_state();
 void source_char_driver_clear(SourceCharDriverState& state);
+SourceCharDriverEnterDecision source_char_driver_enter(
+    SourceCharDriverState& state);
 void source_char_driver_transfer(SourceCharDriverState& state,
                                  const SourceCharDriverState& driver);
 void source_char_driver_set_clips(SourceCharDriverState& state,
                                   bool has_clips);
 void source_char_driver_set_bones(SourceCharDriverState& state,
                                   bool has_bones);
+void source_char_driver_set_starved(SourceCharDriverState& state,
+                                    const std::string& starved_handler);
+void source_char_driver_set_blend_width(SourceCharDriverState& state,
+                                        float blend_width);
 SourceCharDriverSyncDecision source_char_driver_sync_internal_bones(
     SourceCharDriverState& state);
 SourceCharDriverSyncDecision source_char_driver_set_apply(
@@ -336,6 +367,11 @@ SourceCharDriverSyncDecision source_char_driver_set_apply(
 SourceCharDriverSyncDecision source_char_driver_set_clip_type(
     SourceCharDriverState& state,
     const std::string& clip_type);
+SourceCharDriverPlayGroupDecision source_char_driver_play_group_decision(
+    bool has_clip_dir,
+    bool found_group);
+void source_char_driver_poll_deps(SourceCharDriverPollDeps& deps,
+                                  const std::string& bones);
 
 // Source-backed CharClip::SetFlags / SetPlayFlags dirty-state helpers.
 SourceCharClipFlagUpdate source_char_clip_set_flags(uint32_t current_flags,

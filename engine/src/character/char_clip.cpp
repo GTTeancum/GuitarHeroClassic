@@ -1811,6 +1811,25 @@ void source_char_driver_clear(SourceCharDriverState& state) {
   state.has_first = false;
 }
 
+SourceCharDriverEnterDecision source_char_driver_enter(
+    SourceCharDriverState& state) {
+  SourceCharDriverEnterDecision decision;
+  decision.changed = true;
+  decision.clear_stack = true;
+  decision.reset_last_node = true;
+  decision.reset_old_beat = true;
+  decision.reset_beat_scale = true;
+  source_char_driver_clear(state);
+  state.last_node_valid = false;
+  state.old_beat = 1.0e30f;
+  state.beat_scale = 1.0f;
+  if (state.has_default_clip) {
+    decision.play_default_clip = true;
+    state.last_node_valid = true;
+  }
+  return decision;
+}
+
 void source_char_driver_transfer(SourceCharDriverState& state,
                                  const SourceCharDriverState& driver) {
   source_char_driver_clear(state);
@@ -1833,6 +1852,16 @@ void source_char_driver_set_clips(SourceCharDriverState& state,
 void source_char_driver_set_bones(SourceCharDriverState& state,
                                   bool has_bones) {
   state.has_bones = has_bones;
+}
+
+void source_char_driver_set_starved(SourceCharDriverState& state,
+                                    const std::string& starved_handler) {
+  state.starved_handler = starved_handler;
+}
+
+void source_char_driver_set_blend_width(SourceCharDriverState& state,
+                                        float blend_width) {
+  state.blend_width = blend_width;
 }
 
 SourceCharDriverSyncDecision source_char_driver_sync_internal_bones(
@@ -1874,6 +1903,21 @@ SourceCharDriverSyncDecision source_char_driver_set_clip_type(
   if (clip_type == state.clip_type) return SourceCharDriverSyncDecision{};
   state.clip_type = clip_type;
   return source_char_driver_sync_internal_bones(state);
+}
+
+SourceCharDriverPlayGroupDecision source_char_driver_play_group_decision(
+    bool has_clip_dir,
+    bool found_group) {
+  SourceCharDriverPlayGroupDecision decision;
+  decision.has_clip_dir = has_clip_dir;
+  decision.found_group = found_group;
+  decision.request_play = has_clip_dir && found_group;
+  return decision;
+}
+
+void source_char_driver_poll_deps(SourceCharDriverPollDeps& deps,
+                                  const std::string& bones) {
+  deps.change.push_back(bones);
 }
 
 SourceCharClipFlagUpdate source_char_clip_set_play_flags(

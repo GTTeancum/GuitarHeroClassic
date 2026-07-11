@@ -894,6 +894,16 @@ note, and all report `unreadBytes=0`.
     stack and resets `mLastNode`; internal bones are deleted when the clip type
     is null, allocated only for `kApplyBlendWeights` plus non-null clip type,
     then cleared and stuffed from `CharBoneDir::StuffBones`.
+  - Native `source_char_driver_enter`, `source_char_driver_set_starved`,
+    `source_char_driver_set_blend_width`,
+    `source_char_driver_play_group_decision`, and
+    `source_char_driver_poll_deps` port the remaining concrete source helper
+    decisions available in `CharDriver.cpp`/`.h`: `Enter` clears the stack,
+    resets `mLastNode`, `mOldBeat`, and `mBeatScale`, then requests default-clip
+    playback with `(1, -1.0f, 1e+30f, 0.0f)` when `mDefaultClip` exists;
+    `SetStarved` stores the handler symbol; `SetBlendWidth` stores `mBlendWidth`;
+    `PlayGroup` only requests playback when both `mClips` and the named group
+    resolve; `PollDeps` publishes `mBones` in the change list.
 - `rb3-latest/src/system/char/CharDriverMidi.cpp` and
   `rb3-latest/src/system/char/CharDriverMidi.h`
   - `CharDriverMidi::Load` reads the subclass revision, accepts revisions

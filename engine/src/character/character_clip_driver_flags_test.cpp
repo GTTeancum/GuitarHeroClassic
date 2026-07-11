@@ -211,6 +211,38 @@ bool expect_sync_decision(
   return ok;
 }
 
+bool expect_enter_decision(
+    const ghogx::character::SourceCharDriverEnterDecision& got,
+    bool play_default_clip,
+    const char* label) {
+  bool ok = true;
+  if (!got.changed || !got.clear_stack || !got.reset_last_node ||
+      !got.reset_old_beat || !got.reset_beat_scale ||
+      got.play_default_clip != play_default_clip ||
+      got.default_play_flags != 1 ||
+      got.default_requested_blend_width != -1.0f ||
+      got.default_old_beat != 1.0e30f ||
+      got.default_start != 0.0f) {
+    std::cerr << "driver Enter decision mismatch for " << label << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
+bool expect_play_group_decision(bool has_clip_dir, bool found_group,
+                                bool want_play, const char* label) {
+  const ghogx::character::SourceCharDriverPlayGroupDecision got =
+      ghogx::character::source_char_driver_play_group_decision(has_clip_dir,
+                                                               found_group);
+  bool ok = true;
+  if (got.has_clip_dir != has_clip_dir || got.found_group != found_group ||
+      got.request_play != want_play) {
+    std::cerr << "driver PlayGroup decision mismatch for " << label << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_driver_state_helpers() {
   bool ok = true;
   ghogx::character::SourceCharDriverState state =
@@ -221,6 +253,26 @@ bool expect_driver_state_helpers() {
   ghogx::character::source_char_driver_clear(state);
   if (state.has_first) {
     std::cerr << "driver clear left stack attached\n";
+    ok = false;
+  }
+
+  state.has_first = true;
+  state.last_node_valid = true;
+  state.old_beat = 2.0f;
+  state.beat_scale = 0.5f;
+  ok &= expect_enter_decision(ghogx::character::source_char_driver_enter(state),
+                              false, "without default clip");
+  if (state.has_first || state.last_node_valid || state.old_beat != 1.0e30f ||
+      state.beat_scale != 1.0f) {
+    std::cerr << "driver Enter reset state mismatch\n";
+    ok = false;
+  }
+
+  state.has_default_clip = true;
+  ok &= expect_enter_decision(ghogx::character::source_char_driver_enter(state),
+                              true, "with default clip");
+  if (!state.last_node_valid) {
+    std::cerr << "driver Enter default clip did not restore last node\n";
     ok = false;
   }
 
@@ -239,6 +291,17 @@ bool expect_driver_state_helpers() {
   ghogx::character::source_char_driver_set_bones(state, true);
   if (!state.has_bones) {
     std::cerr << "driver SetBones did not store target\n";
+    ok = false;
+  }
+
+  ghogx::character::source_char_driver_set_starved(state, "starved.msg");
+  if (state.starved_handler != "starved.msg") {
+    std::cerr << "driver SetStarved did not store handler\n";
+    ok = false;
+  }
+  ghogx::character::source_char_driver_set_blend_width(state, 0.75f);
+  if (state.blend_width != 0.75f) {
+    std::cerr << "driver SetBlendWidth did not store width\n";
     ok = false;
   }
 
@@ -298,6 +361,17 @@ bool expect_driver_state_helpers() {
       !dest.realign || dest.beat_scale != 0.5f ||
       dest.blend_width != 0.25f) {
     std::cerr << "driver Transfer copied source fields incorrectly\n";
+    ok = false;
+  }
+  ok &= expect_play_group_decision(false, false, false, "no clip directory");
+  ok &= expect_play_group_decision(true, false, false, "missing group");
+  ok &= expect_play_group_decision(true, true, true, "group found");
+
+  ghogx::character::SourceCharDriverPollDeps deps;
+  ghogx::character::source_char_driver_poll_deps(deps, "bone.servo");
+  if (!deps.changed_by.empty() || deps.change.size() != 1 ||
+      deps.change[0] != "bone.servo") {
+    std::cerr << "driver PollDeps did not publish bones as change target\n";
     ok = false;
   }
   return ok;
