@@ -133,6 +133,10 @@ int main() {
                    kSourceCharBonesTypeRotY, "type roty");
   ok &= expect_int(source_char_bones_type_of("bone_head.rotz"),
                    kSourceCharBonesTypeRotZ, "type rotz");
+  ok &= expect_int(source_char_bones_type_of("bone.head.pos"),
+                   kSourceCharBonesTypePos, "type scans later dot");
+  ok &= expect_int(source_char_bones_type_of("bone.head.rotz"),
+                   kSourceCharBonesTypeRotZ, "type scans later rot suffix");
   ok &= expect_int(source_char_bones_type_of("bone_head"),
                    kSourceCharBonesTypeEnd, "type missing suffix");
 

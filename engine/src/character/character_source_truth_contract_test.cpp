@@ -8318,6 +8318,9 @@ int run_contract() {
                  "`.quat`, `.rotx`,",
                  "document records concrete CharBones channel suffix source");
   ok &= contains(doc,
+                 "Source scans every dot in the symbol",
+                 "document records source CharBones TypeOf scan behavior");
+  ok &= contains(doc,
                  "Native `source_char_bones_type_of`, "
                  "`source_char_bones_suffix_of`,",
                  "document records native CharBones source helper ports");
@@ -8644,6 +8647,10 @@ int run_contract() {
                  "intsource_char_bones_type_of(conststd::string&channel)",
                  "native clip decoder ports source CharBones type helper");
   ok &= contains(char_clip,
+                 "for(size_tdot=channel.find('.');dot!=std::string::npos;"
+                 "dot=channel.find('.',dot+1)){",
+                 "native CharBones type helper scans all suffix dots");
+  ok &= contains(char_clip,
                  "constcharaxis=channel[dot+4];if(axis>='x'&&axis<='z'){"
                  "returnkSourceCharBonesTypeRotX+"
                  "(axis-'x');}",
@@ -8795,6 +8802,9 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_type_of(\"bone_head.rotx\")",
                  "focused CharBones source test covers rot-x suffix");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_type_of(\"bone.head.pos\")",
+                 "focused CharBones source test covers later-dot suffix scan");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_channel_name(\"bone.head.pos\",",
                  "focused CharBones source test covers first-dot replacement");
@@ -8977,6 +8987,9 @@ int run_contract() {
                  "mStart(0),mTotalSize(0){for(inti=0;i<NUM_TYPES;i++){"
                  "mCounts[i]=0;mOffsets[i]=0;}}",
                  "latest CharBones source defines default state");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "for(constchar*p=s.Str();p!=0;p++){if(*p=='.'){",
+                 "latest CharBones source TypeOf scans symbol dots");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "voidCharBones::ClearBones(){mBones.clear();for(inti=0;"
                  "i<NUM_TYPES;i++){mCounts[i]=0;mOffsets[i]=0;}mTotalSize=0;"

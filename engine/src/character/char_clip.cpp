@@ -59,27 +59,27 @@ static void source_rotate_about_z_vec(float v[3], float angle);
 static float source_limit_ang(float radians);
 
 int source_char_bones_type_of(const std::string& channel) {
-  const size_t dot = channel.find('.');
-  if (dot == std::string::npos || dot + 1 >= channel.size()) {
-    return kSourceCharBonesTypeEnd;
-  }
-  switch (channel[dot + 1]) {
-    case 'p':
-      return kSourceCharBonesTypePos;
-    case 's':
-      return kSourceCharBonesTypeScale;
-    case 'q':
-      return kSourceCharBonesTypeQuat;
-    case 'r':
-      if (dot + 4 < channel.size()) {
-        const char axis = channel[dot + 4];
-        if (axis >= 'x' && axis <= 'z') {
-          return kSourceCharBonesTypeRotX + (axis - 'x');
+  for (size_t dot = channel.find('.'); dot != std::string::npos;
+       dot = channel.find('.', dot + 1)) {
+    if (dot + 1 >= channel.size()) break;
+    switch (channel[dot + 1]) {
+      case 'p':
+        return kSourceCharBonesTypePos;
+      case 's':
+        return kSourceCharBonesTypeScale;
+      case 'q':
+        return kSourceCharBonesTypeQuat;
+      case 'r':
+        if (dot + 4 < channel.size()) {
+          const char axis = channel[dot + 4];
+          if (axis >= 'x' && axis <= 'z') {
+            return kSourceCharBonesTypeRotX + (axis - 'x');
+          }
         }
-      }
-      break;
-    default:
-      break;
+        break;
+      default:
+        break;
+    }
   }
   return kSourceCharBonesTypeEnd;
 }

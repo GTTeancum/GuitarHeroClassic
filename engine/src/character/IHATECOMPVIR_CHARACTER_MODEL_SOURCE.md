@@ -1740,7 +1740,9 @@ note, and all report `unreadBytes=0`.
 - `rb3-latest/src/system/char/CharBones.cpp` is concrete for channel identity
   and byte layout:
   - `CharBones::TypeOf` maps suffixes `.pos`, `.scale`, `.quat`, `.rotx`,
-    `.roty`, and `.rotz`.
+    `.roty`, and `.rotz`. Source scans every dot in the symbol until one of
+    those suffixes is found; native now matches that instead of only checking
+    the first dot.
   - `SuffixOf` and `ChannelName` round-trip the source channel suffixes.
   - Native `source_char_bones_type_of`, `source_char_bones_suffix_of`,
     `source_char_bones_channel_name`, and `source_char_bones_type_size` now
