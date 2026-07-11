@@ -1709,6 +1709,14 @@ note, and all report `unreadBytes=0`.
     endpoint X row, takes the optional side-axis Z row or the left-right vector,
     rebuilds an orthonormal matrix, then `Poll` multiplies that result by
     `mXfm` before writing `dest`.
+  - Native `source_char_ik_rod_default_state`,
+    `source_char_ik_rod_load_plan`, `source_char_ik_rod_copy_plan`,
+    `source_char_ik_rod_handler_plan`,
+    `source_char_ik_rod_prop_sync_plan`, and
+    `source_char_ik_rod_poll_deps` port the visible constructor defaults,
+    revision-gated row order, copy member order, `Hmx::Object` handler chain,
+    check value `0xAF`, `SyncBones` property-modify rows, and dependency
+    publication order.
   - Native `source_char_ik_rod_compute_world` ports that `ComputeRod` / `Poll`
     path and publishes the resulting `mXfm * computedRod` world row only when
     the source-required `dest`, `left_end`, and `right_end` transforms resolve.

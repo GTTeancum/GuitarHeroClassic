@@ -3884,6 +3884,50 @@ static std::array<float, 16> source_transform_row_mat4(
           xfm[3][0], xfm[3][1], xfm[3][2], 1.0f};
 }
 
+SourceCharIKRodDefaultState source_char_ik_rod_default_state() {
+  return SourceCharIKRodDefaultState{};
+}
+
+SourceCharIKRodLoadPlan source_char_ik_rod_load_plan(int32_t revision) {
+  SourceCharIKRodLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 2;
+  if (!plan.known_revision) return plan;
+  plan.read_order = {"Hmx::Object", "mLeftEnd", "mRightEnd", "mDestPos",
+                     "mSideAxis",    "mVertical", "mDest",     "mXfm"};
+  return plan;
+}
+
+SourceCharIKRodCopyPlan source_char_ik_rod_copy_plan() {
+  SourceCharIKRodCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mLeftEnd",  "mRightEnd", "mDestPos", "mSideAxis",
+                         "mVertical", "mDest",     "mXfm"};
+  return plan;
+}
+
+SourceCharIKRodHandlerPlan source_char_ik_rod_handler_plan() {
+  SourceCharIKRodHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0xAF;
+  return plan;
+}
+
+SourceCharIKRodPropSyncPlan source_char_ik_rod_prop_sync_plan() {
+  SourceCharIKRodPropSyncPlan plan;
+  plan.modify_alt_properties = {"left_end", "right_end", "dest_pos",
+                                "side_axis", "vertical", "dest"};
+  plan.modify_actions.assign(plan.modify_alt_properties.size(), "SyncBones");
+  return plan;
+}
+
+void source_char_ik_rod_poll_deps(SourceCharIKRodPollDeps& deps,
+                                  const CharIKRod& rod) {
+  deps.change.push_back(rod.dest);
+  deps.changed_by.push_back(rod.left_end);
+  deps.changed_by.push_back(rod.right_end);
+  deps.changed_by.push_back(rod.side_axis);
+}
+
 bool source_char_ik_rod_compute_world(const CharIKRod& rod,
                                       const Character& character,
                                       std::array<float, 16>& dest_world) {

@@ -2091,8 +2091,50 @@ void source_char_lip_sync_driver_poll_deps(
     SourceCharLipSyncDriverPollDeps& deps,
     const SourceCharLipSyncDriverState& state);
 
+struct SourceCharIKRodDefaultState {
+  bool left_end_empty = true;
+  bool right_end_empty = true;
+  float dest_pos = 0.5f;
+  bool side_axis_empty = true;
+  bool vertical = false;
+  bool dest_empty = true;
+  bool xfm_identity = true;
+};
+
+struct SourceCharIKRodLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharIKRodCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
+struct SourceCharIKRodHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharIKRodPropSyncPlan {
+  std::vector<std::string> modify_alt_properties;
+  std::vector<std::string> modify_actions;
+};
+
+struct SourceCharIKRodPollDeps {
+  std::vector<std::string> change;
+  std::vector<std::string> changed_by;
+};
+
 // Source-backed CharIKRod::ComputeRod/Poll helper. Returns false when any
 // source-required endpoint or destination transform is unresolved.
+SourceCharIKRodDefaultState source_char_ik_rod_default_state();
+SourceCharIKRodLoadPlan source_char_ik_rod_load_plan(int32_t revision);
+SourceCharIKRodCopyPlan source_char_ik_rod_copy_plan();
+SourceCharIKRodHandlerPlan source_char_ik_rod_handler_plan();
+SourceCharIKRodPropSyncPlan source_char_ik_rod_prop_sync_plan();
+void source_char_ik_rod_poll_deps(SourceCharIKRodPollDeps& deps,
+                                  const CharIKRod& rod);
 bool source_char_ik_rod_compute_world(const CharIKRod& rod,
                                       const Character& character,
                                       std::array<float, 16>& dest_world);

@@ -55,6 +55,25 @@ bool near(float got, float want, const char* label) {
   return false;
 }
 
+bool expect_int(int got, int want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_string(const std::string& got, const std::string& want,
+                   const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got '" << got << "' want '" << want << "'\n";
+  return false;
+}
+
 bool expect_matrix(const std::array<float, 16>& m, const char* label,
                    float x0, float x1, float x2,
                    float y0, float y1, float y2,
@@ -81,17 +100,87 @@ bool expect_matrix(const std::array<float, 16>& m, const char* label,
 int main() {
   using ghogx::character::Character;
   using ghogx::character::CharIKRod;
+  using ghogx::character::SourceCharIKRodPollDeps;
   using ghogx::character::apply_character_controllers;
+  using ghogx::character::source_char_ik_rod_copy_plan;
   using ghogx::character::source_char_ik_rod_compute_world;
+  using ghogx::character::source_char_ik_rod_default_state;
+  using ghogx::character::source_char_ik_rod_handler_plan;
+  using ghogx::character::source_char_ik_rod_load_plan;
+  using ghogx::character::source_char_ik_rod_poll_deps;
+  using ghogx::character::source_char_ik_rod_prop_sync_plan;
 
   Character character;
   add_trans(character, make_trans("left", 0.0f, 0.0f, 0.0f));
   add_trans(character, make_trans("right", 0.0f, 10.0f, 0.0f));
   add_trans(character, make_trans("dest", 0.0f, 0.0f, 0.0f));
 
-  CharIKRod rod = make_identity_rod();
-  std::array<float, 16> world{};
   bool ok = true;
+  const auto defaults = source_char_ik_rod_default_state();
+  ok &= expect_int(defaults.left_end_empty ? 1 : 0, 1,
+                   "CharIKRod default left end");
+  ok &= near(defaults.dest_pos, 0.5f, "CharIKRod default dest pos");
+  ok &= expect_int(defaults.vertical ? 1 : 0, 0,
+                   "CharIKRod default vertical");
+  ok &= expect_int(defaults.xfm_identity ? 1 : 0, 1,
+                   "CharIKRod default xfm");
+
+  const auto load_v2 = source_char_ik_rod_load_plan(2);
+  ok &= expect_int(load_v2.known_revision ? 1 : 0, 1,
+                   "CharIKRod Load v2 known");
+  ok &= expect_size(load_v2.read_order.size(), 8,
+                    "CharIKRod Load row count");
+  ok &= expect_string(load_v2.read_order[0], "Hmx::Object",
+                      "CharIKRod Load object");
+  ok &= expect_string(load_v2.read_order[3], "mDestPos",
+                      "CharIKRod Load dest pos");
+  ok &= expect_string(load_v2.read_order.back(), "mXfm",
+                      "CharIKRod Load xfm");
+  ok &= expect_int(source_char_ik_rod_load_plan(3).known_revision ? 1 : 0,
+                   0, "CharIKRod Load rejects high revision");
+
+  const auto copy_plan = source_char_ik_rod_copy_plan();
+  ok &= expect_string(copy_plan.copied_superclasses[0], "Hmx::Object",
+                      "CharIKRod Copy superclass");
+  ok &= expect_size(copy_plan.copied_members.size(), 7,
+                    "CharIKRod Copy member count");
+  ok &= expect_string(copy_plan.copied_members[0], "mLeftEnd",
+                      "CharIKRod Copy first member");
+  ok &= expect_string(copy_plan.copied_members.back(), "mXfm",
+                      "CharIKRod Copy last member");
+
+  const auto handlers = source_char_ik_rod_handler_plan();
+  ok &= expect_string(handlers.superclasses[0], "Hmx::Object",
+                      "CharIKRod handler superclass");
+  ok &= expect_int(handlers.check, 0xAF, "CharIKRod handler check");
+
+  const auto props = source_char_ik_rod_prop_sync_plan();
+  ok &= expect_size(props.modify_alt_properties.size(), 6,
+                    "CharIKRod prop count");
+  ok &= expect_string(props.modify_alt_properties[0], "left_end",
+                      "CharIKRod prop left end");
+  ok &= expect_string(props.modify_alt_properties.back(), "dest",
+                      "CharIKRod prop dest");
+  ok &= expect_string(props.modify_actions[3], "SyncBones",
+                      "CharIKRod prop SyncBones action");
+
+  CharIKRod rod = make_identity_rod();
+  rod.side_axis = "side";
+  SourceCharIKRodPollDeps deps;
+  source_char_ik_rod_poll_deps(deps, rod);
+  ok &= expect_size(deps.change.size(), 1, "CharIKRod PollDeps change count");
+  ok &= expect_string(deps.change[0], "dest", "CharIKRod PollDeps dest");
+  ok &= expect_size(deps.changed_by.size(), 3,
+                    "CharIKRod PollDeps changed_by count");
+  ok &= expect_string(deps.changed_by[0], "left",
+                      "CharIKRod PollDeps left");
+  ok &= expect_string(deps.changed_by[1], "right",
+                      "CharIKRod PollDeps right");
+  ok &= expect_string(deps.changed_by[2], "side",
+                      "CharIKRod PollDeps side axis");
+  rod.side_axis.clear();
+
+  std::array<float, 16> world{};
   ok &= source_char_ik_rod_compute_world(rod, character, world);
   ok &= expect_matrix(world, "basic rod",
                       1.0f, 0.0f, 0.0f,

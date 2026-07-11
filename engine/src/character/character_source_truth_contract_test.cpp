@@ -2912,6 +2912,32 @@ int run_contract() {
                  "bs>>mLeftEnd;bs>>mRightEnd;bs>>mDestPos;bs>>mSideAxis;"
                  "bs>>mVertical;bs>>mDest;bs>>mXfm;",
                  "CharIKRod source load order is mirrored");
+  ok &= contains(rb3_latest_char_ik_rod_cpp,
+                 "BEGIN_COPYS(CharIKRod)COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(CharIKRod)BEGIN_COPYING_MEMBERS"
+                 "COPY_MEMBER(mLeftEnd)COPY_MEMBER(mRightEnd)"
+                 "COPY_MEMBER(mDestPos)COPY_MEMBER(mSideAxis)"
+                 "COPY_MEMBER(mVertical)COPY_MEMBER(mDest)COPY_MEMBER(mXfm)",
+                 "CharIKRod source Copy member order is visible");
+  ok &= contains(rb3_latest_char_ik_rod_cpp,
+                 "voidCharIKRod::PollDeps(std::list<Hmx::Object*>&changedBy,"
+                 "std::list<Hmx::Object*>&change){change.push_back(mDest);"
+                 "changedBy.push_back(mLeftEnd);changedBy.push_back(mRightEnd);"
+                 "changedBy.push_back(mSideAxis);}",
+                 "CharIKRod source PollDeps order is visible");
+  ok &= contains(rb3_latest_char_ik_rod_cpp,
+                 "BEGIN_HANDLERS(CharIKRod)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0xAF)END_HANDLERS",
+                 "CharIKRod source handler chain is visible");
+  ok &= contains(rb3_latest_char_ik_rod_cpp,
+                 "BEGIN_PROPSYNCS(CharIKRod)"
+                 "SYNC_PROP_MODIFY_ALT(left_end,mLeftEnd,SyncBones())"
+                 "SYNC_PROP_MODIFY_ALT(right_end,mRightEnd,SyncBones())"
+                 "SYNC_PROP_MODIFY_ALT(dest_pos,mDestPos,SyncBones())"
+                 "SYNC_PROP_MODIFY_ALT(side_axis,mSideAxis,SyncBones())"
+                 "SYNC_PROP_MODIFY_ALT(vertical,mVertical,SyncBones())"
+                 "SYNC_PROP_MODIFY_ALT(dest,mDest,SyncBones())END_PROPSYNCS",
+                 "CharIKRod source prop-sync rows are visible");
   ok &= contains(char_mesh_h, "structCharIKRod{std::stringname;int32_tversion=0;",
                  "native CharIKRod stores source revision");
   ok &= contains(char_mesh_h, "floatxfm[4][3]={};",
@@ -2929,6 +2955,60 @@ int run_contract() {
                  "boolsource_char_ik_rod_compute_world(constCharIKRod&rod,"
                  "constCharacter&character,std::array<float,16>&dest_world);",
                  "native exposes source CharIKRod compute/poll helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKRodDefaultState{boolleft_end_empty=true;"
+                 "boolright_end_empty=true;floatdest_pos=0.5f;",
+                 "native exposes source CharIKRod default state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKRodLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;};",
+                 "native exposes source CharIKRod Load plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKRodPropSyncPlan{"
+                 "std::vector<std::string>modify_alt_properties;"
+                 "std::vector<std::string>modify_actions;};",
+                 "native exposes source CharIKRod prop-sync plan");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_ik_rod_poll_deps(SourceCharIKRodPollDeps&deps,"
+                 "constCharIKRod&rod);",
+                 "native exposes source CharIKRod PollDeps helper");
+  ok &= contains(char_clip,
+                 "SourceCharIKRodDefaultStatesource_char_ik_rod_default_state(){"
+                 "returnSourceCharIKRodDefaultState{};}",
+                 "native CharIKRod default-state helper mirrors constructor");
+  ok &= contains(char_clip,
+                 "SourceCharIKRodLoadPlansource_char_ik_rod_load_plan("
+                 "int32_trevision){SourceCharIKRodLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=2;",
+                 "native CharIKRod Load helper mirrors source revision gate");
+  ok &= contains(char_clip,
+                 "plan.read_order={\"Hmx::Object\",\"mLeftEnd\",\"mRightEnd\","
+                 "\"mDestPos\",\"mSideAxis\",\"mVertical\",\"mDest\",\"mXfm\"};",
+                 "native CharIKRod Load helper mirrors source row order");
+  ok &= contains(char_clip,
+                 "SourceCharIKRodCopyPlansource_char_ik_rod_copy_plan(){"
+                 "SourceCharIKRodCopyPlanplan;plan.copied_superclasses="
+                 "{\"Hmx::Object\"};plan.copied_members={\"mLeftEnd\",",
+                 "native CharIKRod Copy helper mirrors source superclass");
+  ok &= contains(char_clip,
+                 "\"mVertical\",\"mDest\",\"mXfm\"};returnplan;}",
+                 "native CharIKRod Copy helper mirrors source member tail");
+  ok &= contains(char_clip,
+                 "SourceCharIKRodHandlerPlansource_char_ik_rod_handler_plan(){"
+                 "SourceCharIKRodHandlerPlanplan;plan.superclasses="
+                 "{\"Hmx::Object\"};plan.check=0xAF;returnplan;}",
+                 "native CharIKRod handler helper mirrors source check");
+  ok &= contains(char_clip,
+                 "SourceCharIKRodPropSyncPlansource_char_ik_rod_prop_sync_plan(){"
+                 "SourceCharIKRodPropSyncPlanplan;plan.modify_alt_properties="
+                 "{\"left_end\",\"right_end\",\"dest_pos\",\"side_axis\","
+                 "\"vertical\",\"dest\"};",
+                 "native CharIKRod prop-sync helper mirrors source rows");
+  ok &= contains(char_clip,
+                 "voidsource_char_ik_rod_poll_deps(SourceCharIKRodPollDeps&deps,"
+                 "constCharIKRod&rod){deps.change.push_back(rod.dest);"
+                 "deps.changed_by.push_back(rod.left_end);",
+                 "native CharIKRod PollDeps helper starts with dest/left");
   ok &= contains(char_clip,
                  "boolsource_char_ik_rod_compute_world(constCharIKRod&rod,"
                  "constCharacter&character,std::array<float,16>&dest_world){"
@@ -2965,6 +3045,18 @@ int run_contract() {
                  "(missing_dest,character,world);",
                  "focused CharIKRod test covers source missing destination boundary");
   ok &= contains(ik_rod_source_test,
+                 "source_char_ik_rod_load_plan(2)",
+                 "focused CharIKRod test covers source Load plan");
+  ok &= contains(ik_rod_source_test,
+                 "source_char_ik_rod_copy_plan()",
+                 "focused CharIKRod test covers source Copy plan");
+  ok &= contains(ik_rod_source_test,
+                 "source_char_ik_rod_prop_sync_plan()",
+                 "focused CharIKRod test covers source prop-sync plan");
+  ok &= contains(ik_rod_source_test,
+                 "source_char_ik_rod_poll_deps(deps,rod)",
+                 "focused CharIKRod test covers source PollDeps");
+  ok &= contains(ik_rod_source_test,
                  "character.ik_rods.push_back(make_identity_rod());"
                  "apply_character_controllers(character,0.0f,nullptr);",
                  "focused CharIKRod test covers controller writeback path");
@@ -2982,6 +3074,14 @@ int run_contract() {
                  "Native `source_char_ik_rod_compute_world` ports that "
                  "`ComputeRod` / `Poll`",
                  "document records native CharIKRod source poll port");
+  ok &= contains(doc,
+                 "Native `source_char_ik_rod_default_state`,\n"
+                 "    `source_char_ik_rod_load_plan`,",
+                 "document records native CharIKRod row-contract helper slice");
+  ok &= contains(doc,
+                 "`SyncBones` property-modify rows, and dependency\n"
+                 "    publication order",
+                 "document records native CharIKRod prop/dependency helper slice");
   ok &= contains(doc,
                  "Stock Grim rows with `dest=<none>` therefore remain "
                  "logged/inert",
