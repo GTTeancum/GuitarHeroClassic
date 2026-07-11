@@ -503,6 +503,11 @@ note, and all report `unreadBytes=0`.
     lower-priority focus requests are rejected, clearing focus resets priority
     to `-1`, and force blink stores the current task time while incrementing
     the blink count by one.
+  - Native `source_char_eyes_interest_*` helpers port the concrete
+    `CharEyes::CharInterestState` refractory timer body: construction/reset set
+    the start time to `-1`, beginning a refractory period stores the current
+    task time, and both active/remaining queries return inactive/zero when the
+    interest pointer is absent or the timer has not been started.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.

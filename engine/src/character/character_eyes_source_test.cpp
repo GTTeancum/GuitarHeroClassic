@@ -45,6 +45,11 @@ int main() {
   using ghogx::character::source_char_eyes_current_interest;
   using ghogx::character::source_char_eyes_force_blink;
   using ghogx::character::source_char_eyes_get_head;
+  using ghogx::character::source_char_eyes_interest_begin_refractory;
+  using ghogx::character::source_char_eyes_interest_in_refractory;
+  using ghogx::character::source_char_eyes_interest_refractory_remaining;
+  using ghogx::character::source_char_eyes_interest_reset;
+  using ghogx::character::source_char_eyes_interest_state;
   using ghogx::character::source_char_eyes_list_poll_children;
   using ghogx::character::source_char_eyes_poll_deps;
   using ghogx::character::source_char_eyes_set_focus_interest;
@@ -140,6 +145,43 @@ int main() {
   ok &= expect_bool(blink.pending_blink, true, "force blink pending");
   ok &= expect_float(blink.blink_time, 12.5f, "force blink time");
   ok &= expect_int(blink.blink_count_delta, 1, "force blink count delta");
+
+  auto runtime = source_char_eyes_interest_state("stage.light");
+  ok &= expect_string(runtime.interest, "stage.light",
+                      "interest runtime stores interest");
+  ok &= expect_float(runtime.refractory_start, -1.0f,
+                     "interest runtime resets refractory start");
+  ok &= expect_bool(
+      source_char_eyes_interest_in_refractory(runtime, 20.0f, 6.1f),
+      false, "inactive refractory before begin");
+  ok &= expect_float(
+      source_char_eyes_interest_refractory_remaining(runtime, 20.0f, 6.1f),
+      0.0f, "inactive refractory remaining");
+
+  source_char_eyes_interest_begin_refractory(runtime, 20.0f);
+  ok &= expect_float(runtime.refractory_start, 20.0f,
+                     "begin refractory stores task time");
+  ok &= expect_bool(
+      source_char_eyes_interest_in_refractory(runtime, 23.0f, 6.1f),
+      true, "refractory active before period");
+  ok &= expect_float(
+      source_char_eyes_interest_refractory_remaining(runtime, 23.0f, 6.1f),
+      3.1f, "refractory remaining before period");
+  ok &= expect_bool(
+      source_char_eyes_interest_in_refractory(runtime, 27.0f, 6.1f),
+      false, "refractory inactive after period");
+  ok &= expect_float(
+      source_char_eyes_interest_refractory_remaining(runtime, 27.0f, 6.1f),
+      0.0f, "refractory remaining after period");
+
+  auto empty_runtime = source_char_eyes_interest_state("");
+  source_char_eyes_interest_begin_refractory(empty_runtime, 20.0f);
+  ok &= expect_bool(source_char_eyes_interest_in_refractory(
+                        empty_runtime, 21.0f, 6.1f),
+                    false, "missing interest never refractory");
+  source_char_eyes_interest_reset(runtime);
+  ok &= expect_float(runtime.refractory_start, -1.0f,
+                     "reset refractory start");
 
   return ok ? 0 : 1;
 }

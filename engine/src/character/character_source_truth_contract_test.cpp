@@ -4499,6 +4499,30 @@ int run_contract() {
                  "0);bs>>tPtr;}",
                  "RB3 CharEyes rev 3/4 consumes a trailing transformable");
   ok &= contains(rb3_char_eyes_cpp,
+                 "voidCharEyes::CharInterestState::ResetState(){unkc=-1.0f;}",
+                 "RB3 CharEyes interest state reset clears refractory timer");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "CharEyes::CharInterestState::CharInterestState(Hmx::Object*o):"
+                 "mInterest(o,0){ResetState();}",
+                 "RB3 CharEyes interest state constructor resets timer");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "voidCharEyes::CharInterestState::BeginRefractoryPeriod(){"
+                 "unkc=TheTaskMgr.Seconds(TaskMgr::b);}",
+                 "RB3 CharEyes interest state begins refractory at task time");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "boolCharEyes::CharInterestState::IsInRefractoryPeriod(){"
+                 "if(!mInterest||unkc<0.0)returnfalse;else{floatsecs="
+                 "TheTaskMgr.Seconds(TaskMgr::b)-unkc;if(secs<mInterest->"
+                 "mRefractoryPeriod)returntrue;elsereturnfalse;}}",
+                 "RB3 CharEyes interest state checks active refractory period");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "floatCharEyes::CharInterestState::RefractoryTimeRemaining(){"
+                 "if(!mInterest||unkc<0.0)return0.0f;else{floatsecs="
+                 "TheTaskMgr.Seconds(TaskMgr::b)-unkc;if(secs<mInterest->"
+                 "mRefractoryPeriod)returnmInterest->mRefractoryPeriod-secs;"
+                 "elsereturn0.0f;}}",
+                 "RB3 CharEyes interest state computes refractory time remaining");
+  ok &= contains(rb3_char_eyes_cpp,
                  "boolCharEyes::SetFocusInterest(CharInterest*interest,inti){"
                  "if(unkd4&&unke0>i)returnfalse;CharInterest*loc_interest="
                  "interest;unkd4=interest;unke0=i;if(loc_interest!=interest)"
@@ -4669,6 +4693,10 @@ int run_contract() {
                  "floatblink_time=-1.0f;intblink_count_delta=0;};",
                  "native exposes CharEyes force blink state");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesInterestRuntime{std::stringinterest;"
+                 "floatrefractory_start=-1.0f;};",
+                 "native exposes CharEyes interest refractory state");
+  ok &= contains(char_mesh_h,
                  "std::vector<std::string>source_char_eyes_list_poll_children(",
                  "native exposes CharEyes poll child helper");
   ok &= contains(char_mesh_h,
@@ -4690,6 +4718,28 @@ int run_contract() {
                  "SourceCharEyesForceBlinkStatesource_char_eyes_force_blink("
                  "floattask_seconds);",
                  "native exposes CharEyes ForceBlink helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesInterestRuntimesource_char_eyes_interest_state("
+                 "conststd::string&interest);",
+                 "native exposes CharEyes interest state helper");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_eyes_interest_reset("
+                 "SourceCharEyesInterestRuntime&state);",
+                 "native exposes CharEyes interest reset helper");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_eyes_interest_begin_refractory("
+                 "SourceCharEyesInterestRuntime&state,floattask_seconds);",
+                 "native exposes CharEyes interest refractory begin helper");
+  ok &= contains(char_mesh_h,
+                 "boolsource_char_eyes_interest_in_refractory("
+                 "constSourceCharEyesInterestRuntime&state,floattask_seconds,"
+                 "floatrefractory_period);",
+                 "native exposes CharEyes refractory active helper");
+  ok &= contains(char_mesh_h,
+                 "floatsource_char_eyes_interest_refractory_remaining("
+                 "constSourceCharEyesInterestRuntime&state,floattask_seconds,"
+                 "floatrefractory_period);",
+                 "native exposes CharEyes refractory remaining helper");
   ok &= contains(char_mesh_h,
                  "voidsource_char_eyes_poll_deps(",
                  "native exposes CharEyes PollDeps helper");
@@ -4729,6 +4779,33 @@ int run_contract() {
                  "state.blink_count_delta=1;returnstate;}",
                  "native CharEyes ForceBlink helper ports source state writes");
   ok &= contains(char_mesh,
+                 "SourceCharEyesInterestRuntimesource_char_eyes_interest_state("
+                 "conststd::string&interest){SourceCharEyesInterestRuntimestate;"
+                 "state.interest=interest;state.refractory_start=-1.0f;"
+                 "returnstate;}",
+                 "native CharEyes interest state helper ports constructor reset");
+  ok &= contains(char_mesh,
+                 "voidsource_char_eyes_interest_reset("
+                 "SourceCharEyesInterestRuntime&state){state.refractory_start="
+                 "-1.0f;}",
+                 "native CharEyes interest reset helper ports source reset");
+  ok &= contains(char_mesh,
+                 "voidsource_char_eyes_interest_begin_refractory("
+                 "SourceCharEyesInterestRuntime&state,floattask_seconds){"
+                 "state.refractory_start=task_seconds;}",
+                 "native CharEyes interest begin helper ports task time write");
+  ok &= contains(char_mesh,
+                 "if(state.interest.empty()||state.refractory_start<0.0f)"
+                 "returnfalse;returntask_seconds-state.refractory_start<"
+                 "refractory_period;",
+                 "native CharEyes refractory active helper ports source gates");
+  ok &= contains(char_mesh,
+                 "if(state.interest.empty()||state.refractory_start<0.0f)"
+                 "return0.0f;constfloatelapsed=task_seconds-state."
+                 "refractory_start;if(elapsed<refractory_period)return"
+                 "refractory_period-elapsed;return0.0f;",
+                 "native CharEyes refractory remaining helper ports source gates");
+  ok &= contains(char_mesh,
                  "if(interest.same_dir)deps.changed_by.push_back(interest.interest);",
                  "native CharEyes helper gates interests by owning dir");
   ok &= contains(char_mesh,
@@ -4767,6 +4844,22 @@ int run_contract() {
                  "source_char_eyes_force_blink(12.5f)",
                  "focused CharEyes source test covers ForceBlink helper");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_interest_state(\"stage.light\")",
+                 "focused CharEyes source test covers interest state constructor");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_interest_begin_refractory(runtime,20.0f)",
+                 "focused CharEyes source test covers refractory begin");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_interest_in_refractory(runtime,23.0f,6.1f)",
+                 "focused CharEyes source test covers active refractory branch");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_interest_refractory_remaining(runtime,23.0f,"
+                 "6.1f)",
+                 "focused CharEyes source test covers refractory remaining branch");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_interest_reset(runtime)",
+                 "focused CharEyes source test covers refractory reset");
+  ok &= contains(eyes_source_test,
                  "\"noeyeshasnotargetchange\"",
                  "focused CharEyes source test covers no-eye target gate");
   ok &= contains(char_mesh,
@@ -4791,6 +4884,9 @@ int run_contract() {
                  "plus the concrete `GetHead`, `GetCurrentInterest`, "
                  "`SetFocusInterest`, and\n    `ForceBlink` state bodies",
                  "document records native CharEyes state helper slice");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_interest_*` helpers port the concrete",
+                 "document records native CharEyes refractory helper slice");
   ok &= contains(doc,
                  "Native `source_char_eye_dart_ruleset_*` helpers preserve this\n"
                  "    exact data behavior",

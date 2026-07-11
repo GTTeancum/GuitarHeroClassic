@@ -2005,6 +2005,43 @@ SourceCharEyesForceBlinkState source_char_eyes_force_blink(
   return state;
 }
 
+SourceCharEyesInterestRuntime source_char_eyes_interest_state(
+    const std::string& interest) {
+  SourceCharEyesInterestRuntime state;
+  state.interest = interest;
+  state.refractory_start = -1.0f;
+  return state;
+}
+
+void source_char_eyes_interest_reset(
+    SourceCharEyesInterestRuntime& state) {
+  state.refractory_start = -1.0f;
+}
+
+void source_char_eyes_interest_begin_refractory(
+    SourceCharEyesInterestRuntime& state,
+    float task_seconds) {
+  state.refractory_start = task_seconds;
+}
+
+bool source_char_eyes_interest_in_refractory(
+    const SourceCharEyesInterestRuntime& state,
+    float task_seconds,
+    float refractory_period) {
+  if (state.interest.empty() || state.refractory_start < 0.0f) return false;
+  return task_seconds - state.refractory_start < refractory_period;
+}
+
+float source_char_eyes_interest_refractory_remaining(
+    const SourceCharEyesInterestRuntime& state,
+    float task_seconds,
+    float refractory_period) {
+  if (state.interest.empty() || state.refractory_start < 0.0f) return 0.0f;
+  const float elapsed = task_seconds - state.refractory_start;
+  if (elapsed < refractory_period) return refractory_period - elapsed;
+  return 0.0f;
+}
+
 void source_char_eyes_poll_deps(
     SourceCharEyesPollDeps& deps,
     const std::vector<SourceCharEyesInterest>& interests,

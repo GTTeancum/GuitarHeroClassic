@@ -498,6 +498,11 @@ struct SourceCharEyesForceBlinkState {
   int blink_count_delta = 0;
 };
 
+struct SourceCharEyesInterestRuntime {
+  std::string interest;
+  float refractory_start = -1.0f;
+};
+
 struct SourceCharEyeDartRulesetData {
   float min_radius = 0.5f;
   float max_radius = 3.0f;
@@ -691,6 +696,21 @@ SourceCharEyesFocusResult source_char_eyes_set_focus_interest(
     int requested_priority);
 SourceCharEyesForceBlinkState source_char_eyes_force_blink(
     float task_seconds);
+SourceCharEyesInterestRuntime source_char_eyes_interest_state(
+    const std::string& interest);
+void source_char_eyes_interest_reset(
+    SourceCharEyesInterestRuntime& state);
+void source_char_eyes_interest_begin_refractory(
+    SourceCharEyesInterestRuntime& state,
+    float task_seconds);
+bool source_char_eyes_interest_in_refractory(
+    const SourceCharEyesInterestRuntime& state,
+    float task_seconds,
+    float refractory_period);
+float source_char_eyes_interest_refractory_remaining(
+    const SourceCharEyesInterestRuntime& state,
+    float task_seconds,
+    float refractory_period);
 void source_char_eyes_poll_deps(
     SourceCharEyesPollDeps& deps,
     const std::vector<SourceCharEyesInterest>& interests,
