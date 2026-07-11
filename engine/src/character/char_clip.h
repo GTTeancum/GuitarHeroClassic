@@ -667,6 +667,16 @@ struct SourceCharClipPoseMeshesSteps {
   bool pose_meshes = false;
 };
 
+struct SourceCharClipPropSyncPlan {
+  std::vector<std::string> graph_node_properties;
+  bool node_vector_size_query = true;
+  std::vector<std::string> node_vector_properties;
+  std::vector<std::string> beat_event_set_properties;
+  std::vector<std::string> clip_set_properties;
+  std::vector<std::string> clip_properties;
+  std::vector<std::string> sample_subobjects;
+};
+
 enum SourceCharDriverApplyMode {
   kSourceCharDriverApplyBlend = 0,
   kSourceCharDriverApplyAdd = 1,
@@ -1054,6 +1064,7 @@ void source_char_clip_beat_event_assign(SourceCharClipBeatEvent& dest,
 SourceCharClipBeatEvent source_char_clip_beat_event_loaded(
     const std::string& event,
     float beat);
+SourceCharClipPropSyncPlan source_char_clip_prop_sync_plan();
 SourceCharClipResourceLookup source_char_clip_get_resource(
     bool has_type_def,
     bool has_resource_array,

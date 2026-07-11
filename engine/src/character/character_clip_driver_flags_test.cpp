@@ -938,6 +938,38 @@ int main() {
                                                        loaded_event);
   ok &= expect_beat_event(assigned_event, "solo_hit", 12.5f,
                           "BeatEvent assignment");
+  const ghogx::character::SourceCharClipPropSyncPlan prop_sync =
+      ghogx::character::source_char_clip_prop_sync_plan();
+  if (prop_sync.graph_node_properties.size() != 2 ||
+      prop_sync.graph_node_properties[0] != "cur_beat" ||
+      prop_sync.graph_node_properties[1] != "next_beat" ||
+      !prop_sync.node_vector_size_query ||
+      prop_sync.node_vector_properties.size() != 2 ||
+      prop_sync.node_vector_properties[0] != "clip" ||
+      prop_sync.node_vector_properties[1] != "nodes" ||
+      prop_sync.beat_event_set_properties.size() != 2 ||
+      prop_sync.beat_event_set_properties[0] != "beat" ||
+      prop_sync.beat_event_set_properties[1] != "event") {
+    std::cerr << "CharClip prop sync nested rows mismatch\n";
+    ok = false;
+  }
+  if (prop_sync.clip_set_properties.size() != 15 ||
+      prop_sync.clip_set_properties[0] != "start_beat" ||
+      prop_sync.clip_set_properties[6] != "flags" ||
+      prop_sync.clip_set_properties[10] != "relative" ||
+      prop_sync.clip_set_properties[14] != "num_frames") {
+    std::cerr << "CharClip prop sync set rows mismatch\n";
+    ok = false;
+  }
+  if (prop_sync.clip_properties.size() != 5 ||
+      prop_sync.clip_properties[0] != "range" ||
+      prop_sync.clip_properties[4] != "sync_anim" ||
+      prop_sync.sample_subobjects.size() != 2 ||
+      prop_sync.sample_subobjects[0] != "full" ||
+      prop_sync.sample_subobjects[1] != "one") {
+    std::cerr << "CharClip prop sync property/subobject rows mismatch\n";
+    ok = false;
+  }
   ok &= expect_resource_lookup(
       ghogx::character::source_char_clip_get_resource(true, true,
                                                       "rock1_resource", true),

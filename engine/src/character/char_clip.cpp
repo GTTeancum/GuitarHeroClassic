@@ -2578,6 +2578,26 @@ SourceCharClipBeatEvent source_char_clip_beat_event_loaded(
   return loaded;
 }
 
+SourceCharClipPropSyncPlan source_char_clip_prop_sync_plan() {
+  SourceCharClipPropSyncPlan plan;
+  plan.graph_node_properties = {"cur_beat", "next_beat"};
+  plan.node_vector_size_query = true;
+  plan.node_vector_properties = {"clip", "nodes"};
+  plan.beat_event_set_properties = {"beat", "event"};
+  plan.clip_set_properties = {"start_beat",       "end_beat",
+                              "length_beats",     "frames_per_sec",
+                              "length_seconds",   "average_beats_per_sec",
+                              "flags",            "default_blend",
+                              "default_loop",     "beat_align",
+                              "relative",         "dirty",
+                              "size",             "compression",
+                              "num_frames"};
+  plan.clip_properties = {"range", "events", "do_not_compress",
+                          "transitions", "sync_anim"};
+  plan.sample_subobjects = {"full", "one"};
+  return plan;
+}
+
 SourceCharClipResourceLookup source_char_clip_get_resource(
     bool has_type_def,
     bool has_resource_array,

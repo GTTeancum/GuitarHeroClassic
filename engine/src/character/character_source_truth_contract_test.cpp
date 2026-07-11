@@ -11693,6 +11693,44 @@ int run_contract() {
                  "bs>>beat;}",
                  "latest CharClip source exposes BeatEvent load order");
   ok &= contains(rb3_latest_char_clip_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharGraphNode)"
+                 "SYNC_PROP(cur_beat,o.curBeat)"
+                 "SYNC_PROP(next_beat,o.nextBeat)END_CUSTOM_PROPSYNC",
+                 "latest CharClip source exposes graph-node prop rows");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharClip::NodeVector)"
+                 "SYNC_PROP_SET(clip,o.clip,){staticSymbol_s(\"nodes\");",
+                 "latest CharClip source exposes node-vector prop rows");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharClip::BeatEvent)"
+                 "SYNC_PROP_SET(beat,o.beat,o.beat=_val.Float(0))"
+                 "SYNC_PROP_SET(event,o.event,o.event=_val.Sym(0))"
+                 "END_CUSTOM_PROPSYNC",
+                 "latest CharClip source exposes beat-event prop rows");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "BEGIN_PROPSYNCS(CharClip)SYNC_PROP_SET(start_beat,"
+                 "StartBeat(),)SYNC_PROP_SET(end_beat,EndBeat(),)"
+                 "SYNC_PROP_SET(length_beats,LengthBeats(),)",
+                 "latest CharClip source exposes prop-sync prefix");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "SYNC_PROP_SET(flags,mFlags,SetFlags(_val.Int(0)))"
+                 "SYNC_PROP_SET(default_blend,mPlayFlags&0xF,"
+                 "SetDefaultBlend(_val.Int(0)))",
+                 "latest CharClip source exposes play-flag prop rows");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "staticSymbol_s(\"full\");if(sym==_s)returnmFull."
+                 "SyncProperty(_val,_prop,_i+1,_op);",
+                 "latest CharClip source exposes full sample prop branch");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "staticSymbol_s(\"one\");if(sym==_s)returnmOne."
+                 "SyncProperty(_val,_prop,_i+1,_op);",
+                 "latest CharClip source exposes one sample prop branch");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "SYNC_PROP_SET(compression,mFull.mCompression,)"
+                 "SYNC_PROP_SET(num_frames,NumFrames(),)"
+                 "SYNC_PROP(sync_anim,mSyncAnim)END_PROPSYNCS",
+                 "latest CharClip source exposes prop-sync tail");
+  ok &= contains(rb3_latest_char_clip_cpp,
                  "CharBoneDir*CharClip::GetResource()const{CharBoneDir*dir=0;"
                  "constDataArray*tdef=TypeDef();if(tdef){DataArray*found="
                  "tdef->FindArray(\"resource\",false);if(found)dir="
@@ -11753,6 +11791,15 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_clip_beat_event_*` helpers port the concrete",
                  "document records native CharClip BeatEvent helpers");
+  ok &= contains(doc,
+                 "Native `source_char_clip_prop_sync_plan` records the checked property rows",
+                 "document records native CharClip prop-sync helper");
+  ok &= contains(doc,
+                 "including the special `full` and `one` `CharBonesSamples`",
+                 "document records CharClip full/one prop-sync branches");
+  ok &= contains(doc,
+                 "This is property-row evidence only; it does not provide",
+                 "document fences CharClip prop rows from pose publishing");
   ok &= contains(doc,
                  "Native `source_char_clip_get_context` ports the concrete `GetContext`",
                  "document records native CharClip GetContext helper");
@@ -11983,6 +12030,15 @@ int run_contract() {
                  "floatscale_add_blend=0.0f;boolpose_meshes=false;};",
                  "native character API exposes source CharClip PoseMeshes args");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipPropSyncPlan{"
+                 "std::vector<std::string>graph_node_properties;"
+                 "boolnode_vector_size_query=true;",
+                 "native character API exposes source CharClip prop-sync row");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>beat_event_set_properties;"
+                 "std::vector<std::string>clip_set_properties;",
+                 "native CharClip prop-sync row exposes property vectors");
+  ok &= contains(char_clip_h,
                  "SourceCharClipDefaultStatesource_char_clip_default_state();",
                  "native character API exposes source CharClip default-state helper");
   ok &= contains(char_clip_h,
@@ -12000,6 +12056,9 @@ int run_contract() {
                  "SourceCharClipBeatEventsource_char_clip_beat_event_loaded("
                  "conststd::string&event,floatbeat);",
                  "native character API exposes source CharClip BeatEvent load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipPropSyncPlansource_char_clip_prop_sync_plan();",
+                 "native character API exposes source CharClip prop-sync helper");
   ok &= contains(char_clip_h,
                  "SourceCharClipResourceLookupsource_char_clip_get_resource("
                  "boolhas_type_def,boolhas_resource_array,conststd::string&"
@@ -12228,6 +12287,27 @@ int run_contract() {
                  "loaded.event=event;loaded.beat=beat;returnloaded;}",
                  "native CharClip BeatEvent load helper ports read order fields");
   ok &= contains(char_clip,
+                 "SourceCharClipPropSyncPlansource_char_clip_prop_sync_plan(){"
+                 "SourceCharClipPropSyncPlanplan;plan.graph_node_properties={"
+                 "\"cur_beat\",\"next_beat\"};",
+                 "native CharClip prop-sync helper records graph-node rows");
+  ok &= contains(char_clip,
+                 "plan.node_vector_size_query=true;plan.node_vector_properties={"
+                 "\"clip\",\"nodes\"};plan.beat_event_set_properties={"
+                 "\"beat\",\"event\"};",
+                 "native CharClip prop-sync helper records nested rows");
+  ok &= contains(char_clip,
+                 "plan.clip_set_properties={\"start_beat\",\"end_beat\","
+                 "\"length_beats\",\"frames_per_sec\",",
+                 "native CharClip prop-sync helper records clip set rows");
+  ok &= contains(char_clip,
+                 "plan.clip_properties={\"range\",\"events\",\"do_not_compress\","
+                 "\"transitions\",\"sync_anim\"};",
+                 "native CharClip prop-sync helper records direct prop rows");
+  ok &= contains(char_clip,
+                 "plan.sample_subobjects={\"full\",\"one\"};returnplan;}",
+                 "native CharClip prop-sync helper records full/one branches");
+  ok &= contains(char_clip,
                  "SourceCharClipResourceLookupsource_char_clip_get_resource("
                  "boolhas_type_def,boolhas_resource_array,conststd::string&"
                  "resource_name,boolresource_found){SourceCharClipResourceLookup"
@@ -12334,6 +12414,12 @@ int run_contract() {
                  "source_char_clip_beat_event_assign(assigned_event,"
                  "loaded_event)",
                  "focused clip driver flags test covers BeatEvent assignment");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_prop_sync_plan()",
+                 "focused clip driver flags test covers CharClip prop-sync plan");
+  ok &= contains(clip_driver_flags_test,
+                 "prop_sync.sample_subobjects[0]!=\"full\"",
+                 "focused clip driver flags test covers CharClip full prop branch");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_get_resource(true,true,\"rock1_resource\",true)",
                  "focused clip driver flags test covers found GetResource helper");

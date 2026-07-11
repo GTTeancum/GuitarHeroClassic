@@ -2127,6 +2127,11 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_clip_beat_event_*` helpers port the concrete
     `BeatEvent` constructor/copy/assignment and load row order: event symbol
     first, beat float second, with the default beat at `0.0`.
+  - Native `source_char_clip_prop_sync_plan` records the checked property rows
+    for `CharGraphNode`, `CharClip::NodeVector`, `CharClip::BeatEvent`, and
+    `CharClip`, including the special `full` and `one` `CharBonesSamples`
+    subobject branches. This is property-row evidence only; it does not provide
+    the missing clip sample evaluation or pose publishing bodies.
   - Native `source_char_clip_get_context` ports the concrete `GetContext`
     fallback: a type definition with a `resource` array returns the resource
     macro context value; missing type/resource data returns zero.
