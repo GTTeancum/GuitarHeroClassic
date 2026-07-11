@@ -259,5 +259,37 @@ int main() {
   source_char_bone_stuff_bones(output, 0x2, stuffed);
   ok &= expect_size(stuffed.size(), 0, "StuffBones after clear");
 
+  std::vector<CharClip::OutputBone> dir_output_bones;
+  dir_output_bones.push_back(output);
+  std::vector<SourceCharBonesBone> dir_bones;
+  dir_bones.push_back({"preexisting.pos", 2.0f});
+  source_char_bone_dir_list_bones(dir_output_bones, 0x1, 0x1, true,
+                                  dir_bones);
+  ok &= expect_size(dir_bones.size(), 6, "CharBoneDir ListBones count");
+  ok &= expect_string(dir_bones[0].name, "preexisting.pos",
+                      "CharBoneDir preserves caller row");
+  ok &= expect_string(dir_bones[1].name, "bone_facing.pos",
+                      "CharBoneDir facing pos");
+  ok &= expect_float(dir_bones[1].weight, 1.0f,
+                     "CharBoneDir facing pos weight");
+  ok &= expect_string(dir_bones[2].name, "bone_facing.rotz",
+                      "CharBoneDir facing rot");
+  ok &= expect_string(dir_bones[3].name, "bone_facing_delta.pos",
+                      "CharBoneDir delta pos");
+  ok &= expect_string(dir_bones[4].name, "bone_facing_delta.rotz",
+                      "CharBoneDir delta rot");
+  ok &= expect_string(dir_bones[5].name, "bone_hand.pos",
+                      "CharBoneDir delegated CharBone row");
+  ok &= expect_float(dir_bones[5].weight, 1.0f,
+                     "CharBoneDir delegated default weight");
+  dir_bones.clear();
+  source_char_bone_dir_list_bones(dir_output_bones, 0x1, 0x4, false,
+                                  dir_bones);
+  ok &= expect_size(dir_bones.size(), 2, "CharBoneDir no facing count");
+  ok &= expect_string(dir_bones[0].name, "bone_hand.pos",
+                      "CharBoneDir delegated position with no facing");
+  ok &= expect_string(dir_bones[1].name, "bone_hand.rotz",
+                      "CharBoneDir delegated rotation with no facing");
+
   return ok ? 0 : 1;
 }

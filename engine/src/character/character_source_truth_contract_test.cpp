@@ -235,6 +235,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharBone.cpp"));
   const std::string rb3_latest_char_bone_h = compact(read_file(
       rb3_latest_char_dir / "CharBone.h"));
+  const std::string rb3_latest_char_bone_dir_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharBoneDir.cpp"));
   const std::string rb3_latest_char_clip_h = compact(read_file(
       rb3_latest_char_dir / "CharClip.h"));
   const std::string rb3_latest_char_clip_cpp = compact(read_file(
@@ -2900,6 +2902,12 @@ int run_contract() {
                  "constCharClip::OutputBone&bone,intcontext_mask,"
                  "std::vector<SourceCharBonesBone>&bones);",
                  "native API exposes source CharBone StuffBones helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bone_dir_list_bones("
+                 "conststd::vector<CharClip::OutputBone>&output_bones,"
+                 "intmove_context,intcontext_mask,boolinclude_delta_facing,"
+                 "std::vector<SourceCharBonesBone>&bones);",
+                 "native API exposes source CharBoneDir ListBones helper");
   ok &= contains(char_clip,
                  "out.char_bone_version=read_u32_at(body,size,pos,"
                  "\"CharBoneversion\");skip_bytes_at(body,size,pos,9,"
@@ -2947,6 +2955,22 @@ int run_contract() {
                  "bone.position_context&context_mask)!=0){bones.push_back({",
                  "native CharBone StuffBones helper mirrors source append gate");
   ok &= contains(char_clip,
+                 "voidsource_char_bone_dir_list_bones("
+                 "conststd::vector<CharClip::OutputBone>&output_bones,"
+                 "intmove_context,intcontext_mask,boolinclude_delta_facing,"
+                 "std::vector<SourceCharBonesBone>&bones){if(("
+                 "move_context&context_mask)!=0){bones.push_back({"
+                 "\"bone_facing.pos\",1.0f});bones.push_back({"
+                 "\"bone_facing.rotz\",1.0f});",
+                 "native CharBoneDir ListBones helper mirrors source facing rows");
+  ok &= contains(char_clip,
+                 "if(include_delta_facing){bones.push_back({"
+                 "\"bone_facing_delta.pos\",1.0f});bones.push_back({"
+                 "\"bone_facing_delta.rotz\",1.0f});}}for("
+                 "constCharClip::OutputBone&output_bone:output_bones){"
+                 "source_char_bone_stuff_bones(output_bone,context_mask,bones);}}",
+                 "native CharBoneDir ListBones helper mirrors source delta and delegation");
+  ok &= contains(char_clip,
                  "\"[clip-output]%-28ssourceCharBoneversion=%u\"",
                  "native clip debug log labels source CharBone rows");
   ok &= contains(doc,
@@ -2962,6 +2986,13 @@ int run_contract() {
                  "`StuffBones`\n    appends `.pos`, `.scale`, and rotation "
                  "channels in source order",
                  "document records source CharBone StuffBones order");
+  ok &= contains(doc,
+                 "`CharBoneDir::ListBones` adds `bone_facing.pos`",
+                 "document records source CharBoneDir ListBones source");
+  ok &= contains(doc,
+                 "Native `source_char_bone_dir_list_bones` ports that "
+                 "list-building behavior",
+                 "document records native CharBoneDir ListBones helper");
   ok &= contains(char_bones_source_test,
                  "source_char_bone_find_weight_index(output,0x2)",
                  "focused CharBones source test covers CharBone FindWeight");
@@ -2974,6 +3005,14 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bone_clear_context(output,0x2);",
                  "focused CharBones source test covers CharBone ClearContext");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_list_bones(dir_output_bones,0x1,0x1,"
+                 "true,",
+                 "focused CharBones source test covers CharBoneDir facing rows");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_list_bones(dir_output_bones,0x1,0x4,"
+                 "false,",
+                 "focused CharBones source test covers CharBoneDir delegation without facing");
   ok &= contains(rb3_latest_char_bone_cpp,
                  "voidCharBone::StuffBones(std::list<CharBones::Bone>&bonelist,"
                  "inti)const{if(mPositionContext&i){bonelist.push_back("
@@ -3002,6 +3041,19 @@ int run_contract() {
                  "mWeights.begin();it!=mWeights.end();++it){if(("
                  "*it).mContext&i)returnit;}return0;}",
                  "latest CharBone source defines FindWeight first match");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "voidCharBoneDir::ListBones(std::list<CharBones::Bone>&bones,"
+                 "intmask,boolb){if(mMoveContext&mask){bones.push_back("
+                 "CharBones::Bone(\"bone_facing.pos\",1.0f));"
+                 "bones.push_back(CharBones::Bone(\"bone_facing.rotz\",1.0f));",
+                 "latest CharBoneDir source defines facing rows");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "if(b){bones.push_back(CharBones::Bone("
+                 "\"bone_facing_delta.pos\",1.0f));bones.push_back("
+                 "CharBones::Bone(\"bone_facing_delta.rotz\",1.0f));}}"
+                 "for(ObjDirItr<CharBone>it(this,true);it!=0;++it){"
+                 "it->StuffBones(bones,mask);}}",
+                 "latest CharBoneDir source defines delta rows and CharBone delegation");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "voidCharBones::ScaleAdd(CharClip*clip,floatf1,floatf2,"
                  "floatf3){clip->ScaleAdd(*this,f1,f2,f3);}",

@@ -251,6 +251,12 @@ void source_char_bone_clear_context(CharClip::OutputBone& bone,
 void source_char_bone_stuff_bones(const CharClip::OutputBone& bone,
                                   int context_mask,
                                   std::vector<SourceCharBonesBone>& bones);
+void source_char_bone_dir_list_bones(
+    const std::vector<CharClip::OutputBone>& output_bones,
+    int move_context,
+    int context_mask,
+    bool include_delta_facing,
+    std::vector<SourceCharBonesBone>& bones);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

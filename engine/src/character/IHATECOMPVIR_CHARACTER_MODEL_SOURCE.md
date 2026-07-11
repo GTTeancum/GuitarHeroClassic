@@ -711,6 +711,13 @@ note, and all report `unreadBytes=0`.
     `ReallocateInternal` then looks up `bone_facing_delta.pos`,
     `bone_facing.pos`, `bone_pelvis`, `bone_facing.rotz`, and
     `bone_facing_delta.rotz` from the source bone data.
+  - `CharBoneDir::ListBones` adds `bone_facing.pos` and
+    `bone_facing.rotz` when `mMoveContext` intersects the requested mask, adds
+    `bone_facing_delta.pos` and `bone_facing_delta.rotz` when the caller asks
+    for delta facing rows, then delegates to every `CharBone::StuffBones`.
+    Native `source_char_bone_dir_list_bones` ports that list-building behavior
+    for decoded `CharClip::OutputBone` rows without claiming the still-fenced
+    `CharBones::AddBones` packed insertion path.
   - Native GHOGX decodes and logs the source `CharServoBone` row and
     `clip_type`, enforces the source revision range, and records the row tail
     byte count. It does not port `MoveToFacing`, `MoveToDeltaFacing`, or broad

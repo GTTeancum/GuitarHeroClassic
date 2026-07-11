@@ -222,6 +222,25 @@ void source_char_bone_stuff_bones(const CharClip::OutputBone& bone,
   }
 }
 
+void source_char_bone_dir_list_bones(
+    const std::vector<CharClip::OutputBone>& output_bones,
+    int move_context,
+    int context_mask,
+    bool include_delta_facing,
+    std::vector<SourceCharBonesBone>& bones) {
+  if ((move_context & context_mask) != 0) {
+    bones.push_back({"bone_facing.pos", 1.0f});
+    bones.push_back({"bone_facing.rotz", 1.0f});
+    if (include_delta_facing) {
+      bones.push_back({"bone_facing_delta.pos", 1.0f});
+      bones.push_back({"bone_facing_delta.rotz", 1.0f});
+    }
+  }
+  for (const CharClip::OutputBone& output_bone : output_bones) {
+    source_char_bone_stuff_bones(output_bone, context_mask, bones);
+  }
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
