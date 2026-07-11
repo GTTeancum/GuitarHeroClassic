@@ -116,6 +116,16 @@ int main() {
 
   ok &= nonempty(gameplay_draw_c, "Gameplay::draw performer presentation path");
   ok &= nonempty(viewer_run_c, "run_char_mode diagnostic viewer path");
+  ok &= contains(app_main_c,
+                 "if(fixed_dt>0.0f){std::fprintf(stderr,"
+                 "\"[char]fixeddtenabled:%.6f\\n\",fixed_dt);}",
+                 "character viewer logs deterministic fixed-dt captures");
+  ok &= contains(app_main_c,
+                 "if(fixed_dt>0.0f)dt=fixed_dt;",
+                 "character viewer fixed-dt capture cannot drift under debug logging");
+  ok &= contains(app_main_c,
+                 "char_offset,fixed_dt);",
+                 "parsed fixed dt reaches character viewer proof path");
 
   ok &= contains(char_clip_c,
                  "returnkey==\"bone_fret\"||key==\"bone_fret_hand\"||"

@@ -1092,7 +1092,8 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
                   const std::string& fret_clip_arg = "",
                   const std::string& face_clip_arg = "",
                   const std::string& char_scene_milo = "",
-                  const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f}) {
+                  const std::array<float, 3>& char_offset = {0.0f, 0.0f, 0.0f},
+                  float fixed_dt = 0.0f) {
   ghogx::character::Character character;
   if (!ghogx::character::load_character(hdr, ark, milo_path, character)) {
     std::fprintf(stderr, "[char] failed to load %s\n", milo_path.c_str());
@@ -1397,6 +1398,9 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   uint64_t frame = 0;
   if (!screenshot_path.empty() && max_frames == 0)
     max_frames = screenshot_frame + 3;
+  if (fixed_dt > 0.0f) {
+    std::fprintf(stderr, "[char] fixed dt enabled: %.6f\n", fixed_dt);
+  }
 
   while (!win->should_close()) {
     win->pump();
@@ -1405,6 +1409,7 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
     auto now = clock::now();
     float dt = std::chrono::duration<float>(now - last).count();
     last = now;
+    if (fixed_dt > 0.0f) dt = fixed_dt;
     if (dt > 0.1f) dt = 0.1f;
     pose_time += dt;
 
@@ -1740,7 +1745,7 @@ int main(int argc, char** argv) {
                          screenshot_frame, max_frames, cam_ovr, char_clip_arg,
                          clip_frame_override, guitar_milo, strum_clip_arg,
                          fret_clip_arg, face_clip_arg, char_scene_milo,
-                         char_offset);
+                         char_offset, fixed_dt);
   }
 
   // --hud-test: dedicated in-song HUD overlay preview (own window + loop).

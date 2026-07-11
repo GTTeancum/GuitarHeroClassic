@@ -262,12 +262,28 @@ note, and all report `unreadBytes=0`.
     point fields. For revisions 6, 7, and 8 the extra float is added to both
     `radius` and `outerRadius`. For revisions below 8, `sideLength` is forced to
     `-1.0f`; revisions above 5 consume two ints.
+  - Revisions below 3 consume a legacy `int` and string, and revision 3 consumes
+    a legacy `int`, but the reader then calls `pt.collides.clear()`. Native may
+    log these legacy inline fields for stock GH2 evidence, but they are not a
+    resolved runtime `ObjPtrList<CharCollide>` and must not be promoted into one
+    without the missing source hookup body.
   - `CharHair::Poll` re-runs `Hookup()` while the owning `Character` is syncing,
     resets after teleports, skips simulation for higher LODs, then calls
     `DoReset`, `SimulateLoops`, or `SimulateZeroTime` depending on runtime state.
   - `CharHair::DoReset` seeds each point from `unk5c` transformed by the root
     parent world row, then calls `SimulateLoops(reset, GetFPS())` with inertia
     and friction temporarily forced to zero.
+  - `FreezePoseRaw` stores current point positions back into `unk5c` in the
+    root-parent local basis. `FreezePose` performs a source `Hookup()`, simulates
+    200 loops at 60 Hz, restores the previous simulate flag, then freezes those
+    rows.
+  - `SetName` detects whether the owning directory is a `Character` or
+    `WorldDir` and enables post-process FPS emulation accordingly. `GetFPS`
+    returns the post-process emulated rate when available, otherwise 60 Hz.
+  - `SimulateLoops` is gated by `mSimulate` and a non-empty strand list, runs
+    collide-list maintenance, then calls `SimulateInternal` for each requested
+    loop. A decoded `CharHair` row alone is therefore not enough evidence for a
+    native writeback path.
   - `CharHair::Strand::SetRoot` builds the strand from the root transform's
     first-child chain, caches the root base matrix, assigns each point's bone,
     copies child `LocalXfm().v.y` into point length, and seeds point positions
@@ -283,8 +299,9 @@ note, and all report `unreadBytes=0`.
     directory, and the `CharCollide` shape/radius header plus load path.
     However, the overloaded `Hookup(ObjPtrList<CharCollide>&)` body is still
     declared but not implemented in the checked source. Native GHOGX therefore
-    keeps decoded hair rows logged and unwritten until that hookup filter and
-    the simulation path are ported from source, not guessed.
+    keeps decoded hair rows logged and unwritten until that hookup filter, point
+    collide-list population, and the simulation/writeback path are ported from
+    source, not guessed.
 - `rb3-latest/src/system/char/CharCollide.cpp` and
   `rb3-latest/src/system/char/CharCollide.h`
   - `CharCollide::Load` reads `Hmx::Object`, `RndTransformable`, shape,

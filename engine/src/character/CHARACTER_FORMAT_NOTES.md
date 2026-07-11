@@ -5069,3 +5069,19 @@ Viewer hand-overlay validation:
 - This recheck does not sign off Rock1/Rock2 hair/card placement. It only
   records that no current attached-guitar Rock arm regression was found in the
   source-backed viewer path.
+- Follow-up user review rejected the visual premise above: the latest debug
+  full-body captures did read as a Rock1/Rock2 head/neck posture regression
+  compared with the earlier front set. The root cause found on recheck was the
+  character-viewer capture harness, not a mesh/arm solver change:
+  `--fixed-dt` was parsed by the app but not passed into `run_char_mode`, so
+  verbose `GHOGX_DEBUG_IK=1` logging could advance real-time clip playback to a
+  later pose by screenshot frame 30. The fix is a tiny diagnostic hook: character
+  mode now honors `--fixed-dt` and logs `[char] fixed dt enabled`.
+- Fresh direct-app proof in `engine/out/rock_regression_fixeddt_20260710/`
+  uses stock PS2 assets, attached `xplorer`, full-body front framing, and
+  `--fixed-dt 0.0166667`. `rock1_fixed_front.png` and
+  `rock1_fixed_debugik_front.png` are byte-identical; `rock2_fixed_front.png`
+  and `rock2_fixed_debugik_front.png` are byte-identical. The debug logs still
+  show live `CharIKHand`, `CharForeTwist`, and `CharUpperTwist` rows, so this
+  closes the false Rock1/Rock2 arm/neck regression from capture timing only. It
+  does not sign off remaining hair/card placement.

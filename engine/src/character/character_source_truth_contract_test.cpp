@@ -745,6 +745,21 @@ int run_contract() {
   ok &= contains(rb3_latest_char_hair_cpp, "pt.collides.clear();",
                  "RB3 CharHair point reader clears decoded collision list");
   ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(CharHair::gRev<3){inti;charbuf[0x100];bs>>i;"
+                 "bs.ReadString(buf,0xff);}elseif(CharHair::gRev==3){"
+                 "inti;bs>>i;}",
+                 "RB3 CharHair source consumes legacy inline collision fields");
+  ok &= contains(char_mesh,
+                 "if(hair.version<3){point.collide_type=r.u32();"
+                 "point.collision=r.str();}elseif(hair.version==3){"
+                 "point.collide_type=r.u32();}",
+                 "native CharHair decode logs legacy inline fields only");
+  ok &= contains(doc,
+                 "Native may\n    log these legacy inline fields for stock GH2 "
+                 "evidence, but they are not a\n    resolved runtime "
+                 "`ObjPtrList<CharCollide>`",
+                 "document fences legacy inline hair collision fields");
+  ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::Poll(){if(mMe){if(mMe->GetPollState()=="
                  "Character::kCharSyncObject)Hookup();",
                  "RB3 CharHair poll re-hooks during character sync");
@@ -758,6 +773,33 @@ int run_contract() {
   ok &= contains(rb3_latest_char_hair_cpp,
                  "SimulateLoops(reset,GetFPS());",
                  "RB3 CharHair reset runs source simulate loops");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "Multiply(pts[j].pos,tf48,pts[j].unk5c);",
+                 "RB3 CharHair FreezePoseRaw writes root-parent local point rows");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::FreezePose(){booltmpsim=mSimulate;Hookup();"
+                 "SimulateLoops(200,60.0f);mSimulate=tmpsim;FreezePoseRaw();}",
+                 "RB3 CharHair FreezePose source path hooks, simulates, restores, freezes");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::SetName(constchar*cc,ObjectDir*dir){"
+                 "Hmx::Object::SetName(cc,dir);mMe=dynamic_cast<Character*>(dir);"
+                 "boolpp=false;if(mMe||dynamic_cast<WorldDir*>(dir))pp=true;"
+                 "mUsePostProc=pp;}",
+                 "RB3 CharHair SetName source detects Character/WorldDir owners");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "floatCharHair::GetFPS(){if(mUsePostProc&&RndPostProc::Current()"
+                 "&&RndPostProc::Current()->EmulateFPS()>0){floatret="
+                 "RndPostProc::Current()->EmulateFPS();if(ret!=60.0f)"
+                 "ret=60.0f-ret;returnret;}elsereturn60.0f;}",
+                 "RB3 CharHair GetFPS source uses post-process FPS emulation");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::SimulateLoops(intcount,floatf){if(mSimulate&&"
+                 "mStrands.size()!=0){for(ObjPtrList<CharCollide,ObjectDir>"
+                 "::iteratorit=mCollide.begin();it!=mCollide.end();++it)",
+                 "RB3 CharHair SimulateLoops is gated on simulate and strands");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "for(intn=0;n<count;n++){SimulateInternal(f);}}}",
+                 "RB3 CharHair SimulateLoops calls source internal simulation");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::Hookup(){if(mManagedHookup)return;"
                  "ObjPtrList<CharCollide,ObjectDir>colList(this,kObjListNoNull);"
@@ -811,6 +853,8 @@ int run_contract() {
                  "document records CharCollide source decode order");
   ok &= contains(doc, "keeps decoded hair rows logged and unwritten",
                  "document states bounded native CharHair writeback rule");
+  ok &= contains(doc, "point\n    collide-list population",
+                 "document names missing CharHair point collision hookup boundary");
   ok &= contains(doc, "latest source includes `CharHair.h`, `CharCollide.h`",
                  "document records stronger latest hair source boundary");
   ok &= contains(doc,
