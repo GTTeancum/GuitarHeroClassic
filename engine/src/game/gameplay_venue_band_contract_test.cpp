@@ -5939,12 +5939,15 @@ int main() {
                  "MeshQuatAnimKey>&keys,floatframe,boolslerp)",
                  "venue TransAnim rotations sample the authored quaternion value");
   ok &= contains(gameplay_c,
+                 "sample.rotation_is_absolute=true;"
                  "sample.rotation_xyzw=sample_rotation_value(anim.rotation_keys,"
                  "frame,anim.rotation_slerp);",
-                 "venue TransAnim playback honors authored rot_slerp mode");
+                 "venue TransAnim playback applies authored rotations as source SetFrame local rotations");
   ok &= absent(gameplay_c,
-               "sample.rotation_is_absolute=true;sample.rotation_xyzw=sample_rotation_absolute(anim.rotation_keys,frame);",
-               "venue gear TransAnims must not flatten authored mesh bases as absolute rotations");
+               "sample.has_rotation=true;sample.rotation_xyzw="
+               "sample_rotation_value(anim.rotation_keys,frame,"
+               "anim.rotation_slerp);",
+               "venue TransAnim rotations must not be left as renderer deltas");
   ok &= contains(gameplay_c,
                  "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
                  "source-shaped TransAnim decoder keeps authored scale keys");

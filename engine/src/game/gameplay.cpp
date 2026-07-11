@@ -9190,6 +9190,7 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
     }
     if (!anim.rotation_keys.empty()) {
         sample.has_rotation = true;
+        sample.rotation_is_absolute = true;
         sample.rotation_xyzw =
             sample_rotation_value(anim.rotation_keys, frame, anim.rotation_slerp);
     }
