@@ -217,6 +217,21 @@ uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
 // Source-backed CharClip::BeatAlignString helper.
 const char* source_char_clip_beat_align_string(uint32_t mask);
 
+struct SourceCharClipFlagUpdate {
+  uint32_t value = 0;
+  bool dirty = false;
+  bool changed = false;
+};
+
+// Source-backed CharClip::SetFlags / SetPlayFlags dirty-state helpers.
+SourceCharClipFlagUpdate source_char_clip_set_flags(uint32_t current_flags,
+                                                    bool current_dirty,
+                                                    uint32_t requested_flags);
+SourceCharClipFlagUpdate source_char_clip_set_play_flags(
+    uint32_t current_play_flags,
+    bool current_dirty,
+    uint32_t requested_play_flags);
+
 // Source-backed CharDriver::Starved helper for the visible play stack state.
 bool source_char_driver_starved(bool has_first, bool first_has_next,
                                 uint32_t first_play_flags);

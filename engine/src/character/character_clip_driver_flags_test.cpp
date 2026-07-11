@@ -47,6 +47,29 @@ bool expect_beat_align(uint32_t mask, const char* want, const char* label) {
   return false;
 }
 
+bool expect_flag_update(const ghogx::character::SourceCharClipFlagUpdate& got,
+                        uint32_t value, bool dirty, bool changed,
+                        const char* label) {
+  bool ok = true;
+  if (got.value != value) {
+    std::cerr << "flag update value mismatch for " << label << ": got 0x"
+              << std::hex << got.value << " want 0x" << value << std::dec
+              << "\n";
+    ok = false;
+  }
+  if (got.dirty != dirty) {
+    std::cerr << "flag update dirty mismatch for " << label << ": got "
+              << got.dirty << " want " << dirty << "\n";
+    ok = false;
+  }
+  if (got.changed != changed) {
+    std::cerr << "flag update changed mismatch for " << label << ": got "
+              << got.changed << " want " << changed << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_blend(float requested, float driver, float want,
                   const char* label) {
   const float got =
@@ -119,6 +142,24 @@ int main() {
   ok &= expect_beat_align(0x4000u, "BeatAlign4", "beat align 4");
   ok &= expect_beat_align(0x8000u, "BeatAlign8", "beat align 8");
   ok &= expect_beat_align(0xF623u, "NoAlign", "masked unknown align");
+  ok &= expect_flag_update(
+      ghogx::character::source_char_clip_set_flags(0x12u, false, 0x12u),
+      0x12u, false, false, "SetFlags unchanged clean");
+  ok &= expect_flag_update(
+      ghogx::character::source_char_clip_set_flags(0x12u, true, 0x12u),
+      0x12u, true, false, "SetFlags unchanged dirty");
+  ok &= expect_flag_update(
+      ghogx::character::source_char_clip_set_flags(0x12u, false, 0x34u),
+      0x34u, true, true, "SetFlags changed");
+  ok &= expect_flag_update(
+      ghogx::character::source_char_clip_set_play_flags(0x20u, false, 0x20u),
+      0x20u, false, false, "SetPlayFlags unchanged clean");
+  ok &= expect_flag_update(
+      ghogx::character::source_char_clip_set_play_flags(0x20u, true, 0x20u),
+      0x20u, true, false, "SetPlayFlags unchanged dirty");
+  ok &= expect_flag_update(
+      ghogx::character::source_char_clip_set_play_flags(0x20u, false, 0x10u),
+      0x10u, true, true, "SetPlayFlags changed");
   ok &= expect_blend(-1.0f, 1.0f, 1.0f, "source default blend");
   ok &= expect_blend(-1.0f, 0.25f, 0.25f, "custom driver blend");
   ok &= expect_blend(0.0f, 1.0f, 0.0f, "explicit zero blend");

@@ -3234,6 +3234,23 @@ int run_contract() {
                  "0xF600){case0x200:return\"RealTime\";case0x400:return"
                  "\"UserTime\";case0x1000:return\"BeatAlign1\";",
                  "latest CharClip source exposes BeatAlignString switch");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "voidCharClip::SetPlayFlags(inti){if(i!=mPlayFlags){"
+                 "mPlayFlags=i;mDirty=true;}}",
+                 "latest CharClip source exposes SetPlayFlags dirty guard");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "voidCharClip::SetFlags(inti){if(i!=mFlags){mFlags=i;"
+                 "mDirty=true;}}",
+                 "latest CharClip source exposes SetFlags dirty guard");
+  ok &= contains(doc,
+                 "Native `source_char_clip_set_flags` and",
+                 "document records native CharClip flag dirty helpers");
+  ok &= contains(doc,
+                 "unchanged values preserve the incoming\n    dirty state",
+                 "document records source CharClip unchanged dirty behavior");
+  ok &= contains(doc,
+                 "changed values store the requested flag value and mark",
+                 "document records source CharClip changed dirty behavior");
   ok &= contains(rb3_latest_char_driver_cpp,
                  "boolCharDriver::Starved(){if(mFirst){if(mFirst->mNext)"
                  "returnfalse;if((mFirst->mPlayFlags&0xF0)==0x10)"
@@ -3260,6 +3277,20 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "constchar*source_char_clip_beat_align_string(uint32_tmask);",
                  "native character API exposes source CharClip beat-align helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipFlagUpdate{uint32_tvalue=0;"
+                 "booldirty=false;boolchanged=false;};",
+                 "native character API exposes source CharClip flag update row");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipFlagUpdatesource_char_clip_set_flags("
+                 "uint32_tcurrent_flags,boolcurrent_dirty,"
+                 "uint32_trequested_flags);",
+                 "native character API exposes source CharClip SetFlags helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipFlagUpdatesource_char_clip_set_play_flags("
+                 "uint32_tcurrent_play_flags,boolcurrent_dirty,"
+                 "uint32_trequested_play_flags);",
+                 "native character API exposes source CharClip SetPlayFlags helper");
   ok &= contains(char_clip_h,
                  "boolsource_char_driver_starved(boolhas_first,"
                  "boolfirst_has_next,uint32_tfirst_play_flags);",
@@ -3298,12 +3329,42 @@ int run_contract() {
                  "\"RealTime\";",
                  "native CharClip beat-align helper ports source switch");
   ok &= contains(char_clip,
+                 "SourceCharClipFlagUpdatesource_char_clip_set_flags("
+                 "uint32_tcurrent_flags,boolcurrent_dirty,"
+                 "uint32_trequested_flags){SourceCharClipFlagUpdateupdate;"
+                 "update.value=current_flags;update.dirty=current_dirty;"
+                 "if(requested_flags!=current_flags){update.value="
+                 "requested_flags;update.dirty=true;update.changed=true;}"
+                 "returnupdate;}",
+                 "native CharClip SetFlags helper ports source dirty guard");
+  ok &= contains(char_clip,
+                 "SourceCharClipFlagUpdatesource_char_clip_set_play_flags("
+                 "uint32_tcurrent_play_flags,boolcurrent_dirty,"
+                 "uint32_trequested_play_flags){SourceCharClipFlagUpdateupdate;"
+                 "update.value=current_play_flags;update.dirty=current_dirty;"
+                 "if(requested_play_flags!=current_play_flags){update.value="
+                 "requested_play_flags;update.dirty=true;update.changed=true;}"
+                 "returnupdate;}",
+                 "native CharClip SetPlayFlags helper ports source dirty guard");
+  ok &= contains(char_clip,
                  "constuint32_tplay_flags=char_clip_driver_masked_play_flags("
                  "clip,flags);",
                  "native CharClipPlayer applies source CharClipDriver flag mask");
   ok &= contains(char_clip,
                  "next.flags=play_flags;",
                  "native CharClipPlayer stores source-masked play flags");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_set_flags(0x12u,false,0x12u)",
+                 "focused clip driver flags test covers unchanged SetFlags");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_set_flags(0x12u,false,0x34u)",
+                 "focused clip driver flags test covers changed SetFlags");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_set_play_flags(0x20u,false,0x20u)",
+                 "focused clip driver flags test covers unchanged SetPlayFlags");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_set_play_flags(0x20u,false,0x10u)",
+                 "focused clip driver flags test covers changed SetPlayFlags");
   ok &= contains(char_clip,
                  "boolsource_char_driver_starved(boolhas_first,"
                  "boolfirst_has_next,uint32_tfirst_play_flags){if(has_first){"

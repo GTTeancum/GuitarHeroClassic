@@ -911,6 +911,11 @@ note, and all report `unreadBytes=0`.
     `CharClip::BeatAlignString` body for the `0xF600` play-flag group:
     `RealTime`, `UserTime`, `BeatAlign1`, `BeatAlign2`, `BeatAlign4`,
     `BeatAlign8`, and `NoAlign`.
+  - Native `source_char_clip_set_flags` and
+    `source_char_clip_set_play_flags` port the complete `SetFlags` and
+    `SetPlayFlags` dirty-state bodies: unchanged values preserve the incoming
+    dirty state, while changed values store the requested flag value and mark
+    the clip dirty.
 - `rb3-latest/src/system/char/CharClipDriver.cpp` is concrete for clip-driver
   stack construction, mask application to default blend/loop/beat-align flags,
   clip deletion, exit events, and sync animation cleanup. It does not include a

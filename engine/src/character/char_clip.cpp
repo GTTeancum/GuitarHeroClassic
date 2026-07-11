@@ -1559,6 +1559,35 @@ const char* source_char_clip_beat_align_string(uint32_t mask) {
   }
 }
 
+SourceCharClipFlagUpdate source_char_clip_set_flags(uint32_t current_flags,
+                                                    bool current_dirty,
+                                                    uint32_t requested_flags) {
+  SourceCharClipFlagUpdate update;
+  update.value = current_flags;
+  update.dirty = current_dirty;
+  if (requested_flags != current_flags) {
+    update.value = requested_flags;
+    update.dirty = true;
+    update.changed = true;
+  }
+  return update;
+}
+
+SourceCharClipFlagUpdate source_char_clip_set_play_flags(
+    uint32_t current_play_flags,
+    bool current_dirty,
+    uint32_t requested_play_flags) {
+  SourceCharClipFlagUpdate update;
+  update.value = current_play_flags;
+  update.dirty = current_dirty;
+  if (requested_play_flags != current_play_flags) {
+    update.value = requested_play_flags;
+    update.dirty = true;
+    update.changed = true;
+  }
+  return update;
+}
+
 bool source_char_driver_starved(bool has_first, bool first_has_next,
                                 uint32_t first_play_flags) {
   if (has_first) {
