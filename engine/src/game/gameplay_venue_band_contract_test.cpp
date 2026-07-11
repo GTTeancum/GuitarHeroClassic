@@ -6062,9 +6062,9 @@ int main() {
                  "textures);",
                  "WorldCrowd runtime renders decoded crowd Character assets");
   ok &= contains(gameplay_c,
-                 "if(basis&&std::strcmp(basis,\"placement\")==0)returnfalse;"
-                 "returntrue;",
-                 "WorldCrowd runtime defaults to the source-backed area-local actor basis");
+                 "if(basis&&std::strcmp(basis,\"area_local\")==0)returntrue;"
+                 "returnfalse;",
+                 "WorldCrowd runtime defaults to RB-style direct placement actor basis");
   ok &= contains(gameplay_c,
                  "apply_worldcrowd_actor_mesh_visibility(",
                  "WorldCrowd runtime applies clip-named crowd mesh variant visibility");

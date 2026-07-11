@@ -191,8 +191,8 @@ std::string join_log_names(const std::vector<std::string>& names) {
 
 bool worldcrowd_render_area_local_basis() {
     const char* basis = env_value("GHOGX_WORLDCROWD_RENDER_BASIS");
-    if (basis && std::strcmp(basis, "placement") == 0) return false;
-    return true;
+    if (basis && std::strcmp(basis, "area_local") == 0) return true;
+    return false;
 }
 
 bool is_lower_body_clip_channel(std::string_view name) {
