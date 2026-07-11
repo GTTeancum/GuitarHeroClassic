@@ -8097,6 +8097,17 @@ bool is_direct_venue_anim_ref(std::string_view ref) {
            is_venue_group_ref(ref);
 }
 
+bool is_venue_transformable_ref(std::string_view ref) {
+    return milo_ref_has_suffix(ref, ".mesh") ||
+           milo_ref_has_suffix(ref, ".trans") ||
+           milo_ref_has_suffix(ref, ".view");
+}
+
+bool is_venue_anim_group_child_ref(std::string_view ref) {
+    return is_venue_anim_filter_ref(ref) || is_direct_venue_anim_ref(ref) ||
+           is_venue_transformable_ref(ref);
+}
+
 float mesh_transform_anim_duration_frames(
     const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim) {
     float duration = 0.0f;
@@ -9718,13 +9729,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                 auto& children = group_children[de.name];
                 for (const auto& s : ascii_strings_in_object(body, size)) {
                     const auto ref = canonical_milo_ref(s);
-                    const bool object_ref =
-                        ref.rfind(".mesh") != std::string::npos ||
-                        ref.rfind(".grp") != std::string::npos ||
-                        ref.rfind(".tnm") != std::string::npos ||
-                        ref.rfind(".msnm") != std::string::npos ||
-                        ref.rfind(".meshanim") != std::string::npos;
-                    if (!object_ref) continue;
+                    if (!is_venue_anim_group_child_ref(ref)) continue;
                     if (std::find(children.begin(), children.end(), ref) ==
                         children.end()) {
                         children.push_back(ref);

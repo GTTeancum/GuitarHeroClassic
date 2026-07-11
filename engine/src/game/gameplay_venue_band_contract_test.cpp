@@ -4128,6 +4128,15 @@ int main() {
                  "boolis_direct_venue_anim_ref(std::string_viewref)",
                  "venue direct animation ref classifier is shared");
   ok &= contains(gameplay_c,
+                 "boolis_venue_anim_group_child_ref(std::string_viewref)",
+                 "venue animation group children use source object refs instead of mesh-only filtering");
+  ok &= contains(gameplay_c,
+                 "is_venue_anim_filter_ref(ref)||is_direct_venue_anim_ref(ref)||is_venue_transformable_ref(ref)",
+                 "venue animation group children preserve AnimFilter/direct animation/transformable refs");
+  ok &= contains(gameplay_c,
+                 "milo_ref_has_suffix(ref,\".trans\")",
+                 "venue transformable animation refs preserve source .trans targets");
+  ok &= contains(gameplay_c,
                  "event_direct_anim_refs[key].push_back(route);",
                  "EventTrigger direct TransAnim/MeshAnim refs preserve source row timing by payload aliases");
   ok &= contains(gameplay_c,
