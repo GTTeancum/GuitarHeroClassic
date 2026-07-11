@@ -3090,6 +3090,25 @@ void source_char_sleeve_poll_deps(SourceCharSleevePollDeps& deps,
   deps.change.push_back(top_sleeve);
 }
 
+SourceCharSleeveLoadPlan source_char_sleeve_load_plan(int32_t revision) {
+  SourceCharSleeveLoadPlan plan;
+  plan.revision_supported = revision == 0;
+  if (!plan.revision_supported) return plan;
+  plan.read_order = {"Hmx::Object", "mSleeve",    "mTopSleeve",
+                     "mInertia",    "mGravity",  "mStiffness",
+                     "mRange",      "mNegLength", "mPosLength"};
+  return plan;
+}
+
+SourceCharSleeveCopyPlan source_char_sleeve_copy_plan() {
+  SourceCharSleeveCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mSleeve",    "mTopSleeve", "mInertia",
+                         "mGravity",   "mStiffness", "mRange",
+                         "mNegLength", "mPosLength"};
+  return plan;
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;

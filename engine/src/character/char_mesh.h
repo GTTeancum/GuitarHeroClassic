@@ -771,6 +771,16 @@ struct SourceCharSleevePollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharSleeveLoadPlan {
+  bool revision_supported = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharSleeveCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
 struct SourceCharGuitarStringPollResult {
   bool wrote_bend = false;
   std::array<float, 3> bend_pos = {0.0f, 0.0f, 0.0f};
@@ -1196,6 +1206,8 @@ void source_char_sleeve_poll_deps(SourceCharSleevePollDeps& deps,
                                   const std::string& sleeve,
                                   const std::string& top_sleeve,
                                   bool has_sleeve);
+SourceCharSleeveLoadPlan source_char_sleeve_load_plan(int32_t revision);
+SourceCharSleeveCopyPlan source_char_sleeve_copy_plan();
 SourceCharGuitarStringPollResult source_char_guitar_string_poll(
     bool has_nut,
     bool has_bridge,

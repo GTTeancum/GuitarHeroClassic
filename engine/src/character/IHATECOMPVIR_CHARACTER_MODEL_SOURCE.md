@@ -887,9 +887,14 @@ note, and all report `unreadBytes=0`.
     top-sleeve transform.
   - `PollDeps` pushes the sleeve parent into `changedBy`, then pushes `mSleeve`
     and `mTopSleeve` into `change` only when `mSleeve` exists.
+  - `Load` accepts only source revision 0, delegates to `Hmx::Object::Load`,
+    then reads `mSleeve`, `mTopSleeve`, `mInertia`, `mGravity`, `mStiffness`,
+    `mRange`, `mNegLength`, and `mPosLength`. `Copy` copies `Hmx::Object` and
+    the same eight sleeve data members in source order.
   - Native `source_char_sleeve_*` helpers port this source-visible simulation
-    and dependency behavior for deterministic tests. They do not attach it to
-    live character rendering until stock rows and owner ordering are decoded.
+    dependency, row-load, and copy behavior for deterministic tests. They do
+    not attach it to live character rendering until stock rows and owner
+    ordering are decoded.
 - `rb3-latest/src/system/char/CharMeshHide.cpp` and
   `CharMeshHide.h`
   - `CharMeshHide::HideAll` first ORs the incoming flag word with every

@@ -4118,10 +4118,29 @@ int run_contract() {
                  "push_back(mSleeve->mParent);change.push_back(mSleeve);"
                  "change.push_back(mTopSleeve);}}",
                  "CharSleeve source PollDeps order");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "voidCharSleeve::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(0,0);Hmx::Object::Load(bs);bs>>mSleeve;"
+                 "bs>>mTopSleeve;bs>>mInertia;bs>>mGravity;bs>>mStiffness;"
+                 "bs>>mRange;bs>>mNegLength;bs>>mPosLength;}",
+                 "CharSleeve source Load order");
+  ok &= contains(rb3_latest_char_sleeve_cpp,
+                 "COPY_MEMBER(mSleeve)COPY_MEMBER(mTopSleeve)"
+                 "COPY_MEMBER(mInertia)COPY_MEMBER(mGravity)"
+                 "COPY_MEMBER(mStiffness)COPY_MEMBER(mRange)"
+                 "COPY_MEMBER(mNegLength)COPY_MEMBER(mPosLength)",
+                 "CharSleeve source Copy order");
   ok &= contains(char_mesh_h,
                  "structSourceCharSleeveState{std::array<float,3>pos="
                  "{0.0f,0.0f,0.0f};std::array<float,3>last_pos=",
                  "native exposes CharSleeve source state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharSleeveLoadPlan{boolrevision_supported=false;",
+                 "native exposes CharSleeve load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharSleeveCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;",
+                 "native exposes CharSleeve copy plan");
   ok &= contains(char_mesh,
                  "SourceCharSleeveStatesource_char_sleeve_default_state(){"
                  "returnSourceCharSleeveState{};}",
@@ -4157,6 +4176,26 @@ int run_contract() {
                  "return;deps.changed_by.push_back(sleeve_parent);deps.change."
                  "push_back(sleeve);deps.change.push_back(top_sleeve);}",
                  "native CharSleeve helper ports PollDeps");
+  ok &= contains(char_mesh,
+                 "SourceCharSleeveLoadPlansource_char_sleeve_load_plan("
+                 "int32_trevision){SourceCharSleeveLoadPlanplan;"
+                 "plan.revision_supported=revision==0;",
+                 "native CharSleeve helper ports load revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"Hmx::Object\",\"mSleeve\","
+                 "\"mTopSleeve\",\"mInertia\",\"mGravity\",\"mStiffness\","
+                 "\"mRange\",\"mNegLength\",\"mPosLength\"};",
+                 "native CharSleeve helper ports load order");
+  ok &= contains(char_mesh,
+                 "SourceCharSleeveCopyPlansource_char_sleeve_copy_plan(){"
+                 "SourceCharSleeveCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\"};",
+                 "native CharSleeve helper ports copy superclass");
+  ok &= contains(char_mesh,
+                 "plan.copied_members={\"mSleeve\",\"mTopSleeve\","
+                 "\"mInertia\",\"mGravity\",\"mStiffness\",\"mRange\","
+                 "\"mNegLength\",\"mPosLength\"};",
+                 "native CharSleeve helper ports copy members");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_sleeve_source_test",
                  "CMake builds CharSleeve source test");
@@ -4175,6 +4214,12 @@ int run_contract() {
                  "source_char_sleeve_poll_deps(deps,\"parent.trans\","
                  "\"sleeve.trans\",\"top.trans\",true)",
                  "focused CharSleeve test covers PollDeps");
+  ok &= contains(sleeve_source_test,
+                 "source_char_sleeve_load_plan(0)",
+                 "focused CharSleeve test covers load plan");
+  ok &= contains(sleeve_source_test,
+                 "source_char_sleeve_copy_plan()",
+                 "focused CharSleeve test covers copy plan");
   ok &= contains(doc,
                  "Native `source_char_sleeve_*` helpers port",
                  "document records native CharSleeve helpers");

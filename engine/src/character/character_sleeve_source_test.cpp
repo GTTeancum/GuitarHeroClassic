@@ -53,7 +53,9 @@ ghogx::milo_scene::Xfm identity_xfm(float x, float y, float z) {
 
 int main() {
   using ghogx::character::SourceCharSleevePollDeps;
+  using ghogx::character::source_char_sleeve_copy_plan;
   using ghogx::character::source_char_sleeve_default_state;
+  using ghogx::character::source_char_sleeve_load_plan;
   using ghogx::character::source_char_sleeve_poll;
   using ghogx::character::source_char_sleeve_poll_deps;
 
@@ -113,6 +115,40 @@ int main() {
                       "sleeve deps parent");
   ok &= expect_string(deps.change[0], "sleeve.trans", "sleeve deps sleeve");
   ok &= expect_string(deps.change[1], "top.trans", "sleeve deps top sleeve");
+
+  const auto load_plan = source_char_sleeve_load_plan(0);
+  ok &= expect_bool(load_plan.revision_supported, true,
+                    "sleeve load revision supported");
+  ok &= expect_size(load_plan.read_order.size(), 9, "sleeve load order count");
+  ok &= expect_string(load_plan.read_order[0], "Hmx::Object",
+                      "sleeve load object first");
+  ok &= expect_string(load_plan.read_order[1], "mSleeve",
+                      "sleeve load sleeve pointer");
+  ok &= expect_string(load_plan.read_order[2], "mTopSleeve",
+                      "sleeve load top sleeve pointer");
+  ok &= expect_string(load_plan.read_order[5], "mStiffness",
+                      "sleeve load stiffness order");
+  ok &= expect_string(load_plan.read_order[8], "mPosLength",
+                      "sleeve load pos length last");
+  const auto rejected_load = source_char_sleeve_load_plan(1);
+  ok &= expect_bool(rejected_load.revision_supported, false,
+                    "sleeve load rejects non-source revision");
+  ok &= expect_size(rejected_load.read_order.size(), 0,
+                    "sleeve rejected load has no reads");
+
+  const auto copy_plan = source_char_sleeve_copy_plan();
+  ok &= expect_size(copy_plan.copied_superclasses.size(), 1,
+                    "sleeve copy superclass count");
+  ok &= expect_string(copy_plan.copied_superclasses[0], "Hmx::Object",
+                      "sleeve copy superclass");
+  ok &= expect_size(copy_plan.copied_members.size(), 8,
+                    "sleeve copy member count");
+  ok &= expect_string(copy_plan.copied_members[0], "mSleeve",
+                      "sleeve copy sleeve pointer");
+  ok &= expect_string(copy_plan.copied_members[1], "mTopSleeve",
+                      "sleeve copy top sleeve pointer");
+  ok &= expect_string(copy_plan.copied_members[7], "mPosLength",
+                      "sleeve copy pos length last");
 
   return ok ? 0 : 1;
 }
