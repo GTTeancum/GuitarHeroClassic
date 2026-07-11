@@ -5980,6 +5980,18 @@ int main() {
                  "anim.translation_spline);",
                  "source-local translation correction honors authored translation spline mode");
   ok &= contains(gameplay_c,
+                 "if(!anim.translation_keys.empty()){sample.has_translation=true;"
+                 "sample.translation_is_absolute=true;"
+                 "sample.translation=sample_translation_position("
+                 "anim.translation_keys,frame,anim.translation_spline);}",
+                 "venue TransAnim fallback applies authored translations as source SetFrame local positions");
+  ok &= absent(gameplay_c,
+               "sample_translation_offset(",
+               "venue TransAnim translation must not be first-key-relative when no source base is known");
+  ok &= absent(gameplay_c,
+               "if(anim.translation_keys.size()>=2){sample.has_translation=true;",
+               "venue TransAnim playback must not drop one-key translation channels");
+  ok &= contains(gameplay_c,
                  "spline=%d/%drot_slerp=%d",
                  "venue AnimFilter sample logs expose authored spline and rot_slerp flags");
   ok &= contains(gameplay_c,

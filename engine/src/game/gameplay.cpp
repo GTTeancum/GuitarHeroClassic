@@ -9074,21 +9074,11 @@ std::array<float, 3> sample_vec_value(
     return out;
 }
 
-std::array<float, 3> sample_translation_offset(
-    const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
-    float frame, bool spline) {
-    std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
-    if (keys.empty()) return out;
-    const auto value = sample_vec_value(keys, frame, spline);
-    for (int axis = 0; axis < 3; ++axis)
-        out[axis] = value[axis] - keys.front().pos[axis];
-    return out;
-}
-
 std::array<float, 3> sample_translation_position(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
     float frame, bool spline) {
-    return sample_vec_value(keys, frame, spline);
+    return keys.empty() ? std::array<float, 3>{0.0f, 0.0f, 0.0f}
+                        : sample_vec_value(keys, frame, spline);
 }
 
 std::array<float, 3> sample_scale_value(
@@ -9177,9 +9167,10 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
     const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim,
     float frame) {
     ghogx::render::MiloSceneRenderer::MeshTransformSample sample;
-    if (anim.translation_keys.size() >= 2) {
+    if (!anim.translation_keys.empty()) {
         sample.has_translation = true;
-        sample.translation = sample_translation_offset(
+        sample.translation_is_absolute = true;
+        sample.translation = sample_translation_position(
             anim.translation_keys, frame, anim.translation_spline);
     }
     if (!anim.rotation_keys.empty()) {
