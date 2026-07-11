@@ -1400,6 +1400,31 @@ float source_char_hair_get_fps(bool use_post_proc, float emulated_fps) {
   return 60.0f;
 }
 
+std::array<float, 9> source_char_hair_set_angle_root_mat(
+    float angle_degrees, const float base_mat[9]) {
+  constexpr float kPi = 3.14159265358979323846f;
+  const float angle = angle_degrees * (kPi / 180.0f);
+  const float c = std::cos(angle);
+  const float s = std::sin(angle);
+  std::array<float, 9> out{};
+  out[0] = base_mat[0];
+  out[1] = base_mat[1];
+  out[2] = base_mat[2];
+  for (int col = 0; col < 3; ++col) {
+    out[3 + col] = c * base_mat[3 + col] + s * base_mat[6 + col];
+    out[6 + col] = -s * base_mat[3 + col] + c * base_mat[6 + col];
+  }
+  return out;
+}
+
+void source_char_hair_strand_set_angle(CharHairStrand& strand,
+                                       float angle_degrees) {
+  strand.angle = angle_degrees;
+  const std::array<float, 9> root =
+      source_char_hair_set_angle_root_mat(strand.angle, strand.base_mat);
+  for (size_t i = 0; i < root.size(); ++i) strand.root_mat[i] = root[i];
+}
+
 // ---------------------------------------------------------------------------
 // 4x4 helpers (row-vector convention, matching render::Mat4).
 // ---------------------------------------------------------------------------

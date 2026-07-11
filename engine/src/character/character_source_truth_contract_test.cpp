@@ -947,6 +947,42 @@ int run_contract() {
                  "for(intn=0;n<count;n++){SimulateInternal(f);}}}",
                  "RB3 CharHair SimulateLoops calls source internal simulation");
   ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::Strand::SetAngle(floatangle){mAngle=angle;"
+                 "Hmx::Matrix3m38;m38.RotateAboutX(mAngle*DEG2RAD);"
+                 "Multiply(m38,mBaseMat,mRootMat);}",
+                 "RB3 CharHair Strand SetAngle source formula");
+  ok &= contains(char_mesh_h,
+                 "std::array<float,9>source_char_hair_set_angle_root_mat("
+                 "floatangle_degrees,constfloatbase_mat[9]);",
+                 "native exposes CharHair SetAngle root matrix helper");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_hair_strand_set_angle(CharHairStrand&strand,"
+                 "floatangle_degrees);",
+                 "native exposes CharHair Strand SetAngle helper");
+  ok &= contains(char_mesh,
+                 "std::array<float,9>source_char_hair_set_angle_root_mat("
+                 "floatangle_degrees,constfloatbase_mat[9]){"
+                 "constexprfloatkPi=3.14159265358979323846f;",
+                 "native CharHair SetAngle helper starts from source degrees");
+  ok &= contains(char_mesh,
+                 "out[3+col]=c*base_mat[3+col]+s*base_mat[6+col];"
+                 "out[6+col]=-s*base_mat[3+col]+c*base_mat[6+col];",
+                 "native CharHair SetAngle helper applies RotateAboutX times baseMat");
+  ok &= contains(char_mesh,
+                 "voidsource_char_hair_strand_set_angle(CharHairStrand&strand,"
+                 "floatangle_degrees){strand.angle=angle_degrees;",
+                 "native CharHair Strand SetAngle stores source angle");
+  ok &= contains(mesh_decode_test,
+                 "source_char_hair_strand_set_angle(angle_strand,90.0f);",
+                 "deterministic test covers CharHair Strand SetAngle helper");
+  ok &= contains(bind_audit,
+                 "source_char_hair_set_angle_root_mat(strand.angle,"
+                 "strand.base_mat);",
+                 "bind audit uses shared CharHair SetAngle helper");
+  ok &= contains(doc,
+                 "`CharHair::Strand::SetAngle` stores the angle",
+                 "document records CharHair Strand SetAngle source behavior");
+  ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::SetCloth(boolb){for(inti=0;"
                  "i<mStrands.size();i++){Strand&strand=mStrands[i];"
                  "intmod=Mod(i+1,mStrands.size());",

@@ -206,6 +206,22 @@ int main() {
   CHECK(approx(ghogx::character::source_char_hair_get_fps(true, 20.0f),
                40.0f));
 
+  ghogx::character::CharHairStrand angle_strand;
+  angle_strand.base_mat[0] = 1.0f;
+  angle_strand.base_mat[4] = 1.0f;
+  angle_strand.base_mat[8] = 1.0f;
+  ghogx::character::source_char_hair_strand_set_angle(angle_strand, 90.0f);
+  CHECK(approx(angle_strand.angle, 90.0f));
+  CHECK(approx(angle_strand.root_mat[0], 1.0f));
+  CHECK(approx(angle_strand.root_mat[1], 0.0f));
+  CHECK(approx(angle_strand.root_mat[2], 0.0f));
+  CHECK(approx(angle_strand.root_mat[3], 0.0f));
+  CHECK(approx(angle_strand.root_mat[4], 0.0f));
+  CHECK(approx(angle_strand.root_mat[5], 1.0f));
+  CHECK(approx(angle_strand.root_mat[6], 0.0f));
+  CHECK(approx(angle_strand.root_mat[7], -1.0f));
+  CHECK(approx(angle_strand.root_mat[8], 0.0f));
+
   std::printf("  [ok] RndMesh rev28 groupSections=%zu palette=%zu\n",
               mesh.group_sections.size(), mesh.bone_palette.size());
   return 0;

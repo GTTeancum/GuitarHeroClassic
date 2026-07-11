@@ -301,6 +301,10 @@ struct SourceCharHairRuntime {
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
 SourceCharHairDefaultState source_char_hair_default_state();
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
+std::array<float, 9> source_char_hair_set_angle_root_mat(
+    float angle_degrees, const float base_mat[9]);
+void source_char_hair_strand_set_angle(CharHairStrand& strand,
+                                       float angle_degrees);
 
 struct CharCollide {
   std::string name;

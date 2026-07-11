@@ -60,23 +60,6 @@ float mat3_error(const float* a, const float* b) {
   return err;
 }
 
-std::array<float, 9> source_set_angle_root_mat(float angle_degrees,
-                                               const float* base) {
-  constexpr float kPi = 3.14159265358979323846f;
-  const float angle = angle_degrees * (kPi / 180.0f);
-  const float c = std::cos(angle);
-  const float s = std::sin(angle);
-  std::array<float, 9> out{};
-  out[0] = base[0];
-  out[1] = base[1];
-  out[2] = base[2];
-  for (int col = 0; col < 3; ++col) {
-    out[3 + col] = c * base[3 + col] + s * base[6 + col];
-    out[6 + col] = -s * base[3 + col] + c * base[6 + col];
-  }
-  return out;
-}
-
 float dist3(float ax, float ay, float az, float bx, float by, float bz) {
   const float dx = ax - bx;
   const float dy = ay - by;
@@ -657,7 +640,8 @@ void audit_hair(const Character& c, const std::string& milo_path) {
     for (size_t si = 0; si < hair.strands.size(); ++si) {
       const auto& strand = hair.strands[si];
       const auto set_angle_root =
-          source_set_angle_root_mat(strand.angle, strand.base_mat);
+          ghogx::character::source_char_hair_set_angle_root_mat(
+              strand.angle, strand.base_mat);
       const float set_angle_err =
           mat3_error(set_angle_root.data(), strand.root_mat);
       std::printf(

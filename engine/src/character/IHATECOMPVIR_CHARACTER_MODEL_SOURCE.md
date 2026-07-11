@@ -354,6 +354,11 @@ note, and all report `unreadBytes=0`.
     first-child chain, caches the root base matrix, assigns each point's bone,
     copies child `LocalXfm().v.y` into point length, and seeds point positions
     from source world rows.
+  - `CharHair::Strand::SetAngle` stores the angle, builds a rotation around X
+    from `angle * DEG2RAD`, and multiplies that by `mBaseMat` into `mRootMat`.
+    Native exposes this exact formula through
+    `source_char_hair_strand_set_angle` and the bind audit uses that shared
+    helper for `setAngleRootErr`.
   - `CharHair::SetCloth` assigns `sideLength` from the matching point in the
     next strand when cloth mode is enabled and otherwise forces `sideLength` to
     `-1.0f`. Native ports this exactly as `source_char_hair_set_cloth`; it is
