@@ -48,9 +48,13 @@ int main() {
   using ghogx::character::source_clip_collide_demonstrate_step;
   using ghogx::character::source_clip_collide_list_objects_plan;
   using ghogx::character::source_clip_collide_list_report_plan;
+  using ghogx::character::source_clip_collide_load_plan;
   using ghogx::character::source_clip_collide_load_revision_known;
+  using ghogx::character::source_clip_collide_set_type_def_step;
   using ghogx::character::source_clip_collide_sync_char_step;
   using ghogx::character::source_clip_collide_test_clips_plan;
+  using ghogx::character::source_clip_collide_valid_clip;
+  using ghogx::character::source_clip_collide_valid_waypoint;
   using ghogx::character::source_clip_compressor_evidence;
   using ghogx::character::source_clip_graph_generate_pair_step;
   using ghogx::character::source_clip_graph_on_generate_transitions;
@@ -150,6 +154,29 @@ int main() {
   ok &= expect_bool(source_clip_collide_load_revision_known(2), false,
                     "ClipCollide rejects revision 2");
 
+  const auto bad_load = source_clip_collide_load_plan(2);
+  ok &= expect_bool(bad_load.known_revision, false,
+                    "ClipCollide load plan rejects revision 2");
+  ok &= expect_size(bad_load.read_order.size(), 0,
+                    "ClipCollide bad load has no reads");
+  const auto load_v1 = source_clip_collide_load_plan(1);
+  ok &= expect_bool(load_v1.known_revision, true,
+                    "ClipCollide load plan accepts revision 1");
+  ok &= expect_size(load_v1.read_order.size(), 5,
+                    "ClipCollide load source read count");
+  ok &= expect_string(load_v1.read_order[0], "Hmx::Object",
+                      "ClipCollide load object first");
+  ok &= expect_string(load_v1.read_order[1], "mChar",
+                      "ClipCollide load character pointer");
+  ok &= expect_string(load_v1.read_order[2], "mCharPath",
+                      "ClipCollide load character path");
+  ok &= expect_string(load_v1.read_order[3], "mWaypoint",
+                      "ClipCollide load waypoint");
+  ok &= expect_string(load_v1.read_order[4], "mPosition",
+                      "ClipCollide load position");
+  ok &= expect_bool(load_v1.clears_clip, true,
+                    "ClipCollide load clears clip pointer");
+
   const auto sync_mismatch =
       source_clip_collide_sync_char_step(true, false, false);
   ok &= expect_bool(sync_mismatch.set_proxy_file, true,
@@ -160,6 +187,44 @@ int main() {
       source_clip_collide_sync_char_step(false, false, false);
   ok &= expect_bool(sync_no_char.set_proxy_file, false,
                     "ClipCollide SyncChar skips proxy without character");
+
+  const auto type_unchanged =
+      source_clip_collide_set_type_def_step(false, true);
+  ok &= expect_bool(type_unchanged.call_object_set_type_def, false,
+                    "ClipCollide SetTypeDef skips unchanged type");
+  const auto type_changed =
+      source_clip_collide_set_type_def_step(true, true);
+  ok &= expect_bool(type_changed.call_object_set_type_def, true,
+                    "ClipCollide SetTypeDef calls object when changed");
+  ok &= expect_bool(type_changed.update_mode, true,
+                    "ClipCollide SetTypeDef updates mode from type def");
+  ok &= expect_bool(type_changed.assert_modes_array, true,
+                    "ClipCollide SetTypeDef requires modes array");
+
+  const auto waypoint_unhandled =
+      source_clip_collide_valid_waypoint(true, false);
+  ok &= expect_bool(waypoint_unhandled.send_message, true,
+                    "ClipCollide ValidWaypoint sends message");
+  ok &= expect_string(waypoint_unhandled.message, "valid_waypoint",
+                      "ClipCollide ValidWaypoint message");
+  ok &= expect_bool(waypoint_unhandled.valid, true,
+                    "ClipCollide ValidWaypoint treats unhandled as valid");
+  const auto waypoint_rejected =
+      source_clip_collide_valid_waypoint(false, false);
+  ok &= expect_bool(waypoint_rejected.valid, false,
+                    "ClipCollide ValidWaypoint uses handler result");
+  const auto clip_without_waypoint =
+      source_clip_collide_valid_clip(false, false, false);
+  ok &= expect_bool(clip_without_waypoint.send_message, false,
+                    "ClipCollide ValidClip skips message without waypoint");
+  ok &= expect_bool(clip_without_waypoint.valid, true,
+                    "ClipCollide ValidClip accepts without waypoint");
+  const auto clip_handled =
+      source_clip_collide_valid_clip(true, false, false);
+  ok &= expect_string(clip_handled.message, "valid_clip",
+                      "ClipCollide ValidClip message");
+  ok &= expect_bool(clip_handled.valid, false,
+                    "ClipCollide ValidClip uses handler result");
 
   const auto demonstrate =
       source_clip_collide_demonstrate_step(true, true, true);

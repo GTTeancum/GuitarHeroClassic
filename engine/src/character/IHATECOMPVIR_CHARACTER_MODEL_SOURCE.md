@@ -139,7 +139,18 @@ or runtime task graph rendering.
     `mClip` is null, `mWorldLines=false`, `mMoveCamera=true`, `mCharPath` is
     empty, and the graph object is acquired through `RndGraph::Get`.
   - `Load` accepts source revisions through 1, reads `Hmx::Object`, character,
-    character path, waypoint, and position, then clears `mClip`.
+    character path, waypoint, and position, then clears `mClip`. Native
+    `source_clip_collide_load_plan` records this exact row order and reset.
+  - `SetTypeDef` calls the base object setter only when the type definition
+    changes. When the new type definition is non-null, source requires a
+    `modes` array and copies `modes[1][0]` into `mMode`. Native
+    `source_clip_collide_set_type_def_step` ports that decision without
+    executing scripts or mutating a live editor object.
+  - `ValidWaypoint` and `ValidClip` send `valid_waypoint` / `valid_clip`
+    messages and treat an unhandled response as valid. `ValidClip` returns true
+    immediately when no waypoint is selected. Native
+    `source_clip_collide_valid_waypoint` and
+    `source_clip_collide_valid_clip` port those handler-default decisions.
   - `SyncChar` only calls `SetProxyFile` when a character exists, the selected
     path is non-empty, and it differs from the current proxy; it always follows
     with `SyncWaypoint`. Native `source_clip_collide_sync_char_step` ports that

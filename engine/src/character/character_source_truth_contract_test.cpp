@@ -12510,6 +12510,25 @@ int run_contract() {
                  "bs>>mChar;bs>>mCharPath;bs>>mWaypoint;bs>>mPosition;mClip=0;",
                  "latest ClipCollide load reads source fields and clears clip");
   ok &= contains(rb3_latest_clip_collide_cpp,
+                 "voidClipCollide::SetTypeDef(DataArray*da){if(mTypeDef!=da){"
+                 "Hmx::Object::SetTypeDef(da);if(da){DataArray*modesArr="
+                 "da->FindArray(\"modes\",true);mMode=modesArr->Array(1)->"
+                 "Sym(0);}}}",
+                 "latest ClipCollide SetTypeDef mode source");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "boolClipCollide::ValidWaypoint(Waypoint*w){staticMessagevw"
+                 "(\"valid_waypoint\",DataNode(0));vw[0]=DataNode(w);"
+                 "DataNodehandled=Handle(vw,true);if(handled.Type()=="
+                 "kDataUnhandled)returntrue;elsereturnhandled.Int(0);}",
+                 "latest ClipCollide ValidWaypoint default-valid source");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "boolClipCollide::ValidClip(CharClip*clip){if(!mWaypoint)"
+                 "returntrue;else{staticMessagevw(\"valid_clip\",DataNode(0),"
+                 "DataNode(0));vw[0]=DataNode(clip);vw[1]=DataNode(mWaypoint);"
+                 "DataNodehandled=Handle(vw,true);if(handled.Type()=="
+                 "kDataUnhandled)returntrue;elsereturnhandled.Int(0);}}",
+                 "latest ClipCollide ValidClip default-valid source");
+  ok &= contains(rb3_latest_clip_collide_cpp,
                  "constchar*directions[4]={\"front\",\"back\",\"left\",\"right\"};",
                  "latest ClipCollide TestClips direction order");
   ok &= contains(rb3_latest_clip_collide_cpp,
@@ -12543,6 +12562,19 @@ int run_contract() {
                  "std::stringposition=\"front\";",
                  "native exposes ClipCollide default state");
   ok &= contains(char_clip_h,
+                 "structSourceClipCollideLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;boolclears_clip=false;};",
+                 "native exposes ClipCollide load plan");
+  ok &= contains(char_clip_h,
+                 "structSourceClipCollideSetTypeDefStep{"
+                 "boolcall_object_set_type_def=false;boolupdate_mode=false;"
+                 "boolassert_modes_array=false;};",
+                 "native exposes ClipCollide SetTypeDef plan");
+  ok &= contains(char_clip_h,
+                 "structSourceClipCollideValidationStep{boolsend_message=false;"
+                 "boolvalid=true;std::stringmessage;};",
+                 "native exposes ClipCollide validation step");
+  ok &= contains(char_clip_h,
                  "structSourceFileMergerState{boolasync_load=false;",
                  "native exposes FileMerger default state");
   ok &= contains(char_clip,
@@ -12563,9 +12595,40 @@ int run_contract() {
                  "returnSourceClipCollideState{};}",
                  "native implements ClipCollide default helper");
   ok &= contains(char_clip,
+                 "SourceClipCollideLoadPlansource_clip_collide_load_plan("
+                 "intrevision){SourceClipCollideLoadPlanplan;"
+                 "plan.known_revision=source_clip_collide_load_revision_known"
+                 "(revision);if(!plan.known_revision)returnplan;"
+                 "plan.read_order={\"Hmx::Object\",\"mChar\",\"mCharPath\","
+                 "\"mWaypoint\",\"mPosition\"};plan.clears_clip=true;"
+                 "returnplan;}",
+                 "native implements ClipCollide load plan");
+  ok &= contains(char_clip,
                  "step.set_proxy_file=has_character&&!char_path_empty&&"
                  "!path_matches_proxy;",
                  "native ClipCollide helper mirrors proxy update gate");
+  ok &= contains(char_clip,
+                 "SourceClipCollideSetTypeDefStepsource_clip_collide_set_type_def_step"
+                 "(booltype_def_changed,boolhas_type_def){"
+                 "SourceClipCollideSetTypeDefStepstep;if(!type_def_changed)"
+                 "returnstep;step.call_object_set_type_def=true;"
+                 "step.update_mode=has_type_def;step.assert_modes_array="
+                 "has_type_def;returnstep;}",
+                 "native ClipCollide helper mirrors SetTypeDef gate");
+  ok &= contains(char_clip,
+                 "SourceClipCollideValidationStepsource_clip_collide_valid_waypoint"
+                 "(boolhandler_unhandled,boolhandler_value){"
+                 "SourceClipCollideValidationStepstep;step.send_message=true;"
+                 "step.message=\"valid_waypoint\";step.valid=handler_unhandled?"
+                 "true:handler_value;returnstep;}",
+                 "native ClipCollide helper mirrors ValidWaypoint default");
+  ok &= contains(char_clip,
+                 "SourceClipCollideValidationStepsource_clip_collide_valid_clip"
+                 "(boolhas_waypoint,boolhandler_unhandled,boolhandler_value){"
+                 "SourceClipCollideValidationStepstep;if(!has_waypoint)"
+                 "returnstep;step.send_message=true;step.message=\"valid_clip\";"
+                 "step.valid=handler_unhandled?true:handler_value;returnstep;}",
+                 "native ClipCollide helper mirrors ValidClip default");
   ok &= contains(char_clip,
                  "if(has_character&&has_waypoint&&has_clip){step.sync_waypoint="
                  "true;step.play_clip=true;}",
@@ -12589,6 +12652,18 @@ int run_contract() {
                  "source_clip_collide_demonstrate_step(true,true,true)",
                  "focused clip editor test covers ClipCollide Demonstrate");
   ok &= contains(clip_editor_source_test,
+                 "source_clip_collide_load_plan(1)",
+                 "focused clip editor test covers ClipCollide load plan");
+  ok &= contains(clip_editor_source_test,
+                 "source_clip_collide_set_type_def_step(true,true)",
+                 "focused clip editor test covers ClipCollide SetTypeDef");
+  ok &= contains(clip_editor_source_test,
+                 "source_clip_collide_valid_waypoint(true,false)",
+                 "focused clip editor test covers ClipCollide ValidWaypoint");
+  ok &= contains(clip_editor_source_test,
+                 "source_clip_collide_valid_clip(false,false,false)",
+                 "focused clip editor test covers ClipCollide ValidClip");
+  ok &= contains(clip_editor_source_test,
                  "source_file_merger_merger_copy_plan()",
                  "focused clip editor test covers FileMerger copy plan");
   ok &= contains(clip_editor_source_test,
@@ -12600,6 +12675,16 @@ int run_contract() {
                  "no live collision, transition graph execution, compression, "
                  "or file merging behavior is promoted",
                  "document fences clip editor helpers from runtime behavior");
+  ok &= contains(doc,
+                 "Native\n    `source_clip_collide_load_plan` records this exact row order and reset",
+                 "document records ClipCollide load plan helper");
+  ok &= contains(doc,
+                 "Native\n    `source_clip_collide_set_type_def_step` ports that decision",
+                 "document records ClipCollide SetTypeDef helper");
+  ok &= contains(doc,
+                 "`source_clip_collide_valid_waypoint` and\n"
+                 "    `source_clip_collide_valid_clip` port those handler-default decisions",
+                 "document records ClipCollide validation helpers");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");

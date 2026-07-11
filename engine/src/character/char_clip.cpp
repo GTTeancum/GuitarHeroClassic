@@ -3183,12 +3183,55 @@ bool source_clip_collide_load_revision_known(int revision) {
   return revision >= 0 && revision <= 1;
 }
 
+SourceClipCollideLoadPlan source_clip_collide_load_plan(int revision) {
+  SourceClipCollideLoadPlan plan;
+  plan.known_revision = source_clip_collide_load_revision_known(revision);
+  if (!plan.known_revision) return plan;
+  plan.read_order = {"Hmx::Object", "mChar", "mCharPath", "mWaypoint",
+                     "mPosition"};
+  plan.clears_clip = true;
+  return plan;
+}
+
 SourceClipCollideSyncCharStep source_clip_collide_sync_char_step(
     bool has_character,
     bool char_path_empty,
     bool path_matches_proxy) {
   SourceClipCollideSyncCharStep step;
   step.set_proxy_file = has_character && !char_path_empty && !path_matches_proxy;
+  return step;
+}
+
+SourceClipCollideSetTypeDefStep source_clip_collide_set_type_def_step(
+    bool type_def_changed,
+    bool has_type_def) {
+  SourceClipCollideSetTypeDefStep step;
+  if (!type_def_changed) return step;
+  step.call_object_set_type_def = true;
+  step.update_mode = has_type_def;
+  step.assert_modes_array = has_type_def;
+  return step;
+}
+
+SourceClipCollideValidationStep source_clip_collide_valid_waypoint(
+    bool handler_unhandled,
+    bool handler_value) {
+  SourceClipCollideValidationStep step;
+  step.send_message = true;
+  step.message = "valid_waypoint";
+  step.valid = handler_unhandled ? true : handler_value;
+  return step;
+}
+
+SourceClipCollideValidationStep source_clip_collide_valid_clip(
+    bool has_waypoint,
+    bool handler_unhandled,
+    bool handler_value) {
+  SourceClipCollideValidationStep step;
+  if (!has_waypoint) return step;
+  step.send_message = true;
+  step.message = "valid_clip";
+  step.valid = handler_unhandled ? true : handler_value;
   return step;
 }
 

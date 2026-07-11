@@ -954,9 +954,27 @@ struct SourceClipCollideState {
   std::string mode;
 };
 
+struct SourceClipCollideLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  bool clears_clip = false;
+};
+
 struct SourceClipCollideSyncCharStep {
   bool set_proxy_file = false;
   bool sync_waypoint = true;
+};
+
+struct SourceClipCollideSetTypeDefStep {
+  bool call_object_set_type_def = false;
+  bool update_mode = false;
+  bool assert_modes_array = false;
+};
+
+struct SourceClipCollideValidationStep {
+  bool send_message = false;
+  bool valid = true;
+  std::string message;
 };
 
 struct SourceClipCollideDemonstrateStep {
@@ -1174,10 +1192,21 @@ SourceClipGraphTransitionPlan source_clip_graph_on_generate_transitions(
     const SourceClipGraphTransitionInputs& inputs);
 SourceClipCollideState source_clip_collide_default_state();
 bool source_clip_collide_load_revision_known(int revision);
+SourceClipCollideLoadPlan source_clip_collide_load_plan(int revision);
 SourceClipCollideSyncCharStep source_clip_collide_sync_char_step(
     bool has_character,
     bool char_path_empty,
     bool path_matches_proxy);
+SourceClipCollideSetTypeDefStep source_clip_collide_set_type_def_step(
+    bool type_def_changed,
+    bool has_type_def);
+SourceClipCollideValidationStep source_clip_collide_valid_waypoint(
+    bool handler_unhandled,
+    bool handler_value);
+SourceClipCollideValidationStep source_clip_collide_valid_clip(
+    bool has_waypoint,
+    bool handler_unhandled,
+    bool handler_value);
 SourceClipCollideDemonstrateStep source_clip_collide_demonstrate_step(
     bool has_character,
     bool has_waypoint,
