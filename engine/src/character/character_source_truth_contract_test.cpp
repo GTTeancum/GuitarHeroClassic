@@ -9183,6 +9183,41 @@ int run_contract() {
   ok &= contains(rb3_char_ik_hand_cpp,
                  "if(gRev>0xB){bs>>mElbowCollide;bs>>mClockwise;}",
                  "RB3 CharIKHand source gates elbow collision branch");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "SetHand(mHand);END_LOADS",
+                 "RB3 CharIKHand source calls SetHand after load");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "BEGIN_COPYS(CharIKHand)COPY_SUPERCLASS(Hmx::Object)"
+                 "COPY_SUPERCLASS(CharWeightable)CREATE_COPY(CharIKHand)",
+                 "RB3 CharIKHand source copy superclasses");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "SetHand(c->mHand);COPY_MEMBER(mHand)COPY_MEMBER(mTargets)"
+                 "COPY_MEMBER(mOrientation)COPY_MEMBER(mStretch)"
+                 "COPY_MEMBER(mScalable)COPY_MEMBER(mMoveElbow)"
+                 "COPY_MEMBER(mElbowSwing)COPY_MEMBER(mAlwaysIKElbow)"
+                 "COPY_MEMBER(mConstrainWrist)COPY_MEMBER(mTargets)"
+                 "COPY_MEMBER(mElbowCollide)COPY_MEMBER(mClockwise)",
+                 "RB3 CharIKHand source copy member order");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "BEGIN_HANDLERS(CharIKHand)HANDLE_ACTION(measure_lengths,"
+                 "MeasureLengths())HANDLE_SUPERCLASS(CharWeightable)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0x33D)",
+                 "RB3 CharIKHand source handlers");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharIKHand::IKTarget)"
+                 "SYNC_PROP(target,o.mTarget)SYNC_PROP(extent,o.mExtent)"
+                 "END_CUSTOM_PROPSYNC",
+                 "RB3 CharIKHand IKTarget prop-sync rows");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "BEGIN_PROPSYNCS(CharIKHand)SYNC_PROP_SET(hand,mHand,"
+                 "SetHand(_val.Obj<RndTransformable>(0)))SYNC_PROP(finger,"
+                 "mFinger)SYNC_PROP(targets,mTargets)SYNC_PROP(orientation,"
+                 "mOrientation)SYNC_PROP(stretch,mStretch)",
+                 "RB3 CharIKHand prop-sync prefix");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "SYNC_PROP(elbow_collide,mElbowCollide)SYNC_PROP(clockwise,"
+                 "mClockwise)SYNC_SUPERCLASS(CharWeightable)",
+                 "RB3 CharIKHand prop-sync suffix");
   ok &= contains(char_mesh,
                  "hand.version=r.i32();",
                  "native CharIKHand decoder stores source revision");
@@ -9235,6 +9270,31 @@ int run_contract() {
                  "floataa_plus_bb=0.0f;};",
                  "native exposes source CharIKHand MeasureLengths state");
   ok &= contains(char_clip_h,
+                 "structSourceCharIKHandLoadPlan{int32_tmax_revision=0x0c;"
+                 "boolknown_revision=false;std::vector<std::string>read_order;",
+                 "native exposes source CharIKHand load plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHandCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>member_steps;",
+                 "native exposes source CharIKHand copy plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHandPropSyncPlan{std::vector<std::string>"
+                 "target_properties;std::vector<std::string>set_properties;",
+                 "native exposes source CharIKHand prop-sync plan");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandLoadPlansource_char_ik_hand_load_plan("
+                 "int32_trevision);",
+                 "native API exposes source CharIKHand load plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandCopyPlansource_char_ik_hand_copy_plan();",
+                 "native API exposes source CharIKHand copy plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandHandlerPlansource_char_ik_hand_handler_plan();",
+                 "native API exposes source CharIKHand handler plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandPropSyncPlansource_char_ik_hand_prop_sync_plan();",
+                 "native API exposes source CharIKHand prop-sync plan helper");
+  ok &= contains(char_clip_h,
                  "SourceCharIKHandMeasuresource_char_ik_hand_measure_lengths("
                  "boolhas_elbow_chain,floathand_local_len,"
                  "floatparent_local_len);",
@@ -9254,6 +9314,58 @@ int run_contract() {
                  "floatparent_local_len){SourceCharIKHandMeasureout;"
                  "if(!has_elbow_chain)returnout;out.has_elbow_chain=true;",
                  "native CharIKHand MeasureLengths helper keeps source chain gate");
+  ok &= contains(char_clip,
+                 "SourceCharIKHandLoadPlansource_char_ik_hand_load_plan("
+                 "int32_trevision){SourceCharIKHandLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=plan."
+                 "max_revision;",
+                 "native CharIKHand load plan helper gates source revisions");
+  ok &= contains(char_clip,
+                 "if(revision<3){plan.read_order.push_back(\"legacyTarget\");"
+                 "plan.branches.push_back(\"targets=singleLegacyTargetExtent0\");"
+                 "}elseif(revision<0x0b){plan.read_order.push_back("
+                 "\"legacyTargetList\");",
+                 "native CharIKHand load plan records target branches");
+  ok &= contains(char_clip,
+                 "if(revision==9){plan.read_order.push_back("
+                 "\"rev9StringPadding\");plan.read_order.push_back("
+                 "\"rev9BoolPadding\");}",
+                 "native CharIKHand load plan records revision nine padding");
+  ok &= contains(char_clip,
+                 "if(revision>0x0b){plan.read_order.push_back("
+                 "\"mElbowCollide\");plan.read_order.push_back("
+                 "\"mClockwise\");}plan.calls_set_hand=true;",
+                 "native CharIKHand load plan records elbow collide tail");
+  ok &= contains(char_clip,
+                 "SourceCharIKHandCopyPlansource_char_ik_hand_copy_plan(){"
+                 "SourceCharIKHandCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\",\"CharWeightable\"};",
+                 "native CharIKHand copy plan records superclasses");
+  ok &= contains(char_clip,
+                 "plan.member_steps={\"SetHand(c->mHand)\",\"mHand\","
+                 "\"mTargets\",\"mOrientation\",\"mStretch\",\"mScalable\","
+                 "\"mMoveElbow\",\"mElbowSwing\",\"mAlwaysIKElbow\","
+                 "\"mConstrainWrist\",\"mTargets\",\"mElbowCollide\","
+                 "\"mClockwise\"};",
+                 "native CharIKHand copy plan preserves source member order");
+  ok &= contains(char_clip,
+                 "SourceCharIKHandHandlerPlansource_char_ik_hand_handler_plan(){"
+                 "SourceCharIKHandHandlerPlanplan;plan.handlers={"
+                 "\"measure_lengths\"};plan.superclasses={\"CharWeightable\","
+                 "\"Hmx::Object\"};plan.check=\"0x33D\";",
+                 "native CharIKHand handler plan records source rows");
+  ok &= contains(char_clip,
+                 "SourceCharIKHandPropSyncPlansource_char_ik_hand_prop_sync_plan(){"
+                 "SourceCharIKHandPropSyncPlanplan;plan.target_properties={"
+                 "\"target\",\"extent\"};plan.set_properties={\"hand\"};",
+                 "native CharIKHand prop-sync plan records target and set rows");
+  ok &= contains(char_clip,
+                 "plan.properties={\"finger\",\"targets\",\"orientation\","
+                 "\"stretch\",\"scalable\",\"move_elbow\",\"elbow_swing\","
+                 "\"always_ik_elbow\",\"constrain_wrist\",\"wrist_radians\","
+                 "\"elbow_collide\",\"clockwise\"};plan.superclass="
+                 "\"CharWeightable\";",
+                 "native CharIKHand prop-sync plan records direct rows");
   ok &= contains(char_clip,
                  "out.inv_2ab=hand_local_len*2.0f*parent_local_len;"
                  "out.a2_plus_b2=parent_local_len*parent_local_len+"
@@ -9298,10 +9410,26 @@ int run_contract() {
                  "source_char_ik_hand_update_measure_lengths("
                  "false,hand_changed)",
                  "focused CharIKHand source test covers UpdateHand clean gate");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_load_plan(12)",
+                 "focused CharIKHand source test covers modern load plan");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_copy_plan()",
+                 "focused CharIKHand source test covers copy plan");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_handler_plan()",
+                 "focused CharIKHand source test covers handler plan");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_prop_sync_plan()",
+                 "focused CharIKHand source test covers prop-sync plan");
   ok &= contains(doc,
                  "Native `source_char_ik_hand_measure_lengths` and\n"
                  "    `source_char_ik_hand_elbow_cosine` port the source",
                  "document records native CharIKHand MeasureLengths slice");
+  ok &= contains(doc, "Native `source_char_ik_hand_load_plan`,",
+                 "document records native CharIKHand row-plan helpers");
+  ok &= contains(doc, "duplicated `mTargets` row and the visible omission of `mFinger`",
+                 "document records source CharIKHand copy quirk");
   ok &= contains(doc,
                  "`source_char_ik_hand_update_measure_lengths` mirrors "
                  "`SetHand` /",

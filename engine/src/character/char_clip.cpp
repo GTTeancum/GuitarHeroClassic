@@ -3850,6 +3850,95 @@ SourceCharIKHandMeasure source_char_ik_hand_measure_lengths(
   return out;
 }
 
+SourceCharIKHandLoadPlan source_char_ik_hand_load_plan(int32_t revision) {
+  SourceCharIKHandLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= plan.max_revision;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"LOAD_REVS", "ASSERT_REVS(0xC,0)", "Hmx::Object",
+                     "CharWeightable", "mHand"};
+  if (revision > 4) {
+    plan.read_order.push_back("mFinger");
+  } else {
+    plan.branches.push_back("mFinger=0");
+  }
+
+  if (revision < 3) {
+    plan.read_order.push_back("legacyTarget");
+    plan.branches.push_back("targets=singleLegacyTargetExtent0");
+  } else if (revision < 0x0b) {
+    plan.read_order.push_back("legacyTargetList");
+    plan.branches.push_back("targets=legacyListExtent0");
+  } else {
+    plan.read_order.push_back("mTargets");
+  }
+
+  plan.read_order.push_back("mOrientation");
+  plan.read_order.push_back("mStretch");
+  if (revision > 1) {
+    plan.read_order.push_back("mScalable");
+  } else {
+    plan.branches.push_back("mScalable=false");
+  }
+  if (revision > 3) {
+    plan.read_order.push_back("mMoveElbow");
+  } else {
+    plan.branches.push_back("mMoveElbow=true");
+  }
+  if (revision > 5) {
+    plan.read_order.push_back("mElbowSwing");
+  } else {
+    plan.branches.push_back("mElbowSwing=0");
+  }
+  if (revision > 6) plan.read_order.push_back("mAlwaysIKElbow");
+  if (revision > 7) {
+    plan.read_order.push_back("mConstrainWrist");
+    plan.read_order.push_back("mWristRadians");
+  }
+  if (revision == 9) {
+    plan.read_order.push_back("rev9StringPadding");
+    plan.read_order.push_back("rev9BoolPadding");
+  }
+  if (revision > 0x0b) {
+    plan.read_order.push_back("mElbowCollide");
+    plan.read_order.push_back("mClockwise");
+  }
+  plan.calls_set_hand = true;
+  return plan;
+}
+
+SourceCharIKHandCopyPlan source_char_ik_hand_copy_plan() {
+  SourceCharIKHandCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "CharWeightable"};
+  plan.member_steps = {"SetHand(c->mHand)", "mHand", "mTargets",
+                       "mOrientation",     "mStretch",
+                       "mScalable",        "mMoveElbow",
+                       "mElbowSwing",      "mAlwaysIKElbow",
+                       "mConstrainWrist",  "mTargets",
+                       "mElbowCollide",    "mClockwise"};
+  return plan;
+}
+
+SourceCharIKHandHandlerPlan source_char_ik_hand_handler_plan() {
+  SourceCharIKHandHandlerPlan plan;
+  plan.handlers = {"measure_lengths"};
+  plan.superclasses = {"CharWeightable", "Hmx::Object"};
+  plan.check = "0x33D";
+  return plan;
+}
+
+SourceCharIKHandPropSyncPlan source_char_ik_hand_prop_sync_plan() {
+  SourceCharIKHandPropSyncPlan plan;
+  plan.target_properties = {"target", "extent"};
+  plan.set_properties = {"hand"};
+  plan.properties = {"finger",        "targets",         "orientation",
+                     "stretch",       "scalable",        "move_elbow",
+                     "elbow_swing",   "always_ik_elbow", "constrain_wrist",
+                     "wrist_radians", "elbow_collide",   "clockwise"};
+  plan.superclass = "CharWeightable";
+  return plan;
+}
+
 bool source_char_ik_hand_update_measure_lengths(bool scalable,
                                                 bool& hand_changed) {
   if (scalable || hand_changed) {

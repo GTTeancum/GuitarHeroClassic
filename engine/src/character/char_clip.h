@@ -2001,6 +2001,33 @@ struct SourceCharIKHandMeasure {
   float aa_plus_bb = 0.0f;
 };
 
+struct SourceCharIKHandLoadPlan {
+  int32_t max_revision = 0x0c;
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+  bool calls_set_hand = false;
+};
+
+struct SourceCharIKHandCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> member_steps;
+  bool creates_copy = true;
+};
+
+struct SourceCharIKHandHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  std::string check;
+};
+
+struct SourceCharIKHandPropSyncPlan {
+  std::vector<std::string> target_properties;
+  std::vector<std::string> set_properties;
+  std::vector<std::string> properties;
+  std::string superclass;
+};
+
 struct SourceCharIKFootState {
   bool helper_target_created = true;
   bool helper_target_local_reset = true;
@@ -2063,6 +2090,10 @@ struct SourceCharIKFootCopyResult {
 
 // Source-backed CharIKHand::MeasureLengths / IKElbow scalar helper. The length
 // inputs correspond to mHand->mLocalXfm.v and mHand->TransParent()->mLocalXfm.v.
+SourceCharIKHandLoadPlan source_char_ik_hand_load_plan(int32_t revision);
+SourceCharIKHandCopyPlan source_char_ik_hand_copy_plan();
+SourceCharIKHandHandlerPlan source_char_ik_hand_handler_plan();
+SourceCharIKHandPropSyncPlan source_char_ik_hand_prop_sync_plan();
 SourceCharIKHandMeasure source_char_ik_hand_measure_lengths(
     bool has_elbow_chain,
     float hand_local_len,

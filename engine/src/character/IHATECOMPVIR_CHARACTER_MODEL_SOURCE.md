@@ -1586,6 +1586,16 @@ note, and all report `unreadBytes=0`.
     those source-declared fields, enforces the source revision range, and
     records the row tail byte count so the active asset data can prove which
     branches are actually present.
+  - Native `source_char_ik_hand_load_plan`,
+    `source_char_ik_hand_copy_plan`, `source_char_ik_hand_handler_plan`, and
+    `source_char_ik_hand_prop_sync_plan` now record the visible source rows:
+    load revisions through `0xC`, legacy target expansion with extent `0`,
+    revision-9 padding, the final `SetHand(mHand)` call, copy superclasses
+    `Hmx::Object` then `CharWeightable`, source copy member order including the
+    duplicated `mTargets` row and the visible omission of `mFinger`, handler
+    row `measure_lengths`, custom `IKTarget` properties `target` / `extent`,
+    and the `CharWeightable` prop-sync superclass. These helpers do not add any
+    new live IK solve or promote the fenced branches below.
   - Native GHOGX must not retain the older opt-in free two-bone arm solver or
     its `GHOGX_ENABLE_ARM_IK`/stretch/rotation gates. Any hand or elbow solve
     must be translated from the source-backed `CharIKHand` dataflow above.
