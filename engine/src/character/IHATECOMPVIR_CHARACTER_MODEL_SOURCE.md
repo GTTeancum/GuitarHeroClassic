@@ -907,6 +907,10 @@ note, and all report `unreadBytes=0`.
   `full`/`one` property sync. It declares or calls the broad pose math, but the
   checked file does not include reviewable bodies for `CharClip::ScaleAdd`,
   `CharClip::RotateBy`, `CharClip::Load`, or channel evaluation.
+  - Native `source_char_clip_default_state` records the complete checked
+    constructor defaults: 30 FPS, zero flags/play flags/range, dirty true,
+    compression allowed, `unk42 = -1`, and one beat-track key at frame/value
+    zero.
   - Native `source_char_clip_beat_align_string` ports the concrete
     `CharClip::BeatAlignString` body for the `0xF600` play-flag group:
     `RealTime`, `UserTime`, `BeatAlign1`, `BeatAlign2`, `BeatAlign4`,

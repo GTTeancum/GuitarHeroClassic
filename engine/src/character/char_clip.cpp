@@ -1573,6 +1573,10 @@ SourceCharClipFlagUpdate source_char_clip_set_flags(uint32_t current_flags,
   return update;
 }
 
+SourceCharClipDefaultState source_char_clip_default_state() {
+  return SourceCharClipDefaultState{};
+}
+
 SourceCharClipFlagUpdate source_char_clip_set_play_flags(
     uint32_t current_play_flags,
     bool current_dirty,

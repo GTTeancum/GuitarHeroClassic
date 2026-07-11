@@ -223,6 +223,22 @@ struct SourceCharClipFlagUpdate {
   bool changed = false;
 };
 
+struct SourceCharClipDefaultState {
+  float frames_per_sec = 30.0f;
+  uint32_t flags = 0;
+  uint32_t play_flags = 0;
+  float range = 0.0f;
+  bool dirty = true;
+  bool do_not_compress = false;
+  int unk42 = -1;
+  size_t beat_track_count = 1;
+  float first_beat_frame = 0.0f;
+  float first_beat_value = 0.0f;
+};
+
+// Source-backed CharClip constructor state.
+SourceCharClipDefaultState source_char_clip_default_state();
+
 // Source-backed CharClip::SetFlags / SetPlayFlags dirty-state helpers.
 SourceCharClipFlagUpdate source_char_clip_set_flags(uint32_t current_flags,
                                                     bool current_dirty,

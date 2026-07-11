@@ -3235,6 +3235,14 @@ int run_contract() {
                  "\"UserTime\";case0x1000:return\"BeatAlign1\";",
                  "latest CharClip source exposes BeatAlignString switch");
   ok &= contains(rb3_latest_char_clip_cpp,
+                 "CharClip::CharClip():mTransitions(this),mFramesPerSec(30.0f),"
+                 "mBeatTrack(),mFlags(0),mPlayFlags(0),mRange(0.0f),mDirty(1),"
+                 "mDoNotCompress(0),unk42(-1),mRelative(this,0),mBeatEvents(),"
+                 "mSyncAnim(this,0),mFull(),mOne(),mFacing(){mBeatTrack.resize"
+                 "(1,Key<float>(0,0));mBeatTrack.front().frame=0.0f;"
+                 "mBeatTrack.front().value=0.0f;}",
+                 "latest CharClip source exposes constructor defaults");
+  ok &= contains(rb3_latest_char_clip_cpp,
                  "voidCharClip::SetPlayFlags(inti){if(i!=mPlayFlags){"
                  "mPlayFlags=i;mDirty=true;}}",
                  "latest CharClip source exposes SetPlayFlags dirty guard");
@@ -3245,6 +3253,10 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_clip_set_flags` and",
                  "document records native CharClip flag dirty helpers");
+  ok &= contains(doc,
+                 "Native `source_char_clip_default_state` records the complete "
+                 "checked\n    constructor defaults",
+                 "document records native CharClip constructor default helper");
   ok &= contains(doc,
                  "unchanged values preserve the incoming\n    dirty state",
                  "document records source CharClip unchanged dirty behavior");
@@ -3281,6 +3293,16 @@ int run_contract() {
                  "structSourceCharClipFlagUpdate{uint32_tvalue=0;"
                  "booldirty=false;boolchanged=false;};",
                  "native character API exposes source CharClip flag update row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipDefaultState{floatframes_per_sec=30.0f;"
+                 "uint32_tflags=0;uint32_tplay_flags=0;floatrange=0.0f;"
+                 "booldirty=true;booldo_not_compress=false;intunk42=-1;"
+                 "size_tbeat_track_count=1;floatfirst_beat_frame=0.0f;"
+                 "floatfirst_beat_value=0.0f;};",
+                 "native character API exposes source CharClip default-state row");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipDefaultStatesource_char_clip_default_state();",
+                 "native character API exposes source CharClip default-state helper");
   ok &= contains(char_clip_h,
                  "SourceCharClipFlagUpdatesource_char_clip_set_flags("
                  "uint32_tcurrent_flags,boolcurrent_dirty,"
@@ -3338,6 +3360,10 @@ int run_contract() {
                  "returnupdate;}",
                  "native CharClip SetFlags helper ports source dirty guard");
   ok &= contains(char_clip,
+                 "SourceCharClipDefaultStatesource_char_clip_default_state(){"
+                 "returnSourceCharClipDefaultState{};}",
+                 "native CharClip default-state helper returns source defaults");
+  ok &= contains(char_clip,
                  "SourceCharClipFlagUpdatesource_char_clip_set_play_flags("
                  "uint32_tcurrent_play_flags,boolcurrent_dirty,"
                  "uint32_trequested_play_flags){SourceCharClipFlagUpdateupdate;"
@@ -3365,6 +3391,9 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_set_play_flags(0x20u,false,0x10u)",
                  "focused clip driver flags test covers changed SetPlayFlags");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_default_state()",
+                 "focused clip driver flags test covers CharClip constructor defaults");
   ok &= contains(char_clip,
                  "boolsource_char_driver_starved(boolhas_first,"
                  "boolfirst_has_next,uint32_tfirst_play_flags){if(has_first){"

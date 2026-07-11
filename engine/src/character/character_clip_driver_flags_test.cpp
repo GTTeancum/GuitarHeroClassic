@@ -70,6 +70,51 @@ bool expect_flag_update(const ghogx::character::SourceCharClipFlagUpdate& got,
   return ok;
 }
 
+bool expect_default_state(const ghogx::character::SourceCharClipDefaultState& got) {
+  bool ok = true;
+  if (got.frames_per_sec != 30.0f) {
+    std::cerr << "default frames_per_sec mismatch: got "
+              << got.frames_per_sec << "\n";
+    ok = false;
+  }
+  if (got.flags != 0) {
+    std::cerr << "default flags mismatch: got " << got.flags << "\n";
+    ok = false;
+  }
+  if (got.play_flags != 0) {
+    std::cerr << "default play_flags mismatch: got " << got.play_flags << "\n";
+    ok = false;
+  }
+  if (got.range != 0.0f) {
+    std::cerr << "default range mismatch: got " << got.range << "\n";
+    ok = false;
+  }
+  if (!got.dirty) {
+    std::cerr << "default dirty mismatch\n";
+    ok = false;
+  }
+  if (got.do_not_compress) {
+    std::cerr << "default do_not_compress mismatch\n";
+    ok = false;
+  }
+  if (got.unk42 != -1) {
+    std::cerr << "default unk42 mismatch: got " << got.unk42 << "\n";
+    ok = false;
+  }
+  if (got.beat_track_count != 1) {
+    std::cerr << "default beat_track_count mismatch: got "
+              << got.beat_track_count << "\n";
+    ok = false;
+  }
+  if (got.first_beat_frame != 0.0f || got.first_beat_value != 0.0f) {
+    std::cerr << "default first beat mismatch: got frame "
+              << got.first_beat_frame << " value " << got.first_beat_value
+              << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_blend(float requested, float driver, float want,
                   const char* label) {
   const float got =
@@ -160,6 +205,7 @@ int main() {
   ok &= expect_flag_update(
       ghogx::character::source_char_clip_set_play_flags(0x20u, false, 0x10u),
       0x10u, true, true, "SetPlayFlags changed");
+  ok &= expect_default_state(ghogx::character::source_char_clip_default_state());
   ok &= expect_blend(-1.0f, 1.0f, 1.0f, "source default blend");
   ok &= expect_blend(-1.0f, 0.25f, 0.25f, "custom driver blend");
   ok &= expect_blend(0.0f, 1.0f, 0.0f, "explicit zero blend");
