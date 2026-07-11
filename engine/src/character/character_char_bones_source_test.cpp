@@ -261,6 +261,57 @@ int main() {
   output.weights.push_back({0x2, 0.25f});
   output.weights.push_back({0x4, 0.75f});
   output.weights.push_back({0x6, 0.50f});
+  output.parent = "decoder.parent";
+  output.char_bone_version = 10;
+  output.trans_version = 7;
+  output.trans_constraint = 3;
+  output.trans_target = "decoder.target";
+  output.preserve_scale = true;
+  output.legacy_pre_rev5_int = 11;
+  output.has_legacy_pre_rev5_int = true;
+  output.legacy_rev3_to_7_int = 12;
+  output.has_legacy_rev3_to_7_int = true;
+  output.target = "target.trans";
+  output.trans = "bone_hand.trans";
+  output.bake_out_as_top_level = true;
+  output.unread_bytes = 99;
+  const auto copied_output = source_char_bone_copy_members(output);
+  ok &= expect_int(copied_output.rotation_context, 0x4,
+                   "CharBone copy rotation context");
+  ok &= expect_int(copied_output.scale_context, 0x2,
+                   "CharBone copy scale context");
+  ok &= expect_int(copied_output.position_context, 0x7,
+                   "CharBone copy position context");
+  ok &= expect_int(copied_output.rotation_type, kSourceCharBonesTypeRotZ,
+                   "CharBone copy rotation type");
+  ok &= expect_string(copied_output.target, "target.trans",
+                      "CharBone copy target");
+  ok &= expect_size(copied_output.weights.size(), 3,
+                    "CharBone copy weight count");
+  ok &= expect_int(copied_output.weights[1].context, 0x4,
+                   "CharBone copy weight context");
+  ok &= expect_float(copied_output.weights[1].weight, 0.75f,
+                     "CharBone copy weight value");
+  ok &= expect_string(copied_output.trans, "bone_hand.trans",
+                      "CharBone copy trans");
+  ok &= expect_int(copied_output.bake_out_as_top_level ? 1 : 0, 1,
+                   "CharBone copy bake flag");
+  ok &= expect_string(copied_output.parent, "",
+                      "CharBone copy resets decoder parent");
+  ok &= expect_int(static_cast<int>(copied_output.char_bone_version), 0,
+                   "CharBone copy resets decoder revision");
+  ok &= expect_int(copied_output.trans_constraint, 0,
+                   "CharBone copy resets transform constraint");
+  ok &= expect_string(copied_output.trans_target, "",
+                      "CharBone copy resets transform target");
+  ok &= expect_int(copied_output.preserve_scale ? 1 : 0, 0,
+                   "CharBone copy resets preserve scale");
+  ok &= expect_int(copied_output.has_legacy_pre_rev5_int ? 1 : 0, 0,
+                   "CharBone copy resets legacy pre-rev5 marker");
+  ok &= expect_int(copied_output.has_legacy_rev3_to_7_int ? 1 : 0, 0,
+                   "CharBone copy resets legacy rev3-7 marker");
+  ok &= expect_int(static_cast<int>(copied_output.unread_bytes), 0,
+                   "CharBone copy resets unread bytes");
   const auto weight_scale = source_char_bone_find_weight_index(output, 0x2);
   ok &= expect_int(weight_scale ? static_cast<int>(*weight_scale) : -1, 0,
                    "FindWeight first matching context");

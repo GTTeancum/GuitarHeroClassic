@@ -539,6 +539,8 @@ int source_char_bones_find_offset(const SourceCharBonesState& state,
                                   const std::string& channel);
 
 // Source-backed CharBone helpers for decoded CharClip output rows.
+CharClip::OutputBone source_char_bone_copy_members(
+    const CharClip::OutputBone& source);
 std::optional<size_t> source_char_bone_find_weight_index(
     const CharClip::OutputBone& bone, int context_mask);
 float source_char_bone_get_weight(const CharClip::OutputBone& bone,

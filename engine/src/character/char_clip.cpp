@@ -199,6 +199,20 @@ int source_char_bones_find_offset(const SourceCharBonesState& state,
   return -1;
 }
 
+CharClip::OutputBone source_char_bone_copy_members(
+    const CharClip::OutputBone& source) {
+  CharClip::OutputBone dest;
+  dest.rotation_context = source.rotation_context;
+  dest.scale_context = source.scale_context;
+  dest.position_context = source.position_context;
+  dest.rotation_type = source.rotation_type;
+  dest.target = source.target;
+  dest.weights = source.weights;
+  dest.trans = source.trans;
+  dest.bake_out_as_top_level = source.bake_out_as_top_level;
+  return dest;
+}
+
 std::optional<size_t> source_char_bone_find_weight_index(
     const CharClip::OutputBone& bone, int context_mask) {
   for (size_t i = 0; i < bone.weights.size(); ++i) {

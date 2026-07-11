@@ -6497,6 +6497,10 @@ int run_contract() {
                  "constCharClip::OutputBone&bone,intcontext_mask);",
                  "native API exposes source CharBone GetWeight helper");
   ok &= contains(char_clip_h,
+                 "CharClip::OutputBonesource_char_bone_copy_members("
+                 "constCharClip::OutputBone&source);",
+                 "native API exposes source CharBone copy-member helper");
+  ok &= contains(char_clip_h,
                  "voidsource_char_bone_clear_context(CharClip::OutputBone&bone,"
                  "intcontext_mask);",
                  "native API exposes source CharBone ClearContext helper");
@@ -6531,6 +6535,17 @@ int run_contract() {
   ok &= contains(char_clip,
                  "out.unread_bytes=size-pos;",
                  "native CharBone output decoder records unread byte proof");
+  ok &= contains(char_clip,
+                 "CharClip::OutputBonesource_char_bone_copy_members("
+                 "constCharClip::OutputBone&source){CharClip::OutputBonedest;"
+                 "dest.rotation_context=source.rotation_context;dest."
+                 "scale_context=source.scale_context;dest.position_context="
+                 "source.position_context;dest.rotation_type=source."
+                 "rotation_type;dest.target=source.target;dest.weights="
+                 "source.weights;dest.trans=source.trans;dest."
+                 "bake_out_as_top_level=source.bake_out_as_top_level;"
+                 "returndest;}",
+                 "native CharBone copy-member helper mirrors source COPY_MEMBER list");
   ok &= contains(char_clip,
                  "std::optional<size_t>source_char_bone_find_weight_index("
                  "constCharClip::OutputBone&bone,intcontext_mask){"
@@ -6586,6 +6601,13 @@ int run_contract() {
                  "Native `source_char_bone_find_weight_index`,",
                  "document records native CharBone helper ports");
   ok &= contains(doc,
+                 "Native `source_char_bone_copy_members` ports only the concrete",
+                 "document records native CharBone copy-member helper");
+  ok &= contains(doc,
+                 "Native decoder-only fields such as embedded legacy\n"
+                 "    transform bytes",
+                 "document records CharBone copy-member decoder boundary");
+  ok &= contains(doc,
                  "`StuffBones`\n    appends `.pos`, `.scale`, and rotation "
                  "channels in source order",
                  "document records source CharBone StuffBones order");
@@ -6596,6 +6618,12 @@ int run_contract() {
                  "Native `source_char_bone_dir_list_bones` ports that "
                  "list-building behavior",
                  "document records native CharBoneDir ListBones helper");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_copy_members(output)",
+                 "focused CharBones source test covers CharBone copy-member helper");
+  ok &= contains(char_bones_source_test,
+                 "\"CharBonecopyresetsdecoderparent\"",
+                 "focused CharBones source test covers CharBone decoder reset");
   ok &= contains(char_bones_source_test,
                  "source_char_bone_find_weight_index(output,0x2)",
                  "focused CharBones source test covers CharBone FindWeight");
@@ -6616,6 +6644,16 @@ int run_contract() {
                  "source_char_bone_dir_list_bones(dir_output_bones,0x1,0x4,"
                  "false,",
                  "focused CharBones source test covers CharBoneDir delegation without facing");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "BEGIN_COPYS(CharBone)COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(CharBone)BEGIN_COPYING_MEMBERS",
+                 "latest CharBone source defines copy macro start");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "COPY_MEMBER(mRotationContext)COPY_MEMBER(mScaleContext)"
+                 "COPY_MEMBER(mPositionContext)COPY_MEMBER(mRotation)"
+                 "COPY_MEMBER(mTarget)COPY_MEMBER(mWeights)COPY_MEMBER(mTrans)"
+                 "COPY_MEMBER(mBakeOutAsTopLevel)",
+                 "latest CharBone source defines copy member list");
   ok &= contains(rb3_latest_char_bone_cpp,
                  "voidCharBone::StuffBones(std::list<CharBones::Bone>&bonelist,"
                  "inti)const{if(mPositionContext&i){bonelist.push_back("

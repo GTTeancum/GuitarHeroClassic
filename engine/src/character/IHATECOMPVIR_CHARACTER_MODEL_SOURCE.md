@@ -1193,6 +1193,12 @@ note, and all report `unreadBytes=0`.
     `ClearContext` masks position, scale, and rotation contexts. `StuffBones`
     appends `.pos`, `.scale`, and rotation channels in source order when their
     contexts match, using `CharBones::ChannelName` and `GetWeight`.
+  - Native `source_char_bone_copy_members` ports only the concrete
+    `BEGIN_COPYS(CharBone)` member list: rotation context, scale context,
+    position context, rotation type, target, weights, trans pointer, and
+    bake-out flag. Native decoder-only fields such as embedded legacy
+    transform bytes, source revision markers, and unread byte counts remain
+    outside this helper.
   - This is row decode and diagnostic evidence only. It does not promote broad
     `CharBone` pose publishing; the existing output bridge remains bounded until
     the connected `CharClip` / `CharBonesSamples` evaluation path is fully
