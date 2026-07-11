@@ -445,6 +445,7 @@ class Gameplay {
     std::string anim;
     std::string particle;
     std::string keys_owner;
+    float source_blend = 1.0f;
     float duration_frames = 0.0f;
     std::vector<ColorKey> start_color_keys;
     std::vector<ColorKey> end_color_keys;
@@ -458,6 +459,7 @@ class Gameplay {
     double start_time = 0.0;
     double duration_seconds = 0.0;
     float duration_frames = 0.0f;
+    float source_blend = 1.0f;
     std::vector<VenueParticleRoute::ColorKey> start_color_keys;
     std::vector<VenueParticleRoute::ColorKey> end_color_keys;
     std::vector<VenueParticleRoute::EmissionKey> emission_keys;

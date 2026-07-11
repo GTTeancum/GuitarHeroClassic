@@ -3710,6 +3710,13 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::stringdiagnostic_venue_override_;",
                  "diagnostic venue override is not a global song route");
+  ok &= contains(gameplay_c,
+                 "std::stringvenue_source_key(std::string_viewvenue)",
+                 "diagnostic venue names are normalized to authored source venue keys");
+  ok &= contains(gameplay_c,
+                 "compact==\"redoctane\"||compact==\"bigclub\"||"
+                 "compact==\"big\"",
+                 "RedOctane diagnostics resolve to the GH2 source venue key big");
   ok &= contains(gameplay_h_c,
                  "voidset_diagnostic_venue_event(conststd::string&event_name)",
                  "diagnostic venue event stays an explicit gameplay test hook");
@@ -3799,6 +3806,12 @@ int main() {
                  "load_venue_milo_assembly(hdr_path_,ark_path_,"
                  "quickplay_rig_->venue)",
                  "venue load begins from decoded source WorldDir/RndDir assembly refs");
+  ok &= contains(gameplay_c,
+                 "conststd::stringsource_venue=venue_source_key(venue);",
+                 "venue loader resolves aliases before building source MILO paths");
+  ok &= contains(gameplay_c,
+                 "quickplay_rig_->venue=source_venue;",
+                 "diagnostic venue override stores the resolved source venue key");
   ok &= contains(gameplay_c,
                  "conststd::stringvenue_geom=venue_assembly.geom_milo;",
                  "venue geometry MILO comes from the decoded source assembly");
@@ -3912,8 +3925,8 @@ int main() {
                        "if(!diagnostic_venue_override_.empty()){",
                        "diagnostic venue override only runs after songs.dtb rig resolution");
   ok &= contains(gameplay_c,
-                 "quickplay_rig_->venue=diagnostic_venue_override_;",
-                 "diagnostic venue override feeds the shared venue loader");
+                 "quickplay_rig_->venue=source_venue;",
+                 "diagnostic venue override feeds the shared venue loader through the source key");
   ok &= contains(gameplay_c,
                  "apply_venue_event(player_fret_hit_event(n.lane),false);",
                  "successful player note hits dispatch transient fret venue events");
@@ -4788,6 +4801,9 @@ int main() {
   ok &= contains(gameplay_h_c,
                  "std::vector<EmissionKey>size_keys;",
                  "ParticleSysAnim route keeps authored start-size keys");
+  ok &= contains(gameplay_h_c,
+                 "floatsource_blend=1.0f;",
+                 "ParticleSysAnim routes carry source EventTrigger blend");
   ok &= contains(gameplay_c,
                  "copy_particle_route_keys_from_owner(route,owner->second);",
                  "ParticleSysAnim owner rows copy source key-owner data");
@@ -4797,6 +4813,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "load_venue_event_particles",
                  "gameplay loads authored ParticleSys event routes");
+  ok &= contains(gameplay_c,
+                 "constautoanim_routes=venue_event_trigger_anim_routes(",
+                 "ParticleSys event routes decode source EventTrigger rows with blend metadata");
+  ok &= contains(gameplay_c,
+                 "route.source_blend=anim_route.blend;",
+                 "ParticleSys event routes inherit EventTrigger Anim mBlend");
   ok &= contains(gameplay_c,
                  "venue_event_particle_systems_=load_venue_event_particles(",
                  "venue load wires ParticleSys routes");
@@ -4824,6 +4846,23 @@ int main() {
   ok &= contains(gameplay_c,
                  "sample_particle_color_key(it->end_color_keys,frame)",
                  "venue particles sample authored ParticleSysAnim end color");
+  ok &= contains(gameplay_c,
+                 "active.source_blend=route.source_blend;",
+                 "active ParticleSys state keeps source EventTrigger blend");
+  ok &= contains(gameplay_c,
+                 "blend_particle_value(",
+                 "venue particles blend current live state toward sampled values like source SetFrame");
+  ok &= contains(gameplay_c,
+                 "current_particle_value(venue_particle_intensities_,"
+                 "it->particle,sampled_intensity)",
+                 "venue ParticleSys emission blend starts from current native particle state");
+  ok &= contains(gameplay_c,
+                 "current_particle_color(venue_particle_start_colors_,"
+                 "it->particle,sampled_start_color)",
+                 "venue ParticleSys color blend starts from current native particle state");
+  ok &= contains(gameplay_c,
+                 "blend=%.3fsampled_intensity=%.3f",
+                 "venue ParticleSys diagnostics expose source blend and raw sampled emission");
   ok &= contains(gameplay_c,
                  "it->speed_keys.size()",
                  "venue particle sample logs include decoded source speed keys");
@@ -5117,13 +5156,14 @@ int main() {
                  "lighting overlay particles only replace matching persistence rows");
   ok &= contains(gameplay_c,
                  "active_lighting_particles_.back().duration_seconds,"
+                 "active_lighting_particles_.back().source_blend,"
                  "persistent?\"persistent\":\"transient\");",
-                 "lighting ParticleSys diagnostics expose transient ownership");
+                 "lighting ParticleSys diagnostics expose transient ownership and source blend");
   ok &= contains(gameplay_c,
                  "it->emission_keys.size(),it->speed_keys.size(),"
                  "it->life_keys.size(),it->size_keys.size(),"
-                 "it->persistent?1:0);",
-                 "lighting ParticleSys samples log persistent state");
+                 "it->persistent?1:0,blend,sampled_intensity);",
+                 "lighting ParticleSys samples log persistent state and source blend");
   ok &= contains(gameplay_c,
                  "active_filter.persistent=persistent;",
                  "lighting overlay AnimFilters inherit transient versus persistent events");
@@ -8320,13 +8360,32 @@ int main() {
   ok &= contains(gameplay_c,
                  "boolauthored_gameplay_cameras_disabled(){"
                  "returnenv_value(\"GHOGX_DISABLE_AUTHORED_GAMEPLAY_CAMERAS\")!=nullptr;}",
-                 "authored PS2 gameplay cameras are the default gameplay path");
+                 "authored PS2 gameplay cameras keep an explicit disable gate");
+  ok &= contains(gameplay_c,
+                 "boolauthored_gameplay_cameras_enabled(){"
+                 "returnenv_value(\"GHOGX_USE_AUTHORED_GAMEPLAY_CAMERAS\")!="
+                 "nullptr&&!authored_gameplay_cameras_disabled();}",
+                 "authored PS2 gameplay cameras stay opt-in during venue validation");
+  ok &= contains(gameplay_c,
+                 "boolfallback_gameplay_backing_camera_disabled(){"
+                 "returnenv_value(\"GHOGX_DISABLE_FALLBACK_GAMEPLAY_BACKING_CAMERA\")"
+                 "!=nullptr;}",
+                 "venue backing camera has an explicit disable gate");
   ok &= contains(gameplay_c,
                  "boolfallback_gameplay_backing_camera_enabled(){",
-                 "legacy gameplay backing camera is behind an explicit fallback gate");
+                 "legacy gameplay backing camera is the venue validation default");
+  ok &= contains(gameplay_c,
+                 "return!fallback_gameplay_backing_camera_disabled()||"
+                 "authored_gameplay_cameras_disabled();",
+                 "fallback backing camera remains active unless explicitly disabled");
   ok &= contains(gameplay_c,
                  "!fallback_gameplay_backing_camera_enabled()",
-                 "fallback backing camera does not override authored source cameras by default");
+                 "fallback backing camera can be disabled for authored-camera validation");
+  ok &= contains(gameplay_c,
+                 "constboolauthored_gameplay_cameras_active="
+                 "!diagnostic_camera_shot_.empty()||"
+                 "authored_gameplay_cameras_enabled();",
+                 "authored gameplay cameras do not hide venue floor by default");
   ok &= contains(gameplay_c,
                  "debug_gameplay_camera_enabled()",
                  "manual gameplay camera diagnostics bypass the fallback backing camera");
