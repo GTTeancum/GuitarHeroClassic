@@ -2195,8 +2195,9 @@ static int source_char_hair_simulate_internal(Character& character,
                                               const CharHair& hair,
                                               SourceCharHairRuntime& state,
                                               float fps, float inertia,
-                                              float friction) {
-  if (!hair.simulate || hair.strands.empty()) return 0;
+                                              float friction,
+                                              bool force_simulate = false) {
+  if ((!force_simulate && !hair.simulate) || hair.strands.empty()) return 0;
   const float safe_fps = fps > 0.0f ? fps : 60.0f;
   const float sixty_over = 60.0f / safe_fps;
   const float f19 = (1.0f / safe_fps) * sixty_over;
@@ -2318,12 +2319,13 @@ static int source_char_hair_simulate_loops(Character& character,
                                            const CharHair& hair,
                                            SourceCharHairRuntime& state,
                                            int count, float fps,
-                                           float inertia, float friction) {
-  if (!hair.simulate || hair.strands.empty()) return 0;
+                                           float inertia, float friction,
+                                           bool force_simulate = false) {
+  if ((!force_simulate && !hair.simulate) || hair.strands.empty()) return 0;
   int write_count = 0;
   for (int i = 0; i < count; ++i) {
     write_count += source_char_hair_simulate_internal(
-        character, hair, state, fps, inertia, friction);
+        character, hair, state, fps, inertia, friction, force_simulate);
   }
   return write_count;
 }
@@ -2367,9 +2369,9 @@ static void source_char_hair_do_reset(Character& character, const CharHair& hair
     }
   }
 
-  source_char_hair_simulate_loops(character, hair, state,
-                                  std::max(reset_count, 0), 60.0f, 0.0f,
-                                  0.0f);
+  source_char_hair_simulate_loops(
+      character, hair, state, std::max(reset_count, 0),
+      source_char_hair_get_fps(true, 0.0f), 0.0f, 0.0f, true);
   state.reset = 0;
 }
 
@@ -3785,8 +3787,9 @@ static void apply_char_hair(Character& character, float time_seconds) {
     int write_count = 0;
     if (nonzero_delta) {
       write_count = source_char_hair_simulate_loops(character, hair, state, 1,
-                                                   60.0f, hair.inertia,
-                                                   hair.friction);
+                                                   source_char_hair_get_fps(
+                                                       true, 0.0f),
+                                                   hair.inertia, hair.friction);
     }
     state.last_time_seconds = time_seconds;
 

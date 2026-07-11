@@ -83,6 +83,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
   const std::string weight_setter_source_test =
       compact(read_file(char_dir / "character_weight_setter_source_test.cpp"));
+  const std::string char_hair_source_test =
+      compact(read_file(char_dir / "character_char_hair_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -880,6 +882,40 @@ int run_contract() {
   ok &= contains(rb3_latest_char_hair_cpp,
                  "Multiply(pt.unk5c,tf70,pt.pos);",
                  "RB3 CharHair reset seeds point position from unk5c");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "booltmpsim=mSimulate;floattmpinert=mInertia;"
+                 "floattmpfric=mFriction;mSimulate=true;mInertia=0;"
+                 "mFriction=0;SimulateLoops(reset,GetFPS());mSimulate=tmpsim;"
+                 "mFriction=tmpfric;mInertia=tmpinert;mReset=0;",
+                 "RB3 CharHair DoReset temporarily forces simulation");
+  ok &= contains(char_clip,
+                 "if((!force_simulate&&!hair.simulate)||hair.strands.empty())"
+                 "return0;",
+                 "native CharHair simulate loop has source reset force lane");
+  ok &= contains(char_clip,
+                 "source_char_hair_simulate_loops(character,hair,state,"
+                 "std::max(reset_count,0),source_char_hair_get_fps(true,0.0f),"
+                 "0.0f,0.0f,true);",
+                 "native CharHair DoReset forces source simulate lane");
+  ok &= contains(char_clip,
+                 "source_char_hair_get_fps(true,0.0f),hair.inertia,"
+                 "hair.friction",
+                 "native CharHair Poll uses source GetFPS helper");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_char_hair_source_test",
+                 "CMake builds CharHair source test");
+  ok &= contains(char_hair_source_test,
+                 "hair.simulate=false;",
+                 "deterministic CharHair test starts with disabled simulate flag");
+  ok &= contains(char_hair_source_test,
+                 "apply_character_controllers(character,0.0f,nullptr);",
+                 "deterministic CharHair test exercises public controller path");
+  ok &= contains(char_hair_source_test,
+                 "point.pos[2]<-1.9f&&point.pos[2]>-2.1f",
+                 "deterministic CharHair test proves reset forced simulation");
+  ok &= contains(doc,
+                 "Native reset follows that\n    forced-simulate lane",
+                 "document records native CharHair reset forced simulation");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "SimulateLoops(reset,GetFPS());",
                  "RB3 CharHair reset runs source simulate loops");

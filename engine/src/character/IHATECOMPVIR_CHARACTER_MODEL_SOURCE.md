@@ -334,8 +334,10 @@ note, and all report `unreadBytes=0`.
     resets after teleports, skips simulation for higher LODs, then calls
     `DoReset`, `SimulateLoops`, or `SimulateZeroTime` depending on runtime state.
   - `CharHair::DoReset` seeds each point from `unk5c` transformed by the root
-    parent world row, then calls `SimulateLoops(reset, GetFPS())` with inertia
-    and friction temporarily forced to zero.
+    parent world row, temporarily forces `mSimulate=true`, `mInertia=0`, and
+    `mFriction=0`, then calls `SimulateLoops(reset, GetFPS())` before restoring
+    the previous simulate/inertia/friction values. Native reset follows that
+    forced-simulate lane even when the decoded `simulate` flag is false.
   - `FreezePoseRaw` stores current point positions back into `unk5c` in the
     root-parent local basis. `FreezePose` performs a source `Hookup()`, simulates
     200 loops at 60 Hz, restores the previous simulate flag, then freezes those
