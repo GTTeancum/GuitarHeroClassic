@@ -916,6 +916,23 @@ int run_contract() {
   ok &= contains(rb3_latest_character_cpp,
                  "bs>>mLods;bs>>mShadow;",
                  "latest Character PostLoad reads lod/shadow rows");
+  ok &= contains(rb3_latest_character_cpp,
+                 "if(gRev>0xC)bs>>mFrozen;if(gRev>0xE)bs>>mMinLod;"
+                 "if(gRev>0x10)bs>>mTransGroup;if(gRev>9)mTest->Load(bs);",
+                 "latest Character PostLoad reads late revision rows");
+  ok &= contains(rb3_latest_character_cpp,
+                 "elseif(gRev>0xF)mTest->Load(bs);",
+                 "latest Character PostLoad proxy test-only branch");
+  ok &= contains(rb3_latest_character_cpp,
+                 "intotherrev=PopRev(this);intoldotherrev=gRev;"
+                 "ObjectDir::PostLoad(bs);gRev=oldotherrev;",
+                 "latest Character PostLoad legacy ObjectDir branch");
+  ok &= contains(rb3_latest_character_cpp,
+                 "gCharMe=otherrev<6?this:0;",
+                 "latest Character PostLoad legacy lod rename gate");
+  ok &= contains(rb3_latest_character_cpp,
+                 "mLods[i].SetScreenSize(mLods[i].ScreenSize()/rad);",
+                 "latest Character PostLoad legacy LOD screen-size scale");
   ok &= contains(rb3_latest_character_h,
                  "enumPollState{kCharCreated=0,kCharSyncObject=1,"
                  "kCharEntered=2,kCharPolled=3,kCharExited=4,};",
@@ -4024,6 +4041,13 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceCharacterLodStatesource_character_lod_default_state();",
                  "native exposes Character LOD default helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharacterLoadPlan{",
+                 "native exposes Character source load plan");
+  ok &= contains(char_mesh_h,
+                 "SourceCharacterLoadPlansource_character_load_plan("
+                 "intrevision,boolis_proxy,intlegacy_other_revision);",
+                 "native exposes Character source load helper");
   ok &= contains(char_mesh,
                  "SourceCharacterLodStatesource_character_lod_default_state(){"
                  "returnSourceCharacterLodState{};}",
@@ -4046,6 +4070,24 @@ int run_contract() {
                  "plan.properties={\"screen_size\",\"group\","
                  "\"trans_group\"};",
                  "native records Character LOD prop-sync rows");
+  ok &= contains(char_mesh,
+                 "SourceCharacterLoadPlansource_character_load_plan("
+                 "intrevision,boolis_proxy,intlegacy_other_revision){",
+                 "native implements Character source load helper");
+  ok &= contains(char_mesh,
+                 "plan.known_revision=revision>=0&&revision<=0x11;",
+                 "native Character load helper gates source revision");
+  ok &= contains(char_mesh,
+                 "if(revision<7)plan.preload_steps.push_back("
+                 "\"mRate=k1_fpb\");",
+                 "native Character load helper records legacy rate branch");
+  ok &= contains(char_mesh,
+                 "if(revision<4||!is_proxy){",
+                 "native Character load helper records proxy branch");
+  ok &= contains(char_mesh,
+                 "if(revision<8)plan.branches.push_back("
+                 "\"scaleLodScreenSizeBySphereRadius\");",
+                 "native Character load helper records LOD scale branch");
   ok &= contains(char_mesh,
                  "voidsource_character_enter(SourceCharacterState&state){"
                  "state.poll_state=SourceCharacterPollState::kEntered;"
@@ -4155,6 +4197,15 @@ int run_contract() {
                  "source_character_lod_prop_sync_plan()",
                  "focused Character test covers LOD prop sync");
   ok &= contains(character_source_test,
+                 "source_character_load_plan(0x11,false,0)",
+                 "focused Character test covers modern load plan");
+  ok &= contains(character_source_test,
+                 "source_character_load_plan(0x11,true,0)",
+                 "focused Character test covers proxy load plan");
+  ok &= contains(character_source_test,
+                 "source_character_load_plan(1,false,5)",
+                 "focused Character test covers legacy load plan");
+  ok &= contains(character_source_test,
                  "source_character_poll(state)",
                  "focused Character test covers Poll");
   ok &= contains(character_source_test,
@@ -4197,6 +4248,8 @@ int run_contract() {
                  "Native `source_character_lod_*` helpers record those "
                  "source rows",
                  "document records native Character LOD helpers");
+  ok &= contains(doc, "Native `source_character_load_plan` records",
+                 "document records native Character load helper");
   ok &= contains(char_mesh_h, "structSourceCharacterTestState{",
                  "native exposes CharacterTest default state");
   ok &= contains(char_mesh_h, "structSourceCharacterTestAddDefaultsResult{",

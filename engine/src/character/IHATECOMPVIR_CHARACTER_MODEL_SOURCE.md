@@ -306,6 +306,12 @@ into final transform rows.
   - `Character::PostLoad` delegates to `RndDir::PostLoad`, then reads
     character-owned LOD, shadow, self-shadow, sphere base, bounding, frozen,
     min LOD, trans group, and test rows behind source revision gates.
+  - Native `source_character_load_plan` records the `PreLoad` / `PostLoad`
+    branch order for source revisions `0..0x11`, including the legacy
+    `somerev` path, proxy-only test loading, pre-revision-7 rate default,
+    pre-revision-8 LOD screen-size scaling, and the old `lod%d.grp` rename
+    branch. This helper is a deterministic source contract only; it does not
+    decode or apply the root `Character` byte span.
 - `rb3-latest/src/system/rndobj/Dir.cpp`
   - `RndDir::PreLoad` reads packed revisions, asserts source revision `0xA`,
     pushes that revision, and delegates to `ObjectDir::PreLoad`.

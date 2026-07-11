@@ -536,6 +536,14 @@ struct SourceCharacterLodPropSyncPlan {
   std::vector<std::string> properties;
 };
 
+struct SourceCharacterLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> preload_steps;
+  std::vector<std::string> postload_steps;
+  std::vector<std::string> postload_reads;
+  std::vector<std::string> branches;
+};
+
 struct SourceCharacterPollResult {
   bool called_rnd_dir_poll = false;
   bool skipped_for_frozen = false;
@@ -1223,6 +1231,9 @@ void source_character_lod_assign(SourceCharacterLodState& dest,
                                  const SourceCharacterLodState& src);
 SourceCharacterLodCopyPlan source_character_lod_copy_plan();
 SourceCharacterLodPropSyncPlan source_character_lod_prop_sync_plan();
+SourceCharacterLoadPlan source_character_load_plan(int revision,
+                                                   bool is_proxy,
+                                                   int legacy_other_revision);
 void source_character_enter(SourceCharacterState& state);
 void source_character_exit(SourceCharacterState& state);
 SourceCharacterPollResult source_character_poll(SourceCharacterState& state);

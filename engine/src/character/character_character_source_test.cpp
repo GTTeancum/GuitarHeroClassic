@@ -1,10 +1,15 @@
 #include "character/char_mesh.h"
 
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <vector>
 
 namespace {
+
+bool has(const std::vector<std::string>& values, const std::string& value) {
+  return std::find(values.begin(), values.end(), value) != values.end();
+}
 
 bool expect_bool(bool got, bool want, const char* label) {
   if (got == want) return true;
@@ -62,6 +67,7 @@ int main() {
   using ghogx::character::source_character_lod_copy_state;
   using ghogx::character::source_character_lod_default_state;
   using ghogx::character::source_character_lod_prop_sync_plan;
+  using ghogx::character::source_character_load_plan;
   using ghogx::character::source_char_lifecycle_plan;
   using ghogx::character::source_character_force_blink;
   using ghogx::character::source_character_poll;
@@ -138,6 +144,78 @@ int main() {
                       "LOD prop-sync group");
   ok &= expect_string(lod_props.properties[2], "trans_group",
                       "LOD prop-sync trans group");
+
+  auto bad_load = source_character_load_plan(0x12, false, 0);
+  ok &= expect_bool(bad_load.known_revision, false,
+                    "Character load rejects new revision");
+  ok &= expect_size(bad_load.preload_steps.size(), 0,
+                    "invalid Character load has no preload steps");
+
+  auto load_v17 = source_character_load_plan(0x11, false, 0);
+  ok &= expect_bool(load_v17.known_revision, true,
+                    "Character load accepts rev17");
+  ok &= expect_string(load_v17.preload_steps[0], "LOAD_REVS",
+                      "Character preload first step");
+  ok &= expect_bool(has(load_v17.preload_steps, "RndDir::PreLoad"), true,
+                    "Character rev17 PreLoad delegates to RndDir");
+  ok &= expect_bool(has(load_v17.preload_steps, "mRate=k1_fpb"), false,
+                    "Character rev17 keeps rate");
+  ok &= expect_bool(has(load_v17.postload_steps, "RndDir::PostLoad"), true,
+                    "Character rev17 PostLoad delegates to RndDir");
+  ok &= expect_bool(has(load_v17.postload_reads, "mLods"), true,
+                    "Character rev17 reads lods");
+  ok &= expect_bool(has(load_v17.postload_reads, "mTransGroup"), true,
+                    "Character rev17 reads trans group");
+  ok &= expect_bool(has(load_v17.postload_reads, "mTest"), true,
+                    "Character rev17 reads test");
+  ok &= expect_bool(
+      has(load_v17.branches, "scaleLodScreenSizeBySphereRadius"), false,
+      "Character rev17 does not scale lod screen size");
+
+  auto load_v17_proxy = source_character_load_plan(0x11, true, 0);
+  ok &= expect_bool(has(load_v17_proxy.postload_reads, "mLods"), false,
+                    "Character proxy rev17 skips lod rows");
+  ok &= expect_bool(has(load_v17_proxy.postload_reads, "mTest"), true,
+                    "Character proxy rev17 reads test only");
+  ok &= expect_bool(has(load_v17_proxy.branches, "proxyTestOnly"), true,
+                    "Character proxy rev17 branch recorded");
+
+  auto load_v6 = source_character_load_plan(6, false, 0);
+  ok &= expect_bool(has(load_v6.preload_steps, "mRate=k1_fpb"), true,
+                    "Character rev6 sets legacy rate");
+  ok &= expect_bool(has(load_v6.postload_reads, "legacyNestedLods"), true,
+                    "Character rev6 reads nested lods");
+  ok &= expect_bool(has(load_v6.branches, "mBounding.Zero"), true,
+                    "Character rev6 zeroes bounding");
+  ok &= expect_bool(
+      has(load_v6.branches, "legacyBoundingFromSphereWhenSelf"), true,
+      "Character rev6 legacy bounding branch");
+  ok &= expect_bool(
+      has(load_v6.branches, "scaleLodScreenSizeBySphereRadius"), true,
+      "Character rev6 scales lod screen size");
+
+  auto load_v1_legacy5 = source_character_load_plan(1, false, 5);
+  ok &= expect_bool(has(load_v1_legacy5.preload_steps, "somerev"), true,
+                    "Character legacy PreLoad reads somerev");
+  ok &= expect_bool(
+      has(load_v1_legacy5.preload_steps, "RndTransformable::Load"), true,
+      "Character legacy PreLoad reads transformable");
+  ok &= expect_bool(has(load_v1_legacy5.postload_steps, "ObjectDir::PostLoad"),
+                    true, "Character legacy PostLoad delegates ObjectDir");
+  ok &= expect_bool(has(load_v1_legacy5.postload_reads, "mEnv"), true,
+                    "Character legacy rev5 reads env");
+  ok &= expect_bool(has(load_v1_legacy5.postload_reads, "legacyNestedLods"),
+                    true, "Character legacy rev5 reads lods");
+  ok &= expect_bool(has(load_v1_legacy5.branches, "legacyRenameLods"), true,
+                    "Character legacy rev5 renames lod groups");
+  ok &= expect_bool(has(load_v1_legacy5.postload_reads, "mShadow"), false,
+                    "Character legacy rev5 does not read shadow");
+
+  auto load_v1_legacy7 = source_character_load_plan(1, false, 7);
+  ok &= expect_bool(has(load_v1_legacy7.branches, "legacyRenameLods"), false,
+                    "Character legacy rev7 keeps lod names");
+  ok &= expect_bool(has(load_v1_legacy7.postload_reads, "mShadow"), true,
+                    "Character legacy rev7 reads shadow");
 
   state.min_lod = 4;
   state.last_lod = 9;

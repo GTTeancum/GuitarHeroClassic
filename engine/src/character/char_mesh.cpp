@@ -2128,6 +2128,85 @@ SourceCharacterLodPropSyncPlan source_character_lod_prop_sync_plan() {
   return plan;
 }
 
+SourceCharacterLoadPlan source_character_load_plan(int revision,
+                                                   bool is_proxy,
+                                                   int legacy_other_revision) {
+  SourceCharacterLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 0x11;
+  if (!plan.known_revision) return plan;
+
+  plan.preload_steps = {"LOAD_REVS", "ASSERT_REVS(0x11,0)"};
+  if (revision > 1) {
+    plan.preload_steps.push_back("RndDir::PreLoad");
+    if (revision < 7) plan.preload_steps.push_back("mRate=k1_fpb");
+    plan.preload_steps.push_back("PushRev(packRevs(gAltRev,gRev))");
+  } else {
+    plan.preload_steps.push_back("somerev");
+    if (legacy_other_revision > 3) {
+      plan.preload_steps.push_back("RndTransformable::Load");
+      plan.preload_steps.push_back("RndDrawable::Load");
+    }
+    plan.preload_steps.push_back("ObjectDir::PreLoad");
+    plan.preload_steps.push_back("PushRev(somerev)");
+    plan.preload_steps.push_back("PushRev(packRevs(gAltRev,gRev))");
+  }
+
+  plan.postload_steps = {"PopRev(packRevs)", "gRev=getHmxRev",
+                         "gAltRev=getAltRev"};
+  if (revision > 1) {
+    plan.postload_steps.push_back("RndDir::PostLoad");
+    plan.postload_steps.push_back("gRev=oldRev");
+    if (revision < 4 || !is_proxy) {
+      if (revision < 9) {
+        plan.postload_reads.push_back("legacyNestedLods");
+      } else {
+        plan.postload_reads.push_back("mLods");
+      }
+      plan.postload_reads.push_back("mShadow");
+      if (revision > 2) {
+        plan.postload_reads.push_back("mSelfShadow");
+      } else {
+        plan.branches.push_back("mSelfShadow=false");
+      }
+      if (revision > 4) {
+        plan.postload_reads.push_back("mSphereBase");
+      } else {
+        plan.branches.push_back("mSphereBase=this");
+      }
+      if (revision > 0x0a) {
+        plan.postload_reads.push_back("mBounding");
+      } else {
+        plan.branches.push_back("mBounding.Zero");
+      }
+      if (revision < 0x0c) {
+        plan.branches.push_back("legacyBoundingFromSphereWhenSelf");
+      }
+      if (revision > 0x0c) plan.postload_reads.push_back("mFrozen");
+      if (revision > 0x0e) plan.postload_reads.push_back("mMinLod");
+      if (revision > 0x10) plan.postload_reads.push_back("mTransGroup");
+      if (revision > 9) plan.postload_reads.push_back("mTest");
+    } else if (revision > 0x0f) {
+      plan.postload_reads.push_back("mTest");
+      plan.branches.push_back("proxyTestOnly");
+    }
+  } else {
+    plan.postload_steps.push_back("PopRev(somerev)");
+    plan.postload_steps.push_back("ObjectDir::PostLoad");
+    plan.postload_steps.push_back("gRev=oldotherrev");
+    if (legacy_other_revision > 4) plan.postload_reads.push_back("mEnv");
+    if (legacy_other_revision > 3) {
+      plan.postload_reads.push_back("legacyNestedLods");
+      if (legacy_other_revision < 6) plan.branches.push_back("legacyRenameLods");
+    } else {
+      plan.branches.push_back("mLods.clear");
+    }
+    if (legacy_other_revision > 6) plan.postload_reads.push_back("mShadow");
+  }
+
+  if (revision < 8) plan.branches.push_back("scaleLodScreenSizeBySphereRadius");
+  return plan;
+}
+
 void source_character_enter(SourceCharacterState& state) {
   state.poll_state = SourceCharacterPollState::kEntered;
   state.min_lod = -1;
