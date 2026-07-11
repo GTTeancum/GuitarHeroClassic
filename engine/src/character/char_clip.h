@@ -34,6 +34,28 @@ struct CharClip {
     std::string parent;  // CharBone parent, normally another *.trans
     milo_scene::Xfm local;
     milo_scene::Xfm world_stored;
+    uint32_t char_bone_version = 0;
+    uint32_t trans_version = 0;
+    uint32_t trans_constraint = 0;
+    std::string trans_target;
+    bool preserve_scale = false;
+    int32_t position_context = 0;
+    int32_t scale_context = 0;
+    int32_t rotation_type = 6;  // ihatecompvir CharBones::TYPE_END.
+    int32_t rotation_context = 0;
+    int32_t legacy_pre_rev5_int = 0;
+    bool has_legacy_pre_rev5_int = false;
+    int32_t legacy_rev3_to_7_int = 0;
+    bool has_legacy_rev3_to_7_int = false;
+    std::string target;
+    struct WeightContext {
+      int32_t context = 0;
+      float weight = 0.0f;
+    };
+    std::vector<WeightContext> weights;
+    std::string trans;
+    bool bake_out_as_top_level = false;
+    size_t unread_bytes = 0;
   };
   // Animation MILOs carry CharBone output records beside CharClipSamples.
   // The public ihatecompvir snapshot used by this worktree does not include

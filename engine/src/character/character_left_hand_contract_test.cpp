@@ -271,8 +271,8 @@ int main() {
                  "bone.local=prop_anchor->local;",
                  "renderer prop reconciliation does not inject live animation target rows");
   ok &= contains(char_clip_c,
-                 "[clip-output]%-28sparent=%-28slocalPos=(%.3f%.3f%.3f)",
-                 "live fret-hand target rows are decoded from CharBone output data");
+                 "[clip-output]%-28ssourceCharBoneversion=%u",
+                 "live fret-hand target rows are decoded from source CharBone output data");
   ok &= contains(char_clip_c,
                  "returnis_hand_driver_root_key(key)||key==\"bone_facing\"",
                  "CharBone output diagnostics include fret-hand root targets");

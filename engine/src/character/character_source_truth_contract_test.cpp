@@ -229,6 +229,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharBones.cpp"));
   const std::string rb3_latest_char_bones_h = compact(read_file(
       rb3_latest_char_dir / "CharBones.h"));
+  const std::string rb3_latest_char_bone_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharBone.cpp"));
+  const std::string rb3_latest_char_bone_h = compact(read_file(
+      rb3_latest_char_dir / "CharBone.h"));
   const std::string rb3_latest_char_clip_h = compact(read_file(
       rb3_latest_char_dir / "CharClip.h"));
   const std::string rb3_latest_char_clip_cpp = compact(read_file(
@@ -278,7 +282,8 @@ int run_contract() {
                  "document includes source coverage matrix");
   ok &= contains(doc,
                  "| Clip sample/output publishing | `rb3-latest` `CharClip` / "
-                 "`CharBones` / `CharBonesSamples`, `rb3-retail-old` RB2 dump, "
+                 "`CharBones` / `CharBonesSamples` / `CharBone`, "
+                 "`MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, "
                  "`band3_recomp` symbols |",
                  "coverage matrix cites current CharClip source evidence");
   ok &= contains(doc,
@@ -296,7 +301,8 @@ int run_contract() {
                  "coverage matrix records native CharClipGroup GetClip slice");
   ok &= contains(doc,
                  "Channel naming, compression sizing, sample interpolation "
-                 "wrappers, and partial call flow are source-backed",
+                 "wrappers, CharBone output row fields, and partial call flow "
+                 "are source-backed",
                  "coverage matrix records concrete CharBones source evidence");
   ok &= contains(doc,
                  "sample decode/evaluate and broad pose publishing remain "
@@ -2482,6 +2488,78 @@ int run_contract() {
                  "clip audit emits accepted frame/channel/output-bone evidence");
   ok &= missing(char_clip, "out.compression>3",
                 "native clip decoder no longer caps source compression at mode 3");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "if(gRev<9){RndTransformableRemoverremover;"
+                 "remover.Load(bs);}",
+                 "latest CharBone source loads legacy transform remover");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "if(gRev>6)bs>>mPositionContext;else{boolb;bs>>b;"
+                 "mPositionContext=b;}",
+                 "latest CharBone source gates position context");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "if(gRev>6)bs>>mScaleContext;elseif(gRev>1){boolb;"
+                 "bs>>b;mScaleContext=b;}",
+                 "latest CharBone source gates scale context");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "bs>>(int&)mRotation;if(gRev<5){inti;bs>>i;}",
+                 "latest CharBone source reads rotation and legacy rev5 int");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "if(gRev>6)bs>>mRotationContext;elsemRotationContext="
+                 "mRotation!=CharBones::TYPE_END;",
+                 "latest CharBone source gates rotation context");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "if(gRev>7)bs>>mWeights;if(gRev>8)bs>>mTrans;"
+                 "if(gRev>9)bs>>mBakeOutAsTopLevel;",
+                 "latest CharBone source gates weights, trans, and bake flag");
+  ok &= contains(rb3_latest_char_bone_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mTrans;",
+                 "latest CharBone header exposes source trans pointer field");
+  ok &= contains(trans_cs,
+                 "if(revision>6)constraint=(Constraint)reader.ReadUInt32();"
+                 "if(revision>5)target=Symbol.Read(reader);if(revision>6)"
+                 "preserveScale=reader.ReadBoolean();parentObj=Symbol.Read(reader);",
+                 "MiloEditor RndTrans source defines embedded transform row order");
+  ok &= contains(char_clip_h,
+                 "uint32_tchar_bone_version=0;uint32_ttrans_version=0;"
+                 "uint32_ttrans_constraint=0;",
+                 "native OutputBone carries source CharBone and transform revisions");
+  ok &= contains(char_clip_h,
+                 "int32_tposition_context=0;int32_tscale_context=0;"
+                 "int32_trotation_type=6;",
+                 "native OutputBone carries source CharBone contexts");
+  ok &= contains(char_clip_h,
+                 "std::vector<WeightContext>weights;std::stringtrans;"
+                 "boolbake_out_as_top_level=false;size_tunread_bytes=0;",
+                 "native OutputBone carries source CharBone optional tail fields");
+  ok &= contains(char_clip,
+                 "out.char_bone_version=read_u32_at(body,size,pos,"
+                 "\"CharBoneversion\");skip_bytes_at(body,size,pos,9,"
+                 "\"CharBoneobjectfields\");if(out.char_bone_version<9)",
+                 "native CharBone output decoder reads source object prefix and rev gate");
+  ok &= contains(char_clip,
+                 "out.trans_constraint=read_u32_at(body,size,pos,"
+                 "\"RndTransformableconstraint\");",
+                 "native CharBone output decoder reads embedded transform constraint");
+  ok &= contains(char_clip,
+                 "out.position_context=read_u8_at(body,size,pos,"
+                 "\"CharBonelegacypositioncontext\")?1:0;",
+                 "native CharBone output decoder follows legacy position bool gate");
+  ok &= contains(char_clip,
+                 "out.rotation_type=read_i32_at(body,size,pos,"
+                 "\"CharBonerotationtype\");",
+                 "native CharBone output decoder reads source rotation type");
+  ok &= contains(char_clip,
+                 "out.unread_bytes=size-pos;",
+                 "native CharBone output decoder records unread byte proof");
+  ok &= contains(char_clip,
+                 "\"[clip-output]%-28ssourceCharBoneversion=%u\"",
+                 "native clip debug log labels source CharBone rows");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharBone.cpp` and",
+                 "document cites latest CharBone source");
+  ok &= contains(doc,
+                 "Native clip output rows now decode and log those fields",
+                 "document records native CharBone row decode");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "voidCharBones::ScaleAdd(CharClip*clip,floatf1,floatf2,"
                  "floatf3){clip->ScaleAdd(*this,f1,f2,f3);}",

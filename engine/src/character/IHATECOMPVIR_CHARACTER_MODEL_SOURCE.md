@@ -47,7 +47,7 @@ records the upstream commits for the copied files:
 | Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
 | Poll groups | `rb3-latest` `CharPollGroup.cpp` | Source `Load`/`Poll` shape is known, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
-| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
+| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, CharBone output row fields, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
 | Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
 
 ## Remaining Character Import Checklist
@@ -703,6 +703,23 @@ note, and all report `unreadBytes=0`.
   `CharClipDriver`, `CharDriver`, `CharBones`, `CharBonesSamples`,
   `CharBonesMeshes`, and related clip runtime classes. The previous local note
   that public ihatecompvir source had no clip/sample layer is obsolete.
+- `rb3-latest/src/system/char/CharBone.cpp` and
+  `rb3-latest/src/system/char/CharBone.h` are concrete for clip output
+  `CharBone` rows:
+  - `CharBone::Load` reads `Hmx::Object`, a legacy
+    `RndTransformableRemover` block for revisions below 9, then source-gated
+    position context, scale context, rotation type, legacy integers, rotation
+    context, target, weights, trans pointer, and bake-out flag.
+  - Native clip output rows now decode and log those fields instead of treating
+    the bytes after the output transform parent as opaque. The embedded
+    transform bytes follow the ihatecompvir `MiloEditor` `RndTrans.Read`
+    serialization order already used by the shared native transform decoder:
+    local/world matrices, legacy child list, constraint, target, preserve-scale,
+    and parent.
+  - This is row decode and diagnostic evidence only. It does not promote broad
+    `CharBone` pose publishing; the existing output bridge remains bounded until
+    the connected `CharClip` / `CharBonesSamples` evaluation path is fully
+    source-backed.
 - `rb3-latest/src/system/char/CharBones.cpp` is concrete for channel identity
   and byte layout:
   - `CharBones::TypeOf` maps suffixes `.pos`, `.scale`, `.quat`, `.rotx`,

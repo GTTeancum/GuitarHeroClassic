@@ -902,6 +902,47 @@ static std::string read_len_string(const uint8_t* data, size_t size,
   return s;
 }
 
+static uint8_t read_u8_at(const uint8_t* data, size_t size, size_t& pos,
+                          const char* label) {
+  if (pos + 1 > size) {
+    throw std::runtime_error(std::string("short ") + label);
+  }
+  return data[pos++];
+}
+
+static void skip_bytes_at(const uint8_t* data, size_t size, size_t& pos,
+                          size_t count, const char* label) {
+  (void)data;
+  if (pos + count > size) {
+    throw std::runtime_error(std::string("short ") + label);
+  }
+  pos += count;
+}
+
+static uint32_t read_u32_at(const uint8_t* data, size_t size, size_t& pos,
+                            const char* label) {
+  if (pos + 4 > size) {
+    throw std::runtime_error(std::string("short ") + label);
+  }
+  uint32_t value = 0;
+  std::memcpy(&value, data + pos, 4);
+  pos += 4;
+  return value;
+}
+
+static int32_t read_i32_at(const uint8_t* data, size_t size, size_t& pos,
+                           const char* label) {
+  return static_cast<int32_t>(read_u32_at(data, size, pos, label));
+}
+
+static float read_f32_at(const uint8_t* data, size_t size, size_t& pos,
+                         const char* label) {
+  const uint32_t raw = read_u32_at(data, size, pos, label);
+  float value = 0.0f;
+  std::memcpy(&value, &raw, 4);
+  return value;
+}
+
 static milo_scene::Xfm read_xfm_at(const uint8_t* data, size_t size,
                                    size_t& pos) {
   if (pos + 48 > size) throw std::runtime_error("short matrix");
@@ -921,29 +962,106 @@ static milo_scene::Xfm read_xfm_at(const uint8_t* data, size_t size,
 
 static CharClip::OutputBone decode_output_bone(
     const std::string& entry_name, const uint8_t* body, size_t size) {
-  // CharBone entries in GH2 animation MILOs are version 2 objects with an
-  // embedded Trans v9 block:
-  //   i32 CharBone version, 9 object-meta bytes, i32 Trans version,
-  //   local matrix, stored/world matrix, 9 Trans-meta bytes, parent string.
-  if (size < 4 + 9 + 4 + 48 + 48 + 9 + 4)
-    throw std::runtime_error("short CharBone");
   size_t pos = 0;
-  uint32_t version = 0;
-  std::memcpy(&version, body + pos, 4);
-  pos += 4;
-  if (version != 2) throw std::runtime_error("unexpected CharBone version");
-  pos += 9;
-  uint32_t trans_version = 0;
-  std::memcpy(&trans_version, body + pos, 4);
-  pos += 4;
-  if (trans_version != 9)
-    throw std::runtime_error("unexpected CharBone Trans version");
   CharClip::OutputBone out;
   out.name = entry_name;
-  out.local = read_xfm_at(body, size, pos);
-  out.world_stored = read_xfm_at(body, size, pos);
-  pos += 9;
-  out.parent = read_len_string(body, size, pos);
+  out.char_bone_version = read_u32_at(body, size, pos, "CharBone version");
+  skip_bytes_at(body, size, pos, 9, "CharBone object fields");
+  if (out.char_bone_version < 9) {
+    out.trans_version = read_u32_at(body, size, pos, "RndTransformable version");
+    out.local = read_xfm_at(body, size, pos);
+    out.world_stored = read_xfm_at(body, size, pos);
+    if (out.trans_version < 9) {
+      const uint32_t child_count =
+          read_u32_at(body, size, pos, "legacy trans child count");
+      for (uint32_t i = 0; i < child_count; ++i) {
+        (void)read_len_string(body, size, pos);
+      }
+    }
+    if (out.trans_version > 6) {
+      out.trans_constraint =
+          read_u32_at(body, size, pos, "RndTransformable constraint");
+    }
+    if (out.trans_version > 5) {
+      out.trans_target = read_len_string(body, size, pos);
+    }
+    if (out.trans_version > 6) {
+      out.preserve_scale =
+          read_u8_at(body, size, pos, "RndTransformable preserve scale") != 0;
+    }
+    out.parent = read_len_string(body, size, pos);
+  }
+
+  if (out.char_bone_version > 6) {
+    out.position_context =
+        read_i32_at(body, size, pos, "CharBone position context");
+  } else {
+    out.position_context =
+        read_u8_at(body, size, pos, "CharBone legacy position context") ? 1 : 0;
+  }
+  if (out.char_bone_version > 6) {
+    out.scale_context =
+        read_i32_at(body, size, pos, "CharBone scale context");
+  } else if (out.char_bone_version > 1) {
+    out.scale_context =
+        read_u8_at(body, size, pos, "CharBone legacy scale context") ? 1 : 0;
+  }
+  out.rotation_type = read_i32_at(body, size, pos, "CharBone rotation type");
+  if (out.char_bone_version < 5) {
+    out.legacy_pre_rev5_int =
+        read_i32_at(body, size, pos, "CharBone pre-rev5 legacy int");
+    out.has_legacy_pre_rev5_int = true;
+  }
+  if (out.char_bone_version < 2) {
+    out.scale_context = 0;
+    ++out.rotation_type;
+  }
+  constexpr int32_t kSourceTypeEnd = 6;
+  if (out.char_bone_version < 5 && out.rotation_type > kSourceTypeEnd) {
+    out.rotation_type = kSourceTypeEnd;
+  }
+  if (out.char_bone_version > 6) {
+    out.rotation_context =
+        read_i32_at(body, size, pos, "CharBone rotation context");
+  } else {
+    out.rotation_context = out.rotation_type != kSourceTypeEnd ? 1 : 0;
+  }
+  if (out.char_bone_version == 3 || out.char_bone_version == 4 ||
+      out.char_bone_version == 5 || out.char_bone_version == 6 ||
+      out.char_bone_version == 7) {
+    out.legacy_rev3_to_7_int =
+        read_i32_at(body, size, pos, "CharBone rev3-7 legacy int");
+    out.has_legacy_rev3_to_7_int = true;
+  }
+  if (out.char_bone_version > 3) {
+    out.target = read_len_string(body, size, pos);
+  }
+  if (out.char_bone_version == 6) {
+    const int32_t ctx =
+        read_i32_at(body, size, pos, "CharBone rev6 shared context");
+    if (out.position_context != 0) out.position_context = ctx;
+    if (out.scale_context != 0) out.scale_context = ctx;
+    if (out.rotation_context != 0) out.rotation_context = ctx;
+  }
+  if (out.char_bone_version > 7) {
+    const uint32_t count =
+        read_u32_at(body, size, pos, "CharBone weight count");
+    out.weights.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+      CharClip::OutputBone::WeightContext weight;
+      weight.context = read_i32_at(body, size, pos, "CharBone weight context");
+      weight.weight = read_f32_at(body, size, pos, "CharBone weight value");
+      out.weights.push_back(weight);
+    }
+  }
+  if (out.char_bone_version > 8) {
+    out.trans = read_len_string(body, size, pos);
+  }
+  if (out.char_bone_version > 9) {
+    out.bake_out_as_top_level =
+        read_u8_at(body, size, pos, "CharBone bake out flag") != 0;
+  }
+  out.unread_bytes = size - pos;
   return out;
 }
 
@@ -970,9 +1088,24 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
         if (debug_clip_enabled()) {
           const auto& out = result.output_bones.back();
           std::fprintf(stderr,
-                       "[clip-output] %-28s parent=%-28s localPos=(%.3f %.3f %.3f)\n",
-                       out.name.c_str(), out.parent.c_str(), out.local.pos[0],
-                       out.local.pos[1], out.local.pos[2]);
+                       "[clip-output] %-28s sourceCharBone version=%u "
+                       "transVersion=%u constraint=%u target=%s preserve=%d "
+                       "parent=%-28s posCtx=%d scaleCtx=%d rotType=%d "
+                       "rotCtx=%d charTarget=%s weights=%zu trans=%s "
+                       "bakeOut=%d unreadBytes=%zu "
+                       "localPos=(%.3f %.3f %.3f)\n",
+                       out.name.c_str(), out.char_bone_version,
+                       out.trans_version, out.trans_constraint,
+                       out.trans_target.empty() ? "<none>"
+                                                : out.trans_target.c_str(),
+                       out.preserve_scale ? 1 : 0, out.parent.c_str(),
+                       out.position_context, out.scale_context,
+                       out.rotation_type, out.rotation_context,
+                       out.target.empty() ? "<none>" : out.target.c_str(),
+                       out.weights.size(),
+                       out.trans.empty() ? "<none>" : out.trans.c_str(),
+                       out.bake_out_as_top_level ? 1 : 0, out.unread_bytes,
+                       out.local.pos[0], out.local.pos[1], out.local.pos[2]);
         }
       } catch (const std::exception& ex) {
         if (debug_clip_enabled()) {
