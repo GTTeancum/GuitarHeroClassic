@@ -199,6 +199,28 @@ int source_char_bones_find_offset(const SourceCharBonesState& state,
   return -1;
 }
 
+SourceCharBonesFindPtrResult source_char_bones_find_ptr(
+    const SourceCharBonesState& state,
+    const std::string& channel) {
+  SourceCharBonesFindPtrResult result;
+  result.offset = source_char_bones_find_offset(state, channel);
+  result.found = result.offset != -1;
+  return result;
+}
+
+void source_char_bones_zero(std::vector<uint8_t>& start, int total_size) {
+  std::fill(start.begin(), start.begin() + total_size, uint8_t{0});
+}
+
+SourceCharBonesScaleAddClipStep source_char_bones_scale_add_clip_step(
+    float f1, float f2, float f3) {
+  SourceCharBonesScaleAddClipStep step;
+  step.f1 = f1;
+  step.f2 = f2;
+  step.f3 = f3;
+  return step;
+}
+
 CharClip::OutputBone source_char_bone_copy_members(
     const CharClip::OutputBone& source) {
   CharClip::OutputBone dest;

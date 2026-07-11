@@ -49,6 +49,18 @@ struct SourceCharBonesState {
   std::vector<SourceCharBonesBone> bones;
 };
 
+struct SourceCharBonesFindPtrResult {
+  bool found = false;
+  int offset = -1;
+};
+
+struct SourceCharBonesScaleAddClipStep {
+  bool call_clip_scale_add = true;
+  float f1 = 0.0f;
+  float f2 = 0.0f;
+  float f3 = 0.0f;
+};
+
 struct SourceCharBonesSamplesState {
   SourceCharBonesState bones;
   int num_samples = 0;
@@ -585,6 +597,12 @@ void source_char_bones_list_bones(const SourceCharBonesState& state,
                                   std::vector<SourceCharBonesBone>& bones);
 int source_char_bones_find_offset(const SourceCharBonesState& state,
                                   const std::string& channel);
+SourceCharBonesFindPtrResult source_char_bones_find_ptr(
+    const SourceCharBonesState& state,
+    const std::string& channel);
+void source_char_bones_zero(std::vector<uint8_t>& start, int total_size);
+SourceCharBonesScaleAddClipStep source_char_bones_scale_add_clip_step(
+    float f1, float f2, float f3);
 
 // Source-backed CharBone helpers for decoded CharClip output rows.
 CharClip::OutputBone source_char_bone_copy_members(

@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -81,6 +82,29 @@ bool expect_compression_update(
     ok = false;
   }
   ok &= expect_layout(got.layout, offsets, total_size, label);
+  return ok;
+}
+
+bool expect_zeroed_prefix(const std::vector<uint8_t>& bytes, size_t zero_count,
+                          uint8_t tail_value, const char* label) {
+  bool ok = true;
+  for (size_t i = 0; i < zero_count; ++i) {
+    if (bytes[i] != 0) {
+      std::cerr << label << " byte[" << i << "]: got "
+                << static_cast<int>(bytes[i]) << " want 0\n";
+      ok = false;
+      break;
+    }
+  }
+  for (size_t i = zero_count; i < bytes.size(); ++i) {
+    if (bytes[i] != tail_value) {
+      std::cerr << label << " tail[" << i << "]: got "
+                << static_cast<int>(bytes[i]) << " want "
+                << static_cast<int>(tail_value) << "\n";
+      ok = false;
+      break;
+    }
+  }
   return ok;
 }
 
@@ -240,6 +264,28 @@ int main() {
                    -1, "FindOffset missing same type");
   ok &= expect_int(source_char_bones_find_offset(lookup_state, "bone_a"),
                    -1, "FindOffset invalid suffix");
+  const SourceCharBonesFindPtrResult find_ptr_hit =
+      source_char_bones_find_ptr(lookup_state, "bone_b.quat");
+  ok &= expect_int(find_ptr_hit.found ? 1 : 0, 1, "FindPtr hit found");
+  ok &= expect_int(find_ptr_hit.offset, 52, "FindPtr hit offset");
+  const SourceCharBonesFindPtrResult find_ptr_missing =
+      source_char_bones_find_ptr(lookup_state, "bone_missing.quat");
+  ok &= expect_int(find_ptr_missing.found ? 1 : 0, 0,
+                   "FindPtr missing found");
+  ok &= expect_int(find_ptr_missing.offset, -1, "FindPtr missing offset");
+  std::vector<uint8_t> raw_bytes(
+      static_cast<size_t>(lookup_state.layout.total_size + 4), uint8_t{0xAB});
+  source_char_bones_zero(raw_bytes, lookup_state.layout.total_size);
+  ok &= expect_zeroed_prefix(raw_bytes,
+                             static_cast<size_t>(lookup_state.layout.total_size),
+                             uint8_t{0xAB}, "Zero byte span");
+  const SourceCharBonesScaleAddClipStep scale_add_clip =
+      source_char_bones_scale_add_clip_step(0.25f, 12.5f, 0.75f);
+  ok &= expect_int(scale_add_clip.call_clip_scale_add ? 1 : 0, 1,
+                   "ScaleAdd clip delegation");
+  ok &= expect_float(scale_add_clip.f1, 0.25f, "ScaleAdd f1");
+  ok &= expect_float(scale_add_clip.f2, 12.5f, "ScaleAdd f2");
+  ok &= expect_float(scale_add_clip.f3, 0.75f, "ScaleAdd f3");
 
   source_char_bones_clear(state);
   ok &= expect_empty_state(state, "ClearBones state reset");

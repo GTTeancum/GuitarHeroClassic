@@ -5899,8 +5899,17 @@ int run_contract() {
                  "helper slice also ports `FindOffset` over native source-state rows",
                  "document records concrete CharBones FindOffset slice");
   ok &= contains(doc,
-                 "It does not expose a native `FindPtr` pointer into live sample storage",
+                 "Native `source_char_bones_find_ptr` preserves the concrete `FindPtr`",
+                 "document records concrete CharBones FindPtr decision slice");
+  ok &= contains(doc,
+                 "It still does not expose a live native pointer",
                  "document fences native CharBones FindPtr pointer path");
+  ok &= contains(doc,
+                 "Native `source_char_bones_zero` ports the concrete `Zero` byte span",
+                 "document records concrete CharBones Zero slice");
+  ok &= contains(doc,
+                 "`source_char_bones_scale_add_clip_step` records that delegation",
+                 "document records concrete CharBones ScaleAdd delegation slice");
   ok &= contains(doc,
                  "does not include a\n"
                  "  reviewable `Evaluate` or `Poll` body",
@@ -6210,6 +6219,15 @@ int run_contract() {
                  "source_char_bones_find_offset(lookup_state,\"bone_missing.pos\")",
                  "focused CharBones source test covers missing FindOffset row");
   ok &= contains(char_bones_source_test,
+                 "source_char_bones_find_ptr(lookup_state,\"bone_b.quat\")",
+                 "focused CharBones source test covers FindPtr hit");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_zero(raw_bytes,lookup_state.layout.total_size)",
+                 "focused CharBones source test covers Zero byte span");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_scale_add_clip_step(0.25f,12.5f,0.75f)",
+                 "focused CharBones source test covers ScaleAdd delegation args");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_clear(state);",
                  "focused CharBones source test covers ClearBones reset");
   ok &= contains(char_bones_source_test,
@@ -6351,6 +6369,13 @@ int run_contract() {
   ok &= contains(rb3_latest_char_bones_cpp,
                  "elseoffset+=size;}return-1;}",
                  "latest CharBones source defines FindOffset offset advance");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "void*CharBones::FindPtr(Symbols)const{intoffset=FindOffset(s);"
+                 "if(offset==-1)return0;elsereturn(void*)&mStart[offset];}",
+                 "latest CharBones source defines FindPtr pointer decision");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBones::Zero(){memset(mStart,0,mTotalSize);}",
+                 "latest CharBones source defines Zero byte span");
   ok &= contains(char_clip,
                  "kSourceCompressAll=4",
                  "native clip decoder names source compression mode 4");
@@ -6365,6 +6390,21 @@ int run_contract() {
                  "intsource_char_bones_find_offset(constSourceCharBonesState&state,"
                  "conststd::string&channel);",
                  "native exposes CharBones FindOffset helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesFindPtrResult{boolfound=false;intoffset=-1;};",
+                 "native exposes CharBones FindPtr decision row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesFindPtrResultsource_char_bones_find_ptr("
+                 "constSourceCharBonesState&state,conststd::string&channel);",
+                 "native exposes CharBones FindPtr helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bones_zero(std::vector<uint8_t>&start,"
+                 "inttotal_size);",
+                 "native exposes CharBones Zero helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesScaleAddClipStepsource_char_bones_scale_add_clip_step("
+                 "floatf1,floatf2,floatf3);",
+                 "native exposes CharBones ScaleAdd delegation helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_find_offset(constSourceCharBonesState&state,"
                  "conststd::string&channel){constinttype=source_char_bones_type_of"
@@ -6378,6 +6418,24 @@ int run_contract() {
                  "state.bones[static_cast<size_t>(bone_index)].name==channel)"
                  "{returnoffset;}",
                  "native CharBones FindOffset returns matching source row offset");
+  ok &= contains(char_clip,
+                 "SourceCharBonesFindPtrResultsource_char_bones_find_ptr("
+                 "constSourceCharBonesState&state,conststd::string&channel){"
+                 "SourceCharBonesFindPtrResultresult;result.offset="
+                 "source_char_bones_find_offset(state,channel);result.found="
+                 "result.offset!=-1;returnresult;}",
+                 "native CharBones FindPtr helper mirrors source pointer decision");
+  ok &= contains(char_clip,
+                 "voidsource_char_bones_zero(std::vector<uint8_t>&start,"
+                 "inttotal_size){std::fill(start.begin(),start.begin()+"
+                 "total_size,uint8_t{0});}",
+                 "native CharBones Zero helper mirrors source memset span");
+  ok &= contains(char_clip,
+                 "SourceCharBonesScaleAddClipStep"
+                 "source_char_bones_scale_add_clip_step(floatf1,floatf2,floatf3){"
+                 "SourceCharBonesScaleAddClipStepstep;step.f1=f1;step.f2=f2;"
+                 "step.f3=f3;returnstep;}",
+                 "native CharBones ScaleAdd helper preserves source arguments");
   ok &= contains(char_clip, "offset+=type_size;",
                  "native CharBones FindOffset advances source packed offsets");
   ok &= contains(char_clip,

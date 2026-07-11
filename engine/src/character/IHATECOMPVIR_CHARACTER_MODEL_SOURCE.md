@@ -1330,10 +1330,16 @@ note, and all report `unreadBytes=0`.
     helper slice also ports `FindOffset` over native source-state rows: it
     derives the channel type, scans only the corresponding cumulative type
     range, advances by the source packed type size, and returns `-1` for absent
-    rows. It does not expose a native `FindPtr` pointer into live sample storage
-    until source sample evaluation bodies are ported.
+    rows. Native `source_char_bones_find_ptr` preserves the concrete `FindPtr`
+    decision shape as a found offset: source would return `0` for `-1`, or
+    `&mStart[offset]` for a hit. It still does not expose a live native pointer
+    into sample storage until source sample evaluation bodies are ported.
+    Native `source_char_bones_zero` ports the concrete `Zero` byte span:
+    `memset(mStart, 0, mTotalSize)`.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
-    call-flow hook, not a standalone pose evaluator.
+    call-flow hook, not a standalone pose evaluator. Native
+    `source_char_bones_scale_add_clip_step` records that delegation and preserves
+    the same three float arguments.
 - `rb3-latest/src/system/char/CharBonesSamples.cpp` is concrete for sample
   ownership and interpolation wrappers:
   - `Set`/`Clone` allocate `mRawData` from `AllocateSize()`.
