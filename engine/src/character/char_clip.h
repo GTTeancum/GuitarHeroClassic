@@ -253,9 +253,54 @@ int source_char_clip_group_num_flag_duplicates(
 std::vector<std::string> source_char_clip_group_sorted_names(
     std::vector<std::string> clip_names);
 
+struct SourceCharClipDriverState {
+  uint32_t play_flags = 0;
+  float blend_width = 0.0f;
+  float time_scale = 1.0f;
+  float d_beat = 0.0f;
+  float advance_beat = 0.0f;
+  bool has_clip = false;
+  bool has_next = false;
+  int next_event = -1;
+  bool play_multiple_clips = false;
+};
+
+struct SourceCharClipDriverExitDecision {
+  bool recurse_next = false;
+  bool execute_exit_event = false;
+  bool end_sync_anim = false;
+  bool delete_self = false;
+  std::optional<size_t> returned_stack_head;
+  std::vector<size_t> deleted_indices;
+};
+
+struct SourceCharClipDriverDeleteClipResult {
+  std::optional<size_t> deleted_index;
+  std::vector<size_t> remaining_indices;
+};
+
 // Source-backed CharClipDriver constructor play-flag masking.
+uint32_t source_char_clip_driver_masked_play_flags(uint32_t clip_play_flags,
+                                                   uint32_t mask);
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask);
+SourceCharClipDriverState source_char_clip_driver_construct(
+    uint32_t clip_play_flags,
+    bool has_clip,
+    bool has_next,
+    uint32_t mask,
+    float blend_width,
+    bool play_multiple_clips);
+std::vector<size_t> source_char_clip_driver_delete_stack_order(
+    size_t stack_size);
+SourceCharClipDriverExitDecision source_char_clip_driver_exit_decision(
+    size_t stack_size,
+    bool exit_next,
+    bool has_sync_anim);
+SourceCharClipDriverDeleteClipResult source_char_clip_driver_delete_clip_result(
+    const std::vector<bool>& clip_matches_source_order);
+bool source_char_clip_driver_should_execute_event(bool symbol_null,
+                                                  bool clip_has_type_def);
 
 // Source-backed CharClip::BeatAlignString helper.
 const char* source_char_clip_beat_align_string(uint32_t mask);

@@ -49,6 +49,18 @@ bool expect_group_sort(const std::vector<std::string>& input,
   return false;
 }
 
+bool expect_indices(const std::vector<size_t>& got,
+                    const std::vector<size_t>& want,
+                    const char* label) {
+  if (got == want) return true;
+  std::cerr << "index vector mismatch for " << label << ": got";
+  for (size_t index : got) std::cerr << " " << index;
+  std::cerr << " want";
+  for (size_t index : want) std::cerr << " " << index;
+  std::cerr << "\n";
+  return false;
+}
+
 bool expect_starved(bool has_first, bool first_has_next,
                     uint32_t first_play_flags, bool want,
                     const char* label) {
@@ -377,6 +389,92 @@ bool expect_driver_state_helpers() {
   return ok;
 }
 
+bool expect_clip_driver_helpers() {
+  bool ok = true;
+  const uint32_t masked =
+      ghogx::character::source_char_clip_driver_masked_play_flags(
+          0x12345678u, 0x0000f623u);
+  if (masked != source_mask(0x12345678u, 0x0000f623u)) {
+    std::cerr << "clip-driver raw masked flags mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharClipDriverState state =
+      ghogx::character::source_char_clip_driver_construct(
+          0x12345678u, true, true, 0x0000f623u, 0.25f, true);
+  if (state.play_flags != source_mask(0x12345678u, 0x0000f623u) ||
+      state.blend_width != 0.25f || state.time_scale != 1.0f ||
+      state.d_beat != 0.0f || state.advance_beat != 0.0f ||
+      !state.has_clip || !state.has_next || state.next_event != -1 ||
+      !state.play_multiple_clips) {
+    std::cerr << "clip-driver constructor state mismatch\n";
+    ok = false;
+  }
+
+  ok &= expect_indices(
+      ghogx::character::source_char_clip_driver_delete_stack_order(3),
+      {2, 1, 0}, "DeleteStack tail-first order");
+
+  ghogx::character::SourceCharClipDriverExitDecision exit_all =
+      ghogx::character::source_char_clip_driver_exit_decision(3, true, true);
+  if (!exit_all.recurse_next || !exit_all.execute_exit_event ||
+      !exit_all.end_sync_anim || !exit_all.delete_self ||
+      exit_all.returned_stack_head ||
+      !expect_indices(exit_all.deleted_indices, {2, 1, 0},
+                      "Exit(true) deleted order")) {
+    std::cerr << "clip-driver Exit(true) decision mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::SourceCharClipDriverExitDecision exit_self =
+      ghogx::character::source_char_clip_driver_exit_decision(3, false, false);
+  if (exit_self.recurse_next || !exit_self.execute_exit_event ||
+      exit_self.end_sync_anim || !exit_self.delete_self ||
+      !exit_self.returned_stack_head || *exit_self.returned_stack_head != 1 ||
+      !expect_indices(exit_self.deleted_indices, {0},
+                      "Exit(false) deleted order")) {
+    std::cerr << "clip-driver Exit(false) decision mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::SourceCharClipDriverDeleteClipResult delete_mid =
+      ghogx::character::source_char_clip_driver_delete_clip_result(
+          {false, true, true});
+  if (!delete_mid.deleted_index || *delete_mid.deleted_index != 1 ||
+      !expect_indices(delete_mid.remaining_indices, {0, 2},
+                      "DeleteClip first match remains")) {
+    std::cerr << "clip-driver DeleteClip first-match mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::SourceCharClipDriverDeleteClipResult delete_none =
+      ghogx::character::source_char_clip_driver_delete_clip_result(
+          {false, false});
+  if (delete_none.deleted_index ||
+      !expect_indices(delete_none.remaining_indices, {0, 1},
+                      "DeleteClip no match remains")) {
+    std::cerr << "clip-driver DeleteClip no-match mismatch\n";
+    ok = false;
+  }
+
+  if (ghogx::character::source_char_clip_driver_should_execute_event(
+          true, true)) {
+    std::cerr << "clip-driver ExecuteEvent accepted null symbol\n";
+    ok = false;
+  }
+  if (ghogx::character::source_char_clip_driver_should_execute_event(
+          false, false)) {
+    std::cerr << "clip-driver ExecuteEvent accepted missing TypeDef\n";
+    ok = false;
+  }
+  if (!ghogx::character::source_char_clip_driver_should_execute_event(
+          false, true)) {
+    std::cerr << "clip-driver ExecuteEvent rejected source-valid event\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_blend(float requested, float driver, float want,
                   const char* label) {
   const float got =
@@ -440,6 +538,7 @@ int main() {
                                 "invalid source index");
   ok &= expect_group_sort({"z_idle", "A_intro", "mid"}, {"A_intro", "mid", "z_idle"},
                           "alphabetical source order");
+  ok &= expect_clip_driver_helpers();
   ok &= expect_starved(false, false, 0, true, "empty stack");
   ok &= expect_starved(true, true, ghogx::character::kCharPlayLoop, false,
                        "stack has next");

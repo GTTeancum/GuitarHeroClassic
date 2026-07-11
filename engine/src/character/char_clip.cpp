@@ -1755,15 +1755,93 @@ std::vector<std::string> source_char_clip_group_sorted_names(
   return clip_names;
 }
 
-uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
-                                            uint32_t mask) {
-  uint32_t play_flags = clip.default_play_flags;
+uint32_t source_char_clip_driver_masked_play_flags(uint32_t clip_play_flags,
+                                                   uint32_t mask) {
+  uint32_t play_flags = clip_play_flags;
   if (mask & 0xF0u) play_flags = (play_flags & 0xffffff0fu) | (mask & 0xF0u);
   if (mask & 0x0Fu) play_flags = (play_flags & 0xfffffff0u) | (mask & 0x0Fu);
   if (mask & 0xF600u) {
     play_flags = (play_flags & 0xffff09ffu) | (mask & 0xF600u);
   }
   return play_flags;
+}
+
+uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
+                                            uint32_t mask) {
+  return source_char_clip_driver_masked_play_flags(clip.default_play_flags,
+                                                   mask);
+}
+
+SourceCharClipDriverState source_char_clip_driver_construct(
+    uint32_t clip_play_flags,
+    bool has_clip,
+    bool has_next,
+    uint32_t mask,
+    float blend_width,
+    bool play_multiple_clips) {
+  SourceCharClipDriverState state;
+  state.play_flags =
+      source_char_clip_driver_masked_play_flags(clip_play_flags, mask);
+  state.blend_width = blend_width;
+  state.time_scale = 1.0f;
+  state.d_beat = 0.0f;
+  state.advance_beat = 0.0f;
+  state.has_clip = has_clip;
+  state.has_next = has_next;
+  state.next_event = -1;
+  state.play_multiple_clips = play_multiple_clips;
+  return state;
+}
+
+std::vector<size_t> source_char_clip_driver_delete_stack_order(
+    size_t stack_size) {
+  std::vector<size_t> deleted;
+  for (size_t i = stack_size; i > 0; --i) {
+    deleted.push_back(i - 1);
+  }
+  return deleted;
+}
+
+SourceCharClipDriverExitDecision source_char_clip_driver_exit_decision(
+    size_t stack_size,
+    bool exit_next,
+    bool has_sync_anim) {
+  SourceCharClipDriverExitDecision decision;
+  if (stack_size == 0) return decision;
+  decision.execute_exit_event = true;
+  decision.end_sync_anim = has_sync_anim;
+  decision.delete_self = true;
+  if (exit_next && stack_size > 1) {
+    decision.recurse_next = true;
+    decision.deleted_indices =
+        source_char_clip_driver_delete_stack_order(stack_size);
+  } else {
+    decision.deleted_indices.push_back(0);
+    if (stack_size > 1) decision.returned_stack_head = 1;
+  }
+  return decision;
+}
+
+SourceCharClipDriverDeleteClipResult source_char_clip_driver_delete_clip_result(
+    const std::vector<bool>& clip_matches_source_order) {
+  SourceCharClipDriverDeleteClipResult result;
+  for (size_t i = 0; i < clip_matches_source_order.size(); ++i) {
+    if (clip_matches_source_order[i]) {
+      result.deleted_index = i;
+      break;
+    }
+  }
+  for (size_t i = 0; i < clip_matches_source_order.size(); ++i) {
+    if (!result.deleted_index || i != *result.deleted_index) {
+      result.remaining_indices.push_back(i);
+    }
+  }
+  return result;
+}
+
+bool source_char_clip_driver_should_execute_event(bool symbol_null,
+                                                  bool clip_has_type_def) {
+  return !symbol_null && clip_has_type_def;
 }
 
 const char* source_char_clip_beat_align_string(uint32_t mask) {

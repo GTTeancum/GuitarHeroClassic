@@ -576,6 +576,12 @@ int run_contract() {
                  "constructor mask\n    application exactly",
                  "document records concrete CharClipDriver mask slice");
   ok &= contains(doc,
+                 "Native `source_char_clip_driver_construct`,",
+                 "document records native CharClipDriver stack helper slice");
+  ok &= contains(doc,
+                 "`Exit(false)` returning the next node",
+                 "document records CharClipDriver Exit(false) source behavior");
+  ok &= contains(doc,
                  "Native `source_char_driver_starved` ports the concrete "
                  "source\n    `CharDriver::Starved` body",
                  "document records concrete CharDriver starved slice");
@@ -5908,10 +5914,36 @@ int run_contract() {
                  "boolmultclips)",
                  "latest CharClipDriver source exposes play-node construction");
   ok &= contains(rb3_latest_char_clip_driver_cpp,
+                 "mBlendWidth(blendwidth),mTimeScale(1.0f),mDBeat(0),"
+                 "mAdvanceBeat(0),mClip(owner,clip),mNext(next),"
+                 "mNextEvent(-1),mPlayMultipleClips(multclips)",
+                 "latest CharClipDriver source exposes constructor initialized fields");
+  ok &= contains(rb3_latest_char_clip_driver_cpp,
                  "if(mask&0xF0U)mPlayFlags=mPlayFlags&0xffffff0f|mask&0xf0U;"
                  "if(mask&0xFU)mPlayFlags=mPlayFlags&0xfffffff0|mask&0xfU;"
                  "if(mask&0xF600U)mPlayFlags=mPlayFlags&0xffff09ff|mask&0xf600U;",
                  "latest CharClipDriver source masks blend loop and beat-align flags");
+  ok &= contains(rb3_latest_char_clip_driver_cpp,
+                 "CharClipDriver*CharClipDriver::Exit(boolb){staticSymbolexit("
+                 "\"exit\");if(b&&mNext){mNext=mNext->Exit(b);}"
+                 "CharClipDriver*ret=mNext;ExecuteEvent(exit);RndAnimatable*"
+                 "syncanim=mClip->mSyncAnim;if(syncanim)syncanim->EndAnim();"
+                 "deletethis;returnret;}",
+                 "latest CharClipDriver source exposes Exit stack behavior");
+  ok &= contains(rb3_latest_char_clip_driver_cpp,
+                 "voidCharClipDriver::DeleteStack(){if(mNext)mNext->"
+                 "DeleteStack();deletethis;}",
+                 "latest CharClipDriver source exposes DeleteStack tail-first behavior");
+  ok &= contains(rb3_latest_char_clip_driver_cpp,
+                 "CharClipDriver*CharClipDriver::DeleteClip(Hmx::Object*obj){"
+                 "if(mClip==obj)returnExit(false);elseif(mNext)mNext=mNext->"
+                 "DeleteClip(obj);returnthis;}",
+                 "latest CharClipDriver source exposes DeleteClip first-match behavior");
+  ok &= contains(rb3_latest_char_clip_driver_cpp,
+                 "voidCharClipDriver::ExecuteEvent(Symbols){if(!s.Null()){"
+                 "if(mClip->TypeDef()){staticDataNode&dude(DataVariable("
+                 "\"clip.dude\"));dude=DataNode(mClip.RefOwner()->Dir());",
+                 "latest CharClipDriver source exposes ExecuteEvent guard");
   ok &= contains(rb3_latest_char_clip_cpp,
                  "constchar*CharClip::BeatAlignString(intmask){switch(mask&"
                  "0xF600){case0x200:return\"RealTime\";case0x400:return"
@@ -6051,6 +6083,44 @@ int run_contract() {
                  "for(d=mFirst;d!=0&&!d->mBlendFrac;d=d->Next());returnd;}",
                  "latest CharDriver source exposes FirstPlaying scan");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipDriverState{uint32_tplay_flags=0;"
+                 "floatblend_width=0.0f;floattime_scale=1.0f;floatd_beat=0.0f;"
+                 "floatadvance_beat=0.0f;boolhas_clip=false;boolhas_next=false;"
+                 "intnext_event=-1;boolplay_multiple_clips=false;};",
+                 "native character API exposes source CharClipDriver constructor state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipDriverExitDecision{boolrecurse_next=false;"
+                 "boolexecute_exit_event=false;boolend_sync_anim=false;"
+                 "booldelete_self=false;std::optional<size_t>returned_stack_head;"
+                 "std::vector<size_t>deleted_indices;};",
+                 "native character API exposes source CharClipDriver Exit decision");
+  ok &= contains(char_clip_h,
+                 "uint32_tsource_char_clip_driver_masked_play_flags("
+                 "uint32_tclip_play_flags,uint32_tmask);",
+                 "native character API exposes raw source CharClipDriver mask helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipDriverStatesource_char_clip_driver_construct("
+                 "uint32_tclip_play_flags,boolhas_clip,boolhas_next,"
+                 "uint32_tmask,floatblend_width,boolplay_multiple_clips);",
+                 "native character API exposes source CharClipDriver constructor helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<size_t>source_char_clip_driver_delete_stack_order("
+                 "size_tstack_size);",
+                 "native character API exposes source CharClipDriver DeleteStack helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipDriverExitDecisionsource_char_clip_driver_exit_decision("
+                 "size_tstack_size,boolexit_next,boolhas_sync_anim);",
+                 "native character API exposes source CharClipDriver Exit helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipDriverDeleteClipResult"
+                 "source_char_clip_driver_delete_clip_result("
+                 "conststd::vector<bool>&clip_matches_source_order);",
+                 "native character API exposes source CharClipDriver DeleteClip helper");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_clip_driver_should_execute_event("
+                 "boolsymbol_null,boolclip_has_type_def);",
+                 "native character API exposes source CharClipDriver ExecuteEvent helper");
+  ok &= contains(char_clip_h,
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
                  "uint32_tmask);",
                  "native character API exposes source CharClipDriver flag mask helper");
@@ -6175,8 +6245,14 @@ int run_contract() {
                  "boolsource_play_multiple_clips_=false;",
                  "native CharClipPlayer stores source play-multiple default");
   ok &= contains(char_clip,
+                 "uint32_tsource_char_clip_driver_masked_play_flags("
+                 "uint32_tclip_play_flags,uint32_tmask){uint32_tplay_flags="
+                 "clip_play_flags;",
+                 "native CharClipDriver raw mask helper starts from source clip flags");
+  ok &= contains(char_clip,
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
-                 "uint32_tmask){uint32_tplay_flags=clip.default_play_flags;",
+                 "uint32_tmask){returnsource_char_clip_driver_masked_play_flags("
+                 "clip.default_play_flags,mask);}",
                  "native CharClipDriver mask helper starts from stored clip flags");
   ok &= contains(char_clip,
                  "if(mask&0xF0u)play_flags=(play_flags&0xffffff0fu)|"
@@ -6184,6 +6260,46 @@ int run_contract() {
                  "play_flags&0xfffffff0u)|(mask&0x0Fu);if(mask&0xF600u){"
                  "play_flags=(play_flags&0xffff09ffu)|(mask&0xF600u);}",
                  "native CharClipDriver mask helper matches source bit groups");
+  ok &= contains(char_clip,
+                 "SourceCharClipDriverStatesource_char_clip_driver_construct("
+                 "uint32_tclip_play_flags,boolhas_clip,boolhas_next,uint32_tmask,"
+                 "floatblend_width,boolplay_multiple_clips){SourceCharClipDriverState"
+                 "state;state.play_flags=source_char_clip_driver_masked_play_flags("
+                 "clip_play_flags,mask);",
+                 "native CharClipDriver constructor helper ports masked flags");
+  ok &= contains(char_clip,
+                 "state.blend_width=blend_width;state.time_scale=1.0f;"
+                 "state.d_beat=0.0f;state.advance_beat=0.0f;"
+                 "state.has_clip=has_clip;state.has_next=has_next;"
+                 "state.next_event=-1;state.play_multiple_clips=play_multiple_clips;",
+                 "native CharClipDriver constructor helper ports initialized fields");
+  ok &= contains(char_clip,
+                 "std::vector<size_t>source_char_clip_driver_delete_stack_order("
+                 "size_tstack_size){std::vector<size_t>deleted;for(size_ti="
+                 "stack_size;i>0;--i){deleted.push_back(i-1);}returndeleted;}",
+                 "native CharClipDriver DeleteStack helper ports tail-first order");
+  ok &= contains(char_clip,
+                 "SourceCharClipDriverExitDecisionsource_char_clip_driver_exit_decision("
+                 "size_tstack_size,boolexit_next,boolhas_sync_anim){"
+                 "SourceCharClipDriverExitDecisiondecision;if(stack_size==0)"
+                 "returndecision;decision.execute_exit_event=true;",
+                 "native CharClipDriver Exit helper ports event/delete defaults");
+  ok &= contains(char_clip,
+                 "if(exit_next&&stack_size>1){decision.recurse_next=true;"
+                 "decision.deleted_indices=source_char_clip_driver_delete_stack_order("
+                 "stack_size);}else{decision.deleted_indices.push_back(0);"
+                 "if(stack_size>1)decision.returned_stack_head=1;}",
+                 "native CharClipDriver Exit helper ports recursive and self-only branches");
+  ok &= contains(char_clip,
+                 "SourceCharClipDriverDeleteClipResult"
+                 "source_char_clip_driver_delete_clip_result(conststd::vector<bool>&"
+                 "clip_matches_source_order){SourceCharClipDriverDeleteClipResultresult;",
+                 "native CharClipDriver DeleteClip helper scans source stack");
+  ok &= contains(char_clip,
+                 "boolsource_char_clip_driver_should_execute_event("
+                 "boolsymbol_null,boolclip_has_type_def){return!symbol_null&&"
+                 "clip_has_type_def;}",
+                 "native CharClipDriver ExecuteEvent helper ports source guard");
   ok &= contains(char_clip,
                  "constchar*source_char_clip_beat_align_string(uint32_tmask){"
                  "switch(mask&0xF600u){casekCharPlayRealTime:return"
@@ -6380,6 +6496,21 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "if(mask&0xF600u)out=(out&0xffff09ffu)|(mask&0xF600u);",
                  "focused flag-mask test covers source beat-time branch");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_driver_construct(",
+                 "focused flag-mask test covers CharClipDriver constructor helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_driver_delete_stack_order(3)",
+                 "focused flag-mask test covers CharClipDriver DeleteStack helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_driver_exit_decision(3,true,true)",
+                 "focused flag-mask test covers CharClipDriver Exit recursive helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_driver_delete_clip_result(",
+                 "focused flag-mask test covers CharClipDriver DeleteClip helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_driver_should_execute_event(",
+                 "focused flag-mask test covers CharClipDriver ExecuteEvent helper");
   ok &= contains(clip_driver_flags_test,
                  "expect_beat_align(0x8000u,\"BeatAlign8\","
                  "\"beatalign8\")",

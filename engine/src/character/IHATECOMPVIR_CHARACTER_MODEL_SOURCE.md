@@ -1319,6 +1319,16 @@ note, and all report `unreadBytes=0`.
     the source mask. `CharClipPlayer::play` uses this masked value when it
     starts a native layer. `ghogx_character_clip_driver_flags_test` covers the
     mask groups and the source `CharDriver::Starved` helper branches.
+  - Native `source_char_clip_driver_construct`,
+    `source_char_clip_driver_delete_stack_order`,
+    `source_char_clip_driver_exit_decision`,
+    `source_char_clip_driver_delete_clip_result`, and
+    `source_char_clip_driver_should_execute_event` port the remaining concrete
+    stack-management decisions in `CharClipDriver.cpp`: initialized constructor
+    fields, tail-first `DeleteStack`, `Exit(true)` recursive stack teardown,
+    `Exit(false)` returning the next node, `DeleteClip` removing the first
+    matching node, and the `ExecuteEvent` guard requiring both a non-null symbol
+    and a clip type definition. These helpers do not claim `Evaluate`.
 - `rb3-retail-old/doc/rb2_dump/rockband2/system/src/char` exposes RB2-era dump
   entries for `CharClipSamples`, `CharBonesSamples`, `CharClip`,
   `CharClipDriver`, and `CharDriver`. These files are useful source-backed
