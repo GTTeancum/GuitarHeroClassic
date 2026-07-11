@@ -2122,6 +2122,111 @@ static void apply_source_pos_constraints(Character& character) {
   }
 }
 
+float source_char_weightable_weight(
+    const CharWeightSetter& setter,
+    const std::unordered_map<std::string, float>& weights_by_name) {
+  if (!setter.weight_owner.empty()) {
+    const auto owner = weights_by_name.find(setter.weight_owner);
+    if (owner != weights_by_name.end()) return owner->second;
+  }
+  return setter.weight;
+}
+
+bool source_char_weight_setter_poll(
+    const CharWeightSetter& setter,
+    const std::unordered_map<std::string, float>& weights_by_name,
+    float delta_beats,
+    float& out_weight) {
+  float base_weight = setter.base_weight;
+  if (!setter.driver.empty()) {
+    return false;
+  }
+  if (!setter.base.empty()) {
+    const auto base = weights_by_name.find(setter.base);
+    if (base == weights_by_name.end()) return false;
+    base_weight = setter.scale * base->second + setter.offset;
+  }
+
+  for (const auto& min_name : setter.min_weights) {
+    const auto min_weight = weights_by_name.find(min_name);
+    if (min_weight == weights_by_name.end()) return false;
+    base_weight = std::min(base_weight, min_weight->second);
+  }
+  for (const auto& max_name : setter.max_weights) {
+    const auto max_weight = weights_by_name.find(max_name);
+    if (max_weight == weights_by_name.end()) return false;
+    base_weight = std::max(base_weight, max_weight->second);
+  }
+
+  const float current = source_char_weightable_weight(setter, weights_by_name);
+  if (base_weight == current) {
+    out_weight = current;
+    return true;
+  }
+  if (setter.beats_per_weight <= 0.0f) {
+    out_weight = base_weight;
+    return true;
+  }
+
+  const float step = delta_beats / setter.beats_per_weight;
+  if (step > 0.0f) {
+    const float delta = std::clamp(base_weight - current, -step, step);
+    out_weight = current + delta;
+  } else {
+    out_weight = current;
+  }
+  return true;
+}
+
+static void apply_source_weight_setters(Character& character,
+                                        float delta_beats) {
+  std::unordered_map<std::string, float> weights_by_name;
+  for (const auto& driver : character.drivers) {
+    weights_by_name[driver.name] = driver.weight;
+    if (!driver.weight_owner.empty()) {
+      weights_by_name[driver.weight_owner] = driver.weight;
+    }
+  }
+  for (const auto& setter : character.weight_setters) {
+    weights_by_name[setter.name] = setter.weight;
+    if (!setter.weight_owner.empty()) {
+      weights_by_name[setter.weight_owner] = setter.weight;
+    }
+  }
+
+  for (const auto& setter : character.weight_setters) {
+    float weight = setter.weight;
+    if (!source_char_weight_setter_poll(setter, weights_by_name, delta_beats,
+                                        weight)) {
+      if (controller_audit_enabled()) {
+        std::fprintf(stderr,
+                     "[weightsetter-source-skip] %s driver=%s base=%s "
+                     "reason=missing-source-CharDriver-EvaluateFlags\n",
+                     setter.name.c_str(),
+                     setter.driver.empty() ? "<none>" : setter.driver.c_str(),
+                     setter.base.empty() ? "<none>" : setter.base.c_str());
+      }
+      continue;
+    }
+    weights_by_name[setter.name] = weight;
+    if (!setter.weight_owner.empty()) weights_by_name[setter.weight_owner] = weight;
+    character.runtime_weight_props[setter.name] = weight;
+    if (!setter.weight_owner.empty()) {
+      character.runtime_weight_props[setter.weight_owner] = weight;
+    }
+    if (controller_audit_enabled()) {
+      std::fprintf(stderr,
+                   "[weightsetter-source] %s weight=%.5f driver=%s base=%s "
+                   "mins=%zu maxs=%zu beatsPerWeight=%.5f\n",
+                   setter.name.c_str(), weight,
+                   setter.driver.empty() ? "<none>" : setter.driver.c_str(),
+                   setter.base.empty() ? "<none>" : setter.base.c_str(),
+                   setter.min_weights.size(), setter.max_weights.size(),
+                   setter.beats_per_weight);
+    }
+  }
+}
+
 static void apply_source_ik_rods(Character& character) {
   for (const auto& rod : character.ik_rods) {
     std::array<float, 16> dest_world{};
@@ -3319,6 +3424,7 @@ void apply_character_controllers(Character& character, float time_seconds,
     bind_bones.reserve(character.bones.size());
     for (const auto& b : character.bones) bind_bones.push_back(b.local);
   }
+  apply_source_weight_setters(character, 0.0f);
   apply_source_ik_hands(character, bind_bones);
   apply_source_fore_twists(character);
   apply_char_hair(character, time_seconds);

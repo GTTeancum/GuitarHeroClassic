@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace ghogx::character {
@@ -138,6 +139,21 @@ std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group);
 // Source-backed CharClipDriver constructor play-flag masking.
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask);
+
+// Source-backed CharWeightable::Weight helper. The owner row is used when it
+// resolves; otherwise this falls back to the row's own serialized weight.
+float source_char_weightable_weight(
+    const CharWeightSetter& setter,
+    const std::unordered_map<std::string, float>& weights_by_name);
+
+// Source-backed CharWeightSetter::Poll helper for rows that do not require the
+// unavailable CharDriver::EvaluateFlags body. Returns false when the row is
+// driver-backed and no source evaluator is present.
+bool source_char_weight_setter_poll(
+    const CharWeightSetter& setter,
+    const std::unordered_map<std::string, float>& weights_by_name,
+    float delta_beats,
+    float& out_weight);
 
 // Source-backed CharIKRod::ComputeRod/Poll helper. Returns false when any
 // source-required endpoint or destination transform is unresolved.

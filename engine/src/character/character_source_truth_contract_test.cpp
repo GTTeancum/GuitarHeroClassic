@@ -79,6 +79,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_clip_driver_flags_test.cpp"));
   const std::string ik_rod_source_test =
       compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
+  const std::string weight_setter_source_test =
+      compact(read_file(char_dir / "character_weight_setter_source_test.cpp"));
   const std::string bind_audit =
       compact(read_file(char_dir / "char_bind_audit.cpp"));
   const std::string renderer = compact(read_file(char_dir / "char_renderer.cpp"));
@@ -1117,6 +1119,65 @@ int run_contract() {
   ok &= contains(rb3_latest_char_weightable_cpp,
                  "bs>>mWeight;if(gRev>1)bs>>mWeightOwner;",
                  "CharWeightable source load gates weight owner");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "voidCharWeightSetter::Poll(){if(mDriver){mBaseWeight="
+                 "mScale*mDriver->EvaluateFlags(mFlags)+mOffset;}",
+                 "latest CharWeightSetter source poll uses driver flags");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "elseif(mBase){mBaseWeight=mScale*mBase->Weight()+mOffset;}",
+                 "latest CharWeightSetter source poll uses base weight");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "MinEq(newminweight,(*it)->Weight());",
+                 "latest CharWeightSetter source poll applies min weights");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "MaxEq(newmaxweight,(*it)->Weight());",
+                 "latest CharWeightSetter source poll applies max weights");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "floatsecs=TheTaskMgr.DeltaBeat()/mBeatsPerWeight;",
+                 "latest CharWeightSetter source poll beat-smooths");
+  ok &= contains(char_clip_h,
+                 "floatsource_char_weightable_weight(constCharWeightSetter&"
+                 "setter,conststd::unordered_map<std::string,float>&"
+                 "weights_by_name);",
+                 "native exposes source CharWeightable owner lookup helper");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_weight_setter_poll(constCharWeightSetter&"
+                 "setter,conststd::unordered_map<std::string,float>&"
+                 "weights_by_name,floatdelta_beats,float&out_weight);",
+                 "native exposes source CharWeightSetter poll helper");
+  ok &= contains(char_clip, "returnsetter.weight;",
+                 "native CharWeightable helper falls back to row weight");
+  ok &= contains(char_clip, "if(!setter.driver.empty()){returnfalse;}",
+                 "native CharWeightSetter helper fences missing driver evaluator");
+  ok &= contains(char_clip,
+                 "base_weight=setter.scale*base->second+setter.offset;",
+                 "native CharWeightSetter helper ports base scale/offset");
+  ok &= contains(char_clip,
+                 "base_weight=std::min(base_weight,min_weight->second);",
+                 "native CharWeightSetter helper ports min weight clamp");
+  ok &= contains(char_clip,
+                 "base_weight=std::max(base_weight,max_weight->second);",
+                 "native CharWeightSetter helper ports max weight clamp");
+  ok &= contains(char_clip,
+                 "constfloatstep=delta_beats/setter.beats_per_weight;",
+                 "native CharWeightSetter helper ports beat smoothing");
+  ok &= contains(char_clip, "\"[weightsetter-source-skip]",
+                 "native CharWeightSetter logs missing driver evaluator tag");
+  ok &= contains(char_clip,
+                 "reason=missing-source-CharDriver-EvaluateFlags",
+                 "native CharWeightSetter logs missing driver evaluator reason");
+  ok &= contains(char_clip,
+                 "character.runtime_weight_props[setter.name]=weight;",
+                 "native CharWeightSetter publishes source weight row");
+  ok &= contains(char_clip,
+                 "apply_source_weight_setters(character,0.0f);",
+                 "native controller cadence runs CharWeightSetter before IK");
+  ok &= contains(weight_setter_source_test,
+                 "ok&=!source_char_weight_setter_poll(driver,weights,0.0f,out);",
+                 "focused CharWeightSetter test covers driver fence");
+  ok &= contains(weight_setter_source_test,
+                 "apply_character_controllers(character,0.0f,nullptr);",
+                 "focused CharWeightSetter test covers controller writeback");
   ok &= contains(rb3_latest_char_driver_h,
                  "ObjPtr<CharBonesObject,ObjectDir>mBones;",
                  "latest CharDriver header exposes driven bones pointer");
@@ -1802,11 +1863,11 @@ int run_contract() {
                  "`CharWeightSetter::Load` reads `Hmx::Object`, then `CharWeightable`",
                  "document records CharWeightSetter source load");
   ok &= contains(doc,
-                 "Full `Poll` behavior is not",
-                 "document fences full CharWeightSetter poll behavior");
+                 "Native `source_char_weight_setter_poll` ports the source non-driver path",
+                 "document records native CharWeightSetter source poll slice");
   ok &= contains(doc,
-                 "reimplemented as a visual shortcut",
-                 "document rejects visual shortcut for CharWeightSetter poll");
+                 "`CharDriver::EvaluateFlags` body is available",
+                 "document records CharWeightSetter driver fence");
   ok &= contains(rb3_latest_char_pos_constraint_h,
                  "ObjPtr<RndTransformable,ObjectDir>mSrc;",
                  "latest CharPosConstraint header exposes source pointer");
@@ -2321,6 +2382,10 @@ int run_contract() {
                  "add_executable(ghogx_character_ik_rod_source_test"
                  "character_ik_rod_source_test.cpp)",
                  "CMake builds focused CharIKRod source test");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_weight_setter_source_test"
+                 "character_weight_setter_source_test.cpp)",
+                 "CMake builds focused CharWeightSetter source test");
   ok &= contains(char_clip_audit,
                  "for(constauto&entry:ark.entries()){if(!ends_with("
                  "entry.full_path,\".milo_ps2\"))continue;",

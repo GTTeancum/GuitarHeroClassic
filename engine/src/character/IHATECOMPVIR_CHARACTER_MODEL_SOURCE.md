@@ -519,10 +519,11 @@ note, and all report `unreadBytes=0`.
     `mDriver->EvaluateFlags(mFlags)` or `mBase->Weight()`, applies
     `scale`/`offset`, clamps through min/max setter rows, and then either snaps
     or beat-smooths `mWeight`.
-  - Native GHOGX decodes/logs these source fields. Full `Poll` behavior is not
-  reimplemented as a visual shortcut; the active performer path may consume
-  explicit live song/MIDI weights and use decoded setter weights only as the
-  bounded fallback the current hand path already had.
+  - Native `source_char_weight_setter_poll` ports the source non-driver path:
+    `CharWeightable::Weight()` owner lookup, optional `base` weighting,
+    min/max setter clamps, snap, and `beats_per_weight` smoothing. Rows with
+    `driver` set remain logged/skipped until a source-backed
+    `CharDriver::EvaluateFlags` body is available.
 - `rb3-latest/src/system/char/CharDriver.cpp` and `CharDriver.h`
   - The header/source expose the base driver object members and runtime helper
     surface: `mBones`, `mClips`, `mDefaultClip`, `mBlendWidth`, `mClipType`,
