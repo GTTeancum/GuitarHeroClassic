@@ -534,6 +534,118 @@ struct SourceCharacterPreSaveResult {
   bool unhooked_shadow = false;
 };
 
+struct SourceCharacterTestState {
+  std::string show_dist_map = "none";
+  int32_t transition = 0;
+  bool cycle_transition = true;
+  bool metronome = false;
+  bool zero_travel = false;
+  bool show_screen_size = false;
+  bool show_foot_extents = false;
+  int32_t unk68 = 0;
+  bool overlay_requested = true;
+};
+
+struct SourceCharacterTestDestroyResult {
+  bool looked_up_overlay = true;
+  bool cleared_callback = false;
+  bool hid_overlay = false;
+  bool restarted_timer = false;
+};
+
+struct SourceCharacterTestDrawResult {
+  bool highlighted_driver = false;
+  std::string draw_transform;
+  bool drew_screen_size = false;
+};
+
+struct SourceCharacterTestPollInput {
+  bool has_driver = false;
+  bool has_clip_dir = false;
+  bool has_clip1 = false;
+  bool has_clip2 = false;
+  bool static_click_present = false;
+  bool metronome = false;
+  float beat = 0.0f;
+  float delta_beat = 0.0f;
+  bool has_first_driver = false;
+  bool first_clip_is_clip1 = false;
+  bool first_clip_is_clip2 = false;
+  float transition_beat = 0.0f;
+  float first_driver_beat = 0.0f;
+  bool zero_travel = false;
+  bool has_bone_servo = false;
+};
+
+struct SourceCharacterTestPollResult {
+  bool entered_clip_branch = false;
+  bool loaded_click_cue = false;
+  bool restored_click_static = false;
+  bool metronome_edge = false;
+  bool would_play_click = false;
+  bool play_new = false;
+  bool reset_bone_servo_regulate = false;
+  bool recenter = false;
+};
+
+struct SourceCharacterTestExisting {
+  bool has_main_driver = false;
+  bool has_bone_servo = false;
+  bool has_bone_servo_object = false;
+  bool has_fore_twist_l = false;
+  bool has_fore_twist_r = false;
+  bool has_upper_twist_l = false;
+  bool has_upper_twist_r = false;
+};
+
+struct SourceCharacterTestBones {
+  bool bone_l_hand = false;
+  bool bone_l_fore_twist2 = false;
+  bool bone_r_hand = false;
+  bool bone_r_fore_twist2 = false;
+  bool bone_l_upper_twist1 = false;
+  bool bone_l_upper_twist2 = false;
+  bool bone_l_upper_arm = false;
+  bool bone_r_upper_twist1 = false;
+  bool bone_r_upper_twist2 = false;
+  bool bone_r_upper_arm = false;
+};
+
+struct SourceCharacterTestControllerSetup {
+  std::string name;
+  std::string hand;
+  std::string twist1;
+  std::string twist2;
+  std::string upper_arm;
+  bool has_offset = false;
+  float offset = 0.0f;
+};
+
+struct SourceCharacterTestAddDefaultsResult {
+  bool created_main_driver = false;
+  bool created_bone_servo = false;
+  bool set_driver_bones_to_bone_servo = false;
+  std::vector<SourceCharacterTestControllerSetup> controllers;
+};
+
+struct SourceCharacterTestStartEndBeatResult {
+  bool found_milo = false;
+  bool current_anim_is_object = false;
+  bool current_anim_is_me = false;
+  bool unfroze_character = false;
+  bool set_bpm = false;
+  bool sent_set_anim_frame = false;
+  float start_frame = 0.0f;
+  float end_frame = 0.0f;
+  int32_t bpm = 0;
+};
+
+struct SourceCharacterTestLoadResult {
+  bool fail_new_revision = false;
+  bool fail_new_alt_revision = false;
+  bool loaded_driver = false;
+};
+
 struct SourceCharTransDrawCharacter {
   std::string name;
   bool showing = false;
@@ -929,6 +1041,35 @@ SourceCharacterRepointSphereBaseResult source_character_repoint_sphere_base(
     SourceCharacterState& state,
     bool found_matching_transform);
 SourceCharacterPreSaveResult source_character_pre_save();
+SourceCharacterTestState source_character_test_default_state();
+SourceCharacterTestDestroyResult source_character_test_destroy(
+    bool overlay_found,
+    bool overlay_callback_is_this);
+SourceCharacterTestDrawResult source_character_test_draw(
+    bool has_driver,
+    bool has_clip1,
+    bool has_clip2,
+    bool has_bone_head,
+    bool show_screen_size);
+SourceCharacterTestPollResult source_character_test_poll(
+    const SourceCharacterTestPollInput& input);
+SourceCharacterTestAddDefaultsResult source_character_test_add_defaults(
+    const SourceCharacterTestExisting& existing,
+    const SourceCharacterTestBones& bones);
+std::vector<std::string> source_character_test_walk(
+    const std::vector<std::string>& walk_path);
+std::string source_character_test_teleport_to(const std::string& waypoint);
+SourceCharacterTestStartEndBeatResult source_character_test_set_start_end_beat(
+    bool milo_found,
+    bool cur_anim_is_object,
+    bool cur_anim_is_me,
+    float start_beat,
+    float end_beat,
+    int32_t bpm);
+bool source_character_test_set_move_self(bool has_bone_servo);
+SourceCharacterTestLoadResult source_character_test_load(
+    int32_t revision,
+    int32_t alt_revision);
 std::vector<SourceCharTransDrawStep> source_char_trans_draw_set_draw_modes(
     const std::vector<std::string>& chars,
     SourceCharacterDrawMode mode);

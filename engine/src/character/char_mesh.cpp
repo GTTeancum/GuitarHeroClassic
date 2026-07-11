@@ -1977,6 +1977,175 @@ SourceCharacterPreSaveResult source_character_pre_save() {
   return {true};
 }
 
+SourceCharacterTestState source_character_test_default_state() {
+  return SourceCharacterTestState{};
+}
+
+SourceCharacterTestDestroyResult source_character_test_destroy(
+    bool overlay_found,
+    bool overlay_callback_is_this) {
+  SourceCharacterTestDestroyResult result;
+  if (overlay_found && overlay_callback_is_this) {
+    result.cleared_callback = true;
+    result.hid_overlay = true;
+    result.restarted_timer = true;
+  }
+  return result;
+}
+
+SourceCharacterTestDrawResult source_character_test_draw(
+    bool has_driver,
+    bool has_clip1,
+    bool has_clip2,
+    bool has_bone_head,
+    bool show_screen_size) {
+  SourceCharacterTestDrawResult result;
+  result.highlighted_driver = has_driver && (has_clip1 || has_clip2);
+  result.draw_transform = has_bone_head ? "bone_head" : "self";
+  result.drew_screen_size = show_screen_size;
+  return result;
+}
+
+SourceCharacterTestPollResult source_character_test_poll(
+    const SourceCharacterTestPollInput& input) {
+  SourceCharacterTestPollResult result;
+  const bool clip_branch =
+      input.has_driver && input.has_clip_dir && input.has_clip1;
+  if (!clip_branch) return result;
+
+  result.entered_clip_branch = true;
+  result.loaded_click_cue = !input.static_click_present;
+  result.restored_click_static = true;
+  result.metronome_edge =
+      input.metronome &&
+      (std::floor(input.beat - input.delta_beat) + 1.0f ==
+       std::floor(input.beat));
+  result.would_play_click = result.metronome_edge && input.static_click_present;
+
+  if (!input.has_first_driver) {
+    result.play_new = true;
+  } else if (input.has_clip2) {
+    const bool first_is_neither =
+        !input.first_clip_is_clip1 && !input.first_clip_is_clip2;
+    const bool first_is_clip2_after_transition =
+        input.first_clip_is_clip2 &&
+        input.transition_beat < input.first_driver_beat;
+    result.play_new = first_is_neither || first_is_clip2_after_transition;
+  } else {
+    result.play_new = !input.first_clip_is_clip1;
+  }
+
+  if (input.zero_travel) {
+    result.reset_bone_servo_regulate = input.has_bone_servo;
+    result.recenter = true;
+  }
+  return result;
+}
+
+SourceCharacterTestAddDefaultsResult source_character_test_add_defaults(
+    const SourceCharacterTestExisting& existing,
+    const SourceCharacterTestBones& bones) {
+  SourceCharacterTestAddDefaultsResult result;
+  result.created_main_driver = !existing.has_main_driver;
+  if (!existing.has_bone_servo) {
+    result.created_bone_servo = !existing.has_bone_servo_object;
+    result.set_driver_bones_to_bone_servo = true;
+  }
+
+  if (!existing.has_fore_twist_l && bones.bone_l_hand &&
+      bones.bone_l_fore_twist2) {
+    SourceCharacterTestControllerSetup setup;
+    setup.name = "foreTwist_L.ik";
+    setup.hand = "bone_L-hand";
+    setup.twist2 = "bone_L-foreTwist2";
+    setup.has_offset = true;
+    setup.offset = 90.0f;
+    result.controllers.push_back(setup);
+  }
+  if (!existing.has_fore_twist_r && bones.bone_r_hand &&
+      bones.bone_r_fore_twist2) {
+    SourceCharacterTestControllerSetup setup;
+    setup.name = "foreTwist_R.ik";
+    setup.hand = "bone_R-hand";
+    setup.twist2 = "bone_R-foreTwist2";
+    setup.has_offset = true;
+    setup.offset = -90.0f;
+    result.controllers.push_back(setup);
+  }
+  if (!existing.has_upper_twist_l && bones.bone_l_upper_twist1 &&
+      bones.bone_l_upper_twist2 && bones.bone_l_upper_arm) {
+    SourceCharacterTestControllerSetup setup;
+    setup.name = "upperTwist_L.ik";
+    setup.twist1 = "bone_L-upperTwist1";
+    setup.twist2 = "bone_L-upperTwist2";
+    setup.upper_arm = "bone_L-upperArm";
+    result.controllers.push_back(setup);
+  }
+  if (!existing.has_upper_twist_r && bones.bone_r_upper_twist1 &&
+      bones.bone_r_upper_twist2 && bones.bone_r_upper_arm) {
+    SourceCharacterTestControllerSetup setup;
+    setup.name = "upperTwist_R.ik";
+    setup.twist1 = "bone_R-upperTwist1";
+    setup.twist2 = "bone_R-upperTwist2";
+    setup.upper_arm = "bone_R-upperArm";
+    result.controllers.push_back(setup);
+  }
+  return result;
+}
+
+std::vector<std::string> source_character_test_walk(
+    const std::vector<std::string>& walk_path) {
+  std::vector<std::string> waypoints;
+  if (!walk_path.empty()) {
+    for (const std::string& waypoint : walk_path) {
+      waypoints.push_back(waypoint);
+    }
+  }
+  return waypoints;
+}
+
+std::string source_character_test_teleport_to(const std::string& waypoint) {
+  return waypoint;
+}
+
+SourceCharacterTestStartEndBeatResult source_character_test_set_start_end_beat(
+    bool milo_found,
+    bool cur_anim_is_object,
+    bool cur_anim_is_me,
+    float start_beat,
+    float end_beat,
+    int32_t bpm) {
+  SourceCharacterTestStartEndBeatResult result;
+  result.found_milo = milo_found;
+  if (!milo_found) return result;
+  result.current_anim_is_object = cur_anim_is_object;
+  if (!cur_anim_is_object) return result;
+  result.current_anim_is_me = cur_anim_is_me;
+  if (!cur_anim_is_me) return result;
+  result.unfroze_character = true;
+  result.set_bpm = true;
+  result.sent_set_anim_frame = true;
+  result.bpm = bpm;
+  const float beats_per_second = static_cast<float>(bpm) / 60.0f;
+  result.start_frame = (start_beat * 30.0f) / beats_per_second;
+  result.end_frame = (end_beat * 30.0f) / beats_per_second;
+  return result;
+}
+
+bool source_character_test_set_move_self(bool has_bone_servo) {
+  return has_bone_servo;
+}
+
+SourceCharacterTestLoadResult source_character_test_load(
+    int32_t revision,
+    int32_t alt_revision) {
+  SourceCharacterTestLoadResult result;
+  result.fail_new_revision = revision > 0xF;
+  result.fail_new_alt_revision = alt_revision != 0;
+  result.loaded_driver = revision != 0xD;
+  return result;
+}
+
 std::vector<SourceCharTransDrawStep> source_char_trans_draw_set_draw_modes(
     const std::vector<std::string>& chars,
     SourceCharacterDrawMode mode) {

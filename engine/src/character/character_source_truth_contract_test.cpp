@@ -146,6 +146,8 @@ int run_contract() {
       read_file(char_dir / "character_ik_fingers_source_test.cpp"));
   const std::string character_source_test = compact(
       read_file(char_dir / "character_character_source_test.cpp"));
+  const std::string character_test_source_test = compact(
+      read_file(char_dir / "character_character_test_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -326,6 +328,10 @@ int run_contract() {
       rb3_latest_char_dir / "Character.cpp"));
   const std::string rb3_latest_character_h = compact(read_file(
       rb3_latest_char_dir / "Character.h"));
+  const std::string rb3_latest_character_test_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharacterTest.cpp"));
+  const std::string rb3_latest_character_test_h = compact(read_file(
+      rb3_latest_char_dir / "CharacterTest.h"));
   const std::string rb3_latest_char_poll_group_cpp = compact(read_file(
       rb3_latest_char_dir / "CharPollGroup.cpp"));
   const std::string rb3_latest_char_poll_group_h = compact(read_file(
@@ -774,6 +780,10 @@ int run_contract() {
                  "| Character lifecycle and directory sync flow | "
                  "`rb3-latest` `Character.cpp`, `Character.h` |",
                  "coverage matrix records Character runtime flow source");
+  ok &= contains(doc,
+                 "| Character test harness defaults | `rb3-latest` "
+                 "`CharacterTest.cpp`, `CharacterTest.h` |",
+                 "coverage matrix records CharacterTest harness source");
   ok &= contains(doc, "## Character Root Body Boundary",
                  "document records root body boundary section");
   ok &= contains(doc,
@@ -921,6 +931,83 @@ int run_contract() {
   ok &= contains(rb3_latest_character_cpp,
                  "voidCharacter::PreSave(BinStream&bs){UnhookShadow();}",
                  "Character source PreSave flow");
+  ok &= contains(rb3_latest_character_test_h,
+                 "classCharacterTest:publicRndOverlay::Callback",
+                 "CharacterTest header exposes overlay callback harness");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "CharacterTest::CharacterTest(classCharacter*thechar):"
+                 "mMe(thechar),mDriver(thechar,0),mClip1(thechar,0),"
+                 "mClip2(thechar,0),mFilterGroup(thechar,0),",
+                 "CharacterTest source constructor owner pointers");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "mTransition(0),mCycleTransition(1),mMetronome(0),"
+                 "mZeroTravel(0),mShowScreenSize(0),mShowFootExtents(0)",
+                 "CharacterTest source constructor toggles");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "mShowDistMap=none;",
+                 "CharacterTest source dist-map default");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "if(mOverlay->mCallback==this){mOverlay->mCallback=0;"
+                 "RndOverlay*over=mOverlay;over->mShowing=0;over->mTimer."
+                 "Restart();}",
+                 "CharacterTest source destructor overlay cleanup");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "if(mDriver&&(mClip1||mClip2))mDriver->Highlight();",
+                 "CharacterTest source Draw highlights driver");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "RndTransformable*trans=CharUtlFindBoneTrans(\"bone_head\","
+                 "mMe);if(!trans)trans=mMe;",
+                 "CharacterTest source Draw head fallback");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "ObjectDir*clipdir=mDriver?mDriver->ClipDir():0;"
+                 "if(clipdir&&mClip1){",
+                 "CharacterTest source Poll clip branch gate");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "if(!drivs)PlayNew();elseif(mClip2){CharClip*drivclip="
+                 "drivs->mClip;if(drivclip!=mClip1&&drivclip!=mClip2||"
+                 "(drivclip==mClip2&&unk64<drivs->mBeat))PlayNew();}"
+                 "elseif(drivs->mClip!=mClip1)PlayNew();",
+                 "CharacterTest source Poll PlayNew decisions");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "if(mZeroTravel){//someTransformoperationif(mMe->"
+                 "BoneServo()){mMe->BoneServo()->mRegulate=0;}Recenter();}",
+                 "CharacterTest source Poll zero-travel branch");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "if(!mMe->mDriver)mMe->New<CharDriver>(\"main.drv\");",
+                 "CharacterTest source AddDefaults main driver");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "CharForeTwist*ltwist=mMe->New<CharForeTwist>("
+                 "\"foreTwist_L.ik\");ltwist->SetProperty(hand,DataNode("
+                 "lhand));ltwist->SetProperty(twist2,DataNode(ltwist2));"
+                 "ltwist->SetProperty(offset,DataNode(90));",
+                 "CharacterTest source AddDefaults left foretwist");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "CharForeTwist*rtwist=mMe->New<CharForeTwist>("
+                 "\"foreTwist_R.ik\");rtwist->SetProperty(hand,DataNode("
+                 "rhand));rtwist->SetProperty(twist2,DataNode(rtwist2));"
+                 "rtwist->SetProperty(offset,DataNode(-90));",
+                 "CharacterTest source AddDefaults right foretwist");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "CharUpperTwist*ltwist=mMe->New<CharUpperTwist>("
+                 "\"upperTwist_L.ik\");ltwist->SetProperty(twist1,DataNode("
+                 "lutwist1));ltwist->SetProperty(twist2,DataNode(lutwist2));"
+                 "ltwist->SetProperty(upper_arm,DataNode(luarm));",
+                 "CharacterTest source AddDefaults left uppertwist");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "voidCharacterTest::SetStartEndBeat(floatf1,floatf2,intbpm)",
+                 "CharacterTest source SetStartEndBeat exists");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "miloObj->Handle(Message(\"set_anim_frame\",DataNode((f1*"
+                 "30.0f)/(bpm/60.0f)),DataNode((f2*30.0f)/(bpm/60.0f)),"
+                 "DataNode((float)bpm)),true);",
+                 "CharacterTest source SetStartEndBeat frames");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "voidCharacterTest::SetMoveSelf(boolb){if(mMe->BoneServo()){"
+                 "mMe->BoneServo()->SetMoveSelf(b);}}",
+                 "CharacterTest source SetMoveSelf gate");
+  ok &= contains(rb3_latest_character_test_cpp,
+                 "if(gRev!=0xD)mDriver.Load(bs,false,mMe);",
+                 "CharacterTest source Load driver gate");
   ok &= contains(rb3_latest_rnd_dir_cpp,
                  "voidRndDir::PreLoad(BinStream&bs){LOAD_REVS(bs);"
                  "ASSERT_REVS(0xA,0);PushRev(packRevs(gAltRev,gRev),this);"
@@ -3240,6 +3327,89 @@ int run_contract() {
                  "Native `source_character_*` helpers port these "
                  "source-visible runtime flows",
                  "document records native Character helpers");
+  ok &= contains(char_mesh_h, "structSourceCharacterTestState{",
+                 "native exposes CharacterTest default state");
+  ok &= contains(char_mesh_h, "structSourceCharacterTestAddDefaultsResult{",
+                 "native exposes CharacterTest AddDefaults result");
+  ok &= contains(char_mesh,
+                 "SourceCharacterTestStatesource_character_test_default_state(){"
+                 "returnSourceCharacterTestState{};}",
+                 "native ports CharacterTest constructor defaults");
+  ok &= contains(char_mesh,
+                 "SourceCharacterTestDestroyResultsource_character_test_destroy("
+                 "booloverlay_found,booloverlay_callback_is_this){",
+                 "native exposes CharacterTest destroy helper");
+  ok &= contains(char_mesh,
+                 "result.highlighted_driver=has_driver&&(has_clip1||has_clip2);"
+                 "result.draw_transform=has_bone_head?\"bone_head\":\"self\";",
+                 "native ports CharacterTest Draw decisions");
+  ok &= contains(char_mesh,
+                 "constboolclip_branch=input.has_driver&&input.has_clip_dir&&"
+                 "input.has_clip1;",
+                 "native ports CharacterTest Poll branch gate");
+  ok &= contains(char_mesh,
+                 "input.first_clip_is_clip2&&input.transition_beat<input."
+                 "first_driver_beat;",
+                 "native ports CharacterTest Poll clip2 transition gate");
+  ok &= contains(char_mesh,
+                 "result.reset_bone_servo_regulate=input.has_bone_servo;"
+                 "result.recenter=true;",
+                 "native ports CharacterTest zero-travel branch");
+  ok &= contains(char_mesh,
+                 "SourceCharacterTestAddDefaultsResultsource_character_test_"
+                 "add_defaults(constSourceCharacterTestExisting&existing,"
+                 "constSourceCharacterTestBones&bones){",
+                 "native exposes CharacterTest AddDefaults helper");
+  ok &= contains(char_mesh,
+                 "setup.name=\"foreTwist_L.ik\";setup.hand=\"bone_L-hand\";"
+                 "setup.twist2=\"bone_L-foreTwist2\";setup.has_offset=true;"
+                 "setup.offset=90.0f;",
+                 "native ports CharacterTest left foretwist setup");
+  ok &= contains(char_mesh,
+                 "setup.name=\"foreTwist_R.ik\";setup.hand=\"bone_R-hand\";"
+                 "setup.twist2=\"bone_R-foreTwist2\";setup.has_offset=true;"
+                 "setup.offset=-90.0f;",
+                 "native ports CharacterTest right foretwist setup");
+  ok &= contains(char_mesh,
+                 "setup.name=\"upperTwist_L.ik\";setup.twist1="
+                 "\"bone_L-upperTwist1\";setup.twist2=\"bone_L-upperTwist2\";"
+                 "setup.upper_arm=\"bone_L-upperArm\";",
+                 "native ports CharacterTest left uppertwist setup");
+  ok &= contains(char_mesh,
+                 "result.start_frame=(start_beat*30.0f)/beats_per_second;"
+                 "result.end_frame=(end_beat*30.0f)/beats_per_second;",
+                 "native ports CharacterTest SetStartEndBeat frames");
+  ok &= contains(char_mesh,
+                 "boolsource_character_test_set_move_self(boolhas_bone_servo){"
+                 "returnhas_bone_servo;}",
+                 "native ports CharacterTest SetMoveSelf gate");
+  ok &= contains(char_mesh,
+                 "result.loaded_driver=revision!=0xD;",
+                 "native ports CharacterTest Load driver gate");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_character_test_source_test",
+                 "CMake builds CharacterTest source test");
+  ok &= contains(character_test_source_test,
+                 "source_character_test_add_defaults(existing,bones)",
+                 "focused CharacterTest test covers AddDefaults");
+  ok &= contains(character_test_source_test,
+                 "\"defaultsleftforetwistoffset\"",
+                 "focused CharacterTest test covers left foretwist offset");
+  ok &= contains(character_test_source_test,
+                 "\"defaultsrightforetwistoffset\"",
+                 "focused CharacterTest test covers right foretwist offset");
+  ok &= contains(character_test_source_test,
+                 "source_character_test_set_start_end_beat(true,true,true,"
+                 "4.0f,8.0f,120)",
+                 "focused CharacterTest test covers SetStartEndBeat");
+  ok &= contains(character_test_source_test,
+                 "source_character_test_load(0xD,0)",
+                 "focused CharacterTest test covers Load revision gate");
+  ok &= contains(doc, "## Character Test Harness Helper",
+                 "document records CharacterTest helper boundary");
+  ok &= contains(doc,
+                 "The checked source still lacks bodies for `PlayNew`,",
+                 "document fences missing CharacterTest bodies");
   ok &= contains(rb3_latest_character_h,
                  "enumDrawMode{kCharDrawNone,kCharDrawOpaque,"
                  "kCharDrawTranslucent,kCharDrawAll};",

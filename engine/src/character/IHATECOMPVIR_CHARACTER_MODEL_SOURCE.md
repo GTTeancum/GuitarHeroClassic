@@ -28,6 +28,7 @@ records the upstream commits for the copied files:
 | Object and property-tree skip/read shape | `Object.cs`, `DTBNode.Read` | Parser authority; native skips must mirror source enum and logs standalone generic `Object` rows. |
 | Character/BandCharacter/RndDir/ObjectDir root body | `rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp` | Native records the root directory revision/name/type and opaque root object body boundary; no root runtime fields are decoded until the exact GH2 revision/body relation is pinned. |
 | Character lifecycle and directory sync flow | `rb3-latest` `Character.cpp`, `Character.h` | Native helper ports constructor defaults, poll-state enum order, Enter/Exit/Poll state changes, main-driver discovery, sphere-base replacement, eyes gates, and SyncObjects cleanup/sort flow. |
+| Character test harness defaults | `rb3-latest` `CharacterTest.cpp`, `CharacterTest.h` | Native helper ports editor/test defaults, draw/poll decisions, `AddDefaults` controller creation names and offsets, walk/teleport/start-end/load gates, and move-self delegation. This is harness evidence only, not a live controller or playback import. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
 | Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
@@ -102,6 +103,30 @@ change mesh upload, material state, bone posture, or hair/cloth draw behavior.
 
 This slice does not promote clip playback, driver scheduling, overlay drawing,
 or runtime task graph rendering.
+
+## Character Test Harness Helper
+
+`CharacterTest` is useful source evidence for Harmonix's editor/test setup, but
+it is not the live character playback path:
+
+- Constructor defaults set `mShowDistMap=none`, zero transition/test toggles,
+  `mCycleTransition=true`, and request the `char_test` overlay.
+- Destructor clears the overlay callback, hides the overlay, and restarts the
+  timer only when the overlay callback is this test object.
+- `Draw` highlights the driver when either clip pointer is set, uses
+  `bone_head` when present, and otherwise falls back to the character itself.
+- `Poll` only enters the clip branch when the driver has a clip directory and
+  `mClip1` is set. The helper records the click-cue load/restore, metronome
+  edge, `PlayNew` decisions, zero-travel servo regulate clear, and recenter
+  request without creating a runtime polling bridge.
+- `AddDefaults` creates `main.drv`, `bone.servo`, `foreTwist_L.ik`,
+  `foreTwist_R.ik`, `upperTwist_L.ik`, and `upperTwist_R.ik` only when the
+  corresponding source object is missing and the source bones are present.
+  Source foretwist offsets are `+90` for left and `-90` for right.
+- `SetStartEndBeat`, `SetMoveSelf`, and `Load` are represented as deterministic
+  source decisions. The checked source still lacks bodies for `PlayNew`,
+  `Recenter`, `UpdateOverlay`, `Handle`, and `PropSync`, so native does not
+  infer those behaviors.
 
 ## Remaining Character Import Checklist
 
