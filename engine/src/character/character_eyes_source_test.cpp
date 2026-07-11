@@ -49,6 +49,7 @@ int main() {
   using ghogx::character::source_char_eyes_copy_state;
   using ghogx::character::source_char_eyes_current_interest;
   using ghogx::character::source_char_eyes_default_state;
+  using ghogx::character::source_char_eyes_either_eye_clamped;
   using ghogx::character::source_char_eyes_eye_desc_assign;
   using ghogx::character::source_char_eyes_eye_desc_copy;
   using ghogx::character::source_char_eyes_eye_desc_default;
@@ -74,6 +75,15 @@ int main() {
   ok &= expect_size(children.size(), 2, "children count");
   ok &= expect_string(children[0], "l-eye.lookat", "left child");
   ok &= expect_string(children[1], "r-eye.lookat", "right child");
+
+  ok &= expect_bool(
+      source_char_eyes_either_eye_clamped({{false, true}, {true, false}}),
+      false, "missing eye clamp flag ignored");
+  ok &= expect_bool(
+      source_char_eyes_either_eye_clamped({{true, false}, {true, true}}),
+      true, "present clamped eye detected");
+  ok &= expect_bool(source_char_eyes_either_eye_clamped({}), false,
+                    "empty eye clamp list false");
 
   SourceCharEyesPollDeps deps;
   source_char_eyes_poll_deps(

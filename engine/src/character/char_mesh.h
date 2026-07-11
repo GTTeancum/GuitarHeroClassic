@@ -752,6 +752,11 @@ struct SourceCharEyesEyeDesc {
   std::string upper_lid_blink;
 };
 
+struct SourceCharEyesClampRow {
+  bool has_eye = false;
+  bool clamped = false;
+};
+
 struct SourceCharEyesPollDeps {
   std::vector<std::string> changed_by;
   std::vector<std::string> change;
@@ -1144,6 +1149,8 @@ void source_char_guitar_string_poll_deps(
     const std::string& bend);
 std::vector<std::string> source_char_eyes_list_poll_children(
     const std::vector<std::string>& eye_lookats);
+bool source_char_eyes_either_eye_clamped(
+    const std::vector<SourceCharEyesClampRow>& eyes);
 SourceCharEyesDefaultState source_char_eyes_default_state();
 SourceCharEyesDefaultState source_char_eyes_copy_state(
     const SourceCharEyesDefaultState& source);

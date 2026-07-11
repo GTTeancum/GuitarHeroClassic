@@ -2473,6 +2473,14 @@ std::vector<std::string> source_char_eyes_list_poll_children(
   return children;
 }
 
+bool source_char_eyes_either_eye_clamped(
+    const std::vector<SourceCharEyesClampRow>& eyes) {
+  for (const SourceCharEyesClampRow& eye : eyes) {
+    if (eye.has_eye && eye.clamped) return true;
+  }
+  return false;
+}
+
 SourceCharEyesDefaultState source_char_eyes_default_state() {
   SourceCharEyesDefaultState state;
   state.unkb8 = std::cos(0.52359879f);

@@ -679,6 +679,10 @@ note, and all report `unreadBytes=0`.
     as decisions: force-focus toggling delegates to the same
     `SetFocusInterest` priority gate, and interest overlay toggling only flips
     `mShowing` / restarts the timer when the source overlay pointer exists.
+  - Native `source_char_eyes_either_eye_clamped` ports the concrete
+    `EitherEyeClamped` query: scan the eye descriptors and return true only
+    when a present `CharLookAt` eye has its clamp flag set. It does not invent
+    clamp state for missing eye refs.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.

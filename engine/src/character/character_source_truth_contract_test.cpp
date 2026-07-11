@@ -6477,6 +6477,11 @@ int run_contract() {
                  "TheTaskMgr.Seconds(TaskMgr::b);unk144++;}",
                  "RB3 CharEyes ForceBlink stores task time and increments count");
   ok &= contains(rb3_char_eyes_cpp,
+                 "boolCharEyes::EitherEyeClamped(){for(ObjVector<EyeDesc>::"
+                 "iteratorit=mEyes.begin();it!=mEyes.end();++it){if(it->mEye&&"
+                 "it->mEye->unkb1)returntrue;}returnfalse;}",
+                 "RB3 CharEyes EitherEyeClamped scans present eye clamp flags");
+  ok &= contains(rb3_char_eyes_cpp,
                  "DataNodeCharEyes::OnToggleForceFocus(DataArray*da){"
                  "if(unkd4)SetFocusInterest(0,0);elseSetFocusInterest("
                  "unkc8,0);returnDataNode(0);}",
@@ -6695,6 +6700,10 @@ int run_contract() {
                  "std::stringlower_lid_blink;std::stringupper_lid_blink;};",
                  "native exposes CharEyes EyeDesc row");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesClampRow{boolhas_eye=false;"
+                 "boolclamped=false;};",
+                 "native exposes CharEyes clamp row");
+  ok &= contains(char_mesh_h,
                  "structSourceCharEyesFocusResult{boolaccepted=false;"
                  "std::stringfocus_interest;intfocus_priority=-1;};",
                  "native exposes CharEyes focus result");
@@ -6729,6 +6738,10 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "std::vector<std::string>source_char_eyes_list_poll_children(",
                  "native exposes CharEyes poll child helper");
+  ok &= contains(char_mesh_h,
+                 "boolsource_char_eyes_either_eye_clamped("
+                 "conststd::vector<SourceCharEyesClampRow>&eyes);",
+                 "native exposes CharEyes EitherEyeClamped helper");
   ok &= contains(char_mesh_h,
                  "SourceCharEyesDefaultStatesource_char_eyes_default_state();",
                  "native exposes CharEyes default state helper");
@@ -6826,6 +6839,12 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "for(conststd::string&eye:eye_lookats)children.push_back(eye);",
                  "native CharEyes helper delegates poll children to lookat refs");
+  ok &= contains(char_mesh,
+                 "boolsource_char_eyes_either_eye_clamped("
+                 "conststd::vector<SourceCharEyesClampRow>&eyes){for("
+                 "constSourceCharEyesClampRow&eye:eyes){if(eye.has_eye&&"
+                 "eye.clamped)returntrue;}returnfalse;}",
+                 "native CharEyes EitherEyeClamped helper mirrors source scan");
   ok &= contains(char_mesh,
                  "SourceCharEyesDefaultStatesource_char_eyes_default_state(){"
                  "SourceCharEyesDefaultStatestate;state.unkb8=std::cos("
@@ -7001,6 +7020,14 @@ int run_contract() {
                  "\"r-eye.lookat\"})",
                  "focused CharEyes source test covers poll children");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_either_eye_clamped({{false,true},"
+                 "{true,false}})",
+                 "focused CharEyes source test covers missing eye clamp ignore");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_either_eye_clamped({{true,false},"
+                 "{true,true}})",
+                 "focused CharEyes source test covers present clamped eye");
+  ok &= contains(eyes_source_test,
                  "SourceCharEyesInterest{\"same.interest\",true}",
                  "focused CharEyes source test covers same-dir interest");
   ok &= contains(eyes_source_test,
@@ -7143,6 +7170,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_eyes_toggle_force_focus` and",
                  "document records native CharEyes handler toggle helper slice");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_either_eye_clamped` ports the concrete",
+                 "document records native CharEyes EitherEyeClamped helper");
+  ok &= contains(doc,
+                 "It does not invent\n    clamp state for missing eye refs",
+                 "document fences native CharEyes clamp helper");
   ok &= contains(doc,
                  "Native `source_char_eyes_default_state` ports the concrete constructor",
                  "document records native CharEyes constructor default helper");
