@@ -2568,6 +2568,80 @@ const char* source_char_clip_set_recenter_all_warning() {
   return "You can only recenter clips from PC";
 }
 
+void source_char_clip_display_init(SourceCharClipDisplayGlobals& globals,
+                                   const std::string& dir,
+                                   float draw_empty_y) {
+  globals.dir = dir;
+  globals.em = draw_empty_y;
+}
+
+SourceCharClipDisplayFindSourceResult source_char_clip_display_find_source(
+    const std::vector<SourceCharClipDisplayMsgSource>& sources,
+    const std::string& object) {
+  SourceCharClipDisplayFindSourceResult result;
+  for (const SourceCharClipDisplayMsgSource& source : sources) {
+    for (const std::string& sink : source.sinks) {
+      if (sink == object) {
+        result.found = true;
+        result.source = source.source;
+        return result;
+      }
+    }
+  }
+  return result;
+}
+
+void source_char_clip_display_set_text(
+    SourceCharClipDisplayState& state,
+    const SourceCharClipDisplayGlobals& globals,
+    const std::string& text,
+    float draw_text_x) {
+  state.text = text;
+  state.text_width_plus_em = draw_text_x + globals.em;
+}
+
+void source_char_clip_display_set_start_end(
+    SourceCharClipDisplayState& state,
+    float start_beat,
+    float end_beat,
+    bool flag) {
+  state.start_beat = start_beat;
+  state.end_beat = end_beat;
+  state.start_end_called = true;
+  state.start_end_flag = flag;
+}
+
+void source_char_clip_display_set_clip(
+    SourceCharClipDisplayState& state,
+    const SourceCharClipDisplayGlobals& globals,
+    const std::string& clip_name,
+    float start_beat,
+    float end_beat,
+    bool flag,
+    float draw_text_x) {
+  state.clip = clip_name;
+  source_char_clip_display_set_text(state, globals, clip_name, draw_text_x);
+  source_char_clip_display_set_start_end(state, start_beat, end_beat, flag);
+}
+
+float source_char_clip_display_line_spacing(
+    const SourceCharClipDisplayGlobals& globals) {
+  return globals.em * 2.0f;
+}
+
+SourceCharTaskMgrState source_char_task_mgr_default_state() {
+  return SourceCharTaskMgrState{};
+}
+
+void source_char_task_mgr_init(SourceCharTaskMgrState& state) {
+  state.registered_toggle_char_task_graph = true;
+}
+
+bool source_char_task_mgr_toggle_graph(SourceCharTaskMgrState& state) {
+  state.show_graph = !state.show_graph;
+  return state.show_graph;
+}
+
 SourceCharClipFlagUpdate source_char_clip_set_play_flags(
     uint32_t current_play_flags,
     bool current_dirty,

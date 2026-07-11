@@ -54,6 +54,7 @@ records the upstream commits for the copied files:
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
 | Clip set preview/editor container | `rb3-latest` `CharClipSet.cpp` / `CharClipSet.h` | Native helper ports reset/default state, group randomize/sort dispatch, pre/post-save preview handling, revision-gated post-load read plan, preview character decisions, frame helpers, and BPM update; it does not promote clip playback runtime. |
+| Clip display/task graph diagnostics | `rb3-latest` `CharClipDisplay.cpp` / `CharClipDisplay.h`, `CharTaskMgr.cpp` / `CharTaskMgr.h` | Native helper ports display init, source lookup, text width plus em, bounded start/end bookkeeping, line spacing, and task-graph toggle registration. This is diagnostic/editor-only and does not change runtime clip playback. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
 | Mirror servo controller | `rb3-latest` `CharMirror.cpp` / `CharMirror.h` | Native helper ports constructor defaults, nonzero-weight/nonempty-bones `Poll` gate, servo setter `SyncBones` triggers, dependency publication, load order, and copy flow; `SyncBones` bone rebuilding remains fenced because the body is absent from `rb3-latest`. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
@@ -81,6 +82,26 @@ visible in `rb3-latest/src/system/char/CharMeshCacheMgr.cpp` and `.h`:
 The native helper uses mesh names and integer vertex tokens only so the
 contract can be deterministic. It is not a live renderer cache and does not
 change mesh upload, material state, bone posture, or hair/cloth draw behavior.
+
+## Clip Diagnostic Helpers
+
+`CharClipDisplay` and `CharTaskMgr` coverage is diagnostic/editor-only:
+
+- `CharClipDisplay::Init` stores the directory pointer and takes `sEm` from the
+  empty-string draw height.
+- `FindSource` scans message sources and returns the first source whose sink
+  object matches the requested object.
+- `SetText` copies the display text and stores drawn text width plus `sEm`.
+- `SetClip` sets the clip, then calls `SetText` and `SetStartEnd` with the
+  source clip start/end beats and caller flag. The checked source declares
+  `SetStartEnd` but does not expose its body, so native records only the
+  bounded call inputs.
+- `LineSpacing` is exactly `sEm * 2`.
+- `CharTaskMgr::Init` registers `toggle_char_task_graph`, and the callback
+  toggles the static graph flag and returns the new value.
+
+This slice does not promote clip playback, driver scheduling, overlay drawing,
+or runtime task graph rendering.
 
 ## Remaining Character Import Checklist
 

@@ -80,6 +80,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_clip_driver_flags_test.cpp"));
   const std::string clip_set_source_test =
       compact(read_file(char_dir / "character_clip_set_source_test.cpp"));
+  const std::string clip_display_source_test =
+      compact(read_file(char_dir / "character_clip_display_source_test.cpp"));
   const std::string char_bones_source_test =
       compact(read_file(char_dir / "character_char_bones_source_test.cpp"));
   const std::string char_utl_source_test =
@@ -312,6 +314,14 @@ int run_contract() {
       rb3_latest_char_dir / "CharClipSet.cpp"));
   const std::string rb3_latest_char_clip_set_h = compact(read_file(
       rb3_latest_char_dir / "CharClipSet.h"));
+  const std::string rb3_latest_char_clip_display_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharClipDisplay.cpp"));
+  const std::string rb3_latest_char_clip_display_h = compact(read_file(
+      rb3_latest_char_dir / "CharClipDisplay.h"));
+  const std::string rb3_latest_char_task_mgr_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharTaskMgr.cpp"));
+  const std::string rb3_latest_char_task_mgr_h = compact(read_file(
+      rb3_latest_char_dir / "CharTaskMgr.h"));
   const std::string rb3_latest_character_cpp = compact(read_file(
       rb3_latest_char_dir / "Character.cpp"));
   const std::string rb3_latest_character_h = compact(read_file(
@@ -476,6 +486,12 @@ int run_contract() {
                  "| Clip set preview/editor container | `rb3-latest` "
                  "`CharClipSet.cpp` / `CharClipSet.h` |",
                  "coverage matrix cites CharClipSet source evidence");
+  ok &= contains(doc,
+                 "| Clip display/task graph diagnostics | `rb3-latest` "
+                 "`CharClipDisplay.cpp` / `CharClipDisplay.h`, "
+                 "`CharTaskMgr.cpp` / `CharTaskMgr.h` |",
+                 "coverage matrix cites CharClipDisplay and CharTaskMgr "
+                 "source evidence");
   ok &= contains(doc,
                  "Native shared loader follows source `CharClipGroup::Load`: "
                  "`Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated "
@@ -9731,6 +9747,103 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_clip_set_post_load_plan` ports the full",
                  "document records native CharClipSet post-load helper");
+  ok &= contains(rb3_latest_char_clip_display_h,
+                 "classCharClipDisplay{public:MsgSource*FindSource("
+                 "Hmx::Object*);voidSetClip(CharClip*,bool);voidSetText("
+                 "constchar*);voidSetStartEnd(float,float,bool);",
+                 "latest CharClipDisplay header exposes diagnostic methods");
+  ok &= contains(rb3_latest_char_clip_display_cpp,
+                 "voidCharClipDisplay::Init(ObjectDir*dir){sDir=dir;sEm="
+                 "TheRnd->DrawString(\"\",Vector2(0,0),Hmx::Color(1.0f,"
+                 "0.0f,0.0f),false).y;}",
+                 "latest CharClipDisplay source Init");
+  ok &= contains(rb3_latest_char_clip_display_cpp,
+                 "MsgSource*CharClipDisplay::FindSource(Hmx::Object*o){"
+                 "for(ObjDirItr<MsgSource>it(ObjectDir::Main(),false);"
+                 "it!=0;++it){for(std::list<MsgSource::Sink>::iteratorlit="
+                 "it->mSinks.begin();lit!=it->mSinks.end();++lit){if((*lit)."
+                 "obj==o)returnit;}}return0;}",
+                 "latest CharClipDisplay source FindSource scan");
+  ok &= contains(rb3_latest_char_clip_display_cpp,
+                 "voidCharClipDisplay::SetClip(CharClip*clip,boolb){unk0=clip;"
+                 "SetText(clip->Name());SetStartEnd(clip->StartBeat(),"
+                 "clip->EndBeat(),b);}",
+                 "latest CharClipDisplay source SetClip");
+  ok &= contains(rb3_latest_char_clip_display_cpp,
+                 "voidCharClipDisplay::SetText(constchar*text){strcpy(unk24,"
+                 "text);unk14=TheRnd->DrawString(text,Vector2(0,0),"
+                 "Hmx::Color(1.0f,0.0f,0.0f),false).x+sEm;}",
+                 "latest CharClipDisplay source SetText");
+  ok &= contains(rb3_latest_char_clip_display_cpp,
+                 "floatCharClipDisplay::LineSpacing(){returnsEm*2.0f;}",
+                 "latest CharClipDisplay source LineSpacing");
+  ok &= contains(rb3_latest_char_task_mgr_h,
+                 "classCharTaskMgr{public:intfiller;staticboolsShowGraph;"
+                 "staticvoidInit();};",
+                 "latest CharTaskMgr header exposes graph flag");
+  ok &= contains(rb3_latest_char_task_mgr_cpp,
+                 "boolCharTaskMgr::sShowGraph=false;",
+                 "latest CharTaskMgr source default graph flag");
+  ok &= contains(rb3_latest_char_task_mgr_cpp,
+                 "staticDataNodeOnToggleCharTaskGraph(DataArray*arr){"
+                 "CharTaskMgr::sShowGraph=!CharTaskMgr::sShowGraph;"
+                 "returnDataNode(CharTaskMgr::sShowGraph);}",
+                 "latest CharTaskMgr source toggle callback");
+  ok &= contains(rb3_latest_char_task_mgr_cpp,
+                 "voidCharTaskMgr::Init(){DataRegisterFunc("
+                 "\"toggle_char_task_graph\",OnToggleCharTaskGraph);}",
+                 "latest CharTaskMgr source Init registration");
+  ok &= contains(char_clip_h, "structSourceCharClipDisplayGlobals{",
+                 "native exposes CharClipDisplay globals");
+  ok &= contains(char_clip_h, "structSourceCharTaskMgrState{",
+                 "native exposes CharTaskMgr state");
+  ok &= contains(char_clip,
+                 "voidsource_char_clip_display_init("
+                 "SourceCharClipDisplayGlobals&globals,conststd::string&dir,"
+                 "floatdraw_empty_y){globals.dir=dir;globals.em=draw_empty_y;}",
+                 "native ports CharClipDisplay Init");
+  ok &= contains(char_clip,
+                 "SourceCharClipDisplayFindSourceResultsource_char_clip_"
+                 "display_find_source(conststd::vector<"
+                 "SourceCharClipDisplayMsgSource>&sources,conststd::string&"
+                 "object){",
+                 "native exposes CharClipDisplay FindSource helper");
+  ok &= contains(char_clip,
+                 "state.text_width_plus_em=draw_text_x+globals.em;",
+                 "native ports CharClipDisplay text width plus em");
+  ok &= contains(char_clip,
+                 "source_char_clip_display_set_start_end(state,start_beat,"
+                 "end_beat,flag);",
+                 "native records CharClipDisplay SetStartEnd inputs");
+  ok &= contains(char_clip,
+                 "floatsource_char_clip_display_line_spacing(const"
+                 "SourceCharClipDisplayGlobals&globals){returnglobals.em*2.0f;}",
+                 "native ports CharClipDisplay LineSpacing");
+  ok &= contains(char_clip,
+                 "SourceCharTaskMgrStatesource_char_task_mgr_default_state(){"
+                 "returnSourceCharTaskMgrState{};}",
+                 "native ports CharTaskMgr default state");
+  ok &= contains(char_clip,
+                 "state.registered_toggle_char_task_graph=true;",
+                 "native ports CharTaskMgr Init registration");
+  ok &= contains(char_clip,
+                 "state.show_graph=!state.show_graph;returnstate.show_graph;",
+                 "native ports CharTaskMgr toggle callback");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_clip_display_source_test",
+                 "CMake builds CharClipDisplay source test");
+  ok &= contains(clip_display_source_test,
+                 "source_char_clip_display_find_source(sources,\"target_obj\")",
+                 "focused CharClipDisplay test covers FindSource");
+  ok &= contains(clip_display_source_test,
+                 "source_char_clip_display_set_clip(display,globals,"
+                 "\"solo.clip\",12.0f,24.5f,true,31.0f)",
+                 "focused CharClipDisplay test covers SetClip");
+  ok &= contains(clip_display_source_test,
+                 "source_char_task_mgr_toggle_graph(task)",
+                 "focused CharTaskMgr test covers toggle");
+  ok &= contains(doc, "## Clip Diagnostic Helpers",
+                 "document records CharClipDisplay/CharTaskMgr boundary");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");

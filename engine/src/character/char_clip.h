@@ -639,6 +639,36 @@ struct SourceCharClipSetCopyResult {
   bool copy_still_clip = false;
 };
 
+struct SourceCharClipDisplayGlobals {
+  std::string dir;
+  float em = 0.0f;
+};
+
+struct SourceCharClipDisplayState {
+  std::string clip;
+  std::string text;
+  float text_width_plus_em = 0.0f;
+  float start_beat = 0.0f;
+  float end_beat = 0.0f;
+  bool start_end_called = false;
+  bool start_end_flag = false;
+};
+
+struct SourceCharClipDisplayMsgSource {
+  std::string source;
+  std::vector<std::string> sinks;
+};
+
+struct SourceCharClipDisplayFindSourceResult {
+  bool found = false;
+  std::string source;
+};
+
+struct SourceCharTaskMgrState {
+  bool show_graph = false;
+  bool registered_toggle_char_task_graph = false;
+};
+
 // Source-backed CharClip constructor state.
 SourceCharClipDefaultState source_char_clip_default_state();
 SourceCharClipBeatEvent source_char_clip_beat_event_default();
@@ -760,6 +790,35 @@ SourceCharClipSetSetBpmResult source_char_clip_set_set_bpm(
     int bpm,
     bool milo_found);
 const char* source_char_clip_set_recenter_all_warning();
+void source_char_clip_display_init(SourceCharClipDisplayGlobals& globals,
+                                   const std::string& dir,
+                                   float draw_empty_y);
+SourceCharClipDisplayFindSourceResult source_char_clip_display_find_source(
+    const std::vector<SourceCharClipDisplayMsgSource>& sources,
+    const std::string& object);
+void source_char_clip_display_set_text(
+    SourceCharClipDisplayState& state,
+    const SourceCharClipDisplayGlobals& globals,
+    const std::string& text,
+    float draw_text_x);
+void source_char_clip_display_set_start_end(
+    SourceCharClipDisplayState& state,
+    float start_beat,
+    float end_beat,
+    bool flag);
+void source_char_clip_display_set_clip(
+    SourceCharClipDisplayState& state,
+    const SourceCharClipDisplayGlobals& globals,
+    const std::string& clip_name,
+    float start_beat,
+    float end_beat,
+    bool flag,
+    float draw_text_x);
+float source_char_clip_display_line_spacing(
+    const SourceCharClipDisplayGlobals& globals);
+SourceCharTaskMgrState source_char_task_mgr_default_state();
+void source_char_task_mgr_init(SourceCharTaskMgrState& state);
+bool source_char_task_mgr_toggle_graph(SourceCharTaskMgrState& state);
 
 // Source-backed CharClip::SetFlags / SetPlayFlags dirty-state helpers.
 SourceCharClipFlagUpdate source_char_clip_set_flags(uint32_t current_flags,
