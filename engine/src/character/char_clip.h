@@ -1183,6 +1183,66 @@ struct SourceCharIKHandMeasure {
   float aa_plus_bb = 0.0f;
 };
 
+struct SourceCharIKFootState {
+  bool helper_target_created = true;
+  bool helper_target_local_reset = true;
+  int fsm_state = 0;
+  std::string data;
+  int data_index = 0;
+  std::array<float, 3> planted_pos = {0.0f, 0.0f, 0.0f};
+  float release_distance = 0.0f;
+  std::string character_dir;
+};
+
+struct SourceCharIKFootEnterResult {
+  bool reset_fsm_state = false;
+  bool reset_release_distance = false;
+};
+
+struct SourceCharIKFootSetNameResult {
+  bool call_hmx_set_name = false;
+  bool assigned_character = false;
+};
+
+struct SourceCharIKFootPollPlan {
+  bool should_poll = false;
+  bool clear_targets_before = false;
+  bool push_helper_target = false;
+  bool run_do_fsm = false;
+  bool call_char_ik_hand_poll = false;
+  bool clear_targets_after = false;
+};
+
+struct SourceCharIKFootPollDepsPlan {
+  bool call_char_ik_hand_poll_deps = false;
+};
+
+struct SourceCharIKFootFsmResult {
+  bool copied_finger_matrix = false;
+  bool clamped_negative_delta = false;
+  bool planted = false;
+  bool returned_from_planted_state = false;
+  std::array<float, 3> target_pos = {0.0f, 0.0f, 0.0f};
+  int fsm_state = 0;
+  float release_distance = 0.0f;
+};
+
+struct SourceCharIKFootLoadSteps {
+  int32_t max_revision = 6;
+  bool known_revision = false;
+  bool load_char_ik_hand = false;
+  bool read_legacy_symbol = false;
+  int legacy_int_reads = 0;
+  bool load_data = false;
+  bool load_data_index = false;
+};
+
+struct SourceCharIKFootCopyResult {
+  bool copy_char_ik_hand = false;
+  bool copy_data = false;
+  bool copy_data_index = false;
+};
+
 // Source-backed CharIKHand::MeasureLengths / IKElbow scalar helper. The length
 // inputs correspond to mHand->mLocalXfm.v and mHand->TransParent()->mLocalXfm.v.
 SourceCharIKHandMeasure source_char_ik_hand_measure_lengths(
@@ -1195,6 +1255,29 @@ bool source_char_ik_hand_elbow_cosine(
     const SourceCharIKHandMeasure& measure,
     float distance_squared,
     float& out_cosine);
+SourceCharIKFootState source_char_ik_foot_default_state();
+SourceCharIKFootEnterResult source_char_ik_foot_enter(
+    SourceCharIKFootState& state);
+SourceCharIKFootSetNameResult source_char_ik_foot_set_name(
+    SourceCharIKFootState& state,
+    const std::string& dir_name,
+    bool dir_is_character);
+SourceCharIKFootPollPlan source_char_ik_foot_poll_plan(
+    bool has_finger,
+    bool has_hand,
+    bool has_data);
+SourceCharIKFootPollDepsPlan source_char_ik_foot_poll_deps_plan();
+SourceCharIKFootFsmResult source_char_ik_foot_do_fsm(
+    SourceCharIKFootState& state,
+    const std::array<float, 3>& current_target_pos,
+    const std::array<float, 3>& finger_world_pos,
+    float data_value,
+    float delta_seconds,
+    bool character_teleported);
+SourceCharIKFootLoadSteps source_char_ik_foot_load_steps(int32_t revision);
+SourceCharIKFootCopyResult source_char_ik_foot_copy(
+    SourceCharIKFootState& dest,
+    const SourceCharIKFootState& source);
 
 // Source-backed CharBoneOffset::Poll helper. Returns false when the source
 // object pointer or its parent transform would be missing.

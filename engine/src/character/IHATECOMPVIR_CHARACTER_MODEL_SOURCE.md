@@ -48,7 +48,7 @@ records the upstream commits for the copied files:
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
 | Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve without adding an unproven frame-cadence write. |
-| Hand/head IK, IK MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields; IK fingers helpers port source defaults and left/right finger transform names only. |
+| Hand/head/foot IK, IK MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKFoot.cpp` / `CharIKFoot.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK foot helpers port source helper-target setup, FSM, load gates, and delegation plan without inventing row hookup; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields; IK fingers helpers port source defaults and left/right finger transform names only. |
 | IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
@@ -973,6 +973,31 @@ note, and all report `unreadBytes=0`.
     for tests and future row wiring. The checked file does not include a
     reviewable `CharIKHead::Poll` body, so native does not invent head IK
     solving from these data helpers.
+- `rb3-latest/src/system/char/CharIKFoot.cpp` and
+  `rb3-latest/src/system/char/CharIKFoot.h`
+  - `CharIKFoot` inherits `CharIKHand`. Its constructor creates a private
+    helper `RndTransformable`, resets that helper's local transform, initializes
+    the FSM state to zero, and leaves `mData` / `mDataIndex` at their source
+    defaults.
+  - `Enter` resets the FSM state and release distance. `SetName` delegates to
+    `Hmx::Object::SetName` and stores the owning `Character` only when the
+    supplied directory is a `Character`.
+  - `DoFSM` is the foot-specific concrete body: teleports reset the FSM state,
+    negative delta time clamps to zero, the helper target copies the finger
+    world matrix and finger Z position, `mData->mLocalXfm.v[mDataIndex]`
+    selects the planted/release branch, planted travel is clamped to `0.125`,
+    and release distance decays by `deltaSeconds * 25.0`.
+  - `Poll` is a source delegation wrapper: it requires finger, hand, and data
+    refs; clears `mTargets`; pushes the helper target with extent zero; runs
+    `DoFSM`; calls inherited `CharIKHand::Poll`; then clears `mTargets` again.
+    Native `source_char_ik_foot_*` helpers port that foot-specific plan and FSM
+    for tests. They do not add a decoded `CharIKFoot` row hookup or a separate
+    live foot IK pass.
+  - `Load` accepts source revisions through 6, loads the `CharIKHand`
+    superclass, consumes a legacy symbol below revision 6, consumes up to three
+    legacy ints below revision 5, and reads `mData` plus `mDataIndex` for
+    revision 5 and newer. `Copy` copies the `CharIKHand` superclass, `mData`,
+    and `mDataIndex`.
 - `rb3-latest/src/system/char/CharIKMidi.cpp` and
   `rb3-latest/src/system/char/CharIKMidi.h`
   - `CharIKMidi::Load` accepts source revisions through 5, reads

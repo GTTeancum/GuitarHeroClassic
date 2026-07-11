@@ -88,6 +88,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
   const std::string ik_hand_source_test =
       compact(read_file(char_dir / "character_ik_hand_source_test.cpp"));
+  const std::string ik_foot_source_test =
+      compact(read_file(char_dir / "character_ik_foot_source_test.cpp"));
   const std::string ik_head_source_test =
       compact(read_file(char_dir / "character_ik_head_source_test.cpp"));
   const std::string bone_offset_source_test =
@@ -232,6 +234,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharIKHead.cpp"));
   const std::string rb3_latest_char_ik_head_h = compact(read_file(
       rb3_latest_char_dir / "CharIKHead.h"));
+  const std::string rb3_latest_char_ik_foot_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharIKFoot.cpp"));
+  const std::string rb3_latest_char_ik_foot_h = compact(read_file(
+      rb3_latest_char_dir / "CharIKFoot.h"));
   const std::string rb3_latest_char_ik_fingers_cpp = compact(read_file(
       rb3_latest_char_dir / "CharIKFingers.cpp"));
   const std::string rb3_latest_char_ik_fingers_h = compact(read_file(
@@ -2202,6 +2208,191 @@ int run_contract() {
   ok &= contains(doc,
                  "does not include a\n    reviewable `CharIKHead::Poll` body",
                  "document fences absent CharIKHead Poll body");
+  ok &= contains(rb3_latest_char_ik_foot_h,
+                 "classCharIKFoot:publicCharIKHand",
+                 "CharIKFoot source header exposes CharIKHand inheritance");
+  ok &= contains(rb3_latest_char_ik_foot_h,
+                 "ObjPtr<RndTransformable,ObjectDir>unk88;",
+                 "CharIKFoot source header exposes helper target");
+  ok &= contains(rb3_latest_char_ik_foot_h, "intunk94;",
+                 "CharIKFoot source header exposes FSM state");
+  ok &= contains(rb3_latest_char_ik_foot_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mData;",
+                 "CharIKFoot source header exposes data ref");
+  ok &= contains(rb3_latest_char_ik_foot_h, "intmDataIndex;",
+                 "CharIKFoot source header exposes data index");
+  ok &= contains(rb3_latest_char_ik_foot_h, "Vector3unka8;",
+                 "CharIKFoot source header exposes planted target");
+  ok &= contains(rb3_latest_char_ik_foot_h, "floatunkb4;",
+                 "CharIKFoot source header exposes release distance");
+  ok &= contains(rb3_latest_char_ik_foot_h,
+                 "ObjPtr<Character,ObjectDir>mMe;",
+                 "CharIKFoot source header exposes owning character ref");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "CharIKFoot::CharIKFoot():unk88(this,0),unk94(0),"
+                 "mData(this,0),mDataIndex(0),mMe(this,0){unk88="
+                 "Hmx::Object::New<RndTransformable>();"
+                 "unk88->DirtyLocalXfm().Reset();}",
+                 "CharIKFoot source constructor creates reset helper target");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "voidCharIKFoot::Enter(){unk94=0;unkb4=0.0f;}",
+                 "CharIKFoot source Enter resets FSM state");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "voidCharIKFoot::SetName(constchar*cc,ObjectDir*dir){"
+                 "Hmx::Object::SetName(cc,dir);mMe=dynamic_cast<Character*>"
+                 "(dir);}",
+                 "CharIKFoot source SetName stores Character dir");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "if(mMe&&mMe->Teleported())unk94=0;",
+                 "CharIKFoot source FSM resets on teleport");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "floatdeltasecs=TheTaskMgr.DeltaSeconds();if(deltasecs<0.0f)"
+                 "deltasecs=0.0f;",
+                 "CharIKFoot source FSM clamps negative delta");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "tf.m=mFinger->WorldXfm().m;tf.v.z=mFinger->WorldXfm().v.z;",
+                 "CharIKFoot source FSM copies finger matrix and z");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "floatvecat=mData->mLocalXfm.v[mDataIndex];",
+                 "CharIKFoot source FSM reads data vector index");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "if(len>0.125f)v3c*=0.125f/len;Add(unka8,v3c,tf.v);return;",
+                 "CharIKFoot source FSM clamps planted travel");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "unkb4=Min(-(deltasecs*25.0f-unkb4),len);",
+                 "CharIKFoot source FSM decays release distance");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "if(!mFinger||!mHand||!mData)return;mTargets.clear();"
+                 "mTargets.push_back(IKTarget(ObjPtr<RndTransformable,"
+                 "ObjectDir>(unk88),0));DoFSM(unk88->DirtyLocalXfm());"
+                 "CharIKHand::Poll();mTargets.clear();",
+                 "CharIKFoot source Poll delegates through helper target");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "voidCharIKFoot::PollDeps(std::list<Hmx::Object*>&l1,"
+                 "std::list<Hmx::Object*>&l2){CharIKHand::PollDeps(l1,l2);}",
+                 "CharIKFoot source PollDeps delegates CharIKHand");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(6,0)LOAD_SUPERCLASS(CharIKHand)",
+                 "CharIKFoot source load enforces revision ceiling");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "if(gRev<6){Symbols;bs>>s;}if(gRev<5){inti;if(gRev>1)"
+                 "bs>>i;if(gRev>2)bs>>i;if(gRev>3)bs>>i;}else{"
+                 "bs>>mData;bs>>mDataIndex;}",
+                 "CharIKFoot source load gates legacy and data rows");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "COPY_SUPERCLASS(CharIKHand)CREATE_COPY(CharIKFoot)",
+                 "CharIKFoot source copy includes CharIKHand superclass");
+  ok &= contains(rb3_latest_char_ik_foot_cpp,
+                 "COPY_MEMBER(mData)COPY_MEMBER(mDataIndex)",
+                 "CharIKFoot source copy mirrors member list");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKFootState{boolhelper_target_created=true;"
+                 "boolhelper_target_local_reset=true;intfsm_state=0;",
+                 "native exposes CharIKFoot source state");
+  ok &= contains(char_clip_h,
+                 "std::array<float,3>planted_pos={0.0f,0.0f,0.0f};"
+                 "floatrelease_distance=0.0f;",
+                 "native stores CharIKFoot FSM state rows");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKFootStatesource_char_ik_foot_default_state();",
+                 "native API exposes CharIKFoot defaults helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKFootFsmResultsource_char_ik_foot_do_fsm(",
+                 "native API exposes CharIKFoot FSM helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKFootLoadStepssource_char_ik_foot_load_steps("
+                 "int32_trevision);",
+                 "native API exposes CharIKFoot load helper");
+  ok &= contains(char_clip,
+                 "SourceCharIKFootStatesource_char_ik_foot_default_state(){"
+                 "returnSourceCharIKFootState{};}",
+                 "native CharIKFoot defaults helper mirrors constructor state");
+  ok &= contains(char_clip,
+                 "state.fsm_state=0;result.reset_fsm_state=true;"
+                 "state.release_distance=0.0f;",
+                 "native CharIKFoot Enter helper resets FSM state");
+  ok &= contains(char_clip,
+                 "result.call_hmx_set_name=true;result.assigned_character="
+                 "dir_is_character;state.character_dir=dir_is_character?"
+                 "dir_name:std::string{};",
+                 "native CharIKFoot SetName helper mirrors Character cast");
+  ok &= contains(char_clip,
+                 "if(!has_finger||!has_hand||!has_data)returnplan;",
+                 "native CharIKFoot Poll plan mirrors source missing-ref return");
+  ok &= contains(char_clip,
+                 "plan.push_helper_target=true;plan.run_do_fsm=true;"
+                 "plan.call_char_ik_hand_poll=true;",
+                 "native CharIKFoot Poll plan mirrors helper target delegation");
+  ok &= contains(char_clip,
+                 "plan.call_char_ik_hand_poll_deps=true;",
+                 "native CharIKFoot PollDeps plan mirrors CharIKHand delegation");
+  ok &= contains(char_clip,
+                 "if(character_teleported)state.fsm_state=0;",
+                 "native CharIKFoot FSM mirrors teleport reset");
+  ok &= contains(char_clip,
+                 "if(delta_seconds<0.0f){delta_seconds=0.0f;"
+                 "result.clamped_negative_delta=true;}",
+                 "native CharIKFoot FSM mirrors negative delta clamp");
+  ok &= contains(char_clip,
+                 "result.copied_finger_matrix=true;std::array<float,3>target="
+                 "current_target_pos;target[2]=finger_world_pos[2];"
+                 "state.planted_pos[2]=target[2];",
+                 "native CharIKFoot FSM mirrors finger matrix/z setup");
+  ok &= contains(char_clip,
+                 "constfloatthreshold=state.fsm_state==1?0.6f:0.5f;",
+                 "native CharIKFoot FSM mirrors planted thresholds");
+  ok &= contains(char_clip,
+                 "if(len>0.125f){constfloatscale=0.125f/len;",
+                 "native CharIKFoot FSM mirrors planted travel clamp");
+  ok &= contains(char_clip,
+                 "state.release_distance=std::min(state.release_distance-"
+                 "delta_seconds*25.0f,len);",
+                 "native CharIKFoot FSM mirrors release decay");
+  ok &= contains(char_clip,
+                 "steps.known_revision=revision>=0&&revision<=steps.max_revision;",
+                 "native CharIKFoot load helper mirrors revision range");
+  ok &= contains(char_clip,
+                 "steps.read_legacy_symbol=revision<6;",
+                 "native CharIKFoot load helper mirrors legacy symbol gate");
+  ok &= contains(char_clip,
+                 "if(revision<5){if(revision>1)++steps.legacy_int_reads;"
+                 "if(revision>2)++steps.legacy_int_reads;if(revision>3)"
+                 "++steps.legacy_int_reads;}else{steps.load_data=true;"
+                 "steps.load_data_index=true;}",
+                 "native CharIKFoot load helper mirrors legacy/data gates");
+  ok &= contains(char_clip,
+                 "dest.data=source.data;result.copy_data=true;dest.data_index="
+                 "source.data_index;",
+                 "native CharIKFoot copy helper mirrors member copy");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_ik_foot_source_test"
+                 "character_ik_foot_source_test.cpp)",
+                 "CMake builds focused CharIKFoot source test");
+  ok &= contains(ik_foot_source_test,
+                 "source_char_ik_foot_default_state()",
+                 "focused CharIKFoot test covers source defaults");
+  ok &= contains(ik_foot_source_test,
+                 "source_char_ik_foot_poll_plan(true,true,true)",
+                 "focused CharIKFoot test covers Poll plan");
+  ok &= contains(ik_foot_source_test,
+                 "source_char_ik_foot_do_fsm(",
+                 "focused CharIKFoot test covers FSM helper");
+  ok &= contains(ik_foot_source_test,
+                 "source_char_ik_foot_load_steps(6)",
+                 "focused CharIKFoot test covers load gates");
+  ok &= contains(ik_foot_source_test,
+                 "source_char_ik_foot_copy(dest,source)",
+                 "focused CharIKFoot test covers copy helper");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharIKFoot.cpp`",
+                 "document cites CharIKFoot source");
+  ok &= contains(doc,
+                 "Native `source_char_ik_foot_*` helpers port that "
+                 "foot-specific plan and FSM",
+                 "document records native CharIKFoot helper boundary");
+  ok &= contains(doc,
+                 "They do not add a decoded `CharIKFoot` row hookup",
+                 "document fences CharIKFoot live row hookup");
   ok &= contains(rb3_latest_char_ik_midi_h,
                  "ObjPtr<RndTransformable,ObjectDir>mBone;",
                  "latest CharIKMidi source header exposes driven bone");

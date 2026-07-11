@@ -2998,6 +2998,178 @@ bool source_char_ik_hand_elbow_cosine(
   return true;
 }
 
+static float source_distance3(const std::array<float, 3>& a,
+                              const std::array<float, 3>& b) {
+  const float dx = a[0] - b[0];
+  const float dy = a[1] - b[1];
+  const float dz = a[2] - b[2];
+  return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+SourceCharIKFootState source_char_ik_foot_default_state() {
+  return SourceCharIKFootState{};
+}
+
+SourceCharIKFootEnterResult source_char_ik_foot_enter(
+    SourceCharIKFootState& state) {
+  SourceCharIKFootEnterResult result;
+  state.fsm_state = 0;
+  result.reset_fsm_state = true;
+  state.release_distance = 0.0f;
+  result.reset_release_distance = true;
+  return result;
+}
+
+SourceCharIKFootSetNameResult source_char_ik_foot_set_name(
+    SourceCharIKFootState& state,
+    const std::string& dir_name,
+    bool dir_is_character) {
+  SourceCharIKFootSetNameResult result;
+  result.call_hmx_set_name = true;
+  result.assigned_character = dir_is_character;
+  state.character_dir = dir_is_character ? dir_name : std::string{};
+  return result;
+}
+
+SourceCharIKFootPollPlan source_char_ik_foot_poll_plan(
+    bool has_finger,
+    bool has_hand,
+    bool has_data) {
+  SourceCharIKFootPollPlan plan;
+  if (!has_finger || !has_hand || !has_data) return plan;
+  plan.should_poll = true;
+  plan.clear_targets_before = true;
+  plan.push_helper_target = true;
+  plan.run_do_fsm = true;
+  plan.call_char_ik_hand_poll = true;
+  plan.clear_targets_after = true;
+  return plan;
+}
+
+SourceCharIKFootPollDepsPlan source_char_ik_foot_poll_deps_plan() {
+  SourceCharIKFootPollDepsPlan plan;
+  plan.call_char_ik_hand_poll_deps = true;
+  return plan;
+}
+
+SourceCharIKFootFsmResult source_char_ik_foot_do_fsm(
+    SourceCharIKFootState& state,
+    const std::array<float, 3>& current_target_pos,
+    const std::array<float, 3>& finger_world_pos,
+    float data_value,
+    float delta_seconds,
+    bool character_teleported) {
+  SourceCharIKFootFsmResult result;
+  if (character_teleported) state.fsm_state = 0;
+  if (delta_seconds < 0.0f) {
+    delta_seconds = 0.0f;
+    result.clamped_negative_delta = true;
+  }
+
+  result.copied_finger_matrix = true;
+  std::array<float, 3> target = current_target_pos;
+  target[2] = finger_world_pos[2];
+  state.planted_pos[2] = target[2];
+
+  bool planted = false;
+  if (data_value >= 1.0f) {
+    const float threshold = state.fsm_state == 1 ? 0.6f : 0.5f;
+    if (threshold > target[2]) planted = true;
+  } else {
+    planted = true;
+  }
+  result.planted = planted;
+
+  if (state.fsm_state == 0) {
+    target = finger_world_pos;
+    if (planted) {
+      state.planted_pos = target;
+      state.fsm_state = 1;
+    }
+  }
+  if (state.fsm_state == 1) {
+    if (!planted) {
+      state.fsm_state = 2;
+      state.release_distance = source_distance3(finger_world_pos, target);
+    } else {
+      std::array<float, 3> delta = {
+          finger_world_pos[0] - state.planted_pos[0],
+          finger_world_pos[1] - state.planted_pos[1],
+          finger_world_pos[2] - state.planted_pos[2]};
+      const float len = std::sqrt(delta[0] * delta[0] + delta[1] * delta[1] +
+                                  delta[2] * delta[2]);
+      if (len > 0.125f) {
+        const float scale = 0.125f / len;
+        delta[0] *= scale;
+        delta[1] *= scale;
+        delta[2] *= scale;
+      }
+      target = {state.planted_pos[0] + delta[0],
+                state.planted_pos[1] + delta[1],
+                state.planted_pos[2] + delta[2]};
+      result.returned_from_planted_state = true;
+      result.target_pos = target;
+      result.fsm_state = state.fsm_state;
+      result.release_distance = state.release_distance;
+      return result;
+    }
+  }
+  if (state.fsm_state == 2) {
+    std::array<float, 3> delta = {finger_world_pos[0] - target[0],
+                                  finger_world_pos[1] - target[1],
+                                  finger_world_pos[2] - target[2]};
+    const float len = std::sqrt(delta[0] * delta[0] + delta[1] * delta[1] +
+                                delta[2] * delta[2]);
+    state.release_distance =
+        std::min(state.release_distance - delta_seconds * 25.0f, len);
+    if (state.release_distance <= 0.0f) {
+      state.fsm_state = 0;
+    } else if (len != 0.0f) {
+      const float scale = (len - state.release_distance) / len;
+      target[0] += delta[0] * scale;
+      target[1] += delta[1] * scale;
+      target[2] += delta[2] * scale;
+    }
+    if (planted) {
+      state.planted_pos = target;
+      state.fsm_state = 1;
+    }
+  }
+
+  result.target_pos = target;
+  result.fsm_state = state.fsm_state;
+  result.release_distance = state.release_distance;
+  return result;
+}
+
+SourceCharIKFootLoadSteps source_char_ik_foot_load_steps(int32_t revision) {
+  SourceCharIKFootLoadSteps steps;
+  steps.known_revision = revision >= 0 && revision <= steps.max_revision;
+  steps.load_char_ik_hand = true;
+  steps.read_legacy_symbol = revision < 6;
+  if (revision < 5) {
+    if (revision > 1) ++steps.legacy_int_reads;
+    if (revision > 2) ++steps.legacy_int_reads;
+    if (revision > 3) ++steps.legacy_int_reads;
+  } else {
+    steps.load_data = true;
+    steps.load_data_index = true;
+  }
+  return steps;
+}
+
+SourceCharIKFootCopyResult source_char_ik_foot_copy(
+    SourceCharIKFootState& dest,
+    const SourceCharIKFootState& source) {
+  SourceCharIKFootCopyResult result;
+  result.copy_char_ik_hand = true;
+  dest.data = source.data;
+  result.copy_data = true;
+  dest.data_index = source.data_index;
+  result.copy_data_index = true;
+  return result;
+}
+
 static std::array<float, 16> source_xfm_to_mat4(
     const milo_scene::Xfm& xfm) {
   return {xfm.rot[0][0], xfm.rot[0][1], xfm.rot[0][2], 0.0f,
