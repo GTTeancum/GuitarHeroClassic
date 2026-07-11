@@ -315,6 +315,65 @@ void test_group_transform() {
               group.world_stored.pos[2]);
 }
 
+void test_group_draw_order_matches_rnddir_roots() {
+  Scene scene;
+  auto mesh = [](const char* name) {
+    MeshObj out;
+    out.name = name;
+    out.decoded = true;
+    out.showing = true;
+    return out;
+  };
+  MeshObj root_mesh = mesh("root.mesh");
+  root_mesh.draw_order = 0.5f;
+  root_mesh.dir_index = 10;
+  scene.meshes.push_back(root_mesh);
+  scene.meshes.push_back(mesh("translucent.mesh"));
+  scene.meshes.push_back(mesh("opaque.mesh"));
+  scene.meshes.push_back(mesh("hidden_child.mesh"));
+
+  GroupObj translucent;
+  translucent.name = "translucent.grp";
+  translucent.showing = true;
+  translucent.draw_order = 1.0f;
+  translucent.children.push_back("translucent.mesh");
+  scene.groups.push_back(translucent);
+
+  GroupObj hidden_parent;
+  hidden_parent.name = "hidden_parent.grp";
+  hidden_parent.showing = false;
+  hidden_parent.draw_order = -1.0f;
+  hidden_parent.children.push_back("hidden_child.grp");
+  scene.groups.push_back(hidden_parent);
+
+  GroupObj opaque;
+  opaque.name = "opaque.grp";
+  opaque.showing = true;
+  opaque.draw_order = 0.0f;
+  opaque.dir_index = 20;
+  opaque.children.push_back("opaque.mesh");
+  scene.groups.push_back(opaque);
+
+  GroupObj hidden_child;
+  hidden_child.name = "hidden_child.grp";
+  hidden_child.showing = true;
+  hidden_child.draw_order = -1.0f;
+  hidden_child.children.push_back("hidden_child.mesh");
+  scene.groups.push_back(hidden_child);
+
+  rebuild_group_authored_draw_order_for_test(scene);
+  CHECK(scene.draw_order.size() == 3);
+  CHECK(scene.draw_order[0] == "opaque.mesh");
+  CHECK(scene.draw_order[1] == "root.mesh");
+  CHECK(scene.draw_order[2] == "translucent.mesh");
+  CHECK(std::find(scene.draw_order.begin(), scene.draw_order.end(),
+                  "hidden_child.mesh") == scene.draw_order.end());
+  CHECK(std::find(scene.grouped_meshes.begin(), scene.grouped_meshes.end(),
+                  "hidden_child.mesh") != scene.grouped_meshes.end());
+  std::printf(
+      "  [ok] Group draw roots: opaque before translucent, hidden child suppressed\n");
+}
+
 void test_band_placer() {
   std::vector<uint8_t> b;
   put_u32(b, 2);                 // BandPlacer version.
@@ -528,6 +587,7 @@ int main() {
   test_environ_with_fog();
   test_cam_projection_fields();
   test_group_transform();
+  test_group_draw_order_matches_rnddir_roots();
   test_band_placer();
   test_real_menu_band_placers();
   test_mesh();

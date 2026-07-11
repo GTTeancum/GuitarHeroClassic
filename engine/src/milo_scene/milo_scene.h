@@ -210,6 +210,7 @@ struct GroupObj {
   bool decoded = false;
   bool showing = true;
   float draw_order = 0.0f;
+  size_t dir_index = 0;
   std::vector<std::string> children;
   std::string environment_ref;
   std::string draw_only;
@@ -272,6 +273,8 @@ struct MeshObj {
   float bb_min[3] = {0, 0, 0};
   float bb_max[3] = {0, 0, 0};
   bool showing = true;
+  float draw_order = 0.0f;
+  size_t dir_index = 0;
   bool decoded = false;
   std::string error;         // non-empty if decode failed (mesh still listed)
 };
@@ -283,6 +286,8 @@ struct ParticleSysObj {
   Xfm local;
   Xfm world_stored;
   bool showing = true;
+  float draw_order = 0.0f;
+  size_t dir_index = 0;
   float max_particles = 0.0f;
   float velocity_min[3] = {0.0f, 0.0f, 0.0f};
   float velocity_max[3] = {0.0f, 0.0f, 0.0f};
@@ -387,5 +392,9 @@ struct Scene {
 // still return true with those objects flagged.
 bool load_scene(const std::string& hdr_path, const std::string& ark_path,
                 const std::string& milo_path, Scene& out);
+
+// Rebuild the RndDir-style group draw metadata after tests or diagnostics
+// mutate a Scene by hand. load_scene calls this automatically.
+void rebuild_group_authored_draw_order_for_test(Scene& scene);
 
 }  // namespace ghogx::milo_scene

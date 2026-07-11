@@ -482,20 +482,41 @@ void rebuild_group_authored_draw_order(Scene& scene) {
   scene.grouped_meshes.assign(grouped_mesh_set.begin(), grouped_mesh_set.end());
   std::sort(scene.grouped_meshes.begin(), scene.grouped_meshes.end());
 
+  struct DrawRoot {
+    float order = 0.0f;
+    size_t dir_index = 0;
+    const GroupObj* group = nullptr;
+    const MeshObj* mesh = nullptr;
+  };
   std::unordered_set<std::string> emitted_meshes;
-  std::unordered_set<std::string> visited_roots;
+  std::vector<DrawRoot> roots;
+  roots.reserve(scene.groups.size() + scene.meshes.size());
   for (const GroupObj& group : scene.groups) {
-    if (referenced_groups.find(group.name) != referenced_groups.end()) continue;
-    std::unordered_set<std::string> visiting;
-    append_group_draw_order(scene, group, visiting, emitted_meshes,
-                            scene.draw_order);
-    visited_roots.insert(group.name);
+    if (referenced_groups.find(group.name) == referenced_groups.end()) {
+      roots.push_back(DrawRoot{group.draw_order, group.dir_index, &group,
+                               nullptr});
+    }
   }
-  for (const GroupObj& group : scene.groups) {
-    if (visited_roots.find(group.name) != visited_roots.end()) continue;
-    std::unordered_set<std::string> visiting;
-    append_group_draw_order(scene, group, visiting, emitted_meshes,
-                            scene.draw_order);
+  for (const MeshObj& mesh : scene.meshes) {
+    if (grouped_mesh_set.find(mesh.name) == grouped_mesh_set.end()) {
+      roots.push_back(
+          DrawRoot{mesh.draw_order, mesh.dir_index, nullptr, &mesh});
+    }
+  }
+  std::stable_sort(roots.begin(), roots.end(),
+                   [](const DrawRoot& a, const DrawRoot& b) {
+                     if (a.order != b.order) return a.order < b.order;
+                     return a.dir_index < b.dir_index;
+                   });
+  for (const DrawRoot& root : roots) {
+    if (root.group) {
+      std::unordered_set<std::string> visiting;
+      append_group_draw_order(scene, *root.group, visiting, emitted_meshes,
+                              scene.draw_order);
+    } else if (root.mesh && root.mesh->showing &&
+               emitted_meshes.insert(root.mesh->name).second) {
+      scene.draw_order.push_back(root.mesh->name);
+    }
   }
 }
 
@@ -981,12 +1002,12 @@ MeshObj decode_mesh(const std::string& entry_name,
     read_trans_block(r, mesh.local, mesh.world_stored, trans_parent);
     mesh.parent = trans_parent;
 
-    // Draw base: version (= 3), showing flag, then sphere + draw-order. The
-    // same byte is already used by skinned character meshes and ParticleSys.
+    // Draw base: version (= 3), showing flag, then sphere + draw-order.
     int32_t draw_ver = r.i32();
     (void)draw_ver;
     mesh.showing = r.u8() != 0;
-    r.skip(20);
+    r.skip(16);
+    mesh.draw_order = r.f32();
 
     // Mesh fields.
     mesh.material = r.str();           // material name
@@ -1091,6 +1112,7 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
       throw std::runtime_error("milo_scene: unsupported ParticleSys Draw block");
     }
     part.showing = body[draw_base + 4] != 0;
+    part.draw_order = read_f32_at(body, draw_base + 21);
 
     const size_t prop_base = draw_base + 25;
     auto safe_f = [&](size_t off, float fallback) {
@@ -1293,6 +1315,10 @@ bool xfm_nearly_equal(const Xfm& a, const Xfm& b) {
 
 }  // namespace
 
+void rebuild_group_authored_draw_order_for_test(Scene& scene) {
+  rebuild_group_authored_draw_order(scene);
+}
+
 const MatObj* Scene::find_mat(const std::string& name) const {
   for (const MatObj& m : mats)
     if (m.name == name) return &m;
@@ -1415,6 +1441,7 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
       try {
         if (de.type == "Mesh") {
           MeshObj m = decode_mesh(de.name, b);
+          m.dir_index = &de - dir.entries.data();
           if (m.decoded) ++mesh_ok; else ++mesh_fail;
           out.meshes.push_back(std::move(m));
         } else if (de.type == "Trans") {
@@ -1433,11 +1460,13 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
           out.environs.push_back(decode_environ(de.name, b));
         } else if (de.type == "Group") {
           GroupObj group = decode_group(de.name, b);
+          group.dir_index = &de - dir.entries.data();
           out.groups.push_back(std::move(group));
         } else if (de.type == "BandPlacer") {
           out.band_placers.push_back(decode_band_placer(de.name, b));
         } else if (de.type == "ParticleSys") {
           ParticleSysObj p = decode_particle_sys(de.name, b);
+          p.dir_index = &de - dir.entries.data();
           if (p.decoded) ++particle_ok; else ++particle_fail;
           out.particles.push_back(std::move(p));
         } else if (de.type == "WorldCrowd") {
