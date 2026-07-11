@@ -7018,6 +7018,16 @@ int run_contract() {
                  "size++;}returnsize;}",
                  "latest CharClip source exposes Transitions size body");
   ok &= contains(rb3_latest_char_clip_cpp,
+                 "voidCharClip::StuffBones(CharBones&bones){std::list<"
+                 "CharBones::Bone>blist;ListBones(blist);bones.AddBones(blist);}",
+                 "latest CharClip source exposes StuffBones call order");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "voidCharClip::PoseMeshes(ObjectDir*dir,floatf){"
+                 "CharBonesMeshesmeshes;meshes.SetName(\"tmp_viseme_bones\",dir);"
+                 "StuffBones(meshes);ScaleDown(meshes,0.0f);"
+                 "ScaleAdd(meshes,1.0f,f,0.0f);meshes.PoseMeshes();}",
+                 "latest CharClip source exposes PoseMeshes call order");
+  ok &= contains(rb3_latest_char_clip_cpp,
                  "voidCharClip::SetPlayFlags(inti){if(i!=mPlayFlags){"
                  "mPlayFlags=i;mDirty=true;}}",
                  "latest CharClip source exposes SetPlayFlags dirty guard");
@@ -7048,6 +7058,12 @@ int run_contract() {
   ok &= contains(doc,
                  "does not claim `Resize`, `RemoveNodes`, or transition graph evaluation",
                  "document fences CharClip Transitions unresolved bodies");
+  ok &= contains(doc,
+                 "Native `source_char_clip_stuff_bones` and",
+                 "document records native CharClip StuffBones helper");
+  ok &= contains(doc,
+                 "dataflow without claiming the still-missing pose math bodies",
+                 "document fences CharClip pose math bodies");
   ok &= contains(doc,
                  "Native `source_char_clip_shares_groups` ports the complete",
                  "document records native CharClip SharesGroups helper");
@@ -7223,6 +7239,15 @@ int run_contract() {
                  "boolresized_zero=false;};",
                  "native character API exposes source CharClip Transitions clear result");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipPoseMeshesSteps{std::stringtemp_meshes_name;"
+                 "boolstuff_bones=false;boolscale_down=false;"
+                 "floatscale_down_weight=0.0f;boolscale_add=false;",
+                 "native character API exposes source CharClip PoseMeshes step row");
+  ok &= contains(char_clip_h,
+                 "floatscale_add_weight=0.0f;floatscale_add_frame=0.0f;"
+                 "floatscale_add_blend=0.0f;boolpose_meshes=false;};",
+                 "native character API exposes source CharClip PoseMeshes args");
+  ok &= contains(char_clip_h,
                  "SourceCharClipDefaultStatesource_char_clip_default_state();",
                  "native character API exposes source CharClip default-state helper");
   ok &= contains(char_clip_h,
@@ -7257,6 +7282,15 @@ int run_contract() {
                  "source_char_clip_transitions_clear("
                  "SourceCharClipTransitionsState&transitions);",
                  "native character API exposes source CharClip Transitions clear helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<SourceCharBonesBone>source_char_clip_stuff_bones("
+                 "conststd::vector<SourceCharBonesBone>&existing_bones,"
+                 "conststd::vector<SourceCharBonesBone>&listed_bones);",
+                 "native character API exposes source CharClip StuffBones helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipPoseMeshesStepssource_char_clip_pose_meshes_steps("
+                 "floatframe);",
+                 "native character API exposes source CharClip PoseMeshes helper");
   ok &= contains(char_clip_h,
                  "SourceCharClipFlagUpdatesource_char_clip_set_flags("
                  "uint32_tcurrent_flags,boolcurrent_dirty,"
@@ -7477,6 +7511,26 @@ int run_contract() {
                  "result.resized_zero=true;returnresult;}",
                  "native CharClip Transitions clear helper ports release and resize");
   ok &= contains(char_clip,
+                 "std::vector<SourceCharBonesBone>source_char_clip_stuff_bones("
+                 "conststd::vector<SourceCharBonesBone>&existing_bones,"
+                 "conststd::vector<SourceCharBonesBone>&listed_bones){"
+                 "std::vector<SourceCharBonesBone>bones=existing_bones;"
+                 "bones.insert(bones.end(),listed_bones.begin(),"
+                 "listed_bones.end());returnbones;}",
+                 "native CharClip StuffBones helper ports append flow");
+  ok &= contains(char_clip,
+                 "SourceCharClipPoseMeshesStepssource_char_clip_pose_meshes_steps("
+                 "floatframe){SourceCharClipPoseMeshesStepssteps;"
+                 "steps.temp_meshes_name=\"tmp_viseme_bones\";"
+                 "steps.stuff_bones=true;steps.scale_down=true;"
+                 "steps.scale_down_weight=0.0f;steps.scale_add=true;",
+                 "native CharClip PoseMeshes helper ports first call arguments");
+  ok &= contains(char_clip,
+                 "steps.scale_add_weight=1.0f;steps.scale_add_frame=frame;"
+                 "steps.scale_add_blend=0.0f;steps.pose_meshes=true;"
+                 "returnsteps;}",
+                 "native CharClip PoseMeshes helper ports ScaleAdd arguments");
+  ok &= contains(char_clip,
                  "SourceCharClipFlagUpdatesource_char_clip_set_play_flags("
                  "uint32_tcurrent_play_flags,boolcurrent_dirty,"
                  "uint32_trequested_play_flags){SourceCharClipFlagUpdateupdate;"
@@ -7542,6 +7596,12 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_transitions_clear(transitions)",
                  "focused clip driver flags test covers Transitions Clear");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_stuff_bones(",
+                 "focused clip driver flags test covers StuffBones append flow");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_pose_meshes_steps(14.25f)",
+                 "focused clip driver flags test covers PoseMeshes step flow");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_shares_groups(",
                  "focused clip driver flags test covers CharClip SharesGroups helper");

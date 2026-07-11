@@ -1963,6 +1963,28 @@ SourceCharClipTransitionsClearResult source_char_clip_transitions_clear(
   return result;
 }
 
+std::vector<SourceCharBonesBone> source_char_clip_stuff_bones(
+    const std::vector<SourceCharBonesBone>& existing_bones,
+    const std::vector<SourceCharBonesBone>& listed_bones) {
+  std::vector<SourceCharBonesBone> bones = existing_bones;
+  bones.insert(bones.end(), listed_bones.begin(), listed_bones.end());
+  return bones;
+}
+
+SourceCharClipPoseMeshesSteps source_char_clip_pose_meshes_steps(float frame) {
+  SourceCharClipPoseMeshesSteps steps;
+  steps.temp_meshes_name = "tmp_viseme_bones";
+  steps.stuff_bones = true;
+  steps.scale_down = true;
+  steps.scale_down_weight = 0.0f;
+  steps.scale_add = true;
+  steps.scale_add_weight = 1.0f;
+  steps.scale_add_frame = frame;
+  steps.scale_add_blend = 0.0f;
+  steps.pose_meshes = true;
+  return steps;
+}
+
 SourceCharDriverState source_char_driver_default_state() {
   return SourceCharDriverState{};
 }

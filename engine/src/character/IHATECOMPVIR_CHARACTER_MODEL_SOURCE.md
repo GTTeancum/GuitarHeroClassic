@@ -1394,6 +1394,12 @@ note, and all report `unreadBytes=0`.
     empty with an owner, `Size` counts transition node-vector entries, and
     `Clear` releases one clip per entry before resizing the range to zero. This
     does not claim `Resize`, `RemoveNodes`, or transition graph evaluation.
+  - Native `source_char_clip_stuff_bones` and
+    `source_char_clip_pose_meshes_steps` port the concrete `StuffBones` /
+    `PoseMeshes` call order only: list clip bones, append them into the target
+    `CharBones`, create temporary `tmp_viseme_bones`, scale down at `0.0`, call
+    `ScaleAdd(meshes, 1.0, frame, 0.0)`, then pose meshes. This records source
+    dataflow without claiming the still-missing pose math bodies.
   - Native `source_char_clip_set_flags` and
     `source_char_clip_set_play_flags` port the complete `SetFlags` and
     `SetPlayFlags` dirty-state bodies: unchanged values preserve the incoming

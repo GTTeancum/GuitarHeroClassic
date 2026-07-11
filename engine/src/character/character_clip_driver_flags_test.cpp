@@ -757,6 +757,29 @@ int main() {
     std::cerr << "Transitions Clear release/resize mismatch\n";
     ok = false;
   }
+  const std::vector<ghogx::character::SourceCharBonesBone> stuffed =
+      ghogx::character::source_char_clip_stuff_bones(
+          {{"preexisting.pos", 0.25f}},
+          {{"bone_head.pos", 1.0f}, {"bone_head.rotz", 0.5f}});
+  if (stuffed.size() != 3 || stuffed[0].name != "preexisting.pos" ||
+      stuffed[1].name != "bone_head.pos" ||
+      stuffed[2].name != "bone_head.rotz" ||
+      !nearf(stuffed[2].weight, 0.5f)) {
+    std::cerr << "CharClip StuffBones append order mismatch\n";
+    ok = false;
+  }
+  const ghogx::character::SourceCharClipPoseMeshesSteps pose_steps =
+      ghogx::character::source_char_clip_pose_meshes_steps(14.25f);
+  if (pose_steps.temp_meshes_name != "tmp_viseme_bones" ||
+      !pose_steps.stuff_bones || !pose_steps.scale_down ||
+      !nearf(pose_steps.scale_down_weight, 0.0f) ||
+      !pose_steps.scale_add || !nearf(pose_steps.scale_add_weight, 1.0f) ||
+      !nearf(pose_steps.scale_add_frame, 14.25f) ||
+      !nearf(pose_steps.scale_add_blend, 0.0f) ||
+      !pose_steps.pose_meshes) {
+    std::cerr << "CharClip PoseMeshes step mismatch\n";
+    ok = false;
+  }
   ok &= expect_driver_state_helpers();
   ok &= expect_blend(-1.0f, 1.0f, 1.0f, "source default blend");
   ok &= expect_blend(-1.0f, 0.25f, 0.25f, "custom driver blend");

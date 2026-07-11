@@ -349,6 +349,18 @@ struct SourceCharClipTransitionsClearResult {
   bool resized_zero = false;
 };
 
+struct SourceCharClipPoseMeshesSteps {
+  std::string temp_meshes_name;
+  bool stuff_bones = false;
+  bool scale_down = false;
+  float scale_down_weight = 0.0f;
+  bool scale_add = false;
+  float scale_add_weight = 0.0f;
+  float scale_add_frame = 0.0f;
+  float scale_add_blend = 0.0f;
+  bool pose_meshes = false;
+};
+
 enum SourceCharDriverApplyMode {
   kSourceCharDriverApplyBlend = 0,
   kSourceCharDriverApplyAdd = 1,
@@ -461,6 +473,10 @@ size_t source_char_clip_transitions_size(
     const SourceCharClipTransitionsState& transitions);
 SourceCharClipTransitionsClearResult source_char_clip_transitions_clear(
     SourceCharClipTransitionsState& transitions);
+std::vector<SourceCharBonesBone> source_char_clip_stuff_bones(
+    const std::vector<SourceCharBonesBone>& existing_bones,
+    const std::vector<SourceCharBonesBone>& listed_bones);
+SourceCharClipPoseMeshesSteps source_char_clip_pose_meshes_steps(float frame);
 
 // Source-backed CharDriver constructor, Clear, Transfer, setter, and
 // SyncInternalBones state helpers.
