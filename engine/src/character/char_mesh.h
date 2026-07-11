@@ -351,6 +351,7 @@ struct CharCollide {
 };
 
 void source_char_collide_copy_original_to_cur(CharCollide& collide);
+void source_char_collide_sync_shape(CharCollide& collide);
 int source_char_collide_num_spheres(const CharCollide& collide);
 
 struct CharPosConstraint {

@@ -406,8 +406,9 @@ note, and all report `unreadBytes=0`.
     evidence for later source-backed collision hookup, not an invented native
     collision response.
   - Native GHOGX ports `CharCollide::CopyOriginalToCur` and
-    `CharCollide::NumSpheres` exactly for decoded rows. The decoder now calls
-    the named copy helper at the same revision gates as source load.
+    `CharCollide::SyncShape` / `CharCollide::NumSpheres` exactly for decoded
+    rows. The decoder now calls the named copy helper at the same revision
+    gates as source load.
 - `ihatecompvir-extra/band3_recomp`
   - The current config exposes `CharHair::GetFPS` and `CharHair::Simulate`
     symbols only. It does not provide a decompiled `CharHair` body or

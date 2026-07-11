@@ -1216,6 +1216,11 @@ int run_contract() {
                  "voidCharCollide::CopyOriginalToCur(){memcpy(mCurRadius,"
                  "mOrigRadius,8);memcpy(mCurLength,mOrigLength,8);}",
                  "latest CharCollide source exposes CopyOriginalToCur helper");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "voidCharCollide::SyncShape(){f32t=mCurLength[1];"
+                 "if(mCurLength[0]>t){mCurLength[0]=mCurLength[1];}"
+                 "CopyOriginalToCur();}",
+                 "latest CharCollide source exposes SyncShape helper");
   ok &= contains(char_mesh_h,
                  "structCharCollide{std::stringname;int32_tversion=0;",
                  "native exposes decoded CharCollide rows");
@@ -1233,9 +1238,15 @@ int run_contract() {
                  "native exposes CharCollide decoder for contract coverage");
   ok &= contains(char_mesh_h,
                  "voidsource_char_collide_copy_original_to_cur(CharCollide&"
-                 "collide);intsource_char_collide_num_spheres(constCharCollide&"
                  "collide);",
-                 "native exposes CharCollide source helper ports");
+                 "native exposes CharCollide CopyOriginalToCur helper port");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_collide_sync_shape(CharCollide&collide);",
+                 "native exposes CharCollide SyncShape helper port");
+  ok &= contains(char_mesh_h,
+                 "intsource_char_collide_num_spheres(constCharCollide&"
+                 "collide);",
+                 "native exposes CharCollide NumSpheres helper port");
   ok &= contains(char_mesh,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
@@ -1270,6 +1281,13 @@ int run_contract() {
                  "collide.cur_radius[1]=collide.orig_radius[1];",
                  "native CharCollide CopyOriginalToCur helper is ported");
   ok &= contains(char_mesh,
+                 "voidsource_char_collide_sync_shape(CharCollide&collide){"
+                 "constfloatt=collide.cur_length[1];"
+                 "if(collide.cur_length[0]>t){collide.cur_length[0]="
+                 "collide.cur_length[1];}source_char_collide_copy_original_to_cur"
+                 "(collide);}",
+                 "native CharCollide SyncShape helper is ported");
+  ok &= contains(char_mesh,
                  "intsource_char_collide_num_spheres(constCharCollide&collide)"
                  "{if(collide.shape==3||collide.shape==4)return2;",
                  "native CharCollide NumSpheres helper is ported");
@@ -1293,6 +1311,9 @@ int run_contract() {
                  "source_char_collide_copy_original_to_cur(copied_collide);",
                  "mesh decode test covers CharCollide CopyOriginalToCur helper");
   ok &= contains(mesh_decode_test,
+                 "source_char_collide_sync_shape(synced_collide);",
+                 "mesh decode test covers CharCollide SyncShape helper");
+  ok &= contains(mesh_decode_test,
                  "source_char_collide_num_spheres(collide)==2",
                  "mesh decode test covers CharCollide NumSpheres helper");
   ok &= contains(doc,
@@ -1300,6 +1321,8 @@ int run_contract() {
                  "document records decoded CharCollide retained source rows");
   ok &= contains(doc, "Native GHOGX ports `CharCollide::CopyOriginalToCur`",
                  "document records CharCollide helper ports");
+  ok &= contains(doc, "`CharCollide::SyncShape` / `CharCollide::NumSpheres`",
+                 "document records CharCollide SyncShape helper port");
   ok &= contains(doc, "runs the checked source poll/reset/sim state path",
                  "document states bounded native CharHair poll rule");
   ok &= contains(doc, "point rows unwritten until",

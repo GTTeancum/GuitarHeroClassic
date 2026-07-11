@@ -317,6 +317,21 @@ int main() {
   CHECK(approx(copied_collide.cur_length[0], collide.orig_length[0]));
   CHECK(approx(copied_collide.cur_length[1], collide.orig_length[1]));
 
+  ghogx::character::CharCollide synced_collide;
+  synced_collide.orig_radius[0] = 2.0f;
+  synced_collide.orig_radius[1] = 3.0f;
+  synced_collide.orig_length[0] = 4.0f;
+  synced_collide.orig_length[1] = 5.0f;
+  synced_collide.cur_radius[0] = 20.0f;
+  synced_collide.cur_radius[1] = 30.0f;
+  synced_collide.cur_length[0] = 40.0f;
+  synced_collide.cur_length[1] = 1.0f;
+  ghogx::character::source_char_collide_sync_shape(synced_collide);
+  CHECK(approx(synced_collide.cur_radius[0], 2.0f));
+  CHECK(approx(synced_collide.cur_radius[1], 3.0f));
+  CHECK(approx(synced_collide.cur_length[0], 4.0f));
+  CHECK(approx(synced_collide.cur_length[1], 5.0f));
+
   ghogx::character::CharHair cloth_hair = make_two_strand_hair();
   ghogx::character::source_char_hair_set_cloth(cloth_hair, true);
   CHECK(approx(cloth_hair.strands[0].points[0].side_length, 5.0f));

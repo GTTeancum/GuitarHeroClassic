@@ -1384,6 +1384,14 @@ void source_char_collide_copy_original_to_cur(CharCollide& collide) {
   collide.cur_length[1] = collide.orig_length[1];
 }
 
+void source_char_collide_sync_shape(CharCollide& collide) {
+  const float t = collide.cur_length[1];
+  if (collide.cur_length[0] > t) {
+    collide.cur_length[0] = collide.cur_length[1];
+  }
+  source_char_collide_copy_original_to_cur(collide);
+}
+
 int source_char_collide_num_spheres(const CharCollide& collide) {
   if (collide.shape == 3 || collide.shape == 4) return 2;
   if (collide.shape == 1 || collide.shape == 2) return 1;
