@@ -2030,6 +2030,40 @@ SourceCharEyesForceBlinkState source_char_eyes_force_blink(
   return state;
 }
 
+SourceCharEyesEnterState source_char_eyes_enter_state(
+    int default_filter_flags,
+    bool has_head,
+    const std::array<float, 3>& head_world_y,
+    size_t eye_count,
+    size_t interest_count) {
+  SourceCharEyesEnterState state;
+  state.interest_filter_flags = default_filter_flags;
+  state.eye_enter_count = eye_count;
+  state.interest_reset_count = interest_count;
+  if (has_head) {
+    const float len_sq = head_world_y[0] * head_world_y[0] +
+                         head_world_y[1] * head_world_y[1] +
+                         head_world_y[2] * head_world_y[2];
+    if (len_sq > 0.0f) {
+      const float inv_len = 1.0f / std::sqrt(len_sq);
+      state.unka4 = {head_world_y[0] * inv_len,
+                     head_world_y[1] * inv_len,
+                     head_world_y[2] * inv_len};
+    }
+  }
+  return state;
+}
+
+SourceCharEyesExitState source_char_eyes_exit_state(size_t eye_count) {
+  SourceCharEyesExitState state;
+  state.focus_interest = {};
+  state.focus_priority = -1;
+  state.clear_interests = true;
+  state.eye_exit_count = eye_count;
+  state.pollable_exit = true;
+  return state;
+}
+
 SourceCharEyesInterestRuntime source_char_eyes_interest_state(
     const std::string& interest) {
   SourceCharEyesInterestRuntime state;

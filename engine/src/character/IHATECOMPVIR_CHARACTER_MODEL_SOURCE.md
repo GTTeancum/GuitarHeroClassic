@@ -514,6 +514,14 @@ note, and all report `unreadBytes=0`.
     default to null, copy/assignment preserve all five refs, clearing drops the
     interest vector, and add ignores null interests while pushed interests start
     with a reset refractory timer.
+  - Native `source_char_eyes_enter_state` and `source_char_eyes_exit_state`
+    port the concrete `Enter` / `Exit` reset bodies as data-only state rows:
+    enter zeroes the source unknown counters/flags, sets the source `-1` timer
+    sentinels, copies `mDefaultFilterFlags` into `mInterestFilterFlags`,
+    normalizes the head world Y row when `GetHead()` resolves, and records the
+    number of eye children and interest rows that receive `Enter` / reset.
+    Exit clears focus, resets focus priority to `-1`, clears interests, and
+    records the eye children that receive `Exit`.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.

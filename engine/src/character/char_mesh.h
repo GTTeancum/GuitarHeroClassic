@@ -506,6 +506,39 @@ struct SourceCharEyesForceBlinkState {
   int blink_count_delta = 0;
 };
 
+struct SourceCharEyesEnterState {
+  std::array<float, 3> unka4 = {0.0f, 0.0f, 0.0f};
+  int unkb4 = 0;
+  int unkbc = 0;
+  float unkb0 = 1.0f;
+  float unkc0 = -1.0f;
+  int unkc4 = 0;
+  bool unk124 = false;
+  float unk128 = -1.0f;
+  int unk12c = -1;
+  bool unk13c = false;
+  float unk140 = -1.0f;
+  int unk144 = 0;
+  float unk148 = -1.0f;
+  float unk14c = -1.0f;
+  bool unkc5 = false;
+  int interest_filter_flags = 0;
+  bool unk15c = false;
+  bool unke4 = false;
+  bool unkf4 = false;
+  size_t eye_enter_count = 0;
+  size_t interest_reset_count = 0;
+  bool pollable_enter = true;
+};
+
+struct SourceCharEyesExitState {
+  std::string focus_interest;
+  int focus_priority = -1;
+  bool clear_interests = true;
+  size_t eye_exit_count = 0;
+  bool pollable_exit = true;
+};
+
 struct SourceCharEyesInterestRuntime {
   std::string interest;
   float refractory_start = -1.0f;
@@ -710,6 +743,13 @@ SourceCharEyesFocusResult source_char_eyes_set_focus_interest(
     int requested_priority);
 SourceCharEyesForceBlinkState source_char_eyes_force_blink(
     float task_seconds);
+SourceCharEyesEnterState source_char_eyes_enter_state(
+    int default_filter_flags,
+    bool has_head,
+    const std::array<float, 3>& head_world_y,
+    size_t eye_count,
+    size_t interest_count);
+SourceCharEyesExitState source_char_eyes_exit_state(size_t eye_count);
 SourceCharEyesInterestRuntime source_char_eyes_interest_state(
     const std::string& interest);
 void source_char_eyes_interest_reset(

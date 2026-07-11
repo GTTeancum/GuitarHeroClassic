@@ -4561,6 +4561,31 @@ int run_contract() {
                  "TheTaskMgr.Seconds(TaskMgr::b);unk144++;}",
                  "RB3 CharEyes ForceBlink stores task time and increments count");
   ok &= contains(rb3_char_eyes_cpp,
+                 "voidCharEyes::Enter(){unka4.Zero();unkb4=0;unkbc=0;"
+                 "unkb0=1.0f;unkc0=-1.0f;unkc4=0;unk124=0;unk128=-1.0f;"
+                 "unk12c=-1;unk13c=0;unk140=-1.0f;unk144=0;unk148=-1.0f;"
+                 "unk14c=-1.0f;unkc5=0;mInterestFilterFlags="
+                 "mDefaultFilterFlags;unk15c=0;unke4=0;unkf4=0;",
+                 "RB3 CharEyes Enter resets source state constants");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "RndTransformable*head=GetHead();if(head){unka4=head->"
+                 "WorldXfm().m.y;Normalize(unka4,unka4);}",
+                 "RB3 CharEyes Enter normalizes head world Y row");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "for(ObjVector<EyeDesc>::iteratorit=mEyes.begin();it!="
+                 "mEyes.end();++it){it->mEye->Enter();}",
+                 "RB3 CharEyes Enter enters each eye controller");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "for(ObjVector<CharInterestState>::iteratorit=mInterests."
+                 "begin();it!=mInterests.end();++it){it->ResetState();}"
+                 "RndPollable::Enter();}",
+                 "RB3 CharEyes Enter resets interests and enters pollable");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "voidCharEyes::Exit(){unkd4=0;unke0=-1;mInterests.clear();"
+                 "for(ObjVector<EyeDesc>::iteratorit=mEyes.begin();it!="
+                 "mEyes.end();++it){it->mEye->Exit();}RndPollable::Exit();}",
+                 "RB3 CharEyes Exit clears focus interests and exits eyes");
+  ok &= contains(rb3_char_eyes_cpp,
                  "voidCharEyes::ClearAllInterestObjects(){mInterests.clear();}",
                  "RB3 CharEyes ClearAllInterestObjects clears interest vector");
   ok &= contains(rb3_char_eyes_cpp,
@@ -4724,6 +4749,22 @@ int run_contract() {
                  "floatblink_time=-1.0f;intblink_count_delta=0;};",
                  "native exposes CharEyes force blink state");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesEnterState{std::array<float,3>unka4="
+                 "{0.0f,0.0f,0.0f};intunkb4=0;intunkbc=0;floatunkb0=1.0f;"
+                 "floatunkc0=-1.0f;intunkc4=0;boolunk124=false;"
+                 "floatunk128=-1.0f;intunk12c=-1;boolunk13c=false;"
+                 "floatunk140=-1.0f;intunk144=0;floatunk148=-1.0f;"
+                 "floatunk14c=-1.0f;boolunkc5=false;intinterest_filter_flags=0;"
+                 "boolunk15c=false;boolunke4=false;boolunkf4=false;"
+                 "size_teye_enter_count=0;size_tinterest_reset_count=0;"
+                 "boolpollable_enter=true;};",
+                 "native exposes CharEyes Enter source state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyesExitState{std::stringfocus_interest;"
+                 "intfocus_priority=-1;boolclear_interests=true;"
+                 "size_teye_exit_count=0;boolpollable_exit=true;};",
+                 "native exposes CharEyes Exit source state");
+  ok &= contains(char_mesh_h,
                  "structSourceCharEyesInterestRuntime{std::stringinterest;"
                  "floatrefractory_start=-1.0f;};",
                  "native exposes CharEyes interest refractory state");
@@ -4760,6 +4801,15 @@ int run_contract() {
                  "SourceCharEyesForceBlinkStatesource_char_eyes_force_blink("
                  "floattask_seconds);",
                  "native exposes CharEyes ForceBlink helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesEnterStatesource_char_eyes_enter_state("
+                 "intdefault_filter_flags,boolhas_head,conststd::array<float,3>&"
+                 "head_world_y,size_teye_count,size_tinterest_count);",
+                 "native exposes CharEyes Enter state helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesExitStatesource_char_eyes_exit_state("
+                 "size_teye_count);",
+                 "native exposes CharEyes Exit state helper");
   ok &= contains(char_mesh_h,
                  "SourceCharEyesInterestRuntimesource_char_eyes_interest_state("
                  "conststd::string&interest);",
@@ -4850,6 +4900,29 @@ int run_contract() {
                  "state.blink_count_delta=1;returnstate;}",
                  "native CharEyes ForceBlink helper ports source state writes");
   ok &= contains(char_mesh,
+                 "SourceCharEyesEnterStatesource_char_eyes_enter_state("
+                 "intdefault_filter_flags,boolhas_head,conststd::array<float,3>&"
+                 "head_world_y,size_teye_count,size_tinterest_count){"
+                 "SourceCharEyesEnterStatestate;state.interest_filter_flags="
+                 "default_filter_flags;state.eye_enter_count=eye_count;"
+                 "state.interest_reset_count=interest_count;",
+                 "native CharEyes Enter helper starts from source reset state");
+  ok &= contains(char_mesh,
+                 "if(has_head){constfloatlen_sq=head_world_y[0]*head_world_y[0]+"
+                 "head_world_y[1]*head_world_y[1]+head_world_y[2]*"
+                 "head_world_y[2];if(len_sq>0.0f){constfloatinv_len=1.0f/"
+                 "std::sqrt(len_sq);state.unka4={head_world_y[0]*inv_len,"
+                 "head_world_y[1]*inv_len,head_world_y[2]*inv_len};}}"
+                 "returnstate;}",
+                 "native CharEyes Enter helper normalizes head world Y row");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesExitStatesource_char_eyes_exit_state("
+                 "size_teye_count){SourceCharEyesExitStatestate;"
+                 "state.focus_interest={};state.focus_priority=-1;"
+                 "state.clear_interests=true;state.eye_exit_count=eye_count;"
+                 "state.pollable_exit=true;returnstate;}",
+                 "native CharEyes Exit helper ports source clear behavior");
+  ok &= contains(char_mesh,
                  "SourceCharEyesInterestRuntimesource_char_eyes_interest_state("
                  "conststd::string&interest){SourceCharEyesInterestRuntimestate;"
                  "state.interest=interest;state.refractory_start=-1.0f;"
@@ -4936,6 +5009,15 @@ int run_contract() {
                  "source_char_eyes_force_blink(12.5f)",
                  "focused CharEyes source test covers ForceBlink helper");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_enter_state(0x24,true,{0.0f,3.0f,4.0f},2,3)",
+                 "focused CharEyes source test covers Enter helper");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_enter_state(0,false,{0.0f,3.0f,4.0f},0,0)",
+                 "focused CharEyes source test covers Enter no-head branch");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_exit_state(2)",
+                 "focused CharEyes source test covers Exit helper");
+  ok &= contains(eyes_source_test,
                  "source_char_eyes_interest_state(\"stage.light\")",
                  "focused CharEyes source test covers interest state constructor");
   ok &= contains(eyes_source_test,
@@ -4991,6 +5073,10 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_eyes_eye_desc_*` and interest-list helpers",
                  "document records native CharEyes EyeDesc and interest-list helpers");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_enter_state` and "
+                 "`source_char_eyes_exit_state`",
+                 "document records native CharEyes Enter and Exit helper slice");
   ok &= contains(doc,
                  "Native `source_char_eye_dart_ruleset_*` helpers preserve this\n"
                  "    exact data behavior",

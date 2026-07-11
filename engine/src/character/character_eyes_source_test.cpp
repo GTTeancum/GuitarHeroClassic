@@ -50,6 +50,8 @@ int main() {
   using ghogx::character::source_char_eyes_eye_desc_assign;
   using ghogx::character::source_char_eyes_eye_desc_copy;
   using ghogx::character::source_char_eyes_eye_desc_default;
+  using ghogx::character::source_char_eyes_enter_state;
+  using ghogx::character::source_char_eyes_exit_state;
   using ghogx::character::source_char_eyes_force_blink;
   using ghogx::character::source_char_eyes_get_head;
   using ghogx::character::source_char_eyes_interest_begin_refractory;
@@ -185,6 +187,49 @@ int main() {
   ok &= expect_bool(blink.pending_blink, true, "force blink pending");
   ok &= expect_float(blink.blink_time, 12.5f, "force blink time");
   ok &= expect_int(blink.blink_count_delta, 1, "force blink count delta");
+
+  const auto enter = source_char_eyes_enter_state(
+      0x24, true, {0.0f, 3.0f, 4.0f}, 2, 3);
+  ok &= expect_float(enter.unka4[0], 0.0f, "enter head dir x");
+  ok &= expect_float(enter.unka4[1], 0.6f, "enter head dir y");
+  ok &= expect_float(enter.unka4[2], 0.8f, "enter head dir z");
+  ok &= expect_int(enter.unkb4, 0, "enter unkb4");
+  ok &= expect_int(enter.unkbc, 0, "enter unkbc");
+  ok &= expect_float(enter.unkb0, 1.0f, "enter unkb0");
+  ok &= expect_float(enter.unkc0, -1.0f, "enter unkc0");
+  ok &= expect_int(enter.unkc4, 0, "enter unkc4");
+  ok &= expect_bool(enter.unk124, false, "enter unk124");
+  ok &= expect_float(enter.unk128, -1.0f, "enter unk128");
+  ok &= expect_int(enter.unk12c, -1, "enter unk12c");
+  ok &= expect_bool(enter.unk13c, false, "enter blink flag");
+  ok &= expect_float(enter.unk140, -1.0f, "enter blink time");
+  ok &= expect_int(enter.unk144, 0, "enter blink count");
+  ok &= expect_float(enter.unk148, -1.0f, "enter unk148");
+  ok &= expect_float(enter.unk14c, -1.0f, "enter unk14c");
+  ok &= expect_bool(enter.unkc5, false, "enter unkc5");
+  ok &= expect_int(enter.interest_filter_flags, 0x24,
+                   "enter default filter flags");
+  ok &= expect_bool(enter.unk15c, false, "enter unk15c");
+  ok &= expect_bool(enter.unke4, false, "enter unke4");
+  ok &= expect_bool(enter.unkf4, false, "enter unkf4");
+  ok &= expect_size(enter.eye_enter_count, 2, "enter eye count");
+  ok &= expect_size(enter.interest_reset_count, 3, "enter interest reset count");
+  ok &= expect_bool(enter.pollable_enter, true, "enter pollable enter");
+  const auto no_head_enter = source_char_eyes_enter_state(
+      0, false, {0.0f, 3.0f, 4.0f}, 0, 0);
+  ok &= expect_float(no_head_enter.unka4[0], 0.0f,
+                     "enter no-head dir x");
+  ok &= expect_float(no_head_enter.unka4[1], 0.0f,
+                     "enter no-head dir y");
+  ok &= expect_float(no_head_enter.unka4[2], 0.0f,
+                     "enter no-head dir z");
+
+  const auto exit = source_char_eyes_exit_state(2);
+  ok &= expect_string(exit.focus_interest, "", "exit focus cleared");
+  ok &= expect_int(exit.focus_priority, -1, "exit focus priority");
+  ok &= expect_bool(exit.clear_interests, true, "exit clears interests");
+  ok &= expect_size(exit.eye_exit_count, 2, "exit eye count");
+  ok &= expect_bool(exit.pollable_exit, true, "exit pollable exit");
 
   auto runtime = source_char_eyes_interest_state("stage.light");
   ok &= expect_string(runtime.interest, "stage.light",
