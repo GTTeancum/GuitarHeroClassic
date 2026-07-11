@@ -326,9 +326,10 @@ note, and all report `unreadBytes=0`.
     `radius` and `outerRadius`. For revisions below 8, `sideLength` is forced to
     `-1.0f`; revisions above 5 consume two ints.
   - `CharHair::Load` defaults `minSlack`/`maxSlack` only when `gRev < 8`.
-    Revision 8 and newer rows read both floats before the strand list. Native
-    exposes `decode_hair` for deterministic row tests and follows that same
-    revision-8 gate.
+    Revision 8 and newer rows read both floats before the strand list. It
+    asserts source revisions through 11, always reads `simulate` after the
+    strand list, and reads `wind` only when `gRev > 10`. Native exposes
+    `decode_hair` for deterministic row tests and follows those same gates.
   - Revisions below 3 consume a legacy `int` and string, and revision 3 consumes
     a legacy `int`, but the reader then calls `pt.collides.clear()`. Native may
     log these legacy inline fields for stock GH2 evidence, but they are not a

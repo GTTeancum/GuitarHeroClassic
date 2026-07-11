@@ -830,10 +830,26 @@ int run_contract() {
                  "if(gRev<8){mMinSlack=0.0f;mMaxSlack=0.0f;}"
                  "elsebs>>mMinSlack>>mMaxSlack;bs>>mStrands;",
                  "RB3 CharHair Load reads slack from rev 8");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(11,0);Hmx::Object::Load(bs);",
+                 "RB3 CharHair Load accepts source revisions through 11");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "bs>>mStrands;bs>>mSimulate;if(gRev>10)bs>>mWind;",
+                 "RB3 CharHair Load reads simulate and rev-11 wind tail");
+  ok &= contains(char_mesh,
+                 "if(hair.version<0||hair.version>11){"
+                 "throwstd::runtime_error(\"char_mesh:CharHairrevision"
+                 "outsidesourcerange\");}",
+                 "native CharHair decode validates source revision range");
   ok &= contains(char_mesh,
                  "if(hair.version>=8){hair.min_slack=r.f32();"
                  "hair.max_slack=r.f32();}",
                  "native CharHair decode reads slack from rev 8");
+  ok &= contains(char_mesh,
+                 "hair.simulate=r.u8()!=0;if(hair.version>10)"
+                 "hair.wind=r.str();",
+                 "native CharHair decode reads required simulate and rev-11 wind tail");
   ok &= contains(char_mesh_h,
                  "CharHairdecode_hair(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body);",
@@ -847,9 +863,15 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "CHECK(approx(rev8_hair.max_slack,0.75f));",
                  "deterministic test verifies rev-8 CharHair max slack");
+  ok &= contains(mesh_decode_test,
+                 "CHECK(rev11_hair.wind==\"stage.wind\");",
+                 "deterministic test verifies rev-11 CharHair wind");
+  ok &= contains(mesh_decode_test,
+                 "CHECK(bad_version_threw);",
+                 "deterministic test verifies CharHair revision range");
   ok &= contains(doc,
-                 "`CharHair::Load` defaults `minSlack`/`maxSlack` only when `gRev < 8`",
-                 "document records CharHair rev-8 slack load gate");
+                 "always reads `simulate` after the\n    strand list",
+                 "document records CharHair Load tail gates");
   ok &= contains(char_mesh_h, "std::stringwind;size_tunread_bytes=0;",
                  "native CharHair row records unread byte count");
   ok &= contains(char_mesh_h, "std::stringunread_tail_hex;",

@@ -708,6 +708,10 @@ CharHair decode_hair_body(const std::string& entry_name,
   CharHair hair;
   hair.name = entry_name;
   hair.version = r.i32();
+  if (hair.version < 0 || hair.version > 11) {
+    throw std::runtime_error(
+        "char_mesh: CharHair revision outside source range");
+  }
   read_object_fields(r);
   hair.stiffness = r.f32();
   hair.torsion = r.f32();
@@ -774,8 +778,8 @@ CharHair decode_hair_body(const std::string& entry_name,
     if (hair.version > 2) strand.hookup_flags = r.i32();
     hair.strands.push_back(std::move(strand));
   }
-  if (r.pos < body.size()) hair.simulate = r.u8() != 0;
-  if (hair.version > 10 && r.pos < body.size()) hair.wind = r.str();
+  hair.simulate = r.u8() != 0;
+  if (hair.version > 10) hair.wind = r.str();
   hair.unread_bytes = r.n - r.pos;
   if (hair.unread_bytes > 0) {
     hair.unread_tail_hex =

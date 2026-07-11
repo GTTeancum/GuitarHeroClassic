@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -127,6 +128,13 @@ std::vector<uint8_t> make_rev8_hair_without_strands() {
   return b;
 }
 
+std::vector<uint8_t> make_rev11_hair_without_strands() {
+  std::vector<uint8_t> b = make_rev8_hair_without_strands();
+  b[0] = 11;                      // CharHair revision, low byte only.
+  put_str(b, "stage.wind");
+  return b;
+}
+
 ghogx::character::CharHair make_two_strand_hair() {
   ghogx::character::CharHair hair;
   hair.strands.resize(2);
@@ -196,6 +204,24 @@ int main() {
   CHECK(rev8_hair.strands.empty());
   CHECK(rev8_hair.simulate);
   CHECK(rev8_hair.unread_bytes == 0);
+
+  const ghogx::character::CharHair rev11_hair =
+      ghogx::character::decode_hair("rev11.hair",
+                                    make_rev11_hair_without_strands());
+  CHECK(rev11_hair.version == 11);
+  CHECK(rev11_hair.simulate);
+  CHECK(rev11_hair.wind == "stage.wind");
+  CHECK(rev11_hair.unread_bytes == 0);
+
+  std::vector<uint8_t> bad_hair;
+  put_u32(bad_hair, 12);
+  bool bad_version_threw = false;
+  try {
+    (void)ghogx::character::decode_hair("bad.hair", bad_hair);
+  } catch (const std::runtime_error&) {
+    bad_version_threw = true;
+  }
+  CHECK(bad_version_threw);
 
   ghogx::character::CharHair cloth_hair = make_two_strand_hair();
   ghogx::character::source_char_hair_set_cloth(cloth_hair, true);
