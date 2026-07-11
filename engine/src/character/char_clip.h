@@ -6,7 +6,9 @@
 
 #include "character/char_mesh.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -47,6 +49,18 @@ struct CharClip {
   bool loaded = false;
 
   float duration_seconds() const;
+};
+
+// Source-backed CharClipGroup load state. The public ihatecompvir source stores
+// mClips, mWhich, and mFlags, and GetClip() advances mWhich in-place.
+struct CharClipGroup {
+  std::string name;
+  std::string milo_path;
+  std::vector<std::string> clips;
+  uint32_t version = 0;
+  int32_t which = 0;
+  int32_t flags = 0;
+  bool loaded = false;
 };
 
 struct ClipChannelLayer {
@@ -110,8 +124,18 @@ CharClip load_clip(const std::string& hdr_path,
                    const std::string& milo_path,
                    const std::string& clip_name);
 
-// Source-backed CharClipGroup::Load reader. Returns the group's ObjPtr clip
-// names in stored order from the first matching animation MILO.
+// Source-backed CharClipGroup::Load reader. Returns the group's serialized
+// ObjPtr clip names and source mWhich/mFlags state from the first matching
+// animation MILO.
+CharClipGroup load_clip_group(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& milo_paths,
+    const std::string& group_name);
+
+// Source-backed CharClipGroup::GetClip index step. Mutates group.which.
+std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group);
+
+// Compatibility helper for callers that only need the stored clip names.
 std::vector<std::string> load_clip_group_names(
     const std::string& hdr_path, const std::string& ark_path,
     const std::vector<std::string>& milo_paths,

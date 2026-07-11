@@ -41,7 +41,7 @@ records the upstream commits for the copied files:
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Hand IK | `CharIKHand.cpp` | Native hand IK follows source dataflow. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
-| Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Gameplay calls this shared character helper instead of a local ad hoc parser. |
+| Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
 | Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
@@ -653,11 +653,15 @@ note, and all report `unreadBytes=0`.
     `mFlags` only for source revisions above 1.
   - `CharClipGroup::GetClip` advances `mWhich`, wraps it against
     `mClips.size()`, and returns the stored clip pointer. Native
-    `load_clip_group_names` returns the source stored clip-name order only; it
-    does not invent randomization, scheduler timing, or driver playback.
+    `char_clip_group_get_clip_index` ports that exact cycling step and mutates
+    the stored source `which` state.
   - Gameplay routes authored `CharClipGroup` resolution through the shared
     character helper so the same source-backed reader feeds both WorldCrowd and
     performer sync group lookup.
+  - The older native graph/stance continuity chooser is not source behavior and
+    is removed from guitarist0 `normal` group selection. Runtime still does not
+    claim the full `CharDriver::PlayGroup` or `CharDriverMidi` scheduling path;
+    this slice ports only the concrete `GetClip()` group advance.
 - `rb3-latest/src/system/char` exposes source files for `CharClip`,
   `CharClipDriver`, `CharDriver`, `CharBones`, `CharBonesSamples`,
   `CharBonesMeshes`, and related clip runtime classes. The previous local note

@@ -281,6 +281,10 @@ int run_contract() {
                  "`mFlags`.",
                  "coverage matrix records native CharClipGroup Load slice");
   ok &= contains(doc,
+                 "Guitarist active group selection now follows source "
+                 "`CharClipGroup::GetClip` cycling.",
+                 "coverage matrix records native CharClipGroup GetClip slice");
+  ok &= contains(doc,
                  "Channel naming, compression sizing, sample interpolation "
                  "wrappers, and partial call flow are source-backed",
                  "coverage matrix records concrete CharBones source evidence");
@@ -352,6 +356,10 @@ int run_contract() {
                  "document cites latest CharHair runtime source");
   ok &= contains(doc, "rb3-latest/src/system/char/CharClipGroup.cpp",
                  "document cites latest CharClipGroup runtime source");
+  ok &= contains(doc,
+                 "The older native graph/stance continuity chooser is not "
+                 "source behavior and\n    is removed",
+                 "document fences removed native active-group selector");
   ok &= contains(doc, "rb3-latest/src/system/char/CharIKRod.cpp",
                  "document cites latest CharIKRod runtime source");
   ok &= contains(doc, "rb3-latest/src/system/char/CharServoBone.cpp",
@@ -2338,13 +2346,22 @@ int run_contract() {
                  "returnmClips[mWhich];}",
                  "latest CharClipGroup source exposes stored-order cycling");
   ok &= contains(char_clip_h,
-                 "std::vector<std::string>load_clip_group_names("
+                 "structCharClipGroup{std::stringname;std::stringmilo_path;"
+                 "std::vector<std::string>clips;uint32_tversion=0;"
+                 "int32_twhich=0;int32_tflags=0;boolloaded=false;};",
+                 "native character API carries source CharClipGroup state");
+  ok &= contains(char_clip_h,
+                 "CharClipGroupload_clip_group("
                  "conststd::string&hdr_path,conststd::string&ark_path,"
                  "conststd::vector<std::string>&milo_paths,"
                  "conststd::string&group_name);",
                  "native character API exposes source-backed clip group reader");
+  ok &= contains(char_clip_h,
+                 "std::optional<size_t>char_clip_group_get_clip_index("
+                 "CharClipGroup&group);",
+                 "native character API exposes source-backed GetClip step");
   ok &= contains(char_clip,
-                 "std::vector<std::string>load_clip_group_names(",
+                 "CharClipGroupload_clip_group(",
                  "native clip decoder implements shared clip group reader");
   ok &= contains(char_clip,
                  "(void)read_len_string(body,size,pos);//Hmx::Objectsubtypesymbol.",
@@ -2353,14 +2370,26 @@ int run_contract() {
                  "clips.push_back(read_len_string(body,size,pos));",
                  "native clip group reader consumes stored mClips names");
   ok &= contains(char_clip,
-                 "std::memcpy(&which,body+pos,4);",
+                 "std::memcpy(&group.which,body+pos,4);",
                  "native clip group reader consumes mWhich");
   ok &= contains(char_clip,
-                 "std::memcpy(&flags,body+pos,4);",
+                 "std::memcpy(&group.flags,body+pos,4);",
                  "native clip group reader consumes revision-gated mFlags");
+  ok &= contains(char_clip,
+                 "std::optional<size_t>char_clip_group_get_clip_index("
+                 "CharClipGroup&group){if(group.clips.empty())returnstd::nullopt;"
+                 "constint32_tbefore=group.which;++group.which;",
+                 "native clip group selection advances source mWhich");
+  ok &= contains(char_clip,
+                 "if(group.which>=static_cast<int32_t>(group.clips.size())){"
+                 "group.which=0;}",
+                 "native clip group selection wraps source mWhich");
   ok &= contains(char_clip,
                  "\"[clip-group-source]group=%smilo=%sversion=%u\"",
                  "native clip group reader logs source row proof");
+  ok &= contains(char_clip,
+                 "\"[clip-group-source-select]group=%sbefore=%dafter=%d\"",
+                 "native clip group selector logs source GetClip proof");
   ok &= missing(rb3_latest_char_clip_driver_cpp,
                 "floatCharClipDriver::Evaluate(",
                 "latest CharClipDriver source does not expose Evaluate body");

@@ -3390,6 +3390,25 @@ int main() {
                  "returnghogx::character::load_clip_group_names("
                  "hdr_path,ark_path,milo_candidates,group_name);",
                  "gameplay CharClipGroup lookup routes through the shared source-backed character helper");
+  ok &= contains(gameplay_h_c,
+                 "int32_tactive_group_which=0;",
+                 "performer stores source CharClipGroup mWhich state");
+  ok &= contains(gameplay_c,
+                 "ghogx::character::char_clip_group_get_clip_index(group)",
+                 "gameplay advances active CharClipGroup through source GetClip");
+  ok &= contains(gameplay_c,
+                 "active_group=ghogx::character::load_clip_group("
+                 "hdr_path_,ark_path_,main_anim_milos,\"normal\");",
+                 "guitarist normal group loads full source CharClipGroup state");
+  ok &= contains(gameplay_c,
+                 "perf.active_group_which=active_group.which;",
+                 "guitarist normal group starts from source mWhich");
+  ok &= absent(gameplay_c,
+               "choose_graph_continuity_clip(",
+               "active CharClipGroup selection must not use native graph scoring");
+  ok &= absent(gameplay_c,
+               "choose_stance_continuity_clip(",
+               "active CharClipGroup selection must not use native stance scoring");
   ok &= absent(gameplay_c,
                "autoread_u8=[](conststd::vector<uint8_t>&b,size_t&p)->uint8_t",
                "gameplay must not keep a local ad hoc CharClipGroup byte reader");

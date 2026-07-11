@@ -656,6 +656,7 @@ class Gameplay {
     std::string last_midi_marker;
     std::string active_clip_mode;
     size_t active_group_index = 0;
+    int32_t active_group_which = 0;
     double active_group_started = 0.0;
     uint32_t active_group_last_bar = UINT32_MAX;
     uint32_t last_anim_note_mask = UINT32_MAX;

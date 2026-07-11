@@ -1060,10 +1060,12 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
   return result;
 }
 
-std::vector<std::string> load_clip_group_names(
+CharClipGroup load_clip_group(
     const std::string& hdr_path, const std::string& ark_path,
     const std::vector<std::string>& milo_paths,
     const std::string& group_name) {
+  CharClipGroup group;
+  group.name = group_name;
   try {
     auto ark = gh::ark::ArkV3Reader::load(hdr_path);
     for (const auto& milo_path : milo_paths) {
@@ -1102,41 +1104,63 @@ std::vector<std::string> load_clip_group_names(
         uint32_t count = 0;
         std::memcpy(&count, body + pos, 4);
         pos += 4;
-        std::vector<std::string> clips;
-        clips.reserve(count);
+        group.clips.clear();
+        group.clips.reserve(count);
         for (uint32_t i = 0; i < count; ++i) {
-          clips.push_back(read_len_string(body, size, pos));
+          group.clips.push_back(read_len_string(body, size, pos));
         }
 
         if (pos + 4 > size) throw std::runtime_error("short CharClipGroup which");
-        int32_t which = 0;
-        std::memcpy(&which, body + pos, 4);
+        std::memcpy(&group.which, body + pos, 4);
         pos += 4;
-        int32_t flags = 0;
+        group.flags = 0;
         if (version > 1) {
           if (pos + 4 > size) throw std::runtime_error("short CharClipGroup flags");
-          std::memcpy(&flags, body + pos, 4);
+          std::memcpy(&group.flags, body + pos, 4);
           pos += 4;
         }
 
-        clips.erase(std::remove_if(clips.begin(), clips.end(),
-                                   [](const std::string& s) {
-                                     return s.empty();
-                                   }),
-                    clips.end());
+        group.version = version;
+        group.milo_path = milo_path;
+        group.loaded = true;
         std::fprintf(stderr,
                      "[clip-group-source] group=%s milo=%s version=%u "
                      "clips=%zu which=%d flags=0x%08x\n",
                      group_name.c_str(), milo_path.c_str(), version,
-                     clips.size(), which, static_cast<unsigned>(flags));
-        return clips;
+                     group.clips.size(), group.which,
+                     static_cast<unsigned>(group.flags));
+        return group;
       }
     }
   } catch (const std::exception& ex) {
     std::fprintf(stderr, "[clip-group-source] group=%s error=%s\n",
                  group_name.c_str(), ex.what());
   }
-  return {};
+  return group;
+}
+
+std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group) {
+  if (group.clips.empty()) return std::nullopt;
+  const int32_t before = group.which;
+  ++group.which;
+  if (group.which >= static_cast<int32_t>(group.clips.size())) {
+    group.which = 0;
+  }
+  if (group.which < 0) group.which = 0;
+  const size_t index = static_cast<size_t>(group.which);
+  std::fprintf(stderr,
+               "[clip-group-source-select] group=%s before=%d after=%d "
+               "index=%zu clip=%s\n",
+               group.name.c_str(), before, group.which, index,
+               group.clips[index].c_str());
+  return index;
+}
+
+std::vector<std::string> load_clip_group_names(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& milo_paths,
+    const std::string& group_name) {
+  return load_clip_group(hdr_path, ark_path, milo_paths, group_name).clips;
 }
 
 // ---- pose application ----------------------------------------------------

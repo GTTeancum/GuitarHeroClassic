@@ -292,269 +292,6 @@ float character_hand_driver_blend_seconds() {
                       0.0f, 1.0f);
 }
 
-uint32_t stable_graph_hash(std::string_view text) {
-    uint32_t h = 2166136261u;
-    for (unsigned char c : text) {
-        h ^= c;
-        h *= 16777619u;
-    }
-    return h;
-}
-
-bool graph_continuity_channel(const ghogx::character::ClipChannel& ch) {
-    const std::string_view n = ch.bone_name;
-    if (n.find("finger") != std::string_view::npos ||
-        n.find("thumb") != std::string_view::npos ||
-        n.find("pinky") != std::string_view::npos ||
-        n.find("ring") != std::string_view::npos ||
-        n.find("index") != std::string_view::npos ||
-        n.find("brow") != std::string_view::npos ||
-        n.find("eye") != std::string_view::npos ||
-        n.find("lid") != std::string_view::npos ||
-        n.find("lip") != std::string_view::npos ||
-        n.find("jaw") != std::string_view::npos ||
-        n.find("guitar") != std::string_view::npos ||
-        n.find("strum") != std::string_view::npos ||
-        n.find("fret") != std::string_view::npos) {
-        return false;
-    }
-    return ch.type == ghogx::character::ClipChannel::kPos ||
-           ch.type == ghogx::character::ClipChannel::kQuat ||
-           ch.type == ghogx::character::ClipChannel::kRotX ||
-           ch.type == ghogx::character::ClipChannel::kRotY ||
-           ch.type == ghogx::character::ClipChannel::kRotZ;
-}
-
-std::string graph_channel_key(const ghogx::character::ClipChannel& ch) {
-    return ch.bone_name + "#" + std::to_string(static_cast<int>(ch.type));
-}
-
-double graph_channel_distance(const ghogx::character::ClipChannel& a,
-                              const ghogx::character::ClipChannel& b) {
-    using ghogx::character::ClipChannel;
-    if (a.type != b.type) return 0.0;
-    switch (a.type) {
-        case ClipChannel::kPos: {
-            const double dx = static_cast<double>(a.pos[0] - b.pos[0]);
-            const double dy = static_cast<double>(a.pos[1] - b.pos[1]);
-            const double dz = static_cast<double>(a.pos[2] - b.pos[2]);
-            return (dx * dx + dy * dy + dz * dz) * 0.05;
-        }
-        case ClipChannel::kQuat: {
-            double dot = static_cast<double>(a.quat[0] * b.quat[0] +
-                                             a.quat[1] * b.quat[1] +
-                                             a.quat[2] * b.quat[2] +
-                                             a.quat[3] * b.quat[3]);
-            dot = std::clamp(std::abs(dot), 0.0, 1.0);
-            return (1.0 - dot) * 8.0;
-        }
-        case ClipChannel::kRotX:
-        case ClipChannel::kRotY:
-        case ClipChannel::kRotZ: {
-            double d = static_cast<double>(a.angle - b.angle);
-            while (d > 3.14159265358979323846) d -= 6.28318530717958647692;
-            while (d < -3.14159265358979323846) d += 6.28318530717958647692;
-            return d * d;
-        }
-        default:
-            return 0.0;
-    }
-}
-
-double graph_channel_weight(const ghogx::character::ClipChannel& ch) {
-    const std::string_view n = ch.bone_name;
-    if (n == "bone_facing" || n == "bone_pelvis" ||
-        n.find("-thigh") != std::string_view::npos ||
-        n.find("-knee") != std::string_view::npos ||
-        n.find("-ankle") != std::string_view::npos ||
-        n.find("-foot") != std::string_view::npos ||
-        n.find("-toe") != std::string_view::npos) {
-        return 6.0;
-    }
-    if (n.find("spine") != std::string_view::npos ||
-        n.find("clavicle") != std::string_view::npos ||
-        n.find("upperArm") != std::string_view::npos ||
-        n.find("foreArm") != std::string_view::npos ||
-        n.find("-hand") != std::string_view::npos) {
-        return 1.5;
-    }
-    return 1.0;
-}
-
-bool debug_graph_selection_enabled() {
-#ifdef _MSC_VER
-    char* value = nullptr;
-    size_t len = 0;
-    const bool enabled =
-        _dupenv_s(&value, &len, "GHOGX_DEBUG_GRAPH_SELECTION") == 0 &&
-        value && value[0];
-    std::free(value);
-    return enabled;
-#else
-    const char* value = std::getenv("GHOGX_DEBUG_GRAPH_SELECTION");
-    return value && value[0];
-#endif
-}
-
-size_t choose_graph_continuity_clip(
-    const std::vector<ghogx::character::CharClip>& clips,
-    const std::vector<ghogx::character::ClipChannel>& reference,
-    size_t current_index, uint32_t bar, std::string_view salt,
-    bool avoid_current) {
-    if (clips.empty()) return 0;
-    if (reference.empty()) {
-        return static_cast<size_t>(
-            (stable_graph_hash(salt) + bar) % static_cast<uint32_t>(clips.size()));
-    }
-
-    std::unordered_map<std::string, const ghogx::character::ClipChannel*> ref;
-    ref.reserve(reference.size());
-    for (const auto& ch : reference) {
-        if (graph_continuity_channel(ch)) ref[graph_channel_key(ch)] = &ch;
-    }
-    if (ref.empty()) {
-        return static_cast<size_t>(
-            (stable_graph_hash(salt) + bar) % static_cast<uint32_t>(clips.size()));
-    }
-
-    size_t best = current_index % clips.size();
-    double best_score = std::numeric_limits<double>::infinity();
-    const bool debug_graph = debug_graph_selection_enabled();
-    for (size_t i = 0; i < clips.size(); ++i) {
-        const auto& clip = clips[i];
-        if (!clip.loaded || clip.frames.empty()) continue;
-        double score = 0.0;
-        double matched_weight = 0.0;
-        for (const auto& ch : clip.frames.front()) {
-            if (!graph_continuity_channel(ch)) continue;
-            auto it = ref.find(graph_channel_key(ch));
-            if (it == ref.end()) continue;
-            const double weight = graph_channel_weight(ch);
-            score += graph_channel_distance(*it->second, ch) * weight;
-            matched_weight += weight;
-        }
-        if (matched_weight <= 0.0) continue;
-        score /= matched_weight;
-        if (avoid_current && clips.size() > 1 && i == current_index) {
-            score += 0.25;
-        }
-        score += static_cast<double>(
-                     (stable_graph_hash(clip.name) + bar) & 0xffu) *
-                 1.0e-6;
-        if (debug_graph) {
-            std::fprintf(stderr,
-                         "[graph-select] salt=%.*s bar=%u clip=%s index=%zu "
-                         "score=%.6f matched_weight=%.2f avoid=%d current=%d\n",
-                         static_cast<int>(salt.size()), salt.data(), bar,
-                         clip.name.c_str(), i, score, matched_weight,
-                         avoid_current ? 1 : 0,
-                         i == current_index ? 1 : 0);
-        }
-        if (score < best_score) {
-            best_score = score;
-            best = i;
-        }
-    }
-    return best;
-}
-
-std::optional<float> lower_body_stance_width(
-    const ghogx::character::Character& character) {
-    auto sample = [&](std::initializer_list<const char*> names)
-        -> std::optional<std::array<float, 3>> {
-        std::array<float, 3> sum{0.0f, 0.0f, 0.0f};
-        int count = 0;
-        for (const char* name : names) {
-            for (const auto& bone : character.bones) {
-                if (bone.name != name) continue;
-                const auto world = character.bone_world_local_chain(bone.name);
-                sum[0] += world[12];
-                sum[1] += world[13];
-                sum[2] += world[14];
-                ++count;
-                break;
-            }
-        }
-        if (count == 0) return std::nullopt;
-        const float inv = 1.0f / static_cast<float>(count);
-        return std::array<float, 3>{sum[0] * inv, sum[1] * inv, sum[2] * inv};
-    };
-    const auto left = sample({"bone_L-ankle.mesh", "bone_L-toe.mesh"});
-    const auto right = sample({"bone_R-ankle.mesh", "bone_R-toe.mesh"});
-    if (!left || !right) return std::nullopt;
-    const float dx = (*left)[0] - (*right)[0];
-    const float dy = (*left)[1] - (*right)[1];
-    return std::sqrt(dx * dx + dy * dy);
-}
-
-std::string clip_family_name(std::string name) {
-    const size_t last = name.rfind('_');
-    if (last == std::string::npos) return name;
-    bool numeric = last + 1 < name.size();
-    for (size_t i = last + 1; i < name.size(); ++i) {
-        numeric = numeric && std::isdigit(static_cast<unsigned char>(name[i]));
-    }
-    if (!numeric) return name;
-    return name.substr(0, last);
-}
-
-size_t choose_stance_continuity_clip(
-    const std::vector<ghogx::character::CharClip>& clips,
-    const std::vector<ghogx::character::ClipChannel>& reference,
-    const ghogx::character::Character& base_character, size_t fallback_index,
-    size_t current_index, uint32_t bar, std::string_view salt,
-    bool avoid_current) {
-    if (clips.empty() || reference.empty()) return fallback_index;
-
-    ghogx::character::Character ref_character = base_character;
-    ghogx::character::apply_clip_pose_sampled(reference, 1.0f, ref_character);
-    const auto ref_width = lower_body_stance_width(ref_character);
-    if (!ref_width) return fallback_index;
-
-    const bool debug_graph = debug_graph_selection_enabled();
-    const std::string family =
-        fallback_index < clips.size()
-            ? clip_family_name(clips[fallback_index].name)
-            : std::string{};
-    const bool constrain_family =
-        !family.empty() &&
-        std::count_if(clips.begin(), clips.end(), [&](const auto& clip) {
-            return clip_family_name(clip.name) == family;
-        }) > 1;
-    size_t best = fallback_index % clips.size();
-    float best_score = std::numeric_limits<float>::infinity();
-    for (size_t i = 0; i < clips.size(); ++i) {
-        const auto& clip = clips[i];
-        if (!clip.loaded || clip.frames.empty()) continue;
-        if (constrain_family && clip_family_name(clip.name) != family) continue;
-        ghogx::character::Character candidate = base_character;
-        ghogx::character::apply_clip_pose_sampled(clip.frames.front(), 1.0f,
-                                                  candidate, clip.relative);
-        const auto width = lower_body_stance_width(candidate);
-        if (!width) continue;
-        float score = std::fabs(*width - *ref_width);
-        if (avoid_current && clips.size() > 1 && i == current_index) {
-            score += 0.5f;
-        }
-        score += static_cast<float>(
-                     (stable_graph_hash(clip.name) + bar) & 0xffu) *
-                 1.0e-5f;
-        if (debug_graph) {
-            std::fprintf(stderr,
-                         "[stance-select] salt=%.*s bar=%u clip=%s index=%zu "
-                         "width=%.3f ref=%.3f score=%.6f fallback=%d\n",
-                         static_cast<int>(salt.size()), salt.data(), bar,
-                         clip.name.c_str(), i, *width, *ref_width, score,
-                         i == fallback_index ? 1 : 0);
-        }
-        if (score < best_score) {
-            best_score = score;
-            best = i;
-        }
-    }
-    return best;
-}
-
 std::optional<Gameplay::QuickplayRig> resolve_quickplay_rig(
     const std::string& hdr_path, const std::string& ark_path,
     const std::string& shortname) {
@@ -6943,6 +6680,27 @@ std::vector<std::string> load_char_clip_group(
     const std::string& group_name) {
     return ghogx::character::load_clip_group_names(
         hdr_path, ark_path, milo_candidates, group_name);
+}
+
+std::optional<size_t> source_char_clip_group_next_index(
+    const std::vector<ghogx::character::CharClip>& clips, int32_t& which,
+    const std::string& role, const std::string& character_name,
+    const char* group_name, uint32_t bar) {
+    ghogx::character::CharClipGroup group;
+    group.name = group_name ? group_name : "";
+    group.which = which;
+    group.loaded = true;
+    group.clips.reserve(clips.size());
+    for (const auto& clip : clips) group.clips.push_back(clip.name);
+    const auto selected = ghogx::character::char_clip_group_get_clip_index(group);
+    which = group.which;
+    if (!selected || *selected >= clips.size()) return std::nullopt;
+    std::fprintf(stderr,
+                 "[world] CharClipGroup source GetClip: role=%s char=%s "
+                 "group=%s index=%zu clip=%s bar=%u which=%d\n",
+                 role.c_str(), character_name.c_str(), group.name.c_str(),
+                 *selected, clips[*selected].name.c_str(), bar, which);
+    return selected;
 }
 
 std::vector<Gameplay::CameraKey> load_camera_position_keys(
@@ -19723,9 +19481,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     quickplay_rig_ ? std::string_view(quickplay_rig_->anim_tempo)
                                    : std::string_view{};
                 std::vector<std::string> active_group_names;
+                ghogx::character::CharClipGroup active_group;
                 if (perf.role == "guitarist0") {
-                    active_group_names = load_char_clip_group(
+                    active_group = ghogx::character::load_clip_group(
                         hdr_path_, ark_path_, main_anim_milos, "normal");
+                    active_group_names = active_group.clips;
+                    perf.active_group_which = active_group.which;
                 }
                 if (!load_driver_clip_first(perf.idle_clip, "main.drv",
                                             idle_names)) {
@@ -19767,29 +19528,23 @@ void Gameplay::draw(ghogx::render::Window& win) {
                                 clip, hdr_path_, ark_path_, main_anim_milos,
                                 std::vector<std::string>{clip_name})) {
                             perf.active_group_clips.push_back(std::move(clip));
+                        } else {
+                            clip.name = clip_name;
+                            perf.active_group_clips.push_back(std::move(clip));
                         }
                     }
                     if (!perf.active_group_clips.empty()) {
-                        const std::vector<ghogx::character::ClipChannel>
-                            idle_reference =
-                                perf.idle_clip.frames.empty()
-                                    ? std::vector<ghogx::character::ClipChannel>{}
-                                    : perf.idle_clip.frames.front();
-                        perf.active_group_index = choose_graph_continuity_clip(
-                            perf.active_group_clips, idle_reference, 0, 0,
-                            perf.character_name, false);
-                        perf.active_group_index = choose_stance_continuity_clip(
-                            perf.active_group_clips, idle_reference,
-                            perf.renderer->character(), perf.active_group_index,
-                            0, 0, perf.character_name, false);
-                        perf.active_clip =
-                            perf.active_group_clips[perf.active_group_index];
-                        std::fprintf(
-                            stderr,
-                            "[world] CharClipGroup normal selected entry: role=%s char=%s clip=%s index=%zu\n",
-                            perf.role.c_str(), perf.character_name.c_str(),
-                            perf.active_clip.name.c_str(),
-                            perf.active_group_index);
+                        if (const auto selected =
+                                source_char_clip_group_next_index(
+                                    perf.active_group_clips,
+                                    perf.active_group_which, perf.role,
+                                    perf.character_name, "normal", 0)) {
+                            perf.active_group_index = *selected;
+                            if (perf.active_group_clips[*selected].loaded) {
+                                perf.active_clip =
+                                    perf.active_group_clips[*selected];
+                            }
+                        }
                     }
                 }
                 std::vector<std::string> band_jump_names =
@@ -20216,25 +19971,25 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 perf.active_clip_mode = desired_mode;
                 if (!perf.active_group_clips.empty() &&
                     desired_mode == "normal") {
-                    const auto reference = perf.active_player.active()
-                                               ? perf.active_player.sampled_pose()
-                                               : perf.idle_player.sampled_pose();
-                    perf.active_group_index = choose_graph_continuity_clip(
-                        perf.active_group_clips, reference,
-                        perf.active_group_index, camera_bar_at(chart_, song_time_),
-                        perf.character_name, false);
-                    perf.active_group_index = choose_stance_continuity_clip(
-                        perf.active_group_clips, reference, character,
-                        perf.active_group_index, perf.active_group_index,
-                        camera_bar_at(chart_, song_time_), perf.character_name,
-                        false);
+                    if (const auto selected =
+                            source_char_clip_group_next_index(
+                                perf.active_group_clips,
+                                perf.active_group_which, perf.role,
+                                perf.character_name, "normal",
+                                camera_bar_at(chart_, song_time_))) {
+                        perf.active_group_index = *selected;
+                    }
                     perf.active_group_started = song_time_;
                     perf.active_group_last_bar = camera_bar_at(chart_, song_time_);
-                    perf.active_player.play(
-                        perf.active_group_clips[perf.active_group_index],
-                        ghogx::character::kCharPlayNoLoop,
-                        character_driver_blend_seconds());
-                    desired_active = &perf.active_group_clips[perf.active_group_index];
+                    if (perf.active_group_index < perf.active_group_clips.size() &&
+                        perf.active_group_clips[perf.active_group_index].loaded) {
+                        perf.active_player.play(
+                            perf.active_group_clips[perf.active_group_index],
+                            ghogx::character::kCharPlayNoLoop,
+                            character_driver_blend_seconds());
+                        desired_active =
+                            &perf.active_group_clips[perf.active_group_index];
+                    }
                 } else {
                     perf.active_player.play(
                         *desired_active,
@@ -20274,25 +20029,27 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     perf.active_group_last_bar = bar;
                 }
                 if (bar != perf.active_group_last_bar) {
-                    const auto reference = perf.active_player.sampled_pose();
-                    perf.active_group_index = choose_graph_continuity_clip(
-                        perf.active_group_clips, reference,
-                        perf.active_group_index, bar, perf.character_name, true);
-                    perf.active_group_index = choose_stance_continuity_clip(
-                        perf.active_group_clips, reference, character,
-                        perf.active_group_index, perf.active_group_index, bar,
-                        perf.character_name, true);
+                    if (const auto selected =
+                            source_char_clip_group_next_index(
+                                perf.active_group_clips,
+                                perf.active_group_which, perf.role,
+                                perf.character_name, "normal", bar)) {
+                        perf.active_group_index = *selected;
+                    }
                     perf.active_group_started = song_time_;
                     perf.active_group_last_bar = bar;
-                    const auto& next =
-                        perf.active_group_clips[perf.active_group_index];
-                    perf.active_player.play(
-                        next, ghogx::character::kCharPlayNoLoop,
-                        character_driver_blend_seconds());
-                    std::fprintf(stderr,
-                                 "[world] performer group clip: role=%s group=normal clip=%s t=%.3f\n",
-                                 perf.role.c_str(), next.name.c_str(),
-                                 song_time_);
+                    if (perf.active_group_index < perf.active_group_clips.size() &&
+                        perf.active_group_clips[perf.active_group_index].loaded) {
+                        const auto& next =
+                            perf.active_group_clips[perf.active_group_index];
+                        perf.active_player.play(
+                            next, ghogx::character::kCharPlayNoLoop,
+                            character_driver_blend_seconds());
+                        std::fprintf(stderr,
+                                     "[world] performer group clip: role=%s group=normal clip=%s t=%.3f\n",
+                                     perf.role.c_str(), next.name.c_str(),
+                                     song_time_);
+                    }
                 }
             }
             if (!intro_active && perf.band_jump_clip.loaded) {
