@@ -300,6 +300,9 @@ class Gameplay {
     float period = 0.0f;
     float offset_frame = 0.0f;
     int type = 0;
+    float event_blend_seconds = 0.0f;
+    float event_delay_seconds = 0.0f;
+    bool event_wait = false;
     std::vector<VenueAnimFilterTarget> targets;
     std::vector<VenueAnimFilterMeshTarget> mesh_anim_targets;
   };

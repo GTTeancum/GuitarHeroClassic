@@ -4066,14 +4066,23 @@ int main() {
                  "merge_venue_group_visibility(out[key],visibility);",
                  "multiple EventTriggers with the same payload label merge visibility");
   ok &= contains(gameplay_c,
-                 "push_unique_ref(event_filters[key],ref);",
-                 "AnimFilter EventTrigger refs route by payload label aliases");
+                 "event_filters[key].push_back(route);",
+                 "AnimFilter EventTrigger refs preserve source row timing by payload label aliases");
+  ok &= contains(gameplay_c,
+                 "route.blend=read_f32_at_unchecked(body,cursor);",
+                 "EventTrigger Anim rows decode source blend before wait/delay");
+  ok &= contains(gameplay_c,
+                 "route.wait=body[cursor+4]!=0;",
+                 "EventTrigger Anim rows decode source wait byte");
+  ok &= contains(gameplay_c,
+                 "route.delay=read_f32_at_unchecked(body,cursor+5);",
+                 "EventTrigger Anim rows decode source delay after wait byte");
   ok &= contains(gameplay_c,
                  "boolis_direct_venue_anim_ref(std::string_viewref)",
                  "venue direct animation ref classifier is shared");
   ok &= contains(gameplay_c,
-                 "event_direct_anim_refs[key],ref);",
-                 "EventTrigger direct TransAnim/MeshAnim refs route by payload aliases");
+                 "event_direct_anim_refs[key].push_back(route);",
+                 "EventTrigger direct TransAnim/MeshAnim refs preserve source row timing by payload aliases");
   ok &= contains(gameplay_c,
                  "mesh_transform_anim_duration_frames(anim_it->second)",
                  "direct TransAnim routes use authored transform key duration");
@@ -4081,8 +4090,17 @@ int main() {
                  "filter.name=\"direct_\"+event;",
                  "direct EventTrigger refs become synthetic venue AnimFilters");
   ok &= contains(gameplay_c,
-                 "collect_filter_targets(collect_filter_targets,filter,ref,seen)",
-                 "direct EventTrigger refs use the shared AnimFilter target collector");
+                 "collect_filter_targets(collect_filter_targets,route_filter,route.ref,seen)",
+                 "direct EventTrigger refs use the shared AnimFilter target collector with source row timing");
+  ok &= contains(gameplay_h_c,
+                 "floatevent_delay_seconds=0.0f;",
+                 "venue AnimFilters carry EventTrigger delay into runtime playback");
+  ok &= contains(gameplay_c,
+                 "filter.event_blend_seconds=route.blend;",
+                 "venue AnimFilters carry EventTrigger blend metadata from source rows");
+  ok &= contains(gameplay_c,
+                 "filter.event_wait=route.wait;",
+                 "venue AnimFilters carry EventTrigger wait metadata from source rows");
   ok &= contains(gameplay_h_c,
                  "std::unordered_set<std::string>venue_runtime_hidden_meshes_;",
                  "venue EventTrigger visibility latches in runtime state");
@@ -5534,8 +5552,21 @@ int main() {
                  "floatvenue_filter_signed_scale(constGameplay::VenueAnimFilter&filter)",
                  "venue AnimFilter derives signed Scale from period/start/end like source RndAnimFilter");
   ok &= contains(gameplay_c,
-                 "venue_filter_frame_at(filter,elapsed,it->polled)",
+                 "venue_filter_frame_at(filter,filter_elapsed,it->polled)",
                  "venue PollAnim routes use direct SetFrame-style offset phase");
+  ok &= contains(gameplay_c,
+                 "elapsed-static_cast<double>(filter.event_delay_seconds)",
+                 "venue EventTrigger Anim delay offsets task playback time");
+  ok &= contains(gameplay_c,
+                 "if(filter_elapsed<0.0)",
+                 "venue EventTrigger Anim delay does not sample the first frame early");
+  ok &= contains(gameplay_c,
+                 "venue_filter_frame_at(filter,filter_elapsed,it->polled)",
+                 "venue EventTrigger AnimFilter playback samples after source delay");
+  ok &= contains(gameplay_c,
+                 "static_cast<double>(filter.event_delay_seconds)+"
+                 "venue_filter_duration_seconds(filter)",
+                 "venue EventTrigger AnimFilter lifetime includes source delay");
   ok &= contains(gameplay_c,
                  "raw_frame=start+",
                  "event-triggered AnimFilters start from authored start frame");

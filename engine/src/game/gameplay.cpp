@@ -807,8 +807,14 @@ bool is_venue_mode_gate_event(std::string_view event) {
 }
 
 struct DecodedVenueEventTrigger {
+    struct AnimRoute {
+        std::string ref;
+        float blend = 0.0f;
+        bool wait = false;
+        float delay = 0.0f;
+    };
     std::string event_label;
-    std::vector<std::string> anims;
+    std::vector<AnimRoute> anims;
     std::vector<std::string> sounds;
     std::vector<std::string> shows;
     std::vector<std::string> draws;
@@ -838,10 +844,23 @@ std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
         std::string anim;
         if (!read_packed_symbol_event_cursor(body, size, cursor, anim))
             return std::nullopt;
-        out.anims.push_back(std::move(anim));
-        // GH2 rev8 stores EventTrigger.Anim as Symbol plus a compact
-        // blend/wait/delay tail here, matching ihatecompvir's field order.
         if (cursor + 9 > size) return std::nullopt;
+        // Matches ihatecompvir EventTrigger.Anim: Symbol anim, float blend,
+        // bool wait, float delay for GH2 rev8/RB gRev <= 9.
+        DecodedVenueEventTrigger::AnimRoute route;
+        route.ref = std::move(anim);
+        route.blend = read_f32_at_unchecked(body, cursor);
+        route.wait = body[cursor + 4] != 0;
+        route.delay = read_f32_at_unchecked(body, cursor + 5);
+        if (!std::isfinite(route.blend) || route.blend < 0.0f ||
+            route.blend > 10000.0f) {
+            route.blend = 0.0f;
+        }
+        if (!std::isfinite(route.delay) || route.delay < 0.0f ||
+            route.delay > 10000.0f) {
+            route.delay = 0.0f;
+        }
+        out.anims.push_back(std::move(route));
         cursor += 9;
     }
 
@@ -862,11 +881,33 @@ std::vector<std::string> venue_event_trigger_anim_route_refs(
     const uint8_t* body, size_t size, std::string& event_label) {
     if (const auto trigger = decode_venue_event_trigger_rev8(body, size)) {
         event_label = trigger->event_label;
-        return trigger->anims;
+        std::vector<std::string> refs;
+        refs.reserve(trigger->anims.size());
+        for (const auto& anim : trigger->anims) refs.push_back(anim.ref);
+        return refs;
     }
     const auto strings = scan_milo_strings(body, size);
     event_label = strings.empty() ? std::string{} : strings.front();
     return strings;
+}
+
+std::vector<DecodedVenueEventTrigger::AnimRoute>
+venue_event_trigger_anim_routes(const uint8_t* body, size_t size,
+                                std::string& event_label) {
+    if (const auto trigger = decode_venue_event_trigger_rev8(body, size)) {
+        event_label = trigger->event_label;
+        return trigger->anims;
+    }
+    const auto strings = scan_milo_strings(body, size);
+    event_label = strings.empty() ? std::string{} : strings.front();
+    std::vector<DecodedVenueEventTrigger::AnimRoute> routes;
+    routes.reserve(strings.size());
+    for (const auto& s : strings) {
+        DecodedVenueEventTrigger::AnimRoute route;
+        route.ref = s;
+        routes.push_back(std::move(route));
+    }
+    return routes;
 }
 
 bool venue_event_trigger_enabled_for_single_player(const uint8_t* body,
@@ -9594,8 +9635,11 @@ load_venue_anim_filters(const std::string& hdr_path,
                  ghogx::render::MiloSceneRenderer::MeshTransformAnim>
             transanim_anims;
         std::map<std::string, Gameplay::VenueMeshAnim> meshanim_anims;
-        std::map<std::string, std::vector<std::string>> event_filters;
-        std::map<std::string, std::vector<std::string>>
+        std::map<std::string,
+                 std::vector<DecodedVenueEventTrigger::AnimRoute>>
+            event_filters;
+        std::map<std::string,
+                 std::vector<DecodedVenueEventTrigger::AnimRoute>>
             event_direct_anim_refs;
         std::map<std::string, std::vector<std::string>> poll_anim_refs;
 
@@ -9668,20 +9712,21 @@ load_venue_anim_filters(const std::string& hdr_path,
                     continue;
                 }
                 std::string event_label_storage;
-                const auto refs = venue_event_trigger_anim_route_refs(
+                const auto routes = venue_event_trigger_anim_routes(
                     body, size, event_label_storage);
                 const std::string_view event_label =
                     is_event_payload_label(event_label_storage)
                         ? std::string_view(event_label_storage)
                         : std::string_view{};
-                for (const auto& s : refs) {
-                    const auto ref = canonical_milo_ref(s);
+                for (auto route : routes) {
+                    const auto ref = canonical_milo_ref(route.ref);
+                    route.ref = ref;
                     for (const auto& key :
                          event_trigger_route_keys(de.name, event_label)) {
                         if (is_venue_anim_filter_ref(ref)) {
-                            push_unique_ref(event_filters[key], ref);
+                            event_filters[key].push_back(route);
                         } else if (is_direct_venue_anim_ref(ref)) {
-                            push_unique_ref(event_direct_anim_refs[key], ref);
+                            event_direct_anim_refs[key].push_back(route);
                         }
                     }
                 }
@@ -9843,6 +9888,13 @@ load_venue_anim_filters(const std::string& hdr_path,
 
         size_t routed = 0;
         size_t direct_routed = 0;
+        auto apply_event_anim_timing =
+            [](Gameplay::VenueAnimFilter& filter,
+               const DecodedVenueEventTrigger::AnimRoute& route) {
+                filter.event_blend_seconds = route.blend;
+                filter.event_delay_seconds = route.delay;
+                filter.event_wait = route.wait;
+            };
         auto make_direct_filter =
             [&](const std::string& raw_ref)
             -> std::optional<Gameplay::VenueAnimFilter> {
@@ -9966,15 +10018,17 @@ load_venue_anim_filters(const std::string& hdr_path,
             out[venue_filter_route_key(filter_name)].push_back(filter);
             ++routed;
         }
-        for (const auto& [event, filter_names] : event_filters) {
-            for (const auto& filter_name : filter_names) {
-                const auto filter_it = filters_by_name.find(filter_name);
+        for (const auto& [event, filter_routes] : event_filters) {
+            for (const auto& route : filter_routes) {
+                const auto filter_it = filters_by_name.find(route.ref);
                 if (filter_it == filters_by_name.end()) continue;
-                out[event].push_back(filter_it->second);
+                auto filter = filter_it->second;
+                apply_event_anim_timing(filter, route);
+                out[event].push_back(std::move(filter));
                 ++routed;
             }
         }
-        for (const auto& [event, refs] : event_direct_anim_refs) {
+        for (const auto& [event, routes] : event_direct_anim_refs) {
             Gameplay::VenueAnimFilter filter;
             filter.name = "direct_" + event;
             filter.start_frame = 0.0f;
@@ -9984,21 +10038,26 @@ load_venue_anim_filters(const std::string& hdr_path,
             filter.offset_frame = 0.0f;
             filter.type = 0;
 
-            float duration = 0.0f;
-            std::unordered_set<std::string> seen;
-            for (const auto& ref : refs) {
+            for (const auto& route : routes) {
+                Gameplay::VenueAnimFilter route_filter = filter;
+                apply_event_anim_timing(route_filter, route);
+                float duration = 0.0f;
+                std::unordered_set<std::string> seen;
                 duration = std::max(
-                    duration,
-                    collect_filter_targets(collect_filter_targets, filter, ref,
-                                           seen));
+                    duration, collect_filter_targets(collect_filter_targets,
+                                                     route_filter, route.ref,
+                                                     seen));
+                if (route_filter.targets.empty() &&
+                    route_filter.mesh_anim_targets.empty()) {
+                    continue;
+                }
+                route_filter.end_frame =
+                    std::isfinite(duration) && duration > 0.001f ? duration
+                                                                  : 1.0f;
+                out[event].push_back(std::move(route_filter));
+                ++routed;
+                ++direct_routed;
             }
-            if (filter.targets.empty() && filter.mesh_anim_targets.empty())
-                continue;
-            filter.end_frame =
-                std::isfinite(duration) && duration > 0.001f ? duration : 1.0f;
-            out[event].push_back(std::move(filter));
-            ++routed;
-            ++direct_routed;
         }
         if (!out.empty()) {
             std::fprintf(stderr,
@@ -17714,11 +17773,12 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         for (const auto& filter : filter_event_it->second) {
             std::fprintf(
                 stderr,
-                "[world] venue event %s: AnimFilter %s frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d %s\n",
+                "[world] venue event %s: AnimFilter %s frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d blend=%.3f wait=%d delay=%.3f %s\n",
                 event_name.c_str(), filter.name.c_str(), filter.start_frame,
                 filter.end_frame, filter.targets.size(),
                 filter.mesh_anim_targets.size(), filter.scale, filter.period,
-                filter.offset_frame, filter.type,
+                filter.offset_frame, filter.type, filter.event_blend_seconds,
+                filter.event_wait ? 1 : 0, filter.event_delay_seconds,
                 persistent ? "persistent" : "transient");
         }
     }
@@ -18151,8 +18211,10 @@ void Gameplay::update_active_venue_anim_filters() {
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         double duration = 0.0;
         for (const auto& filter : it->filters) {
-            duration =
-                std::max(duration, venue_filter_duration_seconds(filter));
+            duration = std::max(
+                duration,
+                static_cast<double>(filter.event_delay_seconds) +
+                    venue_filter_duration_seconds(filter));
         }
         if (!it->persistent && !it->shot_scoped && !it->polled &&
             !venue_filter_set_loops(it->filters) &&
@@ -18163,8 +18225,22 @@ void Gameplay::update_active_venue_anim_filters() {
         }
 
         for (const auto& filter : it->filters) {
+            const double filter_elapsed =
+                elapsed - static_cast<double>(filter.event_delay_seconds);
+            if (filter_elapsed < 0.0) {
+                if (debug_sample) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue AnimFilter waiting event=%s filter=%s delay=%.3f remaining=%.3f blend=%.3f wait=%d\n",
+                        it->event_name.c_str(), filter.name.c_str(),
+                        filter.event_delay_seconds, -filter_elapsed,
+                        filter.event_blend_seconds,
+                        filter.event_wait ? 1 : 0);
+                }
+                continue;
+            }
             const float frame =
-                venue_filter_frame_at(filter, elapsed, it->polled);
+                venue_filter_frame_at(filter, filter_elapsed, it->polled);
             for (const auto& target : filter.targets) {
                 bool source_translation = false;
                 std::array<float, 3> source_pos = {0.0f, 0.0f, 0.0f};
@@ -18179,7 +18255,7 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) persistent=%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f wait=%d persistent=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
@@ -18188,6 +18264,9 @@ void Gameplay::update_active_venue_anim_filters() {
                         sample.translation[1], sample.translation[2],
                         source_translation ? 1 : 0, source_pos[0],
                         source_pos[1], source_pos[2],
+                        filter.event_delay_seconds,
+                        filter.event_blend_seconds,
+                        filter.event_wait ? 1 : 0,
                         it->persistent ? 1 : 0);
                 }
             }
@@ -18203,11 +18282,14 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u uv=%zu persistent=%d\n",
+                        "[world] venue MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u uv=%zu delay=%.3f blend=%.3f wait=%d persistent=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), target.anim.name.c_str(), frame,
                         target.anim.vertex_count,
                         target.anim.texcoord_frames.size(),
+                        filter.event_delay_seconds,
+                        filter.event_blend_seconds,
+                        filter.event_wait ? 1 : 0,
                         it->persistent ? 1 : 0);
                 }
             }
