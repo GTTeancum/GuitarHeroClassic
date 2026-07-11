@@ -49,6 +49,66 @@ records the upstream commits for the copied files:
 | Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
 | Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
 
+## Remaining Character Import Checklist
+
+This is the current answer to "what remains to import" from ihatecompvir's
+character sources. Mesh row decode, material state, transform composition,
+group draw membership, IK hand, upper twist, fore twist, and position
+constraints have source-backed native coverage. The unresolved work is the
+connected character animation and controller runtime that turns authored clips
+into final transform rows.
+
+1. Whole-character clip and pose stack:
+   - Port the missing source-backed bodies for `CharBonesSamples::LoadHeader`,
+     `LoadData`, `EvaluateChannel`, and `Relativize`.
+   - Port the missing source-backed bodies for `CharBones::ScaleAdd`,
+     `RotateBy`, `RotateTo`, `Blend`, and any required identity/mesh
+     application helpers.
+   - Port the missing source-backed bodies for `CharClip::Load`,
+     `ScaleAdd`, `RotateBy`, and related `FacingSet` behavior.
+   - Port `CharClipDriver::Evaluate`/poll timing, blend, loop, beat-align,
+     and exit behavior from a reviewable source body or direct original-game
+     trace. The current `rb3-latest` file only exposes stack construction and
+     flag masking; the RB2 dump gives a function map, not enough standalone C++
+     body to blindly copy.
+   - Port `CharDriver::Load`, `CharDriver::Poll`, and `EvaluateFlags`, plus
+     the `CharDriverMidi` parser/message-sink path, before treating source
+     drivers as active clip selection. Until then, native viewer clip playback
+     is diagnostic/application glue, not proof of the Harmonix driver runtime.
+
+2. Pose-dependent controller publishing:
+   - `CharWeightSetter::Poll` depends on `CharDriver::EvaluateFlags`; do not
+     promote it beyond decode/log and the bounded live-performer fallback until
+     the driver path above is source-backed.
+   - `CharServoBone` movement and broad `CharBonesMeshes` writes depend on the
+     same clip/bone output path. Keep them fenced until whole-character
+     `CharBones` application is source-backed.
+   - `CharFaceServo` is useful source context, but GH2 stock rows are
+     `FaceFxLipSyncServo`; do not infer eye or mouth transforms from it unless
+     a matching GH2 source body or direct trace is available.
+   - `CharEyes` and `CharLookAt` can be ported from source poll bodies, but
+     native must first respect the GH2 row shape and avoid the removed
+     synthetic eye-row bridge.
+
+3. Hair and cloth writeback:
+   - Decode, reset, and simulation-state coverage is source-backed, but point
+     world-row writeback still needs the overloaded
+     `CharHair::Hookup(ObjPtrList<CharCollide, ObjectDir>&)` body, point
+     collide-list population, and `SimulateZeroTime` behavior from reviewable
+     source or direct original-game trace.
+   - The project hair rule is two-sided culling only. It is not permission to
+     change depth priority, material sorting, or material state from mesh names.
+
+4. Stock evidence still needed after imports:
+   - Re-run the 24 base stock character screenshot/log sheet after each clip or
+     controller import.
+   - Specifically re-check Rock1/Rock2 side profile arm and neck posture,
+     Rockabill2 eyes/teeth/mouth pieces, and visible hair/cloth on characters
+     with decoded `CharHair` rows.
+   - Keep `metal_keyboard` in the inventory gap list until its real stock clip
+     route is found; the default viewer route did not find
+     `idle_medium_01`/`stand_medium_01` in `keyboard_main`.
+
 ## Binary Layout Authorities
 
 - `MiloEditor/MiloLib/Assets/Object.cs`

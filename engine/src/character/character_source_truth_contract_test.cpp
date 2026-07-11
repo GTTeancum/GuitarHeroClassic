@@ -279,6 +279,38 @@ int run_contract() {
   ok &= contains(doc, "| FaceFX lip-sync servo boundary | `rb3-latest` "
                  "`CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory |",
                  "coverage matrix records FaceFxLipSyncServo boundary");
+  ok &= contains(doc, "## Remaining Character Import Checklist",
+                 "document has explicit remaining import checklist");
+  ok &= contains(doc,
+                 "The unresolved work is the\nconnected character animation "
+                 "and controller runtime",
+                 "remaining import checklist identifies the broad unresolved area");
+  ok &= contains(doc,
+                 "Port the missing source-backed bodies for "
+                 "`CharBonesSamples::LoadHeader`,",
+                 "remaining import checklist names CharBonesSamples body gap");
+  ok &= contains(doc,
+                 "Port the missing source-backed bodies for "
+                 "`CharBones::ScaleAdd`,",
+                 "remaining import checklist names CharBones pose gap");
+  ok &= contains(doc,
+                 "Port `CharClipDriver::Evaluate`/poll timing, blend, loop, "
+                 "beat-align,",
+                 "remaining import checklist names CharClipDriver runtime gap");
+  ok &= contains(doc,
+                 "Port `CharDriver::Load`, `CharDriver::Poll`, and "
+                 "`EvaluateFlags`",
+                 "remaining import checklist names CharDriver runtime gap");
+  ok &= contains(doc,
+                 "`CharServoBone` movement and broad `CharBonesMeshes` writes "
+                 "depend on the",
+                 "remaining import checklist keeps CharServoBone fenced to pose stack");
+  ok &= contains(doc,
+                 "point\n     world-row writeback still needs the overloaded",
+                 "remaining import checklist names CharHair writeback gap");
+  ok &= contains(doc,
+                 "The project hair rule is two-sided culling only.",
+                 "remaining import checklist fences hair material behavior");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs",
                  "document cites RndMat source");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs",
