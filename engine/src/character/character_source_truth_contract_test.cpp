@@ -267,6 +267,10 @@ int run_contract() {
       rb2_dump_char_dir / "CharWalk.cpp"));
   const std::string rb2_outfit_loader_cpp = compact(read_file(
       rb2_dump_char_dir / "OutfitLoader.cpp"));
+  const std::string rb2_char_collide_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharCollide.cpp"));
+  const std::string rb2_char_collide_h = compact(read_file(
+      rb2_dump_char_dir / "CharCollide.h"));
   const std::string rb2_dolmatch_filt = compact(read_file(
       extra_dir / "rb3-retail-old/doc/dolmatchoutput_filt.txt"));
   const std::string band3_config = compact(read_file(
@@ -1196,6 +1200,14 @@ int run_contract() {
                  "enumShape{kPlane=0,kSphere=1,kInsideSphere=2,kCigar=3,"
                  "kInsideCigar=4,};",
                  "latest CharCollide header exposes source shape enum");
+  ok &= contains(rb3_latest_char_collide_h,
+                 "floatGetRadius(constVector3&v1,Vector3&vout)const{"
+                 "Subtract(v1,unk1a0,vout);floatret=mCurRadius[0];",
+                 "latest CharCollide header exposes inline GetRadius formula");
+  ok &= contains(rb3_latest_char_collide_h,
+                 "floatclamped=Clamp(mCurLength[0],mCurLength[1],unk190*"
+                 "Dot(vout,unk194));",
+                 "latest CharCollide GetRadius depends on cached collision fields");
   ok &= contains(rb3_latest_char_collide_cpp,
                  "bs>>(int&)mShape;bs>>mOrigRadius[0];if(gRev>4)bs>>"
                  "mOrigLength[0];",
@@ -1221,6 +1233,13 @@ int run_contract() {
                  "if(mCurLength[0]>t){mCurLength[0]=mCurLength[1];}"
                  "CopyOriginalToCur();}",
                  "latest CharCollide source exposes SyncShape helper");
+  ok &= contains(rb2_char_collide_cpp,
+                 "voidCharCollide::ComputeRadius(classCharCollide*constthis",
+                 "RB2 dump names CharCollide ComputeRadius without usable body");
+  ok &= contains(rb2_char_collide_cpp, "voidCharCollide::SyncRadius(){}",
+                 "RB2 dump names empty CharCollide SyncRadius");
+  ok &= contains(rb2_char_collide_h, "floatCharCollide::Radius(){}",
+                 "RB2 dump names CharCollide Radius without usable body");
   ok &= contains(char_mesh_h,
                  "structCharCollide{std::stringname;int32_tversion=0;",
                  "native exposes decoded CharCollide rows");
@@ -1323,6 +1342,10 @@ int run_contract() {
                  "document records CharCollide helper ports");
   ok &= contains(doc, "`CharCollide::SyncShape` / `CharCollide::NumSpheres`",
                  "document records CharCollide SyncShape helper port");
+  ok &= contains(doc, "`CharHair::SimulateInternal` calls `CharCollide::GetRadius`",
+                 "document records CharCollide collision radius dependency");
+  ok &= contains(doc, "keeps collision response disabled until those cached-field updates",
+                 "document fences unsourced CharCollide collision response");
   ok &= contains(doc, "runs the checked source poll/reset/sim state path",
                  "document states bounded native CharHair poll rule");
   ok &= contains(doc, "point rows unwritten until",

@@ -409,6 +409,13 @@ note, and all report `unreadBytes=0`.
     `CharCollide::SyncShape` / `CharCollide::NumSpheres` exactly for decoded
     rows. The decoder now calls the named copy helper at the same revision
     gates as source load.
+  - `CharHair::SimulateInternal` calls `CharCollide::GetRadius` and
+    `CharCollide::Axis`, but `GetRadius` depends on cached collision fields
+    (`unk18c`, `unk190`, `unk194`, and `unk1a0`). The latest source exposes the
+    inline `GetRadius` formula, while the older RB2 dump only names
+    `ComputeRadius` / `SyncRadius` without a usable body. Native GHOGX therefore
+    keeps collision response disabled until those cached-field updates are
+    sourced instead of reconstructed by guesswork.
 - `ihatecompvir-extra/band3_recomp`
   - The current config exposes `CharHair::GetFPS` and `CharHair::Simulate`
     symbols only. It does not provide a decompiled `CharHair` body or
