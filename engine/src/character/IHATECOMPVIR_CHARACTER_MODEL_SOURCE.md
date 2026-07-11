@@ -1390,6 +1390,12 @@ note, and all report `unreadBytes=0`.
     source read order and copy list for deterministic tests. This records the
     legacy revision 3 invert-bool branch and the revision 7/8 single min/max
     pointer branch without activating driver-backed `EvaluateFlags`.
+  - Native `source_char_weight_setter_handler_plan` and
+    `source_char_weight_setter_prop_sync_plan` port the visible source
+    `Hmx::Object` handler chain, check value `0xF4`, direct property rows
+    (`driver`, `flags`, `base`, `offset`, `scale`, `base_weight`,
+    `beats_per_weight`, `min_weights`, `max_weights`), and
+    `CharWeightable` superclass.
   - `CharWeightSetter::Poll` derives `base_weight` from either
     `mDriver->EvaluateFlags(mFlags)` or `mBase->Weight()`, applies
     `scale`/`offset`, clamps through min/max setter rows, and then either snaps

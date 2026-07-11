@@ -1798,6 +1798,16 @@ struct SourceCharWeightSetterCopyPlan {
   std::vector<std::string> copied_members;
 };
 
+struct SourceCharWeightSetterHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharWeightSetterPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceCharIKHeadPoint {
   std::string transform;
   float local_length = 0.0f;
@@ -2025,6 +2035,8 @@ void source_char_weight_setter_set_weight(SourceCharWeightSetterState& state,
 SourceCharWeightSetterLoadPlan source_char_weight_setter_load_plan(
     int32_t revision);
 SourceCharWeightSetterCopyPlan source_char_weight_setter_copy_plan();
+SourceCharWeightSetterHandlerPlan source_char_weight_setter_handler_plan();
+SourceCharWeightSetterPropSyncPlan source_char_weight_setter_prop_sync_plan();
 
 // Source-backed CharWeightSetter::PollDeps helper. Ref owners are supplied in
 // source Refs() order; the helper scans them in reverse like the source body.

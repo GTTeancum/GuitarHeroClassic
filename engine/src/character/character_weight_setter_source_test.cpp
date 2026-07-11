@@ -61,7 +61,9 @@ int main() {
   using ghogx::character::source_char_weight_setter_poll_deps;
   using ghogx::character::source_char_weight_setter_default_state;
   using ghogx::character::source_char_weight_setter_copy_plan;
+  using ghogx::character::source_char_weight_setter_handler_plan;
   using ghogx::character::source_char_weight_setter_load_plan;
+  using ghogx::character::source_char_weight_setter_prop_sync_plan;
   using ghogx::character::source_char_weightable_copy_plan;
   using ghogx::character::source_char_weightable_load_plan;
   using ghogx::character::source_char_weight_setter_set_weight;
@@ -219,6 +221,24 @@ int main() {
                       "weight setter copy driver");
   ok &= expect_string(setter_copy.copied_members[8], "mMaxWeights",
                       "weight setter copy max weights");
+  const auto setter_handlers = source_char_weight_setter_handler_plan();
+  ok &= expect_size(setter_handlers.superclasses.size(), 1,
+                    "weight setter handler superclass count");
+  ok &= expect_string(setter_handlers.superclasses[0], "Hmx::Object",
+                      "weight setter handler superclass");
+  ok &= expect_bool(setter_handlers.check == 0xF4, true,
+                    "weight setter handler check");
+  const auto setter_props = source_char_weight_setter_prop_sync_plan();
+  ok &= expect_size(setter_props.properties.size(), 9,
+                    "weight setter prop count");
+  ok &= expect_string(setter_props.properties[0], "driver",
+                      "weight setter prop driver");
+  ok &= expect_string(setter_props.properties[5], "base_weight",
+                      "weight setter prop base weight");
+  ok &= expect_string(setter_props.properties.back(), "max_weights",
+                      "weight setter prop max weights");
+  ok &= expect_string(setter_props.superclasses[0], "CharWeightable",
+                      "weight setter prop superclass");
 
   std::unordered_map<std::string, float> weights;
   CharWeightSetter setter = make_setter("owned.weight");

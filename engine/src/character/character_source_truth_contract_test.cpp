@@ -6277,6 +6277,21 @@ int run_contract() {
                  "(*it)->RefOwner());if(weightowner&&weightowner->"
                  "mWeightOwner==this)change.push_back(weightowner);",
                  "latest CharWeightSetter source PollDeps publishes owned ref owners");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "BEGIN_HANDLERS(CharWeightSetter)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0xF4)"
+                 "END_HANDLERS",
+                 "latest CharWeightSetter source handler chain");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "BEGIN_PROPSYNCS(CharWeightSetter)SYNC_PROP(driver,mDriver)"
+                 "SYNC_PROP(flags,mFlags)SYNC_PROP(base,mBase)"
+                 "SYNC_PROP(offset,mOffset)SYNC_PROP(scale,mScale)"
+                 "SYNC_PROP(base_weight,mBaseWeight)"
+                 "SYNC_PROP(beats_per_weight,mBeatsPerWeight)"
+                 "SYNC_PROP(min_weights,mMinWeights)"
+                 "SYNC_PROP(max_weights,mMaxWeights)"
+                 "SYNC_SUPERCLASS(CharWeightable)END_PROPSYNCS",
+                 "latest CharWeightSetter source prop-sync rows");
   ok &= contains(char_clip_h,
                  "structSourceCharWeightableState{std::stringname;"
                  "floatweight=1.0f;std::stringweight_owner;};",
@@ -6352,6 +6367,15 @@ int run_contract() {
                  "copied_superclasses;std::vector<std::string>copied_members;};",
                  "native exposes source CharWeightSetter copy plan");
   ok &= contains(char_clip_h,
+                 "structSourceCharWeightSetterHandlerPlan{"
+                 "std::vector<std::string>superclasses;intcheck=0;};",
+                 "native exposes source CharWeightSetter handler plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharWeightSetterPropSyncPlan{"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes source CharWeightSetter prop-sync plan");
+  ok &= contains(char_clip_h,
                  "SourceCharWeightSetterStatesource_char_weight_setter_default_state("
                  "conststd::string&name);",
                  "native exposes source CharWeightSetter constructor helper");
@@ -6366,6 +6390,14 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "SourceCharWeightSetterCopyPlansource_char_weight_setter_copy_plan();",
                  "native exposes source CharWeightSetter copy helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightSetterHandlerPlan"
+                 "source_char_weight_setter_handler_plan();",
+                 "native exposes source CharWeightSetter handler helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightSetterPropSyncPlan"
+                 "source_char_weight_setter_prop_sync_plan();",
+                 "native exposes source CharWeightSetter prop-sync helper");
   ok &= contains(char_clip_h,
                  "voidsource_char_weight_setter_poll_deps("
                  "SourceCharWeightSetterPollDeps&deps,constCharWeightSetter&"
@@ -6529,6 +6561,22 @@ int run_contract() {
                  "\"mOffset\",\"mScale\",\"mBaseWeight\",\"mBeatsPerWeight\","
                  "\"mMinWeights\",\"mMaxWeights\"};",
                  "native CharWeightSetter copy helper records member list");
+  ok &= contains(char_clip,
+                 "SourceCharWeightSetterHandlerPlan"
+                 "source_char_weight_setter_handler_plan(){"
+                 "SourceCharWeightSetterHandlerPlanplan;plan.superclasses="
+                 "{\"Hmx::Object\"};plan.check=0xF4;returnplan;}",
+                 "native CharWeightSetter handler helper mirrors source check");
+  ok &= contains(char_clip,
+                 "SourceCharWeightSetterPropSyncPlan"
+                 "source_char_weight_setter_prop_sync_plan(){"
+                 "SourceCharWeightSetterPropSyncPlanplan;plan.properties="
+                 "{\"driver\",\"flags\",\"base\",\"offset\",\"scale\",",
+                 "native CharWeightSetter prop-sync helper starts source rows");
+  ok &= contains(char_clip,
+                 "\"beats_per_weight\",\"min_weights\",\"max_weights\"};"
+                 "plan.superclasses={\"CharWeightable\"};returnplan;}",
+                 "native CharWeightSetter prop-sync helper mirrors source tail");
   ok &= contains(char_clip, "returnsetter.weight;",
                  "native CharWeightable helper falls back to row weight");
   ok &= contains(char_clip, "if(!setter.driver.empty()){returnfalse;}",
@@ -6607,6 +6655,12 @@ int run_contract() {
                  "source_char_weight_setter_copy_plan()",
                  "focused CharWeightSetter test covers copy plan");
   ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_handler_plan()",
+                 "focused CharWeightSetter test covers handler plan");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_prop_sync_plan()",
+                 "focused CharWeightSetter test covers prop-sync plan");
+  ok &= contains(weight_setter_source_test,
                  "ok&=!source_char_weight_setter_poll(driver,weights,0.0f,out);",
                  "focused CharWeightSetter test covers driver fence");
   ok &= contains(weight_setter_source_test,
@@ -6655,6 +6709,13 @@ int run_contract() {
   ok &= contains(doc,
                  "legacy revision 3 invert-bool branch",
                  "document records CharWeightSetter legacy invert branch");
+  ok &= contains(doc,
+                 "Native `source_char_weight_setter_handler_plan` and",
+                 "document records native CharWeightSetter handler/prop-sync plans");
+  ok &= contains(doc,
+                 "`beats_per_weight`, `min_weights`, `max_weights`), and\n"
+                 "    `CharWeightable` superclass",
+                 "document records CharWeightSetter prop-sync source rows");
   ok &= contains(doc,
                  "Native `source_char_weight_setter_default_state` and",
                  "document records native CharWeightSetter constructor helper");

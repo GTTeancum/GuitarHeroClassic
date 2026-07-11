@@ -5482,6 +5482,23 @@ SourceCharWeightSetterCopyPlan source_char_weight_setter_copy_plan() {
   return plan;
 }
 
+SourceCharWeightSetterHandlerPlan source_char_weight_setter_handler_plan() {
+  SourceCharWeightSetterHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0xF4;
+  return plan;
+}
+
+SourceCharWeightSetterPropSyncPlan
+source_char_weight_setter_prop_sync_plan() {
+  SourceCharWeightSetterPropSyncPlan plan;
+  plan.properties = {"driver",          "flags",       "base",
+                     "offset",          "scale",       "base_weight",
+                     "beats_per_weight", "min_weights", "max_weights"};
+  plan.superclasses = {"CharWeightable"};
+  return plan;
+}
+
 void source_char_weight_setter_poll_deps(
     SourceCharWeightSetterPollDeps& deps,
     const CharWeightSetter& setter,
