@@ -777,6 +777,20 @@ struct SourceCharBlendBonePollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharBlendBoneConstraintLoadPlan {
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharBlendBoneLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharBlendBoneCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
 struct SourceCharSleeveState {
   std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
   std::array<float, 3> last_pos = {0.0f, 0.0f, 0.0f};
@@ -1269,6 +1283,10 @@ void source_char_cuff_apply_revision_defaults(SourceCharCuffState& cuff,
                                               int32_t revision,
                                               const std::string& trans_parent);
 SourceCharBlendBoneState source_char_blend_bone_default_state();
+SourceCharBlendBoneConstraintLoadPlan
+source_char_blend_bone_constraint_load_plan();
+SourceCharBlendBoneLoadPlan source_char_blend_bone_load_plan(int revision);
+SourceCharBlendBoneCopyPlan source_char_blend_bone_copy_plan();
 void source_char_blend_bone_poll_deps(
     SourceCharBlendBonePollDeps& deps,
     const SourceCharBlendBoneState& blend);

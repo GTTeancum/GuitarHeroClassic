@@ -2511,6 +2511,32 @@ SourceCharBlendBoneState source_char_blend_bone_default_state() {
   return SourceCharBlendBoneState{};
 }
 
+SourceCharBlendBoneConstraintLoadPlan
+source_char_blend_bone_constraint_load_plan() {
+  SourceCharBlendBoneConstraintLoadPlan plan;
+  plan.read_order = {"mTarget", "mWeight"};
+  return plan;
+}
+
+SourceCharBlendBoneLoadPlan source_char_blend_bone_load_plan(int revision) {
+  SourceCharBlendBoneLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 3;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"LOAD_REVS", "Hmx::Object", "mTargets", "mSrc1",
+                     "mSrc2",     "mTransX",     "mTransY",  "mTransZ",
+                     "mRotation"};
+  return plan;
+}
+
+SourceCharBlendBoneCopyPlan source_char_blend_bone_copy_plan() {
+  SourceCharBlendBoneCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mTargets", "mSrc1",   "mSrc2", "mTransX",
+                         "mTransY",  "mTransZ", "mRotation"};
+  return plan;
+}
+
 void source_char_blend_bone_poll_deps(
     SourceCharBlendBonePollDeps& deps,
     const SourceCharBlendBoneState& blend) {

@@ -4384,6 +4384,12 @@ int run_contract() {
                  "bs>>mTransZ;bs>>mRotation;",
                  "CharBlendBone source Load field order");
   ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)CREATE_COPY(CharBlendBone)"
+                 "BEGIN_COPYING_MEMBERSCOPY_MEMBER(mTargets)COPY_MEMBER(mSrc1)"
+                 "COPY_MEMBER(mSrc2)COPY_MEMBER(mTransX)COPY_MEMBER(mTransY)"
+                 "COPY_MEMBER(mTransZ)COPY_MEMBER(mRotation)END_COPYING_MEMBERS",
+                 "CharBlendBone source Copy field order");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
                  "voidCharBlendBone::PollDeps(std::list<Hmx::Object*>&"
                  "changedBy,std::list<Hmx::Object*>&change){changedBy."
                  "push_back(mSrc1);changedBy.push_back(mSrc2);for(ObjList<"
@@ -4403,10 +4409,44 @@ int run_contract() {
                  "std::stringsrc2;booltrans_x=false;booltrans_y=false;"
                  "booltrans_z=false;boolrotation=false;};",
                  "native exposes CharBlendBone state defaults");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharBlendBoneConstraintLoadPlan{std::vector<"
+                 "std::string>read_order;};",
+                 "native exposes CharBlendBone constraint load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharBlendBoneLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;};",
+                 "native exposes CharBlendBone load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharBlendBoneCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;};",
+                 "native exposes CharBlendBone copy plan");
   ok &= contains(char_mesh,
                  "SourceCharBlendBoneStatesource_char_blend_bone_default_state(){"
                  "returnSourceCharBlendBoneState{};}",
                  "native ports CharBlendBone defaults");
+  ok &= contains(char_mesh,
+                 "SourceCharBlendBoneConstraintLoadPlansource_char_blend_bone_"
+                 "constraint_load_plan(){SourceCharBlendBoneConstraintLoadPlan"
+                 "plan;plan.read_order={\"mTarget\",\"mWeight\"};returnplan;}",
+                 "native ports CharBlendBone constraint load order");
+  ok &= contains(char_mesh,
+                 "SourceCharBlendBoneLoadPlansource_char_blend_bone_load_plan("
+                 "intrevision){SourceCharBlendBoneLoadPlanplan;plan."
+                 "known_revision=revision>=0&&revision<=3;",
+                 "native ports CharBlendBone load revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"LOAD_REVS\",\"Hmx::Object\",\"mTargets\","
+                 "\"mSrc1\",\"mSrc2\",\"mTransX\",\"mTransY\",\"mTransZ\","
+                 "\"mRotation\"};returnplan;}",
+                 "native ports CharBlendBone load order");
+  ok &= contains(char_mesh,
+                 "SourceCharBlendBoneCopyPlansource_char_blend_bone_copy_plan()"
+                 "{SourceCharBlendBoneCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\"};plan.copied_members={\"mTargets\",\"mSrc1\","
+                 "\"mSrc2\",\"mTransX\",\"mTransY\",\"mTransZ\",\"mRotation\"};"
+                 "returnplan;}",
+                 "native ports CharBlendBone copy order");
   ok &= contains(char_mesh,
                  "deps.changed_by.push_back(blend.src1);deps.changed_by."
                  "push_back(blend.src2);for(constSourceCharBlendBoneConstraint&"
@@ -4422,8 +4462,23 @@ int run_contract() {
                  "constSourceCharBlendBoneConstraintconstraint;",
                  "focused CharBlendBone test covers constraint default");
   ok &= contains(blend_bone_source_test,
+                 "source_char_blend_bone_constraint_load_plan()",
+                 "focused CharBlendBone test covers constraint load plan");
+  ok &= contains(blend_bone_source_test,
+                 "source_char_blend_bone_load_plan(3)",
+                 "focused CharBlendBone test covers rev3 load plan");
+  ok &= contains(blend_bone_source_test,
+                 "source_char_blend_bone_copy_plan()",
+                 "focused CharBlendBone test covers copy plan");
+  ok &= contains(blend_bone_source_test,
                  "source_char_blend_bone_poll_deps(deps,blend)",
                  "focused CharBlendBone test covers PollDeps");
+  ok &= contains(doc,
+                 "Native `source_char_blend_bone_load_plan` and",
+                 "document records native CharBlendBone load plan");
+  ok &= contains(doc,
+                 "`source_char_blend_bone_copy_plan` records",
+                 "document records native CharBlendBone copy plan");
   ok &= contains(doc,
                  "Native `source_char_blend_bone_*` helpers port",
                  "document records native CharBlendBone helpers");

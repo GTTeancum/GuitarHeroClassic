@@ -896,6 +896,14 @@ note, and all report `unreadBytes=0`.
   - `ConstraintSystem` defaults `mWeight` to `0.5`.
   - `Load` reads `mTargets`, `mSrc1`, `mSrc2`, `mTransX`, `mTransY`,
     `mTransZ`, and `mRotation` after `Hmx::Object`.
+    `ConstraintSystem` load reads `mTarget` then `mWeight`.
+    Native `source_char_blend_bone_load_plan` and
+    `source_char_blend_bone_constraint_load_plan` record those exact source
+    read orders and revision gates.
+  - `Copy` copies `Hmx::Object`, `mTargets`, `mSrc1`, `mSrc2`, `mTransX`,
+    `mTransY`, `mTransZ`, and `mRotation`. Native
+    `source_char_blend_bone_copy_plan` records that list without adding a blend
+    solve.
   - `PollDeps` pushes `mSrc1` and `mSrc2` into `changedBy`, then pushes every
     constraint target into `change`.
   - Native `source_char_blend_bone_*` helpers port those source-visible data and

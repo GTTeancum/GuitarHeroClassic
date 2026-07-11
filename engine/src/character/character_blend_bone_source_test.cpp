@@ -36,7 +36,10 @@ bool near(float got, float want, const char* label) {
 int main() {
   using ghogx::character::SourceCharBlendBoneConstraint;
   using ghogx::character::SourceCharBlendBonePollDeps;
+  using ghogx::character::source_char_blend_bone_constraint_load_plan;
+  using ghogx::character::source_char_blend_bone_copy_plan;
   using ghogx::character::source_char_blend_bone_default_state;
+  using ghogx::character::source_char_blend_bone_load_plan;
   using ghogx::character::source_char_blend_bone_poll_deps;
 
   bool ok = true;
@@ -53,6 +56,44 @@ int main() {
   const SourceCharBlendBoneConstraint constraint;
   ok &= expect_string(constraint.target, "", "default constraint target");
   ok &= near(constraint.weight, 0.5f, "default constraint weight");
+
+  const auto constraint_load = source_char_blend_bone_constraint_load_plan();
+  ok &= expect_size(constraint_load.read_order.size(), 2,
+                    "constraint load read count");
+  ok &= expect_string(constraint_load.read_order[0], "mTarget",
+                      "constraint reads target first");
+  ok &= expect_string(constraint_load.read_order[1], "mWeight",
+                      "constraint reads weight second");
+
+  const auto load_bad = source_char_blend_bone_load_plan(4);
+  ok &= expect_bool(load_bad.known_revision, false,
+                    "load rejects unknown revision");
+  ok &= expect_size(load_bad.read_order.size(), 0,
+                    "bad revision has no reads");
+
+  const auto load = source_char_blend_bone_load_plan(3);
+  ok &= expect_bool(load.known_revision, true, "load accepts rev3");
+  ok &= expect_size(load.read_order.size(), 9, "load read count");
+  ok &= expect_string(load.read_order[1], "Hmx::Object",
+                      "load object superclass");
+  ok &= expect_string(load.read_order[2], "mTargets",
+                      "load targets first");
+  ok &= expect_string(load.read_order[3], "mSrc1", "load source one");
+  ok &= expect_string(load.read_order[4], "mSrc2", "load source two");
+  ok &= expect_string(load.read_order[8], "mRotation",
+                      "load rotation last");
+
+  const auto copy = source_char_blend_bone_copy_plan();
+  ok &= expect_size(copy.copied_superclasses.size(), 1,
+                    "copy superclass count");
+  ok &= expect_string(copy.copied_superclasses[0], "Hmx::Object",
+                      "copy object superclass");
+  ok &= expect_size(copy.copied_members.size(), 7,
+                    "copy member count");
+  ok &= expect_string(copy.copied_members[0], "mTargets",
+                      "copy targets first");
+  ok &= expect_string(copy.copied_members[6], "mRotation",
+                      "copy rotation last");
 
   blend.src1 = "source.one";
   blend.src2 = "source.two";
