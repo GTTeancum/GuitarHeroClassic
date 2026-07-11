@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -35,19 +36,27 @@ int main() {
   using ghogx::character::SourceCharacterDrawMode;
   using ghogx::character::SourceCharacterPollState;
   using ghogx::character::source_character_added_object;
+  using ghogx::character::source_character_add_shadow_bone;
   using ghogx::character::source_character_bone_servo_resolves;
   using ghogx::character::source_character_clear_interest_filter_flags;
+  using ghogx::character::source_character_copy_bounding_sphere;
   using ghogx::character::source_character_default_state;
   using ghogx::character::source_character_enable_blinks;
   using ghogx::character::source_character_enter;
   using ghogx::character::source_character_exit;
   using ghogx::character::source_character_force_blink;
   using ghogx::character::source_character_poll;
+  using ghogx::character::source_character_pre_save;
   using ghogx::character::source_character_removing_object;
+  using ghogx::character::source_character_repoint_sphere_base;
   using ghogx::character::source_character_replace;
+  using ghogx::character::source_character_set_sphere_base;
   using ghogx::character::source_character_set_focus_interest;
   using ghogx::character::source_character_set_interest_filter_flags;
+  using ghogx::character::source_character_set_interest_objects;
+  using ghogx::character::source_character_sync_shadow;
   using ghogx::character::source_character_sync_objects;
+  using ghogx::character::source_character_unhook_shadow;
 
   bool ok = true;
 
@@ -62,6 +71,8 @@ int main() {
   ok &= expect_bool(state.teleported, true, "constructor teleported");
   ok &= expect_bool(state.sphere_base_is_self, true,
                     "constructor sphere base is self");
+  ok &= expect_bool(state.sphere_base_is_null, false,
+                    "constructor sphere base is not null");
   ok &= expect_bool(state.has_driver, false, "constructor no driver");
 
   state.min_lod = 4;
@@ -188,6 +199,125 @@ int main() {
   ok &= expect_bool(
       source_character_clear_interest_filter_flags(true).invoked_eyes, true,
       "ClearInterestFilterFlags invokes eyes");
+
+  auto sphere = source_character_set_sphere_base(state, false);
+  ok &= expect_bool(sphere.defaulted_to_self, true,
+                    "SetSphereBase null defaults to self");
+  ok &= expect_bool(sphere.made_world_sphere, true,
+                    "SetSphereBase makes world sphere");
+  ok &= expect_bool(sphere.multiplied_by_trans_world, true,
+                    "SetSphereBase multiplies by transform world");
+  ok &= expect_bool(sphere.set_sphere, true, "SetSphereBase sets sphere");
+  ok &= expect_bool(state.sphere_base_is_self, true,
+                    "SetSphereBase stores self fallback");
+  ok &= expect_bool(state.sphere_base_is_null, false,
+                    "SetSphereBase keeps non-null base");
+
+  sphere = source_character_set_sphere_base(state, true);
+  ok &= expect_bool(sphere.defaulted_to_self, false,
+                    "SetSphereBase accepts transform");
+  ok &= expect_bool(state.sphere_base_is_self, false,
+                    "SetSphereBase stores transform");
+
+  auto interests =
+      source_character_set_interest_objects(false, {true, false}, true);
+  ok &= expect_bool(interests.found_eyes, false,
+                    "SetInterestObjects skips without eyes");
+  ok &= expect_int(interests.validated_count, 0,
+                   "SetInterestObjects does not validate without eyes");
+
+  interests = source_character_set_interest_objects(true, {true, false, true},
+                                                    false);
+  ok &= expect_bool(interests.cleared_all, true,
+                    "SetInterestObjects clears existing eyes interests");
+  ok &= expect_int(interests.validated_count, 3,
+                   "SetInterestObjects validates each row");
+  ok &= expect_int(interests.add_count, 2,
+                   "SetInterestObjects adds validated rows");
+  ok &= expect_int(interests.used_interest_dir_count, 3,
+                   "SetInterestObjects uses interest dir without override");
+
+  interests = source_character_set_interest_objects(true, {true}, true);
+  ok &= expect_int(interests.used_override_dir_count, 1,
+                   "SetInterestObjects uses override dir");
+
+  auto shadow = source_character_add_shadow_bone(2, false, false);
+  ok &= expect_bool(shadow.returned_null, true,
+                    "AddShadowBone returns null without transform");
+  ok &= expect_int(shadow.final_shadow_bones, 2,
+                   "AddShadowBone null keeps count");
+
+  shadow = source_character_add_shadow_bone(2, true, true);
+  ok &= expect_bool(shadow.returned_existing, true,
+                    "AddShadowBone returns existing parent");
+  ok &= expect_int(shadow.final_shadow_bones, 2,
+                   "AddShadowBone existing keeps count");
+
+  shadow = source_character_add_shadow_bone(2, true, false);
+  ok &= expect_bool(shadow.created, true, "AddShadowBone creates new row");
+  ok &= expect_int(shadow.final_shadow_bones, 3,
+                   "AddShadowBone increments count");
+
+  auto unhook = source_character_unhook_shadow(4);
+  ok &= expect_bool(unhook.deleted_all, true, "UnhookShadow deletes all");
+  ok &= expect_int(unhook.deleted_shadow_bones, 4,
+                   "UnhookShadow reports deleted count");
+
+  auto sync_shadow = source_character_sync_shadow(false, true, {2});
+  ok &= expect_bool(sync_shadow.unhooked_shadow, true,
+                    "SyncShadow always unhooks first");
+  ok &= expect_bool(sync_shadow.removed_shadow_draw, false,
+                    "SyncShadow skips draw remove without shadow");
+
+  sync_shadow = source_character_sync_shadow(true, false, {2, 0});
+  ok &= expect_int(sync_shadow.hooked_bone_count, 0,
+                   "SyncShadow skips hookups outside old gfx");
+  ok &= expect_bool(sync_shadow.removed_shadow_draw, true,
+                    "SyncShadow removes shadow drawable");
+
+  sync_shadow = source_character_sync_shadow(true, true, {2, 0, 3});
+  ok &= expect_int(sync_shadow.hooked_bone_count, 5,
+                   "SyncShadow hooks mesh bones");
+  ok &= expect_int(sync_shadow.hooked_mesh_parent_count, 1,
+                   "SyncShadow hooks mesh parent without bones");
+
+  auto copied = source_character_copy_bounding_sphere(state, true);
+  ok &= expect_bool(copied.set_sphere, true,
+                    "CopyBoundingSphere copies sphere");
+  ok &= expect_bool(copied.copied_bounding, true,
+                    "CopyBoundingSphere copies bounding");
+  ok &= expect_bool(copied.copied_sphere_base, true,
+                    "CopyBoundingSphere copies source sphere base");
+  ok &= expect_bool(state.sphere_base_is_null, false,
+                    "CopyBoundingSphere keeps non-null base");
+
+  copied = source_character_copy_bounding_sphere(state, false);
+  ok &= expect_bool(copied.cleared_sphere_base, true,
+                    "CopyBoundingSphere clears missing source base");
+  ok &= expect_bool(state.sphere_base_is_null, true,
+                    "CopyBoundingSphere stores null base");
+
+  auto repoint = source_character_repoint_sphere_base(state, true);
+  ok &= expect_bool(repoint.had_sphere_base, false,
+                    "RepointSphereBase skips null base");
+  ok &= expect_bool(repoint.looked_up_by_name, false,
+                    "RepointSphereBase does not lookup null base");
+
+  state.sphere_base_is_null = false;
+  repoint = source_character_repoint_sphere_base(state, false);
+  ok &= expect_bool(repoint.looked_up_by_name, true,
+                    "RepointSphereBase looks up existing base");
+  ok &= expect_bool(repoint.repointed, false,
+                    "RepointSphereBase keeps old base when missing");
+
+  repoint = source_character_repoint_sphere_base(state, true);
+  ok &= expect_bool(repoint.repointed, true,
+                    "RepointSphereBase stores matching transform");
+  ok &= expect_bool(state.sphere_base_is_self, false,
+                    "RepointSphereBase target is transform");
+
+  ok &= expect_bool(source_character_pre_save().unhooked_shadow, true,
+                    "PreSave unhooks shadow");
 
   return ok ? 0 : 1;
 }

@@ -412,6 +412,7 @@ struct SourceCharacterState {
   SourceCharacterDrawMode draw_mode = SourceCharacterDrawMode::kAll;
   bool teleported = true;
   bool sphere_base_is_self = true;
+  bool sphere_base_is_null = false;
   bool has_driver = false;
   std::string interest_to_force;
 };
@@ -449,6 +450,58 @@ struct SourceCharacterRemoveObjectResult {
 struct SourceCharacterInterestResult {
   bool found_eyes = false;
   bool invoked_eyes = false;
+};
+
+struct SourceCharacterSetSphereBaseResult {
+  bool defaulted_to_self = false;
+  bool made_world_sphere = false;
+  bool multiplied_by_trans_world = false;
+  bool set_sphere = false;
+};
+
+struct SourceCharacterSetInterestObjectsResult {
+  bool found_eyes = false;
+  bool cleared_all = false;
+  int32_t validated_count = 0;
+  int32_t add_count = 0;
+  int32_t used_override_dir_count = 0;
+  int32_t used_interest_dir_count = 0;
+};
+
+struct SourceCharacterAddShadowBoneResult {
+  bool returned_null = false;
+  bool returned_existing = false;
+  bool created = false;
+  int32_t final_shadow_bones = 0;
+};
+
+struct SourceCharacterUnhookShadowResult {
+  int32_t deleted_shadow_bones = 0;
+  bool deleted_all = false;
+};
+
+struct SourceCharacterSyncShadowResult {
+  bool unhooked_shadow = false;
+  int32_t hooked_bone_count = 0;
+  int32_t hooked_mesh_parent_count = 0;
+  bool removed_shadow_draw = false;
+};
+
+struct SourceCharacterCopyBoundingSphereResult {
+  bool set_sphere = false;
+  bool copied_bounding = false;
+  bool copied_sphere_base = false;
+  bool cleared_sphere_base = false;
+};
+
+struct SourceCharacterRepointSphereBaseResult {
+  bool had_sphere_base = false;
+  bool looked_up_by_name = false;
+  bool repointed = false;
+};
+
+struct SourceCharacterPreSaveResult {
+  bool unhooked_shadow = false;
 };
 
 struct SourceCharTransDrawCharacter {
@@ -807,6 +860,30 @@ SourceCharacterInterestResult source_character_set_interest_filter_flags(
     bool has_eyes);
 SourceCharacterInterestResult source_character_clear_interest_filter_flags(
     bool has_eyes);
+SourceCharacterSetSphereBaseResult source_character_set_sphere_base(
+    SourceCharacterState& state,
+    bool has_transform);
+SourceCharacterSetInterestObjectsResult source_character_set_interest_objects(
+    bool has_eyes,
+    const std::vector<bool>& validate_results,
+    bool has_override_dir);
+SourceCharacterAddShadowBoneResult source_character_add_shadow_bone(
+    int32_t current_shadow_bones,
+    bool has_transform,
+    bool already_hooked);
+SourceCharacterUnhookShadowResult source_character_unhook_shadow(
+    int32_t current_shadow_bones);
+SourceCharacterSyncShadowResult source_character_sync_shadow(
+    bool has_shadow,
+    bool old_gfx,
+    const std::vector<int32_t>& mesh_bone_counts);
+SourceCharacterCopyBoundingSphereResult source_character_copy_bounding_sphere(
+    SourceCharacterState& state,
+    bool source_has_sphere_base);
+SourceCharacterRepointSphereBaseResult source_character_repoint_sphere_base(
+    SourceCharacterState& state,
+    bool found_matching_transform);
+SourceCharacterPreSaveResult source_character_pre_save();
 std::vector<SourceCharTransDrawStep> source_char_trans_draw_set_draw_modes(
     const std::vector<std::string>& chars,
     SourceCharacterDrawMode mode);

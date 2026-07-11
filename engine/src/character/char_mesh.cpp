@@ -1864,6 +1864,119 @@ SourceCharacterInterestResult source_character_clear_interest_filter_flags(
   return {has_eyes, has_eyes};
 }
 
+SourceCharacterSetSphereBaseResult source_character_set_sphere_base(
+    SourceCharacterState& state,
+    bool has_transform) {
+  SourceCharacterSetSphereBaseResult result;
+  result.defaulted_to_self = !has_transform;
+  result.made_world_sphere = true;
+  result.multiplied_by_trans_world = true;
+  result.set_sphere = true;
+  state.sphere_base_is_self = !has_transform;
+  state.sphere_base_is_null = false;
+  return result;
+}
+
+SourceCharacterSetInterestObjectsResult source_character_set_interest_objects(
+    bool has_eyes,
+    const std::vector<bool>& validate_results,
+    bool has_override_dir) {
+  SourceCharacterSetInterestObjectsResult result;
+  result.found_eyes = has_eyes;
+  if (!has_eyes) return result;
+  result.cleared_all = true;
+  for (bool valid : validate_results) {
+    ++result.validated_count;
+    if (has_override_dir) {
+      ++result.used_override_dir_count;
+    } else {
+      ++result.used_interest_dir_count;
+    }
+    if (valid) ++result.add_count;
+  }
+  return result;
+}
+
+SourceCharacterAddShadowBoneResult source_character_add_shadow_bone(
+    int32_t current_shadow_bones,
+    bool has_transform,
+    bool already_hooked) {
+  SourceCharacterAddShadowBoneResult result;
+  result.final_shadow_bones = current_shadow_bones > 0 ? current_shadow_bones : 0;
+  if (!has_transform) {
+    result.returned_null = true;
+    return result;
+  }
+  if (already_hooked) {
+    result.returned_existing = true;
+    return result;
+  }
+  result.created = true;
+  ++result.final_shadow_bones;
+  return result;
+}
+
+SourceCharacterUnhookShadowResult source_character_unhook_shadow(
+    int32_t current_shadow_bones) {
+  SourceCharacterUnhookShadowResult result;
+  result.deleted_shadow_bones =
+      current_shadow_bones > 0 ? current_shadow_bones : 0;
+  result.deleted_all = true;
+  return result;
+}
+
+SourceCharacterSyncShadowResult source_character_sync_shadow(
+    bool has_shadow,
+    bool old_gfx,
+    const std::vector<int32_t>& mesh_bone_counts) {
+  SourceCharacterSyncShadowResult result;
+  result.unhooked_shadow = true;
+  if (!has_shadow) return result;
+  if (old_gfx) {
+    for (int32_t bone_count : mesh_bone_counts) {
+      if (bone_count > 0) {
+        result.hooked_bone_count += bone_count;
+      } else {
+        ++result.hooked_mesh_parent_count;
+      }
+    }
+  }
+  result.removed_shadow_draw = true;
+  return result;
+}
+
+SourceCharacterCopyBoundingSphereResult source_character_copy_bounding_sphere(
+    SourceCharacterState& state,
+    bool source_has_sphere_base) {
+  SourceCharacterCopyBoundingSphereResult result;
+  result.set_sphere = true;
+  result.copied_bounding = true;
+  result.copied_sphere_base = source_has_sphere_base;
+  result.cleared_sphere_base = !source_has_sphere_base;
+  state.sphere_base_is_null = !source_has_sphere_base;
+  if (!source_has_sphere_base) state.sphere_base_is_self = false;
+  return result;
+}
+
+SourceCharacterRepointSphereBaseResult source_character_repoint_sphere_base(
+    SourceCharacterState& state,
+    bool found_matching_transform) {
+  SourceCharacterRepointSphereBaseResult result;
+  result.had_sphere_base = !state.sphere_base_is_null;
+  if (!result.had_sphere_base) return result;
+  result.looked_up_by_name = true;
+  result.repointed = found_matching_transform;
+  if (found_matching_transform) {
+    state.sphere_base_is_null = false;
+    state.sphere_base_is_self = false;
+  }
+  return result;
+}
+
+SourceCharacterPreSaveResult source_character_pre_save() {
+  return {true};
+}
+
 std::vector<SourceCharTransDrawStep> source_char_trans_draw_set_draw_modes(
     const std::vector<std::string>& chars,
     SourceCharacterDrawMode mode) {

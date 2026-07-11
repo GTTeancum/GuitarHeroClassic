@@ -192,10 +192,29 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
 - `Replace` always delegates to `RndDir::Replace`; if the replaced object is the
   sphere base it uses the replacement transform, or falls back to `this` when
   the replacement is not transformable.
+- `SetSphereBase` defaults a null input to `this`, builds the current world
+  sphere, multiplies it by the chosen transform world matrix, calls `SetSphere`,
+  then stores the transform as `mSphereBase`.
+- `SetInterestObjects` is fully gated by `GetEyes`. When eyes exist it clears
+  all current interest objects, validates each candidate with either the
+  override directory or the candidate's own directory, and only adds validated
+  candidates.
+- `AddShadowBone` returns null for a null transform, returns an existing
+  `ShadowBone` with the same parent when present, otherwise appends one new
+  row. `UnhookShadow` deletes every shadow bone row.
+- `SyncShadow` always unhooks first. When `mShadow` exists and the old graphics
+  mode is active, meshes with source bones retarget each bone through
+  `AddShadowBone`; meshes without bones get a shadow parent through
+  `SetTransParent(AddShadowBone(mesh))`. The shadow drawable is then removed
+  from draws when `mShadow` exists.
 - `SyncObjects` records `kCharSyncObject`, converts bones to transforms only
   when `bone_pelvis.mesh` exists, delegates to `RndDir::SyncObjects`, removes
   the trans group plus each LOD group and trans group from draws, syncs shadow,
   and sorts character polls.
+- `CopyBoundingSphere` copies sphere, bounding, and the source sphere-base
+  pointer when present, otherwise clears the pointer. `RepointSphereBase` only
+  looks up by name when the pointer is non-null and only replaces it when the
+  directory lookup succeeds. `PreSave` is just `UnhookShadow`.
 - Native `source_character_*` helpers port these source-visible runtime flows
   for deterministic tests and future wiring. They do not decode the fenced root
   body bytes above and do not change current renderer/material behavior.

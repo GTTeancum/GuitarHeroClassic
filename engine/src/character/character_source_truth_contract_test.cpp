@@ -786,6 +786,69 @@ int run_contract() {
                  "voidCharacter::RemovingObject(Hmx::Object*o){"
                  "if(o==mDriver)mDriver=0;RndDir::RemovingObject(o);}",
                  "Character source RemovingObject driver clear");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::SetSphereBase(RndTransformable*trans){"
+                 "if(!trans)trans=this;Spheres18;MakeWorldSphere(s18,false);"
+                 "Multiply(trans->WorldXfm(),s18.center,s18.center);"
+                 "SetSphere(s18);mSphereBase=trans;}",
+                 "Character source SetSphereBase flow");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::SetInterestObjects(constObjPtrList<"
+                 "CharInterest,ObjectDir>&oList,ObjectDir*dir){CharEyes*eyes="
+                 "GetEyes();if(eyes){eyes->ClearAllInterestObjects();"
+                 "for(ObjPtrList<CharInterest,ObjectDir>::iteratorit="
+                 "oList.begin();it!=oList.end();++it){if(ValidateInterest("
+                 "*it,dir?dir:(*it)->Dir()))eyes->AddInterestObject(*it);}}}",
+                 "Character source SetInterestObjects gate");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::ForceBlink(){CharEyes*eyes=GetEyes();"
+                 "if(eyes)eyes->ForceBlink();}",
+                 "Character source ForceBlink eyes gate");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::SetInterestFilterFlags(intflags){"
+                 "CharEyes*eyes=GetEyes();if(eyes){eyes->"
+                 "mInterestFilterFlags=flags;eyes->unk15c=true;}}",
+                 "Character source SetInterestFilterFlags eyes gate");
+  ok &= contains(rb3_latest_character_cpp,
+                 "ShadowBone*Character::AddShadowBone("
+                 "RndTransformable*trans){if(!trans)return0;else{for(inti=0;"
+                 "i<mShadowBones.size();i++){if(mShadowBones[i]->mParent=="
+                 "trans)returnmShadowBones[i];}mShadowBones.push_back("
+                 "newShadowBone());mShadowBones.back()->mParent=trans;"
+                 "returnmShadowBones.back();}}",
+                 "Character source AddShadowBone flow");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::UnhookShadow(){for(inti=0;"
+                 "i<mShadowBones.size();i++){}DeleteAll(mShadowBones);}",
+                 "Character source UnhookShadow deletes rows");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::SyncShadow(){UnhookShadow();if(mShadow){"
+                 "if(GetGfxMode()==kOldGfx){",
+                 "Character source SyncShadow old gfx gate");
+  ok &= contains(rb3_latest_character_cpp,
+                 "if(!mesh->mBones.empty()){for(inti=0;i<mesh->mBones.size();"
+                 "i++){mesh->SetBone(i,AddShadowBone(mesh->mBones[i].mBone),"
+                 "false);}}else{mesh->SetTransParent(AddShadowBone(mesh),"
+                 "false);}",
+                 "Character source SyncShadow bone/parent hookups");
+  ok &= contains(rb3_latest_character_cpp,
+                 "VectorRemove(mDraws,mShadow);}}",
+                 "Character source SyncShadow removes shadow draw");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::CopyBoundingSphere(Character*c){"
+                 "SetSphere(c->mSphere);mBounding=c->mBounding;"
+                 "if(c->mSphereBase)mSphereBase=c->mSphereBase;"
+                 "elsemSphereBase=0;}",
+                 "Character source CopyBoundingSphere flow");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::RepointSphereBase(ObjectDir*dir){"
+                 "if(mSphereBase){RndTransformable*trans=dir->"
+                 "Find<RndTransformable>(mSphereBase->Name(),false);"
+                 "if(trans)mSphereBase=trans;}}",
+                 "Character source RepointSphereBase flow");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::PreSave(BinStream&bs){UnhookShadow();}",
+                 "Character source PreSave flow");
   ok &= contains(rb3_latest_rnd_dir_cpp,
                  "voidRndDir::PreLoad(BinStream&bs){LOAD_REVS(bs);"
                  "ASSERT_REVS(0xA,0);PushRev(packRevs(gAltRev,gRev),this);"
@@ -2472,6 +2535,60 @@ int run_contract() {
                  "result.called_rnd_dir_sync_objects=true;"
                  "result.removed_trans_group=true;",
                  "native ports Character SyncObjects prefix");
+  ok &= contains(char_mesh,
+                 "SourceCharacterSetSphereBaseResult"
+                 "source_character_set_sphere_base(SourceCharacterState&state,"
+                 "boolhas_transform){SourceCharacterSetSphereBaseResultresult;",
+                 "native ports Character SetSphereBase helper");
+  ok &= contains(char_mesh,
+                 "result.defaulted_to_self=!has_transform;result."
+                 "made_world_sphere=true;result.multiplied_by_trans_world="
+                 "true;result.set_sphere=true;state.sphere_base_is_self="
+                 "!has_transform;state.sphere_base_is_null=false;",
+                 "native ports Character SetSphereBase state flow");
+  ok &= contains(char_mesh,
+                 "SourceCharacterSetInterestObjectsResult"
+                 "source_character_set_interest_objects(boolhas_eyes,"
+                 "conststd::vector<bool>&validate_results,boolhas_override_dir)",
+                 "native ports Character SetInterestObjects helper");
+  ok &= contains(char_mesh,
+                 "if(!has_eyes)returnresult;result.cleared_all=true;"
+                 "for(boolvalid:validate_results){++result.validated_count;",
+                 "native ports Character SetInterestObjects eyes gate");
+  ok &= contains(char_mesh,
+                 "SourceCharacterAddShadowBoneResult"
+                 "source_character_add_shadow_bone(int32_tcurrent_shadow_bones,"
+                 "boolhas_transform,boolalready_hooked)",
+                 "native ports Character AddShadowBone helper");
+  ok &= contains(char_mesh,
+                 "if(!has_transform){result.returned_null=true;returnresult;}"
+                 "if(already_hooked){result.returned_existing=true;"
+                 "returnresult;}result.created=true;++result."
+                 "final_shadow_bones;",
+                 "native ports Character AddShadowBone branches");
+  ok &= contains(char_mesh,
+                 "SourceCharacterSyncShadowResultsource_character_sync_shadow("
+                 "boolhas_shadow,boolold_gfx,conststd::vector<int32_t>&"
+                 "mesh_bone_counts)",
+                 "native ports Character SyncShadow helper");
+  ok &= contains(char_mesh,
+                 "result.unhooked_shadow=true;if(!has_shadow)returnresult;"
+                 "if(old_gfx){for(int32_tbone_count:mesh_bone_counts){",
+                 "native ports Character SyncShadow gate");
+  ok &= contains(char_mesh,
+                 "SourceCharacterCopyBoundingSphereResult"
+                 "source_character_copy_bounding_sphere("
+                 "SourceCharacterState&state,boolsource_has_sphere_base)",
+                 "native ports Character CopyBoundingSphere helper");
+  ok &= contains(char_mesh,
+                 "SourceCharacterRepointSphereBaseResult"
+                 "source_character_repoint_sphere_base("
+                 "SourceCharacterState&state,boolfound_matching_transform)",
+                 "native ports Character RepointSphereBase helper");
+  ok &= contains(char_mesh,
+                 "SourceCharacterPreSaveResultsource_character_pre_save(){"
+                 "return{true};}",
+                 "native ports Character PreSave helper");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_character_source_test",
                  "CMake builds Character source test");
@@ -2487,6 +2604,28 @@ int run_contract() {
   ok &= contains(character_source_test,
                  "source_character_sync_objects(state,true,3)",
                  "focused Character test covers SyncObjects");
+  ok &= contains(character_source_test,
+                 "source_character_set_sphere_base(state,false)",
+                 "focused Character test covers SetSphereBase");
+  ok &= contains(character_source_test,
+                 "source_character_set_interest_objects(true,{true,false,true},"
+                 "false)",
+                 "focused Character test covers SetInterestObjects");
+  ok &= contains(character_source_test,
+                 "source_character_add_shadow_bone(2,true,false)",
+                 "focused Character test covers AddShadowBone");
+  ok &= contains(character_source_test,
+                 "source_character_sync_shadow(true,true,{2,0,3})",
+                 "focused Character test covers SyncShadow");
+  ok &= contains(character_source_test,
+                 "source_character_copy_bounding_sphere(state,false)",
+                 "focused Character test covers CopyBoundingSphere");
+  ok &= contains(character_source_test,
+                 "source_character_repoint_sphere_base(state,true)",
+                 "focused Character test covers RepointSphereBase");
+  ok &= contains(character_source_test,
+                 "source_character_pre_save().unhooked_shadow",
+                 "focused Character test covers PreSave");
   ok &= contains(doc, "## Character Runtime Flow",
                  "document records Character runtime flow section");
   ok &= contains(doc,
