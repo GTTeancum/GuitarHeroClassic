@@ -5581,6 +5581,12 @@ int main() {
                  "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
                  "source-shaped TransAnim decoder keeps authored scale keys");
   ok &= contains(gameplay_c,
+                 "if(trans_count>2048){",
+                 "source-shaped TransAnim decoder allows rotation-only venue anims");
+  ok &= absent(gameplay_c,
+               "trans_count==0||trans_count>2048",
+               "rotation-only venue TransAnims must not be rejected");
+  ok &= contains(gameplay_c,
                  "venue_mesh_transform_offsets_[target.mesh]=sample;",
                  "venue AnimFilter runtime stores full transform samples");
   ok &= contains(gameplay_c,

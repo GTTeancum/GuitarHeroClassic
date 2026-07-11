@@ -1253,7 +1253,7 @@ std::optional<DecodedRndTransAnim> read_rnd_transanim_like_miloeditor(
                     read_rnd_transanim_quat_key_like_miloeditor(r));
             }
             const uint32_t trans_count = r.u32();
-            if (trans_count == 0 || trans_count > 2048) {
+            if (trans_count > 2048) {
                 throw std::runtime_error(
                     "RndTransAnim trans key count invalid");
             }
