@@ -46,6 +46,7 @@ int main() {
   using ghogx::character::SourceCharEyesPollDeps;
   using ghogx::character::source_char_eyes_add_interest_object;
   using ghogx::character::source_char_eyes_clear_interest_objects;
+  using ghogx::character::source_char_eyes_copy_plan;
   using ghogx::character::source_char_eyes_copy_state;
   using ghogx::character::source_char_eyes_current_interest;
   using ghogx::character::source_char_eyes_default_state;
@@ -53,6 +54,7 @@ int main() {
   using ghogx::character::source_char_eyes_eye_desc_assign;
   using ghogx::character::source_char_eyes_eye_desc_copy;
   using ghogx::character::source_char_eyes_eye_desc_default;
+  using ghogx::character::source_char_eyes_eye_desc_load_plan;
   using ghogx::character::source_char_eyes_enter_state;
   using ghogx::character::source_char_eyes_exit_state;
   using ghogx::character::source_char_eyes_force_blink;
@@ -63,6 +65,7 @@ int main() {
   using ghogx::character::source_char_eyes_interest_reset;
   using ghogx::character::source_char_eyes_interest_state;
   using ghogx::character::source_char_eyes_list_poll_children;
+  using ghogx::character::source_char_eyes_load_plan;
   using ghogx::character::source_char_eyes_poll_deps;
   using ghogx::character::source_char_eyes_set_focus_interest;
   using ghogx::character::source_char_eyes_toggle_force_focus;
@@ -84,6 +87,67 @@ int main() {
       true, "present clamped eye detected");
   ok &= expect_bool(source_char_eyes_either_eye_clamped({}), false,
                     "empty eye clamp list false");
+
+  const auto eye_desc_v6 = source_char_eyes_eye_desc_load_plan(6);
+  ok &= expect_size(eye_desc_v6.read_order.size(), 2,
+                    "eye desc v6 read count");
+  ok &= expect_string(eye_desc_v6.read_order[1], "mUpperLid",
+                      "eye desc v6 upper lid");
+  const auto eye_desc_v7 = source_char_eyes_eye_desc_load_plan(7);
+  ok &= expect_string(eye_desc_v7.read_order[2], "mLowerLid",
+                      "eye desc v7 lower lid");
+  const auto eye_desc_v16 = source_char_eyes_eye_desc_load_plan(16);
+  ok &= expect_string(eye_desc_v16.read_order[3], "mUpperLidBlink",
+                      "eye desc v16 upper blink");
+  ok &= expect_string(eye_desc_v16.read_order[4], "mLowerLidBlink",
+                      "eye desc v16 lower blink");
+
+  const auto load_v4 = source_char_eyes_load_plan(4);
+  ok &= expect_bool(load_v4.revision_supported, true,
+                    "CharEyes v4 load supported");
+  ok &= expect_string(load_v4.read_order[0], "Hmx::Object",
+                      "CharEyes v4 object first");
+  ok &= expect_string(load_v4.read_order[1], "legacyLookAtList",
+                      "CharEyes v4 legacy eye list");
+  ok &= expect_string(load_v4.read_order[2], "legacyTransformPtr",
+                      "CharEyes v4 legacy transform");
+  ok &= expect_string(load_v4.read_order[3],
+                      "legacyInterestTransformCount",
+                      "CharEyes v4 legacy interest count");
+  ok &= expect_string(load_v4.branches[0],
+                      "legacy lookats become EyeDesc with lid refs null",
+                      "CharEyes v4 legacy lookat branch");
+
+  const auto load_v16 = source_char_eyes_load_plan(16);
+  ok &= expect_string(load_v16.read_order[1], "CharWeightable",
+                      "CharEyes v16 loads weightable");
+  ok &= expect_string(load_v16.read_order[2], "mEyes",
+                      "CharEyes v16 loads eye descs");
+  ok &= expect_string(load_v16.read_order[3], "mInterests",
+                      "CharEyes v16 loads interests");
+  ok &= expect_string(load_v16.read_order[14],
+                      "legacyLowerLidTrackDownPad0",
+                      "CharEyes v16 first lid padding");
+  ok &= expect_string(load_v16.read_order[15], "mLowerLidTrackDown",
+                      "CharEyes v16 lower lid down");
+  ok &= expect_string(load_v16.read_order[16],
+                      "legacyLowerLidTrackDownPad1",
+                      "CharEyes v16 second lid padding");
+
+  const auto load_v18 = source_char_eyes_load_plan(18);
+  ok &= expect_string(load_v18.read_order.back(), "mLowerLidTrackRotate",
+                      "CharEyes v18 lower-lid rotate");
+  ok &= expect_bool(source_char_eyes_load_plan(19).revision_supported, false,
+                    "CharEyes rejects high revision");
+  const auto copy_plan = source_char_eyes_copy_plan();
+  ok &= expect_string(copy_plan.copied_superclasses[0], "Hmx::Object",
+                      "CharEyes copy object superclass");
+  ok &= expect_string(copy_plan.copied_superclasses[1], "CharWeightable",
+                      "CharEyes copy weightable superclass");
+  ok &= expect_string(copy_plan.copied_members[0], "mEyes",
+                      "CharEyes copy eyes first");
+  ok &= expect_string(copy_plan.copied_members.back(), "mLowerLidTrackRotate",
+                      "CharEyes copy lower-lid rotate last");
 
   SourceCharEyesPollDeps deps;
   source_char_eyes_poll_deps(

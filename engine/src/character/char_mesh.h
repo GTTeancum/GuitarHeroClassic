@@ -804,6 +804,10 @@ struct SourceCharEyesEyeDesc {
   std::string upper_lid_blink;
 };
 
+struct SourceCharEyesEyeDescLoadPlan {
+  std::vector<std::string> read_order;
+};
+
 struct SourceCharEyesClampRow {
   bool has_eye = false;
   bool clamped = false;
@@ -874,6 +878,17 @@ struct SourceCharEyesDefaultState {
   bool unk15c = false;
   bool unk15d = true;
   std::string overlay_name;
+};
+
+struct SourceCharEyesLoadPlan {
+  bool revision_supported = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+};
+
+struct SourceCharEyesCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
 };
 
 struct SourceCharEyesEnterState {
@@ -1228,6 +1243,10 @@ std::vector<std::string> source_char_eyes_list_poll_children(
     const std::vector<std::string>& eye_lookats);
 bool source_char_eyes_either_eye_clamped(
     const std::vector<SourceCharEyesClampRow>& eyes);
+SourceCharEyesEyeDescLoadPlan source_char_eyes_eye_desc_load_plan(
+    int32_t revision);
+SourceCharEyesLoadPlan source_char_eyes_load_plan(int32_t revision);
+SourceCharEyesCopyPlan source_char_eyes_copy_plan();
 SourceCharEyesDefaultState source_char_eyes_default_state();
 SourceCharEyesDefaultState source_char_eyes_copy_state(
     const SourceCharEyesDefaultState& source);

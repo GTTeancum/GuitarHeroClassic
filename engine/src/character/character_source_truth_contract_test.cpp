@@ -6766,9 +6766,30 @@ int run_contract() {
                  "kObjListNoNull);bs>>pList;mEyes.resize(pList.size());",
                  "RB3 CharEyes old revisions read a CharLookAt list");
   ok &= contains(rb3_char_eyes_cpp,
+                 "BEGIN_LOADS(CharEyes)LOAD_REVS(bs)ASSERT_REVS(0x12,0)"
+                 "LOAD_SUPERCLASS(Hmx::Object)",
+                 "RB3 CharEyes source load enforces revision range");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "if(gRev>5)LOAD_SUPERCLASS(CharWeightable)if(gRev>4)"
+                 "bs>>mEyes;",
+                 "RB3 CharEyes source load gates weightable and EyeDesc rows");
+  ok &= contains(rb3_char_eyes_cpp,
                  "if(gRev-3<=1U){ObjPtr<RndTransformable,ObjectDir>tPtr(this,"
                  "0);bs>>tPtr;}",
                  "RB3 CharEyes rev 3/4 consumes a trailing transformable");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "if(gRev-4<5U){ObjPtr<RndTransformable,ObjectDir>tPtr(this,"
+                 "0);intcnt;bs>>cnt;",
+                 "RB3 CharEyes source load gates legacy interest rows");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "if(gRev>0xE){bs>>mUpperLidTrackUp;bs>>mUpperLidTrackDown;"
+                 "bs>>mLowerLidTrackUp;if(gRev<0x11){bs.ReadInt();"
+                 "bs>>mLowerLidTrackDown;bs.ReadInt();}elsebs>>"
+                 "mLowerLidTrackDown;}",
+                 "RB3 CharEyes source load gates lid tracking rows");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "if(gRev>0x11)bs>>mLowerLidTrackRotate;",
+                 "RB3 CharEyes source load gates lower lid rotate");
   ok &= contains(rb3_char_eyes_cpp,
                  "CharEyes::CharEyes():mEyes(this),mInterests(this),"
                  "mFaceServo(this,0),mCamWeight(this,0),unk58(0,0,0),"
@@ -7089,6 +7110,10 @@ int run_contract() {
                  "std::stringlower_lid_blink;std::stringupper_lid_blink;};",
                  "native exposes CharEyes EyeDesc row");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesEyeDescLoadPlan{std::vector<std::string>"
+                 "read_order;};",
+                 "native exposes CharEyes EyeDesc load plan");
+  ok &= contains(char_mesh_h,
                  "structSourceCharEyesClampRow{boolhas_eye=false;"
                  "boolclamped=false;};",
                  "native exposes CharEyes clamp row");
@@ -7104,6 +7129,15 @@ int run_contract() {
                  "structSourceCharEyesForceBlinkState{boolpending_blink=false;"
                  "floatblink_time=-1.0f;intblink_count_delta=0;};",
                  "native exposes CharEyes force blink state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyesLoadPlan{boolrevision_supported=false;"
+                 "std::vector<std::string>read_order;std::vector<std::string>"
+                 "branches;};",
+                 "native exposes CharEyes load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyesCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;};",
+                 "native exposes CharEyes copy plan");
   ok &= contains(char_mesh_h,
                  "structSourceCharEyesEnterState{std::array<float,3>unka4="
                  "{0.0f,0.0f,0.0f};intunkb4=0;intunkbc=0;floatunkb0=1.0f;"
@@ -7131,6 +7165,16 @@ int run_contract() {
                  "boolsource_char_eyes_either_eye_clamped("
                  "conststd::vector<SourceCharEyesClampRow>&eyes);",
                  "native exposes CharEyes EitherEyeClamped helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesEyeDescLoadPlansource_char_eyes_eye_desc_load_plan("
+                 "int32_trevision);",
+                 "native exposes CharEyes EyeDesc load helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesLoadPlansource_char_eyes_load_plan(int32_trevision);",
+                 "native exposes CharEyes load plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesCopyPlansource_char_eyes_copy_plan();",
+                 "native exposes CharEyes copy plan helper");
   ok &= contains(char_mesh_h,
                  "SourceCharEyesDefaultStatesource_char_eyes_default_state();",
                  "native exposes CharEyes default state helper");
@@ -7234,6 +7278,43 @@ int run_contract() {
                  "constSourceCharEyesClampRow&eye:eyes){if(eye.has_eye&&"
                  "eye.clamped)returntrue;}returnfalse;}",
                  "native CharEyes EitherEyeClamped helper mirrors source scan");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesEyeDescLoadPlansource_char_eyes_eye_desc_load_plan("
+                 "int32_trevision){SourceCharEyesEyeDescLoadPlanplan;"
+                 "plan.read_order={\"mEye\",\"mUpperLid\"};",
+                 "native CharEyes EyeDesc load helper starts with source fields");
+  ok &= contains(char_mesh,
+                 "if(revision>6)plan.read_order.push_back(\"mLowerLid\");"
+                 "if(revision>0xF){plan.read_order.push_back(\"mUpperLidBlink\");"
+                 "plan.read_order.push_back(\"mLowerLidBlink\");}",
+                 "native CharEyes EyeDesc load helper ports revision gates");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesLoadPlansource_char_eyes_load_plan(int32_trevision){"
+                 "SourceCharEyesLoadPlanplan;plan.revision_supported=revision>=0&&"
+                 "revision<=0x12;",
+                 "native CharEyes load helper ports revision gate");
+  ok &= contains(char_mesh,
+                 "if(revision>4){plan.read_order.push_back(\"mEyes\");}else{"
+                 "plan.read_order.push_back(\"legacyLookAtList\");",
+                 "native CharEyes load helper ports legacy eye-list gate");
+  ok &= contains(char_mesh,
+                 "if(revision>=4&&revision<=8){plan.read_order.push_back("
+                 "\"legacyInterestTransformCount\");",
+                 "native CharEyes load helper ports legacy interest branch");
+  ok &= contains(char_mesh,
+                 "if(revision<0x11){plan.read_order.push_back("
+                 "\"legacyLowerLidTrackDownPad0\");plan.read_order.push_back("
+                 "\"mLowerLidTrackDown\");",
+                 "native CharEyes load helper ports lower-lid padding branch");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesCopyPlansource_char_eyes_copy_plan(){"
+                 "SourceCharEyesCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\",\"CharWeightable\"};",
+                 "native CharEyes copy helper records superclasses");
+  ok &= contains(char_mesh,
+                 "plan.copied_members={\"mEyes\",\"mInterests\",\"mFaceServo\","
+                 "\"unka4\",\"unkb4\",\"mCamWeight\",\"mDefaultFilterFlags\",",
+                 "native CharEyes copy helper records copy member prefix");
   ok &= contains(char_mesh,
                  "SourceCharEyesDefaultStatesource_char_eyes_default_state(){"
                  "SourceCharEyesDefaultStatestate;state.unkb8=std::cos("
@@ -7417,6 +7498,18 @@ int run_contract() {
                  "{true,true}})",
                  "focused CharEyes source test covers present clamped eye");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_eye_desc_load_plan(16)",
+                 "focused CharEyes source test covers EyeDesc load plan");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_load_plan(4)",
+                 "focused CharEyes source test covers legacy load plan");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_load_plan(18)",
+                 "focused CharEyes source test covers current load plan");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_copy_plan()",
+                 "focused CharEyes source test covers copy plan");
+  ok &= contains(eyes_source_test,
                  "SourceCharEyesInterest{\"same.interest\",true}",
                  "focused CharEyes source test covers same-dir interest");
   ok &= contains(eyes_source_test,
@@ -7545,6 +7638,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_eyes_eye_desc_*` and interest-list helpers",
                  "document records native CharEyes EyeDesc and interest-list helpers");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_eye_desc_load_plan`,",
+                 "document records native CharEyes load/copy plan helpers");
+  ok &= contains(doc,
+                 "revision 15/16 lower-lid padding branches",
+                 "document records CharEyes lower-lid padding branch");
   ok &= contains(doc,
                  "Native `source_char_eyes_copy_state` ports the concrete `BEGIN_COPYS`",
                  "document records native CharEyes copy helper slice");

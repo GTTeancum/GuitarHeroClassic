@@ -718,6 +718,14 @@ note, and all report `unreadBytes=0`.
     rechecks Alterna1, Rock2, Rockabill2, and Funk1; all sampled rows report
     `version=3`, two look-at refs, `legacyTransform=<none>`, and
     `unreadBytes=0`.
+  - Native `source_char_eyes_eye_desc_load_plan`,
+    `source_char_eyes_load_plan`, and `source_char_eyes_copy_plan` expose the
+    source row format directly: `EyeDesc` reads eye/upper-lid, lower-lid above
+    revision 6, and blink lids above revision 15; `CharEyes::Load` accepts
+    revisions 0-18 and preserves the legacy look-at-list, old transform pointer,
+    old interest rows, and revision 15/16 lower-lid padding branches; `Copy`
+    copies `Hmx::Object`, `CharWeightable`, and the checked eye/filter/lid
+    member list.
   - `CharEyes::ListPollChildren` delegates poll children to the referenced
     `CharLookAt` controllers. It is not evidence for a native bridge that copies
     eye mesh world rows into ad-hoc controller overrides.

@@ -2634,6 +2634,90 @@ bool source_char_eyes_either_eye_clamped(
   return false;
 }
 
+SourceCharEyesEyeDescLoadPlan source_char_eyes_eye_desc_load_plan(
+    int32_t revision) {
+  SourceCharEyesEyeDescLoadPlan plan;
+  plan.read_order = {"mEye", "mUpperLid"};
+  if (revision > 6) plan.read_order.push_back("mLowerLid");
+  if (revision > 0xF) {
+    plan.read_order.push_back("mUpperLidBlink");
+    plan.read_order.push_back("mLowerLidBlink");
+  }
+  return plan;
+}
+
+SourceCharEyesLoadPlan source_char_eyes_load_plan(int32_t revision) {
+  SourceCharEyesLoadPlan plan;
+  plan.revision_supported = revision >= 0 && revision <= 0x12;
+  if (!plan.revision_supported) return plan;
+
+  plan.read_order.push_back("Hmx::Object");
+  if (revision > 5) plan.read_order.push_back("CharWeightable");
+  if (revision > 4) {
+    plan.read_order.push_back("mEyes");
+  } else {
+    plan.read_order.push_back("legacyLookAtList");
+    plan.branches.push_back("legacy lookats become EyeDesc with lid refs null");
+  }
+  if (revision >= 3 && revision <= 4) {
+    plan.read_order.push_back("legacyTransformPtr");
+  }
+  plan.branches.push_back("mInterests.clear");
+  if (revision >= 4 && revision <= 8) {
+    plan.read_order.push_back("legacyInterestTransformCount");
+    plan.read_order.push_back("legacyInterestTransformRows");
+  } else if (revision > 8) {
+    plan.read_order.push_back("mInterests");
+  }
+  if (revision > 4) {
+    plan.read_order.push_back("mFaceServo");
+  } else {
+    plan.branches.push_back("mFaceServo=0");
+  }
+  if (revision > 7) plan.read_order.push_back("mCamWeight");
+  if (revision > 9) plan.read_order.push_back("mDefaultFilterFlags");
+  if (revision > 10) plan.read_order.push_back("mViewDirection");
+  if (revision > 0xB) plan.read_order.push_back("mHeadLookAt");
+  if (revision > 0xC) plan.read_order.push_back("mMaxExtrapolation");
+  if (revision > 0xD) plan.read_order.push_back("mMinTargetDist");
+  if (revision > 0xE) {
+    plan.read_order.push_back("mUpperLidTrackUp");
+    plan.read_order.push_back("mUpperLidTrackDown");
+    plan.read_order.push_back("mLowerLidTrackUp");
+    if (revision < 0x11) {
+      plan.read_order.push_back("legacyLowerLidTrackDownPad0");
+      plan.read_order.push_back("mLowerLidTrackDown");
+      plan.read_order.push_back("legacyLowerLidTrackDownPad1");
+    } else {
+      plan.read_order.push_back("mLowerLidTrackDown");
+    }
+  }
+  if (revision > 0x11) plan.read_order.push_back("mLowerLidTrackRotate");
+  return plan;
+}
+
+SourceCharEyesCopyPlan source_char_eyes_copy_plan() {
+  SourceCharEyesCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "CharWeightable"};
+  plan.copied_members = {"mEyes",
+                         "mInterests",
+                         "mFaceServo",
+                         "unka4",
+                         "unkb4",
+                         "mCamWeight",
+                         "mDefaultFilterFlags",
+                         "mViewDirection",
+                         "mHeadLookAt",
+                         "mMaxExtrapolation",
+                         "mMinTargetDist",
+                         "mUpperLidTrackUp",
+                         "mUpperLidTrackDown",
+                         "mLowerLidTrackUp",
+                         "mLowerLidTrackDown",
+                         "mLowerLidTrackRotate"};
+  return plan;
+}
+
 SourceCharEyesDefaultState source_char_eyes_default_state() {
   SourceCharEyesDefaultState state;
   state.unkb8 = std::cos(0.52359879f);
