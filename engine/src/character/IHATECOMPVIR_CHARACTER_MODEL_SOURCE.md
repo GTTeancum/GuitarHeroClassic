@@ -926,9 +926,11 @@ note, and all report `unreadBytes=0`.
     all bone rows and resets layout/compression; setting weights preserves bone
     names and writes the requested weight to every row; listing bones appends
     the stored rows to the caller-owned output collection in source order. This
-    helper slice does not port `AddBones`/`AddBoneInternal` or the pointer walk
-    in `FindOffset` until those missing or decompiled source bodies are
-    verified.
+    helper slice also ports `FindOffset` over native source-state rows: it
+    derives the channel type, scans only the corresponding cumulative type
+    range, advances by the source packed type size, and returns `-1` for absent
+    rows. It does not expose a native `FindPtr` pointer into live sample storage
+    until source sample evaluation bodies are ported.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
     call-flow hook, not a standalone pose evaluator.
 - `rb3-latest/src/system/char/CharBonesSamples.cpp` is concrete for sample

@@ -205,6 +205,35 @@ int main() {
                       "ListBones second appended name");
   ok &= expect_float(listed[2].weight, 0.5f,
                      "ListBones second appended weight");
+
+  SourceCharBonesState lookup_state = source_char_bones_empty_state();
+  lookup_state.compression = 0;
+  lookup_state.layout.counts = {0, 2, 3, 5, 7, 8, 9};
+  lookup_state.layout =
+      source_char_bones_recompute_layout(lookup_state.layout.counts,
+                                         lookup_state.compression);
+  lookup_state.bones = {{"bone_a.pos", 1.0f},
+                        {"bone_b.pos", 1.0f},
+                        {"bone_a.scale", 1.0f},
+                        {"bone_a.quat", 1.0f},
+                        {"bone_b.quat", 1.0f},
+                        {"bone_a.rotx", 1.0f},
+                        {"bone_b.rotx", 1.0f},
+                        {"bone_a.roty", 1.0f},
+                        {"bone_a.rotz", 1.0f}};
+  ok &= expect_int(source_char_bones_find_offset(lookup_state, "bone_a.pos"),
+                   0, "FindOffset first pos");
+  ok &= expect_int(source_char_bones_find_offset(lookup_state, "bone_b.pos"),
+                   12, "FindOffset second pos");
+  ok &= expect_int(source_char_bones_find_offset(lookup_state, "bone_b.quat"),
+                   52, "FindOffset second quat");
+  ok &= expect_int(source_char_bones_find_offset(lookup_state, "bone_a.rotz"),
+                   80, "FindOffset rotz");
+  ok &= expect_int(source_char_bones_find_offset(lookup_state, "bone_missing.pos"),
+                   -1, "FindOffset missing same type");
+  ok &= expect_int(source_char_bones_find_offset(lookup_state, "bone_a"),
+                   -1, "FindOffset invalid suffix");
+
   source_char_bones_clear(state);
   ok &= expect_empty_state(state, "ClearBones state reset");
 

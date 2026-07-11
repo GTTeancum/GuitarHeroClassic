@@ -2948,8 +2948,11 @@ int run_contract() {
                  "constructor,",
                  "document records concrete CharBones ListBones slice");
   ok &= contains(doc,
-                 "does not port `AddBones`/`AddBoneInternal` or the pointer walk",
-                 "document fences incomplete CharBones AddBones source body");
+                 "helper slice also ports `FindOffset` over native source-state rows",
+                 "document records concrete CharBones FindOffset slice");
+  ok &= contains(doc,
+                 "It does not expose a native `FindPtr` pointer into live sample storage",
+                 "document fences native CharBones FindPtr pointer path");
   ok &= contains(doc,
                  "does not include a\n"
                  "  reviewable `Evaluate` or `Poll` body",
@@ -3174,6 +3177,12 @@ int run_contract() {
                  "source_char_bones_list_bones(state,listed);",
                  "focused CharBones source test covers ListBones append behavior");
   ok &= contains(char_bones_source_test,
+                 "source_char_bones_find_offset(lookup_state,\"bone_b.quat\")",
+                 "focused CharBones source test covers FindOffset type bucket");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_find_offset(lookup_state,\"bone_missing.pos\")",
+                 "focused CharBones source test covers missing FindOffset row");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_clear(state);",
                  "focused CharBones source test covers ClearBones reset");
   ok &= contains(char_bones_source_test,
@@ -3283,6 +3292,17 @@ int run_contract() {
                  "voidCharBones::ListBones(std::list<Bone>&bones)const{"
                  "for(inti=0;i<mBones.size();i++){bones.push_back(mBones[i]);}}",
                  "latest CharBones source defines ListBones append loop");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "intCharBones::FindOffset(Symbols)const{Typety=TypeOf(s);"
+                 "intnextcount=mCounts[ty+1];intsize=TypeSize(ty);",
+                 "latest CharBones source defines FindOffset type setup");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "intcount=mCounts[ty];intoffset=mOffsets[ty];for(inti=0;"
+                 "i<nextcount-count;i++){",
+                 "latest CharBones source defines FindOffset type range loop");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "elseoffset+=size;}return-1;}",
+                 "latest CharBones source defines FindOffset offset advance");
   ok &= contains(char_clip,
                  "kSourceCompressAll=4",
                  "native clip decoder names source compression mode 4");
@@ -3293,6 +3313,25 @@ int run_contract() {
                  "if(compression>2)return4u;if(compression==0)return16u;"
                  "return8u;",
                  "native clip decoder keeps source byte-quat size");
+  ok &= contains(char_clip_h,
+                 "intsource_char_bones_find_offset(constSourceCharBonesState&state,"
+                 "conststd::string&channel);",
+                 "native exposes CharBones FindOffset helper");
+  ok &= contains(char_clip,
+                 "intsource_char_bones_find_offset(constSourceCharBonesState&state,"
+                 "conststd::string&channel){constinttype=source_char_bones_type_of"
+                 "(channel);",
+                 "native CharBones FindOffset helper exists");
+  ok &= contains(char_clip,
+                 "constintnext_count=state.layout.counts[type+1];"
+                 "constintcount=state.layout.counts[type];",
+                 "native CharBones FindOffset uses source cumulative range");
+  ok &= contains(char_clip,
+                 "state.bones[static_cast<size_t>(bone_index)].name==channel)"
+                 "{returnoffset;}",
+                 "native CharBones FindOffset returns matching source row offset");
+  ok &= contains(char_clip, "offset+=type_size;",
+                 "native CharBones FindOffset advances source packed offsets");
   ok &= contains(char_clip,
                  "if(uses_source_byte_quat(out))returnfalse;",
                  "native clip decoder refuses byte-quat lists until source conversion body exists");

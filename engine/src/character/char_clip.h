@@ -293,6 +293,8 @@ void source_char_bones_set_weights(std::vector<SourceCharBonesBone>& bones,
 void source_char_bones_set_weights(SourceCharBonesState& state, float weight);
 void source_char_bones_list_bones(const SourceCharBonesState& state,
                                   std::vector<SourceCharBonesBone>& bones);
+int source_char_bones_find_offset(const SourceCharBonesState& state,
+                                  const std::string& channel);
 
 // Source-backed CharBone helpers for decoded CharClip output rows.
 std::optional<size_t> source_char_bone_find_weight_index(

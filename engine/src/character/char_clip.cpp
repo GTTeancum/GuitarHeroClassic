@@ -177,6 +177,28 @@ void source_char_bones_list_bones(const SourceCharBonesState& state,
   }
 }
 
+int source_char_bones_find_offset(const SourceCharBonesState& state,
+                                  const std::string& channel) {
+  const int type = source_char_bones_type_of(channel);
+  if (type < 0 || type >= kSourceCharBonesTypeEnd) return -1;
+  const int next_count = state.layout.counts[type + 1];
+  const int count = state.layout.counts[type];
+  if (count < 0 || next_count < count) return -1;
+  const int type_size =
+      static_cast<int>(source_char_bones_type_size(type, state.compression));
+  int offset = state.layout.offsets[type];
+  for (int i = 0; i < next_count - count; ++i) {
+    const int bone_index = count + i;
+    if (bone_index >= 0 &&
+        static_cast<size_t>(bone_index) < state.bones.size() &&
+        state.bones[static_cast<size_t>(bone_index)].name == channel) {
+      return offset;
+    }
+    offset += type_size;
+  }
+  return -1;
+}
+
 std::optional<size_t> source_char_bone_find_weight_index(
     const CharClip::OutputBone& bone, int context_mask) {
   for (size_t i = 0; i < bone.weights.size(); ++i) {
