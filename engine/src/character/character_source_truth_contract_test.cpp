@@ -5908,6 +5908,16 @@ int run_contract() {
                  "Native `source_char_bones_zero` ports the concrete `Zero` byte span",
                  "document records concrete CharBones Zero slice");
   ok &= contains(doc,
+                 "Native `source_char_bones_add_bones_steps` ports the visible `AddBones`",
+                 "document records concrete CharBones AddBones wrapper slice");
+  ok &= contains(doc,
+                 "the checked source declares but does not define\n"
+                 "    `AddBoneInternal`",
+                 "document fences missing CharBones AddBoneInternal body");
+  ok &= contains(doc,
+                 "Native `source_char_bones_alloc_reallocate_step` ports the concrete",
+                 "document records concrete CharBonesAlloc ReallocateInternal slice");
+  ok &= contains(doc,
                  "`source_char_bones_scale_add_clip_step` records that delegation",
                  "document records concrete CharBones ScaleAdd delegation slice");
   ok &= contains(doc,
@@ -6213,6 +6223,12 @@ int run_contract() {
                  "source_char_bones_list_bones(state,listed);",
                  "focused CharBones source test covers ListBones append behavior");
   ok &= contains(char_bones_source_test,
+                 "source_char_bones_add_bones_steps(listed)",
+                 "focused CharBones source test covers AddBones wrapper");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_add_bones_steps({})",
+                 "focused CharBones source test covers empty AddBones reallocation");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_find_offset(lookup_state,\"bone_b.quat\")",
                  "focused CharBones source test covers FindOffset type bucket");
   ok &= contains(char_bones_source_test,
@@ -6227,6 +6243,10 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_scale_add_clip_step(0.25f,12.5f,0.75f)",
                  "focused CharBones source test covers ScaleAdd delegation args");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_alloc_reallocate_step("
+                 "lookup_state.layout.total_size)",
+                 "focused CharBones source test covers CharBonesAlloc realloc step");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_clear(state);",
                  "focused CharBones source test covers ClearBones reset");
@@ -6358,6 +6378,19 @@ int run_contract() {
                  "voidCharBones::ListBones(std::list<Bone>&bones)const{"
                  "for(inti=0;i<mBones.size();i++){bones.push_back(mBones[i]);}}",
                  "latest CharBones source defines ListBones append loop");
+  ok &= contains(rb3_latest_char_bones_h,
+                 "voidAddBoneInternal(constBone&);",
+                 "latest CharBones header declares AddBoneInternal");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBones::AddBones(conststd::vector<Bone>&vec){"
+                 "for(std::vector<Bone>::const_iteratorit=vec.begin();"
+                 "it!=vec.end();++it){AddBoneInternal(*it);}ReallocateInternal();}",
+                 "latest CharBones source defines vector AddBones wrapper");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBones::AddBones(conststd::list<Bone>&bones){"
+                 "for(std::list<Bone>::const_iteratorit=bones.begin();"
+                 "it!=bones.end();++it){AddBoneInternal(*it);}ReallocateInternal();}",
+                 "latest CharBones source defines list AddBones wrapper");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "intCharBones::FindOffset(Symbols)const{Typety=TypeOf(s);"
                  "intnextcount=mCounts[ty+1];intsize=TypeSize(ty);",
@@ -6376,6 +6409,10 @@ int run_contract() {
   ok &= contains(rb3_latest_char_bones_cpp,
                  "voidCharBones::Zero(){memset(mStart,0,mTotalSize);}",
                  "latest CharBones source defines Zero byte span");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBonesAlloc::ReallocateInternal(){_MemFree(mStart);"
+                 "mStart=(char*)_MemAlloc(mTotalSize,0);}",
+                 "latest CharBonesAlloc source defines raw storage reallocation");
   ok &= contains(char_clip,
                  "kSourceCompressAll=4",
                  "native clip decoder names source compression mode 4");
@@ -6405,6 +6442,23 @@ int run_contract() {
                  "SourceCharBonesScaleAddClipStepsource_char_bones_scale_add_clip_step("
                  "floatf1,floatf2,floatf3);",
                  "native exposes CharBones ScaleAdd delegation helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesAddBonesSteps{std::vector<"
+                 "SourceCharBonesBone>add_bone_internal_calls;"
+                 "boolreallocate_internal=false;};",
+                 "native exposes CharBones AddBones wrapper row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesAddBonesStepssource_char_bones_add_bones_steps("
+                 "conststd::vector<SourceCharBonesBone>&bones);",
+                 "native exposes CharBones AddBones wrapper helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesAllocReallocateStep{boolfree_m_start=true;"
+                 "intmem_alloc_size=0;boolassign_m_start=true;};",
+                 "native exposes CharBonesAlloc reallocation row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesAllocReallocateStep"
+                 "source_char_bones_alloc_reallocate_step(inttotal_size);",
+                 "native exposes CharBonesAlloc reallocation helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_find_offset(constSourceCharBonesState&state,"
                  "conststd::string&channel){constinttype=source_char_bones_type_of"
@@ -6436,6 +6490,18 @@ int run_contract() {
                  "SourceCharBonesScaleAddClipStepstep;step.f1=f1;step.f2=f2;"
                  "step.f3=f3;returnstep;}",
                  "native CharBones ScaleAdd helper preserves source arguments");
+  ok &= contains(char_clip,
+                 "SourceCharBonesAddBonesStepssource_char_bones_add_bones_steps("
+                 "conststd::vector<SourceCharBonesBone>&bones){"
+                 "SourceCharBonesAddBonesStepssteps;steps.add_bone_internal_calls="
+                 "bones;steps.reallocate_internal=true;returnsteps;}",
+                 "native CharBones AddBones helper mirrors source wrapper calls");
+  ok &= contains(char_clip,
+                 "SourceCharBonesAllocReallocateStep"
+                 "source_char_bones_alloc_reallocate_step(inttotal_size){"
+                 "SourceCharBonesAllocReallocateStepstep;step.mem_alloc_size="
+                 "total_size;returnstep;}",
+                 "native CharBonesAlloc helper mirrors source allocation size");
   ok &= contains(char_clip, "offset+=type_size;",
                  "native CharBones FindOffset advances source packed offsets");
   ok &= contains(char_clip,

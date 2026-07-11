@@ -236,6 +236,22 @@ int main() {
                       "ListBones second appended name");
   ok &= expect_float(listed[2].weight, 0.5f,
                      "ListBones second appended weight");
+  const SourceCharBonesAddBonesSteps add_steps =
+      source_char_bones_add_bones_steps(listed);
+  ok &= expect_size(add_steps.add_bone_internal_calls.size(), 3,
+                    "AddBones call count");
+  ok &= expect_string(add_steps.add_bone_internal_calls[1].name,
+                      "bone_head.quat", "AddBones first source row");
+  ok &= expect_float(add_steps.add_bone_internal_calls[2].weight, 0.5f,
+                     "AddBones second source weight");
+  ok &= expect_int(add_steps.reallocate_internal ? 1 : 0, 1,
+                   "AddBones reallocates");
+  const SourceCharBonesAddBonesSteps empty_add_steps =
+      source_char_bones_add_bones_steps({});
+  ok &= expect_size(empty_add_steps.add_bone_internal_calls.size(), 0,
+                    "AddBones empty call count");
+  ok &= expect_int(empty_add_steps.reallocate_internal ? 1 : 0, 1,
+                   "AddBones empty reallocates");
 
   SourceCharBonesState lookup_state = source_char_bones_empty_state();
   lookup_state.compression = 0;
@@ -286,6 +302,14 @@ int main() {
   ok &= expect_float(scale_add_clip.f1, 0.25f, "ScaleAdd f1");
   ok &= expect_float(scale_add_clip.f2, 12.5f, "ScaleAdd f2");
   ok &= expect_float(scale_add_clip.f3, 0.75f, "ScaleAdd f3");
+  const SourceCharBonesAllocReallocateStep realloc_step =
+      source_char_bones_alloc_reallocate_step(lookup_state.layout.total_size);
+  ok &= expect_int(realloc_step.free_m_start ? 1 : 0, 1,
+                   "ReallocateInternal frees mStart");
+  ok &= expect_int(realloc_step.mem_alloc_size, 96,
+                   "ReallocateInternal alloc size");
+  ok &= expect_int(realloc_step.assign_m_start ? 1 : 0, 1,
+                   "ReallocateInternal assigns mStart");
 
   source_char_bones_clear(state);
   ok &= expect_empty_state(state, "ClearBones state reset");

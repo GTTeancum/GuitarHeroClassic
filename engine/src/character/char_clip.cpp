@@ -221,6 +221,21 @@ SourceCharBonesScaleAddClipStep source_char_bones_scale_add_clip_step(
   return step;
 }
 
+SourceCharBonesAddBonesSteps source_char_bones_add_bones_steps(
+    const std::vector<SourceCharBonesBone>& bones) {
+  SourceCharBonesAddBonesSteps steps;
+  steps.add_bone_internal_calls = bones;
+  steps.reallocate_internal = true;
+  return steps;
+}
+
+SourceCharBonesAllocReallocateStep source_char_bones_alloc_reallocate_step(
+    int total_size) {
+  SourceCharBonesAllocReallocateStep step;
+  step.mem_alloc_size = total_size;
+  return step;
+}
+
 CharClip::OutputBone source_char_bone_copy_members(
     const CharClip::OutputBone& source) {
   CharClip::OutputBone dest;

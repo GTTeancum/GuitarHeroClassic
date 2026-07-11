@@ -61,6 +61,17 @@ struct SourceCharBonesScaleAddClipStep {
   float f3 = 0.0f;
 };
 
+struct SourceCharBonesAddBonesSteps {
+  std::vector<SourceCharBonesBone> add_bone_internal_calls;
+  bool reallocate_internal = false;
+};
+
+struct SourceCharBonesAllocReallocateStep {
+  bool free_m_start = true;
+  int mem_alloc_size = 0;
+  bool assign_m_start = true;
+};
+
 struct SourceCharBonesSamplesState {
   SourceCharBonesState bones;
   int num_samples = 0;
@@ -603,6 +614,10 @@ SourceCharBonesFindPtrResult source_char_bones_find_ptr(
 void source_char_bones_zero(std::vector<uint8_t>& start, int total_size);
 SourceCharBonesScaleAddClipStep source_char_bones_scale_add_clip_step(
     float f1, float f2, float f3);
+SourceCharBonesAddBonesSteps source_char_bones_add_bones_steps(
+    const std::vector<SourceCharBonesBone>& bones);
+SourceCharBonesAllocReallocateStep source_char_bones_alloc_reallocate_step(
+    int total_size);
 
 // Source-backed CharBone helpers for decoded CharClip output rows.
 CharClip::OutputBone source_char_bone_copy_members(

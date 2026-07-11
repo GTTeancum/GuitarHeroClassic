@@ -1336,6 +1336,15 @@ note, and all report `unreadBytes=0`.
     into sample storage until source sample evaluation bodies are ported.
     Native `source_char_bones_zero` ports the concrete `Zero` byte span:
     `memset(mStart, 0, mTotalSize)`.
+    Native `source_char_bones_add_bones_steps` ports the visible `AddBones`
+    wrapper flow: call `AddBoneInternal` once for each input row, then call
+    `ReallocateInternal` even when the row list is empty. This remains a
+    call-flow helper because the checked source declares but does not define
+    `AddBoneInternal`.
+    Native `source_char_bones_alloc_reallocate_step` ports the concrete
+    `CharBonesAlloc::ReallocateInternal` allocation shape: free the old
+    `mStart`, allocate `mTotalSize` bytes, and assign the result back to
+    `mStart`.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
     call-flow hook, not a standalone pose evaluator. Native
     `source_char_bones_scale_add_clip_step` records that delegation and preserves
