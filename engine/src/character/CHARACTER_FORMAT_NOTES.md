@@ -5050,3 +5050,22 @@ Viewer hand-overlay validation:
 - No runtime code changed in this recheck. The remaining Rock1/Rock2 work is
   still hair/card placement and GH2 runtime consumer proof, not a named
   character posture patch.
+
+2026-07-10 Rock1/Rock2 current regression double-check:
+
+- Rebuilt the current debug app and captured fresh direct-app Rock1/Rock2
+  full-body front shots after the later source-truth documentation commits.
+  The first no-guitar diagnostic pair in
+  `engine/out/rock_regression_recheck_20260710_current/` is visibly misleading:
+  it leaves viewer hand IK solving to guitar hand targets while the authored
+  guitar prop is absent.
+- The matching attached-guitar pair,
+  `rock1_current_front_fullbody_guitar.png` and
+  `rock2_current_front_fullbody_guitar.png`, keeps the authored prop anchor
+  path active. Logs show `bone_fret_hand.mesh` resolving from the `xplorer`
+  prop, then live `CharIKHand`, `CharForeTwist`, decode-only `CharHair`, and
+  `CharUpperTwist` in the accepted source-backed cadence. No post-`96f64b5`
+  runtime arm-solver change was found.
+- This recheck does not sign off Rock1/Rock2 hair/card placement. It only
+  records that no current attached-guitar Rock arm regression was found in the
+  source-backed viewer path.
