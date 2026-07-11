@@ -530,6 +530,11 @@ note, and all report `unreadBytes=0`.
     number of eye children and interest rows that receive `Enter` / reset.
     Exit clears focus, resets focus priority to `-1`, clears interests, and
     records the eye children that receive `Exit`.
+  - Native `source_char_eyes_toggle_force_focus` and
+    `source_char_eyes_toggle_interest_overlay` port the concrete handler bodies
+    as decisions: force-focus toggling delegates to the same
+    `SetFocusInterest` priority gate, and interest overlay toggling only flips
+    `mShowing` / restarts the timer when the source overlay pointer exists.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.

@@ -4580,6 +4580,20 @@ int run_contract() {
                  "TheTaskMgr.Seconds(TaskMgr::b);unk144++;}",
                  "RB3 CharEyes ForceBlink stores task time and increments count");
   ok &= contains(rb3_char_eyes_cpp,
+                 "DataNodeCharEyes::OnToggleForceFocus(DataArray*da){"
+                 "if(unkd4)SetFocusInterest(0,0);elseSetFocusInterest("
+                 "unkc8,0);returnDataNode(0);}",
+                 "RB3 CharEyes force-focus handler delegates to SetFocusInterest");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "DataNodeCharEyes::OnToggleInterestOverlay(DataArray*da){"
+                 "ToggleInterestsDebugOverlay();returnDataNode(0);}",
+                 "RB3 CharEyes overlay handler delegates to toggle helper");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "voidCharEyes::ToggleInterestsDebugOverlay(){RndOverlay*o="
+                 "unk9c;if(!o)return;o->mShowing=o->mShowing==false;"
+                 "o->mTimer.Restart();}",
+                 "RB3 CharEyes overlay toggle gates missing overlay");
+  ok &= contains(rb3_char_eyes_cpp,
                  "voidCharEyes::Enter(){unka4.Zero();unkb4=0;unkbc=0;"
                  "unkb0=1.0f;unkc0=-1.0f;unkc4=0;unk124=0;unk128=-1.0f;"
                  "unk12c=-1;unk13c=0;unk140=-1.0f;unk144=0;unk148=-1.0f;"
@@ -4788,6 +4802,10 @@ int run_contract() {
                  "std::stringfocus_interest;intfocus_priority=-1;};",
                  "native exposes CharEyes focus result");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesOverlayToggleResult{boolhas_overlay=false;"
+                 "boolshowing=false;booltimer_restarted=false;};",
+                 "native exposes CharEyes overlay toggle result");
+  ok &= contains(char_mesh_h,
                  "structSourceCharEyesForceBlinkState{boolpending_blink=false;"
                  "floatblink_time=-1.0f;intblink_count_delta=0;};",
                  "native exposes CharEyes force blink state");
@@ -4843,6 +4861,16 @@ int run_contract() {
                  "conststd::string&current_focus,intcurrent_priority,"
                  "conststd::string&requested_interest,intrequested_priority);",
                  "native exposes CharEyes SetFocusInterest helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesFocusResultsource_char_eyes_toggle_force_focus("
+                 "conststd::string&current_focus,intcurrent_priority,"
+                 "conststd::string&current_interest);",
+                 "native exposes CharEyes force-focus toggle helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesOverlayToggleResult"
+                 "source_char_eyes_toggle_interest_overlay(boolhas_overlay,"
+                 "boolcurrent_showing);",
+                 "native exposes CharEyes overlay toggle helper");
   ok &= contains(char_mesh_h,
                  "SourceCharEyesForceBlinkStatesource_char_eyes_force_blink("
                  "floattask_seconds);",
@@ -4945,6 +4973,22 @@ int run_contract() {
                  "result.focus_interest=requested_interest;result.focus_priority="
                  "requested_interest.empty()?-1:requested_priority;returnresult;}",
                  "native CharEyes SetFocusInterest helper ports assignment and clear");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesFocusResultsource_char_eyes_toggle_force_focus("
+                 "conststd::string&current_focus,intcurrent_priority,"
+                 "conststd::string&current_interest){if(!current_focus.empty()){"
+                 "returnsource_char_eyes_set_focus_interest(current_focus,"
+                 "current_priority,\"\",0);}returnsource_char_eyes_set_focus_interest("
+                 "current_focus,current_priority,current_interest,0);}",
+                 "native CharEyes force-focus helper delegates through source focus gate");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesOverlayToggleResult"
+                 "source_char_eyes_toggle_interest_overlay(boolhas_overlay,"
+                 "boolcurrent_showing){SourceCharEyesOverlayToggleResultresult;"
+                 "result.has_overlay=has_overlay;result.showing=current_showing;"
+                 "if(!has_overlay)returnresult;result.showing=!current_showing;"
+                 "result.timer_restarted=true;returnresult;}",
+                 "native CharEyes overlay helper ports source toggle gate");
   ok &= contains(char_mesh,
                  "SourceCharEyesForceBlinkStatesource_char_eyes_force_blink("
                  "floattask_seconds){SourceCharEyesForceBlinkStatestate;"
@@ -5067,6 +5111,23 @@ int run_contract() {
                  "source_char_eyes_set_focus_interest(\"boss.focus\",5,\"\",8)",
                  "focused CharEyes source test covers focus clear");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_toggle_force_focus(\"soft.focus\",0,"
+                 "\"look.interest\")",
+                 "focused CharEyes source test covers force-focus clear");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_toggle_force_focus(\"boss.focus\",5,"
+                 "\"look.interest\")",
+                 "focused CharEyes source test covers force-focus priority reject");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_toggle_force_focus(\"\",-1,\"look.interest\")",
+                 "focused CharEyes source test covers force-focus set current interest");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_toggle_interest_overlay(true,false)",
+                 "focused CharEyes source test covers overlay toggle present");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_toggle_interest_overlay(false,true)",
+                 "focused CharEyes source test covers overlay toggle missing");
+  ok &= contains(eyes_source_test,
                  "source_char_eyes_force_blink(12.5f)",
                  "focused CharEyes source test covers ForceBlink helper");
   ok &= contains(eyes_source_test,
@@ -5138,6 +5199,9 @@ int run_contract() {
                  "Native `source_char_eyes_enter_state` and "
                  "`source_char_eyes_exit_state`",
                  "document records native CharEyes Enter and Exit helper slice");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_toggle_force_focus` and",
+                 "document records native CharEyes handler toggle helper slice");
   ok &= contains(doc,
                  "Native `source_char_eyes_default_state` ports the concrete constructor",
                  "document records native CharEyes constructor default helper");

@@ -2028,6 +2028,30 @@ SourceCharEyesFocusResult source_char_eyes_set_focus_interest(
   return result;
 }
 
+SourceCharEyesFocusResult source_char_eyes_toggle_force_focus(
+    const std::string& current_focus,
+    int current_priority,
+    const std::string& current_interest) {
+  if (!current_focus.empty()) {
+    return source_char_eyes_set_focus_interest(current_focus, current_priority,
+                                               "", 0);
+  }
+  return source_char_eyes_set_focus_interest(current_focus, current_priority,
+                                             current_interest, 0);
+}
+
+SourceCharEyesOverlayToggleResult source_char_eyes_toggle_interest_overlay(
+    bool has_overlay,
+    bool current_showing) {
+  SourceCharEyesOverlayToggleResult result;
+  result.has_overlay = has_overlay;
+  result.showing = current_showing;
+  if (!has_overlay) return result;
+  result.showing = !current_showing;
+  result.timer_restarted = true;
+  return result;
+}
+
 SourceCharEyesForceBlinkState source_char_eyes_force_blink(
     float task_seconds) {
   SourceCharEyesForceBlinkState state;

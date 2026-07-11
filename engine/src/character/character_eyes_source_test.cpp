@@ -63,6 +63,8 @@ int main() {
   using ghogx::character::source_char_eyes_list_poll_children;
   using ghogx::character::source_char_eyes_poll_deps;
   using ghogx::character::source_char_eyes_set_focus_interest;
+  using ghogx::character::source_char_eyes_toggle_force_focus;
+  using ghogx::character::source_char_eyes_toggle_interest_overlay;
 
   bool ok = true;
 
@@ -244,6 +246,46 @@ int main() {
   ok &= expect_string(cleared_focus.focus_interest, "", "focus clear value");
   ok &= expect_int(cleared_focus.focus_priority, -1,
                    "focus clear resets priority");
+
+  const auto toggled_clear =
+      source_char_eyes_toggle_force_focus("soft.focus", 0, "look.interest");
+  ok &= expect_bool(toggled_clear.accepted, true,
+                    "toggle focus clear accepted");
+  ok &= expect_string(toggled_clear.focus_interest, "",
+                      "toggle focus clears current");
+  ok &= expect_int(toggled_clear.focus_priority, -1,
+                   "toggle focus clear priority");
+
+  const auto toggled_rejected =
+      source_char_eyes_toggle_force_focus("boss.focus", 5, "look.interest");
+  ok &= expect_bool(toggled_rejected.accepted, false,
+                    "toggle focus high priority reject");
+  ok &= expect_string(toggled_rejected.focus_interest, "boss.focus",
+                      "toggle focus reject preserves current");
+  ok &= expect_int(toggled_rejected.focus_priority, 5,
+                   "toggle focus reject priority");
+
+  const auto toggled_set =
+      source_char_eyes_toggle_force_focus("", -1, "look.interest");
+  ok &= expect_bool(toggled_set.accepted, true,
+                    "toggle focus set accepted");
+  ok &= expect_string(toggled_set.focus_interest, "look.interest",
+                      "toggle focus sets current interest");
+  ok &= expect_int(toggled_set.focus_priority, 0,
+                   "toggle focus set priority");
+
+  const auto overlay_on = source_char_eyes_toggle_interest_overlay(true, false);
+  ok &= expect_bool(overlay_on.has_overlay, true, "overlay present");
+  ok &= expect_bool(overlay_on.showing, true, "overlay toggled on");
+  ok &= expect_bool(overlay_on.timer_restarted, true,
+                    "overlay timer restarted");
+  const auto overlay_missing =
+      source_char_eyes_toggle_interest_overlay(false, true);
+  ok &= expect_bool(overlay_missing.has_overlay, false, "overlay missing");
+  ok &= expect_bool(overlay_missing.showing, true,
+                    "missing overlay leaves showing state");
+  ok &= expect_bool(overlay_missing.timer_restarted, false,
+                    "missing overlay no timer restart");
 
   const auto blink = source_char_eyes_force_blink(12.5f);
   ok &= expect_bool(blink.pending_blink, true, "force blink pending");

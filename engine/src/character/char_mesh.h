@@ -500,6 +500,12 @@ struct SourceCharEyesFocusResult {
   int focus_priority = -1;
 };
 
+struct SourceCharEyesOverlayToggleResult {
+  bool has_overlay = false;
+  bool showing = false;
+  bool timer_restarted = false;
+};
+
 struct SourceCharEyesForceBlinkState {
   bool pending_blink = false;
   float blink_time = -1.0f;
@@ -786,6 +792,13 @@ SourceCharEyesFocusResult source_char_eyes_set_focus_interest(
     int current_priority,
     const std::string& requested_interest,
     int requested_priority);
+SourceCharEyesFocusResult source_char_eyes_toggle_force_focus(
+    const std::string& current_focus,
+    int current_priority,
+    const std::string& current_interest);
+SourceCharEyesOverlayToggleResult source_char_eyes_toggle_interest_overlay(
+    bool has_overlay,
+    bool current_showing);
 SourceCharEyesForceBlinkState source_char_eyes_force_blink(
     float task_seconds);
 SourceCharEyesEnterState source_char_eyes_enter_state(
