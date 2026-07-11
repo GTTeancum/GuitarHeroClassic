@@ -801,18 +801,15 @@ int run_contract() {
   ok &= contains(doc, "rb3/src/system/char/CharEyes.cpp",
                  "document cites CharEyes runtime source");
   ok &= contains(doc,
-                 "native helpers port `CharEyes` poll-child/dependency "
-                 "publication plus `CharInterest` / `CharEyeDartRuleset` "
-                 "data decisions only",
+                 "native helpers port `CharLookAt` poll gating, `CharEyes` "
+                 "load/copy/state/dependency/handler/property rows",
                  "coverage matrix records native CharEyes helper boundary");
   ok &= contains(doc, "CharInterest.cpp` / `CharInterest.h",
                  "coverage matrix cites CharInterest source");
   ok &= contains(doc, "CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h",
                  "coverage matrix cites CharEyeDartRuleset source");
   ok &= contains(doc,
-                 "native helpers port `CharEyes` poll-child/dependency "
-                 "publication plus `CharInterest` / `CharEyeDartRuleset` "
-                 "data decisions only",
+                 "no synthetic eye runtime bridge",
                  "coverage matrix records eye data-only boundary");
   ok &= contains(doc, "rb3/src/system/char/CharIKHand.cpp",
                  "document cites CharIKHand runtime source");
@@ -8584,6 +8581,18 @@ int run_contract() {
                  "o->mTimer.Restart();}",
                  "RB3 CharEyes overlay toggle gates missing overlay");
   ok &= contains(rb3_char_eyes_cpp,
+                 "BEGIN_HANDLERS(CharEyes)HANDLE(add_interest,OnAddInterest)"
+                 "HANDLE_ACTION(force_blink,ForceBlink())",
+                 "RB3 CharEyes handler table starts with add and blink");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "HANDLE(toggle_force_focus,OnToggleForceFocus)HANDLE("
+                 "toggle_interest_overlay,OnToggleInterestOverlay)",
+                 "RB3 CharEyes handler table exposes debug handlers");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0x660)"
+                 "END_HANDLERS",
+                 "RB3 CharEyes handler superclass and check");
+  ok &= contains(rb3_char_eyes_cpp,
                  "voidCharEyes::Enter(){unka4.Zero();unkb4=0;unkbc=0;"
                  "unkb0=1.0f;unkc0=-1.0f;unkc4=0;unk124=0;unk128=-1.0f;"
                  "unk12c=-1;unk13c=0;unk140=-1.0f;unk144=0;unk148=-1.0f;"
@@ -8630,6 +8639,45 @@ int run_contract() {
                  "if(mHeadLookAt)changedBy.push_back(mHeadLookAt);"
                  "if(mFaceServo)changedBy.push_back(mFaceServo);",
                  "RB3 CharEyes PollDeps publishes head lookat and face servo");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharEyes::EyeDesc)SYNC_PROP(eye,"
+                 "o.mEye)SYNC_PROP(upper_lid,o.mUpperLid)SYNC_PROP("
+                 "lower_lid,o.mLowerLid)SYNC_PROP(upper_lid_blink,"
+                 "o.mUpperLidBlink)SYNC_PROP(lower_lid_blink,"
+                 "o.mLowerLidBlink)END_CUSTOM_PROPSYNC",
+                 "RB3 CharEyes EyeDesc prop-sync rows");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharEyes::CharInterestState)"
+                 "SYNC_PROP(interest,o.mInterest)END_CUSTOM_PROPSYNC",
+                 "RB3 CharEyes interest state prop-sync row");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "BEGIN_PROPSYNCS(CharEyes)SYNC_PROP(eyes,mEyes)"
+                 "SYNC_PROP(view_direction,mViewDirection)SYNC_PROP("
+                 "interests,mInterests)SYNC_PROP(face_servo,mFaceServo)"
+                 "SYNC_PROP(camera_weight,mCamWeight)",
+                 "RB3 CharEyes prop-sync head rows");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "staticSymbol_s(\"default_interest_categories\");"
+                 "if(sym==_s){if(++_i<_prop->Size()){",
+                 "RB3 CharEyes default-interest bitfield branch");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "if(_op==kPropGet){intfinal=mDefaultFilterFlags&res;"
+                 "_val=DataNode(final>0);}else{if(_val.Int(0)!=0)"
+                 "mDefaultFilterFlags|=res;elsemDefaultFilterFlags&=~res;}",
+                 "RB3 CharEyes default-interest bitfield get/set");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "SYNC_PROP(head_lookat,mHeadLookAt)SYNC_PROP("
+                 "max_extrapolation,mMaxExtrapolation)",
+                 "RB3 CharEyes prop-sync head lookat rows");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "SYNC_PROP(min_target_dist,mMinTargetDist)SYNC_PROP("
+                 "ulid_track_up,mUpperLidTrackUp)SYNC_PROP("
+                 "ulid_track_down,mUpperLidTrackDown)SYNC_PROP("
+                 "llid_track_up,mLowerLidTrackUp)SYNC_PROP("
+                 "llid_track_down,mLowerLidTrackDown)SYNC_PROP("
+                 "llid_track_rotate,mLowerLidTrackRotate)"
+                 "SYNC_SUPERCLASS(CharWeightable)END_PROPSYNCS",
+                 "RB3 CharEyes prop-sync tail rows");
   ok &= contains(rb3_latest_char_eye_dart_ruleset_h,
                  "structEyeDartRulesetData{EyeDartRulesetData(){"
                  "ClearToDefaults();}",
@@ -9030,6 +9078,24 @@ int run_contract() {
                  "copied_superclasses;std::vector<std::string>copied_members;};",
                  "native exposes CharEyes copy plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesHandlerPlan{std::vector<std::string>"
+                 "handlers;std::vector<std::string>action_handlers;"
+                 "std::vector<std::string>debug_handlers;"
+                 "std::vector<std::string>superclasses;intcheck=0;};",
+                 "native exposes CharEyes handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyesPropSyncPlan{std::vector<std::string>"
+                 "eye_desc_properties;std::vector<std::string>"
+                 "interest_state_properties;std::vector<std::string>"
+                 "properties;std::vector<std::string>bitfield_properties;"
+                 "std::vector<std::string>debug_properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes CharEyes prop-sync plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyesBitfieldPropResult{intflags=0;"
+                 "boolget_value=false;};",
+                 "native exposes CharEyes bitfield prop result");
+  ok &= contains(char_mesh_h,
                  "structSourceCharEyesEnterState{std::array<float,3>unka4="
                  "{0.0f,0.0f,0.0f};intunkb4=0;intunkbc=0;floatunkb0=1.0f;"
                  "floatunkc0=-1.0f;intunkc4=0;boolunk124=false;"
@@ -9066,6 +9132,18 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceCharEyesCopyPlansource_char_eyes_copy_plan();",
                  "native exposes CharEyes copy plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesHandlerPlansource_char_eyes_handler_plan();",
+                 "native exposes CharEyes handler plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesPropSyncPlansource_char_eyes_prop_sync_plan();",
+                 "native exposes CharEyes prop-sync plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesBitfieldPropResult"
+                 "source_char_eyes_default_interest_categories_sync("
+                 "intcurrent_flags,intbit_mask,boolget_operation,"
+                 "boolrequested_enabled);",
+                 "native exposes CharEyes default-interest bitfield helper");
   ok &= contains(char_mesh_h,
                  "SourceCharEyesDefaultStatesource_char_eyes_default_state();",
                  "native exposes CharEyes default state helper");
@@ -9206,6 +9284,50 @@ int run_contract() {
                  "plan.copied_members={\"mEyes\",\"mInterests\",\"mFaceServo\","
                  "\"unka4\",\"unkb4\",\"mCamWeight\",\"mDefaultFilterFlags\",",
                  "native CharEyes copy helper records copy member prefix");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesHandlerPlansource_char_eyes_handler_plan(){"
+                 "SourceCharEyesHandlerPlanplan;plan.handlers={\"add_interest\"};"
+                 "plan.action_handlers={\"force_blink\"};",
+                 "native CharEyes handler helper records handler rows");
+  ok &= contains(char_mesh,
+                 "plan.debug_handlers={\"toggle_force_focus\","
+                 "\"toggle_interest_overlay\"};plan.superclasses={"
+                 "\"Hmx::Object\"};plan.check=0x660;",
+                 "native CharEyes handler helper records debug and check rows");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesPropSyncPlansource_char_eyes_prop_sync_plan(){"
+                 "SourceCharEyesPropSyncPlanplan;plan.eye_desc_properties={"
+                 "\"eye\",\"upper_lid\",\"lower_lid\",\"upper_lid_blink\","
+                 "\"lower_lid_blink\"};",
+                 "native CharEyes prop-sync helper records EyeDesc rows");
+  ok &= contains(char_mesh,
+                 "plan.interest_state_properties={\"interest\"};"
+                 "plan.properties={\"eyes\",\"view_direction\",\"interests\","
+                 "\"face_servo\",\"camera_weight\",",
+                 "native CharEyes prop-sync helper records head property rows");
+  ok &= contains(char_mesh,
+                 "\"llid_track_up\",\"llid_track_down\",\"llid_track_rotate\"};"
+                 "plan.bitfield_properties={\"default_interest_categories\"};",
+                 "native CharEyes prop-sync helper records tail and bitfield rows");
+  ok &= contains(char_mesh,
+                 "plan.debug_properties={\"disable_eye_dart\","
+                 "\"disable_eye_jitter\",\"disable_interest_objects\","
+                 "\"disable_procedural_blink\",\"disable_eye_clamping\","
+                 "\"interest_filter_testing\"};plan.superclasses={"
+                 "\"CharWeightable\"};",
+                 "native CharEyes prop-sync helper records debug and superclass rows");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesBitfieldPropResult"
+                 "source_char_eyes_default_interest_categories_sync("
+                 "intcurrent_flags,intbit_mask,boolget_operation,"
+                 "boolrequested_enabled){SourceCharEyesBitfieldPropResultresult;"
+                 "result.flags=current_flags;if(get_operation){",
+                 "native CharEyes bitfield helper records get branch");
+  ok &= contains(char_mesh,
+                 "result.get_value=(current_flags&bit_mask)!=0;returnresult;}"
+                 "if(requested_enabled){result.flags=current_flags|bit_mask;}"
+                 "else{result.flags=current_flags&~bit_mask;}",
+                 "native CharEyes bitfield helper records set/clear branch");
   ok &= contains(char_mesh,
                  "SourceCharEyesDefaultStatesource_char_eyes_default_state(){"
                  "SourceCharEyesDefaultStatestate;state.unkb8=std::cos("
@@ -9401,6 +9523,24 @@ int run_contract() {
                  "source_char_eyes_copy_plan()",
                  "focused CharEyes source test covers copy plan");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_handler_plan()",
+                 "focused CharEyes source test covers handler plan");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_prop_sync_plan()",
+                 "focused CharEyes source test covers prop-sync plan");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_default_interest_categories_sync("
+                 "0x24,0x20,true,false)",
+                 "focused CharEyes source test covers default-interest get");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_default_interest_categories_sync("
+                 "0x04,0x20,false,true)",
+                 "focused CharEyes source test covers default-interest set");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_default_interest_categories_sync("
+                 "0x24,0x20,false,false)",
+                 "focused CharEyes source test covers default-interest clear");
+  ok &= contains(eyes_source_test,
                  "SourceCharEyesInterest{\"same.interest\",true}",
                  "focused CharEyes source test covers same-dir interest");
   ok &= contains(eyes_source_test,
@@ -9532,6 +9672,15 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_eyes_eye_desc_load_plan`,",
                  "document records native CharEyes load/copy plan helpers");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_handler_plan`,",
+                 "document records native CharEyes handler/prop helper slice");
+  ok &= contains(doc,
+                 "`source_char_eyes_default_interest_categories_sync`",
+                 "document records native CharEyes default-interest bitfield helper");
+  ok &= contains(doc,
+                 "macro lookup remains source context, not a native parser invention",
+                 "document fences CharEyes bitfield macro parsing");
   ok &= contains(doc,
                  "revision 15/16 lower-lid padding branches",
                  "document records CharEyes lower-lid padding branch");

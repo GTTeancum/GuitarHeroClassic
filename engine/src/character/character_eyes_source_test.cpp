@@ -49,6 +49,7 @@ int main() {
   using ghogx::character::source_char_eyes_copy_plan;
   using ghogx::character::source_char_eyes_copy_state;
   using ghogx::character::source_char_eyes_current_interest;
+  using ghogx::character::source_char_eyes_default_interest_categories_sync;
   using ghogx::character::source_char_eyes_default_state;
   using ghogx::character::source_char_eyes_either_eye_clamped;
   using ghogx::character::source_char_eyes_eye_desc_assign;
@@ -59,6 +60,7 @@ int main() {
   using ghogx::character::source_char_eyes_exit_state;
   using ghogx::character::source_char_eyes_force_blink;
   using ghogx::character::source_char_eyes_get_head;
+  using ghogx::character::source_char_eyes_handler_plan;
   using ghogx::character::source_char_eyes_interest_begin_refractory;
   using ghogx::character::source_char_eyes_interest_in_refractory;
   using ghogx::character::source_char_eyes_interest_refractory_remaining;
@@ -67,6 +69,7 @@ int main() {
   using ghogx::character::source_char_eyes_list_poll_children;
   using ghogx::character::source_char_eyes_load_plan;
   using ghogx::character::source_char_eyes_poll_deps;
+  using ghogx::character::source_char_eyes_prop_sync_plan;
   using ghogx::character::source_char_eyes_set_focus_interest;
   using ghogx::character::source_char_eyes_toggle_force_focus;
   using ghogx::character::source_char_eyes_toggle_interest_overlay;
@@ -148,6 +151,66 @@ int main() {
                       "CharEyes copy eyes first");
   ok &= expect_string(copy_plan.copied_members.back(), "mLowerLidTrackRotate",
                       "CharEyes copy lower-lid rotate last");
+
+  const auto handler_plan = source_char_eyes_handler_plan();
+  ok &= expect_string(handler_plan.handlers[0], "add_interest",
+                      "CharEyes handler add_interest");
+  ok &= expect_string(handler_plan.action_handlers[0], "force_blink",
+                      "CharEyes handler force_blink");
+  ok &= expect_string(handler_plan.debug_handlers[0], "toggle_force_focus",
+                      "CharEyes debug handler force focus");
+  ok &= expect_string(handler_plan.debug_handlers[1],
+                      "toggle_interest_overlay",
+                      "CharEyes debug handler overlay");
+  ok &= expect_string(handler_plan.superclasses[0], "Hmx::Object",
+                      "CharEyes handler superclass");
+  ok &= expect_int(handler_plan.check, 0x660, "CharEyes handler check");
+
+  const auto prop_sync = source_char_eyes_prop_sync_plan();
+  ok &= expect_string(prop_sync.eye_desc_properties[0], "eye",
+                      "CharEyes EyeDesc prop eye");
+  ok &= expect_string(prop_sync.eye_desc_properties[4], "lower_lid_blink",
+                      "CharEyes EyeDesc prop lower blink");
+  ok &= expect_string(prop_sync.interest_state_properties[0], "interest",
+                      "CharEyes interest-state prop");
+  ok &= expect_string(prop_sync.properties[0], "eyes",
+                      "CharEyes prop eyes");
+  ok &= expect_string(prop_sync.properties[4], "camera_weight",
+                      "CharEyes prop camera weight");
+  ok &= expect_string(prop_sync.properties.back(), "llid_track_rotate",
+                      "CharEyes prop lower-lid rotate");
+  ok &= expect_string(prop_sync.bitfield_properties[0],
+                      "default_interest_categories",
+                      "CharEyes default interest bitfield prop");
+  ok &= expect_string(prop_sync.debug_properties[4], "disable_eye_clamping",
+                      "CharEyes debug disable eye clamping prop");
+  ok &= expect_string(prop_sync.debug_properties[5],
+                      "interest_filter_testing",
+                      "CharEyes debug interest filter prop");
+  ok &= expect_string(prop_sync.superclasses[0], "CharWeightable",
+                      "CharEyes prop superclass");
+
+  const auto category_get =
+      source_char_eyes_default_interest_categories_sync(0x24, 0x20, true,
+                                                       false);
+  ok &= expect_int(category_get.flags, 0x24,
+                   "CharEyes category get preserves flags");
+  ok &= expect_bool(category_get.get_value, true,
+                    "CharEyes category get returns masked bit");
+  const auto category_set =
+      source_char_eyes_default_interest_categories_sync(0x04, 0x20, false,
+                                                       true);
+  ok &= expect_int(category_set.flags, 0x24,
+                   "CharEyes category set enables bit");
+  ok &= expect_bool(category_set.get_value, true,
+                    "CharEyes category set reports enabled bit");
+  const auto category_clear =
+      source_char_eyes_default_interest_categories_sync(0x24, 0x20, false,
+                                                       false);
+  ok &= expect_int(category_clear.flags, 0x04,
+                   "CharEyes category set clears bit");
+  ok &= expect_bool(category_clear.get_value, false,
+                    "CharEyes category clear reports disabled bit");
 
   SourceCharEyesPollDeps deps;
   source_char_eyes_poll_deps(

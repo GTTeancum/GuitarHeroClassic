@@ -1138,6 +1138,28 @@ struct SourceCharEyesCopyPlan {
   std::vector<std::string> copied_members;
 };
 
+struct SourceCharEyesHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> action_handlers;
+  std::vector<std::string> debug_handlers;
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharEyesPropSyncPlan {
+  std::vector<std::string> eye_desc_properties;
+  std::vector<std::string> interest_state_properties;
+  std::vector<std::string> properties;
+  std::vector<std::string> bitfield_properties;
+  std::vector<std::string> debug_properties;
+  std::vector<std::string> superclasses;
+};
+
+struct SourceCharEyesBitfieldPropResult {
+  int flags = 0;
+  bool get_value = false;
+};
+
 struct SourceCharEyesEnterState {
   std::array<float, 3> unka4 = {0.0f, 0.0f, 0.0f};
   int unkb4 = 0;
@@ -1627,6 +1649,13 @@ SourceCharEyesEyeDescLoadPlan source_char_eyes_eye_desc_load_plan(
     int32_t revision);
 SourceCharEyesLoadPlan source_char_eyes_load_plan(int32_t revision);
 SourceCharEyesCopyPlan source_char_eyes_copy_plan();
+SourceCharEyesHandlerPlan source_char_eyes_handler_plan();
+SourceCharEyesPropSyncPlan source_char_eyes_prop_sync_plan();
+SourceCharEyesBitfieldPropResult source_char_eyes_default_interest_categories_sync(
+    int current_flags,
+    int bit_mask,
+    bool get_operation,
+    bool requested_enabled);
 SourceCharEyesDefaultState source_char_eyes_default_state();
 SourceCharEyesDefaultState source_char_eyes_copy_state(
     const SourceCharEyesDefaultState& source);

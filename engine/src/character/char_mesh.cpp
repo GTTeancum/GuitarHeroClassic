@@ -3445,6 +3445,66 @@ SourceCharEyesCopyPlan source_char_eyes_copy_plan() {
   return plan;
 }
 
+SourceCharEyesHandlerPlan source_char_eyes_handler_plan() {
+  SourceCharEyesHandlerPlan plan;
+  plan.handlers = {"add_interest"};
+  plan.action_handlers = {"force_blink"};
+  plan.debug_handlers = {"toggle_force_focus", "toggle_interest_overlay"};
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0x660;
+  return plan;
+}
+
+SourceCharEyesPropSyncPlan source_char_eyes_prop_sync_plan() {
+  SourceCharEyesPropSyncPlan plan;
+  plan.eye_desc_properties = {"eye", "upper_lid", "lower_lid",
+                              "upper_lid_blink", "lower_lid_blink"};
+  plan.interest_state_properties = {"interest"};
+  plan.properties = {"eyes",
+                     "view_direction",
+                     "interests",
+                     "face_servo",
+                     "camera_weight",
+                     "head_lookat",
+                     "max_extrapolation",
+                     "min_target_dist",
+                     "ulid_track_up",
+                     "ulid_track_down",
+                     "llid_track_up",
+                     "llid_track_down",
+                     "llid_track_rotate"};
+  plan.bitfield_properties = {"default_interest_categories"};
+  plan.debug_properties = {"disable_eye_dart",
+                           "disable_eye_jitter",
+                           "disable_interest_objects",
+                           "disable_procedural_blink",
+                           "disable_eye_clamping",
+                           "interest_filter_testing"};
+  plan.superclasses = {"CharWeightable"};
+  return plan;
+}
+
+SourceCharEyesBitfieldPropResult
+source_char_eyes_default_interest_categories_sync(
+    int current_flags,
+    int bit_mask,
+    bool get_operation,
+    bool requested_enabled) {
+  SourceCharEyesBitfieldPropResult result;
+  result.flags = current_flags;
+  if (get_operation) {
+    result.get_value = (current_flags & bit_mask) != 0;
+    return result;
+  }
+  if (requested_enabled) {
+    result.flags = current_flags | bit_mask;
+  } else {
+    result.flags = current_flags & ~bit_mask;
+  }
+  result.get_value = (result.flags & bit_mask) != 0;
+  return result;
+}
+
 SourceCharEyesDefaultState source_char_eyes_default_state() {
   SourceCharEyesDefaultState state;
   state.unkb8 = std::cos(0.52359879f);

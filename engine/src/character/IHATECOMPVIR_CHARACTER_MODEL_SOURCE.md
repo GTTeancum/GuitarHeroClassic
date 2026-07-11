@@ -45,7 +45,7 @@ records the upstream commits for the copied files:
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
-| Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp`, `CharInterest.cpp` / `CharInterest.h`, `CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; native helpers port `CharEyes` poll-child/dependency publication plus `CharInterest` / `CharEyeDartRuleset` data decisions only; no synthetic eye runtime bridge. |
+| Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp`, `CharInterest.cpp` / `CharInterest.h`, `CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; native helpers port `CharLookAt` poll gating, `CharEyes` load/copy/state/dependency/handler/property rows, plus `CharInterest` / `CharEyeDartRuleset` data decisions; no synthetic eye runtime bridge. |
 | Character mesh cache | `rb3-latest` `CharMeshCacheMgr.cpp` / `CharMeshCacheMgr.h` | Native helper ports constructor defaults, disabled-state capture, membership checks, bounded `GetVerts`, visible `SyncMesh` index behavior, and mesh-list stuffing. It is bookkeeping-only and does not alter live renderer/cache ownership. |
 | FaceFX/lip-sync boundary | `rb3-latest` `CharFaceServo.*`, `CharLipSync.*`, `CharLipSyncDriver.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` and `CharLipSync` are source context, not matching `FaceFxLipSyncServo` load bodies; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
@@ -830,6 +830,15 @@ note, and all report `unreadBytes=0`.
     old interest rows, and revision 15/16 lower-lid padding branches; `Copy`
     copies `Hmx::Object`, `CharWeightable`, and the checked eye/filter/lid
     member list.
+  - Native `source_char_eyes_handler_plan`,
+    `source_char_eyes_prop_sync_plan`, and
+    `source_char_eyes_default_interest_categories_sync` record the checked
+    handler/property surface: `add_interest`, `force_blink`, the debug
+    `toggle_force_focus` / `toggle_interest_overlay` handlers, custom `EyeDesc`
+    and `CharInterestState` property rows, the direct `CharEyes` property rows,
+    the conditional debug properties, and the source bitfield rule for
+    `default_interest_categories`. The helper takes an already-resolved bit mask;
+    macro lookup remains source context, not a native parser invention.
   - `CharEyes::ListPollChildren` delegates poll children to the referenced
     `CharLookAt` controllers. It is not evidence for a native bridge that copies
     eye mesh world rows into ad-hoc controller overrides.
