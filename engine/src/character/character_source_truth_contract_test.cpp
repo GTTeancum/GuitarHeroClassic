@@ -6299,6 +6299,18 @@ int run_contract() {
                  "if(ty==kCopyShallow){SetWeightOwner(c->mWeightOwner.Ptr());}"
                  "else{SetWeightOwner(this);mWeight=c->mWeightOwner->mWeight;}",
                  "latest CharWeightable source Copy handles shallow and deep owner");
+  ok &= contains(rb3_latest_char_weightable_cpp,
+                 "BEGIN_HANDLERS(CharWeightable)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x43)END_HANDLERS",
+                 "latest CharWeightable source handler table");
+  ok &= contains(rb3_latest_char_weightable_cpp,
+                 "BEGIN_PROPSYNCS(CharWeightable)if(sym==weight){if(_op=="
+                 "kPropSet){SetWeight(_val.Float(0));}else{if((int)_op==0x40)"
+                 "returnfalse;_val=DataNode(mWeight);}returntrue;}if(sym=="
+                 "weight_owner){if(_op==kPropSet){SetWeightOwner(_val.Obj<"
+                 "CharWeightable>(0));}else{if((int)_op==0x40)returnfalse;"
+                 "_val=DataNode(mWeightOwner);}returntrue;}END_PROPSYNCS",
+                 "latest CharWeightable source prop-sync table");
   ok &= contains(doc,
                  "| Mirror servo controller | `rb3-latest` `CharMirror.cpp` / "
                  "`CharMirror.h` |",
@@ -6429,12 +6441,28 @@ int run_contract() {
                  "shallow_actions;std::vector<std::string>deep_actions;};",
                  "native exposes source CharWeightable copy plan");
   ok &= contains(char_clip_h,
+                 "structSourceCharWeightableHandlerPlan{std::vector<std::string>"
+                 "superclasses;intcheck=0;};",
+                 "native exposes source CharWeightable handler plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharWeightablePropSyncPlan{std::vector<std::string>"
+                 "properties;std::vector<std::string>set_actions;"
+                 "std::vector<std::string>get_actions;std::vector<std::string>"
+                 "blocked_ops;};",
+                 "native exposes source CharWeightable prop-sync plan");
+  ok &= contains(char_clip_h,
                  "SourceCharWeightableLoadPlansource_char_weightable_load_plan("
                  "int32_trevision);",
                  "native exposes source CharWeightable load helper");
   ok &= contains(char_clip_h,
                  "SourceCharWeightableCopyPlansource_char_weightable_copy_plan();",
                  "native exposes source CharWeightable copy plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightableHandlerPlansource_char_weightable_handler_plan();",
+                 "native exposes source CharWeightable handler plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightablePropSyncPlansource_char_weightable_prop_sync_plan();",
+                 "native exposes source CharWeightable prop-sync plan helper");
   ok &= contains(char_clip_h,
                  "SourceCharWeightableStatesource_char_weightable_default_state("
                  "conststd::string&name);",
@@ -6572,6 +6600,28 @@ int run_contract() {
                  "SourceCharWeightableCopyPlanplan;plan.shallow_actions={"
                  "\"SetWeightOwner(source.mWeightOwner)\"};",
                  "native CharWeightable copy plan records shallow branch");
+  ok &= contains(char_clip,
+                 "SourceCharWeightableHandlerPlansource_char_weightable_handler_plan(){"
+                 "SourceCharWeightableHandlerPlanplan;plan.superclasses={"
+                 "\"Hmx::Object\"};plan.check=0x43;returnplan;}",
+                 "native CharWeightable handler plan records source table");
+  ok &= contains(char_clip,
+                 "SourceCharWeightablePropSyncPlansource_char_weightable_"
+                 "prop_sync_plan(){SourceCharWeightablePropSyncPlanplan;"
+                 "plan.properties={\"weight\",\"weight_owner\"};",
+                 "native CharWeightable prop-sync plan records properties");
+  ok &= contains(char_clip,
+                 "plan.set_actions={\"weight:SetWeight(_val.Float(0))\","
+                 "\"weight_owner:SetWeightOwner(_val.Obj<CharWeightable>(0))\"};",
+                 "native CharWeightable prop-sync plan records set branches");
+  ok &= contains(char_clip,
+                 "plan.get_actions={\"weight:DataNode(mWeight)\","
+                 "\"weight_owner:DataNode(mWeightOwner)\"};",
+                 "native CharWeightable prop-sync plan records get branches");
+  ok &= contains(char_clip,
+                 "plan.blocked_ops={\"weight:op0x40returnsfalse\","
+                 "\"weight_owner:op0x40returnsfalse\"};returnplan;}",
+                 "native CharWeightable prop-sync plan records blocked ops");
   ok &= contains(char_clip_h,
                  "structSourceCharMirrorState{SourceCharWeightableStateweightable;"
                  "std::stringservo;std::stringmirror_servo;size_tbones_total_size=0;"
@@ -6764,6 +6814,12 @@ int run_contract() {
                  "source_char_weightable_copy_plan()",
                  "focused CharWeightSetter test covers CharWeightable copy plan");
   ok &= contains(weight_setter_source_test,
+                 "source_char_weightable_handler_plan()",
+                 "focused CharWeightSetter test covers CharWeightable handler plan");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weightable_prop_sync_plan()",
+                 "focused CharWeightSetter test covers CharWeightable prop-sync plan");
+  ok &= contains(weight_setter_source_test,
                  "source_char_weight_setter_default_state(\"setter.weight\")",
                  "focused CharWeightSetter test covers constructor helper");
   ok &= contains(weight_setter_source_test,
@@ -6846,6 +6902,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_weightable_load_plan` and",
                  "document records native CharWeightable load/copy plans");
+  ok &= contains(doc,
+                 "Native `source_char_weightable_handler_plan` and",
+                 "document records native CharWeightable handler/prop-sync plans");
+  ok &= contains(doc,
+                 "check value `0x43`, `weight`/`weight_owner` property rows",
+                 "document records native CharWeightable prop-sync rows");
   ok &= contains(doc,
                  "`SetWeight` writes both\n    `mBaseWeight` and inherited `mWeight`",
                  "document records CharWeightSetter SetWeight behavior");

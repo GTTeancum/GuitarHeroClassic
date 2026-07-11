@@ -1361,6 +1361,11 @@ note, and all report `unreadBytes=0`.
     and copy branches: revisions 0-2 read `mWeight`, revisions above 1 also
     read `mWeightOwner`; shallow copy preserves the source owner, while
     non-shallow copy owns itself and copies the source owner's current weight.
+  - Native `source_char_weightable_handler_plan` and
+    `source_char_weightable_prop_sync_plan` record the visible source handler
+    chain, check value `0x43`, `weight`/`weight_owner` property rows,
+    `SetWeight`/`SetWeightOwner` set branches, get branches, and the source
+    `0x40` blocked-op behavior.
 - `rb3-latest/src/system/char/CharMirror.cpp` and
   `rb3-latest/src/system/char/CharMirror.h`
   - `CharMirror` inherits `CharWeightable` and `CharPollable`; its constructor

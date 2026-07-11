@@ -5214,6 +5214,25 @@ SourceCharWeightableCopyPlan source_char_weightable_copy_plan() {
   return plan;
 }
 
+SourceCharWeightableHandlerPlan source_char_weightable_handler_plan() {
+  SourceCharWeightableHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0x43;
+  return plan;
+}
+
+SourceCharWeightablePropSyncPlan source_char_weightable_prop_sync_plan() {
+  SourceCharWeightablePropSyncPlan plan;
+  plan.properties = {"weight", "weight_owner"};
+  plan.set_actions = {"weight:SetWeight(_val.Float(0))",
+                      "weight_owner:SetWeightOwner(_val.Obj<CharWeightable>(0))"};
+  plan.get_actions = {"weight:DataNode(mWeight)",
+                      "weight_owner:DataNode(mWeightOwner)"};
+  plan.blocked_ops = {"weight:op0x40 returns false",
+                      "weight_owner:op0x40 returns false"};
+  return plan;
+}
+
 SourceCharWeightableState source_char_weightable_default_state(
     const std::string& name) {
   SourceCharWeightableState state;

@@ -1671,9 +1671,23 @@ struct SourceCharWeightableCopyPlan {
   std::vector<std::string> deep_actions;
 };
 
+struct SourceCharWeightableHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharWeightablePropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> set_actions;
+  std::vector<std::string> get_actions;
+  std::vector<std::string> blocked_ops;
+};
+
 SourceCharWeightableLoadPlan source_char_weightable_load_plan(
     int32_t revision);
 SourceCharWeightableCopyPlan source_char_weightable_copy_plan();
+SourceCharWeightableHandlerPlan source_char_weightable_handler_plan();
+SourceCharWeightablePropSyncPlan source_char_weightable_prop_sync_plan();
 SourceCharWeightableState source_char_weightable_default_state(
     const std::string& name);
 void source_char_weightable_set_weight(SourceCharWeightableState& state,

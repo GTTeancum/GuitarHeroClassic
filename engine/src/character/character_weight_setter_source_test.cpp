@@ -65,7 +65,9 @@ int main() {
   using ghogx::character::source_char_weight_setter_load_plan;
   using ghogx::character::source_char_weight_setter_prop_sync_plan;
   using ghogx::character::source_char_weightable_copy_plan;
+  using ghogx::character::source_char_weightable_handler_plan;
   using ghogx::character::source_char_weightable_load_plan;
+  using ghogx::character::source_char_weightable_prop_sync_plan;
   using ghogx::character::source_char_weight_setter_set_weight;
   using ghogx::character::source_char_weightable_weight;
 
@@ -92,6 +94,32 @@ int main() {
   ok &= expect_string(weightable_copy.deep_actions[1],
                       "mWeight=source.mWeightOwner->mWeight",
                       "weightable deep copy weight action");
+  const auto weightable_handler = source_char_weightable_handler_plan();
+  ok &= expect_size(weightable_handler.superclasses.size(), 1,
+                    "weightable handler superclass count");
+  ok &= expect_string(weightable_handler.superclasses[0], "Hmx::Object",
+                      "weightable handler superclass");
+  ok &= expect_bool(weightable_handler.check == 0x43, true,
+                    "weightable handler check");
+  const auto weightable_props = source_char_weightable_prop_sync_plan();
+  ok &= expect_size(weightable_props.properties.size(), 2,
+                    "weightable prop count");
+  ok &= expect_string(weightable_props.properties[0], "weight",
+                      "weightable prop weight");
+  ok &= expect_string(weightable_props.properties[1], "weight_owner",
+                      "weightable prop owner");
+  ok &= expect_string(weightable_props.set_actions[0],
+                      "weight:SetWeight(_val.Float(0))",
+                      "weightable prop SetWeight action");
+  ok &= expect_string(weightable_props.set_actions[1],
+                      "weight_owner:SetWeightOwner(_val.Obj<CharWeightable>(0))",
+                      "weightable prop SetWeightOwner action");
+  ok &= expect_string(weightable_props.get_actions[0],
+                      "weight:DataNode(mWeight)",
+                      "weightable prop weight get");
+  ok &= expect_string(weightable_props.blocked_ops[1],
+                      "weight_owner:op0x40 returns false",
+                      "weightable prop owner blocked op");
 
   SourceCharWeightableState weightable =
       source_char_weightable_default_state("self.weight");
