@@ -68,6 +68,9 @@ int main() {
   const std::string char_clip = read_file(source_dir / "char_clip.cpp");
   const std::string char_facefx = read_file(source_dir / "char_facefx.cpp");
   const std::string char_renderer = read_file(source_dir / "char_renderer.cpp");
+  const std::string format_notes =
+      read_file(source_dir / "CHARACTER_FORMAT_NOTES.md");
+  const std::string format_notes_compact = compact(format_notes);
 
   const std::string decode_eyes =
       compact(function_body(char_mesh, "decode_eyes"));
@@ -126,6 +129,34 @@ int main() {
   ok &= contains(compact(function_body(char_clip, "transform_local_chain_world")),
                  "out=character.mesh_world(m);returntrue;",
                  "local-chain lookup no longer special-cases eye meshes to attachment rows");
+  ok &= contains(format_notes,
+                 "2026-06-28 removed native CharEyes runtime-row bridge",
+                 "format notes mark old CharEyes runtime-row bridge removed");
+  ok &= contains(format_notes_compact,
+                 "doesnotpublishsyntheticeyeruntimerows",
+                 "format notes keep current CharEyes path decode/log only");
+  ok &= contains(format_notes,
+                 "2026-06-15 historical FaceFX eye-register graph trial",
+                 "format notes mark old FaceFX eye register bridge historical");
+  ok &= contains(format_notes_compact,
+                 "doesnotuse`CharLookAt`eyepropertiesasasource-backed"
+                 "face-controllerruntimebridge",
+                 "format notes keep FaceFX eye-property bridge removed");
+  ok &= missing(format_notes,
+                "gameplay now consumes `FaceFxEyeProperties`",
+                "format notes must not claim FaceFxEyeProperties bridge is current");
+  ok &= missing(format_notes,
+                "`apply_character_controllers()` now submits",
+                "format notes must not claim CharEyes runtime row submission is current");
+  ok &= missing(format_notes,
+                "publishes the decoded servo register targets",
+                "format notes must not claim FaceFX eye-register bridge is current");
+  ok &= missing(format_notes,
+                "This closes the missing servo-to-FaceFX graph consumption path",
+                "format notes must not close missing FaceFX eye bridge from removed trial");
+  ok &= missing(format_notes,
+                "`transform_world()` / `transform_local_chain_world()` now classify",
+                "format notes must not claim removed eye attachment resolver is current");
 
   if (!ok) {
     std::cerr

@@ -1859,68 +1859,56 @@ Glam1 eyes / look-at:
   The accepted row evidence still says the eye meshes match the PS2
   head-relative rows; the visible issue remains eyelid/lash/coverage state
   unless a new trace proves the eyeball rows themselves are wrong.
-- 2026-06-16 native/trace bridge update:
-  gameplay now consumes `FaceFxEyeProperties` from
-  `apply_character_controllers(character, ...)` and feeds them into FaceFX
-  servo registers. The export no longer keys left/right eye registers to exact
-  `eye-L.mesh` / `eye-R.mesh` names; it derives the side from the decoded
-  `CharLookAt` record names and their target/driven mesh names so alternate
-  PS2 spellings such as `l-eye.mesh`, `L-eye.mesh`, and `goth*_EyeL.mesh`
-  remain connected through the same shared path. The accepted PS2 row evidence
-  is not a loose eye offset: `pcsx2_hair_eye_active_rows_20260611.json` shows
+- 2026-06-16 historical native/trace eye-register trial:
+  a removed path consumed `FaceFxEyeProperties` from
+  `apply_character_controllers(character, ...)` and fed them into FaceFX servo
+  registers. Current source-backed native code clears those properties and does
+  not publish synthetic eye runtime rows. Keep the captured evidence as trace
+  context only: `pcsx2_hair_eye_active_rows_20260611.json` shows
   `CharEyes.eyes`, its pivot/child row, both per-side look-at rows, and both
   source eye rows moving together. A stock-state rerun from state 1 did not
   exercise the look-at update in the captured window (`0x0017d690` zero-hit
   while the Trans writer heartbeat fired), and patching the older
   `0x0017d658` address killed the heartbeat, so do not use that rerun as
-  negative eye evidence. Continue implementing the `CharEyes` bridge only from
-  accepted rows that show the full resident/pivot/source-eye chain.
-  Validation:
+  negative eye evidence. A future `CharEyes` port must come from accepted rows
+  that show the full resident/pivot/source-eye chain and from ihatecompvir
+  `CharEyes`/`CharLookAt` source, not from the removed register bridge.
+  Historical validation:
   `engine/out/codex_goal_20260616_eye_side_resolver/goth2_eye_side_v2.stderr.log`
-  shows `goth2_EyeL.mesh` and `goth2_EyeR.mesh` resolving to left/right
-  FaceFX eye registers without any character-specific branch.
-- 2026-06-28 native CharEyes runtime-row bridge:
-  `apply_character_controllers()` now submits a per-frame runtime world row for
-  each decoded `CharEyes.eyes` child look-at controller before the look-at pass.
-  The submitted `l-eye.lookat` / `r-eye.lookat` rows are sourced from the
-  decoded driven/target eye mesh attachment rows and exposed through the shared
-  `runtime_world_overrides` resolver. This matches the accepted PS2 evidence
-  that self-sourced `CharLookAt` updates resolve through source eye rows owned
-  by the resident `CharEyes`/pivot graph; it does not move authored eye meshes
-  or add per-character offsets. The bridge also submits a resident
-  `CharEyes.eyes` pivot row using the shared eye parent basis plus the averaged
-  source-eye position so future controller consumers can resolve the resident
-  row by name. Validation: guarded real Ninja build of `ghogx_character` passed
-  after compiling `char_clip.cpp`, and `ctest -R
-  ghogx_character_eye_bridge_contract_test --output-on-failure` passed.
-- 2026-06-28 alternate eye-name attachment resolver:
-  `transform_world()` / `transform_local_chain_world()` now classify alternate
-  PS2 eye mesh spellings (`L-eye.mesh`, `R-eye.mesh`, `goth*_EyeL.mesh`,
-  `goth*_EyeR.mesh`, etc.) with the same attachment-basis path as
-  `eye-L.mesh` / `eye-R.mesh`. This keeps the 2026-06-16 side-resolver
-  coverage aligned with the transform path used by `CharLookAt` and
-  `CharEyes`, instead of silently falling back to generic mesh-world
-  composition for non-classic names. Validation: guarded real Ninja build of
-  `ghogx_character` plus `ghogx_character_eye_bridge_contract_test`, followed
-  by `ctest -R ghogx_character_eye_bridge_contract_test --output-on-failure`,
-  passed.
-- 2026-06-15 native FaceFX graph/register bridge:
-  native now loads the referenced `guitarist.fac` graph through each
-  `FaceFxLipSyncServo`, parses `FxCombinerNode` / `FxBonePoseNode` graph input
-  links, publishes the decoded servo register targets (`L-eyeZ`, `R-eyeZ`,
-  `L-eyeX`, `R-eyeX`) from the live `CharLookAt` eye properties, and applies
-  the authored `EyesClosed` pose as a delta from authored `Neutral` according
-  to the evaluated graph weight. The implementation follows the local object
-  schema where `FaceFxLipSyncServo` maps FaceFX registers to `Trans` objects
-  and ops; it does not manually offset eyes or lids.
+  showed alternate eye spellings resolving without a character-specific branch
+  in that trial.
+- 2026-06-28 removed native CharEyes runtime-row bridge:
+  an old `apply_character_controllers()` experiment submitted per-frame runtime
+  world rows for decoded `CharEyes.eyes` child look-at controllers and a
+  resident pivot row through `runtime_world_overrides`. This is no longer
+  current behavior. ihatecompvir source proves GH2-era `CharEyes` rows are a
+  look-at reference list plus trailing old transformable, and `CharEyes`
+  delegates poll children to `CharLookAt`; it does not prove a native bridge
+  that copies eye mesh world rows into ad-hoc controller overrides. Keep this
+  as removed trial evidence until a direct source-backed `CharEyes`/`CharLookAt`
+  poll port exists.
+- 2026-06-28 removed alternate eye-name attachment resolver:
+  a prior `transform_world()` / `transform_local_chain_world()` path classified
+  alternate PS2 eye mesh spellings (`L-eye.mesh`, `R-eye.mesh`,
+  `goth*_EyeL.mesh`, `goth*_EyeR.mesh`, etc.) into the same attachment-basis
+  path as `eye-L.mesh` / `eye-R.mesh`. Current source-backed code keeps
+  alternate names available for diagnostics but does not special-case local
+  chain lookup to eye attachment rows.
+- 2026-06-15 historical FaceFX eye-register graph trial:
+  a removed bridge loaded the referenced `guitarist.fac` graph through each
+  `FaceFxLipSyncServo`, parsed `FxCombinerNode` / `FxBonePoseNode` graph input
+  links, published decoded servo register targets (`L-eyeZ`, `R-eyeZ`,
+  `L-eyeX`, `R-eyeX`) from live `CharLookAt` eye properties, and applied the
+  authored `EyesClosed` pose as a delta from authored `Neutral`. Current native
+  keeps FaceFX FAC/pose/animation decoding as bounded GH2 compatibility, but
+  it does not use `CharLookAt` eye properties as a source-backed face-controller
+  runtime bridge.
   `engine/out/codex_resume_20260615/facefx_eye_graph_glam1_f900_zsign/raw.log`
-  proves `char/guitarist.fac` loaded with 25 nodes / 11 poses and the in-song
+  showed `char/guitarist.fac` loaded with 25 nodes / 11 poses and the in-song
   Glam1 path evaluated `EyeZCombiner=0.1000` with `EyesClosed=applied` from
-  four decoded servo registers. The matching screenshot
+  four decoded servo registers in that trial. The matching screenshot
   `glam1_facefx_eye_graph_zsign_f900.bmp` stays stable in the full venue
-  frame. This closes the missing servo-to-FaceFX graph consumption path for
-  normal guitarist eyes, but it is not final close-shot parity for all eyelid,
-  lash, and hair occlusion states.
+  frame, but this is not current source authority for eye/lid runtime rows.
 - 2026-06-15 `FaceFxLipSyncServo` string terminator refinement:
   extracted PS2 `FaceFxLipSyncServo__lip.servo` bodies show the header as
   `version=5`, `unk=0`, tag string, one NUL terminator byte, then the
