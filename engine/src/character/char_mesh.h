@@ -492,6 +492,19 @@ struct SourceCharEyeDartRulesetData {
   float reference_distance = 70.0f;
 };
 
+struct SourceCharInterestState {
+  float max_view_angle = 20.0f;
+  float priority = 1.0f;
+  float min_look_time = 1.0f;
+  float max_look_time = 3.0f;
+  float refractory_period = 6.1f;
+  std::string dart_override;
+  int category_flags = 0;
+  bool override_min_target_distance = false;
+  float min_target_distance_override = 35.0f;
+  float max_view_angle_cos = 0.0f;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -612,6 +625,13 @@ SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_defaults();
 bool source_char_eye_dart_ruleset_load_revision_known(int revision);
 SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_copy(
     const SourceCharEyeDartRulesetData& src);
+SourceCharInterestState source_char_interest_defaults();
+bool source_char_interest_load_revision_known(int revision);
+float source_char_interest_sync_max_view_angle(float max_view_angle_degrees);
+bool source_char_interest_is_matching_filter_flags(int category_flags,
+                                                   int mask);
+SourceCharInterestState source_char_interest_copy(
+    const SourceCharInterestState& src);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

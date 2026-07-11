@@ -1990,6 +1990,43 @@ SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_copy(
   return dst;
 }
 
+float source_char_interest_sync_max_view_angle(float max_view_angle_degrees) {
+  return std::cos(max_view_angle_degrees * 0.017453292f);
+}
+
+SourceCharInterestState source_char_interest_defaults() {
+  SourceCharInterestState state;
+  state.max_view_angle_cos =
+      source_char_interest_sync_max_view_angle(state.max_view_angle);
+  return state;
+}
+
+bool source_char_interest_load_revision_known(int revision) {
+  return revision >= 0 && revision <= 6;
+}
+
+bool source_char_interest_is_matching_filter_flags(int category_flags,
+                                                   int mask) {
+  return (category_flags & mask) != 0 && category_flags != 0;
+}
+
+SourceCharInterestState source_char_interest_copy(
+    const SourceCharInterestState& src) {
+  SourceCharInterestState dst;
+  dst.max_view_angle = src.max_view_angle;
+  dst.priority = src.priority;
+  dst.min_look_time = src.min_look_time;
+  dst.max_look_time = src.max_look_time;
+  dst.refractory_period = src.refractory_period;
+  dst.dart_override = src.dart_override;
+  dst.category_flags = src.category_flags;
+  dst.override_min_target_distance = src.override_min_target_distance;
+  dst.min_target_distance_override = src.min_target_distance_override;
+  dst.max_view_angle_cos =
+      source_char_interest_sync_max_view_angle(dst.max_view_angle);
+  return dst;
+}
+
 SourceCharSleevePollResult source_char_sleeve_poll(
     SourceCharSleeveState& state,
     bool has_sleeve,

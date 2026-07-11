@@ -122,6 +122,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_eyes_source_test.cpp"));
   const std::string eye_dart_ruleset_source_test = compact(
       read_file(char_dir / "character_eye_dart_ruleset_source_test.cpp"));
+  const std::string interest_source_test =
+      compact(read_file(char_dir / "character_interest_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -308,6 +310,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharEyeDartRuleset.cpp"));
   const std::string rb3_latest_char_eye_dart_ruleset_h = compact(read_file(
       rb3_latest_char_dir / "CharEyeDartRuleset.h"));
+  const std::string rb3_latest_char_interest_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharInterest.cpp"));
+  const std::string rb3_latest_char_interest_h = compact(read_file(
+      rb3_latest_char_dir / "CharInterest.h"));
   const std::string rb3_latest_char_bone_offset_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBoneOffset.cpp"));
   const std::string rb3_latest_char_bone_offset_h = compact(read_file(
@@ -633,14 +639,18 @@ int run_contract() {
                  "document cites CharEyes runtime source");
   ok &= contains(doc,
                  "native helpers port `CharEyes` poll-child/dependency "
-                 "publication and `CharEyeDartRuleset` defaults/copy data only",
+                 "publication plus `CharInterest` / `CharEyeDartRuleset` "
+                 "data decisions only",
                  "coverage matrix records native CharEyes helper boundary");
+  ok &= contains(doc, "CharInterest.cpp` / `CharInterest.h",
+                 "coverage matrix cites CharInterest source");
   ok &= contains(doc, "CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h",
                  "coverage matrix cites CharEyeDartRuleset source");
   ok &= contains(doc,
                  "native helpers port `CharEyes` poll-child/dependency "
-                 "publication and `CharEyeDartRuleset` defaults/copy data only",
-                 "coverage matrix records CharEyeDartRuleset data-only boundary");
+                 "publication plus `CharInterest` / `CharEyeDartRuleset` "
+                 "data decisions only",
+                 "coverage matrix records eye data-only boundary");
   ok &= contains(doc, "rb3/src/system/char/CharIKHand.cpp",
                  "document cites CharIKHand runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharUpperTwist.cpp",
@@ -3940,6 +3950,32 @@ int run_contract() {
                  "COPY_MEMBER(mData.mMinRadius)//COPY_MEMBER(mData.mMaxRadius)"
                  "mData.mMaxRadius=c->mData.mMinRadius;",
                  "latest CharEyeDartRuleset source copy has max-radius quirk");
+  ok &= contains(rb3_latest_char_interest_h,
+                 "floatmMaxViewAngle;",
+                 "latest CharInterest header exposes timing fields");
+  ok &= contains(rb3_latest_char_interest_h,
+                 "floatmRefractoryPeriod;",
+                 "latest CharInterest header exposes refractory field");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "CharInterest::CharInterest():mMaxViewAngle(20.0f),"
+                 "mPriority(1.0f),mMinLookTime(1.0f),mMaxLookTime(3.0f),"
+                 "mRefractoryPeriod(6.1f)",
+                 "latest CharInterest source exposes defaults");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "voidCharInterest::SyncMaxViewAngle(){mMaxViewAngleCos="
+                 "cos_f(mMaxViewAngle*0.017453292f);}",
+                 "latest CharInterest source syncs max view angle cosine");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(6,0)LOAD_SUPERCLASS(Hmx::Object)"
+                 "LOAD_SUPERCLASS(RndTransformable)",
+                 "latest CharInterest source load accepts revision 6");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "boolCharInterest::IsMatchingFilterFlags(intmask){return"
+                 "mCategoryFlags&mask&&mCategoryFlags!=0;}",
+                 "latest CharInterest source exposes category filter logic");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "floatCharInterest::ComputeScore(",
+                 "latest CharInterest source exposes ComputeScore boundary");
   ok &= contains(char_mesh_h,
                  "structSourceCharEyeDartRulesetData{floatmin_radius=0.5f;",
                  "native exposes CharEyeDartRuleset source data");
@@ -3962,9 +3998,46 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "dst.min_radius=src.min_radius;dst.max_radius=src.min_radius;",
                  "native preserves CharEyeDartRuleset copy max-radius quirk");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharInterestState{floatmax_view_angle=20.0f;",
+                 "native exposes CharInterest source state");
+  ok &= contains(char_mesh_h,
+                 "SourceCharInterestStatesource_char_interest_defaults();",
+                 "native exposes CharInterest defaults helper");
+  ok &= contains(char_mesh_h,
+                 "boolsource_char_interest_load_revision_known(intrevision);",
+                 "native exposes CharInterest revision helper");
+  ok &= contains(char_mesh_h,
+                 "floatsource_char_interest_sync_max_view_angle("
+                 "floatmax_view_angle_degrees);",
+                 "native exposes CharInterest SyncMaxViewAngle helper");
+  ok &= contains(char_mesh_h,
+                 "boolsource_char_interest_is_matching_filter_flags("
+                 "intcategory_flags,intmask);",
+                 "native exposes CharInterest filter helper");
+  ok &= contains(char_mesh,
+                 "returnstd::cos(max_view_angle_degrees*0.017453292f);",
+                 "native ports CharInterest max view angle cosine");
+  ok &= contains(char_mesh,
+                 "SourceCharInterestStatesource_char_interest_defaults(){"
+                 "SourceCharInterestStatestate;",
+                 "native implements CharInterest defaults helper");
+  ok &= contains(char_mesh,
+                 "returnrevision>=0&&revision<=6;",
+                 "native implements CharInterest source revision range");
+  ok &= contains(char_mesh,
+                 "return(category_flags&mask)!=0&&category_flags!=0;",
+                 "native ports CharInterest category filter logic");
+  ok &= contains(char_mesh,
+                 "dst.max_view_angle_cos=source_char_interest_sync_max_view_angle"
+                 "(dst.max_view_angle);",
+                 "native CharInterest copy resyncs max view angle");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_eye_dart_ruleset_source_test",
                  "CMake builds CharEyeDartRuleset source test");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_interest_source_test",
+                 "CMake builds CharInterest source test");
   ok &= contains(eye_dart_ruleset_source_test,
                  "source_char_eye_dart_ruleset_defaults()",
                  "focused CharEyeDartRuleset source test covers defaults");
@@ -3974,6 +4047,18 @@ int run_contract() {
   ok &= contains(eye_dart_ruleset_source_test,
                  "\"copymaxradiusfollowssourcemin-radiusassignment\"",
                  "focused CharEyeDartRuleset source test covers copy quirk");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_defaults()",
+                 "focused CharInterest source test covers defaults");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_load_revision_known(7)",
+                 "focused CharInterest source test covers revision reject");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_is_matching_filter_flags(0x6,0x2)",
+                 "focused CharInterest source test covers category matching");
+  ok &= contains(interest_source_test,
+                 "\"copyresyncsmaxviewcosine\"",
+                 "focused CharInterest source test covers copy resync");
   ok &= contains(char_mesh_h,
                  "structSourceCharEyesInterest{std::stringinterest;boolsame_dir=false;};",
                  "native exposes CharEyes interest dependency input");
@@ -4037,6 +4122,13 @@ int run_contract() {
                  "Native `source_char_eye_dart_ruleset_*` helpers preserve this\n"
                  "    exact data behavior",
                  "document records native CharEyeDartRuleset helper boundary");
+  ok &= contains(doc,
+                 "Native `source_char_interest_*`\n    helpers port these data "
+                 "decisions",
+                 "document records native CharInterest helper boundary");
+  ok &= contains(doc,
+                 "`ComputeScore` includes runtime vectors and `RandomFloat`; it stays fenced",
+                 "document fences CharInterest runtime scoring");
   ok &= contains(rb3_char_ik_hand_cpp, "voidCharIKHand::Poll(){",
                  "RB3 CharIKHand source exposes Poll");
   ok &= contains(rb3_char_ik_hand_cpp,
