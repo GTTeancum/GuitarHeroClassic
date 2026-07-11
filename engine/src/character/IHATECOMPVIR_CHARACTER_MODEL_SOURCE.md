@@ -818,6 +818,22 @@ note, and all report `unreadBytes=0`.
     `CharBone` pose publishing; the existing output bridge remains bounded until
     the connected `CharClip` / `CharBonesSamples` evaluation path is fully
     source-backed.
+- `rb3-latest/src/system/char/CharUtl.cpp` and
+  `rb3-latest/src/system/char/CharUtl.h` are concrete for character bone lookup
+  utility behavior:
+  - `CharUtlFindBone` rewrites the requested object name's final suffix to
+    `.cb` and searches for a `CharBone` row with that name.
+  - `CharUtlFindBoneTrans` uses the same `.cb` lookup first and returns the
+    matching `CharBone::mTrans` when present. Only when that row is absent does
+    it search for `.trans`, then `.mesh`, as `RndTransformable` fallbacks.
+  - `CharUtlIsAnimatable` rejects skinned meshes, cameras, `CharCollide`,
+    `CharCuff`, `RndDir`, and names beginning with `spot_`; plain transforms
+    and unskinned meshes remain animatable.
+  - Native `source_char_utl_name_with_suffix`,
+    `source_char_utl_find_bone`, `source_char_utl_find_bone_trans`, and
+    `source_char_utl_is_animatable` port those deterministic utility rules for
+    decoded object inventories. This is a source lookup contract only; it does
+    not invent new pose writes or renderer-side character fixes.
 - `rb3-latest/src/system/char/CharBones.cpp` is concrete for channel identity
   and byte layout:
   - `CharBones::TypeOf` maps suffixes `.pos`, `.scale`, `.quat`, `.rotx`,

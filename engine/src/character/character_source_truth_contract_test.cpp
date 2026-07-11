@@ -79,6 +79,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_clip_driver_flags_test.cpp"));
   const std::string char_bones_source_test =
       compact(read_file(char_dir / "character_char_bones_source_test.cpp"));
+  const std::string char_utl_source_test =
+      compact(read_file(char_dir / "character_char_utl_source_test.cpp"));
   const std::string ik_rod_source_test =
       compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
   const std::string weight_setter_source_test =
@@ -241,6 +243,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharBone.h"));
   const std::string rb3_latest_char_bone_dir_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBoneDir.cpp"));
+  const std::string rb3_latest_char_utl_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharUtl.cpp"));
+  const std::string rb3_latest_char_utl_h = compact(read_file(
+      rb3_latest_char_dir / "CharUtl.h"));
   const std::string rb3_latest_char_clip_h = compact(read_file(
       rb3_latest_char_dir / "CharClip.h"));
   const std::string rb3_latest_char_clip_cpp = compact(read_file(
@@ -3369,6 +3375,10 @@ int run_contract() {
                  "character_char_bones_source_test.cpp)",
                  "CMake builds focused CharBones source helper test");
   ok &= contains(cmake,
+                 "add_executable(ghogx_character_char_utl_source_test"
+                 "character_char_utl_source_test.cpp)",
+                 "CMake builds focused CharUtl source helper test");
+  ok &= contains(cmake,
                  "add_executable(ghogx_character_ik_rod_source_test"
                  "character_ik_rod_source_test.cpp)",
                  "CMake builds focused CharIKRod source test");
@@ -3606,6 +3616,135 @@ int run_contract() {
                  "for(ObjDirItr<CharBone>it(this,true);it!=0;++it){"
                  "it->StuffBones(bones,mask);}}",
                  "latest CharBoneDir source defines delta rows and CharBone delegation");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "CharBone*CharUtlFindBone(constchar*cc,ObjectDir*dir){",
+                 "latest CharUtl source exposes FindBone");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "strcpy(dst,\".cb\");returndir->Find<CharBone>(buf,false);",
+                 "latest CharUtl source rewrites FindBone lookup to .cb");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "RndTransformable*CharUtlFindBoneTrans(constchar*cc,"
+                 "ObjectDir*dir){",
+                 "latest CharUtl source exposes FindBoneTrans");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "strcpy(dst,\".cb\");CharBone*bone=dir->Find<CharBone>"
+                 "(buf,false);if(bone)returnbone->mTrans;else{",
+                 "latest CharUtl source resolves CharBone trans before fallbacks");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "strcpy(dst,\".trans\");RndTransformable*trans="
+                 "dir->Find<RndTransformable>(buf,false);if(trans)returntrans;"
+                 "else{",
+                 "latest CharUtl source tries .trans fallback before .mesh");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "strcpy(dst,\".mesh\");RndTransformable*mesh="
+                 "dir->Find<RndTransformable>(buf,false);returnmesh;",
+                 "latest CharUtl source tries .mesh fallback last");
+  ok &= contains(rb3_latest_char_utl_h,
+                 "RndTransformable*CharUtlFindBoneTrans(constchar*,ObjectDir*);",
+                 "latest CharUtl header declares FindBoneTrans");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "boolCharUtlIsAnimatable(RndTransformable*trans){",
+                 "latest CharUtl source exposes IsAnimatable");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "if(mesh&&mesh->NumBones()!=0)returnfalse;",
+                 "latest CharUtl source rejects skinned meshes");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "if(dynamic_cast<RndCam*>(trans))returnfalse;",
+                 "latest CharUtl source rejects cameras");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "if(dynamic_cast<CharCollide*>(trans))returnfalse;",
+                 "latest CharUtl source rejects CharCollide transforms");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "if(dynamic_cast<CharCuff*>(trans))returnfalse;",
+                 "latest CharUtl source rejects CharCuff transforms");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "if(dynamic_cast<RndDir*>(trans))returnfalse;",
+                 "latest CharUtl source rejects RndDir transforms");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "returnstrncmp(trans->Name(),\"spot_\",5)!=0;",
+                 "latest CharUtl source rejects spot_ transforms");
+  ok &= contains(char_clip_h,
+                 "enumclassSourceCharUtlObjectKind{",
+                 "native header exposes CharUtl object kind model");
+  ok &= contains(char_clip_h,
+                 "std::stringsource_char_utl_name_with_suffix("
+                 "conststd::string&name,conststd::string&suffix);",
+                 "native header exposes CharUtl suffix helper");
+  ok &= contains(char_clip_h,
+                 "std::optional<SourceCharUtlObject>source_char_utl_find_bone(",
+                 "native header exposes CharUtl FindBone helper");
+  ok &= contains(char_clip_h,
+                 "std::optional<SourceCharUtlBoneTransResult>"
+                 "source_char_utl_find_bone_trans(",
+                 "native header exposes CharUtl FindBoneTrans helper");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_utl_is_animatable("
+                 "constSourceCharUtlObject&object);",
+                 "native header exposes CharUtl IsAnimatable helper");
+  ok &= contains(char_clip,
+                 "std::stringsource_char_utl_name_with_suffix("
+                 "conststd::string&name,conststd::string&suffix){"
+                 "constsize_tdot=name.rfind('.');",
+                 "native CharUtl suffix helper replaces final suffix");
+  ok &= contains(char_clip,
+                 "conststd::stringlookup=source_char_utl_name_with_suffix("
+                 "name,\"cb\");for(constSourceCharUtlObject&object:objects){"
+                 "if(object.name==lookup&&object.kind=="
+                 "SourceCharUtlObjectKind::kCharBone){returnobject;}}",
+                 "native CharUtl FindBone helper requires source .cb CharBone row");
+  ok &= contains(char_clip,
+                 "object.kind==SourceCharUtlObjectKind::kCharBone){if("
+                 "object.char_bone_transform.empty())returnstd::nullopt;"
+                 "returnSourceCharUtlBoneTransResult{cb_lookup,"
+                 "object.char_bone_transform,true};}",
+                 "native CharUtl FindBoneTrans returns CharBone transform first");
+  ok &= contains(char_clip,
+                 "source_char_utl_find_named_transformable(trans_lookup,objects)",
+                 "native CharUtl FindBoneTrans tests .trans fallback");
+  ok &= contains(char_clip,
+                 "source_char_utl_find_named_transformable(mesh_lookup,objects)",
+                 "native CharUtl FindBoneTrans tests .mesh fallback");
+  ok &= contains(char_clip,
+                 "object.kind==SourceCharUtlObjectKind::kMesh&&"
+                 "object.mesh_bone_count!=0",
+                 "native CharUtl IsAnimatable rejects skinned meshes");
+  ok &= contains(char_clip,
+                 "object.kind==SourceCharUtlObjectKind::kCamera||"
+                 "object.kind==SourceCharUtlObjectKind::kCharCollide||"
+                 "object.kind==SourceCharUtlObjectKind::kCharCuff||"
+                 "object.kind==SourceCharUtlObjectKind::kDirectory||"
+                 "object.kind==SourceCharUtlObjectKind::kCharBone",
+                 "native CharUtl IsAnimatable rejects source non-animatable kinds");
+  ok &= contains(char_clip,
+                 "returnobject.name.rfind(\"spot_\",0)!=0;",
+                 "native CharUtl IsAnimatable rejects spot_ names");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_name_with_suffix(\"face.bone.mesh\",\"cb\")",
+                 "focused CharUtl source test covers final suffix replacement");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_find_bone(\"bone_head.mesh\",objects)",
+                 "focused CharUtl source test covers .cb FindBone lookup");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_find_bone_trans(\"bone_head.mesh\",objects)",
+                 "focused CharUtl source test covers CharBone transform priority");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_find_bone_trans(\"bone_spine.mesh\",objects)",
+                 "focused CharUtl source test covers .trans fallback");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_find_bone_trans(\"bone_pelvis\",objects)",
+                 "focused CharUtl source test covers .mesh fallback");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_is_animatable(",
+                 "focused CharUtl source test covers IsAnimatable");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharUtl.cpp` and",
+                 "document cites latest CharUtl source");
+  ok &= contains(doc,
+                 "`CharUtlFindBoneTrans` uses the same `.cb` lookup first",
+                 "document records source CharUtl lookup order");
+  ok &= contains(doc,
+                 "Native `source_char_utl_name_with_suffix`,",
+                 "document records native CharUtl helper ports");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "voidCharBones::ScaleAdd(CharClip*clip,floatf1,floatf2,"
                  "floatf3){clip->ScaleAdd(*this,f1,f2,f3);}",

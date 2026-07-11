@@ -62,6 +62,29 @@ struct SourceCharBonesSampleStep {
   float weight = 0.0f;
 };
 
+enum class SourceCharUtlObjectKind {
+  kTransformable,
+  kMesh,
+  kCamera,
+  kDirectory,
+  kCharBone,
+  kCharCollide,
+  kCharCuff,
+};
+
+struct SourceCharUtlObject {
+  std::string name;
+  SourceCharUtlObjectKind kind = SourceCharUtlObjectKind::kTransformable;
+  int mesh_bone_count = 0;
+  std::string char_bone_transform;
+};
+
+struct SourceCharUtlBoneTransResult {
+  std::string lookup_name;
+  std::string resolved_name;
+  bool via_char_bone = false;
+};
+
 // One channel value for one frame.
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
@@ -326,6 +349,19 @@ std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
     float frac);
 bool source_char_bones_samples_set_ver_known(int version);
 bool source_char_bones_samples_load_version_known(int version);
+
+// Source-backed CharUtl name/object helpers. CharUtlFindBone rewrites the
+// incoming name to .cb. CharUtlFindBoneTrans checks .cb first and returns that
+// CharBone row's transform before falling back to .trans, then .mesh.
+std::string source_char_utl_name_with_suffix(const std::string& name,
+                                             const std::string& suffix);
+std::optional<SourceCharUtlObject> source_char_utl_find_bone(
+    const std::string& name,
+    const std::vector<SourceCharUtlObject>& objects);
+std::optional<SourceCharUtlBoneTransResult> source_char_utl_find_bone_trans(
+    const std::string& name,
+    const std::vector<SourceCharUtlObject>& objects);
+bool source_char_utl_is_animatable(const SourceCharUtlObject& object);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

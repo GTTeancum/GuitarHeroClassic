@@ -305,6 +305,92 @@ bool source_char_bones_samples_load_version_known(int version) {
   return version > 12 && version <= 16;
 }
 
+std::string source_char_utl_name_with_suffix(const std::string& name,
+                                             const std::string& suffix) {
+  const size_t dot = name.rfind('.');
+  const size_t end = dot == std::string::npos ? name.size() : dot;
+  std::string out = name.substr(0, end);
+  out.push_back('.');
+  out += suffix;
+  return out;
+}
+
+namespace {
+
+bool source_char_utl_is_transformable_kind(SourceCharUtlObjectKind kind) {
+  return kind != SourceCharUtlObjectKind::kCharBone;
+}
+
+std::optional<SourceCharUtlObject> source_char_utl_find_named_transformable(
+    const std::string& name,
+    const std::vector<SourceCharUtlObject>& objects) {
+  for (const SourceCharUtlObject& object : objects) {
+    if (object.name == name &&
+        source_char_utl_is_transformable_kind(object.kind)) {
+      return object;
+    }
+  }
+  return std::nullopt;
+}
+
+}  // namespace
+
+std::optional<SourceCharUtlObject> source_char_utl_find_bone(
+    const std::string& name,
+    const std::vector<SourceCharUtlObject>& objects) {
+  const std::string lookup = source_char_utl_name_with_suffix(name, "cb");
+  for (const SourceCharUtlObject& object : objects) {
+    if (object.name == lookup &&
+        object.kind == SourceCharUtlObjectKind::kCharBone) {
+      return object;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<SourceCharUtlBoneTransResult> source_char_utl_find_bone_trans(
+    const std::string& name,
+    const std::vector<SourceCharUtlObject>& objects) {
+  const std::string cb_lookup = source_char_utl_name_with_suffix(name, "cb");
+  for (const SourceCharUtlObject& object : objects) {
+    if (object.name == cb_lookup &&
+        object.kind == SourceCharUtlObjectKind::kCharBone) {
+      if (object.char_bone_transform.empty()) return std::nullopt;
+      return SourceCharUtlBoneTransResult{cb_lookup, object.char_bone_transform,
+                                          true};
+    }
+  }
+
+  const std::string trans_lookup =
+      source_char_utl_name_with_suffix(name, "trans");
+  if (source_char_utl_find_named_transformable(trans_lookup, objects)) {
+    return SourceCharUtlBoneTransResult{trans_lookup, trans_lookup, false};
+  }
+
+  const std::string mesh_lookup =
+      source_char_utl_name_with_suffix(name, "mesh");
+  if (source_char_utl_find_named_transformable(mesh_lookup, objects)) {
+    return SourceCharUtlBoneTransResult{mesh_lookup, mesh_lookup, false};
+  }
+
+  return std::nullopt;
+}
+
+bool source_char_utl_is_animatable(const SourceCharUtlObject& object) {
+  if (object.kind == SourceCharUtlObjectKind::kMesh &&
+      object.mesh_bone_count != 0) {
+    return false;
+  }
+  if (object.kind == SourceCharUtlObjectKind::kCamera ||
+      object.kind == SourceCharUtlObjectKind::kCharCollide ||
+      object.kind == SourceCharUtlObjectKind::kCharCuff ||
+      object.kind == SourceCharUtlObjectKind::kDirectory ||
+      object.kind == SourceCharUtlObjectKind::kCharBone) {
+    return false;
+  }
+  return object.name.rfind("spot_", 0) != 0;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
