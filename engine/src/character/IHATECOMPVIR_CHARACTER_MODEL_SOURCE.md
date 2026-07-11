@@ -48,7 +48,7 @@ records the upstream commits for the copied files:
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
 | Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve without adding an unproven frame-cadence write. |
-| Hand/head/foot IK, IK MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKFoot.cpp` / `CharIKFoot.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK foot helpers port source helper-target setup, FSM, load gates, and delegation plan without inventing row hookup; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields; IK fingers helpers port source defaults and left/right finger transform names only. |
+| Hand/head/foot IK, IK MIDI, slider MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKFoot.cpp` / `CharIKFoot.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKSliderMidi.cpp` / `CharIKSliderMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK foot helpers port source helper-target setup, FSM, load gates, and delegation plan without inventing row hookup; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields; IK slider MIDI helpers port source defaults, dependency publication, setup reset, load gates, and copy flow without inventing the absent `Poll` / `SetFraction` bodies; IK fingers helpers port source defaults and left/right finger transform names only. |
 | IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
@@ -1014,6 +1014,29 @@ note, and all report `unreadBytes=0`.
     refreshes stock proof against the current decoder: all 19 stock
     `CharIKMidi` rows are `version=4`, target `bone_fret.mesh`, and report
     `unreadBytes=0`.
+- `rb3-latest/src/system/char/CharIKSliderMidi.cpp` and
+  `rb3-latest/src/system/char/CharIKSliderMidi.h`
+  - `CharIKSliderMidi` inherits `RndHighlightable`, `CharWeightable`, and
+    `CharPollable`. Constructor defaults are source data: null target,
+    first-spot, second-spot, and character refs; target percentage `1.0`;
+    percentage-changed false; reset-all true; tolerance `0.0`; then it calls
+    `Enter`.
+  - `Enter` clears `mPercentageChanged`, `mFrac`, and `mFracPerBeat`, then
+    delegates to `RndPollable::Enter`. `SetName` delegates to
+    `Hmx::Object::SetName` and stores the owning `Character` only when the
+    supplied directory is a `Character`.
+  - `SetupTransforms` only marks `mResetAll` true. Property sync calls it when
+    `target`, `first_spot`, or `second_spot` changes.
+  - `PollDeps` appends `target` to `change`, then appends `target`,
+    `first_spot`, and `second_spot` to `changedBy`.
+  - `Load` accepts source revisions through 2, reads `Hmx::Object`, reads
+    `CharWeightable` only for revisions above 1, then reads target, first spot,
+    second spot, and tolerance. `Copy` copies `Hmx::Object`,
+    `CharWeightable`, target, first spot, second spot, and tolerance.
+  - Native `source_char_ik_slider_midi_*` helpers port these concrete source
+    behaviors for deterministic coverage. The checked source declares but does
+    not include reviewable `Poll` or `SetFraction` bodies, so native does not
+    invent slider target solving from these helpers.
 - `rb3-latest/src/system/char/CharIKFingers.cpp` and
   `rb3-latest/src/system/char/CharIKFingers.h`
   - Constructor defaults are source data: five fingers, reset-hand flags true,

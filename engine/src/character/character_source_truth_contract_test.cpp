@@ -92,6 +92,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_ik_foot_source_test.cpp"));
   const std::string ik_head_source_test =
       compact(read_file(char_dir / "character_ik_head_source_test.cpp"));
+  const std::string ik_slider_midi_source_test = compact(
+      read_file(char_dir / "character_ik_slider_midi_source_test.cpp"));
   const std::string bone_offset_source_test =
       compact(read_file(char_dir / "character_bone_offset_source_test.cpp"));
   const std::string bone_twist_source_test =
@@ -238,6 +240,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharIKFoot.cpp"));
   const std::string rb3_latest_char_ik_foot_h = compact(read_file(
       rb3_latest_char_dir / "CharIKFoot.h"));
+  const std::string rb3_latest_char_ik_slider_midi_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharIKSliderMidi.cpp"));
+  const std::string rb3_latest_char_ik_slider_midi_h = compact(read_file(
+      rb3_latest_char_dir / "CharIKSliderMidi.h"));
   const std::string rb3_latest_char_ik_fingers_cpp = compact(read_file(
       rb3_latest_char_dir / "CharIKFingers.cpp"));
   const std::string rb3_latest_char_ik_fingers_h = compact(read_file(
@@ -2468,6 +2474,158 @@ int run_contract() {
   ok &= contains(doc,
                  "ikmidi_source_decode_audit.log",
                  "document records focused stock CharIKMidi audit");
+  ok &= contains(rb3_latest_char_ik_slider_midi_h,
+                 "classCharIKSliderMidi:publicRndHighlightable,"
+                 "publicCharWeightable,publicCharPollable",
+                 "CharIKSliderMidi source header exposes inheritance");
+  ok &= contains(rb3_latest_char_ik_slider_midi_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mTarget;",
+                 "CharIKSliderMidi source header exposes target ref");
+  ok &= contains(rb3_latest_char_ik_slider_midi_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mFirstSpot;",
+                 "CharIKSliderMidi source header exposes first spot ref");
+  ok &= contains(rb3_latest_char_ik_slider_midi_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mSecondSpot;",
+                 "CharIKSliderMidi source header exposes second spot ref");
+  ok &= contains(rb3_latest_char_ik_slider_midi_h,
+                 "floatmTargetPercentage;",
+                 "CharIKSliderMidi source header exposes target percentage");
+  ok &= contains(rb3_latest_char_ik_slider_midi_h,
+                 "boolmPercentageChanged;",
+                 "CharIKSliderMidi source header exposes percentage flag");
+  ok &= contains(rb3_latest_char_ik_slider_midi_h, "boolmResetAll;",
+                 "CharIKSliderMidi source header exposes reset flag");
+  ok &= contains(rb3_latest_char_ik_slider_midi_h,
+                 "ObjPtr<Character,ObjectDir>mMe;",
+                 "CharIKSliderMidi source header exposes owning character");
+  ok &= contains(rb3_latest_char_ik_slider_midi_h, "floatmTolerance;",
+                 "CharIKSliderMidi source header exposes tolerance");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "CharIKSliderMidi::CharIKSliderMidi():mTarget(this,0),"
+                 "mFirstSpot(this,0),mSecondSpot(this,0),"
+                 "mTargetPercentage(1.0f),mPercentageChanged(0),"
+                 "mResetAll(1),mMe(this,0),mTolerance(0.0f){Enter();}",
+                 "CharIKSliderMidi source constructor exposes defaults");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "voidCharIKSliderMidi::Enter(){mPercentageChanged=false;"
+                 "mFrac=0.0f;mFracPerBeat=0.0f;RndPollable::Enter();}",
+                 "CharIKSliderMidi source Enter clears interpolation state");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "voidCharIKSliderMidi::SetName(constchar*cc,classObjectDir*"
+                 "dir){Hmx::Object::SetName(cc,dir);mMe=dynamic_cast<class"
+                 "Character*>(dir);}",
+                 "CharIKSliderMidi source SetName stores Character dir");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "voidCharIKSliderMidi::SetupTransforms(){mResetAll=true;}",
+                 "CharIKSliderMidi source SetupTransforms sets reset flag");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "change.push_back(mTarget);changedBy.push_back(mTarget);"
+                 "changedBy.push_back(mFirstSpot);changedBy.push_back("
+                 "mSecondSpot);",
+                 "CharIKSliderMidi source PollDeps order");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "LOAD_REVS(bs);ASSERT_REVS(2,0);Hmx::Object::Load(bs);"
+                 "if(gRev>1)CharWeightable::Load(bs);bs>>mTarget;"
+                 "bs>>mFirstSpot;bs>>mSecondSpot;bs>>mTolerance;",
+                 "CharIKSliderMidi source load order");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS(CharWeightable)"
+                 "CREATE_COPY(CharIKSliderMidi)",
+                 "CharIKSliderMidi source copy includes object and weightable");
+  ok &= contains(rb3_latest_char_ik_slider_midi_cpp,
+                 "COPY_MEMBER(mTarget)COPY_MEMBER(mFirstSpot)"
+                 "COPY_MEMBER(mSecondSpot)COPY_MEMBER(mTolerance)",
+                 "CharIKSliderMidi source copy mirrors member list");
+  ok &= missing(rb3_latest_char_ik_slider_midi_cpp,
+                "voidCharIKSliderMidi::Poll(",
+                "available CharIKSliderMidi source lacks Poll body");
+  ok &= missing(rb3_latest_char_ik_slider_midi_cpp,
+                "voidCharIKSliderMidi::SetFraction(",
+                "available CharIKSliderMidi source lacks SetFraction body");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKSliderMidiState{SourceCharWeightableState"
+                 "weightable;",
+                 "native exposes CharIKSliderMidi source state");
+  ok &= contains(char_clip_h,
+                 "floattarget_percentage=1.0f;",
+                 "native stores CharIKSliderMidi target percentage default");
+  ok &= contains(char_clip_h,
+                 "boolpercentage_changed=false;boolreset_all=true;",
+                 "native stores CharIKSliderMidi boolean defaults");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKSliderMidiStatesource_char_ik_slider_midi_"
+                 "default_state(",
+                 "native API exposes CharIKSliderMidi defaults helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKSliderMidiLoadStepssource_char_ik_slider_midi_"
+                 "load_steps(",
+                 "native API exposes CharIKSliderMidi load helper");
+  ok &= contains(char_clip,
+                 "SourceCharIKSliderMidiStatesource_char_ik_slider_midi_"
+                 "default_state(conststd::string&name){SourceCharIKSliderMidi"
+                 "Statestate;",
+                 "native CharIKSliderMidi defaults helper exists");
+  ok &= contains(char_clip,
+                 "state.weightable=source_char_weightable_default_state(name);"
+                 "source_char_ik_slider_midi_enter(state);returnstate;",
+                 "native CharIKSliderMidi constructor helper calls Enter");
+  ok &= contains(char_clip,
+                 "state.percentage_changed=false;result.cleared_percentage_"
+                 "changed=true;state.frac=0.0f;",
+                 "native CharIKSliderMidi Enter helper clears state");
+  ok &= contains(char_clip,
+                 "result.call_rnd_pollable_enter=true;",
+                 "native CharIKSliderMidi Enter helper records RndPollable call");
+  ok &= contains(char_clip,
+                 "result.call_hmx_set_name=true;result.assigned_character="
+                 "dir_is_character;state.character_dir=dir_is_character?"
+                 "dir_name:std::string{};",
+                 "native CharIKSliderMidi SetName helper mirrors Character cast");
+  ok &= contains(char_clip,
+                 "state.reset_all=true;result.reset_all=true;",
+                 "native CharIKSliderMidi SetupTransforms helper sets reset flag");
+  ok &= contains(char_clip,
+                 "deps.change.push_back(state.target);deps.changed_by.push_back"
+                 "(state.target);deps.changed_by.push_back(state.first_spot);"
+                 "deps.changed_by.push_back(state.second_spot);",
+                 "native CharIKSliderMidi PollDeps helper mirrors source order");
+  ok &= contains(char_clip,
+                 "steps.known_revision=revision>=0&&revision<=steps.max_revision;"
+                 "steps.load_hmx_object=true;steps.load_weightable=revision>1;",
+                 "native CharIKSliderMidi load helper mirrors revision gate");
+  ok &= contains(char_clip,
+                 "dest.target=source.target;result.copy_target=true;"
+                 "dest.first_spot=source.first_spot;",
+                 "native CharIKSliderMidi copy helper mirrors member list");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_ik_slider_midi_source_test"
+                 "character_ik_slider_midi_source_test.cpp)",
+                 "CMake builds focused CharIKSliderMidi source test");
+  ok &= contains(ik_slider_midi_source_test,
+                 "source_char_ik_slider_midi_default_state(\"slider.weight\")",
+                 "focused CharIKSliderMidi test covers source defaults");
+  ok &= contains(ik_slider_midi_source_test,
+                 "source_char_ik_slider_midi_enter(slider)",
+                 "focused CharIKSliderMidi test covers Enter helper");
+  ok &= contains(ik_slider_midi_source_test,
+                 "source_char_ik_slider_midi_poll_deps(deps,slider)",
+                 "focused CharIKSliderMidi test covers PollDeps helper");
+  ok &= contains(ik_slider_midi_source_test,
+                 "source_char_ik_slider_midi_load_steps(2)",
+                 "focused CharIKSliderMidi test covers load gates");
+  ok &= contains(ik_slider_midi_source_test,
+                 "source_char_ik_slider_midi_copy(dest,source,false,0.66f)",
+                 "focused CharIKSliderMidi test covers copy helper");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharIKSliderMidi.cpp`",
+                 "document cites CharIKSliderMidi source");
+  ok &= contains(doc,
+                 "Native `source_char_ik_slider_midi_*` helpers port these "
+                 "concrete source",
+                 "document records native CharIKSliderMidi helper boundary");
+  ok &= contains(doc,
+                 "does\n    not include reviewable `Poll` or `SetFraction` bodies",
+                 "document fences CharIKSliderMidi missing Poll and SetFraction");
   ok &= contains(rb3_latest_char_ik_fingers_h,
                  "FingerDesc():unk0(0),unk8(0,0,0),unk14(0,0,0),"
                  "mFinger01(0),mFinger02(0),mFinger03(0),mFingertip(0),"

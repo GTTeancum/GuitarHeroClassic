@@ -4285,6 +4285,89 @@ SourceCharIKHeadCopyResult source_char_ik_head_copy(
   return result;
 }
 
+SourceCharIKSliderMidiState source_char_ik_slider_midi_default_state(
+    const std::string& name) {
+  SourceCharIKSliderMidiState state;
+  state.weightable = source_char_weightable_default_state(name);
+  source_char_ik_slider_midi_enter(state);
+  return state;
+}
+
+SourceCharIKSliderMidiEnterResult source_char_ik_slider_midi_enter(
+    SourceCharIKSliderMidiState& state) {
+  SourceCharIKSliderMidiEnterResult result;
+  state.percentage_changed = false;
+  result.cleared_percentage_changed = true;
+  state.frac = 0.0f;
+  result.reset_frac = true;
+  state.frac_per_beat = 0.0f;
+  result.reset_frac_per_beat = true;
+  result.call_rnd_pollable_enter = true;
+  return result;
+}
+
+SourceCharIKSliderMidiSetNameResult source_char_ik_slider_midi_set_name(
+    SourceCharIKSliderMidiState& state,
+    const std::string& dir_name,
+    bool dir_is_character) {
+  SourceCharIKSliderMidiSetNameResult result;
+  result.call_hmx_set_name = true;
+  result.assigned_character = dir_is_character;
+  state.character_dir = dir_is_character ? dir_name : std::string{};
+  return result;
+}
+
+SourceCharIKSliderMidiSetupResult source_char_ik_slider_midi_setup_transforms(
+    SourceCharIKSliderMidiState& state) {
+  SourceCharIKSliderMidiSetupResult result;
+  state.reset_all = true;
+  result.reset_all = true;
+  return result;
+}
+
+void source_char_ik_slider_midi_poll_deps(
+    SourceCharIKSliderMidiPollDeps& deps,
+    const SourceCharIKSliderMidiState& state) {
+  deps.change.push_back(state.target);
+  deps.changed_by.push_back(state.target);
+  deps.changed_by.push_back(state.first_spot);
+  deps.changed_by.push_back(state.second_spot);
+}
+
+SourceCharIKSliderMidiLoadSteps source_char_ik_slider_midi_load_steps(
+    int32_t revision) {
+  SourceCharIKSliderMidiLoadSteps steps;
+  steps.known_revision = revision >= 0 && revision <= steps.max_revision;
+  steps.load_hmx_object = true;
+  steps.load_weightable = revision > 1;
+  steps.load_target = true;
+  steps.load_first_spot = true;
+  steps.load_second_spot = true;
+  steps.load_tolerance = true;
+  return steps;
+}
+
+SourceCharIKSliderMidiCopyResult source_char_ik_slider_midi_copy(
+    SourceCharIKSliderMidiState& dest,
+    const SourceCharIKSliderMidiState& source,
+    bool shallow_copy,
+    float source_owner_weight) {
+  SourceCharIKSliderMidiCopyResult result;
+  result.copy_hmx_object = true;
+  result.copy_weightable = true;
+  source_char_weightable_copy(dest.weightable, source.weightable, shallow_copy,
+                              source_owner_weight);
+  dest.target = source.target;
+  result.copy_target = true;
+  dest.first_spot = source.first_spot;
+  result.copy_first_spot = true;
+  dest.second_spot = source.second_spot;
+  result.copy_second_spot = true;
+  dest.tolerance = source.tolerance;
+  result.copy_tolerance = true;
+  return result;
+}
+
 static void apply_source_weight_setters(Character& character,
                                         float delta_beats) {
   std::unordered_map<std::string, float> weights_by_name;

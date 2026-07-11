@@ -1135,6 +1135,65 @@ struct SourceCharIKHeadCopyResult {
   bool set_update_points = false;
 };
 
+struct SourceCharIKSliderMidiState {
+  SourceCharWeightableState weightable;
+  std::string target;
+  std::string first_spot;
+  std::string second_spot;
+  std::array<float, 3> dest_pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> old_pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> cur_pos = {0.0f, 0.0f, 0.0f};
+  float target_percentage = 1.0f;
+  float old_percentage = 0.0f;
+  float frac = 0.0f;
+  float frac_per_beat = 0.0f;
+  bool percentage_changed = false;
+  bool reset_all = true;
+  std::string character_dir;
+  float tolerance = 0.0f;
+};
+
+struct SourceCharIKSliderMidiEnterResult {
+  bool cleared_percentage_changed = false;
+  bool reset_frac = false;
+  bool reset_frac_per_beat = false;
+  bool call_rnd_pollable_enter = false;
+};
+
+struct SourceCharIKSliderMidiSetNameResult {
+  bool call_hmx_set_name = false;
+  bool assigned_character = false;
+};
+
+struct SourceCharIKSliderMidiSetupResult {
+  bool reset_all = false;
+};
+
+struct SourceCharIKSliderMidiPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
+struct SourceCharIKSliderMidiLoadSteps {
+  int32_t max_revision = 2;
+  bool known_revision = false;
+  bool load_hmx_object = false;
+  bool load_weightable = false;
+  bool load_target = false;
+  bool load_first_spot = false;
+  bool load_second_spot = false;
+  bool load_tolerance = false;
+};
+
+struct SourceCharIKSliderMidiCopyResult {
+  bool copy_hmx_object = false;
+  bool copy_weightable = false;
+  bool copy_target = false;
+  bool copy_first_spot = false;
+  bool copy_second_spot = false;
+  bool copy_tolerance = false;
+};
+
 SourceCharWeightSetterState source_char_weight_setter_default_state(
     const std::string& name);
 void source_char_weight_setter_set_weight(SourceCharWeightSetterState& state,
@@ -1167,6 +1226,26 @@ SourceCharIKHeadLoadSteps source_char_ik_head_load_steps(int32_t revision);
 SourceCharIKHeadCopyResult source_char_ik_head_copy(
     SourceCharIKHeadState& dest,
     const SourceCharIKHeadState& source,
+    bool shallow_copy,
+    float source_owner_weight);
+SourceCharIKSliderMidiState source_char_ik_slider_midi_default_state(
+    const std::string& name);
+SourceCharIKSliderMidiEnterResult source_char_ik_slider_midi_enter(
+    SourceCharIKSliderMidiState& state);
+SourceCharIKSliderMidiSetNameResult source_char_ik_slider_midi_set_name(
+    SourceCharIKSliderMidiState& state,
+    const std::string& dir_name,
+    bool dir_is_character);
+SourceCharIKSliderMidiSetupResult source_char_ik_slider_midi_setup_transforms(
+    SourceCharIKSliderMidiState& state);
+void source_char_ik_slider_midi_poll_deps(
+    SourceCharIKSliderMidiPollDeps& deps,
+    const SourceCharIKSliderMidiState& state);
+SourceCharIKSliderMidiLoadSteps source_char_ik_slider_midi_load_steps(
+    int32_t revision);
+SourceCharIKSliderMidiCopyResult source_char_ik_slider_midi_copy(
+    SourceCharIKSliderMidiState& dest,
+    const SourceCharIKSliderMidiState& source,
     bool shallow_copy,
     float source_owner_weight);
 
