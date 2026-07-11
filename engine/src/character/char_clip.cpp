@@ -27,8 +27,8 @@
 //         angles  (.rotx/.roty/.rotz): compressed 1 x int16 (2B) or
 //                                      uncompressed 1 x float32 (4B)
 //
-// Observed bone classification: .pos=0 .scale=1 .quat=2 .rotx=3 .roty=4 .rotz=5
-//   .d?x/.d?y/.d?z = 6/7/8, no dot = 10.
+// Source-backed bone classification: .pos=0 .scale=1 .quat=2
+// .rotx=3 .roty=4 .rotz=5, matching ihatecompvir CharBones::Type.
 
 #include "character/char_clip.h"
 
@@ -86,8 +86,6 @@ int bone_category(const std::string& name) {
   if (suf == "rotx")  return 3;
   if (suf == "roty")  return 4;
   if (suf == "rotz")  return 5;
-  if (suf.size() == 3 && suf[0] == 'd' && suf[2] >= 'x' && suf[2] <= 'z')
-    return static_cast<int>(suf[2] - 'x') + 6;
   return 10;
 }
 
@@ -104,16 +102,8 @@ bool is_bone_name_at(const uint8_t* d, size_t n, size_t at) {
     size_t sl = std::strlen(x);
     return cand.size() >= sl && cand.compare(cand.size() - sl, sl, x) == 0;
   };
-  bool suffix = ends(".pos") || ends(".scale") || ends(".quat") ||
-                ends(".rotx") || ends(".roty") || ends(".rotz");
-  if (!suffix) {
-    const size_t dot = cand.rfind('.');
-    if (dot != std::string::npos) {
-      const std::string suf = cand.substr(dot + 1);
-      suffix = suf.size() == 3 && suf[0] == 'd' &&
-               suf[2] >= 'x' && suf[2] <= 'z';
-    }
-  }
+  const bool suffix = ends(".pos") || ends(".scale") || ends(".quat") ||
+                      ends(".rotx") || ends(".roty") || ends(".rotz");
   bool bone = cand.rfind("bone_", 0) == 0 || cand.rfind("spot_", 0) == 0;
   return suffix && bone;
 }
@@ -131,7 +121,7 @@ struct BoneList {
 
 bool is_valid_category_name(const std::string& name) {
   int c = bone_category(name);
-  return c >= 0 && c <= 8;
+  return c >= 0 && c <= 5;
 }
 
 float env_float_or(const char* name, float fallback) {
@@ -160,7 +150,7 @@ size_t channel_size(int cat, int compression) {
     if (compression == 0) return 16u;
     return compression < 3 ? 8u : 4u;
   }
-  if (cat >= 3 && cat <= 8) return compression == 0 ? 4u : 2u;
+  if (cat >= 3 && cat <= 5) return compression == 0 ? 4u : 2u;
   return 0u;
 }
 
@@ -231,8 +221,7 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at, BoneList& out) {
   };
   out.n_vec   = cat_n(0) + cat_n(1);                       // pos + scale
   out.n_quat  = cat_n(2);                                  // quat
-  out.n_angle = cat_n(3) + cat_n(4) + cat_n(5) +
-                cat_n(6) + cat_n(7) + cat_n(8);            // rot*
+  out.n_angle = cat_n(3) + cat_n(4) + cat_n(5);            // rot*
   out.frame_bytes = 0;
   for (int cat : out.cats) out.frame_bytes += channel_size(cat, out.compression);
 
@@ -262,34 +251,6 @@ void read_quat(Cur& c, bool comp, ClipChannel& ch) {
 
 float read_snorm16(Cur& c) {
   return std::max(c.i16() / 32767.0f, -1.0f);
-}
-
-bool axis_rot_no_pi_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_AXIS_ROT_NO_PI") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_AXIS_ROT_NO_PI");
-  return value && value[0];
-#endif
-}
-
-bool file_order_clip_samples_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_FILE_ORDER_CLIP_SAMPLES") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_FILE_ORDER_CLIP_SAMPLES");
-  return value && value[0];
-#endif
 }
 
 void read_vec(Cur& c, int cat, int compression, ClipChannel& ch) {
@@ -323,7 +284,7 @@ void read_angle(Cur& c, bool comp, int cat, ClipChannel& ch) {
   // Community tooling decodes compressed single-axis rotations as signed
   // normalized values, then applies them as a pi-scaled axis rotation.
   ch.angle = (comp ? read_snorm16(c) : c.f32()) *
-             (axis_rot_no_pi_enabled() ? 1.0f : 3.14159265358979323846f);
+             3.14159265358979323846f;
 }
 
 // Parse the whole clip entry into frames.
@@ -391,46 +352,29 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
       Cur c(d, n);
       c.pos = frame_off;
 
-      if (file_order_clip_samples_enabled()) {
-        for (size_t bi = 0; bi < bl.names.size(); ++bi) {
-          ClipChannel ch;
-          ch.bone_name = strip_suffix(bl.names[bi]);
-          if (bl.cats[bi] == 0 || bl.cats[bi] == 1) {
-            read_vec(c, bl.cats[bi], bl.compression, ch);
-          } else if (bl.cats[bi] == 2) {
-            read_quat(c, comp, ch);
-          } else if (bl.cats[bi] >= 3 && bl.cats[bi] <= 8) {
-            read_angle(c, comp, bl.cats[bi], ch);
-          } else {
-            continue;
-          }
+      // Walk bones, but read by CATEGORY GROUP in the data: all vectors,
+      // then all quats, then all angles. We bucket bone indices by category.
+      // The data order is category-ascending; within a category, file order.
+      // Vectors first (cat 0,1):
+      for (size_t bi = 0; bi < bl.names.size(); ++bi) {
+        if (bl.cats[bi] == 0 || bl.cats[bi] == 1) {
+          ClipChannel ch; ch.bone_name = strip_suffix(bl.names[bi]);
+          read_vec(c, bl.cats[bi], bl.compression, ch);
           frames[f].push_back(ch);
         }
-      } else {
-        // Walk bones, but read by CATEGORY GROUP in the data: all vectors,
-        // then all quats, then all angles. We bucket bone indices by category.
-        // The data order is category-ascending; within a category, file order.
-        // Vectors first (cat 0,1):
-        for (size_t bi = 0; bi < bl.names.size(); ++bi) {
-          if (bl.cats[bi] == 0 || bl.cats[bi] == 1) {
-            ClipChannel ch; ch.bone_name = strip_suffix(bl.names[bi]);
-            read_vec(c, bl.cats[bi], bl.compression, ch);
-            frames[f].push_back(ch);
-          }
+      }
+      for (size_t bi = 0; bi < bl.names.size(); ++bi) {
+        if (bl.cats[bi] == 2) {
+          ClipChannel ch; ch.bone_name = strip_suffix(bl.names[bi]);
+          read_quat(c, comp, ch);
+          frames[f].push_back(ch);
         }
-        for (size_t bi = 0; bi < bl.names.size(); ++bi) {
-          if (bl.cats[bi] == 2) {
-            ClipChannel ch; ch.bone_name = strip_suffix(bl.names[bi]);
-            read_quat(c, comp, ch);
-            frames[f].push_back(ch);
-          }
-        }
-        for (size_t bi = 0; bi < bl.names.size(); ++bi) {
-          if (bl.cats[bi] >= 3 && bl.cats[bi] <= 8) {
-            ClipChannel ch; ch.bone_name = strip_suffix(bl.names[bi]);
-            read_angle(c, comp, bl.cats[bi], ch);
-            frames[f].push_back(ch);
-          }
+      }
+      for (size_t bi = 0; bi < bl.names.size(); ++bi) {
+        if (bl.cats[bi] >= 3 && bl.cats[bi] <= 5) {
+          ClipChannel ch; ch.bone_name = strip_suffix(bl.names[bi]);
+          read_angle(c, comp, bl.cats[bi], ch);
+          frames[f].push_back(ch);
         }
       }
     }

@@ -1969,6 +1969,10 @@ int run_contract() {
                  "`.quat`, `.rotx`,",
                  "document records concrete CharBones channel suffix source");
   ok &= contains(doc,
+                 "Native channel classification is constrained to those six "
+                 "source types.",
+                 "document records source-backed native channel type fence");
+  ok &= contains(doc,
                  "`TypeSize` defines the per-channel byte sizes for "
                  "`kCompressNone`",
                  "document records concrete CharBones compression sizing source");
@@ -1984,6 +1988,20 @@ int run_contract() {
                  "case'p':returnTYPE_POS;case's':returnTYPE_SCALE;"
                  "case'q':returnTYPE_QUAT;case'r':unsignedcharnext=p[3];",
                  "latest CharBones source maps source channel suffixes");
+  ok &= contains(char_clip,
+                 "matchingihatecompvirCharBones::Type",
+                 "native clip decoder cites the six source CharBones channel types");
+  ok &= contains(char_clip,
+                 "returnc>=0&&c<=5;",
+                 "native clip decoder rejects non-source channel categories");
+  ok &= missing(char_clip, "GHOGX_AXIS_ROT_NO_PI",
+                "old no-pi axis-rotation diagnostic removed from decoder");
+  ok &= missing(char_clip, "GHOGX_FILE_ORDER_CLIP_SAMPLES",
+                "old file-order sample diagnostic removed from decoder");
+  ok &= missing(char_clip, ".d?x",
+                "old native-only d-axis channel category removed");
+  ok &= missing(char_clip, "bl.cats[bi]>=3&&bl.cats[bi]<=8",
+                "native clip decoder no longer accepts non-source rot categories");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "intCharBones::TypeSize(inti)const{if(i<2){if("
                  "mCompression<kCompressVects)return0xC;elsereturn6;}",

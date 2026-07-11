@@ -592,6 +592,10 @@ note, and all report `unreadBytes=0`.
   - `CharBones::TypeOf` maps suffixes `.pos`, `.scale`, `.quat`, `.rotx`,
     `.roty`, and `.rotz`.
   - `SuffixOf` and `ChannelName` round-trip the source channel suffixes.
+  - Native channel classification is constrained to those six source types.
+    The old `.d?x` / `.d?y` / `.d?z` category extension, file-order sample
+    decode switch, and no-pi axis-rotation switch are not present in
+    ihatecompvir's source model and are removed from the current decoder.
   - `TypeSize` defines the per-channel byte sizes for `kCompressNone`,
     vector compression, quat compression, and rotation compression.
   - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish
