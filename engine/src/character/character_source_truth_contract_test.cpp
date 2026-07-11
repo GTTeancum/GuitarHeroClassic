@@ -82,6 +82,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_clip_set_source_test.cpp"));
   const std::string clip_display_source_test =
       compact(read_file(char_dir / "character_clip_display_source_test.cpp"));
+  const std::string clip_editor_source_test =
+      compact(read_file(char_dir / "character_clip_editor_source_test.cpp"));
   const std::string char_bones_source_test =
       compact(read_file(char_dir / "character_char_bones_source_test.cpp"));
   const std::string char_utl_source_test =
@@ -332,6 +334,22 @@ int run_contract() {
       rb3_latest_char_dir / "CharTaskMgr.cpp"));
   const std::string rb3_latest_char_task_mgr_h = compact(read_file(
       rb3_latest_char_dir / "CharTaskMgr.h"));
+  const std::string rb3_latest_clip_collide_cpp = compact(read_file(
+      rb3_latest_char_dir / "ClipCollide.cpp"));
+  const std::string rb3_latest_clip_collide_h = compact(read_file(
+      rb3_latest_char_dir / "ClipCollide.h"));
+  const std::string rb3_latest_clip_graph_gen_cpp = compact(read_file(
+      rb3_latest_char_dir / "ClipGraphGen.cpp"));
+  const std::string rb3_latest_clip_graph_gen_h = compact(read_file(
+      rb3_latest_char_dir / "ClipGraphGen.h"));
+  const std::string rb3_latest_clip_dist_map_h = compact(read_file(
+      rb3_latest_char_dir / "ClipDistMap.h"));
+  const std::string rb3_latest_clip_compressor_cpp = compact(read_file(
+      rb3_latest_char_dir / "ClipCompressor.cpp"));
+  const std::string rb3_latest_file_merger_cpp = compact(read_file(
+      rb3_latest_char_dir / "FileMerger.cpp"));
+  const std::string rb3_latest_file_merger_h = compact(read_file(
+      rb3_latest_char_dir / "FileMerger.h"));
   const std::string rb3_latest_character_cpp = compact(read_file(
       rb3_latest_char_dir / "Character.cpp"));
   const std::string rb3_latest_character_h = compact(read_file(
@@ -10780,6 +10798,161 @@ int run_contract() {
                  "focused CharTaskMgr test covers toggle");
   ok &= contains(doc, "## Clip Diagnostic Helpers",
                  "document records CharClipDisplay/CharTaskMgr boundary");
+  ok &= contains(rb3_latest_clip_graph_gen_h,
+                 "classClipGraphGenerator:publicHmx::Object",
+                 "latest ClipGraphGenerator header exposes editor object");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "ClipGraphGenerator::ClipGraphGenerator():unk1c(0),"
+                 "mDmap(0),mClipA(0),mClipB(0)",
+                 "latest ClipGraphGenerator source constructor defaults");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "c1->mTransitions.RemoveNodes(c2);",
+                 "latest ClipGraphGenerator GeneratePair removes old nodes");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "if(!b1&&((c1->mPlayFlags&0xF0)!=0x10))b2=false;",
+                 "latest ClipGraphGenerator GeneratePair source play-flag gate");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "DataArray*transarr=unk1c->FindArray(\"on_transition\",false);",
+                 "latest ClipGraphGenerator GeneratePair finds transition script");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "a_clip=DataNode(c1);b_clip=DataNode(c2);mClipA=c1;mClipB=c2;",
+                 "latest ClipGraphGenerator GeneratePair publishes clip pair");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "if(dmap)dmap->SetNodes(n1,n2);",
+                 "latest ClipGraphGenerator GeneratePair sets nodes when dmap exists");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "floatmax_error=1e+30f;",
+                 "latest ClipGraphGenerator transition default max error");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "intbflag=mClipB->mPlayFlags>>12&15;"
+                 "intaflag=mClipA->mPlayFlags>>12&15;",
+                 "latest ClipGraphGenerator transition extracts play flag nibbles");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "if(beat_align<(float)aflag)beat_align=aflag;",
+                 "latest ClipGraphGenerator transition raises beat alignment");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "mDmap=newClipDistMap(mClipA,mClipB,beat_align,blend_width,3,"
+                 "boneweightarr);",
+                 "latest ClipGraphGenerator transition constructs ClipDistMap");
+  ok &= contains(rb3_latest_clip_graph_gen_cpp,
+                 "mDmap->FindDists(max_facing*DEG2RAD,restrictArr);"
+                 "mDmap->FindNodes(max_error,max_dist,end_dist);",
+                 "latest ClipGraphGenerator transition invokes distance passes");
+  ok &= contains(rb3_latest_clip_dist_map_h,
+                 "ClipDistMap(CharClip*,CharClip*,float,float,int,constDataArray*);",
+                 "latest ClipDistMap header exposes constructor only");
+  ok &= contains(rb3_latest_clip_collide_h,
+                 "classClipCollide:publicHmx::Object",
+                 "latest ClipCollide header exposes editor object");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "ClipCollide::ClipCollide():mReports(),mGraph(0),"
+                 "mChar(this,0),mCharPath(\"\"),mWaypoint(this,0),"
+                 "mPosition(Symbol(\"front\")),mClip(this,0),mWorldLines(0),"
+                 "mMoveCamera(1),mMode()",
+                 "latest ClipCollide constructor defaults");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "mChar->SetProxyFile(fp,false);",
+                 "latest ClipCollide SyncChar updates mismatched proxy");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "mChar->mDriver->Play(mClip,2,-1.0f,1e+30f,0.0f);",
+                 "latest ClipCollide Demonstrate play call");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "ASSERT_REVS(1,0)",
+                 "latest ClipCollide source load accepts revisions through 1");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "bs>>mChar;bs>>mCharPath;bs>>mWaypoint;bs>>mPosition;mClip=0;",
+                 "latest ClipCollide load reads source fields and clears clip");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "constchar*directions[4]={\"front\",\"back\",\"left\",\"right\"};",
+                 "latest ClipCollide TestClips direction order");
+  ok &= contains(rb3_latest_clip_collide_cpp,
+                 "DataArray*arr=newDataArray(listsize);"
+                 "arr->Node(0)=DataNode((Hmx::Object*)0);",
+                 "latest ClipCollide object list allocation plan");
+  ok &= contains(rb3_latest_file_merger_cpp,
+                 "FileMerger::FileMerger():mMergers(this),mAsyncLoad(0),"
+                 "mLoadingLoad(0),unk44(0),unk50(0),mHeap(GetCurrentHeapNum()),"
+                 "unk58(this)",
+                 "latest FileMerger constructor defaults");
+  ok &= contains(rb3_latest_file_merger_h,
+                 "Merger(Hmx::Object*o):mProxy(0),mPreClear(0),mSubdirs(4)",
+                 "latest FileMerger Merger row defaults");
+  ok &= contains(rb3_latest_file_merger_h,
+                 "mName=m.mName;mSelected=m.mSelected;unk10=m.unk10;"
+                 "mLoaded=m.mLoaded;mDir=m.mDir;mProxy=m.mProxy;"
+                 "mSubdirs=m.mSubdirs;mLoadedObjects=m.mLoadedObjects;"
+                 "mLoadedSubdirs=m.mLoadedSubdirs;mPreClear=m.mPreClear;",
+                 "latest FileMerger Merger copy member order");
+  ok &= contains(rb3_latest_clip_compressor_cpp,
+                 "voidunusedclipcompressor(){MakeString(\"%s%f%f\","
+                 "\"beesechurger\",1.0f,2.0f);}",
+                 "latest ClipCompressor source contains only unused function");
+  ok &= contains(char_clip_h,
+                 "structSourceClipGraphGeneratePairStep{"
+                 "boolremove_existing_nodes=true;",
+                 "native exposes ClipGraph GeneratePair plan");
+  ok &= contains(char_clip_h,
+                 "structSourceClipCollideState{std::stringchar_path;"
+                 "std::stringposition=\"front\";",
+                 "native exposes ClipCollide default state");
+  ok &= contains(char_clip_h,
+                 "structSourceFileMergerState{boolasync_load=false;",
+                 "native exposes FileMerger default state");
+  ok &= contains(char_clip,
+                 "SourceClipGraphGeneratePairStep"
+                 "source_clip_graph_generate_pair_step(boolhas_type_def,"
+                 "boolsame_type,uint32_tclip_a_play_flags,boolhas_on_transition,"
+                 "boolscript_creates_dmap)",
+                 "native implements ClipGraph GeneratePair helper");
+  ok &= contains(char_clip,
+                 "if(!type_pair_allowed&&((clip_a_play_flags&0xF0u)!=0x10u)){"
+                 "skip_transition_generation=false;}",
+                 "native ClipGraph helper mirrors play-flag gate");
+  ok &= contains(char_clip,
+                 "plan.min_flag=std::min(plan.clip_a_flag,plan.clip_b_flag);",
+                 "native ClipGraph helper mirrors transition min flag");
+  ok &= contains(char_clip,
+                 "SourceClipCollideStatesource_clip_collide_default_state(){"
+                 "returnSourceClipCollideState{};}",
+                 "native implements ClipCollide default helper");
+  ok &= contains(char_clip,
+                 "step.set_proxy_file=has_character&&!char_path_empty&&"
+                 "!path_matches_proxy;",
+                 "native ClipCollide helper mirrors proxy update gate");
+  ok &= contains(char_clip,
+                 "if(has_character&&has_waypoint&&has_clip){step.sync_waypoint="
+                 "true;step.play_clip=true;}",
+                 "native ClipCollide helper mirrors Demonstrate gate");
+  ok &= contains(char_clip,
+                 "plan.directions={\"front\",\"back\",\"left\",\"right\"};",
+                 "native ClipCollide helper mirrors direction order");
+  ok &= contains(char_clip,
+                 "SourceFileMergerCopyPlansource_file_merger_merger_copy_plan()",
+                 "native implements FileMerger copy-plan helper");
+  ok &= contains(char_clip,
+                 "evidence.observed_function=\"unusedclipcompressor\";",
+                 "native records ClipCompressor absence evidence");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_clip_editor_source_test",
+                 "CMake builds clip editor source test");
+  ok &= contains(clip_editor_source_test,
+                 "source_clip_graph_generate_pair_step(true,true,0,true,true)",
+                 "focused clip editor test covers ClipGraph transition branch");
+  ok &= contains(clip_editor_source_test,
+                 "source_clip_collide_demonstrate_step(true,true,true)",
+                 "focused clip editor test covers ClipCollide Demonstrate");
+  ok &= contains(clip_editor_source_test,
+                 "source_file_merger_merger_copy_plan()",
+                 "focused clip editor test covers FileMerger copy plan");
+  ok &= contains(clip_editor_source_test,
+                 "source_clip_compressor_evidence()",
+                 "focused clip editor test covers ClipCompressor evidence");
+  ok &= contains(doc, "## Clip Editor/Graph Diagnostic Authorities",
+                 "document records clip editor graph diagnostics");
+  ok &= contains(doc,
+                 "no live collision, transition graph execution, compression, "
+                 "or file merging behavior is promoted",
+                 "document fences clip editor helpers from runtime behavior");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");

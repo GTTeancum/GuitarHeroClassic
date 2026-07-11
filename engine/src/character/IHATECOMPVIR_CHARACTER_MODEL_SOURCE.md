@@ -57,6 +57,7 @@ records the upstream commits for the copied files:
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
 | Clip set preview/editor container | `rb3-latest` `CharClipSet.cpp` / `CharClipSet.h` | Native helper ports reset/default state, group randomize/sort dispatch, pre/post-save preview handling, revision-gated post-load read plan, preview character decisions, frame helpers, and BPM update; it does not promote clip playback runtime. |
 | Clip display/task graph diagnostics | `rb3-latest` `CharClipDisplay.cpp` / `CharClipDisplay.h`, `CharTaskMgr.cpp` / `CharTaskMgr.h` | Native helper ports display init, source lookup, text width plus em, bounded start/end bookkeeping, line spacing, and task-graph toggle registration. This is diagnostic/editor-only and does not change runtime clip playback. |
+| Clip editor/collision/graph diagnostics | `rb3-latest` `ClipCollide.cpp` / `ClipCollide.h`, `ClipGraphGen.cpp` / `ClipGraphGen.h`, `ClipDistMap.h`, `ClipCompressor.cpp`, `FileMerger.cpp` / `FileMerger.h` | Native helper ports source-visible editor defaults, transition-generation gates, list/test call plans, and merger row defaults only; no live collision, transition graph execution, compression, or file merging behavior is promoted. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
 | Mirror servo controller | `rb3-latest` `CharMirror.cpp` / `CharMirror.h` | Native helper ports constructor defaults, nonzero-weight/nonempty-bones `Poll` gate, servo setter `SyncBones` triggers, dependency publication, load order, and copy flow; `SyncBones` bone rebuilding remains fenced because the body is absent from `rb3-latest`. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
@@ -104,6 +105,71 @@ change mesh upload, material state, bone posture, or hair/cloth draw behavior.
 
 This slice does not promote clip playback, driver scheduling, overlay drawing,
 or runtime task graph rendering.
+
+## Clip Editor/Graph Diagnostic Authorities
+
+- `rb3-latest/src/system/char/ClipGraphGen.cpp` and
+  `rb3-latest/src/system/char/ClipGraphGen.h`
+  - `GeneratePair` first removes any existing transition nodes from clip A to
+    clip B, captures clip A's type definition, and only reaches the
+    `on_transition` script branch when a type definition exists, both clips have
+    the same type, and `(clipA->mPlayFlags & 0xF0) != 0x10`.
+  - In the script branch it clears `mDmap`, publishes `a_clip` and `b_clip`,
+    stores `mClipA` and `mClipB`, executes `on_transition`, clears `mDmap`
+    again, and calls `SetNodes` only when the script produced a `ClipDistMap`.
+    Native `source_clip_graph_generate_pair_step` ports that source-visible
+    branch plan; it does not execute data scripts or build a transition graph.
+  - `OnGenerateTransitions` uses default values from the source body:
+    `max_error=1e30`, `beat_align=0`, `blend_width=1`, `max_facing=0`,
+    `max_dist=0`, and `end_dist=0`. It extracts the high play-flag nibble from
+    both clips, raises `beat_align` to the lower of those two values, constructs
+    `ClipDistMap` with stride `3`, calls `FindDists(max_facing * DEG2RAD,
+    restrict)`, then calls `FindNodes(max_error, max_dist, end_dist)`. Native
+    `source_clip_graph_on_generate_transitions` ports those parameter decisions
+    only.
+- `rb3-latest/src/system/char/ClipDistMap.h`
+  - The checked source exposes the constructor, `FindDists`, `FindNodes`, and
+    `SetNodes` signatures plus storage fields, but not method bodies. Native
+    therefore treats `ClipDistMap` as a named destination for the graph helper
+    plan, not as implemented transition-distance math.
+- `rb3-latest/src/system/char/ClipCollide.cpp` and
+  `rb3-latest/src/system/char/ClipCollide.h`
+  - Constructor defaults are source-visible: position starts at `front`,
+    `mClip` is null, `mWorldLines=false`, `mMoveCamera=true`, `mCharPath` is
+    empty, and the graph object is acquired through `RndGraph::Get`.
+  - `Load` accepts source revisions through 1, reads `Hmx::Object`, character,
+    character path, waypoint, and position, then clears `mClip`.
+  - `SyncChar` only calls `SetProxyFile` when a character exists, the selected
+    path is non-empty, and it differs from the current proxy; it always follows
+    with `SyncWaypoint`. Native `source_clip_collide_sync_char_step` ports that
+    decision.
+  - `Demonstrate` requires character, waypoint, and clip. When complete, it
+    syncs the waypoint and calls `Play(mClip, 2, -1.0f, 1e30f, 0.0f)`. Native
+    `source_clip_collide_demonstrate_step` ports those call parameters without
+    starting playback.
+  - `TestClips` runs every valid clip through the four source directions
+    `front`, `back`, `left`, and `right`. Native
+    `source_clip_collide_test_clips_plan` records that deterministic call plan.
+  - `OnListClips` and `OnListWaypoints` count valid objects, allocate that
+    count, write a null first slot, then write valid entries starting at index
+    one. Native `source_clip_collide_list_objects_plan` preserves this
+    source-visible allocation/index plan as diagnostic evidence rather than
+    using it as a runtime container implementation. `OnListReport` is separate
+    and allocates `reports + 1`.
+- `rb3-latest/src/system/char/FileMerger.cpp` and
+  `rb3-latest/src/system/char/FileMerger.h`
+  - The checked source exposes constructor/default row behavior and property
+    sync rows, but not the load/merge bodies. Native
+    `source_file_merger_default_state`,
+    `source_file_merger_merger_default_state`, and
+    `source_file_merger_merger_copy_plan` port only the visible defaults and
+    member copy list. This is not live async loading, filtering, or merge
+    behavior.
+- `rb3-latest/src/system/char/ClipCompressor.cpp`
+  - The checked source contains only `unusedclipcompressor()` calling
+    `MakeString("%s %f %f", ...)`. Native
+    `source_clip_compressor_evidence` records that absence so compression is not
+    inferred from the filename.
 
 ## Character Test Harness Helper
 

@@ -2727,6 +2727,139 @@ bool source_char_task_mgr_toggle_graph(SourceCharTaskMgrState& state) {
   return state.show_graph;
 }
 
+SourceClipGraphGeneratePairStep source_clip_graph_generate_pair_step(
+    bool has_type_def,
+    bool same_type,
+    uint32_t clip_a_play_flags,
+    bool has_on_transition,
+    bool script_creates_dmap) {
+  SourceClipGraphGeneratePairStep step;
+  bool skip_transition_generation = true;
+  bool type_pair_allowed = true;
+  if (has_type_def && same_type) {
+    type_pair_allowed = false;
+  }
+  if (!type_pair_allowed && ((clip_a_play_flags & 0xF0u) != 0x10u)) {
+    skip_transition_generation = false;
+  }
+  if (skip_transition_generation) {
+    step.return_null_before_script = true;
+    step.reason = "source-return-null-before-script";
+    return step;
+  }
+  if (!has_on_transition) {
+    step.return_null_before_script = true;
+    step.reason = "source-missing-on-transition";
+    return step;
+  }
+  step.execute_on_transition = true;
+  step.set_data_variables = true;
+  step.stores_clip_pair = true;
+  step.clears_dmap_before_script = true;
+  step.clears_dmap_after_script = true;
+  step.returns_dmap = script_creates_dmap;
+  step.set_nodes = script_creates_dmap;
+  step.reason = script_creates_dmap ? "source-script-created-dmap"
+                                    : "source-script-left-dmap-null";
+  return step;
+}
+
+SourceClipGraphTransitionPlan source_clip_graph_on_generate_transitions(
+    const SourceClipGraphTransitionInputs& inputs) {
+  constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
+  SourceClipGraphTransitionPlan plan;
+  plan.clip_a_flag = static_cast<int>((inputs.clip_a_play_flags >> 12) & 15u);
+  plan.clip_b_flag = static_cast<int>((inputs.clip_b_play_flags >> 12) & 15u);
+  plan.min_flag = std::min(plan.clip_a_flag, plan.clip_b_flag);
+  plan.beat_align = std::max(inputs.beat_align,
+                             static_cast<float>(plan.min_flag));
+  plan.blend_width = inputs.blend_width;
+  plan.has_restrict = inputs.has_restrict;
+  plan.has_bone_weights = inputs.has_bone_weights;
+  plan.find_dists_max_facing_radians = inputs.max_facing_degrees * kDegToRad;
+  plan.find_nodes_max_error = inputs.max_error;
+  plan.find_nodes_max_dist = inputs.max_dist;
+  plan.find_nodes_end_dist = inputs.end_dist;
+  return plan;
+}
+
+SourceClipCollideState source_clip_collide_default_state() {
+  return SourceClipCollideState{};
+}
+
+bool source_clip_collide_load_revision_known(int revision) {
+  return revision >= 0 && revision <= 1;
+}
+
+SourceClipCollideSyncCharStep source_clip_collide_sync_char_step(
+    bool has_character,
+    bool char_path_empty,
+    bool path_matches_proxy) {
+  SourceClipCollideSyncCharStep step;
+  step.set_proxy_file = has_character && !char_path_empty && !path_matches_proxy;
+  return step;
+}
+
+SourceClipCollideDemonstrateStep source_clip_collide_demonstrate_step(
+    bool has_character,
+    bool has_waypoint,
+    bool has_clip) {
+  SourceClipCollideDemonstrateStep step;
+  if (has_character && has_waypoint && has_clip) {
+    step.sync_waypoint = true;
+    step.play_clip = true;
+  }
+  return step;
+}
+
+SourceClipCollideListPlan source_clip_collide_list_objects_plan(
+    const std::vector<std::string>& valid_objects) {
+  SourceClipCollideListPlan plan;
+  plan.source_array_size = valid_objects.size();
+  plan.items = valid_objects;
+  return plan;
+}
+
+SourceClipCollideListPlan source_clip_collide_list_report_plan(
+    const std::vector<std::string>& reports) {
+  SourceClipCollideListPlan plan;
+  plan.source_array_size = reports.size() + 1u;
+  plan.items = reports;
+  return plan;
+}
+
+SourceClipCollideTestClipsPlan source_clip_collide_test_clips_plan(
+    size_t valid_clip_count) {
+  SourceClipCollideTestClipsPlan plan;
+  plan.directions = {"front", "back", "left", "right"};
+  plan.collide_calls = valid_clip_count * plan.directions.size();
+  return plan;
+}
+
+SourceFileMergerState source_file_merger_default_state() {
+  return SourceFileMergerState{};
+}
+
+SourceFileMergerMergerState source_file_merger_merger_default_state() {
+  return SourceFileMergerMergerState{};
+}
+
+SourceFileMergerCopyPlan source_file_merger_merger_copy_plan() {
+  SourceFileMergerCopyPlan plan;
+  plan.copied_members = {"mName",        "mSelected",      "unk10",
+                         "mLoaded",      "mDir",           "mProxy",
+                         "mSubdirs",     "mLoadedObjects", "mLoadedSubdirs",
+                         "mPreClear"};
+  return plan;
+}
+
+SourceClipCompressorEvidence source_clip_compressor_evidence() {
+  SourceClipCompressorEvidence evidence;
+  evidence.observed_function = "unusedclipcompressor";
+  evidence.format_string = "%s %f %f";
+  return evidence;
+}
+
 SourceCharClipFlagUpdate source_char_clip_set_play_flags(
     uint32_t current_play_flags,
     bool current_dirty,

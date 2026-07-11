@@ -743,6 +743,111 @@ struct SourceCharTaskMgrState {
   bool registered_toggle_char_task_graph = false;
 };
 
+struct SourceClipGraphGeneratePairStep {
+  bool remove_existing_nodes = true;
+  bool captures_type_def = true;
+  bool return_null_before_script = false;
+  bool execute_on_transition = false;
+  bool set_data_variables = false;
+  bool stores_clip_pair = false;
+  bool clears_dmap_before_script = false;
+  bool clears_dmap_after_script = false;
+  bool returns_dmap = false;
+  bool set_nodes = false;
+  std::string reason;
+};
+
+struct SourceClipGraphTransitionInputs {
+  uint32_t clip_a_play_flags = 0;
+  uint32_t clip_b_play_flags = 0;
+  float max_error = 1.0e30f;
+  float beat_align = 0.0f;
+  float blend_width = 1.0f;
+  float max_facing_degrees = 0.0f;
+  float max_dist = 0.0f;
+  float end_dist = 0.0f;
+  bool has_restrict = false;
+  bool has_bone_weights = false;
+};
+
+struct SourceClipGraphTransitionPlan {
+  int clip_a_flag = 0;
+  int clip_b_flag = 0;
+  int min_flag = 0;
+  float beat_align = 0.0f;
+  float blend_width = 1.0f;
+  int dist_map_sample_stride = 3;
+  bool has_restrict = false;
+  bool has_bone_weights = false;
+  float find_dists_max_facing_radians = 0.0f;
+  float find_nodes_max_error = 0.0f;
+  float find_nodes_max_dist = 0.0f;
+  float find_nodes_end_dist = 0.0f;
+};
+
+struct SourceClipCollideState {
+  std::string char_path;
+  std::string position = "front";
+  bool clip_null = true;
+  bool world_lines = false;
+  bool move_camera = true;
+  std::string mode;
+};
+
+struct SourceClipCollideSyncCharStep {
+  bool set_proxy_file = false;
+  bool sync_waypoint = true;
+};
+
+struct SourceClipCollideDemonstrateStep {
+  bool sync_waypoint = false;
+  bool play_clip = false;
+  int play_mode = 2;
+  float play_start = -1.0f;
+  float play_end = 1.0e30f;
+  float play_blend = 0.0f;
+};
+
+struct SourceClipCollideListPlan {
+  size_t source_array_size = 0;
+  bool writes_null_first = true;
+  size_t first_item_index = 1;
+  std::vector<std::string> items;
+};
+
+struct SourceClipCollideTestClipsPlan {
+  std::vector<std::string> directions;
+  size_t collide_calls = 0;
+};
+
+struct SourceFileMergerMergerState {
+  bool proxy = false;
+  bool pre_clear = false;
+  int subdirs = 4;
+  bool dir_null = true;
+  bool loaded_objects_no_null = true;
+  bool loaded_subdirs_no_null = true;
+};
+
+struct SourceFileMergerState {
+  bool async_load = false;
+  bool loading_load = false;
+  int unk44 = 0;
+  int unk50 = 0;
+  bool callback_self = true;
+  bool asserts_heap_when_heaps_exist = true;
+};
+
+struct SourceFileMergerCopyPlan {
+  std::vector<std::string> copied_members;
+};
+
+struct SourceClipCompressorEvidence {
+  bool has_runtime_class = false;
+  std::string observed_function;
+  std::string format_string;
+};
+
 // Source-backed CharClip constructor state.
 SourceCharClipDefaultState source_char_clip_default_state();
 SourceCharClipBeatEvent source_char_clip_beat_event_default();
@@ -899,6 +1004,34 @@ float source_char_clip_display_line_spacing(
 SourceCharTaskMgrState source_char_task_mgr_default_state();
 void source_char_task_mgr_init(SourceCharTaskMgrState& state);
 bool source_char_task_mgr_toggle_graph(SourceCharTaskMgrState& state);
+SourceClipGraphGeneratePairStep source_clip_graph_generate_pair_step(
+    bool has_type_def,
+    bool same_type,
+    uint32_t clip_a_play_flags,
+    bool has_on_transition,
+    bool script_creates_dmap);
+SourceClipGraphTransitionPlan source_clip_graph_on_generate_transitions(
+    const SourceClipGraphTransitionInputs& inputs);
+SourceClipCollideState source_clip_collide_default_state();
+bool source_clip_collide_load_revision_known(int revision);
+SourceClipCollideSyncCharStep source_clip_collide_sync_char_step(
+    bool has_character,
+    bool char_path_empty,
+    bool path_matches_proxy);
+SourceClipCollideDemonstrateStep source_clip_collide_demonstrate_step(
+    bool has_character,
+    bool has_waypoint,
+    bool has_clip);
+SourceClipCollideListPlan source_clip_collide_list_objects_plan(
+    const std::vector<std::string>& valid_objects);
+SourceClipCollideListPlan source_clip_collide_list_report_plan(
+    const std::vector<std::string>& reports);
+SourceClipCollideTestClipsPlan source_clip_collide_test_clips_plan(
+    size_t valid_clip_count);
+SourceFileMergerState source_file_merger_default_state();
+SourceFileMergerMergerState source_file_merger_merger_default_state();
+SourceFileMergerCopyPlan source_file_merger_merger_copy_plan();
+SourceClipCompressorEvidence source_clip_compressor_evidence();
 
 // Source-backed CharClip::SetFlags / SetPlayFlags dirty-state helpers.
 SourceCharClipFlagUpdate source_char_clip_set_flags(uint32_t current_flags,
