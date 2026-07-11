@@ -599,8 +599,24 @@ std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
                               a[3] * s0 + b[3] * s1});
 }
 
+std::array<float, 4> fast_interp_quat_xyzw(std::array<float, 4> a,
+                                           std::array<float, 4> b,
+                                           float t) {
+  a = normalize_quat_xyzw(a);
+  b = normalize_quat_xyzw(b);
+  const float dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+  if (dot < 0.0f) {
+    for (float& v : b) v = -v;
+  }
+  return normalize_quat_xyzw({a[0] + (b[0] - a[0]) * t,
+                              a[1] + (b[1] - a[1]) * t,
+                              a[2] + (b[2] - a[2]) * t,
+                              a[3] + (b[3] - a[3]) * t});
+}
+
 std::array<float, 4> sample_rotation_value(
-    const std::vector<MiloSceneRenderer::MeshQuatAnimKey>& keys, float frame) {
+    const std::vector<MiloSceneRenderer::MeshQuatAnimKey>& keys, float frame,
+    bool slerp) {
   if (keys.empty()) return {0.0f, 0.0f, 0.0f, 1.0f};
   const auto* a = &keys.front();
   const auto* b = &keys.back();
@@ -617,7 +633,8 @@ std::array<float, 4> sample_rotation_value(
                                    a->quat_xyzw[2], a->quat_xyzw[3]};
   const std::array<float, 4> qb = {b->quat_xyzw[0], b->quat_xyzw[1],
                                    b->quat_xyzw[2], b->quat_xyzw[3]};
-  return slerp_quat_xyzw(qa, qb, t);
+  return slerp ? slerp_quat_xyzw(qa, qb, t)
+               : fast_interp_quat_xyzw(qa, qb, t);
 }
 
 MiloSceneRenderer::MeshTransformSample sample_transform_anim(
@@ -630,7 +647,8 @@ MiloSceneRenderer::MeshTransformSample sample_transform_anim(
   }
   if (!anim.rotation_keys.empty()) {
     sample.has_rotation = true;
-    sample.rotation_xyzw = sample_rotation_value(anim.rotation_keys, frame);
+    sample.rotation_xyzw =
+        sample_rotation_value(anim.rotation_keys, frame, anim.rotation_slerp);
   }
   if (!anim.scale_keys.empty()) {
     sample.has_scale = true;

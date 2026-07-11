@@ -5882,15 +5882,24 @@ int main() {
   ok &= contains(renderer_h_c,
                  "boolscale_spline=false;",
                  "shared TransAnim data preserves the authored scale spline flag");
+  ok &= contains(renderer_h_c,
+                 "boolrotation_slerp=false;",
+                 "shared TransAnim data preserves the authored rotation slerp flag");
   ok &= contains(renderer_c,
                  "sample_vec_delta(anim.translation_keys,frame,anim.translation_spline);",
                  "one-shot renderer TransAnim translation honors authored spline mode");
   ok &= contains(renderer_c,
-                 "std::array<float,4>sample_rotation_value(",
+                 "fast_interp_quat_xyzw(",
+                 "one-shot renderer TransAnim has the source fast quaternion interpolation path");
+  ok &= contains(renderer_c,
+                 "std::array<float,4>sample_rotation_value("
+                 "conststd::vector<MiloSceneRenderer::MeshQuatAnimKey>&keys,"
+                 "floatframe,boolslerp)",
                  "one-shot renderer TransAnim rotations sample authored quaternion values");
   ok &= contains(renderer_c,
-                 "sample.rotation_xyzw=sample_rotation_value(anim.rotation_keys,frame);",
-                 "one-shot renderer TransAnim rotations use source-shaped local delta quaternions");
+                 "sample.rotation_xyzw=sample_rotation_value(anim.rotation_keys,"
+                 "frame,anim.rotation_slerp);",
+                 "one-shot renderer TransAnim rotations honor authored rot_slerp mode");
   ok &= contains(renderer_c,
                  "if(!anim.scale_keys.empty()){sample.has_scale=true;"
                  "sample.scale=sample_scale_ratio(anim.scale_keys,frame,"
@@ -5925,11 +5934,14 @@ int main() {
                  "mesh_quat_key_endpoint_summary(decoded->anim.rotation_keys)",
                  "venue TransAnim debug logs expose source quaternion key endpoints");
   ok &= contains(gameplay_c,
-                 "std::array<float,4>sample_rotation_value(",
+                 "std::array<float,4>sample_rotation_value("
+                 "conststd::vector<ghogx::render::MiloSceneRenderer::"
+                 "MeshQuatAnimKey>&keys,floatframe,boolslerp)",
                  "venue TransAnim rotations sample the authored quaternion value");
   ok &= contains(gameplay_c,
-                 "sample.rotation_xyzw=sample_rotation_value(anim.rotation_keys,frame);",
-                 "venue TransAnim playback applies source quaternions as local deltas");
+                 "sample.rotation_xyzw=sample_rotation_value(anim.rotation_keys,"
+                 "frame,anim.rotation_slerp);",
+                 "venue TransAnim playback honors authored rot_slerp mode");
   ok &= absent(gameplay_c,
                "sample.rotation_is_absolute=true;sample.rotation_xyzw=sample_rotation_absolute(anim.rotation_keys,frame);",
                "venue gear TransAnims must not flatten authored mesh bases as absolute rotations");
@@ -5938,8 +5950,9 @@ int main() {
                  "source-shaped TransAnim decoder keeps authored scale keys");
   ok &= contains(gameplay_c,
                  "out.anim.translation_spline=decoded->trans_spline;"
-                 "out.anim.scale_spline=decoded->scale_spline;",
-                 "source-shaped TransAnim decoder propagates authored vector spline flags");
+                 "out.anim.scale_spline=decoded->scale_spline;"
+                 "out.anim.rotation_slerp=decoded->rot_slerp;",
+                 "source-shaped TransAnim decoder propagates authored vector spline and rot_slerp flags");
   ok &= contains(gameplay_c,
                  "if(!anim.scale_keys.empty()){sample.has_scale=true;"
                  "sample.scale=sample_scale_ratio(anim.scale_keys,frame,"
@@ -5954,8 +5967,8 @@ int main() {
                  "anim.translation_spline);",
                  "source-local translation correction honors authored translation spline mode");
   ok &= contains(gameplay_c,
-                 "spline=%d/%d",
-                 "venue AnimFilter sample logs expose authored vector spline flags");
+                 "spline=%d/%drot_slerp=%d",
+                 "venue AnimFilter sample logs expose authored spline and rot_slerp flags");
   ok &= contains(gameplay_c,
                  "if(trans_count>2048){",
                  "source-shaped TransAnim decoder allows rotation-only venue anims");
@@ -6420,8 +6433,9 @@ int main() {
                  "populate_camera_generated_source_rows(path_pos);}",
                  "parentless path-backed TransAnim camera keys populate generated source rows");
   ok &= contains(gameplay_c,
-                 "returnslerp_quat_xyzw(qa,qb,t);",
-                 "path-backed TransAnim camera rotations are sampled by quaternion interpolation");
+                 "sample_rnd_transanim_rot_keys(decoded->rot_keys,pos.frame,"
+                 "decoded->rot_slerp);",
+                 "path-backed TransAnim camera rotations honor the decoded rot_slerp flag");
   ok &= contains(gameplay_c,
                  "std::optional<DecodedRndTransAnim>read_rnd_transanim_like_miloeditor(",
                  "path-backed TransAnim camera positions use the source-shaped RndTransAnim reader");

@@ -912,6 +912,8 @@ void sync_camshot_source_record_hint(Gameplay::CameraKey& key);
 std::string canonical_milo_ref(std::string s);
 std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
                                      std::array<float, 4> b, float t);
+std::array<float, 4> fast_interp_quat_xyzw(std::array<float, 4> a,
+                                           std::array<float, 4> b, float t);
 
 struct MiloValue {
     enum class Kind { None, Int, Float, Symbol };
@@ -1316,7 +1318,8 @@ std::optional<DecodedRndTransAnim> read_rnd_transanim_like_miloeditor(
 }
 
 std::array<float, 4> sample_rnd_transanim_rot_keys(
-    const std::vector<Gameplay::CameraKey>& rot_keys, float frame) {
+    const std::vector<Gameplay::CameraKey>& rot_keys, float frame,
+    bool rot_slerp) {
     if (rot_keys.empty()) return {0.0f, 0.0f, 0.0f, 1.0f};
     if (rot_keys.size() == 1) {
         return {rot_keys.front().quat[0], rot_keys.front().quat[1],
@@ -1337,7 +1340,8 @@ std::array<float, 4> sample_rnd_transanim_rot_keys(
                                      a->quat[3]};
     const std::array<float, 4> qb = {b->quat[0], b->quat[1], b->quat[2],
                                      b->quat[3]};
-    return slerp_quat_xyzw(qa, qb, t);
+    return rot_slerp ? slerp_quat_xyzw(qa, qb, t)
+                     : fast_interp_quat_xyzw(qa, qb, t);
 }
 
 Gameplay::CameraKey::TargetRef read_camshot_subpart_like_miloeditor(
@@ -7719,7 +7723,8 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
         if (!decoded->rot_keys.empty()) {
             for (auto& pos : out) {
                 const auto q =
-                    sample_rnd_transanim_rot_keys(decoded->rot_keys, pos.frame);
+                    sample_rnd_transanim_rot_keys(decoded->rot_keys, pos.frame,
+                                                  decoded->rot_slerp);
                 pos.has_quat = true;
                 for (int i = 0; i < 4; ++i) pos.quat[i] = q[i];
             }
@@ -8115,6 +8120,7 @@ std::optional<VenueTransAnimDecode> decode_venue_transanim_like_miloeditor(
     out.anim.scale_keys = mesh_anim_keys_from_camera_keys(decoded->scale_keys);
     out.anim.translation_spline = decoded->trans_spline;
     out.anim.scale_spline = decoded->scale_spline;
+    out.anim.rotation_slerp = decoded->rot_slerp;
     out.revision = decoded->revision;
     out.anim_revision = decoded->anim_revision;
     out.keys_owner = decoded->keys_owner;
@@ -9077,9 +9083,23 @@ std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
                                 a[3] * s0 + b[3] * s1});
 }
 
+std::array<float, 4> fast_interp_quat_xyzw(std::array<float, 4> a,
+                                           std::array<float, 4> b, float t) {
+    a = normalize_quat_xyzw(a);
+    b = normalize_quat_xyzw(b);
+    const float dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+    if (dot < 0.0f) {
+        for (float& v : b) v = -v;
+    }
+    return normalize_quat_xyzw({a[0] + (b[0] - a[0]) * t,
+                                a[1] + (b[1] - a[1]) * t,
+                                a[2] + (b[2] - a[2]) * t,
+                                a[3] + (b[3] - a[3]) * t});
+}
+
 std::array<float, 4> sample_rotation_value(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshQuatAnimKey>& keys,
-    float frame) {
+    float frame, bool slerp) {
     if (keys.empty()) return {0.0f, 0.0f, 0.0f, 1.0f};
     const auto* a = &keys.front();
     const auto* b = &keys.back();
@@ -9096,7 +9116,8 @@ std::array<float, 4> sample_rotation_value(
                                      a->quat_xyzw[2], a->quat_xyzw[3]};
     const std::array<float, 4> qb = {b->quat_xyzw[0], b->quat_xyzw[1],
                                      b->quat_xyzw[2], b->quat_xyzw[3]};
-    return slerp_quat_xyzw(qa, qb, t);
+    return slerp ? slerp_quat_xyzw(qa, qb, t)
+                 : fast_interp_quat_xyzw(qa, qb, t);
 }
 
 ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
@@ -9110,7 +9131,8 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
     }
     if (!anim.rotation_keys.empty()) {
         sample.has_rotation = true;
-        sample.rotation_xyzw = sample_rotation_value(anim.rotation_keys, frame);
+        sample.rotation_xyzw =
+            sample_rotation_value(anim.rotation_keys, frame, anim.rotation_slerp);
     }
     if (!anim.scale_keys.empty()) {
         sample.has_scale = true;
@@ -18647,7 +18669,7 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f wait=%d persistent=%d spline=%d/%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f wait=%d persistent=%d spline=%d/%d rot_slerp=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
@@ -18666,7 +18688,8 @@ void Gameplay::update_active_venue_anim_filters() {
                         filter.event_wait ? 1 : 0,
                         it->persistent ? 1 : 0,
                         target.anim.translation_spline ? 1 : 0,
-                        target.anim.scale_spline ? 1 : 0);
+                        target.anim.scale_spline ? 1 : 0,
+                        target.anim.rotation_slerp ? 1 : 0);
                 }
             }
             for (const auto& target : filter.mesh_anim_targets) {
@@ -19815,7 +19838,7 @@ void Gameplay::update_active_lighting_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) spline=%d/%d\n",
+                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) spline=%d/%d rot_slerp=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
@@ -19829,7 +19852,8 @@ void Gameplay::update_active_lighting_anim_filters() {
                         source_translation ? 1 : 0, source_pos[0],
                         source_pos[1], source_pos[2],
                         target.anim.translation_spline ? 1 : 0,
-                        target.anim.scale_spline ? 1 : 0);
+                        target.anim.scale_spline ? 1 : 0,
+                        target.anim.rotation_slerp ? 1 : 0);
                 }
             }
             for (const auto& target : filter.mesh_anim_targets) {
