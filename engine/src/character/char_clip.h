@@ -38,6 +38,17 @@ struct SourceCharBonesCompressionUpdate {
   bool changed = false;
 };
 
+struct SourceCharBonesBone {
+  std::string name;
+  float weight = 1.0f;
+};
+
+struct SourceCharBonesState {
+  int compression = 0;
+  SourceCharBonesLayout layout;
+  std::vector<SourceCharBonesBone> bones;
+};
+
 // One channel value for one frame.
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
@@ -222,6 +233,11 @@ SourceCharBonesCompressionUpdate source_char_bones_set_compression(
     int current_compression,
     const SourceCharBonesLayout& current_layout,
     int requested_compression);
+SourceCharBonesState source_char_bones_empty_state();
+void source_char_bones_clear(SourceCharBonesState& state);
+void source_char_bones_set_weights(std::vector<SourceCharBonesBone>& bones,
+                                   float weight);
+void source_char_bones_set_weights(SourceCharBonesState& state, float weight);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

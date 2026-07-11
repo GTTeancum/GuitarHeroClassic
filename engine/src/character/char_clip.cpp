@@ -149,6 +149,27 @@ SourceCharBonesCompressionUpdate source_char_bones_set_compression(
   return update;
 }
 
+SourceCharBonesState source_char_bones_empty_state() {
+  return SourceCharBonesState{};
+}
+
+void source_char_bones_clear(SourceCharBonesState& state) {
+  state.bones.clear();
+  state.layout = SourceCharBonesLayout{};
+  state.compression = 0;
+}
+
+void source_char_bones_set_weights(std::vector<SourceCharBonesBone>& bones,
+                                   float weight) {
+  for (SourceCharBonesBone& bone : bones) {
+    bone.weight = weight;
+  }
+}
+
+void source_char_bones_set_weights(SourceCharBonesState& state, float weight) {
+  source_char_bones_set_weights(state.bones, weight);
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------

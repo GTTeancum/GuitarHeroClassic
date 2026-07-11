@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -14,6 +15,12 @@ bool expect_int(int got, int want, const char* label) {
 }
 
 bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_float(float got, float want, const char* label) {
   if (got == want) return true;
   std::cerr << label << ": got " << got << " want " << want << "\n";
   return false;
@@ -35,6 +42,19 @@ bool expect_layout(const ghogx::character::SourceCharBonesLayout& got,
               << total_size << "\n";
     ok = false;
   }
+  return ok;
+}
+
+bool expect_empty_state(const ghogx::character::SourceCharBonesState& got,
+                        const char* label) {
+  bool ok = true;
+  ok &= expect_int(got.compression, 0, label);
+  ok &= expect_size(got.bones.size(), 0, label);
+  for (size_t i = 0; i < got.layout.counts.size(); ++i) {
+    ok &= expect_int(got.layout.counts[i], 0, label);
+    ok &= expect_int(got.layout.offsets[i], 0, label);
+  }
+  ok &= expect_int(got.layout.total_size, 0, label);
   return ok;
 }
 
@@ -151,6 +171,34 @@ int main() {
       source_char_bones_set_compression(0, layout_none, 4),
       4, true, {0, 12, 18, 26, 30, 32, 34}, 48,
       "compression changed");
+
+  ok &= expect_empty_state(source_char_bones_empty_state(),
+                           "default CharBones state");
+  SourceCharBonesState state = source_char_bones_empty_state();
+  state.compression = 4;
+  state.layout = source_char_bones_recompute_layout(counts, 4);
+  state.bones.push_back({"bone_head.quat", 0.25f});
+  state.bones.push_back({"bone_hand.pos", 0.75f});
+  source_char_bones_set_weights(state, 0.5f);
+  ok &= expect_size(state.bones.size(), 2, "state SetWeights count");
+  ok &= expect_string(state.bones[0].name, "bone_head.quat",
+                      "state SetWeights preserves first name");
+  ok &= expect_float(state.bones[0].weight, 0.5f,
+                     "state SetWeights first weight");
+  ok &= expect_string(state.bones[1].name, "bone_hand.pos",
+                      "state SetWeights preserves second name");
+  ok &= expect_float(state.bones[1].weight, 0.5f,
+                     "state SetWeights second weight");
+  source_char_bones_clear(state);
+  ok &= expect_empty_state(state, "ClearBones state reset");
+
+  std::vector<SourceCharBonesBone> bones;
+  bones.push_back({"bone_a.rotx", 1.0f});
+  bones.push_back({"bone_b.roty", 2.0f});
+  source_char_bones_set_weights(bones, 0.0f);
+  ok &= expect_size(bones.size(), 2, "static SetWeights count");
+  ok &= expect_float(bones[0].weight, 0.0f, "static SetWeights first");
+  ok &= expect_float(bones[1].weight, 0.0f, "static SetWeights second");
 
   return ok ? 0 : 1;
 }

@@ -2523,6 +2523,11 @@ int run_contract() {
                  "    `SetCompression` guard",
                  "document records concrete CharBones SetCompression slice");
   ok &= contains(doc,
+                 "Native `source_char_bones_empty_state`,\n"
+                 "    `source_char_bones_clear`, and "
+                 "`source_char_bones_set_weights` port the",
+                 "document records concrete CharBones state helper slice");
+  ok &= contains(doc,
                  "does not include a\n"
                  "  reviewable `Evaluate` or `Poll` body",
                  "document fences missing CharClipDriver runtime evaluator bodies");
@@ -2547,6 +2552,14 @@ int run_contract() {
                  "SourceCharBonesLayoutlayout;boolchanged=false;};",
                  "native API exposes source CharBones compression update row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBonesBone{std::stringname;floatweight=1.0f;};",
+                 "native API exposes source CharBones bone row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesState{intcompression=0;"
+                 "SourceCharBonesLayoutlayout;"
+                 "std::vector<SourceCharBonesBone>bones;};",
+                 "native API exposes source CharBones state row");
+  ok &= contains(char_clip_h,
                  "SourceCharBonesLayoutsource_char_bones_recompute_layout("
                  "conststd::array<int,kSourceCharBonesTypeEnd+1>&counts,"
                  "intcompression);",
@@ -2556,6 +2569,20 @@ int run_contract() {
                  "intcurrent_compression,constSourceCharBonesLayout&"
                  "current_layout,intrequested_compression);",
                  "native API exposes source CharBones SetCompression helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesStatesource_char_bones_empty_state();",
+                 "native API exposes source CharBones empty-state helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bones_clear(SourceCharBonesState&state);",
+                 "native API exposes source CharBones ClearBones helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bones_set_weights("
+                 "std::vector<SourceCharBonesBone>&bones,floatweight);",
+                 "native API exposes source CharBones static SetWeights helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bones_set_weights(SourceCharBonesState&state,"
+                 "floatweight);",
+                 "native API exposes source CharBones instance SetWeights helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_type_of(conststd::string&channel)",
                  "native clip decoder ports source CharBones type helper");
@@ -2595,6 +2622,22 @@ int run_contract() {
                  "requested_compression);update.changed=true;}",
                  "native CharBones SetCompression helper mirrors source guard");
   ok &= contains(char_clip,
+                 "SourceCharBonesStatesource_char_bones_empty_state(){"
+                 "returnSourceCharBonesState{};}",
+                 "native CharBones empty-state helper mirrors source constructor state");
+  ok &= contains(char_clip,
+                 "voidsource_char_bones_clear(SourceCharBonesState&state){"
+                 "state.bones.clear();state.layout=SourceCharBonesLayout{};"
+                 "state.compression=0;}",
+                 "native CharBones ClearBones helper mirrors source state reset");
+  ok &= contains(char_clip,
+                 "for(SourceCharBonesBone&bone:bones){bone.weight=weight;}",
+                 "native CharBones SetWeights helper writes every source bone row");
+  ok &= contains(char_clip,
+                 "voidsource_char_bones_set_weights(SourceCharBonesState&state,"
+                 "floatweight){source_char_bones_set_weights(state.bones,weight);}",
+                 "native CharBones state SetWeights helper delegates to source vector form");
+  ok &= contains(char_clip,
                  "SourceCharBones::ChannelNameusesthefirstdot",
                  "native suffix strip follows source first-dot rule");
   ok &= contains(char_bones_source_test,
@@ -2618,6 +2661,18 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_set_compression(0,layout_none,4)",
                  "focused CharBones source test covers changed compression");
+  ok &= contains(char_bones_source_test,
+                 "expect_empty_state(source_char_bones_empty_state(),",
+                 "focused CharBones source test covers constructor state");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_set_weights(state,0.5f);",
+                 "focused CharBones source test covers state SetWeights");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_clear(state);",
+                 "focused CharBones source test covers ClearBones reset");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_set_weights(bones,0.0f);",
+                 "focused CharBones source test covers static SetWeights");
   ok &= missing(char_clip, "GHOGX_AXIS_ROT_NO_PI",
                 "old no-pi axis-rotation diagnostic removed from decoder");
   ok &= missing(char_clip, "GHOGX_FILE_ORDER_CLIP_SAMPLES",
@@ -2680,6 +2735,26 @@ int run_contract() {
                  "voidCharBones::SetCompression(CompressionTypety){if(ty!="
                  "mCompression){mCompression=ty;RecomputeSizes();}}",
                  "latest CharBones source defines SetCompression guard");
+  ok &= contains(rb3_latest_char_bones_h,
+                 "Bone():name(),weight(1.0f){}",
+                 "latest CharBones source defines default bone weight");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "CharBones::CharBones():mCompression(kCompressNone),"
+                 "mStart(0),mTotalSize(0){for(inti=0;i<NUM_TYPES;i++){"
+                 "mCounts[i]=0;mOffsets[i]=0;}}",
+                 "latest CharBones source defines default state");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBones::ClearBones(){mBones.clear();for(inti=0;"
+                 "i<NUM_TYPES;i++){mCounts[i]=0;mOffsets[i]=0;}mTotalSize=0;"
+                 "mCompression=kCompressNone;ReallocateInternal();}",
+                 "latest CharBones source defines ClearBones state reset");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBones::SetWeights(floatf){SetWeights(f,mBones);}",
+                 "latest CharBones source defines instance SetWeights delegation");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBones::SetWeights(floatwt,std::vector<Bone>&bones){"
+                 "for(inti=0;i<bones.size();i++){bones[i].weight=wt;}}",
+                 "latest CharBones source defines static SetWeights row write");
   ok &= contains(char_clip,
                  "kSourceCompressAll=4",
                  "native clip decoder names source compression mode 4");

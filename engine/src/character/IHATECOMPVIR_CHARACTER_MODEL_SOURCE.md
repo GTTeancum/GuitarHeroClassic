@@ -853,8 +853,14 @@ note, and all report `unreadBytes=0`.
     per-type counts, per-type byte sizes, offsets, and 16-byte aligned total
     size. Native `source_char_bones_set_compression` ports the source
     `SetCompression` guard: only changed compression values update state and
-    recompute the packed layout. It does not port the pointer walk in
-    `FindOffset` until the decompiled `mBones` index expression is verified.
+    recompute the packed layout. Native `source_char_bones_empty_state`,
+    `source_char_bones_clear`, and `source_char_bones_set_weights` port the
+    complete source constructor, `ClearBones`, and `SetWeights` state behavior:
+    default compression, counts, offsets, and total size are zero; clear drops
+    all bone rows and resets layout/compression; setting weights preserves bone
+    names and writes the requested weight to every row. This helper slice does
+    not port the pointer walk in `FindOffset` until the decompiled `mBones`
+    index expression is verified.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
     call-flow hook, not a standalone pose evaluator.
 - `rb3-latest/src/system/char/CharBonesSamples.cpp` is concrete for sample
