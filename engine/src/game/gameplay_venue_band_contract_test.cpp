@@ -5957,10 +5957,20 @@ int main() {
                  "out.anim.rotation_slerp=decoded->rot_slerp;",
                  "source-shaped TransAnim decoder propagates authored vector spline and rot_slerp flags");
   ok &= contains(gameplay_c,
+                 "std::array<float,3>sample_scale_value("
+                 "conststd::vector<ghogx::render::MiloSceneRenderer::"
+                 "MeshAnimKey>&keys,floatframe,boolspline)",
+                 "venue TransAnim scale samples the authored local scale value");
+  ok &= contains(gameplay_c,
                  "if(!anim.scale_keys.empty()){sample.has_scale=true;"
-                 "sample.scale=sample_scale_ratio(anim.scale_keys,frame,"
+                 "sample.scale_is_absolute=true;"
+                 "sample.scale=sample_scale_value(anim.scale_keys,frame,"
                  "anim.scale_spline);}",
-                 "venue TransAnim playback samples authored one-key scale channels and spline mode");
+                 "venue TransAnim playback applies authored scale as source SetFrame local scale");
+  ok &= absent(gameplay_c,
+               "sample.has_scale=true;sample.scale=sample_scale_ratio("
+               "anim.scale_keys,frame,anim.scale_spline);",
+               "venue TransAnim scale must not be left as first-key-relative renderer delta");
   ok &= absent(gameplay_c,
                "if(anim.scale_keys.size()>=2){sample.has_scale=true;"
                "sample.scale=sample_scale_ratio(anim.scale_keys,frame);}",

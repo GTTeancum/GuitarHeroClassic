@@ -9091,17 +9091,11 @@ std::array<float, 3> sample_translation_position(
     return sample_vec_value(keys, frame, spline);
 }
 
-std::array<float, 3> sample_scale_ratio(
+std::array<float, 3> sample_scale_value(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
     float frame, bool spline) {
-    std::array<float, 3> out = {1.0f, 1.0f, 1.0f};
-    if (keys.empty()) return out;
-    const auto value = sample_vec_value(keys, frame, spline);
-    for (int axis = 0; axis < 3; ++axis) {
-        const float base = keys.front().pos[axis];
-        out[axis] = std::fabs(base) > 0.0001f ? value[axis] / base : 1.0f;
-    }
-    return out;
+    return keys.empty() ? std::array<float, 3>{1.0f, 1.0f, 1.0f}
+                        : sample_vec_value(keys, frame, spline);
 }
 
 std::array<float, 4> normalize_quat_xyzw(std::array<float, 4> q) {
@@ -9196,8 +9190,9 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
     }
     if (!anim.scale_keys.empty()) {
         sample.has_scale = true;
+        sample.scale_is_absolute = true;
         sample.scale =
-            sample_scale_ratio(anim.scale_keys, frame, anim.scale_spline);
+            sample_scale_value(anim.scale_keys, frame, anim.scale_spline);
     }
     return sample;
 }
