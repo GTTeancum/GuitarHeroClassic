@@ -3,6 +3,7 @@
 #include "ark_v3.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -13,6 +14,79 @@
 namespace gh::ark {
 
 namespace {
+
+std::string ark_part_path_from_seed(const std::string& seed, size_t part) {
+    namespace fs = std::filesystem;
+    const fs::path seed_path(seed);
+    const fs::path parent = seed_path.parent_path();
+    const std::string filename = seed_path.filename().string();
+    const std::string stem = seed_path.stem().string();
+    const std::string ext = seed_path.extension().string();
+
+    const size_t underscore = stem.find_last_of('_');
+    if (underscore == std::string::npos || underscore + 1 >= stem.size()) {
+        return {};
+    }
+    const std::string suffix = stem.substr(underscore + 1);
+    if (!std::all_of(suffix.begin(), suffix.end(), [](unsigned char ch) {
+            return std::isdigit(ch) != 0;
+        })) {
+        return {};
+    }
+
+    const std::string prefix = stem.substr(0, underscore + 1);
+    std::ostringstream suffix_stream;
+    suffix_stream << part;
+    std::string candidate =
+        (parent / (prefix + suffix_stream.str() + ext)).string();
+    if (fs::exists(candidate)) return candidate;
+
+    std::string upper = filename;
+    std::transform(upper.begin(), upper.end(), upper.begin(),
+                   [](unsigned char ch) {
+                       return static_cast<char>(std::toupper(ch));
+                   });
+    std::string upper_stem = fs::path(upper).stem().string();
+    const std::string upper_ext = fs::path(upper).extension().string();
+    const size_t upper_underscore = upper_stem.find_last_of('_');
+    if (upper_underscore != std::string::npos) {
+        candidate =
+            (parent / (upper_stem.substr(0, upper_underscore + 1) +
+                       suffix_stream.str() + upper_ext))
+                .string();
+        if (fs::exists(candidate)) return candidate;
+    }
+
+    std::string lower = filename;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char ch) {
+                       return static_cast<char>(std::tolower(ch));
+                   });
+    std::string lower_stem = fs::path(lower).stem().string();
+    const std::string lower_ext = fs::path(lower).extension().string();
+    const size_t lower_underscore = lower_stem.find_last_of('_');
+    if (lower_underscore != std::string::npos) {
+        candidate =
+            (parent / (lower_stem.substr(0, lower_underscore + 1) +
+                       suffix_stream.str() + lower_ext))
+                .string();
+        if (fs::exists(candidate)) return candidate;
+    }
+
+    return {};
+}
+
+std::vector<std::string> expand_ark_paths_from_first_part(
+    const std::vector<std::string>& ark_paths, size_t part_count) {
+    std::vector<std::string> expanded = ark_paths;
+    if (expanded.empty() || expanded.front().empty()) return expanded;
+    if (expanded.size() < part_count) expanded.resize(part_count);
+    for (size_t part = 1; part < part_count; ++part) {
+        if (!expanded[part].empty()) continue;
+        expanded[part] = ark_part_path_from_seed(expanded.front(), part);
+    }
+    return expanded;
+}
 
 class Reader {
 public:
@@ -199,16 +273,19 @@ ArkV3Reader ArkV3Reader::load(const std::string& hdr_path) {
 
 std::vector<uint8_t> ArkV3Reader::read_entry(const Entry& e,
                                              const std::vector<std::string>& ark_paths) const {
-    if (e.ark_part >= ark_paths.size() || ark_paths[e.ark_part].empty()) {
+    const std::vector<std::string> expanded_paths =
+        expand_ark_paths_from_first_part(ark_paths, ark_part_sizes_.size());
+    if (e.ark_part >= expanded_paths.size() ||
+        expanded_paths[e.ark_part].empty()) {
         throw std::runtime_error("ark_paths missing entry for part " + std::to_string(e.ark_part));
     }
-    std::ifstream f(ark_paths[e.ark_part], std::ios::binary);
-    if (!f) throw std::runtime_error("cannot open " + ark_paths[e.ark_part]);
+    std::ifstream f(expanded_paths[e.ark_part], std::ios::binary);
+    if (!f) throw std::runtime_error("cannot open " + expanded_paths[e.ark_part]);
     f.seekg(static_cast<std::streamoff>(e.offset));
-    if (!f) throw std::runtime_error("seek past end of " + ark_paths[e.ark_part]);
+    if (!f) throw std::runtime_error("seek past end of " + expanded_paths[e.ark_part]);
     std::vector<uint8_t> buf(e.size);
     f.read(reinterpret_cast<char*>(buf.data()), e.size);
-    if (!f) throw std::runtime_error("short read on " + ark_paths[e.ark_part]);
+    if (!f) throw std::runtime_error("short read on " + expanded_paths[e.ark_part]);
     return buf;
 }
 

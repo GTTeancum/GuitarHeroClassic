@@ -186,6 +186,10 @@ bool debug_worldcrowd_enabled() {
     return env_value("GHOGX_DEBUG_WORLDCROWD") != nullptr;
 }
 
+bool debug_worldcrowd_placement_meshes_enabled() {
+    return env_value("GHOGX_DEBUG_WORLDCROWD_PLACEMENT_MESHES") != nullptr;
+}
+
 bool unselected_worldcrowd_actor_draw_enabled() {
     return env_value("GHOGX_ENABLE_UNSELECTED_WORLDCROWD_ACTORS") != nullptr;
 }
@@ -8901,14 +8905,14 @@ void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
                             std::make_move_iterator(src.world_crowds.end()));
 }
 
-size_t append_worldcrowd_area_meshes_for_venue_chars(
+size_t append_worldcrowd_placement_debug_meshes_for_venue_chars(
     ghogx::milo_scene::Scene& dst, const ghogx::milo_scene::Scene& chars_scene) {
-    std::unordered_set<std::string> area_mesh_refs;
+    std::unordered_set<std::string> placement_mesh_refs;
     for (const auto& crowd : chars_scene.world_crowds) {
         if (!crowd.decoded || crowd.area_mesh.empty()) continue;
-        area_mesh_refs.insert(canonical_milo_ref(crowd.area_mesh));
+        placement_mesh_refs.insert(canonical_milo_ref(crowd.area_mesh));
     }
-    if (area_mesh_refs.empty()) return 0;
+    if (placement_mesh_refs.empty()) return 0;
 
     auto dst_has_mesh = [&](const std::string& mesh_name) {
         const std::string ref = canonical_milo_ref(mesh_name);
@@ -8936,8 +8940,8 @@ size_t append_worldcrowd_area_meshes_for_venue_chars(
     size_t appended = 0;
     for (const auto& mesh : chars_scene.meshes) {
         if (!mesh.decoded) continue;
-        if (area_mesh_refs.find(canonical_milo_ref(mesh.name)) ==
-            area_mesh_refs.end()) {
+        if (placement_mesh_refs.find(canonical_milo_ref(mesh.name)) ==
+            placement_mesh_refs.end()) {
             continue;
         }
         const std::string material = lower_ascii(mesh.material);
@@ -8949,13 +8953,51 @@ size_t append_worldcrowd_area_meshes_for_venue_chars(
             if (const auto* mat = source_mat(mesh.material)) dst.mats.push_back(*mat);
         }
         auto draw_mesh = mesh;
-        // WorldCrowd::DrawShowing owns this area mesh even when it is not a
-        // static RndDir mesh.
+        // ihatecompvir names WorldCrowd::mPlacementMesh as the placement mesh:
+        // keep it as actor placement data unless an explicit debug capture asks
+        // to draw it. The visible audience floor stays in venue geometry.
         draw_mesh.showing = true;
         dst.meshes.push_back(std::move(draw_mesh));
         ++appended;
     }
     return appended;
+}
+
+void log_venue_floor_meshes(
+    const ghogx::milo_scene::Scene& scene,
+    const std::unordered_set<std::string>& hidden_meshes) {
+    if (!debug_venue_filters_enabled()) return;
+    std::unordered_map<std::string, const ghogx::milo_scene::MatObj*> mats;
+    for (const auto& mat : scene.mats) {
+        mats[canonical_milo_ref(mat.name)] = &mat;
+    }
+    size_t logged = 0;
+    for (const auto& mesh : scene.meshes) {
+        const auto mat_it = mats.find(canonical_milo_ref(mesh.material));
+        const std::string texture =
+            mat_it != mats.end() ? mat_it->second->diffuse_tex : std::string();
+        const std::string name_l = lower_ascii(mesh.name);
+        const std::string material_l = lower_ascii(mesh.material);
+        const std::string texture_l = lower_ascii(texture);
+        const bool floor_like =
+            name_l.find("floor") != std::string::npos ||
+            material_l.find("floor") != std::string::npos ||
+            texture_l.find("floor") != std::string::npos;
+        if (!floor_like) continue;
+        std::fprintf(stderr,
+                     "[world] venue floor mesh: mesh=%s material=%s texture=%s showing=%d hidden=%d\n",
+                     mesh.name.c_str(), mesh.material.c_str(),
+                     texture.empty() ? "(none)" : texture.c_str(),
+                     mesh.showing ? 1 : 0,
+                     hidden_meshes.find(mesh.name) != hidden_meshes.end() ? 1
+                                                                          : 0);
+        if (++logged >= 16) break;
+    }
+    if (logged == 0) {
+        std::fprintf(stderr,
+                     "[world] venue floor mesh: none matched decoded venue "
+                     "geometry/material names\n");
+    }
 }
 
 std::vector<std::string> merge_visual_venue_subdirs(
@@ -22509,17 +22551,24 @@ void Gameplay::draw(ghogx::render::Window& win) {
                     venue_visual_subdir_sources;
                 chars_scene_loaded = ghogx::milo_scene::load_scene(
                     hdr_path_, ark_path_, chars_milo, venue_chars_scene_for_load);
-                if (chars_scene_loaded) {
-                    const size_t worldcrowd_area_meshes =
-                        append_worldcrowd_area_meshes_for_venue_chars(
+                if (chars_scene_loaded &&
+                    debug_worldcrowd_placement_meshes_enabled()) {
+                    const size_t worldcrowd_placement_meshes =
+                        append_worldcrowd_placement_debug_meshes_for_venue_chars(
                             venue_scene, venue_chars_scene_for_load);
-                    if (worldcrowd_area_meshes > 0) {
+                    if (worldcrowd_placement_meshes > 0) {
                         push_unique_ref(venue_extra_visual_sources, chars_milo);
                         std::fprintf(
                             stderr,
-                            "[world] venue WorldCrowd area meshes appended: %zu source=%s\n",
-                            worldcrowd_area_meshes, chars_milo.c_str());
+                            "[world] venue WorldCrowd placement debug meshes appended: %zu source=%s\n",
+                            worldcrowd_placement_meshes, chars_milo.c_str());
                     }
+                } else if (chars_scene_loaded && debug_venue_filters_enabled() &&
+                           !venue_chars_scene_for_load.world_crowds.empty()) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue WorldCrowd placement meshes retained for actors only; visible audience floor stays in venue geometry source=%s\n",
+                        chars_milo.c_str());
                 }
                 auto hidden_venue_meshes = mesh_names_in_groups(
                     venue_scene, {"coplight_red.grp", "coplight_blue.grp"});
@@ -22530,6 +22579,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 for (const auto& mesh : venue_scene.meshes) {
                     if (!mesh.showing) hidden_venue_meshes.insert(mesh.name);
                 }
+                log_venue_floor_meshes(venue_scene, hidden_venue_meshes);
                 const auto root_object_lists = load_rnddir_root_object_lists(
                     hdr_path_, ark_path_, venue_geom);
                 if (debug_venue_filters_enabled() &&

@@ -8441,21 +8441,33 @@ int main() {
                  "env_float(\"GHOGX_DEBUG_BACKING_CAMERA_STRIDE\",0.50f)",
                  "backing camera diagnostics are rate-limited during captures");
   ok &= contains(gameplay_c,
-                 "area_mesh_refs.insert(canonical_milo_ref(crowd.area_mesh));",
-                 "WorldCrowd area mesh refs are sourced from decoded chars MILO data");
+                 "placement_mesh_refs.insert(canonical_milo_ref(crowd.area_mesh));",
+                 "WorldCrowd placement mesh refs are sourced from decoded chars MILO data");
   ok &= contains(gameplay_c,
                  "material==\"ray_blocker.mat\"||material==\"invisible.mat\"",
-                 "WorldCrowd helper ray blockers are not drawn as audience floor");
+                 "WorldCrowd helper ray blockers stay out of placement debug draws");
   ok &= contains(gameplay_c,
-                 "draw_mesh.showing=true;",
-                 "WorldCrowd area mesh draw is owned by WorldCrowd rather than static mesh visibility");
+                 "booldebug_worldcrowd_placement_meshes_enabled(){"
+                 "returnenv_value(\"GHOGX_DEBUG_WORLDCROWD_PLACEMENT_MESHES\")!=nullptr;}",
+                 "WorldCrowd placement mesh draw has an explicit debug gate");
   ok &= contains(gameplay_c,
-                 "append_worldcrowd_area_meshes_for_venue_chars(venue_scene,"
+                 "append_worldcrowd_placement_debug_meshes_for_venue_chars(venue_scene,"
                  "venue_chars_scene_for_load);",
-                 "venue renderer receives decoded WorldCrowd area meshes");
+                 "venue renderer only receives decoded WorldCrowd placement meshes for debug");
   ok &= contains(gameplay_c,
                  "push_unique_ref(venue_extra_visual_sources,chars_milo);",
-                 "WorldCrowd area mesh materials load textures from the chars MILO");
+                 "WorldCrowd placement debug mesh materials load textures from the chars MILO");
+  ok &= contains(gameplay_c,
+                 "\"[world]venueWorldCrowdplacementmeshesretainedforactorsonly;"
+                 "visibleaudiencefloorstaysinvenuegeometrysource=%s\\n\"",
+                 "WorldCrowd placement meshes are not treated as the audience floor");
+  ok &= contains(gameplay_c,
+                 "\"[world]venuefloormesh:mesh=%smaterial=%stexture=%s"
+                 "showing=%dhidden=%d\\n\"",
+                 "venue diagnostics report real floor geometry and material state");
+  ok &= absent(gameplay_c,
+               "append_worldcrowd_area_meshes_for_venue_chars",
+               "old WorldCrowd area mesh append path must stay removed");
   ok &= contains(gameplay_h_c,
                  "boolworldcrowd_actor_runtime_enabled()const;",
                  "WorldCrowd actor runtime has one opt-in policy gate");
