@@ -56,8 +56,11 @@ int main() {
   using ghogx::character::source_char_hair_freeze_pose_plan;
   using ghogx::character::source_char_hair_freeze_pose_raw;
   using ghogx::character::source_char_hair_hookup_plan;
+  using ghogx::character::source_char_hair_load_plan;
+  using ghogx::character::source_char_hair_point_load_plan;
   using ghogx::character::source_char_hair_poll_decision;
   using ghogx::character::source_char_hair_simulate_loops_plan;
+  using ghogx::character::source_char_hair_strand_load_plan;
 
   Character character;
   add_trans(character, make_trans("parent"));
@@ -99,6 +102,88 @@ int main() {
                 << " want near -2\n";
     }
   }
+
+  const auto point_v2 = source_char_hair_point_load_plan(2);
+  ok &= expect_bool(point_v2.known_revision, true,
+                    "point load accepts v2");
+  ok &= expect_bool(point_v2.read_order[3] == "legacyCollideType", true,
+                    "point v2 reads legacy collide type");
+  ok &= expect_bool(point_v2.read_order[4] == "legacyCollisionName", true,
+                    "point v2 reads legacy collision name");
+  ok &= expect_bool(point_v2.branches.back() == "zeroLastZ", true,
+                    "point load clears runtime z");
+
+  const auto point_v6 = source_char_hair_point_load_plan(6);
+  ok &= expect_bool(point_v6.known_revision, true,
+                    "point load accepts v6");
+  ok &= expect_bool(point_v6.read_order[5] == "addToRadius", true,
+                    "point v6 reads radius add");
+  ok &= expect_bool(point_v6.read_order[6] == "legacyCollisionName", true,
+                    "point v6 reads legacy collision string");
+  ok &= expect_bool(point_v6.read_order[7] == "legacySideLengthInt0", true,
+                    "point v6 reads first legacy side int");
+  ok &= expect_bool(point_v6.branches[0] ==
+                        "addToRadiusAppliesToRadiusAndOuterRadius",
+                    true, "point v6 adds radius to both radii");
+
+  const auto point_v8 = source_char_hair_point_load_plan(8);
+  ok &= expect_bool(point_v8.known_revision, true,
+                    "point load accepts v8");
+  ok &= expect_bool(point_v8.read_order[5] == "addToRadius", true,
+                    "point v8 reads radius add");
+  ok &= expect_bool(point_v8.read_order[6] == "sideLengthEnabled", true,
+                    "point v8 reads side enabled");
+  ok &= expect_bool(point_v8.read_order[7] == "sideLength", true,
+                    "point v8 reads side length");
+  ok &= expect_bool(point_v8.branches[1] ==
+                        "disabledSideLengthForcesMinusOne",
+                    true, "point v8 disabled side length branch");
+
+  const auto point_v10 = source_char_hair_point_load_plan(10);
+  ok &= expect_bool(point_v10.known_revision, true,
+                    "point load accepts v10");
+  ok &= expect_bool(point_v10.read_order.back() == "unk5c", true,
+                    "point v10 reads frozen-pose vector");
+
+  const auto point_bad = source_char_hair_point_load_plan(12);
+  ok &= expect_bool(point_bad.known_revision, false,
+                    "point load rejects unknown revision");
+  ok &= expect_int(static_cast<int>(point_bad.read_order.size()), 0,
+                   "point bad revision has no reads");
+
+  const auto strand_v2 = source_char_hair_strand_load_plan(2);
+  ok &= expect_bool(strand_v2.known_revision, true,
+                    "strand load accepts v2");
+  ok &= expect_bool(strand_v2.read_order[2] == "mPoints", true,
+                    "strand reads points");
+  ok &= expect_bool(strand_v2.branches[0] == "mHookupFlags=0", true,
+                    "strand v2 defaults hookup flags");
+
+  const auto strand_v3 = source_char_hair_strand_load_plan(3);
+  ok &= expect_bool(strand_v3.known_revision, true,
+                    "strand load accepts v3");
+  ok &= expect_bool(strand_v3.read_order.back() == "mHookupFlags", true,
+                    "strand v3 reads hookup flags");
+
+  const auto load_v7 = source_char_hair_load_plan(7);
+  ok &= expect_bool(load_v7.known_revision, true,
+                    "hair load accepts v7");
+  ok &= expect_bool(load_v7.branches[0] == "mMinSlack=0", true,
+                    "hair v7 defaults min slack");
+  ok &= expect_bool(load_v7.branches[1] == "mMaxSlack=0", true,
+                    "hair v7 defaults max slack");
+  ok &= expect_bool(load_v7.read_order.back() == "mSimulate", true,
+                    "hair v7 ends at simulate");
+
+  const auto load_v11 = source_char_hair_load_plan(11);
+  ok &= expect_bool(load_v11.known_revision, true,
+                    "hair load accepts v11");
+  ok &= expect_bool(load_v11.read_order[8] == "mMinSlack", true,
+                    "hair v11 reads min slack");
+  ok &= expect_bool(load_v11.read_order[9] == "mMaxSlack", true,
+                    "hair v11 reads max slack");
+  ok &= expect_bool(load_v11.read_order.back() == "mWind", true,
+                    "hair v11 reads wind");
 
   Character freeze_character;
   auto parent = make_trans("parent");

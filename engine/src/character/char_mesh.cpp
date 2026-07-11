@@ -1564,6 +1564,87 @@ SourceCharHairDefaultState source_char_hair_default_state() {
   return SourceCharHairDefaultState{};
 }
 
+SourceCharHairPointLoadPlan source_char_hair_point_load_plan(int revision) {
+  SourceCharHairPointLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 11;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"pos", "bone", "length"};
+  if (revision < 3) {
+    plan.read_order.push_back("legacyCollideType");
+    plan.read_order.push_back("legacyCollisionName");
+  } else if (revision == 3) {
+    plan.read_order.push_back("legacyCollideType");
+  }
+
+  plan.read_order.push_back("radius");
+  if (revision > 1) {
+    plan.read_order.push_back("outerRadius");
+  } else {
+    plan.branches.push_back("outerRadius=0");
+  }
+  if (revision == 6 || revision == 7 || revision == 8) {
+    plan.read_order.push_back("addToRadius");
+    plan.branches.push_back("addToRadiusAppliesToRadiusAndOuterRadius");
+  }
+  if (revision == 6) plan.read_order.push_back("legacyCollisionName");
+
+  if (revision < 8) {
+    plan.branches.push_back("sideLength=-1");
+    if (revision > 5) {
+      plan.read_order.push_back("legacySideLengthInt0");
+      plan.read_order.push_back("legacySideLengthInt1");
+    }
+  } else {
+    if (revision < 9) plan.read_order.push_back("sideLengthEnabled");
+    plan.read_order.push_back("sideLength");
+    if (revision < 9) {
+      plan.branches.push_back("disabledSideLengthForcesMinusOne");
+    }
+  }
+
+  if (revision > 9) plan.read_order.push_back("unk5c");
+  plan.branches.push_back("clearCollides");
+  plan.branches.push_back("zeroForce");
+  plan.branches.push_back("zeroLastFriction");
+  plan.branches.push_back("zeroLastZ");
+  return plan;
+}
+
+SourceCharHairStrandLoadPlan source_char_hair_strand_load_plan(int revision) {
+  SourceCharHairStrandLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 11;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"mRoot", "mAngle", "mPoints", "mBaseMat", "mRootMat"};
+  if (revision > 2) {
+    plan.read_order.push_back("mHookupFlags");
+  } else {
+    plan.branches.push_back("mHookupFlags=0");
+  }
+  return plan;
+}
+
+SourceCharHairLoadPlan source_char_hair_load_plan(int revision) {
+  SourceCharHairLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 11;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"LOAD_REVS", "Hmx::Object", "mStiffness", "mTorsion",
+                     "mInertia",  "mGravity",    "mWeight",    "mFriction"};
+  if (revision < 8) {
+    plan.branches.push_back("mMinSlack=0");
+    plan.branches.push_back("mMaxSlack=0");
+  } else {
+    plan.read_order.push_back("mMinSlack");
+    plan.read_order.push_back("mMaxSlack");
+  }
+  plan.read_order.push_back("mStrands");
+  plan.read_order.push_back("mSimulate");
+  if (revision > 10) plan.read_order.push_back("mWind");
+  return plan;
+}
+
 bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
                                              bool owner_is_world_dir) {
   return owner_is_character || owner_is_world_dir;

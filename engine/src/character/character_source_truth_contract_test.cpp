@@ -1701,6 +1701,45 @@ int run_contract() {
                  "mMe(this,0),mWind(this,0),mCollide(this,kObjListNoNull),"
                  "mManagedHookup(0){}",
                  "RB3 CharHair constructor exposes runtime default flags");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "BinStream&operator>>(BinStream&bs,CharHair::Point&pt){"
+                 "bs>>pt.pos;bs>>pt.bone;bs>>pt.length;",
+                 "RB3 CharHair Point load source reads position, bone, length");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(CharHair::gRev<3){inti;charbuf[0x100];bs>>i;"
+                 "bs.ReadString(buf,0xff);}elseif(CharHair::gRev==3){",
+                 "RB3 CharHair Point load source reads legacy collision rows");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(CharHair::gRev==6||CharHair::gRev==7||"
+                 "CharHair::gRev==8){floatf;bs>>f;pt.radius+=f;"
+                 "pt.outerRadius+=f;}",
+                 "RB3 CharHair Point load source adds radius for revs 6-8");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(CharHair::gRev<8){pt.sideLength=-1.0f;"
+                 "if(CharHair::gRev>5){inti;bs>>i>>i;}}else{",
+                 "RB3 CharHair Point load source handles legacy side length");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(CharHair::gRev>9){bs>>pt.unk5c;}pt.collides.clear();"
+                 "pt.force.Zero();pt.lastFriction.Zero();pt.lastZ.Zero();}",
+                 "RB3 CharHair Point load source clears runtime point fields");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::Strand::Load(BinStream&bs){bs>>mRoot;"
+                 "bs>>mAngle;bs>>mPoints;bs>>mBaseMat>>mRootMat;",
+                 "RB3 CharHair Strand load source reads root angle points matrices");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(CharHair::gRev>2){bs>>mHookupFlags;}elsemHookupFlags=0;}",
+                 "RB3 CharHair Strand load source gates hookup flags");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(11,0);Hmx::Object::Load(bs);"
+                 "bs>>mStiffness>>mTorsion>>mInertia>>mGravity>>mWeight>>"
+                 "mFriction;",
+                 "RB3 CharHair load source reads object and core floats");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(gRev<8){mMinSlack=0.0f;mMaxSlack=0.0f;}elsebs>>"
+                 "mMinSlack>>mMaxSlack;bs>>mStrands;bs>>mSimulate;"
+                 "if(gRev>10)bs>>mWind;}",
+                 "RB3 CharHair load source gates slack and wind reads");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairDefaultState{floatstiffness=0.04f;"
                  "floattorsion=0.1f;floatinertia=0.7f;",
@@ -1716,6 +1755,71 @@ int run_contract() {
                  "SourceCharHairDefaultStatesource_char_hair_default_state(){"
                  "returnSourceCharHairDefaultState{};}",
                  "native CharHair default helper returns source defaults");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairPointLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;",
+                 "native exposes CharHair Point load plan row");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairPointLoadPlansource_char_hair_point_load_plan("
+                 "intrevision);",
+                 "native exposes CharHair Point load plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairStrandLoadPlansource_char_hair_strand_load_plan("
+                 "intrevision);",
+                 "native exposes CharHair Strand load plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairLoadPlansource_char_hair_load_plan("
+                 "intrevision);",
+                 "native exposes CharHair load plan helper");
+  ok &= contains(char_mesh,
+                 "SourceCharHairPointLoadPlansource_char_hair_point_load_plan("
+                 "intrevision){SourceCharHairPointLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=11;",
+                 "native CharHair Point load plan ports source revision gate");
+  ok &= contains(char_mesh,
+                 "if(revision<3){plan.read_order.push_back("
+                 "\"legacyCollideType\");plan.read_order.push_back("
+                 "\"legacyCollisionName\");}elseif(revision==3){",
+                 "native CharHair Point load plan ports legacy collision rows");
+  ok &= contains(char_mesh,
+                 "if(revision==6||revision==7||revision==8){"
+                 "plan.read_order.push_back(\"addToRadius\");"
+                 "plan.branches.push_back("
+                 "\"addToRadiusAppliesToRadiusAndOuterRadius\");}",
+                 "native CharHair Point load plan ports add-to-radius gate");
+  ok &= contains(char_mesh,
+                 "if(revision<8){plan.branches.push_back(\"sideLength=-1\");"
+                 "if(revision>5){plan.read_order.push_back("
+                 "\"legacySideLengthInt0\");",
+                 "native CharHair Point load plan ports legacy side-length rows");
+  ok &= contains(char_mesh,
+                 "if(revision>9)plan.read_order.push_back(\"unk5c\");"
+                 "plan.branches.push_back(\"clearCollides\");"
+                 "plan.branches.push_back(\"zeroForce\");",
+                 "native CharHair Point load plan ports runtime reset rows");
+  ok &= contains(char_mesh,
+                 "SourceCharHairStrandLoadPlansource_char_hair_strand_load_plan("
+                 "intrevision){SourceCharHairStrandLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=11;",
+                 "native CharHair Strand load plan ports source revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"mRoot\",\"mAngle\",\"mPoints\","
+                 "\"mBaseMat\",\"mRootMat\"};if(revision>2){",
+                 "native CharHair Strand load plan ports source read order");
+  ok &= contains(char_mesh,
+                 "SourceCharHairLoadPlansource_char_hair_load_plan("
+                 "intrevision){SourceCharHairLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=11;",
+                 "native CharHair load plan ports source revision gate");
+  ok &= contains(char_mesh,
+                 "if(revision<8){plan.branches.push_back(\"mMinSlack=0\");"
+                 "plan.branches.push_back(\"mMaxSlack=0\");}else{",
+                 "native CharHair load plan ports slack revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order.push_back(\"mStrands\");"
+                 "plan.read_order.push_back(\"mSimulate\");"
+                 "if(revision>10)plan.read_order.push_back(\"mWind\");",
+                 "native CharHair load plan ports strand/simulate/wind reads");
   ok &= contains(char_mesh_h,
                  "boolsource_char_hair_set_name_use_post_proc("
                  "boolowner_is_character,boolowner_is_world_dir);",
@@ -1981,6 +2085,21 @@ int run_contract() {
                  "\"neck.collide\"})",
                  "focused CharHair test covers Hookup collide collection");
   ok &= contains(char_hair_source_test,
+                 "source_char_hair_point_load_plan(2)",
+                 "focused CharHair test covers legacy Point load plan");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_point_load_plan(6)",
+                 "focused CharHair test covers rev-6 Point load plan");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_point_load_plan(8)",
+                 "focused CharHair test covers rev-8 Point load plan");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_strand_load_plan(3)",
+                 "focused CharHair test covers Strand hookup-flags load");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_load_plan(11)",
+                 "focused CharHair test covers modern CharHair load plan");
+  ok &= contains(char_hair_source_test,
                  "source_char_hair_hookup_plan(true,{\"head.collide\","
                  "\"neck.collide\"})",
                  "focused CharHair test covers managed Hookup return");
@@ -1994,6 +2113,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_hair_simulate_loops_plan` ports that gate",
                  "document records native CharHair SimulateLoops plan");
+  ok &= contains(doc,
+                 "`source_char_hair_load_plan`, `source_char_hair_strand_load_plan`, and",
+                 "document records native CharHair load plan helpers");
+  ok &= contains(doc,
+                 "revision gates as deterministic format evidence for hair segment/controller",
+                 "document ties CharHair load plans to segment/controller rows");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "if(thisPoint.collides.size()!=0){",
                  "RB3 CharHair runtime writes only through resolved collides");

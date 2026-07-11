@@ -533,6 +533,10 @@ note, and all report `unreadBytes=0`.
     asserts source revisions through 11, always reads `simulate` after the
     strand list, and reads `wind` only when `gRev > 10`. Native exposes
     `decode_hair` for deterministic row tests and follows those same gates.
+    `source_char_hair_load_plan`, `source_char_hair_strand_load_plan`, and
+    `source_char_hair_point_load_plan` record the same source read order and
+    revision gates as deterministic format evidence for hair segment/controller
+    rows.
   - Revisions below 3 consume a legacy `int` and string, and revision 3 consumes
     a legacy `int`, but the reader then calls `pt.collides.clear()`. Native may
     log these legacy inline fields for stock GH2 evidence, but they are not a

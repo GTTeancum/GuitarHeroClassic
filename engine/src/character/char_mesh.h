@@ -319,6 +319,24 @@ struct SourceCharHairDefaultState {
   bool managed_hookup = false;
 };
 
+struct SourceCharHairPointLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+};
+
+struct SourceCharHairStrandLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+};
+
+struct SourceCharHairLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+};
+
 struct SourceCharHairRootNode {
   std::string bone;
   float local_y = 0.0f;
@@ -1037,6 +1055,9 @@ struct SourceCharIKFingersCopyPlan {
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
 SourceCharHairDefaultState source_char_hair_default_state();
+SourceCharHairPointLoadPlan source_char_hair_point_load_plan(int revision);
+SourceCharHairStrandLoadPlan source_char_hair_strand_load_plan(int revision);
+SourceCharHairLoadPlan source_char_hair_load_plan(int revision);
 bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
                                              bool owner_is_world_dir);
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
