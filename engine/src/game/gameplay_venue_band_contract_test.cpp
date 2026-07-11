@@ -5832,7 +5832,7 @@ int main() {
                  "world=composed;",
                  "animated venue parent transforms replace stored-world fallback with source hierarchy");
   ok &= contains(renderer_c,
-                 "apply_transform_samples(local,target);",
+                 "apply_transform_samples(sampled_local,target);",
                  "animated venue parent transforms apply samples at the authored node");
   ok &= contains(gameplay_c,
                  "out.target=canonical_milo_ref(decoded->trans);",

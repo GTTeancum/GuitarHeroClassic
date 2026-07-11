@@ -9048,16 +9048,20 @@ sample_mesh_transform_from_source_local_position(
     std::array<float, 3>* source_position = nullptr) {
     auto sample = sample_mesh_transform(anim, frame);
     if (used_source_position) *used_source_position = false;
-    if (anim.translation_keys.size() < 2) return sample;
-    const auto source = source_local_position_for_mesh(source_positions, mesh_name);
-    if (!source) return sample;
-    const auto position =
-        sample_translation_position(anim.translation_keys, frame);
-    sample.has_translation = true;
-    for (int axis = 0; axis < 3; ++axis)
-        sample.translation[axis] = position[axis] - (*source)[axis];
-    if (used_source_position) *used_source_position = true;
-    if (source_position) *source_position = *source;
+    if (!anim.translation_keys.empty()) {
+        const auto source =
+            source_local_position_for_mesh(source_positions, mesh_name);
+        if (source) {
+            const auto position =
+                sample_translation_position(anim.translation_keys, frame);
+            sample.has_translation = true;
+            sample.translation_is_absolute = false;
+            for (int axis = 0; axis < 3; ++axis)
+                sample.translation[axis] = position[axis] - (*source)[axis];
+            if (used_source_position) *used_source_position = true;
+            if (source_position) *source_position = *source;
+        }
+    }
     return sample;
 }
 
@@ -18521,12 +18525,16 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f wait=%d persistent=%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f wait=%d persistent=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
+                        sample.translation_is_absolute ? "abs" : "delta",
                         sample.has_rotation ? 1 : 0,
-                        sample.has_scale ? 1 : 0, sample.translation[0],
+                        sample.rotation_is_absolute ? "abs" : "delta",
+                        sample.has_scale ? 1 : 0,
+                        sample.scale_is_absolute ? "abs" : "delta",
+                        sample.translation[0],
                         sample.translation[1], sample.translation[2],
                         sample.scale[0], sample.scale[1], sample.scale[2],
                         source_translation ? 1 : 0, source_pos[0],
@@ -19683,12 +19691,16 @@ void Gameplay::update_active_lighting_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d rot=%d scale=%d offset=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f)\n",
+                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f)\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
+                        sample.translation_is_absolute ? "abs" : "delta",
                         sample.has_rotation ? 1 : 0,
-                        sample.has_scale ? 1 : 0, sample.translation[0],
+                        sample.rotation_is_absolute ? "abs" : "delta",
+                        sample.has_scale ? 1 : 0,
+                        sample.scale_is_absolute ? "abs" : "delta",
+                        sample.translation[0],
                         sample.translation[1], sample.translation[2],
                         source_translation ? 1 : 0, source_pos[0],
                         source_pos[1], source_pos[2]);

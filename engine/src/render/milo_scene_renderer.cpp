@@ -220,6 +220,31 @@ std::array<float, 16> mul16(const std::array<float, 16>& a,
   return r;
 }
 
+std::array<float, 16> affine_inverse16(const std::array<float, 16>& m) {
+  const float a = m[0], b = m[1], c = m[2];
+  const float d = m[4], e = m[5], f = m[6];
+  const float g = m[8], h = m[9], i = m[10];
+  const float det =
+      a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  const float id = std::fabs(det) > 1e-12f ? 1.0f / det : 0.0f;
+  std::array<float, 16> r{};
+  r[0] = (e * i - f * h) * id;
+  r[1] = (c * h - b * i) * id;
+  r[2] = (b * f - c * e) * id;
+  r[4] = (f * g - d * i) * id;
+  r[5] = (a * i - c * g) * id;
+  r[6] = (c * d - a * f) * id;
+  r[8] = (d * h - e * g) * id;
+  r[9] = (b * g - a * h) * id;
+  r[10] = (a * e - b * d) * id;
+  const float tx = m[12], ty = m[13], tz = m[14];
+  r[12] = -(tx * r[0] + ty * r[4] + tz * r[8]);
+  r[13] = -(tx * r[1] + ty * r[5] + tz * r[9]);
+  r[14] = -(tx * r[2] + ty * r[6] + tz * r[10]);
+  r[15] = 1.0f;
+  return r;
+}
+
 std::array<float, 16> xfm_to_mat4(const milo_scene::Xfm& x) {
   return {x.rot[0][0], x.rot[0][1], x.rot[0][2], 0.0f,
           x.rot[1][0], x.rot[1][1], x.rot[1][2], 0.0f,
@@ -308,14 +333,77 @@ void apply_local_scale_delta(std::array<float, 16>& world,
   for (int c = 0; c < 3; ++c) world[8 + c] *= scale[2];
 }
 
+std::array<float, 3> local_row_scales(const std::array<float, 16>& local) {
+  return {
+      std::sqrt(local[0] * local[0] + local[1] * local[1] +
+                local[2] * local[2]),
+      std::sqrt(local[4] * local[4] + local[5] * local[5] +
+                local[6] * local[6]),
+      std::sqrt(local[8] * local[8] + local[9] * local[9] +
+                local[10] * local[10]),
+  };
+}
+
+void local_normalized_rows(const std::array<float, 16>& local,
+                           float rot[3][3]) {
+  const auto scale = local_row_scales(local);
+  for (int r = 0; r < 3; ++r) {
+    const float s = scale[r];
+    if (std::isfinite(s) && s > 0.000001f) {
+      for (int c = 0; c < 3; ++c) rot[r][c] = local[r * 4 + c] / s;
+    } else {
+      for (int c = 0; c < 3; ++c) rot[r][c] = r == c ? 1.0f : 0.0f;
+    }
+  }
+}
+
+float finite_or(float value, float fallback) {
+  return std::isfinite(value) ? value : fallback;
+}
+
+void apply_absolute_local_rot_scale(
+    std::array<float, 16>& local,
+    const MiloSceneRenderer::MeshTransformSample& sample) {
+  float rot[3][3];
+  if (sample.has_rotation && sample.rotation_is_absolute) {
+    quat_xyzw_to_row_rot(sample.rotation_xyzw, rot);
+  } else {
+    local_normalized_rows(local, rot);
+  }
+
+  std::array<float, 3> scale = local_row_scales(local);
+  if (sample.has_scale && sample.scale_is_absolute) {
+    for (int i = 0; i < 3; ++i) {
+      scale[i] = finite_or(sample.scale[i], scale[i]);
+    }
+  }
+
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      local[r * 4 + c] = rot[r][c] * scale[r];
+    }
+  }
+}
+
 void apply_mesh_transform_sample(
     std::array<float, 16>& world,
     const MiloSceneRenderer::MeshTransformSample& sample) {
-  if (sample.has_translation)
-    apply_local_translation_delta(world, sample.translation.data());
-  if (sample.has_rotation)
+  if (sample.has_translation) {
+    if (sample.translation_is_absolute) {
+      world[12] = sample.translation[0];
+      world[13] = sample.translation[1];
+      world[14] = sample.translation[2];
+    } else {
+      apply_local_translation_delta(world, sample.translation.data());
+    }
+  }
+  const bool has_absolute_rot_scale =
+      (sample.has_rotation && sample.rotation_is_absolute) ||
+      (sample.has_scale && sample.scale_is_absolute);
+  if (has_absolute_rot_scale) apply_absolute_local_rot_scale(world, sample);
+  if (sample.has_rotation && !sample.rotation_is_absolute)
     apply_local_rotation_delta(world, sample.rotation_xyzw);
-  if (sample.has_scale)
+  if (sample.has_scale && !sample.scale_is_absolute)
     apply_local_scale_delta(world, sample.scale);
 }
 
@@ -2232,6 +2320,32 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
       return false;
     };
+    auto base_world_for = [&](const std::string& name,
+                              std::array<float, 16>& world) -> bool {
+      if (m.name == name) {
+        world = scene_.world_matrix(m);
+        return true;
+      }
+      for (const auto& mesh : scene_.meshes) {
+        if (mesh.name == name) {
+          world = scene_.world_matrix(mesh);
+          return true;
+        }
+      }
+      for (const auto& group : scene_.groups) {
+        if (group.name == name && group.has_transform) {
+          world = xfm_to_mat4(group.world_stored);
+          return true;
+        }
+      }
+      for (const auto& trans : scene_.transes) {
+        if (trans.name == name) {
+          world = xfm_to_mat4(trans.world_stored);
+          return true;
+        }
+      }
+      return false;
+    };
     auto target_has_transform_sample = [&](const std::string& target) -> bool {
       return mesh_transform_offsets_.find(target) !=
                  mesh_transform_offsets_.end() ||
@@ -2263,34 +2377,53 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         target_has_transform_sample(m.name) ||
         std::any_of(animated_ancestors.begin(), animated_ancestors.end(),
                     target_has_transform_sample);
-    bool composed_animated_chain = false;
     auto world = scene_.world_matrix(m);
+    bool recomposed_animated_chain = false;
     if (chain_has_transform_sample) {
       std::vector<std::string> chain;
+      chain.reserve(animated_ancestors.size() + 1);
+      for (const auto& ancestor : animated_ancestors) chain.push_back(ancestor);
       chain.push_back(m.name);
-      for (auto it = animated_ancestors.rbegin();
-           it != animated_ancestors.rend(); ++it) {
-        chain.push_back(*it);
-      }
-      std::array<float, 16> composed{};
-      bool have_composed = false;
+      std::array<float, 16> anchor_base{};
+      std::array<float, 16> anchor_current{};
+      bool have_anchor = false;
       bool resolved_all_nodes = true;
+      std::array<float, 16> composed = world;
       for (const std::string& target : chain) {
-        std::array<float, 16> local{};
-        if (!local_for(target, local)) {
+        std::array<float, 16> base_world{};
+        if (!base_world_for(target, base_world)) {
           resolved_all_nodes = false;
           break;
         }
-        apply_transform_samples(local, target);
-        composed = have_composed ? mul16(composed, local) : local;
-        have_composed = true;
+        std::array<float, 16> current_world = base_world;
+        if (have_anchor) {
+          current_world =
+              mul16(mul16(base_world, affine_inverse16(anchor_base)),
+                    anchor_current);
+        }
+        if (target_has_transform_sample(target)) {
+          std::array<float, 16> base_local{};
+          if (!local_for(target, base_local)) {
+            resolved_all_nodes = false;
+            break;
+          }
+          std::array<float, 16> sampled_local = base_local;
+          apply_transform_samples(sampled_local, target);
+          current_world =
+              mul16(mul16(sampled_local, affine_inverse16(base_local)),
+                    current_world);
+          anchor_base = base_world;
+          anchor_current = current_world;
+          have_anchor = true;
+        }
+        if (target == m.name) composed = current_world;
       }
-      if (resolved_all_nodes && have_composed) {
+      if (resolved_all_nodes) {
         world = composed;
-        composed_animated_chain = true;
+        recomposed_animated_chain = true;
       }
     }
-    if (!composed_animated_chain) {
+    if (!recomposed_animated_chain) {
       for (const std::string& target : animated_ancestors) {
         apply_transform_samples(world, target);
       }

@@ -174,10 +174,13 @@ class MiloSceneRenderer {
       std::map<std::string, std::array<float, 3>> offsets);
   struct MeshTransformSample {
     bool has_translation = false;
+    bool translation_is_absolute = false;
     std::array<float, 3> translation = {0.0f, 0.0f, 0.0f};
     bool has_rotation = false;
+    bool rotation_is_absolute = false;
     std::array<float, 4> rotation_xyzw = {0.0f, 0.0f, 0.0f, 1.0f};
     bool has_scale = false;
+    bool scale_is_absolute = false;
     std::array<float, 3> scale = {1.0f, 1.0f, 1.0f};
   };
   void set_mesh_transform_offsets(
