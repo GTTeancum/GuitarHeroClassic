@@ -858,12 +858,16 @@ CharCollide decode_collide_body(const std::string& entry_name,
   return collide;
 }
 
-CharPosConstraint decode_pos_constraint(const std::string& entry_name,
-                                        const std::vector<uint8_t>& body) {
+CharPosConstraint decode_pos_constraint_body(const std::string& entry_name,
+                                             const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
   CharPosConstraint constraint;
   constraint.name = entry_name;
   constraint.version = r.i32();
+  if (constraint.version < 0 || constraint.version > 2) {
+    throw std::runtime_error(
+        "char_mesh: CharPosConstraint revision outside source range");
+  }
   read_object_fields(r);
   constraint.targets = read_obj_ptr_list(r);
   constraint.source = r.str();
@@ -1451,6 +1455,11 @@ CharCollide decode_collide(const std::string& entry_name,
   return decode_collide_body(entry_name, body);
 }
 
+CharPosConstraint decode_pos_constraint(const std::string& entry_name,
+                                        const std::vector<uint8_t>& body) {
+  return decode_pos_constraint_body(entry_name, body);
+}
+
 CharLookAt decode_lookat(const std::string& entry_name,
                          const std::vector<uint8_t>& body) {
   return decode_lookat_body(entry_name, body);
@@ -1459,6 +1468,41 @@ CharLookAt decode_lookat(const std::string& entry_name,
 CharEyes decode_eyes(const std::string& entry_name,
                      const std::vector<uint8_t>& body) {
   return decode_eyes_body(entry_name, body);
+}
+
+SourceCharPosConstraintLoadPlan source_char_pos_constraint_load_plan(
+    int revision) {
+  SourceCharPosConstraintLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 2;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"LOAD_REVS", "Hmx::Object", "mTargets", "mSrc"};
+  if (revision > 1) {
+    plan.read_order.push_back("mBox");
+  } else {
+    plan.branches.push_back("mBox.min=(1,1,0)");
+    plan.branches.push_back("mBox.max=(-1,-1,1000)");
+  }
+  return plan;
+}
+
+SourceCharPosConstraintCopyPlan source_char_pos_constraint_copy_plan() {
+  SourceCharPosConstraintCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mTargets", "mSrc", "mBox"};
+  return plan;
+}
+
+SourceCharPosConstraintPollDepsPlan source_char_pos_constraint_poll_deps_plan(
+    const std::string& source,
+    const std::vector<std::string>& targets) {
+  SourceCharPosConstraintPollDepsPlan plan;
+  plan.changed_by.push_back(source);
+  for (const std::string& target : targets) {
+    plan.change.push_back(target);
+    plan.changed_by.push_back(target);
+  }
+  return plan;
 }
 
 std::array<float, 3> source_char_pos_constraint_target_position(

@@ -1048,6 +1048,15 @@ note, and all report `unreadBytes=0`.
     `Hmx::Object`, then the `targets` object list, then the `source`
     transformable pointer. For revisions greater than 1 it reads `mBox`;
     older rows default to min `(1, 1, 0)` and max `(-1, -1, 1000)`.
+    Native `source_char_pos_constraint_load_plan` records that read order,
+    revision gate, and old-box default branch, and the decoder rejects rows
+    outside the source revision range before consuming superclass payload.
+  - `CharPosConstraint::Copy` copies `Hmx::Object`, `mTargets`, `mSrc`, and
+    `mBox`. `PollDeps` publishes `mSrc` as an input dependency and publishes
+    each target as both changed-by and changed rows. Native
+    `source_char_pos_constraint_copy_plan` and
+    `source_char_pos_constraint_poll_deps_plan` record those source-visible
+    contracts.
   - The source header defines `mBox` as a `Box` with `mMin` and `mMax` vector
     members; native therefore decodes the revision-2 box row as min vector
     followed by max vector. The exact `Geo.h` serialization body is not present

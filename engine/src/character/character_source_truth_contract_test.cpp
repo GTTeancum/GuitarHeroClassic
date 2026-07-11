@@ -6428,6 +6428,9 @@ int run_contract() {
   ok &= contains(rb3_latest_char_pos_constraint_h, "BoxmBox;",
                  "latest CharPosConstraint header exposes Box row");
   ok &= contains(rb3_latest_char_pos_constraint_cpp,
+                 "LOAD_REVS(bs);ASSERT_REVS(2,0);Hmx::Object::Load(bs);",
+                 "CharPosConstraint source load accepts revisions through 2");
+  ok &= contains(rb3_latest_char_pos_constraint_cpp,
                  "bs>>mTargets;bs>>mSrc;if(gRev>1){bs>>mBox;}",
                  "CharPosConstraint source load reads targets, source, box");
   ok &= contains(rb3_latest_char_pos_constraint_cpp,
@@ -6438,6 +6441,19 @@ int run_contract() {
                  "floattmp=Clamp(mBox.mMin.x,mBox.mMax.x,"
                  "tf48.v.x-srcTrans.v.x);",
                  "CharPosConstraint source poll clamps target/source delta");
+  ok &= contains(rb3_latest_char_pos_constraint_cpp,
+                 "voidCharPosConstraint::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){changedBy."
+                 "push_back(mSrc);for(ObjPtrList<RndTransformable,"
+                 "classObjectDir>::iteratorit=mTargets.begin();it!="
+                 "mTargets.end();++it){change.push_back(*it);changedBy."
+                 "push_back(*it);}}",
+                 "CharPosConstraint source PollDeps publishes source and targets");
+  ok &= contains(rb3_latest_char_pos_constraint_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)CREATE_COPY(CharPosConstraint)"
+                 "BEGIN_COPYING_MEMBERSCOPY_MEMBER(mTargets)COPY_MEMBER(mSrc)"
+                 "COPY_MEMBER(mBox)",
+                 "CharPosConstraint source copy member list");
   ok &= contains(char_mesh_h,
                  "structCharPosConstraint{std::stringname;int32_tversion=0;",
                  "native CharPosConstraint stores source revision");
@@ -6448,10 +6464,31 @@ int run_contract() {
                  "floatbox_min[3]={1.0f,1.0f,0.0f};"
                  "floatbox_max[3]={-1.0f,-1.0f,1000.0f};",
                  "native CharPosConstraint stores source old-revision box default");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharPosConstraintLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;",
+                 "native exposes CharPosConstraint load-plan row");
+  ok &= contains(char_mesh_h,
+                 "SourceCharPosConstraintLoadPlan"
+                 "source_char_pos_constraint_load_plan(intrevision);",
+                 "native exposes CharPosConstraint load-plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharPosConstraintCopyPlan"
+                 "source_char_pos_constraint_copy_plan();",
+                 "native exposes CharPosConstraint copy-plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharPosConstraintPollDepsPlan"
+                 "source_char_pos_constraint_poll_deps_plan(",
+                 "native exposes CharPosConstraint PollDeps helper");
   ok &= contains(char_mesh,
                  "CharPosConstraintdecode_pos_constraint("
                  "conststd::string&entry_name,conststd::vector<uint8_t>&body)",
                  "native CharPosConstraint decoder exists");
+  ok &= contains(char_mesh,
+                 "if(constraint.version<0||constraint.version>2){"
+                 "throwstd::runtime_error(\"char_mesh:CharPosConstraint"
+                 "revisionoutsidesourcerange\");}",
+                 "native CharPosConstraint decoder enforces source revision range");
   ok &= contains(char_mesh,
                  "constraint.targets=read_obj_ptr_list(r);"
                  "constraint.source=r.str();",
@@ -6479,6 +6516,38 @@ int run_contract() {
                  "std::array<float,3>source_char_pos_constraint_target_position(",
                  "native exposes CharPosConstraint source helper");
   ok &= contains(char_mesh,
+                 "SourceCharPosConstraintLoadPlan"
+                 "source_char_pos_constraint_load_plan(intrevision){"
+                 "SourceCharPosConstraintLoadPlanplan;plan.known_revision="
+                 "revision>=0&&revision<=2;",
+                 "native CharPosConstraint load plan records source revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"LOAD_REVS\",\"Hmx::Object\","
+                 "\"mTargets\",\"mSrc\"};if(revision>1){"
+                 "plan.read_order.push_back(\"mBox\");}",
+                 "native CharPosConstraint load plan records source read order");
+  ok &= contains(char_mesh,
+                 "plan.branches.push_back(\"mBox.min=(1,1,0)\");"
+                 "plan.branches.push_back(\"mBox.max=(-1,-1,1000)\");",
+                 "native CharPosConstraint load plan records old box default");
+  ok &= contains(char_mesh,
+                 "SourceCharPosConstraintCopyPlansource_char_pos_constraint_"
+                 "copy_plan(){SourceCharPosConstraintCopyPlanplan;"
+                 "plan.copied_superclasses={\"Hmx::Object\"};",
+                 "native CharPosConstraint copy plan records source superclass");
+  ok &= contains(char_mesh,
+                 "plan.copied_members={\"mTargets\",\"mSrc\",\"mBox\"};",
+                 "native CharPosConstraint copy plan records source members");
+  ok &= contains(char_mesh,
+                 "SourceCharPosConstraintPollDepsPlan"
+                 "source_char_pos_constraint_poll_deps_plan(",
+                 "native CharPosConstraint PollDeps plan exists");
+  ok &= contains(char_mesh,
+                 "plan.changed_by.push_back(source);for(conststd::string&"
+                 "target:targets){plan.change.push_back(target);"
+                 "plan.changed_by.push_back(target);}",
+                 "native CharPosConstraint PollDeps plan records source order");
+  ok &= contains(char_mesh,
                  "std::array<float,3>source_char_pos_constraint_target_position("
                  "conststd::array<float,3>&source_pos,",
                  "native implements CharPosConstraint source helper");
@@ -6504,6 +6573,21 @@ int run_contract() {
                  "source_char_pos_constraint_target_position(",
                  "focused CharPosConstraint test calls source helper");
   ok &= contains(pos_constraint_source_test,
+                 "source_char_pos_constraint_load_plan(1)",
+                 "focused CharPosConstraint test covers legacy load plan");
+  ok &= contains(pos_constraint_source_test,
+                 "source_char_pos_constraint_load_plan(2)",
+                 "focused CharPosConstraint test covers modern load plan");
+  ok &= contains(pos_constraint_source_test,
+                 "source_char_pos_constraint_copy_plan()",
+                 "focused CharPosConstraint test covers copy plan");
+  ok &= contains(pos_constraint_source_test,
+                 "source_char_pos_constraint_poll_deps_plan(",
+                 "focused CharPosConstraint test covers PollDeps plan");
+  ok &= contains(pos_constraint_source_test,
+                 "decode_pos_constraint(\"bad.pos_constraint\",{3,0,0,0})",
+                 "focused CharPosConstraint test covers decoder revision gate");
+  ok &= contains(pos_constraint_source_test,
                  "\"old-revisionxdisabledandy/zinrange\"",
                  "focused CharPosConstraint test covers disabled old-revision axis");
   ok &= contains(pos_constraint_source_test,
@@ -6512,6 +6596,12 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharPosConstraint::Load` accepts source revisions through 2",
                  "document records CharPosConstraint source load");
+  ok &= contains(doc,
+                 "Native `source_char_pos_constraint_load_plan` records that read order",
+                 "document records CharPosConstraint load plan");
+  ok &= contains(doc,
+                 "`source_char_pos_constraint_copy_plan` and",
+                 "document records CharPosConstraint copy/PollDeps plans");
   ok &= contains(doc,
                  "Native GHOGX ports this `Poll` path directly",
                  "document records CharPosConstraint runtime writeback");

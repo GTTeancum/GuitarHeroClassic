@@ -1497,6 +1497,28 @@ struct CharPosConstraint {
   float box_max[3] = {-1.0f, -1.0f, 1000.0f};
 };
 
+struct SourceCharPosConstraintLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+};
+
+struct SourceCharPosConstraintCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
+struct SourceCharPosConstraintPollDepsPlan {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
+SourceCharPosConstraintLoadPlan source_char_pos_constraint_load_plan(
+    int revision);
+SourceCharPosConstraintCopyPlan source_char_pos_constraint_copy_plan();
+SourceCharPosConstraintPollDepsPlan source_char_pos_constraint_poll_deps_plan(
+    const std::string& source,
+    const std::vector<std::string>& targets);
 std::array<float, 3> source_char_pos_constraint_target_position(
     const std::array<float, 3>& source_pos,
     const std::array<float, 3>& target_pos,
@@ -1799,6 +1821,8 @@ CharHair decode_hair(const std::string& entry_name,
                      const std::vector<uint8_t>& body);
 CharCollide decode_collide(const std::string& entry_name,
                            const std::vector<uint8_t>& body);
+CharPosConstraint decode_pos_constraint(const std::string& entry_name,
+                                        const std::vector<uint8_t>& body);
 CharLookAt decode_lookat(const std::string& entry_name,
                          const std::vector<uint8_t>& body);
 CharEyes decode_eyes(const std::string& entry_name,
