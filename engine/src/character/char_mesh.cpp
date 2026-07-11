@@ -660,9 +660,20 @@ CharIKMidi decode_ik_midi(const std::string& entry_name,
   Reader r(body.data(), body.size());
   CharIKMidi midi;
   midi.name = entry_name;
-  (void)r.i32();      // version 4 in GH2 PS2.
-  read_object_fields(r);  // Hmx::Object metadata.
+  midi.version = r.i32();
+  read_object_fields(r);
   midi.bone = r.str();
+  if (midi.version < 3) {
+    midi.legacy_spots = read_obj_ptr_list(r);
+  }
+  if (midi.version == 2 || midi.version == 3) {
+    midi.legacy_string = r.str();
+  }
+  if (midi.version > 4) {
+    midi.anim_blender = r.str();
+    midi.max_anim_blend = r.f32();
+  }
+  midi.unread_bytes = r.n - r.pos;
   return midi;
 }
 

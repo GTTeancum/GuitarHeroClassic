@@ -411,10 +411,23 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
     }
   }
   for (const auto& midi : c.ik_midis) {
-    std::printf("[controller-ik-midi] char=%s name=%s bone=%s boneExists=%d\n",
-                c.dir_name.c_str(), midi.name.c_str(),
-                none_if_empty(midi.bone),
-                has_trans_or_mesh(c, midi.bone) ? 1 : 0);
+    std::printf(
+        "[controller-ik-midi] char=%s name=%s version=%d bone=%s "
+        "boneExists=%d legacySpots=%zu legacyString=%s animBlender=%s "
+        "maxAnimBlend=%.4f unreadBytes=%zu\n",
+        c.dir_name.c_str(), midi.name.c_str(), midi.version,
+        none_if_empty(midi.bone), has_trans_or_mesh(c, midi.bone) ? 1 : 0,
+        midi.legacy_spots.size(), none_if_empty(midi.legacy_string),
+        none_if_empty(midi.anim_blender), midi.max_anim_blend,
+        midi.unread_bytes);
+    for (size_t i = 0; i < midi.legacy_spots.size(); ++i) {
+      std::printf(
+          "[controller-ik-midi-legacy-spot] char=%s name=%s index=%zu "
+          "spot=%s spotExists=%d\n",
+          c.dir_name.c_str(), midi.name.c_str(), i,
+          none_if_empty(midi.legacy_spots[i]),
+          has_trans_or_mesh(c, midi.legacy_spots[i]) ? 1 : 0);
+    }
   }
   for (const auto& servo : c.servo_bones) {
     std::printf(

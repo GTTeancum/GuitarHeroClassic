@@ -39,7 +39,7 @@ records the upstream commits for the copied files:
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; no synthetic eye runtime bridge. |
 | FaceFX lip-sync servo boundary | `rb3-latest` `CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` is source context, not a matching `FaceFxLipSyncServo` load body; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
-| Hand IK | `CharIKHand.cpp` | Native hand IK follows source dataflow. |
+| Hand IK and IK MIDI target rows | `CharIKHand.cpp`, `rb3-latest` `CharIKMidi.cpp` / `CharIKMidi.h` | Native hand IK follows source dataflow; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
@@ -541,6 +541,20 @@ note, and all report `unreadBytes=0`.
     min/max setter clamps, snap, and `beats_per_weight` smoothing. Rows with
     `driver` set remain logged/skipped until a source-backed
     `CharDriver::EvaluateFlags` body is available.
+- `rb3-latest/src/system/char/CharIKMidi.cpp` and
+  `rb3-latest/src/system/char/CharIKMidi.h`
+  - `CharIKMidi::Load` accepts source revisions through 5, reads
+    `Hmx::Object`, then `mBone`. Revisions below 3 read a legacy spot vector;
+    revisions 2 and 3 read a legacy string; revisions above 4 read
+    `mAnimBlender` and `mMaxAnimBlend`.
+  - Native GHOGX decodes/logs the same source-gated fields as passive row
+    inventory. The viewer/gameplay fret-target helper remains diagnostic
+    application glue until `CharIKMidi::NewSpot` / `Poll` bodies are available
+    from source or trace.
+    `engine/out/source_ikmidi_20260711/ikmidi_source_decode_audit.log`
+    rechecks Rock1, Rock2, Glam1, Funk1, and Rockabill2; each sampled row is
+    `version=4`, `bone=bone_fret.mesh`, `legacySpots=0`,
+    `legacyString=<none>`, `animBlender=<none>`, and `unreadBytes=0`.
 - `rb3-latest/src/system/char/CharDriver.cpp` and `CharDriver.h`
   - The header/source expose the base driver object members and runtime helper
     surface: `mBones`, `mClips`, `mDefaultClip`, `mBlendWidth`, `mClipType`,

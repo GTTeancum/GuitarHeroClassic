@@ -169,7 +169,13 @@ struct CharIKHand {
 
 struct CharIKMidi {
   std::string name;
+  int32_t version = 0;
   std::string bone;
+  std::vector<std::string> legacy_spots;
+  std::string legacy_string;
+  std::string anim_blender;
+  float max_anim_blend = 1.0f;
+  size_t unread_bytes = 0;
 };
 
 struct CharServoBone {

@@ -153,6 +153,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharIKRod.cpp"));
   const std::string rb3_latest_char_ik_rod_h = compact(read_file(
       rb3_latest_char_dir / "CharIKRod.h"));
+  const std::string rb3_latest_char_ik_midi_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharIKMidi.cpp"));
+  const std::string rb3_latest_char_ik_midi_h = compact(read_file(
+      rb3_latest_char_dir / "CharIKMidi.h"));
   const std::string rb3_latest_char_servo_bone_cpp = compact(read_file(
       rb3_latest_char_dir / "CharServoBone.cpp"));
   const std::string rb3_latest_char_servo_bone_h = compact(read_file(
@@ -1037,6 +1041,62 @@ int run_contract() {
                  "Stock Grim rows with `dest=<none>` therefore remain "
                  "logged/inert",
                  "document records stock Grim missing-destination boundary");
+  ok &= contains(rb3_latest_char_ik_midi_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mBone;",
+                 "latest CharIKMidi source header exposes driven bone");
+  ok &= contains(rb3_latest_char_ik_midi_h,
+                 "ObjPtr<CharWeightable,ObjectDir>mAnimBlender;",
+                 "latest CharIKMidi source header exposes anim blend owner");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "LOAD_SUPERCLASS(Hmx::Object)bs>>mBone;",
+                 "CharIKMidi source load reads object then bone");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "if(gRev<3){ObjVector<ObjPtr<RndTransformable,ObjectDir>>"
+                 "vec(this);bs>>vec;}",
+                 "CharIKMidi source load gates legacy spot vector");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "if(gRev==2||gRev==3){Stringasdf;bs>>asdf;}",
+                 "CharIKMidi source load gates legacy string");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "if(gRev>4){bs>>mAnimBlender;bs>>mMaxAnimBlend;}",
+                 "CharIKMidi source load gates anim blend rows");
+  ok &= contains(char_mesh_h,
+                 "structCharIKMidi{std::stringname;int32_tversion=0;"
+                 "std::stringbone;",
+                 "native CharIKMidi stores source revision and bone");
+  ok &= contains(char_mesh_h,
+                 "std::vector<std::string>legacy_spots;"
+                 "std::stringlegacy_string;std::stringanim_blender;",
+                 "native CharIKMidi stores source-gated optional rows");
+  ok &= contains(char_mesh,
+                 "midi.version=r.i32();read_object_fields(r);midi.bone=r.str();",
+                 "native CharIKMidi decoder mirrors source object/bone order");
+  ok &= contains(char_mesh,
+                 "if(midi.version<3){midi.legacy_spots=read_obj_ptr_list(r);}",
+                 "native CharIKMidi decoder mirrors legacy vector gate");
+  ok &= contains(char_mesh,
+                 "if(midi.version==2||midi.version==3){"
+                 "midi.legacy_string=r.str();}",
+                 "native CharIKMidi decoder mirrors legacy string gate");
+  ok &= contains(char_mesh,
+                 "if(midi.version>4){midi.anim_blender=r.str();"
+                 "midi.max_anim_blend=r.f32();}",
+                 "native CharIKMidi decoder mirrors anim blend gate");
+  ok &= contains(bind_audit,
+                 "\"[controller-ik-midi]char=%sname=%sversion=%d",
+                 "controller audit logs CharIKMidi source revision");
+  ok &= contains(bind_audit,
+                 "\"boneExists=%dlegacySpots=%zulegacyString=%sanimBlender=%s",
+                 "controller audit logs CharIKMidi source optional fields");
+  ok &= contains(doc,
+                 "`CharIKMidi::Load` accepts source revisions through 5",
+                 "document records CharIKMidi source load boundary");
+  ok &= contains(doc,
+                 "viewer/gameplay fret-target helper remains diagnostic",
+                 "document fences CharIKMidi runtime helper");
+  ok &= contains(doc,
+                 "ikmidi_source_decode_audit.log",
+                 "document records focused stock CharIKMidi audit");
   ok &= contains(rb3_latest_char_servo_bone_h,
                  "classCharServoBone:publicRndHighlightable,publicCharPollable,"
                  "publicCharBonesMeshes",

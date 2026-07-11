@@ -696,8 +696,18 @@ void log_character_controller_graph_once(const Character& character) {
                  driver.midi_blend_override_pct);
   }
   for (const auto& ik : character.ik_midis) {
-    std::fprintf(stderr, "[chargraph]   ikMidi %s bone=%s\n",
-                 ik.name.c_str(), ik.bone.c_str());
+    std::fprintf(stderr,
+                 "[chargraph]   ikMidi %s version=%d bone=%s "
+                 "legacySpots=%zu legacyString=%s animBlender=%s "
+                 "maxAnimBlend=%.3f unreadBytes=%zu\n",
+                 ik.name.c_str(), ik.version,
+                 ik.bone.empty() ? "<none>" : ik.bone.c_str(),
+                 ik.legacy_spots.size(),
+                 ik.legacy_string.empty() ? "<none>"
+                                          : ik.legacy_string.c_str(),
+                 ik.anim_blender.empty() ? "<none>"
+                                         : ik.anim_blender.c_str(),
+                 ik.max_anim_blend, ik.unread_bytes);
   }
   for (const auto& setter : character.weight_setters) {
     std::fprintf(stderr,
