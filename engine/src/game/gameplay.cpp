@@ -10191,6 +10191,27 @@ load_venue_anim_filters(const std::string& hdr_path,
             std::unordered_set<std::string> seen;
             collect_filter_targets(collect_filter_targets, filter, target_ref,
                                    seen);
+            if (debug_venue_filters_enabled()) {
+                std::ostringstream transform_refs;
+                for (size_t i = 0; i < filter.targets.size(); ++i) {
+                    if (i != 0) transform_refs << ',';
+                    transform_refs << filter.targets[i].mesh;
+                }
+                std::ostringstream mesh_anim_refs;
+                for (size_t i = 0; i < filter.mesh_anim_targets.size(); ++i) {
+                    if (i != 0) mesh_anim_refs << ',';
+                    mesh_anim_refs << filter.mesh_anim_targets[i].mesh;
+                }
+                std::fprintf(
+                    stderr,
+                    "[world] venue AnimFilter target coverage %s target=%s "
+                    "transforms=%zu transform_refs=%s mesh_anims=%zu "
+                    "mesh_anim_refs=%s\n",
+                    filter.name.c_str(), target_ref.c_str(),
+                    filter.targets.size(), transform_refs.str().c_str(),
+                    filter.mesh_anim_targets.size(),
+                    mesh_anim_refs.str().c_str());
+            }
             if (!filter.targets.empty() || !filter.mesh_anim_targets.empty()) {
                 filters_by_name[de.name] = std::move(filter);
             }

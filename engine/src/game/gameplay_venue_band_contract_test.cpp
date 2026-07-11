@@ -6067,6 +6067,15 @@ int main() {
                  "read_rnd_animfilter_like_miloeditor(body,size)",
                  "venue AnimFilter loader uses source-shaped decode before any fallback");
   ok &= contains(gameplay_c,
+                 "\"[world]venueAnimFiltertargetcoverage%starget=%s\"",
+                 "venue AnimFilter diagnostics expose resolved fan/gear target coverage");
+  ok &= contains(gameplay_c,
+                 "transform_refs.str().c_str()",
+                 "venue AnimFilter target diagnostics list resolved transform meshes");
+  ok &= contains(gameplay_c,
+                 "mesh_anim_refs.str().c_str()",
+                 "venue AnimFilter target diagnostics list resolved MeshAnim meshes separately");
+  ok &= contains(gameplay_c,
                  "floatvenue_filter_frame_offset(constGameplay::VenueAnimFilter&filter)",
                  "venue AnimFilter keeps ihatecompvir FrameOffset math separate from event task start");
   ok &= contains(gameplay_c,
