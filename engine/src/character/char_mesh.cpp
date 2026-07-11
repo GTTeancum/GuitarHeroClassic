@@ -614,6 +614,10 @@ CharIKHand decode_ik_hand(const std::string& entry_name,
   CharIKHand hand;
   hand.name = entry_name;
   hand.version = r.i32();
+  if (hand.version < 0 || hand.version > 0xC) {
+    throw std::runtime_error(
+        "char_mesh: CharIKHand revision outside source range");
+  }
   read_object_fields(r);  // Hmx::Object metadata
   hand.unknown = r.i32();
   hand.weight = r.f32();
@@ -652,6 +656,7 @@ CharIKHand decode_ik_hand(const std::string& entry_name,
     hand.elbow_collide = r.str();
     if (r.pos < r.n) hand.clockwise = r.u8() != 0;
   }
+  hand.unread_bytes = r.n - r.pos;
   return hand;
 }
 

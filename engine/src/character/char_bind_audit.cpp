@@ -391,7 +391,7 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
         "hand=%s finger=%s target=%s targets=%zu weight=%.4f "
         "weightProp=%s orientation=%d stretch=%d scalable=%d moveElbow=%d "
         "elbowSwing=%.4f alwaysElbow=%d constrainWrist=%d "
-        "wristRadians=%.4f elbowCollide=%s clockwise=%d\n",
+        "wristRadians=%.4f elbowCollide=%s clockwise=%d unreadBytes=%zu\n",
         c.dir_name.c_str(), ik.name.c_str(), ik.version, ik.unknown,
         none_if_empty(ik.hand), none_if_empty(ik.finger),
         none_if_empty(ik.target), ik.targets.size(), ik.weight,
@@ -400,7 +400,7 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
         ik.move_elbow ? 1 : 0, ik.elbow_swing,
         ik.always_ik_elbow ? 1 : 0, ik.constrain_wrist ? 1 : 0,
         ik.wrist_radians, none_if_empty(ik.elbow_collide),
-        ik.clockwise ? 1 : 0);
+        ik.clockwise ? 1 : 0, ik.unread_bytes);
     for (size_t i = 0; i < ik.targets.size(); ++i) {
       std::printf(
           "[controller-ik-target] char=%s ik=%s index=%zu target=%s "

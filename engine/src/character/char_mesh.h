@@ -165,6 +165,7 @@ struct CharIKHand {
   float wrist_radians = 0.0f;
   std::string elbow_collide;
   bool clockwise = false;
+  size_t unread_bytes = 0;
 };
 
 struct CharIKMidi {

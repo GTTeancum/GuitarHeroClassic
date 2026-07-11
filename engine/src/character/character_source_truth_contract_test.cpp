@@ -2115,6 +2115,9 @@ int run_contract() {
   ok &= contains(rb3_char_ik_hand_cpp, "voidCharIKHand::Poll(){",
                  "RB3 CharIKHand source exposes Poll");
   ok &= contains(rb3_char_ik_hand_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(0xC,0)",
+                 "RB3 CharIKHand source enforces revision ceiling");
+  ok &= contains(rb3_char_ik_hand_cpp,
                  "RndTransformable*frontTrans=mTargets.front().mTarget;",
                  "RB3 CharIKHand source resolves target transform");
   ok &= contains(rb3_char_ik_hand_cpp,
@@ -2144,6 +2147,13 @@ int run_contract() {
                  "hand.version=r.i32();",
                  "native CharIKHand decoder stores source revision");
   ok &= contains(char_mesh,
+                 "if(hand.version<0||hand.version>0xC){"
+                 "throwstd::runtime_error",
+                 "native CharIKHand decoder enforces source revision range");
+  ok &= contains(char_mesh_h,
+                 "boolclockwise=false;size_tunread_bytes=0;",
+                 "native CharIKHand stores source tail bytes");
+  ok &= contains(char_mesh,
                  "if(hand.version>4)hand.finger=r.str();",
                  "native CharIKHand decoder follows source finger gate");
   ok &= contains(char_mesh,
@@ -2158,12 +2168,18 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "if(hand.version>0xB&&r.pos<r.n){hand.elbow_collide=r.str();",
                  "native CharIKHand decoder follows source elbow collision gate");
+  ok &= contains(char_mesh, "hand.unread_bytes=r.n-r.pos;",
+                 "native CharIKHand decoder records source tail bytes");
   ok &= contains(char_clip,
                  "\"[chargraph]ik%sversion=%dhand=%sfinger=%s\"",
                  "character graph logs source CharIKHand revision and finger");
   ok &= contains(char_clip,
                  "\"elbowSwing=%.3falwaysElbow=%dconstrainWrist=%d\"",
                  "character graph logs bounded CharIKHand optional fields");
+  ok &= contains(char_clip, "clockwise=%d",
+                 "character graph logs CharIKHand clockwise field");
+  ok &= contains(char_clip, "unreadBytes=%zu",
+                 "character graph logs CharIKHand tail bytes");
   ok &= contains(bind_audit, "boolshould_dump_controllers(intargc,char**argv)",
                  "bind audit exposes controller inventory switch");
   ok &= contains(bind_audit,
@@ -2175,6 +2191,10 @@ int run_contract() {
   ok &= contains(bind_audit,
                  "\"elbowSwing=%.4falwaysElbow=%dconstrainWrist=%d\"",
                  "bind audit logs optional CharIKHand branch fields");
+  ok &= contains(bind_audit, "clockwise=%d",
+                 "bind audit logs CharIKHand clockwise field");
+  ok &= contains(bind_audit, "unreadBytes=%zu",
+                 "bind audit logs CharIKHand tail bytes");
   ok &= contains(bind_audit,
                  "\"char/rock1/og/gen/rock1.milo_ps2\"",
                  "bind audit default stock list includes Rock1");
@@ -2203,6 +2223,17 @@ int run_contract() {
                  "document records expanded stock character sample count");
   ok &= contains(doc, "All 38 decoded `CharIKHand` rows are source revision 2",
                  "document records stock CharIKHand revision evidence");
+  ok &= contains(doc,
+                 "enforces the source revision range, and\n    records the row "
+                 "tail byte count",
+                 "document records CharIKHand revision and tail boundary");
+  ok &= contains(doc,
+                 "source_ikhand_20260711/stock_ikhand_controllers.stdout.log",
+                 "document cites refreshed CharIKHand proof log");
+  ok &= contains(doc,
+                 "all 38 stock `CharIKHand`\n  rows are `version=2`, have no "
+                 "finger, and report `unreadBytes=0`",
+                 "document records refreshed CharIKHand stock proof");
   ok &= contains(doc,
                  "expanded_stock_characters_controller_inventory_weightsetter.log",
                  "document cites focused stock CharWeightSetter inventory");

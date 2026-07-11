@@ -661,7 +661,8 @@ void log_character_controller_graph_once(const Character& character) {
                  "target=%s targets=%zu weight=%.3f weightProp=%s "
                  "orientation=%d stretch=%d scalable=%d moveElbow=%d "
                  "elbowSwing=%.3f alwaysElbow=%d constrainWrist=%d "
-                 "wristRadians=%.3f elbowCollide=%s clockwise=%d\n",
+                 "wristRadians=%.3f elbowCollide=%s clockwise=%d "
+                 "unreadBytes=%zu\n",
                  ik.name.c_str(), ik.version, ik.hand.c_str(),
                  ik.finger.empty() ? "<none>" : ik.finger.c_str(),
                  ik.target.c_str(), ik.targets.size(), ik.weight,
@@ -672,7 +673,7 @@ void log_character_controller_graph_once(const Character& character) {
                  ik.constrain_wrist ? 1 : 0, ik.wrist_radians,
                  ik.elbow_collide.empty() ? "<none>"
                                            : ik.elbow_collide.c_str(),
-                 ik.clockwise ? 1 : 0);
+                 ik.clockwise ? 1 : 0, ik.unread_bytes);
   }
   for (const auto& driver : character.drivers) {
     std::fprintf(stderr,

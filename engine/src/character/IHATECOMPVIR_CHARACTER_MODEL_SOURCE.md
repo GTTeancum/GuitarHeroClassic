@@ -606,7 +606,8 @@ note, and all report `unreadBytes=0`.
     `stretch`, `scalable`, `move_elbow`, `elbow_swing`, `always_ik_elbow`,
     `constrain_wrist`, `wrist_radians`, optional revision-9 padding, then
     revision-12 `elbow_collide` and `clockwise`. Native GHOGX decodes and logs
-    those source-declared fields so the active asset data can prove which
+    those source-declared fields, enforces the source revision range, and
+    records the row tail byte count so the active asset data can prove which
     branches are actually present.
   - Native GHOGX must not retain the older opt-in free two-bone arm solver or
     its `GHOGX_ENABLE_ARM_IK`/stretch/rotation gates. Any hand or elbow solve
@@ -887,6 +888,9 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
   single-target rows. They have `finger=<none>`, `targets=1`,
   `elbowSwing=0`, `alwaysElbow=0`, `constrainWrist=0`,
   `elbowCollide=<none>`, and `clockwise=0`.
+  `engine/out/source_ikhand_20260711/stock_ikhand_controllers.stdout.log`
+  refreshes that proof against the current decoder: all 38 stock `CharIKHand`
+  rows are `version=2`, have no finger, and report `unreadBytes=0`.
 - The focused weight-setter inventory at
   `engine/out/source_truth_controller_inventory_20260710/expanded_stock_characters_controller_inventory_weightsetter.log`
   proves all 38 stock `CharWeightSetter` rows are source revision 2 with
