@@ -459,6 +459,9 @@ std::vector<std::string> source_char_clip_group_sorted_names(
 std::vector<std::string> source_char_clip_group_add_clip(
     std::vector<std::string> clip_names,
     const std::string& clip_name);
+std::vector<std::string> source_char_clip_group_remove_clip(
+    std::vector<std::string> clip_names,
+    const std::string& clip_name);
 
 struct SourceCharClipDriverState {
   uint32_t play_flags = 0;

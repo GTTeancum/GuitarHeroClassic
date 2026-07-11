@@ -1618,6 +1618,13 @@ note, and all report `unreadBytes=0`.
     `CharClipGroup::AddClip` duplicate gate: append the requested clip only
     when `HasClip` would report it absent, preserving the existing source
     order.
+  - Native `source_char_clip_group_remove_clip` ports the visible
+    `CharClipGroup::RemoveClip` iterator behavior as written in
+    `CharClipGroup.cpp`: a matching row is erased and the returned iterator is
+    then advanced by the loop increment, while a non-match advances once inside
+    the `else` branch and once again by the loop. Deterministic coverage keeps
+    that source skip behavior explicit instead of replacing it with a cleaner
+    remove-all helper.
   - Gameplay routes authored `CharClipGroup` resolution through the shared
     character helper so the same source-backed reader feeds both WorldCrowd and
     performer sync group lookup.

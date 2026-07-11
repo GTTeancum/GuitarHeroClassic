@@ -11205,6 +11205,12 @@ int run_contract() {
                  "voidCharClipGroup::AddClip(CharClip*clip){if(!HasClip(clip))"
                  "mClips.push_back(ObjOwnerPtr<CharClip,ObjectDir>(this,clip));}",
                  "latest CharClipGroup source exposes AddClip duplicate gate");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "voidCharClipGroup::RemoveClip(CharClip*clip){",
+                 "latest CharClipGroup source exposes RemoveClip body");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "if(*it==clip){it=mClips.erase(it);}elseit++;",
+                 "latest CharClipGroup source exposes RemoveClip iterator behavior");
   ok &= contains(char_clip_h,
                  "structCharClipGroup{std::stringname;std::stringmilo_path;"
                  "std::vector<std::string>clips;uint32_tversion=0;"
@@ -11233,6 +11239,10 @@ int run_contract() {
                  "std::vector<std::string>source_char_clip_group_add_clip("
                  "std::vector<std::string>clip_names,conststd::string&clip_name);",
                  "native character API exposes source-backed CharClipGroup AddClip helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>source_char_clip_group_remove_clip("
+                 "std::vector<std::string>clip_names,conststd::string&clip_name);",
+                 "native character API exposes source-backed CharClipGroup RemoveClip helper");
   ok &= contains(char_clip,
                  "CharClipGroupload_clip_group(",
                  "native clip decoder implements shared clip group reader");
@@ -11278,6 +11288,13 @@ int run_contract() {
                  "clip_names;}",
                  "native clip group AddClip helper mirrors source duplicate gate");
   ok &= contains(char_clip,
+                 "std::vector<std::string>source_char_clip_group_remove_clip("
+                 "std::vector<std::string>clip_names,conststd::string&clip_name){"
+                 "for(size_ti=0;i<clip_names.size();++i){if(clip_names[i]=="
+                 "clip_name){clip_names.erase(clip_names.begin()+"
+                 "static_cast<std::ptrdiff_t>(i));}else{++i;}}returnclip_names;}",
+                 "native clip group RemoveClip helper mirrors source iterator skip");
+  ok &= contains(char_clip,
                  "\"[clip-group-source]group=%smilo=%sversion=%u\"",
                  "native clip group reader logs source row proof");
   ok &= contains(char_clip,
@@ -11292,6 +11309,9 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_group_add_clip(input,clip_name)",
                  "focused flag-mask test covers CharClipGroup AddClip helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_group_remove_clip(input,clip_name)",
+                 "focused flag-mask test covers CharClipGroup RemoveClip helper");
   ok &= contains(doc,
                  "Native `source_char_clip_group_num_flag_duplicates` ports",
                  "document records native CharClipGroup duplicate helper");
@@ -11301,6 +11321,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_clip_group_add_clip` ports the concrete",
                  "document records native CharClipGroup AddClip helper");
+  ok &= contains(doc,
+                 "Native `source_char_clip_group_remove_clip` ports the visible",
+                 "document records native CharClipGroup RemoveClip helper");
   ok &= contains(doc,
                  "selected clip's flags with every other clip",
                  "document records source CharClipGroup duplicate behavior");

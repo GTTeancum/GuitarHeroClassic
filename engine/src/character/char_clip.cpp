@@ -2216,6 +2216,19 @@ std::vector<std::string> source_char_clip_group_add_clip(
   return clip_names;
 }
 
+std::vector<std::string> source_char_clip_group_remove_clip(
+    std::vector<std::string> clip_names,
+    const std::string& clip_name) {
+  for (size_t i = 0; i < clip_names.size(); ++i) {
+    if (clip_names[i] == clip_name) {
+      clip_names.erase(clip_names.begin() + static_cast<std::ptrdiff_t>(i));
+    } else {
+      ++i;
+    }
+  }
+  return clip_names;
+}
+
 uint32_t source_char_clip_driver_masked_play_flags(uint32_t clip_play_flags,
                                                    uint32_t mask) {
   uint32_t play_flags = clip_play_flags;

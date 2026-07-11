@@ -65,6 +65,21 @@ bool expect_group_add(const std::vector<std::string>& input,
   return false;
 }
 
+bool expect_group_remove(const std::vector<std::string>& input,
+                         const std::string& clip_name,
+                         const std::vector<std::string>& want,
+                         const char* label) {
+  const std::vector<std::string> got =
+      ghogx::character::source_char_clip_group_remove_clip(input, clip_name);
+  if (got == want) return true;
+  std::cerr << "group remove mismatch for " << label << ": got";
+  for (const auto& clip : got) std::cerr << " " << clip;
+  std::cerr << " want";
+  for (const auto& clip : want) std::cerr << " " << clip;
+  std::cerr << "\n";
+  return false;
+}
+
 bool expect_indices(const std::vector<size_t>& got,
                     const std::vector<size_t>& want,
                     const char* label) {
@@ -723,6 +738,12 @@ int main() {
                          "append absent clip");
   ok &= expect_group_add({"idle", "solo"}, "solo", {"idle", "solo"},
                          "ignore duplicate clip");
+  ok &= expect_group_remove({"idle", "solo", "solo", "ending"}, "solo",
+                            {"idle", "solo", "ending"},
+                            "source iterator skip after non-match");
+  ok &= expect_group_remove({"solo", "solo", "ending"}, "solo",
+                            {"solo", "ending"},
+                            "source iterator skip after erase");
   ok &= expect_clip_driver_helpers();
   ok &= expect_driver_midi_helpers();
   ok &= expect_starved(false, false, 0, true, "empty stack");
