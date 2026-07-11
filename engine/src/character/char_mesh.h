@@ -469,6 +469,28 @@ struct SourceCharHairForceStep {
   std::array<float, 3> motion_delta = {0.0f, 0.0f, 0.0f};
 };
 
+struct SourceCharHairCollisionInput {
+  int shape = 1;
+  float radius = 0.0f;
+  std::array<float, 3> delta = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> axis = {0.0f, 1.0f, 0.0f};
+};
+
+struct SourceCharHairCollisionStep {
+  bool entered = false;
+  bool adjusted_point = false;
+  bool z_overridden = false;
+  bool z_interpolated = false;
+  bool set_world_xfm = false;
+  int collide_count = 0;
+  std::array<float, 3> point_pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> pre_collision_z = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> last_z = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> basis_x = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> basis_y = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> basis_z = {0.0f, 0.0f, 0.0f};
+};
+
 struct SourceCharHairFreezePosePlan {
   bool called_hookup = true;
   SourceCharHairSimulateLoopsPlan simulate_loops;
@@ -1479,6 +1501,16 @@ SourceCharHairForceStep source_char_hair_simulate_internal_force_step(
     float stiffness_pow,
     float friction,
     float inertia);
+SourceCharHairCollisionStep source_char_hair_simulate_internal_collision_step(
+    std::array<float, 3> point_pos,
+    std::array<float, 3> root_to_point,
+    float reciprocal_length,
+    std::array<float, 3> last_z,
+    std::array<float, 3> root_z_axis,
+    float torsion,
+    float point_radius,
+    float point_outer_radius,
+    const std::vector<SourceCharHairCollisionInput>& collides);
 SourceCharHairFreezePosePlan source_char_hair_freeze_pose_plan(
     bool simulate,
     int strand_count,

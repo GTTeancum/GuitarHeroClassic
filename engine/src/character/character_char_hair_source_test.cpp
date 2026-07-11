@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -79,11 +80,13 @@ int main() {
   using ghogx::character::source_char_hair_set_managed_hookup;
   using ghogx::character::source_char_hair_set_name_plan;
   using ghogx::character::source_char_hair_simulate_internal_cloth_pair;
+  using ghogx::character::source_char_hair_simulate_internal_collision_step;
   using ghogx::character::source_char_hair_simulate_internal_force_step;
   using ghogx::character::source_char_hair_simulate_internal_length_step;
   using ghogx::character::source_char_hair_simulate_internal_scalars;
   using ghogx::character::source_char_hair_simulate_loops_plan;
   using ghogx::character::source_char_hair_strand_load_plan;
+  using ghogx::character::SourceCharHairCollisionInput;
 
   Character character;
   add_trans(character, make_trans("parent"));
@@ -549,6 +552,74 @@ int main() {
   ok &= near(force_step.force[0], -0.28f, "force step final x");
   ok &= near(force_step.force[1], 1.13f, "force step final y");
   ok &= near(force_step.force[2], -0.24f, "force step final z");
+
+  const auto empty_collision =
+      source_char_hair_simulate_internal_collision_step(
+          {0.2f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, 1.0f,
+          {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, 0.5f, 0.25f,
+          0.5f, {});
+  ok &= expect_bool(empty_collision.entered, false,
+                    "collision step skips empty collides");
+  ok &= expect_bool(empty_collision.set_world_xfm, false,
+                    "collision step empty no writeback");
+  ok &= near(empty_collision.pre_collision_z[2], 0.5f,
+             "collision step source z interpolation still runs");
+
+  const auto plane_collision =
+      source_char_hair_simulate_internal_collision_step(
+          {0.2f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, 1.0f,
+          {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, 1.0f, 0.25f,
+          0.5f,
+          std::vector<SourceCharHairCollisionInput>{
+              {0, 0.1f, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}}});
+  ok &= expect_bool(plane_collision.entered, true,
+                    "collision step plane enters");
+  ok &= expect_bool(plane_collision.adjusted_point, true,
+                    "collision step plane adjusts");
+  ok &= expect_bool(plane_collision.set_world_xfm, true,
+                    "collision step plane writeback branch");
+  ok &= near(plane_collision.point_pos[0], 0.6f,
+             "collision step plane point x");
+  ok &= near(plane_collision.basis_x[0], 1.0f,
+             "collision step plane basis x");
+  ok &= near(plane_collision.basis_y[1], 1.0f,
+             "collision step plane basis y");
+  ok &= near(plane_collision.last_z[2], 1.0f,
+             "collision step plane last z");
+
+  const auto sphere_collision =
+      source_char_hair_simulate_internal_collision_step(
+          {0.2f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, 1.0f,
+          {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, 1.0f, 0.5f,
+          0.5f,
+          std::vector<SourceCharHairCollisionInput>{
+              {1, 0.5f, {0.2f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}});
+  ok &= near(sphere_collision.point_pos[0], 1.0f,
+             "collision step sphere push out");
+
+  const auto sphere_taper_collision =
+      source_char_hair_simulate_internal_collision_step(
+          {0.5f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, 1.0f,
+          {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, 1.0f, 0.25f,
+          0.5f,
+          std::vector<SourceCharHairCollisionInput>{
+              {1, 0.5f, {0.5f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}});
+  ok &= expect_bool(sphere_taper_collision.z_overridden, true,
+                    "collision step sphere taper overrides z");
+  ok &= near(sphere_taper_collision.point_pos[0], 0.75f,
+             "collision step sphere taper point x");
+  ok &= near(sphere_taper_collision.last_z[0], -1.0f,
+             "collision step sphere taper last z");
+
+  const auto inside_collision =
+      source_char_hair_simulate_internal_collision_step(
+          {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, 1.0f,
+          {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, 1.0f, 0.25f,
+          0.25f,
+          std::vector<SourceCharHairCollisionInput>{
+              {2, 1.0f, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}});
+  ok &= near(inside_collision.point_pos[0], 0.75f,
+             "collision step inside sphere pulls inward");
 
   const auto freeze_plan =
       source_char_hair_freeze_pose_plan(true, 2, 3);

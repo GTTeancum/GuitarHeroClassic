@@ -663,6 +663,14 @@ note, and all report `unreadBytes=0`.
     length and `rsalen`, optionally add the previous-point force delta when
     `j > 0`, correct point position along `m128.y`, and compute the source
     target `v158 = root + rootY * length`.
+  - Native `source_char_hair_simulate_internal_collision_step` ports the
+    explicit collision branch inside `SimulateInternal` over caller-supplied
+    `CharCollide` results: the `collides.size() != 0` gate, plane push-out,
+    outside sphere/cigar, inside sphere/cigar, tapered-radius `lastZ`
+    overrides/interpolation, and the basis rebuild that precedes source
+    `SetWorldXfm`. This helper does not discover or populate a point's
+    collide-list; the unresolved `Hookup(ObjPtrList<CharCollide>&)` body still
+    gates live hair transform publishing.
   - Native `source_char_hair_simulate_internal_force_step` ports the later
     force/friction/inertia update in the collision-resolved branch:
     `force = v158 - pos`, `lastFriction - force`, store `lastFriction`, scale

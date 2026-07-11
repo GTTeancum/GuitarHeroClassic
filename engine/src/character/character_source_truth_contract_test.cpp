@@ -2210,6 +2210,37 @@ int run_contract() {
                  "Vector3v158;ScaleAdd(t100.v,t100.m.y,thisPoint.length,v158);",
                  "RB3 CharHair SimulateInternal computes point target position");
   ok &= contains(rb3_latest_char_hair_cpp,
+                 "Interp(thisPoint.lastZ,t100.m.z,mTorsion,m128.z);"
+                 "if(thisPoint.collides.size()!=0){",
+                 "RB3 CharHair SimulateInternal gates collision branch");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "floatdiffRad=thisPoint.outerRadius-thisPoint.radius;"
+                 "floatmaxRad=Max(thisPoint.radius,thisPoint.outerRadius);",
+                 "RB3 CharHair SimulateInternal computes point collision radii");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "floatcollideRad=thisCollide->GetRadius(thisPoint.pos,v164);"
+                 "switch(thisCollide->GetShape()){",
+                 "RB3 CharHair SimulateInternal queries CharCollide radius and shape");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "ScaleAddEq(thisPoint.pos,thisCollide->Axis(),"
+                 "maxRad-collideRad);",
+                 "RB3 CharHair SimulateInternal ports plane collision push");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "caseCharCollide::kCigar://3caseCharCollide::kSphere://1"
+                 "floatv164sq=LengthSquared(v164);",
+                 "RB3 CharHair SimulateInternal ports outside sphere/cigar branch");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "caseCharCollide::kInsideCigar://4caseCharCollide::"
+                 "kInsideSphere://2floatv164sq42=LengthSquared(v164);",
+                 "RB3 CharHair SimulateInternal ports inside sphere/cigar branch");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "Scale(m128.y,rsa,t100.m.y);Cross(t100.m.y,m128.z,t100.m.x);"
+                 "t100.m.x*=RecipSqrtAccurate(LengthSquared(t100.m.x));"
+                 "Normalize(t100.m.x,t100.m.x);Cross(t100.m.x,t100.m.y,t100.m.z);"
+                 "thisPoint.lastZ=t100.m.z;if(thisPoint.bone)"
+                 "thisPoint.bone->SetWorldXfm(t100);",
+                 "RB3 CharHair SimulateInternal rebuilds basis before SetWorldXfm");
+  ok &= contains(rb3_latest_char_hair_cpp,
                  "Subtract(v158,thisPoint.pos,thisPoint.force);Vector3v170;"
                  "Subtract(thisPoint.lastFriction,thisPoint.force,v170);"
                  "thisPoint.lastFriction=thisPoint.force;",
@@ -2238,6 +2269,13 @@ int run_contract() {
                  "{0.0f,0.0f,0.0f};std::array<float,3>last_friction=",
                  "native exposes CharHair SimulateInternal force result");
   ok &= contains(char_mesh_h,
+                 "structSourceCharHairCollisionInput{intshape=1;floatradius=0.0f;",
+                 "native exposes CharHair SimulateInternal collision input");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairCollisionStep{boolentered=false;"
+                 "booladjusted_point=false;boolz_overridden=false;",
+                 "native exposes CharHair SimulateInternal collision result");
+  ok &= contains(char_mesh_h,
                  "SourceCharHairSimulateInternalScalars"
                  "source_char_hair_simulate_internal_scalars("
                  "floatfps,floatstiffness,floatgravity,boolhas_wind,",
@@ -2255,6 +2293,10 @@ int run_contract() {
                  "SourceCharHairForceStepsource_char_hair_simulate_internal_force_step("
                  "std::array<float,3>target_pos,",
                  "native exposes CharHair SimulateInternal force helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairCollisionStepsource_char_hair_simulate_internal_collision_step("
+                 "std::array<float,3>point_pos,",
+                 "native exposes CharHair SimulateInternal collision helper");
   ok &= contains(char_mesh,
                  "SourceCharHairSimulateInternalScalars"
                  "source_char_hair_simulate_internal_scalars(",
@@ -2307,6 +2349,33 @@ int run_contract() {
                  "step.motion_delta[i]=point_pos[i]-original_pos[i];"
                  "step.force[i]+=step.motion_delta[i]*inertia;",
                  "native CharHair force helper ports inertia");
+  ok &= contains(char_mesh,
+                 "SourceCharHairCollisionStepsource_char_hair_simulate_internal_collision_step(",
+                 "native implements CharHair SimulateInternal collision helper");
+  ok &= contains(char_mesh,
+                 "std::array<float,3>z_axis=interp(last_z,root_z_axis,torsion);"
+                 "step.pre_collision_z=z_axis;if(collides.empty())returnstep;",
+                 "native CharHair collision helper ports z interpolation and collide gate");
+  ok &= contains(char_mesh,
+                 "if(max_radius>collide.radius){scale_add(point_pos,collide.axis,"
+                 "max_radius-collide.radius);",
+                 "native CharHair collision helper ports plane push");
+  ok &= contains(char_mesh,
+                 "case1:case3:{constfloatdelta_sq=dot(delta,delta);"
+                 "constfloatsum_radius=collide.radius+max_radius;",
+                 "native CharHair collision helper ports outside sphere/cigar branch");
+  ok &= contains(char_mesh,
+                 "z_axis=interp(z_axis,delta,(sum_radius-cluster)/diff_radius);",
+                 "native CharHair collision helper ports tapered outside z interpolation");
+  ok &= contains(char_mesh,
+                 "case2:case4:{constfloatdelta_sq=dot(delta,delta);"
+                 "constfloatminus_radius=collide.radius-max_radius;",
+                 "native CharHair collision helper ports inside sphere/cigar branch");
+  ok &= contains(char_mesh,
+                 "step.basis_x=cross(step.basis_y,z_axis);step.basis_x="
+                 "normalize(step.basis_x);step.basis_z=cross(step.basis_x,"
+                 "step.basis_y);",
+                 "native CharHair collision helper ports basis rebuild");
   ok &= contains(char_hair_source_test,
                  "source_char_hair_simulate_internal_scalars(",
                  "focused CharHair source test covers SimulateInternal scalars");
@@ -2319,6 +2388,9 @@ int run_contract() {
   ok &= contains(char_hair_source_test,
                  "source_char_hair_simulate_internal_force_step(",
                  "focused CharHair source test covers SimulateInternal force step");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_simulate_internal_collision_step(",
+                 "focused CharHair source test covers SimulateInternal collision step");
   ok &= contains(doc,
                  "Native `source_char_hair_simulate_internal_scalars` ports the concrete",
                  "document records CharHair SimulateInternal scalar helper");
@@ -2331,6 +2403,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_hair_simulate_internal_force_step` ports the later",
                  "document records CharHair SimulateInternal force helper");
+  ok &= contains(doc,
+                 "Native `source_char_hair_simulate_internal_collision_step` ports the",
+                 "document records CharHair SimulateInternal collision helper");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::Strand::SetRoot(RndTransformable*trans){"
                  "mRoot=trans;if(!mRoot)mPoints.resize(0);else{floatlen="

@@ -2104,6 +2104,138 @@ SourceCharHairForceStep source_char_hair_simulate_internal_force_step(
   return step;
 }
 
+SourceCharHairCollisionStep source_char_hair_simulate_internal_collision_step(
+    std::array<float, 3> point_pos,
+    std::array<float, 3> root_to_point,
+    float reciprocal_length,
+    std::array<float, 3> last_z,
+    std::array<float, 3> root_z_axis,
+    float torsion,
+    float point_radius,
+    float point_outer_radius,
+    const std::vector<SourceCharHairCollisionInput>& collides) {
+  SourceCharHairCollisionStep step;
+  step.point_pos = point_pos;
+  step.collide_count = static_cast<int>(collides.size());
+
+  auto dot = [](const std::array<float, 3>& a,
+                const std::array<float, 3>& b) {
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  };
+  auto cross = [](const std::array<float, 3>& a,
+                  const std::array<float, 3>& b) {
+    return std::array<float, 3>{
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    };
+  };
+  auto scale_add = [](std::array<float, 3>& dst,
+                      const std::array<float, 3>& src, float scale) {
+    for (int i = 0; i < 3; ++i) dst[i] += src[i] * scale;
+  };
+  auto interp = [](const std::array<float, 3>& a,
+                   const std::array<float, 3>& b, float t) {
+    return std::array<float, 3>{
+        a[0] + (b[0] - a[0]) * t,
+        a[1] + (b[1] - a[1]) * t,
+        a[2] + (b[2] - a[2]) * t,
+    };
+  };
+  auto normalize = [&](std::array<float, 3> v) {
+    const float len_sq = dot(v, v);
+    const float inv_len = 1.0f / std::sqrt(len_sq);
+    for (int i = 0; i < 3; ++i) v[i] *= inv_len;
+    return v;
+  };
+
+  std::array<float, 3> z_axis = interp(last_z, root_z_axis, torsion);
+  step.pre_collision_z = z_axis;
+  if (collides.empty()) return step;
+
+  step.entered = true;
+  const float diff_radius = point_outer_radius - point_radius;
+  const float max_radius = std::max(point_radius, point_outer_radius);
+  for (const SourceCharHairCollisionInput& collide : collides) {
+    std::array<float, 3> delta = collide.delta;
+    switch (collide.shape) {
+      case 0:
+        if (max_radius > collide.radius) {
+          scale_add(point_pos, collide.axis, max_radius - collide.radius);
+          step.adjusted_point = true;
+        }
+        break;
+      case 1:
+      case 3: {
+        const float delta_sq = dot(delta, delta);
+        const float sum_radius = collide.radius + max_radius;
+        if (delta_sq < sum_radius * sum_radius) {
+          if (diff_radius > 0.0f) {
+            const float recip = 1.0f / std::sqrt(delta_sq);
+            const float cluster = delta_sq * recip;
+            const float other_sum_radius = collide.radius + point_radius;
+            for (int i = 0; i < 3; ++i) delta[i] *= -recip;
+            if (cluster < other_sum_radius) {
+              z_axis = delta;
+              step.z_overridden = true;
+              scale_add(point_pos, delta, cluster - other_sum_radius);
+            } else {
+              z_axis = interp(z_axis, delta,
+                              (sum_radius - cluster) / diff_radius);
+              step.z_interpolated = true;
+            }
+          } else {
+            scale_add(point_pos, delta,
+                      sum_radius * (1.0f / std::sqrt(delta_sq)) - 1.0f);
+          }
+          step.adjusted_point = true;
+        }
+        break;
+      }
+      case 2:
+      case 4: {
+        const float delta_sq = dot(delta, delta);
+        const float minus_radius = collide.radius - max_radius;
+        if (delta_sq > minus_radius * minus_radius) {
+          if (diff_radius > 0.0f) {
+            const float recip = 1.0f / std::sqrt(delta_sq);
+            const float cluster = delta_sq * recip;
+            const float other_sum_radius = collide.radius - point_radius;
+            for (int i = 0; i < 3; ++i) delta[i] *= -recip;
+            if (cluster > other_sum_radius) {
+              z_axis = delta;
+              step.z_overridden = true;
+              scale_add(point_pos, delta, cluster - other_sum_radius);
+            } else {
+              z_axis = interp(z_axis, delta,
+                              (cluster - minus_radius) / diff_radius);
+              step.z_interpolated = true;
+            }
+          } else {
+            scale_add(point_pos, delta,
+                      minus_radius * (1.0f / std::sqrt(delta_sq)) - 1.0f);
+          }
+          step.adjusted_point = true;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  for (int i = 0; i < 3; ++i) {
+    step.basis_y[i] = root_to_point[i] * reciprocal_length;
+  }
+  step.basis_x = cross(step.basis_y, z_axis);
+  step.basis_x = normalize(step.basis_x);
+  step.basis_z = cross(step.basis_x, step.basis_y);
+  step.last_z = step.basis_z;
+  step.point_pos = point_pos;
+  step.set_world_xfm = true;
+  return step;
+}
+
 SourceCharHairFreezePosePlan source_char_hair_freeze_pose_plan(
     bool simulate,
     int strand_count,
