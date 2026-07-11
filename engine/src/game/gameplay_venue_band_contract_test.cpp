@@ -4217,6 +4217,12 @@ int main() {
                  "uint32_tcolor_count=0;",
                  "MatAnim loader reads material color channel count");
   ok &= contains(gameplay_c,
+                 "anim.keys_owner=canonical_milo_ref(*keys_owner);",
+                 "MatAnim loader preserves source key-owner references");
+  ok &= contains(gameplay_c,
+                 "anim.alpha_keys=owner->second.alpha_keys;",
+                 "MatAnim owner rows copy authored alpha key data");
+  ok &= contains(gameplay_c,
                  "uint32_ttexture_count=0;",
                  "MatAnim loader reads material texture channel count");
   ok &= contains(gameplay_c,
@@ -4343,11 +4349,17 @@ int main() {
                  "active_venue_material_anims_.push_back(std::move(active_anim));",
                  "venue MatAnim events start an active alpha animation");
   ok &= contains(gameplay_c,
+                 "active_anim.alpha_keys=anim.alpha_keys;",
+                 "venue MatAnim activation preserves decoded alpha keys");
+  ok &= contains(gameplay_c,
                  "voidGameplay::update_active_venue_material_anims()",
                  "venue MatAnim alpha has a per-tick sampler");
   ok &= contains(gameplay_c,
                  "venue_material_alpha_[it->material]=clamp_material_alpha(alpha);",
                  "venue MatAnim sampler updates material alpha over time");
+  ok &= contains(gameplay_c,
+                 "sample_material_float_key(it->alpha_keys,frame)",
+                 "venue MatAnim playback samples authored alpha keys by frame");
   ok &= contains(gameplay_c,
                  "\"[world]venueMatAnimsample%s->%sframe=%.2falpha=%.3f",
                  "venue MatAnim sampler emits debug rows for native validation");
@@ -4813,7 +4825,7 @@ int main() {
                  "lighting overlay MatAnim sample logging has its own throttle");
   ok &= contains(gameplay_c,
                  "\"[world]lightingMatAnimsample%s->%sframe=%.2falpha=%.3f"
-                 "color_keys=%zutexture_keys=%zutex_trans_keys=%zu"
+                 "color_keys=%zualpha_keys=%zutexture_keys=%zutex_trans_keys=%zu"
                  "tex_scale_keys=%zutex_rot_keys=%zupersistent=%d\\n\"",
                  "lighting overlay MatAnim sampler emits debug rows for native validation");
   ok &= contains(gameplay_c,

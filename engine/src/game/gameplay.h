@@ -337,6 +337,7 @@ class Gameplay {
     };
     std::string name;
     std::string material;
+    std::string keys_owner;
     bool has_alpha = false;
     float start_alpha = 1.0f;
     float end_alpha = 1.0f;
@@ -386,6 +387,7 @@ class Gameplay {
     double duration_seconds = 0.0;
     float duration_frames = 0.0f;
     std::vector<VenueMaterialAnim::ColorKey> color_keys;
+    std::vector<VenueMaterialAnim::FloatKey> alpha_keys;
     std::vector<VenueMaterialAnim::TextureKey> texture_keys;
     std::vector<VenueMaterialAnim::Vec3Key> tex_translation_keys;
     std::vector<VenueMaterialAnim::Vec3Key> tex_scale_keys;

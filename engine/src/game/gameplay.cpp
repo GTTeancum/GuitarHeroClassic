@@ -3627,23 +3627,17 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
             std::memcpy(&version, body, sizeof(version));
             if (version != 7) continue;
             size_t pos = 25;
-            auto read_string = [&]() -> std::optional<std::string> {
-                if (pos + 4 > size) return std::nullopt;
-                uint32_t len = 0;
-                std::memcpy(&len, body + pos, sizeof(len));
-                pos += 4;
-                if (len == 0 || len > 96 || pos + len > size)
-                    return std::nullopt;
-                std::string s(reinterpret_cast<const char*>(body + pos), len);
-                pos += len;
-                return s;
+            auto read_string = [&]() {
+                return read_milo_string_advance(body, size, pos, 128);
             };
             auto material = read_string();
-            auto anim_name = read_string();
-            if (!material || !anim_name) continue;
+            auto keys_owner = read_string();
+            if (!material || material->empty() || !keys_owner) continue;
             Gameplay::VenueMaterialAnim anim;
-            anim.name = *anim_name;
+            anim.name = canonical_milo_ref(de.name);
             anim.material = *material;
+            anim.keys_owner = canonical_milo_ref(*keys_owner);
+            if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
             uint32_t color_count = 0;
             if (!read_u32_advance(body, size, pos, color_count) ||
                 color_count > 4096) {
@@ -3768,8 +3762,28 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
                 continue;
             }
             out[anim.name] = anim;
+        }
+        for (size_t pass = 0; pass < out.size(); ++pass) {
+            for (auto& [name, anim] : out) {
+                if (anim.keys_owner.empty() || anim.keys_owner == anim.name)
+                    continue;
+                const auto owner = out.find(anim.keys_owner);
+                if (owner == out.end()) continue;
+                anim.color_keys = owner->second.color_keys;
+                anim.alpha_keys = owner->second.alpha_keys;
+                anim.tex_translation_keys = owner->second.tex_translation_keys;
+                anim.tex_scale_keys = owner->second.tex_scale_keys;
+                anim.tex_rotation_keys = owner->second.tex_rotation_keys;
+                anim.texture_keys = owner->second.texture_keys;
+                anim.has_alpha = owner->second.has_alpha;
+                anim.start_alpha = owner->second.start_alpha;
+                anim.end_alpha = owner->second.end_alpha;
+                anim.duration_frames = owner->second.duration_frames;
+            }
+        }
+        for (const auto& [name, anim] : out) {
             std::fprintf(stderr,
-                         "[world] MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu texture_keys=%zu frames=%.1f\n",
+                         "[world] MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu texture_keys=%zu frames=%.1f%s%s\n",
                          anim.name.c_str(), anim.material.c_str(),
                          anim.start_alpha, anim.end_alpha,
                          anim.color_keys.size(),
@@ -3778,7 +3792,13 @@ std::map<std::string, Gameplay::VenueMaterialAnim> load_venue_mat_anims(
                          anim.tex_scale_keys.size(),
                          anim.tex_rotation_keys.size(),
                          anim.texture_keys.size(),
-                         anim.duration_frames);
+                         anim.duration_frames,
+                         anim.keys_owner.empty() || anim.keys_owner == anim.name
+                             ? ""
+                             : " keys_owner=",
+                         anim.keys_owner.empty() || anim.keys_owner == anim.name
+                             ? ""
+                             : anim.keys_owner.c_str());
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] MatAnim load %s: %s\n",
@@ -17600,13 +17620,18 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                 authored_frames_to_seconds(anim.duration_frames);
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
+            active_anim.alpha_keys = anim.alpha_keys;
             active_anim.texture_keys = anim.texture_keys;
             active_anim.tex_translation_keys = anim.tex_translation_keys;
             active_anim.tex_scale_keys = anim.tex_scale_keys;
             active_anim.tex_rotation_keys = anim.tex_rotation_keys;
             active_anim.persistent = persistent;
             if (anim.has_alpha) {
-                venue_material_alpha_[anim.material] = active_anim.start_alpha;
+                venue_material_alpha_[anim.material] =
+                    active_anim.alpha_keys.empty()
+                        ? active_anim.start_alpha
+                        : clamp_material_alpha(sample_material_float_key(
+                              active_anim.alpha_keys, 0.0f));
                 material_changes.push_back({anim.material, anim.end_alpha});
             }
             if (has_color) {
@@ -17626,11 +17651,12 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             }
             venue_route_applied = true;
             std::fprintf(stderr,
-                         "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f %s\n",
+                         "[world] venue event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f %s\n",
                          event_name.c_str(), anim_name.c_str(),
                          anim.material.c_str(), active_anim.start_alpha,
                          active_anim.end_alpha,
                          active_anim.color_keys.size(),
+                         active_anim.alpha_keys.size(),
                          active_anim.texture_keys.size(),
                          active_anim.tex_translation_keys.size(),
                          active_anim.tex_scale_keys.size(),
@@ -17639,7 +17665,11 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                          persistent ? "persistent" : "transient");
             if (active_anim.duration_seconds <= 0.0001) {
                 if (anim.has_alpha)
-                    venue_material_alpha_[anim.material] = anim.end_alpha;
+                    venue_material_alpha_[anim.material] =
+                        anim.alpha_keys.empty()
+                            ? anim.end_alpha
+                            : clamp_material_alpha(sample_material_float_key(
+                                  anim.alpha_keys, anim.duration_frames));
                 if (has_color) {
                     venue_material_colors_[anim.material] =
                         sample_material_color_key(
@@ -18036,8 +18066,9 @@ void Gameplay::update_active_venue_material_anims() {
             !it->tex_translation_keys.empty() ||
             !it->tex_scale_keys.empty() ||
             !it->tex_rotation_keys.empty();
+        const bool has_alpha_keys = it->has_alpha && !it->alpha_keys.empty();
         const bool has_frame_sample =
-            has_color || has_texture || has_tex_transform;
+            has_color || has_texture || has_tex_transform || has_alpha_keys;
         const float frame =
             has_frame_sample
                 ? material_anim_frame_at(it->duration_frames,
@@ -18047,9 +18078,14 @@ void Gameplay::update_active_venue_material_anims() {
                       std::clamp(t, 0.0, 1.0) *
                       static_cast<double>(std::max(0.0f, it->duration_frames)));
         if (it->has_alpha) {
-            const float alpha = static_cast<float>(
-                static_cast<double>(it->start_alpha) +
-                (static_cast<double>(it->end_alpha) - it->start_alpha) * t);
+            const float alpha =
+                has_alpha_keys
+                    ? sample_material_float_key(it->alpha_keys, frame)
+                    : static_cast<float>(
+                          static_cast<double>(it->start_alpha) +
+                          (static_cast<double>(it->end_alpha) -
+                           it->start_alpha) *
+                              t);
             venue_material_alpha_[it->material] = clamp_material_alpha(alpha);
             alpha_changed = true;
         }
@@ -18073,9 +18109,10 @@ void Gameplay::update_active_venue_material_anims() {
                 it->has_alpha ? venue_material_alpha_[it->material] : -1.0f;
             std::fprintf(
                 stderr,
-                "[world] venue MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d\n",
+                "[world] venue MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d\n",
                 it->name.c_str(), it->material.c_str(), frame, alpha,
-                it->color_keys.size(), it->texture_keys.size(),
+                it->color_keys.size(), it->alpha_keys.size(),
+                it->texture_keys.size(),
                 it->tex_translation_keys.size(), it->tex_scale_keys.size(),
                 it->tex_rotation_keys.size(), it->persistent ? 1 : 0);
         }
@@ -18688,6 +18725,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                         authored_frames_to_seconds(anim.duration_frames);
                     active_anim.duration_frames = anim.duration_frames;
                     active_anim.color_keys = anim.color_keys;
+                    active_anim.alpha_keys = anim.alpha_keys;
                     active_anim.texture_keys = anim.texture_keys;
                     active_anim.tex_translation_keys = anim.tex_translation_keys;
                     active_anim.tex_scale_keys = anim.tex_scale_keys;
@@ -18695,7 +18733,10 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                     active_anim.persistent = persistent;
                     if (anim.has_alpha) {
                         venue_material_alpha_[anim.material] =
-                            active_anim.start_alpha;
+                            active_anim.alpha_keys.empty()
+                                ? active_anim.start_alpha
+                                : clamp_material_alpha(sample_material_float_key(
+                                      active_anim.alpha_keys, 0.0f));
                         venue_alpha_changed = true;
                     }
                     if (has_color) {
@@ -18717,11 +18758,12 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                     lighting_route_applied = true;
                     std::fprintf(
                         stderr,
-                        "[world] lighting event %s: venue MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f\n",
+                        "[world] lighting event %s: venue MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f\n",
                         event_name.c_str(), anim_name.c_str(),
                         anim.material.c_str(), active_anim.start_alpha,
                         active_anim.end_alpha,
                         active_anim.color_keys.size(),
+                        active_anim.alpha_keys.size(),
                         active_anim.texture_keys.size(),
                         active_anim.tex_translation_keys.size(),
                         active_anim.tex_scale_keys.size(),
@@ -18730,7 +18772,12 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                     if (active_anim.duration_seconds <= 0.0001) {
                         if (anim.has_alpha)
                             venue_material_alpha_[anim.material] =
-                                anim.end_alpha;
+                                anim.alpha_keys.empty()
+                                    ? anim.end_alpha
+                                    : clamp_material_alpha(
+                                          sample_material_float_key(
+                                              anim.alpha_keys,
+                                              anim.duration_frames));
                         if (has_color) {
                             venue_material_colors_[anim.material] =
                                 sample_material_color_key(
@@ -18795,6 +18842,7 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
                 authored_frames_to_seconds(anim.duration_frames);
             active_anim.duration_frames = anim.duration_frames;
             active_anim.color_keys = anim.color_keys;
+            active_anim.alpha_keys = anim.alpha_keys;
             active_anim.texture_keys = anim.texture_keys;
             active_anim.tex_translation_keys = anim.tex_translation_keys;
             active_anim.tex_scale_keys = anim.tex_scale_keys;
@@ -18802,7 +18850,10 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             active_anim.persistent = persistent;
             if (anim.has_alpha)
                 lighting_material_alpha_[anim.material] =
-                    active_anim.start_alpha;
+                    active_anim.alpha_keys.empty()
+                        ? active_anim.start_alpha
+                        : clamp_material_alpha(sample_material_float_key(
+                              active_anim.alpha_keys, 0.0f));
             if (has_color) {
                 lighting_material_colors_[anim.material] =
                     sample_material_color_key(anim.color_keys, 0.0f);
@@ -18821,17 +18872,22 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f\n",
+                "[world] lighting event %s: MatAnim %s -> %s alpha %.3f -> %.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu seconds=%.3f\n",
                 event_name.c_str(), anim_name.c_str(), anim.material.c_str(),
                 active_anim.start_alpha, active_anim.end_alpha,
-                active_anim.color_keys.size(), active_anim.texture_keys.size(),
+                active_anim.color_keys.size(), active_anim.alpha_keys.size(),
+                active_anim.texture_keys.size(),
                 active_anim.tex_translation_keys.size(),
                 active_anim.tex_scale_keys.size(),
                 active_anim.tex_rotation_keys.size(),
                 active_anim.duration_seconds);
             if (active_anim.duration_seconds <= 0.0001) {
                 if (anim.has_alpha)
-                    lighting_material_alpha_[anim.material] = anim.end_alpha;
+                    lighting_material_alpha_[anim.material] =
+                        anim.alpha_keys.empty()
+                            ? anim.end_alpha
+                            : clamp_material_alpha(sample_material_float_key(
+                                  anim.alpha_keys, anim.duration_frames));
                 if (has_color) {
                     lighting_material_colors_[anim.material] =
                         sample_material_color_key(anim.color_keys,
@@ -19097,8 +19153,9 @@ void Gameplay::update_active_lighting_material_anims() {
             !it->tex_translation_keys.empty() ||
             !it->tex_scale_keys.empty() ||
             !it->tex_rotation_keys.empty();
+        const bool has_alpha_keys = it->has_alpha && !it->alpha_keys.empty();
         const bool has_frame_sample =
-            has_color || has_texture || has_tex_transform;
+            has_color || has_texture || has_tex_transform || has_alpha_keys;
         const float frame =
             has_frame_sample
                 ? material_anim_frame_at(it->duration_frames,
@@ -19108,9 +19165,14 @@ void Gameplay::update_active_lighting_material_anims() {
                       std::clamp(t, 0.0, 1.0) *
                       static_cast<double>(std::max(0.0f, it->duration_frames)));
         if (it->has_alpha) {
-            const float alpha = static_cast<float>(
-                static_cast<double>(it->start_alpha) +
-                (static_cast<double>(it->end_alpha) - it->start_alpha) * t);
+            const float alpha =
+                has_alpha_keys
+                    ? sample_material_float_key(it->alpha_keys, frame)
+                    : static_cast<float>(
+                          static_cast<double>(it->start_alpha) +
+                          (static_cast<double>(it->end_alpha) -
+                           it->start_alpha) *
+                              t);
             lighting_material_alpha_[it->material] = clamp_material_alpha(alpha);
             alpha_changed = true;
         }
@@ -19134,9 +19196,10 @@ void Gameplay::update_active_lighting_material_anims() {
                 it->has_alpha ? lighting_material_alpha_[it->material] : -1.0f;
             std::fprintf(
                 stderr,
-                "[world] lighting MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d\n",
+                "[world] lighting MatAnim sample %s -> %s frame=%.2f alpha=%.3f color_keys=%zu alpha_keys=%zu texture_keys=%zu tex_trans_keys=%zu tex_scale_keys=%zu tex_rot_keys=%zu persistent=%d\n",
                 it->name.c_str(), it->material.c_str(), frame, alpha,
-                it->color_keys.size(), it->texture_keys.size(),
+                it->color_keys.size(), it->alpha_keys.size(),
+                it->texture_keys.size(),
                 it->tex_translation_keys.size(), it->tex_scale_keys.size(),
                 it->tex_rotation_keys.size(), it->persistent ? 1 : 0);
         }
