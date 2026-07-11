@@ -94,7 +94,11 @@ void test_mat() {
   put_f32(b, 1); put_f32(b, 1); put_f32(b, 1); put_f32(b, 1);  // colour RGBA
   b.push_back(1);                // use_environ
   b.push_back(0);                // prelit
-  put_zeros(b, 14);              // rest of texcoord flag block
+  put_u32(b, 1);                 // kZModeNormal
+  b.push_back(1);                // alpha_cut
+  b.push_back(0);                // alpha_write
+  put_u32(b, 0);                 // kTexGenNone
+  put_u32(b, 1);                 // kTexWrapRepeat
   const float tex_xfm[3][3] = {
       {1.06f, 0.0f, 0.0f},
       {0.0f, 1.22f, 0.0f},
@@ -107,7 +111,9 @@ void test_mat() {
   put_f32(b, -0.14f);
   put_f32(b, 0.0f);
   put_str(b, "gem.tex");         // diffuse texture
-  put_zeros(b, 16);
+  put_str(b, "");                // next pass
+  b.push_back(0);                // intensify
+  b.push_back(1);                // cull
 
   MatObj m = decode_mat("gem.mat", b);
   CHECK(m.decoded);
@@ -116,6 +122,12 @@ void test_mat() {
   CHECK(m.blend == 4);
   CHECK(m.use_environ);
   CHECK(!m.prelit);
+  CHECK(m.z_mode == 1);
+  CHECK(m.alpha_cut);
+  CHECK(!m.alpha_write);
+  CHECK(m.tex_wrap == 1);
+  CHECK(!m.intensify);
+  CHECK(m.cull);
   CHECK(approx(m.tex_xfm[0][0], 1.06f));
   CHECK(approx(m.tex_xfm[1][1], 1.22f));
   CHECK(approx(m.tex_xfm[2][0], 0.0f));

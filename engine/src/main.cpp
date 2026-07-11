@@ -633,9 +633,9 @@ int run_mats(const Args& a) {
     std::printf("\nScene  name=%s  dir_type=%s  mat=%zu\n",
                 scene.dir_name.c_str(), scene.dir_type.c_str(), scene.mats.size());
     std::printf("%s\n", std::string(112, '-').c_str());
-    std::printf("  %-28s %-24s %-5s %-25s %-22s %s\n",
-                "material", "diffuse", "blend", "color rgba",
-                "uv scale", "uv offset");
+    std::printf("  %-28s %-24s %-5s %-5s %-9s %-25s %-22s %s\n",
+                "material", "diffuse", "blend", "zmode", "flags",
+                "color rgba", "uv scale", "uv offset");
 
     int shown = 0;
     for (const auto& m : scene.mats) {
@@ -646,10 +646,19 @@ int run_mats(const Args& a) {
             if (hay.find(filter) == std::string::npos) continue;
         }
         ++shown;
-        std::printf("  %-28s %-24s %-5u [%.3f %.3f %.3f %.3f] [%.4f %.4f] [%.4f %.4f]\n",
+        char flags[10] = {};
+        std::snprintf(flags, sizeof(flags), "%c%c%c%c%c",
+                      m.use_environ ? 'E' : '-',
+                      m.prelit ? 'P' : '-',
+                      m.alpha_cut ? 'C' : '-',
+                      m.alpha_write ? 'W' : '-',
+                      m.cull ? 'B' : '-');
+        std::printf("  %-28s %-24s %-5u %-5u %-9s [%.3f %.3f %.3f %.3f] [%.4f %.4f] [%.4f %.4f]\n",
                     m.name.substr(0, 28).c_str(),
                     (m.diffuse_tex.empty() ? "(none)" : m.diffuse_tex).substr(0, 24).c_str(),
                     static_cast<unsigned>(m.blend),
+                    static_cast<unsigned>(m.z_mode),
+                    flags,
                     m.color[0], m.color[1], m.color[2], m.color[3],
                     m.tex_scale[0], m.tex_scale[1],
                     m.tex_offset[0], m.tex_offset[1]);

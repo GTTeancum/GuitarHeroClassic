@@ -5487,6 +5487,12 @@ int main() {
                  "booluse_environ=false;boolprelit=false;",
                  "decoded materials retain environment/prelit flags");
   ok &= contains(milo_scene_h_c,
+                 "uint8_tz_mode=1;",
+                 "decoded materials retain authored RndMat z-buffer mode");
+  ok &= contains(milo_scene_h_c,
+                 "boolalpha_cut=false;boolalpha_write=false;",
+                 "decoded materials retain authored alpha cut/write flags");
+  ok &= contains(milo_scene_h_c,
                  "12-floatsourcetexture",
                  "decoded materials document that source texture transforms are stored as 12-float matrices");
   ok &= contains(milo_scene_h_c,
@@ -5511,6 +5517,15 @@ int main() {
                  "WorldCrowdObjdecode_world_crowd("
                  "conststd::string&entry_name,conststd::vector<uint8_t>&body)",
                  "raw WorldCrowd object decoder exists");
+  ok &= contains(milo_scene_cpp_c,
+                 "m.z_mode=static_cast<uint8_t>(z_mode);",
+                 "Mat decoder preserves source-order RndMat z-buffer mode");
+  ok &= contains(milo_scene_cpp_c,
+                 "m.alpha_cut=body[state++]!=0;",
+                 "Mat decoder preserves source-order alpha cut flag");
+  ok &= contains(milo_scene_cpp_c,
+                 "m.alpha_write=body[state++]!=0;",
+                 "Mat decoder preserves source-order alpha write flag");
   ok &= contains(milo_scene_cpp_c,
                  "rf(txf+static_cast<size_t>(row*3+col)*4)",
                  "Mat decoder reads the source texture transform UV rows");
@@ -5614,8 +5629,8 @@ int main() {
                  "group.has_transform=true;",
                  "Group decoder preserves authored view transforms");
   ok &= contains(milo_scene_cpp_c,
-                 "m.use_environ=body[flag_pos]!=0;",
-                 "Mat decoder preserves use_environ flag");
+                 "m.use_environ=body[state++]!=0;",
+                 "Mat decoder preserves source-order use_environ flag");
   ok &= contains(milo_scene_cpp_c,
                  "constuint32_tblend=r.u32();",
                  "Mat decoder reads BLEND_ENUM before material color");
@@ -5772,6 +5787,14 @@ int main() {
   ok &= contains(renderer_c,
                  "GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS",
                  "renderer keeps authored dynamic environment lights A/B switchable");
+  ok &= contains(renderer_c,
+                 "constboolz_mode_writes="
+                 "material_z_mode==kZModeNormal||material_z_mode==kZModeForce||"
+                 "material_z_mode==kZModeDecal;",
+                 "renderer bases venue mesh z-write on decoded RndMat z mode");
+  ok &= absent(renderer_c,
+               "material_blend==kBlendSrcAlpha||",
+               "source-alpha blend no longer globally disables venue z-write");
   ok &= contains(renderer_c,
                  "constboolprelit_material=mat_obj&&mat_obj->prelit&&"
                  "!env_enabled(\"GHOGX_DISABLE_PRELIT_MATERIALS\");",

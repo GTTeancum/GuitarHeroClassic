@@ -28,8 +28,16 @@
 //     4×f32 diffuse colour RGBA
 //     u8    use_environ (schema: modulate with environment ambient/lights)
 //     u8    prelit      (schema: vertex color/alpha feeds base or ambient)
-//     ...   flag / texture-state bytes
-//     str   diffuse texture name (".tex"); other strings may follow
+//     i32   z_mode      (RndMat::ZMode)
+//     u8    alpha_cut
+//     u8    alpha_write
+//     i32   tex_gen
+//     i32   tex_wrap
+//     48    texture transform matrix
+//     str   diffuse texture name (".tex")
+//     str   next-pass material name
+//     u8    intensify
+//     u8    cull
 //
 //   Mesh  (version 0x1c = 28):
 //     Trans base   (version 9 + 9 + 48 + 48 + 9 + parent string, as above)
@@ -246,6 +254,12 @@ struct MatObj {
   float tex_offset[2] = {0.0f, 0.0f};
   bool use_environ = false;
   bool prelit = false;
+  uint8_t z_mode = 1;        // RndMat::ZMode: Disable/Normal/Transparent/Force/Decal
+  bool alpha_cut = false;
+  bool alpha_write = false;
+  uint8_t tex_gen = 0;
+  uint8_t tex_wrap = 1;
+  bool intensify = false;
   bool cull = true;
   bool decoded = false;
 };

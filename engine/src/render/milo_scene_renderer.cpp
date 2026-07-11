@@ -119,6 +119,14 @@ enum MiloBlend : uint8_t {
   kBlendMultiply = 6,
 };
 
+enum MiloZMode : uint8_t {
+  kZModeDisable = 0,
+  kZModeNormal = 1,
+  kZModeTransparent = 2,
+  kZModeForce = 3,
+  kZModeDecal = 4,
+};
+
 struct BlendState {
   DWORD src = D3DBLEND_SRCALPHA;
   DWORD dest = D3DBLEND_INVSRCALPHA;
@@ -1649,6 +1657,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     float uv_m20 = 0.0f, uv_m21 = 0.0f;
     float mr = 1.0f, mg = 1.0f, mb = 1.0f, ma = 1.0f;
     uint8_t material_blend = kBlendSrcAlpha;
+    uint8_t material_z_mode = kZModeNormal;
     const std::string& material =
         (material_override && !material_override->empty()) ? *material_override
                                                            : m.material;
@@ -1670,6 +1679,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       uv_m21 = mat->tex_xfm[2][1];
       mr = mat->color[0]; mg = mat->color[1]; mb = mat->color[2]; ma = mat->color[3];
       material_blend = mat->blend;
+      material_z_mode = mat->z_mode;
     }
     if (env_enabled("GHOGX_LOG_VENUE_MATERIAL") &&
         (m.name.find("stadium_spotlight") != std::string::npos ||
@@ -1681,11 +1691,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         std::fprintf(stderr,
                      "[milo_scene] venue material mesh=%s material=%s "
                      "tex=%s blend=%u color=(%.3f %.3f %.3f %.3f) "
-                     "prelit=%d use_environ=%d\n",
+                     "prelit=%d use_environ=%d zmode=%u\n",
                      m.name.c_str(), material.c_str(), diffuse_tex.c_str(),
                      static_cast<unsigned>(material_blend), mr, mg, mb, ma,
                      mat_obj && mat_obj->prelit ? 1 : 0,
-                     mat_obj && mat_obj->use_environ ? 1 : 0);
+                     mat_obj && mat_obj->use_environ ? 1 : 0,
+                     static_cast<unsigned>(material_z_mode));
       }
     }
     if (const auto tex_name_it = material_textures_.find(material);
@@ -1806,10 +1817,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       mb *= ma;
     }
     if (ma <= 0.001f) return;
+    const bool z_mode_writes =
+        material_z_mode == kZModeNormal || material_z_mode == kZModeForce ||
+        material_z_mode == kZModeDecal;
     const bool disable_zwrite =
-        material_blend == kBlendSrcAlpha ||
-        blend_state.additive || material_blend == kBlendSubtract ||
-        material_blend == kBlendMultiply || ma < 0.999f;
+        !z_mode_writes || blend_state.additive ||
+        material_blend == kBlendSubtract || material_blend == kBlendMultiply ||
+        ma < 0.999f;
     dev_->SetRenderState(D3DRS_ZWRITEENABLE, disable_zwrite ? FALSE : TRUE);
     dev_->SetRenderState(D3DRS_BLENDOP, blend_state.op);
     dev_->SetRenderState(D3DRS_SRCBLEND, blend_state.src);

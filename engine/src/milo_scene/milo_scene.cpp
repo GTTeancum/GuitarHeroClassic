@@ -808,8 +808,7 @@ MatObj decode_mat(const std::string& entry_name,
   Reader r(body.data(), body.size());
   MatObj m;
   m.name = entry_name;
-  int32_t ver = r.i32();     // = 27
-  (void)ver;
+  const uint16_t ver = low_revision(r.u32());  // = 27 in GH2 PS2 venues
   r.skip(kObjMeta);          // base metadata
   const uint32_t blend = r.u32();
   if (blend <= 6) {
@@ -822,7 +821,30 @@ MatObj decode_mat(const std::string& entry_name,
   m.color[2] = r.f32();
   m.color[3] = r.f32();
   const size_t flag_pos = r.pos;
-  if (flag_pos + 2 <= body.size()) {
+  const size_t mat_state_bytes = (ver > 0x25) ? 20u : 16u;
+  auto read_i32_field = [&](size_t offset) {
+    int32_t value = 0;
+    std::memcpy(&value, body.data() + offset, sizeof(value));
+    return value;
+  };
+  if (ver > 21 && flag_pos + mat_state_bytes <= body.size()) {
+    size_t state = flag_pos;
+    m.use_environ = body[state++] != 0;
+    m.prelit = body[state++] != 0;
+    const int32_t z_mode = read_i32_field(state);
+    state += 4;
+    if (z_mode >= 0 && z_mode <= 4) m.z_mode = static_cast<uint8_t>(z_mode);
+    m.alpha_cut = body[state++] != 0;
+    if (ver > 0x25) state += 4;  // alpha threshold, absent in GH2 rev 27
+    m.alpha_write = body[state++] != 0;
+    const int32_t tex_gen = read_i32_field(state);
+    state += 4;
+    if (tex_gen >= 0 && tex_gen <= 5) m.tex_gen = static_cast<uint8_t>(tex_gen);
+    const int32_t tex_wrap = read_i32_field(state);
+    if (tex_wrap >= 0 && tex_wrap <= 4) {
+      m.tex_wrap = static_cast<uint8_t>(tex_wrap);
+    }
+  } else if (flag_pos + 2 <= body.size()) {
     m.use_environ = body[flag_pos] != 0;
     m.prelit = body[flag_pos + 1] != 0;
   }
@@ -831,7 +853,7 @@ MatObj decode_mat(const std::string& entry_name,
   // the source third-axis slot can carry non-UV scale, so force homogeneous
   // [2][2] to one instead of rejecting the authored UV transform.
   {
-    const size_t txf = r.pos + 16;
+    const size_t txf = r.pos + mat_state_bytes;
     auto rf = [&](size_t o) { float f; std::memcpy(&f, body.data() + o, 4); return f; };
     if (txf + 48 <= body.size()) {
       float xfm[3][3] = {};
@@ -885,7 +907,8 @@ MatObj decode_mat(const std::string& entry_name,
       try {
         (void)read_string_at(body, cursor);
         if (cursor + 2 <= body.size()) {
-          ++cursor;  // intensify
+          m.intensify = body[cursor] != 0;
+          ++cursor;
           m.cull = body[cursor] != 0;
         }
       } catch (const std::exception&) {
