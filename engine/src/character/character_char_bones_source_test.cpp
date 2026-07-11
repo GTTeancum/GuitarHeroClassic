@@ -310,6 +310,72 @@ int main() {
                    "ReallocateInternal alloc size");
   ok &= expect_int(realloc_step.assign_m_start ? 1 : 0, 1,
                    "ReallocateInternal assigns mStart");
+  const SourceCharBonesEnterStep enter_step = source_char_bones_enter_step();
+  ok &= expect_int(enter_step.zero ? 1 : 0, 1, "CharBones Enter zeros");
+  ok &= expect_int(enter_step.set_weights ? 1 : 0, 1,
+                   "CharBones Enter sets weights");
+  ok &= expect_float(enter_step.set_weights_value, 0.0f,
+                     "CharBones Enter weight value");
+  const SourceCharBonesBlenderPollStep poll_empty =
+      source_char_bones_blender_poll_step(true, true);
+  ok &= expect_int(poll_empty.early_out ? 1 : 0, 1,
+                   "CharBonesBlender Poll empty out");
+  ok &= expect_int(poll_empty.blend_dest ? 1 : 0, 0,
+                   "CharBonesBlender Poll empty no blend");
+  const SourceCharBonesBlenderPollStep poll_no_dest =
+      source_char_bones_blender_poll_step(false, false);
+  ok &= expect_int(poll_no_dest.early_out ? 1 : 0, 1,
+                   "CharBonesBlender Poll no dest out");
+  const SourceCharBonesBlenderPollStep poll_active =
+      source_char_bones_blender_poll_step(false, true);
+  ok &= expect_int(poll_active.early_out ? 1 : 0, 0,
+                   "CharBonesBlender Poll active no out");
+  ok &= expect_int(poll_active.blend_dest ? 1 : 0, 1,
+                   "CharBonesBlender Poll blends dest");
+  ok &= expect_int(poll_active.enter ? 1 : 0, 1,
+                   "CharBonesBlender Poll enters after blend");
+  const SourceCharBonesBlenderSetDestStep same_dest =
+      source_char_bones_blender_set_dest_step(false, true);
+  ok &= expect_int(same_dest.changed ? 1 : 0, 0,
+                   "CharBonesBlender SetDest unchanged");
+  const SourceCharBonesBlenderSetDestStep null_dest =
+      source_char_bones_blender_set_dest_step(true, false);
+  ok &= expect_int(null_dest.changed ? 1 : 0, 1,
+                   "CharBonesBlender SetDest null changed");
+  ok &= expect_int(null_dest.assign_dest ? 1 : 0, 1,
+                   "CharBonesBlender SetDest null assigns");
+  ok &= expect_int(null_dest.add_bones_to_dest ? 1 : 0, 0,
+                   "CharBonesBlender SetDest null no add");
+  const SourceCharBonesBlenderSetDestStep new_dest =
+      source_char_bones_blender_set_dest_step(true, true);
+  ok &= expect_int(new_dest.add_bones_to_dest ? 1 : 0, 1,
+                   "CharBonesBlender SetDest adds bones");
+  const SourceCharBonesBlenderSetClipTypeStep same_clip_type =
+      source_char_bones_blender_set_clip_type_step(false);
+  ok &= expect_int(same_clip_type.changed ? 1 : 0, 0,
+                   "CharBonesBlender SetClipType unchanged");
+  const SourceCharBonesBlenderSetClipTypeStep new_clip_type =
+      source_char_bones_blender_set_clip_type_step(true);
+  ok &= expect_int(new_clip_type.assign_clip_type ? 1 : 0, 1,
+                   "CharBonesBlender SetClipType assigns");
+  ok &= expect_int(new_clip_type.clear_bones ? 1 : 0, 1,
+                   "CharBonesBlender SetClipType clears bones");
+  ok &= expect_int(new_clip_type.stuff_bones_from_dir ? 1 : 0, 1,
+                   "CharBonesBlender SetClipType stuffs bones");
+  const SourceCharBonesBlenderReallocateStep blender_realloc_no_dest =
+      source_char_bones_blender_reallocate_step(false);
+  ok &= expect_int(blender_realloc_no_dest.char_bones_alloc_reallocate_internal
+                       ? 1
+                       : 0,
+                   1, "CharBonesBlender realloc calls base alloc");
+  ok &= expect_int(blender_realloc_no_dest.add_bones_to_dest ? 1 : 0, 0,
+                   "CharBonesBlender realloc no dest no add");
+  ok &= expect_int(blender_realloc_no_dest.enter ? 1 : 0, 1,
+                   "CharBonesBlender realloc enters no dest");
+  const SourceCharBonesBlenderReallocateStep blender_realloc_dest =
+      source_char_bones_blender_reallocate_step(true);
+  ok &= expect_int(blender_realloc_dest.add_bones_to_dest ? 1 : 0, 1,
+                   "CharBonesBlender realloc dest add");
 
   source_char_bones_clear(state);
   ok &= expect_empty_state(state, "ClearBones state reset");

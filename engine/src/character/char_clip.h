@@ -72,6 +72,37 @@ struct SourceCharBonesAllocReallocateStep {
   bool assign_m_start = true;
 };
 
+struct SourceCharBonesEnterStep {
+  bool zero = true;
+  bool set_weights = true;
+  float set_weights_value = 0.0f;
+};
+
+struct SourceCharBonesBlenderPollStep {
+  bool early_out = false;
+  bool blend_dest = false;
+  bool enter = false;
+};
+
+struct SourceCharBonesBlenderSetDestStep {
+  bool changed = false;
+  bool assign_dest = false;
+  bool add_bones_to_dest = false;
+};
+
+struct SourceCharBonesBlenderSetClipTypeStep {
+  bool changed = false;
+  bool assign_clip_type = false;
+  bool clear_bones = false;
+  bool stuff_bones_from_dir = false;
+};
+
+struct SourceCharBonesBlenderReallocateStep {
+  bool char_bones_alloc_reallocate_internal = true;
+  bool add_bones_to_dest = false;
+  bool enter = true;
+};
+
 struct SourceCharBonesSamplesState {
   SourceCharBonesState bones;
   int num_samples = 0;
@@ -618,6 +649,17 @@ SourceCharBonesAddBonesSteps source_char_bones_add_bones_steps(
     const std::vector<SourceCharBonesBone>& bones);
 SourceCharBonesAllocReallocateStep source_char_bones_alloc_reallocate_step(
     int total_size);
+SourceCharBonesEnterStep source_char_bones_enter_step();
+SourceCharBonesBlenderPollStep source_char_bones_blender_poll_step(
+    bool bones_empty,
+    bool has_dest);
+SourceCharBonesBlenderSetDestStep source_char_bones_blender_set_dest_step(
+    bool dest_changed,
+    bool new_dest_exists);
+SourceCharBonesBlenderSetClipTypeStep
+source_char_bones_blender_set_clip_type_step(bool clip_type_changed);
+SourceCharBonesBlenderReallocateStep
+source_char_bones_blender_reallocate_step(bool has_dest);
 
 // Source-backed CharBone helpers for decoded CharClip output rows.
 CharClip::OutputBone source_char_bone_copy_members(

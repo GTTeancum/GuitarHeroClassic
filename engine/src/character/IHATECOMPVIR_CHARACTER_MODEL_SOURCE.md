@@ -1349,6 +1349,24 @@ note, and all report `unreadBytes=0`.
     call-flow hook, not a standalone pose evaluator. Native
     `source_char_bones_scale_add_clip_step` records that delegation and preserves
     the same three float arguments.
+- `rb3-latest/src/system/char/CharBonesBlender.cpp` is concrete for the
+  animation-bone blender's control flow:
+  - Native `source_char_bones_enter_step` ports the inline `CharBones::Enter`
+    sequence: `Zero()`, then `SetWeights(0)`.
+  - Native `source_char_bones_blender_poll_step` ports `Poll`: return early when
+    there are no local bones or no destination; otherwise call `Blend(*mDest)`
+    and then `CharBones::Enter`.
+  - Native `source_char_bones_blender_set_dest_step` ports `SetDest`: only a
+    changed destination writes `mDest`, and only a non-null destination receives
+    `AddBones(mBones)`.
+  - Native `source_char_bones_blender_set_clip_type_step` ports `SetClipType`:
+    changed clip types assign the symbol, clear local bones, then repopulate via
+    `CharBoneDir::StuffBones(*this, mClipType)`.
+  - Native `source_char_bones_blender_reallocate_step` ports
+    `ReallocateInternal`: call `CharBonesAlloc::ReallocateInternal`, add bones
+    to the destination when present, then call `CharBones::Enter`.
+  - This slice is still call-flow only; it does not claim the missing low-level
+    `CharBones::Blend` math.
 - `rb3-latest/src/system/char/CharBonesSamples.cpp` is concrete for sample
   ownership and interpolation wrappers:
   - `Set`/`Clone` allocate `mRawData` from `AllocateSize()`.

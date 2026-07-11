@@ -340,6 +340,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharBones.cpp"));
   const std::string rb3_latest_char_bones_h = compact(read_file(
       rb3_latest_char_dir / "CharBones.h"));
+  const std::string rb3_latest_char_bones_blender_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharBonesBlender.cpp"));
+  const std::string rb3_latest_char_bones_blender_h = compact(read_file(
+      rb3_latest_char_dir / "CharBonesBlender.h"));
   const std::string rb3_latest_char_bone_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBone.cpp"));
   const std::string rb3_latest_char_bone_h = compact(read_file(
@@ -5921,6 +5925,28 @@ int run_contract() {
                  "`source_char_bones_scale_add_clip_step` records that delegation",
                  "document records concrete CharBones ScaleAdd delegation slice");
   ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharBonesBlender.cpp` is concrete",
+                 "document cites latest CharBonesBlender source");
+  ok &= contains(doc,
+                 "Native `source_char_bones_enter_step` ports the inline `CharBones::Enter`",
+                 "document records concrete CharBones Enter slice");
+  ok &= contains(doc,
+                 "Native `source_char_bones_blender_poll_step` ports `Poll`",
+                 "document records concrete CharBonesBlender Poll slice");
+  ok &= contains(doc,
+                 "Native `source_char_bones_blender_set_dest_step` ports `SetDest`",
+                 "document records concrete CharBonesBlender SetDest slice");
+  ok &= contains(doc,
+                 "Native `source_char_bones_blender_set_clip_type_step` ports `SetClipType`",
+                 "document records concrete CharBonesBlender SetClipType slice");
+  ok &= contains(doc,
+                 "Native `source_char_bones_blender_reallocate_step` ports",
+                 "document records concrete CharBonesBlender ReallocateInternal slice");
+  ok &= contains(doc,
+                 "it does not claim the missing low-level\n"
+                 "    `CharBones::Blend` math",
+                 "document fences missing CharBones Blend math");
+  ok &= contains(doc,
                  "does not include a\n"
                  "  reviewable `Evaluate` or `Poll` body",
                  "document fences missing CharClipDriver runtime evaluator bodies");
@@ -6248,6 +6274,21 @@ int run_contract() {
                  "lookup_state.layout.total_size)",
                  "focused CharBones source test covers CharBonesAlloc realloc step");
   ok &= contains(char_bones_source_test,
+                 "source_char_bones_enter_step()",
+                 "focused CharBones source test covers Enter sequence");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_blender_poll_step(false,true)",
+                 "focused CharBones source test covers active CharBonesBlender Poll");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_blender_set_dest_step(true,true)",
+                 "focused CharBones source test covers CharBonesBlender SetDest add");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_blender_set_clip_type_step(true)",
+                 "focused CharBones source test covers CharBonesBlender SetClipType");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_blender_reallocate_step(true)",
+                 "focused CharBones source test covers CharBonesBlender realloc add");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_clear(state);",
                  "focused CharBones source test covers ClearBones reset");
   ok &= contains(char_bones_source_test,
@@ -6413,6 +6454,33 @@ int run_contract() {
                  "voidCharBonesAlloc::ReallocateInternal(){_MemFree(mStart);"
                  "mStart=(char*)_MemAlloc(mTotalSize,0);}",
                  "latest CharBonesAlloc source defines raw storage reallocation");
+  ok &= contains(rb3_latest_char_bones_h,
+                 "voidEnter(){Zero();SetWeights(0);}",
+                 "latest CharBones header defines Enter sequence");
+  ok &= contains(rb3_latest_char_bones_blender_h,
+                 "classCharBonesBlender:publicCharPollable,publicCharBonesAlloc",
+                 "latest CharBonesBlender header defines source inheritance");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "voidCharBonesBlender::Enter(){CharBones::Enter();}",
+                 "latest CharBonesBlender source delegates Enter");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "voidCharBonesBlender::Poll(){if(mBones.empty()||!mDest)"
+                 "return;Blend(*mDest);CharBones::Enter();}",
+                 "latest CharBonesBlender source defines Poll call flow");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "voidCharBonesBlender::SetDest(CharBonesObject*obj){if(obj!="
+                 "mDest){mDest=obj;if(mDest)mDest->AddBones(mBones);}}",
+                 "latest CharBonesBlender source defines SetDest call flow");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "voidCharBonesBlender::SetClipType(Symbols){if(s!=mClipType){"
+                 "mClipType=s;ClearBones();CharBoneDir::StuffBones(*this,"
+                 "mClipType);}}",
+                 "latest CharBonesBlender source defines SetClipType call flow");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "voidCharBonesBlender::ReallocateInternal(){"
+                 "CharBonesAlloc::ReallocateInternal();if(mDest)"
+                 "mDest->AddBones(mBones);CharBones::Enter();}",
+                 "latest CharBonesBlender source defines ReallocateInternal flow");
   ok &= contains(char_clip,
                  "kSourceCompressAll=4",
                  "native clip decoder names source compression mode 4");
@@ -6459,6 +6527,35 @@ int run_contract() {
                  "SourceCharBonesAllocReallocateStep"
                  "source_char_bones_alloc_reallocate_step(inttotal_size);",
                  "native exposes CharBonesAlloc reallocation helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesEnterStep{boolzero=true;"
+                 "boolset_weights=true;floatset_weights_value=0.0f;};",
+                 "native exposes CharBones Enter row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesBlenderPollStep{boolearly_out=false;"
+                 "boolblend_dest=false;boolenter=false;};",
+                 "native exposes CharBonesBlender Poll row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesEnterStepsource_char_bones_enter_step();",
+                 "native exposes CharBones Enter helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesBlenderPollStepsource_char_bones_blender_poll_step("
+                 "boolbones_empty,boolhas_dest);",
+                 "native exposes CharBonesBlender Poll helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesBlenderSetDestStep"
+                 "source_char_bones_blender_set_dest_step("
+                 "booldest_changed,boolnew_dest_exists);",
+                 "native exposes CharBonesBlender SetDest helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesBlenderSetClipTypeStep"
+                 "source_char_bones_blender_set_clip_type_step("
+                 "boolclip_type_changed);",
+                 "native exposes CharBonesBlender SetClipType helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesBlenderReallocateStep"
+                 "source_char_bones_blender_reallocate_step(boolhas_dest);",
+                 "native exposes CharBonesBlender ReallocateInternal helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_find_offset(constSourceCharBonesState&state,"
                  "conststd::string&channel){constinttype=source_char_bones_type_of"
@@ -6502,6 +6599,29 @@ int run_contract() {
                  "SourceCharBonesAllocReallocateStepstep;step.mem_alloc_size="
                  "total_size;returnstep;}",
                  "native CharBonesAlloc helper mirrors source allocation size");
+  ok &= contains(char_clip,
+                 "SourceCharBonesEnterStepsource_char_bones_enter_step(){"
+                 "returnSourceCharBonesEnterStep{};}",
+                 "native CharBones Enter helper mirrors source sequence");
+  ok &= contains(char_clip,
+                 "if(bones_empty||!has_dest){step.early_out=true;returnstep;}"
+                 "step.blend_dest=true;step.enter=true;returnstep;",
+                 "native CharBonesBlender Poll helper mirrors source branch");
+  ok &= contains(char_clip,
+                 "if(!dest_changed)returnstep;step.changed=true;"
+                 "step.assign_dest=true;step.add_bones_to_dest=new_dest_exists;",
+                 "native CharBonesBlender SetDest helper mirrors source branch");
+  ok &= contains(char_clip,
+                 "if(!clip_type_changed)returnstep;step.changed=true;"
+                 "step.assign_clip_type=true;step.clear_bones=true;"
+                 "step.stuff_bones_from_dir=true;",
+                 "native CharBonesBlender SetClipType helper mirrors source branch");
+  ok &= contains(char_clip,
+                 "SourceCharBonesBlenderReallocateStep"
+                 "source_char_bones_blender_reallocate_step(boolhas_dest){"
+                 "SourceCharBonesBlenderReallocateStepstep;"
+                 "step.add_bones_to_dest=has_dest;returnstep;}",
+                 "native CharBonesBlender ReallocateInternal helper mirrors source flow");
   ok &= contains(char_clip, "offset+=type_size;",
                  "native CharBones FindOffset advances source packed offsets");
   ok &= contains(char_clip,

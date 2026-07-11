@@ -236,6 +236,52 @@ SourceCharBonesAllocReallocateStep source_char_bones_alloc_reallocate_step(
   return step;
 }
 
+SourceCharBonesEnterStep source_char_bones_enter_step() {
+  return SourceCharBonesEnterStep{};
+}
+
+SourceCharBonesBlenderPollStep source_char_bones_blender_poll_step(
+    bool bones_empty,
+    bool has_dest) {
+  SourceCharBonesBlenderPollStep step;
+  if (bones_empty || !has_dest) {
+    step.early_out = true;
+    return step;
+  }
+  step.blend_dest = true;
+  step.enter = true;
+  return step;
+}
+
+SourceCharBonesBlenderSetDestStep source_char_bones_blender_set_dest_step(
+    bool dest_changed,
+    bool new_dest_exists) {
+  SourceCharBonesBlenderSetDestStep step;
+  if (!dest_changed) return step;
+  step.changed = true;
+  step.assign_dest = true;
+  step.add_bones_to_dest = new_dest_exists;
+  return step;
+}
+
+SourceCharBonesBlenderSetClipTypeStep
+source_char_bones_blender_set_clip_type_step(bool clip_type_changed) {
+  SourceCharBonesBlenderSetClipTypeStep step;
+  if (!clip_type_changed) return step;
+  step.changed = true;
+  step.assign_clip_type = true;
+  step.clear_bones = true;
+  step.stuff_bones_from_dir = true;
+  return step;
+}
+
+SourceCharBonesBlenderReallocateStep
+source_char_bones_blender_reallocate_step(bool has_dest) {
+  SourceCharBonesBlenderReallocateStep step;
+  step.add_bones_to_dest = has_dest;
+  return step;
+}
+
 CharClip::OutputBone source_char_bone_copy_members(
     const CharClip::OutputBone& source) {
   CharClip::OutputBone dest;
