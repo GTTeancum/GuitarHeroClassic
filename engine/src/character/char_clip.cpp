@@ -2150,6 +2150,32 @@ bool source_char_ik_rod_compute_world(const CharIKRod& rod,
   return true;
 }
 
+SourceCharIKHandMeasure source_char_ik_hand_measure_lengths(
+    bool has_elbow_chain,
+    float hand_local_len,
+    float parent_local_len) {
+  SourceCharIKHandMeasure out;
+  if (!has_elbow_chain) return out;
+  out.has_elbow_chain = true;
+  out.inv_2ab = hand_local_len * 2.0f * parent_local_len;
+  out.a2_plus_b2 =
+      parent_local_len * parent_local_len + hand_local_len * hand_local_len;
+  if (out.inv_2ab != 0.0f) out.inv_2ab = 1.0f / out.inv_2ab;
+  out.aa_plus_bb = hand_local_len + parent_local_len;
+  return out;
+}
+
+bool source_char_ik_hand_elbow_cosine(
+    const SourceCharIKHandMeasure& measure,
+    float distance_squared,
+    float& out_cosine) {
+  if (!measure.has_elbow_chain) return false;
+  out_cosine =
+      measure.inv_2ab * (distance_squared - measure.a2_plus_b2);
+  out_cosine = std::clamp(out_cosine, -1.0f, 1.0f);
+  return true;
+}
+
 static std::array<float, 16> source_xfm_to_mat4(
     const milo_scene::Xfm& xfm) {
   return {xfm.rot[0][0], xfm.rot[0][1], xfm.rot[0][2], 0.0f,
@@ -3112,13 +3138,13 @@ static void apply_source_ik_hands(
     const float min_reach = std::fabs(upper_len - fore_len) + 0.001f;
     const float dist = std::clamp(raw_dist, min_reach, max_reach);
     const float dist2 = dist * dist;
-    // CharIKHand::MeasureLengths computes len^2 + parentlen^2 and
-    // 1/(2*len*parentlen); IKElbow derives the cosine/sine bend from the
-    // current shoulder-to-destination distance.
-    const float cos_elbow = std::clamp(
-        (dist2 - upper_len * upper_len - fore_len * fore_len) /
-            (2.0f * upper_len * fore_len),
-        -0.9850000143f, 0.9850000143f);
+    const SourceCharIKHandMeasure source_measure =
+        source_char_ik_hand_measure_lengths(true, fore_len, upper_len);
+    float cos_elbow = 0.0f;
+    if (!source_char_ik_hand_elbow_cosine(source_measure, dist2,
+                                          cos_elbow)) {
+      continue;
+    }
     const float sin_elbow =
         std::sqrt(std::max(0.0f, 1.0f - cos_elbow * cos_elbow));
 

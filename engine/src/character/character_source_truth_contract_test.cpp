@@ -83,6 +83,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_char_utl_source_test.cpp"));
   const std::string ik_rod_source_test =
       compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
+  const std::string ik_hand_source_test =
+      compact(read_file(char_dir / "character_ik_hand_source_test.cpp"));
   const std::string bone_offset_source_test =
       compact(read_file(char_dir / "character_bone_offset_source_test.cpp"));
   const std::string bone_twist_source_test =
@@ -2859,6 +2861,20 @@ int run_contract() {
   ok &= contains(rb3_char_ik_hand_cpp, "mHand->SetWorldXfm(tf);",
                  "RB3 CharIKHand source writes hand world transform");
   ok &= contains(rb3_char_ik_hand_cpp,
+                 "voidCharIKHand::MeasureLengths(){if(mHand){if("
+                 "mHand->TransParent()){if(mHand->TransParent()->TransParent()"
+                 "){floatlen=Length(mHand->mLocalXfm.v);",
+                 "RB3 CharIKHand source exposes MeasureLengths chain gate");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "unk64=len*2.0f*parentlen;mInv2ab=parentlen*parentlen+"
+                 "(len*len+0.0f);if(unk64!=0.0f)unk64=1.0f/unk64;"
+                 "mAAPlusBB=len+parentlen;",
+                 "RB3 CharIKHand source defines MeasureLengths scalar fields");
+  ok &= contains(rb3_char_ik_hand_cpp,
+                 "floatloc210=unk64*(DistanceSquared(trans2->WorldXfm().v,"
+                 "mWorldDst)-mInv2ab);ClampEq(loc210,-1.0f,1.0f);",
+                 "RB3 CharIKHand source clamps IKElbow cosine");
+  ok &= contains(rb3_char_ik_hand_cpp,
                  "if(gRev>4)bs>>mFinger;elsemFinger=0;",
                  "RB3 CharIKHand source gates finger by revision");
   ok &= contains(rb3_char_ik_hand_cpp,
@@ -2911,6 +2927,57 @@ int run_contract() {
                  "character graph logs CharIKHand clockwise field");
   ok &= contains(char_clip, "unreadBytes=%zu",
                  "character graph logs CharIKHand tail bytes");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHandMeasure{boolhas_elbow_chain=false;"
+                 "floatinv_2ab=0.0f;floata2_plus_b2=0.0f;"
+                 "floataa_plus_bb=0.0f;};",
+                 "native exposes source CharIKHand MeasureLengths state");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHandMeasuresource_char_ik_hand_measure_lengths("
+                 "boolhas_elbow_chain,floathand_local_len,"
+                 "floatparent_local_len);",
+                 "native API exposes source CharIKHand MeasureLengths helper");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_ik_hand_elbow_cosine("
+                 "constSourceCharIKHandMeasure&measure,floatdistance_squared,"
+                 "float&out_cosine);",
+                 "native API exposes source CharIKHand IKElbow cosine helper");
+  ok &= contains(char_clip,
+                 "SourceCharIKHandMeasuresource_char_ik_hand_measure_lengths("
+                 "boolhas_elbow_chain,floathand_local_len,"
+                 "floatparent_local_len){SourceCharIKHandMeasureout;"
+                 "if(!has_elbow_chain)returnout;out.has_elbow_chain=true;",
+                 "native CharIKHand MeasureLengths helper keeps source chain gate");
+  ok &= contains(char_clip,
+                 "out.inv_2ab=hand_local_len*2.0f*parent_local_len;"
+                 "out.a2_plus_b2=parent_local_len*parent_local_len+"
+                 "hand_local_len*hand_local_len;if(out.inv_2ab!=0.0f)"
+                 "out.inv_2ab=1.0f/out.inv_2ab;out.aa_plus_bb="
+                 "hand_local_len+parent_local_len;",
+                 "native CharIKHand MeasureLengths helper mirrors source fields");
+  ok &= contains(char_clip,
+                 "out_cosine=measure.inv_2ab*(distance_squared-"
+                 "measure.a2_plus_b2);out_cosine=std::clamp(out_cosine,"
+                 "-1.0f,1.0f);",
+                 "native CharIKHand IKElbow cosine helper mirrors source clamp");
+  ok &= contains(char_clip,
+                 "constSourceCharIKHandMeasuresource_measure="
+                 "source_char_ik_hand_measure_lengths(true,fore_len,upper_len);",
+                 "runtime CharIKHand slice uses source MeasureLengths helper");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_ik_hand_source_test"
+                 "character_ik_hand_source_test.cpp)",
+                 "CMake builds focused CharIKHand source test");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_measure_lengths(true,4.0f,3.0f)",
+                 "focused CharIKHand source test covers MeasureLengths helper");
+  ok &= contains(ik_hand_source_test,
+                 "source_char_ik_hand_elbow_cosine(measure,49.0f,cosine)",
+                 "focused CharIKHand source test covers IKElbow max-reach scalar");
+  ok &= contains(doc,
+                 "Native `source_char_ik_hand_measure_lengths` and\n"
+                 "    `source_char_ik_hand_elbow_cosine` port the source",
+                 "document records native CharIKHand MeasureLengths slice");
   ok &= contains(bind_audit, "boolshould_dump_controllers(intargc,char**argv)",
                  "bind audit exposes controller inventory switch");
   ok &= contains(bind_audit,

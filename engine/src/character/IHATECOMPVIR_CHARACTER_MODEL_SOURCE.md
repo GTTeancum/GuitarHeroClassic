@@ -735,6 +735,12 @@ note, and all report `unreadBytes=0`.
     reordering, or the hand-local `.pos` escape hatch. Hand `.pos` rows stay out
     of local FK for real hand bones; the live hand reaches its target through
     the CharIKHand world-row write after clip sampling.
+  - Native `source_char_ik_hand_measure_lengths` and
+    `source_char_ik_hand_elbow_cosine` port the source `MeasureLengths` fields
+    used by `IKElbow`: `1 / (2 * handLen * parentLen)`, `parentLen^2 +
+    handLen^2`, `handLen + parentLen`, and the source `ClampEq(-1, 1)` cosine
+    step. The runtime single-target slice now uses this named source scalar
+    instead of an inline local elbow clamp.
   - The current runtime solver is the bounded GH2 single-target slice. Source
     branches for multi-target weighting, `mFinger`, `PullShoulder`,
     `mElbowSwing`, wrist constraint, and elbow-collision correction remain

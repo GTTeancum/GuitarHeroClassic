@@ -404,6 +404,24 @@ bool source_char_ik_rod_compute_world(const CharIKRod& rod,
                                       const Character& character,
                                       std::array<float, 16>& dest_world);
 
+struct SourceCharIKHandMeasure {
+  bool has_elbow_chain = false;
+  float inv_2ab = 0.0f;
+  float a2_plus_b2 = 0.0f;
+  float aa_plus_bb = 0.0f;
+};
+
+// Source-backed CharIKHand::MeasureLengths / IKElbow scalar helper. The length
+// inputs correspond to mHand->mLocalXfm.v and mHand->TransParent()->mLocalXfm.v.
+SourceCharIKHandMeasure source_char_ik_hand_measure_lengths(
+    bool has_elbow_chain,
+    float hand_local_len,
+    float parent_local_len);
+bool source_char_ik_hand_elbow_cosine(
+    const SourceCharIKHandMeasure& measure,
+    float distance_squared,
+    float& out_cosine);
+
 // Source-backed CharBoneOffset::Poll helper. Returns false when the source
 // object pointer or its parent transform would be missing.
 bool source_char_bone_offset_poll_world(

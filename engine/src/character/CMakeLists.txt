@@ -60,6 +60,13 @@ target_link_libraries(ghogx_character_ik_rod_source_test PRIVATE
 add_test(NAME ghogx_character_ik_rod_source_test
          COMMAND ghogx_character_ik_rod_source_test)
 
+add_executable(ghogx_character_ik_hand_source_test
+    character_ik_hand_source_test.cpp)
+target_link_libraries(ghogx_character_ik_hand_source_test PRIVATE
+    ghogx_character)
+add_test(NAME ghogx_character_ik_hand_source_test
+         COMMAND ghogx_character_ik_hand_source_test)
+
 add_executable(ghogx_character_bone_offset_source_test
     character_bone_offset_source_test.cpp)
 target_link_libraries(ghogx_character_bone_offset_source_test PRIVATE
@@ -150,6 +157,7 @@ target_compile_options(ghogx_character_clip_driver_flags_test PRIVATE /W4)
 target_compile_options(ghogx_character_char_bones_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_char_utl_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_ik_rod_source_test PRIVATE /W4)
+target_compile_options(ghogx_character_ik_hand_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_bone_offset_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_bone_twist_source_test PRIVATE /W4)
 target_compile_options(ghogx_character_lookat_source_test PRIVATE /W4)
@@ -172,6 +180,8 @@ else()
     target_compile_options(ghogx_character_char_utl_source_test PRIVATE
         -Wall -Wextra)
     target_compile_options(ghogx_character_ik_rod_source_test PRIVATE
+        -Wall -Wextra)
+    target_compile_options(ghogx_character_ik_hand_source_test PRIVATE
         -Wall -Wextra)
     target_compile_options(ghogx_character_bone_offset_source_test PRIVATE
         -Wall -Wextra)
