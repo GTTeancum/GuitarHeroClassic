@@ -52,6 +52,8 @@ int main() {
   using ghogx::character::Character;
   using ghogx::character::CharHair;
   using ghogx::character::apply_character_controllers;
+  using ghogx::character::source_char_hair_enter_plan;
+  using ghogx::character::source_char_hair_freeze_pose_plan;
   using ghogx::character::source_char_hair_freeze_pose_raw;
   using ghogx::character::source_char_hair_hookup_plan;
   using ghogx::character::source_char_hair_poll_decision;
@@ -181,6 +183,21 @@ int main() {
   ok &= expect_bool(hookup.collected_collides[0] == "head.collide",
                     true, "hookup collide order");
 
+  const auto enter_plan =
+      source_char_hair_enter_plan(false, {"head.collide", "neck.collide"});
+  ok &= expect_int(enter_plan.next_reset, 1, "enter sets reset");
+  ok &= expect_bool(enter_plan.called_rnd_pollable_enter, true,
+                    "enter calls RndPollable Enter");
+  ok &= expect_bool(enter_plan.hookup.called_overloaded_hookup, true,
+                    "enter calls hookup");
+  ok &= expect_int(static_cast<int>(enter_plan.hookup.collected_collides.size()),
+                   2, "enter hookup collide count");
+
+  const auto managed_enter_plan =
+      source_char_hair_enter_plan(true, {"head.collide"});
+  ok &= expect_bool(managed_enter_plan.hookup.returned_for_managed_hookup, true,
+                    "managed enter returns from hookup");
+
   const auto skipped_loops =
       source_char_hair_simulate_loops_plan(false, 2, 3, 4, 60.0f);
   ok &= expect_bool(skipped_loops.entered, false,
@@ -197,6 +214,29 @@ int main() {
   ok &= expect_int(loops.simulate_internal_calls, 4,
                    "simulate loops internal calls");
   ok &= near(loops.fps, 30.0f, "simulate loops fps");
+
+  const auto freeze_plan =
+      source_char_hair_freeze_pose_plan(true, 2, 3);
+  ok &= expect_bool(freeze_plan.called_hookup, true,
+                    "freeze pose calls hookup");
+  ok &= expect_bool(freeze_plan.simulate_loops.entered, true,
+                    "freeze pose simulates when enabled");
+  ok &= expect_int(freeze_plan.simulate_loops.simulate_internal_calls, 200,
+                   "freeze pose sim loop count");
+  ok &= near(freeze_plan.simulate_loops.fps, 60.0f, "freeze pose sim fps");
+  ok &= expect_bool(freeze_plan.restored_simulate, true,
+                    "freeze pose restores simulate");
+  ok &= expect_bool(freeze_plan.restored_simulate_value, true,
+                    "freeze pose restore value");
+  ok &= expect_bool(freeze_plan.called_freeze_pose_raw, true,
+                    "freeze pose calls raw freeze");
+
+  const auto freeze_disabled =
+      source_char_hair_freeze_pose_plan(false, 2, 3);
+  ok &= expect_bool(freeze_disabled.simulate_loops.entered, false,
+                    "freeze pose respects disabled sim");
+  ok &= expect_bool(freeze_disabled.restored_simulate_value, false,
+                    "freeze pose restores disabled sim");
 
   return ok ? 0 : 1;
 }

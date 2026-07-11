@@ -366,11 +366,25 @@ struct SourceCharHairHookupPlan {
   bool called_overloaded_hookup = false;
 };
 
+struct SourceCharHairEnterPlan {
+  int next_reset = 1;
+  bool called_rnd_pollable_enter = true;
+  SourceCharHairHookupPlan hookup;
+};
+
 struct SourceCharHairSimulateLoopsPlan {
   bool entered = false;
   int collide_maintenance_count = 0;
   int simulate_internal_calls = 0;
   float fps = 0.0f;
+};
+
+struct SourceCharHairFreezePosePlan {
+  bool called_hookup = true;
+  SourceCharHairSimulateLoopsPlan simulate_loops;
+  bool restored_simulate = true;
+  bool restored_simulate_value = true;
+  bool called_freeze_pose_raw = true;
 };
 
 struct SourceCharFaceServoBlinkClips {
@@ -972,12 +986,19 @@ float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
 SourceCharHairHookupPlan source_char_hair_hookup_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides);
+SourceCharHairEnterPlan source_char_hair_enter_plan(
+    bool managed_hookup,
+    const std::vector<std::string>& dir_collides);
 SourceCharHairSimulateLoopsPlan source_char_hair_simulate_loops_plan(
     bool simulate,
     int strand_count,
     int collide_count,
     int loop_count,
     float fps);
+SourceCharHairFreezePosePlan source_char_hair_freeze_pose_plan(
+    bool simulate,
+    int strand_count,
+    int collide_count);
 SourceCharHairPollDecision source_char_hair_poll_decision(
     bool owner_is_character,
     bool character_syncing,

@@ -1591,6 +1591,16 @@ SourceCharHairHookupPlan source_char_hair_hookup_plan(
   return plan;
 }
 
+SourceCharHairEnterPlan source_char_hair_enter_plan(
+    bool managed_hookup,
+    const std::vector<std::string>& dir_collides) {
+  SourceCharHairEnterPlan plan;
+  plan.next_reset = 1;
+  plan.called_rnd_pollable_enter = true;
+  plan.hookup = source_char_hair_hookup_plan(managed_hookup, dir_collides);
+  return plan;
+}
+
 SourceCharHairSimulateLoopsPlan source_char_hair_simulate_loops_plan(
     bool simulate,
     int strand_count,
@@ -1603,6 +1613,21 @@ SourceCharHairSimulateLoopsPlan source_char_hair_simulate_loops_plan(
   plan.entered = true;
   plan.collide_maintenance_count = collide_count > 0 ? collide_count : 0;
   plan.simulate_internal_calls = loop_count > 0 ? loop_count : 0;
+  return plan;
+}
+
+SourceCharHairFreezePosePlan source_char_hair_freeze_pose_plan(
+    bool simulate,
+    int strand_count,
+    int collide_count) {
+  SourceCharHairFreezePosePlan plan;
+  plan.called_hookup = true;
+  plan.simulate_loops =
+      source_char_hair_simulate_loops_plan(simulate, strand_count,
+                                           collide_count, 200, 60.0f);
+  plan.restored_simulate = true;
+  plan.restored_simulate_value = simulate;
+  plan.called_freeze_pose_raw = true;
   return plan;
 }
 

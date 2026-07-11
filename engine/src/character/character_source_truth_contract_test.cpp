@@ -1543,6 +1543,10 @@ int run_contract() {
                  "Character::kCharSyncObject)Hookup();",
                  "RB3 CharHair poll re-hooks during character sync");
   ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::Enter(){mReset=1;RndPollable::Enter();"
+                 "Hookup();}",
+                 "RB3 CharHair Enter source resets and hooks up");
+  ok &= contains(rb3_latest_char_hair_cpp,
                  "if(mReset>0)DoReset(mReset);if(TheTaskMgr.DeltaSeconds()!="
                  "0.0f){SimulateLoops(1,GetFPS());}elseSimulateZeroTime();",
                  "RB3 CharHair poll reset/simulate flow");
@@ -1579,6 +1583,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_hair_poll_decision` ports this branch order",
                  "document records native CharHair Poll decision helper");
+  ok &= contains(doc,
+                 "`CharHair::Enter` sets `mReset = 1`",
+                 "document records native CharHair Enter plan helper");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "Multiply(pt.unk5c,tf70,pt.pos);",
                  "RB3 CharHair reset seeds point position from unk5c");
@@ -1633,8 +1640,11 @@ int run_contract() {
                  "Native reset follows that\n    forced-simulate lane",
                  "document records native CharHair reset forced simulation");
   ok &= contains(doc,
-                 "Native ports the raw local-row write as\n"
-                 "    `source_char_hair_freeze_pose_raw`",
+                 "Native `source_char_hair_freeze_pose_plan` ports the call order",
+                 "document records native CharHair FreezePose plan helper");
+  ok &= contains(doc,
+                 "`source_char_hair_freeze_pose_raw` ports the raw\n"
+                 "    local-row write",
                  "document records native CharHair FreezePoseRaw helper");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "SimulateLoops(reset,GetFPS());",
@@ -1727,10 +1737,20 @@ int run_contract() {
                  "boolcalled_overloaded_hookup=false;};",
                  "native exposes CharHair Hookup plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharHairEnterPlan{intnext_reset=1;"
+                 "boolcalled_rnd_pollable_enter=true;"
+                 "SourceCharHairHookupPlanhookup;};",
+                 "native exposes CharHair Enter plan");
+  ok &= contains(char_mesh_h,
                  "structSourceCharHairSimulateLoopsPlan{boolentered=false;"
                  "intcollide_maintenance_count=0;intsimulate_internal_calls=0;"
                  "floatfps=0.0f;};",
                  "native exposes CharHair SimulateLoops plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairFreezePosePlan{boolcalled_hookup=true;"
+                 "SourceCharHairSimulateLoopsPlansimulate_loops;"
+                 "boolrestored_simulate=true;",
+                 "native exposes CharHair FreezePose plan");
   ok &= contains(char_mesh,
                  "SourceCharHairHookupPlansource_char_hair_hookup_plan("
                  "boolmanaged_hookup,conststd::vector<std::string>&"
@@ -1742,6 +1762,12 @@ int run_contract() {
                  "plan.called_overloaded_hookup=true;",
                  "native CharHair Hookup plan ports managed gate and collection");
   ok &= contains(char_mesh,
+                 "SourceCharHairEnterPlansource_char_hair_enter_plan(",
+                 "native implements CharHair Enter plan helper");
+  ok &= contains(char_mesh,
+                 "plan.next_reset=1;plan.called_rnd_pollable_enter=true;",
+                 "native CharHair Enter plan records reset and superclass enter");
+  ok &= contains(char_mesh,
                  "SourceCharHairSimulateLoopsPlansource_char_hair_simulate_"
                  "loops_plan(boolsimulate,intstrand_count,intcollide_count,"
                  "intloop_count,floatfps){",
@@ -1751,6 +1777,13 @@ int run_contract() {
                  "plan.collide_maintenance_count=collide_count>0?collide_count:0;"
                  "plan.simulate_internal_calls=loop_count>0?loop_count:0;",
                  "native CharHair SimulateLoops plan ports source gate");
+  ok &= contains(char_mesh,
+                 "SourceCharHairFreezePosePlansource_char_hair_freeze_pose_plan(",
+                 "native implements CharHair FreezePose plan helper");
+  ok &= contains(char_mesh,
+                 "source_char_hair_simulate_loops_plan(simulate,strand_count,"
+                 "collide_count,200,60.0f)",
+                 "native CharHair FreezePose plan ports source loop count");
   ok &= contains(mesh_decode_test,
                  "source_char_hair_default_state();",
                  "deterministic test covers source CharHair defaults");
@@ -1766,6 +1799,12 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_char_hair_get_fps(true,20.0f),40.0f",
                  "deterministic test covers source CharHair GetFPS emulation branch");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_enter_plan(false,",
+                 "focused CharHair source test covers Enter plan");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_freeze_pose_plan(true,2,3)",
+                 "focused CharHair source test covers FreezePose plan");
   ok &= contains(doc,
                  "Native ports the constructor constants, SetName ownership branch, and the\n"
                  "    `GetFPS` branch",

@@ -545,6 +545,10 @@ note, and all report `unreadBytes=0`.
     deterministic decision helper. It records when source `Poll` would call
     `Hookup`, `DoReset`, `SimulateLoops`, or `SimulateZeroTime`, while keeping
     the unresolved overloaded hookup body and zero-time simulation body fenced.
+  - `CharHair::Enter` sets `mReset = 1`, delegates to `RndPollable::Enter`,
+    then runs `Hookup()`. Native `source_char_hair_enter_plan` records that
+    exact call order and reuses the bounded hookup plan; it does not resolve
+    the missing overloaded hookup body.
   - `CharHair::DoReset` seeds each point from `unk5c` transformed by the root
     parent world row, temporarily forces `mSimulate=true`, `mInertia=0`, and
     `mFriction=0`, then calls `SimulateLoops(reset, GetFPS())` before restoring
@@ -553,9 +557,10 @@ note, and all report `unreadBytes=0`.
   - `FreezePoseRaw` stores current point positions back into `unk5c` in the
     root-parent local basis. `FreezePose` performs a source `Hookup()`, simulates
     200 loops at 60 Hz, restores the previous simulate flag, then freezes those
-    rows. Native ports the raw local-row write as
-    `source_char_hair_freeze_pose_raw`; full `FreezePose` remains bounded by the
-    unresolved source `Hookup(ObjPtrList<CharCollide>&)` path.
+    rows. Native `source_char_hair_freeze_pose_plan` ports the call order and
+    restore behavior, and `source_char_hair_freeze_pose_raw` ports the raw
+    local-row write. Full `FreezePose` remains bounded by the unresolved source
+    `Hookup(ObjPtrList<CharCollide>&)` path.
   - `SetName` detects whether the owning directory is a `Character` or
     `WorldDir` and enables post-process FPS emulation accordingly. `GetFPS`
     returns the post-process emulated rate when available, otherwise 60 Hz.
