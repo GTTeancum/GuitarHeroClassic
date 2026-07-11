@@ -35,6 +35,7 @@ bool expect_string(const std::string& got, const std::string& want,
 
 int main() {
   using ghogx::character::SourceCharLookAtPollDeps;
+  using ghogx::character::source_char_lookat_yaw_weight_step;
   using ghogx::character::source_char_lookat_copy_plan;
   using ghogx::character::source_char_lookat_default_limit_state;
   using ghogx::character::source_char_lookat_enter;
@@ -232,6 +233,51 @@ int main() {
     std::cerr << "poll plan zero-weight branch mismatch\n";
     ok = false;
   }
+
+  const auto yaw_no_gate = source_char_lookat_yaw_weight_step(
+      0.8f, 0.25f, -1.0f, 1.0f, 10000.0f, 0.1f,
+      {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f});
+  ok &= expect_bool(yaw_no_gate.applied, false, "yaw weight no gate");
+  ok &= near(yaw_no_gate.final_weight, 0.8f, "yaw weight no gate final");
+  ok &= near(yaw_no_gate.updated_yaw_weight, 0.25f,
+             "yaw weight no gate previous");
+
+  const auto yaw_aligned = source_char_lookat_yaw_weight_step(
+      0.75f, 0.1f, 0.0f, 1.0f, 10000.0f, 0.1f,
+      {0.0f, 1.0f, 0.0f}, {0.0f, 10.0f, 0.0f});
+  ok &= expect_bool(yaw_aligned.applied, true, "yaw weight aligned gate");
+  ok &= expect_bool(yaw_aligned.speed_limited, false,
+                    "yaw weight aligned no speed limit");
+  ok &= near(yaw_aligned.dot_clamped, 1.0f, "yaw weight aligned dot");
+  ok &= near(yaw_aligned.target_yaw_weight, 1.0f,
+             "yaw weight aligned target");
+  ok &= near(yaw_aligned.updated_yaw_weight, 1.0f,
+             "yaw weight aligned update");
+  ok &= near(yaw_aligned.final_weight, 0.75f, "yaw weight aligned final");
+
+  const auto yaw_speed_limited = source_char_lookat_yaw_weight_step(
+      0.5f, 0.1f, 0.0f, 1.0f, 2.0f, 0.25f,
+      {0.0f, 1.0f, 0.0f}, {0.0f, 10.0f, 0.0f});
+  ok &= expect_bool(yaw_speed_limited.speed_limited, true,
+                    "yaw weight upward speed limited");
+  ok &= near(yaw_speed_limited.target_yaw_weight, 1.0f,
+             "yaw weight speed target");
+  ok &= near(yaw_speed_limited.updated_yaw_weight, 0.6f,
+             "yaw weight speed update");
+  ok &= near(yaw_speed_limited.final_weight, 0.3f,
+             "yaw weight speed final");
+
+  const auto yaw_sideways = source_char_lookat_yaw_weight_step(
+      0.5f, 0.5f, 0.0f, 1.0f, 2.0f, 0.25f,
+      {0.0f, 1.0f, 0.0f}, {10.0f, 0.0f, 0.0f});
+  ok &= expect_bool(yaw_sideways.speed_limited, false,
+                    "yaw weight downward is not speed limited");
+  ok &= near(yaw_sideways.dot_clamped, 0.0f, "yaw weight sideways dot");
+  ok &= near(yaw_sideways.target_yaw_weight, 0.0f,
+             "yaw weight sideways target");
+  ok &= near(yaw_sideways.updated_yaw_weight, 0.0f,
+             "yaw weight sideways update");
+  ok &= near(yaw_sideways.final_weight, 0.0f, "yaw weight sideways final");
 
   return ok ? 0 : 1;
 }

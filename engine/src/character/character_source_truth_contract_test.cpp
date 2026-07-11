@@ -8568,6 +8568,17 @@ int run_contract() {
                  "if(mMinWeightYaw>=0.0f){",
                  "RB3 CharLookAt Poll gates yaw weighting on min weight yaw");
   ok &= contains(rb3_char_lookat_cpp,
+                 "Normalize(vf0,vf0);Vector3vfc(ve4);vfc.z=0;vf0.z=0;",
+                 "RB3 CharLookAt Poll normalizes yaw source before flattening");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "floatclamped2=Clamp(0.0f,1.0f,mMaxWeightYaw-"
+                 "(std::acos(clamped)/(mMaxWeightYaw-mMinWeightYaw)));",
+                 "RB3 CharLookAt Poll yaw-weight formula is pinned");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(MinEq(loc13c,mWeightYawSpeed)){clamped2=loc13c*"
+                 "deltasecs+unk78;}",
+                 "RB3 CharLookAt Poll yaw-weight speed limit is pinned");
+  ok &= contains(rb3_char_lookat_cpp,
                  "if(charweight!=0.0f){",
                  "RB3 CharLookAt Poll skips transform branch at zero weight");
   ok &= contains(rb3_char_lookat_cpp,
@@ -8708,6 +8719,12 @@ int run_contract() {
                  "boolcompute_dest_vector=false;boolapply_weight_yaw=false;",
                  "native header exposes CharLookAt Poll plan state");
   ok &= contains(char_clip_h,
+                 "structSourceCharLookAtYawWeightResult{boolapplied=false;"
+                 "boolspeed_limited=false;floatdot_clamped=0.0f;"
+                 "floattarget_yaw_weight=1.0f;floatupdated_yaw_weight=1.0f;"
+                 "floatfinal_weight=1.0f;};",
+                 "native header exposes CharLookAt yaw-weight result");
+  ok &= contains(char_clip_h,
                  "boolwrite_pivot_world_to_source=false;boolnormalize_dest_vector=false;",
                  "native header exposes CharLookAt source/pivot branch flags");
   ok &= contains(char_clip_h,
@@ -8767,6 +8784,11 @@ int run_contract() {
                  "boolhas_resolved_source,boolhas_pivot,boolhas_dest,"
                  "boolhas_pivot_parent,floatdelta_seconds,floatweight,",
                  "native header exposes CharLookAt Poll plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtYawWeightResultsource_char_lookat_yaw_weight_step("
+                 "floatrow_weight,floatprevious_yaw_weight,"
+                 "floatmin_weight_yaw,floatmax_weight_yaw,",
+                 "native header exposes CharLookAt yaw-weight helper");
   ok &= contains(char_clip,
                  "min_yaw=std::clamp(min_yaw,-80.0f,80.0f);"
                  "max_yaw=std::clamp(max_yaw,-80.0f,80.0f);"
@@ -8899,6 +8921,24 @@ int run_contract() {
                  "plan.write_roll_local_rotation=allow_roll;"
                  "plan.write_no_roll_axes=!allow_roll;",
                  "native CharLookAt Poll plan ports roll branch gate");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtYawWeightResultsource_char_lookat_yaw_weight_step("
+                 "floatrow_weight,floatprevious_yaw_weight,"
+                 "floatmin_weight_yaw,floatmax_weight_yaw,",
+                 "native CharLookAt yaw-weight helper is implemented");
+  ok &= contains(char_clip,
+                 "dest_delta[2]=0.0f;source_world_y[2]=0.0f;",
+                 "native CharLookAt yaw-weight helper flattens source and dest");
+  ok &= contains(char_clip,
+                 "floatclamped2=std::clamp(max_weight_yaw-(std::acos("
+                 "result.dot_clamped)/(max_weight_yaw-min_weight_yaw)),"
+                 "0.0f,1.0f);",
+                 "native CharLookAt yaw-weight helper ports source formula");
+  ok &= contains(char_clip,
+                 "if(loc13c>weight_yaw_speed){loc13c=weight_yaw_speed;"
+                 "clamped2=loc13c*delta_seconds+previous_yaw_weight;"
+                 "result.speed_limited=true;}",
+                 "native CharLookAt yaw-weight helper ports MinEq limit");
   ok &= contains(lookat_source_test,
                  "source_char_lookat_sync_limits(-80.0f,80.0f,-80.0f,80.0f)",
                  "focused CharLookAt source test covers default source limits");
@@ -8952,6 +8992,14 @@ int run_contract() {
   ok &= contains(lookat_source_test,
                  "source_char_lookat_poll_plan(true,true,true,true,0.25f,0.75f",
                  "focused CharLookAt source test covers no-roll radius Poll plan");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_yaw_weight_step(0.5f,0.1f,0.0f,1.0f,"
+                 "2.0f,0.25f",
+                 "focused CharLookAt source test covers yaw speed limit");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_yaw_weight_step(0.5f,0.5f,0.0f,1.0f,"
+                 "2.0f,0.25f",
+                 "focused CharLookAt source test covers yaw downward branch");
   ok &= contains(mesh_decode_test,
                  "ghogx::character::decode_lookat(\"l-eye.lookat\","
                  "make_lookat(2,2))",
@@ -8993,6 +9041,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_lookat_poll_plan` ports the checked `Poll` gate",
                  "document records CharLookAt Poll plan helper");
+  ok &= contains(doc,
+                 "Native `source_char_lookat_yaw_weight_step` ports the concrete",
+                 "document records CharLookAt yaw-weight helper");
   ok &= contains(doc,
                  "This remains a branch contract only; it\n    does not synthesize",
                  "document fences CharLookAt Poll plan from transform write");

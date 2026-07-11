@@ -476,6 +476,15 @@ struct SourceCharLookAtPollPlan {
   bool write_no_roll_axes = false;
 };
 
+struct SourceCharLookAtYawWeightResult {
+  bool applied = false;
+  bool speed_limited = false;
+  float dot_clamped = 0.0f;
+  float target_yaw_weight = 1.0f;
+  float updated_yaw_weight = 1.0f;
+  float final_weight = 1.0f;
+};
+
 struct SourceCharLookAtLoadPlan {
   bool revision_supported = false;
   std::vector<std::string> read_order;
@@ -1652,6 +1661,15 @@ SourceCharLookAtPollPlan source_char_lookat_poll_plan(
     bool static_disable_jitter,
     bool cheat_disable_eye_jitter,
     bool allow_roll);
+SourceCharLookAtYawWeightResult source_char_lookat_yaw_weight_step(
+    float row_weight,
+    float previous_yaw_weight,
+    float min_weight_yaw,
+    float max_weight_yaw,
+    float weight_yaw_speed,
+    float delta_seconds,
+    std::array<float, 3> source_world_y,
+    std::array<float, 3> dest_delta);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

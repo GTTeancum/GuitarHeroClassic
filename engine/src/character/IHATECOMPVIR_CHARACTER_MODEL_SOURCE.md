@@ -806,6 +806,15 @@ note, and all report `unreadBytes=0`.
     world write, parent-space clamp, smoothing, test/show range, jitter, and
     roll/no-roll local write branches. This remains a branch contract only; it
     does not synthesize the missing final pivot transform math.
+  - Native `source_char_lookat_yaw_weight_step` ports the concrete
+    `mMinWeightYaw >= 0` branch inside `CharLookAt::Poll`: it normalizes the
+    source world Y row before flattening Z, computes the same clamped dot,
+    applies the source `mMaxWeightYaw - acos(dot) / (mMaxWeightYaw -
+    mMinWeightYaw)` formula, then mirrors the one-sided `MinEq` speed limit
+    before multiplying the row weight and updating the stored yaw-weight row.
+    This is deterministic math coverage only; it does not create a native eye
+    destination or publish a pivot transform for GH2 rows whose `mDest` is
+    `<none>`.
   - Current stock GH2 `CharLookAt` rows observed in the base characters have
     `mDest=<none>`, so the source poll gate would be inert. Native therefore
     keeps these rows decoded/logged and does not publish look-at world rows or

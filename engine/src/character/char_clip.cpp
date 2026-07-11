@@ -1234,6 +1234,65 @@ SourceCharLookAtPollPlan source_char_lookat_poll_plan(
   return plan;
 }
 
+SourceCharLookAtYawWeightResult source_char_lookat_yaw_weight_step(
+    float row_weight,
+    float previous_yaw_weight,
+    float min_weight_yaw,
+    float max_weight_yaw,
+    float weight_yaw_speed,
+    float delta_seconds,
+    std::array<float, 3> source_world_y,
+    std::array<float, 3> dest_delta) {
+  SourceCharLookAtYawWeightResult result;
+  result.updated_yaw_weight = previous_yaw_weight;
+  result.final_weight = row_weight;
+  if (min_weight_yaw < 0.0f) return result;
+
+  result.applied = true;
+
+  const float src_len =
+      std::sqrt(source_world_y[0] * source_world_y[0] +
+                source_world_y[1] * source_world_y[1] +
+                source_world_y[2] * source_world_y[2]);
+  source_world_y[0] /= src_len;
+  source_world_y[1] /= src_len;
+  source_world_y[2] /= src_len;
+
+  dest_delta[2] = 0.0f;
+  source_world_y[2] = 0.0f;
+  const float times = source_world_y[0] * dest_delta[0] +
+                      source_world_y[1] * dest_delta[1] +
+                      source_world_y[2] * dest_delta[2];
+  const float source_flat_len =
+      std::sqrt(source_world_y[0] * source_world_y[0] +
+                source_world_y[1] * source_world_y[1] +
+                source_world_y[2] * source_world_y[2]);
+  const float dest_flat_len =
+      std::sqrt(dest_delta[0] * dest_delta[0] +
+                dest_delta[1] * dest_delta[1] +
+                dest_delta[2] * dest_delta[2]);
+  result.dot_clamped =
+      std::clamp(times / (source_flat_len * dest_flat_len), -1.0f, 1.0f);
+
+  float clamped2 = std::clamp(
+      max_weight_yaw -
+          (std::acos(result.dot_clamped) / (max_weight_yaw - min_weight_yaw)),
+      0.0f,
+      1.0f);
+  result.target_yaw_weight = clamped2;
+
+  float loc13c = (clamped2 - previous_yaw_weight) / delta_seconds;
+  if (loc13c > weight_yaw_speed) {
+    loc13c = weight_yaw_speed;
+    clamped2 = loc13c * delta_seconds + previous_yaw_weight;
+    result.speed_limited = true;
+  }
+
+  result.updated_yaw_weight = clamped2;
+  result.final_weight = row_weight * clamped2;
+  return result;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
