@@ -3979,8 +3979,10 @@ int main() {
                  "venue_particle_sizes_.clear();"
                  "venue_particle_speeds_.clear();"
                  "venue_particle_lifetimes_.clear();"
+                 "venue_particle_start_colors_.clear();"
+                 "venue_particle_end_colors_.clear();"
                  "active_venue_particles_.clear();",
-                 "venue reset clears active particle systems, intensities, sizes, speeds, and lifetimes");
+                 "venue reset clears active particle systems, intensities, sizes, speeds, lifetimes, and colors");
   ok &= contains(gameplay_c,
                  "venue_mesh_translation_offsets_.clear();"
                  "venue_mesh_transform_offsets_.clear();"
@@ -4686,6 +4688,12 @@ int main() {
                  "sample_particle_size(it->life_keys,frame)",
                  "venue particles sample authored ParticleSysAnim lifetime");
   ok &= contains(gameplay_c,
+                 "sample_particle_color_key(it->start_color_keys,frame)",
+                 "venue particles sample authored ParticleSysAnim start color");
+  ok &= contains(gameplay_c,
+                 "sample_particle_color_key(it->end_color_keys,frame)",
+                 "venue particles sample authored ParticleSysAnim end color");
+  ok &= contains(gameplay_c,
                  "it->speed_keys.size()",
                  "venue particle sample logs include decoded source speed keys");
   ok &= contains(gameplay_c,
@@ -4700,6 +4708,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "world_->set_particle_lifetimes(venue_particle_lifetimes_);",
                  "venue particle lifetime samples feed renderer overrides");
+  ok &= contains(gameplay_c,
+                 "world_->set_particle_start_colors(venue_particle_start_colors_);",
+                 "venue particle start color samples feed renderer overrides");
+  ok &= contains(gameplay_c,
+                 "world_->set_particle_end_colors(venue_particle_end_colors_);",
+                 "venue particle end color samples feed renderer overrides");
   ok &= contains(renderer_h_c,
                  "set_particle_intensities",
                  "renderer accepts particle intensity samples");
@@ -4712,6 +4726,12 @@ int main() {
   ok &= contains(renderer_h_c,
                  "set_particle_lifetimes",
                  "renderer accepts particle lifetime samples");
+  ok &= contains(renderer_h_c,
+                 "set_particle_start_colors",
+                 "renderer accepts particle start color samples");
+  ok &= contains(renderer_h_c,
+                 "set_particle_end_colors",
+                 "renderer accepts particle end color samples");
   ok &= contains(renderer_c,
                  "particle_intensities_.find(p.name)",
                  "renderer applies particle intensity by authored particle name");
@@ -4724,6 +4744,12 @@ int main() {
   ok &= contains(renderer_c,
                  "particle_lifetimes_.find(p.name)",
                  "renderer applies particle lifetime by authored particle name");
+  ok &= contains(renderer_c,
+                 "particle_start_colors_.find(p.name)",
+                 "renderer applies particle start color by authored particle name");
+  ok &= contains(renderer_c,
+                 "particle_end_colors_.find(p.name)",
+                 "renderer applies particle end color by authored particle name");
   ok &= contains(renderer_c,
                  "std::round(p.max_particles):16.0f)*std::max(intensity,0.0f)",
                  "renderer scales ParticleSys count by sampled intensity");

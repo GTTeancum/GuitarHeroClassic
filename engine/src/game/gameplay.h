@@ -852,6 +852,8 @@ class Gameplay {
   std::map<std::string, float> lighting_particle_sizes_;
   std::map<std::string, float> lighting_particle_speeds_;
   std::map<std::string, float> lighting_particle_lifetimes_;
+  std::map<std::string, std::array<float, 4>> lighting_particle_start_colors_;
+  std::map<std::string, std::array<float, 4>> lighting_particle_end_colors_;
   std::vector<ActiveVenueParticleSystem> active_lighting_particles_;
   double last_lighting_particle_debug_time_ = -1.0;
   std::map<std::string, std::array<float, 3>>
@@ -929,6 +931,8 @@ class Gameplay {
   std::map<std::string, float> venue_particle_sizes_;
   std::map<std::string, float> venue_particle_speeds_;
   std::map<std::string, float> venue_particle_lifetimes_;
+  std::map<std::string, std::array<float, 4>> venue_particle_start_colors_;
+  std::map<std::string, std::array<float, 4>> venue_particle_end_colors_;
   std::vector<ActiveVenueParticleSystem> active_venue_particles_;
   double last_venue_particle_debug_time_ = -1.0;
   std::map<std::string, std::array<float, 3>>

@@ -9428,6 +9428,35 @@ float sample_particle_size(
     return std::clamp(va + (vb - va) * t, 0.0f, 200.0f);
 }
 
+float clamp_particle_color_component(float value, int component) {
+    if (!std::isfinite(value)) return component == 3 ? 1.0f : 0.0f;
+    return std::clamp(value, 0.0f, component == 3 ? 1.0f : 4.0f);
+}
+
+std::array<float, 4> sample_particle_color_key(
+    const std::vector<Gameplay::VenueParticleRoute::ColorKey>& keys,
+    float frame) {
+    if (keys.empty()) return {1.0f, 1.0f, 1.0f, 1.0f};
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    std::array<float, 4> out{};
+    for (int i = 0; i < 4; ++i) {
+        out[i] = clamp_particle_color_component(
+            a->color[i] + (b->color[i] - a->color[i]) * t, i);
+    }
+    return out;
+}
+
 float material_anim_frame_at(float duration_frames, double elapsed_seconds,
                              bool persistent) {
     if (!std::isfinite(duration_frames) || duration_frames <= 0.001f)
@@ -10428,6 +10457,8 @@ std::map<std::string, Gameplay::VenueProxyObject> load_venue_proxy_objects(
             proxy.renderer->set_particle_sizes({});
             proxy.renderer->set_particle_speeds({});
             proxy.renderer->set_particle_lifetimes({});
+            proxy.renderer->set_particle_start_colors({});
+            proxy.renderer->set_particle_end_colors({});
             std::fprintf(
                 stderr,
                 "[world] RndDir proxy %s type=%s path=%s meshes=%zu groups=%zu trans=%zu mesh_anims=%zu mat_anims=%zu particles=%zu aliases=%zu subdirs=%zu visual_subdirs=%zu\n",
@@ -16012,6 +16043,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_particle_sizes_.clear();
     lighting_particle_speeds_.clear();
     lighting_particle_lifetimes_.clear();
+    lighting_particle_start_colors_.clear();
+    lighting_particle_end_colors_.clear();
     active_lighting_particles_.clear();
     last_lighting_particle_debug_time_ = -1.0;
     lighting_mesh_source_local_positions_.clear();
@@ -16039,6 +16072,8 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_particle_sizes_.clear();
     venue_particle_speeds_.clear();
     venue_particle_lifetimes_.clear();
+    venue_particle_start_colors_.clear();
+    venue_particle_end_colors_.clear();
     active_venue_particles_.clear();
     last_venue_particle_debug_time_ = -1.0;
     venue_mesh_source_local_positions_.clear();
@@ -16915,6 +16950,8 @@ void Gameplay::set_venue_proxy_object_showing(const std::string& object_name,
         proxy.renderer->set_particle_sizes({});
         proxy.renderer->set_particle_speeds({});
         proxy.renderer->set_particle_lifetimes({});
+        proxy.renderer->set_particle_start_colors({});
+        proxy.renderer->set_particle_end_colors({});
     }
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr, "[world] RndDir proxy %s showing=%d\n",
@@ -16972,6 +17009,8 @@ void Gameplay::stop_venue_proxy_object_animation(
         proxy.renderer->set_particle_sizes({});
         proxy.renderer->set_particle_speeds({});
         proxy.renderer->set_particle_lifetimes({});
+        proxy.renderer->set_particle_start_colors({});
+        proxy.renderer->set_particle_end_colors({});
     }
     if (debug_venue_filters_enabled()) {
         std::fprintf(stderr, "[world] RndDir proxy %s stop_animation\n",
@@ -17987,6 +18026,8 @@ void Gameplay::clear_runtime_venue_animation_state() {
     lighting_particle_sizes_.clear();
     lighting_particle_speeds_.clear();
     lighting_particle_lifetimes_.clear();
+    lighting_particle_start_colors_.clear();
+    lighting_particle_end_colors_.clear();
     active_lighting_particles_.clear();
     last_lighting_particle_debug_time_ = -1.0;
     lighting_mesh_transform_offsets_.clear();
@@ -18017,6 +18058,8 @@ void Gameplay::clear_runtime_venue_animation_state() {
     venue_particle_sizes_.clear();
     venue_particle_speeds_.clear();
     venue_particle_lifetimes_.clear();
+    venue_particle_start_colors_.clear();
+    venue_particle_end_colors_.clear();
     active_venue_particles_.clear();
     last_venue_particle_debug_time_ = -1.0;
     active_venue_anim_filters_.clear();
@@ -18066,6 +18109,8 @@ void Gameplay::clear_runtime_venue_animation_state() {
         world_->set_particle_sizes(venue_particle_sizes_);
         world_->set_particle_speeds(venue_particle_speeds_);
         world_->set_particle_lifetimes(venue_particle_lifetimes_);
+        world_->set_particle_start_colors(venue_particle_start_colors_);
+        world_->set_particle_end_colors(venue_particle_end_colors_);
         world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
         world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
         world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
@@ -18094,6 +18139,8 @@ void Gameplay::clear_runtime_venue_animation_state() {
         lighting_->set_particle_sizes(lighting_particle_sizes_);
         lighting_->set_particle_speeds(lighting_particle_speeds_);
         lighting_->set_particle_lifetimes(lighting_particle_lifetimes_);
+        lighting_->set_particle_start_colors(lighting_particle_start_colors_);
+        lighting_->set_particle_end_colors(lighting_particle_end_colors_);
         lighting_->set_mesh_transform_offsets(lighting_mesh_transform_offsets_);
         lighting_->set_mesh_position_overrides(lighting_mesh_position_overrides_);
         lighting_->set_mesh_texcoord_overrides(
@@ -18308,6 +18355,8 @@ void Gameplay::update_active_venue_particles() {
     std::map<std::string, float> particle_sizes;
     std::map<std::string, float> particle_speeds;
     std::map<std::string, float> particle_lifetimes;
+    std::map<std::string, std::array<float, 4>> particle_start_colors;
+    std::map<std::string, std::array<float, 4>> particle_end_colors;
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_venue_particle_debug_time_ < 0.0 ||
@@ -18328,6 +18377,10 @@ void Gameplay::update_active_venue_particles() {
         const float size = sample_particle_size(it->size_keys, frame);
         const float speed = sample_particle_size(it->speed_keys, frame);
         const float life = sample_particle_size(it->life_keys, frame);
+        const auto start_color =
+            sample_particle_color_key(it->start_color_keys, frame);
+        const auto end_color =
+            sample_particle_color_key(it->end_color_keys, frame);
         if (intensity > 0.001f) {
             active_particles.insert(it->particle);
             auto& slot = particle_intensities[it->particle];
@@ -18344,11 +18397,18 @@ void Gameplay::update_active_venue_particles() {
                 auto& life_slot = particle_lifetimes[it->particle];
                 life_slot = std::max(life_slot, life);
             }
+            if (!it->start_color_keys.empty())
+                particle_start_colors[it->particle] = start_color;
+            if (!it->end_color_keys.empty())
+                particle_end_colors[it->particle] = end_color;
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d\n",
+                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d\n",
                     it->particle.c_str(), frame, intensity, size, speed, life,
+                    start_color[0], start_color[1], start_color[2],
+                    start_color[3], end_color[0], end_color[1],
+                    end_color[2], end_color[3],
                     it->start_color_keys.size(), it->end_color_keys.size(),
                     it->emission_keys.size(), it->speed_keys.size(),
                     it->life_keys.size(), it->size_keys.size(),
@@ -18362,17 +18422,23 @@ void Gameplay::update_active_venue_particles() {
         particle_intensities != venue_particle_intensities_ ||
         particle_sizes != venue_particle_sizes_ ||
         particle_speeds != venue_particle_speeds_ ||
-        particle_lifetimes != venue_particle_lifetimes_) {
+        particle_lifetimes != venue_particle_lifetimes_ ||
+        particle_start_colors != venue_particle_start_colors_ ||
+        particle_end_colors != venue_particle_end_colors_) {
         venue_active_particle_systems_ = std::move(active_particles);
         venue_particle_intensities_ = std::move(particle_intensities);
         venue_particle_sizes_ = std::move(particle_sizes);
         venue_particle_speeds_ = std::move(particle_speeds);
         venue_particle_lifetimes_ = std::move(particle_lifetimes);
+        venue_particle_start_colors_ = std::move(particle_start_colors);
+        venue_particle_end_colors_ = std::move(particle_end_colors);
         world_->set_active_particle_systems(venue_active_particle_systems_);
         world_->set_particle_intensities(venue_particle_intensities_);
         world_->set_particle_sizes(venue_particle_sizes_);
         world_->set_particle_speeds(venue_particle_speeds_);
         world_->set_particle_lifetimes(venue_particle_lifetimes_);
+        world_->set_particle_start_colors(venue_particle_start_colors_);
+        world_->set_particle_end_colors(venue_particle_end_colors_);
     }
 }
 
@@ -18551,6 +18617,8 @@ void Gameplay::update_venue_proxy_objects() {
             proxy.renderer->set_particle_sizes({});
             proxy.renderer->set_particle_speeds({});
             proxy.renderer->set_particle_lifetimes({});
+            proxy.renderer->set_particle_start_colors({});
+            proxy.renderer->set_particle_end_colors({});
             continue;
         }
         proxy.renderer->set_hidden_meshes(std::move(hidden_proxy_meshes));
@@ -18683,6 +18751,8 @@ void Gameplay::update_venue_proxy_objects() {
         std::map<std::string, float> particle_sizes;
         std::map<std::string, float> particle_speeds;
         std::map<std::string, float> particle_lifetimes;
+        std::map<std::string, std::array<float, 4>> particle_start_colors;
+        std::map<std::string, std::array<float, 4>> particle_end_colors;
         if (particle_window) {
             for (const auto& route : proxy.particle_routes) {
                 if (route.particle.empty()) continue;
@@ -18707,6 +18777,14 @@ void Gameplay::update_venue_proxy_objects() {
                         std::max(particle_lifetimes[route.particle],
                                  sample_particle_size(route.life_keys, frame));
                 }
+                if (!route.start_color_keys.empty()) {
+                    particle_start_colors[route.particle] =
+                        sample_particle_color_key(route.start_color_keys, frame);
+                }
+                if (!route.end_color_keys.empty()) {
+                    particle_end_colors[route.particle] =
+                        sample_particle_color_key(route.end_color_keys, frame);
+                }
             }
         }
         proxy.renderer->set_active_particle_systems(std::move(active_particles));
@@ -18714,6 +18792,8 @@ void Gameplay::update_venue_proxy_objects() {
         proxy.renderer->set_particle_sizes(std::move(particle_sizes));
         proxy.renderer->set_particle_speeds(std::move(particle_speeds));
         proxy.renderer->set_particle_lifetimes(std::move(particle_lifetimes));
+        proxy.renderer->set_particle_start_colors(std::move(particle_start_colors));
+        proxy.renderer->set_particle_end_colors(std::move(particle_end_colors));
     }
 }
 
@@ -19457,6 +19537,8 @@ void Gameplay::update_active_lighting_particles() {
     std::map<std::string, float> particle_sizes;
     std::map<std::string, float> particle_speeds;
     std::map<std::string, float> particle_lifetimes;
+    std::map<std::string, std::array<float, 4>> particle_start_colors;
+    std::map<std::string, std::array<float, 4>> particle_end_colors;
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_lighting_particle_debug_time_ < 0.0 ||
@@ -19477,6 +19559,10 @@ void Gameplay::update_active_lighting_particles() {
         const float size = sample_particle_size(it->size_keys, frame);
         const float speed = sample_particle_size(it->speed_keys, frame);
         const float life = sample_particle_size(it->life_keys, frame);
+        const auto start_color =
+            sample_particle_color_key(it->start_color_keys, frame);
+        const auto end_color =
+            sample_particle_color_key(it->end_color_keys, frame);
         if (intensity > 0.001f) {
             active_particles.insert(it->particle);
             auto& intensity_slot = particle_intensities[it->particle];
@@ -19493,11 +19579,18 @@ void Gameplay::update_active_lighting_particles() {
                 auto& life_slot = particle_lifetimes[it->particle];
                 life_slot = std::max(life_slot, life);
             }
+            if (!it->start_color_keys.empty())
+                particle_start_colors[it->particle] = start_color;
+            if (!it->end_color_keys.empty())
+                particle_end_colors[it->particle] = end_color;
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d\n",
+                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d\n",
                     it->particle.c_str(), frame, intensity, size, speed, life,
+                    start_color[0], start_color[1], start_color[2],
+                    start_color[3], end_color[0], end_color[1],
+                    end_color[2], end_color[3],
                     it->start_color_keys.size(), it->end_color_keys.size(),
                     it->emission_keys.size(), it->speed_keys.size(),
                     it->life_keys.size(), it->size_keys.size(),
@@ -19511,17 +19604,23 @@ void Gameplay::update_active_lighting_particles() {
         particle_intensities != lighting_particle_intensities_ ||
         particle_sizes != lighting_particle_sizes_ ||
         particle_speeds != lighting_particle_speeds_ ||
-        particle_lifetimes != lighting_particle_lifetimes_) {
+        particle_lifetimes != lighting_particle_lifetimes_ ||
+        particle_start_colors != lighting_particle_start_colors_ ||
+        particle_end_colors != lighting_particle_end_colors_) {
         lighting_active_particle_systems_ = std::move(active_particles);
         lighting_particle_intensities_ = std::move(particle_intensities);
         lighting_particle_sizes_ = std::move(particle_sizes);
         lighting_particle_speeds_ = std::move(particle_speeds);
         lighting_particle_lifetimes_ = std::move(particle_lifetimes);
+        lighting_particle_start_colors_ = std::move(particle_start_colors);
+        lighting_particle_end_colors_ = std::move(particle_end_colors);
         lighting_->set_active_particle_systems(lighting_active_particle_systems_);
         lighting_->set_particle_intensities(lighting_particle_intensities_);
         lighting_->set_particle_sizes(lighting_particle_sizes_);
         lighting_->set_particle_speeds(lighting_particle_speeds_);
         lighting_->set_particle_lifetimes(lighting_particle_lifetimes_);
+        lighting_->set_particle_start_colors(lighting_particle_start_colors_);
+        lighting_->set_particle_end_colors(lighting_particle_end_colors_);
     }
 }
 
@@ -21987,6 +22086,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 world_->set_particle_sizes({});
                 world_->set_particle_speeds({});
                 world_->set_particle_lifetimes({});
+                world_->set_particle_start_colors({});
+                world_->set_particle_end_colors({});
                 world_->set_mesh_transform_offsets({});
                 world_->set_mesh_position_overrides({});
                 world_->set_mesh_texcoord_overrides({});
@@ -22235,6 +22336,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_particle_sizes({});
                 lighting_->set_particle_speeds({});
                 lighting_->set_particle_lifetimes({});
+                lighting_->set_particle_start_colors({});
+                lighting_->set_particle_end_colors({});
                 lighting_->set_mesh_transform_offsets({});
                 lighting_->set_mesh_position_overrides({});
                 lighting_->set_mesh_texcoord_overrides({});

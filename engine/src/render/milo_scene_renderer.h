@@ -126,6 +126,10 @@ class MiloSceneRenderer {
   void set_particle_sizes(std::map<std::string, float> sizes);
   void set_particle_speeds(std::map<std::string, float> speeds);
   void set_particle_lifetimes(std::map<std::string, float> lifetimes);
+  void set_particle_start_colors(
+      std::map<std::string, std::array<float, 4>> colors);
+  void set_particle_end_colors(
+      std::map<std::string, std::array<float, 4>> colors);
   void set_hidden_meshes(std::unordered_set<std::string> mesh_names);
   void set_material_alpha_multipliers(std::map<std::string, float> material_alpha);
   void set_material_color_overrides(
@@ -227,6 +231,8 @@ class MiloSceneRenderer {
   std::map<std::string, float> particle_sizes_;
   std::map<std::string, float> particle_speeds_;
   std::map<std::string, float> particle_lifetimes_;
+  std::map<std::string, std::array<float, 4>> particle_start_colors_;
+  std::map<std::string, std::array<float, 4>> particle_end_colors_;
   float particle_time_ = 0.0f;
   std::unordered_set<std::string> hidden_meshes_;
   std::map<std::string, float> material_alpha_;

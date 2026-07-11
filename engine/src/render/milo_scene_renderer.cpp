@@ -733,6 +733,16 @@ void MiloSceneRenderer::set_particle_lifetimes(
   particle_lifetimes_ = std::move(lifetimes);
 }
 
+void MiloSceneRenderer::set_particle_start_colors(
+    std::map<std::string, std::array<float, 4>> colors) {
+  particle_start_colors_ = std::move(colors);
+}
+
+void MiloSceneRenderer::set_particle_end_colors(
+    std::map<std::string, std::array<float, 4>> colors) {
+  particle_end_colors_ = std::move(colors);
+}
+
 void MiloSceneRenderer::set_hidden_meshes(std::unordered_set<std::string> mesh_names) {
   hidden_meshes_ = std::move(mesh_names);
 }
@@ -1842,6 +1852,16 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     if (const auto tex_it = tex_.find(mat->diffuse_tex); tex_it != tex_.end())
       texture = tex_it->second;
     if (!texture) return;
+    std::array<float, 4> start_color = {1.0f, 1.0f, 1.0f, 1.0f};
+    std::array<float, 4> end_color = start_color;
+    if (const auto color_it = particle_start_colors_.find(p.name);
+        color_it != particle_start_colors_.end()) {
+      start_color = color_it->second;
+    }
+    if (const auto color_it = particle_end_colors_.find(p.name);
+        color_it != particle_end_colors_.end()) {
+      end_color = color_it->second;
+    }
 
     const int count = static_cast<int>(std::clamp(
         (p.max_particles > 0.0f ? std::round(p.max_particles) : 16.0f) *
@@ -1912,9 +1932,18 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       };
       const float alpha = std::clamp(mat->color[3] * (0.25f + fade * 0.75f),
                                      0.0f, 1.0f) *
-                          std::clamp(intensity, 0.0f, 1.0f);
-      v.color = D3DCOLOR_ARGB(cc(alpha), cc(mat->color[0]), cc(mat->color[1]),
-                              cc(mat->color[2]));
+                          std::clamp(intensity, 0.0f, 1.0f) *
+                          std::clamp(start_color[3] +
+                                         (end_color[3] - start_color[3]) *
+                                             phase,
+                                     0.0f, 1.0f);
+      const float red =
+          mat->color[0] * (start_color[0] + (end_color[0] - start_color[0]) * phase);
+      const float green =
+          mat->color[1] * (start_color[1] + (end_color[1] - start_color[1]) * phase);
+      const float blue =
+          mat->color[2] * (start_color[2] + (end_color[2] - start_color[2]) * phase);
+      v.color = D3DCOLOR_ARGB(cc(alpha), cc(red), cc(green), cc(blue));
       points.push_back(v);
     }
     if (points.empty()) return;
