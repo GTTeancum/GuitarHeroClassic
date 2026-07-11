@@ -46,7 +46,7 @@ records the upstream commits for the copied files:
 | Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
 | Poll groups | `rb3-latest` `CharPollGroup.cpp` | Source `Load`/`Poll` shape is known, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
-| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Layout and call-flow evidence exists; native math/application is still fenced where source bodies are incomplete. |
+| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
 | Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
 
 ## Binary Layout Authorities
@@ -570,17 +570,49 @@ note, and all report `unreadBytes=0`.
   `CharClipDriver`, `CharDriver`, `CharBones`, `CharBonesSamples`,
   `CharBonesMeshes`, and related clip runtime classes. The previous local note
   that public ihatecompvir source had no clip/sample layer is obsolete.
+- `rb3-latest/src/system/char/CharBones.cpp` is concrete for channel identity
+  and byte layout:
+  - `CharBones::TypeOf` maps suffixes `.pos`, `.scale`, `.quat`, `.rotx`,
+    `.roty`, and `.rotz`.
+  - `SuffixOf` and `ChannelName` round-trip the source channel suffixes.
+  - `TypeSize` defines the per-channel byte sizes for `kCompressNone`,
+    vector compression, quat compression, and rotation compression.
+  - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish
+    the source packed-row offset model.
+  - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
+    call-flow hook, not a standalone pose evaluator.
+- `rb3-latest/src/system/char/CharBonesSamples.cpp` is concrete for sample
+  ownership and interpolation wrappers:
+  - `Set`/`Clone` allocate `mRawData` from `AllocateSize()`.
+  - `RotateBy`, `RotateTo`, and `ScaleAddSample` select
+    `mRawData[mTotalSize * sample]` and split weight between sample `i` and
+    `i + 1` by `frac`.
+  - `Load` reads `gVer`, asserts the public source range `13..16`, then
+    delegates to `LoadHeader` and `LoadData`.
+  - `SetPreview` clamps the preview sample and points `mStart` at the selected
+    packed row.
+- `rb3-latest/src/system/char/CharClip.cpp` is concrete for clip resource
+  context, `StuffBones`, `PoseMeshes`, play/clip flags, beat-event loading, and
+  `full`/`one` property sync. It declares or calls the broad pose math, but the
+  checked file does not include reviewable bodies for `CharClip::ScaleAdd`,
+  `CharClip::RotateBy`, `CharClip::Load`, or channel evaluation.
+- `rb3-latest/src/system/char/CharClipDriver.cpp` is concrete for clip-driver
+  stack construction, mask application to default blend/loop/beat-align flags,
+  clip deletion, exit events, and sync animation cleanup. It does not include a
+  reviewable `Evaluate` or `Poll` body.
 - `rb3-retail-old/doc/rb2_dump/rockband2/system/src/char` exposes RB2-era dump
   entries for `CharClipSamples`, `CharBonesSamples`, `CharClip`,
   `CharClipDriver`, and `CharDriver`. These files are useful source-backed
   function maps: they identify `FrameToSample`, `ScaleAdd`, `RotateBy`,
   `RotateTo`, `FacingSet`, `CharClipDriver::Evaluate`, and the driver-to-bone
   application flow.
-- The checked source is still incomplete for the exact math bodies needed to
-  blindly replace native clip playback: `CharBonesSamples::LoadHeader`,
-  `LoadData`, `EvaluateChannel`, `CharClip::ScaleAdd`, and
-  `CharClipDriver::Evaluate` are declared or function-mapped, but not fully
-  implemented as reviewable C++ bodies in the current public source.
+- The checked source is still incomplete for the exact bodies needed to blindly
+  replace native clip playback: `CharBonesSamples::LoadHeader`, `LoadData`,
+  `EvaluateChannel`, `Relativize`, `CharBones::ScaleAdd`, `RotateBy`,
+  `RotateTo`, `Blend`, `CharClip::ScaleAdd`, `RotateBy`, `Load`, and
+  `CharClipDriver::Evaluate` are either declared, called, or function-mapped,
+  but not fully implemented as reviewable C++ bodies in the current public
+  source.
 - `band3_recomp` currently contributes symbol-table names such as
   `CharClip::SyncProperty` and `CharBones::ScaleAddIdentity`, not a decompiled
   runtime implementation for applying output bones to the live character pose.

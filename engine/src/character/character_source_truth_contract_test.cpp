@@ -208,10 +208,16 @@ int run_contract() {
       rb3_latest_char_dir / "CharPosConstraint.cpp"));
   const std::string rb3_latest_char_pos_constraint_h = compact(read_file(
       rb3_latest_char_dir / "CharPosConstraint.h"));
+  const std::string rb3_latest_char_bones_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharBones.cpp"));
   const std::string rb3_latest_char_clip_h = compact(read_file(
       rb3_latest_char_dir / "CharClip.h"));
+  const std::string rb3_latest_char_clip_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharClip.cpp"));
   const std::string rb3_latest_char_bones_samples_h = compact(read_file(
       rb3_latest_char_dir / "CharBonesSamples.h"));
+  const std::string rb3_latest_char_bones_samples_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharBonesSamples.cpp"));
   const std::string rb3_latest_char_clip_driver_cpp = compact(read_file(
       rb3_latest_char_dir / "CharClipDriver.cpp"));
   const std::string rb2_char_clip_samples_cpp = compact(read_file(
@@ -253,9 +259,13 @@ int run_contract() {
                  "`band3_recomp` symbols |",
                  "coverage matrix cites current CharClip source evidence");
   ok &= contains(doc,
-                 "Layout and call-flow evidence exists; native math/application "
-                 "is still fenced",
-                 "coverage matrix keeps incomplete clip math fenced");
+                 "Channel naming, compression sizing, sample interpolation "
+                 "wrappers, and partial call flow are source-backed",
+                 "coverage matrix records concrete CharBones source evidence");
+  ok &= contains(doc,
+                 "sample decode/evaluate and broad pose publishing remain "
+                 "fenced",
+                 "coverage matrix keeps incomplete clip runtime fenced");
   ok &= contains(doc,
                  "| Hair two-sided rendering | User/project visual override |",
                  "coverage matrix marks hair two-sided as project override");
@@ -1907,20 +1917,98 @@ int run_contract() {
                  "native CharIKHand polling uses decoded source order");
   ok &= contains(doc, "## Clip Runtime Boundary",
                  "document records CharClip runtime source boundary");
+  ok &= contains(doc,
+                 "`CharBones::TypeOf` maps suffixes `.pos`, `.scale`, "
+                 "`.quat`, `.rotx`,",
+                 "document records concrete CharBones channel suffix source");
+  ok &= contains(doc,
+                 "`TypeSize` defines the per-channel byte sizes for "
+                 "`kCompressNone`",
+                 "document records concrete CharBones compression sizing source");
+  ok &= contains(doc,
+                 "`RotateBy`, `RotateTo`, and `ScaleAddSample` select\n"
+                 "    `mRawData[mTotalSize * sample]` and split weight",
+                 "document records concrete CharBonesSamples interpolation source");
+  ok &= contains(doc,
+                 "does not include a\n"
+                 "  reviewable `Evaluate` or `Poll` body",
+                 "document fences missing CharClipDriver runtime evaluator bodies");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "case'p':returnTYPE_POS;case's':returnTYPE_SCALE;"
+                 "case'q':returnTYPE_QUAT;case'r':unsignedcharnext=p[3];",
+                 "latest CharBones source maps source channel suffixes");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "intCharBones::TypeSize(inti)const{if(i<2){if("
+                 "mCompression<kCompressVects)return0xC;elsereturn6;}",
+                 "latest CharBones source defines packed vector channel sizes");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "if(i!=2){if(mCompression==kCompressNone)return4;"
+                 "elsereturn2;}if(mCompression>kCompressVects)return4;"
+                 "if(mCompression==kCompressNone)return0x10;return8;}",
+                 "latest CharBones source defines packed rot/quat channel sizes");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBones::ScaleAdd(CharClip*clip,floatf1,floatf2,"
+                 "floatf3){clip->ScaleAdd(*this,f1,f2,f3);}",
+                 "latest CharBones source delegates clip pose math to CharClip");
   ok &= contains(rb3_latest_char_clip_h,
                  "CharBonesSamplesmFull;//0x64CharBonesSamplesmOne;",
                  "latest CharClip source exposes full/one sample members");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "voidCharClip::StuffBones(CharBones&bones){std::list<"
+                 "CharBones::Bone>blist;ListBones(blist);bones.AddBones(blist);}",
+                 "latest CharClip source exposes StuffBones flow");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "voidCharClip::PoseMeshes(ObjectDir*dir,floatf){CharBonesMeshes"
+                 "meshes;meshes.SetName(\"tmp_viseme_bones\",dir);"
+                 "StuffBones(meshes);ScaleDown(meshes,0.0f);"
+                 "ScaleAdd(meshes,1.0f,f,0.0f);meshes.PoseMeshes();}",
+                 "latest CharClip source exposes PoseMeshes call flow");
+  ok &= missing(rb3_latest_char_clip_cpp, "voidCharClip::ScaleAdd(",
+                "latest CharClip source does not expose ScaleAdd body");
+  ok &= missing(rb3_latest_char_clip_cpp, "voidCharClip::Load(",
+                "latest CharClip source does not expose Load body");
   ok &= contains(rb3_latest_char_bones_samples_h,
                  "voidLoadHeader(BinStream&);voidLoadData(BinStream&);"
                  "voidSetPreview(int);voidReadCounts(BinStream&,int);"
                  "voidRelativize(CharClip*);voidEvaluateChannel(void*,int,int,float);"
                  "intFracToSample(float*)const;",
                  "latest CharBonesSamples header exposes sample runtime boundary");
+  ok &= contains(rb3_latest_char_bones_samples_cpp,
+                 "voidCharBonesSamples::RotateTo(CharBones&bones,floatf1,inti,"
+                 "floatf2){mStart=&mRawData[mTotalSize*i];CharBones::RotateTo"
+                 "(bones,(1.0f-f2)*f1);if(f2>0.0f){mStart=&mRawData[mTotalSize*"
+                 "(i+1)];CharBones::RotateTo(bones,f2*f1);}}",
+                 "latest CharBonesSamples source exposes RotateTo sample split");
+  ok &= contains(rb3_latest_char_bones_samples_cpp,
+                 "voidCharBonesSamples::ScaleAddSample(CharBones&bones,floatf1,"
+                 "inti,floatf2){mStart=&mRawData[mTotalSize*i];CharBones::"
+                 "ScaleAdd(bones,(1.0f-f2)*f1);if(f2>0.0f){mStart=&mRawData"
+                 "[mTotalSize*(i+1)];CharBones::ScaleAdd(bones,f2*f1);}}",
+                 "latest CharBonesSamples source exposes ScaleAdd sample split");
+  ok &= contains(rb3_latest_char_bones_samples_cpp,
+                 "voidCharBonesSamples::Load(BinStream&bs){bs>>gVer;"
+                 "MILO_ASSERT(gVer>12&&gVer<=VER,0x2A0);LoadHeader(bs);"
+                 "LoadData(bs);}",
+                 "latest CharBonesSamples source exposes Load delegation");
+  ok &= missing(rb3_latest_char_bones_samples_cpp,
+                "voidCharBonesSamples::LoadHeader(",
+                "latest CharBonesSamples source does not expose LoadHeader body");
+  ok &= missing(rb3_latest_char_bones_samples_cpp,
+                "voidCharBonesSamples::EvaluateChannel(",
+                "latest CharBonesSamples source does not expose EvaluateChannel body");
   ok &= contains(rb3_latest_char_clip_driver_cpp,
                  "CharClipDriver::CharClipDriver(Hmx::Object*owner,CharClip*clip,"
                  "intmask,floatblendwidth,CharClipDriver*next,floatf2,floatf3,"
                  "boolmultclips)",
                  "latest CharClipDriver source exposes play-node construction");
+  ok &= contains(rb3_latest_char_clip_driver_cpp,
+                 "if(mask&0xF0U)mPlayFlags=mPlayFlags&0xffffff0f|mask&0xf0U;"
+                 "if(mask&0xFU)mPlayFlags=mPlayFlags&0xfffffff0|mask&0xfU;"
+                 "if(mask&0xF600U)mPlayFlags=mPlayFlags&0xffff09ff|mask&0xf600U;",
+                 "latest CharClipDriver source masks blend loop and beat-align flags");
+  ok &= missing(rb3_latest_char_clip_driver_cpp,
+                "floatCharClipDriver::Evaluate(",
+                "latest CharClipDriver source does not expose Evaluate body");
   ok &= contains(rb2_char_clip_samples_cpp,
                  "voidCharClipSamples::ScaleAdd(",
                  "RB2 dump exposes CharClipSamples ScaleAdd runtime map");
