@@ -3943,6 +3943,10 @@ int run_contract() {
                  "if(gRev>1)bs>>s;SetClipType(s);",
                  "CharServoBone source load gates clip type");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "BEGIN_LOADS(CharServoBone)LOAD_REVS(bs)ASSERT_REVS(2,0)"
+                 "LOAD_SUPERCLASS(Hmx::Object)Symbols;",
+                 "CharServoBone source Load revision and object rows");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
                  "ClearBones();CharBoneDir::StuffBones(*this,mClipType);",
                  "CharServoBone source SetClipType refills source bones");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
@@ -3958,6 +3962,19 @@ int run_contract() {
                  "CREATE_COPY(CharServoBone)BEGIN_COPYING_MEMBERS"
                  "COPY_MEMBER(mMoveSelf)SetClipType(c->mClipType);",
                  "CharServoBone source Copy member list");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "BEGIN_HANDLERS(CharServoBone)HANDLE_SUPERCLASS(CharPollable)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0x16E)"
+                 "END_HANDLERS",
+                 "CharServoBone source handler chain");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "BEGIN_PROPSYNCS(CharServoBone)"
+                 "SYNC_PROP_SET(clip_type,mClipType,SetClipType(_val.Sym(0)))"
+                 "SYNC_PROP_SET(move_self,mMoveSelf,SetMoveSelf(_val.Int(0)))"
+                 "SYNC_PROP(delta_changed,mDeltaChanged)"
+                 "SYNC_PROP(regulate,mRegulate)"
+                 "SYNC_SUPERCLASS(CharBonesMeshes)END_PROPSYNCS",
+                 "CharServoBone source prop-sync rows");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
                  "mFacingPosDelta=(Vector3*)FindPtr(\"bone_facing_delta.pos\");",
                  "CharServoBone source realloc finds facing delta rows");
@@ -4022,6 +4039,18 @@ int run_contract() {
                  "boolcalls_set_clip_type=true;};",
                  "native exposes CharServoBone Copy contract");
   ok &= contains(char_clip_h,
+                 "structSourceCharServoBoneLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;"
+                 "std::vector<std::string>call_order;"
+                 "std::vector<std::string>branches;};",
+                 "native exposes CharServoBone Load contract");
+  ok &= contains(char_clip_h,
+                 "structSourceCharServoBonePropSyncPlan{"
+                 "std::vector<std::string>set_properties;"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes CharServoBone prop-sync contract");
+  ok &= contains(char_clip_h,
                  "SourceCharServoBoneDefaultStatesource_char_servo_bone_default_state();",
                  "native exposes CharServoBone default-state helper");
   ok &= contains(char_clip_h,
@@ -4041,6 +4070,14 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "SourceCharServoBoneCopyPlansource_char_servo_bone_copy_plan();",
                  "native exposes CharServoBone Copy helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharServoBoneLoadPlan"
+                 "source_char_servo_bone_load_plan(int32_trevision);",
+                 "native exposes CharServoBone Load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharServoBonePropSyncPlan"
+                 "source_char_servo_bone_prop_sync_plan();",
+                 "native exposes CharServoBone prop-sync helper");
   ok &= contains(char_clip,
                  "SourceCharServoBoneDefaultStatesource_char_servo_bone_default_state(){"
                  "return{};}",
@@ -4077,6 +4114,32 @@ int run_contract() {
                  "{\"Hmx::Object\"};plan.copied_members={\"mMoveSelf\"};"
                  "plan.calls_set_clip_type=true;returnplan;}",
                  "native CharServoBone Copy helper mirrors source copy");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneLoadPlansource_char_servo_bone_load_plan("
+                 "int32_trevision){SourceCharServoBoneLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=2;",
+                 "native CharServoBone Load helper mirrors source revision gate");
+  ok &= contains(char_clip,
+                 "plan.read_order={\"Hmx::Object\"};if(revision>1){"
+                 "plan.read_order.push_back(\"mClipType\");}else{"
+                 "plan.branches.push_back(\"mClipTypedefaultsempty\");}"
+                 "plan.call_order={\"SetClipType\"};returnplan;}",
+                 "native CharServoBone Load helper mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneHandlerPlan"
+                 "source_char_servo_bone_handler_plan(){"
+                 "SourceCharServoBoneHandlerPlanplan;plan.superclasses="
+                 "{\"CharPollable\",\"Hmx::Object\"};plan.check=0x16E;"
+                 "returnplan;}",
+                 "native CharServoBone handler helper mirrors source chain");
+  ok &= contains(char_clip,
+                 "SourceCharServoBonePropSyncPlan"
+                 "source_char_servo_bone_prop_sync_plan(){"
+                 "SourceCharServoBonePropSyncPlanplan;plan.set_properties="
+                 "{\"clip_type\",\"move_self\"};plan.properties="
+                 "{\"delta_changed\",\"regulate\"};plan.superclasses="
+                 "{\"CharBonesMeshes\"};returnplan;}",
+                 "native CharServoBone prop-sync helper mirrors source rows");
   ok &= contains(char_clip,
                  "voidsource_char_servo_bone_zero_deltas("
                  "std::array<float,3>&facing_pos_delta,"
@@ -4133,6 +4196,15 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_servo_bone_copy_plan()",
                  "focused CharBones test covers CharServoBone Copy");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_load_plan(2)",
+                 "focused CharBones test covers CharServoBone Load");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_handler_plan()",
+                 "focused CharBones test covers CharServoBone handlers");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_prop_sync_plan()",
+                 "focused CharBones test covers CharServoBone prop sync");
   ok &= contains(rb3_latest_char_trans_copy_h,
                  "classCharTransCopy:publicCharPollable",
                  "latest CharTransCopy header exposes source class");
@@ -5951,6 +6023,14 @@ int run_contract() {
                  "`Copy` copies\n    `Hmx::Object`, `mMoveSelf`, and calls "
                  "`SetClipType`",
                  "document records CharServoBone Copy source branch");
+  ok &= contains(doc,
+                 "Native `source_char_servo_bone_load_plan`,\n"
+                 "    `source_char_servo_bone_handler_plan`, and",
+                 "document records CharServoBone load/handler helper slice");
+  ok &= contains(doc,
+                 "`delta_changed` / `regulate` direct rows,\n"
+                 "    and `CharBonesMeshes` superclass",
+                 "document records CharServoBone prop-sync helper slice");
   ok &= contains(doc,
                  "does not call them from the\n    live model path or port "
                  "broad `CharBonesMeshes` movement",

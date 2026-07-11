@@ -1853,6 +1853,13 @@ note, and all report `unreadBytes=0`.
     presence of `bone_facing_delta.pos` into `move_self`; `SetMoveSelf` only
     marks `delta_changed` when the requested value differs; `Copy` copies
     `Hmx::Object`, `mMoveSelf`, and calls `SetClipType`.
+  - Native `source_char_servo_bone_load_plan`,
+    `source_char_servo_bone_handler_plan`, and
+    `source_char_servo_bone_prop_sync_plan` port the visible source
+    revision-gated load row order, `SetClipType` call, `CharPollable` /
+    `Hmx::Object` handler chain, check value `0x16E`, `clip_type` /
+    `move_self` property setters, `delta_changed` / `regulate` direct rows,
+    and `CharBonesMeshes` superclass.
   - `rb3-latest/src/system/char/CharBonesMeshes.cpp` is concrete for mesh-slot
     ownership and target resolution. Native
     `source_char_bones_meshes_replace_step`,

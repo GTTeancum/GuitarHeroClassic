@@ -4429,6 +4429,37 @@ SourceCharServoBoneCopyPlan source_char_servo_bone_copy_plan() {
   return plan;
 }
 
+SourceCharServoBoneLoadPlan source_char_servo_bone_load_plan(
+    int32_t revision) {
+  SourceCharServoBoneLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 2;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"Hmx::Object"};
+  if (revision > 1) {
+    plan.read_order.push_back("mClipType");
+  } else {
+    plan.branches.push_back("mClipType defaults empty");
+  }
+  plan.call_order = {"SetClipType"};
+  return plan;
+}
+
+SourceCharServoBoneHandlerPlan source_char_servo_bone_handler_plan() {
+  SourceCharServoBoneHandlerPlan plan;
+  plan.superclasses = {"CharPollable", "Hmx::Object"};
+  plan.check = 0x16E;
+  return plan;
+}
+
+SourceCharServoBonePropSyncPlan source_char_servo_bone_prop_sync_plan() {
+  SourceCharServoBonePropSyncPlan plan;
+  plan.set_properties = {"clip_type", "move_self"};
+  plan.properties = {"delta_changed", "regulate"};
+  plan.superclasses = {"CharBonesMeshes"};
+  return plan;
+}
+
 void source_char_servo_bone_zero_deltas(
     std::array<float, 3>& facing_pos_delta,
     float& facing_rot_delta_radians) {

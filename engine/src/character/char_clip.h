@@ -311,6 +311,24 @@ struct SourceCharServoBoneCopyPlan {
   bool calls_set_clip_type = true;
 };
 
+struct SourceCharServoBoneLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> call_order;
+  std::vector<std::string> branches;
+};
+
+struct SourceCharServoBoneHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharServoBonePropSyncPlan {
+  std::vector<std::string> set_properties;
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceCharBonesSamplesState {
   SourceCharBonesState bones;
   int num_samples = 0;
@@ -1518,6 +1536,9 @@ SourceCharServoBoneSetMoveSelfStep source_char_servo_bone_set_move_self(
     bool current_move_self,
     bool requested_move_self);
 SourceCharServoBoneCopyPlan source_char_servo_bone_copy_plan();
+SourceCharServoBoneLoadPlan source_char_servo_bone_load_plan(int32_t revision);
+SourceCharServoBoneHandlerPlan source_char_servo_bone_handler_plan();
+SourceCharServoBonePropSyncPlan source_char_servo_bone_prop_sync_plan();
 void source_char_servo_bone_zero_deltas(
     std::array<float, 3>& facing_pos_delta,
     float& facing_rot_delta_radians);

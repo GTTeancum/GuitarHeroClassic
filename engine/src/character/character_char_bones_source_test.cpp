@@ -1102,6 +1102,53 @@ int main() {
                       "CharServoBone Copy member");
   ok &= expect_int(servo_copy.calls_set_clip_type ? 1 : 0, 1,
                    "CharServoBone Copy calls SetClipType");
+  const SourceCharServoBoneLoadPlan servo_load_v0 =
+      source_char_servo_bone_load_plan(0);
+  ok &= expect_int(servo_load_v0.known_revision ? 1 : 0, 1,
+                   "CharServoBone Load v0 known");
+  ok &= expect_size(servo_load_v0.read_order.size(), 1,
+                    "CharServoBone Load v0 row count");
+  ok &= expect_string(servo_load_v0.read_order[0], "Hmx::Object",
+                      "CharServoBone Load object row");
+  ok &= expect_string(servo_load_v0.branches[0],
+                      "mClipType defaults empty",
+                      "CharServoBone Load v0 clip type default");
+  ok &= expect_string(servo_load_v0.call_order[0], "SetClipType",
+                      "CharServoBone Load calls SetClipType");
+  const SourceCharServoBoneLoadPlan servo_load_v2 =
+      source_char_servo_bone_load_plan(2);
+  ok &= expect_size(servo_load_v2.read_order.size(), 2,
+                    "CharServoBone Load v2 row count");
+  ok &= expect_string(servo_load_v2.read_order[1], "mClipType",
+                      "CharServoBone Load v2 clip type");
+  ok &= expect_int(source_char_servo_bone_load_plan(3).known_revision ? 1 : 0,
+                   0, "CharServoBone Load rejects high revision");
+  const SourceCharServoBoneHandlerPlan servo_handlers =
+      source_char_servo_bone_handler_plan();
+  ok &= expect_size(servo_handlers.superclasses.size(), 2,
+                    "CharServoBone handler superclass count");
+  ok &= expect_string(servo_handlers.superclasses[0], "CharPollable",
+                      "CharServoBone handler pollable superclass");
+  ok &= expect_string(servo_handlers.superclasses[1], "Hmx::Object",
+                      "CharServoBone handler object superclass");
+  ok &= expect_int(servo_handlers.check, 0x16E,
+                   "CharServoBone handler check");
+  const SourceCharServoBonePropSyncPlan servo_props =
+      source_char_servo_bone_prop_sync_plan();
+  ok &= expect_size(servo_props.set_properties.size(), 2,
+                    "CharServoBone prop set count");
+  ok &= expect_string(servo_props.set_properties[0], "clip_type",
+                      "CharServoBone prop set clip type");
+  ok &= expect_string(servo_props.set_properties[1], "move_self",
+                      "CharServoBone prop set move self");
+  ok &= expect_size(servo_props.properties.size(), 2,
+                    "CharServoBone prop direct count");
+  ok &= expect_string(servo_props.properties[0], "delta_changed",
+                      "CharServoBone prop delta changed");
+  ok &= expect_string(servo_props.properties[1], "regulate",
+                      "CharServoBone prop regulate");
+  ok &= expect_string(servo_props.superclasses[0], "CharBonesMeshes",
+                      "CharServoBone prop sync superclass");
 
   constexpr float kHalfPi = 1.57079632679489661923f;
   std::array<float, 3> facing_pos_delta = {4.0f, 5.0f, 6.0f};
