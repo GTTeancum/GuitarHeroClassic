@@ -673,6 +673,13 @@ note, and all report `unreadBytes=0`.
     yaw Z and pitch X bounds with `tan`. Native ports this as
     `source_char_lookat_sync_limits` for deterministic tests and future
     source-backed `Poll` work.
+  - Native `source_char_lookat_load_plan` and
+    `source_char_lookat_copy_plan` record the source row and copy contracts:
+    `Load` accepts revisions 0-5, reads `Hmx::Object`, `CharWeightable`,
+    source/pivot/dest, half-time, yaw/pitch limits, revision-gated yaw-weight
+    fields, `mAllowRoll`, jitter fields, and source radius, then calls
+    `SyncLimits`; `Copy` copies both superclasses, the checked transform/limit/
+    jitter/source-radius member list, then also calls `SyncLimits`.
   - Native `source_char_lookat_enter` and `source_char_lookat_poll_deps` port
     the concrete `Enter` reset and `PollDeps` dependency bodies: entering resets
     the smoothed direction row to `(1.0E+29, 0, 0)` and requests a pivot-local

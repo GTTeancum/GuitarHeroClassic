@@ -848,6 +848,54 @@ SourceCharLookAtBounds source_char_lookat_sync_limits(
   return bounds;
 }
 
+SourceCharLookAtLoadPlan source_char_lookat_load_plan(int32_t revision) {
+  SourceCharLookAtLoadPlan plan;
+  plan.revision_supported = revision >= 0 && revision <= 5;
+  if (!plan.revision_supported) return plan;
+
+  plan.read_order = {"Hmx::Object", "CharWeightable", "mSource",
+                     "mPivot",      "mDest",          "mHalfTime",
+                     "mMinYaw",     "mMaxYaw",        "mMinPitch",
+                     "mMaxPitch"};
+  if (revision > 1) {
+    plan.read_order.push_back("mMinWeightYaw");
+    plan.read_order.push_back("mMaxWeightYaw");
+    plan.read_order.push_back("mWeightYawSpeed");
+  }
+  if (revision < 3) {
+    plan.branches.push_back("mAllowRoll=true");
+  } else {
+    plan.read_order.push_back("mAllowRoll");
+  }
+  if (revision < 4) {
+    plan.branches.push_back("mEnableJitter=false");
+    plan.branches.push_back("mPitchJitterLimit=0");
+    plan.branches.push_back("mYawJitterLimit=0");
+  } else {
+    plan.read_order.push_back("mEnableJitter");
+    plan.read_order.push_back("mPitchJitterLimit");
+    plan.read_order.push_back("mYawJitterLimit");
+  }
+  if (revision > 4) plan.read_order.push_back("mSourceRadius");
+  plan.sync_limits = true;
+  return plan;
+}
+
+SourceCharLookAtCopyPlan source_char_lookat_copy_plan() {
+  SourceCharLookAtCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "CharWeightable"};
+  plan.copied_members = {"mSource",         "mPivot",
+                         "mDest",           "mHalfTime",
+                         "mMinYaw",         "mMaxYaw",
+                         "mMinPitch",       "mMaxPitch",
+                         "mMinWeightYaw",   "mMaxWeightYaw",
+                         "mWeightYawSpeed", "mAllowRoll",
+                         "mSourceRadius",   "mEnableJitter",
+                         "mYawJitterLimit", "mPitchJitterLimit"};
+  plan.sync_limits = true;
+  return plan;
+}
+
 SourceCharLookAtEnterState source_char_lookat_enter(bool has_pivot) {
   SourceCharLookAtEnterState state;
   state.smoothed_dir = {1.0e29f, 0.0f, 0.0f};

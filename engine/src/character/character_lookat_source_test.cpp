@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <string>
 
 namespace {
 
@@ -11,11 +12,32 @@ bool near(float got, float want, const char* label) {
   return false;
 }
 
+bool expect_bool(bool got, bool want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_string(const std::string& got, const std::string& want,
+                   const char* label) {
+  if (got == want) return true;
+  std::cerr << label << ": got '" << got << "' want '" << want << "'\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
   using ghogx::character::SourceCharLookAtPollDeps;
+  using ghogx::character::source_char_lookat_copy_plan;
   using ghogx::character::source_char_lookat_enter;
+  using ghogx::character::source_char_lookat_load_plan;
   using ghogx::character::source_char_lookat_poll_deps;
   using ghogx::character::source_char_lookat_poll_plan;
   using ghogx::character::source_char_lookat_sync_limits;
@@ -46,6 +68,58 @@ int main() {
   ok &= near(asymmetric.max[2], 0.70710677f, "asymmetric max yaw z");
   ok &= near(asymmetric.min[0], -0.12468200f, "asymmetric min pitch x");
   ok &= near(asymmetric.max[0], 0.25735635f, "asymmetric max pitch x");
+
+  const auto load_v0 = source_char_lookat_load_plan(0);
+  ok &= expect_bool(load_v0.revision_supported, true,
+                    "load v0 supported");
+  ok &= expect_size(load_v0.read_order.size(), 10, "load v0 read count");
+  ok &= expect_string(load_v0.read_order[0], "Hmx::Object",
+                      "load v0 object first");
+  ok &= expect_string(load_v0.read_order[1], "CharWeightable",
+                      "load v0 weightable");
+  ok &= expect_string(load_v0.read_order[9], "mMaxPitch",
+                      "load v0 max pitch last");
+  ok &= expect_string(load_v0.branches[0], "mAllowRoll=true",
+                      "load v0 allow-roll default");
+  ok &= expect_string(load_v0.branches[1], "mEnableJitter=false",
+                      "load v0 jitter default");
+  ok &= expect_bool(load_v0.sync_limits, true, "load v0 sync limits");
+
+  const auto load_v2 = source_char_lookat_load_plan(2);
+  ok &= expect_size(load_v2.read_order.size(), 13, "load v2 read count");
+  ok &= expect_string(load_v2.read_order[10], "mMinWeightYaw",
+                      "load v2 min weight yaw");
+  ok &= expect_string(load_v2.read_order[12], "mWeightYawSpeed",
+                      "load v2 yaw speed");
+  ok &= expect_string(load_v2.branches[0], "mAllowRoll=true",
+                      "load v2 default allow roll");
+
+  const auto load_v4 = source_char_lookat_load_plan(4);
+  ok &= expect_string(load_v4.read_order[13], "mAllowRoll",
+                      "load v4 reads allow roll");
+  ok &= expect_string(load_v4.read_order[14], "mEnableJitter",
+                      "load v4 reads jitter flag");
+  ok &= expect_string(load_v4.read_order[16], "mYawJitterLimit",
+                      "load v4 reads yaw jitter");
+
+  const auto load_v5 = source_char_lookat_load_plan(5);
+  ok &= expect_string(load_v5.read_order.back(), "mSourceRadius",
+                      "load v5 source radius last");
+  ok &= expect_bool(source_char_lookat_load_plan(6).revision_supported, false,
+                    "load rejects high revision");
+
+  const auto copy_plan = source_char_lookat_copy_plan();
+  ok &= expect_string(copy_plan.copied_superclasses[0], "Hmx::Object",
+                      "copy object superclass");
+  ok &= expect_string(copy_plan.copied_superclasses[1], "CharWeightable",
+                      "copy weightable superclass");
+  ok &= expect_string(copy_plan.copied_members[0], "mSource",
+                      "copy source first");
+  ok &= expect_string(copy_plan.copied_members[12], "mSourceRadius",
+                      "copy source radius");
+  ok &= expect_string(copy_plan.copied_members.back(), "mPitchJitterLimit",
+                      "copy pitch jitter last");
+  ok &= expect_bool(copy_plan.sync_limits, true, "copy sync limits");
 
   const auto entered = source_char_lookat_enter(true);
   ok &= near(entered.smoothed_dir[0], 1.0e29f, "enter smoothed dir x");

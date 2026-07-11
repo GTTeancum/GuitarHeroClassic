@@ -6570,6 +6570,37 @@ int run_contract() {
                  "RB3 CharLookAt SyncLimits computes yaw and pitch bounds");
   ok &= contains(rb3_char_lookat_cpp, "LOAD_REVS(bs)ASSERT_REVS(5,0)",
                  "RB3 CharLookAt source enforces revision ceiling");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "LOAD_SUPERCLASS(Hmx::Object)LOAD_SUPERCLASS(CharWeightable)"
+                 "bs>>mSource;bs>>mPivot;bs>>mDest;bs>>mHalfTime;"
+                 "bs>>mMinYaw;bs>>mMaxYaw;bs>>mMinPitch;bs>>mMaxPitch;",
+                 "RB3 CharLookAt source load reads object, weightable, and core rows");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(gRev>1){bs>>mMinWeightYaw;bs>>mMaxWeightYaw;"
+                 "bs>>mWeightYawSpeed;}if(gRev<3)mAllowRoll=true;else"
+                 "bs>>mAllowRoll;",
+                 "RB3 CharLookAt source load gates yaw-weight and allow-roll rows");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(gRev<4){mEnableJitter=false;mPitchJitterLimit=0;"
+                 "mYawJitterLimit=0;}else{bs>>mEnableJitter;"
+                 "bs>>mPitchJitterLimit;bs>>mYawJitterLimit;}",
+                 "RB3 CharLookAt source load gates jitter rows");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "if(gRev>4)bs>>mSourceRadius;SyncLimits();",
+                 "RB3 CharLookAt source load gates source radius and syncs limits");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "BEGIN_COPYS(CharLookAt)COPY_SUPERCLASS(Hmx::Object)"
+                 "COPY_SUPERCLASS(CharWeightable)CREATE_COPY(CharLookAt)"
+                 "BEGIN_COPYING_MEMBERSCOPY_MEMBER(mSource)COPY_MEMBER(mPivot)"
+                 "COPY_MEMBER(mDest)COPY_MEMBER(mHalfTime)",
+                 "RB3 CharLookAt source copy starts with source fields");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "COPY_MEMBER(mMinWeightYaw)COPY_MEMBER(mMaxWeightYaw)"
+                 "COPY_MEMBER(mWeightYawSpeed)COPY_MEMBER(mAllowRoll)"
+                 "COPY_MEMBER(mSourceRadius)COPY_MEMBER(mEnableJitter)"
+                 "COPY_MEMBER(mYawJitterLimit)COPY_MEMBER(mPitchJitterLimit)"
+                 "END_COPYING_MEMBERSSyncLimits();",
+                 "RB3 CharLookAt source copy gates copied limits and syncs limits");
   ok &= contains(rb3_latest_char_weightable_cpp,
                  "LOAD_REVS(bs);ASSERT_REVS(2,0);bs>>mWeight;",
                  "latest CharWeightable source enforces revision ceiling");
@@ -6617,9 +6648,26 @@ int run_contract() {
                  "boolwrite_roll_local_rotation=false;boolwrite_no_roll_axes=false;};",
                  "native header exposes CharLookAt roll branch flags");
   ok &= contains(char_clip_h,
+                 "structSourceCharLookAtLoadPlan{boolrevision_supported=false;"
+                 "std::vector<std::string>read_order;std::vector<std::string>"
+                 "branches;boolsync_limits=false;};",
+                 "native header exposes CharLookAt load plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharLookAtCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;"
+                 "boolsync_limits=false;};",
+                 "native header exposes CharLookAt copy plan");
+  ok &= contains(char_clip_h,
                  "SourceCharLookAtBoundssource_char_lookat_sync_limits("
                  "floatmin_yaw,floatmax_yaw,floatmin_pitch,floatmax_pitch);",
                  "native header exposes CharLookAt SyncLimits helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtLoadPlansource_char_lookat_load_plan("
+                 "int32_trevision);",
+                 "native header exposes CharLookAt load plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtCopyPlansource_char_lookat_copy_plan();",
+                 "native header exposes CharLookAt copy plan helper");
   ok &= contains(char_clip_h,
                  "SourceCharLookAtEnterStatesource_char_lookat_enter("
                  "boolhas_pivot);",
@@ -6649,6 +6697,43 @@ int run_contract() {
                  "bounds.min[0]=min_y*std::tan(min_pitch*kDegToRad);"
                  "bounds.max[0]=min_y*std::tan(max_pitch*kDegToRad);",
                  "native CharLookAt SyncLimits helper computes source axis bounds");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtLoadPlansource_char_lookat_load_plan("
+                 "int32_trevision){SourceCharLookAtLoadPlanplan;"
+                 "plan.revision_supported=revision>=0&&revision<=5;",
+                 "native CharLookAt load helper ports revision gate");
+  ok &= contains(char_clip,
+                 "plan.read_order={\"Hmx::Object\",\"CharWeightable\","
+                 "\"mSource\",\"mPivot\",\"mDest\",\"mHalfTime\",",
+                 "native CharLookAt load helper records core read order");
+  ok &= contains(char_clip,
+                 "if(revision>1){plan.read_order.push_back(\"mMinWeightYaw\");"
+                 "plan.read_order.push_back(\"mMaxWeightYaw\");"
+                 "plan.read_order.push_back(\"mWeightYawSpeed\");}",
+                 "native CharLookAt load helper records yaw-weight branch");
+  ok &= contains(char_clip,
+                 "if(revision<3){plan.branches.push_back(\"mAllowRoll=true\");}"
+                 "else{plan.read_order.push_back(\"mAllowRoll\");}",
+                 "native CharLookAt load helper records allow-roll branch");
+  ok &= contains(char_clip,
+                 "if(revision<4){plan.branches.push_back(\"mEnableJitter=false\");"
+                 "plan.branches.push_back(\"mPitchJitterLimit=0\");"
+                 "plan.branches.push_back(\"mYawJitterLimit=0\");}",
+                 "native CharLookAt load helper records jitter defaults");
+  ok &= contains(char_clip,
+                 "if(revision>4)plan.read_order.push_back(\"mSourceRadius\");"
+                 "plan.sync_limits=true;",
+                 "native CharLookAt load helper records source-radius and sync");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtCopyPlansource_char_lookat_copy_plan(){"
+                 "SourceCharLookAtCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\",\"CharWeightable\"};",
+                 "native CharLookAt copy helper records superclasses");
+  ok &= contains(char_clip,
+                 "plan.copied_members={\"mSource\",\"mPivot\",\"mDest\","
+                 "\"mHalfTime\",\"mMinYaw\",\"mMaxYaw\",\"mMinPitch\","
+                 "\"mMaxPitch\",",
+                 "native CharLookAt copy helper records member prefix");
   ok &= contains(char_clip,
                  "SourceCharLookAtEnterStatesource_char_lookat_enter("
                  "boolhas_pivot){SourceCharLookAtEnterStatestate;"
@@ -6703,6 +6788,15 @@ int run_contract() {
                  "source_char_lookat_sync_limits(-30.0f,45.0f,-10.0f,20.0f)",
                  "focused CharLookAt source test covers asymmetric limits");
   ok &= contains(lookat_source_test,
+                 "source_char_lookat_load_plan(2)",
+                 "focused CharLookAt source test covers GH2 stock load plan");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_load_plan(5)",
+                 "focused CharLookAt source test covers current load plan");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_copy_plan()",
+                 "focused CharLookAt source test covers copy plan");
+  ok &= contains(lookat_source_test,
                  "source_char_lookat_enter(true)",
                  "focused CharLookAt source test covers Enter helper");
   ok &= contains(lookat_source_test,
@@ -6745,6 +6839,12 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharLookAt::SyncLimits` clamps yaw and pitch limits",
                  "document records CharLookAt SyncLimits helper port");
+  ok &= contains(doc,
+                 "Native `source_char_lookat_load_plan` and",
+                 "document records CharLookAt load/copy plan helpers");
+  ok &= contains(doc,
+                 "`Load` accepts revisions 0-5",
+                 "document records CharLookAt load revision range");
   ok &= contains(doc,
                  "Native `source_char_lookat_enter` and",
                  "document records CharLookAt Enter and PollDeps helpers");

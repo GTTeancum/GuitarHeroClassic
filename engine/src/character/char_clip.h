@@ -295,6 +295,19 @@ struct SourceCharLookAtPollPlan {
   bool write_no_roll_axes = false;
 };
 
+struct SourceCharLookAtLoadPlan {
+  bool revision_supported = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+  bool sync_limits = false;
+};
+
+struct SourceCharLookAtCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+  bool sync_limits = false;
+};
+
 // One channel value for one frame.
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
@@ -1290,6 +1303,8 @@ void source_char_utl_clip_predict(SourceCharUtlClipPredictState& state,
 // Source-backed CharLookAt::SyncLimits helper. Angles are serialized in degrees.
 SourceCharLookAtBounds source_char_lookat_sync_limits(
     float min_yaw, float max_yaw, float min_pitch, float max_pitch);
+SourceCharLookAtLoadPlan source_char_lookat_load_plan(int32_t revision);
+SourceCharLookAtCopyPlan source_char_lookat_copy_plan();
 SourceCharLookAtEnterState source_char_lookat_enter(bool has_pivot);
 void source_char_lookat_poll_deps(SourceCharLookAtPollDeps& deps,
                                   const std::string& source,
