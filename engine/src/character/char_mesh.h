@@ -1455,7 +1455,15 @@ struct SourceCharCollideCopyPlan {
   std::vector<std::string> not_in_source_copy_members;
 };
 
+struct SourceCharCollideLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+  int mesh_sphere_rows = 0;
+};
+
 SourceCharCollideDefaultState source_char_collide_default_state();
+SourceCharCollideLoadPlan source_char_collide_load_plan(int revision);
 SourceCharCollideCopyPlan source_char_collide_copy_plan();
 void source_char_collide_copy_original_to_cur(CharCollide& collide);
 void source_char_collide_sync_shape(CharCollide& collide);

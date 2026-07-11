@@ -1488,6 +1488,45 @@ SourceCharCollideDefaultState source_char_collide_default_state() {
   return {};
 }
 
+SourceCharCollideLoadPlan source_char_collide_load_plan(int revision) {
+  SourceCharCollideLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 7;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"LOAD_REVS", "Hmx::Object", "RndTransformable",
+                     "mShape",    "mOrigRadius[0]"};
+  if (revision > 4) plan.read_order.push_back("mOrigLength[0]");
+  if (revision > 2) plan.read_order.push_back("mOrigLength[1]");
+  if (revision > 1) {
+    plan.read_order.push_back("mFlags");
+  } else {
+    plan.branches.push_back("mFlags=0");
+  }
+  if (revision > 3) {
+    plan.read_order.push_back("mCurRadius[0]");
+  } else {
+    plan.branches.push_back("mCurRadius[0]=mOrigRadius[0]");
+  }
+
+  if (revision > 5) {
+    plan.read_order.push_back("mOrigRadius[1]");
+    plan.read_order.push_back("mCurRadius[1]");
+    plan.read_order.push_back("mCurLength[0]");
+    plan.read_order.push_back("mCurLength[1]");
+    plan.read_order.push_back("unk148");
+    plan.read_order.push_back("mMesh");
+    plan.read_order.push_back("unk_structs[8]");
+    plan.mesh_sphere_rows = 8;
+    plan.read_order.push_back("mDigest");
+    plan.read_order.push_back("mMeshYBias");
+    if (revision < 7) plan.branches.push_back("CopyOriginalToCur");
+  } else {
+    plan.branches.push_back("mOrigRadius[1]=mOrigRadius[0]");
+    plan.branches.push_back("CopyOriginalToCur");
+  }
+  return plan;
+}
+
 SourceCharCollideCopyPlan source_char_collide_copy_plan() {
   SourceCharCollideCopyPlan plan;
   plan.copied_superclasses = {"Hmx::Object", "RndTransformable"};

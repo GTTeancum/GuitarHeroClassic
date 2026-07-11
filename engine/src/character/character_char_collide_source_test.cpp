@@ -85,5 +85,56 @@ int main() {
   CHECK(!has(copy_plan.copied_members, "mDigest"));
   CHECK(!has(copy_plan.copied_members, "unk_structs"));
 
+  const ghogx::character::SourceCharCollideLoadPlan invalid_load =
+      ghogx::character::source_char_collide_load_plan(8);
+  CHECK(!invalid_load.known_revision);
+  CHECK(invalid_load.read_order.empty());
+
+  const ghogx::character::SourceCharCollideLoadPlan rev1_load =
+      ghogx::character::source_char_collide_load_plan(1);
+  CHECK(rev1_load.known_revision);
+  CHECK(has(rev1_load.read_order, "Hmx::Object"));
+  CHECK(has(rev1_load.read_order, "RndTransformable"));
+  CHECK(has(rev1_load.read_order, "mShape"));
+  CHECK(has(rev1_load.read_order, "mOrigRadius[0]"));
+  CHECK(!has(rev1_load.read_order, "mFlags"));
+  CHECK(has(rev1_load.branches, "mFlags=0"));
+  CHECK(has(rev1_load.branches, "mCurRadius[0]=mOrigRadius[0]"));
+  CHECK(has(rev1_load.branches, "mOrigRadius[1]=mOrigRadius[0]"));
+  CHECK(has(rev1_load.branches, "CopyOriginalToCur"));
+  CHECK(rev1_load.mesh_sphere_rows == 0);
+
+  const ghogx::character::SourceCharCollideLoadPlan rev4_load =
+      ghogx::character::source_char_collide_load_plan(4);
+  CHECK(rev4_load.known_revision);
+  CHECK(has(rev4_load.read_order, "mOrigLength[1]"));
+  CHECK(has(rev4_load.read_order, "mFlags"));
+  CHECK(has(rev4_load.read_order, "mCurRadius[0]"));
+  CHECK(!has(rev4_load.read_order, "mOrigLength[0]"));
+  CHECK(has(rev4_load.branches, "mOrigRadius[1]=mOrigRadius[0]"));
+
+  const ghogx::character::SourceCharCollideLoadPlan rev6_load =
+      ghogx::character::source_char_collide_load_plan(6);
+  CHECK(rev6_load.known_revision);
+  CHECK(has(rev6_load.read_order, "mOrigLength[0]"));
+  CHECK(has(rev6_load.read_order, "mOrigRadius[1]"));
+  CHECK(has(rev6_load.read_order, "mCurRadius[1]"));
+  CHECK(has(rev6_load.read_order, "mCurLength[0]"));
+  CHECK(has(rev6_load.read_order, "mCurLength[1]"));
+  CHECK(has(rev6_load.read_order, "unk148"));
+  CHECK(has(rev6_load.read_order, "mMesh"));
+  CHECK(has(rev6_load.read_order, "unk_structs[8]"));
+  CHECK(has(rev6_load.read_order, "mDigest"));
+  CHECK(has(rev6_load.read_order, "mMeshYBias"));
+  CHECK(has(rev6_load.branches, "CopyOriginalToCur"));
+  CHECK(rev6_load.mesh_sphere_rows == 8);
+
+  const ghogx::character::SourceCharCollideLoadPlan rev7_load =
+      ghogx::character::source_char_collide_load_plan(7);
+  CHECK(rev7_load.known_revision);
+  CHECK(has(rev7_load.read_order, "mMeshYBias"));
+  CHECK(!has(rev7_load.branches, "CopyOriginalToCur"));
+  CHECK(rev7_load.mesh_sphere_rows == 8);
+
   return 0;
 }

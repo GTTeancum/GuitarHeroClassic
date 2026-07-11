@@ -617,6 +617,9 @@ note, and all report `unreadBytes=0`.
     radius/length/flags rows, optional current radius, optional second
     radius/length rows, an internal transform, mesh pointer, eight mesh sphere
     rows, SHA1 digest, and mesh-y-bias.
+    Native `source_char_collide_load_plan` records this exact read order and
+    revision-gated branch behavior for deterministic format coverage; it does
+    not imply the still-missing hair point collide-list hookup is solved.
   - `CharCollide::Load` uses `ASSERT_REVS(7, 0)`. Native GHOGX rejects
     `CharCollide` rows outside that source revision range before consuming the
     superclass payload.

@@ -2148,9 +2148,17 @@ int run_contract() {
                  "mOrigLength[0];",
                  "latest CharCollide source exposes load path");
   ok &= contains(rb3_latest_char_collide_cpp,
+                 "if(gRev>1)bs>>mFlags;elsemFlags=0;if(gRev>3)bs>>"
+                 "mCurRadius[0];elsemCurRadius[0]=mOrigRadius[0];",
+                 "latest CharCollide source exposes flags/current-radius gates");
+  ok &= contains(rb3_latest_char_collide_cpp,
                  "bs>>unk148;bs>>mMesh;for(inti=0;i<8;i++){bs>>"
                  "unk_structs[i].unk0;bs>>unk_structs[i].vec;}bs>>mDigest;",
                  "latest CharCollide source retains mesh collision rows");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "bs>>mDigest;bs>>mMeshYBias;if(gRev<7)CopyOriginalToCur();}"
+                 "else{mOrigRadius[1]=mOrigRadius[0];CopyOriginalToCur();}",
+                 "latest CharCollide source exposes load CopyOriginalToCur gates");
   ok &= contains(rb3_latest_char_collide_cpp,
                  "LOAD_REVS(bs)ASSERT_REVS(7,0)",
                  "latest CharCollide Load accepts source revisions through 7");
@@ -2245,8 +2253,16 @@ int run_contract() {
                  "not_in_source_copy_members;};",
                  "native exposes CharCollide copy-member contract");
   ok &= contains(char_mesh_h,
+                 "structSourceCharCollideLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;",
+                 "native exposes CharCollide load-plan contract");
+  ok &= contains(char_mesh_h,
                  "SourceCharCollideDefaultStatesource_char_collide_default_state();",
                  "native exposes CharCollide default-state helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCollideLoadPlansource_char_collide_load_plan("
+                 "intrevision);",
+                 "native exposes CharCollide load-plan helper");
   ok &= contains(char_mesh_h,
                  "SourceCharCollideCopyPlansource_char_collide_copy_plan();",
                  "native exposes CharCollide copy-plan helper");
@@ -2305,6 +2321,46 @@ int run_contract() {
                  "return{};}",
                  "native CharCollide default-state helper follows source defaults");
   ok &= contains(char_mesh,
+                 "SourceCharCollideLoadPlansource_char_collide_load_plan("
+                 "intrevision){SourceCharCollideLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=7;",
+                 "native CharCollide load plan records source revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"LOAD_REVS\",\"Hmx::Object\","
+                 "\"RndTransformable\",\"mShape\",\"mOrigRadius[0]\"};",
+                 "native CharCollide load plan records source superclass order");
+  ok &= contains(char_mesh,
+                 "if(revision>4)plan.read_order.push_back(\"mOrigLength[0]\");"
+                 "if(revision>2)plan.read_order.push_back(\"mOrigLength[1]\");",
+                 "native CharCollide load plan records length gates");
+  ok &= contains(char_mesh,
+                 "if(revision>1){plan.read_order.push_back(\"mFlags\");}"
+                 "else{plan.branches.push_back(\"mFlags=0\");}",
+                 "native CharCollide load plan records flags gate");
+  ok &= contains(char_mesh,
+                 "if(revision>3){plan.read_order.push_back(\"mCurRadius[0]\");}"
+                 "else{plan.branches.push_back("
+                 "\"mCurRadius[0]=mOrigRadius[0]\");}",
+                 "native CharCollide load plan records current-radius gate");
+  ok &= contains(char_mesh,
+                 "if(revision>5){plan.read_order.push_back(\"mOrigRadius[1]\");"
+                 "plan.read_order.push_back(\"mCurRadius[1]\");",
+                 "native CharCollide load plan records extended radius rows");
+  ok &= contains(char_mesh,
+                 "plan.read_order.push_back(\"unk_structs[8]\");"
+                 "plan.mesh_sphere_rows=8;",
+                 "native CharCollide load plan records eight mesh sphere rows");
+  ok &= contains(char_mesh,
+                 "plan.read_order.push_back(\"mDigest\");"
+                 "plan.read_order.push_back(\"mMeshYBias\");"
+                 "if(revision<7)plan.branches.push_back(\"CopyOriginalToCur\");",
+                 "native CharCollide load plan records digest and rev-6 copy gate");
+  ok &= contains(char_mesh,
+                 "else{plan.branches.push_back("
+                 "\"mOrigRadius[1]=mOrigRadius[0]\");"
+                 "plan.branches.push_back(\"CopyOriginalToCur\");}",
+                 "native CharCollide load plan records legacy radius copy gate");
+  ok &= contains(char_mesh,
                  "plan.copied_superclasses={\"Hmx::Object\","
                  "\"RndTransformable\"};",
                  "native CharCollide copy plan records source superclasses");
@@ -2334,6 +2390,8 @@ int run_contract() {
                  "character graph log exposes decoded CharCollide rows");
   ok &= contains(doc, "`CharCollide::Load` reads",
                  "document records CharCollide source decode order");
+  ok &= contains(doc, "Native `source_char_collide_load_plan` records this exact read order",
+                 "document records native CharCollide load-plan helper");
   ok &= contains(doc, "`CharCollide::Load` uses `ASSERT_REVS(7, 0)`",
                  "document records CharCollide source revision gate");
   ok &= contains(mesh_decode_test, "CHECK(bad_collide_version_threw);",
@@ -2369,6 +2427,15 @@ int run_contract() {
   ok &= contains(char_collide_source_test,
                  "source_char_collide_copy_plan()",
                  "CharCollide source test covers copy-member plan");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_load_plan(1)",
+                 "CharCollide source test covers legacy load plan");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_load_plan(6)",
+                 "CharCollide source test covers rev-6 extended load plan");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_load_plan(7)",
+                 "CharCollide source test covers latest load plan");
   ok &= contains(cmake, "ghogx_character_char_collide_source_test",
                  "CMake registers CharCollide source test");
   ok &= contains(doc,
