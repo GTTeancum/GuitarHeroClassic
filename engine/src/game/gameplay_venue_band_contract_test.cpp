@@ -5865,6 +5865,9 @@ int main() {
                  "conststd::array<float,3>&scale)",
                  "renderer has one shared local scale delta helper");
   ok &= contains(renderer_c,
+                 "if(det_sign<0.0f)scale[2]=-scale[2];",
+                 "renderer local scale extraction preserves the source MakeScale determinant sign");
+  ok &= contains(renderer_c,
                  "apply_local_translation_delta(world,sample.translation.data());",
                  "transform samples still apply translation in local space");
   ok &= contains(renderer_c,

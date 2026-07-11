@@ -323,7 +323,7 @@ void apply_local_scale_delta(std::array<float, 16>& world,
 }
 
 std::array<float, 3> local_row_scales(const std::array<float, 16>& local) {
-  return {
+  std::array<float, 3> scale = {
       std::sqrt(local[0] * local[0] + local[1] * local[1] +
                 local[2] * local[2]),
       std::sqrt(local[4] * local[4] + local[5] * local[5] +
@@ -331,6 +331,16 @@ std::array<float, 3> local_row_scales(const std::array<float, 16>& local) {
       std::sqrt(local[8] * local[8] + local[9] * local[9] +
                 local[10] * local[10]),
   };
+  const float cross01[3] = {
+      local[1] * local[6] - local[2] * local[5],
+      local[2] * local[4] - local[0] * local[6],
+      local[0] * local[5] - local[1] * local[4],
+  };
+  const float det_sign =
+      cross01[0] * local[8] + cross01[1] * local[9] +
+      cross01[2] * local[10];
+  if (det_sign < 0.0f) scale[2] = -scale[2];
+  return scale;
 }
 
 void local_normalized_rows(const std::array<float, 16>& local,
