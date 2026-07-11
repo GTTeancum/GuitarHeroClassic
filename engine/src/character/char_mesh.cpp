@@ -1679,6 +1679,55 @@ SourceCharCollideCopyPlan source_char_collide_copy_plan() {
   return plan;
 }
 
+SourceCharCollideHandlerPlan source_char_collide_handler_plan() {
+  SourceCharCollideHandlerPlan plan;
+  plan.superclasses = {"RndTransformable", "Hmx::Object"};
+  plan.check = 0x221;
+  return plan;
+}
+
+SourceCharCollidePropSyncPlan source_char_collide_prop_sync_plan() {
+  SourceCharCollidePropSyncPlan plan;
+  plan.modify_properties = {"shape:SyncShape",   "radius0:SyncShape",
+                            "radius1:SyncShape", "length0:SyncShape",
+                            "length1:SyncShape", "mesh:SyncShape",
+                            "mesh_y_bias:SyncShape"};
+  plan.properties = {"flags"};
+  plan.superclasses = {"RndTransformable"};
+  return plan;
+}
+
+SourceCharCollideHighlightPlan source_char_collide_highlight_plan(
+    const CharCollide& collide,
+    bool has_mesh) {
+  SourceCharCollideHighlightPlan plan;
+  switch (collide.shape) {
+    case 0:
+      plan.draw_calls.push_back("UtilDrawPlane");
+      break;
+    case 1:
+    case 2:
+      plan.draw_calls.push_back("UtilDrawSphere:orig_radius0");
+      plan.draw_calls.push_back("UtilDrawSphere:cur_radius0");
+      break;
+    case 3:
+    case 4:
+      plan.draw_calls.push_back("UtilDrawCigar:orig_radius_length");
+      plan.draw_calls.push_back("UtilDrawCigar:cur_radius_length");
+      break;
+    default:
+      break;
+  }
+  if (has_mesh) {
+    plan.mesh_sphere_draws = source_char_collide_num_spheres(collide) * 2;
+  }
+  return plan;
+}
+
+SourceCharCollideDeformPlan source_char_collide_deform_plan() {
+  return {};
+}
+
 void source_char_collide_sync_shape(CharCollide& collide) {
   const float t = collide.cur_length[1];
   if (collide.cur_length[0] > t) {

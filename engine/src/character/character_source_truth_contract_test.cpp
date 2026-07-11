@@ -2460,6 +2460,49 @@ int run_contract() {
                  "if(mCurLength[0]>t){mCurLength[0]=mCurLength[1];}"
                  "CopyOriginalToCur();}",
                  "latest CharCollide source exposes SyncShape helper");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "voidCharCollide::Highlight(){Hmx::Colorblack(1.0f,1.0f,"
+                 "1.0f);Hmx::Colorred(1.0f,0.0f,0.0f);switch(mShape){",
+                 "latest CharCollide source exposes Highlight dispatch");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "casekPlane:Planep(WorldXfm().v,WorldXfm().m.x);"
+                 "UtilDrawPlane(p,WorldXfm().v,red,1,12.0f);break;",
+                 "latest CharCollide Highlight exposes plane draw");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "casekSphere:casekInsideSphere:UtilDrawSphere(WorldXfm().v,"
+                 "mOrigRadius[0],red);UtilDrawSphere(WorldXfm().v,"
+                 "mCurRadius[0],black);break;",
+                 "latest CharCollide Highlight exposes sphere draws");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "casekCigar:casekInsideCigar:UtilDrawCigar(WorldXfm(),"
+                 "mOrigRadius,mOrigLength,red,8);UtilDrawCigar(WorldXfm(),"
+                 "mCurRadius,mCurLength,black,8);break;",
+                 "latest CharCollide Highlight exposes cigar draws");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "if(mMesh){intnumspheres=NumSpheres();for(inti=0;i<"
+                 "numspheres*2;i++){UtilDrawSphere(mMesh->VertAt("
+                 "unk_structs[i].unk0).pos,0.1f,Hmx::Color(0.0f,0.0f,"
+                 "1.0f));}}",
+                 "latest CharCollide Highlight exposes mesh sphere draw count");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "voidCharCollide::Deform(){}",
+                 "latest CharCollide source Deform is empty");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "BEGIN_HANDLERS(CharCollide)HANDLE_SUPERCLASS("
+                 "RndTransformable)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x221)END_HANDLERS",
+                 "latest CharCollide source exposes handlers");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "BEGIN_PROPSYNCS(CharCollide)SYNC_PROP_MODIFY(shape,"
+                 "(int&)mShape,SyncShape())SYNC_PROP(flags,mFlags)"
+                 "SYNC_PROP_MODIFY(radius0,mOrigRadius[0],SyncShape())",
+                 "latest CharCollide source exposes prop sync prefix");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "SYNC_PROP_MODIFY(length1,mOrigLength[1],SyncShape())"
+                 "SYNC_PROP_MODIFY_ALT(mesh,mMesh,SyncShape())"
+                 "SYNC_PROP_MODIFY(mesh_y_bias,mMeshYBias,SyncShape())"
+                 "SYNC_SUPERCLASS(RndTransformable)END_PROPSYNCS",
+                 "latest CharCollide source exposes prop sync suffix");
   ok &= contains(rb2_char_collide_cpp,
                  "voidCharCollide::ComputeRadius(classCharCollide*constthis",
                  "RB2 dump names CharCollide ComputeRadius without usable body");
@@ -2523,6 +2566,21 @@ int run_contract() {
                  "std::vector<std::string>read_order;",
                  "native exposes CharCollide load-plan contract");
   ok &= contains(char_mesh_h,
+                 "structSourceCharCollideHandlerPlan{std::vector<std::string>"
+                 "superclasses;intcheck=0;};",
+                 "native exposes CharCollide handler contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCollidePropSyncPlan{std::vector<std::string>"
+                 "modify_properties;std::vector<std::string>properties;",
+                 "native exposes CharCollide prop-sync contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCollideHighlightPlan{std::vector<std::string>"
+                 "draw_calls;intmesh_sphere_draws=0;};",
+                 "native exposes CharCollide highlight contract");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCollideDeformPlan{boolno_op=true;};",
+                 "native exposes CharCollide Deform no-op contract");
+  ok &= contains(char_mesh_h,
                  "SourceCharCollideDefaultStatesource_char_collide_default_state();",
                  "native exposes CharCollide default-state helper");
   ok &= contains(char_mesh_h,
@@ -2532,6 +2590,19 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "SourceCharCollideCopyPlansource_char_collide_copy_plan();",
                  "native exposes CharCollide copy-plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCollideHandlerPlansource_char_collide_handler_plan();",
+                 "native exposes CharCollide handler helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCollidePropSyncPlansource_char_collide_prop_sync_plan();",
+                 "native exposes CharCollide prop-sync helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCollideHighlightPlansource_char_collide_highlight_plan("
+                 "constCharCollide&collide,boolhas_mesh);",
+                 "native exposes CharCollide highlight helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCollideDeformPlansource_char_collide_deform_plan();",
+                 "native exposes CharCollide Deform helper");
   ok &= contains(char_mesh,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
@@ -2643,6 +2714,47 @@ int run_contract() {
                  "plan.not_in_source_copy_members={\"mDigest\",\"unk_structs\"};",
                  "native CharCollide copy plan records members absent from source copy list");
   ok &= contains(char_mesh,
+                 "SourceCharCollideHandlerPlansource_char_collide_handler_plan(){"
+                 "SourceCharCollideHandlerPlanplan;plan.superclasses={"
+                 "\"RndTransformable\",\"Hmx::Object\"};plan.check=0x221;",
+                 "native CharCollide handler-plan helper is ported");
+  ok &= contains(char_mesh,
+                 "SourceCharCollidePropSyncPlansource_char_collide_prop_sync_plan(){"
+                 "SourceCharCollidePropSyncPlanplan;plan.modify_properties={"
+                 "\"shape:SyncShape\",\"radius0:SyncShape\",",
+                 "native CharCollide prop-sync helper is ported");
+  ok &= contains(char_mesh,
+                 "plan.properties={\"flags\"};plan.superclasses={"
+                 "\"RndTransformable\"};returnplan;}",
+                 "native CharCollide prop-sync helper records flags and superclass");
+  ok &= contains(char_mesh,
+                 "SourceCharCollideHighlightPlansource_char_collide_highlight_plan("
+                 "constCharCollide&collide,boolhas_mesh){"
+                 "SourceCharCollideHighlightPlanplan;",
+                 "native CharCollide highlight helper is ported");
+  ok &= contains(char_mesh,
+                 "case0:plan.draw_calls.push_back(\"UtilDrawPlane\");break;",
+                 "native CharCollide highlight helper records plane draw");
+  ok &= contains(char_mesh,
+                 "case1:case2:plan.draw_calls.push_back("
+                 "\"UtilDrawSphere:orig_radius0\");plan.draw_calls.push_back("
+                 "\"UtilDrawSphere:cur_radius0\");break;",
+                 "native CharCollide highlight helper records sphere draws");
+  ok &= contains(char_mesh,
+                 "case3:case4:plan.draw_calls.push_back("
+                 "\"UtilDrawCigar:orig_radius_length\");"
+                 "plan.draw_calls.push_back("
+                 "\"UtilDrawCigar:cur_radius_length\");break;",
+                 "native CharCollide highlight helper records cigar draws");
+  ok &= contains(char_mesh,
+                 "if(has_mesh){plan.mesh_sphere_draws="
+                 "source_char_collide_num_spheres(collide)*2;}",
+                 "native CharCollide highlight helper records mesh sphere count");
+  ok &= contains(char_mesh,
+                 "SourceCharCollideDeformPlansource_char_collide_deform_plan(){"
+                 "return{};}",
+                 "native CharCollide Deform no-op helper is ported");
+  ok &= contains(char_mesh,
                  "std::clamp(cache.length_scale*dot_axis(),"
                  "collide.cur_length[0],collide.cur_length[1]);",
                  "native CharCollide GetRadius helper clamps cigar length");
@@ -2701,6 +2813,12 @@ int run_contract() {
                  "source_char_collide_copy_plan()",
                  "CharCollide source test covers copy-member plan");
   ok &= contains(char_collide_source_test,
+                 "source_char_collide_handler_plan()",
+                 "CharCollide source test covers handler plan");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_prop_sync_plan()",
+                 "CharCollide source test covers prop-sync plan");
+  ok &= contains(char_collide_source_test,
                  "source_char_collide_load_plan(1)",
                  "CharCollide source test covers legacy load plan");
   ok &= contains(char_collide_source_test,
@@ -2709,6 +2827,18 @@ int run_contract() {
   ok &= contains(char_collide_source_test,
                  "source_char_collide_load_plan(7)",
                  "CharCollide source test covers latest load plan");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_highlight_plan(plane,false)",
+                 "CharCollide source test covers plane highlight plan");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_highlight_plan(sphere,true)",
+                 "CharCollide source test covers sphere highlight plan");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_highlight_plan(cigar,true)",
+                 "CharCollide source test covers cigar highlight plan");
+  ok &= contains(char_collide_source_test,
+                 "source_char_collide_deform_plan()",
+                 "CharCollide source test covers Deform no-op plan");
   ok &= contains(cmake, "ghogx_character_char_collide_source_test",
                  "CMake registers CharCollide source test");
   ok &= contains(doc,
@@ -2729,6 +2859,16 @@ int run_contract() {
                  "The checked source copy-member list does not\n"
                  "    name `mDigest` or `unk_structs`",
                  "document fences CharCollide copy-plan omissions");
+  ok &= contains(doc,
+                 "Native `source_char_collide_handler_plan` and\n"
+                 "    `source_char_collide_prop_sync_plan` record the source handlers",
+                 "document records CharCollide handler and prop-sync plans");
+  ok &= contains(doc,
+                 "Native `source_char_collide_highlight_plan` records the diagnostic draw",
+                 "document records CharCollide highlight plan");
+  ok &= contains(doc,
+                 "`CharCollide::Deform` is an empty source body",
+                 "document records CharCollide Deform no-op");
   ok &= contains(doc, "`CharCollide::SyncShape` / `CharCollide::NumSpheres`",
                  "document records CharCollide SyncShape helper port");
   ok &= contains(doc, "`CharHair::SimulateInternal` calls `CharCollide::GetRadius`",

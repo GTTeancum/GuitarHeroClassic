@@ -1830,9 +1830,35 @@ struct SourceCharCollideLoadPlan {
   int mesh_sphere_rows = 0;
 };
 
+struct SourceCharCollideHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharCollidePropSyncPlan {
+  std::vector<std::string> modify_properties;
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
+struct SourceCharCollideHighlightPlan {
+  std::vector<std::string> draw_calls;
+  int mesh_sphere_draws = 0;
+};
+
+struct SourceCharCollideDeformPlan {
+  bool no_op = true;
+};
+
 SourceCharCollideDefaultState source_char_collide_default_state();
 SourceCharCollideLoadPlan source_char_collide_load_plan(int revision);
 SourceCharCollideCopyPlan source_char_collide_copy_plan();
+SourceCharCollideHandlerPlan source_char_collide_handler_plan();
+SourceCharCollidePropSyncPlan source_char_collide_prop_sync_plan();
+SourceCharCollideHighlightPlan source_char_collide_highlight_plan(
+    const CharCollide& collide,
+    bool has_mesh);
+SourceCharCollideDeformPlan source_char_collide_deform_plan();
 void source_char_collide_copy_original_to_cur(CharCollide& collide);
 void source_char_collide_clear_mesh(CharCollide& collide);
 void source_char_collide_sync_shape(CharCollide& collide);

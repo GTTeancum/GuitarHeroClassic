@@ -90,6 +90,24 @@ int main() {
   CHECK(!has(copy_plan.copied_members, "mDigest"));
   CHECK(!has(copy_plan.copied_members, "unk_structs"));
 
+  const ghogx::character::SourceCharCollideHandlerPlan handlers =
+      ghogx::character::source_char_collide_handler_plan();
+  CHECK(has(handlers.superclasses, "RndTransformable"));
+  CHECK(has(handlers.superclasses, "Hmx::Object"));
+  CHECK(handlers.check == 0x221);
+
+  const ghogx::character::SourceCharCollidePropSyncPlan prop_sync =
+      ghogx::character::source_char_collide_prop_sync_plan();
+  CHECK(has(prop_sync.modify_properties, "shape:SyncShape"));
+  CHECK(has(prop_sync.modify_properties, "radius0:SyncShape"));
+  CHECK(has(prop_sync.modify_properties, "radius1:SyncShape"));
+  CHECK(has(prop_sync.modify_properties, "length0:SyncShape"));
+  CHECK(has(prop_sync.modify_properties, "length1:SyncShape"));
+  CHECK(has(prop_sync.modify_properties, "mesh:SyncShape"));
+  CHECK(has(prop_sync.modify_properties, "mesh_y_bias:SyncShape"));
+  CHECK(has(prop_sync.properties, "flags"));
+  CHECK(has(prop_sync.superclasses, "RndTransformable"));
+
   const ghogx::character::SourceCharCollideLoadPlan invalid_load =
       ghogx::character::source_char_collide_load_plan(8);
   CHECK(!invalid_load.known_revision);
@@ -140,6 +158,33 @@ int main() {
   CHECK(has(rev7_load.read_order, "mMeshYBias"));
   CHECK(!has(rev7_load.branches, "CopyOriginalToCur"));
   CHECK(rev7_load.mesh_sphere_rows == 8);
+
+  ghogx::character::CharCollide plane;
+  plane.shape = 0;
+  const ghogx::character::SourceCharCollideHighlightPlan plane_highlight =
+      ghogx::character::source_char_collide_highlight_plan(plane, false);
+  CHECK(has(plane_highlight.draw_calls, "UtilDrawPlane"));
+  CHECK(plane_highlight.mesh_sphere_draws == 0);
+
+  ghogx::character::CharCollide sphere;
+  sphere.shape = 1;
+  const ghogx::character::SourceCharCollideHighlightPlan sphere_highlight =
+      ghogx::character::source_char_collide_highlight_plan(sphere, true);
+  CHECK(has(sphere_highlight.draw_calls, "UtilDrawSphere:orig_radius0"));
+  CHECK(has(sphere_highlight.draw_calls, "UtilDrawSphere:cur_radius0"));
+  CHECK(sphere_highlight.mesh_sphere_draws == 2);
+
+  ghogx::character::CharCollide cigar;
+  cigar.shape = 3;
+  const ghogx::character::SourceCharCollideHighlightPlan cigar_highlight =
+      ghogx::character::source_char_collide_highlight_plan(cigar, true);
+  CHECK(has(cigar_highlight.draw_calls, "UtilDrawCigar:orig_radius_length"));
+  CHECK(has(cigar_highlight.draw_calls, "UtilDrawCigar:cur_radius_length"));
+  CHECK(cigar_highlight.mesh_sphere_draws == 4);
+
+  const ghogx::character::SourceCharCollideDeformPlan deform =
+      ghogx::character::source_char_collide_deform_plan();
+  CHECK(deform.no_op);
 
   return 0;
 }

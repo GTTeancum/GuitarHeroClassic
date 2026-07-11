@@ -730,6 +730,20 @@ note, and all report `unreadBytes=0`.
     mesh-y-bias, and mesh pointer. The checked source copy-member list does not
     name `mDigest` or `unk_structs`; native GHOGX records that as copy-plan
     evidence only, not as a replacement for a complete runtime copy system.
+  - Native `source_char_collide_handler_plan` and
+    `source_char_collide_prop_sync_plan` record the source handlers and
+    property rows: handlers forward only to `RndTransformable` and
+    `Hmx::Object`, while mutable shape/radius/length/mesh rows all call
+    `SyncShape`. This keeps hair collision row edits source-backed instead of
+    name-driven.
+  - Native `source_char_collide_highlight_plan` records the diagnostic draw
+    dispatch from source `Highlight`: planes draw one plane, sphere variants
+    draw original/current spheres, cigar variants draw original/current cigars,
+    and a present mesh draws `NumSpheres() * 2` tiny vertex spheres. This is
+    diagnostic evidence only; it does not change character rendering.
+  - `CharCollide::Deform` is an empty source body. Native
+    `source_char_collide_deform_plan` records that no-op explicitly so hair or
+    accessory collision fixes do not invent unsupported mesh deformation.
   - `CharHair::SimulateInternal` calls `CharCollide::GetRadius` and
     `CharCollide::Axis`, but `GetRadius` depends on cached collision fields
     (`unk18c`, `unk190`, `unk194`, and `unk1a0`). The latest source exposes the
