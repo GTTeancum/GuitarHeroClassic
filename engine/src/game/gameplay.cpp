@@ -802,55 +802,86 @@ bool event_symbol_list_contains(const std::vector<std::string>& values,
                        });
 }
 
-bool venue_event_trigger_enabled_for_single_player(const uint8_t* body,
-                                                   size_t size) {
-    if (!body || size < 4) return true;
+bool is_venue_mode_gate_event(std::string_view event) {
+    return event == "single_player" || event == "multi_player";
+}
+
+struct DecodedVenueEventTrigger {
+    std::string event_label;
+    std::vector<std::string> anims;
+    std::vector<std::string> sounds;
+    std::vector<std::string> shows;
+    std::vector<std::string> draws;
+    std::vector<std::string> enable_events;
+    std::vector<std::string> disable_events;
+};
+
+std::optional<DecodedVenueEventTrigger> decode_venue_event_trigger_rev8(
+    const uint8_t* body, size_t size) {
+    if (!body || size < 4) return std::nullopt;
     const uint16_t revision =
         static_cast<uint16_t>(read_u32_at_unchecked(body, 0) & 0xffff);
-    if (revision != 8) return true;
+    if (revision != 8) return std::nullopt;
 
     const auto strings = packed_strings_with_offsets(body, size);
-    if (strings.empty()) return true;
+    if (strings.empty()) return std::nullopt;
 
+    DecodedVenueEventTrigger out;
+    out.event_label = strings.front().value;
     size_t cursor = strings.front().end;
     uint32_t anim_count = 0;
     if (!read_u32_event_cursor(body, size, cursor, anim_count) ||
         anim_count > 256) {
-        return true;
+        return std::nullopt;
     }
     for (uint32_t i = 0; i < anim_count; ++i) {
-        std::string ignored;
-        if (!read_packed_symbol_event_cursor(body, size, cursor, ignored))
-            return true;
+        std::string anim;
+        if (!read_packed_symbol_event_cursor(body, size, cursor, anim))
+            return std::nullopt;
+        out.anims.push_back(std::move(anim));
         // GH2 rev8 stores EventTrigger.Anim as Symbol plus a compact
         // blend/wait/delay tail here, matching ihatecompvir's field order.
-        if (cursor + 9 > size) return true;
+        if (cursor + 9 > size) return std::nullopt;
         cursor += 9;
     }
 
-    std::vector<std::string> scratch;
-    if (!read_event_trigger_symbol_list(body, size, cursor, scratch))
-        return true;  // sounds
-    if (!read_event_trigger_symbol_list(body, size, cursor, scratch))
-        return true;  // shows
-    if (!read_event_trigger_symbol_list(body, size, cursor, scratch))
-        return true;  // draws for revision <= 8
+    if (!read_event_trigger_symbol_list(body, size, cursor, out.sounds))
+        return std::nullopt;
+    if (!read_event_trigger_symbol_list(body, size, cursor, out.shows))
+        return std::nullopt;
+    if (!read_event_trigger_symbol_list(body, size, cursor, out.draws))
+        return std::nullopt;  // draws for revision <= 8
+    if (!read_event_trigger_symbol_list(body, size, cursor, out.enable_events))
+        return std::nullopt;
+    if (!read_event_trigger_symbol_list(body, size, cursor, out.disable_events))
+        return std::nullopt;
+    return out;
+}
 
-    std::vector<std::string> enable_events;
-    std::vector<std::string> disable_events;
-    if (!read_event_trigger_symbol_list(body, size, cursor, enable_events))
-        return true;
-    if (!read_event_trigger_symbol_list(body, size, cursor, disable_events))
-        return true;
+std::vector<std::string> venue_event_trigger_anim_route_refs(
+    const uint8_t* body, size_t size, std::string& event_label) {
+    if (const auto trigger = decode_venue_event_trigger_rev8(body, size)) {
+        event_label = trigger->event_label;
+        return trigger->anims;
+    }
+    const auto strings = scan_milo_strings(body, size);
+    event_label = strings.empty() ? std::string{} : strings.front();
+    return strings;
+}
+
+bool venue_event_trigger_enabled_for_single_player(const uint8_t* body,
+                                                   size_t size) {
+    const auto trigger = decode_venue_event_trigger_rev8(body, size);
+    if (!trigger) return true;
 
     const bool enable_single =
-        event_symbol_list_contains(enable_events, "single_player");
+        event_symbol_list_contains(trigger->enable_events, "single_player");
     const bool enable_multi =
-        event_symbol_list_contains(enable_events, "multi_player");
+        event_symbol_list_contains(trigger->enable_events, "multi_player");
     const bool disable_single =
-        event_symbol_list_contains(disable_events, "single_player");
+        event_symbol_list_contains(trigger->disable_events, "single_player");
     const bool disable_multi =
-        event_symbol_list_contains(disable_events, "multi_player");
+        event_symbol_list_contains(trigger->disable_events, "multi_player");
     const bool mode_gated =
         enable_single || enable_multi || disable_single || disable_multi;
     if (!mode_gated) return true;
@@ -3871,15 +3902,16 @@ std::map<std::string, std::vector<std::string>> load_venue_event_light_anims(
                 }
                 continue;
             }
-            const auto strings =
-                scan_milo_strings(body, size);
-            if (strings.empty()) continue;
+            std::string event_label_storage;
+            const auto refs = venue_event_trigger_anim_route_refs(
+                body, size, event_label_storage);
             const std::string_view event_label =
-                is_event_payload_label(strings.front()) ? std::string_view(strings.front())
-                                                        : std::string_view{};
+                is_event_payload_label(event_label_storage)
+                    ? std::string_view(event_label_storage)
+                    : std::string_view{};
             std::vector<std::string> light_anims;
             std::unordered_set<std::string> seen;
-            for (const auto& s : strings) {
+            for (const auto& s : refs) {
                 const auto ref = canonical_milo_ref(s);
                 const bool object_ref =
                     (ref.size() > 4 && ref.rfind(".lnm") == ref.size() - 4) ||
@@ -4031,14 +4063,15 @@ std::map<std::string, std::vector<std::string>> load_venue_event_env_anims(
                 }
                 continue;
             }
-            const auto strings =
-                scan_milo_strings(body, size);
-            if (strings.empty()) continue;
+            std::string event_label_storage;
+            const auto refs = venue_event_trigger_anim_route_refs(
+                body, size, event_label_storage);
             const std::string_view event_label =
-                is_event_payload_label(strings.front()) ? std::string_view(strings.front())
-                                                        : std::string_view{};
+                is_event_payload_label(event_label_storage)
+                    ? std::string_view(event_label_storage)
+                    : std::string_view{};
             std::vector<std::string> env_anims;
-            for (const auto& s : strings) {
+            for (const auto& s : refs) {
                 const auto ref = canonical_milo_ref(s);
                 if (ref.size() > 4 && ref.rfind(".enm") == ref.size() - 4) {
                     push_unique_ref(env_anims, ref);
@@ -4302,15 +4335,16 @@ load_venue_event_particles(const std::string& hdr_path,
                 }
                 continue;
             }
-            const auto strings =
-                scan_milo_strings(body, size);
-            if (strings.empty()) continue;
+            std::string event_label_storage;
+            const auto refs = venue_event_trigger_anim_route_refs(
+                body, size, event_label_storage);
             const std::string_view event_label =
-                is_event_payload_label(strings.front()) ? std::string_view(strings.front())
-                                                        : std::string_view{};
+                is_event_payload_label(event_label_storage)
+                    ? std::string_view(event_label_storage)
+                    : std::string_view{};
             std::vector<Gameplay::VenueParticleRoute> routes;
             std::unordered_set<std::string> seen;
-            for (const auto& s : strings) {
+            for (const auto& s : refs) {
                 const auto ref = canonical_milo_ref(s);
                 const bool object_ref =
                     (ref.size() > 5 && ref.rfind(".part") == ref.size() - 5) ||
@@ -4509,14 +4543,15 @@ std::map<std::string, std::vector<std::string>> load_venue_event_mat_anims(
                 }
                 continue;
             }
-            const auto strings =
-                scan_milo_strings(body, size);
-            if (strings.empty()) continue;
+            std::string event_label_storage;
+            const auto refs = venue_event_trigger_anim_route_refs(
+                body, size, event_label_storage);
             const std::string_view event_label =
-                is_event_payload_label(strings.front()) ? std::string_view(strings.front())
-                                                        : std::string_view{};
+                is_event_payload_label(event_label_storage)
+                    ? std::string_view(event_label_storage)
+                    : std::string_view{};
             std::vector<std::string> mat_anims;
-            for (const auto& s : strings) {
+            for (const auto& s : refs) {
                 const auto ref = canonical_milo_ref(s);
                 if (ref.size() > 4 && ref.rfind(".mnm") == ref.size() - 4) {
                     push_supported_mat_ref(mat_anims, ref);
@@ -4583,12 +4618,13 @@ std::map<std::string, std::vector<std::string>> load_venue_event_filters(
                 }
                 continue;
             }
-            const auto strings = scan_milo_strings(body, size);
-            if (strings.empty()) continue;
+            std::string event_label_storage;
+            const auto refs = venue_event_trigger_anim_route_refs(
+                body, size, event_label_storage);
             std::vector<std::string> filters;
-            for (size_t i = 1; i < strings.size(); ++i) {
-                if (strings[i].rfind(".filt") == std::string::npos) continue;
-                const auto ref = canonical_milo_ref(strings[i]);
+            for (const auto& s : refs) {
+                if (s.rfind(".filt") == std::string::npos) continue;
+                const auto ref = canonical_milo_ref(s);
                 if (std::find(filters.begin(), filters.end(), ref) ==
                     filters.end()) {
                     filters.push_back(ref);
@@ -4596,8 +4632,8 @@ std::map<std::string, std::vector<std::string>> load_venue_event_filters(
             }
             if (!filters.empty()) {
                 const std::string_view event_label =
-                    is_event_payload_label(strings.front())
-                        ? std::string_view(strings.front())
+                    is_event_payload_label(event_label_storage)
+                        ? std::string_view(event_label_storage)
                         : std::string_view{};
                 for (const auto& key :
                      event_trigger_route_keys(de.name, event_label)) {
@@ -4613,6 +4649,77 @@ std::map<std::string, std::vector<std::string>> load_venue_event_filters(
         }
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] EventTrigger filter load %s: %s\n",
+                     milo_path.c_str(), ex.what());
+    }
+    return out;
+}
+
+std::vector<Gameplay::VenueEventTriggerGate> load_venue_event_trigger_gates(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::string& milo_path) {
+    std::vector<Gameplay::VenueEventTriggerGate> out;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        auto entry = ark.find(milo_path);
+        if (!entry) return out;
+        auto bytes = ark.read_entry(*entry, {ark_path});
+        auto hdr = gh::milo::parse_header(bytes);
+        auto payload = gh::milo::inflate_payload(bytes, hdr);
+        auto dir = gh::milo::parse_directory(payload);
+        for (const auto& de : dir.entries) {
+            if (de.type != "EventTrigger" || de.offset + de.size > payload.size())
+                continue;
+            const auto* body = payload.data() + de.offset;
+            const size_t size = static_cast<size_t>(de.size);
+            if (!venue_event_trigger_enabled_for_single_player(body, size))
+                continue;
+            const auto trigger = decode_venue_event_trigger_rev8(body, size);
+            if (!trigger) continue;
+
+            Gameplay::VenueEventTriggerGate gate;
+            gate.trigger_name = de.name;
+            for (const auto& event : trigger->enable_events) {
+                if (!is_venue_mode_gate_event(event))
+                    push_unique_ref(gate.enable_events, event);
+            }
+            for (const auto& event : trigger->disable_events) {
+                if (!is_venue_mode_gate_event(event))
+                    push_unique_ref(gate.disable_events, event);
+            }
+            if (gate.enable_events.empty() && gate.disable_events.empty())
+                continue;
+
+            for (const auto& key :
+                 event_trigger_route_keys(de.name, trigger->event_label)) {
+                push_unique_ref(gate.route_keys, key);
+            }
+            if (gate.route_keys.empty()) continue;
+            out.push_back(std::move(gate));
+        }
+        if (!out.empty()) {
+            std::fprintf(stderr,
+                         "[world] EventTrigger gates loaded %s: %zu triggers\n",
+                         milo_path.c_str(), out.size());
+            if (debug_venue_filters_enabled()) {
+                for (const auto& gate : out) {
+                    std::fprintf(stderr,
+                                 "[world] EventTrigger gate %s routes=",
+                                 gate.trigger_name.c_str());
+                    for (const auto& key : gate.route_keys)
+                        std::fprintf(stderr, "%s ", key.c_str());
+                    std::fprintf(stderr, "enable=");
+                    for (const auto& event : gate.enable_events)
+                        std::fprintf(stderr, "%s ", event.c_str());
+                    std::fprintf(stderr, "disable=");
+                    for (const auto& event : gate.disable_events)
+                        std::fprintf(stderr, "%s ", event.c_str());
+                    std::fprintf(stderr, "initial=%d\n",
+                                 gate.enabled ? 1 : 0);
+                }
+            }
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] EventTrigger gate load %s: %s\n",
                      milo_path.c_str(), ex.what());
     }
     return out;
@@ -9508,12 +9615,14 @@ load_venue_anim_filters(const std::string& hdr_path,
                     }
                     continue;
                 }
-                const auto strings = scan_milo_strings(body, size);
+                std::string event_label_storage;
+                const auto refs = venue_event_trigger_anim_route_refs(
+                    body, size, event_label_storage);
                 const std::string_view event_label =
-                    !strings.empty() && is_event_payload_label(strings.front())
-                        ? std::string_view(strings.front())
+                    is_event_payload_label(event_label_storage)
+                        ? std::string_view(event_label_storage)
                         : std::string_view{};
-                for (const auto& s : strings) {
+                for (const auto& s : refs) {
                     const auto ref = canonical_milo_ref(s);
                     for (const auto& key :
                          event_trigger_route_keys(de.name, event_label)) {
@@ -15797,6 +15906,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     active_venue_anim_filters_.clear();
     last_venue_filter_debug_time_ = -1.0;
     venue_event_group_visibility_.clear();
+    venue_event_trigger_gates_.clear();
     venue_script_handlers_.clear();
     venue_script_object_handlers_.clear();
     venue_script_objects_.clear();
@@ -15984,6 +16094,43 @@ bool Gameplay::apply_venue_event_visibility(const std::string& event_name,
             visibility_it->second.hide_meshes.size());
     }
     return true;
+}
+
+void Gameplay::update_venue_event_trigger_gates(
+    const std::string& event_name) {
+    if (event_name.empty()) return;
+    for (auto& gate : venue_event_trigger_gates_) {
+        bool changed = false;
+        if (event_symbol_list_contains(gate.enable_events, event_name)) {
+            if (!gate.enabled) changed = true;
+            gate.enabled = true;
+        }
+        if (event_symbol_list_contains(gate.disable_events, event_name)) {
+            if (gate.enabled) changed = true;
+            gate.enabled = false;
+        }
+        if (changed && debug_venue_filters_enabled()) {
+            std::fprintf(stderr,
+                         "[world] EventTrigger gate %s %s by %s\n",
+                         gate.trigger_name.c_str(),
+                         gate.enabled ? "enabled" : "disabled",
+                         event_name.c_str());
+        }
+    }
+}
+
+bool Gameplay::venue_event_route_enabled_by_triggers(
+    const std::string& event_name) const {
+    bool has_gate = false;
+    for (const auto& gate : venue_event_trigger_gates_) {
+        if (std::find(gate.route_keys.begin(), gate.route_keys.end(),
+                      event_name) == gate.route_keys.end()) {
+            continue;
+        }
+        has_gate = true;
+        if (gate.enabled) return true;
+    }
+    return !has_gate;
 }
 
 std::unordered_set<std::string> Gameplay::composed_venue_hidden_meshes() const {
@@ -17168,7 +17315,19 @@ void Gameplay::apply_venue_event(const std::string& event_name,
         }
         return;
     }
+    update_venue_event_trigger_gates(event_name);
+    const bool venue_event_trigger_routes_enabled =
+        venue_event_route_enabled_by_triggers(event_name);
     execute_venue_script_event(event_name);
+    if (!venue_event_trigger_routes_enabled) {
+        if (debug_venue_filters_enabled()) {
+            std::fprintf(
+                stderr,
+                "[world] venue event %s: skipped by disabled EventTrigger gate\n",
+                event_name.c_str());
+        }
+        return;
+    }
     const bool venue_script_object_applied =
         execute_venue_script_object_messages(venue_event_script_messages_,
                                              event_name);
@@ -21283,6 +21442,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_event_group_visibility_ =
                     load_venue_group_visibility(hdr_path_, ark_path_,
                                                 venue_geom, venue_scene);
+                venue_event_trigger_gates_ =
+                    load_venue_event_trigger_gates(hdr_path_, ark_path_,
+                                                   venue_geom);
                 {
                     const VenueScriptData script_data =
                         load_venue_script_handlers(hdr_path_, ark_path_,

@@ -307,6 +307,13 @@ class Gameplay {
     std::vector<std::string> show_meshes;
     std::vector<std::string> hide_meshes;
   };
+  struct VenueEventTriggerGate {
+    std::string trigger_name;
+    std::vector<std::string> route_keys;
+    std::vector<std::string> enable_events;
+    std::vector<std::string> disable_events;
+    bool enabled = true;
+  };
   struct VenueMaterialAnim {
     struct FloatKey {
       float value = 0.0f;
@@ -545,6 +552,9 @@ class Gameplay {
   void apply_venue_event(const std::string& event_name, bool persistent = true,
                          bool force_persistent = false);
   bool apply_venue_event_visibility(const std::string& event_name, bool log);
+  void update_venue_event_trigger_gates(const std::string& event_name);
+  bool venue_event_route_enabled_by_triggers(
+      const std::string& event_name) const;
   std::unordered_set<std::string> composed_venue_hidden_meshes() const;
   std::map<std::string, float> composed_venue_material_alpha() const;
   void apply_camera_crowd_visibility(const CameraKey& key);
@@ -826,6 +836,7 @@ class Gameplay {
   std::map<std::string, std::vector<VenueAnimFilter>> venue_direct_anim_filters_;
   std::vector<VenueAnimFilter> venue_poll_anim_filters_;
   std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
+  std::vector<VenueEventTriggerGate> venue_event_trigger_gates_;
   std::map<std::string, VenueScriptHandler> venue_script_handlers_;
   std::map<std::string, std::map<std::string, VenueScriptHandler>>
       venue_script_object_handlers_;
