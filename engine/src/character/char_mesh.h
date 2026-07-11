@@ -568,6 +568,32 @@ struct SourceCharPollGroupPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharPollGroupLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharPollGroupCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+  std::vector<std::string> copy_from_max_steps;
+};
+
+struct SourceCharPollGroupHandlerPlan {
+  std::vector<std::string> action_handlers;
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharPollGroupPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
+struct SourceCharPollGroupSortPlan {
+  std::vector<std::string> steps;
+};
+
 struct SourceWaypointState {
   int flags = 0;
   float radius = 12.0f;
@@ -1401,6 +1427,11 @@ void source_char_poll_group_poll_deps(
     const std::vector<SourceCharPollGroupChildDeps>& child_deps,
     const std::string& changed_by_override,
     const std::string& change_override);
+SourceCharPollGroupLoadPlan source_char_poll_group_load_plan(int revision);
+SourceCharPollGroupCopyPlan source_char_poll_group_copy_plan();
+SourceCharPollGroupHandlerPlan source_char_poll_group_handler_plan();
+SourceCharPollGroupPropSyncPlan source_char_poll_group_prop_sync_plan();
+SourceCharPollGroupSortPlan source_char_poll_group_sort_plan();
 SourceWaypointState source_waypoint_default_state();
 bool source_waypoint_load_revision_known(int revision);
 SourceWaypointCopyPlan source_waypoint_copy_plan();

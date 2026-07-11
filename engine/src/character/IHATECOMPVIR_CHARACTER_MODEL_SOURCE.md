@@ -943,13 +943,27 @@ note, and all report `unreadBytes=0`.
     is proven.
 - `rb3-latest/src/system/char/CharPollGroup.cpp` and
   `CharPollGroup.h`
+  - `CharPollGroup::Load` accepts source revisions `0..3`, loads
+    `Hmx::Object`, loads `CharWeightable` only above revision 2, always reads
+    `mPolls`, and reads `mChangedBy` / `mChanges` only above revision 1.
+  - `CharPollGroup::Copy`, `SortPolls`, handlers, and prop-sync rows are
+    source-visible. The `kCopyFromMax` branch appends missing poll refs only;
+    normal copy duplicates `mPolls`, `mChangedBy`, and `mChanges`.
+    `SortPolls` delegates ordering to `CharPollableSorter`, the handler table
+    exposes `sort_polls` with check `0xA2`, and prop-sync exposes `polls`,
+    `changed_by`, `changes`, then `CharWeightable`.
   - `CharPollGroup::Poll` iterates `mPolls` only when the source weight owner
     weight is nonzero. Zero weight skips every child.
   - `ListPollChildren` appends every poll child in list order.
   - `PollDeps` uses the explicit `mChangedBy` / `mChanges` pair when either
     pointer exists; otherwise it delegates dependency collection to each child
     pollable in list order.
-  - Native `source_char_poll_group_poll_order`,
+  - Native `source_char_poll_group_load_plan`,
+    `source_char_poll_group_copy_plan`,
+    `source_char_poll_group_handler_plan`,
+    `source_char_poll_group_prop_sync_plan`,
+    `source_char_poll_group_sort_plan`,
+    `source_char_poll_group_poll_order`,
     `source_char_poll_group_list_children`, and
     `source_char_poll_group_poll_deps` port those source decisions for tests and
     future decode work. Stock GH2 base-character inventory still proves zero

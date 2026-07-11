@@ -2228,6 +2228,52 @@ void source_char_poll_group_poll_deps(
   }
 }
 
+SourceCharPollGroupLoadPlan source_char_poll_group_load_plan(int revision) {
+  SourceCharPollGroupLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 3;
+  if (!plan.known_revision) return plan;
+  plan.read_order = {"Hmx::Object"};
+  if (revision > 2) plan.read_order.push_back("CharWeightable");
+  plan.read_order.push_back("mPolls");
+  if (revision > 1) {
+    plan.read_order.push_back("mChangedBy");
+    plan.read_order.push_back("mChanges");
+  }
+  return plan;
+}
+
+SourceCharPollGroupCopyPlan source_char_poll_group_copy_plan() {
+  SourceCharPollGroupCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "CharWeightable"};
+  plan.copy_from_max_steps = {"iterate source mPolls",
+                              "append missing poll refs only"};
+  plan.copied_members = {"mPolls", "mChangedBy", "mChanges"};
+  return plan;
+}
+
+SourceCharPollGroupHandlerPlan source_char_poll_group_handler_plan() {
+  SourceCharPollGroupHandlerPlan plan;
+  plan.action_handlers = {"sort_polls"};
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0xA2;
+  return plan;
+}
+
+SourceCharPollGroupPropSyncPlan source_char_poll_group_prop_sync_plan() {
+  SourceCharPollGroupPropSyncPlan plan;
+  plan.properties = {"polls", "changed_by", "changes"};
+  plan.superclasses = {"CharWeightable"};
+  return plan;
+}
+
+SourceCharPollGroupSortPlan source_char_poll_group_sort_plan() {
+  SourceCharPollGroupSortPlan plan;
+  plan.steps = {"reserve mPolls size", "copy refs into RndPollable vector",
+                "CharPollableSorter::Sort", "clear mPolls",
+                "push sorted refs as CharPollable"};
+  return plan;
+}
+
 SourceCharIKScaleDefaultState source_char_ik_scale_default_state() {
   return SourceCharIKScaleDefaultState{};
 }

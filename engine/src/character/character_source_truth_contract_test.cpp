@@ -4121,6 +4121,43 @@ int run_contract() {
                  "classCharPollGroup:publicCharPollable,publicCharWeightable",
                  "latest CharPollGroup header exposes source class");
   ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "voidCharPollGroup::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(3,0);Hmx::Object::Load(bs);if(gRev>2)"
+                 "CharWeightable::Load(bs);bs>>mPolls;if(gRev>1){"
+                 "bs>>mChangedBy;bs>>mChanges;}}",
+                 "CharPollGroup source Load rows");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "BEGIN_COPYS(CharPollGroup)COPY_SUPERCLASS(Hmx:Object)"
+                 "COPY_SUPERCLASS(CharWeightable)CREATE_COPY(CharPollGroup)",
+                 "CharPollGroup source Copy superclasses");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "if(ty==kCopyFromMax){for(ObjPtrList<CharPollable,ObjectDir>"
+                 "::iteratorit=c->mPolls.begin();it!=c->mPolls.end();++it){"
+                 "if(!mPolls.find(*it)){mPolls.push_back(*it);}}}",
+                 "CharPollGroup source CopyFromMax append gate");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "else{COPY_MEMBER(mPolls)COPY_MEMBER(mChangedBy)"
+                 "COPY_MEMBER(mChanges)}",
+                 "CharPollGroup source normal copy rows");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "voidCharPollGroup::SortPolls(){CharPollableSortersorter;"
+                 "std::vector<RndPollable*>polls;polls.reserve(mPolls.size());",
+                 "CharPollGroup source SortPolls starts sorter");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "sorter.Sort(polls);mPolls.clear();for(inti=0;i<polls.size();"
+                 "i++){mPolls.push_back(dynamic_cast<CharPollable*>(polls[i]));}}",
+                 "CharPollGroup source SortPolls repopulates polls");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "BEGIN_HANDLERS(CharPollGroup)HANDLE_ACTION(sort_polls,"
+                 "SortPolls())HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0xA2)"
+                 "END_HANDLERS",
+                 "CharPollGroup source handler table");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "BEGIN_PROPSYNCS(CharPollGroup)SYNC_PROP(polls,mPolls)"
+                 "SYNC_PROP(changed_by,mChangedBy)SYNC_PROP(changes,mChanges)"
+                 "SYNC_SUPERCLASS(CharWeightable)END_PROPSYNCS",
+                 "CharPollGroup source prop-sync rows");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
                  "voidCharPollGroup::Poll(){if(mWeightOwner->mWeight!=0.0f){"
                  "for(ObjPtrList<CharPollable,ObjectDir>::iteratorit="
                  "mPolls.begin();it!=mPolls.end();++it){(*it)->Poll();}}}",
@@ -4149,6 +4186,24 @@ int run_contract() {
                  "structSourceCharPollGroupPollDeps{std::vector<std::string>"
                  "changed_by;std::vector<std::string>change;};",
                  "native exposes CharPollGroup dependency result row");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharPollGroupLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;};",
+                 "native exposes CharPollGroup load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharPollGroupCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;"
+                 "std::vector<std::string>copy_from_max_steps;};",
+                 "native exposes CharPollGroup copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharPollGroupHandlerPlan{"
+                 "std::vector<std::string>action_handlers;"
+                 "std::vector<std::string>superclasses;intcheck=0;};",
+                 "native exposes CharPollGroup handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharPollGroupSortPlan{"
+                 "std::vector<std::string>steps;};",
+                 "native exposes CharPollGroup sort plan");
   ok &= contains(char_mesh,
                  "std::vector<std::string>source_char_poll_group_poll_order("
                  "floatweight,conststd::vector<std::string>&polls){"
@@ -4172,9 +4227,62 @@ int run_contract() {
                  "deps.changed_by.push_back(child.changed_by);"
                  "deps.change.push_back(child.change);}",
                  "native ports CharPollGroup PollDeps child branch");
+  ok &= contains(char_mesh,
+                 "SourceCharPollGroupLoadPlansource_char_poll_group_load_plan("
+                 "intrevision){SourceCharPollGroupLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=3;",
+                 "native implements CharPollGroup load revision gate");
+  ok &= contains(char_mesh,
+                 "if(revision>2)plan.read_order.push_back(\"CharWeightable\");"
+                 "plan.read_order.push_back(\"mPolls\");if(revision>1){"
+                 "plan.read_order.push_back(\"mChangedBy\");"
+                 "plan.read_order.push_back(\"mChanges\");}",
+                 "native implements CharPollGroup load gates");
+  ok &= contains(char_mesh,
+                 "SourceCharPollGroupCopyPlansource_char_poll_group_copy_plan(){"
+                 "SourceCharPollGroupCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\",\"CharWeightable\"};",
+                 "native implements CharPollGroup copy superclasses");
+  ok &= contains(char_mesh,
+                 "plan.copy_from_max_steps={\"iteratesourcemPolls\",",
+                 "native implements CharPollGroup copy-from-Max iteration");
+  ok &= contains(char_mesh,
+                 "\"appendmissingpollrefsonly\"};",
+                 "native implements CharPollGroup copy-from-Max append gate");
+  ok &= contains(char_mesh,
+                 "plan.copied_members={\"mPolls\",\"mChangedBy\","
+                 "\"mChanges\"};",
+                 "native implements CharPollGroup normal copy plan");
+  ok &= contains(char_mesh,
+                 "SourceCharPollGroupHandlerPlansource_char_poll_group_handler_plan(){"
+                 "SourceCharPollGroupHandlerPlanplan;plan.action_handlers={"
+                 "\"sort_polls\"};plan.superclasses={\"Hmx::Object\"};"
+                 "plan.check=0xA2;",
+                 "native implements CharPollGroup handler plan");
+  ok &= contains(char_mesh,
+                 "SourceCharPollGroupPropSyncPlansource_char_poll_group_prop_sync_plan(){"
+                 "SourceCharPollGroupPropSyncPlanplan;plan.properties={"
+                 "\"polls\",\"changed_by\",\"changes\"};plan.superclasses={"
+                 "\"CharWeightable\"};",
+                 "native implements CharPollGroup prop-sync plan");
+  ok &= contains(char_mesh,
+                 "SourceCharPollGroupSortPlansource_char_poll_group_sort_plan(){",
+                 "native implements CharPollGroup sort plan");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_poll_group_source_test",
                  "CMake builds CharPollGroup source test");
+  ok &= contains(poll_group_source_test,
+                 "source_char_poll_group_load_plan(3)",
+                 "focused CharPollGroup test covers load plan");
+  ok &= contains(poll_group_source_test,
+                 "source_char_poll_group_copy_plan()",
+                 "focused CharPollGroup test covers copy plan");
+  ok &= contains(poll_group_source_test,
+                 "source_char_poll_group_handler_plan()",
+                 "focused CharPollGroup test covers handler plan");
+  ok &= contains(poll_group_source_test,
+                 "source_char_poll_group_sort_plan()",
+                 "focused CharPollGroup test covers sort plan");
   ok &= contains(poll_group_source_test,
                  "source_char_poll_group_poll_order(0.0f,polls)",
                  "focused CharPollGroup test covers zero weight");
@@ -4186,8 +4294,11 @@ int run_contract() {
                  "\"\",\"override\")",
                  "focused CharPollGroup test covers explicit deps override");
   ok &= contains(doc,
-                 "Native `source_char_poll_group_poll_order`,",
-                 "document records native CharPollGroup helpers");
+                 "Native `source_char_poll_group_load_plan`,",
+                 "document records native CharPollGroup load plan");
+  ok &= contains(doc,
+                 "`CharPollGroup`: zero stock rows",
+                 "document preserves no-stock-rows boundary");
   ok &= contains(rb3_latest_char_ik_scale_h,
                  "classCharIKScale:publicCharWeightable,publicCharPollable",
                  "latest CharIKScale header exposes source class");
