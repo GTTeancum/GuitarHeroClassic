@@ -128,6 +128,8 @@ int run_contract() {
       read_file(char_dir / "character_neck_twist_source_test.cpp"));
   const std::string ik_fingers_source_test = compact(
       read_file(char_dir / "character_ik_fingers_source_test.cpp"));
+  const std::string character_source_test = compact(
+      read_file(char_dir / "character_character_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -696,6 +698,10 @@ int run_contract() {
                  "| Character/BandCharacter/RndDir/ObjectDir root body | "
                  "`rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp` |",
                  "coverage matrix records root dir body source evidence");
+  ok &= contains(doc,
+                 "| Character lifecycle and directory sync flow | "
+                 "`rb3-latest` `Character.cpp`, `Character.h` |",
+                 "coverage matrix records Character runtime flow source");
   ok &= contains(doc, "## Character Root Body Boundary",
                  "document records root body boundary section");
   ok &= contains(doc,
@@ -718,6 +724,68 @@ int run_contract() {
   ok &= contains(rb3_latest_character_cpp,
                  "bs>>mLods;bs>>mShadow;",
                  "latest Character PostLoad reads lod/shadow rows");
+  ok &= contains(rb3_latest_character_h,
+                 "enumPollState{kCharCreated=0,kCharSyncObject=1,"
+                 "kCharEntered=2,kCharPolled=3,kCharExited=4,};",
+                 "Character source poll-state enum order");
+  ok &= contains(rb3_latest_character_cpp,
+                 "Character::Character():mLods(this),mLastLod(0),"
+                 "mMinLod(0),mShadow(this,0),mTransGroup(this,0),"
+                 "mDriver(0),",
+                 "Character source constructor default prefix");
+  ok &= contains(rb3_latest_character_cpp,
+                 "mSphereBase(this,this),mBounding(),mPollState("
+                 "kCharCreated),mTest(newCharacterTest(this)),mFrozen(0),"
+                 "mDrawMode(kCharDrawAll),mTeleported(1),mInterestToForce(),",
+                 "Character source constructor runtime defaults");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::Enter(){mPollState=kCharEntered;"
+                 "mMinLod=-1;mFrozen=false;mLastLod=0;mTeleported=true;"
+                 "mInterestToForce=Symbol();RndDir::Enter();}",
+                 "Character source Enter state flow");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::Exit(){mPollState=kCharExited;"
+                 "RndDir::Exit();}",
+                 "Character source Exit state flow");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::Poll(){START_AUTO_TIMER(\"char_poll\");"
+                 "if(!mFrozen){",
+                 "Character source Poll frozen gate");
+  ok &= contains(rb3_latest_character_cpp,
+                 "RndDir::Poll();mTeleported=false;mPollState=kCharPolled;",
+                 "Character source Poll state writes");
+  ok &= contains(rb3_latest_character_cpp,
+                 "CharServoBone*Character::BoneServo(){if(mDriver)return"
+                 "dynamic_cast<CharServoBone*>(mDriver->mBones.Ptr());"
+                 "elsereturn0;}",
+                 "Character source BoneServo driver gate");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::Replace(Hmx::Object*from,Hmx::Object*to){"
+                 "RndDir::Replace(from,to);if(from==mSphereBase){"
+                 "mSphereBase=dynamic_cast<RndTransformable*>(to);"
+                 "if(!mSphereBase)mSphereBase=this;}}",
+                 "Character source Replace sphere-base fallback");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::SyncObjects(){mPollState=kCharSyncObject;"
+                 "if(Find<RndMesh>(\"bone_pelvis.mesh\",false))"
+                 "ConvertBonesToTranses(this,false);RndDir::SyncObjects();"
+                 "VectorRemove(mDraws,mTransGroup);",
+                 "Character source SyncObjects prefix");
+  ok &= contains(rb3_latest_character_cpp,
+                 "SyncShadow();CharPollableSortersorter;"
+                 "sorter.Sort(mPolls);}",
+                 "Character source SyncObjects sorts polls");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::AddedObject(Hmx::Object*o){"
+                 "if(dynamic_cast<CharPollable*>(o)){CharDriver*driver="
+                 "dynamic_cast<CharDriver*>(o);if(driver){boolstrsmatch="
+                 "strcmp(driver->Name(),\"main.drv\")==0;if(strsmatch){"
+                 "mDriver=driver;}}}}",
+                 "Character source AddedObject main driver rule");
+  ok &= contains(rb3_latest_character_cpp,
+                 "voidCharacter::RemovingObject(Hmx::Object*o){"
+                 "if(o==mDriver)mDriver=0;RndDir::RemovingObject(o);}",
+                 "Character source RemovingObject driver clear");
   ok &= contains(rb3_latest_rnd_dir_cpp,
                  "voidRndDir::PreLoad(BinStream&bs){LOAD_REVS(bs);"
                  "ASSERT_REVS(0xA,0);PushRev(packRevs(gAltRev,gRev),this);"
@@ -2357,6 +2425,74 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_ik_scale_*` helpers port",
                  "document records native CharIKScale helpers");
+  ok &= contains(char_mesh_h,
+                 "enumclassSourceCharacterPollState:int32_t{kCreated=0,"
+                 "kSyncObject=1,kEntered=2,kPolled=3,kExited=4,};",
+                 "native exposes source character poll-state enum order");
+  ok &= contains(char_mesh,
+                 "SourceCharacterStatesource_character_default_state(){"
+                 "returnSourceCharacterState{};}",
+                 "native ports Character constructor defaults helper");
+  ok &= contains(char_mesh,
+                 "voidsource_character_enter(SourceCharacterState&state){"
+                 "state.poll_state=SourceCharacterPollState::kEntered;"
+                 "state.min_lod=-1;state.frozen=false;state.last_lod=0;"
+                 "state.teleported=true;state.interest_to_force.clear();}",
+                 "native ports Character Enter state flow");
+  ok &= contains(char_mesh,
+                 "SourceCharacterPollResultsource_character_poll("
+                 "SourceCharacterState&state){SourceCharacterPollResultresult;"
+                 "if(state.frozen){result.skipped_for_frozen=true;"
+                 "returnresult;}result.called_rnd_dir_poll=true;"
+                 "state.teleported=false;state.poll_state="
+                 "SourceCharacterPollState::kPolled;returnresult;}",
+                 "native ports Character Poll frozen gate");
+  ok &= contains(char_mesh,
+                 "returnhas_driver&&driver_bones_is_servo;",
+                 "native ports Character BoneServo driver/type gate");
+  ok &= contains(char_mesh,
+                 "if(is_char_pollable&&is_char_driver&&object_name=="
+                 "\"main.drv\"){state.has_driver=true;"
+                 "result.assigned_main_driver=true;}",
+                 "native ports Character main driver assignment");
+  ok &= contains(char_mesh,
+                 "if(object_is_current_driver){state.has_driver=false;"
+                 "result.cleared_driver=true;}result."
+                 "called_rnd_dir_removing_object=true;",
+                 "native ports Character RemovingObject driver clear");
+  ok &= contains(char_mesh,
+                 "result.called_rnd_dir_replace=true;if(from_is_sphere_base){"
+                 "result.repointed_sphere_base=true;state.sphere_base_is_self="
+                 "!to_is_transformable;result.fell_back_to_self="
+                 "!to_is_transformable;}",
+                 "native ports Character Replace sphere-base fallback");
+  ok &= contains(char_mesh,
+                 "state.poll_state=SourceCharacterPollState::kSyncObject;"
+                 "result.converted_bones_to_transes=has_bone_pelvis_mesh;"
+                 "result.called_rnd_dir_sync_objects=true;"
+                 "result.removed_trans_group=true;",
+                 "native ports Character SyncObjects prefix");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_character_source_test",
+                 "CMake builds Character source test");
+  ok &= contains(character_source_test,
+                 "source_character_enter(state)",
+                 "focused Character test covers Enter");
+  ok &= contains(character_source_test,
+                 "source_character_poll(state)",
+                 "focused Character test covers Poll");
+  ok &= contains(character_source_test,
+                 "source_character_added_object(state,true,true,\"main.drv\")",
+                 "focused Character test covers main driver");
+  ok &= contains(character_source_test,
+                 "source_character_sync_objects(state,true,3)",
+                 "focused Character test covers SyncObjects");
+  ok &= contains(doc, "## Character Runtime Flow",
+                 "document records Character runtime flow section");
+  ok &= contains(doc,
+                 "Native `source_character_*` helpers port these "
+                 "source-visible runtime flows",
+                 "document records native Character helpers");
   ok &= contains(rb3_latest_character_h,
                  "enumDrawMode{kCharDrawNone,kCharDrawOpaque,"
                  "kCharDrawTranslucent,kCharDrawAll};",

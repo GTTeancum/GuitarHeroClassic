@@ -1752,6 +1752,118 @@ void source_char_ik_scale_poll_deps(
   deps.changed_by.push_back(dest);
 }
 
+SourceCharacterState source_character_default_state() {
+  return SourceCharacterState{};
+}
+
+void source_character_enter(SourceCharacterState& state) {
+  state.poll_state = SourceCharacterPollState::kEntered;
+  state.min_lod = -1;
+  state.frozen = false;
+  state.last_lod = 0;
+  state.teleported = true;
+  state.interest_to_force.clear();
+}
+
+void source_character_exit(SourceCharacterState& state) {
+  state.poll_state = SourceCharacterPollState::kExited;
+}
+
+SourceCharacterPollResult source_character_poll(SourceCharacterState& state) {
+  SourceCharacterPollResult result;
+  if (state.frozen) {
+    result.skipped_for_frozen = true;
+    return result;
+  }
+  result.called_rnd_dir_poll = true;
+  state.teleported = false;
+  state.poll_state = SourceCharacterPollState::kPolled;
+  return result;
+}
+
+bool source_character_bone_servo_resolves(bool has_driver,
+                                          bool driver_bones_is_servo) {
+  return has_driver && driver_bones_is_servo;
+}
+
+SourceCharacterReplaceResult source_character_replace(
+    SourceCharacterState& state,
+    bool from_is_sphere_base,
+    bool to_is_transformable) {
+  SourceCharacterReplaceResult result;
+  result.called_rnd_dir_replace = true;
+  if (from_is_sphere_base) {
+    result.repointed_sphere_base = true;
+    state.sphere_base_is_self = !to_is_transformable;
+    result.fell_back_to_self = !to_is_transformable;
+  }
+  return result;
+}
+
+SourceCharacterAddedObjectResult source_character_added_object(
+    SourceCharacterState& state,
+    bool is_char_pollable,
+    bool is_char_driver,
+    const std::string& object_name) {
+  SourceCharacterAddedObjectResult result;
+  result.accepted_pollable = is_char_pollable;
+  if (is_char_pollable && is_char_driver && object_name == "main.drv") {
+    state.has_driver = true;
+    result.assigned_main_driver = true;
+  }
+  return result;
+}
+
+SourceCharacterRemoveObjectResult source_character_removing_object(
+    SourceCharacterState& state,
+    bool object_is_current_driver) {
+  SourceCharacterRemoveObjectResult result;
+  if (object_is_current_driver) {
+    state.has_driver = false;
+    result.cleared_driver = true;
+  }
+  result.called_rnd_dir_removing_object = true;
+  return result;
+}
+
+SourceCharacterSyncObjectsResult source_character_sync_objects(
+    SourceCharacterState& state,
+    bool has_bone_pelvis_mesh,
+    int32_t lod_count) {
+  SourceCharacterSyncObjectsResult result;
+  state.poll_state = SourceCharacterPollState::kSyncObject;
+  result.converted_bones_to_transes = has_bone_pelvis_mesh;
+  result.called_rnd_dir_sync_objects = true;
+  result.removed_trans_group = true;
+  result.removed_lod_draws = lod_count > 0 ? lod_count * 2 : 0;
+  result.synced_shadow = true;
+  result.sorted_polls = true;
+  return result;
+}
+
+SourceCharacterInterestResult source_character_force_blink(bool has_eyes) {
+  return {has_eyes, has_eyes};
+}
+
+SourceCharacterInterestResult source_character_enable_blinks(bool has_eyes) {
+  return {has_eyes, has_eyes};
+}
+
+SourceCharacterInterestResult source_character_set_focus_interest(
+    bool has_eyes) {
+  return {has_eyes, has_eyes};
+}
+
+SourceCharacterInterestResult source_character_set_interest_filter_flags(
+    bool has_eyes) {
+  return {has_eyes, has_eyes};
+}
+
+SourceCharacterInterestResult source_character_clear_interest_filter_flags(
+    bool has_eyes) {
+  return {has_eyes, has_eyes};
+}
+
 std::vector<SourceCharTransDrawStep> source_char_trans_draw_set_draw_modes(
     const std::vector<std::string>& chars,
     SourceCharacterDrawMode mode) {

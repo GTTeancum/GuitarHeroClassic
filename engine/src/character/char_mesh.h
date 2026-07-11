@@ -396,6 +396,61 @@ enum class SourceCharacterDrawMode : int32_t {
   kAll = 3,
 };
 
+enum class SourceCharacterPollState : int32_t {
+  kCreated = 0,
+  kSyncObject = 1,
+  kEntered = 2,
+  kPolled = 3,
+  kExited = 4,
+};
+
+struct SourceCharacterState {
+  int32_t min_lod = 0;
+  int32_t last_lod = 0;
+  SourceCharacterPollState poll_state = SourceCharacterPollState::kCreated;
+  bool frozen = false;
+  SourceCharacterDrawMode draw_mode = SourceCharacterDrawMode::kAll;
+  bool teleported = true;
+  bool sphere_base_is_self = true;
+  bool has_driver = false;
+  std::string interest_to_force;
+};
+
+struct SourceCharacterPollResult {
+  bool called_rnd_dir_poll = false;
+  bool skipped_for_frozen = false;
+};
+
+struct SourceCharacterSyncObjectsResult {
+  bool converted_bones_to_transes = false;
+  bool called_rnd_dir_sync_objects = false;
+  bool removed_trans_group = false;
+  int32_t removed_lod_draws = 0;
+  bool synced_shadow = false;
+  bool sorted_polls = false;
+};
+
+struct SourceCharacterReplaceResult {
+  bool called_rnd_dir_replace = false;
+  bool repointed_sphere_base = false;
+  bool fell_back_to_self = false;
+};
+
+struct SourceCharacterAddedObjectResult {
+  bool accepted_pollable = false;
+  bool assigned_main_driver = false;
+};
+
+struct SourceCharacterRemoveObjectResult {
+  bool cleared_driver = false;
+  bool called_rnd_dir_removing_object = false;
+};
+
+struct SourceCharacterInterestResult {
+  bool found_eyes = false;
+  bool invoked_eyes = false;
+};
+
 struct SourceCharTransDrawCharacter {
   std::string name;
   bool showing = false;
@@ -722,6 +777,36 @@ void source_char_ik_scale_poll_deps(
     SourceCharIKScalePollDeps& deps,
     const std::string& dest,
     const std::vector<std::string>& secondary_targets);
+SourceCharacterState source_character_default_state();
+void source_character_enter(SourceCharacterState& state);
+void source_character_exit(SourceCharacterState& state);
+SourceCharacterPollResult source_character_poll(SourceCharacterState& state);
+bool source_character_bone_servo_resolves(bool has_driver,
+                                          bool driver_bones_is_servo);
+SourceCharacterReplaceResult source_character_replace(
+    SourceCharacterState& state,
+    bool from_is_sphere_base,
+    bool to_is_transformable);
+SourceCharacterAddedObjectResult source_character_added_object(
+    SourceCharacterState& state,
+    bool is_char_pollable,
+    bool is_char_driver,
+    const std::string& object_name);
+SourceCharacterRemoveObjectResult source_character_removing_object(
+    SourceCharacterState& state,
+    bool object_is_current_driver);
+SourceCharacterSyncObjectsResult source_character_sync_objects(
+    SourceCharacterState& state,
+    bool has_bone_pelvis_mesh,
+    int32_t lod_count);
+SourceCharacterInterestResult source_character_force_blink(bool has_eyes);
+SourceCharacterInterestResult source_character_enable_blinks(bool has_eyes);
+SourceCharacterInterestResult source_character_set_focus_interest(
+    bool has_eyes);
+SourceCharacterInterestResult source_character_set_interest_filter_flags(
+    bool has_eyes);
+SourceCharacterInterestResult source_character_clear_interest_filter_flags(
+    bool has_eyes);
 std::vector<SourceCharTransDrawStep> source_char_trans_draw_set_draw_modes(
     const std::vector<std::string>& chars,
     SourceCharacterDrawMode mode);

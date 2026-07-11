@@ -27,6 +27,7 @@ records the upstream commits for the copied files:
 | --- | --- | --- |
 | Object and property-tree skip/read shape | `Object.cs`, `DTBNode.Read` | Parser authority; native skips must mirror source enum and logs standalone generic `Object` rows. |
 | Character/BandCharacter/RndDir/ObjectDir root body | `rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp` | Native records the root directory revision/name/type and opaque root object body boundary; no root runtime fields are decoded until the exact GH2 revision/body relation is pinned. |
+| Character lifecycle and directory sync flow | `rb3-latest` `Character.cpp`, `Character.h` | Native helper ports constructor defaults, poll-state enum order, Enter/Exit/Poll state changes, main-driver discovery, sphere-base replacement, eyes gates, and SyncObjects cleanup/sort flow. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
 | Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
@@ -169,6 +170,35 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
 
 2026-07-10 proof log:
 `engine/out/source_truth_dir_entry_20260710/stock_character_dir_entry_inventory.log`.
+
+## Character Runtime Flow
+
+- `rb3-latest/src/system/char/Character.h` defines `PollState` as
+  `kCharCreated = 0`, `kCharSyncObject = 1`, `kCharEntered = 2`,
+  `kCharPolled = 3`, and `kCharExited = 4`.
+- `Character::Character` source defaults include `mLastLod = 0`,
+  `mMinLod = 0`, `mDriver = 0`, `mSphereBase = this`,
+  `mPollState = kCharCreated`, `mFrozen = false`,
+  `mDrawMode = kCharDrawAll`, `mTeleported = true`, and empty
+  `mInterestToForce`.
+- `Enter` sets entered state, min LOD `-1`, clears frozen, resets last LOD,
+  marks teleported, clears forced interest, then delegates to `RndDir::Enter`.
+  `Exit` sets exited state and delegates to `RndDir::Exit`.
+- `Poll` does nothing while frozen. Otherwise it delegates to `RndDir::Poll`,
+  clears `mTeleported`, and records `kCharPolled`.
+- `AddedObject` only assigns `mDriver` when the object is both `CharPollable`
+  and `CharDriver` and its name is exactly `main.drv`. `RemovingObject` clears
+  the current driver before delegating to `RndDir::RemovingObject`.
+- `Replace` always delegates to `RndDir::Replace`; if the replaced object is the
+  sphere base it uses the replacement transform, or falls back to `this` when
+  the replacement is not transformable.
+- `SyncObjects` records `kCharSyncObject`, converts bones to transforms only
+  when `bone_pelvis.mesh` exists, delegates to `RndDir::SyncObjects`, removes
+  the trans group plus each LOD group and trans group from draws, syncs shadow,
+  and sorts character polls.
+- Native `source_character_*` helpers port these source-visible runtime flows
+  for deterministic tests and future wiring. They do not decode the fenced root
+  body bytes above and do not change current renderer/material behavior.
 - `MiloEditor/MiloLib/Assets/Rnd/RndTrans.cs`
   - `RndTrans.Read` reads combined revision, optional object fields for
     standalone objects, local matrix, world matrix, old child references for
