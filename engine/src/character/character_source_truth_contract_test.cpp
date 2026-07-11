@@ -4518,6 +4518,21 @@ int run_contract() {
                  "\"eye_status\",false);",
                  "RB3 CharEyes constructor computes fallback cone and overlay");
   ok &= contains(rb3_char_eyes_cpp,
+                 "BEGIN_COPYS(CharEyes)COPY_SUPERCLASS(Hmx::Object)"
+                 "COPY_SUPERCLASS(CharWeightable)CREATE_COPY(CharEyes)"
+                 "BEGIN_COPYING_MEMBERS",
+                 "RB3 CharEyes copy starts from source copy macros");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "COPY_MEMBER(mEyes)COPY_MEMBER(mInterests)COPY_MEMBER("
+                 "mFaceServo)COPY_MEMBER(unka4)COPY_MEMBER(unkb4)"
+                 "COPY_MEMBER(mCamWeight)COPY_MEMBER(mDefaultFilterFlags)"
+                 "COPY_MEMBER(mViewDirection)COPY_MEMBER(mHeadLookAt)"
+                 "COPY_MEMBER(mMaxExtrapolation)COPY_MEMBER(mMinTargetDist)"
+                 "COPY_MEMBER(mUpperLidTrackUp)COPY_MEMBER(mUpperLidTrackDown)"
+                 "COPY_MEMBER(mLowerLidTrackUp)COPY_MEMBER("
+                 "mLowerLidTrackDown)COPY_MEMBER(mLowerLidTrackRotate)",
+                 "RB3 CharEyes copy member list is explicit");
+  ok &= contains(rb3_char_eyes_cpp,
                  "CharEyes::EyeDesc::EyeDesc(Hmx::Object*o):mEye(o,0),"
                  "mUpperLid(o,0),mLowerLid(o,0),mLowerLidBlink(o,0),"
                  "mUpperLidBlink(o,0){}",
@@ -4836,6 +4851,10 @@ int run_contract() {
                  "SourceCharEyesDefaultStatesource_char_eyes_default_state();",
                  "native exposes CharEyes default state helper");
   ok &= contains(char_mesh_h,
+                 "SourceCharEyesDefaultStatesource_char_eyes_copy_state("
+                 "constSourceCharEyesDefaultState&source);",
+                 "native exposes CharEyes copy state helper");
+  ok &= contains(char_mesh_h,
                  "SourceCharEyesEyeDescsource_char_eyes_eye_desc_default();",
                  "native exposes CharEyes EyeDesc default helper");
   ok &= contains(char_mesh_h,
@@ -4931,6 +4950,30 @@ int run_contract() {
                  "0.52359879f);state.overlay_name=\"eye_status\";"
                  "returnstate;}",
                  "native CharEyes default helper ports constructor body");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesDefaultStatesource_char_eyes_copy_state("
+                 "constSourceCharEyesDefaultState&source){"
+                 "SourceCharEyesDefaultStatedest=source_char_eyes_default_state();",
+                 "native CharEyes copy helper starts from constructor defaults");
+  ok &= contains(char_mesh,
+                 "dest.eye_count=source.eye_count;dest.interest_count="
+                 "source.interest_count;dest.has_face_servo=source."
+                 "has_face_servo;dest.unka4=source.unka4;dest.unkb4="
+                 "source.unkb4;dest.has_cam_weight=source.has_cam_weight;"
+                 "dest.default_filter_flags=source.default_filter_flags;",
+                 "native CharEyes copy helper ports first COPY_MEMBER fields");
+  ok &= contains(char_mesh,
+                 "dest.has_view_direction=source.has_view_direction;"
+                 "dest.has_head_lookat=source.has_head_lookat;dest."
+                 "max_extrapolation=source.max_extrapolation;dest."
+                 "min_target_dist=source.min_target_dist;dest."
+                 "upper_lid_track_up=source.upper_lid_track_up;dest."
+                 "upper_lid_track_down=source.upper_lid_track_down;dest."
+                 "lower_lid_track_up=source.lower_lid_track_up;dest."
+                 "lower_lid_track_down=source.lower_lid_track_down;dest."
+                 "lower_lid_track_rotate=source.lower_lid_track_rotate;"
+                 "returndest;}",
+                 "native CharEyes copy helper ports lid and target fields");
   ok &= contains(char_mesh,
                  "SourceCharEyesEyeDescsource_char_eyes_eye_desc_default(){"
                  "returnSourceCharEyesEyeDesc{};}",
@@ -5082,6 +5125,15 @@ int run_contract() {
                  "source_char_eyes_default_state()",
                  "focused CharEyes source test covers constructor defaults");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_copy_state(source_defaults)",
+                 "focused CharEyes source test covers copy helper");
+  ok &= contains(eyes_source_test,
+                 "\"copyresetsfocusruntime\"",
+                 "focused CharEyes source test covers copy runtime reset");
+  ok &= contains(eyes_source_test,
+                 "\"copyresetsoverlayname\"",
+                 "focused CharEyes source test covers copy overlay reset");
+  ok &= contains(eyes_source_test,
                  "expect_float(defaults.unkb8,0.86602539f,\"defaultunkb8\")",
                  "focused CharEyes source test covers constructor cosine default");
   ok &= contains(eyes_source_test,
@@ -5195,6 +5247,13 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_eyes_eye_desc_*` and interest-list helpers",
                  "document records native CharEyes EyeDesc and interest-list helpers");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_copy_state` ports the concrete `BEGIN_COPYS`",
+                 "document records native CharEyes copy helper slice");
+  ok &= contains(doc,
+                 "Runtime-only fields intentionally reset instead of\n"
+                 "    copying",
+                 "document records native CharEyes copy runtime reset boundary");
   ok &= contains(doc,
                  "Native `source_char_eyes_enter_state` and "
                  "`source_char_eyes_exit_state`",

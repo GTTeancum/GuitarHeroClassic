@@ -775,6 +775,8 @@ void source_char_guitar_string_poll_deps(
 std::vector<std::string> source_char_eyes_list_poll_children(
     const std::vector<std::string>& eye_lookats);
 SourceCharEyesDefaultState source_char_eyes_default_state();
+SourceCharEyesDefaultState source_char_eyes_copy_state(
+    const SourceCharEyesDefaultState& source);
 SourceCharEyesEyeDesc source_char_eyes_eye_desc_default();
 SourceCharEyesEyeDesc source_char_eyes_eye_desc_copy(
     const SourceCharEyesEyeDesc& source);

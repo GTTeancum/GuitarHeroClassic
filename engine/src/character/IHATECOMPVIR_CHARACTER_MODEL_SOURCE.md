@@ -522,6 +522,11 @@ note, and all report `unreadBytes=0`.
     default to null, copy/assignment preserve all five refs, clearing drops the
     interest vector, and add ignores null interests while pushed interests start
     with a reset refractory timer.
+  - Native `source_char_eyes_copy_state` ports the concrete `BEGIN_COPYS`
+    member list as a constructor-default destination plus only the source
+    `COPY_MEMBER` fields. Runtime-only fields intentionally reset instead of
+    copying: focus, blink, overlay, current-interest, and interest-filter state
+    remain constructor defaults unless the source copy list includes them.
   - Native `source_char_eyes_enter_state` and `source_char_eyes_exit_state`
     port the concrete `Enter` / `Exit` reset bodies as data-only state rows:
     enter zeroes the source unknown counters/flags, sets the source `-1` timer

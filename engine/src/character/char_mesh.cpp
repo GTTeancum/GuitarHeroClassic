@@ -1970,6 +1970,28 @@ SourceCharEyesDefaultState source_char_eyes_default_state() {
   return state;
 }
 
+SourceCharEyesDefaultState source_char_eyes_copy_state(
+    const SourceCharEyesDefaultState& source) {
+  SourceCharEyesDefaultState dest = source_char_eyes_default_state();
+  dest.eye_count = source.eye_count;
+  dest.interest_count = source.interest_count;
+  dest.has_face_servo = source.has_face_servo;
+  dest.unka4 = source.unka4;
+  dest.unkb4 = source.unkb4;
+  dest.has_cam_weight = source.has_cam_weight;
+  dest.default_filter_flags = source.default_filter_flags;
+  dest.has_view_direction = source.has_view_direction;
+  dest.has_head_lookat = source.has_head_lookat;
+  dest.max_extrapolation = source.max_extrapolation;
+  dest.min_target_dist = source.min_target_dist;
+  dest.upper_lid_track_up = source.upper_lid_track_up;
+  dest.upper_lid_track_down = source.upper_lid_track_down;
+  dest.lower_lid_track_up = source.lower_lid_track_up;
+  dest.lower_lid_track_down = source.lower_lid_track_down;
+  dest.lower_lid_track_rotate = source.lower_lid_track_rotate;
+  return dest;
+}
+
 SourceCharEyesEyeDesc source_char_eyes_eye_desc_default() {
   return SourceCharEyesEyeDesc{};
 }

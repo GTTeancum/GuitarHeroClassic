@@ -46,6 +46,7 @@ int main() {
   using ghogx::character::SourceCharEyesPollDeps;
   using ghogx::character::source_char_eyes_add_interest_object;
   using ghogx::character::source_char_eyes_clear_interest_objects;
+  using ghogx::character::source_char_eyes_copy_state;
   using ghogx::character::source_char_eyes_current_interest;
   using ghogx::character::source_char_eyes_default_state;
   using ghogx::character::source_char_eyes_eye_desc_assign;
@@ -172,6 +173,75 @@ int main() {
   ok &= expect_bool(defaults.unk15d, true, "default unk15d");
   ok &= expect_string(defaults.overlay_name, "eye_status",
                       "default overlay name");
+
+  auto source_defaults = source_char_eyes_default_state();
+  source_defaults.eye_count = 2;
+  source_defaults.interest_count = 3;
+  source_defaults.has_face_servo = true;
+  source_defaults.has_cam_weight = true;
+  source_defaults.unka4 = {0.2f, 0.3f, 0.4f};
+  source_defaults.unkb4 = 7;
+  source_defaults.default_filter_flags = 0x55;
+  source_defaults.has_view_direction = true;
+  source_defaults.has_head_lookat = true;
+  source_defaults.max_extrapolation = 42.0f;
+  source_defaults.min_target_dist = 12.0f;
+  source_defaults.upper_lid_track_up = 1.5f;
+  source_defaults.upper_lid_track_down = 1.6f;
+  source_defaults.lower_lid_track_up = 0.4f;
+  source_defaults.lower_lid_track_down = 0.5f;
+  source_defaults.lower_lid_track_rotate = 1;
+  source_defaults.interest_filter_flags = 0x33;
+  source_defaults.has_focus_interest = true;
+  source_defaults.focus_priority = 9;
+  source_defaults.unk13c = true;
+  source_defaults.unk140 = 99.0f;
+  source_defaults.overlay_name = "custom_overlay";
+
+  const auto copied_defaults = source_char_eyes_copy_state(source_defaults);
+  ok &= expect_size(copied_defaults.eye_count, 2, "copy eye count");
+  ok &= expect_size(copied_defaults.interest_count, 3,
+                    "copy interest count");
+  ok &= expect_bool(copied_defaults.has_face_servo, true,
+                    "copy face servo");
+  ok &= expect_bool(copied_defaults.has_cam_weight, true,
+                    "copy cam weight");
+  ok &= expect_float(copied_defaults.unka4[0], 0.2f, "copy unka4 x");
+  ok &= expect_float(copied_defaults.unka4[1], 0.3f, "copy unka4 y");
+  ok &= expect_float(copied_defaults.unka4[2], 0.4f, "copy unka4 z");
+  ok &= expect_int(copied_defaults.unkb4, 7, "copy unkb4");
+  ok &= expect_int(copied_defaults.default_filter_flags, 0x55,
+                   "copy filter flags");
+  ok &= expect_bool(copied_defaults.has_view_direction, true,
+                    "copy view direction");
+  ok &= expect_bool(copied_defaults.has_head_lookat, true,
+                    "copy head lookat");
+  ok &= expect_float(copied_defaults.max_extrapolation, 42.0f,
+                     "copy max extrapolation");
+  ok &= expect_float(copied_defaults.min_target_dist, 12.0f,
+                     "copy min target distance");
+  ok &= expect_float(copied_defaults.upper_lid_track_up, 1.5f,
+                     "copy upper lid up");
+  ok &= expect_float(copied_defaults.upper_lid_track_down, 1.6f,
+                     "copy upper lid down");
+  ok &= expect_float(copied_defaults.lower_lid_track_up, 0.4f,
+                     "copy lower lid up");
+  ok &= expect_float(copied_defaults.lower_lid_track_down, 0.5f,
+                     "copy lower lid down");
+  ok &= expect_int(copied_defaults.lower_lid_track_rotate, 1,
+                   "copy lower lid rotate");
+  ok &= expect_int(copied_defaults.interest_filter_flags, 0,
+                   "copy resets interest filters");
+  ok &= expect_bool(copied_defaults.has_focus_interest, false,
+                    "copy resets focus runtime");
+  ok &= expect_int(copied_defaults.focus_priority, -1,
+                   "copy resets focus priority");
+  ok &= expect_bool(copied_defaults.unk13c, false,
+                    "copy resets blink flag");
+  ok &= expect_float(copied_defaults.unk140, -1.0f,
+                     "copy resets blink time");
+  ok &= expect_string(copied_defaults.overlay_name, "eye_status",
+                      "copy resets overlay name");
 
   const auto default_eye = source_char_eyes_eye_desc_default();
   ok &= expect_string(default_eye.eye, "", "default eye ref");
