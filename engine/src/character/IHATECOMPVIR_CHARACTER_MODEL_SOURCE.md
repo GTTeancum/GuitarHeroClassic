@@ -1154,6 +1154,19 @@ note, and all report `unreadBytes=0`.
     `MoveToFacing`, and `MoveToDeltaFacing`, but does not call them from the
     live model path or port broad `CharBonesMeshes` movement until the
     connected clip/bone source path is implemented as a whole.
+  - `rb3-latest/src/system/char/CharBonesMeshes.cpp` is concrete for mesh-slot
+    ownership and target resolution. Native
+    `source_char_bones_meshes_replace_step`,
+    `source_char_bones_meshes_reallocate_step`, and
+    `source_char_bones_meshes_stuff_meshes` port the source-visible behavior:
+    `Replace` scans only when `from != mDummyMesh`, replaces the first matching
+    mesh with `to` when it is transformable or `mDummyMesh` otherwise;
+    `ReallocateInternal` calls `CharBonesAlloc::ReallocateInternal`, resizes
+    `mMeshes` to `mBones.size()`, resolves each row with `CharUtlFindBoneTrans`,
+    substitutes `mDummyMesh` for misses while suppressing missing logs for
+    `bone_facing*`, and calls `AcquirePose` only when the mesh vector is
+    non-empty; `StuffMeshes` appends mesh slots in source order. This still does
+    not port broad `PoseMeshes` transform writes.
 - `rb3-latest/src/system/char/CharClipGroup.cpp` and
   `rb3-latest/src/system/char/CharClipGroup.h`
   - `CharClipGroup::Load` reads the object prefix through

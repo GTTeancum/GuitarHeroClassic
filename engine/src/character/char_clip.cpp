@@ -415,6 +415,59 @@ source_char_bone_dir_stuff_bones_symbol_step(
   return step;
 }
 
+SourceCharBonesMeshesReplaceStep source_char_bones_meshes_replace_step(
+    const std::vector<std::string>& meshes,
+    const std::string& from,
+    const std::string& to,
+    bool to_is_transformable,
+    const std::string& dummy_mesh) {
+  SourceCharBonesMeshesReplaceStep step;
+  step.meshes = meshes;
+  if (from == dummy_mesh) return step;
+  step.scan_meshes = true;
+  for (size_t i = 0; i < step.meshes.size(); ++i) {
+    if (step.meshes[i] != from) continue;
+    step.replaced_index = static_cast<int>(i);
+    if (to_is_transformable) {
+      step.meshes[i] = to;
+    } else {
+      step.meshes[i] = dummy_mesh;
+      step.assigned_dummy = true;
+    }
+    return step;
+  }
+  return step;
+}
+
+SourceCharBonesMeshesReallocateStep source_char_bones_meshes_reallocate_step(
+    const std::vector<SourceCharBonesBone>& bones,
+    const std::unordered_map<std::string, std::string>& transform_lookup,
+    const std::string& dummy_mesh) {
+  SourceCharBonesMeshesReallocateStep step;
+  step.meshes.resize(bones.size());
+  for (size_t i = 0; i < bones.size(); ++i) {
+    const auto it = transform_lookup.find(bones[i].name);
+    if (it != transform_lookup.end()) {
+      step.meshes[i] = it->second;
+      continue;
+    }
+    if (bones[i].name.rfind("bone_facing", 0) != 0) {
+      step.missing_non_facing_bones.push_back(bones[i].name);
+    }
+    step.meshes[i] = dummy_mesh;
+  }
+  step.acquire_pose = !step.meshes.empty();
+  return step;
+}
+
+std::vector<std::string> source_char_bones_meshes_stuff_meshes(
+    const std::vector<std::string>& existing_objects,
+    const std::vector<std::string>& meshes) {
+  std::vector<std::string> objects = existing_objects;
+  objects.insert(objects.end(), meshes.begin(), meshes.end());
+  return objects;
+}
+
 SourceCharBonesSamplesState source_char_bones_samples_empty_state() {
   return SourceCharBonesSamplesState{};
 }

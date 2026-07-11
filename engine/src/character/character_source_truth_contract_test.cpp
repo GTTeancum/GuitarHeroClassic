@@ -344,6 +344,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharBonesBlender.cpp"));
   const std::string rb3_latest_char_bones_blender_h = compact(read_file(
       rb3_latest_char_dir / "CharBonesBlender.h"));
+  const std::string rb3_latest_char_bones_meshes_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharBonesMeshes.cpp"));
+  const std::string rb3_latest_char_bones_meshes_h = compact(read_file(
+      rb3_latest_char_dir / "CharBonesMeshes.h"));
   const std::string rb3_latest_char_bone_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBone.cpp"));
   const std::string rb3_latest_char_bone_h = compact(read_file(
@@ -6786,6 +6790,36 @@ int run_contract() {
                  "conststd::vector<SourceCharBoneDirClipTypeResource>&"
                  "clip_types,conststd::string&clip_type);",
                  "native API exposes source CharBoneDir Symbol StuffBones helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesMeshesReplaceStep{boolobject_replace=true;"
+                 "boolscan_meshes=false;intreplaced_index=-1;"
+                 "boolassigned_dummy=false;std::vector<std::string>meshes;};",
+                 "native API exposes source CharBonesMeshes Replace row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesMeshesReallocateStep{"
+                 "boolchar_bones_alloc_reallocate_internal=true;"
+                 "std::vector<std::string>meshes;std::vector<std::string>"
+                 "missing_non_facing_bones;boolacquire_pose=false;};",
+                 "native API exposes source CharBonesMeshes Reallocate row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesMeshesReplaceStep"
+                 "source_char_bones_meshes_replace_step("
+                 "conststd::vector<std::string>&meshes,conststd::string&from,"
+                 "conststd::string&to,boolto_is_transformable,"
+                 "conststd::string&dummy_mesh);",
+                 "native API exposes source CharBonesMeshes Replace helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesMeshesReallocateStep"
+                 "source_char_bones_meshes_reallocate_step("
+                 "conststd::vector<SourceCharBonesBone>&bones,"
+                 "conststd::unordered_map<std::string,std::string>&"
+                 "transform_lookup,conststd::string&dummy_mesh);",
+                 "native API exposes source CharBonesMeshes Reallocate helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>source_char_bones_meshes_stuff_meshes("
+                 "conststd::vector<std::string>&existing_objects,"
+                 "conststd::vector<std::string>&meshes);",
+                 "native API exposes source CharBonesMeshes StuffMeshes helper");
   ok &= contains(char_clip,
                  "out.char_bone_version=read_u32_at(body,size,pos,"
                  "\"CharBoneversion\");skip_bytes_at(body,size,pos,9,"
@@ -6887,6 +6921,52 @@ int run_contract() {
                  "step.context_mask=step.lookup.context_mask;}returnstep;}",
                  "native CharBoneDir Symbol StuffBones helper mirrors context handoff");
   ok &= contains(char_clip,
+                 "SourceCharBonesMeshesReplaceStepsource_char_bones_meshes_replace_step("
+                 "conststd::vector<std::string>&meshes,conststd::string&from,"
+                 "conststd::string&to,boolto_is_transformable,"
+                 "conststd::string&dummy_mesh){SourceCharBonesMeshesReplaceStepstep;",
+                 "native CharBonesMeshes Replace helper exists");
+  ok &= contains(char_clip,
+                 "if(from==dummy_mesh)returnstep;step.scan_meshes=true;",
+                 "native CharBonesMeshes Replace helper mirrors dummy skip");
+  ok &= contains(char_clip,
+                 "if(step.meshes[i]!=from)continue;step.replaced_index="
+                 "static_cast<int>(i);if(to_is_transformable){step.meshes[i]=to;}",
+                 "native CharBonesMeshes Replace helper mirrors first transformable match");
+  ok &= contains(char_clip,
+                 "else{step.meshes[i]=dummy_mesh;step.assigned_dummy=true;}"
+                 "returnstep;",
+                 "native CharBonesMeshes Replace helper mirrors dummy fallback");
+  ok &= contains(char_clip,
+                 "SourceCharBonesMeshesReallocateStep"
+                 "source_char_bones_meshes_reallocate_step("
+                 "conststd::vector<SourceCharBonesBone>&bones,"
+                 "conststd::unordered_map<std::string,std::string>&"
+                 "transform_lookup,conststd::string&dummy_mesh){"
+                 "SourceCharBonesMeshesReallocateStepstep;step.meshes.resize("
+                 "bones.size());",
+                 "native CharBonesMeshes Reallocate helper resizes to bone count");
+  ok &= contains(char_clip,
+                 "constautoit=transform_lookup.find(bones[i].name);"
+                 "if(it!=transform_lookup.end()){step.meshes[i]=it->second;"
+                 "continue;}",
+                 "native CharBonesMeshes Reallocate helper mirrors transform lookup");
+  ok &= contains(char_clip,
+                 "if(bones[i].name.rfind(\"bone_facing\",0)!=0){"
+                 "step.missing_non_facing_bones.push_back(bones[i].name);}"
+                 "step.meshes[i]=dummy_mesh;",
+                 "native CharBonesMeshes Reallocate helper mirrors dummy and facing filter");
+  ok &= contains(char_clip,
+                 "step.acquire_pose=!step.meshes.empty();returnstep;}",
+                 "native CharBonesMeshes Reallocate helper mirrors AcquirePose gate");
+  ok &= contains(char_clip,
+                 "std::vector<std::string>source_char_bones_meshes_stuff_meshes("
+                 "conststd::vector<std::string>&existing_objects,"
+                 "conststd::vector<std::string>&meshes){"
+                 "std::vector<std::string>objects=existing_objects;"
+                 "objects.insert(objects.end(),meshes.begin(),meshes.end());",
+                 "native CharBonesMeshes StuffMeshes helper appends source order");
+  ok &= contains(char_clip,
                  "\"[clip-output]%-28ssourceCharBoneversion=%u\"",
                  "native clip debug log labels source CharBone rows");
   ok &= contains(doc,
@@ -6929,6 +7009,20 @@ int run_contract() {
                  "These helpers do not perform runtime\n"
                  "    MILO loading",
                  "document fences CharBoneDir runtime resource loading");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharBonesMeshes.cpp` is concrete",
+                 "document cites latest CharBonesMeshes source");
+  ok &= contains(doc,
+                 "`source_char_bones_meshes_replace_step`,",
+                 "document records native CharBonesMeshes Replace helper");
+  ok &= contains(doc,
+                 "suppressing missing logs for\n"
+                 "    `bone_facing*`",
+                 "document records CharBonesMeshes facing missing filter");
+  ok &= contains(doc,
+                 "This still does\n"
+                 "    not port broad `PoseMeshes` transform writes",
+                 "document fences CharBonesMeshes PoseMeshes writes");
   ok &= contains(char_bones_source_test,
                  "source_char_bone_copy_members(output)",
                  "focused CharBones source test covers CharBone copy-member helper");
@@ -6974,6 +7068,21 @@ int run_contract() {
                  "source_char_bone_dir_stuff_bones_symbol_step(clip_resources,"
                  "\"solo\")",
                  "focused CharBones source test covers CharBoneDir Symbol StuffBones handoff");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_meshes_replace_step({\"mesh_a\",\"mesh_b\"},",
+                 "focused CharBones source test covers CharBonesMeshes Replace dummy skip");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_meshes_replace_step({\"mesh_a\",\"mesh_b\","
+                 "\"mesh_b\"},",
+                 "focused CharBones source test covers CharBonesMeshes Replace first match");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_meshes_reallocate_step("
+                 "mesh_bones,{{\"bone_hand.pos\",\"hand_xfm\"}},\"dummy_mesh\")",
+                 "focused CharBones source test covers CharBonesMeshes Reallocate");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_meshes_stuff_meshes({\"existing\"},"
+                 "{\"mesh_a\",\"mesh_b\"})",
+                 "focused CharBones source test covers CharBonesMeshes StuffMeshes");
   ok &= contains(rb3_latest_char_bone_cpp,
                  "BEGIN_COPYS(CharBone)COPY_SUPERCLASS(Hmx::Object)"
                  "CREATE_COPY(CharBone)BEGIN_COPYING_MEMBERS",
@@ -7054,6 +7163,49 @@ int run_contract() {
   ok &= contains(rb3_latest_char_bone_dir_cpp,
                  "arr->Node(i)=DataNode(currArr->Sym(0));}arr->SortNodes();",
                  "latest CharBoneDir source defines GetClipTypes sorted symbols");
+  ok &= contains(rb3_latest_char_bones_meshes_h,
+                 "classCharBonesMeshes:publicCharBonesAlloc",
+                 "latest CharBonesMeshes header defines source inheritance");
+  ok &= contains(rb3_latest_char_bones_meshes_cpp,
+                 "CharBonesMeshes::CharBonesMeshes():mMeshes(this),"
+                 "mDummyMesh(Hmx::Object::New<RndTransformable>()){}",
+                 "latest CharBonesMeshes source defines mesh vector and dummy construction");
+  ok &= contains(rb3_latest_char_bones_meshes_cpp,
+                 "CharBonesMeshes::~CharBonesMeshes(){mMeshes.clear();"
+                 "deletemDummyMesh;}",
+                 "latest CharBonesMeshes source defines destructor cleanup");
+  ok &= contains(rb3_latest_char_bones_meshes_cpp,
+                 "voidCharBonesMeshes::Replace(Hmx::Object*from,Hmx::Object*to){"
+                 "Hmx::Object::Replace(from,to);if(from!=mDummyMesh){",
+                 "latest CharBonesMeshes source defines Replace dummy skip");
+  ok &= contains(rb3_latest_char_bones_meshes_cpp,
+                 "if(*it==from){*it=dynamic_cast<RndTransformable*>(to);"
+                 "if(!*it)*it=mDummyMesh;return;}",
+                 "latest CharBonesMeshes source defines Replace first match and dummy fallback");
+  ok &= contains(rb3_latest_char_bones_meshes_cpp,
+                 "voidCharBonesMeshes::ReallocateInternal(){"
+                 "CharBonesAlloc::ReallocateInternal();Stringstr;",
+                 "latest CharBonesMeshes source defines Reallocate base allocation");
+  ok &= contains(rb3_latest_char_bones_meshes_cpp,
+                 "mMeshes.resize(mBones.size());for(inti=0;i<mMeshes.size();i++){",
+                 "latest CharBonesMeshes source defines Reallocate resize");
+  ok &= contains(rb3_latest_char_bones_meshes_cpp,
+                 "mMeshes[i]=CharUtlFindBoneTrans(mBones[i].name.Str(),Dir());"
+                 "if(!mMeshes[i]){if(strncmp(\"bone_facing\","
+                 "mBones[i].name.Str(),0xB)){",
+                 "latest CharBonesMeshes source defines transform lookup and facing filter");
+  ok &= contains(rb3_latest_char_bones_meshes_cpp,
+                 "mMeshes[i]=mDummyMesh;}}if(mMeshes.empty())return;"
+                 "elseAcquirePose();}",
+                 "latest CharBonesMeshes source defines dummy fallback and AcquirePose gate");
+  ok &= contains(rb3_latest_char_bones_meshes_cpp,
+                 "voidCharBonesMeshes::PoseMeshes(){floatangle;Hmx::Matrix3m;"
+                 "m.RotateAboutY(angle);m.RotateAboutX(angle);}",
+                 "latest CharBonesMeshes source exposes incomplete PoseMeshes body");
+  ok &= contains(rb3_latest_char_bones_meshes_cpp,
+                 "voidCharBonesMeshes::StuffMeshes(std::list<Hmx::Object*>&oList){"
+                 "for(inti=0;i<mMeshes.size();i++){oList.push_back(mMeshes[i]);}}",
+                 "latest CharBonesMeshes source defines StuffMeshes order");
   ok &= contains(rb3_latest_char_utl_cpp,
                  "CharBone*CharUtlFindBone(constchar*cc,ObjectDir*dir){",
                  "latest CharUtl source exposes FindBone");

@@ -572,6 +572,74 @@ int main() {
                    "CharBoneDir StuffBones resource found");
   ok &= expect_int(stuff_found.context_mask, 0x4,
                    "CharBoneDir StuffBones context");
+  const SourceCharBonesMeshesReplaceStep replace_dummy_from =
+      source_char_bones_meshes_replace_step({"mesh_a", "mesh_b"}, "dummy_mesh",
+                                            "mesh_c", true, "dummy_mesh");
+  ok &= expect_int(replace_dummy_from.object_replace ? 1 : 0, 1,
+                   "CharBonesMeshes Replace calls object replace");
+  ok &= expect_int(replace_dummy_from.scan_meshes ? 1 : 0, 0,
+                   "CharBonesMeshes Replace dummy from skips scan");
+  ok &= expect_string(replace_dummy_from.meshes[1], "mesh_b",
+                      "CharBonesMeshes Replace dummy preserves meshes");
+  const SourceCharBonesMeshesReplaceStep replace_hit =
+      source_char_bones_meshes_replace_step({"mesh_a", "mesh_b", "mesh_b"},
+                                            "mesh_b", "mesh_c", true,
+                                            "dummy_mesh");
+  ok &= expect_int(replace_hit.scan_meshes ? 1 : 0, 1,
+                   "CharBonesMeshes Replace scans meshes");
+  ok &= expect_int(replace_hit.replaced_index, 1,
+                   "CharBonesMeshes Replace first match");
+  ok &= expect_string(replace_hit.meshes[1], "mesh_c",
+                      "CharBonesMeshes Replace transformable target");
+  ok &= expect_string(replace_hit.meshes[2], "mesh_b",
+                      "CharBonesMeshes Replace returns after first match");
+  const SourceCharBonesMeshesReplaceStep replace_non_transform =
+      source_char_bones_meshes_replace_step({"mesh_a", "mesh_b"}, "mesh_b",
+                                            "not_trans", false, "dummy_mesh");
+  ok &= expect_int(replace_non_transform.assigned_dummy ? 1 : 0, 1,
+                   "CharBonesMeshes Replace non-transform dummy");
+  ok &= expect_string(replace_non_transform.meshes[1], "dummy_mesh",
+                      "CharBonesMeshes Replace dummy target");
+  const std::vector<SourceCharBonesBone> mesh_bones = {
+      {"bone_hand.pos", 1.0f},
+      {"bone_facing.pos", 1.0f},
+      {"bone_missing.scale", 1.0f}};
+  const SourceCharBonesMeshesReallocateStep mesh_realloc =
+      source_char_bones_meshes_reallocate_step(
+          mesh_bones, {{"bone_hand.pos", "hand_xfm"}}, "dummy_mesh");
+  ok &= expect_int(mesh_realloc.char_bones_alloc_reallocate_internal ? 1 : 0, 1,
+                   "CharBonesMeshes Reallocate calls base alloc");
+  ok &= expect_size(mesh_realloc.meshes.size(), 3,
+                    "CharBonesMeshes Reallocate mesh count");
+  ok &= expect_string(mesh_realloc.meshes[0], "hand_xfm",
+                      "CharBonesMeshes Reallocate resolved target");
+  ok &= expect_string(mesh_realloc.meshes[1], "dummy_mesh",
+                      "CharBonesMeshes Reallocate facing dummy");
+  ok &= expect_string(mesh_realloc.meshes[2], "dummy_mesh",
+                      "CharBonesMeshes Reallocate missing dummy");
+  ok &= expect_size(mesh_realloc.missing_non_facing_bones.size(), 1,
+                    "CharBonesMeshes Reallocate missing log count");
+  ok &= expect_string(mesh_realloc.missing_non_facing_bones[0],
+                      "bone_missing.scale",
+                      "CharBonesMeshes Reallocate missing log row");
+  ok &= expect_int(mesh_realloc.acquire_pose ? 1 : 0, 1,
+                   "CharBonesMeshes Reallocate acquires pose");
+  const SourceCharBonesMeshesReallocateStep mesh_realloc_empty =
+      source_char_bones_meshes_reallocate_step({}, {}, "dummy_mesh");
+  ok &= expect_size(mesh_realloc_empty.meshes.size(), 0,
+                    "CharBonesMeshes Reallocate empty mesh count");
+  ok &= expect_int(mesh_realloc_empty.acquire_pose ? 1 : 0, 0,
+                   "CharBonesMeshes Reallocate empty no pose");
+  const std::vector<std::string> stuffed_meshes =
+      source_char_bones_meshes_stuff_meshes({"existing"}, {"mesh_a", "mesh_b"});
+  ok &= expect_size(stuffed_meshes.size(), 3,
+                    "CharBonesMeshes StuffMeshes count");
+  ok &= expect_string(stuffed_meshes[0], "existing",
+                      "CharBonesMeshes StuffMeshes preserves caller object");
+  ok &= expect_string(stuffed_meshes[1], "mesh_a",
+                      "CharBonesMeshes StuffMeshes first mesh");
+  ok &= expect_string(stuffed_meshes[2], "mesh_b",
+                      "CharBonesMeshes StuffMeshes second mesh");
 
   constexpr float kHalfPi = 1.57079632679489661923f;
   std::array<float, 3> facing_pos_delta = {4.0f, 5.0f, 6.0f};

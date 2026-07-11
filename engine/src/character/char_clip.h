@@ -126,6 +126,21 @@ struct SourceCharBoneDirStuffBonesSymbolStep {
   int context_mask = 0;
 };
 
+struct SourceCharBonesMeshesReplaceStep {
+  bool object_replace = true;
+  bool scan_meshes = false;
+  int replaced_index = -1;
+  bool assigned_dummy = false;
+  std::vector<std::string> meshes;
+};
+
+struct SourceCharBonesMeshesReallocateStep {
+  bool char_bones_alloc_reallocate_internal = true;
+  std::vector<std::string> meshes;
+  std::vector<std::string> missing_non_facing_bones;
+  bool acquire_pose = false;
+};
+
 struct SourceCharBonesSamplesState {
   SourceCharBonesState bones;
   int num_samples = 0;
@@ -712,6 +727,19 @@ SourceCharBoneDirStuffBonesSymbolStep
 source_char_bone_dir_stuff_bones_symbol_step(
     const std::vector<SourceCharBoneDirClipTypeResource>& clip_types,
     const std::string& clip_type);
+SourceCharBonesMeshesReplaceStep source_char_bones_meshes_replace_step(
+    const std::vector<std::string>& meshes,
+    const std::string& from,
+    const std::string& to,
+    bool to_is_transformable,
+    const std::string& dummy_mesh);
+SourceCharBonesMeshesReallocateStep source_char_bones_meshes_reallocate_step(
+    const std::vector<SourceCharBonesBone>& bones,
+    const std::unordered_map<std::string, std::string>& transform_lookup,
+    const std::string& dummy_mesh);
+std::vector<std::string> source_char_bones_meshes_stuff_meshes(
+    const std::vector<std::string>& existing_objects,
+    const std::vector<std::string>& meshes);
 
 // Source-backed CharServoBone movement helpers. These port the isolated math
 // bodies only; broad CharBonesMeshes movement stays fenced to the clip stack.
