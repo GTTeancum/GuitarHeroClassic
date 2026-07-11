@@ -2018,6 +2018,17 @@ int run_contract() {
                  "`CharBonesSamples` list\n    compression modes",
                  "document records source clip compression inventory logging");
   ok &= contains(doc,
+                 "All 24 app runs exited 0.\n    Twenty-three characters "
+                 "produced accepted `CharBonesSamples` rows; all 192",
+                 "document records stock clip compression inventory coverage");
+  ok &= contains(doc,
+                 "accepted rows used `1(kCompressRots)` and `byteQuat=0`",
+                 "document records stock accepted rows avoid byte-quat");
+  ok &= contains(doc,
+                 "`metal_keyboard`\n    rendered and logged its source driver, "
+                 "but the default viewer clip names",
+                 "document records metal_keyboard clip inventory caveat");
+  ok &= contains(doc,
                  "the accessible tree does not include a\n"
                  "    matching `ByteQuat` type, header, or conversion "
                  "implementation",

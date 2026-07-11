@@ -619,6 +619,17 @@ note, and all report `unreadBytes=0`.
   - `GHOGX_DEBUG_CLIP=1` logs accepted source `CharBonesSamples` list
     compression modes, sample counts, channel counts, source frame byte counts,
     and whether a list would require the fenced `ByteQuat` path.
+  - 2026-07-11 stock default-viewer proof at
+    `analysis/source_charbones_stock_compression_20260711/stock_clip_compression_summary.txt`
+    ran all 24 stock base character MILOs through the native app with
+    `GHOGX_DEBUG_CLIP=1` and individual screenshots. All 24 app runs exited 0.
+    Twenty-three characters produced accepted `CharBonesSamples` rows; all 192
+    accepted rows used `1(kCompressRots)` and `byteQuat=0`. `metal_keyboard`
+    rendered and logged its source driver, but the default viewer clip names
+    `idle_medium_01` and `stand_medium_01` were not found in its
+    `keyboard_main` clip MILO, so that route produced zero accepted sample
+    rows and remains an inventory gap rather than proof of another compression
+    mode.
   - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish
     the source packed-row offset model.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
