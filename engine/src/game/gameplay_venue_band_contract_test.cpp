@@ -4523,6 +4523,15 @@ int main() {
                  "resolve_venue_mesh_anim_key_owners(meshanim_anims);",
                  "venue MeshAnim key-owner references resolve through source pages");
   ok &= contains(gameplay_c,
+                 "resolve_venue_mesh_anim_same_stem_meshes(meshanim_anims,mesh_refs);",
+                 "blank venue MeshAnim targets bind exact same-stem source mesh refs");
+  ok &= contains(gameplay_c,
+                 "meshanim_same_stem_mesh_ref",
+                 "venue MeshAnim same-stem binding remains source-directory gated");
+  ok &= contains(gameplay_c,
+                 "if(de.type==\"Mesh\")mesh_refs.insert(canonical_milo_ref(de.name));",
+                 "venue MeshAnim same-stem binding uses decoded source mesh entries");
+  ok &= contains(gameplay_c,
                  "meshanim_anims[anim.name]=std::move(anim);",
                  "venue load caches decoded MeshAnim bodies");
   ok &= contains(gameplay_c,

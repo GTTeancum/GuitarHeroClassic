@@ -7986,6 +7986,31 @@ void resolve_venue_mesh_anim_key_owners(
     }
 }
 
+std::string meshanim_same_stem_mesh_ref(
+    const std::string& mesh_anim_ref,
+    const std::unordered_set<std::string>& mesh_refs) {
+    std::string stem = strip_milo_ref_suffix(mesh_anim_ref, ".msnm");
+    if (stem == mesh_anim_ref) {
+        stem = strip_milo_ref_suffix(mesh_anim_ref, ".meshanim");
+        if (stem == mesh_anim_ref) return {};
+    }
+    if (stem.empty()) return {};
+    const std::string mesh_ref = canonical_milo_ref(stem + ".mesh");
+    return mesh_refs.find(mesh_ref) != mesh_refs.end() ? mesh_ref
+                                                       : std::string{};
+}
+
+void resolve_venue_mesh_anim_same_stem_meshes(
+    std::map<std::string, Gameplay::VenueMeshAnim>& meshanim_anims,
+    const std::unordered_set<std::string>& mesh_refs) {
+    for (auto& [name, anim] : meshanim_anims) {
+        if (!anim.mesh.empty() || !venue_mesh_anim_has_key_pages(anim)) {
+            continue;
+        }
+        anim.mesh = meshanim_same_stem_mesh_ref(anim.name, mesh_refs);
+    }
+}
+
 std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>
 mesh_anim_keys_from_camera_keys(const std::vector<Gameplay::CameraKey>& keys) {
     std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey> out;
@@ -9780,6 +9805,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                  ghogx::render::MiloSceneRenderer::MeshTransformAnim>
             transanim_anims;
         std::map<std::string, Gameplay::VenueMeshAnim> meshanim_anims;
+        std::unordered_set<std::string> mesh_refs;
         std::map<std::string,
                  std::vector<DecodedVenueEventTrigger::AnimRoute>>
             event_filters;
@@ -9789,6 +9815,7 @@ load_venue_anim_filters(const std::string& hdr_path,
         std::map<std::string, std::vector<std::string>> poll_anim_refs;
 
         for (const auto& de : dir.entries) {
+            if (de.type == "Mesh") mesh_refs.insert(canonical_milo_ref(de.name));
             if (de.offset + de.size > payload.size()) continue;
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
@@ -9877,6 +9904,7 @@ load_venue_anim_filters(const std::string& hdr_path,
             }
         }
         resolve_venue_mesh_anim_key_owners(meshanim_anims);
+        resolve_venue_mesh_anim_same_stem_meshes(meshanim_anims, mesh_refs);
         if (debug_venue_filters_enabled()) {
             for (const auto& [name, anim] : meshanim_anims) {
                 if (!venue_mesh_anim_has_key_pages(anim)) continue;
@@ -10335,7 +10363,9 @@ Gameplay::VenueAnimFilter load_rnddir_directory_anim(
         auto payload = gh::milo::inflate_payload(bytes, hdr);
         auto dir = gh::milo::parse_directory(payload);
         std::map<std::string, Gameplay::VenueMeshAnim> meshanim_anims;
+        std::unordered_set<std::string> mesh_refs;
         for (const auto& de : dir.entries) {
+            if (de.type == "Mesh") mesh_refs.insert(canonical_milo_ref(de.name));
             if (de.offset + de.size > payload.size()) continue;
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
@@ -10357,6 +10387,7 @@ Gameplay::VenueAnimFilter load_rnddir_directory_anim(
             }
         }
         resolve_venue_mesh_anim_key_owners(meshanim_anims);
+        resolve_venue_mesh_anim_same_stem_meshes(meshanim_anims, mesh_refs);
         if (debug_venue_filters_enabled()) {
             for (const auto& [name, anim] : meshanim_anims) {
                 if (!venue_mesh_anim_has_key_pages(anim)) continue;
