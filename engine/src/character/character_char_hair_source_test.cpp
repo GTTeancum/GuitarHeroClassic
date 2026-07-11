@@ -55,10 +55,13 @@ int main() {
   using ghogx::character::source_char_hair_enter_plan;
   using ghogx::character::source_char_hair_freeze_pose_plan;
   using ghogx::character::source_char_hair_freeze_pose_raw;
+  using ghogx::character::source_char_hair_default_state;
   using ghogx::character::source_char_hair_hookup_plan;
   using ghogx::character::source_char_hair_load_plan;
   using ghogx::character::source_char_hair_point_load_plan;
   using ghogx::character::source_char_hair_poll_decision;
+  using ghogx::character::source_char_hair_set_managed_hookup;
+  using ghogx::character::source_char_hair_set_name_plan;
   using ghogx::character::source_char_hair_simulate_loops_plan;
   using ghogx::character::source_char_hair_strand_load_plan;
 
@@ -185,6 +188,26 @@ int main() {
   ok &= expect_bool(load_v11.read_order.back() == "mWind", true,
                     "hair v11 reads wind");
 
+  const auto set_name_plain = source_char_hair_set_name_plan(false, false);
+  ok &= expect_bool(set_name_plain.call_hmx_object_set_name, true,
+                    "set name calls Hmx::Object");
+  ok &= expect_bool(set_name_plain.assigns_character_owner, false,
+                    "set name plain no character owner");
+  ok &= expect_bool(set_name_plain.use_post_proc, false,
+                    "set name plain no postproc");
+
+  const auto set_name_character = source_char_hair_set_name_plan(true, false);
+  ok &= expect_bool(set_name_character.assigns_character_owner, true,
+                    "set name character owner");
+  ok &= expect_bool(set_name_character.use_post_proc, true,
+                    "set name character postproc");
+
+  const auto set_name_world = source_char_hair_set_name_plan(false, true);
+  ok &= expect_bool(set_name_world.assigns_character_owner, false,
+                    "set name world no character owner");
+  ok &= expect_bool(set_name_world.use_post_proc, true,
+                    "set name world postproc");
+
   Character freeze_character;
   auto parent = make_trans("parent");
   set_pos(parent.local, 10.0f, 20.0f, 30.0f);
@@ -256,6 +279,19 @@ int main() {
                     "managed hookup skips overloaded hookup");
   ok &= expect_int(static_cast<int>(managed_hookup.collected_collides.size()),
                    0, "managed hookup collects none");
+
+  auto managed_state = source_char_hair_default_state();
+  source_char_hair_set_managed_hookup(managed_state, true);
+  ok &= expect_bool(managed_state.managed_hookup, true,
+                    "managed setter enables state");
+  const auto state_managed_hookup =
+      source_char_hair_hookup_plan(managed_state.managed_hookup,
+                                   {"head.collide"});
+  ok &= expect_bool(state_managed_hookup.returned_for_managed_hookup, true,
+                    "managed setter feeds hookup return");
+  source_char_hair_set_managed_hookup(managed_state, false);
+  ok &= expect_bool(managed_state.managed_hookup, false,
+                    "managed setter disables state");
 
   const auto hookup =
       source_char_hair_hookup_plan(false, {"head.collide", "neck.collide"});

@@ -1697,6 +1697,9 @@ int run_contract() {
                  "boolpp=false;if(mMe||dynamic_cast<WorldDir*>(dir))pp=true;"
                  "mUsePostProc=pp;}",
                  "RB3 CharHair SetName source detects Character/WorldDir owners");
+  ok &= contains(rb3_latest_char_hair_h,
+                 "voidSetManagedHookup(boolb){mManagedHookup=b;}",
+                 "RB3 CharHair header exposes managed-hookup setter");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "floatCharHair::GetFPS(){if(mUsePostProc&&RndPostProc::Current()"
                  "&&RndPostProc::Current()->EmulateFPS()>0){floatret="
@@ -1783,6 +1786,20 @@ int run_contract() {
                  "SourceCharHairLoadPlansource_char_hair_load_plan("
                  "intrevision);",
                  "native exposes CharHair load plan helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairSetNamePlan{"
+                 "boolcall_hmx_object_set_name=true;"
+                 "boolassigns_character_owner=false;"
+                 "booluse_post_proc=false;};",
+                 "native exposes CharHair SetName plan row");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairSetNamePlansource_char_hair_set_name_plan("
+                 "boolowner_is_character,boolowner_is_world_dir);",
+                 "native exposes CharHair SetName plan helper");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_hair_set_managed_hookup("
+                 "SourceCharHairDefaultState&state,boolmanaged_hookup);",
+                 "native exposes CharHair managed-hookup setter");
   ok &= contains(char_mesh,
                  "SourceCharHairPointLoadPlansource_char_hair_point_load_plan("
                  "intrevision){SourceCharHairPointLoadPlanplan;"
@@ -1837,10 +1854,23 @@ int run_contract() {
                  "boolowner_is_character,boolowner_is_world_dir);",
                  "native exposes CharHair SetName ownership helper");
   ok &= contains(char_mesh,
+                 "SourceCharHairSetNamePlansource_char_hair_set_name_plan("
+                 "boolowner_is_character,boolowner_is_world_dir){"
+                 "SourceCharHairSetNamePlanplan;plan.assigns_character_owner="
+                 "owner_is_character;plan.use_post_proc=owner_is_character||"
+                 "owner_is_world_dir;returnplan;}",
+                 "native CharHair SetName plan follows source branch");
+  ok &= contains(char_mesh,
                  "boolsource_char_hair_set_name_use_post_proc("
                  "boolowner_is_character,boolowner_is_world_dir){"
-                 "returnowner_is_character||owner_is_world_dir;}",
-                 "native CharHair SetName helper follows source branch");
+                 "returnsource_char_hair_set_name_plan(owner_is_character,"
+                 "owner_is_world_dir).use_post_proc;}",
+                 "native CharHair SetName ownership helper uses plan");
+  ok &= contains(char_mesh,
+                 "voidsource_char_hair_set_managed_hookup("
+                 "SourceCharHairDefaultState&state,boolmanaged_hookup){"
+                 "state.managed_hookup=managed_hookup;}",
+                 "native CharHair managed-hookup helper follows source setter");
   ok &= contains(char_mesh,
                  "floatsource_char_hair_get_fps(booluse_post_proc,"
                  "floatemulated_fps){if(use_post_proc&&emulated_fps>0.0f){"
@@ -1916,15 +1946,24 @@ int run_contract() {
                  "source_char_hair_get_fps(true,20.0f),40.0f",
                  "deterministic test covers source CharHair GetFPS emulation branch");
   ok &= contains(char_hair_source_test,
+                 "source_char_hair_set_name_plan(true,false)",
+                 "focused CharHair source test covers SetName Character branch");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_set_managed_hookup(managed_state,true)",
+                 "focused CharHair source test covers managed-hookup setter");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_hookup_plan(managed_state.managed_hookup,",
+                 "focused CharHair source test feeds managed state to Hookup");
+  ok &= contains(char_hair_source_test,
                  "source_char_hair_enter_plan(false,",
                  "focused CharHair source test covers Enter plan");
   ok &= contains(char_hair_source_test,
                  "source_char_hair_freeze_pose_plan(true,2,3)",
                  "focused CharHair source test covers FreezePose plan");
   ok &= contains(doc,
-                 "Native ports the constructor constants, SetName ownership branch, and the\n"
-                 "    `GetFPS` branch",
-                 "document ties native CharHair defaults/GetFPS to source");
+                 "Native ports the constructor constants, SetName ownership branch, the\n"
+                 "    `SetManagedHookup` state change, and the `GetFPS` branch",
+                 "document ties native CharHair defaults/GetFPS/managed hookup to source");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::SimulateLoops(intcount,floatf){if(mSimulate&&"
                  "mStrands.size()!=0){for(ObjPtrList<CharCollide,ObjectDir>"

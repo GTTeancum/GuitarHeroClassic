@@ -337,6 +337,12 @@ struct SourceCharHairLoadPlan {
   std::vector<std::string> branches;
 };
 
+struct SourceCharHairSetNamePlan {
+  bool call_hmx_object_set_name = true;
+  bool assigns_character_owner = false;
+  bool use_post_proc = false;
+};
+
 struct SourceCharHairRootNode {
   std::string bone;
   float local_y = 0.0f;
@@ -1084,8 +1090,13 @@ SourceCharHairDefaultState source_char_hair_default_state();
 SourceCharHairPointLoadPlan source_char_hair_point_load_plan(int revision);
 SourceCharHairStrandLoadPlan source_char_hair_strand_load_plan(int revision);
 SourceCharHairLoadPlan source_char_hair_load_plan(int revision);
+SourceCharHairSetNamePlan source_char_hair_set_name_plan(
+    bool owner_is_character,
+    bool owner_is_world_dir);
 bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
                                              bool owner_is_world_dir);
+void source_char_hair_set_managed_hookup(SourceCharHairDefaultState& state,
+                                         bool managed_hookup);
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
 SourceCharHairHookupPlan source_char_hair_hookup_plan(
     bool managed_hookup,

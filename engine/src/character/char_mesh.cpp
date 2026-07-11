@@ -1728,9 +1728,24 @@ SourceCharHairLoadPlan source_char_hair_load_plan(int revision) {
   return plan;
 }
 
+SourceCharHairSetNamePlan source_char_hair_set_name_plan(
+    bool owner_is_character,
+    bool owner_is_world_dir) {
+  SourceCharHairSetNamePlan plan;
+  plan.assigns_character_owner = owner_is_character;
+  plan.use_post_proc = owner_is_character || owner_is_world_dir;
+  return plan;
+}
+
 bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
                                              bool owner_is_world_dir) {
-  return owner_is_character || owner_is_world_dir;
+  return source_char_hair_set_name_plan(owner_is_character, owner_is_world_dir)
+      .use_post_proc;
+}
+
+void source_char_hair_set_managed_hookup(SourceCharHairDefaultState& state,
+                                         bool managed_hookup) {
+  state.managed_hookup = managed_hookup;
 }
 
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps) {

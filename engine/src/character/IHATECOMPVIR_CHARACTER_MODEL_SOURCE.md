@@ -574,10 +574,12 @@ note, and all report `unreadBytes=0`.
     `Hookup(ObjPtrList<CharCollide>&)` path.
   - `SetName` detects whether the owning directory is a `Character` or
     `WorldDir` and enables post-process FPS emulation accordingly. `GetFPS`
-    returns the post-process emulated rate when available, otherwise 60 Hz.
-    Native ports the constructor constants, SetName ownership branch, and the
-    `GetFPS` branch into deterministic helpers so those source defaults remain
-    explicit without guessing a post-process runtime.
+    returns the post-process emulated rate when available, otherwise 60 Hz. The
+    inline `SetManagedHookup` setter only assigns `mManagedHookup`.
+    Native ports the constructor constants, SetName ownership branch, the
+    `SetManagedHookup` state change, and the `GetFPS` branch into
+    deterministic helpers so those source defaults remain explicit without
+    guessing a post-process runtime.
   - `SimulateLoops` is gated by `mSimulate` and a non-empty strand list, runs
     collide-list maintenance, then calls `SimulateInternal` for each requested
     loop. Native `source_char_hair_simulate_loops_plan` ports that gate and
