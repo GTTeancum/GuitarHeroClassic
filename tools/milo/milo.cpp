@@ -110,7 +110,14 @@ std::vector<uint8_t> inflate_raw(const uint8_t* src, size_t src_len,
     // hygiene matters).
     void* p = tinfl_decompress_mem_to_heap(src, src_len, &out_len,
                                            0 /* flags: raw deflate */);
-    if (!p) throw std::runtime_error("milo: raw deflate inflate failed");
+    if (!p) {
+        uint8_t scratch = 0;
+        const size_t mem_to_mem_len =
+            tinfl_decompress_mem_to_mem(&scratch, sizeof(scratch), src, src_len,
+                                        0 /* flags: raw deflate */);
+        if (mem_to_mem_len == 0) return {};
+        throw std::runtime_error("milo: raw deflate inflate failed");
+    }
     std::vector<uint8_t> out(static_cast<uint8_t*>(p),
                              static_cast<uint8_t*>(p) + out_len);
     // tinfl_decompress_mem_to_heap allocates with MZ_MALLOC (== malloc by default).

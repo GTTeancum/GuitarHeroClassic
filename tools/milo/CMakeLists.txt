@@ -23,3 +23,7 @@ target_link_libraries(milo PRIVATE miniz_tinfl)
 
 add_executable(milo_tool milo_tool.cpp)
 target_link_libraries(milo_tool PRIVATE milo)
+
+add_executable(milo_test milo_test.cpp)
+target_link_libraries(milo_test PRIVATE milo)
+add_test(NAME milo_test COMMAND milo_test)
