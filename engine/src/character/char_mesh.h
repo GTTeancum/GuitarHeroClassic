@@ -381,6 +381,24 @@ struct SourceCharIKScalePollDeps {
   std::vector<std::string> change;
 };
 
+enum class SourceCharacterDrawMode : int32_t {
+  kNone = 0,
+  kOpaque = 1,
+  kTranslucent = 2,
+  kAll = 3,
+};
+
+struct SourceCharTransDrawCharacter {
+  std::string name;
+  bool showing = false;
+};
+
+struct SourceCharTransDrawStep {
+  std::string character;
+  SourceCharacterDrawMode mode = SourceCharacterDrawMode::kAll;
+  bool draw = false;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -437,6 +455,15 @@ void source_char_ik_scale_poll_deps(
     SourceCharIKScalePollDeps& deps,
     const std::string& dest,
     const std::vector<std::string>& secondary_targets);
+std::vector<SourceCharTransDrawStep> source_char_trans_draw_set_draw_modes(
+    const std::vector<std::string>& chars,
+    SourceCharacterDrawMode mode);
+std::vector<SourceCharTransDrawStep> source_char_trans_draw_load_modes(
+    const std::vector<std::string>& chars);
+std::vector<SourceCharTransDrawStep> source_char_trans_draw_destruct_modes(
+    const std::vector<std::string>& chars);
+std::vector<SourceCharTransDrawStep> source_char_trans_draw_draw_showing(
+    const std::vector<SourceCharTransDrawCharacter>& chars);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

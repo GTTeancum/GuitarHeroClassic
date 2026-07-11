@@ -106,6 +106,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_poll_group_source_test.cpp"));
   const std::string ik_scale_source_test =
       compact(read_file(char_dir / "character_ik_scale_source_test.cpp"));
+  const std::string trans_draw_source_test =
+      compact(read_file(char_dir / "character_trans_draw_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -204,6 +206,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharTransCopy.cpp"));
   const std::string rb3_latest_char_trans_copy_h = compact(read_file(
       rb3_latest_char_dir / "CharTransCopy.h"));
+  const std::string rb3_latest_char_trans_draw_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharTransDraw.cpp"));
+  const std::string rb3_latest_char_trans_draw_h = compact(read_file(
+      rb3_latest_char_dir / "CharTransDraw.h"));
   const std::string rb3_latest_char_weightable_cpp = compact(read_file(
       rb3_latest_char_dir / "CharWeightable.cpp"));
   const std::string rb3_latest_char_weightable_h = compact(read_file(
@@ -218,6 +224,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharDriverMidi.h"));
   const std::string rb3_latest_character_cpp = compact(read_file(
       rb3_latest_char_dir / "Character.cpp"));
+  const std::string rb3_latest_character_h = compact(read_file(
+      rb3_latest_char_dir / "Character.h"));
   const std::string rb3_latest_char_poll_group_cpp = compact(read_file(
       rb3_latest_char_dir / "CharPollGroup.cpp"));
   const std::string rb3_latest_char_poll_group_h = compact(read_file(
@@ -383,6 +391,11 @@ int run_contract() {
                  "| Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / "
                  "`CharMeshHide.h` |",
                  "coverage matrix cites CharMeshHide source");
+  ok &= contains(doc,
+                 "| Translucent character draw controller | `rb3-latest` "
+                 "`CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` "
+                 "draw-mode enum |",
+                 "coverage matrix cites CharTransDraw source");
   ok &= contains(doc,
                  "| Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / "
                  "`CharTransCopy.h` |",
@@ -2055,6 +2068,77 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_ik_scale_*` helpers port",
                  "document records native CharIKScale helpers");
+  ok &= contains(rb3_latest_character_h,
+                 "enumDrawMode{kCharDrawNone,kCharDrawOpaque,"
+                 "kCharDrawTranslucent,kCharDrawAll};",
+                 "Character source draw-mode enum order");
+  ok &= contains(rb3_latest_char_trans_draw_h,
+                 "classCharTransDraw:publicRndDrawable",
+                 "latest CharTransDraw header exposes source class");
+  ok &= contains(rb3_latest_char_trans_draw_cpp,
+                 "CharTransDraw::~CharTransDraw(){SetDrawModes("
+                 "Character::kCharDrawAll);}",
+                 "CharTransDraw source destructor restores draw all");
+  ok &= contains(rb3_latest_char_trans_draw_cpp,
+                 "voidCharTransDraw::SetDrawModes(Character::DrawModemode){"
+                 "for(ObjPtrList<Character,ObjectDir>::iteratorit="
+                 "mChars.begin();it!=mChars.end();++it){(*it)->"
+                 "SetDrawMode(mode);}}",
+                 "CharTransDraw source SetDrawModes order");
+  ok &= contains(rb3_latest_char_trans_draw_cpp,
+                 "voidCharTransDraw::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(1,0);Hmx::Object::Load(bs);"
+                 "RndDrawable::Load(bs);bs>>mChars;"
+                 "SetDrawModes(Character::kCharDrawOpaque);}",
+                 "CharTransDraw source Load sets opaque");
+  ok &= contains(rb3_latest_char_trans_draw_cpp,
+                 "voidCharTransDraw::DrawShowing(){for(ObjPtrList<Character,"
+                 "ObjectDir>::iteratorit=mChars.begin();it!=mChars.end();"
+                 "++it){Character*theChar=*it;if(theChar->Showing()){"
+                 "theChar->SetDrawMode(Character::kCharDrawTranslucent);"
+                 "theChar->Draw();theChar->SetDrawMode("
+                 "Character::kCharDrawOpaque);}}}",
+                 "CharTransDraw source DrawShowing sequence");
+  ok &= contains(char_mesh_h,
+                 "enumclassSourceCharacterDrawMode:int32_t{kNone=0,"
+                 "kOpaque=1,kTranslucent=2,kAll=3,};",
+                 "native exposes source character draw-mode enum order");
+  ok &= contains(char_mesh,
+                 "std::vector<SourceCharTransDrawStep>"
+                 "source_char_trans_draw_set_draw_modes("
+                 "conststd::vector<std::string>&chars,"
+                 "SourceCharacterDrawModemode)",
+                 "native ports CharTransDraw SetDrawModes helper");
+  ok &= contains(char_mesh,
+                 "returnsource_char_trans_draw_set_draw_modes(chars,"
+                 "SourceCharacterDrawMode::kOpaque);",
+                 "native ports CharTransDraw Load opaque mode");
+  ok &= contains(char_mesh,
+                 "returnsource_char_trans_draw_set_draw_modes(chars,"
+                 "SourceCharacterDrawMode::kAll);",
+                 "native ports CharTransDraw destructor all mode");
+  ok &= contains(char_mesh,
+                 "if(!character.showing)continue;steps.push_back({"
+                 "character.name,SourceCharacterDrawMode::kTranslucent,false});"
+                 "steps.push_back({character.name,SourceCharacterDrawMode::"
+                 "kTranslucent,true});steps.push_back({character.name,"
+                 "SourceCharacterDrawMode::kOpaque,false});",
+                 "native ports CharTransDraw DrawShowing sequence");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_trans_draw_source_test",
+                 "CMake builds CharTransDraw source test");
+  ok &= contains(trans_draw_source_test,
+                 "source_char_trans_draw_load_modes(chars)",
+                 "focused CharTransDraw test covers Load opaque");
+  ok &= contains(trans_draw_source_test,
+                 "source_char_trans_draw_destruct_modes(chars)",
+                 "focused CharTransDraw test covers destructor all");
+  ok &= contains(trans_draw_source_test,
+                 "source_char_trans_draw_draw_showing(draw_chars)",
+                 "focused CharTransDraw test covers DrawShowing");
+  ok &= contains(doc,
+                 "Native `source_char_trans_draw_*` helpers port",
+                 "document records native CharTransDraw helpers");
   ok &= contains(rb3_latest_char_mesh_hide_h,
                  "classCharMeshHide:publicHmx::Object",
                  "latest CharMeshHide header exposes source class");

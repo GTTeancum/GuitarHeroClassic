@@ -1719,6 +1719,43 @@ void source_char_ik_scale_poll_deps(
   deps.changed_by.push_back(dest);
 }
 
+std::vector<SourceCharTransDrawStep> source_char_trans_draw_set_draw_modes(
+    const std::vector<std::string>& chars,
+    SourceCharacterDrawMode mode) {
+  std::vector<SourceCharTransDrawStep> steps;
+  steps.reserve(chars.size());
+  for (const std::string& character : chars) {
+    steps.push_back({character, mode, false});
+  }
+  return steps;
+}
+
+std::vector<SourceCharTransDrawStep> source_char_trans_draw_load_modes(
+    const std::vector<std::string>& chars) {
+  return source_char_trans_draw_set_draw_modes(
+      chars, SourceCharacterDrawMode::kOpaque);
+}
+
+std::vector<SourceCharTransDrawStep> source_char_trans_draw_destruct_modes(
+    const std::vector<std::string>& chars) {
+  return source_char_trans_draw_set_draw_modes(
+      chars, SourceCharacterDrawMode::kAll);
+}
+
+std::vector<SourceCharTransDrawStep> source_char_trans_draw_draw_showing(
+    const std::vector<SourceCharTransDrawCharacter>& chars) {
+  std::vector<SourceCharTransDrawStep> steps;
+  for (const SourceCharTransDrawCharacter& character : chars) {
+    if (!character.showing) continue;
+    steps.push_back(
+        {character.name, SourceCharacterDrawMode::kTranslucent, false});
+    steps.push_back(
+        {character.name, SourceCharacterDrawMode::kTranslucent, true});
+    steps.push_back({character.name, SourceCharacterDrawMode::kOpaque, false});
+  }
+  return steps;
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;

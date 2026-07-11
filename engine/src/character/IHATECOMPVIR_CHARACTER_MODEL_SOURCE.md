@@ -31,6 +31,7 @@ records the upstream commits for the copied files:
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
 | Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
+| Translucent character draw controller | `rb3-latest` `CharTransDraw.cpp` / `CharTransDraw.h`, `Character.h` draw-mode enum | Native helper ports source draw-mode command order only; it does not change renderer sorting or material state. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
 | Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
@@ -522,6 +523,21 @@ note, and all report `unreadBytes=0`.
     then pushes `mDest` into `changedBy`.
   - Native `source_char_ik_scale_*` helpers port those complete source-visible
     behaviors only. They do not invent the absent scale-write body.
+- `rb3-latest/src/system/char/CharTransDraw.cpp`,
+  `CharTransDraw.h`, and `Character.h`
+  - `Character::DrawMode` source values are `kCharDrawNone`,
+    `kCharDrawOpaque`, `kCharDrawTranslucent`, and `kCharDrawAll` in that
+    order.
+  - `CharTransDraw::Load` reads `Hmx::Object`, `RndDrawable`, then `mChars`,
+    and immediately sets every referenced character to `kCharDrawOpaque`.
+  - `CharTransDraw::~CharTransDraw` restores every referenced character to
+    `kCharDrawAll`.
+  - `DrawShowing` skips hidden characters. For each showing character it sets
+    draw mode to `kCharDrawTranslucent`, calls `Draw`, then restores
+    `kCharDrawOpaque`.
+  - Native `source_char_trans_draw_*` helpers port that command order for tests
+    and future source-backed wiring only. They do not alter material state,
+    depth behavior, sort order, or the project-level hair two-sided rule.
 - `rb3-latest/src/system/char/CharMeshHide.cpp` and
   `CharMeshHide.h`
   - `CharMeshHide::HideAll` first ORs the incoming flag word with every
