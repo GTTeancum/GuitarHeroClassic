@@ -1006,6 +1006,13 @@ struct SourceCharInterestState {
   float max_view_angle_cos = 0.0f;
 };
 
+struct SourceCharInterestLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+  bool sync_max_view_angle = false;
+};
+
 struct SourceCharNeckTwistState {
   std::string twist;
   std::string head;
@@ -1413,6 +1420,7 @@ SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_copy(
     const SourceCharEyeDartRulesetData& src);
 SourceCharInterestState source_char_interest_defaults();
 bool source_char_interest_load_revision_known(int revision);
+SourceCharInterestLoadPlan source_char_interest_load_plan(int revision);
 float source_char_interest_sync_max_view_angle(float max_view_angle_degrees);
 bool source_char_interest_is_matching_filter_flags(int category_flags,
                                                    int mask);

@@ -37,6 +37,7 @@ int main() {
   using ghogx::character::source_char_interest_copy;
   using ghogx::character::source_char_interest_defaults;
   using ghogx::character::source_char_interest_is_matching_filter_flags;
+  using ghogx::character::source_char_interest_load_plan;
   using ghogx::character::source_char_interest_load_revision_known;
   using ghogx::character::source_char_interest_sync_max_view_angle;
 
@@ -67,6 +68,64 @@ int main() {
                     "revision 6 accepted");
   ok &= expect_bool(source_char_interest_load_revision_known(7), false,
                     "revision 7 rejected");
+
+  const auto load_bad = source_char_interest_load_plan(7);
+  ok &= expect_bool(load_bad.known_revision, false,
+                    "load plan rejects revision 7");
+  ok &= expect_int(static_cast<int>(load_bad.read_order.size()), 0,
+                   "invalid load plan has no reads");
+
+  const auto load_v1 = source_char_interest_load_plan(1);
+  ok &= expect_bool(load_v1.known_revision, true,
+                    "load v1 revision accepted");
+  ok &= expect_int(static_cast<int>(load_v1.read_order.size()), 8,
+                   "load v1 read count");
+  ok &= expect_string(load_v1.read_order[0], "Hmx::Object",
+                      "load v1 object first");
+  ok &= expect_string(load_v1.read_order[1], "RndTransformable",
+                      "load v1 transformable second");
+  ok &= expect_string(load_v1.read_order[6], "mRefractoryPeriod",
+                      "load v1 refractory period before branch");
+  ok &= expect_string(load_v1.read_order[7], "mDartOverride",
+                      "load v1 dart override branch");
+  ok &= expect_string(load_v1.branches[0], "temp > 5",
+                      "load v1 source temp branch");
+  ok &= expect_bool(load_v1.sync_max_view_angle, true,
+                    "load v1 syncs max view angle");
+
+  const auto load_v3 = source_char_interest_load_plan(3);
+  ok &= expect_int(static_cast<int>(load_v3.read_order.size()), 10,
+                   "load v3 read count");
+  ok &= expect_string(load_v3.read_order[7], "legacyObjectPtr",
+                      "load v3 legacy object branch");
+  ok &= expect_string(load_v3.read_order[8], "mCategoryFlags",
+                      "load v3 category flags");
+  ok &= expect_string(load_v3.read_order[9], "legacyCategoryFlagsByte",
+                      "load v3 legacy category byte");
+
+  const auto load_v5 = source_char_interest_load_plan(5);
+  ok &= expect_int(static_cast<int>(load_v5.read_order.size()), 11,
+                   "load v5 read count");
+  ok &= expect_string(load_v5.read_order[7], "legacyObjectPtr",
+                      "load v5 legacy object branch");
+  ok &= expect_string(load_v5.read_order[8], "mCategoryFlags",
+                      "load v5 category flags");
+  ok &= expect_string(load_v5.read_order[9], "mOverrideMinTargetDistance",
+                      "load v5 override min target flag");
+  ok &= expect_string(load_v5.read_order[10], "mMinTargetDistanceOverride",
+                      "load v5 min target override");
+
+  const auto load_v6 = source_char_interest_load_plan(6);
+  ok &= expect_int(static_cast<int>(load_v6.read_order.size()), 11,
+                   "load v6 read count");
+  ok &= expect_string(load_v6.read_order[7], "mDartOverride",
+                      "load v6 dart override branch");
+  ok &= expect_string(load_v6.read_order[8], "mCategoryFlags",
+                      "load v6 category flags");
+  ok &= expect_string(load_v6.read_order[9], "mOverrideMinTargetDistance",
+                      "load v6 override min target flag");
+  ok &= expect_string(load_v6.read_order[10], "mMinTargetDistanceOverride",
+                      "load v6 min target override");
 
   ok &= near(source_char_interest_sync_max_view_angle(60.0f),
              std::cos(60.0f * 0.017453292f),

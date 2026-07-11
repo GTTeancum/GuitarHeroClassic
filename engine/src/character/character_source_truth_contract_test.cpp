@@ -7758,6 +7758,20 @@ int run_contract() {
                  "LOAD_SUPERCLASS(RndTransformable)",
                  "latest CharInterest source load accepts revision 6");
   ok &= contains(rb3_latest_char_interest_cpp,
+                 "bs>>mMaxViewAngle;bs>>mPriority;bs>>mMinLookTime;"
+                 "bs>>mMaxLookTime;bs>>mRefractoryPeriod;",
+                 "latest CharInterest source load exposes timing row order");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "u32temp=gRev+0x10000;if(u16(temp-2)<=3){"
+                 "ObjPtr<Hmx::Object,ObjectDir>obj(this,NULL);bs>>obj;}"
+                 "elseif(temp>5){bs>>mDartOverride;}",
+                 "latest CharInterest source load exposes legacy dart gate");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "if(gRev>2){bs>>mCategoryFlags;if(gRev==3){u8x;bs>>x;}}"
+                 "if(gRev>4){bs>>mOverrideMinTargetDistance;"
+                 "bs>>mMinTargetDistanceOverride;}SyncMaxViewAngle();",
+                 "latest CharInterest source load exposes tail gates");
+  ok &= contains(rb3_latest_char_interest_cpp,
                  "boolCharInterest::IsMatchingFilterFlags(intmask){return"
                  "mCategoryFlags&mask&&mCategoryFlags!=0;}",
                  "latest CharInterest source exposes category filter logic");
@@ -7796,6 +7810,16 @@ int run_contract() {
                  "boolsource_char_interest_load_revision_known(intrevision);",
                  "native exposes CharInterest revision helper");
   ok &= contains(char_mesh_h,
+                 "structSourceCharInterestLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;"
+                 "std::vector<std::string>branches;"
+                 "boolsync_max_view_angle=false;};",
+                 "native exposes CharInterest source load plan");
+  ok &= contains(char_mesh_h,
+                 "SourceCharInterestLoadPlansource_char_interest_load_plan("
+                 "intrevision);",
+                 "native exposes CharInterest load plan helper");
+  ok &= contains(char_mesh_h,
                  "floatsource_char_interest_sync_max_view_angle("
                  "floatmax_view_angle_degrees);",
                  "native exposes CharInterest SyncMaxViewAngle helper");
@@ -7813,6 +7837,37 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "returnrevision>=0&&revision<=6;",
                  "native implements CharInterest source revision range");
+  ok &= contains(char_mesh,
+                 "SourceCharInterestLoadPlansource_char_interest_load_plan("
+                 "intrevision){SourceCharInterestLoadPlanplan;"
+                 "plan.known_revision=source_char_interest_load_revision_known"
+                 "(revision);if(!plan.known_revision)returnplan;",
+                 "native implements CharInterest load plan entry");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"Hmx::Object\",\"RndTransformable\","
+                 "\"mMaxViewAngle\",\"mPriority\",\"mMinLookTime\","
+                 "\"mMaxLookTime\",\"mRefractoryPeriod\"};",
+                 "native implements CharInterest core load row order");
+  ok &= contains(char_mesh,
+                 "constunsignedinttemp=static_cast<unsignedint>(revision)+"
+                 "0x10000u;constunsignedinttemp_minus_two_16=(temp-2u)&"
+                 "0xffffu;if(temp_minus_two_16<=3u){"
+                 "plan.read_order.push_back(\"legacyObjectPtr\");"
+                 "plan.branches.push_back(\"u16(temp-2)<=3\");}"
+                 "elseif(temp>5u){plan.read_order.push_back"
+                 "(\"mDartOverride\");plan.branches.push_back(\"temp>5\");}",
+                 "native implements CharInterest source legacy dart gate");
+  ok &= contains(char_mesh,
+                 "if(revision>2){plan.read_order.push_back"
+                 "(\"mCategoryFlags\");plan.branches.push_back(\"gRev>2\");"
+                 "if(revision==3){plan.read_order.push_back"
+                 "(\"legacyCategoryFlagsByte\");plan.branches.push_back"
+                 "(\"gRev==3\");}}if(revision>4){"
+                 "plan.read_order.push_back(\"mOverrideMinTargetDistance\");"
+                 "plan.read_order.push_back(\"mMinTargetDistanceOverride\");"
+                 "plan.branches.push_back(\"gRev>4\");}"
+                 "plan.sync_max_view_angle=true;returnplan;}",
+                 "native implements CharInterest source tail gates");
   ok &= contains(char_mesh,
                  "return(category_flags&mask)!=0&&category_flags!=0;",
                  "native ports CharInterest category filter logic");
@@ -7841,6 +7896,18 @@ int run_contract() {
   ok &= contains(interest_source_test,
                  "source_char_interest_load_revision_known(7)",
                  "focused CharInterest source test covers revision reject");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_load_plan(3)",
+                 "focused CharInterest source test covers revision 3 load");
+  ok &= contains(interest_source_test,
+                 "\"legacyObjectPtr\"",
+                 "focused CharInterest source test covers legacy object branch");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_load_plan(6)",
+                 "focused CharInterest source test covers revision 6 load");
+  ok &= contains(interest_source_test,
+                 "\"mDartOverride\"",
+                 "focused CharInterest source test covers dart override branch");
   ok &= contains(interest_source_test,
                  "source_char_interest_is_matching_filter_flags(0x6,0x2)",
                  "focused CharInterest source test covers category matching");
@@ -8445,9 +8512,14 @@ int run_contract() {
                  "    exact data behavior",
                  "document records native CharEyeDartRuleset helper boundary");
   ok &= contains(doc,
-                 "Native `source_char_interest_*`\n    helpers port these data "
-                 "decisions",
+                 "Native `source_char_interest_*`\n    helpers port these data decisions",
                  "document records native CharInterest helper boundary");
+  ok &= contains(doc,
+                 "`source_char_interest_load_plan` records\n    the concrete source load row order",
+                 "document records native CharInterest load plan");
+  ok &= contains(doc,
+                 "Revisions 2, 3, 4, and 5 read a\n    legacy object pointer; revisions 0, 1, and 6 read `mDartOverride`",
+                 "document records CharInterest legacy dart gate");
   ok &= contains(doc,
                  "`ComputeScore` includes runtime vectors and `RandomFloat`; it stays fenced",
                  "document fences CharInterest runtime scoring");

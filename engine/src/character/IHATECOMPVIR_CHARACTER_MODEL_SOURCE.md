@@ -826,11 +826,17 @@ note, and all report `unreadBytes=0`.
     target distance override `35.0`. `SyncMaxViewAngle` stores
     `cos(maxViewAngle * 0.017453292)`.
   - `Load` accepts source revisions through 6 and reads the object,
-    transformable, timing, priority, optional dart override, category flags,
-    and min-target-distance override fields in the source order.
+    transformable, timing, priority, refractory period, then follows the
+    source `u32 temp = gRev + 0x10000` gate. Revisions 2, 3, 4, and 5 read a
+    legacy object pointer; revisions 0, 1, and 6 read `mDartOverride`.
+    Revisions above 2 read `mCategoryFlags`, revision 3 also consumes one
+    legacy byte, and revisions above 4 read the min-target-distance override
+    fields before `SyncMaxViewAngle`.
   - `IsMatchingFilterFlags` returns true only when the category mask overlaps
     and the category flags are non-zero. Native `source_char_interest_*`
-    helpers port these data decisions and the copy-time max-view-angle resync.
+    helpers port these data decisions, `source_char_interest_load_plan` records
+    the concrete source load row order, and the copy helper keeps the
+    max-view-angle resync.
     `ComputeScore` includes runtime vectors and `RandomFloat`; it stays fenced
     from native runtime until the surrounding source eye-interest path is ported
     or traced.

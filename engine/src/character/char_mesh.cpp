@@ -3241,6 +3241,45 @@ bool source_char_interest_load_revision_known(int revision) {
   return revision >= 0 && revision <= 6;
 }
 
+SourceCharInterestLoadPlan source_char_interest_load_plan(int revision) {
+  SourceCharInterestLoadPlan plan;
+  plan.known_revision = source_char_interest_load_revision_known(revision);
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"Hmx::Object",       "RndTransformable",
+                     "mMaxViewAngle",     "mPriority",
+                     "mMinLookTime",      "mMaxLookTime",
+                     "mRefractoryPeriod"};
+
+  const unsigned int temp = static_cast<unsigned int>(revision) + 0x10000u;
+  const unsigned int temp_minus_two_16 = (temp - 2u) & 0xffffu;
+  if (temp_minus_two_16 <= 3u) {
+    plan.read_order.push_back("legacyObjectPtr");
+    plan.branches.push_back("u16(temp - 2) <= 3");
+  } else if (temp > 5u) {
+    plan.read_order.push_back("mDartOverride");
+    plan.branches.push_back("temp > 5");
+  }
+
+  if (revision > 2) {
+    plan.read_order.push_back("mCategoryFlags");
+    plan.branches.push_back("gRev > 2");
+    if (revision == 3) {
+      plan.read_order.push_back("legacyCategoryFlagsByte");
+      plan.branches.push_back("gRev == 3");
+    }
+  }
+
+  if (revision > 4) {
+    plan.read_order.push_back("mOverrideMinTargetDistance");
+    plan.read_order.push_back("mMinTargetDistanceOverride");
+    plan.branches.push_back("gRev > 4");
+  }
+
+  plan.sync_max_view_angle = true;
+  return plan;
+}
+
 bool source_char_interest_is_matching_filter_flags(int category_flags,
                                                    int mask) {
   return (category_flags & mask) != 0 && category_flags != 0;
