@@ -18,6 +18,19 @@ bool expect_int(int got, int want, const char* label) {
   return false;
 }
 
+bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_string(const std::string& got, const std::string& want,
+                   const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got '" << got << "' want '" << want << "'\n";
+  return false;
+}
+
 bool expect_poll_state(ghogx::character::SourceCharacterPollState got,
                        ghogx::character::SourceCharacterPollState want,
                        const char* label) {
@@ -44,6 +57,7 @@ int main() {
   using ghogx::character::source_character_enable_blinks;
   using ghogx::character::source_character_enter;
   using ghogx::character::source_character_exit;
+  using ghogx::character::source_char_lifecycle_plan;
   using ghogx::character::source_character_force_blink;
   using ghogx::character::source_character_poll;
   using ghogx::character::source_character_pre_save;
@@ -318,6 +332,33 @@ int main() {
 
   ok &= expect_bool(source_character_pre_save().unhooked_shadow, true,
                     "PreSave unhooks shadow");
+
+  const auto lifecycle = source_char_lifecycle_plan();
+  ok &= expect_size(lifecycle.init_steps.size(), 7, "CharInit step count");
+  ok &= expect_string(lifecycle.init_steps[0], "Character::Init",
+                      "CharInit first step");
+  ok &= expect_string(lifecycle.init_steps[1], "CharBonesObject::Init",
+                      "CharInit second step");
+  ok &= expect_string(lifecycle.init_steps[2], "CharBoneOffset::Init",
+                      "CharInit third step");
+  ok &= expect_string(lifecycle.init_steps[3], "PreloadSharedSubdirs(char)",
+                      "CharInit preload step");
+  ok &= expect_string(lifecycle.init_steps[4], "CharBoneDir::Init",
+                      "CharInit bone dir step");
+  ok &= expect_string(lifecycle.init_steps[5], "CharUtlInit",
+                      "CharInit utility step");
+  ok &= expect_string(lifecycle.init_steps[6],
+                      "AddExitCallback(CharTerminate)",
+                      "CharInit callback step");
+  ok &= expect_size(lifecycle.terminate_steps.size(), 3,
+                    "CharTerminate step count");
+  ok &= expect_string(lifecycle.terminate_steps[0],
+                      "RemoveExitCallback(CharTerminate)",
+                      "CharTerminate callback step");
+  ok &= expect_string(lifecycle.terminate_steps[1], "Character::Terminate",
+                      "CharTerminate character step");
+  ok &= expect_string(lifecycle.terminate_steps[2], "CharBoneDir::Terminate",
+                      "CharTerminate bone dir step");
 
   return ok ? 0 : 1;
 }

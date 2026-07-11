@@ -2019,6 +2019,18 @@ SourceCharacterPreSaveResult source_character_pre_save() {
   return {true};
 }
 
+SourceCharLifecyclePlan source_char_lifecycle_plan() {
+  SourceCharLifecyclePlan plan;
+  plan.init_steps = {"Character::Init",       "CharBonesObject::Init",
+                     "CharBoneOffset::Init",  "PreloadSharedSubdirs(char)",
+                     "CharBoneDir::Init",     "CharUtlInit",
+                     "AddExitCallback(CharTerminate)"};
+  plan.terminate_steps = {"RemoveExitCallback(CharTerminate)",
+                          "Character::Terminate",
+                          "CharBoneDir::Terminate"};
+  return plan;
+}
+
 SourceCharacterTestState source_character_test_default_state() {
   return SourceCharacterTestState{};
 }

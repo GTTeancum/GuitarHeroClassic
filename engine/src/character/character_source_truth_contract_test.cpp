@@ -350,6 +350,10 @@ int run_contract() {
       rb3_latest_char_dir / "FileMerger.cpp"));
   const std::string rb3_latest_file_merger_h = compact(read_file(
       rb3_latest_char_dir / "FileMerger.h"));
+  const std::string rb3_latest_char_cpp = compact(read_file(
+      rb3_latest_char_dir / "Char.cpp"));
+  const std::string rb3_latest_char_h = compact(read_file(
+      rb3_latest_char_dir / "Char.h"));
   const std::string rb3_latest_character_cpp = compact(read_file(
       rb3_latest_char_dir / "Character.cpp"));
   const std::string rb3_latest_character_h = compact(read_file(
@@ -811,6 +815,10 @@ int run_contract() {
                  "`rb3-latest` `Character.cpp`, `Character.h` |",
                  "coverage matrix records Character runtime flow source");
   ok &= contains(doc,
+                 "| Character subsystem init/terminate | "
+                 "`rb3-latest` `Char.cpp`, `Char.h` |",
+                 "coverage matrix records Char subsystem lifecycle source");
+  ok &= contains(doc,
                  "| Character test harness defaults | `rb3-latest` "
                  "`CharacterTest.cpp`, `CharacterTest.h` |",
                  "coverage matrix records CharacterTest harness source");
@@ -823,6 +831,38 @@ int run_contract() {
   ok &= contains(doc,
                  "stock_character_dir_entry_inventory.log",
                  "document cites root dir entry inventory proof");
+  ok &= contains(rb3_latest_char_cpp,
+                 "voidCharInit(){Character::Init();CharBonesObject::Init();"
+                 "CharBoneOffset::Init();PreloadSharedSubdirs(\"char\");"
+                 "CharBoneDir::Init();CharUtlInit();TheDebug.AddExitCallback"
+                 "(CharTerminate);}",
+                 "latest Char.cpp exposes subsystem init order");
+  ok &= contains(rb3_latest_char_cpp,
+                 "voidCharTerminate(){TheDebug.RemoveExitCallback"
+                 "(CharTerminate);Character::Terminate();"
+                 "CharBoneDir::Terminate();}",
+                 "latest Char.cpp exposes subsystem terminate order");
+  ok &= contains(rb3_latest_char_h, "voidCharInit(),CharTerminate();",
+                 "latest Char.h declares lifecycle functions");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharLifecyclePlan{std::vector<std::string>"
+                 "init_steps;",
+                 "native exposes Char lifecycle source plan");
+  ok &= contains(char_mesh_h,
+                 "SourceCharLifecyclePlansource_char_lifecycle_plan();",
+                 "native declares Char lifecycle helper");
+  ok &= contains(char_mesh,
+                 "SourceCharLifecyclePlansource_char_lifecycle_plan(){",
+                 "native implements Char lifecycle helper");
+  ok &= contains(char_mesh,
+                 "\"PreloadSharedSubdirs(char)\"",
+                 "native lifecycle helper records source preload step");
+  ok &= contains(character_source_test,
+                 "source_char_lifecycle_plan()",
+                 "focused Character source test covers lifecycle helper");
+  ok &= contains(doc,
+                 "Native\n  `source_char_lifecycle_plan` records this order only",
+                 "document records bounded Char lifecycle helper");
   ok &= contains(rb3_latest_character_cpp,
                  "voidCharacter::PreLoad(BinStream&bs){LOAD_REVS(bs);"
                  "ASSERT_REVS(0x11,0);if(gRev>1){RndDir::PreLoad(bs);",

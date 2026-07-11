@@ -28,6 +28,7 @@ records the upstream commits for the copied files:
 | Object and property-tree skip/read shape | `Object.cs`, `DTBNode.Read` | Parser authority; native skips must mirror source enum and logs standalone generic `Object` rows. |
 | Character/BandCharacter/RndDir/ObjectDir root body | `rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp` | Native records the root directory revision/name/type and opaque root object body boundary; no root runtime fields are decoded until the exact GH2 revision/body relation is pinned. |
 | Character lifecycle and directory sync flow | `rb3-latest` `Character.cpp`, `Character.h` | Native helper ports constructor defaults, poll-state enum order, Enter/Exit/Poll state changes, main-driver discovery, sphere-base replacement, eyes gates, and SyncObjects cleanup/sort flow. |
+| Character subsystem init/terminate | `rb3-latest` `Char.cpp`, `Char.h` | Native helper records the source init/terminate order only; it does not install callbacks or alter runtime startup. |
 | Character test harness defaults | `rb3-latest` `CharacterTest.cpp`, `CharacterTest.h` | Native helper ports editor/test defaults, draw/poll decisions, `AddDefaults` controller creation names and offsets, walk/teleport/start-end/load gates, and move-self delegation. This is harness evidence only, not a live controller or playback import. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
 | Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
@@ -308,6 +309,14 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
 
 ## Character Runtime Flow
 
+- `rb3-latest/src/system/char/Char.cpp` initializes the character subsystem in
+  this order: `Character::Init`, `CharBonesObject::Init`,
+  `CharBoneOffset::Init`, `PreloadSharedSubdirs("char")`,
+  `CharBoneDir::Init`, `CharUtlInit`, then
+  `TheDebug.AddExitCallback(CharTerminate)`. `CharTerminate` removes that exit
+  callback, terminates `Character`, then terminates `CharBoneDir`. Native
+  `source_char_lifecycle_plan` records this order only; it does not install a
+  callback, preload assets, or change app startup.
 - `rb3-latest/src/system/char/Character.h` defines `PollState` as
   `kCharCreated = 0`, `kCharSyncObject = 1`, `kCharEntered = 2`,
   `kCharPolled = 3`, and `kCharExited = 4`.

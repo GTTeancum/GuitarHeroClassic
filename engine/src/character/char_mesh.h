@@ -570,6 +570,11 @@ struct SourceCharacterPreSaveResult {
   bool unhooked_shadow = false;
 };
 
+struct SourceCharLifecyclePlan {
+  std::vector<std::string> init_steps;
+  std::vector<std::string> terminate_steps;
+};
+
 struct SourceCharacterTestState {
   std::string show_dist_map = "none";
   int32_t transition = 0;
@@ -1106,6 +1111,7 @@ SourceCharacterRepointSphereBaseResult source_character_repoint_sphere_base(
     SourceCharacterState& state,
     bool found_matching_transform);
 SourceCharacterPreSaveResult source_character_pre_save();
+SourceCharLifecyclePlan source_char_lifecycle_plan();
 SourceCharacterTestState source_character_test_default_state();
 SourceCharacterTestDestroyResult source_character_test_destroy(
     bool overlay_found,
