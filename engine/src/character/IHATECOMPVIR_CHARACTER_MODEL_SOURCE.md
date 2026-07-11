@@ -508,6 +508,12 @@ note, and all report `unreadBytes=0`.
     the start time to `-1`, beginning a refractory period stores the current
     task time, and both active/remaining queries return inactive/zero when the
     interest pointer is absent or the timer has not been started.
+  - Native `source_char_eyes_eye_desc_*` and interest-list helpers port the
+    concrete `EyeDesc` constructor/copy/assignment and
+    `ClearAllInterestObjects` / `AddInterestObject` bodies: eye and lid refs
+    default to null, copy/assignment preserve all five refs, clearing drops the
+    interest vector, and add ignores null interests while pushed interests start
+    with a reset refractory timer.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.

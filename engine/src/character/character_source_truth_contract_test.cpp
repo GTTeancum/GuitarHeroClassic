@@ -4499,6 +4499,24 @@ int run_contract() {
                  "0);bs>>tPtr;}",
                  "RB3 CharEyes rev 3/4 consumes a trailing transformable");
   ok &= contains(rb3_char_eyes_cpp,
+                 "CharEyes::EyeDesc::EyeDesc(Hmx::Object*o):mEye(o,0),"
+                 "mUpperLid(o,0),mLowerLid(o,0),mLowerLidBlink(o,0),"
+                 "mUpperLidBlink(o,0){}",
+                 "RB3 CharEyes EyeDesc constructor defaults refs");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "CharEyes::EyeDesc::EyeDesc(constCharEyes::EyeDesc&desc):"
+                 "mEye(desc.mEye),mUpperLid(desc.mUpperLid),"
+                 "mLowerLid(desc.mLowerLid),mLowerLidBlink("
+                 "desc.mLowerLidBlink),mUpperLidBlink(desc.mUpperLidBlink){}",
+                 "RB3 CharEyes EyeDesc copy constructor preserves refs");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "CharEyes::EyeDesc&CharEyes::EyeDesc::operator=("
+                 "constCharEyes::EyeDesc&desc){mEye=desc.mEye;"
+                 "mUpperLid=desc.mUpperLid;mLowerLid=desc.mLowerLid;"
+                 "mUpperLidBlink=desc.mUpperLidBlink;mLowerLidBlink="
+                 "desc.mLowerLidBlink;return*this;}",
+                 "RB3 CharEyes EyeDesc assignment preserves refs");
+  ok &= contains(rb3_char_eyes_cpp,
                  "voidCharEyes::CharInterestState::ResetState(){unkc=-1.0f;}",
                  "RB3 CharEyes interest state reset clears refractory timer");
   ok &= contains(rb3_char_eyes_cpp,
@@ -4542,6 +4560,14 @@ int run_contract() {
                  "voidCharEyes::ForceBlink(){unk13c=true;unk140="
                  "TheTaskMgr.Seconds(TaskMgr::b);unk144++;}",
                  "RB3 CharEyes ForceBlink stores task time and increments count");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "voidCharEyes::ClearAllInterestObjects(){mInterests.clear();}",
+                 "RB3 CharEyes ClearAllInterestObjects clears interest vector");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "voidCharEyes::AddInterestObject(CharInterest*interest){"
+                 "if(interest){CharInterestStatestate(this);state.mInterest="
+                 "interest;mInterests.push_back(state);}}",
+                 "RB3 CharEyes AddInterestObject guards null and pushes reset state");
   ok &= contains(rb3_char_eyes_cpp, "plist.push_back((*it).mEye);",
                  "RB3 CharEyes delegates poll children to CharLookAt rows");
   ok &= contains(rb3_char_eyes_cpp,
@@ -4685,6 +4711,11 @@ int run_contract() {
                  "structSourceCharEyesInterest{std::stringinterest;boolsame_dir=false;};",
                  "native exposes CharEyes interest dependency input");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesEyeDesc{std::stringeye;"
+                 "std::stringupper_lid;std::stringlower_lid;"
+                 "std::stringlower_lid_blink;std::stringupper_lid_blink;};",
+                 "native exposes CharEyes EyeDesc row");
+  ok &= contains(char_mesh_h,
                  "structSourceCharEyesFocusResult{boolaccepted=false;"
                  "std::stringfocus_interest;intfocus_priority=-1;};",
                  "native exposes CharEyes focus result");
@@ -4699,6 +4730,17 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "std::vector<std::string>source_char_eyes_list_poll_children(",
                  "native exposes CharEyes poll child helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesEyeDescsource_char_eyes_eye_desc_default();",
+                 "native exposes CharEyes EyeDesc default helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesEyeDescsource_char_eyes_eye_desc_copy("
+                 "constSourceCharEyesEyeDesc&source);",
+                 "native exposes CharEyes EyeDesc copy helper");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_eyes_eye_desc_assign("
+                 "SourceCharEyesEyeDesc&dest,constSourceCharEyesEyeDesc&source);",
+                 "native exposes CharEyes EyeDesc assignment helper");
   ok &= contains(char_mesh_h,
                  "std::stringsource_char_eyes_get_head("
                  "conststd::string&view_direction,conststd::string&"
@@ -4741,6 +4783,15 @@ int run_contract() {
                  "floatrefractory_period);",
                  "native exposes CharEyes refractory remaining helper");
   ok &= contains(char_mesh_h,
+                 "voidsource_char_eyes_clear_interest_objects("
+                 "std::vector<SourceCharEyesInterestRuntime>&interests);",
+                 "native exposes CharEyes clear interest helper");
+  ok &= contains(char_mesh_h,
+                 "boolsource_char_eyes_add_interest_object("
+                 "std::vector<SourceCharEyesInterestRuntime>&interests,"
+                 "conststd::string&interest);",
+                 "native exposes CharEyes add interest helper");
+  ok &= contains(char_mesh_h,
                  "voidsource_char_eyes_poll_deps(",
                  "native exposes CharEyes PollDeps helper");
   ok &= contains(char_mesh,
@@ -4750,6 +4801,26 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "for(conststd::string&eye:eye_lookats)children.push_back(eye);",
                  "native CharEyes helper delegates poll children to lookat refs");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesEyeDescsource_char_eyes_eye_desc_default(){"
+                 "returnSourceCharEyesEyeDesc{};}",
+                 "native CharEyes EyeDesc default helper ports null refs");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesEyeDescsource_char_eyes_eye_desc_copy("
+                 "constSourceCharEyesEyeDesc&source){SourceCharEyesEyeDescdesc;"
+                 "desc.eye=source.eye;desc.upper_lid=source.upper_lid;"
+                 "desc.lower_lid=source.lower_lid;desc.lower_lid_blink="
+                 "source.lower_lid_blink;desc.upper_lid_blink="
+                 "source.upper_lid_blink;returndesc;}",
+                 "native CharEyes EyeDesc copy helper ports source refs");
+  ok &= contains(char_mesh,
+                 "voidsource_char_eyes_eye_desc_assign("
+                 "SourceCharEyesEyeDesc&dest,constSourceCharEyesEyeDesc&source){"
+                 "dest.eye=source.eye;dest.upper_lid=source.upper_lid;"
+                 "dest.lower_lid=source.lower_lid;dest.upper_lid_blink="
+                 "source.upper_lid_blink;dest.lower_lid_blink="
+                 "source.lower_lid_blink;}",
+                 "native CharEyes EyeDesc assignment helper ports source refs");
   ok &= contains(char_mesh,
                  "std::stringsource_char_eyes_get_head("
                  "conststd::string&view_direction,conststd::string&"
@@ -4806,6 +4877,18 @@ int run_contract() {
                  "refractory_period-elapsed;return0.0f;",
                  "native CharEyes refractory remaining helper ports source gates");
   ok &= contains(char_mesh,
+                 "voidsource_char_eyes_clear_interest_objects("
+                 "std::vector<SourceCharEyesInterestRuntime>&interests){"
+                 "interests.clear();}",
+                 "native CharEyes clear interest helper ports source clear");
+  ok &= contains(char_mesh,
+                 "boolsource_char_eyes_add_interest_object("
+                 "std::vector<SourceCharEyesInterestRuntime>&interests,"
+                 "conststd::string&interest){if(interest.empty())returnfalse;"
+                 "interests.push_back(source_char_eyes_interest_state(interest));"
+                 "returntrue;}",
+                 "native CharEyes add interest helper ports source guard and push");
+  ok &= contains(char_mesh,
                  "if(interest.same_dir)deps.changed_by.push_back(interest.interest);",
                  "native CharEyes helper gates interests by owning dir");
   ok &= contains(char_mesh,
@@ -4826,6 +4909,15 @@ int run_contract() {
   ok &= contains(eyes_source_test,
                  "SourceCharEyesInterest{\"same.interest\",true}",
                  "focused CharEyes source test covers same-dir interest");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_eye_desc_default()",
+                 "focused CharEyes source test covers EyeDesc default helper");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_eye_desc_copy(eye_desc)",
+                 "focused CharEyes source test covers EyeDesc copy helper");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_eye_desc_assign(assigned_eye,eye_desc)",
+                 "focused CharEyes source test covers EyeDesc assignment helper");
   ok &= contains(eyes_source_test,
                  "source_char_eyes_get_head(\"view.trans\",\"eye.parent\")",
                  "focused CharEyes source test covers GetHead view priority");
@@ -4860,6 +4952,15 @@ int run_contract() {
                  "source_char_eyes_interest_reset(runtime)",
                  "focused CharEyes source test covers refractory reset");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_add_interest_object(interests,\"\")",
+                 "focused CharEyes source test covers missing interest add guard");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_add_interest_object(interests,\"stage.light\")",
+                 "focused CharEyes source test covers interest add helper");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_clear_interest_objects(interests)",
+                 "focused CharEyes source test covers interest clear helper");
+  ok &= contains(eyes_source_test,
                  "\"noeyeshasnotargetchange\"",
                  "focused CharEyes source test covers no-eye target gate");
   ok &= contains(char_mesh,
@@ -4887,6 +4988,9 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_eyes_interest_*` helpers port the concrete",
                  "document records native CharEyes refractory helper slice");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_eye_desc_*` and interest-list helpers",
+                 "document records native CharEyes EyeDesc and interest-list helpers");
   ok &= contains(doc,
                  "Native `source_char_eye_dart_ruleset_*` helpers preserve this\n"
                  "    exact data behavior",

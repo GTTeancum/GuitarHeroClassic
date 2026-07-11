@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -41,8 +42,14 @@ bool expect_float(float got, float want, const char* label) {
 
 int main() {
   using ghogx::character::SourceCharEyesInterest;
+  using ghogx::character::SourceCharEyesInterestRuntime;
   using ghogx::character::SourceCharEyesPollDeps;
+  using ghogx::character::source_char_eyes_add_interest_object;
+  using ghogx::character::source_char_eyes_clear_interest_objects;
   using ghogx::character::source_char_eyes_current_interest;
+  using ghogx::character::source_char_eyes_eye_desc_assign;
+  using ghogx::character::source_char_eyes_eye_desc_copy;
+  using ghogx::character::source_char_eyes_eye_desc_default;
   using ghogx::character::source_char_eyes_force_blink;
   using ghogx::character::source_char_eyes_get_head;
   using ghogx::character::source_char_eyes_interest_begin_refractory;
@@ -99,6 +106,39 @@ int main() {
   ok &= expect_size(deps.change.size(), 0, "no eyes has no target change");
   ok &= expect_string(deps.changed_by[0], "same.interest",
                       "no eyes interest dependency");
+
+  const auto default_eye = source_char_eyes_eye_desc_default();
+  ok &= expect_string(default_eye.eye, "", "default eye ref");
+  ok &= expect_string(default_eye.upper_lid, "", "default upper lid ref");
+  ok &= expect_string(default_eye.lower_lid, "", "default lower lid ref");
+  ok &= expect_string(default_eye.lower_lid_blink, "",
+                      "default lower blink ref");
+  ok &= expect_string(default_eye.upper_lid_blink, "",
+                      "default upper blink ref");
+
+  auto eye_desc = source_char_eyes_eye_desc_default();
+  eye_desc.eye = "eye.lookat";
+  eye_desc.upper_lid = "upper.lid";
+  eye_desc.lower_lid = "lower.lid";
+  eye_desc.lower_lid_blink = "lower.blink";
+  eye_desc.upper_lid_blink = "upper.blink";
+  const auto copied_eye = source_char_eyes_eye_desc_copy(eye_desc);
+  ok &= expect_string(copied_eye.eye, "eye.lookat", "copy eye ref");
+  ok &= expect_string(copied_eye.upper_lid, "upper.lid",
+                      "copy upper lid ref");
+  ok &= expect_string(copied_eye.lower_lid, "lower.lid",
+                      "copy lower lid ref");
+  ok &= expect_string(copied_eye.lower_lid_blink, "lower.blink",
+                      "copy lower blink ref");
+  ok &= expect_string(copied_eye.upper_lid_blink, "upper.blink",
+                      "copy upper blink ref");
+  auto assigned_eye = source_char_eyes_eye_desc_default();
+  source_char_eyes_eye_desc_assign(assigned_eye, eye_desc);
+  ok &= expect_string(assigned_eye.eye, "eye.lookat", "assign eye ref");
+  ok &= expect_string(assigned_eye.upper_lid_blink, "upper.blink",
+                      "assign upper blink ref");
+  ok &= expect_string(assigned_eye.lower_lid_blink, "lower.blink",
+                      "assign lower blink ref");
 
   ok &= expect_string(
       source_char_eyes_get_head("view.trans", "eye.parent"), "view.trans",
@@ -182,6 +222,21 @@ int main() {
   source_char_eyes_interest_reset(runtime);
   ok &= expect_float(runtime.refractory_start, -1.0f,
                      "reset refractory start");
+
+  std::vector<SourceCharEyesInterestRuntime> interests;
+  ok &= expect_bool(source_char_eyes_add_interest_object(interests, ""),
+                    false, "add missing interest ignored");
+  ok &= expect_size(interests.size(), 0, "missing interest not pushed");
+  ok &= expect_bool(
+      source_char_eyes_add_interest_object(interests, "stage.light"),
+      true, "add valid interest accepted");
+  ok &= expect_size(interests.size(), 1, "valid interest pushed");
+  ok &= expect_string(interests[0].interest, "stage.light",
+                      "added interest name");
+  ok &= expect_float(interests[0].refractory_start, -1.0f,
+                     "added interest reset state");
+  source_char_eyes_clear_interest_objects(interests);
+  ok &= expect_size(interests.size(), 0, "clear all interests");
 
   return ok ? 0 : 1;
 }

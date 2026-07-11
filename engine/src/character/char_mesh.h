@@ -481,6 +481,14 @@ struct SourceCharEyesInterest {
   bool same_dir = false;
 };
 
+struct SourceCharEyesEyeDesc {
+  std::string eye;
+  std::string upper_lid;
+  std::string lower_lid;
+  std::string lower_lid_blink;
+  std::string upper_lid_blink;
+};
+
 struct SourceCharEyesPollDeps {
   std::vector<std::string> changed_by;
   std::vector<std::string> change;
@@ -683,6 +691,12 @@ void source_char_guitar_string_poll_deps(
     const std::string& bend);
 std::vector<std::string> source_char_eyes_list_poll_children(
     const std::vector<std::string>& eye_lookats);
+SourceCharEyesEyeDesc source_char_eyes_eye_desc_default();
+SourceCharEyesEyeDesc source_char_eyes_eye_desc_copy(
+    const SourceCharEyesEyeDesc& source);
+void source_char_eyes_eye_desc_assign(
+    SourceCharEyesEyeDesc& dest,
+    const SourceCharEyesEyeDesc& source);
 std::string source_char_eyes_get_head(
     const std::string& view_direction,
     const std::string& first_eye_source_parent);
@@ -711,6 +725,11 @@ float source_char_eyes_interest_refractory_remaining(
     const SourceCharEyesInterestRuntime& state,
     float task_seconds,
     float refractory_period);
+void source_char_eyes_clear_interest_objects(
+    std::vector<SourceCharEyesInterestRuntime>& interests);
+bool source_char_eyes_add_interest_object(
+    std::vector<SourceCharEyesInterestRuntime>& interests,
+    const std::string& interest);
 void source_char_eyes_poll_deps(
     SourceCharEyesPollDeps& deps,
     const std::vector<SourceCharEyesInterest>& interests,

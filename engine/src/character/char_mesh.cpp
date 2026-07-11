@@ -1963,6 +1963,31 @@ std::vector<std::string> source_char_eyes_list_poll_children(
   return children;
 }
 
+SourceCharEyesEyeDesc source_char_eyes_eye_desc_default() {
+  return SourceCharEyesEyeDesc{};
+}
+
+SourceCharEyesEyeDesc source_char_eyes_eye_desc_copy(
+    const SourceCharEyesEyeDesc& source) {
+  SourceCharEyesEyeDesc desc;
+  desc.eye = source.eye;
+  desc.upper_lid = source.upper_lid;
+  desc.lower_lid = source.lower_lid;
+  desc.lower_lid_blink = source.lower_lid_blink;
+  desc.upper_lid_blink = source.upper_lid_blink;
+  return desc;
+}
+
+void source_char_eyes_eye_desc_assign(
+    SourceCharEyesEyeDesc& dest,
+    const SourceCharEyesEyeDesc& source) {
+  dest.eye = source.eye;
+  dest.upper_lid = source.upper_lid;
+  dest.lower_lid = source.lower_lid;
+  dest.upper_lid_blink = source.upper_lid_blink;
+  dest.lower_lid_blink = source.lower_lid_blink;
+}
+
 std::string source_char_eyes_get_head(
     const std::string& view_direction,
     const std::string& first_eye_source_parent) {
@@ -2040,6 +2065,19 @@ float source_char_eyes_interest_refractory_remaining(
   const float elapsed = task_seconds - state.refractory_start;
   if (elapsed < refractory_period) return refractory_period - elapsed;
   return 0.0f;
+}
+
+void source_char_eyes_clear_interest_objects(
+    std::vector<SourceCharEyesInterestRuntime>& interests) {
+  interests.clear();
+}
+
+bool source_char_eyes_add_interest_object(
+    std::vector<SourceCharEyesInterestRuntime>& interests,
+    const std::string& interest) {
+  if (interest.empty()) return false;
+  interests.push_back(source_char_eyes_interest_state(interest));
+  return true;
 }
 
 void source_char_eyes_poll_deps(
