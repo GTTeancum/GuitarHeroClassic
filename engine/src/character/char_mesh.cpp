@@ -1280,6 +1280,10 @@ CharDriver decode_driver_midi(const std::string& entry_name,
                               const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
   const int32_t midi_version = r.i32();  // CharDriverMidi version.
+  if (midi_version < 0 || midi_version > 7) {
+    throw std::runtime_error(
+        "char_mesh: CharDriverMidi revision outside source range");
+  }
   CharDriver driver = decode_driver_body(entry_name, r, true);
   driver.midi_version = midi_version;
   if (driver.midi_version < 7 && r.pos < r.n) driver.midi_default_clip = r.str();

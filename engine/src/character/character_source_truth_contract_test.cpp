@@ -1349,6 +1349,9 @@ int run_contract() {
                  "driver.midi_default_clip=r.str();",
                  "native CharDriverMidi decodes source default clip pointer");
   ok &= contains(char_mesh,
+                 "if(midi_version<0||midi_version>7){throwstd::runtime_error",
+                 "native CharDriverMidi decoder enforces source revision range");
+  ok &= contains(char_mesh,
                  "if(driver.midi_version==2&&r.pos<r.n)"
                  "driver.midi_legacy_string=r.str();",
                  "native CharDriverMidi decodes source rev-2 legacy string");
@@ -1386,6 +1389,17 @@ int run_contract() {
                  "Native GHOGX therefore decodes/logs that slot\n"
                  "    as `midiDefaultClip`",
                  "document promotes CharDriverMidi default clip pointer");
+  ok &= contains(doc,
+                 "and enforces the source MIDI-driver revision range",
+                 "document records CharDriverMidi revision enforcement");
+  ok &= contains(doc,
+                 "source_chardrivermidi_20260711/stock_chardrivermidi"
+                 "_controllers.stdout.log",
+                 "document cites refreshed CharDriverMidi proof log");
+  ok &= contains(doc,
+                 "all 38 stock\n    `CharDriverMidi` rows are `midiVersion=3`, "
+                 "have no default clip, and report\n    `midiUnreadBytes=0`",
+                 "document records refreshed CharDriverMidi zero-tail proof");
   ok &= contains(doc,
                  "shows 38 `CharDriverMidi` rows",
                  "document records refreshed CharDriverMidi stock inventory");

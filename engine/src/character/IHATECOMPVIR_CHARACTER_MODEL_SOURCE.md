@@ -583,7 +583,11 @@ note, and all report `unreadBytes=0`.
   - `rb3-latest/src/system/obj/ObjPtr_p.h` proves `mDefaultClip.Load` reads one
     `0x80`-bounded source string. Native GHOGX therefore decodes/logs that slot
     as `midiDefaultClip` for revision-below-7 rows before applying the
-    parser/flag/blend gates.
+    parser/flag/blend gates, and enforces the source MIDI-driver revision range.
+  - `engine/out/source_chardrivermidi_20260711/stock_chardrivermidi_controllers.stdout.log`
+    refreshes stock proof against the current decoder: all 38 stock
+    `CharDriverMidi` rows are `midiVersion=3`, have no default clip, and report
+    `midiUnreadBytes=0`.
   - Native GHOGX still does not run `Enter`, attach parser message sinks, choose
     clips from MIDI parser messages, or play `mDefaultClip`. The row is passive
     inventory until the connected clip driver and CharBones runtime are ported.
