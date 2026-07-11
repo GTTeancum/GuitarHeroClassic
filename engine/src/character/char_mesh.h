@@ -452,6 +452,23 @@ struct SourceCharHairClothPairStep {
   std::array<float, 3> next_point_pos = {0.0f, 0.0f, 0.0f};
 };
 
+struct SourceCharHairLengthStep {
+  std::array<float, 3> original_pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> point_pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> root_to_point = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> previous_force_delta = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> target_pos = {0.0f, 0.0f, 0.0f};
+  float reciprocal_length = 0.0f;
+  float length_scale = 0.0f;
+};
+
+struct SourceCharHairForceStep {
+  std::array<float, 3> force = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> last_friction = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> friction_delta = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> motion_delta = {0.0f, 0.0f, 0.0f};
+};
+
 struct SourceCharHairFreezePosePlan {
   bool called_hookup = true;
   SourceCharHairSimulateLoopsPlan simulate_loops;
@@ -1445,6 +1462,23 @@ SourceCharHairClothPairStep source_char_hair_simulate_internal_cloth_pair(
     float side_length,
     float min_slack,
     float max_slack);
+SourceCharHairLengthStep source_char_hair_simulate_internal_length_step(
+    std::array<float, 3> point_pos,
+    std::array<float, 3> point_force,
+    std::array<float, 3> external_force,
+    std::array<float, 3> root_pos,
+    std::array<float, 3> root_y_axis,
+    float point_length,
+    float sixty_over_fps,
+    bool has_previous_point);
+SourceCharHairForceStep source_char_hair_simulate_internal_force_step(
+    std::array<float, 3> target_pos,
+    std::array<float, 3> point_pos,
+    std::array<float, 3> original_pos,
+    std::array<float, 3> last_friction,
+    float stiffness_pow,
+    float friction,
+    float inertia);
 SourceCharHairFreezePosePlan source_char_hair_freeze_pose_plan(
     bool simulate,
     int strand_count,

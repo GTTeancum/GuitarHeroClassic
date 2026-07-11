@@ -2192,6 +2192,33 @@ int run_contract() {
                  "floatmaxslacklensq=maxslacklen*maxslacklen;"
                  "if(maxslacklen>maxslacklensq){",
                  "RB3 CharHair SimulateInternal max slack condition is pinned");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "Vector3v140(thisPoint.pos);thisPoint.pos+=thisPoint.force;"
+                 "thisPoint.pos.x+=vec134.x;thisPoint.pos.y+=vec134.y;"
+                 "thisPoint.pos.z+=vec134.z;",
+                 "RB3 CharHair SimulateInternal applies point and external force");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "Subtract(thisPoint.pos,t100.v,m128.y);floatrsa="
+                 "RecipSqrtAccurate(LengthSquared(m128.y));floatrsalen="
+                 "thisPoint.length*rsa-1.0f;",
+                 "RB3 CharHair SimulateInternal computes point length scale");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(j>0){ScaleAddEq(points[j-1].force,m128.y,-sixtyover*"
+                 "0.5f*rsalen);}ScaleAddEq(thisPoint.pos,m128.y,rsalen);",
+                 "RB3 CharHair SimulateInternal corrects length and previous force");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "Vector3v158;ScaleAdd(t100.v,t100.m.y,thisPoint.length,v158);",
+                 "RB3 CharHair SimulateInternal computes point target position");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "Subtract(v158,thisPoint.pos,thisPoint.force);Vector3v170;"
+                 "Subtract(thisPoint.lastFriction,thisPoint.force,v170);"
+                 "thisPoint.lastFriction=thisPoint.force;",
+                 "RB3 CharHair SimulateInternal starts force/friction update");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "thisPoint.force*=1.0f-powed;ScaleAddEq(thisPoint.force,"
+                 "v170,-mFriction);Vector3v17c;Subtract(thisPoint.pos,v140,"
+                 "v17c);ScaleAddEq(thisPoint.force,v17c,mInertia);",
+                 "RB3 CharHair SimulateInternal applies stiffness/friction/inertia");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairSimulateInternalScalars{"
                  "floatsixty_over_fps=0.0f;floatf19=0.0f;"
@@ -2203,6 +2230,14 @@ int run_contract() {
                  "boolmin_slack_applied=false;boolmax_slack_applied=false;",
                  "native exposes CharHair SimulateInternal cloth result");
   ok &= contains(char_mesh_h,
+                 "structSourceCharHairLengthStep{std::array<float,3>"
+                 "original_pos={0.0f,0.0f,0.0f};",
+                 "native exposes CharHair SimulateInternal length result");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairForceStep{std::array<float,3>force="
+                 "{0.0f,0.0f,0.0f};std::array<float,3>last_friction=",
+                 "native exposes CharHair SimulateInternal force result");
+  ok &= contains(char_mesh_h,
                  "SourceCharHairSimulateInternalScalars"
                  "source_char_hair_simulate_internal_scalars("
                  "floatfps,floatstiffness,floatgravity,boolhas_wind,",
@@ -2212,6 +2247,14 @@ int run_contract() {
                  "source_char_hair_simulate_internal_cloth_pair("
                  "std::array<float,3>point_pos,",
                  "native exposes CharHair SimulateInternal cloth helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairLengthStepsource_char_hair_simulate_internal_length_step("
+                 "std::array<float,3>point_pos,",
+                 "native exposes CharHair SimulateInternal length helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairForceStepsource_char_hair_simulate_internal_force_step("
+                 "std::array<float,3>target_pos,",
+                 "native exposes CharHair SimulateInternal force helper");
   ok &= contains(char_mesh,
                  "SourceCharHairSimulateInternalScalars"
                  "source_char_hair_simulate_internal_scalars(",
@@ -2232,18 +2275,62 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "if(step.max_slack_length>max_slack_len_sq){",
                  "native CharHair cloth helper preserves source max slack condition");
+  ok &= contains(char_mesh,
+                 "SourceCharHairLengthStepsource_char_hair_simulate_internal_length_step(",
+                 "native implements CharHair SimulateInternal length helper");
+  ok &= contains(char_mesh,
+                 "point_pos[i]+=point_force[i]+external_force[i];"
+                 "step.root_to_point[i]=point_pos[i]-root_pos[i];",
+                 "native CharHair length helper applies force and external force");
+  ok &= contains(char_mesh,
+                 "step.length_scale=point_length*step.reciprocal_length-1.0f;",
+                 "native CharHair length helper ports rsalen formula");
+  ok &= contains(char_mesh,
+                 "step.previous_force_delta[i]=step.root_to_point[i]*prev_scale;",
+                 "native CharHair length helper ports previous force delta");
+  ok &= contains(char_mesh,
+                 "step.target_pos[i]=root_pos[i]+root_y_axis[i]*point_length;",
+                 "native CharHair length helper ports target position");
+  ok &= contains(char_mesh,
+                 "SourceCharHairForceStepsource_char_hair_simulate_internal_force_step(",
+                 "native implements CharHair SimulateInternal force helper");
+  ok &= contains(char_mesh,
+                 "step.force[i]=target_pos[i]-point_pos[i];"
+                 "step.friction_delta[i]=last_friction[i]-step.force[i];"
+                 "step.last_friction[i]=step.force[i];",
+                 "native CharHair force helper ports initial force/friction");
+  ok &= contains(char_mesh,
+                 "step.force[i]*=1.0f-stiffness_pow;step.force[i]+="
+                 "step.friction_delta[i]*-friction;",
+                 "native CharHair force helper ports stiffness and friction");
+  ok &= contains(char_mesh,
+                 "step.motion_delta[i]=point_pos[i]-original_pos[i];"
+                 "step.force[i]+=step.motion_delta[i]*inertia;",
+                 "native CharHair force helper ports inertia");
   ok &= contains(char_hair_source_test,
                  "source_char_hair_simulate_internal_scalars(",
                  "focused CharHair source test covers SimulateInternal scalars");
   ok &= contains(char_hair_source_test,
                  "source_char_hair_simulate_internal_cloth_pair(",
                  "focused CharHair source test covers SimulateInternal cloth pair");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_simulate_internal_length_step(",
+                 "focused CharHair source test covers SimulateInternal length step");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_simulate_internal_force_step(",
+                 "focused CharHair source test covers SimulateInternal force step");
   ok &= contains(doc,
                  "Native `source_char_hair_simulate_internal_scalars` ports the concrete",
                  "document records CharHair SimulateInternal scalar helper");
   ok &= contains(doc,
                  "condition exactly as written (`maxslacklen > maxslacklensq`)",
                  "document records CharHair source max slack condition");
+  ok &= contains(doc,
+                 "Native `source_char_hair_simulate_internal_length_step` ports the next",
+                 "document records CharHair SimulateInternal length helper");
+  ok &= contains(doc,
+                 "Native `source_char_hair_simulate_internal_force_step` ports the later",
+                 "document records CharHair SimulateInternal force helper");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::Strand::SetRoot(RndTransformable*trans){"
                  "mRoot=trans;if(!mRoot)mPoints.resize(0);else{floatlen="

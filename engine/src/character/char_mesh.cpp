@@ -2048,6 +2048,62 @@ SourceCharHairClothPairStep source_char_hair_simulate_internal_cloth_pair(
   return step;
 }
 
+SourceCharHairLengthStep source_char_hair_simulate_internal_length_step(
+    std::array<float, 3> point_pos,
+    std::array<float, 3> point_force,
+    std::array<float, 3> external_force,
+    std::array<float, 3> root_pos,
+    std::array<float, 3> root_y_axis,
+    float point_length,
+    float sixty_over_fps,
+    bool has_previous_point) {
+  SourceCharHairLengthStep step;
+  step.original_pos = point_pos;
+  for (int i = 0; i < 3; ++i) {
+    point_pos[i] += point_force[i] + external_force[i];
+    step.root_to_point[i] = point_pos[i] - root_pos[i];
+  }
+
+  const float len_sq = step.root_to_point[0] * step.root_to_point[0] +
+                       step.root_to_point[1] * step.root_to_point[1] +
+                       step.root_to_point[2] * step.root_to_point[2];
+  step.reciprocal_length = 1.0f / std::sqrt(len_sq);
+  step.length_scale = point_length * step.reciprocal_length - 1.0f;
+  if (has_previous_point) {
+    const float prev_scale = -sixty_over_fps * 0.5f * step.length_scale;
+    for (int i = 0; i < 3; ++i) {
+      step.previous_force_delta[i] = step.root_to_point[i] * prev_scale;
+    }
+  }
+  for (int i = 0; i < 3; ++i) {
+    step.point_pos[i] = point_pos[i] +
+                        step.root_to_point[i] * step.length_scale;
+    step.target_pos[i] = root_pos[i] + root_y_axis[i] * point_length;
+  }
+  return step;
+}
+
+SourceCharHairForceStep source_char_hair_simulate_internal_force_step(
+    std::array<float, 3> target_pos,
+    std::array<float, 3> point_pos,
+    std::array<float, 3> original_pos,
+    std::array<float, 3> last_friction,
+    float stiffness_pow,
+    float friction,
+    float inertia) {
+  SourceCharHairForceStep step;
+  for (int i = 0; i < 3; ++i) {
+    step.force[i] = target_pos[i] - point_pos[i];
+    step.friction_delta[i] = last_friction[i] - step.force[i];
+    step.last_friction[i] = step.force[i];
+    step.force[i] *= 1.0f - stiffness_pow;
+    step.force[i] += step.friction_delta[i] * -friction;
+    step.motion_delta[i] = point_pos[i] - original_pos[i];
+    step.force[i] += step.motion_delta[i] * inertia;
+  }
+  return step;
+}
+
 SourceCharHairFreezePosePlan source_char_hair_freeze_pose_plan(
     bool simulate,
     int strand_count,

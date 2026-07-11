@@ -79,6 +79,8 @@ int main() {
   using ghogx::character::source_char_hair_set_managed_hookup;
   using ghogx::character::source_char_hair_set_name_plan;
   using ghogx::character::source_char_hair_simulate_internal_cloth_pair;
+  using ghogx::character::source_char_hair_simulate_internal_force_step;
+  using ghogx::character::source_char_hair_simulate_internal_length_step;
   using ghogx::character::source_char_hair_simulate_internal_scalars;
   using ghogx::character::source_char_hair_simulate_loops_plan;
   using ghogx::character::source_char_hair_strand_load_plan;
@@ -491,6 +493,62 @@ int main() {
                     "cloth pair preserves source max slack condition");
   ok &= near(cloth_large_max.point_pos[0], 5.0f,
              "cloth pair source max condition leaves large length");
+
+  const auto length_step = source_char_hair_simulate_internal_length_step(
+      {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f},
+      {0.0f, 0.0f, -0.5f}, {0.0f, 0.0f, 0.0f},
+      {0.0f, 1.0f, 0.0f}, 2.0f, 1.0f, true);
+  ok &= near(length_step.original_pos[0], 1.0f,
+             "length step original x");
+  ok &= near(length_step.root_to_point[0], 1.0f,
+             "length step root delta x");
+  ok &= near(length_step.root_to_point[1], 1.0f,
+             "length step root delta y");
+  ok &= near(length_step.root_to_point[2], -0.5f,
+             "length step root delta z");
+  ok &= near(length_step.reciprocal_length, 0.6666667f,
+             "length step recip length");
+  ok &= near(length_step.length_scale, 0.3333334f,
+             "length step scale");
+  ok &= near(length_step.previous_force_delta[0], -0.1666667f,
+             "length step prev force x");
+  ok &= near(length_step.previous_force_delta[1], -0.1666667f,
+             "length step prev force y");
+  ok &= near(length_step.previous_force_delta[2], 0.0833333f,
+             "length step prev force z");
+  ok &= near(length_step.point_pos[0], 1.3333334f,
+             "length step corrected x");
+  ok &= near(length_step.point_pos[1], 1.3333334f,
+             "length step corrected y");
+  ok &= near(length_step.point_pos[2], -0.6666667f,
+             "length step corrected z");
+  ok &= near(length_step.target_pos[0], 0.0f, "length step target x");
+  ok &= near(length_step.target_pos[1], 2.0f, "length step target y");
+
+  const auto first_point_length_step =
+      source_char_hair_simulate_internal_length_step(
+          {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f},
+          {0.0f, 0.0f, -0.5f}, {0.0f, 0.0f, 0.0f},
+          {0.0f, 1.0f, 0.0f}, 2.0f, 1.0f, false);
+  ok &= near(first_point_length_step.previous_force_delta[0], 0.0f,
+             "length step first point no previous force");
+
+  const auto force_step = source_char_hair_simulate_internal_force_step(
+      {0.0f, 2.0f, 0.0f}, length_step.point_pos,
+      length_step.original_pos, {0.2f, 0.1f, 0.0f}, 0.96f, 0.3f, 0.7f);
+  ok &= near(force_step.last_friction[0], -1.3333334f,
+             "force step last friction x");
+  ok &= near(force_step.last_friction[1], 0.6666666f,
+             "force step last friction y");
+  ok &= near(force_step.last_friction[2], 0.6666667f,
+             "force step last friction z");
+  ok &= near(force_step.friction_delta[0], 1.5333334f,
+             "force step friction delta x");
+  ok &= near(force_step.motion_delta[1], 1.3333334f,
+             "force step motion delta y");
+  ok &= near(force_step.force[0], -0.28f, "force step final x");
+  ok &= near(force_step.force[1], 1.13f, "force step final y");
+  ok &= near(force_step.force[2], -0.24f, "force step final z");
 
   const auto freeze_plan =
       source_char_hair_freeze_pose_plan(true, 2, 3);

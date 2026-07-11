@@ -657,6 +657,19 @@ note, and all report `unreadBytes=0`.
     that condition means larger GH2-length rows usually do not enter the
     max-slack adjustment. This helper is deterministic evidence for cloth math
     only; it does not populate collide lists or call `SetWorldXfm`.
+  - Native `source_char_hair_simulate_internal_length_step` ports the next
+    concrete point step: cache `v140`, add the point force and external force
+    to `pos`, derive `m128.y` from point-to-root, compute the source reciprocal
+    length and `rsalen`, optionally add the previous-point force delta when
+    `j > 0`, correct point position along `m128.y`, and compute the source
+    target `v158 = root + rootY * length`.
+  - Native `source_char_hair_simulate_internal_force_step` ports the later
+    force/friction/inertia update in the collision-resolved branch:
+    `force = v158 - pos`, `lastFriction - force`, store `lastFriction`, scale
+    force by `1 - powed`, apply `-mFriction`, then add `(pos - v140) *
+    mInertia`. This is still deterministic point math only; it does not imply
+    the unresolved collision-list hookup or live `SetWorldXfm` writeback has
+    been solved.
   - `CharHair::Strand::SetRoot` builds the strand from the root transform's
     first-child chain, caches the root base matrix, assigns each point's bone,
     copies child `LocalXfm().v.y` into point length, and seeds point positions
