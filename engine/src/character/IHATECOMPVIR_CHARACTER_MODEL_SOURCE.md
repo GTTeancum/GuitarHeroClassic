@@ -395,6 +395,9 @@ note, and all report `unreadBytes=0`.
     radius/length/flags rows, optional current radius, optional second
     radius/length rows, an internal transform, mesh pointer, eight mesh sphere
     rows, SHA1 digest, and mesh-y-bias.
+  - `CharCollide::Load` uses `ASSERT_REVS(7, 0)`. Native GHOGX rejects
+    `CharCollide` rows outside that source revision range before consuming the
+    superclass payload.
   - Native GHOGX decodes and logs `CharCollide` rows using this source order so
     hair hookup/collision work can be audited from stock data. It does not yet
     apply collision or write hair world rows from these decoded objects.

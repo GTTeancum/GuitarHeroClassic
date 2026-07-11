@@ -223,6 +223,16 @@ int main() {
   }
   CHECK(bad_version_threw);
 
+  std::vector<uint8_t> bad_collide;
+  put_u32(bad_collide, 8);
+  bool bad_collide_version_threw = false;
+  try {
+    (void)ghogx::character::decode_collide("bad.collide", bad_collide);
+  } catch (const std::runtime_error&) {
+    bad_collide_version_threw = true;
+  }
+  CHECK(bad_collide_version_threw);
+
   ghogx::character::CharHair cloth_hair = make_two_strand_hair();
   ghogx::character::source_char_hair_set_cloth(cloth_hair, true);
   CHECK(approx(cloth_hair.strands[0].points[0].side_length, 5.0f));

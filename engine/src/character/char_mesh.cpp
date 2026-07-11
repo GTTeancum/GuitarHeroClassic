@@ -788,12 +788,16 @@ CharHair decode_hair_body(const std::string& entry_name,
   return hair;
 }
 
-CharCollide decode_collide(const std::string& entry_name,
-                           const std::vector<uint8_t>& body) {
+CharCollide decode_collide_body(const std::string& entry_name,
+                                const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
   CharCollide collide;
   collide.name = entry_name;
   collide.version = r.i32();
+  if (collide.version < 0 || collide.version > 7) {
+    throw std::runtime_error(
+        "char_mesh: CharCollide revision outside source range");
+  }
   read_object_fields(r);
   const TransFields trans = read_rnd_trans(r, false);
   collide.local = trans.local;
@@ -1373,6 +1377,11 @@ CharWeightSetter decode_weight_setter(const std::string& entry_name,
 CharHair decode_hair(const std::string& entry_name,
                      const std::vector<uint8_t>& body) {
   return decode_hair_body(entry_name, body);
+}
+
+CharCollide decode_collide(const std::string& entry_name,
+                           const std::vector<uint8_t>& body) {
+  return decode_collide_body(entry_name, body);
 }
 
 void source_char_hair_set_cloth(CharHair& hair, bool enabled) {

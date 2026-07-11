@@ -1200,13 +1200,25 @@ int run_contract() {
                  "bs>>(int&)mShape;bs>>mOrigRadius[0];if(gRev>4)bs>>"
                  "mOrigLength[0];",
                  "latest CharCollide source exposes load path");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(7,0)",
+                 "latest CharCollide Load accepts source revisions through 7");
   ok &= contains(char_mesh_h,
                  "structCharCollide{std::stringname;int32_tversion=0;",
                  "native exposes decoded CharCollide rows");
+  ok &= contains(char_mesh_h,
+                 "CharCollidedecode_collide(conststd::string&entry_name,"
+                 "conststd::vector<uint8_t>&body);",
+                 "native exposes CharCollide decoder for contract coverage");
   ok &= contains(char_mesh,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
                  "native CharCollide decoder exists");
+  ok &= contains(char_mesh,
+                 "if(collide.version<0||collide.version>7){"
+                 "throwstd::runtime_error(\"char_mesh:CharColliderevision"
+                 "outsidesourcerange\");}",
+                 "native CharCollide decoder enforces source revision range");
   ok &= contains(char_mesh,
                  "read_object_fields(r);constTransFieldstrans=read_rnd_trans(r,false);",
                  "native CharCollide decoder follows object then transform source order");
@@ -1225,6 +1237,10 @@ int run_contract() {
                  "character graph log exposes decoded CharCollide rows");
   ok &= contains(doc, "`CharCollide::Load` reads",
                  "document records CharCollide source decode order");
+  ok &= contains(doc, "`CharCollide::Load` uses `ASSERT_REVS(7, 0)`",
+                 "document records CharCollide source revision gate");
+  ok &= contains(mesh_decode_test, "CHECK(bad_collide_version_threw);",
+                 "mesh decode test covers invalid CharCollide revision");
   ok &= contains(doc, "runs the checked source poll/reset/sim state path",
                  "document states bounded native CharHair poll rule");
   ok &= contains(doc, "point rows unwritten until",
