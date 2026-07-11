@@ -44,7 +44,7 @@ records the upstream commits for the copied files:
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp`, `CharInterest.cpp` / `CharInterest.h`, `CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; native helpers port `CharEyes` poll-child/dependency publication plus `CharInterest` / `CharEyeDartRuleset` data decisions only; no synthetic eye runtime bridge. |
-| FaceFX lip-sync servo boundary | `rb3-latest` `CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` is source context, not a matching `FaceFxLipSyncServo` load body; native FAC/viseme lookup stays bounded compatibility. |
+| FaceFX/lip-sync boundary | `rb3-latest` `CharFaceServo.*`, `CharLipSync.*`, `CharLipSyncDriver.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` and `CharLipSync` are source context, not matching `FaceFxLipSyncServo` load bodies; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
 | Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve without adding an unproven frame-cadence write. |
@@ -752,6 +752,27 @@ note, and all report `unreadBytes=0`.
     `.fac` files, viseme MILOs, and target object/property rows; it is not
     source evidence for synthetic eye rows, mouth offsets, or a face-controller
     runtime bridge.
+- `rb3-latest/src/system/char/CharLipSync.cpp` and
+  `rb3-latest/src/system/char/CharLipSync.h`
+  - `CharLipSync::Generator` initializes the lip-sync pointer to null,
+    `mLastCount` to zero, and the weight list empty.
+  - `CharLipSync` initializes `mPropAnim` to null and `mFrames` to zero.
+  - `CharLipSync::Load` accepts source revisions through 1, reads
+    `Hmx::Object`, then viseme names, frame count, raw data, and only reads
+    `mPropAnim` when the revision is non-zero.
+- `rb3-latest/src/system/char/CharLipSyncDriver.cpp` and
+  `rb3-latest/src/system/char/CharLipSyncDriver.h`
+  - `CharLipSyncDriver` inherits `RndHighlightable`, `CharWeightable`, and
+    `CharPollable`. Its constructor initializes all object pointers to null,
+    `mSongOffset` to `0.0`, `mLoop` false, `mSongPlayer` null,
+    `mTestWeight` to `1.0`, `mOverrideWeight` to `0.0`, and
+    `mApplyOverrideAdditively` false.
+  - The checked `PollDeps` body appends only `mBones` to the changed row list.
+  - The checked source declares `Poll`, `Enter`, `SetClips`, `SetLipSync`,
+    `Load`, and `Copy`, but this snapshot only includes the constructor and
+    `PollDeps` body. Native `source_char_lip_sync_*` helpers therefore port
+    defaults/load gates/dependency publication as source context only and do
+    not promote any live GH2 mouth or viseme controller behavior.
 
 ## Rnd Utility Row Authorities
 

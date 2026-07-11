@@ -4368,6 +4368,38 @@ SourceCharIKSliderMidiCopyResult source_char_ik_slider_midi_copy(
   return result;
 }
 
+SourceCharLipSyncGeneratorState source_char_lip_sync_generator_default_state() {
+  return SourceCharLipSyncGeneratorState{};
+}
+
+SourceCharLipSyncState source_char_lip_sync_default_state() {
+  return SourceCharLipSyncState{};
+}
+
+SourceCharLipSyncLoadSteps source_char_lip_sync_load_steps(int32_t revision) {
+  SourceCharLipSyncLoadSteps steps;
+  steps.known_revision = revision >= 0 && revision <= steps.max_revision;
+  steps.load_hmx_object = true;
+  steps.load_visemes = true;
+  steps.load_frames = true;
+  steps.load_data = true;
+  steps.load_prop_anim = revision != 0;
+  return steps;
+}
+
+SourceCharLipSyncDriverState source_char_lip_sync_driver_default_state(
+    const std::string& name) {
+  SourceCharLipSyncDriverState state;
+  state.weightable = source_char_weightable_default_state(name);
+  return state;
+}
+
+void source_char_lip_sync_driver_poll_deps(
+    SourceCharLipSyncDriverPollDeps& deps,
+    const SourceCharLipSyncDriverState& state) {
+  deps.change.push_back(state.bones);
+}
+
 static void apply_source_weight_setters(Character& character,
                                         float delta_beats) {
   std::unordered_map<std::string, float> weights_by_name;

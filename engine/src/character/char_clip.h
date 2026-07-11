@@ -1194,6 +1194,53 @@ struct SourceCharIKSliderMidiCopyResult {
   bool copy_tolerance = false;
 };
 
+struct SourceCharLipSyncGeneratorState {
+  bool lip_sync_null = true;
+  int last_count = 0;
+  std::vector<int> weights;
+};
+
+struct SourceCharLipSyncState {
+  std::string prop_anim;
+  std::vector<std::string> visemes;
+  int frames = 0;
+  std::vector<uint8_t> data;
+};
+
+struct SourceCharLipSyncLoadSteps {
+  int32_t max_revision = 1;
+  bool known_revision = false;
+  bool load_hmx_object = false;
+  bool load_visemes = false;
+  bool load_frames = false;
+  bool load_data = false;
+  bool load_prop_anim = false;
+};
+
+struct SourceCharLipSyncDriverState {
+  SourceCharWeightableState weightable;
+  std::string lip_sync;
+  std::string clips;
+  std::string blink_clip;
+  std::string song_owner;
+  float song_offset = 0.0f;
+  bool loop = false;
+  bool song_player_null = true;
+  std::string bones;
+  std::string test_clip;
+  float test_weight = 1.0f;
+  std::string override_clip;
+  float override_weight = 0.0f;
+  std::string override_options;
+  bool apply_override_additively = false;
+  std::string alternate_driver;
+};
+
+struct SourceCharLipSyncDriverPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 SourceCharWeightSetterState source_char_weight_setter_default_state(
     const std::string& name);
 void source_char_weight_setter_set_weight(SourceCharWeightSetterState& state,
@@ -1248,6 +1295,14 @@ SourceCharIKSliderMidiCopyResult source_char_ik_slider_midi_copy(
     const SourceCharIKSliderMidiState& source,
     bool shallow_copy,
     float source_owner_weight);
+SourceCharLipSyncGeneratorState source_char_lip_sync_generator_default_state();
+SourceCharLipSyncState source_char_lip_sync_default_state();
+SourceCharLipSyncLoadSteps source_char_lip_sync_load_steps(int32_t revision);
+SourceCharLipSyncDriverState source_char_lip_sync_driver_default_state(
+    const std::string& name);
+void source_char_lip_sync_driver_poll_deps(
+    SourceCharLipSyncDriverPollDeps& deps,
+    const SourceCharLipSyncDriverState& state);
 
 // Source-backed CharIKRod::ComputeRod/Poll helper. Returns false when any
 // source-required endpoint or destination transform is unresolved.

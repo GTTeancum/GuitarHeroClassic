@@ -108,6 +108,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_char_hair_source_test.cpp"));
   const std::string face_servo_source_test =
       compact(read_file(char_dir / "character_face_servo_source_test.cpp"));
+  const std::string lip_sync_source_test =
+      compact(read_file(char_dir / "character_lip_sync_source_test.cpp"));
   const std::string mesh_hide_source_test =
       compact(read_file(char_dir / "character_mesh_hide_source_test.cpp"));
   const std::string trans_copy_source_test =
@@ -264,6 +266,14 @@ int run_contract() {
       rb3_latest_char_dir / "CharFaceServo.cpp"));
   const std::string rb3_latest_char_face_servo_h = compact(read_file(
       rb3_latest_char_dir / "CharFaceServo.h"));
+  const std::string rb3_latest_char_lip_sync_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharLipSync.cpp"));
+  const std::string rb3_latest_char_lip_sync_h = compact(read_file(
+      rb3_latest_char_dir / "CharLipSync.h"));
+  const std::string rb3_latest_char_lip_sync_driver_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharLipSyncDriver.cpp"));
+  const std::string rb3_latest_char_lip_sync_driver_h = compact(read_file(
+      rb3_latest_char_dir / "CharLipSyncDriver.h"));
   const std::string rb3_latest_char_mesh_hide_cpp = compact(read_file(
       rb3_latest_char_dir / "CharMeshHide.cpp"));
   const std::string rb3_latest_char_mesh_hide_h = compact(read_file(
@@ -596,8 +606,10 @@ int run_contract() {
                  "not the active GH2 stock guitar/left-hand\n"
                  "or string-transparency route",
                  "document fences CharGuitarString from implicit fixes");
-  ok &= contains(doc, "| FaceFX lip-sync servo boundary | `rb3-latest` "
-                 "`CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory |",
+  ok &= contains(doc, "| FaceFX/lip-sync boundary | `rb3-latest` "
+                 "`CharFaceServo.*`, `CharLipSync.*`, "
+                 "`CharLipSyncDriver.*`; stock GH2 `FaceFxLipSyncServo` "
+                 "inventory |",
                  "coverage matrix records FaceFxLipSyncServo boundary");
   ok &= contains(doc, "## Remaining Character Import Checklist",
                  "document has explicit remaining import checklist");
@@ -3663,6 +3675,131 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_face_servo_scale_add_blink` ports the bounded",
                  "document records native CharFaceServo blink helper");
+  ok &= contains(rb3_latest_char_lip_sync_cpp,
+                 "CharLipSync::Generator::Generator():mLipSync(0),"
+                 "mLastCount(0),mWeights()",
+                 "CharLipSync source Generator constructor exposes defaults");
+  ok &= contains(rb3_latest_char_lip_sync_cpp,
+                 "CharLipSync::CharLipSync():mPropAnim(this,0),mFrames(0)",
+                 "CharLipSync source constructor exposes defaults");
+  ok &= contains(rb3_latest_char_lip_sync_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(1,0)LOAD_SUPERCLASS(Hmx::Object)"
+                 "bs>>mVisemes;bs>>mFrames;bs>>mData;if(gRev!=0)"
+                 "bs>>mPropAnim;",
+                 "CharLipSync source load order and prop anim gate");
+  ok &= contains(rb3_latest_char_lip_sync_h,
+                 "ObjPtr<RndPropAnim,ObjectDir>mPropAnim;",
+                 "CharLipSync source header exposes prop anim ref");
+  ok &= contains(rb3_latest_char_lip_sync_h,
+                 "std::vector<String>mVisemes;",
+                 "CharLipSync source header exposes viseme rows");
+  ok &= contains(rb3_latest_char_lip_sync_h, "intmFrames;",
+                 "CharLipSync source header exposes frame count");
+  ok &= contains(rb3_latest_char_lip_sync_h,
+                 "std::vector<unsignedchar,unsignedint>mData;",
+                 "CharLipSync source header exposes raw data rows");
+  ok &= contains(rb3_latest_char_lip_sync_driver_h,
+                 "classCharLipSyncDriver:publicRndHighlightable,"
+                 "publicCharWeightable,publicCharPollable",
+                 "CharLipSyncDriver source header exposes inheritance");
+  ok &= contains(rb3_latest_char_lip_sync_driver_h,
+                 "ObjPtr<CharLipSync,ObjectDir>mLipSync;",
+                 "CharLipSyncDriver source header exposes lip sync ref");
+  ok &= contains(rb3_latest_char_lip_sync_driver_h,
+                 "ObjPtr<CharBonesObject,ObjectDir>mBones;",
+                 "CharLipSyncDriver source header exposes bones ref");
+  ok &= contains(rb3_latest_char_lip_sync_driver_cpp,
+                 "CharLipSyncDriver::CharLipSyncDriver():mLipSync(this,0),"
+                 "mClips(this,0),mBlinkClip(this,0),mSongOwner(this,0),"
+                 "mSongOffset(0.0f),mLoop(0),mSongPlayer(0),"
+                 "mBones(this,0),mTestClip(this,0),mTestWeight(1.0f),"
+                 "mOverrideClip(this,0),mOverrideWeight(0.0f),",
+                 "CharLipSyncDriver source constructor exposes first defaults");
+  ok &= contains(rb3_latest_char_lip_sync_driver_cpp,
+                 "mOverrideOptions(this,0),mApplyOverrideAdditively(0),"
+                 "mAlternateDriver(this,0)",
+                 "CharLipSyncDriver source constructor exposes override defaults");
+  ok &= contains(rb3_latest_char_lip_sync_driver_cpp,
+                 "voidCharLipSyncDriver::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){"
+                 "change.push_back(mBones);}",
+                 "CharLipSyncDriver source PollDeps changes bones only");
+  ok &= missing(rb3_latest_char_lip_sync_driver_cpp,
+                "voidCharLipSyncDriver::Poll(",
+                "available CharLipSyncDriver source lacks Poll body");
+  ok &= missing(rb3_latest_char_lip_sync_driver_cpp,
+                "BEGIN_LOADS(CharLipSyncDriver)",
+                "available CharLipSyncDriver source lacks Load body");
+  ok &= contains(char_clip_h,
+                 "structSourceCharLipSyncGeneratorState{boollip_sync_null=true;"
+                 "intlast_count=0;",
+                 "native exposes CharLipSync Generator state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharLipSyncState{std::stringprop_anim;"
+                 "std::vector<std::string>visemes;intframes=0;",
+                 "native exposes CharLipSync state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharLipSyncDriverState{SourceCharWeightableState"
+                 "weightable;",
+                 "native exposes CharLipSyncDriver state");
+  ok &= contains(char_clip_h,
+                 "SourceCharLipSyncLoadStepssource_char_lip_sync_load_steps("
+                 "int32_trevision);",
+                 "native API exposes CharLipSync load helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_lip_sync_driver_poll_deps(",
+                 "native API exposes CharLipSyncDriver PollDeps helper");
+  ok &= contains(char_clip,
+                 "SourceCharLipSyncGeneratorStatesource_char_lip_sync_generator"
+                 "_default_state(){returnSourceCharLipSyncGeneratorState{};}",
+                 "native CharLipSync Generator defaults helper mirrors source");
+  ok &= contains(char_clip,
+                 "SourceCharLipSyncStatesource_char_lip_sync_default_state(){"
+                 "returnSourceCharLipSyncState{};}",
+                 "native CharLipSync defaults helper mirrors source");
+  ok &= contains(char_clip,
+                 "steps.known_revision=revision>=0&&revision<=steps.max_revision;"
+                 "steps.load_hmx_object=true;steps.load_visemes=true;",
+                 "native CharLipSync load helper mirrors revision gate");
+  ok &= contains(char_clip,
+                 "steps.load_data=true;steps.load_prop_anim=revision!=0;",
+                 "native CharLipSync load helper mirrors prop anim gate");
+  ok &= contains(char_clip,
+                 "state.weightable=source_char_weightable_default_state(name);"
+                 "returnstate;",
+                 "native CharLipSyncDriver defaults helper mirrors weightable base");
+  ok &= contains(char_clip,
+                 "deps.change.push_back(state.bones);",
+                 "native CharLipSyncDriver PollDeps helper mirrors source");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_lip_sync_source_test"
+                 "character_lip_sync_source_test.cpp)",
+                 "CMake builds focused CharLipSync source test");
+  ok &= contains(lip_sync_source_test,
+                 "source_char_lip_sync_generator_default_state()",
+                 "focused CharLipSync test covers Generator defaults");
+  ok &= contains(lip_sync_source_test,
+                 "source_char_lip_sync_load_steps(1)",
+                 "focused CharLipSync test covers load prop anim gate");
+  ok &= contains(lip_sync_source_test,
+                 "source_char_lip_sync_driver_default_state(\"lips.driver\")",
+                 "focused CharLipSync test covers driver defaults");
+  ok &= contains(lip_sync_source_test,
+                 "source_char_lip_sync_driver_poll_deps(deps,driver)",
+                 "focused CharLipSync test covers driver PollDeps");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharLipSync.cpp`",
+                 "document cites CharLipSync source");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharLipSyncDriver.cpp`",
+                 "document cites CharLipSyncDriver source");
+  ok &= contains(doc,
+                 "Native `source_char_lip_sync_*` helpers therefore port",
+                 "document records native CharLipSync helper boundary");
+  ok &= contains(doc,
+                 "do\n    not promote any live GH2 mouth or viseme controller "
+                 "behavior",
+                 "document fences CharLipSync from GH2 mouth runtime behavior");
   ok &= missing(rb3_latest_char_face_servo_cpp, "FaceFxLipSyncServo",
                 "CharFaceServo source is not a FaceFxLipSyncServo load body");
   ok &= contains(char_mesh,
