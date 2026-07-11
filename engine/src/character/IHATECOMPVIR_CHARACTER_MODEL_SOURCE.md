@@ -747,6 +747,13 @@ note, and all report `unreadBytes=0`.
     once, and scalable hands remeasure each poll. Runtime hand IK now keeps that
     per-controller cache and feeds the cosine helper from the cached source
     fields without pre-clamping target distance.
+  - `CharIKHand::PullShoulder` is source-real but not yet source-importable:
+    `CharIKHand.cpp` calls it from `IKElbow`, and
+    `ihatecompvir-extra/band3_recomp/band3_config.toml` exposes a
+    `CharIKHand__PullShoulder` symbol, but the available ihatecompvir C++ only
+    declares/calls the method and does not include its body. Native GHOGX
+    therefore must not rederive that shoulder offset or claim a full IKElbow
+    port until the function body is source-backed.
   - The current runtime solver is the bounded GH2 single-target slice. Source
     branches for multi-target weighting, `mFinger`, `PullShoulder`,
     `mElbowSwing`, wrist constraint, and elbow-collision correction remain

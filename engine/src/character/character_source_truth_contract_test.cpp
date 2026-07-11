@@ -3000,6 +3000,15 @@ int run_contract() {
   ok &= contains(rb3_char_ik_hand_cpp, "mHand->SetWorldXfm(tf);",
                  "RB3 CharIKHand source writes hand world transform");
   ok &= contains(rb3_char_ik_hand_cpp,
+                 "PullShoulder(v100,trans2->WorldXfm(),mWorldDst,mAAPlusBB);",
+                 "RB3 CharIKHand source calls PullShoulder from IKElbow");
+  ok &= missing(rb3_char_ik_hand_cpp, "voidCharIKHand::PullShoulder(",
+                "available RB3 CharIKHand source lacks PullShoulder body");
+  ok &= contains(band3_config, "CharIKHand__PullShoulder",
+                 "band3_recomp exposes CharIKHand PullShoulder symbol");
+  ok &= missing(char_clip, "PullShoulder(",
+                "native IKHand slice must not rederive missing PullShoulder");
+  ok &= contains(rb3_char_ik_hand_cpp,
                  "voidCharIKHand::MeasureLengths(){if(mHand){if("
                  "mHand->TransParent()){if(mHand->TransParent()->TransParent()"
                  "){floatlen=Length(mHand->mLocalXfm.v);",
@@ -3160,6 +3169,14 @@ int run_contract() {
                  "`source_char_ik_hand_update_measure_lengths` mirrors "
                  "`SetHand` /",
                  "document records native CharIKHand UpdateHand cache slice");
+  ok &= contains(doc,
+                 "`CharIKHand::PullShoulder` is source-real but not yet "
+                 "source-importable",
+                 "document records missing CharIKHand PullShoulder body");
+  ok &= contains(doc,
+                 "does not include its body. Native GHOGX\n    therefore "
+                 "must not rederive that shoulder offset",
+                 "document fences native CharIKHand PullShoulder rederivation");
   ok &= contains(bind_audit, "boolshould_dump_controllers(intargc,char**argv)",
                  "bind audit exposes controller inventory switch");
   ok &= contains(bind_audit,

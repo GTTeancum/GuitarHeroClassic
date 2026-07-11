@@ -3127,9 +3127,9 @@ static float effective_ik_hand_target_blend_weight(const Character& character,
 }
 
 static void apply_source_ik_hands(Character& character) {
-  // Port of ihatecompvir's CharIKHand::Poll/IKElbow dataflow: resolve the
-  // authored hand/target Trans rows, blend mWorldDst, solve the elbow chain,
-  // then publish the final hand world row when orientation or stretch is set.
+  // Bounded single-target slice of ihatecompvir's CharIKHand::Poll/IKElbow
+  // dataflow. PullShoulder is a real source function but its body is not in the
+  // available ihatecompvir C++, so the remaining branches stay fenced.
   for (const CharIKHand& ik : character.ik_hands) {
     const int hand_i = find_bone_index(character, ik.hand);
     const float solver_weight =
