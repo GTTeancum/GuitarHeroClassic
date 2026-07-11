@@ -1651,6 +1651,36 @@ int run_contract() {
                  "floatret=emulated_fps;if(ret!=60.0f)ret=60.0f-ret;"
                  "returnret;}return60.0f;}",
                  "native CharHair GetFPS helper follows source branch");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairHookupPlan{boolreturned_for_managed_hookup="
+                 "false;std::vector<std::string>collected_collides;"
+                 "boolcalled_overloaded_hookup=false;};",
+                 "native exposes CharHair Hookup plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairSimulateLoopsPlan{boolentered=false;"
+                 "intcollide_maintenance_count=0;intsimulate_internal_calls=0;"
+                 "floatfps=0.0f;};",
+                 "native exposes CharHair SimulateLoops plan");
+  ok &= contains(char_mesh,
+                 "SourceCharHairHookupPlansource_char_hair_hookup_plan("
+                 "boolmanaged_hookup,conststd::vector<std::string>&"
+                 "dir_collides){",
+                 "native implements CharHair Hookup plan helper");
+  ok &= contains(char_mesh,
+                 "if(managed_hookup){plan.returned_for_managed_hookup=true;"
+                 "returnplan;}plan.collected_collides=dir_collides;"
+                 "plan.called_overloaded_hookup=true;",
+                 "native CharHair Hookup plan ports managed gate and collection");
+  ok &= contains(char_mesh,
+                 "SourceCharHairSimulateLoopsPlansource_char_hair_simulate_"
+                 "loops_plan(boolsimulate,intstrand_count,intcollide_count,"
+                 "intloop_count,floatfps){",
+                 "native implements CharHair SimulateLoops plan helper");
+  ok &= contains(char_mesh,
+                 "if(!simulate||strand_count==0)returnplan;plan.entered=true;"
+                 "plan.collide_maintenance_count=collide_count>0?collide_count:0;"
+                 "plan.simulate_internal_calls=loop_count>0?loop_count:0;",
+                 "native CharHair SimulateLoops plan ports source gate");
   ok &= contains(mesh_decode_test,
                  "source_char_hair_default_state();",
                  "deterministic test covers source CharHair defaults");
@@ -1830,6 +1860,31 @@ int run_contract() {
                  "for(ObjDirItr<CharCollide>it(Dir(),true);it!=0;++it){"
                  "colList.push_back(it);}Hookup(colList);}",
                  "RB3 CharHair default hookup gathers CharCollide rows");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::SimulateLoops(intcount,floatf){if(mSimulate&&"
+                 "mStrands.size()!=0){",
+                 "RB3 CharHair SimulateLoops source gate");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "for(intn=0;n<count;n++){SimulateInternal(f);}",
+                 "RB3 CharHair SimulateLoops source call count");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_hookup_plan(false,{\"head.collide\","
+                 "\"neck.collide\"})",
+                 "focused CharHair test covers Hookup collide collection");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_hookup_plan(true,{\"head.collide\","
+                 "\"neck.collide\"})",
+                 "focused CharHair test covers managed Hookup return");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_simulate_loops_plan(true,2,3,4,30.0f)",
+                 "focused CharHair test covers SimulateLoops gate");
+  ok &= contains(doc,
+                 "`source_char_hair_hookup_plan` ports the managed-hookup "
+                 "early return",
+                 "document records native CharHair Hookup plan");
+  ok &= contains(doc,
+                 "Native `source_char_hair_simulate_loops_plan` ports that gate",
+                 "document records native CharHair SimulateLoops plan");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "if(thisPoint.collides.size()!=0){",
                  "RB3 CharHair runtime writes only through resolved collides");
@@ -2032,7 +2087,7 @@ int run_contract() {
   ok &= contains(doc, "Native therefore keeps collision response disabled until the\n"
                       "    cached-field updates are sourced",
                  "document fences unsourced CharCollide collision response");
-  ok &= contains(doc, "runs the checked source poll/reset/sim state path",
+  ok &= contains(doc, "source poll/reset/sim state path",
                  "document states bounded native CharHair poll rule");
   ok &= contains(doc, "point rows unwritten until",
                  "document states bounded native CharHair writeback rule");
@@ -2041,8 +2096,7 @@ int run_contract() {
   ok &= contains(doc, "latest source includes `CharHair.h`, `CharCollide.h`",
                  "document records stronger latest hair source boundary");
   ok &= contains(doc,
-                 "overloaded `Hookup(ObjPtrList<CharCollide>&)` body is still\n"
-                 "    declared but not implemented",
+                 "`Hookup(ObjPtrList<CharCollide>&)` body is still declared",
                  "document records missing CharHair hookup body boundary");
   ok &= contains(doc,
                  "The current config exposes `CharHair::GetFPS` and `CharHair::Simulate`",

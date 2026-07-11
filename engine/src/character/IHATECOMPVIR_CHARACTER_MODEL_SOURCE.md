@@ -174,7 +174,8 @@ into final transform rows.
      world-row writeback still needs the overloaded
      `CharHair::Hookup(ObjPtrList<CharCollide, ObjectDir>&)` body, point
      collide-list population, and `SimulateZeroTime` behavior from reviewable
-     source or direct original-game trace.
+     source or direct original-game trace. The source `Hookup()` wrapper and
+     `SimulateLoops` gate are already ported as deterministic plans.
    - The project hair rule is two-sided culling only. It is not permission to
      change depth priority, material sorting, or material state from mesh names.
 
@@ -487,8 +488,9 @@ note, and all report `unreadBytes=0`.
     explicit without guessing a post-process runtime.
   - `SimulateLoops` is gated by `mSimulate` and a non-empty strand list, runs
     collide-list maintenance, then calls `SimulateInternal` for each requested
-    loop. A decoded `CharHair` row alone is therefore not enough evidence for a
-    native writeback path.
+    loop. Native `source_char_hair_simulate_loops_plan` ports that gate and
+    call count as a deterministic plan. A decoded `CharHair` row alone is
+    therefore not enough evidence for a native writeback path.
   - `CharHair::Strand::SetRoot` builds the strand from the root transform's
     first-child chain, caches the root base matrix, assigns each point's bone,
     copies child `LocalXfm().v.y` into point length, and seeds point positions
@@ -514,13 +516,16 @@ note, and all report `unreadBytes=0`.
     partial hair physics bridge from decoded point rows alone.
   - The latest source includes `CharHair.h`, `CharCollide.h`, default
     `CharHair::Hookup()` gathering all `CharCollide` objects from the object
-    directory, and the `CharCollide` shape/radius header plus load path.
-    However, the overloaded `Hookup(ObjPtrList<CharCollide>&)` body is still
-    declared but not implemented in the checked source. Native GHOGX therefore
-    runs the checked source poll/reset/sim state path for persistent point
-    position, force, friction, and `lastZ`, but keeps point rows unwritten until
-    that hookup filter and point collide-list population are ported from source,
-    not guessed.
+    directory, and the `CharCollide` shape/radius header plus load path. Native
+    `source_char_hair_hookup_plan` ports the managed-hookup early return and
+    directory collide collection order, then records that the overloaded hookup
+    would be called. However, the overloaded
+    `Hookup(ObjPtrList<CharCollide>&)` body is still declared but not
+    implemented in the checked source. Native GHOGX therefore runs the checked
+    source poll/reset/sim state path for persistent point position, force,
+    friction, and `lastZ`, but keeps point rows unwritten until that hookup
+    filter and point collide-list population are ported from source, not
+    guessed.
 - `rb3-latest/src/system/char/CharCollide.cpp` and
   `rb3-latest/src/system/char/CharCollide.h`
   - `CharCollide::Load` reads `Hmx::Object`, `RndTransformable`, shape,

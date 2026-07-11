@@ -53,7 +53,9 @@ int main() {
   using ghogx::character::CharHair;
   using ghogx::character::apply_character_controllers;
   using ghogx::character::source_char_hair_freeze_pose_raw;
+  using ghogx::character::source_char_hair_hookup_plan;
   using ghogx::character::source_char_hair_poll_decision;
+  using ghogx::character::source_char_hair_simulate_loops_plan;
 
   Character character;
   add_trans(character, make_trans("parent"));
@@ -158,6 +160,43 @@ int main() {
                     "poll zero delta no loops");
   ok &= expect_bool(zero_time_decision.simulate_zero_time, true,
                     "poll zero delta zero time");
+
+  const auto managed_hookup =
+      source_char_hair_hookup_plan(true, {"head.collide", "neck.collide"});
+  ok &= expect_bool(managed_hookup.returned_for_managed_hookup, true,
+                    "managed hookup returns");
+  ok &= expect_bool(managed_hookup.called_overloaded_hookup, false,
+                    "managed hookup skips overloaded hookup");
+  ok &= expect_int(static_cast<int>(managed_hookup.collected_collides.size()),
+                   0, "managed hookup collects none");
+
+  const auto hookup =
+      source_char_hair_hookup_plan(false, {"head.collide", "neck.collide"});
+  ok &= expect_bool(hookup.returned_for_managed_hookup, false,
+                    "hookup not managed");
+  ok &= expect_bool(hookup.called_overloaded_hookup, true,
+                    "hookup calls overloaded hookup");
+  ok &= expect_int(static_cast<int>(hookup.collected_collides.size()), 2,
+                   "hookup collide count");
+  ok &= expect_bool(hookup.collected_collides[0] == "head.collide",
+                    true, "hookup collide order");
+
+  const auto skipped_loops =
+      source_char_hair_simulate_loops_plan(false, 2, 3, 4, 60.0f);
+  ok &= expect_bool(skipped_loops.entered, false,
+                    "simulate loops skips disabled sim");
+  const auto empty_loops =
+      source_char_hair_simulate_loops_plan(true, 0, 3, 4, 60.0f);
+  ok &= expect_bool(empty_loops.entered, false,
+                    "simulate loops skips empty strands");
+  const auto loops =
+      source_char_hair_simulate_loops_plan(true, 2, 3, 4, 30.0f);
+  ok &= expect_bool(loops.entered, true, "simulate loops enters");
+  ok &= expect_int(loops.collide_maintenance_count, 3,
+                   "simulate loops collide maintenance");
+  ok &= expect_int(loops.simulate_internal_calls, 4,
+                   "simulate loops internal calls");
+  ok &= near(loops.fps, 30.0f, "simulate loops fps");
 
   return ok ? 0 : 1;
 }

@@ -1564,6 +1564,34 @@ float source_char_hair_get_fps(bool use_post_proc, float emulated_fps) {
   return 60.0f;
 }
 
+SourceCharHairHookupPlan source_char_hair_hookup_plan(
+    bool managed_hookup,
+    const std::vector<std::string>& dir_collides) {
+  SourceCharHairHookupPlan plan;
+  if (managed_hookup) {
+    plan.returned_for_managed_hookup = true;
+    return plan;
+  }
+  plan.collected_collides = dir_collides;
+  plan.called_overloaded_hookup = true;
+  return plan;
+}
+
+SourceCharHairSimulateLoopsPlan source_char_hair_simulate_loops_plan(
+    bool simulate,
+    int strand_count,
+    int collide_count,
+    int loop_count,
+    float fps) {
+  SourceCharHairSimulateLoopsPlan plan;
+  plan.fps = fps;
+  if (!simulate || strand_count == 0) return plan;
+  plan.entered = true;
+  plan.collide_maintenance_count = collide_count > 0 ? collide_count : 0;
+  plan.simulate_internal_calls = loop_count > 0 ? loop_count : 0;
+  return plan;
+}
+
 SourceCharHairPollDecision source_char_hair_poll_decision(
     bool owner_is_character,
     bool character_syncing,

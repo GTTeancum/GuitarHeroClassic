@@ -360,6 +360,19 @@ struct SourceCharHairPollDecision {
   int next_reset = 0;
 };
 
+struct SourceCharHairHookupPlan {
+  bool returned_for_managed_hookup = false;
+  std::vector<std::string> collected_collides;
+  bool called_overloaded_hookup = false;
+};
+
+struct SourceCharHairSimulateLoopsPlan {
+  bool entered = false;
+  int collide_maintenance_count = 0;
+  int simulate_internal_calls = 0;
+  float fps = 0.0f;
+};
+
 struct SourceCharFaceServoBlinkClips {
   std::string left;
   std::string left2;
@@ -923,6 +936,15 @@ SourceCharHairDefaultState source_char_hair_default_state();
 bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
                                              bool owner_is_world_dir);
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
+SourceCharHairHookupPlan source_char_hair_hookup_plan(
+    bool managed_hookup,
+    const std::vector<std::string>& dir_collides);
+SourceCharHairSimulateLoopsPlan source_char_hair_simulate_loops_plan(
+    bool simulate,
+    int strand_count,
+    int collide_count,
+    int loop_count,
+    float fps);
 SourceCharHairPollDecision source_char_hair_poll_decision(
     bool owner_is_character,
     bool character_syncing,
