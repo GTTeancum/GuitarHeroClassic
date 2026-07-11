@@ -1444,6 +1444,22 @@ CharEyes decode_eyes(const std::string& entry_name,
   return decode_eyes_body(entry_name, body);
 }
 
+std::array<float, 3> source_char_pos_constraint_target_position(
+    const std::array<float, 3>& source_pos,
+    const std::array<float, 3>& target_pos,
+    const std::array<float, 3>& box_min,
+    const std::array<float, 3>& box_max) {
+  std::array<float, 3> out = target_pos;
+  for (int axis = 0; axis < 3; ++axis) {
+    if (box_min[axis] <= box_max[axis]) {
+      const float delta = std::clamp(target_pos[axis] - source_pos[axis],
+                                     box_min[axis], box_max[axis]);
+      out[axis] = source_pos[axis] + delta;
+    }
+  }
+  return out;
+}
+
 void source_char_collide_copy_original_to_cur(CharCollide& collide) {
   collide.cur_radius[0] = collide.orig_radius[0];
   collide.cur_radius[1] = collide.orig_radius[1];

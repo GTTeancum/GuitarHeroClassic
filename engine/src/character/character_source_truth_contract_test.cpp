@@ -114,6 +114,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_blend_bone_source_test.cpp"));
   const std::string sleeve_source_test =
       compact(read_file(char_dir / "character_sleeve_source_test.cpp"));
+  const std::string pos_constraint_source_test = compact(
+      read_file(char_dir / "character_pos_constraint_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -3473,22 +3475,49 @@ int run_contract() {
   ok &= contains(char_clip,
                  "staticvoidapply_source_pos_constraints(Character&character)",
                  "native CharPosConstraint source poll is implemented");
+  ok &= contains(char_mesh_h,
+                 "std::array<float,3>source_char_pos_constraint_target_position(",
+                 "native exposes CharPosConstraint source helper");
+  ok &= contains(char_mesh,
+                 "std::array<float,3>source_char_pos_constraint_target_position("
+                 "conststd::array<float,3>&source_pos,",
+                 "native implements CharPosConstraint source helper");
+  ok &= contains(char_mesh,
+                 "constfloatdelta=std::clamp(target_pos[axis]-source_pos[axis],"
+                 "box_min[axis],box_max[axis]);",
+                 "native CharPosConstraint helper clamps target/source delta");
   ok &= contains(char_clip,
-                 "delta.x=std::clamp(delta.x,constraint.box_min[0],"
-                 "constraint.box_max[0]);",
-                 "native CharPosConstraint poll clamps target/source x delta");
+                 "source_char_pos_constraint_target_position("
+                 "array3_from_vec(source_pos),array3_from_vec(mat_pos(target_world)),"
+                 "box_min,box_max)",
+                 "native controller cadence uses CharPosConstraint helper");
   ok &= contains(char_clip,
                  "character.runtime_world_overrides[target]=target_world;",
                  "native CharPosConstraint poll publishes source target world row");
   ok &= contains(char_clip,
                  "apply_source_pos_constraints(character);",
                  "native controller cadence runs CharPosConstraint poll");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_pos_constraint_source_test",
+                 "CMake builds CharPosConstraint source test");
+  ok &= contains(pos_constraint_source_test,
+                 "source_char_pos_constraint_target_position(",
+                 "focused CharPosConstraint test calls source helper");
+  ok &= contains(pos_constraint_source_test,
+                 "\"old-revisionxdisabledandy/zinrange\"",
+                 "focused CharPosConstraint test covers disabled old-revision axis");
+  ok &= contains(pos_constraint_source_test,
+                 "\"clampseachenabledaxisbytarget-sourcedelta\"",
+                 "focused CharPosConstraint test covers clamp axes");
   ok &= contains(doc,
                  "`CharPosConstraint::Load` accepts source revisions through 2",
                  "document records CharPosConstraint source load");
   ok &= contains(doc,
                  "Native GHOGX ports this `Poll` path directly",
                  "document records CharPosConstraint runtime writeback");
+  ok &= contains(doc,
+                 "`source_char_pos_constraint_target_position` helper",
+                 "document records shared CharPosConstraint helper");
   ok &= contains(doc,
                  "expanded_stock_characters_controller_posconstraint_inventory.log",
                  "document cites focused stock CharPosConstraint inventory");

@@ -606,6 +606,12 @@ struct CharPosConstraint {
   float box_max[3] = {-1.0f, -1.0f, 1000.0f};
 };
 
+std::array<float, 3> source_char_pos_constraint_target_position(
+    const std::array<float, 3>& source_pos,
+    const std::array<float, 3>& target_pos,
+    const std::array<float, 3>& box_min,
+    const std::array<float, 3>& box_max);
+
 struct CharBoneOffset {
   std::string name;
   int32_t version = 0;

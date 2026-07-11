@@ -2039,6 +2039,10 @@ static Vec3 vec_from_array3(const std::array<float, 3>& v) {
   return {v[0], v[1], v[2]};
 }
 
+static std::array<float, 3> array3_from_vec(Vec3 v) {
+  return {v.x, v.y, v.z};
+}
+
 static void array3_from_vec(std::array<float, 3>& out, Vec3 v) {
   out[0] = v.x;
   out[1] = v.y;
@@ -2945,20 +2949,17 @@ static void apply_source_pos_constraints(Character& character) {
       if (!transform_local_chain_world(character, target, target_world)) {
         continue;
       }
-      Vec3 delta = vsub(mat_pos(target_world), source_pos);
-      if (constraint.box_min[0] <= constraint.box_max[0]) {
-        delta.x = std::clamp(delta.x, constraint.box_min[0],
-                             constraint.box_max[0]);
-      }
-      if (constraint.box_min[1] <= constraint.box_max[1]) {
-        delta.y = std::clamp(delta.y, constraint.box_min[1],
-                             constraint.box_max[1]);
-      }
-      if (constraint.box_min[2] <= constraint.box_max[2]) {
-        delta.z = std::clamp(delta.z, constraint.box_min[2],
-                             constraint.box_max[2]);
-      }
-      const Vec3 target_pos = vadd(source_pos, delta);
+      const std::array<float, 3> box_min = {constraint.box_min[0],
+                                            constraint.box_min[1],
+                                            constraint.box_min[2]};
+      const std::array<float, 3> box_max = {constraint.box_max[0],
+                                            constraint.box_max[1],
+                                            constraint.box_max[2]};
+      const Vec3 target_pos = vec_from_array3(
+          source_char_pos_constraint_target_position(
+              array3_from_vec(source_pos), array3_from_vec(mat_pos(target_world)),
+              box_min, box_max));
+      const Vec3 delta = vsub(target_pos, source_pos);
       target_world[12] = target_pos.x;
       target_world[13] = target_pos.y;
       target_world[14] = target_pos.z;

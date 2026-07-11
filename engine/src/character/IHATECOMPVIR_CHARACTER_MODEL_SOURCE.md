@@ -698,7 +698,9 @@ note, and all report `unreadBytes=0`.
     `SetWorldXfm`.
   - Native GHOGX ports this `Poll` path directly: it resolves the source and
     target current world rows, clamps target-source deltas on enabled axes, and
-    publishes the target through the runtime world-row writer.
+    publishes the target through the runtime world-row writer. The shared
+    `source_char_pos_constraint_target_position` helper is the deterministic
+    source-body slice used by both focused tests and the runtime controller pass.
 
 ## Bone Offset Authorities
 
