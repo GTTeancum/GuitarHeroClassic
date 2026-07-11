@@ -147,6 +147,37 @@ std::vector<uint8_t> make_eyes_with_lookats(uint32_t version,
   return b;
 }
 
+std::vector<uint8_t> make_lookat(uint32_t version,
+                                 uint32_t weightable_version) {
+  std::vector<uint8_t> b;
+  put_u32(b, version);
+  put_zeros(b, 9);                 // ObjectFields revision 0, empty type/root
+  put_u32(b, weightable_version);
+  put_f32(b, 0.75f);               // weight
+  if (weightable_version > 1) put_str(b, "look.weight");
+  put_str(b, "l-eye.lookat");      // source
+  put_str(b, "l-eye.mesh");        // pivot
+  put_str(b, "target.mesh");       // dest
+  put_f32(b, 0.125f);              // half_time
+  put_f32(b, -30.0f);              // min_yaw
+  put_f32(b, 45.0f);               // max_yaw
+  put_f32(b, -10.0f);              // min_pitch
+  put_f32(b, 20.0f);               // max_pitch
+  if (version > 1) {
+    put_f32(b, 0.25f);             // min_weight_yaw
+    put_f32(b, 0.75f);             // max_weight_yaw
+    put_f32(b, 12.0f);             // weight_yaw_speed
+  }
+  if (version >= 3) b.push_back(0); // allow_roll
+  if (version >= 4) {
+    b.push_back(1);                // enable_jitter
+    put_f32(b, 3.0f);              // pitch_jitter_limit
+    put_f32(b, 4.0f);              // yaw_jitter_limit
+  }
+  if (version > 4) put_f32(b, 9.0f); // source_radius
+  return b;
+}
+
 std::vector<uint8_t> make_rev7_collide() {
   std::vector<uint8_t> b;
   put_u32(b, 7);                  // CharCollide revision
@@ -260,6 +291,51 @@ int main() {
   CHECK(rev11_hair.simulate);
   CHECK(rev11_hair.wind == "stage.wind");
   CHECK(rev11_hair.unread_bytes == 0);
+
+  const ghogx::character::CharLookAt rev2_lookat =
+      ghogx::character::decode_lookat("l-eye.lookat", make_lookat(2, 2));
+  CHECK(rev2_lookat.version == 2);
+  CHECK(rev2_lookat.weightable_version == 2);
+  CHECK(rev2_lookat.weight_owner == "look.weight");
+  CHECK(rev2_lookat.source == "l-eye.lookat");
+  CHECK(rev2_lookat.pivot == "l-eye.mesh");
+  CHECK(rev2_lookat.dest == "target.mesh");
+  CHECK(rev2_lookat.allow_roll);
+  CHECK(!rev2_lookat.enable_jitter);
+  CHECK(approx(rev2_lookat.min_weight_yaw, 0.25f));
+  CHECK(approx(rev2_lookat.weight_yaw_speed, 12.0f));
+  CHECK(rev2_lookat.unread_bytes == 0);
+
+  const ghogx::character::CharLookAt rev5_lookat =
+      ghogx::character::decode_lookat("full.lookat", make_lookat(5, 1));
+  CHECK(rev5_lookat.version == 5);
+  CHECK(rev5_lookat.weightable_version == 1);
+  CHECK(rev5_lookat.weight_owner.empty());
+  CHECK(!rev5_lookat.allow_roll);
+  CHECK(rev5_lookat.enable_jitter);
+  CHECK(approx(rev5_lookat.pitch_jitter_limit, 3.0f));
+  CHECK(approx(rev5_lookat.yaw_jitter_limit, 4.0f));
+  CHECK(approx(rev5_lookat.source_radius, 9.0f));
+  CHECK(rev5_lookat.unread_bytes == 0);
+
+  std::vector<uint8_t> bad_lookat;
+  put_u32(bad_lookat, 6);
+  try {
+    (void)ghogx::character::decode_lookat("bad.lookat", bad_lookat);
+    CHECK(false);
+  } catch (const std::runtime_error& e) {
+    CHECK(std::string(e.what()).find("CharLookAt revision") !=
+          std::string::npos);
+  }
+
+  try {
+    (void)ghogx::character::decode_lookat("bad-weight.lookat",
+                                          make_lookat(2, 3));
+    CHECK(false);
+  } catch (const std::runtime_error& e) {
+    CHECK(std::string(e.what()).find("CharWeightable revision") !=
+          std::string::npos);
+  }
 
   const ghogx::character::CharEyes rev3_eyes =
       ghogx::character::decode_eyes("CharEyes.eyes",

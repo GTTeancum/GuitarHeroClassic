@@ -898,14 +898,22 @@ CharBoneTwist decode_bone_twist(const std::string& entry_name,
   return twist;
 }
 
-CharLookAt decode_lookat(const std::string& entry_name,
-                         const std::vector<uint8_t>& body) {
+CharLookAt decode_lookat_body(const std::string& entry_name,
+                              const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
   CharLookAt la;
   la.name = entry_name;
-  la.version = r.i32();      // CharLookAt version, observed 2 in GH2.
+  la.version = r.i32();
+  if (la.version < 0 || la.version > 5) {
+    throw std::runtime_error(
+        "char_mesh: CharLookAt revision outside source range");
+  }
   read_object_fields(r);  // Hmx::Object metadata
   la.weightable_version = r.i32();
+  if (la.weightable_version < 0 || la.weightable_version > 2) {
+    throw std::runtime_error(
+        "char_mesh: CharLookAt CharWeightable revision outside source range");
+  }
   la.weight = r.f32();
   if (la.weightable_version > 1) la.weight_owner = r.str();
   la.source = r.str();
@@ -1424,6 +1432,11 @@ CharHair decode_hair(const std::string& entry_name,
 CharCollide decode_collide(const std::string& entry_name,
                            const std::vector<uint8_t>& body) {
   return decode_collide_body(entry_name, body);
+}
+
+CharLookAt decode_lookat(const std::string& entry_name,
+                         const std::vector<uint8_t>& body) {
+  return decode_lookat_body(entry_name, body);
 }
 
 CharEyes decode_eyes(const std::string& entry_name,

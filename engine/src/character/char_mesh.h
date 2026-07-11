@@ -661,6 +661,8 @@ CharHair decode_hair(const std::string& entry_name,
                      const std::vector<uint8_t>& body);
 CharCollide decode_collide(const std::string& entry_name,
                            const std::vector<uint8_t>& body);
+CharLookAt decode_lookat(const std::string& entry_name,
+                         const std::vector<uint8_t>& body);
 CharEyes decode_eyes(const std::string& entry_name,
                      const std::vector<uint8_t>& body);
 

@@ -436,8 +436,11 @@ note, and all report `unreadBytes=0`.
   - Native GHOGX now decodes the GH2 revision-2 row in source order:
     `Hmx::Object`, `CharWeightable`, `mSource`, `mPivot`, `mDest`,
     `mHalfTime`, yaw/pitch limits, weight-yaw limits, and weight-yaw speed.
-    The earlier `flags/source/target/driven` labels were the same bytes read
-    under old local names, not source truth.
+    Native enforces the source `CharLookAt` revision ceiling
+    (`ASSERT_REVS(5, 0)`) and the nested `CharWeightable` revision ceiling
+    (`ASSERT_REVS(2, 0)`) before consuming those fields. The earlier
+    `flags/source/target/driven` labels were the same bytes read under old
+    local names, not source truth.
   - `CharLookAt::SyncLimits` clamps yaw and pitch limits to the source
     `[-80, 80]` degree range, computes `mBounds.mMin.y` from the largest
     absolute yaw/pitch limit, sets `mBounds.mMax.y` to `1.0E+29f`, then derives

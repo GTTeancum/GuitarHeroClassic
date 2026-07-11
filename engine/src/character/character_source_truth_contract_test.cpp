@@ -2913,8 +2913,24 @@ int run_contract() {
                  "mBounds.mMin.x=mBounds.mMin.y*tan(mMinPitch*DEG2RAD);"
                  "mBounds.mMax.x=mBounds.mMin.y*tan(mMaxPitch*DEG2RAD);",
                  "RB3 CharLookAt SyncLimits computes yaw and pitch bounds");
+  ok &= contains(rb3_char_lookat_cpp, "LOAD_REVS(bs)ASSERT_REVS(5,0)",
+                 "RB3 CharLookAt source enforces revision ceiling");
+  ok &= contains(rb3_latest_char_weightable_cpp,
+                 "LOAD_REVS(bs);ASSERT_REVS(2,0);bs>>mWeight;",
+                 "latest CharWeightable source enforces revision ceiling");
   ok &= contains(char_mesh,
-                 "la.weightable_version=r.i32();la.weight=r.f32();"
+                 "if(la.version<0||la.version>5){"
+                 "throwstd::runtime_error",
+                 "native CharLookAt decoder enforces source revision range");
+  ok &= contains(char_mesh,
+                 "if(la.weightable_version<0||la.weightable_version>2){"
+                 "throwstd::runtime_error",
+                 "native CharLookAt decoder enforces CharWeightable source range");
+  ok &= contains(char_mesh,
+                 "la.weightable_version=r.i32();if(la.weightable_version<0||"
+                 "la.weightable_version>2){throwstd::runtime_error("
+                 "\"char_mesh:CharLookAtCharWeightablerevisionoutside"
+                 "sourcerange\");}la.weight=r.f32();"
                  "if(la.weightable_version>1)la.weight_owner=r.str();"
                  "la.source=r.str();la.pivot=r.str();la.dest=r.str();",
                  "native CharLookAt decoder follows source Weightable/source/pivot/dest order");
@@ -2954,9 +2970,26 @@ int run_contract() {
   ok &= contains(lookat_source_test,
                  "source_char_lookat_sync_limits(-30.0f,45.0f,-10.0f,20.0f)",
                  "focused CharLookAt source test covers asymmetric limits");
+  ok &= contains(mesh_decode_test,
+                 "ghogx::character::decode_lookat(\"l-eye.lookat\","
+                 "make_lookat(2,2))",
+                 "focused mesh decode test covers stock-style CharLookAt row");
+  ok &= contains(mesh_decode_test,
+                 "ghogx::character::decode_lookat(\"full.lookat\","
+                 "make_lookat(5,1))",
+                 "focused mesh decode test covers revision-gated CharLookAt tail");
+  ok &= contains(mesh_decode_test,
+                 "decode_lookat(\"bad.lookat\",bad_lookat)",
+                 "focused mesh decode test covers CharLookAt revision rejection");
+  ok &= contains(mesh_decode_test,
+                 "decode_lookat(\"bad-weight.lookat\",make_lookat(2,3))",
+                 "focused mesh decode test covers CharWeightable revision rejection");
   ok &= contains(doc,
                  "`Hmx::Object`, `CharWeightable`, `mSource`, `mPivot`, `mDest`",
                  "document records source CharLookAt load order");
+  ok &= contains(doc,
+                 "Native enforces the source `CharLookAt` revision ceiling",
+                 "document records CharLookAt revision ceiling");
   ok &= contains(doc,
                  "`CharLookAt::SyncLimits` clamps yaw and pitch limits",
                  "document records CharLookAt SyncLimits helper port");
