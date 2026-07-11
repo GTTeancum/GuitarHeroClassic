@@ -4175,12 +4175,21 @@ static void apply_char_hair(Character& character, float time_seconds) {
     const bool first_poll = state.last_time_seconds < 0.0f;
     const bool nonzero_delta =
         first_poll || time_seconds != state.last_time_seconds;
-    if (state.reset > 0) {
-      source_char_hair_do_reset(character, hair, state, state.reset);
+    const SourceCharHairPollDecision poll_decision =
+        source_char_hair_poll_decision(true, false, false, 0, state.reset,
+                                       nonzero_delta ? 1.0f : 0.0f);
+    if (poll_decision.do_reset) {
+      source_char_hair_do_reset(character, hair, state,
+                                poll_decision.reset_count);
+      state.reset = poll_decision.next_reset;
+      if (poll_decision.return_after_reset) {
+        state.last_time_seconds = time_seconds;
+        continue;
+      }
     }
 
     int write_count = 0;
-    if (nonzero_delta) {
+    if (poll_decision.simulate_loops) {
       write_count = source_char_hair_simulate_loops(character, hair, state, 1,
                                                    source_char_hair_get_fps(
                                                        state.use_post_proc,
@@ -4196,10 +4205,13 @@ static void apply_char_hair(Character& character, float time_seconds) {
           "source=ihatecompvir-CharHair::Poll/DoReset/SimulateInternal "
           "runtimeWriteback=%d resolvedPointCollides=0 "
           "missingHookupObjPtrList=1 zeroTimeBodyAvailable=0 "
-          "usePostProc=%d nonzeroDelta=%d firstPoll=%d time=%.4f\n",
+          "usePostProc=%d nonzeroDelta=%d firstPoll=%d pollHookup=%d "
+          "pollReset=%d pollZeroTime=%d time=%.4f\n",
           character.dir_name.c_str(), hair.name.c_str(), write_count,
           state.use_post_proc ? 1 : 0, nonzero_delta ? 1 : 0,
-          first_poll ? 1 : 0, time_seconds);
+          first_poll ? 1 : 0, poll_decision.hookup ? 1 : 0,
+          poll_decision.do_reset ? poll_decision.reset_count : -1,
+          poll_decision.simulate_zero_time ? 1 : 0, time_seconds);
     }
   }
 }

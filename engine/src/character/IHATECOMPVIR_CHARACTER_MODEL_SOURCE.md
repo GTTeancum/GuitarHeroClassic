@@ -341,6 +341,10 @@ note, and all report `unreadBytes=0`.
   - `CharHair::Poll` re-runs `Hookup()` while the owning `Character` is syncing,
     resets after teleports, skips simulation for higher LODs, then calls
     `DoReset`, `SimulateLoops`, or `SimulateZeroTime` depending on runtime state.
+    Native `source_char_hair_poll_decision` ports this branch order as a
+    deterministic decision helper. It records when source `Poll` would call
+    `Hookup`, `DoReset`, `SimulateLoops`, or `SimulateZeroTime`, while keeping
+    the unresolved overloaded hookup body and zero-time simulation body fenced.
   - `CharHair::DoReset` seeds each point from `unk5c` transformed by the root
     parent world row, temporarily forces `mSimulate=true`, `mInertia=0`, and
     `mFriction=0`, then calls `SimulateLoops(reset, GetFPS())` before restoring

@@ -1531,6 +1531,43 @@ float source_char_hair_get_fps(bool use_post_proc, float emulated_fps) {
   return 60.0f;
 }
 
+SourceCharHairPollDecision source_char_hair_poll_decision(
+    bool owner_is_character,
+    bool character_syncing,
+    bool character_teleported,
+    int character_min_lod,
+    int current_reset,
+    float delta_seconds) {
+  SourceCharHairPollDecision decision;
+  int reset = current_reset;
+  if (owner_is_character) {
+    decision.hookup = character_syncing;
+    if (character_teleported) {
+      reset = 1;
+      decision.teleported_reset = true;
+    }
+    if (character_min_lod > 0) {
+      decision.do_reset = true;
+      decision.reset_count = 0;
+      decision.return_after_reset = true;
+      decision.next_reset = 0;
+      return decision;
+    }
+  }
+  if (reset > 0) {
+    decision.do_reset = true;
+    decision.reset_count = reset;
+    reset = 0;
+  }
+  if (delta_seconds != 0.0f) {
+    decision.simulate_loops = true;
+  } else {
+    decision.simulate_zero_time = true;
+  }
+  decision.next_reset = reset;
+  return decision;
+}
+
 std::array<float, 9> source_char_hair_set_angle_root_mat(
     float angle_degrees, const float base_mat[9]) {
   constexpr float kPi = 3.14159265358979323846f;

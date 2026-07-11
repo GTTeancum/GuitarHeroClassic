@@ -34,6 +34,18 @@ bool near(float got, float want, const char* label) {
   return false;
 }
 
+bool expect_bool(bool got, bool want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_int(int got, int want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -41,6 +53,7 @@ int main() {
   using ghogx::character::CharHair;
   using ghogx::character::apply_character_controllers;
   using ghogx::character::source_char_hair_freeze_pose_raw;
+  using ghogx::character::source_char_hair_poll_decision;
 
   Character character;
   add_trans(character, make_trans("parent"));
@@ -108,6 +121,43 @@ int main() {
              "freeze-local y");
   ok &= near(freeze_hair.strands[0].points[0].unk5c[2], 4.0f,
              "freeze-local z");
+
+  const auto sync_decision =
+      source_char_hair_poll_decision(true, true, false, 0, 0, 0.25f);
+  ok &= expect_bool(sync_decision.hookup, true, "poll sync hookup");
+  ok &= expect_bool(sync_decision.do_reset, false, "poll sync no reset");
+  ok &= expect_bool(sync_decision.simulate_loops, true, "poll sync loops");
+  ok &= expect_bool(sync_decision.simulate_zero_time, false,
+                   "poll sync not zero time");
+
+  const auto teleport_decision =
+      source_char_hair_poll_decision(true, false, true, 0, 0, 0.25f);
+  ok &= expect_bool(teleport_decision.teleported_reset, true,
+                    "poll teleport marks reset");
+  ok &= expect_bool(teleport_decision.do_reset, true,
+                    "poll teleport reset");
+  ok &= expect_int(teleport_decision.reset_count, 1,
+                   "poll teleport reset count");
+  ok &= expect_bool(teleport_decision.simulate_loops, true,
+                    "poll teleport still simulates after reset");
+
+  const auto lod_decision =
+      source_char_hair_poll_decision(true, false, false, 1, 3, 0.25f);
+  ok &= expect_bool(lod_decision.do_reset, true, "poll lod reset");
+  ok &= expect_int(lod_decision.reset_count, 0, "poll lod reset count");
+  ok &= expect_bool(lod_decision.return_after_reset, true,
+                    "poll lod returns after reset");
+  ok &= expect_bool(lod_decision.simulate_loops, false,
+                    "poll lod skips loops");
+
+  const auto zero_time_decision =
+      source_char_hair_poll_decision(false, false, false, 0, 0, 0.0f);
+  ok &= expect_bool(zero_time_decision.hookup, false,
+                    "poll no owner no hookup");
+  ok &= expect_bool(zero_time_decision.simulate_loops, false,
+                    "poll zero delta no loops");
+  ok &= expect_bool(zero_time_decision.simulate_zero_time, true,
+                    "poll zero delta zero time");
 
   return ok ? 0 : 1;
 }

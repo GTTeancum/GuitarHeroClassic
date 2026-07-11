@@ -988,6 +988,39 @@ int run_contract() {
                  "if(mReset>0)DoReset(mReset);if(TheTaskMgr.DeltaSeconds()!="
                  "0.0f){SimulateLoops(1,GetFPS());}elseSimulateZeroTime();",
                  "RB3 CharHair poll reset/simulate flow");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairPollDecision{boolhookup=false;"
+                 "boolteleported_reset=false;booldo_reset=false;"
+                 "intreset_count=0;boolreturn_after_reset=false;"
+                 "boolsimulate_loops=false;boolsimulate_zero_time=false;"
+                 "intnext_reset=0;};",
+                 "native exposes source CharHair Poll decision row");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairPollDecisionsource_char_hair_poll_decision("
+                 "boolowner_is_character,boolcharacter_syncing,"
+                 "boolcharacter_teleported,intcharacter_min_lod,"
+                 "intcurrent_reset,floatdelta_seconds);",
+                 "native exposes source CharHair Poll decision helper");
+  ok &= contains(char_mesh,
+                 "SourceCharHairPollDecisionsource_char_hair_poll_decision("
+                 "boolowner_is_character,boolcharacter_syncing,"
+                 "boolcharacter_teleported,intcharacter_min_lod,"
+                 "intcurrent_reset,floatdelta_seconds){",
+                 "native implements source CharHair Poll decision helper");
+  ok &= contains(char_mesh,
+                 "decision.hookup=character_syncing;if(character_teleported){"
+                 "reset=1;decision.teleported_reset=true;}if("
+                 "character_min_lod>0){decision.do_reset=true;"
+                 "decision.reset_count=0;decision.return_after_reset=true;",
+                 "native CharHair Poll helper ports character-owner branches");
+  ok &= contains(char_mesh,
+                 "if(reset>0){decision.do_reset=true;decision.reset_count="
+                 "reset;reset=0;}if(delta_seconds!=0.0f){decision."
+                 "simulate_loops=true;}else{decision.simulate_zero_time=true;}",
+                 "native CharHair Poll helper ports reset and delta branches");
+  ok &= contains(doc,
+                 "Native `source_char_hair_poll_decision` ports this branch order",
+                 "document records native CharHair Poll decision helper");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "Multiply(pt.unk5c,tf70,pt.pos);",
                  "RB3 CharHair reset seeds point position from unk5c");
@@ -1026,6 +1059,18 @@ int run_contract() {
   ok &= contains(char_hair_source_test,
                  "point.pos[2]<-1.9f&&point.pos[2]>-2.1f",
                  "deterministic CharHair test proves reset forced simulation");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_poll_decision(true,true,false,0,0,0.25f)",
+                 "focused CharHair source test covers Poll syncing branch");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_poll_decision(true,false,true,0,0,0.25f)",
+                 "focused CharHair source test covers Poll teleport branch");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_poll_decision(true,false,false,1,3,0.25f)",
+                 "focused CharHair source test covers Poll LOD branch");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_poll_decision(false,false,false,0,0,0.0f)",
+                 "focused CharHair source test covers Poll zero-time branch");
   ok &= contains(doc,
                  "Native reset follows that\n    forced-simulate lane",
                  "document records native CharHair reset forced simulation");

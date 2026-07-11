@@ -311,6 +311,17 @@ struct SourceCharHairRuntime {
   std::vector<SourceCharHairRuntimeStrand> strands;
 };
 
+struct SourceCharHairPollDecision {
+  bool hookup = false;
+  bool teleported_reset = false;
+  bool do_reset = false;
+  int reset_count = 0;
+  bool return_after_reset = false;
+  bool simulate_loops = false;
+  bool simulate_zero_time = false;
+  int next_reset = 0;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -318,6 +329,13 @@ SourceCharHairDefaultState source_char_hair_default_state();
 bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
                                              bool owner_is_world_dir);
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
+SourceCharHairPollDecision source_char_hair_poll_decision(
+    bool owner_is_character,
+    bool character_syncing,
+    bool character_teleported,
+    int character_min_lod,
+    int current_reset,
+    float delta_seconds);
 std::array<float, 9> source_char_hair_set_angle_root_mat(
     float angle_degrees, const float base_mat[9]);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
