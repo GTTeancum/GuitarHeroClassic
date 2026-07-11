@@ -1123,6 +1123,11 @@ note, and all report `unreadBytes=0`.
     owner only when it matches and again falls back to `this` on null, shallow
     copies keep the source owner, and non-shallow copies own themselves while
     copying the source owner's current weight.
+  - Native `source_char_weightable_load_plan` and
+    `source_char_weightable_copy_plan` record the source load revision range
+    and copy branches: revisions 0-2 read `mWeight`, revisions above 1 also
+    read `mWeightOwner`; shallow copy preserves the source owner, while
+    non-shallow copy owns itself and copies the source owner's current weight.
 - `rb3-latest/src/system/char/CharMirror.cpp` and
   `rb3-latest/src/system/char/CharMirror.h`
   - `CharMirror` inherits `CharWeightable` and `CharPollable`; its constructor
@@ -1156,6 +1161,11 @@ note, and all report `unreadBytes=0`.
     min/max setter refs through the revision 7/8 single-pointer rows or the
     revision 9 lists. Native GHOGX enforces that source revision range and logs
     the row tail byte count.
+  - Native `source_char_weight_setter_load_plan` and
+    `source_char_weight_setter_copy_plan` now expose that exact revision-gated
+    source read order and copy list for deterministic tests. This records the
+    legacy revision 3 invert-bool branch and the revision 7/8 single min/max
+    pointer branch without activating driver-backed `EvaluateFlags`.
   - `CharWeightSetter::Poll` derives `base_weight` from either
     `mDriver->EvaluateFlags(mFlags)` or `mBase->Weight()`, applies
     `scale`/`offset`, clamps through min/max setter rows, and then either snaps

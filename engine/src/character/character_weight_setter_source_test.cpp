@@ -23,6 +23,25 @@ bool near(float got, float want, const char* label) {
   return false;
 }
 
+bool expect_bool(bool got, bool want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_string(const std::string& got, const std::string& want,
+                   const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got '" << got << "' want '" << want << "'\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -41,10 +60,36 @@ int main() {
   using ghogx::character::source_char_weight_setter_poll;
   using ghogx::character::source_char_weight_setter_poll_deps;
   using ghogx::character::source_char_weight_setter_default_state;
+  using ghogx::character::source_char_weight_setter_copy_plan;
+  using ghogx::character::source_char_weight_setter_load_plan;
+  using ghogx::character::source_char_weightable_copy_plan;
+  using ghogx::character::source_char_weightable_load_plan;
   using ghogx::character::source_char_weight_setter_set_weight;
   using ghogx::character::source_char_weightable_weight;
 
   bool ok = true;
+
+  const auto weightable_load_v1 = source_char_weightable_load_plan(1);
+  ok &= expect_bool(weightable_load_v1.revision_supported, true,
+                    "weightable v1 load supported");
+  ok &= expect_size(weightable_load_v1.read_order.size(), 1,
+                    "weightable v1 read count");
+  ok &= expect_string(weightable_load_v1.read_order[0], "mWeight",
+                      "weightable v1 reads weight");
+  const auto weightable_load_v2 = source_char_weightable_load_plan(2);
+  ok &= expect_size(weightable_load_v2.read_order.size(), 2,
+                    "weightable v2 read count");
+  ok &= expect_string(weightable_load_v2.read_order[1], "mWeightOwner",
+                      "weightable v2 reads owner");
+  ok &= expect_bool(source_char_weightable_load_plan(3).revision_supported,
+                    false, "weightable rejects high revision");
+  const auto weightable_copy = source_char_weightable_copy_plan();
+  ok &= expect_string(weightable_copy.shallow_actions[0],
+                      "SetWeightOwner(source.mWeightOwner)",
+                      "weightable shallow copy owner action");
+  ok &= expect_string(weightable_copy.deep_actions[1],
+                      "mWeight=source.mWeightOwner->mWeight",
+                      "weightable deep copy weight action");
 
   SourceCharWeightableState weightable =
       source_char_weightable_default_state("self.weight");
@@ -121,6 +166,59 @@ int main() {
     std::cerr << "weight setter SetWeight mismatch\n";
     ok = false;
   }
+
+  const auto setter_load_v0 = source_char_weight_setter_load_plan(0);
+  ok &= expect_bool(setter_load_v0.revision_supported, true,
+                    "weight setter v0 load supported");
+  ok &= expect_string(setter_load_v0.read_order[0], "Hmx::Object",
+                      "weight setter v0 loads object first");
+  ok &= expect_string(setter_load_v0.read_order[1], "mDriver",
+                      "weight setter v0 skips weightable");
+  ok &= expect_string(setter_load_v0.read_order[3],
+                      "legacyWeightableOwnerList",
+                      "weight setter v0 reads owner list");
+  ok &= expect_string(setter_load_v0.branches[0], "mScale=1.0",
+                      "weight setter v0 default scale");
+  ok &= expect_string(setter_load_v0.branches[3], "mBaseWeight=mWeight",
+                      "weight setter v0 base weight branch");
+
+  const auto setter_load_v3 = source_char_weight_setter_load_plan(3);
+  ok &= expect_string(setter_load_v3.read_order[1], "CharWeightable",
+                      "weight setter v3 reads weightable");
+  ok &= expect_string(setter_load_v3.read_order[4], "legacyInvertBool",
+                      "weight setter v3 reads invert bool");
+  ok &= expect_string(setter_load_v3.branches[0],
+                      "legacy bool true -> mScale=-1.0,mOffset=1.0",
+                      "weight setter v3 true branch");
+
+  const auto setter_load_v9 = source_char_weight_setter_load_plan(9);
+  ok &= expect_string(setter_load_v9.read_order[4], "mOffset",
+                      "weight setter v9 reads offset");
+  ok &= expect_string(setter_load_v9.read_order[5], "mScale",
+                      "weight setter v9 reads scale");
+  ok &= expect_string(setter_load_v9.read_order[8], "mBase",
+                      "weight setter v9 reads base");
+  ok &= expect_string(setter_load_v9.read_order[9], "mMinWeights",
+                      "weight setter v9 reads min list");
+  ok &= expect_string(setter_load_v9.read_order[10], "mMaxWeights",
+                      "weight setter v9 reads max list");
+  ok &= expect_bool(source_char_weight_setter_load_plan(10).revision_supported,
+                    false, "weight setter rejects high revision");
+
+  const auto setter_load_v8 = source_char_weight_setter_load_plan(8);
+  ok &= expect_string(setter_load_v8.read_order[9], "legacyMinWeight",
+                      "weight setter v8 reads legacy min");
+  ok &= expect_string(setter_load_v8.read_order[10], "legacyMaxWeight",
+                      "weight setter v8 reads legacy max");
+  const auto setter_copy = source_char_weight_setter_copy_plan();
+  ok &= expect_string(setter_copy.copied_superclasses[0], "Hmx::Object",
+                      "weight setter copy object superclass");
+  ok &= expect_string(setter_copy.copied_superclasses[1], "CharWeightable",
+                      "weight setter copy weightable superclass");
+  ok &= expect_string(setter_copy.copied_members[0], "mDriver",
+                      "weight setter copy driver");
+  ok &= expect_string(setter_copy.copied_members[8], "mMaxWeights",
+                      "weight setter copy max weights");
 
   std::unordered_map<std::string, float> weights;
   CharWeightSetter setter = make_setter("owned.weight");

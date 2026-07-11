@@ -4642,6 +4642,10 @@ int run_contract() {
                  "mWeightOwner(this,this)",
                  "latest CharWeightable source exposes constructor defaults");
   ok &= contains(rb3_latest_char_weightable_cpp,
+                 "voidCharWeightable::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(2,0);",
+                 "CharWeightable source enforces revision ceiling");
+  ok &= contains(rb3_latest_char_weightable_cpp,
                  "bs>>mWeight;if(gRev>1)bs>>mWeightOwner;",
                  "CharWeightable source load gates weight owner");
   ok &= contains(rb3_latest_char_weightable_cpp,
@@ -4727,6 +4731,14 @@ int run_contract() {
                  "floatsecs=TheTaskMgr.DeltaBeat()/mBeatsPerWeight;",
                  "latest CharWeightSetter source poll beat-smooths");
   ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "BEGIN_COPYS(CharWeightSetter)COPY_SUPERCLASS(Hmx::Object)"
+                 "COPY_SUPERCLASS(CharWeightable)CREATE_COPY(CharWeightSetter)"
+                 "BEGIN_COPYING_MEMBERSCOPY_MEMBER(mDriver)COPY_MEMBER(mFlags)"
+                 "COPY_MEMBER(mBase)COPY_MEMBER(mOffset)COPY_MEMBER(mScale)"
+                 "COPY_MEMBER(mBaseWeight)COPY_MEMBER(mBeatsPerWeight)"
+                 "COPY_MEMBER(mMinWeights)COPY_MEMBER(mMaxWeights)",
+                 "latest CharWeightSetter source Copy member list");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
                  "voidCharWeightSetter::PollDeps(std::list<Hmx::Object*>&"
                  "changedBy,std::list<Hmx::Object*>&change){changedBy."
                  "push_back(mDriver);changedBy.push_back(mBase);",
@@ -4750,6 +4762,21 @@ int run_contract() {
                  "structSourceCharWeightableState{std::stringname;"
                  "floatweight=1.0f;std::stringweight_owner;};",
                  "native exposes source CharWeightable state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharWeightableLoadPlan{boolrevision_supported=false;"
+                 "std::vector<std::string>read_order;};",
+                 "native exposes source CharWeightable load plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharWeightableCopyPlan{std::vector<std::string>"
+                 "shallow_actions;std::vector<std::string>deep_actions;};",
+                 "native exposes source CharWeightable copy plan");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightableLoadPlansource_char_weightable_load_plan("
+                 "int32_trevision);",
+                 "native exposes source CharWeightable load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightableCopyPlansource_char_weightable_copy_plan();",
+                 "native exposes source CharWeightable copy plan helper");
   ok &= contains(char_clip_h,
                  "SourceCharWeightableStatesource_char_weightable_default_state("
                  "conststd::string&name);",
@@ -4797,6 +4824,15 @@ int run_contract() {
                  "floatscale=1.0f;floatbase_weight=0.0f;floatbeats_per_weight=0.0f;};",
                  "native exposes source CharWeightSetter state");
   ok &= contains(char_clip_h,
+                 "structSourceCharWeightSetterLoadPlan{boolrevision_supported=false;"
+                 "std::vector<std::string>read_order;std::vector<std::string>"
+                 "branches;};",
+                 "native exposes source CharWeightSetter load plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharWeightSetterCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;};",
+                 "native exposes source CharWeightSetter copy plan");
+  ok &= contains(char_clip_h,
                  "SourceCharWeightSetterStatesource_char_weight_setter_default_state("
                  "conststd::string&name);",
                  "native exposes source CharWeightSetter constructor helper");
@@ -4804,6 +4840,13 @@ int run_contract() {
                  "voidsource_char_weight_setter_set_weight("
                  "SourceCharWeightSetterState&state,floatweight);",
                  "native exposes source CharWeightSetter SetWeight helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightSetterLoadPlansource_char_weight_setter_load_plan("
+                 "int32_trevision);",
+                 "native exposes source CharWeightSetter load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightSetterCopyPlansource_char_weight_setter_copy_plan();",
+                 "native exposes source CharWeightSetter copy helper");
   ok &= contains(char_clip_h,
                  "voidsource_char_weight_setter_poll_deps("
                  "SourceCharWeightSetterPollDeps&deps,constCharWeightSetter&"
@@ -4840,6 +4883,20 @@ int run_contract() {
                  "source.weight_owner);}else{source_char_weightable_set_weight_owner("
                  "dest,dest.name);dest.weight=source_owner_weight;}",
                  "native CharWeightable Copy helper ports shallow and deep copy");
+  ok &= contains(char_clip,
+                 "SourceCharWeightableLoadPlansource_char_weightable_load_plan("
+                 "int32_trevision){SourceCharWeightableLoadPlanplan;"
+                 "plan.revision_supported=revision>=0&&revision<=2;",
+                 "native CharWeightable load helper ports revision gate");
+  ok &= contains(char_clip,
+                 "plan.read_order.push_back(\"mWeight\");if(revision>1)"
+                 "plan.read_order.push_back(\"mWeightOwner\");",
+                 "native CharWeightable load helper ports read order");
+  ok &= contains(char_clip,
+                 "SourceCharWeightableCopyPlansource_char_weightable_copy_plan(){"
+                 "SourceCharWeightableCopyPlanplan;plan.shallow_actions={"
+                 "\"SetWeightOwner(source.mWeightOwner)\"};",
+                 "native CharWeightable copy plan records shallow branch");
   ok &= contains(char_clip_h,
                  "structSourceCharMirrorState{SourceCharWeightableStateweightable;"
                  "std::stringservo;std::stringmirror_servo;size_tbones_total_size=0;"
@@ -4920,6 +4977,39 @@ int run_contract() {
                  "SourceCharWeightSetterState&state,floatweight){state.base_weight=weight;"
                  "state.weightable.weight=weight;}",
                  "native CharWeightSetter SetWeight helper ports source assignment");
+  ok &= contains(char_clip,
+                 "SourceCharWeightSetterLoadPlansource_char_weight_setter_load_plan("
+                 "int32_trevision){SourceCharWeightSetterLoadPlanplan;"
+                 "plan.revision_supported=revision>=0&&revision<=9;",
+                 "native CharWeightSetter load helper ports revision gate");
+  ok &= contains(char_clip,
+                 "plan.read_order.push_back(\"Hmx::Object\");if(revision>1)"
+                 "plan.read_order.push_back(\"CharWeightable\");",
+                 "native CharWeightSetter load helper ports superclass gate");
+  ok &= contains(char_clip,
+                 "if(revision<3){plan.branches.push_back(\"mScale=1.0\");"
+                 "plan.branches.push_back(\"mOffset=0.0\");}",
+                 "native CharWeightSetter load helper ports old scale branch");
+  ok &= contains(char_clip,
+                 "elseif(revision<4){plan.read_order.push_back("
+                 "\"legacyInvertBool\");",
+                 "native CharWeightSetter load helper ports legacy invert branch");
+  ok &= contains(char_clip,
+                 "if(revision>8){plan.read_order.push_back(\"mMinWeights\");"
+                 "plan.read_order.push_back(\"mMaxWeights\");}else{"
+                 "if(revision>6)plan.read_order.push_back(\"legacyMinWeight\");"
+                 "if(revision>7)plan.read_order.push_back(\"legacyMaxWeight\");}",
+                 "native CharWeightSetter load helper ports min/max revision gates");
+  ok &= contains(char_clip,
+                 "SourceCharWeightSetterCopyPlansource_char_weight_setter_copy_plan(){"
+                 "SourceCharWeightSetterCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\",\"CharWeightable\"};",
+                 "native CharWeightSetter copy helper records superclasses");
+  ok &= contains(char_clip,
+                 "plan.copied_members={\"mDriver\",\"mFlags\",\"mBase\","
+                 "\"mOffset\",\"mScale\",\"mBaseWeight\",\"mBeatsPerWeight\","
+                 "\"mMinWeights\",\"mMaxWeights\"};",
+                 "native CharWeightSetter copy helper records member list");
   ok &= contains(char_clip, "returnsetter.weight;",
                  "native CharWeightable helper falls back to row weight");
   ok &= contains(char_clip, "if(!setter.driver.empty()){returnfalse;}",
@@ -4977,11 +5067,26 @@ int run_contract() {
                  "source_char_weightable_copy(dest,source,false,0.90f)",
                  "focused CharWeightSetter test covers CharWeightable deep copy");
   ok &= contains(weight_setter_source_test,
+                 "source_char_weightable_load_plan(2)",
+                 "focused CharWeightSetter test covers CharWeightable load plan");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weightable_copy_plan()",
+                 "focused CharWeightSetter test covers CharWeightable copy plan");
+  ok &= contains(weight_setter_source_test,
                  "source_char_weight_setter_default_state(\"setter.weight\")",
                  "focused CharWeightSetter test covers constructor helper");
   ok &= contains(weight_setter_source_test,
                  "source_char_weight_setter_set_weight(setter_state,0.42f)",
                  "focused CharWeightSetter test covers SetWeight helper");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_load_plan(9)",
+                 "focused CharWeightSetter test covers current load plan");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_load_plan(8)",
+                 "focused CharWeightSetter test covers legacy min/max load plan");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_copy_plan()",
+                 "focused CharWeightSetter test covers copy plan");
   ok &= contains(weight_setter_source_test,
                  "ok&=!source_char_weight_setter_poll(driver,weights,0.0f,out);",
                  "focused CharWeightSetter test covers driver fence");
@@ -5026,8 +5131,17 @@ int run_contract() {
                  "Native `source_char_weight_setter_poll_deps` ports",
                  "document records native CharWeightSetter PollDeps helper");
   ok &= contains(doc,
+                 "Native `source_char_weight_setter_load_plan` and",
+                 "document records native CharWeightSetter load/copy plans");
+  ok &= contains(doc,
+                 "legacy revision 3 invert-bool branch",
+                 "document records CharWeightSetter legacy invert branch");
+  ok &= contains(doc,
                  "Native `source_char_weight_setter_default_state` and",
                  "document records native CharWeightSetter constructor helper");
+  ok &= contains(doc,
+                 "Native `source_char_weightable_load_plan` and",
+                 "document records native CharWeightable load/copy plans");
   ok &= contains(doc,
                  "`SetWeight` writes both\n    `mBaseWeight` and inherited `mWeight`",
                  "document records CharWeightSetter SetWeight behavior");

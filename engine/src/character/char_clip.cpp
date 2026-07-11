@@ -4542,6 +4542,24 @@ static void apply_source_pos_constraints(Character& character) {
   }
 }
 
+SourceCharWeightableLoadPlan source_char_weightable_load_plan(
+    int32_t revision) {
+  SourceCharWeightableLoadPlan plan;
+  plan.revision_supported = revision >= 0 && revision <= 2;
+  if (!plan.revision_supported) return plan;
+  plan.read_order.push_back("mWeight");
+  if (revision > 1) plan.read_order.push_back("mWeightOwner");
+  return plan;
+}
+
+SourceCharWeightableCopyPlan source_char_weightable_copy_plan() {
+  SourceCharWeightableCopyPlan plan;
+  plan.shallow_actions = {"SetWeightOwner(source.mWeightOwner)"};
+  plan.deep_actions = {"SetWeightOwner(this)",
+                       "mWeight=source.mWeightOwner->mWeight"};
+  return plan;
+}
+
 SourceCharWeightableState source_char_weightable_default_state(
     const std::string& name) {
   SourceCharWeightableState state;
@@ -4751,6 +4769,63 @@ void source_char_weight_setter_set_weight(SourceCharWeightSetterState& state,
                                           float weight) {
   state.base_weight = weight;
   state.weightable.weight = weight;
+}
+
+SourceCharWeightSetterLoadPlan source_char_weight_setter_load_plan(
+    int32_t revision) {
+  SourceCharWeightSetterLoadPlan plan;
+  plan.revision_supported = revision >= 0 && revision <= 9;
+  if (!plan.revision_supported) return plan;
+
+  plan.read_order.push_back("Hmx::Object");
+  if (revision > 1) plan.read_order.push_back("CharWeightable");
+  plan.read_order.push_back("mDriver");
+  plan.read_order.push_back("mFlags");
+
+  if (revision < 3) {
+    plan.branches.push_back("mScale=1.0");
+    plan.branches.push_back("mOffset=0.0");
+  } else if (revision < 4) {
+    plan.read_order.push_back("legacyInvertBool");
+    plan.branches.push_back("legacy bool true -> mScale=-1.0,mOffset=1.0");
+    plan.branches.push_back("legacy bool false -> mScale=1.0,mOffset=0.0");
+  } else {
+    plan.read_order.push_back("mOffset");
+    plan.read_order.push_back("mScale");
+  }
+
+  if (revision < 2) {
+    plan.read_order.push_back("legacyWeightableOwnerList");
+    plan.branches.push_back("legacy owner list assigns SetWeightOwner(this)");
+  }
+
+  if (revision > 4) {
+    plan.read_order.push_back("mBaseWeight");
+    plan.read_order.push_back("mBeatsPerWeight");
+  } else {
+    plan.branches.push_back("mBaseWeight=mWeight");
+    plan.branches.push_back("mBeatsPerWeight=0.0");
+  }
+
+  if (revision > 5) plan.read_order.push_back("mBase");
+  if (revision > 8) {
+    plan.read_order.push_back("mMinWeights");
+    plan.read_order.push_back("mMaxWeights");
+  } else {
+    if (revision > 6) plan.read_order.push_back("legacyMinWeight");
+    if (revision > 7) plan.read_order.push_back("legacyMaxWeight");
+  }
+
+  return plan;
+}
+
+SourceCharWeightSetterCopyPlan source_char_weight_setter_copy_plan() {
+  SourceCharWeightSetterCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "CharWeightable"};
+  plan.copied_members = {"mDriver",      "mFlags",         "mBase",
+                         "mOffset",      "mScale",         "mBaseWeight",
+                         "mBeatsPerWeight", "mMinWeights", "mMaxWeights"};
+  return plan;
 }
 
 void source_char_weight_setter_poll_deps(
