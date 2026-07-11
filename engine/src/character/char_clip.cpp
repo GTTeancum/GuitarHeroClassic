@@ -16,16 +16,17 @@
 //      bone_count x { length-prefixed name (ends .pos/.scale/.quat/.rotx/.roty/.rotz),
 //                     float32 weight }     (weight present for gRev>10)
 //      uint32 cum_counts[10]   cumulative bone count per category (0..9)
-//      uint32 compression      0 = float32, non-0 = int16 (quantized)
+//      uint32 compression      source CharBones::CompressionType:
+//                              0 none, 1 rotations, 2 vectors,
+//                              3 quats, 4 all
 //      uint32 numSamples       number of frames
 //  Then, AFTER every bone-list header, the sample data blocks follow in list
 //  order (two-pass: all defs, then all data). Each list's block is:
 //      numSamples x frame, where each frame is (bones grouped BY CATEGORY):
-//         vectors (.pos + .scale):  3 x float32 = 12 bytes
-//         quats   (.quat):          compressed 4 x int16 (8B) or
-//                                   uncompressed 4 x float32 (16B)
-//         angles  (.rotx/.roty/.rotz): compressed 1 x int16 (2B) or
-//                                      uncompressed 1 x float32 (4B)
+//         vectors (.pos + .scale):  float32x3 (12B) or int16x3 (6B)
+//         quats   (.quat):          float32x4 (16B), int16x4 (8B), or
+//                                   source ByteQuat (4B)
+//         angles  (.rotx/.roty/.rotz): float32 (4B) or int16 (2B)
 //
 // Source-backed bone classification: .pos=0 .scale=1 .quat=2
 // .rotx=3 .roty=4 .rotz=5, matching ihatecompvir CharBones::Type.
@@ -119,6 +120,14 @@ struct BoneList {
   size_t   frame_bytes = 0;
 };
 
+enum SourceCharBonesCompression {
+  kSourceCompressNone = 0,
+  kSourceCompressRots = 1,
+  kSourceCompressVects = 2,
+  kSourceCompressQuats = 3,
+  kSourceCompressAll = 4,
+};
+
 bool is_valid_category_name(const std::string& name) {
   int c = bone_category(name);
   return c >= 0 && c <= 5;
@@ -144,14 +153,26 @@ float env_float_or(const char* name, float fallback) {
   return end && end != value && std::isfinite(parsed) ? parsed : fallback;
 }
 
-size_t channel_size(int cat, int compression) {
-  if (cat == 0 || cat == 1) return compression < 2 ? 12u : 6u;
+bool source_char_bones_compression_known(int compression) {
+  return compression >= kSourceCompressNone &&
+         compression <= kSourceCompressAll;
+}
+
+size_t source_char_bones_type_size(int cat, int compression) {
+  if (cat == 0 || cat == 1) return compression < kSourceCompressVects ? 12u : 6u;
   if (cat == 2) {
-    if (compression == 0) return 16u;
-    return compression < 3 ? 8u : 4u;
+    if (compression == kSourceCompressNone) return 16u;
+    return compression < kSourceCompressQuats ? 8u : 4u;
   }
-  if (cat >= 3 && cat <= 5) return compression == 0 ? 4u : 2u;
+  if (cat >= 3 && cat <= 5) {
+    return compression == kSourceCompressNone ? 4u : 2u;
+  }
   return 0u;
+}
+
+bool uses_source_byte_quat(const BoneList& list) {
+  if (list.compression < kSourceCompressQuats) return false;
+  return std::find(list.cats.begin(), list.cats.end(), 2) != list.cats.end();
 }
 
 bool read_zero_bone_list(const uint8_t* d, size_t n, size_t& at,
@@ -169,7 +190,7 @@ bool read_zero_bone_list(const uint8_t* d, size_t n, size_t& at,
 
   out.compression = (int)c.u32();
   out.num_samples = (int)c.u32();
-  if (out.compression < 0 || out.compression > 3) return false;
+  if (!source_char_bones_compression_known(out.compression)) return false;
   if (out.num_samples < 0 || out.num_samples > 100000) return false;
   at = c.pos;
   return true;
@@ -210,7 +231,7 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at, BoneList& out) {
   if (c.pos + 8 > n) return false;
   out.compression = (int)c.u32();
   out.num_samples = (int)c.u32();
-  if (out.compression < 0 || out.compression > 3) return false;
+  if (!source_char_bones_compression_known(out.compression)) return false;
   if (out.num_samples < 0 || out.num_samples > 100000) return false;
 
   // Category breakdown from cumulative counts.
@@ -223,7 +244,15 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at, BoneList& out) {
   out.n_quat  = cat_n(2);                                  // quat
   out.n_angle = cat_n(3) + cat_n(4) + cat_n(5);            // rot*
   out.frame_bytes = 0;
-  for (int cat : out.cats) out.frame_bytes += channel_size(cat, out.compression);
+  for (int cat : out.cats) {
+    out.frame_bytes += source_char_bones_type_size(cat, out.compression);
+  }
+
+  // Source TypeSize proves the 4-byte ByteQuat row for kCompressQuats and
+  // kCompressAll, but the checked source snapshot does not expose the exact
+  // ByteQuat-to-Quat conversion body. Refuse those lists rather than silently
+  // reading four bytes as a ShortQuat.
+  if (uses_source_byte_quat(out)) return false;
 
   at = c.pos;
   return true;

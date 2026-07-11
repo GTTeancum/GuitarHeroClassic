@@ -213,6 +213,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharPosConstraint.h"));
   const std::string rb3_latest_char_bones_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBones.cpp"));
+  const std::string rb3_latest_char_bones_h = compact(read_file(
+      rb3_latest_char_dir / "CharBones.h"));
   const std::string rb3_latest_char_clip_h = compact(read_file(
       rb3_latest_char_dir / "CharClip.h"));
   const std::string rb3_latest_char_clip_cpp = compact(read_file(
@@ -1996,8 +1998,21 @@ int run_contract() {
                  "document records removed clip-pose reinterpretation switches");
   ok &= contains(doc,
                  "`TypeSize` defines the per-channel byte sizes for "
-                 "`kCompressNone`",
+                 "uncompressed vectors",
                  "document records concrete CharBones compression sizing source");
+  ok &= contains(doc,
+                 "`kCompressNone`,\n    `kCompressRots`, "
+                 "`kCompressVects`, `kCompressQuats`, and `kCompressAll`",
+                 "document records full CharBones compression enum");
+  ok &= contains(doc,
+                 "`kCompressQuats` and `kCompressAll` use 4-byte `ByteQuat` "
+                 "rows",
+                 "document records byte-quat source storage");
+  ok &= contains(doc,
+                 "native refuses those lists for now because the checked\n"
+                 "    source snapshot and RB2 dump identify `ByteQuat` "
+                 "storage but do not expose",
+                 "document fences byte-quat conversion body");
   ok &= contains(doc,
                  "`RotateBy`, `RotateTo`, and `ScaleAddSample` select\n"
                  "    `mRawData[mTotalSize * sample]` and split weight",
@@ -2059,11 +2074,29 @@ int run_contract() {
                  "intCharBones::TypeSize(inti)const{if(i<2){if("
                  "mCompression<kCompressVects)return0xC;elsereturn6;}",
                  "latest CharBones source defines packed vector channel sizes");
+  ok &= contains(rb3_latest_char_bones_h,
+                 "enumCompressionType{kCompressNone,kCompressRots,"
+                 "kCompressVects,kCompressQuats,kCompressAll};",
+                 "latest CharBones source exposes full compression enum");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "if(i!=2){if(mCompression==kCompressNone)return4;"
                  "elsereturn2;}if(mCompression>kCompressVects)return4;"
                  "if(mCompression==kCompressNone)return0x10;return8;}",
                  "latest CharBones source defines packed rot/quat channel sizes");
+  ok &= contains(char_clip,
+                 "kSourceCompressAll=4",
+                 "native clip decoder names source compression mode 4");
+  ok &= contains(char_clip,
+                 "compression<=kSourceCompressAll",
+                 "native clip decoder accepts the source compression enum range");
+  ok &= contains(char_clip,
+                 "returncompression<kSourceCompressQuats?8u:4u;",
+                 "native clip decoder keeps source byte-quat size");
+  ok &= contains(char_clip,
+                 "if(uses_source_byte_quat(out))returnfalse;",
+                 "native clip decoder refuses byte-quat lists until source conversion body exists");
+  ok &= missing(char_clip, "out.compression>3",
+                "native clip decoder no longer caps source compression at mode 3");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "voidCharBones::ScaleAdd(CharClip*clip,floatf1,floatf2,"
                  "floatf3){clip->ScaleAdd(*this,f1,f2,f3);}",

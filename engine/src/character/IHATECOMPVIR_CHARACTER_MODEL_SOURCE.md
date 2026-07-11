@@ -599,8 +599,16 @@ note, and all report `unreadBytes=0`.
     Rejected clip-pose reinterpretation switches for relative/transpose/swap/
     invert/world quaternions and channel dropping are also removed; only the
     clip's decoded `relative` flag may request relative quaternion application.
-  - `TypeSize` defines the per-channel byte sizes for `kCompressNone`,
-    vector compression, quat compression, and rotation compression.
+  - `CompressionType` defines five source modes: `kCompressNone`,
+    `kCompressRots`, `kCompressVects`, `kCompressQuats`, and `kCompressAll`.
+    Native recognizes the full source enum range instead of capping the row at
+    mode 3.
+  - `TypeSize` defines the per-channel byte sizes for uncompressed vectors,
+    compressed vectors, float quats, short quats, byte quats, and rotations.
+    `kCompressQuats` and `kCompressAll` use 4-byte `ByteQuat` rows for
+    quaternion channels; native refuses those lists for now because the checked
+    source snapshot and RB2 dump identify `ByteQuat` storage but do not expose
+    the exact `ByteQuat` -> `Quat` conversion body.
   - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish
     the source packed-row offset model.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
