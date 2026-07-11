@@ -239,8 +239,12 @@ struct CharHairStrand {
   std::string root;
   float angle = 0.0f;  // degrees
   std::vector<CharHairPoint> points;
-  float base_mat[9] = {};
-  float root_mat[9] = {};
+  float base_mat[9] = {1.0f, 0.0f, 0.0f,
+                       0.0f, 1.0f, 0.0f,
+                       0.0f, 0.0f, 1.0f};
+  float root_mat[9] = {1.0f, 0.0f, 0.0f,
+                       0.0f, 1.0f, 0.0f,
+                       0.0f, 0.0f, 1.0f};
   int32_t hookup_flags = 0;
 };
 

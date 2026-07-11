@@ -1065,6 +1065,26 @@ int run_contract() {
                  "Hmx::Matrix3m38;m38.RotateAboutX(mAngle*DEG2RAD);"
                  "Multiply(m38,mBaseMat,mRootMat);}",
                  "RB3 CharHair Strand SetAngle source formula");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "CharHair::Strand::Strand(Hmx::Object*o):mShowSpheres(0),"
+                 "mShowCollide(0),mShowPose(0),mRoot(o,0),mAngle(0.0f),"
+                 "mPoints(o),mHookupFlags(0){mBaseMat.Identity();"
+                 "mRootMat.Identity();}",
+                 "RB3 CharHair Strand constructor initializes matrix defaults");
+  ok &= contains(char_mesh_h,
+                 "floatbase_mat[9]={1.0f,0.0f,0.0f,0.0f,1.0f,0.0f,"
+                 "0.0f,0.0f,1.0f};",
+                 "native CharHairStrand base matrix default is identity");
+  ok &= contains(char_mesh_h,
+                 "floatroot_mat[9]={1.0f,0.0f,0.0f,0.0f,1.0f,0.0f,"
+                 "0.0f,0.0f,1.0f};",
+                 "native CharHairStrand root matrix default is identity");
+  ok &= contains(mesh_decode_test,
+                 "constghogx::character::CharHairStranddefault_strand;",
+                 "deterministic test covers CharHairStrand default state");
+  ok &= contains(doc,
+                 "`CharHair::Strand::Strand` initializes `mBaseMat` and `mRootMat` to",
+                 "document records CharHair Strand constructor matrix defaults");
   ok &= contains(char_mesh_h,
                  "std::array<float,9>source_char_hair_set_angle_root_mat("
                  "floatangle_degrees,constfloatbase_mat[9]);",

@@ -233,6 +233,14 @@ int main() {
   CHECK(approx(ghogx::character::source_char_hair_get_fps(true, 20.0f),
                40.0f));
 
+  const ghogx::character::CharHairStrand default_strand;
+  CHECK(approx(default_strand.base_mat[0], 1.0f));
+  CHECK(approx(default_strand.base_mat[4], 1.0f));
+  CHECK(approx(default_strand.base_mat[8], 1.0f));
+  CHECK(approx(default_strand.root_mat[0], 1.0f));
+  CHECK(approx(default_strand.root_mat[4], 1.0f));
+  CHECK(approx(default_strand.root_mat[8], 1.0f));
+
   ghogx::character::CharHairStrand angle_strand;
   angle_strand.base_mat[0] = 1.0f;
   angle_strand.base_mat[4] = 1.0f;
