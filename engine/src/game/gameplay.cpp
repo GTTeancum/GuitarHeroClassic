@@ -4374,8 +4374,9 @@ void merge_particle_route_tracks(Gameplay::VenueParticleRoute& existing,
                                  const Gameplay::VenueParticleRoute& route) {
     existing.duration_frames =
         std::max(existing.duration_frames, route.duration_frames);
-    if (std::isfinite(route.source_blend))
-        existing.source_blend = route.source_blend;
+    if (std::isfinite(route.source_blend_period_seconds))
+        existing.source_blend_period_seconds =
+            route.source_blend_period_seconds;
     bool adopted = false;
     adopted |= copy_particle_channel_if_richer(existing.start_color_keys,
                                                route.start_color_keys);
@@ -4398,12 +4399,12 @@ void merge_particle_route_tracks(Gameplay::VenueParticleRoute& existing,
 void log_particle_anim_route(const Gameplay::VenueParticleRoute& route) {
     if (route.anim.empty() || route.particle.empty()) return;
     std::fprintf(stderr,
-                 "[world] ParticleSysAnim %s -> %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f blend=%.3f%s%s\n",
+                 "[world] ParticleSysAnim %s -> %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f blend_period=%.3f%s%s\n",
                  route.anim.c_str(), route.particle.c_str(),
                  route.start_color_keys.size(), route.end_color_keys.size(),
                  route.emission_keys.size(), route.speed_keys.size(),
                  route.life_keys.size(), route.size_keys.size(),
-                 route.duration_frames, route.source_blend,
+                 route.duration_frames, route.source_blend_period_seconds,
                  route.keys_owner.empty() || route.keys_owner == route.anim
                      ? ""
                      : " keys_owner=",
@@ -4546,7 +4547,7 @@ load_venue_event_particles(const std::string& hdr_path,
                 std::unordered_set<std::string> row_seen;
                 collect_ref(collect_ref, ref, row_routes, row_seen);
                 for (auto& route : row_routes) {
-                    route.source_blend = anim_route.blend;
+                    route.source_blend_period_seconds = anim_route.blend;
                     push_route(routes, std::move(route));
                 }
             }
@@ -4560,15 +4561,16 @@ load_venue_event_particles(const std::string& hdr_path,
                              de.name.c_str());
                 for (const auto& route : routes) {
                     std::fprintf(stderr,
-                                 "%s via %s start_color=%zu end_color=%zu emit=%zu speed=%zu life=%zu size=%zu frames=%.1f ",
-                                 route.particle.c_str(), route.anim.c_str(),
-                                 route.start_color_keys.size(),
-                                 route.end_color_keys.size(),
-                                 route.emission_keys.size(),
-                                 route.speed_keys.size(),
-                                 route.life_keys.size(),
-                                 route.size_keys.size(),
-                                 route.duration_frames);
+                                  "%s via %s start_color=%zu end_color=%zu emit=%zu speed=%zu life=%zu size=%zu frames=%.1f blend_period=%.3f ",
+                                  route.particle.c_str(), route.anim.c_str(),
+                                  route.start_color_keys.size(),
+                                  route.end_color_keys.size(),
+                                  route.emission_keys.size(),
+                                  route.speed_keys.size(),
+                                  route.life_keys.size(),
+                                  route.size_keys.size(),
+                                  route.duration_frames,
+                                  route.source_blend_period_seconds);
                 }
                 std::fprintf(stderr, "\n");
             }
@@ -9984,17 +9986,20 @@ double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter) {
     return cycle / (30.0 * static_cast<double>(scale));
 }
 
-float venue_filter_source_blend_at(const Gameplay::VenueAnimFilter& filter,
-                                   double elapsed_seconds) {
-    if (!std::isfinite(filter.event_blend_seconds) ||
-        filter.event_blend_seconds <= 0.001f) {
+float source_anim_blend_at(float blend_period_seconds, double elapsed_seconds) {
+    if (!std::isfinite(blend_period_seconds) ||
+        blend_period_seconds <= 0.001f) {
         return 1.0f;
     }
     const double elapsed = std::max(0.0, elapsed_seconds);
     return std::clamp(
-        static_cast<float>(elapsed /
-                           static_cast<double>(filter.event_blend_seconds)),
+        static_cast<float>(elapsed / static_cast<double>(blend_period_seconds)),
         0.0f, 1.0f);
+}
+
+float venue_filter_source_blend_at(const Gameplay::VenueAnimFilter& filter,
+                                   double elapsed_seconds) {
+    return source_anim_blend_at(filter.event_blend_seconds, elapsed_seconds);
 }
 
 bool venue_filter_loops(const Gameplay::VenueAnimFilter& filter) {
@@ -18359,20 +18364,21 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             active.speed_keys = route.speed_keys;
             active.life_keys = route.life_keys;
             active.size_keys = route.size_keys;
-            active.source_blend = route.source_blend;
+            active.source_blend_period_seconds =
+                route.source_blend_period_seconds;
             active.persistent = persistent;
             active_venue_particles_.push_back(std::move(active));
             venue_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] venue event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend=%.3f %s\n",
+                "[world] venue event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f %s\n",
                 event_name.c_str(), route.particle.c_str(),
                 route.anim.c_str(), route.start_color_keys.size(),
                 route.end_color_keys.size(), route.emission_keys.size(),
                 route.speed_keys.size(), route.life_keys.size(),
                 route.size_keys.size(), route.duration_frames,
                 active_venue_particles_.back().duration_seconds,
-                active_venue_particles_.back().source_blend,
+                active_venue_particles_.back().source_blend_period_seconds,
                 persistent ? "persistent" : "transient");
         }
     }
@@ -18868,7 +18874,8 @@ void Gameplay::update_active_venue_particles() {
             sample_particle_color_key(it->start_color_keys, frame);
         const auto sampled_end_color =
             sample_particle_color_key(it->end_color_keys, frame);
-        const float blend = it->source_blend;
+        const float blend =
+            source_anim_blend_at(it->source_blend_period_seconds, elapsed);
         const float intensity = blend_particle_value(
             current_particle_value(venue_particle_intensities_, it->particle,
                                    sampled_intensity),
@@ -18916,7 +18923,7 @@ void Gameplay::update_active_venue_particles() {
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f sampled_intensity=%.3f\n",
+                    "[world] venue ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f blend_period=%.3f sampled_intensity=%.3f\n",
                     it->particle.c_str(), frame, intensity, size, speed, life,
                     start_color[0], start_color[1], start_color[2],
                     start_color[3], end_color[0], end_color[1],
@@ -18924,7 +18931,8 @@ void Gameplay::update_active_venue_particles() {
                     it->start_color_keys.size(), it->end_color_keys.size(),
                     it->emission_keys.size(), it->speed_keys.size(),
                     it->life_keys.size(), it->size_keys.size(),
-                    it->persistent ? 1 : 0, blend, sampled_intensity);
+                    it->persistent ? 1 : 0, blend,
+                    it->source_blend_period_seconds, sampled_intensity);
             }
         }
         ++it;
@@ -19781,20 +19789,21 @@ bool Gameplay::apply_lighting_event(const std::string& event_name,
             active.speed_keys = route.speed_keys;
             active.life_keys = route.life_keys;
             active.size_keys = route.size_keys;
-            active.source_blend = route.source_blend;
+            active.source_blend_period_seconds =
+                route.source_blend_period_seconds;
             active.persistent = persistent;
             active_lighting_particles_.push_back(std::move(active));
             lighting_route_applied = true;
             std::fprintf(
                 stderr,
-                "[world] lighting event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend=%.3f %s\n",
+                "[world] lighting event %s: ParticleSys %s via %s start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu frames=%.1f seconds=%.3f blend_period=%.3f %s\n",
                 event_name.c_str(), route.particle.c_str(),
                 route.anim.c_str(), route.start_color_keys.size(),
                 route.end_color_keys.size(), route.emission_keys.size(),
                 route.speed_keys.size(), route.life_keys.size(),
                 route.size_keys.size(), route.duration_frames,
                 active_lighting_particles_.back().duration_seconds,
-                active_lighting_particles_.back().source_blend,
+                active_lighting_particles_.back().source_blend_period_seconds,
                 persistent ? "persistent" : "transient");
         }
     }
@@ -20108,7 +20117,8 @@ void Gameplay::update_active_lighting_particles() {
             sample_particle_color_key(it->start_color_keys, frame);
         const auto sampled_end_color =
             sample_particle_color_key(it->end_color_keys, frame);
-        const float blend = it->source_blend;
+        const float blend =
+            source_anim_blend_at(it->source_blend_period_seconds, elapsed);
         const float intensity = blend_particle_value(
             current_particle_value(lighting_particle_intensities_, it->particle,
                                    sampled_intensity),
@@ -20156,7 +20166,7 @@ void Gameplay::update_active_lighting_particles() {
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f sampled_intensity=%.3f\n",
+                    "[world] lighting ParticleSys sample %s frame=%.2f intensity=%.3f size=%.3f speed=%.3f life=%.3f start_color=(%.3f %.3f %.3f %.3f) end_color=(%.3f %.3f %.3f %.3f) start_color_keys=%zu end_color_keys=%zu emit_keys=%zu speed_keys=%zu life_keys=%zu size_keys=%zu persistent=%d blend=%.3f blend_period=%.3f sampled_intensity=%.3f\n",
                     it->particle.c_str(), frame, intensity, size, speed, life,
                     start_color[0], start_color[1], start_color[2],
                     start_color[3], end_color[0], end_color[1],
@@ -20164,7 +20174,8 @@ void Gameplay::update_active_lighting_particles() {
                     it->start_color_keys.size(), it->end_color_keys.size(),
                     it->emission_keys.size(), it->speed_keys.size(),
                     it->life_keys.size(), it->size_keys.size(),
-                    it->persistent ? 1 : 0, blend, sampled_intensity);
+                    it->persistent ? 1 : 0, blend,
+                    it->source_blend_period_seconds, sampled_intensity);
             }
         }
         ++it;

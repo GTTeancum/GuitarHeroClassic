@@ -4802,8 +4802,8 @@ int main() {
                  "std::vector<EmissionKey>size_keys;",
                  "ParticleSysAnim route keeps authored start-size keys");
   ok &= contains(gameplay_h_c,
-                 "floatsource_blend=1.0f;",
-                 "ParticleSysAnim routes carry source EventTrigger blend");
+                 "floatsource_blend_period_seconds=0.0f;",
+                 "ParticleSysAnim routes carry source EventTrigger blend period");
   ok &= contains(gameplay_c,
                  "copy_particle_route_keys_from_owner(route,owner->second);",
                  "ParticleSysAnim owner rows copy source key-owner data");
@@ -4817,8 +4817,8 @@ int main() {
                  "constautoanim_routes=venue_event_trigger_anim_routes(",
                  "ParticleSys event routes decode source EventTrigger rows with blend metadata");
   ok &= contains(gameplay_c,
-                 "route.source_blend=anim_route.blend;",
-                 "ParticleSys event routes inherit EventTrigger Anim mBlend");
+                 "route.source_blend_period_seconds=anim_route.blend;",
+                 "ParticleSys event routes inherit EventTrigger Anim mBlend period");
   ok &= contains(gameplay_c,
                  "venue_event_particle_systems_=load_venue_event_particles(",
                  "venue load wires ParticleSys routes");
@@ -4847,8 +4847,12 @@ int main() {
                  "sample_particle_color_key(it->end_color_keys,frame)",
                  "venue particles sample authored ParticleSysAnim end color");
   ok &= contains(gameplay_c,
-                 "active.source_blend=route.source_blend;",
-                 "active ParticleSys state keeps source EventTrigger blend");
+                 "active.source_blend_period_seconds="
+                 "route.source_blend_period_seconds;",
+                 "active ParticleSys state keeps source EventTrigger blend period");
+  ok &= contains(gameplay_c,
+                 "source_anim_blend_at(it->source_blend_period_seconds,elapsed)",
+                 "active ParticleSys state computes ihatecompvir AnimTask SetFrame blend");
   ok &= contains(gameplay_c,
                  "blend_particle_value(",
                  "venue particles blend current live state toward sampled values like source SetFrame");
@@ -4861,8 +4865,8 @@ int main() {
                  "it->particle,sampled_start_color)",
                  "venue ParticleSys color blend starts from current native particle state");
   ok &= contains(gameplay_c,
-                 "blend=%.3fsampled_intensity=%.3f",
-                 "venue ParticleSys diagnostics expose source blend and raw sampled emission");
+                 "blend=%.3fblend_period=%.3fsampled_intensity=%.3f",
+                 "venue ParticleSys diagnostics expose live source blend period and raw sampled emission");
   ok &= contains(gameplay_c,
                  "it->speed_keys.size()",
                  "venue particle sample logs include decoded source speed keys");
@@ -5156,14 +5160,16 @@ int main() {
                  "lighting overlay particles only replace matching persistence rows");
   ok &= contains(gameplay_c,
                  "active_lighting_particles_.back().duration_seconds,"
-                 "active_lighting_particles_.back().source_blend,"
+                 "active_lighting_particles_.back()."
+                 "source_blend_period_seconds,"
                  "persistent?\"persistent\":\"transient\");",
-                 "lighting ParticleSys diagnostics expose transient ownership and source blend");
+                 "lighting ParticleSys diagnostics expose transient ownership and source blend period");
   ok &= contains(gameplay_c,
                  "it->emission_keys.size(),it->speed_keys.size(),"
                  "it->life_keys.size(),it->size_keys.size(),"
-                 "it->persistent?1:0,blend,sampled_intensity);",
-                 "lighting ParticleSys samples log persistent state and source blend");
+                 "it->persistent?1:0,blend,"
+                 "it->source_blend_period_seconds,sampled_intensity);",
+                 "lighting ParticleSys samples log persistent state, source blend, and blend period");
   ok &= contains(gameplay_c,
                  "active_filter.persistent=persistent;",
                  "lighting overlay AnimFilters inherit transient versus persistent events");
