@@ -531,7 +531,8 @@ note, and all report `unreadBytes=0`.
     `offset`/`scale`, old owner lists for revisions below 2, `base_weight` and
     `beats_per_weight` above revision 4, optional `base` above revision 5, and
     min/max setter refs through the revision 7/8 single-pointer rows or the
-    revision 9 lists.
+    revision 9 lists. Native GHOGX enforces that source revision range and logs
+    the row tail byte count.
   - `CharWeightSetter::Poll` derives `base_weight` from either
     `mDriver->EvaluateFlags(mFlags)` or `mBase->Weight()`, applies
     `scale`/`offset`, clamps through min/max setter rows, and then either snaps
@@ -541,6 +542,10 @@ note, and all report `unreadBytes=0`.
     min/max setter clamps, snap, and `beats_per_weight` smoothing. Rows with
     `driver` set remain logged/skipped until a source-backed
     `CharDriver::EvaluateFlags` body is available.
+  - `engine/out/source_weightsetter_20260711/stock_weightsetter_controllers.stdout.log`
+    refreshes stock proof against the current decoder: all 38 stock
+    `CharWeightSetter` rows are `version=2`, use `CharWeightable` revision 2,
+    and report `unreadBytes=0`.
 - `rb3-latest/src/system/char/CharIKMidi.cpp` and
   `rb3-latest/src/system/char/CharIKMidi.h`
   - `CharIKMidi::Load` accepts source revisions through 5, reads

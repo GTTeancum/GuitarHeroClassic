@@ -715,12 +715,13 @@ void log_character_controller_graph_once(const Character& character) {
                  "[chargraph]   weightSetter %s version=%d "
                  "weightableVersion=%d weight=%.3f weightOwner=%s "
                  "driver=%s flags=0x%08x offset=%.3f scale=%.3f "
-                 "baseWeight=%.3f beatsPerWeight=%.3f\n",
+                 "baseWeight=%.3f beatsPerWeight=%.3f unreadBytes=%zu\n",
                  setter.name.c_str(), setter.version,
                  setter.weightable_version, setter.weight,
                  setter.weight_owner.c_str(), setter.driver.c_str(),
                  setter.flags, setter.offset, setter.scale,
-                 setter.base_weight, setter.beats_per_weight);
+                 setter.base_weight, setter.beats_per_weight,
+                 setter.unread_bytes);
   }
   for (const auto& filter : character.anim_filters) {
     std::fprintf(stderr,

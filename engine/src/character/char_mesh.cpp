@@ -1311,6 +1311,10 @@ CharWeightSetter decode_weight_setter(const std::string& entry_name,
   CharWeightSetter setter;
   setter.name = entry_name;
   setter.version = r.i32();
+  if (setter.version < 0 || setter.version > 9) {
+    throw std::runtime_error(
+        "char_mesh: CharWeightSetter revision outside source range");
+  }
   read_object_fields(r);  // Hmx::Object metadata
   if (setter.version > 1) {
     setter.weightable_version = r.i32();
@@ -1356,6 +1360,7 @@ CharWeightSetter decode_weight_setter(const std::string& entry_name,
       if (!max_weight.empty()) setter.max_weights.push_back(max_weight);
     }
   }
+  setter.unread_bytes = r.n - r.pos;
   return setter;
 }
 

@@ -487,6 +487,7 @@ struct CharWeightSetter {
   std::string base;
   std::vector<std::string> min_weights;
   std::vector<std::string> max_weights;
+  size_t unread_bytes = 0;
 };
 
 // A whole decoded band character.

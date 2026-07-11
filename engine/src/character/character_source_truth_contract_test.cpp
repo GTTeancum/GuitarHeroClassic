@@ -1920,6 +1920,9 @@ int run_contract() {
                  "floatmBeatsPerWeight;",
                  "latest CharWeightSetter source header exposes beat smoothing");
   ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(9,0)",
+                 "CharWeightSetter source enforces revision ceiling");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
                  "if(gRev>1)LOAD_SUPERCLASS(CharWeightable)bs>>mDriver;"
                  "bs>>mFlags;",
                  "CharWeightSetter source load reads weightable, driver, flags");
@@ -1950,8 +1953,17 @@ int run_contract() {
                  "floatscale=1.0f;",
                  "native CharWeightSetter stores source flags and scalar fields");
   ok &= contains(char_mesh,
-                 "setter.version=r.i32();read_object_fields(r);",
-                 "native CharWeightSetter decoder reads revision and object fields");
+                 "setter.version=r.i32();",
+                 "native CharWeightSetter decoder reads revision");
+  ok &= contains(char_mesh,
+                 "if(setter.version<0||setter.version>9){"
+                 "throwstd::runtime_error",
+                 "native CharWeightSetter decoder enforces source revision range");
+  ok &= contains(char_mesh, "read_object_fields(r);//Hmx::Objectmetadata",
+                 "native CharWeightSetter decoder reads object fields");
+  ok &= contains(char_mesh_h,
+                 "std::vector<std::string>max_weights;size_tunread_bytes=0;",
+                 "native CharWeightSetter stores source tail bytes");
   ok &= contains(char_mesh,
                  "if(setter.version>1){setter.weightable_version=r.i32();",
                  "native CharWeightSetter decoder mirrors source weightable gate");
@@ -1972,15 +1984,35 @@ int run_contract() {
                  "if(setter.version>8){setter.min_weights=read_obj_ptr_list(r);"
                  "setter.max_weights=read_obj_ptr_list(r);}",
                  "native CharWeightSetter decoder mirrors min/max list gate");
+  ok &= contains(char_mesh, "setter.unread_bytes=r.n-r.pos;",
+                 "native CharWeightSetter decoder records source tail bytes");
   ok &= contains(bind_audit,
                  "\"[controller-weight-setter]char=%sname=%sversion=%d",
                  "controller audit logs CharWeightSetter source revision");
   ok &= contains(bind_audit,
                  "\"weightOwner=%sflags=0x%08xoffset=%.4fscale=%.4f",
                  "controller audit logs CharWeightSetter source fields");
+  ok &= contains(bind_audit, "maxWeights=%zuunreadBytes=%zu",
+                 "controller audit logs CharWeightSetter tail bytes");
+  ok &= contains(char_clip, "weightSetter%sversion=%d",
+                 "character graph logs CharWeightSetter source revision");
+  ok &= contains(char_clip, "beatsPerWeight=%.3funreadBytes=%zu",
+                 "character graph logs CharWeightSetter tail bytes");
   ok &= contains(doc,
                  "`CharWeightSetter::Load` reads `Hmx::Object`, then `CharWeightable`",
                  "document records CharWeightSetter source load");
+  ok &= contains(doc,
+                 "Native GHOGX enforces that source revision range and logs\n"
+                 "    the row tail byte count",
+                 "document records CharWeightSetter revision and tail boundary");
+  ok &= contains(doc,
+                 "source_weightsetter_20260711/stock_weightsetter_controllers"
+                 ".stdout.log",
+                 "document cites refreshed CharWeightSetter proof log");
+  ok &= contains(doc,
+                 "all 38 stock\n    `CharWeightSetter` rows are `version=2`, "
+                 "use `CharWeightable` revision 2,\n    and report `unreadBytes=0`",
+                 "document records refreshed CharWeightSetter stock proof");
   ok &= contains(doc,
                  "Native `source_char_weight_setter_poll` ports the source non-driver path",
                  "document records native CharWeightSetter source poll slice");

@@ -260,14 +260,14 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
         "weightableVersion=%d driver=%s weight=%.4f "
         "weightOwner=%s flags=0x%08x offset=%.4f scale=%.4f "
         "baseWeight=%.4f beatsPerWeight=%.4f base=%s "
-        "minWeights=%zu maxWeights=%zu\n",
+        "minWeights=%zu maxWeights=%zu unreadBytes=%zu\n",
         c.dir_name.c_str(), setter.name.c_str(), setter.version,
         setter.weightable_version, none_if_empty(setter.driver),
         setter.weight, none_if_empty(setter.weight_owner),
         static_cast<unsigned>(setter.flags), setter.offset, setter.scale,
         setter.base_weight, setter.beats_per_weight,
         none_if_empty(setter.base), setter.min_weights.size(),
-        setter.max_weights.size());
+        setter.max_weights.size(), setter.unread_bytes);
   }
   for (const auto& filter : c.anim_filters) {
     std::printf(
