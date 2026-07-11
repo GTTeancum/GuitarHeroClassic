@@ -919,6 +919,15 @@ note, and all report `unreadBytes=0`.
     `mFlagParser`. `OnMidiParser`, `OnMidiParserFlags`, and
     `OnMidiParserGroup` are the source-backed runtime route for MIDI/note-driven
     clip selection and blend width scaling.
+  - Native `source_char_driver_midi_default_state`,
+    `source_char_driver_midi_enter`, `source_char_driver_midi_exit`,
+    `source_char_driver_midi_on_parser_flags`,
+    `source_char_driver_midi_on_parser`, and
+    `source_char_driver_midi_on_parser_group` port the concrete source
+    decisions without activating the runtime scheduler: constructor defaults,
+    parser sink add/remove decisions, clip-flag updates, default-clip selection
+    when `!unk89 && mDefaultClip`, normal and real-time blend-width conversion,
+    and group-message assignment of the returned node's `mBlendWidth`.
   - `rb3-latest/src/system/obj/ObjPtr_p.h` proves `mDefaultClip.Load` reads one
     `0x80`-bounded source string. Native GHOGX therefore decodes/logs that slot
     as `midiDefaultClip` for revision-below-7 rows before applying the

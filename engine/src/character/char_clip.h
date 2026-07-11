@@ -385,6 +385,38 @@ struct SourceCharDriverPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharDriverMidiState {
+  bool unk89 = false;
+  std::string parser;
+  std::string flag_parser;
+  int clip_flags = 0;
+  float blend_override_pct = 1.0f;
+  bool has_default_clip = false;
+};
+
+struct SourceCharDriverMidiEnterDecision {
+  SourceCharDriverEnterDecision driver_enter;
+  bool set_unk89 = false;
+  bool add_parser_sink = false;
+  bool add_flag_parser_sink = false;
+};
+
+struct SourceCharDriverMidiExitDecision {
+  bool call_driver_exit = false;
+  bool remove_parser_sink = false;
+  bool remove_flag_parser_sink = false;
+};
+
+struct SourceCharDriverMidiParserDecision {
+  bool used_default_clip = false;
+  bool request_play = false;
+  int play_flags = 0;
+  float requested_blend_width = 0.0f;
+  float old_beat = 0.0f;
+  float start = 0.0f;
+  float assigned_blend_width = 0.0f;
+};
+
 // Source-backed CharClip constructor state.
 SourceCharClipDefaultState source_char_clip_default_state();
 
@@ -417,6 +449,33 @@ SourceCharDriverPlayGroupDecision source_char_driver_play_group_decision(
     bool found_group);
 void source_char_driver_poll_deps(SourceCharDriverPollDeps& deps,
                                   const std::string& bones);
+SourceCharDriverMidiState source_char_driver_midi_default_state();
+SourceCharDriverMidiEnterDecision source_char_driver_midi_enter(
+    SourceCharDriverState& driver_state,
+    SourceCharDriverMidiState& midi_state,
+    bool parser_found,
+    bool flag_parser_found);
+SourceCharDriverMidiExitDecision source_char_driver_midi_exit(
+    bool parser_found,
+    bool flag_parser_found);
+void source_char_driver_midi_on_parser_flags(
+    SourceCharDriverMidiState& midi_state,
+    int clip_flags);
+SourceCharDriverMidiParserDecision source_char_driver_midi_on_parser(
+    const SourceCharDriverMidiState& midi_state,
+    bool found_clip,
+    bool clip_uses_real_time,
+    float message_float,
+    float beat_to_seconds_message_plus_current,
+    float task_seconds,
+    float average_beats_per_second);
+SourceCharDriverMidiParserDecision source_char_driver_midi_on_parser_group(
+    const SourceCharDriverMidiState& midi_state,
+    bool found_group,
+    bool found_group_clip,
+    bool clip_uses_real_time,
+    float message_float,
+    float average_beats_per_second);
 
 // Source-backed CharClip::SetFlags / SetPlayFlags dirty-state helpers.
 SourceCharClipFlagUpdate source_char_clip_set_flags(uint32_t current_flags,

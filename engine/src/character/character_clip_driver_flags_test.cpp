@@ -1,5 +1,6 @@
 #include "character/char_clip.h"
 
+#include <cmath>
 #include <cstdint>
 #include <iostream>
 #include <optional>
@@ -59,6 +60,10 @@ bool expect_indices(const std::vector<size_t>& got,
   for (size_t index : want) std::cerr << " " << index;
   std::cerr << "\n";
   return false;
+}
+
+bool nearf(float got, float want) {
+  return std::fabs(got - want) <= 0.0001f;
 }
 
 bool expect_starved(bool has_first, bool first_has_next,
@@ -389,6 +394,111 @@ bool expect_driver_state_helpers() {
   return ok;
 }
 
+bool expect_driver_midi_helpers() {
+  bool ok = true;
+  ghogx::character::SourceCharDriverMidiState midi =
+      ghogx::character::source_char_driver_midi_default_state();
+  if (midi.unk89 || midi.clip_flags != 0 || midi.blend_override_pct != 1.0f ||
+      midi.has_default_clip || !midi.parser.empty() ||
+      !midi.flag_parser.empty()) {
+    std::cerr << "driver MIDI default state mismatch\n";
+    ok = false;
+  }
+
+  midi.parser = "note.parser";
+  midi.flag_parser = "flag.parser";
+  midi.has_default_clip = true;
+  ghogx::character::SourceCharDriverState driver_state =
+      ghogx::character::source_char_driver_default_state();
+  driver_state.has_first = true;
+  driver_state.last_node_valid = true;
+  driver_state.has_default_clip = true;
+  const ghogx::character::SourceCharDriverMidiEnterDecision enter =
+      ghogx::character::source_char_driver_midi_enter(driver_state, midi,
+                                                      true, false);
+  if (!midi.unk89 || !enter.set_unk89 || !enter.add_parser_sink ||
+      enter.add_flag_parser_sink || !enter.driver_enter.clear_stack ||
+      driver_state.has_first || !driver_state.last_node_valid) {
+    std::cerr << "driver MIDI Enter decision mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharDriverMidiExitDecision exit =
+      ghogx::character::source_char_driver_midi_exit(false, true);
+  if (!exit.call_driver_exit || exit.remove_parser_sink ||
+      !exit.remove_flag_parser_sink) {
+    std::cerr << "driver MIDI Exit decision mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::source_char_driver_midi_on_parser_flags(midi, 0x1234);
+  if (midi.clip_flags != 0x1234) {
+    std::cerr << "driver MIDI flags message mismatch\n";
+    ok = false;
+  }
+
+  midi.blend_override_pct = 0.5f;
+  const ghogx::character::SourceCharDriverMidiParserDecision parser_normal =
+      ghogx::character::source_char_driver_midi_on_parser(
+          midi, true, false, 0.8f, 0.0f, 0.0f, 2.0f);
+  if (parser_normal.used_default_clip || !parser_normal.request_play ||
+      parser_normal.play_flags != 0 ||
+      !nearf(parser_normal.requested_blend_width, 0.4f) ||
+      !nearf(parser_normal.old_beat, -0.8f) ||
+      !nearf(parser_normal.start, 0.0f)) {
+    std::cerr << "driver MIDI parser normal blend mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharDriverMidiParserDecision parser_realtime =
+      ghogx::character::source_char_driver_midi_on_parser(
+          midi, true, true, 99.0f, 12.0f, 10.0f, 3.0f);
+  if (!parser_realtime.request_play ||
+      !nearf(parser_realtime.requested_blend_width, 3.0f) ||
+      !nearf(parser_realtime.old_beat, -6.0f)) {
+    std::cerr << "driver MIDI parser real-time blend mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharDriverMidiParserDecision parser_missing =
+      ghogx::character::source_char_driver_midi_on_parser(
+          midi, false, false, 0.8f, 0.0f, 0.0f, 2.0f);
+  if (parser_missing.request_play) {
+    std::cerr << "driver MIDI parser played missing clip\n";
+    ok = false;
+  }
+
+  midi.unk89 = false;
+  const ghogx::character::SourceCharDriverMidiParserDecision parser_default =
+      ghogx::character::source_char_driver_midi_on_parser(
+          midi, false, false, 0.4f, 0.0f, 0.0f, 2.0f);
+  if (!parser_default.used_default_clip || !parser_default.request_play ||
+      !nearf(parser_default.requested_blend_width, 0.2f)) {
+    std::cerr << "driver MIDI parser default-clip branch mismatch\n";
+    ok = false;
+  }
+
+  midi.unk89 = true;
+  const ghogx::character::SourceCharDriverMidiParserDecision group_missing =
+      ghogx::character::source_char_driver_midi_on_parser_group(
+          midi, false, true, false, 0.5f, 2.0f);
+  if (group_missing.request_play) {
+    std::cerr << "driver MIDI parser group played missing group\n";
+    ok = false;
+  }
+  const ghogx::character::SourceCharDriverMidiParserDecision group_realtime =
+      ghogx::character::source_char_driver_midi_on_parser_group(
+          midi, true, true, true, 0.5f, 4.0f);
+  if (!group_realtime.request_play ||
+      !nearf(group_realtime.requested_blend_width, -2.0f) ||
+      !nearf(group_realtime.old_beat, 1.0e30f) ||
+      !nearf(group_realtime.assigned_blend_width, 1.0f)) {
+    std::cerr << "driver MIDI parser group blend mismatch\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_clip_driver_helpers() {
   bool ok = true;
   const uint32_t masked =
@@ -539,6 +649,7 @@ int main() {
   ok &= expect_group_sort({"z_idle", "A_intro", "mid"}, {"A_intro", "mid", "z_idle"},
                           "alphabetical source order");
   ok &= expect_clip_driver_helpers();
+  ok &= expect_driver_midi_helpers();
   ok &= expect_starved(false, false, 0, true, "empty stack");
   ok &= expect_starved(true, true, ghogx::character::kCharPlayLoop, false,
                        "stack has next");

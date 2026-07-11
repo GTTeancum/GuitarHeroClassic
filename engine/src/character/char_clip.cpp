@@ -1998,6 +1998,88 @@ void source_char_driver_poll_deps(SourceCharDriverPollDeps& deps,
   deps.change.push_back(bones);
 }
 
+SourceCharDriverMidiState source_char_driver_midi_default_state() {
+  return SourceCharDriverMidiState{};
+}
+
+SourceCharDriverMidiEnterDecision source_char_driver_midi_enter(
+    SourceCharDriverState& driver_state,
+    SourceCharDriverMidiState& midi_state,
+    bool parser_found,
+    bool flag_parser_found) {
+  SourceCharDriverMidiEnterDecision decision;
+  midi_state.unk89 = true;
+  decision.set_unk89 = true;
+  decision.driver_enter = source_char_driver_enter(driver_state);
+  decision.add_parser_sink = parser_found;
+  decision.add_flag_parser_sink = flag_parser_found;
+  return decision;
+}
+
+SourceCharDriverMidiExitDecision source_char_driver_midi_exit(
+    bool parser_found,
+    bool flag_parser_found) {
+  SourceCharDriverMidiExitDecision decision;
+  decision.call_driver_exit = true;
+  decision.remove_parser_sink = parser_found;
+  decision.remove_flag_parser_sink = flag_parser_found;
+  return decision;
+}
+
+void source_char_driver_midi_on_parser_flags(
+    SourceCharDriverMidiState& midi_state,
+    int clip_flags) {
+  midi_state.clip_flags = clip_flags;
+}
+
+SourceCharDriverMidiParserDecision source_char_driver_midi_on_parser(
+    const SourceCharDriverMidiState& midi_state,
+    bool found_clip,
+    bool clip_uses_real_time,
+    float message_float,
+    float beat_to_seconds_message_plus_current,
+    float task_seconds,
+    float average_beats_per_second) {
+  SourceCharDriverMidiParserDecision decision;
+  decision.used_default_clip = !midi_state.unk89 && midi_state.has_default_clip;
+  if (!decision.used_default_clip && !found_clip) return decision;
+  float blend = message_float;
+  if (clip_uses_real_time) {
+    blend = (beat_to_seconds_message_plus_current - task_seconds) *
+            average_beats_per_second;
+  }
+  blend = std::max(blend, 0.0f);
+  decision.request_play = true;
+  decision.play_flags = 0;
+  decision.requested_blend_width = blend * midi_state.blend_override_pct;
+  decision.old_beat = -blend;
+  decision.start = 0.0f;
+  return decision;
+}
+
+SourceCharDriverMidiParserDecision source_char_driver_midi_on_parser_group(
+    const SourceCharDriverMidiState& midi_state,
+    bool found_group,
+    bool found_group_clip,
+    bool clip_uses_real_time,
+    float message_float,
+    float average_beats_per_second) {
+  SourceCharDriverMidiParserDecision decision;
+  if (!found_group) return decision;
+  decision.used_default_clip = !midi_state.unk89 && midi_state.has_default_clip;
+  if (!decision.used_default_clip && !found_group_clip) return decision;
+  float blend = message_float;
+  if (clip_uses_real_time) blend *= average_beats_per_second;
+  blend = std::max(blend, 0.0f);
+  decision.request_play = true;
+  decision.play_flags = 0;
+  decision.requested_blend_width = -blend;
+  decision.old_beat = 1.0e30f;
+  decision.start = 0.0f;
+  decision.assigned_blend_width = blend * midi_state.blend_override_pct;
+  return decision;
+}
+
 SourceCharClipFlagUpdate source_char_clip_set_play_flags(
     uint32_t current_play_flags,
     bool current_dirty,

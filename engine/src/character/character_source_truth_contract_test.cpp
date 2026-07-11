@@ -3032,6 +3032,52 @@ int run_contract() {
                  "floatmBlendOverridePct;",
                  "latest CharDriverMidi header exposes blend override");
   ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "CharDriverMidi::CharDriverMidi():mParser(),mFlagParser(),"
+                 "mClipFlags(0),mBlendOverridePct(1.0f)",
+                 "CharDriverMidi source constructor exposes defaults");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "voidCharDriverMidi::Enter(){unk89=true;CharDriver::Enter();"
+                 "MsgSource*msgParser=dynamic_cast<MsgSource*>(Dir()->"
+                 "FindObject(mParser.Str(),true));if(msgParser)msgParser->"
+                 "AddSink(this);",
+                 "CharDriverMidi source Enter sets unk89 and adds parser sink");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "MsgSource*msgFlagParser=dynamic_cast<MsgSource*>(Dir()->"
+                 "FindObject(mFlagParser.Str(),true));if(msgFlagParser)"
+                 "msgFlagParser->AddSink(this);}",
+                 "CharDriverMidi source Enter adds flag parser sink");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "voidCharDriverMidi::Exit(){CharDriver::Exit();MsgSource*"
+                 "msgParser=ObjectDir::Main()->Find<MsgSource>(mParser.Str(),"
+                 "false);if(msgParser)msgParser->RemoveSink(this);",
+                 "CharDriverMidi source Exit removes parser sink");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "DataNodeCharDriverMidi::OnMidiParserFlags(DataArray*da){"
+                 "mClipFlags=da->Int(2);returnDataNode(0);}",
+                 "CharDriverMidi source flags message stores clip flags");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "if(!unk89&&mDefaultClip)b=true;if(b)clip=dynamic_cast<"
+                 "CharClip*>(mDefaultClip.Ptr());elseclip=FindClip("
+                 "da->Node(2),false);",
+                 "CharDriverMidi source parser chooses default clip branch");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "if(clip->mPlayFlags&0x200){floatsecs=TheTaskMgr.Seconds("
+                 "TaskMgr::b);floatbts=BeatToSeconds(somefloat+"
+                 "TheTaskMgr.Beat())-secs;somefloat=bts*clip->"
+                 "AverageBeatsPerSecond();}",
+                 "CharDriverMidi source parser ports real-time blend conversion");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "Play(clip,0,somefloat*mBlendOverridePct,-somefloat,0.0f);",
+                 "CharDriverMidi source parser plays with blend override");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "mClipFlags,PathName(grp));returnDataNode(0);}else{if(clip||"
+                 "clip!=FirstClip()){floatsomefloat=da->Float(3);",
+                 "CharDriverMidi source group parser handles missing clip");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "Play(clip,0,-somefloat,1e+30f,0.0f)->mBlendWidth="
+                 "somefloat*mBlendOverridePct;",
+                 "CharDriverMidi source group parser assigns returned blend width");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
                  "LOAD_REVS(bs)ASSERT_REVS(7,0)LOAD_SUPERCLASS(CharDriver)",
                  "CharDriverMidi source load begins with source superclass");
   ok &= contains(rb3_latest_char_driver_midi_cpp,
@@ -3059,6 +3105,37 @@ int run_contract() {
                  "std::stringmidi_default_clip;"
                  "std::stringmidi_legacy_string;std::stringmidi_parser;",
                  "native CharDriver stores MIDI source revision and default clip");
+  ok &= contains(char_clip_h,
+                 "structSourceCharDriverMidiState{boolunk89=false;"
+                 "std::stringparser;std::stringflag_parser;intclip_flags=0;"
+                 "floatblend_override_pct=1.0f;boolhas_default_clip=false;};",
+                 "native exposes source CharDriverMidi default state");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverMidiStatesource_char_driver_midi_default_state();",
+                 "native exposes source CharDriverMidi constructor helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverMidiEnterDecisionsource_char_driver_midi_enter("
+                 "SourceCharDriverState&driver_state,SourceCharDriverMidiState&"
+                 "midi_state,boolparser_found,boolflag_parser_found);",
+                 "native exposes source CharDriverMidi Enter helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverMidiExitDecisionsource_char_driver_midi_exit("
+                 "boolparser_found,boolflag_parser_found);",
+                 "native exposes source CharDriverMidi Exit helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_driver_midi_on_parser_flags("
+                 "SourceCharDriverMidiState&midi_state,intclip_flags);",
+                 "native exposes source CharDriverMidi flags helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverMidiParserDecisionsource_char_driver_midi_on_parser("
+                 "constSourceCharDriverMidiState&midi_state,boolfound_clip,"
+                 "boolclip_uses_real_time,floatmessage_float,",
+                 "native exposes source CharDriverMidi parser helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverMidiParserDecisionsource_char_driver_midi_on_parser_group("
+                 "constSourceCharDriverMidiState&midi_state,boolfound_group,"
+                 "boolfound_group_clip,boolclip_uses_real_time,",
+                 "native exposes source CharDriverMidi parser group helper");
   ok &= contains(char_mesh,
                  "driver.version=r.i32();",
                  "native CharDriver decoder reads driver revision");
@@ -3098,9 +3175,74 @@ int run_contract() {
   ok &= contains(bind_audit,
                  "\"midiVersion=%dmidiUnreadBytes=%zumidiDefaultClip=%s",
                  "controller audit logs CharDriverMidi source fields");
+  ok &= contains(char_clip,
+                 "SourceCharDriverMidiStatesource_char_driver_midi_default_state(){"
+                 "returnSourceCharDriverMidiState{};}",
+                 "native CharDriverMidi default helper returns source defaults");
+  ok &= contains(char_clip,
+                 "midi_state.unk89=true;decision.set_unk89=true;"
+                 "decision.driver_enter=source_char_driver_enter(driver_state);",
+                 "native CharDriverMidi Enter helper sets unk89 and enters driver");
+  ok &= contains(char_clip,
+                 "decision.add_parser_sink=parser_found;decision.add_flag_parser_sink="
+                 "flag_parser_found;",
+                 "native CharDriverMidi Enter helper records sink decisions");
+  ok &= contains(char_clip,
+                 "SourceCharDriverMidiExitDecisionsource_char_driver_midi_exit("
+                 "boolparser_found,boolflag_parser_found){"
+                 "SourceCharDriverMidiExitDecisiondecision;decision.call_driver_exit=true;",
+                 "native CharDriverMidi Exit helper records base exit");
+  ok &= contains(char_clip,
+                 "voidsource_char_driver_midi_on_parser_flags("
+                 "SourceCharDriverMidiState&midi_state,intclip_flags){"
+                 "midi_state.clip_flags=clip_flags;}",
+                 "native CharDriverMidi flags helper stores source flags");
+  ok &= contains(char_clip,
+                 "decision.used_default_clip=!midi_state.unk89&&"
+                 "midi_state.has_default_clip;if(!decision.used_default_clip&&"
+                 "!found_clip)returndecision;",
+                 "native CharDriverMidi parser helper ports default clip gate");
+  ok &= contains(char_clip,
+                 "blend=(beat_to_seconds_message_plus_current-task_seconds)*"
+                 "average_beats_per_second;",
+                 "native CharDriverMidi parser helper ports real-time conversion");
+  ok &= contains(char_clip,
+                 "decision.requested_blend_width=blend*midi_state."
+                 "blend_override_pct;decision.old_beat=-blend;",
+                 "native CharDriverMidi parser helper ports Play arguments");
+  ok &= contains(char_clip,
+                 "if(!found_group)returndecision;decision.used_default_clip="
+                 "!midi_state.unk89&&midi_state.has_default_clip;",
+                 "native CharDriverMidi group helper ports missing group/default gate");
+  ok &= contains(char_clip,
+                 "decision.requested_blend_width=-blend;decision.old_beat=1.0e30f;"
+                 "decision.start=0.0f;decision.assigned_blend_width=blend*"
+                 "midi_state.blend_override_pct;",
+                 "native CharDriverMidi group helper ports returned blend assignment");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_default_state()",
+                 "focused clip driver test covers CharDriverMidi defaults");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_enter(driver_state,midi,true,false)",
+                 "focused clip driver test covers CharDriverMidi Enter helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_on_parser_flags(midi,0x1234)",
+                 "focused clip driver test covers CharDriverMidi flags helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_on_parser(",
+                 "focused clip driver test covers CharDriverMidi parser helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_on_parser_group(",
+                 "focused clip driver test covers CharDriverMidi parser group helper");
   ok &= contains(doc,
                  "`CharDriverMidi::Load` reads the subclass revision",
                  "document records CharDriverMidi source load");
+  ok &= contains(doc,
+                 "Native `source_char_driver_midi_default_state`,",
+                 "document records native CharDriverMidi source helper slice");
+  ok &= contains(doc,
+                 "group-message assignment of the returned node's `mBlendWidth`",
+                 "document records CharDriverMidi group blend assignment");
   ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharDriver.cpp` and "
                  "`CharDriver.h`",
