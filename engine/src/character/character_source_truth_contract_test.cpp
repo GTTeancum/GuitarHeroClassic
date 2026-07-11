@@ -5435,6 +5435,22 @@ int run_contract() {
                  "mTargets.end();++it){change.push_back((*it).mTarget);}}",
                  "CharBlendBone source PollDeps direction");
   ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "BEGIN_HANDLERS(CharBlendBone)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x8F)END_HANDLERS",
+                 "CharBlendBone source handler table");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharBlendBone::ConstraintSystem)"
+                 "SYNC_PROP(target,o.mTarget)SYNC_PROP(weight,o.mWeight)"
+                 "END_CUSTOM_PROPSYNC",
+                 "CharBlendBone source constraint prop-sync table");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
+                 "BEGIN_PROPSYNCS(CharBlendBone)SYNC_PROP(targets,mTargets)"
+                 "SYNC_PROP(src_one,mSrc1)SYNC_PROP(src_two,mSrc2)"
+                 "SYNC_PROP(trans_x,mTransX)SYNC_PROP(trans_y,mTransY)"
+                 "SYNC_PROP(trans_z,mTransZ)SYNC_PROP(rotation,mRotation)"
+                 "END_PROPSYNCS",
+                 "CharBlendBone source prop-sync table");
+  ok &= contains(rb3_latest_char_blend_bone_cpp,
                  "//fn_804A4D38-poll",
                  "CharBlendBone source lacks checked Poll body");
   ok &= contains(char_mesh_h,
@@ -5459,6 +5475,18 @@ int run_contract() {
                  "structSourceCharBlendBoneCopyPlan{std::vector<std::string>"
                  "copied_superclasses;std::vector<std::string>copied_members;};",
                  "native exposes CharBlendBone copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharBlendBoneHandlerPlan{std::vector<std::string>"
+                 "superclasses;intcheck=0;};",
+                 "native exposes CharBlendBone handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharBlendBoneConstraintPropSyncPlan{"
+                 "std::vector<std::string>properties;};",
+                 "native exposes CharBlendBone constraint prop-sync plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharBlendBonePropSyncPlan{std::vector<std::string>"
+                 "properties;};",
+                 "native exposes CharBlendBone prop-sync plan");
   ok &= contains(char_mesh,
                  "SourceCharBlendBoneStatesource_char_blend_bone_default_state(){"
                  "returnSourceCharBlendBoneState{};}",
@@ -5486,6 +5514,25 @@ int run_contract() {
                  "returnplan;}",
                  "native ports CharBlendBone copy order");
   ok &= contains(char_mesh,
+                 "SourceCharBlendBoneHandlerPlansource_char_blend_bone_"
+                 "handler_plan(){SourceCharBlendBoneHandlerPlanplan;"
+                 "plan.superclasses={\"Hmx::Object\"};plan.check=0x8F;"
+                 "returnplan;}",
+                 "native ports CharBlendBone handler table");
+  ok &= contains(char_mesh,
+                 "SourceCharBlendBoneConstraintPropSyncPlansource_char_"
+                 "blend_bone_constraint_prop_sync_plan(){"
+                 "SourceCharBlendBoneConstraintPropSyncPlanplan;"
+                 "plan.properties={\"target\",\"weight\"};returnplan;}",
+                 "native ports CharBlendBone constraint prop-sync table");
+  ok &= contains(char_mesh,
+                 "SourceCharBlendBonePropSyncPlansource_char_blend_bone_"
+                 "prop_sync_plan(){SourceCharBlendBonePropSyncPlanplan;"
+                 "plan.properties={\"targets\",\"src_one\",\"src_two\","
+                 "\"trans_x\",\"trans_y\",\"trans_z\",\"rotation\"};"
+                 "returnplan;}",
+                 "native ports CharBlendBone prop-sync table");
+  ok &= contains(char_mesh,
                  "deps.changed_by.push_back(blend.src1);deps.changed_by."
                  "push_back(blend.src2);for(constSourceCharBlendBoneConstraint&"
                  "target:blend.targets){deps.change.push_back(target.target);}",
@@ -5509,6 +5556,15 @@ int run_contract() {
                  "source_char_blend_bone_copy_plan()",
                  "focused CharBlendBone test covers copy plan");
   ok &= contains(blend_bone_source_test,
+                 "source_char_blend_bone_handler_plan()",
+                 "focused CharBlendBone test covers handler plan");
+  ok &= contains(blend_bone_source_test,
+                 "source_char_blend_bone_constraint_prop_sync_plan()",
+                 "focused CharBlendBone test covers constraint prop-sync plan");
+  ok &= contains(blend_bone_source_test,
+                 "source_char_blend_bone_prop_sync_plan()",
+                 "focused CharBlendBone test covers prop-sync plan");
+  ok &= contains(blend_bone_source_test,
                  "source_char_blend_bone_poll_deps(deps,blend)",
                  "focused CharBlendBone test covers PollDeps");
   ok &= contains(doc,
@@ -5517,6 +5573,12 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_char_blend_bone_copy_plan` records",
                  "document records native CharBlendBone copy plan");
+  ok &= contains(doc,
+                 "Native `source_char_blend_bone_handler_plan`,",
+                 "document records native CharBlendBone handler plan");
+  ok &= contains(doc,
+                 "constraint `target`/`weight` rows",
+                 "document records native CharBlendBone constraint props");
   ok &= contains(doc,
                  "Native `source_char_blend_bone_*` helpers port",
                  "document records native CharBlendBone helpers");

@@ -3089,6 +3089,27 @@ SourceCharBlendBoneCopyPlan source_char_blend_bone_copy_plan() {
   return plan;
 }
 
+SourceCharBlendBoneHandlerPlan source_char_blend_bone_handler_plan() {
+  SourceCharBlendBoneHandlerPlan plan;
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0x8F;
+  return plan;
+}
+
+SourceCharBlendBoneConstraintPropSyncPlan
+source_char_blend_bone_constraint_prop_sync_plan() {
+  SourceCharBlendBoneConstraintPropSyncPlan plan;
+  plan.properties = {"target", "weight"};
+  return plan;
+}
+
+SourceCharBlendBonePropSyncPlan source_char_blend_bone_prop_sync_plan() {
+  SourceCharBlendBonePropSyncPlan plan;
+  plan.properties = {"targets", "src_one", "src_two", "trans_x",
+                     "trans_y", "trans_z", "rotation"};
+  return plan;
+}
+
 void source_char_blend_bone_poll_deps(
     SourceCharBlendBonePollDeps& deps,
     const SourceCharBlendBoneState& blend) {

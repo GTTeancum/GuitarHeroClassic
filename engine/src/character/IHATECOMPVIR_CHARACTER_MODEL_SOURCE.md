@@ -1058,6 +1058,11 @@ note, and all report `unreadBytes=0`.
     `mTransY`, `mTransZ`, and `mRotation`. Native
     `source_char_blend_bone_copy_plan` records that list without adding a blend
     solve.
+  - Native `source_char_blend_bone_handler_plan`,
+    `source_char_blend_bone_constraint_prop_sync_plan`, and
+    `source_char_blend_bone_prop_sync_plan` port the visible source handler
+    chain, check value `0x8F`, constraint `target`/`weight` rows, and
+    `targets`/`src_one`/`src_two`/translation/rotation rows.
   - `PollDeps` pushes `mSrc1` and `mSrc2` into `changedBy`, then pushes every
     constraint target into `change`.
   - Native `source_char_blend_bone_*` helpers port those source-visible data and

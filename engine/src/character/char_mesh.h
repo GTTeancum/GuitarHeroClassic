@@ -1004,6 +1004,19 @@ struct SourceCharBlendBoneCopyPlan {
   std::vector<std::string> copied_members;
 };
 
+struct SourceCharBlendBoneHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharBlendBoneConstraintPropSyncPlan {
+  std::vector<std::string> properties;
+};
+
+struct SourceCharBlendBonePropSyncPlan {
+  std::vector<std::string> properties;
+};
+
 struct SourceCharSleeveState {
   std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
   std::array<float, 3> last_pos = {0.0f, 0.0f, 0.0f};
@@ -1616,6 +1629,10 @@ SourceCharBlendBoneConstraintLoadPlan
 source_char_blend_bone_constraint_load_plan();
 SourceCharBlendBoneLoadPlan source_char_blend_bone_load_plan(int revision);
 SourceCharBlendBoneCopyPlan source_char_blend_bone_copy_plan();
+SourceCharBlendBoneHandlerPlan source_char_blend_bone_handler_plan();
+SourceCharBlendBoneConstraintPropSyncPlan
+source_char_blend_bone_constraint_prop_sync_plan();
+SourceCharBlendBonePropSyncPlan source_char_blend_bone_prop_sync_plan();
 void source_char_blend_bone_poll_deps(
     SourceCharBlendBonePollDeps& deps,
     const SourceCharBlendBoneState& blend);

@@ -37,10 +37,13 @@ int main() {
   using ghogx::character::SourceCharBlendBoneConstraint;
   using ghogx::character::SourceCharBlendBonePollDeps;
   using ghogx::character::source_char_blend_bone_constraint_load_plan;
+  using ghogx::character::source_char_blend_bone_constraint_prop_sync_plan;
   using ghogx::character::source_char_blend_bone_copy_plan;
   using ghogx::character::source_char_blend_bone_default_state;
+  using ghogx::character::source_char_blend_bone_handler_plan;
   using ghogx::character::source_char_blend_bone_load_plan;
   using ghogx::character::source_char_blend_bone_poll_deps;
+  using ghogx::character::source_char_blend_bone_prop_sync_plan;
 
   bool ok = true;
 
@@ -94,6 +97,29 @@ int main() {
                       "copy targets first");
   ok &= expect_string(copy.copied_members[6], "mRotation",
                       "copy rotation last");
+
+  const auto handler = source_char_blend_bone_handler_plan();
+  ok &= expect_size(handler.superclasses.size(), 1,
+                    "handler superclass count");
+  ok &= expect_string(handler.superclasses[0], "Hmx::Object",
+                      "handler object superclass");
+  ok &= expect_bool(handler.check == 0x8F, true, "handler check value");
+
+  const auto constraint_props =
+      source_char_blend_bone_constraint_prop_sync_plan();
+  ok &= expect_size(constraint_props.properties.size(), 2,
+                    "constraint prop-sync count");
+  ok &= expect_string(constraint_props.properties[0], "target",
+                      "constraint prop-sync target");
+  ok &= expect_string(constraint_props.properties[1], "weight",
+                      "constraint prop-sync weight");
+
+  const auto props = source_char_blend_bone_prop_sync_plan();
+  ok &= expect_size(props.properties.size(), 7, "prop-sync count");
+  ok &= expect_string(props.properties[0], "targets", "prop-sync targets");
+  ok &= expect_string(props.properties[1], "src_one", "prop-sync src_one");
+  ok &= expect_string(props.properties[5], "trans_z", "prop-sync trans_z");
+  ok &= expect_string(props.properties[6], "rotation", "prop-sync rotation");
 
   blend.src1 = "source.one";
   blend.src2 = "source.two";
