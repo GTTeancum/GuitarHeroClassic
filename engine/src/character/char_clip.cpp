@@ -267,6 +267,31 @@ SourceCharBonesSamplesState source_char_bones_samples_empty_state() {
   return SourceCharBonesSamplesState{};
 }
 
+void source_char_bones_samples_set(SourceCharBonesSamplesState& samples,
+                                   const SourceCharBonesState& bones,
+                                   int num_samples,
+                                   int compression) {
+  SourceCharBonesSamplesState next;
+  next.bones = bones;
+  SourceCharBonesCompressionUpdate update =
+      source_char_bones_set_compression(next.bones.compression,
+                                        next.bones.layout, compression);
+  next.bones.compression = update.compression;
+  next.bones.layout = update.layout;
+  next.num_samples = num_samples;
+  next.raw_data_size = source_char_bones_samples_allocate_size(next);
+  samples = next;
+}
+
+SourceCharBonesSamplesState source_char_bones_samples_clone(
+    const SourceCharBonesSamplesState& source) {
+  SourceCharBonesSamplesState clone;
+  source_char_bones_samples_set(clone, source.bones, source.num_samples,
+                                source.bones.compression);
+  clone.frames = source.frames;
+  return clone;
+}
+
 int source_char_bones_samples_allocate_size(
     const SourceCharBonesSamplesState& samples) {
   return samples.bones.layout.total_size * samples.num_samples;

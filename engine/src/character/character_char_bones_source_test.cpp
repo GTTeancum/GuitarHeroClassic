@@ -387,12 +387,44 @@ int main() {
   ok &= expect_int(samples.num_samples, 0, "samples default num");
   ok &= expect_int(samples.preview_sample, 0, "samples default preview");
   ok &= expect_int(samples.start_offset, 0, "samples default start");
+  ok &= expect_int(samples.raw_data_size, 0, "samples default raw data size");
   ok &= expect_int(source_char_bones_samples_allocate_size(samples), 0,
                    "samples default allocation");
   ok &= expect_int(source_char_bones_samples_set_preview(samples, 2) ? 1 : 0, 0,
                    "samples empty preview rejected");
+  SourceCharBonesState prepared_bones = source_char_bones_empty_state();
+  prepared_bones.bones.push_back({"bone_head.pos", 0.75f});
+  prepared_bones.bones.push_back({"bone_head.rotz", 0.25f});
+  prepared_bones.layout.counts = {0, 1, 1, 1, 1, 1, 2};
+  prepared_bones.layout = source_char_bones_recompute_layout(
+      prepared_bones.layout.counts, 0);
+  constexpr int kCompressRots = 1;
+  source_char_bones_samples_set(samples, prepared_bones, 3, kCompressRots);
+  ok &= expect_int(samples.num_samples, 3, "samples Set num");
+  ok &= expect_int(samples.bones.compression, kCompressRots,
+                   "samples Set compression");
+  ok &= expect_size(samples.bones.bones.size(), 2, "samples Set bone count");
+  ok &= expect_string(samples.bones.bones[0].name, "bone_head.pos",
+                      "samples Set first bone");
+  ok &= expect_float(samples.bones.bones[0].weight, 0.75f,
+                     "samples Set first weight");
+  ok &= expect_int(samples.bones.layout.total_size, 16,
+                   "samples Set recomputed layout");
+  ok &= expect_int(samples.raw_data_size, 48, "samples Set raw data size");
+  ok &= expect_size(samples.frames.size(), 0, "samples Set clears frames");
+  samples.frames = {1.0f, 2.0f, 3.0f};
+  const SourceCharBonesSamplesState cloned =
+      source_char_bones_samples_clone(samples);
+  ok &= expect_int(cloned.num_samples, 3, "samples Clone num");
+  ok &= expect_int(cloned.bones.compression, kCompressRots,
+                   "samples Clone compression");
+  ok &= expect_size(cloned.bones.bones.size(), 2, "samples Clone bone count");
+  ok &= expect_int(cloned.raw_data_size, 48, "samples Clone raw data size");
+  ok &= expect_size(cloned.frames.size(), 3, "samples Clone frames count");
+  ok &= expect_float(cloned.frames[1], 2.0f, "samples Clone frame value");
   samples.bones.layout.total_size = 32;
   samples.num_samples = 4;
+  samples.raw_data_size = source_char_bones_samples_allocate_size(samples);
   ok &= expect_int(source_char_bones_samples_allocate_size(samples), 128,
                    "samples allocation");
   ok &= expect_int(source_char_bones_samples_set_preview(samples, 2) ? 1 : 0, 1,

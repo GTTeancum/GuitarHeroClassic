@@ -1240,12 +1240,18 @@ note, and all report `unreadBytes=0`.
   - `SetPreview` clamps the preview sample and points `mStart` at the selected
     packed row.
   - Native `source_char_bones_samples_allocate_size`,
+    `source_char_bones_samples_set`, `source_char_bones_samples_clone`,
     `source_char_bones_samples_set_preview`, and
     `source_char_bones_samples_split_steps` port those complete state/offset
     bodies for valid sample rows: allocation is `totalSize * numSamples`,
-    preview stores the clamped sample and selected row offset, and split steps
-    report the source `i` / `i + 1` row offsets and `(1 - frac)` / `frac`
-    weights. Native `source_char_bones_samples_rotate_by_offset`,
+    `Set` clears previous sample state, applies the source compression guard to
+    the prepared bone layout, stores the sample count, records the new raw-data
+    allocation size, and clears frames; `Clone` repeats `Set` and copies the
+    frame vector. This does not claim the still-missing `AddBoneInternal` body
+    or expose a native `mRawData` pointer. Preview stores the clamped sample and
+    selected row offset, and split steps report the source `i` / `i + 1` row
+    offsets and `(1 - frac)` / `frac` weights. Native
+    `source_char_bones_samples_rotate_by_offset`,
     `source_char_bones_samples_rotate_to_steps`, and
     `source_char_bones_samples_scale_add_steps` are named wrappers for the
     source `RotateBy`, `RotateTo`, and `ScaleAddSample` call shapes only; they

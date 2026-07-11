@@ -54,6 +54,7 @@ struct SourceCharBonesSamplesState {
   int num_samples = 0;
   int preview_sample = 0;
   int start_offset = 0;
+  int raw_data_size = 0;
   std::vector<float> frames;
 };
 
@@ -365,6 +366,12 @@ void source_char_servo_bone_move_to_delta_facing(
 
 // Source-backed CharBonesSamples state helpers.
 SourceCharBonesSamplesState source_char_bones_samples_empty_state();
+void source_char_bones_samples_set(SourceCharBonesSamplesState& samples,
+                                   const SourceCharBonesState& bones,
+                                   int num_samples,
+                                   int compression);
+SourceCharBonesSamplesState source_char_bones_samples_clone(
+    const SourceCharBonesSamplesState& source);
 int source_char_bones_samples_allocate_size(
     const SourceCharBonesSamplesState& samples);
 bool source_char_bones_samples_set_preview(
