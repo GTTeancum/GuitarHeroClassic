@@ -139,6 +139,12 @@ std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group);
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask);
 
+// Source-backed CharIKRod::ComputeRod/Poll helper. Returns false when any
+// source-required endpoint or destination transform is unresolved.
+bool source_char_ik_rod_compute_world(const CharIKRod& rod,
+                                      const Character& character,
+                                      std::array<float, 16>& dest_world);
+
 // Compatibility helper for callers that only need the stored clip names.
 std::vector<std::string> load_clip_group_names(
     const std::string& hdr_path, const std::string& ark_path,

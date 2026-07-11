@@ -1444,6 +1444,70 @@ static void source_look_at_rows(std::array<float, 16>& m) {
   set_mat_row(m, 2, z);
 }
 
+static void normalize_mat3_rows(std::array<float, 16>& m);
+
+static std::array<float, 16> source_transform_row_mat4(
+    const float xfm[4][3]) {
+  return {xfm[0][0], xfm[0][1], xfm[0][2], 0.0f,
+          xfm[1][0], xfm[1][1], xfm[1][2], 0.0f,
+          xfm[2][0], xfm[2][1], xfm[2][2], 0.0f,
+          xfm[3][0], xfm[3][1], xfm[3][2], 1.0f};
+}
+
+bool source_char_ik_rod_compute_world(const CharIKRod& rod,
+                                      const Character& character,
+                                      std::array<float, 16>& dest_world) {
+  if (rod.dest.empty() || rod.left_end.empty() || rod.right_end.empty()) {
+    return false;
+  }
+  if (!character.has_transform(rod.dest)) return false;
+
+  std::array<float, 16> left_world{};
+  std::array<float, 16> right_world{};
+  if (!transform_local_chain_world(character, rod.left_end, left_world) ||
+      !transform_local_chain_world(character, rod.right_end, right_world)) {
+    return false;
+  }
+
+  std::array<float, 16> rod_world =
+      {1, 0, 0, 0, 0, 1, 0, 0,
+       0, 0, 1, 0, 0, 0, 0, 1};
+  const float t = rod.dest_pos;
+  const Vec3 left_pos = mat_pos(left_world);
+  const Vec3 right_pos = mat_pos(right_world);
+  const Vec3 pos =
+      vadd(vscale(left_pos, 1.0f - t), vscale(right_pos, t));
+  rod_world[12] = pos.x;
+  rod_world[13] = pos.y;
+  rod_world[14] = pos.z;
+
+  const Vec3 x = rod.vertical
+                     ? Vec3{0.0f, 0.0f, -1.0f}
+                     : vnorm(vadd(vscale(mat_row(left_world, 0), 1.0f - t),
+                                  vscale(mat_row(right_world, 0), t)));
+  Vec3 z{};
+  if (!rod.side_axis.empty()) {
+    std::array<float, 16> side_world{};
+    if (transform_local_chain_world(character, rod.side_axis, side_world)) {
+      z = mat_row(side_world, 2);
+    } else {
+      z = vsub(left_pos, right_pos);
+    }
+  } else {
+    z = vsub(left_pos, right_pos);
+  }
+  Vec3 y = vnorm(vcross(z, x));
+  z = vcross(x, y);
+  set_mat_row(rod_world, 0, x);
+  set_mat_row(rod_world, 1, y);
+  set_mat_row(rod_world, 2, z);
+  normalize_mat3_rows(rod_world);
+
+  dest_world = mat4_mul(source_transform_row_mat4(rod.xfm), rod_world);
+  normalize_mat3_rows(dest_world);
+  return true;
+}
+
 static void normalize_xfm_rows(milo_scene::Xfm& xfm);
 
 static void pre_multiply_local_rot(milo_scene::Xfm& dst,
@@ -2054,6 +2118,35 @@ static void apply_source_pos_constraints(Character& character) {
                      constraint.box_max[0], constraint.box_max[1],
                      constraint.box_max[2]);
       }
+    }
+  }
+}
+
+static void apply_source_ik_rods(Character& character) {
+  for (const auto& rod : character.ik_rods) {
+    std::array<float, 16> dest_world{};
+    if (!source_char_ik_rod_compute_world(rod, character, dest_world)) {
+      if (controller_audit_enabled()) {
+        std::fprintf(stderr,
+                     "[ikrod-source-skip] %s left=%s right=%s dest=%s "
+                     "reason=missing-source-required-transform\n",
+                     rod.name.c_str(),
+                     rod.left_end.empty() ? "<none>" : rod.left_end.c_str(),
+                     rod.right_end.empty() ? "<none>" : rod.right_end.c_str(),
+                     rod.dest.empty() ? "<none>" : rod.dest.c_str());
+      }
+      continue;
+    }
+    character.runtime_world_overrides[rod.dest] = dest_world;
+    if (controller_audit_enabled()) {
+      std::fprintf(stderr,
+                   "[ikrod-source] %s left=%s right=%s side=%s dest=%s "
+                   "destPos=%.4f vertical=%d world=(%.3f %.3f %.3f)\n",
+                   rod.name.c_str(), rod.left_end.c_str(),
+                   rod.right_end.c_str(),
+                   rod.side_axis.empty() ? "<none>" : rod.side_axis.c_str(),
+                   rod.dest.c_str(), rod.dest_pos, rod.vertical ? 1 : 0,
+                   dest_world[12], dest_world[13], dest_world[14]);
     }
   }
 }
@@ -3231,6 +3324,7 @@ void apply_character_controllers(Character& character, float time_seconds,
   apply_char_hair(character, time_seconds);
   apply_source_upper_twists(character, bind_bones);
   apply_source_pos_constraints(character);
+  apply_source_ik_rods(character);
 
   if (debug_face_enabled()) {
     for (const auto& b : character.bones) {

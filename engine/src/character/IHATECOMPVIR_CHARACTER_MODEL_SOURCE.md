@@ -596,6 +596,11 @@ note, and all report `unreadBytes=0`.
     endpoint X row, takes the optional side-axis Z row or the left-right vector,
     rebuilds an orthonormal matrix, then `Poll` multiplies that result by
     `mXfm` before writing `dest`.
+  - Native `source_char_ik_rod_compute_world` ports that `ComputeRod` / `Poll`
+    path and publishes the resulting `mXfm * computedRod` world row only when
+    the source-required `dest`, `left_end`, and `right_end` transforms resolve.
+    Stock Grim rows with `dest=<none>` therefore remain logged/inert instead of
+    receiving a substitute destination.
 
 ## Twist Controller Authorities
 

@@ -77,6 +77,8 @@ int run_contract() {
       compact(read_file(char_dir / "char_clip_audit.cpp"));
   const std::string clip_driver_flags_test =
       compact(read_file(char_dir / "character_clip_driver_flags_test.cpp"));
+  const std::string ik_rod_source_test =
+      compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
   const std::string bind_audit =
       compact(read_file(char_dir / "char_bind_audit.cpp"));
   const std::string renderer = compact(read_file(char_dir / "char_renderer.cpp"));
@@ -972,6 +974,49 @@ int run_contract() {
                  "native CharIKRod decode mirrors source load fields");
   ok &= contains(char_mesh, "rod.xfm[v][c]=r.f32();",
                  "native CharIKRod decode stores source mXfm");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_ik_rod_compute_world(constCharIKRod&rod,"
+                 "constCharacter&character,std::array<float,16>&dest_world);",
+                 "native exposes source CharIKRod compute/poll helper");
+  ok &= contains(char_clip,
+                 "boolsource_char_ik_rod_compute_world(constCharIKRod&rod,"
+                 "constCharacter&character,std::array<float,16>&dest_world){"
+                 "if(rod.dest.empty()||rod.left_end.empty()||"
+                 "rod.right_end.empty()){returnfalse;}",
+                 "native CharIKRod helper keeps source missing-ref boundary");
+  ok &= contains(char_clip,
+                 "if(!character.has_transform(rod.dest))returnfalse;",
+                 "native CharIKRod helper requires source destination transform");
+  ok &= contains(char_clip,
+                 "constVec3pos=vadd(vscale(left_pos,1.0f-t),"
+                 "vscale(right_pos,t));",
+                 "native CharIKRod helper interpolates endpoint position");
+  ok &= contains(char_clip,
+                 "rod.vertical?Vec3{0.0f,0.0f,-1.0f}:vnorm("
+                 "vadd(vscale(mat_row(left_world,0),1.0f-t),",
+                 "native CharIKRod helper mirrors vertical/interpolated X branch");
+  ok &= contains(char_clip,
+                 "if(transform_local_chain_world(character,rod.side_axis,"
+                 "side_world)){z=mat_row(side_world,2);}else{z=vsub("
+                 "left_pos,right_pos);}",
+                 "native CharIKRod helper mirrors side-axis fallback branch");
+  ok &= contains(char_clip,
+                 "dest_world=mat4_mul(source_transform_row_mat4(rod.xfm),"
+                 "rod_world);",
+                 "native CharIKRod Poll applies stored mXfm before destination");
+  ok &= contains(char_clip,
+                 "character.runtime_world_overrides[rod.dest]=dest_world;",
+                 "native CharIKRod Poll publishes destination world row");
+  ok &= contains(char_clip, "apply_source_ik_rods(character);",
+                 "native controller cadence runs source CharIKRod poll");
+  ok &= contains(ik_rod_source_test,
+                 "missing_dest.dest.clear();ok&=!source_char_ik_rod_compute_world"
+                 "(missing_dest,character,world);",
+                 "focused CharIKRod test covers source missing destination boundary");
+  ok &= contains(ik_rod_source_test,
+                 "character.ik_rods.push_back(make_identity_rod());"
+                 "apply_character_controllers(character,0.0f,nullptr);",
+                 "focused CharIKRod test covers controller writeback path");
   ok &= contains(bind_audit, "version=%dleft=%s",
                  "controller audit logs CharIKRod source revision");
   ok &= contains(bind_audit, "leftExists=%dright=%srightExists=%ddest=%s",
@@ -982,6 +1027,14 @@ int run_contract() {
                  "document records CharIKRod source load order");
   ok &= contains(doc, "ComputeRod` returns\n    false unless `dest`, `left_end`, and `right_end` all resolve",
                  "document records CharIKRod incomplete-ref boundary");
+  ok &= contains(doc,
+                 "Native `source_char_ik_rod_compute_world` ports that "
+                 "`ComputeRod` / `Poll`",
+                 "document records native CharIKRod source poll port");
+  ok &= contains(doc,
+                 "Stock Grim rows with `dest=<none>` therefore remain "
+                 "logged/inert",
+                 "document records stock Grim missing-destination boundary");
   ok &= contains(rb3_latest_char_servo_bone_h,
                  "classCharServoBone:publicRndHighlightable,publicCharPollable,"
                  "publicCharBonesMeshes",
@@ -2264,6 +2317,10 @@ int run_contract() {
                  "add_executable(ghogx_character_clip_driver_flags_test"
                  "character_clip_driver_flags_test.cpp)",
                  "CMake builds focused CharClipDriver flag-mask test");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_ik_rod_source_test"
+                 "character_ik_rod_source_test.cpp)",
+                 "CMake builds focused CharIKRod source test");
   ok &= contains(char_clip_audit,
                  "for(constauto&entry:ark.entries()){if(!ends_with("
                  "entry.full_path,\".milo_ps2\"))continue;",
