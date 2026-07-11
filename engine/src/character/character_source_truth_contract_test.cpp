@@ -3496,6 +3496,12 @@ int run_contract() {
                  "mWhich++;if(mWhich>=mClips.size())mWhich=0;"
                  "returnmClips[mWhich];}",
                  "latest CharClipGroup source exposes stored-order cycling");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "intCharClipGroup::NumFlagDuplicates(CharClip*clip,intx){"
+                 "intflags=clip->mFlags;intcount=0;for(inti=0;i<mClips.size();"
+                 "i++){if(clip!=mClips[i]){if((x&flags)==(x&mClips[i]->mFlags))"
+                 "count++;}}returncount;}",
+                 "latest CharClipGroup source exposes masked duplicate count");
   ok &= contains(char_clip_h,
                  "structCharClipGroup{std::stringname;std::stringmilo_path;"
                  "std::vector<std::string>clips;uint32_tversion=0;"
@@ -3511,6 +3517,11 @@ int run_contract() {
                  "std::optional<size_t>char_clip_group_get_clip_index("
                  "CharClipGroup&group);",
                  "native character API exposes source-backed GetClip step");
+  ok &= contains(char_clip_h,
+                 "intsource_char_clip_group_num_flag_duplicates("
+                 "conststd::vector<uint32_t>&clip_flags,size_tclip_index,"
+                 "uint32_tmask);",
+                 "native character API exposes source-backed NumFlagDuplicates helper");
   ok &= contains(char_clip,
                  "CharClipGroupload_clip_group(",
                  "native clip decoder implements shared clip group reader");
@@ -3536,11 +3547,28 @@ int run_contract() {
                  "group.which=0;}",
                  "native clip group selection wraps source mWhich");
   ok &= contains(char_clip,
+                 "intsource_char_clip_group_num_flag_duplicates("
+                 "conststd::vector<uint32_t>&clip_flags,size_tclip_index,"
+                 "uint32_tmask){if(clip_index>=clip_flags.size())return0;"
+                 "constuint32_tflags=clip_flags[clip_index];intcount=0;"
+                 "for(size_ti=0;i<clip_flags.size();++i){if(i!=clip_index&&"
+                 "(mask&flags)==(mask&clip_flags[i])){++count;}}returncount;}",
+                 "native clip group duplicate helper mirrors source masked count");
+  ok &= contains(char_clip,
                  "\"[clip-group-source]group=%smilo=%sversion=%u\"",
                  "native clip group reader logs source row proof");
   ok &= contains(char_clip,
                  "\"[clip-group-source-select]group=%sbefore=%dafter=%d\"",
                  "native clip group selector logs source GetClip proof");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_group_num_flag_duplicates(",
+                 "focused flag-mask test covers CharClipGroup duplicate helper");
+  ok &= contains(doc,
+                 "Native `source_char_clip_group_num_flag_duplicates` ports",
+                 "document records native CharClipGroup duplicate helper");
+  ok &= contains(doc,
+                 "selected clip's flags with every other clip",
+                 "document records source CharClipGroup duplicate behavior");
   ok &= missing(rb3_latest_char_clip_driver_cpp,
                 "floatCharClipDriver::Evaluate(",
                 "latest CharClipDriver source does not expose Evaluate body");

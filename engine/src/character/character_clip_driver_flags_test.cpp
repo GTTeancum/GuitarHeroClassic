@@ -28,6 +28,17 @@ bool expect_flags(uint32_t base, uint32_t mask, const char* label) {
   return false;
 }
 
+bool expect_group_duplicates(const std::vector<uint32_t>& clip_flags,
+                             size_t clip_index, uint32_t mask, int want,
+                             const char* label) {
+  const int got = ghogx::character::source_char_clip_group_num_flag_duplicates(
+      clip_flags, clip_index, mask);
+  if (got == want) return true;
+  std::cerr << "group duplicate mismatch for " << label << ": got " << got
+            << " want " << want << "\n";
+  return false;
+}
+
 bool expect_starved(bool has_first, bool first_has_next,
                     uint32_t first_play_flags, bool want,
                     const char* label) {
@@ -167,9 +178,15 @@ int main() {
   ok &= expect_flags(0x12345678u, ghogx::character::kCharPlayLoop,
                      "loop mode");
   ok &= expect_flags(0x12345678u, ghogx::character::kCharPlayRealTime |
-                                      ghogx::character::kCharPlayUserTime,
+                                       ghogx::character::kCharPlayUserTime,
                      "time bits");
   ok &= expect_flags(0x12345678u, 0x0000f623u, "all source groups");
+  ok &= expect_group_duplicates({0x11u, 0x12u, 0x21u, 0x31u}, 0, 0x0fu, 2,
+                                "low flag duplicates");
+  ok &= expect_group_duplicates({0x11u, 0x12u, 0x21u, 0x31u}, 2, 0xf0u, 0,
+                                "high flag unique");
+  ok &= expect_group_duplicates({0x11u, 0x12u, 0x21u, 0x31u}, 9, 0x0fu, 0,
+                                "invalid source index");
   ok &= expect_starved(false, false, 0, true, "empty stack");
   ok &= expect_starved(true, true, ghogx::character::kCharPlayLoop, false,
                        "stack has next");

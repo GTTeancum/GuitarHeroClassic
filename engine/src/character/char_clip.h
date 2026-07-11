@@ -210,6 +210,13 @@ CharClipGroup load_clip_group(
 // Source-backed CharClipGroup::GetClip index step. Mutates group.which.
 std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group);
 
+// Source-backed CharClipGroup::NumFlagDuplicates helper. `clip_index` selects
+// the source clip row whose flags are compared against every other row.
+int source_char_clip_group_num_flag_duplicates(
+    const std::vector<uint32_t>& clip_flags,
+    size_t clip_index,
+    uint32_t mask);
+
 // Source-backed CharClipDriver constructor play-flag masking.
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask);

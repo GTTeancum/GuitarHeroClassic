@@ -732,6 +732,10 @@ note, and all report `unreadBytes=0`.
     `mClips.size()`, and returns the stored clip pointer. Native
     `char_clip_group_get_clip_index` ports that exact cycling step and mutates
     the stored source `which` state.
+  - Native `source_char_clip_group_num_flag_duplicates` ports the complete
+    `CharClipGroup::NumFlagDuplicates` masked comparison body: compare the
+    selected clip's flags with every other clip and count rows whose masked
+    flags match.
   - Gameplay routes authored `CharClipGroup` resolution through the shared
     character helper so the same source-backed reader feeds both WorldCrowd and
     performer sync group lookup.

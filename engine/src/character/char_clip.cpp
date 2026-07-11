@@ -1529,6 +1529,21 @@ std::vector<std::string> load_clip_group_names(
   return load_clip_group(hdr_path, ark_path, milo_paths, group_name).clips;
 }
 
+int source_char_clip_group_num_flag_duplicates(
+    const std::vector<uint32_t>& clip_flags,
+    size_t clip_index,
+    uint32_t mask) {
+  if (clip_index >= clip_flags.size()) return 0;
+  const uint32_t flags = clip_flags[clip_index];
+  int count = 0;
+  for (size_t i = 0; i < clip_flags.size(); ++i) {
+    if (i != clip_index && (mask & flags) == (mask & clip_flags[i])) {
+      ++count;
+    }
+  }
+  return count;
+}
+
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask) {
   uint32_t play_flags = clip.default_play_flags;
