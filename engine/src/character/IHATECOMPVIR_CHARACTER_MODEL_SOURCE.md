@@ -52,6 +52,7 @@ records the upstream commits for the copied files:
 | IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
+| Clip set preview/editor container | `rb3-latest` `CharClipSet.cpp` / `CharClipSet.h` | Native helper ports reset/default state, group randomize/sort dispatch, pre/post-save preview handling, revision-gated post-load read plan, preview character decisions, frame helpers, and BPM update; it does not promote clip playback runtime. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
 | Mirror servo controller | `rb3-latest` `CharMirror.cpp` / `CharMirror.h` | Native helper ports constructor defaults, nonzero-weight/nonempty-bones `Poll` gate, servo setter `SyncBones` triggers, dependency publication, load order, and copy flow; `SyncBones` bone rebuilding remains fenced because the body is absent from `rb3-latest`. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
@@ -1235,6 +1236,28 @@ note, and all report `unreadBytes=0`.
     `bone_facing*`, and calls `AcquirePose` only when the mesh vector is
     non-empty; `StuffMeshes` appends mesh slots in source order. This still does
     not port broad `PoseMeshes` transform writes.
+- `rb3-latest/src/system/char/CharClipSet.cpp` and
+  `rb3-latest/src/system/char/CharClipSet.h`
+  - `CharClipSet` is an `ObjectDir`, `RndDrawable`, and `RndAnimatable`
+    preview/editor container for clip rows. Its constructor calls
+    `ResetPreviewState` and sets `mRate = k1_fpb`.
+  - `ResetPreviewState` deletes the preview character, clears preview/still
+    clips, clears the character file root, resets filter flags to zero, sets
+    BPM to `90`, and clears preview-walk.
+  - `RandomizeGroups` and `SortGroups` iterate each `CharClipGroup` in source
+    directory order and call the matching group method.
+  - `PreSave` clears the preview character name when one exists. Cached saves
+    call both `ResetPreviewState` and `ResetEditorState`; `PostSave` delegates
+    to `ObjectDir::PostSave`, then restores `preview_character`, enters it, and
+    sends `update_objects` to `milo` when the object exists.
+  - Native `source_char_clip_set_post_load_plan` ports the full
+    revision-gated `PostLoad` read plan through source revision `0x18`,
+    including the proxy early return, legacy int/string/list reads,
+    filter-clips handler gate, transition-graph warning gate, and modern
+    `mCharFilePath` / `mPreviewClip` / filter / BPM / walk / still-clip gates.
+  - `LoadCharacter`, `DrawShowing`, `StartFrame`, `EndFrame`, `SetBpm`, and
+    `RecenterAll` are ported as deterministic decision helpers. They do not
+    execute editor-only loading or promote clip playback runtime.
 - `rb3-latest/src/system/char/CharClipGroup.cpp` and
   `rb3-latest/src/system/char/CharClipGroup.h`
   - `CharClipGroup::Load` reads the object prefix through

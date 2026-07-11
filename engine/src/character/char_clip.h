@@ -546,6 +546,99 @@ struct SourceCharDriverMidiParserDecision {
   float assigned_blend_width = 0.0f;
 };
 
+struct SourceCharClipSetState {
+  std::string char_file_root;
+  bool has_preview_char = false;
+  bool has_preview_clip = false;
+  bool has_still_clip = false;
+  int filter_flags = 0;
+  int bpm = 90;
+  bool preview_walk = false;
+  bool rate_is_1_fpb = true;
+};
+
+struct SourceCharClipSetGroupStep {
+  std::string group;
+  bool randomize = false;
+  bool sort = false;
+};
+
+struct SourceCharClipSetResetEditorResult {
+  bool reset_preview_state = false;
+  bool object_dir_reset_editor_state = false;
+};
+
+struct SourceCharClipSetPreSaveResult {
+  bool preview_char_name_cleared = false;
+  bool reset_preview_state = false;
+  bool reset_editor_state = false;
+};
+
+struct SourceCharClipSetPostSaveResult {
+  bool object_dir_post_save = false;
+  bool preview_char_name_restored = false;
+  bool preview_char_entered = false;
+  bool sent_update_objects = false;
+};
+
+struct SourceCharClipSetPreLoadPlan {
+  int32_t max_revision = 0x18;
+  bool require_revision_gt_3 = true;
+  bool push_packed_revision = true;
+  bool object_dir_pre_load = true;
+};
+
+struct SourceCharClipSetPostLoadPlan {
+  bool object_dir_post_load = true;
+  bool returned_for_proxy = false;
+  bool read_two_legacy_ints = false;
+  bool read_rev_15_16_int = false;
+  bool read_legacy_graph_path = false;
+  bool read_legacy_reexport_string = false;
+  bool read_rev_lt7_int = false;
+  int32_t read_legacy_clip_triplets = 0;
+  bool read_old_flag_bool = false;
+  bool read_old_flag_second_bool = false;
+  bool read_symbol_count = false;
+  bool read_legacy_string_lists = false;
+  bool read_legacy_symbol_and_int = false;
+  bool read_rev_11_bool = false;
+  bool warn_transition_bug = false;
+  bool handle_filter_clips = false;
+  bool read_char_file_path = false;
+  bool read_preview_clip = false;
+  bool read_filter_flags = false;
+  bool read_bpm = false;
+  bool read_preview_walk = false;
+  bool read_still_clip = false;
+};
+
+struct SourceCharClipSetLoadCharacterResult {
+  bool asserted_edit_mode = false;
+  bool deleted_preview_char = false;
+  bool loaded_objects = false;
+  bool loaded_rnd_dir = false;
+  bool selected_nested_character = false;
+  bool preview_char_entered = false;
+  bool preview_char_named = false;
+  bool sent_update_objects = false;
+};
+
+struct SourceCharClipSetSetBpmResult {
+  bool set_milo_property = false;
+  int bpm = 90;
+};
+
+struct SourceCharClipSetCopyResult {
+  bool copy_object_dir = false;
+  bool copy_char_file_path = false;
+  bool copy_preview_clip = false;
+  bool copy_filter_flags = false;
+  bool copy_bpm = false;
+  bool copy_preview_walk = false;
+  bool copy_still_clip = false;
+};
+
 // Source-backed CharClip constructor state.
 SourceCharClipDefaultState source_char_clip_default_state();
 SourceCharClipBeatEvent source_char_clip_beat_event_default();
@@ -626,6 +719,47 @@ SourceCharDriverMidiParserDecision source_char_driver_midi_on_parser_group(
     bool clip_uses_real_time,
     float message_float,
     float average_beats_per_second);
+SourceCharClipSetState source_char_clip_set_default_state();
+void source_char_clip_set_reset_preview_state(
+    SourceCharClipSetState& state);
+SourceCharClipSetResetEditorResult source_char_clip_set_reset_editor_state(
+    SourceCharClipSetState& state);
+std::vector<SourceCharClipSetGroupStep> source_char_clip_set_randomize_groups(
+    const std::vector<std::string>& groups);
+std::vector<SourceCharClipSetGroupStep> source_char_clip_set_sort_groups(
+    const std::vector<std::string>& groups);
+SourceCharClipSetPreSaveResult source_char_clip_set_pre_save(
+    SourceCharClipSetState& state,
+    bool cached_stream);
+SourceCharClipSetPostSaveResult source_char_clip_set_post_save(
+    const SourceCharClipSetState& state,
+    bool milo_found);
+SourceCharClipSetPreLoadPlan source_char_clip_set_pre_load_plan();
+SourceCharClipSetPostLoadPlan source_char_clip_set_post_load_plan(
+    int32_t revision,
+    bool is_proxy,
+    int32_t clip_count,
+    bool type_null);
+SourceCharClipSetCopyResult source_char_clip_set_copy(
+    SourceCharClipSetState& dest,
+    const SourceCharClipSetState& source);
+SourceCharClipSetLoadCharacterResult source_char_clip_set_load_character(
+    SourceCharClipSetState& state,
+    bool edit_mode,
+    bool loaded_is_rnd_dir,
+    bool loaded_is_character,
+    bool nested_character_found,
+    bool milo_found);
+bool source_char_clip_set_draw_showing(bool has_preview_char);
+float source_char_clip_set_start_frame(bool has_preview_clip,
+                                       float preview_clip_start_beat);
+float source_char_clip_set_end_frame(bool has_preview_clip,
+                                     float preview_clip_end_beat);
+SourceCharClipSetSetBpmResult source_char_clip_set_set_bpm(
+    SourceCharClipSetState& state,
+    int bpm,
+    bool milo_found);
+const char* source_char_clip_set_recenter_all_warning();
 
 // Source-backed CharClip::SetFlags / SetPlayFlags dirty-state helpers.
 SourceCharClipFlagUpdate source_char_clip_set_flags(uint32_t current_flags,

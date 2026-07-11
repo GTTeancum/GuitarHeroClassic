@@ -2375,6 +2375,199 @@ SourceCharDriverMidiParserDecision source_char_driver_midi_on_parser_group(
   return decision;
 }
 
+SourceCharClipSetState source_char_clip_set_default_state() {
+  SourceCharClipSetState state;
+  source_char_clip_set_reset_preview_state(state);
+  state.rate_is_1_fpb = true;
+  return state;
+}
+
+void source_char_clip_set_reset_preview_state(
+    SourceCharClipSetState& state) {
+  state.char_file_root.clear();
+  state.has_preview_char = false;
+  state.has_preview_clip = false;
+  state.has_still_clip = false;
+  state.filter_flags = 0;
+  state.bpm = 90;
+  state.preview_walk = false;
+}
+
+SourceCharClipSetResetEditorResult source_char_clip_set_reset_editor_state(
+    SourceCharClipSetState& state) {
+  SourceCharClipSetResetEditorResult result;
+  source_char_clip_set_reset_preview_state(state);
+  result.reset_preview_state = true;
+  result.object_dir_reset_editor_state = true;
+  return result;
+}
+
+std::vector<SourceCharClipSetGroupStep> source_char_clip_set_randomize_groups(
+    const std::vector<std::string>& groups) {
+  std::vector<SourceCharClipSetGroupStep> steps;
+  steps.reserve(groups.size());
+  for (const std::string& group : groups) {
+    steps.push_back({group, true, false});
+  }
+  return steps;
+}
+
+std::vector<SourceCharClipSetGroupStep> source_char_clip_set_sort_groups(
+    const std::vector<std::string>& groups) {
+  std::vector<SourceCharClipSetGroupStep> steps;
+  steps.reserve(groups.size());
+  for (const std::string& group : groups) {
+    steps.push_back({group, false, true});
+  }
+  return steps;
+}
+
+SourceCharClipSetPreSaveResult source_char_clip_set_pre_save(
+    SourceCharClipSetState& state,
+    bool cached_stream) {
+  SourceCharClipSetPreSaveResult result;
+  result.preview_char_name_cleared = state.has_preview_char;
+  if (cached_stream) {
+    source_char_clip_set_reset_preview_state(state);
+    result.reset_preview_state = true;
+    const SourceCharClipSetResetEditorResult editor =
+        source_char_clip_set_reset_editor_state(state);
+    result.reset_editor_state = editor.object_dir_reset_editor_state;
+  }
+  return result;
+}
+
+SourceCharClipSetPostSaveResult source_char_clip_set_post_save(
+    const SourceCharClipSetState& state,
+    bool milo_found) {
+  SourceCharClipSetPostSaveResult result;
+  result.object_dir_post_save = true;
+  if (state.has_preview_char) {
+    result.preview_char_name_restored = true;
+    result.preview_char_entered = true;
+    result.sent_update_objects = milo_found;
+  }
+  return result;
+}
+
+SourceCharClipSetPreLoadPlan source_char_clip_set_pre_load_plan() {
+  return SourceCharClipSetPreLoadPlan{};
+}
+
+SourceCharClipSetPostLoadPlan source_char_clip_set_post_load_plan(
+    int32_t revision,
+    bool is_proxy,
+    int32_t clip_count,
+    bool type_null) {
+  SourceCharClipSetPostLoadPlan plan;
+  if (is_proxy) {
+    plan.returned_for_proxy = true;
+    return plan;
+  }
+  plan.read_two_legacy_ints = revision < 0x11;
+  plan.read_rev_15_16_int = revision == 0x0F || revision == 0x10;
+  plan.read_legacy_graph_path = revision < 9;
+  plan.read_legacy_reexport_string = revision < 6;
+  plan.read_rev_lt7_int = revision < 7;
+  plan.read_legacy_clip_triplets =
+      revision < 0x18 ? std::max(clip_count, 0) : 0;
+  if (revision > 0x0D) {
+    if (revision < 0x18) {
+      plan.read_old_flag_bool = true;
+      plan.read_old_flag_second_bool = revision > 0x12;
+    }
+  } else {
+    plan.read_symbol_count = true;
+  }
+  plan.read_legacy_string_lists = revision >= 5 && revision <= 0x17;
+  plan.read_legacy_symbol_and_int = revision >= 10 && revision <= 23;
+  plan.read_rev_11_bool = revision == 0x0B;
+  plan.warn_transition_bug = revision < 0x0C && !type_null;
+  plan.handle_filter_clips = revision < 0x0D;
+  plan.read_char_file_path = revision > 0x11;
+  plan.read_preview_clip = revision > 0x11;
+  plan.read_filter_flags = revision > 0x13;
+  plan.read_bpm = revision > 0x14;
+  plan.read_preview_walk = revision > 0x15;
+  plan.read_still_clip = revision > 0x16;
+  return plan;
+}
+
+SourceCharClipSetCopyResult source_char_clip_set_copy(
+    SourceCharClipSetState& dest,
+    const SourceCharClipSetState& source) {
+  SourceCharClipSetCopyResult result;
+  result.copy_object_dir = true;
+  dest.char_file_root = source.char_file_root;
+  result.copy_char_file_path = true;
+  dest.has_preview_clip = source.has_preview_clip;
+  result.copy_preview_clip = true;
+  dest.filter_flags = source.filter_flags;
+  result.copy_filter_flags = true;
+  dest.bpm = source.bpm;
+  result.copy_bpm = true;
+  dest.preview_walk = source.preview_walk;
+  result.copy_preview_walk = true;
+  dest.has_still_clip = source.has_still_clip;
+  result.copy_still_clip = true;
+  return result;
+}
+
+SourceCharClipSetLoadCharacterResult source_char_clip_set_load_character(
+    SourceCharClipSetState& state,
+    bool edit_mode,
+    bool loaded_is_rnd_dir,
+    bool loaded_is_character,
+    bool nested_character_found,
+    bool milo_found) {
+  SourceCharClipSetLoadCharacterResult result;
+  result.asserted_edit_mode = edit_mode;
+  result.deleted_preview_char = true;
+  state.has_preview_char = false;
+  if (!edit_mode) return result;
+
+  result.loaded_objects = true;
+  result.loaded_rnd_dir = loaded_is_rnd_dir;
+  if (loaded_is_rnd_dir) {
+    state.has_preview_char = true;
+    if (!loaded_is_character && nested_character_found) {
+      result.selected_nested_character = true;
+    }
+  }
+  if (state.has_preview_char) {
+    result.preview_char_entered = true;
+    result.preview_char_named = true;
+    result.sent_update_objects = milo_found;
+  }
+  return result;
+}
+
+bool source_char_clip_set_draw_showing(bool has_preview_char) {
+  return has_preview_char;
+}
+
+float source_char_clip_set_start_frame(bool has_preview_clip,
+                                       float preview_clip_start_beat) {
+  return has_preview_clip ? preview_clip_start_beat : 0.0f;
+}
+
+float source_char_clip_set_end_frame(bool has_preview_clip,
+                                     float preview_clip_end_beat) {
+  return has_preview_clip ? preview_clip_end_beat : 0.0f;
+}
+
+SourceCharClipSetSetBpmResult source_char_clip_set_set_bpm(
+    SourceCharClipSetState& state,
+    int bpm,
+    bool milo_found) {
+  state.bpm = bpm;
+  return {milo_found, bpm};
+}
+
+const char* source_char_clip_set_recenter_all_warning() {
+  return "You can only recenter clips from PC";
+}
+
 SourceCharClipFlagUpdate source_char_clip_set_play_flags(
     uint32_t current_play_flags,
     bool current_dirty,

@@ -78,6 +78,8 @@ int run_contract() {
       compact(read_file(char_dir / "char_clip_audit.cpp"));
   const std::string clip_driver_flags_test =
       compact(read_file(char_dir / "character_clip_driver_flags_test.cpp"));
+  const std::string clip_set_source_test =
+      compact(read_file(char_dir / "character_clip_set_source_test.cpp"));
   const std::string char_bones_source_test =
       compact(read_file(char_dir / "character_char_bones_source_test.cpp"));
   const std::string char_utl_source_test =
@@ -272,6 +274,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharDriverMidi.cpp"));
   const std::string rb3_latest_char_driver_midi_h = compact(read_file(
       rb3_latest_char_dir / "CharDriverMidi.h"));
+  const std::string rb3_latest_char_clip_set_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharClipSet.cpp"));
+  const std::string rb3_latest_char_clip_set_h = compact(read_file(
+      rb3_latest_char_dir / "CharClipSet.h"));
   const std::string rb3_latest_character_cpp = compact(read_file(
       rb3_latest_char_dir / "Character.cpp"));
   const std::string rb3_latest_character_h = compact(read_file(
@@ -432,6 +438,10 @@ int run_contract() {
                  "| Clip groups | `rb3-latest` `CharClipGroup.cpp` / "
                  "`CharClipGroup.h` |",
                  "coverage matrix cites CharClipGroup source evidence");
+  ok &= contains(doc,
+                 "| Clip set preview/editor container | `rb3-latest` "
+                 "`CharClipSet.cpp` / `CharClipSet.h` |",
+                 "coverage matrix cites CharClipSet source evidence");
   ok &= contains(doc,
                  "Native shared loader follows source `CharClipGroup::Load`: "
                  "`Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated "
@@ -8773,6 +8783,184 @@ int run_contract() {
   ok &= contains(doc,
                  "`PollDeps` publishes `mBones` in the change list",
                  "document records CharDriver PollDeps source direction");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "classCharClipSet:publicObjectDir,publicRndDrawable,"
+                 "publicRndAnimatable",
+                 "latest CharClipSet header exposes inheritance");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "FilePathmCharFilePath;",
+                 "latest CharClipSet header exposes character file path");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "ObjPtr<RndDir,ObjectDir>mPreviewChar;",
+                 "latest CharClipSet header exposes preview character");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "ObjPtr<CharClip,ObjectDir>mPreviewClip;",
+                 "latest CharClipSet header exposes preview clip");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "intmFilterFlags;",
+                 "latest CharClipSet header exposes filter flags");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "intmBpm;",
+                 "latest CharClipSet header exposes bpm");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "boolmPreviewWalk;",
+                 "latest CharClipSet header exposes preview walk");
+  ok &= contains(rb3_latest_char_clip_set_h,
+                 "ObjPtr<CharClip,ObjectDir>mStillClip;",
+                 "latest CharClipSet header exposes still clip");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "CharClipSet::CharClipSet():mCharFilePath(),"
+                 "mPreviewChar(this,0),mPreviewClip(this,0),"
+                 "mStillClip(this,0){ResetPreviewState();mRate=k1_fpb;}",
+                 "latest CharClipSet source constructor flow");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::ResetPreviewState(){deletemPreviewChar;"
+                 "mPreviewClip=0;mStillClip=0;mCharFilePath.SetRoot(\"\");"
+                 "mFilterFlags=0;mBpm=90;mPreviewWalk=false;}",
+                 "latest CharClipSet source ResetPreviewState");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::RandomizeGroups(){for(ObjDirItr<"
+                 "CharClipGroup>it(this,false);it!=0;++it){it->Randomize();}}",
+                 "latest CharClipSet source RandomizeGroups");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::SortGroups(){for(ObjDirItr<CharClipGroup>"
+                 "it(this,false);it!=0;++it){it->Sort();}}",
+                 "latest CharClipSet source SortGroups");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::PreSave(BinStream&bs){if(mPreviewChar)"
+                 "mPreviewChar->SetName(\"\",0);if(bs.Cached()){"
+                 "ResetPreviewState();ResetEditorState();}}",
+                 "latest CharClipSet source PreSave");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::PostSave(BinStream&bs){ObjectDir::"
+                 "PostSave(bs);if(mPreviewChar){mPreviewChar->SetName("
+                 "\"preview_character\",this);mPreviewChar->Enter();",
+                 "latest CharClipSet source PostSave prefix");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "if(obj)obj->Handle(Message(\"update_objects\"),true);}}",
+                 "latest CharClipSet source PostSave update");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::PreLoad(BinStream&bs){LOAD_REVS(bs)"
+                 "ASSERT_REVS(0x18,0)MILO_ASSERT(gRev>3,0xA2);"
+                 "PushRev(packRevs(gAltRev,gRev),this);ObjectDir::PreLoad(bs);}",
+                 "latest CharClipSet source PreLoad");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::PostLoad(BinStream&bs){ObjectDir::"
+                 "PostLoad(bs);intrevs=PopRev(this);gRev=getHmxRev(revs);"
+                 "gAltRev=getAltRev(revs);if(IsProxy())return;",
+                 "latest CharClipSet source PostLoad prefix");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "if(gRev<0x11){bs.ReadInt();bs.ReadInt();}"
+                 "if(gRev==0xF||gRev==0x10)bs.ReadInt();",
+                 "latest CharClipSet source legacy int gates");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "if(gRev<0x18){intcount=0;for(ObjDirItr<CharClip>it("
+                 "this,true);it!=0;++it){count++;}for(inti=0;i<count;i++){",
+                 "latest CharClipSet source legacy clip triplets");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "if(gRev<0xD)Handle(filter_clips_msg,false);"
+                 "if(gRev>0x11){bs>>mCharFilePath;bs>>mPreviewClip;}"
+                 "if(gRev>0x13)bs>>mFilterFlags;if(gRev>0x14)bs>>mBpm;"
+                 "if(gRev>0x15)bs>>mPreviewWalk;if(gRev>0x16)bs>>mStillClip;",
+                 "latest CharClipSet source modern field gates");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "COPY_MEMBER(mCharFilePath)COPY_MEMBER(mPreviewClip)"
+                 "COPY_MEMBER(mFilterFlags)COPY_MEMBER(mBpm)"
+                 "COPY_MEMBER(mPreviewWalk)COPY_MEMBER(mStillClip)",
+                 "latest CharClipSet source Copy members");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::LoadCharacter(){MILO_ASSERT("
+                 "TheLoadMgr.EditMode(),0x156);deletemPreviewChar;",
+                 "latest CharClipSet source LoadCharacter prefix");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "if(mPreviewChar&&!theChar){ObjDirItr<Character>it("
+                 "mPreviewChar,true);if(it)mPreviewChar=it;}",
+                 "latest CharClipSet source LoadCharacter nested character");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::DrawShowing(){if(!mPreviewChar)return;"
+                 "mPreviewChar->DrawShowing();}",
+                 "latest CharClipSet source DrawShowing gate");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "floatCharClipSet::StartFrame(){if(mPreviewClip)return"
+                 "mPreviewClip->StartBeat();elsereturn0;}",
+                 "latest CharClipSet source StartFrame");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "floatCharClipSet::EndFrame(){if(mPreviewClip)return"
+                 "mPreviewClip->EndBeat();elsereturn0;}",
+                 "latest CharClipSet source EndFrame");
+  ok &= contains(rb3_latest_char_clip_set_cpp,
+                 "voidCharClipSet::SetBpm(intbpm){staticSymbolsBpm(\"bpm\");"
+                 "Hmx::Object*obj=ObjectDir::Main()->FindObject(\"milo\",false);"
+                 "if(obj)obj->SetProperty(sBpm,bpm);mBpm=bpm;}",
+                 "latest CharClipSet source SetBpm");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipSetState{std::stringchar_file_root;"
+                 "boolhas_preview_char=false;boolhas_preview_clip=false;"
+                 "boolhas_still_clip=false;intfilter_flags=0;intbpm=90;"
+                 "boolpreview_walk=false;boolrate_is_1_fpb=true;};",
+                 "native exposes source CharClipSet state");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipSetPostLoadPlansource_char_clip_set_post_load_plan("
+                 "int32_trevision,boolis_proxy,int32_tclip_count,booltype_null);",
+                 "native exposes source CharClipSet PostLoad plan helper");
+  ok &= contains(char_clip,
+                 "SourceCharClipSetStatesource_char_clip_set_default_state(){"
+                 "SourceCharClipSetStatestate;source_char_clip_set_reset_preview_state("
+                 "state);state.rate_is_1_fpb=true;returnstate;}",
+                 "native CharClipSet constructor helper ports source flow");
+  ok &= contains(char_clip,
+                 "voidsource_char_clip_set_reset_preview_state("
+                 "SourceCharClipSetState&state){state.char_file_root.clear();"
+                 "state.has_preview_char=false;state.has_preview_clip=false;"
+                 "state.has_still_clip=false;state.filter_flags=0;state.bpm=90;"
+                 "state.preview_walk=false;}",
+                 "native CharClipSet ResetPreviewState helper ports source fields");
+  ok &= contains(char_clip,
+                 "std::vector<SourceCharClipSetGroupStep>"
+                 "source_char_clip_set_randomize_groups(",
+                 "native exposes CharClipSet RandomizeGroups helper");
+  ok &= contains(char_clip,
+                 "SourceCharClipSetPreSaveResultsource_char_clip_set_pre_save("
+                 "SourceCharClipSetState&state,boolcached_stream)",
+                 "native exposes CharClipSet PreSave helper");
+  ok &= contains(char_clip,
+                 "SourceCharClipSetPostLoadPlan"
+                 "source_char_clip_set_post_load_plan(int32_trevision,"
+                 "boolis_proxy,int32_tclip_count,booltype_null)",
+                 "native exposes CharClipSet PostLoad plan implementation");
+  ok &= contains(char_clip,
+                 "plan.read_char_file_path=revision>0x11;"
+                 "plan.read_preview_clip=revision>0x11;"
+                 "plan.read_filter_flags=revision>0x13;"
+                 "plan.read_bpm=revision>0x14;plan.read_preview_walk="
+                 "revision>0x15;plan.read_still_clip=revision>0x16;",
+                 "native CharClipSet PostLoad helper ports modern gates");
+  ok &= contains(char_clip,
+                 "SourceCharClipSetLoadCharacterResult"
+                 "source_char_clip_set_load_character(",
+                 "native exposes CharClipSet LoadCharacter helper");
+  ok &= contains(char_clip,
+                 "constchar*source_char_clip_set_recenter_all_warning(){"
+                 "return\"YoucanonlyrecenterclipsfromPC\";}",
+                 "native CharClipSet RecenterAll helper ports warning");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_clip_set_source_test",
+                 "CMake builds CharClipSet source test");
+  ok &= contains(clip_set_source_test,
+                 "source_char_clip_set_default_state()",
+                 "focused CharClipSet test covers constructor defaults");
+  ok &= contains(clip_set_source_test,
+                 "source_char_clip_set_post_load_plan(4,false,3,false)",
+                 "focused CharClipSet test covers old PostLoad gates");
+  ok &= contains(clip_set_source_test,
+                 "source_char_clip_set_load_character(state,true,true,false,true,true)",
+                 "focused CharClipSet test covers LoadCharacter nested route");
+  ok &= contains(clip_set_source_test,
+                 "source_char_clip_set_set_bpm(state,128,true)",
+                 "focused CharClipSet test covers SetBpm helper");
+  ok &= contains(doc,
+                 "Native `source_char_clip_set_post_load_plan` ports the full",
+                 "document records native CharClipSet post-load helper");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");
