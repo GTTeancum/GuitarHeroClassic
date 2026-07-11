@@ -5232,6 +5232,25 @@ int run_contract() {
                  "COPY_MEMBER(mOpenEnd)COPY_MEMBER(mBone)COPY_MEMBER("
                  "mEccentricity)COPY_MEMBER(mCategory)COPY_MEMBER(mIgnore)",
                  "CharCuff source copy member list");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "BEGIN_HANDLERS(CharCuff)"
+                 "HANDLE_SUPERCLASS(RndTransformable)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0x1FE)"
+                 "END_HANDLERS",
+                 "CharCuff source handler chain");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "BEGIN_PROPSYNCS(CharCuff)SYNC_PROP(offset0,mShape[0].offset)"
+                 "SYNC_PROP(radius0,mShape[0].radius)"
+                 "SYNC_PROP(offset1,mShape[1].offset)"
+                 "SYNC_PROP(radius1,mShape[1].radius)"
+                 "SYNC_PROP(offset2,mShape[2].offset)"
+                 "SYNC_PROP(radius2,mShape[2].radius)"
+                 "SYNC_PROP(outer_radius,mOuterRadius)"
+                 "SYNC_PROP(open_end,mOpenEnd)SYNC_PROP(bone,mBone)"
+                 "SYNC_PROP(eccentricity,mEccentricity)"
+                 "SYNC_PROP(category,mCategory)SYNC_PROP(ignore,mIgnore)"
+                 "SYNC_SUPERCLASS(RndTransformable)END_PROPSYNCS",
+                 "CharCuff source prop-sync rows");
   ok &= contains(char_mesh_h,
                  "structSourceCharCuffState{SourceCharCuffShapeshape[3];"
                  "floatouter_radius=0.0f;boolopen_end=false;std::stringbone;",
@@ -5246,12 +5265,27 @@ int run_contract() {
                  "copied_members;};",
                  "native exposes CharCuff source copy plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharCuffHandlerPlan{"
+                 "std::vector<std::string>superclasses;intcheck=0;};",
+                 "native exposes CharCuff source handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCuffPropSyncPlan{"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes CharCuff source prop-sync plan");
+  ok &= contains(char_mesh_h,
                  "SourceCharCuffLoadPlansource_char_cuff_load_plan("
                  "intrevision);",
                  "native exposes CharCuff load-plan helper");
   ok &= contains(char_mesh_h,
                  "SourceCharCuffCopyPlansource_char_cuff_copy_plan();",
                  "native exposes CharCuff copy-plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCuffHandlerPlansource_char_cuff_handler_plan();",
+                 "native exposes CharCuff handler-plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCuffPropSyncPlansource_char_cuff_prop_sync_plan();",
+                 "native exposes CharCuff prop-sync-plan helper");
   ok &= contains(char_mesh,
                  "SourceCharCuffStatesource_char_cuff_default_state(){",
                  "native ports CharCuff default helper");
@@ -5304,6 +5338,22 @@ int run_contract() {
                  "\"mOpenEnd\",\"mBone\",\"mEccentricity\",\"mCategory\","
                  "\"mIgnore\"};",
                  "native CharCuff copy plan records source members");
+  ok &= contains(char_mesh,
+                 "SourceCharCuffHandlerPlansource_char_cuff_handler_plan(){"
+                 "SourceCharCuffHandlerPlanplan;plan.superclasses={"
+                 "\"RndTransformable\",\"Hmx::Object\"};plan.check=0x1FE;"
+                 "returnplan;}",
+                 "native CharCuff handler plan records source chain");
+  ok &= contains(char_mesh,
+                 "SourceCharCuffPropSyncPlansource_char_cuff_prop_sync_plan(){"
+                 "SourceCharCuffPropSyncPlanplan;plan.properties={\"offset0\","
+                 "\"radius0\",\"offset1\",\"radius1\",\"offset2\",\"radius2\",",
+                 "native CharCuff prop-sync plan records shape rows");
+  ok &= contains(char_mesh,
+                 "\"outer_radius\",\"open_end\",\"bone\",\"eccentricity\","
+                 "\"category\",\"ignore\"};plan.superclasses={"
+                 "\"RndTransformable\"};returnplan;}",
+                 "native CharCuff prop-sync plan records tail rows");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_cuff_source_test",
                  "CMake builds CharCuff source test");
@@ -5330,12 +5380,24 @@ int run_contract() {
   ok &= contains(cuff_source_test,
                  "source_char_cuff_copy_plan()",
                  "focused CharCuff test covers copy plan");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_handler_plan()",
+                 "focused CharCuff test covers handler plan");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_prop_sync_plan()",
+                 "focused CharCuff test covers prop-sync plan");
   ok &= contains(doc,
                  "Native `source_char_cuff_load_plan` records the source read order",
                  "document records native CharCuff load plan");
   ok &= contains(doc,
                  "Native `source_char_cuff_copy_plan` records that source copy",
                  "document records native CharCuff copy plan");
+  ok &= contains(doc,
+                 "Native `source_char_cuff_handler_plan` and",
+                 "document records native CharCuff handler/prop-sync plans");
+  ok &= contains(doc,
+                 "check value `0x1FE`, direct shape/outer/open/bone/eccentricity/category/",
+                 "document records CharCuff prop-sync source rows");
   ok &= contains(doc,
                  "Native `source_char_cuff_*` helpers port",
                  "document records native CharCuff helpers");

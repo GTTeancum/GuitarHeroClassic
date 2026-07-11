@@ -3024,6 +3024,23 @@ SourceCharCuffCopyPlan source_char_cuff_copy_plan() {
   return plan;
 }
 
+SourceCharCuffHandlerPlan source_char_cuff_handler_plan() {
+  SourceCharCuffHandlerPlan plan;
+  plan.superclasses = {"RndTransformable", "Hmx::Object"};
+  plan.check = 0x1FE;
+  return plan;
+}
+
+SourceCharCuffPropSyncPlan source_char_cuff_prop_sync_plan() {
+  SourceCharCuffPropSyncPlan plan;
+  plan.properties = {"offset0",      "radius0",      "offset1",
+                     "radius1",      "offset2",      "radius2",
+                     "outer_radius", "open_end",     "bone",
+                     "eccentricity", "category",     "ignore"};
+  plan.superclasses = {"RndTransformable"};
+  return plan;
+}
+
 float source_char_cuff_eccentricity(float x, float y, float eccentricity) {
   const float f1 = y * y;
   const float f2 = x * x;

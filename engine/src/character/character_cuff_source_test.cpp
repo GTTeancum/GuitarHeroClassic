@@ -39,7 +39,9 @@ int main() {
   using ghogx::character::source_char_cuff_copy_plan;
   using ghogx::character::source_char_cuff_default_state;
   using ghogx::character::source_char_cuff_eccentricity;
+  using ghogx::character::source_char_cuff_handler_plan;
   using ghogx::character::source_char_cuff_load_plan;
+  using ghogx::character::source_char_cuff_prop_sync_plan;
 
   bool ok = true;
 
@@ -126,6 +128,24 @@ int main() {
                     "copy member count");
   ok &= expect_string(copy_plan.copied_members[0], "mShape", "copy shape");
   ok &= expect_string(copy_plan.copied_members[6], "mIgnore", "copy ignore");
+  const auto handlers = source_char_cuff_handler_plan();
+  ok &= expect_size(handlers.superclasses.size(), 2,
+                    "handler superclass count");
+  ok &= expect_string(handlers.superclasses[0], "RndTransformable",
+                      "handler transform superclass");
+  ok &= expect_string(handlers.superclasses[1], "Hmx::Object",
+                      "handler object superclass");
+  ok &= expect_bool(handlers.check == 0x1FE, true, "handler check");
+  const auto props = source_char_cuff_prop_sync_plan();
+  ok &= expect_size(props.properties.size(), 12, "prop sync row count");
+  ok &= expect_string(props.properties[0], "offset0", "prop offset0");
+  ok &= expect_string(props.properties[1], "radius0", "prop radius0");
+  ok &= expect_string(props.properties[6], "outer_radius",
+                      "prop outer radius");
+  ok &= expect_string(props.properties[8], "bone", "prop bone");
+  ok &= expect_string(props.properties.back(), "ignore", "prop ignore");
+  ok &= expect_string(props.superclasses[0], "RndTransformable",
+                      "prop sync superclass");
 
   ok &= near(source_char_cuff_eccentricity(3.0f, 4.0f, 2.0f),
              std::sqrt(25.0f / (16.0f * 0.25f + 9.0f)),

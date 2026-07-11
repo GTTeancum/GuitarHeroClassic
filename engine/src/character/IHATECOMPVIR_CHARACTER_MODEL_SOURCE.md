@@ -1036,6 +1036,10 @@ note, and all report `unreadBytes=0`.
     rows, `mOuterRadius`, `mOpenEnd`, `mBone`, `mEccentricity`, `mCategory`,
     and `mIgnore`. Native `source_char_cuff_copy_plan` records that source copy
     list without adding a live deformation path.
+  - Native `source_char_cuff_handler_plan` and
+    `source_char_cuff_prop_sync_plan` port the visible source handler chain,
+    check value `0x1FE`, direct shape/outer/open/bone/eccentricity/category/
+    ignore property rows, and `RndTransformable` superclass.
   - Native `source_char_cuff_*` helpers port those complete source-visible data
     rules only. The deformation path, bone mask helper, and mesh callbacks are
     not promoted without source-backed stock rows or a complete runtime owner.

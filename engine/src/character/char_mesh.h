@@ -960,6 +960,16 @@ struct SourceCharCuffCopyPlan {
   std::vector<std::string> copied_members;
 };
 
+struct SourceCharCuffHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharCuffPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceCharBlendBoneConstraint {
   std::string target;
   float weight = 0.5f;
@@ -1595,6 +1605,8 @@ std::vector<SourceCharTransDrawStep> source_char_trans_draw_draw_showing(
 SourceCharCuffState source_char_cuff_default_state();
 SourceCharCuffLoadPlan source_char_cuff_load_plan(int revision);
 SourceCharCuffCopyPlan source_char_cuff_copy_plan();
+SourceCharCuffHandlerPlan source_char_cuff_handler_plan();
+SourceCharCuffPropSyncPlan source_char_cuff_prop_sync_plan();
 float source_char_cuff_eccentricity(float x, float y, float eccentricity);
 void source_char_cuff_apply_revision_defaults(SourceCharCuffState& cuff,
                                               int32_t revision,
