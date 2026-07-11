@@ -601,7 +601,7 @@ void log_char_hair_source_once(const Character& character,
       const auto& point = strand.points[point_i];
       std::fprintf(stderr,
                    "[charhair-source-point] hair=%s strand=%zu point=%zu "
-                   "bone=%s collision=%s collideType=%u "
+                   "bone=%s collision=%s collideType=%u legacyInline=loggedOnly "
                    "pos=(%.4f %.4f %.4f) len=%.4f "
                    "radius=%.4f outer=%.4f side=%.4f "
                    "unk5c=(%.4f %.4f %.4f)\n",
@@ -2898,6 +2898,7 @@ static void apply_char_hair(Character& character, float time_seconds) {
   if (debug_char_hair_enabled()) {
     std::fprintf(stderr,
                  "[charhair-source-sim] character=%s runtimeWriteback=0 "
+                 "decodedOnly=1 noResolvedPointCollides=1 "
                  "reason=awaiting-faithful-ihatecompvir-CharHair-port\n",
                  character.dir_name.c_str());
   }

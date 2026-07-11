@@ -78,6 +78,9 @@ int run_contract() {
   const std::string scene = compact(read_file(scene_dir / "milo_scene.cpp"));
   const std::string doc =
       read_file(char_dir / "IHATECOMPVIR_CHARACTER_MODEL_SOURCE.md");
+  const std::string format_notes =
+      read_file(char_dir / "CHARACTER_FORMAT_NOTES.md");
+  const std::string format_notes_compact = compact(format_notes);
   const std::string source_readme = read_file(source_dir / "README.md");
 
   const std::string object_cs = compact(read_file(
@@ -2209,6 +2212,37 @@ int run_contract() {
                 "old native CharHair skin override removed");
   ok &= missing(char_clip, "GHOGX_SOURCE_CHAR_HAIR_ROOTMAT",
                 "old CharHair root-matrix trial env gate removed");
+  ok &= contains(char_mesh_h,
+                 "sourcethenclearsPoint.collides;"
+                 "//nativelogsthesefieldsonly",
+                 "CharHair point comments keep inline collision rows decoded-only");
+  ok &= contains(char_clip, "legacyInline=loggedOnly",
+                 "CharHair source logs mark legacy inline collision rows as log-only");
+  ok &= contains(char_clip,
+                 "decodedOnly=1noResolvedPointCollides=1",
+                 "CharHair simulation log keeps zero-writeback source boundary explicit");
+  ok &= contains(format_notes,
+                 "Current native `CharHair` behavior is decode/log only.",
+                 "format notes keep current CharHair path decode/log only");
+  ok &= contains(format_notes,
+                 "Historical `GHOGX_ENABLE_CHAR_HAIR_PROBE=1` and "
+                 "`GHOGX_DISABLE_CHAR_HAIR=1`",
+                 "format notes mark old CharHair gates as historical evidence");
+  ok &= contains(format_notes_compact,
+                 "`runtimeWriteback=0`source-boundaryreason",
+                 "format notes document CharHair zero-writeback boundary");
+  ok &= contains(format_notes,
+                 "Historical PS2 hand-IK A/B toggles",
+                 "format notes mark old hand-IK toggles as historical only");
+  ok &= missing(format_notes,
+                "Native `CharHair` now polls by default",
+                "format notes must not claim native CharHair simulation is active");
+  ok &= missing(format_notes,
+                "`GHOGX_DISABLE_CHAR_HAIR=1` disables the poller",
+                "format notes must not describe removed CharHair disable gate as current");
+  ok &= missing(format_notes,
+                "logs each native `CharHair` point solve",
+                "format notes must not imply native CharHair points are solved");
   ok &= missing(char_clip, "submit_char_eyes_runtime_rows",
                 "unsupported CharEyes runtime-row bridge removed");
   ok &= missing(char_clip, "source_pos=vadd(target_pos",

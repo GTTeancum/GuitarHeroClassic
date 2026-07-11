@@ -208,8 +208,8 @@ struct CharHairPoint {
   std::string bone;
   float length = 0.0f;
   // GH2 v2 field names from ihatecompvir's CharHair source. Older revisions
-  // carry legacy inline collision rows; the native runtime does not currently
-  // publish guessed hair physics rows from them.
+  // carry legacy inline collision rows, but source then clears Point.collides;
+  // native logs these fields only and does not publish guessed physics rows.
   uint32_t collide_type = 0;
   std::string collision;
   float radius = 0.0f;

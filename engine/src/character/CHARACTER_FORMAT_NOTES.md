@@ -234,15 +234,18 @@ Community metadata Rosetta:
   glam1 capture, while `woman_f900_hair_probe_debugcam.bmp` turned rock2's
   hair into a rigid sheet across the camera. That probe wrote point rows from
   authored positions and did not reproduce the accepted PS2 strand/update path.
-- Native `CharHair` now polls by default after clip/IK/twist inputs. Runtime
-  state is stored per decoded character, initialized from the live Trans row,
-  and updated through the decoded `CharHair` graph with authored stiffness,
-  inertia, gravity, weight, friction, strand roots, point bones, segment
-  lengths, and sphere/inside-sphere collision references. The decoded
-  `point.parent` field is treated as the PS2 collision object, not as a
-  skeletal attachment parent.
-- `GHOGX_DISABLE_CHAR_HAIR=1` disables the poller for A/B validation.
-  `GHOGX_DEBUG_CHAR_HAIR=1` logs each solved point row.
+- Current native `CharHair` behavior is decode/log only. ihatecompvir's
+  `CharHair::Load` consumes the GH2 revision-2 legacy inline collision fields,
+  then clears `Point.collides`; the checked source also lacks the overloaded
+  collision-list `Hookup(ObjPtrList<CharCollide>&)` body needed to populate the
+  runtime point collide list. Native therefore logs decoded stiffness, inertia,
+  gravity, weight, friction, strand roots, point bones, segment lengths, legacy
+  inline collision names/types, and `unk5c` rows, but keeps
+  `runtimeWriteback=0` until that source path is ported.
+- Historical `GHOGX_ENABLE_CHAR_HAIR_PROBE=1` and `GHOGX_DISABLE_CHAR_HAIR=1`
+  captures remain useful rejected evidence, but those gates are not current
+  runtime controls. `GHOGX_DEBUG_CHAR_HAIR=1` logs decoded source rows and the
+  zero-writeback reason; it does not mean a solved hair simulation is active.
 
 Head-local attachment hair:
 
@@ -2426,23 +2429,19 @@ Useful environment flags:
   no-clip bind pose is unexpectedly non-identity.
 - `GHOGX_SKIN_MATRIX_MODE=<mode>`: diagnostic matrix override. Keep unset for
   normal rendering.
-- `GHOGX_DEBUG_CHAR_HAIR=1`: logs each native `CharHair` point solve, including
-  hair object name, point bone, root, collision ref, mode, anchor, live row,
-  solved row, length, and dt.
+- `GHOGX_DEBUG_CHAR_HAIR=1`: logs decoded native `CharHair` source rows,
+  including hair object name, strand root, point bone, legacy inline collision
+  ref/type, length/radius/side fields, `unk5c`, and the
+  `runtimeWriteback=0` source-boundary reason.
 - `GHOGX_DISABLE_CHAR_HAIR=1`: historical only; the unsupported native
   `CharHair` poller gate was removed when ihatecompvir's `CharHair.cpp`
   became the active source authority.
-- `GHOGX_DISABLE_PS2_IK_HANDS=1`: disables the traced-shape `CharIKHand`
-  default path for A/B validation against the old detached-hand baseline. The
-  normal path follows the SLUS `0x0017a080` hand/fore/upper dataflow.
-- `GHOGX_ENABLE_PS2_IK_HAND_POS=1`: diagnostic only. The traced experiment
-  already writes final hand rows when `orientation` or `stretch` are set.
-- `GHOGX_DISABLE_PS2_IK_HAND_FINAL=1`: disables the traced final hand Trans
-  write for A/B validation.
-- `GHOGX_PS2_IK_POSTMULTIPLY_SWING=1` /
-  `GHOGX_PS2_IK_TRANSPOSE_SWING=1`: diagnostic upper-swing matrix-order
-  variants. Leave unset unless comparing a specific native mismatch. The
-  traced-shape `CharIKHand` path uses premultiply row order by default.
+- Historical PS2 hand-IK A/B toggles such as `GHOGX_DISABLE_PS2_IK_HANDS`,
+  `GHOGX_ENABLE_PS2_IK_HAND_POS`, `GHOGX_DISABLE_PS2_IK_HAND_FINAL`,
+  `GHOGX_PS2_IK_POSTMULTIPLY_SWING`, and `GHOGX_PS2_IK_TRANSPOSE_SWING` have
+  been removed from the current source-backed hand path. The normal path now
+  follows the decoded `CharIKHand`, `CharForeTwist`, and `CharUpperTwist`
+  controller rows directly; do not reintroduce those gates as a hidden fix.
 
 2026-06-14 arm/hand IK validation:
 
