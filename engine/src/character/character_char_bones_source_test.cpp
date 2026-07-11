@@ -291,5 +291,47 @@ int main() {
   ok &= expect_string(dir_bones[1].name, "bone_hand.rotz",
                       "CharBoneDir delegated rotation with no facing");
 
+  SourceCharBonesSamplesState samples =
+      source_char_bones_samples_empty_state();
+  ok &= expect_int(samples.num_samples, 0, "samples default num");
+  ok &= expect_int(samples.preview_sample, 0, "samples default preview");
+  ok &= expect_int(samples.start_offset, 0, "samples default start");
+  ok &= expect_int(source_char_bones_samples_allocate_size(samples), 0,
+                   "samples default allocation");
+  ok &= expect_int(source_char_bones_samples_set_preview(samples, 2) ? 1 : 0, 0,
+                   "samples empty preview rejected");
+  samples.bones.layout.total_size = 32;
+  samples.num_samples = 4;
+  ok &= expect_int(source_char_bones_samples_allocate_size(samples), 128,
+                   "samples allocation");
+  ok &= expect_int(source_char_bones_samples_set_preview(samples, 2) ? 1 : 0, 1,
+                   "samples preview accepted");
+  ok &= expect_int(samples.preview_sample, 2, "samples preview middle");
+  ok &= expect_int(samples.start_offset, 64, "samples preview offset");
+  ok &= expect_int(source_char_bones_samples_set_preview(samples, -3) ? 1 : 0,
+                   1, "samples preview low accepted");
+  ok &= expect_int(samples.preview_sample, 0, "samples preview low clamp");
+  ok &= expect_int(samples.start_offset, 0, "samples preview low offset");
+  ok &= expect_int(source_char_bones_samples_set_preview(samples, 99) ? 1 : 0,
+                   1, "samples preview high accepted");
+  ok &= expect_int(samples.preview_sample, 3, "samples preview high clamp");
+  ok &= expect_int(samples.start_offset, 96, "samples preview high offset");
+  const std::vector<SourceCharBonesSampleStep> one_step =
+      source_char_bones_samples_split_steps(samples, 1, 0.8f, 0.0f);
+  ok &= expect_size(one_step.size(), 1, "samples split single count");
+  ok &= expect_int(one_step[0].start_offset, 32, "samples split single offset");
+  ok &= expect_float(one_step[0].weight, 0.8f, "samples split single weight");
+  const std::vector<SourceCharBonesSampleStep> two_steps =
+      source_char_bones_samples_split_steps(samples, 1, 1.0f, 0.25f);
+  ok &= expect_size(two_steps.size(), 2, "samples split blended count");
+  ok &= expect_int(two_steps[0].start_offset, 32,
+                   "samples split blended first offset");
+  ok &= expect_float(two_steps[0].weight, 0.75f,
+                     "samples split blended first weight");
+  ok &= expect_int(two_steps[1].start_offset, 64,
+                   "samples split blended second offset");
+  ok &= expect_float(two_steps[1].weight, 0.25f,
+                     "samples split blended second weight");
+
   return ok ? 0 : 1;
 }

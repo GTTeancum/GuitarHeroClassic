@@ -49,6 +49,19 @@ struct SourceCharBonesState {
   std::vector<SourceCharBonesBone> bones;
 };
 
+struct SourceCharBonesSamplesState {
+  SourceCharBonesState bones;
+  int num_samples = 0;
+  int preview_sample = 0;
+  int start_offset = 0;
+  std::vector<float> frames;
+};
+
+struct SourceCharBonesSampleStep {
+  int start_offset = 0;
+  float weight = 0.0f;
+};
+
 // One channel value for one frame.
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
@@ -257,6 +270,18 @@ void source_char_bone_dir_list_bones(
     int context_mask,
     bool include_delta_facing,
     std::vector<SourceCharBonesBone>& bones);
+
+// Source-backed CharBonesSamples state helpers.
+SourceCharBonesSamplesState source_char_bones_samples_empty_state();
+int source_char_bones_samples_allocate_size(
+    const SourceCharBonesSamplesState& samples);
+bool source_char_bones_samples_set_preview(
+    SourceCharBonesSamplesState& samples, int requested_sample);
+std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
+    const SourceCharBonesSamplesState& samples,
+    int sample,
+    float weight,
+    float frac);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

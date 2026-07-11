@@ -891,6 +891,14 @@ note, and all report `unreadBytes=0`.
     delegates to `LoadHeader` and `LoadData`.
   - `SetPreview` clamps the preview sample and points `mStart` at the selected
     packed row.
+  - Native `source_char_bones_samples_allocate_size`,
+    `source_char_bones_samples_set_preview`, and
+    `source_char_bones_samples_split_steps` port those complete state/offset
+    bodies for valid sample rows: allocation is `totalSize * numSamples`,
+    preview stores the clamped sample and selected row offset, and split steps
+    report the source `i` / `i + 1` row offsets and `(1 - frac)` / `frac`
+    weights. Empty sample rows remain fenced because the source body assumes an
+    allocated packed row buffer.
 - `rb3-latest/src/system/char/CharClip.cpp` is concrete for clip resource
   context, `StuffBones`, `PoseMeshes`, play/clip flags, beat-event loading, and
   `full`/`one` property sync. It declares or calls the broad pose math, but the

@@ -2569,6 +2569,15 @@ int run_contract() {
                  "std::vector<SourceCharBonesBone>bones;};",
                  "native API exposes source CharBones state row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBonesSamplesState{SourceCharBonesStatebones;"
+                 "intnum_samples=0;intpreview_sample=0;intstart_offset=0;"
+                 "std::vector<float>frames;};",
+                 "native API exposes source CharBonesSamples state row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesSampleStep{intstart_offset=0;"
+                 "floatweight=0.0f;};",
+                 "native API exposes source CharBonesSamples sample step row");
+  ok &= contains(char_clip_h,
                  "SourceCharBonesLayoutsource_char_bones_recompute_layout("
                  "conststd::array<int,kSourceCharBonesTypeEnd+1>&counts,"
                  "intcompression);",
@@ -2597,6 +2606,24 @@ int run_contract() {
                  "constSourceCharBonesState&state,"
                  "std::vector<SourceCharBonesBone>&bones);",
                  "native API exposes source CharBones ListBones helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesSamplesState"
+                 "source_char_bones_samples_empty_state();",
+                 "native API exposes source CharBonesSamples empty-state helper");
+  ok &= contains(char_clip_h,
+                 "intsource_char_bones_samples_allocate_size("
+                 "constSourceCharBonesSamplesState&samples);",
+                 "native API exposes source CharBonesSamples AllocateSize helper");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_bones_samples_set_preview("
+                 "SourceCharBonesSamplesState&samples,intrequested_sample);",
+                 "native API exposes source CharBonesSamples SetPreview helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<SourceCharBonesSampleStep>"
+                 "source_char_bones_samples_split_steps("
+                 "constSourceCharBonesSamplesState&samples,intsample,"
+                 "floatweight,floatfrac);",
+                 "native API exposes source CharBonesSamples split-step helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_type_of(conststd::string&channel)",
                  "native clip decoder ports source CharBones type helper");
@@ -2659,6 +2686,35 @@ int run_contract() {
                  "bones.push_back(bone);}}",
                  "native CharBones ListBones helper appends source rows in order");
   ok &= contains(char_clip,
+                 "SourceCharBonesSamplesState"
+                 "source_char_bones_samples_empty_state(){"
+                 "returnSourceCharBonesSamplesState{};}",
+                 "native CharBonesSamples empty-state helper mirrors source constructor");
+  ok &= contains(char_clip,
+                 "intsource_char_bones_samples_allocate_size("
+                 "constSourceCharBonesSamplesState&samples){return"
+                 "samples.bones.layout.total_size*samples.num_samples;}",
+                 "native CharBonesSamples AllocateSize helper mirrors source multiplication");
+  ok &= contains(char_clip,
+                 "boolsource_char_bones_samples_set_preview("
+                 "SourceCharBonesSamplesState&samples,intrequested_sample){"
+                 "if(samples.num_samples<=0)returnfalse;constintlast="
+                 "samples.num_samples-1;constintclamped=std::max(0,"
+                 "std::min(last,requested_sample));samples.preview_sample="
+                 "clamped;samples.start_offset=samples.bones.layout.total_size*"
+                 "clamped;returntrue;}",
+                 "native CharBonesSamples SetPreview helper mirrors source offset");
+  ok &= contains(char_clip,
+                 "std::vector<SourceCharBonesSampleStep>"
+                 "source_char_bones_samples_split_steps("
+                 "constSourceCharBonesSamplesState&samples,intsample,"
+                 "floatweight,floatfrac){std::vector<SourceCharBonesSampleStep>"
+                 "steps;steps.push_back({samples.bones.layout.total_size*sample,"
+                 "(1.0f-frac)*weight});if(frac>0.0f){steps.push_back({"
+                 "samples.bones.layout.total_size*(sample+1),frac*weight});}"
+                 "returnsteps;}",
+                 "native CharBonesSamples split-step helper mirrors source row offsets");
+  ok &= contains(char_clip,
                  "SourceCharBones::ChannelNameusesthefirstdot",
                  "native suffix strip follows source first-dot rule");
   ok &= contains(char_bones_source_test,
@@ -2697,6 +2753,18 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_set_weights(bones,0.0f);",
                  "focused CharBones source test covers static SetWeights");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_empty_state()",
+                 "focused CharBones source test covers CharBonesSamples constructor state");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_allocate_size(samples)",
+                 "focused CharBones source test covers CharBonesSamples AllocateSize");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_set_preview(samples,99)",
+                 "focused CharBones source test covers CharBonesSamples preview clamp");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_split_steps(samples,1,1.0f,0.25f)",
+                 "focused CharBones source test covers CharBonesSamples split steps");
   ok &= missing(char_clip, "GHOGX_AXIS_ROT_NO_PI",
                 "old no-pi axis-rotation diagnostic removed from decoder");
   ok &= missing(char_clip, "GHOGX_FILE_ORDER_CLIP_SAMPLES",
@@ -3081,6 +3149,13 @@ int run_contract() {
                  "voidRelativize(CharClip*);voidEvaluateChannel(void*,int,int,float);"
                  "intFracToSample(float*)const;",
                  "latest CharBonesSamples header exposes sample runtime boundary");
+  ok &= contains(rb3_latest_char_bones_samples_h,
+                 "intAllocateSize(){returnmTotalSize*mNumSamples;}",
+                 "latest CharBonesSamples header defines AllocateSize");
+  ok &= contains(rb3_latest_char_bones_samples_cpp,
+                 "CharBonesSamples::CharBonesSamples():mNumSamples(0),"
+                 "mPreviewSample(0),mRawData(0){}",
+                 "latest CharBonesSamples source defines constructor state");
   ok &= contains(rb3_latest_char_bones_samples_cpp,
                  "voidCharBonesSamples::RotateTo(CharBones&bones,floatf1,inti,"
                  "floatf2){mStart=&mRawData[mTotalSize*i];CharBones::RotateTo"
@@ -3098,6 +3173,20 @@ int run_contract() {
                  "MILO_ASSERT(gVer>12&&gVer<=VER,0x2A0);LoadHeader(bs);"
                  "LoadData(bs);}",
                  "latest CharBonesSamples source exposes Load delegation");
+  ok &= contains(rb3_latest_char_bones_samples_cpp,
+                 "voidCharBonesSamples::SetPreview(inti){inttmp=Clamp(0,"
+                 "mNumSamples-1,i);MILO_ASSERT(mPreviewSample<32767,0x38B);"
+                 "mPreviewSample=tmp;mStart=&mRawData[mTotalSize*tmp];}",
+                 "latest CharBonesSamples source defines preview row offset");
+  ok &= contains(doc,
+                 "Native `source_char_bones_samples_allocate_size`,",
+                 "document records native CharBonesSamples state helpers");
+  ok &= contains(doc,
+                 "preview stores the clamped sample and selected row offset",
+                 "document records source CharBonesSamples preview offset");
+  ok &= contains(doc,
+                 "Empty sample rows remain fenced",
+                 "document records native CharBonesSamples zero-sample fence");
   ok &= missing(rb3_latest_char_bones_samples_cpp,
                 "voidCharBonesSamples::LoadHeader(",
                 "latest CharBonesSamples source does not expose LoadHeader body");

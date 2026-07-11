@@ -241,6 +241,40 @@ void source_char_bone_dir_list_bones(
   }
 }
 
+SourceCharBonesSamplesState source_char_bones_samples_empty_state() {
+  return SourceCharBonesSamplesState{};
+}
+
+int source_char_bones_samples_allocate_size(
+    const SourceCharBonesSamplesState& samples) {
+  return samples.bones.layout.total_size * samples.num_samples;
+}
+
+bool source_char_bones_samples_set_preview(
+    SourceCharBonesSamplesState& samples, int requested_sample) {
+  if (samples.num_samples <= 0) return false;
+  const int last = samples.num_samples - 1;
+  const int clamped = std::max(0, std::min(last, requested_sample));
+  samples.preview_sample = clamped;
+  samples.start_offset = samples.bones.layout.total_size * clamped;
+  return true;
+}
+
+std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
+    const SourceCharBonesSamplesState& samples,
+    int sample,
+    float weight,
+    float frac) {
+  std::vector<SourceCharBonesSampleStep> steps;
+  steps.push_back(
+      {samples.bones.layout.total_size * sample, (1.0f - frac) * weight});
+  if (frac > 0.0f) {
+    steps.push_back(
+        {samples.bones.layout.total_size * (sample + 1), frac * weight});
+  }
+  return steps;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
