@@ -2283,6 +2283,26 @@ int run_contract() {
                  "historical Glam1 wrist render-path trial",
                  "old hairRender wrist proof is marked historical");
   ok &= contains(format_notes,
+                 "Historical 2026-06-15 Glam1 hair render-state route",
+                 "old no-zwrite Glam1 hair route is marked historical");
+  ok &= contains(format_notes,
+                 "historical runtime row bridge trial",
+                 "old CharHair runtime row bridge is marked historical");
+  ok &= contains(format_notes_compact,
+                 "side-profilearm/neckposture",
+                 "Rock1/Rock2 side-profile posture remains unsigned-off");
+  ok &= contains(format_notes,
+                 "direct-app side-profile recheck in\n"
+                 "  `analysis/rock_regression_recheck_20260710/` still reads",
+                 "Rock1/Rock2 side-profile regression evidence is recorded");
+  ok &= contains(format_notes,
+                 "bind-pose\n  control pair in the same folder is upright",
+                 "Rock1/Rock2 bind-pose control narrows issue to clip/controller stack");
+  ok &= contains(format_notes,
+                 "Do not sign off Rock1/Rock2 side-profile arm/neck\n"
+                 "  posture until the `CharClipSamples` / `CharBonesSamples`",
+                 "Rock1/Rock2 posture signoff stays fenced to source-backed clip path");
+  ok &= contains(format_notes,
                  "Current source-truth no longer keeps a\n  `hairRender` branch",
                  "format notes keep hairRender branch out of current source truth");
   ok &= contains(format_notes,
@@ -2350,6 +2370,21 @@ int run_contract() {
   ok &= missing(format_notes,
                 "Glam1 wrist isolate promoted a narrow render-path correction",
                 "format notes must not describe old hairRender trial as promoted");
+  ok &= missing(format_notes,
+                "Promoted 2026-06-15 Glam1 hair route",
+                "format notes must not describe old no-zwrite hair route as promoted");
+  ok &= missing(format_notes,
+                "accepted renderer fix is to draw blended hair materials with depth writes\n  disabled",
+                "format notes must not promote hair-name no-zwrite behavior");
+  ok &= missing(format_notes,
+                "native now stores a runtime world row",
+                "format notes must not claim removed CharHair runtime row bridge is live");
+  ok &= missing(format_notes,
+                "lets hair skinning consume it",
+                "format notes must not claim removed hairOverride bridge is live");
+  ok &= missing(format_notes,
+                "no current attached-guitar Rock arm regression was found",
+                "format notes must not sign off Rock1/Rock2 arm posture from front-only proof");
   ok &= missing(char_clip, "submit_char_eyes_runtime_rows",
                 "unsupported CharEyes runtime-row bridge removed");
   ok &= missing(char_clip, "source_pos=vadd(target_pos",

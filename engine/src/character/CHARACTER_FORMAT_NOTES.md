@@ -332,13 +332,14 @@ Glam1 hair:
   source groups only. Do not treat the decoded groups as runtime writeback until
   the missing ihatecompvir `CharHair` hookup/collide-list path is ported.
 - Single-point `CharHair` groups are follow/controller rows, not simulated
-  chains. Native must not solve them back toward the collision primitive or
-  write a new local transform from the solver. Accepted PS2 row evidence from
+  chains. Current native must not solve them back toward the collision
+  primitive or write a new local/world transform from a solver. Accepted PS2
+  row evidence from
   `pcsx2_hair_eye_active_rows_20260611.json` showed Glam1 child/root rows
   moving in later/world row bands while the sampled local row band for
-  `bone_hair01.mesh` and `bone_bangL.mesh` stayed stable. Native keeps those
-  points follow-only; single-point local-row writes and single-point physics
-  simulation are rejected probes, not the Glam1 hair fix.
+  `bone_hair01.mesh` and `bone_bangL.mesh` stayed stable. Current source-truth
+  keeps those rows decoded/logged only; single-point local-row writes and
+  single-point physics simulation are rejected probes, not the Glam1 hair fix.
 - Rejected Glam1 hair routes: disabling local hair attachment shaved the hair
   sheets off the head (`shout_glam1_localhair_disabled_f900.bmp`), and forcing
   the hair material through per-mesh bind skinning dragged a sheet sideways
@@ -369,15 +370,17 @@ Glam1 hair:
     the face.
   - `shout_glam1_sim_single_hair_f900.bmp`: running the normal physics solver
     on the single-point groups lowered the sheets but over-covered the face.
-  Keep single-point groups follow-only until a PS2 trace gives final named
-  hair-bone rows for the matching in-song moment.
-- Promoted 2026-06-15 Glam1 hair route:
+  Keep single-point solver/writeback disabled until the ihatecompvir source
+  runtime path is complete.
+- Historical 2026-06-15 Glam1 hair render-state route:
   `shout_glam1_iso_hair_side_mesh_f900.bmp` and
   `shout_glam1_iso_hair_bottom_mesh_f900.bmp` isolated the visibly detached
   class to the blended weighted hair sheets, while `glam1_hair.tex.bmp` proved
   the texture alpha is mostly opaque with a small authored cutout range. The
-  accepted renderer fix is to draw blended hair materials with depth writes
-  disabled while keeping alpha test/blend enabled. Validation:
+  old branch treated this as a renderer fix that drew blended hair materials
+  with depth writes disabled while keeping alpha test/blend enabled. Current
+  source-truth instead uses decoded `RndMat` alpha/z/wrap state and keeps hair
+  policy limited to two-sided culling. Historical validation:
   `engine/out/native_song_20260615/shout_glam1_hair_nozwrite_final_f900.bmp`
   and `.log`. This improves hair-card self-layering; it is not a claim that
   every Glam1 hair shape is final.
@@ -391,19 +394,20 @@ Glam1 hair:
   `hair-side.mesh`/`hair-top.mesh` are Mesh entries only; the live controller
   rows named in the accepted trace are `bone_hair01.mesh`, `bone_bangL.mesh`,
   `bone_bangR.mesh`, plus parent rows such as `bone_head.mesh` and
-  `bone_neck.mesh`. The remaining Glam1 hair fix must feed the traced
-  world-row CharHair result into skinning for those controller bones; do not
-  solve this by hiding sheets, per-mesh offsets, or changing draw order again.
-- 2026-06-15 runtime row bridge:
-  native now stores a runtime world row for each active `CharHair` point and
-  lets hair skinning consume it for matching controller bones. Validation
+  `bone_neck.mesh`. The remaining evidence gap is the ihatecompvir `CharHair`
+  runtime consumer for those controller bones; do not solve this by hiding
+  sheets, per-mesh offsets, or changing draw order again.
+- 2026-06-15 historical runtime row bridge trial:
+  a removed branch stored a runtime world row for each active `CharHair` point
+  and let hair skinning consume it for matching controller bones. Validation
   `shout_glam1_hair_runtimeworld_default_f900.bmp` is hash-stable against the
   previous promoted player-visible frame, and
   `shout_glam1_hair_runtimeworld_skinmatrix_f60.log` proves weighted Glam1
   hair sheets see `hairOverride=1` for `bone_hair01.mesh`,
   `bone_bangL.mesh`, and `bone_bangR.mesh`. The same log also shows the
   current local-attachment matrix collapses to identity for those pieces, so
-  this is structural plumbing only, not a completed visual hair fix.
+  this was structural plumbing only, not a completed visual hair fix. Current
+  native CharHair remains `runtimeWriteback=0`.
 - 2026-06-15 rejected skin-matrix probes:
   global `GHOGX_DISABLE_LOCAL_HAIR_ATTACHMENT=1` runs under
   `engine/out/native_song_20260615/hair_formula_probe/` with
@@ -5069,9 +5073,9 @@ Viewer hand-overlay validation:
   prop, then live `CharIKHand`, `CharForeTwist`, decode-only `CharHair`, and
   `CharUpperTwist` in the accepted source-backed cadence. No post-`96f64b5`
   runtime arm-solver change was found.
-- This recheck does not sign off Rock1/Rock2 hair/card placement. It only
-  records that no current attached-guitar Rock arm regression was found in the
-  source-backed viewer path.
+- This recheck does not sign off Rock1/Rock2 hair/card placement or side-profile
+  arm/neck posture. It only records that the front attached-guitar path did not
+  expose a post-`96f64b5` runtime arm-solver change.
 - Follow-up user review rejected the visual premise above: the latest debug
   full-body captures did read as a Rock1/Rock2 head/neck posture regression
   compared with the earlier front set. The root cause found on recheck was the
@@ -5098,3 +5102,14 @@ Viewer hand-overlay validation:
   head. Treat the neck/shoulder read as clip-frame dependent until an original
   GH2 runtime capture chooses the exact review frame. No post-`96f64b5`
   runtime arm-solver change was found in this recheck.
+- The direct-app side-profile recheck in
+  `analysis/rock_regression_recheck_20260710/` still reads as a Rock1/Rock2
+  forward-neck/arm posture problem in the active main-clip pose. The bind-pose
+  control pair in the same folder is upright, so the visible issue is introduced
+  by the clip/controller stack rather than static mesh decode. A direct
+  ihatecompvir `CharUpperTwist.cpp` comparison found the native upper-twist
+  row/position behavior already matches that source file, so no twist patch was
+  promoted from this pass. Do not sign off Rock1/Rock2 side-profile arm/neck
+  posture until the `CharClipSamples` / `CharBonesSamples` / driver sample path
+  is source-backed further or an original GH2 runtime capture proves the exact
+  reviewed frame.
