@@ -55,6 +55,8 @@ namespace ghogx::character {
 // Strip ".pos"/".quat"/etc to bone base name. Defined below; forward-declared
 // so the anonymous-namespace parser can use it.
 std::string strip_suffix(const std::string& channel);
+static void source_rotate_about_z_vec(float v[3], float angle);
+static float source_limit_ang(float radians);
 
 int source_char_bones_type_of(const std::string& channel) {
   const size_t dot = channel.find('.');
@@ -803,6 +805,23 @@ std::vector<std::string> source_char_utl_reset_transform_names(
 std::vector<std::string> source_char_utl_reset_hair_names(
     const std::vector<std::string>& hair_names) {
   return hair_names;
+}
+
+void source_char_utl_clip_predict(SourceCharUtlClipPredictState& state,
+                                  const SourceCharUtlClipPredictFrame& first,
+                                  const SourceCharUtlClipPredictFrame& second) {
+  float delta[3] = {second.facing_pos[0] - first.facing_pos[0],
+                    second.facing_pos[1] - first.facing_pos[1],
+                    second.facing_pos[2] - first.facing_pos[2]};
+  source_rotate_about_z_vec(delta,
+                            source_limit_ang(state.ang - first.facing_rot));
+  state.pos[0] += delta[0];
+  state.pos[1] += delta[1];
+  state.pos[2] += delta[2];
+  state.last_pos = second.facing_pos;
+  state.last_ang = second.facing_rot;
+  state.ang = source_limit_ang(
+      state.ang + source_limit_ang(second.facing_rot - first.facing_rot));
 }
 
 SourceCharLookAtBounds source_char_lookat_sync_limits(

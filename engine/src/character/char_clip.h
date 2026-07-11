@@ -248,6 +248,18 @@ struct SourceCharUtlTransformRow {
   bool has_parent = false;
 };
 
+struct SourceCharUtlClipPredictFrame {
+  std::array<float, 3> facing_pos = {0.0f, 0.0f, 0.0f};
+  float facing_rot = 0.0f;
+};
+
+struct SourceCharUtlClipPredictState {
+  std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
+  float ang = 0.0f;
+  std::array<float, 3> last_pos = {0.0f, 0.0f, 0.0f};
+  float last_ang = 0.0f;
+};
+
 struct SourceCharLookAtBounds {
   std::array<float, 3> min = {0.0f, 0.0f, 0.0f};
   std::array<float, 3> max = {0.0f, 0.0f, 0.0f};
@@ -1268,6 +1280,9 @@ std::vector<std::string> source_char_utl_reset_transform_names(
     const std::vector<SourceCharUtlTransformRow>& transforms);
 std::vector<std::string> source_char_utl_reset_hair_names(
     const std::vector<std::string>& hair_names);
+void source_char_utl_clip_predict(SourceCharUtlClipPredictState& state,
+                                  const SourceCharUtlClipPredictFrame& first,
+                                  const SourceCharUtlClipPredictFrame& second);
 
 // Source-backed CharLookAt::SyncLimits helper. Angles are serialized in degrees.
 SourceCharLookAtBounds source_char_lookat_sync_limits(

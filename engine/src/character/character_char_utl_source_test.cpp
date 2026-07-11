@@ -1,5 +1,7 @@
 #include "character/char_clip.h"
 
+#include <array>
+#include <cmath>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -39,6 +41,13 @@ bool expect_size(size_t got, size_t expected, const char* label) {
   return false;
 }
 
+bool expect_near(float got, float expected, const char* label) {
+  if (std::fabs(got - expected) <= 0.0001f) return true;
+  std::cerr << label << ": got " << got << " expected near " << expected
+            << "\n";
+  return false;
+}
+
 ghogx::character::SourceCharUtlObject obj(
     const std::string& name,
     ghogx::character::SourceCharUtlObjectKind kind,
@@ -55,7 +64,11 @@ ghogx::character::SourceCharUtlObject obj(
 }  // namespace
 
 int main() {
+  constexpr float kPi = 3.14159265358979323846f;
+
   using ghogx::character::SourceCharUtlBoneTransResult;
+  using ghogx::character::SourceCharUtlClipPredictFrame;
+  using ghogx::character::SourceCharUtlClipPredictState;
   using ghogx::character::SourceCharUtlMergeBone;
   using ghogx::character::SourceCharUtlMergeResult;
   using ghogx::character::SourceCharUtlObject;
@@ -66,6 +79,7 @@ int main() {
   using ghogx::character::kSourceCharBonesTypeRotY;
   using ghogx::character::kSourceCharBonesTypeRotZ;
   using ghogx::character::source_char_utl_bone_saver_capture_names;
+  using ghogx::character::source_char_utl_clip_predict;
   using ghogx::character::source_char_utl_find_bone;
   using ghogx::character::source_char_utl_find_bone_trans;
   using ghogx::character::source_char_utl_is_animatable;
@@ -245,6 +259,36 @@ int main() {
   ok &= expect_string(reset_hair[0], "hair_front1.hair",
                       "ResetHair first row");
   ok &= expect_string(reset_hair[1], "scarf.hair", "ResetHair second row");
+
+  SourceCharUtlClipPredictState predict_state;
+  predict_state.pos = {10.0f, 0.0f, 1.0f};
+  predict_state.ang = kPi * 0.5f;
+  const SourceCharUtlClipPredictFrame predict_first{{1.0f, 2.0f, 3.0f},
+                                                    0.0f};
+  const SourceCharUtlClipPredictFrame predict_second{{2.0f, 2.0f, 5.0f},
+                                                     kPi * 0.5f};
+  source_char_utl_clip_predict(predict_state, predict_first, predict_second);
+  ok &= expect_near(predict_state.pos[0], 10.0f,
+                    "ClipPredict rotated position x");
+  ok &= expect_near(predict_state.pos[1], 1.0f,
+                    "ClipPredict rotated position y");
+  ok &= expect_near(predict_state.pos[2], 3.0f,
+                    "ClipPredict position z");
+  ok &= expect_near(predict_state.ang, kPi, "ClipPredict angle advance");
+  ok &= expect_near(predict_state.last_pos[0], 2.0f,
+                    "ClipPredict last position x");
+  ok &= expect_near(predict_state.last_pos[1], 2.0f,
+                    "ClipPredict last position y");
+  ok &= expect_near(predict_state.last_pos[2], 5.0f,
+                    "ClipPredict last position z");
+  ok &= expect_near(predict_state.last_ang, kPi * 0.5f,
+                    "ClipPredict last angle");
+
+  SourceCharUtlClipPredictState wrap_state;
+  wrap_state.ang = 3.0f;
+  source_char_utl_clip_predict(wrap_state, {{{0.0f, 0.0f, 0.0f}}, 3.0f},
+                               {{{0.0f, 0.0f, 0.0f}}, -3.0f});
+  ok &= expect_near(wrap_state.ang, -3.0f, "ClipPredict wraps angle");
 
   return ok ? 0 : 1;
 }

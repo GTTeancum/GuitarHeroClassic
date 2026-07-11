@@ -1692,6 +1692,14 @@ note, and all report `unreadBytes=0`.
     parent, and `CharUtlResetHair` calls `Enter()` for every `CharHair` row
     under the character. Native deterministic helpers cover those selection
     rules without changing runtime pose or render behavior.
+  - `ClipPredict` binds `bone_facing.rotz` and `bone_facing.pos`. Its
+    `Predict` body evaluates the two requested frames, rotates the second-minus-
+    first position delta by `LimitAng(mAng - firstAngle)`, adds that to `mPos`,
+    records the second frame as `mLastPos` / `mLastAng`, then advances `mAng`
+    by `LimitAng(secondAngle - firstAngle)` and wraps it again. Native
+    `source_char_utl_clip_predict` ports that math against explicit sampled
+    frame inputs; it does not claim the still-fenced `CharClip::EvaluateChannel`
+    body.
 - `rb3-latest/src/system/char/CharBones.cpp` is concrete for channel identity
   and byte layout:
   - `CharBones::TypeOf` maps suffixes `.pos`, `.scale`, `.quat`, `.rotx`,

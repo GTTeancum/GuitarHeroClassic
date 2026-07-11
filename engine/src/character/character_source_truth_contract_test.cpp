@@ -9530,6 +9530,18 @@ int run_contract() {
   ok &= contains(rb3_latest_char_utl_cpp,
                  "returnstrncmp(trans->Name(),\"spot_\",5)!=0;",
                  "latest CharUtl source rejects spot_ transforms");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "ClipPredict::ClipPredict(CharClip*clip,constVector3&pos,"
+                 "floatang):mClip(0){SetClip(clip);mPos=pos;mAng=ang;",
+                 "latest CharUtl source exposes ClipPredict constructor");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "mAngChannel=clip->GetChannel(\"bone_facing.rotz\");"
+                 "mPosChannel=clip->GetChannel(\"bone_facing.pos\");",
+                 "latest CharUtl source binds ClipPredict facing channels");
+  ok &= contains(rb3_latest_char_utl_cpp,
+                 "Subtract(mLastPos,v34,v34);RotateAboutZ(v34,norm,v34);"
+                 "mPos+=v34;",
+                 "latest CharUtl source rotates ClipPredict position delta");
   ok &= contains(char_clip_h,
                  "enumclassSourceCharUtlObjectKind{",
                  "native header exposes CharUtl object kind model");
@@ -9558,6 +9570,10 @@ int run_contract() {
   ok &= contains(char_clip_h,
                  "std::vector<std::string>source_char_utl_reset_hair_names(",
                  "native header exposes CharUtl ResetHair helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_utl_clip_predict("
+                 "SourceCharUtlClipPredictState&state,",
+                 "native header exposes CharUtl ClipPredict helper");
   ok &= contains(char_clip,
                  "std::stringsource_char_utl_name_with_suffix("
                  "conststd::string&name,conststd::string&suffix){"
@@ -9609,6 +9625,14 @@ int run_contract() {
                  "std::vector<std::string>source_char_utl_reset_hair_names("
                  "conststd::vector<std::string>&hair_names){returnhair_names;}",
                  "native CharUtl ResetHair enters each hair row");
+  ok &= contains(char_clip,
+                 "source_rotate_about_z_vec(delta,source_limit_ang(state.ang-"
+                 "first.facing_rot));",
+                 "native CharUtl ClipPredict rotates source delta");
+  ok &= contains(char_clip,
+                 "state.ang=source_limit_ang(state.ang+source_limit_ang("
+                 "second.facing_rot-first.facing_rot));",
+                 "native CharUtl ClipPredict wraps angle advance");
   ok &= contains(char_utl_source_test,
                  "source_char_utl_name_with_suffix(\"face.bone.mesh\",\"cb\")",
                  "focused CharUtl source test covers final suffix replacement");
@@ -9640,6 +9664,10 @@ int run_contract() {
                  "source_char_utl_reset_hair_names({\"hair_front1.hair\","
                  "\"scarf.hair\"})",
                  "focused CharUtl source test covers ResetHair");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_clip_predict(predict_state,predict_first,"
+                 "predict_second)",
+                 "focused CharUtl source test covers ClipPredict math");
   ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharUtl.cpp` and",
                  "document cites latest CharUtl source");
@@ -9658,6 +9686,9 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharUtlResetHair` calls `Enter()` for every `CharHair` row",
                  "document records source CharUtl ResetHair behavior");
+  ok &= contains(doc,
+                 "`ClipPredict` binds `bone_facing.rotz` and `bone_facing.pos`",
+                 "document records source CharUtl ClipPredict channels");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "voidCharBones::ScaleAdd(CharClip*clip,floatf1,floatf2,"
                  "floatf3){clip->ScaleAdd(*this,f1,f2,f3);}",
