@@ -1389,6 +1389,13 @@ note, and all report `unreadBytes=0`.
     `CharDriver::Play` duplicate-clip gate: when `mPlayMultipleClips` is true,
     attempting to play a clip already in the stack returns without starting a
     new node. The source constructor default remains false.
+  - Native `source_char_driver_play_decision` ports the visible
+    `CharDriver::Play(CharClip*)` branch order as one deterministic state
+    decision: a missing clip only emits the source warning path, a present clip
+    writes `mLastNode` before resolving the `-1.0f` blend-width sentinel and
+    before the duplicate-clip gate, and a non-duplicate creates the new source
+    stack head. It does not allocate a live `CharClipDriver` or run the missing
+    driver `Poll` path.
   - Native `source_char_driver_first_playing_index` ports the concrete
     `CharDriver::FirstPlaying` stack scan over `mFirst` / `mNext`, returning
     the first node with nonzero `mBlendFrac`. It is intentionally a source-stack

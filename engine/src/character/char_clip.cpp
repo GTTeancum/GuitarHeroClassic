@@ -3261,6 +3261,42 @@ bool source_char_driver_should_start_clip(bool play_multiple_clips,
   return true;
 }
 
+SourceCharDriverPlayDecision source_char_driver_play_decision(
+    SourceCharDriverState& state,
+    bool found_clip,
+    bool clip_already_playing,
+    int play_flags,
+    float requested_blend_width,
+    float old_beat,
+    float start) {
+  SourceCharDriverPlayDecision decision;
+  decision.found_clip = found_clip;
+  decision.play_flags = play_flags;
+  decision.old_beat = old_beat;
+  decision.start = start;
+  decision.play_multiple_clips = state.play_multiple_clips;
+  if (!found_clip) {
+    decision.notify_missing_clip = true;
+    return decision;
+  }
+
+  state.last_node_valid = true;
+  decision.set_last_node = true;
+  decision.resolved_blend_width =
+      source_char_driver_resolve_blend_width(requested_blend_width,
+                                             state.blend_width);
+  if (!source_char_driver_should_start_clip(state.play_multiple_clips,
+                                            clip_already_playing)) {
+    decision.duplicate_clip = true;
+    return decision;
+  }
+
+  state.has_first = true;
+  decision.create_clip_driver = true;
+  decision.new_stack_head = true;
+  return decision;
+}
+
 std::optional<size_t> source_char_driver_first_playing_index(
     const std::vector<float>& source_stack_blend_fracs) {
   for (size_t i = 0; i < source_stack_blend_fracs.size(); ++i) {

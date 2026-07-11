@@ -307,6 +307,34 @@ bool expect_play_group_decision(bool has_clip_dir, bool found_group,
   return ok;
 }
 
+bool expect_driver_play_decision(
+    const ghogx::character::SourceCharDriverPlayDecision& got,
+    bool found_clip,
+    bool notify_missing_clip,
+    bool set_last_node,
+    bool duplicate_clip,
+    bool create_clip_driver,
+    bool new_stack_head,
+    float resolved_blend_width,
+    const char* label) {
+  bool ok = true;
+  if (got.found_clip != found_clip ||
+      got.notify_missing_clip != notify_missing_clip ||
+      got.set_last_node != set_last_node ||
+      got.duplicate_clip != duplicate_clip ||
+      got.create_clip_driver != create_clip_driver ||
+      got.new_stack_head != new_stack_head ||
+      !nearf(got.resolved_blend_width, resolved_blend_width)) {
+    std::cerr << "driver Play decision mismatch for " << label << ": got "
+              << got.found_clip << "," << got.notify_missing_clip << ","
+              << got.set_last_node << "," << got.duplicate_clip << ","
+              << got.create_clip_driver << "," << got.new_stack_head
+              << " blend=" << got.resolved_blend_width << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_driver_state_helpers() {
   bool ok = true;
   ghogx::character::SourceCharDriverState state =
@@ -430,6 +458,42 @@ bool expect_driver_state_helpers() {
   ok &= expect_play_group_decision(false, false, false, "no clip directory");
   ok &= expect_play_group_decision(true, false, false, "missing group");
   ok &= expect_play_group_decision(true, true, true, "group found");
+
+  ghogx::character::SourceCharDriverState play_state =
+      ghogx::character::source_char_driver_default_state();
+  play_state.blend_width = 0.75f;
+  ok &= expect_driver_play_decision(
+      ghogx::character::source_char_driver_play_decision(
+          play_state, false, false, 7, -1.0f, 3.0f, 0.5f),
+      false, true, false, false, false, false, 0.0f,
+      "missing clip");
+  if (play_state.last_node_valid || play_state.has_first) {
+    std::cerr << "driver Play missing clip mutated state\n";
+    ok = false;
+  }
+
+  ok &= expect_driver_play_decision(
+      ghogx::character::source_char_driver_play_decision(
+          play_state, true, false, 7, -1.0f, 3.0f, 0.5f),
+      true, false, true, false, true, true, 0.75f,
+      "new clip uses source blend fallback");
+  if (!play_state.last_node_valid || !play_state.has_first) {
+    std::cerr << "driver Play did not create stack head\n";
+    ok = false;
+  }
+
+  play_state.play_multiple_clips = true;
+  play_state.has_first = true;
+  play_state.last_node_valid = false;
+  ok &= expect_driver_play_decision(
+      ghogx::character::source_char_driver_play_decision(
+          play_state, true, true, 3, 0.25f, 9.0f, 1.0f),
+      true, false, true, true, false, false, 0.25f,
+      "duplicate clip still records last node");
+  if (!play_state.last_node_valid || !play_state.has_first) {
+    std::cerr << "driver Play duplicate gate lost state\n";
+    ok = false;
+  }
 
   ghogx::character::SourceCharDriverPollDeps deps;
   ghogx::character::source_char_driver_poll_deps(deps, "bone.servo");

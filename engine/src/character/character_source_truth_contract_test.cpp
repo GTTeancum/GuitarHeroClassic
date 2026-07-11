@@ -730,6 +730,12 @@ int run_contract() {
                  "concrete\n    `CharDriver::Play` duplicate-clip gate",
                  "document records concrete CharDriver duplicate gate slice");
   ok &= contains(doc,
+                 "Native `source_char_driver_play_decision` ports the visible",
+                 "document records native CharDriver Play decision helper");
+  ok &= contains(doc,
+                 "writes `mLastNode` before resolving the `-1.0f` blend-width sentinel",
+                 "document records CharDriver Play branch order");
+  ok &= contains(doc,
                  "Native `source_char_driver_first_playing_index` ports the "
                  "concrete\n    `CharDriver::FirstPlaying` stack scan",
                  "document records concrete CharDriver FirstPlaying slice");
@@ -11227,6 +11233,15 @@ int run_contract() {
                  "it=it->mNext){if(clip==it->mClip)return0;}}",
                  "latest CharDriver source exposes duplicate clip gate");
   ok &= contains(rb3_latest_char_driver_cpp,
+                 "if(!clip){MILO_NOTIFY_ONCE(\"%s:Couldnotfindcliptoplay.\","
+                 "PathName(this));return0;}else{mLastNode=DataNode(clip);",
+                 "latest CharDriver Play records missing clip and last node");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "if(f1==-1.0f)f1=mBlendWidth;if(mPlayMultipleClips){"
+                 "for(CharClipDriver*it=mFirst;it!=0;it=it->mNext){"
+                 "if(clip==it->mClip)return0;}}mFirst=newCharClipDriver(",
+                 "latest CharDriver Play resolves blend before duplicate gate");
+  ok &= contains(rb3_latest_char_driver_cpp,
                  "CharClipDriver*CharDriver::FirstPlaying(){CharClipDriver*d;"
                  "for(d=mFirst;d!=0&&!d->mBlendFrac;d=d->Next());returnd;}",
                  "latest CharDriver source exposes FirstPlaying scan");
@@ -11242,6 +11257,12 @@ int run_contract() {
                  "booldelete_self=false;std::optional<size_t>returned_stack_head;"
                  "std::vector<size_t>deleted_indices;};",
                  "native character API exposes source CharClipDriver Exit decision");
+  ok &= contains(char_clip_h,
+                 "structSourceCharDriverPlayDecision{boolfound_clip=false;"
+                 "boolnotify_missing_clip=false;boolset_last_node=false;"
+                 "boolduplicate_clip=false;boolcreate_clip_driver=false;"
+                 "boolnew_stack_head=false;intplay_flags=0;",
+                 "native character API exposes source CharDriver Play decision row");
   ok &= contains(char_clip_h,
                  "uint32_tsource_char_clip_driver_masked_play_flags("
                  "uint32_tclip_play_flags,uint32_tmask);",
@@ -11259,6 +11280,11 @@ int run_contract() {
                  "SourceCharClipDriverExitDecisionsource_char_clip_driver_exit_decision("
                  "size_tstack_size,boolexit_next,boolhas_sync_anim);",
                  "native character API exposes source CharClipDriver Exit helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverPlayDecisionsource_char_driver_play_decision("
+                 "SourceCharDriverState&state,boolfound_clip,"
+                 "boolclip_already_playing,intplay_flags,",
+                 "native character API exposes source CharDriver Play helper");
   ok &= contains(char_clip_h,
                  "SourceCharClipDriverDeleteClipResult"
                  "source_char_clip_driver_delete_clip_result("
@@ -11691,6 +11717,18 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_shares_groups(",
                  "focused clip driver flags test covers CharClip SharesGroups helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_play_decision("
+                 "play_state,false,false,7,-1.0f,3.0f,0.5f)",
+                 "focused clip driver test covers missing CharDriver Play clip");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_play_decision("
+                 "play_state,true,false,7,-1.0f,3.0f,0.5f)",
+                 "focused clip driver test covers CharDriver Play stack creation");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_play_decision("
+                 "play_state,true,true,3,0.25f,9.0f,1.0f)",
+                 "focused clip driver test covers CharDriver Play duplicate gate");
   ok &= contains(char_clip,
                  "boolsource_char_driver_starved(boolhas_first,"
                  "boolfirst_has_next,uint32_tfirst_play_flags){if(has_first){"
@@ -11717,6 +11755,27 @@ int run_contract() {
                  "play_multiple_clips&&clip_already_playing)returnfalse;"
                  "returntrue;}",
                  "native CharDriver duplicate helper ports source gate");
+  ok &= contains(char_clip,
+                 "SourceCharDriverPlayDecisionsource_char_driver_play_decision("
+                 "SourceCharDriverState&state,boolfound_clip,"
+                 "boolclip_already_playing,intplay_flags,floatrequested_blend_width,",
+                 "native CharDriver Play decision helper exists");
+  ok &= contains(char_clip,
+                 "if(!found_clip){decision.notify_missing_clip=true;"
+                 "returndecision;}state.last_node_valid=true;"
+                 "decision.set_last_node=true;",
+                 "native CharDriver Play decision ports missing-clip/last-node order");
+  ok &= contains(char_clip,
+                 "decision.resolved_blend_width="
+                 "source_char_driver_resolve_blend_width("
+                 "requested_blend_width,state.blend_width);if(!"
+                 "source_char_driver_should_start_clip(state.play_multiple_clips,"
+                 "clip_already_playing)){decision.duplicate_clip=true;",
+                 "native CharDriver Play decision ports blend and duplicate gate");
+  ok &= contains(char_clip,
+                 "state.has_first=true;decision.create_clip_driver=true;"
+                 "decision.new_stack_head=true;returndecision;",
+                 "native CharDriver Play decision records new stack head");
   ok &= contains(char_clip,
                  "if(source_play_multiple_clips_){for(constLayer&layer:"
                  "layers_){if(layer.clip==&clip){clip_already_playing=true;",

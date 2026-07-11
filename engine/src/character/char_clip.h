@@ -709,6 +709,20 @@ struct SourceCharDriverEnterDecision {
   float default_start = 0.0f;
 };
 
+struct SourceCharDriverPlayDecision {
+  bool found_clip = false;
+  bool notify_missing_clip = false;
+  bool set_last_node = false;
+  bool duplicate_clip = false;
+  bool create_clip_driver = false;
+  bool new_stack_head = false;
+  int play_flags = 0;
+  float resolved_blend_width = 0.0f;
+  float old_beat = 0.0f;
+  float start = 0.0f;
+  bool play_multiple_clips = false;
+};
+
 struct SourceCharDriverPlayGroupDecision {
   bool has_clip_dir = false;
   bool found_group = false;
@@ -1194,6 +1208,17 @@ float source_char_driver_resolve_blend_width(float requested_blend_width,
 // Source-backed CharDriver::Play duplicate-clip gate.
 bool source_char_driver_should_start_clip(bool play_multiple_clips,
                                           bool clip_already_playing);
+
+// Source-backed CharDriver::Play(CharClip*) state decision. This records the
+// branch order without allocating a CharClipDriver node.
+SourceCharDriverPlayDecision source_char_driver_play_decision(
+    SourceCharDriverState& state,
+    bool found_clip,
+    bool clip_already_playing,
+    int play_flags,
+    float requested_blend_width,
+    float old_beat,
+    float start);
 
 // Source-backed CharDriver::FirstPlaying helper. The input is in source stack
 // order: mFirst, then each mNext.
