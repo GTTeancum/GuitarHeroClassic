@@ -8113,6 +8113,8 @@ std::optional<VenueTransAnimDecode> decode_venue_transanim_like_miloeditor(
     out.anim.rotation_keys =
         mesh_quat_keys_from_camera_keys(decoded->rot_keys);
     out.anim.scale_keys = mesh_anim_keys_from_camera_keys(decoded->scale_keys);
+    out.anim.translation_spline = decoded->trans_spline;
+    out.anim.scale_spline = decoded->scale_spline;
     out.revision = decoded->revision;
     out.anim_revision = decoded->anim_revision;
     out.keys_owner = decoded->keys_owner;
@@ -8911,70 +8913,128 @@ VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
     return out;
 }
 
-std::array<float, 3> sample_translation_offset(
+struct VecKeySample {
+    size_t a = 0;
+    size_t b = 0;
+    float t = 0.0f;
+};
+
+VecKeySample sample_vec_key(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
     float frame) {
-    std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
-    if (keys.empty()) return out;
-    const auto* a = &keys.front();
-    const auto* b = &keys.back();
+    VecKeySample sample;
+    if (keys.empty()) return sample;
+    sample.a = 0;
+    sample.b = keys.size() - 1;
+    if (keys.size() == 1 || frame < keys.front().frame) {
+        sample.b = sample.a;
+        return sample;
+    }
+    if (frame >= keys.back().frame) {
+        sample.a = sample.b;
+        return sample;
+    }
     for (size_t i = 1; i < keys.size(); ++i) {
         if (frame <= keys[i].frame) {
-            a = &keys[i - 1];
-            b = &keys[i];
+            sample.a = i - 1;
+            sample.b = i;
             break;
         }
     }
-    const float span = std::max(b->frame - a->frame, 0.001f);
-    const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
-    for (int i = 0; i < 3; ++i) {
-        const float p = a->pos[i] + (b->pos[i] - a->pos[i]) * t;
-        out[i] = p - keys.front().pos[i];
+    const auto& a = keys[sample.a];
+    const auto& b = keys[sample.b];
+    const float span = std::max(b.frame - a.frame, 0.001f);
+    sample.t = std::clamp((frame - a.frame) / span, 0.0f, 1.0f);
+    return sample;
+}
+
+std::array<float, 3> spline_tangent(
+    const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
+    size_t index) {
+    std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
+    if (keys.size() < 2) return out;
+    auto diff = [&](size_t lhs, size_t rhs) {
+        return std::array<float, 3>{
+            keys[lhs].pos[0] - keys[rhs].pos[0],
+            keys[lhs].pos[1] - keys[rhs].pos[1],
+            keys[lhs].pos[2] - keys[rhs].pos[2]};
+    };
+    if (keys.size() == 2) return diff(1, 0);
+    if (index == 0) {
+        const auto a = diff(1, 0);
+        const auto b = diff(2, 0);
+        for (int axis = 0; axis < 3; ++axis)
+            out[axis] = a[axis] * 1.5f - b[axis] * 0.25f;
+        return out;
     }
+    if (index >= keys.size() - 1) {
+        const auto a = diff(keys.size() - 1, keys.size() - 2);
+        const auto b = diff(keys.size() - 1, keys.size() - 3);
+        for (int axis = 0; axis < 3; ++axis)
+            out[axis] = a[axis] * 1.5f - b[axis] * 0.25f;
+        return out;
+    }
+    const auto a = diff(index + 1, index - 1);
+    for (int axis = 0; axis < 3; ++axis) out[axis] = a[axis] * 0.5f;
+    return out;
+}
+
+std::array<float, 3> sample_vec_value(
+    const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
+    float frame, bool spline) {
+    std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
+    if (keys.empty()) return out;
+    const VecKeySample sample = sample_vec_key(keys, frame);
+    const auto& a = keys[sample.a];
+    const auto& b = keys[sample.b];
+    if (!spline || keys.size() < 3 || sample.a == sample.b) {
+        for (int axis = 0; axis < 3; ++axis)
+            out[axis] =
+                a.pos[axis] + (b.pos[axis] - a.pos[axis]) * sample.t;
+        return out;
+    }
+    const auto ta = spline_tangent(keys, sample.a);
+    const auto tb = spline_tangent(keys, sample.b);
+    const float t = sample.t;
+    const float t2 = t * t;
+    const float t3 = t2 * t;
+    const float h00 = 2.0f * t3 - 3.0f * t2 + 1.0f;
+    const float h10 = t3 - 2.0f * t2 + t;
+    const float h01 = -2.0f * t3 + 3.0f * t2;
+    const float h11 = t3 - t2;
+    for (int axis = 0; axis < 3; ++axis) {
+        out[axis] = a.pos[axis] * h00 + ta[axis] * h10 +
+                    b.pos[axis] * h01 + tb[axis] * h11;
+    }
+    return out;
+}
+
+std::array<float, 3> sample_translation_offset(
+    const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
+    float frame, bool spline) {
+    std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
+    if (keys.empty()) return out;
+    const auto value = sample_vec_value(keys, frame, spline);
+    for (int axis = 0; axis < 3; ++axis)
+        out[axis] = value[axis] - keys.front().pos[axis];
     return out;
 }
 
 std::array<float, 3> sample_translation_position(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
-    float frame) {
-    std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
-    if (keys.empty()) return out;
-    const auto* a = &keys.front();
-    const auto* b = &keys.back();
-    for (size_t i = 1; i < keys.size(); ++i) {
-        if (frame <= keys[i].frame) {
-            a = &keys[i - 1];
-            b = &keys[i];
-            break;
-        }
-    }
-    const float span = std::max(b->frame - a->frame, 0.001f);
-    const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
-    for (int i = 0; i < 3; ++i)
-        out[i] = a->pos[i] + (b->pos[i] - a->pos[i]) * t;
-    return out;
+    float frame, bool spline) {
+    return sample_vec_value(keys, frame, spline);
 }
 
 std::array<float, 3> sample_scale_ratio(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>& keys,
-    float frame) {
+    float frame, bool spline) {
     std::array<float, 3> out = {1.0f, 1.0f, 1.0f};
     if (keys.empty()) return out;
-    const auto* a = &keys.front();
-    const auto* b = &keys.back();
-    for (size_t i = 1; i < keys.size(); ++i) {
-        if (frame <= keys[i].frame) {
-            a = &keys[i - 1];
-            b = &keys[i];
-            break;
-        }
-    }
-    const float span = std::max(b->frame - a->frame, 0.001f);
-    const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
-    for (int i = 0; i < 3; ++i) {
-        const float p = a->pos[i] + (b->pos[i] - a->pos[i]) * t;
-        const float base = keys.front().pos[i];
-        out[i] = std::fabs(base) > 0.0001f ? p / base : 1.0f;
+    const auto value = sample_vec_value(keys, frame, spline);
+    for (int axis = 0; axis < 3; ++axis) {
+        const float base = keys.front().pos[axis];
+        out[axis] = std::fabs(base) > 0.0001f ? value[axis] / base : 1.0f;
     }
     return out;
 }
@@ -9045,7 +9105,8 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
     ghogx::render::MiloSceneRenderer::MeshTransformSample sample;
     if (anim.translation_keys.size() >= 2) {
         sample.has_translation = true;
-        sample.translation = sample_translation_offset(anim.translation_keys, frame);
+        sample.translation = sample_translation_offset(
+            anim.translation_keys, frame, anim.translation_spline);
     }
     if (!anim.rotation_keys.empty()) {
         sample.has_rotation = true;
@@ -9053,7 +9114,8 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
     }
     if (!anim.scale_keys.empty()) {
         sample.has_scale = true;
-        sample.scale = sample_scale_ratio(anim.scale_keys, frame);
+        sample.scale =
+            sample_scale_ratio(anim.scale_keys, frame, anim.scale_spline);
     }
     return sample;
 }
@@ -9083,7 +9145,8 @@ sample_mesh_transform_from_source_local_position(
             source_local_position_for_mesh(source_positions, mesh_name);
         if (source) {
             const auto position =
-                sample_translation_position(anim.translation_keys, frame);
+                sample_translation_position(
+                    anim.translation_keys, frame, anim.translation_spline);
             sample.has_translation = true;
             sample.translation_is_absolute = false;
             for (int axis = 0; axis < 3; ++axis)
@@ -18584,7 +18647,7 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f wait=%d persistent=%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f wait=%d persistent=%d spline=%d/%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
@@ -18601,7 +18664,9 @@ void Gameplay::update_active_venue_anim_filters() {
                         filter.event_delay_seconds,
                         filter.event_blend_seconds,
                         filter.event_wait ? 1 : 0,
-                        it->persistent ? 1 : 0);
+                        it->persistent ? 1 : 0,
+                        target.anim.translation_spline ? 1 : 0,
+                        target.anim.scale_spline ? 1 : 0);
                 }
             }
             for (const auto& target : filter.mesh_anim_targets) {
@@ -19750,7 +19815,7 @@ void Gameplay::update_active_lighting_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f)\n",
+                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) spline=%d/%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
@@ -19762,7 +19827,9 @@ void Gameplay::update_active_lighting_anim_filters() {
                         sample.translation[0],
                         sample.translation[1], sample.translation[2],
                         source_translation ? 1 : 0, source_pos[0],
-                        source_pos[1], source_pos[2]);
+                        source_pos[1], source_pos[2],
+                        target.anim.translation_spline ? 1 : 0,
+                        target.anim.scale_spline ? 1 : 0);
                 }
             }
             for (const auto& target : filter.mesh_anim_targets) {

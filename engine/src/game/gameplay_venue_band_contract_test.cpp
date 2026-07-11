@@ -5876,6 +5876,15 @@ int main() {
   ok &= contains(renderer_c,
                  "sample_transform_anim(active.anim,anim_frame)",
                  "one-shot mesh TransAnim playback samples translation, rotation, and scale");
+  ok &= contains(renderer_h_c,
+                 "booltranslation_spline=false;",
+                 "shared TransAnim data preserves the authored translation spline flag");
+  ok &= contains(renderer_h_c,
+                 "boolscale_spline=false;",
+                 "shared TransAnim data preserves the authored scale spline flag");
+  ok &= contains(renderer_c,
+                 "sample_vec_delta(anim.translation_keys,frame,anim.translation_spline);",
+                 "one-shot renderer TransAnim translation honors authored spline mode");
   ok &= contains(renderer_c,
                  "std::array<float,4>sample_rotation_value(",
                  "one-shot renderer TransAnim rotations sample authored quaternion values");
@@ -5884,8 +5893,9 @@ int main() {
                  "one-shot renderer TransAnim rotations use source-shaped local delta quaternions");
   ok &= contains(renderer_c,
                  "if(!anim.scale_keys.empty()){sample.has_scale=true;"
-                 "sample.scale=sample_scale_ratio(anim.scale_keys,frame);}",
-                 "one-shot renderer TransAnim samples authored one-key scale channels");
+                 "sample.scale=sample_scale_ratio(anim.scale_keys,frame,"
+                 "anim.scale_spline);}",
+                 "one-shot renderer TransAnim samples authored one-key scale channels and spline mode");
   ok &= contains(renderer_c,
                  "a.translation_keys.size()<2&&a.rotation_keys.empty()&&"
                  "a.scale_keys.size()<2",
@@ -5927,13 +5937,25 @@ int main() {
                  "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
                  "source-shaped TransAnim decoder keeps authored scale keys");
   ok &= contains(gameplay_c,
+                 "out.anim.translation_spline=decoded->trans_spline;"
+                 "out.anim.scale_spline=decoded->scale_spline;",
+                 "source-shaped TransAnim decoder propagates authored vector spline flags");
+  ok &= contains(gameplay_c,
                  "if(!anim.scale_keys.empty()){sample.has_scale=true;"
-                 "sample.scale=sample_scale_ratio(anim.scale_keys,frame);}",
-                 "venue TransAnim playback samples authored one-key scale channels");
+                 "sample.scale=sample_scale_ratio(anim.scale_keys,frame,"
+                 "anim.scale_spline);}",
+                 "venue TransAnim playback samples authored one-key scale channels and spline mode");
   ok &= absent(gameplay_c,
                "if(anim.scale_keys.size()>=2){sample.has_scale=true;"
                "sample.scale=sample_scale_ratio(anim.scale_keys,frame);}",
                "venue TransAnim playback must not drop one-key scale channels");
+  ok &= contains(gameplay_c,
+                 "sample_translation_position(anim.translation_keys,frame,"
+                 "anim.translation_spline);",
+                 "source-local translation correction honors authored translation spline mode");
+  ok &= contains(gameplay_c,
+                 "spline=%d/%d",
+                 "venue AnimFilter sample logs expose authored vector spline flags");
   ok &= contains(gameplay_c,
                  "if(trans_count>2048){",
                  "source-shaped TransAnim decoder allows rotation-only venue anims");

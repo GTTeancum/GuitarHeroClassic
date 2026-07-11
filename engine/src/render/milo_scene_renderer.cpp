@@ -454,53 +454,119 @@ void apply_face_camera_yaw(std::array<float, 16>& world,
   }
 }
 
-const MiloSceneRenderer::MeshAnimKey* sample_vec_key(
-    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame,
-    const MiloSceneRenderer::MeshAnimKey** next) {
-  if (keys.empty()) {
-    *next = nullptr;
-    return nullptr;
+struct VecKeySample {
+  size_t a = 0;
+  size_t b = 0;
+  float t = 0.0f;
+};
+
+VecKeySample sample_vec_key(
+    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame) {
+  VecKeySample sample;
+  if (keys.empty()) return sample;
+  sample.a = 0;
+  sample.b = keys.size() - 1;
+  if (keys.size() == 1 || frame < keys.front().frame) {
+    sample.b = sample.a;
+    return sample;
   }
-  const auto* a = &keys.front();
-  const auto* b = &keys.back();
+  if (frame >= keys.back().frame) {
+    sample.a = sample.b;
+    return sample;
+  }
   for (size_t i = 1; i < keys.size(); ++i) {
     if (frame <= keys[i].frame) {
-      a = &keys[i - 1];
-      b = &keys[i];
+      sample.a = i - 1;
+      sample.b = i;
       break;
     }
   }
-  *next = b;
-  return a;
+  const auto& a = keys[sample.a];
+  const auto& b = keys[sample.b];
+  const float span = std::max(b.frame - a.frame, 0.001f);
+  sample.t = std::clamp((frame - a.frame) / span, 0.0f, 1.0f);
+  return sample;
 }
 
-std::array<float, 3> sample_vec_delta(
-    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame) {
+std::array<float, 3> spline_tangent(
+    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, size_t index) {
   std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
-  const MiloSceneRenderer::MeshAnimKey* b = nullptr;
-  const auto* a = sample_vec_key(keys, frame, &b);
-  if (!a || !b) return out;
-  const float span = std::max(b->frame - a->frame, 0.001f);
-  const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
-  for (int i = 0; i < 3; ++i) {
-    const float p = a->pos[i] + (b->pos[i] - a->pos[i]) * t;
-    out[i] = p - keys.front().pos[i];
+  if (keys.size() < 2) return out;
+  auto diff = [&](size_t lhs, size_t rhs) {
+    return std::array<float, 3>{
+        keys[lhs].pos[0] - keys[rhs].pos[0],
+        keys[lhs].pos[1] - keys[rhs].pos[1],
+        keys[lhs].pos[2] - keys[rhs].pos[2]};
+  };
+  if (keys.size() == 2) {
+    return diff(1, 0);
+  }
+  if (index == 0) {
+    const auto a = diff(1, 0);
+    const auto b = diff(2, 0);
+    for (int axis = 0; axis < 3; ++axis) out[axis] = a[axis] * 1.5f - b[axis] * 0.25f;
+    return out;
+  }
+  if (index >= keys.size() - 1) {
+    const auto a = diff(keys.size() - 1, keys.size() - 2);
+    const auto b = diff(keys.size() - 1, keys.size() - 3);
+    for (int axis = 0; axis < 3; ++axis) out[axis] = a[axis] * 1.5f - b[axis] * 0.25f;
+    return out;
+  }
+  const auto a = diff(index + 1, index - 1);
+  for (int axis = 0; axis < 3; ++axis) out[axis] = a[axis] * 0.5f;
+  return out;
+}
+
+std::array<float, 3> sample_vec_value(
+    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame,
+    bool spline) {
+  std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
+  if (keys.empty()) return out;
+  const VecKeySample sample = sample_vec_key(keys, frame);
+  const auto& a = keys[sample.a];
+  const auto& b = keys[sample.b];
+  if (!spline || keys.size() < 3 || sample.a == sample.b) {
+    for (int axis = 0; axis < 3; ++axis)
+      out[axis] = a.pos[axis] + (b.pos[axis] - a.pos[axis]) * sample.t;
+    return out;
+  }
+  const auto ta = spline_tangent(keys, sample.a);
+  const auto tb = spline_tangent(keys, sample.b);
+  const float t = sample.t;
+  const float t2 = t * t;
+  const float t3 = t2 * t;
+  const float h00 = 2.0f * t3 - 3.0f * t2 + 1.0f;
+  const float h10 = t3 - 2.0f * t2 + t;
+  const float h01 = -2.0f * t3 + 3.0f * t2;
+  const float h11 = t3 - t2;
+  for (int axis = 0; axis < 3; ++axis) {
+    out[axis] = a.pos[axis] * h00 + ta[axis] * h10 +
+                b.pos[axis] * h01 + tb[axis] * h11;
   }
   return out;
 }
 
+std::array<float, 3> sample_vec_delta(
+    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame,
+    bool spline) {
+  std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
+  if (keys.empty()) return out;
+  const auto value = sample_vec_value(keys, frame, spline);
+  for (int axis = 0; axis < 3; ++axis)
+    out[axis] = value[axis] - keys.front().pos[axis];
+  return out;
+}
+
 std::array<float, 3> sample_scale_ratio(
-    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame) {
+    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame,
+    bool spline) {
   std::array<float, 3> out = {1.0f, 1.0f, 1.0f};
-  const MiloSceneRenderer::MeshAnimKey* b = nullptr;
-  const auto* a = sample_vec_key(keys, frame, &b);
-  if (!a || !b) return out;
-  const float span = std::max(b->frame - a->frame, 0.001f);
-  const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
-  for (int i = 0; i < 3; ++i) {
-    const float p = a->pos[i] + (b->pos[i] - a->pos[i]) * t;
-    const float base = keys.front().pos[i];
-    out[i] = std::fabs(base) > 0.0001f ? p / base : 1.0f;
+  if (keys.empty()) return out;
+  const auto value = sample_vec_value(keys, frame, spline);
+  for (int axis = 0; axis < 3; ++axis) {
+    const float base = keys.front().pos[axis];
+    out[axis] = std::fabs(base) > 0.0001f ? value[axis] / base : 1.0f;
   }
   return out;
 }
@@ -559,7 +625,8 @@ MiloSceneRenderer::MeshTransformSample sample_transform_anim(
   MiloSceneRenderer::MeshTransformSample sample;
   if (anim.translation_keys.size() >= 2) {
     sample.has_translation = true;
-    sample.translation = sample_vec_delta(anim.translation_keys, frame);
+    sample.translation =
+        sample_vec_delta(anim.translation_keys, frame, anim.translation_spline);
   }
   if (!anim.rotation_keys.empty()) {
     sample.has_rotation = true;
@@ -567,7 +634,8 @@ MiloSceneRenderer::MeshTransformSample sample_transform_anim(
   }
   if (!anim.scale_keys.empty()) {
     sample.has_scale = true;
-    sample.scale = sample_scale_ratio(anim.scale_keys, frame);
+    sample.scale =
+        sample_scale_ratio(anim.scale_keys, frame, anim.scale_spline);
   }
   return sample;
 }
