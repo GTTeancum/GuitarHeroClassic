@@ -1647,6 +1647,21 @@ int32_t source_char_mesh_hide_all(
   return flags;
 }
 
+bool source_char_trans_copy_poll(const milo_scene::Xfm* src,
+                                 milo_scene::Xfm* dest) {
+  if (src == nullptr || dest == nullptr) return false;
+  *dest = *src;
+  return true;
+}
+
+void source_char_trans_copy_poll_deps(
+    SourceCharTransCopyPollDeps& deps,
+    const std::string& src,
+    const std::string& dest) {
+  deps.change.push_back(dest);
+  deps.changed_by.push_back(src);
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;

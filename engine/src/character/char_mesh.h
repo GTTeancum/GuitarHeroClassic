@@ -354,6 +354,11 @@ struct SourceCharMeshHideObject {
   std::vector<SourceCharMeshHideRow> hides;
 };
 
+struct SourceCharTransCopyPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -384,6 +389,12 @@ void source_char_mesh_hide_draws(SourceCharMeshHideObject& object,
 int32_t source_char_mesh_hide_all(
     std::vector<SourceCharMeshHideObject>& objects,
     int32_t initial_flags);
+bool source_char_trans_copy_poll(const milo_scene::Xfm* src,
+                                 milo_scene::Xfm* dest);
+void source_char_trans_copy_poll_deps(
+    SourceCharTransCopyPollDeps& deps,
+    const std::string& src,
+    const std::string& dest);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

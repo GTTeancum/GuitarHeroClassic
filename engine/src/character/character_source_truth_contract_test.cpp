@@ -100,6 +100,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_face_servo_source_test.cpp"));
   const std::string mesh_hide_source_test =
       compact(read_file(char_dir / "character_mesh_hide_source_test.cpp"));
+  const std::string trans_copy_source_test =
+      compact(read_file(char_dir / "character_trans_copy_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -190,6 +192,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharMeshHide.cpp"));
   const std::string rb3_latest_char_mesh_hide_h = compact(read_file(
       rb3_latest_char_dir / "CharMeshHide.h"));
+  const std::string rb3_latest_char_trans_copy_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharTransCopy.cpp"));
+  const std::string rb3_latest_char_trans_copy_h = compact(read_file(
+      rb3_latest_char_dir / "CharTransCopy.h"));
   const std::string rb3_latest_char_weightable_cpp = compact(read_file(
       rb3_latest_char_dir / "CharWeightable.cpp"));
   const std::string rb3_latest_char_weightable_h = compact(read_file(
@@ -367,6 +373,10 @@ int run_contract() {
                  "| Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / "
                  "`CharMeshHide.h` |",
                  "coverage matrix cites CharMeshHide source");
+  ok &= contains(doc,
+                 "| Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / "
+                 "`CharTransCopy.h` |",
+                 "coverage matrix cites CharTransCopy source");
   ok &= contains(doc, "| Poll groups | `rb3-latest` `CharPollGroup.cpp` |",
                  "coverage matrix cites CharPollGroup source boundary");
   ok &= contains(doc,
@@ -1832,6 +1842,53 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "out.servo_bones.push_back(decode_servo_bone(de.name,b));",
                  "character load stores decoded CharServoBone rows");
+  ok &= contains(rb3_latest_char_trans_copy_h,
+                 "classCharTransCopy:publicCharPollable",
+                 "latest CharTransCopy header exposes source class");
+  ok &= contains(rb3_latest_char_trans_copy_cpp,
+                 "voidCharTransCopy::Poll(){if(!mSrc||!mDest)return;"
+                 "mDest->SetLocalXfm(mSrc->mLocalXfm);}",
+                 "CharTransCopy source Poll copies local transform");
+  ok &= contains(rb3_latest_char_trans_copy_cpp,
+                 "voidCharTransCopy::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){change.push_back"
+                 "(mDest);changedBy.push_back(mSrc);}",
+                 "CharTransCopy source PollDeps publishes dest/src");
+  ok &= contains(rb3_latest_char_trans_copy_cpp,
+                 "voidCharTransCopy::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(1,0);Hmx::Object::Load(bs);bs>>mSrc;bs>>mDest;}",
+                 "CharTransCopy source Load reads src and dest");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharTransCopyPollDeps{std::vector<std::string>"
+                 "changed_by;std::vector<std::string>change;};",
+                 "native exposes CharTransCopy dependency helper state");
+  ok &= contains(char_mesh,
+                 "boolsource_char_trans_copy_poll(constmilo_scene::Xfm*src,"
+                 "milo_scene::Xfm*dest){if(src==nullptr||dest==nullptr)"
+                 "returnfalse;*dest=*src;returntrue;}",
+                 "native ports CharTransCopy Poll null-gated copy");
+  ok &= contains(char_mesh,
+                 "voidsource_char_trans_copy_poll_deps("
+                 "SourceCharTransCopyPollDeps&deps,conststd::string&src,"
+                 "conststd::string&dest){deps.change.push_back(dest);"
+                 "deps.changed_by.push_back(src);}",
+                 "native ports CharTransCopy PollDeps direction");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_trans_copy_source_test",
+                 "CMake builds CharTransCopy source test");
+  ok &= contains(trans_copy_source_test,
+                 "source_char_trans_copy_poll(nullptr,&dest)",
+                 "focused CharTransCopy test covers missing source");
+  ok &= contains(trans_copy_source_test,
+                 "source_char_trans_copy_poll(&src,&dest)",
+                 "focused CharTransCopy test covers local transform copy");
+  ok &= contains(trans_copy_source_test,
+                 "source_char_trans_copy_poll_deps(deps,\"source.trans\","
+                 "\"dest.trans\")",
+                 "focused CharTransCopy test covers dependency direction");
+  ok &= contains(doc,
+                 "Native `source_char_trans_copy_poll` and",
+                 "document records native CharTransCopy helper");
   ok &= contains(rb3_latest_char_mesh_hide_h,
                  "classCharMeshHide:publicHmx::Object",
                  "latest CharMeshHide header exposes source class");

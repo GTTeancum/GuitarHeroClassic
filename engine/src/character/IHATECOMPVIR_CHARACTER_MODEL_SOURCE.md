@@ -28,6 +28,7 @@ records the upstream commits for the copied files:
 | Object and property-tree skip/read shape | `Object.cs`, `DTBNode.Read` | Parser authority; native skips must mirror source enum and logs standalone generic `Object` rows. |
 | Character/BandCharacter/RndDir/ObjectDir root body | `rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp` | Native records the root directory revision/name/type and opaque root object body boundary; no root runtime fields are decoded until the exact GH2 revision/body relation is pinned. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
+| Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / `CharTransCopy.h` | Native helper ports the complete null-gated local-transform copy and dependency publication behavior; no stock runtime hookup is promoted without rows. |
 | Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
 | Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
@@ -482,6 +483,17 @@ note, and all report `unreadBytes=0`.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.
+- `rb3-latest/src/system/char/CharTransCopy.cpp` and
+  `CharTransCopy.h`
+  - `CharTransCopy::Poll` returns immediately when either `mSrc` or `mDest` is
+    missing. With both refs present, it calls `mDest->SetLocalXfm(mSrc->mLocalXfm)`.
+  - `CharTransCopy::PollDeps` appends `mDest` to the `change` list and `mSrc`
+    to `changedBy`, matching the source dependency direction.
+  - Native `source_char_trans_copy_poll` and
+    `source_char_trans_copy_poll_deps` port those complete source behaviors as
+    isolated helpers. This does not imply active character runtime wiring unless
+    stock `CharTransCopy` rows are decoded or another source-backed owner path
+    is proven.
 - `rb3-latest/src/system/char/CharMeshHide.cpp` and
   `CharMeshHide.h`
   - `CharMeshHide::HideAll` first ORs the incoming flag word with every
