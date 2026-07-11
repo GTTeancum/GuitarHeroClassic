@@ -2843,6 +2843,42 @@ SourceCharDriverMidiParserDecision source_char_driver_midi_on_parser_group(
   return decision;
 }
 
+SourceCharDriverMidiLoadPlan source_char_driver_midi_load_plan(int revision) {
+  SourceCharDriverMidiLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 7;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"LOAD_REVS", "CharDriver"};
+  if (revision < 7) {
+    plan.read_order.push_back("mDefaultClip.Load(false,mClips)");
+  }
+  if (revision == 2) {
+    plan.read_order.push_back("legacyString");
+  } else if (revision > 3) {
+    plan.read_order.push_back("mParser");
+  }
+  if (revision > 4) plan.read_order.push_back("mFlagParser");
+  if (revision > 5) plan.read_order.push_back("mBlendOverridePct");
+  return plan;
+}
+
+SourceCharDriverMidiHandlerPlan source_char_driver_midi_handler_plan() {
+  SourceCharDriverMidiHandlerPlan plan;
+  plan.handlers = {"midi_parser:OnMidiParser",
+                   "midi_parser_group:OnMidiParserGroup",
+                   "midi_parser_flags:OnMidiParserFlags"};
+  plan.superclasses = {"CharDriver"};
+  plan.check = 0x99;
+  return plan;
+}
+
+SourceCharDriverMidiPropSyncPlan source_char_driver_midi_prop_sync_plan() {
+  SourceCharDriverMidiPropSyncPlan plan;
+  plan.properties = {"parser", "flag_parser", "blend_override_pct"};
+  plan.superclasses = {"CharDriver"};
+  return plan;
+}
+
 SourceCharDriverMidiCopyPlan source_char_driver_midi_copy_plan() {
   SourceCharDriverMidiCopyPlan plan;
   plan.copied_superclasses = {"CharDriver"};

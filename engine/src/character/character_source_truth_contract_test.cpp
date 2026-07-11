@@ -6009,6 +6009,16 @@ int run_contract() {
   ok &= contains(rb3_latest_char_driver_midi_cpp,
                  "HANDLE(midi_parser_group,OnMidiParserGroup)",
                  "CharDriverMidi source handles midi_parser_group messages");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "HANDLE(midi_parser_flags,OnMidiParserFlags)"
+                 "HANDLE_SUPERCLASS(CharDriver)HANDLE_CHECK(0x99)",
+                 "CharDriverMidi source handles flags and superclass");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "BEGIN_PROPSYNCS(CharDriverMidi)SYNC_PROP(parser,mParser)"
+                 "SYNC_PROP(flag_parser,mFlagParser)"
+                 "SYNC_PROP(blend_override_pct,mBlendOverridePct)"
+                 "SYNC_SUPERCLASS(CharDriver)END_PROPSYNCS",
+                 "CharDriverMidi source prop sync rows");
   ok &= contains(char_mesh_h,
                  "structCharDriver{std::stringname;int32_tversion=0;"
                  "int32_tweightable_version=0;",
@@ -6057,6 +6067,32 @@ int run_contract() {
                  "copied_superclasses;std::vector<std::string>copied_members;"
                  "std::vector<std::string>not_in_source_copy_members;};",
                  "native exposes source CharDriverMidi copy plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharDriverMidiLoadPlan{boolknown_revision=false;"
+                 "int32_tmax_revision=7;std::vector<std::string>read_order;",
+                 "native exposes source CharDriverMidi load plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharDriverMidiHandlerPlan{"
+                 "std::vector<std::string>handlers;"
+                 "std::vector<std::string>superclasses;int32_tcheck=0x99;};",
+                 "native exposes source CharDriverMidi handler plan");
+  ok &= contains(char_clip_h,
+                 "structSourceCharDriverMidiPropSyncPlan{"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes source CharDriverMidi prop-sync plan");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverMidiLoadPlansource_char_driver_midi_load_plan("
+                 "intrevision);",
+                 "native exposes source CharDriverMidi load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverMidiHandlerPlan"
+                 "source_char_driver_midi_handler_plan();",
+                 "native exposes source CharDriverMidi handler helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverMidiPropSyncPlan"
+                 "source_char_driver_midi_prop_sync_plan();",
+                 "native exposes source CharDriverMidi prop-sync helper");
   ok &= contains(char_clip_h,
                  "SourceCharDriverMidiCopyPlansource_char_driver_midi_copy_plan();",
                  "native exposes source CharDriverMidi copy helper");
@@ -6144,6 +6180,43 @@ int run_contract() {
                  "midi_state.blend_override_pct;",
                  "native CharDriverMidi group helper ports returned blend assignment");
   ok &= contains(char_clip,
+                 "SourceCharDriverMidiLoadPlansource_char_driver_midi_load_plan("
+                 "intrevision){SourceCharDriverMidiLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=7;",
+                 "native CharDriverMidi load helper ports source revision gate");
+  ok &= contains(char_clip,
+                 "plan.read_order={\"LOAD_REVS\",\"CharDriver\"};"
+                 "if(revision<7){plan.read_order.push_back("
+                 "\"mDefaultClip.Load(false,mClips)\");}",
+                 "native CharDriverMidi load helper records superclass and default clip gate");
+  ok &= contains(char_clip,
+                 "if(revision==2){plan.read_order.push_back(\"legacyString\");}"
+                 "elseif(revision>3){plan.read_order.push_back(\"mParser\");}",
+                 "native CharDriverMidi load helper records legacy/parser gate");
+  ok &= contains(char_clip,
+                 "if(revision>4)plan.read_order.push_back(\"mFlagParser\");"
+                 "if(revision>5)plan.read_order.push_back("
+                 "\"mBlendOverridePct\");",
+                 "native CharDriverMidi load helper records flag/blend gates");
+  ok &= contains(char_clip,
+                 "SourceCharDriverMidiHandlerPlansource_char_driver_midi_handler_plan(){"
+                 "SourceCharDriverMidiHandlerPlanplan;plan.handlers={"
+                 "\"midi_parser:OnMidiParser\",",
+                 "native CharDriverMidi handler helper records parser rows");
+  ok &= contains(char_clip,
+                 "plan.superclasses={\"CharDriver\"};plan.check=0x99;"
+                 "returnplan;}",
+                 "native CharDriverMidi handler helper records superclass");
+  ok &= contains(char_clip,
+                 "SourceCharDriverMidiPropSyncPlan"
+                 "source_char_driver_midi_prop_sync_plan(){"
+                 "SourceCharDriverMidiPropSyncPlanplan;plan.properties={"
+                 "\"parser\",\"flag_parser\",\"blend_override_pct\"};",
+                 "native CharDriverMidi prop-sync helper records properties");
+  ok &= contains(char_clip,
+                 "plan.superclasses={\"CharDriver\"};returnplan;}",
+                 "native CharDriverMidi prop-sync helper records superclass");
+  ok &= contains(char_clip,
                  "SourceCharDriverMidiCopyPlansource_char_driver_midi_copy_plan(){"
                  "SourceCharDriverMidiCopyPlanplan;plan.copied_superclasses="
                  "{\"CharDriver\"};plan.copied_members={\"unk89\",\"mParser\","
@@ -6166,17 +6239,41 @@ int run_contract() {
                  "source_char_driver_midi_on_parser_group(",
                  "focused clip driver test covers CharDriverMidi parser group helper");
   ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_load_plan(2)",
+                 "focused clip driver test covers CharDriverMidi legacy load plan");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_load_plan(6)",
+                 "focused clip driver test covers CharDriverMidi parser load plan");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_load_plan(8)",
+                 "focused clip driver test covers CharDriverMidi invalid load plan");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_handler_plan()",
+                 "focused clip driver test covers CharDriverMidi handler plan");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_prop_sync_plan()",
+                 "focused clip driver test covers CharDriverMidi prop-sync plan");
+  ok &= contains(clip_driver_flags_test,
                  "source_char_driver_midi_copy_plan()",
                  "focused clip driver test covers CharDriverMidi copy plan");
   ok &= contains(doc,
                  "`CharDriverMidi::Load` reads the subclass revision",
                  "document records CharDriverMidi source load");
   ok &= contains(doc,
+                 "Native `source_char_driver_midi_load_plan` records this exact load order",
+                 "document records native CharDriverMidi load helper");
+  ok &= contains(doc,
                  "Native `source_char_driver_midi_default_state`,",
                  "document records native CharDriverMidi source helper slice");
   ok &= contains(doc,
                  "Native `source_char_driver_midi_copy_plan` records the checked source copy",
                  "document records native CharDriverMidi copy helper slice");
+  ok &= contains(doc,
+                 "Native `source_char_driver_midi_handler_plan` records the checked message",
+                 "document records native CharDriverMidi handler helper slice");
+  ok &= contains(doc,
+                 "Native `source_char_driver_midi_prop_sync_plan`",
+                 "document records native CharDriverMidi prop-sync helper slice");
   ok &= contains(doc,
                  "The source copy body does not name `mClipFlags`",
                  "document records CharDriverMidi copy omission boundary");

@@ -515,6 +515,73 @@ bool expect_driver_midi_helpers() {
     std::cerr << "driver MIDI default state mismatch\n";
     ok = false;
   }
+
+  const ghogx::character::SourceCharDriverMidiLoadPlan load_v2 =
+      ghogx::character::source_char_driver_midi_load_plan(2);
+  if (!load_v2.known_revision || load_v2.read_order.size() != 4 ||
+      load_v2.read_order[0] != "LOAD_REVS" ||
+      load_v2.read_order[1] != "CharDriver" ||
+      load_v2.read_order[2] != "mDefaultClip.Load(false,mClips)" ||
+      load_v2.read_order[3] != "legacyString") {
+    std::cerr << "driver MIDI rev2 load plan mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharDriverMidiLoadPlan load_v6 =
+      ghogx::character::source_char_driver_midi_load_plan(6);
+  if (!load_v6.known_revision || load_v6.read_order.size() != 6 ||
+      load_v6.read_order[2] != "mDefaultClip.Load(false,mClips)" ||
+      load_v6.read_order[3] != "mParser" ||
+      load_v6.read_order[4] != "mFlagParser" ||
+      load_v6.read_order[5] != "mBlendOverridePct") {
+    std::cerr << "driver MIDI rev6 load plan mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharDriverMidiLoadPlan load_v7 =
+      ghogx::character::source_char_driver_midi_load_plan(7);
+  if (!load_v7.known_revision || load_v7.read_order.size() != 5 ||
+      load_v7.read_order[2] != "mParser" ||
+      load_v7.read_order[3] != "mFlagParser" ||
+      load_v7.read_order[4] != "mBlendOverridePct") {
+    std::cerr << "driver MIDI rev7 load plan mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharDriverMidiLoadPlan load_bad =
+      ghogx::character::source_char_driver_midi_load_plan(8);
+  if (load_bad.known_revision || !load_bad.read_order.empty()) {
+    std::cerr << "driver MIDI bad revision load plan mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharDriverMidiHandlerPlan handler_plan =
+      ghogx::character::source_char_driver_midi_handler_plan();
+  if (handler_plan.handlers.size() != 3 ||
+      handler_plan.handlers[0] != "midi_parser:OnMidiParser" ||
+      handler_plan.handlers[1] !=
+          "midi_parser_group:OnMidiParserGroup" ||
+      handler_plan.handlers[2] !=
+          "midi_parser_flags:OnMidiParserFlags" ||
+      handler_plan.superclasses.size() != 1 ||
+      handler_plan.superclasses[0] != "CharDriver" ||
+      handler_plan.check != 0x99) {
+    std::cerr << "driver MIDI handler plan mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharDriverMidiPropSyncPlan prop_plan =
+      ghogx::character::source_char_driver_midi_prop_sync_plan();
+  if (prop_plan.properties.size() != 3 ||
+      prop_plan.properties[0] != "parser" ||
+      prop_plan.properties[1] != "flag_parser" ||
+      prop_plan.properties[2] != "blend_override_pct" ||
+      prop_plan.superclasses.size() != 1 ||
+      prop_plan.superclasses[0] != "CharDriver") {
+    std::cerr << "driver MIDI prop-sync plan mismatch\n";
+    ok = false;
+  }
+
   const ghogx::character::SourceCharDriverMidiCopyPlan copy_plan =
       ghogx::character::source_char_driver_midi_copy_plan();
   if (copy_plan.copied_superclasses.size() != 1 ||

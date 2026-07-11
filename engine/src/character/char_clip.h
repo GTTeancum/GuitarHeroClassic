@@ -774,6 +774,24 @@ struct SourceCharDriverMidiParserDecision {
   float assigned_blend_width = 0.0f;
 };
 
+struct SourceCharDriverMidiLoadPlan {
+  bool known_revision = false;
+  int32_t max_revision = 7;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+};
+
+struct SourceCharDriverMidiHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  int32_t check = 0x99;
+};
+
+struct SourceCharDriverMidiPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceCharDriverMidiCopyPlan {
   std::vector<std::string> copied_superclasses;
   std::vector<std::string> copied_members;
@@ -1111,6 +1129,9 @@ SourceCharDriverMidiParserDecision source_char_driver_midi_on_parser_group(
     bool clip_uses_real_time,
     float message_float,
     float average_beats_per_second);
+SourceCharDriverMidiLoadPlan source_char_driver_midi_load_plan(int revision);
+SourceCharDriverMidiHandlerPlan source_char_driver_midi_handler_plan();
+SourceCharDriverMidiPropSyncPlan source_char_driver_midi_prop_sync_plan();
 SourceCharDriverMidiCopyPlan source_char_driver_midi_copy_plan();
 SourceCharClipSetState source_char_clip_set_default_state();
 void source_char_clip_set_reset_preview_state(

@@ -1515,6 +1515,8 @@ note, and all report `unreadBytes=0`.
     through 7, loads `CharDriver`, then loads `mDefaultClip` for revisions below
     7. Revision 2 carries a legacy string; revisions above 3 read `mParser`,
     above 4 read `mFlagParser`, and above 5 read `mBlendOverridePct`.
+    Native `source_char_driver_midi_load_plan` records this exact load order
+    and revision gate as a deterministic source contract only.
   - `CharDriverMidi::Enter` attaches the object as a sink to `mParser` and
     `mFlagParser`. `OnMidiParser`, `OnMidiParserFlags`, and
     `OnMidiParserGroup` are the source-backed runtime route for MIDI/note-driven
@@ -1532,6 +1534,12 @@ note, and all report `unreadBytes=0`.
     list: copy `CharDriver`, `unk89`, `mParser`, `mFlagParser`, and
     `mBlendOverridePct`. The source copy body does not name `mClipFlags`, so
     native records that absence as copy-plan evidence only.
+  - Native `source_char_driver_midi_handler_plan` records the checked message
+    rows `midi_parser`, `midi_parser_group`, and `midi_parser_flags` before the
+    `CharDriver` superclass. Native `source_char_driver_midi_prop_sync_plan`
+    records the checked property rows `parser`, `flag_parser`, and
+    `blend_override_pct` before the `CharDriver` superclass. These are row
+    contracts, not active message-sink or property-editor wiring.
   - `rb3-latest/src/system/obj/ObjPtr_p.h` proves `mDefaultClip.Load` reads one
     `0x80`-bounded source string. Native GHOGX therefore decodes/logs that slot
     as `midiDefaultClip` for revision-below-7 rows before applying the
