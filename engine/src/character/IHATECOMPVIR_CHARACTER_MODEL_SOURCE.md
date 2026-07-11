@@ -42,7 +42,7 @@ records the upstream commits for the copied files:
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
-| Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; native helpers port `CharEyes` poll-child/dependency publication only; no synthetic eye runtime bridge. |
+| Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp`, `CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; native helpers port `CharEyes` poll-child/dependency publication and `CharEyeDartRuleset` defaults/copy data only; no synthetic eye runtime bridge. |
 | FaceFX lip-sync servo boundary | `rb3-latest` `CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` is source context, not a matching `FaceFxLipSyncServo` load body; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
@@ -493,6 +493,19 @@ note, and all report `unreadBytes=0`.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.
+- `rb3-latest/src/system/char/CharEyeDartRuleset.cpp` and
+  `CharEyeDartRuleset.h`
+  - `EyeDartRulesetData::ClearToDefaults` sets the source defaults:
+    radius `0.5..3.0`, on-target angle `5.0`, dart counts `2..5`,
+    dart timing `0.25..0.65`, sequence timing `1.0..2.0`,
+    `scaleWithDistance=true`, and reference distance `70.0`.
+  - `Load` accepts source revisions through 1 and reads the same fields in
+    order after `Hmx::Object`.
+  - The source `Copy` body copies `mMinRadius`, then assigns destination
+    `mMaxRadius` from the source `mMinRadius` rather than the source
+    `mMaxRadius`. Native `source_char_eye_dart_ruleset_*` helpers preserve this
+    exact data behavior for deterministic coverage; they do not enable
+    procedural eye darts in GH2 runtime.
 - `rb3-latest/src/system/char/CharTransCopy.cpp` and
   `CharTransCopy.h`
   - `CharTransCopy::Poll` returns immediately when either `mSrc` or `mDest` is

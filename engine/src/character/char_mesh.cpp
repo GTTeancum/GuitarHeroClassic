@@ -1965,6 +1965,31 @@ void source_char_eyes_poll_deps(
   if (!face_servo.empty()) deps.changed_by.push_back(face_servo);
 }
 
+SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_defaults() {
+  return SourceCharEyeDartRulesetData{};
+}
+
+bool source_char_eye_dart_ruleset_load_revision_known(int revision) {
+  return revision >= 0 && revision <= 1;
+}
+
+SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_copy(
+    const SourceCharEyeDartRulesetData& src) {
+  SourceCharEyeDartRulesetData dst;
+  dst.min_radius = src.min_radius;
+  dst.max_radius = src.min_radius;
+  dst.on_target_angle_thresh = src.on_target_angle_thresh;
+  dst.min_darts_per_sequence = src.min_darts_per_sequence;
+  dst.max_darts_per_sequence = src.max_darts_per_sequence;
+  dst.min_secs_between_darts = src.min_secs_between_darts;
+  dst.max_secs_between_darts = src.max_secs_between_darts;
+  dst.min_secs_between_sequences = src.min_secs_between_sequences;
+  dst.max_secs_between_sequences = src.max_secs_between_sequences;
+  dst.scale_with_distance = src.scale_with_distance;
+  dst.reference_distance = src.reference_distance;
+  return dst;
+}
+
 SourceCharSleevePollResult source_char_sleeve_poll(
     SourceCharSleeveState& state,
     bool has_sleeve,

@@ -120,6 +120,8 @@ int run_contract() {
       read_file(char_dir / "character_guitar_string_source_test.cpp"));
   const std::string eyes_source_test =
       compact(read_file(char_dir / "character_eyes_source_test.cpp"));
+  const std::string eye_dart_ruleset_source_test = compact(
+      read_file(char_dir / "character_eye_dart_ruleset_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -302,6 +304,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharGuitarString.cpp"));
   const std::string rb3_latest_char_guitar_string_h = compact(read_file(
       rb3_latest_char_dir / "CharGuitarString.h"));
+  const std::string rb3_latest_char_eye_dart_ruleset_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharEyeDartRuleset.cpp"));
+  const std::string rb3_latest_char_eye_dart_ruleset_h = compact(read_file(
+      rb3_latest_char_dir / "CharEyeDartRuleset.h"));
   const std::string rb3_latest_char_bone_offset_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBoneOffset.cpp"));
   const std::string rb3_latest_char_bone_offset_h = compact(read_file(
@@ -627,8 +633,14 @@ int run_contract() {
                  "document cites CharEyes runtime source");
   ok &= contains(doc,
                  "native helpers port `CharEyes` poll-child/dependency "
-                 "publication only",
+                 "publication and `CharEyeDartRuleset` defaults/copy data only",
                  "coverage matrix records native CharEyes helper boundary");
+  ok &= contains(doc, "CharEyeDartRuleset.cpp` / `CharEyeDartRuleset.h",
+                 "coverage matrix cites CharEyeDartRuleset source");
+  ok &= contains(doc,
+                 "native helpers port `CharEyes` poll-child/dependency "
+                 "publication and `CharEyeDartRuleset` defaults/copy data only",
+                 "coverage matrix records CharEyeDartRuleset data-only boundary");
   ok &= contains(doc, "rb3/src/system/char/CharIKHand.cpp",
                  "document cites CharIKHand runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharUpperTwist.cpp",
@@ -3912,6 +3924,56 @@ int run_contract() {
                  "if(mHeadLookAt)changedBy.push_back(mHeadLookAt);"
                  "if(mFaceServo)changedBy.push_back(mFaceServo);",
                  "RB3 CharEyes PollDeps publishes head lookat and face servo");
+  ok &= contains(rb3_latest_char_eye_dart_ruleset_h,
+                 "structEyeDartRulesetData{EyeDartRulesetData(){"
+                 "ClearToDefaults();}",
+                 "latest CharEyeDartRuleset header defaults in constructor");
+  ok &= contains(rb3_latest_char_eye_dart_ruleset_cpp,
+                 "voidCharEyeDartRuleset::EyeDartRulesetData::"
+                 "ClearToDefaults(){mMinRadius=0.5f;mMaxRadius=3.0f;",
+                 "latest CharEyeDartRuleset source exposes defaults");
+  ok &= contains(rb3_latest_char_eye_dart_ruleset_cpp,
+                 "LOAD_REVS(bs);ASSERT_REVS(1,0);Hmx::Object::Load(bs);"
+                 "bs>>mData.mMinRadius>>mData.mMaxRadius",
+                 "latest CharEyeDartRuleset source load accepts revision 1");
+  ok &= contains(rb3_latest_char_eye_dart_ruleset_cpp,
+                 "COPY_MEMBER(mData.mMinRadius)//COPY_MEMBER(mData.mMaxRadius)"
+                 "mData.mMaxRadius=c->mData.mMinRadius;",
+                 "latest CharEyeDartRuleset source copy has max-radius quirk");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyeDartRulesetData{floatmin_radius=0.5f;",
+                 "native exposes CharEyeDartRuleset source data");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyeDartRulesetDatasource_char_eye_dart_ruleset_defaults();",
+                 "native exposes CharEyeDartRuleset defaults helper");
+  ok &= contains(char_mesh_h,
+                 "boolsource_char_eye_dart_ruleset_load_revision_known(intrevision);",
+                 "native exposes CharEyeDartRuleset revision helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyeDartRulesetDatasource_char_eye_dart_ruleset_copy(",
+                 "native exposes CharEyeDartRuleset copy helper");
+  ok &= contains(char_mesh,
+                 "SourceCharEyeDartRulesetDatasource_char_eye_dart_ruleset_defaults(){"
+                 "returnSourceCharEyeDartRulesetData{};}",
+                 "native implements CharEyeDartRuleset defaults helper");
+  ok &= contains(char_mesh,
+                 "returnrevision>=0&&revision<=1;",
+                 "native implements CharEyeDartRuleset source revision range");
+  ok &= contains(char_mesh,
+                 "dst.min_radius=src.min_radius;dst.max_radius=src.min_radius;",
+                 "native preserves CharEyeDartRuleset copy max-radius quirk");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_eye_dart_ruleset_source_test",
+                 "CMake builds CharEyeDartRuleset source test");
+  ok &= contains(eye_dart_ruleset_source_test,
+                 "source_char_eye_dart_ruleset_defaults()",
+                 "focused CharEyeDartRuleset source test covers defaults");
+  ok &= contains(eye_dart_ruleset_source_test,
+                 "source_char_eye_dart_ruleset_load_revision_known(2)",
+                 "focused CharEyeDartRuleset source test covers revision reject");
+  ok &= contains(eye_dart_ruleset_source_test,
+                 "\"copymaxradiusfollowssourcemin-radiusassignment\"",
+                 "focused CharEyeDartRuleset source test covers copy quirk");
   ok &= contains(char_mesh_h,
                  "structSourceCharEyesInterest{std::stringinterest;boolsame_dir=false;};",
                  "native exposes CharEyes interest dependency input");
@@ -3971,6 +4033,10 @@ int run_contract() {
                  "Native `source_char_eyes_*` helpers port only these "
                  "graph/dependency\n    decisions",
                  "document records native CharEyes helper boundary");
+  ok &= contains(doc,
+                 "Native `source_char_eye_dart_ruleset_*` helpers preserve this\n"
+                 "    exact data behavior",
+                 "document records native CharEyeDartRuleset helper boundary");
   ok &= contains(rb3_char_ik_hand_cpp, "voidCharIKHand::Poll(){",
                  "RB3 CharIKHand source exposes Poll");
   ok &= contains(rb3_char_ik_hand_cpp,

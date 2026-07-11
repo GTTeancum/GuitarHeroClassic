@@ -478,6 +478,20 @@ struct SourceCharEyesPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharEyeDartRulesetData {
+  float min_radius = 0.5f;
+  float max_radius = 3.0f;
+  float on_target_angle_thresh = 5.0f;
+  int min_darts_per_sequence = 2;
+  int max_darts_per_sequence = 5;
+  float min_secs_between_darts = 0.25f;
+  float max_secs_between_darts = 0.65f;
+  float min_secs_between_sequences = 1.0f;
+  float max_secs_between_sequences = 2.0f;
+  bool scale_with_distance = true;
+  float reference_distance = 70.0f;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -594,6 +608,10 @@ void source_char_eyes_poll_deps(
     const std::string& target,
     const std::string& head_lookat,
     const std::string& face_servo);
+SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_defaults();
+bool source_char_eye_dart_ruleset_load_revision_known(int revision);
+SourceCharEyeDartRulesetData source_char_eye_dart_ruleset_copy(
+    const SourceCharEyeDartRulesetData& src);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(
