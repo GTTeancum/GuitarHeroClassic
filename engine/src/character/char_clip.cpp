@@ -158,6 +158,17 @@ bool source_char_bones_compression_known(int compression) {
          compression <= kSourceCompressAll;
 }
 
+const char* source_char_bones_compression_name(int compression) {
+  switch (compression) {
+    case kSourceCompressNone: return "kCompressNone";
+    case kSourceCompressRots: return "kCompressRots";
+    case kSourceCompressVects: return "kCompressVects";
+    case kSourceCompressQuats: return "kCompressQuats";
+    case kSourceCompressAll: return "kCompressAll";
+    default: return "unknown";
+  }
+}
+
 size_t source_char_bones_type_size(int cat, int compression) {
   if (cat == 0 || cat == 1) return compression < kSourceCompressVects ? 12u : 6u;
   if (cat == 2) {
@@ -173,6 +184,20 @@ size_t source_char_bones_type_size(int cat, int compression) {
 bool uses_source_byte_quat(const BoneList& list) {
   if (list.compression < kSourceCompressQuats) return false;
   return std::find(list.cats.begin(), list.cats.end(), 2) != list.cats.end();
+}
+
+bool debug_clip_parse_enabled() {
+#ifdef _MSC_VER
+  char* value = nullptr;
+  size_t len = 0;
+  const bool enabled =
+      _dupenv_s(&value, &len, "GHOGX_DEBUG_CLIP") == 0 && value && value[0];
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_CLIP");
+  return value && value[0];
+#endif
 }
 
 bool read_zero_bone_list(const uint8_t* d, size_t n, size_t& at,
@@ -355,6 +380,23 @@ std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
     }
   }
   if (lists.empty() || p == SIZE_MAX) return {};
+
+  if (debug_clip_parse_enabled()) {
+    for (size_t i = 0; i < lists.size(); ++i) {
+      const BoneList& bl = lists[i];
+      std::fprintf(stderr,
+                   "[clip-source-bones] list=%zu comp=%d(%s) samples=%d "
+                   "channels=%zu bytes=%zu byteQuat=%d\n",
+                   i, bl.compression,
+                   source_char_bones_compression_name(bl.compression),
+                   bl.num_samples, bl.names.size(), bl.frame_bytes,
+                   uses_source_byte_quat(bl) ? 1 : 0);
+      std::fprintf(stderr,
+                   "[clip-source-bones-counts] list=%zu vec=%d quat=%d "
+                   "angle=%d\n",
+                   i, bl.n_vec, bl.n_quat, bl.n_angle);
+    }
+  }
 
   // Sample data begins at p (after the third header). Use the max declared
   // frame count; one-sample lists are constant channels repeated across frames.

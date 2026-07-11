@@ -2014,6 +2014,15 @@ int run_contract() {
                  "storage but do not expose",
                  "document fences byte-quat conversion body");
   ok &= contains(doc,
+                 "`GHOGX_DEBUG_CLIP=1` logs accepted source "
+                 "`CharBonesSamples` list\n    compression modes",
+                 "document records source clip compression inventory logging");
+  ok &= contains(doc,
+                 "the accessible tree does not include a\n"
+                 "    matching `ByteQuat` type, header, or conversion "
+                 "implementation",
+                 "document records upstream ByteQuat source absence");
+  ok &= contains(doc,
                  "`RotateBy`, `RotateTo`, and `ScaleAddSample` select\n"
                  "    `mRawData[mTotalSize * sample]` and split weight",
                  "document records concrete CharBonesSamples interpolation source");
@@ -2095,6 +2104,15 @@ int run_contract() {
   ok &= contains(char_clip,
                  "if(uses_source_byte_quat(out))returnfalse;",
                  "native clip decoder refuses byte-quat lists until source conversion body exists");
+  ok &= contains(char_clip,
+                 "source_char_bones_compression_name",
+                 "native clip decoder names source compression modes for logs");
+  ok &= contains(char_clip,
+                 "\"[clip-source-bones]list=%zucomp=%d(%s)samples=%d\"",
+                 "native clip decoder logs source CharBonesSamples list inventory");
+  ok &= contains(char_clip,
+                 "\"[clip-source-bones-counts]list=%zuvec=%dquat=%d\"",
+                 "native clip decoder logs source CharBonesSamples channel counts");
   ok &= missing(char_clip, "out.compression>3",
                 "native clip decoder no longer caps source compression at mode 3");
   ok &= contains(rb3_latest_char_bones_cpp,

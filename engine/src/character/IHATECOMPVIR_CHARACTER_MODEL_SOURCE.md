@@ -609,6 +609,16 @@ note, and all report `unreadBytes=0`.
     quaternion channels; native refuses those lists for now because the checked
     source snapshot and RB2 dump identify `ByteQuat` storage but do not expose
     the exact `ByteQuat` -> `Quat` conversion body.
+  - A focused upstream check of `ihatecompvir/rb3` master found the current
+    `src/system/math/Mtx.h` `Hmx::Quat` declaration and `TransformNoScale`
+    `ShortQuat` storage, plus old `doc/src-old/rb3/world/shortquat.hpp`
+    declaring `ShortQuat::ToQuat`; the accessible tree does not include a
+    matching `ByteQuat` type, header, or conversion implementation. Keep
+    `ByteQuat` decode fenced unless new ihatecompvir source or original-game
+    trace evidence provides that body.
+  - `GHOGX_DEBUG_CLIP=1` logs accepted source `CharBonesSamples` list
+    compression modes, sample counts, channel counts, source frame byte counts,
+    and whether a list would require the fenced `ByteQuat` path.
   - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish
     the source packed-row offset model.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
