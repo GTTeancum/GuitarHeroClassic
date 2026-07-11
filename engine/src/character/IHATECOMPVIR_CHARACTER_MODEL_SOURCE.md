@@ -477,6 +477,14 @@ note, and all report `unreadBytes=0`.
     all sampled rows report `version=2`, `weightableVersion=2`,
     source/pivot on the eye mesh, `dest=<none>`, and `unreadBytes=0`.
 - `rb3/src/system/char/CharEyes.cpp`
+  - Native `source_char_eyes_default_state` ports the concrete constructor
+    defaults for the source-owned data fields: null eye/interest/object refs,
+    zero filter flags, `max_extrapolation=19.5`, `min_target_dist=35`,
+    upper/lower lid track defaults, focus priority `-1`, timer sentinels, the
+    `unkec=1.0` / `unk15d=true` flags, `unkb8=cos(0.52359879)`, and the
+    `eye_status` overlay lookup. Fields not initialized by the source
+    constructor remain outside this helper rather than being assigned invented
+    defaults.
   - Modern revisions read `EyeDesc` rows, but GH2-era revision 3 uses the older
     branch: `CharEyes::Load` reads an `ObjPtrList<CharLookAt>` and converts each
     reference into an eye entry. For revisions 3 and 4 it then consumes one old

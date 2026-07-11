@@ -506,6 +506,50 @@ struct SourceCharEyesForceBlinkState {
   int blink_count_delta = 0;
 };
 
+struct SourceCharEyesDefaultState {
+  size_t eye_count = 0;
+  size_t interest_count = 0;
+  bool has_face_servo = false;
+  bool has_cam_weight = false;
+  std::array<float, 3> unk58 = {0.0f, 0.0f, 0.0f};
+  int default_filter_flags = 0;
+  bool has_view_direction = false;
+  bool has_head_lookat = false;
+  float max_extrapolation = 19.5f;
+  float min_target_dist = 35.0f;
+  float upper_lid_track_up = 1.0f;
+  float upper_lid_track_down = 1.0f;
+  float lower_lid_track_up = 0.75f;
+  float lower_lid_track_down = 0.75f;
+  int lower_lid_track_rotate = 0;
+  int interest_filter_flags = 0;
+  std::array<float, 3> unka4 = {0.0f, 0.0f, 0.0f};
+  int unkb4 = 0;
+  float unkb8 = 0.0f;
+  float unkc0 = 0.0f;
+  int unkc4 = 0;
+  bool unkc5 = false;
+  bool has_current_interest = false;
+  bool has_focus_interest = false;
+  int focus_priority = -1;
+  bool unke4 = false;
+  bool unke8 = false;
+  float unkec = 1.0f;
+  bool unkf0 = false;
+  bool unkf4 = false;
+  bool unk124 = false;
+  float unk128 = -1.0f;
+  int unk12c = -1;
+  bool unk13c = false;
+  float unk140 = -1.0f;
+  int unk144 = 0;
+  float unk148 = -1.0f;
+  float unk14c = -1.0f;
+  bool unk15c = false;
+  bool unk15d = true;
+  std::string overlay_name;
+};
+
 struct SourceCharEyesEnterState {
   std::array<float, 3> unka4 = {0.0f, 0.0f, 0.0f};
   int unkb4 = 0;
@@ -724,6 +768,7 @@ void source_char_guitar_string_poll_deps(
     const std::string& bend);
 std::vector<std::string> source_char_eyes_list_poll_children(
     const std::vector<std::string>& eye_lookats);
+SourceCharEyesDefaultState source_char_eyes_default_state();
 SourceCharEyesEyeDesc source_char_eyes_eye_desc_default();
 SourceCharEyesEyeDesc source_char_eyes_eye_desc_copy(
     const SourceCharEyesEyeDesc& source);

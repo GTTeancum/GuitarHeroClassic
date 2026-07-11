@@ -47,6 +47,7 @@ int main() {
   using ghogx::character::source_char_eyes_add_interest_object;
   using ghogx::character::source_char_eyes_clear_interest_objects;
   using ghogx::character::source_char_eyes_current_interest;
+  using ghogx::character::source_char_eyes_default_state;
   using ghogx::character::source_char_eyes_eye_desc_assign;
   using ghogx::character::source_char_eyes_eye_desc_copy;
   using ghogx::character::source_char_eyes_eye_desc_default;
@@ -108,6 +109,67 @@ int main() {
   ok &= expect_size(deps.change.size(), 0, "no eyes has no target change");
   ok &= expect_string(deps.changed_by[0], "same.interest",
                       "no eyes interest dependency");
+
+  const auto defaults = source_char_eyes_default_state();
+  ok &= expect_size(defaults.eye_count, 0, "default eye count");
+  ok &= expect_size(defaults.interest_count, 0, "default interest count");
+  ok &= expect_bool(defaults.has_face_servo, false, "default face servo");
+  ok &= expect_bool(defaults.has_cam_weight, false, "default camera weight");
+  ok &= expect_float(defaults.unk58[0], 0.0f, "default unk58 x");
+  ok &= expect_float(defaults.unk58[1], 0.0f, "default unk58 y");
+  ok &= expect_float(defaults.unk58[2], 0.0f, "default unk58 z");
+  ok &= expect_int(defaults.default_filter_flags, 0,
+                   "default filter flags");
+  ok &= expect_bool(defaults.has_view_direction, false,
+                    "default view direction");
+  ok &= expect_bool(defaults.has_head_lookat, false,
+                    "default head lookat");
+  ok &= expect_float(defaults.max_extrapolation, 19.5f,
+                     "default max extrapolation");
+  ok &= expect_float(defaults.min_target_dist, 35.0f,
+                     "default min target distance");
+  ok &= expect_float(defaults.upper_lid_track_up, 1.0f,
+                     "default upper lid track up");
+  ok &= expect_float(defaults.upper_lid_track_down, 1.0f,
+                     "default upper lid track down");
+  ok &= expect_float(defaults.lower_lid_track_up, 0.75f,
+                     "default lower lid track up");
+  ok &= expect_float(defaults.lower_lid_track_down, 0.75f,
+                     "default lower lid track down");
+  ok &= expect_int(defaults.lower_lid_track_rotate, 0,
+                   "default lower lid rotate");
+  ok &= expect_int(defaults.interest_filter_flags, 0,
+                   "default interest filter flags");
+  ok &= expect_float(defaults.unka4[0], 0.0f, "default unka4 x");
+  ok &= expect_float(defaults.unka4[1], 0.0f, "default unka4 y");
+  ok &= expect_float(defaults.unka4[2], 0.0f, "default unka4 z");
+  ok &= expect_int(defaults.unkb4, 0, "default unkb4");
+  ok &= expect_float(defaults.unkb8, 0.86602539f, "default unkb8");
+  ok &= expect_float(defaults.unkc0, 0.0f, "default unkc0");
+  ok &= expect_int(defaults.unkc4, 0, "default unkc4");
+  ok &= expect_bool(defaults.unkc5, false, "default unkc5");
+  ok &= expect_bool(defaults.has_current_interest, false,
+                    "default current interest");
+  ok &= expect_bool(defaults.has_focus_interest, false,
+                    "default focus interest");
+  ok &= expect_int(defaults.focus_priority, -1, "default focus priority");
+  ok &= expect_bool(defaults.unke4, false, "default unke4");
+  ok &= expect_bool(defaults.unke8, false, "default unke8");
+  ok &= expect_float(defaults.unkec, 1.0f, "default unkec");
+  ok &= expect_bool(defaults.unkf0, false, "default unkf0");
+  ok &= expect_bool(defaults.unkf4, false, "default unkf4");
+  ok &= expect_bool(defaults.unk124, false, "default unk124");
+  ok &= expect_float(defaults.unk128, -1.0f, "default unk128");
+  ok &= expect_int(defaults.unk12c, -1, "default unk12c");
+  ok &= expect_bool(defaults.unk13c, false, "default unk13c");
+  ok &= expect_float(defaults.unk140, -1.0f, "default unk140");
+  ok &= expect_int(defaults.unk144, 0, "default unk144");
+  ok &= expect_float(defaults.unk148, -1.0f, "default unk148");
+  ok &= expect_float(defaults.unk14c, -1.0f, "default unk14c");
+  ok &= expect_bool(defaults.unk15c, false, "default unk15c");
+  ok &= expect_bool(defaults.unk15d, true, "default unk15d");
+  ok &= expect_string(defaults.overlay_name, "eye_status",
+                      "default overlay name");
 
   const auto default_eye = source_char_eyes_eye_desc_default();
   ok &= expect_string(default_eye.eye, "", "default eye ref");

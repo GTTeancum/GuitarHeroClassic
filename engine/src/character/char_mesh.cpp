@@ -1963,6 +1963,13 @@ std::vector<std::string> source_char_eyes_list_poll_children(
   return children;
 }
 
+SourceCharEyesDefaultState source_char_eyes_default_state() {
+  SourceCharEyesDefaultState state;
+  state.unkb8 = std::cos(0.52359879f);
+  state.overlay_name = "eye_status";
+  return state;
+}
+
 SourceCharEyesEyeDesc source_char_eyes_eye_desc_default() {
   return SourceCharEyesEyeDesc{};
 }

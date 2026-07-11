@@ -4499,6 +4499,25 @@ int run_contract() {
                  "0);bs>>tPtr;}",
                  "RB3 CharEyes rev 3/4 consumes a trailing transformable");
   ok &= contains(rb3_char_eyes_cpp,
+                 "CharEyes::CharEyes():mEyes(this),mInterests(this),"
+                 "mFaceServo(this,0),mCamWeight(this,0),unk58(0,0,0),"
+                 "mDefaultFilterFlags(0),mViewDirection(this,0),"
+                 "mHeadLookAt(this,0),mMaxExtrapolation(19.5f),"
+                 "mMinTargetDist(35.0f),mUpperLidTrackUp(1.0f),"
+                 "mUpperLidTrackDown(1.0f),mLowerLidTrackUp(0.75f),"
+                 "mLowerLidTrackDown(0.75f),mLowerLidTrackRotate(0),"
+                 "mInterestFilterFlags(0),unka4(0,0,0),unkb4(0),"
+                 "unkc0(0),unkc4(0),unkc5(0),unkc8(this,0),unkd4(this,0),"
+                 "unke0(-1),unke4(0),unke8(0),unkec(1.0F),unkf0(0),"
+                 "unkf4(0),unk124(0),unk128(-1.0f),unk12c(-1),"
+                 "unk13c(0),unk140(-1.0f),unk144(0),unk148(-1.0f),"
+                 "unk14c(-1.0f),unk15c(0),unk15d(1){",
+                 "RB3 CharEyes constructor exposes source defaults");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "unkb8=std::cos(0.52359879f);unk9c=RndOverlay::Find("
+                 "\"eye_status\",false);",
+                 "RB3 CharEyes constructor computes fallback cone and overlay");
+  ok &= contains(rb3_char_eyes_cpp,
                  "CharEyes::EyeDesc::EyeDesc(Hmx::Object*o):mEye(o,0),"
                  "mUpperLid(o,0),mLowerLid(o,0),mLowerLidBlink(o,0),"
                  "mUpperLidBlink(o,0){}",
@@ -4736,6 +4755,30 @@ int run_contract() {
                  "structSourceCharEyesInterest{std::stringinterest;boolsame_dir=false;};",
                  "native exposes CharEyes interest dependency input");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesDefaultState{size_teye_count=0;"
+                 "size_tinterest_count=0;boolhas_face_servo=false;"
+                 "boolhas_cam_weight=false;std::array<float,3>unk58="
+                 "{0.0f,0.0f,0.0f};intdefault_filter_flags=0;"
+                 "boolhas_view_direction=false;boolhas_head_lookat=false;"
+                 "floatmax_extrapolation=19.5f;floatmin_target_dist=35.0f;",
+                 "native exposes CharEyes default source state");
+  ok &= contains(char_mesh_h,
+                 "floatupper_lid_track_up=1.0f;floatupper_lid_track_down=1.0f;"
+                 "floatlower_lid_track_up=0.75f;floatlower_lid_track_down=0.75f;"
+                 "intlower_lid_track_rotate=0;intinterest_filter_flags=0;",
+                 "native CharEyes default state exposes lid/filter defaults");
+  ok &= contains(char_mesh_h,
+                 "boolhas_current_interest=false;boolhas_focus_interest=false;"
+                 "intfocus_priority=-1;boolunke4=false;boolunke8=false;"
+                 "floatunkec=1.0f;",
+                 "native CharEyes default state exposes focus defaults");
+  ok &= contains(char_mesh_h,
+                 "boolunk124=false;floatunk128=-1.0f;intunk12c=-1;"
+                 "boolunk13c=false;floatunk140=-1.0f;intunk144=0;"
+                 "floatunk148=-1.0f;floatunk14c=-1.0f;boolunk15c=false;"
+                 "boolunk15d=true;std::stringoverlay_name;};",
+                 "native CharEyes default state exposes timer and overlay fields");
+  ok &= contains(char_mesh_h,
                  "structSourceCharEyesEyeDesc{std::stringeye;"
                  "std::stringupper_lid;std::stringlower_lid;"
                  "std::stringlower_lid_blink;std::stringupper_lid_blink;};",
@@ -4771,6 +4814,9 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "std::vector<std::string>source_char_eyes_list_poll_children(",
                  "native exposes CharEyes poll child helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesDefaultStatesource_char_eyes_default_state();",
+                 "native exposes CharEyes default state helper");
   ok &= contains(char_mesh_h,
                  "SourceCharEyesEyeDescsource_char_eyes_eye_desc_default();",
                  "native exposes CharEyes EyeDesc default helper");
@@ -4851,6 +4897,12 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "for(conststd::string&eye:eye_lookats)children.push_back(eye);",
                  "native CharEyes helper delegates poll children to lookat refs");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesDefaultStatesource_char_eyes_default_state(){"
+                 "SourceCharEyesDefaultStatestate;state.unkb8=std::cos("
+                 "0.52359879f);state.overlay_name=\"eye_status\";"
+                 "returnstate;}",
+                 "native CharEyes default helper ports constructor body");
   ok &= contains(char_mesh,
                  "SourceCharEyesEyeDescsource_char_eyes_eye_desc_default(){"
                  "returnSourceCharEyesEyeDesc{};}",
@@ -4983,6 +5035,15 @@ int run_contract() {
                  "SourceCharEyesInterest{\"same.interest\",true}",
                  "focused CharEyes source test covers same-dir interest");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_default_state()",
+                 "focused CharEyes source test covers constructor defaults");
+  ok &= contains(eyes_source_test,
+                 "expect_float(defaults.unkb8,0.86602539f,\"defaultunkb8\")",
+                 "focused CharEyes source test covers constructor cosine default");
+  ok &= contains(eyes_source_test,
+                 "expect_string(defaults.overlay_name,\"eye_status\"",
+                 "focused CharEyes source test covers overlay lookup default");
+  ok &= contains(eyes_source_test,
                  "source_char_eyes_eye_desc_default()",
                  "focused CharEyes source test covers EyeDesc default helper");
   ok &= contains(eyes_source_test,
@@ -5077,6 +5138,12 @@ int run_contract() {
                  "Native `source_char_eyes_enter_state` and "
                  "`source_char_eyes_exit_state`",
                  "document records native CharEyes Enter and Exit helper slice");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_default_state` ports the concrete constructor",
+                 "document records native CharEyes constructor default helper");
+  ok &= contains(doc,
+                 "Fields not initialized by the source\n    constructor remain outside this helper",
+                 "document fences uninitialized CharEyes constructor fields");
   ok &= contains(doc,
                  "Native `source_char_eye_dart_ruleset_*` helpers preserve this\n"
                  "    exact data behavior",
