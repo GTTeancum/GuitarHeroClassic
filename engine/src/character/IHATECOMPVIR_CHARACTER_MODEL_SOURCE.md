@@ -1108,6 +1108,12 @@ note, and all report `unreadBytes=0`.
     `mAnimBlender` and `mMaxAnimBlend`.
   - Native GHOGX decodes/logs the same source-gated fields as passive row
     inventory and enforces the source revision range. The viewer/gameplay fret-target helper remains diagnostic application glue until `CharIKMidi::NewSpot` / `Poll` bodies are available from source or trace.
+  - Native `source_char_ik_midi_*` helpers record the checked source
+    constructor/`Enter` state reset, load gates, `PollDeps`, and copy-member
+    list. `Enter` clears current/new spots, spot-changed state, interpolation
+    fractions, and both local transforms; `PollDeps` publishes `mBone` as both
+    changed-by and changed, plus `mCurSpot` as changed-by; `Copy` copies
+    `Hmx::Object`, `mBone`, `mAnimBlender`, and `mMaxAnimBlend`.
     `engine/out/source_ikmidi_20260711/ikmidi_source_decode_audit.log`
     rechecks Rock1, Rock2, Glam1, Funk1, and Rockabill2; each sampled row is
     `version=4`, `bone=bone_fret.mesh`, `legacySpots=0`,

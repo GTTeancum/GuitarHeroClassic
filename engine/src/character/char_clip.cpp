@@ -4496,6 +4496,50 @@ SourceCharIKSliderMidiCopyResult source_char_ik_slider_midi_copy(
   return result;
 }
 
+SourceCharIKMidiState source_char_ik_midi_default_state() {
+  SourceCharIKMidiState state;
+  source_char_ik_midi_enter(state);
+  return state;
+}
+
+SourceCharIKMidiEnterResult source_char_ik_midi_enter(
+    SourceCharIKMidiState& state) {
+  SourceCharIKMidiEnterResult result;
+  state.cur_spot.clear();
+  state.new_spot.clear();
+  state.spot_changed = false;
+  state.frac = 0.0f;
+  state.frac_per_beat = 0.0f;
+  state.local_xfm_reset = true;
+  state.old_local_xfm_reset = true;
+  return result;
+}
+
+void source_char_ik_midi_poll_deps(SourceCharIKMidiPollDeps& deps,
+                                   const SourceCharIKMidiState& state) {
+  deps.change.push_back(state.bone);
+  deps.changed_by.push_back(state.bone);
+  deps.changed_by.push_back(state.cur_spot);
+}
+
+SourceCharIKMidiLoadSteps source_char_ik_midi_load_steps(int32_t revision) {
+  SourceCharIKMidiLoadSteps steps;
+  steps.known_revision = revision >= 0 && revision <= 5;
+  steps.load_hmx_object = true;
+  steps.load_bone = true;
+  steps.load_legacy_spots = revision < 3;
+  steps.load_legacy_string = revision == 2 || revision == 3;
+  steps.load_anim_blend = revision > 4;
+  return steps;
+}
+
+SourceCharIKMidiCopyPlan source_char_ik_midi_copy_plan() {
+  SourceCharIKMidiCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mBone", "mAnimBlender", "mMaxAnimBlend"};
+  return plan;
+}
+
 SourceCharLipSyncGeneratorState source_char_lip_sync_generator_default_state() {
   return SourceCharLipSyncGeneratorState{};
 }

@@ -1306,6 +1306,51 @@ struct SourceCharIKSliderMidiCopyResult {
   bool copy_tolerance = false;
 };
 
+struct SourceCharIKMidiState {
+  std::string bone;
+  std::string cur_spot;
+  std::string new_spot;
+  bool spot_changed = false;
+  bool local_xfm_reset = true;
+  bool old_local_xfm_reset = true;
+  float frac = 0.0f;
+  float frac_per_beat = 0.0f;
+  std::string anim_blender;
+  float max_anim_blend = 1.0f;
+  float anim_frac_per_beat = 0.0f;
+  float anim_frac = 0.0f;
+};
+
+struct SourceCharIKMidiEnterResult {
+  bool clear_cur_spot = true;
+  bool clear_new_spot = true;
+  bool clear_spot_changed = true;
+  bool reset_frac = true;
+  bool reset_frac_per_beat = true;
+  bool reset_local_xfm = true;
+  bool reset_old_local_xfm = true;
+  bool call_rnd_pollable_enter = true;
+};
+
+struct SourceCharIKMidiPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
+struct SourceCharIKMidiLoadSteps {
+  bool known_revision = false;
+  bool load_hmx_object = false;
+  bool load_bone = false;
+  bool load_legacy_spots = false;
+  bool load_legacy_string = false;
+  bool load_anim_blend = false;
+};
+
+struct SourceCharIKMidiCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
 struct SourceCharLipSyncGeneratorState {
   bool lip_sync_null = true;
   int last_count = 0;
@@ -1407,6 +1452,13 @@ SourceCharIKSliderMidiCopyResult source_char_ik_slider_midi_copy(
     const SourceCharIKSliderMidiState& source,
     bool shallow_copy,
     float source_owner_weight);
+SourceCharIKMidiState source_char_ik_midi_default_state();
+SourceCharIKMidiEnterResult source_char_ik_midi_enter(
+    SourceCharIKMidiState& state);
+void source_char_ik_midi_poll_deps(SourceCharIKMidiPollDeps& deps,
+                                   const SourceCharIKMidiState& state);
+SourceCharIKMidiLoadSteps source_char_ik_midi_load_steps(int32_t revision);
+SourceCharIKMidiCopyPlan source_char_ik_midi_copy_plan();
 SourceCharLipSyncGeneratorState source_char_lip_sync_generator_default_state();
 SourceCharLipSyncState source_char_lip_sync_default_state();
 SourceCharLipSyncLoadSteps source_char_lip_sync_load_steps(int32_t revision);

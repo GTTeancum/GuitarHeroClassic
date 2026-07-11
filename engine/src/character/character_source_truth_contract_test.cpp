@@ -96,6 +96,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_ik_head_source_test.cpp"));
   const std::string ik_slider_midi_source_test = compact(
       read_file(char_dir / "character_ik_slider_midi_source_test.cpp"));
+  const std::string ik_midi_source_test =
+      compact(read_file(char_dir / "character_ik_midi_source_test.cpp"));
   const std::string bone_offset_source_test =
       compact(read_file(char_dir / "character_bone_offset_source_test.cpp"));
   const std::string bone_twist_source_test =
@@ -2677,6 +2679,30 @@ int run_contract() {
   ok &= contains(rb3_latest_char_ik_midi_cpp,
                  "if(gRev>4){bs>>mAnimBlender;bs>>mMaxAnimBlend;}",
                  "CharIKMidi source load gates anim blend rows");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "CharIKMidi::CharIKMidi():mBone(this,0),mCurSpot(this,0),"
+                 "mNewSpot(this,0),mSpotChanged(0),mAnimBlender(this,0),"
+                 "mMaxAnimBlend(1.0f),mAnimFracPerBeat(0.0f),"
+                 "mAnimFrac(0.0f){Enter();}",
+                 "CharIKMidi source constructor exposes defaults");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "voidCharIKMidi::Enter(){mCurSpot=0;mNewSpot=0;"
+                 "mSpotChanged=false;mFrac=0.0f;mFracPerBeat=0.0f;"
+                 "mLocalXfm.Reset();mOldLocalXfm.Reset();"
+                 "RndPollable::Enter();}",
+                 "CharIKMidi source Enter resets spot interpolation state");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "voidCharIKMidi::PollDeps(std::list<Hmx::Object*>&"
+                 "changedBy,std::list<Hmx::Object*>&change){"
+                 "change.push_back(mBone);changedBy.push_back(mBone);"
+                 "changedBy.push_back(mCurSpot);}",
+                 "CharIKMidi source PollDeps publishes bone and current spot");
+  ok &= contains(rb3_latest_char_ik_midi_cpp,
+                 "BEGIN_COPYS(CharIKMidi)COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(CharIKMidi)BEGIN_COPYING_MEMBERS"
+                 "COPY_MEMBER(mBone)COPY_MEMBER(mAnimBlender)"
+                 "COPY_MEMBER(mMaxAnimBlend)",
+                 "CharIKMidi source Copy member list");
   ok &= contains(char_mesh_h,
                  "structCharIKMidi{std::stringname;int32_tversion=0;"
                  "std::stringbone;",
@@ -2705,6 +2731,82 @@ int run_contract() {
                  "if(midi.version>4){midi.anim_blender=r.str();"
                  "midi.max_anim_blend=r.f32();}",
                  "native CharIKMidi decoder mirrors anim blend gate");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKMidiState{std::stringbone;"
+                 "std::stringcur_spot;std::stringnew_spot;",
+                 "native exposes CharIKMidi source state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKMidiEnterResult{boolclear_cur_spot=true;"
+                 "boolclear_new_spot=true;boolclear_spot_changed=true;",
+                 "native exposes CharIKMidi Enter result");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKMidiPollDeps{std::vector<std::string>"
+                 "changed_by;std::vector<std::string>change;};",
+                 "native exposes CharIKMidi PollDeps result");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKMidiLoadSteps{boolknown_revision=false;"
+                 "boolload_hmx_object=false;boolload_bone=false;",
+                 "native exposes CharIKMidi load steps");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKMidiCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>"
+                 "copied_members;};",
+                 "native exposes CharIKMidi copy plan");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKMidiStatesource_char_ik_midi_default_state();",
+                 "native exposes CharIKMidi default helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKMidiEnterResultsource_char_ik_midi_enter("
+                 "SourceCharIKMidiState&state);",
+                 "native exposes CharIKMidi Enter helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_ik_midi_poll_deps("
+                 "SourceCharIKMidiPollDeps&deps,constSourceCharIKMidiState&"
+                 "state);",
+                 "native exposes CharIKMidi PollDeps helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKMidiLoadStepssource_char_ik_midi_load_steps("
+                 "int32_trevision);",
+                 "native exposes CharIKMidi load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKMidiCopyPlansource_char_ik_midi_copy_plan();",
+                 "native exposes CharIKMidi copy helper");
+  ok &= contains(char_clip,
+                 "SourceCharIKMidiStatesource_char_ik_midi_default_state(){"
+                 "SourceCharIKMidiStatestate;source_char_ik_midi_enter(state);"
+                 "returnstate;}",
+                 "native CharIKMidi default helper calls Enter like source");
+  ok &= contains(char_clip,
+                 "state.cur_spot.clear();state.new_spot.clear();"
+                 "state.spot_changed=false;state.frac=0.0f;"
+                 "state.frac_per_beat=0.0f;",
+                 "native CharIKMidi Enter helper clears source spot interpolation state");
+  ok &= contains(char_clip,
+                 "state.local_xfm_reset=true;state.old_local_xfm_reset=true;",
+                 "native CharIKMidi Enter helper resets source transforms");
+  ok &= contains(char_clip,
+                 "voidsource_char_ik_midi_poll_deps("
+                 "SourceCharIKMidiPollDeps&deps,constSourceCharIKMidiState&"
+                 "state){deps.change.push_back(state.bone);"
+                 "deps.changed_by.push_back(state.bone);"
+                 "deps.changed_by.push_back(state.cur_spot);}",
+                 "native CharIKMidi PollDeps helper mirrors source");
+  ok &= contains(char_clip,
+                 "SourceCharIKMidiLoadStepssource_char_ik_midi_load_steps("
+                 "int32_trevision){SourceCharIKMidiLoadStepssteps;"
+                 "steps.known_revision=revision>=0&&revision<=5;",
+                 "native CharIKMidi load helper enforces revision range");
+  ok &= contains(char_clip,
+                 "steps.load_legacy_spots=revision<3;"
+                 "steps.load_legacy_string=revision==2||revision==3;"
+                 "steps.load_anim_blend=revision>4;",
+                 "native CharIKMidi load helper mirrors source gates");
+  ok &= contains(char_clip,
+                 "SourceCharIKMidiCopyPlansource_char_ik_midi_copy_plan(){"
+                 "SourceCharIKMidiCopyPlanplan;plan.copied_superclasses="
+                 "{\"Hmx::Object\"};plan.copied_members={\"mBone\","
+                 "\"mAnimBlender\",\"mMaxAnimBlend\"};returnplan;}",
+                 "native CharIKMidi copy helper mirrors source copy list");
   ok &= contains(bind_audit,
                  "\"[controller-ik-midi]char=%sname=%sversion=%d",
                  "controller audit logs CharIKMidi source revision");
