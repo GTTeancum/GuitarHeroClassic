@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -226,6 +227,13 @@ std::array<float, 16> mul16(const std::array<float, 16>& a,
       r[i * 4 + j] = s;
     }
   return r;
+}
+
+std::array<float, 16> identity16() {
+  return {1.0f, 0.0f, 0.0f, 0.0f,
+          0.0f, 1.0f, 0.0f, 0.0f,
+          0.0f, 0.0f, 1.0f, 0.0f,
+          0.0f, 0.0f, 0.0f, 1.0f};
 }
 
 std::array<float, 16> affine_inverse16(const std::array<float, 16>& m) {
@@ -656,6 +664,17 @@ bool env_enabled(const char* name) {
   return enabled;
 }
 
+bool env_mesh_filter_matches(const char* name, const std::string& mesh_name) {
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, name) != 0 || !value) return false;
+  std::string filter(value);
+  std::free(value);
+  if (filter.empty() || filter == "0") return false;
+  if (filter == "1" || filter == "true" || filter == "TRUE") return true;
+  return mesh_name.find(filter) != std::string::npos;
+}
+
 float env_float_or(const char* name, float fallback, float min_value,
                    float max_value) {
   char* value = nullptr;
@@ -675,6 +694,12 @@ void normalize3(float v[3]) {
   v[0] /= len;
   v[1] /= len;
   v[2] /= len;
+}
+
+float row_len16(const std::array<float, 16>& m, size_t row) {
+  const size_t i = row * 4;
+  return std::sqrt(m[i + 0] * m[i + 0] + m[i + 1] * m[i + 1] +
+                   m[i + 2] * m[i + 2]);
 }
 
 void log_camera_matrix_rows(const OrbitCamera& cam, const float eye[3],
@@ -2379,8 +2404,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         return true;
       }
       for (const auto& group : scene_.groups) {
-        if (group.name == name && group.has_transform) {
-          local = xfm_to_mat4(group.local);
+        if (group.name == name) {
+          local = group.has_transform ? xfm_to_mat4(group.local) : identity16();
           return true;
         }
       }
@@ -2411,8 +2436,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         }
       }
       for (const auto& group : scene_.groups) {
-        if (group.name == name && group.has_transform) {
-          world = xfm_to_mat4(group.world_stored);
+        if (group.name == name) {
+          world =
+              group.has_transform ? xfm_to_mat4(group.world_stored) : identity16();
           return true;
         }
       }
@@ -2468,6 +2494,9 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       bool resolved_all_nodes = true;
       std::array<float, 16> composed = world;
       for (const std::string& target : chain) {
+        const bool target_is_mesh = target == m.name;
+        const bool target_sampled = target_has_transform_sample(target);
+        if (!target_sampled && !target_is_mesh) continue;
         std::array<float, 16> base_world{};
         if (!base_world_for(target, base_world)) {
           resolved_all_nodes = false;
@@ -2479,7 +2508,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
               mul16(mul16(base_world, affine_inverse16(anchor_base)),
                     anchor_current);
         }
-        if (target_has_transform_sample(target)) {
+        if (target_sampled) {
           std::array<float, 16> base_local{};
           if (!local_for(target, base_local)) {
             resolved_all_nodes = false;
@@ -2494,7 +2523,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           anchor_current = current_world;
           have_anchor = true;
         }
-        if (target == m.name) composed = current_world;
+        if (target_is_mesh) composed = current_world;
       }
       if (resolved_all_nodes) {
         world = composed;
@@ -2515,6 +2544,27 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       apply_face_camera_yaw(world, m, eye);
     }
     auto draw_world = mul16(world, world_transform_);
+    if (chain_has_transform_sample &&
+        env_mesh_filter_matches("GHOGX_LOG_MESH_ANIM_WORLD", m.name)) {
+      static std::unordered_map<std::string, size_t> logged_mesh_world_rows;
+      const size_t sample = ++logged_mesh_world_rows[m.name];
+      if (sample == 1 || sample % 30 == 0) {
+        std::fprintf(
+            stderr,
+            "[milo_scene] mesh_anim_world mesh=%s parent=%s sample=%zu "
+            "recomposed=%d world_pos=(%.6f %.6f %.6f) "
+            "row0=(%.6f %.6f %.6f) row1=(%.6f %.6f %.6f) "
+            "row2=(%.6f %.6f %.6f) row_len=(%.6f %.6f %.6f) "
+            "draw_pos=(%.6f %.6f %.6f) draw_row2=(%.6f %.6f %.6f)\n",
+            m.name.c_str(), m.parent.c_str(), sample,
+            recomposed_animated_chain ? 1 : 0, world[12], world[13],
+            world[14], world[0], world[1], world[2], world[4], world[5],
+            world[6], world[8], world[9], world[10], row_len16(world, 0),
+            row_len16(world, 1), row_len16(world, 2), draw_world[12],
+            draw_world[13], draw_world[14], draw_world[8], draw_world[9],
+            draw_world[10]);
+      }
+    }
     if (post_text_meshes_.find(m.name) != post_text_meshes_.end()) {
       if (const auto overlay_it = post_text_mesh_world_offsets_.find(m.name);
           overlay_it != post_text_mesh_world_offsets_.end()) {

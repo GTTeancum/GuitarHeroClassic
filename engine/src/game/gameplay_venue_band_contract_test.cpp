@@ -5868,6 +5868,18 @@ int main() {
                  "if(det_sign<0.0f)scale[2]=-scale[2];",
                  "renderer local scale extraction preserves the source MakeScale determinant sign");
   ok &= contains(renderer_c,
+                 "GHOGX_LOG_MESH_ANIM_WORLD",
+                 "renderer can log final animated venue mesh world rows");
+  ok &= contains(renderer_c,
+                 "mesh_anim_worldmesh=%sparent=%ssample=%zu",
+                 "animated venue mesh diagnostics identify the final mesh and parent rows");
+  ok &= contains(renderer_c,
+                 "row2=(%.6f%.6f%.6f)",
+                 "animated venue mesh diagnostics expose the source-facing gear rotation axis row");
+  ok &= contains(renderer_c,
+                 "draw_row2=(%.6f%.6f%.6f)",
+                 "animated venue mesh diagnostics expose the submitted renderer row");
+  ok &= contains(renderer_c,
                  "apply_local_translation_delta(world,sample.translation.data());",
                  "transform samples still apply translation in local space");
   ok &= contains(renderer_c,
@@ -5876,6 +5888,15 @@ int main() {
   ok &= contains(renderer_c,
                  "mesh_transform_offsets_.find(target)",
                  "persistent venue AnimFilter offsets also apply to animated parent transforms");
+  ok &= contains(renderer_c,
+                 "group.has_transform?xfm_to_mat4(group.local):identity16();",
+                 "animated venue chains treat transformless source groups as neutral ancestors");
+  ok &= contains(renderer_c,
+                 "group.has_transform?xfm_to_mat4(group.world_stored):identity16();",
+                 "animated venue chains keep walking through neutral source group parents");
+  ok &= contains(renderer_c,
+                 "if(!target_sampled&&!target_is_mesh)continue;",
+                 "animated venue chain recomposition resolves only sampled nodes and the drawn mesh");
   ok &= contains(renderer_c,
                  "sample_transform_anim(active.anim,anim_frame)",
                  "one-shot mesh TransAnim playback samples translation, rotation, and scale");
