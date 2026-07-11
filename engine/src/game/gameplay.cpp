@@ -9271,7 +9271,9 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
     }
     if (!anim.rotation_keys.empty()) {
         sample.has_rotation = true;
-        sample.rotation_is_absolute = false;
+        // RndTransAnim/PropKeys rebuild local rotation from the sampled quat and
+        // reapply MakeScale-signed rows; venue rotations are not first-key deltas.
+        sample.rotation_is_absolute = true;
         sample.rotation_xyzw =
             sample_rotation_value(anim.rotation_keys, frame, anim.rotation_slerp);
     }

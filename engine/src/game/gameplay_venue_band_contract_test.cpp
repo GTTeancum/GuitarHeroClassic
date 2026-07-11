@@ -5996,8 +5996,8 @@ int main() {
                  "frame,anim.rotation_slerp);",
                  "one-shot renderer TransAnim rotations honor authored rot_slerp mode");
   ok &= contains(renderer_c,
-                 "sample.rotation_is_absolute=false;",
-                 "one-shot renderer TransAnim rotations apply through the current source local basis");
+                 "sample.rotation_is_absolute=true;",
+                 "one-shot renderer TransAnim rotations replace local rotation like source SetFrame");
   ok &= contains(renderer_c,
                  "if(!anim.scale_keys.empty()){sample.has_scale=true;"
                  "sample.scale_is_absolute=true;"
@@ -6044,13 +6044,13 @@ int main() {
                  "MeshQuatAnimKey>&keys,floatframe,boolslerp)",
                  "venue TransAnim rotations sample the authored quaternion value");
   ok &= contains(gameplay_c,
-                 "sample.rotation_is_absolute=false;"
+                 "sample.rotation_is_absolute=true;"
                  "sample.rotation_xyzw=sample_rotation_value(anim.rotation_keys,"
                  "frame,anim.rotation_slerp);",
-                 "venue TransAnim playback applies authored rotations through the current source local basis");
+                 "venue TransAnim playback applies authored rotations as source local rotation");
   ok &= contains(renderer_c,
-                 "apply_local_rotation_delta(world,sample.rotation_xyzw);",
-                 "venue TransAnim rotations preserve the authored local gear plane while applying sampled spin");
+                 "if(has_absolute_rot_scale)apply_absolute_local_rot_scale(world,sample);",
+                 "venue TransAnim rotations rebuild local rotation while preserving signed MakeScale rows");
   ok &= contains(gameplay_c,
                  "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
                  "source-shaped TransAnim decoder keeps authored scale keys");
