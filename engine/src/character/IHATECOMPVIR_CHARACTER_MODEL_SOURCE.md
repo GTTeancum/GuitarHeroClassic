@@ -346,7 +346,9 @@ note, and all report `unreadBytes=0`.
   - `FreezePoseRaw` stores current point positions back into `unk5c` in the
     root-parent local basis. `FreezePose` performs a source `Hookup()`, simulates
     200 loops at 60 Hz, restores the previous simulate flag, then freezes those
-    rows.
+    rows. Native ports the raw local-row write as
+    `source_char_hair_freeze_pose_raw`; full `FreezePose` remains bounded by the
+    unresolved source `Hookup(ObjPtrList<CharCollide>&)` path.
   - `SetName` detects whether the owning directory is a `Character` or
     `WorldDir` and enables post-process FPS emulation accordingly. `GetFPS`
     returns the post-process emulated rate when available, otherwise 60 Hz.

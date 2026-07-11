@@ -2330,6 +2330,37 @@ static int source_char_hair_simulate_loops(Character& character,
   return write_count;
 }
 
+int source_char_hair_freeze_pose_raw(Character& character, CharHair& hair,
+                                     SourceCharHairRuntime& state) {
+  int write_count = 0;
+  for (size_t si = 0; si < hair.strands.size(); ++si) {
+    auto& strand = hair.strands[si];
+    if (strand.root.empty()) continue;
+    const std::string* parent_name =
+        source_transform_parent(character, strand.root);
+    if (!parent_name || parent_name->empty()) continue;
+    if (si >= state.strands.size()) continue;
+
+    std::array<float, 16> parent_world{};
+    if (!transform_local_chain_world(character, *parent_name, parent_world)) {
+      continue;
+    }
+    const std::array<float, 16> parent_inverse = affine_inverse(parent_world);
+    auto& runtime_strand = state.strands[si];
+    const size_t point_count =
+        std::min(strand.points.size(), runtime_strand.points.size());
+    for (size_t pi = 0; pi < point_count; ++pi) {
+      const Vec3 local = source_transform_point(
+          vec_from_array3(runtime_strand.points[pi].pos), parent_inverse);
+      strand.points[pi].unk5c[0] = local.x;
+      strand.points[pi].unk5c[1] = local.y;
+      strand.points[pi].unk5c[2] = local.z;
+      ++write_count;
+    }
+  }
+  return write_count;
+}
+
 static void source_char_hair_do_reset(Character& character, const CharHair& hair,
                                       SourceCharHairRuntime& state,
                                       int reset_count) {

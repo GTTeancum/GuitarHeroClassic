@@ -345,6 +345,11 @@ bool source_char_ik_rod_compute_world(const CharIKRod& rod,
                                       const Character& character,
                                       std::array<float, 16>& dest_world);
 
+// Source-backed CharHair::FreezePoseRaw helper. Writes current runtime point
+// positions back into point.unk5c in the strand root-parent local basis.
+int source_char_hair_freeze_pose_raw(Character& character, CharHair& hair,
+                                     SourceCharHairRuntime& state);
+
 // Compatibility helper for callers that only need the stored clip names.
 std::vector<std::string> load_clip_group_names(
     const std::string& hdr_path, const std::string& ark_path,

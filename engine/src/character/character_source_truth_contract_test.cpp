@@ -966,12 +966,39 @@ int run_contract() {
   ok &= contains(doc,
                  "Native reset follows that\n    forced-simulate lane",
                  "document records native CharHair reset forced simulation");
+  ok &= contains(doc,
+                 "Native ports the raw local-row write as\n"
+                 "    `source_char_hair_freeze_pose_raw`",
+                 "document records native CharHair FreezePoseRaw helper");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "SimulateLoops(reset,GetFPS());",
                  "RB3 CharHair reset runs source simulate loops");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "Multiply(pts[j].pos,tf48,pts[j].unk5c);",
                  "RB3 CharHair FreezePoseRaw writes root-parent local point rows");
+  ok &= contains(char_clip_h,
+                 "intsource_char_hair_freeze_pose_raw(Character&character,"
+                 "CharHair&hair,SourceCharHairRuntime&state);",
+                 "native exposes CharHair FreezePoseRaw source helper");
+  ok &= contains(char_clip,
+                 "intsource_char_hair_freeze_pose_raw(Character&character,"
+                 "CharHair&hair,SourceCharHairRuntime&state){",
+                 "native CharHair FreezePoseRaw helper exists");
+  ok &= contains(char_clip,
+                 "conststd::array<float,16>parent_inverse=affine_inverse("
+                 "parent_world);",
+                 "native CharHair FreezePoseRaw inverts root parent world");
+  ok &= contains(char_clip,
+                 "source_transform_point(vec_from_array3(runtime_strand.points[pi].pos),"
+                 "parent_inverse);strand.points[pi].unk5c[0]=local.x;",
+                 "native CharHair FreezePoseRaw writes local unk5c rows");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_freeze_pose_raw(freeze_character,freeze_hair,"
+                 "freeze_state);",
+                 "deterministic CharHair test calls FreezePoseRaw helper");
+  ok &= contains(char_hair_source_test,
+                 "freeze_hair.strands[0].points[0].unk5c[2],4.0f",
+                 "deterministic CharHair test proves FreezePoseRaw local write");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::FreezePose(){booltmpsim=mSimulate;Hookup();"
                  "SimulateLoops(200,60.0f);mSimulate=tmpsim;FreezePoseRaw();}",

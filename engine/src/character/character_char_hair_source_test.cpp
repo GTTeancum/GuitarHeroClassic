@@ -40,6 +40,7 @@ int main() {
   using ghogx::character::Character;
   using ghogx::character::CharHair;
   using ghogx::character::apply_character_controllers;
+  using ghogx::character::source_char_hair_freeze_pose_raw;
 
   Character character;
   add_trans(character, make_trans("parent"));
@@ -65,7 +66,7 @@ int main() {
     std::cerr << "missing CharHair runtime state\n";
     return 1;
   }
-  const auto& state = state_it->second;
+  auto& state = state_it->second;
   bool ok = true;
   ok &= state.reset == 0;
   ok &= state.strands.size() == 1;
@@ -80,6 +81,32 @@ int main() {
                 << " want near -2\n";
     }
   }
+
+  Character freeze_character;
+  auto parent = make_trans("parent");
+  set_pos(parent.local, 10.0f, 20.0f, 30.0f);
+  add_trans(freeze_character, parent);
+  add_trans(freeze_character, make_trans("root", "parent"));
+
+  CharHair freeze_hair;
+  freeze_hair.name = "freeze.hair";
+  freeze_hair.strands.resize(1);
+  freeze_hair.strands[0].root = "root";
+  freeze_hair.strands[0].points.resize(1);
+  ghogx::character::SourceCharHairRuntime freeze_state;
+  freeze_state.strands.resize(1);
+  freeze_state.strands[0].points.resize(1);
+  freeze_state.strands[0].points[0].pos = {12.0f, 23.0f, 34.0f};
+  const int freeze_writes =
+      source_char_hair_freeze_pose_raw(freeze_character, freeze_hair,
+                                       freeze_state);
+  ok &= freeze_writes == 1;
+  ok &= near(freeze_hair.strands[0].points[0].unk5c[0], 2.0f,
+             "freeze-local x");
+  ok &= near(freeze_hair.strands[0].points[0].unk5c[1], 3.0f,
+             "freeze-local y");
+  ok &= near(freeze_hair.strands[0].points[0].unk5c[2], 4.0f,
+             "freeze-local z");
 
   return ok ? 0 : 1;
 }
