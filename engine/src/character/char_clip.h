@@ -125,6 +125,28 @@ struct SourceCharBonesBlenderReallocateStep {
   bool enter = true;
 };
 
+struct SourceCharBonesBlenderLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> call_order;
+  std::vector<std::string> branches;
+};
+
+struct SourceCharBonesBlenderCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> member_calls;
+};
+
+struct SourceCharBonesBlenderHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharBonesBlenderPropSyncPlan {
+  std::vector<std::string> set_properties;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceCharBoneLoadPlan {
   bool known_revision = false;
   std::vector<std::string> read_order;
@@ -1413,6 +1435,11 @@ SourceCharBonesBlenderSetClipTypeStep
 source_char_bones_blender_set_clip_type_step(bool clip_type_changed);
 SourceCharBonesBlenderReallocateStep
 source_char_bones_blender_reallocate_step(bool has_dest);
+SourceCharBonesBlenderLoadPlan source_char_bones_blender_load_plan(
+    int32_t revision);
+SourceCharBonesBlenderCopyPlan source_char_bones_blender_copy_plan();
+SourceCharBonesBlenderHandlerPlan source_char_bones_blender_handler_plan();
+SourceCharBonesBlenderPropSyncPlan source_char_bones_blender_prop_sync_plan();
 
 // Source-backed CharBone helpers for decoded CharClip output rows.
 SourceCharBoneLoadPlan source_char_bone_load_plan(int32_t revision);

@@ -2190,6 +2190,16 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_bones_blender_reallocate_step` ports
     `ReallocateInternal`: call `CharBonesAlloc::ReallocateInternal`, add bones
     to the destination when present, then call `CharBones::Enter`.
+  - Native `source_char_bones_blender_load_plan` ports `Load`: accepted source
+    revisions are `0..2`, the row order is `Hmx::Object`, destination
+    `boneObjPtr`, and revision-gated `mClipType`, then the source calls
+    `SetClipType` before `SetDest`.
+  - Native `source_char_bones_blender_copy_plan`,
+    `source_char_bones_blender_handler_plan`, and
+    `source_char_bones_blender_prop_sync_plan` port the visible source
+    copy-member setter order, `CharPollable` / `Hmx::Object` handler chain,
+    check value `0x81`, and `dest` / `clip_type` property setters above the
+    `CharBonesObject` superclass.
   - This slice is still call-flow only; it does not claim the missing low-level
     `CharBones::Blend` math.
 - `rb3-latest/src/system/char/CharBonesSamples.cpp` is concrete for sample

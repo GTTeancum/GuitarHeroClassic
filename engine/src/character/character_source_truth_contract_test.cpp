@@ -10746,6 +10746,17 @@ int run_contract() {
                  "Native `source_char_bones_blender_reallocate_step` ports",
                  "document records concrete CharBonesBlender ReallocateInternal slice");
   ok &= contains(doc,
+                 "Native `source_char_bones_blender_load_plan` ports `Load`",
+                 "document records concrete CharBonesBlender Load slice");
+  ok &= contains(doc,
+                 "`source_char_bones_blender_copy_plan`,\n"
+                 "    `source_char_bones_blender_handler_plan`, and",
+                 "document records concrete CharBonesBlender copy/handler slice");
+  ok &= contains(doc,
+                 "`dest` / `clip_type` property setters above the\n"
+                 "    `CharBonesObject` superclass",
+                 "document records concrete CharBonesBlender prop-sync slice");
+  ok &= contains(doc,
                  "it does not claim the missing low-level\n"
                  "    `CharBones::Blend` math",
                  "document fences missing CharBones Blend math");
@@ -11167,6 +11178,18 @@ int run_contract() {
                  "source_char_bones_blender_reallocate_step(true)",
                  "focused CharBones source test covers CharBonesBlender realloc add");
   ok &= contains(char_bones_source_test,
+                 "source_char_bones_blender_load_plan(2)",
+                 "focused CharBones source test covers CharBonesBlender Load v2");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_blender_copy_plan()",
+                 "focused CharBones source test covers CharBonesBlender Copy");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_blender_handler_plan()",
+                 "focused CharBones source test covers CharBonesBlender handlers");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_blender_prop_sync_plan()",
+                 "focused CharBones source test covers CharBonesBlender prop sync");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_clear(state);",
                  "focused CharBones source test covers ClearBones reset");
   ok &= contains(char_bones_source_test,
@@ -11362,6 +11385,32 @@ int run_contract() {
                  "CharBonesAlloc::ReallocateInternal();if(mDest)"
                  "mDest->AddBones(mBones);CharBones::Enter();}",
                  "latest CharBonesBlender source defines ReallocateInternal flow");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "BEGIN_LOADS(CharBonesBlender)LOAD_REVS(bs)ASSERT_REVS(2,0)"
+                 "LOAD_SUPERCLASS(Hmx::Object)",
+                 "latest CharBonesBlender source defines Load revision gates");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "ObjPtr<CharBonesObject,ObjectDir>boneObjPtr(this,0);"
+                 "bs>>boneObjPtr;Symbols;if(gRev>1)bs>>s;"
+                 "SetClipType(s);SetDest(boneObjPtr);",
+                 "latest CharBonesBlender source defines Load row and setter order");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "BEGIN_COPYS(CharBonesBlender)COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(CharBonesBlender)BEGIN_COPYING_MEMBERS"
+                 "SetClipType(c->mClipType);SetDest(c->mDest);",
+                 "latest CharBonesBlender source defines Copy setter order");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "BEGIN_HANDLERS(CharBonesBlender)"
+                 "HANDLE_SUPERCLASS(CharPollable)"
+                 "HANDLE_SUPERCLASS(Hmx::Object)HANDLE_CHECK(0x81)"
+                 "END_HANDLERS",
+                 "latest CharBonesBlender source defines handler chain");
+  ok &= contains(rb3_latest_char_bones_blender_cpp,
+                 "BEGIN_PROPSYNCS(CharBonesBlender)"
+                 "SYNC_PROP_SET(dest,mDest,SetDest(_val.Obj<CharBonesObject>(0)))"
+                 "SYNC_PROP_SET(clip_type,mClipType,SetClipType(_val.Sym(0)))"
+                 "SYNC_SUPERCLASS(CharBonesObject)END_PROPSYNCS",
+                 "latest CharBonesBlender source defines prop-sync rows");
   ok &= contains(char_clip,
                  "kSourceCompressAll=4",
                  "native clip decoder names source compression mode 4");
@@ -11455,6 +11504,25 @@ int run_contract() {
                  "SourceCharBonesBlenderReallocateStep"
                  "source_char_bones_blender_reallocate_step(boolhas_dest);",
                  "native exposes CharBonesBlender ReallocateInternal helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesBlenderLoadPlan{"
+                 "boolknown_revision=false;std::vector<std::string>read_order;"
+                 "std::vector<std::string>call_order;"
+                 "std::vector<std::string>branches;};",
+                 "native API exposes CharBonesBlender Load plan row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesBlenderCopyPlan{"
+                 "std::vector<std::string>copied_superclasses;"
+                 "std::vector<std::string>member_calls;};",
+                 "native API exposes CharBonesBlender Copy plan row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesBlenderLoadPlan"
+                 "source_char_bones_blender_load_plan(int32_trevision);",
+                 "native exposes CharBonesBlender Load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesBlenderPropSyncPlan"
+                 "source_char_bones_blender_prop_sync_plan();",
+                 "native exposes CharBonesBlender prop-sync helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_find_offset(constSourceCharBonesState&state,"
                  "conststd::string&channel){constinttype=source_char_bones_type_of"
@@ -11532,6 +11600,41 @@ int run_contract() {
                  "SourceCharBonesBlenderReallocateStepstep;"
                  "step.add_bones_to_dest=has_dest;returnstep;}",
                  "native CharBonesBlender ReallocateInternal helper mirrors source flow");
+  ok &= contains(char_clip,
+                 "SourceCharBonesBlenderLoadPlan"
+                 "source_char_bones_blender_load_plan(int32_trevision){"
+                 "SourceCharBonesBlenderLoadPlanplan;plan.known_revision="
+                 "revision>=0&&revision<=2;",
+                 "native CharBonesBlender Load helper mirrors source revision gate");
+  ok &= contains(char_clip,
+                 "plan.read_order={\"Hmx::Object\",\"boneObjPtr\"};"
+                 "if(revision>1){plan.read_order.push_back(\"mClipType\");}"
+                 "else{plan.branches.push_back(\"mClipTypedefaultsempty\");}",
+                 "native CharBonesBlender Load helper mirrors source rows");
+  ok &= contains(char_clip,
+                 "plan.call_order={\"SetClipType\",\"SetDest\"};returnplan;}",
+                 "native CharBonesBlender Load helper mirrors source setter order");
+  ok &= contains(char_clip,
+                 "SourceCharBonesBlenderCopyPlan"
+                 "source_char_bones_blender_copy_plan(){"
+                 "SourceCharBonesBlenderCopyPlanplan;plan.copied_superclasses="
+                 "{\"Hmx::Object\"};plan.member_calls={\"SetClipType\","
+                 "\"SetDest\"};returnplan;}",
+                 "native CharBonesBlender Copy helper mirrors source setters");
+  ok &= contains(char_clip,
+                 "SourceCharBonesBlenderHandlerPlan"
+                 "source_char_bones_blender_handler_plan(){"
+                 "SourceCharBonesBlenderHandlerPlanplan;plan.superclasses="
+                 "{\"CharPollable\",\"Hmx::Object\"};plan.check=0x81;"
+                 "returnplan;}",
+                 "native CharBonesBlender handler helper mirrors source chain");
+  ok &= contains(char_clip,
+                 "SourceCharBonesBlenderPropSyncPlan"
+                 "source_char_bones_blender_prop_sync_plan(){"
+                 "SourceCharBonesBlenderPropSyncPlanplan;plan.set_properties="
+                 "{\"dest\",\"clip_type\"};plan.superclasses="
+                 "{\"CharBonesObject\"};returnplan;}",
+                 "native CharBonesBlender prop-sync helper mirrors source rows");
   ok &= contains(char_clip, "offset+=type_size;",
                  "native CharBones FindOffset advances source packed offsets");
   ok &= contains(char_clip,

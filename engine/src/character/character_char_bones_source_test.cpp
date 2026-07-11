@@ -402,6 +402,64 @@ int main() {
       source_char_bones_blender_reallocate_step(true);
   ok &= expect_int(blender_realloc_dest.add_bones_to_dest ? 1 : 0, 1,
                    "CharBonesBlender realloc dest add");
+  const SourceCharBonesBlenderLoadPlan blender_load_v1 =
+      source_char_bones_blender_load_plan(1);
+  ok &= expect_int(blender_load_v1.known_revision ? 1 : 0, 1,
+                   "CharBonesBlender Load v1 known");
+  ok &= expect_size(blender_load_v1.read_order.size(), 2,
+                    "CharBonesBlender Load v1 row count");
+  ok &= expect_string(blender_load_v1.read_order[0], "Hmx::Object",
+                      "CharBonesBlender Load v1 object");
+  ok &= expect_string(blender_load_v1.read_order[1], "boneObjPtr",
+                      "CharBonesBlender Load v1 dest ptr");
+  ok &= expect_string(blender_load_v1.branches[0],
+                      "mClipType defaults empty",
+                      "CharBonesBlender Load v1 clip type default");
+  ok &= expect_string(blender_load_v1.call_order[0], "SetClipType",
+                      "CharBonesBlender Load call order first");
+  ok &= expect_string(blender_load_v1.call_order[1], "SetDest",
+                      "CharBonesBlender Load call order second");
+  const SourceCharBonesBlenderLoadPlan blender_load_v2 =
+      source_char_bones_blender_load_plan(2);
+  ok &= expect_int(blender_load_v2.known_revision ? 1 : 0, 1,
+                   "CharBonesBlender Load v2 known");
+  ok &= expect_size(blender_load_v2.read_order.size(), 3,
+                    "CharBonesBlender Load v2 row count");
+  ok &= expect_string(blender_load_v2.read_order[2], "mClipType",
+                      "CharBonesBlender Load v2 clip type row");
+  ok &= expect_int(source_char_bones_blender_load_plan(3).known_revision ? 1
+                                                                         : 0,
+                   0, "CharBonesBlender Load rejects high revision");
+  const SourceCharBonesBlenderCopyPlan blender_copy =
+      source_char_bones_blender_copy_plan();
+  ok &= expect_size(blender_copy.copied_superclasses.size(), 1,
+                    "CharBonesBlender Copy superclass count");
+  ok &= expect_string(blender_copy.copied_superclasses[0], "Hmx::Object",
+                      "CharBonesBlender Copy object superclass");
+  ok &= expect_string(blender_copy.member_calls[0], "SetClipType",
+                      "CharBonesBlender Copy first setter");
+  ok &= expect_string(blender_copy.member_calls[1], "SetDest",
+                      "CharBonesBlender Copy second setter");
+  const SourceCharBonesBlenderHandlerPlan blender_handlers =
+      source_char_bones_blender_handler_plan();
+  ok &= expect_size(blender_handlers.superclasses.size(), 2,
+                    "CharBonesBlender handler superclass count");
+  ok &= expect_string(blender_handlers.superclasses[0], "CharPollable",
+                      "CharBonesBlender handler pollable superclass");
+  ok &= expect_string(blender_handlers.superclasses[1], "Hmx::Object",
+                      "CharBonesBlender handler object superclass");
+  ok &= expect_int(blender_handlers.check, 0x81,
+                   "CharBonesBlender handler check");
+  const SourceCharBonesBlenderPropSyncPlan blender_props =
+      source_char_bones_blender_prop_sync_plan();
+  ok &= expect_size(blender_props.set_properties.size(), 2,
+                    "CharBonesBlender prop sync set count");
+  ok &= expect_string(blender_props.set_properties[0], "dest",
+                      "CharBonesBlender prop sync dest");
+  ok &= expect_string(blender_props.set_properties[1], "clip_type",
+                      "CharBonesBlender prop sync clip type");
+  ok &= expect_string(blender_props.superclasses[0], "CharBonesObject",
+                      "CharBonesBlender prop sync superclass");
 
   const SourceCharBoneLoadPlan char_bone_v1 = source_char_bone_load_plan(1);
   ok &= expect_int(char_bone_v1.known_revision ? 1 : 0, 1,

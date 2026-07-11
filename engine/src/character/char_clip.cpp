@@ -297,6 +297,44 @@ source_char_bones_blender_reallocate_step(bool has_dest) {
   return step;
 }
 
+SourceCharBonesBlenderLoadPlan source_char_bones_blender_load_plan(
+    int32_t revision) {
+  SourceCharBonesBlenderLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 2;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"Hmx::Object", "boneObjPtr"};
+  if (revision > 1) {
+    plan.read_order.push_back("mClipType");
+  } else {
+    plan.branches.push_back("mClipType defaults empty");
+  }
+  plan.call_order = {"SetClipType", "SetDest"};
+  return plan;
+}
+
+SourceCharBonesBlenderCopyPlan source_char_bones_blender_copy_plan() {
+  SourceCharBonesBlenderCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.member_calls = {"SetClipType", "SetDest"};
+  return plan;
+}
+
+SourceCharBonesBlenderHandlerPlan source_char_bones_blender_handler_plan() {
+  SourceCharBonesBlenderHandlerPlan plan;
+  plan.superclasses = {"CharPollable", "Hmx::Object"};
+  plan.check = 0x81;
+  return plan;
+}
+
+SourceCharBonesBlenderPropSyncPlan
+source_char_bones_blender_prop_sync_plan() {
+  SourceCharBonesBlenderPropSyncPlan plan;
+  plan.set_properties = {"dest", "clip_type"};
+  plan.superclasses = {"CharBonesObject"};
+  return plan;
+}
+
 SourceCharBoneLoadPlan source_char_bone_load_plan(int32_t revision) {
   SourceCharBoneLoadPlan plan;
   plan.known_revision = revision >= 0 && revision <= 10;
