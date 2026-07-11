@@ -16659,6 +16659,11 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_mesh_normal_overrides_.clear();
     venue_mesh_texcoord_overrides_.clear();
     venue_mesh_color_overrides_.clear();
+    venue_latched_mesh_transform_offsets_.clear();
+    venue_latched_mesh_position_overrides_.clear();
+    venue_latched_mesh_normal_overrides_.clear();
+    venue_latched_mesh_texcoord_overrides_.clear();
+    venue_latched_mesh_color_overrides_.clear();
     venue_base_hidden_meshes_.clear();
     venue_runtime_hidden_meshes_.clear();
     venue_crowd_meshes_.clear();
@@ -18658,6 +18663,11 @@ void Gameplay::clear_runtime_venue_animation_state() {
     venue_mesh_normal_overrides_.clear();
     venue_mesh_texcoord_overrides_.clear();
     venue_mesh_color_overrides_.clear();
+    venue_latched_mesh_transform_offsets_.clear();
+    venue_latched_mesh_position_overrides_.clear();
+    venue_latched_mesh_normal_overrides_.clear();
+    venue_latched_mesh_texcoord_overrides_.clear();
+    venue_latched_mesh_color_overrides_.clear();
     pending_transient_venue_events_.clear();
     active_venue_event_.clear();
     venue_camera_hidden_meshes_.clear();
@@ -19063,32 +19073,27 @@ void Gameplay::update_active_venue_particles() {
 void Gameplay::update_active_venue_anim_filters() {
     if (!world_) return;
     if (active_venue_anim_filters_.empty()) {
-        if (!venue_mesh_transform_offsets_.empty() ||
-            !venue_mesh_position_overrides_.empty() ||
-            !venue_mesh_normal_overrides_.empty() ||
-            !venue_mesh_texcoord_overrides_.empty() ||
-            !venue_mesh_color_overrides_.empty()) {
-            venue_mesh_translation_offsets_.clear();
-            venue_mesh_transform_offsets_.clear();
-            venue_mesh_position_overrides_.clear();
-            venue_mesh_normal_overrides_.clear();
-            venue_mesh_texcoord_overrides_.clear();
-            venue_mesh_color_overrides_.clear();
-            world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
-            world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
-            world_->set_mesh_normal_overrides(venue_mesh_normal_overrides_);
-            world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
-            world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
-        }
+        venue_mesh_translation_offsets_.clear();
+        venue_mesh_transform_offsets_ = venue_latched_mesh_transform_offsets_;
+        venue_mesh_position_overrides_ = venue_latched_mesh_position_overrides_;
+        venue_mesh_normal_overrides_ = venue_latched_mesh_normal_overrides_;
+        venue_mesh_texcoord_overrides_ =
+            venue_latched_mesh_texcoord_overrides_;
+        venue_mesh_color_overrides_ = venue_latched_mesh_color_overrides_;
+        world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
+        world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
+        world_->set_mesh_normal_overrides(venue_mesh_normal_overrides_);
+        world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
+        world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
         return;
     }
 
     venue_mesh_translation_offsets_.clear();
-    venue_mesh_transform_offsets_.clear();
-    venue_mesh_position_overrides_.clear();
-    venue_mesh_normal_overrides_.clear();
-    venue_mesh_texcoord_overrides_.clear();
-    venue_mesh_color_overrides_.clear();
+    venue_mesh_transform_offsets_ = venue_latched_mesh_transform_offsets_;
+    venue_mesh_position_overrides_ = venue_latched_mesh_position_overrides_;
+    venue_mesh_normal_overrides_ = venue_latched_mesh_normal_overrides_;
+    venue_mesh_texcoord_overrides_ = venue_latched_mesh_texcoord_overrides_;
+    venue_mesh_color_overrides_ = venue_latched_mesh_color_overrides_;
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_venue_filter_debug_time_ < 0.0 ||
@@ -19099,18 +19104,19 @@ void Gameplay::update_active_venue_anim_filters() {
         const double elapsed = std::max(0.0, song_time_ - it->start_time);
         double duration = 0.0;
         for (const auto& filter : it->filters) {
-            duration = std::max(
-                duration,
+            const double source_duration =
                 static_cast<double>(filter.event_delay_seconds) +
-                    venue_filter_duration_seconds(filter));
+                venue_filter_duration_seconds(filter);
+            const double blend_duration =
+                static_cast<double>(filter.event_delay_seconds) +
+                static_cast<double>(
+                    std::max(0.0f, filter.event_blend_seconds));
+            duration =
+                std::max(duration, std::max(source_duration, blend_duration));
         }
-        if (!it->persistent && !it->shot_scoped && !it->polled &&
-            !venue_filter_set_loops(it->filters) &&
-            duration > 0.0 &&
-            elapsed > duration) {
-            it = active_venue_anim_filters_.erase(it);
-            continue;
-        }
+        const bool finishes_after_sample =
+            !it->persistent && !it->shot_scoped && !it->polled &&
+            !venue_filter_set_loops(it->filters) && elapsed >= duration;
 
         for (const auto& filter : it->filters) {
             const double filter_elapsed =
@@ -19140,6 +19146,9 @@ void Gameplay::update_active_venue_anim_filters() {
                         target.mesh, &source_translation, &source_pos);
                 sample.blend = source_blend;
                 venue_mesh_transform_offsets_[target.mesh] = sample;
+                if (finishes_after_sample) {
+                    venue_latched_mesh_transform_offsets_[target.mesh] = sample;
+                }
                 if (sample.has_translation)
                     venue_mesh_translation_offsets_[target.mesh] =
                         sample.translation;
@@ -19178,21 +19187,37 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (!positions.empty())
                     venue_mesh_position_overrides_[target.mesh] =
                         std::move(positions);
+                if (finishes_after_sample && position_count > 0) {
+                    venue_latched_mesh_position_overrides_[target.mesh] =
+                        venue_mesh_position_overrides_[target.mesh];
+                }
                 auto normals = sample_mesh_anim_normals(target.anim, frame);
                 const size_t normal_count = normals.size();
                 if (!normals.empty())
                     venue_mesh_normal_overrides_[target.mesh] =
                         std::move(normals);
+                if (finishes_after_sample && normal_count > 0) {
+                    venue_latched_mesh_normal_overrides_[target.mesh] =
+                        venue_mesh_normal_overrides_[target.mesh];
+                }
                 auto texcoords = sample_mesh_anim_texcoords(target.anim, frame);
                 const size_t texcoord_count = texcoords.size();
                 if (!texcoords.empty())
                     venue_mesh_texcoord_overrides_[target.mesh] =
                         std::move(texcoords);
+                if (finishes_after_sample && texcoord_count > 0) {
+                    venue_latched_mesh_texcoord_overrides_[target.mesh] =
+                        venue_mesh_texcoord_overrides_[target.mesh];
+                }
                 auto colors = sample_mesh_anim_colors(target.anim, frame);
                 const size_t color_count = colors.size();
                 if (!colors.empty())
                     venue_mesh_color_overrides_[target.mesh] =
                         std::move(colors);
+                if (finishes_after_sample && color_count > 0) {
+                    venue_latched_mesh_color_overrides_[target.mesh] =
+                        venue_mesh_color_overrides_[target.mesh];
+                }
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
@@ -19213,7 +19238,18 @@ void Gameplay::update_active_venue_anim_filters() {
                 }
             }
         }
-        ++it;
+        if (finishes_after_sample) {
+            if (debug_sample) {
+                std::fprintf(
+                    stderr,
+                    "[world] venue AnimFilter latch event=%s filters=%zu elapsed=%.3f duration=%.3f\n",
+                    it->event_name.c_str(), it->filters.size(), elapsed,
+                    duration);
+            }
+            it = active_venue_anim_filters_.erase(it);
+        } else {
+            ++it;
+        }
     }
     world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
     world_->set_mesh_position_overrides(venue_mesh_position_overrides_);

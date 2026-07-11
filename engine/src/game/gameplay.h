@@ -949,14 +949,24 @@ class Gameplay {
   std::map<std::string, std::array<float, 3>> venue_mesh_translation_offsets_;
   std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
       venue_mesh_transform_offsets_;
+  std::map<std::string, ghogx::render::MiloSceneRenderer::MeshTransformSample>
+      venue_latched_mesh_transform_offsets_;
   std::map<std::string, std::vector<std::array<float, 3>>>
       venue_mesh_position_overrides_;
   std::map<std::string, std::vector<std::array<float, 3>>>
+      venue_latched_mesh_position_overrides_;
+  std::map<std::string, std::vector<std::array<float, 3>>>
       venue_mesh_normal_overrides_;
+  std::map<std::string, std::vector<std::array<float, 3>>>
+      venue_latched_mesh_normal_overrides_;
   std::map<std::string, std::vector<std::array<float, 2>>>
       venue_mesh_texcoord_overrides_;
+  std::map<std::string, std::vector<std::array<float, 2>>>
+      venue_latched_mesh_texcoord_overrides_;
   std::map<std::string, std::vector<std::array<float, 4>>>
       venue_mesh_color_overrides_;
+  std::map<std::string, std::vector<std::array<float, 4>>>
+      venue_latched_mesh_color_overrides_;
   std::vector<ActiveVenueAnimFilter> active_venue_anim_filters_;
   double last_venue_filter_debug_time_ = -1.0;
   std::unordered_set<std::string> venue_base_hidden_meshes_;
