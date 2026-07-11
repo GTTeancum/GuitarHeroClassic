@@ -5416,19 +5416,17 @@ int main() {
   ok &= contains(renderer_c,
                  "constboolapply_environment_dynamic_lights="
                  "apply_environment_lighting&&"
-                 "(force_environment_dynamic_lights_||"
-                 "env_enabled(\"GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS\"))&&"
                  "!env_enabled(\"GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS\");",
-                 "authored Environ dynamic lights require an explicit opt-in gate");
+                 "authored Environ dynamic lights are enabled by default with a disable switch");
   ok &= contains(renderer_c,
                  "if(!apply_environment_dynamic_lights||!env||env->lights.empty()){disable_authored_lights();return;}",
                  "authored Environ dynamic lights shut off cleanly when the gate is closed");
   ok &= contains(renderer_c,
                  "light_color_overrides_.find(ref)",
                  "sampled LightAnim colors only feed decoded Environ light refs");
-  ok &= contains(renderer_c,
-                 "GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS",
-                 "renderer keeps authored dynamic environment lights opt-in until traced");
+  ok &= absent(renderer_c,
+               "GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS",
+               "authored dynamic environment lights are no longer hidden behind an opt-in gate");
   ok &= contains(renderer_c,
                  "GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS",
                  "renderer keeps authored dynamic environment lights A/B switchable");
@@ -5437,15 +5435,11 @@ int main() {
                  "!env_enabled(\"GHOGX_DISABLE_PRELIT_MATERIALS\");",
                  "renderer honors decoded Mat.prelit with an A/B kill switch");
   ok &= contains(renderer_c,
-                 "constbooldisable_mesh_lighting=debug_spotlight_solid||"
-                 "prelit_material;",
-                 "prelit materials share the fixed-lighting disable path");
+                 "constbooldisable_mesh_lighting=debug_spotlight_solid;",
+                 "prelit materials remain in the fixed-lighting path");
   ok &= contains(renderer_c,
-                 "if(prelit_material&&has_mesh_env_color)",
-                 "prelit use-environ materials keep EnvAnim color after fixed lighting is disabled");
-  ok &= contains(renderer_c,
-                 "mr*=std::clamp(mesh_env_color[0],0.0f,4.0f);",
-                 "prelit use-environ materials fold authored environment RGB into diffuse color");
+                 "prelitmaterialusesfixedlighting",
+                 "prelit renderer path reports the source-backed fixed-lighting behavior");
   ok &= contains(renderer_c,
                  "GHOGX_LOG_PRELIT_MESHES",
                  "prelit renderer path has focused debug logging");

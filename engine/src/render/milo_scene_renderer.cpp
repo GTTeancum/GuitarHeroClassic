@@ -1314,8 +1314,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       !env_enabled("GHOGX_DISABLE_ENVIRON_LIGHTING");
   const bool apply_environment_dynamic_lights =
       apply_environment_lighting &&
-      (force_environment_dynamic_lights_ ||
-       env_enabled("GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS")) &&
       !env_enabled("GHOGX_DISABLE_ENVIRON_DYNAMIC_LIGHTS");
   const bool apply_environment_fog =
       apply_environment_lighting && !env_enabled("GHOGX_DISABLE_ENVIRON_FOG");
@@ -1551,15 +1549,17 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     const bool prelit_material =
         mat_obj && mat_obj->prelit && !env_enabled("GHOGX_DISABLE_PRELIT_MATERIALS");
-    if (prelit_material && has_mesh_env_color) {
-      // Prelit materials bypass D3D fixed lighting below. Preserve the authored
-      // Mat.use_environ route by folding the current Environ/EnvAnim color into
-      // the same diffuse path that vertex colors and material colors use.
-      mr *= std::clamp(mesh_env_color[0], 0.0f, 4.0f);
-      mg *= std::clamp(mesh_env_color[1], 0.0f, 4.0f);
-      mb *= std::clamp(mesh_env_color[2], 0.0f, 4.0f);
-      ma *= std::clamp(mesh_env_color[3], 0.0f, 1.0f);
+    if (prelit_material && env_enabled("GHOGX_LOG_PRELIT_MESHES")) {
+      static std::unordered_set<std::string> logged_prelit;
+      const std::string key = m.name + "|" + material;
+      if (logged_prelit.insert(key).second) {
+        std::fprintf(stderr,
+                     "[milo_scene] prelit material uses fixed lighting: "
+                     "mesh=%s material=%s\n",
+                     m.name.c_str(), material.c_str());
+      }
     }
+    (void)has_mesh_env_color;
     if (debug_spotlight_solid) {
       texture = nullptr;
       mr = 1.0f;
@@ -1692,21 +1692,11 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
     }
 
-    const bool disable_mesh_lighting = debug_spotlight_solid || prelit_material;
+    const bool disable_mesh_lighting = debug_spotlight_solid;
     DWORD prev_lighting = TRUE;
     if (disable_mesh_lighting) {
       dev_->GetRenderState(D3DRS_LIGHTING, &prev_lighting);
       dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
-      if (prelit_material && env_enabled("GHOGX_LOG_PRELIT_MESHES")) {
-        static std::unordered_set<std::string> logged_prelit;
-        const std::string key = m.name + "|" + material;
-        if (logged_prelit.insert(key).second) {
-          std::fprintf(stderr,
-                       "[milo_scene] prelit material disables fixed lighting: "
-                       "mesh=%s material=%s\n",
-                       m.name.c_str(), material.c_str());
-        }
-      }
     }
 
     vb.clear();
