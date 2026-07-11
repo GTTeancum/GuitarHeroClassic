@@ -154,6 +154,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharDriverMidi.h"));
   const std::string rb3_latest_character_cpp = compact(read_file(
       rb3_latest_char_dir / "Character.cpp"));
+  const std::string rb3_latest_char_poll_group_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharPollGroup.cpp"));
   const std::string rb3_latest_anim_filter_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "AnimFilter.cpp"));
   const std::string rb3_latest_anim_filter_h = compact(read_file(
@@ -249,6 +251,8 @@ int run_contract() {
   ok &= contains(doc,
                  "| Hair two-sided rendering | User/project visual override |",
                  "coverage matrix marks hair two-sided as project override");
+  ok &= contains(doc, "| Poll groups | `rb3-latest` `CharPollGroup.cpp` |",
+                 "coverage matrix cites CharPollGroup source boundary");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs",
                  "document cites RndMat source");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs",
@@ -1201,6 +1205,29 @@ int run_contract() {
                  "document records stock CharWalk row count");
   ok &= contains(doc, "`OutfitLoader`: 20 stock rows",
                  "document records stock OutfitLoader row count");
+  ok &= contains(doc, "`CharPollGroup`: zero stock rows",
+                 "document records stock CharPollGroup absence");
+  ok &= contains(doc,
+                 "source_truth_poll_inventory_20260710/"
+                 "stock_character_type_inventory.log",
+                 "document cites focused poll inventory proof log");
+  ok &= contains(doc,
+                 "finds no `CharPollGroup` rows across the 24 base character "
+                 "MILOs",
+                 "document records no stock CharPollGroup rows");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "if(gRev>2)CharWeightable::Load(bs);bs>>mPolls;"
+                 "if(gRev>1){bs>>mChangedBy;bs>>mChanges;}",
+                 "CharPollGroup source load order");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "if(mWeightOwner->mWeight!=0.0f){for(ObjPtrList<"
+                 "CharPollable,ObjectDir>::iteratorit=mPolls.begin();"
+                 "it!=mPolls.end();++it){(*it)->Poll();}}",
+                 "CharPollGroup source Poll iterates child poll rows by weight");
+  ok &= missing(char_mesh, "CharPollGroup",
+                "native must not promote absent CharPollGroup rows");
+  ok &= missing(char_mesh_h, "CharPollGroup",
+                "native character model must not declare absent CharPollGroup rows");
   ok &= contains(doc, "`EventTrigger`: one stock row, on `metal_drummer`",
                  "document records stock EventTrigger row count");
   ok &= contains(doc, "## Event Trigger Row Authority",

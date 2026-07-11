@@ -43,6 +43,7 @@ records the upstream commits for the copied files:
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
 | Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
+| Poll groups | `rb3-latest` `CharPollGroup.cpp` | Source `Load`/`Poll` shape is known, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
 | Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Layout and call-flow evidence exists; native math/application is still fenced where source bodies are incomplete. |
 | Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
@@ -636,6 +637,15 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
   `midiBlendOverridePct=1.0000`. Under the ihatecompvir `CharDriverMidi::Load`
   gates, GH2 stock rows are before the parser/flag/blend fields and their
   revision-below-7 default clip slot is the source-backed empty `ObjPtr` string.
+- `rb3-latest/src/system/char/CharPollGroup.cpp` provides a real source
+  authority when such rows exist: `Load` reads `Hmx::Object`, optional
+  `CharWeightable` data for revisions above 2, `mPolls`, and revision-above-1
+  `mChangedBy`/`mChanges`; `Poll` iterates `mPolls` only when the weight owner
+  is nonzero. The focused stock type inventory at
+  `engine/out/source_truth_poll_inventory_20260710/stock_character_type_inventory.log`
+  finds no `CharPollGroup` rows across the 24 base character MILOs listed
+  above, so native GH2 must not synthesize a poll group or use it as a hidden
+  controller-order source for these assets.
 - The refreshed type inventory at
   `engine/out/source_truth_controller_inventory_20260710/stock_character_type_inventory_latest.log`
   shows one stock `AnimFilter` row, on `metal_drummer`. Native now decodes/logs
@@ -669,6 +679,10 @@ bounded as follows:
   runtime surface, while `OutfitLoader::Load` is an empty/bodyless dump row and
   `PreLoad` belongs to broader loader state. Native does not treat these rows
   as character mesh or controller data.
+- `CharPollGroup`: zero stock rows in the focused 24-character base-MILO type
+  inventory. ihatecompvir source is sufficient to decode and poll a future
+  verified row, but the current GH2 stock base-character data does not justify
+  adding native poll-group behavior.
 - `EventTrigger`: one stock row, on `metal_drummer`. Native now decodes and
   logs the source-backed field prefix using `EventTrigger::Load`,
   `ObjVector`, `ObjPtrList`, and `BinStream` evidence. It still does not run
