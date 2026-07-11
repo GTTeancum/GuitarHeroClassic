@@ -1,5 +1,6 @@
 #include "character/char_mesh.h"
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -447,6 +448,46 @@ int main() {
   CHECK(approx(synced_collide.cur_radius[1], 3.0f));
   CHECK(approx(synced_collide.cur_length[0], 4.0f));
   CHECK(approx(synced_collide.cur_length[1], 5.0f));
+
+  ghogx::character::SourceCharCollideRadiusCache radius_cache;
+  radius_cache.origin = {1.0f, 2.0f, 3.0f};
+  radius_cache.axis = {0.0f, 1.0f, 0.0f};
+  std::array<float, 3> collide_delta{};
+  ghogx::character::CharCollide radius_collide;
+  radius_collide.shape = 1;
+  radius_collide.cur_radius[0] = 2.0f;
+  CHECK(approx(ghogx::character::source_char_collide_get_radius(
+                   radius_collide, radius_cache, {4.0f, 6.0f, 3.0f},
+                   collide_delta),
+               2.0f));
+  CHECK(approx(collide_delta[0], 3.0f));
+  CHECK(approx(collide_delta[1], 4.0f));
+  CHECK(approx(collide_delta[2], 0.0f));
+
+  radius_collide.shape = 0;
+  CHECK(approx(ghogx::character::source_char_collide_get_radius(
+                   radius_collide, radius_cache, {4.0f, 6.0f, 3.0f},
+                   collide_delta),
+               4.0f));
+  CHECK(approx(collide_delta[0], 0.0f));
+  CHECK(approx(collide_delta[1], 4.0f));
+  CHECK(approx(collide_delta[2], 0.0f));
+
+  radius_collide.shape = 3;
+  radius_collide.cur_radius[0] = 2.0f;
+  radius_collide.cur_radius[1] = 6.0f;
+  radius_collide.cur_length[0] = 1.0f;
+  radius_collide.cur_length[1] = 3.0f;
+  radius_cache.origin = {0.0f, 0.0f, 0.0f};
+  radius_cache.length_scale = 1.0f;
+  radius_cache.radius_lerp_scale = 0.5f;
+  CHECK(approx(ghogx::character::source_char_collide_get_radius(
+                   radius_collide, radius_cache, {5.0f, 2.0f, 0.0f},
+                   collide_delta),
+               4.0f));
+  CHECK(approx(collide_delta[0], 5.0f));
+  CHECK(approx(collide_delta[1], 0.0f));
+  CHECK(approx(collide_delta[2], 0.0f));
 
   ghogx::character::CharHair cloth_hair = make_two_strand_hair();
   ghogx::character::source_char_hair_set_cloth(cloth_hair, true);

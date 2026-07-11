@@ -1465,6 +1465,33 @@ int source_char_collide_num_spheres(const CharCollide& collide) {
   return 0;
 }
 
+float source_char_collide_get_radius(
+    const CharCollide& collide,
+    const SourceCharCollideRadiusCache& cache,
+    const std::array<float, 3>& point,
+    std::array<float, 3>& out_delta) {
+  out_delta = {point[0] - cache.origin[0], point[1] - cache.origin[1],
+               point[2] - cache.origin[2]};
+  float radius = collide.cur_radius[0];
+  const auto dot_axis = [&]() {
+    return out_delta[0] * cache.axis[0] + out_delta[1] * cache.axis[1] +
+           out_delta[2] * cache.axis[2];
+  };
+  if (collide.shape >= 3) {
+    const float clamped =
+        std::clamp(cache.length_scale * dot_axis(), collide.cur_length[0],
+                   collide.cur_length[1]);
+    for (int i = 0; i < 3; ++i) out_delta[i] -= cache.axis[i] * clamped;
+    const float t =
+        cache.radius_lerp_scale * (clamped - collide.cur_length[0]);
+    radius = radius + (collide.cur_radius[1] - radius) * t;
+  } else if (collide.shape == 0) {
+    radius = dot_axis();
+    for (int i = 0; i < 3; ++i) out_delta[i] = cache.axis[i] * radius;
+  }
+  return radius;
+}
+
 void source_char_hair_set_cloth(CharHair& hair, bool enabled) {
   const size_t strand_count = hair.strands.size();
   if (strand_count == 0) return;

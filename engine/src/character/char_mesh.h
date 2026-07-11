@@ -353,9 +353,21 @@ struct CharCollide {
   float cur_length[2] = {0.0f, 0.0f};
 };
 
+struct SourceCharCollideRadiusCache {
+  std::array<float, 3> origin = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> axis = {0.0f, 1.0f, 0.0f};
+  float length_scale = 1.0f;
+  float radius_lerp_scale = 1.0f;
+};
+
 void source_char_collide_copy_original_to_cur(CharCollide& collide);
 void source_char_collide_sync_shape(CharCollide& collide);
 int source_char_collide_num_spheres(const CharCollide& collide);
+float source_char_collide_get_radius(
+    const CharCollide& collide,
+    const SourceCharCollideRadiusCache& cache,
+    const std::array<float, 3>& point,
+    std::array<float, 3>& out_delta);
 
 struct CharPosConstraint {
   std::string name;

@@ -1379,6 +1379,18 @@ int run_contract() {
                  "intsource_char_collide_num_spheres(constCharCollide&"
                  "collide);",
                  "native exposes CharCollide NumSpheres helper port");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCollideRadiusCache{std::array<float,3>"
+                 "origin={0.0f,0.0f,0.0f};std::array<float,3>axis="
+                 "{0.0f,1.0f,0.0f};floatlength_scale=1.0f;"
+                 "floatradius_lerp_scale=1.0f;};",
+                 "native exposes explicit CharCollide radius cache");
+  ok &= contains(char_mesh_h,
+                 "floatsource_char_collide_get_radius(constCharCollide&"
+                 "collide,constSourceCharCollideRadiusCache&cache,"
+                 "conststd::array<float,3>&point,std::array<float,3>&"
+                 "out_delta);",
+                 "native exposes bounded CharCollide GetRadius helper");
   ok &= contains(char_mesh,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
@@ -1424,6 +1436,22 @@ int run_contract() {
                  "{if(collide.shape==3||collide.shape==4)return2;",
                  "native CharCollide NumSpheres helper is ported");
   ok &= contains(char_mesh,
+                 "floatsource_char_collide_get_radius(constCharCollide&"
+                 "collide,constSourceCharCollideRadiusCache&cache,"
+                 "conststd::array<float,3>&point,std::array<float,3>&"
+                 "out_delta){out_delta={point[0]-cache.origin[0],",
+                 "native CharCollide GetRadius helper starts from source delta");
+  ok &= contains(char_mesh,
+                 "std::clamp(cache.length_scale*dot_axis(),"
+                 "collide.cur_length[0],collide.cur_length[1]);",
+                 "native CharCollide GetRadius helper clamps cigar length");
+  ok &= contains(char_mesh,
+                 "radius=radius+(collide.cur_radius[1]-radius)*t;",
+                 "native CharCollide GetRadius helper interpolates radius");
+  ok &= contains(char_mesh,
+                 "elseif(collide.shape==0){radius=dot_axis();",
+                 "native CharCollide GetRadius helper handles plane branch");
+  ok &= contains(char_mesh,
                  "out.collides.push_back(decode_collide(de.name,b));",
                  "character load stores decoded CharCollide rows");
   ok &= contains(char_clip,
@@ -1448,6 +1476,14 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_char_collide_num_spheres(collide)==2",
                  "mesh decode test covers CharCollide NumSpheres helper");
+  ok &= contains(mesh_decode_test,
+                 "source_char_collide_get_radius(radius_collide,"
+                 "radius_cache,{4.0f,6.0f,3.0f},collide_delta)",
+                 "mesh decode test covers CharCollide sphere/plane radius helper");
+  ok &= contains(mesh_decode_test,
+                 "source_char_collide_get_radius(radius_collide,"
+                 "radius_cache,{5.0f,2.0f,0.0f},collide_delta)",
+                 "mesh decode test covers CharCollide cigar radius helper");
   ok &= contains(doc,
                  "Native GHOGX retains the internal transform, all eight mesh sphere rows",
                  "document records decoded CharCollide retained source rows");
@@ -1457,7 +1493,11 @@ int run_contract() {
                  "document records CharCollide SyncShape helper port");
   ok &= contains(doc, "`CharHair::SimulateInternal` calls `CharCollide::GetRadius`",
                  "document records CharCollide collision radius dependency");
-  ok &= contains(doc, "keeps collision response disabled until those cached-field updates",
+  ok &= contains(doc,
+                 "ports the\n    inline formula as `source_char_collide_get_radius`",
+                 "document records bounded CharCollide GetRadius formula port");
+  ok &= contains(doc, "Native therefore keeps collision response disabled until the\n"
+                      "    cached-field updates are sourced",
                  "document fences unsourced CharCollide collision response");
   ok &= contains(doc, "runs the checked source poll/reset/sim state path",
                  "document states bounded native CharHair poll rule");
