@@ -458,6 +458,67 @@ int main() {
   ok &= expect_string(char_bone_copy_plan.copied_members.back(),
                       "mBakeOutAsTopLevel",
                       "CharBone Copy last member");
+  const SourceCharBoneHandlerPlan char_bone_handlers =
+      source_char_bone_handler_plan();
+  ok &= expect_size(char_bone_handlers.action_handlers.size(), 1,
+                    "CharBone handler action count");
+  ok &= expect_string(char_bone_handlers.action_handlers[0], "clear_context",
+                      "CharBone handler clear_context");
+  ok &= expect_size(char_bone_handlers.handlers.size(), 1,
+                    "CharBone handler count");
+  ok &= expect_string(char_bone_handlers.handlers[0], "get_context_flags",
+                      "CharBone handler get_context_flags");
+  ok &= expect_size(char_bone_handlers.superclasses.size(), 1,
+                    "CharBone handler superclass count");
+  ok &= expect_string(char_bone_handlers.superclasses[0], "Hmx::Object",
+                      "CharBone handler superclass");
+  ok &= expect_int(char_bone_handlers.check, 0x152,
+                   "CharBone handler check value");
+  const SourceCharBoneWeightContextPropSyncPlan weight_prop_sync =
+      source_char_bone_weight_context_prop_sync_plan();
+  ok &= expect_size(weight_prop_sync.properties.size(), 2,
+                    "CharBone WeightContext prop count");
+  ok &= expect_string(weight_prop_sync.properties[0], "context",
+                      "CharBone WeightContext context");
+  ok &= expect_string(weight_prop_sync.properties[1], "weight",
+                      "CharBone WeightContext weight");
+  const SourceCharBonePropSyncPlan char_bone_prop_sync =
+      source_char_bone_prop_sync_plan();
+  ok &= expect_size(char_bone_prop_sync.properties.size(), 8,
+                    "CharBone prop sync count");
+  ok &= expect_string(char_bone_prop_sync.properties[0], "position_context",
+                      "CharBone prop sync first");
+  ok &= expect_string(char_bone_prop_sync.properties[3], "rotation_context",
+                      "CharBone prop sync rotation context");
+  ok &= expect_string(char_bone_prop_sync.properties.back(),
+                      "bake_out_as_top_level", "CharBone prop sync last");
+  ok &= expect_size(char_bone_prop_sync.superclasses.size(), 1,
+                    "CharBone prop sync superclass count");
+  ok &= expect_string(char_bone_prop_sync.superclasses[0], "Hmx::Object",
+                      "CharBone prop sync superclass");
+  const SourceCharBonesBonePropSyncPlan bones_bone_prop_sync =
+      source_char_bones_bone_prop_sync_plan();
+  ok &= expect_size(bones_bone_prop_sync.properties.size(), 2,
+                    "CharBones::Bone prop count");
+  ok &= expect_string(bones_bone_prop_sync.properties[0], "name",
+                      "CharBones::Bone prop name");
+  ok &= expect_string(bones_bone_prop_sync.properties[1], "weight",
+                      "CharBones::Bone prop weight");
+  ok &= expect_size(bones_bone_prop_sync.set_properties.size(), 1,
+                    "CharBones::Bone set prop count");
+  ok &= expect_string(bones_bone_prop_sync.set_properties[0], "preview_val",
+                      "CharBones::Bone preview_val");
+  ok &= expect_int(bones_bone_prop_sync.preview_uses_prop_bones_string_val ? 1
+                                                                          : 0,
+                   1, "CharBones::Bone preview string lookup");
+  const SourceCharBonesObjectPropSyncPlan bones_object_prop_sync =
+      source_char_bones_object_prop_sync_plan();
+  ok &= expect_int(bones_object_prop_sync.assigns_prop_bones ? 1 : 0, 1,
+                   "CharBonesObject prop sync assigns gPropBones");
+  ok &= expect_size(bones_object_prop_sync.custom_branches.size(), 1,
+                    "CharBonesObject prop branch count");
+  ok &= expect_string(bones_object_prop_sync.custom_branches[0], "bones",
+                      "CharBonesObject prop bones branch");
 
   source_char_bones_clear(state);
   ok &= expect_empty_state(state, "ClearBones state reset");

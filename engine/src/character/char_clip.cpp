@@ -351,6 +351,45 @@ SourceCharBoneCopyPlan source_char_bone_copy_plan() {
   return plan;
 }
 
+SourceCharBoneHandlerPlan source_char_bone_handler_plan() {
+  SourceCharBoneHandlerPlan plan;
+  plan.action_handlers = {"clear_context"};
+  plan.handlers = {"get_context_flags"};
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0x152;
+  return plan;
+}
+
+SourceCharBoneWeightContextPropSyncPlan
+source_char_bone_weight_context_prop_sync_plan() {
+  SourceCharBoneWeightContextPropSyncPlan plan;
+  plan.properties = {"context", "weight"};
+  return plan;
+}
+
+SourceCharBonePropSyncPlan source_char_bone_prop_sync_plan() {
+  SourceCharBonePropSyncPlan plan;
+  plan.properties = {"position_context", "scale_context",
+                     "rotation",         "rotation_context",
+                     "target",           "weights",
+                     "trans",            "bake_out_as_top_level"};
+  plan.superclasses = {"Hmx::Object"};
+  return plan;
+}
+
+SourceCharBonesBonePropSyncPlan source_char_bones_bone_prop_sync_plan() {
+  SourceCharBonesBonePropSyncPlan plan;
+  plan.properties = {"name", "weight"};
+  plan.set_properties = {"preview_val"};
+  return plan;
+}
+
+SourceCharBonesObjectPropSyncPlan source_char_bones_object_prop_sync_plan() {
+  SourceCharBonesObjectPropSyncPlan plan;
+  plan.custom_branches = {"bones"};
+  return plan;
+}
+
 CharClip::OutputBone source_char_bone_copy_members(
     const CharClip::OutputBone& source) {
   CharClip::OutputBone dest;

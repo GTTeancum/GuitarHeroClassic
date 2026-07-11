@@ -136,6 +136,33 @@ struct SourceCharBoneCopyPlan {
   std::vector<std::string> copied_members;
 };
 
+struct SourceCharBoneHandlerPlan {
+  std::vector<std::string> action_handlers;
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharBoneWeightContextPropSyncPlan {
+  std::vector<std::string> properties;
+};
+
+struct SourceCharBonePropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> superclasses;
+};
+
+struct SourceCharBonesBonePropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> set_properties;
+  bool preview_uses_prop_bones_string_val = true;
+};
+
+struct SourceCharBonesObjectPropSyncPlan {
+  bool assigns_prop_bones = true;
+  std::vector<std::string> custom_branches;
+};
+
 struct SourceCharBoneDirDefaultState {
   bool recenter_targets_no_null = true;
   bool recenter_average_no_null = true;
@@ -1372,6 +1399,12 @@ source_char_bones_blender_reallocate_step(bool has_dest);
 // Source-backed CharBone helpers for decoded CharClip output rows.
 SourceCharBoneLoadPlan source_char_bone_load_plan(int32_t revision);
 SourceCharBoneCopyPlan source_char_bone_copy_plan();
+SourceCharBoneHandlerPlan source_char_bone_handler_plan();
+SourceCharBoneWeightContextPropSyncPlan
+source_char_bone_weight_context_prop_sync_plan();
+SourceCharBonePropSyncPlan source_char_bone_prop_sync_plan();
+SourceCharBonesBonePropSyncPlan source_char_bones_bone_prop_sync_plan();
+SourceCharBonesObjectPropSyncPlan source_char_bones_object_prop_sync_plan();
 CharClip::OutputBone source_char_bone_copy_members(
     const CharClip::OutputBone& source);
 std::optional<size_t> source_char_bone_find_weight_index(

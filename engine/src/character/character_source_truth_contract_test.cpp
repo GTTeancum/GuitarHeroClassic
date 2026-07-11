@@ -10883,6 +10883,36 @@ int run_contract() {
                  "if(gRev>7)bs>>mWeights;if(gRev>8)bs>>mTrans;"
                  "if(gRev>9)bs>>mBakeOutAsTopLevel;",
                  "latest CharBone source gates weights, trans, and bake flag");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "BEGIN_HANDLERS(CharBone)HANDLE_ACTION(clear_context,"
+                 "ClearContext(_msg->Int(2)))HANDLE(get_context_flags,"
+                 "OnGetContextFlags)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x152)END_HANDLERS",
+                 "latest CharBone source exposes handler table");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharBone::WeightContext)"
+                 "SYNC_PROP(context,o.mContext)SYNC_PROP(weight,o.mWeight)"
+                 "END_CUSTOM_PROPSYNC",
+                 "latest CharBone source exposes WeightContext props");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "BEGIN_PROPSYNCS(CharBone)SYNC_PROP(position_context,"
+                 "mPositionContext)SYNC_PROP(scale_context,mScaleContext)"
+                 "SYNC_PROP(rotation,(int&)mRotation)SYNC_PROP("
+                 "rotation_context,mRotationContext)SYNC_PROP(target,mTarget)"
+                 "SYNC_PROP(weights,mWeights)SYNC_PROP(trans,mTrans)"
+                 "SYNC_PROP(bake_out_as_top_level,mBakeOutAsTopLevel)"
+                 "SYNC_SUPERCLASS(Hmx::Object)END_PROPSYNCS",
+                 "latest CharBone source exposes prop-sync rows");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharBones::Bone)SYNC_PROP(name,o.name)"
+                 "SYNC_PROP(weight,o.weight)SYNC_PROP_SET(preview_val,"
+                 "gPropBones->StringVal(o.name),)END_CUSTOM_PROPSYNC",
+                 "latest CharBones source exposes Bone prop-sync rows");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "BEGIN_PROPSYNCS(CharBonesObject)gPropBones=this;"
+                 "if(sym==bones)returnPropSync(mBones,_val,_prop,_i+1,_op);"
+                 "END_PROPSYNCS",
+                 "latest CharBones source exposes CharBonesObject props");
   ok &= contains(rb3_latest_char_bone_h,
                  "ObjPtr<RndTransformable,ObjectDir>mTrans;",
                  "latest CharBone header exposes source trans pointer field");
@@ -10913,12 +10943,53 @@ int run_contract() {
                  "copied_superclasses;std::vector<std::string>copied_members;};",
                  "native API exposes source CharBone copy plan row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBoneHandlerPlan{std::vector<std::string>"
+                 "action_handlers;std::vector<std::string>handlers;"
+                 "std::vector<std::string>superclasses;intcheck=0;};",
+                 "native API exposes source CharBone handler plan row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneWeightContextPropSyncPlan{"
+                 "std::vector<std::string>properties;};",
+                 "native API exposes source CharBone WeightContext prop rows");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonePropSyncPlan{std::vector<std::string>"
+                 "properties;std::vector<std::string>superclasses;};",
+                 "native API exposes source CharBone prop-sync row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesBonePropSyncPlan{"
+                 "std::vector<std::string>properties;std::vector<std::string>"
+                 "set_properties;boolpreview_uses_prop_bones_string_val=true;};",
+                 "native API exposes source CharBones::Bone prop-sync row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesObjectPropSyncPlan{"
+                 "boolassigns_prop_bones=true;std::vector<std::string>"
+                 "custom_branches;};",
+                 "native API exposes source CharBonesObject prop-sync row");
+  ok &= contains(char_clip_h,
                  "SourceCharBoneLoadPlansource_char_bone_load_plan("
                  "int32_trevision);",
                  "native API exposes source CharBone load plan helper");
   ok &= contains(char_clip_h,
                  "SourceCharBoneCopyPlansource_char_bone_copy_plan();",
                  "native API exposes source CharBone copy plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneHandlerPlansource_char_bone_handler_plan();",
+                 "native API exposes source CharBone handler helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneWeightContextPropSyncPlan"
+                 "source_char_bone_weight_context_prop_sync_plan();",
+                 "native API exposes source CharBone WeightContext prop helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonePropSyncPlansource_char_bone_prop_sync_plan();",
+                 "native API exposes source CharBone prop-sync helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesBonePropSyncPlan"
+                 "source_char_bones_bone_prop_sync_plan();",
+                 "native API exposes source CharBones::Bone prop helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesObjectPropSyncPlan"
+                 "source_char_bones_object_prop_sync_plan();",
+                 "native API exposes source CharBonesObject prop helper");
   ok &= contains(char_clip_h,
                  "std::optional<size_t>source_char_bone_find_weight_index("
                  "constCharClip::OutputBone&bone,intcontext_mask);",
@@ -11065,6 +11136,37 @@ int run_contract() {
                  "SourceCharBoneCopyPlanplan;plan.copied_superclasses={"
                  "\"Hmx::Object\"};",
                  "native CharBone copy plan helper records superclass");
+  ok &= contains(char_clip,
+                 "SourceCharBoneHandlerPlansource_char_bone_handler_plan(){"
+                 "SourceCharBoneHandlerPlanplan;plan.action_handlers={"
+                 "\"clear_context\"};plan.handlers={\"get_context_flags\"};"
+                 "plan.superclasses={\"Hmx::Object\"};plan.check=0x152;",
+                 "native CharBone handler plan mirrors source handlers");
+  ok &= contains(char_clip,
+                 "SourceCharBoneWeightContextPropSyncPlan"
+                 "source_char_bone_weight_context_prop_sync_plan(){"
+                 "SourceCharBoneWeightContextPropSyncPlanplan;"
+                 "plan.properties={\"context\",\"weight\"};returnplan;}",
+                 "native CharBone WeightContext prop plan mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharBonePropSyncPlansource_char_bone_prop_sync_plan(){"
+                 "SourceCharBonePropSyncPlanplan;plan.properties={"
+                 "\"position_context\",\"scale_context\",\"rotation\","
+                 "\"rotation_context\",\"target\",\"weights\",\"trans\","
+                 "\"bake_out_as_top_level\"};",
+                 "native CharBone prop-sync plan mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharBonesBonePropSyncPlan"
+                 "source_char_bones_bone_prop_sync_plan(){"
+                 "SourceCharBonesBonePropSyncPlanplan;plan.properties={"
+                 "\"name\",\"weight\"};plan.set_properties={\"preview_val\"};",
+                 "native CharBones::Bone prop-sync plan mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharBonesObjectPropSyncPlan"
+                 "source_char_bones_object_prop_sync_plan(){"
+                 "SourceCharBonesObjectPropSyncPlanplan;"
+                 "plan.custom_branches={\"bones\"};returnplan;}",
+                 "native CharBonesObject prop-sync plan mirrors source rows");
   ok &= contains(char_clip,
                  "CharClip::OutputBonesource_char_bone_copy_members("
                  "constCharClip::OutputBone&source){CharClip::OutputBonedest;"
@@ -11331,6 +11433,27 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bone_copy_plan()",
                  "focused CharBones source test covers CharBone copy plan");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_handler_plan()",
+                 "focused CharBones source test covers CharBone handler plan");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_weight_context_prop_sync_plan()",
+                 "focused CharBones source test covers CharBone WeightContext props");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_prop_sync_plan()",
+                 "focused CharBones source test covers CharBone prop-sync");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_bone_prop_sync_plan()",
+                 "focused CharBones source test covers CharBones::Bone prop-sync");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_object_prop_sync_plan()",
+                 "focused CharBones source test covers CharBonesObject prop-sync");
+  ok &= contains(doc,
+                 "`source_char_bone_handler_plan` records the checked handler table",
+                 "document records CharBone handler import");
+  ok &= contains(doc,
+                 "`WeightContext`, `CharBone`, `CharBones::Bone`, and `CharBonesObject`",
+                 "document records CharBone/CharBones prop-sync import");
   ok &= contains(char_bones_source_test,
                  "\"CharBonecopyresetsdecoderparent\"",
                  "focused CharBones source test covers CharBone decoder reset");

@@ -2041,6 +2041,15 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_bone_copy_plan` records the source copy contract:
     `Hmx::Object`, then rotation/scale/position contexts, rotation type,
     target, weights, transform, and bake-out flag.
+  - Native `source_char_bone_handler_plan` records the checked handler table:
+    action `clear_context`, handler `get_context_flags`,
+    `Hmx::Object` superclass dispatch, and source check value `0x152`.
+    Native `source_char_bone_weight_context_prop_sync_plan`,
+    `source_char_bone_prop_sync_plan`, `source_char_bones_bone_prop_sync_plan`,
+    and `source_char_bones_object_prop_sync_plan` record the checked
+    `WeightContext`, `CharBone`, `CharBones::Bone`, and `CharBonesObject`
+    property rows, including `preview_val`'s `gPropBones->StringVal` lookup and
+    the `bones` custom branch.
   - Native `source_char_bone_copy_members`, `source_char_bone_find_weight_index`,
     `source_char_bone_get_weight`, `source_char_bone_clear_context`, and
     `source_char_bone_stuff_bones` port the visible source helpers without
