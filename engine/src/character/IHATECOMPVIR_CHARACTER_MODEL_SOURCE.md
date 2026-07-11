@@ -711,6 +711,21 @@ note, and all report `unreadBytes=0`.
     base, horse, and UI character MILOs with no `CharClipSamples`. Do not infer
     a Rock2 decode failure from absent `char/rock2/anims` rows without tracing
     the source driver/clip directory route.
+  - A broader follow-up pass at
+    `analysis/source_clip_inventory_20260711/stock_24_character_clip_inventory.stdout.log`
+    audited the 24 documented stock base character prefixes. The helper visited
+    135 MILOs; 68 MILOs contained clips; all 1,903 `CharClipSamples` rows loaded
+    through the bounded native decoder; zero rows were rejected and stderr had no
+    failure/status rows. This proves the currently found stock PS2 character
+    clip rows are broadly readable by the native decoder. It does not prove
+    source `CharDriver` selection, clip blending, or final pose publishing.
+  - That broad pass also proves several visual variants do not have private
+    animation clips under their own prefix in this ARK slice:
+    `deathmetal2`, `glam2`, `goth2`, `metal2`, `punk2`, and `rock2` had zero
+    local `CharClipSamples` rows. `alterna2` had only fret/strum/viseme rows,
+    and `rockabill2` had only a fret row set. Treat these as clip-directory
+    routing evidence to resolve through source driver data, not as parser
+    failures or permission to fabricate copied animation paths.
   - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish
     the source packed-row offset model.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a

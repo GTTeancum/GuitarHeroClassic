@@ -2090,6 +2090,26 @@ int run_contract() {
                  "`char/rock2/` prefix",
                  "document records Rock2 animation prefix inventory");
   ok &= contains(doc,
+                 "audited the 24 documented stock base character prefixes. "
+                 "The helper visited",
+                 "document records broad stock clip audit scope");
+  ok &= contains(doc,
+                 "135 MILOs; 68 MILOs contained clips; all 1,903 "
+                 "`CharClipSamples` rows loaded",
+                 "document records broad stock clip audit counts");
+  ok &= contains(doc,
+                 "source `CharDriver` selection, clip blending, or final pose "
+                 "publishing",
+                 "document fences broad stock clip audit from runtime signoff");
+  ok &= contains(doc,
+                 "`deathmetal2`, `glam2`, `goth2`, `metal2`, `punk2`, and "
+                 "`rock2` had zero",
+                 "document records zero-local-clip variant prefixes");
+  ok &= contains(doc,
+                 "`alterna2` had only fret/strum/viseme rows,\n    and "
+                 "`rockabill2` had only a fret row set",
+                 "document records partial local clip variant prefixes");
+  ok &= contains(doc,
                  "the accessible tree does not include a\n"
                  "    matching `ByteQuat` type, header, or conversion "
                  "implementation",
