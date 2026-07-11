@@ -10055,6 +10055,23 @@ bool venue_filter_set_loops(
     return std::any_of(filters.begin(), filters.end(), venue_filter_loops);
 }
 
+bool venue_filters_share_authored_target(
+    const Gameplay::VenueAnimFilter& a,
+    const Gameplay::VenueAnimFilter& b) {
+    return !a.target_ref.empty() && !b.target_ref.empty() &&
+           canonical_milo_ref(a.target_ref) == canonical_milo_ref(b.target_ref);
+}
+
+bool venue_filter_replaced_by_any(
+    const Gameplay::VenueAnimFilter& active,
+    const std::vector<Gameplay::VenueAnimFilter>& incoming) {
+    return std::any_of(incoming.begin(), incoming.end(),
+                       [&](const Gameplay::VenueAnimFilter& filter) {
+                           return venue_filters_share_authored_target(active,
+                                                                       filter);
+                       });
+}
+
 std::map<std::string, Gameplay::VenueGroupVisibility>
 load_venue_group_visibility(const std::string& hdr_path,
                             const std::string& ark_path,
@@ -10447,6 +10464,7 @@ load_venue_anim_filters(const std::string& hdr_path,
                 }
             }
             if (target_ref.empty()) continue;
+            filter.target_ref = canonical_milo_ref(target_ref);
             if (filter.type < 0 || filter.type > 2) filter.type = 0;
             if (!std::isfinite(filter.offset_frame) ||
                 std::fabs(filter.offset_frame) > 100000.0f) {
@@ -10508,6 +10526,7 @@ load_venue_anim_filters(const std::string& hdr_path,
             const auto ref = canonical_milo_ref(raw_ref);
             Gameplay::VenueAnimFilter filter;
             filter.name = "direct_" + ref;
+            filter.target_ref = ref;
             filter.start_frame = 0.0f;
             filter.end_frame = 0.0f;
             filter.scale = 1.0f;
@@ -10647,6 +10666,7 @@ load_venue_anim_filters(const std::string& hdr_path,
 
             for (const auto& route : routes) {
                 Gameplay::VenueAnimFilter route_filter = filter;
+                route_filter.target_ref = canonical_milo_ref(route.ref);
                 apply_event_anim_timing(route_filter, route);
                 float duration = 0.0f;
                 std::unordered_set<std::string> seen;
@@ -18460,6 +18480,42 @@ void Gameplay::apply_venue_event(const std::string& event_name,
                     event_name.c_str());
             }
         } else {
+            size_t replaced_filters = 0;
+            for (auto active_it = active_venue_anim_filters_.begin();
+                 active_it != active_venue_anim_filters_.end();) {
+                if (active_it->polled) {
+                    ++active_it;
+                    continue;
+                }
+                const size_t before = active_it->filters.size();
+                active_it->filters.erase(
+                    std::remove_if(active_it->filters.begin(),
+                                   active_it->filters.end(),
+                                   [&](const VenueAnimFilter& active) {
+                                       return venue_filter_replaced_by_any(
+                                           active, enabled_filters);
+                                   }),
+                    active_it->filters.end());
+                replaced_filters += before - active_it->filters.size();
+                if (active_it->filters.empty()) {
+                    active_it = active_venue_anim_filters_.erase(active_it);
+                } else {
+                    ++active_it;
+                }
+            }
+            if (replaced_filters > 0 && debug_venue_filters_enabled()) {
+                std::ostringstream targets;
+                for (const auto& filter : enabled_filters) {
+                    if (filter.target_ref.empty()) continue;
+                    if (targets.tellp() > 0) targets << ',';
+                    targets << filter.target_ref;
+                }
+                std::fprintf(
+                    stderr,
+                    "[world] venue event %s: replaced %zu active AnimFilters for target(s) %s\n",
+                    event_name.c_str(), replaced_filters,
+                    targets.str().c_str());
+            }
             ActiveVenueAnimFilter active_filter;
             active_filter.event_name = event_name;
             active_filter.filters = enabled_filters;
@@ -18470,10 +18526,10 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             for (const auto& filter : enabled_filters) {
                 std::fprintf(
                     stderr,
-                    "[world] venue event %s: AnimFilter %s source=%s frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d blend=%.3f wait=%d delay=%.3f %s\n",
+                    "[world] venue event %s: AnimFilter %s target=%s source=%s frame %.2f..%.2f targets=%zu mesh_anims=%zu scale=%.3f period=%.3f offset=%.3f type=%d blend=%.3f wait=%d delay=%.3f %s\n",
                     event_name.c_str(), filter.name.c_str(),
-                    filter.source_trigger.c_str(), filter.start_frame,
-                    filter.end_frame, filter.targets.size(),
+                    filter.target_ref.c_str(), filter.source_trigger.c_str(),
+                    filter.start_frame, filter.end_frame, filter.targets.size(),
                     filter.mesh_anim_targets.size(), filter.scale, filter.period,
                     filter.offset_frame, filter.type, filter.event_blend_seconds,
                     filter.event_wait ? 1 : 0, filter.event_delay_seconds,
@@ -19090,13 +19146,15 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f blend_period=%.3f wait=%d persistent=%d spline=%d/%d rot_slerp=%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s quat=(%.5f %.5f %.5f %.5f) scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f blend_period=%.3f wait=%d persistent=%d spline=%d/%d rot_slerp=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
                         sample.translation_is_absolute ? "abs" : "delta",
                         sample.has_rotation ? 1 : 0,
                         sample.rotation_is_absolute ? "abs" : "delta",
+                        sample.rotation_xyzw[0], sample.rotation_xyzw[1],
+                        sample.rotation_xyzw[2], sample.rotation_xyzw[3],
                         sample.has_scale ? 1 : 0,
                         sample.scale_is_absolute ? "abs" : "delta",
                         sample.translation[0],

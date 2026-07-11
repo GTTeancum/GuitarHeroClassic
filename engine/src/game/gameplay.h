@@ -306,6 +306,7 @@ class Gameplay {
   };
   struct VenueAnimFilter {
     std::string name;
+    std::string target_ref;
     std::string source_trigger;
     uint16_t revision = 0;
     uint16_t anim_revision = 0;
