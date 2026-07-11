@@ -2225,6 +2225,19 @@ int run_contract() {
                  "Current native `CharHair` behavior is decode/log only.",
                  "format notes keep current CharHair path decode/log only");
   ok &= contains(format_notes,
+                 "native currently decodes/logs those\n"
+                 "  source groups only",
+                 "Glam1 notes keep decoded CharHair groups out of runtime writeback");
+  ok &= contains(format_notes,
+                 "does not publish solved `CharHair` transforms",
+                 "Rock2 notes keep decoded CharHair groups out of runtime writeback");
+  ok &= contains(format_notes,
+                 "Historical native `CharHair` shared-poller trial",
+                 "old CharHair poller proof is marked historical");
+  ok &= contains(format_notes,
+                 "Historical collision mode 3 trial",
+                 "old CharHair collision-mode proof is marked historical");
+  ok &= contains(format_notes,
                  "Historical `GHOGX_ENABLE_CHAR_HAIR_PROBE=1` and "
                  "`GHOGX_DISABLE_CHAR_HAIR=1`",
                  "format notes mark old CharHair gates as historical evidence");
@@ -2237,6 +2250,18 @@ int run_contract() {
   ok &= missing(format_notes,
                 "Native `CharHair` now polls by default",
                 "format notes must not claim native CharHair simulation is active");
+  ok &= missing(format_notes,
+                "common native `CharHair` poller now drives",
+                "format notes must not claim old common CharHair poller is active");
+  ok &= missing(format_notes,
+                "Native `CharHair` now runs through a shared default poller",
+                "format notes must not claim old shared CharHair poller is active");
+  ok &= missing(format_notes,
+                "shared poller now evaluates",
+                "format notes must not claim old collision-mode trial is active");
+  ok &= missing(format_notes,
+                "Native `CharHair` collision mode 3 is now implemented",
+                "format notes must not claim old collision-mode trial is active");
   ok &= missing(format_notes,
                 "`GHOGX_DISABLE_CHAR_HAIR=1` disables the poller",
                 "format notes must not describe removed CharHair disable gate as current");

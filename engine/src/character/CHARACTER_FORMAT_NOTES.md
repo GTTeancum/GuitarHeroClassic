@@ -328,8 +328,9 @@ Glam1 hair:
   the matching log places `hair-front.mesh` in the same transformed face region
   as `lashes.mesh`.
 - `hair.hair` contains three strand groups rooted at `bone_hair01.mesh`,
-  `bone_bangL.mesh`, and `bone_bangR.mesh`; those groups are now driven by the
-  common native `CharHair` poller.
+  `bone_bangL.mesh`, and `bone_bangR.mesh`; native currently decodes/logs those
+  source groups only. Do not treat the decoded groups as runtime writeback until
+  the missing ihatecompvir `CharHair` hookup/collide-list path is ported.
 - Single-point `CharHair` groups are follow/controller rows, not simulated
   chains. Native must not solve them back toward the collision primitive or
   write a new local transform from the solver. Accepted PS2 row evidence from
@@ -1997,10 +1998,11 @@ Rock2 hair:
   mesh-local root-hair predicate and uses per-mesh bind matrices before current
   bone transforms.
 - `rock2` also has `hair_front.hair` and `hair_back.hair` `CharHair`
-  pollables. The common native `CharHair` poller now drives their decoded
-  `bone_hair-front`, `bone_R/L-hair*`, `bone_hair01..04`, and
-  `spot_hairsphere.trans` rows; remaining parity gaps should be fixed through
-  that path, not by hiding hair meshes.
+  pollables. Native currently decodes/logs their `bone_hair-front`,
+  `bone_R/L-hair*`, `bone_hair01..04`, and `spot_hairsphere.trans` rows, but
+  does not publish solved `CharHair` transforms. Remaining parity gaps need the
+  source-backed hookup/collide-list consumer path, not hidden hair meshes or a
+  guessed poller.
 - 2026-06-15 lod0 audit: the decoded PS2 `lod0.grp` explicitly includes
   `hair-back.1.mesh` through `hair-back.6.mesh` plus `hair-mid.1.mesh`.
   Therefore the old global "skip numbered hair variants" rule is rejected.
@@ -3050,10 +3052,11 @@ Useful environment flags:
   relationship instead of matching the accepted PS2 scheduler/output route.
   Keep the descriptor-accumulation mixer as the default until f-register/source
   weight evidence proves a different combiner.
-- Native `CharHair` now runs through a shared default poller instead of the
-  rejected authored-position snap probe. Validation:
-  `woman_rock2_charhair_debug.log` shows `hairPoll=on` plus the accepted
-  rock2 `hair_front.hair` / `hair_back.hair` controller graph and solved rows
+- Historical native `CharHair` shared-poller trial: the authored-position snap
+  probe was rejected, but the later source audit also rejected promoting this
+  shared poller as current behavior. The old validation
+  `woman_rock2_charhair_debug.log` showed `hairPoll=on` plus the rock2
+  `hair_front.hair` / `hair_back.hair` controller graph and trial solved rows
   for `bone_hair-front.mesh`, `bone_R-hair01/02.mesh`,
   `bone_L-hair01/02.mesh`, and `bone_hair01..04.mesh` using
   `spot_hairsphere.trans` as a collision ref. A/B screenshots:
@@ -3061,22 +3064,21 @@ Useful environment flags:
   `E412C6FF8087891C9B2CD9CED8B12DB9E81A2441EA9B066FB4DD9DB9391A3663`)
   vs `woman_rock2_close_charhair_off.bmp` (hash
   `BF31710D18B24B87C82A83765C8A16C59430F49B8618DC6553C5D8D95E36EC4F`)
-  remove the rigid back-hair sheet from the disabled path. Glam1 close A/B
+  were evidence for that trial, not current source-faithful writeback. Glam1
+  close A/B
   `shout_glam1_close_charhair_on.bmp` and
   `shout_glam1_close_charhair_off.bmp` hash identically at
   `91670FB51ECF517D250F9C57C3BD3FFBF87BF946CC373D1363A9B50922A6E574`,
-  so the shared poller does not regress that one-point `hair.hair` frame.
-- Native `CharHair` collision mode 3 is now implemented as the community DTA
-  `kCollideCylinder` mode instead of falling through as no collision. The
-  collision object row supplies the cylinder axis and center, while
-  `distance`/`point.radius` supplies the cylinder radius. Validation
+  so that trial did not visibly regress Glam1's one-point `hair.hair` frame.
+- Historical collision mode 3 trial: the community DTA `kCollideCylinder`
+  mapping was tested with the collision object row as cylinder axis/center and
+  `distance`/`point.radius` as cylinder radius. Validation
   `engine/out/native_song_20260614/woman_rock2_charhair_cylinder_debug.log`
-  proves Rock2 `hair_front.hair` points use `bone_neck.mesh` with
-  `mode=3`, `radius=3.000`, and the shared poller now evaluates that mode.
-  The matching screenshot hash stayed identical to the previous default Rock2
-  close frame (`E412C6FF8087891C9B2CD9CED8B12DB9E81A2441EA9B066FB4DD9DB9391A3663`),
-  so this is a format-coverage fix, not proof that the remaining front-hair
-  visual issue is solved.
+  showed Rock2 `hair_front.hair` points using `bone_neck.mesh` with `mode=3`
+  and `radius=3.000`, but later ihatecompvir source review showed GH2 legacy
+  inline collision rows are not a resolved runtime `ObjPtrList<CharCollide>`.
+  Keep this as rejected trial evidence unless the missing source hookup path is
+  ported.
 - 2026-06-15 rejected local-hair bind-cancel probe:
   `engine/out/codex_resume_20260615/glam1_hair_bindcancel_patch/` changed the
   weighted local hair sheet equation to cancel controller rows against the
