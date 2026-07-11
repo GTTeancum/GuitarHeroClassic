@@ -4110,8 +4110,8 @@ int main() {
                  "push_unique_ref(gate.disable_events,event);",
                  "EventTrigger gates preserve source disable events including multi_player");
   ok &= contains(gameplay_c,
-                 "gate.enabled=gate.enable_events.empty();",
-                 "EventTriggers with source enable_events start disabled until their enable event fires");
+                 "gate.enabled=true;",
+                 "GH2 rev8 EventTriggers start from the source constructor enabled state");
   ok &= appears_before(gameplay_c,
                        "apply_venue_event(\"single_player\",false);",
                        "apply_venue_event(\"start\",false);",

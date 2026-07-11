@@ -4785,7 +4785,10 @@ std::vector<Gameplay::VenueEventTriggerGate> load_venue_event_trigger_gates(
             }
             if (gate.enable_events.empty() && gate.disable_events.empty())
                 continue;
-            gate.enabled = gate.enable_events.empty();
+            // GH2 EventTrigger rev8 has no enabled_at_start field. ihatecompvir's
+            // runtime source defaults EventTriggers to enabled, then source
+            // enable/disable events mutate that state after load.
+            gate.enabled = true;
 
             for (const auto& key :
                  event_trigger_route_keys(de.name, trigger->event_label)) {
