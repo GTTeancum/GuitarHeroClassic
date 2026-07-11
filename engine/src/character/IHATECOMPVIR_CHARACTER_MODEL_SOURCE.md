@@ -29,6 +29,7 @@ records the upstream commits for the copied files:
 | Character/BandCharacter/RndDir/ObjectDir root body | `rb3-latest` `Character.cpp`, `rndobj/Dir.cpp`, `obj/Dir.cpp` | Native records the root directory revision/name/type and opaque root object body boundary; no root runtime fields are decoded until the exact GH2 revision/body relation is pinned. |
 | Transformable local/world composition | `RndTrans.cs`, `Trans.cpp`, `Trans.h` | Runtime authority for parent/constraint world rows. |
 | Group membership and LOD selection | `RndGroup.cs` | Runtime/draw membership must use decoded object rows. |
+| Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / `CharMeshHide.h` | Native helper ports `HideAll` flag aggregation and `HideDraws` visibility gating; no renderer hookup is promoted until stock rows are proven. |
 | Mesh palette, offsets, and group sections | `RndMesh.cs`, `Mesh.cpp` | Parser and skinning authority; no palette reshaping. |
 | Material render state | `RndMat.cs`, `Mat.cpp`, `Mat.h` | Blend, z write, alpha, wrap, and draw order come from source rows. |
 | Texture object row inventory | `rb3-latest` `Tex.cpp` / `Tex.h`, `Bitmap.cpp`, `ChunkStream.cpp`, `FilePath.h`, `BinStream.*` | Decode/log stock `Tex` metadata rows, cached bitmap headers, and source-backed payload byte boundaries; texture upload stays on the existing PS2 image asset path. |
@@ -481,6 +482,18 @@ note, and all report `unreadBytes=0`.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.
+- `rb3-latest/src/system/char/CharMeshHide.cpp` and
+  `CharMeshHide.h`
+  - `CharMeshHide::HideAll` first ORs the incoming flag word with every
+    `CharMeshHide::mFlags` owner row, then calls `HideDraws` on each owner with
+    the combined result.
+  - `CharMeshHide::HideDraws` only mutates rows with a valid drawable pointer;
+    their stored `show` state becomes `((combinedFlags & rowFlags) == 0) &
+    drawable->Showing()`. Rows without a drawable are left untouched.
+  - Native `source_char_mesh_hide_all` / `source_char_mesh_hide_draws` ports
+    that complete flag and drawable-showing behavior as a deterministic helper.
+    This is visibility-row source behavior only; renderer wiring must wait for
+    proven stock `CharMeshHide` rows or an equivalent source-backed data path.
 - `rb3-latest/src/system/char/CharFaceServo.cpp` and
   `CharFaceServo.h`
   - `CharFaceServo::Load` is the available source for modern face servo rows:

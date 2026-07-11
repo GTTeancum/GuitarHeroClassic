@@ -1616,6 +1616,37 @@ SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
   return result;
 }
 
+int32_t source_char_mesh_hide_combined_flags(
+    const std::vector<SourceCharMeshHideObject>& objects,
+    int32_t initial_flags) {
+  int32_t flags = initial_flags;
+  for (const SourceCharMeshHideObject& object : objects) {
+    flags |= object.flags;
+  }
+  return flags;
+}
+
+void source_char_mesh_hide_draws(SourceCharMeshHideObject& object,
+                                 int32_t flags) {
+  for (SourceCharMeshHideRow& hide : object.hides) {
+    if (hide.has_draw) {
+      const bool draw_allowed = (flags & hide.flags) == 0;
+      hide.show = draw_allowed & hide.draw_showing;
+    }
+  }
+}
+
+int32_t source_char_mesh_hide_all(
+    std::vector<SourceCharMeshHideObject>& objects,
+    int32_t initial_flags) {
+  const int32_t flags =
+      source_char_mesh_hide_combined_flags(objects, initial_flags);
+  for (SourceCharMeshHideObject& object : objects) {
+    source_char_mesh_hide_draws(object, flags);
+  }
+  return flags;
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;

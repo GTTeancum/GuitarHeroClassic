@@ -98,6 +98,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_char_hair_source_test.cpp"));
   const std::string face_servo_source_test =
       compact(read_file(char_dir / "character_face_servo_source_test.cpp"));
+  const std::string mesh_hide_source_test =
+      compact(read_file(char_dir / "character_mesh_hide_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -184,6 +186,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharFaceServo.cpp"));
   const std::string rb3_latest_char_face_servo_h = compact(read_file(
       rb3_latest_char_dir / "CharFaceServo.h"));
+  const std::string rb3_latest_char_mesh_hide_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharMeshHide.cpp"));
+  const std::string rb3_latest_char_mesh_hide_h = compact(read_file(
+      rb3_latest_char_dir / "CharMeshHide.h"));
   const std::string rb3_latest_char_weightable_cpp = compact(read_file(
       rb3_latest_char_dir / "CharWeightable.cpp"));
   const std::string rb3_latest_char_weightable_h = compact(read_file(
@@ -357,6 +363,10 @@ int run_contract() {
   ok &= contains(doc,
                  "| Hair two-sided rendering | User/project visual override |",
                  "coverage matrix marks hair two-sided as project override");
+  ok &= contains(doc,
+                 "| Mesh hide visibility rows | `rb3-latest` `CharMeshHide.cpp` / "
+                 "`CharMeshHide.h` |",
+                 "coverage matrix cites CharMeshHide source");
   ok &= contains(doc, "| Poll groups | `rb3-latest` `CharPollGroup.cpp` |",
                  "coverage matrix cites CharPollGroup source boundary");
   ok &= contains(doc,
@@ -1822,6 +1832,66 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "out.servo_bones.push_back(decode_servo_bone(de.name,b));",
                  "character load stores decoded CharServoBone rows");
+  ok &= contains(rb3_latest_char_mesh_hide_h,
+                 "classCharMeshHide:publicHmx::Object",
+                 "latest CharMeshHide header exposes source class");
+  ok &= contains(rb3_latest_char_mesh_hide_cpp,
+                 "voidCharMeshHide::HideAll(constObjPtrList<CharMeshHide,"
+                 "ObjectDir>&pList,inti){for(ObjPtrList<CharMeshHide,"
+                 "ObjectDir>::iteratorit=pList.begin();it!=pList.end();++it){"
+                 "i|=(*it)->mFlags;}",
+                 "CharMeshHide source HideAll ORs owner flags");
+  ok &= contains(rb3_latest_char_mesh_hide_cpp,
+                 "voidCharMeshHide::HideDraws(intx){for(inti=0;i<mHides.size();"
+                 "i++){Hide&theHide=mHides[i];if(theHide.mDraw){boolb=(x&"
+                 "theHide.mFlags)==0;theHide.mShow=b&theHide.mDraw->Showing();",
+                 "CharMeshHide source HideDraws gates drawable showing");
+  ok &= contains(rb3_latest_char_mesh_hide_cpp,
+                 "BinStream&operator>>(BinStream&bs,CharMeshHide::Hide&hide){"
+                 "bs>>hide.mDraw;bs>>hide.mFlags;if(CharMeshHide::gRev>1)"
+                 "bs>>hide.mShow;",
+                 "CharMeshHide source Hide row load gates stored show");
+  ok &= contains(rb3_latest_char_mesh_hide_cpp,
+                 "voidCharMeshHide::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(2,0);Hmx::Object::Load(bs);bs>>mFlags>>mHides;}",
+                 "CharMeshHide source Load reads flags and hides");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharMeshHideRow{int32_tflags=0;"
+                 "booldraw_showing=false;boolhas_draw=false;boolshow=false;};",
+                 "native exposes CharMeshHide row helper state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharMeshHideObject{int32_tflags=0;"
+                 "std::vector<SourceCharMeshHideRow>hides;};",
+                 "native exposes CharMeshHide owner helper state");
+  ok &= contains(char_mesh,
+                 "int32_tsource_char_mesh_hide_combined_flags("
+                 "conststd::vector<SourceCharMeshHideObject>&objects,",
+                 "native implements CharMeshHide combined flag helper");
+  ok &= contains(char_mesh,
+                 "flags|=object.flags;",
+                 "native CharMeshHide helper ORs owner flags");
+  ok &= contains(char_mesh,
+                 "voidsource_char_mesh_hide_draws(SourceCharMeshHideObject&object,"
+                 "int32_tflags){for(SourceCharMeshHideRow&hide:object.hides){"
+                 "if(hide.has_draw){constbooldraw_allowed=(flags&hide.flags)==0;"
+                 "hide.show=draw_allowed&hide.draw_showing;",
+                 "native CharMeshHide helper ports HideDraws show rule");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_mesh_hide_source_test",
+                 "CMake builds CharMeshHide source test");
+  ok &= contains(mesh_hide_source_test,
+                 "source_char_mesh_hide_draws(single,0x1)",
+                 "focused CharMeshHide test covers HideDraws");
+  ok &= contains(mesh_hide_source_test,
+                 "source_char_mesh_hide_all(objects,0x4)",
+                 "focused CharMeshHide test covers HideAll initial flags");
+  ok &= contains(mesh_hide_source_test,
+                 "HideAllpreservesrowwithnodraw",
+                 "focused CharMeshHide test covers no-draw row preservation");
+  ok &= contains(doc,
+                 "Native `source_char_mesh_hide_all` / "
+                 "`source_char_mesh_hide_draws` ports",
+                 "document records native CharMeshHide helper");
   ok &= contains(rb3_latest_char_face_servo_h,
                  "classCharFaceServo:publicCharPollable,publicCharBonesMeshes",
                  "latest CharFaceServo header exposes source inheritance");

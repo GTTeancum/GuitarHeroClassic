@@ -342,6 +342,18 @@ struct SourceCharFaceServoScaleAddResult {
   bool matched_right = false;
 };
 
+struct SourceCharMeshHideRow {
+  int32_t flags = 0;
+  bool draw_showing = false;
+  bool has_draw = false;
+  bool show = false;
+};
+
+struct SourceCharMeshHideObject {
+  int32_t flags = 0;
+  std::vector<SourceCharMeshHideRow> hides;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -364,6 +376,14 @@ SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
     const std::string& clip_name,
     bool clip_is_relative,
     float weight);
+int32_t source_char_mesh_hide_combined_flags(
+    const std::vector<SourceCharMeshHideObject>& objects,
+    int32_t initial_flags);
+void source_char_mesh_hide_draws(SourceCharMeshHideObject& object,
+                                 int32_t flags);
+int32_t source_char_mesh_hide_all(
+    std::vector<SourceCharMeshHideObject>& objects,
+    int32_t initial_flags);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(
