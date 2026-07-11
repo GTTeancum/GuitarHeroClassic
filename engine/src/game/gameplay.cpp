@@ -8064,6 +8064,29 @@ std::string mesh_anim_key_endpoint_summary(
            " -> " + one(keys.back());
 }
 
+std::string mesh_quat_key_endpoint_summary(
+    const std::vector<ghogx::render::MiloSceneRenderer::MeshQuatAnimKey>& keys) {
+    if (keys.empty()) return "-";
+    auto one = [](const ghogx::render::MiloSceneRenderer::MeshQuatAnimKey& key) {
+        char buf[160];
+        std::snprintf(buf, sizeof(buf),
+                      "f%.2f:(%.5f %.5f %.5f %.5f)", key.frame,
+                      key.quat_xyzw[0], key.quat_xyzw[1],
+                      key.quat_xyzw[2], key.quat_xyzw[3]);
+        return std::string(buf);
+    };
+    if (keys.size() <= 6) {
+        std::string out;
+        for (size_t i = 0; i < keys.size(); ++i) {
+            if (i) out += " -> ";
+            out += one(keys[i]);
+        }
+        return out;
+    }
+    return one(keys.front()) + " -> " + one(keys[keys.size() / 2]) +
+           " -> " + one(keys.back());
+}
+
 struct VenueTransAnimDecode {
     std::string target;
     ghogx::render::MiloSceneRenderer::MeshTransformAnim anim;
@@ -8966,25 +8989,6 @@ std::array<float, 4> normalize_quat_xyzw(std::array<float, 4> q) {
     return q;
 }
 
-std::array<float, 4> quat_conjugate_xyzw(std::array<float, 4> q) {
-    q[0] = -q[0];
-    q[1] = -q[1];
-    q[2] = -q[2];
-    return q;
-}
-
-std::array<float, 4> quat_mul_xyzw(const std::array<float, 4>& a,
-                                   const std::array<float, 4>& b) {
-    const float ax = a[0], ay = a[1], az = a[2], aw = a[3];
-    const float bx = b[0], by = b[1], bz = b[2], bw = b[3];
-    return normalize_quat_xyzw({
-        aw * bx + ax * bw + ay * bz - az * by,
-        aw * by - ax * bz + ay * bw + az * bx,
-        aw * bz + ax * by - ay * bx + az * bw,
-        aw * bw - ax * bx - ay * by - az * bz,
-    });
-}
-
 std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
                                      std::array<float, 4> b, float t) {
     a = normalize_quat_xyzw(a);
@@ -9013,33 +9017,7 @@ std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
                                 a[3] * s0 + b[3] * s1});
 }
 
-std::array<float, 4> sample_rotation_delta(
-    const std::vector<ghogx::render::MiloSceneRenderer::MeshQuatAnimKey>& keys,
-    float frame) {
-    if (keys.empty()) return {0.0f, 0.0f, 0.0f, 1.0f};
-    const auto* a = &keys.front();
-    const auto* b = &keys.back();
-    for (size_t i = 1; i < keys.size(); ++i) {
-        if (frame <= keys[i].frame) {
-            a = &keys[i - 1];
-            b = &keys[i];
-            break;
-        }
-    }
-    const float span = std::max(b->frame - a->frame, 0.001f);
-    const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
-    const std::array<float, 4> qa = {a->quat_xyzw[0], a->quat_xyzw[1],
-                                     a->quat_xyzw[2], a->quat_xyzw[3]};
-    const std::array<float, 4> qb = {b->quat_xyzw[0], b->quat_xyzw[1],
-                                     b->quat_xyzw[2], b->quat_xyzw[3]};
-    const auto cur = slerp_quat_xyzw(qa, qb, t);
-    const std::array<float, 4> base = {
-        keys.front().quat_xyzw[0], keys.front().quat_xyzw[1],
-        keys.front().quat_xyzw[2], keys.front().quat_xyzw[3]};
-    return quat_mul_xyzw(quat_conjugate_xyzw(normalize_quat_xyzw(base)), cur);
-}
-
-std::array<float, 4> sample_rotation_absolute(
+std::array<float, 4> sample_rotation_value(
     const std::vector<ghogx::render::MiloSceneRenderer::MeshQuatAnimKey>& keys,
     float frame) {
     if (keys.empty()) return {0.0f, 0.0f, 0.0f, 1.0f};
@@ -9069,9 +9047,9 @@ ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
         sample.has_translation = true;
         sample.translation = sample_translation_offset(anim.translation_keys, frame);
     }
-    if (anim.rotation_keys.size() >= 2) {
+    if (!anim.rotation_keys.empty()) {
         sample.has_rotation = true;
-        sample.rotation_xyzw = sample_rotation_delta(anim.rotation_keys, frame);
+        sample.rotation_xyzw = sample_rotation_value(anim.rotation_keys, frame);
     }
     if (anim.scale_keys.size() >= 2) {
         sample.has_scale = true;
@@ -9100,12 +9078,6 @@ sample_mesh_transform_from_source_local_position(
     std::array<float, 3>* source_position = nullptr) {
     auto sample = sample_mesh_transform(anim, frame);
     if (used_source_position) *used_source_position = false;
-    if (!anim.rotation_keys.empty() &&
-        canonical_milo_ref(mesh_name).rfind(".mesh") != std::string::npos) {
-        sample.has_rotation = true;
-        sample.rotation_is_absolute = true;
-        sample.rotation_xyzw = sample_rotation_absolute(anim.rotation_keys, frame);
-    }
     if (!anim.translation_keys.empty()) {
         const auto source =
             source_local_position_for_mesh(source_positions, mesh_name);
@@ -9862,18 +9834,22 @@ load_venue_anim_filters(const std::string& hdr_path,
                     const std::string trans_keys =
                         mesh_anim_key_endpoint_summary(
                             decoded->anim.translation_keys);
+                    const std::string rot_keys =
+                        mesh_quat_key_endpoint_summary(
+                            decoded->anim.rotation_keys);
                     const std::string scale_keys =
                         mesh_anim_key_endpoint_summary(decoded->anim.scale_keys);
                     std::fprintf(
                         stderr,
-                        "[world] venue TransAnim %s -> %s source-shaped rev=%u anim_rev=%u owner=%s pos=%zu rot=%zu scale=%zu trans_keys=%s scale_keys=%s flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
+                        "[world] venue TransAnim %s -> %s source-shaped rev=%u anim_rev=%u owner=%s pos=%zu rot=%zu scale=%zu trans_keys=%s rot_keys=%s scale_keys=%s flags=trans_spline:%d repeat:%d scale_spline:%d follow_path:%d rot_slerp:%d rot_spline:%d\n",
                         de.name.c_str(), decoded->target.c_str(),
                         decoded->revision, decoded->anim_revision,
                         decoded->keys_owner.c_str(),
                         decoded->anim.translation_keys.size(),
                         decoded->anim.rotation_keys.size(),
                         decoded->anim.scale_keys.size(),
-                        trans_keys.c_str(), scale_keys.c_str(),
+                        trans_keys.c_str(), rot_keys.c_str(),
+                        scale_keys.c_str(),
                         decoded->trans_spline ? 1 : 0,
                         decoded->repeat_trans ? 1 : 0,
                         decoded->scale_spline ? 1 : 0,
