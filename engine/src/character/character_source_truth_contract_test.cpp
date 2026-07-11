@@ -1657,10 +1657,67 @@ int run_contract() {
   ok &= contains(rb3_latest_char_servo_bone_cpp,
                  "mFacingPosDelta=(Vector3*)FindPtr(\"bone_facing_delta.pos\");",
                  "CharServoBone source realloc finds facing delta rows");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "voidCharServoBone::ZeroDeltas(){if(mFacingPosDelta)"
+                 "mFacingPosDelta->Zero();if(!mFacingRotDelta)return;"
+                 "*mFacingRotDelta=0.0f;}",
+                 "CharServoBone source ZeroDeltas clears facing delta rows");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "voidCharServoBone::MoveToFacing(Transform&tf){if("
+                 "*mFacingRot){RotateAboutZ(tf.m,*mFacingRot,tf.m);"
+                 "RotateAboutZ(tf.v,*mFacingRot,tf.v);Normalize(tf.m,tf.m);}"
+                 "tf.v+=*mFacingPos;}",
+                 "CharServoBone source MoveToFacing rotates and offsets transform");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "voidCharServoBone::MoveToDeltaFacing(Transform&tf){"
+                 "Vector3v18;Multiply(*mFacingPosDelta,tf.m,v18);tf.v+=v18;"
+                 "if(*mFacingRotDelta){RotateAboutZ(tf.m,*mFacingRotDelta,"
+                 "tf.m);Normalize(tf.m,tf.m);}}",
+                 "CharServoBone source MoveToDeltaFacing applies local delta rows");
   ok &= contains(char_mesh_h,
                  "structCharServoBone{std::stringname;int32_tversion=0;"
                  "std::stringclip_type;size_tunread_bytes=0;};",
                  "native CharServoBone stores source load fields");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_servo_bone_zero_deltas("
+                 "std::array<float,3>&facing_pos_delta,"
+                 "float&facing_rot_delta_radians);",
+                 "native exposes bounded CharServoBone ZeroDeltas helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_servo_bone_move_to_facing("
+                 "milo_scene::Xfm&xfm,conststd::array<float,3>&facing_pos,"
+                 "floatfacing_rot_radians);",
+                 "native exposes bounded CharServoBone MoveToFacing helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_servo_bone_move_to_delta_facing("
+                 "milo_scene::Xfm&xfm,"
+                 "conststd::array<float,3>&facing_pos_delta,"
+                 "floatfacing_rot_delta_radians);",
+                 "native exposes bounded CharServoBone MoveToDeltaFacing helper");
+  ok &= contains(char_clip,
+                 "voidsource_char_servo_bone_zero_deltas("
+                 "std::array<float,3>&facing_pos_delta,"
+                 "float&facing_rot_delta_radians){facing_pos_delta={0.0f,"
+                 "0.0f,0.0f};facing_rot_delta_radians=0.0f;}",
+                 "native CharServoBone ZeroDeltas helper follows source");
+  ok &= contains(char_clip,
+                 "voidsource_char_servo_bone_move_to_facing("
+                 "milo_scene::Xfm&xfm,conststd::array<float,3>&facing_pos,"
+                 "floatfacing_rot_radians){if(facing_rot_radians!=0.0f){"
+                 "post_rotate_axis(xfm,ClipChannel::kRotZ,facing_rot_radians);"
+                 "source_rotate_about_z_vec(xfm.pos,facing_rot_radians);",
+                 "native CharServoBone MoveToFacing helper rotates transform");
+  ok &= contains(char_clip,
+                 "xfm.pos[0]+=facing_pos[0];xfm.pos[1]+=facing_pos[1];"
+                 "xfm.pos[2]+=facing_pos[2];}",
+                 "native CharServoBone MoveToFacing helper offsets position");
+  ok &= contains(char_clip,
+                 "voidsource_char_servo_bone_move_to_delta_facing("
+                 "milo_scene::Xfm&xfm,"
+                 "conststd::array<float,3>&facing_pos_delta,"
+                 "floatfacing_rot_delta_radians){constfloatdx="
+                 "facing_pos_delta[0]*xfm.rot[0][0]+",
+                 "native CharServoBone MoveToDeltaFacing helper transforms delta");
   ok &= contains(char_mesh, "CharServoBonedecode_servo_bone(",
                  "native CharServoBone decoder exists");
   ok &= contains(char_mesh, "servo.version=r.i32();",
@@ -1736,8 +1793,26 @@ int run_contract() {
                  "all 24 stock rows are\n  `version=1`, have no `clipType`, "
                  "and report `unreadBytes=0`",
                  "document records refreshed CharServoBone zero-tail proof");
-  ok &= contains(doc, "does not port `MoveToFacing`, `MoveToDeltaFacing`",
-                 "document fences CharServoBone movement behavior");
+  ok &= contains(doc,
+                 "Native exposes bounded source helpers for `ZeroDeltas`,\n"
+                 "    `MoveToFacing`, and `MoveToDeltaFacing`",
+                 "document records bounded CharServoBone movement helpers");
+  ok &= contains(doc,
+                 "does not call them from the\n    live model path or port "
+                 "broad `CharBonesMeshes` movement",
+                 "document fences live CharServoBone movement behavior");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_zero_deltas(facing_pos_delta,"
+                 "facing_rot_delta);",
+                 "focused CharBones source test covers CharServoBone ZeroDeltas");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_move_to_facing(facing_xfm,{10.0f,"
+                 "20.0f,30.0f},kHalfPi);",
+                 "focused CharBones source test covers CharServoBone MoveToFacing");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_move_to_delta_facing(delta_xfm,{4.0f,"
+                 "5.0f,6.0f},kHalfPi);",
+                 "focused CharBones source test covers CharServoBone MoveToDeltaFacing");
   ok &= contains(rb3_latest_char_weightable_h,
                  "floatWeight(){returnmWeightOwner->mWeight;}",
                  "latest CharWeightable source exposes owner-weight lookup");

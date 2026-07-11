@@ -2332,6 +2332,58 @@ static void post_rotate_axis(milo_scene::Xfm& xfm, ClipChannel::Type axis,
   }
 }
 
+static void source_rotate_about_z_vec(float v[3], float angle) {
+  const float ca = std::cos(angle);
+  const float sa = std::sin(angle);
+  const float x = v[0];
+  const float y = v[1];
+  v[0] = ca * x - sa * y;
+  v[1] = sa * x + ca * y;
+}
+
+void source_char_servo_bone_zero_deltas(
+    std::array<float, 3>& facing_pos_delta,
+    float& facing_rot_delta_radians) {
+  facing_pos_delta = {0.0f, 0.0f, 0.0f};
+  facing_rot_delta_radians = 0.0f;
+}
+
+void source_char_servo_bone_move_to_facing(
+    milo_scene::Xfm& xfm,
+    const std::array<float, 3>& facing_pos,
+    float facing_rot_radians) {
+  if (facing_rot_radians != 0.0f) {
+    post_rotate_axis(xfm, ClipChannel::kRotZ, facing_rot_radians);
+    source_rotate_about_z_vec(xfm.pos, facing_rot_radians);
+    normalize_xfm_rows(xfm);
+  }
+  xfm.pos[0] += facing_pos[0];
+  xfm.pos[1] += facing_pos[1];
+  xfm.pos[2] += facing_pos[2];
+}
+
+void source_char_servo_bone_move_to_delta_facing(
+    milo_scene::Xfm& xfm,
+    const std::array<float, 3>& facing_pos_delta,
+    float facing_rot_delta_radians) {
+  const float dx = facing_pos_delta[0] * xfm.rot[0][0] +
+                   facing_pos_delta[1] * xfm.rot[1][0] +
+                   facing_pos_delta[2] * xfm.rot[2][0];
+  const float dy = facing_pos_delta[0] * xfm.rot[0][1] +
+                   facing_pos_delta[1] * xfm.rot[1][1] +
+                   facing_pos_delta[2] * xfm.rot[2][1];
+  const float dz = facing_pos_delta[0] * xfm.rot[0][2] +
+                   facing_pos_delta[1] * xfm.rot[1][2] +
+                   facing_pos_delta[2] * xfm.rot[2][2];
+  xfm.pos[0] += dx;
+  xfm.pos[1] += dy;
+  xfm.pos[2] += dz;
+  if (facing_rot_delta_radians != 0.0f) {
+    post_rotate_axis(xfm, ClipChannel::kRotZ, facing_rot_delta_radians);
+    normalize_xfm_rows(xfm);
+  }
+}
+
 static float wrap_ps2_angle(float radians) {
   constexpr float kPi = 3.1415927410125732f;
   constexpr float kTwoPi = 6.2831854820251465f;

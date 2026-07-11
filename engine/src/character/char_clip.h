@@ -341,6 +341,20 @@ void source_char_bone_dir_list_bones(
     bool include_delta_facing,
     std::vector<SourceCharBonesBone>& bones);
 
+// Source-backed CharServoBone movement helpers. These port the isolated math
+// bodies only; broad CharBonesMeshes movement stays fenced to the clip stack.
+void source_char_servo_bone_zero_deltas(
+    std::array<float, 3>& facing_pos_delta,
+    float& facing_rot_delta_radians);
+void source_char_servo_bone_move_to_facing(
+    milo_scene::Xfm& xfm,
+    const std::array<float, 3>& facing_pos,
+    float facing_rot_radians);
+void source_char_servo_bone_move_to_delta_facing(
+    milo_scene::Xfm& xfm,
+    const std::array<float, 3>& facing_pos_delta,
+    float facing_rot_delta_radians);
+
 // Source-backed CharBonesSamples state helpers.
 SourceCharBonesSamplesState source_char_bones_samples_empty_state();
 int source_char_bones_samples_allocate_size(

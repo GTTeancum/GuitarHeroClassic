@@ -1,6 +1,7 @@
 #include "character/char_clip.h"
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -23,6 +24,12 @@ bool expect_size(size_t got, size_t want, const char* label) {
 bool expect_float(float got, float want, const char* label) {
   if (got == want) return true;
   std::cerr << label << ": got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_near(float got, float want, const char* label) {
+  if (std::fabs(got - want) <= 0.0001f) return true;
+  std::cerr << label << ": got " << got << " want near " << want << "\n";
   return false;
 }
 
@@ -319,6 +326,61 @@ int main() {
                       "CharBoneDir delegated position with no facing");
   ok &= expect_string(dir_bones[1].name, "bone_hand.rotz",
                       "CharBoneDir delegated rotation with no facing");
+
+  constexpr float kHalfPi = 1.57079632679489661923f;
+  std::array<float, 3> facing_pos_delta = {4.0f, 5.0f, 6.0f};
+  float facing_rot_delta = 0.25f;
+  source_char_servo_bone_zero_deltas(facing_pos_delta, facing_rot_delta);
+  ok &= expect_near(facing_pos_delta[0], 0.0f,
+                    "CharServoBone ZeroDeltas pos x");
+  ok &= expect_near(facing_pos_delta[1], 0.0f,
+                    "CharServoBone ZeroDeltas pos y");
+  ok &= expect_near(facing_pos_delta[2], 0.0f,
+                    "CharServoBone ZeroDeltas pos z");
+  ok &= expect_near(facing_rot_delta, 0.0f,
+                    "CharServoBone ZeroDeltas rot");
+
+  ghogx::milo_scene::Xfm facing_xfm;
+  facing_xfm.pos[0] = 1.0f;
+  facing_xfm.pos[1] = 0.0f;
+  facing_xfm.pos[2] = 2.0f;
+  source_char_servo_bone_move_to_facing(
+      facing_xfm, {10.0f, 20.0f, 30.0f}, kHalfPi);
+  ok &= expect_near(facing_xfm.pos[0], 10.0f,
+                    "CharServoBone MoveToFacing pos x");
+  ok &= expect_near(facing_xfm.pos[1], 21.0f,
+                    "CharServoBone MoveToFacing pos y");
+  ok &= expect_near(facing_xfm.pos[2], 32.0f,
+                    "CharServoBone MoveToFacing pos z");
+  ok &= expect_near(facing_xfm.rot[0][0], 0.0f,
+                    "CharServoBone MoveToFacing rot00");
+  ok &= expect_near(facing_xfm.rot[0][1], 1.0f,
+                    "CharServoBone MoveToFacing rot01");
+  ok &= expect_near(facing_xfm.rot[1][0], -1.0f,
+                    "CharServoBone MoveToFacing rot10");
+  ok &= expect_near(facing_xfm.rot[1][1], 0.0f,
+                    "CharServoBone MoveToFacing rot11");
+
+  ghogx::milo_scene::Xfm delta_xfm;
+  delta_xfm.pos[0] = 1.0f;
+  delta_xfm.pos[1] = 2.0f;
+  delta_xfm.pos[2] = 3.0f;
+  source_char_servo_bone_move_to_delta_facing(
+      delta_xfm, {4.0f, 5.0f, 6.0f}, kHalfPi);
+  ok &= expect_near(delta_xfm.pos[0], 5.0f,
+                    "CharServoBone MoveToDeltaFacing pos x");
+  ok &= expect_near(delta_xfm.pos[1], 7.0f,
+                    "CharServoBone MoveToDeltaFacing pos y");
+  ok &= expect_near(delta_xfm.pos[2], 9.0f,
+                    "CharServoBone MoveToDeltaFacing pos z");
+  ok &= expect_near(delta_xfm.rot[0][0], 0.0f,
+                    "CharServoBone MoveToDeltaFacing rot00");
+  ok &= expect_near(delta_xfm.rot[0][1], 1.0f,
+                    "CharServoBone MoveToDeltaFacing rot01");
+  ok &= expect_near(delta_xfm.rot[1][0], -1.0f,
+                    "CharServoBone MoveToDeltaFacing rot10");
+  ok &= expect_near(delta_xfm.rot[1][1], 0.0f,
+                    "CharServoBone MoveToDeltaFacing rot11");
 
   SourceCharBonesSamplesState samples =
       source_char_bones_samples_empty_state();

@@ -825,9 +825,10 @@ note, and all report `unreadBytes=0`.
     `CharBones::AddBones` packed insertion path.
   - Native GHOGX decodes and logs the source `CharServoBone` row and
     `clip_type`, enforces the source revision range, and records the row tail
-    byte count. It does not port `MoveToFacing`, `MoveToDeltaFacing`, or broad
-    `CharBonesMeshes` movement until the connected clip/bone source path is
-    implemented as a whole.
+    byte count. Native exposes bounded source helpers for `ZeroDeltas`,
+    `MoveToFacing`, and `MoveToDeltaFacing`, but does not call them from the
+    live model path or port broad `CharBonesMeshes` movement until the
+    connected clip/bone source path is implemented as a whole.
 - `rb3-latest/src/system/char/CharClipGroup.cpp` and
   `rb3-latest/src/system/char/CharClipGroup.h`
   - `CharClipGroup::Load` reads the object prefix through
