@@ -5953,6 +5953,12 @@ int main() {
   ok &= contains(renderer_c,
                  "apply_mesh_transform_sample(local,offset_it->second);",
                  "persistent venue AnimFilter offsets use full transform samples at the authored transform node");
+  ok &= contains(renderer_h_c,
+                 "floatblend=1.0f;",
+                 "renderer transform samples carry EventTrigger SetFrame blend strength");
+  ok &= contains(renderer_c,
+                 "apply_mesh_transform_sample_full(target,sample);",
+                 "renderer blends venue transform samples toward the authored SetFrame target");
   ok &= contains(renderer_c,
                  "mesh_transform_offsets_.find(target)",
                  "persistent venue AnimFilter offsets also apply to animated parent transforms");
@@ -6106,6 +6112,12 @@ int main() {
   ok &= contains(gameplay_c,
                  "venue_mesh_transform_offsets_[target.mesh]=sample;",
                  "venue AnimFilter runtime stores full transform samples");
+  ok &= contains(gameplay_c,
+                 "venue_filter_source_blend_at(filter,filter_elapsed)",
+                 "venue AnimFilter runtime computes ihatecompvir AnimTask SetFrame blend");
+  ok &= contains(gameplay_c,
+                 "sample.blend=source_blend;",
+                 "venue AnimFilter runtime passes EventTrigger blend into transform samples");
   ok &= contains(gameplay_c,
                  "world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);",
                  "venue AnimFilter runtime sends full transform samples to renderer");

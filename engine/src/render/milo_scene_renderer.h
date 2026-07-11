@@ -182,6 +182,7 @@ class MiloSceneRenderer {
     bool has_scale = false;
     bool scale_is_absolute = false;
     std::array<float, 3> scale = {1.0f, 1.0f, 1.0f};
+    float blend = 1.0f;
   };
   void set_mesh_transform_offsets(
       std::map<std::string, MeshTransformSample> offsets);

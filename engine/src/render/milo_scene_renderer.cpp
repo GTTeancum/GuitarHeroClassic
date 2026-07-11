@@ -392,7 +392,7 @@ void apply_absolute_local_rot_scale(
   }
 }
 
-void apply_mesh_transform_sample(
+void apply_mesh_transform_sample_full(
     std::array<float, 16>& world,
     const MiloSceneRenderer::MeshTransformSample& sample) {
   if (sample.has_translation) {
@@ -412,6 +412,26 @@ void apply_mesh_transform_sample(
     apply_local_rotation_delta(world, sample.rotation_xyzw);
   if (sample.has_scale && !sample.scale_is_absolute)
     apply_local_scale_delta(world, sample.scale);
+}
+
+void apply_mesh_transform_sample(
+    std::array<float, 16>& world,
+    const MiloSceneRenderer::MeshTransformSample& sample) {
+  const float blend = std::isfinite(sample.blend)
+                          ? std::clamp(sample.blend, 0.0f, 1.0f)
+                          : 1.0f;
+  if (blend <= 0.0f) return;
+  if (blend >= 0.9999f) {
+    apply_mesh_transform_sample_full(world, sample);
+    return;
+  }
+
+  const auto base = world;
+  auto target = world;
+  apply_mesh_transform_sample_full(target, sample);
+  for (size_t i = 0; i < world.size(); ++i) {
+    world[i] = base[i] + (target[i] - base[i]) * blend;
+  }
 }
 
 void apply_face_camera_yaw(std::array<float, 16>& world,

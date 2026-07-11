@@ -9984,6 +9984,19 @@ double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter) {
     return cycle / (30.0 * static_cast<double>(scale));
 }
 
+float venue_filter_source_blend_at(const Gameplay::VenueAnimFilter& filter,
+                                   double elapsed_seconds) {
+    if (!std::isfinite(filter.event_blend_seconds) ||
+        filter.event_blend_seconds <= 0.001f) {
+        return 1.0f;
+    }
+    const double elapsed = std::max(0.0, elapsed_seconds);
+    return std::clamp(
+        static_cast<float>(elapsed /
+                           static_cast<double>(filter.event_blend_seconds)),
+        0.0f, 1.0f);
+}
+
 bool venue_filter_loops(const Gameplay::VenueAnimFilter& filter) {
     // RndAnimFilter::Loop() returns mType >= kLoop in ihatecompvir's RB3
     // source; kShuttle also stays task-looped while shuttling internally.
@@ -19010,13 +19023,16 @@ void Gameplay::update_active_venue_anim_filters() {
             }
             const float frame =
                 venue_filter_frame_at(filter, filter_elapsed, it->polled);
+            const float source_blend =
+                venue_filter_source_blend_at(filter, filter_elapsed);
             for (const auto& target : filter.targets) {
                 bool source_translation = false;
                 std::array<float, 3> source_pos = {0.0f, 0.0f, 0.0f};
-                const auto sample =
+                auto sample =
                     sample_mesh_transform_from_source_local_position(
                         target.anim, frame, venue_mesh_source_local_positions_,
                         target.mesh, &source_translation, &source_pos);
+                sample.blend = source_blend;
                 venue_mesh_transform_offsets_[target.mesh] = sample;
                 if (sample.has_translation)
                     venue_mesh_translation_offsets_[target.mesh] =
@@ -19024,7 +19040,7 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f wait=%d persistent=%d spline=%d/%d rot_slerp=%d\n",
+                        "[world] venue AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) scale_vec=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) delay=%.3f blend=%.3f blend_period=%.3f wait=%d persistent=%d spline=%d/%d rot_slerp=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
@@ -19039,6 +19055,7 @@ void Gameplay::update_active_venue_anim_filters() {
                         source_translation ? 1 : 0, source_pos[0],
                         source_pos[1], source_pos[2],
                         filter.event_delay_seconds,
+                        source_blend,
                         filter.event_blend_seconds,
                         filter.event_wait ? 1 : 0,
                         it->persistent ? 1 : 0,
@@ -19071,7 +19088,7 @@ void Gameplay::update_active_venue_anim_filters() {
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu norm=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu delay=%.3f blend=%.3f wait=%d persistent=%d\n",
+                        "[world] venue MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu norm=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu delay=%.3f blend=%.3f blend_period=%.3f wait=%d persistent=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), target.anim.name.c_str(), frame,
                         target.anim.vertex_count, position_count,
@@ -19081,6 +19098,7 @@ void Gameplay::update_active_venue_anim_filters() {
                         target.anim.texcoord_frames.size(),
                         target.anim.color_frames.size(),
                         filter.event_delay_seconds,
+                        source_blend,
                         filter.event_blend_seconds,
                         filter.event_wait ? 1 : 0,
                         it->persistent ? 1 : 0);
@@ -20229,18 +20247,21 @@ void Gameplay::update_active_lighting_anim_filters() {
         for (const auto& filter : it->filters) {
             const float frame =
                 venue_filter_frame_at(filter, elapsed, false);
+            const float source_blend =
+                venue_filter_source_blend_at(filter, elapsed);
             for (const auto& target : filter.targets) {
                 bool source_translation = false;
                 std::array<float, 3> source_pos = {0.0f, 0.0f, 0.0f};
-                const auto sample =
+                auto sample =
                     sample_mesh_transform_from_source_local_position(
                         target.anim, frame, lighting_mesh_source_local_positions_,
                         target.mesh, &source_translation, &source_pos);
+                sample.blend = source_blend;
                 lighting_mesh_transform_offsets_[target.mesh] = sample;
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) spline=%d/%d rot_slerp=%d\n",
+                        "[world] lighting AnimFilter sample event=%s filter=%s mesh=%s frame=%.2f pos=%d:%s rot=%d:%s scale=%d:%s value=(%.3f %.3f %.3f) source_base=%d base=(%.3f %.3f %.3f) blend=%.3f blend_period=%.3f spline=%d/%d rot_slerp=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), frame,
                         sample.has_translation ? 1 : 0,
@@ -20253,6 +20274,7 @@ void Gameplay::update_active_lighting_anim_filters() {
                         sample.translation[1], sample.translation[2],
                         source_translation ? 1 : 0, source_pos[0],
                         source_pos[1], source_pos[2],
+                        source_blend, filter.event_blend_seconds,
                         target.anim.translation_spline ? 1 : 0,
                         target.anim.scale_spline ? 1 : 0,
                         target.anim.rotation_slerp ? 1 : 0);
