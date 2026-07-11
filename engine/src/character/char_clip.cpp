@@ -1410,6 +1410,14 @@ bool source_char_driver_should_start_clip(bool play_multiple_clips,
   return true;
 }
 
+std::optional<size_t> source_char_driver_first_playing_index(
+    const std::vector<float>& source_stack_blend_fracs) {
+  for (size_t i = 0; i < source_stack_blend_fracs.size(); ++i) {
+    if (source_stack_blend_fracs[i] != 0.0f) return i;
+  }
+  return std::nullopt;
+}
+
 // ---- pose application ----------------------------------------------------
 
 static void quat_to_rot(const float q[4], float rot[3][3]) {

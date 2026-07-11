@@ -353,6 +353,10 @@ int run_contract() {
                  "concrete\n    `CharDriver::Play` duplicate-clip gate",
                  "document records concrete CharDriver duplicate gate slice");
   ok &= contains(doc,
+                 "Native `source_char_driver_first_playing_index` ports the "
+                 "concrete\n    `CharDriver::FirstPlaying` stack scan",
+                 "document records concrete CharDriver FirstPlaying slice");
+  ok &= contains(doc,
                  "Port `CharDriver::Load`, `CharDriver::Poll`, and "
                  "`EvaluateFlags`",
                  "remaining import checklist names CharDriver runtime gap");
@@ -2815,6 +2819,10 @@ int run_contract() {
                  "if(mPlayMultipleClips){for(CharClipDriver*it=mFirst;it!=0;"
                  "it=it->mNext){if(clip==it->mClip)return0;}}",
                  "latest CharDriver source exposes duplicate clip gate");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "CharClipDriver*CharDriver::FirstPlaying(){CharClipDriver*d;"
+                 "for(d=mFirst;d!=0&&!d->mBlendFrac;d=d->Next());returnd;}",
+                 "latest CharDriver source exposes FirstPlaying scan");
   ok &= contains(char_clip_h,
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
                  "uint32_tmask);",
@@ -2834,6 +2842,10 @@ int run_contract() {
                  "boolsource_char_driver_should_start_clip("
                  "boolplay_multiple_clips,boolclip_already_playing);",
                  "native character API exposes source CharDriver duplicate helper");
+  ok &= contains(char_clip_h,
+                 "std::optional<size_t>source_char_driver_first_playing_index("
+                 "conststd::vector<float>&source_stack_blend_fracs);",
+                 "native character API exposes source CharDriver FirstPlaying helper");
   ok &= contains(char_clip_h,
                  "floatsource_driver_blend_width_=1.0f;",
                  "native CharClipPlayer stores source driver blend default");
@@ -2896,6 +2908,12 @@ int run_contract() {
                  "if(!source_char_driver_should_start_clip("
                  "source_play_multiple_clips_,clip_already_playing)){return;}",
                  "native CharClipPlayer applies source duplicate gate");
+  ok &= contains(char_clip,
+                 "std::optional<size_t>source_char_driver_first_playing_index("
+                 "conststd::vector<float>&source_stack_blend_fracs){for("
+                 "size_ti=0;i<source_stack_blend_fracs.size();++i){if("
+                 "source_stack_blend_fracs[i]!=0.0f)returni;}returnstd::nullopt;}",
+                 "native CharDriver FirstPlaying helper ports source scan");
   ok &= missing(char_clip,
                 "blend_width>=0.0f?blend_width:std::max(0.0f,clip.blend_width)",
                 "native CharClipPlayer no longer falls back to clip blend width");
@@ -2938,6 +2956,13 @@ int run_contract() {
                  "expect_should_start(true,true,false,"
                  "\"duplicateclipinmultimode\")",
                  "focused flag-mask test covers source duplicate suppression");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_first_playing({},std::nullopt,\"emptysourcestack\")",
+                 "focused flag-mask test covers empty FirstPlaying stack");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_first_playing({0.0f,0.25f,1.0f},"
+                 "static_cast<size_t>(1),\"skipzeroblendnodes\")",
+                 "focused flag-mask test covers FirstPlaying zero-skip scan");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");

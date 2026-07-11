@@ -192,6 +192,11 @@ float source_char_driver_resolve_blend_width(float requested_blend_width,
 bool source_char_driver_should_start_clip(bool play_multiple_clips,
                                           bool clip_already_playing);
 
+// Source-backed CharDriver::FirstPlaying helper. The input is in source stack
+// order: mFirst, then each mNext.
+std::optional<size_t> source_char_driver_first_playing_index(
+    const std::vector<float>& source_stack_blend_fracs);
+
 // Source-backed CharBones channel helpers.
 int source_char_bones_type_of(const std::string& channel);
 const char* source_char_bones_suffix_of(int type);

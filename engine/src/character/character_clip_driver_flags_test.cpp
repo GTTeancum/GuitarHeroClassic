@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <iostream>
+#include <optional>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -66,6 +68,27 @@ bool expect_should_start(bool play_multiple, bool already_playing, bool want,
   return false;
 }
 
+bool expect_first_playing(const std::vector<float>& blend_fracs,
+                          std::optional<size_t> want, const char* label) {
+  const std::optional<size_t> got =
+      ghogx::character::source_char_driver_first_playing_index(blend_fracs);
+  if (got == want) return true;
+  std::cerr << "first-playing mismatch for " << label << ": got ";
+  if (got) {
+    std::cerr << *got;
+  } else {
+    std::cerr << "<none>";
+  }
+  std::cerr << " want ";
+  if (want) {
+    std::cerr << *want;
+  } else {
+    std::cerr << "<none>";
+  }
+  std::cerr << "\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -103,5 +126,12 @@ int main() {
   ok &= expect_should_start(false, true, true, "duplicates allowed default");
   ok &= expect_should_start(true, false, true, "new clip in multi mode");
   ok &= expect_should_start(true, true, false, "duplicate clip in multi mode");
+  ok &= expect_first_playing({}, std::nullopt, "empty source stack");
+  ok &= expect_first_playing({0.0f, 0.0f}, std::nullopt,
+                             "all zero source stack");
+  ok &= expect_first_playing({0.5f, 0.0f}, static_cast<size_t>(0),
+                             "first source node playing");
+  ok &= expect_first_playing({0.0f, 0.25f, 1.0f}, static_cast<size_t>(1),
+                             "skip zero blend nodes");
   return ok ? 0 : 1;
 }

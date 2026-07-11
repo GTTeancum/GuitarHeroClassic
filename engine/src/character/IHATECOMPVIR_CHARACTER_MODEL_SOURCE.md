@@ -592,6 +592,11 @@ note, and all report `unreadBytes=0`.
     `CharDriver::Play` duplicate-clip gate: when `mPlayMultipleClips` is true,
     attempting to play a clip already in the stack returns without starting a
     new node. The source constructor default remains false.
+  - Native `source_char_driver_first_playing_index` ports the concrete
+    `CharDriver::FirstPlaying` stack scan over `mFirst` / `mNext`, returning
+    the first node with nonzero `mBlendFrac`. It is intentionally a source-stack
+    helper only until the missing `CharClipDriver::Evaluate` body supplies
+    source `mBlendFrac` values.
 - `rb3-latest/src/system/char/CharDriverMidi.cpp` and
   `rb3-latest/src/system/char/CharDriverMidi.h`
   - `CharDriverMidi::Load` reads the subclass revision, accepts revisions
