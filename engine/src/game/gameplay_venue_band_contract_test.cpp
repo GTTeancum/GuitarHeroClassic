@@ -5841,6 +5841,15 @@ int main() {
                  "out.anim.rotation_keys=mesh_quat_keys_from_camera_keys(decoded->rot_keys);",
                  "source-shaped TransAnim decoder keeps quaternion rotation keys");
   ok &= contains(gameplay_c,
+                 "std::array<float,4>sample_rotation_absolute(",
+                 "venue mesh TransAnim rotations have an authored absolute quaternion sampler");
+  ok &= contains(gameplay_c,
+                 "canonical_milo_ref(mesh_name).rfind(\".mesh\")!=std::string::npos",
+                 "venue mesh TransAnim absolute rotation path is limited to authored mesh targets");
+  ok &= contains(gameplay_c,
+                 "sample.rotation_is_absolute=true;sample.rotation_xyzw=sample_rotation_absolute(anim.rotation_keys,frame);",
+                 "venue mesh TransAnim playback uses source absolute quaternions");
+  ok &= contains(gameplay_c,
                  "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
                  "source-shaped TransAnim decoder keeps authored scale keys");
   ok &= contains(gameplay_c,

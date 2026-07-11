@@ -9009,6 +9009,28 @@ std::array<float, 4> sample_rotation_delta(
     return quat_mul_xyzw(quat_conjugate_xyzw(normalize_quat_xyzw(base)), cur);
 }
 
+std::array<float, 4> sample_rotation_absolute(
+    const std::vector<ghogx::render::MiloSceneRenderer::MeshQuatAnimKey>& keys,
+    float frame) {
+    if (keys.empty()) return {0.0f, 0.0f, 0.0f, 1.0f};
+    const auto* a = &keys.front();
+    const auto* b = &keys.back();
+    for (size_t i = 1; i < keys.size(); ++i) {
+        if (frame <= keys[i].frame) {
+            a = &keys[i - 1];
+            b = &keys[i];
+            break;
+        }
+    }
+    const float span = std::max(b->frame - a->frame, 0.001f);
+    const float t = std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const std::array<float, 4> qa = {a->quat_xyzw[0], a->quat_xyzw[1],
+                                     a->quat_xyzw[2], a->quat_xyzw[3]};
+    const std::array<float, 4> qb = {b->quat_xyzw[0], b->quat_xyzw[1],
+                                     b->quat_xyzw[2], b->quat_xyzw[3]};
+    return slerp_quat_xyzw(qa, qb, t);
+}
+
 ghogx::render::MiloSceneRenderer::MeshTransformSample sample_mesh_transform(
     const ghogx::render::MiloSceneRenderer::MeshTransformAnim& anim,
     float frame) {
@@ -9048,6 +9070,12 @@ sample_mesh_transform_from_source_local_position(
     std::array<float, 3>* source_position = nullptr) {
     auto sample = sample_mesh_transform(anim, frame);
     if (used_source_position) *used_source_position = false;
+    if (!anim.rotation_keys.empty() &&
+        canonical_milo_ref(mesh_name).rfind(".mesh") != std::string::npos) {
+        sample.has_rotation = true;
+        sample.rotation_is_absolute = true;
+        sample.rotation_xyzw = sample_rotation_absolute(anim.rotation_keys, frame);
+    }
     if (!anim.translation_keys.empty()) {
         const auto source =
             source_local_position_for_mesh(source_positions, mesh_name);
