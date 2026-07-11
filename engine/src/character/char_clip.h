@@ -141,6 +141,43 @@ struct SourceCharBonesMeshesReallocateStep {
   bool acquire_pose = false;
 };
 
+struct SourceCharServoBoneDefaultState {
+  bool pelvis_null = true;
+  bool facing_rot_delta_null = true;
+  bool facing_pos_delta_null = true;
+  bool facing_rot_null = true;
+  bool facing_pos_null = true;
+  bool move_self = false;
+  bool delta_changed = false;
+  bool regulate_empty = true;
+};
+
+struct SourceCharServoBoneSetClipTypeStep {
+  bool changed = false;
+  bool assign_clip_type = false;
+  bool clear_bones = false;
+  bool stuff_bones_from_dir = false;
+};
+
+struct SourceCharServoBoneEnterStep {
+  bool zero_deltas = true;
+  bool clear_regulate = true;
+  bool delta_changed = false;
+  bool move_self = false;
+};
+
+struct SourceCharServoBoneSetMoveSelfStep {
+  bool changed = false;
+  bool move_self = false;
+  bool delta_changed = false;
+};
+
+struct SourceCharServoBoneCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+  bool calls_set_clip_type = true;
+};
+
 struct SourceCharBonesSamplesState {
   SourceCharBonesState bones;
   int num_samples = 0;
@@ -936,6 +973,15 @@ std::vector<std::string> source_char_bones_meshes_stuff_meshes(
 
 // Source-backed CharServoBone movement helpers. These port the isolated math
 // bodies only; broad CharBonesMeshes movement stays fenced to the clip stack.
+SourceCharServoBoneDefaultState source_char_servo_bone_default_state();
+SourceCharServoBoneSetClipTypeStep source_char_servo_bone_set_clip_type_step(
+    bool clip_type_changed);
+SourceCharServoBoneEnterStep source_char_servo_bone_enter(
+    bool facing_pos_delta_present);
+SourceCharServoBoneSetMoveSelfStep source_char_servo_bone_set_move_self(
+    bool current_move_self,
+    bool requested_move_self);
+SourceCharServoBoneCopyPlan source_char_servo_bone_copy_plan();
 void source_char_servo_bone_zero_deltas(
     std::array<float, 3>& facing_pos_delta,
     float& facing_rot_delta_radians);

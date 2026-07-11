@@ -3394,6 +3394,51 @@ static void source_rotate_about_z_vec(float v[3], float angle) {
   v[1] = sa * x + ca * y;
 }
 
+SourceCharServoBoneDefaultState source_char_servo_bone_default_state() {
+  return {};
+}
+
+SourceCharServoBoneSetClipTypeStep source_char_servo_bone_set_clip_type_step(
+    bool clip_type_changed) {
+  SourceCharServoBoneSetClipTypeStep step;
+  step.changed = clip_type_changed;
+  if (clip_type_changed) {
+    step.assign_clip_type = true;
+    step.clear_bones = true;
+    step.stuff_bones_from_dir = true;
+  }
+  return step;
+}
+
+SourceCharServoBoneEnterStep source_char_servo_bone_enter(
+    bool facing_pos_delta_present) {
+  SourceCharServoBoneEnterStep step;
+  step.move_self = facing_pos_delta_present;
+  return step;
+}
+
+SourceCharServoBoneSetMoveSelfStep source_char_servo_bone_set_move_self(
+    bool current_move_self,
+    bool requested_move_self) {
+  SourceCharServoBoneSetMoveSelfStep step;
+  if (current_move_self == requested_move_self) {
+    step.move_self = current_move_self;
+    return step;
+  }
+  step.changed = true;
+  step.move_self = requested_move_self;
+  step.delta_changed = true;
+  return step;
+}
+
+SourceCharServoBoneCopyPlan source_char_servo_bone_copy_plan() {
+  SourceCharServoBoneCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mMoveSelf"};
+  plan.calls_set_clip_type = true;
+  return plan;
+}
+
 void source_char_servo_bone_zero_deltas(
     std::array<float, 3>& facing_pos_delta,
     float& facing_rot_delta_radians) {

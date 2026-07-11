@@ -641,6 +641,85 @@ int main() {
   ok &= expect_string(stuffed_meshes[2], "mesh_b",
                       "CharBonesMeshes StuffMeshes second mesh");
 
+  const SourceCharServoBoneDefaultState servo_defaults =
+      source_char_servo_bone_default_state();
+  ok &= expect_int(servo_defaults.pelvis_null ? 1 : 0, 1,
+                   "CharServoBone default pelvis null");
+  ok &= expect_int(servo_defaults.facing_rot_delta_null ? 1 : 0, 1,
+                   "CharServoBone default rot delta null");
+  ok &= expect_int(servo_defaults.facing_pos_delta_null ? 1 : 0, 1,
+                   "CharServoBone default pos delta null");
+  ok &= expect_int(servo_defaults.facing_rot_null ? 1 : 0, 1,
+                   "CharServoBone default rot null");
+  ok &= expect_int(servo_defaults.facing_pos_null ? 1 : 0, 1,
+                   "CharServoBone default pos null");
+  ok &= expect_int(servo_defaults.move_self ? 1 : 0, 0,
+                   "CharServoBone default move self");
+  ok &= expect_int(servo_defaults.delta_changed ? 1 : 0, 0,
+                   "CharServoBone default delta changed");
+  ok &= expect_int(servo_defaults.regulate_empty ? 1 : 0, 1,
+                   "CharServoBone default regulate empty");
+
+  const SourceCharServoBoneSetClipTypeStep same_servo_clip =
+      source_char_servo_bone_set_clip_type_step(false);
+  ok &= expect_int(same_servo_clip.changed ? 1 : 0, 0,
+                   "CharServoBone SetClipType unchanged");
+  ok &= expect_int(same_servo_clip.clear_bones ? 1 : 0, 0,
+                   "CharServoBone SetClipType unchanged no clear");
+  const SourceCharServoBoneSetClipTypeStep new_servo_clip =
+      source_char_servo_bone_set_clip_type_step(true);
+  ok &= expect_int(new_servo_clip.assign_clip_type ? 1 : 0, 1,
+                   "CharServoBone SetClipType assigns");
+  ok &= expect_int(new_servo_clip.clear_bones ? 1 : 0, 1,
+                   "CharServoBone SetClipType clears");
+  ok &= expect_int(new_servo_clip.stuff_bones_from_dir ? 1 : 0, 1,
+                   "CharServoBone SetClipType stuffs bones");
+
+  const SourceCharServoBoneEnterStep servo_enter_without_delta =
+      source_char_servo_bone_enter(false);
+  ok &= expect_int(servo_enter_without_delta.zero_deltas ? 1 : 0, 1,
+                   "CharServoBone Enter zeros");
+  ok &= expect_int(servo_enter_without_delta.clear_regulate ? 1 : 0, 1,
+                   "CharServoBone Enter clears regulate");
+  ok &= expect_int(servo_enter_without_delta.delta_changed ? 1 : 0, 0,
+                   "CharServoBone Enter delta not changed");
+  ok &= expect_int(servo_enter_without_delta.move_self ? 1 : 0, 0,
+                   "CharServoBone Enter no delta move self");
+  const SourceCharServoBoneEnterStep servo_enter_with_delta =
+      source_char_servo_bone_enter(true);
+  ok &= expect_int(servo_enter_with_delta.move_self ? 1 : 0, 1,
+                   "CharServoBone Enter delta move self");
+
+  const SourceCharServoBoneSetMoveSelfStep servo_same_move_self =
+      source_char_servo_bone_set_move_self(true, true);
+  ok &= expect_int(servo_same_move_self.changed ? 1 : 0, 0,
+                   "CharServoBone SetMoveSelf same unchanged");
+  ok &= expect_int(servo_same_move_self.move_self ? 1 : 0, 1,
+                   "CharServoBone SetMoveSelf same preserves");
+  ok &= expect_int(servo_same_move_self.delta_changed ? 1 : 0, 0,
+                   "CharServoBone SetMoveSelf same no delta change");
+  const SourceCharServoBoneSetMoveSelfStep servo_new_move_self =
+      source_char_servo_bone_set_move_self(false, true);
+  ok &= expect_int(servo_new_move_self.changed ? 1 : 0, 1,
+                   "CharServoBone SetMoveSelf changed");
+  ok &= expect_int(servo_new_move_self.move_self ? 1 : 0, 1,
+                   "CharServoBone SetMoveSelf assigns");
+  ok &= expect_int(servo_new_move_self.delta_changed ? 1 : 0, 1,
+                   "CharServoBone SetMoveSelf marks delta");
+
+  const SourceCharServoBoneCopyPlan servo_copy =
+      source_char_servo_bone_copy_plan();
+  ok &= expect_size(servo_copy.copied_superclasses.size(), 1,
+                    "CharServoBone Copy superclass count");
+  ok &= expect_string(servo_copy.copied_superclasses[0], "Hmx::Object",
+                      "CharServoBone Copy superclass");
+  ok &= expect_size(servo_copy.copied_members.size(), 1,
+                    "CharServoBone Copy member count");
+  ok &= expect_string(servo_copy.copied_members[0], "mMoveSelf",
+                      "CharServoBone Copy member");
+  ok &= expect_int(servo_copy.calls_set_clip_type ? 1 : 0, 1,
+                   "CharServoBone Copy calls SetClipType");
+
   constexpr float kHalfPi = 1.57079632679489661923f;
   std::array<float, 3> facing_pos_delta = {4.0f, 5.0f, 6.0f};
   float facing_rot_delta = 0.25f;

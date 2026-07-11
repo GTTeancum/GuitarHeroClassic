@@ -3033,11 +3033,30 @@ int run_contract() {
   ok &= contains(rb3_latest_char_servo_bone_h, "SymbolmClipType;",
                  "latest CharServoBone source header exposes clip type");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "CharServoBone::CharServoBone():mPelvis(0),"
+                 "mFacingRotDelta(0),mFacingPosDelta(0),mFacingRot(0),"
+                 "mFacingPos(0),mMoveSelf(0),mDeltaChanged(0),"
+                 "mRegulate(this,0){}",
+                 "latest CharServoBone source constructor defaults");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
                  "if(gRev>1)bs>>s;SetClipType(s);",
                  "CharServoBone source load gates clip type");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
                  "ClearBones();CharBoneDir::StuffBones(*this,mClipType);",
                  "CharServoBone source SetClipType refills source bones");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "voidCharServoBone::Enter(){ZeroDeltas();mRegulate=0;"
+                 "mDeltaChanged=false;mMoveSelf=mFacingPosDelta;}",
+                 "CharServoBone source Enter resets deltas and move-self");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "voidCharServoBone::SetMoveSelf(boolb){if(mMoveSelf==b)"
+                 "return;mMoveSelf=b;mDeltaChanged=true;}",
+                 "CharServoBone source SetMoveSelf dirty rule");
+  ok &= contains(rb3_latest_char_servo_bone_cpp,
+                 "BEGIN_COPYS(CharServoBone)COPY_SUPERCLASS(Hmx::Object)"
+                 "CREATE_COPY(CharServoBone)BEGIN_COPYING_MEMBERS"
+                 "COPY_MEMBER(mMoveSelf)SetClipType(c->mClipType);",
+                 "CharServoBone source Copy member list");
   ok &= contains(rb3_latest_char_servo_bone_cpp,
                  "mFacingPosDelta=(Vector3*)FindPtr(\"bone_facing_delta.pos\");",
                  "CharServoBone source realloc finds facing delta rows");
@@ -3078,6 +3097,85 @@ int run_contract() {
                  "conststd::array<float,3>&facing_pos_delta,"
                  "floatfacing_rot_delta_radians);",
                  "native exposes bounded CharServoBone MoveToDeltaFacing helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharServoBoneDefaultState{boolpelvis_null=true;"
+                 "boolfacing_rot_delta_null=true;boolfacing_pos_delta_null=true;",
+                 "native exposes CharServoBone default-state contract");
+  ok &= contains(char_clip_h,
+                 "structSourceCharServoBoneSetClipTypeStep{boolchanged=false;"
+                 "boolassign_clip_type=false;boolclear_bones=false;"
+                 "boolstuff_bones_from_dir=false;};",
+                 "native exposes CharServoBone SetClipType contract");
+  ok &= contains(char_clip_h,
+                 "structSourceCharServoBoneEnterStep{boolzero_deltas=true;"
+                 "boolclear_regulate=true;booldelta_changed=false;"
+                 "boolmove_self=false;};",
+                 "native exposes CharServoBone Enter contract");
+  ok &= contains(char_clip_h,
+                 "structSourceCharServoBoneSetMoveSelfStep{boolchanged=false;"
+                 "boolmove_self=false;booldelta_changed=false;};",
+                 "native exposes CharServoBone SetMoveSelf contract");
+  ok &= contains(char_clip_h,
+                 "structSourceCharServoBoneCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;"
+                 "boolcalls_set_clip_type=true;};",
+                 "native exposes CharServoBone Copy contract");
+  ok &= contains(char_clip_h,
+                 "SourceCharServoBoneDefaultStatesource_char_servo_bone_default_state();",
+                 "native exposes CharServoBone default-state helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharServoBoneSetClipTypeStep"
+                 "source_char_servo_bone_set_clip_type_step("
+                 "boolclip_type_changed);",
+                 "native exposes CharServoBone SetClipType helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharServoBoneEnterStepsource_char_servo_bone_enter("
+                 "boolfacing_pos_delta_present);",
+                 "native exposes CharServoBone Enter helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharServoBoneSetMoveSelfStep"
+                 "source_char_servo_bone_set_move_self(boolcurrent_move_self,"
+                 "boolrequested_move_self);",
+                 "native exposes CharServoBone SetMoveSelf helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharServoBoneCopyPlansource_char_servo_bone_copy_plan();",
+                 "native exposes CharServoBone Copy helper");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneDefaultStatesource_char_servo_bone_default_state(){"
+                 "return{};}",
+                 "native CharServoBone default-state helper follows source");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneSetClipTypeStep"
+                 "source_char_servo_bone_set_clip_type_step("
+                 "boolclip_type_changed){SourceCharServoBoneSetClipTypeStep"
+                 "step;step.changed=clip_type_changed;if(clip_type_changed){",
+                 "native CharServoBone SetClipType helper gates changed branch");
+  ok &= contains(char_clip,
+                 "step.assign_clip_type=true;step.clear_bones=true;"
+                 "step.stuff_bones_from_dir=true;}",
+                 "native CharServoBone SetClipType helper mirrors clear/stuff");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneEnterStep"
+                 "source_char_servo_bone_enter(boolfacing_pos_delta_present){"
+                 "SourceCharServoBoneEnterStepstep;step.move_self="
+                 "facing_pos_delta_present;returnstep;}",
+                 "native CharServoBone Enter helper mirrors move-self pointer");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneSetMoveSelfStep"
+                 "source_char_servo_bone_set_move_self(boolcurrent_move_self,"
+                 "boolrequested_move_self){SourceCharServoBoneSetMoveSelfStep"
+                 "step;if(current_move_self==requested_move_self){",
+                 "native CharServoBone SetMoveSelf helper gates no-op");
+  ok &= contains(char_clip,
+                 "step.changed=true;step.move_self=requested_move_self;"
+                 "step.delta_changed=true;returnstep;}",
+                 "native CharServoBone SetMoveSelf helper marks changed branch");
+  ok &= contains(char_clip,
+                 "SourceCharServoBoneCopyPlansource_char_servo_bone_copy_plan(){"
+                 "SourceCharServoBoneCopyPlanplan;plan.copied_superclasses="
+                 "{\"Hmx::Object\"};plan.copied_members={\"mMoveSelf\"};"
+                 "plan.calls_set_clip_type=true;returnplan;}",
+                 "native CharServoBone Copy helper mirrors source copy");
   ok &= contains(char_clip,
                  "voidsource_char_servo_bone_zero_deltas("
                  "std::array<float,3>&facing_pos_delta,"
@@ -3119,6 +3217,21 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "out.servo_bones.push_back(decode_servo_bone(de.name,b));",
                  "character load stores decoded CharServoBone rows");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_default_state()",
+                 "focused CharBones test covers CharServoBone defaults");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_set_clip_type_step(true)",
+                 "focused CharBones test covers CharServoBone SetClipType");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_enter(true)",
+                 "focused CharBones test covers CharServoBone Enter");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_set_move_self(false,true)",
+                 "focused CharBones test covers CharServoBone SetMoveSelf");
+  ok &= contains(char_bones_source_test,
+                 "source_char_servo_bone_copy_plan()",
+                 "focused CharBones test covers CharServoBone Copy");
   ok &= contains(rb3_latest_char_trans_copy_h,
                  "classCharTransCopy:publicCharPollable",
                  "latest CharTransCopy header exposes source class");
@@ -4235,6 +4348,18 @@ int run_contract() {
                  "Native exposes bounded source helpers for `ZeroDeltas`,\n"
                  "    `MoveToFacing`, and `MoveToDeltaFacing`",
                  "document records bounded CharServoBone movement helpers");
+  ok &= contains(doc,
+                 "Native GHOGX also records the checked `CharServoBone` "
+                 "constructor",
+                 "document records CharServoBone constructor/control-flow slice");
+  ok &= contains(doc,
+                 "`SetMoveSelf` only\n    marks `delta_changed` when the "
+                 "requested value differs",
+                 "document records CharServoBone SetMoveSelf source branch");
+  ok &= contains(doc,
+                 "`Copy` copies\n    `Hmx::Object`, `mMoveSelf`, and calls "
+                 "`SetClipType`",
+                 "document records CharServoBone Copy source branch");
   ok &= contains(doc,
                  "does not call them from the\n    live model path or port "
                  "broad `CharBonesMeshes` movement",
