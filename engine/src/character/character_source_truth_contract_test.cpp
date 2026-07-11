@@ -87,6 +87,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_bone_offset_source_test.cpp"));
   const std::string bone_twist_source_test =
       compact(read_file(char_dir / "character_bone_twist_source_test.cpp"));
+  const std::string lookat_source_test =
+      compact(read_file(char_dir / "character_lookat_source_test.cpp"));
   const std::string weight_setter_source_test =
       compact(read_file(char_dir / "character_weight_setter_source_test.cpp"));
   const std::string char_hair_source_test =
@@ -2754,6 +2756,22 @@ int run_contract() {
                  "RB3 CharLookAt poll writes the pivot transform");
   ok &= contains(rb3_char_lookat_cpp, "RndTransformable*srcTrans=GetSource();",
                  "RB3 CharLookAt poll resolves source through GetSource");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "ClampEq(mMinYaw,-80.0f,80.0f);"
+                 "ClampEq(mMaxYaw,-80.0f,80.0f);"
+                 "ClampEq(mMinPitch,-80.0f,80.0f);"
+                 "ClampEq(mMaxPitch,-80.0f,80.0f);",
+                 "RB3 CharLookAt SyncLimits clamps yaw and pitch");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "mBounds.mMin.y=cos(max_overall*DEG2RAD);"
+                 "mBounds.mMax.y=1.0E+29f;",
+                 "RB3 CharLookAt SyncLimits computes Y bounds");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "mBounds.mMin.z=mBounds.mMin.y*tan(mMinYaw*DEG2RAD);"
+                 "mBounds.mMax.z=mBounds.mMin.y*tan(mMaxYaw*DEG2RAD);"
+                 "mBounds.mMin.x=mBounds.mMin.y*tan(mMinPitch*DEG2RAD);"
+                 "mBounds.mMax.x=mBounds.mMin.y*tan(mMaxPitch*DEG2RAD);",
+                 "RB3 CharLookAt SyncLimits computes yaw and pitch bounds");
   ok &= contains(char_mesh,
                  "la.weightable_version=r.i32();la.weight=r.f32();"
                  "if(la.weightable_version>1)la.weight_owner=r.str();"
@@ -2764,9 +2782,43 @@ int run_contract() {
                  "la.max_yaw=r.f32();la.min_pitch=r.f32();"
                  "la.max_pitch=r.f32();",
                  "native CharLookAt decoder follows source timing and limit order");
+  ok &= contains(char_clip_h,
+                 "structSourceCharLookAtBounds{std::array<float,3>min",
+                 "native header exposes CharLookAt bounds struct");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtBoundssource_char_lookat_sync_limits("
+                 "floatmin_yaw,floatmax_yaw,floatmin_pitch,floatmax_pitch);",
+                 "native header exposes CharLookAt SyncLimits helper");
+  ok &= contains(char_clip,
+                 "min_yaw=std::clamp(min_yaw,-80.0f,80.0f);"
+                 "max_yaw=std::clamp(max_yaw,-80.0f,80.0f);"
+                 "min_pitch=std::clamp(min_pitch,-80.0f,80.0f);"
+                 "max_pitch=std::clamp(max_pitch,-80.0f,80.0f);",
+                 "native CharLookAt SyncLimits helper clamps source limits");
+  ok &= contains(char_clip,
+                 "constfloatmin_y=std::cos(max_overall*kDegToRad);",
+                 "native CharLookAt SyncLimits helper computes source min Y");
+  ok &= contains(char_clip,
+                 "bounds.min[2]=min_y*std::tan(min_yaw*kDegToRad);"
+                 "bounds.max[2]=min_y*std::tan(max_yaw*kDegToRad);"
+                 "bounds.min[0]=min_y*std::tan(min_pitch*kDegToRad);"
+                 "bounds.max[0]=min_y*std::tan(max_pitch*kDegToRad);",
+                 "native CharLookAt SyncLimits helper computes source axis bounds");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_sync_limits(-80.0f,80.0f,-80.0f,80.0f)",
+                 "focused CharLookAt source test covers default source limits");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_sync_limits(-120.0f,120.0f,-90.0f,90.0f)",
+                 "focused CharLookAt source test covers clamped limits");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_sync_limits(-30.0f,45.0f,-10.0f,20.0f)",
+                 "focused CharLookAt source test covers asymmetric limits");
   ok &= contains(doc,
                  "`Hmx::Object`, `CharWeightable`, `mSource`, `mPivot`, `mDest`",
                  "document records source CharLookAt load order");
+  ok &= contains(doc,
+                 "`CharLookAt::SyncLimits` clamps yaw and pitch limits",
+                 "document records CharLookAt SyncLimits helper port");
   ok &= contains(doc,
                  "Current stock GH2 `CharLookAt` rows observed in the base characters have\n"
                  "    `mDest=<none>`",
@@ -3593,6 +3645,14 @@ int run_contract() {
                  "add_executable(ghogx_character_bone_offset_source_test"
                  "character_bone_offset_source_test.cpp)",
                  "CMake builds focused CharBoneOffset source test");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_bone_twist_source_test"
+                 "character_bone_twist_source_test.cpp)",
+                 "CMake builds focused CharBoneTwist source test");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_lookat_source_test"
+                 "character_lookat_source_test.cpp)",
+                 "CMake builds focused CharLookAt source test");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_weight_setter_source_test"
                  "character_weight_setter_source_test.cpp)",

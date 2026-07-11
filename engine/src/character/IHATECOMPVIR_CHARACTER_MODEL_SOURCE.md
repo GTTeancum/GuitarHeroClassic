@@ -437,6 +437,12 @@ note, and all report `unreadBytes=0`.
     `mHalfTime`, yaw/pitch limits, weight-yaw limits, and weight-yaw speed.
     The earlier `flags/source/target/driven` labels were the same bytes read
     under old local names, not source truth.
+  - `CharLookAt::SyncLimits` clamps yaw and pitch limits to the source
+    `[-80, 80]` degree range, computes `mBounds.mMin.y` from the largest
+    absolute yaw/pitch limit, sets `mBounds.mMax.y` to `1.0E+29f`, then derives
+    yaw Z and pitch X bounds with `tan`. Native ports this as
+    `source_char_lookat_sync_limits` for deterministic tests and future
+    source-backed `Poll` work.
   - Current stock GH2 `CharLookAt` rows observed in the base characters have
     `mDest=<none>`, so the source poll gate would be inert. Native therefore
     keeps these rows decoded/logged and does not publish look-at world rows or

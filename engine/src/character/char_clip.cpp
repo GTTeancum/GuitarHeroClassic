@@ -391,6 +391,30 @@ bool source_char_utl_is_animatable(const SourceCharUtlObject& object) {
   return object.name.rfind("spot_", 0) != 0;
 }
 
+SourceCharLookAtBounds source_char_lookat_sync_limits(
+    float min_yaw, float max_yaw, float min_pitch, float max_pitch) {
+  constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
+  min_yaw = std::clamp(min_yaw, -80.0f, 80.0f);
+  max_yaw = std::clamp(max_yaw, -80.0f, 80.0f);
+  min_pitch = std::clamp(min_pitch, -80.0f, 80.0f);
+  max_pitch = std::clamp(max_pitch, -80.0f, 80.0f);
+
+  const float max_yaw_abs = std::max(std::fabs(min_yaw), std::fabs(max_yaw));
+  const float max_pitch_abs =
+      std::max(std::fabs(min_pitch), std::fabs(max_pitch));
+  const float max_overall = std::max(max_yaw_abs, max_pitch_abs);
+  const float min_y = std::cos(max_overall * kDegToRad);
+
+  SourceCharLookAtBounds bounds;
+  bounds.min[1] = min_y;
+  bounds.max[1] = 1.0e29f;
+  bounds.min[2] = min_y * std::tan(min_yaw * kDegToRad);
+  bounds.max[2] = min_y * std::tan(max_yaw * kDegToRad);
+  bounds.min[0] = min_y * std::tan(min_pitch * kDegToRad);
+  bounds.max[0] = min_y * std::tan(max_pitch * kDegToRad);
+  return bounds;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------

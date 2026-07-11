@@ -85,6 +85,11 @@ struct SourceCharUtlBoneTransResult {
   bool via_char_bone = false;
 };
 
+struct SourceCharLookAtBounds {
+  std::array<float, 3> min = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> max = {0.0f, 0.0f, 0.0f};
+};
+
 // One channel value for one frame.
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
@@ -362,6 +367,10 @@ std::optional<SourceCharUtlBoneTransResult> source_char_utl_find_bone_trans(
     const std::string& name,
     const std::vector<SourceCharUtlObject>& objects);
 bool source_char_utl_is_animatable(const SourceCharUtlObject& object);
+
+// Source-backed CharLookAt::SyncLimits helper. Angles are serialized in degrees.
+SourceCharLookAtBounds source_char_lookat_sync_limits(
+    float min_yaw, float max_yaw, float min_pitch, float max_pitch);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.
