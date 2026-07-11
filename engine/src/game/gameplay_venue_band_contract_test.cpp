@@ -5777,11 +5777,24 @@ int main() {
                  "!env_enabled(\"GHOGX_DISABLE_PRELIT_MATERIALS\");",
                  "renderer honors decoded Mat.prelit with an A/B kill switch");
   ok &= contains(renderer_c,
-                 "constbooldisable_mesh_lighting=debug_spotlight_solid;",
-                 "prelit materials remain in the fixed-lighting path");
+                 "constbooldisable_mesh_lighting=debug_spotlight_solid||",
+                 "debug spotlight solid remains in the lighting bypass path");
   ok &= contains(renderer_c,
-                 "prelitmaterialusesfixedlighting",
-                 "prelit renderer path reports the source-backed fixed-lighting behavior");
+                 "constboolprelit_lighting_bypass=prelit_material&&"
+                 "env_enabled(\"GHOGX_ENABLE_PRELIT_LIGHTING_BYPASS\");",
+                 "prelit fixed-lighting bypass is an explicit source-combine diagnostic");
+  ok &= contains(renderer_c,
+                 "||prelit_lighting_bypass;",
+                 "prelit diagnostic bypass shares the fixed-lighting disable path");
+  ok &= contains(renderer_c,
+                 "if(prelit_lighting_bypass&&has_mesh_env_color)",
+                 "prelit diagnostic use-environ path keeps EnvAnim color after fixed lighting is disabled");
+  ok &= contains(renderer_c,
+                 "mr*=std::clamp(mesh_env_color[0],0.0f,4.0f);",
+                 "prelit diagnostic use-environ path folds authored environment RGB into diffuse color");
+  ok &= contains(renderer_c,
+                 "prelitmaterialdisablesfixedlighting",
+                 "prelit renderer path reports the source-backed lighting bypass");
   ok &= contains(renderer_c,
                  "GHOGX_LOG_PRELIT_MESHES",
                  "prelit renderer path has focused debug logging");

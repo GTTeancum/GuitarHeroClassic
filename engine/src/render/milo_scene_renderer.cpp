@@ -1774,15 +1774,16 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     const bool prelit_material =
         mat_obj && mat_obj->prelit && !env_enabled("GHOGX_DISABLE_PRELIT_MATERIALS");
-    if (prelit_material && env_enabled("GHOGX_LOG_PRELIT_MESHES")) {
-      static std::unordered_set<std::string> logged_prelit;
-      const std::string key = m.name + "|" + material;
-      if (logged_prelit.insert(key).second) {
-        std::fprintf(stderr,
-                     "[milo_scene] prelit material uses fixed lighting: "
-                     "mesh=%s material=%s\n",
-                     m.name.c_str(), material.c_str());
-      }
+    const bool prelit_lighting_bypass =
+        prelit_material && env_enabled("GHOGX_ENABLE_PRELIT_LIGHTING_BYPASS");
+    if (prelit_lighting_bypass && has_mesh_env_color) {
+      // Diagnostic source-combine path. Prelit materials bypass D3D fixed
+      // lighting below, so fold current Environ/EnvAnim color into the same
+      // diffuse path that vertex colors and material colors use.
+      mr *= std::clamp(mesh_env_color[0], 0.0f, 4.0f);
+      mg *= std::clamp(mesh_env_color[1], 0.0f, 4.0f);
+      mb *= std::clamp(mesh_env_color[2], 0.0f, 4.0f);
+      ma *= std::clamp(mesh_env_color[3], 0.0f, 1.0f);
     }
     (void)has_mesh_env_color;
     if (debug_spotlight_solid) {
@@ -1923,11 +1924,22 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       dev_->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
     }
 
-    const bool disable_mesh_lighting = debug_spotlight_solid;
+    const bool disable_mesh_lighting =
+        debug_spotlight_solid || prelit_lighting_bypass;
     DWORD prev_lighting = TRUE;
     if (disable_mesh_lighting) {
       dev_->GetRenderState(D3DRS_LIGHTING, &prev_lighting);
       dev_->SetRenderState(D3DRS_LIGHTING, FALSE);
+      if (prelit_lighting_bypass && env_enabled("GHOGX_LOG_PRELIT_MESHES")) {
+        static std::unordered_set<std::string> logged_prelit;
+        const std::string key = m.name + "|" + material;
+        if (logged_prelit.insert(key).second) {
+          std::fprintf(stderr,
+                       "[milo_scene] prelit material disables fixed lighting: "
+                       "mesh=%s material=%s\n",
+                       m.name.c_str(), material.c_str());
+        }
+      }
     }
 
     vb.clear();
