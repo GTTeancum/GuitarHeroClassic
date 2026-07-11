@@ -878,11 +878,15 @@ FaceFxLipSyncServo decode_lip_sync_servo(const std::string& entry_name,
   (void)r.i32();
   (void)r.str();      // GH2 servo tag: "gh2" for guitarists, "singer" for vocalists.
 
-  // PS2 FaceFxLipSyncServo stores a single NUL terminator after the tag string,
-  // then the Weightable block. The old decoder aligned to 4 bytes, which only
-  // worked for the 3-byte "gh2" tag by accident and broke 6-byte "singer".
-  // Probe the few possible post-tag starts and keep the one whose following
-  // fields match the traced servo layout.
+  // GH2 PS2 FaceFxLipSyncServo compatibility, not a CharFaceServo source port:
+  // ihatecompvir's checked sources expose CharFaceServo::Load, but no matching
+  // FaceFxLipSyncServo::Load body. Keep this limited to the stock FAC/viseme
+  // references and target rows instead of treating it as controller authority.
+  // The row stores a single NUL terminator after the tag string, then the
+  // Weightable block. The old decoder aligned to 4 bytes, which only worked
+  // for the 3-byte "gh2" tag by accident and broke 6-byte "singer". Probe the
+  // few possible post-tag starts and keep the one whose following fields match
+  // the traced servo layout.
   std::string best_facefx;
   std::string best_viseme;
   std::vector<FaceFxServoTarget> best_targets;

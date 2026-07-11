@@ -37,6 +37,7 @@ records the upstream commits for the copied files:
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows; no runtime writeback until `Hookup(ObjPtrList<CharCollide>&)` and simulation are faithfully ported. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log old GH2 rows; no synthetic eye runtime bridge. |
+| FaceFX lip-sync servo boundary | `rb3-latest` `CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` is source context, not a matching `FaceFxLipSyncServo` load body; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; runtime `Poll` remains fenced until source transform writeback is ported. |
 | Hand IK | `CharIKHand.cpp` | Native hand IK follows source dataflow. |
 | MIDI clip drivers | `rb3-latest` `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h` | Decode/log source revision, inherited weight owner, default clip pointer, parser rows, and blend override gates. Runtime clip selection remains source-fenced. |
@@ -318,6 +319,22 @@ note, and all report `unreadBytes=0`.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port is implemented.
+- `rb3-latest/src/system/char/CharFaceServo.cpp` and
+  `CharFaceServo.h`
+  - `CharFaceServo::Load` is the available source for modern face servo rows:
+    it reads `Hmx::Object`, an `ObjectDir` clip-set pointer, an optional
+    revision-above-3 clip-type `Symbol`, blink clip name symbols behind
+    revision gates, then calls `SetClips` and `SetClipType`.
+  - `CharFaceServo::Poll` scales down the base clip, applies identity,
+    rotates the base clip into the servo, and poses meshes. This is useful
+    source context for a future source-backed face-servo port.
+  - Stock GH2 PS2 base characters use rows named `FaceFxLipSyncServo`, not
+    `CharFaceServo`. The checked ihatecompvir snapshots do not expose a
+    matching `FaceFxLipSyncServo::Load` body. Native GHOGX therefore treats its
+    `FaceFxLipSyncServo` decoder as bounded GH2 compatibility for locating
+    `.fac` files, viseme MILOs, and target object/property rows; it is not
+    source evidence for synthetic eye rows, mouth offsets, or a face-controller
+    runtime bridge.
 
 ## Rnd Utility Row Authorities
 
@@ -646,6 +663,12 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
   finds no `CharPollGroup` rows across the 24 base character MILOs listed
   above, so native GH2 must not synthesize a poll group or use it as a hidden
   controller-order source for these assets.
+- The same focused stock type inventory records 21 `FaceFxLipSyncServo` rows.
+  They are present on all listed base characters except `metal_bass`,
+  `metal_drummer`, and `metal_keyboard`. Because no matching ihatecompvir
+  `FaceFxLipSyncServo::Load` body is checked in, these rows remain a bounded
+  GH2 compatibility decoder rather than source-backed face-servo controller
+  authority.
 - The refreshed type inventory at
   `engine/out/source_truth_controller_inventory_20260710/stock_character_type_inventory_latest.log`
   shows one stock `AnimFilter` row, on `metal_drummer`. Native now decodes/logs

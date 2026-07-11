@@ -144,6 +144,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharServoBone.cpp"));
   const std::string rb3_latest_char_servo_bone_h = compact(read_file(
       rb3_latest_char_dir / "CharServoBone.h"));
+  const std::string rb3_latest_char_face_servo_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharFaceServo.cpp"));
+  const std::string rb3_latest_char_face_servo_h = compact(read_file(
+      rb3_latest_char_dir / "CharFaceServo.h"));
   const std::string rb3_latest_char_weightable_cpp = compact(read_file(
       rb3_latest_char_dir / "CharWeightable.cpp"));
   const std::string rb3_latest_char_weightable_h = compact(read_file(
@@ -253,6 +257,9 @@ int run_contract() {
                  "coverage matrix marks hair two-sided as project override");
   ok &= contains(doc, "| Poll groups | `rb3-latest` `CharPollGroup.cpp` |",
                  "coverage matrix cites CharPollGroup source boundary");
+  ok &= contains(doc, "| FaceFX lip-sync servo boundary | `rb3-latest` "
+                 "`CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory |",
+                 "coverage matrix records FaceFxLipSyncServo boundary");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndMat.cs",
                  "document cites RndMat source");
   ok &= contains(doc, "MiloEditor/MiloLib/Assets/Rnd/RndGroup.cs",
@@ -871,6 +878,39 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "out.servo_bones.push_back(decode_servo_bone(de.name,b));",
                  "character load stores decoded CharServoBone rows");
+  ok &= contains(rb3_latest_char_face_servo_h,
+                 "classCharFaceServo:publicCharPollable,publicCharBonesMeshes",
+                 "latest CharFaceServo header exposes source inheritance");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "BEGIN_LOADS(CharFaceServo)LOAD_REVS(bs)ASSERT_REVS(4,0)"
+                 "LOAD_SUPERCLASS(Hmx::Object)",
+                 "latest CharFaceServo source load entry");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "ObjPtr<ObjectDir,ObjectDir>oDirPtr(this,0);bs>>oDirPtr;",
+                 "CharFaceServo source reads clip-set ObjectDir pointer");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "if(gRev>3)bs>>sym;",
+                 "CharFaceServo source gates clip type symbol");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "if(gRev!=0)bs>>mBlinkClipLeftName;if(gRev>1)"
+                 "bs>>mBlinkClipRightName;if(gRev>2){"
+                 "bs>>mBlinkClipLeftName2;bs>>mBlinkClipRightName2;}",
+                 "CharFaceServo source reads blink clip names by revision");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "if(mBaseClip){TryScaleDown();ScaleAddIdentity();"
+                 "mBaseClip->RotateBy(*this,mBaseClip->StartBeat());"
+                 "PoseMeshes();}",
+                 "CharFaceServo source poll applies base clip and poses meshes");
+  ok &= missing(rb3_latest_char_face_servo_cpp, "FaceFxLipSyncServo",
+                "CharFaceServo source is not a FaceFxLipSyncServo load body");
+  ok &= contains(char_mesh,
+                 "GH2PS2FaceFxLipSyncServocompatibility,notaCharFaceServo"
+                 "sourceport",
+                 "native FaceFxLipSyncServo decoder is labeled compatibility");
+  ok &= contains(char_mesh,
+                 "FaceFxLipSyncServo::Loadbody.Keepthislimitedtothestock"
+                 "FAC/viseme",
+                 "native FaceFxLipSyncServo decoder states source boundary");
   ok &= contains(bind_audit, "object_type_counts",
                  "bind audit has stock object-type inventory support");
   ok &= contains(bind_audit, "--types",
@@ -1215,6 +1255,14 @@ int run_contract() {
                  "finds no `CharPollGroup` rows across the 24 base character "
                  "MILOs",
                  "document records no stock CharPollGroup rows");
+  ok &= contains(doc, "records 21 `FaceFxLipSyncServo` rows",
+                 "document records stock FaceFxLipSyncServo count");
+  ok &= contains(doc,
+                 "except `metal_bass`,\n  `metal_drummer`, and `metal_keyboard`",
+                 "document records stock FaceFxLipSyncServo absences");
+  ok &= contains(doc,
+                 "do not expose a\n    matching `FaceFxLipSyncServo::Load` body",
+                 "document records missing FaceFxLipSyncServo source body");
   ok &= contains(rb3_latest_char_poll_group_cpp,
                  "if(gRev>2)CharWeightable::Load(bs);bs>>mPolls;"
                  "if(gRev>1){bs>>mChangedBy;bs>>mChanges;}",
