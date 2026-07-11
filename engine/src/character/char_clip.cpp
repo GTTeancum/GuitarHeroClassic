@@ -3379,6 +3379,28 @@ bool source_char_weight_setter_poll(
   return true;
 }
 
+SourceCharWeightSetterState source_char_weight_setter_default_state(
+    const std::string& name) {
+  SourceCharWeightSetterState state;
+  state.weightable = source_char_weightable_default_state(name);
+  state.has_base = false;
+  state.has_driver = false;
+  state.min_weight_count = 0;
+  state.max_weight_count = 0;
+  state.flags = 0;
+  state.offset = 0.0f;
+  state.scale = 1.0f;
+  state.base_weight = 0.0f;
+  state.beats_per_weight = 0.0f;
+  return state;
+}
+
+void source_char_weight_setter_set_weight(SourceCharWeightSetterState& state,
+                                          float weight) {
+  state.base_weight = weight;
+  state.weightable.weight = weight;
+}
+
 void source_char_weight_setter_poll_deps(
     SourceCharWeightSetterPollDeps& deps,
     const CharWeightSetter& setter,

@@ -31,6 +31,7 @@ int main() {
   using ghogx::character::SourceCharWeightableState;
   using ghogx::character::SourceCharWeightSetterPollDeps;
   using ghogx::character::SourceCharWeightSetterRefOwner;
+  using ghogx::character::SourceCharWeightSetterState;
   using ghogx::character::apply_character_controllers;
   using ghogx::character::source_char_weightable_copy;
   using ghogx::character::source_char_weightable_default_state;
@@ -39,6 +40,8 @@ int main() {
   using ghogx::character::source_char_weightable_set_weight_owner;
   using ghogx::character::source_char_weight_setter_poll;
   using ghogx::character::source_char_weight_setter_poll_deps;
+  using ghogx::character::source_char_weight_setter_default_state;
+  using ghogx::character::source_char_weight_setter_set_weight;
   using ghogx::character::source_char_weightable_weight;
 
   bool ok = true;
@@ -90,6 +93,32 @@ int main() {
   if (dest.weight_owner != "dest.weight" ||
       !near(dest.weight, 0.90f, "weightable deep copy")) {
     std::cerr << "weightable deep copy mismatch\n";
+    ok = false;
+  }
+
+  SourceCharWeightSetterState setter_state =
+      source_char_weight_setter_default_state("setter.weight");
+  if (setter_state.weightable.name != "setter.weight" ||
+      !near(setter_state.weightable.weight, 1.0f,
+            "weight setter inherited weight") ||
+      setter_state.weightable.weight_owner != "setter.weight" ||
+      setter_state.has_base || setter_state.has_driver ||
+      setter_state.min_weight_count != 0 || setter_state.max_weight_count != 0 ||
+      setter_state.flags != 0 || !near(setter_state.offset, 0.0f,
+                                       "weight setter default offset") ||
+      !near(setter_state.scale, 1.0f, "weight setter default scale") ||
+      !near(setter_state.base_weight, 0.0f,
+            "weight setter default base weight") ||
+      !near(setter_state.beats_per_weight, 0.0f,
+            "weight setter default smoothing")) {
+    std::cerr << "weight setter default state mismatch\n";
+    ok = false;
+  }
+  source_char_weight_setter_set_weight(setter_state, 0.42f);
+  if (!near(setter_state.base_weight, 0.42f, "weight setter SetWeight base") ||
+      !near(setter_state.weightable.weight, 0.42f,
+            "weight setter SetWeight inherited")) {
+    std::cerr << "weight setter SetWeight mismatch\n";
     ok = false;
   }
 

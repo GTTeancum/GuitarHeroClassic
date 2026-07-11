@@ -655,6 +655,24 @@ struct SourceCharWeightSetterPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharWeightSetterState {
+  SourceCharWeightableState weightable;
+  bool has_base = false;
+  bool has_driver = false;
+  size_t min_weight_count = 0;
+  size_t max_weight_count = 0;
+  uint32_t flags = 0;
+  float offset = 0.0f;
+  float scale = 1.0f;
+  float base_weight = 0.0f;
+  float beats_per_weight = 0.0f;
+};
+
+SourceCharWeightSetterState source_char_weight_setter_default_state(
+    const std::string& name);
+void source_char_weight_setter_set_weight(SourceCharWeightSetterState& state,
+                                          float weight);
+
 // Source-backed CharWeightSetter::PollDeps helper. Ref owners are supplied in
 // source Refs() order; the helper scans them in reverse like the source body.
 void source_char_weight_setter_poll_deps(

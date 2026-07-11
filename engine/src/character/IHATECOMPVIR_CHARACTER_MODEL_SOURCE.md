@@ -797,6 +797,12 @@ note, and all report `unreadBytes=0`.
     copying the source owner's current weight.
 - `rb3-latest/src/system/char/CharWeightSetter.cpp` and
   `rb3-latest/src/system/char/CharWeightSetter.h`
+  - Native `source_char_weight_setter_default_state` and
+    `source_char_weight_setter_set_weight` port the concrete constructor and
+    `SetWeight` source bodies: `mBase`/`mDriver` are null, min/max lists are
+    empty no-null lists, `mFlags=0`, `mOffset=0`, `mScale=1`,
+    `mBaseWeight=0`, `mBeatsPerWeight=0`, and `SetWeight` writes both
+    `mBaseWeight` and inherited `mWeight`.
   - `CharWeightSetter::Load` reads `Hmx::Object`, then `CharWeightable` for
     revisions above 1, followed by `driver`, `flags`, revision-gated
     `offset`/`scale`, old owner lists for revisions below 2, `base_weight` and

@@ -2888,6 +2888,16 @@ int run_contract() {
                  "else{SetWeightOwner(this);mWeight=c->mWeightOwner->mWeight;}",
                  "latest CharWeightable source Copy handles shallow and deep owner");
   ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "CharWeightSetter::CharWeightSetter():mBase(this,0),"
+                 "mDriver(this,0),mMinWeights(this,kObjListNoNull),"
+                 "mMaxWeights(this,kObjListNoNull),mFlags(0),mOffset(0.0f),"
+                 "mScale(1.0f),mBaseWeight(0.0f),mBeatsPerWeight(0.0f)",
+                 "latest CharWeightSetter source exposes constructor defaults");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
+                 "voidCharWeightSetter::SetWeight(floatweight){mBaseWeight=weight;"
+                 "mWeight=weight;}",
+                 "latest CharWeightSetter source SetWeight writes base and inherited weight");
+  ok &= contains(rb3_latest_char_weight_setter_cpp,
                  "voidCharWeightSetter::Poll(){if(mDriver){mBaseWeight="
                  "mScale*mDriver->EvaluateFlags(mFlags)+mOffset;}",
                  "latest CharWeightSetter source poll uses driver flags");
@@ -2968,6 +2978,20 @@ int run_contract() {
                  "changed_by;std::vector<std::string>change;};",
                  "native exposes source CharWeightSetter PollDeps state");
   ok &= contains(char_clip_h,
+                 "structSourceCharWeightSetterState{SourceCharWeightableStateweightable;"
+                 "boolhas_base=false;boolhas_driver=false;size_tmin_weight_count=0;"
+                 "size_tmax_weight_count=0;uint32_tflags=0;floatoffset=0.0f;"
+                 "floatscale=1.0f;floatbase_weight=0.0f;floatbeats_per_weight=0.0f;};",
+                 "native exposes source CharWeightSetter state");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightSetterStatesource_char_weight_setter_default_state("
+                 "conststd::string&name);",
+                 "native exposes source CharWeightSetter constructor helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_weight_setter_set_weight("
+                 "SourceCharWeightSetterState&state,floatweight);",
+                 "native exposes source CharWeightSetter SetWeight helper");
+  ok &= contains(char_clip_h,
                  "voidsource_char_weight_setter_poll_deps("
                  "SourceCharWeightSetterPollDeps&deps,constCharWeightSetter&"
                  "setter,conststd::vector<SourceCharWeightSetterRefOwner>&"
@@ -3003,6 +3027,20 @@ int run_contract() {
                  "source.weight_owner);}else{source_char_weightable_set_weight_owner("
                  "dest,dest.name);dest.weight=source_owner_weight;}",
                  "native CharWeightable Copy helper ports shallow and deep copy");
+  ok &= contains(char_clip,
+                 "SourceCharWeightSetterStatesource_char_weight_setter_default_state("
+                 "conststd::string&name){SourceCharWeightSetterStatestate;"
+                 "state.weightable=source_char_weightable_default_state(name);",
+                 "native CharWeightSetter constructor helper starts from CharWeightable");
+  ok &= contains(char_clip,
+                 "state.flags=0;state.offset=0.0f;state.scale=1.0f;"
+                 "state.base_weight=0.0f;state.beats_per_weight=0.0f;returnstate;}",
+                 "native CharWeightSetter constructor helper ports source defaults");
+  ok &= contains(char_clip,
+                 "voidsource_char_weight_setter_set_weight("
+                 "SourceCharWeightSetterState&state,floatweight){state.base_weight=weight;"
+                 "state.weightable.weight=weight;}",
+                 "native CharWeightSetter SetWeight helper ports source assignment");
   ok &= contains(char_clip, "returnsetter.weight;",
                  "native CharWeightable helper falls back to row weight");
   ok &= contains(char_clip, "if(!setter.driver.empty()){returnfalse;}",
@@ -3060,6 +3098,12 @@ int run_contract() {
                  "source_char_weightable_copy(dest,source,false,0.90f)",
                  "focused CharWeightSetter test covers CharWeightable deep copy");
   ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_default_state(\"setter.weight\")",
+                 "focused CharWeightSetter test covers constructor helper");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weight_setter_set_weight(setter_state,0.42f)",
+                 "focused CharWeightSetter test covers SetWeight helper");
+  ok &= contains(weight_setter_source_test,
                  "ok&=!source_char_weight_setter_poll(driver,weights,0.0f,out);",
                  "focused CharWeightSetter test covers driver fence");
   ok &= contains(weight_setter_source_test,
@@ -3075,6 +3119,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_weight_setter_poll_deps` ports",
                  "document records native CharWeightSetter PollDeps helper");
+  ok &= contains(doc,
+                 "Native `source_char_weight_setter_default_state` and",
+                 "document records native CharWeightSetter constructor helper");
+  ok &= contains(doc,
+                 "`SetWeight` writes both\n    `mBaseWeight` and inherited `mWeight`",
+                 "document records CharWeightSetter SetWeight behavior");
   ok &= contains(doc,
                  "`CharWeightSetter::PollDeps` dependency publication",
                  "document records CharWeightSetter PollDeps source behavior");
