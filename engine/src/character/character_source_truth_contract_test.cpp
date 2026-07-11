@@ -72,6 +72,7 @@ int run_contract() {
   const std::string char_mesh = compact(read_file(char_dir / "char_mesh.cpp"));
   const std::string char_mesh_h = compact(read_file(char_dir / "char_mesh.h"));
   const std::string char_clip = compact(read_file(char_dir / "char_clip.cpp"));
+  const std::string char_clip_h = compact(read_file(char_dir / "char_clip.h"));
   const std::string char_clip_audit =
       compact(read_file(char_dir / "char_clip_audit.cpp"));
   const std::string bind_audit =
@@ -228,6 +229,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharBonesSamples.cpp"));
   const std::string rb3_latest_char_clip_driver_cpp = compact(read_file(
       rb3_latest_char_dir / "CharClipDriver.cpp"));
+  const std::string rb3_latest_char_clip_group_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharClipGroup.cpp"));
+  const std::string rb3_latest_char_clip_group_h = compact(read_file(
+      rb3_latest_char_dir / "CharClipGroup.h"));
   const std::string rb2_char_clip_samples_cpp = compact(read_file(
       rb2_dump_char_dir / "CharClipSamples.cpp"));
   const std::string rb2_char_bones_samples_cpp = compact(read_file(
@@ -266,6 +271,15 @@ int run_contract() {
                  "`CharBones` / `CharBonesSamples`, `rb3-retail-old` RB2 dump, "
                  "`band3_recomp` symbols |",
                  "coverage matrix cites current CharClip source evidence");
+  ok &= contains(doc,
+                 "| Clip groups | `rb3-latest` `CharClipGroup.cpp` / "
+                 "`CharClipGroup.h` |",
+                 "coverage matrix cites CharClipGroup source evidence");
+  ok &= contains(doc,
+                 "Native shared loader follows source `CharClipGroup::Load`: "
+                 "`Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated "
+                 "`mFlags`.",
+                 "coverage matrix records native CharClipGroup Load slice");
   ok &= contains(doc,
                  "Channel naming, compression sizing, sample interpolation "
                  "wrappers, and partial call flow are source-backed",
@@ -336,6 +350,8 @@ int run_contract() {
                  "document cites RB3 RndTransformable runtime header source");
   ok &= contains(doc, "rb3-latest/src/system/char/CharHair.cpp",
                  "document cites latest CharHair runtime source");
+  ok &= contains(doc, "rb3-latest/src/system/char/CharClipGroup.cpp",
+                 "document cites latest CharClipGroup runtime source");
   ok &= contains(doc, "rb3-latest/src/system/char/CharIKRod.cpp",
                  "document cites latest CharIKRod runtime source");
   ok &= contains(doc, "rb3-latest/src/system/char/CharServoBone.cpp",
@@ -2308,6 +2324,43 @@ int run_contract() {
                  "if(mask&0xFU)mPlayFlags=mPlayFlags&0xfffffff0|mask&0xfU;"
                  "if(mask&0xF600U)mPlayFlags=mPlayFlags&0xffff09ff|mask&0xf600U;",
                  "latest CharClipDriver source masks blend loop and beat-align flags");
+  ok &= contains(rb3_latest_char_clip_group_h,
+                 "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
+                 "latest CharClipGroup header exposes source storage fields");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "voidCharClipGroup::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(2,0);Hmx::Object::Load(bs);bs>>mClips;"
+                 "bs>>mWhich;if(gRev>1)bs>>mFlags;elsemFlags=0;}",
+                 "latest CharClipGroup source exposes Load row order");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "CharClip*CharClipGroup::GetClip(){if(mClips.empty())return0;"
+                 "mWhich++;if(mWhich>=mClips.size())mWhich=0;"
+                 "returnmClips[mWhich];}",
+                 "latest CharClipGroup source exposes stored-order cycling");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>load_clip_group_names("
+                 "conststd::string&hdr_path,conststd::string&ark_path,"
+                 "conststd::vector<std::string>&milo_paths,"
+                 "conststd::string&group_name);",
+                 "native character API exposes source-backed clip group reader");
+  ok &= contains(char_clip,
+                 "std::vector<std::string>load_clip_group_names(",
+                 "native clip decoder implements shared clip group reader");
+  ok &= contains(char_clip,
+                 "(void)read_len_string(body,size,pos);//Hmx::Objectsubtypesymbol.",
+                 "native clip group reader consumes Hmx Object subtype symbol");
+  ok &= contains(char_clip,
+                 "clips.push_back(read_len_string(body,size,pos));",
+                 "native clip group reader consumes stored mClips names");
+  ok &= contains(char_clip,
+                 "std::memcpy(&which,body+pos,4);",
+                 "native clip group reader consumes mWhich");
+  ok &= contains(char_clip,
+                 "std::memcpy(&flags,body+pos,4);",
+                 "native clip group reader consumes revision-gated mFlags");
+  ok &= contains(char_clip,
+                 "\"[clip-group-source]group=%smilo=%sversion=%u\"",
+                 "native clip group reader logs source row proof");
   ok &= missing(rb3_latest_char_clip_driver_cpp,
                 "floatCharClipDriver::Evaluate(",
                 "latest CharClipDriver source does not expose Evaluate body");

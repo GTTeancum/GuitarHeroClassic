@@ -110,6 +110,13 @@ CharClip load_clip(const std::string& hdr_path,
                    const std::string& milo_path,
                    const std::string& clip_name);
 
+// Source-backed CharClipGroup::Load reader. Returns the group's ObjPtr clip
+// names in stored order from the first matching animation MILO.
+std::vector<std::string> load_clip_group_names(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& milo_paths,
+    const std::string& group_name);
+
 // Apply one frame of a clip to the character's bone local matrices.
 // frame_idx is clamped to [0, frames.size()-1].
 void apply_clip_frame(const CharClip& clip, int frame_idx, Character& character);

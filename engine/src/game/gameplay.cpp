@@ -6941,84 +6941,8 @@ std::vector<std::string> load_char_clip_group(
     const std::string& hdr_path, const std::string& ark_path,
     const std::vector<std::string>& milo_candidates,
     const std::string& group_name) {
-    auto read_u8 = [](const std::vector<uint8_t>& b, size_t& p) -> uint8_t {
-        if (p >= b.size()) return 0;
-        return b[p++];
-    };
-    auto read_i32 = [](const std::vector<uint8_t>& b, size_t& p) -> int32_t {
-        if (p + 4 > b.size()) {
-            p = b.size();
-            return 0;
-        }
-        int32_t v = 0;
-        std::memcpy(&v, b.data() + p, sizeof(v));
-        p += 4;
-        return v;
-    };
-    auto read_u32 = [](const std::vector<uint8_t>& b, size_t& p) -> uint32_t {
-        if (p + 4 > b.size()) {
-            p = b.size();
-            return 0;
-        }
-        uint32_t v = 0;
-        std::memcpy(&v, b.data() + p, sizeof(v));
-        p += 4;
-        return v;
-    };
-    auto read_string = [&](const std::vector<uint8_t>& b,
-                           size_t& p) -> std::string {
-        const uint32_t n = read_u32(b, p);
-        if (n > b.size() - p) {
-            p = b.size();
-            return {};
-        }
-        std::string s(reinterpret_cast<const char*>(b.data() + p), n);
-        p += n;
-        return s;
-    };
-
-    try {
-        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
-        for (const auto& milo_path : milo_candidates) {
-            auto entry = ark.find(milo_path);
-            if (!entry) continue;
-            auto bytes = ark.read_entry(*entry, {ark_path});
-            auto hdr = gh::milo::parse_header(bytes);
-            auto payload = gh::milo::inflate_payload(bytes, hdr);
-            auto dir = gh::milo::parse_directory(payload);
-            for (const auto& de : dir.entries) {
-                if (de.type != "CharClipGroup" || de.name != group_name ||
-                    de.offset + de.size > payload.size()) {
-                    continue;
-                }
-                std::vector<uint8_t> body(payload.begin() + de.offset,
-                                          payload.begin() + de.offset + de.size);
-                size_t p = 0;
-                (void)read_i32(body, p);     // version
-                (void)read_u32(body, p);     // Hmx::Object revision
-                (void)read_string(body, p);  // object symbol
-                (void)read_u8(body, p);      // object terminator
-                const uint32_t count = read_u32(body, p);
-                std::vector<std::string> clips;
-                clips.reserve(count);
-                for (uint32_t i = 0; i < count && p < body.size(); ++i) {
-                    std::string name = read_string(body, p);
-                    if (!name.empty()) clips.push_back(std::move(name));
-                }
-                if (!clips.empty()) {
-                    std::fprintf(stderr,
-                                 "[world] CharClipGroup %s from %s: %zu clips\n",
-                                 group_name.c_str(), milo_path.c_str(),
-                                 clips.size());
-                    return clips;
-                }
-            }
-        }
-    } catch (const std::exception& ex) {
-        std::fprintf(stderr, "[world] CharClipGroup %s: %s\n",
-                     group_name.c_str(), ex.what());
-    }
-    return {};
+    return ghogx::character::load_clip_group_names(
+        hdr_path, ark_path, milo_candidates, group_name);
 }
 
 std::vector<Gameplay::CameraKey> load_camera_position_keys(

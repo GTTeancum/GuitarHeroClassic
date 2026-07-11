@@ -1060,6 +1060,85 @@ CharClip load_clip(const std::string& hdr_path, const std::string& ark_path,
   return result;
 }
 
+std::vector<std::string> load_clip_group_names(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& milo_paths,
+    const std::string& group_name) {
+  try {
+    auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+    for (const auto& milo_path : milo_paths) {
+      auto entry = ark.find(milo_path);
+      if (!entry) entry = ark.find("../../system/run/" + milo_path);
+      if (!entry) continue;
+      auto bytes = ark.read_entry(*entry, {ark_path});
+      auto hdr = gh::milo::parse_header(bytes);
+      auto payload = gh::milo::inflate_payload(bytes, hdr);
+      auto dir = gh::milo::parse_directory(payload);
+      for (const auto& de : dir.entries) {
+        if (de.type != "CharClipGroup" || de.name != group_name ||
+            de.offset + de.size > payload.size()) {
+          continue;
+        }
+
+        const uint8_t* body = payload.data() + de.offset;
+        const size_t size = static_cast<size_t>(de.size);
+        size_t pos = 0;
+        if (size < 4) throw std::runtime_error("short CharClipGroup");
+        uint32_t version = 0;
+        std::memcpy(&version, body + pos, 4);
+        pos += 4;
+        if (version > 2) {
+          throw std::runtime_error("unexpected CharClipGroup version");
+        }
+
+        // Source CharClipGroup::Load calls Hmx::Object::Load before mClips.
+        if (pos + 4 > size) throw std::runtime_error("short object fields");
+        pos += 4;  // Hmx::Object revision.
+        (void)read_len_string(body, size, pos);  // Hmx::Object subtype symbol.
+        if (pos >= size) throw std::runtime_error("short object tree terminator");
+        ++pos;  // Hmx::Object empty property-tree terminator for stock rows.
+
+        if (pos + 4 > size) throw std::runtime_error("short clip vector count");
+        uint32_t count = 0;
+        std::memcpy(&count, body + pos, 4);
+        pos += 4;
+        std::vector<std::string> clips;
+        clips.reserve(count);
+        for (uint32_t i = 0; i < count; ++i) {
+          clips.push_back(read_len_string(body, size, pos));
+        }
+
+        if (pos + 4 > size) throw std::runtime_error("short CharClipGroup which");
+        int32_t which = 0;
+        std::memcpy(&which, body + pos, 4);
+        pos += 4;
+        int32_t flags = 0;
+        if (version > 1) {
+          if (pos + 4 > size) throw std::runtime_error("short CharClipGroup flags");
+          std::memcpy(&flags, body + pos, 4);
+          pos += 4;
+        }
+
+        clips.erase(std::remove_if(clips.begin(), clips.end(),
+                                   [](const std::string& s) {
+                                     return s.empty();
+                                   }),
+                    clips.end());
+        std::fprintf(stderr,
+                     "[clip-group-source] group=%s milo=%s version=%u "
+                     "clips=%zu which=%d flags=0x%08x\n",
+                     group_name.c_str(), milo_path.c_str(), version,
+                     clips.size(), which, static_cast<unsigned>(flags));
+        return clips;
+      }
+    }
+  } catch (const std::exception& ex) {
+    std::fprintf(stderr, "[clip-group-source] group=%s error=%s\n",
+                 group_name.c_str(), ex.what());
+  }
+  return {};
+}
+
 // ---- pose application ----------------------------------------------------
 
 static void quat_to_rot(const float q[4], float rot[3][3]) {

@@ -3386,6 +3386,13 @@ int main() {
                  "load_char_clip_group(hdr_path_,ark_path_,main_milos,"
                  "group_name)",
                  "WorldCrowd runtime resolves authored DTA main.drv play_group clip sets");
+  ok &= contains(gameplay_c,
+                 "returnghogx::character::load_clip_group_names("
+                 "hdr_path,ark_path,milo_candidates,group_name);",
+                 "gameplay CharClipGroup lookup routes through the shared source-backed character helper");
+  ok &= absent(gameplay_c,
+               "autoread_u8=[](conststd::vector<uint8_t>&b,size_t&p)->uint8_t",
+               "gameplay must not keep a local ad hoc CharClipGroup byte reader");
   ok &= contains(rebuild_worldcrowd_runtime_c,
                  "runtime.clips_by_group=std::move(clips_by_group);",
                  "WorldCrowd runtime stores decoded play_group clips after load");

@@ -41,6 +41,7 @@ records the upstream commits for the copied files:
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Hand IK | `CharIKHand.cpp` | Native hand IK follows source dataflow. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
+| Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Gameplay calls this shared character helper instead of a local ad hoc parser. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
 | Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
@@ -645,6 +646,18 @@ note, and all report `unreadBytes=0`.
     `clip_type`. It does not port `MoveToFacing`, `MoveToDeltaFacing`, or
     broad `CharBonesMeshes` movement until the connected clip/bone source path
     is implemented as a whole.
+- `rb3-latest/src/system/char/CharClipGroup.cpp` and
+  `rb3-latest/src/system/char/CharClipGroup.h`
+  - `CharClipGroup::Load` reads the object prefix through
+    `Hmx::Object::Load`, then the stored `mClips` vector, `mWhich`, and
+    `mFlags` only for source revisions above 1.
+  - `CharClipGroup::GetClip` advances `mWhich`, wraps it against
+    `mClips.size()`, and returns the stored clip pointer. Native
+    `load_clip_group_names` returns the source stored clip-name order only; it
+    does not invent randomization, scheduler timing, or driver playback.
+  - Gameplay routes authored `CharClipGroup` resolution through the shared
+    character helper so the same source-backed reader feeds both WorldCrowd and
+    performer sync group lookup.
 - `rb3-latest/src/system/char` exposes source files for `CharClip`,
   `CharClipDriver`, `CharDriver`, `CharBones`, `CharBonesSamples`,
   `CharBonesMeshes`, and related clip runtime classes. The previous local note
