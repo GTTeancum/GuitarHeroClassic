@@ -946,6 +946,54 @@ int run_contract() {
                  "COPY_MEMBER(mFrozen)COPY_MEMBER(mMinLod)"
                  "COPY_MEMBER(mTransGroup)}",
                  "latest Character copy member order");
+  ok &= contains(rb3_latest_character_cpp,
+                 "BEGIN_HANDLERS(Character)HANDLE_ACTION(teleport,"
+                 "Teleport(_msg->Obj<Waypoint>(2)))HANDLE(play_clip,"
+                 "OnPlayClip)HANDLE_ACTION(calc_bounding_sphere,"
+                 "CalcBoundingSphere())HANDLE(copy_bounding_sphere,"
+                 "OnCopyBoundingSphere)",
+                 "latest Character handler prefix");
+  ok &= contains(rb3_latest_character_cpp,
+                 "HANDLE_ACTION(find_interest_objects,FindInterestObjects("
+                 "_msg->Obj<ObjectDir>(2)))HANDLE_ACTION(force_interest,"
+                 "SetFocusInterest(_msg->Obj<CharInterest>(2),false))"
+                 "HANDLE_ACTION(force_interest_named,SetFocusInterest("
+                 "_msg->Sym(2),0))",
+                 "latest Character interest handlers");
+  ok &= contains(rb3_latest_character_cpp,
+                 "HANDLE_ACTION(enable_blink,if(_msg->Size()>3)"
+                 "EnableBlinks(_msg->Int(2),_msg->Int(3));else"
+                 "EnableBlinks(_msg->Int(2),false))",
+                 "latest Character blink handler branch");
+  ok &= contains(rb3_latest_character_cpp,
+                 "HANDLE_SUPERCLASS(RndDir)HANDLE_CHECK(0x57B)",
+                 "latest Character handler superclass and check");
+  ok &= contains(rb3_latest_character_cpp,
+                 "DataNodeCharacter::OnPlayClip(DataArray*msg){if(mDriver){"
+                 "intplayint=msg->Size()>3?msg->Int(3):4;MILO_ASSERT("
+                 "msg->Size()<=4,0x58B);returnDataNode(mDriver->Play("
+                 "msg->Node(2),playint,-1.0f,1e+30f,0.0f)!=0);}else"
+                 "returnDataNode(0);}",
+                 "latest Character OnPlayClip source branch");
+  ok &= contains(rb3_latest_character_cpp,
+                 "DataNodeCharacter::OnCopyBoundingSphere(DataArray*da){"
+                 "Character*c=da->Obj<Character>(2);if(c)"
+                 "CopyBoundingSphere(c);returnDataNode(0);}",
+                 "latest Character OnCopyBoundingSphere source branch");
+  ok &= contains(rb3_latest_character_cpp,
+                 "BEGIN_PROPSYNCS(Character)SYNC_PROP_SET(sphere_base,"
+                 "mSphereBase,SetSphereBase(_val.Obj<RndTransformable>(0)))"
+                 "SYNC_PROP(lods,mLods)SYNC_PROP(force_lod,mMinLod)"
+                 "SYNC_PROP(trans_group,mTransGroup)SYNC_PROP(self_shadow,"
+                 "mSelfShadow)SYNC_PROP(bounding,mBounding)SYNC_PROP(frozen,"
+                 "mFrozen)",
+                 "latest Character prop-sync prefix");
+  ok &= contains(rb3_latest_character_cpp,
+                 "SYNC_PROP_SET(shadow,mShadow,SetShadow("
+                 "_val.Obj<RndGroup>(0)))SYNC_PROP_SET(driver,mDriver,)"
+                 "SYNC_PROP_MODIFY(interest_to_force,mInterestToForce,"
+                 "SetFocusInterest(mInterestToForce,0))",
+                 "latest Character prop-sync set/modify rows");
   ok &= contains(rb3_latest_character_h,
                  "enumPollState{kCharCreated=0,kCharSyncObject=1,"
                  "kCharEntered=2,kCharPolled=3,kCharExited=4,};",
@@ -4168,12 +4216,35 @@ int run_contract() {
                  "copied_superclasses;std::stringmember_gate;",
                  "native exposes Character source copy plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharacterHandlerPlan{std::vector<std::string>"
+                 "handlers;std::vector<std::string>debug_handlers;",
+                 "native exposes Character handler plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharacterPropSyncPlan{std::vector<std::string>"
+                 "properties;std::vector<std::string>set_properties;",
+                 "native exposes Character prop-sync plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharacterPlayClipDecision{boolhas_driver=false;"
+                 "boolwould_assert_size=false;boolcalled_driver_play=false;",
+                 "native exposes Character OnPlayClip decision");
+  ok &= contains(char_mesh_h,
                  "SourceCharacterLoadPlansource_character_load_plan("
                  "intrevision,boolis_proxy,intlegacy_other_revision);",
                  "native exposes Character source load helper");
   ok &= contains(char_mesh_h,
                  "SourceCharacterCopyPlansource_character_copy_plan();",
                  "native exposes Character source copy helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharacterHandlerPlansource_character_handler_plan();",
+                 "native exposes Character handler helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharacterPropSyncPlansource_character_prop_sync_plan();",
+                 "native exposes Character prop-sync helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharacterPlayClipDecisionsource_character_on_play_clip("
+                 "boolhas_driver,int32_tmessage_size,int32_tsupplied_play_flags,"
+                 "booldriver_play_returned);",
+                 "native exposes Character OnPlayClip helper");
   ok &= contains(char_mesh,
                  "SourceCharacterLodStatesource_character_lod_default_state(){"
                  "returnSourceCharacterLodState{};}",
@@ -4230,6 +4301,52 @@ int run_contract() {
                  "\"mSphereBase\",\"mFrozen\",\"mMinLod\","
                  "\"mTransGroup\"};",
                  "native Character copy helper preserves source member order");
+  ok &= contains(char_mesh,
+                 "SourceCharacterHandlerPlansource_character_handler_plan(){"
+                 "SourceCharacterHandlerPlanplan;",
+                 "native implements Character handler plan");
+  ok &= contains(char_mesh,
+                 "plan.handlers={\"teleport\",\"play_clip\","
+                 "\"calc_bounding_sphere\",\"copy_bounding_sphere\","
+                 "\"find_interest_objects\",\"force_interest\","
+                 "\"force_interest_named\",\"enable_blink\"};",
+                 "native Character handler plan preserves source order");
+  ok &= contains(char_mesh,
+                 "plan.debug_handlers={\"list_interest_objects\",\"mTest\"};"
+                 "plan.superclass=\"RndDir\";plan.check=\"0x57B\";",
+                 "native Character handler plan records debug/superclass rows");
+  ok &= contains(char_mesh,
+                 "SourceCharacterPropSyncPlansource_character_prop_sync_plan(){"
+                 "SourceCharacterPropSyncPlanplan;",
+                 "native implements Character prop-sync plan");
+  ok &= contains(char_mesh,
+                 "plan.set_properties={\"sphere_base\",\"shadow\",\"driver\"};"
+                 "plan.properties={\"lods\",\"force_lod\",\"trans_group\","
+                 "\"self_shadow\",\"bounding\",\"frozen\"};",
+                 "native Character prop-sync plan records property rows");
+  ok &= contains(char_mesh,
+                 "plan.modify_properties={\"interest_to_force\"};"
+                 "plan.debug_properties={\"debug_draw_interest_objects\","
+                 "\"CharacterTesting\"};plan.superclass=\"RndDir\";",
+                 "native Character prop-sync plan records modify/debug rows");
+  ok &= contains(char_mesh,
+                 "SourceCharacterPlayClipDecisionsource_character_on_play_clip("
+                 "boolhas_driver,int32_tmessage_size,int32_tsupplied_play_flags,"
+                 "booldriver_play_returned){SourceCharacterPlayClipDecision"
+                 "decision;",
+                 "native implements Character OnPlayClip helper");
+  ok &= contains(char_mesh,
+                 "decision.play_flags=message_size>3?supplied_play_flags:4;"
+                 "decision.would_assert_size=message_size>4;if(decision."
+                 "would_assert_size)returndecision;decision.called_driver_play="
+                 "true;decision.returns_true=driver_play_returned;",
+                 "native Character OnPlayClip helper ports source gates");
+  ok &= contains(char_mesh,
+                 "SourceCharacterCopyBoundingSphereHandlerResult"
+                 "source_character_on_copy_bounding_sphere("
+                 "boolhas_source_character){SourceCharacterCopyBoundingSphere"
+                 "HandlerResultresult;result.copied=has_source_character;",
+                 "native implements Character OnCopyBoundingSphere helper");
   ok &= contains(char_mesh,
                  "voidsource_character_enter(SourceCharacterState&state){"
                  "state.poll_state=SourceCharacterPollState::kEntered;"
@@ -4351,6 +4468,21 @@ int run_contract() {
                  "source_character_copy_plan()",
                  "focused Character test covers copy plan");
   ok &= contains(character_source_test,
+                 "source_character_handler_plan()",
+                 "focused Character test covers handler plan");
+  ok &= contains(character_source_test,
+                 "source_character_prop_sync_plan()",
+                 "focused Character test covers prop-sync plan");
+  ok &= contains(character_source_test,
+                 "source_character_on_play_clip(true,3,9,true)",
+                 "focused Character test covers OnPlayClip default flags");
+  ok &= contains(character_source_test,
+                 "source_character_on_play_clip(true,5,7,true)",
+                 "focused Character test covers OnPlayClip size assert");
+  ok &= contains(character_source_test,
+                 "source_character_on_copy_bounding_sphere(true)",
+                 "focused Character test covers OnCopyBoundingSphere");
+  ok &= contains(character_source_test,
                  "Charactercopyduplicatedminlod",
                  "focused Character test covers duplicated min-lod copy");
   ok &= contains(character_source_test,
@@ -4400,6 +4532,12 @@ int run_contract() {
                  "document records native Character load helper");
   ok &= contains(doc, "Native `source_character_copy_plan` records",
                  "document records native Character copy helper");
+  ok &= contains(doc, "Native `source_character_handler_plan` records",
+                 "document records native Character handler plan");
+  ok &= contains(doc, "Native `source_character_prop_sync_plan` records",
+                 "document records native Character prop-sync plan");
+  ok &= contains(doc, "Native `source_character_on_play_clip` ports",
+                 "document records native Character OnPlayClip helper");
   ok &= contains(char_mesh_h, "structSourceCharacterTestState{",
                  "native exposes CharacterTest default state");
   ok &= contains(char_mesh_h, "structSourceCharacterTestAddDefaultsResult{",

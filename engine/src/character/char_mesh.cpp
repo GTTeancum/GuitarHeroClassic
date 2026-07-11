@@ -2254,6 +2254,54 @@ SourceCharacterCopyPlan source_character_copy_plan() {
   return plan;
 }
 
+SourceCharacterHandlerPlan source_character_handler_plan() {
+  SourceCharacterHandlerPlan plan;
+  plan.handlers = {"teleport",           "play_clip",
+                   "calc_bounding_sphere", "copy_bounding_sphere",
+                   "find_interest_objects", "force_interest",
+                   "force_interest_named",  "enable_blink"};
+  plan.debug_handlers = {"list_interest_objects", "mTest"};
+  plan.superclass = "RndDir";
+  plan.check = "0x57B";
+  return plan;
+}
+
+SourceCharacterPropSyncPlan source_character_prop_sync_plan() {
+  SourceCharacterPropSyncPlan plan;
+  plan.set_properties = {"sphere_base", "shadow", "driver"};
+  plan.properties = {"lods",       "force_lod", "trans_group",
+                     "self_shadow", "bounding",  "frozen"};
+  plan.modify_properties = {"interest_to_force"};
+  plan.debug_properties = {"debug_draw_interest_objects", "CharacterTesting"};
+  plan.superclass = "RndDir";
+  return plan;
+}
+
+SourceCharacterPlayClipDecision source_character_on_play_clip(
+    bool has_driver,
+    int32_t message_size,
+    int32_t supplied_play_flags,
+    bool driver_play_returned) {
+  SourceCharacterPlayClipDecision decision;
+  decision.has_driver = has_driver;
+  if (!has_driver) return decision;
+
+  decision.play_flags = message_size > 3 ? supplied_play_flags : 4;
+  decision.would_assert_size = message_size > 4;
+  if (decision.would_assert_size) return decision;
+
+  decision.called_driver_play = true;
+  decision.returns_true = driver_play_returned;
+  return decision;
+}
+
+SourceCharacterCopyBoundingSphereHandlerResult
+source_character_on_copy_bounding_sphere(bool has_source_character) {
+  SourceCharacterCopyBoundingSphereHandlerResult result;
+  result.copied = has_source_character;
+  return result;
+}
+
 void source_character_enter(SourceCharacterState& state) {
   state.poll_state = SourceCharacterPollState::kEntered;
   state.min_lod = -1;

@@ -402,6 +402,25 @@ deliverable is inventory only: `dirVersion`, `dirType`, `bodyOffset`,
   pointer when present, otherwise clears the pointer. `RepointSphereBase` only
   looks up by name when the pointer is non-null and only replaces it when the
   directory lookup succeeds. `PreSave` is just `UnhookShadow`.
+- Native `source_character_handler_plan` records the source
+  `BEGIN_HANDLERS(Character)` order: `teleport`, `play_clip`,
+  `calc_bounding_sphere`, `copy_bounding_sphere`, `find_interest_objects`,
+  `force_interest`, `force_interest_named`, `enable_blink`, the debug-only
+  `list_interest_objects` / `mTest` rows, the `RndDir` superclass, and
+  `HANDLE_CHECK(0x57B)`.
+- Native `source_character_prop_sync_plan` records the source property rows:
+  set rows `sphere_base`, `shadow`, and `driver`; direct rows `lods`,
+  `force_lod`, `trans_group`, `self_shadow`, `bounding`, and `frozen`;
+  modifying row `interest_to_force`; debug-only rows
+  `debug_draw_interest_objects` and `CharacterTesting`; and the `RndDir`
+  superclass.
+- Native `source_character_on_play_clip` ports the visible source decision only:
+  without `mDriver` it returns false; with `mDriver` it uses message arg 3 as
+  play flags only when the message has more than three nodes, otherwise it uses
+  `4`, asserts when the message has more than four nodes, and calls
+  `mDriver->Play` with blend width `-1.0`, end beat `1e+30`, and start beat
+  `0.0`. This still delegates actual clip playback to the source-fenced driver
+  runtime.
 - Native `source_character_*` helpers port these source-visible runtime flows
   for deterministic tests and future wiring. They do not decode the fenced root
   body bytes above and do not change current renderer/material behavior.

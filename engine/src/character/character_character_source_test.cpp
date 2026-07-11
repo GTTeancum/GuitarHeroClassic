@@ -23,6 +23,12 @@ bool expect_int(int got, int want, const char* label) {
   return false;
 }
 
+bool expect_float(float got, float want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
 bool expect_size(size_t got, size_t want, const char* label) {
   if (got == want) return true;
   std::cerr << label << " got " << got << " want " << want << "\n";
@@ -58,11 +64,14 @@ int main() {
   using ghogx::character::source_character_bone_servo_resolves;
   using ghogx::character::source_character_clear_interest_filter_flags;
   using ghogx::character::source_character_copy_bounding_sphere;
+  using ghogx::character::source_character_on_copy_bounding_sphere;
+  using ghogx::character::source_character_on_play_clip;
   using ghogx::character::source_character_copy_plan;
   using ghogx::character::source_character_default_state;
   using ghogx::character::source_character_enable_blinks;
   using ghogx::character::source_character_enter;
   using ghogx::character::source_character_exit;
+  using ghogx::character::source_character_handler_plan;
   using ghogx::character::source_character_lod_assign;
   using ghogx::character::source_character_lod_copy_plan;
   using ghogx::character::source_character_lod_copy_state;
@@ -73,6 +82,7 @@ int main() {
   using ghogx::character::source_character_force_blink;
   using ghogx::character::source_character_poll;
   using ghogx::character::source_character_pre_save;
+  using ghogx::character::source_character_prop_sync_plan;
   using ghogx::character::source_character_removing_object;
   using ghogx::character::source_character_repoint_sphere_base;
   using ghogx::character::source_character_replace;
@@ -239,6 +249,81 @@ int main() {
                       "Character copy duplicated min lod");
   ok &= expect_string(copy_plan.copied_members[9], "mTransGroup",
                       "Character copy trans group last");
+
+  const auto handlers = source_character_handler_plan();
+  ok &= expect_size(handlers.handlers.size(), 8,
+                    "Character handler source row count");
+  ok &= expect_string(handlers.handlers[0], "teleport",
+                      "Character handler teleport first");
+  ok &= expect_string(handlers.handlers[1], "play_clip",
+                      "Character handler play_clip second");
+  ok &= expect_string(handlers.handlers[3], "copy_bounding_sphere",
+                      "Character handler copy bounding sphere");
+  ok &= expect_string(handlers.handlers[7], "enable_blink",
+                      "Character handler enable_blink last");
+  ok &= expect_size(handlers.debug_handlers.size(), 2,
+                    "Character debug handler row count");
+  ok &= expect_string(handlers.superclass, "RndDir",
+                      "Character handler superclass");
+  ok &= expect_string(handlers.check, "0x57B", "Character handler check");
+
+  const auto props = source_character_prop_sync_plan();
+  ok &= expect_size(props.set_properties.size(), 3,
+                    "Character set property count");
+  ok &= expect_string(props.set_properties[0], "sphere_base",
+                      "Character set prop sphere base first");
+  ok &= expect_string(props.set_properties[1], "shadow",
+                      "Character set prop shadow");
+  ok &= expect_string(props.set_properties[2], "driver",
+                      "Character set prop driver");
+  ok &= expect_size(props.properties.size(), 6,
+                    "Character direct property count");
+  ok &= expect_string(props.properties[0], "lods",
+                      "Character prop lods first");
+  ok &= expect_string(props.properties[5], "frozen",
+                      "Character prop frozen last");
+  ok &= expect_size(props.modify_properties.size(), 1,
+                    "Character modify property count");
+  ok &= expect_string(props.modify_properties[0], "interest_to_force",
+                      "Character modify prop interest");
+  ok &= expect_string(props.superclass, "RndDir",
+                      "Character prop-sync superclass");
+
+  auto play = source_character_on_play_clip(false, 3, 9, true);
+  ok &= expect_bool(play.called_driver_play, false,
+                    "OnPlayClip skips without driver");
+  ok &= expect_bool(play.returns_true, false,
+                    "OnPlayClip without driver returns false");
+
+  play = source_character_on_play_clip(true, 3, 9, true);
+  ok &= expect_bool(play.called_driver_play, true,
+                    "OnPlayClip calls driver");
+  ok &= expect_int(play.play_flags, 4, "OnPlayClip default play flags");
+  ok &= expect_float(play.blend_width, -1.0f, "OnPlayClip blend width");
+  ok &= expect_float(play.end_beat, 1.0e30f, "OnPlayClip end beat");
+  ok &= expect_float(play.start_beat, 0.0f, "OnPlayClip start beat");
+  ok &= expect_bool(play.returns_true, true,
+                    "OnPlayClip returns driver success");
+
+  play = source_character_on_play_clip(true, 4, 6, false);
+  ok &= expect_int(play.play_flags, 6, "OnPlayClip supplied play flags");
+  ok &= expect_bool(play.returns_true, false,
+                    "OnPlayClip returns driver failure");
+
+  play = source_character_on_play_clip(true, 5, 7, true);
+  ok &= expect_bool(play.would_assert_size, true,
+                    "OnPlayClip records source size assert");
+  ok &= expect_bool(play.called_driver_play, false,
+                    "OnPlayClip assert gates driver play");
+
+  auto copy_handler = source_character_on_copy_bounding_sphere(false);
+  ok &= expect_bool(copy_handler.copied, false,
+                    "OnCopyBoundingSphere skips missing source");
+  ok &= expect_bool(copy_handler.returns_zero, true,
+                    "OnCopyBoundingSphere returns zero");
+  copy_handler = source_character_on_copy_bounding_sphere(true);
+  ok &= expect_bool(copy_handler.copied, true,
+                    "OnCopyBoundingSphere copies present source");
 
   state.min_lod = 4;
   state.last_lod = 9;

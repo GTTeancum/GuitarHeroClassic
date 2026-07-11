@@ -582,6 +582,37 @@ struct SourceCharacterCopyPlan {
   bool creates_copy = true;
 };
 
+struct SourceCharacterHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> debug_handlers;
+  std::string superclass;
+  std::string check;
+};
+
+struct SourceCharacterPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> set_properties;
+  std::vector<std::string> modify_properties;
+  std::vector<std::string> debug_properties;
+  std::string superclass;
+};
+
+struct SourceCharacterPlayClipDecision {
+  bool has_driver = false;
+  bool would_assert_size = false;
+  bool called_driver_play = false;
+  int32_t play_flags = 4;
+  float blend_width = -1.0f;
+  float end_beat = 1.0e30f;
+  float start_beat = 0.0f;
+  bool returns_true = false;
+};
+
+struct SourceCharacterCopyBoundingSphereHandlerResult {
+  bool copied = false;
+  bool returns_zero = true;
+};
+
 struct SourceCharacterPollResult {
   bool called_rnd_dir_poll = false;
   bool skipped_for_frozen = false;
@@ -1276,6 +1307,15 @@ SourceCharacterLoadPlan source_character_load_plan(int revision,
                                                    bool is_proxy,
                                                    int legacy_other_revision);
 SourceCharacterCopyPlan source_character_copy_plan();
+SourceCharacterHandlerPlan source_character_handler_plan();
+SourceCharacterPropSyncPlan source_character_prop_sync_plan();
+SourceCharacterPlayClipDecision source_character_on_play_clip(
+    bool has_driver,
+    int32_t message_size,
+    int32_t supplied_play_flags,
+    bool driver_play_returned);
+SourceCharacterCopyBoundingSphereHandlerResult
+source_character_on_copy_bounding_sphere(bool has_source_character);
 void source_character_enter(SourceCharacterState& state);
 void source_character_exit(SourceCharacterState& state);
 SourceCharacterPollResult source_character_poll(SourceCharacterState& state);
