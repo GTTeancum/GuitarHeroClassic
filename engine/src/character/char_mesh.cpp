@@ -807,13 +807,6 @@ CharCollide decode_collide_body(const std::string& entry_name,
   collide.preserve_scale = trans.preserve_scale;
   collide.parent = trans.parent;
 
-  auto copy_original_to_current = [&]() {
-    collide.cur_radius[0] = collide.orig_radius[0];
-    collide.cur_radius[1] = collide.orig_radius[1];
-    collide.cur_length[0] = collide.orig_length[0];
-    collide.cur_length[1] = collide.orig_length[1];
-  };
-
   collide.shape = r.i32();
   collide.orig_radius[0] = r.f32();
   if (collide.version > 4) collide.orig_length[0] = r.f32();
@@ -840,10 +833,10 @@ CharCollide decode_collide_body(const std::string& entry_name,
     }
     for (uint8_t& byte : collide.digest) byte = r.u8();
     collide.mesh_y_bias = r.u8() != 0;
-    if (collide.version < 7) copy_original_to_current();
+    if (collide.version < 7) source_char_collide_copy_original_to_cur(collide);
   } else {
     collide.orig_radius[1] = collide.orig_radius[0];
-    copy_original_to_current();
+    source_char_collide_copy_original_to_cur(collide);
   }
   return collide;
 }
@@ -1382,6 +1375,19 @@ CharHair decode_hair(const std::string& entry_name,
 CharCollide decode_collide(const std::string& entry_name,
                            const std::vector<uint8_t>& body) {
   return decode_collide_body(entry_name, body);
+}
+
+void source_char_collide_copy_original_to_cur(CharCollide& collide) {
+  collide.cur_radius[0] = collide.orig_radius[0];
+  collide.cur_radius[1] = collide.orig_radius[1];
+  collide.cur_length[0] = collide.orig_length[0];
+  collide.cur_length[1] = collide.orig_length[1];
+}
+
+int source_char_collide_num_spheres(const CharCollide& collide) {
+  if (collide.shape == 3 || collide.shape == 4) return 2;
+  if (collide.shape == 1 || collide.shape == 2) return 1;
+  return 0;
 }
 
 void source_char_hair_set_cloth(CharHair& hair, bool enabled) {

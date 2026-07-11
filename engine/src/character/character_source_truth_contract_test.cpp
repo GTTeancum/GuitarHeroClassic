@@ -1207,6 +1207,15 @@ int run_contract() {
   ok &= contains(rb3_latest_char_collide_cpp,
                  "LOAD_REVS(bs)ASSERT_REVS(7,0)",
                  "latest CharCollide Load accepts source revisions through 7");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "intCharCollide::NumSpheres(){if(mShape==kCigar||mShape=="
+                 "kInsideCigar)return2;elseif(mShape==kSphere||mShape=="
+                 "kInsideSphere)return1;elsereturn0;}",
+                 "latest CharCollide source exposes NumSpheres helper");
+  ok &= contains(rb3_latest_char_collide_cpp,
+                 "voidCharCollide::CopyOriginalToCur(){memcpy(mCurRadius,"
+                 "mOrigRadius,8);memcpy(mCurLength,mOrigLength,8);}",
+                 "latest CharCollide source exposes CopyOriginalToCur helper");
   ok &= contains(char_mesh_h,
                  "structCharCollide{std::stringname;int32_tversion=0;",
                  "native exposes decoded CharCollide rows");
@@ -1222,6 +1231,11 @@ int run_contract() {
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body);",
                  "native exposes CharCollide decoder for contract coverage");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_collide_copy_original_to_cur(CharCollide&"
+                 "collide);intsource_char_collide_num_spheres(constCharCollide&"
+                 "collide);",
+                 "native exposes CharCollide source helper ports");
   ok &= contains(char_mesh,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body)",
@@ -1247,6 +1261,19 @@ int run_contract() {
                  "collide.mesh_y_bias=r.u8()!=0;",
                  "native CharCollide decoder stores digest and mesh-y-bias");
   ok &= contains(char_mesh,
+                 "if(collide.version<7)source_char_collide_copy_original_to_cur"
+                 "(collide);",
+                 "native CharCollide decoder uses named source copy helper");
+  ok &= contains(char_mesh,
+                 "voidsource_char_collide_copy_original_to_cur(CharCollide&"
+                 "collide){collide.cur_radius[0]=collide.orig_radius[0];"
+                 "collide.cur_radius[1]=collide.orig_radius[1];",
+                 "native CharCollide CopyOriginalToCur helper is ported");
+  ok &= contains(char_mesh,
+                 "intsource_char_collide_num_spheres(constCharCollide&collide)"
+                 "{if(collide.shape==3||collide.shape==4)return2;",
+                 "native CharCollide NumSpheres helper is ported");
+  ok &= contains(char_mesh,
                  "out.collides.push_back(decode_collide(de.name,b));",
                  "character load stores decoded CharCollide rows");
   ok &= contains(char_clip,
@@ -1262,9 +1289,17 @@ int run_contract() {
                  "mesh decode test covers decoded CharCollide mesh sphere row");
   ok &= contains(mesh_decode_test, "CHECK(collide.digest[19]==20);",
                  "mesh decode test covers decoded CharCollide digest");
+  ok &= contains(mesh_decode_test,
+                 "source_char_collide_copy_original_to_cur(copied_collide);",
+                 "mesh decode test covers CharCollide CopyOriginalToCur helper");
+  ok &= contains(mesh_decode_test,
+                 "source_char_collide_num_spheres(collide)==2",
+                 "mesh decode test covers CharCollide NumSpheres helper");
   ok &= contains(doc,
                  "Native GHOGX retains the internal transform, all eight mesh sphere rows",
                  "document records decoded CharCollide retained source rows");
+  ok &= contains(doc, "Native GHOGX ports `CharCollide::CopyOriginalToCur`",
+                 "document records CharCollide helper ports");
   ok &= contains(doc, "runs the checked source poll/reset/sim state path",
                  "document states bounded native CharHair poll rule");
   ok &= contains(doc, "point rows unwritten until",

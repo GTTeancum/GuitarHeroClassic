@@ -293,6 +293,29 @@ int main() {
   CHECK(approx(collide.mesh_spheres[3].vec[2], 3.3f));
   CHECK(collide.digest[0] == 1);
   CHECK(collide.digest[19] == 20);
+  CHECK(ghogx::character::source_char_collide_num_spheres(collide) == 2);
+
+  ghogx::character::CharCollide sphere_collide;
+  sphere_collide.shape = 1;
+  CHECK(ghogx::character::source_char_collide_num_spheres(sphere_collide) ==
+        1);
+  sphere_collide.shape = 2;
+  CHECK(ghogx::character::source_char_collide_num_spheres(sphere_collide) ==
+        1);
+  sphere_collide.shape = 0;
+  CHECK(ghogx::character::source_char_collide_num_spheres(sphere_collide) ==
+        0);
+
+  ghogx::character::CharCollide copied_collide = collide;
+  copied_collide.cur_radius[0] = 100.0f;
+  copied_collide.cur_radius[1] = 101.0f;
+  copied_collide.cur_length[0] = 102.0f;
+  copied_collide.cur_length[1] = 103.0f;
+  ghogx::character::source_char_collide_copy_original_to_cur(copied_collide);
+  CHECK(approx(copied_collide.cur_radius[0], collide.orig_radius[0]));
+  CHECK(approx(copied_collide.cur_radius[1], collide.orig_radius[1]));
+  CHECK(approx(copied_collide.cur_length[0], collide.orig_length[0]));
+  CHECK(approx(copied_collide.cur_length[1], collide.orig_length[1]));
 
   ghogx::character::CharHair cloth_hair = make_two_strand_hair();
   ghogx::character::source_char_hair_set_cloth(cloth_hair, true);

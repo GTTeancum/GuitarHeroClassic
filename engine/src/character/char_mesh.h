@@ -350,6 +350,9 @@ struct CharCollide {
   float cur_length[2] = {0.0f, 0.0f};
 };
 
+void source_char_collide_copy_original_to_cur(CharCollide& collide);
+int source_char_collide_num_spheres(const CharCollide& collide);
+
 struct CharPosConstraint {
   std::string name;
   int32_t version = 0;
