@@ -5029,3 +5029,24 @@ Viewer hand-overlay validation:
   close Rock1/Rock2 hair fidelity. The remaining work is still to prove the
   actual GH2 runtime consumer path from source or traces rather than reusing
   inferred collision behavior.
+
+2026-07-10 Rock1/Rock2 arm regression recheck:
+
+- After user feedback that the latest view looked like a Rock1/Rock2 arm
+  regression, rebuilt `ghogx_app` and captured fresh direct-app full-body front
+  shots from the current binary with stock GH2 PS2 assets, guitar attached, and
+  viewer hand overlays active. The individual proof PNGs are
+  `engine/out/rock_regression_fresh_20260710/rock1_front_current.png` and
+  `engine/out/rock_regression_fresh_20260710/rock2_front_current.png`.
+- The matching logs in `engine/out/rock_regression_fresh_20260710/` show active
+  left-hand weight `1.000`, `CharIKHand` solving `bone_L-hand.mesh` to
+  `bone_fret_hand.mesh`, then `foreTwist_L.ik`, then the decode-only CharHair
+  gate, then `upperTwist_L.ik` for both Rock1 and Rock2. This preserves the
+  accepted source-backed cadence from checkpoint `96f64b5`.
+- Focused guards passed in the same recheck:
+  `ghogx_character_no_named_fix_test`,
+  `ghogx_character_left_hand_contract_test`, and
+  `ghogx_character_source_truth_contract_test`.
+- No runtime code changed in this recheck. The remaining Rock1/Rock2 work is
+  still hair/card placement and GH2 runtime consumer proof, not a named
+  character posture patch.
