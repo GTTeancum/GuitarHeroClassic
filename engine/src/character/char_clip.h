@@ -238,6 +238,8 @@ void source_char_bones_clear(SourceCharBonesState& state);
 void source_char_bones_set_weights(std::vector<SourceCharBonesBone>& bones,
                                    float weight);
 void source_char_bones_set_weights(SourceCharBonesState& state, float weight);
+void source_char_bones_list_bones(const SourceCharBonesState& state,
+                                  std::vector<SourceCharBonesBone>& bones);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

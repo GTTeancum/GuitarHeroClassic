@@ -189,6 +189,22 @@ int main() {
                       "state SetWeights preserves second name");
   ok &= expect_float(state.bones[1].weight, 0.5f,
                      "state SetWeights second weight");
+  std::vector<SourceCharBonesBone> listed;
+  listed.push_back({"preexisting.scale", 1.0f});
+  source_char_bones_list_bones(state, listed);
+  ok &= expect_size(listed.size(), 3, "ListBones append count");
+  ok &= expect_string(listed[0].name, "preexisting.scale",
+                      "ListBones preserves caller rows");
+  ok &= expect_float(listed[0].weight, 1.0f,
+                     "ListBones preserves caller weight");
+  ok &= expect_string(listed[1].name, "bone_head.quat",
+                      "ListBones first appended name");
+  ok &= expect_float(listed[1].weight, 0.5f,
+                     "ListBones first appended weight");
+  ok &= expect_string(listed[2].name, "bone_hand.pos",
+                      "ListBones second appended name");
+  ok &= expect_float(listed[2].weight, 0.5f,
+                     "ListBones second appended weight");
   source_char_bones_clear(state);
   ok &= expect_empty_state(state, "ClearBones state reset");
 

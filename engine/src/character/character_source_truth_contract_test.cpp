@@ -2524,9 +2524,16 @@ int run_contract() {
                  "document records concrete CharBones SetCompression slice");
   ok &= contains(doc,
                  "Native `source_char_bones_empty_state`,\n"
-                 "    `source_char_bones_clear`, and "
-                 "`source_char_bones_set_weights` port the",
+                 "    `source_char_bones_clear`, "
+                 "`source_char_bones_set_weights`, and",
                  "document records concrete CharBones state helper slice");
+  ok &= contains(doc,
+                 "`source_char_bones_list_bones` port the complete source "
+                 "constructor,",
+                 "document records concrete CharBones ListBones slice");
+  ok &= contains(doc,
+                 "does not port `AddBones`/`AddBoneInternal` or the pointer walk",
+                 "document fences incomplete CharBones AddBones source body");
   ok &= contains(doc,
                  "does not include a\n"
                  "  reviewable `Evaluate` or `Poll` body",
@@ -2583,6 +2590,11 @@ int run_contract() {
                  "voidsource_char_bones_set_weights(SourceCharBonesState&state,"
                  "floatweight);",
                  "native API exposes source CharBones instance SetWeights helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bones_list_bones("
+                 "constSourceCharBonesState&state,"
+                 "std::vector<SourceCharBonesBone>&bones);",
+                 "native API exposes source CharBones ListBones helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_type_of(conststd::string&channel)",
                  "native clip decoder ports source CharBones type helper");
@@ -2638,6 +2650,13 @@ int run_contract() {
                  "floatweight){source_char_bones_set_weights(state.bones,weight);}",
                  "native CharBones state SetWeights helper delegates to source vector form");
   ok &= contains(char_clip,
+                 "voidsource_char_bones_list_bones("
+                 "constSourceCharBonesState&state,"
+                 "std::vector<SourceCharBonesBone>&bones){"
+                 "for(constSourceCharBonesBone&bone:state.bones){"
+                 "bones.push_back(bone);}}",
+                 "native CharBones ListBones helper appends source rows in order");
+  ok &= contains(char_clip,
                  "SourceCharBones::ChannelNameusesthefirstdot",
                  "native suffix strip follows source first-dot rule");
   ok &= contains(char_bones_source_test,
@@ -2667,6 +2686,9 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_set_weights(state,0.5f);",
                  "focused CharBones source test covers state SetWeights");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_list_bones(state,listed);",
+                 "focused CharBones source test covers ListBones append behavior");
   ok &= contains(char_bones_source_test,
                  "source_char_bones_clear(state);",
                  "focused CharBones source test covers ClearBones reset");
@@ -2755,6 +2777,10 @@ int run_contract() {
                  "voidCharBones::SetWeights(floatwt,std::vector<Bone>&bones){"
                  "for(inti=0;i<bones.size();i++){bones[i].weight=wt;}}",
                  "latest CharBones source defines static SetWeights row write");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBones::ListBones(std::list<Bone>&bones)const{"
+                 "for(inti=0;i<mBones.size();i++){bones.push_back(mBones[i]);}}",
+                 "latest CharBones source defines ListBones append loop");
   ok &= contains(char_clip,
                  "kSourceCompressAll=4",
                  "native clip decoder names source compression mode 4");

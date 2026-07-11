@@ -170,6 +170,13 @@ void source_char_bones_set_weights(SourceCharBonesState& state, float weight) {
   source_char_bones_set_weights(state.bones, weight);
 }
 
+void source_char_bones_list_bones(const SourceCharBonesState& state,
+                                  std::vector<SourceCharBonesBone>& bones) {
+  for (const SourceCharBonesBone& bone : state.bones) {
+    bones.push_back(bone);
+  }
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
