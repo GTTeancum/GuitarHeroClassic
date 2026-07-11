@@ -2499,6 +2499,10 @@ int run_contract() {
                  "    `mRawData[mTotalSize * sample]` and split weight",
                  "document records concrete CharBonesSamples interpolation source");
   ok &= contains(doc,
+                 "Native `source_char_clip_beat_align_string` ports the "
+                 "concrete\n    `CharClip::BeatAlignString` body",
+                 "document records concrete CharClip BeatAlignString slice");
+  ok &= contains(doc,
                  "does not include a\n"
                  "  reviewable `Evaluate` or `Poll` body",
                  "document fences missing CharClipDriver runtime evaluator bodies");
@@ -2783,6 +2787,11 @@ int run_contract() {
                  "if(mask&0xFU)mPlayFlags=mPlayFlags&0xfffffff0|mask&0xfU;"
                  "if(mask&0xF600U)mPlayFlags=mPlayFlags&0xffff09ff|mask&0xf600U;",
                  "latest CharClipDriver source masks blend loop and beat-align flags");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "constchar*CharClip::BeatAlignString(intmask){switch(mask&"
+                 "0xF600){case0x200:return\"RealTime\";case0x400:return"
+                 "\"UserTime\";case0x1000:return\"BeatAlign1\";",
+                 "latest CharClip source exposes BeatAlignString switch");
   ok &= contains(rb3_latest_char_driver_cpp,
                  "boolCharDriver::Starved(){if(mFirst){if(mFirst->mNext)"
                  "returnfalse;if((mFirst->mPlayFlags&0xF0)==0x10)"
@@ -2792,6 +2801,9 @@ int run_contract() {
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
                  "uint32_tmask);",
                  "native character API exposes source CharClipDriver flag mask helper");
+  ok &= contains(char_clip_h,
+                 "constchar*source_char_clip_beat_align_string(uint32_tmask);",
+                 "native character API exposes source CharClip beat-align helper");
   ok &= contains(char_clip_h,
                  "boolsource_char_driver_starved(boolhas_first,"
                  "boolfirst_has_next,uint32_tfirst_play_flags);",
@@ -2806,6 +2818,11 @@ int run_contract() {
                  "play_flags&0xfffffff0u)|(mask&0x0Fu);if(mask&0xF600u){"
                  "play_flags=(play_flags&0xffff09ffu)|(mask&0xF600u);}",
                  "native CharClipDriver mask helper matches source bit groups");
+  ok &= contains(char_clip,
+                 "constchar*source_char_clip_beat_align_string(uint32_tmask){"
+                 "switch(mask&0xF600u){casekCharPlayRealTime:return"
+                 "\"RealTime\";",
+                 "native CharClip beat-align helper ports source switch");
   ok &= contains(char_clip,
                  "constuint32_tplay_flags=char_clip_driver_masked_play_flags("
                  "clip,flags);",
@@ -2829,6 +2846,14 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "if(mask&0xF600u)out=(out&0xffff09ffu)|(mask&0xF600u);",
                  "focused flag-mask test covers source beat-time branch");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_beat_align(0x8000u,\"BeatAlign8\","
+                 "\"beatalign8\")",
+                 "focused flag-mask test covers source BeatAlign8 label");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_beat_align(0xF623u,\"NoAlign\","
+                 "\"maskedunknownalign\")",
+                 "focused flag-mask test covers source default beat-align label");
   ok &= contains(clip_driver_flags_test,
                  "expect_starved(false,false,0,true,\"emptystack\")",
                  "focused flag-mask test covers empty stack starved branch");

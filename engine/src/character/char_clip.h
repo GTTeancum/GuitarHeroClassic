@@ -173,6 +173,9 @@ std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group);
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask);
 
+// Source-backed CharClip::BeatAlignString helper.
+const char* source_char_clip_beat_align_string(uint32_t mask);
+
 // Source-backed CharDriver::Starved helper for the visible play stack state.
 bool source_char_driver_starved(bool has_first, bool first_has_next,
                                 uint32_t first_play_flags);

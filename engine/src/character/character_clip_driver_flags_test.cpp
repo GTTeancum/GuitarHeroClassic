@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <string>
 
 namespace {
 
@@ -36,6 +37,14 @@ bool expect_starved(bool has_first, bool first_has_next,
   return false;
 }
 
+bool expect_beat_align(uint32_t mask, const char* want, const char* label) {
+  const char* got = ghogx::character::source_char_clip_beat_align_string(mask);
+  if (std::string(got) == want) return true;
+  std::cerr << "beat-align string mismatch for " << label << ": got '"
+            << got << "' want '" << want << "'\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -56,5 +65,15 @@ int main() {
                        "single no-loop clip");
   ok &= expect_starved(true, false, ghogx::character::kCharPlayLoop, true,
                        "single looping clip");
+  ok &= expect_beat_align(0, "NoAlign", "default align");
+  ok &= expect_beat_align(ghogx::character::kCharPlayRealTime, "RealTime",
+                          "real-time align");
+  ok &= expect_beat_align(ghogx::character::kCharPlayUserTime, "UserTime",
+                          "user-time align");
+  ok &= expect_beat_align(0x1000u, "BeatAlign1", "beat align 1");
+  ok &= expect_beat_align(0x2000u, "BeatAlign2", "beat align 2");
+  ok &= expect_beat_align(0x4000u, "BeatAlign4", "beat align 4");
+  ok &= expect_beat_align(0x8000u, "BeatAlign8", "beat align 8");
+  ok &= expect_beat_align(0xF623u, "NoAlign", "masked unknown align");
   return ok ? 0 : 1;
 }

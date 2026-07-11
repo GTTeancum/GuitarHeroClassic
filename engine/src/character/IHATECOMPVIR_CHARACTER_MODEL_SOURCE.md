@@ -852,6 +852,10 @@ note, and all report `unreadBytes=0`.
   `full`/`one` property sync. It declares or calls the broad pose math, but the
   checked file does not include reviewable bodies for `CharClip::ScaleAdd`,
   `CharClip::RotateBy`, `CharClip::Load`, or channel evaluation.
+  - Native `source_char_clip_beat_align_string` ports the concrete
+    `CharClip::BeatAlignString` body for the `0xF600` play-flag group:
+    `RealTime`, `UserTime`, `BeatAlign1`, `BeatAlign2`, `BeatAlign4`,
+    `BeatAlign8`, and `NoAlign`.
 - `rb3-latest/src/system/char/CharClipDriver.cpp` is concrete for clip-driver
   stack construction, mask application to default blend/loop/beat-align flags,
   clip deletion, exit events, and sync animation cleanup. It does not include a

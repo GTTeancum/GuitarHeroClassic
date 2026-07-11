@@ -1370,6 +1370,25 @@ uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
   return play_flags;
 }
 
+const char* source_char_clip_beat_align_string(uint32_t mask) {
+  switch (mask & 0xF600u) {
+    case kCharPlayRealTime:
+      return "RealTime";
+    case kCharPlayUserTime:
+      return "UserTime";
+    case 0x1000u:
+      return "BeatAlign1";
+    case 0x2000u:
+      return "BeatAlign2";
+    case 0x4000u:
+      return "BeatAlign4";
+    case 0x8000u:
+      return "BeatAlign8";
+    default:
+      return "NoAlign";
+  }
+}
+
 bool source_char_driver_starved(bool has_first, bool first_has_next,
                                 uint32_t first_play_flags) {
   if (has_first) {
