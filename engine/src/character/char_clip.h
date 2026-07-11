@@ -103,6 +103,17 @@ struct SourceCharBonesBlenderReallocateStep {
   bool enter = true;
 };
 
+struct SourceCharBoneLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+};
+
+struct SourceCharBoneCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
 struct SourceCharBoneDirClipTypeResource {
   std::string clip_type;
   bool has_resource = false;
@@ -1167,6 +1178,8 @@ SourceCharBonesBlenderReallocateStep
 source_char_bones_blender_reallocate_step(bool has_dest);
 
 // Source-backed CharBone helpers for decoded CharClip output rows.
+SourceCharBoneLoadPlan source_char_bone_load_plan(int32_t revision);
+SourceCharBoneCopyPlan source_char_bone_copy_plan();
 CharClip::OutputBone source_char_bone_copy_members(
     const CharClip::OutputBone& source);
 std::optional<size_t> source_char_bone_find_weight_index(

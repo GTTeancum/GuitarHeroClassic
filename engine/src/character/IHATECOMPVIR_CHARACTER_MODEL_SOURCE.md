@@ -1839,6 +1839,24 @@ note, and all report `unreadBytes=0`.
     `alterna2_fret`; `rockabill2` routes `main.drv` and `right_hand.drv` to
     `rockabill1_main`/`rockabill1_strum` while keeping local
     `rockabill2_fret` for `left_hand.drv`.
+- `rb3-latest/src/system/char/CharBone.cpp` and `CharBone.h` define the
+  authored `CharBone` output rows consumed by `CharBoneDir` and `CharClip`
+  resource bones:
+  - `CharBone::Load` accepts revisions 0-10, reads `Hmx::Object`, legacy
+    `RndTransformableRemover` data below revision 9, bool or int context rows
+    depending on revision, rotation type, legacy ints, optional target, the
+    revision-6 shared context row, weights above revision 7, transform above
+    revision 8, and `mBakeOutAsTopLevel` above revision 9. Native
+    `source_char_bone_load_plan` records this source row order and the legacy
+    default branches (`mScaleContext=0`, rotation bump, rotation clamp,
+    default rotation context, and revision-6 shared-context application).
+  - Native `source_char_bone_copy_plan` records the source copy contract:
+    `Hmx::Object`, then rotation/scale/position contexts, rotation type,
+    target, weights, transform, and bake-out flag.
+  - Native `source_char_bone_copy_members`, `source_char_bone_find_weight_index`,
+    `source_char_bone_get_weight`, `source_char_bone_clear_context`, and
+    `source_char_bone_stuff_bones` port the visible source helpers without
+    claiming broad pose output publishing.
   - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish
     the source packed-row offset model. Native `source_char_bones_recompute_layout`
     now ports the safe data-layout core of `RecomputeSizes`: cumulative

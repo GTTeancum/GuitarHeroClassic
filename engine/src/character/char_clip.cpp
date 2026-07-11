@@ -284,6 +284,60 @@ source_char_bones_blender_reallocate_step(bool has_dest) {
   return step;
 }
 
+SourceCharBoneLoadPlan source_char_bone_load_plan(int32_t revision) {
+  SourceCharBoneLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 10;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order.push_back("Hmx::Object");
+  if (revision < 9) plan.read_order.push_back("RndTransformableRemover");
+
+  plan.read_order.push_back(revision > 6 ? "mPositionContext"
+                                          : "mPositionContextBool");
+  if (revision > 6) {
+    plan.read_order.push_back("mScaleContext");
+  } else if (revision > 1) {
+    plan.read_order.push_back("mScaleContextBool");
+  }
+
+  plan.read_order.push_back("mRotation");
+  if (revision < 5) plan.read_order.push_back("legacyPreRev5Int");
+  if (revision < 2) {
+    plan.branches.push_back("mScaleContext=0");
+    plan.branches.push_back("mRotation=mRotation+1");
+  }
+  if (revision < 5) plan.branches.push_back("clampRotationToTypeEnd");
+
+  if (revision > 6) {
+    plan.read_order.push_back("mRotationContext");
+  } else {
+    plan.branches.push_back("mRotationContext=mRotation!=TYPE_END");
+  }
+
+  if (revision >= 3 && revision <= 7) {
+    plan.read_order.push_back("legacyRev3To7Int");
+  }
+  if (revision > 3) plan.read_order.push_back("mTarget");
+  if (revision == 6) {
+    plan.read_order.push_back("sharedContext");
+    plan.branches.push_back("nonzeroContextsUseSharedContext");
+  }
+  if (revision > 7) plan.read_order.push_back("mWeights");
+  if (revision > 8) plan.read_order.push_back("mTrans");
+  if (revision > 9) plan.read_order.push_back("mBakeOutAsTopLevel");
+  return plan;
+}
+
+SourceCharBoneCopyPlan source_char_bone_copy_plan() {
+  SourceCharBoneCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object"};
+  plan.copied_members = {"mRotationContext", "mScaleContext",
+                         "mPositionContext", "mRotation",
+                         "mTarget",          "mWeights",
+                         "mTrans",           "mBakeOutAsTopLevel"};
+  return plan;
+}
+
 CharClip::OutputBone source_char_bone_copy_members(
     const CharClip::OutputBone& source) {
   CharClip::OutputBone dest;

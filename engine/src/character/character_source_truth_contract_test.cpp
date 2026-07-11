@@ -9378,9 +9378,22 @@ int run_contract() {
                  "bs>>(int&)mRotation;if(gRev<5){inti;bs>>i;}",
                  "latest CharBone source reads rotation and legacy rev5 int");
   ok &= contains(rb3_latest_char_bone_cpp,
+                 "if(gRev<2){mScaleContext=0;mRotation=(CharBones::Type)"
+                 "(mRotation+1);}",
+                 "latest CharBone source applies legacy rotation and scale defaults");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "if(gRev<5&&mRotation>CharBones::TYPE_END){"
+                 "mRotation=CharBones::TYPE_END;}",
+                 "latest CharBone source clamps legacy rotation type");
+  ok &= contains(rb3_latest_char_bone_cpp,
                  "if(gRev>6)bs>>mRotationContext;elsemRotationContext="
                  "mRotation!=CharBones::TYPE_END;",
                  "latest CharBone source gates rotation context");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "if(gRev==6){intctx;bs>>ctx;if(mPositionContext!=0)"
+                 "mPositionContext=ctx;if(mScaleContext!=0)mScaleContext=ctx;"
+                 "if(mRotationContext!=0)mRotationContext=ctx;}",
+                 "latest CharBone source applies revision-6 shared context");
   ok &= contains(rb3_latest_char_bone_cpp,
                  "if(gRev>7)bs>>mWeights;if(gRev>8)bs>>mTrans;"
                  "if(gRev>9)bs>>mBakeOutAsTopLevel;",
@@ -9405,6 +9418,22 @@ int run_contract() {
                  "std::vector<WeightContext>weights;std::stringtrans;"
                  "boolbake_out_as_top_level=false;size_tunread_bytes=0;",
                  "native OutputBone carries source CharBone optional tail fields");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;std::vector<std::string>"
+                 "branches;};",
+                 "native API exposes source CharBone load plan row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;};",
+                 "native API exposes source CharBone copy plan row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneLoadPlansource_char_bone_load_plan("
+                 "int32_trevision);",
+                 "native API exposes source CharBone load plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneCopyPlansource_char_bone_copy_plan();",
+                 "native API exposes source CharBone copy plan helper");
   ok &= contains(char_clip_h,
                  "std::optional<size_t>source_char_bone_find_weight_index("
                  "constCharClip::OutputBone&bone,intcontext_mask);",
@@ -9517,6 +9546,28 @@ int run_contract() {
   ok &= contains(char_clip,
                  "out.unread_bytes=size-pos;",
                  "native CharBone output decoder records unread byte proof");
+  ok &= contains(char_clip,
+                 "SourceCharBoneLoadPlansource_char_bone_load_plan("
+                 "int32_trevision){SourceCharBoneLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=10;",
+                 "native CharBone load plan helper ports revision gate");
+  ok &= contains(char_clip,
+                 "if(revision<9)plan.read_order.push_back("
+                 "\"RndTransformableRemover\");",
+                 "native CharBone load plan records legacy transform remover");
+  ok &= contains(char_clip,
+                 "plan.branches.push_back(\"mScaleContext=0\");"
+                 "plan.branches.push_back(\"mRotation=mRotation+1\");",
+                 "native CharBone load plan records legacy rotation defaults");
+  ok &= contains(char_clip,
+                 "if(revision==6){plan.read_order.push_back(\"sharedContext\");"
+                 "plan.branches.push_back(\"nonzeroContextsUseSharedContext\");}",
+                 "native CharBone load plan records revision-6 shared context");
+  ok &= contains(char_clip,
+                 "SourceCharBoneCopyPlansource_char_bone_copy_plan(){"
+                 "SourceCharBoneCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\"};",
+                 "native CharBone copy plan helper records superclass");
   ok &= contains(char_clip,
                  "CharClip::OutputBonesource_char_bone_copy_members("
                  "constCharClip::OutputBone&source){CharClip::OutputBonedest;"
@@ -9669,6 +9720,12 @@ int run_contract() {
                  "`rb3-latest/src/system/char/CharBone.cpp` and",
                  "document cites latest CharBone source");
   ok &= contains(doc,
+                 "source_char_bone_load_plan",
+                 "document records native CharBone load plan helper");
+  ok &= contains(doc,
+                 "revision-6 shared context row",
+                 "document records CharBone revision-6 branch");
+  ok &= contains(doc,
                  "Native clip output rows now decode and log those fields",
                  "document records native CharBone row decode");
   ok &= contains(doc,
@@ -9728,6 +9785,15 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bone_copy_members(output)",
                  "focused CharBones source test covers CharBone copy-member helper");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_load_plan(6)",
+                 "focused CharBones source test covers CharBone revision-6 load plan");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_load_plan(10)",
+                 "focused CharBones source test covers CharBone modern load plan");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_copy_plan()",
+                 "focused CharBones source test covers CharBone copy plan");
   ok &= contains(char_bones_source_test,
                  "\"CharBonecopyresetsdecoderparent\"",
                  "focused CharBones source test covers CharBone decoder reset");

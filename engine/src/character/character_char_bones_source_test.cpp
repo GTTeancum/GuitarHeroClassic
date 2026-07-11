@@ -381,6 +381,62 @@ int main() {
   ok &= expect_int(blender_realloc_dest.add_bones_to_dest ? 1 : 0, 1,
                    "CharBonesBlender realloc dest add");
 
+  const SourceCharBoneLoadPlan char_bone_v1 = source_char_bone_load_plan(1);
+  ok &= expect_int(char_bone_v1.known_revision ? 1 : 0, 1,
+                   "CharBone Load v1 known");
+  ok &= expect_string(char_bone_v1.read_order[0], "Hmx::Object",
+                      "CharBone Load v1 object row");
+  ok &= expect_string(char_bone_v1.read_order[1],
+                      "RndTransformableRemover",
+                      "CharBone Load v1 transform remover");
+  ok &= expect_string(char_bone_v1.read_order[2],
+                      "mPositionContextBool",
+                      "CharBone Load v1 position bool");
+  ok &= expect_string(char_bone_v1.read_order[4], "legacyPreRev5Int",
+                      "CharBone Load v1 legacy int");
+  ok &= expect_string(char_bone_v1.branches[0], "mScaleContext=0",
+                      "CharBone Load v1 scale default");
+  ok &= expect_string(char_bone_v1.branches[1], "mRotation=mRotation+1",
+                      "CharBone Load v1 rotation bump");
+
+  const SourceCharBoneLoadPlan char_bone_v6 = source_char_bone_load_plan(6);
+  ok &= expect_string(char_bone_v6.read_order[3], "mScaleContextBool",
+                      "CharBone Load v6 scale bool");
+  ok &= expect_string(char_bone_v6.read_order[5], "legacyRev3To7Int",
+                      "CharBone Load v6 legacy int");
+  ok &= expect_string(char_bone_v6.read_order[6], "mTarget",
+                      "CharBone Load v6 target");
+  ok &= expect_string(char_bone_v6.read_order[7], "sharedContext",
+                      "CharBone Load v6 shared context");
+  ok &= expect_string(char_bone_v6.branches.back(),
+                      "nonzeroContextsUseSharedContext",
+                      "CharBone Load v6 shared branch");
+
+  const SourceCharBoneLoadPlan char_bone_v10 = source_char_bone_load_plan(10);
+  ok &= expect_size(char_bone_v10.read_order.size(), 9,
+                    "CharBone Load v10 row count");
+  ok &= expect_string(char_bone_v10.read_order[1], "mPositionContext",
+                      "CharBone Load v10 position context");
+  ok &= expect_string(char_bone_v10.read_order[4], "mRotationContext",
+                      "CharBone Load v10 rotation context");
+  ok &= expect_string(char_bone_v10.read_order.back(),
+                      "mBakeOutAsTopLevel",
+                      "CharBone Load v10 bake flag");
+  ok &= expect_int(source_char_bone_load_plan(11).known_revision ? 1 : 0, 0,
+                   "CharBone Load rejects high revision");
+
+  const SourceCharBoneCopyPlan char_bone_copy_plan =
+      source_char_bone_copy_plan();
+  ok &= expect_string(char_bone_copy_plan.copied_superclasses[0],
+                      "Hmx::Object",
+                      "CharBone Copy object superclass");
+  ok &= expect_string(char_bone_copy_plan.copied_members[0],
+                      "mRotationContext",
+                      "CharBone Copy first member");
+  ok &= expect_string(char_bone_copy_plan.copied_members.back(),
+                      "mBakeOutAsTopLevel",
+                      "CharBone Copy last member");
+
   source_char_bones_clear(state);
   ok &= expect_empty_state(state, "ClearBones state reset");
 
