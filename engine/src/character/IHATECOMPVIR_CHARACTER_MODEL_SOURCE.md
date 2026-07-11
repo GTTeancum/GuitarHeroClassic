@@ -1585,6 +1585,19 @@ note, and all report `unreadBytes=0`.
     intersects `mFilterContext`. Native `source_char_bone_dir_sync_filter`
     ports that selection rule for decoded output-bone rows without installing a
     live editor filter list.
+  - `CharBoneDir` construction, load, and copy are source-visible in the same
+    file. Construction starts `mMoveContext` at `0`, `mBakeOutFacing` at `1`,
+    `mContextFlags` as integer `0`, `mFilterContext` at `0`, no-null recenter
+    target/average lists, and a no-null `mFilterBones` list. `PreLoad` accepts
+    source revisions `0..4`, pushes packed alt/HMX revisions, and delegates to
+    `ObjectDir::PreLoad`; `Load` delegates to `ObjectDir::Load`; `PostLoad`
+    restores revisions, reads a legacy bool before revision 2 or `mMoveContext`
+    otherwise, reads another legacy bool before revision 3, always reads
+    `mRecenter`, and reads `mBakeOutFacing` only after revision 3. `Copy` copies
+    `ObjectDir`, `mMoveContext`, `mRecenter`, and `mBakeOutFacing`. Native
+    `source_char_bone_dir_default_state`,
+    `source_char_bone_dir_load_plan`, and
+    `source_char_bone_dir_copy_plan` port those deterministic source facts only.
   - Native GHOGX decodes and logs the source `CharServoBone` row and
     `clip_type`, enforces the source revision range, and records the row tail
     byte count. Native exposes bounded source helpers for `ZeroDeltas`,

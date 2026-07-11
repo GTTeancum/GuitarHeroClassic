@@ -542,6 +542,79 @@ int main() {
   source_char_bone_stuff_bones(output, 0x2, stuffed);
   ok &= expect_size(stuffed.size(), 0, "StuffBones after clear");
 
+  const SourceCharBoneDirDefaultState dir_default =
+      source_char_bone_dir_default_state();
+  ok &= expect_int(dir_default.recenter_targets_no_null ? 1 : 0, 1,
+                   "CharBoneDir default recenter targets no-null");
+  ok &= expect_int(dir_default.recenter_average_no_null ? 1 : 0, 1,
+                   "CharBoneDir default recenter average no-null");
+  ok &= expect_int(dir_default.recenter_slide ? 1 : 0, 0,
+                   "CharBoneDir default recenter slide");
+  ok &= expect_int(dir_default.move_context, 0,
+                   "CharBoneDir default move context");
+  ok &= expect_int(dir_default.bake_out_facing ? 1 : 0, 1,
+                   "CharBoneDir default bake out facing");
+  ok &= expect_int(dir_default.context_flags_is_int ? 1 : 0, 1,
+                   "CharBoneDir default context flags type");
+  ok &= expect_int(dir_default.context_flags_int, 0,
+                   "CharBoneDir default context flags int");
+  ok &= expect_int(dir_default.filter_context, 0,
+                   "CharBoneDir default filter context");
+  ok &= expect_int(dir_default.filter_bones_no_null ? 1 : 0, 1,
+                   "CharBoneDir default filter bones no-null");
+  ok &= expect_int(dir_default.filter_names_empty ? 1 : 0, 1,
+                   "CharBoneDir default filter names empty");
+  const SourceCharBoneDirLoadPlan dir_load_unknown =
+      source_char_bone_dir_load_plan(5);
+  ok &= expect_int(dir_load_unknown.known_revision ? 1 : 0, 0,
+                   "CharBoneDir load rejects unknown revision");
+  ok &= expect_size(dir_load_unknown.postload_order.size(), 0,
+                    "CharBoneDir unknown revision has no reads");
+  const SourceCharBoneDirLoadPlan dir_load_legacy =
+      source_char_bone_dir_load_plan(1);
+  ok &= expect_int(dir_load_legacy.known_revision ? 1 : 0, 1,
+                   "CharBoneDir load accepts legacy revision");
+  ok &= expect_size(dir_load_legacy.preload_order.size(), 3,
+                    "CharBoneDir preload order count");
+  ok &= expect_string(dir_load_legacy.preload_order[2], "ObjectDir::PreLoad",
+                      "CharBoneDir preload object dir");
+  ok &= expect_string(dir_load_legacy.load_order[0], "ObjectDir::Load",
+                      "CharBoneDir load object dir");
+  ok &= expect_string(dir_load_legacy.postload_order[3],
+                      "legacyMoveContextBool",
+                      "CharBoneDir legacy move bool");
+  ok &= expect_string(dir_load_legacy.postload_order[4],
+                      "legacyPreRev3Bool",
+                      "CharBoneDir legacy rev3 bool");
+  ok &= expect_string(dir_load_legacy.postload_order[5], "mRecenter",
+                      "CharBoneDir recenter read");
+  const SourceCharBoneDirLoadPlan dir_load_latest =
+      source_char_bone_dir_load_plan(4);
+  ok &= expect_int(dir_load_latest.known_revision ? 1 : 0, 1,
+                   "CharBoneDir load accepts latest source revision");
+  ok &= expect_size(dir_load_latest.postload_order.size(), 6,
+                    "CharBoneDir latest postload count");
+  ok &= expect_string(dir_load_latest.postload_order[3], "mMoveContext",
+                      "CharBoneDir latest move context");
+  ok &= expect_string(dir_load_latest.postload_order[4], "mRecenter",
+                      "CharBoneDir latest recenter");
+  ok &= expect_string(dir_load_latest.postload_order[5], "mBakeOutFacing",
+                      "CharBoneDir latest bake out facing");
+  const SourceCharBoneDirCopyPlan dir_copy =
+      source_char_bone_dir_copy_plan();
+  ok &= expect_size(dir_copy.copied_superclasses.size(), 1,
+                    "CharBoneDir copy superclass count");
+  ok &= expect_string(dir_copy.copied_superclasses[0], "ObjectDir",
+                      "CharBoneDir copy superclass");
+  ok &= expect_size(dir_copy.copied_members.size(), 3,
+                    "CharBoneDir copy member count");
+  ok &= expect_string(dir_copy.copied_members[0], "mMoveContext",
+                      "CharBoneDir copy move context");
+  ok &= expect_string(dir_copy.copied_members[1], "mRecenter",
+                      "CharBoneDir copy recenter");
+  ok &= expect_string(dir_copy.copied_members[2], "mBakeOutFacing",
+                      "CharBoneDir copy bake out facing");
+
   std::vector<CharClip::OutputBone> dir_output_bones;
   dir_output_bones.push_back(output);
   std::vector<SourceCharBonesBone> dir_bones;

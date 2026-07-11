@@ -114,6 +114,32 @@ struct SourceCharBoneCopyPlan {
   std::vector<std::string> copied_members;
 };
 
+struct SourceCharBoneDirDefaultState {
+  bool recenter_targets_no_null = true;
+  bool recenter_average_no_null = true;
+  bool recenter_slide = false;
+  int move_context = 0;
+  bool bake_out_facing = true;
+  bool context_flags_is_int = true;
+  int context_flags_int = 0;
+  int filter_context = 0;
+  bool filter_bones_no_null = true;
+  bool filter_names_empty = true;
+};
+
+struct SourceCharBoneDirLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> preload_order;
+  std::vector<std::string> load_order;
+  std::vector<std::string> postload_order;
+  std::vector<std::string> branches;
+};
+
+struct SourceCharBoneDirCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
 struct SourceCharBoneDirClipTypeResource {
   std::string clip_type;
   bool has_resource = false;
@@ -1191,6 +1217,9 @@ void source_char_bone_clear_context(CharClip::OutputBone& bone,
 void source_char_bone_stuff_bones(const CharClip::OutputBone& bone,
                                   int context_mask,
                                   std::vector<SourceCharBonesBone>& bones);
+SourceCharBoneDirDefaultState source_char_bone_dir_default_state();
+SourceCharBoneDirLoadPlan source_char_bone_dir_load_plan(int32_t revision);
+SourceCharBoneDirCopyPlan source_char_bone_dir_copy_plan();
 void source_char_bone_dir_list_bones(
     const std::vector<CharClip::OutputBone>& output_bones,
     int move_context,

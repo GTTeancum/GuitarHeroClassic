@@ -9456,6 +9456,18 @@ int run_contract() {
                  "std::vector<SourceCharBonesBone>&bones);",
                  "native API exposes source CharBone StuffBones helper");
   ok &= contains(char_clip_h,
+                 "SourceCharBoneDirDefaultState"
+                 "source_char_bone_dir_default_state();",
+                 "native API exposes source CharBoneDir default-state helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirLoadPlan"
+                 "source_char_bone_dir_load_plan(int32_trevision);",
+                 "native API exposes source CharBoneDir load plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirCopyPlan"
+                 "source_char_bone_dir_copy_plan();",
+                 "native API exposes source CharBoneDir copy plan helper");
+  ok &= contains(char_clip_h,
                  "voidsource_char_bone_dir_list_bones("
                  "conststd::vector<CharClip::OutputBone>&output_bones,"
                  "intmove_context,intcontext_mask,boolinclude_delta_facing,"
@@ -9605,6 +9617,37 @@ int run_contract() {
                  "std::vector<SourceCharBonesBone>&bones){if(("
                  "bone.position_context&context_mask)!=0){bones.push_back({",
                  "native CharBone StuffBones helper mirrors source append gate");
+  ok &= contains(char_clip,
+                 "SourceCharBoneDirDefaultStatesource_char_bone_dir_default_state(){"
+                 "returnSourceCharBoneDirDefaultState{};}",
+                 "native CharBoneDir default helper preserves constructor defaults");
+  ok &= contains(char_clip,
+                 "SourceCharBoneDirLoadPlansource_char_bone_dir_load_plan("
+                 "int32_trevision){SourceCharBoneDirLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=4;",
+                 "native CharBoneDir load plan helper ports revision gate");
+  ok &= contains(char_clip,
+                 "plan.preload_order={\"LOAD_REVS\","
+                 "\"PushRev(packRevs(gAltRev,gRev))\","
+                 "\"ObjectDir::PreLoad\"};",
+                 "native CharBoneDir load plan records PreLoad order");
+  ok &= contains(char_clip,
+                 "if(revision<2){plan.postload_order.push_back("
+                 "\"legacyMoveContextBool\");}else{plan.postload_order."
+                 "push_back(\"mMoveContext\");}if(revision<3)"
+                 "plan.postload_order.push_back(\"legacyPreRev3Bool\");",
+                 "native CharBoneDir load plan records legacy gates");
+  ok &= contains(char_clip,
+                 "plan.postload_order.push_back(\"mRecenter\");"
+                 "if(revision>3)plan.postload_order.push_back("
+                 "\"mBakeOutFacing\");returnplan;}",
+                 "native CharBoneDir load plan records recenter and bake-out read");
+  ok &= contains(char_clip,
+                 "SourceCharBoneDirCopyPlansource_char_bone_dir_copy_plan(){"
+                 "SourceCharBoneDirCopyPlanplan;plan.copied_superclasses={"
+                 "\"ObjectDir\"};plan.copied_members={\"mMoveContext\","
+                 "\"mRecenter\",\"mBakeOutFacing\"};returnplan;}",
+                 "native CharBoneDir copy plan mirrors source COPY_MEMBER list");
   ok &= contains(char_clip,
                  "voidsource_char_bone_dir_list_bones("
                  "conststd::vector<CharClip::OutputBone>&output_bones,"
@@ -9765,6 +9808,15 @@ int run_contract() {
                  "`CharBoneDir::SyncFilter` clears `mFilterBones`",
                  "document records source CharBoneDir SyncFilter behavior");
   ok &= contains(doc,
+                 "`CharBoneDir` construction, load, and copy are source-visible",
+                 "document records source CharBoneDir load/copy slice");
+  ok &= contains(doc,
+                 "`source_char_bone_dir_default_state`,",
+                 "document records native CharBoneDir default helper");
+  ok &= contains(doc,
+                 "`source_char_bone_dir_load_plan`, and",
+                 "document records native CharBoneDir load helper");
+  ok &= contains(doc,
                  "These helpers do not perform runtime\n"
                  "    MILO loading",
                  "document fences CharBoneDir runtime resource loading");
@@ -9809,6 +9861,18 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bone_clear_context(output,0x2);",
                  "focused CharBones source test covers CharBone ClearContext");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_default_state()",
+                 "focused CharBones source test covers CharBoneDir defaults");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_load_plan(1)",
+                 "focused CharBones source test covers CharBoneDir legacy load");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_load_plan(4)",
+                 "focused CharBones source test covers CharBoneDir latest load");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_copy_plan()",
+                 "focused CharBones source test covers CharBoneDir copy plan");
   ok &= contains(char_bones_source_test,
                  "source_char_bone_dir_list_bones(dir_output_bones,0x1,0x1,"
                  "true,",
@@ -9895,6 +9959,28 @@ int run_contract() {
                  "mWeights.begin();it!=mWeights.end();++it){if(("
                  "*it).mContext&i)returnit;}return0;}",
                  "latest CharBone source defines FindWeight first match");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "CharBoneDir::CharBoneDir():mRecenter(this),mMoveContext(0),"
+                 "mBakeOutFacing(1),mContextFlags(0),mFilterContext(0),"
+                 "mFilterBones(this,kObjListNoNull){}",
+                 "latest CharBoneDir source defines constructor defaults");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "voidCharBoneDir::PreLoad(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(4,0);PushRev(packRevs(gAltRev,gRev),this);"
+                 "ObjectDir::PreLoad(bs);}",
+                 "latest CharBoneDir source defines PreLoad revision path");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "voidCharBoneDir::PostLoad(BinStream&bs){"
+                 "ObjectDir::PostLoad(bs);intrevs=PopRev(this);"
+                 "gRev=getHmxRev(revs);gAltRev=getAltRev(revs);"
+                 "if(gRev<2)bs.ReadBool();elsebs>>mMoveContext;"
+                 "if(gRev<3)bs.ReadBool();bs>>mRecenter;if(gRev>3)"
+                 "bs>>mBakeOutFacing;}",
+                 "latest CharBoneDir source defines PostLoad revision gates");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "COPY_MEMBER(mMoveContext)COPY_MEMBER(mRecenter)"
+                 "COPY_MEMBER(mBakeOutFacing)",
+                 "latest CharBoneDir source defines copy members");
   ok &= contains(rb3_latest_char_bone_dir_cpp,
                  "voidCharBoneDir::ListBones(std::list<CharBones::Bone>&bones,"
                  "intmask,boolb){if(mMoveContext&mask){bones.push_back("

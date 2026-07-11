@@ -397,6 +397,38 @@ void source_char_bone_stuff_bones(const CharClip::OutputBone& bone,
   }
 }
 
+SourceCharBoneDirDefaultState source_char_bone_dir_default_state() {
+  return SourceCharBoneDirDefaultState{};
+}
+
+SourceCharBoneDirLoadPlan source_char_bone_dir_load_plan(int32_t revision) {
+  SourceCharBoneDirLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 4;
+  if (!plan.known_revision) return plan;
+
+  plan.preload_order = {"LOAD_REVS", "PushRev(packRevs(gAltRev,gRev))",
+                        "ObjectDir::PreLoad"};
+  plan.load_order = {"ObjectDir::Load"};
+  plan.postload_order = {"ObjectDir::PostLoad", "PopRev",
+                         "restore gRev/gAltRev"};
+  if (revision < 2) {
+    plan.postload_order.push_back("legacyMoveContextBool");
+  } else {
+    plan.postload_order.push_back("mMoveContext");
+  }
+  if (revision < 3) plan.postload_order.push_back("legacyPreRev3Bool");
+  plan.postload_order.push_back("mRecenter");
+  if (revision > 3) plan.postload_order.push_back("mBakeOutFacing");
+  return plan;
+}
+
+SourceCharBoneDirCopyPlan source_char_bone_dir_copy_plan() {
+  SourceCharBoneDirCopyPlan plan;
+  plan.copied_superclasses = {"ObjectDir"};
+  plan.copied_members = {"mMoveContext", "mRecenter", "mBakeOutFacing"};
+  return plan;
+}
+
 void source_char_bone_dir_list_bones(
     const std::vector<CharClip::OutputBone>& output_bones,
     int move_context,
