@@ -282,6 +282,7 @@ std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
     int sample,
     float weight,
     float frac);
+bool source_char_bones_samples_load_version_known(int version);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

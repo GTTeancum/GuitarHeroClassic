@@ -275,6 +275,10 @@ std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
   return steps;
 }
 
+bool source_char_bones_samples_load_version_known(int version) {
+  return version > 12 && version <= 16;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------
@@ -538,6 +542,13 @@ void read_angle(Cur& c, bool comp, int cat, ClipChannel& ch) {
 std::vector<std::vector<ClipChannel>> parse_all(const uint8_t* d, size_t n,
                                                 int& num_samples_out) {
   num_samples_out = 0;
+  if (n < 4) return {};
+  uint32_t samples_version = 0;
+  std::memcpy(&samples_version, d, 4);
+  if (!source_char_bones_samples_load_version_known(
+          static_cast<int>(samples_version))) {
+    return {};
+  }
 
   std::vector<BoneList> lists;
   size_t p = SIZE_MAX;

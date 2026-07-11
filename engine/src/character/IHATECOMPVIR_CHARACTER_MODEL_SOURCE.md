@@ -888,7 +888,10 @@ note, and all report `unreadBytes=0`.
     `mRawData[mTotalSize * sample]` and split weight between sample `i` and
     `i + 1` by `frac`.
   - `Load` reads `gVer`, asserts the public source range `13..16`, then
-    delegates to `LoadHeader` and `LoadData`.
+    delegates to `LoadHeader` and `LoadData`. Native
+    `source_char_bones_samples_load_version_known` ports that exact range and
+    the clip parser rejects out-of-range `CharBonesSamples` entries before
+    scanning sample-list headers.
   - `SetPreview` clamps the preview sample and points `mStart` at the selected
     packed row.
   - Native `source_char_bones_samples_allocate_size`,

@@ -2624,6 +2624,9 @@ int run_contract() {
                  "constSourceCharBonesSamplesState&samples,intsample,"
                  "floatweight,floatfrac);",
                  "native API exposes source CharBonesSamples split-step helper");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_bones_samples_load_version_known(intversion);",
+                 "native API exposes source CharBonesSamples load-version helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_type_of(conststd::string&channel)",
                  "native clip decoder ports source CharBones type helper");
@@ -2715,6 +2718,15 @@ int run_contract() {
                  "returnsteps;}",
                  "native CharBonesSamples split-step helper mirrors source row offsets");
   ok &= contains(char_clip,
+                 "boolsource_char_bones_samples_load_version_known(intversion){"
+                 "returnversion>12&&version<=16;}",
+                 "native CharBonesSamples load-version helper mirrors source range");
+  ok &= contains(char_clip,
+                 "uint32_tsamples_version=0;std::memcpy(&samples_version,d,4);"
+                 "if(!source_char_bones_samples_load_version_known("
+                 "static_cast<int>(samples_version))){return{};}",
+                 "native clip parser applies source CharBonesSamples version gate");
+  ok &= contains(char_clip,
                  "SourceCharBones::ChannelNameusesthefirstdot",
                  "native suffix strip follows source first-dot rule");
   ok &= contains(char_bones_source_test,
@@ -2765,6 +2777,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_samples_split_steps(samples,1,1.0f,0.25f)",
                  "focused CharBones source test covers CharBonesSamples split steps");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_load_version_known(12)",
+                 "focused CharBones source test covers low sample version reject");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_load_version_known(16)",
+                 "focused CharBones source test covers high accepted sample version");
   ok &= missing(char_clip, "GHOGX_AXIS_ROT_NO_PI",
                 "old no-pi axis-rotation diagnostic removed from decoder");
   ok &= missing(char_clip, "GHOGX_FILE_ORDER_CLIP_SAMPLES",
@@ -3181,6 +3199,14 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_bones_samples_allocate_size`,",
                  "document records native CharBonesSamples state helpers");
+  ok &= contains(doc,
+                 "`source_char_bones_samples_load_version_known` ports that "
+                 "exact range",
+                 "document records native CharBonesSamples version gate");
+  ok &= contains(doc,
+                 "the clip parser rejects out-of-range `CharBonesSamples` "
+                 "entries",
+                 "document records parser-side CharBonesSamples version gate");
   ok &= contains(doc,
                  "preview stores the clamped sample and selected row offset",
                  "document records source CharBonesSamples preview offset");

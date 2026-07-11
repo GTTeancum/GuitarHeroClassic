@@ -332,6 +332,14 @@ int main() {
                    "samples split blended second offset");
   ok &= expect_float(two_steps[1].weight, 0.25f,
                      "samples split blended second weight");
+  ok &= expect_int(source_char_bones_samples_load_version_known(12) ? 1 : 0, 0,
+                   "samples load version low rejected");
+  ok &= expect_int(source_char_bones_samples_load_version_known(13) ? 1 : 0, 1,
+                   "samples load version 13 accepted");
+  ok &= expect_int(source_char_bones_samples_load_version_known(16) ? 1 : 0, 1,
+                   "samples load version 16 accepted");
+  ok &= expect_int(source_char_bones_samples_load_version_known(17) ? 1 : 0, 0,
+                   "samples load version high rejected");
 
   return ok ? 0 : 1;
 }
