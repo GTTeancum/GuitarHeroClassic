@@ -1960,7 +1960,6 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     if (!m.showing) continue;
     if (spotlight_template_meshes.find(m.name) != spotlight_template_meshes.end())
       continue;
-    auto world = scene_.world_matrix(m);
     auto parent_for = [&](const std::string& name) -> std::string {
       for (const auto& group : scene_.groups) {
         if (group.name == name) return group.parent;
@@ -1973,6 +1972,50 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
       return {};
     };
+    auto local_for = [&](const std::string& name, std::array<float, 16>& local)
+        -> bool {
+      if (m.name == name) {
+        local = xfm_to_mat4(m.local);
+        return true;
+      }
+      for (const auto& group : scene_.groups) {
+        if (group.name == name && group.has_transform) {
+          local = xfm_to_mat4(group.local);
+          return true;
+        }
+      }
+      for (const auto& mesh : scene_.meshes) {
+        if (mesh.name == name) {
+          local = xfm_to_mat4(mesh.local);
+          return true;
+        }
+      }
+      for (const auto& trans : scene_.transes) {
+        if (trans.name == name) {
+          local = xfm_to_mat4(trans.local);
+          return true;
+        }
+      }
+      return false;
+    };
+    auto target_has_transform_sample = [&](const std::string& target) -> bool {
+      return mesh_transform_offsets_.find(target) !=
+                 mesh_transform_offsets_.end() ||
+             active_mesh_anims_.find(target) != active_mesh_anims_.end();
+    };
+    auto apply_transform_samples = [&](std::array<float, 16>& local,
+                                       const std::string& target) {
+      if (const auto offset_it = mesh_transform_offsets_.find(target);
+          offset_it != mesh_transform_offsets_.end()) {
+        apply_mesh_transform_sample(local, offset_it->second);
+      }
+      const auto anim_it = active_mesh_anims_.find(target);
+      if (anim_it == active_mesh_anims_.end()) return;
+      const auto& active = anim_it->second;
+      const float anim_frame = active.elapsed * active.frames_per_second;
+      apply_mesh_transform_sample(
+          local, sample_transform_anim(active.anim, anim_frame));
+    };
     std::vector<std::string> animated_ancestors;
     for (std::string parent = m.parent; !parent.empty();) {
       animated_ancestors.push_back(parent);
@@ -1982,28 +2025,42 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       if (animated_ancestors.size() >= 64) break;
     }
     std::reverse(animated_ancestors.begin(), animated_ancestors.end());
-    for (const std::string& target : animated_ancestors) {
-      if (const auto offset_it = mesh_transform_offsets_.find(target);
-          offset_it != mesh_transform_offsets_.end()) {
-        apply_mesh_transform_sample(world, offset_it->second);
+    const bool chain_has_transform_sample =
+        target_has_transform_sample(m.name) ||
+        std::any_of(animated_ancestors.begin(), animated_ancestors.end(),
+                    target_has_transform_sample);
+    bool composed_animated_chain = false;
+    auto world = scene_.world_matrix(m);
+    if (chain_has_transform_sample) {
+      std::vector<std::string> chain;
+      chain.push_back(m.name);
+      for (auto it = animated_ancestors.rbegin();
+           it != animated_ancestors.rend(); ++it) {
+        chain.push_back(*it);
       }
-      const auto anim_it = active_mesh_anims_.find(target);
-      if (anim_it == active_mesh_anims_.end()) continue;
-      const auto& active = anim_it->second;
-      const float anim_frame = active.elapsed * active.frames_per_second;
-      apply_mesh_transform_sample(
-          world, sample_transform_anim(active.anim, anim_frame));
+      std::array<float, 16> composed{};
+      bool have_composed = false;
+      bool resolved_all_nodes = true;
+      for (const std::string& target : chain) {
+        std::array<float, 16> local{};
+        if (!local_for(target, local)) {
+          resolved_all_nodes = false;
+          break;
+        }
+        apply_transform_samples(local, target);
+        composed = have_composed ? mul16(composed, local) : local;
+        have_composed = true;
+      }
+      if (resolved_all_nodes && have_composed) {
+        world = composed;
+        composed_animated_chain = true;
+      }
     }
-    if (const auto offset_it = mesh_transform_offsets_.find(m.name);
-        offset_it != mesh_transform_offsets_.end()) {
-      apply_mesh_transform_sample(world, offset_it->second);
-    }
-    const auto anim_it = active_mesh_anims_.find(m.name);
-    if (anim_it != active_mesh_anims_.end()) {
-      const auto& active = anim_it->second;
-      const float frame = active.elapsed * active.frames_per_second;
-      apply_mesh_transform_sample(world,
-                                  sample_transform_anim(active.anim, frame));
+    if (!composed_animated_chain) {
+      for (const std::string& target : animated_ancestors) {
+        apply_transform_samples(world, target);
+      }
+      apply_transform_samples(world, m.name);
     }
     const auto pulse_it = mesh_pulses_.find(m.name);
     if (pulse_it != mesh_pulses_.end()) {

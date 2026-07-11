@@ -5507,14 +5507,23 @@ int main() {
                  "apply_local_translation_delta(world,sample.translation.data());",
                  "transform samples still apply translation in local space");
   ok &= contains(renderer_c,
-                 "apply_mesh_transform_sample(world,offset_it->second);",
-                 "persistent venue AnimFilter offsets use full transform samples");
+                 "apply_mesh_transform_sample(local,offset_it->second);",
+                 "persistent venue AnimFilter offsets use full transform samples at the authored transform node");
   ok &= contains(renderer_c,
                  "mesh_transform_offsets_.find(target)",
                  "persistent venue AnimFilter offsets also apply to animated parent transforms");
   ok &= contains(renderer_c,
-                 "sample_transform_anim(active.anim,frame)",
+                 "sample_transform_anim(active.anim,anim_frame)",
                  "one-shot mesh TransAnim playback samples translation, rotation, and scale");
+  ok &= contains(renderer_c,
+                 "chain_has_transform_sample",
+                 "animated venue parent transforms rebuild a live local chain");
+  ok &= contains(renderer_c,
+                 "world=composed;",
+                 "animated venue parent transforms replace stored-world fallback with source hierarchy");
+  ok &= contains(renderer_c,
+                 "apply_transform_samples(local,target);",
+                 "animated venue parent transforms apply samples at the authored node");
   ok &= contains(gameplay_c,
                  "is_transformable_target_ref(std::string_viewname)",
                  "source-shaped TransAnim targets are decoded as RndTransformable refs");
