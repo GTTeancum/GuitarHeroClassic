@@ -21317,6 +21317,7 @@ namespace {
 void apply_gameplay_backing_camera(
     ghogx::render::MiloSceneRenderer* world,
     const std::unordered_map<std::string, CameraTarget>& targets,
+    const std::map<std::string, std::array<float, 16>>& venue_targets,
     double song_time,
     bool diagnostic_camera_shot_active) {
     if (!world || debug_gameplay_camera_enabled() ||
@@ -21336,6 +21337,12 @@ void apply_gameplay_backing_camera(
     };
     auto add_target_point = [&](const std::string& id) {
         if (auto p = target_point(id)) points.push_back(*p);
+    };
+    auto venue_target_point = [&](const std::string& id)
+        -> std::optional<std::array<float, 3>> {
+        const auto it = venue_targets.find(id);
+        if (it == venue_targets.end()) return std::nullopt;
+        return mat4_position_game(it->second);
     };
     for (const char* role : {"guitarist0", "singer", "bassist", "drummer",
                              "keyboard"}) {
@@ -21376,19 +21383,40 @@ void apply_gameplay_backing_camera(
         focus[0] * 0.70f + center[0] * 0.30f,
         focus[1] * 0.70f + center[1] * 0.30f,
         focus[2] * 0.70f + center[2] * 0.30f};
+    std::optional<std::array<float, 3>> venue_floor_focus;
+    std::string venue_floor_focus_name;
+    auto choose_venue_floor_focus = [&](const char* id) {
+        if (venue_floor_focus) return;
+        venue_floor_focus = venue_target_point(id);
+        if (venue_floor_focus) venue_floor_focus_name = id;
+    };
+    choose_venue_floor_focus("main_hall.2.mesh");
+    choose_venue_floor_focus("bottomfloorrug.mesh");
+    choose_venue_floor_focus("crowd_group_centroid");
 
     auto& cam = world->camera();
     cam.authored = false;
     cam.result_frame.valid = false;
     cam.screen_offset[0] = 0.0f;
     cam.screen_offset[1] = 0.0f;
-    cam.target[0] = framed_focus[0];
-    cam.target[1] = framed_focus[1];
-    cam.target[2] = framed_focus[2] + std::max(18.0f, span_z * 0.12f);
-    cam.yaw = 0.20f;
-    cam.pitch = 0.08f;
-    cam.distance = std::clamp(span * 0.65f, 175.0f, 320.0f);
-    cam.fov = 0.62f;
+    if (venue_floor_focus) {
+        cam.target[0] = (*venue_floor_focus)[0];
+        cam.target[1] = (*venue_floor_focus)[1];
+        cam.target[2] = (*venue_floor_focus)[2] +
+                        std::max(36.0f, span_z * 0.18f);
+        cam.yaw = -0.25f;
+        cam.pitch = 0.38f;
+        cam.distance = std::clamp(span * 1.35f, 520.0f, 720.0f);
+        cam.fov = 0.72f;
+    } else {
+        cam.target[0] = framed_focus[0];
+        cam.target[1] = framed_focus[1];
+        cam.target[2] = framed_focus[2] + std::max(18.0f, span_z * 0.12f);
+        cam.yaw = 0.20f;
+        cam.pitch = 0.08f;
+        cam.distance = std::clamp(span * 0.65f, 175.0f, 320.0f);
+        cam.fov = 0.62f;
+    }
     cam.near_z = 10.0f;
     cam.far_z = 12000.0f;
     if (debug_backing_camera_enabled()) {
@@ -21402,10 +21430,14 @@ void apply_gameplay_backing_camera(
             "[world] gameplay backing camera: performers=%zu "
             "center=(%.2f %.2f %.2f) focus=(%.2f %.2f %.2f) "
             "framed=(%.2f %.2f %.2f) target=(%.2f %.2f %.2f) "
-            "yaw=%.3f pitch=%.3f dist=%.2f fov=%.3f span=%.2f t=%.3f\n",
+            "venue_floor_focus=%d source=%s yaw=%.3f pitch=%.3f dist=%.2f "
+            "fov=%.3f span=%.2f t=%.3f\n",
             points.size(), center[0], center[1], center[2], focus[0],
             focus[1], focus[2], framed_focus[0], framed_focus[1],
             framed_focus[2], cam.target[0], cam.target[1], cam.target[2],
+            venue_floor_focus ? 1 : 0,
+            venue_floor_focus_name.empty() ? "<none>"
+                                           : venue_floor_focus_name.c_str(),
             cam.yaw, cam.pitch, cam.distance, cam.fov, span, song_time);
     }
 }
@@ -24878,7 +24910,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 cam.fov = env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_FOV", 0.55f);
             }
         }
-        apply_gameplay_backing_camera(world_.get(), camera_targets, song_time_,
+        apply_gameplay_backing_camera(world_.get(), camera_targets,
+                                      venue_camera_target_worlds_, song_time_,
                                       !diagnostic_camera_shot_.empty());
         update_worldcrowd_actor_runtime(static_cast<float>(dt));
         update_venue_proxy_objects();

@@ -8428,7 +8428,8 @@ int main() {
                  "backing camera has a non-invasive validation diagnostic gate");
   ok &= contains(gameplay_c,
                  "apply_gameplay_backing_camera(world_.get(),camera_targets,"
-                 "song_time_,!diagnostic_camera_shot_.empty());",
+                 "venue_camera_target_worlds_,song_time_,"
+                 "!diagnostic_camera_shot_.empty());",
                  "fallback composite view is evaluated after authored camera metadata updates");
   ok &= contains(gameplay_c,
                  "camera_target_id(prefix,\"bone_spine1.mesh\")",
@@ -8443,6 +8444,21 @@ int main() {
   ok &= contains(gameplay_c,
                  "cam.distance=std::clamp(span*0.65f,175.0f,320.0f);",
                  "gameplay backing camera keeps the 3D band readable behind the highway");
+  ok &= contains(gameplay_c,
+                 "choose_venue_floor_focus(\"main_hall.2.mesh\")",
+                 "gameplay backing camera can frame decoded venue audience-floor mesh targets");
+  ok &= contains(gameplay_c,
+                 "choose_venue_floor_focus(\"bottomfloorrug.mesh\")",
+                 "gameplay backing camera uses RedOctane's authored foreground floor target");
+  ok &= contains(gameplay_c,
+                 "choose_venue_floor_focus(\"crowd_group_centroid\")",
+                 "gameplay backing camera only falls back to crowd centroid after real floor meshes");
+  ok &= contains(gameplay_c,
+                 "cam.distance=std::clamp(span*1.35f,520.0f,720.0f);",
+                 "venue-floor backing camera pulls far enough back to validate the audience floor");
+  ok &= contains(gameplay_c,
+                 "\"venue_floor_focus=%dsource=%s",
+                 "backing camera diagnostics report venue-floor validation framing");
   ok &= contains(gameplay_c,
                  "\"[world]gameplaybackingcamera:performers=%zu\"",
                  "backing camera diagnostics expose the live camera frame");
