@@ -421,6 +421,17 @@ struct SourceCharHairHookupPlan {
   bool called_overloaded_hookup = false;
 };
 
+struct SourceCharHairHookupDumpEvidence {
+  std::string range;
+  bool has_vector_collides = true;
+  bool has_obj_dir_iterator = true;
+  bool has_nested_loop_counters = true;
+  bool has_char_collide_candidate = true;
+  bool has_delta_root_distance_length = true;
+  bool has_max_radius = true;
+  bool has_statement_body = false;
+};
+
 struct SourceCharHairEnterPlan {
   int next_reset = 1;
   bool called_rnd_pollable_enter = true;
@@ -1458,6 +1469,7 @@ bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
 void source_char_hair_set_managed_hookup(SourceCharHairDefaultState& state,
                                          bool managed_hookup);
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
+SourceCharHairHookupDumpEvidence source_char_hair_hookup_dump_evidence();
 SourceCharHairHookupPlan source_char_hair_hookup_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides);

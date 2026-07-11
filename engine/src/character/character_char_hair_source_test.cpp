@@ -72,6 +72,7 @@ int main() {
   using ghogx::character::source_char_hair_default_state;
   using ghogx::character::source_char_hair_do_reset_plan;
   using ghogx::character::source_char_hair_handler_plan;
+  using ghogx::character::source_char_hair_hookup_dump_evidence;
   using ghogx::character::source_char_hair_hookup_plan;
   using ghogx::character::source_char_hair_load_plan;
   using ghogx::character::source_char_hair_point_load_plan;
@@ -400,6 +401,24 @@ int main() {
                    "hookup collide count");
   ok &= expect_bool(hookup.collected_collides[0] == "head.collide",
                     true, "hookup collide order");
+
+  const auto hookup_dump = source_char_hair_hookup_dump_evidence();
+  ok &= expect_bool(hookup_dump.range == "0x80360284 -> 0x80360BE0",
+                    true, "hookup dump range");
+  ok &= expect_bool(hookup_dump.has_vector_collides, true,
+                    "hookup dump vector collides");
+  ok &= expect_bool(hookup_dump.has_obj_dir_iterator, true,
+                    "hookup dump object dir iterator");
+  ok &= expect_bool(hookup_dump.has_nested_loop_counters, true,
+                    "hookup dump loop counters");
+  ok &= expect_bool(hookup_dump.has_char_collide_candidate, true,
+                    "hookup dump collide candidate");
+  ok &= expect_bool(hookup_dump.has_delta_root_distance_length, true,
+                    "hookup dump geometric locals");
+  ok &= expect_bool(hookup_dump.has_max_radius, true,
+                    "hookup dump max radius local");
+  ok &= expect_bool(hookup_dump.has_statement_body, false,
+                    "hookup dump no statement body");
 
   const auto enter_plan =
       source_char_hair_enter_plan(false, {"head.collide", "neck.collide"});

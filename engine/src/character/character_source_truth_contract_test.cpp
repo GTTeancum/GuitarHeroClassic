@@ -222,6 +222,8 @@ int run_contract() {
       extra_dir / "rb3-latest/src/system/utl";
   const std::filesystem::path rb2_dump_char_dir =
       extra_dir / "rb3-retail-old/doc/rb2_dump/rockband2/system/src/char";
+  const std::string rb2_dump_char_hair_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharHair.cpp"));
   const std::string rb3_latest_char_hair_cpp = compact(read_file(
       rb3_latest_char_dir / "CharHair.cpp"));
   const std::string rb3_latest_char_hair_h = compact(read_file(
@@ -2067,11 +2069,32 @@ int run_contract() {
                  "floatret=emulated_fps;if(ret!=60.0f)ret=60.0f-ret;"
                  "returnret;}return60.0f;}",
                  "native CharHair GetFPS helper follows source branch");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "//Range:0x80360284->0x80360BE0voidCharHair::Hookup("
+                 "classCharHair*constthis/*r24*/){",
+                 "RB2 dump names CharHair Hookup runtime range");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "classvectorcollides;//r1+0x60classObjDirItrc;//r1+0x6C",
+                 "RB2 dump names Hookup collide vector and dir iterator");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "inti;//r28intj;//r27intk;//r27classCharCollide*c;//r26",
+                 "RB2 dump names Hookup loops and CharCollide candidate");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "classVector3delta;//r1+0x50floatrootDist;//f31"
+                 "classVector3d;//r1+0x40floatlength;//f30",
+                 "RB2 dump names Hookup geometric locals");
+  ok &= contains(rb2_dump_char_hair_cpp,
+                 "intj;//r25floatmaxRadius;//f1",
+                 "RB2 dump names Hookup max-radius local");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairHookupPlan{boolreturned_for_managed_hookup="
                  "false;std::vector<std::string>collected_collides;"
                  "boolcalled_overloaded_hookup=false;};",
                  "native exposes CharHair Hookup plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairHookupDumpEvidence{std::stringrange;"
+                 "boolhas_vector_collides=true;boolhas_obj_dir_iterator=true;",
+                 "native exposes CharHair Hookup dump evidence");
   ok &= contains(char_mesh_h,
                  "structSourceCharHairEnterPlan{intnext_reset=1;"
                  "boolcalled_rnd_pollable_enter=true;"
@@ -2097,6 +2120,11 @@ int run_contract() {
                  "returnplan;}plan.collected_collides=dir_collides;"
                  "plan.called_overloaded_hookup=true;",
                  "native CharHair Hookup plan ports managed gate and collection");
+  ok &= contains(char_mesh,
+                 "SourceCharHairHookupDumpEvidencesource_char_hair_hookup_dump_evidence(){"
+                 "SourceCharHairHookupDumpEvidenceevidence;evidence.range="
+                 "\"0x80360284->0x80360BE0\";returnevidence;}",
+                 "native CharHair Hookup dump evidence records RB2 range");
   ok &= contains(char_mesh,
                  "SourceCharHairEnterPlansource_char_hair_enter_plan(",
                  "native implements CharHair Enter plan helper");
@@ -2153,6 +2181,9 @@ int run_contract() {
   ok &= contains(char_hair_source_test,
                  "source_char_hair_hookup_plan(managed_state.managed_hookup,",
                  "focused CharHair source test feeds managed state to Hookup");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_hookup_dump_evidence()",
+                 "focused CharHair source test covers Hookup dump evidence");
   ok &= contains(char_hair_source_test,
                  "source_char_hair_enter_plan(false,",
                  "focused CharHair source test covers Enter plan");
@@ -3125,6 +3156,21 @@ int run_contract() {
   ok &= contains(doc,
                  "`Hookup(ObjPtrList<CharCollide>&)` body is still declared",
                  "document records missing CharHair hookup body boundary");
+  ok &= contains(doc,
+                 "`rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/CharHair.cpp`",
+                 "document records RB2 CharHair Hookup dump source");
+  ok &= contains(doc,
+                 "`0x80360284 -> 0x80360BE0`",
+                 "document records RB2 CharHair Hookup range");
+  ok &= contains(doc,
+                 "`vector collides`,\n    `ObjDirItr`, nested loop counters",
+                 "document records RB2 CharHair Hookup local inventory");
+  ok &= contains(doc,
+                 "`source_char_hair_hookup_dump_evidence` records",
+                 "document records native Hookup dump evidence helper");
+  ok &= contains(doc,
+                 "`has_statement_body=false`",
+                 "document records Hookup dump has no statement body");
   ok &= contains(doc,
                  "The current config exposes `CharHair::GetFPS` and `CharHair::Simulate`",
                  "document records band3 CharHair symbol-only evidence");

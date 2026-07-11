@@ -727,6 +727,15 @@ note, and all report `unreadBytes=0`.
     friction, and `lastZ`, but keeps point rows unwritten until that hookup
     filter and point collide-list population are ported from source, not
     guessed.
+  - `rb3-retail-old/doc/rb2_dump/rockband2/system/src/char/CharHair.cpp`
+    confirms the missing overload is a real runtime body at
+    `0x80360284 -> 0x80360BE0`. Its local inventory names a `vector collides`,
+    `ObjDirItr`, nested loop counters, `CharCollide* c`, `delta`, `rootDist`,
+    `d`, `length`, and `maxRadius`, with references to `Hmx::Object` and
+    `CharCollide` RTTI. Native `source_char_hair_hookup_dump_evidence` records
+    those facts and also records `has_statement_body=false`: the dump is enough
+    to prove Hookup is doing geometric collide filtering, but not enough to copy
+    the filtering statements or live point collide-list population.
 - `rb3-latest/src/system/char/CharCollide.cpp` and
   `rb3-latest/src/system/char/CharCollide.h`
   - `CharCollide::Load` reads `Hmx::Object`, `RndTransformable`, shape,

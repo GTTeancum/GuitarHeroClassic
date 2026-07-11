@@ -1940,6 +1940,12 @@ float source_char_hair_get_fps(bool use_post_proc, float emulated_fps) {
   return 60.0f;
 }
 
+SourceCharHairHookupDumpEvidence source_char_hair_hookup_dump_evidence() {
+  SourceCharHairHookupDumpEvidence evidence;
+  evidence.range = "0x80360284 -> 0x80360BE0";
+  return evidence;
+}
+
 SourceCharHairHookupPlan source_char_hair_hookup_plan(
     bool managed_hookup,
     const std::vector<std::string>& dir_collides) {
