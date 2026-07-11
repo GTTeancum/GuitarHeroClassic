@@ -7495,13 +7495,13 @@ int main() {
                  "venue_group_meshes_=mesh_names_by_group(venue_scene);",
                  "venue load builds a group mesh map for CamShot hide_list refs");
   ok &= contains(gameplay_c,
-                 "append_resolved_direct_subdirs(ark,hdr_path,ark_path,"
+                 "append_resolved_subdir_tree(ark,hdr_path,ark_path,"
                  "out.geom_milo,out.geom_subdir_milos);",
-                 "venue assembly follows ObjectDir direct subdirs from geometry");
+                 "venue assembly follows the recursive ObjectDir subdir tree from geometry");
   ok &= contains(gameplay_c,
-                 "append_resolved_direct_subdirs(ark,hdr_path,ark_path,"
+                 "append_resolved_subdir_tree(ark,hdr_path,ark_path,"
                  "out.lighting_milo,out.lighting_subdir_milos);",
-                 "venue assembly follows ObjectDir direct subdirs from lighting");
+                 "venue assembly follows the recursive ObjectDir subdir tree from lighting");
   ok &= contains(gameplay_c,
                  "log_venue_dependencies(hdr_path_,ark_path_,"
                  "venue_assembly.dependency_milos);",
@@ -7517,6 +7517,24 @@ int main() {
   ok &= contains(gameplay_c,
                  "\"[world]venuedependency:%sdir=%sentries=%zuvisual=%zubank=%zu\\n\"",
                  "venue dependency diagnostics expose RB-style subdir categories");
+  ok &= contains(gameplay_c,
+                 "\"[world]venuesourcesubdirtree:geom=%zulighting=%zu\"",
+                 "venue source diagnostics expose the full recursive subdir tree");
+  ok &= contains(gameplay_c,
+                 "append_resolved_subdir_tree(ark,hdr_path,ark_path,proxy_path,"
+                 "proxy_subdir_milos);",
+                 "RndDir proxy loading follows the same recursive ObjectDir subdir tree");
+  ok &= contains(gameplay_c,
+                 "merge_visual_venue_subdirs(hdr_path,ark_path,"
+                 "proxy_subdir_milos,proxy_scene)",
+                 "RndDir proxy loading merges visual subdir drawables before renderer setup");
+  ok &= contains(gameplay_c,
+                 "load_milo_textures_from_sources(hdr_path,ark_path,"
+                 "proxy_texture_sources",
+                 "RndDir proxy textures resolve across merged visual subdir sources");
+  ok &= contains(gameplay_c,
+                 "subdirs=%zuvisual_subdirs=%zu",
+                 "RndDir proxy diagnostics expose recursive subdir merge coverage");
   ok &= contains(gameplay_c,
                  "venue_camera_target_worlds_="
                  "build_venue_camera_target_worlds(venue_scene);",

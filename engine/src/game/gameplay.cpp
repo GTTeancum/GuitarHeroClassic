@@ -8365,17 +8365,32 @@ void log_venue_dependencies(const std::string& hdr_path,
     }
 }
 
-void append_resolved_direct_subdirs(const gh::ark::ArkV3Reader& ark,
-                                    const std::string& hdr_path,
-                                    const std::string& ark_path,
-                                    const std::string& owner_milo,
-                                    std::vector<std::string>& out) {
+void append_resolved_subdir_tree_impl(const gh::ark::ArkV3Reader& ark,
+                                      const std::string& hdr_path,
+                                      const std::string& ark_path,
+                                      const std::string& owner_milo,
+                                      std::vector<std::string>& out,
+                                      std::unordered_set<std::string>& seen) {
+    if (owner_milo.empty() || !seen.insert(owner_milo).second) return;
     const auto refs = load_milo_directory_refs(hdr_path, ark_path, owner_milo);
     for (const auto& ref : refs.subdirs) {
         const std::string resolved =
             resolve_milo_ref_from_ark(ark, owner_milo, ref);
-        if (!resolved.empty()) push_unique_ref(out, resolved);
+        if (resolved.empty()) continue;
+        push_unique_ref(out, resolved);
+        append_resolved_subdir_tree_impl(ark, hdr_path, ark_path, resolved, out,
+                                         seen);
     }
+}
+
+void append_resolved_subdir_tree(const gh::ark::ArkV3Reader& ark,
+                                 const std::string& hdr_path,
+                                 const std::string& ark_path,
+                                 const std::string& owner_milo,
+                                 std::vector<std::string>& out) {
+    std::unordered_set<std::string> seen;
+    append_resolved_subdir_tree_impl(ark, hdr_path, ark_path, owner_milo, out,
+                                     seen);
 }
 
 VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
@@ -8414,19 +8429,25 @@ VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
             }
         }
         if (!out.geom_milo.empty()) {
-            append_resolved_direct_subdirs(ark, hdr_path, ark_path,
-                                           out.geom_milo,
-                                           out.geom_subdir_milos);
+            append_resolved_subdir_tree(ark, hdr_path, ark_path, out.geom_milo,
+                                        out.geom_subdir_milos);
         }
         if (!out.lighting_milo.empty()) {
-            append_resolved_direct_subdirs(ark, hdr_path, ark_path,
-                                           out.lighting_milo,
-                                           out.lighting_subdir_milos);
+            append_resolved_subdir_tree(ark, hdr_path, ark_path,
+                                        out.lighting_milo,
+                                        out.lighting_subdir_milos);
         }
+        const auto append_dependency = [&](const std::string& subdir) {
+            if (subdir == out.world_milo || subdir == out.chars_milo ||
+                subdir == out.geom_milo || subdir == out.lighting_milo) {
+                return;
+            }
+            push_unique_ref(out.dependency_milos, subdir);
+        };
         for (const auto& subdir : out.geom_subdir_milos)
-            push_unique_ref(out.dependency_milos, subdir);
+            append_dependency(subdir);
         for (const auto& subdir : out.lighting_subdir_milos)
-            push_unique_ref(out.dependency_milos, subdir);
+            append_dependency(subdir);
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] venue source assembly %s: %s\n",
                      venue.c_str(), ex.what());
@@ -8449,6 +8470,18 @@ VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
             std::fprintf(stderr, "[world] venue source dependencies:");
             for (const auto& dep : out.dependency_milos)
                 std::fprintf(stderr, " %s", dep.c_str());
+            std::fprintf(stderr, "\n");
+        }
+        if (!out.geom_subdir_milos.empty() ||
+            !out.lighting_subdir_milos.empty()) {
+            std::fprintf(
+                stderr,
+                "[world] venue source subdir tree: geom=%zu lighting=%zu",
+                out.geom_subdir_milos.size(), out.lighting_subdir_milos.size());
+            for (const auto& dep : out.geom_subdir_milos)
+                std::fprintf(stderr, " geom:%s", dep.c_str());
+            for (const auto& dep : out.lighting_subdir_milos)
+                std::fprintf(stderr, " lighting:%s", dep.c_str());
             std::fprintf(stderr, "\n");
         }
     }
@@ -9800,6 +9833,12 @@ std::map<std::string, Gameplay::VenueProxyObject> load_venue_proxy_objects(
                                                proxy_scene)) {
                 continue;
             }
+            std::vector<std::string> proxy_subdir_milos;
+            append_resolved_subdir_tree(ark, hdr_path, ark_path, proxy_path,
+                                        proxy_subdir_milos);
+            const std::vector<std::string> proxy_visual_subdir_sources =
+                merge_visual_venue_subdirs(hdr_path, ark_path,
+                                           proxy_subdir_milos, proxy_scene);
             Gameplay::VenueProxyObject proxy;
             proxy.name = de.name;
             proxy.type = proxy_type;
@@ -9815,8 +9854,11 @@ std::map<std::string, Gameplay::VenueProxyObject> load_venue_proxy_objects(
             proxy.mat_anims = load_venue_mat_anims(hdr_path, ark_path, proxy_path);
             proxy.particle_routes =
                 load_all_venue_particle_routes(hdr_path, ark_path, proxy_path);
-            auto proxy_textures = ghogx::asset::load_milo_textures(
-                hdr_path, ark_path, proxy_path,
+            std::vector<std::string> proxy_texture_sources{proxy_path};
+            for (const auto& source : proxy_visual_subdir_sources)
+                push_unique_ref(proxy_texture_sources, source);
+            auto proxy_textures = ghogx::asset::load_milo_textures_from_sources(
+                hdr_path, ark_path, proxy_texture_sources,
                 texture_names_for_scene_and_mat_anims(proxy_scene,
                                                       proxy.mat_anims));
             proxy.renderer =
@@ -9830,13 +9872,14 @@ std::map<std::string, Gameplay::VenueProxyObject> load_venue_proxy_objects(
             proxy.renderer->set_particle_sizes({});
             std::fprintf(
                 stderr,
-                "[world] RndDir proxy %s type=%s path=%s meshes=%zu groups=%zu trans=%zu mesh_anims=%zu mat_anims=%zu particles=%zu aliases=%zu\n",
+                "[world] RndDir proxy %s type=%s path=%s meshes=%zu groups=%zu trans=%zu mesh_anims=%zu mat_anims=%zu particles=%zu aliases=%zu subdirs=%zu visual_subdirs=%zu\n",
                 proxy.name.c_str(), proxy.type.c_str(), proxy.milo_path.c_str(),
                 proxy.all_meshes.size(), proxy.group_meshes.size(),
                 proxy.directory_anim.targets.size(),
                 proxy.directory_anim.mesh_anim_targets.size(),
                 proxy.mat_anims.size(), proxy.particle_routes.size(),
-                proxy.event_aliases.size());
+                proxy.event_aliases.size(), proxy_subdir_milos.size(),
+                proxy_visual_subdir_sources.size());
             out[proxy.name] = std::move(proxy);
         }
     } catch (const std::exception& ex) {
