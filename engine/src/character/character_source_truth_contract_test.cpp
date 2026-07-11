@@ -4879,6 +4879,12 @@ int run_contract() {
                  "if(gRev>5)bs>>mBlendOverridePct;",
                  "CharDriverMidi source load gates parser fields");
   ok &= contains(rb3_latest_char_driver_midi_cpp,
+                 "BEGIN_COPYS(CharDriverMidi)COPY_SUPERCLASS(CharDriver)"
+                 "CREATE_COPY(CharDriverMidi)BEGIN_COPYING_MEMBERS"
+                 "COPY_MEMBER(unk89)COPY_MEMBER(mParser)"
+                 "COPY_MEMBER(mFlagParser)COPY_MEMBER(mBlendOverridePct)",
+                 "CharDriverMidi source Copy member list");
+  ok &= contains(rb3_latest_char_driver_midi_cpp,
                  "HANDLE(midi_parser,OnMidiParser)",
                  "CharDriverMidi source handles midi_parser messages");
   ok &= contains(rb3_latest_char_driver_midi_cpp,
@@ -4927,6 +4933,14 @@ int run_contract() {
                  "constSourceCharDriverMidiState&midi_state,boolfound_group,"
                  "boolfound_group_clip,boolclip_uses_real_time,",
                  "native exposes source CharDriverMidi parser group helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharDriverMidiCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>copied_members;"
+                 "std::vector<std::string>not_in_source_copy_members;};",
+                 "native exposes source CharDriverMidi copy plan");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverMidiCopyPlansource_char_driver_midi_copy_plan();",
+                 "native exposes source CharDriverMidi copy helper");
   ok &= contains(char_mesh,
                  "driver.version=r.i32();",
                  "native CharDriver decoder reads driver revision");
@@ -5010,6 +5024,13 @@ int run_contract() {
                  "decision.start=0.0f;decision.assigned_blend_width=blend*"
                  "midi_state.blend_override_pct;",
                  "native CharDriverMidi group helper ports returned blend assignment");
+  ok &= contains(char_clip,
+                 "SourceCharDriverMidiCopyPlansource_char_driver_midi_copy_plan(){"
+                 "SourceCharDriverMidiCopyPlanplan;plan.copied_superclasses="
+                 "{\"CharDriver\"};plan.copied_members={\"unk89\",\"mParser\","
+                 "\"mFlagParser\",\"mBlendOverridePct\"};"
+                 "plan.not_in_source_copy_members={\"mClipFlags\"};returnplan;}",
+                 "native CharDriverMidi copy helper mirrors source copy list");
   ok &= contains(clip_driver_flags_test,
                  "source_char_driver_midi_default_state()",
                  "focused clip driver test covers CharDriverMidi defaults");
@@ -5025,12 +5046,21 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_driver_midi_on_parser_group(",
                  "focused clip driver test covers CharDriverMidi parser group helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_midi_copy_plan()",
+                 "focused clip driver test covers CharDriverMidi copy plan");
   ok &= contains(doc,
                  "`CharDriverMidi::Load` reads the subclass revision",
                  "document records CharDriverMidi source load");
   ok &= contains(doc,
                  "Native `source_char_driver_midi_default_state`,",
                  "document records native CharDriverMidi source helper slice");
+  ok &= contains(doc,
+                 "Native `source_char_driver_midi_copy_plan` records the checked source copy",
+                 "document records native CharDriverMidi copy helper slice");
+  ok &= contains(doc,
+                 "The source copy body does not name `mClipFlags`",
+                 "document records CharDriverMidi copy omission boundary");
   ok &= contains(doc,
                  "group-message assignment of the returned node's `mBlendWidth`",
                  "document records CharDriverMidi group blend assignment");

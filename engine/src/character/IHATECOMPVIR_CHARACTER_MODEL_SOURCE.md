@@ -1238,6 +1238,10 @@ note, and all report `unreadBytes=0`.
     parser sink add/remove decisions, clip-flag updates, default-clip selection
     when `!unk89 && mDefaultClip`, normal and real-time blend-width conversion,
     and group-message assignment of the returned node's `mBlendWidth`.
+  - Native `source_char_driver_midi_copy_plan` records the checked source copy
+    list: copy `CharDriver`, `unk89`, `mParser`, `mFlagParser`, and
+    `mBlendOverridePct`. The source copy body does not name `mClipFlags`, so
+    native records that absence as copy-plan evidence only.
   - `rb3-latest/src/system/obj/ObjPtr_p.h` proves `mDefaultClip.Load` reads one
     `0x80`-bounded source string. Native GHOGX therefore decodes/logs that slot
     as `midiDefaultClip` for revision-below-7 rows before applying the

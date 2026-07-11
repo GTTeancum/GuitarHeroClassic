@@ -421,6 +421,20 @@ bool expect_driver_midi_helpers() {
     std::cerr << "driver MIDI default state mismatch\n";
     ok = false;
   }
+  const ghogx::character::SourceCharDriverMidiCopyPlan copy_plan =
+      ghogx::character::source_char_driver_midi_copy_plan();
+  if (copy_plan.copied_superclasses.size() != 1 ||
+      copy_plan.copied_superclasses[0] != "CharDriver" ||
+      copy_plan.copied_members.size() != 4 ||
+      copy_plan.copied_members[0] != "unk89" ||
+      copy_plan.copied_members[1] != "mParser" ||
+      copy_plan.copied_members[2] != "mFlagParser" ||
+      copy_plan.copied_members[3] != "mBlendOverridePct" ||
+      copy_plan.not_in_source_copy_members.size() != 1 ||
+      copy_plan.not_in_source_copy_members[0] != "mClipFlags") {
+    std::cerr << "driver MIDI copy plan mismatch\n";
+    ok = false;
+  }
 
   midi.parser = "note.parser";
   midi.flag_parser = "flag.parser";

@@ -2375,6 +2375,15 @@ SourceCharDriverMidiParserDecision source_char_driver_midi_on_parser_group(
   return decision;
 }
 
+SourceCharDriverMidiCopyPlan source_char_driver_midi_copy_plan() {
+  SourceCharDriverMidiCopyPlan plan;
+  plan.copied_superclasses = {"CharDriver"};
+  plan.copied_members = {"unk89", "mParser", "mFlagParser",
+                         "mBlendOverridePct"};
+  plan.not_in_source_copy_members = {"mClipFlags"};
+  return plan;
+}
+
 SourceCharClipSetState source_char_clip_set_default_state() {
   SourceCharClipSetState state;
   source_char_clip_set_reset_preview_state(state);
