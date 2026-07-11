@@ -547,8 +547,9 @@ int run_contract() {
                  "coverage matrix records native CharClipGroup GetClip slice");
   ok &= contains(doc,
                  "Channel naming, compression sizing, sample interpolation "
-                 "wrappers, CharBone output row fields, and partial call flow "
-                 "are source-backed",
+                 "wrappers, CharBonesSamples load/prop-sync row plans, "
+                 "CharBone output row fields, and partial call flow are "
+                 "source-backed",
                  "coverage matrix records concrete CharBones source evidence");
   ok &= contains(doc,
                  "sample decode/evaluate and broad pose publishing remain "
@@ -10016,6 +10017,39 @@ int run_contract() {
                  "boolsource_char_bones_samples_load_version_known(intversion){"
                  "returnversion>12&&version<=16;}",
                  "native CharBonesSamples load-version helper mirrors source range");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesSamplesLoadPlan{boolknown_version=false;"
+                 "std::vector<std::string>read_order;};",
+                 "native CharBonesSamples load plan state is exposed");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBonesSamplesPropSyncPlan{"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>set_properties;"
+                 "std::vector<std::string>custom_branches;};",
+                 "native CharBonesSamples prop-sync plan state is exposed");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesSamplesLoadPlan"
+                 "source_char_bones_samples_load_plan(intversion);",
+                 "native CharBonesSamples load-plan helper is exposed");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesSamplesPropSyncPlan"
+                 "source_char_bones_samples_prop_sync_plan();",
+                 "native CharBonesSamples prop-sync helper is exposed");
+  ok &= contains(char_clip,
+                 "SourceCharBonesSamplesLoadPlansource_char_bones_samples_load_plan("
+                 "intversion){SourceCharBonesSamplesLoadPlanplan;if(!"
+                 "source_char_bones_samples_load_version_known(version))returnplan;"
+                 "plan.known_version=true;plan.read_order={\"gVer\",\"LoadHeader\","
+                 "\"LoadData\"};returnplan;}",
+                 "native CharBonesSamples load plan records source delegation");
+  ok &= contains(char_clip,
+                 "SourceCharBonesSamplesPropSyncPlan"
+                 "source_char_bones_samples_prop_sync_plan(){"
+                 "SourceCharBonesSamplesPropSyncPlanplan;plan.properties={"
+                 "\"num_samples\",\"frames\"};plan.set_properties={"
+                 "\"preview_sample\",\"compression\"};plan.custom_branches={"
+                 "\"bones\"};returnplan;}",
+                 "native CharBonesSamples prop-sync plan records source rows");
   ok &= contains(char_clip,
                  "SourceCharBonesSamplesBodyBoundary"
                  "source_char_bones_samples_body_boundary(){"
@@ -11580,9 +11614,25 @@ int run_contract() {
                  "mNumSamples-1,i);MILO_ASSERT(mPreviewSample<32767,0x38B);"
                  "mPreviewSample=tmp;mStart=&mRawData[mTotalSize*tmp];}",
                  "latest CharBonesSamples source defines preview row offset");
+  ok &= contains(rb3_latest_char_bones_samples_cpp,
+                 "BEGIN_PROPSYNCS(CharBonesSamples)SYNC_PROP(num_samples,"
+                 "mNumSamples)SYNC_PROP_SET(preview_sample,mPreviewSample,"
+                 "SetPreview(_val.Int(0)))SYNC_PROP(frames,mFrames)"
+                 "SYNC_PROP_SET(compression,mCompression,)else{gPropBones=this;"
+                 "if(sym==bones)returnPropSync(mBones,_val,_prop,_i+1,_op);}"
+                 "END_PROPSYNCS",
+                 "latest CharBonesSamples source exposes prop-sync rows");
   ok &= contains(doc,
                  "Native `source_char_bones_samples_allocate_size`,",
                  "document records native CharBonesSamples state helpers");
+  ok &= contains(doc,
+                 "Native `source_char_bones_samples_load_plan` records the "
+                 "checked `Load`\n    delegation",
+                 "document records native CharBonesSamples load plan");
+  ok &= contains(doc,
+                 "Native `source_char_bones_samples_prop_sync_plan` records the "
+                 "checked\n    prop-sync rows",
+                 "document records native CharBonesSamples prop-sync plan");
   ok &= contains(doc,
                  "`source_char_bones_samples_load_version_known` ports that "
                  "exact range",
@@ -11625,6 +11675,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_samples_body_boundary()",
                  "focused CharBones source test covers CharBonesSamples body boundary");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_load_plan(16)",
+                 "focused CharBones source test covers CharBonesSamples load plan");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_samples_prop_sync_plan()",
+                 "focused CharBones source test covers CharBonesSamples prop-sync plan");
   ok &= contains(char_bones_source_test,
                  "samples_boundary.safe_to_publish_pose",
                  "focused CharBones source test covers CharBonesSamples pose fence");

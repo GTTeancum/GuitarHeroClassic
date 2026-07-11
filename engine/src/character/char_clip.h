@@ -258,6 +258,17 @@ struct SourceCharBonesSampleStep {
   float weight = 0.0f;
 };
 
+struct SourceCharBonesSamplesLoadPlan {
+  bool known_version = false;
+  std::vector<std::string> read_order;
+};
+
+struct SourceCharBonesSamplesPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> set_properties;
+  std::vector<std::string> custom_branches;
+};
+
 struct SourceCharBonesSamplesBodyBoundary {
   bool rb3_latest_load_delegates_header = true;
   bool rb3_latest_load_delegates_data = true;
@@ -1470,6 +1481,8 @@ source_char_bones_samples_scale_add_steps(
     float frac);
 bool source_char_bones_samples_set_ver_known(int version);
 bool source_char_bones_samples_load_version_known(int version);
+SourceCharBonesSamplesLoadPlan source_char_bones_samples_load_plan(int version);
+SourceCharBonesSamplesPropSyncPlan source_char_bones_samples_prop_sync_plan();
 SourceCharBonesSamplesBodyBoundary
 source_char_bones_samples_body_boundary();
 

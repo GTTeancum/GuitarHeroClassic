@@ -66,7 +66,7 @@ records the upstream commits for the copied files:
 | Upper/fore/neck twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp`, `rb3-latest` `CharNeckTwist.cpp` / `CharNeckTwist.h` | Native upper/fore passes follow source `Poll` routines; neck twist rows decode/log the source load order and expose helper math, but stock GH2 character inventories currently show zero `CharNeckTwist` rows. |
 | Poll groups | `rb3-latest` `CharPollGroup.cpp` | Native helper ports source `Poll`, `ListPollChildren`, and `PollDeps` decision behavior, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
-| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, CharBone output row fields, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
+| Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, CharBonesSamples load/prop-sync row plans, CharBone output row fields, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
 | Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
 
 ## Character Mesh Cache Helper
@@ -2089,6 +2089,13 @@ note, and all report `unreadBytes=0`.
     `source_char_bones_samples_load_version_known` ports that exact range and
     the clip parser rejects out-of-range `CharBonesSamples` entries before
     scanning sample-list headers.
+  - Native `source_char_bones_samples_load_plan` records the checked `Load`
+    delegation: valid serialized versions read `gVer`, then call
+    `LoadHeader`, then call `LoadData`; invalid versions expose no read plan.
+  - Native `source_char_bones_samples_prop_sync_plan` records the checked
+    prop-sync rows from `BEGIN_PROPSYNCS(CharBonesSamples)`: direct rows
+    `num_samples` and `frames`, set rows `preview_sample` and `compression`,
+    and the custom `bones` branch through `PropSync(mBones, ...)`.
   - `rb3-latest` declares `LoadHeader`, `LoadData`, `EvaluateChannel`, and
     `Relativize`, but does not provide reviewable statement bodies for them.
     The RB2 dump maps the same names and ranges, but only as a function/local

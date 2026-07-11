@@ -700,6 +700,24 @@ bool source_char_bones_samples_load_version_known(int version) {
   return version > 12 && version <= 16;
 }
 
+SourceCharBonesSamplesLoadPlan source_char_bones_samples_load_plan(
+    int version) {
+  SourceCharBonesSamplesLoadPlan plan;
+  if (!source_char_bones_samples_load_version_known(version)) return plan;
+  plan.known_version = true;
+  plan.read_order = {"gVer", "LoadHeader", "LoadData"};
+  return plan;
+}
+
+SourceCharBonesSamplesPropSyncPlan
+source_char_bones_samples_prop_sync_plan() {
+  SourceCharBonesSamplesPropSyncPlan plan;
+  plan.properties = {"num_samples", "frames"};
+  plan.set_properties = {"preview_sample", "compression"};
+  plan.custom_branches = {"bones"};
+  return plan;
+}
+
 SourceCharBonesSamplesBodyBoundary
 source_char_bones_samples_body_boundary() {
   SourceCharBonesSamplesBodyBoundary boundary;

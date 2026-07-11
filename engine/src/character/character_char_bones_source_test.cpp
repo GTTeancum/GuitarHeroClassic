@@ -1096,6 +1096,42 @@ int main() {
                    "samples SetVer legacy 12 accepted");
   ok &= expect_int(source_char_bones_samples_set_ver_known(13) ? 1 : 0, 0,
                    "samples SetVer source 13 rejected");
+  const SourceCharBonesSamplesLoadPlan samples_load_plan =
+      source_char_bones_samples_load_plan(16);
+  ok &= expect_int(samples_load_plan.known_version ? 1 : 0, 1,
+                   "samples load plan accepts source version");
+  ok &= expect_size(samples_load_plan.read_order.size(), 3,
+                    "samples load plan read count");
+  ok &= expect_string(samples_load_plan.read_order[0], "gVer",
+                      "samples load plan reads version");
+  ok &= expect_string(samples_load_plan.read_order[1], "LoadHeader",
+                      "samples load plan delegates header");
+  ok &= expect_string(samples_load_plan.read_order[2], "LoadData",
+                      "samples load plan delegates data");
+  const SourceCharBonesSamplesLoadPlan samples_bad_load =
+      source_char_bones_samples_load_plan(12);
+  ok &= expect_int(samples_bad_load.known_version ? 1 : 0, 0,
+                   "samples load plan rejects low version");
+  ok &= expect_size(samples_bad_load.read_order.size(), 0,
+                    "samples bad load plan has no reads");
+  const SourceCharBonesSamplesPropSyncPlan samples_prop_sync =
+      source_char_bones_samples_prop_sync_plan();
+  ok &= expect_size(samples_prop_sync.properties.size(), 2,
+                    "samples prop sync direct count");
+  ok &= expect_string(samples_prop_sync.properties[0], "num_samples",
+                      "samples prop sync num_samples");
+  ok &= expect_string(samples_prop_sync.properties[1], "frames",
+                      "samples prop sync frames");
+  ok &= expect_size(samples_prop_sync.set_properties.size(), 2,
+                    "samples prop sync set count");
+  ok &= expect_string(samples_prop_sync.set_properties[0], "preview_sample",
+                      "samples prop sync preview_sample");
+  ok &= expect_string(samples_prop_sync.set_properties[1], "compression",
+                      "samples prop sync compression");
+  ok &= expect_size(samples_prop_sync.custom_branches.size(), 1,
+                    "samples prop sync custom branch count");
+  ok &= expect_string(samples_prop_sync.custom_branches[0], "bones",
+                      "samples prop sync bones branch");
 
   const SourceCharBonesSamplesBodyBoundary samples_boundary =
       source_char_bones_samples_body_boundary();
