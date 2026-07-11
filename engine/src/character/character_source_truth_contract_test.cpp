@@ -4498,6 +4498,26 @@ int run_contract() {
                  "if(gRev-3<=1U){ObjPtr<RndTransformable,ObjectDir>tPtr(this,"
                  "0);bs>>tPtr;}",
                  "RB3 CharEyes rev 3/4 consumes a trailing transformable");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "boolCharEyes::SetFocusInterest(CharInterest*interest,inti){"
+                 "if(unkd4&&unke0>i)returnfalse;CharInterest*loc_interest="
+                 "interest;unkd4=interest;unke0=i;if(loc_interest!=interest)"
+                 "unke4=true;if(!unkd4)unke0=-1;returntrue;}",
+                 "RB3 CharEyes SetFocusInterest priority gate");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "RndTransformable*CharEyes::GetHead(){if(mViewDirection)"
+                 "returnmViewDirection;elseif(!mEyes.empty()&&mEyes[0].mEye){"
+                 "RndTransformable*src=mEyes[0].mEye->GetSource();if(src)"
+                 "returnsrc->TransParent();}return0;}",
+                 "RB3 CharEyes GetHead view direction and eye-source fallback");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "CharInterest*CharEyes::GetCurrentInterest(){if(unkd4)"
+                 "returnunkd4;if(unkc8)returnunkc8;return0;}",
+                 "RB3 CharEyes GetCurrentInterest focus fallback");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "voidCharEyes::ForceBlink(){unk13c=true;unk140="
+                 "TheTaskMgr.Seconds(TaskMgr::b);unk144++;}",
+                 "RB3 CharEyes ForceBlink stores task time and increments count");
   ok &= contains(rb3_char_eyes_cpp, "plist.push_back((*it).mEye);",
                  "RB3 CharEyes delegates poll children to CharLookAt rows");
   ok &= contains(rb3_char_eyes_cpp,
@@ -4641,8 +4661,35 @@ int run_contract() {
                  "structSourceCharEyesInterest{std::stringinterest;boolsame_dir=false;};",
                  "native exposes CharEyes interest dependency input");
   ok &= contains(char_mesh_h,
+                 "structSourceCharEyesFocusResult{boolaccepted=false;"
+                 "std::stringfocus_interest;intfocus_priority=-1;};",
+                 "native exposes CharEyes focus result");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyesForceBlinkState{boolpending_blink=false;"
+                 "floatblink_time=-1.0f;intblink_count_delta=0;};",
+                 "native exposes CharEyes force blink state");
+  ok &= contains(char_mesh_h,
                  "std::vector<std::string>source_char_eyes_list_poll_children(",
                  "native exposes CharEyes poll child helper");
+  ok &= contains(char_mesh_h,
+                 "std::stringsource_char_eyes_get_head("
+                 "conststd::string&view_direction,conststd::string&"
+                 "first_eye_source_parent);",
+                 "native exposes CharEyes GetHead helper");
+  ok &= contains(char_mesh_h,
+                 "std::stringsource_char_eyes_current_interest("
+                 "conststd::string&focus_interest,conststd::string&"
+                 "current_interest);",
+                 "native exposes CharEyes current-interest helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesFocusResultsource_char_eyes_set_focus_interest("
+                 "conststd::string&current_focus,intcurrent_priority,"
+                 "conststd::string&requested_interest,intrequested_priority);",
+                 "native exposes CharEyes SetFocusInterest helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharEyesForceBlinkStatesource_char_eyes_force_blink("
+                 "floattask_seconds);",
+                 "native exposes CharEyes ForceBlink helper");
   ok &= contains(char_mesh_h,
                  "voidsource_char_eyes_poll_deps(",
                  "native exposes CharEyes PollDeps helper");
@@ -4653,6 +4700,34 @@ int run_contract() {
   ok &= contains(char_mesh,
                  "for(conststd::string&eye:eye_lookats)children.push_back(eye);",
                  "native CharEyes helper delegates poll children to lookat refs");
+  ok &= contains(char_mesh,
+                 "std::stringsource_char_eyes_get_head("
+                 "conststd::string&view_direction,conststd::string&"
+                 "first_eye_source_parent){if(!view_direction.empty())"
+                 "returnview_direction;if(!first_eye_source_parent.empty())"
+                 "returnfirst_eye_source_parent;return{};}",
+                 "native CharEyes GetHead helper ports source fallback");
+  ok &= contains(char_mesh,
+                 "std::stringsource_char_eyes_current_interest("
+                 "conststd::string&focus_interest,conststd::string&"
+                 "current_interest){if(!focus_interest.empty())"
+                 "returnfocus_interest;if(!current_interest.empty())"
+                 "returncurrent_interest;return{};}",
+                 "native CharEyes current-interest helper ports source fallback");
+  ok &= contains(char_mesh,
+                 "if(!current_focus.empty()&&current_priority>"
+                 "requested_priority){returnresult;}",
+                 "native CharEyes SetFocusInterest helper ports priority reject");
+  ok &= contains(char_mesh,
+                 "result.focus_interest=requested_interest;result.focus_priority="
+                 "requested_interest.empty()?-1:requested_priority;returnresult;}",
+                 "native CharEyes SetFocusInterest helper ports assignment and clear");
+  ok &= contains(char_mesh,
+                 "SourceCharEyesForceBlinkStatesource_char_eyes_force_blink("
+                 "floattask_seconds){SourceCharEyesForceBlinkStatestate;"
+                 "state.pending_blink=true;state.blink_time=task_seconds;"
+                 "state.blink_count_delta=1;returnstate;}",
+                 "native CharEyes ForceBlink helper ports source state writes");
   ok &= contains(char_mesh,
                  "if(interest.same_dir)deps.changed_by.push_back(interest.interest);",
                  "native CharEyes helper gates interests by owning dir");
@@ -4675,6 +4750,23 @@ int run_contract() {
                  "SourceCharEyesInterest{\"same.interest\",true}",
                  "focused CharEyes source test covers same-dir interest");
   ok &= contains(eyes_source_test,
+                 "source_char_eyes_get_head(\"view.trans\",\"eye.parent\")",
+                 "focused CharEyes source test covers GetHead view priority");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_current_interest(\"focus.interest\","
+                 "\"look.interest\")",
+                 "focused CharEyes source test covers current interest focus priority");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_set_focus_interest(\"boss.focus\",5,"
+                 "\"minor.focus\",3)",
+                 "focused CharEyes source test covers focus priority reject");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_set_focus_interest(\"boss.focus\",5,\"\",8)",
+                 "focused CharEyes source test covers focus clear");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_force_blink(12.5f)",
+                 "focused CharEyes source test covers ForceBlink helper");
+  ok &= contains(eyes_source_test,
                  "\"noeyeshasnotargetchange\"",
                  "focused CharEyes source test covers no-eye target gate");
   ok &= contains(char_mesh,
@@ -4693,9 +4785,12 @@ int run_contract() {
   ok &= contains(doc, "Rockabill2 face/attachment proof",
                  "document records current Rockabill2 eye and teeth evidence");
   ok &= contains(doc,
-                 "Native `source_char_eyes_*` helpers port only these "
-                 "graph/dependency\n    decisions",
+                 "Native `source_char_eyes_*` helpers port these graph/dependency decisions",
                  "document records native CharEyes helper boundary");
+  ok &= contains(doc,
+                 "plus the concrete `GetHead`, `GetCurrentInterest`, "
+                 "`SetFocusInterest`, and\n    `ForceBlink` state bodies",
+                 "document records native CharEyes state helper slice");
   ok &= contains(doc,
                  "Native `source_char_eye_dart_ruleset_*` helpers preserve this\n"
                  "    exact data behavior",

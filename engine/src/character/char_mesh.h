@@ -486,6 +486,18 @@ struct SourceCharEyesPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharEyesFocusResult {
+  bool accepted = false;
+  std::string focus_interest;
+  int focus_priority = -1;
+};
+
+struct SourceCharEyesForceBlinkState {
+  bool pending_blink = false;
+  float blink_time = -1.0f;
+  int blink_count_delta = 0;
+};
+
 struct SourceCharEyeDartRulesetData {
   float min_radius = 0.5f;
   float max_radius = 3.0f;
@@ -666,6 +678,19 @@ void source_char_guitar_string_poll_deps(
     const std::string& bend);
 std::vector<std::string> source_char_eyes_list_poll_children(
     const std::vector<std::string>& eye_lookats);
+std::string source_char_eyes_get_head(
+    const std::string& view_direction,
+    const std::string& first_eye_source_parent);
+std::string source_char_eyes_current_interest(
+    const std::string& focus_interest,
+    const std::string& current_interest);
+SourceCharEyesFocusResult source_char_eyes_set_focus_interest(
+    const std::string& current_focus,
+    int current_priority,
+    const std::string& requested_interest,
+    int requested_priority);
+SourceCharEyesForceBlinkState source_char_eyes_force_blink(
+    float task_seconds);
 void source_char_eyes_poll_deps(
     SourceCharEyesPollDeps& deps,
     const std::vector<SourceCharEyesInterest>& interests,

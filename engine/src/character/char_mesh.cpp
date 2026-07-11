@@ -1963,6 +1963,48 @@ std::vector<std::string> source_char_eyes_list_poll_children(
   return children;
 }
 
+std::string source_char_eyes_get_head(
+    const std::string& view_direction,
+    const std::string& first_eye_source_parent) {
+  if (!view_direction.empty()) return view_direction;
+  if (!first_eye_source_parent.empty()) return first_eye_source_parent;
+  return {};
+}
+
+std::string source_char_eyes_current_interest(
+    const std::string& focus_interest,
+    const std::string& current_interest) {
+  if (!focus_interest.empty()) return focus_interest;
+  if (!current_interest.empty()) return current_interest;
+  return {};
+}
+
+SourceCharEyesFocusResult source_char_eyes_set_focus_interest(
+    const std::string& current_focus,
+    int current_priority,
+    const std::string& requested_interest,
+    int requested_priority) {
+  SourceCharEyesFocusResult result;
+  result.focus_interest = current_focus;
+  result.focus_priority = current_focus.empty() ? -1 : current_priority;
+  if (!current_focus.empty() && current_priority > requested_priority) {
+    return result;
+  }
+  result.accepted = true;
+  result.focus_interest = requested_interest;
+  result.focus_priority = requested_interest.empty() ? -1 : requested_priority;
+  return result;
+}
+
+SourceCharEyesForceBlinkState source_char_eyes_force_blink(
+    float task_seconds) {
+  SourceCharEyesForceBlinkState state;
+  state.pending_blink = true;
+  state.blink_time = task_seconds;
+  state.blink_count_delta = 1;
+  return state;
+}
+
 void source_char_eyes_poll_deps(
     SourceCharEyesPollDeps& deps,
     const std::vector<SourceCharEyesInterest>& interests,

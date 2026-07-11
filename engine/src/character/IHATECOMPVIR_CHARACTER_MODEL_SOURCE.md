@@ -496,8 +496,13 @@ note, and all report `unreadBytes=0`.
   - `CharEyes::PollDeps` publishes same-directory interest objects as
     `changedBy`, publishes `GetHead()` / `GetTarget()` only when the eye list is
     non-empty, then publishes `mHeadLookAt` and `mFaceServo` when present.
-    Native `source_char_eyes_*` helpers port only these graph/dependency
-    decisions for deterministic coverage.
+    Native `source_char_eyes_*` helpers port these graph/dependency decisions
+    plus the concrete `GetHead`, `GetCurrentInterest`, `SetFocusInterest`, and
+    `ForceBlink` state bodies for deterministic coverage: view direction wins
+    over the first eye source parent, focus interest wins over current interest,
+    lower-priority focus requests are rejected, clearing focus resets priority
+    to `-1`, and force blink stores the current task time while incrementing
+    the blink count by one.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.
