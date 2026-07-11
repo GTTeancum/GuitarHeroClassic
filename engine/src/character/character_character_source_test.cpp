@@ -57,6 +57,11 @@ int main() {
   using ghogx::character::source_character_enable_blinks;
   using ghogx::character::source_character_enter;
   using ghogx::character::source_character_exit;
+  using ghogx::character::source_character_lod_assign;
+  using ghogx::character::source_character_lod_copy_plan;
+  using ghogx::character::source_character_lod_copy_state;
+  using ghogx::character::source_character_lod_default_state;
+  using ghogx::character::source_character_lod_prop_sync_plan;
   using ghogx::character::source_char_lifecycle_plan;
   using ghogx::character::source_character_force_blink;
   using ghogx::character::source_character_poll;
@@ -88,6 +93,51 @@ int main() {
   ok &= expect_bool(state.sphere_base_is_null, false,
                     "constructor sphere base is not null");
   ok &= expect_bool(state.has_driver, false, "constructor no driver");
+
+  auto lod = source_character_lod_default_state();
+  ok &= expect_int(static_cast<int>(lod.screen_size), 0,
+                   "LOD constructor screen size");
+  ok &= expect_bool(lod.group.empty(), true, "LOD constructor group null");
+  ok &= expect_bool(lod.trans_group.empty(), true,
+                    "LOD constructor trans group null");
+
+  lod.screen_size = 17.0f;
+  lod.group = "lod0.grp";
+  lod.trans_group = "lod0_trans.grp";
+  auto lod_copy = source_character_lod_copy_state(lod);
+  ok &= expect_int(static_cast<int>(lod_copy.screen_size), 17,
+                   "LOD copy screen size");
+  ok &= expect_string(lod_copy.group, "lod0.grp", "LOD copy group");
+  ok &= expect_string(lod_copy.trans_group, "lod0_trans.grp",
+                      "LOD copy trans group");
+
+  auto lod_dest = source_character_lod_default_state();
+  source_character_lod_assign(lod_dest, lod);
+  ok &= expect_string(lod_dest.group, lod.group, "LOD assign group");
+  ok &= expect_string(lod_dest.trans_group, lod.trans_group,
+                      "LOD assign trans group");
+
+  auto lod_copy_plan = source_character_lod_copy_plan();
+  ok &= expect_size(lod_copy_plan.copied_members.size(), 3,
+                    "LOD copy member count");
+  ok &= expect_string(lod_copy_plan.copied_members[0], "mScreenSize",
+                      "LOD copy screen size member");
+  ok &= expect_string(lod_copy_plan.copied_members[1], "mGroup",
+                      "LOD copy group member");
+  ok &= expect_string(lod_copy_plan.copied_members[2], "mTransGroup",
+                      "LOD copy trans group member");
+  ok &= expect_bool(lod_copy_plan.assignment_returns_self, true,
+                    "LOD assignment returns self");
+
+  auto lod_props = source_character_lod_prop_sync_plan();
+  ok &= expect_size(lod_props.properties.size(), 3,
+                    "LOD prop-sync property count");
+  ok &= expect_string(lod_props.properties[0], "screen_size",
+                      "LOD prop-sync screen size");
+  ok &= expect_string(lod_props.properties[1], "group",
+                      "LOD prop-sync group");
+  ok &= expect_string(lod_props.properties[2], "trans_group",
+                      "LOD prop-sync trans group");
 
   state.min_lod = 4;
   state.last_lod = 9;

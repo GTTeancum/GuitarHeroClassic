@@ -521,6 +521,21 @@ struct SourceCharacterState {
   std::string interest_to_force;
 };
 
+struct SourceCharacterLodState {
+  float screen_size = 0.0f;
+  std::string group;
+  std::string trans_group;
+};
+
+struct SourceCharacterLodCopyPlan {
+  std::vector<std::string> copied_members;
+  bool assignment_returns_self = true;
+};
+
+struct SourceCharacterLodPropSyncPlan {
+  std::vector<std::string> properties;
+};
+
 struct SourceCharacterPollResult {
   bool called_rnd_dir_poll = false;
   bool skipped_for_frozen = false;
@@ -1201,6 +1216,13 @@ void source_char_ik_scale_poll_deps(
     const std::string& dest,
     const std::vector<std::string>& secondary_targets);
 SourceCharacterState source_character_default_state();
+SourceCharacterLodState source_character_lod_default_state();
+SourceCharacterLodState source_character_lod_copy_state(
+    const SourceCharacterLodState& lod);
+void source_character_lod_assign(SourceCharacterLodState& dest,
+                                 const SourceCharacterLodState& src);
+SourceCharacterLodCopyPlan source_character_lod_copy_plan();
+SourceCharacterLodPropSyncPlan source_character_lod_prop_sync_plan();
 void source_character_enter(SourceCharacterState& state);
 void source_character_exit(SourceCharacterState& state);
 SourceCharacterPollResult source_character_poll(SourceCharacterState& state);

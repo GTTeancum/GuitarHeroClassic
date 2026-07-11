@@ -2100,6 +2100,34 @@ SourceCharacterState source_character_default_state() {
   return SourceCharacterState{};
 }
 
+SourceCharacterLodState source_character_lod_default_state() {
+  return SourceCharacterLodState{};
+}
+
+SourceCharacterLodState source_character_lod_copy_state(
+    const SourceCharacterLodState& lod) {
+  return lod;
+}
+
+void source_character_lod_assign(SourceCharacterLodState& dest,
+                                 const SourceCharacterLodState& src) {
+  dest.screen_size = src.screen_size;
+  dest.group = src.group;
+  dest.trans_group = src.trans_group;
+}
+
+SourceCharacterLodCopyPlan source_character_lod_copy_plan() {
+  SourceCharacterLodCopyPlan plan;
+  plan.copied_members = {"mScreenSize", "mGroup", "mTransGroup"};
+  return plan;
+}
+
+SourceCharacterLodPropSyncPlan source_character_lod_prop_sync_plan() {
+  SourceCharacterLodPropSyncPlan plan;
+  plan.properties = {"screen_size", "group", "trans_group"};
+  return plan;
+}
+
 void source_character_enter(SourceCharacterState& state) {
   state.poll_state = SourceCharacterPollState::kEntered;
   state.min_lod = -1;

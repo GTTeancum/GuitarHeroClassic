@@ -207,6 +207,19 @@ it is not the live character playback path:
   `Recenter`, `UpdateOverlay`, `Handle`, and `PropSync`, so native does not
   infer those behaviors.
 
+## Character LOD Row Authority
+
+- `rb3-latest/src/system/char/Character.cpp` and
+  `rb3-latest/src/system/char/Character.h`
+  - `Character::Lod` defaults `mScreenSize` to `0.0f` and initializes both
+    group pointers empty. Its copy constructor and assignment operator copy
+    only `mScreenSize`, `mGroup`, and `mTransGroup`, and assignment returns the
+    destination row.
+  - Property sync exposes exactly `screen_size`, `group`, and `trans_group`.
+    Native `source_character_lod_*` helpers record those source rows as
+    deterministic data-contract evidence only; they do not select LODs, change
+    draw membership, or alter renderer behavior.
+
 ## Remaining Character Import Checklist
 
 This is the current answer to "what remains to import" from ihatecompvir's

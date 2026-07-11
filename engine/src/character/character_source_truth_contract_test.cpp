@@ -888,6 +888,26 @@ int run_contract() {
                  "ASSERT_REVS(0x11,0);if(gRev>1){RndDir::PreLoad(bs);",
                  "latest Character PreLoad delegates through RndDir");
   ok &= contains(rb3_latest_character_cpp,
+                 "Character::Lod::Lod(Hmx::Object*obj):mScreenSize(0.0f),"
+                 "mGroup(obj,0),mTransGroup(obj,0){}",
+                 "Character source LOD constructor defaults");
+  ok &= contains(rb3_latest_character_cpp,
+                 "Character::Lod::Lod(constCharacter::Lod&lod):"
+                 "mScreenSize(lod.mScreenSize),mGroup(lod.mGroup),"
+                 "mTransGroup(lod.mTransGroup){}",
+                 "Character source LOD copy constructor");
+  ok &= contains(rb3_latest_character_cpp,
+                 "Character::Lod&Character::Lod::operator=("
+                 "constCharacter::Lod&lod){mScreenSize=lod.mScreenSize;"
+                 "mGroup=lod.mGroup;mTransGroup=lod.mTransGroup;"
+                 "return*this;}",
+                 "Character source LOD assignment");
+  ok &= contains(rb3_latest_character_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(Character::Lod)"
+                 "SYNC_PROP(screen_size,o.mScreenSize)SYNC_PROP(group,o.mGroup)"
+                 "SYNC_PROP(trans_group,o.mTransGroup)END_CUSTOM_PROPSYNC",
+                 "Character source LOD prop sync rows");
+  ok &= contains(rb3_latest_character_cpp,
                  "voidCharacter::PostLoad(BinStream&bs){intrevs=PopRev(this);",
                  "latest Character PostLoad starts from pushed revision");
   ok &= contains(rb3_latest_character_cpp,
@@ -3995,6 +4015,37 @@ int run_contract() {
                  "SourceCharacterStatesource_character_default_state(){"
                  "returnSourceCharacterState{};}",
                  "native ports Character constructor defaults helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharacterLodState{",
+                 "native exposes Character LOD state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharacterLodCopyPlan{",
+                 "native exposes Character LOD copy plan");
+  ok &= contains(char_mesh_h,
+                 "SourceCharacterLodStatesource_character_lod_default_state();",
+                 "native exposes Character LOD default helper");
+  ok &= contains(char_mesh,
+                 "SourceCharacterLodStatesource_character_lod_default_state(){"
+                 "returnSourceCharacterLodState{};}",
+                 "native ports Character LOD defaults");
+  ok &= contains(char_mesh,
+                 "SourceCharacterLodStatesource_character_lod_copy_state("
+                 "constSourceCharacterLodState&lod){returnlod;}",
+                 "native ports Character LOD copy constructor state");
+  ok &= contains(char_mesh,
+                 "voidsource_character_lod_assign(SourceCharacterLodState&dest,"
+                 "constSourceCharacterLodState&src){dest.screen_size="
+                 "src.screen_size;dest.group=src.group;dest.trans_group="
+                 "src.trans_group;}",
+                 "native ports Character LOD assignment");
+  ok &= contains(char_mesh,
+                 "plan.copied_members={\"mScreenSize\",\"mGroup\","
+                 "\"mTransGroup\"};",
+                 "native records Character LOD copy members");
+  ok &= contains(char_mesh,
+                 "plan.properties={\"screen_size\",\"group\","
+                 "\"trans_group\"};",
+                 "native records Character LOD prop-sync rows");
   ok &= contains(char_mesh,
                  "voidsource_character_enter(SourceCharacterState&state){"
                  "state.poll_state=SourceCharacterPollState::kEntered;"
@@ -4095,6 +4146,15 @@ int run_contract() {
                  "source_character_enter(state)",
                  "focused Character test covers Enter");
   ok &= contains(character_source_test,
+                 "source_character_lod_default_state()",
+                 "focused Character test covers LOD defaults");
+  ok &= contains(character_source_test,
+                 "source_character_lod_assign(lod_dest,lod)",
+                 "focused Character test covers LOD assignment");
+  ok &= contains(character_source_test,
+                 "source_character_lod_prop_sync_plan()",
+                 "focused Character test covers LOD prop sync");
+  ok &= contains(character_source_test,
                  "source_character_poll(state)",
                  "focused Character test covers Poll");
   ok &= contains(character_source_test,
@@ -4127,10 +4187,16 @@ int run_contract() {
                  "focused Character test covers PreSave");
   ok &= contains(doc, "## Character Runtime Flow",
                  "document records Character runtime flow section");
+  ok &= contains(doc, "## Character LOD Row Authority",
+                 "document records Character LOD authority section");
   ok &= contains(doc,
                  "Native `source_character_*` helpers port these "
                  "source-visible runtime flows",
                  "document records native Character helpers");
+  ok &= contains(doc,
+                 "Native `source_character_lod_*` helpers record those "
+                 "source rows",
+                 "document records native Character LOD helpers");
   ok &= contains(char_mesh_h, "structSourceCharacterTestState{",
                  "native exposes CharacterTest default state");
   ok &= contains(char_mesh_h, "structSourceCharacterTestAddDefaultsResult{",
