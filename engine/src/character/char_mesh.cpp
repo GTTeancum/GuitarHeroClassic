@@ -940,17 +940,25 @@ CharLookAt decode_lookat(const std::string& entry_name,
   return la;
 }
 
-CharEyes decode_eyes(const std::string& entry_name,
-                     const std::vector<uint8_t>& body) {
+CharEyes decode_eyes_body(const std::string& entry_name,
+                          const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
   CharEyes eyes;
   eyes.name = entry_name;
-  eyes.version = r.i32();      // CharEyes version, observed 3 in GH2.
+  eyes.version = r.i32();
+  if (eyes.version < 0 || eyes.version > 0x12) {
+    throw std::runtime_error(
+        "char_mesh: CharEyes revision outside source range");
+  }
   read_object_fields(r);  // Hmx::Object metadata
-  uint32_t count = r.u32();
-  for (uint32_t i = 0; i < count && r.pos < r.n; ++i)
-    eyes.lookats.push_back(r.str());
-  if (r.pos < r.n) eyes.legacy_transform = r.str();
+  if (eyes.version < 5) {
+    uint32_t count = r.u32();
+    for (uint32_t i = 0; i < count && r.pos < r.n; ++i)
+      eyes.lookats.push_back(r.str());
+    if ((eyes.version == 3 || eyes.version == 4) && r.pos < r.n) {
+      eyes.legacy_transform = r.str();
+    }
+  }
   eyes.unread_bytes = r.n - r.pos;
   return eyes;
 }
@@ -1416,6 +1424,11 @@ CharHair decode_hair(const std::string& entry_name,
 CharCollide decode_collide(const std::string& entry_name,
                            const std::vector<uint8_t>& body) {
   return decode_collide_body(entry_name, body);
+}
+
+CharEyes decode_eyes(const std::string& entry_name,
+                     const std::vector<uint8_t>& body) {
+  return decode_eyes_body(entry_name, body);
 }
 
 void source_char_collide_copy_original_to_cur(CharCollide& collide) {

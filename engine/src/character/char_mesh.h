@@ -661,6 +661,8 @@ CharHair decode_hair(const std::string& entry_name,
                      const std::vector<uint8_t>& body);
 CharCollide decode_collide(const std::string& entry_name,
                            const std::vector<uint8_t>& body);
+CharEyes decode_eyes(const std::string& entry_name,
+                     const std::vector<uint8_t>& body);
 
 // Load + decode a whole BandCharacter MILO from a PS2 ARK (runtime-native: read
 // the .milo_ps2 from the ARK, decode in memory — no intermediate extraction).

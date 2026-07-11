@@ -87,9 +87,14 @@ int main() {
                  "++i)eyes.lookats.push_back(r.str());",
                  "CharEyes serializes a look-at ref list, not hidden offsets");
   ok &= contains(decode_eyes,
-                 "if(r.pos<r.n)eyes.legacy_transform=r.str();"
+                 "if((eyes.version==3||eyes.version==4)&&r.pos<r.n){"
+                 "eyes.legacy_transform=r.str();}}"
                  "eyes.unread_bytes=r.n-r.pos;",
-                 "CharEyes trailing old transformable remains source-shaped");
+                 "CharEyes trailing old transformable is source rev 3/4 only");
+  ok &= contains(decode_eyes,
+                 "if(eyes.version<0||eyes.version>0x12){"
+                 "throwstd::runtime_error",
+                 "CharEyes decoder enforces source revision range");
 
   ok &= contains(apply_controllers, "if(eye_props)*eye_props={};",
                  "FaceFX eye props are cleared when no source-backed eye poll is active");

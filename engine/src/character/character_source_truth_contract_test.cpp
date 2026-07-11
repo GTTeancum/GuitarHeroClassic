@@ -2979,9 +2979,14 @@ int run_contract() {
                  "++i)eyes.lookats.push_back(r.str());",
                  "native GH2 CharEyes decoder keeps old look-at list layout");
   ok &= contains(char_mesh,
-                 "if(r.pos<r.n)eyes.legacy_transform=r.str();"
+                 "if(eyes.version<0||eyes.version>0x12){"
+                 "throwstd::runtime_error",
+                 "native GH2 CharEyes decoder enforces source revision range");
+  ok &= contains(char_mesh,
+                 "if((eyes.version==3||eyes.version==4)&&r.pos<r.n){"
+                 "eyes.legacy_transform=r.str();}}"
                  "eyes.unread_bytes=r.n-r.pos;",
-                 "native GH2 CharEyes decoder consumes trailing old transformable");
+                 "native GH2 CharEyes decoder source-gates trailing old transformable");
   ok &= contains(doc, "Rockabill2 face/attachment proof",
                  "document records current Rockabill2 eye and teeth evidence");
   ok &= contains(rb3_char_ik_hand_cpp, "voidCharIKHand::Poll(){",

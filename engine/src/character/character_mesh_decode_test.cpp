@@ -135,6 +135,18 @@ std::vector<uint8_t> make_rev11_hair_without_strands() {
   return b;
 }
 
+std::vector<uint8_t> make_eyes_with_lookats(uint32_t version,
+                                            bool include_legacy_transform) {
+  std::vector<uint8_t> b;
+  put_u32(b, version);
+  put_zeros(b, 9);                 // ObjectFields revision 0, empty type/root
+  put_u32(b, 2);                   // old CharEyes look-at list count
+  put_str(b, "l-eye.lookat");
+  put_str(b, "r-eye.lookat");
+  if (include_legacy_transform) put_str(b, "legacy-eye.trans");
+  return b;
+}
+
 std::vector<uint8_t> make_rev7_collide() {
   std::vector<uint8_t> b;
   put_u32(b, 7);                  // CharCollide revision
@@ -248,6 +260,34 @@ int main() {
   CHECK(rev11_hair.simulate);
   CHECK(rev11_hair.wind == "stage.wind");
   CHECK(rev11_hair.unread_bytes == 0);
+
+  const ghogx::character::CharEyes rev3_eyes =
+      ghogx::character::decode_eyes("CharEyes.eyes",
+                                    make_eyes_with_lookats(3, true));
+  CHECK(rev3_eyes.version == 3);
+  CHECK(rev3_eyes.lookats.size() == 2);
+  CHECK(rev3_eyes.lookats[0] == "l-eye.lookat");
+  CHECK(rev3_eyes.lookats[1] == "r-eye.lookat");
+  CHECK(rev3_eyes.legacy_transform == "legacy-eye.trans");
+  CHECK(rev3_eyes.unread_bytes == 0);
+
+  const ghogx::character::CharEyes rev2_eyes =
+      ghogx::character::decode_eyes("old.eyes",
+                                    make_eyes_with_lookats(2, true));
+  CHECK(rev2_eyes.version == 2);
+  CHECK(rev2_eyes.lookats.size() == 2);
+  CHECK(rev2_eyes.legacy_transform.empty());
+  CHECK(rev2_eyes.unread_bytes > 0);
+
+  std::vector<uint8_t> bad_eyes;
+  put_u32(bad_eyes, 0x13);
+  try {
+    (void)ghogx::character::decode_eyes("bad.eyes", bad_eyes);
+    CHECK(false);
+  } catch (const std::runtime_error& e) {
+    CHECK(std::string(e.what()).find("CharEyes revision") !=
+          std::string::npos);
+  }
 
   std::vector<uint8_t> bad_hair;
   put_u32(bad_hair, 12);

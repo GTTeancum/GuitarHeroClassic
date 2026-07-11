@@ -458,7 +458,10 @@ note, and all report `unreadBytes=0`.
     reference into an eye entry. For revisions 3 and 4 it then consumes one old
     `RndTransformable` pointer. Native GHOGX decodes the GH2 row as that
     look-at reference list plus trailing old transformable (`legacyTransform`),
-    not as hidden eye offsets or blink/upper-lid data.
+    not as hidden eye offsets or blink/upper-lid data. The native decoder now
+    enforces the source revision range and only consumes that legacy transform
+    in source revisions 3 or 4; older leftover bytes remain unread evidence
+    instead of being mislabeled as the transform pointer.
     `engine/out/source_chareyes_20260711/chareyes_source_decode_audit.log`
     rechecks Alterna1, Rock2, Rockabill2, and Funk1; all sampled rows report
     `version=3`, two look-at refs, `legacyTransform=<none>`, and
