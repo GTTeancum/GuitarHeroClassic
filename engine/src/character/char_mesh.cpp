@@ -1366,6 +1366,27 @@ CharWeightSetter decode_weight_setter(const std::string& entry_name,
 
 }  // namespace
 
+void source_char_hair_set_cloth(CharHair& hair, bool enabled) {
+  const size_t strand_count = hair.strands.size();
+  if (strand_count == 0) return;
+  for (size_t si = 0; si < strand_count; ++si) {
+    CharHairStrand& strand = hair.strands[si];
+    const CharHairStrand& next = hair.strands[(si + 1) % strand_count];
+    for (size_t pi = 0; pi < strand.points.size(); ++pi) {
+      CharHairPoint& point = strand.points[pi];
+      if (!enabled || pi >= next.points.size()) {
+        point.side_length = -1.0f;
+        continue;
+      }
+      const CharHairPoint& next_point = next.points[pi];
+      const float dx = point.pos[0] - next_point.pos[0];
+      const float dy = point.pos[1] - next_point.pos[1];
+      const float dz = point.pos[2] - next_point.pos[2];
+      point.side_length = std::sqrt(dx * dx + dy * dy + dz * dz);
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 4x4 helpers (row-vector convention, matching render::Mat4).
 // ---------------------------------------------------------------------------

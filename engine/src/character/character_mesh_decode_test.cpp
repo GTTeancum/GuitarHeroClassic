@@ -110,6 +110,30 @@ std::vector<uint8_t> make_rev28_mesh_with_group_section() {
   return b;
 }
 
+ghogx::character::CharHair make_two_strand_hair() {
+  ghogx::character::CharHair hair;
+  hair.strands.resize(2);
+  hair.strands[0].points.resize(2);
+  hair.strands[1].points.resize(1);
+
+  hair.strands[0].points[0].pos[0] = 0.0f;
+  hair.strands[0].points[0].pos[1] = 0.0f;
+  hair.strands[0].points[0].pos[2] = 0.0f;
+  hair.strands[0].points[0].side_length = 123.0f;
+
+  hair.strands[0].points[1].pos[0] = 1.0f;
+  hair.strands[0].points[1].pos[1] = 0.0f;
+  hair.strands[0].points[1].pos[2] = 0.0f;
+  hair.strands[0].points[1].side_length = 123.0f;
+
+  hair.strands[1].points[0].pos[0] = 3.0f;
+  hair.strands[1].points[0].pos[1] = 4.0f;
+  hair.strands[1].points[0].pos[2] = 0.0f;
+  hair.strands[1].points[0].side_length = 123.0f;
+
+  return hair;
+}
+
 }  // namespace
 
 int main() {
@@ -145,6 +169,17 @@ int main() {
       ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 25);
   CHECK(rb1_style.decoded);
   CHECK(rb1_style.group_sections.empty());
+
+  ghogx::character::CharHair cloth_hair = make_two_strand_hair();
+  ghogx::character::source_char_hair_set_cloth(cloth_hair, true);
+  CHECK(approx(cloth_hair.strands[0].points[0].side_length, 5.0f));
+  CHECK(approx(cloth_hair.strands[0].points[1].side_length, -1.0f));
+  CHECK(approx(cloth_hair.strands[1].points[0].side_length, 5.0f));
+
+  ghogx::character::source_char_hair_set_cloth(cloth_hair, false);
+  CHECK(approx(cloth_hair.strands[0].points[0].side_length, -1.0f));
+  CHECK(approx(cloth_hair.strands[0].points[1].side_length, -1.0f));
+  CHECK(approx(cloth_hair.strands[1].points[0].side_length, -1.0f));
 
   std::printf("  [ok] RndMesh rev28 groupSections=%zu palette=%zu\n",
               mesh.group_sections.size(), mesh.bone_palette.size());

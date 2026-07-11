@@ -83,6 +83,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
   const std::string weight_setter_source_test =
       compact(read_file(char_dir / "character_weight_setter_source_test.cpp"));
+  const std::string mesh_decode_test =
+      compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
       compact(read_file(char_dir / "char_bind_audit.cpp"));
   const std::string renderer = compact(read_file(char_dir / "char_renderer.cpp"));
@@ -908,6 +910,42 @@ int run_contract() {
   ok &= contains(rb3_latest_char_hair_cpp,
                  "for(intn=0;n<count;n++){SimulateInternal(f);}}}",
                  "RB3 CharHair SimulateLoops calls source internal simulation");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "voidCharHair::SetCloth(boolb){for(inti=0;"
+                 "i<mStrands.size();i++){Strand&strand=mStrands[i];"
+                 "intmod=Mod(i+1,mStrands.size());",
+                 "RB3 CharHair SetCloth wraps to the next strand");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "point.sideLength=b1?Distance(point.pos,"
+                 "modidx.mPoints[j].pos):-1.0f;",
+                 "RB3 CharHair SetCloth computes side length or disables it");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_hair_set_cloth(CharHair&hair,boolenabled);",
+                 "native exposes source CharHair SetCloth helper");
+  ok &= contains(char_mesh,
+                 "voidsource_char_hair_set_cloth(CharHair&hair,boolenabled){"
+                 "constsize_tstrand_count=hair.strands.size();"
+                 "if(strand_count==0)return;",
+                 "native CharHair SetCloth helper handles empty strand lists");
+  ok &= contains(char_mesh,
+                 "constCharHairStrand&next=hair.strands[(si+1)%strand_count];",
+                 "native CharHair SetCloth helper wraps to the next strand");
+  ok &= contains(char_mesh,
+                 "point.side_length=std::sqrt(dx*dx+dy*dy+dz*dz);",
+                 "native CharHair SetCloth helper computes source distance");
+  ok &= contains(mesh_decode_test,
+                 "source_char_hair_set_cloth(cloth_hair,true);",
+                 "deterministic test enables source CharHair SetCloth helper");
+  ok &= contains(mesh_decode_test,
+                 "CHECK(approx(cloth_hair.strands[0].points[0].side_length,"
+                 "5.0f));",
+                 "deterministic test verifies source CharHair SetCloth distance");
+  ok &= contains(mesh_decode_test,
+                 "source_char_hair_set_cloth(cloth_hair,false);",
+                 "deterministic test disables source CharHair SetCloth helper");
+  ok &= contains(doc,
+                 "Native ports this exactly as `source_char_hair_set_cloth`",
+                 "document ties native CharHair SetCloth helper to source");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::Hookup(){if(mManagedHookup)return;"
                  "ObjPtrList<CharCollide,ObjectDir>colList(this,kObjListNoNull);"

@@ -353,7 +353,9 @@ note, and all report `unreadBytes=0`.
     from source world rows.
   - `CharHair::SetCloth` assigns `sideLength` from the matching point in the
     next strand when cloth mode is enabled and otherwise forces `sideLength` to
-    `-1.0f`.
+    `-1.0f`. Native ports this exactly as `source_char_hair_set_cloth`; it is
+    a deterministic side-length helper only, not a guessed hair placement or
+    writeback path.
   - `CharHair::SimulateInternal` only calls `SetWorldXfm` for a point inside the
     `thisPoint.collides.size() != 0` branch. Native GHOGX must not invent a
     partial hair physics bridge from decoded point rows alone.

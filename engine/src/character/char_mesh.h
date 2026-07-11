@@ -281,6 +281,10 @@ struct SourceCharHairRuntime {
   std::vector<SourceCharHairRuntimeStrand> strands;
 };
 
+// Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
+// from the matching point in the next strand, wrapping around the strand list.
+void source_char_hair_set_cloth(CharHair& hair, bool enabled);
+
 struct CharCollide {
   std::string name;
   int32_t version = 0;
