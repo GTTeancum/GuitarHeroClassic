@@ -44,6 +44,7 @@ records the upstream commits for the copied files:
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
 | Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve without adding an unproven frame-cadence write. |
 | Hand IK and IK MIDI target rows | `CharIKHand.cpp`, `rb3-latest` `CharIKMidi.cpp` / `CharIKMidi.h` | Native hand IK follows source dataflow; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields. |
+| IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
@@ -507,6 +508,20 @@ note, and all report `unreadBytes=0`.
     `source_char_poll_group_poll_deps` port those source decisions for tests and
     future decode work. Stock GH2 base-character inventory still proves zero
     `CharPollGroup` rows, so no hidden runtime poll group is synthesized.
+- `rb3-latest/src/system/char/CharIKScale.cpp` and
+  `CharIKScale.h`
+  - The constructor defaults are source state: `mScale = 1.0f`,
+    `mBottomHeight = 0.0f`, `mTopHeight = 0.0f`, and `mAutoWeight = false`.
+  - `Poll` only enters its body when `mDest` exists and `Weight()` is nonzero;
+    the checked source body contains no implemented scale write after that
+    gate.
+  - `CaptureBefore` stores `mDest->mLocalXfm.v.z` into `mScale` when `mDest`
+    exists. `CaptureAfter` stores `mDest->mLocalXfm.v.z / mScale`, with no
+    source zero guard beyond the missing-destination return.
+  - `PollDeps` pushes `mDest` and each secondary target into the `change` list,
+    then pushes `mDest` into `changedBy`.
+  - Native `source_char_ik_scale_*` helpers port those complete source-visible
+    behaviors only. They do not invent the absent scale-write body.
 - `rb3-latest/src/system/char/CharMeshHide.cpp` and
   `CharMeshHide.h`
   - `CharMeshHide::HideAll` first ORs the incoming flag word with every

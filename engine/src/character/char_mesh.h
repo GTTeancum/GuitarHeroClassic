@@ -369,6 +369,18 @@ struct SourceCharPollGroupPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharIKScaleDefaultState {
+  float scale = 1.0f;
+  float bottom_height = 0.0f;
+  float top_height = 0.0f;
+  bool auto_weight = false;
+};
+
+struct SourceCharIKScalePollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -415,6 +427,16 @@ void source_char_poll_group_poll_deps(
     const std::vector<SourceCharPollGroupChildDeps>& child_deps,
     const std::string& changed_by_override,
     const std::string& change_override);
+SourceCharIKScaleDefaultState source_char_ik_scale_default_state();
+bool source_char_ik_scale_poll_enters(bool has_dest, float weight);
+float source_char_ik_scale_capture_before(bool has_dest, float dest_local_z,
+                                          float current_scale);
+float source_char_ik_scale_capture_after(bool has_dest, float dest_local_z,
+                                         float current_scale);
+void source_char_ik_scale_poll_deps(
+    SourceCharIKScalePollDeps& deps,
+    const std::string& dest,
+    const std::vector<std::string>& secondary_targets);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

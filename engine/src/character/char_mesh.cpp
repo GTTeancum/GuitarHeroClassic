@@ -1690,6 +1690,35 @@ void source_char_poll_group_poll_deps(
   }
 }
 
+SourceCharIKScaleDefaultState source_char_ik_scale_default_state() {
+  return SourceCharIKScaleDefaultState{};
+}
+
+bool source_char_ik_scale_poll_enters(bool has_dest, float weight) {
+  return has_dest && weight != 0.0f;
+}
+
+float source_char_ik_scale_capture_before(bool has_dest, float dest_local_z,
+                                          float current_scale) {
+  return has_dest ? dest_local_z : current_scale;
+}
+
+float source_char_ik_scale_capture_after(bool has_dest, float dest_local_z,
+                                         float current_scale) {
+  return has_dest ? dest_local_z / current_scale : current_scale;
+}
+
+void source_char_ik_scale_poll_deps(
+    SourceCharIKScalePollDeps& deps,
+    const std::string& dest,
+    const std::vector<std::string>& secondary_targets) {
+  deps.change.push_back(dest);
+  for (const std::string& target : secondary_targets) {
+    deps.change.push_back(target);
+  }
+  deps.changed_by.push_back(dest);
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;

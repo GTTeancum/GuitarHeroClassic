@@ -104,6 +104,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_trans_copy_source_test.cpp"));
   const std::string poll_group_source_test =
       compact(read_file(char_dir / "character_poll_group_source_test.cpp"));
+  const std::string ik_scale_source_test =
+      compact(read_file(char_dir / "character_ik_scale_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -182,6 +184,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharIKMidi.cpp"));
   const std::string rb3_latest_char_ik_midi_h = compact(read_file(
       rb3_latest_char_dir / "CharIKMidi.h"));
+  const std::string rb3_latest_char_ik_scale_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharIKScale.cpp"));
+  const std::string rb3_latest_char_ik_scale_h = compact(read_file(
+      rb3_latest_char_dir / "CharIKScale.h"));
   const std::string rb3_latest_char_servo_bone_cpp = compact(read_file(
       rb3_latest_char_dir / "CharServoBone.cpp"));
   const std::string rb3_latest_char_servo_bone_h = compact(read_file(
@@ -381,6 +387,10 @@ int run_contract() {
                  "| Transform copy controller | `rb3-latest` `CharTransCopy.cpp` / "
                  "`CharTransCopy.h` |",
                  "coverage matrix cites CharTransCopy source");
+  ok &= contains(doc,
+                 "| IK scale controller | `rb3-latest` `CharIKScale.cpp` / "
+                 "`CharIKScale.h` |",
+                 "coverage matrix cites CharIKScale source");
   ok &= contains(doc, "| Poll groups | `rb3-latest` `CharPollGroup.cpp` |",
                  "coverage matrix cites CharPollGroup source boundary");
   ok &= contains(doc,
@@ -1968,6 +1978,83 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_poll_group_poll_order`,",
                  "document records native CharPollGroup helpers");
+  ok &= contains(rb3_latest_char_ik_scale_h,
+                 "classCharIKScale:publicCharWeightable,publicCharPollable",
+                 "latest CharIKScale header exposes source class");
+  ok &= contains(rb3_latest_char_ik_scale_cpp,
+                 "CharIKScale::CharIKScale():mDest(this,0),mScale(1.0f),"
+                 "mSecondaryTargets(this,kObjListNoNull),mBottomHeight(0.0f),"
+                 "mTopHeight(0.0f),mAutoWeight(0)",
+                 "CharIKScale source constructor defaults");
+  ok &= contains(rb3_latest_char_ik_scale_cpp,
+                 "voidCharIKScale::Poll(){if(mDest&&Weight()){}",
+                 "CharIKScale source Poll has empty gated body");
+  ok &= contains(rb3_latest_char_ik_scale_cpp,
+                 "voidCharIKScale::CaptureBefore(){if(!mDest)return;"
+                 "mScale=mDest->mLocalXfm.v.z;}",
+                 "CharIKScale source CaptureBefore stores local z");
+  ok &= contains(rb3_latest_char_ik_scale_cpp,
+                 "voidCharIKScale::CaptureAfter(){if(!mDest)return;"
+                 "mScale=mDest->mLocalXfm.v.z/mScale;}",
+                 "CharIKScale source CaptureAfter divides by stored scale");
+  ok &= contains(rb3_latest_char_ik_scale_cpp,
+                 "voidCharIKScale::PollDeps(std::list<Hmx::Object*>&changedBy,"
+                 "std::list<Hmx::Object*>&change){change.push_back(mDest);"
+                 "for(ObjPtrList<RndTransformable,classObjectDir>::iterator"
+                 "it=mSecondaryTargets.begin();it!=mSecondaryTargets.end();"
+                 "++it){change.push_back(*it);}changedBy.push_back(mDest);}",
+                 "CharIKScale source PollDeps order");
+  ok &= contains(rb3_latest_char_ik_scale_cpp,
+                 "voidCharIKScale::Load(BinStream&bs){LOAD_REVS(bs);"
+                 "ASSERT_REVS(3,0);Hmx::Object::Load(bs);"
+                 "CharWeightable::Load(bs);bs>>mDest;bs>>mScale;if(gRev>1)"
+                 "bs>>mSecondaryTargets;if(gRev>2){bs>>mAutoWeight>>"
+                 "mBottomHeight>>mTopHeight;}}",
+                 "CharIKScale source Load revision gates");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharIKScaleDefaultState{floatscale=1.0f;"
+                 "floatbottom_height=0.0f;floattop_height=0.0f;"
+                 "boolauto_weight=false;};",
+                 "native exposes CharIKScale default state");
+  ok &= contains(char_mesh,
+                 "SourceCharIKScaleDefaultStatesource_char_ik_scale_default_state(){"
+                 "returnSourceCharIKScaleDefaultState{};}",
+                 "native ports CharIKScale defaults");
+  ok &= contains(char_mesh,
+                 "boolsource_char_ik_scale_poll_enters(boolhas_dest,floatweight){"
+                 "returnhas_dest&&weight!=0.0f;}",
+                 "native ports CharIKScale Poll gate");
+  ok &= contains(char_mesh,
+                 "returnhas_dest?dest_local_z:current_scale;",
+                 "native ports CharIKScale CaptureBefore missing-dest gate");
+  ok &= contains(char_mesh,
+                 "returnhas_dest?dest_local_z/current_scale:current_scale;",
+                 "native ports CharIKScale CaptureAfter source division");
+  ok &= contains(char_mesh,
+                 "voidsource_char_ik_scale_poll_deps(SourceCharIKScalePollDeps&"
+                 "deps,conststd::string&dest,conststd::vector<std::string>&"
+                 "secondary_targets){deps.change.push_back(dest);for("
+                 "conststd::string&target:secondary_targets){deps.change."
+                 "push_back(target);}deps.changed_by.push_back(dest);}",
+                 "native ports CharIKScale PollDeps order");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_ik_scale_source_test",
+                 "CMake builds CharIKScale source test");
+  ok &= contains(ik_scale_source_test,
+                 "source_char_ik_scale_poll_enters(true,-0.25f)",
+                 "focused CharIKScale test covers nonzero poll gate");
+  ok &= contains(ik_scale_source_test,
+                 "source_char_ik_scale_capture_before(true,8.0f,2.5f)",
+                 "focused CharIKScale test covers CaptureBefore");
+  ok &= contains(ik_scale_source_test,
+                 "source_char_ik_scale_capture_after(true,12.0f,4.0f)",
+                 "focused CharIKScale test covers CaptureAfter");
+  ok &= contains(ik_scale_source_test,
+                 "source_char_ik_scale_poll_deps(",
+                 "focused CharIKScale test covers PollDeps");
+  ok &= contains(doc,
+                 "Native `source_char_ik_scale_*` helpers port",
+                 "document records native CharIKScale helpers");
   ok &= contains(rb3_latest_char_mesh_hide_h,
                  "classCharMeshHide:publicHmx::Object",
                  "latest CharMeshHide header exposes source class");
