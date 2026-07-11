@@ -138,6 +138,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_mesh_cache_source_test.cpp"));
   const std::string pos_constraint_source_test = compact(
       read_file(char_dir / "character_pos_constraint_source_test.cpp"));
+  const std::string waypoint_source_test =
+      compact(read_file(char_dir / "character_waypoint_source_test.cpp"));
   const std::string guitar_string_source_test = compact(
       read_file(char_dir / "character_guitar_string_source_test.cpp"));
   const std::string eyes_source_test =
@@ -386,6 +388,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharPosConstraint.cpp"));
   const std::string rb3_latest_char_pos_constraint_h = compact(read_file(
       rb3_latest_char_dir / "CharPosConstraint.h"));
+  const std::string rb3_latest_waypoint_cpp = compact(read_file(
+      rb3_latest_char_dir / "Waypoint.cpp"));
+  const std::string rb3_latest_waypoint_h = compact(read_file(
+      rb3_latest_char_dir / "Waypoint.h"));
   const std::string rb3_latest_char_guitar_string_cpp = compact(read_file(
       rb3_latest_char_dir / "CharGuitarString.cpp"));
   const std::string rb3_latest_char_guitar_string_h = compact(read_file(
@@ -5913,6 +5919,131 @@ int run_contract() {
   ok &= contains(doc,
                  "Grim's `hems.pcon` names `source=grim`",
                  "document records stock Grim CharPosConstraint boundary");
+  ok &= contains(rb3_latest_waypoint_h,
+                 "floatmRadius;",
+                 "latest Waypoint header exposes radius");
+  ok &= contains(rb3_latest_waypoint_h,
+                 "floatmYRadius;",
+                 "latest Waypoint header exposes Y radius");
+  ok &= contains(rb3_latest_waypoint_h,
+                 "floatmAngRadius;",
+                 "latest Waypoint header exposes angular radius");
+  ok &= contains(rb3_latest_waypoint_h,
+                 "floatmStrictAngDelta;",
+                 "latest Waypoint header exposes strict angular delta");
+  ok &= contains(rb3_latest_waypoint_h,
+                 "floatmStrictRadiusDelta;",
+                 "latest Waypoint header exposes strict radius delta");
+  ok &= contains(rb3_latest_waypoint_h,
+                 "ObjVector<ObjOwnerPtr<Waypoint,ObjectDir>>mConnections;",
+                 "latest Waypoint header exposes source connections");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "Waypoint::Waypoint():mFlags(0),mRadius(12.0f),"
+                 "mYRadius(0),mAngRadius(0),pad(0),mStrictAngDelta(0),"
+                 "mStrictRadiusDelta(0),mConnections(this)",
+                 "latest Waypoint source constructor defaults");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "ASSERT_REVS(5,0)",
+                 "latest Waypoint source load accepts revisions through 5");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "bs>>mFlags;bs>>mConnections;",
+                 "latest Waypoint source load reads flags and connections");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "if(gRev>1){bs>>mRadius;}elsemRadius=12;",
+                 "latest Waypoint source load gates radius");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "if(gRev>2){bs>>mYRadius;bs>>mAngRadius;}",
+                 "latest Waypoint source load gates shape radii");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "if(gRev>3){bs>>mStrictRadiusDelta;bs>>mStrictAngDelta;}",
+                 "latest Waypoint source load gates strict deltas");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS(RndTransformable)",
+                 "latest Waypoint source copy superclasses");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "COPY_MEMBER(mFlags)COPY_MEMBER(mConnections)"
+                 "COPY_MEMBER(mRadius)COPY_MEMBER(mYRadius)"
+                 "COPY_MEMBER(mAngRadius)COPY_MEMBER(mStrictRadiusDelta)"
+                 "COPY_MEMBER(mStrictAngDelta)",
+                 "latest Waypoint source copy members");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "if(f2>0.0f){Subtract(v1,WorldXfm().v,res);",
+                 "latest Waypoint ShapeDeltaBox rectangular branch");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "floatdotx=Dot(res,world.m.x);floatdoty=Dot(res,world.m.y);",
+                 "latest Waypoint ShapeDeltaBox source dot products");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "Scale(world.m.x,clamped1-dotx,res);"
+                 "ScaleAddEq(res,world.m.y,clamped2-doty);",
+                 "latest Waypoint ShapeDeltaBox clamps world rows");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "Subtract(WorldXfm().v,v1,res);res.z=0;",
+                 "latest Waypoint ShapeDeltaBox circular branch");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "if(lensq<=f1*f1)res.Zero();elseres*=1.0f-"
+                 "(f1/std::sqrt(lensq));",
+                 "latest Waypoint ShapeDeltaBox circular scale");
+  ok &= contains(rb3_latest_waypoint_cpp,
+                 "floatlimited=LimitAng(GetZAngle(WorldXfm().m)-f2);",
+                 "latest Waypoint ShapeDeltaAng limited delta");
+  ok &= contains(char_mesh_h,
+                 "structSourceWaypointState{intflags=0;floatradius=12.0f;",
+                 "native exposes Waypoint source state");
+  ok &= contains(char_mesh_h,
+                 "floatstrict_ang_delta=0.0f;floatstrict_radius_delta=0.0f;",
+                 "native stores Waypoint strict deltas");
+  ok &= contains(char_mesh_h,
+                 "SourceWaypointConstrainResultsource_waypoint_constrain(",
+                 "native exposes Waypoint constrain helper");
+  ok &= contains(char_mesh,
+                 "boolsource_waypoint_load_revision_known(intrevision){"
+                 "returnrevision>=0&&revision<=5;}",
+                 "native Waypoint helper mirrors source revision gate");
+  ok &= contains(char_mesh,
+                 "plan.copied_superclasses={\"Hmx::Object\","
+                 "\"RndTransformable\"};",
+                 "native Waypoint helper mirrors copy superclasses");
+  ok &= contains(char_mesh,
+                 "plan.copied_members={\"mFlags\",\"mConnections\","
+                 "\"mRadius\",\"mYRadius\",\"mAngRadius\","
+                 "\"mStrictRadiusDelta\",\"mStrictAngDelta\"};",
+                 "native Waypoint helper mirrors copy members");
+  ok &= contains(char_mesh,
+                 "if(y_radius>0.0f){constSourceVec3from_waypoint="
+                 "source_vec_sub(p,waypoint_pos);",
+                 "native Waypoint helper ports rectangular branch");
+  ok &= contains(char_mesh,
+                 "delta=source_vec_sub(waypoint_pos,p);delta[2]=0.0f;",
+                 "native Waypoint helper ports circular branch");
+  ok &= contains(char_mesh,
+                 "constfloatlimited=source_limit_ang(waypoint_z_angle-"
+                 "subject_z_angle);constfloatclamped=std::clamp(limited,"
+                 "-radius,radius);returnlimited-clamped;",
+                 "native Waypoint helper ports ShapeDeltaAng");
+  ok &= contains(char_mesh,
+                 "if(waypoint.strict_radius_delta>0.0f){",
+                 "native Waypoint constrain applies strict radius only");
+  ok &= contains(char_mesh,
+                 "source_rotate_about_z(result.constrained,result.angle_delta);",
+                 "native Waypoint constrain applies source angle delta");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_waypoint_source_test",
+                 "CMake builds Waypoint source test");
+  ok &= contains(waypoint_source_test,
+                 "source_waypoint_shape_delta_box(",
+                 "focused Waypoint test covers shape delta box");
+  ok &= contains(waypoint_source_test,
+                 "source_waypoint_shape_delta_ang(",
+                 "focused Waypoint test covers shape delta angle");
+  ok &= contains(waypoint_source_test,
+                 "source_waypoint_constrain(",
+                 "focused Waypoint test covers constrain helper");
+  ok &= contains(doc,
+                 "## Waypoint Clip/Path Diagnostic Authorities",
+                 "document records Waypoint source authority section");
+  ok &= contains(doc,
+                 "Native helpers are source-only deterministic diagnostics",
+                 "document fences Waypoint helper from live path behavior");
   ok &= contains(rb3_latest_char_bone_offset_h,
                  "ObjPtr<RndTransformable,ObjectDir>mDest;",
                  "latest CharBoneOffset header exposes destination pointer");

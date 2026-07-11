@@ -2319,6 +2319,10 @@ SourceVec3 source_xfm_row(const milo_scene::Xfm& xfm, int row) {
   return {xfm.rot[row][0], xfm.rot[row][1], xfm.rot[row][2]};
 }
 
+float source_xfm_z_angle(const milo_scene::Xfm& xfm) {
+  return std::atan2(xfm.rot[0][1], xfm.rot[0][0]);
+}
+
 void source_set_xfm_pos(milo_scene::Xfm& xfm, SourceVec3 v) {
   xfm.pos[0] = v[0];
   xfm.pos[1] = v[1];
@@ -2329,6 +2333,25 @@ void source_set_xfm_row(milo_scene::Xfm& xfm, int row, SourceVec3 v) {
   xfm.rot[row][0] = v[0];
   xfm.rot[row][1] = v[1];
   xfm.rot[row][2] = v[2];
+}
+
+float source_limit_ang(float radians) {
+  constexpr float kPi = 3.14159265358979323846f;
+  constexpr float kTwoPi = 6.28318530717958647692f;
+  while (radians > kPi) radians -= kTwoPi;
+  while (radians < -kPi) radians += kTwoPi;
+  return radians;
+}
+
+void source_rotate_about_z(milo_scene::Xfm& xfm, float angle) {
+  const float ca = std::cos(angle);
+  const float sa = std::sin(angle);
+  for (int r = 0; r < 3; ++r) {
+    const float x = xfm.rot[r][0];
+    const float y = xfm.rot[r][1];
+    xfm.rot[r][0] = ca * x - sa * y;
+    xfm.rot[r][1] = sa * x + ca * y;
+  }
 }
 
 milo_scene::Xfm source_char_sleeve_make_world(SourceVec3 pos,
@@ -2348,6 +2371,99 @@ milo_scene::Xfm source_char_sleeve_make_world(SourceVec3 pos,
 }
 
 }  // namespace
+
+SourceWaypointState source_waypoint_default_state() {
+  return SourceWaypointState{};
+}
+
+bool source_waypoint_load_revision_known(int revision) {
+  return revision >= 0 && revision <= 5;
+}
+
+SourceWaypointCopyPlan source_waypoint_copy_plan() {
+  SourceWaypointCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "RndTransformable"};
+  plan.copied_members = {"mFlags", "mConnections", "mRadius", "mYRadius",
+                         "mAngRadius", "mStrictRadiusDelta",
+                         "mStrictAngDelta"};
+  return plan;
+}
+
+std::array<float, 3> source_waypoint_shape_delta_box(
+    const milo_scene::Xfm& waypoint_world,
+    const std::array<float, 3>& point,
+    float radius,
+    float y_radius) {
+  const SourceVec3 waypoint_pos = source_xfm_pos(waypoint_world);
+  const SourceVec3 p = point;
+  SourceVec3 delta{};
+  if (y_radius > 0.0f) {
+    const SourceVec3 from_waypoint = source_vec_sub(p, waypoint_pos);
+    const float dot_x =
+        source_vec_dot(from_waypoint, source_xfm_row(waypoint_world, 0));
+    const float dot_y =
+        source_vec_dot(from_waypoint, source_xfm_row(waypoint_world, 1));
+    const float clamped_x = std::clamp(dot_x, -radius, radius);
+    const float clamped_y = std::clamp(dot_y, -y_radius, y_radius);
+    delta = source_vec_scale(source_xfm_row(waypoint_world, 0),
+                             clamped_x - dot_x);
+    delta = source_vec_add(
+        delta,
+        source_vec_scale(source_xfm_row(waypoint_world, 1),
+                         clamped_y - dot_y));
+  } else {
+    delta = source_vec_sub(waypoint_pos, p);
+    delta[2] = 0.0f;
+    const float len_sq = source_vec_dot(delta, delta);
+    if (len_sq <= radius * radius) {
+      delta = {0.0f, 0.0f, 0.0f};
+    } else {
+      delta = source_vec_scale(delta, 1.0f - (radius / std::sqrt(len_sq)));
+    }
+  }
+  return delta;
+}
+
+float source_waypoint_shape_delta_ang(float waypoint_z_angle,
+                                      float radius,
+                                      float subject_z_angle) {
+  const float limited = source_limit_ang(waypoint_z_angle - subject_z_angle);
+  const float clamped = std::clamp(limited, -radius, radius);
+  return limited - clamped;
+}
+
+SourceWaypointConstrainResult source_waypoint_constrain(
+    const SourceWaypointState& waypoint,
+    const milo_scene::Xfm& waypoint_world,
+    const milo_scene::Xfm& subject) {
+  SourceWaypointConstrainResult result;
+  result.constrained = subject;
+
+  if (waypoint.strict_radius_delta > 0.0f) {
+    float y_radius = 0.0f;
+    if (waypoint.y_radius > 0.0f) {
+      y_radius = waypoint.y_radius + waypoint.strict_radius_delta;
+    }
+    result.position_delta = source_waypoint_shape_delta_box(
+        waypoint_world, source_xfm_pos(subject),
+        waypoint.radius + waypoint.strict_radius_delta, y_radius);
+    result.constrained.pos[0] += result.position_delta[0];
+    result.constrained.pos[1] += result.position_delta[1];
+    result.constrained.pos[2] += result.position_delta[2];
+    result.applied_radius = true;
+  }
+
+  if (waypoint.strict_ang_delta > 0.0f) {
+    result.angle_delta = source_waypoint_shape_delta_ang(
+        source_xfm_z_angle(waypoint_world),
+        waypoint.ang_radius + waypoint.strict_ang_delta,
+        source_xfm_z_angle(subject));
+    source_rotate_about_z(result.constrained, result.angle_delta);
+    result.applied_angle = true;
+  }
+
+  return result;
+}
 
 SourceCharSleeveState source_char_sleeve_default_state() {
   return SourceCharSleeveState{};

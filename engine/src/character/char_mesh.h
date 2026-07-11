@@ -420,6 +420,29 @@ struct SourceCharPollGroupPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceWaypointState {
+  int flags = 0;
+  float radius = 12.0f;
+  float y_radius = 0.0f;
+  float ang_radius = 0.0f;
+  float strict_ang_delta = 0.0f;
+  float strict_radius_delta = 0.0f;
+  std::vector<std::string> connections;
+};
+
+struct SourceWaypointCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
+struct SourceWaypointConstrainResult {
+  milo_scene::Xfm constrained;
+  std::array<float, 3> position_delta = {0.0f, 0.0f, 0.0f};
+  float angle_delta = 0.0f;
+  bool applied_radius = false;
+  bool applied_angle = false;
+};
+
 struct SourceCharIKScaleDefaultState {
   float scale = 1.0f;
   float bottom_height = 0.0f;
@@ -1004,6 +1027,21 @@ void source_char_poll_group_poll_deps(
     const std::vector<SourceCharPollGroupChildDeps>& child_deps,
     const std::string& changed_by_override,
     const std::string& change_override);
+SourceWaypointState source_waypoint_default_state();
+bool source_waypoint_load_revision_known(int revision);
+SourceWaypointCopyPlan source_waypoint_copy_plan();
+std::array<float, 3> source_waypoint_shape_delta_box(
+    const milo_scene::Xfm& waypoint_world,
+    const std::array<float, 3>& point,
+    float radius,
+    float y_radius);
+float source_waypoint_shape_delta_ang(float waypoint_z_angle,
+                                      float radius,
+                                      float subject_z_angle);
+SourceWaypointConstrainResult source_waypoint_constrain(
+    const SourceWaypointState& waypoint,
+    const milo_scene::Xfm& waypoint_world,
+    const milo_scene::Xfm& subject);
 SourceCharIKScaleDefaultState source_char_ik_scale_default_state();
 bool source_char_ik_scale_poll_enters(bool has_dest, float weight);
 float source_char_ik_scale_capture_before(bool has_dest, float dest_local_z,

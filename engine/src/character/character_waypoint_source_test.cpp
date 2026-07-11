@@ -1,0 +1,148 @@
+#include "character/char_mesh.h"
+
+#include <array>
+#include <cmath>
+#include <iostream>
+#include <string>
+
+namespace {
+
+ghogx::milo_scene::Xfm identity(float x = 0.0f, float y = 0.0f,
+                                float z = 0.0f) {
+  ghogx::milo_scene::Xfm out;
+  out.pos[0] = x;
+  out.pos[1] = y;
+  out.pos[2] = z;
+  return out;
+}
+
+ghogx::milo_scene::Xfm z_rot(float angle, float x = 0.0f, float y = 0.0f,
+                             float z = 0.0f) {
+  ghogx::milo_scene::Xfm out = identity(x, y, z);
+  const float ca = std::cos(angle);
+  const float sa = std::sin(angle);
+  out.rot[0][0] = ca;
+  out.rot[0][1] = sa;
+  out.rot[1][0] = -sa;
+  out.rot[1][1] = ca;
+  return out;
+}
+
+bool near(float got, float want, const char* label) {
+  if (std::fabs(got - want) <= 0.0001f) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_bool(bool got, bool want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << (got ? "true" : "false")
+            << " want " << (want ? "true" : "false") << "\n";
+  return false;
+}
+
+bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_string(const std::string& got, const std::string& want,
+                   const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool vec_near(const std::array<float, 3>& got,
+              const std::array<float, 3>& want,
+              const char* label) {
+  bool ok = true;
+  ok &= near(got[0], want[0], label);
+  ok &= near(got[1], want[1], label);
+  ok &= near(got[2], want[2], label);
+  return ok;
+}
+
+}  // namespace
+
+int main() {
+  using ghogx::character::SourceWaypointState;
+  using ghogx::character::source_waypoint_constrain;
+  using ghogx::character::source_waypoint_copy_plan;
+  using ghogx::character::source_waypoint_default_state;
+  using ghogx::character::source_waypoint_load_revision_known;
+  using ghogx::character::source_waypoint_shape_delta_ang;
+  using ghogx::character::source_waypoint_shape_delta_box;
+
+  constexpr float kPi = 3.14159265358979323846f;
+  bool ok = true;
+
+  const auto defaults = source_waypoint_default_state();
+  ok &= near(defaults.radius, 12.0f, "Waypoint default radius");
+  ok &= near(defaults.y_radius, 0.0f, "Waypoint default y radius");
+  ok &= near(defaults.ang_radius, 0.0f, "Waypoint default angle radius");
+
+  ok &= expect_bool(source_waypoint_load_revision_known(-1), false,
+                    "Waypoint revision -1 rejected");
+  ok &= expect_bool(source_waypoint_load_revision_known(0), true,
+                    "Waypoint revision 0 accepted");
+  ok &= expect_bool(source_waypoint_load_revision_known(5), true,
+                    "Waypoint revision 5 accepted");
+  ok &= expect_bool(source_waypoint_load_revision_known(6), false,
+                    "Waypoint revision 6 rejected");
+
+  const auto copy = source_waypoint_copy_plan();
+  ok &= expect_size(copy.copied_superclasses.size(), 2,
+                    "Waypoint copy superclass count");
+  ok &= expect_string(copy.copied_superclasses[1], "RndTransformable",
+                      "Waypoint copy transform superclass");
+  ok &= expect_string(copy.copied_members[0], "mFlags",
+                      "Waypoint copy first member");
+  ok &= expect_string(copy.copied_members[6], "mStrictAngDelta",
+                      "Waypoint copy strict angle member");
+
+  ok &= vec_near(source_waypoint_shape_delta_box(
+                     identity(), {15.0f, 0.0f, 7.0f}, 10.0f, 0.0f),
+                 {-5.0f, 0.0f, 0.0f},
+                 "Waypoint circular branch pulls to radius");
+  ok &= vec_near(source_waypoint_shape_delta_box(
+                     identity(), {4.0f, 3.0f, 1.0f}, 10.0f, 0.0f),
+                 {0.0f, 0.0f, 0.0f},
+                 "Waypoint circular branch leaves in-range point");
+  ok &= vec_near(source_waypoint_shape_delta_box(
+                     identity(), {8.0f, -5.0f, 7.0f}, 5.0f, 2.0f),
+                 {-3.0f, 3.0f, 0.0f},
+                 "Waypoint box branch clamps local x/y only");
+
+  ok &= near(source_waypoint_shape_delta_ang(kPi * 0.5f, kPi / 6.0f, 0.0f),
+             kPi / 3.0f, "Waypoint angle delta clamps around waypoint");
+  ok &= near(source_waypoint_shape_delta_ang(0.0f, kPi / 6.0f, kPi * 0.5f),
+             -kPi / 3.0f, "Waypoint angle delta preserves sign");
+
+  SourceWaypointState waypoint;
+  waypoint.radius = 10.0f;
+  waypoint.y_radius = 0.0f;
+  waypoint.ang_radius = kPi / 6.0f;
+  waypoint.strict_radius_delta = 2.0f;
+  waypoint.strict_ang_delta = kPi / 6.0f;
+  const auto constrained =
+      source_waypoint_constrain(waypoint, z_rot(kPi * 0.5f),
+                                identity(20.0f, 0.0f, 0.0f));
+  ok &= expect_bool(constrained.applied_radius, true,
+                    "Waypoint constrain applies strict radius");
+  ok &= expect_bool(constrained.applied_angle, true,
+                    "Waypoint constrain applies strict angle");
+  ok &= vec_near(constrained.position_delta, {-8.0f, 0.0f, 0.0f},
+                 "Waypoint constrain source position delta");
+  ok &= near(constrained.constrained.pos[0], 12.0f,
+             "Waypoint constrain adjusted x");
+  ok &= near(constrained.angle_delta, kPi / 6.0f,
+             "Waypoint constrain strict angle delta");
+  ok &= near(constrained.constrained.rot[0][0], std::cos(kPi / 6.0f),
+             "Waypoint constrain rotated x row x");
+  ok &= near(constrained.constrained.rot[0][1], std::sin(kPi / 6.0f),
+             "Waypoint constrain rotated x row y");
+
+  return ok ? 0 : 1;
+}

@@ -48,6 +48,7 @@ records the upstream commits for the copied files:
 | Character mesh cache | `rb3-latest` `CharMeshCacheMgr.cpp` / `CharMeshCacheMgr.h` | Native helper ports constructor defaults, disabled-state capture, membership checks, bounded `GetVerts`, visible `SyncMesh` index behavior, and mesh-list stuffing. It is bookkeeping-only and does not alter live renderer/cache ownership. |
 | FaceFX/lip-sync boundary | `rb3-latest` `CharFaceServo.*`, `CharLipSync.*`, `CharLipSyncDriver.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` and `CharLipSync` are source context, not matching `FaceFxLipSyncServo` load bodies; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
+| Waypoint clip/path diagnostics | `rb3-latest` `Waypoint.cpp` / `Waypoint.h` | Native helper ports source defaults/load/copy and `ShapeDeltaBox` / `ShapeDeltaAng` / `Constrain` math for diagnostics; no live camera/path behavior is invented. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
 | Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve without adding an unproven frame-cadence write. |
 | Hand/head/foot IK, IK MIDI, slider MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKFoot.cpp` / `CharIKFoot.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKSliderMidi.cpp` / `CharIKSliderMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK foot helpers port source helper-target setup, FSM, load gates, and delegation plan without inventing row hookup; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields; IK slider MIDI helpers port source defaults, dependency publication, setup reset, load gates, and copy flow without inventing the absent `Poll` / `SetFraction` bodies; IK fingers helpers port source defaults and left/right finger transform names only. |
@@ -948,6 +949,34 @@ note, and all report `unreadBytes=0`.
     publishes the target through the runtime world-row writer. The shared
     `source_char_pos_constraint_target_position` helper is the deterministic
     source-body slice used by both focused tests and the runtime controller pass.
+
+## Waypoint Clip/Path Diagnostic Authorities
+
+- `rb3-latest/src/system/char/Waypoint.cpp` and
+  `rb3-latest/src/system/char/Waypoint.h`
+  - `Waypoint` constructor defaults are `mFlags=0`, `mRadius=12`,
+    `mYRadius=0`, `mAngRadius=0`, `mStrictAngDelta=0`,
+    `mStrictRadiusDelta=0`, and an owned `mConnections` vector.
+  - `Waypoint::Load` accepts source revisions through 5. It reads
+    `Hmx::Object`, dumps a legacy drawable for revisions below 5, reads
+    `RndTransformable`, then reads `mFlags`, `mConnections`, optional radius,
+    optional `mYRadius`/`mAngRadius`, and optional strict radius/angle deltas.
+  - `Waypoint::Copy` copies `Hmx::Object`, `RndTransformable`, `mFlags`,
+    `mConnections`, `mRadius`, `mYRadius`, `mAngRadius`,
+    `mStrictRadiusDelta`, and `mStrictAngDelta`.
+  - `ShapeDeltaBox` has two source branches. With a positive Y radius it clamps
+    local X and Y dot products against the waypoint world rows and returns only
+    the clamped X/Y correction. Without a positive Y radius it pulls the
+    subject toward the circular radius in the XY plane and zeroes Z.
+  - `ShapeDeltaAng` returns
+    `LimitAng(GetZAngle(WorldXfm().m) - subject_z_angle) -
+    Clamp(-radius, radius, limited)`.
+  - `Constrain` applies strict radius correction only when
+    `mStrictRadiusDelta > 0` and strict angle correction only when
+    `mStrictAngDelta > 0`, writing the adjusted transform rows.
+  - Native helpers are source-only deterministic diagnostics for decoded
+    waypoint semantics. They do not create live camera, navigation, or path
+    behavior.
 
 ## Bone Offset Authorities
 
