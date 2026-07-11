@@ -97,6 +97,21 @@ bool debug_worldcrowd_decode_enabled() {
 #endif
 }
 
+bool debug_particle_decode_enabled() {
+#if defined(_WIN32)
+  char* value = nullptr;
+  size_t len = 0;
+  if (_dupenv_s(&value, &len, "GHOGX_DEBUG_PARTICLE_DECODE") != 0) return false;
+  const bool enabled =
+      value != nullptr && value[0] != '\0' && std::strcmp(value, "0") != 0;
+  std::free(value);
+  return enabled;
+#else
+  const char* value = std::getenv("GHOGX_DEBUG_PARTICLE_DECODE");
+  return value != nullptr && value[0] != '\0' && std::strcmp(value, "0") != 0;
+#endif
+}
+
 bool is_environ_light_ref(std::string_view ref) {
   if (ref.empty()) return false;
   if (ref.size() >= 4 && ref.compare(ref.size() - 4, 4, ".lit") == 0)
@@ -1120,6 +1135,16 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
       float value = read_f32_at(body, prop_base + off);
       return std::isfinite(value) ? value : fallback;
     };
+    auto safe_color = [&](size_t off,
+                          const std::array<float, 4>& fallback) {
+      std::array<float, 4> color = fallback;
+      for (int i = 0; i < 4; ++i) {
+        color[static_cast<size_t>(i)] =
+            safe_f(off + static_cast<size_t>(i) * 4,
+                   fallback[static_cast<size_t>(i)]);
+      }
+      return color;
+    };
     const float particles_a = safe_f(0, 0.0f);
     const float particles_b = safe_f(4, particles_a);
     part.max_particles = std::clamp(std::max(particles_a, particles_b),
@@ -1132,6 +1157,10 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
     part.lifetime_max = std::max(part.lifetime_min, safe_f(36, part.lifetime_min));
     part.size_start = std::max(0.01f, safe_f(56, 1.0f));
     part.size_end = std::max(0.01f, safe_f(60, part.size_start));
+    part.start_color_low = safe_color(0x50, part.start_color_low);
+    part.start_color_high = safe_color(0x60, part.start_color_high);
+    part.end_color_low = safe_color(0x70, part.end_color_low);
+    part.end_color_high = safe_color(0x80, part.end_color_high);
 
     for (const auto& s : scan_strings(body)) {
       if (s.size() >= 4 && s.compare(s.size() - 4, 4, ".mat") == 0) {
@@ -1468,6 +1497,33 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
           ParticleSysObj p = decode_particle_sys(de.name, b);
           p.dir_index = &de - dir.entries.data();
           if (p.decoded) ++particle_ok; else ++particle_fail;
+          if (p.decoded && debug_particle_decode_enabled()) {
+            const auto avg = [](const std::array<float, 4>& low,
+                                const std::array<float, 4>& high,
+                                size_t i) {
+              return (low[i] + high[i]) * 0.5f;
+            };
+            std::fprintf(
+                stderr,
+                "[milo_scene] ParticleSys %s material=%s start_low=(%.3f %.3f %.3f %.3f) start_high=(%.3f %.3f %.3f %.3f) start_avg=(%.3f %.3f %.3f %.3f) end_low=(%.3f %.3f %.3f %.3f) end_high=(%.3f %.3f %.3f %.3f) end_avg=(%.3f %.3f %.3f %.3f)\n",
+                p.name.c_str(), p.material.c_str(),
+                p.start_color_low[0], p.start_color_low[1],
+                p.start_color_low[2], p.start_color_low[3],
+                p.start_color_high[0], p.start_color_high[1],
+                p.start_color_high[2], p.start_color_high[3],
+                avg(p.start_color_low, p.start_color_high, 0),
+                avg(p.start_color_low, p.start_color_high, 1),
+                avg(p.start_color_low, p.start_color_high, 2),
+                avg(p.start_color_low, p.start_color_high, 3),
+                p.end_color_low[0], p.end_color_low[1],
+                p.end_color_low[2], p.end_color_low[3],
+                p.end_color_high[0], p.end_color_high[1],
+                p.end_color_high[2], p.end_color_high[3],
+                avg(p.end_color_low, p.end_color_high, 0),
+                avg(p.end_color_low, p.end_color_high, 1),
+                avg(p.end_color_low, p.end_color_high, 2),
+                avg(p.end_color_low, p.end_color_high, 3));
+          }
           out.particles.push_back(std::move(p));
         } else if (de.type == "WorldCrowd") {
           WorldCrowdObj c = decode_world_crowd(de.name, b);

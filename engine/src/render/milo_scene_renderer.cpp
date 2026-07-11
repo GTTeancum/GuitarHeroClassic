@@ -42,6 +42,27 @@ constexpr DWORD kDefaultSceneAmbient = D3DCOLOR_XRGB(170, 170, 178);
 constexpr DWORD kAuthoredLightFirstSlot = 2;
 constexpr DWORD kAuthoredLightSlotCount = 6;
 
+std::array<float, 4> average_particle_color(
+    const std::array<float, 4>& low,
+    const std::array<float, 4>& high) {
+  std::array<float, 4> out{};
+  for (size_t i = 0; i < out.size(); ++i) {
+    out[i] = (low[i] + high[i]) * 0.5f;
+  }
+  return out;
+}
+
+std::array<float, 4> average_particle_color_from_key(
+    const std::array<float, 4>& sampled_low,
+    const std::array<float, 4>& base_low,
+    const std::array<float, 4>& base_high) {
+  std::array<float, 4> out{};
+  for (size_t i = 0; i < out.size(); ++i) {
+    out[i] = sampled_low[i] + (base_high[i] - base_low[i]) * 0.5f;
+  }
+  return out;
+}
+
 enum MiloBlend : uint8_t {
   kBlendDest = 0,
   kBlendSrc = 1,
@@ -1852,15 +1873,19 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     if (const auto tex_it = tex_.find(mat->diffuse_tex); tex_it != tex_.end())
       texture = tex_it->second;
     if (!texture) return;
-    std::array<float, 4> start_color = {1.0f, 1.0f, 1.0f, 1.0f};
-    std::array<float, 4> end_color = start_color;
+    std::array<float, 4> start_color =
+        average_particle_color(p.start_color_low, p.start_color_high);
+    std::array<float, 4> end_color =
+        average_particle_color(p.end_color_low, p.end_color_high);
     if (const auto color_it = particle_start_colors_.find(p.name);
         color_it != particle_start_colors_.end()) {
-      start_color = color_it->second;
+      start_color = average_particle_color_from_key(
+          color_it->second, p.start_color_low, p.start_color_high);
     }
     if (const auto color_it = particle_end_colors_.find(p.name);
         color_it != particle_end_colors_.end()) {
-      end_color = color_it->second;
+      end_color = average_particle_color_from_key(
+          color_it->second, p.end_color_low, p.end_color_high);
     }
 
     const int count = static_cast<int>(std::clamp(

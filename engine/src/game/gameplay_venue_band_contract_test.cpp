@@ -4603,12 +4603,31 @@ int main() {
   ok &= contains(milo_scene_cpp_c,
                  "part.material=s;",
                  "ParticleSys decoder keeps authored material refs");
+  ok &= contains(milo_scene_h_c,
+                 "std::array<float,4>start_color_low",
+                 "MILO scene decoder exposes source ParticleSys start color range");
+  ok &= contains(milo_scene_h_c,
+                 "std::array<float,4>end_color_low",
+                 "MILO scene decoder exposes source ParticleSys end color range");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.start_color_low=safe_color(0x50",
+                 "ParticleSys decoder reads source start color low at traced offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.end_color_high=safe_color(0x80",
+                 "ParticleSys decoder reads source end color high at traced offset");
   ok &= contains(renderer_h_c,
                  "set_active_particle_systems",
                  "renderer accepts active ParticleSys event state");
   ok &= contains(renderer_c,
                  "D3DRS_POINTSPRITEENABLE",
                  "renderer draws ParticleSys through point sprites");
+  ok &= contains(renderer_c,
+                 "average_particle_color(p.start_color_low,p.start_color_high)",
+                 "renderer starts ParticleSys color from source low/high average");
+  ok &= contains(renderer_c,
+                 "average_particle_color_from_key("
+                 "color_it->second,p.start_color_low,p.start_color_high)",
+                 "renderer preserves source start-color range around anim keys");
   ok &= contains(gameplay_h_c,
                  "structVenueParticleRoute",
                  "gameplay keeps particle event routes");

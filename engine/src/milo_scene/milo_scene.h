@@ -295,6 +295,10 @@ struct ParticleSysObj {
   float lifetime_max = 1.0f;
   float size_start = 1.0f;
   float size_end = 1.0f;
+  std::array<float, 4> start_color_low = {1.0f, 1.0f, 1.0f, 1.0f};
+  std::array<float, 4> start_color_high = {1.0f, 1.0f, 1.0f, 1.0f};
+  std::array<float, 4> end_color_low = {1.0f, 1.0f, 1.0f, 1.0f};
+  std::array<float, 4> end_color_high = {1.0f, 1.0f, 1.0f, 1.0f};
   bool decoded = false;
   std::string error;
 };
