@@ -2663,10 +2663,13 @@ static bool apply_clip_pose_output_layer(
       direct_channels.push_back(ch);
       continue;
     }
+    const bool lower_body_output =
+        lower_body_only && output_map_lower_body_bone(it->first);
+    const bool face_output =
+        face_output_layer && output_map_face_bone(it->first);
     const bool driven_by_selected_output =
-        force_selected_output || full_output_layer ||
-        output_map_lower_body_bone(it->first) ||
-        (face_output_layer && output_map_face_bone(it->first));
+        force_selected_output || full_output_layer || lower_body_output ||
+        face_output;
     if (!driven_by_selected_output) {
       direct_channels.push_back(ch);
       continue;

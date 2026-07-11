@@ -2112,9 +2112,29 @@ int run_contract() {
                  "\"GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT\"",
                  "lower-body CharBone output bridge uses explicit enable");
   ok &= contains(char_clip,
+                 "constboollower_body_output=lower_body_only&&"
+                 "output_map_lower_body_bone(it->first);",
+                 "lower-body CharBone rows require the lower-body diagnostic opt-in");
+  ok &= contains(char_clip,
+                 "constboolface_output=face_output_layer&&"
+                 "output_map_face_bone(it->first);",
+                 "face CharBone diagnostics do not imply lower-body output");
+  ok &= contains(char_clip,
                  "if(!force_selected_output&&!full_output_layer&&"
                  "!lower_body_only&&!face_output_layer){returnfalse;}",
                  "selected hand output is separate from broad output diagnostics");
+  ok &= contains(format_notes,
+                 "Current source-truth keeps broad lower-body\n  output opt-in only",
+                 "format notes fence lower-body CharBone output as opt-in");
+  ok &= contains(format_notes,
+                 "There is no\n  `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT` switch",
+                 "format notes reject the old default-on disable switch");
+  ok &= missing(format_notes,
+                "disables that promoted lower\n  bridge",
+                "format notes must not describe lower-body output as promoted");
+  ok &= missing(format_notes,
+                "pins the promoted\n  lower-body bridge to default-on",
+                "format notes must not pin lower-body output as default-on");
   ok &= missing(char_clip, "fore_twists_applied",
                 "CharIKHand path must not mark CharForeTwist rows consumed");
   ok &= missing(char_clip, "GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT",

@@ -284,14 +284,22 @@ int main() {
                  "staticbooloutput_map_lower_body_bone("
                  "conststd::string&key){returnkey==\"bone_facing\"||"
                  "key==\"bone_pelvis\"",
-                 "lower-body output bridge owns the body-facing root and pelvis");
+                 "diagnostic lower-body output map lists the body-facing root and pelvis");
   ok &= contains(char_clip_c,
                  "key.find(\"-ankle\")!=std::string::npos",
-                 "lower-body output bridge keeps traced ankle rows");
+                 "diagnostic lower-body output map keeps traced ankle rows");
   ok &= contains(char_clip_c,
                  "charbone_output_lower_body_only_enabled()||"
                  "charbone_lower_body_output_enabled()",
                  "lower-body CharBone output bridge is opt-in only");
+  ok &= contains(char_clip_c,
+                 "constboollower_body_output=lower_body_only&&"
+                 "output_map_lower_body_bone(it->first);",
+                 "lower-body output rows require the diagnostic opt-in");
+  ok &= contains(char_clip_c,
+                 "constboolface_output=face_output_layer&&"
+                 "output_map_face_bone(it->first);",
+                 "face output diagnostic is fenced from lower-body rows");
   ok &= contains(char_clip_c,
                  "\"GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT\"",
                  "lower-body CharBone bridge has an explicit diagnostic enable switch");

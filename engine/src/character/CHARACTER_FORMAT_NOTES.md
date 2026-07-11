@@ -3130,20 +3130,22 @@ Useful environment flags:
   and the final leg-row widths are unchanged (`Glam1 toe2D=25.061`,
   `Rockabill1 foot2D=24.603 / toe2D=16.209`), which confirms the root-row
   ownership fix did not regress the current lower-body route.
-- `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT=1` disables that promoted lower
-  bridge for A/B comparisons. `GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` remains the
-  opt-in full output-layer experiment, and
-  `GHOGX_CHARBONE_OUTPUT_LOWER_BODY_ONLY=1` still forces the old diagnostic
-  lower-only mode when full output is explicitly enabled. Do not promote the
-  full bridge until the packed output/work-buffer-to-visible-Trans copy is
-  mapped.
+- Historical lower-body CharBone output trial: the old default-on experiment
+  routed `bone_facing`, pelvis, thigh/knee/ankle/foot/toe rows through decoded
+  output records for A/B review. Current source-truth keeps broad lower-body
+  output opt-in only via `GHOGX_ENABLE_CHARBONE_LOWER_BODY_OUTPUT` or the older
+  diagnostic `GHOGX_CHARBONE_OUTPUT_LOWER_BODY_ONLY`. There is no
+  `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT` switch in the current runtime.
+  `GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` remains the opt-in full output-layer
+  experiment. Do not promote the full bridge until the packed
+  output/work-buffer-to-visible-Trans copy is mapped from source-backed
+  evidence.
 - 2026-06-28 lower-body contract guard:
-  `ghogx_character_left_hand_contract_test` now explicitly pins the promoted
-  lower-body bridge to default-on `CharBone` output rows for `bone_facing`,
-  `bone_pelvis`, thigh/knee/ankle/foot/toe, and keeps the
-  `GHOGX_DISABLE_CHARBONE_LOWER_BODY_OUTPUT` A/B switch visible. This guards the
-  accepted split where hand overlays do not own root/lower-body rows while the
-  full output layer remains rejected/opt-in.
+  `ghogx_character_left_hand_contract_test` now pins the split where hand
+  overlays do not own root/lower-body rows, while broad lower-body `CharBone`
+  output rows remain diagnostic opt-in for `bone_facing`, `bone_pelvis`, and
+  thigh/knee/ankle/foot/toe. This keeps selected hand output independent from
+  broad body, face, lower-body, and full output-layer diagnostics.
 - 2026-06-15 Glam1 wrist isolate promoted a narrow render-path correction:
   numeric meshes can be hair draw members by material, not only by mesh name.
   `glam1.73.mesh` is named numerically but uses `glam1_hair.mat`, blends, and
