@@ -2110,6 +2110,28 @@ int run_contract() {
                  "`rockabill2` had only a fret row set",
                  "document records partial local clip variant prefixes");
   ok &= contains(doc,
+                 "The matching controller-route audit at\n    "
+                 "`analysis/source_clip_inventory_20260711/"
+                 "stock_24_base_controller_driver_routes.stdout.log`",
+                 "document records controller route audit proof");
+  ok &= contains(doc,
+                 "decoded 63\n    driver rows across the same 24 base MILOs: "
+                 "25 base `midi=0` rows and 38",
+                 "document records controller route audit driver counts");
+  ok &= contains(doc,
+                 "`deathmetal2 -> deathmetal1`,\n    `glam2 -> glam1`, "
+                 "`goth2 -> goth1`, `metal2 -> metal1`,",
+                 "document records zero-local sibling animation routes");
+  ok &= contains(doc,
+                 "`punk2 -> punk1`, and `rock2 -> rock1`",
+                 "document records punk2 and rock2 sibling animation routes");
+  ok &= contains(doc,
+                 "`alterna2` routes only\n    `main.drv` to `alterna1_main`",
+                 "document records alterna2 partial sibling animation route");
+  ok &= contains(doc,
+                 "`rockabill2` routes `main.drv` and `right_hand.drv` to",
+                 "document records rockabill2 partial sibling animation route");
+  ok &= contains(doc,
                  "the accessible tree does not include a\n"
                  "    matching `ByteQuat` type, header, or conversion "
                  "implementation",

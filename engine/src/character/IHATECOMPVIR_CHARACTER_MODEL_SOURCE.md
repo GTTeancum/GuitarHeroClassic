@@ -726,6 +726,18 @@ note, and all report `unreadBytes=0`.
     and `rockabill2` had only a fret row set. Treat these as clip-directory
     routing evidence to resolve through source driver data, not as parser
     failures or permission to fabricate copied animation paths.
+  - The matching controller-route audit at
+    `analysis/source_clip_inventory_20260711/stock_24_base_controller_driver_routes.stdout.log`
+    confirms the shared routes are authored `CharDriver` data. It decoded 63
+    driver rows across the same 24 base MILOs: 25 base `midi=0` rows and 38
+    left/right hand `midi=1` rows. The zero-local-clip variants route all three
+    driver clips to their sibling set: `deathmetal2 -> deathmetal1`,
+    `glam2 -> glam1`, `goth2 -> goth1`, `metal2 -> metal1`,
+    `punk2 -> punk1`, and `rock2 -> rock1`. `alterna2` routes only
+    `main.drv` to `alterna1_main` while keeping local `alterna2_strum` and
+    `alterna2_fret`; `rockabill2` routes `main.drv` and `right_hand.drv` to
+    `rockabill1_main`/`rockabill1_strum` while keeping local
+    `rockabill2_fret` for `left_hand.drv`.
   - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish
     the source packed-row offset model.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
