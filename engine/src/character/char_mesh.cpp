@@ -702,8 +702,8 @@ CharServoBone decode_servo_bone(const std::string& entry_name,
   return servo;
 }
 
-CharHair decode_hair(const std::string& entry_name,
-                     const std::vector<uint8_t>& body) {
+CharHair decode_hair_body(const std::string& entry_name,
+                          const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
   CharHair hair;
   hair.name = entry_name;
@@ -715,7 +715,7 @@ CharHair decode_hair(const std::string& entry_name,
   hair.gravity = r.f32();
   hair.weight = r.f32();
   hair.friction = r.f32();
-  if (hair.version > 8) {
+  if (hair.version >= 8) {
     hair.min_slack = r.f32();
     hair.max_slack = r.f32();
   }
@@ -1365,6 +1365,11 @@ CharWeightSetter decode_weight_setter(const std::string& entry_name,
 }
 
 }  // namespace
+
+CharHair decode_hair(const std::string& entry_name,
+                     const std::vector<uint8_t>& body) {
+  return decode_hair_body(entry_name, body);
+}
 
 void source_char_hair_set_cloth(CharHair& hair, bool enabled) {
   const size_t strand_count = hair.strands.size();

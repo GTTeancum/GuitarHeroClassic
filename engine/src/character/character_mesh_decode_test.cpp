@@ -110,6 +110,23 @@ std::vector<uint8_t> make_rev28_mesh_with_group_section() {
   return b;
 }
 
+std::vector<uint8_t> make_rev8_hair_without_strands() {
+  std::vector<uint8_t> b;
+  put_u32(b, 8);                  // CharHair revision
+  put_zeros(b, 9);                // ObjectFields revision 0, empty type/root
+  put_f32(b, 0.04f);              // stiffness
+  put_f32(b, 0.10f);              // torsion
+  put_f32(b, 0.70f);              // inertia
+  put_f32(b, 1.00f);              // gravity
+  put_f32(b, 0.50f);              // weight
+  put_f32(b, 0.30f);              // friction
+  put_f32(b, 0.25f);              // min_slack: present from source rev 8
+  put_f32(b, 0.75f);              // max_slack: present from source rev 8
+  put_u32(b, 0);                  // strands
+  b.push_back(1);                 // simulate
+  return b;
+}
+
 ghogx::character::CharHair make_two_strand_hair() {
   ghogx::character::CharHair hair;
   hair.strands.resize(2);
@@ -169,6 +186,16 @@ int main() {
       ghogx::character::decode_skinned_mesh("hair.mesh", bytes, 25);
   CHECK(rb1_style.decoded);
   CHECK(rb1_style.group_sections.empty());
+
+  const ghogx::character::CharHair rev8_hair =
+      ghogx::character::decode_hair("rev8.hair",
+                                    make_rev8_hair_without_strands());
+  CHECK(rev8_hair.version == 8);
+  CHECK(approx(rev8_hair.min_slack, 0.25f));
+  CHECK(approx(rev8_hair.max_slack, 0.75f));
+  CHECK(rev8_hair.strands.empty());
+  CHECK(rev8_hair.simulate);
+  CHECK(rev8_hair.unread_bytes == 0);
 
   ghogx::character::CharHair cloth_hair = make_two_strand_hair();
   ghogx::character::source_char_hair_set_cloth(cloth_hair, true);
