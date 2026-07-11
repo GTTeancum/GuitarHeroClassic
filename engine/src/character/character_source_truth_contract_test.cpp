@@ -102,6 +102,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_bone_offset_source_test.cpp"));
   const std::string bone_twist_source_test =
       compact(read_file(char_dir / "character_bone_twist_source_test.cpp"));
+  const std::string fore_upper_twist_source_test = compact(
+      read_file(char_dir / "character_fore_upper_twist_source_test.cpp"));
   const std::string lookat_source_test =
       compact(read_file(char_dir / "character_lookat_source_test.cpp"));
   const std::string weight_setter_source_test =
@@ -7629,16 +7631,91 @@ int run_contract() {
                  "native standalone upper twist path is source-named");
   ok &= contains(char_clip, "apply_source_fore_twist(",
                  "native standalone fore twist path is source-named");
+  ok &= contains(char_clip_h,
+                 "structSourceCharForeTwistPollWorldResult{"
+                 "boolapplied=false;floatsource_angle_radians=0.0f;",
+                 "native API exposes CharForeTwist source poll result");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_fore_twist_poll_world("
+                 "constCharForeTwist&twist,",
+                 "native API exposes CharForeTwist source Poll helper");
+  ok &= contains(char_clip_h,
+                 "structSourceCharUpperTwistPollWorldResult{"
+                 "boolapplied=false;std::array<float,16>twist1_world={};"
+                 "std::array<float,16>twist2_world={};};",
+                 "native API exposes CharUpperTwist source poll result");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_upper_twist_poll_world("
+                 "boolhas_source,boolhas_twist1,boolhas_twist2,",
+                 "native API exposes CharUpperTwist source Poll helper");
   ok &= contains(char_clip,
-                 "quat_from_vec_to_vec(mat_row(upper_parent_world,0),"
-                 "mat_row(upper_world,0),q);",
+                 "quat_from_vec_to_vec(mat_row(source_parent_world,0),"
+                 "mat_row(source_world,0),q);",
                  "native CharUpperTwist port follows source MakeRotQuat rows");
   ok &= contains(char_clip,
-                 "write_output(twist1,0.333f);write_output(twist2,0.666f);",
+                 "out.twist1_world=make_output(twist1_current_world,0.333f);"
+                 "out.twist2_world=make_output(twist2_current_world,0.666f);",
                  "native CharUpperTwist port keeps source interpolation weights");
   ok &= contains(char_clip,
                  "std::atan2(clamped2,clamped)+bias",
                  "native CharForeTwist port keeps source angle basis and bias");
+  ok &= contains(char_clip,
+                 "boolsource_char_fore_twist_poll_world("
+                 "constCharForeTwist&twist,boolhas_hand,boolhas_twist2,",
+                 "native CharForeTwist source helper body exists");
+  ok &= contains(char_clip,
+                 "constfloatratio=twist2_local_x/hand_local_x;",
+                 "native CharForeTwist source helper keeps source ratio division");
+  ok &= contains(char_clip,
+                 "out.twist_parent_world=source_matrix_multiply_rotation("
+                 "rot,hand_parent_world);",
+                 "native CharForeTwist helper writes source twist parent world");
+  ok &= contains(char_clip,
+                 "out.twist2_world=source_matrix_multiply_rotation("
+                 "rot,out.twist_parent_world);",
+                 "native CharForeTwist helper applies source rotation again to twist2");
+  ok &= contains(char_clip,
+                 "boolsource_char_upper_twist_poll_world("
+                 "boolhas_source,boolhas_twist1,boolhas_twist2,",
+                 "native CharUpperTwist source helper body exists");
+  ok &= contains(char_clip,
+                 "out.twist1_world=make_output(twist1_current_world,0.333f);"
+                 "out.twist2_world=make_output(twist2_current_world,0.666f);",
+                 "native CharUpperTwist helper keeps source interpolation constants");
+  ok &= contains(char_clip,
+                 "source_char_fore_twist_poll_world(ft,true,true,true,true,"
+                 "parent_world,hand_world,hand.local.pos[0],twist2.local.pos[0],",
+                 "runtime CharForeTwist path calls source helper");
+  ok &= contains(char_clip,
+                 "source_char_upper_twist_poll_world(true,true,true,true,"
+                 "upper_parent_world,upper_world,twist1_current_world,"
+                 "twist2_current_world,",
+                 "runtime CharUpperTwist path calls source helper");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_fore_upper_twist_source_test"
+                 "character_fore_upper_twist_source_test.cpp)",
+                 "CMake builds focused fore/upper twist source test");
+  ok &= contains(fore_upper_twist_source_test,
+                 "source_char_fore_twist_poll_world(",
+                 "focused fore/upper twist test covers CharForeTwist helper");
+  ok &= contains(fore_upper_twist_source_test,
+                 "source_char_upper_twist_poll_world(",
+                 "focused fore/upper twist test covers CharUpperTwist helper");
+  ok &= contains(fore_upper_twist_source_test,
+                 "fore_out.source_angle_radians,kPi*2.0f/3.0f",
+                 "focused fore twist test covers source angle with bias");
+  ok &= contains(fore_upper_twist_source_test,
+                 "expect_upper_rows(upper_out.twist1_world,0.333f",
+                 "focused upper twist test covers source first weight");
+  ok &= contains(fore_upper_twist_source_test,
+                 "expect_upper_rows(upper_out.twist2_world,0.666f",
+                 "focused upper twist test covers source second weight");
+  ok &= contains(doc,
+                 "Native `source_char_upper_twist_poll_world` ports that world-row `Poll`",
+                 "document records native CharUpperTwist source helper");
+  ok &= contains(doc,
+                 "Native `source_char_fore_twist_poll_world` ports that world-row `Poll`",
+                 "document records native CharForeTwist source helper");
   ok &= contains(char_clip,
                  "apply_source_ik_hands(character);"
                  "apply_source_fore_twists(character);"

@@ -1656,6 +1656,47 @@ bool source_char_bone_twist_poll_world(
     const std::unordered_map<std::string, float>& weights_by_name,
     std::array<float, 16>& out_world);
 
+struct SourceCharForeTwistPollWorldResult {
+  bool applied = false;
+  float source_angle_radians = 0.0f;
+  float applied_rotation_radians = 0.0f;
+  float twist2_position_ratio = 0.0f;
+  std::array<float, 16> twist_parent_world = {};
+  std::array<float, 16> twist2_world = {};
+};
+
+struct SourceCharUpperTwistPollWorldResult {
+  bool applied = false;
+  std::array<float, 16> twist1_world = {};
+  std::array<float, 16> twist2_world = {};
+};
+
+// Source-backed CharForeTwist::Poll and CharUpperTwist::Poll world-row
+// helpers. These are pure translations of the ihatecompvir routines; callers
+// remain responsible for resolving object pointers and converting SetWorldXfm
+// results back into local rows.
+bool source_char_fore_twist_poll_world(
+    const CharForeTwist& twist,
+    bool has_hand,
+    bool has_twist2,
+    bool has_hand_parent,
+    bool has_twist2_parent,
+    const std::array<float, 16>& hand_parent_world,
+    const std::array<float, 16>& hand_world,
+    float hand_local_x,
+    float twist2_local_x,
+    SourceCharForeTwistPollWorldResult& out);
+bool source_char_upper_twist_poll_world(
+    bool has_source,
+    bool has_twist1,
+    bool has_twist2,
+    bool has_source_parent,
+    const std::array<float, 16>& source_parent_world,
+    const std::array<float, 16>& source_world,
+    const std::array<float, 16>& twist1_current_world,
+    const std::array<float, 16>& twist2_current_world,
+    SourceCharUpperTwistPollWorldResult& out);
+
 // Source-backed CharHair::FreezePoseRaw helper. Writes current runtime point
 // positions back into point.unk5c in the strand root-parent local basis.
 int source_char_hair_freeze_pose_raw(Character& character, CharHair& hair,

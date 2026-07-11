@@ -3584,6 +3584,98 @@ static float source_limit_ang(float radians) {
   return radians;
 }
 
+bool source_char_fore_twist_poll_world(
+    const CharForeTwist& twist,
+    bool has_hand,
+    bool has_twist2,
+    bool has_hand_parent,
+    bool has_twist2_parent,
+    const std::array<float, 16>& hand_parent_world,
+    const std::array<float, 16>& hand_world,
+    float hand_local_x,
+    float twist2_local_x,
+    SourceCharForeTwistPollWorldResult& out) {
+  out = {};
+  if (!has_hand || !has_twist2 || !has_hand_parent || !has_twist2_parent) {
+    return false;
+  }
+
+  const float clamped =
+      std::clamp(vdot(mat_row(hand_world, 2), mat_row(hand_parent_world, 1)),
+                 -1.0f, 1.0f);
+  const Vec3 cross =
+      vcross(mat_row(hand_parent_world, 1), mat_row(hand_world, 2));
+  const float clamped2 =
+      std::clamp(vdot(mat_row(hand_parent_world, 0), cross), -1.0f, 1.0f);
+  constexpr float kDegToRad = 0.01745329238474369049f;
+  const float bias = twist.bias_degrees * kDegToRad;
+  const float angle = source_limit_ang(
+      twist.offset_degrees * kDegToRad + std::atan2(clamped2, clamped) + bias);
+  const float final_angle = angle - bias;
+  const auto rot = rotation_about_x_world(final_angle * 0.33333f);
+
+  out.twist_parent_world =
+      source_matrix_multiply_rotation(rot, hand_parent_world);
+  const float ratio = twist2_local_x / hand_local_x;
+  out.twist2_world =
+      source_matrix_multiply_rotation(rot, out.twist_parent_world);
+  const Vec3 twist_parent_pos = mat_pos(out.twist_parent_world);
+  const Vec3 hand_pos = mat_pos(hand_world);
+  const Vec3 interp_pos =
+      vadd(vscale(twist_parent_pos, 1.0f - ratio), vscale(hand_pos, ratio));
+  out.twist2_world[12] = interp_pos.x;
+  out.twist2_world[13] = interp_pos.y;
+  out.twist2_world[14] = interp_pos.z;
+  out.twist2_world[15] = 1.0f;
+  out.applied = true;
+  out.source_angle_radians = angle;
+  out.applied_rotation_radians = final_angle * 0.33333f;
+  out.twist2_position_ratio = ratio;
+  return true;
+}
+
+bool source_char_upper_twist_poll_world(
+    bool has_source,
+    bool has_twist1,
+    bool has_twist2,
+    bool has_source_parent,
+    const std::array<float, 16>& source_parent_world,
+    const std::array<float, 16>& source_world,
+    const std::array<float, 16>& twist1_current_world,
+    const std::array<float, 16>& twist2_current_world,
+    SourceCharUpperTwistPollWorldResult& out) {
+  out = {};
+  if (!has_source || !has_twist1 || !has_twist2 || !has_source_parent) {
+    return false;
+  }
+
+  float q[4] = {};
+  quat_from_vec_to_vec(mat_row(source_parent_world, 0),
+                       mat_row(source_world, 0), q);
+  const Vec3 rotated_parent_y =
+      rotate_vec_by_quat(mat_row(source_parent_world, 1), q);
+
+  auto make_output = [&](const std::array<float, 16>& current_world,
+                         float weight) {
+    std::array<float, 16> output = source_world;
+    set_mat_row(output, 0, mat_row(source_world, 0));
+    set_mat_row(output, 1,
+                vadd(vscale(rotated_parent_y, 1.0f - weight),
+                     vscale(mat_row(source_world, 1), weight)));
+    output[12] = current_world[12];
+    output[13] = current_world[13];
+    output[14] = current_world[14];
+    output[15] = 1.0f;
+    source_look_at_rows(output);
+    return output;
+  };
+
+  out.twist1_world = make_output(twist1_current_world, 0.333f);
+  out.twist2_world = make_output(twist2_current_world, 0.666f);
+  out.applied = true;
+  return true;
+}
+
 static void write_source_elbow_z_bend(milo_scene::Xfm& dst,
                                       const milo_scene::Xfm& base,
                                       float cos_angle,
@@ -3989,20 +4081,13 @@ static bool apply_source_fore_twist(Character& character,
   const auto parent_world = character.bone_world_local_chain(
       character.bones[static_cast<size_t>(parent_i)].name);
   const auto hand_world = character.bone_world_local_chain(hand.name);
-  const float clamped =
-      std::clamp(vdot(mat_row(hand_world, 2), mat_row(parent_world, 1)),
-                 -1.0f, 1.0f);
-  const Vec3 cross = vcross(mat_row(parent_world, 1), mat_row(hand_world, 2));
-  const float clamped2 =
-      std::clamp(vdot(mat_row(parent_world, 0), cross), -1.0f, 1.0f);
-  constexpr float kDegToRad = 0.01745329238474369049f;
-  const float bias = ft.bias_degrees * kDegToRad;
-  const float angle = source_limit_ang(
-      ft.offset_degrees * kDegToRad + std::atan2(clamped2, clamped) + bias);
-  const auto rot = rotation_about_x_world((angle - bias) * 0.33333f);
-
-  std::array<float, 16> twist1_world =
-      source_matrix_multiply_rotation(rot, parent_world);
+  SourceCharForeTwistPollWorldResult twist_result;
+  if (!source_char_fore_twist_poll_world(
+          ft, true, true, true, true, parent_world, hand_world,
+          hand.local.pos[0], twist2.local.pos[0], twist_result)) {
+    return false;
+  }
+  std::array<float, 16> twist1_world = twist_result.twist_parent_world;
   if (!twist1.parent.empty()) {
     set_local_from_world(twist1.local, twist1_world,
                          character.bone_world_local_chain(twist1.parent));
@@ -4010,20 +4095,8 @@ static bool apply_source_fore_twist(Character& character,
     mat4_to_xfm(twist1_world, twist1.local);
   }
 
-  const float ratio =
-      std::fabs(hand.local.pos[0]) > 1.0e-6f
-          ? twist2.local.pos[0] / hand.local.pos[0]
-          : 0.0f;
-  std::array<float, 16> twist2_world =
-      source_matrix_multiply_rotation(rot, twist1_world);
-  const Vec3 twist1_pos = mat_pos(twist1_world);
-  const Vec3 hand_pos = mat_pos(hand_world);
-  const Vec3 interp_pos =
-      vadd(vscale(twist1_pos, 1.0f - ratio), vscale(hand_pos, ratio));
-  twist2_world[12] = interp_pos.x;
-  twist2_world[13] = interp_pos.y;
-  twist2_world[14] = interp_pos.z;
-  set_local_from_world(twist2.local, twist2_world, twist1_world);
+  set_local_from_world(twist2.local, twist_result.twist2_world,
+                       twist1_world);
 
   if (debug_ik_enabled()) {
     std::fprintf(stderr,
@@ -4031,7 +4104,8 @@ static bool apply_source_fore_twist(Character& character,
                  "offset=%.3f bias=%.3f angle=%.5f ratio=%.5f\n",
                  ft.name.c_str(), ft.hand.c_str(), twist1.name.c_str(),
                  ft.twist2.c_str(), ft.offset_degrees, ft.bias_degrees,
-                 angle, ratio);
+                 twist_result.source_angle_radians,
+                 twist_result.twist2_position_ratio);
   }
   return true;
 }
@@ -4057,21 +4131,17 @@ static void apply_source_upper_twists(
 
     const auto upper_parent_world = character.bone_world_local_chain(upper.parent);
     const auto upper_world = character.bone_world_local_chain(upper.name);
-    float q[4] = {};
-    quat_from_vec_to_vec(mat_row(upper_parent_world, 0),
-                         mat_row(upper_world, 0), q);
-    const Vec3 v68 = rotate_vec_by_quat(mat_row(upper_parent_world, 1), q);
+    const auto twist1_current_world = character.bone_world_local_chain(twist1.name);
+    const auto twist2_current_world = character.bone_world_local_chain(twist2.name);
+    SourceCharUpperTwistPollWorldResult twist_result;
+    if (!source_char_upper_twist_poll_world(
+            true, true, true, true, upper_parent_world, upper_world,
+            twist1_current_world, twist2_current_world, twist_result)) {
+      continue;
+    }
 
-    auto write_output = [&](milo_scene::TransObj& bone, float weight) {
-      std::array<float, 16> out_world = upper_world;
-      set_mat_row(out_world, 0, mat_row(upper_world, 0));
-      set_mat_row(out_world, 1,
-                  vadd(vscale(v68, 1.0f - weight),
-                       vscale(mat_row(upper_world, 1), weight)));
-      out_world[12] = character.bone_world_local_chain(bone.name)[12];
-      out_world[13] = character.bone_world_local_chain(bone.name)[13];
-      out_world[14] = character.bone_world_local_chain(bone.name)[14];
-      source_look_at_rows(out_world);
+    auto write_output = [&](milo_scene::TransObj& bone,
+                            const std::array<float, 16>& out_world) {
       if (!bone.parent.empty()) {
         set_local_from_world(bone.local, out_world,
                              character.bone_world_local_chain(bone.parent));
@@ -4080,8 +4150,8 @@ static void apply_source_upper_twists(
       }
     };
 
-    write_output(twist1, 0.333f);
-    write_output(twist2, 0.666f);
+    write_output(twist1, twist_result.twist1_world);
+    write_output(twist2, twist_result.twist2_world);
     if (debug_ik_enabled()) {
       std::fprintf(stderr,
                    "[twist-upper-source] %s upper=%s twist1=%s twist2=%s\n",

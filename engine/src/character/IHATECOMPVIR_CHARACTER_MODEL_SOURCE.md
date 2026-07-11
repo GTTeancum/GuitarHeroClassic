@@ -1349,6 +1349,12 @@ note, and all report `unreadBytes=0`.
     parent Y row through that quaternion, interpolates toward the source Y row
     at `0.333` and `0.666`, runs `LookAt` on the matrix rows, and writes the two
     driven transforms through `SetWorldXfm`.
+  - Native `source_char_upper_twist_poll_world` ports that world-row `Poll`
+    behavior directly: it returns the two source `SetWorldXfm` matrices with
+    the source transform's X row, the previous driven positions, and the exact
+    `0.333f` / `0.666f` interpolation constants. Runtime code only resolves
+    decoded object names and converts those source world rows back to local
+    rows.
 - `rb3/src/system/char/CharForeTwist.cpp`
   - `CharForeTwist::Load` reads `offset`, `hand`, `twist2`, an old revision-2
     dummy int, and `bias` for revisions above 3.
@@ -1356,6 +1362,11 @@ note, and all report `unreadBytes=0`.
     the hand parent world X/Y rows, applies authored `offset` and `bias`, writes
     the `twist2` parent transform, then interpolates toward the hand position
     using `twist2.local.x / hand.local.x` and writes `twist2` itself.
+  - Native `source_char_fore_twist_poll_world` ports that world-row `Poll`
+    behavior directly: it computes the source angle, applies one third of the
+    final angle to the `twist2` parent, applies the same rotation again to
+    `twist2`, and keeps the source position ratio
+    `twist2.local.x / hand.local.x` instead of inserting a native fallback.
   - `CharIKHand::Poll` does not inline or consume `CharForeTwist` rows. Native
     GHOGX therefore runs decoded `CharForeTwist` controllers as their own source
     poll pass after hand IK instead of marking them handled inside the hand IK
@@ -1368,7 +1379,9 @@ note, and all report `unreadBytes=0`.
     `engine/out/rock_regression_corrected_20260710/`.
   - Native GHOGX does not keep approximate or PS2-row twist writers in the
     runtime path. The standalone twist controller path follows these
-    ihatecompvir source `Poll` routines.
+    ihatecompvir source `Poll` routines, and
+    `ghogx_character_fore_upper_twist_source_test` now covers the focused helper
+    math.
 - `rb3-latest/src/system/char/CharNeckTwist.cpp` and
   `rb3-latest/src/system/char/CharNeckTwist.h`
   - `CharNeckTwist::Load` accepts source revisions through 1, loads
