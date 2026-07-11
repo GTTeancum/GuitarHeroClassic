@@ -442,28 +442,45 @@ void append_group_draw_order(const Scene& scene, const GroupObj& group,
                              std::unordered_set<std::string>& visiting_groups,
                              std::unordered_set<std::string>& emitted_meshes,
                              std::vector<std::string>& order) {
+  if (!group.showing) return;
   if (!visiting_groups.insert(group.name).second) return;
-  for (const std::string& child : group.children) {
+  const auto visit_child = [&](const std::string& child) {
     if (name_has_suffix(child, ".mesh") && scene_has_mesh(scene, child)) {
       if (emitted_meshes.insert(child).second) order.push_back(child);
     } else if (const GroupObj* child_group = find_group_obj(scene, child)) {
       append_group_draw_order(scene, *child_group, visiting_groups,
                               emitted_meshes, order);
     }
+  };
+  if (!group.draw_only.empty()) {
+    visit_child(group.draw_only);
+  } else {
+    for (const std::string& child : group.children) visit_child(child);
   }
   visiting_groups.erase(group.name);
 }
 
 void rebuild_group_authored_draw_order(Scene& scene) {
   scene.draw_order.clear();
+  scene.grouped_meshes.clear();
   if (scene.groups.empty()) return;
 
   std::unordered_set<std::string> referenced_groups;
+  std::unordered_set<std::string> grouped_mesh_set;
   for (const GroupObj& group : scene.groups) {
     for (const std::string& child : group.children) {
       if (find_group_obj(scene, child)) referenced_groups.insert(child);
+      if (name_has_suffix(child, ".mesh") && scene_has_mesh(scene, child)) {
+        grouped_mesh_set.insert(child);
+      }
+    }
+    if (!group.draw_only.empty() && name_has_suffix(group.draw_only, ".mesh") &&
+        scene_has_mesh(scene, group.draw_only)) {
+      grouped_mesh_set.insert(group.draw_only);
     }
   }
+  scene.grouped_meshes.assign(grouped_mesh_set.begin(), grouped_mesh_set.end());
+  std::sort(scene.grouped_meshes.begin(), scene.grouped_meshes.end());
 
   std::unordered_set<std::string> emitted_meshes;
   std::unordered_set<std::string> visited_roots;

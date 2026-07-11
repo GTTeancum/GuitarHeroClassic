@@ -360,6 +360,7 @@ struct Scene {
   std::vector<ParticleSysObj> particles;
   std::vector<WorldCrowdObj> world_crowds;
   std::vector<std::string> draw_order;  // Group-authored Mesh child order.
+  std::vector<std::string> grouped_meshes;  // Meshes referenced by any Group.
   std::string dir_name;
   std::string dir_type;
 

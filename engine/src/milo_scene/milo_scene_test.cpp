@@ -275,7 +275,7 @@ void test_cam_projection_fields() {
 
 void test_group_transform() {
   std::vector<uint8_t> b;
-  put_u32(b, 12);                // UI Group/View version observed in menus.
+  put_u32(b, 13);                // GH2-era Group version with drawOnly.
   put_zeros(b, 0x1d - b.size()); // UI group matrix start.
   put_matrix(b, 25.0f, 0.0f, -40.0f);
   put_matrix(b, 25.0f, 0.0f, 940.0f);
@@ -290,6 +290,7 @@ void test_group_transform() {
   put_str(b, "title.lbl");
   put_str(b, "child.view");
   put_str(b, "lighting.env");
+  put_str(b, "paper.mesh");       // drawOnly.
   put_str(b, "");                 // LOD.
   put_f32(b, 0.0f);               // LOD screen size.
 
@@ -308,6 +309,7 @@ void test_group_transform() {
   CHECK(group.children[1] == "title.lbl");
   CHECK(group.children[2] == "child.view");
   CHECK(group.environment_ref == "lighting.env");
+  CHECK(group.draw_only == "paper.mesh");
   std::printf("  [ok] Group: parent=%s local.z=%.0f world.z=%.0f\n",
               group.parent.c_str(), group.local.pos[2],
               group.world_stored.pos[2]);

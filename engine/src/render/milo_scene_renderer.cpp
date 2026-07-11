@@ -953,8 +953,12 @@ void MiloSceneRenderer::set_scene(
       return;
     }
     const auto& group = *group_it->second;
+    if (!group.showing) {
+      visiting.erase(group_name);
+      return;
+    }
     if (!group.environment_ref.empty()) current_env = group.environment_ref;
-    for (const auto& child : group.children) {
+    const auto assign_child = [&](const std::string& child) {
       if (has_suffix(child, ".mesh")) {
         if (!current_env.empty()) {
           const auto [it, inserted] =
@@ -966,6 +970,11 @@ void MiloSceneRenderer::set_scene(
       } else if (has_suffix(child, ".grp")) {
         self(self, child, current_env, visiting);
       }
+    };
+    if (!group.draw_only.empty()) {
+      assign_child(group.draw_only);
+    } else {
+      for (const auto& child : group.children) assign_child(child);
     }
     visiting.erase(group_name);
   };
@@ -1879,6 +1888,8 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     std::vector<const milo_scene::MeshObj*> draw_meshes;
     draw_meshes.reserve(scene_.meshes.size());
     std::unordered_set<const milo_scene::MeshObj*> queued;
+    std::unordered_set<std::string> grouped_meshes(scene_.grouped_meshes.begin(),
+                                                   scene_.grouped_meshes.end());
     for (const auto& name : scene_.draw_order) {
       for (const auto& m : scene_.meshes) {
         if (queued.find(&m) == queued.end() && m.name == name) {
@@ -1889,6 +1900,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       }
     }
     for (const auto& m : scene_.meshes) {
+      if (!scene_.draw_order.empty() &&
+          grouped_meshes.find(m.name) != grouped_meshes.end()) {
+        continue;
+      }
       if (queued.insert(&m).second) draw_meshes.push_back(&m);
     }
 
