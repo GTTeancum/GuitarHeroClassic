@@ -2200,6 +2200,9 @@ int run_contract() {
                  "floatclamped=Clamp(mCurLength[0],mCurLength[1],unk190*"
                  "Dot(vout,unk194));",
                  "latest CharCollide GetRadius depends on cached collision fields");
+  ok &= contains(rb3_latest_char_collide_h,
+                 "voidClearMesh(){mMesh=0;}",
+                 "latest CharCollide header exposes inline ClearMesh helper");
   ok &= contains(rb3_latest_char_collide_cpp,
                  "bs>>(int&)mShape;bs>>mOrigRadius[0];if(gRev>4)bs>>"
                  "mOrigLength[0];",
@@ -2281,6 +2284,9 @@ int run_contract() {
                  "collide);",
                  "native exposes CharCollide CopyOriginalToCur helper port");
   ok &= contains(char_mesh_h,
+                 "voidsource_char_collide_clear_mesh(CharCollide&collide);",
+                 "native exposes CharCollide ClearMesh helper port");
+  ok &= contains(char_mesh_h,
                  "voidsource_char_collide_sync_shape(CharCollide&collide);",
                  "native exposes CharCollide SyncShape helper port");
   ok &= contains(char_mesh_h,
@@ -2356,6 +2362,10 @@ int run_contract() {
                  "collide){collide.cur_radius[0]=collide.orig_radius[0];"
                  "collide.cur_radius[1]=collide.orig_radius[1];",
                  "native CharCollide CopyOriginalToCur helper is ported");
+  ok &= contains(char_mesh,
+                 "voidsource_char_collide_clear_mesh(CharCollide&collide){"
+                 "collide.mesh.clear();}",
+                 "native CharCollide ClearMesh helper is ported");
   ok &= contains(char_mesh,
                  "voidsource_char_collide_sync_shape(CharCollide&collide){"
                  "constfloatt=collide.cur_length[1];"
@@ -2482,6 +2492,9 @@ int run_contract() {
                  "defaults.mesh_sphere_count)",
                  "CharCollide source test covers native mesh sphere defaults");
   ok &= contains(char_collide_source_test,
+                 "source_char_collide_clear_mesh(mesh_clear);",
+                 "CharCollide source test covers ClearMesh helper");
+  ok &= contains(char_collide_source_test,
                  "source_char_collide_copy_plan()",
                  "CharCollide source test covers copy-member plan");
   ok &= contains(char_collide_source_test,
@@ -2500,6 +2513,9 @@ int run_contract() {
                  "document records decoded CharCollide retained source rows");
   ok &= contains(doc, "Native GHOGX ports `CharCollide::CopyOriginalToCur`",
                  "document records CharCollide helper ports");
+  ok &= contains(doc,
+                 "Native `source_char_collide_clear_mesh` ports the inline",
+                 "document records native CharCollide ClearMesh helper");
   ok &= contains(doc,
                  "`CharCollide::CharCollide` initializes `mShape` to `kSphere`",
                  "document records CharCollide constructor source defaults");

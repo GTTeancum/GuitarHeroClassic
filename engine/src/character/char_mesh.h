@@ -1509,6 +1509,7 @@ SourceCharCollideDefaultState source_char_collide_default_state();
 SourceCharCollideLoadPlan source_char_collide_load_plan(int revision);
 SourceCharCollideCopyPlan source_char_collide_copy_plan();
 void source_char_collide_copy_original_to_cur(CharCollide& collide);
+void source_char_collide_clear_mesh(CharCollide& collide);
 void source_char_collide_sync_shape(CharCollide& collide);
 int source_char_collide_num_spheres(const CharCollide& collide);
 float source_char_collide_get_radius(

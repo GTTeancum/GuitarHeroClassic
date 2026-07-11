@@ -1528,6 +1528,10 @@ void source_char_collide_copy_original_to_cur(CharCollide& collide) {
   collide.cur_length[1] = collide.orig_length[1];
 }
 
+void source_char_collide_clear_mesh(CharCollide& collide) {
+  collide.mesh.clear();
+}
+
 SourceCharCollideDefaultState source_char_collide_default_state() {
   return {};
 }

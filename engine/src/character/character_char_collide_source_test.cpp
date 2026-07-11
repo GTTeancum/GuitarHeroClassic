@@ -67,6 +67,11 @@ int main() {
     CHECK(sphere.vec[2] == 0.0f);
   }
 
+  ghogx::character::CharCollide mesh_clear;
+  mesh_clear.mesh = "hair_collision.mesh";
+  ghogx::character::source_char_collide_clear_mesh(mesh_clear);
+  CHECK(mesh_clear.mesh.empty());
+
   const ghogx::character::SourceCharCollideCopyPlan copy_plan =
       ghogx::character::source_char_collide_copy_plan();
   CHECK(has(copy_plan.copied_superclasses, "Hmx::Object"));

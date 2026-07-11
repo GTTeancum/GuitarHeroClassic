@@ -643,6 +643,9 @@ note, and all report `unreadBytes=0`.
     `CharCollide::SyncShape` / `CharCollide::NumSpheres` exactly for decoded
     rows. The decoder now calls the named copy helper at the same revision
     gates as source load.
+  - Native `source_char_collide_clear_mesh` ports the inline
+    `CharCollide::ClearMesh()` body: it only clears the mesh pointer/string and
+    does not change collision radii, shape, or hair point hookup state.
   - `CharCollide::CharCollide` initializes `mShape` to `kSphere`, zeroes
     flags/radius/length state, copies original radius/length into current
     radius/length, clears all eight mesh collision rows, resets the internal
