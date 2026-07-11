@@ -1066,6 +1066,75 @@ struct SourceCharWeightSetterState {
   float beats_per_weight = 0.0f;
 };
 
+struct SourceCharIKHeadPoint {
+  std::string transform;
+  float local_length = 0.0f;
+  float normalized_remaining = 0.0f;
+};
+
+struct SourceCharIKHeadState {
+  SourceCharWeightableState weightable;
+  std::string head;
+  std::string spine;
+  std::string mouth;
+  std::string target;
+  std::array<float, 3> head_filter = {0.0f, 0.0f, 0.0f};
+  float target_radius = 0.75f;
+  float head_mat = 0.5f;
+  std::string offset;
+  std::array<float, 3> offset_scale = {1.0f, 1.0f, 1.0f};
+  float spine_length = 0.0f;
+  bool update_points = true;
+  std::string character_dir;
+  std::vector<SourceCharIKHeadPoint> points;
+};
+
+struct SourceCharIKHeadSetNameResult {
+  bool call_hmx_set_name = false;
+  bool assigned_character = false;
+};
+
+struct SourceCharIKHeadPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
+struct SourceCharIKHeadUpdatePointsResult {
+  bool entered_body = false;
+  bool rebuilt_points = false;
+  size_t point_count = 0;
+  float spine_length = 0.0f;
+};
+
+struct SourceCharIKHeadLoadSteps {
+  int32_t max_revision = 3;
+  bool load_hmx_object = false;
+  bool load_weightable = false;
+  bool load_head = false;
+  bool load_spine = false;
+  bool load_mouth = false;
+  bool load_target = false;
+  bool load_target_radius = false;
+  bool load_head_mat = false;
+  bool load_offset = false;
+  bool load_offset_scale = false;
+  bool set_update_points = false;
+};
+
+struct SourceCharIKHeadCopyResult {
+  bool copy_hmx_object = false;
+  bool copy_weightable = false;
+  bool copy_head = false;
+  bool copy_spine = false;
+  bool copy_mouth = false;
+  bool copy_target = false;
+  bool copy_target_radius = false;
+  bool copy_head_mat = false;
+  bool copy_offset = false;
+  bool copy_offset_scale = false;
+  bool set_update_points = false;
+};
+
 SourceCharWeightSetterState source_char_weight_setter_default_state(
     const std::string& name);
 void source_char_weight_setter_set_weight(SourceCharWeightSetterState& state,
@@ -1077,6 +1146,29 @@ void source_char_weight_setter_poll_deps(
     SourceCharWeightSetterPollDeps& deps,
     const CharWeightSetter& setter,
     const std::vector<SourceCharWeightSetterRefOwner>& ref_owners);
+
+SourceCharIKHeadState source_char_ik_head_default_state(
+    const std::string& name);
+SourceCharIKHeadSetNameResult source_char_ik_head_set_name(
+    SourceCharIKHeadState& state,
+    const std::string& dir_name,
+    bool dir_is_character);
+void source_char_ik_head_poll_deps(
+    SourceCharIKHeadPollDeps& deps,
+    const SourceCharIKHeadState& state,
+    const std::vector<std::string>& head_to_spine_parent_chain,
+    bool generation_count_nonzero);
+SourceCharIKHeadUpdatePointsResult source_char_ik_head_update_points(
+    SourceCharIKHeadState& state,
+    bool force,
+    const std::vector<std::string>& head_to_spine_chain,
+    const std::vector<float>& local_lengths);
+SourceCharIKHeadLoadSteps source_char_ik_head_load_steps(int32_t revision);
+SourceCharIKHeadCopyResult source_char_ik_head_copy(
+    SourceCharIKHeadState& dest,
+    const SourceCharIKHeadState& source,
+    bool shallow_copy,
+    float source_owner_weight);
 
 // Source-backed CharIKRod::ComputeRod/Poll helper. Returns false when any
 // source-required endpoint or destination transform is unresolved.

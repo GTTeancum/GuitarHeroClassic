@@ -3998,6 +3998,121 @@ void source_char_weight_setter_poll_deps(
   }
 }
 
+SourceCharIKHeadState source_char_ik_head_default_state(
+    const std::string& name) {
+  SourceCharIKHeadState state;
+  state.weightable = source_char_weightable_default_state(name);
+  return state;
+}
+
+SourceCharIKHeadSetNameResult source_char_ik_head_set_name(
+    SourceCharIKHeadState& state,
+    const std::string& dir_name,
+    bool dir_is_character) {
+  SourceCharIKHeadSetNameResult result;
+  result.call_hmx_set_name = true;
+  result.assigned_character = dir_is_character;
+  state.character_dir = dir_is_character ? dir_name : std::string{};
+  return result;
+}
+
+void source_char_ik_head_poll_deps(
+    SourceCharIKHeadPollDeps& deps,
+    const SourceCharIKHeadState& state,
+    const std::vector<std::string>& head_to_spine_parent_chain,
+    bool generation_count_nonzero) {
+  deps.changed_by.push_back(state.mouth);
+  deps.changed_by.push_back(state.head);
+  deps.changed_by.push_back(state.target);
+  if (generation_count_nonzero) {
+    for (const std::string& transform : head_to_spine_parent_chain) {
+      deps.change.push_back(transform);
+    }
+  }
+  deps.change.push_back(state.offset);
+}
+
+SourceCharIKHeadUpdatePointsResult source_char_ik_head_update_points(
+    SourceCharIKHeadState& state,
+    bool force,
+    const std::vector<std::string>& head_to_spine_chain,
+    const std::vector<float>& local_lengths) {
+  SourceCharIKHeadUpdatePointsResult result;
+  if (!force && !state.update_points) return result;
+  result.entered_body = true;
+  state.update_points = false;
+  state.points.clear();
+  const size_t point_count =
+      std::min(head_to_spine_chain.size(), local_lengths.size());
+  if (point_count <= 1) return result;
+
+  result.rebuilt_points = true;
+  state.points.resize(point_count);
+  float total = 0.0f;
+  for (size_t i = 0; i < point_count; ++i) {
+    state.points[i].transform = head_to_spine_chain[i];
+    state.points[i].local_length = local_lengths[i];
+    total += local_lengths[i];
+  }
+  state.spine_length = total;
+  result.spine_length = total;
+  const float inv_total = 1.0f / total;
+  float remaining = total;
+  for (size_t i = 0; i < point_count; ++i) {
+    state.points[i].normalized_remaining = remaining * inv_total;
+    remaining -= state.points[i].local_length;
+  }
+  result.point_count = point_count;
+  return result;
+}
+
+SourceCharIKHeadLoadSteps source_char_ik_head_load_steps(int32_t revision) {
+  SourceCharIKHeadLoadSteps steps;
+  steps.load_hmx_object = true;
+  steps.load_weightable = true;
+  steps.load_head = true;
+  steps.load_spine = true;
+  steps.load_mouth = true;
+  steps.load_target = true;
+  steps.load_target_radius = revision > 1;
+  steps.load_head_mat = revision > 1;
+  steps.load_offset = revision > 2;
+  steps.load_offset_scale = revision > 2;
+  steps.set_update_points = true;
+  return steps;
+}
+
+SourceCharIKHeadCopyResult source_char_ik_head_copy(
+    SourceCharIKHeadState& dest,
+    const SourceCharIKHeadState& source,
+    bool shallow_copy,
+    float source_owner_weight) {
+  SourceCharIKHeadCopyResult result;
+  result.copy_hmx_object = true;
+  result.copy_weightable = true;
+  source_char_weightable_copy(dest.weightable, source.weightable, shallow_copy,
+                              source_owner_weight);
+  dest.head = source.head;
+  result.copy_head = true;
+  dest.spine = source.spine;
+  result.copy_spine = true;
+  dest.mouth = source.mouth;
+  result.copy_mouth = true;
+  dest.target = source.target;
+  result.copy_target = true;
+  dest.target_radius = source.target_radius;
+  result.copy_target_radius = true;
+  dest.head_mat = source.head_mat;
+  result.copy_head_mat = true;
+  dest.offset = source.offset;
+  result.copy_offset = true;
+  dest.offset_scale = source.offset_scale;
+  result.copy_offset_scale = true;
+  dest.update_points = true;
+  result.set_update_points = true;
+  return result;
+}
+
 static void apply_source_weight_setters(Character& character,
                                         float delta_beats) {
   std::unordered_map<std::string, float> weights_by_name;

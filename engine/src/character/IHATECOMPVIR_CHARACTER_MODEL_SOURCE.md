@@ -48,7 +48,7 @@ records the upstream commits for the copied files:
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
 | Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve without adding an unproven frame-cadence write. |
-| Hand IK, IK MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields; IK fingers helpers port source defaults and left/right finger transform names only. |
+| Hand/head IK, IK MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields; IK fingers helpers port source defaults and left/right finger transform names only. |
 | IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
@@ -947,6 +947,32 @@ note, and all report `unreadBytes=0`.
     refreshes stock proof against the current decoder: all 38 stock
     `CharWeightSetter` rows are `version=2`, use `CharWeightable` revision 2,
     and report `unreadBytes=0`.
+- `rb3-latest/src/system/char/CharIKHead.cpp` and
+  `rb3-latest/src/system/char/CharIKHead.h`
+  - `CharIKHead` inherits `RndHighlightable`, `CharWeightable`, and
+    `CharPollable`. Constructor defaults are source data: null head/spine/
+    mouth/target/offset pointers, head filter `(0,0,0)`, target radius `0.75`,
+    head mat `0.5`, offset scale `(1,1,1)`, update-points true, and null
+    character pointer.
+  - `SetName` delegates to `Hmx::Object::SetName` and stores the owning
+    `Character` only when the supplied directory is a `Character`.
+  - `PollDeps` appends mouth, head, and target to `changedBy`; if
+    `GenerationCount(mSpine, mHead)` is non-zero it appends each transform from
+    head through the spine-parent boundary to `change`; it always appends
+    offset to `change`.
+  - `UpdatePoints` only enters when forced or `mUpdatePoints` is true. It then
+    clears the dirty flag and point rows; when the generation count is non-zero
+    it builds `gencnt + 1` point rows from head upward, stores each local-vector
+    length, sums `mSpineLength`, and assigns each point's normalized remaining
+    chain length.
+  - `Load` accepts source revisions through 3, reads `Hmx::Object`, then
+    `CharWeightable`, then head/spine/mouth/target; revisions above 1 read
+    target radius and head mat; revisions above 2 read offset and offset scale;
+    load always marks update-points true.
+  - Native `source_char_ik_head_*` helpers port these concrete source behaviors
+    for tests and future row wiring. The checked file does not include a
+    reviewable `CharIKHead::Poll` body, so native does not invent head IK
+    solving from these data helpers.
 - `rb3-latest/src/system/char/CharIKMidi.cpp` and
   `rb3-latest/src/system/char/CharIKMidi.h`
   - `CharIKMidi::Load` accepts source revisions through 5, reads

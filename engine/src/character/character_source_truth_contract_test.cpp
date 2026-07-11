@@ -88,6 +88,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
   const std::string ik_hand_source_test =
       compact(read_file(char_dir / "character_ik_hand_source_test.cpp"));
+  const std::string ik_head_source_test =
+      compact(read_file(char_dir / "character_ik_head_source_test.cpp"));
   const std::string bone_offset_source_test =
       compact(read_file(char_dir / "character_bone_offset_source_test.cpp"));
   const std::string bone_twist_source_test =
@@ -226,6 +228,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharIKMidi.cpp"));
   const std::string rb3_latest_char_ik_midi_h = compact(read_file(
       rb3_latest_char_dir / "CharIKMidi.h"));
+  const std::string rb3_latest_char_ik_head_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharIKHead.cpp"));
+  const std::string rb3_latest_char_ik_head_h = compact(read_file(
+      rb3_latest_char_dir / "CharIKHead.h"));
   const std::string rb3_latest_char_ik_fingers_cpp = compact(read_file(
       rb3_latest_char_dir / "CharIKFingers.cpp"));
   const std::string rb3_latest_char_ik_fingers_h = compact(read_file(
@@ -1997,6 +2003,205 @@ int run_contract() {
                  "Stock Grim rows with `dest=<none>` therefore remain "
                  "logged/inert",
                  "document records stock Grim missing-destination boundary");
+  ok &= contains(rb3_latest_char_ik_head_h,
+                 "classCharIKHead:publicRndHighlightable,"
+                 "publicCharWeightable,publicCharPollable",
+                 "CharIKHead source header exposes inheritance");
+  ok &= contains(rb3_latest_char_ik_head_h, "ObjVector<Point>mPoints;",
+                 "CharIKHead source header exposes point rows");
+  ok &= contains(rb3_latest_char_ik_head_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mHead;",
+                 "CharIKHead source header exposes head ref");
+  ok &= contains(rb3_latest_char_ik_head_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mSpine;",
+                 "CharIKHead source header exposes spine ref");
+  ok &= contains(rb3_latest_char_ik_head_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mMouth;",
+                 "CharIKHead source header exposes mouth ref");
+  ok &= contains(rb3_latest_char_ik_head_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mTarget;",
+                 "CharIKHead source header exposes target ref");
+  ok &= contains(rb3_latest_char_ik_head_h, "Vector3mHeadFilter;",
+                 "CharIKHead source header exposes head filter");
+  ok &= contains(rb3_latest_char_ik_head_h, "floatmTargetRadius;",
+                 "CharIKHead source header exposes target radius");
+  ok &= contains(rb3_latest_char_ik_head_h, "floatmHeadMat;",
+                 "CharIKHead source header exposes head mat");
+  ok &= contains(rb3_latest_char_ik_head_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mOffset;",
+                 "CharIKHead source header exposes offset ref");
+  ok &= contains(rb3_latest_char_ik_head_h, "Vector3mOffsetScale;",
+                 "CharIKHead source header exposes offset scale");
+  ok &= contains(rb3_latest_char_ik_head_h, "boolmUpdatePoints;",
+                 "CharIKHead source header exposes update-points flag");
+  ok &= contains(rb3_latest_char_ik_head_h,
+                 "ObjPtr<Character,ObjectDir>mMe;",
+                 "CharIKHead source header exposes owning character ref");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "CharIKHead::CharIKHead():mPoints(this),mHead(this,0),"
+                 "mSpine(this,0),mMouth(this,0),mTarget(this,0),"
+                 "mHeadFilter(0.0f,0.0f,0.0f),mTargetRadius(0.75f),",
+                 "CharIKHead source constructor exposes pointer defaults");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "mHeadMat(0.5f),mOffset(this,0),mOffsetScale(1.0f,"
+                 "1.0f,1.0f),mUpdatePoints(1),mMe(this,0)",
+                 "CharIKHead source constructor exposes scalar defaults");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "voidCharIKHead::SetName(constchar*name,ObjectDir*dir){"
+                 "Hmx::Object::SetName(name,dir);mMe=dynamic_cast<Character*>"
+                 "(dir);}",
+                 "CharIKHead source SetName stores Character dir");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "changedBy.push_back(mMouth);changedBy.push_back(mHead);"
+                 "changedBy.push_back(mTarget);",
+                 "CharIKHead source PollDeps publishes changed-by refs");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "if(GenerationCount(mSpine,mHead)!=0){for("
+                 "RndTransformable*t=mHead;t!=0&&t!=mSpine->TransParent();"
+                 "t=t->TransParent()){change.push_back(t);}}"
+                 "change.push_back(mOffset);",
+                 "CharIKHead source PollDeps publishes chain and offset");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "voidCharIKHead::UpdatePoints(boolb){if(b||mUpdatePoints){"
+                 "mUpdatePoints=false;mPoints.clear();intgencnt="
+                 "GenerationCount(mSpine,mHead);",
+                 "CharIKHead source UpdatePoints gates on force or dirty flag");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "mPoints.resize(gencnt+1);",
+                 "CharIKHead source UpdatePoints builds generation-plus-one rows");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "pt.unk18=Length(curtrans->LocalXfm().v);",
+                 "CharIKHead source UpdatePoints stores local lengths");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "mSpineLength=f1;floatf2=1.0f/f1;",
+                 "CharIKHead source UpdatePoints stores spine length");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "mPoints[i].unk1c=f1*f2;f1=f1-mPoints[i].unk18;",
+                 "CharIKHead source UpdatePoints stores normalized remaining length");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "LOAD_REVS(bs)ASSERT_REVS(3,0)",
+                 "CharIKHead source load enforces revision ceiling");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "LOAD_SUPERCLASS(Hmx::Object)LOAD_SUPERCLASS(CharWeightable)"
+                 "bs>>mHead;bs>>mSpine;bs>>mMouth;bs>>mTarget;",
+                 "CharIKHead source load reads object, weightable, and refs");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "if(gRev>1){bs>>mTargetRadius;bs>>mHeadMat;}",
+                 "CharIKHead source load gates radius and head mat");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "if(gRev>2){bs>>mOffset;bs>>mOffsetScale;}",
+                 "CharIKHead source load gates offset rows");
+  ok &= contains(rb3_latest_char_ik_head_cpp, "mUpdatePoints=true;",
+                 "CharIKHead source load/copy marks point rows dirty");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS(CharWeightable)"
+                 "CREATE_COPY(CharIKHead)",
+                 "CharIKHead source copy includes object and weightable");
+  ok &= contains(rb3_latest_char_ik_head_cpp,
+                 "COPY_MEMBER(mHead)COPY_MEMBER(mSpine)COPY_MEMBER(mMouth)"
+                 "COPY_MEMBER(mTarget)COPY_MEMBER(mTargetRadius)"
+                 "COPY_MEMBER(mHeadMat)COPY_MEMBER(mOffset)"
+                 "COPY_MEMBER(mOffsetScale)mUpdatePoints=true;",
+                 "CharIKHead source copy mirrors member list");
+  ok &= contains(char_clip_h,
+                 "structSourceCharIKHeadState{SourceCharWeightableState"
+                 "weightable;",
+                 "native exposes CharIKHead source state");
+  ok &= contains(char_clip_h,
+                 "floattarget_radius=0.75f;floathead_mat=0.5f;",
+                 "native stores CharIKHead source scalar defaults");
+  ok &= contains(char_clip_h,
+                 "std::array<float,3>offset_scale={1.0f,1.0f,1.0f};",
+                 "native stores CharIKHead source offset-scale default");
+  ok &= contains(char_clip_h, "boolupdate_points=true;",
+                 "native stores CharIKHead source update-points default");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHeadStatesource_char_ik_head_default_state(",
+                 "native API exposes CharIKHead defaults helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_ik_head_poll_deps(",
+                 "native API exposes CharIKHead PollDeps helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHeadUpdatePointsResult"
+                 "source_char_ik_head_update_points(",
+                 "native API exposes CharIKHead UpdatePoints helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharIKHeadLoadStepssource_char_ik_head_load_steps("
+                 "int32_trevision);",
+                 "native API exposes CharIKHead load gate helper");
+  ok &= contains(char_clip,
+                 "state.weightable=source_char_weightable_default_state(name);"
+                 "returnstate;",
+                 "native CharIKHead defaults helper mirrors weightable ctor");
+  ok &= contains(char_clip,
+                 "result.call_hmx_set_name=true;result.assigned_character="
+                 "dir_is_character;state.character_dir=dir_is_character?"
+                 "dir_name:std::string{};",
+                 "native CharIKHead SetName helper mirrors Character cast");
+  ok &= contains(char_clip,
+                 "deps.changed_by.push_back(state.mouth);"
+                 "deps.changed_by.push_back(state.head);"
+                 "deps.changed_by.push_back(state.target);",
+                 "native CharIKHead PollDeps helper mirrors changed-by refs");
+  ok &= contains(char_clip,
+                 "if(generation_count_nonzero){for(conststd::string&"
+                 "transform:head_to_spine_parent_chain){deps.change.push_back"
+                 "(transform);}}deps.change.push_back(state.offset);",
+                 "native CharIKHead PollDeps helper mirrors chain and offset");
+  ok &= contains(char_clip,
+                 "if(!force&&!state.update_points)returnresult;"
+                 "result.entered_body=true;state.update_points=false;"
+                 "state.points.clear();",
+                 "native CharIKHead UpdatePoints helper mirrors gate and clear");
+  ok &= contains(char_clip,
+                 "state.spine_length=total;result.spine_length=total;",
+                 "native CharIKHead UpdatePoints helper stores spine length");
+  ok &= contains(char_clip,
+                 "state.points[i].normalized_remaining=remaining*inv_total;"
+                 "remaining-=state.points[i].local_length;",
+                 "native CharIKHead UpdatePoints helper stores normalized rows");
+  ok &= contains(char_clip,
+                 "steps.load_target_radius=revision>1;steps.load_head_mat="
+                 "revision>1;steps.load_offset=revision>2;"
+                 "steps.load_offset_scale=revision>2;",
+                 "native CharIKHead load helper mirrors revision gates");
+  ok &= contains(char_clip,
+                 "source_char_weightable_copy(dest.weightable,"
+                 "source.weightable,shallow_copy,source_owner_weight);",
+                 "native CharIKHead copy helper mirrors weightable copy");
+  ok &= contains(char_clip,
+                 "dest.offset_scale=source.offset_scale;result.copy_offset_scale"
+                 "=true;dest.update_points=true;",
+                 "native CharIKHead copy helper mirrors source member tail");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_ik_head_source_test"
+                 "character_ik_head_source_test.cpp)",
+                 "CMake builds focused CharIKHead source test");
+  ok &= contains(ik_head_source_test,
+                 "source_char_ik_head_default_state(\"ikhead.weight\")",
+                 "focused CharIKHead test covers source defaults");
+  ok &= contains(ik_head_source_test,
+                 "source_char_ik_head_poll_deps(",
+                 "focused CharIKHead test covers PollDeps helper");
+  ok &= contains(ik_head_source_test,
+                 "source_char_ik_head_update_points(",
+                 "focused CharIKHead test covers UpdatePoints helper");
+  ok &= contains(ik_head_source_test,
+                 "source_char_ik_head_load_steps(3)",
+                 "focused CharIKHead test covers load gates");
+  ok &= contains(ik_head_source_test,
+                 "source_char_ik_head_copy(dest,source,false,0.66f)",
+                 "focused CharIKHead test covers copy helper");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharIKHead.cpp`",
+                 "document cites CharIKHead source");
+  ok &= contains(doc,
+                 "Native `source_char_ik_head_*` helpers port these concrete "
+                 "source behaviors",
+                 "document records native CharIKHead helper boundary");
+  ok &= contains(doc,
+                 "does not include a\n    reviewable `CharIKHead::Poll` body",
+                 "document fences absent CharIKHead Poll body");
   ok &= contains(rb3_latest_char_ik_midi_h,
                  "ObjPtr<RndTransformable,ObjectDir>mBone;",
                  "latest CharIKMidi source header exposes driven bone");
