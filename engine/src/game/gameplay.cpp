@@ -9307,74 +9307,115 @@ float material_anim_frame_at(float duration_frames, double elapsed_seconds,
     return std::clamp(frame, 0.0f, duration_frames);
 }
 
-float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
-                            double elapsed_seconds, bool persistent) {
+float positive_mod_float(double value, double modulus) {
+    if (modulus <= 0.001) return 0.0f;
+    double out = std::fmod(value, modulus);
+    if (out < 0.0) out += modulus;
+    return static_cast<float>(out);
+}
+
+float venue_filter_signed_scale(const Gameplay::VenueAnimFilter& filter) {
     const float start = filter.start_frame;
-    const float end = std::max(filter.end_frame, start);
-    const float span = end - start;
-    const double authored_offset = std::isfinite(filter.offset_frame)
-                                       ? static_cast<double>(filter.offset_frame)
-                                       : 0.0;
-    if (!std::isfinite(span) || span <= 0.001f) {
-        return std::max(0.0f,
-                        start + static_cast<float>(authored_offset));
-    }
-
-    const double scale =
-        std::isfinite(filter.scale) && std::fabs(filter.scale) > 0.001f
-            ? std::fabs(static_cast<double>(filter.scale))
-            : 1.0;
-    double local_frame = 0.0;
+    const float end = filter.end_frame;
     if (std::isfinite(filter.period) && filter.period > 0.001f) {
-        local_frame =
-            (std::max(0.0, elapsed_seconds) / filter.period) *
-            static_cast<double>(span);
-    } else {
-        local_frame = std::max(0.0, elapsed_seconds) * 30.0 * scale;
+        const float span = end - start;
+        return std::isfinite(span) ? span / (filter.period * 30.0f) : 1.0f;
     }
-    local_frame += authored_offset;
+    const float magnitude =
+        std::isfinite(filter.scale) && std::fabs(filter.scale) > 0.001f
+            ? std::fabs(filter.scale)
+            : 1.0f;
+    return end >= start ? magnitude : -magnitude;
+}
 
-    auto positive_mod = [](double value, double modulus) {
-        if (modulus <= 0.001) return 0.0;
-        double out = std::fmod(value, modulus);
-        if (out < 0.0) out += modulus;
-        return out;
-    };
+float venue_filter_frame_offset(const Gameplay::VenueAnimFilter& filter) {
+    const float start = filter.start_frame;
+    const float end = filter.end_frame;
+    const float reverse_offset = end >= start ? 0.0f : start - end;
+    const float offset =
+        std::isfinite(filter.offset_frame) ? filter.offset_frame : 0.0f;
+    return offset + reverse_offset;
+}
 
-    float frame = start;
+float normalize_venue_filter_child_frame(
+    const Gameplay::VenueAnimFilter& filter,
+    float raw_frame) {
+    const float start = filter.start_frame;
+    const float end = filter.end_frame;
+    const float span = std::fabs(end - start);
+    if (!std::isfinite(raw_frame)) return std::max(0.0f, start);
+    if (!std::isfinite(span) || span <= 0.001f)
+        return std::max(0.0f, raw_frame);
+
+    const float direction = end >= start ? 1.0f : -1.0f;
+    const double distance =
+        static_cast<double>(direction) * (static_cast<double>(raw_frame) -
+                                          static_cast<double>(start));
+    float resolved_distance = 0.0f;
     switch (filter.type) {
         case 1:  // kAnimLoop
-            frame = start + static_cast<float>(
-                              positive_mod(local_frame, span));
+            resolved_distance = positive_mod_float(distance, span);
             break;
         case 2: {  // kAnimShuttle
-            const double phase =
-                positive_mod(local_frame, static_cast<double>(span) * 2.0);
-            const double shuttle =
-                phase <= span ? phase : (static_cast<double>(span) * 2.0 - phase);
-            frame = start + static_cast<float>(shuttle);
+            const float phase =
+                positive_mod_float(distance, static_cast<double>(span) * 2.0);
+            resolved_distance =
+                phase <= span ? phase : (span * 2.0f - phase);
             break;
         }
         case 0:  // kAnimRange
         default:
-            (void)persistent;
-            frame = start + static_cast<float>(local_frame);
+            resolved_distance =
+                std::clamp(static_cast<float>(distance), 0.0f, span);
             break;
     }
-    return std::clamp(frame, start, end);
+    return start + direction * resolved_distance;
+}
+
+float venue_filter_frame_at(const Gameplay::VenueAnimFilter& filter,
+                            double elapsed_seconds, bool polled) {
+    const float start = filter.start_frame;
+    const float end = filter.end_frame;
+    const float span = std::fabs(end - start);
+    if (!std::isfinite(span) || span <= 0.001f) {
+        const float raw = polled
+                              ? venue_filter_frame_offset(filter)
+                              : start;
+        return std::max(0.0f, raw);
+    }
+
+    const float scale = venue_filter_signed_scale(filter);
+    const double elapsed = std::max(0.0, elapsed_seconds);
+    float raw_frame = start;
+    if (polled) {
+        raw_frame = static_cast<float>(elapsed * 30.0 *
+                                       static_cast<double>(scale)) +
+                    venue_filter_frame_offset(filter);
+    } else if (std::isfinite(filter.period) && filter.period > 0.001f) {
+        const float direction = end >= start ? 1.0f : -1.0f;
+        raw_frame = start +
+                    direction *
+                        static_cast<float>((elapsed / filter.period) *
+                                           static_cast<double>(span));
+    } else {
+        raw_frame = start +
+                    static_cast<float>(elapsed * 30.0 *
+                                       static_cast<double>(scale));
+    }
+    return normalize_venue_filter_child_frame(filter, raw_frame);
 }
 
 double venue_filter_duration_seconds(const Gameplay::VenueAnimFilter& filter) {
     const float start = filter.start_frame;
-    const float end = std::max(filter.end_frame, start);
-    const float span = end - start;
+    const float end = filter.end_frame;
+    const float span = std::fabs(end - start);
     if (!std::isfinite(span) || span <= 0.001f) return 0.0;
-    if (std::isfinite(filter.period) && filter.period > 0.001f)
-        return static_cast<double>(filter.period);
-    const float scale =
-        std::isfinite(filter.scale) && std::fabs(filter.scale) > 0.001f
-            ? std::fabs(filter.scale)
-            : 1.0f;
+    if (std::isfinite(filter.period) && filter.period > 0.001f) {
+        return static_cast<double>(filter.period) *
+               (filter.type == 2 ? 2.0 : 1.0);
+    }
+    const float scale = std::max(std::fabs(venue_filter_signed_scale(filter)),
+                                 0.001f);
     const double cycle =
         filter.type == 2 ? static_cast<double>(span) * 2.0
                          : static_cast<double>(span);
@@ -18123,7 +18164,7 @@ void Gameplay::update_active_venue_anim_filters() {
 
         for (const auto& filter : it->filters) {
             const float frame =
-                venue_filter_frame_at(filter, elapsed, it->persistent);
+                venue_filter_frame_at(filter, elapsed, it->polled);
             for (const auto& target : filter.targets) {
                 bool source_translation = false;
                 std::array<float, 3> source_pos = {0.0f, 0.0f, 0.0f};
@@ -19126,7 +19167,7 @@ void Gameplay::update_active_lighting_anim_filters() {
 
         for (const auto& filter : it->filters) {
             const float frame =
-                venue_filter_frame_at(filter, elapsed, it->persistent);
+                venue_filter_frame_at(filter, elapsed, false);
             for (const auto& target : filter.targets) {
                 bool source_translation = false;
                 std::array<float, 3> source_pos = {0.0f, 0.0f, 0.0f};

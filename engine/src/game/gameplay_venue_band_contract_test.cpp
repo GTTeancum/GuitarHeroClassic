@@ -5528,8 +5528,17 @@ int main() {
                  "filter.period=read_f32_or(body,size,timing_off+20,0.0f);",
                  "venue AnimFilter reads period after ANIM_ENUM in source order");
   ok &= contains(gameplay_c,
-                 "returnstd::max(0.0f,start+static_cast<float>(authored_offset));",
-                 "zero-span venue AnimFilters still sample the authored frame offset");
+                 "floatvenue_filter_frame_offset(constGameplay::VenueAnimFilter&filter)",
+                 "venue AnimFilter keeps ihatecompvir FrameOffset math separate from event task start");
+  ok &= contains(gameplay_c,
+                 "floatvenue_filter_signed_scale(constGameplay::VenueAnimFilter&filter)",
+                 "venue AnimFilter derives signed Scale from period/start/end like source RndAnimFilter");
+  ok &= contains(gameplay_c,
+                 "venue_filter_frame_at(filter,elapsed,it->polled)",
+                 "venue PollAnim routes use direct SetFrame-style offset phase");
+  ok &= contains(gameplay_c,
+                 "raw_frame=start+",
+                 "event-triggered AnimFilters start from authored start frame");
   ok &= contains(gameplay_c,
                  "filter.start_frame>100000.0f",
                  "venue AnimFilter keeps long authored MeshAnim frame windows");
@@ -5539,6 +5548,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "case2:{//kAnimShuttle",
                  "venue AnimFilter honors kAnimShuttle sampling");
+  ok &= contains(gameplay_c,
+                 "(filter.type==2?2.0:1.0)",
+                 "venue AnimFilter shuttle duration follows source EndFrame doubling");
   ok &= contains(gameplay_c,
                  "returnfilter.type>=1;",
                  "venue AnimFilter loop and shuttle routes stay task-looped");
