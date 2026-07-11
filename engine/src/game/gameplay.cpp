@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <optional>
@@ -8233,7 +8234,149 @@ struct VenueMiloAssembly {
     std::string lighting_milo;
     std::string geom_source_ref;
     std::string lighting_source_ref;
+    std::vector<std::string> geom_subdir_milos;
+    std::vector<std::string> lighting_subdir_milos;
+    std::vector<std::string> dependency_milos;
 };
+
+bool venue_milo_entry_is_visual(std::string_view type) {
+    return type == "Mesh" || type == "Trans" || type == "Mat" ||
+           type == "Cam" || type == "Waypoint" || type == "Spotlight" ||
+           type == "Light" || type == "Environ" || type == "Group" ||
+           type == "BandPlacer" || type == "ParticleSys" ||
+           type == "WorldCrowd";
+}
+
+bool venue_milo_entry_is_bank(std::string_view type) {
+    return type == "SynthSample" || type == "Sfx" || type == "SfxSeq" ||
+           type == "RandomGroupSeq" || type == "SerialGroupSeq" ||
+           type == "WaitSeq";
+}
+
+struct VenueMiloDependencyInfo {
+    std::string path;
+    std::string dir_type;
+    size_t entries = 0;
+    size_t visual_entries = 0;
+    size_t bank_entries = 0;
+};
+
+std::optional<VenueMiloDependencyInfo> inspect_venue_milo_dependency(
+    const gh::ark::ArkV3Reader& ark, const std::string& ark_path,
+    const std::string& milo_path) {
+    auto entry = ark.find(milo_path);
+    if (!entry) entry = ark.find("../../system/run/" + milo_path);
+    if (!entry) return std::nullopt;
+    auto bytes = ark.read_entry(*entry, {ark_path});
+    auto hdr = gh::milo::parse_header(bytes);
+    auto payload = gh::milo::inflate_payload(bytes, hdr);
+    auto dir = gh::milo::parse_directory(payload);
+
+    VenueMiloDependencyInfo info;
+    info.path = milo_path;
+    info.dir_type = dir.dir_type;
+    info.entries = dir.entries.size();
+    for (const auto& de : dir.entries) {
+        if (venue_milo_entry_is_visual(de.type)) ++info.visual_entries;
+        if (venue_milo_entry_is_bank(de.type)) ++info.bank_entries;
+    }
+    return info;
+}
+
+void append_scene_for_venue_subdir(ghogx::milo_scene::Scene& dst,
+                                   ghogx::milo_scene::Scene&& src) {
+    dst.transes.insert(dst.transes.end(),
+                       std::make_move_iterator(src.transes.begin()),
+                       std::make_move_iterator(src.transes.end()));
+    dst.meshes.insert(dst.meshes.end(),
+                      std::make_move_iterator(src.meshes.begin()),
+                      std::make_move_iterator(src.meshes.end()));
+    dst.mats.insert(dst.mats.end(), std::make_move_iterator(src.mats.begin()),
+                    std::make_move_iterator(src.mats.end()));
+    dst.cams.insert(dst.cams.end(), std::make_move_iterator(src.cams.begin()),
+                    std::make_move_iterator(src.cams.end()));
+    dst.waypoints.insert(dst.waypoints.end(),
+                         std::make_move_iterator(src.waypoints.begin()),
+                         std::make_move_iterator(src.waypoints.end()));
+    dst.spotlights.insert(dst.spotlights.end(),
+                          std::make_move_iterator(src.spotlights.begin()),
+                          std::make_move_iterator(src.spotlights.end()));
+    dst.lights.insert(dst.lights.end(),
+                      std::make_move_iterator(src.lights.begin()),
+                      std::make_move_iterator(src.lights.end()));
+    dst.environs.insert(dst.environs.end(),
+                        std::make_move_iterator(src.environs.begin()),
+                        std::make_move_iterator(src.environs.end()));
+    dst.groups.insert(dst.groups.end(),
+                      std::make_move_iterator(src.groups.begin()),
+                      std::make_move_iterator(src.groups.end()));
+    dst.band_placers.insert(dst.band_placers.end(),
+                            std::make_move_iterator(src.band_placers.begin()),
+                            std::make_move_iterator(src.band_placers.end()));
+    dst.particles.insert(dst.particles.end(),
+                         std::make_move_iterator(src.particles.begin()),
+                         std::make_move_iterator(src.particles.end()));
+    dst.world_crowds.insert(dst.world_crowds.end(),
+                            std::make_move_iterator(src.world_crowds.begin()),
+                            std::make_move_iterator(src.world_crowds.end()));
+}
+
+std::vector<std::string> merge_visual_venue_subdirs(
+    const std::string& hdr_path, const std::string& ark_path,
+    const std::vector<std::string>& subdirs, ghogx::milo_scene::Scene& scene) {
+    std::vector<std::string> visual_sources;
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        for (const auto& subdir : subdirs) {
+            const auto info = inspect_venue_milo_dependency(ark, ark_path, subdir);
+            if (!info) continue;
+            if (info->visual_entries == 0) continue;
+            ghogx::milo_scene::Scene subdir_scene;
+            if (!ghogx::milo_scene::load_scene(hdr_path, ark_path, subdir,
+                                               subdir_scene)) {
+                continue;
+            }
+            append_scene_for_venue_subdir(scene, std::move(subdir_scene));
+            push_unique_ref(visual_sources, subdir);
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] venue dependency load: %s\n", ex.what());
+    }
+    return visual_sources;
+}
+
+void log_venue_dependencies(const std::string& hdr_path,
+                            const std::string& ark_path,
+                            const std::vector<std::string>& dependencies) {
+    try {
+        auto ark = gh::ark::ArkV3Reader::load(hdr_path);
+        for (const auto& dependency : dependencies) {
+            const auto info =
+                inspect_venue_milo_dependency(ark, ark_path, dependency);
+            if (!info) continue;
+            std::fprintf(
+                stderr,
+                "[world] venue dependency: %s dir=%s entries=%zu visual=%zu bank=%zu\n",
+                info->path.c_str(), info->dir_type.c_str(), info->entries,
+                info->visual_entries, info->bank_entries);
+        }
+    } catch (const std::exception& ex) {
+        std::fprintf(stderr, "[world] venue dependency audit: %s\n", ex.what());
+    }
+}
+
+void append_resolved_direct_subdirs(const gh::ark::ArkV3Reader& ark,
+                                    const std::string& hdr_path,
+                                    const std::string& ark_path,
+                                    const std::string& owner_milo,
+                                    std::vector<std::string>& out) {
+    const auto refs = load_milo_directory_refs(hdr_path, ark_path, owner_milo);
+    for (const auto& ref : refs.subdirs) {
+        const std::string resolved =
+            resolve_milo_ref_from_ark(ark, owner_milo, ref);
+        if (!resolved.empty()) push_unique_ref(out, resolved);
+    }
+}
 
 VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
                                            const std::string& ark_path,
@@ -8270,6 +8413,20 @@ VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
                 break;
             }
         }
+        if (!out.geom_milo.empty()) {
+            append_resolved_direct_subdirs(ark, hdr_path, ark_path,
+                                           out.geom_milo,
+                                           out.geom_subdir_milos);
+        }
+        if (!out.lighting_milo.empty()) {
+            append_resolved_direct_subdirs(ark, hdr_path, ark_path,
+                                           out.lighting_milo,
+                                           out.lighting_subdir_milos);
+        }
+        for (const auto& subdir : out.geom_subdir_milos)
+            push_unique_ref(out.dependency_milos, subdir);
+        for (const auto& subdir : out.lighting_subdir_milos)
+            push_unique_ref(out.dependency_milos, subdir);
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "[world] venue source assembly %s: %s\n",
                      venue.c_str(), ex.what());
@@ -8288,6 +8445,12 @@ VenueMiloAssembly load_venue_milo_assembly(const std::string& hdr_path,
             out.world_milo.c_str(), out.chars_milo.c_str(),
             out.geom_milo.c_str(), out.geom_source_ref.c_str(),
             out.lighting_milo.c_str(), out.lighting_source_ref.c_str());
+        if (!out.dependency_milos.empty()) {
+            std::fprintf(stderr, "[world] venue source dependencies:");
+            for (const auto& dep : out.dependency_milos)
+                std::fprintf(stderr, " %s", dep.c_str());
+            std::fprintf(stderr, "\n");
+        }
     }
     return out;
 }
@@ -20644,6 +20807,12 @@ void Gameplay::draw(ghogx::render::Window& win) {
             ghogx::milo_scene::Scene venue_scene;
             if (ghogx::milo_scene::load_scene(hdr_path_, ark_path_, venue_geom,
                                               venue_scene)) {
+                log_venue_dependencies(hdr_path_, ark_path_,
+                                       venue_assembly.dependency_milos);
+                const std::vector<std::string> venue_visual_subdir_sources =
+                    merge_visual_venue_subdirs(
+                        hdr_path_, ark_path_,
+                        venue_assembly.geom_subdir_milos, venue_scene);
                 auto hidden_venue_meshes = mesh_names_in_groups(
                     venue_scene, {"coplight_red.grp",
                                   "coplight_blue.grp"});
@@ -20719,10 +20888,14 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 }
                 auto venue_mat_anims =
                     load_venue_mat_anims(hdr_path_, ark_path_, venue_geom);
-                auto venue_textures = ghogx::asset::load_milo_textures(
-                    hdr_path_, ark_path_, venue_geom,
-                    texture_names_for_scene_and_mat_anims(
-                        venue_scene, venue_mat_anims));
+                std::vector<std::string> venue_texture_sources{venue_geom};
+                for (const auto& source : venue_visual_subdir_sources)
+                    push_unique_ref(venue_texture_sources, source);
+                auto venue_textures =
+                    ghogx::asset::load_milo_textures_from_sources(
+                        hdr_path_, ark_path_, venue_texture_sources,
+                        texture_names_for_scene_and_mat_anims(
+                            venue_scene, venue_mat_anims));
                 venue_mat_anims_ = std::move(venue_mat_anims);
                 venue_event_mat_anims_ =
                     load_venue_event_mat_anims(hdr_path_, ark_path_,

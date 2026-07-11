@@ -7495,6 +7495,29 @@ int main() {
                  "venue_group_meshes_=mesh_names_by_group(venue_scene);",
                  "venue load builds a group mesh map for CamShot hide_list refs");
   ok &= contains(gameplay_c,
+                 "append_resolved_direct_subdirs(ark,hdr_path,ark_path,"
+                 "out.geom_milo,out.geom_subdir_milos);",
+                 "venue assembly follows ObjectDir direct subdirs from geometry");
+  ok &= contains(gameplay_c,
+                 "append_resolved_direct_subdirs(ark,hdr_path,ark_path,"
+                 "out.lighting_milo,out.lighting_subdir_milos);",
+                 "venue assembly follows ObjectDir direct subdirs from lighting");
+  ok &= contains(gameplay_c,
+                 "log_venue_dependencies(hdr_path_,ark_path_,"
+                 "venue_assembly.dependency_milos);",
+                 "venue load audits every resolved direct subdir dependency");
+  ok &= contains(gameplay_c,
+                 "merge_visual_venue_subdirs(hdr_path_,ark_path_,"
+                 "venue_assembly.geom_subdir_milos,venue_scene)",
+                 "venue load merges visual geometry subdirs before renderer setup");
+  ok &= contains(gameplay_c,
+                 "load_milo_textures_from_sources(hdr_path_,ark_path_,"
+                 "venue_texture_sources",
+                 "venue textures resolve across merged visual subdir sources");
+  ok &= contains(gameplay_c,
+                 "\"[world]venuedependency:%sdir=%sentries=%zuvisual=%zubank=%zu\\n\"",
+                 "venue dependency diagnostics expose RB-style subdir categories");
+  ok &= contains(gameplay_c,
                  "venue_camera_target_worlds_="
                  "build_venue_camera_target_worlds(venue_scene);",
                  "venue load builds diagnostic venue source-parent targets");
