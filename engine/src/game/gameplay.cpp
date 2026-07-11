@@ -7767,190 +7767,217 @@ Gameplay::VenueMeshAnim decode_venue_mesh_anim(
     anim.name = canonical_milo_ref(entry_name);
     if (size < 32 || read_u32_at_unchecked(body, 0) != 1) return anim;
 
-    const auto strings = packed_strings_with_offsets(body, size);
-    const PackedStringHit* mesh_string = nullptr;
-    const PackedStringHit* self_string = nullptr;
-    const PackedStringHit* owner_string = nullptr;
-    for (const auto& hit : strings) {
-        const auto ref = canonical_milo_ref(hit.value);
-        if (!mesh_string && ref.size() > 5 &&
-            ref.rfind(".mesh") == ref.size() - 5) {
-            mesh_string = &hit;
-        }
-        if (ref == anim.name) self_string = &hit;
-    }
-    for (const auto& hit : strings) {
-        const auto ref = canonical_milo_ref(hit.value);
-        if (ref != anim.name && ref.size() > 5 &&
-            ref.rfind(".msnm") == ref.size() - 5) {
-            owner_string = &hit;
-            break;
-        }
-    }
-    if (mesh_string) anim.mesh = canonical_milo_ref(mesh_string->value);
-    if (owner_string) anim.keys_owner = canonical_milo_ref(owner_string->value);
-
-    const size_t limit = self_string ? self_string->offset : size;
-    auto valid_count_pair = [&](size_t off, uint32_t& frames,
-                                uint32_t& verts) -> bool {
-        if (off + 8 > limit) return false;
-        frames = read_u32_at_unchecked(body, off);
-        verts = read_u32_at_unchecked(body, off + 4);
-        if (frames == 0 || frames > 4096 || verts == 0 || verts > 20000)
+    auto sane_frame = [](float frame) {
+        return std::isfinite(frame) && frame >= 0.0f && frame <= 100000.0f;
+    };
+    auto sane_component = [](float value) {
+        return std::isfinite(value) && std::fabs(value) <= 1000000.0f;
+    };
+    auto note_page_vertex_count = [&](uint32_t count) -> bool {
+        if (count > 20000) return false;
+        if (count > 0) anim.vertex_count = std::max(anim.vertex_count, count);
+        return true;
+    };
+    auto sort_position_keys = [](
+                                  std::vector<Gameplay::VenueMeshAnim::Frame>&
+                                      keys) {
+        std::sort(keys.begin(), keys.end(),
+                  [](const auto& a, const auto& b) {
+                      return a.frame < b.frame;
+                  });
+    };
+    auto sort_uv_keys = [](
+                            std::vector<
+                                Gameplay::VenueMeshAnim::TexCoordFrame>& keys) {
+        std::sort(keys.begin(), keys.end(),
+                  [](const auto& a, const auto& b) {
+                      return a.frame < b.frame;
+                  });
+    };
+    auto sort_color_keys = [](
+                               std::vector<
+                                   Gameplay::VenueMeshAnim::ColorFrame>& keys) {
+        std::sort(keys.begin(), keys.end(),
+                  [](const auto& a, const auto& b) {
+                      return a.frame < b.frame;
+                  });
+    };
+    auto read_vec3_key_page =
+        [&](size_t& pos,
+            std::vector<Gameplay::VenueMeshAnim::Frame>& out) -> bool {
+        uint32_t key_count = 0;
+        if (!read_u32_advance(body, size, pos, key_count) || key_count > 4096)
             return false;
-        const uint64_t samples = static_cast<uint64_t>(frames) * verts;
-        if (samples > 2000000ull) return false;
-        const uint64_t bytes = samples * 12ull;
-        if (bytes > static_cast<uint64_t>(limit - (off + 8))) return false;
+        out.clear();
+        out.reserve(key_count);
+        uint64_t samples = 0;
+        for (uint32_t key_index = 0; key_index < key_count; ++key_index) {
+            uint32_t vertex_count = 0;
+            if (!read_u32_advance(body, size, pos, vertex_count) ||
+                !note_page_vertex_count(vertex_count)) {
+                return false;
+            }
+            samples += vertex_count;
+            if (samples > 2000000ull) return false;
+            Gameplay::VenueMeshAnim::Frame key;
+            key.positions.resize(vertex_count);
+            for (uint32_t v = 0; v < vertex_count; ++v) {
+                for (int c = 0; c < 3; ++c) {
+                    if (!read_f32_advance(body, size, pos,
+                                          key.positions[v][c]) ||
+                        !sane_component(key.positions[v][c])) {
+                        return false;
+                    }
+                }
+            }
+            if (!read_f32_advance(body, size, pos, key.frame) ||
+                !sane_frame(key.frame)) {
+                return false;
+            }
+            anim.duration_frames = std::max(anim.duration_frames, key.frame);
+            out.push_back(std::move(key));
+        }
+        sort_position_keys(out);
+        return true;
+    };
+    auto read_vec2_key_page =
+        [&](size_t& pos,
+            std::vector<Gameplay::VenueMeshAnim::TexCoordFrame>& out) -> bool {
+        uint32_t key_count = 0;
+        if (!read_u32_advance(body, size, pos, key_count) || key_count > 4096)
+            return false;
+        out.clear();
+        out.reserve(key_count);
+        uint64_t samples = 0;
+        for (uint32_t key_index = 0; key_index < key_count; ++key_index) {
+            uint32_t vertex_count = 0;
+            if (!read_u32_advance(body, size, pos, vertex_count) ||
+                !note_page_vertex_count(vertex_count)) {
+                return false;
+            }
+            samples += vertex_count;
+            if (samples > 2000000ull) return false;
+            Gameplay::VenueMeshAnim::TexCoordFrame key;
+            key.texcoords.resize(vertex_count);
+            for (uint32_t v = 0; v < vertex_count; ++v) {
+                for (int c = 0; c < 2; ++c) {
+                    if (!read_f32_advance(body, size, pos,
+                                          key.texcoords[v][c]) ||
+                        !sane_component(key.texcoords[v][c])) {
+                        return false;
+                    }
+                }
+            }
+            if (!read_f32_advance(body, size, pos, key.frame) ||
+                !sane_frame(key.frame)) {
+                return false;
+            }
+            anim.duration_frames = std::max(anim.duration_frames, key.frame);
+            out.push_back(std::move(key));
+        }
+        sort_uv_keys(out);
+        return true;
+    };
+    auto read_color_key_page =
+        [&](size_t& pos,
+            std::vector<Gameplay::VenueMeshAnim::ColorFrame>& out) -> bool {
+        uint32_t key_count = 0;
+        if (!read_u32_advance(body, size, pos, key_count) || key_count > 4096)
+            return false;
+        out.clear();
+        out.reserve(key_count);
+        uint64_t samples = 0;
+        for (uint32_t key_index = 0; key_index < key_count; ++key_index) {
+            uint32_t vertex_count = 0;
+            if (!read_u32_advance(body, size, pos, vertex_count) ||
+                !note_page_vertex_count(vertex_count)) {
+                return false;
+            }
+            samples += vertex_count;
+            if (samples > 2000000ull) return false;
+            Gameplay::VenueMeshAnim::ColorFrame key;
+            key.colors.resize(vertex_count);
+            for (uint32_t v = 0; v < vertex_count; ++v) {
+                for (int c = 0; c < 4; ++c) {
+                    if (!read_f32_advance(body, size, pos, key.colors[v][c]) ||
+                        !sane_component(key.colors[v][c])) {
+                        return false;
+                    }
+                }
+            }
+            if (!read_f32_advance(body, size, pos, key.frame) ||
+                !sane_frame(key.frame)) {
+                return false;
+            }
+            anim.duration_frames = std::max(anim.duration_frames, key.frame);
+            out.push_back(std::move(key));
+        }
+        sort_color_keys(out);
         return true;
     };
 
-    auto try_compact_uv = [&]() -> bool {
-        if (!mesh_string) return false;
-        auto sane_uv = [](float v) {
-            return std::isfinite(v) && std::fabs(v) < 64.0f;
-        };
-        const size_t duration_off =
-            self_string && self_string->offset >= 8 ? self_string->offset - 8
-                                                    : limit;
-        for (size_t off = 13; off + 8 <= std::min<size_t>(limit, 192); ++off) {
-            const uint32_t uv_frames = read_u32_at_unchecked(body, off);
-            const uint32_t uv_verts = read_u32_at_unchecked(body, off + 4);
-            if (uv_frames < 2 || uv_frames > 64 || uv_verts == 0 ||
-                uv_verts > 4096) {
-                continue;
-            }
-            const size_t data = off + 8;
-            const size_t frame_bytes =
-                static_cast<size_t>(uv_verts) * 2u * sizeof(float);
-            const size_t uv_bytes =
-                static_cast<size_t>(uv_frames) * frame_bytes;
-            if (frame_bytes == 0 || data > duration_off ||
-                duration_off - data < uv_bytes) {
-                continue;
-            }
-            std::vector<size_t> frame_offsets;
-            if (duration_off - data == uv_bytes) {
-                for (uint32_t f = 0; f < uv_frames; ++f) {
-                    frame_offsets.push_back(data + static_cast<size_t>(f) *
-                                                       frame_bytes);
-                }
-            } else if (uv_frames == 2 &&
-                       duration_off - data >= frame_bytes * 2u) {
-                frame_offsets.push_back(data);
-                frame_offsets.push_back(duration_off - frame_bytes);
-            } else {
-                continue;
-            }
+    size_t pos = 25;
+    auto mesh = read_milo_string_advance(body, size, pos, 128);
+    if (!mesh) return anim;
+    anim.mesh = canonical_milo_ref(*mesh);
 
-            std::vector<Gameplay::VenueMeshAnim::TexCoordFrame> uv_out;
-            uv_out.resize(frame_offsets.size());
-            bool ok = true;
-            for (size_t f = 0; f < frame_offsets.size() && ok; ++f) {
-                size_t pos = frame_offsets[f];
-                auto& frame = uv_out[f];
-                frame.texcoords.resize(uv_verts);
-                for (uint32_t v = 0; v < uv_verts; ++v) {
-                    std::array<float, 2> uv{};
-                    for (int c = 0; c < 2; ++c) {
-                        if (pos + 4 > size) {
-                            ok = false;
-                            break;
-                        }
-                        uv[c] = read_f32_at_unchecked(body, pos);
-                        pos += 4;
-                        if (!sane_uv(uv[c])) {
-                            ok = false;
-                            break;
-                        }
-                    }
-                    if (!ok) break;
-                    frame.texcoords[v] = uv;
-                }
-            }
-            if (!ok) continue;
-
-            anim.frame_count = uv_frames;
-            anim.vertex_count = uv_verts;
-            anim.duration_frames = 0.0f;
-            if (duration_off + 4 <= size) {
-                const float duration =
-                    read_f32_at_unchecked(body, duration_off);
-                if (std::isfinite(duration) && duration > 0.001f &&
-                    duration < 100000.0f) {
-                    anim.duration_frames = duration;
-                }
-            }
-            if (anim.duration_frames <= 0.001f)
-                anim.duration_frames = uv_frames > 1 ? 100.0f : 0.0f;
-            anim.texcoord_frames = std::move(uv_out);
-            return true;
-        }
-        return false;
-    };
-
-    uint32_t frames = 0;
-    uint32_t verts = 0;
-    size_t count_off = std::string::npos;
-    if (mesh_string && valid_count_pair(mesh_string->end, frames, verts)) {
-        count_off = mesh_string->end;
-    } else {
-        for (size_t off = 13; off + 8 <= std::min<size_t>(limit, 160); ++off) {
-            if (valid_count_pair(off, frames, verts)) {
-                count_off = off;
-                break;
-            }
-        }
-    }
-    if (count_off == std::string::npos) {
-        if (try_compact_uv()) return anim;
-        return anim;
-    }
-
-    anim.frame_count = frames;
-    anim.vertex_count = verts;
-    if (self_string && self_string->offset >= 12) {
-        const float duration = read_f32_at_unchecked(body, self_string->offset - 12);
-        if (std::isfinite(duration) && duration > 0.001f &&
-            duration < 100000.0f) {
-            anim.duration_frames = duration;
-        }
-    }
-    if (anim.duration_frames <= 0.001f)
-        anim.duration_frames = frames > 1 ? 100.0f : 0.0f;
-
-    const size_t data = count_off + 8;
-    anim.frames.resize(frames);
-    size_t pos = data;
-    bool ok = true;
-    for (uint32_t f = 0; f < frames && ok; ++f) {
-        auto& frame = anim.frames[f];
-        frame.positions.resize(verts);
-        for (uint32_t v = 0; v < verts; ++v) {
-            std::array<float, 3> p{};
-            for (int c = 0; c < 3; ++c) {
-                if (pos + 4 > size) {
-                    ok = false;
-                    break;
-                }
-                p[c] = read_f32_at_unchecked(body, pos);
-                pos += 4;
-                if (!std::isfinite(p[c]) || std::fabs(p[c]) > 1000000.0f) {
-                    ok = false;
-                    break;
-                }
-            }
-            if (!ok) break;
-            frame.positions[v] = p;
-        }
-    }
-    if (!ok) {
+    if (!read_vec3_key_page(pos, anim.frames) ||
+        !read_vec2_key_page(pos, anim.texcoord_frames) ||
+        !read_color_key_page(pos, anim.color_frames)) {
         anim.frames.clear();
+        anim.texcoord_frames.clear();
+        anim.color_frames.clear();
         anim.frame_count = 0;
         anim.vertex_count = 0;
-        if (try_compact_uv()) return anim;
+        anim.duration_frames = 0.0f;
+        return anim;
     }
+    anim.frame_count = static_cast<uint32_t>(std::max(
+        {anim.frames.size(), anim.texcoord_frames.size(),
+         anim.color_frames.size()}));
+
+    if (pos + 4 <= size) {
+        auto keys_owner = read_milo_string_advance(body, size, pos, 128);
+        if (!keys_owner) return anim;
+        anim.keys_owner = canonical_milo_ref(*keys_owner);
+    }
+    if (anim.keys_owner.empty()) anim.keys_owner = anim.name;
     return anim;
+}
+
+bool venue_mesh_anim_has_key_pages(const Gameplay::VenueMeshAnim& anim) {
+    return !anim.frames.empty() || !anim.normal_frames.empty() ||
+           !anim.texcoord_frames.empty() || !anim.color_frames.empty();
+}
+
+void copy_venue_mesh_anim_key_pages(Gameplay::VenueMeshAnim& anim,
+                                    const Gameplay::VenueMeshAnim& owner) {
+    anim.frames = owner.frames;
+    anim.normal_frames = owner.normal_frames;
+    anim.texcoord_frames = owner.texcoord_frames;
+    anim.color_frames = owner.color_frames;
+    anim.frame_count = owner.frame_count;
+    anim.vertex_count = owner.vertex_count;
+    anim.duration_frames = owner.duration_frames;
+}
+
+void resolve_venue_mesh_anim_key_owners(
+    std::map<std::string, Gameplay::VenueMeshAnim>& meshanim_anims) {
+    for (size_t pass = 0; pass < meshanim_anims.size(); ++pass) {
+        bool changed = false;
+        for (auto& [name, anim] : meshanim_anims) {
+            if (anim.keys_owner.empty() || anim.keys_owner == anim.name)
+                continue;
+            const auto owner = meshanim_anims.find(anim.keys_owner);
+            if (owner == meshanim_anims.end() ||
+                !venue_mesh_anim_has_key_pages(owner->second)) {
+                continue;
+            }
+            copy_venue_mesh_anim_key_pages(anim, owner->second);
+            changed = true;
+        }
+        if (!changed) break;
+    }
 }
 
 std::vector<ghogx::render::MiloSceneRenderer::MeshAnimKey>
@@ -9019,21 +9046,23 @@ sample_mesh_transform_from_source_local_position(
 
 std::vector<std::array<float, 3>> sample_mesh_anim_positions(
     const Gameplay::VenueMeshAnim& anim, float frame) {
-    if (anim.frames.empty() || anim.vertex_count == 0) return {};
+    if (anim.frames.empty()) return {};
     if (anim.frames.size() == 1 || anim.duration_frames <= 0.001f)
         return anim.frames.front().positions;
-    const float clamped_frame =
-        std::clamp(frame, 0.0f, std::max(anim.duration_frames, 0.0f));
-    const float key_pos =
-        (clamped_frame / std::max(anim.duration_frames, 0.001f)) *
-        static_cast<float>(anim.frames.size() - 1);
-    const size_t a = static_cast<size_t>(
-        std::clamp(std::floor(key_pos), 0.0f,
-                   static_cast<float>(anim.frames.size() - 1)));
-    const size_t b = std::min(a + 1, anim.frames.size() - 1);
-    const float t = std::clamp(key_pos - static_cast<float>(a), 0.0f, 1.0f);
-    const auto& fa = anim.frames[a].positions;
-    const auto& fb = anim.frames[b].positions;
+    const auto* a = &anim.frames.front();
+    const auto* b = &anim.frames.back();
+    for (size_t i = 1; i < anim.frames.size(); ++i) {
+        if (frame <= anim.frames[i].frame) {
+            a = &anim.frames[i - 1];
+            b = &anim.frames[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const auto& fa = a->positions;
+    const auto& fb = b->positions;
     if (fa.size() != fb.size()) return {};
     std::vector<std::array<float, 3>> out;
     out.resize(fa.size());
@@ -9046,26 +9075,57 @@ std::vector<std::array<float, 3>> sample_mesh_anim_positions(
 
 std::vector<std::array<float, 2>> sample_mesh_anim_texcoords(
     const Gameplay::VenueMeshAnim& anim, float frame) {
-    if (anim.texcoord_frames.empty() || anim.vertex_count == 0) return {};
+    if (anim.texcoord_frames.empty()) return {};
     if (anim.texcoord_frames.size() == 1 || anim.duration_frames <= 0.001f)
         return anim.texcoord_frames.front().texcoords;
-    const float clamped_frame =
-        std::clamp(frame, 0.0f, std::max(anim.duration_frames, 0.0f));
-    const float key_pos =
-        (clamped_frame / std::max(anim.duration_frames, 0.001f)) *
-        static_cast<float>(anim.texcoord_frames.size() - 1);
-    const size_t a = static_cast<size_t>(
-        std::clamp(std::floor(key_pos), 0.0f,
-                   static_cast<float>(anim.texcoord_frames.size() - 1)));
-    const size_t b = std::min(a + 1, anim.texcoord_frames.size() - 1);
-    const float t = std::clamp(key_pos - static_cast<float>(a), 0.0f, 1.0f);
-    const auto& fa = anim.texcoord_frames[a].texcoords;
-    const auto& fb = anim.texcoord_frames[b].texcoords;
+    const auto* a = &anim.texcoord_frames.front();
+    const auto* b = &anim.texcoord_frames.back();
+    for (size_t i = 1; i < anim.texcoord_frames.size(); ++i) {
+        if (frame <= anim.texcoord_frames[i].frame) {
+            a = &anim.texcoord_frames[i - 1];
+            b = &anim.texcoord_frames[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const auto& fa = a->texcoords;
+    const auto& fb = b->texcoords;
     if (fa.size() != fb.size()) return {};
     std::vector<std::array<float, 2>> out;
     out.resize(fa.size());
     for (size_t i = 0; i < fa.size(); ++i) {
         for (int c = 0; c < 2; ++c)
+            out[i][c] = fa[i][c] + (fb[i][c] - fa[i][c]) * t;
+    }
+    return out;
+}
+
+std::vector<std::array<float, 4>> sample_mesh_anim_colors(
+    const Gameplay::VenueMeshAnim& anim, float frame) {
+    if (anim.color_frames.empty()) return {};
+    if (anim.color_frames.size() == 1 || anim.duration_frames <= 0.001f)
+        return anim.color_frames.front().colors;
+    const auto* a = &anim.color_frames.front();
+    const auto* b = &anim.color_frames.back();
+    for (size_t i = 1; i < anim.color_frames.size(); ++i) {
+        if (frame <= anim.color_frames[i].frame) {
+            a = &anim.color_frames[i - 1];
+            b = &anim.color_frames[i];
+            break;
+        }
+    }
+    const float span = b->frame - a->frame;
+    const float t =
+        span <= 0.0001f ? 0.0f : std::clamp((frame - a->frame) / span, 0.0f, 1.0f);
+    const auto& fa = a->colors;
+    const auto& fb = b->colors;
+    if (fa.size() != fb.size()) return {};
+    std::vector<std::array<float, 4>> out;
+    out.resize(fa.size());
+    for (size_t i = 0; i < fa.size(); ++i) {
+        for (int c = 0; c < 4; ++c)
             out[i][c] = fa[i][c] + (fb[i][c] - fa[i][c]) * t;
     }
     return out;
@@ -9744,32 +9804,16 @@ load_venue_anim_filters(const std::string& hdr_path,
                 }
             }
         }
-        for (auto& [name, anim] : meshanim_anims) {
-            if ((!anim.frames.empty() || !anim.texcoord_frames.empty()) ||
-                anim.keys_owner.empty()) {
-                continue;
-            }
-            const auto owner = meshanim_anims.find(anim.keys_owner);
-            if (owner == meshanim_anims.end() ||
-                (owner->second.frames.empty() &&
-                 owner->second.texcoord_frames.empty())) {
-                continue;
-            }
-            anim.frames = owner->second.frames;
-            anim.texcoord_frames = owner->second.texcoord_frames;
-            anim.frame_count = owner->second.frame_count;
-            anim.vertex_count = owner->second.vertex_count;
-            anim.duration_frames = owner->second.duration_frames;
-        }
+        resolve_venue_mesh_anim_key_owners(meshanim_anims);
         if (debug_venue_filters_enabled()) {
             for (const auto& [name, anim] : meshanim_anims) {
-                if (anim.frames.empty() && anim.texcoord_frames.empty())
-                    continue;
+                if (!venue_mesh_anim_has_key_pages(anim)) continue;
                 std::fprintf(
                     stderr,
-                    "[world] venue MeshAnim %s -> %s frames=%u uv_frames=%zu verts=%u duration=%.1f%s%s\n",
-                    anim.name.c_str(), anim.mesh.c_str(), anim.frame_count,
-                    anim.texcoord_frames.size(),
+                    "[world] venue MeshAnim %s -> %s pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu verts=%u duration=%.1f%s%s\n",
+                    anim.name.c_str(), anim.mesh.c_str(), anim.frames.size(),
+                    anim.normal_frames.size(), anim.texcoord_frames.size(),
+                    anim.color_frames.size(),
                     anim.vertex_count, anim.duration_frames,
                     anim.keys_owner.empty() ? "" : " keys_owner=",
                     anim.keys_owner.c_str());
@@ -9797,8 +9841,7 @@ load_venue_anim_filters(const std::string& hdr_path,
             const auto anim_it = meshanim_anims.find(msnm);
             if (anim_it == meshanim_anims.end()) return 0.0f;
             const auto& anim = anim_it->second;
-            if (anim.mesh.empty() ||
-                (anim.frames.empty() && anim.texcoord_frames.empty())) {
+            if (anim.mesh.empty() || !venue_mesh_anim_has_key_pages(anim)) {
                 return 0.0f;
             }
             Gameplay::VenueAnimFilterMeshTarget target;
@@ -10241,32 +10284,16 @@ Gameplay::VenueAnimFilter load_rnddir_directory_anim(
                 if (!anim.name.empty()) meshanim_anims[anim.name] = std::move(anim);
             }
         }
-        for (auto& [name, anim] : meshanim_anims) {
-            if ((!anim.frames.empty() || !anim.texcoord_frames.empty()) ||
-                anim.keys_owner.empty()) {
-                continue;
-            }
-            const auto owner = meshanim_anims.find(anim.keys_owner);
-            if (owner == meshanim_anims.end() ||
-                (owner->second.frames.empty() &&
-                 owner->second.texcoord_frames.empty())) {
-                continue;
-            }
-            anim.frames = owner->second.frames;
-            anim.texcoord_frames = owner->second.texcoord_frames;
-            anim.frame_count = owner->second.frame_count;
-            anim.vertex_count = owner->second.vertex_count;
-            anim.duration_frames = owner->second.duration_frames;
-        }
+        resolve_venue_mesh_anim_key_owners(meshanim_anims);
         if (debug_venue_filters_enabled()) {
             for (const auto& [name, anim] : meshanim_anims) {
-                if (anim.frames.empty() && anim.texcoord_frames.empty())
-                    continue;
+                if (!venue_mesh_anim_has_key_pages(anim)) continue;
                 std::fprintf(
                     stderr,
-                    "[world] RndDir MeshAnim %s -> %s frames=%u uv_frames=%zu verts=%u duration=%.1f%s%s\n",
-                    anim.name.c_str(), anim.mesh.c_str(), anim.frame_count,
-                    anim.texcoord_frames.size(), anim.vertex_count,
+                    "[world] RndDir MeshAnim %s -> %s pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu verts=%u duration=%.1f%s%s\n",
+                    anim.name.c_str(), anim.mesh.c_str(), anim.frames.size(),
+                    anim.normal_frames.size(), anim.texcoord_frames.size(),
+                    anim.color_frames.size(), anim.vertex_count,
                     anim.duration_frames,
                     anim.keys_owner.empty() ? "" : " keys_owner=",
                     anim.keys_owner.c_str());
@@ -10274,7 +10301,7 @@ Gameplay::VenueAnimFilter load_rnddir_directory_anim(
         }
         for (auto& [name, anim] : meshanim_anims) {
             if (anim.mesh.empty() ||
-                (anim.frames.empty() && anim.texcoord_frames.empty())) {
+                !venue_mesh_anim_has_key_pages(anim)) {
                 continue;
             }
             Gameplay::VenueAnimFilterMeshTarget target;
@@ -15976,6 +16003,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     lighting_mesh_transform_offsets_.clear();
     lighting_mesh_position_overrides_.clear();
     lighting_mesh_texcoord_overrides_.clear();
+    lighting_mesh_color_overrides_.clear();
     active_lighting_anim_filters_.clear();
     last_lighting_filter_debug_time_ = -1.0;
     lighting_base_hidden_meshes_.clear();
@@ -16042,6 +16070,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_mesh_transform_offsets_.clear();
     venue_mesh_position_overrides_.clear();
     venue_mesh_texcoord_overrides_.clear();
+    venue_mesh_color_overrides_.clear();
     venue_base_hidden_meshes_.clear();
     venue_runtime_hidden_meshes_.clear();
     venue_crowd_meshes_.clear();
@@ -16914,6 +16943,7 @@ void Gameplay::stop_venue_proxy_object_animation(
         proxy.renderer->set_mesh_transform_offsets({});
         proxy.renderer->set_mesh_position_overrides({});
         proxy.renderer->set_mesh_texcoord_overrides({});
+        proxy.renderer->set_mesh_color_overrides({});
         proxy.renderer->set_material_alpha_multipliers({});
         proxy.renderer->set_material_color_overrides({});
         proxy.renderer->set_material_texture_overrides({});
@@ -17939,6 +17969,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     lighting_mesh_transform_offsets_.clear();
     lighting_mesh_position_overrides_.clear();
     lighting_mesh_texcoord_overrides_.clear();
+    lighting_mesh_color_overrides_.clear();
     active_lighting_anim_filters_.clear();
     last_lighting_filter_debug_time_ = -1.0;
 
@@ -17970,6 +18001,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     venue_mesh_transform_offsets_.clear();
     venue_mesh_position_overrides_.clear();
     venue_mesh_texcoord_overrides_.clear();
+    venue_mesh_color_overrides_.clear();
     pending_transient_venue_events_.clear();
     active_venue_event_.clear();
     venue_camera_hidden_meshes_.clear();
@@ -18010,6 +18042,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
         world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
         world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
         world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
+        world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
         world_->set_face_camera_meshes({});
         world_->set_hidden_meshes(composed_venue_hidden_meshes());
     }
@@ -18036,6 +18069,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
         lighting_->set_mesh_position_overrides(lighting_mesh_position_overrides_);
         lighting_->set_mesh_texcoord_overrides(
             lighting_mesh_texcoord_overrides_);
+        lighting_->set_mesh_color_overrides(lighting_mesh_color_overrides_);
         lighting_->set_hidden_meshes(composed_lighting_hidden_meshes());
         apply_lighting_event("start");
         apply_lighting_event("intro_start");
@@ -18300,14 +18334,17 @@ void Gameplay::update_active_venue_anim_filters() {
     if (active_venue_anim_filters_.empty()) {
         if (!venue_mesh_transform_offsets_.empty() ||
             !venue_mesh_position_overrides_.empty() ||
-            !venue_mesh_texcoord_overrides_.empty()) {
+            !venue_mesh_texcoord_overrides_.empty() ||
+            !venue_mesh_color_overrides_.empty()) {
             venue_mesh_translation_offsets_.clear();
             venue_mesh_transform_offsets_.clear();
             venue_mesh_position_overrides_.clear();
             venue_mesh_texcoord_overrides_.clear();
+            venue_mesh_color_overrides_.clear();
             world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
             world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
             world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
+            world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
         }
         return;
     }
@@ -18316,6 +18353,7 @@ void Gameplay::update_active_venue_anim_filters() {
     venue_mesh_transform_offsets_.clear();
     venue_mesh_position_overrides_.clear();
     venue_mesh_texcoord_overrides_.clear();
+    venue_mesh_color_overrides_.clear();
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_venue_filter_debug_time_ < 0.0 ||
@@ -18388,21 +18426,31 @@ void Gameplay::update_active_venue_anim_filters() {
             }
             for (const auto& target : filter.mesh_anim_targets) {
                 auto positions = sample_mesh_anim_positions(target.anim, frame);
+                const size_t position_count = positions.size();
                 if (!positions.empty())
                     venue_mesh_position_overrides_[target.mesh] =
                         std::move(positions);
                 auto texcoords = sample_mesh_anim_texcoords(target.anim, frame);
+                const size_t texcoord_count = texcoords.size();
                 if (!texcoords.empty())
                     venue_mesh_texcoord_overrides_[target.mesh] =
                         std::move(texcoords);
+                auto colors = sample_mesh_anim_colors(target.anim, frame);
+                const size_t color_count = colors.size();
+                if (!colors.empty())
+                    venue_mesh_color_overrides_[target.mesh] =
+                        std::move(colors);
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] venue MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u uv=%zu delay=%.3f blend=%.3f wait=%d persistent=%d\n",
+                        "[world] venue MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu delay=%.3f blend=%.3f wait=%d persistent=%d\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), target.anim.name.c_str(), frame,
-                        target.anim.vertex_count,
+                        target.anim.vertex_count, position_count,
+                        texcoord_count, color_count, target.anim.frames.size(),
+                        target.anim.normal_frames.size(),
                         target.anim.texcoord_frames.size(),
+                        target.anim.color_frames.size(),
                         filter.event_delay_seconds,
                         filter.event_blend_seconds,
                         filter.event_wait ? 1 : 0,
@@ -18415,6 +18463,7 @@ void Gameplay::update_active_venue_anim_filters() {
     world_->set_mesh_transform_offsets(venue_mesh_transform_offsets_);
     world_->set_mesh_position_overrides(venue_mesh_position_overrides_);
     world_->set_mesh_texcoord_overrides(venue_mesh_texcoord_overrides_);
+    world_->set_mesh_color_overrides(venue_mesh_color_overrides_);
 }
 
 void Gameplay::update_venue_proxy_objects() {
@@ -18474,6 +18523,8 @@ void Gameplay::update_venue_proxy_objects() {
             position_overrides;
         std::map<std::string, std::vector<std::array<float, 2>>>
             texcoord_overrides;
+        std::map<std::string, std::vector<std::array<float, 4>>>
+            color_overrides;
         for (const auto& target : filter.targets) {
             transform_offsets[target.mesh] =
                 sample_mesh_transform_from_source_local_position(
@@ -18489,19 +18540,28 @@ void Gameplay::update_venue_proxy_objects() {
             const size_t texcoord_count = texcoords.size();
             if (!texcoords.empty())
                 texcoord_overrides[target.mesh] = std::move(texcoords);
+            auto colors = sample_mesh_anim_colors(target.anim, frame);
+            const size_t color_count = colors.size();
+            if (!colors.empty())
+                color_overrides[target.mesh] = std::move(colors);
             if (debug_sample) {
                 std::fprintf(
                     stderr,
-                    "[world] proxy MeshAnim sample proxy=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu uv=%zu\n",
+                    "[world] proxy MeshAnim sample proxy=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu\n",
                     object_name.c_str(), target.mesh.c_str(),
                     target.anim.name.c_str(), frame, target.anim.vertex_count,
-                    position_count, texcoord_count);
+                    position_count, texcoord_count, color_count,
+                    target.anim.frames.size(),
+                    target.anim.normal_frames.size(),
+                    target.anim.texcoord_frames.size(),
+                    target.anim.color_frames.size());
             }
         }
         proxy.renderer->set_mesh_transform_offsets(std::move(transform_offsets));
         proxy.renderer->set_mesh_position_overrides(std::move(position_overrides));
         proxy.renderer->set_mesh_texcoord_overrides(
             std::move(texcoord_overrides));
+        proxy.renderer->set_mesh_color_overrides(std::move(color_overrides));
 
         std::map<std::string, float> material_alpha;
         std::map<std::string, std::array<float, 4>> material_colors;
@@ -19389,15 +19449,19 @@ void Gameplay::update_active_lighting_anim_filters() {
     if (active_lighting_anim_filters_.empty()) {
         if (!lighting_mesh_transform_offsets_.empty() ||
             !lighting_mesh_position_overrides_.empty() ||
-            !lighting_mesh_texcoord_overrides_.empty()) {
+            !lighting_mesh_texcoord_overrides_.empty() ||
+            !lighting_mesh_color_overrides_.empty()) {
             lighting_mesh_transform_offsets_.clear();
             lighting_mesh_position_overrides_.clear();
             lighting_mesh_texcoord_overrides_.clear();
+            lighting_mesh_color_overrides_.clear();
             lighting_->set_mesh_transform_offsets(lighting_mesh_transform_offsets_);
             lighting_->set_mesh_position_overrides(
                 lighting_mesh_position_overrides_);
             lighting_->set_mesh_texcoord_overrides(
                 lighting_mesh_texcoord_overrides_);
+            lighting_->set_mesh_color_overrides(
+                lighting_mesh_color_overrides_);
         }
         return;
     }
@@ -19405,6 +19469,7 @@ void Gameplay::update_active_lighting_anim_filters() {
     lighting_mesh_transform_offsets_.clear();
     lighting_mesh_position_overrides_.clear();
     lighting_mesh_texcoord_overrides_.clear();
+    lighting_mesh_color_overrides_.clear();
     const bool debug_sample =
         debug_venue_filters_enabled() &&
         (last_lighting_filter_debug_time_ < 0.0 ||
@@ -19451,21 +19516,31 @@ void Gameplay::update_active_lighting_anim_filters() {
             }
             for (const auto& target : filter.mesh_anim_targets) {
                 auto positions = sample_mesh_anim_positions(target.anim, frame);
+                const size_t position_count = positions.size();
                 if (!positions.empty())
                     lighting_mesh_position_overrides_[target.mesh] =
                         std::move(positions);
                 auto texcoords = sample_mesh_anim_texcoords(target.anim, frame);
+                const size_t texcoord_count = texcoords.size();
                 if (!texcoords.empty())
                     lighting_mesh_texcoord_overrides_[target.mesh] =
                         std::move(texcoords);
+                auto colors = sample_mesh_anim_colors(target.anim, frame);
+                const size_t color_count = colors.size();
+                if (!colors.empty())
+                    lighting_mesh_color_overrides_[target.mesh] =
+                        std::move(colors);
                 if (debug_sample) {
                     std::fprintf(
                         stderr,
-                        "[world] lighting MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u uv=%zu\n",
+                        "[world] lighting MeshAnim sample event=%s filter=%s mesh=%s anim=%s frame=%.2f verts=%u pos=%zu uv=%zu color=%zu pos_keys=%zu normal_keys=%zu uv_keys=%zu color_keys=%zu\n",
                         it->event_name.c_str(), filter.name.c_str(),
                         target.mesh.c_str(), target.anim.name.c_str(), frame,
-                        target.anim.vertex_count,
-                        target.anim.texcoord_frames.size());
+                        target.anim.vertex_count, position_count,
+                        texcoord_count, color_count, target.anim.frames.size(),
+                        target.anim.normal_frames.size(),
+                        target.anim.texcoord_frames.size(),
+                        target.anim.color_frames.size());
                 }
             }
         }
@@ -19474,6 +19549,7 @@ void Gameplay::update_active_lighting_anim_filters() {
     lighting_->set_mesh_transform_offsets(lighting_mesh_transform_offsets_);
     lighting_->set_mesh_position_overrides(lighting_mesh_position_overrides_);
     lighting_->set_mesh_texcoord_overrides(lighting_mesh_texcoord_overrides_);
+    lighting_->set_mesh_color_overrides(lighting_mesh_color_overrides_);
 }
 
 void Gameplay::set_lighting_spot_targets(
@@ -21831,6 +21907,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 world_->set_mesh_transform_offsets({});
                 world_->set_mesh_position_overrides({});
                 world_->set_mesh_texcoord_overrides({});
+                world_->set_mesh_color_overrides({});
                 world_->set_face_camera_meshes({});
                 world_->set_hidden_meshes(composed_venue_hidden_meshes());
                 if (!venue_poll_anim_filters_.empty()) {
@@ -22076,6 +22153,7 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 lighting_->set_mesh_transform_offsets({});
                 lighting_->set_mesh_position_overrides({});
                 lighting_->set_mesh_texcoord_overrides({});
+                lighting_->set_mesh_color_overrides({});
                 lighting_->set_hidden_meshes(composed_lighting_hidden_meshes());
                 apply_lighting_event("start");
                 apply_lighting_event("intro_start");

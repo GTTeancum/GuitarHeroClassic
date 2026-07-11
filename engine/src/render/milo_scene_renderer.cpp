@@ -812,6 +812,11 @@ void MiloSceneRenderer::set_mesh_texcoord_overrides(
   mesh_texcoord_overrides_ = std::move(texcoords);
 }
 
+void MiloSceneRenderer::set_mesh_color_overrides(
+    std::map<std::string, std::vector<std::array<float, 4>>> colors) {
+  mesh_color_overrides_ = std::move(colors);
+}
+
 void MiloSceneRenderer::set_face_camera_meshes(
     std::unordered_set<std::string> mesh_names) {
   face_camera_meshes_ = std::move(mesh_names);
@@ -1630,6 +1635,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         uv_it->second.size() == m.verts.size()) {
       texcoord_override = &uv_it->second;
     }
+    const std::vector<std::array<float, 4>>* color_override = nullptr;
+    if (const auto color_it = mesh_color_overrides_.find(m.name);
+        color_it != mesh_color_overrides_.end() &&
+        color_it->second.size() == m.verts.size()) {
+      color_override = &color_it->second;
+    }
     float base_min_u = std::numeric_limits<float>::infinity();
     float base_min_v = std::numeric_limits<float>::infinity();
     float base_max_u = -std::numeric_limits<float>::infinity();
@@ -1745,7 +1756,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         int i = static_cast<int>(f * 255.0f + 0.5f);
         return i < 0 ? 0 : (i > 255 ? 255 : i);
       };
-      s.color = D3DCOLOR_ARGB(cc(v.a * ma), cc(v.r * mr), cc(v.g * mg), cc(v.b * mb));
+      const float vr = color_override ? (*color_override)[vi][0] : v.r;
+      const float vg = color_override ? (*color_override)[vi][1] : v.g;
+      const float vc_b = color_override ? (*color_override)[vi][2] : v.b;
+      const float va = color_override ? (*color_override)[vi][3] : v.a;
+      s.color = D3DCOLOR_ARGB(cc(va * ma), cc(vr * mr), cc(vg * mg),
+                              cc(vc_b * mb));
       const float base_u = texcoord_override ? (*texcoord_override)[vi][0] : v.u;
       const float base_v = texcoord_override ? (*texcoord_override)[vi][1] : v.v;
       float u = base_u * uv_m00 + base_v * uv_m10;

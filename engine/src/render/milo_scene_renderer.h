@@ -180,6 +180,8 @@ class MiloSceneRenderer {
       std::map<std::string, std::vector<std::array<float, 3>>> positions);
   void set_mesh_texcoord_overrides(
       std::map<std::string, std::vector<std::array<float, 2>>> texcoords);
+  void set_mesh_color_overrides(
+      std::map<std::string, std::vector<std::array<float, 4>>> colors);
   void set_face_camera_meshes(std::unordered_set<std::string> mesh_names);
   void trigger_mesh_pulse(const std::string& mesh_name, float amplitude);
   struct MeshAnimKey {
@@ -238,6 +240,8 @@ class MiloSceneRenderer {
       mesh_position_overrides_;
   std::map<std::string, std::vector<std::array<float, 2>>>
       mesh_texcoord_overrides_;
+  std::map<std::string, std::vector<std::array<float, 4>>>
+      mesh_color_overrides_;
   std::unordered_set<std::string> face_camera_meshes_;
   std::map<std::string, float> mesh_pulses_;
   struct ActiveMeshAnim {
