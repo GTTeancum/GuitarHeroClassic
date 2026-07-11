@@ -133,6 +133,22 @@ SourceCharBonesLayout source_char_bones_recompute_layout(
   return layout;
 }
 
+SourceCharBonesCompressionUpdate source_char_bones_set_compression(
+    int current_compression,
+    const SourceCharBonesLayout& current_layout,
+    int requested_compression) {
+  SourceCharBonesCompressionUpdate update;
+  update.compression = current_compression;
+  update.layout = current_layout;
+  if (requested_compression != current_compression) {
+    update.compression = requested_compression;
+    update.layout = source_char_bones_recompute_layout(current_layout.counts,
+                                                       requested_compression);
+    update.changed = true;
+  }
+  return update;
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------

@@ -2519,6 +2519,10 @@ int run_contract() {
                  "the safe data-layout core of `RecomputeSizes`",
                  "document records concrete CharBones layout slice");
   ok &= contains(doc,
+                 "Native `source_char_bones_set_compression` ports the source\n"
+                 "    `SetCompression` guard",
+                 "document records concrete CharBones SetCompression slice");
+  ok &= contains(doc,
                  "does not include a\n"
                  "  reviewable `Evaluate` or `Poll` body",
                  "document fences missing CharClipDriver runtime evaluator bodies");
@@ -2539,10 +2543,19 @@ int run_contract() {
                  "kSourceCharBonesTypeEnd+1>offsets={};inttotal_size=0;};",
                  "native API exposes source CharBones layout row");
   ok &= contains(char_clip_h,
+                 "structSourceCharBonesCompressionUpdate{intcompression=0;"
+                 "SourceCharBonesLayoutlayout;boolchanged=false;};",
+                 "native API exposes source CharBones compression update row");
+  ok &= contains(char_clip_h,
                  "SourceCharBonesLayoutsource_char_bones_recompute_layout("
                  "conststd::array<int,kSourceCharBonesTypeEnd+1>&counts,"
                  "intcompression);",
                  "native API exposes source CharBones recompute helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesCompressionUpdatesource_char_bones_set_compression("
+                 "intcurrent_compression,constSourceCharBonesLayout&"
+                 "current_layout,intrequested_compression);",
+                 "native API exposes source CharBones SetCompression helper");
   ok &= contains(char_clip,
                  "intsource_char_bones_type_of(conststd::string&channel)",
                  "native clip decoder ports source CharBones type helper");
@@ -2571,6 +2584,17 @@ int run_contract() {
                  "0xF)&~0xF;",
                  "native CharBones layout helper aligns source total size");
   ok &= contains(char_clip,
+                 "SourceCharBonesCompressionUpdatesource_char_bones_set_compression("
+                 "intcurrent_compression,constSourceCharBonesLayout&"
+                 "current_layout,intrequested_compression)",
+                 "native clip decoder ports source CharBones SetCompression helper");
+  ok &= contains(char_clip,
+                 "if(requested_compression!=current_compression){"
+                 "update.compression=requested_compression;update.layout="
+                 "source_char_bones_recompute_layout(current_layout.counts,"
+                 "requested_compression);update.changed=true;}",
+                 "native CharBones SetCompression helper mirrors source guard");
+  ok &= contains(char_clip,
                  "SourceCharBones::ChannelNameusesthefirstdot",
                  "native suffix strip follows source first-dot rule");
   ok &= contains(char_bones_source_test,
@@ -2588,6 +2612,12 @@ int run_contract() {
   ok &= contains(char_bones_source_test,
                  "source_char_bones_recompute_layout(counts,4)",
                  "focused CharBones source test covers compressed-all layout");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_set_compression(0,layout_none,0)",
+                 "focused CharBones source test covers unchanged compression");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bones_set_compression(0,layout_none,4)",
+                 "focused CharBones source test covers changed compression");
   ok &= missing(char_clip, "GHOGX_AXIS_ROT_NO_PI",
                 "old no-pi axis-rotation diagnostic removed from decoder");
   ok &= missing(char_clip, "GHOGX_FILE_ORDER_CLIP_SAMPLES",
@@ -2646,6 +2676,10 @@ int run_contract() {
                  "mOffsets[i+1]=mOffsets[i]+diff*TypeSize(i);}mTotalSize="
                  "mEndOffset+0xFU&0xFFFFFFF0;}",
                  "latest CharBones source defines packed layout offsets");
+  ok &= contains(rb3_latest_char_bones_cpp,
+                 "voidCharBones::SetCompression(CompressionTypety){if(ty!="
+                 "mCompression){mCompression=ty;RecomputeSizes();}}",
+                 "latest CharBones source defines SetCompression guard");
   ok &= contains(char_clip,
                  "kSourceCompressAll=4",
                  "native clip decoder names source compression mode 4");

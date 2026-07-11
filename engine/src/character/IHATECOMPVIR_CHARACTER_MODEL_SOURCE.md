@@ -851,8 +851,10 @@ note, and all report `unreadBytes=0`.
     the source packed-row offset model. Native `source_char_bones_recompute_layout`
     now ports the safe data-layout core of `RecomputeSizes`: cumulative
     per-type counts, per-type byte sizes, offsets, and 16-byte aligned total
-    size. It does not port the pointer walk in `FindOffset` until the
-    decompiled `mBones` index expression is verified.
+    size. Native `source_char_bones_set_compression` ports the source
+    `SetCompression` guard: only changed compression values update state and
+    recompute the packed layout. It does not port the pointer walk in
+    `FindOffset` until the decompiled `mBones` index expression is verified.
   - `ScaleAdd(CharClip*, ...)` delegates back to `CharClip::ScaleAdd`; it is a
     call-flow hook, not a standalone pose evaluator.
 - `rb3-latest/src/system/char/CharBonesSamples.cpp` is concrete for sample

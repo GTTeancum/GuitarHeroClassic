@@ -32,6 +32,12 @@ struct SourceCharBonesLayout {
   int total_size = 0;
 };
 
+struct SourceCharBonesCompressionUpdate {
+  int compression = 0;
+  SourceCharBonesLayout layout;
+  bool changed = false;
+};
+
 // One channel value for one frame.
 struct ClipChannel {
   enum Type { kPos, kScale, kQuat, kRotX, kRotY, kRotZ } type = kPos;
@@ -212,6 +218,10 @@ size_t source_char_bones_type_size(int type, int compression);
 SourceCharBonesLayout source_char_bones_recompute_layout(
     const std::array<int, kSourceCharBonesTypeEnd + 1>& counts,
     int compression);
+SourceCharBonesCompressionUpdate source_char_bones_set_compression(
+    int current_compression,
+    const SourceCharBonesLayout& current_layout,
+    int requested_compression);
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.

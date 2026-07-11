@@ -38,6 +38,25 @@ bool expect_layout(const ghogx::character::SourceCharBonesLayout& got,
   return ok;
 }
 
+bool expect_compression_update(
+    const ghogx::character::SourceCharBonesCompressionUpdate& got,
+    int compression, bool changed, const std::array<int, 7>& offsets,
+    int total_size, const char* label) {
+  bool ok = true;
+  if (got.compression != compression) {
+    std::cerr << label << " compression: got " << got.compression
+              << " want " << compression << "\n";
+    ok = false;
+  }
+  if (got.changed != changed) {
+    std::cerr << label << " changed: got " << got.changed << " want "
+              << changed << "\n";
+    ok = false;
+  }
+  ok &= expect_layout(got.layout, offsets, total_size, label);
+  return ok;
+}
+
 bool expect_string(const std::string& got, const std::string& want,
                    const char* label) {
   if (got == want) return true;
@@ -122,6 +141,16 @@ int main() {
   ok &= expect_layout(source_char_bones_recompute_layout(counts, 4),
                       {0, 12, 18, 26, 30, 32, 34}, 48,
                       "layout compressed all");
+  const SourceCharBonesLayout layout_none =
+      source_char_bones_recompute_layout(counts, 0);
+  ok &= expect_compression_update(
+      source_char_bones_set_compression(0, layout_none, 0),
+      0, false, {0, 24, 36, 68, 76, 80, 84}, 96,
+      "compression unchanged");
+  ok &= expect_compression_update(
+      source_char_bones_set_compression(0, layout_none, 4),
+      4, true, {0, 12, 18, 26, 30, 32, 34}, 48,
+      "compression changed");
 
   return ok ? 0 : 1;
 }
