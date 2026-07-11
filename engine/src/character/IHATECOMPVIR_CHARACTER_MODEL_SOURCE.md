@@ -1763,6 +1763,13 @@ note, and all report `unreadBytes=0`.
     `source_char_bone_dir_default_state`,
     `source_char_bone_dir_load_plan`, and
     `source_char_bone_dir_copy_plan` port those deterministic source facts only.
+    Native `source_char_bone_dir_handler_plan`,
+    `source_char_bone_dir_recenter_prop_sync_plan`, and
+    `source_char_bone_dir_prop_sync_plan` record the checked handler and
+    property tables: `get_context_flags`, `ObjectDir` superclass dispatch,
+    check value `0x1D1`, recenter rows `targets`/`average`/`slide`, direct
+    rows for recenter/move/bake/filter lists, `merge_character` as a set prop,
+    and `filter_context` as a modify prop that calls `SyncFilter`.
   - Native GHOGX decodes and logs the source `CharServoBone` row and
     `clip_type`, enforces the source revision range, and records the row tail
     byte count. Native exposes bounded source helpers for `ZeroDeltas`,

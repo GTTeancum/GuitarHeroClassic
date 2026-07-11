@@ -189,6 +189,24 @@ struct SourceCharBoneDirCopyPlan {
   std::vector<std::string> copied_members;
 };
 
+struct SourceCharBoneDirHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharBoneDirRecenterPropSyncPlan {
+  std::vector<std::string> properties;
+};
+
+struct SourceCharBoneDirPropSyncPlan {
+  std::vector<std::string> properties;
+  std::vector<std::string> set_properties;
+  std::vector<std::string> modify_properties;
+  std::vector<std::string> modify_actions;
+  std::vector<std::string> superclasses;
+};
+
 struct SourceCharBoneDirClipTypeResource {
   std::string clip_type;
   bool has_resource = false;
@@ -1419,6 +1437,10 @@ void source_char_bone_stuff_bones(const CharClip::OutputBone& bone,
 SourceCharBoneDirDefaultState source_char_bone_dir_default_state();
 SourceCharBoneDirLoadPlan source_char_bone_dir_load_plan(int32_t revision);
 SourceCharBoneDirCopyPlan source_char_bone_dir_copy_plan();
+SourceCharBoneDirHandlerPlan source_char_bone_dir_handler_plan();
+SourceCharBoneDirRecenterPropSyncPlan
+source_char_bone_dir_recenter_prop_sync_plan();
+SourceCharBoneDirPropSyncPlan source_char_bone_dir_prop_sync_plan();
 void source_char_bone_dir_list_bones(
     const std::vector<CharClip::OutputBone>& output_bones,
     int move_context,

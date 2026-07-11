@@ -481,6 +481,32 @@ SourceCharBoneDirCopyPlan source_char_bone_dir_copy_plan() {
   return plan;
 }
 
+SourceCharBoneDirHandlerPlan source_char_bone_dir_handler_plan() {
+  SourceCharBoneDirHandlerPlan plan;
+  plan.handlers = {"get_context_flags"};
+  plan.superclasses = {"ObjectDir"};
+  plan.check = 0x1D1;
+  return plan;
+}
+
+SourceCharBoneDirRecenterPropSyncPlan
+source_char_bone_dir_recenter_prop_sync_plan() {
+  SourceCharBoneDirRecenterPropSyncPlan plan;
+  plan.properties = {"targets", "average", "slide"};
+  return plan;
+}
+
+SourceCharBoneDirPropSyncPlan source_char_bone_dir_prop_sync_plan() {
+  SourceCharBoneDirPropSyncPlan plan;
+  plan.properties = {"recenter", "move_context", "bake_out_facing",
+                     "filter_bones", "filter_names"};
+  plan.set_properties = {"merge_character"};
+  plan.modify_properties = {"filter_context"};
+  plan.modify_actions = {"SyncFilter"};
+  plan.superclasses = {"ObjectDir"};
+  return plan;
+}
+
 void source_char_bone_dir_list_bones(
     const std::vector<CharClip::OutputBone>& output_bones,
     int move_context,

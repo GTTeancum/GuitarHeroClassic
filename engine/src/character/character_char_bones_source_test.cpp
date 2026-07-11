@@ -697,6 +697,54 @@ int main() {
                       "CharBoneDir copy recenter");
   ok &= expect_string(dir_copy.copied_members[2], "mBakeOutFacing",
                       "CharBoneDir copy bake out facing");
+  const SourceCharBoneDirHandlerPlan dir_handler =
+      source_char_bone_dir_handler_plan();
+  ok &= expect_size(dir_handler.handlers.size(), 1,
+                    "CharBoneDir handler count");
+  ok &= expect_string(dir_handler.handlers[0], "get_context_flags",
+                      "CharBoneDir handler get_context_flags");
+  ok &= expect_size(dir_handler.superclasses.size(), 1,
+                    "CharBoneDir handler superclass count");
+  ok &= expect_string(dir_handler.superclasses[0], "ObjectDir",
+                      "CharBoneDir handler superclass");
+  ok &= expect_int(dir_handler.check, 0x1D1,
+                   "CharBoneDir handler check");
+  const SourceCharBoneDirRecenterPropSyncPlan recenter_prop_sync =
+      source_char_bone_dir_recenter_prop_sync_plan();
+  ok &= expect_size(recenter_prop_sync.properties.size(), 3,
+                    "CharBoneDir Recenter prop count");
+  ok &= expect_string(recenter_prop_sync.properties[0], "targets",
+                      "CharBoneDir Recenter targets");
+  ok &= expect_string(recenter_prop_sync.properties[1], "average",
+                      "CharBoneDir Recenter average");
+  ok &= expect_string(recenter_prop_sync.properties[2], "slide",
+                      "CharBoneDir Recenter slide");
+  const SourceCharBoneDirPropSyncPlan dir_prop_sync =
+      source_char_bone_dir_prop_sync_plan();
+  ok &= expect_size(dir_prop_sync.properties.size(), 5,
+                    "CharBoneDir prop sync direct count");
+  ok &= expect_string(dir_prop_sync.properties[0], "recenter",
+                      "CharBoneDir prop sync recenter");
+  ok &= expect_string(dir_prop_sync.properties[2], "bake_out_facing",
+                      "CharBoneDir prop sync bake flag");
+  ok &= expect_string(dir_prop_sync.properties.back(), "filter_names",
+                      "CharBoneDir prop sync filter_names");
+  ok &= expect_size(dir_prop_sync.set_properties.size(), 1,
+                    "CharBoneDir prop sync set count");
+  ok &= expect_string(dir_prop_sync.set_properties[0], "merge_character",
+                      "CharBoneDir prop sync merge_character");
+  ok &= expect_size(dir_prop_sync.modify_properties.size(), 1,
+                    "CharBoneDir prop sync modify count");
+  ok &= expect_string(dir_prop_sync.modify_properties[0], "filter_context",
+                      "CharBoneDir prop sync filter_context");
+  ok &= expect_size(dir_prop_sync.modify_actions.size(), 1,
+                    "CharBoneDir prop sync modify action count");
+  ok &= expect_string(dir_prop_sync.modify_actions[0], "SyncFilter",
+                      "CharBoneDir prop sync SyncFilter");
+  ok &= expect_size(dir_prop_sync.superclasses.size(), 1,
+                    "CharBoneDir prop sync superclass count");
+  ok &= expect_string(dir_prop_sync.superclasses[0], "ObjectDir",
+                      "CharBoneDir prop sync superclass");
 
   std::vector<CharClip::OutputBone> dir_output_bones;
   dir_output_bones.push_back(output);

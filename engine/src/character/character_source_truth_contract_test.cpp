@@ -11024,6 +11024,34 @@ int run_contract() {
                  "source_char_bone_dir_copy_plan();",
                  "native API exposes source CharBoneDir copy plan helper");
   ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirHandlerPlan{"
+                 "std::vector<std::string>handlers;std::vector<std::string>"
+                 "superclasses;intcheck=0;};",
+                 "native API exposes source CharBoneDir handler row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirRecenterPropSyncPlan{"
+                 "std::vector<std::string>properties;};",
+                 "native API exposes source CharBoneDir Recenter prop row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharBoneDirPropSyncPlan{"
+                 "std::vector<std::string>properties;std::vector<std::string>"
+                 "set_properties;std::vector<std::string>modify_properties;"
+                 "std::vector<std::string>modify_actions;"
+                 "std::vector<std::string>superclasses;};",
+                 "native API exposes source CharBoneDir prop-sync row");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirHandlerPlan"
+                 "source_char_bone_dir_handler_plan();",
+                 "native API exposes source CharBoneDir handler helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirRecenterPropSyncPlan"
+                 "source_char_bone_dir_recenter_prop_sync_plan();",
+                 "native API exposes source CharBoneDir Recenter prop helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharBoneDirPropSyncPlan"
+                 "source_char_bone_dir_prop_sync_plan();",
+                 "native API exposes source CharBoneDir prop-sync helper");
+  ok &= contains(char_clip_h,
                  "voidsource_char_bone_dir_list_bones("
                  "conststd::vector<CharClip::OutputBone>&output_bones,"
                  "intmove_context,intcontext_mask,boolinclude_delta_facing,"
@@ -11235,6 +11263,28 @@ int run_contract() {
                  "\"ObjectDir\"};plan.copied_members={\"mMoveContext\","
                  "\"mRecenter\",\"mBakeOutFacing\"};returnplan;}",
                  "native CharBoneDir copy plan mirrors source COPY_MEMBER list");
+  ok &= contains(char_clip,
+                 "SourceCharBoneDirHandlerPlansource_char_bone_dir_handler_plan(){"
+                 "SourceCharBoneDirHandlerPlanplan;plan.handlers={"
+                 "\"get_context_flags\"};plan.superclasses={\"ObjectDir\"};"
+                 "plan.check=0x1D1;returnplan;}",
+                 "native CharBoneDir handler plan mirrors source handlers");
+  ok &= contains(char_clip,
+                 "SourceCharBoneDirRecenterPropSyncPlan"
+                 "source_char_bone_dir_recenter_prop_sync_plan(){"
+                 "SourceCharBoneDirRecenterPropSyncPlanplan;"
+                 "plan.properties={\"targets\",\"average\",\"slide\"};"
+                 "returnplan;}",
+                 "native CharBoneDir Recenter prop plan mirrors source rows");
+  ok &= contains(char_clip,
+                 "SourceCharBoneDirPropSyncPlansource_char_bone_dir_prop_sync_plan(){"
+                 "SourceCharBoneDirPropSyncPlanplan;plan.properties={"
+                 "\"recenter\",\"move_context\",\"bake_out_facing\","
+                 "\"filter_bones\",\"filter_names\"};plan.set_properties={"
+                 "\"merge_character\"};plan.modify_properties={"
+                 "\"filter_context\"};plan.modify_actions={\"SyncFilter\"};"
+                 "plan.superclasses={\"ObjectDir\"};returnplan;}",
+                 "native CharBoneDir prop-sync plan mirrors source rows");
   ok &= contains(char_clip,
                  "voidsource_char_bone_dir_list_bones("
                  "conststd::vector<CharClip::OutputBone>&output_bones,"
@@ -11482,6 +11532,21 @@ int run_contract() {
                  "source_char_bone_dir_copy_plan()",
                  "focused CharBones source test covers CharBoneDir copy plan");
   ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_handler_plan()",
+                 "focused CharBones source test covers CharBoneDir handler plan");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_recenter_prop_sync_plan()",
+                 "focused CharBones source test covers CharBoneDir Recenter props");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_dir_prop_sync_plan()",
+                 "focused CharBones source test covers CharBoneDir prop-sync");
+  ok &= contains(doc,
+                 "`source_char_bone_dir_handler_plan`,",
+                 "document records CharBoneDir handler import");
+  ok &= contains(doc,
+                 "and `filter_context` as a modify prop that calls `SyncFilter`",
+                 "document records CharBoneDir filter_context prop hook");
+  ok &= contains(char_bones_source_test,
                  "source_char_bone_dir_list_bones(dir_output_bones,0x1,0x1,"
                  "true,",
                  "focused CharBones source test covers CharBoneDir facing rows");
@@ -11589,6 +11654,25 @@ int run_contract() {
                  "COPY_MEMBER(mMoveContext)COPY_MEMBER(mRecenter)"
                  "COPY_MEMBER(mBakeOutFacing)",
                  "latest CharBoneDir source defines copy members");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "BEGIN_HANDLERS(CharBoneDir)if(sym==get_context_flags)"
+                 "returnGetContextFlags();HANDLE_SUPERCLASS(ObjectDir)"
+                 "HANDLE_CHECK(0x1D1)END_HANDLERS",
+                 "latest CharBoneDir source defines handler table");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharBoneDir::Recenter)"
+                 "SYNC_PROP(targets,o.mTargets)SYNC_PROP(average,o.mAverage)"
+                 "SYNC_PROP(slide,o.mSlide)END_CUSTOM_PROPSYNC",
+                 "latest CharBoneDir source defines Recenter prop rows");
+  ok &= contains(rb3_latest_char_bone_dir_cpp,
+                 "BEGIN_PROPSYNCS(CharBoneDir)SYNC_PROP(recenter,mRecenter)"
+                 "SYNC_PROP_SET(merge_character,\"\",MergeCharacter("
+                 "FilePath(_val.Str(0))))SYNC_PROP(move_context,mMoveContext)"
+                 "SYNC_PROP(bake_out_facing,mBakeOutFacing)SYNC_PROP_MODIFY("
+                 "filter_context,mFilterContext,SyncFilter())SYNC_PROP("
+                 "filter_bones,mFilterBones)SYNC_PROP(filter_names,"
+                 "mFilterNames)SYNC_SUPERCLASS(ObjectDir)END_PROPSYNCS",
+                 "latest CharBoneDir source defines prop-sync rows");
   ok &= contains(rb3_latest_char_bone_dir_cpp,
                  "voidCharBoneDir::ListBones(std::list<CharBones::Bone>&bones,"
                  "intmask,boolb){if(mMoveContext&mask){bones.push_back("
