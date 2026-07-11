@@ -2255,6 +2255,21 @@ int run_contract() {
                  "Historical native `CharHair` shared-poller trial",
                  "old CharHair poller proof is marked historical");
   ok &= contains(format_notes,
+                 "historical native follow-row bridge trial",
+                 "old CharHair follow-row bridge proof is marked historical");
+  ok &= contains(format_notes,
+                 "historical CharHair runtime-world consumer bridge trial",
+                 "old CharHair runtime-world bridge proof is marked historical");
+  ok &= contains(format_notes,
+                 "historical native multi-point chain trial",
+                 "old CharHair multi-point chain proof is marked historical");
+  ok &= contains(format_notes,
+                 "historical Glam1 local-hair consumer recheck",
+                 "old CharHair local-hair consumer proof is marked historical");
+  ok &= contains(format_notes_compact,
+                 "Currentsource-truthnolongertreatsthisasalivesharedformatrule",
+                 "old CharHair world-override bridge is not current source truth");
+  ok &= contains(format_notes,
                  "Historical collision mode 3 trial",
                  "old CharHair collision-mode proof is marked historical");
   ok &= contains(format_notes,
@@ -2288,6 +2303,33 @@ int run_contract() {
   ok &= missing(format_notes,
                 "logs each native `CharHair` point solve",
                 "format notes must not imply native CharHair points are solved");
+  ok &= missing(format_notes,
+                "native follow-row bridge promoted",
+                "format notes must not claim old CharHair follow-row trial is promoted");
+  ok &= missing(format_notes,
+                "promoted CharHair runtime-world consumer bridge",
+                "format notes must not claim old CharHair world bridge is promoted");
+  ok &= missing(format_notes,
+                "Native therefore must write follow-only `CharHair` target locals",
+                "format notes must not claim PS2 trace overrides ihatecompvir CharHair boundary");
+  ok &= missing(format_notes,
+                "Native now mirrors that ownership",
+                "format notes must not claim removed CharHair world override is live");
+  ok &= missing(format_notes,
+                "Native chain rows therefore submit",
+                "format notes must not claim removed CharHair chain rows are live");
+  ok &= missing(format_notes,
+                "native now snapshots every multi-point",
+                "format notes must not claim removed multi-point chain writer is live");
+  ok &= missing(format_notes,
+                "current shared consumer is still in the right",
+                "format notes must not claim removed hairOverride consumer is current");
+  ok &= missing(format_notes,
+                "newer non-identity\n  CharHair row bridge",
+                "format notes must not claim removed non-identity hair bridge is current");
+  ok &= missing(format_notes,
+                "Native now reaches the same matrix-shape",
+                "format notes must not claim removed CharHair matrix writer is live");
   ok &= missing(char_clip, "submit_char_eyes_runtime_rows",
                 "unsupported CharEyes runtime-row bridge removed");
   ok &= missing(char_clip, "source_pos=vadd(target_pos",

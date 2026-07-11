@@ -881,15 +881,17 @@ Glam1 hair:
   matrix rows at target offsets `+0x60/+0x70/+0x80/+0x90`; the `a1` matrix
   passed to `trans_write_001dd7b8` copies those rows (mean row dot products
   are at or above 0.995 for row0 and 0.996 for rows1/2 across all three
-  targets). Native therefore must write follow-only `CharHair` target locals
-  every tick before weighted hair skinning. This promotes the traced
-  follow-row write, while keeping `GHOGX_ENABLE_PS2_SINGLE_POINT_HAIR_STATE`
-  diagnostic-only.
-- 2026-06-16 native follow-row bridge promoted:
-  follow-only `CharHair` groups now keep the controller translation at the
-  decoded target row but build the runtime controller orientation from the
-  traced PS2 point vector (`row1 * point.length`) plus a persistent cached roll
-  row. The cached row initializes to the common Glam1 write-site phase
+  targets). Earlier work treated this as proof that native should write
+  follow-only `CharHair` target locals every tick before weighted hair skinning.
+  Current source-truth does not keep that PS2-trace promotion live: native
+  remains `runtimeWriteback=0` until ihatecompvir's `CharHair` hookup,
+  collision-list, reset, simulation, and visible-consumer flow is faithfully
+  ported.
+- 2026-06-16 historical native follow-row bridge trial:
+  a removed branch kept follow-only `CharHair` controller translation at the
+  decoded target row but built runtime controller orientation from the traced
+  PS2 point vector (`row1 * point.length`) plus a persistent cached roll row.
+  The cached row initialized to the common Glam1 write-site phase
   `0.5 * descriptor row0 - 0.8660254 * descriptor row2`, which matches the
   paired trace rows for `bone_hair01.mesh`, `bone_bangL.mesh`, and
   `bone_bangR.mesh` without moving the controller to the simulated strand
@@ -900,7 +902,8 @@ Glam1 hair:
   three live controller bones and the close frame keeps eyes visible while
   reattaching the side hair. Rock2 cross-check
   `engine/out/codex_goal_20260616_follow_ps2_basis_crosschecks/woman_rock2_follow_ps2_basis_f120.bmp`
-  still has unresolved hair chunks; do not call Rock2 closed from this pass.
+  still has unresolved hair chunks. Treat this section as historical trace
+  evidence only, not current source-backed native behavior.
 - 2026-06-16 accepted Rock2 multi-point point-state trace:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/gh2dxu_rock2_woman_hair_point_state_ring4096_20260616.json`
   hooks the PS2 write site `0x001778e4` in active Woman gameplay and records
@@ -914,16 +917,18 @@ Glam1 hair:
   Trans position: `bone_hair01.s0pos == bone_hair02.sp30`,
   `bone_hair02.s0pos == bone_hair03.sp30`, `bone_hair03.s0pos ==
   bone_hair04.sp30`, and the same relation holds for the two-point side
-  chains. Native chain rows therefore submit the visible controller at the
-  segment root/anchor and aim row1 at the endpoint. This is necessary format
-  coverage, not visual closure for Rock2 weighted hair-card consumption.
-- 2026-06-19 native multi-point chain fix:
-  native now snapshots every multi-point `CharHair` group controller world row
-  before any point in that group is rewritten. Chain endpoints use the cached
-  unmodified next controller root, and the final segment extends from the
-  cached current controller row, so parent rewrites no longer collapse later
-  points into a straight vertical child chain. This implements the accepted
-  PS2 relation above without character names or mesh offsets. Validation
+  chains. Earlier work interpreted this as a native chain-row submission rule
+  for visible controllers at segment roots/anchors with row1 aimed at the
+  endpoint. Current source-truth keeps it as PS2 trace evidence only until the
+  ihatecompvir `CharHair` runtime consumer path is ported.
+- 2026-06-19 historical native multi-point chain trial:
+  a removed branch snapshotted every multi-point `CharHair` group controller
+  world row before any point in that group was rewritten. Chain endpoints used
+  the cached unmodified next controller root, and the final segment extended
+  from the cached current controller row, so parent rewrites no longer
+  collapsed later points into a straight vertical child chain. This attempted
+  to implement the accepted PS2 relation above without character names or mesh
+  offsets. Validation
   `engine/out/codex_goal_20260619_rock2_hair_cached_chain/rock2_cached_chain_y055_f900.bmp`
   visibly pulls the large left/back Rock2 hair mass back onto the head versus
   `engine/out/codex_goal_20260619_rock2_after_uppertwist/rock2_current_y055_f900.bmp`.
@@ -937,14 +942,15 @@ Glam1 hair:
   consumption path, not a root-parent hair-card or per-mesh offset fix.
 - 2026-06-19 Rock2 local-hair consumer A/B:
   `engine/out/codex_goal_20260619_rock2_hair_consumer_probe/rock2_hair_top_probe_f900.bmp`
-  recreated the front-angle `hair-top.mesh` highlight with focused skin/hair
-  logging. The deleted 36 MB diagnostic log showed `hair-top.mesh` remains
+  recreated the front-angle `hair-top.mesh` highlight in the old branch with
+  focused skin/hair logging. The deleted 36 MB diagnostic log showed
+  `hair-top.mesh` remains
   `mode=local-attachment`, its palette is `bone_head.mesh`,
   `bone_L-hair01.mesh`, and `bone_R-hair01.mesh`, and both side hair rows reach
   skinning with `hairOverride=1` and non-identity skin rows. The bind audit
   classifies `hair-top.mesh` as `basis=mesh-local-chain` with
-  `meshLC(max)=0.00001`, so the current shared consumer is still in the right
-  decoded asset class. The follow-up
+  `meshLC(max)=0.00001`, so the asset-class evidence remains useful even
+  though the native `hairOverride` consumer is no longer live. The follow-up
   `engine/out/codex_goal_20260619_rock2_hair_worldmode_ab/` rechecked
   `GHOGX_LOCAL_HAIR_WORLD_MODE=identity`, `parent`, and `attachment_parent` at
   the same frame. `parent` and `attachment_parent` were identical and visibly
@@ -954,19 +960,19 @@ Glam1 hair:
   Rock2 hair. The later 2026-07-04 active PCSX2 local-attachment trace below
   supplies the needed mesh/card ownership evidence; do not replace it with an
   untraced draw-world toggle.
-- 2026-06-19 Glam1 local-hair consumer recheck after the newer non-identity
-  CharHair row bridge:
+- 2026-06-19 historical Glam1 local-hair consumer recheck after the removed
+  non-identity CharHair row bridge:
   `engine/out/codex_goal_20260619_glam1_hair_consumer_recheck/` reran the
   same live head camera with the existing shared diagnostics. The default and
   `GHOGX_DISABLE_LOCAL_HAIR_ATTACHMENT=1` captures were visually equivalent at
   this frame, while `GHOGX_LOCAL_HAIR_SKIN_MATRIX_MODE=meshbind_local` and
   `GHOGX_LOCAL_HAIR_WORLD_MODE=identity` shaved or tore visible hair mass away
   from the head. The compact summaries show `hair-top.mesh` still receiving
-  non-identity `hairOverride=1` rows in default mode. Keep the current
-  head-local weighted-card path as the least-wrong traced route; do not promote
-  mesh-bind, identity-world, or disable-local-hair variants just because the
-  controller rows are now live. The remaining Glam1/Rock2 hair issue is still
-  the shared PS2 local-attachment controller-row-to-card consumption step.
+  non-identity `hairOverride=1` rows in default mode. Treat this as old-branch
+  comparison evidence only; do not promote mesh-bind, identity-world, or
+  disable-local-hair variants just because the removed controller-row bridge
+  looked less wrong. The remaining Glam1/Rock2 hair issue is still the shared
+  source-backed local-attachment controller-row-to-card consumption step.
 - 2026-06-19 Glam1 follow-up rejected renderer diagnostics:
   `engine/out/codex_goal_20260619_glam1_local_chain_close_probe/` temporarily
   tested drawing local-attachment hair cards with the same local-chain world
@@ -984,30 +990,33 @@ Glam1 hair:
   `gh2dxu_rock2_woman_hair_writer_rows_state1_ghdxelf_20260616.json` submits
   `bone_hair-front.mesh`, `bone_R-hair01.mesh`, `bone_R-hair02.mesh`,
   `bone_L-hair01.mesh`, and `bone_L-hair02.mesh` with row1 mostly along `-Z`
-  and side-specific row0/row2 roll. Native now reaches the same matrix-shape
-  family for those controllers in the highlighted Rock2 frame, for example
-  `bone_R-hair01.mesh` tail rows stay near row1
+  and side-specific row0/row2 roll. The removed native branch reached the same
+  matrix-shape family for those controllers in the highlighted Rock2 frame, for
+  example `bone_R-hair01.mesh` tail rows stay near row1
   `(0.01, -0.14, -0.99)` while PS2 sampled the same controller class near
-  `(0.07, -0.04, -0.997)`. Treat this as evidence that the remaining highlighted
-  tuft is not a missing controller write. Do not change the shared CharHair
-  matrix writer or draw-world path from this Rock2 close-up alone.
-- 2026-06-19 promoted CharHair runtime-world consumer bridge:
+  `(0.07, -0.04, -0.997)`. Treat this as historical evidence that a
+  controller-row write alone did not close the remaining highlighted tuft. Do
+  not revive the removed CharHair matrix writer or draw-world path from this
+  Rock2 close-up alone.
+- 2026-06-19 historical CharHair runtime-world consumer bridge trial:
   `GuitarHeroOGX-trace360/analysis/ps2_trace/codex_rock2_hair_card_rows_20260619.json`
   captures the visible `hair-top.mesh` object row at `0x007ba390` changing
   during active Woman gameplay, with nearby controller/object evidence for
   `bone_hair01.mesh` and `bone_hair-front.mesh`. The older accepted writer
   trace `gh2dxu_rock2_woman_hair_writer_rows_state1_ghdxelf_20260616.json`
   showed the same family being submitted through the shared Trans writer, not
-  authored as static local-row edits. Native now mirrors that ownership:
-  `CharHair` submits each live controller row into
+  authored as static local-row edits. A removed native trial mirrored that
+  ownership by submitting each live controller row into
   `Character::runtime_world_overrides`, just like the accepted IK hand bridge,
-  and leaves authored locals untouched for later graph consumers. Validation:
+  and leaving authored locals untouched for later graph consumers. Validation:
   `engine/out/codex_goal_20260619_hair_world_override_validation/rock2_hair_override_f900.log`
   shows `hair-top.mesh` consuming `hairOverride=1` skin rows while the draw
   path still reports `world=mesh-world`; the Glam1 front viewer sweep
   `engine/out/codex_goal_20260619_glam1_camera_sweep/glam1_y3p14.bmp` keeps
-  the eyes in their sockets and the hair mass attached around the head. This
-  is a shared format rule, not a Glam1/Rock2 branch. Rock2 still needs a
+  the eyes in their sockets and the hair mass attached around the head. Current
+  source-truth no longer treats this as a live shared format rule; native logs
+  decoded `CharHair` rows only and leaves runtime writeback off until the
+  ihatecompvir `CharHair` runtime path is complete. Rock2 still needs a
   separate mesh-local bind-space card review for the `hair-mid`/`hair-back`
   silhouettes before calling all hair complete.
 - 2026-06-20 Rock2 normal-camera recheck:
