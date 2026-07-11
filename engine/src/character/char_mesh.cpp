@@ -1900,6 +1900,45 @@ SourceCharSleeveState source_char_sleeve_default_state() {
   return SourceCharSleeveState{};
 }
 
+SourceCharGuitarStringPollResult source_char_guitar_string_poll(
+    bool has_nut,
+    bool has_bridge,
+    bool has_bend,
+    bool has_target,
+    bool open,
+    const std::array<float, 3>& nut_pos,
+    const std::array<float, 3>& bridge_pos,
+    const std::array<float, 3>& bend_pos,
+    const std::array<float, 3>& target_pos) {
+  SourceCharGuitarStringPollResult result;
+  result.bend_pos = bend_pos;
+  if (!has_nut || !has_bridge || !has_bend || !has_target) return result;
+
+  const SourceVec3 tmp = source_vec_sub(target_pos, nut_pos);
+  const SourceVec3 tmp2 = source_vec_sub(bridge_pos, nut_pos);
+  float clamped =
+      std::clamp(source_vec_dot(tmp, tmp2) / source_vec_dot(tmp2, tmp2),
+                 0.0f, 1.0f);
+  if (open) clamped = 0.0f;
+  result.bend_pos =
+      source_vec_add(source_vec_scale(nut_pos, 1.0f - clamped),
+                     source_vec_scale(bridge_pos, clamped));
+  result.wrote_bend = true;
+  return result;
+}
+
+void source_char_guitar_string_poll_deps(
+    SourceCharGuitarStringPollDeps& deps,
+    const std::string& nut,
+    const std::string& bridge,
+    const std::string& target,
+    const std::string& bend) {
+  deps.changed_by.push_back(nut);
+  deps.changed_by.push_back(bridge);
+  deps.changed_by.push_back(target);
+  deps.change.push_back(bend);
+}
+
 SourceCharSleevePollResult source_char_sleeve_poll(
     SourceCharSleeveState& state,
     bool has_sleeve,

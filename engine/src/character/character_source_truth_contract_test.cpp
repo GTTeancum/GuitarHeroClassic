@@ -116,6 +116,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_sleeve_source_test.cpp"));
   const std::string pos_constraint_source_test = compact(
       read_file(char_dir / "character_pos_constraint_source_test.cpp"));
+  const std::string guitar_string_source_test = compact(
+      read_file(char_dir / "character_guitar_string_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -447,6 +449,10 @@ int run_contract() {
                  "`CharGuitarString.cpp` / `CharGuitarString.h`; stock "
                  "guitar sweep |",
                  "coverage matrix cites CharGuitarString stock boundary");
+  ok &= contains(doc,
+                 "Native helper ports source `Poll` projection/open-string math "
+                 "and `PollDeps`",
+                 "coverage matrix records native CharGuitarString helper");
   ok &= contains(rb3_latest_char_guitar_string_h,
                  "ObjPtr<RndTransformable,classObjectDir>mNut;",
                  "latest CharGuitarString header exposes nut transform");
@@ -458,6 +464,52 @@ int run_contract() {
                  "if(mOpen)clamped=0.0f;Interp(nutvec,bridgevec,clamped,"
                  "tf50.v);mBend->SetWorldXfm(tf50);",
                  "latest CharGuitarString Poll moves bend along string");
+  ok &= contains(rb3_latest_char_guitar_string_cpp,
+                 "changedBy.push_back(mNut);changedBy.push_back(mBridge);"
+                 "changedBy.push_back(mTarget);change.push_back(mBend);",
+                 "latest CharGuitarString PollDeps order");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharGuitarStringPollResult{boolwrote_bend=false;",
+                 "native exposes CharGuitarString poll result");
+  ok &= contains(char_mesh_h,
+                 "SourceCharGuitarStringPollResultsource_char_guitar_string_poll(",
+                 "native exposes CharGuitarString poll helper");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_guitar_string_poll_deps(",
+                 "native exposes CharGuitarString PollDeps helper");
+  ok &= contains(char_mesh,
+                 "SourceCharGuitarStringPollResultsource_char_guitar_string_poll("
+                 "boolhas_nut,boolhas_bridge,boolhas_bend,boolhas_target,",
+                 "native implements CharGuitarString poll helper");
+  ok &= contains(char_mesh,
+                 "if(!has_nut||!has_bridge||!has_bend||!has_target)"
+                 "returnresult;",
+                 "native CharGuitarString helper ports source gate");
+  ok &= contains(char_mesh,
+                 "std::clamp(source_vec_dot(tmp,tmp2)/source_vec_dot(tmp2,tmp2),"
+                 "0.0f,1.0f);if(open)clamped=0.0f;",
+                 "native CharGuitarString helper ports projection and open gate");
+  ok &= contains(char_mesh,
+                 "source_vec_add(source_vec_scale(nut_pos,1.0f-clamped),"
+                 "source_vec_scale(bridge_pos,clamped));",
+                 "native CharGuitarString helper ports source interpolation");
+  ok &= contains(char_mesh,
+                 "deps.changed_by.push_back(nut);deps.changed_by.push_back(bridge);"
+                 "deps.changed_by.push_back(target);deps.change.push_back(bend);",
+                 "native CharGuitarString helper ports PollDeps order");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_guitar_string_source_test",
+                 "CMake builds CharGuitarString source test");
+  ok &= contains(guitar_string_source_test,
+                 "source_char_guitar_string_poll(",
+                 "focused CharGuitarString test calls poll helper");
+  ok &= contains(guitar_string_source_test,
+                 "\"openstringforcesbendtonut\"",
+                 "focused CharGuitarString test covers open string override");
+  ok &= contains(guitar_string_source_test,
+                 "source_char_guitar_string_poll_deps(deps,\"nut.trans\","
+                 "\"bridge.trans\",\"target.trans\",\"bend.trans\")",
+                 "focused CharGuitarString test covers PollDeps");
   ok &= contains(stock_guitar_string_sweep,
                  "\"Entry\",\"HasCharGuitarString\",\"StringHits\",\"TransSummary\"",
                  "stock guitar sweep records CharGuitarString column");
@@ -465,6 +517,9 @@ int run_contract() {
                 "stock guitar sweep has no active CharGuitarString rows");
   ok &= contains(doc, "HasCharGuitarString=0",
                  "document records stock CharGuitarString absence");
+  ok &= contains(doc,
+                 "Native `source_char_guitar_string_*` helpers port that math",
+                 "document records native CharGuitarString helper");
   ok &= contains(doc,
                  "not the active GH2 stock guitar/left-hand\n"
                  "or string-transparency route",

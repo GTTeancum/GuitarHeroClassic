@@ -458,6 +458,16 @@ struct SourceCharSleevePollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharGuitarStringPollResult {
+  bool wrote_bend = false;
+  std::array<float, 3> bend_pos = {0.0f, 0.0f, 0.0f};
+};
+
+struct SourceCharGuitarStringPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -548,6 +558,22 @@ void source_char_sleeve_poll_deps(SourceCharSleevePollDeps& deps,
                                   const std::string& sleeve,
                                   const std::string& top_sleeve,
                                   bool has_sleeve);
+SourceCharGuitarStringPollResult source_char_guitar_string_poll(
+    bool has_nut,
+    bool has_bridge,
+    bool has_bend,
+    bool has_target,
+    bool open,
+    const std::array<float, 3>& nut_pos,
+    const std::array<float, 3>& bridge_pos,
+    const std::array<float, 3>& bend_pos,
+    const std::array<float, 3>& target_pos);
+void source_char_guitar_string_poll_deps(
+    SourceCharGuitarStringPollDeps& deps,
+    const std::string& nut,
+    const std::string& bridge,
+    const std::string& target,
+    const std::string& bend);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

@@ -53,7 +53,7 @@ records the upstream commits for the copied files:
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
-| Guitar string bend controller | `rb3-latest` `CharGuitarString.cpp` / `CharGuitarString.h`; stock guitar sweep | Upstream `Poll` moves a bend transform along nut/bridge based on target projection, but the checked GH2 stock guitar MILOs contain no `CharGuitarString` rows; native does not invent one. |
+| Guitar string bend controller | `rb3-latest` `CharGuitarString.cpp` / `CharGuitarString.h`; stock guitar sweep | Native helper ports source `Poll` projection/open-string math and `PollDeps`, but the checked GH2 stock guitar MILOs contain no `CharGuitarString` rows; native does not invent one. |
 | Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
 | Poll groups | `rb3-latest` `CharPollGroup.cpp` | Native helper ports source `Poll`, `ListPollChildren`, and `PollDeps` decision behavior, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
@@ -1436,8 +1436,11 @@ The focused stock guitar sweep at
 `engine/out/source_guitarstring_20260711/guitar_sweep/guitar_sweep.csv`
 records `HasCharGuitarString=0` for every checked
 `char/og/guitars/gen/*.milo_ps2` entry. `rb3-latest` `CharGuitarString::Poll`
-is therefore useful source context for later assets with real
-`CharGuitarString` rows, but it is not the active GH2 stock guitar/left-hand
+projects the target transform onto the nut-to-bridge segment, clamps that
+projection to `[0, 1]`, forces open strings to the nut, and writes the bend
+transform. Native `source_char_guitar_string_*` helpers port that math and
+`PollDeps` for deterministic coverage and later assets with real
+`CharGuitarString` rows, but this is not the active GH2 stock guitar/left-hand
 or string-transparency route and must not be promoted as an implicit fix.
 
 The local stock mesh detail audit log at
