@@ -150,6 +150,159 @@ bool expect_default_state(const ghogx::character::SourceCharClipDefaultState& go
   return ok;
 }
 
+bool expect_driver_default_state(
+    const ghogx::character::SourceCharDriverState& got) {
+  bool ok = true;
+  if (got.has_bones || got.has_clips || got.has_first || got.has_test_clip ||
+      got.has_default_clip || got.default_play_starved ||
+      got.last_node_valid || got.realign || got.has_internal_bones ||
+      got.play_multiple_clips) {
+    std::cerr << "driver default bool state mismatch\n";
+    ok = false;
+  }
+  if (got.old_beat != 1.0e30f) {
+    std::cerr << "driver default old_beat mismatch: got " << got.old_beat
+              << "\n";
+    ok = false;
+  }
+  if (got.beat_scale != 1.0f || got.blend_width != 1.0f) {
+    std::cerr << "driver default scales mismatch: beat " << got.beat_scale
+              << " blend " << got.blend_width << "\n";
+    ok = false;
+  }
+  if (!got.clip_type.empty()) {
+    std::cerr << "driver default clip_type mismatch\n";
+    ok = false;
+  }
+  if (got.apply != ghogx::character::kSourceCharDriverApplyBlend) {
+    std::cerr << "driver default apply mismatch: got " << got.apply << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
+bool expect_sync_decision(
+    const ghogx::character::SourceCharDriverSyncDecision& got,
+    bool changed,
+    bool clear_stack,
+    bool reset_last_node,
+    bool delete_internal_bones,
+    bool allocate_internal_bones,
+    bool clear_internal_bones,
+    bool stuff_internal_bones,
+    bool has_internal_bones,
+    const char* label) {
+  bool ok = true;
+  if (got.changed != changed || got.clear_stack != clear_stack ||
+      got.reset_last_node != reset_last_node ||
+      got.delete_internal_bones != delete_internal_bones ||
+      got.allocate_internal_bones != allocate_internal_bones ||
+      got.clear_internal_bones != clear_internal_bones ||
+      got.stuff_internal_bones != stuff_internal_bones ||
+      got.has_internal_bones != has_internal_bones) {
+    std::cerr << "driver sync decision mismatch for " << label << ": got "
+              << got.changed << "," << got.clear_stack << ","
+              << got.reset_last_node << "," << got.delete_internal_bones
+              << "," << got.allocate_internal_bones << ","
+              << got.clear_internal_bones << "," << got.stuff_internal_bones
+              << "," << got.has_internal_bones << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
+bool expect_driver_state_helpers() {
+  bool ok = true;
+  ghogx::character::SourceCharDriverState state =
+      ghogx::character::source_char_driver_default_state();
+  ok &= expect_driver_default_state(state);
+
+  state.has_first = true;
+  ghogx::character::source_char_driver_clear(state);
+  if (state.has_first) {
+    std::cerr << "driver clear left stack attached\n";
+    ok = false;
+  }
+
+  state.last_node_valid = true;
+  ghogx::character::source_char_driver_set_clips(state, false);
+  if (!state.last_node_valid) {
+    std::cerr << "driver SetClips no-op reset last node\n";
+    ok = false;
+  }
+  ghogx::character::source_char_driver_set_clips(state, true);
+  if (!state.has_clips || state.last_node_valid) {
+    std::cerr << "driver SetClips changed-state mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::source_char_driver_set_bones(state, true);
+  if (!state.has_bones) {
+    std::cerr << "driver SetBones did not store target\n";
+    ok = false;
+  }
+
+  state.has_first = true;
+  state.last_node_valid = true;
+  ok &= expect_sync_decision(
+      ghogx::character::source_char_driver_set_apply(
+          state, ghogx::character::kSourceCharDriverApplyBlend),
+      false, false, false, false, false, false, false, false,
+      "SetApply unchanged");
+  if (!state.has_first || !state.last_node_valid) {
+    std::cerr << "driver SetApply no-op mutated stack\n";
+    ok = false;
+  }
+
+  ok &= expect_sync_decision(
+      ghogx::character::source_char_driver_set_clip_type(state, "hair"),
+      true, true, true, false, false, false, false, false,
+      "SetClipType blend mode");
+  if (state.has_first || state.last_node_valid || state.clip_type != "hair") {
+    std::cerr << "driver SetClipType state mismatch\n";
+    ok = false;
+  }
+
+  state.has_first = true;
+  state.last_node_valid = true;
+  ok &= expect_sync_decision(
+      ghogx::character::source_char_driver_set_apply(
+          state, ghogx::character::kSourceCharDriverApplyBlendWeights),
+      true, true, true, false, true, true, true, true,
+      "SetApply allocates internal bones");
+  if (state.has_first || state.last_node_valid || !state.has_internal_bones) {
+    std::cerr << "driver SetApply internal bone state mismatch\n";
+    ok = false;
+  }
+
+  ok &= expect_sync_decision(
+      ghogx::character::source_char_driver_set_clip_type(state, ""),
+      true, true, true, true, false, false, false, false,
+      "SetClipType deletes internal bones");
+  if (state.has_internal_bones || !state.clip_type.empty()) {
+    std::cerr << "driver SetClipType empty state mismatch\n";
+    ok = false;
+  }
+
+  ghogx::character::SourceCharDriverState source;
+  source.has_clips = true;
+  source.has_first = true;
+  source.last_node_valid = true;
+  source.realign = true;
+  source.beat_scale = 0.5f;
+  source.blend_width = 0.25f;
+  ghogx::character::SourceCharDriverState dest;
+  dest.has_first = true;
+  ghogx::character::source_char_driver_transfer(dest, source);
+  if (!dest.has_clips || !dest.has_first || !dest.last_node_valid ||
+      !dest.realign || dest.beat_scale != 0.5f ||
+      dest.blend_width != 0.25f) {
+    std::cerr << "driver Transfer copied source fields incorrectly\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_blend(float requested, float driver, float want,
                   const char* label) {
   const float got =
@@ -258,6 +411,7 @@ int main() {
       {{true, {"idle"}}, {true, {"ending"}}},
       "solo", false, "candidate absent from groups");
   ok &= expect_default_state(ghogx::character::source_char_clip_default_state());
+  ok &= expect_driver_state_helpers();
   ok &= expect_blend(-1.0f, 1.0f, 1.0f, "source default blend");
   ok &= expect_blend(-1.0f, 0.25f, 0.25f, "custom driver blend");
   ok &= expect_blend(0.0f, 1.0f, 0.0f, "explicit zero blend");

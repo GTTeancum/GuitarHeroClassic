@@ -878,6 +878,22 @@ note, and all report `unreadBytes=0`.
     the first node with nonzero `mBlendFrac`. It is intentionally a source-stack
     helper only until the missing `CharClipDriver::Evaluate` body supplies
     source `mBlendFrac` values.
+  - Native `SourceCharDriverState` records the checked `CharDriver`
+    constructor defaults: null `mBones`/`mClips`/clip pointers, empty `mFirst`,
+    empty `mLastNode`, `mOldBeat=1e+30f`, `mBeatScale=1.0f`,
+    `mBlendWidth=1.0f`, empty `mClipType`, `mApply=kApplyBlend`, no
+    `mInternalBones`, and `mPlayMultipleClips=false`.
+  - Native `source_char_driver_clear`, `source_char_driver_transfer`,
+    `source_char_driver_set_clips`, and `source_char_driver_set_bones` port the
+    concrete source state edits from `Clear`, `Transfer`, `SetClips`, and
+    `SetBones`. `SetClips` only resets `mLastNode` when the clip directory
+    changes.
+  - Native `source_char_driver_set_apply`, `source_char_driver_set_clip_type`,
+    and `source_char_driver_sync_internal_bones` port the concrete
+    `SyncInternalBones` gate: every changed apply/clip-type value clears the
+    stack and resets `mLastNode`; internal bones are deleted when the clip type
+    is null, allocated only for `kApplyBlendWeights` plus non-null clip type,
+    then cleared and stuffed from `CharBoneDir::StuffBones`.
 - `rb3-latest/src/system/char/CharDriverMidi.cpp` and
   `rb3-latest/src/system/char/CharDriverMidi.h`
   - `CharDriverMidi::Load` reads the subclass revision, accepts revisions

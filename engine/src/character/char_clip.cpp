@@ -1803,6 +1803,79 @@ SourceCharClipDefaultState source_char_clip_default_state() {
   return SourceCharClipDefaultState{};
 }
 
+SourceCharDriverState source_char_driver_default_state() {
+  return SourceCharDriverState{};
+}
+
+void source_char_driver_clear(SourceCharDriverState& state) {
+  state.has_first = false;
+}
+
+void source_char_driver_transfer(SourceCharDriverState& state,
+                                 const SourceCharDriverState& driver) {
+  source_char_driver_clear(state);
+  state.has_clips = driver.has_clips;
+  state.last_node_valid = driver.last_node_valid;
+  state.realign = driver.realign;
+  state.beat_scale = driver.beat_scale;
+  state.blend_width = driver.blend_width;
+  state.has_first = driver.has_first;
+}
+
+void source_char_driver_set_clips(SourceCharDriverState& state,
+                                  bool has_clips) {
+  if (has_clips != state.has_clips) {
+    state.last_node_valid = false;
+    state.has_clips = has_clips;
+  }
+}
+
+void source_char_driver_set_bones(SourceCharDriverState& state,
+                                  bool has_bones) {
+  state.has_bones = has_bones;
+}
+
+SourceCharDriverSyncDecision source_char_driver_sync_internal_bones(
+    SourceCharDriverState& state) {
+  SourceCharDriverSyncDecision decision;
+  decision.changed = true;
+  decision.clear_stack = true;
+  decision.reset_last_node = true;
+  source_char_driver_clear(state);
+  state.last_node_valid = false;
+  if (state.has_internal_bones && state.clip_type.empty()) {
+    decision.delete_internal_bones = true;
+    state.has_internal_bones = false;
+  } else if (!state.has_internal_bones &&
+             state.apply == kSourceCharDriverApplyBlendWeights &&
+             !state.clip_type.empty()) {
+    decision.allocate_internal_bones = true;
+    state.has_internal_bones = true;
+  }
+  if (state.has_internal_bones) {
+    decision.clear_internal_bones = true;
+    decision.stuff_internal_bones = true;
+  }
+  decision.has_internal_bones = state.has_internal_bones;
+  return decision;
+}
+
+SourceCharDriverSyncDecision source_char_driver_set_apply(
+    SourceCharDriverState& state,
+    SourceCharDriverApplyMode apply) {
+  if (apply == state.apply) return SourceCharDriverSyncDecision{};
+  state.apply = apply;
+  return source_char_driver_sync_internal_bones(state);
+}
+
+SourceCharDriverSyncDecision source_char_driver_set_clip_type(
+    SourceCharDriverState& state,
+    const std::string& clip_type) {
+  if (clip_type == state.clip_type) return SourceCharDriverSyncDecision{};
+  state.clip_type = clip_type;
+  return source_char_driver_sync_internal_bones(state);
+}
+
 SourceCharClipFlagUpdate source_char_clip_set_play_flags(
     uint32_t current_play_flags,
     bool current_dirty,

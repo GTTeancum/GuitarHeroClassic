@@ -279,8 +279,63 @@ struct SourceCharClipDefaultState {
   float first_beat_value = 0.0f;
 };
 
+enum SourceCharDriverApplyMode {
+  kSourceCharDriverApplyBlend = 0,
+  kSourceCharDriverApplyAdd = 1,
+  kSourceCharDriverApplyRotateTo = 2,
+  kSourceCharDriverApplyBlendWeights = 3,
+};
+
+struct SourceCharDriverState {
+  bool has_bones = false;
+  bool has_clips = false;
+  bool has_first = false;
+  bool has_test_clip = false;
+  bool has_default_clip = false;
+  bool default_play_starved = false;
+  bool last_node_valid = false;
+  float old_beat = 1.0e30f;
+  bool realign = false;
+  float beat_scale = 1.0f;
+  float blend_width = 1.0f;
+  std::string clip_type;
+  SourceCharDriverApplyMode apply = kSourceCharDriverApplyBlend;
+  bool has_internal_bones = false;
+  bool play_multiple_clips = false;
+};
+
+struct SourceCharDriverSyncDecision {
+  bool changed = false;
+  bool clear_stack = false;
+  bool reset_last_node = false;
+  bool delete_internal_bones = false;
+  bool allocate_internal_bones = false;
+  bool clear_internal_bones = false;
+  bool stuff_internal_bones = false;
+  bool has_internal_bones = false;
+};
+
 // Source-backed CharClip constructor state.
 SourceCharClipDefaultState source_char_clip_default_state();
+
+// Source-backed CharDriver constructor, Clear, Transfer, setter, and
+// SyncInternalBones state helpers.
+SourceCharDriverState source_char_driver_default_state();
+void source_char_driver_clear(SourceCharDriverState& state);
+void source_char_driver_transfer(SourceCharDriverState& state,
+                                 const SourceCharDriverState& driver);
+void source_char_driver_set_clips(SourceCharDriverState& state,
+                                  bool has_clips);
+void source_char_driver_set_bones(SourceCharDriverState& state,
+                                  bool has_bones);
+SourceCharDriverSyncDecision source_char_driver_sync_internal_bones(
+    SourceCharDriverState& state);
+SourceCharDriverSyncDecision source_char_driver_set_apply(
+    SourceCharDriverState& state,
+    SourceCharDriverApplyMode apply);
+SourceCharDriverSyncDecision source_char_driver_set_clip_type(
+    SourceCharDriverState& state,
+    const std::string& clip_type);
 
 // Source-backed CharClip::SetFlags / SetPlayFlags dirty-state helpers.
 SourceCharClipFlagUpdate source_char_clip_set_flags(uint32_t current_flags,

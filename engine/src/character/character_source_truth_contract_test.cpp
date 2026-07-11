@@ -5966,6 +5966,52 @@ int run_contract() {
                  "mBlendWidth(1.0f)",
                  "latest CharDriver source constructor exposes default blend width");
   ok &= contains(rb3_latest_char_driver_cpp,
+                 "mApply(kApplyBlend),mInternalBones(0),mPlayMultipleClips(0)",
+                 "latest CharDriver source constructor exposes apply/internal defaults");
+  ok &= contains(rb3_latest_char_driver_h,
+                 "enumApplyMode{kApplyBlend,kApplyAdd,kApplyRotateTo,"
+                 "kApplyBlendWeights};",
+                 "latest CharDriver header exposes source apply enum order");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "voidCharDriver::Clear(){if(mFirst)mFirst->DeleteStack();"
+                 "mFirst=0;}",
+                 "latest CharDriver source exposes Clear stack deletion");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "voidCharDriver::Transfer(constCharDriver&driver){Clear();"
+                 "mClips=driver.mClips;mLastNode=driver.mLastNode;"
+                 "mRealign=driver.mRealign;mBeatScale=driver.mBeatScale;"
+                 "mBlendWidth=driver.mBlendWidth;if(driver.mFirst)mFirst="
+                 "newCharClipDriver(this,*driver.mFirst);}",
+                 "latest CharDriver source exposes Transfer state copy");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "voidCharDriver::SetClips(ObjectDir*dir){if(dir!=mClips){"
+                 "mLastNode=DataNode((Hmx::Object*)0);mClips=dir;}}",
+                 "latest CharDriver source exposes SetClips last-node reset");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "voidCharDriver::SetBones(CharBonesObject*obj){mBones=obj;}",
+                 "latest CharDriver source exposes SetBones assignment");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "voidCharDriver::SetApply(ApplyModemode){if(mode!=mApply){"
+                 "mApply=mode;SyncInternalBones();}}",
+                 "latest CharDriver source exposes SetApply sync gate");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "voidCharDriver::SetClipType(Symbolty){if(mClipType!=ty){"
+                 "mClipType=ty;SyncInternalBones();}}",
+                 "latest CharDriver source exposes SetClipType sync gate");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "voidCharDriver::SyncInternalBones(){Clear();mLastNode="
+                 "DataNode((Hmx::Object*)0);if(mInternalBones&&"
+                 "mClipType.Null()){deletemInternalBones;mInternalBones=0;}",
+                 "latest CharDriver source exposes SyncInternalBones reset/delete");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "elseif(!mInternalBones&&mApply==kApplyBlendWeights&&"
+                 "!mClipType.Null()){mInternalBones=newCharBonesAlloc();}",
+                 "latest CharDriver source exposes SyncInternalBones allocation gate");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "if(mInternalBones){mInternalBones->ClearBones();"
+                 "CharBoneDir::StuffBones(*mInternalBones,mClipType);}",
+                 "latest CharDriver source exposes SyncInternalBones StuffBones path");
+  ok &= contains(rb3_latest_char_driver_cpp,
                  "if(f1==-1.0f)f1=mBlendWidth;",
                  "latest CharDriver source exposes Play blend sentinel");
   ok &= contains(rb3_latest_char_driver_cpp,
@@ -6032,6 +6078,47 @@ int run_contract() {
                  "std::optional<size_t>source_char_driver_first_playing_index("
                  "conststd::vector<float>&source_stack_blend_fracs);",
                  "native character API exposes source CharDriver FirstPlaying helper");
+  ok &= contains(char_clip_h,
+                 "enumSourceCharDriverApplyMode{kSourceCharDriverApplyBlend=0,"
+                 "kSourceCharDriverApplyAdd=1,kSourceCharDriverApplyRotateTo=2,"
+                 "kSourceCharDriverApplyBlendWeights=3,};",
+                 "native character API exposes source CharDriver apply enum order");
+  ok &= contains(char_clip_h,
+                 "structSourceCharDriverState{boolhas_bones=false;"
+                 "boolhas_clips=false;boolhas_first=false;boolhas_test_clip=false;"
+                 "boolhas_default_clip=false;booldefault_play_starved=false;"
+                 "boollast_node_valid=false;floatold_beat=1.0e30f;",
+                 "native character API exposes source CharDriver state defaults");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverStatesource_char_driver_default_state();",
+                 "native character API exposes source CharDriver default state helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_driver_clear(SourceCharDriverState&state);",
+                 "native character API exposes source CharDriver Clear helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_driver_transfer(SourceCharDriverState&state,"
+                 "constSourceCharDriverState&driver);",
+                 "native character API exposes source CharDriver Transfer helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_driver_set_clips(SourceCharDriverState&state,"
+                 "boolhas_clips);",
+                 "native character API exposes source CharDriver SetClips helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_driver_set_bones(SourceCharDriverState&state,"
+                 "boolhas_bones);",
+                 "native character API exposes source CharDriver SetBones helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverSyncDecisionsource_char_driver_sync_internal_bones("
+                 "SourceCharDriverState&state);",
+                 "native character API exposes source CharDriver SyncInternalBones helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverSyncDecisionsource_char_driver_set_apply("
+                 "SourceCharDriverState&state,SourceCharDriverApplyModeapply);",
+                 "native character API exposes source CharDriver SetApply helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharDriverSyncDecisionsource_char_driver_set_clip_type("
+                 "SourceCharDriverState&state,conststd::string&clip_type);",
+                 "native character API exposes source CharDriver SetClipType helper");
   ok &= contains(char_clip_h,
                  "floatsource_driver_blend_width_=1.0f;",
                  "native CharClipPlayer stores source driver blend default");
@@ -6150,6 +6237,58 @@ int run_contract() {
                  "size_ti=0;i<source_stack_blend_fracs.size();++i){if("
                  "source_stack_blend_fracs[i]!=0.0f)returni;}returnstd::nullopt;}",
                  "native CharDriver FirstPlaying helper ports source scan");
+  ok &= contains(char_clip,
+                 "SourceCharDriverStatesource_char_driver_default_state(){"
+                 "returnSourceCharDriverState{};}",
+                 "native CharDriver default state helper returns source defaults");
+  ok &= contains(char_clip,
+                 "voidsource_char_driver_clear(SourceCharDriverState&state){"
+                 "state.has_first=false;}",
+                 "native CharDriver Clear helper ports source mFirst reset");
+  ok &= contains(char_clip,
+                 "voidsource_char_driver_transfer(SourceCharDriverState&state,"
+                 "constSourceCharDriverState&driver){source_char_driver_clear(state);"
+                 "state.has_clips=driver.has_clips;state.last_node_valid="
+                 "driver.last_node_valid;state.realign=driver.realign;",
+                 "native CharDriver Transfer helper ports source copied fields");
+  ok &= contains(char_clip,
+                 "voidsource_char_driver_set_clips(SourceCharDriverState&state,"
+                 "boolhas_clips){if(has_clips!=state.has_clips){"
+                 "state.last_node_valid=false;state.has_clips=has_clips;}}",
+                 "native CharDriver SetClips helper ports changed-directory gate");
+  ok &= contains(char_clip,
+                 "voidsource_char_driver_set_bones(SourceCharDriverState&state,"
+                 "boolhas_bones){state.has_bones=has_bones;}",
+                 "native CharDriver SetBones helper ports source assignment");
+  ok &= contains(char_clip,
+                 "SourceCharDriverSyncDecisionsource_char_driver_sync_internal_bones("
+                 "SourceCharDriverState&state){SourceCharDriverSyncDecisiondecision;"
+                 "decision.changed=true;decision.clear_stack=true;"
+                 "decision.reset_last_node=true;source_char_driver_clear(state);"
+                 "state.last_node_valid=false;",
+                 "native CharDriver SyncInternalBones helper clears stack and last node");
+  ok &= contains(char_clip,
+                 "if(state.has_internal_bones&&state.clip_type.empty()){"
+                 "decision.delete_internal_bones=true;state.has_internal_bones=false;}"
+                 "elseif(!state.has_internal_bones&&state.apply=="
+                 "kSourceCharDriverApplyBlendWeights&&!state.clip_type.empty()){",
+                 "native CharDriver SyncInternalBones helper ports allocation gate");
+  ok &= contains(char_clip,
+                 "if(state.has_internal_bones){decision.clear_internal_bones=true;"
+                 "decision.stuff_internal_bones=true;}",
+                 "native CharDriver SyncInternalBones helper records StuffBones path");
+  ok &= contains(char_clip,
+                 "SourceCharDriverSyncDecisionsource_char_driver_set_apply("
+                 "SourceCharDriverState&state,SourceCharDriverApplyModeapply){"
+                 "if(apply==state.apply)returnSourceCharDriverSyncDecision{};"
+                 "state.apply=apply;returnsource_char_driver_sync_internal_bones(state);}",
+                 "native CharDriver SetApply helper ports source sync guard");
+  ok &= contains(char_clip,
+                 "SourceCharDriverSyncDecisionsource_char_driver_set_clip_type("
+                 "SourceCharDriverState&state,conststd::string&clip_type){"
+                 "if(clip_type==state.clip_type)returnSourceCharDriverSyncDecision{};"
+                 "state.clip_type=clip_type;returnsource_char_driver_sync_internal_bones(state);}",
+                 "native CharDriver SetClipType helper ports source sync guard");
   ok &= missing(char_clip,
                 "blend_width>=0.0f?blend_width:std::max(0.0f,clip.blend_width)",
                 "native CharClipPlayer no longer falls back to clip blend width");
@@ -6199,6 +6338,31 @@ int run_contract() {
                  "expect_first_playing({0.0f,0.25f,1.0f},"
                  "static_cast<size_t>(1),\"skipzeroblendnodes\")",
                  "focused flag-mask test covers FirstPlaying zero-skip scan");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_default_state()",
+                 "focused flag-mask test covers CharDriver constructor defaults");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_set_clips(state,true)",
+                 "focused flag-mask test covers CharDriver SetClips change");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_set_apply(state,ghogx::character::"
+                 "kSourceCharDriverApplyBlendWeights)",
+                 "focused flag-mask test covers CharDriver blend-weights allocation");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_set_clip_type(state,\"\")",
+                 "focused flag-mask test covers CharDriver empty clip-type delete");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_driver_transfer(dest,source)",
+                 "focused flag-mask test covers CharDriver Transfer copy");
+  ok &= contains(doc,
+                 "Native `SourceCharDriverState` records the checked `CharDriver`",
+                 "document records native CharDriver source state");
+  ok &= contains(doc,
+                 "SetClips` only resets `mLastNode` when the clip directory",
+                 "document records CharDriver SetClips source gate");
+  ok &= contains(doc,
+                 "allocated only for `kApplyBlendWeights` plus non-null clip type",
+                 "document records CharDriver SyncInternalBones allocation gate");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");
