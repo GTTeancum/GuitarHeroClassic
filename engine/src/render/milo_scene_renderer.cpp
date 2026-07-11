@@ -1983,6 +1983,10 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     std::reverse(animated_ancestors.begin(), animated_ancestors.end());
     for (const std::string& target : animated_ancestors) {
+      if (const auto offset_it = mesh_transform_offsets_.find(target);
+          offset_it != mesh_transform_offsets_.end()) {
+        apply_mesh_transform_sample(world, offset_it->second);
+      }
       const auto anim_it = active_mesh_anims_.find(target);
       if (anim_it == active_mesh_anims_.end()) continue;
       const auto& active = anim_it->second;

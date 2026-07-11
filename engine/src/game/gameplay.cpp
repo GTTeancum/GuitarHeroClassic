@@ -5691,6 +5691,17 @@ std::map<std::string, std::array<float, 3>> build_scene_mesh_local_positions(
             mesh.local.pos[0], mesh.local.pos[1], mesh.local.pos[2]};
         add(mesh.name, pos);
     }
+    for (const auto& trans : scene.transes) {
+        const std::array<float, 3> pos = {
+            trans.local.pos[0], trans.local.pos[1], trans.local.pos[2]};
+        add(trans.name, pos);
+    }
+    for (const auto& group : scene.groups) {
+        if (!group.has_transform) continue;
+        const std::array<float, 3> pos = {
+            group.local.pos[0], group.local.pos[1], group.local.pos[2]};
+        add(group.name, pos);
+    }
     return out;
 }
 
@@ -7372,8 +7383,17 @@ std::vector<Gameplay::CameraKey> load_camera_position_keys(
     return out;
 }
 
-std::optional<std::string> first_mesh_target_in_transanim(const uint8_t* body,
-                                                          size_t size) {
+bool is_transformable_target_ref(std::string_view name) {
+    return (name.size() > 5 &&
+            name.rfind(".mesh") == name.size() - 5) ||
+           (name.size() > 6 &&
+            name.rfind(".trans") == name.size() - 6) ||
+           (name.size() > 4 &&
+            name.rfind(".grp") == name.size() - 4);
+}
+
+std::optional<std::string> first_transformable_target_in_transanim(
+    const uint8_t* body, size_t size) {
     for (size_t off = 0; off + 9 <= size; ++off) {
         uint32_t len = 0;
         std::memcpy(&len, body + off, sizeof(len));
@@ -7389,8 +7409,7 @@ std::optional<std::string> first_mesh_target_in_transanim(const uint8_t* body,
         }
         if (!printable) continue;
         std::string name(s, s + len);
-        if (name.size() > 5 &&
-            name.rfind(".mesh") == name.size() - 5) {
+        if (is_transformable_target_ref(name)) {
             return name;
         }
     }
@@ -9267,7 +9286,8 @@ load_venue_anim_filters(const std::string& hdr_path,
                     }
                 }
             } else if (de.type == "TransAnim") {
-                auto target = first_mesh_target_in_transanim(body, size);
+                auto target =
+                    first_transformable_target_in_transanim(body, size);
                 if (!target) continue;
                 auto anim = decode_transanim_transform_anim(body, size);
                 if (mesh_transform_anim_empty(anim)) continue;
@@ -9802,7 +9822,8 @@ Gameplay::VenueAnimFilter load_rnddir_directory_anim(
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
             if (de.type == "TransAnim") {
-                auto target = first_mesh_target_in_transanim(body, size);
+                auto target =
+                    first_transformable_target_in_transanim(body, size);
                 if (!target) continue;
                 auto anim = decode_transanim_transform_anim(body, size);
                 if (mesh_transform_anim_empty(anim)) continue;
@@ -10015,7 +10036,8 @@ DrumAnimData load_drum_anim_data(const std::string& hdr_path,
             const uint8_t* body = payload.data() + de.offset;
             const size_t size = static_cast<size_t>(de.size);
             if (de.type == "TransAnim") {
-                auto target = first_mesh_target_in_transanim(body, size);
+                auto target =
+                    first_transformable_target_in_transanim(body, size);
                 if (!target) continue;
                 transanim_mesh[de.name] = *target;
                 auto anim = decode_transanim_transform_anim(body, size);
@@ -23208,13 +23230,26 @@ void Gameplay::draw(ghogx::render::Window& win) {
             const std::string target_id =
                 target_env && target_env[0] ? target_env
                                             : "guitarist0:bone_spine1.mesh";
-            auto target = camera_targets.find(target_id);
-            if (target == camera_targets.end()) {
-                target = camera_targets.find("guitarist0:bone_spine1");
+            std::array<float, 16> debug_target_world = {};
+            bool has_debug_target = false;
+            if (const auto target = camera_targets.find(target_id);
+                target != camera_targets.end()) {
+                debug_target_world = target->second.world;
+                has_debug_target = true;
+            } else if (const auto venue_target =
+                           venue_camera_target_worlds_.find(target_id);
+                       venue_target != venue_camera_target_worlds_.end()) {
+                debug_target_world = venue_target->second;
+                has_debug_target = true;
+            } else if (const auto fallback =
+                           camera_targets.find("guitarist0:bone_spine1");
+                       fallback != camera_targets.end()) {
+                debug_target_world = fallback->second.world;
+                has_debug_target = true;
             }
-            if (target != camera_targets.end()) {
+            if (has_debug_target) {
                 auto& cam = world_->camera();
-                const auto target_pos = mat4_position_game(target->second.world);
+                const auto target_pos = mat4_position_game(debug_target_world);
                 cam.authored = false;
                 cam.result_frame.valid = false;
                 cam.screen_offset[0] = 0.0f;

@@ -5491,8 +5491,17 @@ int main() {
                  "apply_mesh_transform_sample(world,offset_it->second);",
                  "persistent venue AnimFilter offsets use full transform samples");
   ok &= contains(renderer_c,
+                 "mesh_transform_offsets_.find(target)",
+                 "persistent venue AnimFilter offsets also apply to animated parent transforms");
+  ok &= contains(renderer_c,
                  "sample_transform_anim(active.anim,frame)",
                  "one-shot mesh TransAnim playback samples translation, rotation, and scale");
+  ok &= contains(gameplay_c,
+                 "is_transformable_target_ref(std::string_viewname)",
+                 "source-shaped TransAnim targets are decoded as RndTransformable refs");
+  ok &= contains(gameplay_c,
+                 "name.rfind(\".trans\")==name.size()-6",
+                 "venue TransAnim keeps authored .trans targets such as RedOctane fan.trans");
   ok &= contains(gameplay_c,
                  "decode_transanim_rotation_keys(body,size)",
                  "PS2 TransAnim decoder keeps quaternion rotation keys");
@@ -7591,6 +7600,9 @@ int main() {
   ok &= contains(gameplay_c,
                  "&venue_camera_target_worlds_",
                  "regular and intro cameras pass diagnostic venue source-parent targets");
+  ok &= contains(gameplay_c,
+                 "venue_camera_target_worlds_.find(target_id)",
+                 "debug gameplay camera can target decoded venue meshes and transforms");
   ok &= contains(gameplay_h_c,
                  "boolvenue_camera_hide_crowd_=false;",
                  "camera hide_crowd state is tracked for skinned actor crowds");
