@@ -135,6 +135,42 @@ std::vector<uint8_t> make_rev11_hair_without_strands() {
   return b;
 }
 
+std::vector<uint8_t> make_rev7_collide() {
+  std::vector<uint8_t> b;
+  put_u32(b, 7);                  // CharCollide revision
+  put_zeros(b, 9);                // ObjectFields revision 0, empty type/root
+
+  put_u32(b, 9);                  // embedded RndTrans revision
+  put_matrix(b, 1.0f, 2.0f, 3.0f);
+  put_matrix(b, 4.0f, 5.0f, 6.0f);
+  put_u32(b, 0);                  // constraint
+  put_str(b, "");                 // target
+  b.push_back(0);                 // preserve scale
+  put_str(b, "bone_head.mesh");   // parent
+
+  put_u32(b, 3);                  // CharCollide::kCigar
+  put_f32(b, 1.25f);              // mOrigRadius[0]
+  put_f32(b, 2.5f);               // mOrigLength[0]
+  put_f32(b, 3.5f);               // mOrigLength[1]
+  put_u32(b, 0x44);               // mFlags
+  put_f32(b, 4.5f);               // mCurRadius[0]
+  put_f32(b, 5.5f);               // mOrigRadius[1]
+  put_f32(b, 6.5f);               // mCurRadius[1]
+  put_f32(b, 7.5f);               // mCurLength[0]
+  put_f32(b, 8.5f);               // mCurLength[1]
+  put_matrix(b, 9.0f, 10.0f, 11.0f);
+  put_str(b, "hair_collision.mesh");
+  for (int i = 0; i < 8; ++i) {
+    put_u32(b, static_cast<uint32_t>(i * 10));
+    put_f32(b, static_cast<float>(i) + 0.1f);
+    put_f32(b, static_cast<float>(i) + 0.2f);
+    put_f32(b, static_cast<float>(i) + 0.3f);
+  }
+  for (uint8_t i = 1; i <= 20; ++i) b.push_back(i);
+  b.push_back(1);                 // mMeshYBias
+  return b;
+}
+
 ghogx::character::CharHair make_two_strand_hair() {
   ghogx::character::CharHair hair;
   hair.strands.resize(2);
@@ -232,6 +268,31 @@ int main() {
     bad_collide_version_threw = true;
   }
   CHECK(bad_collide_version_threw);
+
+  const ghogx::character::CharCollide collide =
+      ghogx::character::decode_collide("valid.collide", make_rev7_collide());
+  CHECK(collide.version == 7);
+  CHECK(collide.name == "valid.collide");
+  CHECK(collide.parent == "bone_head.mesh");
+  CHECK(collide.shape == 3);
+  CHECK(collide.flags == 0x44);
+  CHECK(approx(collide.orig_radius[0], 1.25f));
+  CHECK(approx(collide.orig_radius[1], 5.5f));
+  CHECK(approx(collide.cur_radius[0], 4.5f));
+  CHECK(approx(collide.cur_radius[1], 6.5f));
+  CHECK(approx(collide.cur_length[0], 7.5f));
+  CHECK(approx(collide.cur_length[1], 8.5f));
+  CHECK(collide.mesh == "hair_collision.mesh");
+  CHECK(collide.mesh_y_bias);
+  CHECK(approx(collide.mesh_transform.pos[0], 9.0f));
+  CHECK(approx(collide.mesh_transform.pos[1], 10.0f));
+  CHECK(approx(collide.mesh_transform.pos[2], 11.0f));
+  CHECK(collide.mesh_spheres[3].vertex == 30);
+  CHECK(approx(collide.mesh_spheres[3].vec[0], 3.1f));
+  CHECK(approx(collide.mesh_spheres[3].vec[1], 3.2f));
+  CHECK(approx(collide.mesh_spheres[3].vec[2], 3.3f));
+  CHECK(collide.digest[0] == 1);
+  CHECK(collide.digest[19] == 20);
 
   ghogx::character::CharHair cloth_hair = make_two_strand_hair();
   ghogx::character::source_char_hair_set_cloth(cloth_hair, true);

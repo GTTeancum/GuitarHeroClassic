@@ -323,6 +323,11 @@ void source_char_hair_strand_set_root(
     CharHairStrand& strand,
     const std::vector<SourceCharHairRootNode>& first_child_chain);
 
+struct CharCollideMeshSphere {
+  int32_t vertex = 0;
+  float vec[3] = {0.0f, 0.0f, 0.0f};
+};
+
 struct CharCollide {
   std::string name;
   int32_t version = 0;
@@ -336,6 +341,9 @@ struct CharCollide {
   int32_t flags = 0;
   std::string mesh;
   bool mesh_y_bias = false;
+  milo_scene::Xfm mesh_transform;
+  std::array<CharCollideMeshSphere, 8> mesh_spheres;
+  std::array<uint8_t, 20> digest = {};
   float orig_radius[2] = {0.0f, 0.0f};
   float orig_length[2] = {0.0f, 0.0f};
   float cur_radius[2] = {0.0f, 0.0f};

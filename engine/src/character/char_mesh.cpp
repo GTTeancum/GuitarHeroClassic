@@ -830,15 +830,15 @@ CharCollide decode_collide_body(const std::string& entry_name,
     collide.cur_radius[1] = r.f32();
     collide.cur_length[0] = r.f32();
     collide.cur_length[1] = r.f32();
-    (void)r.matrix();  // cached source Transform row, not consumed natively yet.
+    collide.mesh_transform = r.matrix();
     collide.mesh = r.str();
     for (int i = 0; i < 8; ++i) {
-      (void)r.i32();
-      (void)r.f32();
-      (void)r.f32();
-      (void)r.f32();
+      collide.mesh_spheres[i].vertex = r.i32();
+      collide.mesh_spheres[i].vec[0] = r.f32();
+      collide.mesh_spheres[i].vec[1] = r.f32();
+      collide.mesh_spheres[i].vec[2] = r.f32();
     }
-    r.skip(20);  // CSHA1::Digest
+    for (uint8_t& byte : collide.digest) byte = r.u8();
     collide.mesh_y_bias = r.u8() != 0;
     if (collide.version < 7) copy_original_to_current();
   } else {

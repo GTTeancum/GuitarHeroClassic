@@ -1201,11 +1201,23 @@ int run_contract() {
                  "mOrigLength[0];",
                  "latest CharCollide source exposes load path");
   ok &= contains(rb3_latest_char_collide_cpp,
+                 "bs>>unk148;bs>>mMesh;for(inti=0;i<8;i++){bs>>"
+                 "unk_structs[i].unk0;bs>>unk_structs[i].vec;}bs>>mDigest;",
+                 "latest CharCollide source retains mesh collision rows");
+  ok &= contains(rb3_latest_char_collide_cpp,
                  "LOAD_REVS(bs)ASSERT_REVS(7,0)",
                  "latest CharCollide Load accepts source revisions through 7");
   ok &= contains(char_mesh_h,
                  "structCharCollide{std::stringname;int32_tversion=0;",
                  "native exposes decoded CharCollide rows");
+  ok &= contains(char_mesh_h,
+                 "structCharCollideMeshSphere{int32_tvertex=0;floatvec[3]="
+                 "{0.0f,0.0f,0.0f};};",
+                 "native exposes source CharCollide mesh sphere rows");
+  ok &= contains(char_mesh_h,
+                 "milo_scene::Xfmmesh_transform;std::array<CharCollideMeshSphere,8>"
+                 "mesh_spheres;std::array<uint8_t,20>digest={};",
+                 "native CharCollide stores source mesh transform and digest");
   ok &= contains(char_mesh_h,
                  "CharCollidedecode_collide(conststd::string&entry_name,"
                  "conststd::vector<uint8_t>&body);",
@@ -1227,8 +1239,13 @@ int run_contract() {
                  "if(collide.version>4)collide.orig_length[0]=r.f32();",
                  "native CharCollide decoder follows source radius/length gates");
   ok &= contains(char_mesh,
-                 "r.skip(20);//CSHA1::Digestcollide.mesh_y_bias=r.u8()!=0;",
-                 "native CharCollide decoder consumes digest and mesh-y-bias");
+                 "collide.mesh_transform=r.matrix();collide.mesh=r.str();"
+                 "for(inti=0;i<8;++i){collide.mesh_spheres[i].vertex=r.i32();",
+                 "native CharCollide decoder stores source mesh collision rows");
+  ok &= contains(char_mesh,
+                 "for(uint8_t&byte:collide.digest)byte=r.u8();"
+                 "collide.mesh_y_bias=r.u8()!=0;",
+                 "native CharCollide decoder stores digest and mesh-y-bias");
   ok &= contains(char_mesh,
                  "out.collides.push_back(decode_collide(de.name,b));",
                  "character load stores decoded CharCollide rows");
@@ -1241,6 +1258,13 @@ int run_contract() {
                  "document records CharCollide source revision gate");
   ok &= contains(mesh_decode_test, "CHECK(bad_collide_version_threw);",
                  "mesh decode test covers invalid CharCollide revision");
+  ok &= contains(mesh_decode_test, "CHECK(collide.mesh_spheres[3].vertex==30);",
+                 "mesh decode test covers decoded CharCollide mesh sphere row");
+  ok &= contains(mesh_decode_test, "CHECK(collide.digest[19]==20);",
+                 "mesh decode test covers decoded CharCollide digest");
+  ok &= contains(doc,
+                 "Native GHOGX retains the internal transform, all eight mesh sphere rows",
+                 "document records decoded CharCollide retained source rows");
   ok &= contains(doc, "runs the checked source poll/reset/sim state path",
                  "document states bounded native CharHair poll rule");
   ok &= contains(doc, "point rows unwritten until",

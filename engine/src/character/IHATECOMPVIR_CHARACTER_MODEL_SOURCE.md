@@ -401,6 +401,10 @@ note, and all report `unreadBytes=0`.
   - Native GHOGX decodes and logs `CharCollide` rows using this source order so
     hair hookup/collision work can be audited from stock data. It does not yet
     apply collision or write hair world rows from these decoded objects.
+  - Native GHOGX retains the internal transform, all eight mesh sphere rows, and
+    the SHA1 digest from source `CharCollide` rows. These fields remain decoded
+    evidence for later source-backed collision hookup, not an invented native
+    collision response.
 - `ihatecompvir-extra/band3_recomp`
   - The current config exposes `CharHair::GetFPS` and `CharHair::Simulate`
     symbols only. It does not provide a decompiled `CharHair` body or
