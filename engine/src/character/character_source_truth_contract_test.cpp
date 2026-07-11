@@ -1664,6 +1664,35 @@ int run_contract() {
                  "mFriction=0;SimulateLoops(reset,GetFPS());mSimulate=tmpsim;"
                  "mFriction=tmpfric;mInertia=tmpinert;mReset=0;",
                  "RB3 CharHair DoReset temporarily forces simulation");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "BEGIN_HANDLERS(CharHair)HANDLE_ACTION(reset,mReset="
+                 "_msg->Int(2))HANDLE_ACTION(hookup,Hookup())"
+                 "HANDLE_ACTION(set_cloth,SetCloth(_msg->Int(2)))"
+                 "HANDLE_ACTION(freeze_pose,FreezePose())"
+                 "HANDLE_SUPERCLASS(RndPollable)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x46F)END_HANDLERS",
+                 "RB3 CharHair handlers expose source actions and superclasses");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharHair::Point)"
+                 "SYNC_PROP(bone,o.bone)SYNC_PROP(length,o.length)"
+                 "SYNC_PROP(collides,o.collides)SYNC_PROP(radius,o.radius)"
+                 "SYNC_PROP(outer_radius,o.outerRadius)"
+                 "SYNC_PROP(side_length,o.sideLength)END_CUSTOM_PROPSYNC",
+                 "RB3 CharHair point prop sync rows");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "BEGIN_CUSTOM_PROPSYNC(CharHair::Strand)gStrand=&o;"
+                 "SYNC_PROP_SET(root,o.mRoot,o.SetRoot(_val.Obj"
+                 "<RndTransformable>(0)))SYNC_PROP_SET(angle,o.mAngle,"
+                 "o.SetAngle(_val.Float(0)))SYNC_PROP(points,o.mPoints)"
+                 "SYNC_PROP(hookup_flags,o.mHookupFlags)"
+                 "SYNC_PROP(show_spheres,o.mShowSpheres)",
+                 "RB3 CharHair strand prop sync rows");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "BEGIN_PROPSYNCS(CharHair)gHair=this;SYNC_PROP(stiffness,"
+                 "mStiffness)SYNC_PROP(torsion,mTorsion)SYNC_PROP(inertia,"
+                 "mInertia)SYNC_PROP(gravity,mGravity)SYNC_PROP(weight,"
+                 "mWeight)SYNC_PROP(friction,mFriction)",
+                 "RB3 CharHair object prop sync prefix");
   ok &= contains(char_clip,
                  "if((!force_simulate&&!hair.simulate)||hair.strands.empty())"
                  "return0;",
@@ -1850,9 +1879,33 @@ int run_contract() {
                  "booluse_post_proc=false;};",
                  "native exposes CharHair SetName plan row");
   ok &= contains(char_mesh_h,
+                 "structSourceCharHairHandlerPlan{"
+                 "std::vector<std::string>actions;"
+                 "std::vector<std::string>superclasses;int32_tcheck=0x46f;};",
+                 "native exposes CharHair handler plan row");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairPropSyncPlan{"
+                 "boolsets_global_point_owner=false;"
+                 "boolsets_global_strand_owner=true;",
+                 "native exposes CharHair prop-sync plan row");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairDoResetPlan{boolwalks_strands=true;"
+                 "boolrequires_root_parent=true;",
+                 "native exposes CharHair DoReset plan row");
+  ok &= contains(char_mesh_h,
                  "SourceCharHairSetNamePlansource_char_hair_set_name_plan("
                  "boolowner_is_character,boolowner_is_world_dir);",
                  "native exposes CharHair SetName plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairHandlerPlansource_char_hair_handler_plan();",
+                 "native exposes CharHair handler helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairPropSyncPlansource_char_hair_prop_sync_plan();",
+                 "native exposes CharHair prop-sync helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairDoResetPlansource_char_hair_do_reset_plan("
+                 "intreset);",
+                 "native exposes CharHair DoReset helper");
   ok &= contains(char_mesh_h,
                  "voidsource_char_hair_set_managed_hookup("
                  "SourceCharHairDefaultState&state,boolmanaged_hookup);",
@@ -1917,6 +1970,40 @@ int run_contract() {
                  "owner_is_character;plan.use_post_proc=owner_is_character||"
                  "owner_is_world_dir;returnplan;}",
                  "native CharHair SetName plan follows source branch");
+  ok &= contains(char_mesh,
+                 "SourceCharHairHandlerPlansource_char_hair_handler_plan(){"
+                 "SourceCharHairHandlerPlanplan;plan.actions={"
+                 "\"reset:mReset=_msg->Int(2)\",\"hookup:Hookup()\",",
+                 "native CharHair handler plan records source actions");
+  ok &= contains(char_mesh,
+                 "plan.superclasses={\"RndPollable\",\"Hmx::Object\"};"
+                 "plan.check=0x46f;returnplan;}",
+                 "native CharHair handler plan records source superclasses");
+  ok &= contains(char_mesh,
+                 "SourceCharHairPropSyncPlansource_char_hair_prop_sync_plan(){"
+                 "SourceCharHairPropSyncPlanplan;plan.point_properties={"
+                 "\"bone\",\"length\",\"collides\",\"radius\",",
+                 "native CharHair prop-sync plan records point rows");
+  ok &= contains(char_mesh,
+                 "plan.strand_set_properties={\"root:SetRoot\","
+                 "\"angle:SetAngle\"};plan.strand_properties={"
+                 "\"points\",\"hookup_flags\",\"show_spheres\",",
+                 "native CharHair prop-sync plan records strand rows");
+  ok &= contains(char_mesh,
+                 "plan.hair_properties={\"stiffness\",\"torsion\","
+                 "\"inertia\",\"gravity\",\"weight\",\"friction\",",
+                 "native CharHair prop-sync plan records hair rows");
+  ok &= contains(char_mesh,
+                 "SourceCharHairDoResetPlansource_char_hair_do_reset_plan("
+                 "intreset){SourceCharHairDoResetPlanplan;",
+                 "native implements CharHair DoReset plan helper");
+  ok &= contains(char_mesh,
+                 "plan.point_steps={\"Multiply(unk5c,parentWorld,pos)\","
+                 "\"Subtract(pos,previousPos,delta)\",",
+                 "native CharHair DoReset plan records point reset rows");
+  ok &= contains(char_mesh,
+                 "plan.simulate_loop_count=reset;plan.next_reset=0;returnplan;}",
+                 "native CharHair DoReset plan records source simulate/reset writes");
   ok &= contains(char_mesh,
                  "boolsource_char_hair_set_name_use_post_proc("
                  "boolowner_is_character,boolowner_is_world_dir){"
@@ -2005,6 +2092,15 @@ int run_contract() {
   ok &= contains(char_hair_source_test,
                  "source_char_hair_set_name_plan(true,false)",
                  "focused CharHair source test covers SetName Character branch");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_handler_plan()",
+                 "focused CharHair source test covers handler plan");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_prop_sync_plan()",
+                 "focused CharHair source test covers prop-sync plan");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_do_reset_plan(3)",
+                 "focused CharHair source test covers DoReset plan");
   ok &= contains(char_hair_source_test,
                  "source_char_hair_set_managed_hookup(managed_state,true)",
                  "focused CharHair source test covers managed-hookup setter");
@@ -2175,6 +2271,16 @@ int run_contract() {
   ok &= contains(doc,
                  "Native ports this exactly as `source_char_hair_set_cloth`",
                  "document ties native CharHair SetCloth helper to source");
+  ok &= contains(doc,
+                 "Native `source_char_hair_handler_plan` records those "
+                 "source-visible message",
+                 "document records native CharHair handler plan");
+  ok &= contains(doc,
+                 "Native\n    `source_char_hair_prop_sync_plan` records those property rows",
+                 "document records native CharHair prop-sync plan");
+  ok &= contains(doc,
+                 "Native `source_char_hair_do_reset_plan` records the checked reset flow",
+                 "document records native CharHair DoReset plan");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::Hookup(){if(mManagedHookup)return;"
                  "ObjPtrList<CharCollide,ObjectDir>colList(this,kObjListNoNull);"

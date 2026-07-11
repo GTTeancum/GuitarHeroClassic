@@ -1835,6 +1835,42 @@ SourceCharHairSetNamePlan source_char_hair_set_name_plan(
   return plan;
 }
 
+SourceCharHairHandlerPlan source_char_hair_handler_plan() {
+  SourceCharHairHandlerPlan plan;
+  plan.actions = {"reset:mReset=_msg->Int(2)", "hookup:Hookup()",
+                  "set_cloth:SetCloth(_msg->Int(2))",
+                  "freeze_pose:FreezePose()"};
+  plan.superclasses = {"RndPollable", "Hmx::Object"};
+  plan.check = 0x46f;
+  return plan;
+}
+
+SourceCharHairPropSyncPlan source_char_hair_prop_sync_plan() {
+  SourceCharHairPropSyncPlan plan;
+  plan.point_properties = {"bone", "length", "collides",
+                           "radius", "outer_radius", "side_length"};
+  plan.strand_set_properties = {"root:SetRoot", "angle:SetAngle"};
+  plan.strand_properties = {"points",       "hookup_flags", "show_spheres",
+                            "show_collide", "show_pose"};
+  plan.hair_properties = {"stiffness", "torsion",   "inertia", "gravity",
+                          "weight",    "friction",  "min_slack",
+                          "max_slack", "strands",   "simulate",
+                          "wind"};
+  return plan;
+}
+
+SourceCharHairDoResetPlan source_char_hair_do_reset_plan(int reset) {
+  SourceCharHairDoResetPlan plan;
+  plan.point_steps = {"Multiply(unk5c,parentWorld,pos)",
+                      "Subtract(pos,previousPos,delta)",
+                      "Cross(rootX,delta,lastZ)", "Normalize(lastZ)",
+                      "Cross(delta,lastZ,rootX)", "zeroForce",
+                      "zeroLastFriction"};
+  plan.simulate_loop_count = reset;
+  plan.next_reset = 0;
+  return plan;
+}
+
 bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
                                              bool owner_is_world_dir) {
   return source_char_hair_set_name_plan(owner_is_character, owner_is_world_dir)

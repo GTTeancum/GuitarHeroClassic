@@ -601,6 +601,10 @@ note, and all report `unreadBytes=0`.
     `mFriction=0`, then calls `SimulateLoops(reset, GetFPS())` before restoring
     the previous simulate/inertia/friction values. Native reset follows that
     forced-simulate lane even when the decoded `simulate` flag is false.
+    Native `source_char_hair_do_reset_plan` records the checked reset flow,
+    including the point-row reset steps, temporary simulate/inertia/friction
+    override, `GetFPS` simulate-loop call, restore behavior, and final
+    `mReset=0` write.
   - `FreezePoseRaw` stores current point positions back into `unk5c` in the
     root-parent local basis. `FreezePose` performs a source `Hookup()`, simulates
     200 loops at 60 Hz, restores the previous simulate flag, then freezes those
@@ -641,6 +645,20 @@ note, and all report `unreadBytes=0`.
     `-1.0f`. Native ports this exactly as `source_char_hair_set_cloth`; it is
     a deterministic side-length helper only, not a guessed hair placement or
     writeback path.
+  - `BEGIN_HANDLERS(CharHair)` exposes only `reset`, `hookup`, `set_cloth`,
+    and `freeze_pose`, then delegates to `RndPollable` and `Hmx::Object`.
+    Native `source_char_hair_handler_plan` records those source-visible message
+    rows as a deterministic contract only.
+  - `BEGIN_CUSTOM_PROPSYNC(CharHair::Point)`,
+    `BEGIN_CUSTOM_PROPSYNC(CharHair::Strand)`, and
+    `BEGIN_PROPSYNCS(CharHair)` expose point rows (`bone`, `length`,
+    `collides`, `radius`, `outer_radius`, `side_length`), strand rows
+    (`root` through `SetRoot`, `angle` through `SetAngle`, `points`,
+    `hookup_flags`, `show_spheres`, `show_collide`, `show_pose`), and hair rows
+    (`stiffness`, `torsion`, `inertia`, `gravity`, `weight`, `friction`,
+    `min_slack`, `max_slack`, `strands`, `simulate`, `wind`). Native
+    `source_char_hair_prop_sync_plan` records those property rows without
+    promoting editor/property mutation into the runtime renderer.
   - `CharHair::SimulateInternal` only calls `SetWorldXfm` for a point inside the
     `thisPoint.collides.size() != 0` branch. Native GHOGX must not invent a
     partial hair physics bridge from decoded point rows alone.

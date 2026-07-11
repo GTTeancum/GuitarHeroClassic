@@ -46,6 +46,19 @@ bool expect_int(int got, int want, const char* label) {
   return false;
 }
 
+bool expect_size(size_t got, size_t want, const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
+bool expect_string(const std::string& got, const std::string& want,
+                   const char* label) {
+  if (got == want) return true;
+  std::cerr << label << " got " << got << " want " << want << "\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -56,10 +69,13 @@ int main() {
   using ghogx::character::source_char_hair_freeze_pose_plan;
   using ghogx::character::source_char_hair_freeze_pose_raw;
   using ghogx::character::source_char_hair_default_state;
+  using ghogx::character::source_char_hair_do_reset_plan;
+  using ghogx::character::source_char_hair_handler_plan;
   using ghogx::character::source_char_hair_hookup_plan;
   using ghogx::character::source_char_hair_load_plan;
   using ghogx::character::source_char_hair_point_load_plan;
   using ghogx::character::source_char_hair_poll_decision;
+  using ghogx::character::source_char_hair_prop_sync_plan;
   using ghogx::character::source_char_hair_set_managed_hookup;
   using ghogx::character::source_char_hair_set_name_plan;
   using ghogx::character::source_char_hair_simulate_loops_plan;
@@ -207,6 +223,80 @@ int main() {
                     "set name world no character owner");
   ok &= expect_bool(set_name_world.use_post_proc, true,
                     "set name world postproc");
+
+  const auto handlers = source_char_hair_handler_plan();
+  ok &= expect_size(handlers.actions.size(), 4, "handler action count");
+  ok &= expect_string(handlers.actions[0], "reset:mReset=_msg->Int(2)",
+                      "handler reset action");
+  ok &= expect_string(handlers.actions[2],
+                      "set_cloth:SetCloth(_msg->Int(2))",
+                      "handler set cloth action");
+  ok &= expect_string(handlers.actions[3], "freeze_pose:FreezePose()",
+                      "handler freeze pose action");
+  ok &= expect_size(handlers.superclasses.size(), 2,
+                    "handler superclass count");
+  ok &= expect_string(handlers.superclasses[0], "RndPollable",
+                      "handler first superclass");
+  ok &= expect_string(handlers.superclasses[1], "Hmx::Object",
+                      "handler second superclass");
+  ok &= expect_int(handlers.check, 0x46f, "handler check line");
+
+  const auto props = source_char_hair_prop_sync_plan();
+  ok &= expect_bool(props.sets_global_strand_owner, true,
+                    "prop sync strand global owner");
+  ok &= expect_bool(props.sets_global_hair_owner, true,
+                    "prop sync hair global owner");
+  ok &= expect_size(props.point_properties.size(), 6,
+                    "point prop count");
+  ok &= expect_string(props.point_properties[0], "bone",
+                      "point prop bone");
+  ok &= expect_string(props.point_properties[5], "side_length",
+                      "point prop side length");
+  ok &= expect_size(props.strand_set_properties.size(), 2,
+                    "strand set prop count");
+  ok &= expect_string(props.strand_set_properties[0], "root:SetRoot",
+                      "strand root setter prop");
+  ok &= expect_string(props.strand_set_properties[1], "angle:SetAngle",
+                      "strand angle setter prop");
+  ok &= expect_string(props.strand_properties[1], "hookup_flags",
+                      "strand hookup flags prop");
+  ok &= expect_size(props.hair_properties.size(), 11,
+                    "hair prop count");
+  ok &= expect_string(props.hair_properties[0], "stiffness",
+                      "hair prop stiffness");
+  ok &= expect_string(props.hair_properties[10], "wind",
+                      "hair prop wind");
+
+  const auto reset_plan = source_char_hair_do_reset_plan(3);
+  ok &= expect_bool(reset_plan.walks_strands, true,
+                    "do reset walks strands");
+  ok &= expect_bool(reset_plan.requires_root_parent, true,
+                    "do reset requires root parent");
+  ok &= expect_size(reset_plan.point_steps.size(), 7,
+                    "do reset point step count");
+  ok &= expect_string(reset_plan.point_steps[0],
+                      "Multiply(unk5c,parentWorld,pos)",
+                      "do reset source multiply");
+  ok &= expect_string(reset_plan.point_steps[2],
+                      "Cross(rootX,delta,lastZ)",
+                      "do reset lastZ cross");
+  ok &= expect_string(reset_plan.point_steps[6], "zeroLastFriction",
+                      "do reset zero friction");
+  ok &= expect_bool(reset_plan.temporarily_forces_simulate, true,
+                    "do reset forces simulate");
+  ok &= near(reset_plan.forced_inertia, 0.0f, "do reset forced inertia");
+  ok &= near(reset_plan.forced_friction, 0.0f, "do reset forced friction");
+  ok &= expect_int(reset_plan.simulate_loop_count, 3,
+                   "do reset simulate loop count");
+  ok &= expect_bool(reset_plan.simulate_loop_uses_get_fps, true,
+                    "do reset uses GetFPS");
+  ok &= expect_bool(reset_plan.restores_simulate, true,
+                    "do reset restores simulate");
+  ok &= expect_bool(reset_plan.restores_inertia, true,
+                    "do reset restores inertia");
+  ok &= expect_bool(reset_plan.restores_friction, true,
+                    "do reset restores friction");
+  ok &= expect_int(reset_plan.next_reset, 0, "do reset clears reset");
 
   Character freeze_character;
   auto parent = make_trans("parent");

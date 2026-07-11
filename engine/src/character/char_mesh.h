@@ -343,6 +343,37 @@ struct SourceCharHairSetNamePlan {
   bool use_post_proc = false;
 };
 
+struct SourceCharHairHandlerPlan {
+  std::vector<std::string> actions;
+  std::vector<std::string> superclasses;
+  int32_t check = 0x46f;
+};
+
+struct SourceCharHairPropSyncPlan {
+  bool sets_global_point_owner = false;
+  bool sets_global_strand_owner = true;
+  bool sets_global_hair_owner = true;
+  std::vector<std::string> point_properties;
+  std::vector<std::string> strand_set_properties;
+  std::vector<std::string> strand_properties;
+  std::vector<std::string> hair_properties;
+};
+
+struct SourceCharHairDoResetPlan {
+  bool walks_strands = true;
+  bool requires_root_parent = true;
+  std::vector<std::string> point_steps;
+  bool temporarily_forces_simulate = true;
+  float forced_inertia = 0.0f;
+  float forced_friction = 0.0f;
+  int32_t simulate_loop_count = 0;
+  bool simulate_loop_uses_get_fps = true;
+  bool restores_simulate = true;
+  bool restores_inertia = true;
+  bool restores_friction = true;
+  int32_t next_reset = 0;
+};
+
 struct SourceCharHairRootNode {
   std::string bone;
   float local_y = 0.0f;
@@ -1130,6 +1161,9 @@ SourceCharHairLoadPlan source_char_hair_load_plan(int revision);
 SourceCharHairSetNamePlan source_char_hair_set_name_plan(
     bool owner_is_character,
     bool owner_is_world_dir);
+SourceCharHairHandlerPlan source_char_hair_handler_plan();
+SourceCharHairPropSyncPlan source_char_hair_prop_sync_plan();
+SourceCharHairDoResetPlan source_char_hair_do_reset_plan(int reset);
 bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
                                              bool owner_is_world_dir);
 void source_char_hair_set_managed_hookup(SourceCharHairDefaultState& state,
