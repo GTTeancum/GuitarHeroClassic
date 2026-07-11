@@ -85,6 +85,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_ik_rod_source_test.cpp"));
   const std::string bone_offset_source_test =
       compact(read_file(char_dir / "character_bone_offset_source_test.cpp"));
+  const std::string bone_twist_source_test =
+      compact(read_file(char_dir / "character_bone_twist_source_test.cpp"));
   const std::string weight_setter_source_test =
       compact(read_file(char_dir / "character_weight_setter_source_test.cpp"));
   const std::string char_hair_source_test =
@@ -239,6 +241,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharBoneOffset.cpp"));
   const std::string rb3_latest_char_bone_offset_h = compact(read_file(
       rb3_latest_char_dir / "CharBoneOffset.h"));
+  const std::string rb3_latest_char_bone_twist_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharBoneTwist.cpp"));
+  const std::string rb3_latest_char_bone_twist_h = compact(read_file(
+      rb3_latest_char_dir / "CharBoneTwist.h"));
   const std::string rb3_latest_char_bones_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBones.cpp"));
   const std::string rb3_latest_char_bones_h = compact(read_file(
@@ -2595,7 +2601,7 @@ int run_contract() {
                  "\"[controller-bone-offset]char=%sname=%sversion=%ddest=%s",
                  "controller audit logs CharBoneOffset rows");
   ok &= contains(bind_audit,
-                 "boneOffset=%zuanimFilter=%zueventTrigger=%zu\\n",
+                 "boneOffset=%zuboneTwist=%zuanimFilter=%zueventTrigger=%zu\\n",
                  "controller summary logs CharBoneOffset row count");
   ok &= contains(char_clip_h,
                  "boolsource_char_bone_offset_poll_world("
@@ -2633,6 +2639,117 @@ int run_contract() {
   ok &= contains(doc,
                  "`source_char_bone_offset_poll_world`",
                  "document records native CharBoneOffset helper port");
+  ok &= contains(rb3_latest_char_bone_twist_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mBone;",
+                 "latest CharBoneTwist header exposes driven bone pointer");
+  ok &= contains(rb3_latest_char_bone_twist_h,
+                 "ObjPtrList<RndTransformable,ObjectDir>mTargets;",
+                 "latest CharBoneTwist header exposes target list");
+  ok &= contains(rb3_latest_char_bone_twist_cpp,
+                 "ASSERT_REVS(0,0);Hmx::Object::Load(bs);"
+                 "CharWeightable::Load(bs);bs>>mBone;bs>>mTargets;",
+                 "CharBoneTwist source load reads object, weightable, bone, and targets");
+  ok &= contains(rb3_latest_char_bone_twist_cpp,
+                 "if(!mBone||mTargets.size()==0)return;",
+                 "CharBoneTwist source poll returns when bone or targets are missing");
+  ok &= contains(rb3_latest_char_bone_twist_cpp,
+                 "Vector3v58;v58.Zero();for(ObjPtrList<RndTransformable,"
+                 "ObjectDir>::iteratorit=mTargets.begin();it!=mTargets.end();++it){"
+                 "Vector3v64((*it)->WorldXfm().v);Add(v64,v58,v58);}",
+                 "CharBoneTwist source poll averages target positions");
+  ok &= contains(rb3_latest_char_bone_twist_cpp,
+                 "Subtract(v58,mBone->WorldXfm().v,v70);",
+                 "CharBoneTwist source poll computes target direction");
+  ok &= contains(rb3_latest_char_bone_twist_cpp,
+                 "Scale(tf48.m.x,Dot(tf48.m.x,v70),v7c);"
+                 "Subtract(v70,v7c,v7c);Normalize(v7c,v7c);",
+                 "CharBoneTwist source poll removes X-axis component");
+  ok &= contains(rb3_latest_char_bone_twist_cpp,
+                 "Interp(tf48.m.y,v7c,Weight(),tf48.m.y);"
+                 "Normalize(tf48.m.y,tf48.m.y);Cross(tf48.m.x,tf48.m.y,tf48.m.z);"
+                 "Normalize(tf48.m.z,tf48.m.z);Scale(tf48.m.z,Length(tf48.m.x),tf48.m.z);"
+                 "mBone->SetWorldXfm(tf48);",
+                 "CharBoneTwist source poll interpolates Y and rebuilds Z");
+  ok &= contains(char_mesh_h,
+                 "structCharBoneTwist{std::stringname;int32_tversion=0;"
+                 "int32_tweightable_version=0;floatweight=1.0f;",
+                 "native CharBoneTwist stores source weightable fields");
+  ok &= contains(char_mesh_h,
+                 "std::stringbone;std::vector<std::string>targets;",
+                 "native CharBoneTwist stores bone and target list");
+  ok &= contains(char_mesh_h,
+                 "std::vector<CharBoneTwist>bone_twists;",
+                 "native Character stores decoded CharBoneTwist rows");
+  ok &= contains(char_mesh,
+                 "CharBoneTwistdecode_bone_twist("
+                 "conststd::string&entry_name,conststd::vector<uint8_t>&body)",
+                 "native CharBoneTwist decoder exists");
+  ok &= contains(char_mesh,
+                 "twist.version=r.i32();if(twist.version!=0)",
+                 "native CharBoneTwist decoder enforces source revision range");
+  ok &= contains(char_mesh,
+                 "read_object_fields(r);twist.weightable_version=r.i32();",
+                 "native CharBoneTwist decoder reads object and weightable revision");
+  ok &= contains(char_mesh,
+                 "twist.weight=r.f32();if(twist.weightable_version>1)"
+                 "twist.weight_owner=r.str();twist.bone=r.str();"
+                 "twist.targets=read_obj_ptr_list(r);",
+                 "native CharBoneTwist decoder follows source field order");
+  ok &= contains(char_mesh,
+                 "out.bone_twists.push_back(decode_bone_twist(de.name,b));",
+                 "character load stores decoded CharBoneTwist rows");
+  ok &= contains(bind_audit,
+                 "boneOffset=%zuboneTwist=%zuanimFilter=%zueventTrigger=%zu\\n",
+                 "controller summary logs CharBoneTwist row count");
+  ok &= contains(bind_audit,
+                 "\"[controller-bone-twist]char=%sname=%sversion=%d",
+                 "controller audit logs CharBoneTwist rows");
+  ok &= contains(char_clip_h,
+                 "floatsource_char_bone_twist_weight("
+                 "constCharBoneTwist&twist,",
+                 "native header exposes CharBoneTwist weight helper");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_bone_twist_poll_world("
+                 "constCharBoneTwist&twist,boolhas_bone,",
+                 "native header exposes CharBoneTwist Poll helper");
+  ok &= contains(char_clip,
+                 "if(!twist.weight_owner.empty()){constautoowner="
+                 "weights_by_name.find(twist.weight_owner);"
+                 "if(owner!=weights_by_name.end())returnowner->second;}returntwist.weight;",
+                 "native CharBoneTwist weight helper mirrors source owner fallback");
+  ok &= contains(char_clip,
+                 "if(!has_bone||target_worlds.empty())returnfalse;",
+                 "native CharBoneTwist helper mirrors source early return");
+  ok &= contains(char_clip,
+                 "avg=vadd(avg,mat_pos(target_world));",
+                 "native CharBoneTwist helper averages target positions");
+  ok &= contains(char_clip,
+                 "constVec3projected_x=vscale(x,vdot(x,to_targets));"
+                 "constVec3target_y=vnorm(vsub(to_targets,projected_x),old_y);",
+                 "native CharBoneTwist helper removes X-axis component");
+  ok &= contains(char_clip,
+                 "Vec3y=vnorm(vadd(vscale(old_y,1.0f-weight),"
+                 "vscale(target_y,weight)),old_y);Vec3z=vscale("
+                 "vnorm(vcross(x,y),old_z),vlen(x));",
+                 "native CharBoneTwist helper interpolates Y and rebuilds Z");
+  ok &= contains(char_clip,
+                 "\"[chargraph]boneTwist%sversion=%dbone=%stargets=%zu",
+                 "character graph logs CharBoneTwist rows");
+  ok &= contains(bone_twist_source_test,
+                 "source_char_bone_twist_poll_world(",
+                 "focused CharBoneTwist source test covers Poll helper");
+  ok &= contains(bone_twist_source_test,
+                 "source_char_bone_twist_weight(twist,weights)",
+                 "focused CharBoneTwist source test covers weight helper");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharBoneTwist.cpp` and",
+                 "document cites latest CharBoneTwist source");
+  ok &= contains(doc,
+                 "`CharBoneTwist::Poll` returns when the driven bone is missing",
+                 "document records CharBoneTwist Poll boundary");
+  ok &= contains(doc,
+                 "`source_char_bone_twist_weight` and",
+                 "document records native CharBoneTwist helper ports");
   ok &= contains(rb3_char_lookat_cpp, "mPivot->SetWorldXfm(tf90);",
                  "RB3 CharLookAt poll writes the pivot transform");
   ok &= contains(rb3_char_lookat_cpp, "RndTransformable*srcTrans=GetSource();",

@@ -211,13 +211,14 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
       "[controller-summary] path=%s char=%s drivers=%zu weightSetters=%zu "
       "servoBone=%zu ik=%zu ikMidi=%zu ikRod=%zu foreTwist=%zu upperTwist=%zu "
       "lookAt=%zu eyes=%zu hair=%zu collide=%zu posConstraint=%zu "
-      "boneOffset=%zu animFilter=%zu eventTrigger=%zu\n",
+      "boneOffset=%zu boneTwist=%zu animFilter=%zu eventTrigger=%zu\n",
       milo_path.c_str(), c.dir_name.c_str(), c.drivers.size(),
       c.weight_setters.size(), c.servo_bones.size(), c.ik_hands.size(),
       c.ik_midis.size(), c.ik_rods.size(), c.fore_twists.size(),
       c.upper_twists.size(), c.lookats.size(), c.eyes.size(),
       c.hairs.size(), c.collides.size(), c.pos_constraints.size(),
       c.bone_offsets.size(),
+      c.bone_twists.size(),
       c.anim_filters.size(), c.event_triggers.size());
   for (const auto& driver : c.drivers) {
     std::printf(
@@ -538,6 +539,25 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
         has_trans_or_mesh(c, offset.dest) ? 1 : 0,
         offset.offset[0], offset.offset[1], offset.offset[2],
         offset.unread_bytes);
+  }
+  for (const auto& twist : c.bone_twists) {
+    std::printf(
+        "[controller-bone-twist] char=%s name=%s version=%d "
+        "weightableVersion=%d weight=%.4f weightOwner=%s bone=%s "
+        "boneExists=%d targets=%zu unreadBytes=%zu\n",
+        c.dir_name.c_str(), twist.name.c_str(), twist.version,
+        twist.weightable_version, twist.weight,
+        none_if_empty(twist.weight_owner),
+        none_if_empty(twist.bone), has_trans_or_mesh(c, twist.bone) ? 1 : 0,
+        twist.targets.size(), twist.unread_bytes);
+    for (size_t i = 0; i < twist.targets.size(); ++i) {
+      std::printf(
+          "[controller-bone-twist-target] char=%s twist=%s index=%zu "
+          "target=%s targetExists=%d\n",
+          c.dir_name.c_str(), twist.name.c_str(), i,
+          none_if_empty(twist.targets[i]),
+          has_trans_or_mesh(c, twist.targets[i]) ? 1 : 0);
+    }
   }
 }
 

@@ -371,6 +371,17 @@ struct CharBoneOffset {
   size_t unread_bytes = 0;
 };
 
+struct CharBoneTwist {
+  std::string name;
+  int32_t version = 0;
+  int32_t weightable_version = 0;
+  float weight = 1.0f;
+  std::string weight_owner;
+  std::string bone;
+  std::vector<std::string> targets;
+  size_t unread_bytes = 0;
+};
+
 struct RuntimeIKMidiState {
   bool initialized = false;
   std::string active_spot;
@@ -582,6 +593,7 @@ struct Character {
   std::vector<CharCollide> collides;
   std::vector<CharPosConstraint> pos_constraints;
   std::vector<CharBoneOffset> bone_offsets;
+  std::vector<CharBoneTwist> bone_twists;
   std::vector<FaceFxLipSyncServo> lip_sync_servos;
   std::vector<RndAnimFilter> anim_filters;
   std::vector<EventTrigger> event_triggers;

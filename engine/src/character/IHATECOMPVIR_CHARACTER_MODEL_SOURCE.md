@@ -40,6 +40,7 @@ records the upstream commits for the copied files:
 | FaceFX lip-sync servo boundary | `rb3-latest` `CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` is source context, not a matching `FaceFxLipSyncServo` load body; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
+| Bone twist controller | `rb3-latest` `CharBoneTwist.cpp` / `CharBoneTwist.h` | Decode/log source bone, targets, and weight rows; native helper ports source target-average twist solve without adding an unproven frame-cadence write. |
 | Hand IK and IK MIDI target rows | `CharIKHand.cpp`, `rb3-latest` `CharIKMidi.cpp` / `CharIKMidi.h` | Native hand IK follows source dataflow; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
@@ -578,6 +579,28 @@ note, and all report `unreadBytes=0`.
     `source_char_bone_offset_apply_to_local` port those source math paths as
     deterministic helpers. It does not add a live frame-cadence write until
     stock data or source poll ordering proves where that controller should run.
+
+## Bone Twist Authorities
+
+- `rb3-latest/src/system/char/CharBoneTwist.cpp` and
+  `rb3-latest/src/system/char/CharBoneTwist.h`
+  - `CharBoneTwist::Load` accepts source revision 0. It reads `Hmx::Object`,
+    then `CharWeightable`, then the driven bone pointer and target transform
+    list.
+  - `CharBoneTwist::Poll` returns when the driven bone is missing or the target
+    list is empty. Otherwise it averages target world positions, computes the
+    target direction from the driven bone to that average, removes the
+    component along the driven bone's X row, normalizes the remaining direction,
+    interpolates the driven bone's Y row toward it by `Weight()`, normalizes Y,
+    rebuilds Z from `Cross(X, Y)`, scales Z by the original X-row length, and
+    writes the driven bone through `SetWorldXfm`.
+  - Native GHOGX now decodes and audits `CharBoneTwist` rows, including the
+    source `CharWeightable` revision, weight, optional weight owner, driven
+    bone, and target list. `source_char_bone_twist_weight` and
+    `source_char_bone_twist_poll_world` port the source weight lookup and world
+    row solve as deterministic helpers. Native does not add a live frame-cadence
+    write until stock data or source poll ordering proves where that controller
+    should run.
 
 ## IK Controller Authorities
 

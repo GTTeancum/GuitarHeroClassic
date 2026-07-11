@@ -396,6 +396,19 @@ bool source_char_bone_offset_poll_world(
 void source_char_bone_offset_apply_to_local(const CharBoneOffset& offset,
                                             milo_scene::Xfm& dest_local);
 
+// Source-backed CharBoneTwist::Poll helpers. Returns false when the source
+// bone or target list would be missing.
+float source_char_bone_twist_weight(
+    const CharBoneTwist& twist,
+    const std::unordered_map<std::string, float>& weights_by_name);
+bool source_char_bone_twist_poll_world(
+    const CharBoneTwist& twist,
+    bool has_bone,
+    const std::array<float, 16>& bone_world,
+    const std::vector<std::array<float, 16>>& target_worlds,
+    const std::unordered_map<std::string, float>& weights_by_name,
+    std::array<float, 16>& out_world);
+
 // Source-backed CharHair::FreezePoseRaw helper. Writes current runtime point
 // positions back into point.unk5c in the strand root-parent local basis.
 int source_char_hair_freeze_pose_raw(Character& character, CharHair& hair,

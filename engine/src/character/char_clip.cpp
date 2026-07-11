@@ -1161,6 +1161,18 @@ void log_character_controller_graph_once(const Character& character) {
                  offset.offset[0], offset.offset[1], offset.offset[2],
                  offset.unread_bytes);
   }
+  for (const auto& twist : character.bone_twists) {
+    std::fprintf(stderr,
+                 "[chargraph]   boneTwist %s version=%d bone=%s targets=%zu "
+                 "weightableVersion=%d weight=%.3f weightOwner=%s "
+                 "unreadBytes=%zu\n",
+                 twist.name.c_str(), twist.version,
+                 twist.bone.empty() ? "<none>" : twist.bone.c_str(),
+                 twist.targets.size(), twist.weightable_version, twist.weight,
+                 twist.weight_owner.empty() ? "<none>"
+                                            : twist.weight_owner.c_str(),
+                 twist.unread_bytes);
+  }
   for (const auto& look : character.lookats) {
     std::fprintf(stderr,
                  "[chargraph]   lookAt %s version=%d "
@@ -2126,6 +2138,48 @@ void source_char_bone_offset_apply_to_local(const CharBoneOffset& offset,
   dest_local.pos[0] += offset.offset[0];
   dest_local.pos[1] += offset.offset[1];
   dest_local.pos[2] += offset.offset[2];
+}
+
+float source_char_bone_twist_weight(
+    const CharBoneTwist& twist,
+    const std::unordered_map<std::string, float>& weights_by_name) {
+  if (!twist.weight_owner.empty()) {
+    const auto owner = weights_by_name.find(twist.weight_owner);
+    if (owner != weights_by_name.end()) return owner->second;
+  }
+  return twist.weight;
+}
+
+bool source_char_bone_twist_poll_world(
+    const CharBoneTwist& twist,
+    bool has_bone,
+    const std::array<float, 16>& bone_world,
+    const std::vector<std::array<float, 16>>& target_worlds,
+    const std::unordered_map<std::string, float>& weights_by_name,
+    std::array<float, 16>& out_world) {
+  if (!has_bone || target_worlds.empty()) return false;
+
+  Vec3 avg{};
+  for (const auto& target_world : target_worlds) {
+    avg = vadd(avg, mat_pos(target_world));
+  }
+  avg = vscale(avg, 1.0f / static_cast<float>(target_worlds.size()));
+
+  out_world = bone_world;
+  const Vec3 x = mat_row(bone_world, 0);
+  const Vec3 old_y = mat_row(bone_world, 1);
+  const Vec3 old_z = mat_row(bone_world, 2);
+  const Vec3 to_targets = vsub(avg, mat_pos(bone_world));
+  const Vec3 projected_x = vscale(x, vdot(x, to_targets));
+  const Vec3 target_y = vnorm(vsub(to_targets, projected_x), old_y);
+  const float weight = source_char_bone_twist_weight(twist, weights_by_name);
+  Vec3 y = vnorm(vadd(vscale(old_y, 1.0f - weight),
+                      vscale(target_y, weight)),
+                 old_y);
+  Vec3 z = vscale(vnorm(vcross(x, y), old_z), vlen(x));
+  set_mat_row(out_world, 1, y);
+  set_mat_row(out_world, 2, z);
+  return true;
 }
 
 static void normalize_xfm_rows(milo_scene::Xfm& xfm);
