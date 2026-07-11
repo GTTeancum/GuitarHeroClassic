@@ -305,6 +305,7 @@ struct SourceCharHairRuntimeStrand {
 
 struct SourceCharHairRuntime {
   bool initialized = false;
+  bool use_post_proc = true;
   int reset = 1;
   float last_time_seconds = -1.0f;
   std::vector<SourceCharHairRuntimeStrand> strands;
@@ -314,6 +315,8 @@ struct SourceCharHairRuntime {
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
 SourceCharHairDefaultState source_char_hair_default_state();
+bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
+                                             bool owner_is_world_dir);
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
 std::array<float, 9> source_char_hair_set_angle_root_mat(
     float angle_degrees, const float base_mat[9]);

@@ -68,6 +68,7 @@ int main() {
   }
   auto& state = state_it->second;
   bool ok = true;
+  ok &= state.use_post_proc;
   ok &= state.reset == 0;
   ok &= state.strands.size() == 1;
   ok &= state.strands[0].points.size() == 1;

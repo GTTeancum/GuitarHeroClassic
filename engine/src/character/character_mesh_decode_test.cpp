@@ -357,6 +357,12 @@ int main() {
   CHECK(hair_defaults.simulate);
   CHECK(hair_defaults.use_post_proc);
   CHECK(!hair_defaults.managed_hookup);
+  CHECK(!ghogx::character::source_char_hair_set_name_use_post_proc(false,
+                                                                    false));
+  CHECK(ghogx::character::source_char_hair_set_name_use_post_proc(true,
+                                                                  false));
+  CHECK(ghogx::character::source_char_hair_set_name_use_post_proc(false,
+                                                                  true));
   CHECK(approx(ghogx::character::source_char_hair_get_fps(false, 30.0f),
                60.0f));
   CHECK(approx(ghogx::character::source_char_hair_get_fps(true, 0.0f),

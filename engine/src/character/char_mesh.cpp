@@ -1464,6 +1464,11 @@ SourceCharHairDefaultState source_char_hair_default_state() {
   return SourceCharHairDefaultState{};
 }
 
+bool source_char_hair_set_name_use_post_proc(bool owner_is_character,
+                                             bool owner_is_world_dir) {
+  return owner_is_character || owner_is_world_dir;
+}
+
 float source_char_hair_get_fps(bool use_post_proc, float emulated_fps) {
   if (use_post_proc && emulated_fps > 0.0f) {
     float ret = emulated_fps;

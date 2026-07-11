@@ -2438,6 +2438,8 @@ static const std::string* source_transform_parent(
 static SourceCharHairRuntime& ensure_source_char_hair_runtime(
     Character& character, const CharHair& hair) {
   SourceCharHairRuntime& state = character.source_char_hair_runtime[hair.name];
+  state.use_post_proc =
+      source_char_hair_set_name_use_post_proc(true, false);
   if (state.strands.size() != hair.strands.size()) {
     state.strands.clear();
     state.strands.resize(hair.strands.size());
@@ -2690,7 +2692,8 @@ static void source_char_hair_do_reset(Character& character, const CharHair& hair
 
   source_char_hair_simulate_loops(
       character, hair, state, std::max(reset_count, 0),
-      source_char_hair_get_fps(true, 0.0f), 0.0f, 0.0f, true);
+      source_char_hair_get_fps(state.use_post_proc, 0.0f), 0.0f, 0.0f,
+      true);
   state.reset = 0;
 }
 
@@ -4115,7 +4118,8 @@ static void apply_char_hair(Character& character, float time_seconds) {
     if (nonzero_delta) {
       write_count = source_char_hair_simulate_loops(character, hair, state, 1,
                                                    source_char_hair_get_fps(
-                                                       true, 0.0f),
+                                                       state.use_post_proc,
+                                                       0.0f),
                                                    hair.inertia, hair.friction);
     }
     state.last_time_seconds = time_seconds;
@@ -4127,9 +4131,10 @@ static void apply_char_hair(Character& character, float time_seconds) {
           "source=ihatecompvir-CharHair::Poll/DoReset/SimulateInternal "
           "runtimeWriteback=%d resolvedPointCollides=0 "
           "missingHookupObjPtrList=1 zeroTimeBodyAvailable=0 "
-          "nonzeroDelta=%d firstPoll=%d time=%.4f\n",
+          "usePostProc=%d nonzeroDelta=%d firstPoll=%d time=%.4f\n",
           character.dir_name.c_str(), hair.name.c_str(), write_count,
-          nonzero_delta ? 1 : 0, first_poll ? 1 : 0, time_seconds);
+          state.use_post_proc ? 1 : 0, nonzero_delta ? 1 : 0,
+          first_poll ? 1 : 0, time_seconds);
     }
   }
 }

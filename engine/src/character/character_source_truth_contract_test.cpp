@@ -966,12 +966,13 @@ int run_contract() {
                  "native CharHair simulate loop has source reset force lane");
   ok &= contains(char_clip,
                  "source_char_hair_simulate_loops(character,hair,state,"
-                 "std::max(reset_count,0),source_char_hair_get_fps(true,0.0f),"
+                 "std::max(reset_count,0),source_char_hair_get_fps("
+                 "state.use_post_proc,0.0f),"
                  "0.0f,0.0f,true);",
                  "native CharHair DoReset forces source simulate lane");
   ok &= contains(char_clip,
-                 "source_char_hair_get_fps(true,0.0f),hair.inertia,"
-                 "hair.friction",
+                 "source_char_hair_get_fps(state.use_post_proc,0.0f),"
+                 "hair.inertia,hair.friction",
                  "native CharHair Poll uses source GetFPS helper");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_char_hair_source_test",
@@ -982,6 +983,9 @@ int run_contract() {
   ok &= contains(char_hair_source_test,
                  "apply_character_controllers(character,0.0f,nullptr);",
                  "deterministic CharHair test exercises public controller path");
+  ok &= contains(char_hair_source_test,
+                 "ok&=state.use_post_proc;",
+                 "deterministic CharHair test proves Character owner enables postproc FPS path");
   ok &= contains(char_hair_source_test,
                  "point.pos[2]<-1.9f&&point.pos[2]>-2.1f",
                  "deterministic CharHair test proves reset forced simulation");
@@ -1054,10 +1058,23 @@ int run_contract() {
   ok &= contains(char_mesh_h,
                  "booluse_post_proc=true;boolmanaged_hookup=false;};",
                  "native exposes source CharHair default runtime flags");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairRuntime{boolinitialized=false;"
+                 "booluse_post_proc=true;",
+                 "native carries CharHair SetName postproc state into runtime");
   ok &= contains(char_mesh,
                  "SourceCharHairDefaultStatesource_char_hair_default_state(){"
                  "returnSourceCharHairDefaultState{};}",
                  "native CharHair default helper returns source defaults");
+  ok &= contains(char_mesh_h,
+                 "boolsource_char_hair_set_name_use_post_proc("
+                 "boolowner_is_character,boolowner_is_world_dir);",
+                 "native exposes CharHair SetName ownership helper");
+  ok &= contains(char_mesh,
+                 "boolsource_char_hair_set_name_use_post_proc("
+                 "boolowner_is_character,boolowner_is_world_dir){"
+                 "returnowner_is_character||owner_is_world_dir;}",
+                 "native CharHair SetName helper follows source branch");
   ok &= contains(char_mesh,
                  "floatsource_char_hair_get_fps(booluse_post_proc,"
                  "floatemulated_fps){if(use_post_proc&&emulated_fps>0.0f){"
@@ -1068,10 +1085,20 @@ int run_contract() {
                  "source_char_hair_default_state();",
                  "deterministic test covers source CharHair defaults");
   ok &= contains(mesh_decode_test,
+                 "source_char_hair_set_name_use_post_proc(false,false)",
+                 "deterministic test covers CharHair SetName non-owner branch");
+  ok &= contains(mesh_decode_test,
+                 "source_char_hair_set_name_use_post_proc(true,false)",
+                 "deterministic test covers CharHair SetName Character branch");
+  ok &= contains(mesh_decode_test,
+                 "source_char_hair_set_name_use_post_proc(false,true)",
+                 "deterministic test covers CharHair SetName WorldDir branch");
+  ok &= contains(mesh_decode_test,
                  "source_char_hair_get_fps(true,20.0f),40.0f",
                  "deterministic test covers source CharHair GetFPS emulation branch");
   ok &= contains(doc,
-                 "Native ports the constructor constants and the `GetFPS` branch",
+                 "Native ports the constructor constants, SetName ownership branch, and the\n"
+                 "    `GetFPS` branch",
                  "document ties native CharHair defaults/GetFPS to source");
   ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::SimulateLoops(intcount,floatf){if(mSimulate&&"
