@@ -312,6 +312,12 @@ into final transform rows.
     pre-revision-8 LOD screen-size scaling, and the old `lod%d.grp` rename
     branch. This helper is a deterministic source contract only; it does not
     decode or apply the root `Character` byte span.
+  - Native `source_character_copy_plan` records the checked
+    `BEGIN_COPYS(Character)` body: copy `RndDir`, create the destination row,
+    copy members only when `ty != kCopyFromMax`, and preserve the exact source
+    member order, including the duplicated `mMinLod` copy before
+    `mTransGroup`. It is a copy-contract helper only and does not run a native
+    `Character` copy.
 - `rb3-latest/src/system/rndobj/Dir.cpp`
   - `RndDir::PreLoad` reads packed revisions, asserts source revision `0xA`,
     pushes that revision, and delegates to `ObjectDir::PreLoad`.

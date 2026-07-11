@@ -933,6 +933,18 @@ int run_contract() {
   ok &= contains(rb3_latest_character_cpp,
                  "mLods[i].SetScreenSize(mLods[i].ScreenSize()/rad);",
                  "latest Character PostLoad legacy LOD screen-size scale");
+  ok &= contains(rb3_latest_character_cpp,
+                 "BEGIN_COPYS(Character)COPY_SUPERCLASS(RndDir)"
+                 "CREATE_COPY(Character)",
+                 "latest Character copy creates RndDir-backed Character copy");
+  ok &= contains(rb3_latest_character_cpp,
+                 "if(ty!=kCopyFromMax){COPY_MEMBER(mLods)"
+                 "COPY_MEMBER(mLastLod)COPY_MEMBER(mMinLod)"
+                 "COPY_MEMBER(mShadow)COPY_MEMBER(mDriver)"
+                 "COPY_MEMBER(mSelfShadow)COPY_MEMBER(mSphereBase)"
+                 "COPY_MEMBER(mFrozen)COPY_MEMBER(mMinLod)"
+                 "COPY_MEMBER(mTransGroup)}",
+                 "latest Character copy member order");
   ok &= contains(rb3_latest_character_h,
                  "enumPollState{kCharCreated=0,kCharSyncObject=1,"
                  "kCharEntered=2,kCharPolled=3,kCharExited=4,};",
@@ -4045,9 +4057,16 @@ int run_contract() {
                  "structSourceCharacterLoadPlan{",
                  "native exposes Character source load plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharacterCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::stringmember_gate;",
+                 "native exposes Character source copy plan");
+  ok &= contains(char_mesh_h,
                  "SourceCharacterLoadPlansource_character_load_plan("
                  "intrevision,boolis_proxy,intlegacy_other_revision);",
                  "native exposes Character source load helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharacterCopyPlansource_character_copy_plan();",
+                 "native exposes Character source copy helper");
   ok &= contains(char_mesh,
                  "SourceCharacterLodStatesource_character_lod_default_state(){"
                  "returnSourceCharacterLodState{};}",
@@ -4088,6 +4107,22 @@ int run_contract() {
                  "if(revision<8)plan.branches.push_back("
                  "\"scaleLodScreenSizeBySphereRadius\");",
                  "native Character load helper records LOD scale branch");
+  ok &= contains(char_mesh,
+                 "SourceCharacterCopyPlansource_character_copy_plan(){"
+                 "SourceCharacterCopyPlanplan;",
+                 "native implements Character source copy helper");
+  ok &= contains(char_mesh,
+                 "plan.copied_superclasses={\"RndDir\"};",
+                 "native Character copy helper records RndDir superclass");
+  ok &= contains(char_mesh,
+                 "plan.member_gate=\"ty!=kCopyFromMax\";",
+                 "native Character copy helper records source gate");
+  ok &= contains(char_mesh,
+                 "plan.copied_members={\"mLods\",\"mLastLod\","
+                 "\"mMinLod\",\"mShadow\",\"mDriver\",\"mSelfShadow\","
+                 "\"mSphereBase\",\"mFrozen\",\"mMinLod\","
+                 "\"mTransGroup\"};",
+                 "native Character copy helper preserves source member order");
   ok &= contains(char_mesh,
                  "voidsource_character_enter(SourceCharacterState&state){"
                  "state.poll_state=SourceCharacterPollState::kEntered;"
@@ -4206,6 +4241,12 @@ int run_contract() {
                  "source_character_load_plan(1,false,5)",
                  "focused Character test covers legacy load plan");
   ok &= contains(character_source_test,
+                 "source_character_copy_plan()",
+                 "focused Character test covers copy plan");
+  ok &= contains(character_source_test,
+                 "Charactercopyduplicatedminlod",
+                 "focused Character test covers duplicated min-lod copy");
+  ok &= contains(character_source_test,
                  "source_character_poll(state)",
                  "focused Character test covers Poll");
   ok &= contains(character_source_test,
@@ -4250,6 +4291,8 @@ int run_contract() {
                  "document records native Character LOD helpers");
   ok &= contains(doc, "Native `source_character_load_plan` records",
                  "document records native Character load helper");
+  ok &= contains(doc, "Native `source_character_copy_plan` records",
+                 "document records native Character copy helper");
   ok &= contains(char_mesh_h, "structSourceCharacterTestState{",
                  "native exposes CharacterTest default state");
   ok &= contains(char_mesh_h, "structSourceCharacterTestAddDefaultsResult{",

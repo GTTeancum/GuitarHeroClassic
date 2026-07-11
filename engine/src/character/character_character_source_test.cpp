@@ -58,6 +58,7 @@ int main() {
   using ghogx::character::source_character_bone_servo_resolves;
   using ghogx::character::source_character_clear_interest_filter_flags;
   using ghogx::character::source_character_copy_bounding_sphere;
+  using ghogx::character::source_character_copy_plan;
   using ghogx::character::source_character_default_state;
   using ghogx::character::source_character_enable_blinks;
   using ghogx::character::source_character_enter;
@@ -216,6 +217,28 @@ int main() {
                     "Character legacy rev7 keeps lod names");
   ok &= expect_bool(has(load_v1_legacy7.postload_reads, "mShadow"), true,
                     "Character legacy rev7 reads shadow");
+
+  auto copy_plan = source_character_copy_plan();
+  ok &= expect_size(copy_plan.copied_superclasses.size(), 1,
+                    "Character copy superclass count");
+  ok &= expect_string(copy_plan.copied_superclasses[0], "RndDir",
+                      "Character copy superclass");
+  ok &= expect_bool(copy_plan.creates_copy, true,
+                    "Character copy creates destination");
+  ok &= expect_string(copy_plan.member_gate, "ty != kCopyFromMax",
+                      "Character copy member gate");
+  ok &= expect_size(copy_plan.copied_members.size(), 10,
+                    "Character copy member count");
+  ok &= expect_string(copy_plan.copied_members[0], "mLods",
+                      "Character copy lods first");
+  ok &= expect_string(copy_plan.copied_members[2], "mMinLod",
+                      "Character copy first min lod");
+  ok &= expect_string(copy_plan.copied_members[7], "mFrozen",
+                      "Character copy frozen member");
+  ok &= expect_string(copy_plan.copied_members[8], "mMinLod",
+                      "Character copy duplicated min lod");
+  ok &= expect_string(copy_plan.copied_members[9], "mTransGroup",
+                      "Character copy trans group last");
 
   state.min_lod = 4;
   state.last_lod = 9;

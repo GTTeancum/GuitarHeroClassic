@@ -544,6 +544,13 @@ struct SourceCharacterLoadPlan {
   std::vector<std::string> branches;
 };
 
+struct SourceCharacterCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::string member_gate;
+  std::vector<std::string> copied_members;
+  bool creates_copy = true;
+};
+
 struct SourceCharacterPollResult {
   bool called_rnd_dir_poll = false;
   bool skipped_for_frozen = false;
@@ -1234,6 +1241,7 @@ SourceCharacterLodPropSyncPlan source_character_lod_prop_sync_plan();
 SourceCharacterLoadPlan source_character_load_plan(int revision,
                                                    bool is_proxy,
                                                    int legacy_other_revision);
+SourceCharacterCopyPlan source_character_copy_plan();
 void source_character_enter(SourceCharacterState& state);
 void source_character_exit(SourceCharacterState& state);
 SourceCharacterPollResult source_character_poll(SourceCharacterState& state);

@@ -2207,6 +2207,17 @@ SourceCharacterLoadPlan source_character_load_plan(int revision,
   return plan;
 }
 
+SourceCharacterCopyPlan source_character_copy_plan() {
+  SourceCharacterCopyPlan plan;
+  plan.copied_superclasses = {"RndDir"};
+  plan.member_gate = "ty != kCopyFromMax";
+  plan.copied_members = {"mLods",       "mLastLod",    "mMinLod",
+                         "mShadow",     "mDriver",     "mSelfShadow",
+                         "mSphereBase", "mFrozen",     "mMinLod",
+                         "mTransGroup"};
+  return plan;
+}
+
 void source_character_enter(SourceCharacterState& state) {
   state.poll_state = SourceCharacterPollState::kEntered;
   state.min_lod = -1;
