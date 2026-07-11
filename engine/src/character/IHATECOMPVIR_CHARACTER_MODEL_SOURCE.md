@@ -40,7 +40,7 @@ records the upstream commits for the copied files:
 | FaceFX lip-sync servo boundary | `rb3-latest` `CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` is source context, not a matching `FaceFxLipSyncServo` load body; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; runtime `Poll` remains fenced until source transform writeback is ported. |
 | Hand IK | `CharIKHand.cpp` | Native hand IK follows source dataflow. |
-| MIDI clip drivers | `rb3-latest` `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h` | Decode/log source revision, inherited weight owner, default clip pointer, parser rows, and blend override gates. Runtime clip selection remains source-fenced. |
+| Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
 | Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
@@ -443,6 +443,21 @@ note, and all report `unreadBytes=0`.
   reimplemented as a visual shortcut; the active performer path may consume
   explicit live song/MIDI weights and use decoded setter weights only as the
   bounded fallback the current hand path already had.
+- `rb3-latest/src/system/char/CharDriver.cpp` and `CharDriver.h`
+  - The header/source expose the base driver object members and runtime helper
+    surface: `mBones`, `mClips`, `mDefaultClip`, `mBlendWidth`, `mClipType`,
+    `mApply`, `mPlayMultipleClips`, `Enter`, `Play`, `PlayGroup`, and
+    `PollDeps`. `Enter` can play `mDefaultClip`; `Play` builds
+    `CharClipDriver` nodes; `PollDeps` depends on `mBones`.
+  - This source snapshot does not expose a decompiled base `CharDriver::Load`
+    body or base `CharDriver::Poll` body. The RB2 dump also has only an empty
+    `CharDriver::Load` body, plus named `PreLoad`/`PostLoad` and runtime
+    function ranges. Native GHOGX must not claim a full source-backed base
+    driver load/poll port from these files.
+  - Native GHOGX therefore treats base `CharDriver` rows as passive controller
+    inventory unless a connected source-backed runtime path is present. The
+    existing viewer-side clip playback is a diagnostic/application helper; it
+    must not be used as proof that source `CharDriver::Poll` has been ported.
 - `rb3-latest/src/system/char/CharDriverMidi.cpp` and
   `rb3-latest/src/system/char/CharDriverMidi.h`
   - `CharDriverMidi::Load` reads the subclass revision, accepts revisions
@@ -654,6 +669,13 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
   `midiBlendOverridePct=1.0000`. Under the ihatecompvir `CharDriverMidi::Load`
   gates, GH2 stock rows are before the parser/flag/blend fields and their
   revision-below-7 default clip slot is the source-backed empty `ObjPtr` string.
+- The refreshed stock type inventory at
+  `engine/out/source_truth_controller_inventory_20260710/stock_character_type_inventory_latest.log`
+  also records 25 base `CharDriver` rows across the 24 base character MILOs.
+  Every listed character has one base driver row except Grim, which has two.
+  Native logs these rows so targets such as `bone.servo` and clip directories
+  are visible source data, but the missing base `CharDriver::Load`/`Poll` source
+  bodies above keep base driver runtime behavior fenced.
 - `rb3-latest/src/system/char/CharPollGroup.cpp` provides a real source
   authority when such rows exist: `Load` reads `Hmx::Object`, optional
   `CharWeightable` data for revisions above 2, `mPolls`, and revision-above-1

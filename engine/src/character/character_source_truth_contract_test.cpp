@@ -152,6 +152,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharWeightable.cpp"));
   const std::string rb3_latest_char_weightable_h = compact(read_file(
       rb3_latest_char_dir / "CharWeightable.h"));
+  const std::string rb3_latest_char_driver_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharDriver.cpp"));
+  const std::string rb3_latest_char_driver_h = compact(read_file(
+      rb3_latest_char_dir / "CharDriver.h"));
   const std::string rb3_latest_char_driver_midi_cpp = compact(read_file(
       rb3_latest_char_dir / "CharDriverMidi.cpp"));
   const std::string rb3_latest_char_driver_midi_h = compact(read_file(
@@ -930,6 +934,37 @@ int run_contract() {
   ok &= contains(rb3_latest_char_weightable_cpp,
                  "bs>>mWeight;if(gRev>1)bs>>mWeightOwner;",
                  "CharWeightable source load gates weight owner");
+  ok &= contains(rb3_latest_char_driver_h,
+                 "ObjPtr<CharBonesObject,ObjectDir>mBones;",
+                 "latest CharDriver header exposes driven bones pointer");
+  ok &= contains(rb3_latest_char_driver_h,
+                 "ObjPtr<ObjectDir,ObjectDir>mClips;",
+                 "latest CharDriver header exposes clip directory pointer");
+  ok &= contains(rb3_latest_char_driver_h,
+                 "ObjPtr<Hmx::Object,ObjectDir>mDefaultClip;",
+                 "latest CharDriver header exposes default clip pointer");
+  ok &= contains(rb3_latest_char_driver_h,
+                 "ApplyModemApply;",
+                 "latest CharDriver header exposes apply mode");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "if(mDefaultClip)Play(DataNode(mDefaultClip),1,-1.0f,"
+                 "1e+30f,0.0f);",
+                 "latest CharDriver Enter can play the default clip");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "mFirst=newCharClipDriver(this,clip,i,f1,mFirst,f2,f3,"
+                 "mPlayMultipleClips);",
+                 "latest CharDriver Play builds CharClipDriver nodes");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "change.push_back(mBones);",
+                 "latest CharDriver PollDeps depends on bones");
+  ok &= missing(rb3_latest_char_driver_cpp, "BEGIN_LOADS(CharDriver)",
+                "latest CharDriver source lacks base load body");
+  ok &= missing(rb3_latest_char_driver_cpp, "voidCharDriver::Poll(",
+                "latest CharDriver source lacks base Poll body");
+  ok &= contains(rb2_char_driver_cpp,
+                 "voidCharDriver::Load(classCharDriver*constthis/*r30*/,"
+                 "classBinStream&d/*r31*/){}",
+                 "RB2 dump CharDriver Load body is empty");
   ok &= contains(rb3_latest_char_driver_midi_h,
                  "SymbolmParser;",
                  "latest CharDriverMidi header exposes parser symbol");
@@ -1006,6 +1041,17 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharDriverMidi::Load` reads the subclass revision",
                  "document records CharDriverMidi source load");
+  ok &= contains(doc,
+                 "`rb3-latest/src/system/char/CharDriver.cpp` and "
+                 "`CharDriver.h`",
+                 "document cites latest CharDriver source files");
+  ok &= contains(doc,
+                 "Base `CharDriver::Load`/`Poll` bodies are not present in the "
+                 "available source",
+                 "document records missing base CharDriver Load body");
+  ok &= contains(doc,
+                 "25 base `CharDriver` rows across the 24 base character MILOs",
+                 "document records stock base CharDriver inventory");
   ok &= contains(doc,
                  "Native GHOGX therefore decodes/logs that slot\n"
                  "    as `midiDefaultClip`",
