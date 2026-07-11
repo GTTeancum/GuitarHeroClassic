@@ -35,9 +35,10 @@ constexpr DWORD kFVF =
     D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_TEX1;
 struct PVtx {
   float x, y, z;
+  float size;
   D3DCOLOR color;
 };
-constexpr DWORD kParticleFVF = D3DFVF_XYZ | D3DFVF_DIFFUSE;
+constexpr DWORD kParticleFVF = D3DFVF_XYZ | D3DFVF_PSIZE | D3DFVF_DIFFUSE;
 constexpr DWORD kDefaultSceneAmbient = D3DCOLOR_XRGB(170, 170, 178);
 constexpr DWORD kAuthoredLightFirstSlot = 2;
 constexpr DWORD kAuthoredLightSlotCount = 6;
@@ -1896,29 +1897,31 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         std::clamp((p.lifetime_min + p.lifetime_max) * 0.5f, 0.05f, 20.0f);
     if (const auto life_it = particle_lifetimes_.find(p.name);
         life_it != particle_lifetimes_.end()) {
-      lifetime = std::clamp(life_it->second, 0.05f, 20.0f);
+      lifetime = std::clamp(life_it->second / 30.0f, 0.05f, 20.0f);
     }
-    const float base_max_velocity =
-        std::max({std::fabs(p.velocity_min[0]), std::fabs(p.velocity_min[1]),
-                  std::fabs(p.velocity_min[2]), std::fabs(p.velocity_max[0]),
-                  std::fabs(p.velocity_max[1]), std::fabs(p.velocity_max[2])});
-    float max_velocity = base_max_velocity;
-    float velocity_scale = 1.0f;
+    const float base_speed =
+        std::clamp((p.speed_min + p.speed_max) * 0.5f, 0.0f, 10000.0f);
+    float authored_speed = base_speed;
+    bool has_speed_override = false;
     if (const auto speed_it = particle_speeds_.find(p.name);
         speed_it != particle_speeds_.end()) {
-      max_velocity = std::clamp(speed_it->second, 0.0f, 10000.0f);
-      if (base_max_velocity > 0.001f) {
-        velocity_scale = max_velocity / base_max_velocity;
-      }
+      authored_speed = std::clamp(speed_it->second, 0.0f, 10000.0f);
+      has_speed_override = true;
     }
-    float authored_size = std::max(p.size_start, p.size_end);
+    float start_size =
+        std::max(0.0f, (p.start_size_min + p.start_size_max) * 0.5f);
+    bool has_size_override = false;
     if (const auto size_it = particle_sizes_.find(p.name);
         size_it != particle_sizes_.end()) {
-      authored_size = std::max(0.0f, size_it->second);
+      start_size = std::max(0.0f, size_it->second);
+      has_size_override = true;
     }
-    const float point_size = std::clamp(
-        authored_size * 12.0f + max_velocity * 0.02f, 3.0f, 80.0f);
-    const float spread = std::max(point_size * 0.25f, max_velocity * 0.015f);
+    const float delta_size = (p.delta_size_min + p.delta_size_max) * 0.5f;
+    const float preview_size = std::max(0.0f, start_size + delta_size * 0.5f);
+    const float preview_point_size = std::clamp(
+        preview_size * 12.0f + authored_speed * 0.02f, 3.0f, 80.0f);
+    const float jitter =
+        std::max(preview_point_size * 0.25f, authored_speed * 0.015f);
 
     auto world = mul16(scene_.world_matrix(p), world_transform_);
     std::vector<PVtx> points;
@@ -1931,18 +1934,32 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       const float h1 = hash01(seed + 2u);
       const float h2 = hash01(seed + 3u);
       const float h3 = hash01(seed + 4u);
+      const float h4 = hash01(seed + 5u);
+      const float h5 = hash01(seed + 6u);
+      const float h6 = hash01(seed + 7u);
+      const float h7 = hash01(seed + 8u);
+      const float h8 = hash01(seed + 9u);
       const float phase = std::fmod(particle_time_ / lifetime + h0, 1.0f);
       const float fade = 1.0f - phase;
-      float local[3] = {
-          (h1 - 0.5f) * spread,
-          (h2 - 0.5f) * spread,
-          (h3 - 0.5f) * spread,
-      };
+      const float hashes[3] = {h1, h2, h3};
+      float local[3] = {};
       for (int c = 0; c < 3; ++c) {
-        const float vel = p.velocity_min[c] +
-                          (p.velocity_max[c] - p.velocity_min[c]) *
-                              hash01(seed + 10u + static_cast<uint32_t>(c));
-        local[c] += vel * velocity_scale * phase * lifetime * 0.05f;
+        const float lo = std::min(p.box_extent_min[c], p.box_extent_max[c]);
+        const float hi = std::max(p.box_extent_min[c], p.box_extent_max[c]);
+        local[c] = lo + (hi - lo) * hashes[c];
+        local[c] += (hash01(seed + 20u + static_cast<uint32_t>(c)) - 0.5f) *
+                    jitter;
+      }
+      const float speed = has_speed_override
+                              ? authored_speed
+                              : p.speed_min + (p.speed_max - p.speed_min) * h4;
+      const float pitch = p.pitch_min + (p.pitch_max - p.pitch_min) * h5;
+      const float yaw = p.yaw_min + (p.yaw_max - p.yaw_min) * h6;
+      const float cp = std::cos(pitch);
+      const float dir[3] = {std::sin(yaw) * cp, std::cos(yaw) * cp,
+                            std::sin(pitch)};
+      for (int c = 0; c < 3; ++c) {
+        local[c] += dir[c] * speed * phase * lifetime * 0.05f;
       }
       PVtx v;
       v.x = world[12] + local[0] * world[0] + local[1] * world[4] +
@@ -1951,6 +1968,17 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
             local[2] * world[9];
       v.z = world[14] + local[0] * world[2] + local[1] * world[6] +
             local[2] * world[10];
+      const float particle_start_size =
+          has_size_override
+              ? start_size
+              : p.start_size_min + (p.start_size_max - p.start_size_min) * h7;
+      const float particle_delta_size =
+          p.delta_size_min + (p.delta_size_max - p.delta_size_min) * h8;
+      v.size = std::clamp(
+          std::max(0.0f, particle_start_size + particle_delta_size * phase) *
+                  12.0f +
+              speed * 0.02f,
+          3.0f, 80.0f);
       const auto cc = [](float f) -> int {
         int i = static_cast<int>(std::clamp(f, 0.0f, 1.0f) * 255.0f + 0.5f);
         return std::clamp(i, 0, 255);
@@ -1992,7 +2020,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     dev_->SetRenderState(D3DRS_DESTBLEND, blend_state.dest);
     dev_->SetRenderState(D3DRS_POINTSPRITEENABLE, TRUE);
     dev_->SetRenderState(D3DRS_POINTSCALEENABLE, FALSE);
-    dev_->SetRenderState(D3DRS_POINTSIZE, float_to_dword(point_size));
+    dev_->SetRenderState(D3DRS_POINTSIZE, float_to_dword(preview_point_size));
     dev_->SetTexture(0, texture);
     dev_->SetFVF(kParticleFVF);
     dev_->DrawPrimitiveUP(D3DPT_POINTLIST, static_cast<UINT>(points.size()),

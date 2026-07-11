@@ -4609,18 +4609,48 @@ int main() {
   ok &= contains(milo_scene_h_c,
                  "std::array<float,4>end_color_low",
                  "MILO scene decoder exposes source ParticleSys end color range");
+  ok &= contains(milo_scene_h_c,
+                 "floatlife_min_frames",
+                 "MILO scene decoder keeps source ParticleSys life in frames");
+  ok &= contains(milo_scene_h_c,
+                 "floatdelta_size_min",
+                 "MILO scene decoder exposes source ParticleSys delta size");
   ok &= contains(milo_scene_cpp_c,
                  "part.start_color_low=safe_color(0x50",
                  "ParticleSys decoder reads source start color low at traced offset");
   ok &= contains(milo_scene_cpp_c,
                  "part.end_color_high=safe_color(0x80",
                  "ParticleSys decoder reads source end color high at traced offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.life_min_frames=std::max(1.0f,safe_f(0x00",
+                 "ParticleSys decoder reads source life at traced offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.speed_min=std::max(0.0f,safe_f(0x20",
+                 "ParticleSys decoder reads source speed at traced offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.start_size_min=std::max(0.0f,safe_f(0x40",
+                 "ParticleSys decoder reads source start size at traced offset");
+  ok &= contains(milo_scene_cpp_c,
+                 "part.delta_size_min=safe_f(0x48",
+                 "ParticleSys decoder reads source delta size at traced offset");
   ok &= contains(renderer_h_c,
                  "set_active_particle_systems",
                  "renderer accepts active ParticleSys event state");
   ok &= contains(renderer_c,
                  "D3DRS_POINTSPRITEENABLE",
                  "renderer draws ParticleSys through point sprites");
+  ok &= contains(renderer_c,
+                 "D3DFVF_PSIZE",
+                 "renderer carries ParticleSys per-particle point size");
+  ok &= contains(renderer_c,
+                 "life_it->second/30.0f",
+                 "renderer converts source ParticleSys life frames to seconds");
+  ok &= contains(renderer_c,
+                 "p.box_extent_min[c]",
+                 "renderer uses source ParticleSys box extent as spawn volume");
+  ok &= contains(renderer_c,
+                 "particle_delta_size*phase",
+                 "renderer applies source ParticleSys delta size over lifetime");
   ok &= contains(renderer_c,
                  "average_particle_color(p.start_color_low,p.start_color_high)",
                  "renderer starts ParticleSys color from source low/high average");

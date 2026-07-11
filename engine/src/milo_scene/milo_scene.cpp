@@ -1145,18 +1145,42 @@ ParticleSysObj decode_particle_sys(const std::string& entry_name,
       }
       return color;
     };
-    const float particles_a = safe_f(0, 0.0f);
-    const float particles_b = safe_f(4, particles_a);
-    part.max_particles = std::clamp(std::max(particles_a, particles_b),
+    part.life_min_frames = std::max(1.0f, safe_f(0x00, part.life_min_frames));
+    part.life_max_frames =
+        std::max(part.life_min_frames, safe_f(0x04, part.life_min_frames));
+    part.max_particles = std::clamp(std::max(part.life_min_frames,
+                                             part.life_max_frames),
                                     0.0f, 2000.0f);
     for (int i = 0; i < 3; ++i) {
-      part.velocity_max[i] = safe_f(8 + static_cast<size_t>(i) * 4, 0.0f);
-      part.velocity_min[i] = safe_f(20 + static_cast<size_t>(i) * 4, 0.0f);
+      part.box_extent_min[i] = safe_f(0x08 + static_cast<size_t>(i) * 4, 0.0f);
+      part.box_extent_max[i] = safe_f(0x14 + static_cast<size_t>(i) * 4, 0.0f);
+      part.velocity_min[i] = part.box_extent_min[i];
+      part.velocity_max[i] = part.box_extent_max[i];
     }
-    part.lifetime_min = std::max(0.05f, safe_f(32, 1.0f));
-    part.lifetime_max = std::max(part.lifetime_min, safe_f(36, part.lifetime_min));
-    part.size_start = std::max(0.01f, safe_f(56, 1.0f));
-    part.size_end = std::max(0.01f, safe_f(60, part.size_start));
+    part.speed_min = std::max(0.0f, safe_f(0x20, part.speed_min));
+    part.speed_max = std::max(part.speed_min, safe_f(0x24, part.speed_min));
+    part.pitch_min = safe_f(0x28, part.pitch_min);
+    part.pitch_max = safe_f(0x2c, part.pitch_min);
+    part.yaw_min = safe_f(0x30, part.yaw_min);
+    part.yaw_max = safe_f(0x34, part.yaw_min);
+    part.emit_rate_min = std::max(0.0f, safe_f(0x38, part.emit_rate_min));
+    part.emit_rate_max =
+        std::max(part.emit_rate_min, safe_f(0x3c, part.emit_rate_min));
+    part.start_size_min = std::max(0.0f, safe_f(0x40, part.start_size_min));
+    part.start_size_max =
+        std::max(part.start_size_min, safe_f(0x44, part.start_size_min));
+    part.delta_size_min = safe_f(0x48, part.delta_size_min);
+    part.delta_size_max = safe_f(0x4c, part.delta_size_min);
+    part.lifetime_min = std::max(0.05f, part.life_min_frames / 30.0f);
+    part.lifetime_max =
+        std::max(part.lifetime_min, part.life_max_frames / 30.0f);
+    part.size_start = std::max(0.01f,
+                               (part.start_size_min + part.start_size_max) *
+                                   0.5f);
+    part.size_end = std::max(0.01f,
+                             part.size_start +
+                                 (part.delta_size_min + part.delta_size_max) *
+                                     0.5f);
     part.start_color_low = safe_color(0x50, part.start_color_low);
     part.start_color_high = safe_color(0x60, part.start_color_high);
     part.end_color_low = safe_color(0x70, part.end_color_low);
@@ -1505,8 +1529,12 @@ bool load_scene(const std::string& hdr_path, const std::string& ark_path,
             };
             std::fprintf(
                 stderr,
-                "[milo_scene] ParticleSys %s material=%s start_low=(%.3f %.3f %.3f %.3f) start_high=(%.3f %.3f %.3f %.3f) start_avg=(%.3f %.3f %.3f %.3f) end_low=(%.3f %.3f %.3f %.3f) end_high=(%.3f %.3f %.3f %.3f) end_avg=(%.3f %.3f %.3f %.3f)\n",
+                "[milo_scene] ParticleSys %s material=%s life_frames=(%.3f %.3f) speed=(%.3f %.3f) emit_rate=(%.3f %.3f) start_size=(%.3f %.3f) delta_size=(%.3f %.3f) start_low=(%.3f %.3f %.3f %.3f) start_high=(%.3f %.3f %.3f %.3f) start_avg=(%.3f %.3f %.3f %.3f) end_low=(%.3f %.3f %.3f %.3f) end_high=(%.3f %.3f %.3f %.3f) end_avg=(%.3f %.3f %.3f %.3f)\n",
                 p.name.c_str(), p.material.c_str(),
+                p.life_min_frames, p.life_max_frames, p.speed_min,
+                p.speed_max, p.emit_rate_min, p.emit_rate_max,
+                p.start_size_min, p.start_size_max, p.delta_size_min,
+                p.delta_size_max,
                 p.start_color_low[0], p.start_color_low[1],
                 p.start_color_low[2], p.start_color_low[3],
                 p.start_color_high[0], p.start_color_high[1],
