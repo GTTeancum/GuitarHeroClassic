@@ -1370,6 +1370,15 @@ uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
   return play_flags;
 }
 
+bool source_char_driver_starved(bool has_first, bool first_has_next,
+                                uint32_t first_play_flags) {
+  if (has_first) {
+    if (first_has_next) return false;
+    if ((first_play_flags & 0xF0u) == kCharPlayNoLoop) return false;
+  }
+  return true;
+}
+
 // ---- pose application ----------------------------------------------------
 
 static void quat_to_rot(const float q[4], float rot[3][3]) {
@@ -4259,6 +4268,12 @@ float CharClipPlayer::current_blend_weight() const {
   if (current.blend_width <= 0.0f) return 1.0f;
   return std::clamp(current.blend_progress / current.blend_width, 0.0f,
                     1.0f);
+}
+
+bool CharClipPlayer::source_starved() const {
+  if (layers_.empty()) return source_char_driver_starved(false, false, 0);
+  return source_char_driver_starved(true, layers_.size() > 1,
+                                    layers_.back().flags);
 }
 
 // Legacy single-frame entry point (frame 0).

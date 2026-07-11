@@ -341,6 +341,10 @@ int run_contract() {
                  "constructor mask\n    application exactly",
                  "document records concrete CharClipDriver mask slice");
   ok &= contains(doc,
+                 "Native `source_char_driver_starved` ports the concrete "
+                 "source\n    `CharDriver::Starved` body",
+                 "document records concrete CharDriver starved slice");
+  ok &= contains(doc,
                  "Port `CharDriver::Load`, `CharDriver::Poll`, and "
                  "`EvaluateFlags`",
                  "remaining import checklist names CharDriver runtime gap");
@@ -2779,10 +2783,19 @@ int run_contract() {
                  "if(mask&0xFU)mPlayFlags=mPlayFlags&0xfffffff0|mask&0xfU;"
                  "if(mask&0xF600U)mPlayFlags=mPlayFlags&0xffff09ff|mask&0xf600U;",
                  "latest CharClipDriver source masks blend loop and beat-align flags");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "boolCharDriver::Starved(){if(mFirst){if(mFirst->mNext)"
+                 "returnfalse;if((mFirst->mPlayFlags&0xF0)==0x10)"
+                 "returnfalse;}returntrue;}",
+                 "latest CharDriver source exposes Starved body");
   ok &= contains(char_clip_h,
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
                  "uint32_tmask);",
                  "native character API exposes source CharClipDriver flag mask helper");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_driver_starved(boolhas_first,"
+                 "boolfirst_has_next,uint32_tfirst_play_flags);",
+                 "native character API exposes source CharDriver starved helper");
   ok &= contains(char_clip,
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
                  "uint32_tmask){uint32_tplay_flags=clip.default_play_flags;",
@@ -2800,12 +2813,33 @@ int run_contract() {
   ok &= contains(char_clip,
                  "next.flags=play_flags;",
                  "native CharClipPlayer stores source-masked play flags");
+  ok &= contains(char_clip,
+                 "boolsource_char_driver_starved(boolhas_first,"
+                 "boolfirst_has_next,uint32_tfirst_play_flags){if(has_first){"
+                 "if(first_has_next)returnfalse;if((first_play_flags&0xF0u)"
+                 "==kCharPlayNoLoop)returnfalse;}returntrue;}",
+                 "native CharDriver starved helper ports source body");
+  ok &= contains(char_clip,
+                 "boolCharClipPlayer::source_starved()const{if(layers_.empty())"
+                 "returnsource_char_driver_starved(false,false,0);",
+                 "native CharClipPlayer reports source starved state");
   ok &= contains(clip_driver_flags_test,
                  "if(mask&0xF0u)out=(out&0xffffff0fu)|(mask&0xF0u);",
                  "focused flag-mask test covers source loop-bit branch");
   ok &= contains(clip_driver_flags_test,
                  "if(mask&0xF600u)out=(out&0xffff09ffu)|(mask&0xF600u);",
                  "focused flag-mask test covers source beat-time branch");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_starved(false,false,0,true,\"emptystack\")",
+                 "focused flag-mask test covers empty stack starved branch");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_starved(true,true,ghogx::character::kCharPlayLoop,"
+                 "false,\"stackhasnext\")",
+                 "focused flag-mask test covers next clip non-starved branch");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_starved(true,false,ghogx::character::kCharPlayNoLoop,"
+                 "false,\"singleno-loopclip\")",
+                 "focused flag-mask test covers no-loop non-starved branch");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");

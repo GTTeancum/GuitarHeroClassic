@@ -134,6 +134,7 @@ class CharClipPlayer {
   std::vector<ClipChannel> sampled_pose() const;
   bool sampled_pose_relative() const;
   float current_blend_weight() const;
+  bool source_starved() const;
   bool active() const { return !layers_.empty(); }
   const CharClip* current_clip() const;
 
@@ -171,6 +172,10 @@ std::optional<size_t> char_clip_group_get_clip_index(CharClipGroup& group);
 // Source-backed CharClipDriver constructor play-flag masking.
 uint32_t char_clip_driver_masked_play_flags(const CharClip& clip,
                                             uint32_t mask);
+
+// Source-backed CharDriver::Starved helper for the visible play stack state.
+bool source_char_driver_starved(bool has_first, bool first_has_next,
+                                uint32_t first_play_flags);
 
 // Source-backed CharBones channel helpers.
 int source_char_bones_type_of(const std::string& channel);

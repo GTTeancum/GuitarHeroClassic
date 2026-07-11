@@ -577,6 +577,12 @@ note, and all report `unreadBytes=0`.
     inventory unless a connected source-backed runtime path is present. The
     existing viewer-side clip playback is a diagnostic/application helper; it
     must not be used as proof that source `CharDriver::Poll` has been ported.
+  - Native `source_char_driver_starved` ports the concrete source
+    `CharDriver::Starved` body: an empty stack is starved, any stack with a
+    next clip is not starved, and a single `0x10` no-loop clip is not starved.
+    `CharClipPlayer::source_starved` reports that helper from the native layer
+    stack, but this does not promote default-clip playback without the missing
+    `Poll` body.
 - `rb3-latest/src/system/char/CharDriverMidi.cpp` and
   `rb3-latest/src/system/char/CharDriverMidi.h`
   - `CharDriverMidi::Load` reads the subclass revision, accepts revisions
@@ -854,7 +860,8 @@ note, and all report `unreadBytes=0`.
     application exactly: low mode bits, loop bits, and the `0xF600` real-time /
     beat-align group override the clip's stored play flags only when present in
     the source mask. `CharClipPlayer::play` uses this masked value when it
-    starts a native layer.
+    starts a native layer. `ghogx_character_clip_driver_flags_test` covers the
+    mask groups and the source `CharDriver::Starved` helper branches.
 - `rb3-retail-old/doc/rb2_dump/rockband2/system/src/char` exposes RB2-era dump
   entries for `CharClipSamples`, `CharBonesSamples`, `CharClip`,
   `CharClipDriver`, and `CharDriver`. These files are useful source-backed

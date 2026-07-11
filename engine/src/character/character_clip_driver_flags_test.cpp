@@ -25,6 +25,17 @@ bool expect_flags(uint32_t base, uint32_t mask, const char* label) {
   return false;
 }
 
+bool expect_starved(bool has_first, bool first_has_next,
+                    uint32_t first_play_flags, bool want,
+                    const char* label) {
+  const bool got = ghogx::character::source_char_driver_starved(
+      has_first, first_has_next, first_play_flags);
+  if (got == want) return true;
+  std::cerr << "starved mismatch for " << label << ": got " << got
+            << " want " << want << "\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -38,5 +49,12 @@ int main() {
                                       ghogx::character::kCharPlayUserTime,
                      "time bits");
   ok &= expect_flags(0x12345678u, 0x0000f623u, "all source groups");
+  ok &= expect_starved(false, false, 0, true, "empty stack");
+  ok &= expect_starved(true, true, ghogx::character::kCharPlayLoop, false,
+                       "stack has next");
+  ok &= expect_starved(true, false, ghogx::character::kCharPlayNoLoop, false,
+                       "single no-loop clip");
+  ok &= expect_starved(true, false, ghogx::character::kCharPlayLoop, true,
+                       "single looping clip");
   return ok ? 0 : 1;
 }
