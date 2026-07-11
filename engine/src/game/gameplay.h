@@ -461,6 +461,7 @@ class Gameplay {
     double start_time = 0.0;
     bool persistent = true;
     bool shot_scoped = false;
+    bool polled = false;
   };
 
   Gameplay() = default;
@@ -823,6 +824,7 @@ class Gameplay {
   double next_venue_proxy_draw_log_time_ = 0.0;
   std::map<std::string, std::vector<VenueAnimFilter>> venue_event_anim_filters_;
   std::map<std::string, std::vector<VenueAnimFilter>> venue_direct_anim_filters_;
+  std::vector<VenueAnimFilter> venue_poll_anim_filters_;
   std::map<std::string, VenueGroupVisibility> venue_event_group_visibility_;
   std::map<std::string, VenueScriptHandler> venue_script_handlers_;
   std::map<std::string, std::map<std::string, VenueScriptHandler>>

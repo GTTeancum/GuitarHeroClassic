@@ -4004,6 +4004,10 @@ int main() {
                  "overstrums mark bad gameplay feedback even with no held frets");
   ok &= appears_before(gameplay_c,
                        "world_->set_hidden_meshes(composed_venue_hidden_meshes());"
+                       "if(!venue_poll_anim_filters_.empty()){",
+                       "apply_venue_event(\"start\",false);",
+                       "always-running venue PollAnim filters start before the initial start EventTrigger");
+  ok &= appears_before(gameplay_c,
                        "apply_venue_event(\"start\",false);",
                        "if(active_venue_event_.empty()){"
                        "apply_venue_event(\"excitement_bad\");}",
@@ -5522,6 +5526,30 @@ int main() {
   ok &= contains(gameplay_c,
                  "case2:{//kAnimShuttle",
                  "venue AnimFilter honors kAnimShuttle sampling");
+  ok &= contains(gameplay_c,
+                 "de.type==\"PollAnim\"",
+                 "venue loader decodes source MILO PollAnim objects");
+  ok &= contains(gameplay_c,
+                 "poll_anim_filters->clear();",
+                 "venue PollAnim output is reset on each venue load");
+  ok &= contains(gameplay_c,
+                 "\"[world]venuePollAnim",
+                 "venue PollAnim route emits focused source-backed debug rows");
+  ok &= contains(gameplay_h_c,
+                 "boolpolled=false;",
+                 "active venue animation filters track RndPollAnim lifecycle separately");
+  ok &= contains(gameplay_c,
+                 "poll_filter.event_name=\"@pollanim\";",
+                 "venue PollAnim filters start when the venue scene is created");
+  ok &= contains(gameplay_c,
+                 "poll_filter.polled=true;",
+                 "venue PollAnim filters are marked as polled runtime animation");
+  ok &= contains(gameplay_c,
+                 "active.persistent&&!active.polled",
+                 "venue PollAnim filters survive persistent excitement changes");
+  ok &= contains(gameplay_c,
+                 "!it->persistent&&!it->shot_scoped&&!it->polled",
+                 "venue PollAnim filters do not expire after one authored cycle");
 
   ok &= contains(gameplay_c,
                  "camera_duration_range_for_event(camera_duration_bars_,"

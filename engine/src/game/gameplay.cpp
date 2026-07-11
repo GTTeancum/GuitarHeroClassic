@@ -9166,10 +9166,13 @@ load_venue_anim_filters(const std::string& hdr_path,
                         const ghogx::milo_scene::Scene& scene,
                         std::map<std::string,
                                  std::vector<Gameplay::VenueAnimFilter>>*
-                            direct_anim_filters = nullptr) {
+                            direct_anim_filters = nullptr,
+                        std::vector<Gameplay::VenueAnimFilter>*
+                            poll_anim_filters = nullptr) {
     std::map<std::string, std::vector<Gameplay::VenueAnimFilter>> out;
     std::map<std::string, std::vector<std::string>> group_children;
     if (direct_anim_filters) direct_anim_filters->clear();
+    if (poll_anim_filters) poll_anim_filters->clear();
     for (const auto& group : scene.groups) {
         group_children[canonical_milo_ref(group.name)] = group.children;
     }
@@ -9191,6 +9194,7 @@ load_venue_anim_filters(const std::string& hdr_path,
         std::map<std::string, std::vector<std::string>> event_filters;
         std::map<std::string, std::vector<std::string>>
             event_direct_anim_refs;
+        std::map<std::string, std::vector<std::string>> poll_anim_refs;
 
         for (const auto& de : dir.entries) {
             if (de.offset + de.size > payload.size()) continue;
@@ -9231,6 +9235,15 @@ load_venue_anim_filters(const std::string& hdr_path,
                 auto anim = decode_venue_mesh_anim(de.name, body, size);
                 if (!anim.name.empty()) {
                     meshanim_anims[anim.name] = std::move(anim);
+                }
+            } else if (de.type == "PollAnim") {
+                auto& refs = poll_anim_refs[canonical_milo_ref(de.name)];
+                for (const auto& s : scan_milo_strings(body, size)) {
+                    const auto ref = canonical_milo_ref(s);
+                    if (is_venue_anim_filter_ref(ref) ||
+                        is_direct_venue_anim_ref(ref)) {
+                        push_unique_ref(refs, ref);
+                    }
                 }
             } else if (de.type == "EventTrigger") {
                 const auto strings = scan_milo_strings(body, size);
@@ -9407,60 +9420,59 @@ load_venue_anim_filters(const std::string& hdr_path,
 
         size_t routed = 0;
         size_t direct_routed = 0;
-        if (direct_anim_filters) {
-            auto make_direct_filter =
-                [&](const std::string& raw_ref)
-                -> std::optional<Gameplay::VenueAnimFilter> {
-                const auto ref = canonical_milo_ref(raw_ref);
-                Gameplay::VenueAnimFilter filter;
-                filter.name = "direct_" + ref;
-                filter.start_frame = 0.0f;
-                filter.end_frame = 0.0f;
-                filter.scale = 1.0f;
-                filter.period = 0.0f;
-                filter.offset_frame = 0.0f;
-                filter.type = 0;
-                std::unordered_set<std::string> seen;
-                const float duration = collect_filter_targets(
-                    collect_filter_targets, filter, ref, seen);
-                if (filter.targets.empty() && filter.mesh_anim_targets.empty())
-                    return std::nullopt;
-                filter.end_frame = std::isfinite(duration) &&
-                                           duration > 0.001f
-                                       ? duration
-                                       : 1.0f;
-                return filter;
-            };
-            auto resolve_direct_ref =
-                [&](auto&& self, const std::string& raw_ref,
-                    std::unordered_set<std::string>& seen)
-                -> std::vector<Gameplay::VenueAnimFilter> {
-                const auto ref = canonical_milo_ref(raw_ref);
-                if (!seen.insert(ref).second) return {};
-                if (is_venue_anim_filter_ref(ref)) {
-                    const auto filter_it = filters_by_name.find(ref);
-                    if (filter_it != filters_by_name.end())
-                        return {filter_it->second};
-                    return {};
-                }
-                if (is_venue_group_ref(ref)) {
-                    std::vector<Gameplay::VenueAnimFilter> filters;
-                    const auto group_it = group_children.find(ref);
-                    if (group_it != group_children.end()) {
-                        for (const auto& child : group_it->second) {
-                            auto child_filters = self(self, child, seen);
-                            filters.insert(filters.end(), child_filters.begin(),
-                                           child_filters.end());
-                        }
-                    }
-                    if (!filters.empty()) return filters;
-                }
-                if (is_direct_venue_anim_ref(ref)) {
-                    if (auto filter = make_direct_filter(ref))
-                        return {*filter};
-                }
+        auto make_direct_filter =
+            [&](const std::string& raw_ref)
+            -> std::optional<Gameplay::VenueAnimFilter> {
+            const auto ref = canonical_milo_ref(raw_ref);
+            Gameplay::VenueAnimFilter filter;
+            filter.name = "direct_" + ref;
+            filter.start_frame = 0.0f;
+            filter.end_frame = 0.0f;
+            filter.scale = 1.0f;
+            filter.period = 0.0f;
+            filter.offset_frame = 0.0f;
+            filter.type = 0;
+            std::unordered_set<std::string> seen;
+            const float duration = collect_filter_targets(
+                collect_filter_targets, filter, ref, seen);
+            if (filter.targets.empty() && filter.mesh_anim_targets.empty())
+                return std::nullopt;
+            filter.end_frame = std::isfinite(duration) &&
+                                       duration > 0.001f
+                                   ? duration
+                                   : 1.0f;
+            return filter;
+        };
+        auto resolve_direct_ref =
+            [&](auto&& self, const std::string& raw_ref,
+                std::unordered_set<std::string>& seen)
+            -> std::vector<Gameplay::VenueAnimFilter> {
+            const auto ref = canonical_milo_ref(raw_ref);
+            if (!seen.insert(ref).second) return {};
+            if (is_venue_anim_filter_ref(ref)) {
+                const auto filter_it = filters_by_name.find(ref);
+                if (filter_it != filters_by_name.end())
+                    return {filter_it->second};
                 return {};
-            };
+            }
+            if (is_venue_group_ref(ref)) {
+                std::vector<Gameplay::VenueAnimFilter> filters;
+                const auto group_it = group_children.find(ref);
+                if (group_it != group_children.end()) {
+                    for (const auto& child : group_it->second) {
+                        auto child_filters = self(self, child, seen);
+                        filters.insert(filters.end(), child_filters.begin(),
+                                       child_filters.end());
+                    }
+                }
+                if (!filters.empty()) return filters;
+            }
+            if (is_direct_venue_anim_ref(ref)) {
+                if (auto filter = make_direct_filter(ref)) return {*filter};
+            }
+            return {};
+        };
+        if (direct_anim_filters) {
             auto add_direct_ref = [&](const std::string& raw_ref) {
                 const auto ref = canonical_milo_ref(raw_ref);
                 std::unordered_set<std::string> seen;
@@ -9498,6 +9510,32 @@ load_venue_anim_filters(const std::string& hdr_path,
                         "[world] venue direct anim ref: %s filters=%zu transforms=%zu mesh_anims=%zu\n",
                         ref.c_str(), filters.size(), transform_targets,
                         mesh_anim_targets);
+                }
+            }
+        }
+        if (poll_anim_filters && !poll_anim_refs.empty()) {
+            for (const auto& [poll_name, refs] : poll_anim_refs) {
+                size_t before = poll_anim_filters->size();
+                size_t transform_targets = 0;
+                size_t mesh_anim_targets = 0;
+                for (const auto& ref : refs) {
+                    std::unordered_set<std::string> seen;
+                    auto filters =
+                        resolve_direct_ref(resolve_direct_ref, ref, seen);
+                    for (const auto& filter : filters) {
+                        transform_targets += filter.targets.size();
+                        mesh_anim_targets += filter.mesh_anim_targets.size();
+                    }
+                    poll_anim_filters->insert(poll_anim_filters->end(),
+                                              filters.begin(), filters.end());
+                }
+                const size_t added = poll_anim_filters->size() - before;
+                if (debug_venue_filters_enabled() && added > 0) {
+                    std::fprintf(
+                        stderr,
+                        "[world] venue PollAnim %s refs=%zu filters=%zu transforms=%zu mesh_anims=%zu\n",
+                        poll_name.c_str(), refs.size(), added,
+                        transform_targets, mesh_anim_targets);
                 }
             }
         }
@@ -15478,6 +15516,7 @@ bool Gameplay::load_song(const std::string& hdr_path, const std::string& ark_pat
     venue_filter_mesh_targets_.clear();
     venue_event_anim_filters_.clear();
     venue_direct_anim_filters_.clear();
+    venue_poll_anim_filters_.clear();
     venue_light_names_.clear();
     venue_environ_names_.clear();
     venue_lights_.clear();
@@ -16876,7 +16915,7 @@ void Gameplay::apply_venue_event(const std::string& event_name,
             std::remove_if(active_venue_anim_filters_.begin(),
                            active_venue_anim_filters_.end(),
                            [](const ActiveVenueAnimFilter& active) {
-                               return active.persistent;
+                               return active.persistent && !active.polled;
                            }),
             active_venue_anim_filters_.end());
         active_venue_material_anims_.erase(
@@ -17293,6 +17332,7 @@ void Gameplay::clear_runtime_venue_animation_state() {
     active_venue_particles_.clear();
     last_venue_particle_debug_time_ = -1.0;
     active_venue_anim_filters_.clear();
+    venue_poll_anim_filters_.clear();
     last_venue_filter_debug_time_ = -1.0;
     venue_mesh_translation_offsets_.clear();
     venue_mesh_transform_offsets_.clear();
@@ -17630,7 +17670,8 @@ void Gameplay::update_active_venue_anim_filters() {
             duration =
                 std::max(duration, venue_filter_duration_seconds(filter));
         }
-        if (!it->persistent && !it->shot_scoped && duration > 0.0 &&
+        if (!it->persistent && !it->shot_scoped && !it->polled &&
+            duration > 0.0 &&
             elapsed > duration) {
             it = active_venue_anim_filters_.erase(it);
             continue;
@@ -20964,7 +21005,8 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 venue_event_anim_filters_ =
                     load_venue_anim_filters(hdr_path_, ark_path_, venue_geom,
                                             venue_scene,
-                                            &venue_direct_anim_filters_);
+                                            &venue_direct_anim_filters_,
+                                            &venue_poll_anim_filters_);
                 venue_event_group_visibility_ =
                     load_venue_group_visibility(hdr_path_, ark_path_,
                                                 venue_geom, venue_scene);
@@ -21043,6 +21085,22 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 world_->set_mesh_texcoord_overrides({});
                 world_->set_face_camera_meshes({});
                 world_->set_hidden_meshes(composed_venue_hidden_meshes());
+                if (!venue_poll_anim_filters_.empty()) {
+                    ActiveVenueAnimFilter poll_filter;
+                    poll_filter.event_name = "@pollanim";
+                    poll_filter.filters = venue_poll_anim_filters_;
+                    poll_filter.start_time = 0.0;
+                    poll_filter.persistent = false;
+                    poll_filter.polled = true;
+                    const size_t filter_count = poll_filter.filters.size();
+                    active_venue_anim_filters_.push_back(std::move(poll_filter));
+                    if (debug_venue_filters_enabled()) {
+                        std::fprintf(
+                            stderr,
+                            "[world] venue PollAnim runtime: filters=%zu start_time=0.000\n",
+                            filter_count);
+                    }
+                }
                 apply_venue_event("start", false);
                 apply_venue_event("intro_start", false);
                 if (active_venue_event_.empty()) {
