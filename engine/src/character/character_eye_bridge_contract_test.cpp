@@ -87,8 +87,9 @@ int main() {
                  "++i)eyes.lookats.push_back(r.str());",
                  "CharEyes serializes a look-at ref list, not hidden offsets");
   ok &= contains(decode_eyes,
-                 "if(r.pos<r.n)eyes.upperlid_or_blink_bone=r.str();",
-                 "CharEyes trailing field remains the blink/upperlid string");
+                 "if(r.pos<r.n)eyes.legacy_transform=r.str();"
+                 "eyes.unread_bytes=r.n-r.pos;",
+                 "CharEyes trailing old transformable remains source-shaped");
 
   ok &= contains(apply_controllers, "if(eye_props)*eye_props={};",
                  "FaceFX eye props are cleared when no source-backed eye poll is active");

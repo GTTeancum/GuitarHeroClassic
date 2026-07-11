@@ -483,9 +483,11 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
   }
   for (const auto& eyes : c.eyes) {
     std::printf(
-        "[controller-eyes] char=%s name=%s lookats=%zu trailing=%s\n",
-        c.dir_name.c_str(), eyes.name.c_str(), eyes.lookats.size(),
-        none_if_empty(eyes.upperlid_or_blink_bone));
+        "[controller-eyes] char=%s name=%s version=%d lookats=%zu "
+        "legacyTransform=%s unreadBytes=%zu\n",
+        c.dir_name.c_str(), eyes.name.c_str(), eyes.version,
+        eyes.lookats.size(), none_if_empty(eyes.legacy_transform),
+        eyes.unread_bytes);
     for (size_t i = 0; i < eyes.lookats.size(); ++i) {
       std::printf(
           "[controller-eyes-lookat] char=%s eyes=%s index=%zu lookat=%s\n",

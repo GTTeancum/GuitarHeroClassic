@@ -1988,7 +1988,8 @@ int run_contract() {
                  "++i)eyes.lookats.push_back(r.str());",
                  "native GH2 CharEyes decoder keeps old look-at list layout");
   ok &= contains(char_mesh,
-                 "if(r.pos<r.n)eyes.upperlid_or_blink_bone=r.str();",
+                 "if(r.pos<r.n)eyes.legacy_transform=r.str();"
+                 "eyes.unread_bytes=r.n-r.pos;",
                  "native GH2 CharEyes decoder consumes trailing old transformable");
   ok &= contains(doc, "Rockabill2 face/attachment proof",
                  "document records current Rockabill2 eye and teeth evidence");

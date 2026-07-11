@@ -205,8 +205,10 @@ struct CharLookAt {
 
 struct CharEyes {
   std::string name;
+  int32_t version = 0;
   std::vector<std::string> lookats;
-  std::string upperlid_or_blink_bone;
+  std::string legacy_transform;
+  size_t unread_bytes = 0;
 };
 
 struct CharHairPoint {

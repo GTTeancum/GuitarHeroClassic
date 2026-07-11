@@ -878,12 +878,13 @@ CharEyes decode_eyes(const std::string& entry_name,
   Reader r(body.data(), body.size());
   CharEyes eyes;
   eyes.name = entry_name;
-  (void)r.i32();      // version 3 in GH2
+  eyes.version = r.i32();      // CharEyes version, observed 3 in GH2.
   read_object_fields(r);  // Hmx::Object metadata
   uint32_t count = r.u32();
   for (uint32_t i = 0; i < count && r.pos < r.n; ++i)
     eyes.lookats.push_back(r.str());
-  if (r.pos < r.n) eyes.upperlid_or_blink_bone = r.str();
+  if (r.pos < r.n) eyes.legacy_transform = r.str();
+  eyes.unread_bytes = r.n - r.pos;
   return eyes;
 }
 

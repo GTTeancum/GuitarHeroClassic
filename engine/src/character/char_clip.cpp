@@ -845,9 +845,12 @@ void log_character_controller_graph_once(const Character& character) {
   }
   for (const auto& eyes : character.eyes) {
     std::fprintf(stderr,
-                 "[chargraph]   eyes %s lookats=%zu upperlid=%s\n",
-                 eyes.name.c_str(), eyes.lookats.size(),
-                 eyes.upperlid_or_blink_bone.c_str());
+                 "[chargraph]   eyes %s version=%d lookats=%zu "
+                 "legacyTransform=%s unreadBytes=%zu\n",
+                 eyes.name.c_str(), eyes.version, eyes.lookats.size(),
+                 eyes.legacy_transform.empty() ? "<none>"
+                                               : eyes.legacy_transform.c_str(),
+                 eyes.unread_bytes);
     for (const auto& lookat : eyes.lookats) {
       std::fprintf(stderr, "[chargraph]     eyesLookAt %s\n",
                    lookat.c_str());
