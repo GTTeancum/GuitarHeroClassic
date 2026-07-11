@@ -222,6 +222,32 @@ struct SourceCharUtlBoneTransResult {
   bool via_char_bone = false;
 };
 
+struct SourceCharUtlMergeBone {
+  std::string name;
+  std::string target;
+  int32_t position_context = 0;
+  int32_t scale_context = 0;
+  int32_t rotation_type = kSourceCharBonesTypeEnd;
+  int32_t rotation_context = 0;
+};
+
+struct SourceCharUtlMergeWarning {
+  std::string code;
+  std::string bone_name;
+  std::string source_name;
+  std::string dest_name;
+};
+
+struct SourceCharUtlMergeResult {
+  std::vector<SourceCharUtlMergeBone> dest_bones;
+  std::vector<SourceCharUtlMergeWarning> warnings;
+};
+
+struct SourceCharUtlTransformRow {
+  std::string name;
+  bool has_parent = false;
+};
+
 struct SourceCharLookAtBounds {
   std::array<float, 3> min = {0.0f, 0.0f, 0.0f};
   std::array<float, 3> max = {0.0f, 0.0f, 0.0f};
@@ -1232,6 +1258,16 @@ std::optional<SourceCharUtlBoneTransResult> source_char_utl_find_bone_trans(
     const std::string& name,
     const std::vector<SourceCharUtlObject>& objects);
 bool source_char_utl_is_animatable(const SourceCharUtlObject& object);
+SourceCharUtlMergeResult source_char_utl_merge_bones(
+    const std::vector<SourceCharUtlMergeBone>& source_bones,
+    const std::vector<SourceCharUtlMergeBone>& dest_bones,
+    int context_mask);
+std::vector<std::string> source_char_utl_bone_saver_capture_names(
+    const std::vector<SourceCharUtlTransformRow>& transforms);
+std::vector<std::string> source_char_utl_reset_transform_names(
+    const std::vector<SourceCharUtlTransformRow>& transforms);
+std::vector<std::string> source_char_utl_reset_hair_names(
+    const std::vector<std::string>& hair_names);
 
 // Source-backed CharLookAt::SyncLimits helper. Angles are serialized in degrees.
 SourceCharLookAtBounds source_char_lookat_sync_limits(

@@ -27,6 +27,18 @@ bool expect_present(bool got, const char* label) {
   return false;
 }
 
+bool expect_int(int got, int expected, const char* label) {
+  if (got == expected) return true;
+  std::cerr << label << ": got " << got << " expected " << expected << "\n";
+  return false;
+}
+
+bool expect_size(size_t got, size_t expected, const char* label) {
+  if (got == expected) return true;
+  std::cerr << label << ": got " << got << " expected " << expected << "\n";
+  return false;
+}
+
 ghogx::character::SourceCharUtlObject obj(
     const std::string& name,
     ghogx::character::SourceCharUtlObjectKind kind,
@@ -44,12 +56,23 @@ ghogx::character::SourceCharUtlObject obj(
 
 int main() {
   using ghogx::character::SourceCharUtlBoneTransResult;
+  using ghogx::character::SourceCharUtlMergeBone;
+  using ghogx::character::SourceCharUtlMergeResult;
   using ghogx::character::SourceCharUtlObject;
   using ghogx::character::SourceCharUtlObjectKind;
+  using ghogx::character::SourceCharUtlTransformRow;
+  using ghogx::character::kSourceCharBonesTypeEnd;
+  using ghogx::character::kSourceCharBonesTypeRotX;
+  using ghogx::character::kSourceCharBonesTypeRotY;
+  using ghogx::character::kSourceCharBonesTypeRotZ;
+  using ghogx::character::source_char_utl_bone_saver_capture_names;
   using ghogx::character::source_char_utl_find_bone;
   using ghogx::character::source_char_utl_find_bone_trans;
   using ghogx::character::source_char_utl_is_animatable;
+  using ghogx::character::source_char_utl_merge_bones;
   using ghogx::character::source_char_utl_name_with_suffix;
+  using ghogx::character::source_char_utl_reset_hair_names;
+  using ghogx::character::source_char_utl_reset_transform_names;
 
   bool ok = true;
 
@@ -146,6 +169,82 @@ int main() {
       source_char_utl_is_animatable(obj(
           "spot_neck_fret20.mesh", SourceCharUtlObjectKind::kMesh, 0)),
       false, "spot_ transform is not animatable");
+
+  const std::vector<SourceCharUtlMergeBone> source_bones = {
+      {"bone_hand.cb", "bone_arm.cb", 0x1, 0x2, kSourceCharBonesTypeRotZ,
+       0x4},
+      {"bone_arm.cb", "", 0x0, 0x0, kSourceCharBonesTypeEnd, 0x0},
+      {"bone_missing.cb", "bone_arm.cb", 0x1, 0x0,
+       kSourceCharBonesTypeRotX, 0x4},
+      {"bone_conflict.cb", "bone_arm.cb", 0x0, 0x0,
+       kSourceCharBonesTypeRotX, 0x4},
+      {"bone_targeted.cb", "bone_missing_target.cb", 0x0, 0x0,
+       kSourceCharBonesTypeEnd, 0x0},
+  };
+  const std::vector<SourceCharUtlMergeBone> dest_bones = {
+      {"bone_hand.cb", "", 0x10, 0x20, kSourceCharBonesTypeEnd, 0x40},
+      {"bone_arm.cb", "", 0x0, 0x0, kSourceCharBonesTypeEnd, 0x0},
+      {"bone_conflict.cb", "bone_other.cb", 0x0, 0x0,
+       kSourceCharBonesTypeRotY, 0x80},
+      {"bone_targeted.cb", "", 0x0, 0x0, kSourceCharBonesTypeEnd, 0x0},
+  };
+  const SourceCharUtlMergeResult merge =
+      source_char_utl_merge_bones(source_bones, dest_bones, 0x8);
+  ok &= expect_size(merge.dest_bones.size(), 4, "MergeBones dest count");
+  ok &= expect_string(merge.dest_bones[0].target, "bone_arm.cb",
+                      "MergeBones assigns missing target from dest CharBone");
+  ok &= expect_int(merge.dest_bones[0].position_context, 0x28,
+                   "MergeBones scale branch uses dest scale context");
+  ok &= expect_int(merge.dest_bones[0].scale_context, 0x20,
+                   "MergeBones preserves dest scale context");
+  ok &= expect_int(merge.dest_bones[0].rotation_type,
+                   kSourceCharBonesTypeRotZ,
+                   "MergeBones assigns missing rotation type");
+  ok &= expect_int(merge.dest_bones[0].rotation_context, 0x48,
+                   "MergeBones ORs rotation context");
+  ok &= expect_size(merge.warnings.size(), 6, "MergeBones warning count");
+  ok &= expect_string(merge.warnings[0].code, "missing_bone",
+                      "MergeBones missing source target warning");
+  ok &= expect_string(merge.warnings[1].code, "missing_bone",
+                      "MergeBones repeated missing position warning");
+  ok &= expect_string(merge.warnings[2].code, "missing_bone",
+                      "MergeBones repeated missing rotation warning");
+  ok &= expect_string(merge.warnings[3].code, "different_target",
+                      "MergeBones target mismatch warning");
+  ok &= expect_string(merge.warnings[4].code, "different_rotation",
+                      "MergeBones rotation mismatch warning");
+  ok &= expect_string(merge.warnings[5].code, "missing_target",
+                      "MergeBones missing target row warning");
+
+  const std::vector<SourceCharUtlTransformRow> transforms = {
+      {"bone_root.trans", false},
+      {"prop_guitar.trans", false},
+      {"bone_hand.trans", true},
+      {"spot_neck_fret20.mesh", false},
+  };
+  const std::vector<std::string> saved =
+      source_char_utl_bone_saver_capture_names(transforms);
+  ok &= expect_size(saved.size(), 2, "BoneSaver captures bone_ rows");
+  ok &= expect_string(saved[0], "bone_root.trans",
+                      "BoneSaver first bone row");
+  ok &= expect_string(saved[1], "bone_hand.trans",
+                      "BoneSaver keeps child bone row");
+  const std::vector<std::string> reset_transforms =
+      source_char_utl_reset_transform_names(transforms);
+  ok &= expect_size(reset_transforms.size(), 3,
+                    "ResetTransform resets top-level transforms");
+  ok &= expect_string(reset_transforms[0], "bone_root.trans",
+                      "ResetTransform includes root bone");
+  ok &= expect_string(reset_transforms[1], "prop_guitar.trans",
+                      "ResetTransform includes root prop");
+  ok &= expect_string(reset_transforms[2], "spot_neck_fret20.mesh",
+                      "ResetTransform includes root spot");
+  const std::vector<std::string> reset_hair =
+      source_char_utl_reset_hair_names({"hair_front1.hair", "scarf.hair"});
+  ok &= expect_size(reset_hair.size(), 2, "ResetHair enters every hair row");
+  ok &= expect_string(reset_hair[0], "hair_front1.hair",
+                      "ResetHair first row");
+  ok &= expect_string(reset_hair[1], "scarf.hair", "ResetHair second row");
 
   return ok ? 0 : 1;
 }

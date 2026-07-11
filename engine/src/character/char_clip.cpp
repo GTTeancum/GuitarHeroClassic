@@ -627,6 +627,29 @@ std::optional<SourceCharUtlObject> source_char_utl_find_named_transformable(
   return std::nullopt;
 }
 
+std::optional<size_t> source_char_utl_find_merge_bone_index(
+    const std::string& name,
+    const std::vector<SourceCharUtlMergeBone>& bones) {
+  const std::string lookup = source_char_utl_name_with_suffix(name, "cb");
+  for (size_t i = 0; i < bones.size(); ++i) {
+    if (bones[i].name == lookup) return i;
+  }
+  return std::nullopt;
+}
+
+std::optional<size_t> source_char_utl_grab_merge_bone(
+    const SourceCharUtlMergeBone& source_bone,
+    const std::vector<SourceCharUtlMergeBone>& dest_bones,
+    std::vector<SourceCharUtlMergeWarning>& warnings) {
+  const std::optional<size_t> index =
+      source_char_utl_find_merge_bone_index(source_bone.name, dest_bones);
+  if (!index) {
+    warnings.push_back(
+        {"missing_bone", source_bone.name, std::string(), std::string()});
+  }
+  return index;
+}
+
 }  // namespace
 
 std::optional<SourceCharUtlObject> source_char_utl_find_bone(
@@ -683,6 +706,103 @@ bool source_char_utl_is_animatable(const SourceCharUtlObject& object) {
     return false;
   }
   return object.name.rfind("spot_", 0) != 0;
+}
+
+SourceCharUtlMergeResult source_char_utl_merge_bones(
+    const std::vector<SourceCharUtlMergeBone>& source_bones,
+    const std::vector<SourceCharUtlMergeBone>& dest_bones,
+    int context_mask) {
+  SourceCharUtlMergeResult result;
+  result.dest_bones = dest_bones;
+
+  for (const SourceCharUtlMergeBone& source_bone : source_bones) {
+    if (!source_bone.target.empty()) {
+      const std::optional<size_t> dest_index =
+          source_char_utl_grab_merge_bone(source_bone, result.dest_bones,
+                                          result.warnings);
+      if (dest_index) {
+        SourceCharUtlMergeBone& dest = result.dest_bones[*dest_index];
+        if (dest.target.empty()) {
+          const std::optional<size_t> target_index =
+              source_char_utl_find_merge_bone_index(source_bone.target,
+                                                    result.dest_bones);
+          if (!target_index) {
+            result.warnings.push_back({"missing_target", source_bone.name,
+                                       source_bone.target, std::string()});
+          }
+          dest.target =
+              target_index ? result.dest_bones[*target_index].name : "";
+        } else if (dest.target != source_bone.target) {
+          result.warnings.push_back({"different_target", source_bone.name,
+                                     source_bone.target, dest.target});
+        }
+      }
+    }
+
+    if (source_bone.position_context != 0) {
+      const std::optional<size_t> dest_index =
+          source_char_utl_grab_merge_bone(source_bone, result.dest_bones,
+                                          result.warnings);
+      if (dest_index) {
+        result.dest_bones[*dest_index].position_context |= context_mask;
+      }
+    }
+
+    if (source_bone.scale_context != 0) {
+      const std::optional<size_t> dest_index =
+          source_char_utl_grab_merge_bone(source_bone, result.dest_bones,
+                                          result.warnings);
+      if (dest_index) {
+        SourceCharUtlMergeBone& dest = result.dest_bones[*dest_index];
+        dest.position_context = dest.scale_context | context_mask;
+      }
+    }
+
+    if (source_bone.rotation_context != 0 &&
+        source_bone.rotation_type != kSourceCharBonesTypeEnd) {
+      const std::optional<size_t> dest_index =
+          source_char_utl_grab_merge_bone(source_bone, result.dest_bones,
+                                          result.warnings);
+      if (dest_index) {
+        SourceCharUtlMergeBone& dest = result.dest_bones[*dest_index];
+        if (dest.rotation_type != kSourceCharBonesTypeEnd &&
+            dest.rotation_type != source_bone.rotation_type) {
+          result.warnings.push_back(
+              {"different_rotation", source_bone.name,
+               std::to_string(source_bone.rotation_type),
+               std::to_string(dest.rotation_type)});
+        } else {
+          dest.rotation_type = source_bone.rotation_type;
+          dest.rotation_context |= context_mask;
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+std::vector<std::string> source_char_utl_bone_saver_capture_names(
+    const std::vector<SourceCharUtlTransformRow>& transforms) {
+  std::vector<std::string> names;
+  for (const SourceCharUtlTransformRow& transform : transforms) {
+    if (transform.name.rfind("bone_", 0) == 0) names.push_back(transform.name);
+  }
+  return names;
+}
+
+std::vector<std::string> source_char_utl_reset_transform_names(
+    const std::vector<SourceCharUtlTransformRow>& transforms) {
+  std::vector<std::string> names;
+  for (const SourceCharUtlTransformRow& transform : transforms) {
+    if (!transform.has_parent) names.push_back(transform.name);
+  }
+  return names;
+}
+
+std::vector<std::string> source_char_utl_reset_hair_names(
+    const std::vector<std::string>& hair_names) {
+  return hair_names;
 }
 
 SourceCharLookAtBounds source_char_lookat_sync_limits(

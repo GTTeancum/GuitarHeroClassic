@@ -1676,6 +1676,22 @@ note, and all report `unreadBytes=0`.
     `source_char_utl_is_animatable` port those deterministic utility rules for
     decoded object inventories. This is a source lookup contract only; it does
     not invent new pose writes or renderer-side character fixes.
+  - `CharUtlMergeBones` scans source `CharBone` rows and repeatedly resolves
+    the same-named destination row through `GrabBone` / `CharUtlFindBone`.
+    Targets are assigned only when the destination target is empty and the
+    source target resolves in the destination dir; mismatched existing targets
+    warn. Position contexts OR in the caller mask. The checked source's
+    scale-context branch calls `SetPositionContext(bone->ScaleContext() | i)`;
+    native preserves that exact source behavior in
+    `source_char_utl_merge_bones` as a documented contract rather than
+    "correcting" it. Rotation contexts OR in the caller mask only when the
+    destination rotation type is unset or matches the source; mismatches warn.
+  - `CharUtlBoneSaver` snapshots local transforms for transformables whose
+    names begin with `bone_` and restores them in the same filtered iteration.
+    `CharUtlResetTransform` resets only top-level transformables with no
+    parent, and `CharUtlResetHair` calls `Enter()` for every `CharHair` row
+    under the character. Native deterministic helpers cover those selection
+    rules without changing runtime pose or render behavior.
 - `rb3-latest/src/system/char/CharBones.cpp` is concrete for channel identity
   and byte layout:
   - `CharBones::TypeOf` maps suffixes `.pos`, `.scale`, `.quat`, `.rotx`,

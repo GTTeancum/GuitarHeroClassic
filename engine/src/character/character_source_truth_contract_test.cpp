@@ -9548,6 +9548,16 @@ int run_contract() {
                  "boolsource_char_utl_is_animatable("
                  "constSourceCharUtlObject&object);",
                  "native header exposes CharUtl IsAnimatable helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharUtlMergeResultsource_char_utl_merge_bones("
+                 "conststd::vector<SourceCharUtlMergeBone>&source_bones,",
+                 "native header exposes CharUtl MergeBones helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>source_char_utl_reset_transform_names(",
+                 "native header exposes CharUtl ResetTransform helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>source_char_utl_reset_hair_names(",
+                 "native header exposes CharUtl ResetHair helper");
   ok &= contains(char_clip,
                  "std::stringsource_char_utl_name_with_suffix("
                  "conststd::string&name,conststd::string&suffix){"
@@ -9585,6 +9595,20 @@ int run_contract() {
   ok &= contains(char_clip,
                  "returnobject.name.rfind(\"spot_\",0)!=0;",
                  "native CharUtl IsAnimatable rejects spot_ names");
+  ok &= contains(char_clip,
+                 "dest.position_context=dest.scale_context|context_mask;",
+                 "native CharUtl MergeBones preserves source scale branch");
+  ok &= contains(char_clip,
+                 "result.warnings.push_back({\"different_rotation\","
+                 "source_bone.name,",
+                 "native CharUtl MergeBones warns on rotation mismatch");
+  ok &= contains(char_clip,
+                 "if(!transform.has_parent)names.push_back(transform.name);",
+                 "native CharUtl ResetTransform resets only top-level rows");
+  ok &= contains(char_clip,
+                 "std::vector<std::string>source_char_utl_reset_hair_names("
+                 "conststd::vector<std::string>&hair_names){returnhair_names;}",
+                 "native CharUtl ResetHair enters each hair row");
   ok &= contains(char_utl_source_test,
                  "source_char_utl_name_with_suffix(\"face.bone.mesh\",\"cb\")",
                  "focused CharUtl source test covers final suffix replacement");
@@ -9603,6 +9627,19 @@ int run_contract() {
   ok &= contains(char_utl_source_test,
                  "source_char_utl_is_animatable(",
                  "focused CharUtl source test covers IsAnimatable");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_merge_bones(source_bones,dest_bones,0x8)",
+                 "focused CharUtl source test covers MergeBones");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_bone_saver_capture_names(transforms)",
+                 "focused CharUtl source test covers BoneSaver selection");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_reset_transform_names(transforms)",
+                 "focused CharUtl source test covers ResetTransform");
+  ok &= contains(char_utl_source_test,
+                 "source_char_utl_reset_hair_names({\"hair_front1.hair\","
+                 "\"scarf.hair\"})",
+                 "focused CharUtl source test covers ResetHair");
   ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharUtl.cpp` and",
                  "document cites latest CharUtl source");
@@ -9612,6 +9649,15 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_utl_name_with_suffix`,",
                  "document records native CharUtl helper ports");
+  ok &= contains(doc,
+                 "`CharUtlMergeBones` scans source `CharBone` rows",
+                 "document records source CharUtl MergeBones behavior");
+  ok &= contains(doc,
+                 "scale-context branch calls `SetPositionContext(bone->ScaleContext() | i)`",
+                 "document records exact source CharUtl scale branch");
+  ok &= contains(doc,
+                 "`CharUtlResetHair` calls `Enter()` for every `CharHair` row",
+                 "document records source CharUtl ResetHair behavior");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "voidCharBones::ScaleAdd(CharClip*clip,floatf1,floatf2,"
                  "floatf3){clip->ScaleAdd(*this,f1,f2,f3);}",
