@@ -1075,6 +1075,12 @@ note, and all report `unreadBytes=0`.
     `SetPlayFlags` dirty-state bodies: unchanged values preserve the incoming
     dirty state, while changed values store the requested flag value and mark
     the clip dirty.
+  - Native `source_char_clip_shares_groups` ports the complete
+    `CharClip::SharesGroups` ownership query over the clip's `Refs()` list:
+    scan source ref owners in reverse order, ignore non-`CharClipGroup`
+    owners, and return true when any owning clip group contains the candidate
+    clip. This helper records the source group-membership rule only; it does
+    not claim the missing clip-driver evaluator.
 - `rb3-latest/src/system/char/CharClipDriver.cpp` is concrete for clip-driver
   stack construction, mask application to default blend/loop/beat-align flags,
   clip deletion, exit events, and sync animation cleanup. It does not include a

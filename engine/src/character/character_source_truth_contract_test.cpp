@@ -4535,9 +4535,20 @@ int run_contract() {
                  "voidCharClip::SetFlags(inti){if(i!=mFlags){mFlags=i;"
                  "mDirty=true;}}",
                  "latest CharClip source exposes SetFlags dirty guard");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "boolCharClip::SharesGroups(CharClip*clip){std::vector<"
+                 "ObjRef*>::const_reverse_iteratorit=Refs().rbegin();",
+                 "latest CharClip source exposes SharesGroups ref-owner scan");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "CharClipGroup*grp=dynamic_cast<CharClipGroup*>((*it)->"
+                 "RefOwner());if(grp&&grp->HasClip(clip))returntrue;",
+                 "latest CharClip source exposes SharesGroups group membership");
   ok &= contains(doc,
                  "Native `source_char_clip_set_flags` and",
                  "document records native CharClip flag dirty helpers");
+  ok &= contains(doc,
+                 "Native `source_char_clip_shares_groups` ports the complete",
+                 "document records native CharClip SharesGroups helper");
   ok &= contains(doc,
                  "Native `source_char_clip_default_state` records the complete "
                  "checked\n    constructor defaults",
@@ -4599,6 +4610,15 @@ int run_contract() {
                  "uint32_trequested_play_flags);",
                  "native character API exposes source CharClip SetPlayFlags helper");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipRefOwner{boolis_clip_group=false;"
+                 "std::vector<std::string>group_clips;};",
+                 "native character API exposes source CharClip ref-owner row");
+  ok &= contains(char_clip_h,
+                 "boolsource_char_clip_shares_groups(conststd::vector<"
+                 "SourceCharClipRefOwner>&ref_owners,conststd::string&"
+                 "candidate_clip_name);",
+                 "native character API exposes source CharClip SharesGroups helper");
+  ok &= contains(char_clip_h,
                  "boolsource_char_driver_starved(boolhas_first,"
                  "boolfirst_has_next,uint32_tfirst_play_flags);",
                  "native character API exposes source CharDriver starved helper");
@@ -4658,6 +4678,16 @@ int run_contract() {
                  "returnupdate;}",
                  "native CharClip SetPlayFlags helper ports source dirty guard");
   ok &= contains(char_clip,
+                 "boolsource_char_clip_shares_groups(conststd::vector<"
+                 "SourceCharClipRefOwner>&ref_owners,conststd::string&"
+                 "candidate_clip_name){for(autoit=ref_owners.rbegin();it!="
+                 "ref_owners.rend();++it){if(!it->is_clip_group)continue;",
+                 "native CharClip SharesGroups helper scans ref owners in reverse");
+  ok &= contains(char_clip,
+                 "std::find(it->group_clips.begin(),it->group_clips.end(),"
+                 "candidate_clip_name)!=it->group_clips.end()){returntrue;}",
+                 "native CharClip SharesGroups helper checks group membership");
+  ok &= contains(char_clip,
                  "constuint32_tplay_flags=char_clip_driver_masked_play_flags("
                  "clip,flags);",
                  "native CharClipPlayer applies source CharClipDriver flag mask");
@@ -4679,6 +4709,9 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_default_state()",
                  "focused clip driver flags test covers CharClip constructor defaults");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_shares_groups(",
+                 "focused clip driver flags test covers CharClip SharesGroups helper");
   ok &= contains(char_clip,
                  "boolsource_char_driver_starved(boolhas_first,"
                  "boolfirst_has_next,uint32_tfirst_play_flags){if(has_first){"

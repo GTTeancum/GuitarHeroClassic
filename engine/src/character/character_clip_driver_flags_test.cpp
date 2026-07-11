@@ -91,6 +91,20 @@ bool expect_flag_update(const ghogx::character::SourceCharClipFlagUpdate& got,
   return ok;
 }
 
+bool expect_shares_groups(
+    const std::vector<ghogx::character::SourceCharClipRefOwner>& ref_owners,
+    const std::string& candidate_clip_name,
+    bool want,
+    const char* label) {
+  const bool got =
+      ghogx::character::source_char_clip_shares_groups(ref_owners,
+                                                       candidate_clip_name);
+  if (got == want) return true;
+  std::cerr << "SharesGroups mismatch for " << label << ": got " << got
+            << " want " << want << "\n";
+  return false;
+}
+
 bool expect_default_state(const ghogx::character::SourceCharClipDefaultState& got) {
   bool ok = true;
   if (got.frames_per_sec != 30.0f) {
@@ -234,6 +248,15 @@ int main() {
   ok &= expect_flag_update(
       ghogx::character::source_char_clip_set_play_flags(0x20u, false, 0x10u),
       0x10u, true, true, "SetPlayFlags changed");
+  ok &= expect_shares_groups(
+      {{false, {"idle"}}, {true, {"idle", "solo", "ending"}}},
+      "solo", true, "candidate in source group owner");
+  ok &= expect_shares_groups(
+      {{false, {"solo"}}, {true, {"idle", "ending"}}},
+      "solo", false, "non-group owner ignored");
+  ok &= expect_shares_groups(
+      {{true, {"idle"}}, {true, {"ending"}}},
+      "solo", false, "candidate absent from groups");
   ok &= expect_default_state(ghogx::character::source_char_clip_default_state());
   ok &= expect_blend(-1.0f, 1.0f, 1.0f, "source default blend");
   ok &= expect_blend(-1.0f, 0.25f, 0.25f, "custom driver blend");

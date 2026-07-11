@@ -161,6 +161,11 @@ struct CharClipGroup {
   bool loaded = false;
 };
 
+struct SourceCharClipRefOwner {
+  bool is_clip_group = false;
+  std::vector<std::string> group_clips;
+};
+
 struct ClipChannelLayer {
   std::vector<ClipChannel> channels;
   float weight = 1.0f;
@@ -284,6 +289,9 @@ SourceCharClipFlagUpdate source_char_clip_set_play_flags(
     uint32_t current_play_flags,
     bool current_dirty,
     uint32_t requested_play_flags);
+bool source_char_clip_shares_groups(
+    const std::vector<SourceCharClipRefOwner>& ref_owners,
+    const std::string& candidate_clip_name);
 
 // Source-backed CharDriver::Starved helper for the visible play stack state.
 bool source_char_driver_starved(bool has_first, bool first_has_next,

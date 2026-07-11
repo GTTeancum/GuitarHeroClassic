@@ -1793,6 +1793,19 @@ SourceCharClipFlagUpdate source_char_clip_set_play_flags(
   return update;
 }
 
+bool source_char_clip_shares_groups(
+    const std::vector<SourceCharClipRefOwner>& ref_owners,
+    const std::string& candidate_clip_name) {
+  for (auto it = ref_owners.rbegin(); it != ref_owners.rend(); ++it) {
+    if (!it->is_clip_group) continue;
+    if (std::find(it->group_clips.begin(), it->group_clips.end(),
+                  candidate_clip_name) != it->group_clips.end()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool source_char_driver_starved(bool has_first, bool first_has_next,
                                 uint32_t first_play_flags) {
   if (has_first) {
