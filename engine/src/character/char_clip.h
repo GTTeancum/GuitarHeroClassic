@@ -391,6 +391,9 @@ int source_char_clip_group_num_flag_duplicates(
     uint32_t mask);
 std::vector<std::string> source_char_clip_group_sorted_names(
     std::vector<std::string> clip_names);
+std::vector<std::string> source_char_clip_group_add_clip(
+    std::vector<std::string> clip_names,
+    const std::string& clip_name);
 
 struct SourceCharClipDriverState {
   uint32_t play_flags = 0;
@@ -466,6 +469,14 @@ struct SourceCharClipDefaultState {
 struct SourceCharClipBeatEvent {
   std::string event;
   float beat = 0.0f;
+};
+
+struct SourceCharClipResourceLookup {
+  bool has_type_def = false;
+  bool has_resource_array = false;
+  std::string resource_name;
+  bool found_resource = false;
+  bool warn_no_resource = false;
 };
 
 struct SourceCharClipTransitionsState {
@@ -722,6 +733,11 @@ void source_char_clip_beat_event_assign(SourceCharClipBeatEvent& dest,
 SourceCharClipBeatEvent source_char_clip_beat_event_loaded(
     const std::string& event,
     float beat);
+SourceCharClipResourceLookup source_char_clip_get_resource(
+    bool has_type_def,
+    bool has_resource_array,
+    const std::string& resource_name,
+    bool resource_found);
 int source_char_clip_get_context(bool has_type_def,
                                  bool has_resource_array,
                                  int resource_context);

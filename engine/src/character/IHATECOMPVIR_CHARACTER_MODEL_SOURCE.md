@@ -1468,6 +1468,10 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_clip_group_sorted_names` ports the complete
     `CharClipGroup::Sort` ordering rule: clip names are sorted by the source
     `strcmp(i->Name(), j->Name()) < 0` comparator.
+  - Native `source_char_clip_group_add_clip` ports the concrete
+    `CharClipGroup::AddClip` duplicate gate: append the requested clip only
+    when `HasClip` would report it absent, preserving the existing source
+    order.
   - Gameplay routes authored `CharClipGroup` resolution through the shared
     character helper so the same source-backed reader feeds both WorldCrowd and
     performer sync group lookup.
@@ -1729,6 +1733,10 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_clip_get_context` ports the concrete `GetContext`
     fallback: a type definition with a `resource` array returns the resource
     macro context value; missing type/resource data returns zero.
+  - Native `source_char_clip_get_resource` ports the concrete `GetResource`
+    lookup shape: inspect the type definition's `resource` array, request the
+    named `CharBoneDir` resource, and warn when no resource is resolved. It
+    records the lookup decision only; it does not load or synthesize resources.
   - Native `source_char_clip_transitions_*` helpers port the concrete
     `Transitions` constructor, `Size`, and `Clear` bodies: the node range starts
     empty with an owner, `Size` counts transition node-vector entries, and

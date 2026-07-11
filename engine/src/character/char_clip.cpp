@@ -1976,6 +1976,16 @@ std::vector<std::string> source_char_clip_group_sorted_names(
   return clip_names;
 }
 
+std::vector<std::string> source_char_clip_group_add_clip(
+    std::vector<std::string> clip_names,
+    const std::string& clip_name) {
+  if (std::find(clip_names.begin(), clip_names.end(), clip_name) ==
+      clip_names.end()) {
+    clip_names.push_back(clip_name);
+  }
+  return clip_names;
+}
+
 uint32_t source_char_clip_driver_masked_play_flags(uint32_t clip_play_flags,
                                                    uint32_t mask) {
   uint32_t play_flags = clip_play_flags;
@@ -2124,6 +2134,22 @@ SourceCharClipBeatEvent source_char_clip_beat_event_loaded(
   loaded.event = event;
   loaded.beat = beat;
   return loaded;
+}
+
+SourceCharClipResourceLookup source_char_clip_get_resource(
+    bool has_type_def,
+    bool has_resource_array,
+    const std::string& resource_name,
+    bool resource_found) {
+  SourceCharClipResourceLookup lookup;
+  lookup.has_type_def = has_type_def;
+  lookup.has_resource_array = has_resource_array;
+  if (has_type_def && has_resource_array) {
+    lookup.resource_name = resource_name;
+    lookup.found_resource = resource_found;
+  }
+  lookup.warn_no_resource = !lookup.found_resource;
+  return lookup;
 }
 
 int source_char_clip_get_context(bool has_type_def,

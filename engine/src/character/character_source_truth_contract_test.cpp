@@ -9283,6 +9283,13 @@ int run_contract() {
                  "bs>>beat;}",
                  "latest CharClip source exposes BeatEvent load order");
   ok &= contains(rb3_latest_char_clip_cpp,
+                 "CharBoneDir*CharClip::GetResource()const{CharBoneDir*dir=0;"
+                 "constDataArray*tdef=TypeDef();if(tdef){DataArray*found="
+                 "tdef->FindArray(\"resource\",false);if(found)dir="
+                 "CharBoneDir::FindResource(found->Str(1));}if(!dir){"
+                 "MILO_WARN(\"%shasnoresource\",PathName(this));}returndir;}",
+                 "latest CharClip source exposes GetResource lookup and warning");
+  ok &= contains(rb3_latest_char_clip_cpp,
                  "intCharClip::GetContext()const{constDataArray*tdef=TypeDef();"
                  "if(tdef){DataArray*found=tdef->FindArray(\"resource\",false);"
                  "if(found){returnDataGetMacro(found->Str(2))->Int(0);}}return0;}",
@@ -9339,6 +9346,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_clip_get_context` ports the concrete `GetContext`",
                  "document records native CharClip GetContext helper");
+  ok &= contains(doc,
+                 "Native `source_char_clip_get_resource` ports the concrete `GetResource`",
+                 "document records native CharClip GetResource helper");
+  ok &= contains(doc,
+                 "records the lookup decision only; it does not load or synthesize resources",
+                 "document fences CharClip GetResource helper");
   ok &= contains(doc,
                  "Native `source_char_clip_transitions_*` helpers port the concrete",
                  "document records native CharClip Transitions helpers");
@@ -9518,6 +9531,11 @@ int run_contract() {
                  "floatbeat=0.0f;};",
                  "native character API exposes source CharClip BeatEvent row");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipResourceLookup{boolhas_type_def=false;"
+                 "boolhas_resource_array=false;std::stringresource_name;"
+                 "boolfound_resource=false;boolwarn_no_resource=false;};",
+                 "native character API exposes source CharClip resource lookup row");
+  ok &= contains(char_clip_h,
                  "structSourceCharClipTransitionsState{boolhas_owner=false;"
                  "std::vector<int>node_sizes;};",
                  "native character API exposes source CharClip Transitions state row");
@@ -9552,6 +9570,11 @@ int run_contract() {
                  "SourceCharClipBeatEventsource_char_clip_beat_event_loaded("
                  "conststd::string&event,floatbeat);",
                  "native character API exposes source CharClip BeatEvent load helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipResourceLookupsource_char_clip_get_resource("
+                 "boolhas_type_def,boolhas_resource_array,conststd::string&"
+                 "resource_name,boolresource_found);",
+                 "native character API exposes source CharClip GetResource helper");
   ok &= contains(char_clip_h,
                  "intsource_char_clip_get_context(boolhas_type_def,"
                  "boolhas_resource_array,intresource_context);",
@@ -9775,6 +9798,16 @@ int run_contract() {
                  "loaded.event=event;loaded.beat=beat;returnloaded;}",
                  "native CharClip BeatEvent load helper ports read order fields");
   ok &= contains(char_clip,
+                 "SourceCharClipResourceLookupsource_char_clip_get_resource("
+                 "boolhas_type_def,boolhas_resource_array,conststd::string&"
+                 "resource_name,boolresource_found){SourceCharClipResourceLookup"
+                 "lookup;lookup.has_type_def=has_type_def;lookup.has_resource_array="
+                 "has_resource_array;if(has_type_def&&has_resource_array){"
+                 "lookup.resource_name=resource_name;lookup.found_resource="
+                 "resource_found;}lookup.warn_no_resource=!lookup.found_resource;"
+                 "returnlookup;}",
+                 "native CharClip GetResource helper ports lookup and warning");
+  ok &= contains(char_clip,
                  "intsource_char_clip_get_context(boolhas_type_def,"
                  "boolhas_resource_array,intresource_context){if(has_type_def&&"
                  "has_resource_array)returnresource_context;return0;}",
@@ -9871,6 +9904,12 @@ int run_contract() {
                  "source_char_clip_beat_event_assign(assigned_event,"
                  "loaded_event)",
                  "focused clip driver flags test covers BeatEvent assignment");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_get_resource(true,true,\"rock1_resource\",true)",
+                 "focused clip driver flags test covers found GetResource helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_get_resource(false,true,\"ignored_resource\",true)",
+                 "focused clip driver flags test covers missing TypeDef resource fallback");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_get_context(true,true,0x27)",
                  "focused clip driver flags test covers GetContext resource value");
@@ -10429,6 +10468,10 @@ int run_contract() {
                  "voidCharClipGroup::Sort(){std::sort(mClips.begin(),"
                  "mClips.end(),Alphabetically());}",
                  "latest CharClipGroup source exposes Sort helper");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "voidCharClipGroup::AddClip(CharClip*clip){if(!HasClip(clip))"
+                 "mClips.push_back(ObjOwnerPtr<CharClip,ObjectDir>(this,clip));}",
+                 "latest CharClipGroup source exposes AddClip duplicate gate");
   ok &= contains(char_clip_h,
                  "structCharClipGroup{std::stringname;std::stringmilo_path;"
                  "std::vector<std::string>clips;uint32_tversion=0;"
@@ -10453,6 +10496,10 @@ int run_contract() {
                  "std::vector<std::string>source_char_clip_group_sorted_names("
                  "std::vector<std::string>clip_names);",
                  "native character API exposes source-backed CharClipGroup sort helper");
+  ok &= contains(char_clip_h,
+                 "std::vector<std::string>source_char_clip_group_add_clip("
+                 "std::vector<std::string>clip_names,conststd::string&clip_name);",
+                 "native character API exposes source-backed CharClipGroup AddClip helper");
   ok &= contains(char_clip,
                  "CharClipGroupload_clip_group(",
                  "native clip decoder implements shared clip group reader");
@@ -10491,6 +10538,13 @@ int run_contract() {
                  "clip_names.begin(),clip_names.end());returnclip_names;}",
                  "native clip group sort helper mirrors source name ordering");
   ok &= contains(char_clip,
+                 "std::vector<std::string>source_char_clip_group_add_clip("
+                 "std::vector<std::string>clip_names,conststd::string&clip_name){"
+                 "if(std::find(clip_names.begin(),clip_names.end(),clip_name)=="
+                 "clip_names.end()){clip_names.push_back(clip_name);}return"
+                 "clip_names;}",
+                 "native clip group AddClip helper mirrors source duplicate gate");
+  ok &= contains(char_clip,
                  "\"[clip-group-source]group=%smilo=%sversion=%u\"",
                  "native clip group reader logs source row proof");
   ok &= contains(char_clip,
@@ -10502,12 +10556,18 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_group_sorted_names(input)",
                  "focused flag-mask test covers CharClipGroup sort helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_group_add_clip(input,clip_name)",
+                 "focused flag-mask test covers CharClipGroup AddClip helper");
   ok &= contains(doc,
                  "Native `source_char_clip_group_num_flag_duplicates` ports",
                  "document records native CharClipGroup duplicate helper");
   ok &= contains(doc,
                  "Native `source_char_clip_group_sorted_names` ports",
                  "document records native CharClipGroup sort helper");
+  ok &= contains(doc,
+                 "Native `source_char_clip_group_add_clip` ports the concrete",
+                 "document records native CharClipGroup AddClip helper");
   ok &= contains(doc,
                  "selected clip's flags with every other clip",
                  "document records source CharClipGroup duplicate behavior");

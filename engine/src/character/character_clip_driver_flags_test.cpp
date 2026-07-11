@@ -50,6 +50,21 @@ bool expect_group_sort(const std::vector<std::string>& input,
   return false;
 }
 
+bool expect_group_add(const std::vector<std::string>& input,
+                      const std::string& clip_name,
+                      const std::vector<std::string>& want,
+                      const char* label) {
+  const std::vector<std::string> got =
+      ghogx::character::source_char_clip_group_add_clip(input, clip_name);
+  if (got == want) return true;
+  std::cerr << "group add mismatch for " << label << ": got";
+  for (const auto& clip : got) std::cerr << " " << clip;
+  std::cerr << " want";
+  for (const auto& clip : want) std::cerr << " " << clip;
+  std::cerr << "\n";
+  return false;
+}
+
 bool expect_indices(const std::vector<size_t>& got,
                     const std::vector<size_t>& want,
                     const char* label) {
@@ -530,6 +545,30 @@ bool expect_driver_midi_helpers() {
   return ok;
 }
 
+bool expect_resource_lookup(
+    const ghogx::character::SourceCharClipResourceLookup& got,
+    bool has_type_def,
+    bool has_resource_array,
+    const std::string& resource_name,
+    bool found_resource,
+    bool warn_no_resource,
+    const char* label) {
+  bool ok = true;
+  if (got.has_type_def != has_type_def ||
+      got.has_resource_array != has_resource_array ||
+      got.resource_name != resource_name ||
+      got.found_resource != found_resource ||
+      got.warn_no_resource != warn_no_resource) {
+    std::cerr << "resource lookup mismatch for " << label << ": typeDef="
+              << got.has_type_def << " resourceArray="
+              << got.has_resource_array << " resource='" << got.resource_name
+              << "' found=" << got.found_resource
+              << " warn=" << got.warn_no_resource << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_clip_driver_helpers() {
   bool ok = true;
   const uint32_t masked =
@@ -679,6 +718,11 @@ int main() {
                                 "invalid source index");
   ok &= expect_group_sort({"z_idle", "A_intro", "mid"}, {"A_intro", "mid", "z_idle"},
                           "alphabetical source order");
+  ok &= expect_group_add({"idle", "solo"}, "ending",
+                         {"idle", "solo", "ending"},
+                         "append absent clip");
+  ok &= expect_group_add({"idle", "solo"}, "solo", {"idle", "solo"},
+                         "ignore duplicate clip");
   ok &= expect_clip_driver_helpers();
   ok &= expect_driver_midi_helpers();
   ok &= expect_starved(false, false, 0, true, "empty stack");
@@ -742,6 +786,18 @@ int main() {
                                                        loaded_event);
   ok &= expect_beat_event(assigned_event, "solo_hit", 12.5f,
                           "BeatEvent assignment");
+  ok &= expect_resource_lookup(
+      ghogx::character::source_char_clip_get_resource(true, true,
+                                                      "rock1_resource", true),
+      true, true, "rock1_resource", true, false, "found resource");
+  ok &= expect_resource_lookup(
+      ghogx::character::source_char_clip_get_resource(true, true,
+                                                      "missing_resource", false),
+      true, true, "missing_resource", false, true, "missing resource");
+  ok &= expect_resource_lookup(
+      ghogx::character::source_char_clip_get_resource(false, true,
+                                                      "ignored_resource", true),
+      false, true, "", false, true, "missing typedef");
   if (ghogx::character::source_char_clip_get_context(true, true, 0x27) !=
       0x27) {
     std::cerr << "GetContext resource macro mismatch\n";
