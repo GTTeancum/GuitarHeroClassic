@@ -182,6 +182,7 @@ struct CharServoBone {
   std::string name;
   int32_t version = 0;
   std::string clip_type;
+  size_t unread_bytes = 0;
 };
 
 struct CharLookAt {

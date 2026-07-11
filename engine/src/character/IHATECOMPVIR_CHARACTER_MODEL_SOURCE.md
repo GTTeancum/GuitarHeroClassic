@@ -680,9 +680,10 @@ note, and all report `unreadBytes=0`.
     `bone_facing.pos`, `bone_pelvis`, `bone_facing.rotz`, and
     `bone_facing_delta.rotz` from the source bone data.
   - Native GHOGX decodes and logs the source `CharServoBone` row and
-    `clip_type`. It does not port `MoveToFacing`, `MoveToDeltaFacing`, or
-    broad `CharBonesMeshes` movement until the connected clip/bone source path
-    is implemented as a whole.
+    `clip_type`, enforces the source revision range, and records the row tail
+    byte count. It does not port `MoveToFacing`, `MoveToDeltaFacing`, or broad
+    `CharBonesMeshes` movement until the connected clip/bone source path is
+    implemented as a whole.
 - `rb3-latest/src/system/char/CharClipGroup.cpp` and
   `rb3-latest/src/system/char/CharClipGroup.h`
   - `CharClipGroup::Load` reads the object prefix through
@@ -912,6 +913,9 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
   `engine/out/source_truth_controller_inventory_20260710/grim_charikrod_servo_inventory_after.log`
   records Grim's decoded row as `version=1 clipType=<none>`, matching the
   source `clip_type` gate.
+  `engine/out/source_charservobone_20260711/stock_charservobone_controllers.stdout.log`
+  refreshes that proof against the current decoder: all 24 stock rows are
+  `version=1`, have no `clipType`, and report `unreadBytes=0`.
 - Four base characters have no decoded `CharHair` rows in this stock set:
   `metal_bass`, `metal_drummer`, `metal_keyboard`, and `metal_singer`. The
   other 20 base character MILOs expose 31 decoded `CharHair` rows total.

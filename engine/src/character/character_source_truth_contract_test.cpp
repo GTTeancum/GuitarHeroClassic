@@ -1120,16 +1120,22 @@ int run_contract() {
                  "CharServoBone source realloc finds facing delta rows");
   ok &= contains(char_mesh_h,
                  "structCharServoBone{std::stringname;int32_tversion=0;"
-                 "std::stringclip_type;};",
+                 "std::stringclip_type;size_tunread_bytes=0;};",
                  "native CharServoBone stores source load fields");
   ok &= contains(char_mesh, "CharServoBonedecode_servo_bone(",
                  "native CharServoBone decoder exists");
+  ok &= contains(char_mesh, "servo.version=r.i32();",
+                 "native CharServoBone decoder reads revision");
   ok &= contains(char_mesh,
-                 "servo.version=r.i32();read_object_fields(r);",
-                 "native CharServoBone decoder reads revision and object fields");
+                 "if(servo.version<0||servo.version>2){throwstd::runtime_error",
+                 "native CharServoBone decoder enforces source revision range");
+  ok &= contains(char_mesh, "read_object_fields(r);//Hmx::Objectmetadata.",
+                 "native CharServoBone decoder reads object fields");
   ok &= contains(char_mesh,
                  "if(servo.version>1)servo.clip_type=r.str();",
                  "native CharServoBone decoder mirrors source clip_type gate");
+  ok &= contains(char_mesh, "servo.unread_bytes=r.n-r.pos;",
+                 "native CharServoBone decoder records source tail bytes");
   ok &= contains(char_mesh,
                  "out.servo_bones.push_back(decode_servo_bone(de.name,b));",
                  "character load stores decoded CharServoBone rows");
@@ -1171,12 +1177,26 @@ int run_contract() {
   ok &= contains(bind_audit, "--types",
                  "bind audit exposes stock object-type inventory switch");
   ok &= contains(bind_audit,
-                 "\"[controller-servo-bone]char=%sname=%sversion=%dclipType=%s",
+                 "\"[controller-servo-bone]char=%sname=%sversion=%dclipType=%s"
+                 "\"",
                  "controller audit logs CharServoBone source fields");
+  ok &= contains(bind_audit, "unreadBytes=%zu",
+                 "controller audit logs CharServoBone source tail");
   ok &= contains(doc, "`CharServoBone::Load` accepts source revisions through 2",
                  "document records CharServoBone source load");
   ok &= contains(doc, "revision is greater than 1",
                  "document records CharServoBone clip_type revision gate");
+  ok &= contains(doc,
+                 "enforces the source revision range, and records the row tail",
+                 "document records CharServoBone tail-byte proof");
+  ok &= contains(doc,
+                 "source_charservobone_20260711/stock_charservobone_controllers"
+                 ".stdout.log",
+                 "document cites refreshed CharServoBone stock proof");
+  ok &= contains(doc,
+                 "all 24 stock rows are\n  `version=1`, have no `clipType`, "
+                 "and report `unreadBytes=0`",
+                 "document records refreshed CharServoBone zero-tail proof");
   ok &= contains(doc, "does not port `MoveToFacing`, `MoveToDeltaFacing`",
                  "document fences CharServoBone movement behavior");
   ok &= contains(rb3_latest_char_weightable_h,

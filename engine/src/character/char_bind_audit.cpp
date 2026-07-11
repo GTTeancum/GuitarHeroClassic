@@ -431,9 +431,10 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
   }
   for (const auto& servo : c.servo_bones) {
     std::printf(
-        "[controller-servo-bone] char=%s name=%s version=%d clipType=%s\n",
+        "[controller-servo-bone] char=%s name=%s version=%d clipType=%s "
+        "unreadBytes=%zu\n",
         c.dir_name.c_str(), servo.name.c_str(), servo.version,
-        none_if_empty(servo.clip_type));
+        none_if_empty(servo.clip_type), servo.unread_bytes);
   }
   for (const auto& rod : c.ik_rods) {
     std::printf(

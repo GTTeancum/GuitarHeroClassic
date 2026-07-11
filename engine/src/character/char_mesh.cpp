@@ -683,8 +683,13 @@ CharServoBone decode_servo_bone(const std::string& entry_name,
   CharServoBone servo;
   servo.name = entry_name;
   servo.version = r.i32();
+  if (servo.version < 0 || servo.version > 2) {
+    throw std::runtime_error(
+        "char_mesh: CharServoBone revision outside source range");
+  }
   read_object_fields(r);  // Hmx::Object metadata.
   if (servo.version > 1) servo.clip_type = r.str();
+  servo.unread_bytes = r.n - r.pos;
   return servo;
 }
 
