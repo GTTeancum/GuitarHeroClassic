@@ -102,6 +102,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_mesh_hide_source_test.cpp"));
   const std::string trans_copy_source_test =
       compact(read_file(char_dir / "character_trans_copy_source_test.cpp"));
+  const std::string poll_group_source_test =
+      compact(read_file(char_dir / "character_poll_group_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -212,6 +214,8 @@ int run_contract() {
       rb3_latest_char_dir / "Character.cpp"));
   const std::string rb3_latest_char_poll_group_cpp = compact(read_file(
       rb3_latest_char_dir / "CharPollGroup.cpp"));
+  const std::string rb3_latest_char_poll_group_h = compact(read_file(
+      rb3_latest_char_dir / "CharPollGroup.h"));
   const std::string rb3_latest_anim_filter_cpp = compact(read_file(
       rb3_latest_rndobj_dir / "AnimFilter.cpp"));
   const std::string rb3_latest_anim_filter_h = compact(read_file(
@@ -379,6 +383,10 @@ int run_contract() {
                  "coverage matrix cites CharTransCopy source");
   ok &= contains(doc, "| Poll groups | `rb3-latest` `CharPollGroup.cpp` |",
                  "coverage matrix cites CharPollGroup source boundary");
+  ok &= contains(doc,
+                 "Native helper ports source `Poll`, `ListPollChildren`, and "
+                 "`PollDeps` decision behavior",
+                 "coverage matrix records native CharPollGroup helper");
   ok &= contains(doc,
                  "| Guitar string bend controller | `rb3-latest` "
                  "`CharGuitarString.cpp` / `CharGuitarString.h`; stock "
@@ -1889,6 +1897,77 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_trans_copy_poll` and",
                  "document records native CharTransCopy helper");
+  ok &= contains(rb3_latest_char_poll_group_h,
+                 "classCharPollGroup:publicCharPollable,publicCharWeightable",
+                 "latest CharPollGroup header exposes source class");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "voidCharPollGroup::Poll(){if(mWeightOwner->mWeight!=0.0f){"
+                 "for(ObjPtrList<CharPollable,ObjectDir>::iteratorit="
+                 "mPolls.begin();it!=mPolls.end();++it){(*it)->Poll();}}}",
+                 "CharPollGroup source Poll gates on nonzero weight");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "voidCharPollGroup::ListPollChildren(std::list<RndPollable*>&"
+                 "l)const{ObjPtrList<CharPollable,ObjectDir>::iteratorit="
+                 "mPolls.begin();ObjPtrList<CharPollable,ObjectDir>::iterator"
+                 "itEnd=mPolls.end();for(;it!=itEnd;++it){l.push_back(*it);}}",
+                 "CharPollGroup source ListPollChildren appends poll list");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "voidCharPollGroup::PollDeps(std::list<Hmx::Object*>&changedBy,"
+                 "std::list<Hmx::Object*>&change){if(mChangedBy||mChanges){"
+                 "changedBy.push_back(mChangedBy);change.push_back(mChanges);}",
+                 "CharPollGroup source PollDeps explicit override");
+  ok &= contains(rb3_latest_char_poll_group_cpp,
+                 "else{for(ObjPtrList<CharPollable,ObjectDir>::iteratorit="
+                 "mPolls.begin();it!=mPolls.end();++it){(*it)->PollDeps"
+                 "(changedBy,change);}}}",
+                 "CharPollGroup source PollDeps delegates to children");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharPollGroupChildDeps{std::stringchanged_by;"
+                 "std::stringchange;};",
+                 "native exposes CharPollGroup child dependency row");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharPollGroupPollDeps{std::vector<std::string>"
+                 "changed_by;std::vector<std::string>change;};",
+                 "native exposes CharPollGroup dependency result row");
+  ok &= contains(char_mesh,
+                 "std::vector<std::string>source_char_poll_group_poll_order("
+                 "floatweight,conststd::vector<std::string>&polls){"
+                 "if(weight==0.0f)return{};returnpolls;}",
+                 "native ports CharPollGroup Poll decision");
+  ok &= contains(char_mesh,
+                 "std::vector<std::string>source_char_poll_group_list_children("
+                 "conststd::vector<std::string>&polls){returnpolls;}",
+                 "native ports CharPollGroup ListPollChildren");
+  ok &= contains(char_mesh,
+                 "voidsource_char_poll_group_poll_deps("
+                 "SourceCharPollGroupPollDeps&deps,conststd::vector<"
+                 "SourceCharPollGroupChildDeps>&child_deps,conststd::string&"
+                 "changed_by_override,conststd::string&change_override){"
+                 "if(!changed_by_override.empty()||!change_override.empty()){"
+                 "deps.changed_by.push_back(changed_by_override);"
+                 "deps.change.push_back(change_override);return;}",
+                 "native ports CharPollGroup PollDeps override branch");
+  ok &= contains(char_mesh,
+                 "for(constSourceCharPollGroupChildDeps&child:child_deps){"
+                 "deps.changed_by.push_back(child.changed_by);"
+                 "deps.change.push_back(child.change);}",
+                 "native ports CharPollGroup PollDeps child branch");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_poll_group_source_test",
+                 "CMake builds CharPollGroup source test");
+  ok &= contains(poll_group_source_test,
+                 "source_char_poll_group_poll_order(0.0f,polls)",
+                 "focused CharPollGroup test covers zero weight");
+  ok &= contains(poll_group_source_test,
+                 "source_char_poll_group_poll_order(-0.5f,polls)",
+                 "focused CharPollGroup test covers nonzero weight");
+  ok &= contains(poll_group_source_test,
+                 "source_char_poll_group_poll_deps(override_deps,child_deps,"
+                 "\"\",\"override\")",
+                 "focused CharPollGroup test covers explicit deps override");
+  ok &= contains(doc,
+                 "Native `source_char_poll_group_poll_order`,",
+                 "document records native CharPollGroup helpers");
   ok &= contains(rb3_latest_char_mesh_hide_h,
                  "classCharMeshHide:publicHmx::Object",
                  "latest CharMeshHide header exposes source class");
@@ -2551,10 +2630,12 @@ int run_contract() {
                  "CharPollable,ObjectDir>::iteratorit=mPolls.begin();"
                  "it!=mPolls.end();++it){(*it)->Poll();}}",
                  "CharPollGroup source Poll iterates child poll rows by weight");
-  ok &= missing(char_mesh, "CharPollGroup",
-                "native must not promote absent CharPollGroup rows");
-  ok &= missing(char_mesh_h, "CharPollGroup",
-                "native character model must not declare absent CharPollGroup rows");
+  ok &= missing(char_mesh, "decode_poll_group",
+                "native must not decode absent CharPollGroup rows");
+  ok &= missing(char_mesh, "out.poll_groups",
+                "native must not store absent CharPollGroup rows");
+  ok &= missing(char_mesh_h, "std::vector<CharPollGroup>",
+                "native character model must not declare active CharPollGroup rows");
   ok &= contains(doc, "`EventTrigger`: one stock row, on `metal_drummer`",
                  "document records stock EventTrigger row count");
   ok &= contains(doc, "## Event Trigger Row Authority",

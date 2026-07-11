@@ -359,6 +359,16 @@ struct SourceCharTransCopyPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharPollGroupChildDeps {
+  std::string changed_by;
+  std::string change;
+};
+
+struct SourceCharPollGroupPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -395,6 +405,16 @@ void source_char_trans_copy_poll_deps(
     SourceCharTransCopyPollDeps& deps,
     const std::string& src,
     const std::string& dest);
+std::vector<std::string> source_char_poll_group_poll_order(
+    float weight,
+    const std::vector<std::string>& polls);
+std::vector<std::string> source_char_poll_group_list_children(
+    const std::vector<std::string>& polls);
+void source_char_poll_group_poll_deps(
+    SourceCharPollGroupPollDeps& deps,
+    const std::vector<SourceCharPollGroupChildDeps>& child_deps,
+    const std::string& changed_by_override,
+    const std::string& change_override);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

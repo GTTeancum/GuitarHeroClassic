@@ -50,7 +50,7 @@ records the upstream commits for the copied files:
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
 | Guitar string bend controller | `rb3-latest` `CharGuitarString.cpp` / `CharGuitarString.h`; stock guitar sweep | Upstream `Poll` moves a bend transform along nut/bridge based on target projection, but the checked GH2 stock guitar MILOs contain no `CharGuitarString` rows; native does not invent one. |
 | Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
-| Poll groups | `rb3-latest` `CharPollGroup.cpp` | Source `Load`/`Poll` shape is known, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
+| Poll groups | `rb3-latest` `CharPollGroup.cpp` | Native helper ports source `Poll`, `ListPollChildren`, and `PollDeps` decision behavior, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
 | Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, CharBone output row fields, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
 | Hair two-sided rendering | User/project visual override | Two cull passes only; not source evidence for material/depth/sort changes. |
@@ -494,6 +494,19 @@ note, and all report `unreadBytes=0`.
     isolated helpers. This does not imply active character runtime wiring unless
     stock `CharTransCopy` rows are decoded or another source-backed owner path
     is proven.
+- `rb3-latest/src/system/char/CharPollGroup.cpp` and
+  `CharPollGroup.h`
+  - `CharPollGroup::Poll` iterates `mPolls` only when the source weight owner
+    weight is nonzero. Zero weight skips every child.
+  - `ListPollChildren` appends every poll child in list order.
+  - `PollDeps` uses the explicit `mChangedBy` / `mChanges` pair when either
+    pointer exists; otherwise it delegates dependency collection to each child
+    pollable in list order.
+  - Native `source_char_poll_group_poll_order`,
+    `source_char_poll_group_list_children`, and
+    `source_char_poll_group_poll_deps` port those source decisions for tests and
+    future decode work. Stock GH2 base-character inventory still proves zero
+    `CharPollGroup` rows, so no hidden runtime poll group is synthesized.
 - `rb3-latest/src/system/char/CharMeshHide.cpp` and
   `CharMeshHide.h`
   - `CharMeshHide::HideAll` first ORs the incoming flag word with every

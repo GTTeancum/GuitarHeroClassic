@@ -1662,6 +1662,34 @@ void source_char_trans_copy_poll_deps(
   deps.changed_by.push_back(src);
 }
 
+std::vector<std::string> source_char_poll_group_poll_order(
+    float weight,
+    const std::vector<std::string>& polls) {
+  if (weight == 0.0f) return {};
+  return polls;
+}
+
+std::vector<std::string> source_char_poll_group_list_children(
+    const std::vector<std::string>& polls) {
+  return polls;
+}
+
+void source_char_poll_group_poll_deps(
+    SourceCharPollGroupPollDeps& deps,
+    const std::vector<SourceCharPollGroupChildDeps>& child_deps,
+    const std::string& changed_by_override,
+    const std::string& change_override) {
+  if (!changed_by_override.empty() || !change_override.empty()) {
+    deps.changed_by.push_back(changed_by_override);
+    deps.change.push_back(change_override);
+    return;
+  }
+  for (const SourceCharPollGroupChildDeps& child : child_deps) {
+    deps.changed_by.push_back(child.changed_by);
+    deps.change.push_back(child.change);
+  }
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;
