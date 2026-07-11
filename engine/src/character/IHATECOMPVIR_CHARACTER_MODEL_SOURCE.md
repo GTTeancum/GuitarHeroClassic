@@ -42,7 +42,7 @@ records the upstream commits for the copied files:
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
-| Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; no synthetic eye runtime bridge. |
+| Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; native helpers port `CharEyes` poll-child/dependency publication only; no synthetic eye runtime bridge. |
 | FaceFX lip-sync servo boundary | `rb3-latest` `CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` is source context, not a matching `FaceFxLipSyncServo` load body; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Bone offsets | `rb3-latest` `CharBoneOffset.cpp` / `CharBoneOffset.h` | Decode/log source destination and offset rows; native helper ports source `Poll`/`ApplyToLocal` math without adding an unproven frame-cadence write. |
@@ -485,6 +485,11 @@ note, and all report `unreadBytes=0`.
   - `CharEyes::ListPollChildren` delegates poll children to the referenced
     `CharLookAt` controllers. It is not evidence for a native bridge that copies
     eye mesh world rows into ad-hoc controller overrides.
+  - `CharEyes::PollDeps` publishes same-directory interest objects as
+    `changedBy`, publishes `GetHead()` / `GetTarget()` only when the eye list is
+    non-empty, then publishes `mHeadLookAt` and `mFaceServo` when present.
+    Native `source_char_eyes_*` helpers port only these graph/dependency
+    decisions for deterministic coverage.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
   port has real source data to drive it.

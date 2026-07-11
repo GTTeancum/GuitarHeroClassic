@@ -118,6 +118,8 @@ int run_contract() {
       read_file(char_dir / "character_pos_constraint_source_test.cpp"));
   const std::string guitar_string_source_test = compact(
       read_file(char_dir / "character_guitar_string_source_test.cpp"));
+  const std::string eyes_source_test =
+      compact(read_file(char_dir / "character_eyes_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -623,6 +625,10 @@ int run_contract() {
                  "document cites CharLookAt runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharEyes.cpp",
                  "document cites CharEyes runtime source");
+  ok &= contains(doc,
+                 "native helpers port `CharEyes` poll-child/dependency "
+                 "publication only",
+                 "coverage matrix records native CharEyes helper boundary");
   ok &= contains(doc, "rb3/src/system/char/CharIKHand.cpp",
                  "document cites CharIKHand runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharUpperTwist.cpp",
@@ -3894,6 +3900,58 @@ int run_contract() {
                  "RB3 CharEyes rev 3/4 consumes a trailing transformable");
   ok &= contains(rb3_char_eyes_cpp, "plist.push_back((*it).mEye);",
                  "RB3 CharEyes delegates poll children to CharLookAt rows");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "ObjectDir*dir=(*it).mInterest->Dir();if(dir==Dir()){"
+                 "changedBy.push_back((*it).mInterest);}",
+                 "RB3 CharEyes PollDeps gates interests by owning dir");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "if(!mEyes.empty()){changedBy.push_back(GetHead());"
+                 "change.push_back(GetTarget());}",
+                 "RB3 CharEyes PollDeps publishes head and target when eyes exist");
+  ok &= contains(rb3_char_eyes_cpp,
+                 "if(mHeadLookAt)changedBy.push_back(mHeadLookAt);"
+                 "if(mFaceServo)changedBy.push_back(mFaceServo);",
+                 "RB3 CharEyes PollDeps publishes head lookat and face servo");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharEyesInterest{std::stringinterest;boolsame_dir=false;};",
+                 "native exposes CharEyes interest dependency input");
+  ok &= contains(char_mesh_h,
+                 "std::vector<std::string>source_char_eyes_list_poll_children(",
+                 "native exposes CharEyes poll child helper");
+  ok &= contains(char_mesh_h,
+                 "voidsource_char_eyes_poll_deps(",
+                 "native exposes CharEyes PollDeps helper");
+  ok &= contains(char_mesh,
+                 "std::vector<std::string>source_char_eyes_list_poll_children("
+                 "conststd::vector<std::string>&eye_lookats)",
+                 "native implements CharEyes poll child helper");
+  ok &= contains(char_mesh,
+                 "for(conststd::string&eye:eye_lookats)children.push_back(eye);",
+                 "native CharEyes helper delegates poll children to lookat refs");
+  ok &= contains(char_mesh,
+                 "if(interest.same_dir)deps.changed_by.push_back(interest.interest);",
+                 "native CharEyes helper gates interests by owning dir");
+  ok &= contains(char_mesh,
+                 "if(has_eyes){deps.changed_by.push_back(head);"
+                 "deps.change.push_back(target);}",
+                 "native CharEyes helper publishes head and target when eyes exist");
+  ok &= contains(char_mesh,
+                 "if(!head_lookat.empty())deps.changed_by.push_back(head_lookat);"
+                 "if(!face_servo.empty())deps.changed_by.push_back(face_servo);",
+                 "native CharEyes helper publishes optional head lookat and face servo");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_eyes_source_test",
+                 "CMake builds CharEyes source test");
+  ok &= contains(eyes_source_test,
+                 "source_char_eyes_list_poll_children({\"l-eye.lookat\","
+                 "\"r-eye.lookat\"})",
+                 "focused CharEyes source test covers poll children");
+  ok &= contains(eyes_source_test,
+                 "SourceCharEyesInterest{\"same.interest\",true}",
+                 "focused CharEyes source test covers same-dir interest");
+  ok &= contains(eyes_source_test,
+                 "\"noeyeshasnotargetchange\"",
+                 "focused CharEyes source test covers no-eye target gate");
   ok &= contains(char_mesh,
                  "uint32_tcount=r.u32();for(uint32_ti=0;i<count&&r.pos<r.n;"
                  "++i)eyes.lookats.push_back(r.str());",
@@ -3909,6 +3967,10 @@ int run_contract() {
                  "native GH2 CharEyes decoder source-gates trailing old transformable");
   ok &= contains(doc, "Rockabill2 face/attachment proof",
                  "document records current Rockabill2 eye and teeth evidence");
+  ok &= contains(doc,
+                 "Native `source_char_eyes_*` helpers port only these "
+                 "graph/dependency\n    decisions",
+                 "document records native CharEyes helper boundary");
   ok &= contains(rb3_char_ik_hand_cpp, "voidCharIKHand::Poll(){",
                  "RB3 CharIKHand source exposes Poll");
   ok &= contains(rb3_char_ik_hand_cpp,

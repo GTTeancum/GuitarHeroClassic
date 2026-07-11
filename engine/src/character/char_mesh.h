@@ -468,6 +468,16 @@ struct SourceCharGuitarStringPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharEyesInterest {
+  std::string interest;
+  bool same_dir = false;
+};
+
+struct SourceCharEyesPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -574,6 +584,16 @@ void source_char_guitar_string_poll_deps(
     const std::string& bridge,
     const std::string& target,
     const std::string& bend);
+std::vector<std::string> source_char_eyes_list_poll_children(
+    const std::vector<std::string>& eye_lookats);
+void source_char_eyes_poll_deps(
+    SourceCharEyesPollDeps& deps,
+    const std::vector<SourceCharEyesInterest>& interests,
+    bool has_eyes,
+    const std::string& head,
+    const std::string& target,
+    const std::string& head_lookat,
+    const std::string& face_servo);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

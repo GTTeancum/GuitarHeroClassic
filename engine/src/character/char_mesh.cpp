@@ -1939,6 +1939,32 @@ void source_char_guitar_string_poll_deps(
   deps.change.push_back(bend);
 }
 
+std::vector<std::string> source_char_eyes_list_poll_children(
+    const std::vector<std::string>& eye_lookats) {
+  std::vector<std::string> children;
+  for (const std::string& eye : eye_lookats) children.push_back(eye);
+  return children;
+}
+
+void source_char_eyes_poll_deps(
+    SourceCharEyesPollDeps& deps,
+    const std::vector<SourceCharEyesInterest>& interests,
+    bool has_eyes,
+    const std::string& head,
+    const std::string& target,
+    const std::string& head_lookat,
+    const std::string& face_servo) {
+  for (const SourceCharEyesInterest& interest : interests) {
+    if (interest.same_dir) deps.changed_by.push_back(interest.interest);
+  }
+  if (has_eyes) {
+    deps.changed_by.push_back(head);
+    deps.change.push_back(target);
+  }
+  if (!head_lookat.empty()) deps.changed_by.push_back(head_lookat);
+  if (!face_servo.empty()) deps.changed_by.push_back(face_servo);
+}
+
 SourceCharSleevePollResult source_char_sleeve_poll(
     SourceCharSleeveState& state,
     bool has_sleeve,
