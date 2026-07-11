@@ -6073,6 +6073,12 @@ std::map<std::string, std::array<float, 3>> build_scene_mesh_local_positions(
             group.local.pos[0], group.local.pos[1], group.local.pos[2]};
         add(group.name, pos);
     }
+    for (const auto& light : scene.lights) {
+        if (!light.decoded) continue;
+        const std::array<float, 3> pos = {
+            light.local.pos[0], light.local.pos[1], light.local.pos[2]};
+        add(light.name, pos);
+    }
     return out;
 }
 

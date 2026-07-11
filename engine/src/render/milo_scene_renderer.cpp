@@ -1334,6 +1334,32 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     active_authored_light_key.clear();
   };
+  auto transform_target_has_sample = [&](const std::string& target) -> bool {
+    return mesh_transform_offsets_.find(target) !=
+               mesh_transform_offsets_.end() ||
+           active_mesh_anims_.find(target) != active_mesh_anims_.end();
+  };
+  auto apply_transform_samples_to_target =
+      [&](std::array<float, 16>& local, const std::string& target) {
+        if (const auto offset_it = mesh_transform_offsets_.find(target);
+            offset_it != mesh_transform_offsets_.end()) {
+          apply_mesh_transform_sample(local, offset_it->second);
+        }
+        const auto anim_it = active_mesh_anims_.find(target);
+        if (anim_it == active_mesh_anims_.end()) return;
+        const auto& active = anim_it->second;
+        const float anim_frame = active.elapsed * active.frames_per_second;
+        apply_mesh_transform_sample(
+            local, sample_transform_anim(active.anim, anim_frame));
+      };
+  auto sampled_light_world = [&](const milo_scene::LightObj& light,
+                                 const std::string& ref) {
+    auto world = xfm_to_mat4(light.world_stored);
+    if (transform_target_has_sample(ref)) {
+      apply_transform_samples_to_target(world, ref);
+    }
+    return world;
+  };
   auto configure_authored_lights =
       [&](const milo_scene::EnvironObj* env) {
     if (!apply_environment_dynamic_lights || !env || env->lights.empty()) {
@@ -1357,23 +1383,23 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
           color_it != light_color_overrides_.end()) {
         light_color = color_it->second;
       }
+      const auto light_world = sampled_light_world(*light, ref);
       D3DLIGHT9 dl{};
       dl.Diffuse.r = std::clamp(light_color[0], 0.0f, 4.0f);
       dl.Diffuse.g = std::clamp(light_color[1], 0.0f, 4.0f);
       dl.Diffuse.b = std::clamp(light_color[2], 0.0f, 4.0f);
       dl.Diffuse.a = std::clamp(light_color[3], 0.0f, 1.0f);
       if (light->type == 1) {
-        float dx = light->world_stored.rot[1][0];
-        float dy = light->world_stored.rot[1][1];
-        float dz = light->world_stored.rot[1][2];
+        float dx = light_world[4];
+        float dy = light_world[5];
+        float dz = light_world[6];
         const float len = vec_len3(dx, dy, dz);
         if (len <= 0.0001f) continue;
         dl.Type = D3DLIGHT_DIRECTIONAL;
         dl.Direction = {dx / len, dy / len, dz / len};
       } else if (light->type == 0) {
         dl.Type = D3DLIGHT_POINT;
-        dl.Position = {light->world_stored.pos[0], light->world_stored.pos[1],
-                       light->world_stored.pos[2]};
+        dl.Position = {light_world[12], light_world[13], light_world[14]};
         dl.Range = std::max(light->range, 1.0f);
         dl.Attenuation0 = 1.0f;
       } else {

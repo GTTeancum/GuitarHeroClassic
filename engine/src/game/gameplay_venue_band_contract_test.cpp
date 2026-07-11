@@ -4082,6 +4082,12 @@ int main() {
                  "transanim_mesh[de.name]=decoded->target;",
                  "venue TransAnim target mesh comes from the authored trans symbol");
   ok &= contains(gameplay_c,
+                 "for(constauto&light:scene.lights){",
+                 "source local positions include RndLight transform targets");
+  ok &= contains(gameplay_c,
+                 "add(light.name,pos);",
+                 "source-shaped .lit TransAnim samples subtract the authored light local position");
+  ok &= contains(gameplay_c,
                  "source-shapedrev=%uanim_rev=%uowner=%spos=%zurot=%zuscale=%zu",
                  "venue TransAnim diagnostics expose source-shaped key counts");
   ok &= contains(gameplay_c,
@@ -5594,6 +5600,22 @@ int main() {
   ok &= contains(renderer_c,
                  "light_color_overrides_.find(ref)",
                  "sampled LightAnim colors only feed decoded Environ light refs");
+  ok &= contains(renderer_c,
+                 "autosampled_light_world=[&](constmilo_scene::LightObj&light,"
+                 "conststd::string&ref)",
+                 "renderer builds authored Light world transforms through sampled RndTransformable data");
+  ok &= contains(renderer_c,
+                 "apply_transform_samples_to_target(world,ref);",
+                 "renderer applies TransAnim samples to .lit targets before D3D light setup");
+  ok &= contains(renderer_c,
+                 "constautolight_world=sampled_light_world(*light,ref);",
+                 "authored Environ lights consume sampled .lit transforms");
+  ok &= contains(renderer_c,
+                 "floatdx=light_world[4];",
+                 "directional .lit TransAnim updates authored light direction");
+  ok &= contains(renderer_c,
+                 "dl.Position={light_world[12],light_world[13],light_world[14]};",
+                 "point .lit TransAnim updates authored light position");
   ok &= absent(renderer_c,
                "GHOGX_ENABLE_ENVIRON_DYNAMIC_LIGHTS",
                "authored dynamic environment lights are no longer hidden behind an opt-in gate");
