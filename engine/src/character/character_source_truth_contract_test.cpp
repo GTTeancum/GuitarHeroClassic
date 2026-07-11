@@ -68,6 +68,7 @@ int run_contract() {
   const std::filesystem::path scene_dir = GHOGX_MILO_SCENE_SOURCE_DIR;
   const std::filesystem::path source_dir = GHOGX_IHATECOMPVIR_SOURCE_DIR;
   const std::filesystem::path extra_dir = GHOGX_IHATECOMPVIR_EXTRA_DIR;
+  const std::filesystem::path engine_dir = char_dir.parent_path().parent_path();
 
   const std::string char_mesh = compact(read_file(char_dir / "char_mesh.cpp"));
   const std::string char_mesh_h = compact(read_file(char_dir / "char_mesh.h"));
@@ -241,6 +242,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharPosConstraint.cpp"));
   const std::string rb3_latest_char_pos_constraint_h = compact(read_file(
       rb3_latest_char_dir / "CharPosConstraint.h"));
+  const std::string rb3_latest_char_guitar_string_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharGuitarString.cpp"));
+  const std::string rb3_latest_char_guitar_string_h = compact(read_file(
+      rb3_latest_char_dir / "CharGuitarString.h"));
   const std::string rb3_latest_char_bone_offset_cpp = compact(read_file(
       rb3_latest_char_dir / "CharBoneOffset.cpp"));
   const std::string rb3_latest_char_bone_offset_h = compact(read_file(
@@ -299,6 +304,11 @@ int run_contract() {
       extra_dir / "band3_recomp/band3_config.toml"));
   const std::string band3_readme = read_file(
       extra_dir / "band3_recomp/README.md");
+  const std::string stock_guitar_string_sweep = read_file(
+      engine_dir /
+      "out/source_guitarstring_20260711/guitar_sweep/guitar_sweep.csv");
+  const std::string stock_guitar_string_sweep_compact =
+      compact(stock_guitar_string_sweep);
 
   bool ok = true;
 
@@ -347,6 +357,33 @@ int run_contract() {
                  "coverage matrix marks hair two-sided as project override");
   ok &= contains(doc, "| Poll groups | `rb3-latest` `CharPollGroup.cpp` |",
                  "coverage matrix cites CharPollGroup source boundary");
+  ok &= contains(doc,
+                 "| Guitar string bend controller | `rb3-latest` "
+                 "`CharGuitarString.cpp` / `CharGuitarString.h`; stock "
+                 "guitar sweep |",
+                 "coverage matrix cites CharGuitarString stock boundary");
+  ok &= contains(rb3_latest_char_guitar_string_h,
+                 "ObjPtr<RndTransformable,classObjectDir>mNut;",
+                 "latest CharGuitarString header exposes nut transform");
+  ok &= contains(rb3_latest_char_guitar_string_cpp,
+                 "voidCharGuitarString::Poll(){if(!mNut||!mBridge||!mBend||"
+                 "!mTarget)return;",
+                 "latest CharGuitarString Poll gates missing transforms");
+  ok &= contains(rb3_latest_char_guitar_string_cpp,
+                 "if(mOpen)clamped=0.0f;Interp(nutvec,bridgevec,clamped,"
+                 "tf50.v);mBend->SetWorldXfm(tf50);",
+                 "latest CharGuitarString Poll moves bend along string");
+  ok &= contains(stock_guitar_string_sweep,
+                 "\"Entry\",\"HasCharGuitarString\",\"StringHits\",\"TransSummary\"",
+                 "stock guitar sweep records CharGuitarString column");
+  ok &= missing(stock_guitar_string_sweep_compact, "\",\"1\",\"",
+                "stock guitar sweep has no active CharGuitarString rows");
+  ok &= contains(doc, "HasCharGuitarString=0",
+                 "document records stock CharGuitarString absence");
+  ok &= contains(doc,
+                 "not the active GH2 stock guitar/left-hand\n"
+                 "or string-transparency route",
+                 "document fences CharGuitarString from implicit fixes");
   ok &= contains(doc, "| FaceFX lip-sync servo boundary | `rb3-latest` "
                  "`CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory |",
                  "coverage matrix records FaceFxLipSyncServo boundary");
