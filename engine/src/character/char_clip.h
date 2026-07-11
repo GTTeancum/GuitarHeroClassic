@@ -334,6 +334,11 @@ struct SourceCharClipDefaultState {
   float first_beat_value = 0.0f;
 };
 
+struct SourceCharClipBeatEvent {
+  std::string event;
+  float beat = 0.0f;
+};
+
 enum SourceCharDriverApplyMode {
   kSourceCharDriverApplyBlend = 0,
   kSourceCharDriverApplyAdd = 1,
@@ -429,6 +434,17 @@ struct SourceCharDriverMidiParserDecision {
 
 // Source-backed CharClip constructor state.
 SourceCharClipDefaultState source_char_clip_default_state();
+SourceCharClipBeatEvent source_char_clip_beat_event_default();
+SourceCharClipBeatEvent source_char_clip_beat_event_copy(
+    const SourceCharClipBeatEvent& source);
+void source_char_clip_beat_event_assign(SourceCharClipBeatEvent& dest,
+                                        const SourceCharClipBeatEvent& source);
+SourceCharClipBeatEvent source_char_clip_beat_event_loaded(
+    const std::string& event,
+    float beat);
+int source_char_clip_get_context(bool has_type_def,
+                                 bool has_resource_array,
+                                 int resource_context);
 
 // Source-backed CharDriver constructor, Clear, Transfer, setter, and
 // SyncInternalBones state helpers.

@@ -1383,6 +1383,12 @@ note, and all report `unreadBytes=0`.
     `CharClip::BeatAlignString` body for the `0xF600` play-flag group:
     `RealTime`, `UserTime`, `BeatAlign1`, `BeatAlign2`, `BeatAlign4`,
     `BeatAlign8`, and `NoAlign`.
+  - Native `source_char_clip_beat_event_*` helpers port the concrete
+    `BeatEvent` constructor/copy/assignment and load row order: event symbol
+    first, beat float second, with the default beat at `0.0`.
+  - Native `source_char_clip_get_context` ports the concrete `GetContext`
+    fallback: a type definition with a `resource` array returns the resource
+    macro context value; missing type/resource data returns zero.
   - Native `source_char_clip_set_flags` and
     `source_char_clip_set_play_flags` port the complete `SetFlags` and
     `SetPlayFlags` dirty-state bodies: unchanged values preserve the incoming

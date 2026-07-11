@@ -167,6 +167,23 @@ bool expect_default_state(const ghogx::character::SourceCharClipDefaultState& go
   return ok;
 }
 
+bool expect_beat_event(const ghogx::character::SourceCharClipBeatEvent& got,
+                       const std::string& event, float beat,
+                       const char* label) {
+  bool ok = true;
+  if (got.event != event) {
+    std::cerr << "beat event name mismatch for " << label << ": got '"
+              << got.event << "' want '" << event << "'\n";
+    ok = false;
+  }
+  if (!nearf(got.beat, beat)) {
+    std::cerr << "beat event beat mismatch for " << label << ": got "
+              << got.beat << " want " << beat << "\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_driver_default_state(
     const ghogx::character::SourceCharDriverState& got) {
   bool ok = true;
@@ -695,6 +712,32 @@ int main() {
       {{true, {"idle"}}, {true, {"ending"}}},
       "solo", false, "candidate absent from groups");
   ok &= expect_default_state(ghogx::character::source_char_clip_default_state());
+  ok &= expect_beat_event(
+      ghogx::character::source_char_clip_beat_event_default(), "", 0.0f,
+      "BeatEvent default");
+  const ghogx::character::SourceCharClipBeatEvent loaded_event =
+      ghogx::character::source_char_clip_beat_event_loaded("solo_hit", 12.5f);
+  ok &= expect_beat_event(loaded_event, "solo_hit", 12.5f,
+                          "BeatEvent load order");
+  ok &= expect_beat_event(
+      ghogx::character::source_char_clip_beat_event_copy(loaded_event),
+      "solo_hit", 12.5f, "BeatEvent copy");
+  ghogx::character::SourceCharClipBeatEvent assigned_event =
+      ghogx::character::source_char_clip_beat_event_default();
+  ghogx::character::source_char_clip_beat_event_assign(assigned_event,
+                                                       loaded_event);
+  ok &= expect_beat_event(assigned_event, "solo_hit", 12.5f,
+                          "BeatEvent assignment");
+  if (ghogx::character::source_char_clip_get_context(true, true, 0x27) !=
+      0x27) {
+    std::cerr << "GetContext resource macro mismatch\n";
+    ok = false;
+  }
+  if (ghogx::character::source_char_clip_get_context(true, false, 0x27) != 0 ||
+      ghogx::character::source_char_clip_get_context(false, true, 0x27) != 0) {
+    std::cerr << "GetContext missing resource fallback mismatch\n";
+    ok = false;
+  }
   ok &= expect_driver_state_helpers();
   ok &= expect_blend(-1.0f, 1.0f, 1.0f, "source default blend");
   ok &= expect_blend(-1.0f, 0.25f, 0.25f, "custom driver blend");

@@ -1911,6 +1911,37 @@ SourceCharClipDefaultState source_char_clip_default_state() {
   return SourceCharClipDefaultState{};
 }
 
+SourceCharClipBeatEvent source_char_clip_beat_event_default() {
+  return SourceCharClipBeatEvent{};
+}
+
+SourceCharClipBeatEvent source_char_clip_beat_event_copy(
+    const SourceCharClipBeatEvent& source) {
+  return SourceCharClipBeatEvent{source.event, source.beat};
+}
+
+void source_char_clip_beat_event_assign(SourceCharClipBeatEvent& dest,
+                                        const SourceCharClipBeatEvent& source) {
+  dest.event = source.event;
+  dest.beat = source.beat;
+}
+
+SourceCharClipBeatEvent source_char_clip_beat_event_loaded(
+    const std::string& event,
+    float beat) {
+  SourceCharClipBeatEvent loaded;
+  loaded.event = event;
+  loaded.beat = beat;
+  return loaded;
+}
+
+int source_char_clip_get_context(bool has_type_def,
+                                 bool has_resource_array,
+                                 int resource_context) {
+  if (has_type_def && has_resource_array) return resource_context;
+  return 0;
+}
+
 SourceCharDriverState source_char_driver_default_state() {
   return SourceCharDriverState{};
 }

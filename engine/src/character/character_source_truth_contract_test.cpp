@@ -6981,6 +6981,26 @@ int run_contract() {
                  "mBeatTrack.front().value=0.0f;}",
                  "latest CharClip source exposes constructor defaults");
   ok &= contains(rb3_latest_char_clip_cpp,
+                 "CharClip::BeatEvent::BeatEvent():beat(0){}",
+                 "latest CharClip source exposes BeatEvent default beat");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "CharClip::BeatEvent::BeatEvent(constBeatEvent&ev):"
+                 "event(ev.event),beat(ev.beat){}",
+                 "latest CharClip source exposes BeatEvent copy fields");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "CharClip::BeatEvent&CharClip::BeatEvent::operator=("
+                 "constBeatEvent&ev){event=ev.event;beat=ev.beat;}",
+                 "latest CharClip source exposes BeatEvent assignment fields");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "voidCharClip::BeatEvent::Load(BinStream&bs){bs>>event;"
+                 "bs>>beat;}",
+                 "latest CharClip source exposes BeatEvent load order");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "intCharClip::GetContext()const{constDataArray*tdef=TypeDef();"
+                 "if(tdef){DataArray*found=tdef->FindArray(\"resource\",false);"
+                 "if(found){returnDataGetMacro(found->Str(2))->Int(0);}}return0;}",
+                 "latest CharClip source exposes GetContext resource fallback");
+  ok &= contains(rb3_latest_char_clip_cpp,
                  "voidCharClip::SetPlayFlags(inti){if(i!=mPlayFlags){"
                  "mPlayFlags=i;mDirty=true;}}",
                  "latest CharClip source exposes SetPlayFlags dirty guard");
@@ -6999,6 +7019,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_clip_set_flags` and",
                  "document records native CharClip flag dirty helpers");
+  ok &= contains(doc,
+                 "Native `source_char_clip_beat_event_*` helpers port the concrete",
+                 "document records native CharClip BeatEvent helpers");
+  ok &= contains(doc,
+                 "Native `source_char_clip_get_context` ports the concrete `GetContext`",
+                 "document records native CharClip GetContext helper");
   ok &= contains(doc,
                  "Native `source_char_clip_shares_groups` ports the complete",
                  "document records native CharClip SharesGroups helper");
@@ -7162,8 +7188,31 @@ int run_contract() {
                  "floatfirst_beat_value=0.0f;};",
                  "native character API exposes source CharClip default-state row");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipBeatEvent{std::stringevent;"
+                 "floatbeat=0.0f;};",
+                 "native character API exposes source CharClip BeatEvent row");
+  ok &= contains(char_clip_h,
                  "SourceCharClipDefaultStatesource_char_clip_default_state();",
                  "native character API exposes source CharClip default-state helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipBeatEventsource_char_clip_beat_event_default();",
+                 "native character API exposes source CharClip BeatEvent default helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipBeatEventsource_char_clip_beat_event_copy("
+                 "constSourceCharClipBeatEvent&source);",
+                 "native character API exposes source CharClip BeatEvent copy helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_clip_beat_event_assign("
+                 "SourceCharClipBeatEvent&dest,constSourceCharClipBeatEvent&source);",
+                 "native character API exposes source CharClip BeatEvent assignment helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipBeatEventsource_char_clip_beat_event_loaded("
+                 "conststd::string&event,floatbeat);",
+                 "native character API exposes source CharClip BeatEvent load helper");
+  ok &= contains(char_clip_h,
+                 "intsource_char_clip_get_context(boolhas_type_def,"
+                 "boolhas_resource_array,intresource_context);",
+                 "native character API exposes source CharClip GetContext helper");
   ok &= contains(char_clip_h,
                  "SourceCharClipFlagUpdatesource_char_clip_set_flags("
                  "uint32_tcurrent_flags,boolcurrent_dirty,"
@@ -7342,6 +7391,30 @@ int run_contract() {
                  "returnSourceCharClipDefaultState{};}",
                  "native CharClip default-state helper returns source defaults");
   ok &= contains(char_clip,
+                 "SourceCharClipBeatEventsource_char_clip_beat_event_default(){"
+                 "returnSourceCharClipBeatEvent{};}",
+                 "native CharClip BeatEvent default helper returns source defaults");
+  ok &= contains(char_clip,
+                 "SourceCharClipBeatEventsource_char_clip_beat_event_copy("
+                 "constSourceCharClipBeatEvent&source){returnSourceCharClipBeatEvent{"
+                 "source.event,source.beat};}",
+                 "native CharClip BeatEvent copy helper ports source fields");
+  ok &= contains(char_clip,
+                 "voidsource_char_clip_beat_event_assign("
+                 "SourceCharClipBeatEvent&dest,constSourceCharClipBeatEvent&source){"
+                 "dest.event=source.event;dest.beat=source.beat;}",
+                 "native CharClip BeatEvent assignment helper ports source fields");
+  ok &= contains(char_clip,
+                 "SourceCharClipBeatEventsource_char_clip_beat_event_loaded("
+                 "conststd::string&event,floatbeat){SourceCharClipBeatEventloaded;"
+                 "loaded.event=event;loaded.beat=beat;returnloaded;}",
+                 "native CharClip BeatEvent load helper ports read order fields");
+  ok &= contains(char_clip,
+                 "intsource_char_clip_get_context(boolhas_type_def,"
+                 "boolhas_resource_array,intresource_context){if(has_type_def&&"
+                 "has_resource_array)returnresource_context;return0;}",
+                 "native CharClip GetContext helper ports source fallback");
+  ok &= contains(char_clip,
                  "SourceCharClipFlagUpdatesource_char_clip_set_play_flags("
                  "uint32_tcurrent_play_flags,boolcurrent_dirty,"
                  "uint32_trequested_play_flags){SourceCharClipFlagUpdateupdate;"
@@ -7382,6 +7455,22 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_default_state()",
                  "focused clip driver flags test covers CharClip constructor defaults");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_beat_event_default()",
+                 "focused clip driver flags test covers BeatEvent default");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_beat_event_loaded(\"solo_hit\",12.5f)",
+                 "focused clip driver flags test covers BeatEvent load helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_beat_event_copy(loaded_event)",
+                 "focused clip driver flags test covers BeatEvent copy");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_beat_event_assign(assigned_event,"
+                 "loaded_event)",
+                 "focused clip driver flags test covers BeatEvent assignment");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_get_context(true,true,0x27)",
+                 "focused clip driver flags test covers GetContext resource value");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_shares_groups(",
                  "focused clip driver flags test covers CharClip SharesGroups helper");
