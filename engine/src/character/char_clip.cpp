@@ -825,10 +825,23 @@ void log_character_controller_graph_once(const Character& character) {
   }
   for (const auto& look : character.lookats) {
     std::fprintf(stderr,
-                 "[chargraph]   lookAt %s source=%s target=%s driven=%s "
-                 "weight=%.3f\n",
-                 look.name.c_str(), look.source.c_str(), look.target.c_str(),
-                 look.driven.c_str(), look.weight);
+                 "[chargraph]   lookAt %s version=%d "
+                 "weightableVersion=%d weight=%.3f weightOwner=%s "
+                 "source=%s pivot=%s dest=%s halfTime=%.3f "
+                 "yaw=(%.3f %.3f) pitch=(%.3f %.3f) "
+                 "weightYaw=(%.3f %.3f speed=%.3f) allowRoll=%d "
+                 "jitter=%d sourceRadius=%.3f unreadBytes=%zu\n",
+                 look.name.c_str(), look.version, look.weightable_version,
+                 look.weight,
+                 look.weight_owner.empty() ? "<none>" : look.weight_owner.c_str(),
+                 look.source.empty() ? "<none>" : look.source.c_str(),
+                 look.pivot.empty() ? "<none>" : look.pivot.c_str(),
+                 look.dest.empty() ? "<none>" : look.dest.c_str(),
+                 look.half_time, look.min_yaw, look.max_yaw,
+                 look.min_pitch, look.max_pitch, look.min_weight_yaw,
+                 look.max_weight_yaw, look.weight_yaw_speed,
+                 look.allow_roll ? 1 : 0, look.enable_jitter ? 1 : 0,
+                 look.source_radius, look.unread_bytes);
   }
   for (const auto& eyes : character.eyes) {
     std::fprintf(stderr,

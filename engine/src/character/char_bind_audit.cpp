@@ -465,14 +465,21 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
   }
   for (const auto& look : c.lookats) {
     std::printf(
-        "[controller-lookat] char=%s name=%s flags=%d source=%s target=%s "
-        "driven=%s weight=%.4f rate=%.4f rangeX=(%.4f %.4f) "
-        "rangeZ=(%.4f %.4f) offset=(%.4f %.4f) maxRadius=%.4f\n",
-        c.dir_name.c_str(), look.name.c_str(), look.flags,
-        none_if_empty(look.source), none_if_empty(look.target),
-        none_if_empty(look.driven), look.weight, look.rate,
-        look.min_x, look.max_x, look.min_z, look.max_z,
-        look.offset_x, look.offset_z, look.max_radius);
+        "[controller-lookat] char=%s name=%s version=%d "
+        "weightableVersion=%d weight=%.4f weightOwner=%s source=%s "
+        "pivot=%s dest=%s halfTime=%.4f yaw=(%.4f %.4f) "
+        "pitch=(%.4f %.4f) weightYaw=(%.4f %.4f speed=%.4f) "
+        "allowRoll=%d jitter=%d jitterLimit=(yaw=%.4f pitch=%.4f) "
+        "sourceRadius=%.4f unreadBytes=%zu\n",
+        c.dir_name.c_str(), look.name.c_str(), look.version,
+        look.weightable_version, look.weight,
+        none_if_empty(look.weight_owner), none_if_empty(look.source),
+        none_if_empty(look.pivot), none_if_empty(look.dest),
+        look.half_time, look.min_yaw, look.max_yaw, look.min_pitch,
+        look.max_pitch, look.min_weight_yaw, look.max_weight_yaw,
+        look.weight_yaw_speed, look.allow_roll ? 1 : 0,
+        look.enable_jitter ? 1 : 0, look.yaw_jitter_limit,
+        look.pitch_jitter_limit, look.source_radius, look.unread_bytes);
   }
   for (const auto& eyes : c.eyes) {
     std::printf(

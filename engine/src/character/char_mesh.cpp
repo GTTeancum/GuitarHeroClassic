@@ -836,22 +836,40 @@ CharLookAt decode_lookat(const std::string& entry_name,
   Reader r(body.data(), body.size());
   CharLookAt la;
   la.name = entry_name;
-  (void)r.i32();      // version 2 in GH2
+  la.version = r.i32();      // CharLookAt version, observed 2 in GH2.
   read_object_fields(r);  // Hmx::Object metadata
-  la.flags = r.i32();
+  la.weightable_version = r.i32();
   la.weight = r.f32();
+  if (la.weightable_version > 1) la.weight_owner = r.str();
   la.source = r.str();
-  la.target = r.str();
-  la.driven = r.str();
-  la.unknown = r.i32();
-  la.rate = r.f32();
-  la.min_x = r.f32();
-  la.max_x = r.f32();
-  la.min_z = r.f32();
-  la.max_z = r.f32();
-  la.offset_x = r.f32();
-  la.offset_z = r.f32();
-  la.max_radius = r.f32();
+  la.pivot = r.str();
+  la.dest = r.str();
+  la.half_time = r.f32();
+  la.min_yaw = r.f32();
+  la.max_yaw = r.f32();
+  la.min_pitch = r.f32();
+  la.max_pitch = r.f32();
+  if (la.version > 1) {
+    la.min_weight_yaw = r.f32();
+    la.max_weight_yaw = r.f32();
+    la.weight_yaw_speed = r.f32();
+  }
+  if (la.version < 3) {
+    la.allow_roll = true;
+  } else {
+    la.allow_roll = r.u8() != 0;
+  }
+  if (la.version < 4) {
+    la.enable_jitter = false;
+    la.pitch_jitter_limit = 0.0f;
+    la.yaw_jitter_limit = 0.0f;
+  } else {
+    la.enable_jitter = r.u8() != 0;
+    la.pitch_jitter_limit = r.f32();
+    la.yaw_jitter_limit = r.f32();
+  }
+  if (la.version > 4) la.source_radius = r.f32();
+  la.unread_bytes = r.n - r.pos;
   return la;
 }
 

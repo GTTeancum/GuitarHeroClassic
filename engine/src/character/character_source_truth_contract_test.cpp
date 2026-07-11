@@ -1956,6 +1956,23 @@ int run_contract() {
                  "RB3 CharLookAt poll writes the pivot transform");
   ok &= contains(rb3_char_lookat_cpp, "RndTransformable*srcTrans=GetSource();",
                  "RB3 CharLookAt poll resolves source through GetSource");
+  ok &= contains(char_mesh,
+                 "la.weightable_version=r.i32();la.weight=r.f32();"
+                 "if(la.weightable_version>1)la.weight_owner=r.str();"
+                 "la.source=r.str();la.pivot=r.str();la.dest=r.str();",
+                 "native CharLookAt decoder follows source Weightable/source/pivot/dest order");
+  ok &= contains(char_mesh,
+                 "la.half_time=r.f32();la.min_yaw=r.f32();"
+                 "la.max_yaw=r.f32();la.min_pitch=r.f32();"
+                 "la.max_pitch=r.f32();",
+                 "native CharLookAt decoder follows source timing and limit order");
+  ok &= contains(doc,
+                 "`Hmx::Object`, `CharWeightable`, `mSource`, `mPivot`, `mDest`",
+                 "document records source CharLookAt load order");
+  ok &= contains(doc,
+                 "Current stock GH2 `CharLookAt` rows observed in the base characters have\n"
+                 "    `mDest=<none>`",
+                 "document records stock CharLookAt inert destination boundary");
   ok &= contains(rb3_char_eyes_cpp,
                  "else{ObjPtrList<CharLookAt,ObjectDir>pList(this,"
                  "kObjListNoNull);bs>>pList;mEyes.resize(pList.size());",

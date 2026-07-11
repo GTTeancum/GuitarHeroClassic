@@ -36,7 +36,7 @@ records the upstream commits for the copied files:
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
 | Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
-| Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log old GH2 rows; no synthetic eye runtime bridge. |
+| Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log GH2 rows through the source `CharWeightable` + `source`/`pivot`/`dest` order; no synthetic eye runtime bridge. |
 | FaceFX lip-sync servo boundary | `rb3-latest` `CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` is source context, not a matching `FaceFxLipSyncServo` load body; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; native `Poll` ports the source target/source delta clamp and writes target world rows. |
 | Hand IK | `CharIKHand.cpp` | Native hand IK follows source dataflow. |
@@ -387,6 +387,19 @@ note, and all report `unreadBytes=0`.
     motion. It reads source/pivot/destination transformables and writes the
     pivot through `SetWorldXfm`; it does not synthesize a head-forward source
     row when a GH2 row names the `CharLookAt` object itself.
+  - Native GHOGX now decodes the GH2 revision-2 row in source order:
+    `Hmx::Object`, `CharWeightable`, `mSource`, `mPivot`, `mDest`,
+    `mHalfTime`, yaw/pitch limits, weight-yaw limits, and weight-yaw speed.
+    The earlier `flags/source/target/driven` labels were the same bytes read
+    under old local names, not source truth.
+  - Current stock GH2 `CharLookAt` rows observed in the base characters have
+    `mDest=<none>`, so the source poll gate would be inert. Native therefore
+    keeps these rows decoded/logged and does not publish look-at world rows or
+    fabricate a destination.
+    `engine/out/source_lookat_20260711/lookat_source_decode_audit.log`
+    rechecks Alterna1, Rock2, Rockabill2, and Funk1 with source-shaped fields;
+    all sampled rows report `version=2`, `weightableVersion=2`,
+    source/pivot on the eye mesh, `dest=<none>`, and `unreadBytes=0`.
 - `rb3/src/system/char/CharEyes.cpp`
   - Modern revisions read `EyeDesc` rows, but GH2-era revision 3 uses the older
     branch: `CharEyes::Load` reads an `ObjPtrList<CharLookAt>` and converts each
@@ -399,7 +412,7 @@ note, and all report `unreadBytes=0`.
     eye mesh world rows into ad-hoc controller overrides.
 - Native GHOGX therefore decodes `CharEyes`/`CharLookAt` rows for inspection but
   does not publish synthetic eye runtime rows until a direct source-backed poll
-  port is implemented.
+  port has real source data to drive it.
 - `rb3-latest/src/system/char/CharFaceServo.cpp` and
   `CharFaceServo.h`
   - `CharFaceServo::Load` is the available source for modern face servo rows:

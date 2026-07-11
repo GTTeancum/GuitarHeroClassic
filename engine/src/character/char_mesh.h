@@ -180,20 +180,27 @@ struct CharServoBone {
 
 struct CharLookAt {
   std::string name;
-  int32_t flags = 0;
+  int32_t version = 0;
+  int32_t weightable_version = 0;
   float weight = 1.0f;
+  std::string weight_owner;
   std::string source;
-  std::string target;
-  std::string driven;
-  int32_t unknown = 0;
-  float rate = 0.0f;
-  float min_x = 0.0f;
-  float max_x = 0.0f;
-  float min_z = 0.0f;
-  float max_z = 0.0f;
-  float offset_x = 0.0f;
-  float offset_z = 0.0f;
-  float max_radius = 0.0f;
+  std::string pivot;
+  std::string dest;
+  float half_time = 0.0f;
+  float min_yaw = -80.0f;
+  float max_yaw = 80.0f;
+  float min_pitch = -80.0f;
+  float max_pitch = 80.0f;
+  float min_weight_yaw = -1.0f;
+  float max_weight_yaw = 1.0f;
+  float weight_yaw_speed = 10000.0f;
+  bool allow_roll = true;
+  bool enable_jitter = false;
+  float yaw_jitter_limit = 0.0f;
+  float pitch_jitter_limit = 0.0f;
+  float source_radius = 0.0f;
+  size_t unread_bytes = 0;
 };
 
 struct CharEyes {
