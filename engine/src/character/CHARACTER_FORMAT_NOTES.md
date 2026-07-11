@@ -234,18 +234,22 @@ Community metadata Rosetta:
   glam1 capture, while `woman_f900_hair_probe_debugcam.bmp` turned rock2's
   hair into a rigid sheet across the camera. That probe wrote point rows from
   authored positions and did not reproduce the accepted PS2 strand/update path.
-- Current native `CharHair` behavior is decode/log only. ihatecompvir's
-  `CharHair::Load` consumes the GH2 revision-2 legacy inline collision fields,
-  then clears `Point.collides`; the checked source also lacks the overloaded
-  collision-list `Hookup(ObjPtrList<CharCollide>&)` body needed to populate the
-  runtime point collide list. Native therefore logs decoded stiffness, inertia,
-  gravity, weight, friction, strand roots, point bones, segment lengths, legacy
-  inline collision names/types, and `unk5c` rows, but keeps
-  `runtimeWriteback=0` until that source path is ported.
+- Current native `CharHair` behavior ports the checked ihatecompvir
+  `CharHair::Poll`, `DoReset`, `SimulateLoops`, and `SimulateInternal`
+  dataflow for persistent point position, force, friction, and `lastZ` state.
+  ihatecompvir's `CharHair::Load` still consumes the GH2 revision-2 legacy
+  inline collision fields, then clears `Point.collides`; the checked source also
+  lacks the overloaded collision-list `Hookup(ObjPtrList<CharCollide>&)` body
+  needed to populate the runtime point collide list. Native therefore logs
+  decoded stiffness, inertia, gravity, weight, friction, strand roots, point
+  bones, segment lengths, legacy inline collision names/types, `unk5c` rows,
+  and source poll/reset/sim status, but keeps point `runtimeWriteback=0` until
+  that exact hookup path is ported.
 - Historical `GHOGX_ENABLE_CHAR_HAIR_PROBE=1` and `GHOGX_DISABLE_CHAR_HAIR=1`
   captures remain useful rejected evidence, but those gates are not current
-  runtime controls. `GHOGX_DEBUG_CHAR_HAIR=1` logs decoded source rows and the
-  zero-writeback reason; it does not mean a solved hair simulation is active.
+  runtime controls. `GHOGX_DEBUG_CHAR_HAIR=1` logs decoded source rows plus the
+  source poll/reset/sim boundary; it does not mean a solved hair simulation is
+  active.
 
 Head-local attachment hair:
 
@@ -407,7 +411,9 @@ Glam1 hair:
   `bone_bangL.mesh`, and `bone_bangR.mesh`. The same log also shows the
   current local-attachment matrix collapses to identity for those pieces, so
   this was structural plumbing only, not a completed visual hair fix. Current
-  native CharHair remains `runtimeWriteback=0`.
+  native CharHair uses the checked ihatecompvir poll/reset/sim dataflow but
+  remains at point `runtimeWriteback=0` until the missing source hookup body is
+  available.
 - 2026-06-15 rejected skin-matrix probes:
   global `GHOGX_DISABLE_LOCAL_HAIR_ATTACHMENT=1` runs under
   `engine/out/native_song_20260615/hair_formula_probe/` with
@@ -2000,10 +2006,11 @@ Rock2 hair:
   bone transforms.
 - `rock2` also has `hair_front.hair` and `hair_back.hair` `CharHair`
   pollables. Native currently decodes/logs their `bone_hair-front`,
-  `bone_R/L-hair*`, `bone_hair01..04`, and `spot_hairsphere.trans` rows, but
-  does not publish solved `CharHair` transforms. Remaining parity gaps need the
-  source-backed hookup/collide-list consumer path, not hidden hair meshes or a
-  guessed poller.
+  `bone_R/L-hair*`, `bone_hair01..04`, and `spot_hairsphere.trans` rows and
+  runs the checked ihatecompvir source poll/reset/sim state path, but does not
+  publish solved `CharHair` transforms without a resolved source point-collide
+  list. Remaining parity gaps need the source-backed hookup/collide-list
+  consumer path, not hidden hair meshes or a guessed poller.
 - 2026-06-15 lod0 audit: the decoded PS2 `lod0.grp` explicitly includes
   `hair-back.1.mesh` through `hair-back.6.mesh` plus `hair-mid.1.mesh`.
   Therefore the old global "skip numbered hair variants" rule is rejected.

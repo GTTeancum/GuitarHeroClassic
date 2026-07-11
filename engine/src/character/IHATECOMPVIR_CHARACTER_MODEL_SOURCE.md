@@ -35,7 +35,7 @@ records the upstream commits for the copied files:
 | Rnd utility animation rows | `rb3-latest` `AnimFilter.cpp` / `Anim.cpp` | Decode/log stock `AnimFilter` rows; no trigger or animation runtime hookup. |
 | Event trigger row inventory | `rb3-latest` `EventTrigger.*`, `ObjVector.h`, `ObjPtr_p.h`, `BinStream.*` | Decode/log stock source fields only; trigger scheduling and the GH2 v8 four-byte zero tail remain fenced. |
 | Fenced stock object rows | RB2 dump `CharWalk.cpp` / `OutfitLoader.cpp`, `DirLoader` `WorldFx` fixup refs | Fenced unless the exact source load path is present. |
-| Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows; no runtime writeback until `Hookup(ObjPtrList<CharCollide>&)` and simulation are faithfully ported. |
+| Hair row decode and simulation boundary | `glTFMilo` hair builder, `rb3-latest` `CharHair.*` / `CharCollide.*`, `band3_recomp` symbols | Decode/log source rows and run the checked source poll/reset/sim state path; no point writeback until `Hookup(ObjPtrList<CharCollide>&)` is faithfully ported. |
 | Eyes/look-at controllers | `CharEyes.cpp`, `CharLookAt.cpp` | Decode/log old GH2 rows; no synthetic eye runtime bridge. |
 | FaceFX lip-sync servo boundary | `rb3-latest` `CharFaceServo.*`; stock GH2 `FaceFxLipSyncServo` inventory | `CharFaceServo` is source context, not a matching `FaceFxLipSyncServo` load body; native FAC/viseme lookup stays bounded compatibility. |
 | Position constraints | `rb3-latest` `CharPosConstraint.cpp` / `CharPosConstraint.h` | Decode/log source, targets, and box rows; runtime `Poll` remains fenced until source transform writeback is ported. |
@@ -299,9 +299,10 @@ note, and all report `unreadBytes=0`.
     directory, and the `CharCollide` shape/radius header plus load path.
     However, the overloaded `Hookup(ObjPtrList<CharCollide>&)` body is still
     declared but not implemented in the checked source. Native GHOGX therefore
-    keeps decoded hair rows logged and unwritten until that hookup filter, point
-    collide-list population, and the simulation/writeback path are ported from
-    source, not guessed.
+    runs the checked source poll/reset/sim state path for persistent point
+    position, force, friction, and `lastZ`, but keeps point rows unwritten until
+    that hookup filter and point collide-list population are ported from source,
+    not guessed.
 - `rb3-latest/src/system/char/CharCollide.cpp` and
   `rb3-latest/src/system/char/CharCollide.h`
   - `CharCollide::Load` reads `Hmx::Object`, `RndTransformable`, shape,

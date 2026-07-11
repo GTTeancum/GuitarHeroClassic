@@ -583,7 +583,7 @@ void log_character_controller_graph_once(const Character& character) {
                character.collides.size(), character.pos_constraints.size(),
                character.anim_filters.size(), character.lookats.size(),
                character.eyes.size(),
-               "CharIKHand", "decode-only", "decode-only");
+               "CharIKHand", "CharHair::Poll-missingHookup", "decode-only");
   for (const auto& ik : character.ik_hands) {
     std::fprintf(stderr,
                  "[chargraph]   ik %s version=%d hand=%s finger=%s "
@@ -1185,6 +1185,20 @@ static Vec3 mat_row(const std::array<float, 16>& m, int r) {
   return {m[r * 4 + 0], m[r * 4 + 1], m[r * 4 + 2]};
 }
 
+static Vec3 vec_from_array3(const float v[3]) {
+  return {v[0], v[1], v[2]};
+}
+
+static Vec3 vec_from_array3(const std::array<float, 3>& v) {
+  return {v[0], v[1], v[2]};
+}
+
+static void array3_from_vec(std::array<float, 3>& out, Vec3 v) {
+  out[0] = v.x;
+  out[1] = v.y;
+  out[2] = v.z;
+}
+
 static void set_mat_row(std::array<float, 16>& m, int r, Vec3 v) {
   m[r * 4 + 0] = v.x;
   m[r * 4 + 1] = v.y;
@@ -1369,6 +1383,277 @@ static void normalize_mat3_rows(std::array<float, 16>& m) {
     m[r * 4 + 1] /= len;
     m[r * 4 + 2] /= len;
   }
+}
+
+static Vec3 source_transform_point(Vec3 local,
+                                   const std::array<float, 16>& world) {
+  return {local.x * world[0] + local.y * world[4] + local.z * world[8] +
+              world[12],
+          local.x * world[1] + local.y * world[5] + local.z * world[9] +
+              world[13],
+          local.x * world[2] + local.y * world[6] + local.z * world[10] +
+              world[14]};
+}
+
+static std::array<float, 16> source_matrix3_to_mat4(const float m[9]) {
+  return {m[0], m[1], m[2], 0.0f,
+          m[3], m[4], m[5], 0.0f,
+          m[6], m[7], m[8], 0.0f,
+          0.0f, 0.0f, 0.0f, 1.0f};
+}
+
+static std::array<float, 16> source_char_hair_root_world(
+    const CharHairStrand& strand, const std::array<float, 16>& root_world,
+    const std::array<float, 16>& parent_world) {
+  auto root_mat = source_matrix3_to_mat4(strand.root_mat);
+  auto parent_rot = parent_world;
+  parent_rot[12] = parent_rot[13] = parent_rot[14] = 0.0f;
+  auto out = mat4_mul(root_mat, parent_rot);
+  out[12] = root_world[12];
+  out[13] = root_world[13];
+  out[14] = root_world[14];
+  out[15] = 1.0f;
+  normalize_mat3_rows(out);
+  return out;
+}
+
+static const std::string* source_transform_parent(
+    const Character& character, const std::string& name) {
+  for (const auto& bone : character.bones) {
+    if (bone.name == name || channel_matches_bone(bone.name, name))
+      return &bone.parent;
+  }
+  for (const auto& mesh : character.meshes) {
+    if (mesh.name == name || channel_matches_bone(mesh.name, name))
+      return &mesh.parent;
+  }
+  return nullptr;
+}
+
+static SourceCharHairRuntime& ensure_source_char_hair_runtime(
+    Character& character, const CharHair& hair) {
+  SourceCharHairRuntime& state = character.source_char_hair_runtime[hair.name];
+  if (state.strands.size() != hair.strands.size()) {
+    state.strands.clear();
+    state.strands.resize(hair.strands.size());
+    state.initialized = false;
+    state.reset = 1;
+  }
+  for (size_t si = 0; si < hair.strands.size(); ++si) {
+    auto& runtime_strand = state.strands[si];
+    if (runtime_strand.points.size() != hair.strands[si].points.size()) {
+      runtime_strand.points.clear();
+      runtime_strand.points.resize(hair.strands[si].points.size());
+      state.initialized = false;
+      state.reset = 1;
+    }
+    for (size_t pi = 0; pi < hair.strands[si].points.size(); ++pi) {
+      auto& runtime_point = runtime_strand.points[pi];
+      if (runtime_point.initialized) continue;
+      array3_from_vec(runtime_point.pos,
+                      vec_from_array3(hair.strands[si].points[pi].pos));
+      runtime_point.force = {0.0f, 0.0f, 0.0f};
+      runtime_point.last_friction = {0.0f, 0.0f, 0.0f};
+      runtime_point.last_z = {0.0f, 0.0f, 0.0f};
+      runtime_point.initialized = true;
+    }
+  }
+  if (!state.initialized) {
+    state.initialized = true;
+    state.reset = 1;
+  }
+  return state;
+}
+
+static void source_char_hair_do_reset(Character& character, const CharHair& hair,
+                                      SourceCharHairRuntime& state,
+                                      int reset_count);
+
+static bool source_char_hair_has_resolved_collides(const CharHairPoint& point) {
+  (void)point;
+  return false;
+}
+
+static int source_char_hair_simulate_internal(Character& character,
+                                              const CharHair& hair,
+                                              SourceCharHairRuntime& state,
+                                              float fps, float inertia,
+                                              float friction) {
+  if (!hair.simulate || hair.strands.empty()) return 0;
+  const float safe_fps = fps > 0.0f ? fps : 60.0f;
+  const float sixty_over = 60.0f / safe_fps;
+  const float f19 = (1.0f / safe_fps) * sixty_over;
+  const float powed =
+      std::pow(1.0f - hair.stiffness, sixty_over * sixty_over);
+  Vec3 wind_gravity{0.0f, 0.0f, hair.gravity * f19 * -3.858268f};
+  int write_count = 0;
+
+  for (size_t si = 0; si < hair.strands.size(); ++si) {
+    const auto& strand = hair.strands[si];
+    if (strand.root.empty()) continue;
+    const std::string* parent_name =
+        source_transform_parent(character, strand.root);
+    if (!parent_name || parent_name->empty()) continue;
+
+    std::array<float, 16> root_world{};
+    std::array<float, 16> parent_world{};
+    if (!transform_local_chain_world(character, strand.root, root_world) ||
+        !transform_local_chain_world(character, *parent_name, parent_world)) {
+      continue;
+    }
+
+    std::array<float, 16> t100 =
+        source_char_hair_root_world(strand, root_world, parent_world);
+    auto& runtime_strand = state.strands[si];
+    if (runtime_strand.points.size() != strand.points.size()) continue;
+    auto& next_runtime_strand =
+        state.strands[(si + 1) % std::max<size_t>(state.strands.size(), 1)];
+    const auto& next_strand =
+        hair.strands[(si + 1) % std::max<size_t>(hair.strands.size(), 1)];
+
+    for (size_t pi = 0; pi < strand.points.size(); ++pi) {
+      const auto& point = strand.points[pi];
+      auto& runtime_point = runtime_strand.points[pi];
+      Vec3 point_pos = vec_from_array3(runtime_point.pos);
+      const Vec3 v140 = point_pos;
+      point_pos = vadd(point_pos, vec_from_array3(runtime_point.force));
+      point_pos = vadd(point_pos, wind_gravity);
+
+      if (point.side_length >= 0.0f && pi < next_strand.points.size() &&
+          pi < next_runtime_strand.points.size()) {
+        auto& next_runtime_point = next_runtime_strand.points[pi];
+        Vec3 next_pos = vec_from_array3(next_runtime_point.pos);
+        Vec3 v_res = vsub(point_pos, next_pos);
+        const float len_sq = vdot(v_res, v_res);
+        const float min_len = point.side_length - hair.min_slack;
+        const float min_len_sq = min_len * min_len;
+        if (len_sq < min_len_sq) {
+          v_res = vscale(v_res, min_len_sq / (min_len_sq + len_sq) - 0.5f);
+          point_pos = vadd(point_pos, v_res);
+          next_pos = vsub(next_pos, v_res);
+          array3_from_vec(next_runtime_point.pos, next_pos);
+        } else {
+          const float max_len = point.side_length + hair.max_slack;
+          const float max_len_sq = max_len * max_len;
+          if (max_len > max_len_sq) {
+            v_res =
+                vscale(v_res, max_len_sq / (max_len_sq + len_sq) - 0.5f);
+            point_pos = vadd(point_pos, v_res);
+            next_pos = vsub(next_pos, v_res);
+            array3_from_vec(next_runtime_point.pos, next_pos);
+          }
+        }
+      }
+
+      Vec3 m128_y = vsub(point_pos, mat_pos(t100));
+      const float len_sq = std::max(vdot(m128_y, m128_y), 1.0e-8f);
+      const float rsa = 1.0f / std::sqrt(len_sq);
+      const float rsalen = point.length * rsa - 1.0f;
+      if (pi > 0) {
+        auto& prev_runtime_point = runtime_strand.points[pi - 1];
+        const Vec3 prev_force = vec_from_array3(prev_runtime_point.force);
+        array3_from_vec(prev_runtime_point.force,
+                        vadd(prev_force,
+                             vscale(m128_y, -sixty_over * 0.5f * rsalen)));
+      }
+      point_pos = vadd(point_pos, vscale(m128_y, rsalen));
+      array3_from_vec(runtime_point.pos, point_pos);
+
+      const Vec3 v158 =
+          vadd(mat_pos(t100), vscale(mat_row(t100, 1), point.length));
+      Vec3 m128_z =
+          vadd(vscale(vec_from_array3(runtime_point.last_z),
+                      1.0f - hair.torsion),
+               vscale(mat_row(t100, 2), hair.torsion));
+
+      if (source_char_hair_has_resolved_collides(point)) {
+        Vec3 y = vscale(m128_y, rsa);
+        Vec3 x = vnorm(vcross(y, m128_z), mat_row(t100, 0));
+        Vec3 z = vcross(x, y);
+        set_mat_row(t100, 0, x);
+        set_mat_row(t100, 1, y);
+        set_mat_row(t100, 2, z);
+        t100[12] = point_pos.x;
+        t100[13] = point_pos.y;
+        t100[14] = point_pos.z;
+        normalize_mat3_rows(t100);
+        array3_from_vec(runtime_point.last_z, mat_row(t100, 2));
+        if (!point.bone.empty()) {
+          character.runtime_world_overrides[point.bone] = t100;
+          ++write_count;
+        }
+        Vec3 force = vsub(v158, point_pos);
+        Vec3 v170 = vsub(vec_from_array3(runtime_point.last_friction), force);
+        array3_from_vec(runtime_point.last_friction, force);
+        force = vscale(force, 1.0f - powed);
+        force = vadd(force, vscale(v170, -friction));
+        Vec3 v17c = vsub(point_pos, v140);
+        force = vadd(force, vscale(v17c, inertia));
+        array3_from_vec(runtime_point.force, force);
+      }
+    }
+  }
+
+  return write_count;
+}
+
+static int source_char_hair_simulate_loops(Character& character,
+                                           const CharHair& hair,
+                                           SourceCharHairRuntime& state,
+                                           int count, float fps,
+                                           float inertia, float friction) {
+  if (!hair.simulate || hair.strands.empty()) return 0;
+  int write_count = 0;
+  for (int i = 0; i < count; ++i) {
+    write_count += source_char_hair_simulate_internal(
+        character, hair, state, fps, inertia, friction);
+  }
+  return write_count;
+}
+
+static void source_char_hair_do_reset(Character& character, const CharHair& hair,
+                                      SourceCharHairRuntime& state,
+                                      int reset_count) {
+  for (size_t si = 0; si < hair.strands.size(); ++si) {
+    const auto& strand = hair.strands[si];
+    if (strand.root.empty()) continue;
+    const std::string* parent_name =
+        source_transform_parent(character, strand.root);
+    if (!parent_name || parent_name->empty()) continue;
+    if (si >= state.strands.size()) continue;
+    auto& runtime_strand = state.strands[si];
+
+    std::array<float, 16> root_world{};
+    std::array<float, 16> parent_world{};
+    if (!transform_local_chain_world(character, strand.root, root_world) ||
+        !transform_local_chain_world(character, *parent_name, parent_world)) {
+      continue;
+    }
+
+    Vec3 v80 = mat_pos(root_world);
+    Vec3 v8c = mat_row(root_world, 0);
+    for (size_t pi = 0; pi < strand.points.size() &&
+                        pi < runtime_strand.points.size();
+         ++pi) {
+      const auto& point = strand.points[pi];
+      auto& runtime_point = runtime_strand.points[pi];
+      const Vec3 pos = source_transform_point(vec_from_array3(point.unk5c),
+                                              parent_world);
+      array3_from_vec(runtime_point.pos, pos);
+      const Vec3 v98 = vsub(pos, v80);
+      v80 = pos;
+      const Vec3 last_z = vnorm(vcross(v8c, v98), {0.0f, 0.0f, 1.0f});
+      array3_from_vec(runtime_point.last_z, last_z);
+      v8c = vcross(v98, last_z);
+      runtime_point.force = {0.0f, 0.0f, 0.0f};
+      runtime_point.last_friction = {0.0f, 0.0f, 0.0f};
+    }
+  }
+
+  source_char_hair_simulate_loops(character, hair, state,
+                                  std::max(reset_count, 0), 60.0f, 0.0f,
+                                  0.0f);
+  state.reset = 0;
 }
 
 static void log_debug_xfm_row(const char* tag, const char* name,
@@ -2585,17 +2870,37 @@ static void apply_hand_driver_output_layers(
 }
 
 static void apply_char_hair(Character& character, float time_seconds) {
-  (void)time_seconds;
   if (character.hairs.empty()) return;
   for (const auto& hair : character.hairs) {
     log_char_hair_source_once(character, hair);
-  }
-  if (debug_char_hair_enabled()) {
-    std::fprintf(stderr,
-                 "[charhair-source-sim] character=%s runtimeWriteback=0 "
-                 "decodedOnly=1 noResolvedPointCollides=1 "
-                 "reason=awaiting-faithful-ihatecompvir-CharHair-port\n",
-                 character.dir_name.c_str());
+    SourceCharHairRuntime& state =
+        ensure_source_char_hair_runtime(character, hair);
+    const bool first_poll = state.last_time_seconds < 0.0f;
+    const bool nonzero_delta =
+        first_poll || time_seconds != state.last_time_seconds;
+    if (state.reset > 0) {
+      source_char_hair_do_reset(character, hair, state, state.reset);
+    }
+
+    int write_count = 0;
+    if (nonzero_delta) {
+      write_count = source_char_hair_simulate_loops(character, hair, state, 1,
+                                                   60.0f, hair.inertia,
+                                                   hair.friction);
+    }
+    state.last_time_seconds = time_seconds;
+
+    if (debug_char_hair_enabled()) {
+      std::fprintf(
+          stderr,
+          "[charhair-source-sim] character=%s hair=%s "
+          "source=ihatecompvir-CharHair::Poll/DoReset/SimulateInternal "
+          "runtimeWriteback=%d resolvedPointCollides=0 "
+          "missingHookupObjPtrList=1 zeroTimeBodyAvailable=0 "
+          "nonzeroDelta=%d firstPoll=%d time=%.4f\n",
+          character.dir_name.c_str(), hair.name.c_str(), write_count,
+          nonzero_delta ? 1 : 0, first_poll ? 1 : 0, time_seconds);
+    }
   }
 }
 

@@ -854,9 +854,11 @@ int run_contract() {
                  "character graph log exposes decoded CharCollide rows");
   ok &= contains(doc, "`CharCollide::Load` reads",
                  "document records CharCollide source decode order");
-  ok &= contains(doc, "keeps decoded hair rows logged and unwritten",
+  ok &= contains(doc, "runs the checked source poll/reset/sim state path",
+                 "document states bounded native CharHair poll rule");
+  ok &= contains(doc, "point rows unwritten until",
                  "document states bounded native CharHair writeback rule");
-  ok &= contains(doc, "point\n    collide-list population",
+  ok &= contains(doc, "point collide-list population",
                  "document names missing CharHair point collision hookup boundary");
   ok &= contains(doc, "latest source includes `CharHair.h`, `CharCollide.h`",
                  "document records stronger latest hair source boundary");
@@ -867,10 +869,10 @@ int run_contract() {
   ok &= contains(doc,
                  "The current config exposes `CharHair::GetFPS` and `CharHair::Simulate`",
                  "document records band3 CharHair symbol-only evidence");
-  ok &= contains(char_clip, "runtimeWriteback=0",
-                 "native CharHair path logs zero runtime writeback");
-  ok &= contains(char_clip, "awaiting-faithful-ihatecompvir-CharHair-port",
-                 "native CharHair path remains decode/log only without hookup");
+  ok &= contains(char_clip, "runtimeWriteback=%dresolvedPointCollides=0",
+                 "native CharHair path logs unresolved point-collide write count");
+  ok &= contains(char_clip, "missingHookupObjPtrList=1",
+                 "native CharHair path keeps missing hookup boundary explicit");
   ok &= contains(rb3_latest_char_ik_rod_h,
                  "ObjPtr<RndTransformable,ObjectDir>mLeftEnd;",
                  "latest CharIKRod source header exposes left endpoint");
@@ -2287,23 +2289,25 @@ int run_contract() {
                 "old CharHair root-matrix trial env gate removed");
   ok &= contains(char_mesh_h,
                  "sourcethenclearsPoint.collides;"
-                 "//nativelogsthesefieldsonly",
-                 "CharHair point comments keep inline collision rows decoded-only");
+                 "//nativelogsthesefieldsbutdoesnotpromotethem",
+                 "CharHair point comments keep inline collision rows out of guessed collides");
   ok &= contains(char_clip, "legacyInline=loggedOnly",
                  "CharHair source logs mark legacy inline collision rows as log-only");
   ok &= contains(char_clip,
-                 "decodedOnly=1noResolvedPointCollides=1",
-                 "CharHair simulation log keeps zero-writeback source boundary explicit");
+                 "source=ihatecompvir-CharHair::Poll/DoReset/SimulateInternal",
+                 "CharHair simulation log names the upstream poll/reset/sim path");
+  ok &= contains(char_clip,
+                 "missingHookupObjPtrList=1",
+                 "CharHair simulation log keeps missing hookup boundary explicit");
   ok &= contains(format_notes,
-                 "Current native `CharHair` behavior is decode/log only.",
-                 "format notes keep current CharHair path decode/log only");
+                 "Current native `CharHair` behavior ports the checked ihatecompvir",
+                 "format notes describe current CharHair source poll path");
   ok &= contains(format_notes,
-                 "native currently decodes/logs those\n"
-                 "  source groups only",
-                 "Glam1 notes keep decoded CharHair groups out of runtime writeback");
+                 "source poll/reset/sim boundary",
+                 "format notes document the current CharHair source boundary");
   ok &= contains(format_notes,
-                 "does not publish solved `CharHair` transforms",
-                 "Rock2 notes keep decoded CharHair groups out of runtime writeback");
+                 "does not\n  publish solved `CharHair` transforms without a resolved source point-collide",
+                 "Rock2 notes keep source CharHair writes fenced to resolved collides");
   ok &= contains(format_notes,
                  "Historical native `CharHair` shared-poller trial",
                  "old CharHair poller proof is marked historical");
@@ -2330,7 +2334,7 @@ int run_contract() {
                  "`GHOGX_DISABLE_CHAR_HAIR=1`",
                  "format notes mark old CharHair gates as historical evidence");
   ok &= contains(format_notes_compact,
-                 "`runtimeWriteback=0`source-boundaryreason",
+                 "point`runtimeWriteback=0`untilthemissingsourcehookupbody",
                  "format notes document CharHair zero-writeback boundary");
   ok &= contains(format_notes,
                  "historical Glam1 wrist render-path trial",
@@ -2366,9 +2370,9 @@ int run_contract() {
   ok &= contains(format_notes,
                  "Historical PS2 hand-IK A/B toggles",
                  "format notes mark old hand-IK toggles as historical only");
-  ok &= missing(format_notes,
-                "Native `CharHair` now polls by default",
-                "format notes must not claim native CharHair simulation is active");
+  ok &= contains(format_notes,
+                 "it does not mean a solved hair simulation is\n  active",
+                 "format notes must not claim source hair poll is full visual parity");
   ok &= missing(format_notes,
                 "common native `CharHair` poller now drives",
                 "format notes must not claim old common CharHair poller is active");

@@ -209,7 +209,7 @@ struct CharHairPoint {
   float length = 0.0f;
   // GH2 v2 field names from ihatecompvir's CharHair source. Older revisions
   // carry legacy inline collision rows, but source then clears Point.collides;
-  // native logs these fields only and does not publish guessed physics rows.
+  // native logs these fields but does not promote them into guessed collides.
   uint32_t collide_type = 0;
   std::string collision;
   float radius = 0.0f;
@@ -243,6 +243,25 @@ struct CharHair {
   std::string wind;
   size_t unread_bytes = 0;
   std::string unread_tail_hex;
+};
+
+struct SourceCharHairRuntimePoint {
+  bool initialized = false;
+  std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> force = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> last_friction = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> last_z = {0.0f, 0.0f, 0.0f};
+};
+
+struct SourceCharHairRuntimeStrand {
+  std::vector<SourceCharHairRuntimePoint> points;
+};
+
+struct SourceCharHairRuntime {
+  bool initialized = false;
+  int reset = 1;
+  float last_time_seconds = -1.0f;
+  std::vector<SourceCharHairRuntimeStrand> strands;
 };
 
 struct CharCollide {
@@ -496,6 +515,7 @@ struct Character {
   // Trans world position into this row and uses it for the hand solve/stretch
   // write; it is controller state, not a per-frame authored bone local.
   std::map<std::string, std::array<float, 3>> runtime_ik_hand_targets;
+  std::map<std::string, SourceCharHairRuntime> source_char_hair_runtime;
   // PS2 Trans controllers can submit live world rows through the shared
   // writer without replacing the authored local rows that later controllers
   // still read. These are cleared per sampled frame.
