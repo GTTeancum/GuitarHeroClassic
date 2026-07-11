@@ -5956,8 +5956,8 @@ int main() {
                  "frame,anim.rotation_slerp);",
                  "one-shot renderer TransAnim rotations honor authored rot_slerp mode");
   ok &= contains(renderer_c,
-                 "sample.rotation_is_absolute=true;",
-                 "one-shot renderer TransAnim rotations apply as source SetFrame local rotations");
+                 "sample.rotation_is_absolute=false;",
+                 "one-shot renderer TransAnim rotations apply through the current source local basis");
   ok &= contains(renderer_c,
                  "if(!anim.scale_keys.empty()){sample.has_scale=true;"
                  "sample.scale_is_absolute=true;"
@@ -6004,15 +6004,13 @@ int main() {
                  "MeshQuatAnimKey>&keys,floatframe,boolslerp)",
                  "venue TransAnim rotations sample the authored quaternion value");
   ok &= contains(gameplay_c,
-                 "sample.rotation_is_absolute=true;"
+                 "sample.rotation_is_absolute=false;"
                  "sample.rotation_xyzw=sample_rotation_value(anim.rotation_keys,"
                  "frame,anim.rotation_slerp);",
-                 "venue TransAnim playback applies authored rotations as source SetFrame local rotations");
-  ok &= absent(gameplay_c,
-               "sample.has_rotation=true;sample.rotation_xyzw="
-               "sample_rotation_value(anim.rotation_keys,frame,"
-               "anim.rotation_slerp);",
-               "venue TransAnim rotations must not be left as renderer deltas");
+                 "venue TransAnim playback applies authored rotations through the current source local basis");
+  ok &= contains(renderer_c,
+                 "apply_local_rotation_delta(world,sample.rotation_xyzw);",
+                 "venue TransAnim rotations preserve the authored local gear plane while applying sampled spin");
   ok &= contains(gameplay_c,
                  "out.anim.scale_keys=mesh_anim_keys_from_camera_keys(decoded->scale_keys);",
                  "source-shaped TransAnim decoder keeps authored scale keys");

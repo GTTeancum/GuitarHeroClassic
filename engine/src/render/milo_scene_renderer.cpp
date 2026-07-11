@@ -642,7 +642,7 @@ MiloSceneRenderer::MeshTransformSample sample_transform_anim(
   }
   if (!anim.rotation_keys.empty()) {
     sample.has_rotation = true;
-    sample.rotation_is_absolute = true;
+    sample.rotation_is_absolute = false;
     sample.rotation_xyzw =
         sample_rotation_value(anim.rotation_keys, frame, anim.rotation_slerp);
   }
