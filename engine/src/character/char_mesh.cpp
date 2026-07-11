@@ -3997,6 +3997,32 @@ SourceCharInterestComputeScorePlan source_char_interest_compute_score_plan() {
   return plan;
 }
 
+std::array<float, 9> source_char_neck_twist_multiply_matrix(
+    const std::array<float, 9>& lhs,
+    const std::array<float, 9>& rhs) {
+  std::array<float, 9> out = {};
+  for (int row = 0; row < 3; ++row) {
+    for (int col = 0; col < 3; ++col) {
+      out[static_cast<size_t>(row * 3 + col)] =
+          lhs[static_cast<size_t>(row * 3 + 0)] *
+              rhs[static_cast<size_t>(0 * 3 + col)] +
+          lhs[static_cast<size_t>(row * 3 + 1)] *
+              rhs[static_cast<size_t>(1 * 3 + col)] +
+          lhs[static_cast<size_t>(row * 3 + 2)] *
+              rhs[static_cast<size_t>(2 * 3 + col)];
+    }
+  }
+  return out;
+}
+
+std::array<float, 3> source_char_neck_twist_matrix_row(
+    const std::array<float, 9>& matrix,
+    int row) {
+  return {matrix[static_cast<size_t>(row * 3 + 0)],
+          matrix[static_cast<size_t>(row * 3 + 1)],
+          matrix[static_cast<size_t>(row * 3 + 2)]};
+}
+
 SourceCharNeckTwistState source_char_neck_twist_defaults() {
   return SourceCharNeckTwistState{};
 }
@@ -4021,6 +4047,43 @@ float source_char_neck_twist_half_limited_angle(float rotated_y_y,
   if (angle < 0.0f) angle += kTwoPi;
   angle -= kPi;
   return angle * 0.5f;
+}
+
+SourceCharNeckTwistPollPlan source_char_neck_twist_poll_plan(
+    bool has_head,
+    bool has_twist,
+    bool has_twist_parent,
+    bool reaches_twist_parent,
+    const std::array<float, 9>& head_local_matrix,
+    const std::vector<std::array<float, 9>>& parent_local_matrices,
+    const std::array<float, 3>& rotated_y_after_make_rot_quat_unit_x) {
+  SourceCharNeckTwistPollPlan plan;
+  if (!has_head || !has_twist) return plan;
+  plan.entered_head_twist_gate = true;
+  if (!has_twist_parent) return plan;
+  plan.entered_twist_parent_gate = true;
+  plan.accumulated_matrix = head_local_matrix;
+  for (const std::array<float, 9>& parent_local : parent_local_matrices) {
+    plan.accumulated_matrix =
+        source_char_neck_twist_multiply_matrix(plan.accumulated_matrix,
+                                               parent_local);
+    ++plan.parent_multiply_count;
+  }
+  if (!reaches_twist_parent) return plan;
+
+  plan.reached_twist_parent = true;
+  plan.accumulated_x =
+      source_char_neck_twist_matrix_row(plan.accumulated_matrix, 0);
+  plan.accumulated_y =
+      source_char_neck_twist_matrix_row(plan.accumulated_matrix, 1);
+  plan.requires_make_rot_quat_unit_x = true;
+  plan.rotated_y_after_make_rot_quat_unit_x =
+      rotated_y_after_make_rot_quat_unit_x;
+  plan.rotate_about_x_radians = source_char_neck_twist_half_limited_angle(
+      rotated_y_after_make_rot_quat_unit_x[1],
+      rotated_y_after_make_rot_quat_unit_x[2]);
+  plan.writes_twist_local_rotate_x = true;
+  return plan;
 }
 
 SourceCharIKFingersState source_char_ik_fingers_defaults() {

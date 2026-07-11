@@ -1,8 +1,10 @@
 #include "character/char_mesh.h"
 
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -38,9 +40,17 @@ int main() {
   using ghogx::character::source_char_neck_twist_defaults;
   using ghogx::character::source_char_neck_twist_half_limited_angle;
   using ghogx::character::source_char_neck_twist_load_revision_known;
+  using ghogx::character::source_char_neck_twist_poll_plan;
   using ghogx::character::source_char_neck_twist_poll_deps;
 
   constexpr float kPi = 3.14159265358979323846f;
+  const std::array<float, 9> identity = {1.0f, 0.0f, 0.0f,
+                                         0.0f, 1.0f, 0.0f,
+                                         0.0f, 0.0f, 1.0f};
+  const std::array<float, 9> parent = {1.0f, 0.0f, 0.0f,
+                                       4.0f, 1.0f, 0.0f,
+                                       0.0f, 0.0f, 1.0f};
+  const std::array<float, 3> rotated_y = {0.0f, 0.0f, 1.0f};
   bool ok = true;
 
   const auto defaults = source_char_neck_twist_defaults();
@@ -70,6 +80,46 @@ int main() {
              kPi * 0.25f, "positive quarter twist angle");
   ok &= near(source_char_neck_twist_half_limited_angle(0.0f, -1.0f),
              -kPi * 0.25f, "negative quarter twist angle");
+
+  auto poll = source_char_neck_twist_poll_plan(
+      false, true, true, true, identity, {parent}, rotated_y);
+  ok &= expect_bool(poll.entered_head_twist_gate, false,
+                    "Poll skips missing head");
+  ok &= expect_bool(poll.writes_twist_local_rotate_x, false,
+                    "Poll missing head has no write");
+
+  poll = source_char_neck_twist_poll_plan(
+      true, true, false, true, identity, {parent}, rotated_y);
+  ok &= expect_bool(poll.entered_head_twist_gate, true,
+                    "Poll enters head/twist gate");
+  ok &= expect_bool(poll.entered_twist_parent_gate, false,
+                    "Poll skips missing twist parent");
+
+  poll = source_char_neck_twist_poll_plan(
+      true, true, true, false, identity, {parent}, rotated_y);
+  ok &= expect_bool(poll.entered_twist_parent_gate, true,
+                    "Poll enters twist parent gate");
+  ok &= expect_size(poll.parent_multiply_count, 1,
+                    "Poll multiplies parent local before chain miss");
+  ok &= expect_bool(poll.reached_twist_parent, false,
+                    "Poll records parent chain miss");
+  ok &= expect_bool(poll.writes_twist_local_rotate_x, false,
+                    "Poll chain miss has no write");
+
+  poll = source_char_neck_twist_poll_plan(
+      true, true, true, true, identity, {parent}, rotated_y);
+  ok &= expect_bool(poll.reached_twist_parent, true,
+                    "Poll reaches twist parent");
+  ok &= expect_bool(poll.requires_make_rot_quat_unit_x, true,
+                    "Poll requires MakeRotQuatUnitX");
+  ok &= near(poll.accumulated_y[0], 4.0f,
+             "Poll accumulated parent row y x");
+  ok &= near(poll.accumulated_y[1], 1.0f,
+             "Poll accumulated parent row y y");
+  ok &= near(poll.rotate_about_x_radians, kPi * 0.25f,
+             "Poll writes half limited angle from rotated y");
+  ok &= expect_bool(poll.writes_twist_local_rotate_x, true,
+                    "Poll records twist local X write");
 
   return ok ? 0 : 1;
 }

@@ -1299,6 +1299,23 @@ struct SourceCharNeckTwistPollDeps {
   std::vector<std::string> change;
 };
 
+struct SourceCharNeckTwistPollPlan {
+  bool entered_head_twist_gate = false;
+  bool entered_twist_parent_gate = false;
+  bool reached_twist_parent = false;
+  size_t parent_multiply_count = 0;
+  std::array<float, 9> accumulated_matrix = {1.0f, 0.0f, 0.0f,
+                                             0.0f, 1.0f, 0.0f,
+                                             0.0f, 0.0f, 1.0f};
+  std::array<float, 3> accumulated_x = {1.0f, 0.0f, 0.0f};
+  std::array<float, 3> accumulated_y = {0.0f, 1.0f, 0.0f};
+  bool requires_make_rot_quat_unit_x = false;
+  std::array<float, 3> rotated_y_after_make_rot_quat_unit_x =
+      {0.0f, 1.0f, 0.0f};
+  bool writes_twist_local_rotate_x = false;
+  float rotate_about_x_radians = 0.0f;
+};
+
 struct SourceCharIKFingersState {
   int blend_in_frames = 0;
   int blend_out_frames = 0;
@@ -1779,6 +1796,14 @@ void source_char_neck_twist_poll_deps(SourceCharNeckTwistPollDeps& deps,
                                       const std::string& twist);
 float source_char_neck_twist_half_limited_angle(float rotated_y_y,
                                                 float rotated_y_z);
+SourceCharNeckTwistPollPlan source_char_neck_twist_poll_plan(
+    bool has_head,
+    bool has_twist,
+    bool has_twist_parent,
+    bool reaches_twist_parent,
+    const std::array<float, 9>& head_local_matrix,
+    const std::vector<std::array<float, 9>>& parent_local_matrices,
+    const std::array<float, 3>& rotated_y_after_make_rot_quat_unit_x);
 SourceCharIKFingersState source_char_ik_fingers_defaults();
 bool source_char_ik_fingers_load_revision_known(int revision);
 SourceCharIKFingersSetupRefs source_char_ik_fingers_set_name_refs(

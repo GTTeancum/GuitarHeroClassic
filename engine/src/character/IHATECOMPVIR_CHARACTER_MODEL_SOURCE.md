@@ -1798,9 +1798,12 @@ note, and all report `unreadBytes=0`.
     mirrors that data behavior.
   - `CharNeckTwist::Poll` walks the head local transform chain up to the twist
     parent, derives a rotation from the resulting X/Y rows, and rotates the
-    twist row about local X by half of `LimitAng(atan2(z, y))`. Native exposes
-    only the source final scalar helper in this slice; it does not add a live
-    neck write.
+    twist row about local X by half of `LimitAng(atan2(z, y))`. Native
+    `source_char_neck_twist_poll_plan` ports the source gates, parent-chain
+    local-matrix multiplication, and final dirty-local rotate intent. The
+    upstream snapshots do not expose the `MakeRotQuatUnitX` helper body, so the
+    plan records that dependency instead of fabricating it; no live neck write
+    is promoted.
   - `engine/out/source_necktwist_20260711/stock_necktwist_inventory.log`
     refreshes the current stock GH2 hybrid inventory: every one of the 24 base
     character MILOs reports `neckTwist=0`. This source slice is therefore not
