@@ -55,7 +55,7 @@ records the upstream commits for the copied files:
 | Hand/head/foot IK, IK MIDI, slider MIDI, and IK fingers | `CharIKHand.cpp`, `rb3-latest` `CharIKHead.cpp` / `CharIKHead.h`, `CharIKFoot.cpp` / `CharIKFoot.h`, `CharIKMidi.cpp` / `CharIKMidi.h`, `CharIKSliderMidi.cpp` / `CharIKSliderMidi.h`, `CharIKFingers.cpp` / `CharIKFingers.h` | Native hand IK follows source dataflow; IK head helpers port source defaults, dependency publication, point-chain rebuilding, load gates, and copy flow without inventing the absent `Poll` body; IK foot helpers port source helper-target setup, FSM, load gates, and delegation plan without inventing row hookup; IK MIDI rows decode/log the source `mBone` and revision-gated legacy/anim blend fields; IK slider MIDI helpers port source defaults, dependency publication, setup reset, load gates, and copy flow without inventing the absent `Poll` / `SetFraction` bodies; IK fingers helpers port source defaults and left/right finger transform names only. |
 | IK scale controller | `rb3-latest` `CharIKScale.cpp` / `CharIKScale.h` | Native helper ports constructor defaults, source poll gate, capture-before/after scale rows, and dependency publication; the checked source `Poll` body has no implemented scale write. |
 | Clip drivers | `rb3-latest` `CharDriver.cpp` / `CharDriver.h`, `CharDriverMidi.cpp` / `CharDriverMidi.h`; `CharWeightable.cpp`; `ObjPtr_p.h`; RB2 dump `CharDriver.cpp` | Decode/log driver inventory, inherited weight owner, default clip pointer, parser rows, and blend override gates. Base `CharDriver::Load`/`Poll` bodies are not present in the available source, so runtime clip selection remains source-fenced. |
-| Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
+| Clip groups | `rb3-latest` `CharClipGroup.cpp` / `CharClipGroup.h` | Native shared loader follows source `CharClipGroup::Load`: `Hmx::Object::Load`, `mClips`, `mWhich`, and revision-gated `mFlags`. Handler and prop-sync row plans now mirror the visible source rows. Guitarist active group selection now follows source `CharClipGroup::GetClip` cycling. Flagged `GetClip(int)` selection remains fenced because the available body is not decompiled. |
 | Clip set preview/editor container | `rb3-latest` `CharClipSet.cpp` / `CharClipSet.h` | Native helper ports reset/default state, group randomize/sort dispatch, pre/post-save preview handling, revision-gated post-load read plan, preview character decisions, frame helpers, and BPM update; it does not promote clip playback runtime. |
 | Clip display/task graph diagnostics | `rb3-latest` `CharClipDisplay.cpp` / `CharClipDisplay.h`, `CharTaskMgr.cpp` / `CharTaskMgr.h` | Native helper ports display init, source lookup, text width plus em, bounded start/end bookkeeping, line spacing, and task-graph toggle registration. This is diagnostic/editor-only and does not change runtime clip playback. |
 | Clip editor/collision/graph diagnostics | `rb3-latest` `ClipCollide.cpp` / `ClipCollide.h`, `ClipGraphGen.cpp` / `ClipGraphGen.h`, `ClipDistMap.h`, `ClipCompressor.cpp`, `FileMerger.cpp` / `FileMerger.h` | Native helper ports source-visible editor defaults, transition-generation gates, list/test call plans, and merger row defaults only; no live collision, transition graph execution, compression, or file merging behavior is promoted. |
@@ -1788,6 +1788,16 @@ note, and all report `unreadBytes=0`.
   - `CharClipGroup::Load` reads the object prefix through
     `Hmx::Object::Load`, then the stored `mClips` vector, `mWhich`, and
     `mFlags` only for source revisions above 1.
+  - Native `source_char_clip_group_load_plan` records the source load gate:
+    revisions 0-2 are accepted, `LOAD_REVS`, `Hmx::Object`, `mClips`, and
+    `mWhich` are read in that order, and `mFlags` is read only for revisions
+    above 1; earlier revisions default `mFlags` to zero.
+  - Native `source_char_clip_group_handler_plan` records the exact source
+    handler rows: `get_clip`, `delete_remaining`, `get_size`, `has_clip`,
+    `find_clip`, `add_clip`, `set_clip_flags`, and `randomize_index`, followed
+    by superclass `Hmx::Object` and check `0x179`.
+  - Native `source_char_clip_group_prop_sync_plan` records the exact source
+    prop-sync rows: `clips` and `flags`.
   - `CharClipGroup::GetClip` advances `mWhich`, wraps it against
     `mClips.size()`, and returns the stored clip pointer. Native
     `char_clip_group_get_clip_index` ports that exact cycling step and mutates

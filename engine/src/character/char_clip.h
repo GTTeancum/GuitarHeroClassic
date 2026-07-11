@@ -464,6 +464,23 @@ struct CharClipGroup {
   bool loaded = false;
 };
 
+struct SourceCharClipGroupLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  bool read_flags = false;
+  int32_t default_flags = 0;
+};
+
+struct SourceCharClipGroupHandlerPlan {
+  std::vector<std::string> handlers;
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharClipGroupPropSyncPlan {
+  std::vector<std::string> properties;
+};
+
 struct SourceCharClipRefOwner {
   bool is_clip_group = false;
   std::vector<std::string> group_clips;
@@ -560,6 +577,9 @@ std::vector<std::string> source_char_clip_group_add_clip(
 std::vector<std::string> source_char_clip_group_remove_clip(
     std::vector<std::string> clip_names,
     const std::string& clip_name);
+SourceCharClipGroupLoadPlan source_char_clip_group_load_plan(int revision);
+SourceCharClipGroupHandlerPlan source_char_clip_group_handler_plan();
+SourceCharClipGroupPropSyncPlan source_char_clip_group_prop_sync_plan();
 
 struct SourceCharClipDriverState {
   uint32_t play_flags = 0;

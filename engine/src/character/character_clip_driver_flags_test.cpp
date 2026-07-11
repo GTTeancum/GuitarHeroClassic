@@ -691,6 +691,62 @@ bool expect_driver_midi_helpers() {
   return ok;
 }
 
+bool expect_clip_group_source_plans() {
+  bool ok = true;
+  const ghogx::character::SourceCharClipGroupLoadPlan load_v1 =
+      ghogx::character::source_char_clip_group_load_plan(1);
+  if (!load_v1.known_revision || load_v1.read_flags ||
+      load_v1.default_flags != 0 || load_v1.read_order.size() != 4 ||
+      load_v1.read_order[0] != "LOAD_REVS" ||
+      load_v1.read_order[1] != "Hmx::Object" ||
+      load_v1.read_order[2] != "mClips" ||
+      load_v1.read_order[3] != "mWhich") {
+    std::cerr << "CharClipGroup rev1 load plan mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharClipGroupLoadPlan load_v2 =
+      ghogx::character::source_char_clip_group_load_plan(2);
+  if (!load_v2.known_revision || !load_v2.read_flags ||
+      load_v2.read_order.size() != 5 || load_v2.read_order[4] != "mFlags") {
+    std::cerr << "CharClipGroup rev2 load plan mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharClipGroupLoadPlan load_bad =
+      ghogx::character::source_char_clip_group_load_plan(3);
+  if (load_bad.known_revision || !load_bad.read_order.empty()) {
+    std::cerr << "CharClipGroup bad revision load plan mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharClipGroupHandlerPlan handler =
+      ghogx::character::source_char_clip_group_handler_plan();
+  if (handler.handlers.size() != 8 ||
+      handler.handlers[0] != "get_clip:GetClip" ||
+      handler.handlers[1] != "delete_remaining:DeleteRemaining" ||
+      handler.handlers[2] != "get_size:mClips.size" ||
+      handler.handlers[3] != "has_clip:HasClip" ||
+      handler.handlers[4] != "find_clip:GetClip(int)" ||
+      handler.handlers[5] != "add_clip:AddClip" ||
+      handler.handlers[6] != "set_clip_flags:SetClipFlags" ||
+      handler.handlers[7] != "randomize_index:RandomizeIndex" ||
+      handler.superclasses.size() != 1 ||
+      handler.superclasses[0] != "Hmx::Object" || handler.check != 0x179) {
+    std::cerr << "CharClipGroup handler plan mismatch\n";
+    ok = false;
+  }
+
+  const ghogx::character::SourceCharClipGroupPropSyncPlan props =
+      ghogx::character::source_char_clip_group_prop_sync_plan();
+  if (props.properties.size() != 2 || props.properties[0] != "clips" ||
+      props.properties[1] != "flags") {
+    std::cerr << "CharClipGroup prop-sync plan mismatch\n";
+    ok = false;
+  }
+  return ok;
+}
+
 bool expect_resource_lookup(
     const ghogx::character::SourceCharClipResourceLookup& got,
     bool has_type_def,
@@ -875,6 +931,7 @@ int main() {
   ok &= expect_group_remove({"solo", "solo", "ending"}, "solo",
                             {"solo", "ending"},
                             "source iterator skip after erase");
+  ok &= expect_clip_group_source_plans();
   ok &= expect_clip_driver_helpers();
   ok &= expect_driver_midi_helpers();
   ok &= expect_starved(false, false, 0, true, "empty stack");

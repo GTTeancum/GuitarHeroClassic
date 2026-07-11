@@ -2428,6 +2428,41 @@ std::vector<std::string> source_char_clip_group_remove_clip(
   return clip_names;
 }
 
+SourceCharClipGroupLoadPlan source_char_clip_group_load_plan(int revision) {
+  SourceCharClipGroupLoadPlan plan;
+  if (revision < 0 || revision > 2) return plan;
+  plan.known_revision = true;
+  plan.read_order = {"LOAD_REVS", "Hmx::Object", "mClips", "mWhich"};
+  if (revision > 1) {
+    plan.read_order.push_back("mFlags");
+    plan.read_flags = true;
+  } else {
+    plan.default_flags = 0;
+  }
+  return plan;
+}
+
+SourceCharClipGroupHandlerPlan source_char_clip_group_handler_plan() {
+  SourceCharClipGroupHandlerPlan plan;
+  plan.handlers = {"get_clip:GetClip",
+                   "delete_remaining:DeleteRemaining",
+                   "get_size:mClips.size",
+                   "has_clip:HasClip",
+                   "find_clip:GetClip(int)",
+                   "add_clip:AddClip",
+                   "set_clip_flags:SetClipFlags",
+                   "randomize_index:RandomizeIndex"};
+  plan.superclasses = {"Hmx::Object"};
+  plan.check = 0x179;
+  return plan;
+}
+
+SourceCharClipGroupPropSyncPlan source_char_clip_group_prop_sync_plan() {
+  SourceCharClipGroupPropSyncPlan plan;
+  plan.properties = {"clips", "flags"};
+  return plan;
+}
+
 uint32_t source_char_clip_driver_masked_play_flags(uint32_t clip_play_flags,
                                                    uint32_t mask) {
   uint32_t play_flags = clip_play_flags;

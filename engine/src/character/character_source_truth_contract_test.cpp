@@ -13239,6 +13239,21 @@ int run_contract() {
                  "bs>>mWhich;if(gRev>1)bs>>mFlags;elsemFlags=0;}",
                  "latest CharClipGroup source exposes Load row order");
   ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "BEGIN_HANDLERS(CharClipGroup)HANDLE_EXPR(get_clip,GetClip())"
+                 "HANDLE_ACTION(delete_remaining,DeleteRemaining(_msg->Int(2)))"
+                 "HANDLE_EXPR(get_size,(int)mClips.size())HANDLE_EXPR(has_clip,"
+                 "HasClip(_msg->Obj<CharClip>(2)))HANDLE_EXPR(find_clip,"
+                 "GetClip(_msg->Int(2)))HANDLE_ACTION(add_clip,AddClip("
+                 "_msg->Obj<CharClip>(2)))HANDLE_ACTION(set_clip_flags,"
+                 "SetClipFlags(_msg->Int(2)))HANDLE_ACTION(randomize_index,"
+                 "RandomizeIndex())HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x179)END_HANDLERS",
+                 "latest CharClipGroup source exposes handler rows");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
+                 "BEGIN_PROPSYNCS(CharClipGroup)SYNC_PROP(clips,mClips)"
+                 "SYNC_PROP(flags,mFlags)END_PROPSYNCS",
+                 "latest CharClipGroup source exposes prop-sync rows");
+  ok &= contains(rb3_latest_char_clip_group_cpp,
                  "CharClip*CharClipGroup::GetClip(){if(mClips.empty())return0;"
                  "mWhich++;if(mWhich>=mClips.size())mWhich=0;"
                  "returnmClips[mWhich];}",
@@ -13273,6 +13288,20 @@ int run_contract() {
                  "int32_twhich=0;int32_tflags=0;boolloaded=false;};",
                  "native character API carries source CharClipGroup state");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipGroupLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;boolread_flags=false;"
+                 "int32_tdefault_flags=0;};",
+                 "native character API exposes CharClipGroup load plan state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipGroupHandlerPlan{"
+                 "std::vector<std::string>handlers;"
+                 "std::vector<std::string>superclasses;intcheck=0;};",
+                 "native character API exposes CharClipGroup handler plan state");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipGroupPropSyncPlan{"
+                 "std::vector<std::string>properties;};",
+                 "native character API exposes CharClipGroup prop-sync plan state");
+  ok &= contains(char_clip_h,
                  "CharClipGroupload_clip_group("
                  "conststd::string&hdr_path,conststd::string&ark_path,"
                  "conststd::vector<std::string>&milo_paths,"
@@ -13299,6 +13328,17 @@ int run_contract() {
                  "std::vector<std::string>source_char_clip_group_remove_clip("
                  "std::vector<std::string>clip_names,conststd::string&clip_name);",
                  "native character API exposes source-backed CharClipGroup RemoveClip helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipGroupLoadPlansource_char_clip_group_load_plan("
+                 "intrevision);",
+                 "native character API exposes source-backed CharClipGroup load plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipGroupHandlerPlansource_char_clip_group_handler_plan();",
+                 "native character API exposes source-backed CharClipGroup handler plan helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipGroupPropSyncPlan"
+                 "source_char_clip_group_prop_sync_plan();",
+                 "native character API exposes source-backed CharClipGroup prop-sync plan helper");
   ok &= contains(char_clip,
                  "CharClipGroupload_clip_group(",
                  "native clip decoder implements shared clip group reader");
@@ -13351,6 +13391,31 @@ int run_contract() {
                  "static_cast<std::ptrdiff_t>(i));}else{++i;}}returnclip_names;}",
                  "native clip group RemoveClip helper mirrors source iterator skip");
   ok &= contains(char_clip,
+                 "SourceCharClipGroupLoadPlansource_char_clip_group_load_plan("
+                 "intrevision){SourceCharClipGroupLoadPlanplan;if(revision<0||"
+                 "revision>2)returnplan;plan.known_revision=true;plan.read_order="
+                 "{\"LOAD_REVS\",\"Hmx::Object\",\"mClips\",\"mWhich\"};",
+                 "native clip group load plan mirrors source revision gate and row order");
+  ok &= contains(char_clip,
+                 "if(revision>1){plan.read_order.push_back(\"mFlags\");"
+                 "plan.read_flags=true;}else{plan.default_flags=0;}returnplan;}",
+                 "native clip group load plan mirrors source flags gate");
+  ok &= contains(char_clip,
+                 "SourceCharClipGroupHandlerPlansource_char_clip_group_handler_plan(){"
+                 "SourceCharClipGroupHandlerPlanplan;plan.handlers={"
+                 "\"get_clip:GetClip\",\"delete_remaining:DeleteRemaining\",",
+                 "native clip group handler plan records source handler rows");
+  ok &= contains(char_clip,
+                 "\"set_clip_flags:SetClipFlags\",\"randomize_index:"
+                 "RandomizeIndex\"};plan.superclasses={\"Hmx::Object\"};"
+                 "plan.check=0x179;returnplan;}",
+                 "native clip group handler plan records superclass and check");
+  ok &= contains(char_clip,
+                 "SourceCharClipGroupPropSyncPlansource_char_clip_group_prop_sync_plan(){"
+                 "SourceCharClipGroupPropSyncPlanplan;plan.properties={\"clips\","
+                 "\"flags\"};returnplan;}",
+                 "native clip group prop-sync plan records source property rows");
+  ok &= contains(char_clip,
                  "\"[clip-group-source]group=%smilo=%sversion=%u\"",
                  "native clip group reader logs source row proof");
   ok &= contains(char_clip,
@@ -13368,6 +13433,18 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_group_remove_clip(input,clip_name)",
                  "focused flag-mask test covers CharClipGroup RemoveClip helper");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_group_load_plan(1)",
+                 "focused flag-mask test covers CharClipGroup legacy load plan");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_group_load_plan(2)",
+                 "focused flag-mask test covers CharClipGroup current load plan");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_group_handler_plan()",
+                 "focused flag-mask test covers CharClipGroup handler plan");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_group_prop_sync_plan()",
+                 "focused flag-mask test covers CharClipGroup prop-sync plan");
   ok &= contains(doc,
                  "Native `source_char_clip_group_num_flag_duplicates` ports",
                  "document records native CharClipGroup duplicate helper");
