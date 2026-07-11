@@ -61,6 +61,28 @@ struct SourceCharBonesScaleAddClipStep {
   float f3 = 0.0f;
 };
 
+struct SourceCharBonesPoseBodyBoundary {
+  bool rb3_latest_declares_scale_add = true;
+  bool rb3_latest_declares_rotate_by = true;
+  bool rb3_latest_declares_rotate_to = true;
+  bool rb3_latest_declares_blend = true;
+  bool rb3_latest_declares_scale_down = true;
+  bool rb3_latest_exposes_scale_add_body = false;
+  bool rb3_latest_exposes_rotate_by_body = false;
+  bool rb3_latest_exposes_rotate_to_body = false;
+  bool rb3_latest_exposes_blend_body = false;
+  bool rb3_latest_exposes_scale_down_body = false;
+  bool rb2_dump_maps_scale_add = true;
+  bool rb2_dump_maps_rotate_by = true;
+  bool rb2_dump_maps_rotate_to = true;
+  bool rb2_dump_maps_scale_down = true;
+  bool rb2_dump_maps_scale_add_identity = true;
+  bool rb2_dump_exposes_statement_body = false;
+  bool safe_to_use_layout_helpers = true;
+  bool safe_to_apply_pose_math = false;
+  std::vector<std::string> fenced_bodies;
+};
+
 struct SourceCharBonesAddBonesSteps {
   std::vector<SourceCharBonesBone> add_bone_internal_calls;
   bool reallocate_internal = false;
@@ -1205,6 +1227,7 @@ SourceCharBonesFindPtrResult source_char_bones_find_ptr(
 void source_char_bones_zero(std::vector<uint8_t>& start, int total_size);
 SourceCharBonesScaleAddClipStep source_char_bones_scale_add_clip_step(
     float f1, float f2, float f3);
+SourceCharBonesPoseBodyBoundary source_char_bones_pose_body_boundary();
 SourceCharBonesAddBonesSteps source_char_bones_add_bones_steps(
     const std::vector<SourceCharBonesBone>& bones);
 SourceCharBonesAllocReallocateStep source_char_bones_alloc_reallocate_step(

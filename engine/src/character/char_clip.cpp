@@ -223,6 +223,19 @@ SourceCharBonesScaleAddClipStep source_char_bones_scale_add_clip_step(
   return step;
 }
 
+SourceCharBonesPoseBodyBoundary source_char_bones_pose_body_boundary() {
+  SourceCharBonesPoseBodyBoundary boundary;
+  boundary.fenced_bodies = {
+      "CharBones::ScaleAdd(CharBones&, float)",
+      "CharBones::RotateBy",
+      "CharBones::RotateTo",
+      "CharBones::Blend",
+      "CharBones::ScaleDown",
+      "CharBones::ScaleAddIdentity",
+  };
+  return boundary;
+}
+
 SourceCharBonesAddBonesSteps source_char_bones_add_bones_steps(
     const std::vector<SourceCharBonesBone>& bones) {
   SourceCharBonesAddBonesSteps steps;

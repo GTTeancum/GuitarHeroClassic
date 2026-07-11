@@ -472,6 +472,8 @@ int run_contract() {
       rb3_latest_char_dir / "CharClipGroup.h"));
   const std::string rb2_char_clip_samples_cpp = compact(read_file(
       rb2_dump_char_dir / "CharClipSamples.cpp"));
+  const std::string rb2_char_bones_cpp = compact(read_file(
+      rb2_dump_char_dir / "CharBones.cpp"));
   const std::string rb2_char_bones_samples_cpp = compact(read_file(
       rb2_dump_char_dir / "CharBonesSamples.cpp"));
   const std::string rb2_char_clip_driver_cpp = compact(read_file(
@@ -696,6 +698,11 @@ int run_contract() {
                  "Port the missing source-backed bodies for "
                  "`CharBones::ScaleAdd`,",
                  "remaining import checklist names CharBones pose gap");
+  ok &= contains(doc,
+                 "Current evidence is also not enough to copy these: "
+                 "`rb3-latest`\n     declares the pose writers but only "
+                 "implements the `ScaleAdd(CharClip*)`",
+                 "remaining import checklist fences CharBones pose maps");
   ok &= contains(doc,
                  "Port `CharClipDriver::Evaluate`/poll timing, blend, loop, "
                  "beat-align,",
@@ -9007,6 +9014,12 @@ int run_contract() {
                  "`source_char_bones_scale_add_clip_step` records that delegation",
                  "document records concrete CharBones ScaleAdd delegation slice");
   ok &= contains(doc,
+                 "Native\n    `source_char_bones_pose_body_boundary` records this boundary",
+                 "document records native CharBones pose body boundary");
+  ok &= contains(doc,
+                 "packed-row\n    layout helpers remain source-backed, but applying pose math",
+                 "document records CharBones pose math fence");
+  ok &= contains(doc,
                  "`rb3-latest/src/system/char/CharBonesBlender.cpp` is concrete",
                  "document cites latest CharBonesBlender source");
   ok &= contains(doc,
@@ -9388,6 +9401,12 @@ int run_contract() {
                  "source_char_bones_scale_add_clip_step(0.25f,12.5f,0.75f)",
                  "focused CharBones source test covers ScaleAdd delegation args");
   ok &= contains(char_bones_source_test,
+                 "source_char_bones_pose_body_boundary()",
+                 "focused CharBones source test covers pose body boundary");
+  ok &= contains(char_bones_source_test,
+                 "pose_boundary.safe_to_apply_pose_math",
+                 "focused CharBones source test covers pose math fence");
+  ok &= contains(char_bones_source_test,
                  "source_char_bones_alloc_reallocate_step("
                  "lookup_state.layout.total_size)",
                  "focused CharBones source test covers CharBonesAlloc realloc step");
@@ -9632,6 +9651,24 @@ int run_contract() {
                  "floatf1,floatf2,floatf3);",
                  "native exposes CharBones ScaleAdd delegation helper");
   ok &= contains(char_clip_h,
+                 "structSourceCharBonesPoseBodyBoundary{"
+                 "boolrb3_latest_declares_scale_add=true;"
+                 "boolrb3_latest_declares_rotate_by=true;",
+                 "native API exposes CharBones pose body boundary row");
+  ok &= contains(char_clip_h,
+                 "boolrb3_latest_exposes_scale_add_body=false;"
+                 "boolrb3_latest_exposes_rotate_by_body=false;"
+                 "boolrb3_latest_exposes_rotate_to_body=false;",
+                 "native API fences missing CharBones pose bodies");
+  ok &= contains(char_clip_h,
+                 "boolsafe_to_use_layout_helpers=true;"
+                 "boolsafe_to_apply_pose_math=false;",
+                 "native API records CharBones pose apply boundary");
+  ok &= contains(char_clip_h,
+                 "SourceCharBonesPoseBodyBoundary"
+                 "source_char_bones_pose_body_boundary();",
+                 "native exposes CharBones pose body-boundary helper");
+  ok &= contains(char_clip_h,
                  "structSourceCharBonesAddBonesSteps{std::vector<"
                  "SourceCharBonesBone>add_bone_internal_calls;"
                  "boolreallocate_internal=false;};",
@@ -9708,6 +9745,17 @@ int run_contract() {
                  "SourceCharBonesScaleAddClipStepstep;step.f1=f1;step.f2=f2;"
                  "step.f3=f3;returnstep;}",
                  "native CharBones ScaleAdd helper preserves source arguments");
+  ok &= contains(char_clip,
+                 "SourceCharBonesPoseBodyBoundary"
+                 "source_char_bones_pose_body_boundary(){"
+                 "SourceCharBonesPoseBodyBoundaryboundary;",
+                 "native CharBones pose body-boundary helper exists");
+  ok &= contains(char_clip,
+                 "boundary.fenced_bodies={\"CharBones::ScaleAdd(CharBones&,float)\","
+                 "\"CharBones::RotateBy\",\"CharBones::RotateTo\","
+                 "\"CharBones::Blend\",\"CharBones::ScaleDown\","
+                 "\"CharBones::ScaleAddIdentity\",};",
+                 "native CharBones pose body-boundary helper names fenced bodies");
   ok &= contains(char_clip,
                  "SourceCharBonesAddBonesStepssource_char_bones_add_bones_steps("
                  "conststd::vector<SourceCharBonesBone>&bones){"
@@ -10750,6 +10798,26 @@ int run_contract() {
                  "voidCharBones::ScaleAdd(CharClip*clip,floatf1,floatf2,"
                  "floatf3){clip->ScaleAdd(*this,f1,f2,f3);}",
                  "latest CharBones source delegates clip pose math to CharClip");
+  ok &= contains(rb3_latest_char_bones_h,
+                 "voidScaleAdd(CharBones&,float)const;",
+                 "latest CharBones header declares ScaleAdd pose writer");
+  ok &= contains(rb3_latest_char_bones_h,
+                 "voidBlend(CharBones&)const;",
+                 "latest CharBones header declares Blend pose writer");
+  ok &= contains(rb3_latest_char_bones_h,
+                 "voidScaleDown(CharBones&,float)const;",
+                 "latest CharBones header declares ScaleDown pose writer");
+  ok &= missing(rb3_latest_char_bones_cpp,
+                "voidCharBones::ScaleAdd(CharBones&",
+                "latest CharBones source does not expose broad ScaleAdd body");
+  ok &= missing(rb3_latest_char_bones_cpp, "voidCharBones::Blend(",
+                "latest CharBones source does not expose Blend body");
+  ok &= contains(rb2_char_bones_cpp, "voidCharBones::ScaleAdd(){",
+                 "RB2 dump maps CharBones ScaleAdd");
+  ok &= contains(rb2_char_bones_cpp, "voidCharBones::RotateTo(){",
+                 "RB2 dump maps CharBones RotateTo");
+  ok &= contains(rb2_char_bones_cpp, "voidCharBones::ScaleAddIdentity(){",
+                 "RB2 dump maps CharBones ScaleAddIdentity");
   ok &= contains(rb3_latest_char_clip_h,
                  "CharBonesSamplesmFull;//0x64CharBonesSamplesmOne;",
                  "latest CharClip source exposes full/one sample members");

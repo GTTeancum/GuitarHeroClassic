@@ -214,6 +214,10 @@ into final transform rows.
    - Port the missing source-backed bodies for `CharBones::ScaleAdd`,
      `RotateBy`, `RotateTo`, `Blend`, and any required identity/mesh
      application helpers.
+     Current evidence is also not enough to copy these: `rb3-latest`
+     declares the pose writers but only implements the `ScaleAdd(CharClip*)`
+     delegation, while the RB2 dump maps broad pose writer names and locals
+     without statement-level bodies.
    - Port the missing source-backed bodies for `CharClip::Load`,
      `ScaleAdd`, `RotateBy`, and related `FacingSet` behavior.
    - Port `CharClipDriver::Evaluate`/poll timing, blend, loop, beat-align,
@@ -1939,6 +1943,14 @@ note, and all report `unreadBytes=0`.
     call-flow hook, not a standalone pose evaluator. Native
     `source_char_bones_scale_add_clip_step` records that delegation and preserves
     the same three float arguments.
+  - `rb3-latest` declares `ScaleAdd(CharBones&, float)`, `RotateBy`,
+    `RotateTo`, `Blend`, `ScaleDown`, and `ScaleAddIdentity`, but does not
+    provide reviewable bodies for those pose writers. The RB2 dump maps
+    `ScaleDown`, `ScaleAdd`, `RotateBy`, `RotateTo`, and `ScaleAddIdentity`
+    with local inventories, but not copyable statements. Native
+    `source_char_bones_pose_body_boundary` records this boundary: packed-row
+    layout helpers remain source-backed, but applying pose math to live
+    transforms remains fenced until a real body or direct trace is available.
 - `rb3-latest/src/system/char/CharBonesBlender.cpp` is concrete for the
   animation-bone blender's control flow:
   - Native `source_char_bones_enter_step` ports the inline `CharBones::Enter`

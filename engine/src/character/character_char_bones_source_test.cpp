@@ -306,6 +306,28 @@ int main() {
   ok &= expect_float(scale_add_clip.f1, 0.25f, "ScaleAdd f1");
   ok &= expect_float(scale_add_clip.f2, 12.5f, "ScaleAdd f2");
   ok &= expect_float(scale_add_clip.f3, 0.75f, "ScaleAdd f3");
+  const SourceCharBonesPoseBodyBoundary pose_boundary =
+      source_char_bones_pose_body_boundary();
+  ok &= expect_int(pose_boundary.rb3_latest_declares_scale_add ? 1 : 0, 1,
+                   "CharBones pose rb3 declares ScaleAdd");
+  ok &= expect_int(pose_boundary.rb3_latest_exposes_scale_add_body ? 1 : 0,
+                   0, "CharBones pose rb3 lacks ScaleAdd body");
+  ok &= expect_int(pose_boundary.rb2_dump_maps_rotate_to ? 1 : 0, 1,
+                   "CharBones pose rb2 maps RotateTo");
+  ok &= expect_int(pose_boundary.rb2_dump_exposes_statement_body ? 1 : 0, 0,
+                   "CharBones pose rb2 lacks statement body");
+  ok &= expect_int(pose_boundary.safe_to_use_layout_helpers ? 1 : 0, 1,
+                   "CharBones pose boundary allows layout helpers");
+  ok &= expect_int(pose_boundary.safe_to_apply_pose_math ? 1 : 0, 0,
+                   "CharBones pose boundary fences pose math");
+  ok &= expect_size(pose_boundary.fenced_bodies.size(), 6,
+                    "CharBones pose fenced count");
+  ok &= expect_string(pose_boundary.fenced_bodies[0],
+                      "CharBones::ScaleAdd(CharBones&, float)",
+                      "CharBones pose first fenced body");
+  ok &= expect_string(pose_boundary.fenced_bodies[3],
+                      "CharBones::Blend",
+                      "CharBones pose blend fenced");
   const SourceCharBonesAllocReallocateStep realloc_step =
       source_char_bones_alloc_reallocate_step(lookup_state.layout.total_size);
   ok &= expect_int(realloc_step.free_m_start ? 1 : 0, 1,
