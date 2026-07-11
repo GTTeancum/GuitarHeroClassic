@@ -771,196 +771,6 @@ void log_character_controller_graph_once(const Character& character) {
   }
 }
 
-bool relative_face_quat_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_RELATIVE_FACE_QUAT") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_RELATIVE_FACE_QUAT");
-  return value && value[0];
-#endif
-}
-
-bool relative_clip_quat_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_RELATIVE_CLIP_QUAT") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_RELATIVE_CLIP_QUAT");
-  return value && value[0];
-#endif
-}
-
-bool disable_finger_clip_channels_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_FINGER_CLIPS") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_FINGER_CLIPS");
-  return value && value[0];
-#endif
-}
-
-bool disable_axis_rot_channels_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_AXIS_ROT_CHANNELS") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_AXIS_ROT_CHANNELS");
-  return value && value[0];
-#endif
-}
-
-bool disable_thigh_quat_channels_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_THIGH_QUATS") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_THIGH_QUATS");
-  return value && value[0];
-#endif
-}
-
-bool disable_foot_quat_channels_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_FOOT_QUATS") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_FOOT_QUATS");
-  return value && value[0];
-#endif
-}
-
-bool disable_leg_axis_channels_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_DISABLE_LEG_AXIS") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_DISABLE_LEG_AXIS");
-  return value && value[0];
-#endif
-}
-
-bool relative_thigh_quat_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_RELATIVE_THIGH_QUAT") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_RELATIVE_THIGH_QUAT");
-  return value && value[0];
-#endif
-}
-
-bool pre_relative_thigh_quat_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_PRE_RELATIVE_THIGH_QUAT") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_PRE_RELATIVE_THIGH_QUAT");
-  return value && value[0];
-#endif
-}
-
-bool swap_thigh_quats_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_SWAP_THIGH_QUATS") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_SWAP_THIGH_QUATS");
-  return value && value[0];
-#endif
-}
-
-bool invert_thigh_quats_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_INVERT_THIGH_QUATS") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_INVERT_THIGH_QUATS");
-  return value && value[0];
-#endif
-}
-
-bool pre_relative_clip_quat_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_PRE_RELATIVE_CLIP_QUAT") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_PRE_RELATIVE_CLIP_QUAT");
-  return value && value[0];
-#endif
-}
-
-bool world_clip_quat_enabled() {
-#ifdef _MSC_VER
-  char* value = nullptr;
-  size_t len = 0;
-  const bool enabled =
-      _dupenv_s(&value, &len, "GHOGX_WORLD_CLIP_QUAT") == 0 && value && value[0];
-  std::free(value);
-  return enabled;
-#else
-  const char* value = std::getenv("GHOGX_WORLD_CLIP_QUAT");
-  return value && value[0];
-#endif
-}
-
-bool is_finger_bone_name(const std::string& name) {
-  return name.find("finger") != std::string::npos ||
-         name.find("thumb") != std::string::npos ||
-         name.find("pinky") != std::string::npos ||
-         name.find("ringfinger") != std::string::npos ||
-         name.find("index") != std::string::npos;
-}
-
 bool debug_face_enabled() {
 #ifdef _MSC_VER
   char* value = nullptr;
@@ -1185,28 +995,13 @@ static void quat_to_rot(const float q[4], float rot[3][3]) {
   float x = q[0], y = q[1], z = q[2], w = q[3];
   float len2 = x*x + y*y + z*z + w*w;
   if (len2 > 1e-8f) { float inv = 1.0f / std::sqrt(len2); x*=inv; y*=inv; z*=inv; w*=inv; }
-  const bool transpose =
-#ifdef _MSC_VER
-      [] {
-        char* value = nullptr;
-        size_t len = 0;
-        const bool enabled =
-            _dupenv_s(&value, &len, "GHOGX_TRANSPOSE_CLIP_QUAT") == 0 &&
-            value && value[0];
-        std::free(value);
-        return enabled;
-      }();
-#else
-      (std::getenv("GHOGX_TRANSPOSE_CLIP_QUAT") &&
-       std::getenv("GHOGX_TRANSPOSE_CLIP_QUAT")[0]);
-#endif
   float m[3][3];
   m[0][0] = 1 - 2*(y*y + z*z);  m[0][1] = 2*(x*y + z*w);      m[0][2] = 2*(x*z - y*w);
   m[1][0] = 2*(x*y - z*w);      m[1][1] = 1 - 2*(x*x + z*z);  m[1][2] = 2*(y*z + x*w);
   m[2][0] = 2*(x*z + y*w);      m[2][1] = 2*(y*z - x*w);      m[2][2] = 1 - 2*(x*x + y*y);
   for (int r = 0; r < 3; ++r)
     for (int c = 0; c < 3; ++c)
-      rot[r][c] = transpose ? m[c][r] : m[r][c];
+      rot[r][c] = m[r][c];
 }
 
 static bool channel_matches_bone(const std::string& bone_name,
@@ -2040,12 +1835,6 @@ static void apply_clip_pose_sampled_direct(
 static void apply_pending_pose(const PendingPose& pose, milo_scene::Xfm& local,
                                bool relative = false) {
   if (pose.quat) {
-    const bool quat_relative =
-        relative || relative_clip_quat_enabled() ||
-        (relative_thigh_quat_enabled() &&
-         pose.quat->bone_name.find("-thigh") != std::string::npos) ||
-        (relative_face_quat_enabled() &&
-                     is_face_quat_bone(pose.quat->bone_name));
     float scale[3] = {};
     for (int r = 0; r < 3; ++r) {
       scale[r] = std::sqrt(local.rot[r][0] * local.rot[r][0] +
@@ -2055,18 +1844,12 @@ static void apply_pending_pose(const PendingPose& pose, milo_scene::Xfm& local,
     }
     float rot[3][3];
     quat_to_rot(pose.quat->quat, rot);
-    const bool pre_relative =
-        pre_relative_clip_quat_enabled() ||
-        (pre_relative_thigh_quat_enabled() &&
-         pose.quat->bone_name.find("-thigh") != std::string::npos);
-    if (quat_relative || pre_relative) {
+    if (relative) {
       float out[3][3] = {};
       for (int r = 0; r < 3; ++r) {
         for (int c = 0; c < 3; ++c) {
           for (int k = 0; k < 3; ++k) {
-            out[r][c] += pre_relative
-                             ? rot[r][k] * local.rot[k][c]
-                             : local.rot[r][k] * rot[k][c];
+            out[r][c] += local.rot[r][k] * rot[k][c];
           }
         }
       }
@@ -2138,12 +1921,6 @@ static void apply_pending_pose_weighted(const PendingPose& pose,
   }
 
   if (pose.quat) {
-    const bool quat_relative =
-        relative || relative_clip_quat_enabled() ||
-        (relative_thigh_quat_enabled() &&
-         pose.quat->bone_name.find("-thigh") != std::string::npos) ||
-        (relative_face_quat_enabled() &&
-                     is_face_quat_bone(pose.quat->bone_name));
     float scale[3] = {};
     for (int r = 0; r < 3; ++r) {
       scale[r] = std::sqrt(local.rot[r][0] * local.rot[r][0] +
@@ -2153,18 +1930,12 @@ static void apply_pending_pose_weighted(const PendingPose& pose,
     }
     float rot[3][3];
     quat_to_rot(pose.quat->quat, rot);
-    const bool pre_relative =
-        pre_relative_clip_quat_enabled() ||
-        (pre_relative_thigh_quat_enabled() &&
-         pose.quat->bone_name.find("-thigh") != std::string::npos);
-    if (quat_relative || pre_relative) {
+    if (relative) {
       float out[3][3] = {};
       for (int r = 0; r < 3; ++r) {
         for (int c = 0; c < 3; ++c) {
           for (int k = 0; k < 3; ++k) {
-            out[r][c] += pre_relative
-                             ? rot[r][k] * local.rot[k][c]
-                             : local.rot[r][k] * rot[k][c];
+            out[r][c] += local.rot[r][k] * rot[k][c];
           }
         }
       }
@@ -2988,121 +2759,39 @@ static void apply_clip_pose_sampled_direct(
     bool relative) {
   std::vector<PendingPose> poses(character.bones.size());
   std::vector<PendingPose> mesh_poses(character.meshes.size());
-  std::vector<ClipChannel> channel_overrides;
-  channel_overrides.reserve(channels.size());
   for (const auto& ch : channels) {
-    const ClipChannel* source = &ch;
-    if (swap_thigh_quats_enabled() && ch.type == ClipChannel::kQuat) {
-      const auto l = ch.bone_name.find("bone_L-thigh");
-      const auto r = ch.bone_name.find("bone_R-thigh");
-      if (l != std::string::npos || r != std::string::npos) {
-        channel_overrides.push_back(ch);
-        channel_overrides.back().bone_name =
-            (l != std::string::npos) ? "bone_R-thigh" : "bone_L-thigh";
-        source = &channel_overrides.back();
-      }
-    }
-    if (invert_thigh_quats_enabled() && source->type == ClipChannel::kQuat &&
-        source->bone_name.find("-thigh") != std::string::npos) {
-      channel_overrides.push_back(*source);
-      channel_overrides.back().quat[0] = -channel_overrides.back().quat[0];
-      channel_overrides.back().quat[1] = -channel_overrides.back().quat[1];
-      channel_overrides.back().quat[2] = -channel_overrides.back().quat[2];
-      source = &channel_overrides.back();
-    }
-    const ClipChannel& applied = *source;
-    if (disable_finger_clip_channels_enabled() &&
-        is_finger_bone_name(applied.bone_name)) {
-      continue;
-    }
-    if (disable_axis_rot_channels_enabled() &&
-        (applied.type == ClipChannel::kRotX || applied.type == ClipChannel::kRotY ||
-         applied.type == ClipChannel::kRotZ)) {
-      continue;
-    }
-    if (disable_thigh_quat_channels_enabled() &&
-        applied.type == ClipChannel::kQuat &&
-        applied.bone_name.find("-thigh") != std::string::npos) {
-      continue;
-    }
-    if (disable_foot_quat_channels_enabled() &&
-        applied.type == ClipChannel::kQuat &&
-        applied.bone_name.find("-foot") != std::string::npos) {
-      continue;
-    }
-    if (disable_leg_axis_channels_enabled() &&
-        (applied.type == ClipChannel::kRotX || applied.type == ClipChannel::kRotY ||
-         applied.type == ClipChannel::kRotZ) &&
-        (applied.bone_name.find("-knee") != std::string::npos ||
-         applied.bone_name.find("-toe") != std::string::npos)) {
-      continue;
-    }
     bool matched = false;
     for (size_t i = 0; i < character.bones.size(); ++i) {
-      if (!channel_matches_bone(character.bones[i].name, applied.bone_name)) continue;
-      switch (applied.type) {
-        case ClipChannel::kPos: poses[i].pos = source; break;
-        case ClipChannel::kScale: poses[i].scale = source; break;
-        case ClipChannel::kQuat: poses[i].quat = source; break;
-        case ClipChannel::kRotX: poses[i].rotx = source; break;
-        case ClipChannel::kRotY: poses[i].roty = source; break;
-        case ClipChannel::kRotZ: poses[i].rotz = source; break;
+      if (!channel_matches_bone(character.bones[i].name, ch.bone_name)) continue;
+      switch (ch.type) {
+        case ClipChannel::kPos: poses[i].pos = &ch; break;
+        case ClipChannel::kScale: poses[i].scale = &ch; break;
+        case ClipChannel::kQuat: poses[i].quat = &ch; break;
+        case ClipChannel::kRotX: poses[i].rotx = &ch; break;
+        case ClipChannel::kRotY: poses[i].roty = &ch; break;
+        case ClipChannel::kRotZ: poses[i].rotz = &ch; break;
       }
       matched = true;
       break;
     }
     if (matched) continue;
     for (size_t i = 0; i < character.meshes.size(); ++i) {
-      if (!channel_matches_bone(character.meshes[i].name, applied.bone_name)) continue;
-      switch (applied.type) {
-        case ClipChannel::kPos: mesh_poses[i].pos = source; break;
-        case ClipChannel::kScale: mesh_poses[i].scale = source; break;
-        case ClipChannel::kQuat: mesh_poses[i].quat = source; break;
-        case ClipChannel::kRotX: mesh_poses[i].rotx = source; break;
-        case ClipChannel::kRotY: mesh_poses[i].roty = source; break;
-        case ClipChannel::kRotZ: mesh_poses[i].rotz = source; break;
+      if (!channel_matches_bone(character.meshes[i].name, ch.bone_name)) continue;
+      switch (ch.type) {
+        case ClipChannel::kPos: mesh_poses[i].pos = &ch; break;
+        case ClipChannel::kScale: mesh_poses[i].scale = &ch; break;
+        case ClipChannel::kQuat: mesh_poses[i].quat = &ch; break;
+        case ClipChannel::kRotX: mesh_poses[i].rotx = &ch; break;
+        case ClipChannel::kRotY: mesh_poses[i].roty = &ch; break;
+        case ClipChannel::kRotZ: mesh_poses[i].rotz = &ch; break;
       }
       break;
     }
   }
 
   for (size_t i = 0; i < character.bones.size(); ++i) {
-    if (world_clip_quat_enabled() && poses[i].quat && weight >= 0.999f) {
-      PendingPose non_quat = poses[i];
-      non_quat.quat = nullptr;
-      apply_pending_pose_weighted(non_quat, character.bones[i].local, weight,
-                                  relative);
-
-      float target_world[3][3];
-      quat_to_rot(poses[i].quat->quat, target_world);
-      std::array<float, 16> parent_world{1, 0, 0, 0, 0, 1, 0, 0,
-                                         0, 0, 1, 0, 0, 0, 0, 1};
-      if (!character.bones[i].parent.empty()) {
-        parent_world = character.bone_world(character.bones[i].parent);
-      }
-      float parent_rot[3][3];
-      for (int r = 0; r < 3; ++r) {
-        float len = std::sqrt(parent_world[r * 4 + 0] * parent_world[r * 4 + 0] +
-                              parent_world[r * 4 + 1] * parent_world[r * 4 + 1] +
-                              parent_world[r * 4 + 2] * parent_world[r * 4 + 2]);
-        if (len <= 1e-6f) len = 1.0f;
-        for (int c = 0; c < 3; ++c) parent_rot[r][c] = parent_world[r * 4 + c] / len;
-      }
-      float local_rot[3][3] = {};
-      for (int r = 0; r < 3; ++r) {
-        for (int c = 0; c < 3; ++c) {
-          for (int k = 0; k < 3; ++k) {
-            local_rot[r][c] += target_world[r][k] * parent_rot[c][k];
-          }
-        }
-      }
-      for (int r = 0; r < 3; ++r)
-        for (int c = 0; c < 3; ++c)
-          character.bones[i].local.rot[r][c] = local_rot[r][c];
-    } else {
-      apply_pending_pose_weighted(poses[i], character.bones[i].local, weight,
-                                  relative);
-    }
+    apply_pending_pose_weighted(poses[i], character.bones[i].local, weight,
+                                relative);
   }
   for (size_t i = 0; i < character.meshes.size(); ++i) {
     apply_pending_pose_weighted(mesh_poses[i], character.meshes[i].local, weight,

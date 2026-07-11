@@ -596,6 +596,9 @@ note, and all report `unreadBytes=0`.
     The old `.d?x` / `.d?y` / `.d?z` category extension, file-order sample
     decode switch, and no-pi axis-rotation switch are not present in
     ihatecompvir's source model and are removed from the current decoder.
+    Rejected clip-pose reinterpretation switches for relative/transpose/swap/
+    invert/world quaternions and channel dropping are also removed; only the
+    clip's decoded `relative` flag may request relative quaternion application.
   - `TypeSize` defines the per-channel byte sizes for `kCompressNone`,
     vector compression, quat compression, and rotation compression.
   - `FindOffset`, `FindPtr`, `RecomputeSizes`, and `SetCompression` establish

@@ -2670,8 +2670,10 @@ Useful environment flags:
   `GHOGX_PRE_RELATIVE_THIGH_QUAT=1`, `GHOGX_TRANSPOSE_CLIP_QUAT=1`,
   `GHOGX_SWAP_THIGH_QUATS=1`, and `GHOGX_INVERT_THIGH_QUATS=1` each produce
   visibly wrong poses in `engine/out/native_song_20260614/glam1_stance_*.bmp`.
-  The trace-backed next step is the final clip-output-to-Trans bridge for the
-  visible `.mesh` rows, not promoting any of those diagnostics.
+  These runtime toggles were later removed so they cannot be mistaken for
+  source-backed options. The trace-backed next step is the final
+  clip-output-to-Trans bridge for the visible `.mesh` rows, not promoting any
+  of those diagnostics.
 - Native clips now decode and retain animation-side `CharBone` output records
   from the same animation MILO as each `CharClipSamples` entry. This is
   trace-backed by the accepted GH2 bridge evidence where `0x00168320` changes
@@ -2907,11 +2909,11 @@ Useful environment flags:
   Rockabill1 and Deathmetal1 f620 stress frames are bit-identical to the
   previous default frames, so this is a trace-backed combiner correctness fix,
   not a claim that the remaining visible arm issues are closed.
-- `GHOGX_DISABLE_AXIS_ROT_CHANNELS=1` remains a rejected diagnostic for arm
-  cleanup. `engine/out/codex_goal_20260619_axis_channel_ab/` shows Rockabill1
-  detaching from the guitar when scalar channels are removed, confirming the
-  scalar lane is required; the fix is how those rows are blended/applied, not
-  dropping them.
+- The old `GHOGX_DISABLE_AXIS_ROT_CHANNELS=1` arm-cleanup diagnostic is
+  rejected and removed. `engine/out/codex_goal_20260619_axis_channel_ab/`
+  shows Rockabill1 detaching from the guitar when scalar channels are removed,
+  confirming the scalar lane is required; the fix is how those rows are
+  blended/applied, not dropping them.
 - `GHOGX_ENABLE_CHARBONE_OUTPUT_LAYER=1` was rechecked after the hand/world and
   overlay-lane fixes in
   `engine/out/codex_goal_20260619_full_output_recheck/`. It no longer explodes

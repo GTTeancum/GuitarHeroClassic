@@ -1973,6 +1973,10 @@ int run_contract() {
                  "source types.",
                  "document records source-backed native channel type fence");
   ok &= contains(doc,
+                 "Rejected clip-pose reinterpretation switches for "
+                 "relative/transpose/swap/\n    invert/world quaternions",
+                 "document records removed clip-pose reinterpretation switches");
+  ok &= contains(doc,
                  "`TypeSize` defines the per-channel byte sizes for "
                  "`kCompressNone`",
                  "document records concrete CharBones compression sizing source");
@@ -2002,6 +2006,37 @@ int run_contract() {
                 "old native-only d-axis channel category removed");
   ok &= missing(char_clip, "bl.cats[bi]>=3&&bl.cats[bi]<=8",
                 "native clip decoder no longer accepts non-source rot categories");
+  ok &= missing(char_clip, "GHOGX_RELATIVE_FACE_QUAT",
+                "old broad relative face-quat diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_RELATIVE_CLIP_QUAT",
+                "old broad relative clip-quat diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_FINGER_CLIPS",
+                "old finger-channel drop diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_AXIS_ROT_CHANNELS",
+                "old scalar-axis channel drop diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_THIGH_QUATS",
+                "old thigh-quat drop diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_FOOT_QUATS",
+                "old foot-quat drop diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_DISABLE_LEG_AXIS",
+                "old leg-axis drop diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_RELATIVE_THIGH_QUAT",
+                "old relative thigh-quat diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_PRE_RELATIVE_THIGH_QUAT",
+                "old pre-relative thigh-quat diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_SWAP_THIGH_QUATS",
+                "old thigh-quat swap diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_INVERT_THIGH_QUATS",
+                "old thigh-quat invert diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_PRE_RELATIVE_CLIP_QUAT",
+                "old pre-relative clip-quat diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_WORLD_CLIP_QUAT",
+                "old world clip-quat diagnostic removed");
+  ok &= missing(char_clip, "GHOGX_TRANSPOSE_CLIP_QUAT",
+                "old transpose clip-quat diagnostic removed");
+  ok &= missing(format_notes,
+                "GHOGX_DISABLE_AXIS_ROT_CHANNELS=1` remains",
+                "format notes must not describe removed axis-drop diagnostic as live");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "intCharBones::TypeSize(inti)const{if(i<2){if("
                  "mCompression<kCompressVects)return0xC;elsereturn6;}",
