@@ -361,6 +361,8 @@ int main() {
                    "samples split blended second offset");
   ok &= expect_float(two_steps[1].weight, 0.25f,
                      "samples split blended second weight");
+  ok &= expect_int(source_char_bones_samples_rotate_by_offset(samples, 3), 96,
+                   "samples RotateBy offset");
   const std::vector<SourceCharBonesSampleStep> rotate_steps =
       source_char_bones_samples_rotate_to_steps(samples, 2, 2.0f, 0.25f);
   ok &= expect_size(rotate_steps.size(), 2, "samples RotateTo count");

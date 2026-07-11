@@ -297,6 +297,12 @@ std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
   return steps;
 }
 
+int source_char_bones_samples_rotate_by_offset(
+    const SourceCharBonesSamplesState& samples,
+    int sample) {
+  return samples.bones.layout.total_size * sample;
+}
+
 std::vector<SourceCharBonesSampleStep> source_char_bones_samples_rotate_to_steps(
     const SourceCharBonesSamplesState& samples,
     int sample,

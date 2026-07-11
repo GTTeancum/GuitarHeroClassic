@@ -352,6 +352,9 @@ std::vector<SourceCharBonesSampleStep> source_char_bones_samples_split_steps(
     int sample,
     float weight,
     float frac);
+int source_char_bones_samples_rotate_by_offset(
+    const SourceCharBonesSamplesState& samples,
+    int sample);
 std::vector<SourceCharBonesSampleStep> source_char_bones_samples_rotate_to_steps(
     const SourceCharBonesSamplesState& samples,
     int sample,

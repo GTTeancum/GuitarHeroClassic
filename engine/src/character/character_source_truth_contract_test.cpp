@@ -3259,9 +3259,10 @@ int run_contract() {
                  "    `mRawData[mTotalSize * sample]` and split weight",
                  "document records concrete CharBonesSamples interpolation source");
   ok &= contains(doc,
-                 "Native `source_char_bones_samples_rotate_to_steps` and\n"
+                 "Native `source_char_bones_samples_rotate_by_offset`,\n"
+                 "    `source_char_bones_samples_rotate_to_steps`, and\n"
                  "    `source_char_bones_samples_scale_add_steps` are named wrappers",
-                 "document records named CharBonesSamples split wrappers");
+                 "document records named CharBonesSamples sample wrappers");
   ok &= contains(doc,
                  "Native `source_char_clip_beat_align_string` ports the "
                  "concrete\n    `CharClip::BeatAlignString` body",
@@ -3378,6 +3379,10 @@ int run_contract() {
                  "floatweight,floatfrac);",
                  "native API exposes source CharBonesSamples split-step helper");
   ok &= contains(char_clip_h,
+                 "intsource_char_bones_samples_rotate_by_offset("
+                 "constSourceCharBonesSamplesState&samples,intsample);",
+                 "native API exposes source CharBonesSamples RotateBy helper");
+  ok &= contains(char_clip_h,
                  "std::vector<SourceCharBonesSampleStep>"
                  "source_char_bones_samples_rotate_to_steps("
                  "constSourceCharBonesSamplesState&samples,intsample,"
@@ -3485,6 +3490,11 @@ int run_contract() {
                  "samples.bones.layout.total_size*(sample+1),frac*weight});}"
                  "returnsteps;}",
                  "native CharBonesSamples split-step helper mirrors source row offsets");
+  ok &= contains(char_clip,
+                 "intsource_char_bones_samples_rotate_by_offset("
+                 "constSourceCharBonesSamplesState&samples,intsample){"
+                 "returnsamples.bones.layout.total_size*sample;}",
+                 "native CharBonesSamples RotateBy helper mirrors source row offset");
   ok &= contains(char_clip,
                  "std::vector<SourceCharBonesSampleStep>"
                  "source_char_bones_samples_rotate_to_steps("
@@ -4158,6 +4168,10 @@ int run_contract() {
                  "mPreviewSample(0),mRawData(0){}",
                  "latest CharBonesSamples source defines constructor state");
   ok &= contains(rb3_latest_char_bones_samples_cpp,
+                 "voidCharBonesSamples::RotateBy(CharBones&bones,inti){"
+                 "mStart=&mRawData[mTotalSize*i];CharBones::RotateBy(bones);}",
+                 "latest CharBonesSamples source exposes RotateBy row selection");
+  ok &= contains(rb3_latest_char_bones_samples_cpp,
                  "voidCharBonesSamples::RotateTo(CharBones&bones,floatf1,inti,"
                  "floatf2){mStart=&mRawData[mTotalSize*i];CharBones::RotateTo"
                  "(bones,(1.0f-f2)*f1);if(f2>0.0f){mStart=&mRawData[mTotalSize*"
@@ -4201,6 +4215,9 @@ int run_contract() {
   ok &= contains(doc,
                  "preview stores the clamped sample and selected row offset",
                  "document records source CharBonesSamples preview offset");
+  ok &= contains(doc,
+                 "Native `source_char_bones_samples_rotate_by_offset`,",
+                 "document records native CharBonesSamples RotateBy wrapper");
   ok &= contains(doc,
                  "Empty sample rows remain fenced",
                  "document records native CharBonesSamples zero-sample fence");
