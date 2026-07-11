@@ -124,6 +124,8 @@ int run_contract() {
       read_file(char_dir / "character_eye_dart_ruleset_source_test.cpp"));
   const std::string interest_source_test =
       compact(read_file(char_dir / "character_interest_source_test.cpp"));
+  const std::string neck_twist_source_test = compact(
+      read_file(char_dir / "character_neck_twist_source_test.cpp"));
   const std::string ik_fingers_source_test = compact(
       read_file(char_dir / "character_ik_fingers_source_test.cpp"));
   const std::string mesh_decode_test =
@@ -220,6 +222,10 @@ int run_contract() {
       rb3_latest_char_dir / "CharIKFingers.cpp"));
   const std::string rb3_latest_char_ik_fingers_h = compact(read_file(
       rb3_latest_char_dir / "CharIKFingers.h"));
+  const std::string rb3_latest_char_neck_twist_cpp = compact(read_file(
+      rb3_latest_char_dir / "CharNeckTwist.cpp"));
+  const std::string rb3_latest_char_neck_twist_h = compact(read_file(
+      rb3_latest_char_dir / "CharNeckTwist.h"));
   const std::string rb3_latest_char_ik_scale_cpp = compact(read_file(
       rb3_latest_char_dir / "CharIKScale.cpp"));
   const std::string rb3_latest_char_ik_scale_h = compact(read_file(
@@ -663,6 +669,8 @@ int run_contract() {
                  "document cites CharUpperTwist runtime source");
   ok &= contains(doc, "rb3/src/system/char/CharForeTwist.cpp",
                  "document cites CharForeTwist runtime source");
+  ok &= contains(doc, "rb3-latest` `CharNeckTwist.cpp` / `CharNeckTwist.h",
+                 "coverage matrix cites latest CharNeckTwist source");
   ok &= contains(doc, "ihatecompvir-extra/band3_recomp",
                  "document cites extra band3_recomp source");
   ok &= contains(band3_readme, "Early recompilation of Rock Band 3",
@@ -4598,10 +4606,119 @@ int run_contract() {
                  "Interp(tf88.v,handxfm.v,twist2->mLocalXfm.v.x/"
                  "hand->mLocalXfm.v.x,tf88.v);",
                  "RB3 CharForeTwist source twist2 position interpolation");
+  ok &= contains(rb3_latest_char_neck_twist_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mTwist;",
+                 "latest CharNeckTwist header exposes twist pointer");
+  ok &= contains(rb3_latest_char_neck_twist_h,
+                 "ObjPtr<RndTransformable,ObjectDir>mHead;",
+                 "latest CharNeckTwist header exposes head pointer");
+  ok &= contains(rb3_latest_char_neck_twist_cpp,
+                 "CharNeckTwist::CharNeckTwist():mTwist(this,0),"
+                 "mHead(this,0)",
+                 "latest CharNeckTwist source constructor exposes defaults");
+  ok &= contains(rb3_latest_char_neck_twist_cpp,
+                 "LOAD_REVS(bs);ASSERT_REVS(1,0);Hmx::Object::Load(bs);"
+                 "bs>>mHead;bs>>mTwist;",
+                 "latest CharNeckTwist source load order");
+  ok &= contains(rb3_latest_char_neck_twist_cpp,
+                 "changedBy.push_back(mHead);change.push_back(mTwist);",
+                 "latest CharNeckTwist source PollDeps order");
+  ok &= contains(rb3_latest_char_neck_twist_cpp,
+                 "MakeRotQuatUnitX(tf58.m.x,q68);Multiply(tf58.m.y,q68,v78);"
+                 "mTwist->DirtyLocalXfm().m.RotateAboutX("
+                 "LimitAng(std::atan2(v78.z,v78.y))*0.5f);",
+                 "latest CharNeckTwist source half-angle write");
   ok &= contains(char_mesh,
                  "if(t.version==2&&r.pos+4<=r.n)(void)r.i32();"
                  "if(t.version>3&&r.pos+4<=r.n)t.bias_degrees=r.f32();",
                  "native CharForeTwist decoder follows source revision fields");
+  ok &= contains(char_mesh_h,
+                 "structCharNeckTwist{std::stringname;int32_tversion=0;"
+                 "std::stringhead;std::stringtwist;size_tunread_bytes=0;};",
+                 "native stores source CharNeckTwist row fields");
+  ok &= contains(char_mesh_h,
+                 "std::vector<CharNeckTwist>neck_twists;",
+                 "Character owns decoded CharNeckTwist rows");
+  ok &= contains(char_mesh,
+                 "CharNeckTwistdecode_neck_twist(conststd::string&entry_name,"
+                 "conststd::vector<uint8_t>&body)",
+                 "native exposes CharNeckTwist decoder");
+  ok &= contains(char_mesh,
+                 "if(t.version<0||t.version>1){throwstd::runtime_error",
+                 "native CharNeckTwist decoder enforces source revision range");
+  ok &= contains(char_mesh,
+                 "read_object_fields(r);//Hmx::Objectmetadata"
+                 "t.head=r.str();t.twist=r.str();"
+                 "t.unread_bytes=r.n-r.pos;returnt;",
+                 "native CharNeckTwist decoder follows source load order");
+  ok &= contains(char_mesh,
+                 "elseif(de.type==\"CharNeckTwist\"){"
+                 "out.neck_twists.push_back(decode_neck_twist(de.name,b));",
+                 "native character loader decodes CharNeckTwist rows");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharNeckTwistPollDeps{"
+                 "std::vector<std::string>changed_by;"
+                 "std::vector<std::string>change;};",
+                 "native exposes CharNeckTwist PollDeps state");
+  ok &= contains(char_mesh_h,
+                 "floatsource_char_neck_twist_half_limited_angle("
+                 "floatrotated_y_y,floatrotated_y_z);",
+                 "native API exposes CharNeckTwist half-angle helper");
+  ok &= contains(char_mesh,
+                 "SourceCharNeckTwistStatesource_char_neck_twist_defaults(){"
+                 "returnSourceCharNeckTwistState{};}",
+                 "native CharNeckTwist defaults helper mirrors constructor");
+  ok &= contains(char_mesh,
+                 "boolsource_char_neck_twist_load_revision_known(intrevision){"
+                 "returnrevision>=0&&revision<=1;}",
+                 "native CharNeckTwist revision helper mirrors source range");
+  ok &= contains(char_mesh,
+                 "deps.changed_by.push_back(head);deps.change.push_back(twist);",
+                 "native CharNeckTwist PollDeps helper mirrors source order");
+  ok &= contains(char_mesh,
+                 "floatangle=std::atan2(rotated_y_z,rotated_y_y);",
+                 "native CharNeckTwist angle helper starts from source atan2");
+  ok &= contains(char_mesh,
+                 "returnangle*0.5f;",
+                 "native CharNeckTwist angle helper mirrors source half scale");
+  ok &= contains(bind_audit, "neckTwist=%zu",
+                 "bind audit logs CharNeckTwist row count");
+  ok &= contains(bind_audit,
+                 "\"[controller-neck-twist]char=%sname=%sversion=%dhead=%s\"",
+                 "bind audit logs CharNeckTwist row data");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_neck_twist_source_test"
+                 "character_neck_twist_source_test.cpp)",
+                 "CMake builds focused CharNeckTwist source test");
+  ok &= contains(neck_twist_source_test,
+                 "source_char_neck_twist_load_revision_known(1)",
+                 "focused CharNeckTwist test covers source revision ceiling");
+  ok &= contains(neck_twist_source_test,
+                 "source_char_neck_twist_poll_deps(deps,\"bone_head.mesh\","
+                 "\"bone_neck.mesh\")",
+                 "focused CharNeckTwist test covers PollDeps helper");
+  ok &= contains(neck_twist_source_test,
+                 "source_char_neck_twist_half_limited_angle(0.0f,1.0f)",
+                 "focused CharNeckTwist test covers half-angle helper");
+  ok &= contains(doc, "`CharNeckTwist::Load` accepts source revisions through 1",
+                 "document records CharNeckTwist load boundary");
+  ok &= contains(doc,
+                 "`CharNeckTwist::PollDeps` publishes `head` as the changed-by row",
+                 "document records CharNeckTwist dependency order");
+  ok &= contains(doc,
+                 "rotates the\n    twist row about local X by half of "
+                 "`LimitAng(atan2(z, y))`",
+                 "document records CharNeckTwist source angle behavior");
+  ok &= contains(doc,
+                 "source_necktwist_20260711/stock_necktwist_inventory.log",
+                 "document cites refreshed CharNeckTwist inventory");
+  ok &= contains(doc,
+                 "every one of the 24 base\n    character MILOs reports "
+                 "`neckTwist=0`",
+                 "document records stock CharNeckTwist absence");
+  ok &= contains(doc,
+                 "not\n    evidence that Rock1/Rock2 neck posture is fixed",
+                 "document fences CharNeckTwist from neck-posture signoff");
   ok &= contains(char_clip, "apply_source_upper_twists(",
                  "native standalone upper twist path is source-named");
   ok &= contains(char_clip, "apply_source_fore_twist(",

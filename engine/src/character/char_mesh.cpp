@@ -589,6 +589,23 @@ CharForeTwist decode_fore_twist(const std::string& entry_name,
   return t;
 }
 
+CharNeckTwist decode_neck_twist(const std::string& entry_name,
+                                const std::vector<uint8_t>& body) {
+  Reader r(body.data(), body.size());
+  CharNeckTwist t;
+  t.name = entry_name;
+  t.version = r.i32();
+  if (t.version < 0 || t.version > 1) {
+    throw std::runtime_error(
+        "char_mesh: CharNeckTwist revision outside source range");
+  }
+  read_object_fields(r);  // Hmx::Object metadata
+  t.head = r.str();
+  t.twist = r.str();
+  t.unread_bytes = r.n - r.pos;
+  return t;
+}
+
 CharIKRod decode_ik_rod(const std::string& entry_name,
                         const std::vector<uint8_t>& body) {
   Reader r(body.data(), body.size());
@@ -2027,6 +2044,32 @@ SourceCharInterestState source_char_interest_copy(
   return dst;
 }
 
+SourceCharNeckTwistState source_char_neck_twist_defaults() {
+  return SourceCharNeckTwistState{};
+}
+
+bool source_char_neck_twist_load_revision_known(int revision) {
+  return revision >= 0 && revision <= 1;
+}
+
+void source_char_neck_twist_poll_deps(SourceCharNeckTwistPollDeps& deps,
+                                      const std::string& head,
+                                      const std::string& twist) {
+  deps.changed_by.push_back(head);
+  deps.change.push_back(twist);
+}
+
+float source_char_neck_twist_half_limited_angle(float rotated_y_y,
+                                                float rotated_y_z) {
+  constexpr float kPi = 3.14159265358979323846f;
+  constexpr float kTwoPi = kPi * 2.0f;
+  float angle = std::atan2(rotated_y_z, rotated_y_y);
+  angle = std::fmod(angle + kPi, kTwoPi);
+  if (angle < 0.0f) angle += kTwoPi;
+  angle -= kPi;
+  return angle * 0.5f;
+}
+
 SourceCharIKFingersState source_char_ik_fingers_defaults() {
   return SourceCharIKFingersState{};
 }
@@ -2475,6 +2518,8 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
           out.upper_twists.push_back(decode_upper_twist(de.name, b));
         } else if (de.type == "CharForeTwist") {
           out.fore_twists.push_back(decode_fore_twist(de.name, b));
+        } else if (de.type == "CharNeckTwist") {
+          out.neck_twists.push_back(decode_neck_twist(de.name, b));
         } else if (de.type == "CharIKRod") {
           out.ik_rods.push_back(decode_ik_rod(de.name, b));
         } else if (de.type == "CharIKHand") {
@@ -2521,14 +2566,15 @@ bool load_character(const std::string& hdr_path, const std::string& ark_path,
     }
     std::fprintf(stderr,
                  "[char] %s: %zu meshes (%d ok / %d fail), %zu bones, %zu mat, "
-                 "%zu group, %zu upperTwist, %zu foreTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
+                 "%zu group, %zu upperTwist, %zu foreTwist, %zu neckTwist, %zu ikRod, %zu ikHand, %zu ikMidi, "
                  "%zu servoBone, %zu lookAt, %zu eyes, %zu hair, %zu collide, "
                  "%zu posConstraint, %zu boneOffset, %zu boneTwist, %zu lipServo, %zu animFilter, "
                  "%zu eventTrigger, %zu object, %zu tex, %zu driver, "
                  "%zu weightSetter\n",
                  milo_path.c_str(), out.meshes.size(), mesh_ok, mesh_fail,
                  out.bones.size(), out.mats.size(), out.groups.size(),
-                 out.upper_twists.size(), out.fore_twists.size(), out.ik_rods.size(),
+                 out.upper_twists.size(), out.fore_twists.size(),
+                 out.neck_twists.size(), out.ik_rods.size(),
                  out.ik_hands.size(), out.ik_midis.size(),
                  out.servo_bones.size(), out.lookats.size(), out.eyes.size(),
                  out.hairs.size(), out.collides.size(),

@@ -54,7 +54,7 @@ records the upstream commits for the copied files:
 | Weight setters and weight owners | `rb3-latest` `CharWeightable.cpp` / `CharWeightSetter.cpp` | Decode/log source weight rows; full setter `Poll` remains fenced to source driver/evaluate path. |
 | Rod IK/accessory rods | `rb3-latest` `CharIKRod.cpp` / `CharIKRod.h` | Decode/log source rows; do not synthesize missing destination transforms. |
 | Guitar string bend controller | `rb3-latest` `CharGuitarString.cpp` / `CharGuitarString.h`; stock guitar sweep | Native helper ports source `Poll` projection/open-string math and `PollDeps`, but the checked GH2 stock guitar MILOs contain no `CharGuitarString` rows; native does not invent one. |
-| Upper/fore twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp` | Native twist passes follow source `Poll` routines. |
+| Upper/fore/neck twist | `CharUpperTwist.cpp`, `CharForeTwist.cpp`, `rb3-latest` `CharNeckTwist.cpp` / `CharNeckTwist.h` | Native upper/fore passes follow source `Poll` routines; neck twist rows decode/log the source load order and expose helper math, but stock GH2 character inventories currently show zero `CharNeckTwist` rows. |
 | Poll groups | `rb3-latest` `CharPollGroup.cpp` | Native helper ports source `Poll`, `ListPollChildren`, and `PollDeps` decision behavior, but stock GH2 base-character inventory contains no `CharPollGroup` rows; native does not invent one. |
 | Servo bone driver target | `rb3-latest` `CharServoBone.cpp` / `CharServoBone.h` | Decode/log the `bone.servo` row and `clip_type`; movement remains fenced by clip/CharBones source. |
 | Clip sample/output publishing | `rb3-latest` `CharClip` / `CharBones` / `CharBonesSamples` / `CharBone`, `MiloEditor` `RndTrans.cs`, `rb3-retail-old` RB2 dump, `band3_recomp` symbols | Channel naming, compression sizing, sample interpolation wrappers, CharBone output row fields, and partial call flow are source-backed; sample decode/evaluate and broad pose publishing remain fenced where source bodies are incomplete. |
@@ -998,6 +998,23 @@ note, and all report `unreadBytes=0`.
   - Native GHOGX does not keep approximate or PS2-row twist writers in the
     runtime path. The standalone twist controller path follows these
     ihatecompvir source `Poll` routines.
+- `rb3-latest/src/system/char/CharNeckTwist.cpp` and
+  `rb3-latest/src/system/char/CharNeckTwist.h`
+  - `CharNeckTwist::Load` accepts source revisions through 1, loads
+    `Hmx::Object`, then reads `head` and `twist` transform references.
+  - `CharNeckTwist::PollDeps` publishes `head` as the changed-by row and
+    `twist` as the changed row. Native `source_char_neck_twist_poll_deps`
+    mirrors that data behavior.
+  - `CharNeckTwist::Poll` walks the head local transform chain up to the twist
+    parent, derives a rotation from the resulting X/Y rows, and rotates the
+    twist row about local X by half of `LimitAng(atan2(z, y))`. Native exposes
+    only the source final scalar helper in this slice; it does not add a live
+    neck write.
+  - `engine/out/source_necktwist_20260711/stock_necktwist_inventory.log`
+    refreshes the current stock GH2 hybrid inventory: every one of the 24 base
+    character MILOs reports `neckTwist=0`. This source slice is therefore not
+    evidence that Rock1/Rock2 neck posture is fixed or caused by a missing
+    `CharNeckTwist` row.
 
 ## Clip Runtime Boundary
 

@@ -210,12 +210,12 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
   std::printf(
       "[controller-summary] path=%s char=%s drivers=%zu weightSetters=%zu "
       "servoBone=%zu ik=%zu ikMidi=%zu ikRod=%zu foreTwist=%zu upperTwist=%zu "
-      "lookAt=%zu eyes=%zu hair=%zu collide=%zu posConstraint=%zu "
+      "neckTwist=%zu lookAt=%zu eyes=%zu hair=%zu collide=%zu posConstraint=%zu "
       "boneOffset=%zu boneTwist=%zu animFilter=%zu eventTrigger=%zu\n",
       milo_path.c_str(), c.dir_name.c_str(), c.drivers.size(),
       c.weight_setters.size(), c.servo_bones.size(), c.ik_hands.size(),
       c.ik_midis.size(), c.ik_rods.size(), c.fore_twists.size(),
-      c.upper_twists.size(), c.lookats.size(), c.eyes.size(),
+      c.upper_twists.size(), c.neck_twists.size(), c.lookats.size(), c.eyes.size(),
       c.hairs.size(), c.collides.size(), c.pos_constraints.size(),
       c.bone_offsets.size(),
       c.bone_twists.size(),
@@ -394,6 +394,15 @@ void audit_controllers(const Character& c, const std::string& milo_path) {
           none_if_empty(ik.targets[i].target), ik.targets[i].extent,
           has_trans_or_mesh(c, ik.targets[i].target) ? 1 : 0);
     }
+  }
+  for (const auto& neck : c.neck_twists) {
+    std::printf(
+        "[controller-neck-twist] char=%s name=%s version=%d head=%s "
+        "twist=%s headExists=%d twistExists=%d unreadBytes=%zu\n",
+        c.dir_name.c_str(), neck.name.c_str(), neck.version,
+        none_if_empty(neck.head), none_if_empty(neck.twist),
+        has_trans_or_mesh(c, neck.head) ? 1 : 0,
+        has_trans_or_mesh(c, neck.twist) ? 1 : 0, neck.unread_bytes);
   }
   for (const auto& midi : c.ik_midis) {
     std::printf(

@@ -128,6 +128,14 @@ struct CharForeTwist {
   float bias_degrees = 0.0f;
 };
 
+struct CharNeckTwist {
+  std::string name;
+  int32_t version = 0;
+  std::string head;
+  std::string twist;
+  size_t unread_bytes = 0;
+};
+
 struct CharIKRod {
   std::string name;
   int32_t version = 0;
@@ -505,6 +513,16 @@ struct SourceCharInterestState {
   float max_view_angle_cos = 0.0f;
 };
 
+struct SourceCharNeckTwistState {
+  std::string twist;
+  std::string head;
+};
+
+struct SourceCharNeckTwistPollDeps {
+  std::vector<std::string> changed_by;
+  std::vector<std::string> change;
+};
+
 struct SourceCharIKFingersState {
   int blend_in_frames = 0;
   int blend_out_frames = 0;
@@ -667,6 +685,13 @@ bool source_char_interest_is_matching_filter_flags(int category_flags,
                                                    int mask);
 SourceCharInterestState source_char_interest_copy(
     const SourceCharInterestState& src);
+SourceCharNeckTwistState source_char_neck_twist_defaults();
+bool source_char_neck_twist_load_revision_known(int revision);
+void source_char_neck_twist_poll_deps(SourceCharNeckTwistPollDeps& deps,
+                                      const std::string& head,
+                                      const std::string& twist);
+float source_char_neck_twist_half_limited_angle(float rotated_y_y,
+                                                float rotated_y_z);
 SourceCharIKFingersState source_char_ik_fingers_defaults();
 bool source_char_ik_fingers_load_revision_known(int revision);
 SourceCharIKFingersSetupRefs source_char_ik_fingers_set_name_refs(
@@ -966,6 +991,7 @@ struct Character {
   std::vector<milo_scene::GroupObj> groups;
   std::vector<CharUpperTwist> upper_twists;
   std::vector<CharForeTwist> fore_twists;
+  std::vector<CharNeckTwist> neck_twists;
   std::vector<CharIKRod> ik_rods;
   std::vector<CharIKHand> ik_hands;
   std::vector<CharIKMidi> ik_midis;
