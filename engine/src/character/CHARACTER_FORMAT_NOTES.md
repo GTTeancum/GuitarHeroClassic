@@ -5071,6 +5071,16 @@ Viewer hand-overlay validation:
   `--fixed-dt 0.0166667`. `rock1_fixed_front.png` and
   `rock1_fixed_debugik_front.png` are byte-identical; `rock2_fixed_front.png`
   and `rock2_fixed_debugik_front.png` are byte-identical. The debug logs still
-  show live `CharIKHand`, `CharForeTwist`, and `CharUpperTwist` rows, so this
-  closes the false Rock1/Rock2 arm/neck regression from capture timing only. It
-  does not sign off remaining hair/card placement.
+  show live `CharIKHand`, `CharForeTwist`, and `CharUpperTwist` rows. This
+  only proves debug/no-debug determinism. It does not prove that the fixed
+  frame is the reviewed Rock1/Rock2 posture, and it does not sign off remaining
+  hair/card placement.
+- The follow-up explicit-frame recheck in
+  `engine/out/rock_regression_clipframe_recheck_20260710/` fixes that evidence
+  gap by forcing authored main-clip frames 15, 30, 60, 90, and 120 for both
+  Rock1 and Rock2 with the guitar attached and the full body visible. The
+  frame-15 pair matches the earlier accepted stance much more closely, while
+  later frames deliberately show the authored idle pose leaning and raising the
+  head. Treat the neck/shoulder read as clip-frame dependent until an original
+  GH2 runtime capture chooses the exact review frame. No post-`96f64b5`
+  runtime arm-solver change was found in this recheck.

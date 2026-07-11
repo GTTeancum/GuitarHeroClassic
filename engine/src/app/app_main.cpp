@@ -1401,6 +1401,10 @@ int run_char_mode(const std::string& hdr, const std::string& ark,
   if (fixed_dt > 0.0f) {
     std::fprintf(stderr, "[char] fixed dt enabled: %.6f\n", fixed_dt);
   }
+  if (clip_frame_override >= 0) {
+    std::fprintf(stderr, "[char] clip-frame override enabled: %d\n",
+                 clip_frame_override);
+  }
 
   while (!win->should_close()) {
     win->pump();
