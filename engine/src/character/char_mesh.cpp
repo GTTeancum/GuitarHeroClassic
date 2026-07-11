@@ -1445,6 +1445,80 @@ CharWeightSetter decode_weight_setter(const std::string& entry_name,
 
 }  // namespace
 
+SourceEventTriggerLoadPlan source_event_trigger_load_plan(int revision) {
+  SourceEventTriggerLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 0x11;
+  if (!plan.known_revision) return plan;
+
+  plan.load_steps = {"LOAD_REVS", "Hmx::Object"};
+  if (revision > 0x0f) plan.load_steps.push_back("RndAnimatable");
+  plan.load_steps.push_back("UnregisterEvents");
+
+  if (revision > 9) {
+    plan.load_steps.push_back("mTriggerEvents");
+  } else if (revision > 6) {
+    plan.load_steps.push_back("legacyTriggerEvent");
+  }
+
+  if (revision > 6) {
+    plan.load_steps.push_back("mAnims");
+    plan.load_steps.push_back("mSounds");
+    plan.load_steps.push_back("mShows");
+  }
+  if (revision > 0x0c) {
+    plan.load_steps.push_back("mHideDelays");
+  } else {
+    plan.load_steps.push_back("legacyHideDelayGrossBranch");
+  }
+  if (revision > 2) {
+    plan.load_steps.push_back("mEnableEvents");
+    plan.load_steps.push_back("mDisableEvents");
+  }
+  if (revision > 5) plan.load_steps.push_back("mWaitForEvents");
+  if (revision > 6) plan.load_steps.push_back("mNextLink");
+  if (revision < 10) {
+    plan.load_steps.push_back("RemoveNullEvents(mEnableEvents)");
+    plan.load_steps.push_back("RemoveNullEvents(mDisableEvents)");
+    plan.load_steps.push_back("RemoveNullEvents(mWaitForEvents)");
+  }
+  if (revision < 7) plan.load_steps.push_back("legacyIteratorJank");
+  if (revision > 7) plan.load_steps.push_back("mProxyCalls");
+  if (revision > 0x0b) plan.load_steps.push_back("mTriggerOrderInt");
+  if (revision > 0x0d) plan.load_steps.push_back("mResetTriggers");
+  if (revision > 0x0e) plan.load_steps.push_back("unkdfBitfield");
+  if (revision > 0x0f) {
+    plan.load_steps.push_back("mAnimTriggerInt");
+    plan.load_steps.push_back("mAnimFrame");
+  }
+  if (revision > 0x10) plan.load_steps.push_back("mPartLaunchers");
+
+  plan.load_steps.push_back("CleanupEventCase(mTriggerEvents)");
+  plan.load_steps.push_back("CleanupEventCase(mEnableEvents)");
+  plan.load_steps.push_back("CleanupEventCase(mDisableEvents)");
+  plan.load_steps.push_back("CleanupEventCase(mWaitForEvents)");
+  plan.load_steps.push_back("RegisterEvents");
+  plan.load_steps.push_back("CleanupHideShow");
+  plan.load_steps.push_back("ConvertParticleTriggerType");
+
+  plan.anim.read_order = {"mAnim", "mBlend", "mWait", "mDelay"};
+  if (revision > 9) {
+    plan.anim.read_order.push_back("mEnable");
+    plan.anim.read_order.push_back("mRateInt");
+    plan.anim.read_order.push_back("mStart");
+    plan.anim.read_order.push_back("mEnd");
+    plan.anim.read_order.push_back("mPeriod");
+    plan.anim.read_order.push_back("mType");
+    plan.anim.read_order.push_back("mScale");
+  } else {
+    plan.anim.reset_anim_for_legacy = true;
+  }
+
+  plan.proxy_call.read_order = {"mProxy", "mCall"};
+  if (revision > 10) plan.proxy_call.read_order.push_back("mEvent");
+  plan.hide_delay_read_order = {"mHide", "mDelay", "mRate"};
+  return plan;
+}
+
 CharHair decode_hair(const std::string& entry_name,
                      const std::vector<uint8_t>& body) {
   return decode_hair_body(entry_name, body);

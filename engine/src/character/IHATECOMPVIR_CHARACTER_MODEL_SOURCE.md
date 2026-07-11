@@ -1071,6 +1071,12 @@ note, and all report `unreadBytes=0`.
   `rb3-latest/src/system/utl/BinStream.cpp`
   - `std::vector` rows are count-prefixed. `Symbol` rows are serialized through
     `ReadString`, and `bool` rows are one byte.
+- Native `source_event_trigger_load_plan` records the ihatecompvir
+  `EventTrigger::Load` revision gates, legacy branches, nested
+  `EventTrigger::Anim` / `ProxyCall` / `HideDelay` row order, and final cleanup
+  calls as deterministic contract evidence. This helper is passive: it does
+  not register events, trigger animations, play sounds, hide/show drawables,
+  launch particles, or schedule tasks.
 - Native GHOGX currently decodes EventTrigger rows as passive source inventory
   only. It does not register events, trigger animations, play sounds, hide/show
   drawables, or schedule tasks.

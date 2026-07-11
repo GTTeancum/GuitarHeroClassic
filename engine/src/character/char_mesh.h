@@ -1682,6 +1682,25 @@ struct EventTrigger {
   std::string unread_tail_hex;
 };
 
+struct SourceEventTriggerAnimLoadPlan {
+  std::vector<std::string> read_order;
+  bool reset_anim_for_legacy = false;
+};
+
+struct SourceEventTriggerProxyCallLoadPlan {
+  std::vector<std::string> read_order;
+};
+
+struct SourceEventTriggerLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> load_steps;
+  SourceEventTriggerAnimLoadPlan anim;
+  SourceEventTriggerProxyCallLoadPlan proxy_call;
+  std::vector<std::string> hide_delay_read_order;
+};
+
+SourceEventTriggerLoadPlan source_event_trigger_load_plan(int revision);
+
 struct ObjectRow {
   std::string name;
   int32_t version = 0;

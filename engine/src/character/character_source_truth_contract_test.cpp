@@ -116,6 +116,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_char_hair_source_test.cpp"));
   const std::string char_collide_source_test =
       compact(read_file(char_dir / "character_char_collide_source_test.cpp"));
+  const std::string event_trigger_source_test = compact(
+      read_file(char_dir / "character_event_trigger_source_test.cpp"));
   const std::string face_servo_source_test =
       compact(read_file(char_dir / "character_face_servo_source_test.cpp"));
   const std::string lip_sync_source_test =
@@ -6048,6 +6050,9 @@ int run_contract() {
   ok &= contains(rb3_latest_event_trigger_cpp,
                  "if(gRev>0x10)bs>>mPartLaunchers;",
                  "EventTrigger source load reads part launcher list");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "ConvertParticleTriggerType();",
+                 "EventTrigger source load post-processes particle trigger type");
   ok &= contains(rb3_latest_event_trigger_h,
                  "ObjVector<ProxyCall>mProxyCalls;",
                  "EventTrigger header exposes ObjVector boundary");
@@ -6211,6 +6216,8 @@ int run_contract() {
                  "document records stock EventTrigger row count");
   ok &= contains(doc, "## Event Trigger Row Authority",
                  "document records EventTrigger source authority section");
+  ok &= contains(doc, "Native `source_event_trigger_load_plan` records",
+                 "document records EventTrigger source load plan helper");
   ok &= contains(doc,
                  "records the only stock row as `char=metal_drummer "
                  "name=game_over.trig\n  version=8`",
@@ -6260,6 +6267,35 @@ int run_contract() {
                 "native must not guess CharWalk decoder");
   ok &= contains(char_mesh, "EventTriggerdecode_event_trigger(",
                  "native decodes EventTrigger only through named source slice");
+  ok &= contains(char_mesh_h,
+                 "structSourceEventTriggerLoadPlan{",
+                 "native exposes EventTrigger source load plan type");
+  ok &= contains(char_mesh_h,
+                 "SourceEventTriggerLoadPlansource_event_trigger_load_plan("
+                 "intrevision);",
+                 "native exposes EventTrigger source load plan helper");
+  ok &= contains(char_mesh,
+                 "SourceEventTriggerLoadPlansource_event_trigger_load_plan("
+                 "intrevision){",
+                 "native implements EventTrigger source load plan helper");
+  ok &= contains(char_mesh,
+                 "plan.known_revision=revision>=0&&revision<=0x11;",
+                 "EventTrigger source plan gates source revisions");
+  ok &= contains(char_mesh,
+                 "plan.load_steps.push_back(\"ConvertParticleTriggerType\");",
+                 "EventTrigger source plan records post-load conversion");
+  ok &= contains(event_trigger_source_test,
+                 "constautorev17=source_event_trigger_load_plan(0x11);",
+                 "EventTrigger source test covers newest source revision");
+  ok &= contains(event_trigger_source_test,
+                 "rev10.anim.read_order.size(),11",
+                 "EventTrigger source test covers extended anim rows");
+  ok &= contains(event_trigger_source_test,
+                 "rev17.proxy_call.read_order.size(),3",
+                 "EventTrigger source test covers proxy event row");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_event_trigger_source_test",
+                 "CMake registers EventTrigger source test");
   ok &= contains(char_mesh,
                  "trigger.version=source_hmx_rev(packed_rev);",
                  "EventTrigger decoder uses source low-half revision");
