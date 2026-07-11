@@ -339,6 +339,16 @@ struct SourceCharClipBeatEvent {
   float beat = 0.0f;
 };
 
+struct SourceCharClipTransitionsState {
+  bool has_owner = false;
+  std::vector<int> node_sizes;
+};
+
+struct SourceCharClipTransitionsClearResult {
+  size_t released_clips = 0;
+  bool resized_zero = false;
+};
+
 enum SourceCharDriverApplyMode {
   kSourceCharDriverApplyBlend = 0,
   kSourceCharDriverApplyAdd = 1,
@@ -445,6 +455,12 @@ SourceCharClipBeatEvent source_char_clip_beat_event_loaded(
 int source_char_clip_get_context(bool has_type_def,
                                  bool has_resource_array,
                                  int resource_context);
+SourceCharClipTransitionsState source_char_clip_transitions_construct(
+    bool has_owner);
+size_t source_char_clip_transitions_size(
+    const SourceCharClipTransitionsState& transitions);
+SourceCharClipTransitionsClearResult source_char_clip_transitions_clear(
+    SourceCharClipTransitionsState& transitions);
 
 // Source-backed CharDriver constructor, Clear, Transfer, setter, and
 // SyncInternalBones state helpers.

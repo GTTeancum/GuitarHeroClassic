@@ -1942,6 +1942,27 @@ int source_char_clip_get_context(bool has_type_def,
   return 0;
 }
 
+SourceCharClipTransitionsState source_char_clip_transitions_construct(
+    bool has_owner) {
+  SourceCharClipTransitionsState state;
+  state.has_owner = has_owner;
+  return state;
+}
+
+size_t source_char_clip_transitions_size(
+    const SourceCharClipTransitionsState& transitions) {
+  return transitions.node_sizes.size();
+}
+
+SourceCharClipTransitionsClearResult source_char_clip_transitions_clear(
+    SourceCharClipTransitionsState& transitions) {
+  SourceCharClipTransitionsClearResult result;
+  result.released_clips = source_char_clip_transitions_size(transitions);
+  transitions.node_sizes.clear();
+  result.resized_zero = true;
+  return result;
+}
+
 SourceCharDriverState source_char_driver_default_state() {
   return SourceCharDriverState{};
 }

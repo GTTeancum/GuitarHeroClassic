@@ -738,6 +738,25 @@ int main() {
     std::cerr << "GetContext missing resource fallback mismatch\n";
     ok = false;
   }
+  ghogx::character::SourceCharClipTransitionsState transitions =
+      ghogx::character::source_char_clip_transitions_construct(true);
+  if (!transitions.has_owner ||
+      ghogx::character::source_char_clip_transitions_size(transitions) != 0) {
+    std::cerr << "Transitions constructor state mismatch\n";
+    ok = false;
+  }
+  transitions.node_sizes = {2, 4, 1};
+  if (ghogx::character::source_char_clip_transitions_size(transitions) != 3) {
+    std::cerr << "Transitions Size mismatch\n";
+    ok = false;
+  }
+  const ghogx::character::SourceCharClipTransitionsClearResult clear_result =
+      ghogx::character::source_char_clip_transitions_clear(transitions);
+  if (clear_result.released_clips != 3 || !clear_result.resized_zero ||
+      !transitions.node_sizes.empty()) {
+    std::cerr << "Transitions Clear release/resize mismatch\n";
+    ok = false;
+  }
   ok &= expect_driver_state_helpers();
   ok &= expect_blend(-1.0f, 1.0f, 1.0f, "source default blend");
   ok &= expect_blend(-1.0f, 0.25f, 0.25f, "custom driver blend");

@@ -7001,6 +7001,23 @@ int run_contract() {
                  "if(found){returnDataGetMacro(found->Str(2))->Int(0);}}return0;}",
                  "latest CharClip source exposes GetContext resource fallback");
   ok &= contains(rb3_latest_char_clip_cpp,
+                 "CharClip::Transitions::Transitions(Hmx::Object*o):"
+                 "mNodeStart(0),mNodeEnd(0),mOwner(o){}",
+                 "latest CharClip source exposes Transitions constructor");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "CharClip::Transitions::~Transitions(){Clear();}",
+                 "latest CharClip source exposes Transitions destructor clear");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "voidCharClip::Transitions::Clear(){for(NodeVector*it="
+                 "mNodeStart;it<mNodeEnd;it=&it[it->size]){it->clip->"
+                 "Release(mOwner);}Resize(0,0);}",
+                 "latest CharClip source exposes Transitions clear body");
+  ok &= contains(rb3_latest_char_clip_cpp,
+                 "intCharClip::Transitions::Size()const{intsize=0;"
+                 "for(NodeVector*it=mNodeStart;it<mNodeEnd;it=&it[it->size]){"
+                 "size++;}returnsize;}",
+                 "latest CharClip source exposes Transitions size body");
+  ok &= contains(rb3_latest_char_clip_cpp,
                  "voidCharClip::SetPlayFlags(inti){if(i!=mPlayFlags){"
                  "mPlayFlags=i;mDirty=true;}}",
                  "latest CharClip source exposes SetPlayFlags dirty guard");
@@ -7025,6 +7042,12 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_clip_get_context` ports the concrete `GetContext`",
                  "document records native CharClip GetContext helper");
+  ok &= contains(doc,
+                 "Native `source_char_clip_transitions_*` helpers port the concrete",
+                 "document records native CharClip Transitions helpers");
+  ok &= contains(doc,
+                 "does not claim `Resize`, `RemoveNodes`, or transition graph evaluation",
+                 "document fences CharClip Transitions unresolved bodies");
   ok &= contains(doc,
                  "Native `source_char_clip_shares_groups` ports the complete",
                  "document records native CharClip SharesGroups helper");
@@ -7192,6 +7215,14 @@ int run_contract() {
                  "floatbeat=0.0f;};",
                  "native character API exposes source CharClip BeatEvent row");
   ok &= contains(char_clip_h,
+                 "structSourceCharClipTransitionsState{boolhas_owner=false;"
+                 "std::vector<int>node_sizes;};",
+                 "native character API exposes source CharClip Transitions state row");
+  ok &= contains(char_clip_h,
+                 "structSourceCharClipTransitionsClearResult{size_treleased_clips=0;"
+                 "boolresized_zero=false;};",
+                 "native character API exposes source CharClip Transitions clear result");
+  ok &= contains(char_clip_h,
                  "SourceCharClipDefaultStatesource_char_clip_default_state();",
                  "native character API exposes source CharClip default-state helper");
   ok &= contains(char_clip_h,
@@ -7213,6 +7244,19 @@ int run_contract() {
                  "intsource_char_clip_get_context(boolhas_type_def,"
                  "boolhas_resource_array,intresource_context);",
                  "native character API exposes source CharClip GetContext helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipTransitionsStatesource_char_clip_transitions_construct("
+                 "boolhas_owner);",
+                 "native character API exposes source CharClip Transitions construct helper");
+  ok &= contains(char_clip_h,
+                 "size_tsource_char_clip_transitions_size("
+                 "constSourceCharClipTransitionsState&transitions);",
+                 "native character API exposes source CharClip Transitions size helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharClipTransitionsClearResult"
+                 "source_char_clip_transitions_clear("
+                 "SourceCharClipTransitionsState&transitions);",
+                 "native character API exposes source CharClip Transitions clear helper");
   ok &= contains(char_clip_h,
                  "SourceCharClipFlagUpdatesource_char_clip_set_flags("
                  "uint32_tcurrent_flags,boolcurrent_dirty,"
@@ -7415,6 +7459,24 @@ int run_contract() {
                  "has_resource_array)returnresource_context;return0;}",
                  "native CharClip GetContext helper ports source fallback");
   ok &= contains(char_clip,
+                 "SourceCharClipTransitionsStatesource_char_clip_transitions_construct("
+                 "boolhas_owner){SourceCharClipTransitionsStatestate;"
+                 "state.has_owner=has_owner;returnstate;}",
+                 "native CharClip Transitions construct helper ports owner state");
+  ok &= contains(char_clip,
+                 "size_tsource_char_clip_transitions_size("
+                 "constSourceCharClipTransitionsState&transitions){"
+                 "returntransitions.node_sizes.size();}",
+                 "native CharClip Transitions size helper ports node-vector count");
+  ok &= contains(char_clip,
+                 "SourceCharClipTransitionsClearResult"
+                 "source_char_clip_transitions_clear(SourceCharClipTransitionsState&"
+                 "transitions){SourceCharClipTransitionsClearResultresult;"
+                 "result.released_clips=source_char_clip_transitions_size("
+                 "transitions);transitions.node_sizes.clear();"
+                 "result.resized_zero=true;returnresult;}",
+                 "native CharClip Transitions clear helper ports release and resize");
+  ok &= contains(char_clip,
                  "SourceCharClipFlagUpdatesource_char_clip_set_play_flags("
                  "uint32_tcurrent_play_flags,boolcurrent_dirty,"
                  "uint32_trequested_play_flags){SourceCharClipFlagUpdateupdate;"
@@ -7471,6 +7533,15 @@ int run_contract() {
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_get_context(true,true,0x27)",
                  "focused clip driver flags test covers GetContext resource value");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_transitions_construct(true)",
+                 "focused clip driver flags test covers Transitions constructor");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_transitions_size(transitions)",
+                 "focused clip driver flags test covers Transitions Size");
+  ok &= contains(clip_driver_flags_test,
+                 "source_char_clip_transitions_clear(transitions)",
+                 "focused clip driver flags test covers Transitions Clear");
   ok &= contains(clip_driver_flags_test,
                  "source_char_clip_shares_groups(",
                  "focused clip driver flags test covers CharClip SharesGroups helper");

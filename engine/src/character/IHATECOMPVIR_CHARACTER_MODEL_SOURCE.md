@@ -1389,6 +1389,11 @@ note, and all report `unreadBytes=0`.
   - Native `source_char_clip_get_context` ports the concrete `GetContext`
     fallback: a type definition with a `resource` array returns the resource
     macro context value; missing type/resource data returns zero.
+  - Native `source_char_clip_transitions_*` helpers port the concrete
+    `Transitions` constructor, `Size`, and `Clear` bodies: the node range starts
+    empty with an owner, `Size` counts transition node-vector entries, and
+    `Clear` releases one clip per entry before resizing the range to zero. This
+    does not claim `Resize`, `RemoveNodes`, or transition graph evaluation.
   - Native `source_char_clip_set_flags` and
     `source_char_clip_set_play_flags` port the complete `SetFlags` and
     `SetPlayFlags` dirty-state bodies: unchanged values preserve the incoming
