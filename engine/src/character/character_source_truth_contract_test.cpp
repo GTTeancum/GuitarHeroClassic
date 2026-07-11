@@ -7141,6 +7141,22 @@ int run_contract() {
                  "mBounds.mMin.x=mBounds.mMin.y*tan(mMinPitch*DEG2RAD);"
                  "mBounds.mMax.x=mBounds.mMin.y*tan(mMaxPitch*DEG2RAD);",
                  "RB3 CharLookAt SyncLimits computes yaw and pitch bounds");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "voidCharLookAt::SetMinYaw(floatyaw){mMinYaw=yaw;"
+                 "SyncLimits();}",
+                 "RB3 CharLookAt SetMinYaw stores and syncs");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "voidCharLookAt::SetMaxYaw(floatyaw){mMaxYaw=yaw;"
+                 "SyncLimits();}",
+                 "RB3 CharLookAt SetMaxYaw stores and syncs");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "voidCharLookAt::SetMinPitch(floatpitch){mMinPitch=pitch;"
+                 "SyncLimits();}",
+                 "RB3 CharLookAt SetMinPitch stores and syncs");
+  ok &= contains(rb3_char_lookat_cpp,
+                 "voidCharLookAt::SetMaxPitch(floatpitch){mMaxPitch=pitch;"
+                 "SyncLimits();}",
+                 "RB3 CharLookAt SetMaxPitch stores and syncs");
   ok &= contains(rb3_char_lookat_cpp, "LOAD_REVS(bs)ASSERT_REVS(5,0)",
                  "RB3 CharLookAt source enforces revision ceiling");
   ok &= contains(rb3_char_lookat_cpp,
@@ -7202,6 +7218,11 @@ int run_contract() {
                  "structSourceCharLookAtBounds{std::array<float,3>min",
                  "native header exposes CharLookAt bounds struct");
   ok &= contains(char_clip_h,
+                 "structSourceCharLookAtLimitState{floatmin_yaw=-80.0f;"
+                 "floatmax_yaw=80.0f;floatmin_pitch=-80.0f;"
+                 "floatmax_pitch=80.0f;SourceCharLookAtBoundsbounds;};",
+                 "native header exposes CharLookAt limit state");
+  ok &= contains(char_clip_h,
                  "structSourceCharLookAtEnterState{std::array<float,3>"
                  "smoothed_dir={1.0e29f,0.0f,0.0f};"
                  "boolreset_pivot_local=false;};",
@@ -7234,6 +7255,25 @@ int run_contract() {
                  "SourceCharLookAtBoundssource_char_lookat_sync_limits("
                  "floatmin_yaw,floatmax_yaw,floatmin_pitch,floatmax_pitch);",
                  "native header exposes CharLookAt SyncLimits helper");
+  ok &= contains(char_clip_h,
+                 "SourceCharLookAtLimitStatesource_char_lookat_default_limit_state();",
+                 "native header exposes CharLookAt default limit state helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_lookat_set_min_yaw("
+                 "SourceCharLookAtLimitState&state,floatyaw);",
+                 "native header exposes CharLookAt SetMinYaw helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_lookat_set_max_yaw("
+                 "SourceCharLookAtLimitState&state,floatyaw);",
+                 "native header exposes CharLookAt SetMaxYaw helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_lookat_set_min_pitch("
+                 "SourceCharLookAtLimitState&state,floatpitch);",
+                 "native header exposes CharLookAt SetMinPitch helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_lookat_set_max_pitch("
+                 "SourceCharLookAtLimitState&state,floatpitch);",
+                 "native header exposes CharLookAt SetMaxPitch helper");
   ok &= contains(char_clip_h,
                  "SourceCharLookAtLoadPlansource_char_lookat_load_plan("
                  "int32_trevision);",
@@ -7270,6 +7310,42 @@ int run_contract() {
                  "bounds.min[0]=min_y*std::tan(min_pitch*kDegToRad);"
                  "bounds.max[0]=min_y*std::tan(max_pitch*kDegToRad);",
                  "native CharLookAt SyncLimits helper computes source axis bounds");
+  ok &= contains(char_clip,
+                 "staticvoidsource_char_lookat_sync_limit_state("
+                 "SourceCharLookAtLimitState&state){state.min_yaw=std::clamp("
+                 "state.min_yaw,-80.0f,80.0f);",
+                 "native CharLookAt limit state helper clamps stored min yaw");
+  ok &= contains(char_clip,
+                 "state.bounds=source_char_lookat_sync_limits(state.min_yaw,"
+                 "state.max_yaw,state.min_pitch,state.max_pitch);}",
+                 "native CharLookAt limit state helper reuses source SyncLimits");
+  ok &= contains(char_clip,
+                 "SourceCharLookAtLimitStatesource_char_lookat_default_limit_state(){"
+                 "SourceCharLookAtLimitStatestate;source_char_lookat_sync_limit_state("
+                 "state);returnstate;}",
+                 "native CharLookAt default limit state syncs defaults");
+  ok &= contains(char_clip,
+                 "voidsource_char_lookat_set_min_yaw("
+                 "SourceCharLookAtLimitState&state,floatyaw){state.min_yaw=yaw;"
+                 "source_char_lookat_sync_limit_state(state);}",
+                 "native CharLookAt SetMinYaw helper stores and syncs");
+  ok &= contains(char_clip,
+                 "voidsource_char_lookat_set_max_yaw("
+                 "SourceCharLookAtLimitState&state,floatyaw){state.max_yaw=yaw;"
+                 "source_char_lookat_sync_limit_state(state);}",
+                 "native CharLookAt SetMaxYaw helper stores and syncs");
+  ok &= contains(char_clip,
+                 "voidsource_char_lookat_set_min_pitch("
+                 "SourceCharLookAtLimitState&state,floatpitch){"
+                 "state.min_pitch=pitch;source_char_lookat_sync_limit_state("
+                 "state);}",
+                 "native CharLookAt SetMinPitch helper stores and syncs");
+  ok &= contains(char_clip,
+                 "voidsource_char_lookat_set_max_pitch("
+                 "SourceCharLookAtLimitState&state,floatpitch){"
+                 "state.max_pitch=pitch;source_char_lookat_sync_limit_state("
+                 "state);}",
+                 "native CharLookAt SetMaxPitch helper stores and syncs");
   ok &= contains(char_clip,
                  "SourceCharLookAtLoadPlansource_char_lookat_load_plan("
                  "int32_trevision){SourceCharLookAtLoadPlanplan;"
@@ -7361,6 +7437,21 @@ int run_contract() {
                  "source_char_lookat_sync_limits(-30.0f,45.0f,-10.0f,20.0f)",
                  "focused CharLookAt source test covers asymmetric limits");
   ok &= contains(lookat_source_test,
+                 "source_char_lookat_default_limit_state()",
+                 "focused CharLookAt source test covers default limit state");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_set_min_yaw(limit_state,-120.0f)",
+                 "focused CharLookAt source test covers setter clamp");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_set_max_yaw(limit_state,45.0f)",
+                 "focused CharLookAt source test covers max yaw setter");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_set_min_pitch(limit_state,-10.0f)",
+                 "focused CharLookAt source test covers min pitch setter");
+  ok &= contains(lookat_source_test,
+                 "source_char_lookat_set_max_pitch(limit_state,20.0f)",
+                 "focused CharLookAt source test covers setter resync");
+  ok &= contains(lookat_source_test,
                  "source_char_lookat_load_plan(2)",
                  "focused CharLookAt source test covers GH2 stock load plan");
   ok &= contains(lookat_source_test,
@@ -7412,6 +7503,12 @@ int run_contract() {
   ok &= contains(doc,
                  "`CharLookAt::SyncLimits` clamps yaw and pitch limits",
                  "document records CharLookAt SyncLimits helper port");
+  ok &= contains(doc,
+                 "Native `source_char_lookat_set_min_yaw`,",
+                 "document records CharLookAt setter helper ports");
+  ok &= contains(doc,
+                 "each stores the requested angle and immediately re-runs source",
+                 "document records CharLookAt setter sync behavior");
   ok &= contains(doc,
                  "Native `source_char_lookat_load_plan` and",
                  "document records CharLookAt load/copy plan helpers");

@@ -692,6 +692,11 @@ note, and all report `unreadBytes=0`.
     yaw Z and pitch X bounds with `tan`. Native ports this as
     `source_char_lookat_sync_limits` for deterministic tests and future
     source-backed `Poll` work.
+  - Native `source_char_lookat_set_min_yaw`,
+    `source_char_lookat_set_max_yaw`, `source_char_lookat_set_min_pitch`, and
+    `source_char_lookat_set_max_pitch` port the four concrete setter bodies:
+    each stores the requested angle and immediately re-runs source
+    `SyncLimits`, including the source clamp of the stored angle value.
   - Native `source_char_lookat_load_plan` and
     `source_char_lookat_copy_plan` record the source row and copy contracts:
     `Load` accepts revisions 0-5, reads `Hmx::Object`, `CharWeightable`,

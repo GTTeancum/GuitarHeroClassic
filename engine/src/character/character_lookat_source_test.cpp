@@ -36,10 +36,15 @@ bool expect_string(const std::string& got, const std::string& want,
 int main() {
   using ghogx::character::SourceCharLookAtPollDeps;
   using ghogx::character::source_char_lookat_copy_plan;
+  using ghogx::character::source_char_lookat_default_limit_state;
   using ghogx::character::source_char_lookat_enter;
   using ghogx::character::source_char_lookat_load_plan;
   using ghogx::character::source_char_lookat_poll_deps;
   using ghogx::character::source_char_lookat_poll_plan;
+  using ghogx::character::source_char_lookat_set_max_pitch;
+  using ghogx::character::source_char_lookat_set_max_yaw;
+  using ghogx::character::source_char_lookat_set_min_pitch;
+  using ghogx::character::source_char_lookat_set_min_yaw;
   using ghogx::character::source_char_lookat_sync_limits;
 
   bool ok = true;
@@ -68,6 +73,25 @@ int main() {
   ok &= near(asymmetric.max[2], 0.70710677f, "asymmetric max yaw z");
   ok &= near(asymmetric.min[0], -0.12468200f, "asymmetric min pitch x");
   ok &= near(asymmetric.max[0], 0.25735635f, "asymmetric max pitch x");
+
+  auto limit_state = source_char_lookat_default_limit_state();
+  ok &= near(limit_state.min_yaw, -80.0f, "default limit min yaw");
+  ok &= near(limit_state.bounds.min[1], defaults.min[1],
+             "default limit bounds");
+  source_char_lookat_set_min_yaw(limit_state, -120.0f);
+  ok &= near(limit_state.min_yaw, -80.0f, "set min yaw clamps");
+  source_char_lookat_set_min_yaw(limit_state, -30.0f);
+  ok &= near(limit_state.min_yaw, -30.0f, "set min yaw stores");
+  source_char_lookat_set_max_yaw(limit_state, 45.0f);
+  ok &= near(limit_state.max_yaw, 45.0f, "set max yaw stores");
+  source_char_lookat_set_min_pitch(limit_state, -10.0f);
+  ok &= near(limit_state.min_pitch, -10.0f, "set min pitch stores");
+  source_char_lookat_set_max_pitch(limit_state, 20.0f);
+  ok &= near(limit_state.max_pitch, 20.0f, "set max pitch stores");
+  ok &= near(limit_state.bounds.max[2], asymmetric.max[2],
+             "set max yaw sync bounds");
+  ok &= near(limit_state.bounds.max[0], asymmetric.max[0],
+             "set max pitch sync bounds");
 
   const auto load_v0 = source_char_lookat_load_plan(0);
   ok &= expect_bool(load_v0.revision_supported, true,

@@ -959,6 +959,46 @@ SourceCharLookAtBounds source_char_lookat_sync_limits(
   return bounds;
 }
 
+static void source_char_lookat_sync_limit_state(
+    SourceCharLookAtLimitState& state) {
+  state.min_yaw = std::clamp(state.min_yaw, -80.0f, 80.0f);
+  state.max_yaw = std::clamp(state.max_yaw, -80.0f, 80.0f);
+  state.min_pitch = std::clamp(state.min_pitch, -80.0f, 80.0f);
+  state.max_pitch = std::clamp(state.max_pitch, -80.0f, 80.0f);
+  state.bounds = source_char_lookat_sync_limits(
+      state.min_yaw, state.max_yaw, state.min_pitch, state.max_pitch);
+}
+
+SourceCharLookAtLimitState source_char_lookat_default_limit_state() {
+  SourceCharLookAtLimitState state;
+  source_char_lookat_sync_limit_state(state);
+  return state;
+}
+
+void source_char_lookat_set_min_yaw(SourceCharLookAtLimitState& state,
+                                    float yaw) {
+  state.min_yaw = yaw;
+  source_char_lookat_sync_limit_state(state);
+}
+
+void source_char_lookat_set_max_yaw(SourceCharLookAtLimitState& state,
+                                    float yaw) {
+  state.max_yaw = yaw;
+  source_char_lookat_sync_limit_state(state);
+}
+
+void source_char_lookat_set_min_pitch(SourceCharLookAtLimitState& state,
+                                      float pitch) {
+  state.min_pitch = pitch;
+  source_char_lookat_sync_limit_state(state);
+}
+
+void source_char_lookat_set_max_pitch(SourceCharLookAtLimitState& state,
+                                      float pitch) {
+  state.max_pitch = pitch;
+  source_char_lookat_sync_limit_state(state);
+}
+
 SourceCharLookAtLoadPlan source_char_lookat_load_plan(int32_t revision) {
   SourceCharLookAtLoadPlan plan;
   plan.revision_supported = revision >= 0 && revision <= 5;

@@ -342,6 +342,14 @@ struct SourceCharLookAtBounds {
   std::array<float, 3> max = {0.0f, 0.0f, 0.0f};
 };
 
+struct SourceCharLookAtLimitState {
+  float min_yaw = -80.0f;
+  float max_yaw = 80.0f;
+  float min_pitch = -80.0f;
+  float max_pitch = 80.0f;
+  SourceCharLookAtBounds bounds;
+};
+
 struct SourceCharLookAtEnterState {
   std::array<float, 3> smoothed_dir = {1.0e29f, 0.0f, 0.0f};
   bool reset_pivot_local = false;
@@ -1413,6 +1421,15 @@ void source_char_utl_clip_predict(SourceCharUtlClipPredictState& state,
 // Source-backed CharLookAt::SyncLimits helper. Angles are serialized in degrees.
 SourceCharLookAtBounds source_char_lookat_sync_limits(
     float min_yaw, float max_yaw, float min_pitch, float max_pitch);
+SourceCharLookAtLimitState source_char_lookat_default_limit_state();
+void source_char_lookat_set_min_yaw(SourceCharLookAtLimitState& state,
+                                    float yaw);
+void source_char_lookat_set_max_yaw(SourceCharLookAtLimitState& state,
+                                    float yaw);
+void source_char_lookat_set_min_pitch(SourceCharLookAtLimitState& state,
+                                      float pitch);
+void source_char_lookat_set_max_pitch(SourceCharLookAtLimitState& state,
+                                      float pitch);
 SourceCharLookAtLoadPlan source_char_lookat_load_plan(int32_t revision);
 SourceCharLookAtCopyPlan source_char_lookat_copy_plan();
 SourceCharLookAtEnterState source_char_lookat_enter(bool has_pivot);
