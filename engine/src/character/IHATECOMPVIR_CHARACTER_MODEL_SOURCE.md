@@ -880,6 +880,12 @@ note, and all report `unreadBytes=0`.
   - `CharCuff::Load` accepts source revisions through 8. Older revisions
     default `outer_radius`, `open_end`, `bone` from `TransParent`, eccentricity,
     category, and ignore rows behind the exact source gates.
+    Native `source_char_cuff_load_plan` records the source read order, revision
+    gates, and old-row warning branch.
+  - `CharCuff::Copy` copies `Hmx::Object`, `RndTransformable`, the three shape
+    rows, `mOuterRadius`, `mOpenEnd`, `mBone`, `mEccentricity`, `mCategory`,
+    and `mIgnore`. Native `source_char_cuff_copy_plan` records that source copy
+    list without adding a live deformation path.
   - Native `source_char_cuff_*` helpers port those complete source-visible data
     rules only. The deformation path, bone mask helper, and mesh callbacks are
     not promoted without source-backed stock rows or a complete runtime owner.

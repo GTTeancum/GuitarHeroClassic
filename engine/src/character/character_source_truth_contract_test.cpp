@@ -4243,10 +4243,39 @@ int run_contract() {
                  "if(gRev>5)bs>>mCategory;elsemCategory=Symbol(\"\");"
                  "if(gRev>7)bs>>mIgnore;",
                  "CharCuff source load late revision gates");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "if(gRev<7)MILO_WARN(\"%soldCharCuff,mustconvert,seeJames\","
+                 "PathName(this));",
+                 "CharCuff source load warns on old rows");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "COPY_SUPERCLASS(Hmx::Object)COPY_SUPERCLASS("
+                 "RndTransformable)CREATE_COPY(CharCuff)",
+                 "CharCuff source copy superclasses");
+  ok &= contains(rb3_latest_char_cuff_cpp,
+                 "memcpy(mShape,c->mShape,0x18);COPY_MEMBER(mOuterRadius)"
+                 "COPY_MEMBER(mOpenEnd)COPY_MEMBER(mBone)COPY_MEMBER("
+                 "mEccentricity)COPY_MEMBER(mCategory)COPY_MEMBER(mIgnore)",
+                 "CharCuff source copy member list");
   ok &= contains(char_mesh_h,
                  "structSourceCharCuffState{SourceCharCuffShapeshape[3];"
                  "floatouter_radius=0.0f;boolopen_end=false;std::stringbone;",
                  "native exposes CharCuff source state");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCuffLoadPlan{boolknown_revision=false;"
+                 "std::vector<std::string>read_order;",
+                 "native exposes CharCuff source load plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharCuffCopyPlan{std::vector<std::string>"
+                 "copied_superclasses;std::vector<std::string>"
+                 "copied_members;};",
+                 "native exposes CharCuff source copy plan");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCuffLoadPlansource_char_cuff_load_plan("
+                 "intrevision);",
+                 "native exposes CharCuff load-plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharCuffCopyPlansource_char_cuff_copy_plan();",
+                 "native exposes CharCuff copy-plan helper");
   ok &= contains(char_mesh,
                  "SourceCharCuffStatesource_char_cuff_default_state(){",
                  "native ports CharCuff default helper");
@@ -4266,6 +4295,39 @@ int run_contract() {
                  "if(revision<=5)cuff.category.clear();if(revision<=7)"
                  "cuff.ignore.clear();",
                  "native CharCuff helper ports revision defaults");
+  ok &= contains(char_mesh,
+                 "SourceCharCuffLoadPlansource_char_cuff_load_plan("
+                 "intrevision){SourceCharCuffLoadPlanplan;"
+                 "plan.known_revision=revision>=0&&revision<=8;",
+                 "native CharCuff load plan records source revision gate");
+  ok &= contains(char_mesh,
+                 "plan.read_order={\"LOAD_REVS\",\"Hmx::Object\","
+                 "\"RndTransformable\",\"mShape[0].radius\","
+                 "\"mShape[0].offset\",",
+                 "native CharCuff load plan records source prefix");
+  ok &= contains(char_mesh,
+                 "if(revision>1){plan.read_order.push_back(\"mOuterRadius\");}"
+                 "else{plan.branches.push_back("
+                 "\"mOuterRadius=mShape[1].radius+0.5\");}",
+                 "native CharCuff load plan records outer-radius gate");
+  ok &= contains(char_mesh,
+                 "if(revision>3){plan.read_order.push_back(\"mBone\");}"
+                 "else{plan.branches.push_back(\"mBone=TransParent\");}",
+                 "native CharCuff load plan records bone parent gate");
+  ok &= contains(char_mesh,
+                 "if(revision>7){plan.read_order.push_back(\"mIgnore\");}"
+                 "plan.warns_old_revision=revision<7;",
+                 "native CharCuff load plan records ignore and warning gate");
+  ok &= contains(char_mesh,
+                 "SourceCharCuffCopyPlansource_char_cuff_copy_plan(){"
+                 "SourceCharCuffCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\",\"RndTransformable\"};",
+                 "native CharCuff copy plan records source superclasses");
+  ok &= contains(char_mesh,
+                 "plan.copied_members={\"mShape\",\"mOuterRadius\","
+                 "\"mOpenEnd\",\"mBone\",\"mEccentricity\",\"mCategory\","
+                 "\"mIgnore\"};",
+                 "native CharCuff copy plan records source members");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_cuff_source_test",
                  "CMake builds CharCuff source test");
@@ -4283,6 +4345,21 @@ int run_contract() {
                  "source_char_cuff_apply_revision_defaults(cuff,8,"
                  "\"parent.trans\")",
                  "focused CharCuff test covers rev8 preservation");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_load_plan(0)",
+                 "focused CharCuff test covers legacy load plan");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_load_plan(8)",
+                 "focused CharCuff test covers rev8 load plan");
+  ok &= contains(cuff_source_test,
+                 "source_char_cuff_copy_plan()",
+                 "focused CharCuff test covers copy plan");
+  ok &= contains(doc,
+                 "Native `source_char_cuff_load_plan` records the source read order",
+                 "document records native CharCuff load plan");
+  ok &= contains(doc,
+                 "Native `source_char_cuff_copy_plan` records that source copy",
+                 "document records native CharCuff copy plan");
   ok &= contains(doc,
                  "Native `source_char_cuff_*` helpers port",
                  "document records native CharCuff helpers");

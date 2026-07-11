@@ -745,6 +745,18 @@ struct SourceCharCuffState {
   std::vector<std::string> ignore;
 };
 
+struct SourceCharCuffLoadPlan {
+  bool known_revision = false;
+  std::vector<std::string> read_order;
+  std::vector<std::string> branches;
+  bool warns_old_revision = false;
+};
+
+struct SourceCharCuffCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+};
+
 struct SourceCharBlendBoneConstraint {
   std::string target;
   float weight = 0.5f;
@@ -1250,6 +1262,8 @@ std::vector<SourceCharTransDrawStep> source_char_trans_draw_destruct_modes(
 std::vector<SourceCharTransDrawStep> source_char_trans_draw_draw_showing(
     const std::vector<SourceCharTransDrawCharacter>& chars);
 SourceCharCuffState source_char_cuff_default_state();
+SourceCharCuffLoadPlan source_char_cuff_load_plan(int revision);
+SourceCharCuffCopyPlan source_char_cuff_copy_plan();
 float source_char_cuff_eccentricity(float x, float y, float eccentricity);
 void source_char_cuff_apply_revision_defaults(SourceCharCuffState& cuff,
                                               int32_t revision,

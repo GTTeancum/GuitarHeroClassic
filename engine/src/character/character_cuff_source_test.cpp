@@ -36,8 +36,10 @@ bool near(float got, float want, const char* label) {
 int main() {
   using ghogx::character::SourceCharCuffState;
   using ghogx::character::source_char_cuff_apply_revision_defaults;
+  using ghogx::character::source_char_cuff_copy_plan;
   using ghogx::character::source_char_cuff_default_state;
   using ghogx::character::source_char_cuff_eccentricity;
+  using ghogx::character::source_char_cuff_load_plan;
 
   bool ok = true;
 
@@ -53,6 +55,77 @@ int main() {
   ok &= near(cuff.eccentricity, 1.0f, "default eccentricity");
   ok &= expect_string(cuff.category, "", "default category");
   ok &= expect_size(cuff.ignore.size(), 0, "default ignore count");
+
+  const auto load_bad = source_char_cuff_load_plan(9);
+  ok &= expect_bool(load_bad.known_revision, false,
+                    "load rejects unknown revision");
+  ok &= expect_size(load_bad.read_order.size(), 0,
+                    "unknown revision no reads");
+
+  const auto load_rev0 = source_char_cuff_load_plan(0);
+  ok &= expect_bool(load_rev0.known_revision, true, "load accepts rev0");
+  ok &= expect_string(load_rev0.read_order[1], "Hmx::Object",
+                      "load object superclass");
+  ok &= expect_string(load_rev0.read_order[2], "RndTransformable",
+                      "load transform superclass");
+  ok &= expect_string(load_rev0.read_order[3], "mShape[0].radius",
+                      "load shape radius first");
+  ok &= expect_string(load_rev0.read_order[4], "mShape[0].offset",
+                      "load shape offset second");
+  ok &= expect_size(load_rev0.read_order.size(), 9, "rev0 read count");
+  ok &= expect_string(load_rev0.branches[0],
+                      "mOuterRadius=mShape[1].radius+0.5",
+                      "rev0 outer radius default branch");
+  ok &= expect_string(load_rev0.branches[1], "mOpenEnd=false",
+                      "rev0 open end default branch");
+  ok &= expect_string(load_rev0.branches[2], "mBone=TransParent",
+                      "rev0 bone parent branch");
+  ok &= expect_string(load_rev0.branches[3], "mEccentricity=1",
+                      "rev0 eccentricity branch");
+  ok &= expect_string(load_rev0.branches[4], "mCategory=empty",
+                      "rev0 category branch");
+  ok &= expect_string(load_rev0.branches[5], "warnOldCharCuff",
+                      "rev0 warning branch");
+  ok &= expect_bool(load_rev0.warns_old_revision, true,
+                    "rev0 warns old revision");
+
+  const auto load_rev6 = source_char_cuff_load_plan(6);
+  ok &= expect_bool(load_rev6.known_revision, true, "load accepts rev6");
+  ok &= expect_string(load_rev6.read_order[9], "mOuterRadius",
+                      "rev6 reads outer radius");
+  ok &= expect_string(load_rev6.read_order[10], "mOpenEnd",
+                      "rev6 reads open end");
+  ok &= expect_string(load_rev6.read_order[11], "mBone",
+                      "rev6 reads bone");
+  ok &= expect_string(load_rev6.read_order[12], "mEccentricity",
+                      "rev6 reads eccentricity");
+  ok &= expect_string(load_rev6.read_order[13], "mCategory",
+                      "rev6 reads category");
+  ok &= expect_bool(load_rev6.warns_old_revision, true,
+                    "rev6 still warns old revision");
+  ok &= expect_size(load_rev6.branches.size(), 1,
+                    "rev6 only warning branch");
+
+  const auto load_rev8 = source_char_cuff_load_plan(8);
+  ok &= expect_bool(load_rev8.known_revision, true, "load accepts rev8");
+  ok &= expect_string(load_rev8.read_order.back(), "mIgnore",
+                      "rev8 reads ignore list");
+  ok &= expect_size(load_rev8.branches.size(), 0,
+                    "rev8 no default branches");
+  ok &= expect_bool(load_rev8.warns_old_revision, false,
+                    "rev8 does not warn");
+
+  const auto copy_plan = source_char_cuff_copy_plan();
+  ok &= expect_size(copy_plan.copied_superclasses.size(), 2,
+                    "copy superclass count");
+  ok &= expect_string(copy_plan.copied_superclasses[0], "Hmx::Object",
+                      "copy object superclass");
+  ok &= expect_string(copy_plan.copied_superclasses[1], "RndTransformable",
+                      "copy transform superclass");
+  ok &= expect_size(copy_plan.copied_members.size(), 7,
+                    "copy member count");
+  ok &= expect_string(copy_plan.copied_members[0], "mShape", "copy shape");
+  ok &= expect_string(copy_plan.copied_members[6], "mIgnore", "copy ignore");
 
   ok &= near(source_char_cuff_eccentricity(3.0f, 4.0f, 2.0f),
              std::sqrt(25.0f / (16.0f * 0.25f + 9.0f)),

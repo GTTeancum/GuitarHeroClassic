@@ -2394,6 +2394,57 @@ SourceCharCuffState source_char_cuff_default_state() {
   return cuff;
 }
 
+SourceCharCuffLoadPlan source_char_cuff_load_plan(int revision) {
+  SourceCharCuffLoadPlan plan;
+  plan.known_revision = revision >= 0 && revision <= 8;
+  if (!plan.known_revision) return plan;
+
+  plan.read_order = {"LOAD_REVS", "Hmx::Object", "RndTransformable",
+                     "mShape[0].radius", "mShape[0].offset",
+                     "mShape[1].radius", "mShape[1].offset",
+                     "mShape[2].radius", "mShape[2].offset"};
+  if (revision > 1) {
+    plan.read_order.push_back("mOuterRadius");
+  } else {
+    plan.branches.push_back("mOuterRadius=mShape[1].radius+0.5");
+  }
+  if (revision > 2) {
+    plan.read_order.push_back("mOpenEnd");
+  } else {
+    plan.branches.push_back("mOpenEnd=false");
+  }
+  if (revision > 3) {
+    plan.read_order.push_back("mBone");
+  } else {
+    plan.branches.push_back("mBone=TransParent");
+  }
+  if (revision > 4) {
+    plan.read_order.push_back("mEccentricity");
+  } else {
+    plan.branches.push_back("mEccentricity=1");
+  }
+  if (revision > 5) {
+    plan.read_order.push_back("mCategory");
+  } else {
+    plan.branches.push_back("mCategory=empty");
+  }
+  if (revision > 7) {
+    plan.read_order.push_back("mIgnore");
+  }
+  plan.warns_old_revision = revision < 7;
+  if (plan.warns_old_revision) plan.branches.push_back("warnOldCharCuff");
+  return plan;
+}
+
+SourceCharCuffCopyPlan source_char_cuff_copy_plan() {
+  SourceCharCuffCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "RndTransformable"};
+  plan.copied_members = {"mShape",        "mOuterRadius",  "mOpenEnd",
+                         "mBone",         "mEccentricity", "mCategory",
+                         "mIgnore"};
+  return plan;
+}
+
 float source_char_cuff_eccentricity(float x, float y, float eccentricity) {
   const float f1 = y * y;
   const float f2 = x * x;
