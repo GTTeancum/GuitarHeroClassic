@@ -2280,6 +2280,17 @@ int run_contract() {
                  "`runtimeWriteback=0`source-boundaryreason",
                  "format notes document CharHair zero-writeback boundary");
   ok &= contains(format_notes,
+                 "historical Glam1 wrist render-path trial",
+                 "old hairRender wrist proof is marked historical");
+  ok &= contains(format_notes,
+                 "Current source-truth no longer keeps a\n  `hairRender` branch",
+                 "format notes keep hairRender branch out of current source truth");
+  ok &= contains(format_notes,
+                 "decoded material fields drive alpha/z/wrap state, source\n"
+                 "  group/draw-order rows drive ordering, and the project override for hair is\n"
+                 "  two-sided culling only",
+                 "format notes fence hair override to culling only");
+  ok &= contains(format_notes,
                  "Historical PS2 hand-IK A/B toggles",
                  "format notes mark old hand-IK toggles as historical only");
   ok &= missing(format_notes,
@@ -2330,6 +2341,15 @@ int run_contract() {
   ok &= missing(format_notes,
                 "Native now reaches the same matrix-shape",
                 "format notes must not claim removed CharHair matrix writer is live");
+  ok &= missing(format_notes,
+                "Native now treats hair-material meshes",
+                "format notes must not claim removed hairRender branch is live");
+  ok &= missing(format_notes,
+                "must sort/draw with hair render state",
+                "format notes must not promote hairRender sorting from material name");
+  ok &= missing(format_notes,
+                "Glam1 wrist isolate promoted a narrow render-path correction",
+                "format notes must not describe old hairRender trial as promoted");
   ok &= missing(char_clip, "submit_char_eyes_runtime_rows",
                 "unsupported CharEyes runtime-row bridge removed");
   ok &= missing(char_clip, "source_pos=vadd(target_pos",
