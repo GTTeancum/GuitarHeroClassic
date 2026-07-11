@@ -349,6 +349,10 @@ int run_contract() {
                  "concrete\n    `CharDriver::Play` sentinel rule",
                  "document records concrete CharDriver blend fallback slice");
   ok &= contains(doc,
+                 "Native `source_char_driver_should_start_clip` ports the "
+                 "concrete\n    `CharDriver::Play` duplicate-clip gate",
+                 "document records concrete CharDriver duplicate gate slice");
+  ok &= contains(doc,
                  "Port `CharDriver::Load`, `CharDriver::Poll`, and "
                  "`EvaluateFlags`",
                  "remaining import checklist names CharDriver runtime gap");
@@ -2807,6 +2811,10 @@ int run_contract() {
   ok &= contains(rb3_latest_char_driver_cpp,
                  "if(f1==-1.0f)f1=mBlendWidth;",
                  "latest CharDriver source exposes Play blend sentinel");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "if(mPlayMultipleClips){for(CharClipDriver*it=mFirst;it!=0;"
+                 "it=it->mNext){if(clip==it->mClip)return0;}}",
+                 "latest CharDriver source exposes duplicate clip gate");
   ok &= contains(char_clip_h,
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
                  "uint32_tmask);",
@@ -2823,8 +2831,15 @@ int run_contract() {
                  "floatrequested_blend_width,floatdriver_blend_width);",
                  "native character API exposes source CharDriver blend helper");
   ok &= contains(char_clip_h,
+                 "boolsource_char_driver_should_start_clip("
+                 "boolplay_multiple_clips,boolclip_already_playing);",
+                 "native character API exposes source CharDriver duplicate helper");
+  ok &= contains(char_clip_h,
                  "floatsource_driver_blend_width_=1.0f;",
                  "native CharClipPlayer stores source driver blend default");
+  ok &= contains(char_clip_h,
+                 "boolsource_play_multiple_clips_=false;",
+                 "native CharClipPlayer stores source play-multiple default");
   ok &= contains(char_clip,
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
                  "uint32_tmask){uint32_tplay_flags=clip.default_play_flags;",
@@ -2867,6 +2882,20 @@ int run_contract() {
                  "source_char_driver_resolve_blend_width(blend_width,"
                  "source_driver_blend_width_);",
                  "native CharClipPlayer uses source driver blend fallback");
+  ok &= contains(char_clip,
+                 "boolsource_char_driver_should_start_clip("
+                 "boolplay_multiple_clips,boolclip_already_playing){if("
+                 "play_multiple_clips&&clip_already_playing)returnfalse;"
+                 "returntrue;}",
+                 "native CharDriver duplicate helper ports source gate");
+  ok &= contains(char_clip,
+                 "if(source_play_multiple_clips_){for(constLayer&layer:"
+                 "layers_){if(layer.clip==&clip){clip_already_playing=true;",
+                 "native CharClipPlayer checks source duplicate clip stack");
+  ok &= contains(char_clip,
+                 "if(!source_char_driver_should_start_clip("
+                 "source_play_multiple_clips_,clip_already_playing)){return;}",
+                 "native CharClipPlayer applies source duplicate gate");
   ok &= missing(char_clip,
                 "blend_width>=0.0f?blend_width:std::max(0.0f,clip.blend_width)",
                 "native CharClipPlayer no longer falls back to clip blend width");
@@ -2902,6 +2931,13 @@ int run_contract() {
                  "expect_blend(-0.5f,1.0f,-0.5f,"
                  "\"non-sentinelnegativeblend\")",
                  "focused flag-mask test covers exact -1 sentinel");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_should_start(false,true,true,\"duplicatesalloweddefault\")",
+                 "focused flag-mask test covers source duplicate default");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_should_start(true,true,false,"
+                 "\"duplicateclipinmultimode\")",
+                 "focused flag-mask test covers source duplicate suppression");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");

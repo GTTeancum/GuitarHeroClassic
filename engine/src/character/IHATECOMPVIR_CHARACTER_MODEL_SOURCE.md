@@ -588,6 +588,10 @@ note, and all report `unreadBytes=0`.
     to the driver's `mBlendWidth`; other values are left as supplied.
     `CharClipPlayer` now defaults its source driver blend width to the source
     constructor default `1.0f` instead of falling back to the clip row.
+  - Native `source_char_driver_should_start_clip` ports the concrete
+    `CharDriver::Play` duplicate-clip gate: when `mPlayMultipleClips` is true,
+    attempting to play a clip already in the stack returns without starting a
+    new node. The source constructor default remains false.
 - `rb3-latest/src/system/char/CharDriverMidi.cpp` and
   `rb3-latest/src/system/char/CharDriverMidi.h`
   - `CharDriverMidi::Load` reads the subclass revision, accepts revisions

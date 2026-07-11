@@ -129,6 +129,7 @@ class CharClipPlayer {
   void play(const CharClip& clip, uint32_t flags = kCharPlayLoop,
             float blend_width = -1.0f, float speed = 1.0f);
   void set_source_driver_blend_width(float blend_width);
+  void set_source_play_multiple_clips(bool play_multiple_clips);
   void set_speed(float speed);
   void advance(float dt_seconds);
   void apply(Character& character, float weight = 1.0f) const;
@@ -150,6 +151,7 @@ class CharClipPlayer {
   };
 
   float source_driver_blend_width_ = 1.0f;
+  bool source_play_multiple_clips_ = false;
   std::vector<Layer> layers_;
 };
 
@@ -185,6 +187,10 @@ bool source_char_driver_starved(bool has_first, bool first_has_next,
 // Source-backed CharDriver::Play blend-width fallback.
 float source_char_driver_resolve_blend_width(float requested_blend_width,
                                              float driver_blend_width);
+
+// Source-backed CharDriver::Play duplicate-clip gate.
+bool source_char_driver_should_start_clip(bool play_multiple_clips,
+                                          bool clip_already_playing);
 
 // Source-backed CharBones channel helpers.
 int source_char_bones_type_of(const std::string& channel);

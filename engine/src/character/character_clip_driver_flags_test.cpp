@@ -56,6 +56,16 @@ bool expect_blend(float requested, float driver, float want,
   return false;
 }
 
+bool expect_should_start(bool play_multiple, bool already_playing, bool want,
+                         const char* label) {
+  const bool got = ghogx::character::source_char_driver_should_start_clip(
+      play_multiple, already_playing);
+  if (got == want) return true;
+  std::cerr << "duplicate gate mismatch for " << label << ": got " << got
+            << " want " << want << "\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -90,5 +100,8 @@ int main() {
   ok &= expect_blend(-1.0f, 0.25f, 0.25f, "custom driver blend");
   ok &= expect_blend(0.0f, 1.0f, 0.0f, "explicit zero blend");
   ok &= expect_blend(-0.5f, 1.0f, -0.5f, "non-sentinel negative blend");
+  ok &= expect_should_start(false, true, true, "duplicates allowed default");
+  ok &= expect_should_start(true, false, true, "new clip in multi mode");
+  ok &= expect_should_start(true, true, false, "duplicate clip in multi mode");
   return ok ? 0 : 1;
 }
