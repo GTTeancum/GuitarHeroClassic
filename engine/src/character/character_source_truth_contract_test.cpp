@@ -2866,9 +2866,27 @@ int run_contract() {
   ok &= contains(rb3_latest_char_weightable_h,
                  "floatWeight(){returnmWeightOwner->mWeight;}",
                  "latest CharWeightable source exposes owner-weight lookup");
+  ok &= contains(rb3_latest_char_weightable_h,
+                 "voidSetWeight(floatw){mWeight=w;}",
+                 "latest CharWeightable source exposes SetWeight assignment");
+  ok &= contains(rb3_latest_char_weightable_h,
+                 "voidSetWeightOwner(CharWeightable*o){mWeightOwner=o?o:this;}",
+                 "latest CharWeightable source exposes owner fallback");
+  ok &= contains(rb3_latest_char_weightable_cpp,
+                 "CharWeightable::CharWeightable():mWeight(1.0f),"
+                 "mWeightOwner(this,this)",
+                 "latest CharWeightable source exposes constructor defaults");
   ok &= contains(rb3_latest_char_weightable_cpp,
                  "bs>>mWeight;if(gRev>1)bs>>mWeightOwner;",
                  "CharWeightable source load gates weight owner");
+  ok &= contains(rb3_latest_char_weightable_cpp,
+                 "if(mWeightOwner==o1){mWeightOwner=dynamic_cast<"
+                 "CharWeightable*>(o2);}if(mWeightOwner==0){mWeightOwner=this;}",
+                 "latest CharWeightable source Replace falls back to self");
+  ok &= contains(rb3_latest_char_weightable_cpp,
+                 "if(ty==kCopyShallow){SetWeightOwner(c->mWeightOwner.Ptr());}"
+                 "else{SetWeightOwner(this);mWeight=c->mWeightOwner->mWeight;}",
+                 "latest CharWeightable source Copy handles shallow and deep owner");
   ok &= contains(rb3_latest_char_weight_setter_cpp,
                  "voidCharWeightSetter::Poll(){if(mDriver){mBaseWeight="
                  "mScale*mDriver->EvaluateFlags(mFlags)+mOffset;}",
@@ -2906,6 +2924,32 @@ int run_contract() {
                  "mWeightOwner==this)change.push_back(weightowner);",
                  "latest CharWeightSetter source PollDeps publishes owned ref owners");
   ok &= contains(char_clip_h,
+                 "structSourceCharWeightableState{std::stringname;"
+                 "floatweight=1.0f;std::stringweight_owner;};",
+                 "native exposes source CharWeightable state");
+  ok &= contains(char_clip_h,
+                 "SourceCharWeightableStatesource_char_weightable_default_state("
+                 "conststd::string&name);",
+                 "native exposes source CharWeightable constructor helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_weightable_set_weight("
+                 "SourceCharWeightableState&state,floatweight);",
+                 "native exposes source CharWeightable SetWeight helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_weightable_set_weight_owner("
+                 "SourceCharWeightableState&state,conststd::string&weight_owner);",
+                 "native exposes source CharWeightable SetWeightOwner helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_weightable_replace("
+                 "SourceCharWeightableState&state,conststd::string&old_owner,"
+                 "conststd::string&new_owner,boolnew_owner_is_weightable);",
+                 "native exposes source CharWeightable Replace helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_weightable_copy("
+                 "SourceCharWeightableState&dest,constSourceCharWeightableState&"
+                 "source,boolshallow_copy,floatsource_owner_weight);",
+                 "native exposes source CharWeightable Copy helper");
+  ok &= contains(char_clip_h,
                  "floatsource_char_weightable_weight(constCharWeightSetter&"
                  "setter,conststd::unordered_map<std::string,float>&"
                  "weights_by_name);",
@@ -2929,6 +2973,36 @@ int run_contract() {
                  "setter,conststd::vector<SourceCharWeightSetterRefOwner>&"
                  "ref_owners);",
                  "native exposes source CharWeightSetter PollDeps helper");
+  ok &= contains(char_clip,
+                 "SourceCharWeightableStatesource_char_weightable_default_state("
+                 "conststd::string&name){SourceCharWeightableStatestate;"
+                 "state.name=name;state.weight=1.0f;state.weight_owner=name;"
+                 "returnstate;}",
+                 "native CharWeightable constructor helper ports source defaults");
+  ok &= contains(char_clip,
+                 "voidsource_char_weightable_set_weight("
+                 "SourceCharWeightableState&state,floatweight){state.weight=weight;}",
+                 "native CharWeightable SetWeight helper ports source assignment");
+  ok &= contains(char_clip,
+                 "voidsource_char_weightable_set_weight_owner("
+                 "SourceCharWeightableState&state,conststd::string&weight_owner){"
+                 "state.weight_owner=weight_owner.empty()?state.name:weight_owner;}",
+                 "native CharWeightable SetWeightOwner helper ports null fallback");
+  ok &= contains(char_clip,
+                 "voidsource_char_weightable_replace(SourceCharWeightableState&state,"
+                 "conststd::string&old_owner,conststd::string&new_owner,"
+                 "boolnew_owner_is_weightable){if(state.weight_owner==old_owner){",
+                 "native CharWeightable Replace helper checks old owner");
+  ok &= contains(char_clip,
+                 "state.weight_owner=new_owner_is_weightable?new_owner:"
+                 "std::string{};}if(state.weight_owner.empty())"
+                 "state.weight_owner=state.name;}",
+                 "native CharWeightable Replace helper ports self fallback");
+  ok &= contains(char_clip,
+                 "if(shallow_copy){source_char_weightable_set_weight_owner(dest,"
+                 "source.weight_owner);}else{source_char_weightable_set_weight_owner("
+                 "dest,dest.name);dest.weight=source_owner_weight;}",
+                 "native CharWeightable Copy helper ports shallow and deep copy");
   ok &= contains(char_clip, "returnsetter.weight;",
                  "native CharWeightable helper falls back to row weight");
   ok &= contains(char_clip, "if(!setter.driver.empty()){returnfalse;}",
@@ -2972,6 +3046,19 @@ int run_contract() {
   ok &= contains(char_clip,
                  "apply_source_weight_setters(character,0.0f);",
                  "native controller cadence runs CharWeightSetter before IK");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weightable_default_state(\"self.weight\")",
+                 "focused CharWeightSetter test covers CharWeightable defaults");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weightable_set_weight_owner(weightable,\"\")",
+                 "focused CharWeightSetter test covers CharWeightable owner fallback");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weightable_replace(weightable,\"new.owner\","
+                 "\"not.weightable\",false)",
+                 "focused CharWeightSetter test covers CharWeightable Replace fallback");
+  ok &= contains(weight_setter_source_test,
+                 "source_char_weightable_copy(dest,source,false,0.90f)",
+                 "focused CharWeightSetter test covers CharWeightable deep copy");
   ok &= contains(weight_setter_source_test,
                  "ok&=!source_char_weight_setter_poll(driver,weights,0.0f,out);",
                  "focused CharWeightSetter test covers driver fence");
@@ -3865,6 +3952,12 @@ int run_contract() {
                  "all 38 stock\n    `CharWeightSetter` rows are `version=2`, "
                  "use `CharWeightable` revision 2,\n    and report `unreadBytes=0`",
                  "document records refreshed CharWeightSetter stock proof");
+  ok &= contains(doc,
+                 "Native `source_char_weightable_default_state`,",
+                 "document records native CharWeightable state helper slice");
+  ok &= contains(doc,
+                 "non-shallow copies own themselves while\n    copying the source owner's current weight",
+                 "document records CharWeightable deep copy behavior");
   ok &= contains(doc,
                  "Native `source_char_weight_setter_poll` ports the source non-driver path",
                  "document records native CharWeightSetter source poll slice");

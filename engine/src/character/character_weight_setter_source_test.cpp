@@ -28,14 +28,70 @@ bool near(float got, float want, const char* label) {
 int main() {
   using ghogx::character::Character;
   using ghogx::character::CharWeightSetter;
+  using ghogx::character::SourceCharWeightableState;
   using ghogx::character::SourceCharWeightSetterPollDeps;
   using ghogx::character::SourceCharWeightSetterRefOwner;
   using ghogx::character::apply_character_controllers;
+  using ghogx::character::source_char_weightable_copy;
+  using ghogx::character::source_char_weightable_default_state;
+  using ghogx::character::source_char_weightable_replace;
+  using ghogx::character::source_char_weightable_set_weight;
+  using ghogx::character::source_char_weightable_set_weight_owner;
   using ghogx::character::source_char_weight_setter_poll;
   using ghogx::character::source_char_weight_setter_poll_deps;
   using ghogx::character::source_char_weightable_weight;
 
   bool ok = true;
+
+  SourceCharWeightableState weightable =
+      source_char_weightable_default_state("self.weight");
+  ok &= near(weightable.weight, 1.0f, "weightable default weight");
+  if (weightable.weight_owner != "self.weight") {
+    std::cerr << "weightable default owner mismatch\n";
+    ok = false;
+  }
+  source_char_weightable_set_weight(weightable, 0.33f);
+  ok &= near(weightable.weight, 0.33f, "weightable SetWeight");
+  source_char_weightable_set_weight_owner(weightable, "owner.weight");
+  if (weightable.weight_owner != "owner.weight") {
+    std::cerr << "weightable SetWeightOwner mismatch\n";
+    ok = false;
+  }
+  source_char_weightable_set_weight_owner(weightable, "");
+  if (weightable.weight_owner != "self.weight") {
+    std::cerr << "weightable SetWeightOwner null fallback mismatch\n";
+    ok = false;
+  }
+  source_char_weightable_set_weight_owner(weightable, "old.owner");
+  source_char_weightable_replace(weightable, "old.owner", "new.owner", true);
+  if (weightable.weight_owner != "new.owner") {
+    std::cerr << "weightable Replace owner mismatch\n";
+    ok = false;
+  }
+  source_char_weightable_replace(weightable, "new.owner", "not.weightable",
+                                 false);
+  if (weightable.weight_owner != "self.weight") {
+    std::cerr << "weightable Replace null fallback mismatch\n";
+    ok = false;
+  }
+  SourceCharWeightableState source =
+      source_char_weightable_default_state("source.weight");
+  source_char_weightable_set_weight_owner(source, "source.owner");
+  SourceCharWeightableState dest =
+      source_char_weightable_default_state("dest.weight");
+  source_char_weightable_set_weight(dest, 0.20f);
+  source_char_weightable_copy(dest, source, true, 0.90f);
+  if (dest.weight_owner != "source.owner" ||
+      !near(dest.weight, 0.20f, "weightable shallow copy")) {
+    std::cerr << "weightable shallow copy mismatch\n";
+    ok = false;
+  }
+  source_char_weightable_copy(dest, source, false, 0.90f);
+  if (dest.weight_owner != "dest.weight" ||
+      !near(dest.weight, 0.90f, "weightable deep copy")) {
+    std::cerr << "weightable deep copy mismatch\n";
+    ok = false;
+  }
 
   std::unordered_map<std::string, float> weights;
   CharWeightSetter setter = make_setter("owned.weight");

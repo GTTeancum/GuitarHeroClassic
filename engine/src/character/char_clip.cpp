@@ -3282,6 +3282,47 @@ static void apply_source_pos_constraints(Character& character) {
   }
 }
 
+SourceCharWeightableState source_char_weightable_default_state(
+    const std::string& name) {
+  SourceCharWeightableState state;
+  state.name = name;
+  state.weight = 1.0f;
+  state.weight_owner = name;
+  return state;
+}
+
+void source_char_weightable_set_weight(SourceCharWeightableState& state,
+                                       float weight) {
+  state.weight = weight;
+}
+
+void source_char_weightable_set_weight_owner(SourceCharWeightableState& state,
+                                             const std::string& weight_owner) {
+  state.weight_owner = weight_owner.empty() ? state.name : weight_owner;
+}
+
+void source_char_weightable_replace(SourceCharWeightableState& state,
+                                    const std::string& old_owner,
+                                    const std::string& new_owner,
+                                    bool new_owner_is_weightable) {
+  if (state.weight_owner == old_owner) {
+    state.weight_owner = new_owner_is_weightable ? new_owner : std::string{};
+  }
+  if (state.weight_owner.empty()) state.weight_owner = state.name;
+}
+
+void source_char_weightable_copy(SourceCharWeightableState& dest,
+                                 const SourceCharWeightableState& source,
+                                 bool shallow_copy,
+                                 float source_owner_weight) {
+  if (shallow_copy) {
+    source_char_weightable_set_weight_owner(dest, source.weight_owner);
+  } else {
+    source_char_weightable_set_weight_owner(dest, dest.name);
+    dest.weight = source_owner_weight;
+  }
+}
+
 float source_char_weightable_weight(
     const CharWeightSetter& setter,
     const std::unordered_map<std::string, float>& weights_by_name) {

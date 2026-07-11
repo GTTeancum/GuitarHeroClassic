@@ -786,6 +786,15 @@ note, and all report `unreadBytes=0`.
   - `CharWeightable::Weight()` returns the owner row's weight, not merely the
     object's local serialized value. Native therefore keeps `weight_owner` as a
     named source row instead of treating it as a generic UI property.
+  - Native `source_char_weightable_default_state`,
+    `source_char_weightable_set_weight`,
+    `source_char_weightable_set_weight_owner`,
+    `source_char_weightable_replace`, and `source_char_weightable_copy` port the
+    concrete source state behavior: constructor `mWeight=1.0f` and
+    `mWeightOwner=this`, null owners fall back to `this`, `Replace` swaps the
+    owner only when it matches and again falls back to `this` on null, shallow
+    copies keep the source owner, and non-shallow copies own themselves while
+    copying the source owner's current weight.
 - `rb3-latest/src/system/char/CharWeightSetter.cpp` and
   `rb3-latest/src/system/char/CharWeightSetter.h`
   - `CharWeightSetter::Load` reads `Hmx::Object`, then `CharWeightable` for

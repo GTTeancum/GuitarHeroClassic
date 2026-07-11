@@ -612,6 +612,26 @@ SourceCharLookAtBounds source_char_lookat_sync_limits(
 
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.
+struct SourceCharWeightableState {
+  std::string name;
+  float weight = 1.0f;
+  std::string weight_owner;
+};
+
+SourceCharWeightableState source_char_weightable_default_state(
+    const std::string& name);
+void source_char_weightable_set_weight(SourceCharWeightableState& state,
+                                       float weight);
+void source_char_weightable_set_weight_owner(SourceCharWeightableState& state,
+                                             const std::string& weight_owner);
+void source_char_weightable_replace(SourceCharWeightableState& state,
+                                    const std::string& old_owner,
+                                    const std::string& new_owner,
+                                    bool new_owner_is_weightable);
+void source_char_weightable_copy(SourceCharWeightableState& dest,
+                                 const SourceCharWeightableState& source,
+                                 bool shallow_copy,
+                                 float source_owner_weight);
 float source_char_weightable_weight(
     const CharWeightSetter& setter,
     const std::unordered_map<std::string, float>& weights_by_name);
