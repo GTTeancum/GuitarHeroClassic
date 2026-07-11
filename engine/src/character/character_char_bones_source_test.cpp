@@ -216,5 +216,48 @@ int main() {
   ok &= expect_float(bones[0].weight, 0.0f, "static SetWeights first");
   ok &= expect_float(bones[1].weight, 0.0f, "static SetWeights second");
 
+  CharClip::OutputBone output;
+  output.name = "bone_hand";
+  output.position_context = 0x7;
+  output.scale_context = 0x2;
+  output.rotation_type = kSourceCharBonesTypeRotZ;
+  output.rotation_context = 0x4;
+  output.weights.push_back({0x2, 0.25f});
+  output.weights.push_back({0x4, 0.75f});
+  output.weights.push_back({0x6, 0.50f});
+  const auto weight_scale = source_char_bone_find_weight_index(output, 0x2);
+  ok &= expect_int(weight_scale ? static_cast<int>(*weight_scale) : -1, 0,
+                   "FindWeight first matching context");
+  const auto weight_rot = source_char_bone_find_weight_index(output, 0x4);
+  ok &= expect_int(weight_rot ? static_cast<int>(*weight_rot) : -1, 1,
+                   "FindWeight second matching context");
+  const auto weight_missing = source_char_bone_find_weight_index(output, 0x8);
+  ok &= expect_int(weight_missing ? 1 : 0, 0, "FindWeight missing context");
+  ok &= expect_float(source_char_bone_get_weight(output, 0x2), 0.25f,
+                     "GetWeight explicit");
+  ok &= expect_float(source_char_bone_get_weight(output, 0x8), 1.0f,
+                     "GetWeight default");
+  std::vector<SourceCharBonesBone> stuffed;
+  stuffed.push_back({"preexisting.quat", 0.125f});
+  source_char_bone_stuff_bones(output, 0x4, stuffed);
+  ok &= expect_size(stuffed.size(), 3, "StuffBones append count");
+  ok &= expect_string(stuffed[0].name, "preexisting.quat",
+                      "StuffBones preserves caller row");
+  ok &= expect_string(stuffed[1].name, "bone_hand.pos",
+                      "StuffBones position channel");
+  ok &= expect_float(stuffed[1].weight, 0.75f,
+                     "StuffBones position weight");
+  ok &= expect_string(stuffed[2].name, "bone_hand.rotz",
+                      "StuffBones rotation channel");
+  ok &= expect_float(stuffed[2].weight, 0.75f,
+                     "StuffBones rotation weight");
+  source_char_bone_clear_context(output, 0x2);
+  ok &= expect_int(output.position_context, 0x5, "ClearContext position");
+  ok &= expect_int(output.scale_context, 0x0, "ClearContext scale");
+  ok &= expect_int(output.rotation_context, 0x4, "ClearContext rotation");
+  stuffed.clear();
+  source_char_bone_stuff_bones(output, 0x2, stuffed);
+  ok &= expect_size(stuffed.size(), 0, "StuffBones after clear");
+
   return ok ? 0 : 1;
 }

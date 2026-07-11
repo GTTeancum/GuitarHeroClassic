@@ -2883,6 +2883,23 @@ int run_contract() {
                  "std::vector<WeightContext>weights;std::stringtrans;"
                  "boolbake_out_as_top_level=false;size_tunread_bytes=0;",
                  "native OutputBone carries source CharBone optional tail fields");
+  ok &= contains(char_clip_h,
+                 "std::optional<size_t>source_char_bone_find_weight_index("
+                 "constCharClip::OutputBone&bone,intcontext_mask);",
+                 "native API exposes source CharBone FindWeight helper");
+  ok &= contains(char_clip_h,
+                 "floatsource_char_bone_get_weight("
+                 "constCharClip::OutputBone&bone,intcontext_mask);",
+                 "native API exposes source CharBone GetWeight helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bone_clear_context(CharClip::OutputBone&bone,"
+                 "intcontext_mask);",
+                 "native API exposes source CharBone ClearContext helper");
+  ok &= contains(char_clip_h,
+                 "voidsource_char_bone_stuff_bones("
+                 "constCharClip::OutputBone&bone,intcontext_mask,"
+                 "std::vector<SourceCharBonesBone>&bones);",
+                 "native API exposes source CharBone StuffBones helper");
   ok &= contains(char_clip,
                  "out.char_bone_version=read_u32_at(body,size,pos,"
                  "\"CharBoneversion\");skip_bytes_at(body,size,pos,9,"
@@ -2904,6 +2921,32 @@ int run_contract() {
                  "out.unread_bytes=size-pos;",
                  "native CharBone output decoder records unread byte proof");
   ok &= contains(char_clip,
+                 "std::optional<size_t>source_char_bone_find_weight_index("
+                 "constCharClip::OutputBone&bone,intcontext_mask){"
+                 "for(size_ti=0;i<bone.weights.size();++i){if(("
+                 "bone.weights[i].context&context_mask)!=0)returni;}"
+                 "returnstd::nullopt;}",
+                 "native CharBone FindWeight helper mirrors source first match");
+  ok &= contains(char_clip,
+                 "floatsource_char_bone_get_weight("
+                 "constCharClip::OutputBone&bone,intcontext_mask){"
+                 "conststd::optional<size_t>index="
+                 "source_char_bone_find_weight_index(bone,context_mask);"
+                 "if(index)returnbone.weights[*index].weight;return1.0f;}",
+                 "native CharBone GetWeight helper mirrors source default");
+  ok &= contains(char_clip,
+                 "voidsource_char_bone_clear_context(CharClip::OutputBone&bone,"
+                 "intcontext_mask){constintmask=~context_mask;"
+                 "bone.position_context&=mask;bone.scale_context&=mask;"
+                 "bone.rotation_context&=mask;}",
+                 "native CharBone ClearContext helper mirrors source mask");
+  ok &= contains(char_clip,
+                 "voidsource_char_bone_stuff_bones("
+                 "constCharClip::OutputBone&bone,intcontext_mask,"
+                 "std::vector<SourceCharBonesBone>&bones){if(("
+                 "bone.position_context&context_mask)!=0){bones.push_back({",
+                 "native CharBone StuffBones helper mirrors source append gate");
+  ok &= contains(char_clip,
                  "\"[clip-output]%-28ssourceCharBoneversion=%u\"",
                  "native clip debug log labels source CharBone rows");
   ok &= contains(doc,
@@ -2912,6 +2955,53 @@ int run_contract() {
   ok &= contains(doc,
                  "Native clip output rows now decode and log those fields",
                  "document records native CharBone row decode");
+  ok &= contains(doc,
+                 "Native `source_char_bone_find_weight_index`,",
+                 "document records native CharBone helper ports");
+  ok &= contains(doc,
+                 "`StuffBones`\n    appends `.pos`, `.scale`, and rotation "
+                 "channels in source order",
+                 "document records source CharBone StuffBones order");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_find_weight_index(output,0x2)",
+                 "focused CharBones source test covers CharBone FindWeight");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_get_weight(output,0x8)",
+                 "focused CharBones source test covers CharBone weight default");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_stuff_bones(output,0x4,stuffed);",
+                 "focused CharBones source test covers CharBone StuffBones");
+  ok &= contains(char_bones_source_test,
+                 "source_char_bone_clear_context(output,0x2);",
+                 "focused CharBones source test covers CharBone ClearContext");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "voidCharBone::StuffBones(std::list<CharBones::Bone>&bonelist,"
+                 "inti)const{if(mPositionContext&i){bonelist.push_back("
+                 "CharBones::Bone(CharBones::ChannelName(Name(),"
+                 "CharBones::TYPE_POS),GetWeight(i)));}",
+                 "latest CharBone source defines StuffBones position append");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "if(mScaleContext&i){bonelist.push_back(CharBones::Bone("
+                 "CharBones::ChannelName(Name(),CharBones::TYPE_SCALE),"
+                 "GetWeight(i)));}if(mRotation!=CharBones::TYPE_END&&"
+                 "mRotationContext&i){bonelist.push_back(CharBones::Bone("
+                 "CharBones::ChannelName(Name(),mRotation),GetWeight(i)));}}",
+                 "latest CharBone source defines StuffBones scale and rotation append");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "voidCharBone::ClearContext(inti){intmask=~i;"
+                 "mPositionContext&=mask;mScaleContext&=mask;"
+                 "mRotationContext&=mask;}",
+                 "latest CharBone source defines ClearContext mask");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "floatCharBone::GetWeight(inti)const{constWeightContext*ctx="
+                 "FindWeight(i);if(ctx)returnctx->mWeight;elsereturn1.0f;}",
+                 "latest CharBone source defines GetWeight default");
+  ok &= contains(rb3_latest_char_bone_cpp,
+                 "constCharBone::WeightContext*CharBone::FindWeight(inti)const{"
+                 "for(std::vector<WeightContext>::const_iteratorit="
+                 "mWeights.begin();it!=mWeights.end();++it){if(("
+                 "*it).mContext&i)returnit;}return0;}",
+                 "latest CharBone source defines FindWeight first match");
   ok &= contains(rb3_latest_char_bones_cpp,
                  "voidCharBones::ScaleAdd(CharClip*clip,floatf1,floatf2,"
                  "floatf3){clip->ScaleAdd(*this,f1,f2,f3);}",

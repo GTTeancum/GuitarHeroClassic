@@ -177,6 +177,51 @@ void source_char_bones_list_bones(const SourceCharBonesState& state,
   }
 }
 
+std::optional<size_t> source_char_bone_find_weight_index(
+    const CharClip::OutputBone& bone, int context_mask) {
+  for (size_t i = 0; i < bone.weights.size(); ++i) {
+    if ((bone.weights[i].context & context_mask) != 0) return i;
+  }
+  return std::nullopt;
+}
+
+float source_char_bone_get_weight(const CharClip::OutputBone& bone,
+                                  int context_mask) {
+  const std::optional<size_t> index =
+      source_char_bone_find_weight_index(bone, context_mask);
+  if (index) return bone.weights[*index].weight;
+  return 1.0f;
+}
+
+void source_char_bone_clear_context(CharClip::OutputBone& bone,
+                                    int context_mask) {
+  const int mask = ~context_mask;
+  bone.position_context &= mask;
+  bone.scale_context &= mask;
+  bone.rotation_context &= mask;
+}
+
+void source_char_bone_stuff_bones(const CharClip::OutputBone& bone,
+                                  int context_mask,
+                                  std::vector<SourceCharBonesBone>& bones) {
+  if ((bone.position_context & context_mask) != 0) {
+    bones.push_back({source_char_bones_channel_name(
+                         bone.name, kSourceCharBonesTypePos),
+                     source_char_bone_get_weight(bone, context_mask)});
+  }
+  if ((bone.scale_context & context_mask) != 0) {
+    bones.push_back({source_char_bones_channel_name(
+                         bone.name, kSourceCharBonesTypeScale),
+                     source_char_bone_get_weight(bone, context_mask)});
+  }
+  if (bone.rotation_type != kSourceCharBonesTypeEnd &&
+      (bone.rotation_context & context_mask) != 0) {
+    bones.push_back({source_char_bones_channel_name(bone.name,
+                                                   bone.rotation_type),
+                     source_char_bone_get_weight(bone, context_mask)});
+  }
+}
+
 namespace {
 
 // ---- little-endian cursor over the entry body ----------------------------

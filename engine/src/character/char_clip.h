@@ -241,6 +241,17 @@ void source_char_bones_set_weights(SourceCharBonesState& state, float weight);
 void source_char_bones_list_bones(const SourceCharBonesState& state,
                                   std::vector<SourceCharBonesBone>& bones);
 
+// Source-backed CharBone helpers for decoded CharClip output rows.
+std::optional<size_t> source_char_bone_find_weight_index(
+    const CharClip::OutputBone& bone, int context_mask);
+float source_char_bone_get_weight(const CharClip::OutputBone& bone,
+                                  int context_mask);
+void source_char_bone_clear_context(CharClip::OutputBone& bone,
+                                    int context_mask);
+void source_char_bone_stuff_bones(const CharClip::OutputBone& bone,
+                                  int context_mask,
+                                  std::vector<SourceCharBonesBone>& bones);
+
 // Source-backed CharWeightable::Weight helper. The owner row is used when it
 // resolves; otherwise this falls back to the row's own serialized weight.
 float source_char_weightable_weight(

@@ -749,6 +749,14 @@ note, and all report `unreadBytes=0`.
     serialization order already used by the shared native transform decoder:
     local/world matrices, legacy child list, constraint, target, preserve-scale,
     and parent.
+  - Native `source_char_bone_find_weight_index`,
+    `source_char_bone_get_weight`, `source_char_bone_clear_context`, and
+    `source_char_bone_stuff_bones` port the complete source helper bodies for
+    decoded `CharBone` output rows. Weight lookup returns the first weight row
+    whose context intersects the requested mask, or `1.0f` when no row matches.
+    `ClearContext` masks position, scale, and rotation contexts. `StuffBones`
+    appends `.pos`, `.scale`, and rotation channels in source order when their
+    contexts match, using `CharBones::ChannelName` and `GetWeight`.
   - This is row decode and diagnostic evidence only. It does not promote broad
     `CharBone` pose publishing; the existing output bridge remains bounded until
     the connected `CharClip` / `CharBonesSamples` evaluation path is fully
