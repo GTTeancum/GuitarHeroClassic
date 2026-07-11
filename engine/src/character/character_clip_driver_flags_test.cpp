@@ -45,6 +45,17 @@ bool expect_beat_align(uint32_t mask, const char* want, const char* label) {
   return false;
 }
 
+bool expect_blend(float requested, float driver, float want,
+                  const char* label) {
+  const float got =
+      ghogx::character::source_char_driver_resolve_blend_width(requested,
+                                                               driver);
+  if (got == want) return true;
+  std::cerr << "blend fallback mismatch for " << label << ": got " << got
+            << " want " << want << "\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -75,5 +86,9 @@ int main() {
   ok &= expect_beat_align(0x4000u, "BeatAlign4", "beat align 4");
   ok &= expect_beat_align(0x8000u, "BeatAlign8", "beat align 8");
   ok &= expect_beat_align(0xF623u, "NoAlign", "masked unknown align");
+  ok &= expect_blend(-1.0f, 1.0f, 1.0f, "source default blend");
+  ok &= expect_blend(-1.0f, 0.25f, 0.25f, "custom driver blend");
+  ok &= expect_blend(0.0f, 1.0f, 0.0f, "explicit zero blend");
+  ok &= expect_blend(-0.5f, 1.0f, -0.5f, "non-sentinel negative blend");
   return ok ? 0 : 1;
 }

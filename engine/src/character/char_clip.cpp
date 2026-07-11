@@ -1398,6 +1398,12 @@ bool source_char_driver_starved(bool has_first, bool first_has_next,
   return true;
 }
 
+float source_char_driver_resolve_blend_width(float requested_blend_width,
+                                             float driver_blend_width) {
+  return requested_blend_width == -1.0f ? driver_blend_width
+                                        : requested_blend_width;
+}
+
 // ---- pose application ----------------------------------------------------
 
 static void quat_to_rot(const float q[4], float rot[3][3]) {
@@ -4167,7 +4173,8 @@ void CharClipPlayer::play(const CharClip& clip, uint32_t flags,
   if (!clip.loaded || clip.frames.empty()) return;
   const uint32_t play_flags = char_clip_driver_masked_play_flags(clip, flags);
   const float resolved_blend =
-      blend_width >= 0.0f ? blend_width : std::max(0.0f, clip.blend_width);
+      source_char_driver_resolve_blend_width(blend_width,
+                                             source_driver_blend_width_);
   const bool no_blend =
       play_mode(clip, play_flags) == kCharPlayNoBlend ||
       resolved_blend <= 0.0f || layers_.empty();
@@ -4186,6 +4193,11 @@ void CharClipPlayer::play(const CharClip& clip, uint32_t flags,
     layers_.push_back(prev);
   }
   layers_.push_back(next);
+}
+
+void CharClipPlayer::set_source_driver_blend_width(float blend_width) {
+  if (!std::isfinite(blend_width)) blend_width = 1.0f;
+  source_driver_blend_width_ = std::max(0.0f, blend_width);
 }
 
 void CharClipPlayer::set_speed(float speed) {

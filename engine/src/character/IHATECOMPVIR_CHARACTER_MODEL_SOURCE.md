@@ -583,6 +583,11 @@ note, and all report `unreadBytes=0`.
     `CharClipPlayer::source_starved` reports that helper from the native layer
     stack, but this does not promote default-clip playback without the missing
     `Poll` body.
+  - Native `source_char_driver_resolve_blend_width` ports the concrete
+    `CharDriver::Play` sentinel rule: requested blend width `-1.0f` resolves
+    to the driver's `mBlendWidth`; other values are left as supplied.
+    `CharClipPlayer` now defaults its source driver blend width to the source
+    constructor default `1.0f` instead of falling back to the clip row.
 - `rb3-latest/src/system/char/CharDriverMidi.cpp` and
   `rb3-latest/src/system/char/CharDriverMidi.h`
   - `CharDriverMidi::Load` reads the subclass revision, accepts revisions

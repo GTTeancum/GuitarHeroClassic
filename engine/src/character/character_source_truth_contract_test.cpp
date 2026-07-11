@@ -345,6 +345,10 @@ int run_contract() {
                  "source\n    `CharDriver::Starved` body",
                  "document records concrete CharDriver starved slice");
   ok &= contains(doc,
+                 "Native `source_char_driver_resolve_blend_width` ports the "
+                 "concrete\n    `CharDriver::Play` sentinel rule",
+                 "document records concrete CharDriver blend fallback slice");
+  ok &= contains(doc,
                  "Port `CharDriver::Load`, `CharDriver::Poll`, and "
                  "`EvaluateFlags`",
                  "remaining import checklist names CharDriver runtime gap");
@@ -2797,6 +2801,12 @@ int run_contract() {
                  "returnfalse;if((mFirst->mPlayFlags&0xF0)==0x10)"
                  "returnfalse;}returntrue;}",
                  "latest CharDriver source exposes Starved body");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "mBlendWidth(1.0f)",
+                 "latest CharDriver source constructor exposes default blend width");
+  ok &= contains(rb3_latest_char_driver_cpp,
+                 "if(f1==-1.0f)f1=mBlendWidth;",
+                 "latest CharDriver source exposes Play blend sentinel");
   ok &= contains(char_clip_h,
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
                  "uint32_tmask);",
@@ -2808,6 +2818,13 @@ int run_contract() {
                  "boolsource_char_driver_starved(boolhas_first,"
                  "boolfirst_has_next,uint32_tfirst_play_flags);",
                  "native character API exposes source CharDriver starved helper");
+  ok &= contains(char_clip_h,
+                 "floatsource_char_driver_resolve_blend_width("
+                 "floatrequested_blend_width,floatdriver_blend_width);",
+                 "native character API exposes source CharDriver blend helper");
+  ok &= contains(char_clip_h,
+                 "floatsource_driver_blend_width_=1.0f;",
+                 "native CharClipPlayer stores source driver blend default");
   ok &= contains(char_clip,
                  "uint32_tchar_clip_driver_masked_play_flags(constCharClip&clip,"
                  "uint32_tmask){uint32_tplay_flags=clip.default_play_flags;",
@@ -2840,6 +2857,19 @@ int run_contract() {
                  "boolCharClipPlayer::source_starved()const{if(layers_.empty())"
                  "returnsource_char_driver_starved(false,false,0);",
                  "native CharClipPlayer reports source starved state");
+  ok &= contains(char_clip,
+                 "floatsource_char_driver_resolve_blend_width("
+                 "floatrequested_blend_width,floatdriver_blend_width){return"
+                 "requested_blend_width==-1.0f?driver_blend_width:"
+                 "requested_blend_width;}",
+                 "native CharDriver blend helper ports source sentinel");
+  ok &= contains(char_clip,
+                 "source_char_driver_resolve_blend_width(blend_width,"
+                 "source_driver_blend_width_);",
+                 "native CharClipPlayer uses source driver blend fallback");
+  ok &= missing(char_clip,
+                "blend_width>=0.0f?blend_width:std::max(0.0f,clip.blend_width)",
+                "native CharClipPlayer no longer falls back to clip blend width");
   ok &= contains(clip_driver_flags_test,
                  "if(mask&0xF0u)out=(out&0xffffff0fu)|(mask&0xF0u);",
                  "focused flag-mask test covers source loop-bit branch");
@@ -2865,6 +2895,13 @@ int run_contract() {
                  "expect_starved(true,false,ghogx::character::kCharPlayNoLoop,"
                  "false,\"singleno-loopclip\")",
                  "focused flag-mask test covers no-loop non-starved branch");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_blend(-1.0f,1.0f,1.0f,\"sourcedefaultblend\")",
+                 "focused flag-mask test covers source default blend fallback");
+  ok &= contains(clip_driver_flags_test,
+                 "expect_blend(-0.5f,1.0f,-0.5f,"
+                 "\"non-sentinelnegativeblend\")",
+                 "focused flag-mask test covers exact -1 sentinel");
   ok &= contains(rb3_latest_char_clip_group_h,
                  "ObjVector<ObjOwnerPtr<CharClip,ObjectDir>>mClips;//0x8intmWhich;//0x14intmFlags;//0x18",
                  "latest CharClipGroup header exposes source storage fields");
