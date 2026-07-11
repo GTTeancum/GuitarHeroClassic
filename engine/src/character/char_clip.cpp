@@ -2993,6 +2993,7 @@ void apply_character_controllers(Character& character, float time_seconds,
   }
   apply_source_ik_hands(character, bind_bones);
   apply_source_fore_twists(character);
+  apply_source_upper_twists(character, bind_bones);
   apply_char_hair(character, time_seconds);
 
   if (debug_face_enabled()) {
@@ -3028,8 +3029,6 @@ void apply_character_controllers(Character& character, float time_seconds,
                    m.local.rot[2][1], m.local.rot[2][2]);
     }
   }
-
-  apply_source_upper_twists(character, bind_bones);
 }
 
 void apply_clip_pose(const std::vector<ClipChannel>& channels, Character& character) {

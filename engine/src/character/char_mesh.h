@@ -241,6 +241,8 @@ struct CharHair {
   std::vector<CharHairStrand> strands;
   bool simulate = true;
   std::string wind;
+  size_t unread_bytes = 0;
+  std::string unread_tail_hex;
 };
 
 struct CharCollide {

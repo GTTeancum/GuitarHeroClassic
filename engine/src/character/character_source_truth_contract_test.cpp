@@ -689,6 +689,34 @@ int run_contract() {
                  "if(hair.version<8){point.side_length=-1.0f;if(hair.version>5){"
                  "(void)r.i32();(void)r.i32();}}",
                  "native CharHair decode consumes two ints for old revs above 5");
+  ok &= contains(char_mesh_h, "std::stringwind;size_tunread_bytes=0;",
+                 "native CharHair row records unread byte count");
+  ok &= contains(char_mesh_h, "std::stringunread_tail_hex;",
+                 "native CharHair row records unread byte proof");
+  ok &= contains(char_mesh,
+                 "hair.unread_bytes=r.n-r.pos;",
+                 "native CharHair decoder records unread byte count");
+  ok &= contains(char_mesh,
+                 "hair.unread_tail_hex=hex_bytes(r.p+r.pos,"
+                 "std::min<size_t>(hair.unread_bytes,32));",
+                 "native CharHair decoder records unread tail proof");
+  ok &= contains(bind_audit, "missingBonePoints=%zu",
+                 "hair audit summarizes missing driven bones");
+  ok &= contains(bind_audit, "missingCollisionRefs=%zu",
+                 "hair audit summarizes missing collision targets");
+  ok &= contains(bind_audit, "sideLengthPoints=%zu",
+                 "hair audit summarizes source side-length fields");
+  ok &= contains(bind_audit, "unk5cPoints=%zu",
+                 "hair audit summarizes source unk5c fields");
+  ok &= contains(bind_audit, "unreadBytes=%zu",
+                 "hair audit summarizes unread source tails");
+  ok &= contains(doc,
+                 "Native hair audits now summarize each decoded `CharHair` row",
+                 "document records hair digest inventory");
+  ok &= contains(doc,
+                 "This is diagnostic\n  inventory only; it does not publish "
+                 "guessed hair physics or placement.",
+                 "document fences hair digest away from guessed runtime behavior");
   ok &= contains(rb3_latest_char_hair_cpp, "pt.collides.clear();",
                  "RB3 CharHair point reader clears decoded collision list");
   ok &= contains(rb3_latest_char_hair_cpp,
@@ -1749,8 +1777,10 @@ int run_contract() {
                  "native CharForeTwist port keeps source angle basis and bias");
   ok &= contains(char_clip,
                  "apply_source_ik_hands(character,bind_bones);"
-                 "apply_source_fore_twists(character);",
-                 "native runs source CharForeTwist as a separate poll pass");
+                 "apply_source_fore_twists(character);"
+                 "apply_source_upper_twists(character,bind_bones);"
+                 "apply_char_hair(character,time_seconds);",
+                 "native runs source arm controllers before CharHair sampling");
   ok &= contains(char_clip,
                  "for(constCharIKHand&ik:character.ik_hands)",
                  "native CharIKHand polling uses decoded source order");

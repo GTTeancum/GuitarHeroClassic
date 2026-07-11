@@ -751,6 +751,11 @@ CharHair decode_hair(const std::string& entry_name,
   }
   if (r.pos < body.size()) hair.simulate = r.u8() != 0;
   if (hair.version > 10 && r.pos < body.size()) hair.wind = r.str();
+  hair.unread_bytes = r.n - r.pos;
+  if (hair.unread_bytes > 0) {
+    hair.unread_tail_hex =
+        hex_bytes(r.p + r.pos, std::min<size_t>(hair.unread_bytes, 32));
+  }
   return hair;
 }
 

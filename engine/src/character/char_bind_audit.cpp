@@ -594,16 +594,43 @@ void audit_hair(const Character& c, const std::string& milo_path) {
   std::printf("[hair-detail] path=%s char=%s hairs=%zu\n",
               milo_path.c_str(), c.dir_name.c_str(), c.hairs.size());
   for (const auto& hair : c.hairs) {
+    size_t total_points = 0;
+    size_t missing_bone_points = 0;
+    size_t collision_refs = 0;
+    size_t missing_collision_refs = 0;
+    size_t side_length_points = 0;
+    size_t unk5c_points = 0;
+    for (const auto& strand : hair.strands) {
+      total_points += strand.points.size();
+      for (const auto& point : strand.points) {
+        if (!has_trans_or_mesh(c, point.bone)) ++missing_bone_points;
+        if (!point.collision.empty()) {
+          ++collision_refs;
+          if (!has_trans_or_mesh(c, point.collision)) ++missing_collision_refs;
+        }
+        if (point.side_length >= 0.0f) ++side_length_points;
+        if (std::fabs(point.unk5c[0]) > 0.00001f ||
+            std::fabs(point.unk5c[1]) > 0.00001f ||
+            std::fabs(point.unk5c[2]) > 0.00001f) {
+          ++unk5c_points;
+        }
+      }
+    }
     std::printf(
         "[hair-detail] path=%s char=%s hair=%s "
         "source=decoded-CharHair version=%d "
         "simulate=%d stiffness=%.4f torsion=%.4f inertia=%.4f "
         "gravity=%.4f weight=%.4f friction=%.4f minSlack=%.4f "
-        "maxSlack=%.4f strands=%zu\n",
+        "maxSlack=%.4f strands=%zu points=%zu missingBonePoints=%zu "
+        "collisionRefs=%zu missingCollisionRefs=%zu sideLengthPoints=%zu "
+        "unk5cPoints=%zu wind=%s unreadBytes=%zu tailHex=%s\n",
         milo_path.c_str(), c.dir_name.c_str(), hair.name.c_str(), hair.version,
         hair.simulate ? 1 : 0, hair.stiffness, hair.torsion, hair.inertia,
         hair.gravity, hair.weight, hair.friction, hair.min_slack,
-        hair.max_slack, hair.strands.size());
+        hair.max_slack, hair.strands.size(), total_points,
+        missing_bone_points, collision_refs, missing_collision_refs,
+        side_length_points, unk5c_points, none_if_empty(hair.wind),
+        hair.unread_bytes, none_if_empty(hair.unread_tail_hex));
     for (size_t si = 0; si < hair.strands.size(); ++si) {
       const auto& strand = hair.strands[si];
       const auto set_angle_root =

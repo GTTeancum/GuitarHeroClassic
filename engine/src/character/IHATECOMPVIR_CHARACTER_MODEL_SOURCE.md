@@ -508,6 +508,12 @@ note, and all report `unreadBytes=0`.
     GHOGX therefore runs decoded `CharForeTwist` controllers as their own source
     poll pass after hand IK instead of marking them handled inside the hand IK
     bridge.
+  - Native runs the source arm-controller block before `CharHair`, so hair and
+    collision rows observe the updated upper-arm, upper-twist, forearm, and
+    hand transforms instead of the stale pre-poll rows.
+    `engine/out/rock_regression_order_fix_20260710/rock1_front_orderfix.stderr.log`
+    and `rock2_front_orderfix.stderr.log` are the current Rock1/Rock2 visual
+    proof logs for this ordering.
   - Native GHOGX does not keep approximate or PS2-row twist writers in the
     runtime path. The standalone twist controller path follows these
     ihatecompvir source `Poll` routines.
@@ -607,6 +613,13 @@ loads 24 base character MILOs from the stock GH2 PS2 ARK:
 - Four base characters have no decoded `CharHair` rows in this stock set:
   `metal_bass`, `metal_drummer`, `metal_keyboard`, and `metal_singer`. The
   other 20 base character MILOs expose 31 decoded `CharHair` rows total.
+  Native hair audits now summarize each decoded `CharHair` row with source-data
+  point totals, missing driven-bone counts, inline collision reference counts,
+  side-length/`unk5c` presence, wind, and unread byte tails. This is diagnostic
+  inventory only; it does not publish guessed hair physics or placement.
+  Fresh proof at
+  `engine/out/source_truth_hair_digest_20260710/stock_character_hair_digest.log`
+  records all 31 decoded hair rows with `unreadBytes=0`.
 - The focused refreshed controller inventory at
   `engine/out/source_truth_controller_inventory_20260710/expanded_stock_characters_controller_posconstraint_inventory.log`
   shows five `CharPosConstraint` rows total: one each in `female_singer`,

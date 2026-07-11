@@ -147,8 +147,10 @@ int main() {
                  "source CharIKHand polling uses decoded controller order");
   ok &= contains(char_clip_c,
                  "apply_source_ik_hands(character,bind_bones);"
-                 "apply_source_fore_twists(character);",
-                 "source CharIKHand solve precedes source foretwist polling");
+                 "apply_source_fore_twists(character);"
+                 "apply_source_upper_twists(character,bind_bones);"
+                 "apply_char_hair(character,time_seconds);",
+                 "source arm controllers run before CharHair samples them");
   ok &= appears_before(
       solver_weight_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",
