@@ -1077,6 +1077,14 @@ note, and all report `unreadBytes=0`.
   calls as deterministic contract evidence. This helper is passive: it does
   not register events, trigger animations, play sounds, hide/show drawables,
   launch particles, or schedule tasks.
+- Native `source_event_trigger_default_state` and
+  `source_event_trigger_copy_plan` record the checked source constructor and
+  copy contract: source construction registers events and defaults
+  `mAnimFrame`, `mTriggerOrder`, `mAnimTrigger`, `unkde`, `unkdf`, `mEnabled`,
+  and `mEnabledAtStart`; copy runs `UnregisterEvents`, copies the explicit
+  source member list, then runs `RegisterEvents` and `CleanupHideShow`.
+  Runtime-only fields such as spawned tasks and enabled state are documented as
+  not copied by that source body.
 - Native GHOGX currently decodes EventTrigger rows as passive source inventory
   only. It does not register events, trigger animations, play sounds, hide/show
   drawables, or schedule tasks.

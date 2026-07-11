@@ -6053,6 +6053,26 @@ int run_contract() {
   ok &= contains(rb3_latest_event_trigger_cpp,
                  "ConvertParticleTriggerType();",
                  "EventTrigger source load post-processes particle trigger type");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "mTriggerOrder(0),mAnimTrigger(0),unkde(-1),unkdf(0),"
+                 "mEnabled(1),mEnabledAtStart(1){RegisterEvents();}",
+                 "EventTrigger source constructor defaults runtime state");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "BEGIN_COPYS(EventTrigger)COPY_SUPERCLASS(Hmx::Object)"
+                 "COPY_SUPERCLASS(RndAnimatable)CREATE_COPY(EventTrigger)",
+                 "EventTrigger source exposes copy body");
+  ok &= contains(rb3_latest_event_trigger_cpp,
+                 "UnregisterEvents();COPY_MEMBER(mTriggerEvents)"
+                 "COPY_MEMBER(mAnims)COPY_MEMBER(mSounds)"
+                 "COPY_MEMBER(mProxyCalls)COPY_MEMBER(mShows)"
+                 "COPY_MEMBER(mHideDelays)COPY_MEMBER(mEnableEvents)"
+                 "COPY_MEMBER(mDisableEvents)COPY_MEMBER(mWaitForEvents)"
+                 "COPY_MEMBER(mNextLink)COPY_MEMBER(mTriggerOrder)"
+                 "COPY_MEMBER(mResetTriggers)COPY_MEMBER(unkdf)"
+                 "COPY_MEMBER(mAnimTrigger)COPY_MEMBER(mAnimFrame)"
+                 "COPY_MEMBER(mPartLaunchers)RegisterEvents();"
+                 "CleanupHideShow();",
+                 "EventTrigger source copy member order");
   ok &= contains(rb3_latest_event_trigger_h,
                  "ObjVector<ProxyCall>mProxyCalls;",
                  "EventTrigger header exposes ObjVector boundary");
@@ -6219,6 +6239,10 @@ int run_contract() {
   ok &= contains(doc, "Native `source_event_trigger_load_plan` records",
                  "document records EventTrigger source load plan helper");
   ok &= contains(doc,
+                 "Native `source_event_trigger_default_state` and\n"
+                 "  `source_event_trigger_copy_plan` record",
+                 "document records EventTrigger default/copy helpers");
+  ok &= contains(doc,
                  "records the only stock row as `char=metal_drummer "
                  "name=game_over.trig\n  version=8`",
                  "document records focused EventTrigger stock proof");
@@ -6274,10 +6298,38 @@ int run_contract() {
                  "SourceEventTriggerLoadPlansource_event_trigger_load_plan("
                  "intrevision);",
                  "native exposes EventTrigger source load plan helper");
+  ok &= contains(char_mesh_h,
+                 "structSourceEventTriggerDefaultState{",
+                 "native exposes EventTrigger source default state");
+  ok &= contains(char_mesh_h,
+                 "structSourceEventTriggerCopyPlan{",
+                 "native exposes EventTrigger source copy plan");
+  ok &= contains(char_mesh_h,
+                 "SourceEventTriggerDefaultState"
+                 "source_event_trigger_default_state();",
+                 "native exposes EventTrigger source default helper");
+  ok &= contains(char_mesh_h,
+                 "SourceEventTriggerCopyPlansource_event_trigger_copy_plan();",
+                 "native exposes EventTrigger source copy helper");
   ok &= contains(char_mesh,
                  "SourceEventTriggerLoadPlansource_event_trigger_load_plan("
                  "intrevision){",
                  "native implements EventTrigger source load plan helper");
+  ok &= contains(char_mesh,
+                 "SourceEventTriggerDefaultState"
+                 "source_event_trigger_default_state(){return{};}",
+                 "native implements EventTrigger source default helper");
+  ok &= contains(char_mesh,
+                 "SourceEventTriggerCopyPlansource_event_trigger_copy_plan(){",
+                 "native implements EventTrigger source copy helper");
+  ok &= contains(char_mesh,
+                 "plan.copied_superclasses={\"Hmx::Object\","
+                 "\"RndAnimatable\"};",
+                 "EventTrigger copy plan records source superclasses");
+  ok &= contains(char_mesh,
+                 "plan.not_copied_members={\"mSpawnedTasks\",\"unkbc\","
+                 "\"unkcc\",\"unkde\",\"mEnabled\",\"mEnabledAtStart\"};",
+                 "EventTrigger copy plan records omitted runtime fields");
   ok &= contains(char_mesh,
                  "plan.known_revision=revision>=0&&revision<=0x11;",
                  "EventTrigger source plan gates source revisions");
@@ -6293,6 +6345,12 @@ int run_contract() {
   ok &= contains(event_trigger_source_test,
                  "rev17.proxy_call.read_order.size(),3",
                  "EventTrigger source test covers proxy event row");
+  ok &= contains(event_trigger_source_test,
+                 "constautodefaults=source_event_trigger_default_state();",
+                 "EventTrigger source test covers constructor defaults");
+  ok &= contains(event_trigger_source_test,
+                 "constautocopy=source_event_trigger_copy_plan();",
+                 "EventTrigger source test covers copy plan");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_event_trigger_source_test",
                  "CMake registers EventTrigger source test");

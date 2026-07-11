@@ -34,9 +34,69 @@ bool expect_string(const std::string& got, const std::string& want,
 }  // namespace
 
 int main() {
+  using ghogx::character::EventTrigger;
+  using ghogx::character::source_event_trigger_copy_plan;
+  using ghogx::character::source_event_trigger_default_state;
   using ghogx::character::source_event_trigger_load_plan;
 
   bool ok = true;
+
+  const auto defaults = source_event_trigger_default_state();
+  ok &= expect_bool(defaults.constructor_registers_events, true,
+                    "constructor registers events");
+  ok &= expect_bool(defaults.reset_self, false, "default unkdf/reset-self");
+  ok &= expect_bool(defaults.enabled, true, "default enabled");
+  ok &= expect_bool(defaults.enabled_at_start, true,
+                    "default enabled-at-start");
+  ok &= expect_string(std::to_string(defaults.unkde), "-1",
+                      "default unkde sentinel");
+
+  const EventTrigger native_default;
+  ok &= expect_bool(native_default.reset_self, defaults.reset_self,
+                    "native reset-self default");
+  ok &= expect_string(std::to_string(native_default.trigger_order),
+                      std::to_string(defaults.trigger_order),
+                      "native trigger-order default");
+  ok &= expect_string(std::to_string(native_default.anim_trigger),
+                      std::to_string(defaults.anim_trigger),
+                      "native anim-trigger default");
+  ok &= expect_string(std::to_string(native_default.anim_frame),
+                      std::to_string(defaults.anim_frame),
+                      "native anim-frame default");
+
+  const auto copy = source_event_trigger_copy_plan();
+  ok &= expect_size(copy.copied_superclasses.size(), 2,
+                    "copy superclass count");
+  ok &= expect_string(copy.copied_superclasses[0], "Hmx::Object",
+                      "copy first superclass");
+  ok &= expect_string(copy.copied_superclasses[1], "RndAnimatable",
+                      "copy second superclass");
+  ok &= expect_size(copy.pre_copy_steps.size(), 1, "copy pre-step count");
+  ok &= expect_string(copy.pre_copy_steps[0], "UnregisterEvents",
+                      "copy unregister pre-step");
+  ok &= expect_string(copy.copied_members[0], "mTriggerEvents",
+                      "copy first member");
+  ok &= expect_bool(has(copy.copied_members, "mAnims"), true,
+                    "copy anim vector");
+  ok &= expect_bool(has(copy.copied_members, "mProxyCalls"), true,
+                    "copy proxy vector");
+  ok &= expect_bool(has(copy.copied_members, "unkdf"), true,
+                    "copy reset-self bit");
+  ok &= expect_bool(has(copy.copied_members, "mPartLaunchers"), true,
+                    "copy part launchers");
+  ok &= expect_bool(has(copy.copied_members, "mEnabled"), false,
+                    "copy does not copy enabled");
+  ok &= expect_size(copy.post_copy_steps.size(), 2, "copy post-step count");
+  ok &= expect_string(copy.post_copy_steps[0], "RegisterEvents",
+                      "copy register post-step");
+  ok &= expect_string(copy.post_copy_steps[1], "CleanupHideShow",
+                      "copy cleanup post-step");
+  ok &= expect_bool(has(copy.not_copied_members, "mSpawnedTasks"), true,
+                    "copy omits spawned tasks");
+  ok &= expect_bool(has(copy.not_copied_members, "unkbc"), true,
+                    "copy omits unkbc");
+  ok &= expect_bool(has(copy.not_copied_members, "mEnabledAtStart"), true,
+                    "copy omits enabled-at-start");
 
   const auto bad_low = source_event_trigger_load_plan(-1);
   ok &= expect_bool(bad_low.known_revision, false, "revision -1 rejected");

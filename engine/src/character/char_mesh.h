@@ -1699,7 +1699,28 @@ struct SourceEventTriggerLoadPlan {
   std::vector<std::string> hide_delay_read_order;
 };
 
+struct SourceEventTriggerDefaultState {
+  float anim_frame = 0.0f;
+  int32_t trigger_order = 0;
+  int32_t anim_trigger = 0;
+  int32_t unkde = -1;
+  bool reset_self = false;
+  bool enabled = true;
+  bool enabled_at_start = true;
+  bool constructor_registers_events = true;
+};
+
+struct SourceEventTriggerCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+  std::vector<std::string> pre_copy_steps;
+  std::vector<std::string> post_copy_steps;
+  std::vector<std::string> not_copied_members;
+};
+
 SourceEventTriggerLoadPlan source_event_trigger_load_plan(int revision);
+SourceEventTriggerDefaultState source_event_trigger_default_state();
+SourceEventTriggerCopyPlan source_event_trigger_copy_plan();
 
 struct ObjectRow {
   std::string name;

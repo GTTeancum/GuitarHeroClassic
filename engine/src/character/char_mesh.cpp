@@ -1519,6 +1519,26 @@ SourceEventTriggerLoadPlan source_event_trigger_load_plan(int revision) {
   return plan;
 }
 
+SourceEventTriggerDefaultState source_event_trigger_default_state() {
+  return {};
+}
+
+SourceEventTriggerCopyPlan source_event_trigger_copy_plan() {
+  SourceEventTriggerCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "RndAnimatable"};
+  plan.pre_copy_steps = {"UnregisterEvents"};
+  plan.copied_members = {"mTriggerEvents", "mAnims",         "mSounds",
+                         "mProxyCalls",    "mShows",         "mHideDelays",
+                         "mEnableEvents",  "mDisableEvents", "mWaitForEvents",
+                         "mNextLink",      "mTriggerOrder",  "mResetTriggers",
+                         "unkdf",          "mAnimTrigger",   "mAnimFrame",
+                         "mPartLaunchers"};
+  plan.post_copy_steps = {"RegisterEvents", "CleanupHideShow"};
+  plan.not_copied_members = {"mSpawnedTasks", "unkbc", "unkcc", "unkde",
+                             "mEnabled", "mEnabledAtStart"};
+  return plan;
+}
+
 CharHair decode_hair(const std::string& entry_name,
                      const std::vector<uint8_t>& body) {
   return decode_hair_body(entry_name, body);
