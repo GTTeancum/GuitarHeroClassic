@@ -908,11 +908,18 @@ note, and all report `unreadBytes=0`.
   - `IsMatchingFilterFlags` returns true only when the category mask overlaps
     and the category flags are non-zero. Native `source_char_interest_*`
     helpers port these data decisions, `source_char_interest_load_plan` records
-    the concrete source load row order, and the copy helper keeps the
-    max-view-angle resync.
+    the concrete source load row order, `source_char_interest_copy_plan`,
+    `source_char_interest_prop_sync_plan`,
+    `source_char_interest_category_flags_prop_plan`, and
+    `source_char_interest_handler_plan` record the source copy/property/handler
+    rows, `source_char_interest_is_within_view_cone` ports the nonzero-vector
+    source view-cone decision, and the copy helper keeps the max-view-angle
+    resync.
     `ComputeScore` includes runtime vectors and `RandomFloat`; it stays fenced
     from native runtime until the surrounding source eye-interest path is ported
-    or traced.
+    or traced. Native `source_char_interest_compute_score_plan` records the
+    gate and scoring steps only and reports that it is not safe to publish as a
+    runtime score.
 - `rb3-latest/src/system/char/CharTransCopy.cpp` and
   `CharTransCopy.h`
   - `CharTransCopy::Poll` returns immediately when either `mSrc` or `mDest` is

@@ -35,10 +35,16 @@ bool near(float got, float want, const char* label) {
 
 int main() {
   using ghogx::character::source_char_interest_copy;
+  using ghogx::character::source_char_interest_category_flags_prop_plan;
+  using ghogx::character::source_char_interest_compute_score_plan;
+  using ghogx::character::source_char_interest_copy_plan;
   using ghogx::character::source_char_interest_defaults;
+  using ghogx::character::source_char_interest_handler_plan;
   using ghogx::character::source_char_interest_is_matching_filter_flags;
+  using ghogx::character::source_char_interest_is_within_view_cone;
   using ghogx::character::source_char_interest_load_plan;
   using ghogx::character::source_char_interest_load_revision_known;
+  using ghogx::character::source_char_interest_prop_sync_plan;
   using ghogx::character::source_char_interest_sync_max_view_angle;
 
   bool ok = true;
@@ -136,6 +142,78 @@ int main() {
                     false, "non-overlapping category does not match");
   ok &= expect_bool(source_char_interest_is_matching_filter_flags(0x6, 0x2),
                     true, "overlapping category matches");
+  ok &= expect_bool(
+      source_char_interest_is_within_view_cone({0.0f, 0.0f, 10.0f},
+                                               {0.0f, 0.0f, 0.0f},
+                                               {0.0f, 0.0f, 1.0f},
+                                               source_char_interest_sync_max_view_angle(20.0f)),
+      true, "view cone accepts forward interest");
+  ok &= expect_bool(
+      source_char_interest_is_within_view_cone({10.0f, 0.0f, 0.0f},
+                                               {0.0f, 0.0f, 0.0f},
+                                               {0.0f, 0.0f, 1.0f},
+                                               source_char_interest_sync_max_view_angle(20.0f)),
+      false, "view cone rejects side interest");
+
+  const auto copy_plan = source_char_interest_copy_plan();
+  ok &= expect_string(copy_plan.copied_superclasses[0], "Hmx::Object",
+                      "copy plan object superclass");
+  ok &= expect_string(copy_plan.copied_superclasses[1], "RndTransformable",
+                      "copy plan transform superclass");
+  ok &= expect_int(static_cast<int>(copy_plan.copied_members.size()), 9,
+                   "copy plan member count");
+  ok &= expect_string(copy_plan.copied_members[0], "mMaxViewAngle",
+                      "copy plan first member");
+  ok &= expect_string(copy_plan.copied_members.back(),
+                      "mMinTargetDistanceOverride",
+                      "copy plan last member");
+  ok &= expect_bool(copy_plan.sync_max_view_angle, true,
+                    "copy plan syncs max view angle");
+
+  const auto prop_sync = source_char_interest_prop_sync_plan();
+  ok &= expect_string(prop_sync.modify_properties[0], "max_view_angle",
+                      "prop sync max view angle");
+  ok &= expect_string(prop_sync.modify_actions[0], "SyncMaxViewAngle",
+                      "prop sync action");
+  ok &= expect_int(static_cast<int>(prop_sync.properties.size()), 7,
+                   "prop sync direct count");
+  ok &= expect_string(prop_sync.properties[4], "dart_ruleset_override",
+                      "prop sync dart override");
+  ok &= expect_string(prop_sync.custom_branches[0], "category_flags",
+                      "prop sync category branch");
+  ok &= expect_string(prop_sync.superclasses[0], "RndTransformable",
+                      "prop sync superclass");
+
+  const auto category_prop = source_char_interest_category_flags_prop_plan();
+  ok &= expect_bool(category_prop.accepts_raw_category_flags, true,
+                    "category prop accepts raw field");
+  ok &= expect_bool(category_prop.accepts_symbol_bit_prefix, true,
+                    "category prop accepts BIT symbol");
+  ok &= expect_string(category_prop.required_symbol_prefix, "BIT_",
+                      "category prop symbol prefix");
+  ok &= expect_string(category_prop.operations[1],
+                      "kPropGet returns mCategoryFlags & flags",
+                      "category prop get operation");
+  ok &= expect_string(category_prop.operations[3], "zero set clears mask",
+                      "category prop clear operation");
+
+  const auto handler_plan = source_char_interest_handler_plan();
+  ok &= expect_string(handler_plan.superclasses[0], "RndTransformable",
+                      "handler transform superclass");
+  ok &= expect_string(handler_plan.superclasses[1], "Hmx::Object",
+                      "handler object superclass");
+  ok &= expect_int(handler_plan.check, 0x141, "handler check");
+
+  const auto score_plan = source_char_interest_compute_score_plan();
+  ok &= expect_string(score_plan.gates[0], "IsMatchingFilterFlags(mask)",
+                      "score gate filter");
+  ok &= expect_string(score_plan.score_steps[7],
+                      "nonnegative score receives RandomFloat jitter",
+                      "score random jitter step");
+  ok &= expect_bool(score_plan.contains_random_float, true,
+                    "score plan notes random");
+  ok &= expect_bool(score_plan.safe_to_publish_runtime_score, false,
+                    "score plan remains fenced");
 
   interest.max_view_angle = 45.0f;
   interest.priority = 2.0f;

@@ -1165,6 +1165,40 @@ struct SourceCharInterestLoadPlan {
   bool sync_max_view_angle = false;
 };
 
+struct SourceCharInterestCopyPlan {
+  std::vector<std::string> copied_superclasses;
+  std::vector<std::string> copied_members;
+  bool sync_max_view_angle = true;
+};
+
+struct SourceCharInterestPropSyncPlan {
+  std::vector<std::string> modify_properties;
+  std::vector<std::string> modify_actions;
+  std::vector<std::string> properties;
+  std::vector<std::string> custom_branches;
+  std::vector<std::string> superclasses;
+};
+
+struct SourceCharInterestCategoryFlagsPropPlan {
+  bool accepts_raw_category_flags = true;
+  bool accepts_int_bit = true;
+  bool accepts_symbol_bit_prefix = true;
+  std::string required_symbol_prefix = "BIT_";
+  std::vector<std::string> operations;
+};
+
+struct SourceCharInterestHandlerPlan {
+  std::vector<std::string> superclasses;
+  int check = 0;
+};
+
+struct SourceCharInterestComputeScorePlan {
+  std::vector<std::string> gates;
+  std::vector<std::string> score_steps;
+  bool contains_random_float = true;
+  bool safe_to_publish_runtime_score = false;
+};
+
 struct SourceCharNeckTwistState {
   std::string twist;
   std::string head;
@@ -1613,8 +1647,19 @@ SourceCharInterestLoadPlan source_char_interest_load_plan(int revision);
 float source_char_interest_sync_max_view_angle(float max_view_angle_degrees);
 bool source_char_interest_is_matching_filter_flags(int category_flags,
                                                    int mask);
+bool source_char_interest_is_within_view_cone(
+    const std::array<float, 3>& interest_world,
+    const std::array<float, 3>& viewer_world,
+    const std::array<float, 3>& view_direction,
+    float max_view_angle_cos);
 SourceCharInterestState source_char_interest_copy(
     const SourceCharInterestState& src);
+SourceCharInterestCopyPlan source_char_interest_copy_plan();
+SourceCharInterestPropSyncPlan source_char_interest_prop_sync_plan();
+SourceCharInterestCategoryFlagsPropPlan
+source_char_interest_category_flags_prop_plan();
+SourceCharInterestHandlerPlan source_char_interest_handler_plan();
+SourceCharInterestComputeScorePlan source_char_interest_compute_score_plan();
 SourceCharNeckTwistState source_char_neck_twist_defaults();
 bool source_char_neck_twist_load_revision_known(int revision);
 void source_char_neck_twist_poll_deps(SourceCharNeckTwistPollDeps& deps,

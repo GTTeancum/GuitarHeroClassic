@@ -8499,8 +8499,59 @@ int run_contract() {
                  "mCategoryFlags&mask&&mCategoryFlags!=0;}",
                  "latest CharInterest source exposes category filter logic");
   ok &= contains(rb3_latest_char_interest_cpp,
+                 "boolCharInterest::IsWithinViewCone(constVector3&v1,"
+                 "constVector3&v2){Vector3v1c;v1c=WorldXfm().v;"
+                 "Vector3v28;Subtract(v1c,v1,v28);Normalize(v28,v28);"
+                 "if(Dot(v2,v28)>=mMaxViewAngleCos)returntrue;elsereturnfalse;}",
+                 "latest CharInterest source exposes view-cone logic");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "BEGIN_COPYS(CharInterest)COPY_SUPERCLASS(Hmx::Object)"
+                 "COPY_SUPERCLASS(RndTransformable)CREATE_COPY(CharInterest)"
+                 "BEGIN_COPYING_MEMBERSCOPY_MEMBER(mMaxViewAngle)"
+                 "COPY_MEMBER(mPriority)COPY_MEMBER(mMinLookTime)"
+                 "COPY_MEMBER(mMaxLookTime)COPY_MEMBER(mRefractoryPeriod)",
+                 "latest CharInterest source exposes copy rows");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "COPY_MEMBER(mDartOverride)COPY_MEMBER(mCategoryFlags)"
+                 "COPY_MEMBER(mOverrideMinTargetDistance)COPY_MEMBER("
+                 "mMinTargetDistanceOverride)SyncMaxViewAngle();",
+                 "latest CharInterest source copy resyncs max view angle");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "BEGIN_PROPSYNCS(CharInterest)SYNC_PROP_MODIFY("
+                 "max_view_angle,mMaxViewAngle,SyncMaxViewAngle())"
+                 "SYNC_PROP(priority,mPriority)SYNC_PROP(min_look_time,"
+                 "mMinLookTime)SYNC_PROP(max_look_time,mMaxLookTime)"
+                 "SYNC_PROP(refractory_period,mRefractoryPeriod)",
+                 "latest CharInterest source exposes first prop rows");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "staticSymbol_s(\"category_flags\");if(sym==_s){"
+                 "intplusone=_i+1;if(plusone<_prop->Size()){",
+                 "latest CharInterest source exposes category_flags custom branch");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "if(strncmp(\"BIT_\",str,4)!=0){MILO_FAIL(\"%sdoesnotbeginwithBIT_\",str);}",
+                 "latest CharInterest source requires BIT_ category symbol");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "if(_op==kPropGet){_val=DataNode(mCategoryFlags&flags);}"
+                 "else{intthemask=_val.Int(0);if(themask!=0)"
+                 "mCategoryFlags|=themask;elsemCategoryFlags&=~themask;}",
+                 "latest CharInterest source exposes category flag get/set");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "SYNC_PROP(overrides_min_target_dist,"
+                 "mOverrideMinTargetDistance)SYNC_PROP("
+                 "min_target_dist_override,mMinTargetDistanceOverride)"
+                 "SYNC_SUPERCLASS(RndTransformable)END_PROPSYNCS",
+                 "latest CharInterest source exposes tail prop rows");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "BEGIN_HANDLERS(CharInterest)HANDLE_SUPERCLASS("
+                 "RndTransformable)HANDLE_SUPERCLASS(Hmx::Object)"
+                 "HANDLE_CHECK(0x141)END_HANDLERS",
+                 "latest CharInterest source exposes handler table");
+  ok &= contains(rb3_latest_char_interest_cpp,
                  "floatCharInterest::ComputeScore(",
                  "latest CharInterest source exposes ComputeScore boundary");
+  ok &= contains(rb3_latest_char_interest_cpp,
+                 "RandomFloat(-0.25f,0.25);",
+                 "latest CharInterest source ComputeScore includes random jitter");
   ok &= contains(char_mesh_h,
                  "structSourceCharEyeDartRulesetData{floatmin_radius=0.5f;",
                  "native exposes CharEyeDartRuleset source data");
@@ -8539,6 +8590,33 @@ int run_contract() {
                  "boolsync_max_view_angle=false;};",
                  "native exposes CharInterest source load plan");
   ok &= contains(char_mesh_h,
+                 "structSourceCharInterestCopyPlan{"
+                 "std::vector<std::string>copied_superclasses;"
+                 "std::vector<std::string>copied_members;"
+                 "boolsync_max_view_angle=true;};",
+                 "native exposes CharInterest copy plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharInterestPropSyncPlan{"
+                 "std::vector<std::string>modify_properties;"
+                 "std::vector<std::string>modify_actions;"
+                 "std::vector<std::string>properties;"
+                 "std::vector<std::string>custom_branches;"
+                 "std::vector<std::string>superclasses;};",
+                 "native exposes CharInterest prop-sync plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharInterestCategoryFlagsPropPlan{"
+                 "boolaccepts_raw_category_flags=true;boolaccepts_int_bit=true;"
+                 "boolaccepts_symbol_bit_prefix=true;"
+                 "std::stringrequired_symbol_prefix=\"BIT_\";",
+                 "native exposes CharInterest category flags prop plan");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharInterestComputeScorePlan{"
+                 "std::vector<std::string>gates;"
+                 "std::vector<std::string>score_steps;"
+                 "boolcontains_random_float=true;"
+                 "boolsafe_to_publish_runtime_score=false;};",
+                 "native exposes CharInterest ComputeScore plan");
+  ok &= contains(char_mesh_h,
                  "SourceCharInterestLoadPlansource_char_interest_load_plan("
                  "intrevision);",
                  "native exposes CharInterest load plan helper");
@@ -8550,6 +8628,24 @@ int run_contract() {
                  "boolsource_char_interest_is_matching_filter_flags("
                  "intcategory_flags,intmask);",
                  "native exposes CharInterest filter helper");
+  ok &= contains(char_mesh_h,
+                 "boolsource_char_interest_is_within_view_cone(",
+                 "native exposes CharInterest view-cone helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharInterestCopyPlansource_char_interest_copy_plan();",
+                 "native exposes CharInterest copy plan helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharInterestPropSyncPlan"
+                 "source_char_interest_prop_sync_plan();",
+                 "native exposes CharInterest prop-sync helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharInterestCategoryFlagsPropPlan"
+                 "source_char_interest_category_flags_prop_plan();",
+                 "native exposes CharInterest category prop helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharInterestComputeScorePlan"
+                 "source_char_interest_compute_score_plan();",
+                 "native exposes CharInterest ComputeScore plan helper");
   ok &= contains(char_mesh,
                  "returnstd::cos(max_view_angle_degrees*0.017453292f);",
                  "native ports CharInterest max view angle cosine");
@@ -8595,9 +8691,44 @@ int run_contract() {
                  "return(category_flags&mask)!=0&&category_flags!=0;",
                  "native ports CharInterest category filter logic");
   ok &= contains(char_mesh,
+                 "boolsource_char_interest_is_within_view_cone("
+                 "conststd::array<float,3>&interest_world,",
+                 "native implements CharInterest view-cone helper");
+  ok &= contains(char_mesh,
+                 "constfloatdot=view_direction[0]*(dx/len)+view_direction[1]*"
+                 "(dy/len)+view_direction[2]*(dz/len);returndot>="
+                 "max_view_angle_cos;",
+                 "native CharInterest view-cone helper mirrors source dot gate");
+  ok &= contains(char_mesh,
                  "dst.max_view_angle_cos=source_char_interest_sync_max_view_angle"
                  "(dst.max_view_angle);",
                  "native CharInterest copy resyncs max view angle");
+  ok &= contains(char_mesh,
+                 "SourceCharInterestCopyPlansource_char_interest_copy_plan(){"
+                 "SourceCharInterestCopyPlanplan;plan.copied_superclasses={"
+                 "\"Hmx::Object\",\"RndTransformable\"};",
+                 "native implements CharInterest copy plan superclasses");
+  ok &= contains(char_mesh,
+                 "SourceCharInterestPropSyncPlansource_char_interest_prop_sync_plan(){"
+                 "SourceCharInterestPropSyncPlanplan;plan.modify_properties={"
+                 "\"max_view_angle\"};plan.modify_actions={\"SyncMaxViewAngle\"};",
+                 "native implements CharInterest prop-sync modify row");
+  ok &= contains(char_mesh,
+                 "plan.custom_branches={\"category_flags\"};"
+                 "plan.superclasses={\"RndTransformable\"};",
+                 "native implements CharInterest category prop branch");
+  ok &= contains(char_mesh,
+                 "SourceCharInterestCategoryFlagsPropPlan"
+                 "source_char_interest_category_flags_prop_plan(){",
+                 "native implements CharInterest category prop plan");
+  ok &= contains(char_mesh,
+                 "SourceCharInterestHandlerPlansource_char_interest_handler_plan(){"
+                 "SourceCharInterestHandlerPlanplan;plan.superclasses={"
+                 "\"RndTransformable\",\"Hmx::Object\"};plan.check=0x141;",
+                 "native implements CharInterest handler plan");
+  ok &= contains(char_mesh,
+                 "SourceCharInterestComputeScorePlansource_char_interest_compute_score_plan(){",
+                 "native implements CharInterest ComputeScore boundary plan");
   ok &= contains(cmake,
                  "add_executable(ghogx_character_eye_dart_ruleset_source_test",
                  "CMake builds CharEyeDartRuleset source test");
@@ -8634,6 +8765,21 @@ int run_contract() {
   ok &= contains(interest_source_test,
                  "source_char_interest_is_matching_filter_flags(0x6,0x2)",
                  "focused CharInterest source test covers category matching");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_is_within_view_cone({0.0f,0.0f,10.0f}",
+                 "focused CharInterest source test covers view cone accept");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_copy_plan()",
+                 "focused CharInterest source test covers copy plan");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_prop_sync_plan()",
+                 "focused CharInterest source test covers prop-sync plan");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_category_flags_prop_plan()",
+                 "focused CharInterest source test covers category prop plan");
+  ok &= contains(interest_source_test,
+                 "source_char_interest_compute_score_plan()",
+                 "focused CharInterest source test covers ComputeScore boundary");
   ok &= contains(interest_source_test,
                  "\"copyresyncsmaxviewcosine\"",
                  "focused CharInterest source test covers copy resync");
@@ -9237,6 +9383,13 @@ int run_contract() {
   ok &= contains(doc,
                  "Native `source_char_interest_*`\n    helpers port these data decisions",
                  "document records native CharInterest helper boundary");
+  ok &= contains(doc,
+                 "`source_char_interest_is_within_view_cone` ports the nonzero-vector",
+                 "document records native CharInterest view-cone helper");
+  ok &= contains(doc,
+                 "`source_char_interest_compute_score_plan` records the\n"
+                 "    gate and scoring steps only",
+                 "document records native CharInterest ComputeScore boundary");
   ok &= contains(doc,
                  "`source_char_interest_load_plan` records\n    the concrete source load row order",
                  "document records native CharInterest load plan");

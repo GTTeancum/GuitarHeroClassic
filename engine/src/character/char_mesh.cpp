@@ -3678,6 +3678,22 @@ bool source_char_interest_is_matching_filter_flags(int category_flags,
   return (category_flags & mask) != 0 && category_flags != 0;
 }
 
+bool source_char_interest_is_within_view_cone(
+    const std::array<float, 3>& interest_world,
+    const std::array<float, 3>& viewer_world,
+    const std::array<float, 3>& view_direction,
+    float max_view_angle_cos) {
+  const float dx = interest_world[0] - viewer_world[0];
+  const float dy = interest_world[1] - viewer_world[1];
+  const float dz = interest_world[2] - viewer_world[2];
+  const float len = std::sqrt(dx * dx + dy * dy + dz * dz);
+  if (len <= 0.0f) return false;
+  const float dot =
+      view_direction[0] * (dx / len) + view_direction[1] * (dy / len) +
+      view_direction[2] * (dz / len);
+  return dot >= max_view_angle_cos;
+}
+
 SourceCharInterestState source_char_interest_copy(
     const SourceCharInterestState& src) {
   SourceCharInterestState dst;
@@ -3693,6 +3709,71 @@ SourceCharInterestState source_char_interest_copy(
   dst.max_view_angle_cos =
       source_char_interest_sync_max_view_angle(dst.max_view_angle);
   return dst;
+}
+
+SourceCharInterestCopyPlan source_char_interest_copy_plan() {
+  SourceCharInterestCopyPlan plan;
+  plan.copied_superclasses = {"Hmx::Object", "RndTransformable"};
+  plan.copied_members = {"mMaxViewAngle",
+                         "mPriority",
+                         "mMinLookTime",
+                         "mMaxLookTime",
+                         "mRefractoryPeriod",
+                         "mDartOverride",
+                         "mCategoryFlags",
+                         "mOverrideMinTargetDistance",
+                         "mMinTargetDistanceOverride"};
+  return plan;
+}
+
+SourceCharInterestPropSyncPlan source_char_interest_prop_sync_plan() {
+  SourceCharInterestPropSyncPlan plan;
+  plan.modify_properties = {"max_view_angle"};
+  plan.modify_actions = {"SyncMaxViewAngle"};
+  plan.properties = {"priority",
+                     "min_look_time",
+                     "max_look_time",
+                     "refractory_period",
+                     "dart_ruleset_override",
+                     "overrides_min_target_dist",
+                     "min_target_dist_override"};
+  plan.custom_branches = {"category_flags"};
+  plan.superclasses = {"RndTransformable"};
+  return plan;
+}
+
+SourceCharInterestCategoryFlagsPropPlan
+source_char_interest_category_flags_prop_plan() {
+  SourceCharInterestCategoryFlagsPropPlan plan;
+  plan.operations = {"raw PropSync when no bit operand",
+                     "kPropGet returns mCategoryFlags & flags",
+                     "nonzero set ORs mask",
+                     "zero set clears mask"};
+  return plan;
+}
+
+SourceCharInterestHandlerPlan source_char_interest_handler_plan() {
+  SourceCharInterestHandlerPlan plan;
+  plan.superclasses = {"RndTransformable", "Hmx::Object"};
+  plan.check = 0x141;
+  return plan;
+}
+
+SourceCharInterestComputeScorePlan source_char_interest_compute_score_plan() {
+  SourceCharInterestComputeScorePlan plan;
+  plan.gates = {"IsMatchingFilterFlags(mask)",
+                "default category allowed when fallback flag is true",
+                "return -1.0 when no category gate matches"};
+  plan.score_steps = {"direction from viewer to interest",
+                      "distance squared",
+                      "view dot against max angle cosine",
+                      "interest dot against max angle cosine",
+                      "-(distanceSquared * distanceScale - 1.0)",
+                      "NaN distance contribution becomes 0.2",
+                      "add two dot gates and -0.99",
+                      "nonnegative score receives RandomFloat jitter",
+                      "multiply by priority"};
+  return plan;
 }
 
 SourceCharNeckTwistState source_char_neck_twist_defaults() {
