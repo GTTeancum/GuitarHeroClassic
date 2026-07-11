@@ -5886,8 +5886,11 @@ int main() {
                  "boolrotation_slerp=false;",
                  "shared TransAnim data preserves the authored rotation slerp flag");
   ok &= contains(renderer_c,
-                 "sample_vec_delta(anim.translation_keys,frame,anim.translation_spline);",
-                 "one-shot renderer TransAnim translation honors authored spline mode");
+                 "if(!anim.translation_keys.empty()){sample.has_translation=true;"
+                 "sample.translation_is_absolute=true;"
+                 "sample.translation=sample_vec_value(anim.translation_keys,"
+                 "frame,anim.translation_spline);}",
+                 "one-shot renderer TransAnim translation applies source SetFrame local positions");
   ok &= contains(renderer_c,
                  "fast_interp_quat_xyzw(",
                  "one-shot renderer TransAnim has the source fast quaternion interpolation path");
@@ -5901,14 +5904,24 @@ int main() {
                  "frame,anim.rotation_slerp);",
                  "one-shot renderer TransAnim rotations honor authored rot_slerp mode");
   ok &= contains(renderer_c,
-                 "if(!anim.scale_keys.empty()){sample.has_scale=true;"
-                 "sample.scale=sample_scale_ratio(anim.scale_keys,frame,"
-                 "anim.scale_spline);}",
-                 "one-shot renderer TransAnim samples authored one-key scale channels and spline mode");
+                 "sample.rotation_is_absolute=true;",
+                 "one-shot renderer TransAnim rotations apply as source SetFrame local rotations");
   ok &= contains(renderer_c,
-                 "a.translation_keys.size()<2&&a.rotation_keys.empty()&&"
-                 "a.scale_keys.size()<2",
-                 "one-shot renderer TransAnim keeps single-key rotation channels");
+                 "if(!anim.scale_keys.empty()){sample.has_scale=true;"
+                 "sample.scale_is_absolute=true;"
+                 "sample.scale=sample_vec_value(anim.scale_keys,frame,"
+                 "anim.scale_spline);}",
+                 "one-shot renderer TransAnim applies authored local scale channels and spline mode");
+  ok &= contains(renderer_c,
+                 "a.translation_keys.empty()&&a.rotation_keys.empty()&&"
+                 "a.scale_keys.empty()",
+                 "one-shot renderer TransAnim keeps source-authored one-key channels");
+  ok &= absent(renderer_c,
+               "sample_vec_delta(",
+               "one-shot renderer TransAnim must not use first-key-relative translations");
+  ok &= absent(renderer_c,
+               "sample_scale_ratio(",
+               "one-shot renderer TransAnim must not use first-key-relative scale ratios");
   ok &= absent(renderer_c,
                "sample_quat_delta(",
                "one-shot renderer TransAnim must not subtract the first quaternion");

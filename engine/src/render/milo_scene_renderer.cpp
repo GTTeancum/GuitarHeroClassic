@@ -547,30 +547,6 @@ std::array<float, 3> sample_vec_value(
   return out;
 }
 
-std::array<float, 3> sample_vec_delta(
-    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame,
-    bool spline) {
-  std::array<float, 3> out = {0.0f, 0.0f, 0.0f};
-  if (keys.empty()) return out;
-  const auto value = sample_vec_value(keys, frame, spline);
-  for (int axis = 0; axis < 3; ++axis)
-    out[axis] = value[axis] - keys.front().pos[axis];
-  return out;
-}
-
-std::array<float, 3> sample_scale_ratio(
-    const std::vector<MiloSceneRenderer::MeshAnimKey>& keys, float frame,
-    bool spline) {
-  std::array<float, 3> out = {1.0f, 1.0f, 1.0f};
-  if (keys.empty()) return out;
-  const auto value = sample_vec_value(keys, frame, spline);
-  for (int axis = 0; axis < 3; ++axis) {
-    const float base = keys.front().pos[axis];
-    out[axis] = std::fabs(base) > 0.0001f ? value[axis] / base : 1.0f;
-  }
-  return out;
-}
-
 std::array<float, 4> slerp_quat_xyzw(std::array<float, 4> a,
                                      std::array<float, 4> b, float t) {
   a = normalize_quat_xyzw(a);
@@ -640,20 +616,23 @@ std::array<float, 4> sample_rotation_value(
 MiloSceneRenderer::MeshTransformSample sample_transform_anim(
     const MiloSceneRenderer::MeshTransformAnim& anim, float frame) {
   MiloSceneRenderer::MeshTransformSample sample;
-  if (anim.translation_keys.size() >= 2) {
+  if (!anim.translation_keys.empty()) {
     sample.has_translation = true;
+    sample.translation_is_absolute = true;
     sample.translation =
-        sample_vec_delta(anim.translation_keys, frame, anim.translation_spline);
+        sample_vec_value(anim.translation_keys, frame, anim.translation_spline);
   }
   if (!anim.rotation_keys.empty()) {
     sample.has_rotation = true;
+    sample.rotation_is_absolute = true;
     sample.rotation_xyzw =
         sample_rotation_value(anim.rotation_keys, frame, anim.rotation_slerp);
   }
   if (!anim.scale_keys.empty()) {
     sample.has_scale = true;
+    sample.scale_is_absolute = true;
     sample.scale =
-        sample_scale_ratio(anim.scale_keys, frame, anim.scale_spline);
+        sample_vec_value(anim.scale_keys, frame, anim.scale_spline);
   }
   return sample;
 }
@@ -1085,8 +1064,8 @@ void MiloSceneRenderer::trigger_mesh_transform_anim(
     float frames_per_second, bool loop) {
   if (frames_per_second <= 0.0f) return;
   auto empty = [](const MeshTransformAnim& a) {
-    return a.translation_keys.size() < 2 && a.rotation_keys.empty() &&
-           a.scale_keys.size() < 2;
+    return a.translation_keys.empty() && a.rotation_keys.empty() &&
+           a.scale_keys.empty();
   };
   if (empty(transform_anim)) return;
   std::sort(transform_anim.translation_keys.begin(),
