@@ -508,12 +508,12 @@ note, and all report `unreadBytes=0`.
     GHOGX therefore runs decoded `CharForeTwist` controllers as their own source
     poll pass after hand IK instead of marking them handled inside the hand IK
     bridge.
-  - Native runs the source arm-controller block before `CharHair`, so hair and
-    collision rows observe the updated upper-arm, upper-twist, forearm, and
-    hand transforms instead of the stale pre-poll rows.
-    `engine/out/rock_regression_order_fix_20260710/rock1_front_orderfix.stderr.log`
-    and `rock2_front_orderfix.stderr.log` are the current Rock1/Rock2 visual
-    proof logs for this ordering.
+  - Native keeps `CharUpperTwist` after `CharHair`, matching the accepted
+    Rock1/Rock2 PS2 cadence documented in `CHARACTER_FORMAT_NOTES.md`.
+    Moving `CharUpperTwist` before hair was rejected because it contradicted
+    that trace-backed order and regressed the Rock1/Rock2 posture review.
+    Corrected proof captures and logs are under
+    `engine/out/rock_regression_corrected_20260710/`.
   - Native GHOGX does not keep approximate or PS2-row twist writers in the
     runtime path. The standalone twist controller path follows these
     ihatecompvir source `Poll` routines.

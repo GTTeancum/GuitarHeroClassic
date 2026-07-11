@@ -148,9 +148,9 @@ int main() {
   ok &= contains(char_clip_c,
                  "apply_source_ik_hands(character,bind_bones);"
                  "apply_source_fore_twists(character);"
-                 "apply_source_upper_twists(character,bind_bones);"
-                 "apply_char_hair(character,time_seconds);",
-                 "source arm controllers run before CharHair samples them");
+                 "apply_char_hair(character,time_seconds);"
+                 "apply_source_upper_twists(character,bind_bones);",
+                 "upper twists stay after CharHair per accepted PS2 cadence");
   ok &= appears_before(
       solver_weight_c,
       "constautoruntime=character.runtime_weight_props.find(ik.weight_prop);",

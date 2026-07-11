@@ -2993,8 +2993,8 @@ void apply_character_controllers(Character& character, float time_seconds,
   }
   apply_source_ik_hands(character, bind_bones);
   apply_source_fore_twists(character);
-  apply_source_upper_twists(character, bind_bones);
   apply_char_hair(character, time_seconds);
+  apply_source_upper_twists(character, bind_bones);
 
   if (debug_face_enabled()) {
     for (const auto& b : character.bones) {

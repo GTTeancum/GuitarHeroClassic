@@ -1778,9 +1778,9 @@ int run_contract() {
   ok &= contains(char_clip,
                  "apply_source_ik_hands(character,bind_bones);"
                  "apply_source_fore_twists(character);"
-                 "apply_source_upper_twists(character,bind_bones);"
-                 "apply_char_hair(character,time_seconds);",
-                 "native runs source arm controllers before CharHair sampling");
+                 "apply_char_hair(character,time_seconds);"
+                 "apply_source_upper_twists(character,bind_bones);",
+                 "native keeps upper twists after CharHair per accepted cadence");
   ok &= contains(char_clip,
                  "for(constCharIKHand&ik:character.ik_hands)",
                  "native CharIKHand polling uses decoded source order");
