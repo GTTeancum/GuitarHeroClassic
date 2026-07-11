@@ -4611,29 +4611,29 @@ int main() {
                  "set_mesh_color_overrides",
                  "renderer accepts MeshAnim vertex-color overrides");
   ok &= contains(renderer_c,
-                 "pos_it->second.size()==m.verts.size()",
-                 "renderer guards MeshAnim overrides by exact vertex count");
+                 "pos_it!=mesh_position_overrides_.end()&&!pos_it->second.empty()",
+                 "renderer accepts source MeshAnim position streams without exact vertex-count equality");
   ok &= contains(renderer_c,
-                 "normal_it->second.size()==m.verts.size()",
-                 "renderer guards MeshAnim normal overrides by exact vertex count");
+                 "normal_it!=mesh_normal_overrides_.end()&&!normal_it->second.empty()",
+                 "renderer accepts source MeshAnim normal streams without exact vertex-count equality");
   ok &= contains(renderer_c,
-                 "uv_it->second.size()==m.verts.size()",
-                 "renderer guards MeshAnim UV overrides by exact vertex count");
+                 "uv_it!=mesh_texcoord_overrides_.end()&&!uv_it->second.empty()",
+                 "renderer accepts source MeshAnim UV streams without exact vertex-count equality");
   ok &= contains(renderer_c,
-                 "color_it->second.size()==m.verts.size()",
-                 "renderer guards MeshAnim color overrides by exact vertex count");
+                 "color_it!=mesh_color_overrides_.end()&&!color_it->second.empty()",
+                 "renderer accepts source MeshAnim color streams without exact vertex-count equality");
   ok &= contains(renderer_c,
-                 "(*position_override)[vi]",
-                 "renderer applies MeshAnim override positions per vertex");
+                 "position_override&&vi<position_override->size()",
+                 "renderer applies MeshAnim positions as a source-style vertex prefix");
   ok &= contains(renderer_c,
-                 "(*normal_override)[vi]",
-                 "renderer applies MeshAnim override normals per vertex");
+                 "normal_override&&vi<normal_override->size()",
+                 "renderer applies MeshAnim normals as a source-style vertex prefix");
   ok &= contains(renderer_c,
-                 "(*texcoord_override)[vi]",
-                 "renderer applies MeshAnim override UVs per vertex");
+                 "texcoord_override&&vi<texcoord_override->size()",
+                 "renderer applies MeshAnim UVs as a source-style vertex prefix");
   ok &= contains(renderer_c,
-                 "(*color_override)[vi]",
-                 "renderer applies MeshAnim override colors per vertex");
+                 "color_override&&vi<color_override->size()",
+                 "renderer applies MeshAnim colors as a source-style vertex prefix");
   ok &= contains(milo_scene_h_c,
                  "structParticleSysObj",
                  "MILO scene decoder exposes ParticleSys objects");

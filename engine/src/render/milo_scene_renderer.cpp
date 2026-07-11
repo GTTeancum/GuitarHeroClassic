@@ -1928,14 +1928,12 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     }
     const std::vector<std::array<float, 2>>* texcoord_override = nullptr;
     if (const auto uv_it = mesh_texcoord_overrides_.find(m.name);
-        uv_it != mesh_texcoord_overrides_.end() &&
-        uv_it->second.size() == m.verts.size()) {
+        uv_it != mesh_texcoord_overrides_.end() && !uv_it->second.empty()) {
       texcoord_override = &uv_it->second;
     }
     const std::vector<std::array<float, 4>>* color_override = nullptr;
     if (const auto color_it = mesh_color_overrides_.find(m.name);
-        color_it != mesh_color_overrides_.end() &&
-        color_it->second.size() == m.verts.size()) {
+        color_it != mesh_color_overrides_.end() && !color_it->second.empty()) {
       color_override = &color_it->second;
     }
     float base_min_u = std::numeric_limits<float>::infinity();
@@ -1952,9 +1950,13 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
       for (size_t vi = 0; vi < m.verts.size(); ++vi) {
         const auto& v = m.verts[vi];
         const float base_u =
-            texcoord_override ? (*texcoord_override)[vi][0] : v.u;
+            (texcoord_override && vi < texcoord_override->size())
+                ? (*texcoord_override)[vi][0]
+                : v.u;
         const float base_v =
-            texcoord_override ? (*texcoord_override)[vi][1] : v.v;
+            (texcoord_override && vi < texcoord_override->size())
+                ? (*texcoord_override)[vi][1]
+                : v.v;
         base_min_u = std::min(base_min_u, base_u);
         base_min_v = std::min(base_min_v, base_v);
         base_max_u = std::max(base_max_u, base_u);
@@ -2042,20 +2044,19 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
     vb.reserve(m.vertex_count);
     const std::vector<std::array<float, 3>>* position_override = nullptr;
     if (const auto pos_it = mesh_position_overrides_.find(m.name);
-        pos_it != mesh_position_overrides_.end() &&
-        pos_it->second.size() == m.verts.size()) {
+        pos_it != mesh_position_overrides_.end() && !pos_it->second.empty()) {
       position_override = &pos_it->second;
     }
     const std::vector<std::array<float, 3>>* normal_override = nullptr;
     if (const auto normal_it = mesh_normal_overrides_.find(m.name);
         normal_it != mesh_normal_overrides_.end() &&
-        normal_it->second.size() == m.verts.size()) {
+        !normal_it->second.empty()) {
       normal_override = &normal_it->second;
     }
     for (size_t vi = 0; vi < m.verts.size(); ++vi) {
       const auto& v = m.verts[vi];
       SVtx s;
-      if (position_override) {
+      if (position_override && vi < position_override->size()) {
         const auto& p = (*position_override)[vi];
         s.x = p[0];
         s.y = p[1];
@@ -2065,7 +2066,7 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         s.y = v.py;
         s.z = v.pz;
       }
-      if (normal_override) {
+      if (normal_override && vi < normal_override->size()) {
         const auto& n = (*normal_override)[vi];
         s.nx = n[0];
         s.ny = n[1];
@@ -2079,14 +2080,20 @@ void MiloSceneRenderer::draw_impl(bool clear_target, bool draw_scene,
         int i = static_cast<int>(f * 255.0f + 0.5f);
         return i < 0 ? 0 : (i > 255 ? 255 : i);
       };
-      const float vr = color_override ? (*color_override)[vi][0] : v.r;
-      const float vg = color_override ? (*color_override)[vi][1] : v.g;
-      const float vc_b = color_override ? (*color_override)[vi][2] : v.b;
-      const float va = color_override ? (*color_override)[vi][3] : v.a;
+      const bool use_color_override =
+          color_override && vi < color_override->size();
+      const float vr = use_color_override ? (*color_override)[vi][0] : v.r;
+      const float vg = use_color_override ? (*color_override)[vi][1] : v.g;
+      const float vc_b = use_color_override ? (*color_override)[vi][2] : v.b;
+      const float va = use_color_override ? (*color_override)[vi][3] : v.a;
       s.color = D3DCOLOR_ARGB(cc(va * ma), cc(vr * mr), cc(vg * mg),
                               cc(vc_b * mb));
-      const float base_u = texcoord_override ? (*texcoord_override)[vi][0] : v.u;
-      const float base_v = texcoord_override ? (*texcoord_override)[vi][1] : v.v;
+      const bool use_texcoord_override =
+          texcoord_override && vi < texcoord_override->size();
+      const float base_u =
+          use_texcoord_override ? (*texcoord_override)[vi][0] : v.u;
+      const float base_v =
+          use_texcoord_override ? (*texcoord_override)[vi][1] : v.v;
       float u = base_u * uv_m00 + base_v * uv_m10;
       float vv = base_u * uv_m01 + base_v * uv_m11;
       if (material_tex_anim && std::fabs(rot) > 0.000001f) {
