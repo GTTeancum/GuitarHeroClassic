@@ -1978,6 +1978,76 @@ SourceCharHairSimulateLoopsPlan source_char_hair_simulate_loops_plan(
   return plan;
 }
 
+SourceCharHairSimulateInternalScalars
+source_char_hair_simulate_internal_scalars(
+    float fps,
+    float stiffness,
+    float gravity,
+    bool has_wind,
+    bool has_wind_root,
+    std::array<float, 3> wind) {
+  SourceCharHairSimulateInternalScalars scalars;
+  scalars.sixty_over_fps = 60.0f / fps;
+  scalars.f19 = (1.0f / fps) * scalars.sixty_over_fps;
+  scalars.stiffness_pow =
+      std::pow(1.0f - stiffness,
+               scalars.sixty_over_fps * scalars.sixty_over_fps);
+  if (has_wind && has_wind_root) {
+    for (int i = 0; i < 3; ++i) {
+      scalars.external_force[i] = wind[i] * scalars.f19 * 0.5f;
+    }
+  }
+  scalars.external_force[2] += gravity * scalars.f19 * -3.858268f;
+  return scalars;
+}
+
+SourceCharHairClothPairStep source_char_hair_simulate_internal_cloth_pair(
+    std::array<float, 3> point_pos,
+    std::array<float, 3> next_point_pos,
+    float side_length,
+    float min_slack,
+    float max_slack) {
+  SourceCharHairClothPairStep step;
+  step.point_pos = point_pos;
+  step.next_point_pos = next_point_pos;
+  if (side_length < 0.0f) return step;
+
+  step.entered = true;
+  std::array<float, 3> v_res = {
+      point_pos[0] - next_point_pos[0],
+      point_pos[1] - next_point_pos[1],
+      point_pos[2] - next_point_pos[2]};
+  step.lensq = v_res[0] * v_res[0] + v_res[1] * v_res[1] +
+               v_res[2] * v_res[2];
+  step.min_slack_length = side_length - min_slack;
+  const float side_len_sq = step.min_slack_length * step.min_slack_length;
+  if (step.lensq < side_len_sq) {
+    const float scale = side_len_sq / (side_len_sq + step.lensq) - 0.5f;
+    for (int i = 0; i < 3; ++i) {
+      const float delta = v_res[i] * scale;
+      step.point_pos[i] += delta;
+      step.next_point_pos[i] -= delta;
+    }
+    step.min_slack_applied = true;
+    return step;
+  }
+
+  step.max_slack_length = side_length + max_slack;
+  const float max_slack_len_sq =
+      step.max_slack_length * step.max_slack_length;
+  if (step.max_slack_length > max_slack_len_sq) {
+    const float scale =
+        max_slack_len_sq / (max_slack_len_sq + step.lensq) - 0.5f;
+    for (int i = 0; i < 3; ++i) {
+      const float delta = v_res[i] * scale;
+      step.point_pos[i] += delta;
+      step.next_point_pos[i] -= delta;
+    }
+    step.max_slack_applied = true;
+  }
+  return step;
+}
+
 SourceCharHairFreezePosePlan source_char_hair_freeze_pose_plan(
     bool simulate,
     int strand_count,

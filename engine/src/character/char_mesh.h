@@ -434,6 +434,24 @@ struct SourceCharHairSimulateLoopsPlan {
   float fps = 0.0f;
 };
 
+struct SourceCharHairSimulateInternalScalars {
+  float sixty_over_fps = 0.0f;
+  float f19 = 0.0f;
+  float stiffness_pow = 0.0f;
+  std::array<float, 3> external_force = {0.0f, 0.0f, 0.0f};
+};
+
+struct SourceCharHairClothPairStep {
+  bool entered = false;
+  bool min_slack_applied = false;
+  bool max_slack_applied = false;
+  float lensq = 0.0f;
+  float min_slack_length = 0.0f;
+  float max_slack_length = 0.0f;
+  std::array<float, 3> point_pos = {0.0f, 0.0f, 0.0f};
+  std::array<float, 3> next_point_pos = {0.0f, 0.0f, 0.0f};
+};
+
 struct SourceCharHairFreezePosePlan {
   bool called_hookup = true;
   SourceCharHairSimulateLoopsPlan simulate_loops;
@@ -1413,6 +1431,20 @@ SourceCharHairSimulateLoopsPlan source_char_hair_simulate_loops_plan(
     int collide_count,
     int loop_count,
     float fps);
+SourceCharHairSimulateInternalScalars
+source_char_hair_simulate_internal_scalars(
+    float fps,
+    float stiffness,
+    float gravity,
+    bool has_wind,
+    bool has_wind_root,
+    std::array<float, 3> wind);
+SourceCharHairClothPairStep source_char_hair_simulate_internal_cloth_pair(
+    std::array<float, 3> point_pos,
+    std::array<float, 3> next_point_pos,
+    float side_length,
+    float min_slack,
+    float max_slack);
 SourceCharHairFreezePosePlan source_char_hair_freeze_pose_plan(
     bool simulate,
     int strand_count,

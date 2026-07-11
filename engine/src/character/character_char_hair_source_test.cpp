@@ -78,6 +78,8 @@ int main() {
   using ghogx::character::source_char_hair_prop_sync_plan;
   using ghogx::character::source_char_hair_set_managed_hookup;
   using ghogx::character::source_char_hair_set_name_plan;
+  using ghogx::character::source_char_hair_simulate_internal_cloth_pair;
+  using ghogx::character::source_char_hair_simulate_internal_scalars;
   using ghogx::character::source_char_hair_simulate_loops_plan;
   using ghogx::character::source_char_hair_strand_load_plan;
 
@@ -425,6 +427,70 @@ int main() {
   ok &= expect_int(loops.simulate_internal_calls, 4,
                    "simulate loops internal calls");
   ok &= near(loops.fps, 30.0f, "simulate loops fps");
+
+  const auto sim_scalars = source_char_hair_simulate_internal_scalars(
+      60.0f, 0.04f, 1.0f, true, true, {2.0f, 4.0f, 6.0f});
+  ok &= near(sim_scalars.sixty_over_fps, 1.0f,
+             "simulate internal sixty over fps");
+  ok &= near(sim_scalars.f19, 1.0f / 60.0f,
+             "simulate internal f19");
+  ok &= near(sim_scalars.stiffness_pow, 0.96f,
+             "simulate internal stiffness pow");
+  ok &= near(sim_scalars.external_force[0], 1.0f / 60.0f,
+             "simulate internal wind x");
+  ok &= near(sim_scalars.external_force[1], 2.0f / 60.0f,
+             "simulate internal wind y");
+  ok &= near(sim_scalars.external_force[2], -0.0143045f,
+             "simulate internal gravity plus wind z");
+
+  const auto no_root_wind = source_char_hair_simulate_internal_scalars(
+      30.0f, 0.04f, 1.0f, true, false, {10.0f, 0.0f, 10.0f});
+  ok &= near(no_root_wind.sixty_over_fps, 2.0f,
+             "simulate internal thirty fps ratio");
+  ok &= near(no_root_wind.f19, 2.0f / 30.0f,
+             "simulate internal thirty fps f19");
+  ok &= near(no_root_wind.external_force[0], 0.0f,
+             "simulate internal no root wind x");
+  ok &= near(no_root_wind.external_force[2], -0.25721788f,
+             "simulate internal no root gravity z");
+
+  const auto cloth_disabled = source_char_hair_simulate_internal_cloth_pair(
+      {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, -1.0f, 0.0f, 0.0f);
+  ok &= expect_bool(cloth_disabled.entered, false,
+                    "cloth pair disabled by negative side length");
+  ok &= near(cloth_disabled.point_pos[0], 0.0f,
+             "cloth pair disabled point");
+
+  const auto cloth_min = source_char_hair_simulate_internal_cloth_pair(
+      {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, 2.0f, 0.0f, 0.0f);
+  ok &= expect_bool(cloth_min.entered, true, "cloth pair min enters");
+  ok &= expect_bool(cloth_min.min_slack_applied, true,
+                    "cloth pair min slack applied");
+  ok &= expect_bool(cloth_min.max_slack_applied, false,
+                    "cloth pair min skips max");
+  ok &= near(cloth_min.lensq, 1.0f, "cloth pair min lensq");
+  ok &= near(cloth_min.point_pos[0], -0.3f,
+             "cloth pair min point moves out");
+  ok &= near(cloth_min.next_point_pos[0], 1.3f,
+             "cloth pair min next moves out");
+
+  const auto cloth_source_max = source_char_hair_simulate_internal_cloth_pair(
+      {2.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, 0.5f, 0.0f, 0.0f);
+  ok &= expect_bool(cloth_source_max.min_slack_applied, false,
+                    "cloth pair max skips min");
+  ok &= expect_bool(cloth_source_max.max_slack_applied, true,
+                    "cloth pair source max condition applies");
+  ok &= near(cloth_source_max.point_pos[0], 1.1176471f,
+             "cloth pair source max point");
+  ok &= near(cloth_source_max.next_point_pos[0], 0.8823529f,
+             "cloth pair source max next");
+
+  const auto cloth_large_max = source_char_hair_simulate_internal_cloth_pair(
+      {5.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, 2.0f, 0.0f, 1.0f);
+  ok &= expect_bool(cloth_large_max.max_slack_applied, false,
+                    "cloth pair preserves source max slack condition");
+  ok &= near(cloth_large_max.point_pos[0], 5.0f,
+             "cloth pair source max condition leaves large length");
 
   const auto freeze_plan =
       source_char_hair_freeze_pose_plan(true, 2, 3);

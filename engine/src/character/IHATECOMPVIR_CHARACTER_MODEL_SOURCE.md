@@ -644,6 +644,19 @@ note, and all report `unreadBytes=0`.
     loop. Native `source_char_hair_simulate_loops_plan` ports that gate and
     call count as a deterministic plan. A decoded `CharHair` row alone is
     therefore not enough evidence for a native writeback path.
+  - Native `source_char_hair_simulate_internal_scalars` ports the concrete
+    beginning of `CharHair::SimulateInternal`: `sixtyover = 60 / fps`,
+    `f19 = (1 / fps) * sixtyover`, stiffness decay as
+    `pow(1 - mStiffness, sixtyover * sixtyover)`, wind contribution only when
+    both a wind object and strand root exist, and gravity as
+    `mGravity * f19 * -3.858268`.
+  - Native `source_char_hair_simulate_internal_cloth_pair` ports the cloth
+    side-length pair constraint from `SimulateInternal` over explicit point
+    rows. It preserves the source min-slack branch and the checked max-slack
+    condition exactly as written (`maxslacklen > maxslacklensq`), even though
+    that condition means larger GH2-length rows usually do not enter the
+    max-slack adjustment. This helper is deterministic evidence for cloth math
+    only; it does not populate collide lists or call `SetWorldXfm`.
   - `CharHair::Strand::SetRoot` builds the strand from the root transform's
     first-child chain, caches the root base matrix, assigns each point's bone,
     copies child `LocalXfm().v.y` into point length, and seeds point positions

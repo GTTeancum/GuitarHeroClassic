@@ -2172,6 +2172,79 @@ int run_contract() {
                  "for(intn=0;n<count;n++){SimulateInternal(f);}}}",
                  "RB3 CharHair SimulateLoops calls source internal simulation");
   ok &= contains(rb3_latest_char_hair_cpp,
+                 "floatsixtyover=60.0f/f;floatf19=(1.0f/f)*sixtyover;"
+                 "floatpowed=std::pow(1.0f-mStiffness,sixtyover*sixtyover);",
+                 "RB3 CharHair SimulateInternal source scalar setup");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(mWind){if(mStrands[0].Root()){floatsecs="
+                 "TheTaskMgr.Seconds(TaskMgr::b);mWind->GetWind(",
+                 "RB3 CharHair SimulateInternal gates wind on root");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "vec134.z=vec134.z+mGravity*f19*-3.858268f;",
+                 "RB3 CharHair SimulateInternal applies source gravity constant");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "if(thisPoint.sideLength>=0.0f){Vector3vRes;Point&modPoint="
+                 "modStrand.Points()[j];Subtract(thisPoint.pos,modPoint.pos,"
+                 "vRes);",
+                 "RB3 CharHair SimulateInternal enters cloth pair constraint");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "floatmaxslacklen=thisPoint.sideLength+mMaxSlack;"
+                 "floatmaxslacklensq=maxslacklen*maxslacklen;"
+                 "if(maxslacklen>maxslacklensq){",
+                 "RB3 CharHair SimulateInternal max slack condition is pinned");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairSimulateInternalScalars{"
+                 "floatsixty_over_fps=0.0f;floatf19=0.0f;"
+                 "floatstiffness_pow=0.0f;std::array<float,3>"
+                 "external_force={0.0f,0.0f,0.0f};};",
+                 "native exposes CharHair SimulateInternal scalar result");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairClothPairStep{boolentered=false;"
+                 "boolmin_slack_applied=false;boolmax_slack_applied=false;",
+                 "native exposes CharHair SimulateInternal cloth result");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairSimulateInternalScalars"
+                 "source_char_hair_simulate_internal_scalars("
+                 "floatfps,floatstiffness,floatgravity,boolhas_wind,",
+                 "native exposes CharHair SimulateInternal scalar helper");
+  ok &= contains(char_mesh_h,
+                 "SourceCharHairClothPairStep"
+                 "source_char_hair_simulate_internal_cloth_pair("
+                 "std::array<float,3>point_pos,",
+                 "native exposes CharHair SimulateInternal cloth helper");
+  ok &= contains(char_mesh,
+                 "SourceCharHairSimulateInternalScalars"
+                 "source_char_hair_simulate_internal_scalars(",
+                 "native implements CharHair SimulateInternal scalar helper");
+  ok &= contains(char_mesh,
+                 "scalars.sixty_over_fps=60.0f/fps;scalars.f19="
+                 "(1.0f/fps)*scalars.sixty_over_fps;",
+                 "native CharHair SimulateInternal helper ports scalar setup");
+  ok &= contains(char_mesh,
+                 "scalars.external_force[2]+=gravity*scalars.f19*-3.858268f;",
+                 "native CharHair SimulateInternal helper ports gravity constant");
+  ok &= contains(char_mesh,
+                 "SourceCharHairClothPairStepsource_char_hair_simulate_internal_cloth_pair(",
+                 "native implements CharHair SimulateInternal cloth helper");
+  ok &= contains(char_mesh,
+                 "if(side_length<0.0f)returnstep;step.entered=true;",
+                 "native CharHair cloth helper ports side-length gate");
+  ok &= contains(char_mesh,
+                 "if(step.max_slack_length>max_slack_len_sq){",
+                 "native CharHair cloth helper preserves source max slack condition");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_simulate_internal_scalars(",
+                 "focused CharHair source test covers SimulateInternal scalars");
+  ok &= contains(char_hair_source_test,
+                 "source_char_hair_simulate_internal_cloth_pair(",
+                 "focused CharHair source test covers SimulateInternal cloth pair");
+  ok &= contains(doc,
+                 "Native `source_char_hair_simulate_internal_scalars` ports the concrete",
+                 "document records CharHair SimulateInternal scalar helper");
+  ok &= contains(doc,
+                 "condition exactly as written (`maxslacklen > maxslacklensq`)",
+                 "document records CharHair source max slack condition");
+  ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::Strand::SetRoot(RndTransformable*trans){"
                  "mRoot=trans;if(!mRoot)mPoints.resize(0);else{floatlen="
                  "mPoints.size()!=0?mPoints.back().length:0;mBaseMat="
