@@ -181,6 +181,31 @@ int main() {
   CHECK(approx(cloth_hair.strands[0].points[1].side_length, -1.0f));
   CHECK(approx(cloth_hair.strands[1].points[0].side_length, -1.0f));
 
+  const ghogx::character::SourceCharHairDefaultState hair_defaults =
+      ghogx::character::source_char_hair_default_state();
+  CHECK(approx(hair_defaults.stiffness, 0.04f));
+  CHECK(approx(hair_defaults.torsion, 0.1f));
+  CHECK(approx(hair_defaults.inertia, 0.7f));
+  CHECK(approx(hair_defaults.gravity, 1.0f));
+  CHECK(approx(hair_defaults.weight, 0.5f));
+  CHECK(approx(hair_defaults.friction, 0.3f));
+  CHECK(approx(hair_defaults.min_slack, 0.0f));
+  CHECK(approx(hair_defaults.max_slack, 0.0f));
+  CHECK(hair_defaults.reset == 1);
+  CHECK(hair_defaults.simulate);
+  CHECK(hair_defaults.use_post_proc);
+  CHECK(!hair_defaults.managed_hookup);
+  CHECK(approx(ghogx::character::source_char_hair_get_fps(false, 30.0f),
+               60.0f));
+  CHECK(approx(ghogx::character::source_char_hair_get_fps(true, 0.0f),
+               60.0f));
+  CHECK(approx(ghogx::character::source_char_hair_get_fps(true, 60.0f),
+               60.0f));
+  CHECK(approx(ghogx::character::source_char_hair_get_fps(true, 30.0f),
+               30.0f));
+  CHECK(approx(ghogx::character::source_char_hair_get_fps(true, 20.0f),
+               40.0f));
+
   std::printf("  [ok] RndMesh rev28 groupSections=%zu palette=%zu\n",
               mesh.group_sections.size(), mesh.bone_palette.size());
   return 0;

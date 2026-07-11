@@ -262,6 +262,21 @@ struct CharHair {
   std::string unread_tail_hex;
 };
 
+struct SourceCharHairDefaultState {
+  float stiffness = 0.04f;
+  float torsion = 0.1f;
+  float inertia = 0.7f;
+  float gravity = 1.0f;
+  float weight = 0.5f;
+  float friction = 0.3f;
+  float min_slack = 0.0f;
+  float max_slack = 0.0f;
+  int reset = 1;
+  bool simulate = true;
+  bool use_post_proc = true;
+  bool managed_hookup = false;
+};
+
 struct SourceCharHairRuntimePoint {
   bool initialized = false;
   std::array<float, 3> pos = {0.0f, 0.0f, 0.0f};
@@ -284,6 +299,8 @@ struct SourceCharHairRuntime {
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
+SourceCharHairDefaultState source_char_hair_default_state();
+float source_char_hair_get_fps(bool use_post_proc, float emulated_fps);
 
 struct CharCollide {
   std::string name;

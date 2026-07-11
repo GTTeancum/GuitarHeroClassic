@@ -903,6 +903,42 @@ int run_contract() {
                  "ret=60.0f-ret;returnret;}elsereturn60.0f;}",
                  "RB3 CharHair GetFPS source uses post-process FPS emulation");
   ok &= contains(rb3_latest_char_hair_cpp,
+                 "CharHair::CharHair():mStiffness(0.04f),mTorsion(0.1f),"
+                 "mInertia(0.7f),mGravity(1.0f),mWeight(0.5f),"
+                 "mFriction(0.3f),mMinSlack(0.0f),mMaxSlack(0.0f),",
+                 "RB3 CharHair constructor exposes source defaults");
+  ok &= contains(rb3_latest_char_hair_cpp,
+                 "mStrands(this),mReset(1),mSimulate(1),mUsePostProc(1),"
+                 "mMe(this,0),mWind(this,0),mCollide(this,kObjListNoNull),"
+                 "mManagedHookup(0){}",
+                 "RB3 CharHair constructor exposes runtime default flags");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharHairDefaultState{floatstiffness=0.04f;"
+                 "floattorsion=0.1f;floatinertia=0.7f;",
+                 "native exposes source CharHair default state");
+  ok &= contains(char_mesh_h,
+                 "booluse_post_proc=true;boolmanaged_hookup=false;};",
+                 "native exposes source CharHair default runtime flags");
+  ok &= contains(char_mesh,
+                 "SourceCharHairDefaultStatesource_char_hair_default_state(){"
+                 "returnSourceCharHairDefaultState{};}",
+                 "native CharHair default helper returns source defaults");
+  ok &= contains(char_mesh,
+                 "floatsource_char_hair_get_fps(booluse_post_proc,"
+                 "floatemulated_fps){if(use_post_proc&&emulated_fps>0.0f){"
+                 "floatret=emulated_fps;if(ret!=60.0f)ret=60.0f-ret;"
+                 "returnret;}return60.0f;}",
+                 "native CharHair GetFPS helper follows source branch");
+  ok &= contains(mesh_decode_test,
+                 "source_char_hair_default_state();",
+                 "deterministic test covers source CharHair defaults");
+  ok &= contains(mesh_decode_test,
+                 "source_char_hair_get_fps(true,20.0f),40.0f",
+                 "deterministic test covers source CharHair GetFPS emulation branch");
+  ok &= contains(doc,
+                 "Native ports the constructor constants and the `GetFPS` branch",
+                 "document ties native CharHair defaults/GetFPS to source");
+  ok &= contains(rb3_latest_char_hair_cpp,
                  "voidCharHair::SimulateLoops(intcount,floatf){if(mSimulate&&"
                  "mStrands.size()!=0){for(ObjPtrList<CharCollide,ObjectDir>"
                  "::iteratorit=mCollide.begin();it!=mCollide.end();++it)",

@@ -343,6 +343,9 @@ note, and all report `unreadBytes=0`.
   - `SetName` detects whether the owning directory is a `Character` or
     `WorldDir` and enables post-process FPS emulation accordingly. `GetFPS`
     returns the post-process emulated rate when available, otherwise 60 Hz.
+    Native ports the constructor constants and the `GetFPS` branch into
+    deterministic helpers so those source defaults remain explicit without
+    guessing a post-process runtime.
   - `SimulateLoops` is gated by `mSimulate` and a non-empty strand list, runs
     collide-list maintenance, then calls `SimulateInternal` for each requested
     loop. A decoded `CharHair` row alone is therefore not enough evidence for a

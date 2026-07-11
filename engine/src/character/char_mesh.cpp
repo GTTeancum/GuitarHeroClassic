@@ -1387,6 +1387,19 @@ void source_char_hair_set_cloth(CharHair& hair, bool enabled) {
   }
 }
 
+SourceCharHairDefaultState source_char_hair_default_state() {
+  return SourceCharHairDefaultState{};
+}
+
+float source_char_hair_get_fps(bool use_post_proc, float emulated_fps) {
+  if (use_post_proc && emulated_fps > 0.0f) {
+    float ret = emulated_fps;
+    if (ret != 60.0f) ret = 60.0f - ret;
+    return ret;
+  }
+  return 60.0f;
+}
+
 // ---------------------------------------------------------------------------
 // 4x4 helpers (row-vector convention, matching render::Mat4).
 // ---------------------------------------------------------------------------
