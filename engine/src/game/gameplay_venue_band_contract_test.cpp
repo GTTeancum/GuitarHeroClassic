@@ -7663,6 +7663,12 @@ int main() {
                  "debug_gameplay_camera_enabled()",
                  "manual gameplay camera diagnostics bypass the fallback backing camera");
   ok &= contains(gameplay_c,
+                 "cam.authored=false;cam.result_frame.valid=false;",
+                 "manual gameplay camera diagnostics clear authored result frames");
+  ok &= contains(gameplay_c,
+                 "cam.screen_offset[0]=0.0f;cam.screen_offset[1]=0.0f;",
+                 "manual gameplay camera diagnostics reset authored screen offsets");
+  ok &= contains(gameplay_c,
                  "booldebug_backing_camera_enabled(){"
                  "returnenv_value(\"GHOGX_DEBUG_BACKING_CAMERA\")!=nullptr;}",
                  "backing camera has a non-invasive validation diagnostic gate");

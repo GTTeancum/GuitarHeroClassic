@@ -23100,6 +23100,9 @@ void Gameplay::draw(ghogx::render::Window& win) {
                 auto& cam = world_->camera();
                 const auto target_pos = mat4_position_game(target->second.world);
                 cam.authored = false;
+                cam.result_frame.valid = false;
+                cam.screen_offset[0] = 0.0f;
+                cam.screen_offset[1] = 0.0f;
                 cam.target[0] = target_pos[0] +
                     env_float("GHOGX_DEBUG_GAMEPLAY_CAMERA_TARGET_X", 0.0f);
                 cam.target[1] = target_pos[1] +
