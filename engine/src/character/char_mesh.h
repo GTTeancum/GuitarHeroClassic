@@ -322,6 +322,26 @@ struct SourceCharHairPollDecision {
   int next_reset = 0;
 };
 
+struct SourceCharFaceServoBlinkClips {
+  std::string left;
+  std::string left2;
+  std::string right;
+  std::string right2;
+};
+
+struct SourceCharFaceServoBlinkState {
+  float left = 0.0f;
+  float right = 0.0f;
+  bool need_scale_down = false;
+};
+
+struct SourceCharFaceServoScaleAddResult {
+  bool accepted = false;
+  bool scale_down = false;
+  bool matched_left = false;
+  bool matched_right = false;
+};
+
 // Port of ihatecompvir RB3 CharHair::SetCloth: side_length is derived only
 // from the matching point in the next strand, wrapping around the strand list.
 void source_char_hair_set_cloth(CharHair& hair, bool enabled);
@@ -338,6 +358,12 @@ SourceCharHairPollDecision source_char_hair_poll_decision(
     float delta_seconds);
 std::array<float, 9> source_char_hair_set_angle_root_mat(
     float angle_degrees, const float base_mat[9]);
+SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
+    SourceCharFaceServoBlinkState& state,
+    const SourceCharFaceServoBlinkClips& clips,
+    const std::string& clip_name,
+    bool clip_is_relative,
+    float weight);
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees);
 void source_char_hair_strand_set_root(

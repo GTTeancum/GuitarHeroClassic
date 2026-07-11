@@ -490,6 +490,13 @@ note, and all report `unreadBytes=0`.
   - `CharFaceServo::Poll` scales down the base clip, applies identity,
     rotates the base clip into the servo, and poses meshes. This is useful
     source context for a future source-backed face-servo port.
+  - Native `source_char_face_servo_scale_add_blink` ports the bounded,
+    complete blink-weight part of `CharFaceServo::ScaleAdd`: non-relative clips
+    do not enter the source update path; accepted relative clips first consume
+    the source `TryScaleDown` reset, then add left/right blink weight only when
+    the clip matches the left/left2 or right/right2 blink rows, clamping each
+    side to `[0, 1]`. This is source context for blink accumulation only, not a
+    runtime face mesh bridge.
   - Stock GH2 PS2 base characters use rows named `FaceFxLipSyncServo`, not
     `CharFaceServo`. The checked ihatecompvir snapshots do not expose a
     matching `FaceFxLipSyncServo::Load` body. Native GHOGX therefore treats its

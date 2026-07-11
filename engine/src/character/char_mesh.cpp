@@ -1585,6 +1585,37 @@ std::array<float, 9> source_char_hair_set_angle_root_mat(
   return out;
 }
 
+SourceCharFaceServoScaleAddResult source_char_face_servo_scale_add_blink(
+    SourceCharFaceServoBlinkState& state,
+    const SourceCharFaceServoBlinkClips& clips,
+    const std::string& clip_name,
+    bool clip_is_relative,
+    float weight) {
+  SourceCharFaceServoScaleAddResult result;
+  if (!clip_is_relative || weight < 0.0f) return result;
+
+  result.accepted = true;
+  if (state.need_scale_down) {
+    state.left = 0.0f;
+    state.right = 0.0f;
+    state.need_scale_down = false;
+    result.scale_down = true;
+  }
+
+  const bool left_match =
+      clip_name == clips.left || (!clips.left2.empty() && clip_name == clips.left2);
+  const bool right_match =
+      clip_name == clips.right || (!clips.right2.empty() && clip_name == clips.right2);
+  if (left_match) {
+    state.left = std::clamp(state.left + weight, 0.0f, 1.0f);
+    result.matched_left = true;
+  } else if (right_match) {
+    state.right = std::clamp(state.right + weight, 0.0f, 1.0f);
+    result.matched_right = true;
+  }
+  return result;
+}
+
 void source_char_hair_strand_set_angle(CharHairStrand& strand,
                                        float angle_degrees) {
   strand.angle = angle_degrees;

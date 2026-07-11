@@ -96,6 +96,8 @@ int run_contract() {
       compact(read_file(char_dir / "character_weight_setter_source_test.cpp"));
   const std::string char_hair_source_test =
       compact(read_file(char_dir / "character_char_hair_source_test.cpp"));
+  const std::string face_servo_source_test =
+      compact(read_file(char_dir / "character_face_servo_source_test.cpp"));
   const std::string mesh_decode_test =
       compact(read_file(char_dir / "character_mesh_decode_test.cpp"));
   const std::string bind_audit =
@@ -1843,6 +1845,67 @@ int run_contract() {
                  "mBaseClip->RotateBy(*this,mBaseClip->StartBeat());"
                  "PoseMeshes();}",
                  "CharFaceServo source poll applies base clip and poses meshes");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "voidCharFaceServo::ScaleAdd(CharClip*clip,floatweight,"
+                 "floatf2,floatf3){if(!clip->mRelative){",
+                 "CharFaceServo source exposes ScaleAdd relative gate");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "MILO_ASSERT(weight>=0,0x88);TryScaleDown();if(clip=="
+                 "mBlinkClipLeft||clip==mBlinkClipLeft2){mBlinkWeightLeft+="
+                 "weight;mBlinkWeightLeft=Clamp(0.0f,1.0f,mBlinkWeightLeft);}",
+                 "CharFaceServo source exposes left blink accumulation");
+  ok &= contains(rb3_latest_char_face_servo_cpp,
+                 "elseif(clip==mBlinkClipRight||clip==mBlinkClipRight2){"
+                 "mBlinkWeightRight+=weight;mBlinkWeightRight=Clamp(0.0f,"
+                 "1.0f,mBlinkWeightRight);}",
+                 "CharFaceServo source exposes right blink accumulation");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharFaceServoBlinkClips{std::stringleft;"
+                 "std::stringleft2;std::stringright;std::stringright2;};",
+                 "native exposes source CharFaceServo blink clip names");
+  ok &= contains(char_mesh_h,
+                 "structSourceCharFaceServoBlinkState{floatleft=0.0f;"
+                 "floatright=0.0f;boolneed_scale_down=false;};",
+                 "native exposes source CharFaceServo blink state");
+  ok &= contains(char_mesh_h,
+                 "SourceCharFaceServoScaleAddResult"
+                 "source_char_face_servo_scale_add_blink(",
+                 "native exposes CharFaceServo ScaleAdd blink helper");
+  ok &= contains(char_mesh,
+                 "SourceCharFaceServoScaleAddResult"
+                 "source_char_face_servo_scale_add_blink("
+                 "SourceCharFaceServoBlinkState&state,",
+                 "native implements CharFaceServo ScaleAdd blink helper");
+  ok &= contains(char_mesh,
+                 "if(!clip_is_relative||weight<0.0f)returnresult;",
+                 "native CharFaceServo helper keeps source relative/assert boundary");
+  ok &= contains(char_mesh,
+                 "if(state.need_scale_down){state.left=0.0f;state.right=0.0f;"
+                 "state.need_scale_down=false;result.scale_down=true;}",
+                 "native CharFaceServo helper ports TryScaleDown blink reset");
+  ok &= contains(char_mesh,
+                 "if(left_match){state.left=std::clamp(state.left+weight,"
+                 "0.0f,1.0f);result.matched_left=true;}elseif(right_match){"
+                 "state.right=std::clamp(state.right+weight,0.0f,1.0f);",
+                 "native CharFaceServo helper ports blink clamp branches");
+  ok &= contains(cmake,
+                 "add_executable(ghogx_character_face_servo_source_test",
+                 "CMake builds CharFaceServo source test");
+  ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_scale_add_blink(state,clips,"
+                 "\"blink_L2\",true,0.25f)",
+                 "focused CharFaceServo test covers left2 blink branch");
+  ok &= contains(face_servo_source_test,
+                 "source_char_face_servo_scale_add_blink(state,clips,"
+                 "\"blink_R2\",true,0.5f)",
+                 "focused CharFaceServo test covers right2 clamp branch");
+  ok &= contains(face_servo_source_test,
+                 "SourceCharFaceServoBlinkClipsoverlapping{\"same\",\"\","
+                 "\"same\",\"\"};",
+                 "focused CharFaceServo test covers left-first overlap branch");
+  ok &= contains(doc,
+                 "Native `source_char_face_servo_scale_add_blink` ports the bounded",
+                 "document records native CharFaceServo blink helper");
   ok &= missing(rb3_latest_char_face_servo_cpp, "FaceFxLipSyncServo",
                 "CharFaceServo source is not a FaceFxLipSyncServo load body");
   ok &= contains(char_mesh,
