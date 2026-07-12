@@ -1288,6 +1288,32 @@ int main() {
   CHECK(zero_weight_fixed.vertices[0].bone_indices[2] == 3);
   CHECK(zero_weight_fixed.vertices[0].bone_indices[3] == 7);
 
+  const auto mesh_defaults = ghogx::character::source_rndmesh_default_state();
+  CHECK(mesh_defaults.material_null);
+  CHECK(mesh_defaults.geom_owner_self);
+  CHECK(mesh_defaults.bones_empty);
+  CHECK(mesh_defaults.mutable_flags == 0);
+  CHECK(mesh_defaults.volume == 1);
+  CHECK(mesh_defaults.bsp_tree_null);
+  CHECK(mesh_defaults.multi_mesh_null);
+  CHECK(mesh_defaults.compressed_verts_null);
+  CHECK(mesh_defaults.num_compressed_verts == 0);
+  CHECK(mesh_defaults.file_loader_null);
+  CHECK(!mesh_defaults.has_ao_calc);
+  CHECK(!mesh_defaults.keep_mesh_data);
+  CHECK(mesh_defaults.unk9p2);
+  CHECK(!mesh_defaults.force_no_quantize);
+
+  const auto mesh_destructor =
+      ghogx::character::source_rndmesh_destructor_plan();
+  CHECK(mesh_destructor.release_file_loader);
+  CHECK(mesh_destructor.release_bsp_tree);
+  CHECK(mesh_destructor.release_multi_mesh);
+  CHECK(mesh_destructor.clear_compressed_verts);
+  CHECK(mesh_destructor.clear_compressed_verts_zeros_count);
+  CHECK(!mesh_destructor.directly_releases_material);
+  CHECK(!mesh_destructor.directly_releases_geom_owner);
+
   ghogx::milo_scene::Xfm mesh_world;
   mesh_world.pos[0] = 10.0f;
   ghogx::milo_scene::Xfm bone_world;

@@ -1146,6 +1146,16 @@ flow; they do not claim the opaque GH2 root body is now field-decoded.
     `SetZeroWeightBones` rule as a deterministic contract only: if the active
     source bone count is below two, it does nothing; otherwise zero weights in
     slots 1, 2, or 3 copy slot 0's bone index into that zero-weight slot.
+  - Native `source_rndmesh_default_state` records the visible `RndMesh`
+    constructor defaults: null material, self geometry owner, empty bone list,
+    mutable flags `0`, triangle volume, null BSP/multimesh/compressed-verts/
+    file-loader pointers, compressed vertex count `0`, `mHasAOCalc=false`,
+    `mKeepMeshData=false`, `unk9p2=true`, and `mForceNoQuantize=false`.
+    Native `source_rndmesh_destructor_plan` records the checked destructor
+    body: release `mFileLoader`, `mBSPTree`, and `mMultiMesh`, then call
+    `ClearCompressedVerts()`. The destructor body does not directly release the
+    material pointer or geometry owner pointer, so native must not infer
+    renderer or ownership changes from it.
   - The visible RB3 `RndMesh` ownership helpers are now mirrored as source
     plans: `MaxBones()` is 40 from ihatecompvir's `MAX_BONES`; `Sync(mask)` ORs `0x200` only while
     `mKeepMeshData` is true; `ClearCompressedVerts()` releases the compressed

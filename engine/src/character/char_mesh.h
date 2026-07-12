@@ -873,6 +873,33 @@ SourceRndMeshCopyPlan source_rndmesh_copy_plan(
     bool copy_from_max,
     bool source_geom_owner_is_self);
 
+struct SourceRndMeshDefaultState {
+  bool material_null = true;
+  bool geom_owner_self = true;
+  bool bones_empty = true;
+  int32_t mutable_flags = 0;
+  int32_t volume = 1;
+  bool bsp_tree_null = true;
+  bool multi_mesh_null = true;
+  bool compressed_verts_null = true;
+  uint32_t num_compressed_verts = 0;
+  bool file_loader_null = true;
+  bool has_ao_calc = false;
+  bool keep_mesh_data = false;
+  bool unk9p2 = true;
+  bool force_no_quantize = false;
+};
+
+struct SourceRndMeshDestructorPlan {
+  bool release_file_loader = true;
+  bool release_bsp_tree = true;
+  bool release_multi_mesh = true;
+  bool clear_compressed_verts = true;
+  bool clear_compressed_verts_zeros_count = true;
+  bool directly_releases_material = false;
+  bool directly_releases_geom_owner = false;
+};
+
 struct SourceRndMeshSyncPlan {
   int32_t input_mask = 0;
   bool keep_mesh_data = false;
@@ -1104,6 +1131,8 @@ struct SourceRndMeshCacheStripsPlan {
   bool cache_strips = false;
 };
 
+SourceRndMeshDefaultState source_rndmesh_default_state();
+SourceRndMeshDestructorPlan source_rndmesh_destructor_plan();
 int32_t source_rndmesh_max_bones();
 SourceRndMeshSyncPlan source_rndmesh_sync_plan(int32_t mask,
                                                bool keep_mesh_data);

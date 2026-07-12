@@ -1453,6 +1453,14 @@ SourceRndMeshZeroWeightPlan source_rndmesh_set_zero_weight_bones(
   return plan;
 }
 
+SourceRndMeshDefaultState source_rndmesh_default_state() {
+  return SourceRndMeshDefaultState{};
+}
+
+SourceRndMeshDestructorPlan source_rndmesh_destructor_plan() {
+  return SourceRndMeshDestructorPlan{};
+}
+
 int32_t source_rndmesh_max_bones() {
   return 40;
 }

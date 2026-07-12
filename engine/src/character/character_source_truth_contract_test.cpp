@@ -3618,6 +3618,18 @@ int run_contract() {
   ok &= contains(rb3_mesh_cpp,
                  "if(gRev<0x1F)SetZeroWeightBones();",
                  "RB3 RndMesh zero-weight bone-index cleanup gate");
+  ok &= contains(rb3_mesh_cpp,
+                 "RndMesh::RndMesh():mMat(this,NULL),mGeomOwner(this,this),"
+                 "mBones(this),mMutable(0),mVolume(kVolumeTriangles),"
+                 "mBSPTree(0),mMultiMesh(0),mCompressedVerts(0),"
+                 "mNumCompressedVerts(0),mFileLoader(0){mHasAOCalc=false;"
+                 "mKeepMeshData=false;unk9p2=true;mForceNoQuantize=false;}",
+                 "RB3 RndMesh constructor exposes source defaults");
+  ok &= contains(rb3_mesh_cpp,
+                 "RndMesh::~RndMesh(){RELEASE(mFileLoader);"
+                 "RELEASE(mBSPTree);RELEASE(mMultiMesh);"
+                 "ClearCompressedVerts();}",
+                 "RB3 RndMesh destructor exposes cleanup body");
   ok &= contains(rb3_mesh_cpp, "intRndMesh::MaxBones(){returnMAX_BONES;}",
                  "RB3 RndMesh MaxBones helper is visible");
   ok &= contains(rb3_latest_mesh_h, "#defineMAX_BONES40",
@@ -3733,6 +3745,29 @@ int run_contract() {
                  "SourceRndMeshZeroWeightPlansource_rndmesh_set_zero_weight_bones(",
                  "native exposes RndMesh zero-weight source helper");
   ok &= contains(char_mesh_h,
+                 "structSourceRndMeshDefaultState{boolmaterial_null=true;"
+                 "boolgeom_owner_self=true;boolbones_empty=true;",
+                 "native exposes RndMesh constructor default state");
+  ok &= contains(char_mesh_h,
+                 "uint32_tnum_compressed_verts=0;boolfile_loader_null=true;"
+                 "boolhas_ao_calc=false;boolkeep_mesh_data=false;"
+                 "boolunk9p2=true;boolforce_no_quantize=false;};",
+                 "native RndMesh default state records source tail defaults");
+  ok &= contains(char_mesh_h,
+                 "structSourceRndMeshDestructorPlan{"
+                 "boolrelease_file_loader=true;boolrelease_bsp_tree=true;",
+                 "native exposes RndMesh destructor cleanup plan");
+  ok &= contains(char_mesh_h,
+                 "booldirectly_releases_material=false;"
+                 "booldirectly_releases_geom_owner=false;};",
+                 "native RndMesh destructor fences ownership assumptions");
+  ok &= contains(char_mesh_h,
+                 "SourceRndMeshDefaultStatesource_rndmesh_default_state();",
+                 "native exposes RndMesh default state helper");
+  ok &= contains(char_mesh_h,
+                 "SourceRndMeshDestructorPlansource_rndmesh_destructor_plan();",
+                 "native exposes RndMesh destructor helper");
+  ok &= contains(char_mesh_h,
                  "structSourceRndMeshSyncPlan{int32_tinput_mask=0;"
                  "boolkeep_mesh_data=false;int32_ton_sync_mask=0;};",
                  "native exposes RndMesh Sync plan");
@@ -3833,6 +3868,14 @@ int run_contract() {
                  "if(vertex.weights[3]==0.0f){vertex.bone_indices[3]="
                  "vertex.bone_indices[0];}",
                  "native zero-weight helper mirrors source slot 3 rewrite");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshDefaultStatesource_rndmesh_default_state(){"
+                 "returnSourceRndMeshDefaultState{};}",
+                 "native RndMesh default-state helper returns source defaults");
+  ok &= contains(char_mesh,
+                 "SourceRndMeshDestructorPlansource_rndmesh_destructor_plan(){"
+                 "returnSourceRndMeshDestructorPlan{};}",
+                 "native RndMesh destructor helper returns cleanup plan");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_vert_load_plan(28,true)",
                  "focused mesh decode test covers GH2 rev28 vertex load plan");
@@ -3842,6 +3885,12 @@ int run_contract() {
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_set_zero_weight_bones(",
                  "focused mesh decode test covers RndMesh zero-weight helper");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_default_state()",
+                 "focused mesh decode test covers RndMesh constructor defaults");
+  ok &= contains(mesh_decode_test,
+                 "source_rndmesh_destructor_plan()",
+                 "focused mesh decode test covers RndMesh destructor cleanup");
   ok &= contains(mesh_decode_test,
                  "source_rndmesh_field_gate_plan(28,0,24,1,true)",
                  "focused mesh decode test covers GH2 rev28 RndMesh field gates");
@@ -5012,6 +5061,12 @@ int run_contract() {
                  "`source_gltf_milo_build_bone_transforms` ports\n"
                  "    that per-chunk transform-list rule",
                  "document records glTFMilo bone transform helper");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_default_state` records the visible",
+                 "document records RndMesh constructor default helper");
+  ok &= contains(doc,
+                 "Native `source_rndmesh_destructor_plan` records the checked",
+                 "document records RndMesh destructor cleanup helper");
   ok &= contains(doc,
                  "`source_gltf_milo_export_trans_anim_plan` records",
                  "document records glTFMilo TransAnim export helper");
