@@ -3174,6 +3174,13 @@ note, and all report `unreadBytes=0`.
   - `SetVer` is the separate legacy source gate and asserts `ver < 13`.
     Native `source_char_bones_samples_set_ver_known` records that older
     pre-load boundary separately from the serialized `Load` range.
+  - Grim's `CharBonesSamples::get_type_of` uses the first dot in a sample
+    channel name and matches exact suffix strings only. That differs from the
+    C++ `CharBones::TypeOf` helper, which scans later dots. Native
+    `source_grim_char_bones_samples_get_type_of` preserves Grim's first-dot
+    rule and the `CharClipSamples` parser now uses it for serialized sample
+    rows, while keeping `source_char_bones_type_of` for C++ `CharBones`
+    layout/utility contracts.
   - `SetPreview` clamps the preview sample and points `mStart` at the selected
     packed row.
   - Native `source_char_bones_samples_allocate_size`,

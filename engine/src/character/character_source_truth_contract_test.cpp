@@ -792,6 +792,14 @@ int run_contract() {
                  "[12,4,16,4,4,4],",
                  "grim CharBonesSamples uncompressed raw size row");
   ok &= contains(grim_char_bones_samples_mod,
+                 "letlast_dot_idx=name.find('.');",
+                 "grim CharBonesSamples type classifier uses first dot");
+  ok &= contains(grim_char_bones_samples_mod,
+                 "matchext.as_str(){\".pos\"=>0,\".scale\"=>1,"
+                 "\".quat\"=>2,\".rotx\"=>3,\".roty\"=>4,\".rotz\"=>5,"
+                 "_=>7,}",
+                 "grim CharBonesSamples type classifier exact suffix table");
+  ok &= contains(grim_char_bones_samples_mod,
                  "forboneinbones{",
                  "grim CharBonesSamples walks samples in bone order");
   ok &= contains(grim_char_bones_samples_mod,
@@ -851,9 +859,24 @@ int run_contract() {
                  "grim CharClip accepts GH2/GH2 360 version 5");
   ok &= contains(char_clip_h, "SourceGrimCharClipSamplesLoadPlan",
                  "native exposes grim CharClipSamples load plan");
+  ok &= contains(char_clip_h,
+                 "intsource_grim_char_bones_samples_get_type_of("
+                 "conststd::string&channel);",
+                 "native exposes grim CharBonesSamples first-dot classifier");
   ok &= contains(char_clip,
                  "source_grim_char_clip_samples_version_known",
                  "native names grim CharClipSamples version gate");
+  ok &= contains(char_clip,
+                 "intsource_grim_char_bones_samples_get_type_of("
+                 "conststd::string&channel){",
+                 "native implements grim first-dot classifier");
+  ok &= contains(char_clip,
+                 "intc=source_grim_char_bones_samples_get_type_of(name);",
+                 "native sample-name validator uses grim classifier");
+  ok &= contains(char_clip,
+                 "out.cats.push_back(source_grim_char_bones_samples_get_type_of"
+                 "(name));",
+                 "native clip sample parser stores grim-classified categories");
   ok &= contains(char_clip, "candidate.resize(2);",
                  "native keeps two runtime data lists after duplicate header");
   ok &= contains(char_clip,

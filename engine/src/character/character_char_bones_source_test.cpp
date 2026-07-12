@@ -1544,6 +1544,21 @@ int main() {
   ok &= expect_int(source_grim_char_clip_version_known(12) ? 1 : 0, 1,
                    "grim CharClip version 12 accepted");
 
+  ok &= expect_int(source_grim_char_bones_samples_get_type_of("bone.pos"),
+                   kSourceCharBonesTypePos, "grim get_type_of pos");
+  ok &= expect_int(source_grim_char_bones_samples_get_type_of("bone.scale"),
+                   kSourceCharBonesTypeScale, "grim get_type_of scale");
+  ok &= expect_int(source_grim_char_bones_samples_get_type_of("bone.quat"),
+                   kSourceCharBonesTypeQuat, "grim get_type_of quat");
+  ok &= expect_int(source_grim_char_bones_samples_get_type_of("bone.rotx"),
+                   kSourceCharBonesTypeRotX, "grim get_type_of rotx");
+  ok &= expect_int(source_grim_char_bones_samples_get_type_of("bone.roty"),
+                   kSourceCharBonesTypeRotY, "grim get_type_of roty");
+  ok &= expect_int(source_grim_char_bones_samples_get_type_of("bone.rotz"),
+                   kSourceCharBonesTypeRotZ, "grim get_type_of rotz");
+  ok &= expect_int(source_grim_char_bones_samples_get_type_of("bone.head.pos"),
+                   kSourceCharBonesTypeEnd, "grim get_type_of first-dot rule");
+
   ok &= expect_size(
       source_grim_char_bones_samples_get_type_size(kSourceCharBonesTypePos, 0),
       16, "grim get_type_size pos uncompressed");

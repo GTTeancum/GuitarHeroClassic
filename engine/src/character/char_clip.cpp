@@ -995,6 +995,19 @@ bool source_grim_char_clip_version_known(int version) {
   return version == 5 || version == 12;
 }
 
+int source_grim_char_bones_samples_get_type_of(const std::string& channel) {
+  const size_t dot = channel.find('.');
+  if (dot == std::string::npos) return kSourceCharBonesTypeEnd;
+  const std::string ext = channel.substr(dot);
+  if (ext == ".pos") return kSourceCharBonesTypePos;
+  if (ext == ".scale") return kSourceCharBonesTypeScale;
+  if (ext == ".quat") return kSourceCharBonesTypeQuat;
+  if (ext == ".rotx") return kSourceCharBonesTypeRotX;
+  if (ext == ".roty") return kSourceCharBonesTypeRotY;
+  if (ext == ".rotz") return kSourceCharBonesTypeRotZ;
+  return kSourceCharBonesTypeEnd;
+}
+
 size_t source_grim_char_bones_samples_get_type_size(int type,
                                                     int compression) {
   if (type < 0 || type >= kSourceCharBonesTypeEnd) return 0u;
@@ -1925,7 +1938,7 @@ enum SourceCharBonesCompression {
 };
 
 bool is_valid_category_name(const std::string& name) {
-  int c = source_char_bones_type_of(name);
+  int c = source_grim_char_bones_samples_get_type_of(name);
   return c >= 0 && c < kSourceCharBonesTypeEnd;
 }
 
@@ -2038,7 +2051,7 @@ bool read_bone_list(const uint8_t* d, size_t n, size_t& at,
     c.pos += len;
     if (!is_valid_category_name(name)) return false;
     out.names.push_back(name);
-    out.cats.push_back(source_char_bones_type_of(name));
+    out.cats.push_back(source_grim_char_bones_samples_get_type_of(name));
     if (header_plan.reads_weight) {
       if (c.pos + 4 > n) return false;
       out.weights.push_back(c.f32());
