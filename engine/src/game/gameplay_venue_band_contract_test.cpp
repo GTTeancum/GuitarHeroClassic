@@ -6088,11 +6088,41 @@ int main() {
                  "frames<=kMaxObservedLightPresetFrames*kConservativeSlack",
                  "LightPreset timing keeps a documented source-observed cap");
   ok &= contains(gameplay_c,
-                 "k.duration=read_light_preset_timing_f32(body,size,label_end);",
-                 "LightPreset duration is sanitized before transition use");
+                 "std::optional<Gameplay::LightingPreset>"
+                 "decode_light_preset_source_order(",
+                 "LightPreset has an ihatecompvir source-order reader");
   ok &= contains(gameplay_c,
-                 "k.fade_out=read_light_preset_timing_f32(body,size,label_end+4);",
-                 "LightPreset fade is sanitized before transition use");
+                 "read_object_fields_like_miloeditor(r,object_props);",
+                 "LightPreset source reader follows the Hmx::Object superclass");
+  ok &= contains(gameplay_c,
+                 "constautoanim_header=read_rnd_animatable_like_miloeditor(r);",
+                 "LightPreset source reader follows the RndAnimatable superclass");
+  ok &= contains(gameplay_c,
+                 "decoded_keyframes.push_back("
+                 "read_light_preset_keyframe_like_ihatecompvir(",
+                 "LightPreset source reader uses the counted keyframe vector");
+  ok &= contains(gameplay_c,
+                 "out.keyframe.duration=r.f32();",
+                 "LightPreset duration comes from the source keyframe field");
+  ok &= contains(gameplay_c,
+                 "out.keyframe.fade_out=r.f32();",
+                 "LightPreset fade comes from the source keyframe field");
+  ok &= contains(gameplay_c,
+                 "if(!plausible_lighting_frame_count(out.keyframe.duration))",
+                 "LightPreset source duration is sanitized before transition use");
+  ok &= contains(gameplay_c,
+                 "if(!plausible_lighting_frame_count(out.keyframe.fade_out))",
+                 "LightPreset source fade is sanitized before transition use");
+  ok &= contains(gameplay_c,
+                 "preset.source_order_decoded=true;",
+                 "LightPreset marks successful source-order decode");
+  ok &= contains(gameplay_c,
+                 "if(decoded)p=std::move(*decoded);",
+                 "LightPreset load prefers the source-order reader before fallback");
+  ok &= contains(gameplay_c,
+                 "\"[world]LightPreset%ssource_order=%drev=%u"
+                 "anim_rev=%urate=%dcategory=%sadjective=%s",
+                 "LightPreset diagnostics expose source-order decode");
   ok &= contains(gameplay_c,
                  "voidpopulate_lighting_keyframe_payload("
                  "Gameplay::LightingPreset::Keyframe&keyframe,"

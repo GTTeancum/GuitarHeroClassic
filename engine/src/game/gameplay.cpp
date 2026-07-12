@@ -6482,6 +6482,264 @@ void collect_lighting_object_refs(const std::vector<std::string>& strings,
     }
 }
 
+uint32_t read_light_preset_count_like_ihatecompvir(MiloCursor& r,
+                                                   const char* label,
+                                                   uint32_t max_count) {
+    const uint32_t count = r.u32();
+    if (count > max_count) {
+        throw std::runtime_error(std::string("LightPreset ") + label +
+                                 " count invalid");
+    }
+    return count;
+}
+
+std::vector<std::string> read_light_preset_symbol_vector(MiloCursor& r,
+                                                         const char* label,
+                                                         uint32_t max_count) {
+    const uint32_t count =
+        read_light_preset_count_like_ihatecompvir(r, label, max_count);
+    std::vector<std::string> out;
+    out.reserve(count);
+    for (uint32_t i = 0; i < count; ++i)
+        out.push_back(canonical_milo_ref(r.symbol()));
+    return out;
+}
+
+struct DecodedLightPresetSpotEntry {
+    std::string target;
+    float intensity = 0.0f;
+    float color[3] = {1.0f, 1.0f, 1.0f};
+};
+
+struct DecodedLightPresetKeyframe {
+    Gameplay::LightingPreset::Keyframe keyframe;
+    std::vector<DecodedLightPresetSpotEntry> spot_entries;
+};
+
+DecodedLightPresetSpotEntry read_light_preset_spot_entry_like_ihatecompvir(
+    MiloCursor& r, uint16_t revision) {
+    DecodedLightPresetSpotEntry out;
+    out.intensity = std::clamp(r.f32(), 0.0f, 4.0f);
+    for (int i = 0; i < 4; ++i) (void)r.f32();  // direction quaternion
+    for (int i = 0; i < 4; ++i) {
+        const float c = r.f32();
+        if (i < 3) out.color[i] = std::clamp(c, 0.0f, 4.0f);
+    }
+    out.target = canonical_milo_ref(r.symbol());
+    if (revision < 0x13) {
+        const std::string legacy_target = canonical_milo_ref(r.symbol());
+        if (out.target.empty()) out.target = legacy_target;
+    }
+    if (revision > 1) {
+        (void)r.boolean();  // flare enabled
+        if (revision < 9) (void)r.i32();
+    }
+    return out;
+}
+
+void skip_light_preset_environment_entry_like_ihatecompvir(MiloCursor& r) {
+    for (int i = 0; i < 4; ++i) (void)r.f32();
+    (void)r.boolean();
+    (void)r.f32();
+    (void)r.f32();
+    for (int i = 0; i < 4; ++i) (void)r.f32();
+}
+
+void skip_light_preset_env_light_entry_like_ihatecompvir(MiloCursor& r) {
+    for (int i = 0; i < 4; ++i) (void)r.f32();
+    for (int i = 0; i < 3; ++i) (void)r.f32();
+    for (int i = 0; i < 4; ++i) (void)r.f32();
+    (void)r.f32();
+    (void)r.i32();
+}
+
+void skip_light_preset_drawer_entry_like_ihatecompvir(MiloCursor& r,
+                                                      uint16_t revision) {
+    (void)r.f32();
+    (void)r.f32();
+    (void)r.f32();
+    if (revision > 0x0f) (void)r.f32();
+}
+
+DecodedLightPresetKeyframe read_light_preset_keyframe_like_ihatecompvir(
+    MiloCursor& r, uint16_t revision, size_t index) {
+    DecodedLightPresetKeyframe out;
+    out.keyframe.record_start = r.pos;
+    out.keyframe.duration = r.f32();
+    out.keyframe.fade_out = r.f32();
+    if (!plausible_lighting_frame_count(out.keyframe.duration))
+        out.keyframe.duration = 0.0f;
+    if (!plausible_lighting_frame_count(out.keyframe.fade_out))
+        out.keyframe.fade_out = 0.0f;
+
+    const uint32_t spotlight_count =
+        read_light_preset_count_like_ihatecompvir(r, "spotlight keyframe",
+                                                  4096);
+    out.spot_entries.reserve(spotlight_count);
+    for (uint32_t i = 0; i < spotlight_count; ++i) {
+        out.spot_entries.push_back(
+            read_light_preset_spot_entry_like_ihatecompvir(r, revision));
+    }
+
+    const uint32_t environment_count =
+        read_light_preset_count_like_ihatecompvir(r, "environment keyframe",
+                                                  4096);
+    for (uint32_t i = 0; i < environment_count; ++i)
+        skip_light_preset_environment_entry_like_ihatecompvir(r);
+
+    const uint32_t light_count =
+        read_light_preset_count_like_ihatecompvir(r, "light keyframe", 4096);
+    for (uint32_t i = 0; i < light_count; ++i)
+        skip_light_preset_env_light_entry_like_ihatecompvir(r);
+
+    if (revision > 5) out.keyframe.name = r.symbol();
+
+    if (revision > 9) {
+        const uint32_t drawer_count =
+            read_light_preset_count_like_ihatecompvir(
+                r, "spotlight drawer keyframe", 4096);
+        for (uint32_t i = 0; i < drawer_count; ++i)
+            skip_light_preset_drawer_entry_like_ihatecompvir(r, revision);
+    }
+    if (revision > 0x11) (void)r.symbol();  // video venue post-process
+    if (revision > 0x13)
+        (void)read_light_preset_symbol_vector(r, "keyframe triggers", 4096);
+    if (revision > 0x0b) {
+        for (int i = 0; i < 9; ++i) (void)r.i32();
+    }
+
+    if (out.keyframe.name.empty())
+        out.keyframe.name = "source_keyframe_" + std::to_string(index);
+    out.keyframe.record_end = r.pos;
+    out.keyframe.label_offset = out.keyframe.record_end;
+    return out;
+}
+
+void apply_source_light_preset_keyframes(
+    Gameplay::LightingPreset& preset,
+    std::vector<DecodedLightPresetKeyframe>& decoded_keyframes) {
+    preset.keyframes.clear();
+    preset.keyframe_names.clear();
+    preset.keyframe_label_offsets.clear();
+    preset.keyframes.reserve(decoded_keyframes.size());
+    for (auto& decoded : decoded_keyframes) {
+        auto& keyframe = decoded.keyframe;
+        for (size_t i = 0; i < decoded.spot_entries.size(); ++i) {
+            if (i < preset.spot_refs.size()) {
+                add_unique_lighting_ref(keyframe.spot_refs,
+                                        preset.spot_refs[i]);
+            }
+            const auto& entry = decoded.spot_entries[i];
+            if (!is_spotlight_target_mesh(entry.target)) continue;
+            add_unique_lighting_ref(keyframe.mesh_targets, entry.target);
+            Gameplay::LightingPreset::TargetState state;
+            state.target = entry.target;
+            state.intensity = entry.intensity;
+            state.color[0] = entry.color[0];
+            state.color[1] = entry.color[1];
+            state.color[2] = entry.color[2];
+            keyframe.target_states.push_back(std::move(state));
+        }
+        for (const auto& env_ref : preset.env_refs)
+            add_unique_lighting_ref(keyframe.env_refs, env_ref);
+        for (const auto& lit_ref : preset.lit_refs)
+            add_unique_lighting_ref(keyframe.lit_refs, lit_ref);
+        preset.keyframe_names.push_back(keyframe.name);
+        preset.keyframe_label_offsets.push_back(keyframe.label_offset);
+        preset.keyframes.push_back(std::move(keyframe));
+    }
+}
+
+std::optional<Gameplay::LightingPreset> decode_light_preset_source_order(
+    const std::string& name, const uint8_t* body, size_t size) {
+    if (!body || size < 4) return std::nullopt;
+    MiloCursor r{body, size, 0};
+    Gameplay::LightingPreset preset;
+    preset.name = name;
+    const uint32_t combined_revision = r.u32();
+    preset.revision = static_cast<uint16_t>(combined_revision & 0xffff);
+    if (preset.revision > 0x15) {
+        throw std::runtime_error("LightPreset revision unsupported");
+    }
+    if (preset.revision == 0x0e) {
+        throw std::runtime_error("LightPreset P9 revision unsupported");
+    }
+
+    std::unordered_map<std::string, MiloValue> object_props;
+    read_object_fields_like_miloeditor(r, object_props);
+    const auto anim_header = read_rnd_animatable_like_miloeditor(r);
+    preset.anim_revision = anim_header.revision;
+    preset.anim_rate = anim_header.rate;
+
+    std::vector<DecodedLightPresetKeyframe> decoded_keyframes;
+    const uint32_t keyframe_count =
+        read_light_preset_count_like_ihatecompvir(r, "keyframe", 4096);
+    preset.keyframe_count = keyframe_count;
+    decoded_keyframes.reserve(keyframe_count);
+    for (uint32_t i = 0; i < keyframe_count; ++i) {
+        decoded_keyframes.push_back(
+            read_light_preset_keyframe_like_ihatecompvir(r, preset.revision,
+                                                         i));
+    }
+
+    preset.spot_refs =
+        read_light_preset_symbol_vector(r, "spotlight refs", 4096);
+    preset.env_refs =
+        read_light_preset_symbol_vector(r, "environment refs", 4096);
+    preset.lit_refs = read_light_preset_symbol_vector(r, "light refs", 4096);
+
+    if (preset.revision < 5) {
+        const bool has_legacy_keyframe = r.boolean();
+        if (has_legacy_keyframe) {
+            (void)read_light_preset_keyframe_like_ihatecompvir(
+                r, preset.revision, decoded_keyframes.size());
+        }
+    }
+    preset.looping = r.boolean();
+    const std::string source_category = r.symbol();
+    if (is_lighting_category(source_category)) preset.category = source_category;
+    if (preset.revision < 0x11) {
+        const auto categories =
+            read_light_preset_symbol_vector(r, "legacy category", 256);
+        for (const auto& category : categories) {
+            if (preset.adjective.empty() && is_lighting_adjective(category))
+                preset.adjective = category;
+            if (preset.category.empty() && is_lighting_category(category))
+                preset.category = category;
+        }
+    }
+    if (preset.revision < 7) {
+        (void)r.symbol();
+    } else if (preset.revision < 0x15) {
+        (void)r.symbol();
+    } else {
+        (void)read_light_preset_symbol_vector(r, "select triggers", 4096);
+    }
+    if (preset.revision < 5) (void)r.symbol();
+    (void)r.f32();  // legacy fade-in
+    if (preset.revision != 0 && preset.revision < 0x11) (void)r.i32();
+    if (preset.revision - 3 < 0x0e) (void)r.i32();
+    if (preset.revision > 3) {
+        preset.manual = r.boolean();
+        preset.locked = r.boolean();
+    }
+    if (preset.revision > 0x0c) preset.platform_only = r.i32();
+    if (preset.revision > 9) {
+        (void)read_light_preset_symbol_vector(r, "spotlight drawers", 4096);
+    }
+    if (preset.revision == 0x0b) {
+        for (int i = 0; i < 8; ++i) (void)r.i32();
+    }
+    if (r.pos != r.size) {
+        throw std::runtime_error(
+            "LightPreset source-shaped reader did not consume EOF");
+    }
+
+    apply_source_light_preset_keyframes(preset, decoded_keyframes);
+    preset.source_order_decoded = true;
+    return preset;
+}
+
 std::vector<std::string> extract_lighting_keyframe_labels(
     const uint8_t* body, size_t size, uint32_t count,
     const LightingObjectNameSets* names,
@@ -6685,39 +6943,73 @@ std::vector<Gameplay::LightingPreset> load_lighting_presets(
             }
             const uint8_t* body = payload.data() + de.offset;
             Gameplay::LightingPreset p;
-            p.name = de.name;
-            p.keyframe_count = body[0x19];
-            if (de.size >= 10) {
-                std::memcpy(&p.min_excitement,
-                            body + static_cast<size_t>(de.size) - 10,
-                            sizeof(p.min_excitement));
-                std::memcpy(&p.max_excitement,
-                            body + static_cast<size_t>(de.size) - 6,
-                            sizeof(p.max_excitement));
+            try {
+                auto decoded = decode_light_preset_source_order(
+                    de.name, body, static_cast<size_t>(de.size));
+                if (decoded) p = std::move(*decoded);
+            } catch (const std::exception& ex) {
+                if (debug_venue_filters_enabled()) {
+                    std::fprintf(stderr,
+                                 "[world] LightPreset source decode failed: "
+                                 "%s %s\n",
+                                 de.name.c_str(), ex.what());
+                }
             }
             auto strings = scan_milo_strings(body, static_cast<size_t>(de.size));
-            for (const auto& s : strings) {
-                if (is_lighting_category(s)) p.category = s;
-                if (is_lighting_adjective(s)) p.adjective = s;
+            if (p.source_order_decoded) {
+                for (const auto& s : strings) {
+                    if (p.category.empty() && is_lighting_category(s))
+                        p.category = s;
+                    if (p.adjective.empty() && is_lighting_adjective(s))
+                        p.adjective = s;
+                }
+                collect_lighting_object_refs(strings, &local_names,
+                                             &spotlight_sets, p.spot_refs,
+                                             &p.spot_set_refs, p.env_refs,
+                                             p.lit_refs);
+                for (auto& keyframe : p.keyframes) {
+                    for (const auto& env_ref : p.env_refs)
+                        add_unique_lighting_ref(keyframe.env_refs, env_ref);
+                    for (const auto& lit_ref : p.lit_refs)
+                        add_unique_lighting_ref(keyframe.lit_refs, lit_ref);
+                }
+            } else {
+                p.name = de.name;
+                p.keyframe_count = body[0x19];
+                if (de.size >= 10) {
+                    std::memcpy(&p.min_excitement,
+                                body + static_cast<size_t>(de.size) - 10,
+                                sizeof(p.min_excitement));
+                    std::memcpy(&p.max_excitement,
+                                body + static_cast<size_t>(de.size) - 6,
+                                sizeof(p.max_excitement));
+                }
+                for (const auto& s : strings) {
+                    if (is_lighting_category(s)) p.category = s;
+                    if (is_lighting_adjective(s)) p.adjective = s;
+                }
+                collect_lighting_object_refs(strings, &local_names,
+                                             &spotlight_sets, p.spot_refs,
+                                             &p.spot_set_refs, p.env_refs,
+                                             p.lit_refs);
+                p.keyframe_names = extract_lighting_keyframe_labels(
+                    body, static_cast<size_t>(de.size), p.keyframe_count,
+                    &local_names, &p.keyframe_label_offsets);
+                p.keyframes = extract_lighting_keyframes(
+                    body, static_cast<size_t>(de.size), p.keyframe_count,
+                    p.keyframe_names, p.keyframe_label_offsets, &local_names,
+                    &spotlight_sets);
             }
-            collect_lighting_object_refs(strings, &local_names, &spotlight_sets,
-                                         p.spot_refs, &p.spot_set_refs,
-                                         p.env_refs, p.lit_refs);
-            p.keyframe_names = extract_lighting_keyframe_labels(
-                body, static_cast<size_t>(de.size), p.keyframe_count,
-                &local_names, &p.keyframe_label_offsets);
-            p.keyframes = extract_lighting_keyframes(
-                body, static_cast<size_t>(de.size), p.keyframe_count,
-                p.keyframe_names, p.keyframe_label_offsets, &local_names,
-                &spotlight_sets);
             out.push_back(std::move(p));
         }
         std::fprintf(stderr, "[world] lighting presets decoded: %zu\n",
                      out.size());
         for (const auto& p : out) {
             std::fprintf(stderr,
-                         "[world]   LightPreset %s category=%s adjective=%s keyframes=%u excitement=%u..%u preset_refs=%zu/%zu/%zu sets=%zu",
-                         p.name.c_str(), p.category.c_str(),
+                         "[world]   LightPreset %s source_order=%d rev=%u anim_rev=%u rate=%d category=%s adjective=%s keyframes=%u excitement=%u..%u preset_refs=%zu/%zu/%zu sets=%zu",
+                         p.name.c_str(), p.source_order_decoded ? 1 : 0,
+                         p.revision, p.anim_revision, p.anim_rate,
+                         p.category.c_str(),
                          p.adjective.c_str(), p.keyframe_count,
                          p.min_excitement, p.max_excitement,
                          p.spot_refs.size(), p.env_refs.size(),

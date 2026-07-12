@@ -242,6 +242,14 @@ class Gameplay {
     std::string name;
     std::string category;
     std::string adjective;
+    uint16_t revision = 0;
+    uint16_t anim_revision = 0;
+    int anim_rate = 0;
+    bool source_order_decoded = false;
+    bool looping = false;
+    bool manual = false;
+    bool locked = false;
+    int platform_only = 0;
     uint32_t keyframe_count = 0;
     uint32_t min_excitement = 0;
     uint32_t max_excitement = 4;
